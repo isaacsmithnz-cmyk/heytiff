@@ -61,7 +61,7 @@ export function toolboxHtml() {
     hint("No tools yet") +
     "</div></div></div>";
   return (
-    '<div class="wrap"><div class="tbx-head"><div class="stg"><div class="tbx-eb">Field Tools &amp; Reference</div><h1>Toolbox</h1></div>' +
+    '<div class="wrap"><div class="tbx-head"><div class="stg"><h1>Toolbox</h1></div>' +
     '<div class="tbx-search">' +
     I("search", 18) +
     '<input placeholder="Search tools..."></div></div>' +
@@ -69,6 +69,48 @@ export function toolboxHtml() {
     cats.map(card).join("") +
     "</div></div>"
   );
+}
+
+/* ---------------- tabbed empty-state page (Time & Pay, Assets) ---------------- */
+function tabPage(title: string, tabs: [string, string, string, string][]) {
+  const tabBar = tabs
+    .map(
+      (t, i) =>
+        `<button class="ptab${i === 0 ? " on" : ""}" data-ptab="${i}">${t[0]}</button>`
+    )
+    .join("");
+  const panels = tabs
+    .map(
+      (t, i) =>
+        `<div class="ptabpanel${i === 0 ? " on" : ""}" data-ppanel="${i}">` +
+        '<div class="emptybox"><span class="ei">' +
+        I(t[1], 24) +
+        `</span><b>${t[2]}</b><em>${t[3]}</em></div></div>`
+    )
+    .join("");
+  return (
+    '<div class="wrap"><div class="stg">' +
+    '<div class="v2head" style="margin-bottom:24px"><div>' +
+    `<h1 style="font-size:44px;font-weight:800;letter-spacing:-0.03em;margin:0">${title}</h1></div></div>` +
+    `<div class="ptabs">${tabBar}</div>` +
+    `<div class="ptabpanels">${panels}</div>` +
+    "</div></div>"
+  );
+}
+
+export function timepayHtml() {
+  return tabPage("Time & Pay", [
+    ["Timesheets", "clock", "No hours logged yet", "Staff submit hours per day &amp; job; managers approve and roll up here."],
+    ["Leave & absences", "calendar", "No leave requests", "Requests, balances and a team calendar will appear here."],
+    ["Expenses", "receipt", "No expense claims", "Claims with receipts land here for approval and Xero export."],
+  ]);
+}
+
+export function assetsHtml() {
+  return tabPage("Assets", [
+    ["Fleet", "truck", "No vehicles yet", "Assign vehicles, track service, rego &amp; insurance expiry and fuel."],
+    ["Equipment & tools", "box", "No equipment registered", "Register serials, holders and calibration / test-tag dates."],
+  ]);
 }
 
 /* ---------------- TIFF AI — hero + icon suggestions + empty threads ---------------- */

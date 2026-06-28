@@ -41,12 +41,28 @@ export function AppShell({
     card.style.setProperty("--my", `${e.clientY - r.top}px`);
   }, []);
 
+  // tab switching for .ptab tabbed pages (Time & Pay, Assets) — matches the
+  // original page's delegated click handler.
+  const onClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    const tab = target.closest<HTMLElement>(".ptab");
+    if (!tab) return;
+    const idx = tab.dataset.ptab;
+    const tabs = tab.parentElement;
+    if (!tabs) return;
+    tabs.querySelectorAll(".ptab").forEach((t) => t.classList.toggle("on", t === tab));
+    const panels = tabs.parentElement?.querySelector(".ptabpanels");
+    panels
+      ?.querySelectorAll<HTMLElement>(".ptabpanel")
+      .forEach((p) => p.classList.toggle("on", p.dataset.ppanel === idx));
+  }, []);
+
   return (
-    <div className="fg" onMouseMove={onMouseMove}>
+    <div className="fg" onMouseMove={onMouseMove} onClick={onClick}>
       <div className="gridbg" />
-      <Sidebar user={user} />
+      <Sidebar />
       <div className="main">
-        <Topbar onOpenCommand={openCmd} />
+        <Topbar user={user} onOpenCommand={openCmd} />
         {/* key by pathname so each screen remounts (and its entrance animation replays) on navigation */}
         <main className="outlet" key={pathname}>
           {children}

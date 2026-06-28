@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
 import { Sidebar, type ShellUser } from "./sidebar";
 import { Topbar } from "./topbar";
 import { CommandPalette } from "./command-palette";
@@ -13,7 +12,6 @@ export function AppShell({
   user: ShellUser;
   children: React.ReactNode;
 }) {
-  const pathname = usePathname();
   const [cmdOpen, setCmdOpen] = useState(false);
 
   const openCmd = useCallback(() => setCmdOpen(true), []);
@@ -47,10 +45,10 @@ export function AppShell({
       <Sidebar user={user} />
       <div className="main">
         <Topbar onOpenCommand={openCmd} />
-        {/* key by pathname so each screen remounts (and its entrance animation replays) on navigation */}
-        <main className="outlet" key={pathname}>
-          {children}
-        </main>
+        {/* The router swaps the page subtree on navigation, so each screen's
+            `.page in` remounts and its entrance animation replays — no need to
+            remount (and rebuild/scroll-reset) the whole <main>. */}
+        <main className="outlet">{children}</main>
       </div>
       <CommandPalette open={cmdOpen} onClose={closeCmd} />
     </div>

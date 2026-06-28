@@ -1,6 +1,9 @@
 import { Screen } from "@/components/shell/screen";
-import { blankHtml } from "@/components/shell/screens";
+import { adminHtml } from "@/components/shell/screens";
+import { getOrgRole, hasMinRole } from "@/lib/roles";
 
-export default function AdminPage() {
-  return <Screen html={blankHtml("Admin")} />;
+export default async function AdminPage() {
+  const role = await getOrgRole();
+  const canInvite = hasMinRole(role, "admin");
+  return <Screen html={adminHtml(canInvite)} />;
 }

@@ -114,6 +114,45 @@ export function tiffHtml() {
   );
 }
 
+/* ---------------- ADMIN — invite card (admin/owner only) ---------------- */
+export function adminHtml(canInvite: boolean) {
+  const head =
+    '<div class="v2head" style="margin-bottom:32px"><div>' +
+    '<h1 style="font-size:44px;font-weight:800;letter-spacing:-0.03em;margin:0">Admin</h1></div></div>';
+
+  if (!canInvite) {
+    return (
+      '<div class="wrap"><div class="stg">' +
+      head +
+      '<div style="padding:80px 16px;text-align:center;border:1.5px dashed #e6e8ee;border-radius:24px;background:linear-gradient(180deg,#fafbfc,#fff)">' +
+      '<b style="display:block;font-size:16px;font-weight:700;color:#6b7280">Admin tools</b>' +
+      '<em style="font-style:normal;display:block;font-size:13px;color:#9ca3af;margin-top:6px">Available to owners and admins.</em></div>' +
+      "</div></div>"
+    );
+  }
+
+  const inviteCard =
+    '<a href="/invite" class="spot" style="display:block;text-decoration:none;background:#fff;border-radius:24px;border:1px solid #f0f0f2;box-shadow:0 8px 30px rgba(0,0,0,.03);padding:32px;max-width:520px">' +
+    '<span class="sglow"></span>' +
+    '<div style="display:flex;align-items:center;gap:16px;margin-bottom:16px">' +
+    '<div style="width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:rgba(0,229,192,0.1);border:1px solid rgba(0,229,192,0.3);color:#00A389;flex:0 0 auto">' +
+    I("users", 22) +
+    "</div>" +
+    '<div><div style="font-size:18px;font-weight:800;color:#050505">Invite your team</div>' +
+    '<div style="font-size:13px;color:#6b7280;font-weight:500">Send an invite link and assign a role</div></div></div>' +
+    '<span style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:12px;background:#050505;color:#fff;font-size:14px;font-weight:700">Invite someone ' +
+    I("arrowR", 16) +
+    "</span></a>";
+
+  return (
+    '<div class="wrap"><div class="stg">' +
+    head +
+    '<div style="font-size:11px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#9ca3af;margin-bottom:16px">Team</div>' +
+    inviteCard +
+    "</div></div>"
+  );
+}
+
 /* ---------------- generic titled empty screen (Team / Studio / Admin) ---------------- */
 export function blankHtml(title: string) {
   return (

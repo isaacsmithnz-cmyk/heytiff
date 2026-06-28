@@ -449,3 +449,41 @@
   .fg-cmd .cfoot { display:flex; align-items:center; justify-content:space-between; padding:12px 24px; border-top:1px solid #f3f4f6; background:rgba(249,250,251,.5); }
   .fg-cmd .cf-l { display:flex; align-items:center; gap:8px; font-size:11px; font-weight:700; color:#9ca3af; }
   .fg-cmd .cf-r { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:#9ca3af; }
+
+/* ===== v3 — DARK FRAME shell ====================================================
+   The black sidebar continues up & across the top header and down the right side,
+   wrapping the light content into a rounded "well" (top-left radius matches the
+   home hero card, 40px). These rules sit last so they override the light shell. == */
+
+/* the frame colour */
+.fg { background:#050505; }
+.fg .gridbg { display:none; }                 /* dotted grid was for a light page bg */
+
+/* sidebar melts into the frame (no edge / shadow) */
+.fg .side { box-shadow:none; border-right:none; }
+
+/* top header becomes part of the black frame */
+.fg .topbar { background:transparent; -webkit-backdrop-filter:none; backdrop-filter:none; border-bottom:none; box-shadow:none; padding:0 26px; }
+
+/* topbar controls restyled to read on black */
+.fg .searchbtn .sf { background:rgba(255,255,255,.05); border-color:rgba(255,255,255,.1); color:rgba(255,255,255,.5); box-shadow:none; }
+.fg .searchbtn:hover .sf { background:rgba(255,255,255,.09); border-color:rgba(0,229,192,.5); }
+.fg .searchbtn .si { color:rgba(255,255,255,.4); }
+.fg .searchbtn:hover .si { color:var(--teal); }
+.fg .searchbtn .kbd { background:rgba(255,255,255,.08); color:rgba(255,255,255,.55); }
+.fg .bell { background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); color:rgba(255,255,255,.6); }
+.fg .bell:hover { background:rgba(255,255,255,.12); color:#fff; box-shadow:none; }
+.fg .bell .d { border-color:#050505; }
+
+/* the light content well, inset so the dark frame shows across top / right / bottom */
+.fg .main { padding:0 16px 16px 0; }
+.fg .outlet {
+  background:#EDEFF4;
+  border-radius:40px 30px 30px 30px;   /* top-left 40px = same as the home hero card */
+  background-image:radial-gradient(circle at 1px 1px, rgba(40,38,70,.05) 1px, transparent 0);
+  background-size:26px 26px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.6);
+}
+
+/* the page sits flush; its own top padding gives breathing room under the header */
+.fg .page { background:transparent; }

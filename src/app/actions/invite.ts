@@ -29,5 +29,5 @@ export async function createInvite(formData: FormData) {
 
   // TODO: send invite email via Resend when wired up
 
-  redirect("/invite");
+  redirect("/dashboard/admin/invite");
 }

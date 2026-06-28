@@ -132,7 +132,7 @@ export function adminHtml(canInvite: boolean) {
   }
 
   const inviteCard =
-    '<a href="/invite" class="spot" style="display:block;text-decoration:none;background:#fff;border-radius:24px;border:1px solid #f0f0f2;box-shadow:0 8px 30px rgba(0,0,0,.03);padding:32px;max-width:520px">' +
+    '<a href="/dashboard/admin/invite" class="spot" style="display:block;text-decoration:none;background:#fff;border-radius:24px;border:1px solid #f0f0f2;box-shadow:0 8px 30px rgba(0,0,0,.03);padding:32px;max-width:520px">' +
     '<span class="sglow"></span>' +
     '<div style="display:flex;align-items:center;gap:16px;margin-bottom:16px">' +
     '<div style="width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:rgba(0,229,192,0.1);border:1px solid rgba(0,229,192,0.3);color:#00A389;flex:0 0 auto">' +

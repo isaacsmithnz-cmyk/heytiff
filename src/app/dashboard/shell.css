@@ -6,13 +6,9 @@
    light #F0F2F5. Fonts: Plus Jakarta Sans + JetBrains Mono. ===================== */
 .fg, .fg *, .fg *::before, .fg *::after { box-sizing:border-box; }
 .fg {
-  /* Local aliases mapped to the global theme tokens in globals.css.
-     Keep these as the only place shell.css names brand colors. */
-  --teal:var(--color-brand-teal); --teal-d:var(--color-brand-teal-dark);
-  --blue:var(--color-brand-blue); --violet:var(--color-brand-violet);
-  --ink:var(--color-ink); --ink2:var(--color-ink-2);
-  --bg:var(--color-surface); --red:var(--color-brand-red);
-  --gray400:var(--color-gray-400); --gray500:var(--color-gray-500); --gray700:var(--color-gray-700);
+  --teal:#00E5C0; --teal-d:#00A389; --blue:#2E68FF; --violet:#8A2BE2;
+  --ink:#050505; --ink2:#0A0B10; --bg:#F0F2F5; --red:#FF3366;
+  --gray400:#9ca3af; --gray500:#6b7280; --gray700:#374151;
   --font:var(--font-jakarta), sans-serif; --mono:var(--font-jetbrains), monospace;
   position:fixed; inset:0; display:flex; overflow:hidden; background:var(--bg);
   font-family:var(--font); color:var(--ink); -webkit-font-smoothing:antialiased;
@@ -110,8 +106,8 @@
 .fg .outlet { flex:1; overflow:auto; position:relative; }
 
 /* page transition */
-@keyframes fgPageIn { from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:none;} }
-@keyframes fgPageOut { from{opacity:1; transform:none;} to{opacity:0; transform:translateY(-8px);} }
+@keyframes fgPageIn { from{opacity:0; transform:translateY(10px); filter:blur(4px);} to{opacity:1; transform:none; filter:blur(0);} }
+@keyframes fgPageOut { from{opacity:1; transform:none; filter:blur(0);} to{opacity:0; transform:translateY(-10px); filter:blur(4px);} }
 .fg .page { min-height:100%; opacity:1; }
 .fg .page.in { animation:fgPageIn .4s cubic-bezier(.22,1,.36,1); }
 .fg .page.out { animation:fgPageOut .25s cubic-bezier(.22,1,.36,1) both; }
@@ -119,11 +115,11 @@
 /* stagger entrance */
 @keyframes fgUp { from{opacity:0; transform:translateY(20px);} to{opacity:1; transform:none;} }
 @keyframes fgPop { from{opacity:0; transform:scale(.95);} to{opacity:1; transform:scale(1);} }
-.fg .page.in .stg > * { animation:fgUp .5s cubic-bezier(.22,1,.36,1) backwards; }
+.fg .page.in .stg > * { animation:fgUp .6s cubic-bezier(.34,1.4,.5,1) backwards; }
 .fg .page.in .stg > *:nth-child(1){animation-delay:.05s}
 .fg .page.in .stg > *:nth-child(2){animation-delay:.15s}
 .fg .page.in .stg > *:nth-child(3){animation-delay:.25s}
-.fg .page.in .stgp > * { animation:fgPop .5s cubic-bezier(.22,1,.36,1) both; }
+.fg .page.in .stgp > * { animation:fgPop .55s cubic-bezier(.34,1.4,.5,1) both; }
 .fg .page.in .stgp > *:nth-child(2){animation-delay:.1s}
 .fg .page.in .stgp > *:nth-child(3){animation-delay:.2s}
 .fg .page.in .stgp > *:nth-child(4){animation-delay:.3s}
@@ -348,7 +344,7 @@
 .fg .dsave { padding:8px 20px; border-radius:12px; font-size:13px; font-weight:700; color:var(--gray700); background:#fff; border:1px solid #e5e7eb; box-shadow:0 1px 2px rgba(0,0,0,.05); transition:all .2s; }
 .fg .dsave:hover { background:#f9fafb; }
 .fg .dexport { display:flex; align-items:center; gap:8px; padding:8px 20px; border-radius:12px; font-size:13px; font-weight:700; color:var(--ink); background:var(--teal); box-shadow:0 4px 15px rgba(0,229,192,.3); transition:all .2s; }
-.fg .dexport:hover { background:var(--color-brand-teal-bright); }
+.fg .dexport:hover { background:#00D0AE; }
 
 .fg .dwork { flex:1; display:flex; gap:16px; padding:16px; padding-top:84px; position:relative; z-index:10; min-height:0; }
 .fg .dtools { width:64px; flex:0 0 auto; display:flex; flex-direction:column; align-items:center; gap:8px; padding:16px 0; background:rgba(255,255,255,.8); backdrop-filter:blur(16px); border:1px solid #fff; border-radius:24px; box-shadow:0 8px 30px rgba(0,0,0,.05); align-self:flex-start; animation:fgSlideL .5s cubic-bezier(.22,1,.36,1) both; }

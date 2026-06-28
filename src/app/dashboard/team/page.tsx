@@ -1,18 +1,9 @@
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
+import { demoStaff } from "@/mock/demo";
 
-// NOTE: one demo member for now (matches the design export). Swap to real staff
-// records + the "No staff yet" empty state once the staff table exists.
-const demoStaff = [
-  {
-    id: "jordan-mills",
-    initials: "JM",
-    name: "Jordan Mills",
-    role: "Lead Installer",
-    vehicle: "VRF-04",
-    compliance: { label: "ARC expires 14d", warn: true },
-  },
-];
+// NOTE: reads the single demo record from mock/demo.ts for now. Delete that mock
+// and this falls back to the "No staff yet" empty state below.
 
 export default function TeamPage() {
   return (
@@ -35,30 +26,40 @@ export default function TeamPage() {
             </Link>
           </div>
 
-          <div className="dir">
-            <div className="dirhead">
-              <span>Name</span>
-              <span>Role</span>
-              <span>Vehicle</span>
-              <span>Compliance</span>
+          {demoStaff.length === 0 ? (
+            <div className="emptybox">
+              <span className="ei">
+                <Icon name="users" size={24} />
+              </span>
+              <b>No staff yet</b>
+              <em>Invite your team to start building staff profiles.</em>
             </div>
-            {demoStaff.map((s) => (
-              <Link key={s.id} href={`/dashboard/team/${s.id}`} className="dirrow">
-                <span className="dname">
-                  <span className="dav">{s.initials}</span>
-                  <span>
-                    <b>{s.name}</b>
+          ) : (
+            <div className="dir">
+              <div className="dirhead">
+                <span>Name</span>
+                <span>Role</span>
+                <span>Vehicle</span>
+                <span>Compliance</span>
+              </div>
+              {demoStaff.map((s) => (
+                <Link key={s.id} href={`/dashboard/team/${s.id}`} className="dirrow">
+                  <span className="dname">
+                    <span className="dav">{s.initials}</span>
+                    <span>
+                      <b>{s.name}</b>
+                    </span>
                   </span>
-                </span>
-                <span className="drole">{s.role}</span>
-                <span className="dveh">{s.vehicle}</span>
-                <span className={`dchip${s.compliance.warn ? " warn" : ""}`}>
-                  <Icon name="alert" size={12} />
-                  {s.compliance.label}
-                </span>
-              </Link>
-            ))}
-          </div>
+                  <span className="drole">{s.role}</span>
+                  <span className="dveh">{s.vehicle}</span>
+                  <span className={`dchip${s.compliance.warn ? " warn" : ""}`}>
+                    <Icon name="alert" size={12} />
+                    {s.compliance.label}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

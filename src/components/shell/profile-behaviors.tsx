@@ -5,10 +5,18 @@ import { useRouter } from "next/navigation";
 import { LIC_TYPES, licCard, profileIcon as ic } from "./profile";
 import { NAV } from "./nav";
 
-/* Renders the staff-profile HTML and attaches the v3 design's interactions
-   (verbatim port of the page's delegated handlers): section nav, per-card edit
-   (readonly toggle), cost-split auto-balance + donut, role select, toggles,
-   doc verify/upload/delete, add/remove licence, work-rights conditional. */
+/* Renders the staff-profile HTML and attaches the v3 design's interactions:
+   section nav, cost-split auto-balance + donut, role select, toggles,
+   doc verify/upload/delete, add/remove licence, work-rights conditional.
+
+   EDIT MODEL — per-card (NOT the design's default). The design exports a global
+   `.prof.readonly` toggle (clicking one card's Edit unlocks the whole profile,
+   which risks accidental edits to unrelated cards e.g. an emergency-contact
+   number). Here, each `.card2` carries its own `readonly` and only the clicked
+   card unlocks. The matching CSS lives in shell.css (`.card2.readonly …`).
+   ⚠ ON RE-IMPORT: the fresh export will reset this to `.prof.readonly` in both
+   shell.css and the handler — re-scope it to `.card2` again (or fix it in the
+   Claude design so it survives). */
 export function ProfileBehaviors({ html }: { html: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -34,6 +42,8 @@ export function ProfileBehaviors({ html }: { html: string }) {
         .querySelectorAll<HTMLInputElement>("input.inp, textarea.inp, select.inp")
         .forEach((el) => el.classList.toggle("is-empty", !el.value));
     };
+    // Open every card read-only; each unlocks individually via its own Edit.
+    root.querySelectorAll(".card2").forEach((c) => c.classList.add("readonly"));
     profileEmpties();
 
     const onClick = (e: Event) => {
@@ -78,22 +88,22 @@ export function ProfileBehaviors({ html }: { html: string }) {
         if (rb) rb.checked = true;
       }
 
-      // read-only <-> edit
+      // read-only <-> edit — scoped to the clicked card only
       const ped = t.closest<HTMLElement>("[data-edit]");
       if (ped) {
-        ped.closest(".prof")?.classList.remove("readonly");
+        ped.closest(".card2")?.classList.remove("readonly");
         profileEmpties();
         return;
       }
       const pca = t.closest<HTMLElement>("[data-cancel]");
       if (pca) {
-        pca.closest(".prof")?.classList.add("readonly");
+        pca.closest(".card2")?.classList.add("readonly");
         profileEmpties();
         return;
       }
       const psv = t.closest<HTMLElement>("[data-save]");
       if (psv) {
-        psv.closest(".prof")?.classList.add("readonly");
+        psv.closest(".card2")?.classList.add("readonly");
         profileEmpties();
         return;
       }

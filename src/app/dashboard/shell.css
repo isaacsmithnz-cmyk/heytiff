@@ -548,6 +548,9 @@
 .fg .pphoto { position:relative; width:96px; height:96px; border-radius:26px; flex:0 0 auto; background:linear-gradient(45deg,#2E68FF,#00E5C0); padding:2px; }
 .fg .pphoto .inn { width:100%; height:100%; border-radius:24px; background:#0A0B10; display:flex; align-items:center; justify-content:center; font-size:30px; font-weight:800; color:#fff; }
 .fg .pphoto .cam { position:absolute; right:-6px; bottom:-6px; width:30px; height:30px; border-radius:50%; background:#fff; color:var(--ink); display:flex; align-items:center; justify-content:center; box-shadow:0 6px 14px rgba(0,0,0,.3); cursor:pointer; }
+/* PER-CARD EDIT: header avatar isn't a card, so its camera badge has no edit
+   mode — hide it. (See profile-behaviors.tsx note on re-import.) */
+.fg .prof .pphoto .cam { display:none; }
 .fg .pid { flex:1; min-width:240px; }
 .fg .pid h1 { font-size:30px; font-weight:800; letter-spacing:-0.03em; margin:0; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
 .fg .pid h1 em { font-style:normal; font-size:16px; font-weight:600; color:rgba(255,255,255,.5); }
@@ -611,17 +614,17 @@
 .fg .help { font-size:11.5px; color:var(--gray400); font-weight:500; }
 
 /* read-only profile mode */
-.fg .prof:not(.readonly) [data-edit] { display:none; }
-.fg .prof.readonly [data-cancel], .fg .prof.readonly [data-save] { display:none; }
-.fg .prof.readonly .inp { background:transparent; border-color:transparent; box-shadow:none; padding-left:0; padding-right:0; pointer-events:none; font-weight:600; }
-.fg .prof.readonly textarea.inp { padding:0; }
-.fg .prof.readonly .selwrap .chev { display:none; }
-.fg .prof.readonly .drop, .fg .prof.readonly .licadd, .fg .prof.readonly .licdel, .fg .prof.readonly .docact, .fg .prof.readonly .pphoto .cam, .fg .prof.readonly #lic-empty { display:none; }
-.fg .prof.readonly .seg, .fg .prof.readonly .toggle { pointer-events:none; }
-.fg .prof.readonly .seg { background:transparent; padding:0; }
-.fg .prof.readonly .seg button:not(.on) { display:none; }
-.fg .prof.readonly .seg button.on { background:transparent; box-shadow:none; padding:0; color:var(--teal-d); font-weight:700; }
-.fg .prof.readonly .docrow { background:transparent; border-color:#f0f0f2; }
+.fg .card2:not(.readonly) [data-edit] { display:none; }
+.fg .card2.readonly [data-cancel], .fg .card2.readonly [data-save] { display:none; }
+.fg .card2.readonly .inp { background:transparent; border-color:transparent; box-shadow:none; padding-left:0; padding-right:0; pointer-events:none; font-weight:600; }
+.fg .card2.readonly textarea.inp { padding:0; }
+.fg .card2.readonly .selwrap .chev { display:none; }
+.fg .card2.readonly .drop, .fg .card2.readonly .licadd, .fg .card2.readonly .licdel, .fg .card2.readonly .docact, .fg .card2.readonly .pphoto .cam, .fg .card2.readonly #lic-empty { display:none; }
+.fg .card2.readonly .seg, .fg .card2.readonly .toggle { pointer-events:none; }
+.fg .card2.readonly .seg { background:transparent; padding:0; }
+.fg .card2.readonly .seg button:not(.on) { display:none; }
+.fg .card2.readonly .seg button.on { background:transparent; box-shadow:none; padding:0; color:var(--teal-d); font-weight:700; }
+.fg .card2.readonly .docrow { background:transparent; border-color:#f0f0f2; }
 
 /* per-card actions (edit / cancel / save) inline on the card header */
 .fg .cardactions { margin-left:auto; display:flex; gap:8px; align-items:center; flex:0 0 auto; }
@@ -632,11 +635,11 @@
 .fg .cardbtn.ghost:hover { background:#f9fafb; }
 .fg .cardbtn.save { background:var(--ink); color:#fff; }
 .fg .cardbtn.save:hover { background:var(--teal); color:var(--ink); }
-.fg .prof.readonly .cardactions [data-cancel], .fg .prof.readonly .cardactions [data-save] { display:none; }
-.fg .prof:not(.readonly) .cardactions [data-edit] { display:none; }
+.fg .card2.readonly .cardactions [data-cancel], .fg .card2.readonly .cardactions [data-save] { display:none; }
+.fg .card2:not(.readonly) .cardactions [data-edit] { display:none; }
 /* evident empty state */
-.fg .prof.readonly .inp.is-empty::placeholder { color:#bcc2cd; font-style:italic; opacity:1; }
-.fg .prof.readonly .inp:not(.is-empty) { color:var(--ink); }
+.fg .card2.readonly .inp.is-empty::placeholder { color:#bcc2cd; font-style:italic; opacity:1; }
+.fg .card2.readonly .inp:not(.is-empty) { color:var(--ink); }
 .fg select.inp.is-empty { color:#aeb4c0; font-weight:500; }
 .fg .field > label { position:relative; }
 
@@ -715,8 +718,8 @@
 .fg .permrole .prk em { font-style:normal; font-size:11.5px; color:var(--gray400); }
 .fg .permrole .prcheck { width:24px; height:24px; border-radius:50%; flex:0 0 auto; display:flex; align-items:center; justify-content:center; color:#fff; background:var(--teal); opacity:0; transform:scale(.6); transition:all .2s; }
 .fg .permrole.on .prcheck { opacity:1; transform:scale(1); }
-.fg .prof.readonly .permrole { cursor:default; }
-.fg .prof.readonly .permrole:not(.on) { display:none; }
+.fg .card2.readonly .permrole { cursor:default; }
+.fg .card2.readonly .permrole:not(.on) { display:none; }
 .fg .accessgrid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 @media (max-width:680px){ .fg .permroles, .fg .accessgrid { grid-template-columns:1fr; } }
 .fg .csgrid { display:grid; grid-template-columns:1fr 1fr; gap:24px; align-items:center; margin-top:4px; }
@@ -730,9 +733,9 @@
 .fg .csrange::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:18px; height:18px; border-radius:50%; background:#fff; border:2px solid var(--ink); box-shadow:0 2px 5px rgba(0,0,0,.18); cursor:grab; }
 .fg .csrange::-moz-range-thumb { width:18px; height:18px; border-radius:50%; background:#fff; border:2px solid var(--ink); box-shadow:0 2px 5px rgba(0,0,0,.18); cursor:grab; }
 .fg .csval { font-family:var(--mono); font-size:13px; font-weight:700; color:var(--ink); width:38px; text-align:right; flex:0 0 auto; }
-.fg .prof.readonly .csrange { display:none; }
-.fg .prof.readonly .csrow .cspct { width:auto; }
-.fg .prof.readonly .csval { width:auto; }
+.fg .card2.readonly .csrange { display:none; }
+.fg .card2.readonly .csrow .cspct { width:auto; }
+.fg .card2.readonly .csval { width:auto; }
 .fg .cspie { position:relative; width:150px; height:150px; margin:0 auto; }
 .fg .cspie svg { width:100%; height:100%; }
 .fg .cspie .csseg { transition:stroke-dasharray .35s ease; }

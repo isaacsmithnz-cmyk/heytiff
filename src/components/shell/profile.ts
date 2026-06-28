@@ -256,10 +256,11 @@ function notes() {
 
 export function profileHtml(s: DemoStaff): string {
   const nick = s.nickname ? ` <em>“${s.nickname}”</em>` : "";
+  // Per-card edit: the profile opens read-only and each card unlocks on its own
+  // Edit (handled in profile-behaviors). No global readonly / Save-all bar.
   return (
-    '<div class="prof readonly">' +
-    `<div class="pbar"><div class="crumb"><a data-nav="people">Team</a><span class="sep">/</span><a data-nav="people">Staff</a><span class="sep">/</span><b>${s.name}</b></div>` +
-    `<div class="pactions"><button class="pbtn ghost" data-cancel>Cancel</button><button class="pbtn primary" data-save>${ic("check", 16)}Save changes</button></div></div>` +
+    '<div class="prof">' +
+    `<div class="pbar"><div class="crumb"><a data-nav="people">Team</a><span class="sep">/</span><a data-nav="people">Staff</a><span class="sep">/</span><b>${s.name}</b></div></div>` +
     '<div class="phead"><div class="mesh"><i class="m1"></i><i class="m2"></i></div><div class="inner">' +
     `<div class="pphoto"><div class="inn">${s.initials}</div><span class="cam">${ic("cam", 15)}</span></div>` +
     `<div class="pid"><h1>${s.name}${nick}</h1>` +

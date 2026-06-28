@@ -463,7 +463,17 @@
 .fg .side { box-shadow:none; border-right:none; }
 
 /* top header becomes part of the black frame */
-.fg .topbar { background:transparent; -webkit-backdrop-filter:none; backdrop-filter:none; border-bottom:none; box-shadow:none; padding:0 26px; }
+.fg .topbar { background:transparent; -webkit-backdrop-filter:none; backdrop-filter:none; border-bottom:none; box-shadow:none; padding:0 26px; position:relative; overflow:hidden; }
+
+/* soft drifting aurora in the header */
+.fg .topbar::before, .fg .topbar::after { content:''; position:absolute; top:50%; border-radius:50%; pointer-events:none; z-index:0; filter:blur(44px); }
+.fg .topbar::before { width:300px; height:300px; background:radial-gradient(circle, rgba(0,229,192,.20), transparent 68%); transform:translate(-40px,-50%); animation:fgAurora1 16s ease-in-out infinite; }
+.fg .topbar::after { width:260px; height:260px; background:radial-gradient(circle, rgba(46,104,255,.18), transparent 68%); transform:translate(0,-50%); animation:fgAurora2 21s ease-in-out infinite; }
+@keyframes fgAurora1 { 0%{transform:translate(-60px,-50%) scale(1)} 50%{transform:translate(620px,-46%) scale(1.25)} 100%{transform:translate(-60px,-50%) scale(1)} }
+@keyframes fgAurora2 { 0%{transform:translate(680px,-54%) scale(1.1)} 50%{transform:translate(40px,-50%) scale(1)} 100%{transform:translate(680px,-54%) scale(1.1)} }
+/* keep the controls above the glow */
+.fg .topbar > * { position:relative; z-index:1; }
+@media (prefers-reduced-motion: reduce) { .fg .topbar::before, .fg .topbar::after { animation:none; } }
 
 /* topbar controls restyled to read on black */
 .fg .searchbtn .sf { background:rgba(255,255,255,.05); border-color:rgba(255,255,255,.1); color:rgba(255,255,255,.5); box-shadow:none; }

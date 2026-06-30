@@ -50,3 +50,26 @@ body {
   color: var(--foreground);
   font-family: var(--font-jakarta), Arial, Helvetica, sans-serif;
 }
+
+/* HeyTiff self-drawing chevron — same 70s draw loop as the dashboard sidebar
+   logo, made available outside the app shell (e.g. the sign-in screen).
+   Opt in by putting `ht-draw` on the <Chevron>; its paths carry htmk-p1/htmk-p2
+   + pathLength="1". */
+.ht-draw .htmk-p1,
+.ht-draw .htmk-p2 {
+  stroke-dasharray: 1;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ht-draw .htmk-p1,
+  .ht-draw .htmk-p2 {
+    animation: htmkDraw 70s ease-in-out infinite;
+  }
+}
+/* 0 = fully drawn, 1 = undrawn. Hold drawn 30s, undraw slowly, redraw, hold, loop. */
+@keyframes htmkDraw {
+  0% { stroke-dashoffset: 0; }
+  42.86% { stroke-dashoffset: 0; }
+  50% { stroke-dashoffset: 1; }
+  57.14% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: 0; }
+}

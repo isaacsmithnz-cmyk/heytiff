@@ -62,14 +62,15 @@ body {
 @media (prefers-reduced-motion: no-preference) {
   .ht-draw .htmk-p1,
   .ht-draw .htmk-p2 {
-    animation: htmkDraw 70s ease-in-out infinite;
+    animation: htmkDrawLoop 10s ease-in-out infinite;
   }
 }
-/* 0 = fully drawn, 1 = undrawn. Hold drawn 30s, undraw slowly, redraw, hold, loop. */
-@keyframes htmkDraw {
-  0% { stroke-dashoffset: 0; }
-  42.86% { stroke-dashoffset: 0; }
-  50% { stroke-dashoffset: 1; }
-  57.14% { stroke-dashoffset: 0; }
-  100% { stroke-dashoffset: 0; }
+/* Sign-in logo: continuous 10s self-draw (1 = undrawn, 0 = fully drawn).
+   Draws in, briefly holds full, draws out — looping forever. The dashboard
+   sidebar keeps its own slower 70s htmkDraw in shell.css. */
+@keyframes htmkDrawLoop {
+  0% { stroke-dashoffset: 1; }
+  45% { stroke-dashoffset: 0; }
+  55% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: 1; }
 }

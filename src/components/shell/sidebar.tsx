@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "./icon";
+import { Chevron } from "../logo";
 import { NAV_GROUPS, isActive } from "./nav";
 
 export type ShellUser = {
@@ -19,14 +20,11 @@ export function Sidebar() {
       <div className="glow" />
 
       <div className="brand">
-        <div className="logo">
-          <Icon name="hexagon" size={24} />
-        </div>
-        <div>
-          <div className="bt">
-            HeyTiff <i>✦</i>
-          </div>
-          <div className="bs">Platform</div>
+        <div className="ht-logo">
+          <Chevron size={40} gradient />
+          <span className="ht-wm">
+            Hey<span>Tiff</span>
+          </span>
         </div>
       </div>
 

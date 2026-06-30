@@ -12,6 +12,15 @@ export function Topbar({
 }) {
   return (
     <header className="topbar" id="fg-topbar">
+      <div className="hdrfx" aria-hidden="true">
+        <i />
+        <i />
+        <i />
+        <i />
+        <i />
+        <i />
+        <i />
+      </div>
       <button className="searchbtn" onClick={onOpenCommand} type="button">
         <span className="si">
           <Icon name="search" size={18} />

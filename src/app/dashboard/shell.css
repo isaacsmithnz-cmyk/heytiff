@@ -32,11 +32,29 @@
   box-shadow:20px 0 40px rgba(0,0,0,.1); }
 .fg .side .glow { position:absolute; top:-150px; left:-100px; width:300px; height:300px; border-radius:50%; background:var(--teal); filter:blur(150px); opacity:.15; pointer-events:none; }
 .fg .brand { display:flex; align-items:center; gap:16px; padding:40px 32px; position:relative; z-10:1; z-index:10; }
+.fg .ht-logo { display:flex; align-items:center; gap:2px; }
+.fg .ht-logo svg { transition:transform .5s cubic-bezier(.22,1,.36,1); }
+.fg .ht-logo:hover svg { transform:scale(1.08); }
+.fg .ht-wm { font-size:22px; font-weight:800; letter-spacing:-0.035em; line-height:1; color:#fff; }
+.fg .ht-wm span { color:var(--teal); }
+.fg .ht-logo .htmk-p1, .fg .ht-logo .htmk-p2 { stroke-dasharray:1; }
+@media (prefers-reduced-motion: no-preference) {
+  .fg .ht-logo .htmk-p1 { animation:htmkDraw 70s ease-in-out infinite; }
+  .fg .ht-logo .htmk-p2 { animation:htmkDraw 70s ease-in-out infinite; }
+}
+/* 0=fully drawn, 1=undrawn. Hold 30s drawn, undraw slowly, redraw, hold 30s, loop. */
+@keyframes htmkDraw {
+  0% { stroke-dashoffset:0; }
+  42.86% { stroke-dashoffset:0; }
+  50% { stroke-dashoffset:1; }
+  57.14% { stroke-dashoffset:0; }
+  100% { stroke-dashoffset:0; }
+}
 .fg .brand .logo { position:relative; display:flex; align-items:center; justify-content:center; width:48px; height:48px; border-radius:16px;
-  background:linear-gradient(135deg,var(--teal),var(--teal-d)); box-shadow:0 0 30px rgba(0,229,192,.3); }
-.fg .brand .logo svg { color:#fff; position:relative; z-index:2; transition:transform .5s cubic-bezier(.22,1,.36,1); }
+  background:#11141b; box-shadow:0 0 30px rgba(0,229,192,.18); }
+.fg .brand .logo svg { position:relative; z-index:2; transition:transform .5s cubic-bezier(.22,1,.36,1); }
 .fg .brand .logo:hover svg { transform:scale(1.1); }
-.fg .brand .logo::after { content:''; position:absolute; inset:0; border-radius:16px; border:1px solid rgba(255,255,255,.3); }
+.fg .brand .logo::after { content:''; position:absolute; inset:0; border-radius:16px; border:1px solid rgba(255,255,255,.1); }
 .fg .brand .bt { font-size:18px; font-weight:800; letter-spacing:-0.03em; color:#fff; display:flex; align-items:center; gap:8px; }
 .fg .brand .bt i { color:var(--teal); font-style:normal; font-size:16px; }
 .fg .brand .bs { font-size:10px; font-weight:800; letter-spacing:.3em; text-transform:uppercase; color:rgba(255,255,255,.4); margin-top:4px; }
@@ -103,7 +121,13 @@
 .fg .newbtn span { position:relative; z-index:10; }
 .fg .newbtn .pl { position:relative; z-index:10; display:flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:50%; background:rgba(255,255,255,.1); font-size:16px; line-height:1; }
 
-.fg .outlet { flex:1; overflow:auto; position:relative; }
+.fg .outlet { flex:1; overflow:auto; position:relative; scrollbar-gutter:stable; scrollbar-width:thin; scrollbar-color:transparent transparent; transition:scrollbar-color .3s; }
+.fg .outlet:hover { scrollbar-color:rgba(120,128,150,.45) transparent; }
+.fg .outlet::-webkit-scrollbar { width:8px; height:8px; }
+.fg .outlet::-webkit-scrollbar-track { background:transparent; }
+.fg .outlet::-webkit-scrollbar-thumb { background:transparent; border-radius:99px; border:2px solid transparent; background-clip:content-box; transition:background .3s; }
+.fg .outlet:hover::-webkit-scrollbar-thumb { background:rgba(120,128,150,.4); background-clip:content-box; }
+.fg .outlet::-webkit-scrollbar-thumb:hover { background:rgba(120,128,150,.7); background-clip:content-box; }
 
 /* page transition */
 @keyframes fgPageIn { from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:none;} }
@@ -135,11 +159,14 @@
 
 /* ---------------- HERO (home) ---------------- */
 .fg .hero { position:relative; border-radius:40px; overflow:hidden; background:var(--ink2); color:#fff; padding:48px; box-shadow:0 20px 60px -15px rgba(0,0,0,.4); margin-bottom:40px; }
-.fg .hero .mesh { position:absolute; inset:0; pointer-events:none; opacity:.5; mix-blend-mode:screen; }
-.fg .hero .mesh i { position:absolute; border-radius:50%; filter:blur(140px); }
-.fg .hero .mesh .m1 { top:-40%; left:-20%; width:80%; height:150%; background:var(--teal); opacity:.2; animation:fgBreath 8s ease-in-out infinite; }
-.fg .hero .mesh .m2 { bottom:-50%; right:-10%; width:70%; height:150%; background:var(--blue); opacity:.2; animation:fgBreath 10s ease-in-out infinite; }
-.fg .hero .mesh .m3 { top:20%; right:20%; width:40%; height:80%; background:var(--violet); opacity:.1; filter:blur(120px); }
+.fg .hero .mesh { position:absolute; inset:0; pointer-events:none; opacity:.7; mix-blend-mode:screen; }
+.fg .hero .mesh i { position:absolute; border-radius:50%; filter:blur(120px); }
+.fg .hero .mesh .m1 { top:-40%; left:-20%; width:80%; height:150%; background:var(--teal); opacity:.28; animation:fgDrift1 14s ease-in-out infinite; }
+.fg .hero .mesh .m2 { bottom:-50%; right:-10%; width:70%; height:150%; background:var(--blue); opacity:.28; animation:fgDrift2 18s ease-in-out infinite; }
+.fg .hero .mesh .m3 { top:10%; right:24%; width:42%; height:90%; background:var(--violet); opacity:.18; filter:blur(110px); animation:fgDrift3 22s ease-in-out infinite; }
+@keyframes fgDrift1 { 0%,100%{ transform:translate(0,0) scale(1); opacity:.22 } 50%{ transform:translate(140px,40px) scale(1.2); opacity:.34 } }
+@keyframes fgDrift2 { 0%,100%{ transform:translate(0,0) scale(1.05); opacity:.2 } 50%{ transform:translate(-120px,-40px) scale(1.25); opacity:.32 } }
+@keyframes fgDrift3 { 0%,100%{ transform:translate(0,0) scale(1); opacity:.14 } 50%{ transform:translate(-90px,60px) scale(1.3); opacity:.24 } }
 @keyframes fgBreath { 0%,100%{opacity:.12} 50%{opacity:.26} }
 .fg .hrow { position:relative; z-index:10; display:flex; gap:48px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
 .fg .hlead { flex:1; min-width:300px; }
@@ -495,9 +522,20 @@
 .fg .topbar::after { width:260px; height:260px; background:radial-gradient(circle, rgba(46,104,255,.18), transparent 68%); transform:translate(0,-50%); animation:fgAurora2 21s ease-in-out infinite; }
 @keyframes fgAurora1 { 0%{transform:translate(-60px,-50%) scale(1)} 50%{transform:translate(620px,-46%) scale(1.25)} 100%{transform:translate(-60px,-50%) scale(1)} }
 @keyframes fgAurora2 { 0%{transform:translate(680px,-54%) scale(1.1)} 50%{transform:translate(40px,-50%) scale(1)} 100%{transform:translate(680px,-54%) scale(1.1)} }
+/* rising soft-glow aurora orbs */
+.fg .topbar .hdrfx { position:absolute; inset:0; z-index:0; overflow:hidden; pointer-events:none; }
+.fg .topbar .hdrfx i { position:absolute; bottom:-30px; width:120px; height:120px; border-radius:50%; filter:blur(26px); opacity:0; background:radial-gradient(circle, rgba(0,229,192,.55), transparent 70%); animation:fgRiseGlow linear infinite; }
+.fg .topbar .hdrfx i:nth-child(1){ left:4%;  animation-duration:11s; animation-delay:0s; }
+.fg .topbar .hdrfx i:nth-child(2){ left:18%; width:90px; height:90px; background:radial-gradient(circle, rgba(46,104,255,.5), transparent 70%); animation-duration:14s; animation-delay:3s; }
+.fg .topbar .hdrfx i:nth-child(3){ left:33%; width:150px; height:150px; animation-duration:13s; animation-delay:6s; }
+.fg .topbar .hdrfx i:nth-child(4){ left:50%; width:100px; height:100px; background:radial-gradient(circle, rgba(138,43,226,.4), transparent 70%); animation-duration:16s; animation-delay:1.5s; }
+.fg .topbar .hdrfx i:nth-child(5){ left:66%; width:130px; height:130px; background:radial-gradient(circle, rgba(46,104,255,.5), transparent 70%); animation-duration:12s; animation-delay:8s; }
+.fg .topbar .hdrfx i:nth-child(6){ left:80%; width:96px;  height:96px;  animation-duration:15s; animation-delay:4.5s; }
+.fg .topbar .hdrfx i:nth-child(7){ left:91%; width:140px; height:140px; background:radial-gradient(circle, rgba(138,43,226,.38), transparent 70%); animation-duration:13.5s; animation-delay:10s; }
+@keyframes fgRiseGlow { 0%{ transform:translateY(0) scale(.7); opacity:0 } 18%{ opacity:.9 } 70%{ opacity:.8 } 100%{ transform:translateY(-150px) scale(1.15); opacity:0 } }
 /* keep the controls above the glow */
 .fg .topbar > * { position:relative; z-index:1; }
-@media (prefers-reduced-motion: reduce) { .fg .topbar::before, .fg .topbar::after { animation:none; } }
+@media (prefers-reduced-motion: reduce) { .fg .topbar::before, .fg .topbar::after, .fg .topbar .hdrfx i { animation:none; } .fg .topbar .hdrfx i { opacity:.5; } }
 
 /* topbar controls restyled to read on black */
 .fg .searchbtn .sf { background:rgba(255,255,255,.05); border-color:rgba(255,255,255,.1); color:rgba(255,255,255,.5); box-shadow:none; }

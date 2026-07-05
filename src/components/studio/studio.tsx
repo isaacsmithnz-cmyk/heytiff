@@ -4,7 +4,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import {
   createDesign,
+  newId,
   type DesignDocument,
+  type DesignObject,
+  type Floor,
 } from "@/lib/studio/document";
 import { openDesignJson, DesignDocumentError } from "@/lib/studio/migrations";
 import {
@@ -16,6 +19,13 @@ import {
   type DesignSummary,
 } from "@/lib/studio/store";
 import { RemoteDesignStore } from "@/lib/studio/remote-store";
+import { History } from "@/lib/studio/history";
+import {
+  areaUnitsToM2,
+  formatArea,
+  polygonArea,
+} from "@/lib/studio/geometry";
+import { StudioCanvas, type CanvasTool } from "./canvas";
 import "./studio.css";
 
 /* Design Studio — Stage 0: shell mount, home + new-design flow, workflow
@@ -100,6 +110,12 @@ export function Studio({ store }: { store?: DesignStore }) {
     setStep(0);
   }, []);
 
+  /* undo/redo restores an exact prior document — no updatedAt bump */
+  const replaceDoc = useCallback((d: DesignDocument) => {
+    setSaveState("saving");
+    setDoc(d);
+  }, []);
+
   const goHome = useCallback(async () => {
     if (doc) {
       // flush the debounce before leaving; local buffer already has it
@@ -121,6 +137,7 @@ export function Studio({ store }: { store?: DesignStore }) {
             saveState={saveState}
             onStep={setStep}
             onMutate={mutate}
+            onReplace={replaceDoc}
             onHome={goHome}
           />
         ) : (
@@ -363,6 +380,7 @@ function Editor({
   saveState,
   onStep,
   onMutate,
+  onReplace,
   onHome,
 }: {
   doc: DesignDocument;
@@ -370,8 +388,102 @@ function Editor({
   saveState: "saved" | "saving" | "local";
   onStep: (i: number) => void;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
+  onReplace: (d: DesignDocument) => void;
   onHome: () => void;
 }) {
+  /* ── undo/redo: record the outgoing document before every mutation ── */
+  const historyRef = useRef(new History<DesignDocument>(50));
+  const docRef = useRef(doc);
+  useEffect(() => {
+    docRef.current = doc;
+  }, [doc]);
+
+  /* refs can't be read during render — mirror can-undo/redo into state */
+  const [hist, setHist] = useState({ undo: false, redo: false });
+  const syncHist = useCallback(() => {
+    setHist({
+      undo: historyRef.current.canUndo,
+      redo: historyRef.current.canRedo,
+    });
+  }, []);
+
+  const mutate = useCallback(
+    (fn: (d: DesignDocument) => DesignDocument) => {
+      historyRef.current.record(docRef.current);
+      onMutate(fn);
+      syncHist();
+    },
+    [onMutate, syncHist]
+  );
+
+  const undo = useCallback(() => {
+    const prev = historyRef.current.undo(docRef.current);
+    if (prev) onReplace(prev);
+    syncHist();
+  }, [onReplace, syncHist]);
+
+  const redo = useCallback(() => {
+    const next = historyRef.current.redo(docRef.current);
+    if (next) onReplace(next);
+    syncHist();
+  }, [onReplace, syncHist]);
+
+  /* ── design-stage state (active floor is derived, never synced) ── */
+  const [pickedFloorId, setPickedFloorId] = useState<string | null>(null);
+  const activeFloorId =
+    pickedFloorId && doc.floors.some((f) => f.id === pickedFloorId)
+      ? pickedFloorId
+      : (doc.floors[0]?.id ?? null);
+  const [tool, setTool] = useState<CanvasTool>("select");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const addFloor = useCallback(() => {
+    mutate((d) => {
+      const maxLevel = d.floors.reduce((m, f) => Math.max(m, f.level), -1);
+      return {
+        ...d,
+        floors: [
+          ...d.floors,
+          {
+            id: newId("flr"),
+            name: maxLevel < 0 ? "Ground floor" : `Level ${maxLevel + 1}`,
+            level: maxLevel + 1,
+            scaleMmPerUnit: 10,
+            northDeg: null,
+            plan: null,
+          },
+        ],
+      };
+    });
+  }, [mutate]);
+
+  /* ── keyboard: ⌘Z/⇧⌘Z + tool hotkeys on the design step ── */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)
+        return;
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+        return;
+      }
+      if (step !== 1 || e.metaKey || e.ctrlKey || e.altKey) return;
+      const toolKeys: Record<string, CanvasTool> = {
+        v: "select",
+        r: "room-rect",
+        g: "room-poly",
+        c: "calibrate",
+        e: "erase",
+      };
+      const next = toolKeys[e.key.toLowerCase()];
+      if (next) setTool(next);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [step, undo, redo]);
+
   const exportJson = () => {
     const blob = new Blob([exportDesignJson(doc)], {
       type: "application/json",
@@ -397,7 +509,7 @@ function Editor({
             value={doc.meta.name}
             aria-label="Design name"
             onChange={(e) =>
-              onMutate((d) => ({
+              mutate((d) => ({
                 ...d,
                 meta: { ...d.meta, name: e.target.value },
               }))
@@ -422,6 +534,24 @@ function Editor({
           ))}
         </nav>
         <div className="ds-tb-right">
+          <button
+            className="ds-tbicon"
+            onClick={undo}
+            disabled={!hist.undo}
+            aria-label="Undo"
+            title="Undo (⌘Z)"
+          >
+            <Icon name="rotate" size={15} />
+          </button>
+          <button
+            className="ds-tbicon flip"
+            onClick={redo}
+            disabled={!hist.redo}
+            aria-label="Redo"
+            title="Redo (⇧⌘Z)"
+          >
+            <Icon name="rotate" size={15} />
+          </button>
           <span className={`ds-save ${saveState}`}>
             <span className="dot" />
             {saveState === "saving"
@@ -439,7 +569,19 @@ function Editor({
 
       <div className="ds-panel">
         {step === 0 && <PlansPanel doc={doc} />}
-        {step === 1 && <DesignPanel />}
+        {step === 1 && (
+          <DesignPanel
+            doc={doc}
+            activeFloorId={activeFloorId}
+            onFloor={setPickedFloorId}
+            onAddFloor={addFloor}
+            tool={tool}
+            onTool={setTool}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            onMutate={mutate}
+          />
+        )}
         {step === 2 && <MaterialsPanel />}
         {step === 3 && <JobPanel />}
       </div>
@@ -500,21 +642,199 @@ function PlansPanel({ doc }: { doc: DesignDocument }) {
   );
 }
 
-function DesignPanel() {
-  return (
-    <div className="ds-canvas-well">
-      <div className="ds-empty">
-        <span className="ds-empty-ic">
-          <Icon name="layers" size={22} />
-        </span>
-        <div className="ds-empty-t">Your canvas is waiting</div>
-        <div className="ds-empty-s">
-          Draw rooms, drag units in from the palette and route pipe and duct to
-          scale. The canvas engine is the next piece of the studio to land.
+const CANVAS_TOOLS: { key: CanvasTool; icon: string; label: string; kbd: string }[] = [
+  { key: "select", icon: "cursor", label: "Select", kbd: "V" },
+  { key: "room-rect", icon: "square", label: "Room (rectangle)", kbd: "R" },
+  { key: "room-poly", icon: "hexagon", label: "Room (polygon)", kbd: "G" },
+  { key: "calibrate", icon: "ruler", label: "Calibrate scale", kbd: "C" },
+  { key: "erase", icon: "x", label: "Eraser", kbd: "E" },
+];
+
+function DesignPanel({
+  doc,
+  activeFloorId,
+  onFloor,
+  onAddFloor,
+  tool,
+  onTool,
+  selectedId,
+  onSelect,
+  onMutate,
+}: {
+  doc: DesignDocument;
+  activeFloorId: string | null;
+  onFloor: (id: string) => void;
+  onAddFloor: () => void;
+  tool: CanvasTool;
+  onTool: (t: CanvasTool) => void;
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+  onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
+}) {
+  const floors = [...doc.floors].sort((a, b) => a.level - b.level);
+  const floor = floors.find((f) => f.id === activeFloorId) ?? null;
+
+  if (!floor) {
+    return (
+      <div className="ds-canvas-well">
+        <div className="ds-empty">
+          <span className="ds-empty-ic">
+            <Icon name="layers" size={22} />
+          </span>
+          <div className="ds-empty-t">No floors yet</div>
+          <div className="ds-empty-s">
+            Add a blank floor to start sketching now — or wait for plan upload
+            &amp; calibration to bring your drawings in.
+          </div>
+          <button className="ds-tbbtn" onClick={onAddFloor}>
+            <Icon name="plus" size={15} />
+            Add a blank floor
+          </button>
         </div>
-        <span className="ds-empty-soon">Coming next</span>
       </div>
+    );
+  }
+
+  return (
+    <div className="ds-design">
+      <div className="ds-toolrail" role="toolbar" aria-label="Canvas tools">
+        {CANVAS_TOOLS.map((t) => (
+          <button
+            key={t.key}
+            className={`ds-tool${tool === t.key ? " on" : ""}`}
+            title={`${t.label} (${t.kbd})`}
+            aria-label={t.label}
+            onClick={() => onTool(t.key)}
+          >
+            <Icon name={t.icon as never} size={17} />
+          </button>
+        ))}
+      </div>
+
+      <div className="ds-canvas-col">
+        <div className="ds-canvas-top">
+          <div className="ds-floortabs">
+            {floors.map((f) => (
+              <button
+                key={f.id}
+                className={`ds-floortab${f.id === floor.id ? " on" : ""}`}
+                onClick={() => onFloor(f.id)}
+              >
+                {f.name}
+              </button>
+            ))}
+            <button className="ds-floortab add" onClick={onAddFloor} title="Add floor">
+              <Icon name="plus" size={13} />
+            </button>
+          </div>
+          {floor.scaleMmPerUnit == null && (
+            <span className="ds-calib-warn">
+              <Icon name="ruler" size={13} />
+              Not calibrated — sizes are arbitrary
+            </span>
+          )}
+        </div>
+        <StudioCanvas
+          doc={doc}
+          floor={floor}
+          tool={tool}
+          selectedId={selectedId}
+          onSelect={onSelect}
+          onMutate={onMutate}
+          onToolDone={() => onTool("select")}
+        />
+      </div>
+
+      <RoomInspector
+        doc={doc}
+        floor={floor}
+        selectedId={selectedId}
+        onSelect={onSelect}
+        onMutate={onMutate}
+      />
     </div>
+  );
+}
+
+function RoomInspector({
+  doc,
+  floor,
+  selectedId,
+  onSelect,
+  onMutate,
+}: {
+  doc: DesignDocument;
+  floor: Floor;
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+  onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
+}) {
+  const obj: DesignObject | undefined = doc.objects.find(
+    (o) => o.id === selectedId && o.type === "room"
+  );
+
+  if (!obj || obj.geometry.kind !== "polygon") {
+    return (
+      <aside className="ds-inspector">
+        <span className="ds-cardt">Inspector</span>
+        <div className="ds-insp-hint">
+          Select a room to edit it — or draw one with the rectangle (R) or
+          polygon (G) tool. Full load inputs arrive with the loads engine.
+        </div>
+      </aside>
+    );
+  }
+
+  const areaU = polygonArea(obj.geometry.points);
+  return (
+    <aside className="ds-inspector">
+      <span className="ds-cardt">Room</span>
+      <label className="ds-insp-field">
+        <span>Name</span>
+        <input
+          value={String(obj.props.name ?? "")}
+          onChange={(e) =>
+            onMutate((d) => ({
+              ...d,
+              objects: d.objects.map((o) =>
+                o.id === obj.id
+                  ? { ...o, props: { ...o.props, name: e.target.value } }
+                  : o
+              ),
+            }))
+          }
+        />
+      </label>
+      <div className="ds-insp-row">
+        <span>Area</span>
+        <b>
+          {floor.scaleMmPerUnit
+            ? formatArea(areaUnitsToM2(areaU, floor.scaleMmPerUnit))
+            : "not calibrated"}
+        </b>
+      </div>
+      <div className="ds-insp-row">
+        <span>Floor</span>
+        <b>{floor.name}</b>
+      </div>
+      <div className="ds-insp-row">
+        <span>Vertices</span>
+        <b>{obj.geometry.points.length}</b>
+      </div>
+      <button
+        className="ds-insp-delete"
+        onClick={() => {
+          onMutate((d) => ({
+            ...d,
+            objects: d.objects.filter((o) => o.id !== obj.id),
+          }));
+          onSelect(null);
+        }}
+      >
+        <Icon name="x" size={14} />
+        Delete room
+      </button>
+    </aside>
   );
 }
 

@@ -667,6 +667,425 @@
   padding: 26px;
 }
 
+/* ═════════════ Design stage — canvas workspace ═════════════ */
+
+.dstudio .ds-design {
+  flex: 1;
+  display: flex;
+  gap: 14px;
+  min-height: 0;
+}
+.dstudio .ds-toolrail {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-self: flex-start;
+  background: #fff;
+  border: 1px solid var(--ds-border);
+  border-radius: 18px;
+  padding: 6px;
+  box-shadow: 0 1px 2px rgba(10, 12, 20, 0.04),
+    0 16px 40px -22px rgba(10, 12, 20, 0.35);
+}
+.dstudio .ds-tool {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  color: var(--gray500);
+  transition: all 0.18s;
+}
+.dstudio .ds-tool:hover {
+  background: #f4f5f7;
+  color: var(--ink);
+}
+.dstudio .ds-tool.on {
+  background: var(--teal);
+  color: var(--ink);
+  box-shadow: 0 0 15px rgba(0, 229, 192, 0.4);
+}
+
+.dstudio .ds-canvas-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  min-height: 0;
+}
+.dstudio .ds-canvas-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.dstudio .ds-floortabs {
+  display: flex;
+  gap: 3px;
+  background: #e4e6ec;
+  border: 1px solid rgba(10, 12, 20, 0.05);
+  border-radius: 12px;
+  padding: 3px;
+}
+.dstudio .ds-floortab {
+  padding: 6px 13px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gray500);
+  transition: all 0.18s;
+}
+.dstudio .ds-floortab:hover {
+  color: var(--ink);
+}
+.dstudio .ds-floortab.on {
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 3px 8px -3px rgba(10, 12, 20, 0.25);
+}
+.dstudio .ds-floortab.add {
+  display: flex;
+  align-items: center;
+  padding: 6px 9px;
+}
+.dstudio .ds-calib-warn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #b45309;
+  background: rgba(240, 164, 49, 0.14);
+  border: 1px solid rgba(240, 164, 49, 0.3);
+  border-radius: 999px;
+  padding: 5px 11px;
+}
+
+/* the canvas itself */
+.dstudio .ds-canvas {
+  position: relative;
+  flex: 1;
+  min-height: 420px;
+  border-radius: 24px;
+  border: 1px solid rgba(10, 12, 20, 0.1);
+  background: linear-gradient(160deg, #f2f3f7, #e9ebf2);
+  box-shadow: 0 2px 8px rgba(10, 12, 20, 0.05),
+    0 20px 44px -24px rgba(10, 12, 20, 0.3);
+  overflow: hidden;
+  touch-action: none;
+}
+.dstudio .ds-canvas svg {
+  display: block;
+  user-select: none;
+}
+.dstudio .ds-cur-cross svg {
+  cursor: crosshair;
+}
+.dstudio .ds-cur-erase svg {
+  cursor: not-allowed;
+}
+.dstudio .ds-cur-grabbing svg {
+  cursor: grabbing;
+}
+
+.dstudio .ds-grid line {
+  stroke: rgba(40, 38, 70, 0.07);
+  vector-effect: non-scaling-stroke;
+  stroke-width: 1;
+}
+.dstudio .ds-room polygon {
+  fill: rgba(240, 164, 49, 0.13);
+  stroke: #d98f1f;
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
+  cursor: move;
+}
+.dstudio .ds-room.sel polygon {
+  fill: rgba(240, 164, 49, 0.2);
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+.dstudio .ds-room text {
+  fill: var(--ink);
+  font-family: var(--font);
+  font-weight: 800;
+  text-anchor: middle;
+  pointer-events: none;
+}
+.dstudio .ds-room .ds-room-area {
+  fill: var(--gray500);
+  font-weight: 600;
+}
+.dstudio .ds-vertex {
+  fill: #fff;
+  stroke: var(--teal-d);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  cursor: grab;
+}
+.dstudio .ds-vertex:hover {
+  fill: var(--teal);
+}
+.dstudio .ds-draft polyline,
+.dstudio .ds-draft rect {
+  fill: rgba(0, 229, 192, 0.08);
+  stroke: var(--teal-d);
+  stroke-width: 1.6;
+  stroke-dasharray: 6 4;
+  vector-effect: non-scaling-stroke;
+}
+.dstudio .ds-draft circle {
+  fill: rgba(0, 229, 192, 0.25);
+  stroke: var(--teal-d);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.dstudio .ds-draft .ds-draft-dims {
+  fill: var(--teal-d);
+  font-family: var(--font);
+  font-weight: 700;
+  text-anchor: middle;
+  stroke: none;
+}
+.dstudio .ds-calib circle {
+  fill: var(--blue);
+}
+.dstudio .ds-calib line {
+  stroke: var(--blue);
+  stroke-width: 2;
+  stroke-dasharray: 5 4;
+  vector-effect: non-scaling-stroke;
+}
+
+/* floating calibration card — absolute inside the canvas, never fixed */
+.dstudio .ds-calib-card {
+  position: absolute;
+  width: 226px;
+  background: #fff;
+  border: 1px solid var(--ds-border);
+  border-radius: 16px;
+  box-shadow: 0 24px 60px -18px rgba(10, 12, 20, 0.4);
+  padding: 14px;
+  z-index: 5;
+}
+.dstudio .ds-calib-t {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--ink);
+  margin-bottom: 9px;
+}
+.dstudio .ds-calib-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.dstudio .ds-calib-row input {
+  flex: 1;
+  min-width: 0;
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 11px;
+  border: 1px solid #e5e7eb;
+  background: #fafbfc;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.dstudio .ds-calib-row input:focus {
+  outline: none;
+  border-color: rgba(0, 229, 192, 0.65);
+  box-shadow: 0 0 0 3px rgba(0, 229, 192, 0.15);
+  background: #fff;
+}
+.dstudio .ds-calib-row span {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--gray500);
+}
+.dstudio .ds-calib-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.dstudio .ds-calib-cancel {
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gray500);
+}
+.dstudio .ds-calib-cancel:hover {
+  background: #f4f5f7;
+  color: var(--ink);
+}
+.dstudio .ds-calib-ok {
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 800;
+  background: var(--ink);
+  color: #fff;
+}
+.dstudio .ds-calib-ok:hover {
+  background: #16181f;
+}
+
+/* HUD + zoom controls */
+.dstudio .ds-canvas-hud {
+  position: absolute;
+  left: 14px;
+  bottom: 12px;
+  display: flex;
+  gap: 14px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--gray400);
+  pointer-events: none;
+}
+.dstudio .ds-zoomctl {
+  position: absolute;
+  right: 14px;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: #fff;
+  border: 1px solid var(--ds-border);
+  border-radius: 12px;
+  padding: 3px;
+  box-shadow: 0 1px 2px rgba(10, 12, 20, 0.05);
+}
+.dstudio .ds-zoomctl button {
+  min-width: 30px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--gray500);
+}
+.dstudio .ds-zoomctl button:hover {
+  background: #f4f5f7;
+  color: var(--ink);
+}
+.dstudio .ds-zoomctl span {
+  min-width: 44px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gray500);
+}
+
+/* inspector rail */
+.dstudio .ds-inspector {
+  flex: 0 0 240px;
+  align-self: flex-start;
+  background: #fff;
+  border: 1px solid var(--ds-border);
+  border-radius: 20px;
+  box-shadow: var(--ds-card-shadow);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.dstudio .ds-insp-hint {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--gray500);
+  line-height: 1.55;
+}
+.dstudio .ds-insp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.dstudio .ds-insp-field span {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--gray700);
+}
+.dstudio .ds-insp-field input {
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 11px;
+  border: 1px solid #e5e7eb;
+  background: #fafbfc;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.dstudio .ds-insp-field input:focus {
+  outline: none;
+  border-color: rgba(0, 229, 192, 0.65);
+  box-shadow: 0 0 0 3px rgba(0, 229, 192, 0.15);
+  background: #fff;
+}
+.dstudio .ds-insp-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12.5px;
+  color: var(--gray500);
+  font-weight: 600;
+}
+.dstudio .ds-insp-row b {
+  color: var(--ink);
+  font-weight: 800;
+}
+.dstudio .ds-insp-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 38px;
+  border-radius: 11px;
+  background: rgba(255, 51, 102, 0.09);
+  border: 1px solid rgba(255, 51, 102, 0.25);
+  color: #e0264f;
+  font-size: 12.5px;
+  font-weight: 800;
+  transition: all 0.2s;
+}
+.dstudio .ds-insp-delete:hover {
+  background: rgba(255, 51, 102, 0.16);
+}
+
+/* icon-only topbar buttons (undo/redo) */
+.dstudio .ds-tbicon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+  background: #fff;
+  border: 1px solid rgba(10, 12, 20, 0.08);
+  color: var(--gray500);
+  box-shadow: 0 1px 2px rgba(10, 12, 20, 0.04);
+  transition: all 0.2s;
+}
+.dstudio .ds-tbicon:hover:not(:disabled) {
+  color: var(--ink);
+  transform: translateY(-1px);
+  border-color: rgba(0, 229, 192, 0.5);
+}
+.dstudio .ds-tbicon:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.dstudio .ds-tbicon.flip svg {
+  transform: scaleX(-1);
+}
+
+@media (max-width: 1250px) {
+  .dstudio .ds-inspector {
+    flex-basis: 200px;
+  }
+}
+
 /* Plans — floor list (read-only until Stage 1 tooling lands) */
 .dstudio .ds-floors {
   display: flex;

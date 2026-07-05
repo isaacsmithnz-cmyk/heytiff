@@ -51,9 +51,9 @@ describe("Design Studio shell", () => {
       { timeout: 3000 }
     );
 
-    // stepper click-to-jump renders each stage's empty state
+    // stepper click-to-jump renders each stage
     await user.click(screen.getByRole("button", { name: /Design/ }));
-    expect(screen.getByText("Your canvas is waiting")).toBeInTheDocument();
+    expect(screen.getByTestId("studio-canvas")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /Materials/ }));
     expect(
       screen.getByText("An empty design is an empty schedule")

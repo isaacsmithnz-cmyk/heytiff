@@ -36,7 +36,7 @@ describe("design document schema v1", () => {
     const d = createDesign({ name: "Sketch", mode: "blank" });
     expect(d.floors).toHaveLength(1);
     expect(d.floors[0].scaleMmPerUnit).toBe(10);
-    expect(d.floors[0].plan).toBeNull();
+    expect(d.floors[0].plans).toEqual([]);
   });
 
   it("serialise → open round-trips the full tree unchanged", () => {
@@ -113,6 +113,69 @@ describe("schema versioning + migrations", () => {
     } catch (e) {
       expect((e as DesignDocumentError).code).toBe("missing-migration");
     }
+  });
+
+  it("migrates v1 documents: single floor.plan becomes a plans[] sheet", () => {
+    // a golden v1 document, as Stage-1 clients saved it
+    const v1 = {
+      schemaVersion: 1,
+      id: "dsn_v1test",
+      meta: {
+        name: "Old job",
+        jobNumber: "",
+        client: "",
+        site: "",
+        mode: "plan",
+        createdAt: "2026-07-05T00:00:00.000Z",
+        updatedAt: "2026-07-05T00:00:00.000Z",
+      },
+      settings: {
+        climateZone: null,
+        buildingType: null,
+        sizingBasis: "worst-of-both",
+        units: "mm",
+      },
+      floors: [
+        {
+          id: "flr_a",
+          name: "Ground floor",
+          level: 0,
+          scaleMmPerUnit: 4.2,
+          northDeg: null,
+          plan: { imageRef: "org/o1/p.png", pageNumber: 2, width: 2000, height: 1400 },
+        },
+        {
+          id: "flr_b",
+          name: "Sketch",
+          level: 1,
+          scaleMmPerUnit: 10,
+          northDeg: null,
+          plan: null,
+        },
+      ],
+      objects: [],
+      systems: [],
+      packPins: {},
+    };
+    const { doc, migratedFrom } = migrateDesign(v1);
+    expect(migratedFrom).toBe(1);
+    expect(doc.schemaVersion).toBe(SCHEMA_VERSION);
+    expect(doc.floors[0].plans).toEqual([
+      {
+        id: "sht_flr_a",
+        imageRef: "org/o1/p.png",
+        pageNumber: 2,
+        name: "Ground floor",
+        width: 2000,
+        height: 1400,
+        x: 0,
+        y: 0,
+      },
+    ]);
+    expect(doc.floors[1].plans).toEqual([]);
+    expect((doc.floors[0] as unknown as Record<string, unknown>).plan).toBeUndefined();
+    // calibration survives untouched
+    expect(doc.floors[0].scaleMmPerUnit).toBe(4.2);
   });
 });
 

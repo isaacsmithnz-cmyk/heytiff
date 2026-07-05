@@ -37,7 +37,13 @@ import {
    floor pixels; one <g> carries pan/zoom; strokes keep constant screen weight
    via vector-effect. */
 
-export type CanvasTool = "select" | "room-rect" | "room-poly" | "calibrate" | "erase";
+export type CanvasTool =
+  | "select"
+  | "room-rect"
+  | "room-poly"
+  | "calibrate"
+  | "erase"
+  | "arrange";
 
 const CLOSE_SNAP_PX = 12; // screen px to close a polygon on its first vertex
 const HIT_EDGE_PX = 6;
@@ -59,7 +65,8 @@ type Drag =
   | { kind: "pan"; startScreen: Point; origVp: Viewport }
   | { kind: "move"; id: string; startWorld: Point; orig: Point[] }
   | { kind: "vertex"; id: string; index: number; orig: Point[] }
-  | { kind: "rect"; start: Point };
+  | { kind: "rect"; start: Point }
+  | { kind: "sheet"; id: string; startWorld: Point; orig: Point };
 
 export function StudioCanvas({
   doc,
@@ -113,58 +120,74 @@ export function StudioCanvas({
 
   /* grid: 1 m when calibrated, 50 units otherwise; snap = quarter cells.
      Plan-backed floors get finer defaults (image px are small units). */
-  const grid = floor.scaleMmPerUnit ? 1000 / floor.scaleMmPerUnit : floor.plan ? 100 : 50;
-  const snapStep = floor.scaleMmPerUnit || !floor.plan ? grid / 4 : 1;
+  const hasPlans = floor.plans.length > 0;
+  const grid = floor.scaleMmPerUnit ? 1000 / floor.scaleMmPerUnit : hasPlans ? 100 : 50;
+  const snapStep = floor.scaleMmPerUnit || !hasPlans ? grid / 4 : 1;
 
-  /* the stored plan raster, resolved to a short-lived signed URL. Keyed by
-     ref so a floor switch never shows the previous floor's plan. */
-  const [plan, setPlan] = useState<{
-    ref: string;
-    url: string;
-    w: number;
-    h: number;
-  } | null>(null);
-  const planRef = floor.plan?.imageRef ?? null;
+  /* stored plan sheets, resolved to short-lived signed URLs (per ref), plus
+     measured sizes for migrated sheets that predate stored dimensions. */
+  const [sheetUrls, setSheetUrls] = useState<Record<string, string>>({});
+  const [sheetDims, setSheetDims] = useState<Record<string, { w: number; h: number }>>({});
+  /* sheet position override while dragging with the arrange tool */
+  const [liveSheet, setLiveSheet] = useState<{ id: string; x: number; y: number } | null>(null);
 
   useEffect(() => {
-    if (!planRef || !planImages) return;
     let on = true;
-    const stored = floor.plan!;
-    void planImages
-      .url(planRef)
-      .then(async (url) => {
-        let w = stored.width;
-        let h = stored.height;
-        if (!w || !h) {
-          const img = new Image();
-          img.src = url;
-          await img.decode();
-          w = img.naturalWidth;
-          h = img.naturalHeight;
-        }
-        if (on) setPlan({ ref: planRef, url, w: w!, h: h! });
-      })
-      .catch(() => {
-        /* offline or expired ref — the grid still works */
-      });
+    for (const sheet of floor.plans) {
+      if (sheetUrls[sheet.imageRef] || !planImages) continue;
+      void planImages
+        .url(sheet.imageRef)
+        .then(async (url) => {
+          if (!on) return;
+          setSheetUrls((m) => ({ ...m, [sheet.imageRef]: url }));
+          if (!sheet.width || !sheet.height) {
+            const img = new Image();
+            img.src = url;
+            await img.decode();
+            if (on)
+              setSheetDims((m) => ({
+                ...m,
+                [sheet.id]: { w: img.naturalWidth, h: img.naturalHeight },
+              }));
+          }
+        })
+        .catch(() => {
+          /* offline or expired ref — the grid still works */
+        });
+    }
     return () => {
       on = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planRef, planImages]);
+  }, [floor.plans, planImages]);
 
-  const planVisible = plan && plan.ref === planRef ? plan : null;
+  const sheetSize = useCallback(
+    (s: { id: string; width: number; height: number }) =>
+      s.width && s.height
+        ? { w: s.width, h: s.height }
+        : (sheetDims[s.id] ?? null),
+    [sheetDims]
+  );
+  const sheetPos = useCallback(
+    (s: { id: string; x: number; y: number }) =>
+      liveSheet && liveSheet.id === s.id ? liveSheet : { x: s.x, y: s.y },
+    [liveSheet]
+  );
 
   /* viewport starts from an assumed size and re-fits once on first real
      measure (mount-time content captured in a ref — no setState in effects).
-     Plan corners count as content so plan-backed floors open fitted. */
+     Plan-sheet corners count as content so plan-backed floors open fitted. */
   const contentPoints = useCallback((): Point[] => {
     const pts = rooms.flatMap((r) => roomPoints(r));
-    if (floor.plan?.width && floor.plan?.height) {
-      pts.push({ x: 0, y: 0 }, { x: floor.plan.width, y: floor.plan.height });
+    for (const s of floor.plans) {
+      const dims = sheetSize(s);
+      if (dims) {
+        const pos = sheetPos(s);
+        pts.push({ x: pos.x, y: pos.y }, { x: pos.x + dims.w, y: pos.y + dims.h });
+      }
     }
     return pts;
-  }, [rooms, roomPoints, floor.plan]);
+  }, [rooms, roomPoints, floor.plans, sheetSize, sheetPos]);
 
   const [vp, setVp] = useState<Viewport>(() =>
     defaultViewport(contentPoints(), size.w, size.h, grid)
@@ -362,6 +385,26 @@ export function StudioCanvas({
         }
         break;
       }
+      case "arrange": {
+        // topmost sheet under the cursor starts a placement drag
+        for (let i = floor.plans.length - 1; i >= 0; i--) {
+          const s = floor.plans[i];
+          const dims = sheetSize(s);
+          if (!dims) continue;
+          const pos = sheetPos(s);
+          if (
+            w.x >= pos.x &&
+            w.x <= pos.x + dims.w &&
+            w.y >= pos.y &&
+            w.y <= pos.y + dims.h
+          ) {
+            setDrag({ kind: "sheet", id: s.id, startWorld: w, orig: { x: s.x, y: s.y } });
+            return;
+          }
+        }
+        pan();
+        break;
+      }
     }
   };
 
@@ -403,11 +446,35 @@ export function StudioCanvas({
       case "rect":
         setDraftRect({ a: drag.start, b: snapped(w) });
         break;
+      case "sheet":
+        setLiveSheet({
+          id: drag.id,
+          x: drag.orig.x + (w.x - drag.startWorld.x),
+          y: drag.orig.y + (w.y - drag.startWorld.y),
+        });
+        break;
     }
   };
 
   const onPointerUp = () => {
     if (!drag) return;
+    if (drag.kind === "sheet" && liveSheet) {
+      const { id, x, y } = liveSheet;
+      if (x !== drag.orig.x || y !== drag.orig.y) {
+        onMutate((d) => ({
+          ...d,
+          floors: d.floors.map((f) =>
+            f.id === floor.id
+              ? {
+                  ...f,
+                  plans: f.plans.map((s) => (s.id === id ? { ...s, x, y } : s)),
+                }
+              : f
+          ),
+        }));
+      }
+      setLiveSheet(null);
+    }
     if ((drag.kind === "move" || drag.kind === "vertex") && liveGeom) {
       // only commit if the gesture actually moved something
       const room = rooms.find((r) => r.id === liveGeom.id);
@@ -502,18 +569,45 @@ export function StudioCanvas({
         aria-label="Design canvas"
       >
         <g transform={`scale(${zoom}) translate(${-vp.x} ${-vp.y})`}>
-          {/* floor plan raster (under everything) */}
-          {planVisible && (
-            <image
-              className="ds-plan"
-              href={planVisible.url}
-              x={0}
-              y={0}
-              width={planVisible.w}
-              height={planVisible.h}
-              preserveAspectRatio="none"
-            />
-          )}
+          {/* plan sheets (under everything); arrange tool shows outlines */}
+          {floor.plans.map((s) => {
+            const url = sheetUrls[s.imageRef];
+            const dims = sheetSize(s);
+            if (!url || !dims) return null;
+            const pos = sheetPos(s);
+            return (
+              <g key={s.id} className="ds-sheet">
+                <image
+                  className="ds-plan"
+                  href={url}
+                  x={pos.x}
+                  y={pos.y}
+                  width={dims.w}
+                  height={dims.h}
+                  preserveAspectRatio="none"
+                />
+                {tool === "arrange" && (
+                  <>
+                    <rect
+                      className="ds-sheet-outline"
+                      x={pos.x}
+                      y={pos.y}
+                      width={dims.w}
+                      height={dims.h}
+                    />
+                    <text
+                      className="ds-sheet-name"
+                      x={pos.x + 14 / zoom}
+                      y={pos.y + 26 / zoom}
+                      fontSize={13 / zoom}
+                    >
+                      {s.name}
+                    </text>
+                  </>
+                )}
+              </g>
+            );
+          })}
 
           {/* grid */}
           <g className="ds-grid">

@@ -1,8 +1,13 @@
 /* Plans pipeline — pure helpers. The pdf.js raster path is browser-only and
    exercised manually; these pin the label guessing and floor mapping. */
 
-import { createDesign } from "../document";
-import { floorsFromPages, guessFloorLabel } from "../plans";
+import { createDesign, type Floor } from "../document";
+import {
+  applyPageAllocations,
+  guessFloorLabel,
+  placeSheets,
+  type UploadedSheet,
+} from "../plans";
 
 describe("guessFloorLabel", () => {
   const cases: [string, string][] = [
@@ -37,8 +42,8 @@ describe("guessFloorLabel", () => {
   });
 });
 
-describe("floorsFromPages", () => {
-  const page = (label: string, n: number | null) => ({
+describe("sheet placement + allocation", () => {
+  const sheet = (label: string, n: number | null): UploadedSheet => ({
     label,
     ref: `org/o1/plan_${label}.png`,
     pageNumber: n,
@@ -46,39 +51,63 @@ describe("floorsFromPages", () => {
     height: 1400,
   });
 
-  it("appends floors with continuing levels and uncalibrated scale", () => {
-    const doc = createDesign({ name: "x", mode: "blank" }); // has Ground @ L0
-    const floors = floorsFromPages(
-      [page("Level 1", 2), page("Level 2", 3)],
-      doc.floors
-    );
-    expect(floors.map((f) => f.level)).toEqual([1, 2]);
-    expect(floors.map((f) => f.name)).toEqual(["Level 1", "Level 2"]);
-    expect(floors.every((f) => f.scaleMmPerUnit === null)).toBe(true);
-    expect(floors[0].plan).toEqual({
-      imageRef: "org/o1/plan_Level 1.png",
-      pageNumber: 2,
-      width: 2000,
-      height: 1400,
-    });
+  it("placeSheets lays new sheets to the right of existing content", () => {
+    const first = placeSheets([], [sheet("East", 1)]);
+    expect(first[0].x).toBe(0);
+    const second = placeSheets(first, [sheet("West", 2)]);
+    expect(second[0].x).toBe(2060); // 2000 + 60 gap
+    expect(second[0].y).toBe(0);
   });
 
-  it("starts at level 0 for an empty design", () => {
-    const floors = floorsFromPages([page("Ground floor", 1)], []);
-    expect(floors[0].level).toBe(0);
-  });
-
-  it("suffixes duplicate labels, counting existing floors too", () => {
-    const doc = createDesign({ name: "x", mode: "blank" });
-    doc.floors[0].name = "Floor plan";
-    const floors = floorsFromPages(
-      [page("Floor plan", 1), page("Floor plan", 2), page("Roof", 3)],
+  it("distinct names become distinct floors with continuing levels", () => {
+    const doc = createDesign({ name: "x", mode: "blank" }); // Ground @ L0
+    const floors = applyPageAllocations(
+      [
+        { floorName: "Level 1", sheet: sheet("Level 1", 2) },
+        { floorName: "Level 2", sheet: sheet("Level 2", 3) },
+      ],
       doc.floors
     );
-    expect(floors.map((f) => f.name)).toEqual([
-      "Floor plan (2)",
-      "Floor plan (3)",
-      "Roof",
+    expect(floors.map((f: Floor) => f.level)).toEqual([0, 1, 2]);
+    expect(floors[1].name).toBe("Level 1");
+    expect(floors[1].scaleMmPerUnit).toBeNull();
+    expect(floors[1].plans[0].imageRef).toBe("org/o1/plan_Level 1.png");
+  });
+
+  it("pages sharing a floor name become sheets of ONE floor (east/west split)", () => {
+    const floors = applyPageAllocations(
+      [
+        { floorName: "Level 1", sheet: sheet("Level 1 East", 2) },
+        { floorName: "Level 1", sheet: sheet("Level 1 West", 3) },
+      ],
+      []
+    );
+    expect(floors).toHaveLength(1);
+    expect(floors[0].plans).toHaveLength(2);
+    expect(floors[0].plans.map((s) => s.name)).toEqual([
+      "Level 1 East",
+      "Level 1 West",
     ]);
+    // auto-placed side by side, ready to drag into alignment
+    expect(floors[0].plans[1].x).toBe(2060);
+  });
+
+  it("a name matching an existing floor adds sheets to it (case/space-insensitive)", () => {
+    const doc = createDesign({ name: "x", mode: "blank" });
+    const floors = applyPageAllocations(
+      [{ floorName: "  ground FLOOR ", sheet: sheet("GF West", 4) }],
+      doc.floors
+    );
+    expect(floors).toHaveLength(1);
+    expect(floors[0].plans).toHaveLength(1);
+    expect(floors[0].name).toBe("Ground floor"); // keeps the existing name
+  });
+
+  it("blank names fall back to the page label", () => {
+    const floors = applyPageAllocations(
+      [{ floorName: "   ", sheet: sheet("Roof", 5) }],
+      []
+    );
+    expect(floors[0].name).toBe("Roof");
   });
 });

@@ -33,7 +33,18 @@ function seedDesign(store: LocalDesignStore): DesignDocument {
       level: 0,
       scaleMmPerUnit: null,
       northDeg: null,
-      plan: { imageRef: "org/o1/p1.png", pageNumber: 1, width: 1200, height: 900 },
+      plans: [
+        {
+          id: "sht_1",
+          imageRef: "org/o1/p1.png",
+          pageNumber: 1,
+          name: "Ground floor",
+          width: 1200,
+          height: 900,
+          x: 0,
+          y: 0,
+        },
+      ],
     },
     {
       id: "flr_blank",
@@ -41,7 +52,7 @@ function seedDesign(store: LocalDesignStore): DesignDocument {
       level: 1,
       scaleMmPerUnit: 10,
       northDeg: null,
-      plan: null,
+      plans: [],
     }
   );
   void store.save(d);
@@ -89,6 +100,37 @@ describe("Plans stage", () => {
     });
     // uncalibrated plan floor warns
     expect(screen.getByText(/Not calibrated — sizes are arbitrary/)).toBeInTheDocument();
+  });
+
+  it("renders every sheet of a multi-sheet floor at its stored offset", async () => {
+    const store = new LocalDesignStore(window.localStorage);
+    const d = seedDesign(store);
+    d.floors[0].plans.push({
+      id: "sht_2",
+      imageRef: "org/o1/p2.png",
+      pageNumber: 2,
+      name: "Ground west",
+      width: 1000,
+      height: 900,
+      x: 1260,
+      y: 40,
+    });
+    await store.save(d);
+    const user = userEvent.setup();
+    render(<Studio store={store} planImages={new FakePlanImages()} />);
+    await user.click(await screen.findByText("Plan job"));
+
+    expect(screen.getByText("2 sheets")).toBeInTheDocument();
+
+    await user.click(screen.getAllByRole("button", { name: "Design" })[0]);
+    const canvas = await screen.findByTestId("studio-canvas");
+    await waitFor(() => {
+      const images = canvas.querySelectorAll("image.ds-plan");
+      expect(images).toHaveLength(2);
+      expect(images[0].getAttribute("x")).toBe("0");
+      expect(images[1].getAttribute("x")).toBe("1260");
+      expect(images[1].getAttribute("y")).toBe("40");
+    });
   });
 
   it("deleting a floor removes it and its stored plan image", async () => {

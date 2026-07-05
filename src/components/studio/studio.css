@@ -1122,6 +1122,76 @@
   opacity: 0.92;
   pointer-events: none;
 }
+.dstudio .ds-sheet-outline {
+  fill: none;
+  stroke: var(--blue);
+  stroke-width: 1.6;
+  stroke-dasharray: 7 5;
+  vector-effect: non-scaling-stroke;
+}
+.dstudio .ds-sheet-name {
+  fill: var(--blue);
+  font-family: var(--font);
+  font-weight: 800;
+  pointer-events: none;
+}
+.dstudio .ds-alloc-hint {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--gray500);
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+.dstudio .ds-alloc-hint b {
+  color: var(--ink);
+}
+.dstudio .ds-alloc-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 380px;
+  overflow-y: auto;
+}
+.dstudio .ds-alloc-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-surface-line, #f0f0f2);
+  border-radius: 13px;
+}
+.dstudio .ds-alloc-row img {
+  width: 52px;
+  height: 38px;
+  object-fit: cover;
+  object-position: top;
+  border-radius: 7px;
+  background: #f4f5f7;
+  flex: 0 0 auto;
+}
+.dstudio .ds-alloc-page {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gray400);
+  min-width: 32px;
+}
+.dstudio .ds-alloc-row input {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  background: #fafbfc;
+  font-size: 13px;
+  font-weight: 600;
+}
+.dstudio .ds-alloc-row input:focus {
+  outline: none;
+  border-color: rgba(0, 229, 192, 0.65);
+  box-shadow: 0 0 0 3px rgba(0, 229, 192, 0.15);
+  background: #fff;
+}
 .dstudio .ds-upzone {
   display: flex;
   flex-direction: column;

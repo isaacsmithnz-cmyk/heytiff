@@ -14,10 +14,45 @@ import {
     Input is loosely typed on purpose — old shapes no longer exist in TS. */
 type Migration = (doc: Record<string, unknown>) => Record<string, unknown>;
 
-/** Keyed by the version the migration upgrades FROM.
-    v1 is the first schema, so the registry starts empty. Example of a future
-    entry: `1: (doc) => ({ ...doc, newField: default, schemaVersion: 2 })`. */
-const MIGRATIONS: Record<number, Migration> = {};
+/** Keyed by the version the migration upgrades FROM. */
+const MIGRATIONS: Record<number, Migration> = {
+  /* v1 → v2: floors carried a single `plan` (image ref + size); v2 floors
+     carry `plans: PlanSheet[]` so one level can span several sheets
+     (east/west wings) positioned in the floor's world space. */
+  1: (doc) => {
+    const floors = (doc.floors as Record<string, unknown>[]).map((f) => {
+      const plan = f.plan as
+        | {
+            imageRef: string;
+            pageNumber: number | null;
+            width?: number;
+            height?: number;
+          }
+        | null
+        | undefined;
+      const rest = { ...f };
+      delete rest.plan;
+      return {
+        ...rest,
+        plans: plan
+          ? [
+              {
+                id: `sht_${f.id}`,
+                imageRef: plan.imageRef,
+                pageNumber: plan.pageNumber ?? null,
+                name: (f.name as string) ?? "Plan",
+                width: plan.width ?? 0, // 0 = unknown; canvas measures on load
+                height: plan.height ?? 0,
+                x: 0,
+                y: 0,
+              },
+            ]
+          : [],
+      };
+    });
+    return { ...doc, floors, schemaVersion: 2 };
+  },
+};
 
 export class DesignDocumentError extends Error {
   constructor(

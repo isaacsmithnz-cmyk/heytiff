@@ -4,7 +4,7 @@
    design document stores only the ref + natural size. The pure helpers
    (labelling, floor mapping) are unit-tested; the raster path is browser-only. */
 
-import { newId, type Floor } from "./document";
+import { newId, type Floor, type PlanSheet } from "./document";
 
 /** A rasterised candidate floor plan (one PDF page or one uploaded image). */
 export interface PageImage {
@@ -94,41 +94,76 @@ export function guessFloorLabel(text: string, pageNumber: number): string {
   return best ? best.label : `Page ${pageNumber}`;
 }
 
-/* ── Pure: selected pages → new floors ── */
+/* ── Pure: uploaded pages → sheets on floors ──
+   A floor is one world space that can hold several plan sheets (a big level
+   split across east/west drawings). Allocation is by floor NAME: pages given
+   the same name land on the same floor; a name matching an existing floor
+   adds sheets to it; anything else becomes a new floor. */
 
-export function floorsFromPages(
-  pages: {
-    label: string;
-    ref: string;
-    pageNumber: number | null;
-    width: number;
-    height: number;
-  }[],
-  existing: Floor[]
+export interface UploadedSheet {
+  label: string;
+  ref: string;
+  pageNumber: number | null;
+  width: number;
+  height: number;
+}
+
+const SHEET_GAP = 60; // world units between auto-placed sheets
+
+/** Place new sheets to the right of whatever the floor already holds; the
+    user drags them into true alignment with the arrange tool afterwards. */
+export function placeSheets(
+  existing: PlanSheet[],
+  sheets: UploadedSheet[]
+): PlanSheet[] {
+  let cursor = existing.reduce((m, s) => Math.max(m, s.x + s.width), 0);
+  return sheets.map((s) => {
+    const x = cursor === 0 ? 0 : cursor + SHEET_GAP;
+    cursor = x + s.width;
+    return {
+      id: newId("sht"),
+      imageRef: s.ref,
+      pageNumber: s.pageNumber,
+      name: s.label,
+      width: s.width,
+      height: s.height,
+      x,
+      y: 0,
+    };
+  });
+}
+
+/** Apply the picker's allocations: entries in order, grouped by trimmed
+    case-insensitive floor name. Returns the design's full new floors array. */
+export function applyPageAllocations(
+  entries: { floorName: string; sheet: UploadedSheet }[],
+  floors: Floor[]
 ): Floor[] {
-  const maxLevel = existing.reduce((m, f) => Math.max(m, f.level), -1);
-  // repeated guesses (title blocks love repeating sheet names) get suffixes
-  const used = new Map<string, number>();
-  for (const f of existing) used.set(f.name.toLowerCase(), 1);
-  const uniqueName = (label: string) => {
-    const key = label.toLowerCase();
-    const n = (used.get(key) ?? 0) + 1;
-    used.set(key, n);
-    return n > 1 ? `${label} (${n})` : label;
-  };
-  return pages.map((p, i) => ({
-    id: newId("flr"),
-    name: uniqueName(p.label),
-    level: maxLevel + 1 + i,
-    scaleMmPerUnit: null, // plans must be calibrated before sizes are real
-    northDeg: null,
-    plan: {
-      imageRef: p.ref,
-      pageNumber: p.pageNumber,
-      width: p.width,
-      height: p.height,
-    },
-  }));
+  const result = floors.map((f) => ({ ...f, plans: [...f.plans] }));
+  const byName = new Map<string, Floor>();
+  for (const f of result) byName.set(f.name.trim().toLowerCase(), f);
+  let nextLevel = result.reduce((m, f) => Math.max(m, f.level), -1) + 1;
+
+  for (const { floorName, sheet } of entries) {
+    const name = floorName.trim() || sheet.label;
+    const key = name.toLowerCase();
+    const existing = byName.get(key);
+    if (existing) {
+      existing.plans = [...existing.plans, ...placeSheets(existing.plans, [sheet])];
+    } else {
+      const floor: Floor = {
+        id: newId("flr"),
+        name,
+        level: nextLevel++,
+        scaleMmPerUnit: null, // plans must be calibrated before sizes are real
+        northDeg: null,
+        plans: placeSheets([], [sheet]),
+      };
+      result.push(floor);
+      byName.set(key, floor);
+    }
+  }
+  return result;
 }
 
 /* ── Browser-only: rasterisation ── */

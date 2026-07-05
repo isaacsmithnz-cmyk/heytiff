@@ -6,7 +6,7 @@
    fixtures serialise exactly this shape, so changes require a schema bump and
    a migration (see migrations.ts). */
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 /* ── Vertical planes (Layer 1 — placement plane) ── */
 export type Plane =
@@ -39,22 +39,30 @@ export interface DesignObject {
   props: Record<string, unknown>;
 }
 
-/* ── Floors. Each floor is its own canvas with its own scale; everything
+/* ── Floors. Each floor is ONE world space with its own scale; everything
       measurable traces back to `scale` (mm per canvas unit, null until the
-      floor is calibrated — blank-canvas floors get an explicit default). ── */
+      floor is calibrated — blank-canvas floors get an explicit default).
+      A floor can carry any number of plan *sheets* — big jobs split a level
+      across east/west drawings; sheets are positioned rasters inside the
+      floor's world space (schema v2). ── */
+export interface PlanSheet {
+  id: string;
+  imageRef: string;
+  pageNumber: number | null;
+  name: string; // e.g. "Level 1 East"
+  width: number; // natural raster size, world units
+  height: number;
+  x: number; // placement in the floor's world space
+  y: number;
+}
+
 export interface Floor {
   id: string;
   name: string;
   level: number; // stacking order, 0 = ground
   scaleMmPerUnit: number | null;
   northDeg: number | null;
-  plan: {
-    imageRef: string;
-    pageNumber: number | null;
-    /** natural raster size in world units (optional — additive to schema v1) */
-    width?: number;
-    height?: number;
-  } | null;
+  plans: PlanSheet[];
 }
 
 /* ── Systems container (Layer 2). Owns objects via systemId. ── */
@@ -151,7 +159,7 @@ export function createDesign(opts: {
               level: 0,
               scaleMmPerUnit: 10,
               northDeg: null,
-              plan: null,
+              plans: [],
             },
           ]
         : [],

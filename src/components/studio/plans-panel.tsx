@@ -4,11 +4,12 @@ import { useRef, useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import type { DesignDocument, Floor } from "@/lib/studio/document";
 import {
-  floorsFromPages,
+  applyPageAllocations,
   imageToPage,
   pdfToPages,
   type PageImage,
   type PlanImages,
+  type UploadedSheet,
 } from "@/lib/studio/plans";
 
 /* Plans stage — upload PDF/image plans, pick the pages that matter, manage
@@ -18,6 +19,9 @@ type Phase =
   | { kind: "idle" }
   | { kind: "rendering"; done: number; total: number }
   | { kind: "picking"; pages: PageImage[]; selected: Set<number> }
+  /* chosen page indexes + an editable floor name per page — pages sharing a
+     name become sheets of the same floor (east/west wings of one level) */
+  | { kind: "allocating"; pages: PageImage[]; chosen: number[]; names: string[] }
   | { kind: "uploading"; done: number; total: number };
 
 export function PlansPanel({
@@ -72,32 +76,29 @@ export function PlansPanel({
     }
   };
 
-  const confirmPages = async (pages: PageImage[], selected: Set<number>) => {
-    const chosen = pages.filter((_, i) => selected.has(i));
-    if (chosen.length === 0) return;
+  const confirmAllocations = async (
+    pages: PageImage[],
+    chosen: number[],
+    names: string[]
+  ) => {
     try {
-      const uploaded: {
-        label: string;
-        ref: string;
-        pageNumber: number | null;
-        width: number;
-        height: number;
-      }[] = [];
-      for (let i = 0; i < chosen.length; i++) {
-        setPhase({ kind: "uploading", done: i, total: chosen.length });
-        const ref = await planImages.upload(chosen[i]);
-        uploaded.push({
-          label: chosen[i].label,
-          ref,
-          pageNumber: chosen[i].pageNumber,
-          width: chosen[i].width,
-          height: chosen[i].height,
+      const entries: { floorName: string; sheet: UploadedSheet }[] = [];
+      for (let k = 0; k < chosen.length; k++) {
+        setPhase({ kind: "uploading", done: k, total: chosen.length });
+        const page = pages[chosen[k]];
+        const ref = await planImages.upload(page);
+        entries.push({
+          floorName: names[k],
+          sheet: {
+            label: page.label,
+            ref,
+            pageNumber: page.pageNumber,
+            width: page.width,
+            height: page.height,
+          },
         });
       }
-      onMutate((d) => ({
-        ...d,
-        floors: [...d.floors, ...floorsFromPages(uploaded, d.floors)],
-      }));
+      onMutate((d) => ({ ...d, floors: applyPageAllocations(entries, d.floors) }));
       pages.forEach((p) => URL.revokeObjectURL(p.thumbUrl));
       setPhase({ kind: "idle" });
     } catch (e) {
@@ -116,7 +117,9 @@ export function PlansPanel({
       floors: d.floors.filter((f) => f.id !== floor.id),
       objects: d.objects.filter((o) => o.floorId !== floor.id),
     }));
-    if (floor.plan) void planImages.remove(floor.plan.imageRef).catch(() => {});
+    for (const sheet of floor.plans) {
+      void planImages.remove(sheet.imageRef).catch(() => {});
+    }
   };
 
   return (
@@ -226,10 +229,76 @@ export function PlansPanel({
             <button
               className="ds-calib-ok"
               disabled={phase.selected.size === 0}
-              onClick={() => void confirmPages(phase.pages, phase.selected)}
+              onClick={() => {
+                const chosen = [...phase.selected].sort((a, b) => a - b);
+                setPhase({
+                  kind: "allocating",
+                  pages: phase.pages,
+                  chosen,
+                  names: chosen.map((i) => phase.pages[i].label),
+                });
+              }}
             >
-              Add {phase.selected.size}{" "}
-              {phase.selected.size === 1 ? "floor" : "floors"}
+              Continue with {phase.selected.size}{" "}
+              {phase.selected.size === 1 ? "page" : "pages"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {phase.kind === "allocating" && (
+        <div className="ds-pagepick">
+          <div className="ds-pagepick-head">
+            <span className="ds-cardt">Name the floor for each page</span>
+          </div>
+          <div className="ds-alloc-hint">
+            Pages given the <b>same floor name</b> become sheets of one floor —
+            that&apos;s how a level split across east/west drawings stays a
+            single canvas. Names matching an existing floor add to it.
+          </div>
+          <div className="ds-alloc-rows">
+            {phase.chosen.map((pageIdx, k) => {
+              const p = phase.pages[pageIdx];
+              return (
+                <div key={pageIdx} className="ds-alloc-row">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={p.thumbUrl} alt={p.label} />
+                  <span className="ds-alloc-page">
+                    {p.pageNumber ? `p.${p.pageNumber}` : "img"}
+                  </span>
+                  <input
+                    value={phase.names[k]}
+                    aria-label={`Floor for ${p.label}`}
+                    onChange={(e) => {
+                      const names = [...phase.names];
+                      names[k] = e.target.value;
+                      setPhase({ ...phase, names });
+                    }}
+                  />
+                </div>
+              );
+            })}
+          </div>
+          <div className="ds-pagepick-actions">
+            <button
+              className="ds-calib-cancel"
+              onClick={() =>
+                setPhase({
+                  kind: "picking",
+                  pages: phase.pages,
+                  selected: new Set(phase.chosen),
+                })
+              }
+            >
+              Back
+            </button>
+            <button
+              className="ds-calib-ok"
+              onClick={() =>
+                void confirmAllocations(phase.pages, phase.chosen, phase.names)
+              }
+            >
+              Add to design
             </button>
           </div>
         </div>
@@ -274,11 +343,13 @@ export function PlansPanel({
                   : `${f.scaleMmPerUnit.toFixed(1)} mm/px`}
               </span>
               <span className="ds-floor-plan">
-                {f.plan
-                  ? f.plan.pageNumber
-                    ? `PDF p.${f.plan.pageNumber}`
-                    : "Image"
-                  : "Blank"}
+                {f.plans.length === 0
+                  ? "Blank"
+                  : f.plans.length === 1
+                    ? f.plans[0].pageNumber
+                      ? `PDF p.${f.plans[0].pageNumber}`
+                      : "Image"
+                    : `${f.plans.length} sheets`}
               </span>
               <button
                 className="ds-floor-open"

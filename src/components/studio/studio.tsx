@@ -467,7 +467,7 @@ function Editor({
             level: maxLevel + 1,
             scaleMmPerUnit: 10,
             northDeg: null,
-            plan: null,
+            plans: [],
           },
         ],
       };
@@ -492,6 +492,7 @@ function Editor({
         r: "room-rect",
         g: "room-poly",
         c: "calibrate",
+        m: "arrange",
         e: "erase",
       };
       const next = toolKeys[e.key.toLowerCase()];
@@ -625,6 +626,7 @@ const CANVAS_TOOLS: { key: CanvasTool; icon: string; label: string; kbd: string 
   { key: "room-rect", icon: "square", label: "Room (rectangle)", kbd: "R" },
   { key: "room-poly", icon: "hexagon", label: "Room (polygon)", kbd: "G" },
   { key: "calibrate", icon: "ruler", label: "Calibrate scale", kbd: "C" },
+  { key: "arrange", icon: "hand", label: "Move plans", kbd: "M" },
   { key: "erase", icon: "x", label: "Eraser", kbd: "E" },
 ];
 

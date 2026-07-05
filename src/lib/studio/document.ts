@@ -48,7 +48,13 @@ export interface Floor {
   level: number; // stacking order, 0 = ground
   scaleMmPerUnit: number | null;
   northDeg: number | null;
-  plan: { imageRef: string; pageNumber: number | null } | null;
+  plan: {
+    imageRef: string;
+    pageNumber: number | null;
+    /** natural raster size in world units (optional — additive to schema v1) */
+    width?: number;
+    height?: number;
+  } | null;
 }
 
 /* ── Systems container (Layer 2). Owns objects via systemId. ── */

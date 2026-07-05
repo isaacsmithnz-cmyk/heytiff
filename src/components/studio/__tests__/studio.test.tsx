@@ -39,7 +39,7 @@ describe("Design Studio shell", () => {
     // editor chrome: stepper + named design + Plans panel with default floor
     expect(screen.getByLabelText("Design name")).toHaveValue("12 Test Street");
     expect(screen.getByRole("navigation", { name: "Workflow" })).toBeInTheDocument();
-    expect(screen.getByText("Ground floor")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Ground floor")).toBeInTheDocument();
 
     // autosave lands in localStorage (debounced)
     await waitFor(
@@ -52,7 +52,7 @@ describe("Design Studio shell", () => {
     );
 
     // stepper click-to-jump renders each stage
-    await user.click(screen.getByRole("button", { name: /Design/ }));
+    await user.click(screen.getByRole("button", { name: "2 Design" }));
     expect(screen.getByTestId("studio-canvas")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /Materials/ }));
     expect(
@@ -81,6 +81,6 @@ describe("Design Studio shell", () => {
     const card = await screen.findByText("Untitled design");
     await user.click(card.closest(".ds-rcard") as HTMLElement);
     expect(screen.getByLabelText("Design name")).toHaveValue("Untitled design");
-    expect(screen.getByText("Ground floor")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Ground floor")).toBeInTheDocument();
   });
 });

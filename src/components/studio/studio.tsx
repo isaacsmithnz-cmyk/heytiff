@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import {
   createDesign,
@@ -28,6 +28,8 @@ import {
   polygonArea,
 } from "@/lib/studio/geometry";
 import { StudioCanvas, type CanvasTool } from "./canvas";
+import { PlansPanel } from "./plans-panel";
+import { RemotePlanImages, type PlanImages } from "@/lib/studio/plans";
 import "./studio.css";
 
 /* Design Studio — Stage 0: shell mount, home + new-design flow, workflow
@@ -51,7 +53,13 @@ function timeAgo(iso: string): string {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
-export function Studio({ store }: { store?: DesignStore }) {
+export function Studio({
+  store,
+  planImages,
+}: {
+  store?: DesignStore;
+  planImages?: PlanImages;
+}) {
   // the store is browser-only; create it lazily so SSR prerender never touches
   // it. Server rows are the source of truth; localStorage is the crash buffer.
   const storeRef = useRef<DesignStore | null>(null);
@@ -61,6 +69,10 @@ export function Studio({ store }: { store?: DesignStore }) {
         store ??
         new SyncedDesignStore(new RemoteDesignStore(), browserDesignStore())),
     [store]
+  );
+  const planImagesInst = useMemo(
+    () => planImages ?? new RemotePlanImages(),
+    [planImages]
   );
 
   const [recents, setRecents] = useState<DesignSummary[]>([]);
@@ -141,6 +153,7 @@ export function Studio({ store }: { store?: DesignStore }) {
             onMutate={mutate}
             onReplace={replaceDoc}
             onHome={goHome}
+            planImages={planImagesInst}
           />
         ) : (
           <Home
@@ -384,6 +397,7 @@ function Editor({
   onMutate,
   onReplace,
   onHome,
+  planImages,
 }: {
   doc: DesignDocument;
   step: number;
@@ -392,6 +406,7 @@ function Editor({
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   onReplace: (d: DesignDocument) => void;
   onHome: () => void;
+  planImages: PlanImages;
 }) {
   /* ── undo/redo: record the outgoing document before every mutation ── */
   const historyRef = useRef(new History<DesignDocument>(50));
@@ -570,7 +585,18 @@ function Editor({
       </header>
 
       <div className="ds-panel">
-        {step === 0 && <PlansPanel doc={doc} />}
+        {step === 0 && (
+          <PlansPanel
+            doc={doc}
+            onMutate={mutate}
+            onAddFloor={addFloor}
+            onOpenFloor={(id) => {
+              setPickedFloorId(id);
+              onStep(1);
+            }}
+            planImages={planImages}
+          />
+        )}
         {step === 1 && (
           <DesignPanel
             doc={doc}
@@ -582,6 +608,7 @@ function Editor({
             selectedId={selectedId}
             onSelect={setSelectedId}
             onMutate={mutate}
+            planImages={planImages}
           />
         )}
         {step === 2 && <MaterialsPanel />}
@@ -592,57 +619,6 @@ function Editor({
 }
 
 /* ═════════════ Stage panels — Stage-0 empty states ═════════════ */
-
-function PlansPanel({ doc }: { doc: DesignDocument }) {
-  return (
-    <div className="ds-panel-card">
-      {doc.floors.length > 0 ? (
-        <>
-          <span className="ds-cardt">Floors</span>
-          <div className="ds-floors">
-            {[...doc.floors]
-              .sort((a, b) => a.level - b.level)
-              .map((f) => (
-                <div key={f.id} className="ds-floor">
-                  <span className="ds-floor-lvl">L{f.level}</span>
-                  <span className="ds-floor-nm">{f.name}</span>
-                  <span
-                    className={`ds-floor-scale${
-                      f.scaleMmPerUnit == null ? " none" : ""
-                    }`}
-                  >
-                    {f.scaleMmPerUnit == null
-                      ? "Not calibrated"
-                      : `${f.scaleMmPerUnit} mm/unit`}
-                  </span>
-                </div>
-              ))}
-          </div>
-          <div className="ds-empty">
-            <div className="ds-empty-s">
-              Floor management, plan pages and 2-point calibration are on the
-              way.
-            </div>
-            <span className="ds-empty-soon">Coming next</span>
-          </div>
-        </>
-      ) : (
-        <div className="ds-empty">
-          <span className="ds-empty-ic">
-            <Icon name="file" size={22} />
-          </span>
-          <div className="ds-empty-t">No floor plans yet</div>
-          <div className="ds-empty-s">
-            Drop in a PDF or image, pick the pages that matter, assign them to
-            floors and calibrate the scale — everything you design is measured
-            off that calibration.
-          </div>
-          <span className="ds-empty-soon">Coming next</span>
-        </div>
-      )}
-    </div>
-  );
-}
 
 const CANVAS_TOOLS: { key: CanvasTool; icon: string; label: string; kbd: string }[] = [
   { key: "select", icon: "cursor", label: "Select", kbd: "V" },
@@ -662,6 +638,7 @@ function DesignPanel({
   selectedId,
   onSelect,
   onMutate,
+  planImages,
 }: {
   doc: DesignDocument;
   activeFloorId: string | null;
@@ -672,6 +649,7 @@ function DesignPanel({
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
+  planImages: PlanImages;
 }) {
   const floors = [...doc.floors].sort((a, b) => a.level - b.level);
   const floor = floors.find((f) => f.id === activeFloorId) ?? null;
@@ -737,6 +715,7 @@ function DesignPanel({
           )}
         </div>
         <StudioCanvas
+          key={floor.id}
           doc={doc}
           floor={floor}
           tool={tool}
@@ -744,6 +723,7 @@ function DesignPanel({
           onSelect={onSelect}
           onMutate={onMutate}
           onToolDone={() => onTool("select")}
+          planImages={planImages}
         />
       </div>
 

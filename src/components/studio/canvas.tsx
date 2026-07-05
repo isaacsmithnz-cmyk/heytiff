@@ -9,6 +9,7 @@ import {
 } from "react";
 import type { DesignDocument, DesignObject, Floor, Point } from "@/lib/studio/document";
 import { newId } from "@/lib/studio/document";
+import type { PlanImages } from "@/lib/studio/plans";
 import {
   areaUnitsToM2,
   boundsOfPoints,
@@ -68,6 +69,7 @@ export function StudioCanvas({
   onSelect,
   onMutate,
   onToolDone,
+  planImages,
 }: {
   doc: DesignDocument;
   floor: Floor;
@@ -76,6 +78,7 @@ export function StudioCanvas({
   onSelect: (id: string | null) => void;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   onToolDone: () => void;
+  planImages?: PlanImages;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -108,19 +111,65 @@ export function StudioCanvas({
     [liveGeom]
   );
 
-  /* grid: 1 m when calibrated, 50 units otherwise; snap = quarter cells */
-  const grid = floor.scaleMmPerUnit ? 1000 / floor.scaleMmPerUnit : 50;
-  const snapStep = grid / 4;
+  /* grid: 1 m when calibrated, 50 units otherwise; snap = quarter cells.
+     Plan-backed floors get finer defaults (image px are small units). */
+  const grid = floor.scaleMmPerUnit ? 1000 / floor.scaleMmPerUnit : floor.plan ? 100 : 50;
+  const snapStep = floor.scaleMmPerUnit || !floor.plan ? grid / 4 : 1;
+
+  /* the stored plan raster, resolved to a short-lived signed URL. Keyed by
+     ref so a floor switch never shows the previous floor's plan. */
+  const [plan, setPlan] = useState<{
+    ref: string;
+    url: string;
+    w: number;
+    h: number;
+  } | null>(null);
+  const planRef = floor.plan?.imageRef ?? null;
+
+  useEffect(() => {
+    if (!planRef || !planImages) return;
+    let on = true;
+    const stored = floor.plan!;
+    void planImages
+      .url(planRef)
+      .then(async (url) => {
+        let w = stored.width;
+        let h = stored.height;
+        if (!w || !h) {
+          const img = new Image();
+          img.src = url;
+          await img.decode();
+          w = img.naturalWidth;
+          h = img.naturalHeight;
+        }
+        if (on) setPlan({ ref: planRef, url, w: w!, h: h! });
+      })
+      .catch(() => {
+        /* offline or expired ref — the grid still works */
+      });
+    return () => {
+      on = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planRef, planImages]);
+
+  const planVisible = plan && plan.ref === planRef ? plan : null;
 
   /* viewport starts from an assumed size and re-fits once on first real
-     measure (mount-time content captured in a ref — no setState in effects) */
+     measure (mount-time content captured in a ref — no setState in effects).
+     Plan corners count as content so plan-backed floors open fitted. */
+  const contentPoints = useCallback((): Point[] => {
+    const pts = rooms.flatMap((r) => roomPoints(r));
+    if (floor.plan?.width && floor.plan?.height) {
+      pts.push({ x: 0, y: 0 }, { x: floor.plan.width, y: floor.plan.height });
+    }
+    return pts;
+  }, [rooms, roomPoints, floor.plan]);
+
   const [vp, setVp] = useState<Viewport>(() =>
-    defaultViewport(rooms.flatMap((r) => r.geometry.points), size.w, size.h, grid)
+    defaultViewport(contentPoints(), size.w, size.h, grid)
   );
-  const mountContent = useRef({
-    points: rooms.flatMap((r) => r.geometry.points),
-    grid,
-  });
+  const mountContent = useRef({ points: contentPoints(), grid });
   const measured = useRef(false);
 
   useEffect(() => {
@@ -453,6 +502,19 @@ export function StudioCanvas({
         aria-label="Design canvas"
       >
         <g transform={`scale(${zoom}) translate(${-vp.x} ${-vp.y})`}>
+          {/* floor plan raster (under everything) */}
+          {planVisible && (
+            <image
+              className="ds-plan"
+              href={planVisible.url}
+              x={0}
+              y={0}
+              width={planVisible.w}
+              height={planVisible.h}
+              preserveAspectRatio="none"
+            />
+          )}
+
           {/* grid */}
           <g className="ds-grid">
             {Array.from(
@@ -636,7 +698,7 @@ export function StudioCanvas({
         <button
           aria-label="Fit to content"
           onClick={() => {
-            const b = boundsOfPoints(rooms.flatMap((r) => roomPoints(r)));
+            const b = boundsOfPoints(contentPoints());
             if (b) setVp(fitBounds(b, size.w, size.h, 60));
           }}
         >

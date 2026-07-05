@@ -9,6 +9,7 @@ export type DemoStaff = {
   initials: string;
   name: string;
   nickname?: string;
+  email: string;
   role: string;
   employmentType: string;
   started: string;
@@ -16,7 +17,16 @@ export type DemoStaff = {
   licenceCount: number;
   status: "Active" | "Inactive";
   vehicle: string;
-  compliance: { label: string; warn: boolean };
+  // state drives the chip colour; expiresDays drives the compliance-expiry sort
+  compliance: { label: string; state: "ok" | "warn" | "bad"; expiresDays: number };
+};
+
+export type PendingInvite = {
+  name: string;
+  email: string;
+  role: string;
+  state: "live" | "expired";
+  note: string;
 };
 
 export const demoStaff: DemoStaff[] = [
@@ -25,6 +35,7 @@ export const demoStaff: DemoStaff[] = [
     initials: "JM",
     name: "Jordan Mills",
     nickname: "Jordy",
+    email: "jordan@heytiff.co",
     role: "Lead Installer",
     employmentType: "Full-time",
     started: "Mar 2021",
@@ -32,8 +43,97 @@ export const demoStaff: DemoStaff[] = [
     licenceCount: 4,
     status: "Active",
     vehicle: "VRF-04",
-    compliance: { label: "ARC expires 14d", warn: true },
+    compliance: { label: "ARC expires 14d", state: "warn", expiresDays: 14 },
   },
+  {
+    id: "priya-nair",
+    initials: "PN",
+    name: "Priya Nair",
+    email: "priya@heytiff.co",
+    role: "Service Technician",
+    employmentType: "Full-time",
+    started: "Aug 2022",
+    years: "2.9",
+    licenceCount: 3,
+    status: "Active",
+    vehicle: "SRV-02",
+    compliance: { label: "Work rights unverified", state: "warn", expiresDays: 0 },
+  },
+  {
+    id: "liam-obrien",
+    initials: "LO",
+    name: "Liam O’Brien",
+    email: "liam@heytiff.co",
+    role: "Apprentice",
+    employmentType: "Full-time",
+    started: "Jan 2024",
+    years: "1.4",
+    licenceCount: 1,
+    status: "Active",
+    vehicle: "",
+    compliance: { label: "White Card expired", state: "bad", expiresDays: -3 },
+  },
+  {
+    id: "sophie-tran",
+    initials: "ST",
+    name: "Sophie Tran",
+    email: "sophie@heytiff.co",
+    role: "Office Manager",
+    employmentType: "Full-time",
+    started: "Jun 2020",
+    years: "5.0",
+    licenceCount: 1,
+    status: "Active",
+    vehicle: "",
+    compliance: { label: "Compliant", state: "ok", expiresDays: 9999 },
+  },
+  {
+    id: "marcus-webb",
+    initials: "MW",
+    name: "Marcus Webb",
+    email: "marcus@heytiff.co",
+    role: "Installer",
+    employmentType: "Full-time",
+    started: "Nov 2021",
+    years: "3.6",
+    licenceCount: 3,
+    status: "Active",
+    vehicle: "VRF-07",
+    compliance: { label: "Insurance 30d", state: "warn", expiresDays: 30 },
+  },
+  {
+    id: "hannah-cole",
+    initials: "HC",
+    name: "Hannah Cole",
+    email: "hannah@heytiff.co",
+    role: "Estimator",
+    employmentType: "Part-time",
+    started: "Feb 2023",
+    years: "2.4",
+    licenceCount: 2,
+    status: "Active",
+    vehicle: "",
+    compliance: { label: "Compliant", state: "ok", expiresDays: 9999 },
+  },
+  {
+    id: "dylan-reyes",
+    initials: "DR",
+    name: "Dylan Reyes",
+    email: "dylan@heytiff.co",
+    role: "Installer",
+    employmentType: "Full-time",
+    started: "Sep 2019",
+    years: "4.1",
+    licenceCount: 2,
+    status: "Inactive",
+    vehicle: "",
+    compliance: { label: "—", state: "ok", expiresDays: 9999 },
+  },
+];
+
+export const demoPendingInvites: PendingInvite[] = [
+  { name: "Ben Fletcher", email: "ben.fletcher@gmail.com", role: "Installer", state: "live", note: "Expires in 5 days" },
+  { name: "Kim Santos", email: "k.santos@outlook.com", role: "Service Technician", state: "expired", note: "Expired 2 days ago" },
 ];
 
 export function getDemoStaff(id: string): DemoStaff | null {

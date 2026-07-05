@@ -1254,3 +1254,66 @@
 
 /* historical periods are read-only */
 .fg .tpr.locked .capprove, .fg .tpr.locked .cedit, .fg .tpr.locked .allbtn, .fg .tpr.locked .qform { display:none !important; }
+
+/* ===== Team directory — tabs, tools, menus, invites (ported from design v3) ===== */
+/* staff directory (Team overview) */
+.fg .dirhead, .fg .dirrow {display:grid; grid-template-columns:2.4fr 1.4fr 1fr 1.6fr 44px; gap:16px; align-items:center; padding:15px 24px; width:100%; text-align:left;}
+.fg .dname > span:not(.dav):not(.dofftag) {min-width:0; flex:1;}
+.fg .dofftag {flex:0 0 auto;}
+/* directory — sliding tab switcher */
+.fg .dirtabs {position:relative; display:grid; grid-template-columns:repeat(3,1fr); background:#f1f2f4; border:1px solid #e9eaee; border-radius:18px; padding:6px; margin-bottom:18px;}
+.fg .dirtabs.t4 {grid-template-columns:repeat(4,1fr);}
+.fg .dirtab-slide {position:absolute; top:6px; bottom:6px; left:6px; width:calc((100% - 12px)/3); background:#fff; border-radius:13px; box-shadow:0 4px 14px rgba(0,0,0,.09); transition:left .34s cubic-bezier(.34,1.2,.4,1), background .3s; z-index:0;}
+.fg .dirtabs.t4 .dirtab-slide {width:calc((100% - 12px)/4);}
+.fg .dirtabs[data-view="archived"] .dirtab-slide {background:linear-gradient(180deg,#f7f8fa,#fff);}
+.fg .dirtabs[data-view="warn"] .dirtab-slide {background:linear-gradient(180deg,#fffdf8,#fff);}
+.fg .dirtabs[data-view="pending"] .dirtab-slide {background:linear-gradient(180deg,#f8fbff,#fff);}
+.fg .dirtab {position:relative; z-index:1; display:flex; flex-direction:column; align-items:flex-start; gap:2px; text-align:left; padding:15px 18px; border-radius:13px; cursor:pointer; opacity:.5; transition:opacity .2s;}
+.fg .dirtab:hover {opacity:.8;}
+.fg .dirtab.on {opacity:1;}
+.fg .dtval {font-size:28px; font-weight:800; letter-spacing:-.02em; color:var(--ink); line-height:1.05;}
+.fg .dtlab {font-size:13.5px; font-weight:700; color:#374151; margin-top:4px;}
+.fg .dtsub {font-size:12px; font-weight:600; color:#9ca3af;}
+.fg .dirtab[data-dquick="warn"] .dtval {color:#b45309;}
+.fg .dirtab[data-dquick="pending"] .dtval {color:#2E68FF;}
+/* directory — toolbar */
+.fg .dirtools {display:flex; align-items:center; gap:12px; margin-bottom:14px; flex-wrap:wrap;}
+.fg .dsearch {display:flex; align-items:center; gap:9px; flex:1; min-width:220px; height:44px; padding:0 16px; background:#fff; border:1px solid #e9eaee; border-radius:13px; color:#9ca3af; box-shadow:0 1px 2px rgba(0,0,0,.03);}
+.fg .dsearch:focus-within {border-color:#2E68FF; box-shadow:0 0 0 3px rgba(46,104,255,.12);}
+.fg .dsearch input {flex:1; border:none; outline:none; background:none; font-size:14px; font-weight:600; color:var(--ink);}
+.fg .dsearch input::placeholder {color:#aeb4c0; font-weight:500;}
+.fg .dsortwrap {display:flex; align-items:center; gap:8px; height:44px; padding:0 14px; background:#fff; border:1px solid #e9eaee; border-radius:13px; color:#9ca3af; box-shadow:0 1px 2px rgba(0,0,0,.03);}
+.fg .dsort {border:none; outline:none; background:none; font-size:13.5px; font-weight:700; color:var(--ink); cursor:pointer; appearance:none; padding-right:2px;}
+/* directory — rows */
+.fg .dirrows {display:block;}
+.fg .dirrow.off {opacity:.62;}
+.fg .dofftag {font-size:10.5px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#9ca3af; background:#f1f2f4; padding:3px 9px; border-radius:999px; margin-left:6px;}
+.fg .direm {display:none; padding:40px 24px; text-align:center; font-size:13.5px; font-weight:600; color:#9ca3af; border-top:1px solid #f5f6f8;}
+/* directory — per-row actions menu */
+.fg .dmorewrap {position:relative; display:flex; justify-content:flex-end;}
+.fg .dmore {width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:#aeb4c0; transition:all .18s;}
+.fg .dmore:hover {background:#f1f2f4; color:var(--ink);}
+.fg .dmenu {position:absolute; top:38px; right:0; z-index:20; min-width:184px; background:#fff; border:1px solid #ebecef; border-radius:14px; box-shadow:0 18px 44px -10px rgba(0,0,0,.22); padding:6px; display:none; flex-direction:column; gap:2px;}
+.fg .dmenu.open {display:flex;}
+.fg .dmenu button {display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:9px; font-size:13.5px; font-weight:600; color:var(--gray700); text-align:left; transition:background .15s;}
+.fg .dmenu button:hover {background:#f6f7f9;}
+.fg .dmenu button .i {color:#9ca3af;}
+.fg .dmenu button.danger {color:#e0264f;}
+.fg .dmenu button.danger .i {color:#e0264f;}
+.fg .invrow {display:grid; grid-template-columns:2.4fr 1.4fr 1.4fr auto; gap:16px; align-items:center; padding:14px 24px; border-top:1px solid #f5f6f8;}
+.fg .invrow:first-child {border-top:none;}
+.fg .invwho {display:flex; align-items:center; gap:13px; min-width:0;}
+.fg .invav {width:40px; height:40px; border-radius:12px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; color:#2E68FF; background:rgba(46,104,255,.1);}
+.fg .invrow.expired .invav {color:#e0264f; background:rgba(255,51,102,.1);}
+.fg .invwho b {font-size:14px; font-weight:700; color:var(--ink); display:block;}
+.fg .invwho em {font-style:normal; font-size:12px; color:#9ca3af; display:block;}
+.fg .invrole {font-size:13.5px; color:#6b7280; font-weight:600;}
+.fg .invexp {display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:700; color:#b45309;}
+.fg .invrow.expired .invexp {color:#e0264f;}
+.fg .invrow {grid-template-columns:1fr auto}
+.fg .invrole,.fg .invexp {display:none}
+/* directory port shims — anchor items in the row menu + toggled empty state */
+.fg .dmenu a { display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:9px; font-size:13.5px; font-weight:600; color:var(--gray700); text-align:left; transition:background .15s; }
+.fg .dmenu a:hover { background:#f6f7f9; }
+.fg .dmenu a .i { color:#9ca3af; }
+.fg .direm.on { display:block; }

@@ -185,7 +185,7 @@ export default async function InvitePage() {
                             fontWeight: 800,
                             letterSpacing: ".08em",
                             textTransform: "uppercase",
-                            fontFamily: "var(--font-jetbrains), monospace",
+                            fontFamily: "var(--font-jakarta), sans-serif",
                             padding: "4px 10px",
                             borderRadius: 8,
                             color: accent,

@@ -35,7 +35,7 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-jakarta);
-  --font-mono: var(--font-jetbrains);
+  --font-mono: var(--font-jakarta); /* no mono face anywhere — Jakarta only */
 }
 
 @media (prefers-color-scheme: dark) {

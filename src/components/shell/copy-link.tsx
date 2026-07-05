@@ -25,7 +25,7 @@ export function CopyLink({ url }: { url: string }) {
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
-          fontFamily: "var(--font-jetbrains), monospace",
+          fontFamily: "var(--font-jakarta), sans-serif",
           fontSize: 12,
           color: "#6b7280",
         }}

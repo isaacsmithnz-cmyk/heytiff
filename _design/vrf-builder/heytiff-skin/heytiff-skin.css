@@ -1,0 +1,356 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   HeyTiff · DESIGN STUDIO SKIN — folds the DUCTR engine into the HeyTiff
+   shell language: Plus Jakarta + JetBrains, teal/blue/violet/ink on the
+   light well, .tpr-style cards, chips and big buttons.
+   Loads AFTER studio/engine.css + studio/ductr-skin.css.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Tokens → HeyTiff ── */
+:root{
+  --ssx-bg:#EDEFF4;
+  --ssx-card:#FFFFFF;
+  --ssx-card2:#F4F5F7;
+  --ssx-border:rgba(10,12,20,.07);
+  --ssx-border-strong:rgba(10,12,20,.13);
+  --ssx-text:#0A0B10;
+  --ssx-label:#6b7280;
+  --ssx-faint:#9ca3af;
+  --ssx-accent:#00A389;
+  --ssx-accent-hover:#05887a;
+  --ssx-accent-bg:rgba(0,229,192,.15);
+  --ssx-input-bg:#fafbfc;
+  --ssx-input-border:#e5e7eb;
+  --ssx-hover:rgba(10,12,20,.045);
+  --ssx-shadow:0 20px 50px -30px rgba(10,12,20,.24);
+  --ssx-shadow-sm:0 1px 2px rgba(10,12,20,.05);
+  --ssx-radius:24px;
+  --ssx-radius-sm:13px;
+  --ssx-radius-xs:9px;
+  --ssx-ok:#00A389;   --ssx-ok-bg:rgba(0,229,192,.13);
+  --ssx-warn:#b45309; --ssx-warn-bg:rgba(240,164,49,.14);
+  --ssx-danger:#e0264f; --ssx-danger-bg:rgba(255,51,102,.1);
+  --ssx-font:'Plus Jakarta Sans',system-ui,sans-serif;
+  --ssx-head:'Plus Jakarta Sans',system-ui,sans-serif;
+  --ssx-mono:'JetBrains Mono',ui-monospace,monospace;
+  --ssx-canvas-bg:#E3E6EE;
+  --ductr-sh:0 1px 2px rgba(10,12,20,.04), 0 20px 50px -30px rgba(10,12,20,.24);
+  --ductr-sh-sm:0 1px 2px rgba(10,12,20,.05);
+  --airfoil-grad:linear-gradient(135deg,#00E5C0 0%,#2E68FF 100%);
+  /* HeyTiff palette handles */
+  --ht-teal:#00E5C0; --ht-teal-d:#00A389; --ht-teal-ink:#05887a;
+  --ht-blue:#2E68FF; --ht-violet:#8A2BE2;
+  --ht-amber:#F0A431; --ht-amber-d:#b45309;
+  --ht-red:#FF3366; --ht-red-d:#e0264f;
+  --ht-ink:#050505; --ht-ink2:#0A0B10;
+  --ht-g700:#374151; --ht-g500:#6b7280; --ht-g400:#9ca3af;
+}
+
+/* ── The studio well — mirrors the .fg .outlet treatment exactly ── */
+#dstudio{
+  position:relative; flex:1; min-width:0; min-height:0;
+  display:none; flex-direction:column;
+  background-color:#EDEFF4;
+  background-image:radial-gradient(circle at 1px 1px, rgba(40,38,70,.05) 1px, transparent 0);
+  background-size:26px 26px;
+  border-radius:40px 30px 30px 30px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.6);
+  overflow:hidden;
+  font-family:var(--ssx-font); color:var(--ssx-text);
+  font-size:14px; line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+#dstudio.on{ display:flex; }
+#dstudio #app{ height:100%; background:transparent; }
+#dstudio ::selection{ background:rgba(0,229,192,.3); }
+
+/* soft scrollbars inside the studio */
+#dstudio *::-webkit-scrollbar{ width:8px; height:8px; }
+#dstudio *::-webkit-scrollbar-track{ background:transparent; }
+#dstudio *::-webkit-scrollbar-thumb{ background:rgba(120,128,150,.35); border-radius:99px; border:2px solid transparent; background-clip:content-box; }
+#dstudio *::-webkit-scrollbar-thumb:hover{ background:rgba(120,128,150,.6); background-clip:content-box; }
+
+/* ═════════════ Studio toolbar (page chrome inside the well) ═════════════ */
+#dstudio #topbar{ height:70px; padding:16px 24px 0; gap:14px; }
+#dstudio .tb-brand{ gap:13px; padding:5px 12px 5px 5px; margin:-5px -4px; border-radius:16px; min-width:0; }
+#dstudio .tb-brand:hover{ transform:none; background:rgba(10,12,20,.04); }
+/* keep the centered stepper clear of the identity block at narrower windows
+   (home hides the stepper, so the identity can stay) */
+@media (max-width:1440px){
+  body:not([data-step="0"]) #dstudio .tb-sub{ display:none; }
+  body:not([data-step="0"]) #dstudio #tb-title{ max-width:180px; }
+}
+@media (max-width:1150px){
+  body:not([data-step="0"]) #dstudio .tb-id{ display:none; }
+  body:not([data-step="0"]) #dstudio .tb-brand{ padding:5px; }
+}
+#dstudio #topbar .logo-icon{
+  width:42px; height:42px; border-radius:14px;
+  background:var(--ht-ink); color:var(--ht-teal);
+  box-shadow:0 10px 20px -10px rgba(10,12,20,.55);
+}
+#dstudio #topbar .logo-icon svg{ width:19px; height:19px; stroke:currentColor; }
+#dstudio #tb-title{ font-size:18px; font-weight:800; letter-spacing:-.02em; color:var(--ht-ink); }
+#dstudio .tb-sub{ font-size:12px; font-weight:600; color:var(--ht-g400); }
+#dstudio .tb-job{
+  font-family:var(--ssx-mono); font-size:10.5px; font-weight:700;
+  background:#fff; border:1px solid rgba(10,12,20,.08); color:var(--ht-g500);
+  border-radius:999px; padding:3px 10px;
+}
+
+/* steps — HeyTiff segmented switcher (like the pay-cycle toggle) */
+#dstudio #steps.steps-shell{ background:#E4E6EC; border:1px solid rgba(10,12,20,.05); border-radius:15px; padding:4px; gap:3px; box-shadow:none; }
+#dstudio #steps.steps-shell .step-btn{ border-radius:11px; padding:8px 14px; font-size:12.5px; font-weight:700; color:var(--ht-g500); background:transparent; box-shadow:none; }
+#dstudio #steps.steps-shell .step-btn:hover{ color:var(--ht-ink); background:rgba(255,255,255,.55); }
+#dstudio #steps.steps-shell .step-btn.active{ background:#fff !important; color:var(--ht-ink) !important; box-shadow:0 3px 8px -3px rgba(10,12,20,.28) !important; }
+#dstudio #steps.steps-shell .step-btn .step-num{ width:20px; height:20px; font-size:10.5px; font-weight:800; background:rgba(10,12,20,.08); color:var(--ht-g500); }
+#dstudio #steps.steps-shell .step-btn.active .step-num{ background:var(--ht-ink) !important; color:#fff !important; animation:none !important; box-shadow:none !important; }
+#dstudio #steps.steps-shell .step-btn.done{ background:transparent !important; color:var(--ht-teal-ink) !important; }
+#dstudio #steps.steps-shell .step-btn.done:hover{ background:rgba(255,255,255,.55) !important; }
+#dstudio #steps.steps-shell .step-btn.done .step-num{ background:var(--ht-teal) !important; color:#053b34 !important; font-size:0 !important; }
+#dstudio #steps.steps-shell .step-btn.done .step-num::after{ content:'✓'; font-size:11px; font-weight:800; }
+#dstudio #steps-materials-btn{ background:var(--ht-ink); box-shadow:0 10px 20px -10px rgba(10,12,20,.5); }
+
+/* toolbar actions — .bbtn language */
+#dstudio #topbar .btn{ height:40px; padding:0 16px; border-radius:13px; font-size:12.5px; font-weight:800; letter-spacing:-.01em; }
+#dstudio #topbar .btn-secondary{
+  background:#fff; border:1px solid rgba(10,12,20,.08); color:var(--ht-g700);
+  box-shadow:0 1px 2px rgba(10,12,20,.04);
+}
+#dstudio #topbar .btn-secondary:hover{ background:#fff; transform:translateY(-1px); border-color:rgba(0,229,192,.5); box-shadow:0 12px 24px -12px rgba(10,12,20,.28); }
+#dstudio #topbar .btn-primary{ background:var(--ht-ink); color:#fff; box-shadow:0 12px 24px -12px rgba(10,12,20,.55); }
+#dstudio #topbar .btn-primary:hover{ background:var(--ht-ink); transform:translateY(-1px); }
+#dstudio #topbar .btn-primary svg{ color:var(--ht-teal); }
+#dstudio .tb-icon{ width:40px; height:40px; border-radius:13px; background:#fff; border:1px solid rgba(10,12,20,.08); color:var(--ht-g500); box-shadow:0 1px 2px rgba(10,12,20,.04); }
+#dstudio .tb-icon:hover{ color:var(--ht-ink); transform:translateY(-1px); border-color:rgba(0,229,192,.5); }
+
+/* ═════════════ Buttons (global) ═════════════ */
+#dstudio .btn{ border-radius:12px; font-weight:700; }
+#dstudio .btn-primary{ background:var(--ht-ink); color:#fff; }
+#dstudio .btn-primary:hover{ background:#16181f; }
+#dstudio .btn-secondary{ background:#fff; border:1px solid rgba(10,12,20,.1); color:var(--ht-g700); }
+#dstudio .btn-secondary:hover{ background:#fff; border-color:rgba(0,229,192,.5); }
+#dstudio .btn-danger{ background:rgba(255,51,102,.09); color:var(--ht-red-d); border:1px solid rgba(255,51,102,.25); }
+#dstudio .btn-danger:hover{ background:rgba(255,51,102,.16); }
+
+/* toggles pick up brand teal */
+#dstudio .lswitch.on{ background:var(--ht-teal); }
+
+/* ═════════════ Home — ink hero + white recent card ═════════════ */
+#dstudio #panel-0{ padding:18px 24px 24px; }
+#dstudio .dh3{
+  background:#EDEFF4; background-image:none; border:none; box-shadow:none;
+  gap:16px; border-radius:0; overflow:visible;
+}
+#dstudio .dh3-card{ padding:28px; }
+
+/* New design → dashboard-hero treatment (ink + mesh) */
+#dstudio .dh-new{
+  position:relative; background:var(--ht-ink2); color:#fff;
+  border:none; border-radius:32px; overflow:hidden;
+  box-shadow:0 20px 60px -15px rgba(0,0,0,.4);
+}
+#dstudio .dh-new::before{
+  content:''; position:absolute; inset:0; pointer-events:none; z-index:1;
+  background:
+    radial-gradient(560px 400px at 88% -12%, rgba(0,229,192,.20), transparent 62%),
+    radial-gradient(520px 420px at -8% 112%, rgba(46,104,255,.20), transparent 62%),
+    radial-gradient(420px 360px at 55% 120%, rgba(138,43,226,.12), transparent 60%);
+  background-size:auto;
+}
+#dstudio .dh-pipe-bg{ opacity:.5; }
+#dstudio .dh-pipe-bg .dpdot{ fill:var(--ht-teal); }
+#dstudio .dh-new-collapsed h2{ color:#fff; font-size:38px; letter-spacing:-.03em; }
+#dstudio .dh-new-collapsed p{ color:rgba(255,255,255,.5); font-size:15.5px; font-weight:500; max-width:360px; }
+#dstudio .dh-new-cta{
+  height:52px; padding:0 26px; border-radius:15px;
+  background:var(--ht-teal); color:var(--ht-ink);
+  font-size:15px; font-weight:800; letter-spacing:-.01em;
+  box-shadow:0 12px 24px -8px rgba(0,229,192,.45);
+}
+#dstudio .dh-new:not(.expanded) .dh-new-cta:hover{ box-shadow:0 18px 34px -10px rgba(0,229,192,.55); }
+/* expanded chooser reads on ink */
+#dstudio .dh-new-etitle{ color:#fff; font-size:26px; letter-spacing:-.02em; }
+#dstudio .dh-new-esub{ color:rgba(255,255,255,.5); font-size:14.5px; }
+#dstudio .dh-new-back{ background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); color:rgba(255,255,255,.7); box-shadow:none; }
+#dstudio .dh-new-back:hover{ background:rgba(255,255,255,.16); color:#fff; }
+#dstudio .dh-opt{ background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.1); border-radius:20px; backdrop-filter:blur(8px); }
+#dstudio .dh-opt:hover{ background:rgba(0,229,192,.08); border-color:rgba(0,229,192,.45); transform:translateY(-3px); }
+#dstudio .dh-opt-ic{ background:rgba(0,229,192,.12); border:1px solid rgba(0,229,192,.25); color:var(--ht-teal); }
+#dstudio .dh-opt-n{ color:#fff; font-size:16px; font-weight:800; }
+#dstudio .dh-opt-d{ color:rgba(255,255,255,.45); font-size:12.5px; }
+
+/* Recent → white system card */
+#dstudio .dh-recent-card{
+  background:#fff; border:1px solid rgba(10,12,20,.07); border-radius:32px;
+  box-shadow:0 1px 2px rgba(10,12,20,.04), 0 20px 50px -30px rgba(10,12,20,.24);
+}
+#dstudio .dh-cardt{
+  font-size:15px; font-weight:800; letter-spacing:-.01em; text-transform:none;
+  color:var(--ht-ink); padding-left:0; margin-bottom:14px;
+}
+#dstudio .dh-cardt::before{ content:none; }
+#dstudio .dh-search{
+  background:#fff; border:1px solid #e9eaee; border-radius:13px;
+  height:44px; padding:0 14px; box-shadow:0 1px 2px rgba(0,0,0,.03); margin-bottom:12px;
+}
+#dstudio .dh-search:focus-within{ border-color:var(--ht-blue); background:#fff; box-shadow:0 0 0 3px rgba(46,104,255,.12); }
+#dstudio .dh-search svg{ color:var(--ht-g400); }
+#dstudio .dh-search input{ font-size:13.5px; font-weight:600; }
+#dstudio .dh-search input::placeholder{ color:#aeb4c0; font-weight:500; }
+#dstudio .dh-rcard{ border:1px solid #f0f0f2; border-radius:18px; box-shadow:0 1px 2px rgba(10,12,20,.03); }
+#dstudio .dh-rcard:hover{ transform:translateY(-2px); border-color:rgba(0,229,192,.5); box-shadow:0 12px 26px -16px rgba(10,12,20,.24); }
+#dstudio .dh-rthumb{ background:#f4f5f7; }
+#dstudio .dh-rbadge{ background:rgba(0,229,192,.92); color:#053b34; font:800 8.5px var(--ssx-font); letter-spacing:.04em; text-transform:uppercase; border-radius:999px; padding:3px 8px; }
+#dstudio .dh-rnm{ font:800 14.5px var(--ssx-font); letter-spacing:-.01em; }
+#dstudio .dh-rmeta{ font:700 11.5px var(--ssx-mono); color:var(--ht-g500); margin-top:4px; }
+#dstudio .dh-rwhen{ font:500 11px var(--ssx-mono); color:var(--ht-g400); margin-top:3px; }
+#dstudio .dh-rempty-t{ font:800 15px var(--ssx-font); color:var(--ht-g500); }
+#dstudio .dh-rempty-s{ font:500 12.5px var(--ssx-font); color:var(--ht-g400); }
+/* engine's #home-jobs-grid id rule outranks the rail's flex-column class — re-assert */
+#dstudio #home-jobs-grid.dh-rlist{ display:flex; flex-direction:column; }
+
+/* ═════════════ Plans ═════════════ */
+#dstudio #panel-1{ padding:16px 24px 24px; }
+/* Plans flow → ink hero, matching the home hero + dark chrome
+   (mirror DUCTR's :has() selector so this always outranks its white version) */
+#dstudio .pv2-left:has(#ductr-plans-flow[style*="block"]) #ductr-plans-flow,
+#dstudio #ductr-plans-flow{
+  background:
+    radial-gradient(560px 400px at 88% -12%, rgba(0,229,192,.20), transparent 62%),
+    radial-gradient(520px 420px at -8% 112%, rgba(46,104,255,.22), transparent 62%),
+    radial-gradient(460px 380px at 60% 118%, rgba(138,43,226,.14), transparent 60%),
+    var(--ht-ink2);
+  border:none; border-radius:32px; color:#fff;
+  box-shadow:0 20px 60px -15px rgba(0,0,0,.4);
+}
+#dstudio #ductr-plans-flow::before{
+  background-image:radial-gradient(rgba(255,255,255,.05) 1px, transparent 1px);
+  background-size:22px 22px; border-radius:32px;
+}
+/* texture tweak variants must stay light-on-ink here */
+html[data-tw-texture="dots"] #dstudio #ductr-plans-flow::before{ background-image:radial-gradient(rgba(255,255,255,.05) 1px, transparent 1px); background-size:22px 22px; }
+html[data-tw-texture="grid"] #dstudio #ductr-plans-flow::before{ background-image:linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px); background-size:24px 24px, 24px 24px; }
+html[data-tw-texture="clean"] #dstudio #ductr-plans-flow::before{ background-image:none; }
+/* headings + copy on ink */
+#dstudio #ductr-plans-flow .card-title{ color:#fff; }
+#dstudio #ductr-plans-flow #noplans-path .card > p{ color:rgba(255,255,255,.5) !important; font-size:13px !important; }
+/* mode chooser tiles → glass */
+#dstudio .mode-option-title{ text-transform:none; letter-spacing:-.01em; font-size:16px; }
+#dstudio #ductr-plans-flow .mode-option{ background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.1); backdrop-filter:blur(8px); }
+#dstudio #ductr-plans-flow .mode-option:hover{ background:rgba(0,229,192,.08); border-color:rgba(0,229,192,.45); transform:translateY(-3px); box-shadow:none; }
+#dstudio #ductr-plans-flow .mode-option-title{ color:#fff; }
+#dstudio #ductr-plans-flow .mode-option-desc{ color:rgba(255,255,255,.45); }
+#dstudio #ductr-plans-flow .mode-option-icon{ background:rgba(0,229,192,.12); border:1px solid rgba(0,229,192,.25); color:var(--ht-teal); }
+#dstudio #ductr-plans-flow .mode-option-badge{ background:var(--ht-teal); color:#053b34; }
+#dstudio #ductr-plans-flow .mode-option-badge-alt{ background:rgba(255,255,255,.06); color:rgba(255,255,255,.55); border:1px solid rgba(255,255,255,.14); }
+/* buttons on ink: secondary → glass, primary → brand teal */
+#dstudio #ductr-plans-flow > div > .card > .card-header .btn-secondary,
+#dstudio #ductr-plans-flow .btn-secondary{ background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14); color:rgba(255,255,255,.85); }
+#dstudio #ductr-plans-flow .btn-secondary:hover{ background:rgba(255,255,255,.12); border-color:rgba(0,229,192,.5); color:#fff; }
+#dstudio #ductr-plans-flow .btn-primary{ background:var(--ht-teal); color:var(--ht-ink); box-shadow:0 10px 22px -8px rgba(0,229,192,.4); }
+#dstudio #ductr-plans-flow .btn-primary:hover{ background:var(--ht-teal); transform:translateY(-1px); box-shadow:0 14px 28px -8px rgba(0,229,192,.5); }
+/* the white allocation card pops against the ink (like Recent next to the hero) */
+#dstudio #ductr-plans-flow #floor-alloc{ color:var(--ssx-text); border:none; box-shadow:0 1px 2px rgba(10,12,20,.04), 0 20px 50px -30px rgba(10,12,20,.5); }
+#dstudio #ductr-plans-flow #floor-alloc .btn-secondary{ background:#fff; border:1px solid rgba(10,12,20,.1); color:var(--ht-g700); }
+#dstudio #ductr-plans-flow #floor-alloc .btn-primary{ background:var(--ht-ink); color:#fff; box-shadow:0 12px 24px -12px rgba(10,12,20,.55); }
+/* blank-canvas floor rows → glass */
+#dstudio #ductr-plans-flow .floor-item{ background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.12); }
+#dstudio #ductr-plans-flow .floor-name-input{ background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.16); color:#fff; }
+#dstudio #ductr-plans-flow .floor-name-input:focus{ border-color:rgba(0,229,192,.6); }
+#dstudio #ductr-plans-flow .floor-name-input::placeholder{ color:rgba(255,255,255,.35); }
+/* upload zone on ink */
+#dstudio .upload-zone{ background:transparent; }
+#dstudio .upload-zone:hover, #dstudio .upload-zone.drag{ background:rgba(0,229,192,.06); }
+#dstudio .uz-border rect{ stroke:rgba(255,255,255,.22); }
+#dstudio .upload-zone:hover .uz-border rect, #dstudio .upload-zone.drag .uz-border rect{ stroke:var(--ht-teal); }
+#dstudio .upload-zone .dh-ic{ background:rgba(0,229,192,.12); border:1px solid rgba(0,229,192,.25); color:var(--ht-teal); box-shadow:none; }
+#dstudio .upload-zone .dh-ic svg{ stroke:var(--ht-teal); }
+#dstudio .upload-zone h3{ font-size:30px; letter-spacing:-.03em; color:#fff; }
+#dstudio .upload-zone p{ font-size:14.5px; color:rgba(255,255,255,.5); }
+#dstudio .upload-zone p:last-of-type{ color:rgba(255,255,255,.32); }
+#dstudio .mode-option:hover{ border-color:var(--ht-teal-d); }
+#dstudio .mode-option-icon{ color:var(--ht-teal-d); }
+#dstudio .mode-option-badge{ background:var(--ht-ink); }
+#dstudio #pv2-canvas{ background:linear-gradient(160deg,#EDEFF4,#E3E6EE); border-radius:28px; }
+#dstudio #pv2-strip{ border-radius:22px; }
+#dstudio .pv2-calib{ background:var(--ht-ink); border-radius:12px; box-shadow:0 10px 20px -10px rgba(10,12,20,.5); }
+#dstudio .pv2-calib:hover{ background:#16181f; }
+#dstudio .page-tile-alloc{ background:var(--ht-ink); box-shadow:0 8px 18px -8px rgba(10,12,20,.45); }
+#dstudio .page-tile-alloc:hover{ background:#16181f; }
+#dstudio .page-tile-lvl{ background:var(--ht-ink); }
+#dstudio .floor-level-tag{ background:rgba(0,229,192,.14); color:var(--ht-teal-ink); }
+
+/* ═════════════ Design canvas ═════════════ */
+#dstudio #canvas-vtoolbar{
+  border:1px solid rgba(10,12,20,.07); border-radius:18px;
+  box-shadow:0 1px 2px rgba(10,12,20,.04), 0 16px 40px -22px rgba(10,12,20,.35);
+}
+#dstudio .vt-btn{ color:var(--ht-g500); }
+#dstudio .vt-btn:hover{ background:#f4f5f7; color:var(--ht-ink); }
+#dstudio .vt-btn.active{ background:var(--ht-teal); color:var(--ht-ink); box-shadow:0 0 15px rgba(0,229,192,.4); }
+#dstudio #canvas-wrap{
+  border-radius:24px; border:1px solid rgba(10,12,20,.1);
+  box-shadow:0 2px 8px rgba(10,12,20,.05), 0 20px 44px -24px rgba(10,12,20,.3);
+}
+#dstudio .floor-tab{ font-weight:700; color:var(--ht-g500); }
+#dstudio .floor-tab.active{ background:#fff; color:var(--ht-ink); box-shadow:0 3px 8px -3px rgba(10,12,20,.25); }
+#dstudio #canvas-topbar button{ border-radius:10px !important; }
+#dstudio #canvas-topbar #tool-calib.active,
+#dstudio #canvas-topbar #tool-north.active,
+#dstudio #canvas-topbar #legend-topbtn.on{ background:var(--ht-ink) !important; border-color:var(--ht-ink) !important; color:#fff !important; }
+#dstudio #layers-pop{ border-radius:15px; border-color:#ebecef; box-shadow:0 20px 48px -10px rgba(0,0,0,.24); }
+
+/* right rail */
+#dstudio .rp-hero{
+  background:
+    radial-gradient(240px 160px at 92% 0%, rgba(0,229,192,.30), transparent 62%),
+    radial-gradient(200px 150px at 0% 100%, rgba(46,104,255,.22), transparent 62%),
+    linear-gradient(135deg,#11141b,#0A0B10);
+  border-radius:18px;
+}
+#dstudio .rp-pill.on{ color:var(--ht-ink); }
+#dstudio .rp-pill.on .rp-pill-n{ color:var(--ht-teal-ink); }
+#dstudio .rp-acc-h .rp-acc-ic{ color:var(--ht-teal-d); }
+#dstudio .sys-pill.active{ box-shadow:inset 3px 0 0 currentColor, 0 1px 2px rgba(10,12,20,.05); }
+
+/* legend + fabs */
+#dstudio #legend-fab{ box-shadow:0 12px 26px -12px rgba(10,12,20,.4); }
+#dstudio #legend-fab.on{ background:var(--ht-ink); border-color:var(--ht-ink); }
+#dstudio #legend-float{ border-radius:20px; border-color:#ebecef; box-shadow:0 24px 60px -18px rgba(10,12,20,.4); }
+
+/* ═════════════ Materials / Job ═════════════ */
+#dstudio #panel-3 .card, #dstudio #panel-4 .card{ border-radius:24px; box-shadow:0 1px 2px rgba(10,12,20,.04), 0 20px 50px -30px rgba(10,12,20,.24); }
+#dstudio .card-title{ text-transform:none; letter-spacing:-.01em; font-size:15px; font-weight:800; color:var(--ht-ink); }
+#dstudio .field label{ text-transform:none; letter-spacing:.02em; font-size:12px; font-weight:800; color:var(--ht-g700); }
+#dstudio .field input, #dstudio .field select, #dstudio .field textarea{
+  border-radius:13px; border:1px solid #e5e7eb; background:#fafbfc;
+  padding:10px 14px; font-size:13.5px; font-weight:500;
+}
+#dstudio .field input:focus, #dstudio .field select:focus, #dstudio .field textarea:focus{
+  border-color:rgba(0,229,192,.65); box-shadow:0 0 0 3px rgba(0,229,192,.15); background:#fff;
+}
+
+/* ═════════════ Modals / toasts / tweaks ═════════════ */
+#dstudio .modal{ border-radius:24px; box-shadow:0 40px 100px -30px rgba(10,12,20,.6); }
+#dstudio .modal-overlay{ background:rgba(10,12,20,.5); backdrop-filter:blur(4px); }
+#dstudio #notif{ border-radius:14px; box-shadow:0 18px 44px -14px rgba(10,12,20,.45); }
+#dstudio #tw-panel{ border-radius:20px; border-color:#ebecef; box-shadow:0 24px 60px -18px rgba(10,12,20,.35); }
+#dstudio .tw-seg button.on{ background:var(--ht-ink); border-color:var(--ht-ink); }
+
+/* texture tweak also governs the home hero dots (ink surface → soft white dots) */
+html[data-tw-texture="dots"] #dstudio .dh-new::before{
+  background:
+    radial-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
+    radial-gradient(560px 400px at 88% -12%, rgba(0,229,192,.20), transparent 62%),
+    radial-gradient(520px 420px at -8% 112%, rgba(46,104,255,.20), transparent 62%);
+  background-size:22px 22px, auto, auto;
+}
+html[data-tw-texture="clean"] #dstudio .dh-new::before,
+html[data-tw-texture="grid"] #dstudio .dh-new::before{
+  background:
+    radial-gradient(560px 400px at 88% -12%, rgba(0,229,192,.20), transparent 62%),
+    radial-gradient(520px 420px at -8% 112%, rgba(46,104,255,.20), transparent 62%);
+}
+
+/* keep gradient-accent tweak surfaces readable */
+html[data-tw-grad="on"] #dstudio #topbar .logo-icon{ color:#fff; }

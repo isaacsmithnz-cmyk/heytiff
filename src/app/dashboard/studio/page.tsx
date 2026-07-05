@@ -1,6 +1,5 @@
-import { Screen } from "@/components/shell/screen";
-import { blankHtml } from "@/components/shell/screens";
+import { Studio } from "@/components/studio/studio";
 
 export default function StudioPage() {
-  return <Screen html={blankHtml("Design Studio")} />;
+  return <Studio />;
 }

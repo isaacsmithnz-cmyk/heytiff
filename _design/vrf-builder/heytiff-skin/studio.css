@@ -1,0 +1,1904 @@
+/* ══════════════ HeyTiff Design Studio — merged stylesheet ══════════════
+   Order matters: engine base → DUCTR chrome skin → tweaks panel → HeyTiff skin.
+   Merged into one file so rule order is stable regardless of how the host
+   loads external sheets. Source parts live alongside this file. */
+
+/* ════════ 1. engine base (studio/engine.css) ════════ */
+/* DUCTR engine base styles — scoped to #dstudio (generated from VRF Builder standalone) */
+
+#dstudio *, #dstudio *::before, #dstudio *::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  /* Surfaces */
+  --ssx-bg:           #EFF4F9;
+  --ssx-card:         #FFFFFF;
+  --ssx-card2:        #F3F7FB;
+  /* Borders */
+  --ssx-border:       rgba(0,0,0,0.08);
+  --ssx-border-strong:rgba(0,0,0,0.14);
+  /* Text */
+  --ssx-text:         #111827;
+  --ssx-label:        #6B7280;
+  --ssx-faint:        #9CA3AF;
+  /* Accent */
+  --ssx-accent:       #0284C7;
+  --ssx-accent-hover: #0369A1;
+  --ssx-accent-bg:    rgba(2,132,199,0.10);
+  /* Inputs */
+  --ssx-input-bg:     rgba(255,255,255,0.90);
+  --ssx-input-border: rgba(0,0,0,0.14);
+  /* Interaction */
+  --ssx-hover:        rgba(0,0,0,0.04);
+  /* Nav / chrome */
+  --ssx-nav:          rgba(255,255,255,0.96);
+  --ssx-shadow:       0 10px 30px rgba(0,0,0,0.08);
+  --ssx-shadow-sm:    0 2px 8px rgba(0,0,0,0.06);
+  /* Radius */
+  --ssx-radius:       20px;
+  --ssx-radius-sm:    10px;
+  --ssx-radius-xs:    6px;
+  /* Status */
+  --ssx-ok:           #059669;
+  --ssx-ok-bg:        #ECFDF5;
+  --ssx-warn:         #D97706;
+  --ssx-warn-bg:      #FFFBEB;
+  --ssx-danger:       #DC2626;
+  --ssx-danger-bg:    #FEF2F2;
+  /* Fonts */
+  --ssx-font:         'Barlow', sans-serif;
+  --ssx-head:         'Barlow Condensed', sans-serif;
+  --ssx-mono:         'IBM Plex Mono', monospace;
+  /* Canvas bg */
+  --ssx-canvas-bg:    #DDE3EC;
+}
+#dstudio [data-theme="dark"]{
+  --ssx-bg:           #0B1220;
+  --ssx-card:         #111827;
+  --ssx-card2:        #162033;
+  --ssx-border:       rgba(255,255,255,0.06);
+  --ssx-border-strong:rgba(255,255,255,0.10);
+  --ssx-text:         #E5E7EB;
+  --ssx-label:        rgba(255,255,255,0.35);
+  --ssx-faint:        rgba(255,255,255,0.28);
+  --ssx-accent:       #0EA5E9;
+  --ssx-accent-hover: #38BDF8;
+  --ssx-accent-bg:    rgba(14,165,233,0.12);
+  --ssx-input-bg:     rgba(255,255,255,0.05);
+  --ssx-input-border: rgba(255,255,255,0.10);
+  --ssx-hover:        rgba(255,255,255,0.04);
+  --ssx-nav:          rgba(17,24,39,0.96);
+  --ssx-shadow:       0 10px 30px rgba(0,0,0,0.35);
+  --ssx-shadow-sm:    0 2px 8px rgba(0,0,0,0.25);
+  --ssx-ok:           #10B981;
+  --ssx-ok-bg:        rgba(16,185,129,0.12);
+  --ssx-warn:         #F59E0B;
+  --ssx-warn-bg:      rgba(245,158,11,0.12);
+  --ssx-danger:       #EF4444;
+  --ssx-danger-bg:    rgba(239,68,68,0.12);
+  --ssx-canvas-bg:    #060D19;
+}
+
+#dstudio{font-family:var(--ssx-font);background:var(--ssx-bg);color:var(--ssx-text);font-size:14px;line-height:1.5;min-height:100vh}
+
+/* ── App shell ── */
+#dstudio #app{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+#dstudio #topbar{display:flex;align-items:center;gap:10px;padding:0 16px;height:48px;background:var(--ssx-nav);backdrop-filter:blur(8px);border-bottom:1px solid var(--ssx-border-strong);flex-shrink:0;z-index:100}
+#dstudio #topbar .logo{display:flex;align-items:center;gap:8px;font-family:var(--ssx-head);font-size:15px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--ssx-text);text-decoration:none}
+#dstudio #topbar .logo-icon{width:28px;height:28px;background:var(--ssx-accent);border-radius:6px;display:flex;align-items:center;justify-content:center}
+#dstudio #topbar .logo-icon svg{width:16px;height:16px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round}
+#dstudio .topbar-sep{width:1px;height:22px;background:var(--ssx-border-strong);margin:0 2px}
+#dstudio #topbar-job{font-size:12px;color:var(--ssx-label);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#dstudio #topbar-job span{color:var(--ssx-text);font-weight:600}
+
+/* ── Step nav — pill style ── */
+#dstudio #steps{display:flex;align-items:center;gap:4px;background:var(--ssx-bg);padding:0;flex-shrink:0;overflow:visible}
+#dstudio .step-btn{display:flex;align-items:center;gap:6px;padding:7px 14px;border:none;background:transparent;cursor:pointer;font-family:var(--ssx-font);font-size:15px;font-weight:700;color:var(--ssx-faint);border-radius:20px;transition:all .15s;white-space:nowrap}
+#dstudio .step-btn:hover{color:var(--ssx-label);background:var(--ssx-hover)}
+#dstudio .step-btn.active{color:var(--ssx-accent);background:var(--ssx-accent-bg)}
+#dstudio .step-btn.done{color:var(--ssx-ok)}
+#dstudio .step-sep{display:none}
+#dstudio .step-btn .step-num{width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,0.07);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;transition:all .15s;flex-shrink:0}
+#dstudio .step-btn.active .step-num{background:var(--ssx-accent);color:#fff}
+#dstudio .step-btn.done .step-num{background:var(--ssx-ok);color:#fff}
+#dstudio .step-sep{color:var(--ssx-border-strong);font-size:14px;padding:0 2px}
+
+/* ── Main panels ── */
+#dstudio #main{flex:1;overflow:hidden;display:flex;position:relative}
+#dstudio .panel{position:absolute;inset:0;overflow-y:auto;padding:20px;display:none;flex-direction:column;gap:16px}
+#dstudio .panel.active{display:flex}
+#dstudio .panel-canvas{padding:0!important;gap:0!important}
+/* ── Premium transitions ── */
+:root{--ductr-ease:cubic-bezier(.22,.61,.36,1);--ductr-ease-out:cubic-bezier(.16,.84,.44,1);--ductr-flow:cubic-bezier(.4,.01,.16,1)}
+@keyframes ductrFadeUp{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
+@keyframes ductrPop{from{opacity:0;transform:translateY(6px) scale(.985)}to{opacity:1;transform:none}}
+/* Liquid panel crossfade — incoming + outgoing animate simultaneously */
+@keyframes ductrInFwd{from{opacity:0;transform:translate3d(40px,0,0) scale(.985)}to{opacity:1;transform:none}}
+@keyframes ductrInBack{from{opacity:0;transform:translate3d(-40px,0,0) scale(.985)}to{opacity:1;transform:none}}
+@keyframes ductrOutFwd{from{opacity:1;transform:none}to{opacity:0;transform:translate3d(-28px,0,0) scale(.992)}}
+@keyframes ductrOutBack{from{opacity:1;transform:none}to{opacity:0;transform:translate3d(28px,0,0) scale(.992)}}
+@keyframes ductrCanvasIn{from{opacity:0;transform:scale(.992)}to{opacity:1;transform:none}}
+@keyframes ductrCanvasOut{from{opacity:1}to{opacity:0}}
+/* Directional step transitions — #main carries data-dir set in goStep */
+#dstudio .panel.active{z-index:2}
+#dstudio .panel.leaving{display:flex;z-index:1;pointer-events:none}
+#dstudio .panel.active:not(.panel-canvas){animation:ductrInFwd .52s var(--ductr-flow) both}
+#dstudio .panel.leaving:not(.panel-canvas){animation:ductrOutFwd .52s var(--ductr-flow) both}
+#dstudio #main[data-dir="back"] .panel.active:not(.panel-canvas){animation:ductrInBack .52s var(--ductr-flow) both}
+#dstudio #main[data-dir="back"] .panel.leaving:not(.panel-canvas){animation:ductrOutBack .52s var(--ductr-flow) both}
+#dstudio .panel-canvas.active{animation:ductrCanvasIn .46s var(--ductr-flow) both}
+#dstudio .panel-canvas.leaving{animation:ductrCanvasOut .4s var(--ductr-flow) both}
+#dstudio .anim-in{animation:ductrFadeUp .4s var(--ductr-ease)}
+/* New-design card expand — cross-fade the two states (no display snap) */
+#dstudio .dh-new{transition:box-shadow .3s var(--ductr-ease),transform .3s var(--ductr-ease)}
+#dstudio .dh-new.expanded .dh-opt{opacity:0;animation:ductrPop .46s var(--ductr-ease) forwards}
+#dstudio .dh-new.expanded .dh-opt:nth-child(2){animation-delay:.08s}
+#dstudio .dh-new.expanded .dh-opt:nth-child(3){animation-delay:.16s}
+/* Plans cards & tiles stagger */
+#dstudio .floor-file-card{animation:ductrFadeUp .4s var(--ductr-ease) both}
+#dstudio .page-tile{animation:ductrPop .4s var(--ductr-ease) both}
+/* Recent / load rows */
+#dstudio .dh-rcard, #dstudio .dh-lrow{animation:ductrFadeUp .36s var(--ductr-ease) both}
+@media (prefers-reduced-motion:reduce){
+  #dstudio .panel.active, #dstudio .panel.leaving, #dstudio .panel-canvas.active, #dstudio .panel-canvas.leaving, #dstudio .anim-in, #dstudio .dh-new.expanded .dh-opt, #dstudio .floor-file-card, #dstudio .page-tile, #dstudio .dh-rcard, #dstudio .dh-lrow{animation:none!important}
+  #dstudio .panel.leaving{display:none!important}
+  #dstudio .dh-new-collapsed, #dstudio .dh-new-expanded{transition:none!important}
+}
+
+/* ── Cards ── */
+#dstudio .card{background:var(--ssx-card);border:1px solid var(--ssx-border);border-radius:var(--ssx-radius);padding:18px}
+#dstudio .card-title{font-family:var(--ssx-head);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--ssx-label);margin-bottom:14px}
+#dstudio .card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+
+/* ── Forms ── */
+#dstudio .form-grid{display:grid;gap:12px}
+#dstudio .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+#dstudio .field label{display:block;font-size:11px;font-weight:600;color:var(--ssx-label);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em}
+#dstudio .field input, #dstudio .field select, #dstudio .field textarea{width:100%;padding:8px 11px;border:1px solid var(--ssx-border-strong);border-radius:var(--ssx-radius-sm);font-family:var(--ssx-font);font-size:13px;color:var(--ssx-text);background:var(--ssx-input-bg);outline:none;transition:border .15s}
+#dstudio .field input:focus, #dstudio .field select:focus, #dstudio .field textarea:focus{border-color:var(--ssx-accent);box-shadow:0 0 0 3px var(--ssx-accent-bg)}
+#dstudio .field textarea{resize:vertical;min-height:72px}
+
+/* ── Buttons ── */
+#dstudio .btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:7px 14px;border-radius:var(--ssx-radius-sm);font-family:var(--ssx-font);font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all .15s;white-space:nowrap}
+#dstudio .btn-primary{background:var(--ssx-accent);color:#fff}
+#dstudio .btn-primary:hover{background:var(--ssx-accent-hover)}
+#dstudio .btn-secondary{background:var(--ssx-card2);color:var(--ssx-text);border:1px solid var(--ssx-border-strong)}
+#dstudio .btn-secondary:hover{background:var(--ssx-hover)}
+#dstudio .btn-danger{background:#fee2e2;color:var(--ssx-danger);border:1px solid #fecaca}
+#dstudio .btn-danger:hover{background:#fecaca}
+#dstudio .btn-sm{padding:5px 10px;font-size:11px}
+#dstudio .btn-icon{width:30px;height:30px;padding:0;justify-content:center;border-radius:var(--ssx-radius-sm)}
+#dstudio .btn:disabled{opacity:.4;cursor:not-allowed}
+#dstudio .btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;flex-shrink:0}
+
+/* ── Pills ── */
+#dstudio .pill{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700}
+#dstudio .pill-blue{background:var(--ssx-accent-bg);color:var(--ssx-accent)}
+#dstudio .pill-ok{background:#f0fdf4;color:var(--ssx-ok)}
+#dstudio .pill-warn{background:#fffbeb;color:var(--ssx-warn)}
+#dstudio .pill-danger{background:#fef2f2;color:var(--ssx-danger)}
+
+/* ── Mode / radio options ── */
+#dstudio .mode-option{display:flex;flex-direction:column;gap:8px;padding:18px;border:2px solid var(--ssx-border);border-radius:var(--ssx-radius);background:var(--ssx-card2);cursor:pointer;transition:all .2s}
+#dstudio .mode-option:hover{border-color:var(--ssx-accent);background:var(--ssx-accent-bg);transform:translateY(-2px);box-shadow:var(--ssx-shadow)}
+#dstudio .mode-option-icon{width:44px;height:44px;background:var(--ssx-accent-bg);border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--ssx-accent)}
+#dstudio .mode-option-title{font-family:var(--ssx-head);font-size:15px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--ssx-text)}
+#dstudio .mode-option-desc{font-size:12px;color:var(--ssx-label);line-height:1.5;flex:1}
+#dstudio .mode-option-badge{display:inline-flex;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:700;font-family:var(--ssx-head);letter-spacing:.04em;background:var(--ssx-accent);color:#fff;width:fit-content}
+#dstudio .mode-option-badge-alt{background:var(--ssx-card);color:var(--ssx-label);border:1px solid var(--ssx-border-strong)}
+#dstudio .radio-option{display:flex;align-items:flex-start;gap:10px;padding:12px;border:1px solid var(--ssx-border);border-radius:var(--ssx-radius-sm);background:var(--ssx-card2);cursor:pointer;transition:all .15s}
+#dstudio .radio-option:hover{border-color:var(--ssx-accent);background:var(--ssx-accent-bg)}
+#dstudio .radio-option input[type="radio"]{margin-top:2px;accent-color:var(--ssx-accent);flex-shrink:0}
+#dstudio .radio-option-title{font-weight:700;font-size:12px;color:var(--ssx-text);margin-bottom:2px}
+#dstudio .radio-option-desc{font-size:11px;color:var(--ssx-label)}
+
+/* ── Home screen ── */
+#dstudio #home-jobs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+#dstudio .home-job-card{background:var(--ssx-card);border:1px solid var(--ssx-border);border-radius:var(--ssx-radius);cursor:pointer;transition:all .2s;overflow:hidden}
+#dstudio .home-job-card:hover{border-color:var(--ssx-accent);box-shadow:var(--ssx-shadow);transform:translateY(-2px)}
+
+/* ── Upload ── */
+#dstudio .upload-zone{border:2px dashed var(--ssx-border-strong);border-radius:var(--ssx-radius);padding:40px 20px;text-align:center;cursor:pointer;transition:all .2s;background:var(--ssx-card2)}
+#dstudio .upload-zone:hover, #dstudio .upload-zone.drag{border-color:var(--ssx-accent);background:var(--ssx-accent-bg)}
+#dstudio .upload-zone svg{width:36px;height:36px;stroke:var(--ssx-faint);margin-bottom:10px}
+#dstudio .upload-zone h3{font-size:14px;font-weight:600;margin-bottom:4px}
+#dstudio .upload-zone p{color:var(--ssx-label);font-size:12px}
+#dstudio .upload-zone input{display:none}
+#dstudio .page-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:12px}
+#dstudio .page-thumb{border:2px solid var(--ssx-border);border-radius:var(--ssx-radius-sm);overflow:hidden;cursor:pointer;transition:all .15s;position:relative;background:var(--ssx-card2)}
+#dstudio .page-thumb:hover{border-color:var(--ssx-accent);box-shadow:var(--ssx-shadow-sm)}
+#dstudio .page-thumb.selected{border-color:var(--ssx-accent);box-shadow:0 0 0 3px var(--ssx-accent-bg)}
+#dstudio .page-thumb.justadded{animation:ductrJustAdded 1.6s var(--ductr-ease)}
+@keyframes ductrJustAdded{0%{box-shadow:0 0 0 4px var(--ssx-accent)}40%{box-shadow:0 0 0 4px var(--ssx-accent)}100%{box-shadow:0 0 0 3px var(--ssx-accent-bg)}}
+#dstudio .page-thumb-img{width:100%;display:block;aspect-ratio:1.414;object-fit:cover}
+#dstudio .page-thumb canvas{width:100%;display:block}
+#dstudio .page-thumb .page-label{padding:7px 10px;font-size:11px;font-weight:500;background:var(--ssx-card);border-top:1px solid var(--ssx-border);color:var(--ssx-text)}
+#dstudio .page-thumb .page-num{font-size:10px;color:var(--ssx-faint);margin-top:1px}
+#dstudio .page-thumb .check{position:absolute;top:7px;right:7px;width:20px;height:20px;border-radius:50%;background:var(--ssx-accent);display:none;align-items:center;justify-content:center;box-shadow:0 2px 4px rgba(0,0,0,.2)}
+#dstudio .page-thumb.selected .check{display:flex}
+#dstudio .page-thumb .check svg{width:11px;height:11px;stroke:#fff;stroke-width:2.5}
+#dstudio .page-thumb .preview-btn{position:absolute;bottom:36px;right:7px;width:26px;height:26px;border-radius:5px;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;cursor:pointer;border:none}
+#dstudio .page-thumb:hover .preview-btn{display:flex}
+#dstudio .page-thumb .preview-btn svg{width:13px;height:13px;stroke:#fff;fill:none;stroke-width:1.8;stroke-linecap:round}
+#dstudio .floor-list{display:flex;flex-direction:column;gap:12px}
+#dstudio .floor-file-card{border:1px solid var(--ssx-border);border-radius:14px;background:var(--ssx-card);overflow:hidden}
+#dstudio .floor-file-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;background:var(--ssx-card2);border-bottom:1px solid var(--ssx-border)}
+#dstudio .floor-file-name{display:flex;align-items:center;gap:7px;font-family:var(--ssx-head);font-weight:800;font-size:12.5px;color:var(--ssx-text);min-width:0}
+#dstudio .floor-file-name > span:first-of-type{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
+#dstudio .floor-file-name svg{color:var(--ssx-accent);flex-shrink:0}
+#dstudio .floor-file-count{font-family:var(--ssx-mono);font-size:10px;font-weight:600;color:var(--ssx-faint);background:var(--ssx-bg);padding:2px 7px;border-radius:20px;flex-shrink:0;white-space:nowrap}
+#dstudio .floor-file-edit{flex-shrink:0}
+#dstudio .floor-file-body{display:flex;flex-direction:column;gap:7px;padding:10px 12px}
+#dstudio .floor-file-body{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;padding:14px}
+#dstudio .page-tile{display:flex;flex-direction:column;gap:8px}
+#dstudio .page-tile-alloc{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:8px 10px;border:none;border-radius:9px;background:var(--ssx-accent);color:#fff;font:700 11.5px var(--ssx-font);cursor:pointer;box-shadow:0 2px 8px rgba(14,159,110,.28);transition:background .12s}
+#dstudio .page-tile-alloc:hover{background:var(--ssx-accent-hover)}
+#dstudio .page-tile-img{position:relative;border:1px solid var(--ssx-border-strong);border-radius:11px;overflow:hidden;background:var(--ssx-card2);cursor:pointer;transition:border-color .12s}
+#dstudio .page-tile-img:hover{border-color:var(--ssx-accent)}
+#dstudio .page-tile-img img{width:100%;height:150px;object-fit:cover;display:block}
+#dstudio .page-tile-blank{height:150px;display:grid;place-items:center;font:600 11px var(--ssx-mono);color:var(--ssx-faint)}
+#dstudio .page-tile-x{position:absolute;top:7px;right:7px;width:24px;height:24px;border:none;border-radius:50%;background:rgba(0,0,0,.5);color:#fff;font-size:11px;line-height:1;cursor:pointer;display:grid;place-items:center;transition:background .12s}
+#dstudio .page-tile-x:hover{background:#dc2626}
+#dstudio .page-tile-lvl{position:absolute;left:7px;bottom:7px;font:700 9px var(--ssx-mono);background:var(--ssx-accent);color:#fff;padding:2px 7px;border-radius:20px}
+#dstudio .floor-item{display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--ssx-card2);border:1px solid var(--ssx-border);border-radius:var(--ssx-radius-sm)}
+/* Plans section header */
+#dstudio .plans-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding-bottom:16px;margin-bottom:16px;border-bottom:1px solid var(--ssx-border);flex-wrap:wrap}
+#dstudio .plans-head-title h2{font-family:var(--ssx-head);font-size:24px;font-weight:800;letter-spacing:-.02em;color:var(--ssx-text);margin:0}
+#dstudio .plans-head-title p{font-size:12px;color:var(--ssx-label);margin:3px 0 0;max-width:420px}
+#dstudio .floor-level-tag{flex-shrink:0;font-family:var(--ssx-mono);font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;background:var(--ssx-accent-bg);color:var(--ssx-accent);white-space:nowrap}
+#dstudio .floor-level-tag.unset{background:var(--ssx-bg);color:var(--ssx-faint)}
+/* Name & allocate modal */
+#dstudio #alloc-list{display:flex;flex-direction:column;gap:14px}
+#dstudio .alloc-row{display:flex;gap:16px;padding:14px;border:1px solid var(--ssx-border);border-radius:14px;background:var(--ssx-card2);transition:box-shadow .2s,border-color .2s}
+#dstudio .alloc-row.focus{border-color:var(--ssx-accent);box-shadow:0 0 0 3px var(--ssx-accent-bg)}
+#dstudio .alloc-img{flex-shrink:0;width:240px;border-radius:10px;overflow:hidden;border:1px solid var(--ssx-border-strong);background:var(--ssx-bg);display:flex;align-items:center;justify-content:center}
+#dstudio .alloc-img img{width:100%;display:block}
+#dstudio .alloc-blank{padding:60px 0;font-size:12px;color:var(--ssx-faint)}
+#dstudio .alloc-fields{flex:1;min-width:0;display:flex;flex-direction:column}
+#dstudio .alloc-label{font-family:var(--ssx-head);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--ssx-label);margin-bottom:5px}
+#dstudio .alloc-name, #dstudio .alloc-level{width:100%;padding:9px 11px;border:1px solid var(--ssx-border-strong);border-radius:9px;font-family:var(--ssx-font);font-size:13px;color:var(--ssx-text);background:var(--ssx-input-bg,var(--ssx-card))}
+#dstudio .alloc-name:focus, #dstudio .alloc-level:focus{outline:none;border-color:var(--ssx-accent)}
+#dstudio .alloc-presets{margin-top:10px;display:flex;flex-direction:column;gap:7px}
+#dstudio .alloc-quick{width:100%;margin-top:7px;padding:9px 11px;border:1px solid var(--ssx-border-strong);border-radius:9px;font-family:var(--ssx-font);font-size:12.5px;color:var(--ssx-label);background:var(--ssx-input-bg,var(--ssx-card2));cursor:pointer}
+#dstudio .alloc-quick:focus{outline:none;border-color:var(--ssx-accent)}
+#dstudio .alloc-level-custom{width:100%;margin-top:7px;padding:9px 11px;border:1px solid var(--ssx-border-strong);border-radius:9px;font-family:var(--ssx-font);font-size:12.5px;color:var(--ssx-text);background:var(--ssx-input-bg,var(--ssx-card2))}
+#dstudio .alloc-level-custom:focus{outline:none;border-color:var(--ssx-accent)}
+#dstudio .alloc-toprow{display:flex;gap:12px;align-items:stretch}
+#dstudio .alloc-field{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--ssx-card);border:1px solid var(--ssx-border);border-radius:12px;padding:12px 13px;box-shadow:var(--ductr-sh-sm)}
+#dstudio .alloc-preset-group{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+#dstudio .alloc-preset-tag{font-family:var(--ssx-head);font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--ssx-faint);margin-right:3px}
+#dstudio .alloc-chip{padding:4px 10px;border:1px solid var(--ssx-border-strong);border-radius:20px;background:var(--ssx-card);color:var(--ssx-label);font-family:var(--ssx-font);font-size:11px;font-weight:600;cursor:pointer;transition:all .12s}
+#dstudio .alloc-chip:hover{border-color:var(--ssx-accent);color:var(--ssx-accent);background:var(--ssx-accent-bg)}
+#dstudio .floor-thumb-sm{width:38px;height:54px;object-fit:cover;border-radius:4px;border:1px solid var(--ssx-border);background:var(--ssx-bg);flex-shrink:0}
+#dstudio .floor-name-input{flex:1;padding:5px 9px;border:1px solid var(--ssx-border-strong);border-radius:var(--ssx-radius-sm);font-family:var(--ssx-font);font-size:12px;color:var(--ssx-text);background:var(--ssx-input-bg)}
+#dstudio .floor-name-input:focus{outline:none;border-color:var(--ssx-accent)}
+
+/* ── Rooms (Step 2 old — kept for sidebar) ── */
+#dstudio .room-card{border:1px solid var(--ssx-border);border-radius:var(--ssx-radius);overflow:hidden;transition:box-shadow .15s;background:var(--ssx-card)}
+#dstudio .room-card:hover{box-shadow:var(--ssx-shadow)}
+#dstudio .room-header{display:flex;align-items:center;gap:9px;padding:11px 14px;cursor:pointer;user-select:none}
+#dstudio .rm-label{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--ssx-label);margin-bottom:4px}
+#dstudio .rm-orient-badge{font:700 9px var(--ssx-mono);padding:2px 7px;border-radius:5px;white-space:nowrap}
+#dstudio .rm-orient-badge.auto{background:var(--ssx-accent-bg);color:var(--ssx-accent)}
+#dstudio .rm-orient-badge.override{background:#FEF3C7;color:#92400E}
+#dstudio [data-theme="dark"] .rm-orient-badge.override{background:#3D2B00;color:#FCD34D}
+#dstudio .rm-orient-reset{border:none;background:transparent;font:700 11px var(--ssx-font);color:var(--ssx-accent);cursor:pointer;padding:2px 5px;border-radius:5px;white-space:nowrap}
+#dstudio .rm-orient-reset:hover{background:var(--ssx-accent-bg)}
+#dstudio .rm-input{width:100%;padding:7px 10px;border:1px solid var(--ssx-border-strong);border-radius:5px;font-family:var(--ssx-font);font-size:13px;background:var(--ssx-input-bg);color:var(--ssx-text);outline:none;box-sizing:border-box}
+#dstudio .rm-input:focus{border-color:var(--ssx-accent)}
+#dstudio .rm-mono{font-family:var(--ssx-mono)!important}
+#dstudio .rm-select{width:100%;padding:7px 10px;border:1px solid var(--ssx-border-strong);border-radius:5px;font-family:var(--ssx-font);font-size:12px;background:var(--ssx-input-bg);color:var(--ssx-text);outline:none}
+#dstudio .rm-chip{padding:3px 10px;border:1px solid var(--ssx-border-strong);border-radius:20px;background:var(--ssx-card2);font-size:11px;cursor:pointer;color:var(--ssx-text);font-family:var(--ssx-font)}
+#dstudio .rm-chip:hover{background:var(--ssx-accent-bg);border-color:var(--ssx-accent);color:var(--ssx-accent)}
+/* Info icon tooltip */
+#dstudio .info-tip{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:var(--ssx-border-strong);color:var(--ssx-label);font-size:9px;font-weight:800;cursor:default;position:relative;vertical-align:middle;margin-left:4px;flex-shrink:0;font-style:normal;line-height:1}
+#dstudio .info-tip::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#1e293b;color:#f8fafc;font-size:11px;font-weight:400;font-family:var(--ssx-font);line-height:1.4;padding:7px 10px;border-radius:6px;white-space:nowrap;max-width:240px;white-space:normal;width:max-content;max-width:220px;pointer-events:none;opacity:0;transition:opacity .15s;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,.3)}
+#dstudio .info-tip::before{content:'';position:absolute;bottom:calc(100% + 1px);left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#1e293b;pointer-events:none;opacity:0;transition:opacity .15s}
+#dstudio .info-tip:hover::after, #dstudio .info-tip:hover::before{opacity:1}
+#dstudio .info-tip-right::after{left:0;transform:translateX(0)}
+#dstudio .info-tip-right::before{left:7px;transform:translateX(0)}
+#dstudio .comp-item{display:flex;align-items:flex-start;gap:7px;padding:5px 0;border-bottom:1px solid var(--ssx-border);font-size:11px}
+#dstudio .comp-item:last-child{border-bottom:none}
+#dstudio .comp-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:3px}
+#dstudio .comp-name{font-weight:700;color:var(--ssx-text);line-height:1.3}
+#dstudio .comp-detail{color:var(--ssx-label);font-family:var(--ssx-mono);font-size:10px;margin-top:1px}
+#dstudio .room-pill.complete{border-color:var(--ssx-ok);background:#f0fdf4}
+#dstudio .room-pill:hover{border-color:var(--ssx-accent)}
+#dstudio .room-title{flex:1;font-weight:600;font-size:13px}
+#dstudio .room-meta{font-size:11px;color:var(--ssx-label);display:flex;align-items:center;gap:6px}
+#dstudio .room-kw{font-weight:700;font-family:var(--ssx-mono)}
+#dstudio .room-body{padding:14px;border-top:1px solid var(--ssx-border);background:var(--ssx-card2);display:none}
+#dstudio .room-body.open{display:block}
+#dstudio .sizing-toggle{display:flex;border:1px solid var(--ssx-border-strong);border-radius:var(--ssx-radius-sm);overflow:hidden;margin-bottom:12px}
+#dstudio .sizing-toggle button{flex:1;padding:6px;border:none;background:none;font-family:var(--ssx-font);font-size:11px;font-weight:600;cursor:pointer;color:var(--ssx-label);transition:all .15s}
+#dstudio .sizing-toggle button.active{background:var(--ssx-accent);color:#fff}
+#dstudio .heat-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px}
+#dstudio .heat-field label{font-size:10px;font-weight:600;color:var(--ssx-label);display:block;margin-bottom:3px;text-transform:uppercase;letter-spacing:.03em}
+#dstudio .heat-field input, #dstudio .heat-field select{width:100%;padding:6px 9px;border:1px solid var(--ssx-border-strong);border-radius:var(--ssx-radius-sm);font-family:var(--ssx-font);font-size:12px;color:var(--ssx-text);background:var(--ssx-input-bg);outline:none}
+#dstudio .heat-field input:focus, #dstudio .heat-field select:focus{border-color:var(--ssx-accent)}
+
+/* ── System overview ── */
+#dstudio .overview-card{background:linear-gradient(135deg,var(--ssx-accent-bg),var(--ssx-card2));border:1px solid var(--ssx-border);border-radius:var(--ssx-radius);padding:18px}
+#dstudio .odu-row{display:flex;align-items:center;gap:12px;padding:12px;background:var(--ssx-card);border:1px solid var(--ssx-border);border-radius:var(--ssx-radius-sm);margin-bottom:12px}
+#dstudio .odu-icon{width:36px;height:36px;background:var(--ssx-accent-bg);border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+#dstudio .odu-icon svg{width:20px;height:20px;stroke:var(--ssx-accent);fill:none;stroke-width:1.5}
+#dstudio .odu-model{font-weight:700;font-size:13px;font-family:var(--ssx-mono)}
+#dstudio .odu-desc{font-size:11px;color:var(--ssx-label);margin-top:2px}
+#dstudio .stats-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px}
+#dstudio .stat-box{background:var(--ssx-card);border:1px solid var(--ssx-border);border-radius:var(--ssx-radius-sm);padding:10px 12px}
+#dstudio .stat-label{font-size:10px;font-weight:600;color:var(--ssx-faint);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px}
+#dstudio .stat-val{font-size:20px;font-weight:700;font-family:var(--ssx-mono)}
+#dstudio .stat-val.ok{color:var(--ssx-ok)}
+#dstudio .stat-val.warn{color:var(--ssx-warn)}
+#dstudio .stat-val.danger{color:var(--ssx-danger)}
+#dstudio .fit-badge{display:flex;align-items:center;gap:7px;padding:9px 12px;border-radius:var(--ssx-radius-sm);font-size:12px;font-weight:600}
+#dstudio .fit-badge.ok{background:#f0fdf4;border:1px solid #86efac;color:var(--ssx-ok)}
+#dstudio .fit-badge.warn{background:#fffbeb;border:1px solid #fcd34d;color:var(--ssx-warn)}
+#dstudio .fit-badge.danger{background:#fef2f2;border:1px solid #fca5a5;color:var(--ssx-danger)}
+
+/* ── Canvas layout ── */
+#dstudio #canvas-layout{display:flex;height:100%;overflow:hidden}
+#dstudio #canvas-sidebar{
+  width:300px;flex-shrink:0;background:var(--ssx-card);
+  border-right:1px solid var(--ssx-border-strong);
+  display:flex;flex-direction:column;overflow:hidden;
+  transition:width .2s ease;
+  position:relative;
+}
+#dstudio #canvas-sidebar.collapsed{width:0}
+#dstudio #sidebar-toggle{
+  position:absolute;top:50%;right:-14px;transform:translateY(-50%);
+  width:14px;height:40px;background:var(--ssx-card);
+  border:1px solid var(--ssx-border-strong);border-left:none;
+  border-radius:0 6px 6px 0;cursor:pointer;z-index:10;
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;color:var(--ssx-label);
+  transition:background .15s;
+}
+#dstudio #sidebar-toggle:hover{background:var(--ssx-hover)}
+#dstudio #canvas-main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+#dstudio #canvas-toolbar{
+  display:grid;
+  grid-template-columns:1fr auto;
+  grid-template-rows:repeat(3,auto);
+  background:var(--ssx-nav);backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--ssx-border-strong);flex-shrink:0;
+}
+#dstudio .toolbar-row{
+  display:flex;align-items:center;gap:5px;padding:5px 12px;
+  border-bottom:1px solid var(--ssx-border);
+  grid-column:1;min-height:36px;
+}
+#dstudio .toolbar-row:last-child{border-bottom:none}
+#dstudio .toolbar-label{
+  font-family:var(--ssx-head);font-size:11px;font-weight:800;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--ssx-text);white-space:nowrap;
+  width:100px;flex-shrink:0;height:28px;display:flex;align-items:center;box-sizing:border-box;
+}
+#dstudio .toolbar-legend-col{
+  grid-column:2;grid-row:1/4;
+  border-left:1px solid var(--ssx-border-strong);
+  display:flex;align-items:stretch;
+  background:var(--ssx-card2);
+}
+#dstudio .tool-group{display:flex;align-items:center;gap:3px}
+#dstudio .tool-sep{width:1px;align-self:stretch;background:var(--ssx-border-strong);margin:4px 5px;flex-shrink:0}
+#dstudio .tool-btn{
+  display:flex;align-items:center;gap:4px;padding:5px 9px;
+  border:1px solid var(--ssx-border-strong);border-radius:var(--ssx-radius-xs);
+  background:var(--ssx-card2);color:var(--ssx-label);
+  font-family:var(--ssx-font);font-size:11px;font-weight:600;
+  cursor:pointer;transition:all .15s;white-space:nowrap;height:28px;box-sizing:border-box;
+}
+#dstudio .tool-btn:hover{background:var(--ssx-hover);color:var(--ssx-text)}
+#dstudio .tool-btn.active{background:var(--ssx-accent);color:#fff;border-color:var(--ssx-accent)}
+#dstudio .tool-btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;flex-shrink:0}
+/* Make zoom label, Fit/100% buttons and scale badge all match tool-btn height */
+#dstudio #zoom-label{height:28px;box-sizing:border-box;display:flex;align-items:center;justify-content:center}
+#dstudio #canvas-validation{height:28px;box-sizing:border-box;display:flex;align-items:center;padding:0 9px;font-weight:700}
+#dstudio .toolbar-row .btn-sm{height:28px;box-sizing:border-box;display:flex;align-items:center;padding:0 9px;font-size:11px}
+#dstudio .sys-selector{
+  display:flex;align-items:center;gap:5px;padding:5px 9px;
+  border:1px solid var(--ssx-border-strong);border-radius:var(--ssx-radius-xs);
+  background:var(--ssx-card2);font-family:var(--ssx-head);
+  font-size:12px;font-weight:800;cursor:pointer;color:var(--ssx-text);
+}
+#dstudio #floor-tabs{
+  display:flex;align-items:center;padding:0 10px;
+  background:var(--ssx-card2);border-bottom:1px solid var(--ssx-border-strong);flex-shrink:0;
+}
+#dstudio .floor-tab{
+  padding:8px 12px;border:none;background:none;font-family:var(--ssx-font);
+  font-size:11px;font-weight:600;color:var(--ssx-faint);cursor:pointer;
+  border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;
+}
+#dstudio .floor-tab:hover{color:var(--ssx-label)}
+#dstudio .floor-tab.active{color:var(--ssx-accent);border-bottom-color:var(--ssx-accent);background:var(--ssx-card)}
+#dstudio #canvas-wrap{
+  flex:1;overflow:hidden;background:#FFFFFF;
+  position:relative;cursor:default;user-select:none;
+}
+#dstudio #canvas-wrap.mode-select{cursor:default}
+#dstudio #canvas-wrap.mode-pan{cursor:grab}
+#dstudio #canvas-wrap.mode-panning{cursor:grabbing}
+#dstudio #canvas-wrap.mode-pipe, #dstudio #canvas-wrap.mode-poly, #dstudio #canvas-wrap.mode-rect, #dstudio #canvas-wrap.mode-calib, #dstudio #canvas-wrap.mode-crop, #dstudio #canvas-wrap.mode-north, #dstudio #canvas-wrap.mode-tjunction, #dstudio #canvas-wrap.mode-bcbox, #dstudio #canvas-wrap.mode-riser{cursor:crosshair}
+#dstudio #canvas-wrap.mode-eraser{cursor:cell}
+#dstudio #room-hover-card{
+  position:fixed;pointer-events:none;z-index:9999;
+  background:var(--ssx-card);border:1px solid var(--ssx-border-strong);
+  border-radius:8px;padding:10px 13px;min-width:160px;
+  box-shadow:0 4px 16px rgba(0,0,0,.18);
+  opacity:0;transition:opacity .12s;
+}
+#dstudio #room-hover-card.visible{opacity:1}
+#dstudio #unit-hover-card{
+  position:fixed;pointer-events:none;z-index:9999;
+  background:var(--ssx-card);border:1px solid var(--ssx-border-strong);
+  border-radius:8px;padding:10px 13px;min-width:160px;
+  box-shadow:0 4px 16px rgba(0,0,0,.18);
+  opacity:0;transition:opacity .12s;
+  top:10px;
+}
+#dstudio #unit-hover-card.visible{opacity:1}
+#dstudio #comp-hover-card{
+  position:fixed;pointer-events:none;z-index:9999;
+  background:var(--ssx-card);border:1px solid var(--ssx-border-strong);
+  border-radius:8px;padding:10px 13px;min-width:160px;
+  box-shadow:0 4px 16px rgba(0,0,0,.18);
+  opacity:0;transition:opacity .12s;
+  top:10px;
+}
+#dstudio #comp-hover-card.visible{opacity:1}
+#dstudio .rhc-name{
+  font-family:var(--ssx-head);font-size:13px;font-weight:800;
+  text-transform:uppercase;letter-spacing:.04em;color:var(--ssx-text);
+  margin-bottom:7px;padding-bottom:7px;border-bottom:1px solid var(--ssx-border);
+}
+#dstudio .rhc-row{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:16px;margin-top:4px;
+}
+#dstudio .rhc-label{font-size:11px;color:var(--ssx-label)}
+#dstudio .rhc-value{font-family:var(--ssx-mono);font-size:12px;font-weight:700;color:var(--ssx-text)}
+#dstudio #canvas-inner{position:absolute;transform-origin:0 0;z-index:1}
+#dstudio #floor-canvas{display:block;box-shadow:0 4px 24px rgba(0,0,0,.18)}
+#dstudio #zoom-badge{
+  position:absolute;bottom:10px;right:10px;
+  background:var(--ssx-card);border:1px solid var(--ssx-border-strong);
+  border-radius:20px;padding:3px 9px;font-family:var(--ssx-mono);
+  font-size:10px;font-weight:600;color:var(--ssx-label);pointer-events:none;z-index:10;
+}
+#dstudio #coords-badge{
+  position:absolute;bottom:10px;left:10px;
+  background:var(--ssx-card);border:1px solid var(--ssx-border-strong);
+  border-radius:20px;padding:3px 9px;font-family:var(--ssx-mono);
+  font-size:10px;color:var(--ssx-faint);pointer-events:none;z-index:10;
+}
+
+/* ── Sidebar sections ── */
+#dstudio .sidebar-section{border-bottom:1px solid var(--ssx-border);flex-shrink:0}
+#dstudio .sidebar-section-title{
+  display:flex;align-items:center;justify-content:space-between;padding:9px 12px;
+  font-family:var(--ssx-head);font-size:10px;font-weight:800;text-transform:uppercase;
+  letter-spacing:.07em;color:var(--ssx-label);cursor:pointer;user-select:none;
+}
+#dstudio .sidebar-section-title:hover{background:var(--ssx-hover)}
+#dstudio .sidebar-section-body{padding:8px 12px}
+#dstudio .sidebar-room-item{
+  padding:8px 10px;border:1px solid var(--ssx-border);border-radius:var(--ssx-radius-sm);
+  background:var(--ssx-card2);margin-bottom:5px;cursor:pointer;transition:all .15s;
+}
+#dstudio .sidebar-room-item:hover{border-color:var(--ssx-accent);background:var(--ssx-accent-bg)}
+#dstudio .sidebar-room-item.placed{border-color:var(--ssx-ok)!important}
+
+/* ── Unit palette ── */
+#dstudio .unit-palette{display:flex;flex-direction:column;gap:3px}
+#dstudio .palette-item{
+  display:flex;align-items:center;gap:7px;padding:7px 9px;
+  border:1px solid var(--ssx-border);border-radius:var(--ssx-radius-sm);
+  cursor:grab;background:var(--ssx-card2);transition:all .15s;user-select:none;
+}
+#dstudio .palette-item:hover{border-color:var(--ssx-accent);background:var(--ssx-accent-bg)}
+#dstudio .palette-item:active{cursor:grabbing}
+#dstudio .palette-icon{width:30px;height:18px;border-radius:3px;border:1.5px solid;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:7px;font-weight:800;font-family:var(--ssx-head)}
+#dstudio .palette-info{flex:1;min-width:0}
+#dstudio .palette-model{font-size:10px;font-weight:600;font-family:var(--ssx-mono);color:var(--ssx-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#dstudio .palette-kw{font-size:9px;color:var(--ssx-label)}
+
+/* ── Inspector (floating panel over the canvas, right side) ── */
+#dstudio #inspector{position:fixed;top:128px;right:24px;z-index:9990;width:264px;background:var(--ssx-card);border:1px solid var(--ssx-border-strong);border-radius:16px;box-shadow:var(--ductr-sh);padding:15px 16px;display:none;animation:ductrModalIn .3s var(--ductr-flow,cubic-bezier(.4,.01,.16,1)) both}
+#dstudio #inspector.visible{display:block}
+#dstudio .inspector-title{font-family:var(--ssx-head);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--ssx-label);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+#dstudio .inspector-title .insp-x{width:22px;height:22px;border:none;background:var(--ssx-card2);border-radius:7px;color:var(--ssx-faint);cursor:pointer;font-size:13px;line-height:1;display:grid;place-items:center}
+#dstudio .inspector-title .insp-x:hover{color:var(--ssx-text);background:var(--ssx-bg)}
+#dstudio .inspector-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;font-size:12px}
+#dstudio .inspector-row label{color:var(--ssx-label)}
+#dstudio .inspector-row span{font-weight:600;font-family:var(--ssx-mono)}
+#dstudio .insp-loc-lbl{font-family:var(--ssx-head);font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--ssx-label);margin:12px 0 7px}
+#dstudio .insp-loc-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:9px}
+#dstudio .insp-loc-chip{font:600 11px var(--ssx-font);padding:6px 10px;border:1px solid var(--ssx-border-strong);border-radius:9px;background:var(--ssx-card);color:var(--ssx-label);cursor:pointer;transition:all .12s}
+#dstudio .insp-loc-chip:hover{border-color:var(--ssx-accent);color:var(--ssx-accent)}
+#dstudio .insp-loc-chip.on{background:var(--ssx-accent);border-color:var(--ssx-accent);color:#fff}
+#dstudio .insp-loc-note{width:100%;padding:8px 10px;border:1px solid var(--ssx-border-strong);border-radius:9px;font:500 12px var(--ssx-font);color:var(--ssx-text);background:var(--ssx-input-bg,var(--ssx-card2));resize:vertical;min-height:34px}
+#dstudio .insp-loc-note:focus{outline:none;border-color:var(--ssx-accent)}
+
+/* ── Pipe legend ── */
+#dstudio .pipe-legend{display:flex;flex-direction:column;gap:4px;padding:8px 12px}
+#dstudio .pipe-leg-item{display:flex;align-items:center;gap:7px;font-size:10px}
+#dstudio .pipe-swatch{width:22px;border-radius:2px;flex-shrink:0}
+
+/* ── Materials table ── */
+#dstudio .materials-table{width:100%;border-collapse:collapse;font-size:12px}
+#dstudio .materials-table th{text-align:left;padding:7px 10px;font-family:var(--ssx-head);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--ssx-label);border-bottom:2px solid var(--ssx-border-strong);background:var(--ssx-card2)}
+#dstudio .materials-table td{padding:8px 10px;border-bottom:1px solid var(--ssx-border)}
+#dstudio .materials-table tr:last-child td{border-bottom:none}
+#dstudio .materials-table tr:hover td{background:var(--ssx-card2)}
+#dstudio .materials-table .cat-row td{font-family:var(--ssx-head);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--ssx-label);background:var(--ssx-card2);padding:5px 10px}
+#dstudio .qty-badge{display:inline-flex;align-items:center;padding:1px 7px;border-radius:10px;background:var(--ssx-accent-bg);color:var(--ssx-accent);font-size:11px;font-weight:700;font-family:var(--ssx-mono)}
+
+/* ── Modals ── */
+#dstudio .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.58);z-index:1000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(1px)}
+#dstudio .modal-overlay.show{display:flex}
+/* Liquid modal entrance / exit */
+@keyframes ductrOverlayIn{from{opacity:0;backdrop-filter:blur(0)}to{opacity:1}}
+@keyframes ductrOverlayOut{from{opacity:1}to{opacity:0}}
+@keyframes ductrModalIn{from{opacity:0;transform:translateY(16px) scale(.965)}to{opacity:1;transform:none}}
+@keyframes ductrModalOut{from{opacity:1;transform:none}to{opacity:0;transform:translateY(8px) scale(.98)}}
+#dstudio .modal-overlay.show, #dstudio #pdf-lightbox.show{animation:ductrOverlayIn .26s var(--ductr-flow) both}
+#dstudio .modal-overlay.show > *, #dstudio #pdf-lightbox.show > *{animation:ductrModalIn .44s var(--ductr-flow) both}
+#dstudio .modal-overlay.closing, #dstudio #pdf-lightbox.closing{animation:ductrOverlayOut .3s var(--ductr-flow) both}
+#dstudio .modal-overlay.closing > *, #dstudio #pdf-lightbox.closing > *{animation:ductrModalOut .26s var(--ductr-flow) both}
+@media (prefers-reduced-motion:reduce){
+  #dstudio .modal-overlay.show, #dstudio #pdf-lightbox.show, #dstudio .modal-overlay.show > *, #dstudio #pdf-lightbox.show > *, #dstudio .modal-overlay.closing, #dstudio #pdf-lightbox.closing, #dstudio .modal-overlay.closing > *, #dstudio #pdf-lightbox.closing > *{animation:none!important}
+}
+#dstudio .modal{background:var(--ssx-card);border-radius:var(--ssx-radius);padding:24px;width:420px;box-shadow:var(--ssx-shadow);border:1px solid var(--ssx-border-strong)}
+#dstudio .modal h3{font-family:var(--ssx-head);font-size:18px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px}
+#dstudio .modal p{font-size:12px;color:var(--ssx-label);margin-bottom:16px}
+#dstudio .modal-btns{display:flex;gap:7px;justify-content:flex-end;margin-top:16px}
+#dstudio .calib-preview{background:var(--ssx-card2);border:1px solid var(--ssx-border-strong);border-radius:var(--ssx-radius-sm);padding:9px 11px;font-size:12px;color:var(--ssx-label);margin-bottom:10px;font-family:var(--ssx-mono)}
+
+/* ── Notifications ── */
+#dstudio #notif{position:fixed;bottom:16px;right:16px;z-index:2000;display:flex;flex-direction:column;gap:6px}
+#dstudio .notif-item{padding:9px 14px;background:var(--ssx-text);color:#fff;border-radius:var(--ssx-radius-sm);font-size:12px;box-shadow:var(--ssx-shadow);animation:slideIn .2s ease;max-width:300px}
+#dstudio .notif-item.ok{background:var(--ssx-ok)}
+#dstudio .notif-item.warn{background:var(--ssx-warn)}
+#dstudio .notif-item.danger{background:var(--ssx-danger)}
+
+/* ── Page picker modal ── */
+#dstudio #page-picker-modal{z-index:1500}
+#dstudio .pp-modal{background:var(--ssx-card);border:1px solid var(--ssx-border-strong);border-radius:22px;box-shadow:0 30px 80px rgba(0,0,0,.32);width:min(1240px,94vw);height:min(860px,88vh);display:flex;flex-direction:column;overflow:hidden}
+#dstudio .pp-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:18px 22px 14px;border-bottom:1px solid var(--ssx-border);flex:none;flex-wrap:wrap}
+#dstudio .pp-title{font-family:var(--ssx-head);font-size:17px;font-weight:800;color:var(--ssx-text)}
+#dstudio .pp-sub{font-size:12px;color:var(--ssx-label);margin-top:2px}
+#dstudio .pp-tools{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+#dstudio .pp-close{width:30px;height:30px;border-radius:8px;border:none;background:transparent;color:var(--ssx-faint);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:2px}
+#dstudio .pp-close:hover{background:var(--ssx-card2);color:var(--ssx-text)}
+#dstudio .pp-body{flex:1;overflow-y:auto;padding:18px 22px;min-height:0}
+#dstudio .pp-body .page-grid{grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px;margin-top:0}
+#dstudio .pp-foot{flex:none;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 22px;border-top:1px solid var(--ssx-border);background:var(--ssx-card2)}
+#dstudio .pp-hint{font-size:12px;color:var(--ssx-label)}
+#dstudio #pp-import:disabled{opacity:.45;cursor:default}
+#dstudio #page-picker-modal #ai-status-bar{margin:10px 22px 0}
+
+/* ── Lightbox ── */
+#dstudio #pdf-lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:2000;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px}
+#dstudio #pdf-lightbox.show{display:flex}
+#dstudio #pdf-lightbox canvas{max-width:90vw;max-height:80vh;border-radius:7px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+#dstudio .lightbox-bar{display:flex;align-items:center;gap:10px}
+#dstudio .lightbox-bar button{padding:7px 16px;border-radius:5px;border:none;font-family:var(--ssx-font);font-size:12px;font-weight:600;cursor:pointer}
+#dstudio #lb-close{background:rgba(255,255,255,.15);color:#fff}
+#dstudio #lb-select{background:var(--ssx-accent);color:#fff}
+#dstudio #lb-prev, #dstudio #lb-next{background:rgba(255,255,255,.15);color:#fff;padding:7px 11px}
+#dstudio #lb-info{color:rgba(255,255,255,.7);font-size:12px;flex:1;text-align:center}
+
+/* ── AI status ── */
+#dstudio #ai-status-bar{display:none;align-items:center;gap:8px;padding:8px 0 4px;font-size:12px;color:var(--ssx-label)}
+#dstudio #ai-status-spinner{width:14px;height:14px;border:2px solid var(--ssx-border-strong);border-top-color:var(--ssx-accent);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes bannerSlideUp{from{transform:translate(-50%,26px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+#dstudio ::-webkit-scrollbar{width:5px;height:5px}
+#dstudio ::-webkit-scrollbar-track{background:transparent}
+#dstudio ::-webkit-scrollbar-thumb{background:var(--ssx-border-strong);border-radius:3px}
+
+#dstudio .empty-state{text-align:center;padding:36px 20px;color:var(--ssx-faint)}
+#dstudio .empty-state svg{width:40px;height:40px;stroke:var(--ssx-border-strong);margin:0 auto 10px;display:block;fill:none;stroke-width:1}
+#dstudio .empty-state h3{font-size:14px;font-weight:600;color:var(--ssx-label);margin-bottom:4px}
+
+/* sys-dot */
+#dstudio .sys-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+#dstudio .sys-pill{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;border:2px solid transparent;transition:all .15s;user-select:none}
+#dstudio .sys-pill.active{border-color:currentColor}
+
+/* ── Vertical icon toolbar ── */
+#dstudio #canvas-vtoolbar{
+  width:52px;flex-shrink:0;background:var(--ssx-card);
+  border-right:1px solid var(--ssx-border);
+  display:flex;flex-direction:column;align-items:center;
+  padding:8px 0;gap:2px;overflow:visible;z-index:10;
+}
+#dstudio .vt-btn{
+  width:36px;height:36px;border:none;background:transparent;border-radius:8px;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  color:var(--ssx-label);transition:all .15s;position:relative;flex-shrink:0;
+}
+#dstudio .vt-btn:hover{background:var(--ssx-hover);color:var(--ssx-text)}
+#dstudio .vt-btn.active{background:var(--ssx-accent);color:#fff}
+#dstudio .vt-btn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;flex-shrink:0}
+#dstudio .vt-sep{width:24px;height:1px;background:var(--ssx-border);margin:4px 0;flex-shrink:0}
+/* Tooltip on hover */
+#dstudio .vt-btn::after{
+  content:attr(data-tip);
+  position:fixed;left:62px;
+  background:#1e293b;color:#f8fafc;
+  font-family:var(--ssx-font);font-size:11px;font-weight:600;
+  padding:4px 8px;border-radius:5px;white-space:nowrap;
+  pointer-events:none;opacity:0;transition:opacity .1s;z-index:9999;
+}
+#dstudio .vt-btn:hover::after{opacity:1}
+
+/* ── Right panel ── */
+#dstudio #canvas-rightpanel{
+  width:300px;flex-shrink:0;background:var(--ssx-card);
+  border-left:1px solid var(--ssx-border);
+  display:flex;flex-direction:column;overflow:hidden;
+  transition:width .2s ease;position:relative;
+}
+#dstudio #canvas-rightpanel.collapsed{width:0;overflow:hidden}
+#dstudio .rp-tabs{display:flex;border-bottom:1px solid var(--ssx-border);flex-shrink:0}
+#dstudio .rp-tab{flex:1;padding:10px 8px;text-align:center;font-size:11px;font-weight:700;
+  color:var(--ssx-faint);cursor:pointer;border-bottom:2px solid transparent;
+  transition:all .15s;font-family:var(--ssx-head);text-transform:uppercase;letter-spacing:.05em}
+#dstudio .rp-tab:hover{color:var(--ssx-label)}
+#dstudio .rp-tab.active{color:var(--ssx-accent);border-bottom-color:var(--ssx-accent)}
+#dstudio .rp-body{flex:1;overflow-y:auto;display:flex;flex-direction:column}
+#dstudio .rp-section{border-bottom:1px solid var(--ssx-border);flex-shrink:0}
+#dstudio .rp-section:last-child{border-bottom:none}
+#dstudio .rp-section-title{
+  font-family:var(--ssx-head);font-size:10px;font-weight:800;text-transform:uppercase;
+  letter-spacing:.07em;color:var(--ssx-faint);padding:10px 14px 4px;
+}
+#dstudio .rp-section-body{padding:4px 14px 10px}
+
+/* ── Zoom bar (replaces floor tabs area) ── */
+#dstudio #canvas-topbar{
+  display:flex;align-items:center;gap:6px;padding:6px 12px;
+  border-bottom:1px solid var(--ssx-border);background:var(--ssx-card2);
+  flex-shrink:0;
+}
+
+/* ── Redesigned canvas layout ── */
+#dstudio #panel-2{padding:16px 18px 18px}
+#dstudio #panel-2 #canvas-layout{position:relative;z-index:1;margin-top:8px;border-radius:22px;overflow:hidden;border:1px solid var(--ssx-border-strong);
+  background:#FFFFFF;
+  box-shadow:0 2px 8px rgba(20,28,60,.06), 0 26px 60px -26px rgba(20,28,60,.28)}
+#dstudio #canvas-layout{display:flex;flex:1;overflow:hidden;height:100%}
+#dstudio #canvas-main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+#dstudio #canvas-center{display:flex;flex:1;overflow:hidden;min-height:0}
+
+/* ── Floor tabs pill style ── */
+#dstudio #floor-tabs{display:flex;align-items:center;gap:4px;padding:6px 12px;
+  border-bottom:1px solid var(--ssx-border);background:var(--ssx-card2);flex-shrink:0}
+#dstudio .floor-tab{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;
+  cursor:pointer;border:1px solid var(--ssx-border-strong);background:transparent;
+  color:var(--ssx-label);transition:all .15s;font-family:var(--ssx-font)}
+#dstudio .floor-tab:hover{background:var(--ssx-hover)}
+#dstudio .floor-tab.active{background:var(--ssx-accent);color:#fff;border-color:var(--ssx-accent)}
+
+/* ── Override old sidebar ── */
+#dstudio #canvas-sidebar{display:none!important}
+/* ── Override old toolbar grid ── */
+#dstudio #canvas-toolbar{display:none!important}
+#dstudio </style>
+<style>/* cyrillic-ext */
+@font-face{
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("2661577c-77c5-4b9a-8c74-561989b9ff10") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face{
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("773df9bb-6862-4bcf-913f-e41f6ec2e02d") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face{
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("d30f14d4-5bab-4adc-b0e3-13b819b07679") format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face{
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("e127d1ac-5d81-402f-a9ce-b87d7f6e4619") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face{
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("768c0d75-7238-4a06-8374-8170f08f1311") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face{
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("0e04f2fa-7b2f-458f-b9e7-99007ae1038b") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face{
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("2661577c-77c5-4b9a-8c74-561989b9ff10") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face{
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("773df9bb-6862-4bcf-913f-e41f6ec2e02d") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face{
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("d30f14d4-5bab-4adc-b0e3-13b819b07679") format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face{
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("e127d1ac-5d81-402f-a9ce-b87d7f6e4619") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face{
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("768c0d75-7238-4a06-8374-8170f08f1311") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face{
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("0e04f2fa-7b2f-458f-b9e7-99007ae1038b") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face{
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("2661577c-77c5-4b9a-8c74-561989b9ff10") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face{
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("773df9bb-6862-4bcf-913f-e41f6ec2e02d") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face{
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("d30f14d4-5bab-4adc-b0e3-13b819b07679") format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face{
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("e127d1ac-5d81-402f-a9ce-b87d7f6e4619") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face{
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("768c0d75-7238-4a06-8374-8170f08f1311") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face{
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("0e04f2fa-7b2f-458f-b9e7-99007ae1038b") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face{
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("b6529c66-ab9d-4f20-9dd3-0d37d2dd698a") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* vietnamese */
+@font-face{
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("326a03d0-aa03-43a2-9e77-dcddf1e55eb8") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face{
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("8af4a082-00e6-471a-97e2-f92abe49f70c") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face{
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("1c713aa0-20c8-488c-804d-865faadb18ed") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face{
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("b6529c66-ab9d-4f20-9dd3-0d37d2dd698a") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* vietnamese */
+@font-face{
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("326a03d0-aa03-43a2-9e77-dcddf1e55eb8") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face{
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("8af4a082-00e6-471a-97e2-f92abe49f70c") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face{
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("1c713aa0-20c8-488c-804d-865faadb18ed") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face{
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("b6529c66-ab9d-4f20-9dd3-0d37d2dd698a") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* vietnamese */
+@font-face{
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("326a03d0-aa03-43a2-9e77-dcddf1e55eb8") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face{
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("8af4a082-00e6-471a-97e2-f92abe49f70c") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face{
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("1c713aa0-20c8-488c-804d-865faadb18ed") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face{
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("b6529c66-ab9d-4f20-9dd3-0d37d2dd698a") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* vietnamese */
+@font-face{
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("326a03d0-aa03-43a2-9e77-dcddf1e55eb8") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face{
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("8af4a082-00e6-471a-97e2-f92abe49f70c") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face{
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("1c713aa0-20c8-488c-804d-865faadb18ed") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face{
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("b6529c66-ab9d-4f20-9dd3-0d37d2dd698a") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* vietnamese */
+@font-face{
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("326a03d0-aa03-43a2-9e77-dcddf1e55eb8") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face{
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("8af4a082-00e6-471a-97e2-f92abe49f70c") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face{
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("1c713aa0-20c8-488c-804d-865faadb18ed") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+
+/* ════════ 2. DUCTR chrome skin (studio/ductr-skin.css) ════════ */
+/* DUCTR chrome skin — scoped to #dstudio */
+
+/* ════ DUCTR THEME — chrome reskin only; engine untouched ════ */
+:root:not([data-theme="dark"]){
+  --ssx-bg:#EDEFF4;
+  --ssx-card:#FFFFFF;
+  --ssx-card2:#F4F5F7;
+  --ssx-border:rgba(10,12,20,.07);
+  --ssx-border-strong:rgba(10,12,20,.13);
+  --ssx-text:#0A0B10;
+  --ssx-label:#6b7280;
+  --ssx-faint:#9ca3af;
+  --ssx-accent:#00A389;
+  --ssx-accent-hover:#05887a;
+  --ssx-accent-bg:rgba(0,229,192,.15);
+  --ssx-font:'Plus Jakarta Sans',system-ui,sans-serif;
+  --ssx-head:'Plus Jakarta Sans',system-ui,sans-serif;
+  --ssx-mono:'JetBrains Mono',ui-monospace,monospace;
+  --ssx-canvas-bg:#E3E6EE;
+  --ssx-radius:22px;
+  --ssx-radius-sm:12px;
+  --ssx-radius-xs:8px;
+  --ductr-sh:0 4px 22px rgba(28,39,76,.07), 0 1px 3px rgba(28,39,76,.04);
+  --ductr-sh-sm:0 1px 2px rgba(28,39,76,.04), 0 2px 8px rgba(28,39,76,.05);
+  --airfoil-grad:linear-gradient(135deg,#00E5C0 0%,#2E68FF 100%);
+}
+#dstudio{background:var(--ssx-bg)}
+:root:not([data-theme="dark"]) body{background:transparent}
+/* header */
+#dstudio #topbar{background:transparent;backdrop-filter:none;border-bottom:none;height:54px;padding:6px 18px 0}
+#dstudio #topbar .logo{letter-spacing:-.01em;text-transform:none;font-size:17px;font-weight:800}
+#dstudio #topbar .logo-icon{border-radius:10px;box-shadow:var(--ductr-sh-sm)}
+#dstudio .topbar-sep{background:rgba(28,38,70,.12)}
+/* stepper pills */
+#dstudio .step-btn{border-radius:999px;padding:8px 15px;font-size:12.5px}
+#dstudio .step-btn.active{background:var(--ssx-card);color:var(--ssx-accent);box-shadow:var(--ductr-sh-sm)}
+#dstudio .step-btn .step-num{background:rgba(28,38,70,.08)}
+/* cards */
+#dstudio .card{border-radius:20px;border-color:var(--ssx-border);box-shadow:var(--ductr-sh-sm)}
+#dstudio .btn{border-radius:11px}
+/* ── left tool dock — DUCTR floating dock ── */
+#dstudio #canvas-vtoolbar{
+  background:var(--ssx-card);border:1px solid var(--ssx-border);border-radius:18px;
+  box-shadow:var(--ductr-sh);padding:8px 6px;margin:12px 0 12px 12px;
+  align-self:center;
+}
+#dstudio .vt-btn{border-radius:11px;color:var(--ssx-label)}
+#dstudio .vt-btn:hover{background:var(--ssx-card2);color:var(--ssx-text)}
+#dstudio .vt-btn.active{background:var(--ssx-accent);color:#fff;box-shadow:0 0 15px rgba(0,229,192,.4)}
+#dstudio .vt-sep{background:var(--ssx-border);margin:5px 6px}
+#dstudio #canvas-topbar #tool-calib.active, #dstudio #canvas-topbar #tool-north.active, #dstudio #canvas-topbar #legend-topbtn.on{background:var(--ssx-accent) !important;border-color:var(--ssx-accent) !important;color:#fff !important}
+/* canvas top bar */
+#dstudio #canvas-topbar{background:transparent;border-bottom:none;padding:10px 12px 6px}
+#dstudio #floor-tabs{background:transparent;border-bottom:none}
+#dstudio .floor-tab{border:none;border-radius:999px;padding:7px 13px}
+#dstudio .floor-tab.active{background:var(--ssx-card);color:var(--ssx-accent);border-bottom-color:transparent;box-shadow:var(--ductr-sh-sm)}
+/* canvas */
+#dstudio #canvas-center{padding:0 12px 12px}
+#dstudio #canvas-wrap{border-radius:20px;border:1px solid var(--ssx-border-strong);box-shadow:0 2px 8px rgba(20,28,60,.06), 0 18px 40px -22px rgba(20,28,60,.32);background:#FFFFFF}
+/* right rail */
+#dstudio #canvas-rightpanel{
+  background:var(--ssx-card);border:1px solid var(--ssx-border);border-left:1px solid var(--ssx-border);
+  border-radius:20px;box-shadow:var(--ductr-sh);margin:12px 12px 12px 0;
+}
+#dstudio .rp-tabs{border-bottom:1px solid var(--ssx-border)}
+#dstudio .rp-tab{font-family:var(--ssx-head);text-transform:uppercase;letter-spacing:.06em;font-size:10.5px}
+#dstudio .rp-tab.active{color:var(--ssx-accent)}
+/* sidebar */
+#dstudio #canvas-sidebar{background:transparent;border-right:none}
+/* ── layer toggles pill ── */
+/* ── layers dropdown (topbar) ── */
+#dstudio #layers-btn #layers-count{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--ssx-accent-bg);color:var(--ssx-accent);font:700 10px var(--ssx-mono)}
+#dstudio #layers-menu.open #layers-chev{transform:rotate(180deg)}
+#dstudio #layers-pop{position:absolute;top:calc(100% + 8px);right:0;z-index:60;min-width:196px;
+  background:var(--ssx-card);border:1px solid var(--ssx-border-strong);border-radius:14px;
+  box-shadow:var(--ductr-sh);padding:7px;display:none;transform-origin:top right}
+#dstudio #layers-menu.open #layers-pop{display:block;animation:ductrLayersPop .24s var(--ductr-flow) both}
+@keyframes ductrLayersPop{from{opacity:0;transform:translateY(-6px) scale(.97)}to{opacity:1;transform:none}}
+#dstudio .layers-pop-title{font:700 9px var(--ssx-head);text-transform:uppercase;letter-spacing:.08em;color:var(--ssx-faint);padding:5px 9px 7px}
+#dstudio .layer-row{display:flex;align-items:center;justify-content:space-between;gap:18px;width:100%;
+  padding:7px 9px;border:none;background:transparent;border-radius:9px;cursor:pointer;
+  font:600 12.5px var(--ssx-font);color:var(--ssx-text);transition:background .12s}
+#dstudio .layer-row:hover{background:var(--ssx-card2)}
+#dstudio .lswitch{position:relative;width:34px;height:20px;border-radius:999px;background:var(--ssx-border-strong);
+  transition:background .18s var(--ductr-ease);flex-shrink:0;pointer-events:none}
+#dstudio .lswitch::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;
+  background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.28);transition:transform .2s var(--ductr-ease)}
+#dstudio .lswitch.on{background:var(--ssx-accent)}
+#dstudio .lswitch.on::after{transform:translateX(14px)}
+@media (prefers-reduced-motion:reduce){#dstudio #layers-menu.open #layers-pop{animation:none!important}}
+/* modals */
+#dstudio .modal{border-radius:20px;box-shadow:0 30px 80px rgba(28,38,70,.25)}
+/* notif */
+#dstudio #notif{border-radius:12px;box-shadow:var(--ductr-sh)}
+
+/* ════ DUCTR Home (panel-0) ════ */
+#dstudio #panel-0{padding:16px 18px 18px}
+#dstudio .dh3{display:grid;grid-template-columns:1.5fr 1fr;grid-template-rows:1fr 1fr;gap:0;margin:0 auto;width:100%;height:100%;min-height:0;
+  position:relative;overflow:hidden;border-radius:22px;color:var(--ssx-text);
+  background:
+    radial-gradient(150% 100% at 50% 119%, rgba(0,229,192,.5) 0%, rgba(46,104,255,.34) 26%, rgba(138,43,226,.18) 42%, transparent 58%),
+    #FFFFFF;
+  border:1px solid var(--ssx-border-strong);
+  box-shadow:0 2px 8px rgba(20,28,60,.06), 0 26px 60px -26px rgba(20,28,60,.28)}
+#dstudio .dh3-card{background:transparent;border:none;border-radius:0;box-shadow:none;padding:24px;display:flex;flex-direction:column;min-height:0;position:relative;z-index:1}
+#dstudio .dh3 > .dh-lava{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+#dstudio .dh-new{grid-column:1;grid-row:1 / span 2}
+#dstudio .dh-recent-card, #dstudio .dh-load{position:relative;overflow:hidden;color:var(--ssx-text);background:transparent}
+#dstudio .dh-recent-card{grid-column:2;grid-row:1 / span 2}
+#dstudio .dh-load{grid-column:2;grid-row:2}
+/* When the New design card is expanded, hide Recent and let it fill the card */
+#dstudio .dh3:has(.dh-new.expanded){grid-template-columns:1fr}
+#dstudio .dh3:has(.dh-new.expanded) .dh-recent-card{display:none}
+#dstudio .dh3:has(.dh-new.expanded) .dh-new{grid-column:1 / -1}
+#dstudio .dh-recent-card::before, #dstudio .dh-load::before{content:none}
+#dstudio .dh-recent-card > *, #dstudio .dh-load > *{position:relative;z-index:1}
+/* New design (expandable) — hero section inside the unified card */
+#dstudio .dh-new{cursor:pointer;position:relative;overflow:hidden;color:var(--ssx-text);background:transparent;
+  transition:box-shadow .25s var(--ductr-ease),transform .25s var(--ductr-ease)}
+#dstudio .dh-new::before{content:'';position:absolute;inset:0;pointer-events:none;z-index:1;background-image:radial-gradient(rgba(96,108,150,.08) 1px,transparent 1px);background-size:22px 22px}
+/* lava blobs */
+#dstudio .dh-new .dh-lava{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+#dstudio .dh-lava{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+#dstudio .dh-lava .blob{position:absolute;border-radius:50%;opacity:.55}
+#dstudio .dh-lava .b1{width:360px;height:360px;left:-4%;top:-10%;background:radial-gradient(circle,rgba(0,229,192,.6) 0%,rgba(46,104,255,.26) 45%,transparent 72%);filter:blur(40px)}
+#dstudio .dh-lava .b2{width:340px;height:340px;left:24%;top:48%;background:radial-gradient(circle,rgba(46,104,255,.55) 0%,transparent 70%);filter:blur(44px)}
+#dstudio .dh-lava .b3{width:380px;height:380px;left:54%;top:-16%;background:radial-gradient(circle,rgba(138,43,226,.5) 0%,rgba(46,104,255,.24) 48%,transparent 72%);filter:blur(44px)}
+#dstudio .dh-lava .b4{width:340px;height:340px;left:66%;top:52%;background:radial-gradient(circle,rgba(0,229,192,.5) 0%,transparent 70%);filter:blur(42px)}
+@keyframes dlava1{0%{transform:translate(-60px,-50px) scale(1)}25%{transform:translate(300px,40px) scale(1.2)}50%{transform:translate(360px,300px) scale(1)}75%{transform:translate(60px,360px) scale(1.15)}100%{transform:translate(-60px,-50px) scale(1)}}
+@keyframes dlava2{0%{transform:translate(360px,360px) scale(1.1)}25%{transform:translate(380px,-40px) scale(1)}50%{transform:translate(20px,-50px) scale(1.25)}75%{transform:translate(-70px,260px) scale(1)}100%{transform:translate(360px,360px) scale(1.1)}}
+@keyframes dlava3{0%{transform:translate(160px,40px) scale(1)}33%{transform:translate(-40px,280px) scale(1.2)}66%{transform:translate(360px,200px) scale(1)}100%{transform:translate(160px,40px) scale(1)}}
+@keyframes dlava4{0%{transform:translate(-70px,300px) scale(1.1)}25%{transform:translate(200px,360px) scale(1)}50%{transform:translate(380px,120px) scale(1.2)}75%{transform:translate(80px,-50px) scale(1)}100%{transform:translate(-70px,300px) scale(1.1)}}
+@media (prefers-reduced-motion:reduce){#dstudio .dh-lava .blob{animation:none}}
+
+#dstudio .dh-new > *{position:relative}
+#dstudio .dh-new-collapsed, #dstudio .dh-new-expanded{position:absolute;inset:18px;z-index:2;will-change:opacity,transform;transition:opacity .34s var(--ductr-ease),transform .44s var(--ductr-ease)}
+#dstudio .dh-new-collapsed{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+#dstudio .dh-ic{width:66px;height:66px;border-radius:18px;background:var(--ssx-accent-bg);border:1px solid var(--ssx-border);box-shadow:var(--ductr-sh-sm);display:grid;place-items:center;color:var(--ssx-accent);margin-bottom:18px;transition:transform .3s var(--ductr-ease)}
+#dstudio .dh-ic svg{width:34px;height:34px}
+/* Pipework schematic draw-in behind the New-design text */
+#dstudio .dh-pipe-bg{position:absolute;inset:0;width:100%;height:100%;opacity:.72;pointer-events:none;z-index:0;overflow:visible}
+#dstudio .dh-new-collapsed > :not(.dh-pipe-bg){position:relative;z-index:1}
+#dstudio .dh-pipe-bg .dp{stroke:url(#dhpipe);stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1;stroke-dashoffset:1;fill:none}
+#dstudio .dh-pipe-bg .dpdot{fill:#00E5C0;opacity:0}
+@media (prefers-reduced-motion:no-preference){
+  #dstudio .dh-new:not(.expanded) .dh-pipe-bg .dp{animation:dhPipeDraw 13s cubic-bezier(.45,0,.25,1) infinite;animation-delay:var(--d,0s)}
+  #dstudio .dh-new:not(.expanded) .dh-pipe-bg .dpdot{animation:dhDotFade 13s linear infinite;animation-delay:var(--d,0s)}
+}
+@media (prefers-reduced-motion:reduce){
+  #dstudio .dh-pipe-bg .dp{stroke-dashoffset:0}
+  #dstudio .dh-pipe-bg .dpdot{opacity:.85}
+}
+/* snake: crawl in, hold, then retract (leaves the screen and comes back) */
+@keyframes dhPipeDraw{0%{stroke-dashoffset:1}46%{stroke-dashoffset:0}74%{stroke-dashoffset:0}100%{stroke-dashoffset:-1}}
+@keyframes dhDotFade{0%,4%{opacity:0}12%,72%{opacity:.9}82%,100%{opacity:0}}
+
+#dstudio .dh-new-collapsed h2{font-family:var(--ssx-head);font-size:34px;font-weight:800;letter-spacing:-.02em;color:var(--ssx-text);margin:0 0 9px;text-transform:none}
+#dstudio .dh-new-collapsed p{font-size:18px;font-weight:500;color:var(--ssx-label);margin:0 0 24px;max-width:380px;line-height:1.4}
+#dstudio .dh-new-cta{position:relative;overflow:hidden;display:inline-flex;align-items:center;gap:8px;height:54px;padding:0 30px;border-radius:14px;background:var(--ssx-accent);color:#fff;font:800 18px var(--ssx-font);box-shadow:0 12px 24px -8px rgba(0,229,192,.45);transition:gap .25s var(--ductr-ease),transform .2s var(--ductr-ease),box-shadow .2s var(--ductr-ease)}
+#dstudio .dh-new-cta > *{position:relative;z-index:1}
+#dstudio .dh-new-cta::after{content:'';position:absolute;top:0;bottom:0;left:0;width:72%;z-index:0;
+  background:linear-gradient(105deg,transparent 0%,rgba(255,255,255,0) 36%,rgba(255,255,255,.34) 50%,rgba(255,255,255,0) 64%,transparent 100%);
+  transform:translateX(-160%)}
+@media (prefers-reduced-motion:no-preference){
+  #dstudio .dh-new:not(.expanded) .dh-new-cta::after{animation:dhShimmer 9s linear infinite}
+}
+@keyframes dhShimmer{0%{transform:translateX(-160%)}60%{transform:translateX(300%)}100%{transform:translateX(300%)}}
+#dstudio .dh-new:not(.expanded) .dh-new-cta:hover{transform:translateY(-5px) scale(1.015);box-shadow:0 18px 34px -10px rgba(0,229,192,.55);gap:11px}
+/* Cross-fade: collapsed visible by default, expanded waiting off-state */
+#dstudio .dh-new-expanded{display:flex;flex-direction:column;opacity:0;transform:scale(.97);pointer-events:none}
+#dstudio .dh-new.expanded{cursor:default}
+#dstudio .dh-new.expanded .dh-new-collapsed{opacity:0;transform:scale(1.04);pointer-events:none}
+#dstudio .dh-new.expanded .dh-new-expanded{opacity:1;transform:none;pointer-events:auto}
+#dstudio .dh-new-ehead{display:flex;align-items:center;justify-content:space-between}
+#dstudio .dh-new-etitle{font-family:var(--ssx-head);font-size:28px;font-weight:800;letter-spacing:-.02em;color:var(--ssx-text)}
+#dstudio .dh-new-back{width:30px;height:30px;border:none;border-radius:9px;background:var(--ssx-card2);color:var(--ssx-label);font-size:14px;cursor:pointer;display:grid;place-items:center;box-shadow:var(--ductr-sh-sm)}
+#dstudio .dh-new-back:hover{color:var(--ssx-text);background:var(--ssx-bg)}
+#dstudio .dh-new-esub{font-size:16px;font-weight:500;color:var(--ssx-label);margin:5px 0 20px}
+#dstudio .dh-opt-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+#dstudio .dh-opt{display:flex;flex-direction:column;align-items:center;gap:14px;width:100%;text-align:center;padding:22px;border:1px solid var(--ssx-border);border-radius:16px;background:var(--ssx-card);cursor:pointer;transition:border-color .15s,background .15s,transform .15s}
+#dstudio .dh-opt:hover{border-color:rgba(0,229,192,.5);background:rgba(0,229,192,.08);transform:translateY(-3px)}
+#dstudio .dh-opt-ic{flex:none;width:54px;height:54px;border-radius:14px;background:rgba(0,229,192,.14);color:#00A389;display:grid;place-items:center}
+#dstudio .dh-opt-txt{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+#dstudio .dh-opt-n{font:800 19px var(--ssx-head);color:var(--ssx-text)}
+#dstudio .dh-opt-d{font:500 15px var(--ssx-font);color:var(--ssx-label)}
+/* Recent list */
+#dstudio .dh-rlist{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:11px;margin:0 -4px;padding:2px 4px}
+#dstudio .dh-rcard{text-align:left;border:1px solid var(--ssx-border);padding:0;background:var(--ssx-card);border-radius:14px;box-shadow:var(--ductr-sh-sm);overflow:hidden;cursor:pointer;transition:transform .15s,box-shadow .15s,border-color .15s;position:relative;flex:none}
+#dstudio .dh-rcard:hover{transform:translateY(-2px);box-shadow:var(--ductr-sh);border-color:var(--ssx-accent)}
+#dstudio .dh-rthumb{position:relative;height:96px;background:var(--ssx-card2);overflow:hidden}
+#dstudio .dh-rthumb img{width:100%;height:100%;object-fit:cover}
+#dstudio .dh-noplan{display:grid;place-items:center;height:100%;font:600 10px var(--ssx-mono);color:var(--ssx-faint)}
+#dstudio .dh-rbadge{position:absolute;top:7px;left:7px;background:var(--ssx-accent);color:#fff;font:700 8.5px var(--ssx-mono);padding:2px 7px;border-radius:6px}
+#dstudio .dh-rdel{position:absolute;top:5px;right:5px;width:22px;height:22px;border:none;border-radius:50%;background:rgba(0,0,0,.4);color:#fff;font-size:12px;line-height:1;cursor:pointer;display:grid;place-items:center;opacity:0;transition:opacity .12s}
+#dstudio .dh-rcard:hover .dh-rdel{opacity:1}
+#dstudio .dh-rdel:hover{background:#dc2626}
+#dstudio .dh-rbody{padding:10px 12px 12px}
+#dstudio .dh-rnm{font:700 18px var(--ssx-font);color:var(--ssx-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#dstudio .dh-rmeta{font:700 14px var(--ssx-mono);color:var(--ssx-accent-hover);margin-top:4px}
+#dstudio .dh-rwhen{font:500 12.5px var(--ssx-mono);color:var(--ssx-faint);margin-top:3px}
+#dstudio .dh-none{text-align:center;color:var(--ssx-faint);font-size:16px;font-weight:500;padding:34px 6px}
+#dstudio .dh-rempty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:var(--ssx-faint);padding:24px 6px}
+#dstudio .dh-rempty svg{opacity:.45;margin-bottom:12px}
+#dstudio .dh-rempty-t{font:700 16px var(--ssx-font);color:var(--ssx-label);margin-bottom:5px}
+#dstudio .dh-rempty-s{font:500 13px var(--ssx-font);color:var(--ssx-faint)}
+/* Load */
+#dstudio .dh-load{min-height:0}
+#dstudio .dh-cardt{font:800 16px var(--ssx-head);text-transform:uppercase;letter-spacing:.05em;color:var(--ssx-label);margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex:none}
+#dstudio .dh-cardt > span:first-child, #dstudio .dh-cardt{position:relative}
+#dstudio .dh-cardt::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:5px;height:16px;border-radius:4px;background:var(--airfoil-grad,linear-gradient(135deg,#00E5C0,#2E68FF))}
+#dstudio .dh-cardt{padding-left:13px}
+#dstudio .dh-mut{font:700 13px var(--ssx-mono);color:var(--ssx-faint);text-transform:none;letter-spacing:0}
+#dstudio .dh-search{display:flex;align-items:center;gap:8px;background:var(--ssx-card2);border:1px solid var(--ssx-border-strong);border-radius:11px;padding:9px 11px;margin-bottom:10px}
+#dstudio .dh-search:focus-within{border-color:var(--ssx-accent);background:var(--ssx-card)}
+#dstudio .dh-search svg{color:var(--ssx-faint);flex:none}
+#dstudio .dh-search input{border:none;background:transparent;outline:none;font:600 16px var(--ssx-font);color:var(--ssx-text);width:100%}
+#dstudio .dh-clear{border:none;background:var(--ssx-border-strong);color:var(--ssx-label);width:18px;height:18px;border-radius:50%;cursor:pointer;font-size:13px;line-height:1;flex:none;display:grid;place-items:center}
+#dstudio .dh-loadlist{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin:0 -4px;padding:0 4px}
+#dstudio .dh-lrow{display:flex;align-items:center;gap:10px;padding:9px 10px;border:1px solid var(--ssx-border);border-radius:11px;background:var(--ssx-card);cursor:pointer;font-family:var(--ssx-font);text-align:left}
+#dstudio .dh-lrow:hover{border-color:var(--ssx-accent);background:var(--ssx-accent-bg)}
+#dstudio .dh-lb{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+#dstudio .dh-ln{font:700 17px var(--ssx-font);color:var(--ssx-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#dstudio .dh-lcur{font:700 11px var(--ssx-mono);background:var(--ssx-accent-bg);color:var(--ssx-accent);padding:1px 6px;border-radius:5px}
+#dstudio .dh-lm{font:600 13.5px var(--ssx-mono);color:var(--ssx-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#dstudio .dh-lwhen{font:500 12.5px var(--ssx-mono);color:var(--ssx-faint);white-space:nowrap;flex:none}
+
+/* ════ Topbar → redesign structure ════ */
+#dstudio #topbar{display:flex;align-items:center;gap:12px;height:64px;padding:10px 18px 0;position:relative}
+#dstudio #topbar .logo-icon{width:40px;height:40px;border-radius:13px}
+#dstudio #topbar .logo-icon svg{width:20px;height:20px}
+#dstudio .tb-id{display:flex;flex-direction:column;gap:2px;min-width:0;max-width:300px}
+#dstudio .tb-titlerow{display:flex;align-items:baseline;gap:6px;min-width:0;overflow:hidden}
+#dstudio .tb-by{font:700 12px var(--ssx-font);color:var(--ssx-faint);letter-spacing:.01em;white-space:nowrap;flex:none}
+#dstudio #tb-title{flex:0 0 auto;max-width:280px;font-family:var(--ssx-head);font-size:23px;font-weight:800;letter-spacing:-.01em;color:var(--ssx-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#dstudio .tb-sub{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--ssx-label);white-space:nowrap}
+#dstudio #tb-sub-text{overflow:hidden;text-overflow:ellipsis}
+#dstudio .tb-job{font:700 12px var(--ssx-mono);background:var(--ssx-card);border:1px solid var(--ssx-border);padding:2px 8px;border-radius:6px;color:var(--ssx-label);white-space:nowrap;flex:none}
+#dstudio .tb-center{position:relative;flex:none;display:flex;align-items:center;justify-content:center}
+#dstudio .tb-left{flex:1 1 0;min-width:0;display:flex;align-items:center;gap:12px}
+#dstudio .tb-brand{display:flex;align-items:center;gap:12px;padding:5px 12px 5px 5px;margin:-5px -4px;border:1px solid transparent;border-radius:14px;text-decoration:none;transition:transform .15s var(--ductr-ease)}
+#dstudio .tb-brand:hover{transform:translateY(-2px)}
+#dstudio .tb-brand .tb-id{max-width:300px}
+#dstudio #steps.steps-shell{display:flex;align-items:center;gap:2px;background:var(--ssx-card);border-radius:999px;padding:4px;box-shadow:var(--ductr-sh-sm);border-bottom:none;overflow:visible;position:relative}
+/* Progress bar removed — done steps fill the pill instead */
+#dstudio .steps-shell .step-btn.done{background:transparent;color:#05887a}
+#dstudio [data-theme="dark"] .steps-shell .step-btn.done{background:rgba(52,211,153,.14);color:#6EE7B7}
+/* Hard-coded: orange = in-progress, green = complete (independent of accent tweak) */
+#dstudio .steps-shell .step-btn.active{background:#fff;color:#0A0B10;box-shadow:0 3px 8px -3px rgba(10,12,20,.28)}
+#dstudio .steps-shell .step-btn.active .step-num{background:#0A0B10!important;background-image:none!important;color:#fff!important}
+#dstudio .steps-shell .step-btn.done .step-num{background:#00E5C0!important;background-image:none!important;color:#053b34!important;animation:none!important}
+
+/* Soft pulse on active step number */
+@media(prefers-reduced-motion:no-preference){
+  #dstudio .steps-shell .step-btn.active .step-num{animation:stepPulse 2.4s ease-in-out infinite}
+}
+@keyframes stepPulse{0%,100%{box-shadow:0 0 0 0 rgba(0,229,192,.55)}50%{box-shadow:0 0 0 5px rgba(0,229,192,0)}}
+#dstudio .tb-actions{display:flex;align-items:center;gap:6px;flex:1 1 0;justify-content:flex-end;position:relative;z-index:6}
+/* At narrower widths hide the redundant Materials→ pill so nothing can crowd the actions */
+@media (max-width:1280px){
+  #dstudio #steps-materials-btn{display:none !important}
+  #dstudio .steps-shell .step-btn{padding:7px 11px}
+}
+/* Below ~1100px the Save/Export labels would push the stepper off-center — collapse to icon-only */
+@media (max-width:1100px){
+  #dstudio .tb-actions .btn{font-size:0 !important;gap:0 !important;padding:0 !important;width:34px;height:34px;justify-content:center !important;border-radius:999px}
+}
+/* Plans panel content stagger-in */
+#dstudio #panel-1.active .mode-option, #dstudio #panel-1.active .dh-card, #dstudio #panel-1.active .plans-head, #dstudio #panel-1.active .floor-file-card, #dstudio #panel-1.active .floor-alloc>*{
+  animation:ductrFadeUp .45s var(--ductr-flow) both
+}
+#dstudio #panel-1.active .mode-option:nth-child(2){animation-delay:.08s}
+#dstudio #panel-1.active .floor-file-card:nth-child(2){animation-delay:.07s}
+#dstudio #panel-1.active .floor-file-card:nth-child(3){animation-delay:.14s}
+#dstudio #panel-1.active .floor-file-card:nth-child(4){animation-delay:.21s}
+#dstudio .tb-icon{width:34px;height:34px;border:1px solid var(--ssx-border);border-radius:999px;background:var(--ssx-card);color:var(--ssx-label);cursor:pointer;display:grid;place-items:center}
+#dstudio .tb-icon:hover{color:var(--ssx-text)}
+#dstudio .tb-avatar{width:34px;height:34px;border-radius:50%;background:var(--ssx-accent);color:#fff;font:800 11px var(--ssx-head);display:grid;place-items:center;letter-spacing:.02em}
+/* recent designs label → chip */
+#dstudio .dh-rhead{display:inline-flex;white-space:nowrap;align-items:center;gap:7px;border:1px solid var(--ssx-border-strong);background:var(--ssx-card);border-radius:8px;padding:4px 9px;font:700 10px var(--ssx-mono);letter-spacing:.08em;color:var(--ssx-label);align-self:flex-start;text-transform:uppercase}
+/* hide Save / Export / job label / settings divider on Home */
+body[data-step="0"] #dstudio #topbar .btn-secondary[onclick="saveDesign()"], body[data-step="0"] #dstudio #topbar .btn-primary[onclick="exportPDF()"]{display:none!important}
+/* hide stepper pill on Home; Home button only shows on inner pages */
+body[data-step="0"] #dstudio .steps-shell{display:none!important}
+body[data-step="0"] #dstudio .tb-home-btn{display:none!important}
+/* Save / Export / Settings only on the Design step */
+#dstudio .tb-design-only{display:none!important}
+body[data-step="2"] #dstudio .tb-design-only{display:flex!important}
+
+/* ════ DUCTR Plans (panel-1) ════ */
+#dstudio #panel-1{padding:14px 18px 18px}
+#dstudio .pv2-grid{display:grid;grid-template-columns:1fr;gap:16px;margin:0 auto;width:100%;height:100%;min-height:0}
+#dstudio .pv2-left{display:flex;flex-direction:column;min-height:0}
+#dstudio #ductr-plans-flow{margin:0 auto;width:100%}
+#dstudio #pv2-stage{flex:1;display:flex;flex-direction:column;gap:12px;min-height:0}
+#dstudio #pv2-canvas{flex:1;position:relative;display:grid;place-items:center;min-height:0;border-radius:26px;overflow:hidden;background:linear-gradient(160deg,#EEF1F8,#E6EAF4);padding:22px}
+#dstudio [data-theme="dark"] #pv2-canvas{background:linear-gradient(160deg,#101a2c,#0c1424)}
+#dstudio #pv2-img{max-width:100%;max-height:100%;border-radius:14px;box-shadow:var(--ductr-sh);background:#fff}
+#dstudio #pv2-blank{place-items:center;font:600 12px var(--ssx-mono);color:var(--ssx-faint)}
+#dstudio #pv2-strip{flex:none;display:flex;gap:12px;padding:13px 16px;background:color-mix(in srgb,var(--ssx-card) 70%,transparent);backdrop-filter:blur(8px);border:1px solid var(--ssx-border);border-radius:26px;overflow-x:auto}
+#dstudio .pv2-sheet{display:flex;flex-direction:column;align-items:center;gap:6px;border:none;background:transparent;cursor:pointer;padding:0;flex:none}
+#dstudio .pv2-sheet .th{width:52px;height:66px;border-radius:9px;overflow:hidden;background:var(--ssx-card2);box-shadow:var(--ductr-sh-sm);border:2px solid transparent;display:block}
+#dstudio .pv2-sheet.on .th{border-color:var(--ssx-accent);box-shadow:0 0 0 3px var(--ssx-accent-bg)}
+#dstudio .pv2-sheet .th img{width:100%;height:100%;object-fit:cover;display:block}
+#dstudio .pv2-sheet .bk{display:block;width:100%;height:100%;background:repeating-linear-gradient(45deg,var(--ssx-card2),var(--ssx-card2) 6px,var(--ssx-border) 6px,var(--ssx-border) 7px)}
+#dstudio .pv2-sheet .nm{font:600 10.5px var(--ssx-font);color:var(--ssx-label);max-width:70px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#dstudio .pv2-sheet.on .nm{color:var(--ssx-accent);font-weight:700}
+/* rail */
+#dstudio .pv2-rail{display:flex;flex-direction:column;gap:14px;min-height:0;overflow-y:auto;padding-right:2px}
+#dstudio .pv2-rail > .dh-card{flex:none}
+#dstudio .pv2-fields{display:flex;flex-direction:column;gap:11px}
+#dstudio .pv2-f{display:flex;flex-direction:column;gap:4px}
+#dstudio .pv2-f span{font:700 9.5px var(--ssx-head);text-transform:uppercase;letter-spacing:.07em;color:var(--ssx-faint)}
+#dstudio .pv2-f input{padding:8px 11px;border:1px solid var(--ssx-border-strong);border-radius:10px;font:600 13px var(--ssx-font);color:var(--ssx-text);background:var(--ssx-input-bg);outline:none}
+#dstudio .pv2-f input:focus{border-color:var(--ssx-accent);box-shadow:0 0 0 3px var(--ssx-accent-bg)}
+#dstudio .pv2-pages{flex:none;display:flex;flex-direction:column}
+#dstudio #pv2-page-list{display:flex;flex-direction:column;gap:7px;margin-bottom:11px;max-height:208px;overflow-y:auto}
+#dstudio .pv2-row{display:flex;align-items:center;gap:2px;position:relative}
+#dstudio .pv2-main{flex:1;display:flex;align-items:center;gap:11px;min-width:0;padding:7px 9px;border:1px solid var(--ssx-border);border-radius:13px;background:var(--ssx-card);cursor:pointer;font-family:var(--ssx-font);text-align:left;transition:all .14s}
+#dstudio .pv2-main:hover{border-color:var(--ssx-border-strong)}
+#dstudio .pv2-row.on .pv2-main{border-color:var(--ssx-accent);background:var(--ssx-accent-bg);box-shadow:0 0 0 1px var(--ssx-accent) inset}
+#dstudio .pv2-th{position:relative;width:34px;height:43px;border-radius:7px;overflow:hidden;background:var(--ssx-card2);flex:none;border:1px solid var(--ssx-border)}
+#dstudio .pv2-th img{width:100%;height:100%;object-fit:cover}
+#dstudio .pv2-th .bk{display:block;width:100%;height:100%;background:repeating-linear-gradient(45deg,var(--ssx-card2),var(--ssx-card2) 5px,var(--ssx-border) 5px,var(--ssx-border) 6px)}
+#dstudio .pv2-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+#dstudio .pv2-n input{border:none;background:transparent;font:700 12.5px var(--ssx-font);color:var(--ssx-text);width:100%;outline:none;padding:0}
+#dstudio .pv2-sub{font:600 9.5px var(--ssx-mono);color:var(--ssx-faint);text-transform:uppercase;letter-spacing:.04em}
+#dstudio .pv2-row.on .pv2-sub{color:var(--ssx-accent-hover)}
+#dstudio .pv2-dot{flex:none;width:7px;height:7px;border-radius:50%;background:var(--ssx-accent);box-shadow:0 0 0 3px var(--ssx-accent-bg);margin-right:3px}
+#dstudio .pv2-x{flex:none;width:26px;height:26px;border:none;background:transparent;color:var(--ssx-faint);border-radius:8px;cursor:pointer;font-size:15px;line-height:1;opacity:0;transition:all .14s;display:grid;place-items:center}
+#dstudio .pv2-row:hover .pv2-x{opacity:1}
+#dstudio .pv2-x:hover{background:#FCECEC;color:#E5484D}
+#dstudio .pv2-add{width:100%;height:42px;border:1.5px dashed var(--ssx-border-strong);border-radius:13px;background:transparent;color:var(--ssx-label);font:600 12px var(--ssx-font);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;transition:all .14s}
+#dstudio .pv2-add:hover{border-color:var(--ssx-accent);color:var(--ssx-accent);background:var(--ssx-accent-bg)}
+#dstudio .pv2-scale{font:700 20px var(--ssx-mono);color:var(--ssx-faint);margin-bottom:8px}
+#dstudio .pv2-scale.set{color:var(--ssx-text)}
+#dstudio .pv2-hint{font-size:11.5px;color:var(--ssx-label);margin:0 0 12px;line-height:1.5}
+#dstudio .pv2-calib{width:100%;height:40px;border:none;border-radius:11px;background:var(--ssx-accent);color:#fff;font:700 12.5px var(--ssx-font);cursor:pointer}
+#dstudio .pv2-calib:hover{background:var(--ssx-accent-hover)}
+/* ════ Design rail → card stack ════ */
+#dstudio #canvas-rightpanel{background:transparent!important;border:none!important;box-shadow:none!important;display:flex;flex-direction:column;gap:14px;overflow-y:auto;padding:0 2px 2px 0;margin-top:46px}
+/* Unified single system card */
+#dstudio #rp-body-system{display:flex!important;flex-direction:column;gap:0;overflow:visible;padding:0;background:var(--ssx-card);border:1px solid var(--ssx-border);border-radius:20px;box-shadow:var(--ductr-sh-sm)}
+#dstudio .rp-systab-bar{display:flex;align-items:flex-end;gap:4px;padding:8px 8px 0;border-bottom:1px solid var(--ssx-border);flex-wrap:wrap;position:relative;z-index:1}
+#dstudio .rp-systab{display:flex;align-items:center;gap:6px;border:1px solid transparent;border-bottom:none;border-radius:10px 10px 0 0;background:transparent;padding:8px 11px;margin-bottom:-1px;cursor:pointer;font:700 12px var(--ssx-font);color:var(--ssx-label);max-width:150px}
+#dstudio .rp-systab.on{border-color:var(--ssx-border);background:var(--ssx-card);color:var(--ssx-text);box-shadow:0 -2px 6px rgba(20,28,60,.04)}
+#dstudio .rp-systab.on::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--ssx-card)}
+#dstudio .rp-systab-add{flex:none;width:30px;height:30px;margin-bottom:6px;border:1px dashed var(--ssx-border-strong);border-radius:9px;background:transparent;color:var(--ssx-faint);cursor:pointer;display:grid;place-items:center;transition:all .15s}
+#dstudio .rp-systab-add:hover{border-color:var(--ssx-accent);color:var(--ssx-accent)}
+#dstudio #rp-sys-summary.rp-hero-light{margin:0;border:none!important;border-radius:0;box-shadow:none!important;padding:14px}
+#dstudio #rp-body-system .rp-pills{margin:0 14px}
+#dstudio #rp-body-system .rp-sec{border:none!important;box-shadow:none!important;border-radius:0;border-top:1px solid var(--ssx-border)!important;padding:14px}
+#dstudio .rp-section{background:var(--ssx-card);border:1px solid var(--ssx-border);border-radius:20px;box-shadow:var(--ductr-sh-sm);overflow:hidden}
+#dstudio .rp-section-title{font:700 11px var(--ssx-head);text-transform:uppercase;letter-spacing:.07em;color:var(--ssx-label);padding:14px 16px 8px;border-bottom:none}
+/* ── B+C right panel: system tabs + collapsible sections ── */
+#dstudio .rp-systabs-wrap{display:flex;gap:8px;align-items:stretch;margin-bottom:10px}
+#dstudio .rp-systabs{display:flex;gap:6px;flex:1;min-width:0;flex-wrap:wrap}
+#dstudio .rp-sysadd{flex:none;width:38px;border:1px dashed var(--ssx-border-strong);border-radius:12px;background:transparent;color:var(--ssx-faint);cursor:pointer;display:grid;place-items:center;transition:all .15s}
+#dstudio .rp-sysadd:hover{border-color:var(--ssx-accent);color:var(--ssx-accent)}
+#dstudio .sys-pill{flex:1 1 0;min-width:96px;display:flex;flex-direction:column;align-items:flex-start;gap:3px;border:1px solid var(--ssx-border);border-radius:12px;background:var(--ssx-card);padding:10px 12px;cursor:pointer;position:relative;box-shadow:var(--ductr-sh-sm);transition:border-color .15s,box-shadow .15s}
+#dstudio .sys-pill.active{border-color:color-mix(in srgb,currentColor 55%,transparent);box-shadow:inset 3px 0 0 currentColor,var(--ductr-sh-sm)}
+#dstudio .sys-pill .sys-dot{width:9px;height:9px;border-radius:50%;flex:none}
+/* Outdoor-unit summary connects under the active system tab as one group */
+#dstudio .rp-card-sum{background:var(--ssx-card);border:1px solid var(--ssx-border);border-radius:14px;box-shadow:var(--ductr-sh-sm);padding:13px 14px;margin-bottom:14px;border-left:3px solid var(--ssx-border)}
+#dstudio .rp-sum-bar{height:6px;border-radius:99px;background:var(--ssx-border-strong);overflow:hidden;margin-top:8px}
+#dstudio .rp-sum-bar > i{display:block;height:100%;border-radius:99px}
+#dstudio .rp-acc{background:var(--ssx-card);border:1px solid var(--ssx-border);border-radius:16px;box-shadow:var(--ductr-sh-sm);overflow:hidden}
+#dstudio .rp-acc-h{display:flex;align-items:center;gap:9px;padding:12px 14px;cursor:pointer}
+#dstudio .rp-acc-h .rp-acc-ic{width:16px;height:16px;color:var(--ssx-accent);flex:none}
+#dstudio .rp-acc-h b{font:800 12px var(--ssx-head);color:var(--ssx-text)}
+#dstudio .rp-acc-n{font:700 10px var(--ssx-mono);background:var(--ssx-bg);color:var(--ssx-label);padding:2px 8px;border-radius:20px;margin-left:2px}
+#dstudio .rp-acc-add{margin-left:auto;width:24px;height:24px;border:1px solid var(--ssx-border-strong);border-radius:7px;background:var(--ssx-card2);color:var(--ssx-label);cursor:pointer;font-size:13px;line-height:1;flex:none}
+#dstudio .rp-acc-add:hover{border-color:var(--ssx-accent);color:var(--ssx-accent)}
+#dstudio .rp-acc-chev{width:14px;height:14px;color:var(--ssx-faint);transition:transform .2s var(--ductr-ease);flex:none}
+#dstudio .rp-acc-h .rp-acc-add + .rp-acc-chev{margin-left:8px}
+#dstudio .rp-acc-h .rp-acc-n ~ .rp-acc-chev{margin-left:auto}
+#dstudio .rp-acc.open .rp-acc-chev{transform:rotate(90deg)}
+#dstudio .rp-acc-b{padding:2px 14px 14px;border-top:1px solid var(--ssx-border);max-height:340px;overflow-y:auto}
+#dstudio .rp-acc:not(.open) .rp-acc-b{display:none}
+/* Dark system hero + pill switcher (live) */
+#dstudio .rp-hero.rp-hero-light{background:var(--ssx-card);border:1px solid var(--ssx-border);box-shadow:var(--ductr-sh-sm);color:var(--ssx-text)}
+#dstudio .rp-hero-light select{background:var(--ssx-input-bg,var(--ssx-card2));border:1px solid var(--ssx-border-strong);color:var(--ssx-text)}
+#dstudio .rp-hero-light select option{color:var(--ssx-text)}
+#dstudio .rp-hero-light .rp-hero-bar{background:var(--ssx-border-strong)}
+#dstudio .rp-hero-sysrow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+#dstudio .rp-sys-chip{display:flex;align-items:center;gap:6px;border:1px solid var(--ssx-border);border-radius:10px;background:var(--ssx-card2);padding:6px 10px;cursor:pointer;font:700 11px var(--ssx-font);color:var(--ssx-label);max-width:140px}
+#dstudio .rp-sys-chip.on{border-color:var(--ssx-accent);background:var(--ssx-accent-bg);color:var(--ssx-accent-hover)}
+#dstudio .rp-sys-add{flex:none;width:30px;height:30px;border:1px dashed var(--ssx-border-strong);border-radius:10px;background:transparent;color:var(--ssx-faint);cursor:pointer;display:grid;place-items:center;transition:all .15s}
+#dstudio .rp-sys-add:hover{border-color:var(--ssx-accent);color:var(--ssx-accent)}
+#dstudio .rp-hero{position:relative;overflow:hidden;border-radius:16px;padding:15px;color:#fff;margin-bottom:12px;
+  background:radial-gradient(220px 150px at 92% 0%,rgba(0,229,192,.3),transparent 60%),linear-gradient(135deg,#11141b,#0A0B10)}
+#dstudio .rp-hero .rp-hero-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+#dstudio .rp-hero .rp-hero-od{display:flex;align-items:center;gap:8px;margin-top:11px}
+#dstudio .rp-hero select{flex:1;min-width:0;padding:7px 9px;border:1px solid rgba(255,255,255,.18);border-radius:9px;background:rgba(255,255,255,.06);color:#fff;font:600 10.5px var(--ssx-mono)}
+#dstudio .rp-hero select option{color:#15171C}
+#dstudio .rp-hero .rp-hero-bar{height:6px;border-radius:99px;background:rgba(255,255,255,.18);overflow:hidden;margin-top:9px}
+#dstudio .rp-hero .rp-hero-bar > i{display:block;height:100%;border-radius:99px}
+#dstudio .rp-hero .rp-hero-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:9px}
+#dstudio .rp-hero .rp-hero-meta select{flex:none;width:auto;font-size:10px;padding:4px 7px}
+#dstudio .rp-pills{display:flex;gap:5px;background:var(--ssx-card2);border:1px solid var(--ssx-border);border-radius:12px;padding:4px;margin-bottom:12px}
+#dstudio .rp-pill{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;border:none;background:transparent;border-radius:9px;padding:9px 4px;font:700 11.5px var(--ssx-font);color:var(--ssx-label);cursor:pointer;transition:all .14s}
+#dstudio .rp-pill.on{background:var(--ssx-card);color:var(--ssx-accent-hover);box-shadow:var(--ductr-sh-sm)}
+#dstudio .rp-pill-n{font:700 9.5px var(--ssx-mono);color:var(--ssx-faint)}
+#dstudio .rp-pill.on .rp-pill-n{color:var(--ssx-accent)}
+#dstudio .rp-sec{background:var(--ssx-card);border:1px solid var(--ssx-border);border-radius:16px;box-shadow:var(--ductr-sh-sm);padding:14px}
+#dstudio .rp-sec-h{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+#dstudio .rp-sec-h b{font:800 12px var(--ssx-head);color:var(--ssx-text)}
+#dstudio .rp-sec-h .rp-acc-add{margin-left:auto}
+/* ════ Floating legend ════ */
+#dstudio #legend-fab{position:fixed;right:24px;bottom:24px;z-index:900;display:flex;align-items:center;gap:7px;
+  height:40px;padding:0 16px;border:1px solid var(--ssx-border);border-radius:999px;background:var(--ssx-card);
+  color:var(--ssx-label);font:700 12px var(--ssx-font);cursor:pointer;box-shadow:var(--ductr-sh)}
+#dstudio #legend-fab:hover{color:var(--ssx-text)}
+#dstudio #legend-fab.on{background:var(--ssx-accent);border-color:var(--ssx-accent);color:#fff}
+#dstudio #legend-float{position:fixed;right:404px;bottom:24px;z-index:901;width:292px;flex-direction:column;
+  background:var(--ssx-card);border:1px solid var(--ssx-border);border-radius:18px;box-shadow:var(--ductr-sh);overflow:hidden}
+#dstudio #legend-float-head{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;cursor:grab;
+  border-bottom:1px solid var(--ssx-border);user-select:none;touch-action:none}
+#dstudio #legend-float-head:active{cursor:grabbing}
+#dstudio #legend-float-head span{font:700 11px var(--ssx-head);text-transform:uppercase;letter-spacing:.07em;color:var(--ssx-label)}
+#dstudio #legend-float-head button{border:none;background:transparent;color:var(--ssx-faint);font-size:16px;cursor:pointer;line-height:1;width:22px;height:22px;border-radius:6px}
+#dstudio #legend-float-head button:hover{background:var(--ssx-card2);color:var(--ssx-text)}
+#dstudio #legend-float-body{padding:14px;overflow-y:auto;max-height:50vh}
+#dstudio #legend-float-body span{white-space:nowrap}
+#dstudio #legend-pipe-rows span{font-size:11px!important}
+#dstudio #legend-float-body > div > div:last-child span{font-size:11.5px!important}
+/* ════ Materials / Job polish ════ */
+#dstudio #panel-3 .card, #dstudio #panel-4 .card{border-radius:20px}
+#dstudio .materials-table th{border-bottom-width:1px}
+#dstudio .materials-table .cat-row td{background:var(--ssx-card2)}
+#dstudio #panel-4{padding-bottom:40px}
+/* ════ Plans upload flow → DUCTR hero treatment ════ */
+#dstudio .pv2-left:has(#ductr-plans-flow[style*="block"]) #ductr-plans-flow, #dstudio #ductr-plans-flow{flex:1;display:flex;flex-direction:column;justify-content:center;gap:14px;
+  border-radius:22px;position:relative;overflow-y:auto;padding:28px;
+  background:
+    radial-gradient(150% 100% at 50% 119%, rgba(0,229,192,.5) 0%, rgba(46,104,255,.34) 26%, rgba(138,43,226,.18) 42%, transparent 58%),
+    #FFFFFF;
+  border:1px solid var(--ssx-border-strong);
+  box-shadow:0 2px 8px rgba(20,28,60,.06), 0 26px 60px -26px rgba(20,28,60,.28)}
+#dstudio [data-theme="dark"] #ductr-plans-flow{background:linear-gradient(160deg,#101a2c,#0c1424)}
+#dstudio #ductr-plans-flow::before{content:'';position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(rgba(96,108,150,.08) 1px,transparent 1px);background-size:22px 22px;border-radius:22px}
+#dstudio #ductr-plans-flow > *{position:relative}
+#dstudio #ductr-plans-flow .card{background:transparent;border:none;box-shadow:none;padding:0;margin:0 auto;width:100%}
+#dstudio #ductr-plans-flow #floor-alloc{background:var(--ssx-card);border:1px solid var(--ssx-border);box-shadow:var(--ductr-sh-sm);border-radius:20px;padding:18px;max-width:none;width:100%}
+#dstudio #ductr-plans-flow .card-title{text-transform:none;letter-spacing:-.01em;font-size:15px;color:var(--ssx-text)}
+#dstudio .upload-zone{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;border:none;background:color-mix(in srgb,var(--ssx-card) 45%,transparent);padding:36px 24px;cursor:pointer;border-radius:20px;transition:background .2s;width:100%;max-width:460px;margin:0 auto}
+#dstudio .upload-zone:hover, #dstudio .upload-zone.drag{background:rgba(0,229,192,.07)}
+#dstudio .upload-zone svg.uz-border{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:0;margin:0}
+#dstudio .uz-border rect{fill:none;stroke-width:2;vector-effect:non-scaling-stroke;stroke:var(--ssx-border-strong);stroke-dasharray:100;stroke-dashoffset:100}
+#dstudio .uz-border .r2{display:none}
+#dstudio .upload-zone:hover .uz-border rect, #dstudio .upload-zone.drag .uz-border rect{stroke:#00A389}
+#dstudio .upload-zone>*:not(.uz-border){position:relative;z-index:1}
+@media (prefers-reduced-motion:no-preference){
+  #dstudio .uz-border .r1{animation:uzdraw 5.5s ease-in-out infinite}
+}
+@keyframes uzdraw{0%{stroke-dashoffset:100}44%{stroke-dashoffset:0}56%{stroke-dashoffset:0}100%{stroke-dashoffset:-100}}
+#dstudio .upload-zone .dh-ic{width:66px;height:66px;border-radius:18px;background:rgba(0,229,192,.13);border:1px solid var(--ssx-border);box-shadow:var(--ductr-sh-sm);display:grid;place-items:center;color:#00A389;margin-bottom:18px;transition:transform .3s var(--ductr-ease)}
+#dstudio .upload-zone:hover .dh-ic{transform:scale(1.05)}
+#dstudio .upload-zone .dh-ic svg{width:34px;height:34px;stroke:#00A389;opacity:1;margin:0}
+#dstudio .upload-zone h3{font-family:var(--ssx-head);font-size:34px;font-weight:800;letter-spacing:-.02em;color:var(--ssx-text);margin:0 0 9px}
+#dstudio .upload-zone p{font-size:18px;font-weight:500;color:var(--ssx-label);margin:0 0 6px;max-width:420px}
+#dstudio .upload-zone p:last-of-type{font-size:13px;color:var(--ssx-faint);margin-top:4px}
+#dstudio .mode-option{border-radius:18px;background:color-mix(in srgb,var(--ssx-card) 70%,transparent)}
+
+
+
+#dstudio .dh-empty h2{line-height:1.15}
+
+
+
+
+/* ════════ 3. tweaks panel (studio/tweaks.css) ════════ */
+/* Tweaks panel styles — scoped */
+
+#dstudio #tw-panel{position:fixed;top:64px;right:18px;z-index:4000;width:268px;
+  background:var(--ssx-card);border:1px solid var(--ssx-border-strong);border-radius:18px;
+  box-shadow:0 24px 60px rgba(20,30,24,.22);font-family:var(--ssx-font);display:none;overflow:hidden;
+  animation:ductrModalIn .34s var(--ductr-flow) both}
+#dstudio #tw-panel.show{display:block}
+#dstudio #tw-head{display:flex;align-items:center;justify-content:space-between;padding:13px 15px;border-bottom:1px solid var(--ssx-border);background:var(--ssx-card2)}
+#dstudio #tw-head h3{font-family:var(--ssx-head);font-size:14px;font-weight:800;letter-spacing:.02em;color:var(--ssx-text);text-transform:uppercase;margin:0}
+#dstudio #tw-head button{width:26px;height:26px;border:none;background:transparent;color:var(--ssx-faint);font-size:15px;cursor:pointer;border-radius:7px;display:grid;place-items:center}
+#dstudio #tw-head button:hover{background:var(--ssx-bg);color:var(--ssx-text)}
+#dstudio .tw-sec{padding:14px 15px;border-bottom:1px solid var(--ssx-border)}
+#dstudio .tw-sec:last-child{border-bottom:none}
+#dstudio .tw-lbl{font-family:var(--ssx-head);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--ssx-label);margin-bottom:9px}
+#dstudio .tw-swatches{display:flex;gap:9px}
+#dstudio .tw-sw{width:38px;height:38px;border-radius:11px;cursor:pointer;border:2px solid transparent;position:relative;transition:transform .14s var(--ductr-ease)}
+#dstudio .tw-sw:hover{transform:translateY(-2px)}
+#dstudio .tw-sw.on{border-color:var(--ssx-text)}
+#dstudio .tw-sw.on::after{content:'✓';position:absolute;inset:0;display:grid;place-items:center;color:#fff;font-size:15px;font-weight:800;text-shadow:0 1px 2px rgba(0,0,0,.35)}
+#dstudio .tw-seg{display:flex;gap:6px}
+#dstudio .tw-seg button{flex:1;padding:9px 6px;border:1px solid var(--ssx-border-strong);border-radius:10px;background:var(--ssx-card);
+  cursor:pointer;font-family:var(--ssx-font);font-size:11.5px;font-weight:600;color:var(--ssx-label);transition:all .14s var(--ductr-ease)}
+#dstudio .tw-seg button:hover{border-color:var(--ssx-accent)}
+#dstudio .tw-seg button.on{background:var(--ssx-accent);border-color:var(--ssx-accent);color:#fff}
+#dstudio .tw-seg.tw-fonts button{font-size:13px}
+#dstudio .tw-seg.tw-fonts button[data-v="condensed"]{font-family:'Barlow Condensed',sans-serif;font-weight:800;letter-spacing:.02em;text-transform:uppercase}
+#dstudio .tw-seg.tw-fonts button[data-v="grotesk"]{font-family:'Hanken Grotesk',sans-serif;font-weight:800}
+#dstudio .tw-seg.tw-fonts button[data-v="mono"]{font-family:'DM Mono',monospace;font-weight:500}
+/* Workspace textures (controlled) */
+html[data-tw-texture] #dstudio .dh-main::before, html[data-tw-texture] #dstudio #pv2-canvas::before, html[data-tw-texture] #dstudio #ductr-plans-flow::before{background-image:none}
+html[data-tw-texture="dots"] #dstudio .dh-main::before, html[data-tw-texture="dots"] #dstudio #pv2-canvas::before, html[data-tw-texture="dots"] #dstudio #ductr-plans-flow::before{background-image:radial-gradient(rgba(23,32,27,.08) 1px,transparent 1px);background-size:22px 22px}
+#dstudio [data-theme="dark"] html[data-tw-texture="dots"] .dh-main::before{background-image:radial-gradient(rgba(255,255,255,.06) 1px,transparent 1px)}
+html[data-tw-texture="grid"] #dstudio .dh-main::before, html[data-tw-texture="grid"] #dstudio #pv2-canvas::before, html[data-tw-texture="grid"] #dstudio #ductr-plans-flow::before{background-image:linear-gradient(rgba(23,32,27,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(23,32,27,.055) 1px,transparent 1px);background-size:24px 24px,24px 24px}
+/* Gradient accent — paints brand surfaces when a gradient accent is active */
+html[data-tw-grad="on"] #dstudio #topbar .logo-icon, html[data-tw-grad="on"] #dstudio .btn-primary, html[data-tw-grad="on"] #dstudio .dh-primary, html[data-tw-grad="on"] #dstudio .dh-new-cta, html[data-tw-grad="on"] #dstudio #canvas-topbar #tool-calib.active, html[data-tw-grad="on"] #dstudio #canvas-topbar #tool-north.active, html[data-tw-grad="on"] #dstudio #legend-topbtn.on, html[data-tw-grad="on"] #dstudio .lswitch.on, html[data-tw-grad="on"] #dstudio .tw-seg button.on{background-image:var(--ssx-accent-grad)!important;border-color:transparent!important}
+html[data-tw-grad="on"] #dstudio .btn-primary:hover, html[data-tw-grad="on"] #dstudio .dh-primary:hover, html[data-tw-grad="on"] #dstudio .dh-new-cta:hover{filter:brightness(1.06)}
+/* Step states use hard-coded orange/green — exempt from gradient tweak */
+
+
+/* ════════ 4. HeyTiff skin (studio/heytiff-skin.css) ════════ */
+/* ═══════════════════════════════════════════════════════════════════════
+   HeyTiff · DESIGN STUDIO SKIN — folds the DUCTR engine into the HeyTiff
+   shell language: Plus Jakarta + JetBrains, teal/blue/violet/ink on the
+   light well, .tpr-style cards, chips and big buttons.
+   Loads AFTER studio/engine.css + studio/ductr-skin.css.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Tokens → HeyTiff ── */
+:root{
+  --ssx-bg:#EDEFF4;
+  --ssx-card:#FFFFFF;
+  --ssx-card2:#F4F5F7;
+  --ssx-border:rgba(10,12,20,.07);
+  --ssx-border-strong:rgba(10,12,20,.13);
+  --ssx-text:#0A0B10;
+  --ssx-label:#6b7280;
+  --ssx-faint:#9ca3af;
+  --ssx-accent:#00A389;
+  --ssx-accent-hover:#05887a;
+  --ssx-accent-bg:rgba(0,229,192,.15);
+  --ssx-input-bg:#fafbfc;
+  --ssx-input-border:#e5e7eb;
+  --ssx-hover:rgba(10,12,20,.045);
+  --ssx-shadow:0 20px 50px -30px rgba(10,12,20,.24);
+  --ssx-shadow-sm:0 1px 2px rgba(10,12,20,.05);
+  --ssx-radius:24px;
+  --ssx-radius-sm:13px;
+  --ssx-radius-xs:9px;
+  --ssx-ok:#00A389;   --ssx-ok-bg:rgba(0,229,192,.13);
+  --ssx-warn:#b45309; --ssx-warn-bg:rgba(240,164,49,.14);
+  --ssx-danger:#e0264f; --ssx-danger-bg:rgba(255,51,102,.1);
+  --ssx-font:'Plus Jakarta Sans',system-ui,sans-serif;
+  --ssx-head:'Plus Jakarta Sans',system-ui,sans-serif;
+  --ssx-mono:'JetBrains Mono',ui-monospace,monospace;
+  --ssx-canvas-bg:#E3E6EE;
+  --ductr-sh:0 1px 2px rgba(10,12,20,.04), 0 20px 50px -30px rgba(10,12,20,.24);
+  --ductr-sh-sm:0 1px 2px rgba(10,12,20,.05);
+  --airfoil-grad:linear-gradient(135deg,#00E5C0 0%,#2E68FF 100%);
+  /* HeyTiff palette handles */
+  --ht-teal:#00E5C0; --ht-teal-d:#00A389; --ht-teal-ink:#05887a;
+  --ht-blue:#2E68FF; --ht-violet:#8A2BE2;
+  --ht-amber:#F0A431; --ht-amber-d:#b45309;
+  --ht-red:#FF3366; --ht-red-d:#e0264f;
+  --ht-ink:#050505; --ht-ink2:#0A0B10;
+  --ht-g700:#374151; --ht-g500:#6b7280; --ht-g400:#9ca3af;
+}
+
+/* ── The studio well — mirrors the .fg .outlet treatment exactly ── */
+#dstudio{
+  position:relative; flex:1; min-width:0; min-height:0;
+  display:none; flex-direction:column;
+  background-color:#EDEFF4;
+  background-image:radial-gradient(circle at 1px 1px, rgba(40,38,70,.05) 1px, transparent 0);
+  background-size:26px 26px;
+  border-radius:40px 30px 30px 30px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.6);
+  overflow:hidden;
+  font-family:var(--ssx-font); color:var(--ssx-text);
+  font-size:14px; line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+#dstudio.on{ display:flex; }
+#dstudio #app{ height:100%; background:transparent; }
+#dstudio ::selection{ background:rgba(0,229,192,.3); }
+
+/* soft scrollbars inside the studio */
+#dstudio *::-webkit-scrollbar{ width:8px; height:8px; }
+#dstudio *::-webkit-scrollbar-track{ background:transparent; }
+#dstudio *::-webkit-scrollbar-thumb{ background:rgba(120,128,150,.35); border-radius:99px; border:2px solid transparent; background-clip:content-box; }
+#dstudio *::-webkit-scrollbar-thumb:hover{ background:rgba(120,128,150,.6); background-clip:content-box; }
+
+/* ═════════════ Studio toolbar (page chrome inside the well) ═════════════ */
+#dstudio #topbar{ height:70px; padding:16px 24px 0; gap:14px; }
+#dstudio .tb-brand{ gap:13px; padding:5px 12px 5px 5px; margin:-5px -4px; border-radius:16px; min-width:0; }
+#dstudio .tb-brand:hover{ transform:none; background:rgba(10,12,20,.04); }
+/* keep the centered stepper clear of the identity block at narrower windows
+   (home hides the stepper, so the identity can stay) */
+@media (max-width:1440px){
+  body:not([data-step="0"]) #dstudio .tb-sub{ display:none; }
+  body:not([data-step="0"]) #dstudio #tb-title{ max-width:180px; }
+}
+@media (max-width:1150px){
+  body:not([data-step="0"]) #dstudio .tb-id{ display:none; }
+  body:not([data-step="0"]) #dstudio .tb-brand{ padding:5px; }
+}
+#dstudio #topbar .logo-icon{
+  width:42px; height:42px; border-radius:14px;
+  background:var(--ht-ink); color:var(--ht-teal);
+  box-shadow:0 10px 20px -10px rgba(10,12,20,.55);
+}
+#dstudio #topbar .logo-icon svg{ width:19px; height:19px; stroke:currentColor; }
+#dstudio #tb-title{ font-size:18px; font-weight:800; letter-spacing:-.02em; color:var(--ht-ink); }
+#dstudio .tb-sub{ font-size:12px; font-weight:600; color:var(--ht-g400); }
+#dstudio .tb-job{
+  font-family:var(--ssx-mono); font-size:10.5px; font-weight:700;
+  background:#fff; border:1px solid rgba(10,12,20,.08); color:var(--ht-g500);
+  border-radius:999px; padding:3px 10px;
+}
+
+/* steps — HeyTiff segmented switcher (like the pay-cycle toggle) */
+#dstudio #steps.steps-shell{ background:#E4E6EC; border:1px solid rgba(10,12,20,.05); border-radius:15px; padding:4px; gap:3px; box-shadow:none; }
+#dstudio #steps.steps-shell .step-btn{ border-radius:11px; padding:8px 14px; font-size:12.5px; font-weight:700; color:var(--ht-g500); background:transparent; box-shadow:none; }
+#dstudio #steps.steps-shell .step-btn:hover{ color:var(--ht-ink); background:rgba(255,255,255,.55); }
+#dstudio #steps.steps-shell .step-btn.active{ background:#fff !important; color:var(--ht-ink) !important; box-shadow:0 3px 8px -3px rgba(10,12,20,.28) !important; }
+#dstudio #steps.steps-shell .step-btn .step-num{ width:20px; height:20px; font-size:10.5px; font-weight:800; background:rgba(10,12,20,.08); color:var(--ht-g500); }
+#dstudio #steps.steps-shell .step-btn.active .step-num{ background:var(--ht-ink) !important; color:#fff !important; animation:none !important; box-shadow:none !important; }
+#dstudio #steps.steps-shell .step-btn.done{ background:transparent !important; color:var(--ht-teal-ink) !important; }
+#dstudio #steps.steps-shell .step-btn.done:hover{ background:rgba(255,255,255,.55) !important; }
+#dstudio #steps.steps-shell .step-btn.done .step-num{ background:var(--ht-teal) !important; color:#053b34 !important; font-size:0 !important; }
+#dstudio #steps.steps-shell .step-btn.done .step-num::after{ content:'✓'; font-size:11px; font-weight:800; }
+#dstudio #steps-materials-btn{ background:var(--ht-ink); box-shadow:0 10px 20px -10px rgba(10,12,20,.5); }
+
+/* toolbar actions — .bbtn language */
+#dstudio #topbar .btn{ height:40px; padding:0 16px; border-radius:13px; font-size:12.5px; font-weight:800; letter-spacing:-.01em; }
+#dstudio #topbar .btn-secondary{
+  background:#fff; border:1px solid rgba(10,12,20,.08); color:var(--ht-g700);
+  box-shadow:0 1px 2px rgba(10,12,20,.04);
+}
+#dstudio #topbar .btn-secondary:hover{ background:#fff; transform:translateY(-1px); border-color:rgba(0,229,192,.5); box-shadow:0 12px 24px -12px rgba(10,12,20,.28); }
+#dstudio #topbar .btn-primary{ background:var(--ht-ink); color:#fff; box-shadow:0 12px 24px -12px rgba(10,12,20,.55); }
+#dstudio #topbar .btn-primary:hover{ background:var(--ht-ink); transform:translateY(-1px); }
+#dstudio #topbar .btn-primary svg{ color:var(--ht-teal); }
+#dstudio .tb-icon{ width:40px; height:40px; border-radius:13px; background:#fff; border:1px solid rgba(10,12,20,.08); color:var(--ht-g500); box-shadow:0 1px 2px rgba(10,12,20,.04); }
+#dstudio .tb-icon:hover{ color:var(--ht-ink); transform:translateY(-1px); border-color:rgba(0,229,192,.5); }
+
+/* ═════════════ Buttons (global) ═════════════ */
+#dstudio .btn{ border-radius:12px; font-weight:700; }
+#dstudio .btn-primary{ background:var(--ht-ink); color:#fff; }
+#dstudio .btn-primary:hover{ background:#16181f; }
+#dstudio .btn-secondary{ background:#fff; border:1px solid rgba(10,12,20,.1); color:var(--ht-g700); }
+#dstudio .btn-secondary:hover{ background:#fff; border-color:rgba(0,229,192,.5); }
+#dstudio .btn-danger{ background:rgba(255,51,102,.09); color:var(--ht-red-d); border:1px solid rgba(255,51,102,.25); }
+#dstudio .btn-danger:hover{ background:rgba(255,51,102,.16); }
+
+/* toggles pick up brand teal */
+#dstudio .lswitch.on{ background:var(--ht-teal); }
+
+/* ═════════════ Home — ink hero + white recent card ═════════════ */
+#dstudio #panel-0{ padding:18px 24px 24px; }
+#dstudio .dh3{
+  background:#EDEFF4; background-image:none; border:none; box-shadow:none;
+  gap:16px; border-radius:0; overflow:visible;
+}
+#dstudio .dh3-card{ padding:28px; }
+
+/* New design → dashboard-hero treatment (ink + mesh) */
+#dstudio .dh-new{
+  position:relative; background:var(--ht-ink2); color:#fff;
+  border:none; border-radius:32px; overflow:hidden;
+  box-shadow:0 20px 60px -15px rgba(0,0,0,.4);
+}
+#dstudio .dh-new::before{
+  content:''; position:absolute; inset:0; pointer-events:none; z-index:1;
+  background:
+    radial-gradient(560px 400px at 88% -12%, rgba(0,229,192,.20), transparent 62%),
+    radial-gradient(520px 420px at -8% 112%, rgba(46,104,255,.20), transparent 62%),
+    radial-gradient(420px 360px at 55% 120%, rgba(138,43,226,.12), transparent 60%);
+  background-size:auto;
+}
+#dstudio .dh-pipe-bg{ opacity:.5; }
+#dstudio .dh-pipe-bg .dpdot{ fill:var(--ht-teal); }
+#dstudio .dh-new-collapsed h2{ color:#fff; font-size:38px; letter-spacing:-.03em; }
+#dstudio .dh-new-collapsed p{ color:rgba(255,255,255,.5); font-size:15.5px; font-weight:500; max-width:360px; }
+#dstudio .dh-new-cta{
+  height:52px; padding:0 26px; border-radius:15px;
+  background:var(--ht-teal); color:var(--ht-ink);
+  font-size:15px; font-weight:800; letter-spacing:-.01em;
+  box-shadow:0 12px 24px -8px rgba(0,229,192,.45);
+}
+#dstudio .dh-new:not(.expanded) .dh-new-cta:hover{ box-shadow:0 18px 34px -10px rgba(0,229,192,.55); }
+/* expanded chooser reads on ink */
+#dstudio .dh-new-etitle{ color:#fff; font-size:26px; letter-spacing:-.02em; }
+#dstudio .dh-new-esub{ color:rgba(255,255,255,.5); font-size:14.5px; }
+#dstudio .dh-new-back{ background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); color:rgba(255,255,255,.7); box-shadow:none; }
+#dstudio .dh-new-back:hover{ background:rgba(255,255,255,.16); color:#fff; }
+#dstudio .dh-opt{ background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.1); border-radius:20px; backdrop-filter:blur(8px); }
+#dstudio .dh-opt:hover{ background:rgba(0,229,192,.08); border-color:rgba(0,229,192,.45); transform:translateY(-3px); }
+#dstudio .dh-opt-ic{ background:rgba(0,229,192,.12); border:1px solid rgba(0,229,192,.25); color:var(--ht-teal); }
+#dstudio .dh-opt-n{ color:#fff; font-size:16px; font-weight:800; }
+#dstudio .dh-opt-d{ color:rgba(255,255,255,.45); font-size:12.5px; }
+
+/* Recent → white system card */
+#dstudio .dh-recent-card{
+  background:#fff; border:1px solid rgba(10,12,20,.07); border-radius:32px;
+  box-shadow:0 1px 2px rgba(10,12,20,.04), 0 20px 50px -30px rgba(10,12,20,.24);
+}
+#dstudio .dh-cardt{
+  font-size:15px; font-weight:800; letter-spacing:-.01em; text-transform:none;
+  color:var(--ht-ink); padding-left:0; margin-bottom:14px;
+}
+#dstudio .dh-cardt::before{ content:none; }
+#dstudio .dh-search{
+  background:#fff; border:1px solid #e9eaee; border-radius:13px;
+  height:44px; padding:0 14px; box-shadow:0 1px 2px rgba(0,0,0,.03); margin-bottom:12px;
+}
+#dstudio .dh-search:focus-within{ border-color:var(--ht-blue); background:#fff; box-shadow:0 0 0 3px rgba(46,104,255,.12); }
+#dstudio .dh-search svg{ color:var(--ht-g400); }
+#dstudio .dh-search input{ font-size:13.5px; font-weight:600; }
+#dstudio .dh-search input::placeholder{ color:#aeb4c0; font-weight:500; }
+#dstudio .dh-rcard{ border:1px solid #f0f0f2; border-radius:18px; box-shadow:0 1px 2px rgba(10,12,20,.03); }
+#dstudio .dh-rcard:hover{ transform:translateY(-2px); border-color:rgba(0,229,192,.5); box-shadow:0 12px 26px -16px rgba(10,12,20,.24); }
+#dstudio .dh-rthumb{ background:#f4f5f7; }
+#dstudio .dh-rbadge{ background:rgba(0,229,192,.92); color:#053b34; font:800 8.5px var(--ssx-font); letter-spacing:.04em; text-transform:uppercase; border-radius:999px; padding:3px 8px; }
+#dstudio .dh-rnm{ font:800 14.5px var(--ssx-font); letter-spacing:-.01em; }
+#dstudio .dh-rmeta{ font:700 11.5px var(--ssx-mono); color:var(--ht-g500); margin-top:4px; }
+#dstudio .dh-rwhen{ font:500 11px var(--ssx-mono); color:var(--ht-g400); margin-top:3px; }
+#dstudio .dh-rempty-t{ font:800 15px var(--ssx-font); color:var(--ht-g500); }
+#dstudio .dh-rempty-s{ font:500 12.5px var(--ssx-font); color:var(--ht-g400); }
+/* engine's #home-jobs-grid id rule outranks the rail's flex-column class — re-assert */
+#dstudio #home-jobs-grid.dh-rlist{ display:flex; flex-direction:column; }
+
+/* ═════════════ Plans ═════════════ */
+#dstudio #panel-1{ padding:16px 24px 24px; }
+/* Plans flow → ink hero, matching the home hero + dark chrome
+   (mirror DUCTR's :has() selector so this always outranks its white version) */
+#dstudio .pv2-left:has(#ductr-plans-flow[style*="block"]) #ductr-plans-flow,
+#dstudio #ductr-plans-flow{
+  background:
+    radial-gradient(560px 400px at 88% -12%, rgba(0,229,192,.20), transparent 62%),
+    radial-gradient(520px 420px at -8% 112%, rgba(46,104,255,.22), transparent 62%),
+    radial-gradient(460px 380px at 60% 118%, rgba(138,43,226,.14), transparent 60%),
+    var(--ht-ink2);
+  border:none; border-radius:32px; color:#fff;
+  box-shadow:0 20px 60px -15px rgba(0,0,0,.4);
+}
+#dstudio #ductr-plans-flow::before{
+  background-image:radial-gradient(rgba(255,255,255,.05) 1px, transparent 1px);
+  background-size:22px 22px; border-radius:32px;
+}
+/* texture tweak variants must stay light-on-ink here */
+html[data-tw-texture="dots"] #dstudio #ductr-plans-flow::before{ background-image:radial-gradient(rgba(255,255,255,.05) 1px, transparent 1px); background-size:22px 22px; }
+html[data-tw-texture="grid"] #dstudio #ductr-plans-flow::before{ background-image:linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px); background-size:24px 24px, 24px 24px; }
+html[data-tw-texture="clean"] #dstudio #ductr-plans-flow::before{ background-image:none; }
+/* headings + copy on ink */
+#dstudio #ductr-plans-flow .card-title{ color:#fff; }
+#dstudio #ductr-plans-flow #noplans-path .card > p{ color:rgba(255,255,255,.5) !important; font-size:13px !important; }
+/* mode chooser tiles → glass */
+#dstudio .mode-option-title{ text-transform:none; letter-spacing:-.01em; font-size:16px; }
+#dstudio #ductr-plans-flow .mode-option{ background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.1); backdrop-filter:blur(8px); }
+#dstudio #ductr-plans-flow .mode-option:hover{ background:rgba(0,229,192,.08); border-color:rgba(0,229,192,.45); transform:translateY(-3px); box-shadow:none; }
+#dstudio #ductr-plans-flow .mode-option-title{ color:#fff; }
+#dstudio #ductr-plans-flow .mode-option-desc{ color:rgba(255,255,255,.45); }
+#dstudio #ductr-plans-flow .mode-option-icon{ background:rgba(0,229,192,.12); border:1px solid rgba(0,229,192,.25); color:var(--ht-teal); }
+#dstudio #ductr-plans-flow .mode-option-badge{ background:var(--ht-teal); color:#053b34; }
+#dstudio #ductr-plans-flow .mode-option-badge-alt{ background:rgba(255,255,255,.06); color:rgba(255,255,255,.55); border:1px solid rgba(255,255,255,.14); }
+/* buttons on ink: secondary → glass, primary → brand teal */
+#dstudio #ductr-plans-flow > div > .card > .card-header .btn-secondary,
+#dstudio #ductr-plans-flow .btn-secondary{ background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14); color:rgba(255,255,255,.85); }
+#dstudio #ductr-plans-flow .btn-secondary:hover{ background:rgba(255,255,255,.12); border-color:rgba(0,229,192,.5); color:#fff; }
+#dstudio #ductr-plans-flow .btn-primary{ background:var(--ht-teal); color:var(--ht-ink); box-shadow:0 10px 22px -8px rgba(0,229,192,.4); }
+#dstudio #ductr-plans-flow .btn-primary:hover{ background:var(--ht-teal); transform:translateY(-1px); box-shadow:0 14px 28px -8px rgba(0,229,192,.5); }
+/* the white allocation card pops against the ink (like Recent next to the hero) */
+#dstudio #ductr-plans-flow #floor-alloc{ color:var(--ssx-text); border:none; box-shadow:0 1px 2px rgba(10,12,20,.04), 0 20px 50px -30px rgba(10,12,20,.5); }
+#dstudio #ductr-plans-flow #floor-alloc .btn-secondary{ background:#fff; border:1px solid rgba(10,12,20,.1); color:var(--ht-g700); }
+#dstudio #ductr-plans-flow #floor-alloc .btn-primary{ background:var(--ht-ink); color:#fff; box-shadow:0 12px 24px -12px rgba(10,12,20,.55); }
+/* blank-canvas floor rows → glass */
+#dstudio #ductr-plans-flow .floor-item{ background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.12); }
+#dstudio #ductr-plans-flow .floor-name-input{ background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.16); color:#fff; }
+#dstudio #ductr-plans-flow .floor-name-input:focus{ border-color:rgba(0,229,192,.6); }
+#dstudio #ductr-plans-flow .floor-name-input::placeholder{ color:rgba(255,255,255,.35); }
+/* upload zone on ink */
+#dstudio .upload-zone{ background:transparent; }
+#dstudio .upload-zone:hover, #dstudio .upload-zone.drag{ background:rgba(0,229,192,.06); }
+#dstudio .uz-border rect{ stroke:rgba(255,255,255,.22); }
+#dstudio .upload-zone:hover .uz-border rect, #dstudio .upload-zone.drag .uz-border rect{ stroke:var(--ht-teal); }
+#dstudio .upload-zone .dh-ic{ background:rgba(0,229,192,.12); border:1px solid rgba(0,229,192,.25); color:var(--ht-teal); box-shadow:none; }
+#dstudio .upload-zone .dh-ic svg{ stroke:var(--ht-teal); }
+#dstudio .upload-zone h3{ font-size:30px; letter-spacing:-.03em; color:#fff; }
+#dstudio .upload-zone p{ font-size:14.5px; color:rgba(255,255,255,.5); }
+#dstudio .upload-zone p:last-of-type{ color:rgba(255,255,255,.32); }
+#dstudio .mode-option:hover{ border-color:var(--ht-teal-d); }
+#dstudio .mode-option-icon{ color:var(--ht-teal-d); }
+#dstudio .mode-option-badge{ background:var(--ht-ink); }
+#dstudio #pv2-canvas{ background:linear-gradient(160deg,#EDEFF4,#E3E6EE); border-radius:28px; }
+#dstudio #pv2-strip{ border-radius:22px; }
+#dstudio .pv2-calib{ background:var(--ht-ink); border-radius:12px; box-shadow:0 10px 20px -10px rgba(10,12,20,.5); }
+#dstudio .pv2-calib:hover{ background:#16181f; }
+#dstudio .page-tile-alloc{ background:var(--ht-ink); box-shadow:0 8px 18px -8px rgba(10,12,20,.45); }
+#dstudio .page-tile-alloc:hover{ background:#16181f; }
+#dstudio .page-tile-lvl{ background:var(--ht-ink); }
+#dstudio .floor-level-tag{ background:rgba(0,229,192,.14); color:var(--ht-teal-ink); }
+
+/* ═════════════ Design canvas ═════════════ */
+#dstudio #canvas-vtoolbar{
+  border:1px solid rgba(10,12,20,.07); border-radius:18px;
+  box-shadow:0 1px 2px rgba(10,12,20,.04), 0 16px 40px -22px rgba(10,12,20,.35);
+}
+#dstudio .vt-btn{ color:var(--ht-g500); }
+#dstudio .vt-btn:hover{ background:#f4f5f7; color:var(--ht-ink); }
+#dstudio .vt-btn.active{ background:var(--ht-teal); color:var(--ht-ink); box-shadow:0 0 15px rgba(0,229,192,.4); }
+#dstudio #canvas-wrap{
+  border-radius:24px; border:1px solid rgba(10,12,20,.1);
+  box-shadow:0 2px 8px rgba(10,12,20,.05), 0 20px 44px -24px rgba(10,12,20,.3);
+}
+#dstudio .floor-tab{ font-weight:700; color:var(--ht-g500); }
+#dstudio .floor-tab.active{ background:#fff; color:var(--ht-ink); box-shadow:0 3px 8px -3px rgba(10,12,20,.25); }
+#dstudio #canvas-topbar button{ border-radius:10px !important; }
+#dstudio #canvas-topbar #tool-calib.active,
+#dstudio #canvas-topbar #tool-north.active,
+#dstudio #canvas-topbar #legend-topbtn.on{ background:var(--ht-ink) !important; border-color:var(--ht-ink) !important; color:#fff !important; }
+#dstudio #layers-pop{ border-radius:15px; border-color:#ebecef; box-shadow:0 20px 48px -10px rgba(0,0,0,.24); }
+
+/* right rail */
+#dstudio .rp-hero{
+  background:
+    radial-gradient(240px 160px at 92% 0%, rgba(0,229,192,.30), transparent 62%),
+    radial-gradient(200px 150px at 0% 100%, rgba(46,104,255,.22), transparent 62%),
+    linear-gradient(135deg,#11141b,#0A0B10);
+  border-radius:18px;
+}
+#dstudio .rp-pill.on{ color:var(--ht-ink); }
+#dstudio .rp-pill.on .rp-pill-n{ color:var(--ht-teal-ink); }
+#dstudio .rp-acc-h .rp-acc-ic{ color:var(--ht-teal-d); }
+#dstudio .sys-pill.active{ box-shadow:inset 3px 0 0 currentColor, 0 1px 2px rgba(10,12,20,.05); }
+
+/* legend + fabs */
+#dstudio #legend-fab{ box-shadow:0 12px 26px -12px rgba(10,12,20,.4); }
+#dstudio #legend-fab.on{ background:var(--ht-ink); border-color:var(--ht-ink); }
+#dstudio #legend-float{ border-radius:20px; border-color:#ebecef; box-shadow:0 24px 60px -18px rgba(10,12,20,.4); }
+
+/* ═════════════ Materials / Job ═════════════ */
+#dstudio #panel-3 .card, #dstudio #panel-4 .card{ border-radius:24px; box-shadow:0 1px 2px rgba(10,12,20,.04), 0 20px 50px -30px rgba(10,12,20,.24); }
+#dstudio .card-title{ text-transform:none; letter-spacing:-.01em; font-size:15px; font-weight:800; color:var(--ht-ink); }
+#dstudio .field label{ text-transform:none; letter-spacing:.02em; font-size:12px; font-weight:800; color:var(--ht-g700); }
+#dstudio .field input, #dstudio .field select, #dstudio .field textarea{
+  border-radius:13px; border:1px solid #e5e7eb; background:#fafbfc;
+  padding:10px 14px; font-size:13.5px; font-weight:500;
+}
+#dstudio .field input:focus, #dstudio .field select:focus, #dstudio .field textarea:focus{
+  border-color:rgba(0,229,192,.65); box-shadow:0 0 0 3px rgba(0,229,192,.15); background:#fff;
+}
+
+/* ═════════════ Modals / toasts / tweaks ═════════════ */
+#dstudio .modal{ border-radius:24px; box-shadow:0 40px 100px -30px rgba(10,12,20,.6); }
+#dstudio .modal-overlay{ background:rgba(10,12,20,.5); backdrop-filter:blur(4px); }
+#dstudio #notif{ border-radius:14px; box-shadow:0 18px 44px -14px rgba(10,12,20,.45); }
+#dstudio #tw-panel{ border-radius:20px; border-color:#ebecef; box-shadow:0 24px 60px -18px rgba(10,12,20,.35); }
+#dstudio .tw-seg button.on{ background:var(--ht-ink); border-color:var(--ht-ink); }
+
+/* texture tweak also governs the home hero dots (ink surface → soft white dots) */
+html[data-tw-texture="dots"] #dstudio .dh-new::before{
+  background:
+    radial-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
+    radial-gradient(560px 400px at 88% -12%, rgba(0,229,192,.20), transparent 62%),
+    radial-gradient(520px 420px at -8% 112%, rgba(46,104,255,.20), transparent 62%);
+  background-size:22px 22px, auto, auto;
+}
+html[data-tw-texture="clean"] #dstudio .dh-new::before,
+html[data-tw-texture="grid"] #dstudio .dh-new::before{
+  background:
+    radial-gradient(560px 400px at 88% -12%, rgba(0,229,192,.20), transparent 62%),
+    radial-gradient(520px 420px at -8% 112%, rgba(46,104,255,.20), transparent 62%);
+}
+
+/* keep gradient-accent tweak surfaces readable */
+html[data-tw-grad="on"] #dstudio #topbar .logo-icon{ color:#fff; }

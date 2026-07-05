@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "dev:preview": "NEXT_DIST_DIR=.next-preview next dev"
   },
   "dependencies": {
     "@auth0/nextjs-auth0": "^4.22.0",

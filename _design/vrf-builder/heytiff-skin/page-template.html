@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HeyTiff — Design Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app/figma.css">
+<link rel="stylesheet" href="app/figma-screens.css">
+<link rel="stylesheet" href="app/figma-frame.css">
+<link rel="stylesheet" href="app/figma-profile.css">
+<link rel="stylesheet" href="app/timepay-review.css">
+<link rel="stylesheet" href="studio/studio.css">
+<style> html, body { margin:0; height:100%; background:#050505; overflow:hidden; } </style>
+</head>
+<body>
+<div class="fg">
+  <div class="gridbg"></div>
+  <div id="fg-side"></div>
+  <div class="main">
+    <div id="fg-top"></div>
+    <main class="outlet" id="fg-outlet"><div class="page in" id="fg-page"></div></main>
+    <div id="dstudio">
+<!--STUDIO_BODY-->
+    </div>
+  </div>
+</div>
+
+<div class="fg-cmd" id="fg-cmd">
+  <div class="ov" data-close></div>
+  <div class="box">
+    <div class="glow"></div>
+    <div class="cin"><span class="ci"></span><input id="fg-cmd-in" placeholder="Search screens, tools, or actions..." autocomplete="off"><kbd class="esc">ESC</kbd></div>
+    <div class="clist no-sb" id="fg-cmd-list"></div>
+    <div class="cfoot"><div class="cf-l"></div><div class="cf-r"></div></div>
+  </div>
+</div>
+
+<template id="__bundler_thumbnail">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100" height="100" fill="#050505"></rect>
+    <path d="M50 26 L66 35 L66 53 L50 62 L34 53 L34 35 Z" fill="none" stroke="#00E5C0" stroke-width="3"></path>
+    <path d="M40 44 h20 M50 34 v20" stroke="#00E5C0" stroke-width="3" stroke-linecap="round"></path>
+  </svg>
+</template>
+
+<style>
+  .fg-cmd { position:fixed; inset:0; z-index:100; display:none; align-items:flex-start; justify-content:center; padding-top:15vh; font-family:'Plus Jakarta Sans',sans-serif; }
+  .fg-cmd.open { display:flex; }
+  .fg-cmd .ov { position:absolute; inset:0; background:rgba(5,5,5,.4); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); animation:fgcFade .2s both; }
+  @keyframes fgcFade { from{opacity:0} to{opacity:1} }
+  .fg-cmd .box { position:relative; width:640px; max-width:calc(100vw - 32px); border-radius:28px; overflow:hidden; background:rgba(255,255,255,.9); backdrop-filter:blur(24px) saturate(1.6); -webkit-backdrop-filter:blur(24px) saturate(1.6); border:1px solid #fff; box-shadow:0 30px 80px -20px rgba(0,0,0,.4); animation:fgcIn .3s cubic-bezier(.34,1.4,.5,1) both; }
+  @keyframes fgcIn { from{opacity:0;transform:scale(.96) translateY(-8px)} to{opacity:1;transform:none} }
+  .fg-cmd .box .glow { position:absolute; top:-80px; left:50%; transform:translateX(-50%); width:300px; height:160px; background:#00E5C0; filter:blur(100px); opacity:.2; pointer-events:none; }
+  .fg-cmd .cin { position:relative; display:flex; align-items:center; gap:16px; padding:20px 24px; border-bottom:1px solid #f3f4f6; }
+  .fg-cmd .cin .ci { color:#9ca3af; display:flex; }
+  .fg-cmd .cin input { flex:1; background:none; border:none; outline:none; font-size:17px; font-weight:500; color:#1f2937; font-family:inherit; }
+  .fg-cmd .cin input::placeholder { color:#9ca3af; }
+  .fg-cmd .esc { font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:700; color:#9ca3af; background:#f3f4f6; padding:4px 8px; border-radius:6px; }
+  .fg-cmd .clist { max-height:380px; overflow-y:auto; padding:12px; }
+  .fg-cmd .cgl { padding:8px 16px; font-size:10px; font-weight:800; letter-spacing:.2em; text-transform:uppercase; color:#9ca3af; }
+  .fg-cmd .crow { position:relative; width:100%; display:flex; align-items:center; gap:16px; padding:12px 16px; border-radius:16px; cursor:pointer; text-align:left; }
+  .fg-cmd .crow.on { background:rgba(243,244,246,.8); }
+  .fg-cmd .crow .ci2 { width:36px; height:36px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; transition:transform .3s; }
+  .fg-cmd .crow.on .ci2 { transform:scale(1.05); }
+  .fg-cmd .crow .ck { flex:1; min-width:0; }
+  .fg-cmd .crow .ck b { display:block; font-size:15px; font-weight:700; color:#050505; }
+  .fg-cmd .crow .ck em { font-style:normal; display:block; font-size:12px; font-weight:500; color:#9ca3af; }
+  .fg-cmd .crow .cen { color:#9ca3af; opacity:0; }
+  .fg-cmd .crow.on .cen { opacity:1; }
+  .fg-cmd .cempty { padding:48px 16px; text-align:center; }
+  .fg-cmd .cempty b { display:block; font-size:15px; font-weight:700; color:#9ca3af; }
+  .fg-cmd .cempty em { font-style:normal; font-size:13px; color:#d1d5db; margin-top:4px; }
+  .fg-cmd .cfoot { display:flex; align-items:center; justify-content:space-between; padding:12px 24px; border-top:1px solid #f3f4f6; background:rgba(249,250,251,.5); }
+  .fg-cmd .cf-l { display:flex; align-items:center; gap:8px; font-size:11px; font-weight:700; color:#9ca3af; }
+  .fg-cmd .cf-r { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:#9ca3af; }
+</style>
+
+<script src="app/figma.js"></script>
+<script src="app/figma-plan.js"></script>
+<script src="app/figma-screens.js"></script>
+<script src="app/figma-profile.js"></script>
+<script src="app/figma-v3.js"></script>
+<script src="app/timepay-review.js"></script>
+<script src="studio/engine.js"></script>
+<script src="studio/chrome.js"></script>
+<script src="studio/tweaks.js"></script>
+<script src="studio/shell.js"></script>
+
+</body>
+</html>

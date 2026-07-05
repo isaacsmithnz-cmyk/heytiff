@@ -1,15 +1,19 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import type { DesignDocument, Floor } from "@/lib/studio/document";
+import { createPortal } from "react-dom";
 import {
   applyBuilderRows,
   builderRowsFromPages,
+  computeRowLevels,
+  dropPageOnRow,
+  dropRowOnRow,
+  dropRowOnTop,
+  formatLevel,
   imageToPage,
   movePageToNewRow,
-  movePageToRow,
-  moveRow,
   pdfToPages,
   removePageFromRows,
   renameRow,
@@ -44,6 +48,7 @@ export function PlansPanel({
   planImages: PlanImages;
 }) {
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
+  const [preview, setPreview] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [armedDelete, setArmedDelete] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -194,29 +199,52 @@ export function PlansPanel({
             {phase.pages.map((p, i) => {
               const on = phase.selected.has(i);
               return (
-                <button
-                  key={i}
-                  className={`ds-page${on ? " on" : ""}`}
-                  onClick={() => {
-                    const next = new Set(phase.selected);
-                    if (on) next.delete(i);
-                    else next.add(i);
-                    setPhase({ ...phase, selected: next });
-                  }}
-                >
-                  {/* raster thumbnails are object URLs, not app assets */}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={p.thumbUrl} alt={p.label} />
-                  <span className="ds-page-label">
+                <div key={i} className={`ds-page${on ? " on" : ""}`}>
+                  {/* image opens the full-size preview; the label row toggles */}
+                  <button
+                    className="ds-page-view"
+                    aria-label={`Preview ${p.label}`}
+                    onClick={() => setPreview(i)}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={p.thumbUrl} alt={p.label} />
+                    <span className="ds-page-zoom">
+                      <Icon name="maximize" size={13} />
+                    </span>
+                  </button>
+                  <button
+                    className="ds-page-label"
+                    onClick={() => {
+                      const next = new Set(phase.selected);
+                      if (on) next.delete(i);
+                      else next.add(i);
+                      setPhase({ ...phase, selected: next });
+                    }}
+                  >
                     <span className={`ds-page-check${on ? " on" : ""}`}>
                       {on && <Icon name="check" size={11} />}
                     </span>
                     {p.label}
-                  </span>
-                </button>
+                  </button>
+                </div>
               );
             })}
           </div>
+          {preview !== null && (
+            <PageLightbox
+              pages={phase.pages}
+              index={preview}
+              selected={phase.selected}
+              onToggle={(i) => {
+                const next = new Set(phase.selected);
+                if (next.has(i)) next.delete(i);
+                else next.add(i);
+                setPhase({ ...phase, selected: next });
+              }}
+              onNav={setPreview}
+              onClose={() => setPreview(null)}
+            />
+          )}
           <div className="ds-pagepick-actions">
             <button
               className="ds-calib-cancel"
@@ -284,7 +312,7 @@ export function PlansPanel({
         <div className="ds-floors">
           {floors.map((f) => (
             <div key={f.id} className="ds-floor">
-              <span className="ds-floor-lvl">L{f.level}</span>
+              <span className="ds-floor-lvl">{formatLevel(f.level)}</span>
               <input
                 className="ds-floor-name"
                 value={f.name}
@@ -343,11 +371,13 @@ export function PlansPanel({
   );
 }
 
+
 /* ── The floor-stack builder ──
-   Rows read like a building: top row = highest level, ground at the bottom.
-   Drag a page card onto another row to make it a sheet of that floor
-   (an east/west split is two cards on one line); drop it on the top zone to
-   start a new floor. Existing floors are fixed drop targets at the bottom. */
+   Rows read like the building: top row = highest level, ground line at the
+   bottom (or the design's existing floors as the anchor). Everything is
+   drag and drop: page cards join rows (east/west split = two cards on one
+   line), whole rows reorder by their handle, and dropping below the ground
+   line makes a subfloor. Level chips derive from position — nothing typed. */
 
 function FloorStackBuilder({
   pages,
@@ -364,12 +394,29 @@ function FloorStackBuilder({
 }) {
   const placed = rows.flatMap((r) => r.pageIdxs).length;
   const newFloorCount = rows.filter(
-    (r) => r.floorId === null && r.pageIdxs.length > 0
+    (r) => r.kind === "floor" && r.floorId === null && r.pageIdxs.length > 0
   ).length;
+  const levels = computeRowLevels(rows);
   const display = [...rows].reverse(); // top of the building first
 
-  const dragPayload = (e: React.DragEvent) =>
-    parseInt(e.dataTransfer.getData("text/plain"), 10);
+  const handleDrop = (targetKey: string | null) => (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const payload = e.dataTransfer.getData("text/plain");
+    if (payload.startsWith("p:")) {
+      const idx = parseInt(payload.slice(2), 10);
+      if (!Number.isFinite(idx)) return;
+      onRows(
+        targetKey === null
+          ? movePageToNewRow(rows, idx, pages[idx]?.label ?? "New floor")
+          : dropPageOnRow(rows, idx, targetKey, pages[idx]?.label ?? "New floor")
+      );
+    } else if (payload.startsWith("r:")) {
+      const key = payload.slice(2);
+      onRows(targetKey === null ? dropRowOnTop(rows, key) : dropRowOnRow(rows, key, targetKey));
+    }
+  };
+  const allowDrop = (e: React.DragEvent) => e.preventDefault();
 
   return (
     <div className="ds-pagepick">
@@ -381,42 +428,57 @@ function FloorStackBuilder({
         </span>
       </div>
       <div className="ds-alloc-hint">
-        Each row is one floor, stacked like the building — ground at the
-        bottom. <b>Drag a page onto another row</b> to make it a second sheet
-        of that floor (an east/west split), or onto the top zone to start a
-        new floor above.
+        Each row is one floor, stacked like the building. <b>Drag rows</b> by
+        their handle to reorder, <b>drag a page</b> onto another row to make it
+        a second sheet of that floor, and drop <b>below the ground line</b> for
+        subfloor areas. Levels follow the stack.
       </div>
 
-      <div
-        className="ds-stack-newzone"
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => {
-          e.preventDefault();
-          const idx = dragPayload(e);
-          if (Number.isFinite(idx))
-            onRows(movePageToNewRow(rows, idx, pages[idx]?.label ?? "New floor"));
-        }}
-      >
+      <div className="ds-stack-newzone" onDragOver={allowDrop} onDrop={handleDrop(null)}>
         <Icon name="plus" size={13} />
         Drop here for a new top floor
       </div>
 
       <div className="ds-stack">
         {display.map((row) => {
-          const level =
-            rows.filter((r) => r.floorId !== null || r.pageIdxs.length > 0).indexOf(row);
+          if (row.kind === "ground") {
+            return (
+              <div
+                key={row.key}
+                className="ds-groundline"
+                onDragOver={allowDrop}
+                onDrop={handleDrop(row.key)}
+              >
+                <span />
+                <b>Ground line — drop below for subfloors</b>
+                <span />
+              </div>
+            );
+          }
+          const level = levels.get(row.key) ?? 0;
           return (
             <div
               key={row.key}
-              className={`ds-stack-row${row.floorId ? " existing" : ""}`}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                const idx = dragPayload(e);
-                if (Number.isFinite(idx)) onRows(movePageToRow(rows, idx, row.key));
-              }}
+              className={`ds-stack-row${row.floorId ? " existing" : ""}${level < 0 ? " sub" : ""}`}
+              onDragOver={allowDrop}
+              onDrop={handleDrop(row.key)}
             >
-              <span className="ds-floor-lvl">L{level}</span>
+              {row.floorId === null ? (
+                <span
+                  className="ds-stack-grip"
+                  draggable
+                  aria-label={`Drag ${row.name}`}
+                  onDragStart={(e) =>
+                    e.dataTransfer.setData("text/plain", `r:${row.key}`)
+                  }
+                >
+                  <Icon name="dots" size={14} />
+                  <Icon name="dots" size={14} />
+                </span>
+              ) : (
+                <span className="ds-stack-grip fixed" />
+              )}
+              <span className="ds-floor-lvl">{formatLevel(level)}</span>
               {row.floorId ? (
                 <span className="ds-stack-name-fixed">{row.name}</span>
               ) : (
@@ -428,10 +490,8 @@ function FloorStackBuilder({
                 />
               )}
               <div className="ds-stack-cards">
-                {row.pageIdxs.length === 0 && (
-                  <span className="ds-stack-empty">
-                    {row.floorId ? "drop a sheet to add it here" : ""}
-                  </span>
+                {row.pageIdxs.length === 0 && row.floorId && (
+                  <span className="ds-stack-empty">drop a sheet to add it here</span>
                 )}
                 {row.pageIdxs.map((idx) => {
                   const p = pages[idx];
@@ -441,7 +501,7 @@ function FloorStackBuilder({
                       className="ds-stack-card"
                       draggable
                       onDragStart={(e) =>
-                        e.dataTransfer.setData("text/plain", String(idx))
+                        e.dataTransfer.setData("text/plain", `p:${idx}`)
                       }
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -457,22 +517,6 @@ function FloorStackBuilder({
                   );
                 })}
               </div>
-              {!row.floorId && (
-                <span className="ds-stack-updown">
-                  <button
-                    aria-label={`Move ${row.name} up`}
-                    onClick={() => onRows(moveRow(rows, row.key, 1))}
-                  >
-                    <Icon name="arrowUp" size={13} />
-                  </button>
-                  <button
-                    aria-label={`Move ${row.name} down`}
-                    onClick={() => onRows(moveRow(rows, row.key, -1))}
-                  >
-                    <Icon name="arrowDown" size={13} />
-                  </button>
-                </span>
-              )}
             </div>
           );
         })}
@@ -487,5 +531,91 @@ function FloorStackBuilder({
         </button>
       </div>
     </div>
+  );
+}
+
+/* ── Full-size page preview ──
+   Portalled to <body>: the shell's animated .page wrapper carries
+   will-change, which breaks position:fixed for anything rendered inside it. */
+
+export function PageLightbox({
+  pages,
+  index,
+  selected,
+  onToggle,
+  onNav,
+  onClose,
+}: {
+  pages: PageImage[];
+  index: number;
+  selected: Set<number>;
+  onToggle: (i: number) => void;
+  onNav: (i: number) => void;
+  onClose: () => void;
+}) {
+  const page = pages[index];
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowRight" && index < pages.length - 1) onNav(index + 1);
+      if (e.key === "ArrowLeft" && index > 0) onNav(index - 1);
+      if (e.key === " " || e.key === "Enter") {
+        e.preventDefault();
+        onToggle(index);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [index, pages.length, onNav, onClose, onToggle]);
+
+  if (!page) return null;
+  const isOn = selected.has(index);
+
+  return createPortal(
+    <div className="ds-lightbox" role="dialog" aria-label={`Page preview: ${page.label}`}>
+      <div className="ds-lb-backdrop" onClick={onClose} />
+      <div className="ds-lb-frame">
+        <div className="ds-lb-top">
+          <span className="ds-lb-title">
+            {page.label}
+            <em>
+              {index + 1} / {pages.length}
+            </em>
+          </span>
+          <button
+            className={`ds-lb-select${isOn ? " on" : ""}`}
+            onClick={() => onToggle(index)}
+          >
+            <Icon name="check" size={14} />
+            {isOn ? "Selected" : "Select this page"}
+          </button>
+          <button className="ds-lb-close" aria-label="Close preview" onClick={onClose}>
+            <Icon name="x" size={16} />
+          </button>
+        </div>
+        <div className="ds-lb-img">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={page.thumbUrl} alt={page.label} />
+        </div>
+        <button
+          className="ds-lb-nav prev"
+          aria-label="Previous page"
+          disabled={index === 0}
+          onClick={() => onNav(index - 1)}
+        >
+          <Icon name="chevL" size={20} />
+        </button>
+        <button
+          className="ds-lb-nav next"
+          aria-label="Next page"
+          disabled={index === pages.length - 1}
+          onClick={() => onNav(index + 1)}
+        >
+          <Icon name="chevR" size={20} />
+        </button>
+      </div>
+    </div>,
+    document.body
   );
 }

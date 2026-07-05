@@ -134,23 +134,28 @@ export function placeSheets(
 }
 
 /* ── The floor-stack builder ──
-   Allocation is spatial, not textual: the picker's selected pages become a
-   stack of rows (bottom row = lowest level). Dragging a page card onto
-   another row makes it a sheet of that floor (an east/west split is two
-   cards on one line); dropping on the new-floor zone starts a fresh row.
-   Existing floors sit as fixed rows at the bottom so late sheets can be
-   dragged onto them. Pure functions here; the panel is a thin renderer. */
+   Allocation is spatial, not textual: rows read like the building, and the
+   LEVELS DERIVE FROM STACK POSITION — never typed. Empty designs get a
+   ground-line marker: rows above it are L0, L1…, rows dragged below it are
+   subfloors (B1 nearest the line). Designs with floors anchor on their
+   lowest existing floor instead, and the whole stack renumbers on commit,
+   so basements below and mezzanines between existing floors both work.
+   Pure functions here; the panel is a thin renderer. */
 
 export interface BuilderRow {
   key: string;
+  /** "ground" = the ground-line marker row (empty designs only) */
+  kind: "floor" | "ground";
   /** existing floor receiving sheets, or null for a new floor */
   floorId: string | null;
+  /** stored level of the existing floor (anchors renumbering) */
+  level?: number;
   name: string;
   pageIdxs: number[];
 }
 
-/** Initial stack: existing floors (fixed, by level) then one new row per
-    selected page — first selected page ends up lowest. */
+export const formatLevel = (n: number): string => (n < 0 ? `B${-n}` : `L${n}`);
+
 export function builderRowsFromPages(
   pages: { label: string }[],
   selected: number[],
@@ -158,32 +163,121 @@ export function builderRowsFromPages(
 ): BuilderRow[] {
   const existing = [...floors]
     .sort((a, b) => a.level - b.level)
-    .map((f) => ({ key: `ex_${f.id}`, floorId: f.id, name: f.name, pageIdxs: [] }));
+    .map((f) => ({
+      key: `ex_${f.id}`,
+      kind: "floor" as const,
+      floorId: f.id,
+      level: f.level,
+      name: f.name,
+      pageIdxs: [],
+    }));
   const fresh = selected.map((i) => ({
     key: `new_${i}`,
+    kind: "floor" as const,
     floorId: null,
     name: pages[i]?.label ?? `Page ${i + 1}`,
     pageIdxs: [i],
   }));
-  return [...existing, ...fresh];
+  return existing.length > 0
+    ? [...existing, ...fresh]
+    : [
+        { key: "ground", kind: "ground" as const, floorId: null, name: "", pageIdxs: [] },
+        ...fresh,
+      ];
 }
 
-/** Empty NEW rows vanish; existing-floor rows always stay. */
+/** Position → level for every floor row (bottom-up input). */
+export function computeRowLevels(rows: BuilderRow[]): Map<string, number> {
+  const floorsOnly = rows.filter((r) => r.kind === "floor");
+  const markerIdx = rows.findIndex((r) => r.kind === "ground");
+  let anchorPos: number;
+  let anchorLevel: number;
+  if (markerIdx >= 0) {
+    // rows below the marker are basements; first row above it is L0
+    anchorPos = rows.slice(0, markerIdx).filter((r) => r.kind === "floor").length;
+    anchorLevel = 0;
+  } else {
+    // lowest existing floor keeps its stored level; everything renumbers around it
+    let best = -1;
+    for (let i = 0; i < floorsOnly.length; i++) {
+      const r = floorsOnly[i];
+      if (r.floorId !== null && (best < 0 || (r.level ?? 0) < (floorsOnly[best].level ?? 0)))
+        best = i;
+    }
+    anchorPos = Math.max(best, 0);
+    anchorLevel = best >= 0 ? (floorsOnly[best].level ?? 0) : 0;
+  }
+  const levels = new Map<string, number>();
+  floorsOnly.forEach((r, p) => levels.set(r.key, anchorLevel + (p - anchorPos)));
+  return levels;
+}
+
+/** Empty NEW rows vanish; existing floors and the marker always stay. */
 function pruneRows(rows: BuilderRow[]): BuilderRow[] {
-  return rows.filter((r) => r.floorId !== null || r.pageIdxs.length > 0);
+  return rows.filter(
+    (r) => r.kind === "ground" || r.floorId !== null || r.pageIdxs.length > 0
+  );
 }
 
-export function movePageToRow(
+const isMovable = (r: BuilderRow | undefined) =>
+  r !== undefined && r.kind === "floor" && r.floorId === null;
+
+/** Drop row `key` onto `targetKey`: it lands directly above the target —
+    except the ground marker, where it lands directly below (top subfloor). */
+export function dropRowOnRow(
   rows: BuilderRow[],
-  pageIdx: number,
+  key: string,
   targetKey: string
 ): BuilderRow[] {
+  if (key === targetKey) return rows;
+  const row = rows.find((r) => r.key === key);
+  if (!isMovable(row)) return rows;
+  const without = rows.filter((r) => r.key !== key);
+  const t = without.findIndex((r) => r.key === targetKey);
+  if (t < 0) return rows;
+  const insertAt = without[t].kind === "ground" ? t : t + 1;
+  const next = [...without];
+  next.splice(insertAt, 0, row!);
+  return next;
+}
+
+/** Drop a row on the top zone: it becomes the highest floor. */
+export function dropRowOnTop(rows: BuilderRow[], key: string): BuilderRow[] {
+  const row = rows.find((r) => r.key === key);
+  if (!isMovable(row)) return rows;
+  return [...rows.filter((r) => r.key !== key), row!];
+}
+
+/** Drop a page card onto a row: joins that floor. Dropping on the ground
+    marker starts a new subfloor directly below the line. */
+export function dropPageOnRow(
+  rows: BuilderRow[],
+  pageIdx: number,
+  targetKey: string,
+  label: string
+): BuilderRow[] {
+  const target = rows.find((r) => r.key === targetKey);
+  if (!target) return rows;
+  const cleared = rows.map((r) => ({
+    ...r,
+    pageIdxs: r.pageIdxs.filter((i) => i !== pageIdx),
+  }));
+  if (target.kind === "ground") {
+    const next = pruneRows(cleared);
+    const markerIdx = next.findIndex((r) => r.key === targetKey);
+    next.splice(markerIdx, 0, {
+      key: `new_${pageIdx}_${rows.length}`,
+      kind: "floor",
+      floorId: null,
+      name: label,
+      pageIdxs: [pageIdx],
+    });
+    return next;
+  }
   return pruneRows(
-    rows.map((r) => {
-      const without = r.pageIdxs.filter((i) => i !== pageIdx);
-      if (r.key === targetKey) return { ...r, pageIdxs: [...without, pageIdx] };
-      return { ...r, pageIdxs: without };
-    })
+    cleared.map((r) =>
+      r.key === targetKey ? { ...r, pageIdxs: [...r.pageIdxs, pageIdx] } : r
+    )
   );
 }
 
@@ -199,7 +293,13 @@ export function movePageToNewRow(
   }));
   return pruneRows([
     ...cleared,
-    { key: `new_${pageIdx}_${cleared.length}`, floorId: null, name, pageIdxs: [pageIdx] },
+    {
+      key: `new_${pageIdx}_${cleared.length}`,
+      kind: "floor",
+      floorId: null,
+      name,
+      pageIdxs: [pageIdx],
+    },
   ]);
 }
 
@@ -210,44 +310,46 @@ export function removePageFromRows(rows: BuilderRow[], pageIdx: number): Builder
   );
 }
 
-/** Shift a NEW row up/down the stack; it can't sink below existing floors. */
-export function moveRow(rows: BuilderRow[], key: string, delta: -1 | 1): BuilderRow[] {
-  const idx = rows.findIndex((r) => r.key === key);
-  if (idx < 0 || rows[idx].floorId !== null) return rows;
-  const target = idx + delta;
-  if (target < 0 || target >= rows.length) return rows;
-  if (rows[target].floorId !== null) return rows; // existing block is fixed
-  const next = [...rows];
-  [next[idx], next[target]] = [next[target], next[idx]];
-  return next;
-}
-
 export function renameRow(rows: BuilderRow[], key: string, name: string): BuilderRow[] {
   return rows.map((r) => (r.key === key ? { ...r, name } : r));
 }
 
-/** Commit the stack: rows bottom-up; new floors take the next levels in
-    stack order, existing floors gain the dropped sheets. */
+/** Commit the stack: prune empty new rows, derive levels from the final
+    order (existing floors renumber too — mezzanines/basements included),
+    create/extend floors bottom-up. */
 export function applyBuilderRows(
   rows: BuilderRow[],
   uploads: Map<number, UploadedSheet>,
   floors: Floor[]
 ): Floor[] {
-  const result = floors.map((f) => ({ ...f, plans: [...f.plans] }));
-  let nextLevel = result.reduce((m, f) => Math.max(m, f.level), -1) + 1;
-  for (const row of rows) {
+  const pruned = rows.filter(
+    (r) =>
+      r.kind === "ground" ||
+      r.floorId !== null ||
+      r.pageIdxs.some((i) => uploads.has(i))
+  );
+  const levels = computeRowLevels(pruned);
+  const result: Floor[] = [];
+  for (const row of pruned) {
+    if (row.kind !== "floor") continue;
+    const level = levels.get(row.key) ?? 0;
     const sheets = row.pageIdxs
       .map((i) => uploads.get(i))
       .filter((s): s is UploadedSheet => s !== undefined);
-    if (sheets.length === 0) continue;
     if (row.floorId) {
-      const f = result.find((x) => x.id === row.floorId);
-      if (f) f.plans = [...f.plans, ...placeSheets(f.plans, sheets)];
+      const f = floors.find((x) => x.id === row.floorId);
+      if (!f) continue;
+      result.push({
+        ...f,
+        level,
+        plans: sheets.length ? [...f.plans, ...placeSheets(f.plans, sheets)] : f.plans,
+      });
     } else {
+      if (sheets.length === 0) continue;
       result.push({
         id: newId("flr"),
         name: row.name.trim() || sheets[0].label,
-        level: nextLevel++,
+        level,
         scaleMmPerUnit: null, // plans must be calibrated before sizes are real
         northDeg: null,
         plans: placeSheets([], sheets),

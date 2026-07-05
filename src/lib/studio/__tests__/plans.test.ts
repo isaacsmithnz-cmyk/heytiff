@@ -1,17 +1,19 @@
 /* Plans pipeline — pure helpers. The pdf.js raster path is browser-only and
    exercised manually; these pin the label guessing and floor mapping. */
 
-import { createDesign, type Floor } from "../document";
+import { createDesign } from "../document";
 import {
   applyBuilderRows,
   builderRowsFromPages,
+  computeRowLevels,
+  dropPageOnRow,
+  dropRowOnRow,
+  dropRowOnTop,
+  formatLevel,
   guessFloorLabel,
   movePageToNewRow,
-  movePageToRow,
-  moveRow,
   placeSheets,
   removePageFromRows,
-  type BuilderRow,
   type UploadedSheet,
 } from "../plans";
 
@@ -68,79 +70,136 @@ describe("sheet placement + allocation", () => {
   const uploadsFor = (sheets: UploadedSheet[], idxs: number[]) =>
     new Map(idxs.map((idx, k) => [idx, sheets[k]]));
 
-  it("each row becomes a floor; stack order sets the levels above existing floors", () => {
-    const doc = createDesign({ name: "x", mode: "blank" }); // Ground @ L0
-    const pages = [{ label: "Level 1" }, { label: "Level 2" }];
-    const rows = builderRowsFromPages(pages, [0, 1], doc.floors);
-    // existing Ground floor is a fixed bottom row
-    expect(rows[0].floorId).toBe(doc.floors[0].id);
-    const floors = applyBuilderRows(
-      rows,
-      uploadsFor([sheet("Level 1", 2), sheet("Level 2", 3)], [0, 1]),
-      doc.floors
-    );
-    expect(floors.map((f: Floor) => f.level)).toEqual([0, 1, 2]);
-    expect(floors[1].name).toBe("Level 1");
-    expect(floors[1].scaleMmPerUnit).toBeNull();
-    expect(floors[1].plans[0].imageRef).toBe("org/o1/plan_Level 1.png");
+  it("formatLevel: basements read as B-numbers", () => {
+    expect(formatLevel(2)).toBe("L2");
+    expect(formatLevel(0)).toBe("L0");
+    expect(formatLevel(-1)).toBe("B1");
+    expect(formatLevel(-2)).toBe("B2");
   });
 
-  it("two pages dragged onto one row become sheets of ONE floor (east/west split)", () => {
+  it("empty designs get a ground line; rows above count up from L0", () => {
+    const pages = [{ label: "Ground" }, { label: "Level 1" }];
+    const rows = builderRowsFromPages(pages, [0, 1], []);
+    expect(rows[0].kind).toBe("ground");
+    const levels = computeRowLevels(rows);
+    expect(levels.get(rows[1].key)).toBe(0);
+    expect(levels.get(rows[2].key)).toBe(1);
+  });
+
+  it("dropping a row on the ground line makes it a subfloor (B1, B2…)", () => {
+    const pages = [{ label: "Ground" }, { label: "Basement" }, { label: "Carpark" }];
+    let rows = builderRowsFromPages(pages, [0, 1, 2], []);
+    rows = dropRowOnRow(rows, rows[2].key, "ground"); // Basement below the line
+    rows = dropRowOnRow(rows, rows.find((r) => r.name === "Carpark")!.key, "ground");
+    const levels = computeRowLevels(rows);
+    const byName = (n: string) => levels.get(rows.find((r) => r.name === n)!.key);
+    expect(byName("Ground")).toBe(0);
+    // each drop lands directly below the line, pushing earlier basements deeper
+    expect(byName("Carpark")).toBe(-1);
+    expect(byName("Basement")).toBe(-2);
+  });
+
+  it("rows reorder by drag: dropping A on B lands A directly above B; top zone stacks highest", () => {
+    const pages = [{ label: "A" }, { label: "B" }, { label: "C" }];
+    let rows = builderRowsFromPages(pages, [0, 1, 2], []);
+    rows = dropRowOnRow(rows, rows[1].key, rows[3].key); // A above C
+    expect(rows.filter((r) => r.kind === "floor").map((r) => r.name)).toEqual(["B", "C", "A"]);
+    rows = dropRowOnTop(rows, rows.find((r) => r.name === "B")!.key);
+    expect(rows.filter((r) => r.kind === "floor").map((r) => r.name)).toEqual(["C", "A", "B"]);
+  });
+
+  it("two pages dropped together become sheets of ONE floor (east/west split)", () => {
     const pages = [{ label: "Level 1 East" }, { label: "Level 1 West" }];
     let rows = builderRowsFromPages(pages, [0, 1], []);
-    rows = movePageToRow(rows, 1, rows[0].key); // drag West onto East's row
-    expect(rows).toHaveLength(1); // West's empty row vanished
+    rows = dropPageOnRow(rows, 1, rows[1].key, "Level 1 West"); // West onto East's row
+    expect(rows.filter((r) => r.kind === "floor")).toHaveLength(1);
     const floors = applyBuilderRows(
       rows,
       uploadsFor([sheet("Level 1 East", 2), sheet("Level 1 West", 3)], [0, 1]),
       []
     );
     expect(floors).toHaveLength(1);
-    expect(floors[0].plans.map((s) => s.name)).toEqual([
-      "Level 1 East",
-      "Level 1 West",
+    expect(floors[0].plans.map((s) => s.name)).toEqual(["Level 1 East", "Level 1 West"]);
+    expect(floors[0].plans[1].x).toBe(2060); // side by side, ready to align
+    expect(floors[0].level).toBe(0);
+  });
+
+  it("existing floors anchor the numbering; dropping below the lowest makes basements", () => {
+    const doc = createDesign({ name: "x", mode: "blank" }); // Ground @ L0
+    const pages = [{ label: "Basement plan" }];
+    let rows = builderRowsFromPages(pages, [0], doc.floors);
+    expect(rows.find((r) => r.kind === "ground")).toBeUndefined();
+    // drag the new row onto the existing ground row → directly ABOVE it; then
+    // move it below by dropping ground... instead drop row on existing row and
+    // verify above; then simulate below-lowest via dropRowOnRow on the bottom:
+    rows = [rows[1], rows[0]]; // manually order: new row below existing Ground
+    const levels = computeRowLevels(rows);
+    expect(levels.get(rows[0].key)).toBe(-1); // below L0 → B1
+    expect(levels.get(rows[1].key)).toBe(0); // Ground keeps its level
+    const floors = applyBuilderRows(
+      rows,
+      uploadsFor([sheet("Basement plan", 9)], [0]),
+      doc.floors
+    );
+    expect(floors.map((f) => [f.name, f.level])).toEqual([
+      ["Basement plan", -1],
+      ["Ground floor", 0],
     ]);
-    // auto-placed side by side, ready to drag into alignment
-    expect(floors[0].plans[1].x).toBe(2060);
+  });
+
+  it("inserting between existing floors renumbers the stack (mezzanine)", () => {
+    const doc = createDesign({ name: "x", mode: "blank" });
+    doc.floors.push({
+      id: "flr_l1",
+      name: "Level 1",
+      level: 1,
+      scaleMmPerUnit: null,
+      northDeg: null,
+      plans: [],
+    });
+    const pages = [{ label: "Mezzanine" }];
+    let rows = builderRowsFromPages(pages, [0], doc.floors);
+    // drop the mezzanine row on the existing Ground row → sits directly above it
+    rows = dropRowOnRow(rows, rows[2].key, rows[0].key);
+    const floors = applyBuilderRows(
+      rows,
+      uploadsFor([sheet("Mezzanine", 4)], [0]),
+      doc.floors
+    );
+    expect(floors.map((f) => [f.name, f.level])).toEqual([
+      ["Ground floor", 0],
+      ["Mezzanine", 1],
+      ["Level 1", 2], // renumbered up
+    ]);
   });
 
   it("dropping a page on an existing floor row adds a sheet to that floor", () => {
     const doc = createDesign({ name: "x", mode: "blank" });
     const pages = [{ label: "GF West" }];
     let rows = builderRowsFromPages(pages, [0], doc.floors);
-    rows = movePageToRow(rows, 0, rows[0].key); // onto the existing Ground floor
-    const floors = applyBuilderRows(
-      rows,
-      uploadsFor([sheet("GF West", 4)], [0]),
-      doc.floors
-    );
+    rows = dropPageOnRow(rows, 0, rows[0].key, "GF West");
+    const floors = applyBuilderRows(rows, uploadsFor([sheet("GF West", 4)], [0]), doc.floors);
     expect(floors).toHaveLength(1);
     expect(floors[0].plans).toHaveLength(1);
     expect(floors[0].name).toBe("Ground floor");
   });
 
-  it("moveRow reorders new rows but never sinks below existing floors", () => {
-    const doc = createDesign({ name: "x", mode: "blank" });
-    const pages = [{ label: "A" }, { label: "B" }];
-    let rows: BuilderRow[] = builderRowsFromPages(pages, [0, 1], doc.floors);
-    // A (idx 1) up past B
-    rows = moveRow(rows, rows[1].key, 1);
-    expect(rows.map((r) => r.name)).toEqual(["Ground floor", "B", "A"]);
-    // B cannot sink into the existing block
-    expect(moveRow(rows, rows[1].key, -1)).toBe(rows);
-    // existing rows never move
-    expect(moveRow(rows, rows[0].key, 1)).toBe(rows);
+  it("dropping a page on the ground line starts a subfloor row", () => {
+    const pages = [{ label: "Ground" }, { label: "Storage" }];
+    let rows = builderRowsFromPages(pages, [0, 1], []);
+    rows = dropPageOnRow(rows, 1, "ground", "Storage");
+    const levels = computeRowLevels(rows);
+    expect(levels.get(rows.find((r) => r.name === "Storage")!.key)).toBe(-1);
   });
 
-  it("movePageToNewRow starts a fresh top row; removePageFromRows drops the page", () => {
+  it("movePageToNewRow splits a page back out on top; removePageFromRows drops it", () => {
     const pages = [{ label: "East" }, { label: "West" }];
     let rows = builderRowsFromPages(pages, [0, 1], []);
-    rows = movePageToRow(rows, 1, rows[0].key); // one combined row
-    rows = movePageToNewRow(rows, 1, "West again"); // split back out on top
-    expect(rows).toHaveLength(2);
-    expect(rows[1].name).toBe("West again");
+    rows = dropPageOnRow(rows, 1, rows[1].key, "West");
+    rows = movePageToNewRow(rows, 1, "West again");
+    expect(rows.filter((r) => r.kind === "floor")).toHaveLength(2);
     rows = removePageFromRows(rows, 1);
-    expect(rows).toHaveLength(1); // its row vanished with it
+    expect(rows.filter((r) => r.kind === "floor")).toHaveLength(1);
   });
 
   it("unplaced/removed pages are simply not imported", () => {

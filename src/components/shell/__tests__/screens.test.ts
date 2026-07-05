@@ -1,7 +1,6 @@
 import {
   homeHtml,
   toolboxHtml,
-  timepayHtml,
   assetsHtml,
   adminHtml,
   blankHtml,
@@ -20,15 +19,6 @@ describe("screen builders", () => {
     expect(html).toContain("<h1>Toolbox</h1>");
     expect(html).toContain("No tools yet");
     expect(html).not.toContain("Field Tools");
-  });
-
-  it("Time & Pay renders three tabs with their empty states", () => {
-    const html = timepayHtml();
-    expect(html.match(/data-ptab=/g)).toHaveLength(3);
-    expect(html.match(/data-ppanel=/g)).toHaveLength(3);
-    expect(html).toContain("No hours logged yet");
-    expect(html).toContain("No leave requests");
-    expect(html).toContain("No expense claims");
   });
 
   it("Assets renders two tabs with their empty states", () => {

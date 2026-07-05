@@ -71,48 +71,6 @@ export function toolboxHtml() {
   );
 }
 
-/* ---------------- tabbed empty-state page (Time & Pay, Assets) ---------------- */
-function tabPage(title: string, tabs: [string, string, string, string][]) {
-  const tabBar = tabs
-    .map(
-      (t, i) =>
-        `<button class="ptab${i === 0 ? " on" : ""}" data-ptab="${i}">${t[0]}</button>`
-    )
-    .join("");
-  const panels = tabs
-    .map(
-      (t, i) =>
-        `<div class="ptabpanel${i === 0 ? " on" : ""}" data-ppanel="${i}">` +
-        '<div class="emptybox"><span class="ei">' +
-        I(t[1], 24) +
-        `</span><b>${t[2]}</b><em>${t[3]}</em></div></div>`
-    )
-    .join("");
-  return (
-    '<div class="wrap"><div class="stg">' +
-    '<div class="v2head" style="margin-bottom:24px"><div>' +
-    `<h1 style="font-size:44px;font-weight:800;letter-spacing:-0.03em;margin:0">${title}</h1></div></div>` +
-    `<div class="ptabs">${tabBar}</div>` +
-    `<div class="ptabpanels">${panels}</div>` +
-    "</div></div>"
-  );
-}
-
-export function timepayHtml() {
-  return tabPage("Time & Pay", [
-    ["Timesheets", "clock", "No hours logged yet", "Staff submit hours per day &amp; job; managers approve and roll up here."],
-    ["Leave & absences", "calendar", "No leave requests", "Requests, balances and a team calendar will appear here."],
-    ["Expenses", "receipt", "No expense claims", "Claims with receipts land here for approval and Xero export."],
-  ]);
-}
-
-export function assetsHtml() {
-  return tabPage("Assets", [
-    ["Fleet", "truck", "No vehicles yet", "Assign vehicles, track service, rego &amp; insurance expiry and fuel."],
-    ["Equipment & tools", "box", "No equipment registered", "Register serials, holders and calibration / test-tag dates."],
-  ]);
-}
-
 /* ---------------- TIFF AI — hero + icon suggestions + empty threads ---------------- */
 export function tiffHtml() {
   const S: [string, string, string][] = [
@@ -154,6 +112,40 @@ export function tiffHtml() {
     '<div style="padding:40px 16px;text-align:center"><b style="display:block;font-size:14px;font-weight:700;color:#9ca3af">Nothing to see here</b>' +
     '<em style="font-style:normal;display:block;font-size:12.5px;color:#d1d5db;margin-top:4px">Your conversations will show up here.</em></div></div></div></div>'
   );
+}
+
+/* ---------------- tabbed empty-state page (Assets) ---------------- */
+function tabPage(title: string, tabs: [string, string, string, string][]) {
+  const tabBar = tabs
+    .map(
+      (t, i) =>
+        `<button class="ptab${i === 0 ? " on" : ""}" data-ptab="${i}">${t[0]}</button>`
+    )
+    .join("");
+  const panels = tabs
+    .map(
+      (t, i) =>
+        `<div class="ptabpanel${i === 0 ? " on" : ""}" data-ppanel="${i}">` +
+        '<div class="emptybox"><span class="ei">' +
+        I(t[1], 24) +
+        `</span><b>${t[2]}</b><em>${t[3]}</em></div></div>`
+    )
+    .join("");
+  return (
+    '<div class="wrap"><div class="stg">' +
+    '<div class="v2head" style="margin-bottom:24px"><div>' +
+    `<h1 style="font-size:44px;font-weight:800;letter-spacing:-0.03em;margin:0">${title}</h1></div></div>` +
+    `<div class="ptabs">${tabBar}</div>` +
+    `<div class="ptabpanels">${panels}</div>` +
+    "</div></div>"
+  );
+}
+
+export function assetsHtml() {
+  return tabPage("Assets", [
+    ["Fleet", "truck", "No vehicles yet", "Assign vehicles, track service, rego &amp; insurance expiry and fuel."],
+    ["Equipment & tools", "box", "No equipment registered", "Register serials, holders and calibration / test-tag dates."],
+  ]);
 }
 
 /* ---------------- ADMIN — invite card (admin/owner only) ---------------- */

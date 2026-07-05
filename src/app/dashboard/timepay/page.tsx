@@ -1,6 +1,18 @@
-import { Screen } from "@/components/shell/screen";
-import { timepayHtml } from "@/components/shell/screens";
+import { TimePay } from "@/components/timepay/timepay";
+import {
+  demoTimepayPeriods,
+  demoTimepayStaff,
+  demoTimepayToday,
+  demoTimepayWeek,
+} from "@/mock/demo";
 
 export default function TimePayPage() {
-  return <Screen html={timepayHtml()} />;
+  return (
+    <TimePay
+      staff={demoTimepayStaff}
+      week={demoTimepayWeek}
+      today={demoTimepayToday}
+      periods={demoTimepayPeriods}
+    />
+  );
 }

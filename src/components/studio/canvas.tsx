@@ -17,8 +17,10 @@ import {
   fitBounds,
   formatArea,
   formatMeters,
+  isAxisAlignedRect,
   mmPerUnitFromCalibration,
   pointInPolygon,
+  rectDragVertex,
   polygonArea,
   polygonCentroid,
   screenToWorld,
@@ -335,8 +337,17 @@ export function StudioCanvas({
         break;
       }
       case "vertex": {
-        const pts = [...drag.orig];
-        pts[drag.index] = snapped(w);
+        // rectangles stay rectangular unless the room opts into free editing
+        const room = rooms.find((r) => r.id === drag.id);
+        const rectLocked =
+          room && !room.props.freeEdit && isAxisAlignedRect(drag.orig);
+        const pts = rectLocked
+          ? rectDragVertex(drag.orig, drag.index, snapped(w))
+          : (() => {
+              const copy = [...drag.orig];
+              copy[drag.index] = snapped(w);
+              return copy;
+            })();
         setLiveGeom({ id: drag.id, points: pts });
         break;
       }
@@ -495,16 +506,31 @@ export function StudioCanvas({
           })}
 
           {/* polygon draft */}
-          {draftPoly.length > 0 && (
-            <g className="ds-draft">
-              <polyline
-                points={[...draftPoly, ...(cursor ? [cursor] : [])]
-                  .map((p) => `${p.x},${p.y}`)
-                  .join(" ")}
-              />
-              <circle cx={draftPoly[0].x} cy={draftPoly[0].y} r={CLOSE_SNAP_PX / zoom / 1.6} />
-            </g>
-          )}
+          {draftPoly.length > 0 &&
+            (() => {
+              // near the first vertex? snap the preview shut and light it up
+              const closing =
+                cursor != null &&
+                draftPoly.length >= 3 &&
+                dist(worldToScreen(draftPoly[0], vp), worldToScreen(cursor, vp)) <=
+                  CLOSE_SNAP_PX;
+              const tail = closing ? draftPoly[0] : cursor;
+              return (
+                <g className="ds-draft">
+                  <polyline
+                    points={[...draftPoly, ...(tail ? [tail] : [])]
+                      .map((p) => `${p.x},${p.y}`)
+                      .join(" ")}
+                  />
+                  <circle
+                    className={closing ? "close-ready" : undefined}
+                    cx={draftPoly[0].x}
+                    cy={draftPoly[0].y}
+                    r={(CLOSE_SNAP_PX / zoom) * (closing ? 1.1 : 0.6)}
+                  />
+                </g>
+              );
+            })()}
 
           {/* rect draft */}
           {draftRect && (

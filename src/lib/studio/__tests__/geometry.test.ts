@@ -18,6 +18,8 @@ import {
   mmPerUnitFromCalibration,
   areaUnitsToM2,
   unitsToMeters,
+  isAxisAlignedRect,
+  rectDragVertex,
   type Viewport,
 } from "../geometry";
 
@@ -163,6 +165,50 @@ describe("snapping + hit helpers", () => {
       maxY: 25,
     });
     expect(boundsOfPoints([])).toBeNull();
+  });
+});
+
+describe("rectangle-aware vertex editing", () => {
+  const r = rect(100, 80, 10, 20); // corners (10,20)(110,20)(110,100)(10,100)
+
+  it("recognises axis-aligned rectangles in either winding", () => {
+    expect(isAxisAlignedRect(r)).toBe(true);
+    expect(isAxisAlignedRect([...r].reverse())).toBe(true);
+  });
+
+  it("rejects non-rectangles", () => {
+    expect(isAxisAlignedRect(r.slice(0, 3))).toBe(false); // triangle
+    expect(
+      isAxisAlignedRect([
+        { x: 0, y: 0 },
+        { x: 100, y: 5 }, // skewed edge
+        { x: 100, y: 80 },
+        { x: 0, y: 80 },
+      ])
+    ).toBe(false);
+    expect(isAxisAlignedRect([r[0], r[1], r[2], r[2]])).toBe(false); // degenerate
+  });
+
+  it("dragging a corner keeps the shape rectangular, anchored on the opposite corner", () => {
+    // drag corner 0 (10,20) → (0,0); corner 2 (110,100) stays fixed
+    const out = rectDragVertex(r, 0, { x: 0, y: 0 });
+    expect(out).toEqual([
+      { x: 0, y: 0 },
+      { x: 110, y: 0 },
+      { x: 110, y: 100 },
+      { x: 0, y: 100 },
+    ]);
+    expect(isAxisAlignedRect(out)).toBe(true);
+  });
+
+  it("works for every corner", () => {
+    for (let i = 0; i < 4; i++) {
+      const out = rectDragVertex(r, i, { x: 47, y: 63 });
+      expect(isAxisAlignedRect(out)).toBe(true);
+      expect(out[i]).toEqual({ x: 47, y: 63 });
+      // opposite corner untouched
+      expect(out[(i + 2) % 4]).toEqual(r[(i + 2) % 4]);
+    }
   });
 });
 

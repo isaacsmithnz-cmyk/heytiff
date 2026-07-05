@@ -75,6 +75,60 @@ describe("Design canvas", () => {
     expect(screen.getByText("Room 1")).toBeInTheDocument();
   });
 
+  it("dragging a rectangle's corner keeps it rectangular until free editing is toggled", async () => {
+    const { user, svg } = await openBlankDesignOnCanvas();
+    // 100×100-unit room: screen (400,300) → (456,356)
+    await user.click(screen.getByRole("button", { name: "Room (rectangle)" }));
+    fireEvent.pointerDown(svg, pt(400, 300));
+    fireEvent.pointerMove(svg, pt(456, 356));
+    fireEvent.pointerUp(svg, pt(456, 356));
+
+    // select it, then drag corner 0 (at screen 400,300) inward
+    await user.click(screen.getByRole("button", { name: "Select" }));
+    fireEvent.pointerDown(svg, pt(420, 320));
+    fireEvent.pointerUp(svg, pt(420, 320));
+    const vertex = svg.querySelectorAll(".ds-vertex")[0]!;
+    fireEvent.pointerDown(vertex, pt(400, 300));
+    fireEvent.pointerMove(svg, pt(414, 314)); // +25,+25 units
+    fireEvent.pointerUp(svg, pt(414, 314));
+
+    // locked: adjacent corners followed → still a rectangle of 75×75 units
+    const polygon = svg.querySelector(".ds-room polygon")!;
+    expect(polygon.getAttribute("points")).toBe("25,25 100,25 100,100 25,100");
+
+    // unlock and drag the same corner: only that corner moves
+    await user.click(screen.getByRole("checkbox", { name: /Keep rectangular/ }));
+    const vertex2 = svg.querySelectorAll(".ds-vertex")[0]!;
+    fireEvent.pointerDown(vertex2, pt(414, 314));
+    fireEvent.pointerMove(svg, pt(400, 300));
+    fireEvent.pointerUp(svg, pt(400, 300));
+    expect(svg.querySelector(".ds-room polygon")!.getAttribute("points")).toBe(
+      "0,0 100,25 100,100 25,100"
+    );
+  });
+
+  it("polygon tool highlights the first vertex when the cursor can close the loop", async () => {
+    const { user, svg } = await openBlankDesignOnCanvas();
+    await user.click(screen.getByRole("button", { name: "Room (polygon)" }));
+    fireEvent.pointerDown(svg, pt(400, 300));
+    fireEvent.pointerUp(svg, pt(400, 300));
+    fireEvent.pointerDown(svg, pt(456, 300));
+    fireEvent.pointerUp(svg, pt(456, 300));
+    fireEvent.pointerDown(svg, pt(456, 356));
+    fireEvent.pointerUp(svg, pt(456, 356));
+
+    // far from the start: no close indicator
+    fireEvent.pointerMove(svg, pt(440, 340));
+    expect(svg.querySelector(".ds-draft circle.close-ready")).toBeNull();
+
+    // hover the first vertex: indicator lights up, and clicking closes the room
+    fireEvent.pointerMove(svg, pt(402, 302));
+    expect(svg.querySelector(".ds-draft circle.close-ready")).not.toBeNull();
+    fireEvent.pointerDown(svg, pt(402, 302));
+    fireEvent.pointerUp(svg, pt(402, 302));
+    expect(screen.getByText("Room 1")).toBeInTheDocument();
+  });
+
   it("selecting a room opens the inspector; renaming and deleting work", async () => {
     const { user, svg } = await openBlankDesignOnCanvas();
     await user.click(screen.getByRole("button", { name: "Room (rectangle)" }));

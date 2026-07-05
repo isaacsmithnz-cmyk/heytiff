@@ -23,6 +23,7 @@ import { History } from "@/lib/studio/history";
 import {
   areaUnitsToM2,
   formatArea,
+  isAxisAlignedRect,
   polygonArea,
 } from "@/lib/studio/geometry";
 import { StudioCanvas, type CanvasTool } from "./canvas";
@@ -821,6 +822,36 @@ function RoomInspector({
         <span>Vertices</span>
         <b>{obj.geometry.points.length}</b>
       </div>
+      {(isAxisAlignedRect(obj.geometry.points) || Boolean(obj.props.freeEdit)) && (
+        <label
+          className="ds-insp-toggle"
+          title={
+            !isAxisAlignedRect(obj.geometry.points) && obj.props.freeEdit
+              ? "Shape is no longer rectangular — undo the edits to re-lock"
+              : "Locked corners drag the whole side; free lets you move one corner alone"
+          }
+        >
+          <input
+            type="checkbox"
+            checked={!obj.props.freeEdit}
+            disabled={
+              Boolean(obj.props.freeEdit) &&
+              !isAxisAlignedRect(obj.geometry.points)
+            }
+            onChange={(e) =>
+              onMutate((d) => ({
+                ...d,
+                objects: d.objects.map((o) =>
+                  o.id === obj.id
+                    ? { ...o, props: { ...o.props, freeEdit: !e.target.checked } }
+                    : o
+                ),
+              }))
+            }
+          />
+          <span>Keep rectangular</span>
+        </label>
+      )}
       <button
         className="ds-insp-delete"
         onClick={() => {

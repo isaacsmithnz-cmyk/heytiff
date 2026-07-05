@@ -154,6 +154,36 @@ export function nearestVertexIndex(
   return best;
 }
 
+/* ── Rectangle-aware vertex editing ── */
+
+/** True for a 4-vertex axis-aligned rectangle (either winding). */
+export function isAxisAlignedRect(points: Point[], eps = 1e-6): boolean {
+  if (points.length !== 4) return false;
+  for (let i = 0; i < 4; i++) {
+    const a = points[i];
+    const b = points[(i + 1) % 4];
+    const sameX = Math.abs(a.x - b.x) <= eps;
+    const sameY = Math.abs(a.y - b.y) <= eps;
+    if (sameX === sameY) return false; // must share exactly one axis per edge
+  }
+  return polygonArea(points) > eps;
+}
+
+/** Move corner `index` of an axis-aligned rectangle to `p`, dragging the two
+    adjacent corners along their shared axes so the shape stays rectangular.
+    The opposite corner is the fixed anchor. */
+export function rectDragVertex(points: Point[], index: number, p: Point): Point[] {
+  const next = points.map((pt) => ({ ...pt }));
+  const prev = (index + 3) % 4;
+  const nxt = (index + 1) % 4;
+  next[index] = { ...p };
+  for (const j of [prev, nxt]) {
+    if (Math.abs(points[j].x - points[index].x) <= 1e-6) next[j].x = p.x;
+    else next[j].y = p.y;
+  }
+  return next;
+}
+
 /* ── Viewport ── */
 
 export const MIN_ZOOM = 0.02;

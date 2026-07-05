@@ -842,6 +842,14 @@
   stroke: var(--teal-d);
   stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
+  transition: r 0.12s ease;
+}
+/* cursor is on the first vertex — one more click closes the room */
+.dstudio .ds-draft circle.close-ready {
+  fill: var(--teal);
+  stroke: var(--teal-d);
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 6px rgba(0, 229, 192, 0.9));
 }
 .dstudio .ds-draft .ds-draft-dims {
   fill: var(--teal-d);
@@ -1034,6 +1042,23 @@
 .dstudio .ds-insp-row b {
   color: var(--ink);
   font-weight: 800;
+}
+.dstudio .ds-insp-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--gray700);
+  cursor: pointer;
+}
+.dstudio .ds-insp-toggle input {
+  accent-color: var(--teal-d);
+  width: 15px;
+  height: 15px;
+}
+.dstudio .ds-insp-toggle input:disabled + span {
+  color: var(--gray400);
 }
 .dstudio .ds-insp-delete {
   display: inline-flex;

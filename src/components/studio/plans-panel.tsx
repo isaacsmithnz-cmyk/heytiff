@@ -30,8 +30,10 @@ type Phase =
   | { kind: "idle" }
   | { kind: "rendering"; done: number; total: number }
   | { kind: "picking"; pages: PageImage[]; selected: Set<number> }
+  /* verify/correct each selected page's floor name full-size before stacking */
+  | { kind: "naming"; pages: PageImage[]; chosen: number[]; names: string[]; at: number }
   /* the floor-stack builder: rows bottom-up; drag page cards between rows */
-  | { kind: "building"; pages: PageImage[]; rows: BuilderRow[] }
+  | { kind: "building"; pages: PageImage[]; names: Record<number, string>; rows: BuilderRow[] }
   | { kind: "uploading"; done: number; total: number };
 
 export function PlansPanel({
@@ -195,41 +197,17 @@ export function PlansPanel({
               {phase.selected.size} of {phase.pages.length} selected
             </span>
           </div>
-          <div className="ds-pages">
-            {phase.pages.map((p, i) => {
-              const on = phase.selected.has(i);
-              return (
-                <div key={i} className={`ds-page${on ? " on" : ""}`}>
-                  {/* image opens the full-size preview; the label row toggles */}
-                  <button
-                    className="ds-page-view"
-                    aria-label={`Preview ${p.label}`}
-                    onClick={() => setPreview(i)}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={p.thumbUrl} alt={p.label} />
-                    <span className="ds-page-zoom">
-                      <Icon name="maximize" size={13} />
-                    </span>
-                  </button>
-                  <button
-                    className="ds-page-label"
-                    onClick={() => {
-                      const next = new Set(phase.selected);
-                      if (on) next.delete(i);
-                      else next.add(i);
-                      setPhase({ ...phase, selected: next });
-                    }}
-                  >
-                    <span className={`ds-page-check${on ? " on" : ""}`}>
-                      {on && <Icon name="check" size={11} />}
-                    </span>
-                    {p.label}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
+          <PageGrid
+            pages={phase.pages}
+            selected={phase.selected}
+            onPreview={setPreview}
+            onToggle={(i) => {
+              const next = new Set(phase.selected);
+              if (next.has(i)) next.delete(i);
+              else next.add(i);
+              setPhase({ ...phase, selected: next });
+            }}
+          />
           {preview !== null && (
             <PageLightbox
               pages={phase.pages}
@@ -261,9 +239,11 @@ export function PlansPanel({
               onClick={() => {
                 const chosen = [...phase.selected].sort((a, b) => a - b);
                 setPhase({
-                  kind: "building",
+                  kind: "naming",
                   pages: phase.pages,
-                  rows: builderRowsFromPages(phase.pages, chosen, doc.floors),
+                  chosen,
+                  names: chosen.map((i) => phase.pages[i].label),
+                  at: 0,
                 });
               }}
             >
@@ -274,43 +254,98 @@ export function PlansPanel({
         </div>
       )}
 
+      {phase.kind === "naming" && (
+        <>
+          {/* the picker stays behind as context; the lightbox does the work */}
+          <div className="ds-pagepick">
+            <div className="ds-pagepick-head">
+              <span className="ds-cardt">Check each floor&apos;s name</span>
+            </div>
+            <PageGrid
+              pages={phase.pages}
+              selected={new Set(phase.chosen)}
+              onPreview={(i) => {
+                const at = phase.chosen.indexOf(i);
+                if (at >= 0) setPhase({ ...phase, at });
+              }}
+            />
+          </div>
+          <NamingLightbox
+            pages={phase.pages}
+            chosen={phase.chosen}
+            names={phase.names}
+            at={phase.at}
+            onName={(name) =>
+              setPhase({
+                ...phase,
+                names: phase.names.map((n, k) => (k === phase.at ? name : n)),
+              })
+            }
+            onNav={(at) => setPhase({ ...phase, at })}
+            onBack={() =>
+              setPhase({
+                kind: "picking",
+                pages: phase.pages,
+                selected: new Set(phase.chosen),
+              })
+            }
+            onDone={() => {
+              const names: Record<number, string> = {};
+              phase.chosen.forEach((idx, k) => (names[idx] = phase.names[k]));
+              setPhase({
+                kind: "building",
+                pages: phase.pages,
+                names,
+                rows: builderRowsFromPages(phase.pages, phase.chosen, doc.floors, names),
+              });
+            }}
+          />
+        </>
+      )}
+
       {phase.kind === "building" && (
         <FloorStackBuilder
           pages={phase.pages}
+          names={phase.names}
           rows={phase.rows}
           onRows={(rows) => setPhase({ ...phase, rows })}
-          onBack={() =>
+          onBack={() => {
+            const chosen = phase.rows.flatMap((r) => r.pageIdxs);
             setPhase({
-              kind: "picking",
+              kind: "naming",
               pages: phase.pages,
-              selected: new Set(phase.rows.flatMap((r) => r.pageIdxs)),
-            })
-          }
+              chosen,
+              names: chosen.map((i) => phase.names[i] ?? phase.pages[i].label),
+              at: 0,
+            });
+          }}
           onConfirm={() => void confirmBuild(phase.pages, phase.rows)}
         />
       )}
 
       {error && <div className="ds-ierr">{error}</div>}
 
-      {/* ── floors ── (plan mode: every floor comes from a drawing) */}
-      <div className="ds-plans-floors-head">
-        <span className="ds-cardt">Floors</span>
-        {doc.meta.mode === "blank" && (
-          <button className="ds-import" onClick={onAddFloor}>
-            <Icon name="plus" size={13} />
-            Blank floor
-          </button>
-        )}
-      </div>
-      {floors.length === 0 ? (
-        <div className="ds-insp-hint">
-          {doc.meta.mode === "plan"
-            ? "No floors yet — upload plans above and pick your pages."
-            : "No floors yet — add a blank floor to sketch on, or upload a plan above."}
-        </div>
-      ) : (
-        <div className="ds-floors">
-          {floors.map((f) => (
+      {/* ── floors ── (hidden during import; you're picking floors there) ── */}
+      {phase.kind === "idle" && (
+        <>
+          <div className="ds-plans-floors-head">
+            <span className="ds-cardt">Floors</span>
+            {doc.meta.mode === "blank" && (
+              <button className="ds-import" onClick={onAddFloor}>
+                <Icon name="plus" size={13} />
+                Blank floor
+              </button>
+            )}
+          </div>
+          {floors.length === 0 ? (
+            <div className="ds-insp-hint">
+              {doc.meta.mode === "plan"
+                ? "No floors yet — upload plans above and pick your pages."
+                : "No floors yet — add a blank floor to sketch on, or upload a plan above."}
+            </div>
+          ) : (
+            <div className="ds-floors">
+              {floors.map((f) => (
             <div key={f.id} className="ds-floor">
               <span className="ds-floor-lvl">{formatLevel(f.level)}</span>
               <input
@@ -364,9 +399,59 @@ export function PlansPanel({
                 {armedDelete === f.id ? "Delete floor?" : <Icon name="x" size={15} />}
               </button>
             </div>
-          ))}
-        </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
+    </div>
+  );
+}
+
+/* ── Reusable page-thumbnail grid (picker + naming backdrop) ── */
+
+function PageGrid({
+  pages,
+  selected,
+  onToggle,
+  onPreview,
+}: {
+  pages: PageImage[];
+  selected: Set<number>;
+  onToggle?: (i: number) => void;
+  onPreview: (i: number) => void;
+}) {
+  return (
+    <div className="ds-pages">
+      {pages.map((p, i) => {
+        const on = selected.has(i);
+        return (
+          <div key={i} className={`ds-page${on ? " on" : ""}`}>
+            {/* image opens the full-size preview; the label row toggles */}
+            <button
+              className="ds-page-view"
+              aria-label={`Preview ${p.label}`}
+              onClick={() => onPreview(i)}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={p.thumbUrl} alt={p.label} />
+              <span className="ds-page-zoom">
+                <Icon name="maximize" size={13} />
+              </span>
+            </button>
+            <button
+              className="ds-page-label"
+              disabled={!onToggle}
+              onClick={() => onToggle?.(i)}
+            >
+              <span className={`ds-page-check${on ? " on" : ""}`}>
+                {on && <Icon name="check" size={11} />}
+              </span>
+              {p.label}
+            </button>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -381,12 +466,14 @@ export function PlansPanel({
 
 function FloorStackBuilder({
   pages,
+  names,
   rows,
   onRows,
   onBack,
   onConfirm,
 }: {
   pages: PageImage[];
+  names: Record<number, string>;
   rows: BuilderRow[];
   onRows: (rows: BuilderRow[]) => void;
   onBack: () => void;
@@ -398,6 +485,7 @@ function FloorStackBuilder({
   ).length;
   const levels = computeRowLevels(rows);
   const display = [...rows].reverse(); // top of the building first
+  const nameFor = (idx: number) => names[idx] ?? pages[idx]?.label ?? "New floor";
 
   const handleDrop = (targetKey: string | null) => (e: React.DragEvent) => {
     e.preventDefault();
@@ -408,8 +496,8 @@ function FloorStackBuilder({
       if (!Number.isFinite(idx)) return;
       onRows(
         targetKey === null
-          ? movePageToNewRow(rows, idx, pages[idx]?.label ?? "New floor")
-          : dropPageOnRow(rows, idx, targetKey, pages[idx]?.label ?? "New floor")
+          ? movePageToNewRow(rows, idx, nameFor(idx))
+          : dropPageOnRow(rows, idx, targetKey, nameFor(idx))
       );
     } else if (payload.startsWith("r:")) {
       const key = payload.slice(2);
@@ -614,6 +702,111 @@ export function PageLightbox({
         >
           <Icon name="chevR" size={20} />
         </button>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+/* ── Naming verification ──
+   Step through the selected pages full-size and confirm each floor's name
+   before stacking, so the stack already knows what everything is. */
+
+export function NamingLightbox({
+  pages,
+  chosen,
+  names,
+  at,
+  onName,
+  onNav,
+  onBack,
+  onDone,
+}: {
+  pages: PageImage[];
+  chosen: number[];
+  names: string[];
+  at: number;
+  onName: (name: string) => void;
+  onNav: (at: number) => void;
+  onBack: () => void;
+  onDone: () => void;
+}) {
+  const isLast = at === chosen.length - 1;
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onBack();
+      // don't hijack arrows while the name field is focused
+      if ((e.target as HTMLElement).tagName === "INPUT") return;
+      if (e.key === "ArrowRight" && at < chosen.length - 1) onNav(at + 1);
+      if (e.key === "ArrowLeft" && at > 0) onNav(at - 1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [at, chosen.length, onNav, onBack]);
+
+  const page = pages[chosen[at]];
+  if (!page) return null;
+
+  return createPortal(
+    <div className="ds-lightbox" role="dialog" aria-label="Name floor plans">
+      <div className="ds-lb-backdrop" onClick={onBack} />
+      <div className="ds-lb-frame">
+        <div className="ds-lb-top">
+          <span className="ds-lb-step">
+            Floor {at + 1} / {chosen.length}
+          </span>
+          <input
+            className="ds-lb-name"
+            value={names[at]}
+            autoFocus
+            aria-label="Floor name"
+            placeholder="Name this floor"
+            onChange={(e) => onName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter") return;
+              if (isLast) onDone();
+              else onNav(at + 1);
+            }}
+          />
+          <button className="ds-lb-close" aria-label="Close" onClick={onBack}>
+            <Icon name="x" size={16} />
+          </button>
+        </div>
+        <div className="ds-lb-img">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={page.thumbUrl} alt={names[at]} />
+        </div>
+        <button
+          className="ds-lb-nav prev"
+          aria-label="Previous page"
+          disabled={at === 0}
+          onClick={() => onNav(at - 1)}
+        >
+          <Icon name="chevL" size={20} />
+        </button>
+        <button
+          className="ds-lb-nav next"
+          aria-label="Next page"
+          disabled={isLast}
+          onClick={() => onNav(at + 1)}
+        >
+          <Icon name="chevR" size={20} />
+        </button>
+        <div className="ds-lb-foot">
+          <button className="ds-calib-cancel" onClick={onBack}>
+            Back to pages
+          </button>
+          {isLast ? (
+            <button className="ds-calib-ok" onClick={onDone}>
+              Continue to stacking
+            </button>
+          ) : (
+            <button className="ds-calib-ok" onClick={() => onNav(at + 1)}>
+              Next floor
+            </button>
+          )}
+        </div>
       </div>
     </div>,
     document.body

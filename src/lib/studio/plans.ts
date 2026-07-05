@@ -154,12 +154,15 @@ export interface BuilderRow {
   pageIdxs: number[];
 }
 
-export const formatLevel = (n: number): string => (n < 0 ? `B${-n}` : `L${n}`);
+export const formatLevel = (n: number): string =>
+  n < 0 ? `B${-n}` : n === 0 ? "GF" : `L${n}`;
 
 export function builderRowsFromPages(
   pages: { label: string }[],
   selected: number[],
-  floors: Floor[]
+  floors: Floor[],
+  /** verified floor names by page index (from the naming step) */
+  names?: Record<number, string>
 ): BuilderRow[] {
   const existing = [...floors]
     .sort((a, b) => a.level - b.level)
@@ -175,7 +178,7 @@ export function builderRowsFromPages(
     key: `new_${i}`,
     kind: "floor" as const,
     floorId: null,
-    name: pages[i]?.label ?? `Page ${i + 1}`,
+    name: names?.[i] ?? pages[i]?.label ?? `Page ${i + 1}`,
     pageIdxs: [i],
   }));
   return existing.length > 0

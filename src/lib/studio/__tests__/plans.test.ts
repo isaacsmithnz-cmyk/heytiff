@@ -70,9 +70,9 @@ describe("sheet placement + allocation", () => {
   const uploadsFor = (sheets: UploadedSheet[], idxs: number[]) =>
     new Map(idxs.map((idx, k) => [idx, sheets[k]]));
 
-  it("formatLevel: basements read as B-numbers", () => {
+  it("formatLevel: ground = GF, upper = L-numbers, basements = B-numbers", () => {
     expect(formatLevel(2)).toBe("L2");
-    expect(formatLevel(0)).toBe("L0");
+    expect(formatLevel(0)).toBe("GF");
     expect(formatLevel(-1)).toBe("B1");
     expect(formatLevel(-2)).toBe("B2");
   });

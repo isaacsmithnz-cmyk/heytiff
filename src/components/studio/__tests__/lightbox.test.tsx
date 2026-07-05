@@ -3,7 +3,7 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
-import { PageLightbox } from "../plans-panel";
+import { NamingLightbox, PageLightbox } from "../plans-panel";
 import type { PageImage } from "@/lib/studio/plans";
 
 const page = (n: number): PageImage => ({
@@ -67,5 +67,45 @@ describe("PageLightbox", () => {
     const { container } = render(<Harness onClose={() => {}} />);
     expect(container.querySelector(".ds-lightbox")).toBeNull();
     expect(document.body.querySelector(".ds-lightbox")).not.toBeNull();
+  });
+});
+
+function NameHarness({ onDone }: { onDone: (names: string[]) => void }) {
+  const pages = [page(1), page(2)];
+  const [names, setNames] = useState(["Level 1", "Level 2"]);
+  const [at, setAt] = useState(0);
+  return (
+    <NamingLightbox
+      pages={pages}
+      chosen={[0, 1]}
+      names={names}
+      at={at}
+      onName={(n) => setNames((s) => s.map((v, k) => (k === at ? n : v)))}
+      onNav={setAt}
+      onBack={() => {}}
+      onDone={() => onDone(names)}
+    />
+  );
+}
+
+describe("NamingLightbox", () => {
+  it("edits names, steps through pages, and confirms on the last", async () => {
+    const user = userEvent.setup();
+    const onDone = jest.fn();
+    render(<NameHarness onDone={onDone} />);
+
+    expect(screen.getByText("Floor 1 / 2")).toBeInTheDocument();
+    const input = screen.getByLabelText("Floor name");
+    expect(input).toHaveValue("Level 1");
+    await user.clear(input);
+    await user.type(input, "Ground floor");
+    expect(screen.getByLabelText("Floor name")).toHaveValue("Ground floor");
+
+    // last page shows the stacking CTA, which fires onDone
+    await user.click(screen.getByRole("button", { name: "Next floor" }));
+    expect(screen.getByText("Floor 2 / 2")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Continue to stacking" }));
+    expect(onDone).toHaveBeenCalled();
+    expect(onDone.mock.calls[0][0]).toEqual(["Ground floor", "Level 2"]);
   });
 });

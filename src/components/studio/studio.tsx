@@ -22,6 +22,7 @@ import { RemoteDesignStore } from "@/lib/studio/remote-store";
 import { History } from "@/lib/studio/history";
 import {
   areaUnitsToM2,
+  boundingRect,
   formatArea,
   isAxisAlignedRect,
   polygonArea,
@@ -825,31 +826,35 @@ function RoomInspector({
       {(isAxisAlignedRect(obj.geometry.points) || Boolean(obj.props.freeEdit)) && (
         <label
           className="ds-insp-toggle"
-          title={
-            !isAxisAlignedRect(obj.geometry.points) && obj.props.freeEdit
-              ? "Shape is no longer rectangular — undo the edits to re-lock"
-              : "Locked corners drag the whole side; free lets you move one corner alone"
-          }
+          title="Locked: corners drag whole sides, and re-locking snaps the shape back to a perfect rectangle. Unlocked: move one corner alone."
         >
           <input
             type="checkbox"
             checked={!obj.props.freeEdit}
-            disabled={
-              Boolean(obj.props.freeEdit) &&
-              !isAxisAlignedRect(obj.geometry.points)
-            }
-            onChange={(e) =>
+            onChange={(e) => {
+              const lock = e.target.checked;
               onMutate((d) => ({
                 ...d,
                 objects: d.objects.map((o) =>
                   o.id === obj.id
-                    ? { ...o, props: { ...o.props, freeEdit: !e.target.checked } }
+                    ? {
+                        ...o,
+                        props: { ...o.props, freeEdit: !lock },
+                        // locking transforms the shape back to a true rectangle
+                        geometry:
+                          lock && o.geometry.kind === "polygon"
+                            ? {
+                                kind: "polygon",
+                                points: boundingRect(o.geometry.points),
+                              }
+                            : o.geometry,
+                      }
                     : o
                 ),
-              }))
-            }
+              }));
+            }}
           />
-          <span>Keep rectangular</span>
+          <span>Lock rectangle</span>
         </label>
       )}
       <button

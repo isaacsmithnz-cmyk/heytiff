@@ -97,13 +97,19 @@ describe("Design canvas", () => {
     expect(polygon.getAttribute("points")).toBe("25,25 100,25 100,100 25,100");
 
     // unlock and drag the same corner: only that corner moves
-    await user.click(screen.getByRole("checkbox", { name: /Keep rectangular/ }));
+    await user.click(screen.getByRole("checkbox", { name: /Lock rectangle/ }));
     const vertex2 = svg.querySelectorAll(".ds-vertex")[0]!;
     fireEvent.pointerDown(vertex2, pt(414, 314));
     fireEvent.pointerMove(svg, pt(400, 300));
     fireEvent.pointerUp(svg, pt(400, 300));
     expect(svg.querySelector(".ds-room polygon")!.getAttribute("points")).toBe(
       "0,0 100,25 100,100 25,100"
+    );
+
+    // re-locking transforms the skewed shape back to a perfect rectangle
+    await user.click(screen.getByRole("checkbox", { name: /Lock rectangle/ }));
+    expect(svg.querySelector(".ds-room polygon")!.getAttribute("points")).toBe(
+      "0,0 100,0 100,100 0,100"
     );
   });
 

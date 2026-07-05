@@ -169,6 +169,19 @@ export function isAxisAlignedRect(points: Point[], eps = 1e-6): boolean {
   return polygonArea(points) > eps;
 }
 
+/** The axis-aligned bounding rectangle of a set of points, as polygon corners
+    (TL → TR → BR → BL). Used to snap a free-edited room back to rectangular. */
+export function boundingRect(points: Point[]): Point[] {
+  const b = boundsOfPoints(points);
+  if (!b) return [];
+  return [
+    { x: b.minX, y: b.minY },
+    { x: b.maxX, y: b.minY },
+    { x: b.maxX, y: b.maxY },
+    { x: b.minX, y: b.maxY },
+  ];
+}
+
 /** Move corner `index` of an axis-aligned rectangle to `p`, dragging the two
     adjacent corners along their shared axes so the shape stays rectangular.
     The opposite corner is the fixed anchor. */

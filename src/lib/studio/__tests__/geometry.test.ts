@@ -20,6 +20,7 @@ import {
   unitsToMeters,
   isAxisAlignedRect,
   rectDragVertex,
+  boundingRect,
   type Viewport,
 } from "../geometry";
 
@@ -199,6 +200,24 @@ describe("rectangle-aware vertex editing", () => {
       { x: 0, y: 100 },
     ]);
     expect(isAxisAlignedRect(out)).toBe(true);
+  });
+
+  it("boundingRect snaps any shape back to its axis-aligned rectangle", () => {
+    const skewed = [
+      { x: 0, y: 0 },
+      { x: 100, y: 25 },
+      { x: 100, y: 100 },
+      { x: 25, y: 100 },
+    ];
+    const out = boundingRect(skewed);
+    expect(out).toEqual([
+      { x: 0, y: 0 },
+      { x: 100, y: 0 },
+      { x: 100, y: 100 },
+      { x: 0, y: 100 },
+    ]);
+    expect(isAxisAlignedRect(out)).toBe(true);
+    expect(boundingRect([])).toEqual([]);
   });
 
   it("works for every corner", () => {

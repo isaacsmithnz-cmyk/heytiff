@@ -103,7 +103,7 @@ export function TimePaySettings({
       {RULE_DEFS.map(([k, name, hint]) => {
         const rl = draft.rules[k];
         return (
-          <div className={`rl${rl.on ? " on" : ""}`} key={k}>
+          <div className={`prule${rl.on ? " on" : ""}`} key={k}>
             <button className="rl-head" onClick={() => patchRule(k, { on: !rl.on })}>
               <span className="rl-nm">
                 {name}

@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "jest",
     "test:watch": "jest --watch",
-    "dev:preview": "NEXT_DIST_DIR=.next-preview next dev"
+    "dev:preview": "NEXT_DIST_DIR=.next-preview next dev",
+    "dev:verify": "NEXT_DIST_DIR=.next-verify next dev -p 3200"
   },
   "dependencies": {
     "@auth0/nextjs-auth0": "^4.22.0",

@@ -133,34 +133,125 @@ export function placeSheets(
   });
 }
 
-/** Apply the picker's allocations: entries in order, grouped by trimmed
-    case-insensitive floor name. Returns the design's full new floors array. */
-export function applyPageAllocations(
-  entries: { floorName: string; sheet: UploadedSheet }[],
+/* ── The floor-stack builder ──
+   Allocation is spatial, not textual: the picker's selected pages become a
+   stack of rows (bottom row = lowest level). Dragging a page card onto
+   another row makes it a sheet of that floor (an east/west split is two
+   cards on one line); dropping on the new-floor zone starts a fresh row.
+   Existing floors sit as fixed rows at the bottom so late sheets can be
+   dragged onto them. Pure functions here; the panel is a thin renderer. */
+
+export interface BuilderRow {
+  key: string;
+  /** existing floor receiving sheets, or null for a new floor */
+  floorId: string | null;
+  name: string;
+  pageIdxs: number[];
+}
+
+/** Initial stack: existing floors (fixed, by level) then one new row per
+    selected page — first selected page ends up lowest. */
+export function builderRowsFromPages(
+  pages: { label: string }[],
+  selected: number[],
+  floors: Floor[]
+): BuilderRow[] {
+  const existing = [...floors]
+    .sort((a, b) => a.level - b.level)
+    .map((f) => ({ key: `ex_${f.id}`, floorId: f.id, name: f.name, pageIdxs: [] }));
+  const fresh = selected.map((i) => ({
+    key: `new_${i}`,
+    floorId: null,
+    name: pages[i]?.label ?? `Page ${i + 1}`,
+    pageIdxs: [i],
+  }));
+  return [...existing, ...fresh];
+}
+
+/** Empty NEW rows vanish; existing-floor rows always stay. */
+function pruneRows(rows: BuilderRow[]): BuilderRow[] {
+  return rows.filter((r) => r.floorId !== null || r.pageIdxs.length > 0);
+}
+
+export function movePageToRow(
+  rows: BuilderRow[],
+  pageIdx: number,
+  targetKey: string
+): BuilderRow[] {
+  return pruneRows(
+    rows.map((r) => {
+      const without = r.pageIdxs.filter((i) => i !== pageIdx);
+      if (r.key === targetKey) return { ...r, pageIdxs: [...without, pageIdx] };
+      return { ...r, pageIdxs: without };
+    })
+  );
+}
+
+/** Pull the page out into a brand-new row on top of the stack. */
+export function movePageToNewRow(
+  rows: BuilderRow[],
+  pageIdx: number,
+  name: string
+): BuilderRow[] {
+  const cleared = rows.map((r) => ({
+    ...r,
+    pageIdxs: r.pageIdxs.filter((i) => i !== pageIdx),
+  }));
+  return pruneRows([
+    ...cleared,
+    { key: `new_${pageIdx}_${cleared.length}`, floorId: null, name, pageIdxs: [pageIdx] },
+  ]);
+}
+
+/** Drop a page from the import entirely. */
+export function removePageFromRows(rows: BuilderRow[], pageIdx: number): BuilderRow[] {
+  return pruneRows(
+    rows.map((r) => ({ ...r, pageIdxs: r.pageIdxs.filter((i) => i !== pageIdx) }))
+  );
+}
+
+/** Shift a NEW row up/down the stack; it can't sink below existing floors. */
+export function moveRow(rows: BuilderRow[], key: string, delta: -1 | 1): BuilderRow[] {
+  const idx = rows.findIndex((r) => r.key === key);
+  if (idx < 0 || rows[idx].floorId !== null) return rows;
+  const target = idx + delta;
+  if (target < 0 || target >= rows.length) return rows;
+  if (rows[target].floorId !== null) return rows; // existing block is fixed
+  const next = [...rows];
+  [next[idx], next[target]] = [next[target], next[idx]];
+  return next;
+}
+
+export function renameRow(rows: BuilderRow[], key: string, name: string): BuilderRow[] {
+  return rows.map((r) => (r.key === key ? { ...r, name } : r));
+}
+
+/** Commit the stack: rows bottom-up; new floors take the next levels in
+    stack order, existing floors gain the dropped sheets. */
+export function applyBuilderRows(
+  rows: BuilderRow[],
+  uploads: Map<number, UploadedSheet>,
   floors: Floor[]
 ): Floor[] {
   const result = floors.map((f) => ({ ...f, plans: [...f.plans] }));
-  const byName = new Map<string, Floor>();
-  for (const f of result) byName.set(f.name.trim().toLowerCase(), f);
   let nextLevel = result.reduce((m, f) => Math.max(m, f.level), -1) + 1;
-
-  for (const { floorName, sheet } of entries) {
-    const name = floorName.trim() || sheet.label;
-    const key = name.toLowerCase();
-    const existing = byName.get(key);
-    if (existing) {
-      existing.plans = [...existing.plans, ...placeSheets(existing.plans, [sheet])];
+  for (const row of rows) {
+    const sheets = row.pageIdxs
+      .map((i) => uploads.get(i))
+      .filter((s): s is UploadedSheet => s !== undefined);
+    if (sheets.length === 0) continue;
+    if (row.floorId) {
+      const f = result.find((x) => x.id === row.floorId);
+      if (f) f.plans = [...f.plans, ...placeSheets(f.plans, sheets)];
     } else {
-      const floor: Floor = {
+      result.push({
         id: newId("flr"),
-        name,
+        name: row.name.trim() || sheets[0].label,
         level: nextLevel++,
         scaleMmPerUnit: null, // plans must be calibrated before sizes are real
         northDeg: null,
-        plans: placeSheets([], [sheet]),
-      };
-      result.push(floor);
-      byName.set(key, floor);
+        plans: placeSheets([], sheets),
+      });
     }
   }
   return result;

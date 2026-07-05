@@ -71,7 +71,7 @@ async function openSeeded(planImages: PlanImages) {
 describe("Plans stage", () => {
   beforeEach(() => window.localStorage.clear());
 
-  it("lists floors with plan/scale status and supports rename + add blank floor", async () => {
+  it("lists floors with plan/scale status and supports rename; no blank floors in plan mode", async () => {
     const user = await openSeeded(new FakePlanImages());
 
     expect(screen.getByText("PDF p.1")).toBeInTheDocument();
@@ -83,8 +83,19 @@ describe("Plans stage", () => {
     await user.type(name, "GF (arch plans)");
     expect(screen.getByDisplayValue("GF (arch plans)")).toBeInTheDocument();
 
+    // plan-mode designs can't have floors without drawings
+    expect(screen.queryByRole("button", { name: "Blank floor" })).toBeNull();
+  });
+
+  it("blank-canvas designs keep the Blank floor button", async () => {
+    const store = new LocalDesignStore(window.localStorage);
+    void store.save(createDesign({ name: "Sketch job", mode: "blank" }));
+    const user = userEvent.setup();
+    render(<Studio store={store} planImages={new FakePlanImages()} />);
+    await user.click(await screen.findByText("Sketch job"));
+
     await user.click(screen.getByRole("button", { name: "Blank floor" }));
-    expect(screen.getByDisplayValue("Level 2")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Level 1")).toBeInTheDocument();
   });
 
   it("Design button opens that floor on the canvas with the plan image under the grid", async () => {

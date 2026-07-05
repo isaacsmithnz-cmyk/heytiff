@@ -3,9 +3,15 @@
 
 import { createDesign, type Floor } from "../document";
 import {
-  applyPageAllocations,
+  applyBuilderRows,
+  builderRowsFromPages,
   guessFloorLabel,
+  movePageToNewRow,
+  movePageToRow,
+  moveRow,
   placeSheets,
+  removePageFromRows,
+  type BuilderRow,
   type UploadedSheet,
 } from "../plans";
 
@@ -59,13 +65,18 @@ describe("sheet placement + allocation", () => {
     expect(second[0].y).toBe(0);
   });
 
-  it("distinct names become distinct floors with continuing levels", () => {
+  const uploadsFor = (sheets: UploadedSheet[], idxs: number[]) =>
+    new Map(idxs.map((idx, k) => [idx, sheets[k]]));
+
+  it("each row becomes a floor; stack order sets the levels above existing floors", () => {
     const doc = createDesign({ name: "x", mode: "blank" }); // Ground @ L0
-    const floors = applyPageAllocations(
-      [
-        { floorName: "Level 1", sheet: sheet("Level 1", 2) },
-        { floorName: "Level 2", sheet: sheet("Level 2", 3) },
-      ],
+    const pages = [{ label: "Level 1" }, { label: "Level 2" }];
+    const rows = builderRowsFromPages(pages, [0, 1], doc.floors);
+    // existing Ground floor is a fixed bottom row
+    expect(rows[0].floorId).toBe(doc.floors[0].id);
+    const floors = applyBuilderRows(
+      rows,
+      uploadsFor([sheet("Level 1", 2), sheet("Level 2", 3)], [0, 1]),
       doc.floors
     );
     expect(floors.map((f: Floor) => f.level)).toEqual([0, 1, 2]);
@@ -74,16 +85,17 @@ describe("sheet placement + allocation", () => {
     expect(floors[1].plans[0].imageRef).toBe("org/o1/plan_Level 1.png");
   });
 
-  it("pages sharing a floor name become sheets of ONE floor (east/west split)", () => {
-    const floors = applyPageAllocations(
-      [
-        { floorName: "Level 1", sheet: sheet("Level 1 East", 2) },
-        { floorName: "Level 1", sheet: sheet("Level 1 West", 3) },
-      ],
+  it("two pages dragged onto one row become sheets of ONE floor (east/west split)", () => {
+    const pages = [{ label: "Level 1 East" }, { label: "Level 1 West" }];
+    let rows = builderRowsFromPages(pages, [0, 1], []);
+    rows = movePageToRow(rows, 1, rows[0].key); // drag West onto East's row
+    expect(rows).toHaveLength(1); // West's empty row vanished
+    const floors = applyBuilderRows(
+      rows,
+      uploadsFor([sheet("Level 1 East", 2), sheet("Level 1 West", 3)], [0, 1]),
       []
     );
     expect(floors).toHaveLength(1);
-    expect(floors[0].plans).toHaveLength(2);
     expect(floors[0].plans.map((s) => s.name)).toEqual([
       "Level 1 East",
       "Level 1 West",
@@ -92,22 +104,48 @@ describe("sheet placement + allocation", () => {
     expect(floors[0].plans[1].x).toBe(2060);
   });
 
-  it("a name matching an existing floor adds sheets to it (case/space-insensitive)", () => {
+  it("dropping a page on an existing floor row adds a sheet to that floor", () => {
     const doc = createDesign({ name: "x", mode: "blank" });
-    const floors = applyPageAllocations(
-      [{ floorName: "  ground FLOOR ", sheet: sheet("GF West", 4) }],
+    const pages = [{ label: "GF West" }];
+    let rows = builderRowsFromPages(pages, [0], doc.floors);
+    rows = movePageToRow(rows, 0, rows[0].key); // onto the existing Ground floor
+    const floors = applyBuilderRows(
+      rows,
+      uploadsFor([sheet("GF West", 4)], [0]),
       doc.floors
     );
     expect(floors).toHaveLength(1);
     expect(floors[0].plans).toHaveLength(1);
-    expect(floors[0].name).toBe("Ground floor"); // keeps the existing name
+    expect(floors[0].name).toBe("Ground floor");
   });
 
-  it("blank names fall back to the page label", () => {
-    const floors = applyPageAllocations(
-      [{ floorName: "   ", sheet: sheet("Roof", 5) }],
-      []
-    );
-    expect(floors[0].name).toBe("Roof");
+  it("moveRow reorders new rows but never sinks below existing floors", () => {
+    const doc = createDesign({ name: "x", mode: "blank" });
+    const pages = [{ label: "A" }, { label: "B" }];
+    let rows: BuilderRow[] = builderRowsFromPages(pages, [0, 1], doc.floors);
+    // A (idx 1) up past B
+    rows = moveRow(rows, rows[1].key, 1);
+    expect(rows.map((r) => r.name)).toEqual(["Ground floor", "B", "A"]);
+    // B cannot sink into the existing block
+    expect(moveRow(rows, rows[1].key, -1)).toBe(rows);
+    // existing rows never move
+    expect(moveRow(rows, rows[0].key, 1)).toBe(rows);
+  });
+
+  it("movePageToNewRow starts a fresh top row; removePageFromRows drops the page", () => {
+    const pages = [{ label: "East" }, { label: "West" }];
+    let rows = builderRowsFromPages(pages, [0, 1], []);
+    rows = movePageToRow(rows, 1, rows[0].key); // one combined row
+    rows = movePageToNewRow(rows, 1, "West again"); // split back out on top
+    expect(rows).toHaveLength(2);
+    expect(rows[1].name).toBe("West again");
+    rows = removePageFromRows(rows, 1);
+    expect(rows).toHaveLength(1); // its row vanished with it
+  });
+
+  it("unplaced/removed pages are simply not imported", () => {
+    const pages = [{ label: "Roof" }];
+    const rows = removePageFromRows(builderRowsFromPages(pages, [0], []), 0);
+    expect(applyBuilderRows(rows, uploadsFor([sheet("Roof", 5)], [0]), [])).toEqual([]);
   });
 });

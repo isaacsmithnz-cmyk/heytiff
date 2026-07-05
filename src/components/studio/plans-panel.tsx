@@ -4,9 +4,16 @@ import { useRef, useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import type { DesignDocument, Floor } from "@/lib/studio/document";
 import {
-  applyPageAllocations,
+  applyBuilderRows,
+  builderRowsFromPages,
   imageToPage,
+  movePageToNewRow,
+  movePageToRow,
+  moveRow,
   pdfToPages,
+  removePageFromRows,
+  renameRow,
+  type BuilderRow,
   type PageImage,
   type PlanImages,
   type UploadedSheet,
@@ -19,9 +26,8 @@ type Phase =
   | { kind: "idle" }
   | { kind: "rendering"; done: number; total: number }
   | { kind: "picking"; pages: PageImage[]; selected: Set<number> }
-  /* chosen page indexes + an editable floor name per page — pages sharing a
-     name become sheets of the same floor (east/west wings of one level) */
-  | { kind: "allocating"; pages: PageImage[]; chosen: number[]; names: string[] }
+  /* the floor-stack builder: rows bottom-up; drag page cards between rows */
+  | { kind: "building"; pages: PageImage[]; rows: BuilderRow[] }
   | { kind: "uploading"; done: number; total: number };
 
 export function PlansPanel({
@@ -76,29 +82,24 @@ export function PlansPanel({
     }
   };
 
-  const confirmAllocations = async (
-    pages: PageImage[],
-    chosen: number[],
-    names: string[]
-  ) => {
+  const confirmBuild = async (pages: PageImage[], rows: BuilderRow[]) => {
+    const pageIdxs = rows.flatMap((r) => r.pageIdxs);
+    if (pageIdxs.length === 0) return;
     try {
-      const entries: { floorName: string; sheet: UploadedSheet }[] = [];
-      for (let k = 0; k < chosen.length; k++) {
-        setPhase({ kind: "uploading", done: k, total: chosen.length });
-        const page = pages[chosen[k]];
+      const uploads = new Map<number, UploadedSheet>();
+      for (let k = 0; k < pageIdxs.length; k++) {
+        setPhase({ kind: "uploading", done: k, total: pageIdxs.length });
+        const page = pages[pageIdxs[k]];
         const ref = await planImages.upload(page);
-        entries.push({
-          floorName: names[k],
-          sheet: {
-            label: page.label,
-            ref,
-            pageNumber: page.pageNumber,
-            width: page.width,
-            height: page.height,
-          },
+        uploads.set(pageIdxs[k], {
+          label: page.label,
+          ref,
+          pageNumber: page.pageNumber,
+          width: page.width,
+          height: page.height,
         });
       }
-      onMutate((d) => ({ ...d, floors: applyPageAllocations(entries, d.floors) }));
+      onMutate((d) => ({ ...d, floors: applyBuilderRows(rows, uploads, d.floors) }));
       pages.forEach((p) => URL.revokeObjectURL(p.thumbUrl));
       setPhase({ kind: "idle" });
     } catch (e) {
@@ -232,10 +233,9 @@ export function PlansPanel({
               onClick={() => {
                 const chosen = [...phase.selected].sort((a, b) => a - b);
                 setPhase({
-                  kind: "allocating",
+                  kind: "building",
                   pages: phase.pages,
-                  chosen,
-                  names: chosen.map((i) => phase.pages[i].label),
+                  rows: builderRowsFromPages(phase.pages, chosen, doc.floors),
                 });
               }}
             >
@@ -246,78 +246,39 @@ export function PlansPanel({
         </div>
       )}
 
-      {phase.kind === "allocating" && (
-        <div className="ds-pagepick">
-          <div className="ds-pagepick-head">
-            <span className="ds-cardt">Name the floor for each page</span>
-          </div>
-          <div className="ds-alloc-hint">
-            Pages given the <b>same floor name</b> become sheets of one floor —
-            that&apos;s how a level split across east/west drawings stays a
-            single canvas. Names matching an existing floor add to it.
-          </div>
-          <div className="ds-alloc-rows">
-            {phase.chosen.map((pageIdx, k) => {
-              const p = phase.pages[pageIdx];
-              return (
-                <div key={pageIdx} className="ds-alloc-row">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={p.thumbUrl} alt={p.label} />
-                  <span className="ds-alloc-page">
-                    {p.pageNumber ? `p.${p.pageNumber}` : "img"}
-                  </span>
-                  <input
-                    value={phase.names[k]}
-                    aria-label={`Floor for ${p.label}`}
-                    onChange={(e) => {
-                      const names = [...phase.names];
-                      names[k] = e.target.value;
-                      setPhase({ ...phase, names });
-                    }}
-                  />
-                </div>
-              );
-            })}
-          </div>
-          <div className="ds-pagepick-actions">
-            <button
-              className="ds-calib-cancel"
-              onClick={() =>
-                setPhase({
-                  kind: "picking",
-                  pages: phase.pages,
-                  selected: new Set(phase.chosen),
-                })
-              }
-            >
-              Back
-            </button>
-            <button
-              className="ds-calib-ok"
-              onClick={() =>
-                void confirmAllocations(phase.pages, phase.chosen, phase.names)
-              }
-            >
-              Add to design
-            </button>
-          </div>
-        </div>
+      {phase.kind === "building" && (
+        <FloorStackBuilder
+          pages={phase.pages}
+          rows={phase.rows}
+          onRows={(rows) => setPhase({ ...phase, rows })}
+          onBack={() =>
+            setPhase({
+              kind: "picking",
+              pages: phase.pages,
+              selected: new Set(phase.rows.flatMap((r) => r.pageIdxs)),
+            })
+          }
+          onConfirm={() => void confirmBuild(phase.pages, phase.rows)}
+        />
       )}
 
       {error && <div className="ds-ierr">{error}</div>}
 
-      {/* ── floors ── */}
+      {/* ── floors ── (plan mode: every floor comes from a drawing) */}
       <div className="ds-plans-floors-head">
         <span className="ds-cardt">Floors</span>
-        <button className="ds-import" onClick={onAddFloor}>
-          <Icon name="plus" size={13} />
-          Blank floor
-        </button>
+        {doc.meta.mode === "blank" && (
+          <button className="ds-import" onClick={onAddFloor}>
+            <Icon name="plus" size={13} />
+            Blank floor
+          </button>
+        )}
       </div>
       {floors.length === 0 ? (
         <div className="ds-insp-hint">
-          No floors yet — upload a plan above, or add a blank floor to sketch
-          without one.
+          {doc.meta.mode === "plan"
+            ? "No floors yet — upload plans above and pick your pages."
+            : "No floors yet — add a blank floor to sketch on, or upload a plan above."}
         </div>
       ) : (
         <div className="ds-floors">
@@ -378,6 +339,153 @@ export function PlansPanel({
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ── The floor-stack builder ──
+   Rows read like a building: top row = highest level, ground at the bottom.
+   Drag a page card onto another row to make it a sheet of that floor
+   (an east/west split is two cards on one line); drop it on the top zone to
+   start a new floor. Existing floors are fixed drop targets at the bottom. */
+
+function FloorStackBuilder({
+  pages,
+  rows,
+  onRows,
+  onBack,
+  onConfirm,
+}: {
+  pages: PageImage[];
+  rows: BuilderRow[];
+  onRows: (rows: BuilderRow[]) => void;
+  onBack: () => void;
+  onConfirm: () => void;
+}) {
+  const placed = rows.flatMap((r) => r.pageIdxs).length;
+  const newFloorCount = rows.filter(
+    (r) => r.floorId === null && r.pageIdxs.length > 0
+  ).length;
+  const display = [...rows].reverse(); // top of the building first
+
+  const dragPayload = (e: React.DragEvent) =>
+    parseInt(e.dataTransfer.getData("text/plain"), 10);
+
+  return (
+    <div className="ds-pagepick">
+      <div className="ds-pagepick-head">
+        <span className="ds-cardt">Stack your floors</span>
+        <span className="ds-pagepick-n">
+          {placed} {placed === 1 ? "page" : "pages"} · {newFloorCount} new{" "}
+          {newFloorCount === 1 ? "floor" : "floors"}
+        </span>
+      </div>
+      <div className="ds-alloc-hint">
+        Each row is one floor, stacked like the building — ground at the
+        bottom. <b>Drag a page onto another row</b> to make it a second sheet
+        of that floor (an east/west split), or onto the top zone to start a
+        new floor above.
+      </div>
+
+      <div
+        className="ds-stack-newzone"
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault();
+          const idx = dragPayload(e);
+          if (Number.isFinite(idx))
+            onRows(movePageToNewRow(rows, idx, pages[idx]?.label ?? "New floor"));
+        }}
+      >
+        <Icon name="plus" size={13} />
+        Drop here for a new top floor
+      </div>
+
+      <div className="ds-stack">
+        {display.map((row) => {
+          const level =
+            rows.filter((r) => r.floorId !== null || r.pageIdxs.length > 0).indexOf(row);
+          return (
+            <div
+              key={row.key}
+              className={`ds-stack-row${row.floorId ? " existing" : ""}`}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                const idx = dragPayload(e);
+                if (Number.isFinite(idx)) onRows(movePageToRow(rows, idx, row.key));
+              }}
+            >
+              <span className="ds-floor-lvl">L{level}</span>
+              {row.floorId ? (
+                <span className="ds-stack-name-fixed">{row.name}</span>
+              ) : (
+                <input
+                  className="ds-stack-name"
+                  value={row.name}
+                  aria-label={`Floor name for row ${row.key}`}
+                  onChange={(e) => onRows(renameRow(rows, row.key, e.target.value))}
+                />
+              )}
+              <div className="ds-stack-cards">
+                {row.pageIdxs.length === 0 && (
+                  <span className="ds-stack-empty">
+                    {row.floorId ? "drop a sheet to add it here" : ""}
+                  </span>
+                )}
+                {row.pageIdxs.map((idx) => {
+                  const p = pages[idx];
+                  return (
+                    <div
+                      key={idx}
+                      className="ds-stack-card"
+                      draggable
+                      onDragStart={(e) =>
+                        e.dataTransfer.setData("text/plain", String(idx))
+                      }
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={p.thumbUrl} alt={p.label} />
+                      <span>{p.pageNumber ? `p.${p.pageNumber}` : "img"}</span>
+                      <button
+                        aria-label={`Remove page ${p.pageNumber ?? idx + 1}`}
+                        onClick={() => onRows(removePageFromRows(rows, idx))}
+                      >
+                        <Icon name="x" size={11} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+              {!row.floorId && (
+                <span className="ds-stack-updown">
+                  <button
+                    aria-label={`Move ${row.name} up`}
+                    onClick={() => onRows(moveRow(rows, row.key, 1))}
+                  >
+                    <Icon name="arrowUp" size={13} />
+                  </button>
+                  <button
+                    aria-label={`Move ${row.name} down`}
+                    onClick={() => onRows(moveRow(rows, row.key, -1))}
+                  >
+                    <Icon name="arrowDown" size={13} />
+                  </button>
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="ds-pagepick-actions">
+        <button className="ds-calib-cancel" onClick={onBack}>
+          Back
+        </button>
+        <button className="ds-calib-ok" disabled={placed === 0} onClick={onConfirm}>
+          Add to design
+        </button>
+      </div>
     </div>
   );
 }

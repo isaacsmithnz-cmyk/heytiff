@@ -17,20 +17,81 @@ export interface PageImage {
   height: number;
 }
 
-/* ── Pure: keyword floor labelling (Enhance tier, cheap to do now) ── */
+/* ── Pure: keyword floor labelling ──
+   Real drawing sets mention many sheet names on every page (title blocks,
+   sheet indexes), so first-match regexes mislabel constantly. Instead every
+   pattern hit scores (occurrences capped so an index page can't run away),
+   and the highest-scoring label wins. Specific floor names outweigh generic
+   sheet types like "elevations". */
+
+const ORDINALS = [
+  "first|1st",
+  "second|2nd",
+  "third|3rd",
+  "fourth|4th",
+  "fifth|5th",
+  "sixth|6th",
+  "seventh|7th",
+  "eighth|8th",
+  "ninth|9th",
+  "tenth|10th",
+];
+
+type LabelPattern = {
+  re: RegExp;
+  label: (m: RegExpExecArray) => string;
+  weight: number;
+};
+
+const LABEL_PATTERNS: LabelPattern[] = [
+  { re: /lower\s+ground(?:\s+(?:floor|level))?/g, label: () => "Lower ground", weight: 4 },
+  { re: /\bbasement\b/g, label: () => "Basement", weight: 4 },
+  { re: /\bground\s+(?:floor|level)\b/g, label: () => "Ground floor", weight: 4 },
+  ...ORDINALS.map((ord, i) => ({
+    re: new RegExp(`\\b(?:${ord})\\s+(?:floor|level|storey)\\b`, "g"),
+    label: () => `Level ${i + 1}`,
+    weight: 4,
+  })),
+  { re: /\blevel\s+(\d{1,2})\b/g, label: (m) => `Level ${parseInt(m[1], 10)}`, weight: 4 },
+  { re: /\bl(\d{1,2})\s+(?:floor\s+)?plan\b/g, label: (m) => `Level ${parseInt(m[1], 10)}`, weight: 3 },
+  { re: /\bmezzanine\b/g, label: () => "Mezzanine", weight: 3 },
+  { re: /\bupper\s+(?:floor|level)\b/g, label: () => "Upper floor", weight: 3 },
+  { re: /\blower\s+(?:floor|level)\b/g, label: () => "Lower floor", weight: 3 },
+  { re: /\battic\b|\bloft\b/g, label: () => "Attic", weight: 3 },
+  { re: /\bgarage\s+plan\b/g, label: () => "Garage", weight: 3 },
+  { re: /\broof\s+(?:plan|layout)\b/g, label: () => "Roof", weight: 4 },
+  { re: /\bsite\s+plan\b/g, label: () => "Site plan", weight: 4 },
+  { re: /\bfloor\s+plan\b/g, label: () => "Floor plan", weight: 1 },
+  { re: /\belevations?\b/g, label: () => "Elevations", weight: 2 },
+  { re: /\bsections?\b/g, label: () => "Sections", weight: 2 },
+  { re: /\belectrical\s+(?:plan|layout)\b/g, label: () => "Electrical", weight: 2 },
+];
 
 export function guessFloorLabel(text: string, pageNumber: number): string {
-  const t = text.toLowerCase();
-  if (/\b(basement|lower ground)\b/.test(t)) return "Basement";
-  if (/\bground\s+(floor|level)\b/.test(t)) return "Ground floor";
-  if (/\b(first|1st)\s+floor\b/.test(t) || /\blevel\s*0?1\b/.test(t)) return "Level 1";
-  if (/\b(second|2nd)\s+floor\b/.test(t) || /\blevel\s*0?2\b/.test(t)) return "Level 2";
-  if (/\b(third|3rd)\s+floor\b/.test(t) || /\blevel\s*0?3\b/.test(t)) return "Level 3";
-  const lvl = t.match(/\blevel\s*(\d{1,2})\b/);
-  if (lvl) return `Level ${parseInt(lvl[1], 10)}`;
-  if (/\broof\s+plan\b/.test(t)) return "Roof";
-  if (/\bsite\s+plan\b/.test(t)) return "Site plan";
-  return `Page ${pageNumber}`;
+  const t = text.toLowerCase().replace(/\s+/g, " ");
+  const scores = new Map<string, { score: number; order: number }>();
+  LABEL_PATTERNS.forEach((p, order) => {
+    p.re.lastIndex = 0;
+    const counts = new Map<string, number>();
+    let m: RegExpExecArray | null;
+    while ((m = p.re.exec(t)) !== null) {
+      const label = p.label(m);
+      counts.set(label, (counts.get(label) ?? 0) + 1);
+    }
+    for (const [label, count] of counts) {
+      const score = Math.min(count, 3) * p.weight;
+      const prev = scores.get(label);
+      if (!prev) scores.set(label, { score, order });
+      else prev.score += score;
+    }
+  });
+  let best: { label: string; score: number; order: number } | null = null;
+  for (const [label, { score, order }] of scores) {
+    if (!best || score > best.score || (score === best.score && order < best.order)) {
+      best = { label, score, order };
+    }
+  }
+  return best ? best.label : `Page ${pageNumber}`;
 }
 
 /* ── Pure: selected pages → new floors ── */
@@ -46,9 +107,18 @@ export function floorsFromPages(
   existing: Floor[]
 ): Floor[] {
   const maxLevel = existing.reduce((m, f) => Math.max(m, f.level), -1);
+  // repeated guesses (title blocks love repeating sheet names) get suffixes
+  const used = new Map<string, number>();
+  for (const f of existing) used.set(f.name.toLowerCase(), 1);
+  const uniqueName = (label: string) => {
+    const key = label.toLowerCase();
+    const n = (used.get(key) ?? 0) + 1;
+    used.set(key, n);
+    return n > 1 ? `${label} (${n})` : label;
+  };
   return pages.map((p, i) => ({
     id: newId("flr"),
-    name: p.label,
+    name: uniqueName(p.label),
     level: maxLevel + 1 + i,
     scaleMmPerUnit: null, // plans must be calibrated before sizes are real
     northDeg: null,

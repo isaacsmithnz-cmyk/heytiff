@@ -64,11 +64,8 @@ export function PlansPanel({
         setError("No usable pages — upload a PDF, PNG or JPG.");
         return;
       }
-      setPhase({
-        kind: "picking",
-        pages,
-        selected: new Set(pages.map((_, i) => i)),
-      });
+      // nothing pre-selected — the user picks exactly the pages they want
+      setPhase({ kind: "picking", pages, selected: new Set() });
     } catch (e) {
       setPhase({ kind: "idle" });
       setError(e instanceof Error ? e.message : "Couldn't read that file");
@@ -183,7 +180,7 @@ export function PlansPanel({
         <div className="ds-pagepick">
           <div className="ds-pagepick-head">
             <span className="ds-cardt">
-              Select the pages to bring in as floors
+              Click the pages you want as floors
             </span>
             <span className="ds-pagepick-n">
               {phase.selected.size} of {phase.pages.length} selected

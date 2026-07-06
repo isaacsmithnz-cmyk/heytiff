@@ -779,14 +779,20 @@ function FloorCard({
     <div
       className={`ds-floorcard${row.floorId ? " existing" : ""}${level < 0 ? " sub" : ""}${targetable ? " targetable" : ""}`}
       data-floor={row.name}
-      draggable={isNew}
-      onDragStart={isNew ? onStartDrag(`r:${row.key}`, "row") : undefined}
-      onDragEnd={onEndDrag}
       onDragOver={allow}
       onDrop={onDropFloor}
     >
+      {/* only the grip moves the whole floor — the card itself must not be
+          draggable or it steals drags from the individual sheets inside it */}
       {isNew && (
-        <span className="ds-floorcard-grip" aria-hidden>
+        <span
+          className="ds-floorcard-grip"
+          draggable
+          aria-label={`Move ${row.name}`}
+          title="Drag to move this floor"
+          onDragStart={onStartDrag(`r:${row.key}`, "row")}
+          onDragEnd={onEndDrag}
+        >
           <Icon name="dots" size={13} />
         </span>
       )}
@@ -819,10 +825,8 @@ function FloorCard({
               key={idx}
               className="ds-floorcard-sheet"
               draggable
-              onDragStart={(e) => {
-                e.stopPropagation();
-                onStartDrag(`p:${idx}`, "page")(e);
-              }}
+              title="Drag to another floor"
+              onDragStart={onStartDrag(`p:${idx}`, "page")}
               onDragEnd={onEndDrag}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}

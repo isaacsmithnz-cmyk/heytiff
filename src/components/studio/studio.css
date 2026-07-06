@@ -1383,10 +1383,6 @@
   background: #fff;
   box-shadow: 0 1px 2px rgba(10, 12, 20, 0.05);
   transition: border-color 0.15s, box-shadow 0.15s;
-  cursor: grab;
-}
-.dstudio .ds-floorcard:active {
-  cursor: grabbing;
 }
 .dstudio .ds-floorcard:hover {
   border-color: rgba(0, 229, 192, 0.45);
@@ -1398,18 +1394,27 @@
 }
 .dstudio .ds-floorcard.existing {
   background: #f7f8fa;
-  cursor: default;
 }
 .dstudio .ds-floorcard.sub {
   background: #f3f4f8;
 }
 .dstudio .ds-floorcard-grip {
   flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 30px;
+  border-radius: 7px;
   color: var(--gray400);
-  margin-right: -6px;
+  cursor: grab;
 }
-.dstudio .ds-floorcard:hover .ds-floorcard-grip {
+.dstudio .ds-floorcard-grip:hover {
+  background: #f0f1f4;
   color: var(--ink);
+}
+.dstudio .ds-floorcard-grip:active {
+  cursor: grabbing;
 }
 .dstudio .ds-floor-lvl-select {
   flex: 0 0 auto;

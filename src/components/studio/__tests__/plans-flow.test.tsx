@@ -212,6 +212,34 @@ describe("installer scenarios: upload → floors", () => {
     expect(screen.getByText("2 sheets")).toBeInTheDocument();
   });
 
+  it("a single sheet can be pulled OFF a two-sheet floor onto another floor", async () => {
+    pdfToPages.mockResolvedValue([page("A", 1), page("B", 2)]);
+    const user = await openPlanJob(new CountingPlanImages());
+
+    uploadPdf();
+    await user.click(await screen.findByRole("button", { name: "Page 1" }));
+    await user.click(screen.getByRole("button", { name: "Page 2" }));
+    await user.click(screen.getByRole("button", { name: /Continue with 2 pages/ }));
+    await nameFloors(user, ["East", "West"]);
+
+    // both onto one ground floor → two sheets on one card
+    dropPage(yardFirst(), 0);
+    dropPage(floorCard("East"), 1);
+    expect(floorCard("East").querySelectorAll(".ds-floorcard-sheet")).toHaveLength(2);
+
+    // the individual sheet is its own drag source (not the card)
+    const sheets = floorCard("East").querySelectorAll(".ds-floorcard-sheet");
+    expect(sheets[1].getAttribute("draggable")).toBe("true");
+    // pull that sheet (page 1) up into the gap above → its own floor
+    dropPage(gapAbove("East"), 1);
+
+    // now two separate floors, one sheet each
+    expect(floorCard("East").querySelectorAll(".ds-floorcard-sheet")).toHaveLength(1);
+    expect(floorCard("West").querySelectorAll(".ds-floorcard-sheet")).toHaveLength(1);
+    // West sits above East (L1 over GF)
+    expect(floorCard("West").querySelector(".ds-floor-lvl")!.textContent).toBe("L1");
+  });
+
   it("west wing arrives later: single page drops onto the EXISTING floor — no new floor created", async () => {
     pdfToPages.mockResolvedValue([page("GF West", 1)]);
     const fake = new CountingPlanImages();

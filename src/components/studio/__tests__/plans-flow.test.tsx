@@ -3,7 +3,7 @@
    can't run it); everything downstream — picking, naming, stacking,
    uploading, committing floors — is the production code path. */
 
-import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Studio } from "../studio";
 import { createDesign } from "@/lib/studio/document";
@@ -93,6 +93,15 @@ const subfloorGap = () => {
 };
 const dropPage = (el: Element, idx: number) => fireEvent.drop(el, dropPayload(`p:${idx}`));
 
+/* "Start design" commits the floors and jumps straight to the canvas; going
+   back to the Plans step surfaces the committed floor list for assertions */
+async function startDesignThenReviewPlans(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole("button", { name: /Start design/ }));
+  expect(await screen.findByTestId("studio-canvas")).toBeInTheDocument();
+  // the completed Plans step shows a check (no number) → name is just "Plans"
+  await user.click(screen.getByRole("button", { name: /Plans/ }));
+}
+
 describe("installer scenarios: upload → floors", () => {
   beforeEach(() => {
     window.localStorage.clear();
@@ -112,7 +121,7 @@ describe("installer scenarios: upload → floors", () => {
     await nameFloors(user, ["Ground floor"]);
     // on the stack: the named page waits in the tray; Add is gated until placed
     expect(await screen.findByText("Stack your floors")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Add to design" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Start design/ })).toBeDisabled();
     expect(within(document.querySelector(".ds-yard") as HTMLElement).queryByRole("textbox")).toBeNull();
 
     // drop it into the yard → it becomes the ground floor
@@ -120,9 +129,15 @@ describe("installer scenarios: upload → floors", () => {
     expect(floorCard("Ground floor")).toBeInTheDocument();
     expect(screen.getByText("GF")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Add to design" }));
-    await waitFor(() => expect(screen.getByDisplayValue("Ground floor")).toBeInTheDocument());
+    // "Start design" commits and jumps straight to the canvas on that floor
+    await user.click(screen.getByRole("button", { name: /Start design/ }));
+    expect(await screen.findByTestId("studio-canvas")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Ground floor/ })).toBeInTheDocument(); // floor tab
     expect(fake.uploads).toBe(1);
+
+    // the floor still lives on the (now-completed) Plans step
+    await user.click(screen.getByRole("button", { name: /Plans/ }));
+    expect(screen.getByDisplayValue("Ground floor")).toBeInTheDocument();
   });
 
   it("two-storey house from a 4-page set: junk sheets skipped and never uploaded", async () => {
@@ -153,8 +168,8 @@ describe("installer scenarios: upload → floors", () => {
     expect(screen.getByLabelText("Level for Ground floor")).toHaveValue("0");
     expect(floorCard("Level 1").querySelector(".ds-floor-lvl")!.textContent).toBe("L1");
 
-    await user.click(screen.getByRole("button", { name: "Add to design" }));
-    await waitFor(() => expect(screen.getByDisplayValue("Level 1")).toBeInTheDocument());
+    await startDesignThenReviewPlans(user);
+    expect(screen.getByDisplayValue("Level 1")).toBeInTheDocument();
     // only the two chosen pages were uploaded — site plan/elevations never left the browser
     expect(fake.uploads).toBe(2);
   });
@@ -187,8 +202,8 @@ describe("installer scenarios: upload → floors", () => {
     const merged = floorCard("Level 2");
     expect(merged.querySelectorAll(".ds-floorcard-sheet")).toHaveLength(2);
 
-    await user.click(screen.getByRole("button", { name: "Add to design" }));
-    await waitFor(() => expect(screen.getByDisplayValue("Basement")).toBeInTheDocument());
+    await startDesignThenReviewPlans(user);
+    expect(screen.getByDisplayValue("Basement")).toBeInTheDocument();
     expect(fake.uploads).toBe(4);
     // floor list: B1 basement, GF, L1 = the merged Level 2 with two sheets
     expect(screen.getByText("B1")).toBeInTheDocument();
@@ -206,8 +221,8 @@ describe("installer scenarios: upload → floors", () => {
     uploadPdf();
     await nameFloors(user, ["Ground floor"]);
     dropPage(yardFirst(), 0); // place as ground floor
-    await user.click(screen.getByRole("button", { name: "Add to design" }));
-    await waitFor(() => expect(screen.getByDisplayValue("Ground floor")).toBeInTheDocument());
+    await startDesignThenReviewPlans(user);
+    expect(screen.getByDisplayValue("Ground floor")).toBeInTheDocument();
 
     // second import: the existing floor shows in the yard as a fixed card
     pdfToPages.mockResolvedValue([page("GF West wing", 1)]);
@@ -217,8 +232,8 @@ describe("installer scenarios: upload → floors", () => {
     expect(existing.className).toContain("existing");
     dropPage(existing, 0); // merge the west wing onto it
 
-    await user.click(screen.getByRole("button", { name: "Add to design" }));
-    await waitFor(() => expect(screen.getByText("2 sheets")).toBeInTheDocument());
+    await startDesignThenReviewPlans(user);
+    expect(screen.getByText("2 sheets")).toBeInTheDocument();
     // still exactly one floor
     expect(screen.getAllByDisplayValue("Ground floor")).toHaveLength(1);
     expect(fake.uploads).toBe(2);
@@ -307,8 +322,8 @@ describe("installer scenarios: upload → floors", () => {
     await user.selectOptions(screen.getByLabelText("Level for Carpark"), "-2");
     expect(floorCard("Plant room").querySelector(".ds-floor-lvl")!.textContent).toBe("B1");
 
-    await user.click(screen.getByRole("button", { name: "Add to design" }));
-    await waitFor(() => expect(screen.getByDisplayValue("Carpark")).toBeInTheDocument());
+    await startDesignThenReviewPlans(user);
+    expect(screen.getByDisplayValue("Carpark")).toBeInTheDocument();
     // committed with the re-pinned levels
     expect(screen.getByText("B2")).toBeInTheDocument();
     expect(screen.getByText("B1")).toBeInTheDocument();

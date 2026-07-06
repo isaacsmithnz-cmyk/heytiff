@@ -129,9 +129,17 @@ export function PlansPanel({
           height: page.height,
         });
       }
-      onMutate((d) => ({ ...d, floors: applyBuilderRows(rows, uploads, d.floors) }));
+      // compute once (fresh floor ids) so we can commit AND land on one
+      const committed = applyBuilderRows(rows, uploads, doc.floors);
+      onMutate((d) => ({ ...d, floors: committed }));
       pages.forEach((p) => URL.revokeObjectURL(p.thumbUrl));
-      setPhase({ kind: "idle" });
+      // skip the floor-list step — go straight to the canvas on the ground
+      // floor (or the lowest floor if there's no level 0)
+      const landing =
+        committed.find((f) => f.level === 0) ??
+        [...committed].sort((a, b) => a.level - b.level)[0];
+      if (landing) onOpenFloor(landing.id);
+      else setPhase({ kind: "idle" });
     } catch (e) {
       setPhase({ kind: "idle" });
       setError(
@@ -733,7 +741,8 @@ function FloorStackBuilder({
           disabled={tray.length === chosenIdxs.length}
           onClick={onConfirm}
         >
-          Add to design
+          Start design
+          <Icon name="arrowR" size={15} />
         </button>
       </div>
     </div>

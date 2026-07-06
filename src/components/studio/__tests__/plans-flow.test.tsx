@@ -200,7 +200,7 @@ describe("installer scenarios: upload → floors", () => {
 
     // one Level 2 floor now holds two sheets
     const merged = floorCard("Level 2");
-    expect(merged.querySelectorAll(".ds-floorcard-sheet")).toHaveLength(2);
+    expect(merged.querySelectorAll(".ds-plancard")).toHaveLength(2);
 
     await startDesignThenReviewPlans(user);
     expect(screen.getByDisplayValue("Basement")).toBeInTheDocument();
@@ -222,25 +222,26 @@ describe("installer scenarios: upload → floors", () => {
     await user.click(screen.getByRole("button", { name: /Continue with 2 pages/ }));
     await nameFloors(user, ["East", "West"]);
 
-    // both onto one ground floor → two sheets on one card
+    // both onto one ground floor → two plan cards on one level
     dropPage(yardFirst(), 0);
     dropPage(floorCard("East"), 1);
-    expect(floorCard("East").querySelectorAll(".ds-floorcard-sheet")).toHaveLength(2);
+    expect(floorCard("East").querySelectorAll(".ds-plancard")).toHaveLength(2);
 
-    // the individual sheet is its own drag source (not the card)
-    const sheets = floorCard("East").querySelectorAll(".ds-floorcard-sheet");
-    expect(sheets[1].getAttribute("draggable")).toBe("true");
-    // pull that sheet (page 1) up into the gap above → its own floor
+    // the plan card is the drag source (the level row itself is NOT draggable)
+    expect(floorCard("East").getAttribute("draggable")).toBeNull();
+    const cards = floorCard("East").querySelectorAll(".ds-plancard");
+    expect(cards[1].getAttribute("draggable")).toBe("true");
+    // pull that plan (page 1) up into the slot above → its own floor
     dropPage(gapAbove("East"), 1);
 
-    // now two separate floors, one sheet each
-    expect(floorCard("East").querySelectorAll(".ds-floorcard-sheet")).toHaveLength(1);
-    expect(floorCard("West").querySelectorAll(".ds-floorcard-sheet")).toHaveLength(1);
+    // now two separate floors, one plan each
+    expect(floorCard("East").querySelectorAll(".ds-plancard")).toHaveLength(1);
+    expect(floorCard("West").querySelectorAll(".ds-plancard")).toHaveLength(1);
     // West sits above East (L1 over GF)
     expect(floorCard("West").querySelector(".ds-floor-lvl")!.textContent).toBe("L1");
   });
 
-  it("a placed floor reorders by dragging its handle onto another slot", async () => {
+  it("a floor moves by dragging its plan card to another slot (no row drag)", async () => {
     pdfToPages.mockResolvedValue([page("A", 1), page("B", 2)]);
     const user = await openPlanJob(new CountingPlanImages());
 
@@ -254,13 +255,8 @@ describe("installer scenarios: upload → floors", () => {
     dropPage(gapAbove("Ground"), 1); // Upper → L1
     expect(floorCard("Upper").querySelector(".ds-floor-lvl")!.textContent).toBe("L1");
 
-    // each new floor exposes a draggable handle (not the whole card)
-    const upperHandle = floorCard("Upper").querySelector(".ds-floorcard-handle")!;
-    expect(upperHandle.getAttribute("draggable")).toBe("true");
-
-    // drag "Upper" down onto the bottom slot → it falls below ground (B1)
-    const rowKey = floorCard("Upper").getAttribute("data-rowkey")!;
-    fireEvent.drop(subfloorGap(), dropPayload(`r:${rowKey}`));
+    // drag Upper's plan card (page 1) down onto the bottom slot → below ground
+    dropPage(subfloorGap(), 1);
     expect(floorCard("Upper").querySelector(".ds-floor-lvl")!.textContent).toBe("B1");
     // Ground is the anchor, so it carries the level dropdown (still GF)
     expect(screen.getByLabelText("Level for Ground")).toHaveValue("0");

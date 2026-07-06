@@ -1192,10 +1192,11 @@
 }
 /* left: the tray of uploaded pages */
 .dstudio .ds-tray {
-  flex: 0 0 190px;
+  flex: 0 0 168px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  align-items: center;
   max-height: 560px;
   overflow-y: auto;
   padding: 12px;
@@ -1204,6 +1205,7 @@
   background: #f7f8fa;
 }
 .dstudio .ds-tray-head {
+  align-self: flex-start;
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.05em;
@@ -1221,7 +1223,16 @@
   font-weight: 700;
   color: var(--teal-d);
 }
-.dstudio .ds-tray-card {
+.dstudio .ds-tray.live {
+  border-color: rgba(0, 163, 137, 0.5);
+  border-style: dashed;
+}
+
+/* the plan card — one shared unit for the tray and every floor in the yard:
+   image with its title directly underneath, and it's the draggable thing */
+.dstudio .ds-plancard {
+  flex: 0 0 auto;
+  width: 132px;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -1233,31 +1244,53 @@
   box-shadow: 0 1px 2px rgba(10, 12, 20, 0.05);
   transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
 }
-.dstudio .ds-tray-card:hover {
+.dstudio .ds-plancard:hover {
   transform: translateY(-2px);
   border-color: rgba(0, 229, 192, 0.5);
   box-shadow: 0 12px 26px -16px rgba(10, 12, 20, 0.3);
 }
-.dstudio .ds-tray-card:active {
+.dstudio .ds-plancard:active {
   cursor: grabbing;
 }
-.dstudio .ds-tray.live {
-  border-color: rgba(0, 163, 137, 0.5);
-  border-style: dashed;
+.dstudio .ds-plancard-thumb {
+  position: relative;
 }
-.dstudio .ds-tray-card img {
+.dstudio .ds-plancard-thumb img {
   width: 100%;
-  height: 78px;
+  height: 88px;
   object-fit: cover;
   object-position: top;
   border-radius: 8px;
   background: #eef0f4;
   pointer-events: none;
+  display: block;
 }
-.dstudio .ds-tray-name {
+.dstudio .ds-plancard-x {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: rgba(10, 12, 20, 0.6);
+  color: #fff;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.dstudio .ds-plancard:hover .ds-plancard-x {
+  opacity: 1;
+}
+.dstudio .ds-plancard-x:hover {
+  background: var(--red);
+}
+.dstudio .ds-plancard-name {
   font-size: 12px;
   font-weight: 700;
   color: var(--ink);
+  text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1353,144 +1386,92 @@
   background: rgba(0, 229, 192, 0.12);
 }
 
-/* floor card in the yard — compact single row */
-.dstudio .ds-floorcard {
+/* a level in the yard — a level tag on the left + the plan card(s) at it */
+.dstudio .ds-level {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 12px;
+  padding: 10px 12px;
   border: 1px solid var(--ds-border);
-  border-radius: 14px;
+  border-radius: 16px;
   background: #fff;
   box-shadow: 0 1px 2px rgba(10, 12, 20, 0.05);
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color 0.15s, background 0.15s;
 }
-.dstudio .ds-floorcard:hover {
-  border-color: rgba(0, 229, 192, 0.45);
-  box-shadow: 0 12px 26px -18px rgba(10, 12, 20, 0.3);
-}
-.dstudio .ds-floorcard.targetable {
+.dstudio .ds-level.targetable {
   border-style: dashed;
   border-color: rgba(0, 163, 137, 0.55);
 }
-.dstudio .ds-floorcard.targetable:hover {
+.dstudio .ds-level.targetable:hover {
   border-style: solid;
   border-color: var(--teal-d);
-  background: rgba(0, 229, 192, 0.12);
-  box-shadow: none;
+  background: rgba(0, 229, 192, 0.1);
 }
-.dstudio .ds-floorcard.existing {
+.dstudio .ds-level.existing {
   background: #f7f8fa;
 }
-.dstudio .ds-floorcard.sub {
+.dstudio .ds-level.sub {
   background: #f3f4f8;
 }
-/* full-height grab rail — the obvious "move this floor" handle */
-.dstudio .ds-floorcard-handle {
+.dstudio .ds-level-tag {
   flex: 0 0 auto;
-  align-self: stretch;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 3px;
-  width: 26px;
-  margin: -8px 2px -8px -12px;
-  border-radius: 14px 0 0 14px;
-  color: var(--gray400);
-  background: rgba(10, 12, 20, 0.03);
-  cursor: grab;
-  transition: background 0.15s, color 0.15s;
+  min-width: 58px;
 }
-.dstudio .ds-floorcard-handle:hover {
-  background: rgba(0, 229, 192, 0.16);
-  color: var(--teal-d);
-}
-.dstudio .ds-floorcard-handle:active {
-  cursor: grabbing;
-}
-/* the icons must not capture the press or the SVG hijacks the drag */
-.dstudio .ds-floorcard-handle svg {
-  pointer-events: none;
-}
-.dstudio .ds-floorcard-handle svg + svg {
-  margin-top: -8px;
+.dstudio .ds-level-tag .ds-floor-lvl {
+  font-size: 14px;
+  font-weight: 800;
 }
 .dstudio .ds-floor-lvl-select {
   flex: 0 0 auto;
   min-width: 58px;
-  height: 28px;
+  height: 30px;
   padding: 0 6px;
   border-radius: 9px;
   border: 1px solid rgba(0, 163, 137, 0.45);
   background: var(--ink);
   color: #fff;
-  font: 800 11px var(--font);
+  font: 800 12px var(--font);
   cursor: pointer;
 }
-.dstudio .ds-floorcard-sheets {
+.dstudio .ds-level-cards {
   flex: 1;
   min-width: 0;
   display: flex;
-  align-items: center;
-  gap: 6px;
+  align-items: flex-start;
+  gap: 10px;
   flex-wrap: wrap;
-  min-height: 48px;
 }
-.dstudio .ds-floorcard-empty {
+.dstudio .ds-level-empty {
   font-size: 11.5px;
   font-weight: 600;
   color: var(--gray400);
   font-style: italic;
+  padding: 30px 0;
 }
-.dstudio .ds-floorcard-sheet {
-  position: relative;
-  cursor: grab;
-}
-.dstudio .ds-floorcard-sheet:active {
-  cursor: grabbing;
-}
-.dstudio .ds-floorcard-sheet img {
-  width: 72px;
-  height: 48px;
-  object-fit: cover;
-  object-position: top;
-  border-radius: 7px;
-  border: 1px solid var(--ds-border);
-  background: #eef0f4;
-  pointer-events: none;
-}
-.dstudio .ds-floorcard-x {
-  position: absolute;
-  top: 3px;
-  right: 3px;
+.dstudio .ds-groundline {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  border-radius: 6px;
-  background: rgba(10, 12, 20, 0.6);
-  color: #fff;
-  opacity: 0;
-  transition: opacity 0.15s;
+  gap: 12px;
+  padding: 8px 4px;
 }
-.dstudio .ds-floorcard-sheet:hover .ds-floorcard-x {
-  opacity: 1;
+.dstudio .ds-groundline span {
+  flex: 1;
+  height: 2px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--gray500) 0 8px,
+    transparent 8px 14px
+  );
 }
-.dstudio .ds-floorcard-x:hover {
-  background: var(--red);
-}
-.dstudio .ds-floorcard-name {
-  flex: 0 1 auto;
-  max-width: 40%;
-  font-size: 13px;
+.dstudio .ds-groundline b {
+  font-size: 10px;
   font-weight: 800;
-  letter-spacing: -0.01em;
-  color: var(--ink);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--gray500);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .dstudio .ds-groundline {
   display: flex;

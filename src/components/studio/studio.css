@@ -1286,59 +1286,41 @@
   color: var(--gray400);
   padding: 4px 0;
 }
-/* drop slots between floors — quiet until a drag starts, then they light up
-   labelled with the level a drop would create */
-.dstudio .ds-yard-gap {
-  height: 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 6px;
+/* drop slots between floors — a thin spacer until a drag starts, then each
+   expands into a big rectangular drop card that fills soft green on hover */
+.dstudio .ds-dropzone {
+  height: 8px;
   transition: height 0.15s;
 }
-.dstudio .ds-yard-gap .ds-yard-gap-line {
-  flex: 1;
-  height: 3px;
-  border-radius: 999px;
-  transition: background 0.12s;
-}
-.dstudio .ds-yard-gap .ds-yard-gap-chip {
+.dstudio .ds-dropzone .ds-dropzone-inner {
   display: none;
-  font-size: 10.5px;
+}
+.dstudio .ds-dropzone.live {
+  height: auto;
+  min-height: 52px;
+  margin: 5px 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed rgba(0, 163, 137, 0.4);
+  border-radius: 13px;
+  background: rgba(0, 229, 192, 0.04);
+  transition: background 0.12s, border-color 0.12s, transform 0.12s;
+}
+.dstudio .ds-dropzone.live .ds-dropzone-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
   font-weight: 800;
   color: var(--teal-d);
-  background: rgba(0, 229, 192, 0.14);
-  border: 1px dashed rgba(0, 163, 137, 0.5);
-  border-radius: 999px;
-  padding: 2px 10px;
-  white-space: nowrap;
   pointer-events: none;
 }
-.dstudio .ds-yard-gap.live {
-  height: 30px;
-}
-.dstudio .ds-yard-gap.live .ds-yard-gap-chip {
-  display: inline-flex;
-}
-.dstudio .ds-yard-gap.live .ds-yard-gap-line {
-  background: repeating-linear-gradient(
-    90deg,
-    rgba(0, 163, 137, 0.45) 0 7px,
-    transparent 7px 13px
-  );
-}
-.dstudio .ds-yard-gap.live:hover .ds-yard-gap-line,
-.dstudio .ds-yard-gap:hover .ds-yard-gap-line {
-  background: repeating-linear-gradient(
-    90deg,
-    var(--teal-d) 0 7px,
-    transparent 7px 13px
-  );
-}
-.dstudio .ds-yard-gap.live:hover .ds-yard-gap-chip {
-  background: var(--teal);
-  color: #053b34;
+.dstudio .ds-dropzone.live:hover {
   border-style: solid;
+  border-color: var(--teal-d);
+  background: rgba(0, 229, 192, 0.16);
+  transform: scale(1.01);
 }
 .dstudio .ds-yard-first {
   display: flex;
@@ -1391,6 +1373,12 @@
 .dstudio .ds-floorcard.targetable {
   border-style: dashed;
   border-color: rgba(0, 163, 137, 0.55);
+}
+.dstudio .ds-floorcard.targetable:hover {
+  border-style: solid;
+  border-color: var(--teal-d);
+  background: rgba(0, 229, 192, 0.12);
+  box-shadow: none;
 }
 .dstudio .ds-floorcard.existing {
   background: #f7f8fa;

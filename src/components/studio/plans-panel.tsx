@@ -608,15 +608,14 @@ function FloorStackBuilder({
   const gap = (anchorKey: string, side: "above" | "below", key: string) => (
     <div
       key={key}
-      className={`ds-yard-gap${dragging ? " live" : ""}`}
+      className={`ds-dropzone${dragging ? " live" : ""}`}
       onDragOver={allow}
       onDrop={dropAt(anchorKey, side)}
     >
-      <span className="ds-yard-gap-line" />
-      <span className="ds-yard-gap-chip">
-        + {formatLevel(previewInsertLevel(rows, anchorKey, side))}
+      <span className="ds-dropzone-inner">
+        <Icon name="plus" size={13} />
+        New floor · {formatLevel(previewInsertLevel(rows, anchorKey, side))}
       </span>
-      <span className="ds-yard-gap-line" />
     </div>
   );
 

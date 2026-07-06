@@ -88,7 +88,7 @@ const floorCard = (name: string) =>
 const gapAbove = (name: string) =>
   floorCard(name).previousElementSibling as HTMLElement;
 const subfloorGap = () => {
-  const gaps = document.querySelectorAll(".ds-yard .ds-yard-gap");
+  const gaps = document.querySelectorAll(".ds-yard .ds-dropzone");
   return gaps[gaps.length - 1] as HTMLElement;
 };
 const dropPage = (el: Element, idx: number) => fireEvent.drop(el, dropPayload(`p:${idx}`));

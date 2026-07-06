@@ -199,7 +199,8 @@ function Home({
   onDelete: (id: string) => void;
   onImport: (doc: DesignDocument) => void;
 }) {
-  const [choosing, setChoosing] = useState(false);
+  // new-design wizard: name the job first, then choose how to start
+  const [step, setStep] = useState<null | "name" | "mode">(null);
   const [name, setName] = useState("");
   const [query, setQuery] = useState("");
   const [armedDelete, setArmedDelete] = useState<string | null>(null);
@@ -210,8 +211,13 @@ function Home({
     r.name.toLowerCase().includes(query.trim().toLowerCase())
   );
 
+  const trimmed = name.trim();
+  const cancel = () => {
+    setStep(null);
+    setName("");
+  };
   const create = (mode: "plan" | "blank") =>
-    onCreate(name.trim() || "Untitled design", mode);
+    onCreate(trimmed || "Untitled design", mode);
 
   const importFile = async (file: File) => {
     setImportError(null);
@@ -230,11 +236,12 @@ function Home({
   return (
     <div className="ds-home stgp">
       <section className="ds-hero">
-        {choosing ? (
+        {step === "name" ? (
           <>
-            <h3 className="ds-hero-etitle">Start a new design</h3>
+            <span className="ds-hero-step">Step 1 of 2</span>
+            <h3 className="ds-hero-etitle">Name your design</h3>
             <p className="ds-hero-esub">
-              Name the job, then pick how you want to work.
+              Give the job a name — you&apos;ll choose how to start next.
             </p>
             <input
               className="ds-name-input"
@@ -242,16 +249,41 @@ function Home({
               value={name}
               autoFocus
               onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => e.key === "Escape" && setChoosing(false)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && trimmed) setStep("mode");
+                if (e.key === "Escape") cancel();
+              }}
             />
+            <div className="ds-hero-nav">
+              <button className="ds-hero-back" onClick={cancel}>
+                <Icon name="chevL" size={14} />
+                Cancel
+              </button>
+              <button
+                className="ds-cta sm"
+                disabled={!trimmed}
+                onClick={() => setStep("mode")}
+              >
+                Continue
+                <Icon name="chevR" size={16} />
+              </button>
+            </div>
+          </>
+        ) : step === "mode" ? (
+          <>
+            <span className="ds-hero-step">Step 2 of 2</span>
+            <h3 className="ds-hero-etitle">How do you want to start?</h3>
+            <p className="ds-hero-esub">
+              Designing <b>{trimmed}</b>
+            </p>
             <div className="ds-opts">
               <button className="ds-opt" onClick={() => create("plan")}>
                 <span className="ds-opt-ic">
                   <Icon name="file" size={20} />
                 </span>
-                <span className="ds-opt-n">Floor plans</span>
+                <span className="ds-opt-n">Upload floor plans</span>
                 <span className="ds-opt-d">
-                  Upload PDF or image plans, calibrate the scale and design to
+                  Bring in PDF or image plans, calibrate the scale and design to
                   size on the real drawing.
                 </span>
               </button>
@@ -266,7 +298,7 @@ function Home({
                 </span>
               </button>
             </div>
-            <button className="ds-hero-back" onClick={() => setChoosing(false)}>
+            <button className="ds-hero-back" onClick={() => setStep("name")}>
               <Icon name="chevL" size={14} />
               Back
             </button>
@@ -286,7 +318,7 @@ function Home({
               Splits, ducted, VRF and ventilation — designed on calibrated
               plans, validated live, with the materials list built for you.
             </p>
-            <button className="ds-cta" onClick={() => setChoosing(true)}>
+            <button className="ds-cta" onClick={() => setStep("name")}>
               <Icon name="plus" size={18} />
               New design
             </button>

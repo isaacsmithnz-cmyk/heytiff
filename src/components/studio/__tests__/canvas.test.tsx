@@ -17,6 +17,8 @@ async function openBlankDesignOnCanvas() {
   const user = userEvent.setup();
   render(localStudio());
   await user.click(await screen.findByText("New design"));
+  await user.type(screen.getByPlaceholderText(/Design name/), "Canvas test");
+  await user.click(screen.getByRole("button", { name: /Continue/ }));
   await user.click(screen.getByText("Blank canvas"));
   await user.click(screen.getByRole("button", { name: "2 Design" }));
   const canvas = screen.getByTestId("studio-canvas");

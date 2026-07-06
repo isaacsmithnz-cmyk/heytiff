@@ -15,6 +15,18 @@ const localStudio = () => (
   <Studio store={new LocalDesignStore(window.localStorage)} />
 );
 
+/* new-design wizard: name first (step 1), then pick a mode (step 2) */
+async function newDesign(
+  user: ReturnType<typeof userEvent.setup>,
+  name: string,
+  mode: "Blank canvas" | "Upload floor plans"
+) {
+  await user.click(await screen.findByText("New design"));
+  await user.type(screen.getByPlaceholderText(/Design name/), name);
+  await user.click(screen.getByRole("button", { name: /Continue/ }));
+  await user.click(screen.getByText(mode));
+}
+
 describe("Design Studio shell", () => {
   beforeEach(() => window.localStorage.clear());
 
@@ -25,16 +37,34 @@ describe("Design Studio shell", () => {
     expect(screen.getByText("No designs yet")).toBeInTheDocument();
   });
 
-  it("creates a blank-canvas design, autosaves it, and steps through stages", async () => {
+  it("the new-design wizard names first, then reveals the mode choice", async () => {
     const user = userEvent.setup();
     render(localStudio());
 
     await user.click(await screen.findByText("New design"));
-    await user.type(
-      screen.getByPlaceholderText(/Design name/),
-      "12 Test Street"
-    );
-    await user.click(screen.getByText("Blank canvas"));
+    // step 1: naming — mode cards are NOT shown yet, Continue is gated on a name
+    expect(screen.getByText("Step 1 of 2")).toBeInTheDocument();
+    expect(screen.queryByText("Blank canvas")).toBeNull();
+    expect(screen.getByRole("button", { name: /Continue/ })).toBeDisabled();
+
+    await user.type(screen.getByPlaceholderText(/Design name/), "Farran St");
+    expect(screen.getByRole("button", { name: /Continue/ })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: /Continue/ }));
+
+    // step 2: the mode choice, with the name carried through
+    expect(screen.getByText("Step 2 of 2")).toBeInTheDocument();
+    expect(screen.getByText("Blank canvas")).toBeInTheDocument();
+    expect(screen.getByText("Farran St")).toBeInTheDocument();
+    // back returns to naming with the name intact
+    await user.click(screen.getByRole("button", { name: /Back/ }));
+    expect(screen.getByPlaceholderText(/Design name/)).toHaveValue("Farran St");
+  });
+
+  it("creates a blank-canvas design, autosaves it, and steps through stages", async () => {
+    const user = userEvent.setup();
+    render(localStudio());
+
+    await newDesign(user, "12 Test Street", "Blank canvas");
 
     // editor chrome: stepper + named design + Plans panel with default floor
     expect(screen.getByLabelText("Design name")).toHaveValue("12 Test Street");
@@ -65,8 +95,7 @@ describe("Design Studio shell", () => {
   it("recovers saved designs on a fresh mount (reload survival)", async () => {
     const user = userEvent.setup();
     const first = render(localStudio());
-    await user.click(await screen.findByText("New design"));
-    await user.click(screen.getByText("Blank canvas"));
+    await newDesign(user, "Recovery job", "Blank canvas");
     await waitFor(
       () =>
         expect(
@@ -78,9 +107,9 @@ describe("Design Studio shell", () => {
 
     // fresh mount = page reload; the design must be in recents and reopenable
     render(localStudio());
-    const card = await screen.findByText("Untitled design");
+    const card = await screen.findByText("Recovery job");
     await user.click(card.closest(".ds-rcard") as HTMLElement);
-    expect(screen.getByLabelText("Design name")).toHaveValue("Untitled design");
+    expect(screen.getByLabelText("Design name")).toHaveValue("Recovery job");
     expect(screen.getByDisplayValue("Ground floor")).toBeInTheDocument();
   });
 });

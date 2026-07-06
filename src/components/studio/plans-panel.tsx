@@ -778,21 +778,23 @@ function FloorCard({
     <div
       className={`ds-floorcard${row.floorId ? " existing" : ""}${level < 0 ? " sub" : ""}${targetable ? " targetable" : ""}`}
       data-floor={row.name}
+      data-rowkey={row.key}
       onDragOver={allow}
       onDrop={onDropFloor}
     >
-      {/* only the grip moves the whole floor — the card itself must not be
+      {/* the handle moves the whole floor — the card itself must not be
           draggable or it steals drags from the individual sheets inside it */}
       {isNew && (
         <span
-          className="ds-floorcard-grip"
+          className="ds-floorcard-handle"
           draggable
           aria-label={`Move ${row.name}`}
           title="Drag to move this floor"
           onDragStart={onStartDrag(`r:${row.key}`, "row")}
           onDragEnd={onEndDrag}
         >
-          <Icon name="dots" size={13} />
+          <Icon name="dots" size={14} />
+          <Icon name="dots" size={14} />
         </span>
       )}
       {row.anchorLevel !== undefined ? (

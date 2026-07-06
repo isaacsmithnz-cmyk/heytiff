@@ -1319,8 +1319,7 @@
 .dstudio .ds-dropzone.live:hover {
   border-style: solid;
   border-color: var(--teal-d);
-  background: rgba(0, 229, 192, 0.16);
-  transform: scale(1.01);
+  background: rgba(0, 229, 192, 0.18);
 }
 .dstudio .ds-yard-first {
   display: flex;
@@ -1386,23 +1385,36 @@
 .dstudio .ds-floorcard.sub {
   background: #f3f4f8;
 }
-.dstudio .ds-floorcard-grip {
+/* full-height grab rail — the obvious "move this floor" handle */
+.dstudio .ds-floorcard-handle {
   flex: 0 0 auto;
+  align-self: stretch;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 30px;
-  border-radius: 7px;
+  gap: 3px;
+  width: 26px;
+  margin: -8px 2px -8px -12px;
+  border-radius: 14px 0 0 14px;
   color: var(--gray400);
+  background: rgba(10, 12, 20, 0.03);
   cursor: grab;
+  transition: background 0.15s, color 0.15s;
 }
-.dstudio .ds-floorcard-grip:hover {
-  background: #f0f1f4;
-  color: var(--ink);
+.dstudio .ds-floorcard-handle:hover {
+  background: rgba(0, 229, 192, 0.16);
+  color: var(--teal-d);
 }
-.dstudio .ds-floorcard-grip:active {
+.dstudio .ds-floorcard-handle:active {
   cursor: grabbing;
+}
+/* the icons must not capture the press or the SVG hijacks the drag */
+.dstudio .ds-floorcard-handle svg {
+  pointer-events: none;
+}
+.dstudio .ds-floorcard-handle svg + svg {
+  margin-top: -8px;
 }
 .dstudio .ds-floor-lvl-select {
   flex: 0 0 auto;

@@ -240,6 +240,32 @@ describe("installer scenarios: upload → floors", () => {
     expect(floorCard("West").querySelector(".ds-floor-lvl")!.textContent).toBe("L1");
   });
 
+  it("a placed floor reorders by dragging its handle onto another slot", async () => {
+    pdfToPages.mockResolvedValue([page("A", 1), page("B", 2)]);
+    const user = await openPlanJob(new CountingPlanImages());
+
+    uploadPdf();
+    await user.click(await screen.findByRole("button", { name: "Page 1" }));
+    await user.click(screen.getByRole("button", { name: "Page 2" }));
+    await user.click(screen.getByRole("button", { name: /Continue with 2 pages/ }));
+    await nameFloors(user, ["Ground", "Upper"]);
+
+    dropPage(yardFirst(), 0); // Ground → GF (anchor)
+    dropPage(gapAbove("Ground"), 1); // Upper → L1
+    expect(floorCard("Upper").querySelector(".ds-floor-lvl")!.textContent).toBe("L1");
+
+    // each new floor exposes a draggable handle (not the whole card)
+    const upperHandle = floorCard("Upper").querySelector(".ds-floorcard-handle")!;
+    expect(upperHandle.getAttribute("draggable")).toBe("true");
+
+    // drag "Upper" down onto the bottom slot → it falls below ground (B1)
+    const rowKey = floorCard("Upper").getAttribute("data-rowkey")!;
+    fireEvent.drop(subfloorGap(), dropPayload(`r:${rowKey}`));
+    expect(floorCard("Upper").querySelector(".ds-floor-lvl")!.textContent).toBe("B1");
+    // Ground is the anchor, so it carries the level dropdown (still GF)
+    expect(screen.getByLabelText("Level for Ground")).toHaveValue("0");
+  });
+
   it("west wing arrives later: single page drops onto the EXISTING floor — no new floor created", async () => {
     pdfToPages.mockResolvedValue([page("GF West", 1)]);
     const fake = new CountingPlanImages();

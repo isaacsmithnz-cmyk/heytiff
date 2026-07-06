@@ -67,22 +67,21 @@ export function placeSheets(
 }
 
 /* ── The floor-stack builder ──
-   Allocation is spatial, not textual: rows read like the building, and the
-   LEVELS DERIVE FROM STACK POSITION — never typed. Empty designs get a
-   ground-line marker: rows above it are L0, L1…, rows dragged below it are
-   subfloors (B1 nearest the line). Designs with floors anchor on their
-   lowest existing floor instead, and the whole stack renumbers on commit,
-   so basements below and mezzanines between existing floors both work.
-   Pure functions here; the panel is a thin renderer. */
+   Allocation is spatial, not textual: rows read like the building, and
+   LEVELS DERIVE FROM STACK POSITION — never typed. The first plan placed on
+   a fresh design becomes the ANCHOR: its level is chosen from a dropdown
+   (ground floor by default) and every other plan numbers relative to its
+   position around it. Designs with existing floors anchor on their lowest
+   floor instead. Pure functions here; the panel is a thin renderer. */
 
 export interface BuilderRow {
   key: string;
-  /** "ground" = the ground-line marker row (empty designs only) */
-  kind: "floor" | "ground";
   /** existing floor receiving sheets, or null for a new floor */
   floorId: string | null;
   /** stored level of the existing floor (anchors renumbering) */
   level?: number;
+  /** fresh designs: the first-placed row carries the user-chosen level */
+  anchorLevel?: number;
   name: string;
   pageIdxs: number[];
 }
@@ -90,26 +89,18 @@ export interface BuilderRow {
 export const formatLevel = (n: number): string =>
   n < 0 ? `B${-n}` : n === 0 ? "GF" : `L${n}`;
 
-/** The initial stack: existing floors as fixed rows (or just the ground-line
-    marker for a fresh design). Selected pages start unplaced in the tray. */
+/** The initial stack: existing floors as fixed rows; a fresh design starts
+    empty. Selected pages start unplaced in the tray. */
 export function builderStackFromFloors(floors: Floor[]): BuilderRow[] {
-  const existing = [...floors]
+  return [...floors]
     .sort((a, b) => a.level - b.level)
     .map((f) => ({
       key: `ex_${f.id}`,
-      kind: "floor" as const,
       floorId: f.id,
       level: f.level,
       name: f.name,
       pageIdxs: [],
     }));
-  // Pages start UNPLACED (in the tray); the installer drags them into the
-  // building yard, and stack position — not the name — sets each level.
-  // A fresh design needs the ground-line marker so the first drop = ground
-  // floor; a design with existing floors anchors on its lowest floor.
-  return existing.length > 0
-    ? existing
-    : [{ key: "ground", kind: "ground" as const, floorId: null, name: "", pageIdxs: [] }];
 }
 
 /** Selected page indices not yet placed on any floor — i.e. the tray. */
@@ -118,104 +109,132 @@ export function trayPageIdxs(rows: BuilderRow[], chosen: number[]): number[] {
   return chosen.filter((i) => !placed.has(i));
 }
 
-/** Insert a page as a NEW floor directly above/below an anchor row. "above"
-    means a higher level (later in the bottom-up array); "below" a lower one.
-    Dropping above the ground marker makes the ground floor; below it, a
-    subfloor. The page is first pulled from wherever it was (tray or a row). */
+/** Position → level for every row (bottom-up input). The anchor is the
+    lowest existing floor, or the row carrying anchorLevel on fresh designs. */
+export function computeRowLevels(rows: BuilderRow[]): Map<string, number> {
+  let anchorPos = 0;
+  let anchorLevel = 0;
+  let best = -1;
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    if (r.floorId !== null && (best < 0 || (r.level ?? 0) < (rows[best].level ?? 0))) best = i;
+  }
+  if (best >= 0) {
+    anchorPos = best;
+    anchorLevel = rows[best].level ?? 0;
+  } else {
+    const a = rows.findIndex((r) => r.anchorLevel !== undefined);
+    if (a >= 0) {
+      anchorPos = a;
+      anchorLevel = rows[a].anchorLevel!;
+    }
+  }
+  const levels = new Map<string, number>();
+  rows.forEach((r, p) => levels.set(r.key, anchorLevel + (p - anchorPos)));
+  return levels;
+}
+
+/** Empty NEW rows vanish; existing floors always stay. If the anchor row
+    vanished, the lowest surviving new row inherits its computed level so the
+    rest of the stack doesn't jump. */
+function pruneRows(rows: BuilderRow[]): BuilderRow[] {
+  const levels = computeRowLevels(rows);
+  const kept = rows.filter((r) => r.floorId !== null || r.pageIdxs.length > 0);
+  const hasAnchor =
+    kept.some((r) => r.floorId !== null) ||
+    kept.some((r) => r.anchorLevel !== undefined);
+  if (!hasAnchor && kept.length > 0) {
+    return kept.map((r, i) =>
+      i === 0 ? { ...r, anchorLevel: levels.get(r.key) ?? 0 } : r
+    );
+  }
+  return kept;
+}
+
+const isMovable = (r: BuilderRow | undefined) =>
+  r !== undefined && r.floorId === null;
+
+/** Fresh designs: re-pin the anchor row's level (the dropdown). */
+export function setAnchorLevel(rows: BuilderRow[], key: string, level: number): BuilderRow[] {
+  return rows.map((r) =>
+    r.key === key
+      ? { ...r, anchorLevel: level }
+      : r.anchorLevel !== undefined
+        ? { ...r, anchorLevel: undefined }
+        : r
+  );
+}
+
+/** Insert a page as a NEW floor. anchorKey null = the first drop on an empty
+    stack (becomes the anchor at ground level). Otherwise the page lands
+    directly above/below the anchor row; the page is first pulled from
+    wherever it was (tray or another floor). */
 export function insertPageRow(
   rows: BuilderRow[],
   pageIdx: number,
   name: string,
-  anchorKey: string,
+  anchorKey: string | null,
   side: "above" | "below"
 ): BuilderRow[] {
+  const fresh: BuilderRow = {
+    key: `new_${pageIdx}_${rows.length}`,
+    floorId: null,
+    name,
+    pageIdxs: [pageIdx],
+  };
+  if (anchorKey === null) {
+    if (rows.some((r) => r.floorId !== null || r.pageIdxs.length > 0)) return rows;
+    return [{ ...fresh, anchorLevel: 0 }];
+  }
   const cleared = pruneRows(
     rows.map((r) => ({ ...r, pageIdxs: r.pageIdxs.filter((i) => i !== pageIdx) }))
   );
   const anchorIdx = cleared.findIndex((r) => r.key === anchorKey);
   if (anchorIdx < 0) return rows;
   const next = [...cleared];
-  next.splice(side === "above" ? anchorIdx + 1 : anchorIdx, 0, {
-    key: `new_${pageIdx}_${rows.length}`,
-    kind: "floor",
-    floorId: null,
-    name,
-    pageIdxs: [pageIdx],
-  });
+  next.splice(side === "above" ? anchorIdx + 1 : anchorIdx, 0, fresh);
   return next;
 }
 
-/** Position → level for every floor row (bottom-up input). */
-export function computeRowLevels(rows: BuilderRow[]): Map<string, number> {
-  const floorsOnly = rows.filter((r) => r.kind === "floor");
-  const markerIdx = rows.findIndex((r) => r.kind === "ground");
-  let anchorPos: number;
-  let anchorLevel: number;
-  if (markerIdx >= 0) {
-    // rows below the marker are basements; first row above it is L0
-    anchorPos = rows.slice(0, markerIdx).filter((r) => r.kind === "floor").length;
-    anchorLevel = 0;
-  } else {
-    // lowest existing floor keeps its stored level; everything renumbers around it
-    let best = -1;
-    for (let i = 0; i < floorsOnly.length; i++) {
-      const r = floorsOnly[i];
-      if (r.floorId !== null && (best < 0 || (r.level ?? 0) < (floorsOnly[best].level ?? 0)))
-        best = i;
-    }
-    anchorPos = Math.max(best, 0);
-    anchorLevel = best >= 0 ? (floorsOnly[best].level ?? 0) : 0;
-  }
-  const levels = new Map<string, number>();
-  floorsOnly.forEach((r, p) => levels.set(r.key, anchorLevel + (p - anchorPos)));
-  return levels;
+/** What level would a drop at this slot produce? Drives the live drop-zone
+    chips while dragging. */
+export function previewInsertLevel(
+  rows: BuilderRow[],
+  anchorKey: string | null,
+  side: "above" | "below"
+): number {
+  const sim = insertPageRow(rows, -1, "", anchorKey, side);
+  const row = sim.find((r) => r.pageIdxs.includes(-1));
+  if (!row) return 0;
+  return computeRowLevels(sim).get(row.key) ?? 0;
 }
 
-/** Empty NEW rows vanish; existing floors and the marker always stay. */
-function pruneRows(rows: BuilderRow[]): BuilderRow[] {
-  return rows.filter(
-    (r) => r.kind === "ground" || r.floorId !== null || r.pageIdxs.length > 0
-  );
-}
-
-const isMovable = (r: BuilderRow | undefined) =>
-  r !== undefined && r.kind === "floor" && r.floorId === null;
-
-/** Drop row `key` onto `targetKey`: it lands directly above the target —
-    except the ground marker, where it lands directly below (top subfloor). */
-export function dropRowOnRow(
+/** Move a placed row so it lands directly above/below the anchor row. */
+export function dropRowAt(
   rows: BuilderRow[],
   key: string,
-  targetKey: string
+  anchorKey: string,
+  side: "above" | "below"
 ): BuilderRow[] {
-  if (key === targetKey) return rows;
+  if (key === anchorKey) return rows;
   const row = rows.find((r) => r.key === key);
   if (!isMovable(row)) return rows;
   const without = rows.filter((r) => r.key !== key);
-  const t = without.findIndex((r) => r.key === targetKey);
+  const t = without.findIndex((r) => r.key === anchorKey);
   if (t < 0) return rows;
-  const insertAt = without[t].kind === "ground" ? t : t + 1;
   const next = [...without];
-  next.splice(insertAt, 0, row!);
+  next.splice(side === "above" ? t + 1 : t, 0, row!);
   return next;
 }
 
-/** Drop a row on the top zone: it becomes the highest floor. */
-export function dropRowOnTop(rows: BuilderRow[], key: string): BuilderRow[] {
-  const row = rows.find((r) => r.key === key);
-  if (!isMovable(row)) return rows;
-  return [...rows.filter((r) => r.key !== key), row!];
-}
-
-/** Merge a page onto an existing floor row as a second sheet (east/west
-    split). Ground / position drops go through insertPageRow instead. */
+/** Merge a page onto a floor row as a second sheet (east/west split). */
 export function dropPageOnRow(
   rows: BuilderRow[],
   pageIdx: number,
   targetKey: string
 ): BuilderRow[] {
   const target = rows.find((r) => r.key === targetKey);
-  if (!target || target.kind !== "floor") return rows;
+  if (!target) return rows;
   return pruneRows(
     rows.map((r) => ({
       ...r,
@@ -243,15 +262,11 @@ export function applyBuilderRows(
   floors: Floor[]
 ): Floor[] {
   const pruned = rows.filter(
-    (r) =>
-      r.kind === "ground" ||
-      r.floorId !== null ||
-      r.pageIdxs.some((i) => uploads.has(i))
+    (r) => r.floorId !== null || r.pageIdxs.some((i) => uploads.has(i))
   );
   const levels = computeRowLevels(pruned);
   const result: Floor[] = [];
   for (const row of pruned) {
-    if (row.kind !== "floor") continue;
     const level = levels.get(row.key) ?? 0;
     const sheets = row.pageIdxs
       .map((i) => uploads.get(i))

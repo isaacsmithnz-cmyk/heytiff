@@ -7,12 +7,13 @@ import {
   builderStackFromFloors,
   computeRowLevels,
   dropPageOnRow,
-  dropRowOnRow,
-  dropRowOnTop,
+  dropRowAt,
   formatLevel,
   insertPageRow,
   labelPagesSequentially,
+  previewInsertLevel,
   removePageFromRows,
+  setAnchorLevel,
   trayPageIdxs,
   placeSheets,
   type PageImage,
@@ -63,43 +64,63 @@ describe("sheet placement + allocation", () => {
     expect(formatLevel(-2)).toBe("B2");
   });
 
-  it("fresh designs start with just the ground line and every page in the tray", () => {
+  it("fresh designs start empty with every page in the tray", () => {
     const rows = builderStackFromFloors([]);
-    expect(rows.map((r) => r.kind)).toEqual(["ground"]);
+    expect(rows).toEqual([]);
     expect(trayPageIdxs(rows, [0, 1, 2])).toEqual([0, 1, 2]);
   });
 
-  it("first page placed above the ground line becomes the ground floor; next above = L1", () => {
-    let rows = builderStackFromFloors([]);
-    rows = insertPageRow(rows, 0, "Ground floor", "ground", "above");
-    const gfKey = rows.find((r) => r.name === "Ground floor")!.key;
+  it("the first placed plan anchors at ground floor; above it counts up", () => {
+    let rows = insertPageRow([], 0, "Ground floor", null, "above");
+    expect(rows[0].anchorLevel).toBe(0);
+    const gfKey = rows[0].key;
     rows = insertPageRow(rows, 1, "Level 1", gfKey, "above");
     const levels = computeRowLevels(rows);
-    expect(levels.get(gfKey)).toBe(0); // GF
+    expect(levels.get(gfKey)).toBe(0);
     expect(levels.get(rows.find((r) => r.name === "Level 1")!.key)).toBe(1);
-    // both pages now placed → tray empty
     expect(trayPageIdxs(rows, [0, 1])).toEqual([]);
   });
 
-  it("placing below the ground line makes subfloors (B1, B2…)", () => {
-    let rows = builderStackFromFloors([]);
-    rows = insertPageRow(rows, 0, "Ground floor", "ground", "above");
-    rows = insertPageRow(rows, 1, "Basement", "ground", "below"); // just under the line
-    rows = insertPageRow(rows, 2, "Carpark", "ground", "below");
+  it("the anchor dropdown re-pins the whole stack (first plan set to L1)", () => {
+    let rows = insertPageRow([], 0, "First floor", null, "above");
+    const key = rows[0].key;
+    rows = insertPageRow(rows, 1, "Above", key, "above");
+    rows = setAnchorLevel(rows, key, 1);
+    const levels = computeRowLevels(rows);
+    expect(levels.get(key)).toBe(1); // L1
+    expect(levels.get(rows.find((r) => r.name === "Above")!.key)).toBe(2); // L2
+  });
+
+  it("placing below the anchor makes subfloors (B1, B2…)", () => {
+    let rows = insertPageRow([], 0, "Ground floor", null, "above");
+    const gfKey = rows[0].key;
+    rows = insertPageRow(rows, 1, "Basement", gfKey, "below");
+    rows = insertPageRow(rows, 2, "Carpark", gfKey, "below");
     const levels = computeRowLevels(rows);
     const byName = (n: string) => levels.get(rows.find((r) => r.name === n)!.key);
     expect(byName("Ground floor")).toBe(0);
-    // each "below the line" drop pushes the earlier basement deeper
+    // each "directly below the anchor" drop pushes the earlier basement deeper
     expect(byName("Carpark")).toBe(-1);
     expect(byName("Basement")).toBe(-2);
   });
 
+  it("previewInsertLevel labels every drop slot with the level it would create", () => {
+    expect(previewInsertLevel([], null, "above")).toBe(0); // first drop = GF
+    let rows = insertPageRow([], 0, "Ground floor", null, "above");
+    const gfKey = rows[0].key;
+    expect(previewInsertLevel(rows, gfKey, "above")).toBe(1); // slot above GF
+    expect(previewInsertLevel(rows, gfKey, "below")).toBe(-1); // slot below GF
+    rows = insertPageRow(rows, 1, "Level 1", gfKey, "above");
+    const l1Key = rows.find((r) => r.name === "Level 1")!.key;
+    expect(previewInsertLevel(rows, l1Key, "above")).toBe(2);
+    // previewing never mutates: the real stack is unchanged
+    expect(rows.filter((r) => r.pageIdxs.includes(-1))).toHaveLength(0);
+  });
+
   it("two pages merged onto one floor become sheets of it (east/west split)", () => {
-    let rows = builderStackFromFloors([]);
-    rows = insertPageRow(rows, 0, "Level 1", "ground", "above");
-    const key = rows.find((r) => r.name === "Level 1")!.key;
-    rows = dropPageOnRow(rows, 1, key); // West merged onto the Level 1 card
-    expect(rows.filter((r) => r.kind === "floor")).toHaveLength(1);
+    let rows = insertPageRow([], 0, "Level 1", null, "above");
+    rows = dropPageOnRow(rows, 1, rows[0].key); // West merged onto the card
+    expect(rows).toHaveLength(1);
     const floors = applyBuilderRows(
       rows,
       uploadsFor([sheet("Level 1 East", 2), sheet("Level 1 West", 3)], [0, 1]),
@@ -114,9 +135,8 @@ describe("sheet placement + allocation", () => {
   it("existing floors anchor the numbering; placing below the lowest makes a basement", () => {
     const doc = createDesign({ name: "x", mode: "blank" }); // Ground @ L0
     let rows = builderStackFromFloors(doc.floors);
-    expect(rows.find((r) => r.kind === "ground")).toBeUndefined();
-    const gfKey = rows[0].key;
-    rows = insertPageRow(rows, 0, "Basement plan", gfKey, "below");
+    expect(rows[0].floorId).toBe(doc.floors[0].id);
+    rows = insertPageRow(rows, 0, "Basement plan", rows[0].key, "below");
     const floors = applyBuilderRows(
       rows,
       uploadsFor([sheet("Basement plan", 9)], [0]),
@@ -150,8 +170,7 @@ describe("sheet placement + allocation", () => {
   });
 
   it("name is display-only: a floor named 'Ground floor' placed at the top stays L2", () => {
-    let rows = builderStackFromFloors([]);
-    rows = insertPageRow(rows, 0, "Real ground", "ground", "above");
+    let rows = insertPageRow([], 0, "Real ground", null, "above");
     rows = insertPageRow(rows, 1, "Mid", rows.find((r) => r.name === "Real ground")!.key, "above");
     // mislabelled page dropped at the very top
     rows = insertPageRow(rows, 2, "Ground floor", rows.find((r) => r.name === "Mid")!.key, "above");
@@ -164,30 +183,32 @@ describe("sheet placement + allocation", () => {
     expect(top.level).toBe(2); // position wins; the name is just a label
   });
 
-  it("dragging a placed floor to the tray un-places it; only placed pages import", () => {
-    let rows = builderStackFromFloors([]);
-    rows = insertPageRow(rows, 0, "Ground floor", "ground", "above");
-    rows = insertPageRow(rows, 1, "Roof", rows.find((r) => r.name === "Ground floor")!.key, "above");
-    expect(trayPageIdxs(rows, [0, 1])).toEqual([]);
-    rows = removePageFromRows(rows, 1); // Roof back to the tray
-    expect(trayPageIdxs(rows, [0, 1])).toEqual([1]);
-    const floors = applyBuilderRows(
-      rows,
-      uploadsFor([sheet("a", 1), sheet("b", 2)], [0, 1]),
-      []
-    );
-    expect(floors.map((f) => f.name)).toEqual(["Ground floor"]); // Roof not imported
+  it("removing the anchor promotes the lowest survivor so levels don't jump", () => {
+    let rows = insertPageRow([], 0, "Ground floor", null, "above");
+    rows = insertPageRow(rows, 1, "Level 1", rows[0].key, "above");
+    rows = removePageFromRows(rows, 0); // pull the anchor back to the tray
+    expect(rows).toHaveLength(1);
+    expect(computeRowLevels(rows).get(rows[0].key)).toBe(1); // Level 1 stays L1
+    expect(rows[0].anchorLevel).toBe(1);
+    expect(trayPageIdxs(rows, [0, 1])).toEqual([0]);
   });
 
-  it("placed floors still reorder by drag (row moves)", () => {
-    let rows = builderStackFromFloors([]);
-    rows = insertPageRow(rows, 0, "A", "ground", "above");
+  it("placed floors reorder by drag; the anchor keeps its pinned level", () => {
+    let rows = insertPageRow([], 0, "A", null, "above"); // anchor GF
     rows = insertPageRow(rows, 1, "B", rows.find((r) => r.name === "A")!.key, "above");
     rows = insertPageRow(rows, 2, "C", rows.find((r) => r.name === "B")!.key, "above");
-    // move A above C
-    rows = dropRowOnRow(rows, rows.find((r) => r.name === "A")!.key, rows.find((r) => r.name === "C")!.key);
-    expect(rows.filter((r) => r.kind === "floor").map((r) => r.name)).toEqual(["B", "C", "A"]);
-    rows = dropRowOnTop(rows, rows.find((r) => r.name === "B")!.key);
-    expect(rows.filter((r) => r.kind === "floor").map((r) => r.name)).toEqual(["C", "A", "B"]);
+    // move A (the anchor) above C: A stays GF, the rest fall below ground
+    rows = dropRowAt(rows, rows.find((r) => r.name === "A")!.key, rows.find((r) => r.name === "C")!.key, "above");
+    const levels = computeRowLevels(rows);
+    const byName = (n: string) => levels.get(rows.find((r) => r.name === n)!.key);
+    expect(byName("A")).toBe(0);
+    expect(byName("C")).toBe(-1);
+    expect(byName("B")).toBe(-2);
+  });
+
+  it("unplaced/removed pages are simply not imported", () => {
+    let rows = insertPageRow([], 0, "Roof", null, "above");
+    rows = removePageFromRows(rows, 0);
+    expect(applyBuilderRows(rows, uploadsFor([sheet("Roof", 5)], [0]), [])).toEqual([]);
   });
 });

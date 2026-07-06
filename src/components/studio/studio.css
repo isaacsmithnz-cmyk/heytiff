@@ -1241,9 +1241,13 @@
 .dstudio .ds-tray-card:active {
   cursor: grabbing;
 }
+.dstudio .ds-tray.live {
+  border-color: rgba(0, 163, 137, 0.5);
+  border-style: dashed;
+}
 .dstudio .ds-tray-card img {
   width: 100%;
-  height: 96px;
+  height: 78px;
   object-fit: cover;
   object-position: top;
   border-radius: 8px;
@@ -1282,32 +1286,67 @@
   color: var(--gray400);
   padding: 4px 0;
 }
+/* drop slots between floors — quiet until a drag starts, then they light up
+   labelled with the level a drop would create */
 .dstudio .ds-yard-gap {
-  height: 14px;
+  height: 12px;
   display: flex;
   align-items: center;
+  gap: 8px;
   padding: 0 6px;
+  transition: height 0.15s;
 }
-.dstudio .ds-yard-gap span {
+.dstudio .ds-yard-gap .ds-yard-gap-line {
   flex: 1;
   height: 3px;
   border-radius: 999px;
   transition: background 0.12s;
 }
-.dstudio .ds-yard-gap:hover span {
+.dstudio .ds-yard-gap .ds-yard-gap-chip {
+  display: none;
+  font-size: 10.5px;
+  font-weight: 800;
+  color: var(--teal-d);
+  background: rgba(0, 229, 192, 0.14);
+  border: 1px dashed rgba(0, 163, 137, 0.5);
+  border-radius: 999px;
+  padding: 2px 10px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.dstudio .ds-yard-gap.live {
+  height: 30px;
+}
+.dstudio .ds-yard-gap.live .ds-yard-gap-chip {
+  display: inline-flex;
+}
+.dstudio .ds-yard-gap.live .ds-yard-gap-line {
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(0, 163, 137, 0.45) 0 7px,
+    transparent 7px 13px
+  );
+}
+.dstudio .ds-yard-gap.live:hover .ds-yard-gap-line,
+.dstudio .ds-yard-gap:hover .ds-yard-gap-line {
   background: repeating-linear-gradient(
     90deg,
     var(--teal-d) 0 7px,
     transparent 7px 13px
   );
 }
+.dstudio .ds-yard-gap.live:hover .ds-yard-gap-chip {
+  background: var(--teal);
+  color: #053b34;
+  border-style: solid;
+}
 .dstudio .ds-yard-first {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-height: 130px;
+  gap: 6px;
+  min-height: 110px;
   margin: 6px;
   border: 2px dashed rgba(0, 163, 137, 0.4);
   border-radius: 16px;
@@ -1319,62 +1358,79 @@
   padding: 12px;
   transition: all 0.15s;
 }
-.dstudio .ds-yard-first:hover {
+.dstudio .ds-yard-first b {
+  font-weight: 800;
+}
+.dstudio .ds-yard-first-sub {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--gray500);
+}
+.dstudio .ds-yard-first:hover,
+.dstudio .ds-yard-first.live {
   border-color: var(--teal-d);
-  background: rgba(0, 229, 192, 0.1);
+  background: rgba(0, 229, 192, 0.12);
 }
 
-/* floor card in the yard */
+/* floor card in the yard — compact single row */
 .dstudio .ds-floorcard {
   display: flex;
+  align-items: center;
   gap: 12px;
-  padding: 12px;
+  padding: 8px 12px;
   border: 1px solid var(--ds-border);
-  border-radius: 16px;
+  border-radius: 14px;
   background: #fff;
   box-shadow: 0 1px 2px rgba(10, 12, 20, 0.05);
   transition: border-color 0.15s, box-shadow 0.15s;
+  cursor: grab;
+}
+.dstudio .ds-floorcard:active {
+  cursor: grabbing;
 }
 .dstudio .ds-floorcard:hover {
   border-color: rgba(0, 229, 192, 0.45);
   box-shadow: 0 12px 26px -18px rgba(10, 12, 20, 0.3);
 }
+.dstudio .ds-floorcard.targetable {
+  border-style: dashed;
+  border-color: rgba(0, 163, 137, 0.55);
+}
 .dstudio .ds-floorcard.existing {
   background: #f7f8fa;
+  cursor: default;
 }
 .dstudio .ds-floorcard.sub {
   background: #f3f4f8;
 }
-.dstudio .ds-floorcard-side {
-  flex: 0 0 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
 .dstudio .ds-floorcard-grip {
+  flex: 0 0 auto;
   color: var(--gray400);
-  cursor: grab;
+  margin-right: -6px;
 }
-.dstudio .ds-floorcard-grip:hover {
+.dstudio .ds-floorcard:hover .ds-floorcard-grip {
   color: var(--ink);
 }
-.dstudio .ds-floorcard-grip:active {
-  cursor: grabbing;
+.dstudio .ds-floor-lvl-select {
+  flex: 0 0 auto;
+  min-width: 58px;
+  height: 28px;
+  padding: 0 6px;
+  border-radius: 9px;
+  border: 1px solid rgba(0, 163, 137, 0.45);
+  background: var(--ink);
+  color: #fff;
+  font: 800 11px var(--font);
+  cursor: pointer;
 }
-.dstudio .ds-floorcard-body {
+.dstudio .ds-floorcard-sheets {
   flex: 1;
   min-width: 0;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.dstudio .ds-floorcard-sheets {
-  display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
-  min-height: 72px;
+  min-height: 48px;
 }
 .dstudio .ds-floorcard-empty {
   font-size: 11.5px;
@@ -1390,24 +1446,24 @@
   cursor: grabbing;
 }
 .dstudio .ds-floorcard-sheet img {
-  width: 108px;
-  height: 72px;
+  width: 72px;
+  height: 48px;
   object-fit: cover;
   object-position: top;
-  border-radius: 9px;
+  border-radius: 7px;
   border: 1px solid var(--ds-border);
   background: #eef0f4;
   pointer-events: none;
 }
 .dstudio .ds-floorcard-x {
   position: absolute;
-  top: 4px;
-  right: 4px;
+  top: 3px;
+  right: 3px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   border-radius: 6px;
   background: rgba(10, 12, 20, 0.6);
   color: #fff;
@@ -1421,7 +1477,9 @@
   background: var(--red);
 }
 .dstudio .ds-floorcard-name {
-  font-size: 13.5px;
+  flex: 0 1 auto;
+  max-width: 40%;
+  font-size: 13px;
   font-weight: 800;
   letter-spacing: -0.01em;
   color: var(--ink);

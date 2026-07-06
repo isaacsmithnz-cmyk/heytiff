@@ -149,8 +149,9 @@ describe("installer scenarios: upload → floors", () => {
     // place ground floor first, then Level 1 in the gap above it
     dropPage(yardFirst(), 1);
     dropPage(gapAbove("Ground floor"), 2);
-    expect(screen.getByText("GF")).toBeInTheDocument();
-    expect(screen.getByText("L1")).toBeInTheDocument();
+    // the anchor card carries the level dropdown (GF); the one above derives L1
+    expect(screen.getByLabelText("Level for Ground floor")).toHaveValue("0");
+    expect(floorCard("Level 1").querySelector(".ds-floor-lvl")!.textContent).toBe("L1");
 
     await user.click(screen.getByRole("button", { name: "Add to design" }));
     await waitFor(() => expect(screen.getByDisplayValue("Level 1")).toBeInTheDocument());
@@ -287,6 +288,31 @@ describe("installer scenarios: upload → floors", () => {
     expect(within(dialog).getByText("Page 3")).toBeInTheDocument();
     // still only page 2 selected — previewing page 3 didn't select it
     expect(screen.getByText("1 of 3 selected")).toBeInTheDocument();
+  });
+
+  it("basement job: change the first plan's level dropdown and the stack re-pins", async () => {
+    pdfToPages.mockResolvedValue([page("Carpark", 1), page("Plant room", 2)]);
+    const fake = new CountingPlanImages();
+    const user = await openPlanJob(fake);
+
+    uploadPdf();
+    await user.click(await screen.findByRole("button", { name: "Page 1" }));
+    await user.click(screen.getByRole("button", { name: "Page 2" }));
+    await user.click(screen.getByRole("button", { name: /Continue with 2 pages/ }));
+    await nameFloors(user, ["Carpark", "Plant room"]);
+
+    dropPage(yardFirst(), 0); // Carpark lands as the anchor (GF by default)
+    dropPage(gapAbove("Carpark"), 1); // Plant room above it
+    // re-pin the anchor: this is actually basement level 2
+    await user.selectOptions(screen.getByLabelText("Level for Carpark"), "-2");
+    expect(floorCard("Plant room").querySelector(".ds-floor-lvl")!.textContent).toBe("B1");
+
+    await user.click(screen.getByRole("button", { name: "Add to design" }));
+    await waitFor(() => expect(screen.getByDisplayValue("Carpark")).toBeInTheDocument());
+    // committed with the re-pinned levels
+    expect(screen.getByText("B2")).toBeInTheDocument();
+    expect(screen.getByText("B1")).toBeInTheDocument();
+    expect(fake.uploads).toBe(2);
   });
 
   it("picker shows the AI-screening slot (disabled placeholder for now)", async () => {

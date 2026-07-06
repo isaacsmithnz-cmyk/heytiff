@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import type { DesignDocument, Floor } from "@/lib/studio/document";
 import { createPortal } from "react-dom";
@@ -9,13 +9,15 @@ import {
   builderStackFromFloors,
   computeRowLevels,
   dropPageOnRow,
-  dropRowOnRow,
+  dropRowAt,
   formatLevel,
   imageToPage,
   insertPageRow,
   labelPagesSequentially,
   pdfToPages,
+  previewInsertLevel,
   removePageFromRows,
+  setAnchorLevel,
   trayPageIdxs,
   type BuilderRow,
   type PageImage,
@@ -511,11 +513,13 @@ function PageGrid({
 
 /* ── The floor-stack builder ──
    Left: a tray of uploaded pages (named in the previous step). Right: the
-   building yard. Drag a page from the tray into a gap to make a new floor,
-   or onto a floor card to add it as a second sheet (east/west split).
-   Position sets the level (GF above the ground line, subfloors below) — the
-   name is a display label only. Placed floors drag to reorder or back to the
-   tray. Feels like dropping units onto the canvas. */
+   building yard. The FIRST plan dropped becomes the anchor — its level is a
+   dropdown on the card (ground floor by default) and every other plan
+   numbers itself from its position around it. While dragging, every drop
+   slot lights up labelled with the level it would create, like placing
+   units on the canvas. Names are display labels only. */
+
+const ANCHOR_LEVEL_OPTIONS = Array.from({ length: 26 }, (_, i) => i - 5); // B5..L20
 
 function FloorStackBuilder({
   pages,
@@ -539,38 +543,47 @@ function FloorStackBuilder({
   const tray = trayPageIdxs(rows, chosenIdxs);
   const levels = computeRowLevels(rows);
   const display = [...rows].reverse(); // top of the building first
-  const hasFloors = rows.some((r) => r.kind === "floor");
+  const [dragging, setDragging] = useState<null | "page" | "row">(null);
   const nameFor = (idx: number) => names[idx] ?? pages[idx]?.label ?? "New floor";
 
   const allow = (e: React.DragEvent) => e.preventDefault();
   const read = (e: React.DragEvent) => e.dataTransfer.getData("text/plain");
+  const startDrag =
+    (payload: string, kind: "page" | "row") => (e: React.DragEvent) => {
+      e.dataTransfer.setData("text/plain", payload);
+      setDragging(kind);
+    };
+  const endDrag = () => setDragging(null);
 
-  // insert a new floor above/below an anchor (pages) or reorder a floor (rows)
-  const dropAt = (anchorKey: string, side: "above" | "below") => (e: React.DragEvent) => {
+  // a gap between floors: page → new floor there; row → move there
+  const dropAt = (anchorKey: string | null, side: "above" | "below") => (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    setDragging(null);
     const d = read(e);
     if (d.startsWith("p:")) {
       const idx = parseInt(d.slice(2), 10);
       if (Number.isFinite(idx)) onRows(insertPageRow(rows, idx, nameFor(idx), anchorKey, side));
-    } else if (d.startsWith("r:")) {
-      onRows(dropRowOnRow(rows, d.slice(2), anchorKey));
+    } else if (d.startsWith("r:") && anchorKey !== null) {
+      onRows(dropRowAt(rows, d.slice(2), anchorKey, side));
     }
   };
-  // drop onto a floor card centre: page → merge as a sheet; floor → reorder
+  // a floor card centre: page → merge as a sheet; row → land above it
   const dropOnFloor = (targetKey: string) => (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    setDragging(null);
     const d = read(e);
     if (d.startsWith("p:")) {
       const idx = parseInt(d.slice(2), 10);
       if (Number.isFinite(idx)) onRows(dropPageOnRow(rows, idx, targetKey));
     } else if (d.startsWith("r:")) {
-      onRows(dropRowOnRow(rows, d.slice(2), targetKey));
+      onRows(dropRowAt(rows, d.slice(2), targetKey, "above"));
     }
   };
   const dropToTray = (e: React.DragEvent) => {
     e.preventDefault();
+    setDragging(null);
     const d = read(e);
     if (d.startsWith("p:")) {
       onRows(removePageFromRows(rows, parseInt(d.slice(2), 10)));
@@ -584,16 +597,76 @@ function FloorStackBuilder({
     }
   };
 
-  const strip = (anchorKey: string, side: "above" | "below", key: string) => (
+  const gap = (anchorKey: string, side: "above" | "below", key: string) => (
     <div
       key={key}
-      className="ds-yard-gap"
+      className={`ds-yard-gap${dragging ? " live" : ""}`}
       onDragOver={allow}
       onDrop={dropAt(anchorKey, side)}
     >
-      <span />
+      <span className="ds-yard-gap-line" />
+      <span className="ds-yard-gap-chip">
+        + {formatLevel(previewInsertLevel(rows, anchorKey, side))}
+      </span>
+      <span className="ds-yard-gap-line" />
     </div>
   );
+
+  /* the yard, top-down, with the ground line drawn at the 0/-1 boundary */
+  const yard: React.ReactNode[] = [];
+  if (display.length === 0) {
+    yard.push(
+      <div
+        key="first"
+        className={`ds-yard-first${dragging === "page" ? " live" : ""}`}
+        onDragOver={allow}
+        onDrop={dropAt(null, "above")}
+      >
+        <Icon name="arrowDown" size={18} />
+        Drag your first plan here — it becomes the <b>ground floor</b>
+        <span className="ds-yard-first-sub">
+          (you can change its level on the card afterwards)
+        </span>
+      </div>
+    );
+  } else {
+    const groundLine = (
+      <div key="groundline" className="ds-groundline">
+        <span />
+        <b>ground line</b>
+        <span />
+      </div>
+    );
+    const lvl = (r: BuilderRow) => levels.get(r.key) ?? 0;
+    if (lvl(display[0]) <= -1) yard.push(groundLine); // whole stack is below ground
+    yard.push(gap(display[0].key, "above", "gap-top"));
+    display.forEach((row, k) => {
+      yard.push(
+        <FloorCard
+          key={row.key}
+          row={row}
+          level={lvl(row)}
+          rows={rows}
+          pages={pages}
+          nameFor={nameFor}
+          targetable={dragging === "page"}
+          onRows={onRows}
+          onDropFloor={dropOnFloor(row.key)}
+          onStartDrag={startDrag}
+          onEndDrag={endDrag}
+          allow={allow}
+        />
+      );
+      const next = display[k + 1];
+      if (next) {
+        if (lvl(row) >= 0 && lvl(next) < 0) yard.push(groundLine);
+        yard.push(gap(next.key, "above", `gap-${next.key}`));
+      } else {
+        if (lvl(row) === 0) yard.push(groundLine);
+        yard.push(gap(row.key, "below", "gap-bottom"));
+      }
+    });
+  }
 
   return (
     <div className="ds-build">
@@ -601,24 +674,28 @@ function FloorStackBuilder({
         <span className="ds-cardt">Stack your floors</span>
         <span className="ds-pagepick-n">
           {tray.length > 0
-            ? `${tray.length} ${tray.length === 1 ? "page" : "pages"} to place`
+            ? `${tray.length} ${tray.length === 1 ? "plan" : "plans"} to place`
             : "all placed"}
         </span>
       </div>
       <div className="ds-alloc-hint">
-        Drag each plan from the left into the building. <b>The position sets the
-        floor</b> — the first one becomes the ground floor, above it is Level 1,
-        below the ground line is a subfloor. Drop a plan <b>onto a floor</b> to
-        add it as a second sheet (an east/west split).
+        Drag each plan from the left into the building — <b>where you drop it
+        sets its level</b>. Drop zones light up as you drag: a slot makes a new
+        floor there, a floor card adds the plan as a second sheet (east/west
+        split).
       </div>
 
       <div className="ds-yard-wrap">
-        <div className="ds-tray" onDragOver={allow} onDrop={dropToTray}>
-          <div className="ds-tray-head">Pages</div>
+        <div
+          className={`ds-tray${dragging ? " live" : ""}`}
+          onDragOver={allow}
+          onDrop={dropToTray}
+        >
+          <div className="ds-tray-head">Plans</div>
           {tray.length === 0 ? (
             <div className="ds-tray-empty">
               <Icon name="check" size={16} />
-              Every page placed
+              Every plan placed
             </div>
           ) : (
             tray.map((idx) => {
@@ -628,7 +705,8 @@ function FloorStackBuilder({
                   key={idx}
                   className="ds-tray-card"
                   draggable
-                  onDragStart={(e) => e.dataTransfer.setData("text/plain", `p:${idx}`)}
+                  onDragStart={startDrag(`p:${idx}`, "page")}
+                  onDragEnd={endDrag}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={p.thumbUrl} alt={nameFor(idx)} />
@@ -641,51 +719,7 @@ function FloorStackBuilder({
 
         <div className="ds-yard">
           <div className="ds-yard-cap top">▲ upper floors</div>
-          {!hasFloors ? (
-            <>
-              <div
-                className="ds-yard-first"
-                onDragOver={allow}
-                onDrop={dropAt("ground", "above")}
-              >
-                <Icon name="arrowDown" size={18} />
-                Drag your first plan here — it becomes the ground floor
-              </div>
-              <div className="ds-groundline">
-                <span />
-                <b>Ground line</b>
-                <span />
-              </div>
-              {strip("ground", "below", "sub0")}
-            </>
-          ) : (
-            <>
-              {display.map((item, k) => (
-                <Fragment key={item.key}>
-                  {strip(item.key, "above", `gap-${item.key}`)}
-                  {item.kind === "ground" ? (
-                    <div className="ds-groundline">
-                      <span />
-                      <b>Ground line — below is subfloor</b>
-                      <span />
-                    </div>
-                  ) : (
-                    <FloorCard
-                      row={item}
-                      level={levels.get(item.key) ?? 0}
-                      pages={pages}
-                      nameFor={nameFor}
-                      onDropFloor={dropOnFloor(item.key)}
-                      onRemovePage={(i) => onRows(removePageFromRows(rows, i))}
-                      allow={allow}
-                    />
-                  )}
-                  {k === display.length - 1 &&
-                    strip(item.key, "below", `gap-bottom-${item.key}`)}
-                </Fragment>
-              ))}
-            </>
-          )}
+          {yard}
           <div className="ds-yard-cap bottom">▼ subfloors</div>
         </div>
       </div>
@@ -709,69 +743,93 @@ function FloorStackBuilder({
 function FloorCard({
   row,
   level,
+  rows,
   pages,
   nameFor,
+  targetable,
+  onRows,
   onDropFloor,
-  onRemovePage,
+  onStartDrag,
+  onEndDrag,
   allow,
 }: {
   row: BuilderRow;
   level: number;
+  rows: BuilderRow[];
   pages: PageImage[];
   nameFor: (idx: number) => string;
+  targetable: boolean;
+  onRows: (rows: BuilderRow[]) => void;
   onDropFloor: (e: React.DragEvent) => void;
-  onRemovePage: (idx: number) => void;
+  onStartDrag: (payload: string, kind: "page" | "row") => (e: React.DragEvent) => void;
+  onEndDrag: () => void;
   allow: (e: React.DragEvent) => void;
 }) {
+  const isNew = row.floorId === null;
   return (
     <div
-      className={`ds-floorcard${row.floorId ? " existing" : ""}${level < 0 ? " sub" : ""}`}
+      className={`ds-floorcard${row.floorId ? " existing" : ""}${level < 0 ? " sub" : ""}${targetable ? " targetable" : ""}`}
       data-floor={row.name}
+      draggable={isNew}
+      onDragStart={isNew ? onStartDrag(`r:${row.key}`, "row") : undefined}
+      onDragEnd={onEndDrag}
       onDragOver={allow}
       onDrop={onDropFloor}
     >
-      <div className="ds-floorcard-side">
+      {isNew && (
+        <span className="ds-floorcard-grip" aria-hidden>
+          <Icon name="dots" size={13} />
+        </span>
+      )}
+      {row.anchorLevel !== undefined ? (
+        <select
+          className="ds-floor-lvl-select"
+          value={row.anchorLevel}
+          aria-label={`Level for ${row.name}`}
+          onChange={(e) =>
+            onRows(setAnchorLevel(rows, row.key, parseInt(e.target.value, 10)))
+          }
+        >
+          {ANCHOR_LEVEL_OPTIONS.map((n) => (
+            <option key={n} value={n}>
+              {formatLevel(n)}
+            </option>
+          ))}
+        </select>
+      ) : (
         <span className="ds-floor-lvl">{formatLevel(level)}</span>
-        {!row.floorId && (
-          <span
-            className="ds-floorcard-grip"
-            draggable
-            aria-label={`Move ${row.name}`}
-            onDragStart={(e) => e.dataTransfer.setData("text/plain", `r:${row.key}`)}
-          >
-            <Icon name="dots" size={13} />
-          </span>
+      )}
+      <div className="ds-floorcard-sheets">
+        {row.pageIdxs.length === 0 && row.floorId && (
+          <span className="ds-floorcard-empty">drop a plan to add a sheet</span>
         )}
-      </div>
-      <div className="ds-floorcard-body">
-        <div className="ds-floorcard-sheets">
-          {row.pageIdxs.length === 0 && row.floorId && (
-            <span className="ds-floorcard-empty">drop a plan to add a sheet</span>
-          )}
-          {row.pageIdxs.map((idx) => {
-            const p = pages[idx];
-            return (
-              <div
-                key={idx}
-                className="ds-floorcard-sheet"
-                draggable
-                onDragStart={(e) => e.dataTransfer.setData("text/plain", `p:${idx}`)}
+        {row.pageIdxs.map((idx) => {
+          const p = pages[idx];
+          return (
+            <div
+              key={idx}
+              className="ds-floorcard-sheet"
+              draggable
+              onDragStart={(e) => {
+                e.stopPropagation();
+                onStartDrag(`p:${idx}`, "page")(e);
+              }}
+              onDragEnd={onEndDrag}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={p.thumbUrl} alt={nameFor(idx)} />
+              <button
+                className="ds-floorcard-x"
+                aria-label={`Remove ${nameFor(idx)}`}
+                onClick={() => onRows(removePageFromRows(rows, idx))}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={p.thumbUrl} alt={nameFor(idx)} />
-                <button
-                  className="ds-floorcard-x"
-                  aria-label={`Remove ${nameFor(idx)}`}
-                  onClick={() => onRemovePage(idx)}
-                >
-                  <Icon name="x" size={11} />
-                </button>
-              </div>
-            );
-          })}
-        </div>
-        <span className="ds-floorcard-name">{row.name}</span>
+                <Icon name="x" size={11} />
+              </button>
+            </div>
+          );
+        })}
       </div>
+      <span className="ds-floorcard-name">{row.name}</span>
     </div>
   );
 }

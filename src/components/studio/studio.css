@@ -1188,27 +1188,17 @@
 .dstudio .ds-stack-row.existing {
   background: #f7f8fa;
 }
-.dstudio .ds-stack-name {
-  width: 170px;
-  height: 36px;
-  padding: 0 12px;
-  border-radius: 10px;
-  border: 1px solid #e5e7eb;
-  background: #fafbfc;
-  font-size: 13px;
-  font-weight: 700;
-}
-.dstudio .ds-stack-name:focus {
-  outline: none;
-  border-color: rgba(0, 229, 192, 0.65);
-  box-shadow: 0 0 0 3px rgba(0, 229, 192, 0.15);
-  background: #fff;
-}
 .dstudio .ds-stack-name-fixed {
   width: 170px;
   font-size: 13px;
   font-weight: 800;
   color: var(--gray500);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dstudio .ds-stack-name-fixed.new {
+  color: var(--ink);
 }
 .dstudio .ds-stack-cards {
   flex: 1;

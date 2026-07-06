@@ -15,3 +15,9 @@ if (typeof window !== 'undefined' && !window.PointerEvent) {
   // @ts-expect-error assigning the polyfill onto the jsdom window
   window.PointerEvent = PointerEventPolyfill
 }
+
+// jsdom lacks object-URL APIs; the plans pipeline uses them for thumbnails.
+if (typeof window !== 'undefined' && !window.URL.createObjectURL) {
+  window.URL.createObjectURL = () => `blob:jest-${Math.random().toString(36).slice(2)}`
+  window.URL.revokeObjectURL = () => {}
+}

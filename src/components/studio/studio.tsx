@@ -604,6 +604,7 @@ function Editor({
             activeFloorId={activeFloorId}
             onFloor={setPickedFloorId}
             onAddFloor={addFloor}
+            onGoPlans={() => onStep(0)}
             tool={tool}
             onTool={setTool}
             selectedId={selectedId}
@@ -635,6 +636,7 @@ function DesignPanel({
   activeFloorId,
   onFloor,
   onAddFloor,
+  onGoPlans,
   tool,
   onTool,
   selectedId,
@@ -646,6 +648,7 @@ function DesignPanel({
   activeFloorId: string | null;
   onFloor: (id: string) => void;
   onAddFloor: () => void;
+  onGoPlans: () => void;
   tool: CanvasTool;
   onTool: (t: CanvasTool) => void;
   selectedId: string | null;
@@ -664,14 +667,28 @@ function DesignPanel({
             <Icon name="layers" size={22} />
           </span>
           <div className="ds-empty-t">No floors yet</div>
-          <div className="ds-empty-s">
-            Add a blank floor to start sketching now — or wait for plan upload
-            &amp; calibration to bring your drawings in.
-          </div>
-          <button className="ds-tbbtn" onClick={onAddFloor}>
-            <Icon name="plus" size={15} />
-            Add a blank floor
-          </button>
+          {doc.meta.mode === "plan" ? (
+            <>
+              <div className="ds-empty-s">
+                This design works on real drawings — upload your plans and pick
+                the pages, then come back here to design on them.
+              </div>
+              <button className="ds-tbbtn" onClick={onGoPlans}>
+                <Icon name="file" size={15} />
+                Go to Plans
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="ds-empty-s">
+                Add a blank floor to start sketching on the scaled grid.
+              </div>
+              <button className="ds-tbbtn" onClick={onAddFloor}>
+                <Icon name="plus" size={15} />
+                Add a blank floor
+              </button>
+            </>
+          )}
         </div>
       </div>
     );

@@ -313,10 +313,6 @@ export function removePageFromRows(rows: BuilderRow[], pageIdx: number): Builder
   );
 }
 
-export function renameRow(rows: BuilderRow[], key: string, name: string): BuilderRow[] {
-  return rows.map((r) => (r.key === key ? { ...r, name } : r));
-}
-
 /** Commit the stack: prune empty new rows, derive levels from the final
     order (existing floors renumber too — mezzanines/basements included),
     create/extend floors bottom-up. */

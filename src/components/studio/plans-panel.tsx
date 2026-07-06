@@ -16,7 +16,6 @@ import {
   movePageToNewRow,
   pdfToPages,
   removePageFromRows,
-  renameRow,
   type BuilderRow,
   type PageImage,
   type PlanImages,
@@ -29,7 +28,9 @@ import {
 type Phase =
   | { kind: "idle" }
   | { kind: "rendering"; done: number; total: number }
-  | { kind: "picking"; pages: PageImage[]; selected: Set<number> }
+  /* stash carries names already typed in the naming step, so going Back and
+     Continuing again never asks the installer to retype anything */
+  | { kind: "picking"; pages: PageImage[]; selected: Set<number>; stash: Record<number, string> }
   /* verify/correct each selected page's floor name full-size before stacking */
   | { kind: "naming"; pages: PageImage[]; chosen: number[]; names: string[]; at: number }
   /* the floor-stack builder: rows bottom-up; drag page cards between rows */
@@ -81,8 +82,19 @@ export function PlansPanel({
         setError("No usable pages — upload a PDF, PNG or JPG.");
         return;
       }
+      if (pages.length === 1) {
+        // one page = nothing to pick; go straight to naming it
+        setPhase({
+          kind: "naming",
+          pages,
+          chosen: [0],
+          names: [pages[0].label],
+          at: 0,
+        });
+        return;
+      }
       // nothing pre-selected — the user picks exactly the pages they want
-      setPhase({ kind: "picking", pages, selected: new Set() });
+      setPhase({ kind: "picking", pages, selected: new Set(), stash: {} });
     } catch (e) {
       setPhase({ kind: "idle" });
       setError(e instanceof Error ? e.message : "Couldn't read that file");
@@ -242,7 +254,8 @@ export function PlansPanel({
                   kind: "naming",
                   pages: phase.pages,
                   chosen,
-                  names: chosen.map((i) => phase.pages[i].label),
+                  // anything named on an earlier pass survives the round trip
+                  names: chosen.map((i) => phase.stash[i] ?? phase.pages[i].label),
                   at: 0,
                 });
               }}
@@ -282,13 +295,16 @@ export function PlansPanel({
               })
             }
             onNav={(at) => setPhase({ ...phase, at })}
-            onBack={() =>
+            onBack={() => {
+              const stash: Record<number, string> = {};
+              phase.chosen.forEach((idx, k) => (stash[idx] = phase.names[k]));
               setPhase({
                 kind: "picking",
                 pages: phase.pages,
                 selected: new Set(phase.chosen),
-              })
-            }
+                stash,
+              });
+            }}
             onDone={() => {
               const names: Record<number, string> = {};
               phase.chosen.forEach((idx, k) => (names[idx] = phase.names[k]));
@@ -567,16 +583,11 @@ function FloorStackBuilder({
                 <span className="ds-stack-grip fixed" />
               )}
               <span className="ds-floor-lvl">{formatLevel(level)}</span>
-              {row.floorId ? (
-                <span className="ds-stack-name-fixed">{row.name}</span>
-              ) : (
-                <input
-                  className="ds-stack-name"
-                  value={row.name}
-                  aria-label={`Floor name for row ${row.key}`}
-                  onChange={(e) => onRows(renameRow(rows, row.key, e.target.value))}
-                />
-              )}
+              {/* names were verified in the naming step — the stack only
+                  positions them (the floor list stays editable afterwards) */}
+              <span className={`ds-stack-name-fixed${row.floorId ? "" : " new"}`}>
+                {row.name}
+              </span>
               <div className="ds-stack-cards">
                 {row.pageIdxs.length === 0 && row.floorId && (
                   <span className="ds-stack-empty">drop a sheet to add it here</span>

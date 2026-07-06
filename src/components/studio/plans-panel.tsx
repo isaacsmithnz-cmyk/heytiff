@@ -596,6 +596,10 @@ function FloorStackBuilder({
   const levels = computeRowLevels(rows);
   const display = [...rows].reverse(); // top of the building first
   const [dragging, setDragging] = useState(false);
+  // which single drop target the cursor is actually over right now — CSS
+  // :hover doesn't fire reliably during native HTML5 drag, so this is
+  // tracked explicitly and drives the highlight instead
+  const [overKey, setOverKey] = useState<string | null>(null);
   const nameFor = (idx: number) => names[idx] ?? pages[idx]?.label ?? "New floor";
 
   const allow = (e: React.DragEvent) => e.preventDefault();
@@ -608,13 +612,42 @@ function FloorStackBuilder({
     e.dataTransfer.setData("text/plain", `p:${idx}`);
     setDragging(true);
   };
-  const endDrag = () => setDragging(false);
+  const endDrag = () => {
+    setDragging(false);
+    setOverKey(null);
+    enterCounts.current = {};
+  };
+  /* A zone's children (plan cards) have no drag handlers of their own, so
+     moving onto/off them still fires dragenter/dragleave that bubble up to
+     the zone's single handler — which is what makes hover tracking work at
+     all without relatedTarget (unreliable across environments; untestable
+     under jsdom). Each crossing nets an enter+leave pair, so a plain enter
+     counter — never negative — tells us whether the cursor is still
+     somewhere inside the zone. Handlers read the zone's key off the element
+     itself (data-dropkey) rather than a per-key closure, so there is one
+     stable function reference — not a factory invoked during render. */
+  const enterCounts = useRef<Record<string, number>>({});
+  const onZoneDragEnter = (e: React.DragEvent<HTMLElement>) => {
+    e.preventDefault();
+    const key = e.currentTarget.dataset.dropkey;
+    if (!key) return;
+    enterCounts.current[key] = (enterCounts.current[key] ?? 0) + 1;
+    setOverKey(key);
+  };
+  const onZoneDragLeave = (e: React.DragEvent<HTMLElement>) => {
+    const key = e.currentTarget.dataset.dropkey;
+    if (!key) return;
+    const next = Math.max(0, (enterCounts.current[key] ?? 1) - 1);
+    enterCounts.current[key] = next;
+    if (next === 0) setOverKey((k) => (k === key ? null : k));
+  };
 
   // a slot between floors → the plan becomes a new floor there
   const dropAt = (anchorKey: string | null, side: "above" | "below") => (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDragging(false);
+    setOverKey(null);
     const idx = pageIdx(e);
     if (idx !== null) onRows(insertPageRow(rows, idx, nameFor(idx), anchorKey, side));
   };
@@ -623,12 +656,14 @@ function FloorStackBuilder({
     e.preventDefault();
     e.stopPropagation();
     setDragging(false);
+    setOverKey(null);
     const idx = pageIdx(e);
     if (idx !== null) onRows(dropPageOnRow(rows, idx, targetKey));
   };
   const dropToTray = (e: React.DragEvent) => {
     e.preventDefault();
     setDragging(false);
+    setOverKey(null);
     const idx = pageIdx(e);
     if (idx !== null) onRows(removePageFromRows(rows, idx));
   };
@@ -636,8 +671,11 @@ function FloorStackBuilder({
   const gap = (anchorKey: string, side: "above" | "below", key: string) => (
     <div
       key={key}
-      className={`ds-dropzone${dragging ? " live" : ""}`}
+      className={`ds-dropzone${dragging ? " live" : ""}${overKey === key ? " over" : ""}`}
+      data-dropkey={key}
+      onDragEnter={onZoneDragEnter}
       onDragOver={allow}
+      onDragLeave={onZoneDragLeave}
       onDrop={dropAt(anchorKey, side)}
     >
       <span className="ds-dropzone-inner">
@@ -653,8 +691,11 @@ function FloorStackBuilder({
     yard.push(
       <div
         key="first"
-        className={`ds-yard-first${dragging ? " live" : ""}`}
+        className={`ds-yard-first${dragging ? " live" : ""}${overKey === "first" ? " over" : ""}`}
+        data-dropkey="first"
+        onDragEnter={onZoneDragEnter}
         onDragOver={allow}
+        onDragLeave={onZoneDragLeave}
         onDrop={dropAt(null, "above")}
       >
         <Icon name="arrowDown" size={18} />
@@ -685,6 +726,9 @@ function FloorStackBuilder({
           pages={pages}
           nameFor={nameFor}
           targetable={dragging}
+          isOver={overKey === row.key}
+          onZoneDragEnter={onZoneDragEnter}
+          onZoneDragLeave={onZoneDragLeave}
           onRows={onRows}
           onDropLevel={dropOnLevel(row.key)}
           onStartDrag={startDrag}
@@ -721,8 +765,11 @@ function FloorStackBuilder({
 
       <div className="ds-yard-wrap">
         <div
-          className={`ds-tray${dragging ? " live" : ""}`}
+          className={`ds-tray${dragging ? " live" : ""}${overKey === "tray" ? " over" : ""}`}
+          data-dropkey="tray"
+          onDragEnter={onZoneDragEnter}
           onDragOver={allow}
+          onDragLeave={onZoneDragLeave}
           onDrop={dropToTray}
         >
           <div className="ds-tray-head">Plans</div>
@@ -779,6 +826,9 @@ function LevelRow({
   pages,
   nameFor,
   targetable,
+  isOver,
+  onZoneDragEnter,
+  onZoneDragLeave,
   onRows,
   onDropLevel,
   onStartDrag,
@@ -791,6 +841,9 @@ function LevelRow({
   pages: PageImage[];
   nameFor: (idx: number) => string;
   targetable: boolean;
+  isOver: boolean;
+  onZoneDragEnter: (e: React.DragEvent<HTMLElement>) => void;
+  onZoneDragLeave: (e: React.DragEvent<HTMLElement>) => void;
   onRows: (rows: BuilderRow[]) => void;
   onDropLevel: (e: React.DragEvent) => void;
   onStartDrag: (idx: number) => (e: React.DragEvent) => void;
@@ -799,10 +852,13 @@ function LevelRow({
 }) {
   return (
     <div
-      className={`ds-level${row.floorId ? " existing" : ""}${level < 0 ? " sub" : ""}${targetable ? " targetable" : ""}`}
+      className={`ds-level${row.floorId ? " existing" : ""}${level < 0 ? " sub" : ""}${targetable ? " targetable" : ""}${isOver ? " over" : ""}`}
       data-floor={row.name}
       data-rowkey={row.key}
+      data-dropkey={row.key}
+      onDragEnter={onZoneDragEnter}
       onDragOver={allow}
+      onDragLeave={onZoneDragLeave}
       onDrop={onDropLevel}
     >
       <div className="ds-level-tag">

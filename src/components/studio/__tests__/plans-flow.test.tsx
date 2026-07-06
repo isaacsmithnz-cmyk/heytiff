@@ -262,6 +262,43 @@ describe("installer scenarios: upload → floors", () => {
     expect(screen.getByLabelText("Level for Ground")).toHaveValue("0");
   });
 
+  it("drop targets highlight individually on dragenter and clear on dragleave", async () => {
+    pdfToPages.mockResolvedValue([page("Ground", 1), page("Upper", 2)]);
+    const user = await openPlanJob(new CountingPlanImages());
+
+    uploadPdf();
+    await user.click(await screen.findByRole("button", { name: "Page 1" }));
+    await user.click(screen.getByRole("button", { name: "Page 2" }));
+    await user.click(screen.getByRole("button", { name: /Continue with 2 pages/ }));
+    await nameFloors(user, ["Ground", "Upper"]);
+
+    // the very first drop zone: no highlight until dragenter fires
+    const first = yardFirst();
+    expect(first.className).not.toContain("over");
+    fireEvent.dragEnter(first, dropPayload("p:0"));
+    expect(first.className).toContain("over");
+    fireEvent.dragLeave(first);
+    expect(first.className).not.toContain("over");
+
+    dropPage(first, 0); // Ground → GF
+
+    // a level card highlights only while the cursor is actually over it
+    const groundCard = floorCard("Ground");
+    expect(groundCard.className).not.toContain("over");
+    fireEvent.dragEnter(groundCard, dropPayload("p:1"));
+    expect(groundCard.className).toContain("over");
+    // the plan card inside has no drag-enter/leave handlers of its own, so
+    // crossing onto it still bubbles up to the level's handler — a stray
+    // leave from that crossing must not fully clear the highlight
+    const childCard = groundCard.querySelector(".ds-plancard")!;
+    fireEvent.dragEnter(childCard, dropPayload("p:1")); // bubbles → level handler
+    fireEvent.dragLeave(childCard); // bubbles → level handler
+    expect(groundCard.className).toContain("over");
+    // leaving the card entirely does clear it
+    fireEvent.dragLeave(groundCard);
+    expect(groundCard.className).not.toContain("over");
+  });
+
   it("west wing arrives later: single page drops onto the EXISTING floor — no new floor created", async () => {
     pdfToPages.mockResolvedValue([page("GF West", 1)]);
     const fake = new CountingPlanImages();

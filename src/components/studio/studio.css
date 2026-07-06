@@ -1227,6 +1227,12 @@
   border-color: rgba(0, 163, 137, 0.5);
   border-style: dashed;
 }
+.dstudio .ds-tray.over {
+  border-style: solid;
+  border-color: var(--teal-d);
+  background: rgba(0, 229, 192, 0.12);
+  box-shadow: inset 0 0 0 3px rgba(0, 229, 192, 0.3);
+}
 
 /* the plan card — one shared unit for the tray and every floor in the yard:
    image with its title directly underneath, and it's the draggable thing */
@@ -1349,10 +1355,14 @@
   color: var(--teal-d);
   pointer-events: none;
 }
-.dstudio .ds-dropzone.live:hover {
+.dstudio .ds-dropzone.live.over {
   border-style: solid;
   border-color: var(--teal-d);
-  background: rgba(0, 229, 192, 0.18);
+  background: rgba(0, 229, 192, 0.28);
+  box-shadow: inset 0 0 0 3px rgba(0, 229, 192, 0.35);
+}
+.dstudio .ds-dropzone.live.over .ds-dropzone-inner {
+  color: var(--ink);
 }
 .dstudio .ds-yard-first {
   display: flex;
@@ -1380,10 +1390,14 @@
   font-weight: 500;
   color: var(--gray500);
 }
-.dstudio .ds-yard-first:hover,
 .dstudio .ds-yard-first.live {
+  background: rgba(0, 229, 192, 0.06);
+}
+.dstudio .ds-yard-first.over {
+  border-style: solid;
   border-color: var(--teal-d);
-  background: rgba(0, 229, 192, 0.12);
+  background: rgba(0, 229, 192, 0.22);
+  box-shadow: inset 0 0 0 3px rgba(0, 229, 192, 0.35);
 }
 
 /* a level in the yard — a level tag on the left + the plan card(s) at it */
@@ -1402,10 +1416,11 @@
   border-style: dashed;
   border-color: rgba(0, 163, 137, 0.55);
 }
-.dstudio .ds-level.targetable:hover {
+.dstudio .ds-level.targetable.over {
   border-style: solid;
   border-color: var(--teal-d);
-  background: rgba(0, 229, 192, 0.1);
+  background: rgba(0, 229, 192, 0.22);
+  box-shadow: inset 0 0 0 3px rgba(0, 229, 192, 0.35);
 }
 .dstudio .ds-level.existing {
   background: #f7f8fa;

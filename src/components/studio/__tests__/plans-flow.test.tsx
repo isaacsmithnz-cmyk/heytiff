@@ -81,6 +81,18 @@ async function nameFloors(user: ReturnType<typeof userEvent.setup>, names: (stri
 
 const dropPayload = (data: string) => ({ dataTransfer: { getData: () => data } });
 
+/* yard drop-target helpers (the stack is drag-driven) */
+const yardFirst = () => document.querySelector(".ds-yard-first") as HTMLElement;
+const floorCard = (name: string) =>
+  document.querySelector(`[data-floor="${name}"]`) as HTMLElement;
+const gapAbove = (name: string) =>
+  floorCard(name).previousElementSibling as HTMLElement;
+const subfloorGap = () => {
+  const gaps = document.querySelectorAll(".ds-yard .ds-yard-gap");
+  return gaps[gaps.length - 1] as HTMLElement;
+};
+const dropPage = (el: Element, idx: number) => fireEvent.drop(el, dropPayload(`p:${idx}`));
+
 describe("installer scenarios: upload → floors", () => {
   beforeEach(() => {
     window.localStorage.clear();
@@ -98,11 +110,15 @@ describe("installer scenarios: upload → floors", () => {
     expect(screen.queryByText("Click the pages you want to upload")).toBeNull();
 
     await nameFloors(user, ["Ground floor"]);
-    // stack: one row, chipped GF, name locked from the naming step
+    // on the stack: the named page waits in the tray; Add is gated until placed
+    expect(await screen.findByText("Stack your floors")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add to design" })).toBeDisabled();
+    expect(within(document.querySelector(".ds-yard") as HTMLElement).queryByRole("textbox")).toBeNull();
+
+    // drop it into the yard → it becomes the ground floor
+    dropPage(yardFirst(), 0);
+    expect(floorCard("Ground floor")).toBeInTheDocument();
     expect(screen.getByText("GF")).toBeInTheDocument();
-    expect(screen.getByText("Ground floor")).toBeInTheDocument();
-    const stack = document.querySelector(".ds-stack") as HTMLElement;
-    expect(within(stack).queryByRole("textbox")).toBeNull(); // stack never renames
 
     await user.click(screen.getByRole("button", { name: "Add to design" }));
     await waitFor(() => expect(screen.getByDisplayValue("Ground floor")).toBeInTheDocument());
@@ -130,12 +146,16 @@ describe("installer scenarios: upload → floors", () => {
     await user.click(screen.getByRole("button", { name: /Continue with 2 pages/ }));
     await nameFloors(user, ["Ground floor", "Level 1"]);
 
+    // place ground floor first, then Level 1 in the gap above it
+    dropPage(yardFirst(), 1);
+    dropPage(gapAbove("Ground floor"), 2);
+    expect(screen.getByText("GF")).toBeInTheDocument();
+    expect(screen.getByText("L1")).toBeInTheDocument();
+
     await user.click(screen.getByRole("button", { name: "Add to design" }));
     await waitFor(() => expect(screen.getByDisplayValue("Level 1")).toBeInTheDocument());
     // only the two chosen pages were uploaded — site plan/elevations never left the browser
     expect(fake.uploads).toBe(2);
-    expect(screen.getByText("GF")).toBeInTheDocument();
-    expect(screen.getByText("L1")).toBeInTheDocument();
   });
 
   it("commercial job: L2 split east/west merges onto one floor; basement drops below the ground line", async () => {
@@ -153,25 +173,18 @@ describe("installer scenarios: upload → floors", () => {
       await user.click(await screen.findByRole("button", { name }));
     }
     await user.click(screen.getByRole("button", { name: /Continue with 4 pages/ }));
-    // name the floors; the two split sheets get the SAME name so they merge
+    // both split sheets share the name "Level 2" (display only); position rules
     await nameFloors(user, ["Basement", "Ground floor", "Level 2", "Level 2"]);
 
-    // merge: drop the West page card onto the East row (2nd "Level 2" row in display)
-    const eastRow = screen
-      .getAllByText("Level 2")[1]
-      .closest(".ds-stack-row") as HTMLElement;
-    fireEvent.drop(eastRow, dropPayload("p:3"));
-    expect(screen.getAllByText("Level 2")).toHaveLength(1);
-    const merged = screen.getByText("Level 2").closest(".ds-stack-row") as HTMLElement;
-    expect(within(merged).getByText("p.3")).toBeInTheDocument();
-    expect(within(merged).getByText("p.4")).toBeInTheDocument();
+    // build the stack by dragging from the tray
+    dropPage(yardFirst(), 1); // Ground floor → GF
+    dropPage(gapAbove("Ground floor"), 2); // Level 2 East → the level above (L1)
+    dropPage(floorCard("Level 2"), 3); // West merged onto the Level 2 card
+    dropPage(subfloorGap(), 0); // Basement below the ground line → B1
 
-    // subfloor: drop the Basement row onto the ground line
-    fireEvent.drop(
-      document.querySelector(".ds-groundline")!,
-      dropPayload("r:new_0")
-    );
-    expect(screen.getByText("B1")).toBeInTheDocument();
+    // one Level 2 floor now holds two sheets
+    const merged = floorCard("Level 2");
+    expect(merged.querySelectorAll(".ds-floorcard-sheet")).toHaveLength(2);
 
     await user.click(screen.getByRole("button", { name: "Add to design" }));
     await waitFor(() => expect(screen.getByDisplayValue("Basement")).toBeInTheDocument());
@@ -191,18 +204,17 @@ describe("installer scenarios: upload → floors", () => {
     // first import creates the floor; the second must join it, not duplicate
     uploadPdf();
     await nameFloors(user, ["Ground floor"]);
+    dropPage(yardFirst(), 0); // place as ground floor
     await user.click(screen.getByRole("button", { name: "Add to design" }));
     await waitFor(() => expect(screen.getByDisplayValue("Ground floor")).toBeInTheDocument());
 
-    // second import: the existing floor shows as a fixed drop target
+    // second import: the existing floor shows in the yard as a fixed card
     pdfToPages.mockResolvedValue([page("GF West wing", 1)]);
     uploadPdf();
     await nameFloors(user, [null]);
-    const existingRow = screen
-      .getByText("Ground floor")
-      .closest(".ds-stack-row") as HTMLElement;
-    expect(existingRow.className).toContain("existing");
-    fireEvent.drop(existingRow, dropPayload("p:0"));
+    const existing = floorCard("Ground floor");
+    expect(existing.className).toContain("existing");
+    dropPage(existing, 0); // merge the west wing onto it
 
     await user.click(screen.getByRole("button", { name: "Add to design" }));
     await waitFor(() => expect(screen.getByText("2 sheets")).toBeInTheDocument());

@@ -90,13 +90,9 @@ export interface BuilderRow {
 export const formatLevel = (n: number): string =>
   n < 0 ? `B${-n}` : n === 0 ? "GF" : `L${n}`;
 
-export function builderRowsFromPages(
-  pages: { label: string }[],
-  selected: number[],
-  floors: Floor[],
-  /** verified floor names by page index (from the naming step) */
-  names?: Record<number, string>
-): BuilderRow[] {
+/** The initial stack: existing floors as fixed rows (or just the ground-line
+    marker for a fresh design). Selected pages start unplaced in the tray. */
+export function builderStackFromFloors(floors: Floor[]): BuilderRow[] {
   const existing = [...floors]
     .sort((a, b) => a.level - b.level)
     .map((f) => ({
@@ -107,19 +103,46 @@ export function builderRowsFromPages(
       name: f.name,
       pageIdxs: [],
     }));
-  const fresh = selected.map((i) => ({
-    key: `new_${i}`,
-    kind: "floor" as const,
-    floorId: null,
-    name: names?.[i] ?? pages[i]?.label ?? `Page ${i + 1}`,
-    pageIdxs: [i],
-  }));
+  // Pages start UNPLACED (in the tray); the installer drags them into the
+  // building yard, and stack position — not the name — sets each level.
+  // A fresh design needs the ground-line marker so the first drop = ground
+  // floor; a design with existing floors anchors on its lowest floor.
   return existing.length > 0
-    ? [...existing, ...fresh]
-    : [
-        { key: "ground", kind: "ground" as const, floorId: null, name: "", pageIdxs: [] },
-        ...fresh,
-      ];
+    ? existing
+    : [{ key: "ground", kind: "ground" as const, floorId: null, name: "", pageIdxs: [] }];
+}
+
+/** Selected page indices not yet placed on any floor — i.e. the tray. */
+export function trayPageIdxs(rows: BuilderRow[], chosen: number[]): number[] {
+  const placed = new Set(rows.flatMap((r) => r.pageIdxs));
+  return chosen.filter((i) => !placed.has(i));
+}
+
+/** Insert a page as a NEW floor directly above/below an anchor row. "above"
+    means a higher level (later in the bottom-up array); "below" a lower one.
+    Dropping above the ground marker makes the ground floor; below it, a
+    subfloor. The page is first pulled from wherever it was (tray or a row). */
+export function insertPageRow(
+  rows: BuilderRow[],
+  pageIdx: number,
+  name: string,
+  anchorKey: string,
+  side: "above" | "below"
+): BuilderRow[] {
+  const cleared = pruneRows(
+    rows.map((r) => ({ ...r, pageIdxs: r.pageIdxs.filter((i) => i !== pageIdx) }))
+  );
+  const anchorIdx = cleared.findIndex((r) => r.key === anchorKey);
+  if (anchorIdx < 0) return rows;
+  const next = [...cleared];
+  next.splice(side === "above" ? anchorIdx + 1 : anchorIdx, 0, {
+    key: `new_${pageIdx}_${rows.length}`,
+    kind: "floor",
+    floorId: null,
+    name,
+    pageIdxs: [pageIdx],
+  });
+  return next;
 }
 
 /** Position → level for every floor row (bottom-up input). */
@@ -184,62 +207,27 @@ export function dropRowOnTop(rows: BuilderRow[], key: string): BuilderRow[] {
   return [...rows.filter((r) => r.key !== key), row!];
 }
 
-/** Drop a page card onto a row: joins that floor. Dropping on the ground
-    marker starts a new subfloor directly below the line. */
+/** Merge a page onto an existing floor row as a second sheet (east/west
+    split). Ground / position drops go through insertPageRow instead. */
 export function dropPageOnRow(
   rows: BuilderRow[],
   pageIdx: number,
-  targetKey: string,
-  label: string
+  targetKey: string
 ): BuilderRow[] {
   const target = rows.find((r) => r.key === targetKey);
-  if (!target) return rows;
-  const cleared = rows.map((r) => ({
-    ...r,
-    pageIdxs: r.pageIdxs.filter((i) => i !== pageIdx),
-  }));
-  if (target.kind === "ground") {
-    const next = pruneRows(cleared);
-    const markerIdx = next.findIndex((r) => r.key === targetKey);
-    next.splice(markerIdx, 0, {
-      key: `new_${pageIdx}_${rows.length}`,
-      kind: "floor",
-      floorId: null,
-      name: label,
-      pageIdxs: [pageIdx],
-    });
-    return next;
-  }
+  if (!target || target.kind !== "floor") return rows;
   return pruneRows(
-    cleared.map((r) =>
-      r.key === targetKey ? { ...r, pageIdxs: [...r.pageIdxs, pageIdx] } : r
-    )
+    rows.map((r) => ({
+      ...r,
+      pageIdxs:
+        r.key === targetKey
+          ? [...r.pageIdxs.filter((i) => i !== pageIdx), pageIdx]
+          : r.pageIdxs.filter((i) => i !== pageIdx),
+    }))
   );
 }
 
-/** Pull the page out into a brand-new row on top of the stack. */
-export function movePageToNewRow(
-  rows: BuilderRow[],
-  pageIdx: number,
-  name: string
-): BuilderRow[] {
-  const cleared = rows.map((r) => ({
-    ...r,
-    pageIdxs: r.pageIdxs.filter((i) => i !== pageIdx),
-  }));
-  return pruneRows([
-    ...cleared,
-    {
-      key: `new_${pageIdx}_${cleared.length}`,
-      kind: "floor",
-      floorId: null,
-      name,
-      pageIdxs: [pageIdx],
-    },
-  ]);
-}
-
-/** Drop a page from the import entirely. */
+/** Pull a page back off the stack (into the tray) / out of the import. */
 export function removePageFromRows(rows: BuilderRow[], pageIdx: number): BuilderRow[] {
   return pruneRows(
     rows.map((r) => ({ ...r, pageIdxs: r.pageIdxs.filter((i) => i !== pageIdx) }))

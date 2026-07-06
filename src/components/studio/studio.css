@@ -1179,166 +1179,278 @@
   color: var(--ink);
 }
 /* ── floor-stack builder ── */
-.dstudio .ds-stack-newzone {
+/* ── Stack builder: tray (left) + building yard (right) ── */
+.dstudio .ds-build {
   display: flex;
+  flex-direction: column;
+}
+.dstudio .ds-yard-wrap {
+  display: flex;
+  gap: 16px;
+  align-items: stretch;
+  min-height: 0;
+}
+/* left: the tray of uploaded pages */
+.dstudio .ds-tray {
+  flex: 0 0 190px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 560px;
+  overflow-y: auto;
+  padding: 12px;
+  border: 1px solid var(--ds-border);
+  border-radius: 18px;
+  background: #f7f8fa;
+}
+.dstudio .ds-tray-head {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--gray400);
+}
+.dstudio .ds-tray-empty {
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 7px;
-  padding: 13px;
-  border: 1.5px dashed rgba(10, 12, 20, 0.16);
-  border-radius: 13px;
+  gap: 6px;
+  padding: 24px 8px;
+  text-align: center;
   font-size: 12px;
   font-weight: 700;
-  color: var(--gray400);
-  margin-bottom: 10px;
-  transition: all 0.18s;
-}
-.dstudio .ds-stack-newzone:hover {
-  border-color: rgba(0, 229, 192, 0.6);
   color: var(--teal-d);
-  background: rgba(0, 229, 192, 0.05);
 }
-.dstudio .ds-stack {
+.dstudio .ds-tray-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--ds-border);
+  border-radius: 13px;
+  background: #fff;
+  cursor: grab;
+  box-shadow: 0 1px 2px rgba(10, 12, 20, 0.05);
+  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+}
+.dstudio .ds-tray-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(0, 229, 192, 0.5);
+  box-shadow: 0 12px 26px -16px rgba(10, 12, 20, 0.3);
+}
+.dstudio .ds-tray-card:active {
+  cursor: grabbing;
+}
+.dstudio .ds-tray-card img {
+  width: 100%;
+  height: 96px;
+  object-fit: cover;
+  object-position: top;
+  border-radius: 8px;
+  background: #eef0f4;
+  pointer-events: none;
+}
+.dstudio .ds-tray-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* right: the building yard */
+.dstudio .ds-yard {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 560px;
+  overflow-y: auto;
+  padding: 10px 12px;
+  border: 1px solid rgba(10, 12, 20, 0.1);
+  border-radius: 20px;
+  background: linear-gradient(180deg, #eef1f6, #e6e9f1);
+}
+.dstudio .ds-yard-cap {
+  text-align: center;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--gray400);
+  padding: 4px 0;
+}
+.dstudio .ds-yard-gap {
+  height: 14px;
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+}
+.dstudio .ds-yard-gap span {
+  flex: 1;
+  height: 3px;
+  border-radius: 999px;
+  transition: background 0.12s;
+}
+.dstudio .ds-yard-gap:hover span {
+  background: repeating-linear-gradient(
+    90deg,
+    var(--teal-d) 0 7px,
+    transparent 7px 13px
+  );
+}
+.dstudio .ds-yard-first {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 130px;
+  margin: 6px;
+  border: 2px dashed rgba(0, 163, 137, 0.4);
+  border-radius: 16px;
+  background: rgba(0, 229, 192, 0.05);
+  color: var(--teal-d);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  padding: 12px;
+  transition: all 0.15s;
+}
+.dstudio .ds-yard-first:hover {
+  border-color: var(--teal-d);
+  background: rgba(0, 229, 192, 0.1);
+}
+
+/* floor card in the yard */
+.dstudio .ds-floorcard {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--ds-border);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(10, 12, 20, 0.05);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.dstudio .ds-floorcard:hover {
+  border-color: rgba(0, 229, 192, 0.45);
+  box-shadow: 0 12px 26px -18px rgba(10, 12, 20, 0.3);
+}
+.dstudio .ds-floorcard.existing {
+  background: #f7f8fa;
+}
+.dstudio .ds-floorcard.sub {
+  background: #f3f4f8;
+}
+.dstudio .ds-floorcard-side {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.dstudio .ds-floorcard-grip {
+  color: var(--gray400);
+  cursor: grab;
+}
+.dstudio .ds-floorcard-grip:hover {
+  color: var(--ink);
+}
+.dstudio .ds-floorcard-grip:active {
+  cursor: grabbing;
+}
+.dstudio .ds-floorcard-body {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 420px;
-  overflow-y: auto;
 }
-.dstudio .ds-stack-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-  border: 1px solid var(--color-surface-line, #f0f0f2);
-  border-radius: 15px;
-  background: #fff;
-  transition: border-color 0.15s, background 0.15s;
-}
-.dstudio .ds-stack-row:hover {
-  border-color: rgba(0, 229, 192, 0.45);
-}
-.dstudio .ds-stack-row.existing {
-  background: #f7f8fa;
-}
-.dstudio .ds-stack-name-fixed {
-  width: 170px;
-  font-size: 13px;
-  font-weight: 800;
-  color: var(--gray500);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.dstudio .ds-stack-name-fixed.new {
-  color: var(--ink);
-}
-.dstudio .ds-stack-cards {
-  flex: 1;
+.dstudio .ds-floorcard-sheets {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 46px;
   flex-wrap: wrap;
+  min-height: 72px;
 }
-.dstudio .ds-stack-empty {
+.dstudio .ds-floorcard-empty {
   font-size: 11.5px;
   font-weight: 600;
   color: var(--gray400);
   font-style: italic;
 }
-.dstudio .ds-stack-card {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 4px 6px;
-  border: 1px solid #e9eaee;
-  border-radius: 10px;
-  background: #fff;
+.dstudio .ds-floorcard-sheet {
+  position: relative;
   cursor: grab;
-  box-shadow: 0 1px 2px rgba(10, 12, 20, 0.05);
 }
-.dstudio .ds-stack-card:active {
+.dstudio .ds-floorcard-sheet:active {
   cursor: grabbing;
 }
-.dstudio .ds-stack-card img {
-  width: 46px;
-  height: 34px;
+.dstudio .ds-floorcard-sheet img {
+  width: 108px;
+  height: 72px;
   object-fit: cover;
   object-position: top;
-  border-radius: 6px;
-  background: #f4f5f7;
+  border-radius: 9px;
+  border: 1px solid var(--ds-border);
+  background: #eef0f4;
   pointer-events: none;
 }
-.dstudio .ds-stack-card span {
-  font-size: 10.5px;
-  font-weight: 700;
-  color: var(--gray500);
-}
-.dstudio .ds-stack-card button {
+.dstudio .ds-floorcard-x {
+  position: absolute;
+  top: 4px;
+  right: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 20px;
   height: 20px;
   border-radius: 6px;
-  color: var(--gray400);
+  background: rgba(10, 12, 20, 0.6);
+  color: #fff;
+  opacity: 0;
+  transition: opacity 0.15s;
 }
-.dstudio .ds-stack-card button:hover {
-  background: rgba(255, 51, 102, 0.09);
-  color: var(--red);
+.dstudio .ds-floorcard-sheet:hover .ds-floorcard-x {
+  opacity: 1;
 }
-.dstudio .ds-stack-grip {
-  display: flex;
-  align-items: center;
-  width: 18px;
-  color: var(--gray400);
-  cursor: grab;
-  margin-left: -2px;
+.dstudio .ds-floorcard-x:hover {
+  background: var(--red);
 }
-.dstudio .ds-stack-grip:active {
-  cursor: grabbing;
-}
-.dstudio .ds-stack-grip:hover {
+.dstudio .ds-floorcard-name {
+  font-size: 13.5px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
   color: var(--ink);
-}
-.dstudio .ds-stack-grip svg + svg {
-  margin-left: -9px;
-}
-.dstudio .ds-stack-grip.fixed {
-  cursor: default;
-}
-.dstudio .ds-stack-row.sub {
-  background: #f3f4f8;
-  border-style: dashed;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .dstudio .ds-groundline {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 6px 4px;
+  padding: 8px 4px;
 }
 .dstudio .ds-groundline span {
   flex: 1;
   height: 2px;
   background: repeating-linear-gradient(
     90deg,
-    var(--gray400) 0 8px,
+    var(--gray500) 0 8px,
     transparent 8px 14px
   );
 }
 .dstudio .ds-groundline b {
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--gray400);
+  color: var(--gray500);
   white-space: nowrap;
-}
-.dstudio .ds-groundline:hover b,
-.dstudio .ds-groundline:hover span {
-  color: var(--teal-d);
-  background-color: rgba(0, 163, 137, 0.4);
 }
 
 /* ── full-size page preview (portalled to body) ── */

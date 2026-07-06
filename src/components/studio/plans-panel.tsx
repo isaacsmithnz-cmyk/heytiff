@@ -13,6 +13,7 @@ import {
   dropRowOnTop,
   formatLevel,
   imageToPage,
+  labelPagesSequentially,
   movePageToNewRow,
   pdfToPages,
   removePageFromRows,
@@ -82,6 +83,7 @@ export function PlansPanel({
         setError("No usable pages — upload a PDF, PNG or JPG.");
         return;
       }
+      labelPagesSequentially(pages); // Page 1, Page 2, … across the whole upload
       if (pages.length === 1) {
         // one page = nothing to pick; go straight to naming it
         setPhase({
@@ -203,11 +205,22 @@ export function PlansPanel({
         <div className="ds-pagepick">
           <div className="ds-pagepick-head">
             <span className="ds-cardt">
-              Click the pages you want as floors
+              Click the pages you want to upload
             </span>
-            <span className="ds-pagepick-n">
-              {phase.selected.size} of {phase.pages.length} selected
-            </span>
+            <div className="ds-pagepick-right">
+              <span className="ds-pagepick-n">
+                {phase.selected.size} of {phase.pages.length} selected
+              </span>
+              <button
+                className="ds-ai-btn"
+                disabled
+                title="Coming soon — scans your drawings and names each floor for you"
+              >
+                <Icon name="sparkles" size={14} />
+                AI screening
+                <span className="ds-ai-soon">Soon</span>
+              </button>
+            </div>
           </div>
           <PageGrid
             pages={phase.pages}
@@ -272,7 +285,7 @@ export function PlansPanel({
           {/* the picker stays behind as context; the lightbox does the work */}
           <div className="ds-pagepick">
             <div className="ds-pagepick-head">
-              <span className="ds-cardt">Check each floor&apos;s name</span>
+              <span className="ds-cardt">Name each floor</span>
             </div>
             <PageGrid
               pages={phase.pages}
@@ -437,34 +450,49 @@ function PageGrid({
   onToggle?: (i: number) => void;
   onPreview: (i: number) => void;
 }) {
+  // clicking the card selects it; the expand button (hover-only) opens the
+  // full-size preview. Naming backdrop has no toggle, so a card click previews.
+  const primary = (i: number) => (onToggle ? onToggle(i) : onPreview(i));
   return (
     <div className="ds-pages">
       {pages.map((p, i) => {
         const on = selected.has(i);
         return (
-          <div key={i} className={`ds-page${on ? " on" : ""}`}>
-            {/* image opens the full-size preview; the label row toggles */}
-            <button
-              className="ds-page-view"
-              aria-label={`Preview ${p.label}`}
-              onClick={() => onPreview(i)}
-            >
+          <div
+            key={i}
+            className={`ds-page${on ? " on" : ""}${onToggle ? " selectable" : ""}`}
+            role="button"
+            tabIndex={0}
+            aria-pressed={onToggle ? on : undefined}
+            aria-label={p.label}
+            onClick={() => primary(i)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                primary(i);
+              }
+            }}
+          >
+            <div className="ds-page-thumb">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={p.thumbUrl} alt={p.label} />
-              <span className="ds-page-zoom">
-                <Icon name="maximize" size={13} />
-              </span>
-            </button>
-            <button
-              className="ds-page-label"
-              disabled={!onToggle}
-              onClick={() => onToggle?.(i)}
-            >
+              <button
+                className="ds-page-expand"
+                aria-label={`Preview ${p.label}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onPreview(i);
+                }}
+              >
+                <Icon name="maximize" size={14} />
+              </button>
+            </div>
+            <span className="ds-page-label">
               <span className={`ds-page-check${on ? " on" : ""}`}>
                 {on && <Icon name="check" size={11} />}
               </span>
               {p.label}
-            </button>
+            </span>
           </div>
         );
       })}

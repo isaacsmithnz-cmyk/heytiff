@@ -93,9 +93,9 @@ describe("installer scenarios: upload → floors", () => {
     const user = await openPlanJob(fake);
 
     uploadPdf();
-    // straight into naming — no "Click the pages you want" step
-    expect(await screen.findByLabelText("Floor name")).toHaveValue("Floor plan");
-    expect(screen.queryByText("Click the pages you want as floors")).toBeNull();
+    // straight into naming — no picker; pages come in unnamed as "Page 1"
+    expect(await screen.findByLabelText("Floor name")).toHaveValue("Page 1");
+    expect(screen.queryByText("Click the pages you want to upload")).toBeNull();
 
     await nameFloors(user, ["Ground floor"]);
     // stack: one row, chipped GF, name locked from the naming step
@@ -121,13 +121,14 @@ describe("installer scenarios: upload → floors", () => {
 
     uploadPdf();
     // floors list must be hidden while importing
-    expect(await screen.findByText("Click the pages you want as floors")).toBeInTheDocument();
+    expect(await screen.findByText("Click the pages you want to upload")).toBeInTheDocument();
     expect(screen.queryByText("Floors")).toBeNull();
 
-    await user.click(screen.getByRole("button", { name: "Ground floor" }));
-    await user.click(screen.getByRole("button", { name: "Level 1" }));
+    // pages come in as "Page 1..4"; skip the site plan (1) and elevations (4)
+    await user.click(screen.getByRole("button", { name: "Page 2" }));
+    await user.click(screen.getByRole("button", { name: "Page 3" }));
     await user.click(screen.getByRole("button", { name: /Continue with 2 pages/ }));
-    await nameFloors(user, [null, null]); // guessed names are already right
+    await nameFloors(user, ["Ground floor", "Level 1"]);
 
     await user.click(screen.getByRole("button", { name: "Add to design" }));
     await waitFor(() => expect(screen.getByDisplayValue("Level 1")).toBeInTheDocument());
@@ -148,12 +149,12 @@ describe("installer scenarios: upload → floors", () => {
     const user = await openPlanJob(fake);
 
     uploadPdf();
-    for (const name of ["Basement", "Ground floor", "Level 2 East", "Level 2 West"]) {
+    for (const name of ["Page 1", "Page 2", "Page 3", "Page 4"]) {
       await user.click(await screen.findByRole("button", { name }));
     }
     await user.click(screen.getByRole("button", { name: /Continue with 4 pages/ }));
-    // rename both split sheets to the same floor name during verification
-    await nameFloors(user, [null, null, "Level 2", "Level 2"]);
+    // name the floors; the two split sheets get the SAME name so they merge
+    await nameFloors(user, ["Basement", "Ground floor", "Level 2", "Level 2"]);
 
     // merge: drop the West page card onto the East row (2nd "Level 2" row in display)
     const eastRow = screen
@@ -251,5 +252,38 @@ describe("installer scenarios: upload → floors", () => {
     expect(screen.queryByText("Add a blank floor")).toBeNull();
     await user.click(screen.getByRole("button", { name: /Go to Plans/ }));
     expect(screen.getByText("Drop floor plans here")).toBeInTheDocument();
+  });
+
+  it("picker: clicking a card selects it; the expand button opens the preview (not a select)", async () => {
+    pdfToPages.mockResolvedValue([page("a", 1), page("b", 2), page("c", 3)]);
+    const user = await openPlanJob(new CountingPlanImages());
+    uploadPdf();
+
+    // clicking the card body toggles selection — no magnifying glass needed
+    const card = await screen.findByRole("button", { name: "Page 2" });
+    expect(card).toHaveAttribute("aria-pressed", "false");
+    await user.click(card);
+    expect(screen.getByRole("button", { name: "Page 2" })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+    expect(screen.getByText("1 of 3 selected")).toBeInTheDocument();
+
+    // the expand button opens the full-size lightbox and does NOT toggle
+    await user.click(screen.getByRole("button", { name: "Preview Page 3" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("Page 3")).toBeInTheDocument();
+    // still only page 2 selected — previewing page 3 didn't select it
+    expect(screen.getByText("1 of 3 selected")).toBeInTheDocument();
+  });
+
+  it("picker shows the AI-screening slot (disabled placeholder for now)", async () => {
+    pdfToPages.mockResolvedValue([page("a", 1), page("b", 2)]);
+    const user = await openPlanJob(new CountingPlanImages());
+    uploadPdf();
+    await screen.findByText("Click the pages you want to upload");
+    const ai = screen.getByRole("button", { name: /AI screening/ });
+    expect(ai).toBeDisabled();
+    expect(user).toBeTruthy();
   });
 });

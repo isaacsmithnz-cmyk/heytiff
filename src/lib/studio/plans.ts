@@ -1,8 +1,10 @@
 /* Design Studio — plans pipeline (client side).
    PDFs are rasterised in the browser with pdf.js (npm dep, workers bundled);
    each selected page uploads to Supabase Storage via a signed URL and the
-   design document stores only the ref + natural size. The pure helpers
-   (labelling, floor mapping) are unit-tested; the raster path is browser-only. */
+   design document stores only the ref + natural size. Pages come in named
+   "Page 1", "Page 2"… — floor names are set by the installer in the naming
+   step (an AI screening pass will pre-fill them later). Raster path is
+   browser-only; the floor-mapping helpers are pure + unit-tested. */
 
 import { newId, type Floor, type PlanSheet } from "./document";
 
@@ -17,81 +19,12 @@ export interface PageImage {
   height: number;
 }
 
-/* ── Pure: keyword floor labelling ──
-   Real drawing sets mention many sheet names on every page (title blocks,
-   sheet indexes), so first-match regexes mislabel constantly. Instead every
-   pattern hit scores (occurrences capped so an index page can't run away),
-   and the highest-scoring label wins. Specific floor names outweigh generic
-   sheet types like "elevations". */
-
-const ORDINALS = [
-  "first|1st",
-  "second|2nd",
-  "third|3rd",
-  "fourth|4th",
-  "fifth|5th",
-  "sixth|6th",
-  "seventh|7th",
-  "eighth|8th",
-  "ninth|9th",
-  "tenth|10th",
-];
-
-type LabelPattern = {
-  re: RegExp;
-  label: (m: RegExpExecArray) => string;
-  weight: number;
-};
-
-const LABEL_PATTERNS: LabelPattern[] = [
-  { re: /lower\s+ground(?:\s+(?:floor|level))?/g, label: () => "Lower ground", weight: 4 },
-  { re: /\bbasement\b/g, label: () => "Basement", weight: 4 },
-  { re: /\bground\s+(?:floor|level)\b/g, label: () => "Ground floor", weight: 4 },
-  ...ORDINALS.map((ord, i) => ({
-    re: new RegExp(`\\b(?:${ord})\\s+(?:floor|level|storey)\\b`, "g"),
-    label: () => `Level ${i + 1}`,
-    weight: 4,
-  })),
-  { re: /\blevel\s+(\d{1,2})\b/g, label: (m) => `Level ${parseInt(m[1], 10)}`, weight: 4 },
-  { re: /\bl(\d{1,2})\s+(?:floor\s+)?plan\b/g, label: (m) => `Level ${parseInt(m[1], 10)}`, weight: 3 },
-  { re: /\bmezzanine\b/g, label: () => "Mezzanine", weight: 3 },
-  { re: /\bupper\s+(?:floor|level)\b/g, label: () => "Upper floor", weight: 3 },
-  { re: /\blower\s+(?:floor|level)\b/g, label: () => "Lower floor", weight: 3 },
-  { re: /\battic\b|\bloft\b/g, label: () => "Attic", weight: 3 },
-  { re: /\bgarage\s+plan\b/g, label: () => "Garage", weight: 3 },
-  { re: /\broof\s+(?:plan|layout)\b/g, label: () => "Roof", weight: 4 },
-  { re: /\bsite\s+plan\b/g, label: () => "Site plan", weight: 4 },
-  { re: /\bfloor\s+plan\b/g, label: () => "Floor plan", weight: 1 },
-  { re: /\belevations?\b/g, label: () => "Elevations", weight: 2 },
-  { re: /\bsections?\b/g, label: () => "Sections", weight: 2 },
-  { re: /\belectrical\s+(?:plan|layout)\b/g, label: () => "Electrical", weight: 2 },
-];
-
-export function guessFloorLabel(text: string, pageNumber: number): string {
-  const t = text.toLowerCase().replace(/\s+/g, " ");
-  const scores = new Map<string, { score: number; order: number }>();
-  LABEL_PATTERNS.forEach((p, order) => {
-    p.re.lastIndex = 0;
-    const counts = new Map<string, number>();
-    let m: RegExpExecArray | null;
-    while ((m = p.re.exec(t)) !== null) {
-      const label = p.label(m);
-      counts.set(label, (counts.get(label) ?? 0) + 1);
-    }
-    for (const [label, count] of counts) {
-      const score = Math.min(count, 3) * p.weight;
-      const prev = scores.get(label);
-      if (!prev) scores.set(label, { score, order });
-      else prev.score += score;
-    }
+/** Number every candidate page "Page 1", "Page 2"… by combined order, so a
+    mixed / multi-file upload reads sequentially with no collisions. */
+export function labelPagesSequentially(pages: PageImage[]): void {
+  pages.forEach((p, i) => {
+    p.label = `Page ${i + 1}`;
   });
-  let best: { label: string; score: number; order: number } | null = null;
-  for (const [label, { score, order }] of scores) {
-    if (!best || score > best.score || (score === best.score && order < best.order)) {
-      best = { label, score, order };
-    }
-  }
-  return best ? best.label : `Page ${pageNumber}`;
 }
 
 /* ── Pure: uploaded pages → sheets on floors ──
@@ -387,12 +320,9 @@ export async function pdfToPages(
     const blob = await new Promise<Blob>((resolve, reject) =>
       canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("render failed"))), "image/png")
     );
-    const text = (await page.getTextContent()).items
-      .map((it) => ("str" in it ? it.str : ""))
-      .join(" ");
     pages.push({
       pageNumber: n,
-      label: guessFloorLabel(text, n),
+      label: `Page ${n}`, // real floor names are set in the naming step
       blob,
       ext: "png",
       thumbUrl: URL.createObjectURL(blob),
@@ -409,7 +339,7 @@ export async function imageToPage(file: File): Promise<PageImage> {
   const ext = file.type === "image/jpeg" ? "jpeg" : "png";
   return {
     pageNumber: null,
-    label: file.name.replace(/\.[a-z0-9]+$/i, "") || "Floor plan",
+    label: "Page 1", // relabelled by combined order when several files land
     blob: file,
     ext,
     thumbUrl: URL.createObjectURL(file),

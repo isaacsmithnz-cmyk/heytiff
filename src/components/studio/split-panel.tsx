@@ -20,7 +20,10 @@ import { roomAreaM2, roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
 import { roomsServedBy, roomCoverage, type RoomCoverage } from "@/lib/studio/coverage";
 import { systemBadge, type BadgeStatus, type PairProposal } from "@/lib/studio/split";
 import { buildMaterials } from "@/lib/studio/materials";
-import { moduleFor } from "@/lib/studio/modules";
+import { moduleFor, MODULE_ORDER } from "@/lib/studio/modules";
+
+/** more than one module shipped → changing a system's type is meaningful */
+const CAN_CHANGE_TYPE = MODULE_ORDER.filter((t) => moduleFor(t).available).length > 1;
 import type { SystemType } from "@/lib/studio/document";
 import { SystemTypeChooser } from "./system-type-chooser";
 import { UnitBrowser } from "./unit-browser";
@@ -63,6 +66,7 @@ export function SystemsPanel({
   onSelectRoom: (id: string | null) => void;
 }) {
   const [adding, setAdding] = useState(false);
+  const [changingType, setChangingType] = useState(false);
 
   const systems = doc.systems;
   const active =
@@ -96,6 +100,30 @@ export function SystemsPanel({
     setAdding(false);
   };
 
+  /* change an existing system's type. Units + pipework are type-specific, so
+     they're dropped (like a recall) and the chosen pair is cleared; the rooms
+     the system serves are type-agnostic and stay. */
+  const changeType = (type: SystemType) => {
+    setChangingType(false);
+    if (!active || type === active.type) return;
+    const sysId = active.id;
+    onMutate((d) => ({
+      ...d,
+      systems: d.systems.map((s) =>
+        s.id === sysId
+          ? { ...s, type, settings: { ...s.settings, pairIdu: undefined, pairOdu: undefined } }
+          : s
+      ),
+      objects: d.objects.filter(
+        (o) =>
+          !(
+            o.systemId === sysId &&
+            (o.type === "unit" || o.type === "pipe-run" || o.type === "riser")
+          )
+      ),
+    }));
+  };
+
   const rooms = roomsServedBy(doc, active?.id ?? null);
   const basis: SizingBasis = doc.settings.sizingBasis;
 
@@ -107,6 +135,17 @@ export function SystemsPanel({
       <SystemTypeChooser
         onChoose={createSystem}
         onCancel={adding ? () => setAdding(false) : undefined}
+      />
+    );
+  }
+
+  if (changingType && active) {
+    return (
+      <SystemTypeChooser
+        heading="Change system type"
+        sub="Pick a different type — this clears the system's units"
+        onChoose={changeType}
+        onCancel={() => setChangingType(false)}
       />
     );
   }
@@ -149,6 +188,7 @@ export function SystemsPanel({
           onSelectRoom={onSelectRoom}
           onMutate={onMutate}
           onActivate={onActivate}
+          onChangeType={() => setChangingType(true)}
         />
       )}
 
@@ -178,6 +218,7 @@ function ActiveSystem({
   onSelectRoom,
   onMutate,
   onActivate,
+  onChangeType,
 }: {
   doc: DesignDocument;
   pack: DataPack;
@@ -188,6 +229,7 @@ function ActiveSystem({
   onSelectRoom: (id: string | null) => void;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   onActivate: (id: string | null) => void;
+  onChangeType: () => void;
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -249,7 +291,18 @@ function ActiveSystem({
       <div className="ds-rp-syshead">
         <div>
           <div className="ds-rp-systype-cap">System type</div>
-          <div className="ds-rp-systype">{moduleFor(system.type).label}</div>
+          <div className="ds-rp-systype">
+            {moduleFor(system.type).label}
+            {CAN_CHANGE_TYPE && (
+              <button
+                className="ds-rp-change"
+                onClick={onChangeType}
+                title="Change system type — this clears the system's units"
+              >
+                Change
+              </button>
+            )}
+          </div>
         </div>
         <button
           className="ds-rp-del"

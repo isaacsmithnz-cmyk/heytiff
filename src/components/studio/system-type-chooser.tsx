@@ -21,15 +21,19 @@ const TYPE_ICON: Record<SystemType, string> = {
 export function SystemTypeChooser({
   onChoose,
   onCancel,
+  heading = "New system",
+  sub = "Choose a system type to design",
 }: {
   onChoose: (type: SystemType) => void;
   onCancel?: () => void;
+  heading?: string;
+  sub?: string;
 }) {
   return (
     <div className="ds-syscard ds-chooser">
       <div className="ds-chooser-head">
-        <span className="ds-cardt">New system</span>
-        <span className="ds-chooser-sub">Choose a system type to design</span>
+        <span className="ds-cardt">{heading}</span>
+        <span className="ds-chooser-sub">{sub}</span>
       </div>
       <div className="ds-chooser-grid">
         {MODULE_ORDER.map((t) => {

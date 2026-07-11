@@ -161,6 +161,29 @@ describe("UnitBrowser", () => {
     expect(screen.getByText("AP-25")).toBeInTheDocument();
   });
 
+  it("the Columns menu toggles which spec columns show, and persists the choice", () => {
+    window.localStorage.clear();
+    render(
+      <UnitBrowser pack={fixturePack()} loadKw={null} basis="worst-of-both" nextRole="idu" onChoose={noop} onClose={noop} />
+    );
+    // default wall columns: physical size shown, Sound not
+    expect(screen.getByRole("columnheader", { name: /W mm/ })).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: /Sound/ })).toBeNull();
+
+    // open the menu, turn Sound on and Width off
+    fireEvent.click(screen.getByRole("button", { name: /Columns/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /Sound/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /Width/ }));
+
+    expect(screen.getByRole("columnheader", { name: /Sound dBA/ })).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: /W mm/ })).toBeNull();
+
+    // the choice is saved per-device
+    const saved = JSON.parse(window.localStorage.getItem("heytiff.studio.unit-columns")!);
+    expect(saved).toContain("sound");
+    expect(saved).not.toContain("width");
+  });
+
   it("Escape closes", () => {
     const onClose = jest.fn();
     render(

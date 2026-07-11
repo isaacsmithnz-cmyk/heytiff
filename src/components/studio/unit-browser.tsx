@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
 import type { DataPack, FormFactor } from "@/lib/studio/packs/schema";
@@ -13,6 +13,12 @@ import {
   type SelectSort,
   type UnitOption,
 } from "@/lib/studio/select";
+import {
+  UNIT_SPECS,
+  loadColumnIds,
+  saveColumnIds,
+  type UnitSpec,
+} from "@/lib/studio/unit-specs";
 import type { PairProposal } from "@/lib/studio/split";
 import type { PlacingUnit } from "./canvas";
 
@@ -46,6 +52,14 @@ export function UnitBrowser({
   const [oduPick, setOduPick] = useState<Record<string, number>>({});
   /** group the table by product series (e.g. AP, EF) — an aid, toggleable off */
   const [groupBySeries, setGroupBySeries] = useState(true);
+  /** the installer's chosen spec columns (persisted per-device) */
+  const [columnIds, setColumnIds] = useState<string[]>(() => loadColumnIds());
+  const toggleColumn = (id: string) =>
+    setColumnIds((ids) => {
+      const next = ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id];
+      saveColumnIds(next);
+      return next;
+    });
 
   const tabs = useMemo(
     () => formFactorSummary(pack, loadKw, basis, includeOversized),
@@ -62,7 +76,6 @@ export function UnitBrowser({
       if (rec) return rec.idu.form_factor;
     }
     return tabs[0]?.formFactor ?? null;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, tabs, pack, loadKw, basis, includeOversized]);
 
   const options = useMemo(
@@ -79,7 +92,15 @@ export function UnitBrowser({
   );
 
   const isDucted = activeTab === "ducted";
-  const colSpan = isDucted ? 8 : 7;
+  /* spec columns to show: the enabled set, in registry order, minus any that
+     don't apply to this form factor (e.g. airflow off the ducted tab) */
+  const activeSpecs = UNIT_SPECS.filter(
+    (s) => columnIds.includes(s.id) && (!s.only || s.only === activeTab)
+  );
+  /* the specs offered in the Columns menu for THIS tab (hide inapplicable ones) */
+  const menuSpecs = UNIT_SPECS.filter((s) => !s.only || s.only === activeTab);
+  // Model + spec columns + Outdoor + Add
+  const colSpan = 1 + activeSpecs.length + 2;
 
   /* group same-series rows adjacently, preserving the sorted order within each
      group and ordering groups by first appearance (keeps the recommended unit's
@@ -119,17 +140,6 @@ export function UnitBrowser({
     />
   );
 
-  const sortHeader = (key: SelectSort, label: string) => (
-    <th
-      className={`sortable${sort === key ? " on" : ""}`}
-      onClick={() => setSort(key)}
-      title={`Sort by ${label.toLowerCase()}`}
-    >
-      {label}
-      {sort === key && <span className="ds-ub-sortmark">{key === "airflow" ? "↓" : "↑"}</span>}
-    </th>
-  );
-
   const choose = (o: UnitOption) => {
     const pair = o.pairs[oduPick[o.idu.model] ?? 0] ?? o.defaultPair;
     const unit = nextRole === "idu" ? pair.idu : pair.odu;
@@ -150,13 +160,9 @@ export function UnitBrowser({
           {o.idu.model}
           {o.recommended && <em>best fit</em>}
         </td>
-        <td>
-          {pair.coolKw} / {pair.heatKw} kW
-        </td>
-        <td>{o.idu.width_mm}</td>
-        <td>{o.idu.depth_mm}</td>
-        <td>{o.idu.height_mm}</td>
-        {isDucted && <td>{o.idu.airflow_ls ?? "—"} L/s</td>}
+        {activeSpecs.map((s) => (
+          <td key={s.id}>{s.cell(o, pair)}</td>
+        ))}
         <td>
           {o.pairs.length > 1 ? (
             <select
@@ -243,16 +249,23 @@ export function UnitBrowser({
               Reset
             </button>
           )}
-          {groups.length > 1 && (
-            <label className="ds-ub-groupby">
-              <input
-                type="checkbox"
-                checked={groupBySeries}
-                onChange={(e) => setGroupBySeries(e.target.checked)}
-              />
-              Group by series
-            </label>
-          )}
+          <div className="ds-ub-fright">
+            {groups.length > 1 && (
+              <label className="ds-ub-groupby">
+                <input
+                  type="checkbox"
+                  checked={groupBySeries}
+                  onChange={(e) => setGroupBySeries(e.target.checked)}
+                />
+                Group by series
+              </label>
+            )}
+            <ColumnsMenu
+              specs={menuSpecs}
+              enabled={columnIds}
+              onToggle={toggleColumn}
+            />
+          </div>
         </div>
 
         <div className="ds-ub-scroll">
@@ -260,11 +273,25 @@ export function UnitBrowser({
             <thead>
               <tr>
                 <th>Model</th>
-                {sortHeader("capacity", "Cool / Heat")}
-                {sortHeader("width", "W mm")}
-                {sortHeader("depth", "D mm")}
-                {sortHeader("height", "H mm")}
-                {isDucted && sortHeader("airflow", "Airflow")}
+                {activeSpecs.map((s) =>
+                  s.sortKey ? (
+                    <th
+                      key={s.id}
+                      className={`sortable${sort === s.sortKey ? " on" : ""}`}
+                      onClick={() => setSort(s.sortKey!)}
+                      title={`Sort by ${s.label.toLowerCase()}`}
+                    >
+                      {s.header}
+                      {sort === s.sortKey && (
+                        <span className="ds-ub-sortmark">
+                          {s.sortKey === "airflow" ? "↓" : "↑"}
+                        </span>
+                      )}
+                    </th>
+                  ) : (
+                    <th key={s.id}>{s.header}</th>
+                  )
+                )}
                 <th>Outdoor</th>
                 <th></th>
               </tr>
@@ -297,4 +324,60 @@ export function UnitBrowser({
   );
 
   return createPortal(body, document.body);
+}
+
+/* Columns menu — the installer picks which spec columns they want in front of
+   them; the choice persists per-device (see unit-specs.ts). */
+function ColumnsMenu({
+  specs,
+  enabled,
+  onToggle,
+}: {
+  specs: UnitSpec[];
+  enabled: string[];
+  onToggle: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const boxRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    window.addEventListener("mousedown", onDown);
+    return () => window.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  return (
+    <div className="ds-ub-cols" ref={boxRef}>
+      <button
+        className="ds-ub-colsbtn"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title="Choose which spec columns to show"
+      >
+        <Icon name="settings2" size={14} />
+        Columns
+        <Icon name="chevD" size={12} />
+      </button>
+      {open && (
+        <div className="ds-ub-colsmenu" role="menu">
+          <div className="ds-ub-colshead">Show columns</div>
+          {specs.map((s) => (
+            <label key={s.id} className="ds-ub-colsitem">
+              <input
+                type="checkbox"
+                checked={enabled.includes(s.id)}
+                onChange={() => onToggle(s.id)}
+              />
+              <span className="ds-ub-colsname">{s.label}</span>
+              {s.unit && <span className="ds-ub-colsunit">{s.unit}</span>}
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }

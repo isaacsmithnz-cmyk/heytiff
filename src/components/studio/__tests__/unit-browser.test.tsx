@@ -2,7 +2,7 @@
    columns, ODU sub-choice, and the choose→arm payload. Small in-memory pack
    fixture — engine correctness against the real pack lives in select.test.ts. */
 
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import { UnitBrowser } from "../unit-browser";
 import { emptyPack, type DataPack, type IndoorUnit, type OutdoorUnit, type PairTable } from "@/lib/studio/packs/schema";
 
@@ -182,6 +182,61 @@ describe("UnitBrowser", () => {
     const saved = JSON.parse(window.localStorage.getItem("heytiff.studio.unit-columns")!);
     expect(saved).toContain("sound");
     expect(saved).not.toContain("width");
+  });
+
+  it("compares selected units side by side and adds from a column", () => {
+    const chosen: string[] = [];
+    render(
+      <UnitBrowser
+        pack={fixturePack()}
+        loadKw={null}
+        basis="worst-of-both"
+        nextRole="idu"
+        onChoose={(p) => chosen.push(p.idu.model)}
+        onClose={noop}
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Wall/ }));
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Compare WALL-25" }));
+    // one selected → the Compare button is present but disabled
+    expect(screen.getByRole("button", { name: /Compare 1/ })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Compare WALL-35" }));
+    const go = screen.getByRole("button", { name: /Compare 2/ });
+    expect(go).toBeEnabled();
+    fireEvent.click(go);
+
+    const dialog = screen.getByRole("dialog", { name: "Compare units" });
+    expect(within(dialog).getByText("WALL-25")).toBeInTheDocument();
+    expect(within(dialog).getByText("WALL-35")).toBeInTheDocument();
+    // a spec row from the registry
+    expect(within(dialog).getByText(/Width/)).toBeInTheDocument();
+
+    // Add the second unit straight from its comparison column
+    const addButtons = within(dialog).getAllByRole("button", { name: "Add" });
+    fireEvent.click(addButtons[1]);
+    expect(chosen).toContain("WALL-35");
+  });
+
+  it("caps the comparison at 3 units", () => {
+    const p = fixturePack();
+    p.indoor_units.push(
+      idu("WALL-45", "wall", 4.5, [1000, 240, 320]),
+      idu("WALL-50", "wall", 5.0, [1050, 250, 330])
+    );
+    p.outdoor_units.push(odu("OD-45", 4.5), odu("OD-50", 5.0));
+    p.pair_tables.push(pair("WALL-45", "OD-45", 4.5, 25), pair("WALL-50", "OD-50", 5.0, 25));
+    render(
+      <UnitBrowser pack={p} loadKw={null} basis="worst-of-both" nextRole="idu" onChoose={noop} onClose={noop} />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Wall/ }));
+
+    ["WALL-25", "WALL-35", "WALL-45"].forEach((m) =>
+      fireEvent.click(screen.getByRole("checkbox", { name: `Compare ${m}` }))
+    );
+    // three staged → the fourth can't be added
+    expect(screen.getByRole("checkbox", { name: "Compare WALL-50" })).toBeDisabled();
   });
 
   it("Escape closes", () => {

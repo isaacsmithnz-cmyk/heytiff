@@ -22,6 +22,10 @@ import {
 import type { PairProposal } from "@/lib/studio/split";
 import type { PlacingUnit } from "./canvas";
 
+/* one unit staged for comparison — self-contained (brand + option + chosen
+   pair) so the comparison survives brand switches and never re-reads a pack */
+type CompareEntry = { key: string; brand: string; option: UnitOption; pair: PairProposal };
+
 /* Unit browser (Stage 4 selector overhaul) — model-first selection: form
    factor tabs, capacity as a gate (load → 150%, toggleable), then fit filters
    (W×D×H, airflow) and sortable columns. Rendered through a PORTAL to body:
@@ -59,6 +63,26 @@ export function UnitBrowser({
       const next = ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id];
       saveColumnIds(next);
       return next;
+    });
+
+  /* comparison set — up to 3 units, captured with their brand + chosen pair so
+     the side-by-side survives switching the browser to another brand (each
+     entry is self-contained; the overlay never re-reads a pack) */
+  const [compare, setCompare] = useState<CompareEntry[]>([]);
+  const [comparing, setComparing] = useState(false);
+  const brandName =
+    pack.brands.find((b) => b.id === pack.meta.brand)?.name ??
+    pack.meta.name ??
+    pack.meta.brand;
+  const compareKey = (model: string) => `${brandName}::${model}`;
+  const inCompare = (model: string) => compare.some((c) => c.key === compareKey(model));
+  const COMPARE_MAX = 3;
+  const toggleCompare = (o: UnitOption, pair: PairProposal) =>
+    setCompare((cur) => {
+      const key = compareKey(o.idu.model);
+      if (cur.some((c) => c.key === key)) return cur.filter((c) => c.key !== key);
+      if (cur.length >= COMPARE_MAX) return cur; // capped
+      return [...cur, { key, brand: brandName, option: o, pair }];
     });
 
   const tabs = useMemo(
@@ -99,8 +123,8 @@ export function UnitBrowser({
   );
   /* the specs offered in the Columns menu for THIS tab (hide inapplicable ones) */
   const menuSpecs = UNIT_SPECS.filter((s) => !s.only || s.only === activeTab);
-  // Model + spec columns + Outdoor + Add
-  const colSpan = 1 + activeSpecs.length + 2;
+  // compare + Model + spec columns + Outdoor + Add
+  const colSpan = 1 + 1 + activeSpecs.length + 2;
 
   /* group same-series rows adjacently, preserving the sorted order within each
      group and ordering groups by first appearance (keeps the recommended unit's
@@ -151,11 +175,37 @@ export function UnitBrowser({
     });
   };
 
+  /* Add straight from a comparison column (uses that entry's captured pair) */
+  const chooseEntry = (e: CompareEntry) => {
+    const unit = nextRole === "idu" ? e.pair.idu : e.pair.odu;
+    onChoose(e.pair, {
+      role: nextRole,
+      model: unit.model,
+      widthMm: unit.width_mm ?? 800,
+      depthMm: unit.depth_mm ?? 300,
+    });
+  };
+
   const renderRow = (o: UnitOption) => {
     const pick = oduPick[o.idu.model] ?? 0;
     const pair = o.pairs[pick] ?? o.defaultPair;
+    const checked = inCompare(o.idu.model);
     return (
       <tr key={o.idu.model} className={o.recommended ? "rec" : ""}>
+        <td className="ds-ub-cmpcell">
+          <input
+            type="checkbox"
+            checked={checked}
+            disabled={!checked && compare.length >= COMPARE_MAX}
+            onChange={() => toggleCompare(o, pair)}
+            aria-label={`Compare ${o.idu.model}`}
+            title={
+              !checked && compare.length >= COMPARE_MAX
+                ? `Comparing ${COMPARE_MAX} — remove one first`
+                : "Add to comparison"
+            }
+          />
+        </td>
         <td className="ds-ub-model">
           {o.idu.model}
           {o.recommended && <em>best fit</em>}
@@ -272,6 +322,7 @@ export function UnitBrowser({
           <table className="ds-ub-table">
             <thead>
               <tr>
+                <th className="ds-ub-cmpcol" aria-label="Compare" />
                 <th>Model</th>
                 {activeSpecs.map((s) =>
                   s.sortKey ? (
@@ -319,11 +370,157 @@ export function UnitBrowser({
             </tbody>
           </table>
         </div>
+
+        {compare.length > 0 && (
+          <div className="ds-ub-cmpbar">
+            <div className="ds-ub-cmpchips">
+              <span className="ds-ub-cmplabel">Compare</span>
+              {compare.map((c) => (
+                <span key={c.key} className="ds-ub-cmpchip">
+                  {c.option.idu.model}
+                  <button
+                    aria-label={`Remove ${c.option.idu.model} from comparison`}
+                    onClick={() =>
+                      setCompare((cur) => cur.filter((x) => x.key !== c.key))
+                    }
+                  >
+                    <Icon name="x" size={11} />
+                  </button>
+                </span>
+              ))}
+            </div>
+            <button className="ds-ub-cmpclear" onClick={() => setCompare([])}>
+              Clear
+            </button>
+            <button
+              className="ds-ub-cmpgo"
+              disabled={compare.length < 2}
+              onClick={() => setComparing(true)}
+            >
+              Compare {compare.length}
+            </button>
+          </div>
+        )}
       </div>
+
+      {comparing && (
+        <CompareOverlay
+          entries={compare}
+          onAdd={chooseEntry}
+          onRemove={(key) => setCompare((cur) => cur.filter((x) => x.key !== key))}
+          onClose={() => setComparing(false)}
+        />
+      )}
     </div>
   );
 
   return createPortal(body, document.body);
+}
+
+/* Comparison overlay — up to 3 units side by side, every spec as a row (the
+   full superset, not just the visible columns), best-in-row highlighted. Units
+   can come from different brands. Portalled over the browser. */
+function CompareOverlay({
+  entries,
+  onAdd,
+  onRemove,
+  onClose,
+}: {
+  entries: CompareEntry[];
+  onAdd: (e: CompareEntry) => void;
+  onRemove: (key: string) => void;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return createPortal(
+    <div
+      className="ds-cmp-overlay"
+      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="ds-cmp" role="dialog" aria-modal="true" aria-label="Compare units">
+        <header className="ds-cmp-head">
+          <b>Compare units</b>
+          <button className="ds-ub-close" onClick={onClose} aria-label="Close">
+            <Icon name="x" size={16} />
+          </button>
+        </header>
+        <div className="ds-cmp-scroll">
+          <table className="ds-cmp-table">
+            <thead>
+              <tr>
+                <th />
+                {entries.map((e) => (
+                  <th key={e.key}>
+                    <div className="ds-cmp-model">{e.option.idu.model}</div>
+                    <div className="ds-cmp-brand">{e.brand}</div>
+                    <button
+                      className="ds-cmp-rm"
+                      onClick={() => onRemove(e.key)}
+                      aria-label={`Remove ${e.option.idu.model}`}
+                    >
+                      <Icon name="x" size={12} />
+                    </button>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {UNIT_SPECS.map((s) => {
+                const vals = entries.map((e) =>
+                  s.numeric ? s.numeric(e.option, e.pair) : null
+                );
+                const nums = vals.filter((v): v is number => v != null);
+                const best =
+                  s.better && nums.length > 1
+                    ? s.better === "higher"
+                      ? Math.max(...nums)
+                      : Math.min(...nums)
+                    : null;
+                return (
+                  <tr key={s.id}>
+                    <th className="ds-cmp-rowh">
+                      {s.label}
+                      {s.unit && <span className="ds-cmp-unit"> {s.unit}</span>}
+                    </th>
+                    {entries.map((e, i) => (
+                      <td
+                        key={e.key}
+                        className={best != null && vals[i] === best ? "best" : ""}
+                      >
+                        {s.cell(e.option, e.pair)}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
+              <tr>
+                <th className="ds-cmp-rowh">Outdoor</th>
+                {entries.map((e) => (
+                  <td key={e.key}>{e.pair.odu.model}</td>
+                ))}
+              </tr>
+              <tr className="ds-cmp-addrow">
+                <th />
+                {entries.map((e) => (
+                  <td key={e.key}>
+                    <button className="ds-ub-place" onClick={() => onAdd(e)}>
+                      Add
+                    </button>
+                  </td>
+                ))}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
 }
 
 /* Columns menu — the installer picks which spec columns they want in front of

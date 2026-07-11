@@ -136,6 +136,31 @@ describe("UnitBrowser", () => {
     ]);
   });
 
+  it("groups rows by series when there are 2+ series; the toggle flattens", () => {
+    const p = fixturePack(); // all series "T"
+    p.indoor_units.push({ ...idu("AP-25", "wall", 2.5, [820, 240, 290]), series: "AP" });
+    p.outdoor_units.push(odu("OD-AP", 2.5));
+    p.pair_tables.push(pair("AP-25", "OD-AP", 2.5, 20));
+
+    render(
+      <UnitBrowser pack={p} loadKw={null} basis="worst-of-both" nextRole="idu" onChoose={noop} onClose={noop} />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Wall/ })); // T (2) + AP (1)
+
+    // a subheader row per series
+    const headers = [...document.querySelectorAll("tr.ds-ub-group td")].map((td) => td.textContent);
+    expect(headers).toHaveLength(2);
+    expect(headers.some((t) => t?.startsWith("AP"))).toBe(true);
+    expect(headers.some((t) => t?.startsWith("T"))).toBe(true);
+
+    // toggling off flattens the list — no subheaders
+    fireEvent.click(screen.getByRole("checkbox", { name: /Group by series/ }));
+    expect(document.querySelectorAll("tr.ds-ub-group")).toHaveLength(0);
+    // the units are still all listed
+    expect(screen.getByText("WALL-25")).toBeInTheDocument();
+    expect(screen.getByText("AP-25")).toBeInTheDocument();
+  });
+
   it("Escape closes", () => {
     const onClose = jest.fn();
     render(

@@ -1,9 +1,14 @@
 /* RoomUnitsSection (relocated onto the room card): shows "Select units" until
    the active system has a chosen pair, then the two draggable unit cards. */
 
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { RoomUnitsSection } from "../split-panel";
-import { createDesign, type DesignDocument, type DesignSystem } from "@/lib/studio/document";
+import {
+  createDesign,
+  type DesignDocument,
+  type DesignObject,
+  type DesignSystem,
+} from "@/lib/studio/document";
 import type { RoomObj } from "@/lib/studio/loads-room";
 
 const room: RoomObj = {
@@ -75,5 +80,48 @@ describe("RoomUnitsSection", () => {
     expect(screen.getByTestId("unit-card-odu")).toBeInTheDocument();
     expect(screen.getByText("SLZ-M25FA-A")).toBeInTheDocument();
     expect(screen.getByText("SUZ-M25VAD-A")).toBeInTheDocument();
+  });
+
+  it("recall removes the placed unit and the system's pipework, keeping the rest", () => {
+    const system = sys({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" });
+    const d = docWith(system);
+    const unit = (id: string, role: "idu" | "odu"): DesignObject => ({
+      id,
+      type: "unit",
+      systemId: "sys1",
+      floorId: "flr",
+      geometry: { kind: "point", at: { x: 100, y: 100 } },
+      plane: role === "idu" ? "room" : "external-ground",
+      props: { role, model: role === "idu" ? "SLZ-M25FA-A" : "SUZ-M25VAD-A" },
+    });
+    d.objects.push(unit("u_idu", "idu"), unit("u_odu", "odu"), {
+      id: "run1",
+      type: "pipe-run",
+      systemId: "sys1",
+      floorId: "flr",
+      geometry: { kind: "polyline", points: [{ x: 100, y: 100 }, { x: 300, y: 100 }] },
+      plane: "room",
+      props: {},
+    });
+
+    let next: DesignDocument | undefined;
+    render(
+      <RoomUnitsSection
+        doc={d}
+        pack={null}
+        system={system}
+        room={room}
+        basis="cooling"
+        onMutate={(fn) => (next = fn(d))}
+        onArmPlace={() => {}}
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Recall Indoor unit" }));
+
+    const ids = next!.objects.map((o) => o.id);
+    expect(ids).not.toContain("u_idu"); // the recalled unit is gone
+    expect(ids).not.toContain("run1"); // its pipework dropped (would dangle)
+    expect(ids).toContain("u_odu"); // the outdoor unit stays
+    expect(ids).toContain("room1"); // the room stays
   });
 });

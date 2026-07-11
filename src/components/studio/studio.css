@@ -3042,6 +3042,28 @@
 .ds-ub-table tbody tr:hover { background: #fafaf9; }
 .ds-ub-table tr.rec { background: #f4fbf9; }
 .ds-ub-table tr.rec:hover { background: #ecf7f4; }
+/* series subheader — a quiet band, not a selectable row */
+.ds-ub-table tr.ds-ub-group td,
+.ds-ub-table tr.ds-ub-group:hover td {
+  background: #f5f5f4;
+  padding: 6px 12px;
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #565656;
+}
+.ds-ub-table tr.ds-ub-group .ds-ub-count { margin-left: 8px; }
+.ds-ub-groupby {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  font-size: 12px;
+  color: #565656;
+  white-space: nowrap;
+  cursor: pointer;
+}
 .ds-ub-model { font-weight: 700; color: #1a1a1a; }
 .ds-ub-model em {
   font-style: normal;
@@ -3279,6 +3301,23 @@
   color: var(--gray400);
 }
 .dstudio .ds-ucard[draggable="true"]:hover .ds-ucard-drag { color: var(--teal-d); }
+.dstudio .ds-ucard-recall {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  margin-left: 6px;
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--gray400);
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.dstudio .ds-ucard-recall:hover { color: #b91c1c; background: #fef2f2; }
 
 /* load-coverage banner — covered / kW short, per served room */
 .dstudio .ds-cov {

@@ -395,6 +395,7 @@ export function UnitCard({
   depthMm,
   placed,
   onArmPlace,
+  onRecall,
 }: {
   role: "idu" | "odu";
   label: string;
@@ -403,6 +404,8 @@ export function UnitCard({
   depthMm: number;
   placed: boolean;
   onArmPlace: (p: PlacingUnit | null) => void;
+  /** pull an already-placed unit back off the plan → the card is draggable again */
+  onRecall?: () => void;
 }) {
   return (
     <div
@@ -426,10 +429,23 @@ export function UnitCard({
         <b className="ds-ucard-model">{model}</b>
       </div>
       {placed ? (
-        <span className="ds-ucard-badge">
-          <Icon name="check" size={11} />
-          Placed
-        </span>
+        <>
+          <span className="ds-ucard-badge">
+            <Icon name="check" size={11} />
+            Placed
+          </span>
+          {onRecall && (
+            <button
+              className="ds-ucard-recall"
+              onClick={onRecall}
+              title="Recall — take this unit back off the plan"
+              aria-label={`Recall ${label}`}
+            >
+              <Icon name="rotate" size={11} />
+              Recall
+            </button>
+          )}
+        </>
       ) : (
         <span className="ds-ucard-drag">
           <Icon name="hand" size={13} />
@@ -531,6 +547,19 @@ export function RoomUnitsSection({
   const risers = doc.objects.filter((o) => o.systemId === system.id && o.type === "riser");
   const cov = pack ? roomCoverage(doc, pack, room, basis) : null;
 
+  /* recall: pull a placed unit back off the plan. The pair selection stays
+     (the card reappears as draggable); refrigerant runs/risers on this system
+     are dropped too — they anchor to the units, so they'd dangle otherwise. */
+  const recall = (unitId: string) =>
+    onMutate((d) => ({
+      ...d,
+      objects: d.objects.filter(
+        (o) =>
+          o.id !== unitId &&
+          !(o.systemId === system.id && (o.type === "pipe-run" || o.type === "riser"))
+      ),
+    }));
+
   /* choosing sizes against THIS room; placement is by dragging the cards */
   const choose = (pair: PairProposal) => {
     onMutate((d) => ({
@@ -581,6 +610,7 @@ export function RoomUnitsSection({
             depthMm={iduSpec?.depth_mm ?? 300}
             placed={Boolean(placedIdu)}
             onArmPlace={onArmPlace}
+            onRecall={placedIdu ? () => recall(placedIdu.id) : undefined}
           />
           <UnitCard
             role="odu"
@@ -590,6 +620,7 @@ export function RoomUnitsSection({
             depthMm={oduSpec?.depth_mm ?? 330}
             placed={Boolean(placedOdu)}
             onArmPlace={onArmPlace}
+            onRecall={placedOdu ? () => recall(placedOdu.id) : undefined}
           />
           {(!placedIdu || !placedOdu) && (
             <div className="ds-prop-note">Drag each card onto the plan to place it.</div>

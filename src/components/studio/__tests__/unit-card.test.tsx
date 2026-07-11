@@ -56,4 +56,37 @@ describe("UnitCard", () => {
     fireEvent.dragStart(card);
     expect(armed).toHaveLength(0);
   });
+
+  it("a placed card offers Recall; clicking it fires onRecall", () => {
+    const recalled: number[] = [];
+    render(
+      <UnitCard
+        role="idu"
+        label="Indoor unit"
+        model="MSZ-AP50VGD"
+        widthMm={1100}
+        depthMm={238}
+        placed
+        onArmPlace={() => {}}
+        onRecall={() => recalled.push(1)}
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Recall Indoor unit" }));
+    expect(recalled).toEqual([1]);
+  });
+
+  it("without onRecall a placed card shows no Recall button", () => {
+    render(
+      <UnitCard
+        role="odu"
+        label="Outdoor unit"
+        model="MUZ-AP50VGD"
+        widthMm={800}
+        depthMm={285}
+        placed
+        onArmPlace={() => {}}
+      />
+    );
+    expect(screen.queryByRole("button", { name: /Recall/ })).toBeNull();
+  });
 });

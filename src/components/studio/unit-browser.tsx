@@ -44,6 +44,8 @@ export function UnitBrowser({
   const [sort, setSort] = useState<SelectSort>("capacity");
   /** per-IDU chosen outdoor (index into option.pairs) */
   const [oduPick, setOduPick] = useState<Record<string, number>>({});
+  /** group the table by product series (e.g. AP, EF) — an aid, toggleable off */
+  const [groupBySeries, setGroupBySeries] = useState(true);
 
   const tabs = useMemo(
     () => formFactorSummary(pack, loadKw, basis, includeOversized),
@@ -77,6 +79,25 @@ export function UnitBrowser({
   );
 
   const isDucted = activeTab === "ducted";
+  const colSpan = isDucted ? 8 : 7;
+
+  /* group same-series rows adjacently, preserving the sorted order within each
+     group and ordering groups by first appearance (keeps the recommended unit's
+     series near the top). Headers only make sense with 2+ series. */
+  const groups = useMemo(() => {
+    const order: string[] = [];
+    const bySeries = new Map<string, UnitOption[]>();
+    for (const o of options) {
+      const s = o.idu.series || "Other";
+      if (!bySeries.has(s)) {
+        bySeries.set(s, []);
+        order.push(s);
+      }
+      bySeries.get(s)!.push(o);
+    }
+    return order.map((series) => ({ series, items: bySeries.get(series)! }));
+  }, [options]);
+  const showGroups = groupBySeries && groups.length > 1;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -118,6 +139,53 @@ export function UnitBrowser({
       widthMm: unit.width_mm ?? 800,
       depthMm: unit.depth_mm ?? 300,
     });
+  };
+
+  const renderRow = (o: UnitOption) => {
+    const pick = oduPick[o.idu.model] ?? 0;
+    const pair = o.pairs[pick] ?? o.defaultPair;
+    return (
+      <tr key={o.idu.model} className={o.recommended ? "rec" : ""}>
+        <td className="ds-ub-model">
+          {o.idu.model}
+          {o.recommended && <em>best fit</em>}
+        </td>
+        <td>
+          {pair.coolKw} / {pair.heatKw} kW
+        </td>
+        <td>{o.idu.width_mm}</td>
+        <td>{o.idu.depth_mm}</td>
+        <td>{o.idu.height_mm}</td>
+        {isDucted && <td>{o.idu.airflow_ls ?? "—"} L/s</td>}
+        <td>
+          {o.pairs.length > 1 ? (
+            <select
+              value={pick}
+              aria-label={`Outdoor unit for ${o.idu.model}`}
+              onChange={(e) =>
+                setOduPick((m) => ({
+                  ...m,
+                  [o.idu.model]: parseInt(e.target.value, 10),
+                }))
+              }
+            >
+              {o.pairs.map((p, i) => (
+                <option key={p.odu.model} value={i}>
+                  {p.odu.model} · max {p.pair.max_length_m} m
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className="ds-ub-odu">{pair.odu.model}</span>
+          )}
+        </td>
+        <td>
+          <button className="ds-ub-place" onClick={() => choose(o)}>
+            Add
+          </button>
+        </td>
+      </tr>
+    );
   };
 
   const body = (
@@ -175,6 +243,16 @@ export function UnitBrowser({
               Reset
             </button>
           )}
+          {groups.length > 1 && (
+            <label className="ds-ub-groupby">
+              <input
+                type="checkbox"
+                checked={groupBySeries}
+                onChange={(e) => setGroupBySeries(e.target.checked)}
+              />
+              Group by series
+            </label>
+          )}
         </div>
 
         <div className="ds-ub-scroll">
@@ -192,55 +270,20 @@ export function UnitBrowser({
               </tr>
             </thead>
             <tbody>
-              {options.map((o) => {
-                const pick = oduPick[o.idu.model] ?? 0;
-                const pair = o.pairs[pick] ?? o.defaultPair;
-                return (
-                  <tr key={o.idu.model} className={o.recommended ? "rec" : ""}>
-                    <td className="ds-ub-model">
-                      {o.idu.model}
-                      {o.recommended && <em>best fit</em>}
-                    </td>
-                    <td>
-                      {pair.coolKw} / {pair.heatKw} kW
-                    </td>
-                    <td>{o.idu.width_mm}</td>
-                    <td>{o.idu.depth_mm}</td>
-                    <td>{o.idu.height_mm}</td>
-                    {isDucted && <td>{o.idu.airflow_ls ?? "—"} L/s</td>}
-                    <td>
-                      {o.pairs.length > 1 ? (
-                        <select
-                          value={pick}
-                          aria-label={`Outdoor unit for ${o.idu.model}`}
-                          onChange={(e) =>
-                            setOduPick((m) => ({
-                              ...m,
-                              [o.idu.model]: parseInt(e.target.value, 10),
-                            }))
-                          }
-                        >
-                          {o.pairs.map((p, i) => (
-                            <option key={p.odu.model} value={i}>
-                              {p.odu.model} · max {p.pair.max_length_m} m
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <span className="ds-ub-odu">{pair.odu.model}</span>
-                      )}
-                    </td>
-                    <td>
-                      <button className="ds-ub-place" onClick={() => choose(o)}>
-                        Add
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
+              {showGroups
+                ? groups.flatMap((g) => [
+                    <tr key={`grp-${g.series}`} className="ds-ub-group">
+                      <td colSpan={colSpan}>
+                        {g.series}
+                        <span className="ds-ub-count">{g.items.length}</span>
+                      </td>
+                    </tr>,
+                    ...g.items.map(renderRow),
+                  ])
+                : options.map(renderRow)}
               {options.length === 0 && (
                 <tr>
-                  <td colSpan={isDucted ? 8 : 7} className="ds-ub-none">
+                  <td colSpan={colSpan} className="ds-ub-none">
                     Nothing matches these filters — loosen a limit or include
                     oversized units.
                   </td>

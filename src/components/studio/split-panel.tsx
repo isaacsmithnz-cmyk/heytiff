@@ -20,10 +20,7 @@ import { roomAreaM2, roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
 import { roomsServedBy, roomCoverage, type RoomCoverage } from "@/lib/studio/coverage";
 import { systemBadge, type BadgeStatus, type PairProposal } from "@/lib/studio/split";
 import { buildMaterials } from "@/lib/studio/materials";
-import { moduleFor, MODULE_ORDER } from "@/lib/studio/modules";
-
-/** more than one module shipped → changing a system's type is meaningful */
-const CAN_CHANGE_TYPE = MODULE_ORDER.filter((t) => moduleFor(t).available).length > 1;
+import { moduleFor } from "@/lib/studio/modules";
 import type { SystemType } from "@/lib/studio/document";
 import { SystemTypeChooser } from "./system-type-chooser";
 import { UnitBrowser } from "./unit-browser";
@@ -293,15 +290,13 @@ function ActiveSystem({
           <div className="ds-rp-systype-cap">System type</div>
           <div className="ds-rp-systype">
             {moduleFor(system.type).label}
-            {CAN_CHANGE_TYPE && (
-              <button
-                className="ds-rp-change"
-                onClick={onChangeType}
-                title="Change system type — this clears the system's units"
-              >
-                Change
-              </button>
-            )}
+            <button
+              className="ds-rp-change"
+              onClick={onChangeType}
+              title="Change system type — a different type clears the system's units"
+            >
+              Change
+            </button>
           </div>
         </div>
         <button

@@ -88,6 +88,24 @@ describe("RoomModal", () => {
     expect(room.props.orientation).toBeDefined();
   });
 
+  it("shows the reference-sheets link regardless of external walls", () => {
+    const open = jest.fn();
+    // no external walls marked
+    const { unmount } = render(
+      <RoomModal doc={docWithRoom()} roomId="room1" onMutate={() => {}} onClose={() => {}} onOpenReference={open} />
+    );
+    expect(screen.getByRole("button", { name: /reference sheets/i })).toBeInTheDocument();
+    unmount();
+
+    // with an external wall marked
+    const doc = docWithRoom();
+    doc.objects[0].props.externalWalls = [0];
+    render(
+      <RoomModal doc={doc} roomId="room1" onMutate={() => {}} onClose={() => {}} onOpenReference={open} />
+    );
+    expect(screen.getByRole("button", { name: /reference sheets/i })).toBeInTheDocument();
+  });
+
   it("orientation is greyed until external walls are marked on the plan", () => {
     // no marked walls → internal / party room, no solar gain, orientation off
     const { unmount } = render(

@@ -8,15 +8,19 @@
 
 import { newId, type Floor, type PlanSheet } from "./document";
 
-/** A rasterised candidate floor plan (one PDF page or one uploaded image). */
+/** A rasterised candidate floor plan (one PDF page or one uploaded image).
+    `blob`/`ext` are present for freshly rendered pages (they feed the upload);
+    a page rehydrated from a stored session has neither — it is already uploaded,
+    so it carries only its `ref`. `ref` is set once a page has been stored. */
 export interface PageImage {
   pageNumber: number | null; // null when it came from a plain image file
   label: string;
-  blob: Blob;
-  ext: "png" | "jpeg";
-  thumbUrl: string; // object URL for the picker grid
+  blob?: Blob;
+  ext?: "png" | "jpeg";
+  thumbUrl: string; // object URL (fresh) or signed storage URL (rehydrated)
   width: number;
   height: number;
+  ref?: string; // storage ref, once uploaded / when restored
 }
 
 /** Number every candidate page "Page 1", "Page 2"… by combined order, so a
@@ -135,6 +139,29 @@ export function builderStackFromFloors(floors: Floor[]): BuilderRow[] {
       level: f.level,
       name: f.name,
       pageIdxs: [],
+    }));
+}
+
+/** Rebuild the stacker from committed floors when re-entering a saved import.
+    Same as builderStackFromFloors, but each floor row is re-populated with the
+    page indices of the sheets it holds — matched by storage ref — so the yard
+    shows every floor with its plan card(s) exactly where they were left. Pages
+    not on any floor fall through to the tray (via trayPageIdxs). */
+export function builderRowsFromFloors(floors: Floor[], pages: PageImage[]): BuilderRow[] {
+  const idxByRef = new Map<string, number>();
+  pages.forEach((p, i) => {
+    if (p.ref) idxByRef.set(p.ref, i);
+  });
+  return [...floors]
+    .sort((a, b) => a.level - b.level)
+    .map((f) => ({
+      key: `ex_${f.id}`,
+      floorId: f.id,
+      level: f.level,
+      name: f.name,
+      pageIdxs: f.plans
+        .map((s) => idxByRef.get(s.imageRef))
+        .filter((i): i is number => i !== undefined),
     }));
 }
 
@@ -309,10 +336,15 @@ export function applyBuilderRows(
     if (row.floorId) {
       const f = floors.find((x) => x.id === row.floorId);
       if (!f) continue;
+      // only add sheets the floor doesn't already hold — re-committing a
+      // rehydrated stack (whose existing-floor rows list their current sheets)
+      // must be idempotent, not duplicate every sheet each time
+      const have = new Set(f.plans.map((s) => s.imageRef));
+      const fresh = sheets.filter((s) => !have.has(s.ref));
       result.push({
         ...f,
         level,
-        plans: sheets.length ? [...f.plans, ...placeSheets(f.plans, sheets)] : f.plans,
+        plans: fresh.length ? [...f.plans, ...placeSheets(f.plans, fresh)] : f.plans,
       });
     } else {
       if (sheets.length === 0) continue;
@@ -390,7 +422,9 @@ export async function imageToPage(file: File): Promise<PageImage> {
 /* ── Storage seam (injectable for tests, like DesignStore) ── */
 
 export interface PlanImages {
-  upload(page: PageImage): Promise<string>; // → ref stored in the document
+  upload(page: PageImage): Promise<string>; // rendered page → ref (canvas image)
+  uploadSource(file: File): Promise<string>; // original file → ref (re-rasterised)
+  sourceFile(ref: string): Promise<File>; // fetch a stored source back for re-render
   url(ref: string): Promise<string>;
   remove(ref: string): Promise<void>;
 }
@@ -399,6 +433,10 @@ export class RemotePlanImages implements PlanImages {
   private urls = new Map<string, { url: string; expires: number }>();
 
   async upload(page: PageImage): Promise<string> {
+    if (!page.blob || !page.ext) {
+      // a rehydrated page is already stored — it should never be re-uploaded
+      throw new Error("cannot upload a page with no image data");
+    }
     const [{ createPlanUpload }, { supabaseBrowser }] = await Promise.all([
       import("@/app/actions/studio-plans"),
       import("@/lib/supabase-browser"),
@@ -411,6 +449,32 @@ export class RemotePlanImages implements PlanImages {
       });
     if (error) throw new Error(error.message);
     return ref;
+  }
+
+  async uploadSource(file: File): Promise<string> {
+    const ext =
+      file.type === "application/pdf"
+        ? "pdf"
+        : file.type === "image/jpeg"
+          ? "jpeg"
+          : "png";
+    const [{ createPlanUpload }, { supabaseBrowser }] = await Promise.all([
+      import("@/app/actions/studio-plans"),
+      import("@/lib/supabase-browser"),
+    ]);
+    const { ref, token } = await createPlanUpload(ext);
+    const { error } = await supabaseBrowser()
+      .storage.from("studio-plans")
+      .uploadToSignedUrl(ref, token, file, { contentType: file.type });
+    if (error) throw new Error(error.message);
+    return ref;
+  }
+
+  async sourceFile(ref: string): Promise<File> {
+    const res = await fetch(await this.url(ref));
+    if (!res.ok) throw new Error(`Could not fetch source ${ref}`);
+    const blob = await res.blob();
+    return new File([blob], ref, { type: blob.type });
   }
 
   async url(ref: string): Promise<string> {

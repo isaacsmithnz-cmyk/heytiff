@@ -6,7 +6,7 @@
    fixtures serialise exactly this shape, so changes require a schema bump and
    a migration (see migrations.ts). */
 
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 /* ── Vertical planes (Layer 1 — placement plane) ── */
 export type Plane =
@@ -114,6 +114,32 @@ export interface DesignVariantRef {
   label: string;
 }
 
+/* ── Plan import session (schema v5). Uploading floor plans is a multi-step
+      session — rasterise pages, pick which matter, name them, stack them into
+      floors — and stepping away used to lose all of it. The session is now
+      persisted so returning to the Plans step restores the whole page.
+
+      Only the ORIGINAL uploaded files are stored (one PDF, not 20 page PNGs);
+      returning re-rasterises them in the browser to rebuild the Select-pages
+      grid in full. The pages actually placed on a floor keep their own rendered
+      image too (the canvas needs it), tracked in `placed` by page index. So a
+      20-page job that used 3 stores one PDF + three images, never the other 17.
+      Stacker positioning is NOT stored here — it is rebuilt from the committed
+      floors (the source of truth), matched to pages via `placed`. ── */
+export interface PlanImportSource {
+  ref: string; // storage ref of the original uploaded file
+  kind: "pdf" | "image";
+}
+
+export interface PlanImport {
+  sources: PlanImportSource[]; // original files, in upload order → re-rasterised
+  /** page index (render order across all sources) → the committed sheet's image
+      ref, for the pages that were placed on a floor */
+  placed: Record<number, string>;
+  chosen: number[]; // indices selected in the "Select pages" grid
+  names: Record<number, string>; // per-index typed floor names
+}
+
 export interface DesignDocument {
   schemaVersion: number;
   id: string;
@@ -126,6 +152,9 @@ export interface DesignDocument {
   packPins: Record<string, string>;
   /** all sibling options incl. this document; empty = not a variant set */
   variants: DesignVariantRef[];
+  /** the last plan-upload session, so the Plans step restores on return.
+      null = no plans uploaded (blank designs, or never imported). */
+  planImport: PlanImport | null;
 }
 
 /* ── Construction ── */
@@ -182,6 +211,7 @@ export function createDesign(opts: {
     systems: [],
     packPins: {},
     variants: [],
+    planImport: null,
   };
 }
 

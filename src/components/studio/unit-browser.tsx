@@ -232,7 +232,7 @@ export function UnitBrowser({
                     </td>
                     <td>
                       <button className="ds-ub-place" onClick={() => choose(o)}>
-                        Place
+                        Add
                       </button>
                     </td>
                   </tr>

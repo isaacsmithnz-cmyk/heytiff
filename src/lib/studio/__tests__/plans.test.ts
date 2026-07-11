@@ -4,6 +4,7 @@
 import { createDesign, type Floor } from "../document";
 import {
   applyBuilderRows,
+  builderRowsFromFloors,
   builderStackFromFloors,
   computeRowLevels,
   defaultFloorName,
@@ -253,5 +254,70 @@ describe("sheet placement + allocation", () => {
     let rows = insertPageRow([], 0, "Roof", null, "above");
     rows = removePageFromRows(rows, 0);
     expect(applyBuilderRows(rows, uploadsFor([sheet("Roof", 5)], [0]), [])).toEqual([]);
+  });
+});
+
+describe("rehydrating a saved import", () => {
+  const uploadsFor = (sheets: UploadedSheet[], idxs: number[]) =>
+    new Map(idxs.map((idx, k) => [idx, sheets[k]]));
+  const upl = (ref: string): UploadedSheet => ({
+    label: ref,
+    ref,
+    pageNumber: 1,
+    width: 2000,
+    height: 1400,
+  });
+  const pageWithRef = (ref: string): PageImage => ({
+    pageNumber: 1,
+    label: ref,
+    thumbUrl: `blob:${ref}`,
+    width: 2000,
+    height: 1400,
+    ref,
+  });
+  const floorWith = (id: string, level: number, refs: string[]): Floor => ({
+    id,
+    name: defaultFloorName(level),
+    level,
+    scaleMmPerUnit: 10,
+    northDeg: null,
+    plans: refs.map((r, i) => ({
+      id: `sht_${id}_${i}`,
+      imageRef: r,
+      pageNumber: 1,
+      name: r,
+      width: 2000,
+      height: 1400,
+      x: 0,
+      y: 0,
+    })),
+  });
+
+  it("builderRowsFromFloors re-populates each floor row with its pages by ref", () => {
+    const floors = [floorWith("a", 0, ["r0"]), floorWith("b", 1, ["r1", "r2"])];
+    const pages = [pageWithRef("r0"), pageWithRef("r1"), pageWithRef("r2"), pageWithRef("r3")];
+    const rows = builderRowsFromFloors(floors, pages);
+    expect(rows.map((r) => [r.floorId, r.pageIdxs])).toEqual([
+      ["a", [0]],
+      ["b", [1, 2]],
+    ]);
+    // r3 is uploaded but on no floor → it waits in the tray
+    expect(trayPageIdxs(rows, [0, 1, 2, 3])).toEqual([3]);
+  });
+
+  it("re-committing a rehydrated stack is idempotent — no duplicate sheets", () => {
+    const floors = [floorWith("a", 0, ["r0"])];
+    const rows = builderRowsFromFloors(floors, [pageWithRef("r0")]);
+    const committed = applyBuilderRows(rows, uploadsFor([upl("r0")], [0]), floors);
+    expect(committed).toHaveLength(1);
+    expect(committed[0].plans).toHaveLength(1); // not re-added
+  });
+
+  it("dropping a NEW page onto a rehydrated floor still adds it", () => {
+    const floors = [floorWith("a", 0, ["r0"])];
+    let rows = builderRowsFromFloors(floors, [pageWithRef("r0"), pageWithRef("r1")]);
+    rows = dropPageOnRow(rows, 1, rows[0].key); // add r1 to floor a
+    const committed = applyBuilderRows(rows, uploadsFor([upl("r0"), upl("r1")], [0, 1]), floors);
+    expect(committed[0].plans.map((s) => s.imageRef)).toEqual(["r0", "r1"]);
   });
 });

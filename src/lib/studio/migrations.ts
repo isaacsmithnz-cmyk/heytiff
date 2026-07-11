@@ -80,6 +80,12 @@ const MIGRATIONS: Record<number, Migration> = {
     });
     return { ...doc, floors, schemaVersion: 4 };
   },
+
+  /* v4 → v5: the plan-upload session is now persisted (every uploaded page +
+     selection + names) so the Plans step restores on return. Pre-v5 documents
+     never captured it — the raw pages weren't stored, so there is nothing to
+     restore for them; they open with no session. */
+  4: (doc) => ({ ...doc, planImport: null, schemaVersion: 5 }),
 };
 
 export class DesignDocumentError extends Error {

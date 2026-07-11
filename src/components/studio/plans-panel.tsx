@@ -2,10 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/shell/icon";
-import type { DesignDocument, Floor } from "@/lib/studio/document";
+import type {
+  DesignDocument,
+  Floor,
+  PlanImport,
+  PlanImportSource,
+} from "@/lib/studio/document";
 import { createPortal } from "react-dom";
 import {
   applyBuilderRows,
+  builderRowsFromFloors,
   builderStackFromFloors,
   computeRowLevels,
   dropPageOnRow,
@@ -24,6 +30,10 @@ import {
   type PlanImages,
   type UploadedSheet,
 } from "@/lib/studio/plans";
+
+/* a source file in the live import: a fresh drop carries the File (to upload on
+   commit); a restored session carries only its stored ref (already uploaded). */
+type PlanSource = { kind: "pdf" | "image"; file?: File; ref?: string };
 
 /* Plans stage — upload PDF/image plans, pick the pages that matter, manage
    floors. Rasterisation happens in the browser; storage refs go in the doc. */
@@ -50,6 +60,10 @@ export function PlansPanel({
 }) {
   /* the import session — all coexisting on one page */
   const [pages, setPages] = useState<PageImage[] | null>(null);
+  /* the original uploaded files behind `pages` — only these are stored; the
+     grid re-rasterises from them on return. Kept parallel to page render order
+     (sources in order, pages within each) so `placed`/`chosen` indices align. */
+  const [sources, setSources] = useState<PlanSource[]>([]);
   /* the live grid selection (step ②); committed to `chosen` via naming */
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [chosen, setChosen] = useState<number[]>([]);
@@ -72,6 +86,66 @@ export function PlansPanel({
 
   const floors = [...doc.floors].sort((a, b) => a.level - b.level);
 
+  /* Restore a saved upload session so stepping back to Plans shows the whole
+     page — the uploaded pages, the selection and the stacker — not a blank one.
+     Runs once per design open: the ref guard survives the setPages re-render,
+     and unmount/remount (canvas ↔ Plans) resets it so each return rehydrates. */
+  const rehydratedFor = useRef<string | null>(null);
+  useEffect(() => {
+    const imp = doc.planImport;
+    // older sessions predate source storage (no `sources`) — nothing to
+    // re-rasterise, so fall through to the flat Floors list
+    if (!imp?.sources?.length || pages !== null || rehydratedFor.current === doc.id)
+      return;
+    rehydratedFor.current = doc.id;
+    let cancelled = false;
+    setBusy({ kind: "rendering", done: 0, total: imp.sources.length });
+    (async () => {
+      try {
+        // re-rasterise the stored source files back into the full page grid.
+        // Inlined (not a plans.ts helper) so it calls the imported pdfToPages /
+        // imageToPage — the ones tests mock; a module-internal call wouldn't be.
+        const restoredPages: PageImage[] = [];
+        for (const src of imp.sources) {
+          const file = await planImages.sourceFile(src.ref);
+          if (src.kind === "pdf") {
+            restoredPages.push(
+              ...(await pdfToPages(file, (done, total) =>
+                setBusy({ kind: "rendering", done, total })
+              ))
+            );
+          } else {
+            restoredPages.push(await imageToPage(file));
+          }
+        }
+        labelPagesSequentially(restoredPages);
+        if (cancelled) return;
+        // re-attach each placed page's committed image ref so the stacker can
+        // match it to its floor and a re-commit never re-uploads it
+        restoredPages.forEach((p, i) => {
+          if (imp.placed[i]) p.ref = imp.placed[i];
+        });
+        setPages(restoredPages);
+        setSources(imp.sources.map((s) => ({ kind: s.kind, ref: s.ref })));
+        setChosen(imp.chosen);
+        setSelected(new Set(imp.chosen));
+        setNames(imp.names);
+        // the stacker positioning comes from the committed floors, not the
+        // session — the floors are the source of truth (rename/reorder/delete
+        // all happen against them), matched back to pages by placed image ref
+        setRows(builderRowsFromFloors(doc.floors, restoredPages));
+        setStage("stack");
+        setBusy(null);
+      } catch {
+        // couldn't fetch/re-render the sources — fall back to the Floors list
+        if (!cancelled) setBusy(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [doc.planImport, doc.id, doc.floors, pages, planImages]);
+
   const onFiles = async (files: FileList | File[]) => {
     setError(null);
     const list = [...files];
@@ -79,6 +153,7 @@ export function PlansPanel({
     try {
       setBusy({ kind: "rendering", done: 0, total: list.length });
       const fresh: PageImage[] = [];
+      const freshSources: PlanSource[] = [];
       for (const f of list) {
         if (f.type === "application/pdf") {
           fresh.push(
@@ -86,8 +161,10 @@ export function PlansPanel({
               setBusy({ kind: "rendering", done, total })
             ))
           );
+          freshSources.push({ kind: "pdf", file: f });
         } else if (f.type.startsWith("image/")) {
           fresh.push(await imageToPage(f));
+          freshSources.push({ kind: "image", file: f });
         }
       }
       setBusy(null);
@@ -95,22 +172,33 @@ export function PlansPanel({
         setError("No usable pages — upload a PDF, PNG or JPG.");
         return;
       }
-      /* a drop during an active import APPENDS — indices stay stable, so the
-         chosen set and typed names survive */
-      const all = [...(pages ?? []), ...fresh];
+      const base = pages ?? [];
+      const startIdx = base.length;
+      const all = [...base, ...fresh];
       labelPagesSequentially(all); // Page 1, Page 2, … across the whole upload
+      const newIdxs = fresh.map((_, k) => startIdx + k);
       setPages(all);
-      setStage("select"); // new pages ⇒ back to choosing them
-      if (pages === null) setRows(builderStackFromFloors(doc.floors));
-      if (all.length === 1) {
-        // one page = nothing to pick; go straight to naming it
-        // (empty name ⇒ defaults to the stack position, not "Page 1")
-        setSelected(new Set([0]));
-        setChosen([0]);
-        setNaming({ at: 0 });
+      setSources((s) => [...s, ...freshSources]);
+      if (base.length === 0) {
+        // fresh start (brand-new design, or a design with no loaded session):
+        // the classic pick → name → stack flow. Committed floors seed the yard.
+        setRows(builderStackFromFloors(doc.floors));
+        setStage("select");
+        if (all.length === 1) {
+          // one page = nothing to pick; go straight to naming it
+          // (empty name ⇒ defaults to the stack position, not "Page 1")
+          setSelected(new Set([0]));
+          setChosen([0]);
+          setNaming({ at: 0 });
+        }
+      } else {
+        // adding plans to a session already in the editor: the new pages land in
+        // the tray, selected, for the installer to drag onto floors. Existing
+        // pages, names and placements are untouched (indices stay stable).
+        setChosen((c) => [...c, ...newIdxs]);
+        setSelected((s) => new Set([...s, ...newIdxs]));
+        setStage("stack");
       }
-      // multi-page: nothing extra pre-selected — the grid on the page (step ②)
-      // is the picker; the user clicks exactly the pages they want
     } catch (e) {
       setBusy(null);
       setError(e instanceof Error ? e.message : "Couldn't read that file");
@@ -118,8 +206,9 @@ export function PlansPanel({
   };
 
   const discardImport = () => {
-    pages?.forEach((p) => URL.revokeObjectURL(p.thumbUrl));
+    pages?.forEach((p) => p.blob && URL.revokeObjectURL(p.thumbUrl));
     setPages(null);
+    setSources([]);
     setSelected(new Set());
     setChosen([]);
     setNames({});
@@ -155,23 +244,61 @@ export function PlansPanel({
     const pageIdxs = rows.flatMap((r) => r.pageIdxs);
     if (pageIdxs.length === 0) return;
     try {
+      // storage = the original source files + only the PLACED pages (the canvas
+      // needs a rendered image for those). Unplaced pages are never stored — the
+      // grid re-rasterises from the sources on return. Anything already stored
+      // (a fresh source's ref set on a prior commit, or a rehydrated page) is
+      // kept, never re-uploaded.
+      const remaining =
+        sources.filter((s) => !s.ref).length +
+        pageIdxs.filter((i) => !pages[i].ref).length;
+      let done = 0;
+      const tick = () => setBusy({ kind: "uploading", done: done++, total: remaining });
+
+      const storedSources: PlanImportSource[] = [];
+      for (const s of sources) {
+        let ref = s.ref;
+        if (!ref) {
+          tick();
+          ref = await planImages.uploadSource(s.file!);
+        }
+        storedSources.push({ ref, kind: s.kind });
+      }
+
+      // render + store each placed page (if not already), and map index → ref
+      const placed: Record<number, string> = {};
+      for (const idx of pageIdxs) {
+        const p = pages[idx];
+        let ref = p.ref;
+        if (!ref) {
+          tick();
+          ref = await planImages.upload(p);
+        }
+        placed[idx] = ref;
+      }
       const uploads = new Map<number, UploadedSheet>();
-      for (let k = 0; k < pageIdxs.length; k++) {
-        setBusy({ kind: "uploading", done: k, total: pageIdxs.length });
-        const page = pages[pageIdxs[k]];
-        const ref = await planImages.upload(page);
-        uploads.set(pageIdxs[k], {
-          label: page.label,
-          ref,
-          pageNumber: page.pageNumber,
-          width: page.width,
-          height: page.height,
+      for (const idx of pageIdxs) {
+        const p = pages[idx];
+        uploads.set(idx, {
+          label: p.label,
+          ref: placed[idx],
+          pageNumber: p.pageNumber,
+          width: p.width,
+          height: p.height,
         });
       }
       // compute once (fresh floor ids) so we can commit AND land on one
       const committed = applyBuilderRows(rows, uploads, doc.floors);
-      onMutate((d) => ({ ...d, floors: committed }));
-      pages.forEach((p) => URL.revokeObjectURL(p.thumbUrl));
+      const planImport: PlanImport = {
+        sources: storedSources,
+        placed,
+        chosen,
+        names,
+      };
+      onMutate((d) => ({ ...d, floors: committed, planImport }));
+      // only fresh (object-URL) thumbnails need revoking; rehydrated pages hold
+      // real signed URLs (no blob) that must not be revoked
+      pages.forEach((p) => p.blob && URL.revokeObjectURL(p.thumbUrl));
       setBusy(null);
       discardImport(); // session done — URLs already revoked, this just resets
       // skip the floor-list step — go straight to the canvas on the ground
@@ -522,10 +649,12 @@ export function PlansPanel({
 
       {error && <div className="ds-ierr">{error}</div>}
 
-      {/* ── floors ── (hidden during an import; the stacker owns that view) ── */}
-      {/* floors list only appears once floors exist — a fresh plans page is
-         just the uploader (the section is deferred until there's something) */}
-      {!busy && pages === null && restack === null && floors.length > 0 && (
+      {/* ── floors ── the committed-floor admin list (rename · scale · open ·
+         delete). Shows whenever floors exist — beneath the restored stacker on
+         a return visit, or on its own for older designs with no saved session.
+         A fresh first import has no floors yet, so it stays hidden until one
+         is committed (the stacker owns that view). ── */}
+      {!busy && restack === null && floors.length > 0 && (
         <>
           <div className="ds-plans-floors-head">
             <span className="ds-cardt">Floors</span>

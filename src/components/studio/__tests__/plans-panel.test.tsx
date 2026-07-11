@@ -16,6 +16,12 @@ class FakePlanImages implements PlanImages {
   async upload(): Promise<string> {
     throw new Error("not used in tests");
   }
+  async uploadSource(): Promise<string> {
+    throw new Error("not used in tests");
+  }
+  async sourceFile(ref: string): Promise<File> {
+    return new File(["%PDF"], ref, { type: "application/pdf" });
+  }
   async url(): Promise<string> {
     return DATA_URL;
   }
@@ -160,8 +166,10 @@ describe("Plans stage", () => {
 
     // lands straight on the canvas so you resume where you were working
     expect(await screen.findByTestId("studio-canvas")).toBeInTheDocument();
-    // ...and the canvas floor switcher shows the floor, not its plan's page label
-    expect(screen.getByRole("button", { name: "Ground floor" })).toBeInTheDocument();
+    // ...and the floor switcher shows the STACK LEVEL (GF/L1…), not the floor's
+    // typed name — level 0 → "GF", level 1 → "L1"
+    expect(screen.getByRole("button", { name: "GF" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "L1" })).toBeInTheDocument();
   });
 
   it("stepping back to Plans shows the committed floors, not an empty uploader", async () => {

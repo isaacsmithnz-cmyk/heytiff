@@ -28,7 +28,12 @@ import {
 } from "@/lib/studio/geometry";
 import { StudioCanvas, type CanvasTool, type PlacingUnit } from "./canvas";
 import { PlansPanel } from "./plans-panel";
-import { floorDisplayName, RemotePlanImages, type PlanImages } from "@/lib/studio/plans";
+import {
+  floorDisplayName,
+  formatLevel,
+  RemotePlanImages,
+  type PlanImages,
+} from "@/lib/studio/plans";
 import {
   SystemsPanel,
   SystemObjectInspector,
@@ -1206,8 +1211,9 @@ function DesignPanel({
                 key={f.id}
                 className={`ds-floortab${f.id === floor.id ? " on" : ""}`}
                 onClick={() => onFloor(f.id)}
+                title={floorDisplayName(f)}
               >
-                {floorDisplayName(f)}
+                {formatLevel(f.level)}
               </button>
             ))}
             <button className="ds-floortab add" onClick={onAddFloor} title="Add floor">

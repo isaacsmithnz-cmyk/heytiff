@@ -198,6 +198,16 @@ describe("schema versioning + migrations", () => {
     // …but a custom name ("Basement") is left untouched
     expect(doc.floors[2].name).toBe("Basement");
   });
+
+  it("migrates v4→v5: adds an empty plan-import session", () => {
+    const base = createDesign({ name: "x", mode: "plan" });
+    const v4 = { ...JSON.parse(JSON.stringify(base)), schemaVersion: 4 };
+    delete v4.planImport; // v4 documents never had it
+    const { doc, migratedFrom } = migrateDesign(v4);
+    expect(migratedFrom).toBe(4);
+    expect(doc.schemaVersion).toBe(SCHEMA_VERSION);
+    expect(doc.planImport).toBeNull();
+  });
 });
 
 describe("LocalDesignStore", () => {

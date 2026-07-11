@@ -27,7 +27,7 @@ function assertOrgRef(ref: string, orgId: string): void {
 }
 
 export async function createPlanUpload(
-  ext: "png" | "jpeg"
+  ext: "png" | "jpeg" | "pdf"
 ): Promise<{ ref: string; token: string }> {
   const orgId = await requireOrg();
   const ref = `org/${orgId}/${newId("plan")}.${ext}`;

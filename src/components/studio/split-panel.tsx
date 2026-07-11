@@ -560,8 +560,11 @@ export function RoomUnitsSection({
       ),
     }));
 
-  /* choosing sizes against THIS room; placement is by dragging the cards */
+  /* choosing sizes against THIS room; placement is by dragging the cards.
+     Swapping to a DIFFERENT pair drops any already-placed units + pipework of
+     this system so the plan matches the new selection (re-drag to place). */
   const choose = (pair: PairProposal) => {
+    const changed = pair.idu.model !== iduModel || pair.odu.model !== oduModel;
     onMutate((d) => ({
       ...d,
       systems: d.systems.map((s) =>
@@ -577,6 +580,15 @@ export function RoomUnitsSection({
             }
           : s
       ),
+      objects: changed
+        ? d.objects.filter(
+            (o) =>
+              !(
+                o.systemId === system.id &&
+                (o.type === "unit" || o.type === "pipe-run" || o.type === "riser")
+              )
+          )
+        : d.objects,
     }));
     setBrowsing(false);
   };
@@ -585,8 +597,16 @@ export function RoomUnitsSection({
     <div className="ds-insp-units">
       <div className="ds-insp-sech">
         <b>Units</b>
-        {iduModel && !placedIdu && !placedOdu && (
-          <button className="ds-rp-change" onClick={() => setBrowsing(true)}>
+        {iduModel && (
+          <button
+            className="ds-rp-change"
+            onClick={() => setBrowsing(true)}
+            title={
+              placedIdu || placedOdu
+                ? "Swap the unit — this takes the placed unit(s) off the plan"
+                : "Swap the chosen unit"
+            }
+          >
             Change
           </button>
         )}

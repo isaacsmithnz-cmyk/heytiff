@@ -124,4 +124,31 @@ describe("RoomUnitsSection", () => {
     expect(ids).toContain("u_odu"); // the outdoor unit stays
     expect(ids).toContain("room1"); // the room stays
   });
+
+  it("Change stays available after the units are placed (swap the pair)", () => {
+    const system = sys({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" });
+    const d = docWith(system);
+    d.objects.push({
+      id: "u_idu",
+      type: "unit",
+      systemId: "sys1",
+      floorId: "flr",
+      geometry: { kind: "point", at: { x: 0, y: 0 } },
+      plane: "room",
+      props: { role: "idu", model: "SLZ-M25FA-A" },
+    });
+    render(
+      <RoomUnitsSection
+        doc={d}
+        pack={null}
+        system={system}
+        room={room}
+        basis="cooling"
+        onMutate={() => {}}
+        onArmPlace={() => {}}
+      />
+    );
+    // previously hidden once placed; now always offered while a pair is chosen
+    expect(screen.getByRole("button", { name: "Change" })).toBeInTheDocument();
+  });
 });

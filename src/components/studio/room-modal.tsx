@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
 import type { DesignDocument } from "@/lib/studio/document";
@@ -182,6 +182,26 @@ export function RoomModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  /* drag the modal by its header so it can be moved off a plan detail you want
+     to read underneath it */
+  const [drag, setDrag] = useState({ dx: 0, dy: 0 });
+  const dragStart = useRef<{ px: number; py: number; dx: number; dy: number } | null>(null);
+  const onHeadPointerDown = (e: React.PointerEvent) => {
+    if ((e.target as HTMLElement).closest("button, input")) return; // not on controls
+    dragStart.current = { px: e.clientX, py: e.clientY, dx: drag.dx, dy: drag.dy };
+    const onMove = (ev: PointerEvent) => {
+      const s = dragStart.current;
+      if (s) setDrag({ dx: s.dx + (ev.clientX - s.px), dy: s.dy + (ev.clientY - s.py) });
+    };
+    const onUp = () => {
+      dragStart.current = null;
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  };
+
   const save = () => {
     onMutate((d) => ({
       ...d,
@@ -224,8 +244,14 @@ export function RoomModal({
       className="ds-rm-overlay"
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="ds-rm" role="dialog" aria-modal="true" aria-label="Configure room">
-        <header className="ds-rm-head">
+      <div
+        className="ds-rm"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Configure room"
+        style={{ transform: `translate(${drag.dx}px, ${drag.dy}px)` }}
+      >
+        <header className="ds-rm-head ds-rm-drag" onPointerDown={onHeadPointerDown}>
           <div className="ds-rm-title">
             <span className={`ds-rm-mode${isEdit ? " edit" : ""}`}>
               {isEdit ? "Edit" : "New"}

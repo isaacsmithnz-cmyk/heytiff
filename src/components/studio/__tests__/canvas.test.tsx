@@ -88,7 +88,7 @@ describe("Design canvas", () => {
     expect(screen.getByText("Room 1")).toBeInTheDocument();
   });
 
-  it("dragging a rectangle's corner moves only that corner (no rectangle lock)", async () => {
+  it("dragging a rectangle-room corner resizes it but keeps it rectangular", async () => {
     const { user, svg } = await openBlankDesignOnCanvas();
     // 100×100-unit room: screen (400,300) → (456,356)
     await user.click(screen.getByRole("button", { name: "Room (rectangle)" }));
@@ -106,11 +106,12 @@ describe("Design canvas", () => {
     fireEvent.pointerMove(svg, pt(414, 314));
     fireEvent.pointerUp(svg, pt(414, 314));
 
-    // free edit: ONLY corner 0 moved → a skewed quad, not a snapped rectangle
+    // rect stays rectangular: corner 0 → (25,25), the opposite corner (100,100)
+    // stays put and the two neighbours follow — never a skewed quad
     const polygon = svg.querySelector(".ds-room polygon")!;
-    expect(polygon.getAttribute("points")).toBe("25,25 100,0 100,100 0,100");
+    expect(polygon.getAttribute("points")).toBe("25,25 100,25 100,100 25,100");
 
-    // the lock-rectangle control is gone (polygon tool covers free editing)
+    // no lock toggle — rectangle-tool rooms stay rectangular automatically
     expect(
       screen.queryByRole("checkbox", { name: /Lock rectangle/ })
     ).toBeNull();

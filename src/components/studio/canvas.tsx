@@ -60,6 +60,36 @@ export interface PlacingUnit {
 const CLOSE_SNAP_PX = 12; // screen px to close a polygon on its first vertex
 const HIT_EDGE_PX = 6;
 
+/* A room drawn with the rectangle tool stays a rectangle when edited: is its
+   geometry an axis-aligned box (4 corners, edges alternating H/V)? */
+function isAxisAlignedRect(pts: Point[]): boolean {
+  if (pts.length !== 4) return false;
+  for (let i = 0; i < 4; i++) {
+    const a = pts[i];
+    const b = pts[(i + 1) % 4];
+    const horiz = Math.abs(a.y - b.y) < 0.01;
+    const vert = Math.abs(a.x - b.x) < 0.01;
+    if (horiz === vert) return false; // must be exactly one of H or V
+  }
+  return true;
+}
+
+/* Resize a rectangle by dragging corner `i` to `p`: the opposite corner stays
+   put and the two neighbours follow, so it never skews into a quad. */
+function rectResize(orig: Point[], i: number, p: Point): Point[] {
+  const o = orig[(i + 2) % 4]; // fixed opposite corner
+  const j1 = (i + 1) % 4;
+  const j3 = (i + 3) % 4;
+  const next = orig.map((pt) => ({ ...pt }));
+  next[i] = { x: p.x, y: p.y };
+  next[(i + 2) % 4] = { x: o.x, y: o.y };
+  // the neighbour sharing i's vertical edge takes P.x & O.y; the other O.x & P.y
+  const j1SharesX = Math.abs(orig[j1].x - orig[i].x) <= Math.abs(orig[j1].y - orig[i].y);
+  next[j1] = j1SharesX ? { x: p.x, y: o.y } : { x: o.x, y: p.y };
+  next[j3] = j1SharesX ? { x: o.x, y: p.y } : { x: p.x, y: o.y };
+  return next;
+}
+
 /* The to-scale footprint glyph for a unit — a recognisable shape per role
    rather than a bare box: an outdoor unit gets its condenser fan, an indoor
    unit its discharge louvres. Used both for placed units and the drag ghost, so
@@ -184,6 +214,7 @@ export function StudioCanvas({
     points: Point[];
     selected: Set<number>;
     roomId: string | null;
+    shape?: "rect" | "poly";
   } | null>(null);
   const [calib, setCalib] = useState<{ a?: Point; b?: Point }>({});
   const [calibMeters, setCalibMeters] = useState("");
@@ -486,12 +517,12 @@ export function StudioCanvas({
   /* A closed boundary doesn't create a room outright — it opens wall-marking
      (DUCTR: closePolygon → startWallSelect). The room is committed only when
      the user confirms which walls are external. */
-  const beginWallSelect = useCallback((points: Point[]) => {
-    setWallSelect({ points, selected: new Set(), roomId: null });
+  const beginWallSelect = useCallback((points: Point[], shape: "rect" | "poly") => {
+    setWallSelect({ points, selected: new Set(), roomId: null, shape });
   }, []);
 
   const commitRoom = useCallback(
-    (points: Point[], externalWalls: number[]) => {
+    (points: Point[], externalWalls: number[], shape?: "rect" | "poly") => {
       const id = newId("obj");
       const orientation = orientationFromWalls(
         points,
@@ -515,6 +546,8 @@ export function StudioCanvas({
             name: `Room ${n}`,
             externalWalls,
             hasExternalWalls: externalWalls.length > 0,
+            // rectangle-tool rooms stay rectangular when their corners are edited
+            ...(shape ? { shape } : {}),
             ...(orientation ? { orientation } : {}),
           },
         };
@@ -528,7 +561,7 @@ export function StudioCanvas({
 
   const confirmWallSelect = useCallback(() => {
     if (!wallSelect) return;
-    const { points, selected, roomId } = wallSelect;
+    const { points, selected, roomId, shape } = wallSelect;
     const walls = [...selected].sort((a, b) => a - b);
     if (roomId) {
       // re-marking an existing room: update walls + derived orientation
@@ -550,7 +583,7 @@ export function StudioCanvas({
         ),
       }));
     } else {
-      commitRoom(points, walls);
+      commitRoom(points, walls, shape);
     }
     setWallSelect(null);
     onToolDone();
@@ -863,7 +896,7 @@ export function StudioCanvas({
           const firstScreen = worldToScreen(draftPoly[0], vp);
           const hereScreen = worldToScreen(w, vp);
           if (dist(firstScreen, hereScreen) <= CLOSE_SNAP_PX) {
-            beginWallSelect(draftPoly);
+            beginWallSelect(draftPoly, "poly");
             setDraftPoly([]);
             return;
           }
@@ -938,11 +971,20 @@ export function StudioCanvas({
         break;
       }
       case "vertex": {
-        // every vertex moves on its own — the polygon tool covers free editing,
-        // so there's no rectangle lock (removed 2026-07-11)
-        const copy = [...drag.orig];
-        copy[drag.index] = snapped(w);
-        setLiveGeom({ id: drag.id, points: copy });
+        // a rectangle-tool room stays rectangular: dragging a corner resizes the
+        // box (opposite corner fixed). Polygon rooms edit each vertex freely.
+        const room = rooms.find((r) => r.id === drag.id);
+        const keepRect =
+          room?.props.shape === "rect" ||
+          (room?.props.shape == null && isAxisAlignedRect(drag.orig));
+        let points: Point[];
+        if (keepRect) {
+          points = rectResize(drag.orig, drag.index, snapped(w));
+        } else {
+          points = [...drag.orig];
+          points[drag.index] = snapped(w);
+        }
+        setLiveGeom({ id: drag.id, points });
         break;
       }
       case "rect":
@@ -1000,12 +1042,15 @@ export function StudioCanvas({
     if (drag.kind === "rect" && draftRect) {
       const { a, b } = draftRect;
       if (Math.abs(b.x - a.x) >= snapStep && Math.abs(b.y - a.y) >= snapStep) {
-        beginWallSelect([
-          { x: a.x, y: a.y },
-          { x: b.x, y: a.y },
-          { x: b.x, y: b.y },
-          { x: a.x, y: b.y },
-        ]);
+        beginWallSelect(
+          [
+            { x: a.x, y: a.y },
+            { x: b.x, y: a.y },
+            { x: b.x, y: b.y },
+            { x: a.x, y: b.y },
+          ],
+          "rect"
+        );
       }
       setDraftRect(null);
     }
@@ -1077,7 +1122,7 @@ export function StudioCanvas({
 
   const onDoubleClick = () => {
     if (tool === "room-poly" && draftPoly.length >= 3) {
-      beginWallSelect(draftPoly);
+      beginWallSelect(draftPoly, "poly");
       setDraftPoly([]);
     }
     // double-click ends a pipe run without an end anchor (open run)

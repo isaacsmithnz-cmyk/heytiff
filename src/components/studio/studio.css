@@ -920,7 +920,9 @@
 .ds-ref-overlay {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  /* above the room modal (1000) — it can be opened from that modal's height
+     link, so it must sit in front of it */
+  z-index: 1100;
   display: grid;
   place-items: center;
   background: rgba(20, 20, 19, 0.55);
@@ -4078,6 +4080,8 @@
   padding: 15px 18px;
   border-bottom: 1px solid #ececec;
 }
+.ds-rm-drag { cursor: grab; touch-action: none; user-select: none; }
+.ds-rm-drag:active { cursor: grabbing; }
 .ds-rm-title { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .ds-rm-mode {
   flex-shrink: 0;

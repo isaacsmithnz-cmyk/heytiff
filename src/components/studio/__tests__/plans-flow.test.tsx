@@ -3,6 +3,7 @@
    can't run it); everything downstream — picking, naming, stacking,
    uploading, committing floors — is the production code path. */
 
+import { StrictMode } from "react";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Studio } from "../studio";
@@ -102,10 +103,6 @@ const subfloorGap = () => {
 };
 const dropPage = (el: Element, idx: number) => fireEvent.drop(el, dropPayload(`p:${idx}`));
 
-/* the committed-floor admin list — levels appear here AND on the rebuilt
-   stacker, so level assertions scope to this to stay unambiguous */
-const floorsList = () => document.querySelector(".ds-floors") as HTMLElement;
-
 /* "Start design" commits the floors and jumps straight to the canvas; going
    back to the Plans step restores the saved session (the stacker rebuilds
    asynchronously), and the committed-floor list sits beneath it */
@@ -154,9 +151,11 @@ describe("installer scenarios: upload → floors", () => {
     expect(screen.getByRole("button", { name: "GF" })).toBeInTheDocument();
     expect(fake.uploads).toBe(1);
 
-    // the floor still lives on the (now-completed) Plans step
+    // the floor still lives on the (now-completed) Plans step — the restored
+    // stacker shows it (the redundant floor overview is gone)
     await user.click(screen.getByRole("button", { name: /Plans/ }));
-    expect(await screen.findByDisplayValue("Ground floor")).toBeInTheDocument();
+    await screen.findByText("Stack your floors");
+    expect(floorCard("Ground floor")).toBeInTheDocument();
   });
 
   it("skipping the floor name commits it by stack position, not the page label", async () => {
@@ -176,10 +175,11 @@ describe("installer scenarios: upload → floors", () => {
     expect(screen.getByRole("button", { name: "GF" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Page 6/ })).toBeNull();
 
-    // and the Plans floor-list names it by position too
+    // and the restored stacker names the floor by position too, never "Page 6"
     await user.click(screen.getByRole("button", { name: /Plans/ }));
-    expect(await screen.findByDisplayValue("Ground floor")).toBeInTheDocument();
-    expect(screen.queryByDisplayValue("Page 6")).toBeNull();
+    await screen.findByText("Stack your floors");
+    expect(floorCard("Ground floor")).toBeInTheDocument();
+    expect(floorCard("Page 6")).toBeNull();
   });
 
   it("two-storey house from a 4-page set: unused sheets are kept so the session restores", async () => {
@@ -211,7 +211,7 @@ describe("installer scenarios: upload → floors", () => {
     expect(floorCard("Level 1").querySelector(".ds-floor-lvl")!.textContent).toBe("L1");
 
     await startDesignThenReviewPlans(user);
-    expect(screen.getByDisplayValue("Level 1")).toBeInTheDocument();
+    expect(floorCard("Level 1")).toBeInTheDocument();
     // only the two PLACED pages get a rendered image; the site plan/elevations
     // are never rendered to storage — the source PDF (1 file) is, so returning
     // re-rasterises the full grid from it
@@ -251,6 +251,35 @@ describe("installer scenarios: upload → floors", () => {
     expect(fake.sourceUploads).toBe(1);
   });
 
+  it("restores under StrictMode — a double-invoked effect doesn't leave it stuck loading", async () => {
+    // StrictMode mounts, cancels, remounts effects in dev; the once-per-open
+    // guard must not be poisoned by the cancelled run, or rehydration hangs on
+    // the "Reading pages…" bar and never shows the restored session.
+    pdfToPages.mockResolvedValue([page("A", 1), page("B", 2), page("C", 3)]);
+    const fake = new CountingPlanImages();
+    const store = new LocalDesignStore(window.localStorage);
+    const d = createDesign({ name: "Strict job", mode: "plan" });
+    await store.save(d);
+    const user = userEvent.setup();
+    render(
+      <StrictMode>
+        <Studio store={store} planImages={fake} />
+      </StrictMode>
+    );
+    await user.click(await screen.findByText("Strict job"));
+
+    uploadPdf();
+    await user.click(await screen.findByRole("button", { name: "Page 2" }));
+    await user.click(screen.getByRole("button", { name: /Continue with 1 page/ }));
+    await nameFloors(user, ["Ground floor"]);
+    dropPage(yardFirst(), 1);
+    await startDesignThenReviewPlans(user); // waits for the rebuilt stacker
+
+    // the session actually restored — not stuck on the loading bar
+    expect(floorCard("Ground floor")).toBeInTheDocument();
+    expect(screen.getByText("3 pages")).toBeInTheDocument();
+  });
+
   it("commercial job: L2 split east/west merges onto one floor; basement drops below the ground line", async () => {
     pdfToPages.mockResolvedValue([
       page("Basement", 1),
@@ -280,14 +309,14 @@ describe("installer scenarios: upload → floors", () => {
     expect(merged.querySelectorAll(".ds-plancard")).toHaveLength(2);
 
     await startDesignThenReviewPlans(user);
-    expect(screen.getByDisplayValue("Basement")).toBeInTheDocument();
+    // the restored stacker shows all four floors; levels are verified during
+    // building above and in plans.test — here just confirm they came back
+    expect(floorCard("Basement")).toBeInTheDocument();
+    expect(floorCard("Ground floor")).toBeInTheDocument();
+    expect(floorCard("Level 2")).toBeInTheDocument();
     expect(fake.uploads).toBe(4);
-    // floor list: B1 basement, GF, L1 = the merged Level 2 with two sheets
-    // (levels also appear on the rebuilt stacker, so scope to the Floors list)
-    expect(within(floorsList()).getByText("B1")).toBeInTheDocument();
-    expect(within(floorsList()).getByText("GF")).toBeInTheDocument();
-    expect(within(floorsList()).getByText("L1")).toBeInTheDocument();
-    expect(screen.getByText("2 sheets")).toBeInTheDocument();
+    // the merged Level 2 still carries its two sheets after the round-trip
+    expect(floorCard("Level 2").querySelectorAll(".ds-plancard")).toHaveLength(2);
   });
 
   it("a single sheet can be pulled OFF a two-sheet floor onto another floor", async () => {
@@ -387,7 +416,7 @@ describe("installer scenarios: upload → floors", () => {
     await nameFloors(user, ["Ground floor"]);
     dropPage(yardFirst(), 0); // place as ground floor
     await startDesignThenReviewPlans(user);
-    expect(screen.getByDisplayValue("Ground floor")).toBeInTheDocument();
+    expect(floorCard("Ground floor")).toBeInTheDocument();
 
     // second import: the new page lands in the tray (indices continue from the
     // restored session), and the existing floor shows in the yard as a fixed card
@@ -400,9 +429,9 @@ describe("installer scenarios: upload → floors", () => {
     dropPage(existing, 1); // merge the west wing (new page, idx 1) onto it
 
     await startDesignThenReviewPlans(user);
-    expect(screen.getByText("2 sheets")).toBeInTheDocument();
-    // still exactly one floor
-    expect(screen.getAllByDisplayValue("Ground floor")).toHaveLength(1);
+    // still exactly one floor, now carrying both sheets
+    expect(document.querySelectorAll('[data-floor="Ground floor"]')).toHaveLength(1);
+    expect(floorCard("Ground floor").querySelectorAll(".ds-plancard")).toHaveLength(2);
     // one rendered image per placed page (2), one source per import (2)
     expect(fake.uploads).toBe(2);
     expect(fake.sourceUploads).toBe(2);
@@ -494,11 +523,10 @@ describe("installer scenarios: upload → floors", () => {
     expect(floorCard("Plant room").querySelector(".ds-floor-lvl")!.textContent).toBe("B1");
 
     await startDesignThenReviewPlans(user);
-    expect(screen.getByDisplayValue("Carpark")).toBeInTheDocument();
-    // committed with the re-pinned levels (scope to the list — the stacker
-    // shows the same levels)
-    expect(within(floorsList()).getByText("B2")).toBeInTheDocument();
-    expect(within(floorsList()).getByText("B1")).toBeInTheDocument();
+    // the re-pinned floors came back (the B1/B2 levels are verified during
+    // building above and in plans.test)
+    expect(floorCard("Carpark")).toBeInTheDocument();
+    expect(floorCard("Plant room")).toBeInTheDocument();
     expect(fake.uploads).toBe(2);
   });
 

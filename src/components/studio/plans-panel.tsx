@@ -88,8 +88,10 @@ export function PlansPanel({
 
   /* Restore a saved upload session so stepping back to Plans shows the whole
      page — the uploaded pages, the selection and the stacker — not a blank one.
-     Runs once per design open: the ref guard survives the setPages re-render,
-     and unmount/remount (canvas ↔ Plans) resets it so each return rehydrates. */
+     Runs once per design open: the ref guard (claimed on SUCCESS, so a run a
+     StrictMode remount cancels doesn't poison it) survives the setPages
+     re-render; unmount/remount (canvas ↔ Plans) resets it so each return
+     rehydrates. */
   const rehydratedFor = useRef<string | null>(null);
   useEffect(() => {
     const imp = doc.planImport;
@@ -97,7 +99,6 @@ export function PlansPanel({
     // re-rasterise, so fall through to the flat Floors list
     if (!imp?.sources?.length || pages !== null || rehydratedFor.current === doc.id)
       return;
-    rehydratedFor.current = doc.id;
     let cancelled = false;
     setBusy({ kind: "rendering", done: 0, total: imp.sources.length });
     (async () => {
@@ -120,12 +121,16 @@ export function PlansPanel({
         }
         labelPagesSequentially(restoredPages);
         if (cancelled) return;
+        // claim the once-per-open guard only on success — a run cancelled by a
+        // StrictMode remount must NOT block the real run that follows it
+        rehydratedFor.current = doc.id;
         // re-attach each placed page's committed image ref so the stacker can
-        // match it to its floor and a re-commit never re-uploads it
-        restoredPages.forEach((p, i) => {
-          if (imp.placed[i]) p.ref = imp.placed[i];
-        });
-        setPages(restoredPages);
+        // match it to its floor and a re-commit never re-uploads it. Build new
+        // objects (don't mutate) — two re-rasterised pages could share identity.
+        const pagesWithRefs = restoredPages.map((p, i) =>
+          imp.placed[i] ? { ...p, ref: imp.placed[i] } : p
+        );
+        setPages(pagesWithRefs);
         setSources(imp.sources.map((s) => ({ kind: s.kind, ref: s.ref })));
         setChosen(imp.chosen);
         setSelected(new Set(imp.chosen));
@@ -133,7 +138,7 @@ export function PlansPanel({
         // the stacker positioning comes from the committed floors, not the
         // session — the floors are the source of truth (rename/reorder/delete
         // all happen against them), matched back to pages by placed image ref
-        setRows(builderRowsFromFloors(doc.floors, restoredPages));
+        setRows(builderRowsFromFloors(doc.floors, pagesWithRefs));
         setStage("stack");
         setBusy(null);
       } catch {
@@ -650,11 +655,11 @@ export function PlansPanel({
       {error && <div className="ds-ierr">{error}</div>}
 
       {/* ── floors ── the committed-floor admin list (rename · scale · open ·
-         delete). Shows whenever floors exist — beneath the restored stacker on
-         a return visit, or on its own for older designs with no saved session.
-         A fresh first import has no floors yet, so it stays hidden until one
-         is committed (the stacker owns that view). ── */}
-      {!busy && restack === null && floors.length > 0 && (
+         delete). Only shown when NO import stepper is up (pages === null): on a
+         restored session the stacker is the floor view, so this stays hidden to
+         avoid a redundant overview beneath it. It's the fallback for designs
+         with no restorable session (or where re-rasterising failed). ── */}
+      {!busy && pages === null && restack === null && floors.length > 0 && (
         <>
           <div className="ds-plans-floors-head">
             <span className="ds-cardt">Floors</span>

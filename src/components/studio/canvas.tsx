@@ -59,6 +59,56 @@ export interface PlacingUnit {
 
 const CLOSE_SNAP_PX = 12; // screen px to close a polygon on its first vertex
 const HIT_EDGE_PX = 6;
+
+/* The to-scale footprint glyph for a unit — a recognisable shape per role
+   rather than a bare box: an outdoor unit gets its condenser fan, an indoor
+   unit its discharge louvres. Used both for placed units and the drag ghost, so
+   the ghost previews exactly what lands. Styling (colour/dash) comes from the
+   enclosing .ds-unit / .ds-place-ghost group. */
+function unitGlyph(cx: number, cy: number, w: number, h: number, role: string, zoom: number) {
+  const left = cx - w / 2;
+  const top = cy - h / 2;
+  const rx = 2 / zoom;
+  if (role === "odu") {
+    const r = Math.min(w, h) * 0.34;
+    return (
+      <>
+        <rect x={left} y={top} width={w} height={h} rx={rx} />
+        <circle cx={cx} cy={cy} r={r} className="ds-unit-detail" />
+        <circle cx={cx} cy={cy} r={r * 0.16} className="ds-unit-hub" />
+        {[0, 1, 2, 3].map((i) => {
+          const a = (Math.PI / 2) * i + Math.PI / 4;
+          return (
+            <line
+              key={i}
+              x1={cx + Math.cos(a) * r * 0.3}
+              y1={cy + Math.sin(a) * r * 0.3}
+              x2={cx + Math.cos(a) * r * 0.9}
+              y2={cy + Math.sin(a) * r * 0.9}
+              className="ds-unit-detail"
+            />
+          );
+        })}
+      </>
+    );
+  }
+  // indoor unit — discharge louvres along the lower edge
+  return (
+    <>
+      <rect x={left} y={top} width={w} height={h} rx={rx} />
+      {[0.6, 0.72, 0.84].map((f) => (
+        <line
+          key={f}
+          x1={left + w * 0.12}
+          y1={top + h * f}
+          x2={left + w * 0.88}
+          y2={top + h * f}
+          className="ds-unit-detail"
+        />
+      ))}
+    </>
+  );
+}
 const ANCHOR_SNAP_PX = 16; // screen px to snap a pipe endpoint to an anchor
 
 function defaultViewport(
@@ -1233,13 +1283,7 @@ export function StudioCanvas({
                 className={`ds-unit${u.id === selectedId ? " sel" : ""}`}
                 style={{ color: colour }}
               >
-                <rect
-                  x={at.x - fp.w / 2}
-                  y={at.y - fp.h / 2}
-                  width={fp.w}
-                  height={fp.h}
-                  rx={2 / zoom}
-                />
+                {unitGlyph(at.x, at.y, fp.w, fp.h, String(u.props.role ?? "idu"), zoom)}
                 <text x={at.x} y={at.y + 4 / zoom} fontSize={11 / zoom} className="ds-unit-role">
                   {role}
                 </text>
@@ -1309,13 +1353,7 @@ export function StudioCanvas({
                 const fp = footprint(placing.widthMm, placing.depthMm);
                 return (
                   <>
-                    <rect
-                      x={at.x - fp.w / 2}
-                      y={at.y - fp.h / 2}
-                      width={fp.w}
-                      height={fp.h}
-                      rx={2 / zoom}
-                    />
+                    {unitGlyph(at.x, at.y, fp.w, fp.h, placing.role, zoom)}
                     <text x={at.x} y={at.y + 4 / zoom} fontSize={11 / zoom}>
                       {placing.role.toUpperCase()}
                     </text>

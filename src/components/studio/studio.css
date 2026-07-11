@@ -2862,6 +2862,16 @@
   vector-effect: non-scaling-stroke;
 }
 .dstudio .ds-unit.sel rect { stroke-width: 3px; }
+/* the role glyph detail (fan, louvres) — inherits the unit's colour */
+.dstudio .ds-unit-detail {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.2px;
+  vector-effect: non-scaling-stroke;
+}
+.dstudio .ds-unit-hub { fill: currentColor; stroke: none; }
+.dstudio .ds-place-ghost .ds-unit-detail { stroke: var(--teal-d); }
+.dstudio .ds-place-ghost .ds-unit-hub { fill: var(--teal-d); }
 .dstudio .ds-unit-role {
   fill: currentColor;
   text-anchor: middle;

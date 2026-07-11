@@ -681,6 +681,31 @@ function Editor({
     });
   }, [mutate]);
 
+  /* delete a floor: drop it, its rooms/units/pipework, its plan images from
+     storage, and any import-session refs that pointed at those images (so a
+     later Plans return sends those pages back to the tray, not a dead ref). */
+  const deleteFloor = useCallback(
+    (id: string) => {
+      const sheets = doc.floors.find((f) => f.id === id)?.plans ?? [];
+      const removedRefs = new Set(sheets.map((s) => s.imageRef));
+      mutate((d) => ({
+        ...d,
+        floors: d.floors.filter((f) => f.id !== id),
+        objects: d.objects.filter((o) => o.floorId !== id),
+        planImport: d.planImport
+          ? {
+              ...d.planImport,
+              placed: Object.fromEntries(
+                Object.entries(d.planImport.placed).filter(([, ref]) => !removedRefs.has(ref))
+              ),
+            }
+          : d.planImport,
+      }));
+      for (const s of sheets) void planImages.remove(s.imageRef).catch(() => {});
+    },
+    [doc.floors, mutate, planImages]
+  );
+
   /* ── keyboard: ⌘Z/⇧⌘Z + tool hotkeys on the design step ── */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -843,6 +868,7 @@ function Editor({
             activeFloorId={activeFloorId}
             onFloor={setPickedFloorId}
             onAddFloor={addFloor}
+            onDeleteFloor={deleteFloor}
             onGoPlans={() => onStep(0)}
             tool={tool}
             onTool={setTool}
@@ -1116,6 +1142,7 @@ function DesignPanel({
   activeFloorId,
   onFloor,
   onAddFloor,
+  onDeleteFloor,
   onGoPlans,
   tool,
   onTool,
@@ -1140,6 +1167,7 @@ function DesignPanel({
   activeFloorId: string | null;
   onFloor: (id: string) => void;
   onAddFloor: () => void;
+  onDeleteFloor: (id: string) => void;
   onGoPlans: () => void;
   tool: CanvasTool;
   onTool: (t: CanvasTool) => void;
@@ -1162,6 +1190,9 @@ function DesignPanel({
 }) {
   const floors = [...doc.floors].sort((a, b) => a.level - b.level);
   const floor = floors.find((f) => f.id === activeFloorId) ?? null;
+  // two-step delete of the active floor — armed per floor id so switching
+  // floors mid-arm can't delete the wrong one
+  const [armedDelFloor, setArmedDelFloor] = useState<string | null>(null);
 
   if (!floor) {
     return (
@@ -1252,6 +1283,28 @@ function DesignPanel({
               Reference sheets
             </button>
           )}
+          <button
+            className={`ds-floor-del${armedDelFloor === floor.id ? " arm" : ""}${onOpenReference ? "" : " push"}`}
+            onClick={() => {
+              if (armedDelFloor === floor.id) {
+                onDeleteFloor(floor.id);
+                setArmedDelFloor(null);
+              } else {
+                setArmedDelFloor(floor.id);
+              }
+            }}
+            onBlur={() => setArmedDelFloor(null)}
+            title="Delete this floor and everything on it"
+          >
+            {armedDelFloor === floor.id ? (
+              "Delete floor?"
+            ) : (
+              <>
+                <Icon name="x" size={13} />
+                Delete floor
+              </>
+            )}
+          </button>
         </div>
         <StudioCanvas
           key={floor.id}

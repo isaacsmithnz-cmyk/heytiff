@@ -203,6 +203,31 @@ describe("Plans stage", () => {
     expect(await screen.findByTitle("Reference PDF")).toBeInTheDocument();
   });
 
+  it("deletes the active floor from the canvas (two-step confirm)", async () => {
+    const store = new LocalDesignStore(window.localStorage);
+    const d = createDesign({ name: "Del job", mode: "plan" });
+    d.floors.push(
+      { id: "flr_g", name: "Ground floor", level: 0, scaleMmPerUnit: 10, northDeg: null, plans: [] },
+      { id: "flr_1", name: "Level 1", level: 1, scaleMmPerUnit: 10, northDeg: null, plans: [] }
+    );
+    await store.save(d);
+    const user = userEvent.setup();
+    render(<Studio store={store} planImages={new FakePlanImages()} />);
+    await user.click(await screen.findByText("Del job"));
+
+    // on the canvas: floor tabs for both levels
+    expect(await screen.findByRole("button", { name: "GF" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "L1" })).toBeInTheDocument();
+
+    // arm then confirm delete of the active (ground) floor
+    await user.click(screen.getByRole("button", { name: /Delete floor/ }));
+    await user.click(screen.getByRole("button", { name: "Delete floor?" }));
+
+    // GF is gone; L1 remains
+    expect(screen.queryByRole("button", { name: "GF" })).toBeNull();
+    expect(screen.getByRole("button", { name: "L1" })).toBeInTheDocument();
+  });
+
   it("deleting a floor removes it and its stored plan image", async () => {
     const fake = new FakePlanImages();
     const user = await openSeeded(fake);

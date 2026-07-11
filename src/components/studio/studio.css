@@ -892,6 +892,29 @@
   white-space: nowrap;
 }
 .dstudio .ds-ref-open:hover { border-color: #cfcfcc; color: #1a1a1a; }
+.dstudio .ds-floor-del {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: #9a9a9a;
+  background: #fff;
+  border: 1px solid #e0e0de;
+  border-radius: 999px;
+  padding: 5px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.dstudio .ds-floor-del.push { margin-left: auto; }
+.dstudio .ds-floor-del:hover { border-color: #f0b4b4; color: #b91c1c; }
+.dstudio .ds-floor-del.arm {
+  color: #fff;
+  background: #dc2626;
+  border-color: #dc2626;
+  font-weight: 700;
+}
 
 /* reference-sheets viewer */
 .ds-ref-overlay {

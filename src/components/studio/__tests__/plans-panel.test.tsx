@@ -181,6 +181,28 @@ describe("Plans stage", () => {
     expect(screen.queryByText("Drop floor plans here")).toBeNull();
   });
 
+  it("the canvas offers Reference sheets when the design has an uploaded plan set", async () => {
+    const store = new LocalDesignStore(window.localStorage);
+    const d = createDesign({ name: "Ref job", mode: "plan" });
+    d.floors.push({
+      id: "flr_r",
+      name: "Ground floor",
+      level: 0,
+      scaleMmPerUnit: 10,
+      northDeg: null,
+      plans: [],
+    });
+    d.planImport = { sources: [{ ref: "org/o1/set.pdf", kind: "pdf" }], placed: {}, chosen: [], names: {} };
+    await store.save(d);
+    const user = userEvent.setup();
+    render(<Studio store={store} planImages={new FakePlanImages()} />);
+    await user.click(await screen.findByText("Ref job"));
+
+    // opens on the canvas; Reference sheets is offered and opens the viewer
+    await user.click(await screen.findByRole("button", { name: /Reference sheets/ }));
+    expect(await screen.findByTitle("Reference PDF")).toBeInTheDocument();
+  });
+
   it("deleting a floor removes it and its stored plan image", async () => {
     const fake = new FakePlanImages();
     const user = await openSeeded(fake);

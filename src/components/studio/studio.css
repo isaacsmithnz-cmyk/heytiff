@@ -875,6 +875,107 @@
   border-radius: 999px;
   padding: 5px 11px;
 }
+.dstudio .ds-ref-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: #444;
+  background: #fff;
+  border: 1px solid #e0e0de;
+  border-radius: 999px;
+  padding: 5px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.dstudio .ds-ref-open:hover { border-color: #cfcfcc; color: #1a1a1a; }
+
+/* reference-sheets viewer */
+.ds-ref-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  background: rgba(20, 20, 19, 0.55);
+  padding: 20px;
+}
+.ds-ref {
+  display: flex;
+  flex-direction: column;
+  width: min(1000px, 100%);
+  height: min(90vh, 100%);
+  background: #fff;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.3);
+}
+.ds-ref-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid #ececec;
+}
+.ds-ref-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  min-width: 0;
+}
+.ds-ref-sub {
+  font-size: 12px;
+  font-weight: 400;
+  color: #8a8a8a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ds-ref-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 8px 18px;
+  border-bottom: 1px solid #f2f2f1;
+}
+.ds-ref-tabs button {
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: #565656;
+  background: #f5f5f4;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+.ds-ref-tabs button.on {
+  background: #fff;
+  border-color: #d8d8d5;
+  color: #1a1a1a;
+}
+.ds-ref-body {
+  flex: 1;
+  min-height: 0;
+  background: #f0f0ee;
+  display: flex;
+}
+.ds-ref-frame { flex: 1; border: none; width: 100%; height: 100%; }
+.ds-ref-img {
+  margin: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.ds-ref-msg {
+  margin: auto;
+  color: #8a8a8a;
+  font-size: 13px;
+}
 
 /* the canvas itself */
 .dstudio .ds-canvas {
@@ -4064,6 +4165,21 @@
   font-size: 16.5px;
 }
 .ds-rm-dimna { color: #aeb4bd; font-weight: 500; font-style: italic; font-size: 13px; }
+.ds-rm-reflink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--teal-d, #0f766e);
+  background: none;
+  border: none;
+  padding: 2px 0;
+  cursor: pointer;
+}
+.ds-rm-reflink:hover { text-decoration: underline; }
 .ds-rm-hin-wrap { display: inline-flex; align-items: center; gap: 5px; }
 .ds-rm-hin {
   width: 54px;

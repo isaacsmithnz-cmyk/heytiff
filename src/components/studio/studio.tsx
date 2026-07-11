@@ -45,6 +45,7 @@ import {
 import type { SizingBasis } from "@/lib/studio/loads";
 import type { RoomObj } from "@/lib/studio/loads-room";
 import { RoomModal } from "./room-modal";
+import { ReferenceViewer } from "./reference-viewer";
 import type { DataPack } from "@/lib/studio/packs/schema";
 import "./studio.css";
 
@@ -608,6 +609,9 @@ function Editor({
       : (doc.floors[0]?.id ?? null);
   const [tool, setTool] = useState<CanvasTool>("select");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  /* reference-sheets viewer — browse the uploaded plan set without placing it */
+  const [refOpen, setRefOpen] = useState(false);
+  const hasReference = Boolean(doc.planImport?.sources?.length);
 
   /* ── systems (Stage 4): product pack, active system, armed placement ── */
   const [pack, setPack] = useState<DataPack | null>(null);
@@ -857,11 +861,20 @@ function Editor({
             onEditRoom={setEditingRoomId}
             remarkRoomId={remarkRoomId}
             onRemarkConsumed={() => setRemarkRoomId(null)}
+            onOpenReference={hasReference ? () => setRefOpen(true) : undefined}
           />
         )}
         {step === 2 && <MaterialsView doc={doc} pack={pack} />}
         {step === 3 && <JobView doc={doc} pack={pack} onMutate={mutate} />}
       </div>
+
+      {refOpen && hasReference && (
+        <ReferenceViewer
+          doc={doc}
+          planImages={planImages}
+          onClose={() => setRefOpen(false)}
+        />
+      )}
 
       {editingRoomId && doc.objects.some((o) => o.id === editingRoomId) && (
         <RoomModal
@@ -873,6 +886,7 @@ function Editor({
             setEditingRoomId(null);
             setRemarkRoomId(id);
           }}
+          onOpenReference={hasReference ? () => setRefOpen(true) : undefined}
         />
       )}
     </div>
@@ -1120,6 +1134,7 @@ function DesignPanel({
   onEditRoom,
   remarkRoomId,
   onRemarkConsumed,
+  onOpenReference,
 }: {
   doc: DesignDocument;
   activeFloorId: string | null;
@@ -1143,6 +1158,7 @@ function DesignPanel({
   onEditRoom: (id: string) => void;
   remarkRoomId: string | null;
   onRemarkConsumed: () => void;
+  onOpenReference?: () => void;
 }) {
   const floors = [...doc.floors].sort((a, b) => a.level - b.level);
   const floor = floors.find((f) => f.id === activeFloorId) ?? null;
@@ -1225,6 +1241,16 @@ function DesignPanel({
               <Icon name="ruler" size={13} />
               Not calibrated — sizes are arbitrary
             </span>
+          )}
+          {onOpenReference && (
+            <button
+              className="ds-ref-open"
+              onClick={onOpenReference}
+              title="Browse every uploaded page — heights, sections, details"
+            >
+              <Icon name="library" size={14} />
+              Reference sheets
+            </button>
           )}
         </div>
         <StudioCanvas

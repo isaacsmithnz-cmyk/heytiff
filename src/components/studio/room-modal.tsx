@@ -76,6 +76,7 @@ export function RoomModal({
   onMutate,
   onClose,
   onRemarkWalls,
+  onOpenReference,
 }: {
   doc: DesignDocument;
   roomId: string;
@@ -83,6 +84,7 @@ export function RoomModal({
   onClose: () => void;
   /** re-enter canvas wall-marking for this room (saves first, then re-marks) */
   onRemarkWalls?: (roomId: string) => void;
+  onOpenReference?: () => void;
 }) {
   const room = doc.objects.find((o) => o.id === roomId);
   const floor = room ? doc.floors.find((f) => f.id === room.floorId) : null;
@@ -311,6 +313,12 @@ export function RoomModal({
                 )}
               </div>
             </div>
+            {onOpenReference && (
+              <button type="button" className="ds-rm-reflink" onClick={onOpenReference}>
+                <Icon name="library" size={12} />
+                Height not on the plan? Check the reference sheets
+              </button>
+            )}
           </div>
 
           {/* glazing / condition / orientation */}

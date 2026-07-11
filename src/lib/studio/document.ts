@@ -6,7 +6,7 @@
    fixtures serialise exactly this shape, so changes require a schema bump and
    a migration (see migrations.ts). */
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 4;
 
 /* ── Vertical planes (Layer 1 — placement plane) ── */
 export type Plane =
@@ -100,6 +100,18 @@ export interface DesignMeta {
   mode: "plan" | "blank";
   createdAt: string; // ISO
   updatedAt: string; // ISO
+  /** this document's own label within its variant set, e.g. "Option 2".
+      null = not part of a variant set. */
+  variantLabel: string | null;
+}
+
+/* ── Design variations (schema v3). A variant set is a handful of sibling
+      documents exploring different options for the same job; each sibling
+      carries its own copy of the full member list so switching or exporting
+      "all options" never needs a server-side group query. ── */
+export interface DesignVariantRef {
+  id: string;
+  label: string;
 }
 
 export interface DesignDocument {
@@ -112,6 +124,8 @@ export interface DesignDocument {
   systems: DesignSystem[];
   /** brand → data-pack version the design was built against (Stage 2 pins) */
   packPins: Record<string, string>;
+  /** all sibling options incl. this document; empty = not a variant set */
+  variants: DesignVariantRef[];
 }
 
 /* ── Construction ── */
@@ -140,6 +154,7 @@ export function createDesign(opts: {
       mode: opts.mode,
       createdAt: now,
       updatedAt: now,
+      variantLabel: null,
     },
     settings: {
       climateZone: null,
@@ -166,6 +181,7 @@ export function createDesign(opts: {
     objects: [],
     systems: [],
     packPins: {},
+    variants: [],
   };
 }
 

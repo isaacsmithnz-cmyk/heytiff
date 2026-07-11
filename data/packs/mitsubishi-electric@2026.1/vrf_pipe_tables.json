@@ -1,0 +1,70 @@
+[
+  {
+    "series": "PUHY-P200-500YNW-A1",
+    "pipe_sizing": {
+      "method": "size_by_downstream_index",
+      "steps": [
+        { "index_max": 140, "liquid_mm": 9.52, "gas_mm": 15.88 },
+        { "index_max": 200, "liquid_mm": 9.52, "gas_mm": 19.05 },
+        { "index_max": 300, "liquid_mm": 9.52, "gas_mm": 22.2 },
+        { "index_max": 400, "liquid_mm": 12.7, "gas_mm": 28.58 },
+        { "index_max": 650, "liquid_mm": 15.88, "gas_mm": 28.58 },
+        { "index_max": 800, "liquid_mm": 19.05, "gas_mm": 34.93 },
+        { "index_max": 99999, "liquid_mm": 19.05, "gas_mm": 41.28 }
+      ]
+    },
+    "branch_sizing": {
+      "method": "size_by_downstream_index",
+      "steps": [
+        { "index_max": 50, "liquid_mm": 6.35, "gas_mm": 12.7 },
+        { "index_max": 140, "liquid_mm": 9.52, "gas_mm": 15.88 },
+        { "index_max": 200, "liquid_mm": 9.52, "gas_mm": 19.05 },
+        { "index_max": 250, "liquid_mm": 9.52, "gas_mm": 22.2 }
+      ]
+    },
+    "joint_selection": {
+      "steps": [
+        { "index_max": 200, "part_ref": "CMY-Y102SS-G2" },
+        { "index_max": 400, "part_ref": "CMY-Y102LS-G2" },
+        { "index_max": 650, "part_ref": "CMY-Y202S-G2" },
+        { "index_max": 99999, "part_ref": "CMY-Y302S-G2" }
+      ],
+      "first_joint_by_odu": {
+        "PUHY-P200YNW-A1": "CMY-Y102LS-G2",
+        "PUHY-P250YNW-A1": "CMY-Y102LS-G2",
+        "PUHY-P300YNW-A1": "CMY-Y102LS-G2",
+        "PUHY-P350YNW-A1": "CMY-Y102LS-G2",
+        "PUHY-P400YNW-A1": "CMY-Y102LS-G2",
+        "PUHY-P450YNW-A1": "CMY-Y202S-G2",
+        "PUHY-P500YNW-A1": "CMY-Y202S-G2"
+      }
+    },
+    "header_selection": {
+      "steps": [
+        { "branches_max": 4, "index_max": 200, "part_ref": "CMY-Y104-G" },
+        { "branches_max": 8, "index_max": 400, "part_ref": "CMY-Y108-G" },
+        { "branches_max": 10, "index_max": 650, "part_ref": "CMY-Y1010-G" }
+      ]
+    },
+    "limits": {
+      "max_total_m": 1000,
+      "max_farthest_actual_m": 165,
+      "max_farthest_equiv_m": 190,
+      "max_after_first_joint_m": 40,
+      "max_lift_odu_above_m": 50,
+      "max_lift_odu_below_m": 40,
+      "max_lift_idu_idu_m": 15
+    },
+    "additional_charge": {
+      "method": "per_meter_by_liquid_size",
+      "rates": { "6.35": 24, "9.52": 60, "12.7": 120, "15.88": 200, "19.05": 290 },
+      "precharged_allowance_m": 0
+    },
+    "provenance": {
+      "kind": "extracted",
+      "source": "PUHY-P-Y(S)NW-A1 Data Book",
+      "edition": "MEES21K029 (MY21-1)",
+      "page": "139-143"
+    }
+  }
+]

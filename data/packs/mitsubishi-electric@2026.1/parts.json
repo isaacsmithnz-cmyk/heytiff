@@ -1,0 +1,9 @@
+[
+  { "part_type": "joint", "model": "CMY-Y102SS-G2", "brand": "mitsubishi-electric", "index_max": 200, "provenance": { "kind": "extracted", "source": "PUHY-P-Y(S)NW-A1 Data Book", "edition": "MEES21K029 (MY21-1)", "page": "111,139" } },
+  { "part_type": "joint", "model": "CMY-Y102LS-G2", "brand": "mitsubishi-electric", "index_max": 400, "provenance": { "kind": "extracted", "source": "PUHY-P-Y(S)NW-A1 Data Book", "edition": "MEES21K029 (MY21-1)", "page": "111,139" } },
+  { "part_type": "joint", "model": "CMY-Y202S-G2", "brand": "mitsubishi-electric", "index_max": 650, "provenance": { "kind": "extracted", "source": "PUHY-P-Y(S)NW-A1 Data Book", "edition": "MEES21K029 (MY21-1)", "page": "111,139" } },
+  { "part_type": "joint", "model": "CMY-Y302S-G2", "brand": "mitsubishi-electric", "index_max": 99999, "provenance": { "kind": "extracted", "source": "PUHY-P-Y(S)NW-A1 Data Book", "edition": "MEES21K029 (MY21-1)", "page": "111,139" } },
+  { "part_type": "header", "model": "CMY-Y104-G", "brand": "mitsubishi-electric", "branches": 4, "index_max": 200, "provenance": { "kind": "extracted", "source": "PUHY-P-Y(S)NW-A1 Data Book", "edition": "MEES21K029 (MY21-1)", "page": "112,139" } },
+  { "part_type": "header", "model": "CMY-Y108-G", "brand": "mitsubishi-electric", "branches": 8, "index_max": 400, "provenance": { "kind": "extracted", "source": "PUHY-P-Y(S)NW-A1 Data Book", "edition": "MEES21K029 (MY21-1)", "page": "112,139" } },
+  { "part_type": "header", "model": "CMY-Y1010-G", "brand": "mitsubishi-electric", "branches": 10, "index_max": 650, "provenance": { "kind": "extracted", "source": "PUHY-P-Y(S)NW-A1 Data Book", "edition": "MEES21K029 (MY21-1)", "page": "112,139" } }
+]

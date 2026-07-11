@@ -7,6 +7,7 @@ import {
   newId,
   type DesignDocument,
   type DesignObject,
+  type DesignVariantRef,
   type Floor,
 } from "@/lib/studio/document";
 import { openDesignJson, DesignDocumentError } from "@/lib/studio/migrations";
@@ -22,15 +23,29 @@ import { RemoteDesignStore } from "@/lib/studio/remote-store";
 import { History } from "@/lib/studio/history";
 import {
   areaUnitsToM2,
-  boundingRect,
   formatArea,
-  isAxisAlignedRect,
   polygonArea,
 } from "@/lib/studio/geometry";
-import { StudioCanvas, type CanvasTool } from "./canvas";
+import { StudioCanvas, type CanvasTool, type PlacingUnit } from "./canvas";
 import { PlansPanel } from "./plans-panel";
-import { RemotePlanImages, type PlanImages } from "@/lib/studio/plans";
+import { floorDisplayName, RemotePlanImages, type PlanImages } from "@/lib/studio/plans";
+import {
+  SystemsPanel,
+  SystemObjectInspector,
+  RoomUnitsSection,
+  MaterialsView,
+  JobView,
+  roomLoadKw,
+} from "./split-panel";
+import type { SizingBasis } from "@/lib/studio/loads";
+import type { RoomObj } from "@/lib/studio/loads-room";
+import { RoomModal } from "./room-modal";
+import type { DataPack } from "@/lib/studio/packs/schema";
 import "./studio.css";
+
+/* server actions load lazily so jsdom tests never parse the auth0 runtime —
+   same pattern as remote-store.ts */
+const packActions = () => import("@/app/actions/studio-packs");
 
 /* Design Studio — Stage 0: shell mount, home + new-design flow, workflow
    stepper, autosaving document, per-stage empty states. The canvas engine,
@@ -44,6 +59,18 @@ const STEPS = [
 ] as const;
 
 const MODE_LABEL = { plan: "Floor plans", blank: "Blank canvas" } as const;
+
+/** Suffix a design's export filename with its variant label, e.g.
+    "14-harbour-view-rd-option-2.heytiff-design.json". */
+function variantFileName(doc: DesignDocument): string {
+  const base = designFileName(doc).replace(/\.heytiff-design\.json$/, "");
+  if (!doc.meta.variantLabel) return `${base}.heytiff-design.json`;
+  const suffix = doc.meta.variantLabel
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  return `${base}-${suffix}.heytiff-design.json`;
+}
 
 function timeAgo(iso: string): string {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
@@ -121,7 +148,11 @@ export function Studio({
 
   const openDesign = useCallback((d: DesignDocument) => {
     setDoc(d);
-    setStep(0);
+    // reopen straight into the canvas so you resume where you were working —
+    // blank designs always, and any plan design that already has floors built.
+    // Only a plan design with nothing set up yet starts on Plans (upload → pick
+    // → stack); once floors exist, Plans is a place you step *back* to, not into.
+    setStep(d.meta.mode === "blank" || d.floors.length > 0 ? 1 : 0);
   }, []);
 
   /* undo/redo restores an exact prior document — no updatedAt bump */
@@ -129,6 +160,81 @@ export function Studio({
     setSaveState("saving");
     setDoc(d);
   }, []);
+
+  /* ── design variations: sibling documents sharing a variants[] roster ── */
+  const addVariant = useCallback(async () => {
+    if (!doc) return;
+    const now = new Date().toISOString();
+    const currentLabel = doc.meta.variantLabel ?? "Option 1";
+    const existing: DesignVariantRef[] =
+      doc.variants.length > 0 ? doc.variants : [{ id: doc.id, label: currentLabel }];
+    const newDocId = newId("dsn");
+    const nextLabel = `Option ${existing.length + 1}`;
+    const allVariants = [...existing, { id: newDocId, label: nextLabel }];
+
+    const updatedCurrent: DesignDocument = {
+      ...doc,
+      meta: { ...doc.meta, variantLabel: currentLabel, updatedAt: now },
+      variants: allVariants,
+    };
+    const newDoc: DesignDocument = {
+      ...doc,
+      id: newDocId,
+      meta: { ...doc.meta, variantLabel: nextLabel, createdAt: now, updatedAt: now },
+      variants: allVariants,
+    };
+
+    await getStore().save(updatedCurrent);
+    await getStore().save(newDoc);
+    // older siblings (3rd+ option) need the fuller roster too
+    await Promise.all(
+      existing
+        .filter((v) => v.id !== doc.id)
+        .map(async (v) => {
+          const sib = await getStore().load(v.id);
+          if (sib) await getStore().save({ ...sib, variants: allVariants });
+        })
+    );
+    setDoc(newDoc);
+    refreshRecents();
+  }, [doc, getStore, refreshRecents]);
+
+  const switchVariant = useCallback(
+    async (id: string) => {
+      if (!doc || id === doc.id) return;
+      await getStore()
+        .save(doc)
+        .catch(() => {});
+      const d = await getStore().load(id);
+      if (d) setDoc(d); // keep the current step — this is the same editing session
+    },
+    [doc, getStore]
+  );
+
+  const renameVariant = useCallback(
+    async (label: string) => {
+      if (!doc) return;
+      const trimmed = label.trim();
+      if (!trimmed || trimmed === doc.meta.variantLabel) return;
+      const updatedVariants = doc.variants.map((v) =>
+        v.id === doc.id ? { ...v, label: trimmed } : v
+      );
+      mutate((d) => ({
+        ...d,
+        meta: { ...d.meta, variantLabel: trimmed },
+        variants: updatedVariants,
+      }));
+      await Promise.all(
+        updatedVariants
+          .filter((v) => v.id !== doc.id)
+          .map(async (v) => {
+            const sib = await getStore().load(v.id);
+            if (sib) await getStore().save({ ...sib, variants: updatedVariants });
+          })
+      );
+    },
+    [doc, getStore, mutate]
+  );
 
   const goHome = useCallback(async () => {
     if (doc) {
@@ -143,7 +249,7 @@ export function Studio({
 
   return (
     <div className="page in">
-      <div className="dstudio">
+      <div className={`dstudio${doc ? " editing" : ""}`}>
         {doc ? (
           <Editor
             doc={doc}
@@ -153,6 +259,10 @@ export function Studio({
             onMutate={mutate}
             onReplace={replaceDoc}
             onHome={goHome}
+            onAddVariant={addVariant}
+            onSwitchVariant={switchVariant}
+            onRenameVariant={renameVariant}
+            onLoadVariant={(id) => getStore().load(id)}
             planImages={planImagesInst}
           />
         ) : (
@@ -429,6 +539,10 @@ function Editor({
   onMutate,
   onReplace,
   onHome,
+  onAddVariant,
+  onSwitchVariant,
+  onRenameVariant,
+  onLoadVariant,
   planImages,
 }: {
   doc: DesignDocument;
@@ -438,6 +552,10 @@ function Editor({
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   onReplace: (d: DesignDocument) => void;
   onHome: () => void;
+  onAddVariant: () => void;
+  onSwitchVariant: (id: string) => void;
+  onRenameVariant: (label: string) => void;
+  onLoadVariant: (id: string) => Promise<DesignDocument | null>;
   planImages: PlanImages;
 }) {
   /* ── undo/redo: record the outgoing document before every mutation ── */
@@ -486,6 +604,54 @@ function Editor({
   const [tool, setTool] = useState<CanvasTool>("select");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
+  /* ── systems (Stage 4): product pack, active system, armed placement ── */
+  const [pack, setPack] = useState<DataPack | null>(null);
+  const [packVersion, setPackVersion] = useState<string>("2026.1");
+  const [activeSystemId, setActiveSystemId] = useState<string | null>(null);
+  const [placing, setPlacing] = useState<PlacingUnit | null>(null);
+  /* room being configured in the heat-load modal (Slice 2) */
+  const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
+  /* room whose external walls the canvas should re-mark (from the modal) */
+  const [remarkRoomId, setRemarkRoomId] = useState<string | null>(null);
+
+  /* the effective active system: the picked one, else the first system. The
+     canvas scopes rooms/objects to this; room tools require it (type-first). */
+  const effectiveSystemId =
+    activeSystemId && doc.systems.some((s) => s.id === activeSystemId)
+      ? activeSystemId
+      : (doc.systems[0]?.id ?? null);
+
+  useEffect(() => {
+    let on = true;
+    packActions()
+      .then((a) => a.loadStudioPack("mitsubishi-electric"))
+      .then((r) => {
+        if (on && r) {
+          setPack(r.pack);
+          setPackVersion(r.version);
+        }
+      })
+      .catch(() => {
+        /* offline — proposals unavailable, drawing still works */
+      });
+    return () => {
+      on = false;
+    };
+  }, []);
+
+  /* arm (or null-disarm) unit placement — armed by dragging a unit card */
+  const armPlace = useCallback((p: PlacingUnit | null) => {
+    setPlacing(p);
+    setTool(p ? "place" : "select");
+  }, []);
+
+  /* a unit landed: disarm. Each card is dragged/placed on its own (Slice 3);
+     no more auto-chaining IDU→ODU→pipe. */
+  const onPlaced = useCallback(() => {
+    setPlacing(null);
+    setTool("select");
+  }, []);
+
   const addFloor = useCallback(() => {
     mutate((d) => {
       const maxLevel = d.floors.reduce((m, f) => Math.max(m, f.level), -1);
@@ -526,25 +692,48 @@ function Editor({
         c: "calibrate",
         m: "arrange",
         e: "erase",
+        p: "pipe",
+        i: "riser",
       };
       const next = toolKeys[e.key.toLowerCase()];
-      if (next) setTool(next);
+      if (!next) return;
+      // room/pipe/riser draw all belong to a system — type-first: none without one
+      if (
+        (next === "room-rect" ||
+          next === "room-poly" ||
+          next === "pipe" ||
+          next === "riser") &&
+        !effectiveSystemId
+      )
+        return;
+      setTool(next);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [step, undo, redo]);
+  }, [step, undo, redo, effectiveSystemId]);
 
-  const exportJson = () => {
-    const blob = new Blob([exportDesignJson(doc)], {
-      type: "application/json",
-    });
+  const downloadDoc = (d: DesignDocument, filename: string) => {
+    const blob = new Blob([exportDesignJson(d)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = Object.assign(document.createElement("a"), {
       href: url,
-      download: designFileName(doc),
+      download: filename,
     });
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const exportJson = () => downloadDoc(doc, designFileName(doc));
+
+  const exportAllVariants = async () => {
+    const targets =
+      doc.variants.length > 0
+        ? doc.variants
+        : [{ id: doc.id, label: doc.meta.variantLabel ?? "" }];
+    for (const v of targets) {
+      const d = v.id === doc.id ? doc : await onLoadVariant(v.id);
+      if (d) downloadDoc(d, variantFileName(d));
+    }
   };
 
   return (
@@ -584,6 +773,12 @@ function Editor({
           ))}
         </nav>
         <div className="ds-tb-right">
+          <VariantSwitcher
+            doc={doc}
+            onAdd={onAddVariant}
+            onSwitch={onSwitchVariant}
+            onRename={onRenameVariant}
+          />
           <button
             className="ds-tbicon"
             onClick={undo}
@@ -610,14 +805,17 @@ function Editor({
                 ? "Saved locally"
                 : "Saved"}
           </span>
-          <button className="ds-tbbtn" onClick={exportJson}>
-            <Icon name="download" size={15} />
-            Export
-          </button>
+          <ExportMenu
+            hasVariants={doc.variants.length > 1}
+            onExportOne={exportJson}
+            onExportAll={exportAllVariants}
+          />
         </div>
       </header>
 
-      <div className="ds-panel">
+      {/* Design (step 1) fills the viewport with a fixed canvas; the document-
+         like steps (Plans/Materials/Job) scroll inside the locked page */}
+      <div className={`ds-panel${step === 1 ? "" : " scroll"}`}>
         {step === 0 && (
           <PlansPanel
             doc={doc}
@@ -643,21 +841,252 @@ function Editor({
             onSelect={setSelectedId}
             onMutate={mutate}
             planImages={planImages}
+            pack={pack}
+            packVersion={packVersion}
+            activeSystemId={effectiveSystemId}
+            onActivateSystem={setActiveSystemId}
+            placing={placing}
+            onArmPlace={armPlace}
+            onPlaced={onPlaced}
+            onRoomCreated={setEditingRoomId}
+            onEditRoom={setEditingRoomId}
+            remarkRoomId={remarkRoomId}
+            onRemarkConsumed={() => setRemarkRoomId(null)}
           />
         )}
-        {step === 2 && <MaterialsPanel />}
-        {step === 3 && <JobPanel />}
+        {step === 2 && <MaterialsView doc={doc} pack={pack} />}
+        {step === 3 && <JobView doc={doc} pack={pack} onMutate={mutate} />}
       </div>
+
+      {editingRoomId && doc.objects.some((o) => o.id === editingRoomId) && (
+        <RoomModal
+          doc={doc}
+          roomId={editingRoomId}
+          onMutate={mutate}
+          onClose={() => setEditingRoomId(null)}
+          onRemarkWalls={(id) => {
+            setEditingRoomId(null);
+            setRemarkRoomId(id);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ═════════════ Design variations ═════════════ */
+
+function VariantSwitcher({
+  doc,
+  onAdd,
+  onSwitch,
+  onRename,
+}: {
+  doc: DesignDocument;
+  onAdd: () => void;
+  onSwitch: (id: string) => void;
+  onRename: (label: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const boxRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (boxRef.current && !boxRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setEditing(false);
+      }
+    };
+    window.addEventListener("mousedown", onDown);
+    return () => window.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  const label = doc.meta.variantLabel;
+  const variants: DesignVariantRef[] =
+    doc.variants.length > 0
+      ? doc.variants
+      : label
+        ? [{ id: doc.id, label }]
+        : [];
+
+  if (variants.length === 0) {
+    return (
+      <button
+        className="ds-tbbtn"
+        onClick={onAdd}
+        title="Branch this design into multiple options — Option 1, Option 2…"
+      >
+        <Icon name="layers" size={15} />
+        Add option
+      </button>
+    );
+  }
+
+  return (
+    <div className="ds-variant" ref={boxRef}>
+      <button
+        className="ds-tbbtn"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        <Icon name="layers" size={15} />
+        {label ?? "Option"}
+        <Icon name="chevD" size={12} />
+      </button>
+      {open && (
+        <div className="ds-variant-menu" role="menu">
+          {variants.map((v) => (
+            <button
+              key={v.id}
+              className={`ds-variant-item${v.id === doc.id ? " on" : ""}`}
+              role="menuitemradio"
+              aria-checked={v.id === doc.id}
+              onClick={() => {
+                setOpen(false);
+                if (v.id !== doc.id) onSwitch(v.id);
+              }}
+            >
+              {v.id === doc.id ? (
+                <Icon name="check" size={12} />
+              ) : (
+                <span className="ds-variant-dot" />
+              )}
+              {v.label}
+            </button>
+          ))}
+          <div className="ds-variant-sep" />
+          {editing ? (
+            <form
+              className="ds-variant-rename"
+              onSubmit={(e) => {
+                e.preventDefault();
+                onRename(draft);
+                setEditing(false);
+                setOpen(false);
+              }}
+            >
+              <input
+                autoFocus
+                value={draft}
+                aria-label="Rename current option"
+                onChange={(e) => setDraft(e.target.value)}
+                onBlur={() => setEditing(false)}
+              />
+            </form>
+          ) : (
+            <button
+              className="ds-variant-item"
+              onClick={() => {
+                setDraft(label ?? "");
+                setEditing(true);
+              }}
+            >
+              <Icon name="edit" size={12} />
+              Rename current option
+            </button>
+          )}
+          <button
+            className="ds-variant-item"
+            onClick={() => {
+              setOpen(false);
+              onAdd();
+            }}
+          >
+            <Icon name="plus" size={12} />
+            Add another option
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ExportMenu({
+  hasVariants,
+  onExportOne,
+  onExportAll,
+}: {
+  hasVariants: boolean;
+  onExportOne: () => void;
+  onExportAll: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const boxRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    window.addEventListener("mousedown", onDown);
+    return () => window.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  if (!hasVariants) {
+    return (
+      <button className="ds-tbbtn" onClick={onExportOne}>
+        <Icon name="download" size={15} />
+        Export
+      </button>
+    );
+  }
+
+  return (
+    <div className="ds-variant" ref={boxRef}>
+      <button
+        className="ds-tbbtn"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        <Icon name="download" size={15} />
+        Export
+        <Icon name="chevD" size={12} />
+      </button>
+      {open && (
+        <div className="ds-variant-menu" role="menu">
+          <button
+            className="ds-variant-item"
+            onClick={() => {
+              setOpen(false);
+              onExportOne();
+            }}
+          >
+            Export this option
+          </button>
+          <button
+            className="ds-variant-item"
+            onClick={() => {
+              setOpen(false);
+              onExportAll();
+            }}
+          >
+            Export all options
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
 /* ═════════════ Stage panels — Stage-0 empty states ═════════════ */
 
-const CANVAS_TOOLS: { key: CanvasTool; icon: string; label: string; kbd: string }[] = [
+const CANVAS_TOOLS: {
+  key: CanvasTool;
+  icon: string;
+  label: string;
+  kbd: string;
+  needsSystem?: boolean;
+}[] = [
   { key: "select", icon: "cursor", label: "Select", kbd: "V" },
-  { key: "room-rect", icon: "square", label: "Room (rectangle)", kbd: "R" },
-  { key: "room-poly", icon: "hexagon", label: "Room (polygon)", kbd: "G" },
+  { key: "room-rect", icon: "square", label: "Room (rectangle)", kbd: "R", needsSystem: true },
+  { key: "room-poly", icon: "hexagon", label: "Room (polygon)", kbd: "G", needsSystem: true },
+  { key: "pipe", icon: "activity", label: "Refrigerant run", kbd: "P", needsSystem: true },
+  { key: "riser", icon: "arrowUp", label: "Riser (joins floors)", kbd: "I", needsSystem: true },
   { key: "calibrate", icon: "ruler", label: "Calibrate scale", kbd: "C" },
   { key: "arrange", icon: "hand", label: "Move plans", kbd: "M" },
   { key: "erase", icon: "x", label: "Eraser", kbd: "E" },
@@ -675,6 +1104,17 @@ function DesignPanel({
   onSelect,
   onMutate,
   planImages,
+  pack,
+  packVersion,
+  activeSystemId,
+  onActivateSystem,
+  placing,
+  onArmPlace,
+  onPlaced,
+  onRoomCreated,
+  onEditRoom,
+  remarkRoomId,
+  onRemarkConsumed,
 }: {
   doc: DesignDocument;
   activeFloorId: string | null;
@@ -687,6 +1127,17 @@ function DesignPanel({
   onSelect: (id: string | null) => void;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   planImages: PlanImages;
+  pack: DataPack | null;
+  packVersion: string;
+  activeSystemId: string | null;
+  onActivateSystem: (id: string | null) => void;
+  placing: PlacingUnit | null;
+  onArmPlace: (p: PlacingUnit | null) => void;
+  onPlaced: () => void;
+  onRoomCreated: (id: string) => void;
+  onEditRoom: (id: string) => void;
+  remarkRoomId: string | null;
+  onRemarkConsumed: () => void;
 }) {
   const floors = [...doc.floors].sort((a, b) => a.level - b.level);
   const floor = floors.find((f) => f.id === activeFloorId) ?? null;
@@ -733,8 +1184,13 @@ function DesignPanel({
           <button
             key={t.key}
             className={`ds-tool${tool === t.key ? " on" : ""}`}
-            title={`${t.label} (${t.kbd})`}
+            title={
+              t.needsSystem && !activeSystemId
+                ? `${t.label} — activate a system first`
+                : `${t.label} (${t.kbd})`
+            }
             aria-label={t.label}
+            disabled={Boolean(t.needsSystem) && !activeSystemId}
             onClick={() => onTool(t.key)}
           >
             <Icon name={t.icon as never} size={17} />
@@ -751,7 +1207,7 @@ function DesignPanel({
                 className={`ds-floortab${f.id === floor.id ? " on" : ""}`}
                 onClick={() => onFloor(f.id)}
               >
-                {f.name}
+                {floorDisplayName(f)}
               </button>
             ))}
             <button className="ds-floortab add" onClick={onAddFloor} title="Add floor">
@@ -775,17 +1231,85 @@ function DesignPanel({
           onMutate={onMutate}
           onToolDone={() => onTool("select")}
           planImages={planImages}
+          activeSystemId={activeSystemId}
+          placing={placing}
+          onPlaced={onPlaced}
+          onRoomCreated={onRoomCreated}
+          remarkRoomId={remarkRoomId}
+          onRemarkConsumed={onRemarkConsumed}
         />
       </div>
 
-      <RoomInspector
-        doc={doc}
-        floor={floor}
-        selectedId={selectedId}
-        onSelect={onSelect}
-        onMutate={onMutate}
-      />
+      <aside className="ds-sidecol">
+        <SystemsPanel
+          doc={doc}
+          pack={pack}
+          packVersion={packVersion}
+          activeSystemId={activeSystemId}
+          onActivate={onActivateSystem}
+          onMutate={onMutate}
+          selectedRoomId={
+            doc.objects.find((o) => o.id === selectedId && o.type === "room")
+              ? selectedId
+              : null
+          }
+          onSelectRoom={onSelect}
+        />
+        {(() => {
+          const sysObj = doc.objects.find(
+            (o) =>
+              o.id === selectedId &&
+              (o.type === "unit" || o.type === "riser" || o.type === "pipe-run")
+          );
+          if (sysObj)
+            return (
+              <SystemObjectInspector
+                doc={doc}
+                obj={sysObj}
+                floor={floor}
+                onMutate={onMutate}
+                onSelect={onSelect}
+              />
+            );
+          return (
+            <RoomInspector
+              key={selectedId ?? "none"}
+              doc={doc}
+              floor={floor}
+              selectedId={selectedId}
+              onSelect={onSelect}
+              onMutate={onMutate}
+              onEditRoom={onEditRoom}
+              pack={pack}
+              activeSystemId={activeSystemId}
+              onArmPlace={onArmPlace}
+            />
+          );
+        })()}
+      </aside>
     </div>
+  );
+}
+
+/* a small to-scale thumbnail of the room's polygon for the Configure card */
+function RoomThumb({ points }: { points: { x: number; y: number }[] }) {
+  if (points.length < 3) return null;
+  const xs = points.map((p) => p.x);
+  const ys = points.map((p) => p.y);
+  const minX = Math.min(...xs);
+  const minY = Math.min(...ys);
+  const w = Math.max(...xs) - minX || 1;
+  const h = Math.max(...ys) - minY || 1;
+  const pad = Math.max(w, h) * 0.12;
+  return (
+    <svg
+      className="ds-cfg-thumb"
+      viewBox={`${minX - pad} ${minY - pad} ${w + pad * 2} ${h + pad * 2}`}
+      preserveAspectRatio="xMidYMid meet"
+      aria-hidden="true"
+    >
+      <polygon points={points.map((p) => `${p.x},${p.y}`).join(" ")} />
+    </svg>
   );
 }
 
@@ -795,13 +1319,23 @@ function RoomInspector({
   selectedId,
   onSelect,
   onMutate,
+  onEditRoom,
+  pack,
+  activeSystemId,
+  onArmPlace,
 }: {
   doc: DesignDocument;
   floor: Floor;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
+  onEditRoom: (id: string) => void;
+  pack: DataPack | null;
+  activeSystemId: string | null;
+  onArmPlace: (p: PlacingUnit | null) => void;
 }) {
+  const [renaming, setRenaming] = useState(false);
+  const [draftName, setDraftName] = useState("");
   const obj: DesignObject | undefined = doc.objects.find(
     (o) => o.id === selectedId && o.type === "room"
   );
@@ -812,131 +1346,134 @@ function RoomInspector({
         <span className="ds-cardt">Inspector</span>
         <div className="ds-insp-hint">
           Select a room to edit it — or draw one with the rectangle (R) or
-          polygon (G) tool. Full load inputs arrive with the loads engine.
+          polygon (G) tool. Configuring a room opens its heat-load inputs.
         </div>
       </aside>
     );
   }
 
+  const configured = Boolean(obj.props.configured);
+  const loadKw =
+    obj.geometry.kind === "polygon"
+      ? roomLoadKw(doc, obj as Parameters<typeof roomLoadKw>[1])
+      : null;
+
   const areaU = polygonArea(obj.geometry.points);
+  const activeSystem = doc.systems.find((s) => s.id === activeSystemId) ?? null;
+  const name = String(obj.props.name ?? "Room");
+  const deleteRoom = () => {
+    onMutate((d) => ({ ...d, objects: d.objects.filter((o) => o.id !== obj.id) }));
+    onSelect(null);
+  };
+  const commitName = () => {
+    const v = draftName.trim() || "Room";
+    onMutate((d) => ({
+      ...d,
+      objects: d.objects.map((o) =>
+        o.id === obj.id ? { ...o, props: { ...o.props, name: v } } : o
+      ),
+    }));
+    setRenaming(false);
+  };
+
   return (
     <aside className="ds-inspector">
-      <span className="ds-cardt">Room</span>
-      <label className="ds-insp-field">
-        <span>Name</span>
-        <input
-          value={String(obj.props.name ?? "")}
-          onChange={(e) =>
-            onMutate((d) => ({
-              ...d,
-              objects: d.objects.map((o) =>
-                o.id === obj.id
-                  ? { ...o, props: { ...o.props, name: e.target.value } }
-                  : o
-              ),
-            }))
-          }
-        />
-      </label>
-      <div className="ds-insp-row">
-        <span>Area</span>
-        <b>
-          {floor.scaleMmPerUnit
-            ? formatArea(areaUnitsToM2(areaU, floor.scaleMmPerUnit))
-            : "not calibrated"}
-        </b>
-      </div>
-      <div className="ds-insp-row">
-        <span>Floor</span>
-        <b>{floor.name}</b>
-      </div>
-      <div className="ds-insp-row">
-        <span>Vertices</span>
-        <b>{obj.geometry.points.length}</b>
-      </div>
-      {(isAxisAlignedRect(obj.geometry.points) || Boolean(obj.props.freeEdit)) && (
-        <label
-          className="ds-insp-toggle"
-          title="Locked: corners drag whole sides, and re-locking snaps the shape back to a perfect rectangle. Unlocked: move one corner alone."
+      <div className="ds-insp-head">
+        <span className="ds-cardt">Configure</span>
+        <button
+          className="ds-rp-del"
+          title="Delete room"
+          aria-label="Delete room"
+          onClick={deleteRoom}
         >
+          <Icon name="x" size={15} />
+        </button>
+      </div>
+
+      {/* room name + inline rename pencil */}
+      <div className="ds-cfg-name">
+        {renaming ? (
           <input
-            type="checkbox"
-            checked={!obj.props.freeEdit}
-            onChange={(e) => {
-              const lock = e.target.checked;
-              onMutate((d) => ({
-                ...d,
-                objects: d.objects.map((o) =>
-                  o.id === obj.id
-                    ? {
-                        ...o,
-                        props: { ...o.props, freeEdit: !lock },
-                        // locking transforms the shape back to a true rectangle
-                        geometry:
-                          lock && o.geometry.kind === "polygon"
-                            ? {
-                                kind: "polygon",
-                                points: boundingRect(o.geometry.points),
-                              }
-                            : o.geometry,
-                      }
-                    : o
-                ),
-              }));
+            className="ds-cfg-nameinput"
+            autoFocus
+            autoComplete="off"
+            value={draftName}
+            aria-label="Room name"
+            onChange={(e) => setDraftName(e.target.value)}
+            onBlur={commitName}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commitName();
+              if (e.key === "Escape") setRenaming(false);
             }}
           />
-          <span>Lock rectangle</span>
-        </label>
+        ) : (
+          <>
+            <b className="ds-cfg-roomname">{name}</b>
+            <button
+              className="ds-cfg-pencil"
+              aria-label="Rename room"
+              title="Rename"
+              onClick={() => {
+                setDraftName(name);
+                setRenaming(true);
+              }}
+            >
+              <Icon name="edit" size={13} />
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* facts + a compact viewport, with Edit → load inputs */}
+      <div className="ds-cfg-block">
+        <div className="ds-cfg-top">
+          <div className="ds-cfg-facts">
+            <div className="ds-cfg-fact">
+              <span>Area</span>
+              <b>
+                {floor.scaleMmPerUnit
+                  ? formatArea(areaUnitsToM2(areaU, floor.scaleMmPerUnit))
+                  : "—"}
+              </b>
+            </div>
+            <div className="ds-cfg-fact">
+              <span>Heat load</span>
+              <b>
+                {loadKw != null ? `${loadKw.toFixed(1)} kW` : "—"}
+                {loadKw != null && !configured && (
+                  <em className="ds-insp-est"> · est</em>
+                )}
+              </b>
+            </div>
+            <div className="ds-cfg-fact">
+              <span>Floor</span>
+              <b>{floor.name}</b>
+            </div>
+          </div>
+          <RoomThumb points={obj.geometry.points} />
+        </div>
+        <button className="ds-cfg-edit" onClick={() => onEditRoom(obj.id)}>
+          <Icon name="edit" size={12} />
+          Edit
+        </button>
+      </div>
+
+      {/* units for this room, on the active system (relocated from the panel) */}
+      {activeSystem ? (
+        <RoomUnitsSection
+          doc={doc}
+          pack={pack}
+          system={activeSystem}
+          room={obj as RoomObj}
+          basis={doc.settings.sizingBasis as SizingBasis}
+          onMutate={onMutate}
+          onArmPlace={onArmPlace}
+        />
+      ) : (
+        <div className="ds-insp-hint">
+          Add a system (top of the panel) to select units for this room.
+        </div>
       )}
-      <button
-        className="ds-insp-delete"
-        onClick={() => {
-          onMutate((d) => ({
-            ...d,
-            objects: d.objects.filter((o) => o.id !== obj.id),
-          }));
-          onSelect(null);
-        }}
-      >
-        <Icon name="x" size={14} />
-        Delete room
-      </button>
     </aside>
-  );
-}
-
-function MaterialsPanel() {
-  return (
-    <div className="ds-panel-card">
-      <div className="ds-empty">
-        <span className="ds-empty-ic">
-          <Icon name="receipt" size={22} />
-        </span>
-        <div className="ds-empty-t">An empty design is an empty schedule</div>
-        <div className="ds-empty-s">
-          The takeoff builds itself from what you draw — units, pipe by size,
-          fittings, grilles and accessories, grouped per system. Nothing here
-          is ever typed in by hand.
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function JobPanel() {
-  return (
-    <div className="ds-panel-card">
-      <div className="ds-empty">
-        <span className="ds-empty-ic">
-          <Icon name="box" size={22} />
-        </span>
-        <div className="ds-empty-t">The job pack comes last</div>
-        <div className="ds-empty-s">
-          Job details, sheet selection and a print-ready PDF export — overview,
-          per-system pipework and the materials schedule — once there&apos;s a
-          design to package.
-        </div>
-      </div>
-    </div>
   );
 }

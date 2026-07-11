@@ -65,6 +65,9 @@ async function openSeeded(planImages: PlanImages) {
   const user = userEvent.setup();
   render(<Studio store={store} planImages={planImages} />);
   await user.click(await screen.findByText("Plan job"));
+  // a design that already has floors now opens straight on the canvas so you
+  // resume where you left off — step back to Plans for the floor-list view
+  await user.click(screen.getByRole("button", { name: /Plans/ }));
   return user;
 }
 
@@ -94,6 +97,8 @@ describe("Plans stage", () => {
     render(<Studio store={store} planImages={new FakePlanImages()} />);
     await user.click(await screen.findByText("Sketch job"));
 
+    // blank designs open on the canvas; the floor tools live on the Plans step
+    await user.click(screen.getByRole("button", { name: /Plans/ }));
     await user.click(screen.getByRole("button", { name: "Blank floor" }));
     expect(screen.getByDisplayValue("Level 1")).toBeInTheDocument();
   });
@@ -130,6 +135,8 @@ describe("Plans stage", () => {
     const user = userEvent.setup();
     render(<Studio store={store} planImages={new FakePlanImages()} />);
     await user.click(await screen.findByText("Plan job"));
+    // opens on the canvas now — step back to Plans for the floor list
+    await user.click(screen.getByRole("button", { name: /Plans/ }));
 
     expect(screen.getByText("2 sheets")).toBeInTheDocument();
 
@@ -142,6 +149,28 @@ describe("Plans stage", () => {
       expect(images[1].getAttribute("x")).toBe("1260");
       expect(images[1].getAttribute("y")).toBe("40");
     });
+  });
+
+  it("a design with floors reopens on the canvas, not the Plans step", async () => {
+    const store = new LocalDesignStore(window.localStorage);
+    seedDesign(store);
+    const user = userEvent.setup();
+    render(<Studio store={store} planImages={new FakePlanImages()} />);
+    await user.click(await screen.findByText("Plan job"));
+
+    // lands straight on the canvas so you resume where you were working
+    expect(await screen.findByTestId("studio-canvas")).toBeInTheDocument();
+    // ...and the canvas floor switcher shows the floor, not its plan's page label
+    expect(screen.getByRole("button", { name: "Ground floor" })).toBeInTheDocument();
+  });
+
+  it("stepping back to Plans shows the committed floors, not an empty uploader", async () => {
+    const user = await openSeeded(new FakePlanImages());
+    // the floor list is present (committed work), and the empty import stepper
+    // sections are not shown over the top of it
+    expect(screen.getByDisplayValue("Ground floor")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Add plans/ })).toBeInTheDocument();
+    expect(screen.queryByText("Drop floor plans here")).toBeNull();
   });
 
   it("deleting a floor removes it and its stored plan image", async () => {

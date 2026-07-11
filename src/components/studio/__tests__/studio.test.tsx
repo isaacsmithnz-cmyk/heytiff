@@ -66,9 +66,12 @@ describe("Design Studio shell", () => {
 
     await newDesign(user, "12 Test Street", "Blank canvas");
 
-    // editor chrome: stepper + named design + Plans panel with default floor
+    // blank canvas lands STRAIGHT on the canvas — no Plans detour
     expect(screen.getByLabelText("Design name")).toHaveValue("12 Test Street");
     expect(screen.getByRole("navigation", { name: "Workflow" })).toBeInTheDocument();
+    expect(screen.getByTestId("studio-canvas")).toBeInTheDocument();
+    // the Plans step still holds the default floor when visited
+    await user.click(screen.getByRole("button", { name: /Plans/ }));
     expect(screen.getByDisplayValue("Ground floor")).toBeInTheDocument();
 
     // autosave lands in localStorage (debounced)
@@ -89,7 +92,10 @@ describe("Design Studio shell", () => {
       screen.getByText("An empty design is an empty schedule")
     ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /Job/ }));
-    expect(screen.getByText("The job pack comes last")).toBeInTheDocument();
+    expect(screen.getByText("Job details")).toBeInTheDocument();
+    expect(
+      screen.getByText("The job pack fills in once a system has units placed.")
+    ).toBeInTheDocument();
   });
 
   it("recovers saved designs on a fresh mount (reload survival)", async () => {
@@ -110,6 +116,8 @@ describe("Design Studio shell", () => {
     const card = await screen.findByText("Recovery job");
     await user.click(card.closest(".ds-rcard") as HTMLElement);
     expect(screen.getByLabelText("Design name")).toHaveValue("Recovery job");
+    // blank designs reopen on the canvas; the floor is on the Plans step
+    await user.click(screen.getByRole("button", { name: /Plans/ }));
     expect(screen.getByDisplayValue("Ground floor")).toBeInTheDocument();
   });
 });

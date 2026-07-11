@@ -177,6 +177,27 @@ describe("schema versioning + migrations", () => {
     // calibration survives untouched
     expect(doc.floors[0].scaleMmPerUnit).toBe(4.2);
   });
+
+  it("migrates v3→v4: auto 'Page N' floor names become stack positions", () => {
+    const base = createDesign({ name: "x", mode: "blank" });
+    const v3 = {
+      ...JSON.parse(JSON.stringify(base)),
+      schemaVersion: 3,
+      floors: [
+        { id: "f0", name: "Page 6", level: 0, scaleMmPerUnit: 10, northDeg: null, plans: [] },
+        { id: "f1", name: "Page 7", level: 1, scaleMmPerUnit: 10, northDeg: null, plans: [] },
+        { id: "f2", name: "Basement", level: -1, scaleMmPerUnit: 10, northDeg: null, plans: [] },
+      ],
+    };
+    const { doc, migratedFrom } = migrateDesign(v3);
+    expect(migratedFrom).toBe(3);
+    expect(doc.schemaVersion).toBe(SCHEMA_VERSION);
+    // the auto page-label names take their stack position…
+    expect(doc.floors[0].name).toBe("Ground floor");
+    expect(doc.floors[1].name).toBe("Level 1");
+    // …but a custom name ("Basement") is left untouched
+    expect(doc.floors[2].name).toBe("Basement");
+  });
 });
 
 describe("LocalDesignStore", () => {

@@ -52,6 +52,34 @@ const MIGRATIONS: Record<number, Migration> = {
     });
     return { ...doc, floors, schemaVersion: 2 };
   },
+
+  /* v2 → v3: documents can belong to a design-variation set (Option 1/2/3…).
+     Pre-v3 documents aren't part of any set. */
+  2: (doc) => {
+    const meta = doc.meta as Record<string, unknown>;
+    return {
+      ...doc,
+      meta: { ...meta, variantLabel: null },
+      variants: [],
+      schemaVersion: 3,
+    };
+  },
+
+  /* v3 → v4: floors that were auto-labelled with their source plan's page name
+     ("Page 6") are renamed to their STACK POSITION — the label was the drawing,
+     not the floor. Only the auto "Page N" pattern is touched; custom names are
+     left alone. (Matches defaultFloorName() in plans.ts.) */
+  3: (doc) => {
+    const floorName = (level: number) =>
+      level < 0 ? `Basement ${-level}` : level === 0 ? "Ground floor" : `Level ${level}`;
+    const floors = (doc.floors as Record<string, unknown>[]).map((f) => {
+      const name = typeof f.name === "string" ? f.name.trim() : "";
+      return /^page \d+$/i.test(name)
+        ? { ...f, name: floorName(typeof f.level === "number" ? f.level : 0) }
+        : f;
+    });
+    return { ...doc, floors, schemaVersion: 4 };
+  },
 };
 
 export class DesignDocumentError extends Error {

@@ -94,16 +94,16 @@ describe("NamingLightbox", () => {
     const onDone = jest.fn();
     render(<NameHarness onDone={onDone} />);
 
-    expect(screen.getByText("Floor 1 / 2")).toBeInTheDocument();
-    const input = screen.getByLabelText("Floor name");
+    expect(screen.getByText("Page 1 of 2")).toBeInTheDocument();
+    const input = screen.getByLabelText("Page name");
     expect(input).toHaveValue("Level 1");
     await user.clear(input);
     await user.type(input, "Ground floor");
-    expect(screen.getByLabelText("Floor name")).toHaveValue("Ground floor");
+    expect(screen.getByLabelText("Page name")).toHaveValue("Ground floor");
 
     // last page shows the stacking CTA, which fires onDone
-    await user.click(screen.getByRole("button", { name: "Next floor" }));
-    expect(screen.getByText("Floor 2 / 2")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Next page" }));
+    expect(screen.getByText("Page 2 of 2")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Continue to stacking" }));
     expect(onDone).toHaveBeenCalled();
     expect(onDone.mock.calls[0][0]).toEqual(["Ground floor", "Level 2"]);

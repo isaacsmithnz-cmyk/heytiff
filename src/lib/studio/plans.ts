@@ -89,6 +89,41 @@ export interface BuilderRow {
 export const formatLevel = (n: number): string =>
   n < 0 ? `B${-n}` : n === 0 ? "GF" : `L${n}`;
 
+/** A floor's default NAME from its stack position (level) — matches the blank-
+    floor naming in studio.tsx. Used when the installer didn't type a custom
+    name, so an un-named floor reads as its position ("Ground floor"), never the
+    source plan's page label ("Page 6"). */
+export const defaultFloorName = (level: number): string =>
+  level < 0 ? `Basement ${-level}` : level === 0 ? "Ground floor" : `Level ${level}`;
+
+/** Display label for a floor. A floor is a stack position, not a drawing, so a
+    floor still carrying a raw page label ("Page 6") — from designs built before
+    floors defaulted to their stack name — reads as its position instead. Custom
+    names the installer typed are left untouched. Used by the canvas floor
+    switcher and anywhere a floor is *shown* (not edited). */
+export const floorDisplayName = (floor: { name: string; level: number }): string => {
+  const name = floor.name.trim();
+  return !name || /^page \d+$/i.test(name) ? defaultFloorName(floor.level) : name;
+};
+
+/** Re-open-the-stacker reorder: reassign the EXISTING set of levels to floors
+    in a new top-to-bottom order. The level set is preserved (e.g. {-1,0,1}); only
+    which floor sits at which level changes. `orderTopFirst` = floor ids from the
+    top (highest level) down to the bottom. */
+export function restackLevels(floors: Floor[], orderTopFirst: string[]): Floor[] {
+  const byId = new Map(floors.map((f) => [f.id, f]));
+  const ordered = orderTopFirst
+    .map((id) => byId.get(id))
+    .filter((f): f is Floor => f !== undefined);
+  const levelsAsc = ordered.map((f) => f.level).sort((a, b) => a - b);
+  // the bottom floor (last in top-first order) takes the lowest level
+  const bottomUp = [...ordered].reverse();
+  const levelFor = new Map(bottomUp.map((f, i) => [f.id, levelsAsc[i]]));
+  return floors.map((f) =>
+    levelFor.has(f.id) ? { ...f, level: levelFor.get(f.id)! } : f
+  );
+}
+
 /** The initial stack: existing floors as fixed rows; a fresh design starts
     empty. Selected pages start unplaced in the tray. */
 export function builderStackFromFloors(floors: Floor[]): BuilderRow[] {
@@ -283,7 +318,8 @@ export function applyBuilderRows(
       if (sheets.length === 0) continue;
       result.push({
         id: newId("flr"),
-        name: row.name.trim() || sheets[0].label,
+        // stack position by default — NOT the plan's page label
+        name: row.name.trim() || defaultFloorName(level),
         level,
         scaleMmPerUnit: null, // plans must be calibrated before sizes are real
         northDeg: null,

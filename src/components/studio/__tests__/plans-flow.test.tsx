@@ -66,14 +66,14 @@ function uploadPdf() {
 async function nameFloors(user: ReturnType<typeof userEvent.setup>, names: (string | null)[]) {
   for (let i = 0; i < names.length; i++) {
     const rename = names[i];
-    const input = await screen.findByLabelText("Floor name"); // wait for the step
+    const input = await screen.findByLabelText("Page name"); // wait for the step
     if (rename !== null) {
       await user.clear(input);
       await user.type(input, rename);
     }
     await user.click(
       screen.getByRole("button", {
-        name: i === names.length - 1 ? "Continue to stacking" : "Next floor",
+        name: i === names.length - 1 ? "Continue to stacking" : "Next page",
       })
     );
   }
@@ -114,9 +114,11 @@ describe("installer scenarios: upload → floors", () => {
     const user = await openPlanJob(fake);
 
     uploadPdf();
-    // straight into naming — no picker; pages come in unnamed as "Page 1"
-    expect(await screen.findByLabelText("Floor name")).toHaveValue("Page 1");
-    expect(screen.queryByText("Click the pages you want to upload")).toBeNull();
+    // straight into naming — the single page is auto-selected, no Continue
+    // click needed; the name starts EMPTY (defaults to the floor's stack
+    // position, not the plan's "Page 1" label)
+    expect(await screen.findByLabelText("Page name")).toHaveValue("");
+    expect(screen.getByText("1 of 1 selected")).toBeInTheDocument();
 
     await nameFloors(user, ["Ground floor"]);
     // on the stack: the named page waits in the tray; Add is gated until placed
@@ -140,6 +142,29 @@ describe("installer scenarios: upload → floors", () => {
     expect(screen.getByDisplayValue("Ground floor")).toBeInTheDocument();
   });
 
+  it("skipping the floor name commits it by stack position, not the page label", async () => {
+    pdfToPages.mockResolvedValue([page("Page 6", 6)]);
+    const fake = new CountingPlanImages();
+    const user = await openPlanJob(fake);
+
+    uploadPdf();
+    // leave the name empty (null ⇒ don't type anything)
+    await nameFloors(user, [null]);
+    // stack the page as the ground floor
+    dropPage(yardFirst(), 0);
+
+    // commit → the floor tab reads its POSITION, never "Page 6"
+    await user.click(screen.getByRole("button", { name: /Start design/ }));
+    expect(await screen.findByTestId("studio-canvas")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Ground floor/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Page 6/ })).toBeNull();
+
+    // and the Plans floor-list names it by position too
+    await user.click(screen.getByRole("button", { name: /Plans/ }));
+    expect(screen.getByDisplayValue("Ground floor")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("Page 6")).toBeNull();
+  });
+
   it("two-storey house from a 4-page set: junk sheets skipped and never uploaded", async () => {
     pdfToPages.mockResolvedValue([
       page("Site plan", 1),
@@ -152,7 +177,7 @@ describe("installer scenarios: upload → floors", () => {
 
     uploadPdf();
     // floors list must be hidden while importing
-    expect(await screen.findByText("Click the pages you want to upload")).toBeInTheDocument();
+    expect(await screen.findByText(/Click the pages you want to upload/)).toBeInTheDocument();
     expect(screen.queryByText("Floors")).toBeNull();
 
     // pages come in as "Page 1..4"; skip the site plan (1) and elevations (4)
@@ -335,14 +360,14 @@ describe("installer scenarios: upload → floors", () => {
     await user.click(screen.getByRole("button", { name: "Page 2" }));
     await user.click(screen.getByRole("button", { name: /Continue with 2 pages/ }));
 
-    const input = await screen.findByLabelText("Floor name");
+    const input = await screen.findByLabelText("Page name");
     await user.clear(input);
     await user.type(input, "Ground floor (verified)");
 
     // back to the picker, then continue again — the typed name must survive
     await user.click(screen.getByRole("button", { name: "Back to pages" }));
     await user.click(screen.getByRole("button", { name: /Continue with 2 pages/ }));
-    expect(await screen.findByLabelText("Floor name")).toHaveValue(
+    expect(await screen.findByLabelText("Page name")).toHaveValue(
       "Ground floor (verified)"
     );
   });
@@ -354,9 +379,10 @@ describe("installer scenarios: upload → floors", () => {
       target: { files: [new File(["hi"], "notes.txt", { type: "text/plain" })] },
     });
     expect(await screen.findByText(/No usable pages/)).toBeInTheDocument();
-    // idle again: upload zone + floors section both present
+    // idle again: the upload bar is back (the Floors section stays hidden until
+    // there's at least one floor)
     expect(screen.getByText("Drop floor plans here")).toBeInTheDocument();
-    expect(screen.getByText("Floors")).toBeInTheDocument();
+    expect(screen.queryByText("Floors")).toBeNull();
     expect(user).toBeTruthy();
   });
 
@@ -384,9 +410,10 @@ describe("installer scenarios: upload → floors", () => {
     );
     expect(screen.getByText("1 of 3 selected")).toBeInTheDocument();
 
-    // the expand button opens the full-size lightbox and does NOT toggle
+    // the expand button opens the full-size lightbox (stacked over the picker
+    // modal, which is itself a dialog) and does NOT toggle
     await user.click(screen.getByRole("button", { name: "Preview Page 3" }));
-    const dialog = await screen.findByRole("dialog");
+    const dialog = await screen.findByRole("dialog", { name: /Page preview/ });
     expect(within(dialog).getByText("Page 3")).toBeInTheDocument();
     // still only page 2 selected — previewing page 3 didn't select it
     expect(screen.getByText("1 of 3 selected")).toBeInTheDocument();
@@ -421,7 +448,7 @@ describe("installer scenarios: upload → floors", () => {
     pdfToPages.mockResolvedValue([page("a", 1), page("b", 2)]);
     const user = await openPlanJob(new CountingPlanImages());
     uploadPdf();
-    await screen.findByText("Click the pages you want to upload");
+    await screen.findByText(/Click the pages you want to upload/);
     const ai = screen.getByRole("button", { name: /AI screening/ });
     expect(ai).toBeDisabled();
     expect(user).toBeTruthy();

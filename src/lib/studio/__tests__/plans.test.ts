@@ -1,11 +1,13 @@
 /* Plans pipeline — pure helpers. The pdf.js raster path is browser-only and
    exercised manually; these pin sequential labelling and floor mapping. */
 
-import { createDesign } from "../document";
+import { createDesign, type Floor } from "../document";
 import {
   applyBuilderRows,
   builderStackFromFloors,
   computeRowLevels,
+  defaultFloorName,
+  floorDisplayName,
   dropPageOnRow,
   dropRowAt,
   formatLevel,
@@ -13,6 +15,7 @@ import {
   labelPagesSequentially,
   previewInsertLevel,
   removePageFromRows,
+  restackLevels,
   setAnchorLevel,
   trayPageIdxs,
   placeSheets,
@@ -130,6 +133,46 @@ describe("sheet placement + allocation", () => {
     expect(floors[0].plans.map((s) => s.name)).toEqual(["Level 1 East", "Level 1 West"]);
     expect(floors[0].plans[1].x).toBe(2060); // side by side, ready to align
     expect(floors[0].level).toBe(0);
+  });
+
+  it("an un-named floor takes its stack-position name, never the page label", () => {
+    // a page dropped as a fresh floor with NO typed name
+    const rows = insertPageRow([], 0, "", null, "above");
+    const floors = applyBuilderRows(rows, uploadsFor([sheet("Page 6", 6)], [0]), []);
+    expect(floors).toHaveLength(1);
+    expect(floors[0].name).toBe("Ground floor"); // stack position, NOT "Page 6"
+    expect(floors[0].level).toBe(0);
+  });
+
+  it("defaultFloorName maps stack position → floor name", () => {
+    expect(defaultFloorName(0)).toBe("Ground floor");
+    expect(defaultFloorName(2)).toBe("Level 2");
+    expect(defaultFloorName(-1)).toBe("Basement 1");
+  });
+
+  it("floorDisplayName falls back to stack position for raw page labels", () => {
+    // a floor still carrying a "Page N" label (old designs) reads as its position
+    expect(floorDisplayName({ name: "Page 6", level: 1 })).toBe("Level 1");
+    expect(floorDisplayName({ name: "  ", level: 0 })).toBe("Ground floor");
+    // typed names are left exactly as the installer set them
+    expect(floorDisplayName({ name: "Ground floor", level: 0 })).toBe("Ground floor");
+    expect(floorDisplayName({ name: "Page 6 — East wing", level: 1 })).toBe(
+      "Page 6 — East wing"
+    );
+  });
+
+  it("restackLevels permutes floor→level, preserving the level set", () => {
+    const flr = (id: string, level: number): Floor => ({
+      id, name: id, level, scaleMmPerUnit: 10, northDeg: null, plans: [],
+    });
+    const floors = [flr("a", 0), flr("b", 1), flr("c", -1)]; // GF, L1, B1
+    // new top-to-bottom order: A (top), C, B (bottom)
+    const out = restackLevels(floors, ["a", "c", "b"]);
+    const lvl = (id: string) => out.find((f) => f.id === id)!.level;
+    // the set {-1,0,1} is re-dealt bottom-up: B=-1, C=0, A=1
+    expect(lvl("b")).toBe(-1);
+    expect(lvl("c")).toBe(0);
+    expect(lvl("a")).toBe(1);
   });
 
   it("existing floors anchor the numbering; placing below the lowest makes a basement", () => {

@@ -9,6 +9,8 @@ import {
 } from "react";
 import type { DesignDocument, DesignObject, Floor, Point } from "@/lib/studio/document";
 import { newId } from "@/lib/studio/document";
+import { orientationFromWalls } from "@/lib/studio/loads";
+import { roomAtPoint } from "@/lib/studio/coverage";
 import type { PlanImages } from "@/lib/studio/plans";
 import {
   areaUnitsToM2,
@@ -18,12 +20,11 @@ import {
   fitBounds,
   formatArea,
   formatMeters,
-  isAxisAlignedRect,
   mmPerUnitFromCalibration,
   pointInPolygon,
-  rectDragVertex,
   polygonArea,
   polygonCentroid,
+  polylineLength,
   screenToWorld,
   snapToGrid,
   unitsToMeters,
@@ -43,10 +44,22 @@ export type CanvasTool =
   | "room-poly"
   | "calibrate"
   | "erase"
-  | "arrange";
+  | "arrange"
+  | "place" // place a unit (armed from the system panel with a model)
+  | "pipe" // refrigerant run — endpoints snap to unit/riser anchors
+  | "riser";
+
+/** What the place tool drops on the next click (armed by the system panel). */
+export interface PlacingUnit {
+  role: "idu" | "odu";
+  model: string;
+  widthMm: number;
+  depthMm: number;
+}
 
 const CLOSE_SNAP_PX = 12; // screen px to close a polygon on its first vertex
 const HIT_EDGE_PX = 6;
+const ANCHOR_SNAP_PX = 16; // screen px to snap a pipe endpoint to an anchor
 
 function defaultViewport(
   points: Point[],
@@ -66,7 +79,8 @@ type Drag =
   | { kind: "move"; id: string; startWorld: Point; orig: Point[] }
   | { kind: "vertex"; id: string; index: number; orig: Point[] }
   | { kind: "rect"; start: Point }
-  | { kind: "sheet"; id: string; startWorld: Point; orig: Point };
+  | { kind: "sheet"; id: string; startWorld: Point; orig: Point }
+  | { kind: "point"; id: string; startWorld: Point; orig: Point };
 
 export function StudioCanvas({
   doc,
@@ -77,6 +91,12 @@ export function StudioCanvas({
   onMutate,
   onToolDone,
   planImages,
+  activeSystemId = null,
+  placing = null,
+  onPlaced,
+  onRoomCreated,
+  remarkRoomId = null,
+  onRemarkConsumed,
 }: {
   doc: DesignDocument;
   floor: Floor;
@@ -86,6 +106,16 @@ export function StudioCanvas({
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   onToolDone: () => void;
   planImages?: PlanImages;
+  /** system that pipe/riser/place drawing tags objects with (Stage 4) */
+  activeSystemId?: string | null;
+  /** armed unit for the place tool */
+  placing?: PlacingUnit | null;
+  onPlaced?: () => void;
+  /** a room finished wall-marking — open its configuration modal (Slice 2) */
+  onRoomCreated?: (id: string) => void;
+  /** request to re-enter wall-marking for an existing room (from the modal) */
+  remarkRoomId?: string | null;
+  onRemarkConsumed?: () => void;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -97,19 +127,55 @@ export function StudioCanvas({
   const [liveGeom, setLiveGeom] = useState<{ id: string; points: Point[] } | null>(null);
   const [draftPoly, setDraftPoly] = useState<Point[]>([]);
   const [draftRect, setDraftRect] = useState<{ a: Point; b: Point } | null>(null);
+  /* wall-marking (DUCTR parity): after a room boundary is closed, the user
+     marks which edges are external BEFORE the load modal opens. `roomId` null =
+     a fresh draft (Cancel discards it); set = re-marking an existing room. */
+  const [wallSelect, setWallSelect] = useState<{
+    points: Point[];
+    selected: Set<number>;
+    roomId: string | null;
+  } | null>(null);
   const [calib, setCalib] = useState<{ a?: Point; b?: Point }>({});
   const [calibMeters, setCalibMeters] = useState("");
   const spaceDown = useRef(false);
+
+  /* the canvas is scoped to the ACTIVE system — switching systems re-scopes
+     the whole canvas ("System 2 resets the canvas"). Rooms, units, risers and
+     runs all belong to a system now. */
+  const inScope = useCallback(
+    (o: DesignObject) => o.floorId === floor.id && o.systemId === activeSystemId,
+    [floor.id, activeSystemId]
+  );
+
+  /* rooms render FLOOR-WIDE (all systems) so another system's spaces are
+     visible drop targets; the active system's own + adopted rooms are full-
+     strength, foreign ones ghosted. Geometry edits stay with the drawing
+     system only. */
+  const adoptedRoomIds = useMemo(() => {
+    const sys = doc.systems.find((s) => s.id === activeSystemId);
+    return new Set(
+      Array.isArray(sys?.settings.roomIds) ? (sys!.settings.roomIds as string[]) : []
+    );
+  }, [doc.systems, activeSystemId]);
 
   const rooms = useMemo(
     () =>
       doc.objects.filter(
         (o): o is DesignObject & { geometry: { kind: "polygon"; points: Point[] } } =>
-          o.floorId === floor.id &&
-          o.type === "room" &&
-          o.geometry.kind === "polygon"
+          o.floorId === floor.id && o.type === "room" && o.geometry.kind === "polygon"
       ),
     [doc.objects, floor.id]
+  );
+
+  /** served by the active system (drawn or adopted) — rendered full-strength */
+  const roomServed = useCallback(
+    (r: DesignObject) => r.systemId === activeSystemId || adoptedRoomIds.has(r.id),
+    [activeSystemId, adoptedRoomIds]
+  );
+  /** drawn by the active system — the only rooms it may move/reshape/erase */
+  const roomEditable = useCallback(
+    (r: DesignObject) => r.systemId === activeSystemId,
+    [activeSystemId]
   );
 
   const roomPoints = useCallback(
@@ -117,6 +183,62 @@ export function StudioCanvas({
       liveGeom && liveGeom.id === r.id ? liveGeom.points : r.geometry.points,
     [liveGeom]
   );
+
+  /* ── system objects on this floor (Stage 4: units, runs, risers) ── */
+  const sysColour = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const s of doc.systems) m.set(s.id, s.colour);
+    return m;
+  }, [doc.systems]);
+
+  const units = useMemo(
+    () =>
+      doc.objects.filter(
+        (o): o is DesignObject & { geometry: { kind: "point"; at: Point } } =>
+          inScope(o) && o.type === "unit" && o.geometry.kind === "point"
+      ),
+    [doc.objects, inScope]
+  );
+  const risers = useMemo(
+    () =>
+      doc.objects.filter(
+        (o): o is DesignObject & { geometry: { kind: "point"; at: Point } } =>
+          inScope(o) && o.type === "riser" && o.geometry.kind === "point"
+      ),
+    [doc.objects, inScope]
+  );
+  const runs = useMemo(
+    () =>
+      doc.objects.filter(
+        (o): o is DesignObject & { geometry: { kind: "polyline"; points: Point[] } } =>
+          inScope(o) && o.type === "pipe-run" && o.geometry.kind === "polyline"
+      ),
+    [doc.objects, inScope]
+  );
+
+  /** live position for point objects (units/risers) while dragging */
+  const [livePoint, setLivePoint] = useState<{ id: string; at: Point } | null>(null);
+  const pointAt = useCallback(
+    (o: { id: string; geometry: { at: Point } }): Point =>
+      livePoint && livePoint.id === o.id ? livePoint.at : o.geometry.at,
+    [livePoint]
+  );
+
+  /* pipe drafting: clicked vertices + what the first click attached to */
+  const [draftPipe, setDraftPipe] = useState<Point[]>([]);
+  const pipeStartAttach = useRef<{ kind: "unit" | "riser"; id: string } | null>(null);
+
+  /** connection anchors of the active system on this floor (units + risers).
+      Pipe endpoints snap to these; the nearest within range lights up BEFORE
+      the click (the show-the-snap-target-first rule). */
+  const anchors = useMemo(
+    () =>
+      [...units, ...risers]
+        .filter((o) => o.systemId === activeSystemId)
+        .map((o) => ({ kind: (o.type === "unit" ? "unit" : "riser") as "unit" | "riser", id: o.id, at: pointAt(o) })),
+    [units, risers, activeSystemId, pointAt]
+  );
+
 
   /* grid: 1 m when calibrated, 50 units otherwise; snap = quarter cells.
      Plan-backed floors get finer defaults (image px are small units). */
@@ -195,6 +317,34 @@ export function StudioCanvas({
   const mountContent = useRef({ points: contentPoints(), grid });
   const measured = useRef(false);
 
+  /** nearest connection anchor within snap range of a world point */
+  const nearestAnchor = useCallback(
+    (w: Point) => {
+      let best: { kind: "unit" | "riser"; id: string; at: Point } | null = null;
+      let bestD = ANCHOR_SNAP_PX / vp.zoom;
+      for (const a of anchors) {
+        const d = dist(a.at, w);
+        if (d <= bestD) {
+          best = a;
+          bestD = d;
+        }
+      }
+      return best;
+    },
+    [anchors, vp.zoom]
+  );
+
+  /** unit footprint in world units (mm → units when calibrated; a sensible
+      on-screen default otherwise so placement still works pre-calibration) */
+  const footprint = useCallback(
+    (widthMm: number, depthMm: number): { w: number; h: number } => {
+      const s = floor.scaleMmPerUnit;
+      if (s) return { w: widthMm / s, h: depthMm / s };
+      return { w: grid * 0.9, h: grid * 0.9 * (depthMm / Math.max(widthMm, 1)) };
+    },
+    [floor.scaleMmPerUnit, grid]
+  );
+
   useEffect(() => {
     const el = wrapRef.current;
     if (!el || typeof ResizeObserver === "undefined") return;
@@ -260,6 +410,10 @@ export function StudioCanvas({
         setDraftRect(null);
         setCalib({});
         setCalibMeters("");
+        setDraftPipe([]);
+        pipeStartAttach.current = null;
+        // discard an in-progress wall-marking (a fresh draft makes no room)
+        setWallSelect(null);
       }
       if ((e.key === "Delete" || e.key === "Backspace") && !isTyping(e) && selectedId) {
         e.preventDefault();
@@ -279,24 +433,105 @@ export function StudioCanvas({
   }, [selectedId, onMutate, onSelect]);
 
   /* ── document intents ── */
-  const addRoom = useCallback(
-    (points: Point[]) => {
+  /* A closed boundary doesn't create a room outright — it opens wall-marking
+     (DUCTR: closePolygon → startWallSelect). The room is committed only when
+     the user confirms which walls are external. */
+  const beginWallSelect = useCallback((points: Point[]) => {
+    setWallSelect({ points, selected: new Set(), roomId: null });
+  }, []);
+
+  const commitRoom = useCallback(
+    (points: Point[], externalWalls: number[]) => {
+      const id = newId("obj");
+      const orientation = orientationFromWalls(
+        points,
+        externalWalls,
+        floor.northDeg ?? 0
+      );
       onMutate((d) => {
-        const n = d.objects.filter((o) => o.type === "room").length + 1;
+        // rooms belong to the active system (type-first flow); scoped per system
+        const n =
+          d.objects.filter(
+            (o) => o.type === "room" && o.systemId === activeSystemId
+          ).length + 1;
         const room: DesignObject = {
-          id: newId("obj"),
+          id,
           type: "room",
-          systemId: null,
+          systemId: activeSystemId,
           floorId: floor.id,
           geometry: { kind: "polygon", points },
           plane: "room",
-          props: { name: `Room ${n}` },
+          props: {
+            name: `Room ${n}`,
+            externalWalls,
+            hasExternalWalls: externalWalls.length > 0,
+            ...(orientation ? { orientation } : {}),
+          },
         };
         return { ...d, objects: [...d.objects, room] };
       });
+      // hand the fresh room to the configuration modal (load inputs)
+      onRoomCreated?.(id);
     },
-    [onMutate, floor.id]
+    [onMutate, floor.id, floor.northDeg, activeSystemId, onRoomCreated]
   );
+
+  const confirmWallSelect = useCallback(() => {
+    if (!wallSelect) return;
+    const { points, selected, roomId } = wallSelect;
+    const walls = [...selected].sort((a, b) => a - b);
+    if (roomId) {
+      // re-marking an existing room: update walls + derived orientation
+      const orientation = orientationFromWalls(points, walls, floor.northDeg ?? 0);
+      onMutate((d) => ({
+        ...d,
+        objects: d.objects.map((o) =>
+          o.id === roomId
+            ? {
+                ...o,
+                props: {
+                  ...o.props,
+                  externalWalls: walls,
+                  hasExternalWalls: walls.length > 0,
+                  ...(orientation ? { orientation } : {}),
+                },
+              }
+            : o
+        ),
+      }));
+    } else {
+      commitRoom(points, walls);
+    }
+    setWallSelect(null);
+    onToolDone();
+    if (roomId) onRoomCreated?.(roomId); // return to the modal after re-marking
+  }, [wallSelect, floor.northDeg, onMutate, commitRoom, onToolDone, onRoomCreated]);
+
+  const cancelWallSelect = useCallback(() => {
+    const roomId = wallSelect?.roomId ?? null;
+    setWallSelect(null);
+    onToolDone();
+    // a fresh draft is discarded (no room made); re-mark returns to the modal
+    if (roomId) onRoomCreated?.(roomId);
+  }, [wallSelect, onToolDone, onRoomCreated]);
+
+  /* modal asked to re-mark an existing room — seed wall-select from its walls */
+  useEffect(() => {
+    if (!remarkRoomId) return;
+    const room = doc.objects.find((o) => o.id === remarkRoomId);
+    if (room && room.geometry.kind === "polygon") {
+      const walls = Array.isArray(room.props.externalWalls)
+        ? (room.props.externalWalls as number[])
+        : [];
+      setWallSelect({
+        points: room.geometry.points,
+        selected: new Set(walls),
+        roomId: remarkRoomId,
+      });
+    }
+    onRemarkConsumed?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [remarkRoomId]);
 
   const commitGeometry = useCallback(
     (id: string, points: Point[]) => {
@@ -326,6 +561,162 @@ export function StudioCanvas({
     [rooms, roomPoints, vp]
   );
 
+  /** system objects hit first (they sit on top of rooms): unit footprints,
+      riser discs, then run segments */
+  const hitSystemObject = useCallback(
+    (w: Point): { id: string; kind: "unit" | "riser" | "pipe-run" } | null => {
+      for (let i = units.length - 1; i >= 0; i--) {
+        const u = units[i];
+        const at = pointAt(u);
+        const fp = footprint(Number(u.props.widthMm ?? 800), Number(u.props.depthMm ?? 300));
+        if (Math.abs(w.x - at.x) <= fp.w / 2 && Math.abs(w.y - at.y) <= fp.h / 2)
+          return { id: u.id, kind: "unit" };
+      }
+      for (let i = risers.length - 1; i >= 0; i--) {
+        if (dist(pointAt(risers[i]), w) <= 12 / vp.zoom)
+          return { id: risers[i].id, kind: "riser" };
+      }
+      const tol = HIT_EDGE_PX / vp.zoom;
+      for (let i = runs.length - 1; i >= 0; i--) {
+        const pts = runs[i].geometry.points;
+        for (let j = 0; j < pts.length - 1; j++) {
+          if (distToSegment(w, pts[j], pts[j + 1]) <= tol)
+            return { id: runs[i].id, kind: "pipe-run" };
+        }
+      }
+      return null;
+    },
+    [units, risers, runs, pointAt, footprint, vp.zoom]
+  );
+
+  /* ── Stage-4 document intents ── */
+  const addUnit = useCallback(
+    (at: Point) => {
+      if (!placing || !activeSystemId) return;
+      onMutate((d) => {
+        /* an IDU dropped inside a room is ATTRIBUTED to it (units → spaces);
+           dropping into another system's room also adopts that room into this
+           system's served list (the user's call: drop adopts) */
+        const room = placing.role === "idu" ? roomAtPoint(d.objects, floor.id, at) : null;
+        const adopt =
+          room && room.systemId !== activeSystemId
+            ? (() => {
+                const sys = d.systems.find((s) => s.id === activeSystemId);
+                const cur = Array.isArray(sys?.settings.roomIds)
+                  ? (sys!.settings.roomIds as string[])
+                  : [];
+                return cur.includes(room.id) ? null : [...cur, room.id];
+              })()
+            : null;
+        return {
+          ...d,
+          systems: adopt
+            ? d.systems.map((s) =>
+                s.id === activeSystemId
+                  ? { ...s, settings: { ...s.settings, roomIds: adopt } }
+                  : s
+              )
+            : d.systems,
+          objects: [
+            ...d.objects,
+            {
+              id: newId("obj"),
+              type: "unit",
+              systemId: activeSystemId,
+              floorId: floor.id,
+              geometry: { kind: "point", at },
+              plane: placing.role === "odu" ? "external-ground" : "room",
+              props: {
+                role: placing.role,
+                model: placing.model,
+                widthMm: placing.widthMm,
+                depthMm: placing.depthMm,
+                ...(room ? { roomId: room.id } : {}),
+              },
+            } satisfies DesignObject,
+          ],
+        };
+      });
+      onPlaced?.();
+    },
+    [placing, activeSystemId, onMutate, floor.id, onPlaced]
+  );
+
+  const addRiser = useCallback(
+    (at: Point) => {
+      if (!activeSystemId) return;
+      onMutate((d) => {
+        // next free group letter for this system, A…Z
+        const used = new Set(
+          d.objects
+            .filter((o) => o.type === "riser" && o.systemId === activeSystemId)
+            .map((o) => String(o.props.group ?? "A"))
+        );
+        // reuse an existing group when this floor doesn't have it yet — pairing
+        // a riser across floors is the common case, a new group the rarer one
+        let group = [...used].find(
+          (g) =>
+            !d.objects.some(
+              (o) =>
+                o.type === "riser" &&
+                o.systemId === activeSystemId &&
+                o.floorId === floor.id &&
+                String(o.props.group ?? "A") === g
+            )
+        );
+        if (!group) {
+          let c = 65;
+          while (used.has(String.fromCharCode(c))) c++;
+          group = String.fromCharCode(c);
+        }
+        return {
+          ...d,
+          objects: [
+            ...d.objects,
+            {
+              id: newId("obj"),
+              type: "riser",
+              systemId: activeSystemId,
+              floorId: floor.id,
+              geometry: { kind: "point", at },
+              plane: "room",
+              props: { group, heightM: 3 },
+            } satisfies DesignObject,
+          ],
+        };
+      });
+    },
+    [activeSystemId, onMutate, floor.id]
+  );
+
+  const commitPipe = useCallback(
+    (points: Point[], endAttach: { kind: "unit" | "riser"; id: string } | null) => {
+      if (!activeSystemId || points.length < 2) return;
+      const startAttach = pipeStartAttach.current;
+      onMutate((d) => ({
+        ...d,
+        objects: [
+          ...d.objects,
+          {
+            id: newId("obj"),
+            type: "pipe-run",
+            systemId: activeSystemId,
+            floorId: floor.id,
+            geometry: { kind: "polyline", points },
+            plane: "room",
+            props: {
+              ...(startAttach ? { startAttach } : {}),
+              ...(endAttach ? { endAttach } : {}),
+            },
+          } satisfies DesignObject,
+        ],
+      }));
+      setDraftPipe([]);
+      pipeStartAttach.current = null;
+    },
+    [activeSystemId, onMutate, floor.id]
+  );
+
   /* ── pointer handlers ── */
   const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
     const w = toWorld(e);
@@ -341,17 +732,79 @@ export function StudioCanvas({
     if (e.button === 1 || spaceDown.current) return pan();
     if (e.button !== 0) return;
 
+    // wall-marking captures clicks: toggle the nearest edge as external
+    if (wallSelect) {
+      const pts = wallSelect.points;
+      const tol = 20 / vp.zoom;
+      let hit = -1;
+      let hitD = tol;
+      for (let i = 0; i < pts.length; i++) {
+        const d = distToSegment(w, pts[i], pts[(i + 1) % pts.length]);
+        if (d <= hitD) {
+          hit = i;
+          hitD = d;
+        }
+      }
+      if (hit >= 0) {
+        setWallSelect((ws) => {
+          if (!ws) return ws;
+          const sel = new Set(ws.selected);
+          if (sel.has(hit)) sel.delete(hit);
+          else sel.add(hit);
+          return { ...ws, selected: sel };
+        });
+      }
+      return;
+    }
+
     switch (tool) {
       case "select": {
+        const sys = hitSystemObject(w);
+        if (sys) {
+          onSelect(sys.id);
+          if (sys.kind !== "pipe-run") {
+            const o = [...units, ...risers].find((x) => x.id === sys.id)!;
+            setDrag({ kind: "point", id: sys.id, startWorld: w, orig: pointAt(o) });
+          }
+          break;
+        }
         const hit = hitRoom(w);
         if (hit) {
           onSelect(hit);
           const room = rooms.find((r) => r.id === hit)!;
-          setDrag({ kind: "move", id: hit, startWorld: w, orig: roomPoints(room) });
+          // foreign rooms are selectable (to inspect) but only the system
+          // that drew a room may move it
+          if (roomEditable(room)) {
+            setDrag({ kind: "move", id: hit, startWorld: w, orig: roomPoints(room) });
+          }
         } else {
           onSelect(null);
           pan();
         }
+        break;
+      }
+      case "place": {
+        addUnit(snapped(w));
+        break;
+      }
+      case "pipe": {
+        const anchor = nearestAnchor(w);
+        const p = anchor ? anchor.at : snapped(w);
+        if (draftPipe.length === 0) {
+          pipeStartAttach.current = anchor
+            ? { kind: anchor.kind, id: anchor.id }
+            : null;
+          setDraftPipe([p]);
+        } else if (anchor) {
+          // landing on an anchor completes the run — the magnetic connection
+          commitPipe([...draftPipe, p], { kind: anchor.kind, id: anchor.id });
+        } else {
+          setDraftPipe((pts) => [...pts, p]);
+        }
+        break;
+      }
+      case "riser": {
+        addRiser(snapped(w));
         break;
       }
       case "room-poly": {
@@ -360,7 +813,7 @@ export function StudioCanvas({
           const firstScreen = worldToScreen(draftPoly[0], vp);
           const hereScreen = worldToScreen(w, vp);
           if (dist(firstScreen, hereScreen) <= CLOSE_SNAP_PX) {
-            addRoom(draftPoly);
+            beginWallSelect(draftPoly);
             setDraftPoly([]);
             return;
           }
@@ -378,7 +831,13 @@ export function StudioCanvas({
         break;
       }
       case "erase": {
-        const hit = hitRoom(w);
+        let hit = hitSystemObject(w)?.id ?? null;
+        if (!hit) {
+          const r = hitRoom(w);
+          // another system's room can't be erased from here
+          const room = r ? rooms.find((x) => x.id === r) : null;
+          if (room && roomEditable(room)) hit = r;
+        }
         if (hit) {
           onMutate((d) => ({ ...d, objects: d.objects.filter((o) => o.id !== hit) }));
           if (selectedId === hit) onSelect(null);
@@ -429,18 +888,11 @@ export function StudioCanvas({
         break;
       }
       case "vertex": {
-        // rectangles stay rectangular unless the room opts into free editing
-        const room = rooms.find((r) => r.id === drag.id);
-        const rectLocked =
-          room && !room.props.freeEdit && isAxisAlignedRect(drag.orig);
-        const pts = rectLocked
-          ? rectDragVertex(drag.orig, drag.index, snapped(w))
-          : (() => {
-              const copy = [...drag.orig];
-              copy[drag.index] = snapped(w);
-              return copy;
-            })();
-        setLiveGeom({ id: drag.id, points: pts });
+        // every vertex moves on its own — the polygon tool covers free editing,
+        // so there's no rectangle lock (removed 2026-07-11)
+        const copy = [...drag.orig];
+        copy[drag.index] = snapped(w);
+        setLiveGeom({ id: drag.id, points: copy });
         break;
       }
       case "rect":
@@ -451,6 +903,15 @@ export function StudioCanvas({
           id: drag.id,
           x: drag.orig.x + (w.x - drag.startWorld.x),
           y: drag.orig.y + (w.y - drag.startWorld.y),
+        });
+        break;
+      case "point":
+        setLivePoint({
+          id: drag.id,
+          at: snapped({
+            x: drag.orig.x + (w.x - drag.startWorld.x),
+            y: drag.orig.y + (w.y - drag.startWorld.y),
+          }),
         });
         break;
     }
@@ -489,7 +950,7 @@ export function StudioCanvas({
     if (drag.kind === "rect" && draftRect) {
       const { a, b } = draftRect;
       if (Math.abs(b.x - a.x) >= snapStep && Math.abs(b.y - a.y) >= snapStep) {
-        addRoom([
+        beginWallSelect([
           { x: a.x, y: a.y },
           { x: b.x, y: a.y },
           { x: b.x, y: b.y },
@@ -498,13 +959,80 @@ export function StudioCanvas({
       }
       setDraftRect(null);
     }
+    if (drag.kind === "point" && livePoint) {
+      const { id, at } = livePoint;
+      if (at.x !== drag.orig.x || at.y !== drag.orig.y) {
+        onMutate((d) => {
+          const moved = d.objects.find((o) => o.id === id);
+          /* moving an IDU re-derives its room attribution (unless the user
+             pinned it manually via roomLock) — and adopts a foreign room the
+             same way a fresh drop does */
+          const restamp =
+            moved?.type === "unit" &&
+            moved.props.role === "idu" &&
+            !moved.props.roomLock;
+          const room = restamp ? roomAtPoint(d.objects, moved!.floorId, at) : null;
+          const adopt =
+            restamp && room && moved!.systemId && room.systemId !== moved!.systemId
+              ? (() => {
+                  const sys = d.systems.find((s) => s.id === moved!.systemId);
+                  const cur = Array.isArray(sys?.settings.roomIds)
+                    ? (sys!.settings.roomIds as string[])
+                    : [];
+                  return cur.includes(room.id) ? null : [...cur, room.id];
+                })()
+              : null;
+          return {
+            ...d,
+            systems: adopt
+              ? d.systems.map((s) =>
+                  s.id === moved!.systemId
+                    ? { ...s, settings: { ...s.settings, roomIds: adopt } }
+                    : s
+                )
+              : d.systems,
+            objects: d.objects.map((o) => {
+              if (o.id !== id) return o;
+              const next = { ...o, geometry: { kind: "point" as const, at } };
+              if (restamp) {
+                const props = { ...next.props };
+                if (room) props.roomId = room.id;
+                else delete props.roomId;
+                next.props = props;
+              }
+              return next;
+            }),
+          };
+        });
+      }
+      setLivePoint(null);
+    }
     setDrag(null);
+  };
+
+  /* ── drag-from-card placement (Slice 3): the panel arms `placing` on
+     dragstart; dragover tracks the to-scale ghost, drop commits the unit ── */
+  const onDragOver = (e: React.DragEvent<SVGSVGElement>) => {
+    if (!placing) return;
+    e.preventDefault(); // allow the drop
+    e.dataTransfer.dropEffect = "copy";
+    setCursor(toWorld(e));
+  };
+
+  const onDrop = (e: React.DragEvent<SVGSVGElement>) => {
+    if (!placing) return;
+    e.preventDefault();
+    addUnit(snapped(toWorld(e)));
   };
 
   const onDoubleClick = () => {
     if (tool === "room-poly" && draftPoly.length >= 3) {
-      addRoom(draftPoly);
+      beginWallSelect(draftPoly);
       setDraftPoly([]);
+    }
+    // double-click ends a pipe run without an end anchor (open run)
+    if (tool === "pipe" && draftPipe.length >= 2) {
+      commitPipe(draftPipe, null);
     }
   };
 
@@ -565,6 +1093,8 @@ export function StudioCanvas({
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onDoubleClick={onDoubleClick}
+        onDragOver={onDragOver}
+        onDrop={onDrop}
         role="application"
         aria-label="Design canvas"
       >
@@ -631,8 +1161,12 @@ export function StudioCanvas({
             const c = polygonCentroid(pts);
             const areaU = polygonArea(pts);
             const selected = r.id === selectedId;
+            const ghost = !roomServed(r);
             return (
-              <g key={r.id} className={`ds-room${selected ? " sel" : ""}`}>
+              <g
+                key={r.id}
+                className={`ds-room${selected ? " sel" : ""}${ghost ? " ghost" : ""}`}
+              >
                 <polygon points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />
                 <text x={c.x} y={c.y} fontSize={13 / zoom} className="ds-room-name">
                   {String(r.props.name ?? "Room")}
@@ -647,6 +1181,7 @@ export function StudioCanvas({
                 </text>
                 {selected &&
                   tool === "select" &&
+                  roomEditable(r) &&
                   pts.map((p, i) => (
                     <circle
                       key={i}
@@ -660,6 +1195,135 @@ export function StudioCanvas({
               </g>
             );
           })}
+
+          {/* pipe runs (Stage 4) — system colour, length when calibrated */}
+          {runs.map((r) => {
+            const pts = r.geometry.points;
+            const colour = sysColour.get(r.systemId ?? "") ?? "#888";
+            const midI = Math.floor((pts.length - 1) / 2);
+            const mid = {
+              x: (pts[midI].x + pts[Math.min(midI + 1, pts.length - 1)].x) / 2,
+              y: (pts[midI].y + pts[Math.min(midI + 1, pts.length - 1)].y) / 2,
+            };
+            return (
+              <g
+                key={r.id}
+                className={`ds-pipe${r.id === selectedId ? " sel" : ""}`}
+                style={{ color: colour }}
+              >
+                <polyline points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />
+                {mm && (
+                  <text x={mid.x} y={mid.y - 7 / zoom} fontSize={11 / zoom} className="ds-pipe-len">
+                    {formatMeters(unitsToMeters(polylineLength(pts), mm))}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+
+          {/* units (Stage 4) — to-scale footprint, role glyph, model */}
+          {units.map((u) => {
+            const at = pointAt(u);
+            const fp = footprint(Number(u.props.widthMm ?? 800), Number(u.props.depthMm ?? 300));
+            const colour = sysColour.get(u.systemId ?? "") ?? "#888";
+            const role = String(u.props.role ?? "idu").toUpperCase();
+            return (
+              <g
+                key={u.id}
+                className={`ds-unit${u.id === selectedId ? " sel" : ""}`}
+                style={{ color: colour }}
+              >
+                <rect
+                  x={at.x - fp.w / 2}
+                  y={at.y - fp.h / 2}
+                  width={fp.w}
+                  height={fp.h}
+                  rx={2 / zoom}
+                />
+                <text x={at.x} y={at.y + 4 / zoom} fontSize={11 / zoom} className="ds-unit-role">
+                  {role}
+                </text>
+                <text
+                  x={at.x}
+                  y={at.y + fp.h / 2 + 13 / zoom}
+                  fontSize={10 / zoom}
+                  className="ds-unit-model"
+                >
+                  {String(u.props.model ?? "")}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* risers (Stage 4) — disc + group letter, one per floor per group */}
+          {risers.map((r) => {
+            const at = pointAt(r);
+            const colour = sysColour.get(r.systemId ?? "") ?? "#888";
+            return (
+              <g
+                key={r.id}
+                className={`ds-riser${r.id === selectedId ? " sel" : ""}`}
+                style={{ color: colour }}
+              >
+                <circle cx={at.x} cy={at.y} r={10 / zoom} />
+                <text x={at.x} y={at.y + 3.5 / zoom} fontSize={10 / zoom}>
+                  ⇅{String(r.props.group ?? "A")}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* connection anchors — visible while piping; nearest one glows
+              BEFORE the click (pre-click snap feedback) */}
+          {tool === "pipe" &&
+            (() => {
+              const near = cursor ? nearestAnchor(cursor) : null;
+              return anchors.map((a) => (
+                <circle
+                  key={`${a.kind}:${a.id}`}
+                  className={`ds-anchor${near?.id === a.id ? " ready" : ""}`}
+                  cx={a.at.x}
+                  cy={a.at.y}
+                  r={(near?.id === a.id ? 9 : 5) / zoom}
+                />
+              ));
+            })()}
+
+          {/* pipe draft */}
+          {draftPipe.length > 0 && (
+            <g className="ds-pipe-draft">
+              <polyline
+                points={[...draftPipe, ...(cursor ? [nearestAnchor(cursor)?.at ?? snapped(cursor)] : [])]
+                  .map((p) => `${p.x},${p.y}`)
+                  .join(" ")}
+              />
+              <circle cx={draftPipe[0].x} cy={draftPipe[0].y} r={4 / zoom} />
+            </g>
+          )}
+
+          {/* placement ghost — the armed unit follows the cursor to-scale */}
+          {tool === "place" && placing && cursor && (
+            <g className="ds-place-ghost">
+              {(() => {
+                const at = snapped(cursor);
+                const fp = footprint(placing.widthMm, placing.depthMm);
+                return (
+                  <>
+                    <rect
+                      x={at.x - fp.w / 2}
+                      y={at.y - fp.h / 2}
+                      width={fp.w}
+                      height={fp.h}
+                      rx={2 / zoom}
+                    />
+                    <text x={at.x} y={at.y + 4 / zoom} fontSize={11 / zoom}>
+                      {placing.role.toUpperCase()}
+                    </text>
+                  </>
+                );
+              })()}
+            </g>
+          )}
 
           {/* polygon draft */}
           {draftPoly.length > 0 &&
@@ -708,6 +1372,31 @@ export function StudioCanvas({
                   {formatMeters(unitsToMeters(Math.abs(draftRect.b.y - draftRect.a.y), mm))}
                 </text>
               )}
+            </g>
+          )}
+
+          {/* wall-marking overlay — green edges are external, red are not */}
+          {wallSelect && (
+            <g className="ds-wallsel">
+              <polygon
+                className="ds-wallsel-fill"
+                points={wallSelect.points.map((p) => `${p.x},${p.y}`).join(" ")}
+              />
+              {wallSelect.points.map((a, i) => {
+                const b = wallSelect.points[(i + 1) % wallSelect.points.length];
+                const on = wallSelect.selected.has(i);
+                return (
+                  <g key={i} className={`ds-wallsel-edge${on ? " on" : ""}`}>
+                    <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} className="ds-wallsel-line" />
+                    <circle
+                      className="ds-wallsel-dot"
+                      cx={(a.x + b.x) / 2}
+                      cy={(a.y + b.y) / 2}
+                      r={6 / zoom}
+                    />
+                  </g>
+                );
+              })}
             </g>
           )}
 
@@ -766,6 +1455,34 @@ export function StudioCanvas({
           </div>
         </div>
       )}
+
+      {/* wall-marking panel — bottom-centre, never position:fixed */}
+      {wallSelect &&
+        (() => {
+          const n = wallSelect.selected.size;
+          return (
+            <div className="ds-wallsel-panel" role="dialog" aria-label="Mark external walls">
+              <div className="ds-wallsel-title">Mark external walls</div>
+              <div className="ds-wallsel-hint">
+                Click each wall exposed to outside. Leave internal / party walls
+                unselected.
+              </div>
+              <div className={`ds-wallsel-count${n > 0 ? " on" : ""}`}>
+                {n === 0
+                  ? "No walls selected"
+                  : `${n} external wall${n > 1 ? "s" : ""} marked`}
+              </div>
+              <div className="ds-wallsel-actions">
+                <button className="ds-calib-cancel" onClick={cancelWallSelect}>
+                  Cancel
+                </button>
+                <button className="ds-calib-ok" onClick={confirmWallSelect}>
+                  {n > 0 ? "Done" : "No external walls"}
+                </button>
+              </div>
+            </div>
+          );
+        })()}
 
       {/* readouts + zoom controls */}
       <div className="ds-canvas-hud">

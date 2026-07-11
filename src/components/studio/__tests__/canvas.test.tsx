@@ -4,7 +4,7 @@
    Blank floor: scale 10 mm/unit → grid 100 units → zoom 0.56, world origin
    at screen centre (400,300). */
 
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Studio } from "../studio";
 import { LocalDesignStore } from "@/lib/studio/store";
@@ -21,6 +21,8 @@ async function openBlankDesignOnCanvas() {
   await user.click(screen.getByRole("button", { name: /Continue/ }));
   await user.click(screen.getByText("Blank canvas"));
   await user.click(screen.getByRole("button", { name: "2 Design" }));
+  // type-first flow: pick a system type before the room tools unlock
+  await user.click(screen.getByRole("button", { name: /Split \(1:1\)/ }));
   const canvas = screen.getByTestId("studio-canvas");
   const svg = canvas.querySelector("svg")!;
   expect(svg).toBeTruthy();
@@ -34,6 +36,13 @@ const pt = (x: number, y: number) => ({
   pointerId: 1,
 });
 
+/* Closing a boundary opens wall-marking first (DUCTR parity). Commit it with
+   no external walls, then dismiss the load modal — the room stays either way. */
+async function finishRoom(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole("button", { name: "No external walls" }));
+  await user.click(screen.getByRole("button", { name: "Cancel" }));
+}
+
 describe("Design canvas", () => {
   beforeEach(() => window.localStorage.clear());
 
@@ -45,6 +54,8 @@ describe("Design canvas", () => {
     fireEvent.pointerDown(svg, pt(400, 300));
     fireEvent.pointerMove(svg, pt(456, 342));
     fireEvent.pointerUp(svg, pt(456, 342));
+    // drawing opens wall-marking, then the load modal — commit and dismiss
+    await finishRoom(user);
 
     expect(screen.getByText("Room 1")).toBeInTheDocument();
     expect(screen.getByText("0.8 m²")).toBeInTheDocument();
@@ -77,42 +88,32 @@ describe("Design canvas", () => {
     expect(screen.getByText("Room 1")).toBeInTheDocument();
   });
 
-  it("dragging a rectangle's corner keeps it rectangular until free editing is toggled", async () => {
+  it("dragging a rectangle's corner moves only that corner (no rectangle lock)", async () => {
     const { user, svg } = await openBlankDesignOnCanvas();
     // 100×100-unit room: screen (400,300) → (456,356)
     await user.click(screen.getByRole("button", { name: "Room (rectangle)" }));
     fireEvent.pointerDown(svg, pt(400, 300));
     fireEvent.pointerMove(svg, pt(456, 356));
     fireEvent.pointerUp(svg, pt(456, 356));
+    await finishRoom(user);
 
-    // select it, then drag corner 0 (at screen 400,300) inward
+    // select it, then drag corner 0 (at screen 400,300) inward +25,+25 units
     await user.click(screen.getByRole("button", { name: "Select" }));
     fireEvent.pointerDown(svg, pt(420, 320));
     fireEvent.pointerUp(svg, pt(420, 320));
     const vertex = svg.querySelectorAll(".ds-vertex")[0]!;
     fireEvent.pointerDown(vertex, pt(400, 300));
-    fireEvent.pointerMove(svg, pt(414, 314)); // +25,+25 units
+    fireEvent.pointerMove(svg, pt(414, 314));
     fireEvent.pointerUp(svg, pt(414, 314));
 
-    // locked: adjacent corners followed → still a rectangle of 75×75 units
+    // free edit: ONLY corner 0 moved → a skewed quad, not a snapped rectangle
     const polygon = svg.querySelector(".ds-room polygon")!;
-    expect(polygon.getAttribute("points")).toBe("25,25 100,25 100,100 25,100");
+    expect(polygon.getAttribute("points")).toBe("25,25 100,0 100,100 0,100");
 
-    // unlock and drag the same corner: only that corner moves
-    await user.click(screen.getByRole("checkbox", { name: /Lock rectangle/ }));
-    const vertex2 = svg.querySelectorAll(".ds-vertex")[0]!;
-    fireEvent.pointerDown(vertex2, pt(414, 314));
-    fireEvent.pointerMove(svg, pt(400, 300));
-    fireEvent.pointerUp(svg, pt(400, 300));
-    expect(svg.querySelector(".ds-room polygon")!.getAttribute("points")).toBe(
-      "0,0 100,25 100,100 25,100"
-    );
-
-    // re-locking transforms the skewed shape back to a perfect rectangle
-    await user.click(screen.getByRole("checkbox", { name: /Lock rectangle/ }));
-    expect(svg.querySelector(".ds-room polygon")!.getAttribute("points")).toBe(
-      "0,0 100,0 100,100 0,100"
-    );
+    // the lock-rectangle control is gone (polygon tool covers free editing)
+    expect(
+      screen.queryByRole("checkbox", { name: /Lock rectangle/ })
+    ).toBeNull();
   });
 
   it("polygon tool highlights the first vertex when the cursor can close the loop", async () => {
@@ -134,6 +135,7 @@ describe("Design canvas", () => {
     expect(svg.querySelector(".ds-draft circle.close-ready")).not.toBeNull();
     fireEvent.pointerDown(svg, pt(402, 302));
     fireEvent.pointerUp(svg, pt(402, 302));
+    await finishRoom(user);
     expect(screen.getByText("Room 1")).toBeInTheDocument();
   });
 
@@ -143,18 +145,62 @@ describe("Design canvas", () => {
     fireEvent.pointerDown(svg, pt(400, 300));
     fireEvent.pointerMove(svg, pt(500, 380));
     fireEvent.pointerUp(svg, pt(500, 380));
+    await finishRoom(user);
 
     // click inside the room with the select tool
     await user.click(screen.getByRole("button", { name: "Select" }));
     fireEvent.pointerDown(svg, pt(430, 330));
     fireEvent.pointerUp(svg, pt(430, 330));
 
-    const nameInput = screen.getByDisplayValue("Room 1");
+    // rename via the pencil → inline input → Enter commits
+    await user.click(screen.getByRole("button", { name: "Rename room" }));
+    const nameInput = screen.getByLabelText("Room name");
     await user.clear(nameInput);
-    await user.type(nameInput, "Lounge");
-    expect(screen.getByText("Lounge")).toBeInTheDocument(); // canvas label follows
+    await user.type(nameInput, "Lounge{Enter}");
+    // the canvas label follows the rename
+    expect(svg.querySelector(".ds-room-name")?.textContent).toBe("Lounge");
 
     await user.click(screen.getByRole("button", { name: /Delete room/ }));
     expect(screen.queryByText("Lounge")).not.toBeInTheDocument();
+  });
+
+  it("wall-marking opens before the modal; Cancel discards the fresh room", async () => {
+    const { user, svg } = await openBlankDesignOnCanvas();
+    await user.click(screen.getByRole("button", { name: "Room (rectangle)" }));
+    fireEvent.pointerDown(svg, pt(400, 300));
+    fireEvent.pointerMove(svg, pt(456, 342));
+    fireEvent.pointerUp(svg, pt(456, 342));
+
+    // wall-marking panel, not the load modal, comes up first
+    expect(screen.getByText("Mark external walls")).toBeInTheDocument();
+    expect(screen.queryByText("Configure room")).not.toBeInTheDocument();
+
+    // Cancel on a fresh draft throws the room away (DUCTR parity)
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByText("Room 1")).not.toBeInTheDocument();
+    expect(screen.queryByText("Mark external walls")).not.toBeInTheDocument();
+  });
+
+  it("marking a wall commits the room and derives orientation from it", async () => {
+    const { user, svg } = await openBlankDesignOnCanvas();
+    await user.click(screen.getByRole("button", { name: "Room (rectangle)" }));
+    // world rect (0,0)-(100,75); top edge midpoint is world (50,0) = screen (428,300)
+    fireEvent.pointerDown(svg, pt(400, 300));
+    fireEvent.pointerMove(svg, pt(456, 342));
+    fireEvent.pointerUp(svg, pt(456, 342));
+
+    // click the top edge to mark it external
+    fireEvent.pointerDown(svg, pt(428, 300));
+    fireEvent.pointerUp(svg, pt(428, 300));
+    expect(screen.getByText("1 external wall marked")).toBeInTheDocument();
+
+    // Done commits and opens the load modal, orientation now sourced from walls
+    await user.click(screen.getByRole("button", { name: "Done" }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("New")).toBeInTheDocument(); // mode pill
+    expect(screen.getByText("Auto – walls")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByText("Room 1")).toBeInTheDocument();
   });
 });

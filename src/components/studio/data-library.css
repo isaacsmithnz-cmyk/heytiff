@@ -1,0 +1,308 @@
+/* Data Library — read-only universal-table browser. Self-contained tokens so
+   it renders correctly regardless of shell context. Jakarta only (no mono —
+   even <code> is overridden), per the project font rule. Studio accent #FF8A00. */
+
+.dl-root {
+  --dl-accent: #ff8a00;
+  --dl-ready: #16a34a;
+  --dl-gap: #b45309;
+  --dl-bg: #ffffff;
+  --dl-panel: #fbfbfa;
+  --dl-line: #ececec;
+  --dl-ink: #1a1a1a;
+  --dl-mut: #767676;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 28px 24px 64px;
+  color: var(--dl-ink);
+}
+
+/* never render <code> in a mono face — Jakarta only, house rule */
+.dl-root code {
+  font-family: inherit;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  background: #f2f2f0;
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-size: 0.86em;
+}
+
+.dl-head h1 {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0 0 6px;
+}
+.dl-head p {
+  margin: 0;
+  color: var(--dl-mut);
+  max-width: 620px;
+  line-height: 1.5;
+  font-size: 14px;
+}
+
+.dl-empty,
+.dl-note {
+  color: var(--dl-mut);
+  padding: 20px 0;
+  font-size: 14px;
+}
+.dl-fail {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin: 16px 0;
+  font-size: 13px;
+}
+
+.dl-pack {
+  margin-top: 24px;
+  border: 1px solid var(--dl-line);
+  border-radius: 14px;
+  background: var(--dl-bg);
+  overflow: hidden;
+}
+.dl-pack-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 18px 20px;
+  background: var(--dl-panel);
+  border-bottom: 1px solid var(--dl-line);
+}
+.dl-pack-head h2 {
+  font-size: 17px;
+  font-weight: 700;
+  margin: 0 0 6px;
+}
+.dl-sub {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  align-items: center;
+}
+.dl-src {
+  font-size: 12px;
+  color: var(--dl-mut);
+}
+.dl-src::before {
+  content: "•";
+  margin-right: 8px;
+  color: var(--dl-line);
+}
+.dl-valid {
+  flex: none;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 11px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.dl-valid.ok {
+  background: #ecfdf3;
+  color: var(--dl-ready);
+}
+.dl-valid.bad {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+.dl-warn {
+  opacity: 0.75;
+  font-weight: 500;
+}
+
+.dl-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--dl-line);
+  overflow-x: auto;
+}
+.dl-tabs button {
+  appearance: none;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dl-mut);
+  padding: 12px 12px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+.dl-tabs button.active {
+  color: var(--dl-ink);
+  border-bottom-color: var(--dl-accent);
+}
+.dl-count {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--dl-mut);
+  background: #f0f0ee;
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+
+.dl-body {
+  padding: 18px 20px;
+}
+
+/* overview */
+.dl-errs {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 18px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: #92400e;
+}
+.dl-role {
+  margin-bottom: 22px;
+}
+.dl-role h3 {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--dl-mut);
+  margin: 0 0 10px;
+}
+.dl-ranges {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+.dl-range {
+  border: 1px solid var(--dl-line);
+  border-radius: 10px;
+  padding: 11px 13px;
+}
+.dl-range-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+.dl-range-name {
+  font-weight: 600;
+  font-size: 13px;
+}
+.dl-range-count {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--dl-mut);
+}
+.dl-bar {
+  height: 6px;
+  background: #eee;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.dl-bar-fill {
+  height: 100%;
+  background: var(--dl-accent);
+  border-radius: 999px;
+}
+.dl-bar-fill.full {
+  background: var(--dl-ready);
+}
+.dl-gaps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 9px;
+}
+.dl-gap {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--dl-gap);
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+  padding: 1px 6px;
+}
+
+/* tables */
+.dl-scroll {
+  overflow-x: auto;
+}
+.dl-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.dl-table th {
+  text-align: left;
+  font-weight: 700;
+  color: var(--dl-mut);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--dl-line);
+  white-space: nowrap;
+}
+.dl-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #f5f5f4;
+  white-space: nowrap;
+}
+.dl-table tbody tr:hover {
+  background: var(--dl-panel);
+}
+.dl-mono {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.dl-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+.dl-dot.on {
+  background: var(--dl-ready);
+}
+.dl-dot.off {
+  background: #d4d4d4;
+}
+
+/* pipe tables */
+.dl-pipe {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
+}
+.dl-pipe-card {
+  border: 1px solid var(--dl-line);
+  border-radius: 10px;
+  padding: 13px 15px;
+}
+.dl-pipe-card h3 {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0 0 10px;
+}
+.dl-pipe-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+}
+.dl-pipe-meta span {
+  font-size: 12px;
+  color: var(--dl-mut);
+  background: var(--dl-panel);
+  border: 1px solid var(--dl-line);
+  border-radius: 6px;
+  padding: 2px 8px;
+}

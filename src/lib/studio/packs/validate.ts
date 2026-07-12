@@ -73,6 +73,25 @@ function checkProvenance(
   if (!str(p.source)) push("provenance.source missing");
 }
 
+/* Sound is a Tier-3 field (absence never blocks anything), so out-of-shape
+   values are WARNINGS: worth a look at ingestion, never a blocked pack. */
+function checkSound(
+  warnRow: (m: string) => void,
+  low: number | undefined,
+  high: number | undefined
+): void {
+  for (const [label, v] of [
+    ["sound_low_dba", low],
+    ["sound_high_dba", high],
+  ] as const)
+    if (v != null && (!num(v) || v < 15 || v > 90))
+      warnRow(`${label} implausible: ${v} (expected 15–90 dBA)`);
+  if (num(low) && num(high) && low > high)
+    warnRow(`sound_low_dba ${low} > sound_high_dba ${high}`);
+  if (low != null && high == null)
+    warnRow("sound_low_dba without sound_high_dba (single figures go in high)");
+}
+
 function checkAdditionalCharge(
   push: (m: string) => void,
   c: AdditionalChargeRule | undefined
@@ -179,6 +198,9 @@ export function validatePack(pack: DataPack): ValidationResult {
       push("system_roles invalid");
     if (!(REFRIGERANTS as readonly string[]).includes(u.refrigerant))
       push(`refrigerant invalid: ${u.refrigerant}`);
+    if (u.phase != null && u.phase !== "1" && u.phase !== "3")
+      push("phase must be '1' or '3'");
+    checkSound((m) => warn("indoor_units", u.model ?? "-", m), u.sound_low_dba, u.sound_high_dba);
     checkProvenance(push, u.provenance);
   }
 
@@ -196,6 +218,7 @@ export function validatePack(pack: DataPack): ValidationResult {
     if (o.phase !== "1" && o.phase !== "3") push("phase must be '1' or '3'");
     if (!(REFRIGERANTS as readonly string[]).includes(o.refrigerant))
       push(`refrigerant invalid: ${o.refrigerant}`);
+    checkSound((m) => warn("outdoor_units", o.model ?? "-", m), o.sound_low_dba, o.sound_high_dba);
     checkProvenance(push, o.provenance);
   }
 

@@ -51,6 +51,9 @@ export const SYSTEM_ROLES: readonly SystemRole[] = ["split-pair", "multi", "vrf"
 
 export type SystemType = "split" | "multi" | "vrf";
 
+/** Electrical supply phase — single (230V 1N~) or three (400V 3N~). */
+export type Phase = "1" | "3";
+
 export type Refrigerant = "R32" | "R410A" | "R454B" | "R290" | "R32/R410A";
 export const REFRIGERANTS: readonly Refrigerant[] = [
   "R32",
@@ -184,12 +187,16 @@ export interface IndoorUnit {
   allowed_planes: Plane[];
   system_roles: SystemRole[];
   refrigerant: Refrigerant;
-  phase?: "1" | "3";
+  phase?: Phase;
   power_supply?: string;
   width_mm: number;
   depth_mm: number;
   height_mm: number;
-  sound_dba?: number;
+  /** sound pressure (SPL dBA) across fan speeds: low = the published Lo-fan
+      figure, high = the Hi-fan figure. A sheet that publishes ONE figure fills
+      `sound_high_dba` only — `sound_low_dba` is never derived. */
+  sound_low_dba?: number;
+  sound_high_dba?: number;
   weight_kg?: number;
   provenance: Provenance;
 }
@@ -204,7 +211,9 @@ export interface OutdoorUnit {
   capacity_heat_kw: number;
   hp?: number;
   capacity_index?: number; // required for VRF
-  phase: "1" | "3";
+  phase: Phase;
+  /** exact supply wording from the sheet, e.g. "230V 1N~ 50Hz" / "400V 3N~ 50Hz" */
+  power_supply?: string;
   conn_liquid_mm: number;
   conn_gas_mm: number;
   refrigerant: Refrigerant;
@@ -234,6 +243,9 @@ export interface OutdoorUnit {
   width_mm?: number;
   depth_mm?: number;
   height_mm?: number;
+  /** SPL dBA — same convention as IndoorUnit: single published figure → high only */
+  sound_low_dba?: number;
+  sound_high_dba?: number;
   weight_kg?: number;
   provenance: Provenance;
 }

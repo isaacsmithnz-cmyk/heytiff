@@ -3220,18 +3220,50 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 28px;
+  padding: 24px;
   font-family: var(--font, "Plus Jakarta Sans", sans-serif);
 }
+/* near-fullscreen, FIXED per viewport (only vw/vh-dependent) so the box never
+   jumps as tabs/filters change; panes scroll inside it */
 .ds-ub {
-  width: min(880px, 100%);
-  max-height: min(680px, 92vh);
+  width: min(1360px, calc(100vw - 48px));
+  height: min(920px, calc(100vh - 48px));
   background: #fff;
   border-radius: 20px;
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+/* two panes: results table + spec-sheet detail panel */
+.ds-ub-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.ds-ub-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ds-ub-detail {
+  width: 340px;
+  flex: none;
+  border-left: 1px solid #ececec;
+  background: #fcfcfb;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+@media (max-width: 900px) {
+  .ds-ub-body { flex-direction: column; }
+  .ds-ub-detail {
+    width: auto;
+    height: 44%;
+    border-left: none;
+    border-top: 1px solid #ececec;
+  }
 }
 .ds-ub-head {
   display: flex;
@@ -3253,6 +3285,56 @@
   white-space: nowrap;
   cursor: pointer;
 }
+/* supply-phase segmented filter (header) */
+.ds-ub-powerseg {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  white-space: nowrap;
+}
+.ds-ub-seglabel {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #767676;
+  margin-right: 8px;
+}
+.ds-ub-powerseg button {
+  appearance: none;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: #565656;
+  background: #fff;
+  border: 1px solid #e0e0de;
+  border-left-width: 0;
+  padding: 5px 11px;
+  cursor: pointer;
+}
+.ds-ub-powerseg button:first-of-type {
+  border-left-width: 1px;
+  border-radius: 8px 0 0 8px;
+}
+.ds-ub-powerseg button:last-of-type { border-radius: 0 8px 8px 0; }
+.ds-ub-powerseg button.on {
+  background: var(--teal-d, #0f766e);
+  border-color: var(--teal-d, #0f766e);
+  color: #fff;
+}
+/* phase pill — 1φ neutral, 3φ amber (never mistake a three-phase unit) */
+.ds-ub-phase {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  border-radius: 999px;
+  padding: 3px 7px;
+  background: #eef2f7;
+  color: #3b4a5a;
+  vertical-align: 1px;
+}
+.ds-ub-phase.p3 { background: #fff1e0; color: #b26a00; }
 .ds-ub-close {
   border: none;
   background: #f2f2f0;
@@ -3361,9 +3443,16 @@
   color: #444;
   white-space: nowrap;
 }
+.ds-ub-table tbody tr { cursor: pointer; }
 .ds-ub-table tbody tr:hover { background: #fafaf9; }
 .ds-ub-table tr.rec { background: #f4fbf9; }
 .ds-ub-table tr.rec:hover { background: #ecf7f4; }
+/* the highlighted row feeding the detail panel — stronger than .rec */
+.ds-ub-table tr.sel,
+.ds-ub-table tr.sel:hover {
+  background: #e7f4f1;
+  box-shadow: inset 2px 0 0 var(--teal-d, #0f766e);
+}
 /* series subheader — a quiet band, not a selectable row */
 .ds-ub-table tr.ds-ub-group td,
 .ds-ub-table tr.ds-ub-group:hover td {
@@ -3442,6 +3531,16 @@
 .ds-ub-colsitem:hover { background: #f6f6f5; }
 .ds-ub-colsname { flex: 1; }
 .ds-ub-colsunit { font-size: 11px; color: #9a9a9a; }
+.ds-ub-colsgroup { padding-top: 4px; }
+.ds-ub-colsgroup + .ds-ub-colsgroup { border-top: 1px solid #f0f0ee; margin-top: 4px; }
+.ds-ub-colsghead {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--teal-d, #0f766e);
+  padding: 4px 8px 2px;
+}
 
 /* compare column + footer bar */
 .ds-ub-table th.ds-ub-cmpcol { width: 34px; }
@@ -3516,11 +3615,12 @@
 }
 .ds-ub-cmpgo:disabled { background: #cfcfcc; cursor: not-allowed; }
 
-/* comparison overlay */
+/* comparison overlay — a body-portal SIBLING of .ds-ub-overlay (z 1000), so
+   it must sit above it */
 .ds-cmp-overlay {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  z-index: 1001;
   display: grid;
   place-items: center;
   background: rgba(20, 20, 19, 0.5);
@@ -3530,7 +3630,7 @@
   display: flex;
   flex-direction: column;
   max-height: 88vh;
-  max-width: min(760px, 100%);
+  max-width: min(980px, calc(100vw - 48px));
   background: #fff;
   border-radius: 16px;
   overflow: hidden;
@@ -3578,6 +3678,18 @@
   left: 0;
 }
 .ds-cmp-unit { color: #9a9a9a; font-weight: 400; }
+/* section band: Indoor unit / Outdoor unit / Pairing */
+.ds-cmp-table tr.ds-cmp-group td {
+  background: #f5f5f4;
+  text-align: left;
+  padding: 6px 14px;
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--teal-d, #0f766e);
+}
+.ds-cmp-odumodel { font-weight: 700; color: #1a1a1a; }
 .ds-cmp-table td.best {
   background: #ecf7f4;
   color: var(--teal-d, #0f766e);
@@ -3595,13 +3707,12 @@
   letter-spacing: 0.04em;
 }
 .ds-ub-odu { font-size: 12.5px; }
-.ds-ub-table select {
-  font: inherit;
-  font-size: 12px;
-  padding: 4px 6px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  max-width: 250px;
+.ds-ub-oducell .ds-ub-phase { margin-left: 7px; }
+.ds-ub-morepairs {
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #8a8a8a;
+  margin-left: 6px;
 }
 .ds-ub-place {
   border: 1px solid var(--teal-d, #0f766e);
@@ -3616,6 +3727,124 @@
 }
 .ds-ub-place:hover { background: var(--teal-d, #0f766e); color: #fff; }
 .ds-ub-none { text-align: center; color: #767676; padding: 28px !important; }
+
+/* ── detail panel: the highlighted option's spec sheet ── */
+.ds-ub-dwrap {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.ds-ub-dscroll {
+  overflow-y: auto;
+  flex: 1;
+  padding: 16px 16px 10px;
+}
+.ds-ub-dempty {
+  display: grid;
+  place-items: center;
+  flex: 1;
+  padding: 24px;
+  font-size: 12.5px;
+  color: #8a8a8a;
+  text-align: center;
+}
+.ds-ub-dhead {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-bottom: 12px;
+}
+.ds-ub-dhead > b { font-size: 14.5px; font-weight: 800; color: #1a1a1a; }
+.ds-ub-dhead em {
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--teal-d, #0f766e);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.ds-ub-dseries { font-size: 11.5px; font-weight: 600; color: #8a8a8a; }
+.ds-ub-dsec { padding: 10px 0 4px; border-top: 1px solid #ececec; }
+.ds-ub-dsech {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--teal-d, #0f766e);
+}
+.ds-ub-drow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 3.5px 0;
+}
+.ds-ub-dlabel { font-size: 12px; color: #767676; }
+.ds-ub-dval {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #1a1a1a;
+  text-align: right;
+}
+/* outdoor pairing picker (radio list) */
+.ds-ub-odupick {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.ds-ub-oduopt {
+  appearance: none;
+  font: inherit;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: #fff;
+  border: 1px solid #e0e0de;
+  border-radius: 10px;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+.ds-ub-oduopt:hover { border-color: #cfcfcc; }
+.ds-ub-oduopt.on {
+  border-color: var(--teal-d, #0f766e);
+  background: #f4fbf9;
+  box-shadow: inset 0 0 0 1px var(--teal-d, #0f766e);
+}
+.ds-ub-oduname {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  color: #1a1a1a;
+}
+.ds-ub-odumeta { font-size: 11.5px; color: #767676; }
+/* panel footer — the primary Add */
+.ds-ub-addbar {
+  padding: 12px 16px;
+  border-top: 1px solid #ececec;
+  background: #fff;
+}
+.ds-ub-addbtn {
+  width: 100%;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  color: #fff;
+  background: var(--teal-d, #0f766e);
+  border: none;
+  border-radius: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+.ds-ub-addbtn:hover { background: #0d635c; }
 
 /* panel: choose-unit button */
 .dstudio .ds-choose { justify-content: center; }

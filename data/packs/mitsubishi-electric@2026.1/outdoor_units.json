@@ -224,6 +224,7 @@
     "capacity_cool_kw": 5.0,
     "capacity_heat_kw": 6.0,
     "phase": "1",
+    "power_supply": "230 V, Single-phase, 50/60 Hz",
     "conn_liquid_mm": 6.35,
     "conn_gas_mm": 12.7,
     "refrigerant": "R32",
@@ -231,9 +232,11 @@
     "depth_mm": 285,
     "height_mm": 714,
     "weight_kg": 41,
+    "sound_low_dba": 48,
+    "sound_high_dba": 49,
     "provenance": {
       "kind": "extracted",
-      "source": "M-P Series (Mr Slim) Data Book",
+      "source": "M-P Series (Mr Slim) Data Book; sound/power: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
       "edition": "M-P0922 (2024)",
       "page": "A-84"
     }
@@ -246,6 +249,7 @@
     "capacity_cool_kw": 6.0,
     "capacity_heat_kw": 7.0,
     "phase": "1",
+    "power_supply": "230 V, Single-phase, 50/60 Hz",
     "conn_liquid_mm": 6.35,
     "conn_gas_mm": 15.88,
     "refrigerant": "R32",
@@ -253,9 +257,11 @@
     "depth_mm": 330,
     "height_mm": 880,
     "weight_kg": 54,
+    "sound_low_dba": 49,
+    "sound_high_dba": 51,
     "provenance": {
       "kind": "extracted",
-      "source": "M-P Series (Mr Slim) Data Book",
+      "source": "M-P Series (Mr Slim) Data Book; sound/power: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
       "edition": "M-P0922 (2024)",
       "page": "A-84"
     }
@@ -268,6 +274,7 @@
     "capacity_cool_kw": 7.1,
     "capacity_heat_kw": 8.0,
     "phase": "1",
+    "power_supply": "230 V, Single-phase, 50/60 Hz",
     "conn_liquid_mm": 9.52,
     "conn_gas_mm": 15.88,
     "refrigerant": "R32",
@@ -275,9 +282,11 @@
     "depth_mm": 330,
     "height_mm": 880,
     "weight_kg": 55,
+    "sound_low_dba": 49,
+    "sound_high_dba": 51,
     "provenance": {
       "kind": "extracted",
-      "source": "M-P Series (Mr Slim) Data Book",
+      "source": "M-P Series (Mr Slim) Data Book; sound/power: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
       "edition": "M-P0922 (2024)",
       "page": "A-4"
     }
@@ -290,6 +299,7 @@
     "capacity_cool_kw": 10.0,
     "capacity_heat_kw": 11.2,
     "phase": "1",
+    "power_supply": "230 V, Single-phase, 50 Hz",
     "conn_liquid_mm": 9.52,
     "conn_gas_mm": 15.88,
     "refrigerant": "R32",
@@ -299,9 +309,11 @@
     "depth_mm": 330,
     "height_mm": 981,
     "weight_kg": 76,
+    "sound_low_dba": 52,
+    "sound_high_dba": 54,
     "provenance": {
       "kind": "extracted",
-      "source": "M-P Series (Mr Slim) Data Book",
+      "source": "M-P Series (Mr Slim) Data Book; sound/power: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
       "edition": "M-P0922 (2024)",
       "page": "A-5, A-227"
     }
@@ -314,6 +326,7 @@
     "capacity_cool_kw": 12.0,
     "capacity_heat_kw": 14.0,
     "phase": "1",
+    "power_supply": "230 V, Single-phase, 50 Hz",
     "conn_liquid_mm": 9.52,
     "conn_gas_mm": 15.88,
     "refrigerant": "R32",
@@ -323,9 +336,11 @@
     "depth_mm": 330,
     "height_mm": 981,
     "weight_kg": 84,
+    "sound_low_dba": 54,
+    "sound_high_dba": 56,
     "provenance": {
       "kind": "extracted",
-      "source": "M-P Series (Mr Slim) Data Book",
+      "source": "M-P Series (Mr Slim) Data Book; sound/power: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
       "edition": "M-P0922 (2024)",
       "page": "A-5, A-227"
     }
@@ -338,6 +353,7 @@
     "capacity_cool_kw": 14.0,
     "capacity_heat_kw": 16.0,
     "phase": "1",
+    "power_supply": "230 V, Single-phase, 50 Hz",
     "conn_liquid_mm": 9.52,
     "conn_gas_mm": 15.88,
     "refrigerant": "R32",
@@ -347,9 +363,11 @@
     "depth_mm": 330,
     "height_mm": 1338,
     "weight_kg": 99,
+    "sound_low_dba": 53,
+    "sound_high_dba": 54,
     "provenance": {
       "kind": "extracted",
-      "source": "M-P Series (Mr Slim) Data Book",
+      "source": "M-P Series (Mr Slim) Data Book; sound/power: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
       "edition": "M-P0922 (2024)",
       "page": "A-85, A-227"
     }
@@ -362,6 +380,7 @@
     "capacity_cool_kw": 7.1,
     "capacity_heat_kw": 8.0,
     "phase": "1",
+    "power_supply": "230 V, Single-phase, 50 Hz",
     "conn_liquid_mm": 9.52,
     "conn_gas_mm": 15.88,
     "refrigerant": "R32",
@@ -371,9 +390,11 @@
     "depth_mm": 330,
     "height_mm": 943,
     "weight_kg": 70,
+    "sound_low_dba": 47,
+    "sound_high_dba": 51,
     "provenance": {
       "kind": "extracted",
-      "source": "M-P Series (Mr Slim) Data Book",
+      "source": "M-P Series (Mr Slim) Data Book; sound/power: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
       "edition": "M-P0922 (2024)",
       "page": "A-6, A-227"
     }
@@ -386,6 +407,7 @@
     "capacity_cool_kw": 10.0,
     "capacity_heat_kw": 11.2,
     "phase": "1",
+    "power_supply": "230 V, Single-phase, 50 Hz",
     "conn_liquid_mm": 9.52,
     "conn_gas_mm": 15.88,
     "refrigerant": "R32",
@@ -395,9 +417,11 @@
     "depth_mm": 330,
     "height_mm": 1338,
     "weight_kg": 114,
+    "sound_low_dba": 49,
+    "sound_high_dba": 51,
     "provenance": {
       "kind": "extracted",
-      "source": "M-P Series (Mr Slim) Data Book",
+      "source": "M-P Series (Mr Slim) Data Book; sound/power: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
       "edition": "M-P0922 (2024)",
       "page": "A-6, A-227"
     }
@@ -410,6 +434,7 @@
     "capacity_cool_kw": 12.5,
     "capacity_heat_kw": 14.0,
     "phase": "1",
+    "power_supply": "230 V, Single-phase, 50 Hz",
     "conn_liquid_mm": 9.52,
     "conn_gas_mm": 15.88,
     "refrigerant": "R32",
@@ -419,9 +444,11 @@
     "depth_mm": 330,
     "height_mm": 1338,
     "weight_kg": 114,
+    "sound_low_dba": 50,
+    "sound_high_dba": 52,
     "provenance": {
       "kind": "extracted",
-      "source": "M-P Series (Mr Slim) Data Book",
+      "source": "M-P Series (Mr Slim) Data Book; sound/power: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
       "edition": "M-P0922 (2024)",
       "page": "A-6, A-227"
     }
@@ -434,6 +461,7 @@
     "capacity_cool_kw": 14.0,
     "capacity_heat_kw": 16.0,
     "phase": "1",
+    "power_supply": "230 V, Single-phase, 50 Hz",
     "conn_liquid_mm": 9.52,
     "conn_gas_mm": 15.88,
     "refrigerant": "R32",
@@ -443,9 +471,11 @@
     "depth_mm": 330,
     "height_mm": 1338,
     "weight_kg": 114,
+    "sound_low_dba": 50,
+    "sound_high_dba": 52,
     "provenance": {
       "kind": "extracted",
-      "source": "M-P Series (Mr Slim) Data Book",
+      "source": "M-P Series (Mr Slim) Data Book; sound/power: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
       "edition": "M-P0922 (2024)",
       "page": "A-86, A-227"
     }
@@ -458,6 +488,7 @@
     "capacity_cool_kw": 10.0,
     "capacity_heat_kw": 11.2,
     "phase": "3",
+    "power_supply": "400 V, Three-phase, 50 Hz",
     "conn_liquid_mm": 9.52,
     "conn_gas_mm": 15.88,
     "refrigerant": "R32",
@@ -467,9 +498,11 @@
     "depth_mm": 330,
     "height_mm": 1338,
     "weight_kg": 116,
+    "sound_low_dba": 49,
+    "sound_high_dba": 51,
     "provenance": {
       "kind": "extracted",
-      "source": "M-P Series (Mr Slim) Data Book",
+      "source": "M-P Series (Mr Slim) Data Book; sound/power: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
       "edition": "M-P0922 (2024)",
       "page": "A-7, A-227"
     }
@@ -482,6 +515,7 @@
     "capacity_cool_kw": 12.5,
     "capacity_heat_kw": 14.0,
     "phase": "3",
+    "power_supply": "400 V, Three-phase, 50 Hz",
     "conn_liquid_mm": 9.52,
     "conn_gas_mm": 15.88,
     "refrigerant": "R32",
@@ -491,9 +525,11 @@
     "depth_mm": 330,
     "height_mm": 1338,
     "weight_kg": 116,
+    "sound_low_dba": 50,
+    "sound_high_dba": 52,
     "provenance": {
       "kind": "extracted",
-      "source": "M-P Series (Mr Slim) Data Book",
+      "source": "M-P Series (Mr Slim) Data Book; sound/power: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
       "edition": "M-P0922 (2024)",
       "page": "A-7, A-227"
     }
@@ -506,6 +542,7 @@
     "capacity_cool_kw": 14.0,
     "capacity_heat_kw": 16.0,
     "phase": "3",
+    "power_supply": "400 V, Three-phase, 50 Hz",
     "conn_liquid_mm": 9.52,
     "conn_gas_mm": 15.88,
     "refrigerant": "R32",
@@ -515,9 +552,11 @@
     "depth_mm": 330,
     "height_mm": 1338,
     "weight_kg": 116,
+    "sound_low_dba": 50,
+    "sound_high_dba": 52,
     "provenance": {
       "kind": "extracted",
-      "source": "M-P Series (Mr Slim) Data Book",
+      "source": "M-P Series (Mr Slim) Data Book; sound/power: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
       "edition": "M-P0922 (2024)",
       "page": "A-87, A-227"
     }

@@ -5,7 +5,7 @@
    top of proposePairs (split.ts); one row per INDOOR model with its qualifying
    outdoor pairings as a sub-choice. */
 
-import type { DataPack, FormFactor, IndoorUnit } from "./packs/schema";
+import type { DataPack, FormFactor, IndoorUnit, Phase } from "./packs/schema";
 import type { SizingBasis } from "./loads";
 import { proposePairs, type PairProposal } from "./split";
 
@@ -50,6 +50,9 @@ export interface SelectCriteria {
   basis: SizingBasis;
   /** null = all form factors */
   formFactor: FormFactor | null;
+  /** outdoor-unit supply phase; null/undefined = any. Filters PAIRINGS — an
+      indoor model whose every pairing is filtered out drops from the list. */
+  phase?: Phase | null;
   filters?: SelectFilters;
   sort?: SelectSort;
   includeOversized?: boolean;
@@ -66,6 +69,9 @@ function passesGate(
   if (p.capacityKw < loadKw) return false;
   return includeOversized || p.capacityKw <= loadKw * OVERSIZE_CAP;
 }
+
+const passesPhase = (p: PairProposal, phase: Phase | null | undefined): boolean =>
+  phase == null || p.odu.phase === phase;
 
 /** Group gated pairs by indoor model, preserving pack (book) order. */
 function groupByIdu(pairs: PairProposal[]): UnitOption[] {
@@ -91,14 +97,19 @@ export function unitOptions(pack: DataPack, criteria: SelectCriteria): UnitOptio
     loadKw,
     basis,
     formFactor,
+    phase = null,
     filters = {},
     sort = "capacity",
     includeOversized = false,
   } = criteria;
 
-  // full catalogue (capacity-ascending), then gate each pairing individually
+  // full catalogue (capacity-ascending), then gate each pairing individually.
+  // Phase filters BEFORE grouping, so defaultPair / recommended / drop-outs
+  // all reflect the surviving pairings.
   const all = proposePairs(pack, null, basis, formFactor ? { formFactor } : {});
-  const gated = all.filter((p) => passesGate(p, loadKw, includeOversized));
+  const gated = all.filter(
+    (p) => passesGate(p, loadKw, includeOversized) && passesPhase(p, phase)
+  );
 
   let options = groupByIdu(gated);
 
@@ -147,15 +158,19 @@ export interface FormFactorCount {
 }
 
 /** Qualifying-option counts per form factor for the tab row. Reflects the
-    capacity gate only — fit filters narrow within a tab, not across tabs. */
+    capacity gate and phase filter — fit filters narrow within a tab, not
+    across tabs. */
 export function formFactorSummary(
   pack: DataPack,
   loadKw: number | null,
   basis: SizingBasis,
-  includeOversized = false
+  includeOversized = false,
+  phase: Phase | null = null
 ): FormFactorCount[] {
   const all = proposePairs(pack, null, basis);
-  const gated = all.filter((p) => passesGate(p, loadKw, includeOversized));
+  const gated = all.filter(
+    (p) => passesGate(p, loadKw, includeOversized) && passesPhase(p, phase)
+  );
   const counts = new Map<FormFactor, Set<string>>();
   for (const p of gated) {
     const set = counts.get(p.idu.form_factor) ?? new Set<string>();

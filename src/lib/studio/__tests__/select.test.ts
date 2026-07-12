@@ -181,3 +181,90 @@ describe("IDU-first grouping with ODU sub-choice", () => {
     expect(m125!.pairs.some((p) => p.odu.model === "PUZ-M125VKA-A")).toBe(false);
   });
 });
+
+describe("phase filter", () => {
+  const ducted = (phase: "1" | "3" | null) =>
+    unitOptions(pack, { loadKw: null, basis: "worst-of-both", formFactor: "ducted", phase });
+
+  it("the same ducted IDU keeps only pairings of the chosen phase (PEAD-M100)", () => {
+    const all = ducted(null).find((o) => o.idu.model === "PEAD-M100JAA(D)")!;
+    expect(all.pairs.map((p) => p.odu.model)).toEqual([
+      "PUZ-M100VKA-A",
+      "PUZ-ZM100VKA2-A",
+      "PUZ-ZM100YKA3-A",
+    ]);
+
+    const single = ducted("1").find((o) => o.idu.model === "PEAD-M100JAA(D)")!;
+    expect(single.pairs.map((p) => p.odu.model)).toEqual([
+      "PUZ-M100VKA-A",
+      "PUZ-ZM100VKA2-A",
+    ]);
+    for (const p of single.pairs) expect(p.odu.phase).toBe("1");
+
+    const three = ducted("3").find((o) => o.idu.model === "PEAD-M100JAA(D)")!;
+    expect(three.pairs.map((p) => p.odu.model)).toEqual(["PUZ-ZM100YKA3-A"]);
+    expect(three.defaultPair.odu.model).toBe("PUZ-ZM100YKA3-A");
+  });
+
+  it("an IDU whose pairings are all single-phase disappears under a 3φ filter", () => {
+    // PEAD-M50JAA(D) pairs only with the 1φ SUZ-M50VAD-A
+    expect(ducted(null).some((o) => o.idu.model === "PEAD-M50JAA(D)")).toBe(true);
+    expect(ducted("3").some((o) => o.idu.model === "PEAD-M50JAA(D)")).toBe(false);
+    for (const o of ducted("3"))
+      for (const p of o.pairs) expect(p.odu.phase).toBe("3");
+  });
+
+  it("tab counts agree with the filtered option list (count-consistency lock)", () => {
+    for (const phase of ["1", "3"] as const) {
+      const sum = formFactorSummary(pack, null, "worst-of-both", false, phase);
+      const dCount = sum.find((s) => s.formFactor === "ducted")?.count ?? 0;
+      expect(dCount).toBe(ducted(phase).length);
+    }
+  });
+
+  it("exactly one recommended option under load + phase, and it satisfies both", () => {
+    const opts = unitOptions(pack, {
+      loadKw: 9.5,
+      basis: "cooling",
+      formFactor: "ducted",
+      phase: "3",
+    });
+    const rec = opts.filter((o) => o.recommended);
+    expect(rec).toHaveLength(1);
+    expect(rec[0].defaultPair.odu.phase).toBe("3");
+    expect(rec[0].defaultPair.capacityKw).toBeGreaterThanOrEqual(9.5);
+  });
+});
+
+describe("representative sound/electrical data (PEAD range — drift lock)", () => {
+  const PEADS = [
+    "PEAD-M50JAA(D)",
+    "PEAD-M60JAA(D)",
+    "PEAD-M71JAA(D)",
+    "PEAD-M100JAA(D)",
+    "PEAD-M125JAA(D)",
+    "PEAD-M140JAA(D)",
+  ];
+
+  it("every PEAD indoor unit carries a full sound range", () => {
+    for (const model of PEADS) {
+      const u = pack.indoor_units.find((x) => x.model === model)!;
+      expect(u).toBeDefined();
+      expect(u.sound_low_dba).toBeGreaterThan(0);
+      expect(u.sound_high_dba).toBeGreaterThanOrEqual(u.sound_low_dba!);
+    }
+  });
+
+  it("every PEAD outdoor partner carries sound + power supply, wording matches its phase", () => {
+    const partnerModels = new Set(
+      pack.pair_tables.filter((p) => PEADS.includes(p.idu_model)).map((p) => p.odu_model)
+    );
+    expect(partnerModels.size).toBe(13);
+    for (const model of partnerModels) {
+      const o = pack.outdoor_units.find((x) => x.model === model)!;
+      expect(o.sound_high_dba).toBeGreaterThan(0);
+      expect(o.power_supply).toBeTruthy();
+      expect(o.power_supply).toContain(o.phase === "3" ? "Three-phase" : "Single-phase");
+    }
+  });
+});

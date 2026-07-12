@@ -189,6 +189,102 @@ describe("validator catches broken packs", () => {
     expect(res.errors.some((e) => e.message.includes("module not an outdoor unit"))).toBe(true);
   });
 
+  it("sound sanity is a WARNING, never an error (Tier-3 field)", () => {
+    const p = base();
+    p.indoor_units.push({
+      model: "SND-1",
+      brand: "acme",
+      series: "X",
+      form_factor: "wall",
+      capacity_cool_kw: 2.5,
+      capacity_heat_kw: 3.2,
+      conn_liquid_mm: 6.35,
+      conn_gas_mm: 12.7,
+      default_plane: "room",
+      allowed_planes: ["room"],
+      system_roles: ["split-pair"],
+      refrigerant: "R32",
+      width_mm: 800,
+      depth_mm: 600,
+      height_mm: 300,
+      sound_low_dba: 45,
+      sound_high_dba: 30, // inverted range
+      provenance: prov,
+    });
+    p.outdoor_units.push({
+      model: "SND-ODU",
+      brand: "acme",
+      series: "S",
+      system_type: "split",
+      capacity_cool_kw: 5,
+      capacity_heat_kw: 6,
+      phase: "1",
+      conn_liquid_mm: 6.35,
+      conn_gas_mm: 12.7,
+      refrigerant: "R32",
+      sound_high_dba: 200, // implausible
+      provenance: prov,
+    });
+    const res = validatePack(p);
+    expect(res.ok).toBe(true); // warnings don't block a pack
+    expect(
+      res.warnings.some((w) => w.section === "indoor_units" && w.message.includes("sound_low_dba 45 > sound_high_dba 30"))
+    ).toBe(true);
+    expect(
+      res.warnings.some((w) => w.section === "outdoor_units" && w.message.includes("implausible: 200"))
+    ).toBe(true);
+  });
+
+  it("warns on a low figure without a high (single figures go in high)", () => {
+    const p = base();
+    p.outdoor_units.push({
+      model: "SND-LOW",
+      brand: "acme",
+      series: "S",
+      system_type: "split",
+      capacity_cool_kw: 5,
+      capacity_heat_kw: 6,
+      phase: "1",
+      conn_liquid_mm: 6.35,
+      conn_gas_mm: 12.7,
+      refrigerant: "R32",
+      sound_low_dba: 44,
+      provenance: prov,
+    });
+    const res = validatePack(p);
+    expect(res.ok).toBe(true);
+    expect(res.warnings.some((w) => w.message.includes("without sound_high_dba"))).toBe(true);
+  });
+
+  it("flags an invalid indoor phase enum (mirrors the outdoor check)", () => {
+    const p = base();
+    p.indoor_units.push({
+      model: "PH-1",
+      brand: "acme",
+      series: "X",
+      form_factor: "wall",
+      capacity_cool_kw: 2.5,
+      capacity_heat_kw: 3.2,
+      conn_liquid_mm: 6.35,
+      conn_gas_mm: 12.7,
+      default_plane: "room",
+      allowed_planes: ["room"],
+      system_roles: ["split-pair"],
+      refrigerant: "R32",
+      // @ts-expect-error deliberately invalid
+      phase: "2",
+      width_mm: 800,
+      depth_mm: 600,
+      height_mm: 300,
+      provenance: prov,
+    });
+    const res = validatePack(p);
+    expect(res.ok).toBe(false);
+    expect(
+      res.errors.some((e) => e.section === "indoor_units" && e.message.includes("phase must be '1' or '3'"))
+    ).toBe(true);
+  });
+
   it("flags a vrf table whose joint part_ref is missing from parts[]", () => {
     const p = base();
     p.vrf_pipe_tables.push({

@@ -138,4 +138,35 @@ describe("indoor engine-ready", () => {
     expect(vrf!.ready).toBe(1);
     expect(vrf!.gaps).toContain("capacity_index");
   });
+
+  it("Tier-3 pin: sound / weight / power NEVER gate readiness", () => {
+    // an otherwise-ready IDU with every Tier-3 field absent stays fully ready
+    const bare = {
+      ...idu,
+      sound_low_dba: undefined,
+      sound_high_dba: undefined,
+      weight_kg: undefined,
+      power_supply: undefined,
+    };
+    const r = indoorReadiness(packWith([bare]), bare);
+    expect(r.roles.placeable).toBe(true);
+    expect(r.roles.ducted).toBe(true);
+    for (const gaps of Object.values(r.missing))
+      for (const field of gaps)
+        expect(field).not.toMatch(/sound|weight|power/);
+
+    // same for the outdoor side
+    const bareOdu = {
+      ...vrfOdu,
+      sound_low_dba: undefined,
+      sound_high_dba: undefined,
+      weight_kg: undefined,
+      power_supply: undefined,
+    };
+    const ro = outdoorReadiness(withPipeTable(packWith([], [bareOdu])), bareOdu);
+    expect(ro.roles.placeable).toBe(true);
+    for (const gaps of Object.values(ro.missing))
+      for (const field of gaps)
+        expect(field).not.toMatch(/sound|weight|power/);
+  });
 });

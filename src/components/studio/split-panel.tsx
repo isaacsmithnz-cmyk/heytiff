@@ -740,7 +740,6 @@ export function RoomUnitsSection({
           pack={pack}
           loadKw={loadKw}
           basis={basis}
-          nextRole="idu"
           onChoose={choose}
           onClose={() => setBrowsing(false)}
         />

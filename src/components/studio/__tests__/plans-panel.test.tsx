@@ -126,11 +126,43 @@ describe("Plans stage", () => {
     expect(screen.getByText(/Calibrate the scale to begin/)).toBeInTheDocument();
   });
 
+  it("opening an uncalibrated plan floor pops the Calibrate step, which arms the tool", async () => {
+    const user = await openSeeded(new FakePlanImages());
+    await user.click(screen.getAllByRole("button", { name: "Design" })[0]);
+    await screen.findByTestId("studio-canvas");
+    // the guided-step popup, not a silent tool arm
+    expect(await screen.findByText("Calibrate the plan")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Calibrate scale →" }));
+    expect(screen.queryByText("Calibrate the plan")).not.toBeInTheDocument();
+    // the calibrate tool is now armed — the top-toolbar CTA pill shows it
+    expect(
+      screen.getByRole("button", { name: "Calibrate the scale to begin" }).className
+    ).toMatch(/\barmed\b/);
+  });
+
+  it("confirming the scale chains into the Set-north step popup", async () => {
+    const user = await openSeeded(new FakePlanImages());
+    await user.click(screen.getAllByRole("button", { name: "Design" })[0]);
+    const canvas = await screen.findByTestId("studio-canvas");
+    const svg = canvas.querySelector("svg")!;
+    await user.click(await screen.findByRole("button", { name: "Calibrate scale →" }));
+    // two calibration clicks, then a real distance → Set scale
+    fireEvent.pointerDown(svg, ptc(200, 150));
+    fireEvent.pointerUp(svg, ptc(200, 150));
+    fireEvent.pointerDown(svg, ptc(400, 150));
+    fireEvent.pointerUp(svg, ptc(400, 150));
+    await user.type(screen.getByPlaceholderText("e.g. 3.6"), "5");
+    await user.click(screen.getByText("Set scale"));
+    // the north step popup appears
+    expect(await screen.findByText("Set north direction")).toBeInTheDocument();
+  });
+
   it("B&W toggle applies a grayscale filter to the plan image", async () => {
     const user = await openSeeded(new FakePlanImages());
     await user.click(screen.getAllByRole("button", { name: "Design" })[0]);
     const canvas = await screen.findByTestId("studio-canvas");
     await waitFor(() => expect(canvas.querySelector("image.ds-plan")).not.toBeNull());
+    await user.click(await screen.findByRole("button", { name: "Skip for now" }));
 
     await user.click(screen.getByRole("button", { name: "B&W" }));
     const img = canvas.querySelector("image.ds-plan")!;
@@ -142,6 +174,7 @@ describe("Plans stage", () => {
     await user.click(screen.getAllByRole("button", { name: "Design" })[0]);
     const canvas = await screen.findByTestId("studio-canvas");
     await waitFor(() => expect(canvas.querySelector("image.ds-plan")).not.toBeNull());
+    await user.click(await screen.findByRole("button", { name: "Skip for now" }));
     const svg = canvas.querySelector("svg")!;
 
     await user.click(screen.getByRole("button", { name: "Crop plan" }));

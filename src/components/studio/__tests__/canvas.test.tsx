@@ -62,7 +62,8 @@ describe("Design canvas", () => {
     expect(screen.getByText("0.8 m²")).toBeInTheDocument();
 
     // calibrate: 168 screen px = 300 units declared as 5 m → 16.67 mm/unit
-    await user.click(screen.getByRole("button", { name: "Calibrate scale" }));
+    // (already-calibrated floors show a value pill; click it to recalibrate)
+    await user.click(screen.getByTitle("Recalibrate the scale"));
     fireEvent.pointerDown(svg, pt(400, 300));
     fireEvent.pointerUp(svg, pt(400, 300));
     fireEvent.pointerDown(svg, pt(568, 300));
@@ -77,6 +78,8 @@ describe("Design canvas", () => {
     await waitFor(() =>
       expect(screen.getByText("2.1 m²")).toBeInTheDocument()
     );
+    // the calibrate pill reflects the new scale (5 m / 300 units = 16.7 mm/px)
+    expect(screen.getByText("16.7 mm/px")).toBeInTheDocument();
 
     // undo twice: calibration, then the room itself
     await user.click(screen.getByRole("button", { name: "Undo" }));
@@ -223,17 +226,19 @@ describe("Design canvas", () => {
 
   it("set-north places an arrow and dragging its tip rotates the bearing", async () => {
     const { user, svg } = await openBlankDesignOnCanvas();
-    const toolbar = screen.getByRole("toolbar", { name: "Canvas tools" });
-    await user.click(within(toolbar).getByRole("button", { name: "Set north" }));
+    // set-north is a top-toolbar pill now, not a dock tool
+    await user.click(screen.getByRole("button", { name: "Set north" }));
     // drop the arrow at screen (450,300) → world centre (~89,0)
     fireEvent.pointerDown(svg, pt(450, 300));
     fireEvent.pointerUp(svg, pt(450, 300));
     expect(svg.querySelector(".ds-north")).not.toBeNull();
     expect(screen.getByText(/North 0°/)).toBeInTheDocument();
 
-    // in select mode, drag the tip (450,274) a quarter-turn to (476,300)
+    // in select mode, grab the rotate knob (world-sized: grid 100 → northKnob
+    // ≈101.5 world; centre screen (450,300) → knob ≈ (450,243)) and drag a
+    // quarter-turn: final cursor (476,300) is due-east of centre → 90°
     await user.click(screen.getByRole("button", { name: "Select" }));
-    fireEvent.pointerDown(svg, pt(450, 274));
+    fireEvent.pointerDown(svg, pt(450, 243));
     fireEvent.pointerMove(svg, pt(476, 300));
     fireEvent.pointerUp(svg, pt(476, 300));
     expect(screen.getByText(/North 90°/)).toBeInTheDocument();

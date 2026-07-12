@@ -996,20 +996,45 @@
 
 /* north arrow */
 .dstudio .ds-north-ring {
-  fill: rgba(255, 255, 255, 0.72);
+  fill: rgba(255, 255, 255, 0.9);
   stroke: #64748b;
   stroke-width: 1.4;
   vector-effect: non-scaling-stroke;
 }
 .dstudio .ds-north-arrow { fill: #dc2626; }
+.dstudio .ds-north-south { fill: #94a3b8; }
 .dstudio .ds-north-hub { fill: #334155; }
-.dstudio .ds-north-tip { fill: rgba(220, 38, 38, 0.001); cursor: grab; }
-.dstudio .ds-north.active .ds-north-ring { stroke: var(--teal-d); }
+.dstudio .ds-north-stem {
+  stroke: #94a3b8;
+  stroke-width: 1.2;
+  vector-effect: non-scaling-stroke;
+}
+/* the rotate knob (the N) — clearly a grab handle */
+.dstudio .ds-north-knob {
+  fill: #fff;
+  stroke: #dc2626;
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
+  cursor: grab;
+}
+.dstudio .ds-north-rot {
+  fill: none;
+  stroke: #dc2626;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.55;
+  marker-end: none;
+}
+.dstudio .ds-north.active .ds-north-ring,
+.dstudio .ds-north.active .ds-north-knob { stroke: var(--teal-d); }
+.dstudio .ds-north.active .ds-north-knob { fill: rgba(0, 163, 137, 0.14); }
 .dstudio .ds-north-n {
-  fill: #334155;
+  fill: #dc2626;
   font-family: var(--font);
   font-weight: 800;
   text-anchor: middle;
+  dominant-baseline: central;
 }
 .dstudio .ds-crop-preview {
   fill: rgba(20, 184, 166, 0.12);
@@ -1019,43 +1044,37 @@
   vector-effect: non-scaling-stroke;
 }
 
-/* north pill in the HUD */
-.dstudio .ds-north-pill {
+/* value pills in the top toolbar (calibrate scale + set north) — show the
+   current value once set, teal when set, filled teal while being edited */
+.dstudio .ds-val-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font: inherit;
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 600;
   color: #444;
   background: #fff;
   border: 1px solid #e0e0de;
   border-radius: 999px;
-  padding: 3px 10px;
+  padding: 5px 12px;
   cursor: pointer;
+  white-space: nowrap;
 }
-.dstudio .ds-north-pill:hover { border-color: #cfcfcc; }
-.dstudio .ds-north-pill.set { color: var(--teal-d); border-color: var(--teal-d); }
+.dstudio .ds-val-pill:hover { border-color: #cfcfcc; color: #1a1a1a; }
+.dstudio .ds-val-pill.set {
+  color: var(--teal-d);
+  border-color: var(--teal-d);
+  background: rgba(20, 184, 166, 0.08);
+}
+/* active = the tool is armed (editing) */
+.dstudio .ds-val-pill.on {
+  color: #fff;
+  background: var(--teal-d);
+  border-color: var(--teal-d);
+}
 
 /* set-north prompt (chained from calibration) */
-.dstudio .ds-north-prompt {
-  position: absolute;
-  left: 50%;
-  bottom: 74px;
-  transform: translateX(-50%);
-  z-index: 16;
-  width: min(340px, 90%);
-  background: #fff;
-  border: 1px solid #e5e5e2;
-  border-radius: 14px;
-  box-shadow: 0 16px 40px -12px rgba(10, 12, 20, 0.34);
-  padding: 13px 15px;
-}
-.dstudio .ds-north-prompt-t { font-size: 13px; font-weight: 800; color: var(--ink); }
-.dstudio .ds-north-prompt-h {
-  font-size: 12px;
-  color: var(--gray500);
-  margin: 5px 0 10px;
-  line-height: 1.4;
-}
-.dstudio .ds-north-prompt-actions { display: flex; justify-content: flex-end; }
 .dstudio .ds-ref-open {
   display: inline-flex;
   align-items: center;
@@ -1209,7 +1228,13 @@
 .dstudio .ds-cur-grabbing svg {
   cursor: grabbing;
 }
+/* set-north tool: a compass cursor (hotspot at centre) */
+.dstudio .ds-cur-north svg {
+  cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 26 26'><circle cx='13' cy='13' r='10' fill='white' stroke='%23334155' stroke-width='1.6'/><polygon points='13,4 10.2,13 15.8,13' fill='%23dc2626'/><polygon points='13,22 10.2,13 15.8,13' fill='%2394a3b8'/><circle cx='13' cy='13' r='1.6' fill='%23334155'/></svg>") 13 13, crosshair;
+}
 
+/* white paper backdrop under the dot grid */
+.dstudio .ds-paper { fill: #ffffff; }
 /* graph-paper dots (screen-space pattern) */
 .dstudio .ds-dot-major { fill: #64748b; opacity: 0.55; }
 .dstudio .ds-dot-sub { fill: #64748b; opacity: 0.22; }
@@ -1489,6 +1514,36 @@
   font-weight: 700;
   color: var(--gray500);
 }
+/* zoom cluster relocated into the top toolbar */
+.dstudio .ds-zoomctl.top {
+  position: static;
+  right: auto;
+  bottom: auto;
+}
+.dstudio .ds-zoomctl.top button { min-width: 26px; height: 26px; }
+.dstudio .ds-zoomctl.top span { min-width: 40px; }
+
+/* in-progress step guidance — top-centre pill */
+.dstudio .ds-tool-hint {
+  position: absolute;
+  left: 50%;
+  top: 14px;
+  transform: translateX(-50%);
+  z-index: 14;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1a1a1a;
+  background: #fff;
+  border: 1px solid #e5e5e2;
+  border-radius: 999px;
+  padding: 7px 14px;
+  box-shadow: 0 8px 22px -10px rgba(10, 12, 20, 0.4);
+  pointer-events: none;
+}
+.dstudio .ds-tool-hint svg { color: #00a389; }
 
 /* inspector rail */
 .dstudio .ds-inspector {
@@ -4475,6 +4530,110 @@
   padding: 28px;
   font-family: var(--font, "Plus Jakarta Sans", sans-serif);
 }
+
+/* guided-step popups (Calibrate the plan / Set north) — portalled to body */
+.ds-prompt-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(20, 22, 24, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+  font-family: var(--font, "Plus Jakarta Sans", sans-serif);
+}
+.ds-prompt {
+  width: min(400px, 100%);
+  background: #fff;
+  color: #1a1a1a;
+  border-radius: 18px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.3);
+  padding: 26px;
+}
+.ds-prompt-head {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-bottom: 12px;
+}
+.ds-prompt-ic {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: rgba(0, 163, 137, 0.12);
+  color: #00a389;
+  flex: none;
+}
+.ds-prompt-head h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #1a1a1a;
+}
+.ds-prompt-intro {
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 12px;
+}
+.ds-prompt-bullets {
+  margin: 0 0 20px;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.ds-prompt-bullets li {
+  position: relative;
+  padding-left: 24px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #555;
+}
+.ds-prompt-bullets li::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #00a389;
+}
+.ds-prompt-bullets strong { color: #1a1a1a; }
+.ds-prompt-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.ds-prompt-skip,
+.ds-prompt-go {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 10px;
+  padding: 9px 16px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.ds-prompt-skip {
+  color: #555;
+  background: #f1f2f4;
+}
+.ds-prompt-skip:hover { background: #e7e8ea; }
+.ds-prompt-go {
+  color: #fff;
+  background: #00a389;
+}
+.ds-prompt-go:hover { background: #00917a; }
 .ds-rm {
   width: min(520px, 100%);
   max-height: 92vh;

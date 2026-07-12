@@ -9,6 +9,7 @@ import {
 } from "react";
 import type { DesignDocument, DesignObject, Floor, Point } from "@/lib/studio/document";
 import { newId } from "@/lib/studio/document";
+import { Icon } from "@/components/shell/icon";
 import { orientationFromWalls } from "@/lib/studio/loads";
 import { roomAtPoint } from "@/lib/studio/coverage";
 import type { PlanImages } from "@/lib/studio/plans";
@@ -66,6 +67,13 @@ export const ALL_LAYERS_ON: LayerFlags = {
   pipes: true,
   labels: true,
 };
+
+/** Zoom controls exposed to the toolbar (rendered in the top strip). */
+export interface ZoomApi {
+  zoomIn: () => void;
+  zoomOut: () => void;
+  fit: () => void;
+}
 
 /** What the place tool drops on the next click (armed by the system panel). */
 export interface PlacingUnit {
@@ -184,9 +192,6 @@ type Drag =
   | { kind: "north-move"; startWorld: Point; orig: { x: number; y: number } }
   | { kind: "north-rotate"; center: { x: number; y: number } };
 
-/** North-arrow glyph radius in screen px (constant size, like the original). */
-const NORTH_R_PX = 26;
-
 /** Re-derive every non-locked room's orientation from the new north bearing
     (DUCTR autoDetectOrientations). Manual per-room overrides (orientationLocked)
     are preserved. Pure — returns a new objects array. */
@@ -218,7 +223,7 @@ export function StudioCanvas({
   onSelect,
   onMutate,
   onToolDone,
-  onRequestTool,
+  onCalibrated,
   planImages,
   activeSystemId = null,
   placing = null,
@@ -228,6 +233,8 @@ export function StudioCanvas({
   onRemarkConsumed,
   layers = ALL_LAYERS_ON,
   grayscale = false,
+  onZoomApi,
+  onZoomChange,
 }: {
   doc: DesignDocument;
   floor: Floor;
@@ -236,13 +243,17 @@ export function StudioCanvas({
   onSelect: (id: string | null) => void;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   onToolDone: () => void;
-  /** switch the active tool (used to chain calibrate → set-north) */
-  onRequestTool?: (t: CanvasTool) => void;
+  /** fired when a scale calibration is confirmed (parent shows the north step) */
+  onCalibrated?: () => void;
   planImages?: PlanImages;
   /** which render layers are visible (transient view state) */
   layers?: LayerFlags;
   /** desaturate + brighten the plan raster for overlay readability */
   grayscale?: boolean;
+  /** receive the zoom controls so the toolbar can render them */
+  onZoomApi?: (api: ZoomApi) => void;
+  /** current zoom percentage, for the toolbar readout */
+  onZoomChange?: (pct: number) => void;
   /** system that pipe/riser/place drawing tags objects with (Stage 4) */
   activeSystemId?: string | null;
   /** armed unit for the place tool */
@@ -275,8 +286,6 @@ export function StudioCanvas({
   } | null>(null);
   const [calib, setCalib] = useState<{ a?: Point; b?: Point }>({});
   const [calibMeters, setCalibMeters] = useState("");
-  /* after calibrating, chain into placing north (skippable) */
-  const [northPrompt, setNorthPrompt] = useState(false);
   const spaceDown = useRef(false);
 
   /* the canvas is scoped to the ACTIVE system — switching systems re-scopes
@@ -385,6 +394,10 @@ export function StudioCanvas({
   const hasPlans = floor.plans.length > 0;
   const grid = floor.scaleMmPerUnit ? 1000 / floor.scaleMmPerUnit : hasPlans ? 100 : 50;
   const snapStep = floor.scaleMmPerUnit || !hasPlans ? grid / 4 : 1;
+  /* north-arrow radius in WORLD units — fixed to the plan (scales with zoom)
+     so it holds the size it was placed at, per the original builder */
+  const northR = grid * 0.7;
+  const northKnob = northR * 1.45; // distance of the rotate knob from centre
 
   /* stored plan sheets, resolved to short-lived signed URLs (per ref), plus
      measured sizes for migrated sheets that predate stored dimensions. */
@@ -472,6 +485,41 @@ export function StudioCanvas({
   useEffect(() => {
     minZoomRef.current = minZoom;
   }, [minZoom]);
+
+  /* zoom controls exposed to the toolbar (they live in the top strip now).
+     Stable callbacks read the latest size/content via refs. */
+  const sizeRef = useRef(size);
+  useEffect(() => {
+    sizeRef.current = size;
+  }, [size]);
+  const contentPointsRef = useRef(contentPoints);
+  useEffect(() => {
+    contentPointsRef.current = contentPoints;
+  }, [contentPoints]);
+  const zoomInApi = useCallback(
+    () =>
+      setVp((v) =>
+        zoomAt(v, { x: sizeRef.current.w / 2, y: sizeRef.current.h / 2 }, 1.3, minZoomRef.current)
+      ),
+    []
+  );
+  const zoomOutApi = useCallback(
+    () =>
+      setVp((v) =>
+        zoomAt(v, { x: sizeRef.current.w / 2, y: sizeRef.current.h / 2 }, 1 / 1.3, minZoomRef.current)
+      ),
+    []
+  );
+  const fitApi = useCallback(() => {
+    const b = boundsOfPoints(contentPointsRef.current());
+    if (b) setVp(fitBounds(b, sizeRef.current.w, sizeRef.current.h, 60));
+  }, []);
+  useEffect(() => {
+    onZoomApi?.({ zoomIn: zoomInApi, zoomOut: zoomOutApi, fit: fitApi });
+  }, [onZoomApi, zoomInApi, zoomOutApi, fitApi]);
+  useEffect(() => {
+    onZoomChange?.(Math.round(vp.zoom * 100));
+  }, [vp.zoom, onZoomChange]);
 
   /** nearest connection anchor within snap range of a world point */
   const nearestAnchor = useCallback(
@@ -971,20 +1019,21 @@ export function StudioCanvas({
 
     switch (tool) {
       case "select": {
-        // north arrow: drag the tip to rotate, the body to move
+        // north arrow: drag the knob to rotate, the body to move (screen-space
+        // hit-test so the grab targets match the on-screen glyph)
         if (northArrow) {
           const c = worldToScreen(northArrow.pos, vp);
           const s = worldToScreen(w, vp);
           const rad = (northArrow.deg * Math.PI) / 180;
-          const tip = {
-            x: c.x + Math.sin(rad) * NORTH_R_PX,
-            y: c.y - Math.cos(rad) * NORTH_R_PX,
+          const knob = {
+            x: c.x + Math.sin(rad) * northKnob * vp.zoom,
+            y: c.y - Math.cos(rad) * northKnob * vp.zoom,
           };
-          if (dist(s, tip) <= 12) {
+          if (dist(s, knob) <= Math.max(14, northR * 0.4 * vp.zoom)) {
             setDrag({ kind: "north-rotate", center: northArrow.pos });
             break;
           }
-          if (dist(s, c) <= NORTH_R_PX) {
+          if (dist(s, c) <= northR * vp.zoom) {
             setDrag({ kind: "north-move", startWorld: w, orig: northArrow.pos });
             break;
           }
@@ -1380,13 +1429,9 @@ export function StudioCanvas({
     }));
     setCalib({});
     setCalibMeters("");
-    // chain into placing north (DUCTR showNorthPrompt) unless already set
-    if (!floor.northPos && onRequestTool) {
-      setNorthPrompt(true);
-      onRequestTool("set-north");
-    } else {
-      onToolDone();
-    }
+    onToolDone();
+    // chain into the "set north" step popup (DUCTR showNorthPrompt)
+    onCalibrated?.();
   };
 
   /* ── render ── */
@@ -1425,7 +1470,26 @@ export function StudioCanvas({
         ? ""
         : tool === "erase"
           ? "ds-cur-erase"
-          : "ds-cur-cross";
+          : tool === "set-north"
+            ? "ds-cur-north"
+            : "ds-cur-cross";
+
+  /* in-progress guidance while a step tool is active */
+  const toolHint: { icon: string; text: string } | null =
+    tool === "calibrate" && !(calib.a && calib.b)
+      ? {
+          icon: "ruler",
+          text: calib.a
+            ? "Click the second point of the known dimension"
+            : "Select two points a known distance apart",
+        }
+      : tool === "set-north"
+        ? floor.northPos
+          ? { icon: "rotate", text: "Drag the N to rotate · drag the centre to move" }
+          : { icon: "rotate", text: "Click on the plan to place the north marker" }
+        : tool === "crop"
+          ? { icon: "maximize", text: "Drag a rectangle over the area to keep" }
+          : null;
 
   return (
     <div ref={wrapRef} className={`ds-canvas ${cursorClass}`} data-testid="studio-canvas">
@@ -1442,6 +1506,8 @@ export function StudioCanvas({
         role="application"
         aria-label="Design canvas"
       >
+        {/* white paper backdrop (the original draws dots on white, not grey) */}
+        <rect className="ds-paper" x={0} y={0} width={size.w} height={size.h} />
         {/* graph-paper dot grid — SCREEN space, behind everything */}
         {showDots && (
           <>
@@ -1770,25 +1836,54 @@ export function StudioCanvas({
             />
           )}
 
-          {/* north arrow — placeable (drag body to move, tip to rotate) */}
+          {/* north arrow — placeable, fixed to the plan. Once placed it shows a
+              plain compass; the rotate knob + hint appear only while the
+              set-north tool is active (drag body to move, the N to rotate). */}
           {northArrow && (() => {
-            const R = NORTH_R_PX / zoom;
+            const R = northR;
+            const active = tool === "set-north";
             const { x: cx, y: cy } = northArrow.pos;
+            const kY = cy - northKnob; // knob sits above the ring (unrotated)
             return (
               <g
-                className={`ds-north${tool === "set-north" ? " active" : ""}`}
+                className={`ds-north${active ? " active" : ""}`}
                 transform={`rotate(${northArrow.deg} ${cx} ${cy})`}
               >
                 <circle className="ds-north-ring" cx={cx} cy={cy} r={R} />
+                {/* north (red) + south (grey) pointers = a clear compass */}
                 <polygon
                   className="ds-north-arrow"
-                  points={`${cx},${cy - R} ${cx - R * 0.34},${cy + R * 0.12} ${cx + R * 0.34},${cy + R * 0.12}`}
+                  points={`${cx},${cy - R * 0.72} ${cx - R * 0.22},${cy} ${cx + R * 0.22},${cy}`}
                 />
-                <circle className="ds-north-hub" cx={cx} cy={cy} r={3 / zoom} />
-                <circle className="ds-north-tip" cx={cx} cy={cy - R} r={6 / zoom} />
-                <text className="ds-north-n" x={cx} y={cy - R - 5 / zoom} fontSize={13 / zoom}>
-                  N
-                </text>
+                <polygon
+                  className="ds-north-south"
+                  points={`${cx},${cy + R * 0.72} ${cx - R * 0.22},${cy} ${cx + R * 0.22},${cy}`}
+                />
+                <circle className="ds-north-hub" cx={cx} cy={cy} r={R * 0.08} />
+                {active ? (
+                  <>
+                    {/* stem + rotate knob (the N) + curved rotate hint */}
+                    <line className="ds-north-stem" x1={cx} y1={cy - R} x2={cx} y2={kY + R * 0.32} />
+                    <circle className="ds-north-knob" cx={cx} cy={kY} r={R * 0.34} />
+                    <text className="ds-north-n" x={cx} y={kY} fontSize={R * 0.42}>
+                      N
+                    </text>
+                    <path
+                      className="ds-north-rot"
+                      d={`M ${cx + R * 0.5} ${kY - R * 0.18} A ${R * 0.34} ${R * 0.34} 0 1 1 ${cx + R * 0.5} ${kY + R * 0.18}`}
+                    />
+                  </>
+                ) : (
+                  // basic compass: just an N marker above the ring
+                  <text
+                    className="ds-north-n"
+                    x={cx}
+                    y={cy - R - R * 0.18}
+                    fontSize={R * 0.4}
+                  >
+                    N
+                  </text>
+                )}
               </g>
             );
           })()}
@@ -1888,25 +1983,11 @@ export function StudioCanvas({
           );
         })()}
 
-      {/* set-north prompt (chained from calibration; skippable) */}
-      {northPrompt && !floor.northPos && (
-        <div className="ds-north-prompt" role="dialog" aria-label="Set north">
-          <div className="ds-north-prompt-t">Set north</div>
-          <div className="ds-north-prompt-h">
-            Click the plan to drop the north arrow, then drag its tip to point at
-            true north.
-          </div>
-          <div className="ds-north-prompt-actions">
-            <button
-              className="ds-calib-cancel"
-              onClick={() => {
-                setNorthPrompt(false);
-                onToolDone();
-              }}
-            >
-              Skip
-            </button>
-          </div>
+      {/* in-progress guidance while a step tool is active (bottom-centre) */}
+      {toolHint && (
+        <div className="ds-tool-hint" role="status">
+          <Icon name={toolHint.icon} size={14} />
+          <span>{toolHint.text}</span>
         </div>
       )}
 
@@ -1917,38 +1998,12 @@ export function StudioCanvas({
             ? `1 grid = 1 m · ${mm.toFixed(2)} mm/px`
             : "uncalibrated — grid is arbitrary"}
         </span>
-        <button
-          type="button"
-          className={`ds-north-pill${floor.northPos ? " set" : ""}`}
-          onClick={() => onRequestTool?.("set-north")}
-          title="Set the north direction on the plan"
-        >
-          {floor.northPos ? `North ${Math.round(floor.northDeg ?? 0)}°` : "Set north"}
-        </button>
         {cursor && mm && (
           <span>
             {formatMeters(unitsToMeters(cursor.x, mm))},{" "}
             {formatMeters(unitsToMeters(cursor.y, mm))}
           </span>
         )}
-      </div>
-      <div className="ds-zoomctl">
-        <button aria-label="Zoom out" onClick={() => setVp(zoomAt(vp, { x: size.w / 2, y: size.h / 2 }, 1 / 1.3, minZoom))}>
-          −
-        </button>
-        <span>{Math.round(zoom * 100)}%</span>
-        <button aria-label="Zoom in" onClick={() => setVp(zoomAt(vp, { x: size.w / 2, y: size.h / 2 }, 1.3, minZoom))}>
-          +
-        </button>
-        <button
-          aria-label="Fit to content"
-          onClick={() => {
-            const b = boundsOfPoints(contentPoints());
-            if (b) setVp(fitBounds(b, size.w, size.h, 60));
-          }}
-        >
-          Fit
-        </button>
       </div>
     </div>
   );

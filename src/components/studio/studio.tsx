@@ -32,8 +32,10 @@ import {
   type CanvasTool,
   type LayerFlags,
   type PlacingUnit,
+  type ZoomApi,
 } from "./canvas";
 import { PlansPanel } from "./plans-panel";
+import { StepPrompt } from "./step-prompt";
 import {
   floorDisplayName,
   formatLevel,
@@ -624,18 +626,23 @@ function Editor({
   const [grayscale, setGrayscale] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
 
-  /* guided calibration: opening an uncalibrated plan floor auto-arms the
-     calibrate tool once (per floor) so the scale step is front-and-centre.
-     A ref guards it so the user can freely switch back to select. */
-  const calibArmed = useRef<string | null>(null);
+  /* guided calibration: opening an uncalibrated plan floor pops a "Calibrate
+     the plan" step modal (DUCTR showCalibratePrompt) — once per floor, tracked
+     so dismiss/skip doesn't re-nag. A confirmed scale then chains into the
+     "Set north" step modal. */
+  const [calibPrompt, setCalibPrompt] = useState(false);
+  const [northPrompt, setNorthPrompt] = useState(false);
+  const promptedFloors = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (step !== 1 || !activeFloorId) return;
     const f = doc.floors.find((x) => x.id === activeFloorId);
-    if (f && f.scaleMmPerUnit == null && calibArmed.current !== activeFloorId) {
-      calibArmed.current = activeFloorId;
-      setTool("calibrate");
+    if (f && f.scaleMmPerUnit == null && !promptedFloors.current.has(activeFloorId)) {
+      promptedFloors.current.add(activeFloorId);
+      setCalibPrompt(true);
     }
   }, [step, activeFloorId, doc.floors]);
+
+  const activeFloor = doc.floors.find((f) => f.id === activeFloorId) ?? null;
 
   /* ── systems (Stage 4): product pack, active system, armed placement ── */
   const [pack, setPack] = useState<DataPack | null>(null);
@@ -921,6 +928,10 @@ function Editor({
             onGrayscale={setGrayscale}
             legendOpen={legendOpen}
             onLegend={setLegendOpen}
+            onCalibrated={() => {
+              const f = docRef.current.floors.find((x) => x.id === activeFloorId);
+              if (f && !f.northPos) setNorthPrompt(true);
+            }}
           />
         )}
         {step === 2 && <MaterialsView doc={doc} pack={pack} />}
@@ -946,6 +957,54 @@ function Editor({
             setRemarkRoomId(id);
           }}
           onOpenReference={hasReference ? () => setRefOpen(true) : undefined}
+        />
+      )}
+
+      {calibPrompt && activeFloor && activeFloor.scaleMmPerUnit == null && (
+        <StepPrompt
+          icon="ruler"
+          title="Calibrate the plan"
+          intro="Two quick steps to measure everything accurately:"
+          bullets={[
+            <>
+              <strong>Set the scale</strong> — draw a line over a known dimension (e.g.
+              a wall) and enter its real length.
+            </>,
+            <>
+              <strong>Set north</strong> — so room orientations and solar loads come out
+              right.
+            </>,
+          ]}
+          actionLabel="Calibrate scale →"
+          onSkip={() => setCalibPrompt(false)}
+          onAction={() => {
+            setCalibPrompt(false);
+            setTool("calibrate");
+          }}
+        />
+      )}
+
+      {northPrompt && activeFloor && !activeFloor.northPos && (
+        <StepPrompt
+          icon="compass"
+          title="Set north direction"
+          intro="Scale is set. Now orient the plan:"
+          bullets={[
+            <>
+              <strong>Click the plan</strong> to drop the north marker.
+            </>,
+            <>
+              <strong>Drag the N</strong> to point at true north — the whole marker
+              rotates.
+            </>,
+            <>This drives each room&apos;s orientation and solar gain.</>,
+          ]}
+          actionLabel="Set north →"
+          onSkip={() => setNorthPrompt(false)}
+          onAction={() => {
+            setNorthPrompt(false);
+            setTool("set-north");
+          }}
         />
       )}
     </div>
@@ -1165,8 +1224,6 @@ const CANVAS_TOOLS: {
   { key: "room-poly", icon: "hexagon", label: "Room (polygon)", kbd: "G", needsSystem: true },
   { key: "pipe", icon: "activity", label: "Refrigerant run", kbd: "P", needsSystem: true },
   { key: "riser", icon: "arrowUp", label: "Riser (joins floors)", kbd: "I", needsSystem: true },
-  { key: "calibrate", icon: "ruler", label: "Calibrate scale", kbd: "C" },
-  { key: "set-north", icon: "rotate", label: "Set north", kbd: "N" },
   { key: "crop", icon: "maximize", label: "Crop plan", kbd: "X" },
   { key: "arrange", icon: "hand", label: "Move plans", kbd: "M" },
   { key: "erase", icon: "x", label: "Eraser", kbd: "E" },
@@ -1210,6 +1267,7 @@ function DesignPanel({
   onGrayscale,
   legendOpen,
   onLegend,
+  onCalibrated,
 }: {
   doc: DesignDocument;
   activeFloorId: string | null;
@@ -1241,6 +1299,7 @@ function DesignPanel({
   onGrayscale: (v: boolean) => void;
   legendOpen: boolean;
   onLegend: (v: boolean) => void;
+  onCalibrated: () => void;
 }) {
   const floors = [...doc.floors].sort((a, b) => a.level - b.level);
   const floor = floors.find((f) => f.id === activeFloorId) ?? null;
@@ -1248,6 +1307,8 @@ function DesignPanel({
   // floors mid-arm can't delete the wrong one
   const [armedDelFloor, setArmedDelFloor] = useState<string | null>(null);
   const [layersOpen, setLayersOpen] = useState(false);
+  const [zoomApi, setZoomApi] = useState<ZoomApi | null>(null);
+  const [zoomPct, setZoomPct] = useState(100);
 
   if (!floor) {
     return (
@@ -1322,17 +1383,36 @@ function DesignPanel({
               <Icon name="plus" size={13} />
             </button>
           </div>
-          {floor.scaleMmPerUnit == null && (
-            <button
-              className={`ds-calib-cta${tool === "calibrate" ? " armed" : ""}`}
-              onClick={() => onTool("calibrate")}
-              title="Click two points a known distance apart on the plan"
-            >
-              <Icon name="ruler" size={13} />
-              Calibrate the scale to begin
-            </button>
-          )}
           <div className="ds-canvas-toggles">
+            {/* Calibrate — prominent CTA until calibrated, then a subtle
+                recalibrate pill (also the way back in after Skip) */}
+            {floor.scaleMmPerUnit == null ? (
+              <button
+                className={`ds-calib-cta${tool === "calibrate" ? " armed" : ""}`}
+                onClick={() => onTool("calibrate")}
+                title="Click two points a known distance apart on the plan"
+              >
+                <Icon name="ruler" size={13} />
+                Calibrate the scale to begin
+              </button>
+            ) : (
+              <button
+                className={`ds-val-pill set${tool === "calibrate" ? " on" : ""}`}
+                onClick={() => onTool("calibrate")}
+                title="Recalibrate the scale"
+              >
+                <Icon name="ruler" size={13} />
+                {`${floor.scaleMmPerUnit.toFixed(1)} mm/px`}
+              </button>
+            )}
+            <button
+              className={`ds-val-pill${floor.northPos ? " set" : ""}${tool === "set-north" ? " on" : ""}`}
+              onClick={() => onTool("set-north")}
+              title={floor.northPos ? "Reset the north direction" : "Set the north direction on the plan"}
+            >
+              <Icon name="compass" size={13} />
+              {floor.northPos ? `North ${Math.round(floor.northDeg ?? 0)}°` : "Set north"}
+            </button>
             <div className="ds-layers-wrap">
               <button
                 className={`ds-ctl-btn${layersOpen ? " on" : ""}`}
@@ -1372,6 +1452,18 @@ function DesignPanel({
             >
               <Icon name="library" size={14} />
               Legend
+            </button>
+          </div>
+          <div className="ds-zoomctl top" role="group" aria-label="Zoom">
+            <button aria-label="Zoom out" onClick={() => zoomApi?.zoomOut()}>
+              −
+            </button>
+            <span>{zoomPct}%</span>
+            <button aria-label="Zoom in" onClick={() => zoomApi?.zoomIn()}>
+              +
+            </button>
+            <button aria-label="Fit to content" onClick={() => zoomApi?.fit()}>
+              Fit
             </button>
           </div>
           {onOpenReference && (
@@ -1416,7 +1508,9 @@ function DesignPanel({
           onSelect={onSelect}
           onMutate={onMutate}
           onToolDone={() => onTool("select")}
-          onRequestTool={onTool}
+          onCalibrated={onCalibrated}
+          onZoomApi={setZoomApi}
+          onZoomChange={setZoomPct}
           planImages={planImages}
           activeSystemId={activeSystemId}
           placing={placing}

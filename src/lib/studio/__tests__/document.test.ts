@@ -208,6 +208,20 @@ describe("schema versioning + migrations", () => {
     expect(doc.schemaVersion).toBe(SCHEMA_VERSION);
     expect(doc.planImport).toBeNull();
   });
+
+  it("migrates v5→v6: every floor gains northPos: null", () => {
+    const base = createDesign({ name: "x", mode: "blank" });
+    const v5 = { ...JSON.parse(JSON.stringify(base)), schemaVersion: 5 };
+    v5.floors = v5.floors.map((f: Record<string, unknown>) => {
+      const { northPos, ...rest } = f; // v5 floors never had it
+      void northPos;
+      return rest;
+    });
+    const { doc, migratedFrom } = migrateDesign(v5);
+    expect(migratedFrom).toBe(5);
+    expect(doc.schemaVersion).toBe(SCHEMA_VERSION);
+    expect(doc.floors.every((f) => f.northPos === null)).toBe(true);
+  });
 });
 
 describe("LocalDesignStore", () => {

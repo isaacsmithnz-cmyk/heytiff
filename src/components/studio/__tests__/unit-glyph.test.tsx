@@ -15,7 +15,7 @@ const floor: Floor = {
   name: "G",
   level: 0,
   scaleMmPerUnit: 10,
-  northDeg: null,
+  northDeg: null, northPos: null,
   plans: [],
 };
 

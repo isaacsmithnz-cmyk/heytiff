@@ -15,6 +15,7 @@ import {
   screenToWorld,
   zoomAt,
   fitBounds,
+  fitZoom,
   mmPerUnitFromCalibration,
   areaUnitsToM2,
   unitsToMeters,
@@ -265,5 +266,20 @@ describe("viewport", () => {
     expect(br.y).toBeLessThanOrEqual(560.1);
     // centred on the longer axis
     expect(tl.x + br.x).toBeCloseTo(800, 6);
+  });
+
+  it("fitZoom matches fitBounds' zoom (width-bound here)", () => {
+    const b = { minX: 0, minY: 0, maxX: 1000, maxY: 500 };
+    // width binds: (800 - 80) / 1000 = 0.72
+    expect(fitZoom(b, 800, 600, 40)).toBeCloseTo(0.72, 9);
+    expect(fitZoom(b, 800, 600, 40)).toBe(fitBounds(b, 800, 600, 40).zoom);
+  });
+
+  it("zoomAt won't zoom out below the supplied minZoom (fit floor)", () => {
+    const start: Viewport = { x: 0, y: 0, zoom: 1 };
+    const min = 0.6;
+    // try to zoom way out; clamps at min, not the absolute MIN_ZOOM
+    const out = zoomAt(start, { x: 400, y: 300 }, 1e-6, min);
+    expect(out.zoom).toBe(min);
   });
 });

@@ -86,6 +86,18 @@ const MIGRATIONS: Record<number, Migration> = {
      never captured it — the raw pages weren't stored, so there is nothing to
      restore for them; they open with no session. */
   4: (doc) => ({ ...doc, planImport: null, schemaVersion: 5 }),
+
+  /* v5 → v6: floors gain `northPos` — where the placeable north arrow sits on
+     the plan (`northDeg` already held the bearing but nothing wrote it). No
+     pre-v6 floor placed an arrow, so it starts null. (`PlanSheet.crop` is
+     optional and simply absent on old sheets — no touch needed.) */
+  5: (doc) => {
+    const floors = (doc.floors as Record<string, unknown>[]).map((f) => ({
+      ...f,
+      northPos: null,
+    }));
+    return { ...doc, floors, schemaVersion: 6 };
+  },
 };
 
 export class DesignDocumentError extends Error {

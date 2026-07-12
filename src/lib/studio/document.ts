@@ -6,7 +6,7 @@
    fixtures serialise exactly this shape, so changes require a schema bump and
    a migration (see migrations.ts). */
 
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 /* ── Vertical planes (Layer 1 — placement plane) ── */
 export type Plane =
@@ -54,6 +54,10 @@ export interface PlanSheet {
   height: number;
   x: number; // placement in the floor's world space
   y: number;
+  /** optional visible crop region (world units, relative to the sheet's own
+      x/y). The raster is clipped to this rect; the underlying image is never
+      re-rastered, so rooms/units (world-space) are unaffected. */
+  crop?: { x: number; y: number; w: number; h: number };
 }
 
 export interface Floor {
@@ -61,7 +65,12 @@ export interface Floor {
   name: string;
   level: number; // stacking order, 0 = ground
   scaleMmPerUnit: number | null;
+  /** true-north bearing: degrees CW from plan-up to true north. null = unset
+      (consumers fall back to 0 = plan-up is north). */
   northDeg: number | null;
+  /** where the north arrow sits on the plan (world units). null = not placed.
+      `northDeg` holds its rotation. */
+  northPos: { x: number; y: number } | null;
   plans: PlanSheet[];
 }
 
@@ -203,6 +212,7 @@ export function createDesign(opts: {
               level: 0,
               scaleMmPerUnit: 10,
               northDeg: null,
+              northPos: null,
               plans: [],
             },
           ]

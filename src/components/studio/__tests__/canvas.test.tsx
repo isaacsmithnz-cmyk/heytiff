@@ -7,6 +7,7 @@
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Studio } from "../studio";
+import { redetectOrientations } from "../canvas";
 import { LocalDesignStore } from "@/lib/studio/store";
 
 const localStudio = () => (
@@ -203,5 +204,113 @@ describe("Design canvas", () => {
 
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.getByText("Room 1")).toBeInTheDocument();
+  });
+
+  it("places rooms free (pixel-precise) — no grid snapping", async () => {
+    const { user, svg } = await openBlankDesignOnCanvas();
+    await user.click(screen.getByRole("button", { name: "Room (rectangle)" }));
+    // drag to screen (455,341) → world ≈ (98.21, 73.21): NOT on the old
+    // grid/4 (=25) lattice, so free placement keeps the raw coordinate
+    fireEvent.pointerDown(svg, pt(400, 300));
+    fireEvent.pointerMove(svg, pt(455, 341));
+    fireEvent.pointerUp(svg, pt(455, 341));
+    await finishRoom(user);
+    const points = svg.querySelector(".ds-room polygon")!.getAttribute("points")!;
+    // would have snapped to "100,0 … 75" under the old behaviour
+    expect(points).toMatch(/98\.2/);
+    expect(points).not.toBe("0,0 100,0 100,75 0,75");
+  });
+
+  it("set-north places an arrow and dragging its tip rotates the bearing", async () => {
+    const { user, svg } = await openBlankDesignOnCanvas();
+    const toolbar = screen.getByRole("toolbar", { name: "Canvas tools" });
+    await user.click(within(toolbar).getByRole("button", { name: "Set north" }));
+    // drop the arrow at screen (450,300) → world centre (~89,0)
+    fireEvent.pointerDown(svg, pt(450, 300));
+    fireEvent.pointerUp(svg, pt(450, 300));
+    expect(svg.querySelector(".ds-north")).not.toBeNull();
+    expect(screen.getByText(/North 0°/)).toBeInTheDocument();
+
+    // in select mode, drag the tip (450,274) a quarter-turn to (476,300)
+    await user.click(screen.getByRole("button", { name: "Select" }));
+    fireEvent.pointerDown(svg, pt(450, 274));
+    fireEvent.pointerMove(svg, pt(476, 300));
+    fireEvent.pointerUp(svg, pt(476, 300));
+    expect(screen.getByText(/North 90°/)).toBeInTheDocument();
+  });
+
+  it("the Labels layer toggle hides room name/area text", async () => {
+    const { user, svg } = await openBlankDesignOnCanvas();
+    await user.click(screen.getByRole("button", { name: "Room (rectangle)" }));
+    fireEvent.pointerDown(svg, pt(400, 300));
+    fireEvent.pointerMove(svg, pt(456, 342));
+    fireEvent.pointerUp(svg, pt(456, 342));
+    await finishRoom(user);
+    expect(svg.querySelector(".ds-room-name")).not.toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Layers" }));
+    await user.click(screen.getByRole("checkbox", { name: "Labels" }));
+    expect(svg.querySelector(".ds-room-name")).toBeNull();
+  });
+
+  it("the eraser does not delete rooms (rooms delete via the inspector ✕)", async () => {
+    const { user, svg } = await openBlankDesignOnCanvas();
+    await user.click(screen.getByRole("button", { name: "Room (rectangle)" }));
+    fireEvent.pointerDown(svg, pt(400, 300));
+    fireEvent.pointerMove(svg, pt(500, 380));
+    fireEvent.pointerUp(svg, pt(500, 380));
+    await finishRoom(user);
+    expect(screen.getByText("Room 1")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Eraser" }));
+    fireEvent.pointerDown(svg, pt(440, 330));
+    fireEvent.pointerUp(svg, pt(440, 330));
+    // still there — the eraser is objects-only
+    expect(screen.getByText("Room 1")).toBeInTheDocument();
+  });
+});
+
+describe("redetectOrientations", () => {
+  const roomObj = (over: Record<string, unknown> = {}) => ({
+    id: "r1",
+    type: "room",
+    systemId: null,
+    floorId: "flr",
+    geometry: {
+      kind: "polygon" as const,
+      // square; edge 0 is the top (points north when north=0)
+      points: [
+        { x: 0, y: 0 },
+        { x: 100, y: 0 },
+        { x: 100, y: 100 },
+        { x: 0, y: 100 },
+      ],
+    },
+    plane: "room" as const,
+    props: { externalWalls: [0], ...over },
+  });
+
+  it("re-derives orientation of non-locked rooms from the north bearing", () => {
+    const [room] = redetectOrientations([roomObj()], "flr", 0);
+    // top wall exposed, north=0 → faces North
+    expect(room.props.orientation).toBe("N");
+    // rotate north 180° → the same wall now faces South
+    const [rot] = redetectOrientations([roomObj()], "flr", 180);
+    expect(rot.props.orientation).toBe("S");
+  });
+
+  it("leaves manually-locked room orientations untouched", () => {
+    const [room] = redetectOrientations(
+      [roomObj({ orientation: "E", orientationLocked: true })],
+      "flr",
+      180
+    );
+    expect(room.props.orientation).toBe("E");
+  });
+
+  it("ignores rooms on other floors", () => {
+    const other = { ...roomObj(), floorId: "flr2" };
+    const [room] = redetectOrientations([other], "flr", 90);
+    expect(room).toBe(other); // untouched reference
   });
 });

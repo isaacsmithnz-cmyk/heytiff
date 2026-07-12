@@ -164,7 +164,7 @@ describe("sheet placement + allocation", () => {
 
   it("restackLevels permutes floor→level, preserving the level set", () => {
     const flr = (id: string, level: number): Floor => ({
-      id, name: id, level, scaleMmPerUnit: 10, northDeg: null, plans: [],
+      id, name: id, level, scaleMmPerUnit: 10, northDeg: null, northPos: null, plans: [],
     });
     const floors = [flr("a", 0), flr("b", 1), flr("c", -1)]; // GF, L1, B1
     // new top-to-bottom order: A (top), C, B (bottom)
@@ -199,7 +199,7 @@ describe("sheet placement + allocation", () => {
       name: "Level 1",
       level: 1,
       scaleMmPerUnit: null,
-      northDeg: null,
+      northDeg: null, northPos: null,
       plans: [],
     });
     let rows = builderStackFromFloors(doc.floors);
@@ -280,7 +280,7 @@ describe("rehydrating a saved import", () => {
     name: defaultFloorName(level),
     level,
     scaleMmPerUnit: 10,
-    northDeg: null,
+    northDeg: null, northPos: null,
     plans: refs.map((r, i) => ({
       id: `sht_${id}_${i}`,
       imageRef: r,

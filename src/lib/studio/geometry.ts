@@ -210,9 +210,16 @@ export function screenToWorld(p: Point, vp: Viewport): Point {
   return { x: p.x / vp.zoom + vp.x, y: p.y / vp.zoom + vp.y };
 }
 
-/** Zoom by factor keeping the world point under `screen` stationary. */
-export function zoomAt(vp: Viewport, screen: Point, factor: number): Viewport {
-  const zoom = clamp(vp.zoom * factor, MIN_ZOOM, MAX_ZOOM);
+/** Zoom by factor keeping the world point under `screen` stationary. The
+    minimum zoom can be raised above MIN_ZOOM (e.g. to the fit-zoom) so the
+    content can't be zoomed out into a tiny speck. */
+export function zoomAt(
+  vp: Viewport,
+  screen: Point,
+  factor: number,
+  minZoom: number = MIN_ZOOM
+): Viewport {
+  const zoom = clamp(vp.zoom * factor, Math.min(minZoom, MAX_ZOOM), MAX_ZOOM);
   if (zoom === vp.zoom) return vp;
   const world = screenToWorld(screen, vp);
   return {
@@ -220,6 +227,22 @@ export function zoomAt(vp: Viewport, screen: Point, factor: number): Viewport {
     x: world.x - screen.x / zoom,
     y: world.y - screen.y / zoom,
   };
+}
+
+/** The zoom level at which `bounds` fits inside width×height with padding. */
+export function fitZoom(
+  bounds: Bounds,
+  width: number,
+  height: number,
+  padding = 40
+): number {
+  const bw = Math.max(1, bounds.maxX - bounds.minX);
+  const bh = Math.max(1, bounds.maxY - bounds.minY);
+  return clamp(
+    Math.min((width - padding * 2) / bw, (height - padding * 2) / bh),
+    MIN_ZOOM,
+    MAX_ZOOM
+  );
 }
 
 /** Viewport that fits bounds inside width×height with padding (screen px). */
@@ -231,11 +254,7 @@ export function fitBounds(
 ): Viewport {
   const bw = Math.max(1, bounds.maxX - bounds.minX);
   const bh = Math.max(1, bounds.maxY - bounds.minY);
-  const zoom = clamp(
-    Math.min((width - padding * 2) / bw, (height - padding * 2) / bh),
-    MIN_ZOOM,
-    MAX_ZOOM
-  );
+  const zoom = fitZoom(bounds, width, height, padding);
   return {
     zoom,
     x: bounds.minX - (width / zoom - bw) / 2,

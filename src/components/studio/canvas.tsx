@@ -18,15 +18,17 @@ import {
   dist,
   distToSegment,
   fitBounds,
+  fitZoom,
   formatArea,
   formatMeters,
+  MIN_ZOOM,
   mmPerUnitFromCalibration,
+  orthoSnap,
   pointInPolygon,
   polygonArea,
   polygonCentroid,
   polylineLength,
   screenToWorld,
-  snapToGrid,
   unitsToMeters,
   worldToScreen,
   zoomAt,
@@ -43,11 +45,27 @@ export type CanvasTool =
   | "room-rect"
   | "room-poly"
   | "calibrate"
+  | "set-north" // place/rotate the true-north arrow
+  | "crop" // trim a plan sheet's visible region
   | "erase"
   | "arrange"
   | "place" // place a unit (armed from the system panel with a model)
   | "pipe" // refrigerant run — endpoints snap to unit/riser anchors
   | "riser";
+
+/** Canvas layer visibility (transient view state, not persisted). */
+export interface LayerFlags {
+  plan: boolean;
+  units: boolean;
+  pipes: boolean;
+  labels: boolean;
+}
+export const ALL_LAYERS_ON: LayerFlags = {
+  plan: true,
+  units: true,
+  pipes: true,
+  labels: true,
+};
 
 /** What the place tool drops on the next click (armed by the system panel). */
 export interface PlacingUnit {
@@ -59,6 +77,7 @@ export interface PlacingUnit {
 
 const CLOSE_SNAP_PX = 12; // screen px to close a polygon on its first vertex
 const HIT_EDGE_PX = 6;
+const ERASE_HIT_PX = 14; // eraser is more forgiving than select (DUCTR parity)
 
 /* A room drawn with the rectangle tool stays a rectangle when edited: is its
    geometry an axis-aligned box (4 corners, edges alternating H/V)? */
@@ -160,7 +179,36 @@ type Drag =
   | { kind: "vertex"; id: string; index: number; orig: Point[] }
   | { kind: "rect"; start: Point }
   | { kind: "sheet"; id: string; startWorld: Point; orig: Point }
-  | { kind: "point"; id: string; startWorld: Point; orig: Point };
+  | { kind: "point"; id: string; startWorld: Point; orig: Point }
+  | { kind: "crop"; sheetId: string; start: Point }
+  | { kind: "north-move"; startWorld: Point; orig: { x: number; y: number } }
+  | { kind: "north-rotate"; center: { x: number; y: number } };
+
+/** North-arrow glyph radius in screen px (constant size, like the original). */
+const NORTH_R_PX = 26;
+
+/** Re-derive every non-locked room's orientation from the new north bearing
+    (DUCTR autoDetectOrientations). Manual per-room overrides (orientationLocked)
+    are preserved. Pure — returns a new objects array. */
+export function redetectOrientations(
+  objects: DesignObject[],
+  floorId: string,
+  bearingDeg: number
+): DesignObject[] {
+  return objects.map((o) => {
+    if (o.type !== "room" || o.floorId !== floorId || o.geometry.kind !== "polygon")
+      return o;
+    if (o.props.orientationLocked) return o;
+    const walls = Array.isArray(o.props.externalWalls)
+      ? (o.props.externalWalls as number[])
+      : [];
+    const orientation = orientationFromWalls(o.geometry.points, walls, bearingDeg);
+    const props = { ...o.props };
+    if (orientation) props.orientation = orientation;
+    else delete props.orientation;
+    return { ...o, props };
+  });
+}
 
 export function StudioCanvas({
   doc,
@@ -170,6 +218,7 @@ export function StudioCanvas({
   onSelect,
   onMutate,
   onToolDone,
+  onRequestTool,
   planImages,
   activeSystemId = null,
   placing = null,
@@ -177,6 +226,8 @@ export function StudioCanvas({
   onRoomCreated,
   remarkRoomId = null,
   onRemarkConsumed,
+  layers = ALL_LAYERS_ON,
+  grayscale = false,
 }: {
   doc: DesignDocument;
   floor: Floor;
@@ -185,7 +236,13 @@ export function StudioCanvas({
   onSelect: (id: string | null) => void;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   onToolDone: () => void;
+  /** switch the active tool (used to chain calibrate → set-north) */
+  onRequestTool?: (t: CanvasTool) => void;
   planImages?: PlanImages;
+  /** which render layers are visible (transient view state) */
+  layers?: LayerFlags;
+  /** desaturate + brighten the plan raster for overlay readability */
+  grayscale?: boolean;
   /** system that pipe/riser/place drawing tags objects with (Stage 4) */
   activeSystemId?: string | null;
   /** armed unit for the place tool */
@@ -218,6 +275,8 @@ export function StudioCanvas({
   } | null>(null);
   const [calib, setCalib] = useState<{ a?: Point; b?: Point }>({});
   const [calibMeters, setCalibMeters] = useState("");
+  /* after calibrating, chain into placing north (skippable) */
+  const [northPrompt, setNorthPrompt] = useState(false);
   const spaceDown = useRef(false);
 
   /* the canvas is scoped to the ACTIVE system — switching systems re-scopes
@@ -333,6 +392,11 @@ export function StudioCanvas({
   const [sheetDims, setSheetDims] = useState<Record<string, { w: number; h: number }>>({});
   /* sheet position override while dragging with the arrange tool */
   const [liveSheet, setLiveSheet] = useState<{ id: string; x: number; y: number } | null>(null);
+  /* live north arrow while dragging (move/rotate), committed on pointer-up */
+  const [liveNorth, setLiveNorth] = useState<{ pos: { x: number; y: number }; deg: number } | null>(null);
+  /* live crop rectangle while dragging a crop over a sheet */
+  const [liveCrop, setLiveCrop] = useState<{ sheetId: string; a: Point; b: Point } | null>(null);
+  const northArrow = liveNorth ?? (floor.northPos ? { pos: floor.northPos, deg: floor.northDeg ?? 0 } : null);
 
   useEffect(() => {
     let on = true;
@@ -398,6 +462,17 @@ export function StudioCanvas({
   const mountContent = useRef({ points: contentPoints(), grid });
   const measured = useRef(false);
 
+  /* zoom-out floor: you can't zoom out past ~fit (a little margin), so the
+     drawing never shrinks into a speck. Empty floors keep the absolute min. */
+  const minZoom = useMemo(() => {
+    const b = boundsOfPoints(contentPoints());
+    return b ? Math.max(MIN_ZOOM, fitZoom(b, size.w, size.h, 60) * 0.6) : MIN_ZOOM;
+  }, [contentPoints, size.w, size.h]);
+  const minZoomRef = useRef(minZoom);
+  useEffect(() => {
+    minZoomRef.current = minZoom;
+  }, [minZoom]);
+
   /** nearest connection anchor within snap range of a world point */
   const nearestAnchor = useCallback(
     (w: Point) => {
@@ -459,10 +534,9 @@ export function StudioCanvas({
     [vp]
   );
 
-  const snapped = useCallback(
-    (p: Point): Point => snapToGrid(p, snapStep),
-    [snapStep]
-  );
+  /* Placement is FREE (pixel-precise) — no grid quantization (canvas UX rule:
+     "less snapping, more precise adjustment"). Only pipes ortho-snap and pipe
+     endpoints snap to anchors; rect rooms still stay rectangular via rectResize. */
 
   /* ── zoom (native non-passive wheel so preventDefault works) ── */
   useEffect(() => {
@@ -472,7 +546,7 @@ export function StudioCanvas({
       e.preventDefault();
       const r = svg.getBoundingClientRect();
       const screen = { x: e.clientX - r.left, y: e.clientY - r.top };
-      setVp((v) => zoomAt(v, screen, e.deltaY < 0 ? 1.12 : 1 / 1.12));
+      setVp((v) => zoomAt(v, screen, e.deltaY < 0 ? 1.12 : 1 / 1.12, minZoomRef.current));
     };
     svg.addEventListener("wheel", onWheel, { passive: false });
     return () => svg.removeEventListener("wheel", onWheel);
@@ -672,6 +746,61 @@ export function StudioCanvas({
     [units, risers, runs, pointAt, footprint, vp.zoom]
   );
 
+  /* Eraser: objects only (rooms delete via the inspector ✕, canvas rule #6).
+     A pipe loses just its nearest segment (one vertex) unless it's down to a
+     single segment; units/risers delete whole. Forgiving hit tolerance. */
+  const eraseAt = useCallback(
+    (w: Point) => {
+      const tol = ERASE_HIT_PX / vp.zoom;
+      // units first (on top), then risers
+      for (let i = units.length - 1; i >= 0; i--) {
+        const u = units[i];
+        const at = pointAt(u);
+        const fp = footprint(Number(u.props.widthMm ?? 800), Number(u.props.depthMm ?? 300));
+        if (Math.abs(w.x - at.x) <= fp.w / 2 + tol && Math.abs(w.y - at.y) <= fp.h / 2 + tol) {
+          onMutate((d) => ({ ...d, objects: d.objects.filter((o) => o.id !== u.id) }));
+          if (selectedId === u.id) onSelect(null);
+          return;
+        }
+      }
+      for (let i = risers.length - 1; i >= 0; i--) {
+        if (dist(pointAt(risers[i]), w) <= 12 / vp.zoom + tol) {
+          const id = risers[i].id;
+          onMutate((d) => ({ ...d, objects: d.objects.filter((o) => o.id !== id) }));
+          if (selectedId === id) onSelect(null);
+          return;
+        }
+      }
+      // pipe runs — nearest segment across all runs
+      let bestRun: string | null = null, bestSeg = -1, bestDist = tol;
+      for (let i = runs.length - 1; i >= 0; i--) {
+        const pts = runs[i].geometry.points;
+        for (let j = 0; j < pts.length - 1; j++) {
+          const d = distToSegment(w, pts[j], pts[j + 1]);
+          if (d < bestDist) { bestDist = d; bestRun = runs[i].id; bestSeg = j; }
+        }
+      }
+      if (bestRun) {
+        onMutate((d) => ({
+          ...d,
+          objects: d.objects.flatMap((o) => {
+            if (o.id !== bestRun || o.geometry.kind !== "polyline") return [o];
+            const pts = o.geometry.points;
+            if (pts.length <= 2) return []; // one segment — delete the whole run
+            // drop the later endpoint of the nearest segment (DUCTR splice)
+            const removed = bestSeg + 1;
+            const next = pts.filter((_, k) => k !== removed);
+            const props = { ...o.props };
+            if (removed === 0) delete props.startAttach;
+            if (removed === pts.length - 1) delete props.endAttach;
+            return [{ ...o, geometry: { kind: "polyline" as const, points: next }, props }];
+          }),
+        }));
+      }
+    },
+    [units, risers, runs, pointAt, footprint, vp.zoom, onMutate, selectedId, onSelect]
+  );
+
   /* ── Stage-4 document intents ── */
   const addUnit = useCallback(
     (at: Point) => {
@@ -842,6 +971,24 @@ export function StudioCanvas({
 
     switch (tool) {
       case "select": {
+        // north arrow: drag the tip to rotate, the body to move
+        if (northArrow) {
+          const c = worldToScreen(northArrow.pos, vp);
+          const s = worldToScreen(w, vp);
+          const rad = (northArrow.deg * Math.PI) / 180;
+          const tip = {
+            x: c.x + Math.sin(rad) * NORTH_R_PX,
+            y: c.y - Math.cos(rad) * NORTH_R_PX,
+          };
+          if (dist(s, tip) <= 12) {
+            setDrag({ kind: "north-rotate", center: northArrow.pos });
+            break;
+          }
+          if (dist(s, c) <= NORTH_R_PX) {
+            setDrag({ kind: "north-move", startWorld: w, orig: northArrow.pos });
+            break;
+          }
+        }
         const sys = hitSystemObject(w);
         if (sys) {
           onSelect(sys.id);
@@ -867,12 +1014,15 @@ export function StudioCanvas({
         break;
       }
       case "place": {
-        addUnit(snapped(w));
+        addUnit(w);
         break;
       }
       case "pipe": {
         const anchor = nearestAnchor(w);
-        const p = anchor ? anchor.at : snapped(w);
+        // free first vertex; later vertices ortho-snap to the previous point so
+        // runs stay horizontal/vertical (anchors always win).
+        const prev = draftPipe[draftPipe.length - 1];
+        const p = anchor ? anchor.at : prev ? orthoSnap(prev, w) : w;
         if (draftPipe.length === 0) {
           pipeStartAttach.current = anchor
             ? { kind: anchor.kind, id: anchor.id }
@@ -887,11 +1037,11 @@ export function StudioCanvas({
         break;
       }
       case "riser": {
-        addRiser(snapped(w));
+        addRiser(w);
         break;
       }
       case "room-poly": {
-        const p = snapped(w);
+        const p = w;
         if (draftPoly.length >= 3) {
           const firstScreen = worldToScreen(draftPoly[0], vp);
           const hereScreen = worldToScreen(w, vp);
@@ -905,26 +1055,44 @@ export function StudioCanvas({
         break;
       }
       case "room-rect":
-        setDrag({ kind: "rect", start: snapped(w) });
-        setDraftRect({ a: snapped(w), b: snapped(w) });
+        setDrag({ kind: "rect", start: w });
+        setDraftRect({ a: w, b: w });
         break;
       case "calibrate": {
         if (!calib.a) setCalib({ a: w });
         else if (!calib.b) setCalib({ a: calib.a, b: w });
         break;
       }
+      case "set-north": {
+        // drop the arrow at the click; keep any existing rotation
+        const deg = floor.northDeg ?? 0;
+        onMutate((d) => ({
+          ...d,
+          floors: d.floors.map((f) =>
+            f.id === floor.id ? { ...f, northPos: { x: w.x, y: w.y }, northDeg: deg } : f
+          ),
+          objects: redetectOrientations(d.objects, floor.id, deg),
+        }));
+        onToolDone();
+        break;
+      }
+      case "crop": {
+        // start a crop rect over the topmost sheet under the cursor
+        for (let i = floor.plans.length - 1; i >= 0; i--) {
+          const s = floor.plans[i];
+          const dims = sheetSize(s);
+          if (!dims) continue;
+          const pos = sheetPos(s);
+          if (w.x >= pos.x && w.x <= pos.x + dims.w && w.y >= pos.y && w.y <= pos.y + dims.h) {
+            setDrag({ kind: "crop", sheetId: s.id, start: w });
+            setLiveCrop({ sheetId: s.id, a: w, b: w });
+            return;
+          }
+        }
+        break;
+      }
       case "erase": {
-        let hit = hitSystemObject(w)?.id ?? null;
-        if (!hit) {
-          const r = hitRoom(w);
-          // another system's room can't be erased from here
-          const room = r ? rooms.find((x) => x.id === r) : null;
-          if (room && roomEditable(room)) hit = r;
-        }
-        if (hit) {
-          onMutate((d) => ({ ...d, objects: d.objects.filter((o) => o.id !== hit) }));
-          if (selectedId === hit) onSelect(null);
-        }
+        eraseAt(w);
         break;
       }
       case "arrange": {
@@ -979,16 +1147,16 @@ export function StudioCanvas({
           (room?.props.shape == null && isAxisAlignedRect(drag.orig));
         let points: Point[];
         if (keepRect) {
-          points = rectResize(drag.orig, drag.index, snapped(w));
+          points = rectResize(drag.orig, drag.index, w);
         } else {
           points = [...drag.orig];
-          points[drag.index] = snapped(w);
+          points[drag.index] = w;
         }
         setLiveGeom({ id: drag.id, points });
         break;
       }
       case "rect":
-        setDraftRect({ a: drag.start, b: snapped(w) });
+        setDraftRect({ a: drag.start, b: w });
         break;
       case "sheet":
         setLiveSheet({
@@ -1000,12 +1168,31 @@ export function StudioCanvas({
       case "point":
         setLivePoint({
           id: drag.id,
-          at: snapped({
+          at: {
             x: drag.orig.x + (w.x - drag.startWorld.x),
             y: drag.orig.y + (w.y - drag.startWorld.y),
-          }),
+          },
         });
         break;
+      case "crop":
+        setLiveCrop({ sheetId: drag.sheetId, a: drag.start, b: w });
+        break;
+      case "north-move":
+        setLiveNorth({
+          pos: {
+            x: drag.orig.x + (w.x - drag.startWorld.x),
+            y: drag.orig.y + (w.y - drag.startWorld.y),
+          },
+          deg: floor.northDeg ?? 0,
+        });
+        break;
+      case "north-rotate": {
+        const c = worldToScreen(drag.center, vp);
+        const s = worldToScreen(w, vp);
+        const deg = ((Math.atan2(s.x - c.x, -(s.y - c.y)) * 180) / Math.PI + 360) % 360;
+        setLiveNorth({ pos: drag.center, deg });
+        break;
+      }
     }
   };
 
@@ -1102,6 +1289,44 @@ export function StudioCanvas({
       }
       setLivePoint(null);
     }
+    if ((drag.kind === "north-move" || drag.kind === "north-rotate") && liveNorth) {
+      const { pos, deg } = liveNorth;
+      onMutate((d) => ({
+        ...d,
+        floors: d.floors.map((f) =>
+          f.id === floor.id ? { ...f, northPos: pos, northDeg: deg } : f
+        ),
+        objects: redetectOrientations(d.objects, floor.id, deg),
+      }));
+      setLiveNorth(null);
+    }
+    if (drag.kind === "crop" && liveCrop) {
+      const { sheetId, a, b } = liveCrop;
+      const sheet = floor.plans.find((s) => s.id === sheetId);
+      if (sheet) {
+        const dims = sheetSize(sheet);
+        const pos = sheetPos(sheet);
+        // clamp the drag to the sheet, store crop RELATIVE to the sheet origin
+        const x0 = Math.max(pos.x, Math.min(a.x, b.x));
+        const y0 = Math.max(pos.y, Math.min(a.y, b.y));
+        const x1 = Math.min(pos.x + (dims?.w ?? 0), Math.max(a.x, b.x));
+        const y1 = Math.min(pos.y + (dims?.h ?? 0), Math.max(a.y, b.y));
+        const cw = x1 - x0, ch = y1 - y0;
+        if (cw > 4 && ch > 4) {
+          const crop = { x: x0 - pos.x, y: y0 - pos.y, w: cw, h: ch };
+          onMutate((d) => ({
+            ...d,
+            floors: d.floors.map((f) =>
+              f.id === floor.id
+                ? { ...f, plans: f.plans.map((s) => (s.id === sheetId ? { ...s, crop } : s)) }
+                : f
+            ),
+          }));
+        }
+      }
+      setLiveCrop(null);
+      onToolDone();
+    }
     setDrag(null);
   };
 
@@ -1117,7 +1342,7 @@ export function StudioCanvas({
   const onDrop = (e: React.DragEvent<SVGSVGElement>) => {
     if (!placing) return;
     e.preventDefault();
-    addUnit(snapped(toWorld(e)));
+    addUnit(toWorld(e));
   };
 
   const onDoubleClick = () => {
@@ -1155,19 +1380,43 @@ export function StudioCanvas({
     }));
     setCalib({});
     setCalibMeters("");
-    onToolDone();
+    // chain into placing north (DUCTR showNorthPrompt) unless already set
+    if (!floor.northPos && onRequestTool) {
+      setNorthPrompt(true);
+      onRequestTool("set-north");
+    } else {
+      onToolDone();
+    }
   };
 
   /* ── render ── */
   const zoom = vp.zoom;
-  const viewMinX = vp.x;
-  const viewMinY = vp.y;
-  const viewW = size.w / zoom;
-  const viewH = size.h / zoom;
-  const gridX0 = Math.floor(viewMinX / grid) * grid;
-  const gridY0 = Math.floor(viewMinY / grid) * grid;
   const mm = floor.scaleMmPerUnit;
   const calibScreenB = calib.b ? worldToScreen(calib.b, vp) : null;
+
+  /* graph-paper DOTS, drawn in SCREEN space so they stay a constant size while
+     zooming (like the original builder). Major dots on the grid, finer sub-dots
+     at grid/5; the tile is offset to anchor to the world origin. */
+  const gpx = grid * zoom; // major-dot spacing in screen px
+  const dotOffX = (((-vp.x * zoom) % gpx) + gpx) % gpx;
+  const dotOffY = (((-vp.y * zoom) % gpx) + gpx) % gpx;
+  const showDots = gpx >= 6;
+  const showSubDots = gpx >= 24;
+  const subDots: { x: number; y: number }[] = [];
+  if (showSubDots) {
+    for (let i = 0; i < 5; i++)
+      for (let j = 0; j < 5; j++)
+        if (i || j) subDots.push({ x: (i * gpx) / 5, y: (j * gpx) / 5 });
+  }
+  /* metre labels along the top edge (only meaningful once calibrated) */
+  const axisLabels: { sx: number; m: number }[] = [];
+  if (mm) {
+    const step = grid * 5; // every 5 m
+    const first = Math.ceil(vp.x / step) * step;
+    for (let x = first; x < vp.x + size.w / zoom; x += step) {
+      axisLabels.push({ sx: (x - vp.x) * zoom, m: unitsToMeters(x, mm) });
+    }
+  }
 
   const cursorClass =
     drag?.kind === "pan"
@@ -1193,15 +1442,43 @@ export function StudioCanvas({
         role="application"
         aria-label="Design canvas"
       >
+        {/* graph-paper dot grid — SCREEN space, behind everything */}
+        {showDots && (
+          <>
+            <defs>
+              <pattern
+                id="ds-dots"
+                className="ds-dots"
+                patternUnits="userSpaceOnUse"
+                width={gpx}
+                height={gpx}
+                patternTransform={`translate(${dotOffX} ${dotOffY})`}
+              >
+                {subDots.map((d, i) => (
+                  <circle key={i} className="ds-dot-sub" cx={d.x} cy={d.y} r={1.0} />
+                ))}
+                <circle className="ds-dot-major" cx={0} cy={0} r={1.6} />
+              </pattern>
+            </defs>
+            <rect x={0} y={0} width={size.w} height={size.h} fill="url(#ds-dots)" />
+          </>
+        )}
         <g transform={`scale(${zoom}) translate(${-vp.x} ${-vp.y})`}>
           {/* plan sheets (under everything); arrange tool shows outlines */}
-          {floor.plans.map((s) => {
+          {layers.plan && floor.plans.map((s) => {
             const url = sheetUrls[s.imageRef];
             const dims = sheetSize(s);
             if (!url || !dims) return null;
             const pos = sheetPos(s);
+            const crop = s.crop;
+            const clipId = `clip-${s.id}`;
             return (
               <g key={s.id} className="ds-sheet">
+                {crop && (
+                  <clipPath id={clipId}>
+                    <rect x={pos.x + crop.x} y={pos.y + crop.y} width={crop.w} height={crop.h} />
+                  </clipPath>
+                )}
                 <image
                   className="ds-plan"
                   href={url}
@@ -1210,6 +1487,8 @@ export function StudioCanvas({
                   width={dims.w}
                   height={dims.h}
                   preserveAspectRatio="none"
+                  clipPath={crop ? `url(#${clipId})` : undefined}
+                  style={grayscale ? { filter: "grayscale(1) brightness(1.05) contrast(0.92)" } : undefined}
                 />
                 {tool === "arrange" && (
                   <>
@@ -1234,22 +1513,6 @@ export function StudioCanvas({
             );
           })}
 
-          {/* grid */}
-          <g className="ds-grid">
-            {Array.from(
-              { length: Math.ceil(viewW / grid) + 2 },
-              (_, i) => gridX0 + i * grid
-            ).map((x) => (
-              <line key={`v${x}`} x1={x} y1={viewMinY} x2={x} y2={viewMinY + viewH} />
-            ))}
-            {Array.from(
-              { length: Math.ceil(viewH / grid) + 2 },
-              (_, i) => gridY0 + i * grid
-            ).map((y) => (
-              <line key={`h${y}`} x1={viewMinX} y1={y} x2={viewMinX + viewW} y2={y} />
-            ))}
-          </g>
-
           {/* rooms */}
           {rooms.map((r) => {
             const pts = roomPoints(r);
@@ -1263,17 +1526,21 @@ export function StudioCanvas({
                 className={`ds-room${selected ? " sel" : ""}${ghost ? " ghost" : ""}`}
               >
                 <polygon points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />
-                <text x={c.x} y={c.y} fontSize={13 / zoom} className="ds-room-name">
-                  {String(r.props.name ?? "Room")}
-                </text>
-                <text
-                  x={c.x}
-                  y={c.y + 16 / zoom}
-                  fontSize={11 / zoom}
-                  className="ds-room-area"
-                >
-                  {mm ? formatArea(areaUnitsToM2(areaU, mm)) : "not calibrated"}
-                </text>
+                {layers.labels && (
+                  <>
+                    <text x={c.x} y={c.y} fontSize={13 / zoom} className="ds-room-name">
+                      {String(r.props.name ?? "Room")}
+                    </text>
+                    <text
+                      x={c.x}
+                      y={c.y + 16 / zoom}
+                      fontSize={11 / zoom}
+                      className="ds-room-area"
+                    >
+                      {mm ? formatArea(areaUnitsToM2(areaU, mm)) : "not calibrated"}
+                    </text>
+                  </>
+                )}
                 {selected &&
                   tool === "select" &&
                   roomEditable(r) &&
@@ -1292,7 +1559,7 @@ export function StudioCanvas({
           })}
 
           {/* pipe runs (Stage 4) — system colour, length when calibrated */}
-          {runs.map((r) => {
+          {layers.pipes && runs.map((r) => {
             const pts = r.geometry.points;
             const colour = sysColour.get(r.systemId ?? "") ?? "#888";
             const midI = Math.floor((pts.length - 1) / 2);
@@ -1307,7 +1574,7 @@ export function StudioCanvas({
                 style={{ color: colour }}
               >
                 <polyline points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />
-                {mm && (
+                {mm && layers.labels && (
                   <text x={mid.x} y={mid.y - 7 / zoom} fontSize={11 / zoom} className="ds-pipe-len">
                     {formatMeters(unitsToMeters(polylineLength(pts), mm))}
                   </text>
@@ -1317,7 +1584,7 @@ export function StudioCanvas({
           })}
 
           {/* units (Stage 4) — to-scale footprint, role glyph, model */}
-          {units.map((u) => {
+          {layers.units && units.map((u) => {
             const at = pointAt(u);
             const fp = footprint(Number(u.props.widthMm ?? 800), Number(u.props.depthMm ?? 300));
             const colour = sysColour.get(u.systemId ?? "") ?? "#888";
@@ -1329,23 +1596,27 @@ export function StudioCanvas({
                 style={{ color: colour }}
               >
                 {unitGlyph(at.x, at.y, fp.w, fp.h, String(u.props.role ?? "idu"), zoom)}
-                <text x={at.x} y={at.y + 4 / zoom} fontSize={11 / zoom} className="ds-unit-role">
-                  {role}
-                </text>
-                <text
-                  x={at.x}
-                  y={at.y + fp.h / 2 + 13 / zoom}
-                  fontSize={10 / zoom}
-                  className="ds-unit-model"
-                >
-                  {String(u.props.model ?? "")}
-                </text>
+                {layers.labels && (
+                  <>
+                    <text x={at.x} y={at.y + 4 / zoom} fontSize={11 / zoom} className="ds-unit-role">
+                      {role}
+                    </text>
+                    <text
+                      x={at.x}
+                      y={at.y + fp.h / 2 + 13 / zoom}
+                      fontSize={10 / zoom}
+                      className="ds-unit-model"
+                    >
+                      {String(u.props.model ?? "")}
+                    </text>
+                  </>
+                )}
               </g>
             );
           })}
 
           {/* risers (Stage 4) — disc + group letter, one per floor per group */}
-          {risers.map((r) => {
+          {layers.pipes && risers.map((r) => {
             const at = pointAt(r);
             const colour = sysColour.get(r.systemId ?? "") ?? "#888";
             return (
@@ -1382,7 +1653,12 @@ export function StudioCanvas({
           {draftPipe.length > 0 && (
             <g className="ds-pipe-draft">
               <polyline
-                points={[...draftPipe, ...(cursor ? [nearestAnchor(cursor)?.at ?? snapped(cursor)] : [])]
+                points={[
+                  ...draftPipe,
+                  ...(cursor
+                    ? [nearestAnchor(cursor)?.at ?? orthoSnap(draftPipe[draftPipe.length - 1], cursor)]
+                    : []),
+                ]
                   .map((p) => `${p.x},${p.y}`)
                   .join(" ")}
               />
@@ -1394,7 +1670,7 @@ export function StudioCanvas({
           {tool === "place" && placing && cursor && (
             <g className="ds-place-ghost">
               {(() => {
-                const at = snapped(cursor);
+                const at = cursor;
                 const fp = footprint(placing.widthMm, placing.depthMm);
                 return (
                   <>
@@ -1483,6 +1759,40 @@ export function StudioCanvas({
             </g>
           )}
 
+          {/* crop preview while dragging (show-the-result-before-the-drop) */}
+          {liveCrop && (
+            <rect
+              className="ds-crop-preview"
+              x={Math.min(liveCrop.a.x, liveCrop.b.x)}
+              y={Math.min(liveCrop.a.y, liveCrop.b.y)}
+              width={Math.abs(liveCrop.b.x - liveCrop.a.x)}
+              height={Math.abs(liveCrop.b.y - liveCrop.a.y)}
+            />
+          )}
+
+          {/* north arrow — placeable (drag body to move, tip to rotate) */}
+          {northArrow && (() => {
+            const R = NORTH_R_PX / zoom;
+            const { x: cx, y: cy } = northArrow.pos;
+            return (
+              <g
+                className={`ds-north${tool === "set-north" ? " active" : ""}`}
+                transform={`rotate(${northArrow.deg} ${cx} ${cy})`}
+              >
+                <circle className="ds-north-ring" cx={cx} cy={cy} r={R} />
+                <polygon
+                  className="ds-north-arrow"
+                  points={`${cx},${cy - R} ${cx - R * 0.34},${cy + R * 0.12} ${cx + R * 0.34},${cy + R * 0.12}`}
+                />
+                <circle className="ds-north-hub" cx={cx} cy={cy} r={3 / zoom} />
+                <circle className="ds-north-tip" cx={cx} cy={cy - R} r={6 / zoom} />
+                <text className="ds-north-n" x={cx} y={cy - R - 5 / zoom} fontSize={13 / zoom}>
+                  N
+                </text>
+              </g>
+            );
+          })()}
+
           {/* calibration overlay */}
           {calib.a && (
             <g className="ds-calib">
@@ -1499,6 +1809,17 @@ export function StudioCanvas({
             </g>
           )}
         </g>
+
+        {/* metre axis labels along the top edge — SCREEN space, constant size */}
+        {axisLabels.length > 0 && (
+          <g className="ds-axis">
+            {axisLabels.map((l) => (
+              <text key={l.sx} x={l.sx + 3} y={12}>
+                {`${Math.round(l.m)}m`}
+              </text>
+            ))}
+          </g>
+        )}
       </svg>
 
       {/* calibration prompt (absolute within the canvas, never position:fixed) */}
@@ -1567,6 +1888,28 @@ export function StudioCanvas({
           );
         })()}
 
+      {/* set-north prompt (chained from calibration; skippable) */}
+      {northPrompt && !floor.northPos && (
+        <div className="ds-north-prompt" role="dialog" aria-label="Set north">
+          <div className="ds-north-prompt-t">Set north</div>
+          <div className="ds-north-prompt-h">
+            Click the plan to drop the north arrow, then drag its tip to point at
+            true north.
+          </div>
+          <div className="ds-north-prompt-actions">
+            <button
+              className="ds-calib-cancel"
+              onClick={() => {
+                setNorthPrompt(false);
+                onToolDone();
+              }}
+            >
+              Skip
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* readouts + zoom controls */}
       <div className="ds-canvas-hud">
         <span>
@@ -1574,6 +1917,14 @@ export function StudioCanvas({
             ? `1 grid = 1 m · ${mm.toFixed(2)} mm/px`
             : "uncalibrated — grid is arbitrary"}
         </span>
+        <button
+          type="button"
+          className={`ds-north-pill${floor.northPos ? " set" : ""}`}
+          onClick={() => onRequestTool?.("set-north")}
+          title="Set the north direction on the plan"
+        >
+          {floor.northPos ? `North ${Math.round(floor.northDeg ?? 0)}°` : "Set north"}
+        </button>
         {cursor && mm && (
           <span>
             {formatMeters(unitsToMeters(cursor.x, mm))},{" "}
@@ -1582,11 +1933,11 @@ export function StudioCanvas({
         )}
       </div>
       <div className="ds-zoomctl">
-        <button aria-label="Zoom out" onClick={() => setVp(zoomAt(vp, { x: size.w / 2, y: size.h / 2 }, 1 / 1.3))}>
+        <button aria-label="Zoom out" onClick={() => setVp(zoomAt(vp, { x: size.w / 2, y: size.h / 2 }, 1 / 1.3, minZoom))}>
           −
         </button>
         <span>{Math.round(zoom * 100)}%</span>
-        <button aria-label="Zoom in" onClick={() => setVp(zoomAt(vp, { x: size.w / 2, y: size.h / 2 }, 1.3))}>
+        <button aria-label="Zoom in" onClick={() => setVp(zoomAt(vp, { x: size.w / 2, y: size.h / 2 }, 1.3, minZoom))}>
           +
         </button>
         <button

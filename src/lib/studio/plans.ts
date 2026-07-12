@@ -355,6 +355,7 @@ export function applyBuilderRows(
         level,
         scaleMmPerUnit: null, // plans must be calibrated before sizes are real
         northDeg: null,
+        northPos: null,
         plans: placeSheets([], sheets),
       });
     }

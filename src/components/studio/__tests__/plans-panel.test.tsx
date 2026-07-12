@@ -1,12 +1,14 @@
 /* Plans stage: floor management + the canvas plan-image layer, with the
    storage seam faked (the pdf.js raster path is browser-only). */
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Studio } from "../studio";
 import { createDesign, type DesignDocument } from "@/lib/studio/document";
 import { LocalDesignStore } from "@/lib/studio/store";
 import type { PlanImages } from "@/lib/studio/plans";
+
+const ptc = (x: number, y: number) => ({ clientX: x, clientY: y, button: 0, pointerId: 1 });
 
 const DATA_URL =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
@@ -38,7 +40,7 @@ function seedDesign(store: LocalDesignStore): DesignDocument {
       name: "Ground floor",
       level: 0,
       scaleMmPerUnit: null,
-      northDeg: null,
+      northDeg: null, northPos: null,
       plans: [
         {
           id: "sht_1",
@@ -57,7 +59,7 @@ function seedDesign(store: LocalDesignStore): DesignDocument {
       name: "Sketch level",
       level: 1,
       scaleMmPerUnit: 10,
-      northDeg: null,
+      northDeg: null, northPos: null,
       plans: [],
     }
   );
@@ -120,8 +122,38 @@ describe("Plans stage", () => {
       expect(img!.getAttribute("width")).toBe("1200");
       expect(img!.getAttribute("href")).toBe(DATA_URL);
     });
-    // uncalibrated plan floor warns
-    expect(screen.getByText(/Not calibrated — sizes are arbitrary/)).toBeInTheDocument();
+    // uncalibrated plan floor shows the actionable calibrate banner
+    expect(screen.getByText(/Calibrate the scale to begin/)).toBeInTheDocument();
+  });
+
+  it("B&W toggle applies a grayscale filter to the plan image", async () => {
+    const user = await openSeeded(new FakePlanImages());
+    await user.click(screen.getAllByRole("button", { name: "Design" })[0]);
+    const canvas = await screen.findByTestId("studio-canvas");
+    await waitFor(() => expect(canvas.querySelector("image.ds-plan")).not.toBeNull());
+
+    await user.click(screen.getByRole("button", { name: "B&W" }));
+    const img = canvas.querySelector("image.ds-plan")!;
+    expect(img.getAttribute("style") ?? "").toMatch(/grayscale/);
+  });
+
+  it("the crop tool clips the plan sheet to the dragged rect", async () => {
+    const user = await openSeeded(new FakePlanImages());
+    await user.click(screen.getAllByRole("button", { name: "Design" })[0]);
+    const canvas = await screen.findByTestId("studio-canvas");
+    await waitFor(() => expect(canvas.querySelector("image.ds-plan")).not.toBeNull());
+    const svg = canvas.querySelector("svg")!;
+
+    await user.click(screen.getByRole("button", { name: "Crop plan" }));
+    // drag a rect inside the 1200×900 sheet (screen ≈ 80,60 → 720,540)
+    fireEvent.pointerDown(svg, ptc(200, 150));
+    fireEvent.pointerMove(svg, ptc(400, 300));
+    fireEvent.pointerUp(svg, ptc(400, 300));
+
+    await waitFor(() => {
+      expect(canvas.querySelector("clipPath")).not.toBeNull();
+      expect(canvas.querySelector("image.ds-plan")!.getAttribute("clip-path")).toMatch(/url\(#clip-/);
+    });
   });
 
   it("renders every sheet of a multi-sheet floor at its stored offset", async () => {
@@ -189,7 +221,7 @@ describe("Plans stage", () => {
       name: "Ground floor",
       level: 0,
       scaleMmPerUnit: 10,
-      northDeg: null,
+      northDeg: null, northPos: null,
       plans: [],
     });
     d.planImport = { sources: [{ ref: "org/o1/set.pdf", kind: "pdf" }], placed: {}, chosen: [], names: {} };
@@ -207,8 +239,8 @@ describe("Plans stage", () => {
     const store = new LocalDesignStore(window.localStorage);
     const d = createDesign({ name: "Del job", mode: "plan" });
     d.floors.push(
-      { id: "flr_g", name: "Ground floor", level: 0, scaleMmPerUnit: 10, northDeg: null, plans: [] },
-      { id: "flr_1", name: "Level 1", level: 1, scaleMmPerUnit: 10, northDeg: null, plans: [] }
+      { id: "flr_g", name: "Ground floor", level: 0, scaleMmPerUnit: 10, northDeg: null, northPos: null, plans: [] },
+      { id: "flr_1", name: "Level 1", level: 1, scaleMmPerUnit: 10, northDeg: null, northPos: null, plans: [] }
     );
     await store.save(d);
     const user = userEvent.setup();

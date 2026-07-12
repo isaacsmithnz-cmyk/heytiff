@@ -23,7 +23,7 @@ async function openPlanDesignOnCanvas(scaleMmPerUnit: number | null) {
   const store = new LocalDesignStore(window.localStorage);
   const d = createDesign({ name: "Ref flow", mode: "plan" });
   d.floors = [
-    { id: "flr", name: "Ground floor", level: 0, scaleMmPerUnit, northDeg: null, plans: [] },
+    { id: "flr", name: "Ground floor", level: 0, scaleMmPerUnit, northDeg: null, northPos: null, plans: [] },
   ];
   d.systems = [
     { id: "sys", type: "split", brand: "mitsubishi-electric", colour: "#2E68FF", name: "System 1", settings: {} },

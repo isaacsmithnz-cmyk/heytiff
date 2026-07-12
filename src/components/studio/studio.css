@@ -827,6 +827,7 @@
   gap: 10px;
   min-width: 0;
   min-height: 0;
+  position: relative;
 }
 .dstudio .ds-canvas-top {
   display: flex;
@@ -863,18 +864,198 @@
   align-items: center;
   padding: 6px 9px;
 }
-.dstudio .ds-calib-warn {
+.dstudio .ds-calib-cta {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  font: inherit;
   font-size: 11.5px;
   font-weight: 700;
   color: #b45309;
-  background: rgba(240, 164, 49, 0.14);
-  border: 1px solid rgba(240, 164, 49, 0.3);
+  background: rgba(240, 164, 49, 0.16);
+  border: 1px solid rgba(240, 164, 49, 0.4);
+  border-radius: 999px;
+  padding: 5px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.dstudio .ds-calib-cta:hover { background: rgba(240, 164, 49, 0.26); }
+.dstudio .ds-calib-cta.armed {
+  color: #fff;
+  background: #d98f1f;
+  border-color: #d98f1f;
+  box-shadow: 0 3px 10px -3px rgba(217, 143, 31, 0.6);
+}
+
+/* canvas control strip — Layers / B&W / Legend toggles */
+.dstudio .ds-canvas-toggles { display: inline-flex; align-items: center; gap: 6px; }
+.dstudio .ds-layers-wrap { position: relative; }
+.dstudio .ds-ctl-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: #444;
+  background: #fff;
+  border: 1px solid #e0e0de;
   border-radius: 999px;
   padding: 5px 11px;
+  cursor: pointer;
+  white-space: nowrap;
 }
+.dstudio .ds-ctl-btn:hover { border-color: #cfcfcc; color: #1a1a1a; }
+.dstudio .ds-ctl-btn.on {
+  color: var(--teal-d);
+  border-color: var(--teal-d);
+  background: rgba(20, 184, 166, 0.08);
+}
+.dstudio .ds-layers-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  min-width: 168px;
+  background: #fff;
+  border: 1px solid #e5e5e2;
+  border-radius: 12px;
+  box-shadow: 0 12px 30px -10px rgba(10, 12, 20, 0.3);
+  padding: 6px;
+}
+.dstudio .ds-layer-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+}
+.dstudio .ds-layer-row:hover { background: #f3f4f6; }
+.dstudio .ds-layer-row input { accent-color: var(--teal-d); }
+
+/* legend panel — floats over the canvas */
+.dstudio .ds-legend {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 15;
+  min-width: 176px;
+  background: #fff;
+  border: 1px solid #e5e5e2;
+  border-radius: 14px;
+  box-shadow: 0 14px 34px -12px rgba(10, 12, 20, 0.32);
+  padding: 12px 14px;
+}
+.dstudio .ds-legend-h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+.dstudio .ds-legend-h button {
+  border: none;
+  background: none;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--gray400);
+  cursor: pointer;
+}
+.dstudio .ds-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gray700);
+  padding: 3px 0;
+}
+.dstudio .ds-legend-empty { font-size: 12px; color: var(--gray400); padding: 3px 0; }
+.dstudio .ds-legend-sw {
+  width: 22px;
+  height: 4px;
+  border-radius: 2px;
+  flex: none;
+}
+.dstudio .ds-legend-sym {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #eee;
+}
+.dstudio .ds-legend-ic { width: 13px; height: 13px; flex: none; }
+.dstudio .ds-legend-ic.room { background: rgba(240, 164, 49, 0.2); border: 1.5px solid #d98f1f; }
+.dstudio .ds-legend-ic.idu { border: 1.5px solid #14b8a6; border-radius: 2px; }
+.dstudio .ds-legend-ic.odu { border: 1.5px solid #14b8a6; border-radius: 50%; }
+.dstudio .ds-legend-ic.riser { background: #14b8a6; border-radius: 50%; }
+
+/* north arrow */
+.dstudio .ds-north-ring {
+  fill: rgba(255, 255, 255, 0.72);
+  stroke: #64748b;
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+}
+.dstudio .ds-north-arrow { fill: #dc2626; }
+.dstudio .ds-north-hub { fill: #334155; }
+.dstudio .ds-north-tip { fill: rgba(220, 38, 38, 0.001); cursor: grab; }
+.dstudio .ds-north.active .ds-north-ring { stroke: var(--teal-d); }
+.dstudio .ds-north-n {
+  fill: #334155;
+  font-family: var(--font);
+  font-weight: 800;
+  text-anchor: middle;
+}
+.dstudio .ds-crop-preview {
+  fill: rgba(20, 184, 166, 0.12);
+  stroke: var(--teal-d);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 3;
+  vector-effect: non-scaling-stroke;
+}
+
+/* north pill in the HUD */
+.dstudio .ds-north-pill {
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  color: #444;
+  background: #fff;
+  border: 1px solid #e0e0de;
+  border-radius: 999px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+.dstudio .ds-north-pill:hover { border-color: #cfcfcc; }
+.dstudio .ds-north-pill.set { color: var(--teal-d); border-color: var(--teal-d); }
+
+/* set-north prompt (chained from calibration) */
+.dstudio .ds-north-prompt {
+  position: absolute;
+  left: 50%;
+  bottom: 74px;
+  transform: translateX(-50%);
+  z-index: 16;
+  width: min(340px, 90%);
+  background: #fff;
+  border: 1px solid #e5e5e2;
+  border-radius: 14px;
+  box-shadow: 0 16px 40px -12px rgba(10, 12, 20, 0.34);
+  padding: 13px 15px;
+}
+.dstudio .ds-north-prompt-t { font-size: 13px; font-weight: 800; color: var(--ink); }
+.dstudio .ds-north-prompt-h {
+  font-size: 12px;
+  color: var(--gray500);
+  margin: 5px 0 10px;
+  line-height: 1.4;
+}
+.dstudio .ds-north-prompt-actions { display: flex; justify-content: flex-end; }
 .dstudio .ds-ref-open {
   display: inline-flex;
   align-items: center;
@@ -1029,10 +1210,15 @@
   cursor: grabbing;
 }
 
-.dstudio .ds-grid line {
-  stroke: rgba(40, 38, 70, 0.07);
-  vector-effect: non-scaling-stroke;
-  stroke-width: 1;
+/* graph-paper dots (screen-space pattern) */
+.dstudio .ds-dot-major { fill: #64748b; opacity: 0.55; }
+.dstudio .ds-dot-sub { fill: #64748b; opacity: 0.22; }
+/* metre axis labels along the top edge */
+.dstudio .ds-axis text {
+  fill: var(--gray400);
+  font-family: var(--font);
+  font-size: 10px;
+  font-weight: 600;
 }
 .dstudio .ds-room polygon {
   fill: rgba(240, 164, 49, 0.13);

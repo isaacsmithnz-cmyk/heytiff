@@ -26,7 +26,13 @@ import {
   formatArea,
   polygonArea,
 } from "@/lib/studio/geometry";
-import { StudioCanvas, type CanvasTool, type PlacingUnit } from "./canvas";
+import {
+  StudioCanvas,
+  ALL_LAYERS_ON,
+  type CanvasTool,
+  type LayerFlags,
+  type PlacingUnit,
+} from "./canvas";
 import { PlansPanel } from "./plans-panel";
 import {
   floorDisplayName,
@@ -612,6 +618,24 @@ function Editor({
   /* reference-sheets viewer — browse the uploaded plan set without placing it */
   const [refOpen, setRefOpen] = useState(false);
   const hasReference = Boolean(doc.planImport?.sources?.length);
+  /* canvas view state (transient, not persisted): layer visibility, plan
+     grayscale, and the legend panel toggle */
+  const [layers, setLayers] = useState<LayerFlags>(ALL_LAYERS_ON);
+  const [grayscale, setGrayscale] = useState(false);
+  const [legendOpen, setLegendOpen] = useState(false);
+
+  /* guided calibration: opening an uncalibrated plan floor auto-arms the
+     calibrate tool once (per floor) so the scale step is front-and-centre.
+     A ref guards it so the user can freely switch back to select. */
+  const calibArmed = useRef<string | null>(null);
+  useEffect(() => {
+    if (step !== 1 || !activeFloorId) return;
+    const f = doc.floors.find((x) => x.id === activeFloorId);
+    if (f && f.scaleMmPerUnit == null && calibArmed.current !== activeFloorId) {
+      calibArmed.current = activeFloorId;
+      setTool("calibrate");
+    }
+  }, [step, activeFloorId, doc.floors]);
 
   /* ── systems (Stage 4): product pack, active system, armed placement ── */
   const [pack, setPack] = useState<DataPack | null>(null);
@@ -674,6 +698,7 @@ function Editor({
             level: maxLevel + 1,
             scaleMmPerUnit: 10,
             northDeg: null,
+            northPos: null,
             plans: [],
           },
         ],
@@ -724,6 +749,8 @@ function Editor({
         r: "room-rect",
         g: "room-poly",
         c: "calibrate",
+        n: "set-north",
+        x: "crop",
         m: "arrange",
         e: "erase",
         p: "pipe",
@@ -888,6 +915,12 @@ function Editor({
             remarkRoomId={remarkRoomId}
             onRemarkConsumed={() => setRemarkRoomId(null)}
             onOpenReference={hasReference ? () => setRefOpen(true) : undefined}
+            layers={layers}
+            onLayers={setLayers}
+            grayscale={grayscale}
+            onGrayscale={setGrayscale}
+            legendOpen={legendOpen}
+            onLegend={setLegendOpen}
           />
         )}
         {step === 2 && <MaterialsView doc={doc} pack={pack} />}
@@ -1133,9 +1166,18 @@ const CANVAS_TOOLS: {
   { key: "pipe", icon: "activity", label: "Refrigerant run", kbd: "P", needsSystem: true },
   { key: "riser", icon: "arrowUp", label: "Riser (joins floors)", kbd: "I", needsSystem: true },
   { key: "calibrate", icon: "ruler", label: "Calibrate scale", kbd: "C" },
+  { key: "set-north", icon: "rotate", label: "Set north", kbd: "N" },
+  { key: "crop", icon: "maximize", label: "Crop plan", kbd: "X" },
   { key: "arrange", icon: "hand", label: "Move plans", kbd: "M" },
   { key: "erase", icon: "x", label: "Eraser", kbd: "E" },
 ];
+
+const LAYER_LABELS: Record<keyof LayerFlags, string> = {
+  plan: "Floor plan",
+  units: "Indoor units",
+  pipes: "Pipework",
+  labels: "Labels",
+};
 
 function DesignPanel({
   doc,
@@ -1162,6 +1204,12 @@ function DesignPanel({
   remarkRoomId,
   onRemarkConsumed,
   onOpenReference,
+  layers,
+  onLayers,
+  grayscale,
+  onGrayscale,
+  legendOpen,
+  onLegend,
 }: {
   doc: DesignDocument;
   activeFloorId: string | null;
@@ -1187,12 +1235,19 @@ function DesignPanel({
   remarkRoomId: string | null;
   onRemarkConsumed: () => void;
   onOpenReference?: () => void;
+  layers: LayerFlags;
+  onLayers: (l: LayerFlags) => void;
+  grayscale: boolean;
+  onGrayscale: (v: boolean) => void;
+  legendOpen: boolean;
+  onLegend: (v: boolean) => void;
 }) {
   const floors = [...doc.floors].sort((a, b) => a.level - b.level);
   const floor = floors.find((f) => f.id === activeFloorId) ?? null;
   // two-step delete of the active floor — armed per floor id so switching
   // floors mid-arm can't delete the wrong one
   const [armedDelFloor, setArmedDelFloor] = useState<string | null>(null);
+  const [layersOpen, setLayersOpen] = useState(false);
 
   if (!floor) {
     return (
@@ -1268,11 +1323,57 @@ function DesignPanel({
             </button>
           </div>
           {floor.scaleMmPerUnit == null && (
-            <span className="ds-calib-warn">
+            <button
+              className={`ds-calib-cta${tool === "calibrate" ? " armed" : ""}`}
+              onClick={() => onTool("calibrate")}
+              title="Click two points a known distance apart on the plan"
+            >
               <Icon name="ruler" size={13} />
-              Not calibrated — sizes are arbitrary
-            </span>
+              Calibrate the scale to begin
+            </button>
           )}
+          <div className="ds-canvas-toggles">
+            <div className="ds-layers-wrap">
+              <button
+                className={`ds-ctl-btn${layersOpen ? " on" : ""}`}
+                onClick={() => setLayersOpen((v) => !v)}
+                title="Layer visibility"
+              >
+                <Icon name="layers" size={14} />
+                Layers
+              </button>
+              {layersOpen && (
+                <div className="ds-layers-menu" role="menu">
+                  {(Object.keys(LAYER_LABELS) as (keyof LayerFlags)[]).map((k) => (
+                    <label key={k} className="ds-layer-row">
+                      <input
+                        type="checkbox"
+                        checked={layers[k]}
+                        onChange={(e) => onLayers({ ...layers, [k]: e.target.checked })}
+                      />
+                      <span>{LAYER_LABELS[k]}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button
+              className={`ds-ctl-btn${grayscale ? " on" : ""}`}
+              onClick={() => onGrayscale(!grayscale)}
+              title="Grayscale the plan so overlays stay readable"
+            >
+              <Icon name="circle" size={14} />
+              B&amp;W
+            </button>
+            <button
+              className={`ds-ctl-btn${legendOpen ? " on" : ""}`}
+              onClick={() => onLegend(!legendOpen)}
+              title="Legend"
+            >
+              <Icon name="library" size={14} />
+              Legend
+            </button>
+          </div>
           {onOpenReference && (
             <button
               className="ds-ref-open"
@@ -1315,6 +1416,7 @@ function DesignPanel({
           onSelect={onSelect}
           onMutate={onMutate}
           onToolDone={() => onTool("select")}
+          onRequestTool={onTool}
           planImages={planImages}
           activeSystemId={activeSystemId}
           placing={placing}
@@ -1322,7 +1424,35 @@ function DesignPanel({
           onRoomCreated={onRoomCreated}
           remarkRoomId={remarkRoomId}
           onRemarkConsumed={onRemarkConsumed}
+          layers={layers}
+          grayscale={grayscale}
         />
+        {legendOpen && (
+          <div className="ds-legend" role="dialog" aria-label="Legend">
+            <div className="ds-legend-h">
+              <span>Legend</span>
+              <button onClick={() => onLegend(false)} title="Close" aria-label="Close legend">
+                ×
+              </button>
+            </div>
+            {doc.systems.length > 0 ? (
+              doc.systems.map((s) => (
+                <div className="ds-legend-row" key={s.id}>
+                  <span className="ds-legend-sw" style={{ background: s.colour }} />
+                  {s.name}
+                </div>
+              ))
+            ) : (
+              <div className="ds-legend-empty">No systems yet</div>
+            )}
+            <div className="ds-legend-sym">
+              <div className="ds-legend-row"><span className="ds-legend-ic room" /> Room</div>
+              <div className="ds-legend-row"><span className="ds-legend-ic idu" /> Indoor unit</div>
+              <div className="ds-legend-row"><span className="ds-legend-ic odu" /> Outdoor unit</div>
+              <div className="ds-legend-row"><span className="ds-legend-ic riser" /> Riser</div>
+            </div>
+          </div>
+        )}
       </div>
 
       <aside className="ds-sidecol">

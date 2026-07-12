@@ -37,7 +37,7 @@ const rect = (x: number, y: number, w: number, h: number) => ({
 function baseDoc(): DesignDocument {
   const d = createDesign({ name: "Cov", mode: "blank", now: "2026-07-10T00:00:00.000Z" });
   d.floors = [
-    { id: "flr", name: "Ground", level: 0, scaleMmPerUnit: 10, northDeg: null, plans: [] },
+    { id: "flr", name: "Ground", level: 0, scaleMmPerUnit: 10, northDeg: null, northPos: null, plans: [] },
   ];
   d.systems = [
     { id: "sys1", type: "split", brand: "mitsubishi-electric", colour: "#2E68FF", name: "System 1", settings: {} },

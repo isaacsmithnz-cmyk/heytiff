@@ -58,7 +58,7 @@ describe("Design canvas", () => {
     // drawing opens wall-marking, then the load modal — commit and dismiss
     await finishRoom(user);
 
-    expect(screen.getByText("Room 1")).toBeInTheDocument();
+    expect(svg.querySelector(".ds-room-name")?.textContent).toBe("Room 1");
     expect(screen.getByText("0.8 m²")).toBeInTheDocument();
 
     // calibrate: 168 screen px = 300 units declared as 5 m → 16.67 mm/unit
@@ -89,7 +89,7 @@ describe("Design canvas", () => {
 
     // redo restores the room
     await user.click(screen.getByRole("button", { name: "Redo" }));
-    expect(screen.getByText("Room 1")).toBeInTheDocument();
+    expect(svg.querySelector(".ds-room-name")?.textContent).toBe("Room 1");
   });
 
   it("dragging a rectangle-room corner resizes it but keeps it rectangular", async () => {
@@ -141,10 +141,10 @@ describe("Design canvas", () => {
     fireEvent.pointerDown(svg, pt(402, 302));
     fireEvent.pointerUp(svg, pt(402, 302));
     await finishRoom(user);
-    expect(screen.getByText("Room 1")).toBeInTheDocument();
+    expect(svg.querySelector(".ds-room-name")?.textContent).toBe("Room 1");
   });
 
-  it("selecting a room opens the inspector; renaming and deleting work", async () => {
+  it("selecting a room opens the Inspect card; Edit renames via the modal; Delete key removes it", async () => {
     const { user, svg } = await openBlankDesignOnCanvas();
     await user.click(screen.getByRole("button", { name: "Room (rectangle)" }));
     fireEvent.pointerDown(svg, pt(400, 300));
@@ -152,20 +152,22 @@ describe("Design canvas", () => {
     fireEvent.pointerUp(svg, pt(500, 380));
     await finishRoom(user);
 
-    // click inside the room with the select tool
+    // click inside the room with the select tool → the cockpit Inspect card
     await user.click(screen.getByRole("button", { name: "Select" }));
     fireEvent.pointerDown(svg, pt(430, 330));
     fireEvent.pointerUp(svg, pt(430, 330));
 
-    // rename via the pencil → inline input → Enter commits
-    await user.click(screen.getByRole("button", { name: "Rename room" }));
-    const nameInput = screen.getByLabelText("Room name");
+    // Configure → Edit opens the room modal (rename lives there now)
+    await user.click(screen.getByRole("button", { name: "Edit" }));
+    const nameInput = screen.getByPlaceholderText("e.g. Living / Dining");
     await user.clear(nameInput);
-    await user.type(nameInput, "Lounge{Enter}");
+    await user.type(nameInput, "Lounge");
+    await user.click(screen.getByRole("button", { name: "Save room" }));
     // the canvas label follows the rename
     expect(svg.querySelector(".ds-room-name")?.textContent).toBe("Lounge");
 
-    await user.click(screen.getByRole("button", { name: /Delete room/ }));
+    // the room stays selected → the canvas Delete key removes it
+    fireEvent.keyDown(window, { key: "Delete" });
     expect(screen.queryByText("Lounge")).not.toBeInTheDocument();
   });
 
@@ -206,7 +208,7 @@ describe("Design canvas", () => {
     expect(screen.getByText("Auto – walls")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(screen.getByText("Room 1")).toBeInTheDocument();
+    expect(svg.querySelector(".ds-room-name")?.textContent).toBe("Room 1");
   });
 
   it("places rooms free (pixel-precise) — no grid snapping", async () => {
@@ -265,13 +267,13 @@ describe("Design canvas", () => {
     fireEvent.pointerMove(svg, pt(500, 380));
     fireEvent.pointerUp(svg, pt(500, 380));
     await finishRoom(user);
-    expect(screen.getByText("Room 1")).toBeInTheDocument();
+    expect(svg.querySelector(".ds-room-name")?.textContent).toBe("Room 1");
 
     await user.click(screen.getByRole("button", { name: "Eraser" }));
     fireEvent.pointerDown(svg, pt(440, 330));
     fireEvent.pointerUp(svg, pt(440, 330));
     // still there — the eraser is objects-only
-    expect(screen.getByText("Room 1")).toBeInTheDocument();
+    expect(svg.querySelector(".ds-room-name")?.textContent).toBe("Room 1");
   });
 });
 

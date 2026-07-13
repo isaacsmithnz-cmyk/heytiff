@@ -11,6 +11,23 @@
   --ds-border: rgba(10, 12, 20, 0.07);
   --ds-card-shadow: 0 1px 2px rgba(10, 12, 20, 0.04),
     0 20px 50px -30px rgba(10, 12, 20, 0.24);
+  /* ── cockpit panel tokens (imported from the dev handoff, exact values) ──
+     --label/--faint from the handoff are byte-identical to the shell's
+     --gray500/--gray400, so those are reused directly. Mono maps to Jakarta
+     (no monospaced face anywhere in the studio). */
+  --ds-card2: #f4f5f7;
+  --ds-border-s: rgba(10, 12, 20, 0.13);
+  --ds-ok: #00a389;
+  --ds-ok-bg: rgba(0, 229, 192, 0.13);
+  --ds-amber: #f0a431;
+  --ds-amber-d: #b45309;
+  --ds-amber-bg: rgba(240, 164, 49, 0.14);
+  --ds-teal-ink: #05887a;
+  --ds-teal-bg: rgba(0, 229, 192, 0.15);
+  --ds-ink-hero: #11141b;
+  --ds-red-d: #e0264f;
+  --ds-grad: linear-gradient(90deg, #00e5c0 0%, #2e68ff 100%);
+  --ds-sh-sm: 0 1px 2px rgba(10, 12, 20, 0.05);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -1544,200 +1561,17 @@
   pointer-events: none;
 }
 .dstudio .ds-tool-hint svg { color: #00a389; }
-
-/* inspector rail */
-.dstudio .ds-inspector {
-  flex: 0 0 240px;
-  align-self: flex-start;
-  background: #fff;
-  border: 1px solid var(--ds-border);
-  border-radius: 20px;
-  box-shadow: var(--ds-card-shadow);
-  padding: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
 .dstudio .ds-insp-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
 }
-
-/* Configure card: room name + inline rename pencil */
-.dstudio .ds-cfg-name {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 24px;
-}
-.dstudio .ds-cfg-roomname {
-  flex: 1;
-  min-width: 0;
-  font-size: 15.5px;
-  font-weight: 800;
-  color: var(--ink);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.dstudio .ds-cfg-pencil {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 8px;
-  color: var(--gray400);
-  cursor: pointer;
-}
-.dstudio .ds-cfg-pencil:hover { background: #f0fdf9; color: var(--teal-d); }
-.dstudio .ds-cfg-nameinput {
-  flex: 1;
-  min-width: 0;
-  height: 34px;
-  padding: 0 10px;
-  border: 1px solid var(--teal, #17a398);
-  border-radius: 9px;
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--ink);
-  background: #fff;
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(23, 163, 152, 0.14);
-}
-
-/* Configure card: facts + compact viewport + Edit */
-.dstudio .ds-cfg-block {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 12px 13px;
-  border: 1px solid var(--ds-border);
-  border-radius: 13px;
-  background: #fbfcfd;
-}
-.dstudio .ds-cfg-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-.dstudio .ds-cfg-facts { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
-.dstudio .ds-cfg-fact { display: flex; flex-direction: column; gap: 1px; }
-.dstudio .ds-cfg-fact > span {
-  font-size: 9px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--gray400);
-}
-.dstudio .ds-cfg-fact > b { font-size: 13px; font-weight: 800; color: var(--ink); }
-.dstudio .ds-cfg-fact .ds-insp-est { font-style: normal; font-weight: 700; color: var(--gray400); }
-.dstudio .ds-cfg-thumb {
-  flex: none;
-  width: 66px;
-  height: 66px;
-  border-radius: 10px;
-  background: #fff;
-  border: 1px solid var(--ds-border);
-  padding: 7px;
-}
-.dstudio .ds-cfg-thumb polygon {
-  fill: rgba(23, 163, 152, 0.14);
-  stroke: var(--teal-d, #0f766e);
-  stroke-width: 1.5;
-  stroke-linejoin: round;
-  vector-effect: non-scaling-stroke;
-}
-.dstudio .ds-cfg-edit {
-  align-self: flex-end;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 14px;
-  border-radius: 999px;
-  background: var(--teal, #17a398);
-  color: var(--ink);
-  font-size: 12px;
-  font-weight: 800;
-  cursor: pointer;
-}
-.dstudio .ds-cfg-edit:hover { filter: brightness(1.03); }
 .dstudio .ds-insp-hint {
   font-size: 12.5px;
   font-weight: 500;
   color: var(--gray500);
   line-height: 1.55;
-}
-/* relocated units editor on the room card */
-.dstudio .ds-insp-units {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-  margin-top: 4px;
-  padding-top: 12px;
-  border-top: 1px solid var(--ds-border);
-}
-.dstudio .ds-insp-pipes {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-}
-.dstudio .ds-insp-sech {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-}
-.dstudio .ds-insp-sech b { font-size: 12px; font-weight: 800; color: var(--ink); }
-.dstudio .ds-insp-selectunits { justify-content: center; width: 100%; }
-/* coverage banner + unit cards sit edge-to-edge inside the inspector (they
-   carry their own padding; the panel versions had a 14px inset) */
-.dstudio .ds-insp-units .ds-cov { margin: 0; }
-.dstudio .ds-insp-units .ds-cov-t {
-  font-size: 9.5px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--gray500);
-}
-.dstudio .ds-insp-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.dstudio .ds-insp-field span {
-  font-size: 11px;
-  font-weight: 800;
-  color: var(--gray700);
-}
-.dstudio .ds-insp-field input {
-  height: 38px;
-  padding: 0 12px;
-  border-radius: 11px;
-  border: 1px solid #e5e7eb;
-  background: #fafbfc;
-  font-size: 13.5px;
-  font-weight: 600;
-}
-.dstudio .ds-insp-field input:focus {
-  outline: none;
-  border-color: rgba(0, 229, 192, 0.65);
-  box-shadow: 0 0 0 3px rgba(0, 229, 192, 0.15);
-  background: #fff;
-}
-.dstudio .ds-insp-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 12.5px;
-  color: var(--gray500);
-  font-weight: 600;
-}
-.dstudio .ds-insp-row b {
-  color: var(--ink);
-  font-weight: 800;
 }
 .dstudio .ds-insp-toggle {
   display: flex;
@@ -1755,23 +1589,6 @@
 }
 .dstudio .ds-insp-toggle input:disabled + span {
   color: var(--gray400);
-}
-.dstudio .ds-insp-delete {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  height: 38px;
-  border-radius: 11px;
-  background: rgba(255, 51, 102, 0.09);
-  border: 1px solid rgba(255, 51, 102, 0.25);
-  color: #e0264f;
-  font-size: 12.5px;
-  font-weight: 800;
-  transition: all 0.2s;
-}
-.dstudio .ds-insp-delete:hover {
-  background: rgba(255, 51, 102, 0.16);
 }
 
 /* icon-only topbar buttons (undo/redo) */
@@ -1799,12 +1616,6 @@
 }
 .dstudio .ds-tbicon.flip svg {
   transform: scaleX(-1);
-}
-
-@media (max-width: 1250px) {
-  .dstudio .ds-inspector {
-    flex-basis: 200px;
-  }
 }
 
 /* ═════════════ Plans stage ═════════════ */
@@ -2879,18 +2690,15 @@
 
 /* ═════════════ Stage 4 — systems, split flow, materials ═════════════ */
 
-/* right column: systems card stacked above the inspector */
+/* right column: the system cockpit (tabs → hero → seg switch → views).
+   316px matches the dev handoff's rail; the canvas column (flex:1) absorbs it. */
 .dstudio .ds-sidecol {
-  flex: 0 0 264px;
+  flex: 0 0 316px;
   display: flex;
   flex-direction: column;
   gap: 14px;
   min-height: 0;
   overflow-y: auto;
-}
-.dstudio .ds-sidecol .ds-inspector {
-  flex: 0 0 auto;
-  align-self: stretch;
 }
 
 .dstudio .ds-syscard {
@@ -3101,7 +2909,6 @@
   font-weight: 700;
   color: var(--teal-d);
 }
-.dstudio .ds-prop-note { font-size: 11.5px; color: var(--gray500); }
 
 /* canvas: system objects */
 .dstudio .ds-pipe polyline {
@@ -3904,99 +3711,9 @@
 /* panel: choose-unit button */
 .dstudio .ds-choose { justify-content: center; }
 
-/* ═════════ systems panel v2 — reference layout (tabs · hero · pills) ═════════ */
-
-.dstudio .ds-rp { padding: 0 0 6px; overflow: hidden; }
-
-/* system tabs across the top */
-.dstudio .ds-rp-tabs {
-  display: flex;
-  align-items: flex-end;
-  gap: 4px;
-  padding: 8px 10px 0;
-  border-bottom: 1px solid var(--ds-border);
-  flex-wrap: wrap;
-}
-.dstudio .ds-rp-tab {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  border: 1px solid transparent;
-  border-bottom: none;
-  border-radius: 10px 10px 0 0;
-  /* opaque (card colour) + raised, so the add-tab can tuck BEHIND it */
-  background: #fff;
-  position: relative;
-  z-index: 1;
-  padding: 8px 11px;
-  margin-bottom: -1px;
-  cursor: pointer;
-  font: 700 12px var(--font, inherit);
-  color: var(--gray500);
-  max-width: 150px;
-}
-.dstudio .ds-rp-tab.on {
-  border-color: var(--ds-border);
-  background: #fff;
-  color: var(--ink);
-  box-shadow: 0 -2px 6px rgba(20, 28, 60, 0.04);
-}
-.dstudio .ds-rp-tabname {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-/* add-system: a small tab tucked BEHIND the last system tab, stacked like a
-   folder — it slides under (negative margin + z-index 0, tabs are z-index 1)
-   and only its rounded right end peeks out with the plus. */
-.dstudio .ds-rp-tabadd {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 46px;
-  padding: 9px 0 9px 14px; /* keep the plus centred in the visible sliver */
-  margin: 0 0 -1px -16px; /* slide under the tab in front */
-  position: relative;
-  z-index: 0;
-  border: 1px solid var(--ds-border);
-  border-bottom: none;
-  border-radius: 0 10px 0 0;
-  background: #f6f6f4;
-  color: var(--gray500);
-  cursor: pointer;
-}
-.dstudio .ds-rp-tabadd:hover {
-  background: #fff;
-  color: var(--teal-d);
-  box-shadow: 0 -2px 6px rgba(20, 28, 60, 0.04);
-}
-
-/* system header (type + delete) + the plan-first step flow. The system NAME
-   lives in the tab above, so it isn't repeated here. */
-.dstudio .ds-rp-syshead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 9px 10px 9px 14px;
-  border-bottom: 1px solid var(--ds-border);
-}
-.dstudio .ds-rp-systype-cap {
-  font-size: 9px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--gray400);
-  margin-bottom: 2px;
-}
-.dstudio .ds-rp-systype {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12.5px;
-  font-weight: 800;
-  color: var(--ink);
-}
+/* small square icon-button (×) — the Design-step panel moved to the cockpit
+   (ds-ck-*); this rule survives because plans-panel.tsx reuses .ds-rp-del for
+   its discard control. */
 .dstudio .ds-rp-del {
   display: grid;
   place-items: center;
@@ -4009,462 +3726,6 @@
   flex: none;
 }
 .dstudio .ds-rp-del:hover { background: rgba(224, 60, 60, 0.1); color: var(--red); }
-
-/* delete confirmation warning */
-.dstudio .ds-rp-delwarn {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-  margin: 10px 14px 0;
-  padding: 11px 12px;
-  background: #fffbeb;
-  border: 1px solid #fcd34d;
-  border-radius: 11px;
-}
-.dstudio .ds-rp-delwarn-msg {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: #92400e;
-}
-.dstudio .ds-rp-delwarn-actions { display: flex; gap: 8px; justify-content: flex-end; }
-.dstudio .ds-rp-delwarn-go {
-  padding: 8px 16px;
-  border-radius: 9px;
-  font-size: 12px;
-  font-weight: 700;
-  background: var(--red, #e03c3c);
-  color: #fff;
-  cursor: pointer;
-}
-.dstudio .ds-rp-delwarn-go:hover { filter: brightness(0.95); }
-
-/* passthrough so hero/pills/sec keep their own 14px inset as before */
-.dstudio .ds-rp-step { display: contents; }
-
-/* unit cards — drag onto the plan to place (Slice 3) */
-.dstudio .ds-ucard {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 11px 13px;
-  border: 1px solid var(--ds-border);
-  border-radius: 13px;
-  background: #fff;
-  cursor: grab;
-  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
-}
-.dstudio .ds-ucard[draggable="true"]:hover {
-  border-color: rgba(0, 229, 192, 0.55);
-  box-shadow: 0 8px 18px -10px rgba(10, 12, 20, 0.25);
-}
-.dstudio .ds-ucard[draggable="true"]:active { cursor: grabbing; }
-.dstudio .ds-ucard.placed {
-  cursor: default;
-  background: #f0fdf4;
-  border-color: #86efac;
-}
-.dstudio .ds-ucard-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.dstudio .ds-ucard-role {
-  font-size: 9.5px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--gray500);
-}
-.dstudio .ds-ucard-model {
-  font-size: 13px;
-  font-weight: 800;
-  color: var(--ink);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.dstudio .ds-ucard-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  flex: none;
-  font-size: 10px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #047857;
-  background: #dcfce7;
-  border: 1px solid #86efac;
-  border-radius: 999px;
-  padding: 3px 9px;
-}
-.dstudio .ds-ucard-drag {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  flex: none;
-  font-size: 10.5px;
-  font-weight: 700;
-  color: var(--gray400);
-}
-.dstudio .ds-ucard[draggable="true"]:hover .ds-ucard-drag { color: var(--teal-d); }
-.dstudio .ds-ucard-recall {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  flex: none;
-  margin-left: 6px;
-  font: inherit;
-  font-size: 10.5px;
-  font-weight: 700;
-  color: var(--gray400);
-  background: none;
-  border: none;
-  padding: 2px 4px;
-  cursor: pointer;
-  border-radius: 6px;
-}
-.dstudio .ds-ucard-recall:hover { color: #b91c1c; background: #fef2f2; }
-
-/* load-coverage banner — covered / kW short, per served room */
-.dstudio .ds-cov {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  margin: 0 14px;
-  padding: 12px 14px;
-  border: 1px solid var(--ds-border);
-  border-radius: 13px;
-  background: #fff;
-}
-.dstudio .ds-cov.covered { background: #f0fdf4; border-color: #86efac; }
-.dstudio .ds-cov.under { background: #fffbeb; border-color: #fcd34d; }
-.dstudio .ds-cov-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-.dstudio .ds-cov-head b { font-size: 12.5px; font-weight: 800; color: var(--ink); }
-.dstudio .ds-cov-verdict {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  font-weight: 800;
-}
-.dstudio .ds-cov-verdict.ok { color: #047857; }
-.dstudio .ds-cov-verdict.short { color: #b45309; }
-.dstudio .ds-cov-verdict.unknown { color: var(--gray400); font-weight: 700; }
-.dstudio .ds-cov-bar {
-  position: relative;
-  height: 8px;
-  border-radius: 999px;
-  background: rgba(10, 12, 20, 0.07);
-  overflow: hidden;
-}
-.dstudio .ds-cov-bar i {
-  position: absolute;
-  inset: 0 auto 0 0;
-  border-radius: 999px;
-}
-.dstudio .ds-cov-bar .pending {
-  background: repeating-linear-gradient(
-    -45deg,
-    rgba(23, 163, 152, 0.28) 0 5px,
-    rgba(23, 163, 152, 0.12) 5px 10px
-  );
-}
-.dstudio .ds-cov-bar .solid { background: var(--teal-d, #0f766e); }
-.dstudio .ds-cov.under .ds-cov-bar .solid { background: #f59e0b; }
-.dstudio .ds-cov-meta { font-size: 11px; font-weight: 700; color: var(--gray500); }
-.dstudio .ds-cov-sys {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 14px;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--gray500);
-}
-.dstudio .ds-cov-sys span { display: inline-flex; align-items: center; gap: 6px; }
-.dstudio .ds-cov-nudge { font-size: 11.5px; color: #92400e; }
-
-/* coverage dot on room rows */
-.dstudio .ds-covdot {
-  flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #d3d7dd;
-}
-.dstudio .ds-covdot.covered { background: #10b981; }
-.dstudio .ds-covdot.under { background: #f59e0b; }
-
-/* adopted-room tag + release */
-.dstudio .ds-rp-shared {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  flex: none;
-  font-size: 9px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--gray500);
-  background: #eef0f3;
-  border-radius: 999px;
-  padding: 2px 8px;
-}
-.dstudio .ds-rp-shared i {
-  font-style: normal;
-  cursor: pointer;
-  color: var(--gray400);
-}
-.dstudio .ds-rp-shared i:hover { color: var(--red); }
-
-/* serve-an-existing-room rows */
-.dstudio .ds-rp-adoptrow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 9px 11px;
-  border: 1px dashed var(--gray400);
-  border-radius: 11px;
-  background: transparent;
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-  color: var(--ink);
-}
-.dstudio .ds-rp-adoptrow:hover { border-color: var(--teal-d); background: #f0fdf9; }
-.dstudio .ds-rp-adoptrow .ds-rp-roomname em {
-  font-style: normal;
-  color: var(--gray400);
-  font-weight: 600;
-}
-.dstudio .ds-rp-adoptrow .ds-rp-roommeta { margin-left: auto; }
-
-/* small "Change" action in a section header */
-.dstudio .ds-rp-change {
-  margin-left: auto;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--gray500);
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 7px;
-}
-.dstudio .ds-rp-change:hover { color: var(--teal-d); background: #f0fdf9; }
-
-/* compact status row: badge + headline number */
-.dstudio .ds-rp-status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 14px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--gray500);
-}
-.dstudio .ds-rp-status .f-red { color: var(--red); }
-.dstudio .ds-rp-status .f-amber { color: #b45309; }
-
-/* warning banner (e.g. add a room to continue) — proper size + system font */
-.dstudio .ds-rp-warn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 14px;
-  padding: 10px 12px;
-  background: #fffbeb;
-  border: 1px solid #fcd34d;
-  border-radius: 11px;
-  font: 600 12.5px var(--font, inherit);
-  color: #92400e;
-}
-
-/* primary "next step" pill — HeyTiff teal button */
-.dstudio .ds-rp-next {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 44px;
-  margin: 4px 14px 12px;
-  border-radius: 999px;
-  background: var(--teal);
-  color: var(--ink);
-  font-size: 13.5px;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.dstudio .ds-rp-next:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 12px 24px -10px rgba(0, 229, 192, 0.55);
-}
-.dstudio .ds-rp-next:disabled { opacity: 0.45; cursor: not-allowed; }
-.dstudio .ds-rp-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  width: fit-content;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--gray500);
-  cursor: pointer;
-  margin: 10px 14px 2px;
-}
-.dstudio .ds-rp-back:hover { color: var(--teal-d); }
-
-/* hero: outdoor unit · % chip · bar · meta */
-.dstudio .ds-rp-hero { padding: 12px 14px 10px; }
-.dstudio .ds-rp-hero-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 7px;
-}
-.dstudio .ds-rp-label {
-  font-size: 9.5px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--gray500);
-}
-.dstudio .ds-rp-pct {
-  font-size: 10.5px;
-  font-weight: 800;
-  padding: 3px 9px;
-  border-radius: 20px;
-  background: #eafaf1;
-  color: #158a52;
-}
-.dstudio .ds-rp-pct.over { background: #fef3e2; color: #b26a00; }
-.dstudio .ds-rp-model {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-.dstudio .ds-rp-model b { font-size: 13px; color: var(--ink); }
-.dstudio .ds-rp-choosemini {
-  border: none;
-  background: none;
-  font: 700 12.5px var(--font, inherit);
-  color: var(--teal-d);
-  cursor: pointer;
-  padding: 0;
-}
-.dstudio .ds-rp-bar {
-  height: 7px;
-  background: #eef0ef;
-  border-radius: 999px;
-  overflow: hidden;
-  margin-bottom: 7px;
-}
-.dstudio .ds-rp-bar i {
-  display: block;
-  height: 100%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #06d6a0, #0ea5e9);
-}
-.dstudio .ds-rp-bar i.over { background: linear-gradient(90deg, #d97706, #f59e0b); }
-.dstudio .ds-rp-meta { font-size: 11px; color: var(--gray500); }
-.dstudio .ds-rp-meta .f-red { color: #c22f2f; }
-.dstudio .ds-rp-meta .f-amber { color: #b26a00; }
-
-/* pill switcher */
-.dstudio .ds-rp-pills {
-  display: flex;
-  gap: 5px;
-  background: #f6f6f4;
-  border: 1px solid var(--ds-border);
-  border-radius: 12px;
-  padding: 4px;
-  margin: 0 14px 12px;
-}
-.dstudio .ds-rp-pill {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  border: none;
-  background: transparent;
-  border-radius: 9px;
-  padding: 8px 4px;
-  font: 700 11.5px var(--font, inherit);
-  color: var(--gray500);
-  cursor: pointer;
-}
-.dstudio .ds-rp-pill.on {
-  background: #fff;
-  color: var(--teal-d);
-  box-shadow: 0 1px 4px rgba(20, 28, 60, 0.08);
-}
-.dstudio .ds-rp-pill-n { font-size: 9.5px; font-weight: 800; color: var(--gray400); }
-.dstudio .ds-rp-pill.on .ds-rp-pill-n { color: var(--teal-d); }
-
-/* sections */
-.dstudio .ds-rp-sec { padding: 0 14px 8px; display: flex; flex-direction: column; gap: 7px; }
-.dstudio .ds-rp-sech { display: flex; align-items: center; gap: 9px; margin-bottom: 3px; }
-.dstudio .ds-rp-sech b { font-size: 12px; font-weight: 800; color: var(--ink); }
-.dstudio .ds-rp-secn {
-  font-size: 10px;
-  font-weight: 800;
-  background: #f2f2f0;
-  color: var(--gray500);
-  padding: 2px 8px;
-  border-radius: 20px;
-}
-.dstudio .ds-rp-room {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  border: 1px solid var(--ds-border);
-  border-radius: 10px;
-  background: #fff;
-  font: inherit;
-  font-size: 12px;
-  padding: 8px 10px;
-  cursor: pointer;
-  text-align: left;
-  color: var(--teal-d);
-}
-.dstudio .ds-rp-room.on { border-color: var(--teal-d); box-shadow: 0 0 0 1px var(--teal-d); }
-.dstudio .ds-rp-roomname { font-weight: 700; color: var(--ink); flex: 1; }
-.dstudio .ds-rp-roommeta { color: var(--gray500); font-size: 11px; }
-.dstudio .ds-rp-unit,
-.dstudio .ds-rp-part {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid var(--ds-border);
-  border-radius: 10px;
-  padding: 8px 10px;
-  font-size: 12px;
-  color: var(--ink);
-}
-.dstudio .ds-rp-unit.missing { border-style: dashed; color: var(--gray500); }
-.dstudio .ds-rp-unitrole {
-  font-size: 9.5px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--gray500);
-  width: 52px;
-}
-.dstudio .ds-rp-unitmodel { font-weight: 700; flex: 1; }
-.dstudio .ds-rp-unitstate,
-.dstudio .ds-rp-partmeta { font-size: 10.5px; color: var(--gray500); }
-.dstudio .ds-rp-part span:first-child { font-weight: 700; flex: 1; }
-.dstudio .ds-rp .ds-tbbtn { margin: 2px 0 0; }
-.dstudio .ds-rp .ds-findings { padding: 4px 14px 6px; }
-.dstudio .ds-rp .ds-sysdelete { border-top: 1px solid var(--ds-border); margin-top: 4px; }
 
 /* ═════════ system type chooser (flow rework — type-first) ═════════ */
 .dstudio .ds-chooser { padding: 16px; gap: 12px; }
@@ -4514,9 +3775,6 @@
   border-radius: 20px;
 }
 .dstudio .ds-chooser-cancel { align-self: flex-start; }
-.dstudio .ds-rp-coming { padding: 18px 16px; }
-.dstudio .ds-rp-coming .ds-empty-t { font-size: 15px; font-weight: 800; color: var(--ink); margin-bottom: 4px; }
-.dstudio .ds-rp-coming .ds-empty-s { font-size: 12.5px; color: var(--gray500); line-height: 1.5; }
 
 /* ═════════ room configuration modal (Slice 2) ═════════ */
 .ds-rm-overlay {
@@ -5020,4 +4278,1031 @@
 }
 
 .dstudio .ds-job-settingst { margin-top: 4px; }
-.dstudio .ds-insp-est { font-style: normal; font-weight: 600; color: var(--gray400); font-size: 11px; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Cockpit panel (v3) — the Design-step right rail. Imported pixel-faithfully
+   from the dev handoff ("HeyTiff — Studio Panel (Cockpit)"): Chrome-style
+   system tabs riding a white page, a dark ink hero, a Rooms/Components
+   segmented switch that slides, numbered room pills, and the Inspect card.
+   All classes ds-ck-*, scoped to .dstudio, Jakarta only, handoff tokens above.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* the rail + the white "page" that backs everything below the tabs. The
+   handoff bleeds the page −9px sideways; inside our scrolling sidecol that
+   would force a horizontal scrollbar, so the page spans the full width and the
+   tabs inset instead — identical proportions, no overflow. */
+.dstudio .ds-ck {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  flex: 1 1 auto;
+}
+.dstudio .ds-ck::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  left: 0;
+  right: 0;
+  top: 35px;
+  bottom: -11px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(10, 12, 20, 0.04), 0 24px 50px -30px rgba(10, 12, 20, 0.28);
+}
+.dstudio .ds-ck > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── system tabs (folder style; inactive tab tucks behind the active one) ── */
+.dstudio .ds-ck-tabs {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: flex-end;
+  gap: 0;
+  padding: 0 6px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.dstudio .ds-ck-tabs::-webkit-scrollbar { display: none; }
+.dstudio .ds-ck-tab {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: none;
+  border-radius: 11px 11px 0 0;
+  background: #e6e9f1;
+  color: var(--gray500);
+  padding: 5px 13px 7px 12px;
+  margin: 0 -10px 1px 0;
+  cursor: pointer;
+  font: 700 12px var(--font);
+  transition: background 0.12s, color 0.12s;
+  max-width: 180px;
+  white-space: nowrap;
+}
+.dstudio .ds-ck-tab:hover {
+  background: #eef0f5;
+  color: var(--ink2);
+  z-index: 2;
+}
+.dstudio .ds-ck-tabdot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+.dstudio .ds-ck-tabname {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dstudio .ds-ck-tabx {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--gray400);
+  opacity: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 0;
+  transition: opacity 0.12s, background 0.12s, color 0.12s;
+}
+.dstudio .ds-ck-tabx:hover {
+  background: rgba(10, 12, 20, 0.12);
+  color: var(--ink2);
+}
+/* inactive tab: no reserved close-button space; nudge the label to centre the
+   visible (un-tucked) area */
+.dstudio .ds-ck-tab:not(.on) .ds-ck-tabx { display: none; }
+.dstudio .ds-ck-tab:not(.on) { padding-left: 22px; }
+/* active tab = white, raised & in front; flares into the white page */
+.dstudio .ds-ck-tab.on {
+  z-index: 4;
+  background: #fff;
+  color: var(--ink2);
+  padding: 9px 13px 9px 12px;
+  margin: 0 -10px -1px 0;
+  box-shadow: 0 -4px 10px -6px rgba(10, 12, 20, 0.18), 0 6px 0 0 #fff;
+}
+.dstudio .ds-ck-tab.on::before,
+.dstudio .ds-ck-tab.on::after {
+  content: "";
+  position: absolute;
+  bottom: -6px;
+  width: 8px;
+  height: 8px;
+  pointer-events: none;
+}
+.dstudio .ds-ck-tab.on::before {
+  left: -8px;
+  background: radial-gradient(circle 8px at top left, #0000 8px, #fff 8px);
+}
+.dstudio .ds-ck-tab.on::after {
+  right: -8px;
+  background: radial-gradient(circle 8px at top right, #0000 8px, #fff 8px);
+}
+.dstudio .ds-ck-tab.on .ds-ck-tabx { opacity: 1; }
+.dstudio .ds-ck-tabadd {
+  position: relative;
+  z-index: 1;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border: none;
+  border-radius: 8px;
+  margin: 0 0 1px 13px;
+  background: rgba(10, 12, 20, 0.045);
+  color: var(--gray500);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dstudio .ds-ck-tabadd:hover {
+  background: rgba(10, 12, 20, 0.1);
+  color: var(--ink2);
+}
+
+/* ── system-type hero (dark ink card) ── */
+.dstudio .ds-ck-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  padding: 15px;
+  color: #fff;
+  background: radial-gradient(240px 160px at 92% 0%, rgba(0, 229, 192, 0.3), transparent 62%),
+    radial-gradient(200px 150px at 0% 100%, rgba(46, 104, 255, 0.22), transparent 62%),
+    linear-gradient(135deg, var(--ds-ink-hero), var(--ink2));
+  box-shadow: 0 18px 40px -22px rgba(0, 0, 0, 0.6);
+}
+.dstudio .ds-ck-herotop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+.dstudio .ds-ck-eyebrow {
+  font: 800 9.5px var(--font);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+.dstudio .ds-ck-change {
+  margin-left: auto;
+  font: 700 12px var(--font);
+  color: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 0;
+}
+.dstudio .ds-ck-change:hover { color: #fff; }
+.dstudio .ds-ck-herotype {
+  font: 800 22px var(--font);
+  letter-spacing: -0.02em;
+  color: #fff;
+  margin: 0 0 13px;
+}
+.dstudio .ds-ck-herotype span { color: var(--teal); font-weight: 700; }
+.dstudio .ds-ck-cov { margin-top: 14px; }
+.dstudio .ds-ck-cr {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.dstudio .ds-ck-cr .k { font: 600 11px var(--font); color: rgba(255, 255, 255, 0.6); }
+.dstudio .ds-ck-cr .v { font: 700 13px var(--font); color: #fff; }
+.dstudio .ds-ck-cr .v em { font-style: normal; color: rgba(255, 255, 255, 0.45); font-weight: 500; }
+.dstudio .ds-ck-cr .v.muted { color: rgba(255, 255, 255, 0.4); }
+.dstudio .ds-ck-bar {
+  height: 6px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.18);
+  overflow: hidden;
+}
+.dstudio .ds-ck-bar > i {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: var(--ds-grad);
+}
+.dstudio .ds-ck-bar.empty {
+  background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.14) 0 5px, transparent 5px 10px);
+}
+.dstudio .ds-ck-herofoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+}
+.dstudio .ds-ck-hd { font: 600 11px var(--font); color: rgba(255, 255, 255, 0.55); }
+.dstudio .ds-ck-hd b { font-weight: 700; color: var(--teal); }
+.dstudio .ds-ck-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px 3px 7px;
+  border-radius: 999px;
+  font: 800 9.5px var(--font);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.dstudio .ds-ck-badge svg { width: 12px; height: 12px; }
+.dstudio .ds-ck-badge.ok { background: rgba(0, 229, 192, 0.16); color: var(--teal); }
+.dstudio .ds-ck-badge.warn { background: rgba(240, 164, 49, 0.2); color: var(--ds-amber); }
+.dstudio .ds-ck-badge.muted { background: rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.62); }
+
+/* ── Rooms / Components segmented switch ── */
+.dstudio .ds-ck-seg {
+  display: flex;
+  gap: 2px;
+  background: #eaebef;
+  border-radius: 14px;
+  padding: 4px;
+}
+.dstudio .ds-ck-segbtn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: none;
+  background: none;
+  border-radius: 11px;
+  padding: 7px 13px;
+  font: 700 13px var(--font);
+  color: var(--gray500);
+  cursor: pointer;
+  transition: color 0.12s, background 0.12s, box-shadow 0.12s;
+}
+.dstudio .ds-ck-segbtn:hover { color: var(--gray700); }
+.dstudio .ds-ck-segbtn.on {
+  background: #fff;
+  color: var(--ink2);
+  box-shadow: 0 1px 3px rgba(10, 12, 20, 0.14), 0 1px 1px rgba(10, 12, 20, 0.05);
+}
+.dstudio .ds-ck-segn {
+  font: 700 10.5px var(--font);
+  color: var(--gray400);
+  background: #e1e3e9;
+  border-radius: 999px;
+  padding: 2px 7px;
+  min-width: 16px;
+  text-align: center;
+}
+.dstudio .ds-ck-segbtn.on .ds-ck-segn { color: var(--ds-teal-ink); background: var(--ds-ok-bg); }
+
+/* ── sliding window: two views on a track, translate + animate height ── */
+.dstudio .ds-ck-segwin {
+  overflow: hidden;
+  box-sizing: content-box;
+  padding: 7px 0 4px;
+  transition: height 0.38s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.dstudio .ds-ck-segtrack {
+  display: flex;
+  align-items: flex-start;
+  transition: transform 0.38s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.dstudio .ds-ck-segview {
+  flex: 0 0 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+/* ── rooms as name / numbered status pills ── */
+.dstudio .ds-ck-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.dstudio .ds-ck-pills.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.dstudio .ds-ck-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--ds-border);
+  background: var(--ds-card2);
+  color: var(--gray700);
+  font: 700 12.5px var(--font);
+  cursor: pointer;
+  box-shadow: var(--ds-sh-sm);
+  transition: transform 0.14s cubic-bezier(0.34, 1.35, 0.5, 1), box-shadow 0.14s ease,
+    border-color 0.12s, background 0.12s, color 0.12s;
+}
+.dstudio .ds-ck-pill:hover {
+  transform: translateY(-2px);
+  border-color: var(--ds-border-s);
+  color: var(--ink2);
+  box-shadow: 0 10px 20px -8px rgba(10, 12, 20, 0.28);
+}
+.dstudio .ds-ck-pill:active { transform: translateY(0); }
+.dstudio .ds-ck-pills.grid2 .ds-ck-pill {
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 8px 11px;
+  font-size: 12px;
+  min-width: 0;
+}
+.dstudio .ds-ck-pillnum {
+  width: 19px;
+  height: 19px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font: 800 10.5px var(--font);
+}
+.dstudio .ds-ck-pillnm {
+  flex: 1 1 auto;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dstudio .ds-ck-pilltick {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 2px;
+}
+.dstudio .ds-ck-pilltick svg { width: 14px; height: 14px; }
+/* status colour: green = complete (units placed), amber = pending */
+.dstudio .ds-ck-pill.done {
+  background: var(--ds-ok-bg);
+  border-color: rgba(0, 163, 137, 0.28);
+  color: var(--ds-teal-ink);
+}
+.dstudio .ds-ck-pill.pending {
+  background: var(--ds-amber-bg);
+  border-color: rgba(240, 164, 49, 0.4);
+  color: var(--ds-amber-d);
+}
+.dstudio .ds-ck-pill.done .ds-ck-pillnum { background: rgba(0, 163, 137, 0.16); color: var(--ds-teal-ink); }
+.dstudio .ds-ck-pill.pending .ds-ck-pillnum { background: rgba(240, 164, 49, 0.22); color: var(--ds-amber-d); }
+.dstudio .ds-ck-pill.on.done {
+  background: var(--ds-ok);
+  border-color: var(--ds-ok);
+  color: #fff;
+  box-shadow: 0 8px 18px -10px rgba(0, 163, 137, 0.5);
+}
+.dstudio .ds-ck-pill.on.pending {
+  background: #f0a431;
+  border-color: #f0a431;
+  color: #402b06;
+  box-shadow: 0 8px 18px -10px rgba(240, 164, 49, 0.55);
+}
+.dstudio .ds-ck-pill.on.done .ds-ck-pillnum { background: #fff; color: var(--ds-teal-ink); }
+.dstudio .ds-ck-pill.on.pending .ds-ck-pillnum { background: #fff; color: var(--ds-amber-d); }
+.dstudio .ds-ck-pilladd {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px dashed var(--ds-border-s);
+  background: transparent;
+  color: var(--gray500);
+  font: 700 12px var(--font);
+  cursor: pointer;
+}
+.dstudio .ds-ck-pilladd:hover { border-color: var(--teal-d); color: var(--teal-d); }
+
+/* ── section label (INSPECT) ── */
+.dstudio .ds-ck-lbl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 4px;
+}
+.dstudio .ds-ck-lbl .rl {
+  font: 800 11px var(--font);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--gray500);
+}
+
+/* ── inspect card: the selected room's card ── */
+.dstudio .ds-ck-inspect {
+  background: var(--ds-card2);
+  border: 1px solid var(--ds-border);
+  border-radius: 16px;
+  box-shadow: var(--ds-sh-sm);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+.dstudio .ds-ck-ihead {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 2px 2px 0;
+}
+.dstudio .ds-ck-cdot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--gray400);
+  flex: none;
+}
+.dstudio .ds-ck-cdot.ok { background: var(--ds-ok); }
+.dstudio .ds-ck-cdot.under { background: var(--ds-amber-d); }
+.dstudio .ds-ck-cdot.none { background: var(--gray400); }
+.dstudio .ds-ck-itxt { flex: 1; min-width: 0; }
+.dstudio .ds-ck-iname { font: 800 15px var(--font); color: var(--ink2); letter-spacing: -0.01em; }
+.dstudio .ds-ck-ibadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--ds-ok-bg);
+  color: var(--teal-d);
+  font: 800 9.5px var(--font);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.dstudio .ds-ck-ibadge svg { width: 12px; height: 12px; }
+.dstudio .ds-ck-ibadge.warn { background: var(--ds-amber-bg); color: var(--ds-amber-d); }
+.dstudio .ds-ck-ishared {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px 3px 8px;
+  border-radius: 999px;
+  background: rgba(10, 12, 20, 0.05);
+  color: var(--gray500);
+  font: 700 9px var(--font);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.dstudio .ds-ck-ishared button {
+  border: none;
+  background: none;
+  color: var(--gray500);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 0 2px;
+}
+.dstudio .ds-ck-ishared button:hover { color: var(--ds-red-d); }
+.dstudio .ds-ck-ibody { display: flex; flex-direction: column; gap: 10px; }
+
+/* ── neutral sub-cards with a coloured title pill ── */
+.dstudio .ds-ck-sub {
+  background: #fff;
+  border: 1px solid var(--ds-border);
+  border-radius: 14px;
+  box-shadow: var(--ds-sh-sm);
+  padding: 14px;
+}
+.dstudio .ds-ck-subh {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.dstudio .ds-ck-st {
+  display: inline-flex;
+  align-items: center;
+  background: var(--ink2);
+  color: #fff;
+  padding: 5px 11px;
+  border-radius: 8px;
+  font: 800 9.5px var(--font);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.dstudio .ds-ck-sub.cfg .ds-ck-st { background: #00a389; }
+.dstudio .ds-ck-sub.units .ds-ck-st { background: #2e68ff; }
+.dstudio .ds-ck-sub.pipes .ds-ck-st { background: #8a2be2; }
+.dstudio .ds-ck-act {
+  margin-left: auto;
+  font: 700 11px var(--font);
+  color: var(--ds-teal-ink);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border: none;
+  background: none;
+  padding: 0;
+}
+.dstudio .ds-ck-act:hover { color: var(--teal-d); }
+.dstudio .ds-ck-act svg { width: 12px; height: 12px; }
+
+/* ── facts (compact, 3-across) ── */
+.dstudio .ds-ck-facts { display: flex; gap: 7px; }
+.dstudio .ds-ck-fact {
+  flex: 1;
+  min-width: 0;
+  background: var(--ds-card2);
+  border: 1px solid var(--ds-border);
+  border-radius: 10px;
+  padding: 7px 9px;
+}
+.dstudio .ds-ck-fact .k {
+  font: 700 8.5px var(--font);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--gray400);
+}
+.dstudio .ds-ck-fact .v {
+  font: 700 13.5px var(--font);
+  color: var(--ink2);
+  margin-top: 2px;
+  white-space: nowrap;
+}
+.dstudio .ds-ck-fact .v small { font-size: 9.5px; font-weight: 500; color: var(--gray500); }
+
+/* ── unit (pair) rows ── */
+.dstudio .ds-ck-unit {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 12px;
+  border-radius: 13px;
+  background: var(--ds-card2);
+  border: 1px solid var(--ds-border);
+}
+.dstudio .ds-ck-unit + .ds-ck-unit { margin-top: 8px; }
+.dstudio .ds-ck-unit.toplace { border-style: dashed; }
+.dstudio .ds-ck-unit[draggable="true"] { cursor: grab; }
+.dstudio .ds-ck-uico {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dstudio .ds-ck-uico.idu { background: var(--ds-teal-bg); color: var(--teal-d); }
+.dstudio .ds-ck-uico.odu { background: #eaedf1; color: #475569; }
+.dstudio .ds-ck-uico svg { width: 21px; height: 21px; }
+.dstudio .ds-ck-pdot {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--teal-d);
+  color: #fff;
+  border: 2px solid var(--ds-card2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dstudio .ds-ck-pdot svg { width: 9px; height: 9px; }
+.dstudio .ds-ck-urole {
+  font: 800 8.5px var(--font);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--gray400);
+}
+.dstudio .ds-ck-umodel {
+  font: 700 13.5px var(--font);
+  color: var(--ink2);
+  margin-top: 1px;
+  letter-spacing: -0.01em;
+}
+.dstudio .ds-ck-usub { font: 500 11px var(--font); color: var(--gray500); margin-top: 1px; }
+.dstudio .ds-ck-utotag {
+  display: inline-block;
+  margin-top: 3px;
+  font: 800 8px var(--font);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ds-amber-d);
+  background: var(--ds-amber-bg);
+  border-radius: 5px;
+  padding: 2px 6px;
+}
+.dstudio .ds-ck-ukw {
+  margin-left: auto;
+  font: 700 14px var(--font);
+  color: var(--ink2);
+  white-space: nowrap;
+}
+.dstudio .ds-ck-ukw small { font-size: 10px; font-weight: 500; color: var(--gray400); }
+/* recall reveals on hover/focus; stays in the a11y tree (opacity, not display) */
+.dstudio .ds-ck-recall {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--ds-border-s);
+  background: #fff;
+  color: var(--ds-teal-ink);
+  font: 700 10.5px var(--font);
+  cursor: pointer;
+  opacity: 0;
+  box-shadow: var(--ds-sh-sm);
+  transition: opacity 0.12s;
+}
+.dstudio .ds-ck-recall svg { width: 12px; height: 12px; }
+.dstudio .ds-ck-unit:hover .ds-ck-recall,
+.dstudio .ds-ck-unit:focus-within .ds-ck-recall { opacity: 1; }
+.dstudio .ds-ck-recall:hover { border-color: var(--teal-d); color: var(--teal-d); }
+.dstudio .ds-ck-pairmid {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 2px;
+}
+.dstudio .ds-ck-pairmid .rail-x {
+  flex: 1;
+  height: 1px;
+  background: repeating-linear-gradient(90deg, var(--ds-border-s) 0 4px, transparent 4px 8px);
+}
+.dstudio .ds-ck-pairmid .tg { font: 600 10px var(--font); color: var(--gray400); }
+.dstudio .ds-ck-placenote {
+  margin-top: 10px;
+  padding-left: 2px;
+  font: 600 10.5px var(--font);
+  color: var(--gray400);
+}
+.dstudio .ds-ck-placecount {
+  margin-left: auto;
+  font: 700 10px var(--font);
+  color: var(--ds-amber-d);
+  background: var(--ds-amber-bg);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+/* no-units-selected prompt inside the Units sub */
+.dstudio .ds-ck-uempty {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 13px;
+  border-radius: 13px;
+  background: var(--ds-card2);
+  border: 1px dashed var(--ds-border-s);
+}
+.dstudio .ds-ck-uempty .ue-ic {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  flex: none;
+  background: var(--ds-teal-bg);
+  color: var(--teal-d);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dstudio .ds-ck-uempty .ue-ic svg { width: 20px; height: 20px; }
+.dstudio .ds-ck-uempty .ue-t { font: 800 13px var(--font); color: var(--ink2); letter-spacing: -0.01em; }
+.dstudio .ds-ck-uempty .ue-s { font: 500 11.5px var(--font); color: var(--gray500); margin-top: 2px; }
+
+/* ── pipework rows ── */
+.dstudio .ds-ck-pipe {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 11px;
+  border-radius: 12px;
+  background: var(--ds-card2);
+  border: 1px solid var(--ds-border);
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--font);
+}
+.dstudio .ds-ck-pipe + .ds-ck-pipe { margin-top: 7px; }
+.dstudio .ds-ck-pipe:hover { border-color: var(--ds-border-s); }
+.dstudio .ds-ck-pico {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 1px solid var(--ds-border);
+  color: var(--gray500);
+}
+.dstudio .ds-ck-pico svg { width: 15px; height: 15px; }
+.dstudio .ds-ck-pt { font: 700 12px var(--font); color: var(--ink2); }
+.dstudio .ds-ck-ps { font: 600 11.5px var(--font); color: var(--gray700); margin-top: 2px; letter-spacing: -0.01em; }
+.dstudio .ds-ck-pv { margin-left: auto; font: 700 12.5px var(--font); color: var(--ink2); }
+.dstudio .ds-ck-pipeempty {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px;
+  border-radius: 10px;
+  background: var(--ds-card2);
+  border: 1px dashed var(--ds-border-s);
+  font: 600 11px var(--font);
+  color: var(--gray500);
+}
+.dstudio .ds-ck-pipeempty svg { width: 15px; height: 15px; flex: none; color: var(--gray400); }
+
+/* ── system components list ── */
+.dstudio .ds-ck-comps { display: flex; flex-direction: column; gap: 8px; }
+.dstudio .ds-ck-comp {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 12px;
+  border-radius: 13px;
+  background: #fff;
+  border: 1px solid var(--ds-border);
+  box-shadow: var(--ds-sh-sm);
+  width: 100%;
+  text-align: left;
+  font-family: var(--font);
+}
+.dstudio .ds-ck-comp.choice { cursor: pointer; }
+.dstudio .ds-ck-comp.choice:hover { border-color: var(--ds-border-s); }
+.dstudio .ds-ck-compic {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ds-card2);
+  color: var(--gray500);
+}
+.dstudio .ds-ck-compic svg { width: 20px; height: 20px; }
+.dstudio .ds-ck-comptx { flex: 1; min-width: 0; }
+.dstudio .ds-ck-comprole {
+  font: 800 8.5px var(--font);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--gray400);
+}
+.dstudio .ds-ck-compname { font: 700 13.5px var(--font); color: var(--ink2); letter-spacing: -0.01em; margin-top: 1px; }
+.dstudio .ds-ck-compsub { font: 500 11px var(--font); color: var(--gray500); margin-top: 1px; }
+.dstudio .ds-ck-compv { font: 700 13px var(--font); color: var(--ink2); white-space: nowrap; margin-left: 6px; }
+.dstudio .ds-ck-compchev {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  color: var(--gray400);
+  margin-left: 4px;
+  transition: transform 0.2s ease;
+}
+.dstudio .ds-ck-comp.open .ds-ck-compchev { transform: rotate(90deg); }
+/* inline options revealed when a choice row is open */
+.dstudio .ds-ck-opts { display: flex; flex-direction: column; gap: 6px; padding: 2px 2px 4px; }
+.dstudio .ds-ck-opt {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 11px;
+  border-radius: 11px;
+  background: #fff;
+  border: 1px solid var(--ds-border);
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  font-family: var(--font);
+}
+.dstudio .ds-ck-opt:hover { border-color: var(--ds-border-s); }
+.dstudio .ds-ck-opt.on { border-color: var(--ds-ok); box-shadow: 0 0 0 1px rgba(0, 163, 137, 0.35); }
+.dstudio .ds-ck-opt-nm { flex: 1; font: 700 12px var(--font); color: var(--ink2); }
+.dstudio .ds-ck-opt-nm small { display: block; font-weight: 500; color: var(--gray500); margin-top: 1px; }
+.dstudio .ds-ck-opt-tick { width: 15px; height: 15px; flex: none; color: var(--ds-ok); opacity: 0; }
+.dstudio .ds-ck-opt.on .ds-ck-opt-tick { opacity: 1; }
+
+/* ── empty states ── */
+.dstudio .ds-ck-emptycard {
+  background: #fff;
+  border: 1px dashed var(--ds-border-s);
+  border-radius: 16px;
+  padding: 22px 18px;
+  text-align: center;
+  box-shadow: var(--ds-sh-sm);
+}
+.dstudio .ds-ck-emptyic {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: var(--ds-teal-bg);
+  color: var(--teal-d);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 12px;
+}
+.dstudio .ds-ck-emptyic svg { width: 24px; height: 24px; }
+.dstudio .ds-ck-emptyt { font: 800 15px var(--font); color: var(--ink2); letter-spacing: -0.01em; }
+.dstudio .ds-ck-emptys {
+  font: 500 12px var(--font);
+  color: var(--gray500);
+  line-height: 1.5;
+  margin: 5px auto 15px;
+  max-width: 232px;
+}
+.dstudio .ds-ck-emptyactions { display: flex; flex-direction: column; gap: 8px; }
+
+/* ── buttons: ink primary (teal icon) + dashed serve ── */
+.dstudio .ds-ck-inkbtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 44px;
+  border: none;
+  cursor: pointer;
+  background: var(--ink2);
+  color: #fff;
+  border-radius: 13px;
+  font: 800 13px var(--font);
+  letter-spacing: -0.01em;
+  box-shadow: 0 12px 24px -12px rgba(10, 12, 20, 0.55);
+}
+.dstudio .ds-ck-inkbtn:hover { background: #16181f; }
+.dstudio .ds-ck-inkbtn svg { width: 16px; height: 16px; color: var(--teal); }
+.dstudio .ds-ck-servebtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  padding: 11px;
+  border: 1px dashed var(--ds-border-s);
+  border-radius: 13px;
+  background: transparent;
+  color: var(--gray500);
+  font: 700 12px var(--font);
+  cursor: pointer;
+}
+.dstudio .ds-ck-servebtn:hover { border-color: var(--teal-d); color: var(--teal-d); background: var(--ds-teal-bg); }
+.dstudio .ds-ck-servebtn svg { width: 15px; height: 15px; }
+
+/* adopt list (serve an existing room) */
+.dstudio .ds-ck-adopt {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+.dstudio .ds-ck-adoptrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 11px;
+  border-radius: 11px;
+  border: 1px solid var(--ds-border);
+  background: #fff;
+  cursor: pointer;
+  font-family: var(--font);
+  text-align: left;
+}
+.dstudio .ds-ck-adoptrow:hover { border-color: var(--teal-d); }
+.dstudio .ds-ck-adoptrow .an { flex: 1; font: 700 12px var(--font); color: var(--ink2); }
+.dstudio .ds-ck-adoptrow .an em { font-style: normal; color: var(--gray400); font-weight: 500; }
+.dstudio .ds-ck-adoptrow .am { font: 600 10.5px var(--font); color: var(--gray500); }
+.dstudio .ds-ck-adoptrow svg { width: 13px; height: 13px; color: var(--teal-d); }
+
+/* ── delete-system confirm ── */
+.dstudio .ds-ck-delwarn {
+  background: #fff;
+  border: 1px solid var(--ds-border-s);
+  border-radius: 14px;
+  box-shadow: var(--ds-card-shadow);
+  padding: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.dstudio .ds-ck-delwarn-msg {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 600 12px var(--font);
+  color: var(--ink2);
+}
+.dstudio .ds-ck-delwarn-msg svg { color: var(--ds-amber-d); flex: none; }
+.dstudio .ds-ck-delwarn-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.dstudio .ds-ck-delwarn-actions button {
+  border-radius: 10px;
+  padding: 8px 14px;
+  font: 700 12px var(--font);
+  cursor: pointer;
+  border: 1px solid var(--ds-border-s);
+  background: #fff;
+  color: var(--gray700);
+}
+.dstudio .ds-ck-delwarn-go {
+  border-color: var(--ds-red-d) !important;
+  background: var(--ds-red-d) !important;
+  color: #fff !important;
+}
+
+/* ── "coming at Stage X" (unavailable module) ── */
+.dstudio .ds-ck-coming {
+  background: #fff;
+  border: 1px solid var(--ds-border);
+  border-radius: 16px;
+  box-shadow: var(--ds-sh-sm);
+  padding: 22px 18px;
+  text-align: center;
+}
+.dstudio .ds-ck-coming .ct { font: 800 15px var(--font); color: var(--ink2); }
+.dstudio .ds-ck-coming .cs {
+  font: 500 12px var(--font);
+  color: var(--gray500);
+  line-height: 1.5;
+  margin-top: 6px;
+}
+
+/* ── inline warning note (over-capacity etc.) ── */
+.dstudio .ds-ck-mininote {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 9px;
+  padding: 8px 10px;
+  border-radius: 9px;
+  font: 600 10.5px var(--font);
+}
+.dstudio .ds-ck-mininote.warn { background: var(--ds-amber-bg); color: var(--ds-amber-d); }
+.dstudio .ds-ck-mininote svg { width: 13px; height: 13px; flex: none; }
+
+/* respect reduced motion — kill the slide + height + pill spring */
+@media (prefers-reduced-motion: reduce) {
+  .dstudio .ds-ck-segwin,
+  .dstudio .ds-ck-segtrack,
+  .dstudio .ds-ck-pill { transition: none; }
+}
+
+/* object inspect card (selected unit / riser / pipe-run) */
+.dstudio .ds-ck-objcard .ds-ck-objbody { display: flex; flex-direction: column; gap: 9px; }
+.dstudio .ds-ck-objrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font: 600 12px var(--font);
+  color: var(--gray500);
+}
+.dstudio .ds-ck-objrow b { font-weight: 700; color: var(--ink2); }
+.dstudio .ds-ck-objfield { display: flex; flex-direction: column; gap: 5px; }
+.dstudio .ds-ck-objfield span { font: 700 10.5px var(--font); color: var(--gray500); }
+.dstudio .ds-ck-objfield select,
+.dstudio .ds-ck-objfield input {
+  border: 1px solid var(--ds-border-s);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font: 600 12px var(--font);
+  color: var(--ink2);
+  background: #fff;
+}
+.dstudio .ds-ck-objdel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 3px;
+  padding: 9px;
+  border-radius: 11px;
+  border: 1px solid var(--ds-border-s);
+  background: #fff;
+  color: var(--ds-red-d);
+  font: 700 12px var(--font);
+  cursor: pointer;
+}
+.dstudio .ds-ck-objdel:hover { background: var(--ds-red-d); color: #fff; border-color: var(--ds-red-d); }

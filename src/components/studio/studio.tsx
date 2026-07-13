@@ -6,9 +6,7 @@ import {
   createDesign,
   newId,
   type DesignDocument,
-  type DesignObject,
   type DesignVariantRef,
-  type Floor,
 } from "@/lib/studio/document";
 import { openDesignJson, DesignDocumentError } from "@/lib/studio/migrations";
 import {
@@ -21,11 +19,6 @@ import {
 } from "@/lib/studio/store";
 import { RemoteDesignStore } from "@/lib/studio/remote-store";
 import { History } from "@/lib/studio/history";
-import {
-  areaUnitsToM2,
-  formatArea,
-  polygonArea,
-} from "@/lib/studio/geometry";
 import {
   StudioCanvas,
   ALL_LAYERS_ON,
@@ -42,16 +35,8 @@ import {
   RemotePlanImages,
   type PlanImages,
 } from "@/lib/studio/plans";
-import {
-  SystemsPanel,
-  SystemObjectInspector,
-  RoomUnitsSection,
-  MaterialsView,
-  JobView,
-  roomLoadKw,
-} from "./split-panel";
-import type { SizingBasis } from "@/lib/studio/loads";
-import type { RoomObj } from "@/lib/studio/loads-room";
+import { MaterialsView, JobView } from "./split-panel";
+import { SystemCockpit } from "./cockpit-panel";
 import { RoomModal } from "./room-modal";
 import { ReferenceViewer } from "./reference-viewer";
 import type { DataPack } from "@/lib/studio/packs/schema";
@@ -1550,239 +1535,21 @@ function DesignPanel({
       </div>
 
       <aside className="ds-sidecol">
-        <SystemsPanel
+        <SystemCockpit
           doc={doc}
           pack={pack}
           packVersion={packVersion}
           activeSystemId={activeSystemId}
           onActivate={onActivateSystem}
           onMutate={onMutate}
-          selectedRoomId={
-            doc.objects.find((o) => o.id === selectedId && o.type === "room")
-              ? selectedId
-              : null
-          }
-          onSelectRoom={onSelect}
+          selectedId={selectedId}
+          onSelect={onSelect}
+          onEditRoom={onEditRoom}
+          onArmPlace={onArmPlace}
+          onDrawRoom={() => onTool("room-rect")}
+          floor={floor}
         />
-        {(() => {
-          const sysObj = doc.objects.find(
-            (o) =>
-              o.id === selectedId &&
-              (o.type === "unit" || o.type === "riser" || o.type === "pipe-run")
-          );
-          if (sysObj)
-            return (
-              <SystemObjectInspector
-                doc={doc}
-                obj={sysObj}
-                floor={floor}
-                onMutate={onMutate}
-                onSelect={onSelect}
-              />
-            );
-          return (
-            <RoomInspector
-              key={selectedId ?? "none"}
-              doc={doc}
-              floor={floor}
-              selectedId={selectedId}
-              onSelect={onSelect}
-              onMutate={onMutate}
-              onEditRoom={onEditRoom}
-              pack={pack}
-              activeSystemId={activeSystemId}
-              onArmPlace={onArmPlace}
-            />
-          );
-        })()}
       </aside>
     </div>
-  );
-}
-
-/* a small to-scale thumbnail of the room's polygon for the Configure card */
-function RoomThumb({ points }: { points: { x: number; y: number }[] }) {
-  if (points.length < 3) return null;
-  const xs = points.map((p) => p.x);
-  const ys = points.map((p) => p.y);
-  const minX = Math.min(...xs);
-  const minY = Math.min(...ys);
-  const w = Math.max(...xs) - minX || 1;
-  const h = Math.max(...ys) - minY || 1;
-  const pad = Math.max(w, h) * 0.12;
-  return (
-    <svg
-      className="ds-cfg-thumb"
-      viewBox={`${minX - pad} ${minY - pad} ${w + pad * 2} ${h + pad * 2}`}
-      preserveAspectRatio="xMidYMid meet"
-      aria-hidden="true"
-    >
-      <polygon points={points.map((p) => `${p.x},${p.y}`).join(" ")} />
-    </svg>
-  );
-}
-
-function RoomInspector({
-  doc,
-  floor,
-  selectedId,
-  onSelect,
-  onMutate,
-  onEditRoom,
-  pack,
-  activeSystemId,
-  onArmPlace,
-}: {
-  doc: DesignDocument;
-  floor: Floor;
-  selectedId: string | null;
-  onSelect: (id: string | null) => void;
-  onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
-  onEditRoom: (id: string) => void;
-  pack: DataPack | null;
-  activeSystemId: string | null;
-  onArmPlace: (p: PlacingUnit | null) => void;
-}) {
-  const [renaming, setRenaming] = useState(false);
-  const [draftName, setDraftName] = useState("");
-  const obj: DesignObject | undefined = doc.objects.find(
-    (o) => o.id === selectedId && o.type === "room"
-  );
-
-  if (!obj || obj.geometry.kind !== "polygon") {
-    return (
-      <aside className="ds-inspector">
-        <span className="ds-cardt">Inspector</span>
-        <div className="ds-insp-hint">
-          Select a room to edit it — or draw one with the rectangle (R) or
-          polygon (G) tool. Configuring a room opens its heat-load inputs.
-        </div>
-      </aside>
-    );
-  }
-
-  const configured = Boolean(obj.props.configured);
-  const loadKw =
-    obj.geometry.kind === "polygon"
-      ? roomLoadKw(doc, obj as Parameters<typeof roomLoadKw>[1])
-      : null;
-
-  const areaU = polygonArea(obj.geometry.points);
-  const activeSystem = doc.systems.find((s) => s.id === activeSystemId) ?? null;
-  const name = String(obj.props.name ?? "Room");
-  const deleteRoom = () => {
-    onMutate((d) => ({ ...d, objects: d.objects.filter((o) => o.id !== obj.id) }));
-    onSelect(null);
-  };
-  const commitName = () => {
-    const v = draftName.trim() || "Room";
-    onMutate((d) => ({
-      ...d,
-      objects: d.objects.map((o) =>
-        o.id === obj.id ? { ...o, props: { ...o.props, name: v } } : o
-      ),
-    }));
-    setRenaming(false);
-  };
-
-  return (
-    <aside className="ds-inspector">
-      <div className="ds-insp-head">
-        <span className="ds-cardt">Configure</span>
-        <button
-          className="ds-rp-del"
-          title="Delete room"
-          aria-label="Delete room"
-          onClick={deleteRoom}
-        >
-          <Icon name="x" size={15} />
-        </button>
-      </div>
-
-      {/* room name + inline rename pencil */}
-      <div className="ds-cfg-name">
-        {renaming ? (
-          <input
-            className="ds-cfg-nameinput"
-            autoFocus
-            autoComplete="off"
-            value={draftName}
-            aria-label="Room name"
-            onChange={(e) => setDraftName(e.target.value)}
-            onBlur={commitName}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") commitName();
-              if (e.key === "Escape") setRenaming(false);
-            }}
-          />
-        ) : (
-          <>
-            <b className="ds-cfg-roomname">{name}</b>
-            <button
-              className="ds-cfg-pencil"
-              aria-label="Rename room"
-              title="Rename"
-              onClick={() => {
-                setDraftName(name);
-                setRenaming(true);
-              }}
-            >
-              <Icon name="edit" size={13} />
-            </button>
-          </>
-        )}
-      </div>
-
-      {/* facts + a compact viewport, with Edit → load inputs */}
-      <div className="ds-cfg-block">
-        <div className="ds-cfg-top">
-          <div className="ds-cfg-facts">
-            <div className="ds-cfg-fact">
-              <span>Area</span>
-              <b>
-                {floor.scaleMmPerUnit
-                  ? formatArea(areaUnitsToM2(areaU, floor.scaleMmPerUnit))
-                  : "—"}
-              </b>
-            </div>
-            <div className="ds-cfg-fact">
-              <span>Heat load</span>
-              <b>
-                {loadKw != null ? `${loadKw.toFixed(1)} kW` : "—"}
-                {loadKw != null && !configured && (
-                  <em className="ds-insp-est"> · est</em>
-                )}
-              </b>
-            </div>
-            <div className="ds-cfg-fact">
-              <span>Floor</span>
-              <b>{floor.name}</b>
-            </div>
-          </div>
-          <RoomThumb points={obj.geometry.points} />
-        </div>
-        <button className="ds-cfg-edit" onClick={() => onEditRoom(obj.id)}>
-          <Icon name="edit" size={12} />
-          Edit
-        </button>
-      </div>
-
-      {/* units for this room, on the active system (relocated from the panel) */}
-      {activeSystem ? (
-        <RoomUnitsSection
-          doc={doc}
-          pack={pack}
-          system={activeSystem}
-          room={obj as RoomObj}
-          basis={doc.settings.sizingBasis as SizingBasis}
-          onMutate={onMutate}
-          onArmPlace={onArmPlace}
-        />
-      ) : (
-        <div className="ds-insp-hint">
-          Add a system (top of the panel) to select units for this room.
-        </div>
-      )}
-    </aside>
   );
 }

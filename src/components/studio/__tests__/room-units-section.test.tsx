@@ -1,8 +1,10 @@
-/* RoomUnitsSection (relocated onto the room card): shows "Select units" until
-   the active system has a chosen pair, then the two draggable unit cards. */
+/* UnitsSub (the Units sub-card of the cockpit's Inspect card): shows "Select
+   units" until the active system has a chosen pair, then the two drag-to-plan
+   unit rows. Also covers the drag→arm / recall contract that unit-card.test.tsx
+   used to own (the old UnitCard is now the internal UnitRow). */
 
 import { render, screen, fireEvent } from "@testing-library/react";
-import { RoomUnitsSection } from "../split-panel";
+import { UnitsSub } from "../cockpit-panel";
 import {
   createDesign,
   type DesignDocument,
@@ -10,6 +12,7 @@ import {
   type DesignSystem,
 } from "@/lib/studio/document";
 import type { RoomObj } from "@/lib/studio/loads-room";
+import type { PlacingUnit } from "../canvas";
 
 const room: RoomObj = {
   id: "room1",
@@ -29,11 +32,11 @@ const room: RoomObj = {
   props: { name: "Lounge" },
 };
 
-function docWith(system: DesignSystem): DesignDocument {
+function docWith(system: DesignSystem, extra: DesignObject[] = []): DesignDocument {
   const d = createDesign({ name: "T", mode: "blank", now: "2026-07-10T00:00:00.000Z" });
   d.floors = [{ id: "flr", name: "G", level: 0, scaleMmPerUnit: 10, northDeg: null, northPos: null, plans: [] }];
   d.systems = [system];
-  d.objects = [room];
+  d.objects = [room, ...extra];
   return d;
 }
 
@@ -46,67 +49,101 @@ const sys = (settings: Record<string, unknown>): DesignSystem => ({
   settings,
 });
 
-describe("RoomUnitsSection", () => {
+const unit = (id: string, role: "idu" | "odu", model: string): DesignObject => ({
+  id,
+  type: "unit",
+  systemId: "sys1",
+  floorId: "flr",
+  geometry: { kind: "point", at: { x: 100, y: 100 } },
+  plane: role === "idu" ? "room" : "external-ground",
+  props: { role, model },
+});
+
+function renderSub(
+  system: DesignSystem,
+  extra: DesignObject[] = [],
+  handlers: {
+    onMutate?: (fn: (d: DesignDocument) => DesignDocument) => void;
+    onArmPlace?: (p: PlacingUnit | null) => void;
+  } = {}
+) {
+  const d = docWith(system, extra);
+  render(
+    <UnitsSub
+      doc={d}
+      pack={null}
+      system={system}
+      room={room}
+      basis="cooling"
+      onMutate={handlers.onMutate ?? (() => {})}
+      onArmPlace={handlers.onArmPlace ?? (() => {})}
+    />
+  );
+  return d;
+}
+
+describe("UnitsSub", () => {
   it("shows Select units until a pair is chosen", () => {
-    render(
-      <RoomUnitsSection
-        doc={docWith(sys({}))}
-        pack={null}
-        system={sys({})}
-        room={room}
-        basis="cooling"
-        onMutate={() => {}}
-        onArmPlace={() => {}}
-      />
-    );
+    renderSub(sys({}));
     expect(screen.getByRole("button", { name: /Select units/ })).toBeInTheDocument();
     expect(screen.queryByTestId("unit-card-idu")).not.toBeInTheDocument();
   });
 
-  it("renders the indoor + outdoor drag cards once a pair is chosen", () => {
-    const system = sys({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" });
-    render(
-      <RoomUnitsSection
-        doc={docWith(system)}
-        pack={null}
-        system={system}
-        room={room}
-        basis="cooling"
-        onMutate={() => {}}
-        onArmPlace={() => {}}
-      />
-    );
+  it("renders the indoor + outdoor drag rows once a pair is chosen", () => {
+    renderSub(sys({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" }));
     expect(screen.getByTestId("unit-card-idu")).toBeInTheDocument();
     expect(screen.getByTestId("unit-card-odu")).toBeInTheDocument();
     expect(screen.getByText("SLZ-M25FA-A")).toBeInTheDocument();
     expect(screen.getByText("SUZ-M25VAD-A")).toBeInTheDocument();
   });
 
+  it("an unplaced row is draggable and arms placement; dragend disarms", () => {
+    const armed: (PlacingUnit | null)[] = [];
+    renderSub(sys({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" }), [], {
+      onArmPlace: (p) => armed.push(p),
+    });
+    const card = screen.getByTestId("unit-card-idu");
+    expect(card).toHaveAttribute("draggable", "true");
+    fireEvent.dragStart(card);
+    expect(armed[0]).toMatchObject({ role: "idu", model: "SLZ-M25FA-A" });
+    expect(typeof armed[0]!.widthMm).toBe("number");
+    fireEvent.dragEnd(card);
+    expect(armed[1]).toBeNull();
+  });
+
+  it("a placed row is not draggable and offers Recall", () => {
+    const armed: (PlacingUnit | null)[] = [];
+    renderSub(
+      sys({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" }),
+      [unit("u_idu", "idu", "SLZ-M25FA-A"), unit("u_odu", "odu", "SUZ-M25VAD-A")],
+      { onArmPlace: (p) => armed.push(p) }
+    );
+    const card = screen.getByTestId("unit-card-idu");
+    expect(card).toHaveAttribute("draggable", "false");
+    fireEvent.dragStart(card);
+    expect(armed).toHaveLength(0);
+    expect(screen.getByRole("button", { name: "Recall Indoor unit" })).toBeInTheDocument();
+  });
+
   it("recall removes the placed unit and the system's pipework, keeping the rest", () => {
     const system = sys({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" });
-    const d = docWith(system);
-    const unit = (id: string, role: "idu" | "odu"): DesignObject => ({
-      id,
-      type: "unit",
-      systemId: "sys1",
-      floorId: "flr",
-      geometry: { kind: "point", at: { x: 100, y: 100 } },
-      plane: role === "idu" ? "room" : "external-ground",
-      props: { role, model: role === "idu" ? "SLZ-M25FA-A" : "SUZ-M25VAD-A" },
-    });
-    d.objects.push(unit("u_idu", "idu"), unit("u_odu", "odu"), {
-      id: "run1",
-      type: "pipe-run",
-      systemId: "sys1",
-      floorId: "flr",
-      geometry: { kind: "polyline", points: [{ x: 100, y: 100 }, { x: 300, y: 100 }] },
-      plane: "room",
-      props: {},
-    });
+    const d = docWith(system, [
+      unit("u_idu", "idu", "SLZ-M25FA-A"),
+      unit("u_odu", "odu", "SUZ-M25VAD-A"),
+      {
+        id: "run1",
+        type: "pipe-run",
+        systemId: "sys1",
+        floorId: "flr",
+        geometry: { kind: "polyline", points: [{ x: 100, y: 100 }, { x: 300, y: 100 }] },
+        plane: "room",
+        props: {},
+      },
+    ]);
 
     let next: DesignDocument | undefined;
     render(
-      <RoomUnitsSection
+      <UnitsSub
         doc={d}
         pack={null}
         system={system}
@@ -125,30 +162,12 @@ describe("RoomUnitsSection", () => {
     expect(ids).toContain("room1"); // the room stays
   });
 
-  it("Change stays available after the units are placed (swap the pair)", () => {
-    const system = sys({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" });
-    const d = docWith(system);
-    d.objects.push({
-      id: "u_idu",
-      type: "unit",
-      systemId: "sys1",
-      floorId: "flr",
-      geometry: { kind: "point", at: { x: 0, y: 0 } },
-      plane: "room",
-      props: { role: "idu", model: "SLZ-M25FA-A" },
-    });
-    render(
-      <RoomUnitsSection
-        doc={d}
-        pack={null}
-        system={system}
-        room={room}
-        basis="cooling"
-        onMutate={() => {}}
-        onArmPlace={() => {}}
-      />
-    );
-    // previously hidden once placed; now always offered while a pair is chosen
-    expect(screen.getByRole("button", { name: "Change" })).toBeInTheDocument();
+  it("offers a reselect (Select units) affordance once both units are placed", () => {
+    renderSub(sys({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" }), [
+      unit("u_idu", "idu", "SLZ-M25FA-A"),
+      unit("u_odu", "odu", "SUZ-M25VAD-A"),
+    ]);
+    // previously a "Change" button; now the header "Select units ›" reopen action
+    expect(screen.getByRole("button", { name: /Select units/ })).toBeInTheDocument();
   });
 });

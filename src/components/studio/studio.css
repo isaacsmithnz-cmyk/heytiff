@@ -3310,6 +3310,10 @@
 }
 .ds-ub-table tbody tr { cursor: pointer; }
 .ds-ub-table tbody tr:hover { background: #fafaf9; }
+/* required-capacity band (ducted AHU flow) — a quiet tint, never a filter */
+.ds-ub-table tr.band { background: #f4f8fd; }
+.ds-ub-table tr.band:hover { background: #edf4fb; }
+.ds-ub-model em.ds-ub-inband { color: #2563eb; }
 .ds-ub-table tr.rec { background: #f4fbf9; }
 .ds-ub-table tr.rec:hover { background: #ecf7f4; }
 /* the highlighted row feeding the detail panel — stronger than .rec */

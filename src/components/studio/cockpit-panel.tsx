@@ -8,10 +8,13 @@
    and a COMPONENTS list of the system-level parts.
 
    Split (1:1) is the live module. The skeleton is factored so multi-split /
-   ducted / VRF drop into the same shape at their stages (the hero branches on
-   moduleFor(type).summary; only "split" is wired here). All numbers come from
-   the engines (coverage / split / components) — this file renders + arms
-   intents, mutating through onMutate exactly as the old panel did. */
+   ducted / VRF drop into the same shape at their stages: the body branches on
+   moduleFor(type).summary — "split" renders the load-coverage hero + Units/
+   Pipework inspect, "ducted" the required-capacity hero + air-handler section
+   (Stage 7 Step 1; gauge/outlets arrive at later steps), "capacity" falls back
+   to split until multi/VRF land. All numbers come from the engines (coverage /
+   split / ducted / components) — this file renders + arms intents, mutating
+   through onMutate exactly as the old panel did. */
 
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/shell/icon";
@@ -27,9 +30,14 @@ import type { DataPack } from "@/lib/studio/packs/schema";
 import { polylineLength, unitsToMeters } from "@/lib/studio/geometry";
 import type { SizingBasis } from "@/lib/studio/loads";
 import { roomAreaM2, roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
-import { roomsServedBy, roomCoverage } from "@/lib/studio/coverage";
+import { roomsServedBy, roomCoverage, systemPairKw } from "@/lib/studio/coverage";
 import type { PairProposal } from "@/lib/studio/split";
 import { moduleFor } from "@/lib/studio/modules";
+import {
+  ductedRequirement,
+  DUCTED_OBJECT_TYPES,
+  type DuctedRequirement,
+} from "@/lib/studio/ducted";
 import {
   systemComponents,
   type ComponentIcon,
@@ -41,6 +49,16 @@ import type { PlacingUnit } from "./canvas";
 
 /* one colour per system, cycled on creation (kept from the old SystemsPanel) */
 const SYSTEM_COLOURS = ["#2E68FF", "#E4572E", "#17A398", "#9B5DE5", "#F5A623", "#D63384"];
+
+/* objects dropped when a system changes type — everything type-specific; the
+   rooms it serves stay. Covers the five ducted palette types up front (ducted
+   spec §9f) even though most of those objects arrive at later steps. */
+const TYPE_WIPED_OBJECTS: ReadonlySet<string> = new Set([
+  "unit",
+  "pipe-run",
+  "riser",
+  ...DUCTED_OBJECT_TYPES,
+]);
 
 /* ─────────────────────────── inline glyphs ───────────────────────────
    Exact 24×24 stroke paths from the handoff, so the cockpit reads identically.
@@ -150,8 +168,8 @@ export function SystemCockpit({
     setAdding(false);
   };
 
-  /* change an existing system's type — units/pipework are type-specific so
-     they're dropped and the pair cleared; the rooms it serves stay. */
+  /* change an existing system's type — the TYPE_WIPED_OBJECTS are dropped and
+     the pair cleared; the rooms it serves stay. */
   const changeType = (type: SystemType) => {
     setChangingType(false);
     if (!active || type === active.type) return;
@@ -164,11 +182,7 @@ export function SystemCockpit({
           : s
       ),
       objects: d.objects.filter(
-        (o) =>
-          !(
-            o.systemId === sysId &&
-            (o.type === "unit" || o.type === "pipe-run" || o.type === "riser")
-          )
+        (o) => !(o.systemId === sysId && TYPE_WIPED_OBJECTS.has(o.type))
       ),
     }));
   };
@@ -363,14 +377,23 @@ function ActiveCockpit({
 }) {
   const [view, setView] = useState<"rooms" | "components">("rooms");
 
+  /* the module's SummaryKind picks the body: "ducted" gets the required-
+     capacity hero + air-handler section; "split" (and "capacity", until
+     multi/VRF are available) keeps the load-coverage hero unchanged */
+  const ducted = moduleFor(system.type).summary === "ducted";
+
   const rooms = useMemo(() => roomsServedBy(doc, system.id), [doc, system.id]);
   const componentRows = useMemo(
     () => systemComponents(doc, pack, system, basis),
     [doc, pack, system, basis]
   );
   const hero = useMemo(
-    () => computeHero(doc, pack, system, rooms, basis),
-    [doc, pack, system, rooms, basis]
+    () => (ducted ? null : computeHero(doc, pack, system, rooms, basis)),
+    [ducted, doc, pack, system, rooms, basis]
+  );
+  const req = useMemo(
+    () => (ducted ? ductedRequirement(doc, system) : null),
+    [ducted, doc, system]
   );
 
   /* the selected canvas object, if it belongs to this system → object card */
@@ -396,7 +419,18 @@ function ActiveCockpit({
 
   return (
     <>
-      <CockpitHero hero={hero} onChangeType={onChangeType} />
+      {req ? (
+        <DuctedHero
+          doc={doc}
+          pack={pack}
+          system={system}
+          basis={basis}
+          req={req}
+          onChangeType={onChangeType}
+        />
+      ) : hero ? (
+        <CockpitHero hero={hero} onChangeType={onChangeType} />
+      ) : null}
 
       <div className="ds-ck-seg" role="tablist" aria-label="Panel view">
         <button
@@ -419,6 +453,17 @@ function ActiveCockpit({
 
       {/* tabs + hero + the seg switch are pinned above; only the views scroll */}
       <div className="ds-ck-scroll">
+        {req && (
+          <AhuSection
+            doc={doc}
+            pack={pack}
+            system={system}
+            basis={basis}
+            req={req}
+            onMutate={onMutate}
+            onArmPlace={onArmPlace}
+          />
+        )}
         <SegWindow view={view}>
           <RoomsView
             doc={doc}
@@ -427,6 +472,7 @@ function ActiveCockpit({
             basis={basis}
             floor={floor}
             rooms={rooms}
+            ducted={ducted}
             selObj={selObj ?? null}
             inspectRoom={inspectRoom}
             highlightRoomId={highlightRoomId}
@@ -628,6 +674,272 @@ function splitLabel(label: string): [string, string] {
   return [label.slice(0, i), label.slice(i + 1)];
 }
 
+/* ─────────────────────────── ducted (Stage 7, Step 1) ───────────────────────────
+   Minimal body — the required-capacity hero and the air-handler section. The
+   gauge, counts row and warnings strip arrive at Step 7; outlets/ductwork at
+   Steps 3–4. Selecting an AHU writes settings.pairIdu/pairOdu — the split
+   pairing keys — so resolvePair/systemPairKw/systemComponents resolve
+   unchanged (no separate ahuModel key). */
+
+/** the ducted pairing state: placed unit models win, else the chosen pair */
+function ductedPair(doc: DesignDocument, system: DesignSystem) {
+  const mine = doc.objects.filter((o) => o.systemId === system.id && o.type === "unit");
+  const placedIdu = mine.find((o) => o.props.role === "idu") ?? null;
+  const placedOdu = mine.find((o) => o.props.role === "odu") ?? null;
+  return {
+    placedIdu,
+    placedOdu,
+    iduModel: String(placedIdu?.props.model ?? system.settings.pairIdu ?? ""),
+    oduModel: String(placedOdu?.props.model ?? system.settings.pairOdu ?? ""),
+  };
+}
+
+function DuctedHero({
+  doc,
+  pack,
+  system,
+  basis,
+  req,
+  onChangeType,
+}: {
+  doc: DesignDocument;
+  pack: DataPack | null;
+  system: DesignSystem;
+  basis: SizingBasis;
+  req: DuctedRequirement;
+  onChangeType: () => void;
+}) {
+  const [name, ratio] = splitLabel(moduleFor(system.type).label);
+  const { iduModel, oduModel } = ductedPair(doc, system);
+  const hasPair = Boolean(iduModel && oduModel);
+  const pairKw = hasPair && pack ? systemPairKw(doc, pack, system.id, basis) : null;
+  const barPct =
+    req.requiredKw != null && req.requiredKw > 0 && pairKw != null
+      ? Math.min((pairKw / req.requiredKw) * 100, 100)
+      : null;
+  // requiredKw degrades to "—" + a grey reason, never a guess (Principle 5)
+  const note =
+    req.requiredKw == null
+      ? req.roomCount === 0
+        ? "No rooms served yet"
+        : `Room loads unavailable · ${req.unknownRooms} room${req.unknownRooms === 1 ? "" : "s"}`
+      : hasPair
+        ? pairKw != null
+          ? `${pairKw.toFixed(1)} kW selected`
+          : "Pair capacity unknown"
+        : "Select an air handler to size";
+  return (
+    <div className="ds-ck-hero">
+      <div className="ds-ck-herotop">
+        <span className="ds-ck-eyebrow">System type</span>
+        <button
+          className="ds-ck-change"
+          onClick={onChangeType}
+          title="Change system type — a different type clears the system's units"
+        >
+          Change
+        </button>
+      </div>
+      <div className="ds-ck-herotype">
+        {name}
+        {ratio && <span> {ratio}</span>}
+      </div>
+      <div className="ds-ck-cov">
+        <div className="ds-ck-cr">
+          <span className="k">Required capacity</span>
+          <span className={`v${req.requiredKw == null ? " muted" : ""}`}>
+            {req.requiredKw != null ? `~${req.requiredKw.toFixed(1)}` : "—"}
+            <em>{` kW · ${req.roomCount} room${req.roomCount === 1 ? "" : "s"}`}</em>
+          </span>
+        </div>
+        <div className={`ds-ck-bar${barPct == null ? " empty" : ""}`}>
+          {barPct != null && <i style={{ width: `${barPct}%` }} />}
+        </div>
+        <div className="ds-ck-herofoot">
+          <span className="ds-ck-badge muted">
+            {hasPair ? "Air handler chosen" : "No air handler"}
+          </span>
+          <span className="ds-ck-hd">{note}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Air-handler section: the choose CTA, the chosen pair's engine figures,
+   and the two drag-to-plan cards (same arm/drag mechanics as UnitsSub).
+   Exported so the ducted tests can drive it in isolation. ── */
+
+export function AhuSection({
+  doc,
+  pack,
+  system,
+  basis,
+  req,
+  onMutate,
+  onArmPlace,
+}: {
+  doc: DesignDocument;
+  pack: DataPack | null;
+  system: DesignSystem;
+  basis: SizingBasis;
+  req: DuctedRequirement;
+  onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
+  onArmPlace: (p: PlacingUnit | null) => void;
+}) {
+  const [browsing, setBrowsing] = useState(false);
+  const { placedIdu, placedOdu, iduModel, oduModel } = ductedPair(doc, system);
+  const hasPair = Boolean(iduModel && oduModel);
+  const iduSpec = pack?.indoor_units.find((u) => u.model === iduModel) ?? null;
+  const oduSpec = pack?.outdoor_units.find((u) => u.model === oduModel) ?? null;
+  const pairRow =
+    pack?.pair_tables.find((p) => p.idu_model === iduModel && p.odu_model === oduModel) ?? null;
+  const pairKw = hasPair && pack ? systemPairKw(doc, pack, system.id, basis) : null;
+  const airflowLs = iduSpec?.airflow_ls ?? null;
+  const allPlaced = Boolean(placedIdu && placedOdu);
+
+  const recall = (unitId: string) =>
+    onMutate((d) => ({
+      ...d,
+      objects: d.objects.filter(
+        (o) =>
+          o.id !== unitId &&
+          !(o.systemId === system.id && (o.type === "pipe-run" || o.type === "riser"))
+      ),
+    }));
+
+  const choose = (pair: PairProposal) => {
+    const changed = pair.idu.model !== iduModel || pair.odu.model !== oduModel;
+    onMutate((d) => ({
+      ...d,
+      systems: d.systems.map((s) =>
+        s.id === system.id
+          ? {
+              ...s,
+              settings: {
+                ...s.settings,
+                pairIdu: pair.idu.model,
+                pairOdu: pair.odu.model,
+              },
+            }
+          : s
+      ),
+      // a different AHU drops the placed refrigerant side, exactly like split
+      objects: changed
+        ? d.objects.filter(
+            (o) =>
+              !(
+                o.systemId === system.id &&
+                (o.type === "unit" || o.type === "pipe-run" || o.type === "riser")
+              )
+          )
+        : d.objects,
+    }));
+    setBrowsing(false);
+  };
+
+  const pipeSizes = pairRow ? `Ø${pairRow.pipe_liquid_mm} / ${pairRow.pipe_gas_mm}` : "";
+
+  return (
+    <div className="ds-ck-sub units" style={{ marginTop: 10 }} data-testid="ahu-section">
+      <div className="ds-ck-subh">
+        <span className="ds-ck-st">
+          <Glyph name="idu" size={14} />
+          Air handler
+        </span>
+        {hasPair && (
+          <button
+            className="ds-ck-act"
+            onClick={() => setBrowsing(true)}
+            title="Swap the chosen air handler"
+          >
+            Change
+            <Glyph name="chev" size={12} />
+          </button>
+        )}
+      </div>
+
+      {!hasPair ? (
+        <>
+          <div className="ds-ck-uempty">
+            <div className="ue-ic">
+              <Glyph name="idu" size={20} />
+            </div>
+            <div>
+              <div className="ue-t">No air handler yet</div>
+              <div className="ue-s">One concealed unit serves every room.</div>
+            </div>
+          </div>
+          <button
+            className="ds-ck-inkbtn"
+            style={{ marginTop: 10 }}
+            onClick={() => setBrowsing(true)}
+          >
+            <Glyph name="plus" size={16} />
+            Select air handler
+          </button>
+        </>
+      ) : (
+        <>
+          {/* plain engine-sourced lines — the verdict gauge is Step 7 */}
+          <ObjRow k="Capacity" v={pairKw != null ? `${pairKw.toFixed(1)} kW` : "—"} />
+          <ObjRow k="Rated airflow" v={airflowLs != null ? `${airflowLs} L/s` : "—"} />
+          {airflowLs == null && <div className="ds-ck-usub">airflow missing from pack</div>}
+          <ObjRow
+            k="Requires"
+            v={req.requiredKw != null ? `~${req.requiredKw.toFixed(1)} kW` : "—"}
+          />
+          <UnitRow
+            role="idu"
+            label="Air handler"
+            model={iduModel}
+            sub={iduSpec ? formFactorLabel(iduSpec.form_factor) : undefined}
+            kw={pairRow?.rated_cool_kw ?? iduSpec?.capacity_cool_kw ?? null}
+            widthMm={iduSpec?.width_mm ?? 800}
+            depthMm={iduSpec?.depth_mm ?? 300}
+            placed={Boolean(placedIdu)}
+            onArmPlace={onArmPlace}
+            onRecall={placedIdu ? () => recall(placedIdu.id) : undefined}
+          />
+          <div className="ds-ck-pairmid">
+            <span className="tg">paired</span>
+            <span className="rail-x" />
+            {pipeSizes && <span className="tg">{pipeSizes}</span>}
+            <span className="rail-x" />
+          </div>
+          <UnitRow
+            role="odu"
+            label="Outdoor"
+            model={oduModel}
+            sub={oduSpec ? `${oduSpec.phase === "3" ? "3Ø" : "1Ø"} · ${oduSpec.refrigerant}` : undefined}
+            kw={pairRow?.rated_cool_kw ?? oduSpec?.capacity_cool_kw ?? null}
+            widthMm={oduSpec?.width_mm ?? 900}
+            depthMm={oduSpec?.depth_mm ?? 330}
+            placed={Boolean(placedOdu)}
+            onArmPlace={onArmPlace}
+            onRecall={placedOdu ? () => recall(placedOdu.id) : undefined}
+          />
+          {!allPlaced && (
+            <div className="ds-ck-placenote">Drag each card onto the plan to place it.</div>
+          )}
+        </>
+      )}
+
+      {browsing && pack && (
+        <UnitBrowser
+          pack={pack}
+          loadKw={req.requiredKw}
+          basis={basis}
+          initialFormFactor="ducted"
+          requiredKw={req.requiredKw}
+          onChoose={choose}
+          onClose={() => setBrowsing(false)}
+        />
+      )}
+    </div>
+  );
+}
+
 /* ─────────────── sliding seg-window (translate + animated height) ─────────────── */
 
 function SegWindow({ view, children }: { view: "rooms" | "components"; children: [React.ReactNode, React.ReactNode] }) {
@@ -684,6 +996,7 @@ function RoomsView({
   basis,
   floor,
   rooms,
+  ducted,
   selObj,
   inspectRoom,
   highlightRoomId,
@@ -699,6 +1012,7 @@ function RoomsView({
   basis: SizingBasis;
   floor: Floor;
   rooms: RoomObj[];
+  ducted: boolean;
   selObj: DesignObject | null;
   inspectRoom: RoomObj | null;
   highlightRoomId: string;
@@ -857,6 +1171,7 @@ function RoomsView({
           system={system}
           room={inspectRoom}
           basis={basis}
+          ducted={ducted}
           onSelect={onSelect}
           onMutate={onMutate}
           onEditRoom={onEditRoom}
@@ -876,6 +1191,7 @@ function RoomInspectCard({
   system,
   room,
   basis,
+  ducted,
   onSelect,
   onMutate,
   onEditRoom,
@@ -887,13 +1203,18 @@ function RoomInspectCard({
   system: DesignSystem;
   room: RoomObj;
   basis: SizingBasis;
+  /** ducted rooms get Configure only — Outlets/Duct replace Units/Pipework
+      at Steps 3–4 */
+  ducted?: boolean;
   onSelect: (id: string | null) => void;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   onEditRoom: (id: string) => void;
   onArmPlace: (p: PlacingUnit | null) => void;
   onRelease: (roomId: string) => void;
 }) {
-  const [tab, setTab] = useState<"configure" | "units" | "pipework">("units");
+  const [tab, setTab] = useState<"configure" | "units" | "pipework">(
+    ducted ? "configure" : "units"
+  );
   const cov = roomCoverage(doc, pack, room, basis);
   const covered = cov.status === "covered";
   const shared = room.systemId !== system.id;
@@ -933,28 +1254,35 @@ function RoomInspectCard({
           <Glyph name="configure" size={13} />
           Configure
         </button>
-        <button
-          role="tab"
-          aria-selected={tab === "units"}
-          className={`ds-ck-stb${tab === "units" ? " on" : ""}`}
-          onClick={() => setTab("units")}
-        >
-          <Glyph name="unitsq" size={13} />
-          Units
-        </button>
-        <button
-          role="tab"
-          aria-selected={tab === "pipework"}
-          className={`ds-ck-stb${tab === "pipework" ? " on" : ""}`}
-          onClick={() => setTab("pipework")}
-        >
-          <Glyph name="pipes" size={13} />
-          Pipework
-        </button>
+        {!ducted && (
+          <>
+            <button
+              role="tab"
+              aria-selected={tab === "units"}
+              className={`ds-ck-stb${tab === "units" ? " on" : ""}`}
+              onClick={() => setTab("units")}
+            >
+              <Glyph name="unitsq" size={13} />
+              Units
+            </button>
+            <button
+              role="tab"
+              aria-selected={tab === "pipework"}
+              className={`ds-ck-stb${tab === "pipework" ? " on" : ""}`}
+              onClick={() => setTab("pipework")}
+            >
+              <Glyph name="pipes" size={13} />
+              Pipework
+            </button>
+          </>
+        )}
       </div>
       <div className="ds-ck-ibody">
         {tab === "configure" && <ConfigureSub doc={doc} room={room} onEditRoom={onEditRoom} />}
-        {tab === "units" && (
+        {ducted && (
+          <div className="ds-ck-pipeempty">Outlets arrive with ductwork — Step 3</div>
+        )}
+        {!ducted && tab === "units" && (
           <UnitsSub
             doc={doc}
             pack={pack}
@@ -965,7 +1293,9 @@ function RoomInspectCard({
             onArmPlace={onArmPlace}
           />
         )}
-        {tab === "pipework" && <PipeworkSub doc={doc} system={system} onSelect={onSelect} />}
+        {!ducted && tab === "pipework" && (
+          <PipeworkSub doc={doc} system={system} onSelect={onSelect} />
+        )}
       </div>
     </div>
   );

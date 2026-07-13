@@ -227,15 +227,17 @@ export function SystemCockpit({
       )}
 
       {showChooser ? (
-        <SystemTypeChooser
-          heading={changingType ? "Change system type" : undefined}
-          sub={changingType ? "Pick a different type — this clears the system's units" : undefined}
-          onChoose={adding ? createSystem : changeType}
-          onCancel={() => {
-            setAdding(false);
-            setChangingType(false);
-          }}
-        />
+        <div className="ds-ck-scroll">
+          <SystemTypeChooser
+            heading={changingType ? "Change system type" : undefined}
+            sub={changingType ? "Pick a different type — this clears the system's units" : undefined}
+            onChoose={adding ? createSystem : changeType}
+            onCancel={() => {
+              setAdding(false);
+              setChangingType(false);
+            }}
+          />
+        </div>
       ) : active && mod && mod.available ? (
         <ActiveCockpit
           key={active.id}
@@ -259,11 +261,13 @@ export function SystemCockpit({
       ) : active && mod && !mod.available ? (
         <>
           <SimpleHero label={mod.label} />
-          <div className="ds-ck-coming">
-            <div className="ct">{mod.label}</div>
-            <div className="cs">
-              This system type arrives at {mod.comingStage}. The room process works
-              today; unit selection and materials come with the module.
+          <div className="ds-ck-scroll">
+            <div className="ds-ck-coming">
+              <div className="ct">{mod.label}</div>
+              <div className="cs">
+                This system type arrives at {mod.comingStage}. The room process works
+                today; unit selection and materials come with the module.
+              </div>
             </div>
           </div>
         </>
@@ -413,25 +417,28 @@ function ActiveCockpit({
         </button>
       </div>
 
-      <SegWindow view={view}>
-        <RoomsView
-          doc={doc}
-          pack={pack}
-          system={system}
-          basis={basis}
-          floor={floor}
-          rooms={rooms}
-          selObj={selObj ?? null}
-          inspectRoom={inspectRoom}
-          highlightRoomId={highlightRoomId}
-          onSelect={onSelect}
-          onMutate={onMutate}
-          onEditRoom={onEditRoom}
-          onArmPlace={onArmPlace}
-          onDrawRoom={onDrawRoom}
-        />
-        <ComponentsView rows={componentRows} hasRooms={rooms.length > 0} system={system} onMutate={onMutate} />
-      </SegWindow>
+      {/* tabs + hero + the seg switch are pinned above; only the views scroll */}
+      <div className="ds-ck-scroll">
+        <SegWindow view={view}>
+          <RoomsView
+            doc={doc}
+            pack={pack}
+            system={system}
+            basis={basis}
+            floor={floor}
+            rooms={rooms}
+            selObj={selObj ?? null}
+            inspectRoom={inspectRoom}
+            highlightRoomId={highlightRoomId}
+            onSelect={onSelect}
+            onMutate={onMutate}
+            onEditRoom={onEditRoom}
+            onArmPlace={onArmPlace}
+            onDrawRoom={onDrawRoom}
+          />
+          <ComponentsView rows={componentRows} hasRooms={rooms.length > 0} system={system} onMutate={onMutate} />
+        </SegWindow>
+      </div>
     </>
   );
 }

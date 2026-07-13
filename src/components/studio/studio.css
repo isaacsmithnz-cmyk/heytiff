@@ -4323,18 +4323,19 @@
 .dstudio .ds-ck > * {
   position: relative;
   z-index: 1;
+  /* the header (tabs · hero · seg switch) is rigid — never grows or shrinks, so
+     the view height below can't move it. .ds-ck-scroll overrides this. */
+  flex: none;
 }
 /* the only scrolling region: the Rooms/Components views under the pinned
-   switch. Fills the remaining card height; the scrollbar rides inside the
-   white page. */
+   switch. Grows from a ZERO basis to fill the remaining card height (never
+   content-sized, so it can't push the header); block flow so its child's
+   natural/animated height overflows and scrolls. Scrollbar rides in the page. */
 .dstudio .ds-ck-scroll {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: 13px;
   padding-bottom: 8px;
   scrollbar-width: thin;
 }

@@ -792,41 +792,42 @@ function RoomsView({
 
   return (
     <>
-      <div className={`ds-ck-pills${rooms.length > 1 ? " grid2" : ""}`}>
+      <div className="ds-ck-roster">
         {rooms.map((r, i) => {
           const cov = roomCoverage(doc, pack, r, basis);
-          const done = cov.status === "covered";
+          // done = covered · none = nothing placed/pending · pending = in progress
+          const dot =
+            cov.status === "covered"
+              ? "done"
+              : cov.coveredKw === 0 && cov.pendingKw === 0
+                ? "none"
+                : "pending";
           const on = r.id === highlightRoomId;
           return (
             <button
               key={r.id}
-              className={`ds-ck-pill ${done ? "done" : "pending"}${on ? " on" : ""}`}
+              className={`ds-ck-rrow${on ? " on" : ""}`}
               onClick={() => onSelect(r.id)}
               title={
-                done
+                cov.status === "covered"
                   ? "Load covered"
                   : cov.loadKw != null
                     ? `${(cov.loadKw - cov.coveredKw).toFixed(1)} kW short`
                     : "Calibrate the floor to compute the load"
               }
             >
-              <span className="ds-ck-pillnum">{i + 1}</span>
-              <span className="ds-ck-pillnm">{String(r.props.name ?? "Room")}</span>
-              {done && (
-                <span className="ds-ck-pilltick">
-                  <Glyph name="check" size={14} />
-                </span>
-              )}
+              <span className="ds-ck-rnum">{i + 1}</span>
+              <span className={`ds-ck-rdot ${dot}`} />
+              <span className="ds-ck-rnm">{String(r.props.name ?? "Room")}</span>
             </button>
           );
         })}
-        {adoptable.length > 0 &&
-          (adopting ? null : (
-            <button className="ds-ck-pilladd" onClick={() => setAdopting(true)}>
-              <Glyph name="plus" size={14} />
-              Serve
-            </button>
-          ))}
+        {adoptable.length > 0 && !adopting && (
+          <button className="ds-ck-rowadd" onClick={() => setAdopting(true)}>
+            <Glyph name="plus" size={14} />
+            Serve an existing room
+          </button>
+        )}
       </div>
 
       {adopting && adoptable.length > 0 && (
@@ -892,6 +893,7 @@ function RoomInspectCard({
   onArmPlace: (p: PlacingUnit | null) => void;
   onRelease: (roomId: string) => void;
 }) {
+  const [tab, setTab] = useState<"configure" | "units" | "pipework">("units");
   const cov = roomCoverage(doc, pack, room, basis);
   const covered = cov.status === "covered";
   const shared = room.systemId !== system.id;
@@ -921,18 +923,49 @@ function RoomInspectCard({
           {covered ? "Covered" : "Not complete"}
         </span>
       </div>
+      <div className="ds-ck-subtabs" role="tablist" aria-label="Inspect section">
+        <button
+          role="tab"
+          aria-selected={tab === "configure"}
+          className={`ds-ck-stb${tab === "configure" ? " on" : ""}`}
+          onClick={() => setTab("configure")}
+        >
+          <Glyph name="configure" size={13} />
+          Configure
+        </button>
+        <button
+          role="tab"
+          aria-selected={tab === "units"}
+          className={`ds-ck-stb${tab === "units" ? " on" : ""}`}
+          onClick={() => setTab("units")}
+        >
+          <Glyph name="unitsq" size={13} />
+          Units
+        </button>
+        <button
+          role="tab"
+          aria-selected={tab === "pipework"}
+          className={`ds-ck-stb${tab === "pipework" ? " on" : ""}`}
+          onClick={() => setTab("pipework")}
+        >
+          <Glyph name="pipes" size={13} />
+          Pipework
+        </button>
+      </div>
       <div className="ds-ck-ibody">
-        <ConfigureSub doc={doc} room={room} onEditRoom={onEditRoom} />
-        <UnitsSub
-          doc={doc}
-          pack={pack}
-          system={system}
-          room={room}
-          basis={basis}
-          onMutate={onMutate}
-          onArmPlace={onArmPlace}
-        />
-        <PipeworkSub doc={doc} system={system} onSelect={onSelect} />
+        {tab === "configure" && <ConfigureSub doc={doc} room={room} onEditRoom={onEditRoom} />}
+        {tab === "units" && (
+          <UnitsSub
+            doc={doc}
+            pack={pack}
+            system={system}
+            room={room}
+            basis={basis}
+            onMutate={onMutate}
+            onArmPlace={onArmPlace}
+          />
+        )}
+        {tab === "pipework" && <PipeworkSub doc={doc} system={system} onSelect={onSelect} />}
       </div>
     </div>
   );

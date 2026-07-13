@@ -12,6 +12,11 @@ import {
   ftypeOf,
   diversityFactor,
   ductedRequirement,
+  isSpillRoom,
+  formatDia,
+  plenumBody,
+  spigotsOf,
+  type PlenumSpigot,
 } from "../ducted";
 
 /* ── fixtures ── */
@@ -190,6 +195,28 @@ describe("ductedRequirement", () => {
     expect(req.unknownRooms).toBe(2);
   });
 
+  it("spill rooms are excluded from the sums — they just receive air", () => {
+    const { doc, system, rooms } = docWithRooms();
+    rooms[1].props.spill = true; // the small room becomes the spill target
+    const bigLoad = roomLoadKw(doc, rooms[0])!;
+    const req = ductedRequirement(doc, system);
+    expect(isSpillRoom(rooms[1])).toBe(true);
+    expect(req.spillRooms).toBe(1);
+    expect(req.roomCount).toBe(1); // sized rooms only
+    expect(req.totalKw).toBeCloseTo(bigLoad, 6);
+    expect(req.requiredKw).toBeCloseTo(bigLoad, 6); // D=1.0, one room
+  });
+
+  it("a system of only spill rooms requires nothing", () => {
+    const { doc, system, rooms } = docWithRooms();
+    for (const r of rooms) r.props.spill = true;
+    const req = ductedRequirement(doc, system);
+    expect(req.requiredKw).toBeNull();
+    expect(req.roomCount).toBe(0);
+    expect(req.spillRooms).toBe(2);
+    expect(req.unknownRooms).toBe(0);
+  });
+
   it("no served rooms → nulls with zero counts", () => {
     const doc = createDesign({ name: "t", mode: "blank" });
     const system: DesignSystem = {
@@ -204,5 +231,90 @@ describe("ductedRequirement", () => {
     const req = ductedRequirement(doc, system);
     expect(req.requiredKw).toBeNull();
     expect(req.roomCount).toBe(0);
+  });
+});
+
+/* ── size series + plenum body ── */
+
+describe("formatDia", () => {
+  it("mm vs inch labels, off-series falls back to Ø-mm", () => {
+    expect(formatDia(250, "mm")).toBe("Ø250");
+    expect(formatDia(350, "inch")).toBe('14"');
+    expect(formatDia(275, "inch")).toBe("Ø275");
+  });
+});
+
+describe("plenumBody", () => {
+  const spig = (diaMm: number, face: PlenumSpigot["face"] = "front"): PlenumSpigot => ({
+    id: newId("sp"),
+    diaMm,
+    t: 0.5,
+    face,
+  });
+  const spec = { w_mm: 1200, h_mm: 250, d_mm: 450 };
+
+  it("stays flat while the front spigots fit (2×14\" on a 1200 face)", () => {
+    const b = plenumBody({ spec, spigots: [spig(350), spig(350)], units: "inch" });
+    // 2×350 + 3×50 gap = 850 ≤ 1200
+    expect(b.faceted).toBe(false);
+    expect(b.wMm).toBe(1200);
+    expect(b.derived).toBe(false);
+    expect(b.label).toBe('1200 × 450 · 2 × 14"');
+  });
+
+  it("a third 14\" refacets and grows the face — the user's exact scenario", () => {
+    const b = plenumBody({ spec, spigots: [spig(350), spig(350), spig(350)], units: "inch" });
+    // 3×350 + 4×50 = 1250 > 1200 → 3-face at the needed width
+    expect(b.faceted).toBe(true);
+    expect(b.wMm).toBe(1250);
+    expect(b.label).toBe('1250 × 450 · 3 × 14" (3-face)');
+  });
+
+  it("side-face spigots never refacet the front", () => {
+    const b = plenumBody({
+      spec,
+      spigots: [spig(350), spig(350), spig(350, "left"), spig(350, "right")],
+      units: "mm",
+    });
+    expect(b.faceted).toBe(false);
+    expect(b.label).toBe("1200 × 450 · 4 × Ø350");
+  });
+
+  it("mixed sizes label descending, per units setting", () => {
+    const b = plenumBody({ spec, spigots: [spig(250), spig(350), spig(250)], units: "mm" });
+    expect(b.label).toBe("1200 × 450 · 1 × Ø350 · 2 × Ø250");
+  });
+
+  it("no pack spec → grey derived default (unit width × 350 deep)", () => {
+    const b = plenumBody({ spec: null, unitWidthMm: 1400, spigots: [], units: "mm" });
+    expect(b.derived).toBe(true);
+    expect(b.wMm).toBe(1400);
+    expect(b.dMm).toBe(350);
+    expect(b.hMm).toBeNull();
+  });
+
+  it("built-in short-circuits", () => {
+    const b = plenumBody({ spec: "built-in", unitWidthMm: 900, spigots: [], units: "mm" });
+    expect(b.builtIn).toBe(true);
+    expect(b.derived).toBe(false);
+  });
+});
+
+describe("spigotsOf", () => {
+  it("reads tolerant, defaults face/t, skips malformed entries", () => {
+    const list = spigotsOf({
+      spigots: [
+        { id: "a", diaMm: 350 },
+        { id: "b", diaMm: 250, t: 0.2, face: "left", capped: true },
+        { diaMm: 999 }, // no id → skipped
+        "junk",
+      ],
+    });
+    expect(list).toHaveLength(2);
+    expect(list[0]).toMatchObject({ id: "a", face: "front", t: 0.5 });
+    expect(list[1]).toMatchObject({ id: "b", face: "left", capped: true });
+  });
+  it("returns [] when absent", () => {
+    expect(spigotsOf({})).toEqual([]);
   });
 });

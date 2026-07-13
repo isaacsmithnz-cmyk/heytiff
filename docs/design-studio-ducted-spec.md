@@ -18,6 +18,13 @@
 > specs per unit). **Convention:** bare § numbers mean THIS spec's sections;
 > pack-schema sections are always written **pack-§N**.
 >
+> **v8.1 changes:** **spill rooms** — a Configure toggle marks a room as a
+> spill destination: excluded from required-capacity sums, shares and
+> outlet gating (it just needs to be somewhere air can go); ⤢ badge on
+> roster + canvas; the §8 spill-zone picker prefers them. And an explicit
+> **brand-agnostic rule**: ME is only the first seeded brand — nothing may
+> key off a brand id.
+>
 > **v8 changes (master passover):** field-review corrections — the 6 m rule
 > is now explicitly the MATERIAL rule (joiners/motors restart it) plus a
 > separate **total-run hint** (spigot→outlet length; fittings never clear
@@ -471,6 +478,8 @@ branches kept) · selected/slide · invalid-stream flash.
   the ducted module's one-handler case this is simply all served rooms; the
   distinction is what makes the engine reusable, §11). Zero/unknown-load
   rooms → "—" shares, recommendations suspend for affected segments.
+  **Spill rooms** (Configure toggle, §9c) are excluded from Σ and get no
+  share — an outlet placed in one is spill capacity, not sized supply.
 - **6b. Grille capacity & suggestion — works off the duct (v1):** one
   table rules everything: `capacity(Ø) = π/4 · Ø² · v` — the pack-§9
   series' `max_airflow_ls`. At the supply default v = 3.0 m/s: Ø150 ≈ 53 ·
@@ -534,7 +543,8 @@ branches kept) · selected/slide · invalid-stream flash.
   **largest zone group** (incl. the spill/constant zone) — open-plan zones
   routinely exceed any one room. Inline control unchanged (0.60–1.00).
   **Tier-1 checklist:** every supply
-  grille reachable from a supply-plenum spigot · ≥ 1 connected return path
+  grille reachable from a supply-plenum spigot (spill rooms expect no
+  outlets) · ≥ 1 connected return path
   (ducted or void) · AHU + supply plenum placed · AHU has `airflow_ls` in
   the pack (else "airflow missing from pack" replaces airflow-dependent
   checks — grey, per Principle 5). **Tier-3:** ESP estimate vs rating
@@ -583,7 +593,8 @@ branches kept) · selected/slide · invalid-stream flash.
   **Spill sizing hint (grey):** the spill/constant zone's connected outlet
   capacity should be ≥ ~30–40 % of rated airflow (or the pack's
   minimum-airflow figure when present) — pick a small bedroom and it
-  roars; the picker nudges toward living/hall zones.
+  roars; the picker nudges toward living/hall zones, and rooms marked
+  **spill** in Configure (§9c) sort first.
 
 ---
 
@@ -603,11 +614,16 @@ card.
 ### 9b. Rooms view
 
 Roster rows: coverage dot → **airflow share** (`85 l/s`) · outlet status
-(`2/2 outlets` green · `1/2 placed` grey · `⚠ unconnected` amber).
+(`2/2 outlets` green · `1/2 placed` grey · `⚠ unconnected` amber) ·
+⤢ spill badge on spill rooms (no share, no outlet gating).
 
 ### 9c. Room inspect card — `Configure · Outlets · Duct`
 
-- **Configure** — name/area/load/floor + airflow share + zone picker.
+- **Configure** — name/area/load/floor + airflow share + zone picker +
+  **Spill toggle**: marks the room as a spill destination — excluded from
+  the required-capacity sums, shares and outlet gating (it just needs to be
+  somewhere air can go); the roster row + canvas room chip wear a ⤢ spill
+  badge, and the §8 spill-zone picker prefers spill-marked rooms.
 - **Outlets** — suggestion card (style, size, count stepper, per-grille
   l/s), grille **drag-to-plan cards**, room airflow bar.
 - **Duct** — the run(s) feeding this room (size · length · state · inline
@@ -791,8 +807,10 @@ toolkit once, against these rules:
 
 17. **Hero** — pre-AHU CTA · three gauge verdicts · failing-condition
     sub-line · diversity slider · counts chips.
-18. **Rooms roster rows** — airflow share + three outlet states.
-19. **Room inspect card** — Configure (+zone picker) · Outlets (suggestion
+18. **Rooms roster rows** — airflow share + three outlet states + ⤢ spill
+    badge.
+19. **Room inspect card** — Configure (+zone picker + spill toggle) ·
+    Outlets (suggestion
     card, stepper, drag cards, airflow bar) · Duct (branch rows + Connect +
     transfer-relief hint).
 20. **Components view** — Plenums row · Ductwork row (**Auto-size**, buy
@@ -864,6 +882,9 @@ toolkit once, against these rules:
   `settings.maxRunM`). pack-§10 one 4-zone + one 8-zone controller. Pack
   schema stays **v1** (optional-only additions, no migration — per
   `packs/migrations.ts` discipline). All `provenance: user-entered`.
+  **Brand-agnostic throughout:** the fields live on the shared schema and
+  every engine keys off unit data — Mitsubishi Electric is only the first
+  seeded brand; nothing may branch on a brand id.
 - **Canvas:** tools `duct` (D) + `component` (C + armed sub-kind) · `ducts`
   layer flag with stream sub-toggles · palette flyout · options HUD ·
   place-tool payload generalised (unit | grille | controller | plenum).

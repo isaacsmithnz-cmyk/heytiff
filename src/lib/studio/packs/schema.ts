@@ -166,6 +166,10 @@ export interface Brand {
   notes?: string;
 }
 
+/** field-fitted plenum dims (mm, plan-view w × h × d) or "built-in" when
+    integral to the unit (ducted spec §1b). Brand-agnostic. */
+export type PlenumSpec = { w_mm: number; h_mm: number; d_mm: number } | "built-in";
+
 /** §2 indoor units — the largest section, one row per model. */
 export interface IndoorUnit {
   model: string; // exact code, unique per brand
@@ -180,6 +184,10 @@ export interface IndoorUnit {
   airflow_ls?: number;
   /** external static, numeric Pa. Required for ducted forms (v1: optional — no ESP check yet). */
   static_pressure_pa?: number;
+  /** plenum specs for ducted forms; absent → the engine's grey derived
+      default (unit face width × 350 deep) per ducted spec §1b. */
+  supply_plenum?: PlenumSpec;
+  return_plenum?: PlenumSpec;
   conn_liquid_mm: number;
   conn_gas_mm: number;
   conn_condensate?: string;

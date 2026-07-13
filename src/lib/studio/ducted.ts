@@ -54,16 +54,25 @@ export function diversityFactor(system: DesignSystem): number {
 }
 
 export interface DuctedRequirement {
-  /** max(D × Σ served-room loads, largest single room) — null until any
-      served room has a derivable load */
+  /** max(D × Σ sized-room loads, largest single room) — null until any
+      sized room has a derivable load */
   requiredKw: number | null;
   totalKw: number | null;
   largestKw: number | null;
   diversity: number;
+  /** SIZED rooms (spill rooms excluded) */
   roomCount: number;
-  /** rooms whose load couldn't derive (uncalibrated floor etc.) — shown as
-      a grey reason, never guessed (Principle 5) */
+  /** sized rooms whose load couldn't derive (uncalibrated floor etc.) —
+      shown as a grey reason, never guessed (Principle 5) */
   unknownRooms: number;
+  /** rooms marked spill (§9c): excluded from the sums entirely — they just
+      need to be somewhere air can go */
+  spillRooms: number;
+}
+
+/** a room the user marked as a spill destination — no sizing expectations */
+export function isSpillRoom(room: { props: Record<string, unknown> }): boolean {
+  return room.props.spill === true;
 }
 
 export function ductedRequirement(
@@ -75,21 +84,28 @@ export function ductedRequirement(
   let total = 0;
   let largest = 0;
   let known = 0;
+  let spill = 0;
   for (const room of rooms) {
+    if (isSpillRoom(room)) {
+      spill++;
+      continue;
+    }
     const kw = roomLoadKw(doc, room);
     if (kw == null) continue;
     known++;
     total += kw;
     if (kw > largest) largest = kw;
   }
+  const sized = rooms.length - spill;
   if (known === 0) {
     return {
       requiredKw: null,
       totalKw: null,
       largestKw: null,
       diversity,
-      roomCount: rooms.length,
-      unknownRooms: rooms.length,
+      roomCount: sized,
+      unknownRooms: sized,
+      spillRooms: spill,
     };
   }
   return {
@@ -97,7 +113,124 @@ export function ductedRequirement(
     totalKw: total,
     largestKw: largest,
     diversity,
-    roomCount: rooms.length,
-    unknownRooms: rooms.length - known,
+    roomCount: sized,
+    unknownRooms: sized - known,
+    spillRooms: spill,
   };
+}
+
+/* ── Size series + units-aware formatting (spec §3d) ── */
+
+export const SIZE_SERIES_MM = [150, 200, 250, 300, 350, 400, 450, 500] as const;
+
+const INCH_LABEL: Record<number, string> = {
+  150: '6"',
+  200: '8"',
+  250: '10"',
+  300: '12"',
+  350: '14"',
+  400: '16"',
+  450: '18"',
+  500: '20"',
+};
+
+/** `Ø250` in mm mode, `10"` in inch mode (off-series mm sizes stay Ø-mm) */
+export function formatDia(mm: number, units: "mm" | "inch"): string {
+  return units === "inch" && INCH_LABEL[mm] ? INCH_LABEL[mm] : `Ø${mm}`;
+}
+
+/* ── Plenums (spec §1b) — body from the pack spec, morphed by spigots ── */
+
+export interface PlenumSpigot {
+  id: string;
+  diaMm: number;
+  /** parametric position along its face, 0..1 */
+  t: number;
+  /** front = the spigot face; sides allowed in v1, bottom reserved for risers */
+  face: "front" | "left" | "right";
+  /** blanking-capped (its duct was deleted) — still bought, still labelled */
+  capped?: boolean;
+}
+
+/** tolerant reader for the plenum object's props.spigots list */
+export function spigotsOf(props: Record<string, unknown>): PlenumSpigot[] {
+  const raw = props.spigots;
+  if (!Array.isArray(raw)) return [];
+  const out: PlenumSpigot[] = [];
+  for (const s of raw) {
+    if (typeof s !== "object" || s === null) continue;
+    const o = s as Record<string, unknown>;
+    if (typeof o.id !== "string" || typeof o.diaMm !== "number") continue;
+    out.push({
+      id: o.id,
+      diaMm: o.diaMm,
+      t: typeof o.t === "number" ? o.t : 0.5,
+      face: o.face === "left" || o.face === "right" ? o.face : "front",
+      capped: o.capped === true,
+    });
+  }
+  return out;
+}
+
+export const SPIGOT_GAP_MM = 50;
+
+export interface PlenumBody {
+  wMm: number;
+  dMm: number;
+  hMm: number | null;
+  /** the flat spigot face couldn't fit the front spigots → 3-sided front */
+  faceted: boolean;
+  /** grey derived default — no pack spec for this unit/stream */
+  derived: boolean;
+  builtIn: boolean;
+  /** `1550 × 350 · 3 × 14" (3-face)` — dims mm, spigots per units setting */
+  label: string;
+}
+
+/** Resolve a plenum's body: pack spec wins; absent → derived default (unit
+    face width × 350 mm deep, grey). Front spigots at true width + gaps
+    refacet + grow the face when they no longer fit; side-face spigots never
+    refacet the front. */
+export function plenumBody(opts: {
+  spec?: { w_mm: number; h_mm: number; d_mm: number } | "built-in" | null;
+  unitWidthMm?: number | null;
+  spigots: PlenumSpigot[];
+  units: "mm" | "inch";
+}): PlenumBody {
+  const builtIn = opts.spec === "built-in";
+  const spec = opts.spec != null && opts.spec !== "built-in" ? opts.spec : null;
+  const derived = !builtIn && spec == null;
+  const baseW = spec?.w_mm ?? opts.unitWidthMm ?? 1200;
+  const dMm = spec?.d_mm ?? 350;
+  const hMm = spec?.h_mm ?? null;
+  const front = opts.spigots.filter((s) => s.face === "front");
+  const neededW =
+    front.reduce((a, s) => a + s.diaMm, 0) + SPIGOT_GAP_MM * (front.length + 1);
+  const faceted = front.length > 0 && neededW > baseW;
+  const wMm = faceted ? neededW : baseW;
+  return {
+    wMm,
+    dMm,
+    hMm,
+    faceted,
+    derived,
+    builtIn,
+    label: plenumLabel(wMm, dMm, opts.spigots, opts.units, faceted),
+  };
+}
+
+export function plenumLabel(
+  wMm: number,
+  dMm: number,
+  spigots: PlenumSpigot[],
+  units: "mm" | "inch",
+  faceted: boolean
+): string {
+  const counts = new Map<number, number>();
+  for (const s of spigots) counts.set(s.diaMm, (counts.get(s.diaMm) ?? 0) + 1);
+  const parts = [...counts.entries()]
+    .sort((a, b) => b[0] - a[0])
+    .map(([dia, n]) => `${n} × ${formatDia(dia, units)}`);
+  const dims = `${Math.round(wMm)} × ${Math.round(dMm)}`;
+  return `${dims}${parts.length ? ` · ${parts.join(" · ")}` : ""}${faceted ? " (3-face)" : ""}`;
 }

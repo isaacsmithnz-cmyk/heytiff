@@ -95,7 +95,13 @@ quality from a split job.
 **Build**
 - Pack: `supply_plenum` / `return_plenum` fields (`{w,h,d}` | `"built-in"`)
   + validation + PEAD seed rows (incl. one built-in-return case if the
-  range has one). Grey derived-default when data missing.
+  range has one). Grey derived-default when data missing. Fields are
+  **brand-agnostic** — ME is just the first seeded pack.
+- **Spill rooms**: Configure gains a **Spill toggle** (`room.props.spill`)
+  — the room is excluded from `ductedRequirement` sums/shares and outlet
+  gating (it just needs to be somewhere air can spill to); ⤢ badge on the
+  roster row + canvas room chip; hero annotates it ("Requires ~7.2 kW ·
+  5 rooms + 1 spill"). The Step-6 spill-zone picker prefers these rooms.
 - AHU glyph completed: plenum mounting faces, dashed socket outlines,
   built-in-return variant, concealed (ceiling-cavity) treatment; **moving
   the AHU carries plenums**.
@@ -117,8 +123,9 @@ quality from a split job.
 flat → 3×14" refacets) · placement/carry reducers · spigot add/slide
 (incl. side-face spigots) · AHU model swap preserving spigots + amber
 mismatch flag · missing plenum spec → grey derived default · series
-formatting mm↔inch. Pack schema stays **v1** (optional-only additions, no
-migration).
+formatting mm↔inch · **spill-room exclusion** (requirement drops the room,
+shares skip it, badge renders). Pack schema stays **v1** (optional-only
+additions, no migration).
 
 **Live** — fit plenums, add a third 14" spigot and watch the refacet,
 slide spigots, swap AHU model and see the body re-derive.

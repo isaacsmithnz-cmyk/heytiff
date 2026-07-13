@@ -2699,7 +2699,9 @@
   flex-direction: column;
   gap: 14px;
   min-height: 0;
-  overflow-y: auto;
+  /* the cockpit is a fixed frame — the tabs, hero and Rooms/Components switch
+     stay put; only the views inside scroll (.ds-ck-scroll). */
+  overflow: hidden;
 }
 
 .dstudio .ds-syscard {
@@ -4298,6 +4300,10 @@
   flex-direction: column;
   gap: 13px;
   flex: 1 1 auto;
+  /* fixed frame: it never scrolls as a whole — the pinned header (tabs · hero ·
+     seg switch) and the scroll region (.ds-ck-scroll) share this column. */
+  min-height: 0;
+  overflow: hidden;
   /* inset the cards so the full-width white page (::before) shows a border
      around them — the handoff's rail bleeds the page ~9px past the cards. */
   padding: 0 9px;
@@ -4309,7 +4315,7 @@
   left: 0;
   right: 0;
   top: 35px;
-  bottom: -11px;
+  bottom: 0;
   background: #fff;
   border-radius: 16px;
   box-shadow: 0 1px 2px rgba(10, 12, 20, 0.04), 0 24px 50px -30px rgba(10, 12, 20, 0.28);
@@ -4317,6 +4323,20 @@
 .dstudio .ds-ck > * {
   position: relative;
   z-index: 1;
+}
+/* the only scrolling region: the Rooms/Components views under the pinned
+   switch. Fills the remaining card height; the scrollbar rides inside the
+   white page. */
+.dstudio .ds-ck-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  padding-bottom: 8px;
+  scrollbar-width: thin;
 }
 
 /* ── system tabs (folder style; inactive tab tucks behind the active one) ── */

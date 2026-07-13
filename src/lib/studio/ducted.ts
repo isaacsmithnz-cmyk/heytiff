@@ -174,6 +174,34 @@ export function spigotsOf(props: Record<string, unknown>): PlenumSpigot[] {
 
 export const SPIGOT_GAP_MM = 50;
 
+/** Even re-pack (v1 — drag-slide is a later nicety): per face, keep the
+    current left-to-right order (by t) and respace to t = (i+1)/(n+1).
+    Called on every spigot add/delete so the face stays tidy. */
+export function distributeSpigots(spigots: PlenumSpigot[]): PlenumSpigot[] {
+  const byFace = new Map<PlenumSpigot["face"], PlenumSpigot[]>();
+  for (const s of spigots) {
+    const arr = byFace.get(s.face) ?? [];
+    arr.push(s);
+    byFace.set(s.face, arr);
+  }
+  const packed = new Map<string, number>();
+  for (const arr of byFace.values()) {
+    const ordered = [...arr].sort((a, b) => a.t - b.t);
+    ordered.forEach((s, i) => packed.set(s.id, (i + 1) / (ordered.length + 1)));
+  }
+  return spigots.map((s) => ({ ...s, t: packed.get(s.id) ?? s.t }));
+}
+
+/** is `o` a plenum anchored to the given unit? Plenums live and die with
+    their AHU (spec §10.3 — the enumerating confirm arrives at Step 8), so
+    every unit-deletion path filters with this. */
+export function isPlenumOf(
+  o: { type: string; props: Record<string, unknown> },
+  unitId: string
+): boolean {
+  return o.type === "plenum" && o.props.unitId === unitId;
+}
+
 export interface PlenumBody {
   wMm: number;
   dMm: number;

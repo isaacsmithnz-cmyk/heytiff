@@ -11,7 +11,9 @@ import {
   streamOf,
   ftypeOf,
   diversityFactor,
+  distributeSpigots,
   ductedRequirement,
+  isPlenumOf,
   isSpillRoom,
   formatDia,
   plenumBody,
@@ -297,6 +299,54 @@ describe("plenumBody", () => {
     const b = plenumBody({ spec: "built-in", unitWidthMm: 900, spigots: [], units: "mm" });
     expect(b.builtIn).toBe(true);
     expect(b.derived).toBe(false);
+  });
+});
+
+describe("distributeSpigots", () => {
+  const spig = (id: string, t: number, face: PlenumSpigot["face"] = "front"): PlenumSpigot => ({
+    id,
+    diaMm: 350,
+    t,
+    face,
+  });
+
+  it("packs a face evenly at t = (i+1)/(n+1), preserving left-to-right order", () => {
+    const out = distributeSpigots([spig("a", 1 / 3), spig("b", 2 / 3), spig("new", 0.5)]);
+    const byId = new Map(out.map((s) => [s.id, s.t]));
+    // order by current t: a (.33) · new (.5) · b (.67) → 0.25 / 0.5 / 0.75
+    expect(byId.get("a")).toBeCloseTo(0.25, 6);
+    expect(byId.get("new")).toBeCloseTo(0.5, 6);
+    expect(byId.get("b")).toBeCloseTo(0.75, 6);
+  });
+
+  it("each face packs independently (side spigots never shift the front)", () => {
+    const out = distributeSpigots([
+      spig("f1", 0.4),
+      spig("f2", 0.9),
+      spig("l1", 0.7, "left"),
+    ]);
+    const byId = new Map(out.map((s) => [s.id, s.t]));
+    expect(byId.get("f1")).toBeCloseTo(1 / 3, 6);
+    expect(byId.get("f2")).toBeCloseTo(2 / 3, 6);
+    expect(byId.get("l1")).toBeCloseTo(0.5, 6); // alone on its face → centred
+  });
+
+  it("a delete re-packs the survivors", () => {
+    const three = distributeSpigots([spig("a", 0.25), spig("b", 0.5), spig("c", 0.75)]);
+    const two = distributeSpigots(three.filter((s) => s.id !== "b"));
+    const byId = new Map(two.map((s) => [s.id, s.t]));
+    expect(byId.get("a")).toBeCloseTo(1 / 3, 6);
+    expect(byId.get("c")).toBeCloseTo(2 / 3, 6);
+  });
+});
+
+describe("isPlenumOf", () => {
+  it("matches only plenums anchored to the given unit", () => {
+    const pl = { type: "plenum", props: { unitId: "u1" } };
+    expect(isPlenumOf(pl, "u1")).toBe(true);
+    expect(isPlenumOf(pl, "u2")).toBe(false);
+    expect(isPlenumOf({ type: "grille", props: { unitId: "u1" } }, "u1")).toBe(false);
+    expect(isPlenumOf({ type: "plenum", props: {} }, "u1")).toBe(false);
   });
 });
 

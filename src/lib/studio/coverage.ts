@@ -1,8 +1,9 @@
-import type { DesignDocument, DesignObject } from "./document";
+import type { DesignDocument, DesignObject, DesignSystem } from "./document";
 import type { DataPack } from "./packs/schema";
 import { roomLoadKw, type RoomObj } from "./loads-room";
 import { sizingCapacityKw, type SizingBasis } from "./loads";
 import { pointInPolygon } from "./geometry";
+import { moduleFor } from "./modules";
 
 /* Room coverage (plan step: units → spaces) — pure derivations only.
    Attribution model:
@@ -13,7 +14,11 @@ import { pointInPolygon } from "./geometry";
      its unit is dropped inside another system's room).
    Coverage of a room = Σ sizing capacity of every PLACED IDU stamped to it,
    across ALL systems (the user's call: placed-only counts; a chosen-but-
-   unplaced pair shows as pending). */
+   unplaced pair shows as pending).
+   What a placed IDU is WORTH depends on the owning module's unit flow:
+   pair/ducted systems rate the IDU via their pair table (systemPairKw);
+   per-room systems (multi / VRF) rate each IDU at its own catalogue
+   capacity — there is no 1:1 pair row to read. */
 
 export interface CoverageContributor {
   systemId: string;
@@ -98,6 +103,32 @@ export function systemPairKw(
   );
 }
 
+/** what one placed IDU is worth: its own catalogue capacity on per-room
+    modules (multi / VRF), its system's pair rating everywhere else */
+function placedIduKw(
+  doc: DesignDocument,
+  pack: DataPack,
+  sys: DesignSystem,
+  iduModel: string,
+  basis: SizingBasis
+): number | null {
+  if (moduleFor(sys.type).unitFlow === "per-room") {
+    const idu = pack.indoor_units.find((u) => u.model === iduModel);
+    return idu ? sizingCapacityKw(idu, basis) : null;
+  }
+  return systemPairKw(doc, pack, sys.id, basis);
+}
+
+/** `settings.multiIdus` (roomId → indoor model) — same key multi.ts owns;
+    read inline here so coverage never imports the multi engine (multi.ts
+    imports roomsServedBy from this module) */
+function multiIduFor(sys: DesignSystem, roomId: string): string {
+  const v = sys.settings.multiIdus;
+  if (!v || typeof v !== "object" || Array.isArray(v)) return "";
+  const m = (v as Record<string, unknown>)[roomId];
+  return typeof m === "string" ? m : "";
+}
+
 /** full coverage picture for one room (see module header for the model) */
 export function roomCoverage(
   doc: DesignDocument,
@@ -114,7 +145,7 @@ export function roomCoverage(
       if (o.props.roomId !== room.id) continue;
       const sys = doc.systems.find((s) => s.id === o.systemId);
       if (!sys) continue;
-      const kw = systemPairKw(doc, pack, sys.id, basis) ?? 0;
+      const kw = placedIduKw(doc, pack, sys, String(o.props.model ?? ""), basis) ?? 0;
       contributors.push({
         systemId: sys.id,
         systemName: sys.name,
@@ -127,11 +158,27 @@ export function roomCoverage(
   }
   const coveredKw = contributors.reduce((a, c) => a + c.kw, 0);
 
-  /* pending: systems sized against this room (settings.roomId) with a chosen
-     pair but no placed IDU yet — drawn on the bar as a hollow segment */
+  /* pending: a chosen-but-unplaced unit sized against this room — drawn on
+     the bar as a hollow segment. Split keys off settings.roomId + pairIdu;
+     per-room modules key off their settings.multiIdus entry for THIS room. */
   let pendingKw = 0;
   if (pack) {
     for (const sys of doc.systems) {
+      if (moduleFor(sys.type).unitFlow === "per-room") {
+        const model = multiIduFor(sys, room.id);
+        if (!model) continue;
+        const placedHere = doc.objects.some(
+          (o) =>
+            o.systemId === sys.id &&
+            o.type === "unit" &&
+            o.props.role === "idu" &&
+            o.props.roomId === room.id
+        );
+        if (placedHere) continue;
+        const idu = pack.indoor_units.find((u) => u.model === model);
+        if (idu) pendingKw += sizingCapacityKw(idu, basis);
+        continue;
+      }
       if (sys.settings.roomId !== room.id || !sys.settings.pairIdu) continue;
       const hasPlacedIdu = doc.objects.some(
         (o) => o.systemId === sys.id && o.type === "unit" && o.props.role === "idu"

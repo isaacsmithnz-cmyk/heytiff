@@ -11,10 +11,12 @@
    ducted / VRF drop into the same shape at their stages: the body branches on
    moduleFor(type).summary — "split" renders the load-coverage hero + Units/
    Pipework inspect, "ducted" the required-capacity hero + air-handler section
-   (Stage 7 Step 1; gauge/outlets arrive at later steps), "capacity" falls back
-   to split until multi/VRF land. All numbers come from the engines (coverage /
-   split / ducted / components) — this file renders + arms intents, mutating
-   through onMutate exactly as the old panel did. */
+   (Stage 7 Step 1; gauge/outlets arrive at later steps), "capacity" the
+   connected-capacity hero + shared-outdoor section with a per-room Unit tab
+   (multi-split Stage 5; VRF reuses the shape at Stage 8). All numbers come
+   from the engines (coverage / split / ducted / multi / components) — this
+   file renders + arms intents, mutating through onMutate exactly as the old
+   panel did. */
 
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/shell/icon";
@@ -26,18 +28,33 @@ import type {
   SystemType,
 } from "@/lib/studio/document";
 import { newId } from "@/lib/studio/document";
-import type { DataPack } from "@/lib/studio/packs/schema";
+import type { DataPack, IndoorUnit } from "@/lib/studio/packs/schema";
 import { polylineLength, unitsToMeters } from "@/lib/studio/geometry";
-import type { SizingBasis } from "@/lib/studio/loads";
+import { sizingCapacityKw, type SizingBasis } from "@/lib/studio/loads";
 import { roomAreaM2, roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
 import { roomsServedBy, roomCoverage, systemPairKw } from "@/lib/studio/coverage";
 import type { PairProposal } from "@/lib/studio/split";
-import { moduleFor } from "@/lib/studio/modules";
+import { isAirCapable, moduleFor } from "@/lib/studio/modules";
 import {
+  distributeSpigots,
   ductedRequirement,
   DUCTED_OBJECT_TYPES,
+  formatDia,
+  isPlenumOf,
+  isSpillRoom,
+  plenumBody,
+  SIZE_SERIES_MM,
+  spigotsOf,
+  streamOf,
   type DuctedRequirement,
+  type PlenumSpigot,
 } from "@/lib/studio/ducted";
+import {
+  multiConnection,
+  multiIduSelections,
+  type MultiConnection,
+  type MultiOduProposal,
+} from "@/lib/studio/multi";
 import {
   systemComponents,
   type ComponentIcon,
@@ -45,6 +62,7 @@ import {
 } from "@/lib/studio/components";
 import { SystemTypeChooser } from "./system-type-chooser";
 import { UnitBrowser } from "./unit-browser";
+import { MultiIduPicker, MultiOduPicker } from "./multi-browser";
 import type { PlacingUnit } from "./canvas";
 
 /* one colour per system, cycled on creation (kept from the old SystemsPanel) */
@@ -169,7 +187,7 @@ export function SystemCockpit({
   };
 
   /* change an existing system's type — the TYPE_WIPED_OBJECTS are dropped and
-     the pair cleared; the rooms it serves stay. */
+     the unit selections (pair + per-room) cleared; the rooms it serves stay. */
   const changeType = (type: SystemType) => {
     setChangingType(false);
     if (!active || type === active.type) return;
@@ -178,7 +196,16 @@ export function SystemCockpit({
       ...d,
       systems: d.systems.map((s) =>
         s.id === sysId
-          ? { ...s, type, settings: { ...s.settings, pairIdu: undefined, pairOdu: undefined } }
+          ? {
+              ...s,
+              type,
+              settings: {
+                ...s.settings,
+                pairIdu: undefined,
+                pairOdu: undefined,
+                multiIdus: undefined,
+              },
+            }
           : s
       ),
       objects: d.objects.filter(
@@ -378,9 +405,12 @@ function ActiveCockpit({
   const [view, setView] = useState<"rooms" | "components">("rooms");
 
   /* the module's SummaryKind picks the body: "ducted" gets the required-
-     capacity hero + air-handler section; "split" (and "capacity", until
-     multi/VRF are available) keeps the load-coverage hero unchanged */
-  const ducted = moduleFor(system.type).summary === "ducted";
+     capacity hero + air-handler section; "capacity" (multi / VRF) the
+     connected-capacity hero + shared-outdoor section; "split" keeps the
+     load-coverage hero unchanged */
+  const summary = moduleFor(system.type).summary;
+  const ducted = summary === "ducted";
+  const perRoom = summary === "capacity";
 
   const rooms = useMemo(() => roomsServedBy(doc, system.id), [doc, system.id]);
   const componentRows = useMemo(
@@ -388,12 +418,16 @@ function ActiveCockpit({
     [doc, pack, system, basis]
   );
   const hero = useMemo(
-    () => (ducted ? null : computeHero(doc, pack, system, rooms, basis)),
-    [ducted, doc, pack, system, rooms, basis]
+    () => (ducted || perRoom ? null : computeHero(doc, pack, system, rooms, basis)),
+    [ducted, perRoom, doc, pack, system, rooms, basis]
   );
   const req = useMemo(
     () => (ducted ? ductedRequirement(doc, system) : null),
     [ducted, doc, system]
+  );
+  const conn = useMemo(
+    () => (perRoom ? multiConnection(doc, pack, system, basis) : null),
+    [perRoom, doc, pack, system, basis]
   );
 
   /* the selected canvas object, if it belongs to this system → object card */
@@ -401,7 +435,7 @@ function ActiveCockpit({
     (o) =>
       o.id === selectedId &&
       o.systemId === system.id &&
-      (o.type === "unit" || o.type === "riser" || o.type === "pipe-run")
+      (o.type === "unit" || o.type === "riser" || o.type === "pipe-run" || o.type === "plenum")
   );
 
   /* which room the Inspect card shows: a selected served room, else the room
@@ -428,6 +462,8 @@ function ActiveCockpit({
           req={req}
           onChangeType={onChangeType}
         />
+      ) : conn ? (
+        <CockpitHero hero={computeMultiHero(conn)} onChangeType={onChangeType} />
       ) : hero ? (
         <CockpitHero hero={hero} onChangeType={onChangeType} />
       ) : null}
@@ -464,6 +500,16 @@ function ActiveCockpit({
             onArmPlace={onArmPlace}
           />
         )}
+        {conn && (
+          <OutdoorSection
+            pack={pack}
+            system={system}
+            basis={basis}
+            conn={conn}
+            onMutate={onMutate}
+            onArmPlace={onArmPlace}
+          />
+        )}
         <SegWindow view={view}>
           <RoomsView
             doc={doc}
@@ -473,6 +519,7 @@ function ActiveCockpit({
             floor={floor}
             rooms={rooms}
             ducted={ducted}
+            perRoom={perRoom}
             selObj={selObj ?? null}
             inspectRoom={inspectRoom}
             highlightRoomId={highlightRoomId}
@@ -749,7 +796,11 @@ function DuctedHero({
           <span className="k">Required capacity</span>
           <span className={`v${req.requiredKw == null ? " muted" : ""}`}>
             {req.requiredKw != null ? `~${req.requiredKw.toFixed(1)}` : "—"}
-            <em>{` kW · ${req.roomCount} room${req.roomCount === 1 ? "" : "s"}`}</em>
+            <em>
+              {` kW · ${req.roomCount} room${req.roomCount === 1 ? "" : "s"}${
+                req.spillRooms > 0 ? ` + ${req.spillRooms} spill` : ""
+              }`}
+            </em>
           </span>
         </div>
         <div className={`ds-ck-bar${barPct == null ? " empty" : ""}`}>
@@ -798,12 +849,14 @@ export function AhuSection({
   const airflowLs = iduSpec?.airflow_ls ?? null;
   const allPlaced = Boolean(placedIdu && placedOdu);
 
+  // recalling the AHU takes its plenums with it (they're its plenums, §10.3)
   const recall = (unitId: string) =>
     onMutate((d) => ({
       ...d,
       objects: d.objects.filter(
         (o) =>
           o.id !== unitId &&
+          !isPlenumOf(o, unitId) &&
           !(o.systemId === system.id && (o.type === "pipe-run" || o.type === "riser"))
       ),
     }));
@@ -824,13 +877,17 @@ export function AhuSection({
             }
           : s
       ),
-      // a different AHU drops the placed refrigerant side, exactly like split
+      // a different AHU drops the placed refrigerant side, exactly like
+      // split — plus the plenums fitted to the old unit
       objects: changed
         ? d.objects.filter(
             (o) =>
               !(
                 o.systemId === system.id &&
-                (o.type === "unit" || o.type === "pipe-run" || o.type === "riser")
+                (o.type === "unit" ||
+                  o.type === "pipe-run" ||
+                  o.type === "riser" ||
+                  o.type === "plenum")
               )
           )
         : d.objects,
@@ -940,6 +997,399 @@ export function AhuSection({
   );
 }
 
+/* ─────────────────────────── multi-split (Stage 5) ───────────────────────────
+   The "capacity" summary body: the hero becomes the connected-capacity gauge
+   (connected IDU kW vs the shared outdoor's rating, ports badge, combination
+   note) and a shared-outdoor section sits above the seg window — the exact
+   shape of the split layout with the pair swapped for roster + shared ODU.
+   Selections: an indoor unit per room on settings.multiIdus (roomId → model),
+   the shared outdoor on settings.pairOdu (the split key, reused so
+   components/coverage resolve unchanged). All numbers come from multi.ts. */
+
+/** does this pipe-run attach to the given unit at either end? */
+function runTouches(o: DesignObject, unitId: string): boolean {
+  const attachId = (v: unknown): string =>
+    v && typeof v === "object" ? String((v as { id?: unknown }).id ?? "") : "";
+  return attachId(o.props.startAttach) === unitId || attachId(o.props.endAttach) === unitId;
+}
+
+/** connected-capacity hero (right-panel spec §3: ODU capacity gauge + IDU
+    count) rendered through the same CockpitHero shell as split */
+function computeMultiHero(conn: MultiConnection): HeroModel {
+  const base = {
+    label: moduleFor("multi-split").label,
+    covLabel: "Connected capacity",
+  };
+  if (conn.rooms.length === 0) {
+    return {
+      ...base,
+      main: "—",
+      em: " / — kW",
+      muted: true,
+      barPct: null,
+      badge: { kind: "muted", text: "Not sized" },
+      note: { rest: "0 rooms served" },
+    };
+  }
+  const loadEm =
+    conn.requiredKw != null
+      ? ` / ${conn.requiredKw.toFixed(1)} kW load`
+      : " kW connected";
+  if (conn.iduCount === 0) {
+    return {
+      ...base,
+      main: "0",
+      em: loadEm,
+      muted: true,
+      barPct: null,
+      badge: { kind: "muted", text: "Not sized" },
+      note: { rest: "Select a unit per room" },
+    };
+  }
+  const connected = conn.connectedKw ?? 0;
+  if (!conn.odu) {
+    // a set-but-unknown model degrades to a grey reason, never a guess
+    const unknown = Boolean(conn.oduModel);
+    return {
+      ...base,
+      main: connected.toFixed(1),
+      em: loadEm,
+      muted: false,
+      barPct: null,
+      badge: { kind: "muted", text: unknown ? "Outdoor unknown" : "No outdoor yet" },
+      note: {
+        rest: unknown
+          ? `${conn.oduModel} isn't in this pack`
+          : `${conn.iduCount} unit${conn.iduCount === 1 ? "" : "s"} — select the shared outdoor`,
+      },
+    };
+  }
+  const rated = conn.oduKw;
+  const pct = rated != null && rated > 0 ? Math.min((connected / rated) * 100, 100) : null;
+  const breach = conn.findings.some((f) => f.severity === "red");
+  return {
+    ...base,
+    main: connected.toFixed(1),
+    em: rated != null ? ` / ${rated.toFixed(1)} kW outdoor` : " kW connected",
+    muted: false,
+    barPct: pct,
+    badge: {
+      kind: breach ? "warn" : "ok",
+      text: conn.ports != null ? `${conn.portsUsed}/${conn.ports} ports` : "Outdoor chosen",
+    },
+    note:
+      conn.comboPct != null
+        ? { strong: `${Math.round(conn.comboPct)}%`, rest: " combination" }
+        : { rest: `${conn.iduCount} unit${conn.iduCount === 1 ? "" : "s"} connected` },
+  };
+}
+
+/* ── Shared-outdoor section: the choose CTA, the connection figures + rule
+   findings from the engine, and the drag-to-plan card (same arm/drag
+   mechanics as UnitsSub). Exported so the multi tests can drive it in
+   isolation. ── */
+
+export function OutdoorSection({
+  pack,
+  system,
+  basis,
+  conn,
+  onMutate,
+  onArmPlace,
+}: {
+  pack: DataPack | null;
+  system: DesignSystem;
+  basis: SizingBasis;
+  conn: MultiConnection;
+  onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
+  onArmPlace: (p: PlacingUnit | null) => void;
+}) {
+  const [browsing, setBrowsing] = useState(false);
+  const hasOdu = Boolean(conn.oduModel);
+  const oduSpec = conn.odu;
+
+  /* recall / swap take the placed outdoor AND the runs plumbed to it off the
+     plan; every room's indoor selection stays untouched */
+  const dropOduObjects = (d: DesignDocument, placedId: string) =>
+    d.objects.filter(
+      (o) =>
+        o.id !== placedId &&
+        !(o.systemId === system.id && o.type === "pipe-run" && runTouches(o, placedId))
+    );
+
+  const recall = (placedId: string) =>
+    onMutate((d) => ({ ...d, objects: dropOduObjects(d, placedId) }));
+
+  const choose = (p: MultiOduProposal) => {
+    const changed = p.odu.model !== conn.oduModel;
+    const placedId = conn.placedOduId;
+    onMutate((d) => ({
+      ...d,
+      systems: d.systems.map((s) =>
+        s.id === system.id
+          ? { ...s, settings: { ...s.settings, pairOdu: p.odu.model } }
+          : s
+      ),
+      objects: changed && placedId ? dropOduObjects(d, placedId) : d.objects,
+    }));
+    setBrowsing(false);
+  };
+
+  const connectedIdus = conn.rooms
+    .map((r) => r.idu)
+    .filter((u): u is IndoorUnit => u != null);
+
+  return (
+    <div className="ds-ck-sub units" style={{ marginTop: 10 }} data-testid="outdoor-section">
+      <div className="ds-ck-subh">
+        <span className="ds-ck-st">
+          <Glyph name="odu" size={14} />
+          Shared outdoor
+        </span>
+        {hasOdu && (
+          <button
+            className="ds-ck-act"
+            onClick={() => setBrowsing(true)}
+            title="Swap the shared outdoor unit"
+          >
+            Change
+            <Glyph name="chev" size={12} />
+          </button>
+        )}
+      </div>
+
+      {!hasOdu ? (
+        <>
+          <div className="ds-ck-uempty">
+            <div className="ue-ic">
+              <Glyph name="odu" size={20} />
+            </div>
+            <div>
+              <div className="ue-t">No outdoor unit yet</div>
+              <div className="ue-s">One outdoor serves every room.</div>
+            </div>
+          </div>
+          <button
+            className="ds-ck-inkbtn"
+            style={{ marginTop: 10 }}
+            onClick={() => setBrowsing(true)}
+          >
+            <Glyph name="plus" size={16} />
+            Select outdoor unit
+          </button>
+        </>
+      ) : (
+        <>
+          <ObjRow
+            k="Rated capacity"
+            v={conn.oduKw != null ? `${conn.oduKw.toFixed(1)} kW` : "—"}
+          />
+          <ObjRow
+            k="Connected"
+            v={
+              conn.connectedKw != null
+                ? `${conn.connectedKw.toFixed(1)} kW · ${conn.iduCount} unit${conn.iduCount === 1 ? "" : "s"}`
+                : conn.iduCount > 0
+                  ? `${conn.iduCount} unit${conn.iduCount === 1 ? "" : "s"} · capacity unknown`
+                  : "None yet"
+            }
+          />
+          <ObjRow k="Ports" v={conn.ports != null ? `${conn.portsUsed} / ${conn.ports}` : "—"} />
+          <ObjRow
+            k="Combination"
+            v={conn.comboPct != null ? `${Math.round(conn.comboPct)}%` : "—"}
+          />
+          {conn.findings.map((f) => (
+            <div
+              key={f.code + f.message}
+              className={`ds-ck-mwarn${f.severity === "red" ? " red" : ""}`}
+            >
+              <Glyph name="alert" size={12} />
+              {f.message}
+            </div>
+          ))}
+          <UnitRow
+            role="odu"
+            label="Outdoor"
+            model={conn.oduModel}
+            sub={
+              oduSpec
+                ? `${oduSpec.phase === "3" ? "3Ø" : "1Ø"} · ${oduSpec.refrigerant}`
+                : undefined
+            }
+            kw={conn.oduKw}
+            widthMm={oduSpec?.width_mm ?? 900}
+            depthMm={oduSpec?.depth_mm ?? 330}
+            placed={conn.oduPlaced}
+            onArmPlace={onArmPlace}
+            onRecall={conn.placedOduId ? () => recall(conn.placedOduId!) : undefined}
+          />
+          {!conn.oduPlaced && (
+            <div className="ds-ck-placenote">Drag the card onto the plan to place it.</div>
+          )}
+        </>
+      )}
+
+      {browsing && pack && (
+        <MultiOduPicker
+          pack={pack}
+          idus={connectedIdus}
+          basis={basis}
+          requiredKw={conn.requiredKw}
+          current={conn.oduModel || undefined}
+          onChoose={choose}
+          onClose={() => setBrowsing(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ── Per-room Unit sub-card: one indoor unit for THIS room, chosen from the
+   multi-capable catalogue and dragged to the plan (placement stamps
+   props.roomId — the coverage attribution). Exported so the multi tests can
+   drive it in isolation. ── */
+
+export function MultiUnitsSub({
+  doc,
+  pack,
+  system,
+  room,
+  basis,
+  onMutate,
+  onArmPlace,
+}: {
+  doc: DesignDocument;
+  pack: DataPack | null;
+  system: DesignSystem;
+  room: RoomObj;
+  basis: SizingBasis;
+  onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
+  onArmPlace: (p: PlacingUnit | null) => void;
+}) {
+  const [browsing, setBrowsing] = useState(false);
+  const loadKw = roomLoadKw(doc, room);
+
+  const placedIdu =
+    doc.objects.find(
+      (o) =>
+        o.systemId === system.id &&
+        o.type === "unit" &&
+        o.props.role === "idu" &&
+        o.props.roomId === room.id
+    ) ?? null;
+  const model = String(placedIdu?.props.model ?? multiIduSelections(system)[room.id] ?? "");
+  const spec = pack?.indoor_units.find((u) => u.model === model) ?? null;
+  const kw = spec ? sizingCapacityKw(spec, basis) : null;
+
+  /* recall drops THIS room's unit + the runs plumbed to it — other rooms'
+     units and pipework stay */
+  const dropUnitObjects = (d: DesignDocument, unitId: string) =>
+    d.objects.filter(
+      (o) =>
+        o.id !== unitId &&
+        !(o.systemId === system.id && o.type === "pipe-run" && runTouches(o, unitId))
+    );
+
+  const recall = (unitId: string) =>
+    onMutate((d) => ({ ...d, objects: dropUnitObjects(d, unitId) }));
+
+  const choose = (idu: IndoorUnit) => {
+    const changed = idu.model !== model;
+    const placedId = placedIdu?.id ?? null;
+    onMutate((d) => ({
+      ...d,
+      systems: d.systems.map((s) =>
+        s.id === system.id
+          ? {
+              ...s,
+              settings: {
+                ...s.settings,
+                multiIdus: { ...multiIduSelections(s), [room.id]: idu.model },
+              },
+            }
+          : s
+      ),
+      // a different unit takes the placed one (and its runs) back off the plan
+      objects: changed && placedId ? dropUnitObjects(d, placedId) : d.objects,
+    }));
+    setBrowsing(false);
+  };
+
+  return (
+    <div className="ds-ck-sub units" data-testid="multi-unit-sub">
+      <div className="ds-ck-subh">
+        <span className="ds-ck-st">
+          <Glyph name="unitsq" size={14} />
+          Unit
+        </span>
+        {model && (
+          <button
+            className="ds-ck-act"
+            onClick={() => setBrowsing(true)}
+            title="Swap this room's indoor unit"
+          >
+            Change
+            <Glyph name="chev" size={12} />
+          </button>
+        )}
+      </div>
+
+      {!model ? (
+        <>
+          <div className="ds-ck-uempty">
+            <div className="ue-ic">
+              <Glyph name="idu" size={20} />
+            </div>
+            <div>
+              <div className="ue-t">No unit for this room yet</div>
+            </div>
+          </div>
+          <button
+            className="ds-ck-inkbtn"
+            style={{ marginTop: 10 }}
+            onClick={() => setBrowsing(true)}
+          >
+            <Glyph name="plus" size={16} />
+            Select unit
+          </button>
+        </>
+      ) : (
+        <>
+          <UnitRow
+            role="idu"
+            label="Indoor"
+            model={model}
+            sub={spec ? formFactorLabel(spec.form_factor) : undefined}
+            kw={kw}
+            widthMm={spec?.width_mm ?? 800}
+            depthMm={spec?.depth_mm ?? 300}
+            placed={Boolean(placedIdu)}
+            onArmPlace={onArmPlace}
+            onRecall={placedIdu ? () => recall(placedIdu.id) : undefined}
+          />
+          {!placedIdu && (
+            <div className="ds-ck-placenote">
+              Drag the card onto the plan to place it in this room.
+            </div>
+          )}
+        </>
+      )}
+
+      {browsing && pack && (
+        <MultiIduPicker
+          pack={pack}
+          loadKw={loadKw}
+          basis={basis}
+          current={model || undefined}
+          onChoose={choose}
+          onClose={() => setBrowsing(false)}
+        />
+      )}
+    </div>
+  );
+}
+
 /* ─────────────── sliding seg-window (translate + animated height) ─────────────── */
 
 function SegWindow({ view, children }: { view: "rooms" | "components"; children: [React.ReactNode, React.ReactNode] }) {
@@ -997,6 +1447,7 @@ function RoomsView({
   floor,
   rooms,
   ducted,
+  perRoom,
   selObj,
   inspectRoom,
   highlightRoomId,
@@ -1013,6 +1464,7 @@ function RoomsView({
   floor: Floor;
   rooms: RoomObj[];
   ducted: boolean;
+  perRoom: boolean;
   selObj: DesignObject | null;
   inspectRoom: RoomObj | null;
   highlightRoomId: string;
@@ -1073,7 +1525,8 @@ function RoomsView({
         </div>
         <div className="ds-ck-emptyt">No rooms yet</div>
         <div className="ds-ck-emptys">
-          Draw a room on the plan, or serve an existing one, to start sizing this split.
+          Draw a room on the plan, or serve an existing one, to start sizing this{" "}
+          {ducted || perRoom ? "system" : "split"}.
         </div>
         <div className="ds-ck-emptyactions">
           <button className="ds-ck-inkbtn" onClick={onDrawRoom}>
@@ -1133,6 +1586,13 @@ function RoomsView({
               <span className="ds-ck-rnum">{i + 1}</span>
               <span className={`ds-ck-rdot ${dot}`} />
               <span className="ds-ck-rnm">{String(r.props.name ?? "Room")}</span>
+              {/* spill rooms carry the ⤢ badge and no sizing expectations
+                  (ducted spec §9b–9c; the share slot arrives at Step 3) */}
+              {ducted && isSpillRoom(r) && (
+                <span className="ds-ck-rspill" title="Spill room — receives spill air only">
+                  ⤢
+                </span>
+              )}
             </button>
           );
         })}
@@ -1163,7 +1623,24 @@ function RoomsView({
       </div>
 
       {selObj ? (
-        <ObjectInspectCard doc={doc} obj={selObj} floor={floor} onMutate={onMutate} onSelect={onSelect} />
+        selObj.type === "plenum" ? (
+          <PlenumInspectCard
+            doc={doc}
+            pack={pack}
+            obj={selObj}
+            onMutate={onMutate}
+            onSelect={onSelect}
+          />
+        ) : (
+          <ObjectInspectCard
+            doc={doc}
+            pack={pack}
+            obj={selObj}
+            floor={floor}
+            onMutate={onMutate}
+            onSelect={onSelect}
+          />
+        )
       ) : inspectRoom ? (
         <RoomInspectCard
           doc={doc}
@@ -1172,6 +1649,7 @@ function RoomsView({
           room={inspectRoom}
           basis={basis}
           ducted={ducted}
+          perRoom={perRoom}
           onSelect={onSelect}
           onMutate={onMutate}
           onEditRoom={onEditRoom}
@@ -1192,6 +1670,7 @@ function RoomInspectCard({
   room,
   basis,
   ducted,
+  perRoom,
   onSelect,
   onMutate,
   onEditRoom,
@@ -1206,6 +1685,8 @@ function RoomInspectCard({
   /** ducted rooms get Configure only — Outlets/Duct replace Units/Pipework
       at Steps 3–4 */
   ducted?: boolean;
+  /** per-room modules (multi / VRF): one indoor unit per room, shared outdoor */
+  perRoom?: boolean;
   onSelect: (id: string | null) => void;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   onEditRoom: (id: string) => void;
@@ -1263,7 +1744,7 @@ function RoomInspectCard({
               onClick={() => setTab("units")}
             >
               <Glyph name="unitsq" size={13} />
-              Units
+              {perRoom ? "Unit" : "Units"}
             </button>
             <button
               role="tab"
@@ -1278,20 +1759,40 @@ function RoomInspectCard({
         )}
       </div>
       <div className="ds-ck-ibody">
-        {tab === "configure" && <ConfigureSub doc={doc} room={room} onEditRoom={onEditRoom} />}
+        {tab === "configure" && (
+          <ConfigureSub
+            doc={doc}
+            room={room}
+            ducted={ducted}
+            onMutate={onMutate}
+            onEditRoom={onEditRoom}
+          />
+        )}
         {ducted && (
           <div className="ds-ck-pipeempty">Outlets arrive with ductwork — Step 3</div>
         )}
         {!ducted && tab === "units" && (
-          <UnitsSub
-            doc={doc}
-            pack={pack}
-            system={system}
-            room={room}
-            basis={basis}
-            onMutate={onMutate}
-            onArmPlace={onArmPlace}
-          />
+          perRoom ? (
+            <MultiUnitsSub
+              doc={doc}
+              pack={pack}
+              system={system}
+              room={room}
+              basis={basis}
+              onMutate={onMutate}
+              onArmPlace={onArmPlace}
+            />
+          ) : (
+            <UnitsSub
+              doc={doc}
+              pack={pack}
+              system={system}
+              room={room}
+              basis={basis}
+              onMutate={onMutate}
+              onArmPlace={onArmPlace}
+            />
+          )
         )}
         {!ducted && tab === "pipework" && (
           <PipeworkSub doc={doc} system={system} onSelect={onSelect} />
@@ -1304,15 +1805,33 @@ function RoomInspectCard({
 function ConfigureSub({
   doc,
   room,
+  ducted,
+  onMutate,
   onEditRoom,
 }: {
   doc: DesignDocument;
   room: RoomObj;
+  /** ducted systems gain the Spill toggle (spec §9c) */
+  ducted?: boolean;
+  onMutate?: (fn: (d: DesignDocument) => DesignDocument) => void;
   onEditRoom: (id: string) => void;
 }) {
   const area = roomAreaM2(doc, room);
   const kw = roomLoadKw(doc, room);
   const floorName = doc.floors.find((f) => f.id === room.floorId)?.name ?? "—";
+  /* the toggle writes room.props.spill — the engine excludes spill rooms from
+     the required-capacity sums, shares and outlet gating */
+  const setSpill = (on: boolean) =>
+    onMutate?.((d) => ({
+      ...d,
+      objects: d.objects.map((o) => {
+        if (o.id !== room.id) return o;
+        const props = { ...o.props };
+        if (on) props.spill = true;
+        else delete props.spill;
+        return { ...o, props };
+      }),
+    }));
   return (
     <div className="ds-ck-sub cfg">
       <div className="ds-ck-subh">
@@ -1345,6 +1864,22 @@ function ConfigureSub({
           <div className="v">{floorName}</div>
         </div>
       </div>
+      {ducted && (
+        <label className="ds-ck-spill">
+          <input
+            type="checkbox"
+            checked={isSpillRoom(room)}
+            onChange={(e) => setSpill(e.target.checked)}
+            aria-label="Spill room"
+          />
+          <span className="ds-ck-spill-tx">
+            <b>Spill room ⤢</b>
+            <small>
+              receives spill air only — excluded from sizing, needs no outlets
+            </small>
+          </span>
+        </label>
+      )}
     </div>
   );
 }
@@ -1775,12 +2310,14 @@ function ComponentsView({
 
 function ObjectInspectCard({
   doc,
+  pack,
   obj,
   floor,
   onMutate,
   onSelect,
 }: {
   doc: DesignDocument;
+  pack: DataPack | null;
   obj: DesignObject;
   floor: Floor;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
@@ -1788,7 +2325,13 @@ function ObjectInspectCard({
 }) {
   const system = doc.systems.find((s) => s.id === obj.systemId);
   const del = () => {
-    onMutate((d) => ({ ...d, objects: d.objects.filter((o) => o.id !== obj.id) }));
+    // deleting an AHU carries its plenums (spec §10.3 — confirm copy Step 8)
+    onMutate((d) => ({
+      ...d,
+      objects: d.objects.filter(
+        (o) => o.id !== obj.id && !(obj.type === "unit" && isPlenumOf(o, obj.id))
+      ),
+    }));
     onSelect(null);
   };
 
@@ -1800,6 +2343,26 @@ function ObjectInspectCard({
     const isIdu = String(obj.props.role) === "idu";
     title = isIdu ? "Indoor unit" : "Outdoor unit";
     delLabel = "Delete unit";
+    /* air-capable AHUs report their plenum status (ducted spec §9d) */
+    const row = isIdu
+      ? (pack?.indoor_units.find((u) => u.model === String(obj.props.model ?? "")) ?? null)
+      : null;
+    const air = row != null && isAirCapable(row);
+    const fitted = doc.objects.filter((o) => isPlenumOf(o, obj.id));
+    const supplyFitted = fitted.some((p) => p.props.end === "supply");
+    const returnFitted = fitted.some((p) => p.props.end === "return");
+    const returnBuiltIn = row?.return_plenum === "built-in";
+    const plenumStatus = supplyFitted
+      ? returnBuiltIn
+        ? "Supply plenum fitted · return built-in"
+        : returnFitted
+          ? "Supply + return plenums fitted"
+          : "Supply plenum fitted · no return yet"
+      : returnBuiltIn
+        ? "Return built-in · no supply plenum yet"
+        : returnFitted
+          ? "Return plenum fitted · no supply yet"
+          : "No plenums yet";
     const floorRooms = doc.objects.filter((o) => o.type === "room" && o.floorId === obj.floorId);
     const serveRoom = (roomId: string) =>
       onMutate((d) => {
@@ -1831,6 +2394,7 @@ function ObjectInspectCard({
         <ObjRow k="Model" v={String(obj.props.model ?? "—")} />
         <ObjRow k="System" v={system?.name ?? "—"} />
         <ObjRow k="Floor" v={floor.name} />
+        {air && <ObjRow k="Plenums" v={plenumStatus} />}
         {isIdu && (
           <label className="ds-ck-objfield">
             <span>Serves room</span>
@@ -1914,6 +2478,135 @@ function ObjectInspectCard({
         <button className="ds-ck-objdel" onClick={del}>
           <Glyph name="x" size={14} />
           {delLabel}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── plenum inspect card (ducted spec §9d) — body dims + facet state from the
+   engine, the spigot roster, and the "+ spigot" size-series picker. Every
+   number comes from plenumBody/formatDia; the card computes nothing. Exported
+   so the ducted tests can drive it via the cockpit. ── */
+
+export function PlenumInspectCard({
+  doc,
+  pack,
+  obj,
+  onMutate,
+  onSelect,
+}: {
+  doc: DesignDocument;
+  pack: DataPack | null;
+  obj: DesignObject;
+  onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
+  onSelect: (id: string | null) => void;
+}) {
+  const units = doc.settings.units;
+  const stream = streamOf(obj.props) === "return" ? "return" : "supply";
+  const unit = doc.objects.find((o) => o.id === String(obj.props.unitId ?? ""));
+  const model = String(unit?.props.model ?? "");
+  const row = pack?.indoor_units.find((u) => u.model === model) ?? null;
+  const spec = row
+    ? ((stream === "return" ? row.return_plenum : row.supply_plenum) ?? null)
+    : null;
+  const spigots = spigotsOf(obj.props);
+  const body = plenumBody({
+    spec,
+    // the mounting face is the AHU's short end — its depth
+    unitWidthMm: Number(unit?.props.depthMm) || null,
+    spigots,
+    units,
+  });
+  const [face, setFace] = useState<PlenumSpigot["face"]>("front");
+
+  const writeSpigots = (next: PlenumSpigot[]) =>
+    onMutate((d) => ({
+      ...d,
+      objects: d.objects.map((o) =>
+        o.id === obj.id ? { ...o, props: { ...o.props, spigots: next } } : o
+      ),
+    }));
+  /* new spigots pack evenly — t = (i+1)/(n+1) per face, recomputed on every
+     add/delete (engine distributeSpigots; drag-slide is a later nicety) */
+  const addSpigot = (diaMm: number) =>
+    writeSpigots(distributeSpigots([...spigots, { id: newId("spg"), diaMm, t: 0.5, face }]));
+  const delSpigot = (id: string) =>
+    writeSpigots(distributeSpigots(spigots.filter((s) => s.id !== id)));
+  const del = () => {
+    onMutate((d) => ({ ...d, objects: d.objects.filter((o) => o.id !== obj.id) }));
+    onSelect(null);
+  };
+
+  return (
+    <div className="ds-ck-inspect ds-ck-objcard" data-testid="plenum-card">
+      <div className="ds-ck-ihead">
+        <div className="ds-ck-itxt">
+          <div className="ds-ck-iname">
+            {stream === "return" ? "Return plenum" : "Supply plenum"}
+          </div>
+        </div>
+      </div>
+      <div className="ds-ck-objbody">
+        <ObjRow k="Body" v={`${Math.round(body.wMm)} × ${Math.round(body.dMm)} mm`} />
+        {body.derived && <div className="ds-ck-usub">derived — no pack data</div>}
+        <ObjRow k="Face" v={body.faceted ? "3-face (refaceted)" : "Flat"} />
+        <ObjRow k="On" v={model || "—"} />
+
+        <div className="ds-ck-spigs">
+          {spigots.length === 0 ? (
+            <div className="ds-ck-pipeempty">No spigots yet — add one below</div>
+          ) : (
+            spigots.map((s) => (
+              <div key={s.id} className="ds-ck-spig">
+                <span className="ds-ck-spig-size">{formatDia(s.diaMm, units)}</span>
+                <span className="ds-ck-spig-face">{s.face}</span>
+                {s.capped && <span className="ds-ck-spig-cap">capped</span>}
+                <button
+                  className="ds-ck-spig-del"
+                  aria-label={`Delete ${formatDia(s.diaMm, units)} ${s.face} spigot`}
+                  title="Delete spigot"
+                  onClick={() => delSpigot(s.id)}
+                >
+                  <Glyph name="x" size={11} />
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="ds-ck-addspig">
+          <div className="ds-ck-addspig-t">+ spigot</div>
+          <div className="ds-ck-facepick" role="radiogroup" aria-label="Spigot face">
+            {(["front", "left", "right"] as const).map((f) => (
+              <button
+                key={f}
+                role="radio"
+                aria-checked={face === f}
+                className={`ds-ck-facebtn${face === f ? " on" : ""}`}
+                onClick={() => setFace(f)}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+          <div className="ds-ck-sizechips">
+            {SIZE_SERIES_MM.map((mm) => (
+              <button
+                key={mm}
+                className="ds-ck-sizechip"
+                title={`Add a ${formatDia(mm, units)} spigot on the ${face} face`}
+                onClick={() => addSpigot(mm)}
+              >
+                {formatDia(mm, units)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <button className="ds-ck-objdel" onClick={del}>
+          <Glyph name="x" size={14} />
+          Delete plenum
         </button>
       </div>
     </div>

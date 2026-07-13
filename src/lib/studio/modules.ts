@@ -14,6 +14,10 @@ import type { SystemType } from "./document";
     the gate. */
 const DUCTED_ENABLED = process.env.NEXT_PUBLIC_STUDIO_DUCTED === "1";
 
+/** Stage-5 dev flag — same mechanism for multi-split: choosable only when the
+    build was made with NEXT_PUBLIC_STUDIO_MULTI=1. Removed at go-live. */
+const MULTI_ENABLED = process.env.NEXT_PUBLIC_STUDIO_MULTI === "1";
+
 /** How a type gathers indoor units once rooms are configured. */
 export type UnitFlow =
   | "pair" // split 1:1 — one IDU + one ODU, placed separately
@@ -54,7 +58,7 @@ export const SYSTEM_MODULES: Record<SystemType, SystemModule> = {
     type: "multi-split",
     label: "Multi-split",
     blurb: "Several rooms sharing one outdoor — an indoor unit per room.",
-    available: false,
+    available: MULTI_ENABLED,
     comingStage: "Stage 5",
     roomScope: "multi",
     unitFlow: "per-room",

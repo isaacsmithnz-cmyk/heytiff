@@ -5333,3 +5333,297 @@
   cursor: pointer;
 }
 .dstudio .ds-ck-objdel:hover { background: var(--ds-red-d); color: #fff; border-color: var(--ds-red-d); }
+
+/* ── Multi-split (Stage 5): lean pickers + cockpit findings ── */
+/* the multi pickers reuse the unit-browser chrome at a smaller fixed size */
+.ds-ub.lean {
+  width: min(720px, calc(100vw - 48px));
+  height: min(600px, calc(100vh - 48px));
+}
+.ds-mp-choose {
+  font: 800 11px var(--font, "Plus Jakarta Sans", sans-serif);
+  color: var(--teal-d, #0f766e);
+  text-align: right;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.ds-ub-model em.ds-mp-nofit { color: var(--ds-amber-d, #b45309); }
+/* rule findings under the shared-outdoor figures (red = breach, amber = unchecked) */
+.dstudio .ds-ck-mwarn {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 6px;
+  font: 600 11.5px var(--font);
+  color: var(--ds-amber-d);
+}
+.dstudio .ds-ck-mwarn.red { color: var(--ds-red-d); }
+.dstudio .ds-ck-mwarn svg { flex: none; margin-top: 1px; }
+
+/* ═════════ Ducted Step 2: air dock + component palette + options HUD ═════════ */
+
+/* the palette flyout anchors to the dock's Component button */
+.dstudio .ds-pal-wrap { position: relative; }
+.dstudio .ds-pal {
+  position: absolute;
+  left: calc(100% + 10px);
+  top: -6px;
+  z-index: 30;
+  background: #fff;
+  border: 1px solid var(--ds-border);
+  border-radius: 16px;
+  padding: 8px;
+  box-shadow: 0 1px 2px rgba(10, 12, 20, 0.04),
+    0 18px 44px -20px rgba(10, 12, 20, 0.38);
+  width: 264px;
+}
+.dstudio .ds-pal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+.dstudio .ds-pal-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 9px 10px;
+  border-radius: 11px;
+  text-align: left;
+  transition: background 0.15s;
+}
+.dstudio .ds-pal-item:hover:not(:disabled) { background: #f4f5f7; }
+.dstudio .ds-pal-item.off { opacity: 0.45; cursor: not-allowed; }
+.dstudio .ds-pal-ic { color: var(--gray500); display: flex; }
+.dstudio .ds-pal-item:hover:not(:disabled) .ds-pal-ic { color: var(--ink); }
+.dstudio .ds-pal-nm {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.dstudio .ds-pal-why {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--gray500);
+}
+
+/* options HUD — floating pill strip, top-centre over the canvas */
+.dstudio .ds-hud {
+  position: absolute;
+  top: 56px; /* clears the canvas-top strip */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid var(--ds-border);
+  border-radius: 999px;
+  padding: 5px 6px 5px 13px;
+  box-shadow: 0 1px 2px rgba(10, 12, 20, 0.04),
+    0 14px 34px -18px rgba(10, 12, 20, 0.35);
+}
+.dstudio .ds-hud-label {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--gray500);
+}
+.dstudio .ds-hud-seg {
+  display: flex;
+  gap: 3px;
+  background: #eef0f4;
+  border-radius: 999px;
+  padding: 2px;
+}
+.dstudio .ds-hud-chip {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gray500);
+  border-radius: 999px;
+  padding: 4px 12px;
+  transition: all 0.15s;
+}
+.dstudio .ds-hud-chip.on {
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 2px 6px -2px rgba(10, 12, 20, 0.3);
+}
+.dstudio .ds-hud-chip:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* canvas: plenums — the ceiling-cavity (~85 %) opacity family */
+.dstudio .ds-plenum { opacity: 0.85; }
+.dstudio .ds-plenum-body {
+  stroke: currentColor;
+  stroke-width: 1.6px;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+.dstudio .ds-plenum.sel .ds-plenum-body { stroke-width: 3px; }
+.dstudio .ds-spigot circle {
+  fill: #fff;
+  stroke: currentColor;
+  stroke-width: 1.4px;
+  vector-effect: non-scaling-stroke;
+}
+.dstudio .ds-spigot-cap {
+  stroke: currentColor;
+  stroke-width: 2.2px;
+  vector-effect: non-scaling-stroke;
+}
+.dstudio .ds-plenum-label {
+  fill: currentColor;
+  text-anchor: middle;
+  font-weight: 700;
+  paint-order: stroke;
+  stroke: #fff;
+  stroke-width: 3px;
+}
+.dstudio .ds-plenum-label.derived { fill: var(--gray500); }
+/* built-in return: integral hatched box fused to the AHU body */
+.dstudio .ds-plenum-builtin {
+  stroke: currentColor;
+  stroke-width: 1.6px;
+  vector-effect: non-scaling-stroke;
+}
+/* empty plenum mounting faces — the dashed "plenum goes here" sockets */
+.dstudio .ds-ahu-socket {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.2px;
+  stroke-dasharray: 4 3;
+  opacity: 0.55;
+  vector-effect: non-scaling-stroke;
+}
+.dstudio .ds-ahu-flow {
+  stroke: currentColor;
+  stroke-width: 1.2px;
+  opacity: 0.7;
+  vector-effect: non-scaling-stroke;
+}
+/* armed plenum: candidate faces glow before the click; ghost body previews */
+.dstudio .ds-plenum-face {
+  stroke: #16a34a;
+  stroke-width: 3px;
+  opacity: 0.45;
+  vector-effect: non-scaling-stroke;
+}
+.dstudio .ds-plenum-face.ready {
+  stroke-width: 5px;
+  opacity: 0.9;
+}
+.dstudio .ds-plenum-ghost {
+  fill: currentColor;
+  fill-opacity: 0.06;
+  stroke: currentColor;
+  stroke-width: 1.4px;
+  stroke-dasharray: 6 4;
+  vector-effect: non-scaling-stroke;
+}
+
+/* cockpit: spill toggle + roster badge (ducted spec §9b–9c) */
+.dstudio .ds-ck-spill {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--ds-border);
+  border-radius: 12px;
+  cursor: pointer;
+}
+.dstudio .ds-ck-spill input { margin-top: 2px; accent-color: var(--teal-d); }
+.dstudio .ds-ck-spill-tx b {
+  display: block;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--ink);
+}
+.dstudio .ds-ck-spill-tx small {
+  font-size: 11px;
+  color: var(--gray500);
+}
+.dstudio .ds-ck-rspill {
+  flex: none;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--teal-d);
+}
+
+/* cockpit: plenum card — spigot roster + the "+ spigot" series picker */
+.dstudio .ds-ck-spigs { margin-top: 10px; display: flex; flex-direction: column; gap: 5px; }
+.dstudio .ds-ck-spig {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 9px;
+  border: 1px solid var(--ds-border);
+  border-radius: 10px;
+}
+.dstudio .ds-ck-spig-size {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.dstudio .ds-ck-spig-face {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gray500);
+}
+.dstudio .ds-ck-spig-cap {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ds-amber-d, #b45309);
+}
+.dstudio .ds-ck-spig-del {
+  margin-left: auto;
+  display: flex;
+  color: var(--gray500);
+  border-radius: 7px;
+  padding: 3px;
+}
+.dstudio .ds-ck-spig-del:hover { color: var(--ds-red-d, #b91c1c); background: #f4f5f7; }
+.dstudio .ds-ck-addspig { margin-top: 12px; }
+.dstudio .ds-ck-addspig-t {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--gray500);
+  margin-bottom: 6px;
+}
+.dstudio .ds-ck-facepick { display: flex; gap: 4px; margin-bottom: 7px; }
+.dstudio .ds-ck-facebtn {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gray500);
+  border: 1px solid var(--ds-border);
+  border-radius: 999px;
+  padding: 3px 11px;
+}
+.dstudio .ds-ck-facebtn.on {
+  color: var(--ink);
+  border-color: var(--ink);
+  background: #f4f5f7;
+}
+.dstudio .ds-ck-sizechips { display: flex; flex-wrap: wrap; gap: 4px; }
+.dstudio .ds-ck-sizechip {
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  border: 1px solid var(--ds-border);
+  border-radius: 9px;
+  padding: 4px 9px;
+  transition: all 0.15s;
+}
+.dstudio .ds-ck-sizechip:hover {
+  border-color: var(--teal-d);
+  color: var(--teal-d);
+}

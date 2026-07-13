@@ -1,0 +1,343 @@
+/* Ducted Step 2 — plenums on the canvas: placement snapping to an AHU end
+   (stream-filtered by the HUD toggle), derived-position carry when the AHU
+   moves, the facet render state, built-in-return handling, socket outlines,
+   delete-the-AHU carry, and the roster ⤢ chip on spill rooms.
+
+   jsdom has no layout: the blank floor (scale 10 mm/unit → grid 100) opens at
+   zoom 0.56 with the world origin at screen centre (400,300), so client
+   coordinates map straight to screen (see canvas.test.tsx). The test AHU is
+   1400×732 mm at world (0,0) → footprint 140×73.2 world units; its supply end
+   face sits at world x=+70 → screen x≈439, the return end at x=−70 → ≈361. */
+
+import { render, fireEvent } from "@testing-library/react";
+import { StudioCanvas, type ArmedComponent } from "../canvas";
+import {
+  createDesign,
+  type DesignDocument,
+  type DesignObject,
+  type Floor,
+} from "@/lib/studio/document";
+import type { IndoorUnit, PlenumSpec } from "@/lib/studio/packs/schema";
+
+const floor: Floor = {
+  id: "flr",
+  name: "G",
+  level: 0,
+  scaleMmPerUnit: 10,
+  northDeg: null,
+  northPos: null,
+  plans: [],
+};
+
+/** a ducted-form pack row — plenum specs + airflow make it air-capable */
+function peadRow(returnPlenum: PlenumSpec = { w_mm: 1200, h_mm: 250, d_mm: 350 }): IndoorUnit {
+  return {
+    model: "PEAD-TEST",
+    brand: "me",
+    series: "PEAD",
+    form_factor: "ducted",
+    capacity_cool_kw: 10,
+    capacity_heat_kw: 11.2,
+    airflow_ls: 567,
+    supply_plenum: { w_mm: 1200, h_mm: 250, d_mm: 450 },
+    return_plenum: returnPlenum,
+    conn_liquid_mm: 9.52,
+    conn_gas_mm: 15.88,
+    default_plane: "ceiling-cavity",
+    allowed_planes: ["ceiling-cavity"],
+    system_roles: ["split-pair"],
+    refrigerant: "R32",
+    width_mm: 1400,
+    depth_mm: 732,
+    height_mm: 250,
+    provenance: { kind: "user-entered", source: "test" },
+  };
+}
+
+const ahu = (at = { x: 0, y: 0 }): DesignObject => ({
+  id: "u1",
+  type: "unit",
+  systemId: "sys1",
+  floorId: "flr",
+  geometry: { kind: "point", at },
+  plane: "ceiling-cavity",
+  props: { role: "idu", model: "PEAD-TEST", widthMm: 1400, depthMm: 732 },
+});
+
+const plenum = (spigots: unknown[] = [], end: "supply" | "return" = "supply"): DesignObject => ({
+  id: "pl1",
+  type: "plenum",
+  systemId: "sys1",
+  floorId: "flr",
+  geometry: { kind: "point", at: { x: 70, y: 0 } },
+  plane: "ceiling-cavity",
+  props: { stream: end, unitId: "u1", end, spigots },
+});
+
+function mkDoc(objects: DesignObject[], units: "mm" | "inch" = "mm"): DesignDocument {
+  const d = createDesign({ name: "T", mode: "blank", now: "2026-07-14T00:00:00.000Z" });
+  d.floors = [floor];
+  d.settings.units = units;
+  d.systems = [
+    { id: "sys1", type: "ducted", brand: "me", colour: "#2E68FF", name: "S1", settings: {} },
+  ];
+  d.objects = objects;
+  return d;
+}
+
+function renderCanvas(opts: {
+  doc: DesignDocument;
+  component?: ArmedComponent | null;
+  row?: IndoorUnit;
+  selectedId?: string | null;
+  onMutate?: (fn: (d: DesignDocument) => DesignDocument) => void;
+  onComponentPlaced?: () => void;
+}) {
+  const row = opts.row ?? peadRow();
+  const utils = render(
+    <StudioCanvas
+      doc={opts.doc}
+      floor={floor}
+      tool={opts.component ? "component" : "select"}
+      selectedId={opts.selectedId ?? null}
+      onSelect={() => {}}
+      onMutate={opts.onMutate ?? (() => {})}
+      onToolDone={() => {}}
+      activeSystemId="sys1"
+      component={opts.component ?? null}
+      onComponentPlaced={opts.onComponentPlaced}
+      iduSpec={(model) => (model === row.model ? row : null)}
+      onPlaced={() => {}}
+      onRoomCreated={() => {}}
+      onRemarkConsumed={() => {}}
+    />
+  );
+  const svg = utils.container.querySelector("svg")!;
+  return { ...utils, svg };
+}
+
+const pt = (x: number, y: number) => ({ clientX: x, clientY: y, button: 0, pointerId: 1 });
+
+/** first point of a polygon's points attribute */
+function firstPoint(el: Element): { x: number; y: number } {
+  const [x, y] = el.getAttribute("points")!.split(" ")[0].split(",").map(Number);
+  return { x, y };
+}
+
+describe("plenum placement (component tool)", () => {
+  it("clicking the glowing supply end creates a supply plenum anchored to the AHU", () => {
+    const doc = mkDoc([ahu()]);
+    let next: DesignDocument | undefined;
+    const placed = jest.fn();
+    const { svg } = renderCanvas({
+      doc,
+      component: { kind: "plenum", stream: "supply" },
+      onMutate: (fn) => (next = fn(doc)),
+      onComponentPlaced: placed,
+    });
+
+    // the armed stream pre-filters the faces: only the supply end glows
+    expect(svg.querySelectorAll(".ds-plenum-face")).toHaveLength(1);
+    // hovering within snap range lights the face and previews the ghost body
+    fireEvent.pointerMove(svg, pt(439, 300));
+    expect(svg.querySelector(".ds-plenum-face.ready")).not.toBeNull();
+    expect(svg.querySelector(".ds-plenum-ghost")).not.toBeNull();
+
+    fireEvent.pointerDown(svg, pt(439, 300));
+    const pl = next!.objects.find((o) => o.type === "plenum")!;
+    expect(pl.props).toMatchObject({
+      stream: "supply",
+      unitId: "u1",
+      end: "supply",
+      spigots: [],
+    });
+    expect(pl.systemId).toBe("sys1");
+    expect(pl.plane).toBe("ceiling-cavity");
+    expect(placed).toHaveBeenCalled();
+  });
+
+  it("the armed stream's toggle gates the other end — a supply arm ignores the return face", () => {
+    const doc = mkDoc([ahu()]);
+    const onMutate = jest.fn();
+    const { svg } = renderCanvas({
+      doc,
+      component: { kind: "plenum", stream: "supply" },
+      onMutate,
+    });
+    fireEvent.pointerDown(svg, pt(361, 300)); // the return end
+    expect(onMutate).not.toHaveBeenCalled();
+  });
+
+  it("an occupied end stops glowing and refuses a second plenum", () => {
+    const doc = mkDoc([ahu(), plenum()]);
+    const onMutate = jest.fn();
+    const { svg } = renderCanvas({
+      doc,
+      component: { kind: "plenum", stream: "supply" },
+      onMutate,
+    });
+    expect(svg.querySelectorAll(".ds-plenum-face")).toHaveLength(0);
+    fireEvent.pointerDown(svg, pt(439, 300));
+    expect(onMutate).not.toHaveBeenCalled();
+  });
+});
+
+describe("plenum rendering", () => {
+  it("draws the V at engine dims with dashed sockets on the empty ends", () => {
+    const doc = mkDoc([ahu()]);
+    const { svg } = renderCanvas({ doc });
+    // no plenums yet → both end faces wear the dashed socket outline
+    expect(svg.querySelectorAll(".ds-ahu-socket")).toHaveLength(2);
+    expect(svg.querySelector(".ds-ahu-flow")).not.toBeNull();
+  });
+
+  it("a fitted supply plenum replaces its socket and reads the engine label", () => {
+    const doc = mkDoc([ahu(), plenum()]);
+    const { svg } = renderCanvas({ doc });
+    expect(svg.querySelectorAll(".ds-ahu-socket")).toHaveLength(1); // return only
+    const body = svg.querySelector(".ds-plenum-body")!;
+    // trapezoid from the AHU face (x=70) out to the spigot face at
+    // 450 mm = 45 world units (spec dims × floor scale)
+    const p0 = firstPoint(body);
+    expect(p0.x).toBeCloseTo(70, 3);
+    expect(p0.y).toBeCloseTo(-36.6, 3);
+    expect(body.getAttribute("points")).toContain("115");
+    expect(svg.querySelector(".ds-plenum-label")!.textContent).toBe("1200 × 450");
+  });
+
+  it("three 14\" spigots refacet the front — label + stubs follow the engine", () => {
+    const spigs = [
+      { id: "s1", diaMm: 350, t: 0.25, face: "front" },
+      { id: "s2", diaMm: 350, t: 0.5, face: "front" },
+      { id: "s3", diaMm: 350, t: 0.75, face: "front" },
+    ];
+    const doc = mkDoc([ahu(), plenum(spigs)], "inch");
+    const { svg } = renderCanvas({ doc });
+    const label = svg.querySelector(".ds-plenum-label")!;
+    expect(label.textContent).toBe('1250 × 450 · 3 × 14" (3-face)');
+    expect(svg.querySelectorAll(".ds-spigot circle")).toHaveLength(3);
+    // the refaceted front renders as three angled segments → a 6-point body
+    const body = svg.querySelector(".ds-plenum-body")!;
+    expect(body.getAttribute("points")!.split(" ")).toHaveLength(6);
+  });
+
+  it("capped spigots wear the blanking-cap tick", () => {
+    const doc = mkDoc([
+      ahu(),
+      plenum([{ id: "s1", diaMm: 350, t: 0.5, face: "front", capped: true }]),
+    ]);
+    const { svg } = renderCanvas({ doc });
+    expect(svg.querySelector(".ds-spigot-cap")).not.toBeNull();
+  });
+
+  it("moving the AHU carries its plenums — position derives, never stored", () => {
+    const { svg, rerender } = renderCanvas({ doc: mkDoc([ahu(), plenum()]) });
+    expect(firstPoint(svg.querySelector(".ds-plenum-body")!).x).toBeCloseTo(70, 3);
+
+    // same plenum object (stored point untouched), the unit moved
+    const row = peadRow();
+    rerender(
+      <StudioCanvas
+        doc={mkDoc([ahu({ x: 100, y: 50 }), plenum()])}
+        floor={floor}
+        tool="select"
+        selectedId={null}
+        onSelect={() => {}}
+        onMutate={() => {}}
+        onToolDone={() => {}}
+        activeSystemId="sys1"
+        iduSpec={(model) => (model === row.model ? row : null)}
+        onPlaced={() => {}}
+        onRoomCreated={() => {}}
+        onRemarkConsumed={() => {}}
+      />
+    );
+    const p0 = firstPoint(svg.querySelector(".ds-plenum-body")!);
+    expect(p0.x).toBeCloseTo(170, 3);
+    expect(p0.y).toBeCloseTo(13.4, 3);
+  });
+});
+
+describe("built-in return (pack flag)", () => {
+  const builtIn = peadRow("built-in");
+
+  it("renders the integral hatched box and only the supply socket", () => {
+    const doc = mkDoc([ahu()]);
+    const { svg } = renderCanvas({ doc, row: builtIn });
+    expect(svg.querySelector(".ds-plenum-builtin")).not.toBeNull();
+    expect(svg.querySelectorAll(".ds-ahu-socket")).toHaveLength(1);
+  });
+
+  it("refuses a return plenum on that unit", () => {
+    const doc = mkDoc([ahu()]);
+    const onMutate = jest.fn();
+    const { svg } = renderCanvas({
+      doc,
+      row: builtIn,
+      component: { kind: "plenum", stream: "return" },
+      onMutate,
+    });
+    expect(svg.querySelectorAll(".ds-plenum-face")).toHaveLength(0); // nothing glows
+    fireEvent.pointerDown(svg, pt(361, 300));
+    expect(onMutate).not.toHaveBeenCalled();
+  });
+});
+
+describe("AHU lifecycle carries plenums", () => {
+  it("the Delete key on the AHU removes its plenums with it", () => {
+    const doc = mkDoc([ahu(), plenum()]);
+    let next: DesignDocument | undefined;
+    renderCanvas({ doc, selectedId: "u1", onMutate: (fn) => (next = fn(doc)) });
+    fireEvent.keyDown(window, { key: "Delete" });
+    expect(next!.objects).toHaveLength(0);
+  });
+
+  it("the eraser on the AHU removes its plenums with it", () => {
+    const doc = mkDoc([ahu(), plenum()]);
+    let next: DesignDocument | undefined;
+    const row = peadRow();
+    const { container } = render(
+      <StudioCanvas
+        doc={doc}
+        floor={floor}
+        tool="erase"
+        selectedId={null}
+        onSelect={() => {}}
+        onMutate={(fn) => (next = fn(doc))}
+        onToolDone={() => {}}
+        activeSystemId="sys1"
+        iduSpec={(model) => (model === row.model ? row : null)}
+        onPlaced={() => {}}
+        onRoomCreated={() => {}}
+        onRemarkConsumed={() => {}}
+      />
+    );
+    const svg = container.querySelector("svg")!;
+    fireEvent.pointerDown(svg, pt(400, 300)); // the unit body
+    expect(next!.objects).toHaveLength(0);
+  });
+});
+
+describe("spill room chip", () => {
+  it("spill rooms wear the ⤢ suffix on their canvas label", () => {
+    const room: DesignObject = {
+      id: "r1",
+      type: "room",
+      systemId: "sys1",
+      floorId: "flr",
+      geometry: {
+        kind: "polygon",
+        points: [
+          { x: 0, y: 0 },
+          { x: 100, y: 0 },
+          { x: 100, y: 100 },
+          { x: 0, y: 100 },
+        ],
+      },
+      plane: "room",
+      props: { name: "Hall", spill: true },
+    };
+    const { svg } = renderCanvas({ doc: mkDoc([room]) });
+    expect(svg.querySelector(".ds-room-name")!.textContent).toBe("Hall ⤢");
+  });
+});

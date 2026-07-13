@@ -157,7 +157,8 @@ describe("Design canvas", () => {
     fireEvent.pointerDown(svg, pt(430, 330));
     fireEvent.pointerUp(svg, pt(430, 330));
 
-    // Configure → Edit opens the room modal (rename lives there now)
+    // Configure lives behind the Units-default sub-tab switcher now; open it, then Edit
+    await user.click(screen.getByRole("tab", { name: "Configure" }));
     await user.click(screen.getByRole("button", { name: "Edit" }));
     const nameInput = screen.getByPlaceholderText("e.g. Living / Dining");
     await user.clear(nameInput);

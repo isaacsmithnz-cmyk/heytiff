@@ -106,6 +106,9 @@ export function indoorReadiness(pack: DataPack, idu: IndoorUnit): Readiness {
 
 /* ───────────────────────── outdoor units ───────────────────────── */
 
+/* Note: electrical (mca_a / breaker_a) and outdoor-mount accessories are Tier-3
+   (like sound/weight) — they back the cockpit's Components rows but are never
+   part of any role's required set, so they deliberately do not appear below. */
 export function outdoorReadiness(pack: DataPack, odu: OutdoorUnit): Readiness {
   const missing: Readiness["missing"] = {};
 

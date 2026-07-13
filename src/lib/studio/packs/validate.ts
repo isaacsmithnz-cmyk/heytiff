@@ -92,6 +92,23 @@ function checkSound(
     warnRow("sound_low_dba without sound_high_dba (single figures go in high)");
 }
 
+/* Electrical (mca_a / breaker_a) is Tier-3 like sound: absence never blocks a
+   pack, so implausible values are WARNINGS, not errors. */
+function checkElectrical(
+  warnRow: (m: string) => void,
+  mca: number | undefined,
+  breaker: number | undefined
+): void {
+  for (const [label, v] of [
+    ["mca_a", mca],
+    ["breaker_a", breaker],
+  ] as const)
+    if (v != null && (!num(v) || v <= 0 || v > 100))
+      warnRow(`${label} implausible: ${v} (expected 1–100 A)`);
+  if (num(mca) && num(breaker) && mca > breaker)
+    warnRow(`mca_a ${mca} > breaker_a ${breaker} (min ampacity above the breaker)`);
+}
+
 function checkAdditionalCharge(
   push: (m: string) => void,
   c: AdditionalChargeRule | undefined
@@ -219,6 +236,7 @@ export function validatePack(pack: DataPack): ValidationResult {
     if (!(REFRIGERANTS as readonly string[]).includes(o.refrigerant))
       push(`refrigerant invalid: ${o.refrigerant}`);
     checkSound((m) => warn("outdoor_units", o.model ?? "-", m), o.sound_low_dba, o.sound_high_dba);
+    checkElectrical((m) => warn("outdoor_units", o.model ?? "-", m), o.mca_a, o.breaker_a);
     checkProvenance(push, o.provenance);
   }
 

@@ -73,14 +73,15 @@ describe("Cockpit Components view", () => {
     expect(screen.getByText("Refrigerant charge")).toBeInTheDocument();
     expect(screen.getByText("Electrical")).toBeInTheDocument();
     expect(screen.getByText("Mounting")).toBeInTheDocument();
-    // default electrical selection
-    expect(screen.getByText("Isolator · 20 A")).toBeInTheDocument();
+    // default electrical selection: derived from the ODU breaker rating
+    // (SUZ-M25VAD-A → 10 A) rather than a static placeholder
+    expect(screen.getByText("Isolator · 10 A")).toBeInTheDocument();
   });
 
-  it("expanding a choice row reveals its options", () => {
+  it("expanding a choice row reveals its override options", () => {
     renderComponents(mkDoc());
     fireEvent.click(screen.getByRole("button", { name: /Electrical/ }));
-    expect(screen.getByRole("button", { name: /Isolator · 32 A/ })).toBeInTheDocument();
+    // the pack rating is the default; "supplied by others" is the override
     expect(screen.getByRole("button", { name: /Supplied by others/ })).toBeInTheDocument();
   });
 
@@ -90,7 +91,8 @@ describe("Cockpit Components view", () => {
     renderComponents(doc, (fn) => (next = fn(doc)));
     fireEvent.click(screen.getByRole("button", { name: /Mounting/ }));
     fireEvent.click(screen.getByRole("button", { name: /Roof frame/ }));
-    expect((next!.systems[0].settings.components as Record<string, string>).mounting).toBe("roof-mount");
+    // the mounting option id is the outdoor-mount accessory model from the pack
+    expect((next!.systems[0].settings.components as Record<string, string>).mounting).toBe("OM-ROOF-FRAME");
   });
 
   it("shows the empty state until a pair resolves", () => {

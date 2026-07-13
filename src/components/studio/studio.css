@@ -2691,9 +2691,10 @@
 /* ═════════════ Stage 4 — systems, split flow, materials ═════════════ */
 
 /* right column: the system cockpit (tabs → hero → seg switch → views).
-   316px matches the dev handoff's rail; the canvas column (flex:1) absorbs it. */
+   334px = the handoff rail's full footprint (316px cards + a 9px white page
+   bleed each side); the canvas column (flex:1) absorbs it. */
 .dstudio .ds-sidecol {
-  flex: 0 0 316px;
+  flex: 0 0 334px;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -4297,6 +4298,9 @@
   flex-direction: column;
   gap: 13px;
   flex: 1 1 auto;
+  /* inset the cards so the full-width white page (::before) shows a border
+     around them — the handoff's rail bleeds the page ~9px past the cards. */
+  padding: 0 9px;
 }
 .dstudio .ds-ck::before {
   content: "";

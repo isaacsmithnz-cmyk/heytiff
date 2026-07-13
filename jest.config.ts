@@ -9,6 +9,9 @@ const config: Config = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
+  // never scan sibling git worktrees (Agent-tool isolation lives under
+  // .claude/worktrees/) — their tests belong to their own branch's run, not ours
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/.claude/'],
 }
 
 export default createJestConfig(config)

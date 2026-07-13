@@ -1,19 +1,21 @@
-/* SystemsPanel — changing a system's type. Only `split` is an available module
-   today, so the reachable path is re-picking the current type; that (and
-   cancelling) must NOT delete the system's placed units — deletion happens only
-   when the type actually changes. */
+/* SystemCockpit — changing a system's type + closing a system. Only `split` is
+   an available module today, so the reachable type path is re-picking the
+   current type; that (and cancelling) must NOT delete the system's placed
+   units — deletion happens only when the type actually changes. */
 
 import { render, screen, fireEvent } from "@testing-library/react";
-import { SystemsPanel } from "../split-panel";
+import { SystemCockpit } from "../cockpit-panel";
 import {
   createDesign,
   type DesignDocument,
   type DesignObject,
   type DesignSystem,
+  type Floor,
 } from "@/lib/studio/document";
 import { emptyPack } from "@/lib/studio/packs/schema";
 
 const pack = emptyPack({ brand: "me", version: "1", packSchemaVersion: 1, name: "t" });
+const floor: Floor = { id: "flr", name: "G", level: 0, scaleMmPerUnit: 10, northDeg: null, northPos: null, plans: [] };
 
 const system: DesignSystem = {
   id: "sys1",
@@ -36,28 +38,32 @@ const placedIdu: DesignObject = {
 
 function docWith(): DesignDocument {
   const d = createDesign({ name: "T", mode: "blank", now: "2026-07-11T00:00:00.000Z" });
-  d.floors = [{ id: "flr", name: "G", level: 0, scaleMmPerUnit: 10, northDeg: null, northPos: null, plans: [] }];
+  d.floors = [floor];
   d.systems = [system];
   d.objects = [placedIdu];
   return d;
 }
 
-function renderPanel(onMutate = () => {}) {
+function renderPanel(onMutate: (fn: (d: DesignDocument) => DesignDocument) => void = () => {}, onActivate = () => {}) {
   render(
-    <SystemsPanel
+    <SystemCockpit
       doc={docWith()}
       pack={pack}
       packVersion="1"
       activeSystemId="sys1"
-      onActivate={() => {}}
+      onActivate={onActivate}
       onMutate={onMutate}
-      selectedRoomId={null}
-      onSelectRoom={() => {}}
+      selectedId={null}
+      onSelect={() => {}}
+      onEditRoom={() => {}}
+      onArmPlace={() => {}}
+      onDrawRoom={() => {}}
+      floor={floor}
     />
   );
 }
 
-describe("SystemsPanel — change type", () => {
+describe("SystemCockpit — change type", () => {
   it("offers a Change button that opens the type chooser", () => {
     renderPanel();
     fireEvent.click(screen.getByTitle(/Change system type/));
@@ -81,5 +87,36 @@ describe("SystemsPanel — change type", () => {
     expect(onMutate).not.toHaveBeenCalled();
     // back on the system view
     expect(screen.getByTitle(/Change system type/)).toBeInTheDocument();
+  });
+});
+
+describe("SystemCockpit — close a system", () => {
+  it("the active tab's close asks to confirm, then deletes the system + its objects", () => {
+    let next: DesignDocument | undefined;
+    const cleared: (string | null)[] = [];
+    render(
+      <SystemCockpit
+        doc={docWith()}
+        pack={pack}
+        packVersion="1"
+        activeSystemId="sys1"
+        onActivate={(id) => cleared.push(id)}
+        onMutate={(fn) => (next = fn(docWith()))}
+        selectedId={null}
+        onSelect={() => {}}
+        onEditRoom={() => {}}
+        onArmPlace={() => {}}
+        onDrawRoom={() => {}}
+        floor={floor}
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Close System 1/ }));
+    // a confirm appears — nothing removed yet
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+    expect(next!.systems.map((s) => s.id)).not.toContain("sys1");
+    expect(next!.objects.map((o) => o.id)).not.toContain("u_idu");
+    expect(cleared).toContain(null); // active system cleared
   });
 });

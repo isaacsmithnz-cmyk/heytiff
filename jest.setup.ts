@@ -21,3 +21,15 @@ if (typeof window !== 'undefined' && !window.URL.createObjectURL) {
   window.URL.createObjectURL = () => `blob:jest-${Math.random().toString(36).slice(2)}`
   window.URL.revokeObjectURL = () => {}
 }
+
+// jsdom lacks ResizeObserver; the cockpit's sliding seg-window observes its
+// active pane to keep the animated height in sync with content.
+if (typeof window !== 'undefined' && !('ResizeObserver' in window)) {
+  class ResizeObserverStub {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  // @ts-expect-error assigning the stub onto the jsdom window
+  window.ResizeObserver = ResizeObserverStub
+}

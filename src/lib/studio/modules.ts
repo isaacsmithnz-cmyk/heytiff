@@ -8,6 +8,12 @@
 
 import type { SystemType } from "./document";
 
+/** Stage-7 dev flag — ducted is choosable only when the build was made with
+    NEXT_PUBLIC_STUDIO_DUCTED=1 (inlined at build time; flipping means a
+    redeploy). Step 8 of docs/design-studio-ducted-build-plan.md removes
+    the gate. */
+const DUCTED_ENABLED = process.env.NEXT_PUBLIC_STUDIO_DUCTED === "1";
+
 /** How a type gathers indoor units once rooms are configured. */
 export type UnitFlow =
   | "pair" // split 1:1 — one IDU + one ODU, placed separately
@@ -58,7 +64,7 @@ export const SYSTEM_MODULES: Record<SystemType, SystemModule> = {
     type: "ducted",
     label: "Ducted",
     blurb: "One concealed air handler with ductwork and grilles to each room.",
-    available: false,
+    available: DUCTED_ENABLED,
     comingStage: "Stage 7",
     roomScope: "multi",
     unitFlow: "ducted",
@@ -112,3 +118,18 @@ export function moduleFor(type: SystemType): SystemModule {
 
 export const availableModules = (): SystemModule[] =>
   MODULE_ORDER.map((t) => SYSTEM_MODULES[t]).filter((m) => m.available);
+
+/* ── Air capability (shared air side — ducted spec §11.1) ──
+   Any unit whose pack row is a ducted/vent form WITH rated airflow is an
+   "air handler node": it can host plenums and unlocks the Duct + Component
+   tools for its system. Keyed to unit DATA, not system type, so
+   multi-split / VRF / ventilation reuse it untouched. */
+
+export const AIR_CAPABLE_FORMS: ReadonlySet<string> = new Set(["ducted", "bulkhead"]);
+
+export function isAirCapable(unit: {
+  form_factor: string;
+  airflow_ls?: number;
+}): boolean {
+  return AIR_CAPABLE_FORMS.has(unit.form_factor) && unit.airflow_ls != null;
+}

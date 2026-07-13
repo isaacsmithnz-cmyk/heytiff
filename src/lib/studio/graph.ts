@@ -20,16 +20,27 @@
 import type { DesignObject, Floor } from "./document";
 import { polylineLength, unitsToMeters } from "./geometry";
 
+/* Attach kinds: unit/riser are live today (graph v0); fitting/spigot/grille
+   are the Stage-7 duct anchors (ducted spec §13) — accepted now so duct-run
+   endpoints can record them, resolved to nodes by graph v1 (Step 4). */
 export interface Attach {
-  kind: "unit" | "riser";
+  kind: "unit" | "riser" | "fitting" | "spigot" | "grille";
   id: string;
 }
+
+const ATTACH_KINDS: ReadonlySet<string> = new Set([
+  "unit",
+  "riser",
+  "fitting",
+  "spigot",
+  "grille",
+]);
 
 export function attachOf(v: unknown): Attach | null {
   if (typeof v !== "object" || v === null) return null;
   const a = v as Record<string, unknown>;
-  return (a.kind === "unit" || a.kind === "riser") && typeof a.id === "string"
-    ? { kind: a.kind, id: a.id }
+  return typeof a.kind === "string" && ATTACH_KINDS.has(a.kind) && typeof a.id === "string"
+    ? { kind: a.kind as Attach["kind"], id: a.id }
     : null;
 }
 

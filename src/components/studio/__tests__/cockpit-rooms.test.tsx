@@ -82,15 +82,15 @@ function renderCockpit(
 }
 
 describe("Cockpit Rooms view", () => {
-  it("numbers the pills and marks covered=done / no-units=pending", () => {
+  it("numbers the roster rows and dots them covered=done / no-units=none", () => {
     const doc = baseDoc([room("room1", "Living", "sys1"), room("room2", "Study", "sys1"), idu("u1", "room1")]);
     renderCockpit(doc);
     const living = screen.getByRole("button", { name: /Living/ });
     const study = screen.getByRole("button", { name: /Study/ });
-    expect(living).toHaveTextContent("1");
-    expect(study).toHaveTextContent("2");
-    expect(living.className).toMatch(/done/); // covered by the placed IDU
-    expect(study.className).toMatch(/pending/); // no units
+    expect(living.querySelector(".ds-ck-rnum")).toHaveTextContent("1");
+    expect(study.querySelector(".ds-ck-rnum")).toHaveTextContent("2");
+    expect(living.querySelector(".ds-ck-rdot")!.className).toMatch(/done/); // covered by the placed IDU
+    expect(study.querySelector(".ds-ck-rdot")!.className).toMatch(/none/); // nothing placed
   });
 
   it("clicking a pill selects that room", () => {
@@ -132,5 +132,17 @@ describe("Cockpit Rooms view", () => {
     renderCockpit(doc, { onDrawRoom: () => drew.push(1) });
     fireEvent.click(screen.getByRole("button", { name: /Draw a room/ }));
     expect(drew).toEqual([1]);
+  });
+
+  it("the inspect card defaults to the Units sub-tab and switches to Configure", () => {
+    const doc = baseDoc([room("room1", "Living", "sys1")]);
+    renderCockpit(doc);
+    // default: Units sub visible (the pair's unit cards), Configure hidden (no facts)
+    expect(screen.getByTestId("unit-card-idu")).toBeInTheDocument();
+    expect(screen.queryByText("Area")).not.toBeInTheDocument();
+    // switch to Configure → its facts appear, the Units sub unmounts
+    fireEvent.click(screen.getByRole("tab", { name: "Configure" }));
+    expect(screen.getByText("Area")).toBeInTheDocument();
+    expect(screen.queryByTestId("unit-card-idu")).not.toBeInTheDocument();
   });
 });

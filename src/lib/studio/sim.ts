@@ -49,8 +49,12 @@ export const SIM = {
   VISUAL_LS_PER_KW: 55,
   /** unconditioned free-running offset over outdoor (internal + solar gains) */
   FREE_RUN_GAIN_K: 3,
-  /** cone throw: metres per (L/s) at neutral mode, and the §5a mode factors */
-  THROW_M_PER_LS: 0.04,
+  /** cone throw (§5a): saturating with airflow — 2 m floor + 0.02 m per L/s,
+      capped at 8 m, × the mode factor, and never past the room boundary.
+      (100 L/s ≈ 4 m neutral; real throw does NOT scale linearly forever.) */
+  THROW_BASE_M: 2,
+  THROW_PER_LS: 0.02,
+  THROW_MAX_M: 8,
   THROW_COOL_X: 1.4,
   THROW_HEAT_X: 0.7,
 } as const;
@@ -90,6 +94,9 @@ export interface SimHandlerModel {
   /** emitter position (world units) + inferred facing (unit vector) */
   at: Point;
   dir: Point;
+  /** distance (world units) from the emitter along `dir` to the room
+      boundary — the hard ceiling on throw (air stops at the far wall) */
+  roomExtentU: number;
 }
 
 export interface SimNotReady {
@@ -178,6 +185,24 @@ export function inferFacing(at: Point, roomPoints: Point[]): Point {
     dir = { x: nx, y: ny };
   }
   return dir;
+}
+
+/** distance from `at` along `dir` to the polygon boundary (ray → nearest
+    edge crossing). Air stops at the far wall — this caps the throw. */
+export function rayExitDistance(at: Point, dir: Point, roomPoints: Point[]): number {
+  let best = Infinity;
+  for (let i = 0; i < roomPoints.length; i++) {
+    const a = roomPoints[i];
+    const b = roomPoints[(i + 1) % roomPoints.length];
+    const ex = b.x - a.x;
+    const ey = b.y - a.y;
+    const denom = dir.x * ey - dir.y * ex;
+    if (Math.abs(denom) < 1e-9) continue; // parallel
+    const t = ((a.x - at.x) * ey - (a.y - at.y) * ex) / denom; // along the ray
+    const u = ((a.x - at.x) * dir.y - (a.y - at.y) * dir.x) / denom; // along the edge
+    if (t > 1e-6 && u >= 0 && u <= 1 && t < best) best = t;
+  }
+  return Number.isFinite(best) ? best : 0;
 }
 
 /** a split system's rated pair capacities, both modes (pair table row) */
@@ -289,6 +314,7 @@ export function buildSimModel(
     const packIdu = pack.indoor_units.find((u) => u.model === String(idu.props.model ?? ""));
     const visualLs =
       packIdu?.airflow_ls ?? SIM.VISUAL_LS_PER_KW * Math.max(rated.heatKw, rated.coolKw);
+    const dir = inferFacing(idu.geometry.at, room.points);
     handlers.push({
       id: idu.id,
       systemId: sys.id,
@@ -300,7 +326,8 @@ export function buildSimModel(
       ratedCoolKw: rated.coolKw,
       visualLs,
       at: idu.geometry.at,
-      dir: inferFacing(idu.geometry.at, room.points),
+      dir,
+      roomExtentU: rayExitDistance(idu.geometry.at, dir, room.points),
     });
   }
 
@@ -514,7 +541,8 @@ export function tempTint(tC: number): { rgb: string; alpha: number } | null {
   return { rgb: d < 0 ? "56, 154, 232" : "255, 138, 0", alpha: Math.min(alpha, 0.35) };
 }
 
-/** cone throw length in world units for an emitter (spec §5a mode factors) */
+/** cone throw length in world units for an emitter (spec §5a mode factors):
+    saturating with delivered airflow, capped, and never past the far wall */
 export function throwLengthU(
   h: SimHandlerModel,
   s: SimHandlerState,
@@ -522,6 +550,10 @@ export function throwLengthU(
 ): number {
   if (!mPerUnit) return 0;
   const modeX = s.mode === "cool" ? SIM.THROW_COOL_X : SIM.THROW_HEAT_X;
-  const metres = SIM.THROW_M_PER_LS * h.visualLs * s.fanFrac * modeX;
-  return metres / mPerUnit;
+  const metres = clamp(
+    (SIM.THROW_BASE_M + SIM.THROW_PER_LS * h.visualLs * s.fanFrac) * modeX,
+    SIM.THROW_BASE_M,
+    SIM.THROW_MAX_M
+  );
+  return Math.min(metres / mPerUnit, h.roomExtentU * 0.95);
 }

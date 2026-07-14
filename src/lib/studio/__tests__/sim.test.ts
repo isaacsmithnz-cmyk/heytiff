@@ -13,9 +13,11 @@ import {
   freeRunningC,
   inferFacing,
   initSimState,
+  rayExitDistance,
   simTick,
   steadyStateC,
   tempTint,
+  throwLengthU,
   timeToSetpointSimS,
   fillProgress,
   type SimState,
@@ -335,5 +337,32 @@ describe("inferFacing", () => {
   });
   it("falls back to plan-down on degenerate input", () => {
     expect(inferFacing({ x: 0, y: 0 }, [])).toEqual({ x: 0, y: 1 });
+  });
+});
+
+describe("throw containment", () => {
+  const room = rect(0, 0, 100, 100).points;
+
+  it("rayExitDistance measures to the far wall along the facing", () => {
+    expect(rayExitDistance({ x: 20, y: 50 }, { x: 1, y: 0 }, room)).toBeCloseTo(80);
+    expect(rayExitDistance({ x: 50, y: 50 }, { x: 0, y: 1 }, room)).toBeCloseTo(50);
+    expect(rayExitDistance({ x: 0, y: 0 }, { x: 1, y: 0 }, [])).toBe(0);
+  });
+
+  it("throw saturates with airflow and never leaves the room", () => {
+    const model = buildSimModel(simDoc(), pack, "flr");
+    const h = model.handlers[0];
+    // unit at x=20 facing +x in a 500-unit (5 m) room → 480 units to the wall
+    expect(h.roomExtentU).toBeCloseTo(480);
+    let s = initSimState(model, { outdoorC: 5 });
+    const hs = { ...s.handlers[h.id], on: true, running: true, fanFrac: 1, mode: "heat" as const };
+    const t = throwLengthU(h, hs, model.mPerUnit);
+    // 6 kW visual default = 330 L/s → (2 + 6.6) capped at 8 → ×0.7 heat = 5.6 m
+    // = 560 units, but the wall is 480 away → clamped inside the room
+    expect(t).toBeLessThanOrEqual(480 * 0.95 + 1e-9);
+    expect(t).toBeGreaterThan(200); // still a real throw, not a fizzle
+    // cooling reaches further than heating, but still respects the wall
+    const cool = throwLengthU(h, { ...hs, mode: "cool" }, model.mPerUnit);
+    expect(cool).toBeLessThanOrEqual(480 * 0.95 + 1e-9);
   });
 });

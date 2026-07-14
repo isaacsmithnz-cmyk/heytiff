@@ -32,8 +32,9 @@ interface Particle {
 }
 
 const MAX_PARTICLES = 600;
-const PARTICLE_LIFE_S = 2.5;
-const SPAWN_PER_S = 26; // per emitter at full fan
+const PARTICLE_LIFE_S = 3.5;
+const SPAWN_PER_S = 22; // per emitter at full fan
+const DRAG_K = 0.55; // s⁻¹ — deceleration; spawn speed solves against this
 
 export function SimOverlay({
   runtime,
@@ -195,7 +196,7 @@ function stepEmitter(
   dtReal: number,
   paused: boolean
 ) {
-  if (!s.on || paused) return;
+  if (!s.on || paused || !mPerUnit) return;
   const strength = s.fanFrac * (s.running ? 1 : 0.4);
   if (strength < 0.05) return;
   const throwU = throwLengthU(h, s, mPerUnit);
@@ -204,19 +205,27 @@ function stepEmitter(
   const debt = (spawnDebt[h.id] ?? 0) + SPAWN_PER_S * strength * dtReal;
   const n = Math.floor(debt);
   spawnDebt[h.id] = debt - n;
+  const faceOff = 0.25 / mPerUnit; // leave from the discharge face, not the centre
+  const lateral = 0.35 / mPerUnit; // spawn across the louvre width
+  const px = -h.dir.y, py = h.dir.x;
   for (let i = 0; i < n && particles.length < MAX_PARTICLES; i++) {
-    const spread = (Math.random() - 0.5) * (Math.PI / 4); // ±22.5°
+    const spread = (Math.random() - 0.5) * (Math.PI / 7); // ±13° — a clean jet
     const cos = Math.cos(spread), sin = Math.sin(spread);
     const dx = h.dir.x * cos - h.dir.y * sin;
     const dy = h.dir.x * sin + h.dir.y * cos;
-    const speed = (throwU / PARTICLE_LIFE_S) * 1.6; // decelerates over life
+    const life = PARTICLE_LIFE_S * (0.85 + Math.random() * 0.3);
+    /* with drag k, distance = v0/k·(1−e^{−k·life}) — solve v0 so the particle
+       dies right at the throw length instead of overshooting the room */
+    const kDrag = DRAG_K;
+    const v0 = (throwU * kDrag) / (1 - Math.exp(-kDrag * life));
+    const side = (Math.random() - 0.5) * 2 * lateral;
     particles.push({
-      x: h.at.x + dx * 2,
-      y: h.at.y + dy * 2,
-      vx: dx * speed,
-      vy: dy * speed,
+      x: h.at.x + h.dir.x * faceOff + px * side,
+      y: h.at.y + h.dir.y * faceOff + py * side,
+      vx: dx * v0,
+      vy: dy * v0,
       age: 0,
-      life: PARTICLE_LIFE_S * (0.8 + Math.random() * 0.4),
+      life,
       seed: Math.random() * Math.PI * 2,
       handlerId: h.id,
     });
@@ -230,34 +239,51 @@ function stepAndDrawParticles(
   dtReal: number
 ) {
   const { model, state } = runtime;
+  const mPerUnit = model.mPerUnit ?? 0.01;
   const byId = new Map(model.handlers.map((h) => [h.id, h]));
+  const roomById = new Map(model.rooms.map((r) => [r.id, r]));
+
+  /* advance everything first */
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
-    const h = byId.get(p.handlerId);
-    const s = h && state.handlers[h.id];
     p.age += dtReal;
-    if (p.age >= p.life || !h || !s) {
+    if (p.age >= p.life || !byId.get(p.handlerId)) {
       particles.splice(i, 1);
       continue;
     }
     if (!state.paused) {
-      const drag = Math.exp(-1.1 * dtReal); // smooth deceleration into the room
+      const drag = Math.exp(-DRAG_K * dtReal); // smooth deceleration into the room
       p.vx *= drag;
       p.vy *= drag;
       /* soft curl: a little lateral breathing, per-particle phase */
-      const wob = Math.sin(p.age * 3 + p.seed) * 0.12 * Math.hypot(p.vx, p.vy) * dtReal;
+      const wob = Math.sin(p.age * 2 + p.seed) * 0.08 * dtReal;
       p.x += p.vx * dtReal - p.vy * wob;
       p.y += p.vy * dtReal + p.vx * wob;
     }
+  }
+
+  /* draw per handler, CLIPPED to its room — supply air never crosses walls */
+  for (const h of model.handlers) {
+    const s = state.handlers[h.id];
+    const room = roomById.get(h.roomId);
+    if (!s || !room) continue;
     const col = plumeColor(s.supplyC);
     if (!col) continue;
-    const k = p.age / p.life;
-    const base = Math.hypot(p.vx, p.vy) * PARTICLE_LIFE_S;
-    const r = Math.max(base * (0.05 + 0.16 * k), 0.5);
-    ctx.fillStyle = `rgba(${col.rgb}, ${(col.alpha * (1 - k)).toFixed(3)})`;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.save();
+    tracePolygon(ctx, room.points);
+    ctx.clip();
+    for (const p of particles) {
+      if (p.handlerId !== h.id) continue;
+      const k = p.age / p.life;
+      /* physical size: ~0.15 m leaving the louvre, ~0.7 m fully mixed */
+      const r = (0.15 + 0.55 * k) / mPerUnit;
+      const fade = k < 0.12 ? k / 0.12 : 1 - (k - 0.12) / 0.88; // ease in, fade out
+      ctx.fillStyle = `rgba(${col.rgb}, ${(col.alpha * fade).toFixed(3)})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
   }
 }
 

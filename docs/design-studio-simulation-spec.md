@@ -537,7 +537,7 @@ one `SIM_CONSTANTS` block; none persisted.
 | `damperTravelS` | 8 s (5–10 settable) | real zone motors take tens of seconds; the redistribution story plays in this window (§3) | zoning-controller pack rows could carry travel time |
 | Fan ramp | 3 s real | fans spin up, they don't step | — |
 | Coil lag τ | 90 sim-s | first air out is neutral, warming over ~2 demo-s (§2c) | — |
-| Throw scale | length ∝ q_g, calibrated so a 100 L/s bulkhead linear crosses ~4 m | ties pattern reach to real airflow (§5a) | grille throw data if ever extracted |
+| Throw scale | saturating: 2 m + 0.02 m per L/s, cap 8 m, × mode factor, **never past the far wall** (100 L/s ≈ 4 m neutral) | reach tracks real airflow without linear blow-out on big units; air stops at the room boundary (§5a) | grille throw data if ever extracted |
 | Mode throw factors | cool 1.4× / heat 0.7× (cone) · Coanda bloom cool 1.5× / heat 0.6× radius | ceiling-riding cool air vs floor-pitched warm air (§5a) | — |
 | Linear-control cadence | nudge every 2 sim-min, ±5% steps | ME publishes "adapts every few minutes" + 5% increments; cadence itself unpublished | commissioning docs if ever released |
 | Dynamic spill threshold | open ratio < 30% | ME says "programmable threshold", value unpublished | pack §10 row when known |

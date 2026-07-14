@@ -415,10 +415,10 @@ air appears where it should, at the grilles.
   no mono) with a trend arrow ↗/↘/→: the non-colour channel.
 - **Supply-air ramp** (plume hue): the vapour's colour is the temperature
   of the air leaving the unit — **very dark blue at the coldest** (≈7°),
-  through pale neutral (≈21°), to **very bright red at the hottest** (≈48°).
-  Ramp stops (°C→rgb): 7 `12,30,110` · 13 `30,85,205` · 18 `92,160,240` ·
-  21 `180,208,226` · 25 `252,188,120` · 32 `255,116,50` · 40 `255,58,38` ·
-  48 `255,28,26`.
+  through pale neutral (≈21°), to **very dark orange at the hottest** (≈48°;
+  a deep burnt orange, deliberately not red). Ramp stops (°C→rgb): 7
+  `12,30,110` · 13 `30,85,205` · 18 `92,160,240` · 21 `180,208,226` · 25
+  `252,188,120` · 32 `252,130,48` · 40 `214,96,20` · 48 `165,70,8`.
 - **Plumes**: soft, feathered, velocity-aligned **vapour** puffs per emitter
   following the §5a pattern (a stretched radial-gradient sprite), count &
   speed ∝ `q_g`, **hue from the supply ramp** above (lagged per §2c — first

@@ -190,9 +190,9 @@ const PLUME_RAMP: { t: number; c: [number, number, number] }[] = [
   { t: 18, c: [92, 160, 240] }, // blue
   { t: 21, c: [180, 208, 226] }, // neutral pale
   { t: 25, c: [252, 188, 120] }, // pale warm
-  { t: 32, c: [255, 116, 50] }, // orange
-  { t: 40, c: [255, 58, 38] }, // red-orange
-  { t: 48, c: [255, 28, 26] }, //  hottest — very bright red
+  { t: 32, c: [252, 130, 48] }, // bright orange
+  { t: 40, c: [214, 96, 20] }, // deep orange
+  { t: 48, c: [165, 70, 8] }, //  hottest — very dark orange
 ];
 function plumeRampRGB(tC: number): string {
   const s = PLUME_RAMP;

@@ -402,17 +402,32 @@ air appears where it should, at the grilles.
   warmth across the lounge, not watch a rectangle change colour. Hue comes
   from the temperature scale below; the front's shape comes from the
   discharge pattern.
-- **Temperature scale** (tint hue/strength): anchored at **21° = clear**.
-  Stops: 13° deep blue 0.32 α · 17° 0.18 · 20° 0.06 · 21° 0 · 22° 0.06 ·
-  25° 0.18 · 29°+ 0.32 orange. Warm = `--ds-orange` family, cool = a blue
-  held clearly apart from #2E68FF chrome. Every room carries a **temp
-  chip** `18.4°` (Jakarta tabular numerals — no mono) with a trend arrow
-  ↗/↘/→: the non-colour channel.
-- **Plumes**: particle jets per emitter following the §5a pattern, count &
-  speed ∝ `q_g`, coloured by supply hue (lagged per §2c — first air out is
-  neutral, blushing to warm), ~2.5 s life with soft curl noise, fading as
-  they mix. Emission density eases with fan ramp and damper travel —
-  plumes thicken and thin, never pop.
+- **Two colour scales, one per subject.** Room tint reads **room
+  temperature** (a light blue → light orange wash); the plume reads
+  **supply-air temperature** on its own, wider ramp. They are deliberately
+  different: the room warms gently while the air pouring out can be far
+  colder or hotter than any room.
+- **Room-temperature tint** (tint hue/strength): anchored at **21° =
+  clear**. Stops: 13° deep blue 0.32 α · 17° 0.18 · 20° 0.06 · 21° 0 ·
+  22° 0.06 · 25° 0.18 · 29°+ 0.32 orange — a **light blue → light orange**
+  read of the room. Cool blue is held clearly apart from #2E68FF chrome.
+  Every room carries a **temp chip** `18.4°` (Jakarta tabular numerals —
+  no mono) with a trend arrow ↗/↘/→: the non-colour channel.
+- **Supply-air ramp** (plume hue): the vapour's colour is the temperature
+  of the air leaving the unit — **very dark blue at the coldest** (≈7°),
+  through pale neutral (≈21°), to **very bright red at the hottest** (≈48°).
+  Ramp stops (°C→rgb): 7 `12,30,110` · 13 `30,85,205` · 18 `92,160,240` ·
+  21 `180,208,226` · 25 `252,188,120` · 32 `255,116,50` · 40 `255,58,38` ·
+  48 `255,28,26`.
+- **Plumes**: soft, feathered, velocity-aligned **vapour** puffs per emitter
+  following the §5a pattern (a stretched radial-gradient sprite), count &
+  speed ∝ `q_g`, **hue from the supply ramp** above (lagged per §2c — first
+  air out is near room-temp/neutral, warming or cooling in colour as the
+  coil catches up), gentle curl growing as it mixes. **Visibility (alpha)
+  keys off the supply-vs-room gap**, not the absolute temperature, so a
+  draft shows whenever the unit is actually conditioning even when the
+  supply itself is unremarkable. Emission density eases with fan ramp and
+  damper travel — plumes thicken and thin, never pop.
 - **Duct beads**: dots riding the rendered flex spline, spacing ∝ flow,
   speed = scaled real velocity — *the* zoning payoff: flip a zone off and
   watch its branch drain while the others quicken. Supply beads in supply

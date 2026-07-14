@@ -180,24 +180,46 @@ function fillRoomBounds(ctx: CanvasRenderingContext2D, pts: Point[]) {
   ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
 }
 
-/* plume colour: the conditioned air is coloured by how far the SUPPLY sits
-   from the ROOM it enters (not from a fixed neutral) — that's what makes the
-   draft visible: warm air into a cold room reads as a pale-peach billow, cold
-   air into a warm room as a light-blue one, even when the supply temperature
-   itself is unremarkable. Lifted toward white for the luminous vapour look;
-   alpha stays low because the soft puffs stack into translucent vapour.
-   Supply ≈ room (unit satisfied / just idling) → no visible draft. */
+/* the supply-air colour ramp: the vapour's HUE is the temperature of the air
+   leaving the unit — very dark blue at the coldest, through pale neutral, to
+   very bright red at the hottest. (The room tint, separately, stays a light
+   blue→light orange read of ROOM temperature — tempTint, unchanged.) */
+const PLUME_RAMP: { t: number; c: [number, number, number] }[] = [
+  { t: 7, c: [12, 30, 110] }, //  coldest — very dark blue
+  { t: 13, c: [30, 85, 205] }, // deep blue
+  { t: 18, c: [92, 160, 240] }, // blue
+  { t: 21, c: [180, 208, 226] }, // neutral pale
+  { t: 25, c: [252, 188, 120] }, // pale warm
+  { t: 32, c: [255, 116, 50] }, // orange
+  { t: 40, c: [255, 58, 38] }, // red-orange
+  { t: 48, c: [255, 28, 26] }, //  hottest — very bright red
+];
+function plumeRampRGB(tC: number): string {
+  const s = PLUME_RAMP;
+  if (tC <= s[0].t) return s[0].c.join(", ");
+  if (tC >= s[s.length - 1].t) return s[s.length - 1].c.join(", ");
+  for (let i = 1; i < s.length; i++) {
+    if (tC <= s[i].t) {
+      const a = s[i - 1];
+      const b = s[i];
+      const f = (tC - a.t) / (b.t - a.t);
+      const mix = (j: 0 | 1 | 2) => Math.round(a.c[j] + (b.c[j] - a.c[j]) * f);
+      return `${mix(0)}, ${mix(1)}, ${mix(2)}`;
+    }
+  }
+  return s[s.length - 1].c.join(", ");
+}
+
+/* plume colour: HUE from the absolute supply temperature (dark blue → bright
+   red, above); VISIBILITY (alpha) from how far the supply sits from the room
+   it enters, so a draft shows whenever the unit is actually conditioning even
+   when the supply itself is near room temperature. Alpha stays low because the
+   soft puffs stack into translucent vapour. Supply ≈ room → no visible draft. */
 function plumeColor(supplyC: number, roomC: number): { rgb: string; alpha: number } | null {
-  const d = supplyC - roomC;
-  const a = Math.abs(d);
+  const a = Math.abs(supplyC - roomC);
   if (a < 1) return null;
   const mag = Math.min((a - 1) / 13, 1); // ramps over a ~1–14 K supply/room gap
-  const base = d >= 0 ? [255, 138, 0] : [70, 162, 236]; // warm draft vs cold draft
-  const lift = (c: number) => Math.round(c + (255 - c) * 0.4);
-  return {
-    rgb: base.map(lift).join(", "),
-    alpha: 0.05 + mag * 0.13,
-  };
+  return { rgb: plumeRampRGB(supplyC), alpha: 0.05 + mag * 0.13 };
 }
 
 /* a reusable offscreen "soft blob" — a feathered radial gradient in the

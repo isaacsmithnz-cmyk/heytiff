@@ -5627,3 +5627,240 @@
   border-color: var(--teal-d);
   color: var(--teal-d);
 }
+/* ══════════ Simulation mode (Stage 12a — split slice) · ds-sim-* ══════════
+   The scene recedes (desaturate) and the air becomes the subject; everything
+   sim draws lives on the overlay <canvas>, never in the SVG scene graph. */
+.dstudio .ds-canvas > svg {
+  transition: filter 0.45s ease;
+}
+.dstudio .ds-canvas.simming > svg {
+  filter: saturate(0.16);
+}
+.dstudio .ds-sim-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+}
+.dstudio .ds-sim-go .ds-sim-play {
+  font-size: 9px;
+  line-height: 1;
+}
+.dstudio .ds-sim-go.on {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+}
+
+/* the controller card — the sim's one input surface */
+.dstudio .ds-sim-card {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 16;
+  width: 252px;
+  background: #fff;
+  border: 1px solid #e5e5e2;
+  border-radius: 16px;
+  box-shadow: 0 14px 34px -12px rgba(10, 12, 20, 0.32);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  font: 500 12px var(--font);
+  color: var(--ink);
+}
+.dstudio .ds-sim-h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dstudio .ds-sim-power {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--ds-border);
+  background: #fff;
+  color: var(--gray500);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.dstudio .ds-sim-power.on {
+  background: var(--ds-teal-bg);
+  border-color: var(--teal-d);
+  color: var(--teal-d);
+}
+.dstudio .ds-sim-power:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.dstudio .ds-sim-title {
+  font-weight: 800;
+  font-size: 12.5px;
+}
+.dstudio .ds-sim-clock {
+  margin-left: auto;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--gray500);
+  font-size: 11px;
+}
+.dstudio .ds-sim-x {
+  width: 22px;
+  height: 22px;
+  border: 0;
+  background: transparent;
+  color: var(--gray500);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 7px;
+}
+.dstudio .ds-sim-x:hover {
+  background: var(--ds-card2);
+  color: var(--ink);
+}
+.dstudio .ds-sim-tabs {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.dstudio .ds-sim-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--ds-border);
+  background: #fff;
+  border-radius: 999px;
+  padding: 3px 9px;
+  font: 600 11px var(--font);
+  color: var(--gray700);
+  cursor: pointer;
+}
+.dstudio .ds-sim-tab.on {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+.dstudio .ds-sim-tabdot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--sys, var(--gray400));
+}
+.dstudio .ds-sim-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: opacity 0.3s ease;
+}
+.dstudio .ds-sim-body.off {
+  opacity: 0.55;
+}
+.dstudio .ds-sim-set {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+.dstudio .ds-sim-temp {
+  font: 700 27px var(--font);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
+  min-width: 84px;
+  text-align: center;
+}
+.dstudio .ds-sim-step {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--ds-border);
+  background: #fff;
+  font: 600 16px var(--font);
+  color: var(--ink);
+  cursor: pointer;
+}
+.dstudio .ds-sim-step:hover {
+  background: var(--ds-card2);
+}
+.dstudio .ds-sim-live,
+.dstudio .ds-sim-eta {
+  text-align: center;
+  font-size: 11px;
+  color: var(--gray500);
+  font-variant-numeric: tabular-nums;
+}
+.dstudio .ds-sim-eta {
+  font-weight: 700;
+  color: var(--ds-teal-ink);
+}
+.dstudio .ds-sim-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.dstudio .ds-sim-lbl {
+  font: 700 10px var(--font);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--gray500);
+}
+.dstudio .ds-sim-chips {
+  display: flex;
+  gap: 4px;
+}
+.dstudio .ds-sim-chip {
+  border: 1px solid var(--ds-border);
+  background: #fff;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font: 700 10px var(--font);
+  color: var(--gray700);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.dstudio .ds-sim-chip.on {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+}
+.dstudio .ds-sim-chip.on.heat {
+  background: var(--ds-orange);
+  border-color: var(--ds-orange);
+}
+.dstudio .ds-sim-chip.on.cool {
+  background: #389ae8;
+  border-color: #389ae8;
+}
+.dstudio .ds-sim-mode {
+  justify-content: center;
+}
+.dstudio .ds-sim-mode .ds-sim-chip {
+  padding: 4px 16px;
+  font-size: 11px;
+}
+.dstudio .ds-sim-slider {
+  width: 100%;
+  accent-color: var(--ink);
+}
+.dstudio .ds-sim-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-top: 1px solid var(--ds-border-s);
+  padding-top: 9px;
+}
+.dstudio .ds-sim-reasons {
+  border-top: 1px solid var(--ds-border-s);
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.dstudio .ds-sim-reason {
+  font-size: 10.5px;
+  color: var(--gray500);
+}

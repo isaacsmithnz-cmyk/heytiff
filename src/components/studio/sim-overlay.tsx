@@ -33,7 +33,7 @@ interface Particle {
 
 const MAX_PARTICLES = 600;
 const PARTICLE_LIFE_S = 3.5;
-const SPAWN_PER_S = 22; // per emitter at full fan
+const SPAWN_PER_S = 13; // per emitter at full fan — sparse; overlap must stay translucent
 const DRAG_K = 0.55; // s⁻¹ — deceleration; spawn speed solves against this
 
 export function SimOverlay({
@@ -179,12 +179,13 @@ function fillRoomBounds(ctx: CanvasRenderingContext2D, pts: Point[]) {
   ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
 }
 
-/* plume colour: the supply-air tint, boosted for presence. Near-neutral
-   supply (coil still cold) is nearly invisible — the blush is the coil lag. */
+/* plume colour: the supply-air tint, gently boosted. Near-neutral supply
+   (coil still cold) is nearly invisible — the blush is the coil lag. The cap
+   stays LOW because overlapping particles stack alpha: smoke, not fire. */
 function plumeColor(supplyC: number): { rgb: string; alpha: number } | null {
   const t = tempTint(supplyC);
   if (!t) return null;
-  return { rgb: t.rgb, alpha: Math.min(t.alpha * 2.2, 0.5) };
+  return { rgb: t.rgb, alpha: Math.min(t.alpha * 1.3, 0.22) };
 }
 
 function stepEmitter(

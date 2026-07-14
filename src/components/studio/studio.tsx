@@ -39,6 +39,8 @@ import { MaterialsView, JobView } from "./split-panel";
 import { SystemCockpit } from "./cockpit-panel";
 import { RoomModal } from "./room-modal";
 import { ReferenceViewer } from "./reference-viewer";
+import { SimControllerCard } from "./sim-controller";
+import { SimRuntime } from "@/lib/studio/sim-runtime";
 import type { DataPack } from "@/lib/studio/packs/schema";
 import "./studio.css";
 
@@ -611,6 +613,22 @@ function Editor({
   const [grayscale, setGrayscale] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
 
+  /* simulation mode (Stage 12a, dev-flagged): the runtime is transient like
+     the view state above — sim NEVER mutates the document. */
+  const [simFlag, setSimFlag] = useState(false);
+  const [simOn, setSimOn] = useState(false);
+  const simRef = useRef<SimRuntime | null>(null);
+  useEffect(() => {
+    try {
+      setSimFlag(
+        process.env.NEXT_PUBLIC_STUDIO_SIM === "1" ||
+          window.localStorage.getItem("studio.sim") === "1"
+      );
+    } catch {
+      /* storage unavailable — flag stays off */
+    }
+  }, []);
+
   /* guided calibration: opening an uncalibrated plan floor pops a "Calibrate
      the plan" step modal (DUCTR showCalibratePrompt) — once per floor, tracked
      so dismiss/skip doesn't re-nag. A confirmed scale then chains into the
@@ -676,6 +694,29 @@ function Editor({
     setPlacing(null);
     setTool("select");
   }, []);
+
+  /* enter/exit simulation — entering disarms every tool and clears the
+     selection; the canvas locks to pan/zoom while simming */
+  const toggleSim = useCallback(() => {
+    if (simOn) {
+      simRef.current = null;
+      setSimOn(false);
+      return;
+    }
+    if (!activeFloorId) return;
+    simRef.current = new SimRuntime(doc, pack, activeFloorId, 5);
+    setPlacing(null);
+    setTool("select");
+    setSelectedId(null);
+    setSimOn(true);
+  }, [simOn, doc, pack, activeFloorId]);
+
+  /* any doc/floor change while simulating re-derives the model in place —
+     temps and controller settings carry across by id */
+  useEffect(() => {
+    if (simOn && simRef.current && activeFloorId)
+      simRef.current.rebuild(doc, pack, activeFloorId);
+  }, [simOn, doc, pack, activeFloorId]);
 
   const addFloor = useCallback(() => {
     mutate((d) => {
@@ -913,6 +954,9 @@ function Editor({
             onGrayscale={setGrayscale}
             legendOpen={legendOpen}
             onLegend={setLegendOpen}
+            sim={simOn ? simRef.current : null}
+            simFlag={simFlag}
+            onToggleSim={toggleSim}
             onCalibrated={() => {
               const f = docRef.current.floors.find((x) => x.id === activeFloorId);
               if (f && !f.northPos) setNorthPrompt(true);
@@ -1252,6 +1296,9 @@ function DesignPanel({
   onGrayscale,
   legendOpen,
   onLegend,
+  sim,
+  simFlag,
+  onToggleSim,
   onCalibrated,
 }: {
   doc: DesignDocument;
@@ -1284,6 +1331,11 @@ function DesignPanel({
   onGrayscale: (v: boolean) => void;
   legendOpen: boolean;
   onLegend: (v: boolean) => void;
+  /** simulation mode (Stage 12a): live runtime while simming, else null */
+  sim: SimRuntime | null;
+  /** dev flag — the Simulate pill only renders when it's on */
+  simFlag: boolean;
+  onToggleSim: () => void;
   onCalibrated: () => void;
 }) {
   const floors = [...doc.floors].sort((a, b) => a.level - b.level);
@@ -1438,6 +1490,22 @@ function DesignPanel({
               <Icon name="library" size={14} />
               Legend
             </button>
+            {simFlag && (
+              <button
+                className={`ds-ctl-btn ds-sim-go${sim ? " on" : ""}`}
+                onClick={onToggleSim}
+                title={
+                  sim
+                    ? "Exit the simulation"
+                    : "Simulate this floor — read-only, nothing in the design changes"
+                }
+              >
+                <span className="ds-sim-play" aria-hidden>
+                  {sim ? "■" : "▶"}
+                </span>
+                {sim ? "Exit sim" : "Simulate"}
+              </button>
+            )}
           </div>
           <div className="ds-zoomctl top" role="group" aria-label="Zoom">
             <button aria-label="Zoom out" onClick={() => zoomApi?.zoomOut()}>
@@ -1505,7 +1573,9 @@ function DesignPanel({
           onRemarkConsumed={onRemarkConsumed}
           layers={layers}
           grayscale={grayscale}
+          sim={sim}
         />
+        {sim && <SimControllerCard runtime={sim} onExit={onToggleSim} />}
         {legendOpen && (
           <div className="ds-legend" role="dialog" aria-label="Legend">
             <div className="ds-legend-h">

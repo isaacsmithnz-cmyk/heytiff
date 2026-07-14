@@ -13,6 +13,8 @@ import { Icon } from "@/components/shell/icon";
 import { orientationFromWalls } from "@/lib/studio/loads";
 import { roomAtPoint } from "@/lib/studio/coverage";
 import type { PlanImages } from "@/lib/studio/plans";
+import type { SimRuntime } from "@/lib/studio/sim-runtime";
+import { SimOverlay } from "./sim-overlay";
 import {
   areaUnitsToM2,
   boundsOfPoints,
@@ -235,6 +237,7 @@ export function StudioCanvas({
   grayscale = false,
   onZoomApi,
   onZoomChange,
+  sim = null,
 }: {
   doc: DesignDocument;
   floor: Floor;
@@ -264,6 +267,9 @@ export function StudioCanvas({
   /** request to re-enter wall-marking for an existing room (from the modal) */
   remarkRoomId?: string | null;
   onRemarkConsumed?: () => void;
+  /** live simulation (Stage 12a): renders the overlay + locks editing to
+      pan/zoom. The sim never mutates the document — it only reads it. */
+  sim?: SimRuntime | null;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -992,6 +998,9 @@ export function StudioCanvas({
     if (e.button === 1 || spaceDown.current) return pan();
     if (e.button !== 0) return;
 
+    // simulating: the canvas is read-only — every drag is a pan
+    if (sim) return pan();
+
     // wall-marking captures clicks: toggle the nearest edge as external
     if (wallSelect) {
       const pts = wallSelect.points;
@@ -1389,12 +1398,13 @@ export function StudioCanvas({
   };
 
   const onDrop = (e: React.DragEvent<SVGSVGElement>) => {
-    if (!placing) return;
+    if (!placing || sim) return;
     e.preventDefault();
     addUnit(toWorld(e));
   };
 
   const onDoubleClick = () => {
+    if (sim) return;
     if (tool === "room-poly" && draftPoly.length >= 3) {
       beginWallSelect(draftPoly, "poly");
       setDraftPoly([]);
@@ -1492,7 +1502,11 @@ export function StudioCanvas({
           : null;
 
   return (
-    <div ref={wrapRef} className={`ds-canvas ${cursorClass}`} data-testid="studio-canvas">
+    <div
+      ref={wrapRef}
+      className={`ds-canvas ${cursorClass}${sim ? " simming" : ""}`}
+      data-testid="studio-canvas"
+    >
       <svg
         ref={svgRef}
         width="100%"
@@ -1916,6 +1930,9 @@ export function StudioCanvas({
           </g>
         )}
       </svg>
+
+      {/* simulation overlay — the ADR-001 reserved <canvas>, above the scene */}
+      {sim && <SimOverlay runtime={sim} vp={vp} size={size} />}
 
       {/* calibration prompt (absolute within the canvas, never position:fixed) */}
       {calib.a && calib.b && calibScreenB && (

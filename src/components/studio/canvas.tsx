@@ -19,6 +19,7 @@ import {
   plenumBody,
   spigotsOf,
   streamOf,
+  suggestedMainDucts,
   type PlenumSpigot,
 } from "@/lib/studio/ducted";
 import type { IndoorUnit, OpeningSpec } from "@/lib/studio/packs/schema";
@@ -765,9 +766,12 @@ export function StudioCanvas({
     for (const u of units) {
       const row = ahuRow(u);
       if (!row) continue;
-      const determined = plenums.some((p) => p.props.unitId === u.id);
+      // a placed plenum OR a built-in return fixes the orientation (spec §1a):
+      // built-in units know their return face the moment they're placed
+      const builtInReturn = row.return_opening === "built-in";
+      const determined = builtInReturn || plenums.some((p) => p.props.unitId === u.id);
       for (const end of ["supply", "return"] as const) {
-        const builtIn = end === "return" && row.return_opening === "built-in";
+        const builtIn = end === "return" && builtInReturn;
         const occupied =
           builtIn || plenums.some((p) => p.props.unitId === u.id && p.props.end === end);
         out.push({ unit: u, row, end, occupied, builtIn, determined });
@@ -2087,65 +2091,94 @@ export function StudioCanvas({
                 style={{ color: colour }}
               >
                 {unitGlyph(at.x, at.y, fp.w, fp.h, String(u.props.role ?? "idu"), zoom)}
-                {air && (() => {
-                  /* the arrow spans the DEPTH, return → supply (toward the
-                     front of the system); faint until a plenum determines
-                     the orientation (spec §1a) */
+                {(() => {
+                  /* the airflow arrow + face labels appear only ONCE the unit
+                     is determined — the first plenum, or a built-in return
+                     (which orients the unit on its own). No `?` clutter and no
+                     arrow on a bare unit (spec §1a). */
+                  const oriented = ends.some((e) => e.determined);
+                  if (!air || !oriented) return null;
                   const sdir = endFace(u, "supply").dir;
-                  const determined = ends.some((e) => e.determined);
                   return (
-                    <line
-                      className={`ds-ahu-flow${determined ? "" : " faint"}`}
-                      x1={at.x + fp.w * 0.3}
-                      y1={at.y - sdir * fp.h * 0.28}
-                      x2={at.x + fp.w * 0.3}
-                      y2={at.y + sdir * fp.h * 0.28}
-                      markerEnd="url(#ds-flow-arrow)"
-                    />
+                    <>
+                      <line
+                        className="ds-ahu-flow"
+                        x1={at.x + fp.w * 0.3}
+                        y1={at.y - sdir * fp.h * 0.28}
+                        x2={at.x + fp.w * 0.3}
+                        y2={at.y + sdir * fp.h * 0.28}
+                        markerEnd="url(#ds-flow-arrow)"
+                      />
+                      {layers.labels &&
+                        ends.map((e) => {
+                          const f = endFace(e.unit, e.end);
+                          return (
+                            <text
+                              key={`fl-${e.end}`}
+                              className="ds-ahu-face-label"
+                              x={f.mid.x}
+                              y={f.mid.y + (f.dir === 1 ? -5 : 12) / zoom}
+                              fontSize={8 / zoom}
+                            >
+                              {e.end.toUpperCase()}
+                            </text>
+                          );
+                        })}
+                    </>
                   );
                 })()}
                 {ends.map((e) => {
                   const f = endFace(e.unit, e.end);
-                  const outY = f.dir === 1 ? f.mid.y : undefined;
                   if (e.builtIn) {
-                    return (
+                    /* built-in return: the fused box + its return spigots pop
+                       up automatically (spec §1a) — a default fan of return
+                       takeoffs since the data book only says "spigots on it" */
+                    const box = (
                       <rect
-                        key={e.end}
                         className="ds-plenum-builtin"
                         x={f.a.x}
-                        y={outY ?? f.mid.y - builtInD}
+                        y={f.dir === 1 ? f.mid.y : f.mid.y - builtInD}
                         width={f.b.x - f.a.x}
                         height={builtInD}
                         fill="url(#ds-plenum-hatch)"
                       />
                     );
+                    const n = Math.min(3, Math.max(1, suggestedMainDucts(air?.airflow_ls ?? null, 289) ?? 2));
+                    const r = (350 * perMm) / 2;
+                    const outY = f.mid.y + f.dir * builtInD;
+                    const spigs = Array.from({ length: n }, (_, i) => {
+                      const cx = f.a.x + ((i + 1) / (n + 1)) * (f.b.x - f.a.x);
+                      return (
+                        <rect
+                          key={i}
+                          className="ds-spigot-fixed"
+                          x={cx - r}
+                          y={f.dir === 1 ? outY - builtInD * 0.4 : outY}
+                          width={r * 2}
+                          height={builtInD * 0.4}
+                        />
+                      );
+                    });
+                    return (
+                      <g key={e.end} className="ds-plenum-builtin-g">
+                        {box}
+                        {spigs}
+                      </g>
+                    );
                   }
                   if (e.occupied) return null; // a plenum object renders there
+                  // a bare undetermined unit is a plain rectangle — the socket
+                  // hint only shows the SECOND face once oriented (spec §1a)
+                  if (!e.determined) return null;
                   return (
                     <rect
                       key={e.end}
                       className="ds-ahu-socket"
                       x={f.a.x}
-                      y={outY ?? f.mid.y - sockD}
+                      y={f.dir === 1 ? f.mid.y : f.mid.y - sockD}
                       width={f.b.x - f.a.x}
                       height={sockD}
                     />
-                  );
-                })}
-                {air && layers.labels && ends.map((e) => {
-                  /* the rectangle's long faces labelled supply / return —
-                     with a ? until the first plenum decides (spec §1a) */
-                  const f = endFace(e.unit, e.end);
-                  return (
-                    <text
-                      key={`fl-${e.end}`}
-                      className={`ds-ahu-face-label${e.determined ? "" : " faint"}`}
-                      x={f.mid.x}
-                      y={f.mid.y + (f.dir === 1 ? -5 : 12) / zoom}
-                      fontSize={8 / zoom}
-                    >
-                      {e.determined ? e.end.toUpperCase() : `${e.end}?`}
-                    </text>
                   );
                 })}
                 {layers.labels && (
@@ -2226,8 +2259,23 @@ export function StudioCanvas({
                     const f = c.face;
                     const ready =
                       near?.e.unit.id === e.unit.id && near?.needsFlip === c.needsFlip;
+                    // a drop-zone rectangle standing off each candidate face —
+                    // "place it on either side" (spec §1a); the nearest lights
+                    const fp = footprint(
+                      Number(e.unit.props.widthMm ?? 800),
+                      Number(e.unit.props.depthMm ?? 300)
+                    );
+                    const zoneD = fp.h * 0.55; // drop-zone depth off the face
                     return (
                       <g key={`${e.unit.id}:${e.end}:${c.needsFlip ? "flip" : "as-is"}`}>
+                        <rect
+                          className={`ds-plenum-dropzone${ready ? " ready" : ""}`}
+                          x={f.a.x}
+                          y={f.dir === 1 ? f.mid.y : f.mid.y - zoneD}
+                          width={f.b.x - f.a.x}
+                          height={zoneD}
+                          rx={6 / vp.zoom}
+                        />
                         <line
                           className={`ds-plenum-face${ready ? " ready" : ""}`}
                           x1={f.a.x}

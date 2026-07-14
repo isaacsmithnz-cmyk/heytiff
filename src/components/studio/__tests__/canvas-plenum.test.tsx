@@ -204,21 +204,18 @@ describe("plenum placement (component tool)", () => {
 });
 
 describe("plenum rendering", () => {
-  it("draws the V at engine dims with dashed sockets on the empty ends", () => {
+  it("a bare undetermined AHU is a PLAIN rectangle — no sockets, arrow or labels", () => {
     const doc = mkDoc([ahu()]);
     const { svg } = renderCanvas({ doc });
-    // no plenums yet → both end faces wear the dashed socket outline
-    expect(svg.querySelectorAll(".ds-ahu-socket")).toHaveLength(2);
-    expect(svg.querySelector(".ds-ahu-flow")).not.toBeNull();
-    // undetermined: faint arrow + questioning face labels (spec §1a)
-    expect(svg.querySelector(".ds-ahu-flow.faint")).not.toBeNull();
-    const labels = [...svg.querySelectorAll(".ds-ahu-face-label")].map((t) => t.textContent);
-    expect(labels.sort()).toEqual(["return?", "supply?"]);
+    // nothing connected → no drop hints, no arrow, no supply?/return? clutter
+    expect(svg.querySelectorAll(".ds-ahu-socket")).toHaveLength(0);
+    expect(svg.querySelector(".ds-ahu-flow")).toBeNull();
+    expect(svg.querySelectorAll(".ds-ahu-face-label")).toHaveLength(0);
   });
 
-  it("a fitted plenum determines the orientation — labels commit, arrow solidifies", () => {
+  it("the first plenum makes the arrow + SUPPLY/RETURN labels appear (spec §1a)", () => {
     const { svg } = renderCanvas({ doc: mkDoc([ahu(), plenum()]) });
-    expect(svg.querySelector(".ds-ahu-flow.faint")).toBeNull();
+    expect(svg.querySelector(".ds-ahu-flow")).not.toBeNull();
     const labels = [...svg.querySelectorAll(".ds-ahu-face-label")].map((t) => t.textContent);
     expect(labels.sort()).toEqual(["RETURN", "SUPPLY"]);
   });
@@ -319,14 +316,20 @@ describe("plenum rendering", () => {
 describe("built-in return (pack flag)", () => {
   const builtIn = peadRow("built-in");
 
-  it("renders the integral hatched box and only the supply socket", () => {
+  it("determines the unit on placement: return spigots + arrow pop up, supply socket hints", () => {
     const doc = mkDoc([ahu()]);
     const { svg } = renderCanvas({ doc, row: builtIn });
+    // built-in return orients the unit without any plenum (spec §1a)
     expect(svg.querySelector(".ds-plenum-builtin")).not.toBeNull();
+    expect(svg.querySelectorAll(".ds-spigot-fixed").length).toBeGreaterThan(0); // return spigots
+    expect(svg.querySelector(".ds-ahu-flow")).not.toBeNull(); // arrow appears
+    const labels = [...svg.querySelectorAll(".ds-ahu-face-label")].map((t) => t.textContent);
+    expect(labels.sort()).toEqual(["RETURN", "SUPPLY"]);
+    // only the supply face is open → one socket hint
     expect(svg.querySelectorAll(".ds-ahu-socket")).toHaveLength(1);
   });
 
-  it("refuses a return plenum on that unit", () => {
+  it("refuses a return plenum on that unit — its drop zone never offers", () => {
     const doc = mkDoc([ahu()]);
     const onMutate = jest.fn();
     const { svg } = renderCanvas({
@@ -335,7 +338,7 @@ describe("built-in return (pack flag)", () => {
       component: { kind: "plenum", stream: "return" },
       onMutate,
     });
-    expect(svg.querySelectorAll(".ds-plenum-face")).toHaveLength(0); // nothing glows
+    expect(svg.querySelectorAll(".ds-plenum-dropzone")).toHaveLength(0); // no zone
     fireEvent.pointerDown(svg, pt(361, 300));
     expect(onMutate).not.toHaveBeenCalled();
   });

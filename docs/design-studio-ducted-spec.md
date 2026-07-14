@@ -144,20 +144,23 @@ with it. Nothing ever silently detaches.
 - **Airflow direction is user-defined by connection** — no data book
   publishes which face discharges, and these fan-coils mount either way
   round. The model (field feedback 2026-07-14):
-  - The unit is **just a rectangle with its two long faces labelled** —
-    faint `supply?` / `return?` until determined.
-  - **The first plenum placed decides the orientation**: attach the supply
-    plenum to a long face and that face IS supply; return is automatically
-    the opposite face (and vice versa — attach return first and supply is
-    implied opposite). One placement, everything else follows.
-  - The **airflow arrow** spans the depth, pointing **return → supply**
-    (toward the front of the system) — a *consequence* of the connection,
-    never a guess. Before any plenum: faint default arrow.
+  - Before anything is connected the unit is a **plain rectangle** — no
+    labels, no arrow. (No `supply?`/`return?` clutter.)
+  - **Dragging a plenum over the unit reveals a drop zone on each long
+    face** — the two candidate sides. Drop on one and that face IS the
+    plenum's stream; the opposite face is automatically the other stream.
+    One drop, everything else follows.
+  - **On that first drop the airflow arrow appears**, spanning the depth
+    **return → supply** (toward the front), and the faces commit to
+    **SUPPLY / RETURN** labels — a *consequence* of the connection.
   - A **flip control** (AHU inspector) swaps the faces while nothing has
-    determined them; once a plenum (or built-in return) fixes the
+    fixed them; once a plenum (or a built-in return) determines the
     orientation, flip is disabled with the reason.
-  - **Built-in return** collapses it: only the supply plenum is ever
-    attached; the return face is implied opposite, rendered fused.
+  - **Built-in return** determines the unit on its own: the moment such a
+    unit is placed, its **return spigots pop up on the SVG** (fused, on the
+    return face) **and the airflow arrow appears** — no plenum needed. Only
+    the supply plenum is ever dropped (on the opposite face); a return
+    plenum can't be, and its drop zone never offers.
 - **Built-in return** (data-book flag `return_opening: "built-in"`):
   integral return box fused to the body, its spigot(s) ready; the palette's
   return-plenum entry is disabled with the reason, and the return end can't

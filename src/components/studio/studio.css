@@ -851,6 +851,12 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  /* the strip must never overflow into the cockpit column — at narrow
+     widths it wraps instead (an overflowing pill once sat under the
+     cockpit's add-tab and stole its clicks) */
+  flex-wrap: wrap;
+  row-gap: 6px;
+  min-width: 0;
 }
 .dstudio .ds-floortabs {
   display: flex;
@@ -5520,9 +5526,7 @@
   opacity: 0.7;
   vector-effect: non-scaling-stroke;
 }
-/* undetermined orientation (no plenum yet) — the arrow is only a default */
-.dstudio .ds-ahu-flow.faint { opacity: 0.25; stroke-dasharray: 3 3; }
-/* the long faces labelled SUPPLY / RETURN ("supply?" until determined) */
+/* the long faces labelled SUPPLY / RETURN — appear only once determined */
 .dstudio .ds-ahu-face-label {
   fill: currentColor;
   text-anchor: middle;
@@ -5530,8 +5534,25 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   font-family: var(--font);
+  opacity: 0.75;
 }
-.dstudio .ds-ahu-face-label.faint { opacity: 0.4; font-weight: 600; }
+/* built-in return: fused box + auto return spigots (spec §1a) */
+.dstudio .ds-spigot-fixed {
+  fill: #fff;
+  stroke: currentColor;
+  stroke-width: 1.4px;
+  vector-effect: non-scaling-stroke;
+}
+/* plenum drop zones — one per long face while a plenum is armed */
+.dstudio .ds-plenum-dropzone {
+  fill: #16a34a;
+  fill-opacity: 0.08;
+  stroke: #16a34a;
+  stroke-width: 1.2px;
+  stroke-dasharray: 5 4;
+  vector-effect: non-scaling-stroke;
+}
+.dstudio .ds-plenum-dropzone.ready { fill-opacity: 0.2; stroke-dasharray: none; }
 /* armed plenum: candidate faces glow before the click; ghost body previews */
 .dstudio .ds-plenum-face {
   stroke: #16a34a;

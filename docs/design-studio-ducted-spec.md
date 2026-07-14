@@ -18,6 +18,18 @@
 > specs per unit). **Convention:** bare § numbers mean THIS spec's sections;
 > pack-schema sections are always written **pack-§N**.
 >
+> **v8.2 changes (plenum geometry rework — field feedback 2026-07-14):**
+> the supply plenum is an **arrow/trapezoid whose WIDEST edge is the base ON
+> THE UNIT**, tapering OUTWARD to a narrow spigot face (was backwards).
+> Spigots render as **rectangles** (plan view of a round takeoff), not
+> circles. Base = the unit's **supply-air opening** from the data book (NOT
+> the unit width). Spigot face is always ≤ the base; needing more =
+> **"too many ducts for this plenum"** (the airflow limit, geometric). The
+> "3-face refacet/grow-past-unit" model is REMOVED. Airflow direction isn't
+> published → **user-defined** (supply end = where you attach the supply
+> plenum; flip to correct; arrow points return→supply). Some units ship with
+> **factory spigots**; some returns are **built-in**.
+>
 > **v8.1 changes:** **spill rooms** — a Configure toggle marks a room as a
 > spill destination: excluded from required-capacity sums, shares and
 > outlet gating (it just needs to be somewhere air can go); ⤢ badge on
@@ -121,57 +133,88 @@ with it. Nothing ever silently detaches.
 
 ### 1a. Air handler (AHU)
 
-- Rectangle at true W×D scale, rounded corners, system stroke, 8 % tint,
-  straight-through airflow arrow. The short ends are **plenum mounting
-  faces** — ducts never connect to the unit directly. Empty faces show a
-  dashed socket outline ("plenum goes here").
-- **Built-in return plenum** (pack flag): integral hatched box fused to the
-  body, spigot(s) ready; the palette's return-plenum entry is disabled with
-  the reason.
+- Rectangle at true W×D scale, rounded corners, system stroke, 8 % tint.
+  The two short ends are the **supply-air opening** and the **return-air
+  opening** — ducts never connect to the unit directly, only via a plenum
+  (or the opening's factory spigots, §1b). Empty openings show a dashed
+  socket outline ("plenum goes here").
+- **Airflow direction is user-defined** — no data book publishes which end
+  discharges, and these fan-coils can be mounted either way round. So:
+  - The end the user attaches the **supply** plenum to becomes the supply
+    (discharge) end; the return goes on the opposite end.
+  - The **airflow arrow** inside the body points **return → supply** from
+    those placements — it's a *consequence* of where the plenums went, not a
+    guess. Before any plenum: faint default arrow + a **flip** affordance.
+  - A **flip control** (inspector + a rotate-style handle) swaps the
+    supply/return ends — for correcting orientation or setting it before
+    plenums exist. Flipping with plenums attached swaps which opening each
+    is bound to (or warns if that conflicts with a built-in return).
+- **Built-in return** (data-book flag `return_opening: "built-in"`):
+  integral return box fused to the body, its spigot(s) ready; the palette's
+  return-plenum entry is disabled with the reason, and the return end can't
+  be flipped away.
 - Label: model above, `12.5 kW · 630 l/s` below. Rotation as units today.
 - Concealed (ceiling-cavity) read: dashed outline + slight desaturation (§7).
 - **One AHU per system.** A house needing two ducted units = two ducted
   systems (own colour, own tree, own gauge). Rooms move between systems via
   the existing serve/adopt flow.
 
-### 1b. Plenums — spec-driven, morphing
+### 1b. Plenums — the arrow that fans out from the unit
 
-Dimensions come **from the installed unit's spec** (pack: `supply_plenum` /
-`return_plenum` per ducted IDU — `{w,h,d}` or `"built-in"`); missing data →
-derived default (unit face width, 350 mm deep), marked grey per Principle 5.
-Plan labels and the inspector show **W × D** (the plan-view dims); H lives
-in the inspector's full spec line.
+**Plan view. The base (widest edge) is ON THE UNIT; the plenum tapers
+OUTWARD like an arrow to a narrow spigot face.** This is the opposite of a
+funnel — air leaves the wide opening and is gathered down to a few spigots.
 
-- **Supply plenum — plan view = the V:** trapezoid tapering from the AHU
-  face to a wider **spigot face**. Hatched 8 % tint, system stroke.
-  **Spigots may sit on the side faces too** (tight roof spaces, runs going
-  both ways off the plenum) — same size series, same magnetic rules, facet
-  logic applies per face. Bottom spigots (droppers) are reserved for the
-  duct-riser fast-follow.
+- **Base dimension = the unit's supply-air opening** (`supply_opening.w_mm`
+  from the data book — the discharge opening, NOT the unit's overall width).
+  Return plenum base = `return_opening`. Missing data → a grey derived
+  default (a plausible opening, clearly marked "no data") per Principle 5 —
+  never the unit width. Plan labels + inspector show **base W × depth D**.
+- **Shape by spigot count** — an isosceles trapezoid, base on the unit,
+  tapering out; the **spigot face** (far edge) seats the spigots and is
+  **always ≤ the base width**:
+  - **1 spigot** → a **V / arrow**: full base at the unit converging to a
+    point with one spigot at the tip.
+  - **2 spigots** → a stubby trapezoid, narrow spigot face.
+  - **3–4 spigots** → a fuller trapezoid; the spigot face widens to seat
+    them but the **base stays widest**.
+  - Hatched 8 % tint, system stroke; ~150 ms morph between counts.
+- **Spigots are RECTANGLES, not circles** — a round takeoff seen from above
+  (plan) reads as a rectangle standing off the spigot face, width = the
+  duct Ø, at true scale. (The Ø label still names the size.) They sit along
+  the spigot face; **side-face spigots** are allowed (tight roof spaces),
+  bottom (droppers) reserved for the duct-riser fast-follow.
+- **Too many ducts for this plenum (the airflow limit, made geometric):**
+  when the spigots (widths + gaps) would need a spigot face **wider than the
+  base**, that's more duct than the discharge opening carries — an **amber
+  "too many ducts for this plenum"** state on the body + a Components hint.
+  There is no refacet/grow-past-the-unit; the base is fixed by the opening.
+- **Factory spigots** (`supply_opening: "spigots"` — the data book says the
+  opening ships with spigots): the openings render the fixed factory spigots
+  directly; no drawn plenum body, spigots aren't user-added.
 - **Spigots** appear three ways (manual or connection-driven, never guessed):
   1. Plenum inspector **"+ spigot"** with the size series.
-  2. **Duct tool started on the plenum face** → spigot of the armed size
+  2. **Duct tool started on the spigot face** → spigot of the armed size
      created at the click, run starts from it.
-  3. **Landing a duct** on the face → matching spigot added.
-- **The morph:** the face fits spigots at true width + min spacing. When one
-  more won't fit — e.g. a **third 14"** — the front **refacets into a
-  three-sided face**, redistributing spigots. The label tracks it:
-  `1200 × 350 · 2 × 14"` → `1550 × 350 · 3 × 14"` (3-face). ~150 ms animate.
-- **Spigot management:** slide along the face; deleting a connected duct
-  leaves a **blanking-capped** spigot (still bought); caps removable in the
-  inspector.
-- **Return plenum:** same object, `stream:"return"` — plain rectangle, one
-  or two spigots, same rules. Skipped when built-in.
-- **Anchors:** every spigot is magnetic; the bare face is a "create spigot
-  here" anchor (pre-click glow = dashed spigot ghost).
+  3. **Landing a duct** on the spigot face → matching spigot added.
+- **Spigot management:** slide along the spigot face; deleting a connected
+  duct leaves a **blanking-capped** spigot (still bought); caps removable in
+  the inspector.
+- **Return plenum:** same object, `stream:"return"`, same arrow geometry off
+  the return opening. Skipped entirely when `return_opening: "built-in"`.
+- **Anchors:** every spigot is magnetic; the bare spigot face is a "create
+  spigot here" anchor (pre-click glow = dashed spigot-rectangle ghost).
 
 ```
-            AHU face
-        ┌──────────────┐
-         \            /        ← the V (supply plenum, plan view)
-          \__________/
-           ◯    ◯    ◯         ← spigots (true Ø) on the spigot face
-        1550 × 350 · 3 × 14"
+   supply opening (base — WIDEST, on the unit)
+        ┌────────────────┐
+        │      A H U      │
+        └────────────────┘
+         \              /       ← plenum tapers OUTWARD (plan view)
+          \            /
+           \  ▭  ▭  ▭ /         ← spigots = rectangles on the narrow face
+            └────────┘
+       1200 × 350 · 3 × 14"      (base 1200 = supply opening, not unit width)
 ```
 
 ### 1c. Supply grilles — three basic items (v1 catalogue)
@@ -507,6 +550,13 @@ branches kept) · selected/slide · invalid-stream flash.
   (`2 × 600×400`) — a single Ø450–500 flex is special-order and
   near-impossible to route through trusses. The full mapping stays
   available for manual picks.
+- **6b-iii. Plenum supply-duct count (main trunks):** the plenum's spigots
+  are the **main supply ducts** off the unit — each then branches downstream
+  via takeoffs (§5), so this is a small count, not one-per-room. Suggested
+  from total airflow at the supply velocity: `ceil(Q_ahu / capacity(Ø))`
+  for the chosen main-duct size — e.g. ~1000 l/s ≈ **3 × Ø350 (14")** or
+  **2 × Ø400 (16")**. Shown as a plenum hint; the geometric "too many ducts"
+  guard (§1b) is the hard signal when spigots exceed the opening.
 - **6c. Per-segment recommendation:** where downstream resolves:
   `d = √(4Q/πv)` with **per-stream velocity settings** (`settings.velocity`:
   supply 3.0 · return 2.5 m/s defaults — dealers calibrate to their flex
@@ -760,14 +810,17 @@ toolkit once, against these rules:
 ### A. Canvas objects
 
 1. **AHU** — default · selected · rotating · drag ghost · concealed variant ·
-   empty plenum-socket outlines · built-in-return variant · label.
+   empty opening-socket outlines · **airflow arrow (return→supply) + flip
+   affordance** · built-in-return variant · label.
 2. **ODU + refrigerant run** — existing, restyle pass only.
-3. **Supply plenum** — V · flat-face 1–2 spigots · **faceted 3-face** ·
-   spigot stubs at true Ø · blanking-capped spigot · spigot slide · face
-   "create spigot" ghost glow · spec label · morph animation · derived-
-   default (grey) variant.
-4. **Return plenum** — rectangle variant, same spigot states (built-in lives
-   on the AHU).
+3. **Supply plenum** — arrow/V (1 spigot) → trapezoid (3–4), **base widest
+   ON the unit**, tapering out · spigots as **rectangles** at true width on
+   the narrow spigot face · **"too many ducts"** amber state · blanking-
+   capped spigot · spigot slide · face "create spigot" ghost glow · base =
+   supply-opening label · morph animation · grey derived-default (no data) ·
+   factory-spigots variant.
+4. **Return plenum** — same arrow geometry off the return opening; built-in
+   variant lives fused on the AHU.
 5. **Supply grilles × 3 items** — **MDO 300×300** (4-way core) · **round
    Ø400** (concentric rings) · **linear bar** (custom W×H, parallel bars) —
    each: unconnected (amber halo `!`) · connected (+ boot collar) ·
@@ -865,8 +918,11 @@ toolkit once, against these rules:
   derivation (facet threshold from spigot packing) · max-run audit ·
   transfer-relief hint · ducted coverage verdict (`coverage.ts` gains
   system-total with `oversized/undersized`) · buy-list totals.
-- **Pack seed data:** pack-§2 ducted IDUs gain `supply_plenum` /
-  `return_plenum` (`{w,h,d}` | `"built-in"`); pack-§8 grilles — **MDO
+- **Pack seed data:** pack-§2 ducted IDUs gain `supply_opening` /
+  `return_opening` — the data-book discharge / return-air opening dims
+  (`{w_mm, h_mm}` | `"built-in"` | `"spigots"`) that size the plenum base
+  (NOT the unit width; airflow direction is NOT a field — it's user-set,
+  §1a); pack-§8 grilles — **MDO
   300×300** (4-way, neck range), **round Ø400** (neck range), **linear
   bar** (`size: "custom"` — the placed object stores its W×H in props),
   **eggcrate returns** in the six standard sizes (300×300 · 400×400 ·

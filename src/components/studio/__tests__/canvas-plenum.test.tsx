@@ -17,7 +17,7 @@ import {
   type DesignObject,
   type Floor,
 } from "@/lib/studio/document";
-import type { IndoorUnit, PlenumSpec } from "@/lib/studio/packs/schema";
+import type { IndoorUnit, OpeningSpec } from "@/lib/studio/packs/schema";
 
 const floor: Floor = {
   id: "flr",
@@ -29,8 +29,8 @@ const floor: Floor = {
   plans: [],
 };
 
-/** a ducted-form pack row — plenum specs + airflow make it air-capable */
-function peadRow(returnPlenum: PlenumSpec = { w_mm: 1200, h_mm: 250, d_mm: 350 }): IndoorUnit {
+/** a ducted-form pack row — air openings + airflow make it air-capable */
+function peadRow(returnOpening: OpeningSpec = { w_mm: 900, h_mm: 250 }): IndoorUnit {
   return {
     model: "PEAD-TEST",
     brand: "me",
@@ -39,8 +39,8 @@ function peadRow(returnPlenum: PlenumSpec = { w_mm: 1200, h_mm: 250, d_mm: 350 }
     capacity_cool_kw: 10,
     capacity_heat_kw: 11.2,
     airflow_ls: 567,
-    supply_plenum: { w_mm: 1200, h_mm: 250, d_mm: 450 },
-    return_plenum: returnPlenum,
+    supply_opening: { w_mm: 1000, h_mm: 250 },
+    return_opening: returnOpening,
     conn_liquid_mm: 9.52,
     conn_gas_mm: 15.88,
     default_plane: "ceiling-cavity",
@@ -191,34 +191,58 @@ describe("plenum rendering", () => {
     expect(svg.querySelector(".ds-ahu-flow")).not.toBeNull();
   });
 
-  it("a fitted supply plenum replaces its socket and reads the engine label", () => {
+  it("a fitted supply plenum: base WIDEST on the unit, tapering OUT (spec §1b)", () => {
     const doc = mkDoc([ahu(), plenum()]);
     const { svg } = renderCanvas({ doc });
     expect(svg.querySelectorAll(".ds-ahu-socket")).toHaveLength(1); // return only
     const body = svg.querySelector(".ds-plenum-body")!;
-    // trapezoid from the AHU face (x=70) out to the spigot face at
-    // 450 mm = 45 world units (spec dims × floor scale)
-    const p0 = firstPoint(body);
-    expect(p0.x).toBeCloseTo(70, 3);
-    expect(p0.y).toBeCloseTo(-36.6, 3);
-    expect(body.getAttribute("points")).toContain("115");
-    expect(svg.querySelector(".ds-plenum-label")!.textContent).toBe("1200 × 450");
+    const pts = body.getAttribute("points")!.split(" ").map((p) => {
+      const [x, y] = p.split(",").map(Number);
+      return { x, y };
+    });
+    expect(pts).toHaveLength(4); // trapezoid, never refaceted
+    // the two points at the unit face (min x) span a WIDER y-range than the
+    // two at the spigot face (max x) — the arrow tapers outward
+    const faceX = Math.min(...pts.map((p) => p.x));
+    const spigX = Math.max(...pts.map((p) => p.x));
+    const spanAt = (x: number) => {
+      const ys = pts.filter((p) => Math.abs(p.x - x) < 1e-6).map((p) => p.y);
+      return Math.max(...ys) - Math.min(...ys);
+    };
+    expect(spanAt(faceX)).toBeGreaterThan(spanAt(spigX));
+    // base 1000 mm × 400 depth, from the engine
+    expect(svg.querySelector(".ds-plenum-label")!.textContent).toBe("1000 × 400");
   });
 
-  it("three 14\" spigots refacet the front — label + stubs follow the engine", () => {
+  it("spigots render as RECTANGLES on the narrow face, no refacet", () => {
     const spigs = [
-      { id: "s1", diaMm: 350, t: 0.25, face: "front" },
-      { id: "s2", diaMm: 350, t: 0.5, face: "front" },
-      { id: "s3", diaMm: 350, t: 0.75, face: "front" },
+      { id: "s1", diaMm: 350, t: 0.33, face: "front" },
+      { id: "s2", diaMm: 350, t: 0.66, face: "front" },
     ];
     const doc = mkDoc([ahu(), plenum(spigs)], "inch");
     const { svg } = renderCanvas({ doc });
     const label = svg.querySelector(".ds-plenum-label")!;
-    expect(label.textContent).toBe('1250 × 450 · 3 × 14" (3-face)');
-    expect(svg.querySelectorAll(".ds-spigot circle")).toHaveLength(3);
-    // the refaceted front renders as three angled segments → a 6-point body
+    // 2×350 + 3×50 = 850 ≤ 1000 base → a clean trapezoid, no "(3-face)"
+    expect(label.textContent).toBe('1000 × 400 · 2 × 14"');
+    // spigots are rectangles (polygons), not circles
+    expect(svg.querySelectorAll(".ds-spigot polygon")).toHaveLength(2);
+    expect(svg.querySelectorAll(".ds-spigot circle")).toHaveLength(0);
+    // body stays a 4-point trapezoid (the 3-face refacet model is gone)
     const body = svg.querySelector(".ds-plenum-body")!;
-    expect(body.getAttribute("points")!.split(" ")).toHaveLength(6);
+    expect(body.getAttribute("points")!.split(" ")).toHaveLength(4);
+  });
+
+  it("too many ducts for the opening → the over-spigot warning state", () => {
+    const spigs = [0.2, 0.4, 0.6, 0.8].map((t, i) => ({
+      id: `s${i}`,
+      diaMm: 350,
+      t,
+      face: "front",
+    }));
+    const doc = mkDoc([ahu(), plenum(spigs)], "inch");
+    const { svg } = renderCanvas({ doc });
+    // 4×350 + 5×50 = 1650 > 1000 base → over-spigot
+    expect(svg.querySelector(".ds-plenum.over")).not.toBeNull();
   });
 
   it("capped spigots wear the blanking-cap tick", () => {
@@ -232,7 +256,8 @@ describe("plenum rendering", () => {
 
   it("moving the AHU carries its plenums — position derives, never stored", () => {
     const { svg, rerender } = renderCanvas({ doc: mkDoc([ahu(), plenum()]) });
-    expect(firstPoint(svg.querySelector(".ds-plenum-body")!).x).toBeCloseTo(70, 3);
+    const before = firstPoint(svg.querySelector(".ds-plenum-body")!);
+    expect(before.x).toBeCloseTo(70, 3);
 
     // same plenum object (stored point untouched), the unit moved
     const row = peadRow();
@@ -252,9 +277,10 @@ describe("plenum rendering", () => {
         onRemarkConsumed={() => {}}
       />
     );
-    const p0 = firstPoint(svg.querySelector(".ds-plenum-body")!);
-    expect(p0.x).toBeCloseTo(170, 3);
-    expect(p0.y).toBeCloseTo(13.4, 3);
+    // the plenum body shifts by the SAME world delta as the AHU (100, 50)
+    const after = firstPoint(svg.querySelector(".ds-plenum-body")!);
+    expect(after.x - before.x).toBeCloseTo(100, 3);
+    expect(after.y - before.y).toBeCloseTo(50, 3);
   });
 });
 

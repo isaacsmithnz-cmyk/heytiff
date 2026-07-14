@@ -4924,6 +4924,7 @@
   letter-spacing: -0.01em;
 }
 .dstudio .ds-ck-usub { font: 500 11px var(--font); color: var(--gray500); margin-top: 1px; }
+.dstudio .ds-ck-usub.warn { color: var(--amber, #d98324); }
 .dstudio .ds-ck-utotag {
   display: inline-block;
   margin-top: 3px;
@@ -5463,10 +5464,13 @@
   vector-effect: non-scaling-stroke;
 }
 .dstudio .ds-plenum.sel .ds-plenum-body { stroke-width: 3px; }
-.dstudio .ds-spigot circle {
+/* too many ducts for the opening — the geometric airflow limit (spec §1b) */
+.dstudio .ds-plenum.over .ds-plenum-body { stroke: var(--amber, #d98324); }
+.dstudio .ds-spigot polygon {
   fill: #fff;
   stroke: currentColor;
   stroke-width: 1.4px;
+  stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
 }
 .dstudio .ds-spigot-cap {

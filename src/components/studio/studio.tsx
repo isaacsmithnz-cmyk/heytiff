@@ -1703,7 +1703,7 @@ function DesignPanel({
           <PlenumHud
             stream={airComp.stream}
             onStream={onAirStream}
-            returnBuiltIn={airGate.row?.return_plenum === "built-in"}
+            returnBuiltIn={airGate.row?.return_opening === "built-in"}
           />
         )}
         {sim && <SimControllerCard runtime={sim} onExit={onToggleSim} />}

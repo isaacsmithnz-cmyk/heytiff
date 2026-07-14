@@ -3398,16 +3398,6 @@
    "source": "M-P Series (Mr Slim) Data Book; sound: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
    "edition": "M-P0922 (2024)",
    "page": "A-84"
-  },
-  "supply_plenum": {
-   "w_mm": 900,
-   "h_mm": 250,
-   "d_mm": 450
-  },
-  "return_plenum": {
-   "w_mm": 900,
-   "h_mm": 250,
-   "d_mm": 350
   }
  },
  {
@@ -3438,16 +3428,6 @@
    "source": "M-P Series (Mr Slim) Data Book; sound: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
    "edition": "M-P0922 (2024)",
    "page": "A-84"
-  },
-  "supply_plenum": {
-   "w_mm": 1100,
-   "h_mm": 250,
-   "d_mm": 450
-  },
-  "return_plenum": {
-   "w_mm": 1100,
-   "h_mm": 250,
-   "d_mm": 350
   }
  },
  {
@@ -3478,16 +3458,6 @@
    "source": "M-P Series (Mr Slim) Data Book; sound: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
    "edition": "M-P0922 (2024)",
    "page": "A-86"
-  },
-  "supply_plenum": {
-   "w_mm": 1100,
-   "h_mm": 250,
-   "d_mm": 450
-  },
-  "return_plenum": {
-   "w_mm": 1100,
-   "h_mm": 250,
-   "d_mm": 350
   }
  },
  {
@@ -3518,16 +3488,6 @@
    "source": "M-P Series (Mr Slim) Data Book; sound: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
    "edition": "M-P0922 (2024)",
    "page": "A-86"
-  },
-  "supply_plenum": {
-   "w_mm": 1400,
-   "h_mm": 250,
-   "d_mm": 450
-  },
-  "return_plenum": {
-   "w_mm": 1400,
-   "h_mm": 250,
-   "d_mm": 350
   }
  },
  {
@@ -3558,16 +3518,6 @@
    "source": "M-P Series (Mr Slim) Data Book; sound: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
    "edition": "M-P0922 (2024)",
    "page": "A-86"
-  },
-  "supply_plenum": {
-   "w_mm": 1400,
-   "h_mm": 250,
-   "d_mm": 450
-  },
-  "return_plenum": {
-   "w_mm": 1400,
-   "h_mm": 250,
-   "d_mm": 350
   }
  },
  {
@@ -3598,16 +3548,6 @@
    "source": "M-P Series (Mr Slim) Data Book; sound: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
    "edition": "M-P0922 (2024)",
    "page": "A-86"
-  },
-  "supply_plenum": {
-   "w_mm": 1600,
-   "h_mm": 250,
-   "d_mm": 450
-  },
-  "return_plenum": {
-   "w_mm": 1600,
-   "h_mm": 250,
-   "d_mm": 350
   }
  },
  {
@@ -3637,16 +3577,6 @@
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
    "page": "A-89"
-  },
-  "supply_plenum": {
-   "w_mm": 1405,
-   "h_mm": 250,
-   "d_mm": 450
-  },
-  "return_plenum": {
-   "w_mm": 1405,
-   "h_mm": 250,
-   "d_mm": 350
   }
  },
  {
@@ -3676,16 +3606,6 @@
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
    "page": "A-89"
-  },
-  "supply_plenum": {
-   "w_mm": 1405,
-   "h_mm": 250,
-   "d_mm": 450
-  },
-  "return_plenum": {
-   "w_mm": 1405,
-   "h_mm": 250,
-   "d_mm": 350
   }
  },
  {
@@ -3715,16 +3635,6 @@
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
    "page": "A-89"
-  },
-  "supply_plenum": {
-   "w_mm": 1405,
-   "h_mm": 250,
-   "d_mm": 450
-  },
-  "return_plenum": {
-   "w_mm": 1405,
-   "h_mm": 250,
-   "d_mm": 350
   }
  },
  {
@@ -3754,16 +3664,6 @@
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
    "page": "A-89"
-  },
-  "supply_plenum": {
-   "w_mm": 1405,
-   "h_mm": 250,
-   "d_mm": 450
-  },
-  "return_plenum": {
-   "w_mm": 1405,
-   "h_mm": 250,
-   "d_mm": 350
   }
  },
  {
@@ -3793,16 +3693,6 @@
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
    "page": "A-92"
-  },
-  "supply_plenum": {
-   "w_mm": 1400,
-   "h_mm": 250,
-   "d_mm": 450
-  },
-  "return_plenum": {
-   "w_mm": 1400,
-   "h_mm": 250,
-   "d_mm": 350
   }
  },
  {
@@ -3832,16 +3722,6 @@
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
    "page": "A-92"
-  },
-  "supply_plenum": {
-   "w_mm": 1400,
-   "h_mm": 250,
-   "d_mm": 450
-  },
-  "return_plenum": {
-   "w_mm": 1400,
-   "h_mm": 250,
-   "d_mm": 350
   }
  },
  {
@@ -3871,16 +3751,6 @@
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
    "page": "A-92"
-  },
-  "supply_plenum": {
-   "w_mm": 1400,
-   "h_mm": 250,
-   "d_mm": 450
-  },
-  "return_plenum": {
-   "w_mm": 1400,
-   "h_mm": 250,
-   "d_mm": 350
   }
  },
  {
@@ -3910,16 +3780,6 @@
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
    "page": "A-94"
-  },
-  "supply_plenum": {
-   "w_mm": 1370,
-   "h_mm": 250,
-   "d_mm": 450
-  },
-  "return_plenum": {
-   "w_mm": 1370,
-   "h_mm": 250,
-   "d_mm": 350
   }
  },
  {
@@ -3949,16 +3809,6 @@
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
    "page": "A-94"
-  },
-  "supply_plenum": {
-   "w_mm": 1370,
-   "h_mm": 250,
-   "d_mm": 450
-  },
-  "return_plenum": {
-   "w_mm": 1370,
-   "h_mm": 250,
-   "d_mm": 350
   }
  },
  {
@@ -3988,16 +3838,6 @@
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
    "page": "A-94"
-  },
-  "supply_plenum": {
-   "w_mm": 1370,
-   "h_mm": 250,
-   "d_mm": 450
-  },
-  "return_plenum": {
-   "w_mm": 1370,
-   "h_mm": 250,
-   "d_mm": 350
   }
  },
  {
@@ -4139,16 +3979,6 @@
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
    "page": "B-30"
-  },
-  "supply_plenum": {
-   "w_mm": 790,
-   "h_mm": 250,
-   "d_mm": 450
-  },
-  "return_plenum": {
-   "w_mm": 790,
-   "h_mm": 250,
-   "d_mm": 350
   }
  },
  {
@@ -4178,16 +4008,6 @@
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
    "page": "B-30"
-  },
-  "supply_plenum": {
-   "w_mm": 990,
-   "h_mm": 250,
-   "d_mm": 450
-  },
-  "return_plenum": {
-   "w_mm": 990,
-   "h_mm": 250,
-   "d_mm": 350
   }
  },
  {
@@ -4217,16 +4037,6 @@
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
    "page": "B-30"
-  },
-  "supply_plenum": {
-   "w_mm": 990,
-   "h_mm": 250,
-   "d_mm": 450
-  },
-  "return_plenum": {
-   "w_mm": 990,
-   "h_mm": 250,
-   "d_mm": 350
   }
  },
  {
@@ -4256,16 +4066,6 @@
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
    "page": "B-30"
-  },
-  "supply_plenum": {
-   "w_mm": 1190,
-   "h_mm": 250,
-   "d_mm": 450
-  },
-  "return_plenum": {
-   "w_mm": 1190,
-   "h_mm": 250,
-   "d_mm": 350
   }
  },
  {
@@ -4295,16 +4095,6 @@
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
    "page": "B-30"
-  },
-  "supply_plenum": {
-   "w_mm": 1190,
-   "h_mm": 250,
-   "d_mm": 450
-  },
-  "return_plenum": {
-   "w_mm": 1190,
-   "h_mm": 250,
-   "d_mm": 350
   }
  },
  {

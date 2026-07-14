@@ -18,6 +18,7 @@ import {
   formatDia,
   plenumBody,
   spigotsOf,
+  suggestedMainDucts,
   type PlenumSpigot,
 } from "../ducted";
 
@@ -246,59 +247,75 @@ describe("formatDia", () => {
   });
 });
 
-describe("plenumBody", () => {
+describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
   const spig = (diaMm: number, face: PlenumSpigot["face"] = "front"): PlenumSpigot => ({
     id: newId("sp"),
     diaMm,
     t: 0.5,
     face,
   });
-  const spec = { w_mm: 1200, h_mm: 250, d_mm: 450 };
+  const opening = { w_mm: 1200, h_mm: 250 }; // data-book supply opening
 
-  it("stays flat while the front spigots fit (2×14\" on a 1200 face)", () => {
-    const b = plenumBody({ spec, spigots: [spig(350), spig(350)], units: "inch" });
-    // 2×350 + 3×50 gap = 850 ≤ 1200
-    expect(b.faceted).toBe(false);
-    expect(b.wMm).toBe(1200);
+  it("base = the opening width; spigot face stays ≤ base while ducts fit", () => {
+    const b = plenumBody({ opening, spigots: [spig(350), spig(350)], units: "inch" });
+    // 2×350 + 3×50 = 850 ≤ 1200 base → not over
+    expect(b.baseWMm).toBe(1200);
+    expect(b.spigotFaceWMm).toBe(850);
+    expect(b.overSpigot).toBe(false);
+    expect(b.depthMm).toBe(400);
     expect(b.derived).toBe(false);
-    expect(b.label).toBe('1200 × 450 · 2 × 14"');
+    expect(b.label).toBe('1200 × 400 · 2 × 14"');
   });
 
-  it("a third 14\" refacets and grows the face — the user's exact scenario", () => {
-    const b = plenumBody({ spec, spigots: [spig(350), spig(350), spig(350)], units: "inch" });
-    // 3×350 + 4×50 = 1250 > 1200 → 3-face at the needed width
-    expect(b.faceted).toBe(true);
-    expect(b.wMm).toBe(1250);
-    expect(b.label).toBe('1250 × 450 · 3 × 14" (3-face)');
+  it("one spigot → a near-point arrow (small spigot face), base unchanged", () => {
+    const b = plenumBody({ opening, spigots: [spig(350)], units: "inch" });
+    expect(b.baseWMm).toBe(1200); // base never shrinks
+    expect(b.spigotFaceWMm).toBe(350 + 100); // 1×350 + 2×50 gaps
+    expect(b.overSpigot).toBe(false);
+    expect(b.label).toBe('1200 × 400 · 1 × 14"');
   });
 
-  it("side-face spigots never refacet the front", () => {
-    const b = plenumBody({
-      spec,
-      spigots: [spig(350), spig(350), spig(350, "left"), spig(350, "right")],
-      units: "mm",
-    });
-    expect(b.faceted).toBe(false);
-    expect(b.label).toBe("1200 × 450 · 4 × Ø350");
+  it("too many ducts → overSpigot, base never grows past the unit", () => {
+    // 4×350 + 5×50 = 1650 > 1200 base
+    const b = plenumBody({ opening, spigots: [spig(350), spig(350), spig(350), spig(350)], units: "inch" });
+    expect(b.overSpigot).toBe(true);
+    expect(b.baseWMm).toBe(1200); // stays the opening width, does NOT grow
+    expect(b.spigotFaceWMm).toBe(1200); // clamped to base for rendering
+    expect(b.label).toBe('1200 × 400 · 4 × 14"'); // no "(3-face)" — that model is gone
   });
 
   it("mixed sizes label descending, per units setting", () => {
-    const b = plenumBody({ spec, spigots: [spig(250), spig(350), spig(250)], units: "mm" });
-    expect(b.label).toBe("1200 × 450 · 1 × Ø350 · 2 × Ø250");
+    const b = plenumBody({ opening, spigots: [spig(250), spig(350), spig(250)], units: "mm" });
+    expect(b.label).toBe("1200 × 400 · 1 × Ø350 · 2 × Ø250");
   });
 
-  it("no pack spec → grey derived default (unit width × 350 deep)", () => {
-    const b = plenumBody({ spec: null, unitWidthMm: 1400, spigots: [], units: "mm" });
+  it("no opening data → grey derived default (~90% of the discharge END, NOT the unit width)", () => {
+    // caller passes the unit's SHORT-end width (the discharge face), e.g. 800
+    const b = plenumBody({ opening: null, unitWidthMm: 800, spigots: [], units: "mm" });
     expect(b.derived).toBe(true);
-    expect(b.wMm).toBe(1400);
-    expect(b.dMm).toBe(350);
-    expect(b.hMm).toBeNull();
+    expect(b.baseWMm).toBe(720); // 800 × 0.9 — a plausible opening, not a long unit width
   });
 
-  it("built-in short-circuits", () => {
-    const b = plenumBody({ spec: "built-in", unitWidthMm: 900, spigots: [], units: "mm" });
+  it("built-in return short-circuits", () => {
+    const b = plenumBody({ opening: "built-in", unitWidthMm: 900, spigots: [], units: "mm" });
     expect(b.builtIn).toBe(true);
+    expect(b.factorySpigots).toBe(false);
     expect(b.derived).toBe(false);
+  });
+
+  it("factory spigots flagged (no drawn plenum body)", () => {
+    const b = plenumBody({ opening: "spigots", unitWidthMm: 900, spigots: [], units: "mm" });
+    expect(b.factorySpigots).toBe(true);
+    expect(b.builtIn).toBe(false);
+    expect(b.derived).toBe(false);
+  });
+});
+
+describe("suggestedMainDucts (spec §6b-iii)", () => {
+  it("~1000 l/s ≈ 3 × Ø350 (289 l/s) or 2 × Ø400 (377 l/s)", () => {
+    expect(suggestedMainDucts(1000, 289)).toBe(4); // ceil(1000/289)=4 at 14"
+    expect(suggestedMainDucts(1000, 377)).toBe(3); // ceil(1000/377)=3 at 16"
+    expect(suggestedMainDucts(null, 289)).toBeNull();
   });
 });
 

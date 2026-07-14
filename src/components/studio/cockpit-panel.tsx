@@ -2351,7 +2351,7 @@ function ObjectInspectCard({
     const fitted = doc.objects.filter((o) => isPlenumOf(o, obj.id));
     const supplyFitted = fitted.some((p) => p.props.end === "supply");
     const returnFitted = fitted.some((p) => p.props.end === "return");
-    const returnBuiltIn = row?.return_plenum === "built-in";
+    const returnBuiltIn = row?.return_opening === "built-in";
     const plenumStatus = supplyFitted
       ? returnBuiltIn
         ? "Supply plenum fitted · return built-in"
@@ -2507,12 +2507,12 @@ export function PlenumInspectCard({
   const unit = doc.objects.find((o) => o.id === String(obj.props.unitId ?? ""));
   const model = String(unit?.props.model ?? "");
   const row = pack?.indoor_units.find((u) => u.model === model) ?? null;
-  const spec = row
-    ? ((stream === "return" ? row.return_plenum : row.supply_plenum) ?? null)
+  const opening = row
+    ? ((stream === "return" ? row.return_opening : row.supply_opening) ?? null)
     : null;
   const spigots = spigotsOf(obj.props);
   const body = plenumBody({
-    spec,
+    opening,
     // the mounting face is the AHU's short end — its depth
     unitWidthMm: Number(unit?.props.depthMm) || null,
     spigots,
@@ -2548,9 +2548,17 @@ export function PlenumInspectCard({
         </div>
       </div>
       <div className="ds-ck-objbody">
-        <ObjRow k="Body" v={`${Math.round(body.wMm)} × ${Math.round(body.dMm)} mm`} />
-        {body.derived && <div className="ds-ck-usub">derived — no pack data</div>}
-        <ObjRow k="Face" v={body.faceted ? "3-face (refaceted)" : "Flat"} />
+        <ObjRow
+          k="Base"
+          v={`${Math.round(body.baseWMm)} × ${Math.round(body.depthMm)} mm`}
+        />
+        {body.derived && (
+          <div className="ds-ck-usub">estimated — no opening data in pack</div>
+        )}
+        {body.overSpigot && (
+          <div className="ds-ck-usub warn">too many ducts for this plenum</div>
+        )}
+        <ObjRow k="On" v={model || "—"} />
         <ObjRow k="On" v={model || "—"} />
 
         <div className="ds-ck-spigs">

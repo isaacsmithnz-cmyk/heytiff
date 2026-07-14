@@ -21,7 +21,7 @@ import {
   streamOf,
   type PlenumSpigot,
 } from "@/lib/studio/ducted";
-import type { IndoorUnit, PlenumSpec } from "@/lib/studio/packs/schema";
+import type { IndoorUnit, OpeningSpec } from "@/lib/studio/packs/schema";
 import type { PlanImages } from "@/lib/studio/plans";
 import type { SimRuntime } from "@/lib/studio/sim-runtime";
 import { SimOverlay } from "./sim-overlay";
@@ -201,25 +201,28 @@ function unitGlyph(cx: number, cy: number, w: number, h: number, role: string, z
 const ANCHOR_SNAP_PX = 16; // screen px to snap a pipe endpoint to an anchor
 const PLENUM_SNAP_PX = 20; // screen px to snap the plenum ghost onto an AHU end
 
-/* ── Plenum plan geometry (spec §1b). All DIMENSIONS come from the engine
-   (plenumBody); this only lays the resolved mm out in world space. The body
-   mounts on an AHU end face and extends outward: supply = trapezoid from the
-   face to the (usually wider) spigot face — refaceted fronts render as three
-   angled segments — return = plain rectangle. Spigot stubs sit at true Ø at
-   their `t` positions; side-face spigots ride the left/right edges. ── */
-interface PlenumSpigotDot {
+/* ── Plenum plan geometry (spec §1b, field feedback 2026-07-14). All
+   DIMENSIONS come from the engine (plenumBody); this only lays the resolved
+   mm out in world space. The BASE (widest edge) sits ON the unit at the
+   opening width and the body tapers OUTWARD to a narrow spigot face —
+   1 spigot ≈ an arrow, 3–4 ≈ a trapezoid, base always widest. Spigots are
+   RECTANGLES (plan view of a round takeoff) standing off the spigot face at
+   true width; side-face spigots ride the left/right edges. ── */
+interface PlenumSpigotRect {
   id: string;
-  x: number;
-  y: number;
-  r: number;
-  capped: boolean;
-  /** outward normal (unit-ish) — the stub offset + cap-tick direction */
+  /** 4 corners of the spigot rectangle (plan view of the takeoff) */
+  rect: Point[];
+  /** centre (cap-tick anchor + hit target) */
+  cx: number;
+  cy: number;
+  /** outward normal — cap-tick direction */
   nx: number;
   ny: number;
+  capped: boolean;
 }
 interface PlenumShape {
   body: Point[];
-  spigots: PlenumSpigotDot[];
+  spigots: PlenumSpigotRect[];
   labelAt: Point;
 }
 
@@ -229,87 +232,87 @@ function plenumShape(opts: {
   cy: number;
   /** outward direction along x: +1 = supply end (right), −1 = return (left) */
   dir: 1 | -1;
-  /** half the mounting-face length, world units */
-  faceHalf: number;
-  /** body outer width / depth (world units, from plenumBody × scale) */
-  w: number;
-  d: number;
-  faceted: boolean;
-  /** return plenums are plain rectangles */
-  rect: boolean;
+  /** half the BASE width — on the unit, the widest edge (world units) */
+  baseHalf: number;
+  /** half the SPIGOT-FACE width — the narrow far edge (world units, ≤ base) */
+  spigotHalf: number;
+  /** plan protrusion from the unit face (world units) */
+  depth: number;
   spigots: (PlenumSpigot & { r: number })[];
 }): PlenumShape {
-  const { cx, cy, dir, faceHalf, w, d, faceted, rect } = opts;
-  const x0 = cx;
-  const x1 = cx + dir * d;
-  const ho = w / 2; // outer (spigot-face) half-width
-  const hf = rect ? ho : faceHalf; // rectangle hugs its own width at the face
-  const inset = d * 0.32; // how far the splayed facets pull back
-  const cFlat = w * 0.27; // half-width of the flat centre facet
+  const { cx, cy, dir, baseHalf, depth } = opts;
+  const x0 = cx; // base, on the unit
+  const x1 = cx + dir * depth; // spigot face, outward
+  const hBase = baseHalf;
+  // never let the far face collapse fully — a lone spigot still needs a lip
+  const hSpig = Math.min(hBase, Math.max(opts.spigotHalf, hBase * 0.12));
+  const stub = depth * 0.4; // how far the spigot rectangles stand off the face
 
-  const body: Point[] = rect
-    ? [
-        { x: x0, y: cy - ho },
-        { x: x1, y: cy - ho },
-        { x: x1, y: cy + ho },
-        { x: x0, y: cy + ho },
-      ]
-    : faceted
-      ? [
-          { x: x0, y: cy - hf },
-          { x: x1 - dir * inset, y: cy - ho },
-          { x: x1, y: cy - cFlat },
-          { x: x1, y: cy + cFlat },
-          { x: x1 - dir * inset, y: cy + ho },
-          { x: x0, y: cy + hf },
-        ]
-      : [
-          { x: x0, y: cy - hf },
-          { x: x1, y: cy - ho },
-          { x: x1, y: cy + ho },
-          { x: x0, y: cy + hf },
-        ];
+  // trapezoid: WIDE at the unit (x0, ±hBase) → NARROW at the spigot face (x1, ±hSpig)
+  const body: Point[] = [
+    { x: x0, y: cy - hBase },
+    { x: x1, y: cy - hSpig },
+    { x: x1, y: cy + hSpig },
+    { x: x0, y: cy + hBase },
+  ];
 
-  /* front spigots: t ∈ 0..1 top→bottom along the spigot face; faceted fronts
-     pull the outer splay positions back toward the AHU */
-  const frontAt = (t: number): Point => {
-    const y = cy - ho + t * 2 * ho;
-    if (!faceted || rect) return { x: x1, y };
-    const off = Math.abs(y - cy);
-    if (off <= cFlat) return { x: x1, y };
-    const f = (off - cFlat) / Math.max(ho - cFlat, 1e-6);
-    return { x: x1 - dir * inset * f, y };
-  };
-  /* side spigots ride the left (y−) / right (y+) edge from face corner to
-     outer corner */
+  /* front spigots: t ∈ 0..1 top→bottom along the (narrow) spigot face */
+  const frontAt = (t: number): Point => ({ x: x1, y: cy - hSpig + t * 2 * hSpig });
+  /* side spigots ride the left (y−) / right (y+) sloped edge, base→spigot corner */
   const sideAt = (t: number, side: "left" | "right"): Point => {
     const s = side === "left" ? -1 : 1;
-    const a = { x: x0, y: cy + s * hf };
-    const b = faceted && !rect ? { x: x1 - dir * inset, y: cy + s * ho } : { x: x1, y: cy + s * ho };
+    const a = { x: x0, y: cy + s * hBase };
+    const b = { x: x1, y: cy + s * hSpig };
     return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
   };
 
-  const spigots: PlenumSpigotDot[] = opts.spigots.map((s) => {
+  const spigots: PlenumSpigotRect[] = opts.spigots.map((s) => {
     if (s.face === "front") {
+      // rectangle: Ø across the face (in y), stub outward (in x)
       const p = frontAt(s.t);
-      return { id: s.id, x: p.x + dir * s.r, y: p.y, r: s.r, capped: s.capped === true, nx: dir, ny: 0 };
+      const xOut = p.x + dir * stub;
+      return {
+        id: s.id,
+        rect: [
+          { x: p.x, y: p.y - s.r },
+          { x: xOut, y: p.y - s.r },
+          { x: xOut, y: p.y + s.r },
+          { x: p.x, y: p.y + s.r },
+        ],
+        cx: p.x + (dir * stub) / 2,
+        cy: p.y,
+        nx: dir,
+        ny: 0,
+        capped: s.capped === true,
+      };
     }
+    // side spigot: Ø across the edge (in x), stub outward (in y)
     const p = sideAt(s.t, s.face);
     const ny = s.face === "left" ? -1 : 1;
-    return { id: s.id, x: p.x, y: p.y + ny * s.r, r: s.r, capped: s.capped === true, nx: 0, ny };
+    const yOut = p.y + ny * stub;
+    return {
+      id: s.id,
+      rect: [
+        { x: p.x - s.r, y: p.y },
+        { x: p.x - s.r, y: yOut },
+        { x: p.x + s.r, y: yOut },
+        { x: p.x + s.r, y: p.y },
+      ],
+      cx: p.x,
+      cy: p.y + (ny * stub) / 2,
+      nx: 0,
+      ny,
+      capped: s.capped === true,
+    };
   });
 
-  return {
-    body,
-    spigots,
-    labelAt: { x: (x0 + x1) / 2, y: cy + Math.max(ho, hf) },
-  };
+  return { body, spigots, labelAt: { x: (x0 + x1) / 2, y: cy + hBase } };
 }
 
-/** the pack's plenum spec for one stream of an indoor unit, or null */
-function plenumSpecOf(row: IndoorUnit | null, end: "supply" | "return"): PlenumSpec | null {
+/** the pack's air-opening for one stream of an indoor unit, or null */
+function openingOf(row: IndoorUnit | null, end: "supply" | "return"): OpeningSpec | null {
   if (!row) return null;
-  return (end === "return" ? row.return_plenum : row.supply_plenum) ?? null;
+  return (end === "return" ? row.return_opening : row.supply_opening) ?? null;
 }
 
 function defaultViewport(
@@ -755,7 +758,7 @@ export function StudioCanvas({
       const row = ahuRow(u);
       if (!row) continue;
       for (const end of ["supply", "return"] as const) {
-        const builtIn = end === "return" && row.return_plenum === "built-in";
+        const builtIn = end === "return" && row.return_opening === "built-in";
         const occupied =
           builtIn || plenums.some((p) => p.props.unitId === u.id && p.props.end === end);
         out.push({ unit: u, row, end, occupied, builtIn });
@@ -815,7 +818,7 @@ export function StudioCanvas({
   const plenumShapes = useMemo(() => {
     const m = new Map<
       string,
-      PlenumShape & { label: string; derived: boolean; unitId: string }
+      PlenumShape & { label: string; derived: boolean; overSpigot: boolean; unitId: string }
     >();
     for (const p of plenums) {
       const unit = units.find((u) => u.id === String(p.props.unitId ?? ""));
@@ -826,30 +829,32 @@ export function StudioCanvas({
       const fp = footprint(widthMm, depthMm);
       const perMm = fp.w / Math.max(widthMm, 1); // world units per mm (works uncalibrated)
       const row = iduSpec?.(String(unit.props.model ?? "")) ?? null;
-      const spec = plenumSpecOf(row, end);
+      const opening = openingOf(row, end);
       const sp = spigotsOf(p.props);
       const body = plenumBody({
-        spec,
+        opening,
         unitWidthMm: depthMm, // the mounting face is the unit's short end
         spigots: sp,
         units: doc.settings.units,
       });
-      if (body.builtIn) continue; // built-in renders fused to the AHU, not as an object
+      if (body.builtIn || body.factorySpigots) continue; // no drawn plenum object
       const f = endFace(unit, end);
+      // base = the discharge opening (a plenum box fans wider than the slim
+      // unit end, so it is NOT clamped to the mounting-face length)
+      const baseHalf = (body.baseWMm * perMm) / 2;
       m.set(p.id, {
         ...plenumShape({
           cx: f.mid.x,
           cy: f.mid.y,
           dir: f.dir,
-          faceHalf: f.faceHalf,
-          w: body.wMm * perMm,
-          d: body.dMm * perMm,
-          faceted: body.faceted,
-          rect: streamOf(p.props) === "return",
+          baseHalf,
+          spigotHalf: (body.spigotFaceWMm * perMm) / 2,
+          depth: body.depthMm * perMm,
           spigots: sp.map((s) => ({ ...s, r: (s.diaMm * perMm) / 2 })),
         }),
         label: body.label,
         derived: body.derived,
+        overSpigot: body.overSpigot,
         unitId: unit.id,
       });
     }
@@ -2118,7 +2123,7 @@ export function StudioCanvas({
             return (
               <g
                 key={p.id}
-                className={`ds-plenum${p.id === selectedId ? " sel" : ""}`}
+                className={`ds-plenum${p.id === selectedId ? " sel" : ""}${s.overSpigot ? " over" : ""}`}
                 style={{ color: colour }}
               >
                 <polygon
@@ -2128,14 +2133,14 @@ export function StudioCanvas({
                 />
                 {s.spigots.map((sp) => (
                   <g key={sp.id} className="ds-spigot">
-                    <circle cx={sp.x} cy={sp.y} r={sp.r} />
+                    <polygon points={sp.rect.map((pt) => `${pt.x},${pt.y}`).join(" ")} />
                     {sp.capped && (
                       <line
                         className="ds-spigot-cap"
-                        x1={sp.x + sp.nx * sp.r - sp.ny * sp.r * 0.9}
-                        y1={sp.y + sp.ny * sp.r - sp.nx * sp.r * 0.9}
-                        x2={sp.x + sp.nx * sp.r + sp.ny * sp.r * 0.9}
-                        y2={sp.y + sp.ny * sp.r + sp.nx * sp.r * 0.9}
+                        x1={sp.cx - sp.ny * 4}
+                        y1={sp.cy - sp.nx * 4}
+                        x2={sp.cx + sp.ny * 4}
+                        y2={sp.cy + sp.nx * 4}
                       />
                     )}
                   </g>
@@ -2181,7 +2186,7 @@ export function StudioCanvas({
                           const fp = footprint(widthMm, depthMm);
                           const perMm = fp.w / Math.max(widthMm, 1);
                           const body = plenumBody({
-                            spec: plenumSpecOf(e.row, e.end),
+                            opening: openingOf(e.row, e.end),
                             unitWidthMm: depthMm,
                             spigots: [],
                             units: doc.settings.units,
@@ -2190,11 +2195,9 @@ export function StudioCanvas({
                             cx: f.mid.x,
                             cy: f.mid.y,
                             dir: f.dir,
-                            faceHalf: f.faceHalf,
-                            w: body.wMm * perMm,
-                            d: body.dMm * perMm,
-                            faceted: false,
-                            rect: component.stream === "return",
+                            baseHalf: (body.baseWMm * perMm) / 2,
+                            spigotHalf: (body.spigotFaceWMm * perMm) / 2,
+                            depth: body.depthMm * perMm,
                             spigots: [],
                           });
                           return (

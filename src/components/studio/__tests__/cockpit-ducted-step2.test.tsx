@@ -46,12 +46,22 @@ function loadPack(): DataPack {
   }
   return assemblePack({ meta, sections });
 }
-const pack = loadPack();
-/* the ME range has no built-in return — clone one row into that case */
+const basePack = loadPack();
+/* the ME pack ships no opening dims yet (grey-default path) — seed a real
+   supply opening on the test AHU so the card exercises the data path, and
+   clone one row into the built-in-return case */
+const pack: DataPack = {
+  ...basePack,
+  indoor_units: basePack.indoor_units.map((u) =>
+    u.model === "PEAD-M100JAA(D)"
+      ? { ...u, supply_opening: { w_mm: 1400, h_mm: 250 } as const }
+      : u
+  ),
+};
 const packBuiltIn: DataPack = {
   ...pack,
   indoor_units: pack.indoor_units.map((u) =>
-    u.model === "PEAD-M100JAA(D)" ? { ...u, return_plenum: "built-in" as const } : u
+    u.model === "PEAD-M100JAA(D)" ? { ...u, return_opening: "built-in" as const } : u
   ),
 };
 
@@ -141,16 +151,17 @@ describe("plenum inspect card", () => {
     { id: "s2", diaMm: 350, t: 2 / 3, face: "front" },
   ];
 
-  it("shows engine body dims, facet state and the spigot roster", () => {
+  it("shows engine base dims and the spigot roster (real opening seeded)", () => {
     renderCockpit(mkDoc({ objects: [...twoRooms(), placedAhu(), plenumObj(spigs)] }), {
       selectedId: "pl1",
     });
     const card = screen.getByTestId("plenum-card");
     expect(within(card).getByText("Supply plenum")).toBeInTheDocument();
-    // PEAD-M100 supply spec 1400×250×450 → plan dims W × D
-    expect(within(card).getByText("1400 × 450 mm")).toBeInTheDocument();
-    expect(within(card).getByText("Flat")).toBeInTheDocument();
-    expect(within(card).queryByText("derived — no pack data")).toBeNull();
+    // seeded supply opening 1400 wide × 400 protrusion → base W × depth D
+    expect(within(card).getByText("1400 × 400 mm")).toBeInTheDocument();
+    // real opening → not the grey estimated default, and 2×14" fits (not over)
+    expect(within(card).queryByText("estimated — no opening data in pack")).toBeNull();
+    expect(within(card).queryByText("too many ducts for this plenum")).toBeNull();
     // roster: two Ø350 front spigots (mm units by default) — scoped to the
     // roster so the "+ spigot" series chips don't double-match
     const roster = card.querySelector(".ds-ck-spigs") as HTMLElement;
@@ -216,9 +227,9 @@ describe("plenum inspect card", () => {
     expect(onSelect).toHaveBeenCalledWith(null);
   });
 
-  it("one 14\" too many refacets — the card follows the engine (inch units)", () => {
-    // the M100's 1400 face fits three 14" (1250 needed); a FOURTH needs
-    // 4×350 + 5×50 = 1650 → refacet + grow
+  it("too many ducts for the opening → the card warns, base stays put (inch units)", () => {
+    // no opening data seeded → grey derived default base; four 14" (1650 mm
+    // needed) exceed it → over-spigot warning, base never grows (spec §1b)
     const four = [0.2, 0.4, 0.6, 0.8].map((t, i) => ({
       id: `s${i}`,
       diaMm: 350,
@@ -230,8 +241,9 @@ describe("plenum inspect card", () => {
       { selectedId: "pl1" }
     );
     const card = screen.getByTestId("plenum-card");
-    expect(within(card).getByText("1650 × 450 mm")).toBeInTheDocument();
-    expect(within(card).getByText("3-face (refaceted)")).toBeInTheDocument();
+    expect(within(card).getByText("too many ducts for this plenum")).toBeInTheDocument();
+    // base label is "<base> × 400 mm" — depth is the 400 mm protrusion, not 450
+    expect(within(card).getByText(/× 400 mm$/)).toBeInTheDocument();
     const roster = card.querySelector(".ds-ck-spigs") as HTMLElement;
     expect(within(roster).getAllByText('14"')).toHaveLength(4);
   });

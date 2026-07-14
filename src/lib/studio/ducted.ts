@@ -202,63 +202,105 @@ export function isPlenumOf(
   return o.type === "plenum" && o.props.unitId === unitId;
 }
 
+/** The unit's air opening (spec §1b): dims from the data book size the
+    plenum base; `"built-in"` = integral return (no plenum); `"spigots"` =
+    factory spigots on the opening (no drawn plenum body). */
+export type OpeningSpec = { w_mm: number; h_mm: number } | "built-in" | "spigots";
+
+/** How far a drawn plenum protrudes from the unit in plan (mm). Not a
+    published figure — a construction default. */
+export const PLENUM_PROTRUSION_MM = 400;
+
+/** Derived-default base when the data book opening is absent (Principle 5):
+    ~90 % of the discharge END the plenum bolts to (the caller passes the
+    unit's SHORT-end width, not its long width) — a plausible opening, NEVER
+    the unit's overall width — clearly greyed until real dims are seeded. */
+export function derivedOpeningWidthMm(mountFaceMm: number | null): number {
+  return Math.round((mountFaceMm ?? 700) * 0.9);
+}
+
 export interface PlenumBody {
-  wMm: number;
-  dMm: number;
-  hMm: number | null;
-  /** the flat spigot face couldn't fit the front spigots → 3-sided front */
-  faceted: boolean;
-  /** grey derived default — no pack spec for this unit/stream */
-  derived: boolean;
+  /** base = widest edge, ON the unit (the supply/return opening width) */
+  baseWMm: number;
+  /** far spigot face width (seats the spigots); ≤ baseWMm unless overSpigot */
+  spigotFaceWMm: number;
+  /** plan protrusion from the unit face */
+  depthMm: number;
+  /** integral return — no drawn plenum */
   builtIn: boolean;
-  /** `1550 × 350 · 3 × 14" (3-face)` — dims mm, spigots per units setting */
+  /** factory spigots on the opening — no drawn plenum body */
+  factorySpigots: boolean;
+  /** grey derived default — no opening data for this unit/stream */
+  derived: boolean;
+  /** spigots need a face wider than the base → too many ducts for this plenum */
+  overSpigot: boolean;
+  /** `1200 × 400 · 3 × 14"` — base W × depth D, spigots per units setting */
   label: string;
 }
 
-/** Resolve a plenum's body: pack spec wins; absent → derived default (unit
-    face width × 350 mm deep, grey). Front spigots at true width + gaps
-    refacet + grow the face when they no longer fit; side-face spigots never
-    refacet the front. */
+/** Resolve a plenum's body from the unit's opening. The base (widest edge)
+    sits on the unit at the opening width; the plenum tapers OUTWARD to a
+    narrow spigot face that seats the spigots and stays ≤ the base — when the
+    spigots would need more, `overSpigot` flags "too many ducts for this
+    plenum" (the airflow limit made geometric). No refacet, no growing past
+    the unit (spec §1b, field feedback 2026-07-14). */
 export function plenumBody(opts: {
-  spec?: { w_mm: number; h_mm: number; d_mm: number } | "built-in" | null;
+  opening?: OpeningSpec | null;
   unitWidthMm?: number | null;
   spigots: PlenumSpigot[];
   units: "mm" | "inch";
 }): PlenumBody {
-  const builtIn = opts.spec === "built-in";
-  const spec = opts.spec != null && opts.spec !== "built-in" ? opts.spec : null;
-  const derived = !builtIn && spec == null;
-  const baseW = spec?.w_mm ?? opts.unitWidthMm ?? 1200;
-  const dMm = spec?.d_mm ?? 350;
-  const hMm = spec?.h_mm ?? null;
-  const front = opts.spigots.filter((s) => s.face === "front");
-  const neededW =
-    front.reduce((a, s) => a + s.diaMm, 0) + SPIGOT_GAP_MM * (front.length + 1);
-  const faceted = front.length > 0 && neededW > baseW;
-  const wMm = faceted ? neededW : baseW;
+  const builtIn = opts.opening === "built-in";
+  const factorySpigots = opts.opening === "spigots";
+  const real =
+    opts.opening && opts.opening !== "built-in" && opts.opening !== "spigots"
+      ? opts.opening
+      : null;
+  const derived = !builtIn && !factorySpigots && real == null;
+  const baseWMm = real?.w_mm ?? derivedOpeningWidthMm(opts.unitWidthMm ?? null);
+  // spigot face needs: Σ spigot widths (= their Ø) + gaps each side
+  const onFace = opts.spigots.filter((s) => s.face === "front");
+  const needed =
+    onFace.length === 0
+      ? 0
+      : onFace.reduce((a, s) => a + s.diaMm, 0) + SPIGOT_GAP_MM * (onFace.length + 1);
+  const overSpigot = needed > baseWMm;
+  // 1 spigot → a near-point (arrow); more → widens toward (never past) the base
+  const spigotFaceWMm = overSpigot ? baseWMm : needed;
   return {
-    wMm,
-    dMm,
-    hMm,
-    faceted,
-    derived,
+    baseWMm,
+    spigotFaceWMm,
+    depthMm: PLENUM_PROTRUSION_MM,
     builtIn,
-    label: plenumLabel(wMm, dMm, opts.spigots, opts.units, faceted),
+    factorySpigots,
+    derived,
+    overSpigot,
+    label: plenumLabel(baseWMm, PLENUM_PROTRUSION_MM, opts.spigots, opts.units),
   };
 }
 
 export function plenumLabel(
-  wMm: number,
-  dMm: number,
+  baseWMm: number,
+  depthMm: number,
   spigots: PlenumSpigot[],
-  units: "mm" | "inch",
-  faceted: boolean
+  units: "mm" | "inch"
 ): string {
   const counts = new Map<number, number>();
   for (const s of spigots) counts.set(s.diaMm, (counts.get(s.diaMm) ?? 0) + 1);
   const parts = [...counts.entries()]
     .sort((a, b) => b[0] - a[0])
     .map(([dia, n]) => `${n} × ${formatDia(dia, units)}`);
-  const dims = `${Math.round(wMm)} × ${Math.round(dMm)}`;
-  return `${dims}${parts.length ? ` · ${parts.join(" · ")}` : ""}${faceted ? " (3-face)" : ""}`;
+  const dims = `${Math.round(baseWMm)} × ${Math.round(depthMm)}`;
+  return `${dims}${parts.length ? ` · ${parts.join(" · ")}` : ""}`;
+}
+
+/* ── Plenum supply-duct count guidance (spec §6b-iii) — the spigots are the
+   MAIN supply trunks off the unit (each then branches), so a small count.
+   Suggested from total airflow at the supply velocity. */
+export function suggestedMainDucts(
+  airflowLs: number | null,
+  ductCapacityLs: number
+): number | null {
+  if (airflowLs == null || airflowLs <= 0 || ductCapacityLs <= 0) return null;
+  return Math.ceil(airflowLs / ductCapacityLs);
 }

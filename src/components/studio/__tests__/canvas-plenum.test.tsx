@@ -136,14 +136,15 @@ describe("plenum placement (component tool)", () => {
       onComponentPlaced: placed,
     });
 
-    // the armed stream pre-filters the faces: only the supply end glows
-    expect(svg.querySelectorAll(".ds-plenum-face")).toHaveLength(1);
-    // hovering within snap range lights the face and previews the ghost body
-    fireEvent.pointerMove(svg, pt(439, 300));
+    // undetermined orientation: BOTH long faces are candidates for the armed
+    // stream — the first placement decides (spec §1a)
+    expect(svg.querySelectorAll(".ds-plenum-face")).toHaveLength(2);
+    // hovering the +y face (the default supply face) lights it + ghost
+    fireEvent.pointerMove(svg, pt(400, 320));
     expect(svg.querySelector(".ds-plenum-face.ready")).not.toBeNull();
     expect(svg.querySelector(".ds-plenum-ghost")).not.toBeNull();
 
-    fireEvent.pointerDown(svg, pt(439, 300));
+    fireEvent.pointerDown(svg, pt(400, 320));
     const pl = next!.objects.find((o) => o.type === "plenum")!;
     expect(pl.props).toMatchObject({
       stream: "supply",
@@ -153,18 +154,38 @@ describe("plenum placement (component tool)", () => {
     });
     expect(pl.systemId).toBe("sys1");
     expect(pl.plane).toBe("ceiling-cavity");
+    // the default face was used — no flip written
+    expect(next!.objects.find((o) => o.id === "u1")!.props.airFlip).toBeUndefined();
     expect(placed).toHaveBeenCalled();
   });
 
-  it("the armed stream's toggle gates the other end — a supply arm ignores the return face", () => {
+  it("clicking the OPPOSITE face while undetermined flips the unit — that face becomes supply", () => {
     const doc = mkDoc([ahu()]);
-    const onMutate = jest.fn();
+    let next: DesignDocument | undefined;
     const { svg } = renderCanvas({
       doc,
       component: { kind: "plenum", stream: "supply" },
+      onMutate: (fn) => (next = fn(doc)),
+    });
+    fireEvent.pointerMove(svg, pt(400, 280)); // the −y face
+    fireEvent.pointerDown(svg, pt(400, 280));
+    const pl = next!.objects.find((o) => o.type === "plenum")!;
+    expect(pl.props).toMatchObject({ stream: "supply", end: "supply" });
+    // first placement decided: the unit flipped so −y IS the supply face
+    expect(next!.objects.find((o) => o.id === "u1")!.props.airFlip).toBe(true);
+  });
+
+  it("once determined, only the correct face is offered — the fitted face refuses", () => {
+    const doc = mkDoc([ahu(), plenum()]); // supply plenum fitted (default +y)
+    const onMutate = jest.fn();
+    const { svg } = renderCanvas({
+      doc,
+      component: { kind: "plenum", stream: "return" },
       onMutate,
     });
-    fireEvent.pointerDown(svg, pt(361, 300)); // the return end
+    // determined: exactly ONE candidate (the opposite face)
+    expect(svg.querySelectorAll(".ds-plenum-face")).toHaveLength(1);
+    fireEvent.pointerDown(svg, pt(400, 320)); // the supply face — occupied
     expect(onMutate).not.toHaveBeenCalled();
   });
 
@@ -189,6 +210,17 @@ describe("plenum rendering", () => {
     // no plenums yet → both end faces wear the dashed socket outline
     expect(svg.querySelectorAll(".ds-ahu-socket")).toHaveLength(2);
     expect(svg.querySelector(".ds-ahu-flow")).not.toBeNull();
+    // undetermined: faint arrow + questioning face labels (spec §1a)
+    expect(svg.querySelector(".ds-ahu-flow.faint")).not.toBeNull();
+    const labels = [...svg.querySelectorAll(".ds-ahu-face-label")].map((t) => t.textContent);
+    expect(labels.sort()).toEqual(["return?", "supply?"]);
+  });
+
+  it("a fitted plenum determines the orientation — labels commit, arrow solidifies", () => {
+    const { svg } = renderCanvas({ doc: mkDoc([ahu(), plenum()]) });
+    expect(svg.querySelector(".ds-ahu-flow.faint")).toBeNull();
+    const labels = [...svg.querySelectorAll(".ds-ahu-face-label")].map((t) => t.textContent);
+    expect(labels.sort()).toEqual(["RETURN", "SUPPLY"]);
   });
 
   it("a fitted supply plenum: base WIDEST on the unit, tapering OUT (spec §1b)", () => {
@@ -201,15 +233,16 @@ describe("plenum rendering", () => {
       return { x, y };
     });
     expect(pts).toHaveLength(4); // trapezoid, never refaceted
-    // the two points at the unit face (min x) span a WIDER y-range than the
-    // two at the spigot face (max x) — the arrow tapers outward
-    const faceX = Math.min(...pts.map((p) => p.x));
-    const spigX = Math.max(...pts.map((p) => p.x));
-    const spanAt = (x: number) => {
-      const ys = pts.filter((p) => Math.abs(p.x - x) < 1e-6).map((p) => p.y);
-      return Math.max(...ys) - Math.min(...ys);
+    // air flows through the DEPTH: the base edge (the y nearer the unit
+    // centre) spans WIDER in x than the far spigot face — tapering outward
+    const ys = [...new Set(pts.map((p) => p.y))];
+    const nearY = ys.sort((a, b) => Math.abs(a) - Math.abs(b))[0]; // base, on the unit
+    const farY = ys[ys.length - 1];
+    const spanAt = (y: number) => {
+      const xs = pts.filter((p) => Math.abs(p.y - y) < 1e-6).map((p) => p.x);
+      return Math.max(...xs) - Math.min(...xs);
     };
-    expect(spanAt(faceX)).toBeGreaterThan(spanAt(spigX));
+    expect(spanAt(nearY)).toBeGreaterThan(spanAt(farY));
     // base 1000 mm × 400 depth, from the engine
     expect(svg.querySelector(".ds-plenum-label")!.textContent).toBe("1000 × 400");
   });
@@ -257,7 +290,6 @@ describe("plenum rendering", () => {
   it("moving the AHU carries its plenums — position derives, never stored", () => {
     const { svg, rerender } = renderCanvas({ doc: mkDoc([ahu(), plenum()]) });
     const before = firstPoint(svg.querySelector(".ds-plenum-body")!);
-    expect(before.x).toBeCloseTo(70, 3);
 
     // same plenum object (stored point untouched), the unit moved
     const row = peadRow();

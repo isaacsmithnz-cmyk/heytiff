@@ -2395,6 +2395,34 @@ function ObjectInspectCard({
         <ObjRow k="System" v={system?.name ?? "—"} />
         <ObjRow k="Floor" v={floor.name} />
         {air && <ObjRow k="Plenums" v={plenumStatus} />}
+        {air && (
+          /* airflow direction is user-defined (spec §1a): flip swaps the
+             faces until the first plenum locks the orientation */
+          <div className="ds-ck-airflip">
+            <span className="k">Airflow</span>
+            <button
+              type="button"
+              disabled={fitted.length > 0}
+              title={
+                fitted.length > 0
+                  ? "Orientation is set by the fitted plenum"
+                  : "Swap which long face is supply"
+              }
+              onClick={() =>
+                onMutate((d) => ({
+                  ...d,
+                  objects: d.objects.map((o) =>
+                    o.id === obj.id
+                      ? { ...o, props: { ...o.props, airFlip: o.props.airFlip !== true } }
+                      : o
+                  ),
+                }))
+              }
+            >
+              {fitted.length > 0 ? "Set by plenum" : "Flip"}
+            </button>
+          </div>
+        )}
         {isIdu && (
           <label className="ds-ck-objfield">
             <span>Serves room</span>
@@ -2513,8 +2541,8 @@ export function PlenumInspectCard({
   const spigots = spigotsOf(obj.props);
   const body = plenumBody({
     opening,
-    // the mounting face is the AHU's short end — its depth
-    unitWidthMm: Number(unit?.props.depthMm) || null,
+    // the mounting face is a LONG face — the unit's width (spec §1a)
+    unitWidthMm: Number(unit?.props.widthMm) || null,
     spigots,
     units,
   });

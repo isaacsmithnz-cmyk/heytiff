@@ -138,17 +138,26 @@ with it. Nothing ever silently detaches.
   opening** — ducts never connect to the unit directly, only via a plenum
   (or the opening's factory spigots, §1b). Empty openings show a dashed
   socket outline ("plenum goes here").
-- **Airflow direction is user-defined** — no data book publishes which end
-  discharges, and these fan-coils can be mounted either way round. So:
-  - The end the user attaches the **supply** plenum to becomes the supply
-    (discharge) end; the return goes on the opposite end.
-  - The **airflow arrow** inside the body points **return → supply** from
-    those placements — it's a *consequence* of where the plenums went, not a
-    guess. Before any plenum: faint default arrow + a **flip** affordance.
-  - A **flip control** (inspector + a rotate-style handle) swaps the
-    supply/return ends — for correcting orientation or setting it before
-    plenums exist. Flipping with plenums attached swaps which opening each
-    is bound to (or warns if that conflicts with a built-in return).
+- **Air flows through the DEPTH** (the short dimension) on almost every
+  ducted unit — so the supply and return openings are the two **LONG
+  faces** of the rectangle, never the short ends.
+- **Airflow direction is user-defined by connection** — no data book
+  publishes which face discharges, and these fan-coils mount either way
+  round. The model (field feedback 2026-07-14):
+  - The unit is **just a rectangle with its two long faces labelled** —
+    faint `supply?` / `return?` until determined.
+  - **The first plenum placed decides the orientation**: attach the supply
+    plenum to a long face and that face IS supply; return is automatically
+    the opposite face (and vice versa — attach return first and supply is
+    implied opposite). One placement, everything else follows.
+  - The **airflow arrow** spans the depth, pointing **return → supply**
+    (toward the front of the system) — a *consequence* of the connection,
+    never a guess. Before any plenum: faint default arrow.
+  - A **flip control** (AHU inspector) swaps the faces while nothing has
+    determined them; once a plenum (or built-in return) fixes the
+    orientation, flip is disabled with the reason.
+  - **Built-in return** collapses it: only the supply plenum is ever
+    attached; the return face is implied opposite, rendered fused.
 - **Built-in return** (data-book flag `return_opening: "built-in"`):
   integral return box fused to the body, its spigot(s) ready; the palette's
   return-plenum entry is disabled with the reason, and the return end can't

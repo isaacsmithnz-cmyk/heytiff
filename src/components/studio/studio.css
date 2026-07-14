@@ -4925,6 +4925,18 @@
 }
 .dstudio .ds-ck-usub { font: 500 11px var(--font); color: var(--gray500); margin-top: 1px; }
 .dstudio .ds-ck-usub.warn { color: var(--amber, #d98324); }
+/* AHU airflow flip (ducted spec §1a) — disabled once a plenum decides */
+.dstudio .ds-ck-airflip { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; }
+.dstudio .ds-ck-airflip .k { font: 500 11px var(--font); color: var(--gray500); }
+.dstudio .ds-ck-airflip button {
+  font: 600 11px var(--font);
+  padding: 3px 10px;
+  border: 1px solid var(--gray200);
+  border-radius: 999px;
+  background: #fff;
+  cursor: pointer;
+}
+.dstudio .ds-ck-airflip button:disabled { color: var(--gray400); cursor: default; }
 .dstudio .ds-ck-utotag {
   display: inline-block;
   margin-top: 3px;
@@ -5508,6 +5520,18 @@
   opacity: 0.7;
   vector-effect: non-scaling-stroke;
 }
+/* undetermined orientation (no plenum yet) — the arrow is only a default */
+.dstudio .ds-ahu-flow.faint { opacity: 0.25; stroke-dasharray: 3 3; }
+/* the long faces labelled SUPPLY / RETURN ("supply?" until determined) */
+.dstudio .ds-ahu-face-label {
+  fill: currentColor;
+  text-anchor: middle;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-family: var(--font);
+}
+.dstudio .ds-ahu-face-label.faint { opacity: 0.4; font-weight: 600; }
 /* armed plenum: candidate faces glow before the click; ghost body previews */
 .dstudio .ds-plenum-face {
   stroke: #16a34a;

@@ -33,9 +33,9 @@ interface Particle {
 
 const MAX_PARTICLES = 600;
 const PARTICLE_LIFE_S = 3.5;
-const SPAWN_PER_S = 20; // per emitter at full fan — denser reads as a continuous stream
-const DRAG_K = 0.32; // s⁻¹ — gentle: particles hold speed along the path so streaks stay long
-const STREAK_S = 0.4; // seconds of travel a streak represents — the jet length
+const SPAWN_PER_S = 26; // per emitter at full fan — dense so soft puffs merge into vapour
+const DRAG_K = 0.3; // s⁻¹ — gentle: air holds speed along the path so the stream stays long
+const STREAK_S = 0.45; // seconds of travel a streak represents — the vapour length
 
 export function SimOverlay({
   runtime,
@@ -148,7 +148,7 @@ function draw(
   for (const h of model.handlers) {
     const s = state.handlers[h.id];
     if (!s) continue;
-    if (reduced) drawChevrons(ctx, h, s, model.mPerUnit, zoom);
+    if (reduced) drawChevrons(ctx, h, s, model.mPerUnit, zoom, state.roomTempC[h.roomId] ?? s.supplyC);
     else stepEmitter(h, s, model.mPerUnit, particles, spawnDebt, dtReal, state.paused);
     drawFacingTick(ctx, h, zoom);
   }
@@ -180,13 +180,50 @@ function fillRoomBounds(ctx: CanvasRenderingContext2D, pts: Point[]) {
   ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
 }
 
-/* plume colour: the supply-air tint, gently boosted. Near-neutral supply
-   (coil still cold) is nearly invisible — the blush is the coil lag. The cap
-   stays LOW because overlapping particles stack alpha: smoke, not fire. */
-function plumeColor(supplyC: number): { rgb: string; alpha: number } | null {
-  const t = tempTint(supplyC);
-  if (!t) return null;
-  return { rgb: t.rgb, alpha: Math.min(t.alpha * 1.3, 0.22) };
+/* plume colour: the conditioned air is coloured by how far the SUPPLY sits
+   from the ROOM it enters (not from a fixed neutral) — that's what makes the
+   draft visible: warm air into a cold room reads as a pale-peach billow, cold
+   air into a warm room as a light-blue one, even when the supply temperature
+   itself is unremarkable. Lifted toward white for the luminous vapour look;
+   alpha stays low because the soft puffs stack into translucent vapour.
+   Supply ≈ room (unit satisfied / just idling) → no visible draft. */
+function plumeColor(supplyC: number, roomC: number): { rgb: string; alpha: number } | null {
+  const d = supplyC - roomC;
+  const a = Math.abs(d);
+  if (a < 1) return null;
+  const mag = Math.min((a - 1) / 13, 1); // ramps over a ~1–14 K supply/room gap
+  const base = d >= 0 ? [255, 138, 0] : [70, 162, 236]; // warm draft vs cold draft
+  const lift = (c: number) => Math.round(c + (255 - c) * 0.4);
+  return {
+    rgb: base.map(lift).join(", "),
+    alpha: 0.05 + mag * 0.13,
+  };
+}
+
+/* a reusable offscreen "soft blob" — a feathered radial gradient in the
+   plume colour, stretched per particle into an elongated vapour puff.
+   Pre-rendered once per handler per frame (a few gradients), then blitted
+   per particle, which is far cheaper than a gradient per particle. */
+let _sprite: HTMLCanvasElement | null = null;
+const SPRITE_PX = 64;
+function tintedSprite(rgb: string): HTMLCanvasElement | null {
+  if (!_sprite) {
+    if (typeof document === "undefined") return null;
+    _sprite = document.createElement("canvas");
+    _sprite.width = SPRITE_PX;
+    _sprite.height = SPRITE_PX;
+  }
+  const g = _sprite.getContext("2d");
+  if (!g) return null;
+  const c = SPRITE_PX / 2;
+  g.clearRect(0, 0, SPRITE_PX, SPRITE_PX);
+  const grad = g.createRadialGradient(c, c, 0, c, c, c);
+  grad.addColorStop(0, `rgba(${rgb}, 1)`);
+  grad.addColorStop(0.45, `rgba(${rgb}, 0.35)`);
+  grad.addColorStop(1, `rgba(${rgb}, 0)`);
+  g.fillStyle = grad;
+  g.fillRect(0, 0, SPRITE_PX, SPRITE_PX);
+  return _sprite;
 }
 
 function stepEmitter(
@@ -257,54 +294,53 @@ function stepAndDrawParticles(
       const drag = Math.exp(-DRAG_K * dtReal); // smooth deceleration into the room
       p.vx *= drag;
       p.vy *= drag;
-      /* soft curl: a little lateral breathing, per-particle phase */
-      const wob = Math.sin(p.age * 2 + p.seed) * 0.08 * dtReal;
-      p.x += p.vx * dtReal - p.vy * wob;
-      p.y += p.vy * dtReal + p.vx * wob;
+      /* soft curl: gentle lateral billowing that grows as the air slows and
+         spreads — straight jet at the nozzle, curling vapour deeper in */
+      const swirl = (0.06 + 0.18 * (p.age / p.life)) * Math.sin(p.age * 1.6 + p.seed);
+      p.x += p.vx * dtReal - p.vy * swirl * dtReal;
+      p.y += p.vy * dtReal + p.vx * swirl * dtReal;
     }
   }
 
-  /* draw per handler, CLIPPED to its room — supply air never crosses walls */
+  /* draw per handler, CLIPPED to its room — supply air never crosses walls.
+     Each particle is a soft, feathered, velocity-aligned vapour puff (a
+     stretched radial-gradient sprite); overlapping puffs merge into a
+     continuous flowing stream — long and thin off the louvre, broadening and
+     dissipating as it mixes into the room. */
   for (const h of model.handlers) {
     const s = state.handlers[h.id];
     const room = roomById.get(h.roomId);
     if (!s || !room) continue;
-    const col = plumeColor(s.supplyC);
+    const col = plumeColor(s.supplyC, state.roomTempC[h.roomId] ?? s.supplyC);
     if (!col) continue;
+    const sprite = tintedSprite(col.rgb);
+    if (!sprite) continue;
     ctx.save();
     tracePolygon(ctx, room.points);
     ctx.clip();
-    ctx.lineCap = "round";
     for (const p of particles) {
       if (p.handlerId !== h.id) continue;
       const k = p.age / p.life;
-      const fade = k < 0.12 ? k / 0.12 : 1 - (k - 0.12) / 0.88; // ease in, fade out
-      /* draw each particle as a velocity-aligned STREAK — long and thin where
-         the air moves fast (the jet off the louvre), collapsing to a soft dot
-         as drag slows it and it mixes into the room. Width thin at the nozzle,
-         widening slightly as it diffuses. */
+      const fade = k < 0.14 ? k / 0.14 : 1 - (k - 0.14) / 0.86; // ease in, fade out
       const sp = Math.hypot(p.vx, p.vy); // world units / s
       const len = sp * STREAK_S; // streak length, world units
-      const w = (0.06 + 0.22 * k) / mPerUnit; // ~0.06 m jet → ~0.28 m mixed
-      ctx.strokeStyle = `rgba(${col.rgb}, ${(col.alpha * fade).toFixed(3)})`;
-      ctx.lineWidth = w;
-      if (len < w) {
-        // essentially stopped — a round puff, so the tail never pops to a dash
-        ctx.fillStyle = ctx.strokeStyle;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, w / 2, 0, Math.PI * 2);
-        ctx.fill();
-      } else {
-        const ux = p.vx / sp;
-        const uy = p.vy / sp;
-        ctx.beginPath();
-        ctx.moveTo(p.x - ux * len, p.y - uy * len); // tail
-        ctx.lineTo(p.x, p.y); // leading head, in the flow direction
-        ctx.stroke();
-      }
+      const across = (0.14 + 0.5 * k) / mPerUnit; // soft width, grows as it mixes
+      const along = len / 2 + across; // half-length of the vapour lozenge
+      const ux = sp > 1e-6 ? p.vx / sp : h.dir.x;
+      const uy = sp > 1e-6 ? p.vy / sp : h.dir.y;
+      // centre the lozenge on the midpoint of the streak (head leads at p)
+      const cx = p.x - ux * (len / 2);
+      const cy = p.y - uy * (len / 2);
+      ctx.globalAlpha = col.alpha * fade;
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(Math.atan2(uy, ux));
+      ctx.drawImage(sprite, -along, -across, along * 2, across * 2);
+      ctx.restore();
     }
     ctx.restore();
   }
+  ctx.globalAlpha = 1;
 }
 
 /* reduced-motion fallback: static chevrons along the throw, sized by flow */
@@ -313,12 +349,13 @@ function drawChevrons(
   h: SimHandlerModel,
   s: SimHandlerState,
   mPerUnit: number | null,
-  zoom: number
+  zoom: number,
+  roomC: number
 ) {
   if (!s.on) return;
   const throwU = throwLengthU(h, s, mPerUnit);
   if (throwU <= 0) return;
-  const col = plumeColor(s.supplyC) ?? { rgb: "120, 130, 145", alpha: 0.4 };
+  const col = plumeColor(s.supplyC, roomC) ?? { rgb: "120, 130, 145", alpha: 0.4 };
   ctx.strokeStyle = `rgba(${col.rgb}, ${Math.max(col.alpha, 0.3)})`;
   ctx.lineWidth = 2 / zoom;
   ctx.lineCap = "round";

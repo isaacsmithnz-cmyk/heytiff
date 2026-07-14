@@ -33,8 +33,9 @@ interface Particle {
 
 const MAX_PARTICLES = 600;
 const PARTICLE_LIFE_S = 3.5;
-const SPAWN_PER_S = 13; // per emitter at full fan — sparse; overlap must stay translucent
-const DRAG_K = 0.55; // s⁻¹ — deceleration; spawn speed solves against this
+const SPAWN_PER_S = 20; // per emitter at full fan — denser reads as a continuous stream
+const DRAG_K = 0.32; // s⁻¹ — gentle: particles hold speed along the path so streaks stay long
+const STREAK_S = 0.4; // seconds of travel a streak represents — the jet length
 
 export function SimOverlay({
   runtime,
@@ -273,16 +274,34 @@ function stepAndDrawParticles(
     ctx.save();
     tracePolygon(ctx, room.points);
     ctx.clip();
+    ctx.lineCap = "round";
     for (const p of particles) {
       if (p.handlerId !== h.id) continue;
       const k = p.age / p.life;
-      /* physical size: ~0.15 m leaving the louvre, ~0.7 m fully mixed */
-      const r = (0.15 + 0.55 * k) / mPerUnit;
       const fade = k < 0.12 ? k / 0.12 : 1 - (k - 0.12) / 0.88; // ease in, fade out
-      ctx.fillStyle = `rgba(${col.rgb}, ${(col.alpha * fade).toFixed(3)})`;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-      ctx.fill();
+      /* draw each particle as a velocity-aligned STREAK — long and thin where
+         the air moves fast (the jet off the louvre), collapsing to a soft dot
+         as drag slows it and it mixes into the room. Width thin at the nozzle,
+         widening slightly as it diffuses. */
+      const sp = Math.hypot(p.vx, p.vy); // world units / s
+      const len = sp * STREAK_S; // streak length, world units
+      const w = (0.06 + 0.22 * k) / mPerUnit; // ~0.06 m jet → ~0.28 m mixed
+      ctx.strokeStyle = `rgba(${col.rgb}, ${(col.alpha * fade).toFixed(3)})`;
+      ctx.lineWidth = w;
+      if (len < w) {
+        // essentially stopped — a round puff, so the tail never pops to a dash
+        ctx.fillStyle = ctx.strokeStyle;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, w / 2, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        const ux = p.vx / sp;
+        const uy = p.vy / sp;
+        ctx.beginPath();
+        ctx.moveTo(p.x - ux * len, p.y - uy * len); // tail
+        ctx.lineTo(p.x, p.y); // leading head, in the flow direction
+        ctx.stroke();
+      }
     }
     ctx.restore();
   }

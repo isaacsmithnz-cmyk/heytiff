@@ -1,6 +1,6 @@
-/* Cockpit hero — the dark ink card's load-coverage summary across the split
-   states: no rooms · room-no-units · units-chosen-unplaced · placed-covered ·
-   uncalibrated. Runs against the real ME pack so the covered case is genuine. */
+/* Cockpit hero — the capacity-donut card. State comes from coverage =
+   selected ÷ required: ≥100% ok · 90–99% warn · <90% bad, and "empty" before a
+   room+pair resolves. Runs against the real ME pack for genuine capacities. */
 
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
@@ -27,6 +27,8 @@ function loadPack(): DataPack {
 }
 const pack = loadPack();
 const floor: Floor = { id: "flr", name: "Ground", level: 0, scaleMmPerUnit: 10, northDeg: null, northPos: null, plans: [] };
+// SLZ-M25FA-A + SUZ-M25VAD-A rate at 2.5 kW cooling
+const PAIR = { pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" };
 
 const rect = (w: number, h: number): DesignObject => ({
   id: "room1",
@@ -50,7 +52,7 @@ function mk(opts: { settings?: Record<string, unknown>; objects?: DesignObject[]
 }
 
 function renderHero(doc: DesignDocument) {
-  render(
+  return render(
     <SystemCockpit
       doc={doc}
       pack={pack}
@@ -67,50 +69,41 @@ function renderHero(doc: DesignDocument) {
     />
   );
 }
+const heroState = (c: HTMLElement) => c.querySelector(".ds-ck-caphero")!.getAttribute("data-state");
 
-describe("Cockpit hero", () => {
-  it("no rooms → Not sized · 0 rooms served", () => {
-    renderHero(mk());
+describe("Cockpit hero (capacity donut)", () => {
+  it("no rooms → empty state, Not sized", () => {
+    const { container } = renderHero(mk());
+    expect(heroState(container)).toBe("empty");
     expect(screen.getByText("Not sized")).toBeInTheDocument();
-    expect(screen.getByText("0 rooms served")).toBeInTheDocument();
   });
 
-  it("a room but no units → Not sized · Select units to size", () => {
-    renderHero(mk({ objects: [rect(200, 200)] }));
-    expect(screen.getByText("Not sized")).toBeInTheDocument();
-    expect(screen.getByText("Select units to size")).toBeInTheDocument();
+  it("a room but no units → empty state, Select units", () => {
+    const { container } = renderHero(mk({ objects: [rect(200, 200)] }));
+    expect(heroState(container)).toBe("empty");
+    // the ledger sum label (the Units sub also has a "Select units" button)
+    expect(screen.getByText("Select units", { selector: ".ds-ck-ledger-row .k" })).toBeInTheDocument();
   });
 
-  it("a pair chosen but unplaced → Awaiting placement · Place on plan to size", () => {
-    renderHero(
-      mk({ settings: { pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" }, objects: [rect(200, 200)] })
-    );
-    expect(screen.getByText("Awaiting placement")).toBeInTheDocument();
-    expect(screen.getByText("2 units selected")).toBeInTheDocument();
-    expect(screen.getByText("Place on plan to size")).toBeInTheDocument();
+  it("selected covers required → ok state, Spare", () => {
+    // a small room (~4 m²) with a 2.5 kW pair → well over 100%
+    const { container } = renderHero(mk({ settings: PAIR, objects: [rect(200, 200)] }));
+    expect(heroState(container)).toBe("ok");
+    expect(screen.getByText("Spare")).toBeInTheDocument();
+    // Selected ledger value (also shown on the Units card, so scope to the ledger)
+    expect(screen.getByText("2.5 kW", { selector: ".ds-ck-ledger-row.sel .v" })).toBeInTheDocument();
   });
 
-  it("a placed IDU that covers the room → Covered + headroom", () => {
-    const idu: DesignObject = {
-      id: "u_idu",
-      type: "unit",
-      systemId: "sys1",
-      floorId: "flr",
-      geometry: { kind: "point", at: { x: 50, y: 50 } },
-      plane: "room",
-      props: { role: "idu", model: "SLZ-M25FA-A", roomId: "room1" },
-    };
-    renderHero(
-      mk({ settings: { pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" }, objects: [rect(200, 200), idu] })
-    );
-    // the hero badge specifically (the inspect card also shows a "Covered" badge)
-    expect(screen.getByText("Covered", { selector: ".ds-ck-badge" })).toBeInTheDocument();
-    expect(screen.getByText(/headroom/)).toBeInTheDocument();
+  it("selected well under required → bad state, Short", () => {
+    // a 20 m² room (~2.9 kW load) with the 2.5 kW pair → ~86% (<90%)
+    const { container } = renderHero(mk({ settings: PAIR, objects: [rect(500, 400)] }));
+    expect(heroState(container)).toBe("bad");
+    expect(screen.getByText("Short")).toBeInTheDocument();
   });
 
-  it("an uncalibrated floor → Not sized · Calibrate to size", () => {
-    renderHero(mk({ objects: [rect(200, 200)], scale: null }));
-    expect(screen.getByText("Not sized")).toBeInTheDocument();
-    expect(screen.getByText("Calibrate to size")).toBeInTheDocument();
+  it("an uncalibrated floor → empty state, Calibrate", () => {
+    const { container } = renderHero(mk({ settings: PAIR, objects: [rect(200, 200)], scale: null }));
+    expect(heroState(container)).toBe("empty");
+    expect(screen.getByText("Calibrate")).toBeInTheDocument();
   });
 });

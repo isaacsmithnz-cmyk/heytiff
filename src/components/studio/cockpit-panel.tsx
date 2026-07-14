@@ -13,7 +13,7 @@
    the engines (coverage / split / components) — this file renders + arms
    intents, mutating through onMutate exactly as the old panel did. */
 
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import type {
   DesignDocument,
@@ -27,7 +27,7 @@ import type { DataPack } from "@/lib/studio/packs/schema";
 import { polylineLength, unitsToMeters } from "@/lib/studio/geometry";
 import type { SizingBasis } from "@/lib/studio/loads";
 import { roomAreaM2, roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
-import { roomsServedBy, roomCoverage } from "@/lib/studio/coverage";
+import { roomsServedBy, roomCoverage, systemPairKw } from "@/lib/studio/coverage";
 import type { PairProposal } from "@/lib/studio/split";
 import { moduleFor } from "@/lib/studio/modules";
 import {
@@ -445,18 +445,28 @@ function ActiveCockpit({
 
 /* ─────────────────────────── hero ─────────────────────────── */
 
+/** the ring circumference (2π·45), the basis for the arc offset. */
+const DONUT_CIRC = 282.7;
+
+type HeroState = "ok" | "warn" | "bad" | "empty";
+
 interface HeroModel {
   label: string; // module label, e.g. "Split (1:1)"
-  covLabel: string; // "Load coverage"
-  main: string;
-  em: string;
-  muted: boolean;
-  barPct: number | null; // null → dashed empty bar
-  badge: { kind: "ok" | "warn" | "muted"; text: string };
-  note: { strong?: string; rest: string };
+  state: HeroState;
+  pct: number | null; // centre %, null when not sized
+  requiredKw: number | null; // ledger "Required" (room load)
+  selectedKw: number | null; // ledger "Selected" (chosen pair capacity)
+  sumLabel: string; // "Spare" / "Short" / "Not sized" / "Select units" / "Calibrate"
+  sumValue: string; // signed delta "+0.7 kW" / "−0.5 kW" / "—"
+  dash: number; // stroke-dashoffset the arc animates to
+  over: boolean; // show the >100% overshoot segment
 }
 
-/** split-summary hero derivation (see the button→route map in the spec). */
+const fmtKw = (n: number | null): string => (n != null ? `${n.toFixed(1)} kW` : "— kW");
+
+/** capacity-coverage hero: Required (room load) vs Selected (chosen pair kW).
+    coverage = selected ÷ required → ≥100% ok · 90–99% warn · <90% bad. Before a
+    room+pair resolves it's "empty" (muted donut). */
 function computeHero(
   doc: DesignDocument,
   pack: DataPack | null,
@@ -465,160 +475,201 @@ function computeHero(
   basis: SizingBasis
 ): HeroModel {
   const label = moduleFor(system.type).label;
-  const base = { label, covLabel: "Load coverage" };
+  const room = rooms[0] ?? null;
+  const cov = room && pack ? roomCoverage(doc, pack, room, basis) : null;
+  const requiredKw = cov?.loadKw ?? null;
+  const selectedKw = pack ? systemPairKw(doc, pack, system.id, basis) : null;
 
-  if (rooms.length === 0) {
+  const sized =
+    requiredKw != null && requiredKw > 0 && selectedKw != null && selectedKw > 0;
+
+  if (!sized) {
+    const sumLabel =
+      rooms.length === 0
+        ? "Not sized"
+        : requiredKw == null
+          ? "Calibrate"
+          : "Select units";
     return {
-      ...base,
-      main: "—",
-      em: " / — kW",
-      muted: true,
-      barPct: null,
-      badge: { kind: "muted", text: "Not sized" },
-      note: { rest: "0 rooms served" },
+      label,
+      state: "empty",
+      pct: null,
+      requiredKw,
+      selectedKw,
+      sumLabel,
+      sumValue: "—",
+      dash: DONUT_CIRC,
+      over: false,
     };
   }
 
-  const room = rooms[0];
-  const cov = roomCoverage(doc, pack, room, basis);
-  const mine = doc.objects.filter((o) => o.systemId === system.id && o.type === "unit");
-  const placedIdu = mine.find((o) => o.props.role === "idu") ?? null;
-  const iduModel = String(placedIdu?.props.model ?? system.settings.pairIdu ?? "");
-  const oduModel = String(
-    mine.find((o) => o.props.role === "odu")?.props.model ?? system.settings.pairOdu ?? ""
-  );
-  const hasPair = Boolean(iduModel && oduModel);
-
-  if (cov.loadKw == null) {
-    return {
-      ...base,
-      main: "—",
-      em: " / — kW",
-      muted: true,
-      barPct: null,
-      badge: { kind: "muted", text: "Not sized" },
-      note: { rest: "Calibrate to size" },
-    };
-  }
-  const load = cov.loadKw;
-
-  if (!hasPair) {
-    return {
-      ...base,
-      main: "0",
-      em: ` / ${load.toFixed(1)} kW load`,
-      muted: true,
-      barPct: null,
-      badge: { kind: "muted", text: "Not sized" },
-      note: { rest: "Select units to size" },
-    };
-  }
-
-  if (!placedIdu) {
-    return {
-      ...base,
-      main: "2 units selected",
-      em: "",
-      muted: true,
-      barPct: null,
-      badge: { kind: "muted", text: "Awaiting placement" },
-      note: { rest: "Place on plan to size" },
-    };
-  }
-
-  const pct = Math.min(cov.pct ?? 0, 100);
-  if (cov.status === "covered") {
-    const head = cov.coveredKw - load;
-    return {
-      ...base,
-      main: cov.coveredKw.toFixed(1),
-      em: ` / ${load.toFixed(1)} kW load`,
-      muted: false,
-      barPct: pct,
-      badge: { kind: "ok", text: "Covered" },
-      note: { strong: `+${head.toFixed(1)} kW`, rest: " headroom" },
-    };
-  }
-  const short = load - cov.coveredKw;
+  const coverage = selectedKw / requiredKw;
+  const pct = Math.round(coverage * 100);
+  const delta = selectedKw - requiredKw;
+  const state: HeroState = coverage >= 1 ? "ok" : coverage >= 0.9 ? "warn" : "bad";
   return {
-    ...base,
-    main: cov.coveredKw.toFixed(1),
-    em: ` / ${load.toFixed(1)} kW load`,
-    muted: false,
-    barPct: pct,
-    badge: { kind: "warn", text: "Undersized" },
-    note: { strong: `−${short.toFixed(1)} kW`, rest: " to cover" },
+    label,
+    state,
+    pct,
+    requiredKw,
+    selectedKw,
+    sumLabel: state === "ok" ? "Spare" : "Short",
+    sumValue: `${delta >= 0 ? "+" : "−"}${Math.abs(delta).toFixed(1)} kW`,
+    dash: DONUT_CIRC * (1 - Math.min(coverage, 1)),
+    over: coverage > 1,
   };
 }
 
-function CockpitHero({ hero, onChangeType }: { hero: HeroModel; onChangeType: () => void }) {
-  const [name, ratio] = splitLabel(hero.label);
+/** the coverage ring: draws in from empty on mount, then transitions on change. */
+function Donut({ state, pct, dash, over }: Pick<HeroModel, "state" | "pct" | "dash" | "over">) {
+  const [drawn, setDrawn] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setDrawn(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+  const offset = drawn ? dash : DONUT_CIRC;
+  const verdict =
+    state === "empty" ? "not sized" : state === "ok" ? "covered" : state === "warn" ? "tight" : "undersized";
   return (
-    <div className="ds-ck-hero">
-      <div className="ds-ck-herotop">
-        <span className="ds-ck-eyebrow">System type</span>
-        <button
-          className="ds-ck-change"
-          onClick={onChangeType}
-          title="Change system type — a different type clears the system's units"
-        >
-          Change
-        </button>
+    <div
+      className="ds-ck-donut"
+      role="img"
+      aria-label={pct != null ? `Coverage ${pct}% of required, ${verdict}` : "Not sized"}
+    >
+      <svg viewBox="0 0 110 110" aria-hidden="true">
+        <defs>
+          <linearGradient id="capGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor="#00E5C0" />
+            <stop offset="1" stopColor="#00A389" />
+          </linearGradient>
+        </defs>
+        <circle className="track" cx="55" cy="55" r="45" fill="none" strokeWidth="9" />
+        {state !== "empty" && (
+          <circle
+            className="val"
+            cx="55"
+            cy="55"
+            r="45"
+            fill="none"
+            strokeWidth="9"
+            strokeLinecap="round"
+            style={{ strokeDashoffset: offset }}
+          />
+        )}
+        {over && (
+          <circle
+            className={`over${drawn ? " on" : ""}`}
+            cx="55"
+            cy="55"
+            r="45"
+            fill="none"
+            strokeWidth="9"
+            strokeLinecap="round"
+          />
+        )}
+      </svg>
+      <div className="ctr">
+        <div className="n">{pct != null ? `${pct}%` : "—"}</div>
+        <div className="s">{pct != null ? "of required" : "not sized"}</div>
       </div>
-      <div className="ds-ck-herotype">
-        {name}
-        {ratio && <span> {ratio}</span>}
+      {state !== "empty" && (
+        <span className="badge-tip">
+          <Glyph name={state === "ok" ? "check" : "alert"} size={13} />
+        </span>
+      )}
+    </div>
+  );
+}
+
+function HeroShell({
+  label,
+  state,
+  requiredKw,
+  selectedKw,
+  sumLabel,
+  sumValue,
+  donut,
+  onChangeType,
+}: {
+  label: string;
+  state: HeroState;
+  requiredKw: number | null;
+  selectedKw: number | null;
+  sumLabel: string;
+  sumValue: string;
+  donut: React.ReactNode;
+  onChangeType?: () => void;
+}) {
+  const [name, ratio] = splitLabel(label);
+  return (
+    <div className="ds-ck-caphero" data-state={state}>
+      <div className="ds-ck-caphero-top">
+        <span className="ds-ck-caphero-eyebrow">System type</span>
+        {onChangeType && (
+          <button
+            className="ds-ck-caphero-change"
+            onClick={onChangeType}
+            title="Change system type — a different type clears the system's units"
+          >
+            <Glyph name="edit" size={12} />
+            Change
+          </button>
+        )}
       </div>
-      <div className="ds-ck-cov">
-        <div className="ds-ck-cr">
-          <span className="k">{hero.covLabel}</span>
-          <span className={`v${hero.muted ? " muted" : ""}`}>
-            {hero.main}
-            {hero.em && <em>{hero.em}</em>}
-          </span>
+      <div className="ds-ck-caphero-cols">
+        <div className="ds-ck-caphero-left">
+          <div className="ds-ck-caphero-type">
+            {name}
+            {ratio && <span> {ratio}</span>}
+          </div>
+          <div className="ds-ck-ledger">
+            <div className="ds-ck-ledger-row req">
+              <span className="k">Required</span>
+              <span className="v">{fmtKw(requiredKw)}</span>
+            </div>
+            <div className="ds-ck-ledger-row sel">
+              <span className="k">Selected</span>
+              <span className="v">{fmtKw(selectedKw)}</span>
+            </div>
+            <div className="ds-ck-ledger-row sum">
+              <span className="k">{sumLabel}</span>
+              <span className="v">{sumValue}</span>
+            </div>
+          </div>
         </div>
-        <div className={`ds-ck-bar${hero.barPct == null ? " empty" : ""}`}>
-          {hero.barPct != null && <i style={{ width: `${hero.barPct}%` }} />}
-        </div>
-        <div className="ds-ck-herofoot">
-          <span className={`ds-ck-badge ${hero.badge.kind}`}>
-            {hero.badge.kind === "ok" && <Glyph name="check" size={12} />}
-            {hero.badge.text}
-          </span>
-          <span className="ds-ck-hd">
-            {hero.note.strong && <b>{hero.note.strong}</b>}
-            {hero.note.rest}
-          </span>
-        </div>
+        <div className="ds-ck-caphero-right">{donut}</div>
       </div>
     </div>
+  );
+}
+
+function CockpitHero({ hero, onChangeType }: { hero: HeroModel; onChangeType: () => void }) {
+  return (
+    <HeroShell
+      label={hero.label}
+      state={hero.state}
+      requiredKw={hero.requiredKw}
+      selectedKw={hero.selectedKw}
+      sumLabel={hero.sumLabel}
+      sumValue={hero.sumValue}
+      onChangeType={onChangeType}
+      donut={<Donut state={hero.state} pct={hero.pct} dash={hero.dash} over={hero.over} />}
+    />
   );
 }
 
 /** a minimal hero for unavailable modules (no pack-driven coverage) */
 function SimpleHero({ label }: { label: string }) {
-  const [name, ratio] = splitLabel(label);
   return (
-    <div className="ds-ck-hero">
-      <div className="ds-ck-herotop">
-        <span className="ds-ck-eyebrow">System type</span>
-      </div>
-      <div className="ds-ck-herotype">
-        {name}
-        {ratio && <span> {ratio}</span>}
-      </div>
-      <div className="ds-ck-cov">
-        <div className="ds-ck-cr">
-          <span className="k">Load coverage</span>
-          <span className="v muted">— / — kW</span>
-        </div>
-        <div className="ds-ck-bar empty" />
-        <div className="ds-ck-herofoot">
-          <span className="ds-ck-badge muted">Coming soon</span>
-          <span className="ds-ck-hd">Not yet available</span>
-        </div>
-      </div>
-    </div>
+    <HeroShell
+      label={label}
+      state="empty"
+      requiredKw={null}
+      selectedKw={null}
+      sumLabel="Coming soon"
+      sumValue="—"
+      donut={<Donut state="empty" pct={null} dash={DONUT_CIRC} over={false} />}
+    />
   );
 }
 

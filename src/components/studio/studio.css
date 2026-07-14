@@ -4573,7 +4573,9 @@
   align-items: center;
   justify-content: center;
 }
-.dstudio .ds-ck-donut .badge-tip svg { width: 13px; height: 13px; }
+/* the badge glyph must NOT inherit the ring svg's −90° rotation (it's a
+   separate svg matched by `.ds-ck-donut svg`) — keep the tick upright */
+.dstudio .ds-ck-donut .badge-tip svg { width: 13px; height: 13px; transform: none; }
 .dstudio .ds-ck-caphero[data-state="ok"] .ds-ck-donut .badge-tip { background: var(--ds-ok); box-shadow: 0 3px 8px rgba(0, 163, 137, 0.5); }
 .dstudio .ds-ck-caphero[data-state="warn"] .ds-ck-donut .badge-tip { background: var(--ds-amber); box-shadow: 0 3px 8px rgba(240, 164, 49, 0.5); }
 .dstudio .ds-ck-caphero[data-state="bad"] .ds-ck-donut .badge-tip { background: var(--ds-red-d); box-shadow: 0 3px 8px rgba(224, 38, 79, 0.45); }

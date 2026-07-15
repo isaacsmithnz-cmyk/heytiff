@@ -1493,35 +1493,6 @@ function DesignPanel({
 
   return (
     <div className="ds-design">
-      <div className="ds-toolrail" role="toolbar" aria-label="Canvas tools">
-        {CANVAS_TOOLS.slice(0, 3).map(toolButton)}
-        {/* Air group (Stage 7): both tools gate on rooms + an air-capable AHU
-            (spec §2); Duct arms at Step 4, Component opens the palette */}
-        <button
-          className="ds-tool"
-          disabled
-          aria-label="Duct"
-          title="Ductwork arrives at Step 4"
-        >
-          <Icon name="wind" size={17} />
-        </button>
-        <div className="ds-pal-wrap">
-          <button
-            className={`ds-tool${tool === "component" ? " on" : ""}`}
-            aria-label="Component"
-            disabled={!airGate.ok}
-            title={airGate.ok ? "Component (C)" : `Component — ${airGate.reason}`}
-            onClick={() => onPalette(!paletteOpen)}
-          >
-            <Icon name="box" size={17} />
-          </button>
-          {paletteOpen && airGate.ok && (
-            <ComponentPalette onPick={onArmComponent} onClose={() => onPalette(false)} />
-          )}
-        </div>
-        {CANVAS_TOOLS.slice(3).map(toolButton)}
-      </div>
-
       <div className="ds-canvas-col">
         <div className="ds-canvas-top">
           <div className="ds-floortabs">
@@ -1569,17 +1540,19 @@ function DesignPanel({
               <Icon name="compass" size={13} />
               {floor.northPos ? `North ${Math.round(floor.northDeg ?? 0)}°` : "Set north"}
             </button>
+            {/* View — one pill folding Layers, B&W and Legend into a popover */}
             <div className="ds-layers-wrap">
               <button
                 className={`ds-ctl-btn${layersOpen ? " on" : ""}`}
                 onClick={() => setLayersOpen((v) => !v)}
-                title="Layer visibility"
+                title="View — layers, black & white and legend"
               >
                 <Icon name="layers" size={14} />
-                Layers
+                View
               </button>
               {layersOpen && (
-                <div className="ds-layers-menu" role="menu">
+                <div className="ds-layers-menu ds-view-menu" role="menu">
+                  <div className="ds-view-grp">Layers</div>
                   {(Object.keys(LAYER_LABELS) as (keyof LayerFlags)[]).map((k) => (
                     <label key={k} className="ds-layer-row">
                       <input
@@ -1590,25 +1563,27 @@ function DesignPanel({
                       <span>{LAYER_LABELS[k]}</span>
                     </label>
                   ))}
+                  <div className="ds-view-sep" />
+                  <div className="ds-view-grp">Display</div>
+                  <label className="ds-layer-row">
+                    <input
+                      type="checkbox"
+                      checked={grayscale}
+                      onChange={(e) => onGrayscale(e.target.checked)}
+                    />
+                    <span>Black &amp; white</span>
+                  </label>
+                  <label className="ds-layer-row">
+                    <input
+                      type="checkbox"
+                      checked={legendOpen}
+                      onChange={(e) => onLegend(e.target.checked)}
+                    />
+                    <span>Show legend</span>
+                  </label>
                 </div>
               )}
             </div>
-            <button
-              className={`ds-ctl-btn${grayscale ? " on" : ""}`}
-              onClick={() => onGrayscale(!grayscale)}
-              title="Grayscale the plan so overlays stay readable"
-            >
-              <Icon name="circle" size={14} />
-              B&amp;W
-            </button>
-            <button
-              className={`ds-ctl-btn${legendOpen ? " on" : ""}`}
-              onClick={() => onLegend(!legendOpen)}
-              title="Legend"
-            >
-              <Icon name="library" size={14} />
-              Legend
-            </button>
             {simFlag && (
               <button
                 className={`ds-ctl-btn ds-sim-go${sim ? " on" : ""}`}
@@ -1671,32 +1646,62 @@ function DesignPanel({
             )}
           </button>
         </div>
-        <StudioCanvas
-          key={floor.id}
-          doc={doc}
-          floor={floor}
-          tool={tool}
-          selectedId={selectedId}
-          onSelect={onSelect}
-          onMutate={onMutate}
-          onToolDone={() => onTool("select")}
-          onCalibrated={onCalibrated}
-          onZoomApi={setZoomApi}
-          onZoomChange={setZoomPct}
-          planImages={planImages}
-          activeSystemId={activeSystemId}
-          placing={placing}
-          onPlaced={onPlaced}
-          component={airComp}
-          onComponentPlaced={onComponentPlaced}
-          iduSpec={iduSpec}
-          onRoomCreated={onRoomCreated}
-          remarkRoomId={remarkRoomId}
-          onRemarkConsumed={onRemarkConsumed}
-          layers={layers}
-          grayscale={grayscale}
-          sim={sim}
-        />
+        <div className="ds-canvas-body">
+          <div className="ds-toolrail" role="toolbar" aria-label="Canvas tools">
+            {CANVAS_TOOLS.slice(0, 3).map(toolButton)}
+            {/* Air group (Stage 7): both tools gate on rooms + an air-capable AHU
+                (spec §2); Duct arms at Step 4, Component opens the palette */}
+            <button
+              className="ds-tool"
+              disabled
+              aria-label="Duct"
+              title="Ductwork arrives at Step 4"
+            >
+              <Icon name="wind" size={17} />
+            </button>
+            <div className="ds-pal-wrap">
+              <button
+                className={`ds-tool${tool === "component" ? " on" : ""}`}
+                aria-label="Component"
+                disabled={!airGate.ok}
+                title={airGate.ok ? "Component (C)" : `Component — ${airGate.reason}`}
+                onClick={() => onPalette(!paletteOpen)}
+              >
+                <Icon name="box" size={17} />
+              </button>
+              {paletteOpen && airGate.ok && (
+                <ComponentPalette onPick={onArmComponent} onClose={() => onPalette(false)} />
+              )}
+            </div>
+            {CANVAS_TOOLS.slice(3).map(toolButton)}
+          </div>
+          <StudioCanvas
+            key={floor.id}
+            doc={doc}
+            floor={floor}
+            tool={tool}
+            selectedId={selectedId}
+            onSelect={onSelect}
+            onMutate={onMutate}
+            onToolDone={() => onTool("select")}
+            onCalibrated={onCalibrated}
+            onZoomApi={setZoomApi}
+            onZoomChange={setZoomPct}
+            planImages={planImages}
+            activeSystemId={activeSystemId}
+            placing={placing}
+            onPlaced={onPlaced}
+            component={airComp}
+            onComponentPlaced={onComponentPlaced}
+            iduSpec={iduSpec}
+            onRoomCreated={onRoomCreated}
+            remarkRoomId={remarkRoomId}
+            onRemarkConsumed={onRemarkConsumed}
+            layers={layers}
+            grayscale={grayscale}
+            sim={sim}
+          />
+        </div>
         {/* options HUD — floating pill strip, top-centre over the canvas,
             while a tool with options is armed (Step 2: the plenum variant) */}
         {tool === "component" && airComp?.kind === "plenum" && (

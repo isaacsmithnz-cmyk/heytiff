@@ -164,7 +164,8 @@ describe("Plans stage", () => {
     await waitFor(() => expect(canvas.querySelector("image.ds-plan")).not.toBeNull());
     await user.click(await screen.findByRole("button", { name: "Skip for now" }));
 
-    await user.click(screen.getByRole("button", { name: "B&W" }));
+    await user.click(screen.getByRole("button", { name: /View/ }));
+    await user.click(screen.getByRole("checkbox", { name: "Black & white" }));
     const img = canvas.querySelector("image.ds-plan")!;
     expect(img.getAttribute("style") ?? "").toMatch(/grayscale/);
   });

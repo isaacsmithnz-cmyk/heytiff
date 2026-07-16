@@ -122,8 +122,10 @@ describe("Plans stage", () => {
       expect(img!.getAttribute("width")).toBe("1200");
       expect(img!.getAttribute("href")).toBe(DATA_URL);
     });
-    // uncalibrated plan floor shows the actionable calibrate banner
-    expect(screen.getByText(/Calibrate the scale to begin/)).toBeInTheDocument();
+    // uncalibrated plan floor: the merged Calibrate pill is present and not yet complete
+    const calibPill = screen.getByTitle("Calibrate — set the scale and north");
+    expect(calibPill).toBeInTheDocument();
+    expect(calibPill.className).not.toMatch(/\bdone\b/);
   });
 
   it("opening an uncalibrated plan floor pops the Calibrate step, which arms the tool", async () => {
@@ -134,10 +136,10 @@ describe("Plans stage", () => {
     expect(await screen.findByText("Calibrate the plan")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Calibrate scale →" }));
     expect(screen.queryByText("Calibrate the plan")).not.toBeInTheDocument();
-    // the calibrate tool is now armed — the top-toolbar CTA pill shows it
+    // the calibrate tool is now armed — the merged Calibrate pill shows it active
     expect(
-      screen.getByRole("button", { name: "Calibrate the scale to begin" }).className
-    ).toMatch(/\barmed\b/);
+      screen.getByTitle("Calibrate — set the scale and north").className
+    ).toMatch(/\bon\b/);
   });
 
   it("confirming the scale chains into the Set-north step popup", async () => {
@@ -232,10 +234,13 @@ describe("Plans stage", () => {
 
     // lands straight on the canvas so you resume where you were working
     expect(await screen.findByTestId("studio-canvas")).toBeInTheDocument();
-    // ...and the floor switcher shows the STACK LEVEL (GF/L1…), not the floor's
-    // typed name — level 0 → "GF", level 1 → "L1"
-    expect(screen.getByRole("button", { name: "GF" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "L1" })).toBeInTheDocument();
+    // ...and the floor switcher trigger shows the current STACK LEVEL (GF/L1), not
+    // the typed name; opening the dropdown lists all floors
+    const floorTrigger = screen.getByRole("button", { name: /^(GF|L1)$/ });
+    expect(floorTrigger).toBeInTheDocument();
+    await user.click(floorTrigger);
+    expect(screen.getByRole("button", { name: "Delete Ground floor" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete Sketch level" })).toBeInTheDocument();
   });
 
   it("stepping back to Plans shows the committed floors, not an empty uploader", async () => {
@@ -281,16 +286,17 @@ describe("Plans stage", () => {
     render(<Studio store={store} planImages={new FakePlanImages()} />);
     await user.click(await screen.findByText("Del job"));
 
-    // on the canvas: floor tabs for both levels
-    expect(await screen.findByRole("button", { name: "GF" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "L1" })).toBeInTheDocument();
+    // on the canvas: open the floor dropdown — both floors listed
+    await user.click(await screen.findByRole("button", { name: /^(GF|L1)$/ }));
+    expect(screen.getByRole("button", { name: "Delete Ground floor" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete Level 1" })).toBeInTheDocument();
 
-    // arm then confirm delete of the active (ground) floor
-    await user.click(screen.getByRole("button", { name: /Delete floor/ }));
-    await user.click(screen.getByRole("button", { name: "Delete floor?" }));
+    // arm then confirm delete of the ground floor (two-step "Are you sure?")
+    await user.click(screen.getByRole("button", { name: "Delete Ground floor" }));
+    await user.click(screen.getByRole("button", { name: "Delete?" }));
 
-    // GF is gone; L1 remains
-    expect(screen.queryByRole("button", { name: "GF" })).toBeNull();
+    // Ground floor is gone; only Level 1 remains (its delete x is hidden — last floor)
+    expect(screen.queryByRole("button", { name: "Delete Ground floor" })).toBeNull();
     expect(screen.getByRole("button", { name: "L1" })).toBeInTheDocument();
   });
 

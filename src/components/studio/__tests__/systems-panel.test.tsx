@@ -110,10 +110,12 @@ describe("SystemCockpit — close a system", () => {
         floor={floor}
       />
     );
-    fireEvent.click(screen.getByRole("button", { name: /Close System 1/ }));
-    // a confirm appears — nothing removed yet
-    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    // open the system dropdown, arm the delete x — nothing removed yet
+    fireEvent.click(screen.getByRole("button", { name: "System 1" }));
+    fireEvent.click(screen.getByRole("button", { name: /Delete System 1/ }));
+    expect(next).toBeUndefined();
+    // confirm the two-step "Delete?"
+    fireEvent.click(screen.getByRole("button", { name: "Delete?" }));
 
     expect(next!.systems.map((s) => s.id)).not.toContain("sys1");
     expect(next!.objects.map((o) => o.id)).not.toContain("u_idu");

@@ -142,3 +142,92 @@ export function InsightCard({ title, sub, accent, children, right }: {
     </div>
   );
 }
+
+// ── Question stack — one question at a time within a step ───────────────
+// Questions are revealed sequentially: the current question shows a Next
+// button (enabled once answered); clicking it reveals the next question
+// BELOW while the answered ones stay visible — and editable — above.
+// `revealed` is a high-water mark local to the step (the stack remounts on
+// step change via the page's key={step} wrapper), initialised at the first
+// unanswered question so partially-saved orgs resume mid-stack and complete
+// ones show everything.
+
+export interface StackQuestion {
+  id: string;
+  title: string;
+  hint?: string;
+  /** Live answer state — drives the ✓ chip and enables Next. */
+  answered: boolean;
+  /** Card content; a function receives `advance` so a choice inside the body
+      (e.g. a Yes button) can reveal the next question itself. */
+  body: React.ReactNode | ((advance: () => void) => React.ReactNode);
+  /** Label override for this question's Next button. */
+  nextLabel?: string;
+  /** Hide this question's Next button (its body advances the stack itself). */
+  hideNext?: boolean;
+}
+
+export function QuestionStack({ questions, revealAll = false, stageFromTop = false }: {
+  questions: StackQuestion[];
+  /** Skip staging entirely — returning users see the whole stack at once. */
+  revealAll?: boolean;
+  /** Stage from the first question even when all are default-answered
+      (Risk/Profit — every question is valid on defaults). */
+  stageFromTop?: boolean;
+}) {
+  const firstUnanswered = questions.findIndex(q => !q.answered);
+  const [revealed, setRevealed] = React.useState(() =>
+    revealAll ? questions.length - 1
+    : stageFromTop ? 0
+    : firstUnanswered === -1 ? questions.length - 1 : firstUnanswered);
+  const wrapRef = React.useRef<HTMLDivElement>(null);
+  const advance = () => setRevealed(r => Math.min(questions.length - 1, r + 1));
+  // Bring a newly revealed question into view (skip the mount render so
+  // resumed/expanded stacks open at the top of the page).
+  const mounted = React.useRef(false);
+  React.useEffect(() => {
+    if (!mounted.current) { mounted.current = true; return; }
+    try { wrapRef.current?.lastElementChild?.scrollIntoView({ behavior: "smooth", block: "nearest" }); } catch { /* jsdom */ }
+  }, [revealed]);
+  const complete = revealed >= questions.length - 1 && questions[questions.length - 1]?.answered;
+  return (
+    <div ref={wrapRef} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {questions.slice(0, revealed + 1).map((q, i) => {
+        const cur = i === revealed && !complete;
+        const done = q.answered && !cur;
+        return (
+          <div key={q.id} className="rca-q" style={{ background: "#fff", borderRadius: 16, border: cur ? `1.5px solid ${RC.install}` : `1px solid ${RC.line}`, boxShadow: cur ? `0 0 0 4px ${RC.installSoft}, 0 8px 30px rgba(0,0,0,.04)` : "0 8px 30px rgba(0,0,0,.03)", padding: "16px 20px 18px", transition: "border-color .25s, box-shadow .25s" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <span style={{ width: 24, height: 24, borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: RC.head, fontWeight: 800, fontSize: 11.5, background: done ? RC.service : cur ? RC.install : RC.card2, color: done || cur ? "#fff" : RC.faint, transition: "background .25s" }}>{done ? "✓" : i + 1}</span>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 14.5, letterSpacing: "-0.01em", color: RC.ink }}>{q.title}</div>
+                {q.hint && <div style={{ fontSize: 11.5, color: RC.faint, marginTop: 1 }}>{q.hint}</div>}
+              </div>
+            </div>
+            {typeof q.body === "function" ? q.body(advance) : q.body}
+            {i === revealed && i < questions.length - 1 && !q.hideNext && (
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
+                <button className="rca-btn primary sm" disabled={!q.answered} onClick={advance}>{q.nextLabel ?? "Next →"}</button>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Current-rate input ($/hr) — nullable, shared by the rail + settings ──
+export function RateNumberInput({ value, onChange, color, ariaLabel }: {
+  value: number | null; onChange: (v: number | null) => void; color?: string; ariaLabel?: string;
+}) {
+  return (
+    <div style={{ display: "inline-flex", alignItems: "baseline", gap: 3, background: "#fff", borderRadius: 10, padding: "7px 11px", border: `1px solid ${RC.lineStrong}` }}>
+      <span style={{ fontSize: 13, color: RC.faint, fontWeight: 600 }}>$</span>
+      <input value={value == null ? "" : String(value)} inputMode="decimal" placeholder="0" aria-label={ariaLabel}
+        onChange={e => { const raw = e.target.value.replace(/[^0-9.]/g, ""); const n = parseFloat(raw); onChange(raw === "" || isNaN(n) ? null : n); }}
+        style={{ width: 56, border: "none", background: "transparent", outline: "none", fontFamily: RC.head, fontWeight: 800, fontSize: 16, color: color ?? RC.ink, padding: 0 }} />
+      <span style={{ fontSize: 12, color: RC.faint, fontWeight: 600 }}>/hr</span>
+    </div>
+  );
+}

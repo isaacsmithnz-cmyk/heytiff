@@ -11,7 +11,7 @@ import { PAYROLL_TAX, type CalcSettings } from "./engine";
 import type { RateCalcState } from "./state";
 import { RC } from "./theme";
 import { money } from "./format";
-import { RcIcon, WsEyebrow } from "./ui";
+import { RateNumberInput, RcIcon, WsEyebrow } from "./ui";
 
 function SettingsHint({ text, up }: { text: string; up?: boolean }) {
   return (
@@ -157,7 +157,17 @@ export function SettingsPanel({ st, patch, onClose }: {
         </div>
 
         <div style={{ flex: 1, overflow: "auto", padding: "8px 26px 26px" }}>
-          <WsEyebrow color={RC.install} style={{ marginTop: 18, marginBottom: 4 }}>Location &amp; on-costs</WsEyebrow>
+          <WsEyebrow color={RC.install} style={{ marginTop: 18, marginBottom: 4 }}>Your current rates</WsEyebrow>
+          <Field label="Install rate" hint="What you charge per hour today">
+            <RateNumberInput value={st.currentRates.install} color={RC.install} ariaLabel="Settings install rate"
+              onChange={v => patch({ currentRates: { ...st.currentRates, install: v } })} />
+          </Field>
+          <Field label="Service rate" hint="What you charge per hour today">
+            <RateNumberInput value={st.currentRates.service} color={RC.service} ariaLabel="Settings service rate"
+              onChange={v => patch({ currentRates: { ...st.currentRates, service: v } })} />
+          </Field>
+
+          <WsEyebrow color={RC.install} style={{ marginTop: 24, marginBottom: 4 }}>Location &amp; on-costs</WsEyebrow>
           <Field label="State" hint={`Payroll tax ${pt.rate ?? "—"}% over ${pt.threshold ? money(pt.threshold) : "—"} (${pt.fy || ""})`}>
             <div style={{ display: "flex", gap: 3, background: "#ECEEF1", borderRadius: 10, padding: 3, flexWrap: "wrap", maxWidth: 232, justifyContent: "flex-end" }}>
               {states.map(x => <button key={x} onClick={() => setState(x)} style={{ fontSize: 11.5, fontWeight: 700, padding: "5px 8px", borderRadius: 7, border: "none", cursor: "pointer", fontFamily: RC.body, background: g.state === x ? "#fff" : "transparent", color: g.state === x ? RC.ink : RC.label, boxShadow: g.state === x ? "0 3px 8px -3px rgba(10,12,20,0.28)" : "none", transition: "all .2s" }}>{x}</button>)}

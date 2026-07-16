@@ -102,6 +102,11 @@ export function Overview({ s, calc, health, uplift, ready, missing, go, patch }:
   }
 
   const applied = calc.recInst != null && calc.recSvc != null && s.currentRates.install === Math.round(calc.recInst) && s.currentRates.service === Math.round(calc.recSvc);
+  // Safeguard: uplift is only non-null when both current rates are set, and
+  // it's floored at 0 — so 0 means the user already charges at or above the
+  // recommended rates. Never offer "apply" there (it would LOWER their rates).
+  const alreadyHealthy = !applied && uplift != null && uplift === 0;
+  const settled = applied || alreadyHealthy;
   const apply = () => {
     if (calc.recInst == null || calc.recSvc == null) return;
     patch({
@@ -131,14 +136,19 @@ export function Overview({ s, calc, health, uplift, ready, missing, go, patch }:
         <Hero label="Service" c={RC.service} soft={RC.serviceSoft} rec={calc.recSvc} be={calc.beSvc} cur={s.currentRates.service} proj={calc.projSvc} />
         <div style={{ flex: "0 1 340px", minWidth: 300, background: RC.inkDeep, borderRadius: 18, padding: "20px 22px", color: "#fff", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
           <div style={{ position: "absolute", top: -70, right: -50, width: 190, height: 190, borderRadius: "50%", background: RC.teal, filter: "blur(90px)", opacity: 0.22, pointerEvents: "none" }} />
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontFamily: RC.head, fontSize: 10.5, fontWeight: 800, color: RC.teal, alignSelf: "flex-start", letterSpacing: "0.07em", textTransform: "uppercase", position: "relative" }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: RC.teal }} />{applied ? "Rates applied" : "Ready to apply"}</span>
-          <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 20, letterSpacing: "-0.02em", lineHeight: 1.15, marginTop: 12, position: "relative" }}>{applied ? "You're priced right" : "You could recover"}</div>
-          <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 42, letterSpacing: "-0.03em", color: RC.teal, lineHeight: 1, marginTop: 6, position: "relative" }}>{applied ? "✓" : "+" + money(uplift)}</div>
-          {!applied && <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.72)", lineHeight: 1.55, marginTop: 8, position: "relative" }}>per year, by moving from what you charge today to your recommended rates.</div>}
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontFamily: RC.head, fontSize: 10.5, fontWeight: 800, color: RC.teal, alignSelf: "flex-start", letterSpacing: "0.07em", textTransform: "uppercase", position: "relative" }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: RC.teal }} />{applied ? "Rates applied" : alreadyHealthy ? "Charging a healthy rate" : "Ready to apply"}</span>
+          <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 20, letterSpacing: "-0.02em", lineHeight: 1.15, marginTop: 12, position: "relative" }}>{settled ? "You're priced right" : "You could recover"}</div>
+          <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 42, letterSpacing: "-0.03em", color: RC.teal, lineHeight: 1, marginTop: 6, position: "relative" }}>{settled ? "✓" : "+" + money(uplift)}</div>
+          {!settled && <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.72)", lineHeight: 1.55, marginTop: 8, position: "relative" }}>per year, by moving from what you charge today to your recommended rates.</div>}
+          {alreadyHealthy && <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.72)", lineHeight: 1.55, marginTop: 8, position: "relative" }}>What you charge today already covers your costs and your target margin — no increase needed.</div>}
+          {alreadyHealthy ? (
+            <div style={{ marginTop: "auto", position: "relative", background: "rgba(255,255,255,0.16)", color: "rgba(255,255,255,0.85)", borderRadius: 12, padding: "13px 0", fontFamily: RC.head, fontWeight: 800, fontSize: 14, textAlign: "center" }}>Keep your current rates ✓</div>
+          ) : (
           <button onClick={apply} disabled={applied}
             style={{ marginTop: "auto", position: "relative", border: "none", background: applied ? "rgba(255,255,255,0.16)" : "#fff", color: applied ? "rgba(255,255,255,0.6)" : RC.inkDeep, borderRadius: 12, padding: "13px 0", fontFamily: RC.head, fontWeight: 800, fontSize: 14, cursor: applied ? "default" : "pointer", transition: "all .25s" }}
             onMouseEnter={e => { if (!applied) { e.currentTarget.style.background = RC.teal; } }}
             onMouseLeave={e => { if (!applied) { e.currentTarget.style.background = "#fff"; } }}>{applied ? "Applied" : "Apply these rates →"}</button>
+          )}
         </div>
       </div>
 

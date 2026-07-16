@@ -15,11 +15,12 @@
    pair) — before that the Components tab is empty, matching the room flow. */
 
 import type { DesignDocument, DesignSystem } from "./document";
-import type { DataPack, OutdoorUnit, PairTable } from "./packs/schema";
+import type { AdditionalChargeRule, DataPack, OutdoorUnit } from "./packs/schema";
 import { buildSystemGraph, totalPipeLengthM } from "./graph";
 import { systemPairKw } from "./coverage";
 import { sizingCapacityKw, type SizingBasis } from "./loads";
 import { evaluateAdditionalCharge } from "./materials";
+import { moduleFor } from "./modules";
 
 /* ─────────────────────────── row shapes ─────────────────────────── */
 
@@ -148,7 +149,11 @@ function chargeRow(
   doc: DesignDocument,
   system: DesignSystem,
   odu: OutdoorUnit,
-  pair: PairTable | null
+  /** the applicable charge rule — pair_tables for split/ducted, multi_rules
+      for a shared multi outdoor; null degrades to "factory pre-charged" */
+  charge: AdditionalChargeRule | null,
+  /** liquid size the rule keys off (per-port multi sizes vary → null) */
+  liquidSizeMm: number | null
 ): ComponentRow {
   const hasRuns = doc.objects.some(
     (o) => o.systemId === system.id && o.type === "pipe-run"
@@ -157,10 +162,10 @@ function chargeRow(
 
   const precharge = odu.precharged_kg ?? null;
   let topupKg: number | null = null;
-  if (pair) {
-    const grams = evaluateAdditionalCharge(pair.additional_charge, {
+  if (charge) {
+    const grams = evaluateAdditionalCharge(charge, {
       liquidLengthM: lengthM ?? 0,
-      liquidSizeMm: pair.pipe_liquid_mm,
+      ...(liquidSizeMm != null ? { liquidSizeMm } : {}),
     });
     topupKg = grams == null ? null : grams / 1000;
   }
@@ -176,7 +181,7 @@ function chargeRow(
 
   // sub: describe the pre-charge / top-up situation honestly
   let sub: string;
-  if (pair && hasRuns && lengthM == null) {
+  if (charge && hasRuns && lengthM == null) {
     sub = "Pre-charged · run length unknown";
   } else if (topupKg != null && topupKg > 0) {
     sub = `Pre-charged + ${topupKg.toFixed(2)} kg top-up`;
@@ -219,7 +224,9 @@ function choiceRows(system: DesignSystem): ComponentRow[] {
 
 /** The system-level component list for the cockpit's Components tab. Empty
     until a pairing resolves; then ODU + refrigerant charge (derived) followed
-    by the electrical + mounting choice rows. */
+    by the electrical + mounting choice rows. Per-room modules (multi / VRF)
+    anchor on the shared outdoor alone — there is no single pairing — and take
+    their charge rule from multi_rules. */
 export function systemComponents(
   doc: DesignDocument,
   pack: DataPack | null,
@@ -227,6 +234,23 @@ export function systemComponents(
   basis: SizingBasis
 ): ComponentRow[] {
   if (!pack) return [];
+
+  if (moduleFor(system.type).unitFlow === "per-room") {
+    const mine = doc.objects.filter((o) => o.systemId === system.id && o.type === "unit");
+    const oduModel = String(
+      mine.find((o) => o.props.role === "odu")?.props.model ?? system.settings.pairOdu ?? ""
+    );
+    if (!oduModel) return [];
+    const odu = pack.outdoor_units.find((o) => o.model === oduModel) ?? null;
+    if (!odu) return [];
+    const rule = pack.multi_rules.find((r) => r.odu_model_ref === odu.model) ?? null;
+    return [
+      oduRow(doc, pack, system, basis, odu),
+      chargeRow(doc, system, odu, rule?.additional_charge ?? null, null),
+      ...choiceRows(system),
+    ];
+  }
+
   const resolved = resolvePair(doc, system);
   if (!resolved) return [];
 
@@ -240,7 +264,7 @@ export function systemComponents(
 
   return [
     oduRow(doc, pack, system, basis, odu),
-    chargeRow(doc, system, odu, pair),
+    chargeRow(doc, system, odu, pair?.additional_charge ?? null, pair?.pipe_liquid_mm ?? null),
     ...choiceRows(system),
   ];
 }

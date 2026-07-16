@@ -22,11 +22,16 @@ import { History } from "@/lib/studio/history";
 import {
   StudioCanvas,
   ALL_LAYERS_ON,
+  type AirComponentKind,
+  type ArmedComponent,
   type CanvasTool,
   type LayerFlags,
   type PlacingUnit,
   type ZoomApi,
 } from "./canvas";
+import { ComponentPalette, PlenumHud } from "./air-tools";
+import { isAirCapable } from "@/lib/studio/modules";
+import { roomsServedBy } from "@/lib/studio/coverage";
 import { PlansPanel } from "./plans-panel";
 import { StepPrompt } from "./step-prompt";
 import {
@@ -41,7 +46,7 @@ import { RoomModal } from "./room-modal";
 import { ReferenceViewer } from "./reference-viewer";
 import { SimControllerCard } from "./sim-controller";
 import { SimRuntime } from "@/lib/studio/sim-runtime";
-import type { DataPack } from "@/lib/studio/packs/schema";
+import type { DataPack, IndoorUnit } from "@/lib/studio/packs/schema";
 import "./studio.css";
 
 /* server actions load lazily so jsdom tests never parse the auth0 runtime —
@@ -695,8 +700,57 @@ function Editor({
     setTool("select");
   }, []);
 
-  /* enter/exit simulation — entering disarms every tool and clears the
-     selection; the canvas locks to pan/zoom while simming */
+  /* ── air tools (Stage 7 Step 2): the Component tool, its palette and the
+     armed component. C re-arms the last-used component; the dock button (and
+     a first-ever C) opens the grid. ── */
+  const [airComp, setAirComp] = useState<ArmedComponent | null>(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const lastComp = useRef<AirComponentKind | null>(null);
+
+  /* spec-§2 gate: the air tools need ≥1 served room AND an air-capable
+     chosen/placed AHU — capability keys off UNIT data, not system type
+     (spec §11.1), via the pack row of the placed IDU or settings.pairIdu. */
+  const airGate = useMemo((): { ok: boolean; reason: string; row: IndoorUnit | null } => {
+    if (!effectiveSystemId)
+      return { ok: false, reason: "activate a system first", row: null };
+    if (roomsServedBy(doc, effectiveSystemId).length === 0)
+      return { ok: false, reason: "serve a room first", row: null };
+    const sys = doc.systems.find((s) => s.id === effectiveSystemId);
+    const placedIdu = doc.objects.find(
+      (o) =>
+        o.systemId === effectiveSystemId && o.type === "unit" && o.props.role === "idu"
+    );
+    const model = String(placedIdu?.props.model ?? sys?.settings.pairIdu ?? "");
+    const row = (model && pack?.indoor_units.find((u) => u.model === model)) || null;
+    if (!row || !isAirCapable(row))
+      return { ok: false, reason: "needs an air-capable air handler", row: null };
+    return { ok: true, reason: "", row };
+  }, [doc, pack, effectiveSystemId]);
+
+  const armComponent = useCallback((kind: AirComponentKind) => {
+    lastComp.current = kind;
+    setAirComp({ kind, stream: "supply" });
+    setPaletteOpen(false);
+    setTool("component");
+  }, []);
+
+  /* switching to any other tool disarms the component (and folds the palette) */
+  const changeTool = useCallback((t: CanvasTool) => {
+    if (t !== "component") {
+      setAirComp(null);
+      setPaletteOpen(false);
+    }
+    setTool(t);
+  }, []);
+
+  const onComponentPlaced = useCallback(() => {
+    setAirComp(null);
+    setTool("select");
+  }, []);
+
+  /* enter/exit simulation — entering disarms every tool (incl. the armed air
+     component) and clears the selection; the canvas locks to pan/zoom while
+     simming */
   const toggleSim = useCallback(() => {
     if (simOn) {
       simRef.current = null;
@@ -706,6 +760,8 @@ function Editor({
     if (!activeFloorId) return;
     simRef.current = new SimRuntime(doc, pack, activeFloorId, 5);
     setPlacing(null);
+    setAirComp(null);
+    setPaletteOpen(false);
     setTool("select");
     setSelectedId(null);
     setSimOn(true);
@@ -777,11 +833,18 @@ function Editor({
         return;
       }
       if (step !== 1 || e.metaKey || e.ctrlKey || e.altKey) return;
+      // C = Component (spec §3a — calibrate stays a top-toolbar pill): re-arm
+      // the last-used component; the first-ever press opens the grid
+      if (e.key.toLowerCase() === "c") {
+        if (!airGate.ok) return;
+        if (lastComp.current) armComponent(lastComp.current);
+        else setPaletteOpen(true);
+        return;
+      }
       const toolKeys: Record<string, CanvasTool> = {
         v: "select",
         r: "room-rect",
         g: "room-poly",
-        c: "calibrate",
         n: "set-north",
         x: "crop",
         m: "arrange",
@@ -800,11 +863,11 @@ function Editor({
         !effectiveSystemId
       )
         return;
-      setTool(next);
+      changeTool(next);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [step, undo, redo, effectiveSystemId]);
+  }, [step, undo, redo, effectiveSystemId, airGate.ok, armComponent, changeTool]);
 
   const downloadDoc = (d: DesignDocument, filename: string) => {
     const blob = new Blob([exportDesignJson(d)], { type: "application/json" });
@@ -931,7 +994,14 @@ function Editor({
             onDeleteFloor={deleteFloor}
             onGoPlans={() => onStep(0)}
             tool={tool}
-            onTool={setTool}
+            onTool={changeTool}
+            airGate={airGate}
+            paletteOpen={paletteOpen}
+            onPalette={setPaletteOpen}
+            airComp={airComp}
+            onArmComponent={armComponent}
+            onAirStream={(s) => setAirComp((c) => (c ? { ...c, stream: s } : c))}
+            onComponentPlaced={onComponentPlaced}
             selectedId={selectedId}
             onSelect={setSelectedId}
             onMutate={mutate}
@@ -1008,7 +1078,7 @@ function Editor({
           onSkip={() => setCalibPrompt(false)}
           onAction={() => {
             setCalibPrompt(false);
-            setTool("calibrate");
+            changeTool("calibrate");
           }}
         />
       )}
@@ -1032,7 +1102,7 @@ function Editor({
           onSkip={() => setNorthPrompt(false)}
           onAction={() => {
             setNorthPrompt(false);
-            setTool("set-north");
+            changeTool("set-north");
           }}
         />
       )}
@@ -1274,6 +1344,13 @@ function DesignPanel({
   onGoPlans,
   tool,
   onTool,
+  airGate,
+  paletteOpen,
+  onPalette,
+  airComp,
+  onArmComponent,
+  onAirStream,
+  onComponentPlaced,
   selectedId,
   onSelect,
   onMutate,
@@ -1309,6 +1386,14 @@ function DesignPanel({
   onGoPlans: () => void;
   tool: CanvasTool;
   onTool: (t: CanvasTool) => void;
+  /** spec-§2 air-tool gate (rooms + air-capable AHU) + the AHU's pack row */
+  airGate: { ok: boolean; reason: string; row: IndoorUnit | null };
+  paletteOpen: boolean;
+  onPalette: (open: boolean) => void;
+  airComp: ArmedComponent | null;
+  onArmComponent: (kind: AirComponentKind) => void;
+  onAirStream: (s: "supply" | "return") => void;
+  onComponentPlaced: () => void;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
@@ -1347,6 +1432,13 @@ function DesignPanel({
   const [zoomApi, setZoomApi] = useState<ZoomApi | null>(null);
   const [zoomPct, setZoomPct] = useState(100);
 
+  /* pack-row resolver the canvas uses for plenum specs / air capability —
+     keyed to unit data, never system type (ducted spec §11.1) */
+  const iduSpec = useCallback(
+    (model: string) => pack?.indoor_units.find((u) => u.model === model) ?? null,
+    [pack]
+  );
+
   if (!floor) {
     return (
       <div className="ds-canvas-well">
@@ -1382,27 +1474,25 @@ function DesignPanel({
     );
   }
 
+  const toolButton = (t: (typeof CANVAS_TOOLS)[number]) => (
+    <button
+      key={t.key}
+      className={`ds-tool${tool === t.key ? " on" : ""}`}
+      title={
+        t.needsSystem && !activeSystemId
+          ? `${t.label} — activate a system first`
+          : `${t.label} (${t.kbd})`
+      }
+      aria-label={t.label}
+      disabled={Boolean(t.needsSystem) && !activeSystemId}
+      onClick={() => onTool(t.key)}
+    >
+      <Icon name={t.icon as never} size={17} />
+    </button>
+  );
+
   return (
     <div className="ds-design">
-      <div className="ds-toolrail" role="toolbar" aria-label="Canvas tools">
-        {CANVAS_TOOLS.map((t) => (
-          <button
-            key={t.key}
-            className={`ds-tool${tool === t.key ? " on" : ""}`}
-            title={
-              t.needsSystem && !activeSystemId
-                ? `${t.label} — activate a system first`
-                : `${t.label} (${t.kbd})`
-            }
-            aria-label={t.label}
-            disabled={Boolean(t.needsSystem) && !activeSystemId}
-            onClick={() => onTool(t.key)}
-          >
-            <Icon name={t.icon as never} size={17} />
-          </button>
-        ))}
-      </div>
-
       <div className="ds-canvas-col">
         <div className="ds-canvas-top">
           <div className="ds-floortabs">
@@ -1450,17 +1540,19 @@ function DesignPanel({
               <Icon name="compass" size={13} />
               {floor.northPos ? `North ${Math.round(floor.northDeg ?? 0)}°` : "Set north"}
             </button>
+            {/* View — one pill folding Layers, B&W and Legend into a popover */}
             <div className="ds-layers-wrap">
               <button
                 className={`ds-ctl-btn${layersOpen ? " on" : ""}`}
                 onClick={() => setLayersOpen((v) => !v)}
-                title="Layer visibility"
+                title="View — layers, black & white and legend"
               >
                 <Icon name="layers" size={14} />
-                Layers
+                View
               </button>
               {layersOpen && (
-                <div className="ds-layers-menu" role="menu">
+                <div className="ds-layers-menu ds-view-menu" role="menu">
+                  <div className="ds-view-grp">Layers</div>
                   {(Object.keys(LAYER_LABELS) as (keyof LayerFlags)[]).map((k) => (
                     <label key={k} className="ds-layer-row">
                       <input
@@ -1471,25 +1563,27 @@ function DesignPanel({
                       <span>{LAYER_LABELS[k]}</span>
                     </label>
                   ))}
+                  <div className="ds-view-sep" />
+                  <div className="ds-view-grp">Display</div>
+                  <label className="ds-layer-row">
+                    <input
+                      type="checkbox"
+                      checked={grayscale}
+                      onChange={(e) => onGrayscale(e.target.checked)}
+                    />
+                    <span>Black &amp; white</span>
+                  </label>
+                  <label className="ds-layer-row">
+                    <input
+                      type="checkbox"
+                      checked={legendOpen}
+                      onChange={(e) => onLegend(e.target.checked)}
+                    />
+                    <span>Show legend</span>
+                  </label>
                 </div>
               )}
             </div>
-            <button
-              className={`ds-ctl-btn${grayscale ? " on" : ""}`}
-              onClick={() => onGrayscale(!grayscale)}
-              title="Grayscale the plan so overlays stay readable"
-            >
-              <Icon name="circle" size={14} />
-              B&amp;W
-            </button>
-            <button
-              className={`ds-ctl-btn${legendOpen ? " on" : ""}`}
-              onClick={() => onLegend(!legendOpen)}
-              title="Legend"
-            >
-              <Icon name="library" size={14} />
-              Legend
-            </button>
             {simFlag && (
               <button
                 className={`ds-ctl-btn ds-sim-go${sim ? " on" : ""}`}
@@ -1552,29 +1646,71 @@ function DesignPanel({
             )}
           </button>
         </div>
-        <StudioCanvas
-          key={floor.id}
-          doc={doc}
-          floor={floor}
-          tool={tool}
-          selectedId={selectedId}
-          onSelect={onSelect}
-          onMutate={onMutate}
-          onToolDone={() => onTool("select")}
-          onCalibrated={onCalibrated}
-          onZoomApi={setZoomApi}
-          onZoomChange={setZoomPct}
-          planImages={planImages}
-          activeSystemId={activeSystemId}
-          placing={placing}
-          onPlaced={onPlaced}
-          onRoomCreated={onRoomCreated}
-          remarkRoomId={remarkRoomId}
-          onRemarkConsumed={onRemarkConsumed}
-          layers={layers}
-          grayscale={grayscale}
-          sim={sim}
-        />
+        <div className="ds-canvas-body">
+          <div className="ds-toolrail" role="toolbar" aria-label="Canvas tools">
+            {CANVAS_TOOLS.slice(0, 3).map(toolButton)}
+            {/* Air group (Stage 7): both tools gate on rooms + an air-capable AHU
+                (spec §2); Duct arms at Step 4, Component opens the palette */}
+            <button
+              className="ds-tool"
+              disabled
+              aria-label="Duct"
+              title="Ductwork arrives at Step 4"
+            >
+              <Icon name="wind" size={17} />
+            </button>
+            <div className="ds-pal-wrap">
+              <button
+                className={`ds-tool${tool === "component" ? " on" : ""}`}
+                aria-label="Component"
+                disabled={!airGate.ok}
+                title={airGate.ok ? "Component (C)" : `Component — ${airGate.reason}`}
+                onClick={() => onPalette(!paletteOpen)}
+              >
+                <Icon name="box" size={17} />
+              </button>
+              {paletteOpen && airGate.ok && (
+                <ComponentPalette onPick={onArmComponent} onClose={() => onPalette(false)} />
+              )}
+            </div>
+            {CANVAS_TOOLS.slice(3).map(toolButton)}
+          </div>
+          <StudioCanvas
+            key={floor.id}
+            doc={doc}
+            floor={floor}
+            tool={tool}
+            selectedId={selectedId}
+            onSelect={onSelect}
+            onMutate={onMutate}
+            onToolDone={() => onTool("select")}
+            onCalibrated={onCalibrated}
+            onZoomApi={setZoomApi}
+            onZoomChange={setZoomPct}
+            planImages={planImages}
+            activeSystemId={activeSystemId}
+            placing={placing}
+            onPlaced={onPlaced}
+            component={airComp}
+            onComponentPlaced={onComponentPlaced}
+            iduSpec={iduSpec}
+            onRoomCreated={onRoomCreated}
+            remarkRoomId={remarkRoomId}
+            onRemarkConsumed={onRemarkConsumed}
+            layers={layers}
+            grayscale={grayscale}
+            sim={sim}
+          />
+        </div>
+        {/* options HUD — floating pill strip, top-centre over the canvas,
+            while a tool with options is armed (Step 2: the plenum variant) */}
+        {tool === "component" && airComp?.kind === "plenum" && (
+          <PlenumHud
+            stream={airComp.stream}
+            onStream={onAirStream}
+            returnBuiltIn={airGate.row?.return_opening === "built-in"}
+          />
+        )}
         {sim && <SimControllerCard runtime={sim} onExit={onToggleSim} />}
         {legendOpen && (
           <div className="ds-legend" role="dialog" aria-label="Legend">

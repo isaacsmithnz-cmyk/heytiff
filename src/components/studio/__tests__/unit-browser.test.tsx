@@ -100,6 +100,41 @@ describe("UnitBrowser", () => {
     expect(screen.getByRole("button", { name: /Ducted\s*2/ })).toBeInTheDocument();
   });
 
+  it("opens on the requested form-factor tab (ducted AHU flow)", () => {
+    render(
+      <UnitBrowser
+        pack={fixturePack()}
+        loadKw={null}
+        basis="worst-of-both"
+        initialFormFactor="ducted"
+        onChoose={noop}
+        onClose={noop}
+      />
+    );
+    // no tab click — the ducted rows are already in the table
+    expect(screen.getByRole("button", { name: /Ducted/ }).className).toContain("on");
+    expect(within(tbl()).getByText("DUCT-LOW")).toBeInTheDocument();
+  });
+
+  it("requiredKw highlights pairs inside the required band, never filtering", () => {
+    render(
+      <UnitBrowser
+        pack={fixturePack()}
+        loadKw={null}
+        basis="worst-of-both"
+        initialFormFactor="ducted"
+        requiredKw={2.6}
+        onChoose={noop}
+        onClose={noop}
+      />
+    );
+    // band 2.6 … ×1.35 = 3.51: DUCT-LOW (3.5) is in; DUCT-TALL (3.6) is out but listed
+    expect(rowOf("DUCT-LOW").className).toContain("band");
+    expect(within(rowOf("DUCT-LOW")).getByText("in range")).toBeInTheDocument();
+    expect(rowOf("DUCT-TALL").className).not.toContain("band");
+    expect(within(tbl()).getByText("DUCT-TALL")).toBeInTheDocument();
+  });
+
   it("ducted tab shows the airflow column; rows land in the table", () => {
     render(
       <UnitBrowser pack={fixturePack()} loadKw={null} basis="worst-of-both" onChoose={noop} onClose={noop} />

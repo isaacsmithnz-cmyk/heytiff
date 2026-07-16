@@ -12,6 +12,17 @@ import { newId } from "@/lib/studio/document";
 import { Icon } from "@/components/shell/icon";
 import { orientationFromWalls } from "@/lib/studio/loads";
 import { roomAtPoint } from "@/lib/studio/coverage";
+import { isAirCapable } from "@/lib/studio/modules";
+import {
+  isPlenumOf,
+  isSpillRoom,
+  plenumBody,
+  spigotsOf,
+  streamOf,
+  suggestedMainDucts,
+  type PlenumSpigot,
+} from "@/lib/studio/ducted";
+import type { IndoorUnit, OpeningSpec } from "@/lib/studio/packs/schema";
 import type { PlanImages } from "@/lib/studio/plans";
 import type { SimRuntime } from "@/lib/studio/sim-runtime";
 import { SimOverlay } from "./sim-overlay";
@@ -54,7 +65,8 @@ export type CanvasTool =
   | "arrange"
   | "place" // place a unit (armed from the system panel with a model)
   | "pipe" // refrigerant run — endpoints snap to unit/riser anchors
-  | "riser";
+  | "riser"
+  | "component"; // air component armed from the palette (Stage 7 — plenum first)
 
 /** Canvas layer visibility (transient view state, not persisted). */
 export interface LayerFlags {
@@ -83,6 +95,25 @@ export interface PlacingUnit {
   model: string;
   widthMm: number;
   depthMm: number;
+}
+
+/* ── Air components (Stage 7) — armed from the component palette. The eight
+   palette kinds land across Steps 2–6; the canvas only handles the ones whose
+   step has shipped (Step 2: plenum). ── */
+export type AirComponentKind =
+  | "takeoff"
+  | "joiner"
+  | "reducer"
+  | "zone-motor"
+  | "plenum"
+  | "grille"
+  | "wall-controller"
+  | "zone-sensor";
+
+/** The armed component + its HUD options (plenum: the supply⌇return toggle). */
+export interface ArmedComponent {
+  kind: AirComponentKind;
+  stream: "supply" | "return";
 }
 
 const CLOSE_SNAP_PX = 12; // screen px to close a polygon on its first vertex
@@ -169,6 +200,121 @@ function unitGlyph(cx: number, cy: number, w: number, h: number, role: string, z
   );
 }
 const ANCHOR_SNAP_PX = 16; // screen px to snap a pipe endpoint to an anchor
+const PLENUM_SNAP_PX = 20; // screen px to snap the plenum ghost onto an AHU end
+
+/* ── Plenum plan geometry (spec §1b, field feedback 2026-07-14). All
+   DIMENSIONS come from the engine (plenumBody); this only lays the resolved
+   mm out in world space. The BASE (widest edge) sits ON the unit at the
+   opening width and the body tapers OUTWARD to a narrow spigot face —
+   1 spigot ≈ an arrow, 3–4 ≈ a trapezoid, base always widest. Spigots are
+   RECTANGLES (plan view of a round takeoff) standing off the spigot face at
+   true width; side-face spigots ride the left/right edges. ── */
+interface PlenumSpigotRect {
+  id: string;
+  /** 4 corners of the spigot rectangle (plan view of the takeoff) */
+  rect: Point[];
+  /** centre (cap-tick anchor + hit target) */
+  cx: number;
+  cy: number;
+  /** outward normal — cap-tick direction */
+  nx: number;
+  ny: number;
+  capped: boolean;
+}
+interface PlenumShape {
+  body: Point[];
+  spigots: PlenumSpigotRect[];
+  labelAt: Point;
+}
+
+function plenumShape(opts: {
+  /** face midpoint (on the AHU long face — air flows through the depth) */
+  cx: number;
+  cy: number;
+  /** outward direction along y: +1 = the +y face, −1 = the −y face */
+  dir: 1 | -1;
+  /** half the BASE width — on the unit, the widest edge (world units) */
+  baseHalf: number;
+  /** half the SPIGOT-FACE width — the narrow far edge (world units, ≤ base) */
+  spigotHalf: number;
+  /** plan protrusion from the unit face (world units) */
+  depth: number;
+  spigots: (PlenumSpigot & { r: number })[];
+}): PlenumShape {
+  const { cx, cy, dir, baseHalf, depth } = opts;
+  const y0 = cy; // base, on the unit
+  const y1 = cy + dir * depth; // spigot face, outward
+  const hBase = baseHalf;
+  // never let the far face collapse fully — a lone spigot still needs a lip
+  const hSpig = Math.min(hBase, Math.max(opts.spigotHalf, hBase * 0.12));
+  const stub = depth * 0.4; // how far the spigot rectangles stand off the face
+
+  // trapezoid: WIDE at the unit (y0, ±hBase) → NARROW at the spigot face (y1, ±hSpig)
+  const body: Point[] = [
+    { x: cx - hBase, y: y0 },
+    { x: cx - hSpig, y: y1 },
+    { x: cx + hSpig, y: y1 },
+    { x: cx + hBase, y: y0 },
+  ];
+
+  /* front spigots: t ∈ 0..1 left→right along the (narrow) spigot face */
+  const frontAt = (t: number): Point => ({ x: cx - hSpig + t * 2 * hSpig, y: y1 });
+  /* side spigots ride the left (x−) / right (x+) sloped edge, base→spigot corner */
+  const sideAt = (t: number, side: "left" | "right"): Point => {
+    const s = side === "left" ? -1 : 1;
+    const a = { x: cx + s * hBase, y: y0 };
+    const b = { x: cx + s * hSpig, y: y1 };
+    return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+  };
+
+  const spigots: PlenumSpigotRect[] = opts.spigots.map((s) => {
+    if (s.face === "front") {
+      // rectangle: Ø across the face (in x), stub outward (in y)
+      const p = frontAt(s.t);
+      const yOut = p.y + dir * stub;
+      return {
+        id: s.id,
+        rect: [
+          { x: p.x - s.r, y: p.y },
+          { x: p.x - s.r, y: yOut },
+          { x: p.x + s.r, y: yOut },
+          { x: p.x + s.r, y: p.y },
+        ],
+        cx: p.x,
+        cy: p.y + (dir * stub) / 2,
+        nx: 0,
+        ny: dir,
+        capped: s.capped === true,
+      };
+    }
+    // side spigot: Ø across the sloped edge (in y), stub outward (in x)
+    const p = sideAt(s.t, s.face);
+    const nx = s.face === "left" ? -1 : 1;
+    const xOut = p.x + nx * stub;
+    return {
+      id: s.id,
+      rect: [
+        { x: p.x, y: p.y - s.r },
+        { x: xOut, y: p.y - s.r },
+        { x: xOut, y: p.y + s.r },
+        { x: p.x, y: p.y + s.r },
+      ],
+      cx: p.x + (nx * stub) / 2,
+      cy: p.y,
+      nx,
+      ny: 0,
+      capped: s.capped === true,
+    };
+  });
+
+  return { body, spigots, labelAt: { x: cx, y: Math.max(y0, y1) } };
+}
+
+/** the pack's air-opening for one stream of an indoor unit, or null */
+function openingOf(row: IndoorUnit | null, end: "supply" | "return"): OpeningSpec | null {
+  if (!row) return null;
+  return (end === "return" ? row.return_opening : row.supply_opening) ?? null;
+}
 
 function defaultViewport(
   points: Point[],
@@ -230,6 +376,9 @@ export function StudioCanvas({
   activeSystemId = null,
   placing = null,
   onPlaced,
+  component = null,
+  onComponentPlaced,
+  iduSpec,
   onRoomCreated,
   remarkRoomId = null,
   onRemarkConsumed,
@@ -262,6 +411,12 @@ export function StudioCanvas({
   /** armed unit for the place tool */
   placing?: PlacingUnit | null;
   onPlaced?: () => void;
+  /** armed air component for the component tool (Stage 7 — plenum first) */
+  component?: ArmedComponent | null;
+  onComponentPlaced?: () => void;
+  /** pack-row resolver for placed indoor units — plenum specs + air
+      capability come from unit DATA, never system type (ducted spec §11.1) */
+  iduSpec?: (model: string) => IndoorUnit | null;
   /** a room finished wall-marking — open its configuration modal (Slice 2) */
   onRoomCreated?: (id: string) => void;
   /** request to re-enter wall-marking for an existing room (from the modal) */
@@ -555,6 +710,191 @@ export function StudioCanvas({
     [floor.scaleMmPerUnit, grid]
   );
 
+  /* ── plenums (Stage 7 Step 2) — anchored to an AHU end; their position is
+     DERIVED from the unit every render (never stored), so moving the AHU
+     carries them for free. ── */
+  const plenums = useMemo(
+    () => doc.objects.filter((o) => inScope(o) && o.type === "plenum"),
+    [doc.objects, inScope]
+  );
+
+  /** the pack row of a placed unit IF it is an air-capable air handler */
+  const ahuRow = useCallback(
+    (u: DesignObject): IndoorUnit | null => {
+      if (String(u.props.role ?? "") !== "idu") return null;
+      const row = iduSpec?.(String(u.props.model ?? "")) ?? null;
+      return row && isAirCapable(row) ? row : null;
+    },
+    [iduSpec]
+  );
+
+  /** an AHU air face as a world segment + outward direction. Air flows
+      through the DEPTH (spec §1a) — the openings are the two LONG faces
+      (±y). Supply defaults to the +y face; `props.airFlip` swaps, and the
+      first placed plenum writes airFlip so its face IS its stream. */
+  const endFace = useCallback(
+    (u: DesignObject & { geometry: { at: Point } }, end: "supply" | "return") => {
+      const at = pointAt(u);
+      const fp = footprint(Number(u.props.widthMm ?? 800), Number(u.props.depthMm ?? 300));
+      const flip = u.props.airFlip === true;
+      const dir = ((end === "supply" ? 1 : -1) * (flip ? -1 : 1)) as 1 | -1;
+      const y = at.y + dir * (fp.h / 2);
+      return {
+        a: { x: at.x - fp.w / 2, y },
+        b: { x: at.x + fp.w / 2, y },
+        mid: { x: at.x, y },
+        dir,
+        faceHalf: fp.w / 2,
+      };
+    },
+    [pointAt, footprint]
+  );
+
+  /** every plenum mounting face of the placed air-capable AHUs, with its
+      occupancy (existing plenum, or a pack built-in return) */
+  const ahuEnds = useMemo(() => {
+    const out: {
+      unit: (typeof units)[number];
+      row: IndoorUnit;
+      end: "supply" | "return";
+      occupied: boolean;
+      builtIn: boolean;
+      /** a placed plenum has fixed the orientation (spec §1a: the first
+          placement decides; until then either face may take either stream) */
+      determined: boolean;
+    }[] = [];
+    for (const u of units) {
+      const row = ahuRow(u);
+      if (!row) continue;
+      // a placed plenum OR a built-in return fixes the orientation (spec §1a):
+      // built-in units know their return face the moment they're placed
+      const builtInReturn = row.return_opening === "built-in";
+      const determined = builtInReturn || plenums.some((p) => p.props.unitId === u.id);
+      for (const end of ["supply", "return"] as const) {
+        const builtIn = end === "return" && builtInReturn;
+        const occupied =
+          builtIn || plenums.some((p) => p.props.unitId === u.id && p.props.end === end);
+        out.push({ unit: u, row, end, occupied, builtIn, determined });
+      }
+    }
+    return out;
+  }, [units, plenums, ahuRow]);
+
+  /** placeable face candidates for the armed plenum: the armed stream's
+      current face — plus, while nothing has determined the orientation, the
+      OPPOSITE face too (clicking it flips the unit so that face becomes the
+      stream: the first placement decides, spec §1a) */
+  const plenumCandidates = useMemo(() => {
+    if (component?.kind !== "plenum") return [];
+    const out: {
+      e: (typeof ahuEnds)[number];
+      face: ReturnType<typeof endFace>;
+      needsFlip: boolean;
+    }[] = [];
+    const other = component.stream === "supply" ? ("return" as const) : ("supply" as const);
+    for (const e of ahuEnds) {
+      if (e.occupied || e.end !== component.stream) continue;
+      out.push({ e, face: endFace(e.unit, e.end), needsFlip: false });
+      if (!e.determined) out.push({ e, face: endFace(e.unit, other), needsFlip: true });
+    }
+    return out;
+  }, [component, ahuEnds, endFace]);
+
+  const nearestPlenumEnd = useCallback(
+    (w: Point) => {
+      let best: (typeof plenumCandidates)[number] | null = null;
+      let bestD = PLENUM_SNAP_PX / vp.zoom;
+      for (const c of plenumCandidates) {
+        const d = distToSegment(w, c.face.a, c.face.b);
+        if (d <= bestD) {
+          best = c;
+          bestD = d;
+        }
+      }
+      return best;
+    },
+    [plenumCandidates, vp.zoom]
+  );
+
+  const addPlenum = useCallback(
+    (cand: (typeof plenumCandidates)[number]) => {
+      if (!activeSystemId || component?.kind !== "plenum") return;
+      const unitId = cand.e.unit.id;
+      onMutate((d) => ({
+        ...d,
+        objects: [
+          // clicking the opposite face while undetermined flips the unit so
+          // that face becomes the armed stream (first placement decides)
+          ...d.objects.map((o) =>
+            cand.needsFlip && o.id === unitId
+              ? { ...o, props: { ...o.props, airFlip: o.props.airFlip !== true } }
+              : o
+          ),
+          {
+            id: newId("obj"),
+            type: "plenum",
+            systemId: activeSystemId,
+            floorId: floor.id,
+            // anchored by unitId+end — the stored point is a placement
+            // snapshot; rendering always derives from the unit
+            geometry: { kind: "point", at: cand.face.mid },
+            plane: "ceiling-cavity",
+            props: { stream: component.stream, unitId, end: cand.e.end, spigots: [] },
+          } satisfies DesignObject,
+        ],
+      }));
+      onComponentPlaced?.();
+    },
+    [activeSystemId, component, onMutate, floor.id, onComponentPlaced]
+  );
+
+  /** resolved render geometry per plenum id (also the hit-test shape) */
+  const plenumShapes = useMemo(() => {
+    const m = new Map<
+      string,
+      PlenumShape & { label: string; derived: boolean; overSpigot: boolean; unitId: string }
+    >();
+    for (const p of plenums) {
+      const unit = units.find((u) => u.id === String(p.props.unitId ?? ""));
+      if (!unit) continue;
+      const end = p.props.end === "return" ? ("return" as const) : ("supply" as const);
+      const widthMm = Number(unit.props.widthMm ?? 800);
+      const depthMm = Number(unit.props.depthMm ?? 300);
+      const fp = footprint(widthMm, depthMm);
+      const perMm = fp.w / Math.max(widthMm, 1); // world units per mm (works uncalibrated)
+      const row = iduSpec?.(String(unit.props.model ?? "")) ?? null;
+      const opening = openingOf(row, end);
+      const sp = spigotsOf(p.props);
+      const body = plenumBody({
+        opening,
+        unitWidthMm: widthMm, // the mounting face is a LONG face (spec §1a)
+        spigots: sp,
+        units: doc.settings.units,
+      });
+      if (body.builtIn || body.factorySpigots) continue; // no drawn plenum object
+      const f = endFace(unit, end);
+      // base = the discharge opening (a plenum box fans wider than the slim
+      // unit end, so it is NOT clamped to the mounting-face length)
+      const baseHalf = (body.baseWMm * perMm) / 2;
+      m.set(p.id, {
+        ...plenumShape({
+          cx: f.mid.x,
+          cy: f.mid.y,
+          dir: f.dir,
+          baseHalf,
+          spigotHalf: (body.spigotFaceWMm * perMm) / 2,
+          depth: body.depthMm * perMm,
+          spigots: sp.map((s) => ({ ...s, r: (s.diaMm * perMm) / 2 })),
+        }),
+        label: body.label,
+        derived: body.derived,
+        overSpigot: body.overSpigot,
+        unitId: unit.id,
+      });
+    }
+    return m;
+  }, [plenums, units, footprint, iduSpec, endFace, doc.settings.units]);
+
   useEffect(() => {
     const el = wrapRef.current;
     if (!el || typeof ResizeObserver === "undefined") return;
@@ -626,7 +966,13 @@ export function StudioCanvas({
       }
       if ((e.key === "Delete" || e.key === "Backspace") && !isTyping(e) && selectedId) {
         e.preventDefault();
-        onMutate((d) => ({ ...d, objects: d.objects.filter((o) => o.id !== selectedId) }));
+        // deleting an AHU carries its plenums (they're its plenums — spec §10.3)
+        onMutate((d) => ({
+          ...d,
+          objects: d.objects.filter(
+            (o) => o.id !== selectedId && !isPlenumOf(o, selectedId)
+          ),
+        }));
         onSelect(null);
       }
     };
@@ -734,6 +1080,9 @@ export function StudioCanvas({
       const walls = Array.isArray(room.props.externalWalls)
         ? (room.props.externalWalls as number[])
         : [];
+      // intentional prop→state handoff: the modal hands the canvas a one-shot
+      // re-mark request, consumed immediately below
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setWallSelect({
         points: room.geometry.points,
         selected: new Set(walls),
@@ -772,10 +1121,14 @@ export function StudioCanvas({
     [rooms, roomPoints, vp]
   );
 
-  /** system objects hit first (they sit on top of rooms): unit footprints,
-      riser discs, then run segments */
+  /** system objects hit first (they sit on top of rooms): plenum bodies,
+      unit footprints, riser discs, then run segments */
   const hitSystemObject = useCallback(
-    (w: Point): { id: string; kind: "unit" | "riser" | "pipe-run" } | null => {
+    (w: Point): { id: string; kind: "unit" | "riser" | "pipe-run" | "plenum" } | null => {
+      for (let i = plenums.length - 1; i >= 0; i--) {
+        const s = plenumShapes.get(plenums[i].id);
+        if (s && pointInPolygon(w, s.body)) return { id: plenums[i].id, kind: "plenum" };
+      }
       for (let i = units.length - 1; i >= 0; i--) {
         const u = units[i];
         const at = pointAt(u);
@@ -797,7 +1150,7 @@ export function StudioCanvas({
       }
       return null;
     },
-    [units, risers, runs, pointAt, footprint, vp.zoom]
+    [plenums, plenumShapes, units, risers, runs, pointAt, footprint, vp.zoom]
   );
 
   /* Eraser: objects only (rooms delete via the inspector ✕, canvas rule #6).
@@ -812,7 +1165,11 @@ export function StudioCanvas({
         const at = pointAt(u);
         const fp = footprint(Number(u.props.widthMm ?? 800), Number(u.props.depthMm ?? 300));
         if (Math.abs(w.x - at.x) <= fp.w / 2 + tol && Math.abs(w.y - at.y) <= fp.h / 2 + tol) {
-          onMutate((d) => ({ ...d, objects: d.objects.filter((o) => o.id !== u.id) }));
+          // erasing an AHU takes its plenums with it (anchored objects)
+          onMutate((d) => ({
+            ...d,
+            objects: d.objects.filter((o) => o.id !== u.id && !isPlenumOf(o, u.id)),
+          }));
           if (selectedId === u.id) onSelect(null);
           return;
         }
@@ -1050,7 +1407,9 @@ export function StudioCanvas({
         const sys = hitSystemObject(w);
         if (sys) {
           onSelect(sys.id);
-          if (sys.kind !== "pipe-run") {
+          // plenums are anchored (their position derives from the AHU) and
+          // runs are polylines — only units/risers start a point drag
+          if (sys.kind === "unit" || sys.kind === "riser") {
             const o = [...units, ...risers].find((x) => x.id === sys.id)!;
             setDrag({ kind: "point", id: sys.id, startWorld: w, orig: pointAt(o) });
           }
@@ -1073,6 +1432,12 @@ export function StudioCanvas({
       }
       case "place": {
         addUnit(w);
+        break;
+      }
+      case "component": {
+        // Step 2 ships the plenum: land on the glowing AHU end
+        const end = nearestPlenumEnd(w);
+        if (end) addPlenum(end);
         break;
       }
       case "pipe": {
@@ -1447,6 +1812,7 @@ export function StudioCanvas({
   /* ── render ── */
   const zoom = vp.zoom;
   const mm = floor.scaleMmPerUnit;
+  const activeColour = sysColour.get(activeSystemId ?? "") ?? "#888";
   const calibScreenB = calib.b ? worldToScreen(calib.b, vp) : null;
 
   /* graph-paper DOTS, drawn in SCREEN space so they stay a constant size while
@@ -1499,7 +1865,12 @@ export function StudioCanvas({
           : { icon: "rotate", text: "Click on the plan to place the north marker" }
         : tool === "crop"
           ? { icon: "maximize", text: "Drag a rectangle over the area to keep" }
-          : null;
+          : tool === "component" && component?.kind === "plenum"
+            ? {
+                icon: "wind",
+                text: `Click a glowing air-handler end to fit the ${component.stream} plenum`,
+              }
+            : null;
 
   return (
     <div
@@ -1544,6 +1915,39 @@ export function StudioCanvas({
           </>
         )}
         <g transform={`scale(${zoom}) translate(${-vp.x} ${-vp.y})`}>
+          {/* plenum hatch (8% tint + 45° lines, constant screen density) and
+              the AHU flow-arrow head — world-space defs, active-system tint */}
+          <defs>
+            <pattern
+              id="ds-plenum-hatch"
+              patternUnits="userSpaceOnUse"
+              width={7 / zoom}
+              height={7 / zoom}
+              patternTransform="rotate(45)"
+            >
+              <rect width={7 / zoom} height={7 / zoom} fill={activeColour} fillOpacity={0.08} />
+              <line
+                x1={0}
+                y1={0}
+                x2={0}
+                y2={7 / zoom}
+                stroke={activeColour}
+                strokeOpacity={0.4}
+                strokeWidth={1 / zoom}
+              />
+            </pattern>
+            <marker
+              id="ds-flow-arrow"
+              viewBox="0 0 8 8"
+              refX="6"
+              refY="4"
+              markerWidth="6"
+              markerHeight="6"
+              orient="auto-start-reverse"
+            >
+              <path d="M1 1 L7 4 L1 7" fill="none" stroke="currentColor" strokeWidth="1.4" />
+            </marker>
+          </defs>
           {/* plan sheets (under everything); arrange tool shows outlines */}
           {layers.plan && floor.plans.map((s) => {
             const url = sheetUrls[s.imageRef];
@@ -1610,6 +2014,8 @@ export function StudioCanvas({
                   <>
                     <text x={c.x} y={c.y} fontSize={13 / zoom} className="ds-room-name">
                       {String(r.props.name ?? "Room")}
+                      {/* spill rooms wear the ⤢ chip (ducted spec §9c) */}
+                      {isSpillRoom(r) ? " ⤢" : ""}
                     </text>
                     <text
                       x={c.x}
@@ -1666,9 +2072,18 @@ export function StudioCanvas({
           {/* units (Stage 4) — to-scale footprint, role glyph, model */}
           {layers.units && units.map((u) => {
             const at = pointAt(u);
-            const fp = footprint(Number(u.props.widthMm ?? 800), Number(u.props.depthMm ?? 300));
+            const widthMm = Number(u.props.widthMm ?? 800);
+            const fp = footprint(widthMm, Number(u.props.depthMm ?? 300));
             const colour = sysColour.get(u.systemId ?? "") ?? "#888";
             const role = String(u.props.role ?? "idu").toUpperCase();
+            /* air-capable ducted-form AHUs grow their air side (spec §1a):
+               a straight-through flow arrow, dashed socket outlines on the
+               unoccupied end faces, and the fused built-in return box */
+            const air = ahuRow(u);
+            const perMm = fp.w / Math.max(widthMm, 1);
+            const ends = air ? ahuEnds.filter((e) => e.unit.id === u.id) : [];
+            const sockD = 150 * perMm;
+            const builtInD = 350 * perMm; // engine's default plenum depth
             return (
               <g
                 key={u.id}
@@ -1676,6 +2091,96 @@ export function StudioCanvas({
                 style={{ color: colour }}
               >
                 {unitGlyph(at.x, at.y, fp.w, fp.h, String(u.props.role ?? "idu"), zoom)}
+                {(() => {
+                  /* the airflow arrow + face labels appear only ONCE the unit
+                     is determined — the first plenum, or a built-in return
+                     (which orients the unit on its own). No `?` clutter and no
+                     arrow on a bare unit (spec §1a). */
+                  const oriented = ends.some((e) => e.determined);
+                  if (!air || !oriented) return null;
+                  const sdir = endFace(u, "supply").dir;
+                  return (
+                    <>
+                      <line
+                        className="ds-ahu-flow"
+                        x1={at.x + fp.w * 0.3}
+                        y1={at.y - sdir * fp.h * 0.28}
+                        x2={at.x + fp.w * 0.3}
+                        y2={at.y + sdir * fp.h * 0.28}
+                        markerEnd="url(#ds-flow-arrow)"
+                      />
+                      {layers.labels &&
+                        ends.map((e) => {
+                          const f = endFace(e.unit, e.end);
+                          return (
+                            <text
+                              key={`fl-${e.end}`}
+                              className="ds-ahu-face-label"
+                              x={f.mid.x}
+                              y={f.mid.y + (f.dir === 1 ? -5 : 12) / zoom}
+                              fontSize={8 / zoom}
+                            >
+                              {e.end.toUpperCase()}
+                            </text>
+                          );
+                        })}
+                    </>
+                  );
+                })()}
+                {ends.map((e) => {
+                  const f = endFace(e.unit, e.end);
+                  if (e.builtIn) {
+                    /* built-in return: the fused box + its return spigots pop
+                       up automatically (spec §1a) — a default fan of return
+                       takeoffs since the data book only says "spigots on it" */
+                    const box = (
+                      <rect
+                        className="ds-plenum-builtin"
+                        x={f.a.x}
+                        y={f.dir === 1 ? f.mid.y : f.mid.y - builtInD}
+                        width={f.b.x - f.a.x}
+                        height={builtInD}
+                        fill="url(#ds-plenum-hatch)"
+                      />
+                    );
+                    const n = Math.min(3, Math.max(1, suggestedMainDucts(air?.airflow_ls ?? null, 289) ?? 2));
+                    const r = (350 * perMm) / 2;
+                    const outY = f.mid.y + f.dir * builtInD;
+                    const spigs = Array.from({ length: n }, (_, i) => {
+                      const cx = f.a.x + ((i + 1) / (n + 1)) * (f.b.x - f.a.x);
+                      return (
+                        <rect
+                          key={i}
+                          className="ds-spigot-fixed"
+                          x={cx - r}
+                          y={f.dir === 1 ? outY - builtInD * 0.4 : outY}
+                          width={r * 2}
+                          height={builtInD * 0.4}
+                        />
+                      );
+                    });
+                    return (
+                      <g key={e.end} className="ds-plenum-builtin-g">
+                        {box}
+                        {spigs}
+                      </g>
+                    );
+                  }
+                  if (e.occupied) return null; // a plenum object renders there
+                  // a bare undetermined unit is a plain rectangle — the socket
+                  // hint only shows the SECOND face once oriented (spec §1a)
+                  if (!e.determined) return null;
+                  return (
+                    <rect
+                      key={e.end}
+                      className="ds-ahu-socket"
+                      x={f.a.x}
+                      y={f.dir === 1 ? f.mid.y : f.mid.y - sockD}
+                      width={f.b.x - f.a.x}
+                      height={sockD}
+                    />
+                  );
+                })}
                 {layers.labels && (
                   <>
                     <text x={at.x} y={at.y + 4 / zoom} fontSize={11 / zoom} className="ds-unit-role">
@@ -1694,6 +2199,122 @@ export function StudioCanvas({
               </g>
             );
           })}
+
+          {/* plenums (Stage 7 Step 2) — anchored to their AHU end; position is
+              derived from the unit each render, so moving the AHU carries
+              them. Concealed (ceiling-cavity) read: the ~85 % opacity family. */}
+          {layers.units && plenums.map((p) => {
+            const s = plenumShapes.get(p.id);
+            if (!s) return null;
+            const colour = sysColour.get(p.systemId ?? "") ?? "#888";
+            return (
+              <g
+                key={p.id}
+                className={`ds-plenum${p.id === selectedId ? " sel" : ""}${s.overSpigot ? " over" : ""}`}
+                style={{ color: colour }}
+              >
+                <polygon
+                  className="ds-plenum-body"
+                  points={s.body.map((pt) => `${pt.x},${pt.y}`).join(" ")}
+                  fill="url(#ds-plenum-hatch)"
+                />
+                {s.spigots.map((sp) => (
+                  <g key={sp.id} className="ds-spigot">
+                    <polygon points={sp.rect.map((pt) => `${pt.x},${pt.y}`).join(" ")} />
+                    {sp.capped && (
+                      <line
+                        className="ds-spigot-cap"
+                        x1={sp.cx - sp.ny * 4}
+                        y1={sp.cy - sp.nx * 4}
+                        x2={sp.cx + sp.ny * 4}
+                        y2={sp.cy + sp.nx * 4}
+                      />
+                    )}
+                  </g>
+                ))}
+                {layers.labels && (
+                  <text
+                    className={`ds-plenum-label${s.derived ? " derived" : ""}`}
+                    x={s.labelAt.x}
+                    y={s.labelAt.y + 13 / zoom}
+                    fontSize={10 / zoom}
+                  >
+                    {s.label}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+
+          {/* armed plenum — candidate faces glow (pre-filtered by the HUD's
+              supply⌇return toggle; while undetermined BOTH faces are offered —
+              the first placement decides, spec §1a); the nearest face
+              previews a dashed ghost body (show-the-snap-target-first) */}
+          {tool === "component" && component?.kind === "plenum" && (() => {
+            const near = cursor ? nearestPlenumEnd(cursor) : null;
+            return (
+              <g className="ds-plenum-arm" style={{ color: activeColour }}>
+                {plenumCandidates.map((c) => {
+                    const e = c.e;
+                    const f = c.face;
+                    const ready =
+                      near?.e.unit.id === e.unit.id && near?.needsFlip === c.needsFlip;
+                    // a drop-zone rectangle standing off each candidate face —
+                    // "place it on either side" (spec §1a); the nearest lights
+                    const fp = footprint(
+                      Number(e.unit.props.widthMm ?? 800),
+                      Number(e.unit.props.depthMm ?? 300)
+                    );
+                    const zoneD = fp.h * 0.55; // drop-zone depth off the face
+                    return (
+                      <g key={`${e.unit.id}:${e.end}:${c.needsFlip ? "flip" : "as-is"}`}>
+                        <rect
+                          className={`ds-plenum-dropzone${ready ? " ready" : ""}`}
+                          x={f.a.x}
+                          y={f.dir === 1 ? f.mid.y : f.mid.y - zoneD}
+                          width={f.b.x - f.a.x}
+                          height={zoneD}
+                          rx={6 / vp.zoom}
+                        />
+                        <line
+                          className={`ds-plenum-face${ready ? " ready" : ""}`}
+                          x1={f.a.x}
+                          y1={f.a.y}
+                          x2={f.b.x}
+                          y2={f.b.y}
+                        />
+                        {ready && (() => {
+                          const widthMm = Number(e.unit.props.widthMm ?? 800);
+                          const fp = footprint(widthMm, Number(e.unit.props.depthMm ?? 300));
+                          const perMm = fp.w / Math.max(widthMm, 1);
+                          const body = plenumBody({
+                            opening: openingOf(e.row, e.end),
+                            unitWidthMm: widthMm,
+                            spigots: [],
+                            units: doc.settings.units,
+                          });
+                          const ghost = plenumShape({
+                            cx: f.mid.x,
+                            cy: f.mid.y,
+                            dir: f.dir,
+                            baseHalf: (body.baseWMm * perMm) / 2,
+                            spigotHalf: (body.spigotFaceWMm * perMm) / 2,
+                            depth: body.depthMm * perMm,
+                            spigots: [],
+                          });
+                          return (
+                            <polygon
+                              className="ds-plenum-ghost"
+                              points={ghost.body.map((pt) => `${pt.x},${pt.y}`).join(" ")}
+                            />
+                          );
+                        })()}
+                      </g>
+                    );
+                  })}
+              </g>
+            );
+          })()}
 
           {/* risers (Stage 4) — disc + group letter, one per floor per group */}
           {layers.pipes && risers.map((r) => {

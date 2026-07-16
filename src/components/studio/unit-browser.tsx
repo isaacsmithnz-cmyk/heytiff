@@ -38,12 +38,19 @@ type CompareEntry = { key: string; brand: string; option: UnitOption; pair: Pair
    breaks position:fixed for anything rendered inside it (see project modal
    rule). */
 
+/** Required-capacity band (ducted AHU flow): a pair reads "in range" from the
+    required figure up to ~135% of it — the same oversize spirit as the
+    browser's 150% gate, tighter so the badge stays meaningful. */
+export const REQUIRED_BAND_CAP = 1.35;
+
 export function UnitBrowser({
   pack,
   loadKw,
   basis,
   onChoose,
   onClose,
+  initialFormFactor,
+  requiredKw,
 }: {
   pack: DataPack;
   loadKw: number | null;
@@ -51,6 +58,10 @@ export function UnitBrowser({
   /** commit the chosen pairing (the host arms placement via its drag cards) */
   onChoose: (pair: PairProposal) => void;
   onClose: () => void;
+  /** open on this form-factor tab while it has options (ducted AHU flow) */
+  initialFormFactor?: FormFactor | null;
+  /** highlight — never filter — pairs sized within REQUIRED_BAND_CAP of this */
+  requiredKw?: number | null;
 }) {
   const [includeOversized, setIncludeOversized] = useState(false);
   const [filters, setFilters] = useState<SelectFilters>({});
@@ -98,8 +109,9 @@ export function UnitBrowser({
     [pack, loadKw, basis, includeOversized, phase]
   );
 
-  /** default tab: the recommended option's form factor, else the first tab */
-  const [tab, setTab] = useState<FormFactor | null>(null);
+  /** default tab: the caller's requested form factor, else the recommended
+      option's, else the first tab */
+  const [tab, setTab] = useState<FormFactor | null>(initialFormFactor ?? null);
   const activeTab = useMemo(() => {
     if (tab && tabs.some((t) => t.formFactor === tab && t.count > 0)) return tab;
     if (loadKw != null) {
@@ -145,6 +157,11 @@ export function UnitBrowser({
       under the current filters, else the first surviving pairing */
   const pairFor = (o: UnitOption): PairProposal =>
     o.pairs.find((p) => p.odu.model === oduPick[o.idu.model]) ?? o.defaultPair;
+
+  const inRequiredBand = (p: PairProposal): boolean =>
+    requiredKw != null &&
+    p.capacityKw >= requiredKw &&
+    p.capacityKw <= requiredKw * REQUIRED_BAND_CAP;
 
   /* group same-series rows adjacently, preserving the sorted order within each
      group and ordering groups by first appearance (keeps the recommended unit's
@@ -232,10 +249,11 @@ export function UnitBrowser({
     const pair = pairFor(o);
     const checked = inCompare(o.idu.model);
     const isSel = selectedOption?.idu.model === o.idu.model;
+    const band = inRequiredBand(pair);
     return (
       <tr
         key={o.idu.model}
-        className={`${o.recommended ? "rec" : ""}${isSel ? " sel" : ""}`}
+        className={`${o.recommended ? "rec" : ""}${isSel ? " sel" : ""}${band ? " band" : ""}`}
         aria-selected={isSel}
         onClick={() => setSelected(o.idu.model)}
       >
@@ -256,6 +274,11 @@ export function UnitBrowser({
         <td className="ds-ub-model">
           {o.idu.model}
           {o.recommended && <em>best fit</em>}
+          {band && !o.recommended && (
+            <em className="ds-ub-inband" title="Within the required capacity band">
+              in range
+            </em>
+          )}
         </td>
         {activeSpecs.map((s) => (
           <td key={s.id}>{s.cell(o, pair)}</td>
@@ -284,8 +307,8 @@ export function UnitBrowser({
             <b>Choose a unit</b>
             {loadKw != null ? (
               <span>
-                Room load ≈ <b>{loadKw.toFixed(1)} kW</b> · {basis} · showing up to{" "}
-                {Math.round(OVERSIZE_CAP * 100)}%
+                {requiredKw != null ? "Requires" : "Room load"} ≈ <b>{loadKw.toFixed(1)} kW</b>{" "}
+                · {basis} · showing up to {Math.round(OVERSIZE_CAP * 100)}%
               </span>
             ) : (
               <span>No room selected — full catalogue</span>

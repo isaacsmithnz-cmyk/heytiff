@@ -256,7 +256,7 @@ describe("Design canvas", () => {
     await finishRoom(user);
     expect(svg.querySelector(".ds-room-name")).not.toBeNull();
 
-    await user.click(screen.getByRole("button", { name: "Layers" }));
+    await user.click(screen.getByRole("button", { name: /View/ }));
     await user.click(screen.getByRole("checkbox", { name: "Labels" }));
     expect(svg.querySelector(".ds-room-name")).toBeNull();
   });

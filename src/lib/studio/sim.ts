@@ -533,10 +533,19 @@ export function compressorPct(state: SimState, handlerId: string): number {
   return Math.round((state.handlers[handlerId]?.compressorFrac ?? 0) * 100);
 }
 
-export type CompressorPhase = "off" | "preheat" | "airflow" | "running" | "easing";
+export type CompressorPhase = "off" | "preheat" | "starting" | "running" | "easing";
 
-/** the presentation phase for the notification/tag (mode-aware label lives in
-    the UI, which knows heat vs cool → "Preheating" / "Pre-cooling") */
+/** The presentation phase — grounded in how a real inverter behaves:
+    - OFF: the compressor isn't turning (powered off, or cycled off at temp).
+    - PREHEAT: HEATING only, and only while STARTING — the indoor fan is held
+      back until the coil warms so it never blows cold air ("cold-blow
+      prevention"; the coil warms before airflow begins). Not a cooling
+      behaviour, and never during shutdown/modulation.
+    - STARTING: the compressor is ramping UP toward full output (cooling
+      start-up, or heating once past preheat).
+    - RUNNING: at (near) full output, steady.
+    - EASING: modulating DOWN to hold the set temperature — an inverter slows
+      the compressor rather than switching off. */
 export function compressorPhase(
   model: SimModel,
   state: SimState,
@@ -544,12 +553,19 @@ export function compressorPhase(
 ): CompressorPhase {
   const h = model.handlers.find((x) => x.id === handlerId);
   const s = h && state.handlers[h.id];
-  if (!h || !s || !s.on) return "off";
-  if (s.compressorFrac < SIM.AIRFLOW_ON_FRAC) return "preheat";
-  // past preheat: modulating down (near setpoint) or cycled off → easing;
-  // otherwise ramping up (airflow) or holding full (running)
-  if (!s.running || s.demand < 0.95) return "easing";
-  return s.compressorFrac >= 0.85 ? "running" : "airflow";
+  if (!h || !s) return "off";
+  // the compressor is off whenever it isn't turning — powered off OR cycled
+  // off at temperature. (User: "if the compressor is at zero, say off.")
+  if (!s.on || s.compressorFrac < 0.03) return "off";
+  const target = s.running ? s.demand : 0;
+  const rising = target > s.compressorFrac + 0.02; // speeding up = starting
+  // cold-blow prevention: heating, still starting, coil not yet warm
+  if (rising && s.mode === "heat" && s.compressorFrac < SIM.AIRFLOW_ON_FRAC) return "preheat";
+  if (rising) return "starting";
+  // not rising: full call at (near) full output is "running"; anything the
+  // controller has throttled back (nearing setpoint) is "easing"
+  if (target >= 0.9 && s.compressorFrac >= 0.8) return "running";
+  return "easing";
 }
 
 /** sim-seconds for the compressor to ramp from its current speed up to full

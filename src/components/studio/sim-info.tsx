@@ -7,35 +7,60 @@ import {
   compressorPhase,
   timeToSetpointSimS,
   type CompressorPhase,
-  type SimMode,
 } from "@/lib/studio/sim";
 
-/* Present-mode status card (top-left) — the read-only display the CUSTOMER
-   watches: what the system is doing right now (preheating warning, compressor
-   output %, easing to hold temperature), separate from the operator's control
-   panel. Subscribes to the sim; never writes. */
+/* Operation status — the read-only line the CUSTOMER watches, shown in the
+   present-mode HEADER (in line with the design name + system). What the system
+   is doing right now, grounded in real inverter behaviour. Subscribes to the
+   sim; never writes. */
 
 function phaseCopy(
   phase: CompressorPhase,
-  mode: SimMode
+  on: boolean
 ): { tag: string; desc: string; tone: string } {
   switch (phase) {
     case "preheat":
-      return mode === "heat"
-        ? { tag: "Preheating", desc: "Warming the coil before the fan starts — a system takes a few minutes to reach full output.", tone: "warn" }
-        : { tag: "Pre-cooling", desc: "Chilling the coil before the fan starts — a system takes a few minutes to reach full output.", tone: "warn" };
-    case "airflow":
-      return { tag: "Airflow starting", desc: "Conditioned air is beginning to flow as the compressor ramps up.", tone: "ok" };
+      // heating cold-blow prevention (verified real behaviour): the fan is held
+      // until the coil warms so the unit never blows cold air
+      return {
+        tag: "Preheating",
+        desc: "Warming the coil before the fan starts — so it never blows cold air.",
+        tone: "warn",
+      };
+    case "starting":
+      return {
+        tag: "Starting up",
+        desc: "Compressor ramping up — coming up to full output.",
+        tone: "ok",
+      };
     case "running":
-      return { tag: "Running", desc: "Delivering full output — the room is changing.", tone: "ok" };
+      return {
+        tag: "Running",
+        desc: "At full output — conditioning the room.",
+        tone: "ok",
+      };
     case "easing":
-      return { tag: "Holding temperature", desc: "Easing the compressor down to maintain the set temperature.", tone: "cool" };
+      return {
+        tag: "Holding temperature",
+        desc: "Easing the compressor down to maintain the set temperature.",
+        tone: "cool",
+      };
     default:
-      return { tag: "Standby", desc: "System is off — the room drifts toward the outside temperature.", tone: "muted" };
+      return on
+        ? {
+            tag: "Compressor off",
+            desc: "At temperature — the compressor has cycled off.",
+            tone: "muted",
+          }
+        : {
+            tag: "System off",
+            desc: "Not running — the room drifts toward the outside temperature.",
+            tone: "muted",
+          };
   }
 }
 
-export function SimInfoCard({
+export function SimHeaderStatus({
   runtime,
   activeSystemId,
 }: {
@@ -55,30 +80,22 @@ export function SimInfoCard({
 
   const phase = compressorPhase(model, state, h.id);
   const pct = compressorPct(state, h.id);
-  const copy = phaseCopy(phase, s.mode);
+  const copy = phaseCopy(phase, s.on);
   const room = state.roomTempC[h.roomId] ?? 0;
 
   const t = s.on ? timeToSetpointSimS(model, state, h.id) : null;
   const eta =
-    t == null ? null : t === 0 ? "holding" : `~${Math.max(1, Math.round(t / 60))} min to ${s.setpointC.toFixed(1)}°`;
+    t == null ? null : t === 0 ? "holding" : `~${Math.max(1, Math.round(t / 60))} min`;
 
   return (
-    <div className="ds-sim-info" role="status" aria-label="System status">
-      <div className="ds-sim-info-head">
-        <span className={`ds-sim-info-mode ${s.mode}`}>
-          {s.on ? (s.mode === "heat" ? "Heating" : "Cooling") : "Off"}
-        </span>
-        <span className="ds-sim-info-sys">{h.systemName}</span>
+    <div className="ds-present-status" role="status" aria-label="System status">
+      <div className="ds-present-stat-phase">
+        <span className={`ds-present-stat-tag tone-${copy.tone}`}>{copy.tag}</span>
+        <span className="ds-present-stat-desc">{copy.desc}</span>
       </div>
 
-      <div className={`ds-sim-info-phase tone-${copy.tone}`}>{copy.tag}</div>
-      <div className="ds-sim-info-desc">{copy.desc}</div>
-
-      <div className="ds-sim-info-comp">
-        <div className="ds-sim-info-clabel">
-          <span>Compressor</span>
-          <span className="ds-sim-info-cpct">{pct}%</span>
-        </div>
+      <div className="ds-present-stat-comp">
+        <span className="ds-present-stat-lbl">Compressor</span>
         <div
           className="ds-sim-compbar"
           role="progressbar"
@@ -89,13 +106,14 @@ export function SimInfoCard({
         >
           <div className={`ds-sim-compfill p-${phase}`} style={{ width: `${pct}%` }} />
         </div>
+        <span className="ds-present-stat-pct">{pct}%</span>
       </div>
 
-      <div className="ds-sim-info-nums">
+      <div className="ds-present-stat-nums">
         <span>
           Room <b>{room.toFixed(1)}°</b> → {s.setpointC.toFixed(1)}°
         </span>
-        {eta && <span className="ds-sim-info-eta">{eta}</span>}
+        {eta && <span className="ds-present-stat-eta">{eta}</span>}
       </div>
     </div>
   );

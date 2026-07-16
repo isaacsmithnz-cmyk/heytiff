@@ -8,7 +8,7 @@ import type { PlanImages } from "@/lib/studio/plans";
 import type { SimRuntime } from "@/lib/studio/sim-runtime";
 import { StudioCanvas, ALL_LAYERS_ON } from "./canvas";
 import { SimControllerCard } from "./sim-controller";
-import { SimInfoCard } from "./sim-info";
+import { SimHeaderStatus } from "./sim-info";
 
 /* Present mode — a near-full-screen, PowerPoint-style takeover that runs the
    simulation on just the plan, with none of the editing chrome. Portalled to
@@ -66,6 +66,8 @@ export function SimPresentMode({
             </span>
           )}
         </div>
+        {/* operation status lives in the header, in line with the design/system */}
+        <SimHeaderStatus runtime={runtime} activeSystemId={activeSystemId} />
         <button className="ds-present-exit" onClick={onExit} title="Exit presentation (Esc)">
           Exit
           <span aria-hidden>✕</span>
@@ -88,9 +90,7 @@ export function SimPresentMode({
           sim={runtime}
           bare
         />
-        {/* top-left: read-only status the customer watches (preheating, compressor,
-            holding temperature). Bottom-right: the movable control panel. */}
-        <SimInfoCard runtime={runtime} activeSystemId={activeSystemId} />
+        {/* the movable control panel (draggable by its header) */}
         <SimControllerCard runtime={runtime} onExit={onExit} />
       </div>
     </div>,

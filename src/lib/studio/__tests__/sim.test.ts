@@ -419,16 +419,32 @@ describe("compressor ramp-up (the kick-in story)", () => {
     expect(s.roomTempC.room1).toBeGreaterThan(start + 2); // and the room genuinely warmed
   });
 
-  it("phase + pct progress preheat → airflow/running → easing", () => {
+  it("phase progresses off → preheat → running → easing", () => {
     let s = on(initSimState(model, { outdoorC: 5, speed: 60 }));
-    expect(compressorPhase(model, s, h.id)).toBe("preheat");
+    // the instant it's switched on the compressor is still at 0 → "off"
     expect(compressorPct(s, h.id)).toBe(0);
+    expect(compressorPhase(model, s, h.id)).toBe("off");
+    s = run(model, s, 1); // heating, compressor rising, coil still warming
+    expect(compressorPhase(model, s, h.id)).toBe("preheat");
     s = run(model, s, 60); // warm all the way to setpoint
-    // by now it has passed through airflow/running and is at/near setpoint
     expect(s.roomTempC.room1).toBeGreaterThan(21);
     expect(compressorPhase(model, s, h.id)).toBe("easing");
     // easing = modulating down: compressor below full
     expect(s.handlers[h.id].compressorFrac).toBeLessThan(0.9);
+  });
+
+  it("preheat is HEATING-only and START-only — never cooling, off, or shutting down", () => {
+    const set = (patch: Partial<SimState["handlers"][string]>) =>
+      ({ ...initSimState(model, { outdoorC: 5, speed: 60 }),
+        handlers: { [h.id]: { ...initSimState(model, { outdoorC: 5 }).handlers[h.id], on: true, ...patch } } }) as SimState;
+    // cooling start-up (rising) is "starting", not preheat
+    expect(compressorPhase(model, set({ mode: "cool", compressorFrac: 0.15, running: true, demand: 1 }), h.id)).toBe("starting");
+    // heating but compressor FALLING (satisfied / shutting down) → not preheat
+    expect(compressorPhase(model, set({ mode: "heat", compressorFrac: 0.2, running: false, demand: 0 }), h.id)).not.toBe("preheat");
+    // compressor at 0 while powered on → "off" (not preheat)
+    expect(compressorPhase(model, set({ mode: "heat", compressorFrac: 0, running: true, demand: 1 }), h.id)).toBe("off");
+    // heating + rising + coil not yet warm → preheat
+    expect(compressorPhase(model, set({ mode: "heat", compressorFrac: 0.15, running: true, demand: 1 }), h.id)).toBe("preheat");
   });
 
   it("modulates down (compressor eases) as the room reaches setpoint", () => {

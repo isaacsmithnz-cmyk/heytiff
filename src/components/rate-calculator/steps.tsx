@@ -77,18 +77,59 @@ function StepperRow({ value, display, onMinus, onPlus, minWidth = 44 }: {
   );
 }
 
+// One editable percentage row for the work split. The field is CONTROLLED and
+// its `onChange` runs through a clamping setter, so typing (or ±) can never push
+// the value past what's available — the input snaps back on the spot.
+function PctRow({ label, color, value, onChange }: {
+  label: string; color: string; value: number; onChange: (v: number) => void;
+}) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, background: RC.card2, borderRadius: 12, border: `1px solid ${RC.line}`, padding: "9px 14px" }}>
+      <span style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+        <span style={{ width: 9, height: 9, borderRadius: "50%", background: color, flexShrink: 0 }} />
+        <span style={{ fontSize: 13, color: RC.ink, fontWeight: 700 }}>{label}</span>
+      </span>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+        <button className="rca-stepbtn" style={{ width: 26, height: 26, borderRadius: 7, fontSize: 15 }} onClick={() => onChange(value - 5)}>−</button>
+        <div style={{ display: "inline-flex", alignItems: "baseline", gap: 1, background: "#fff", borderRadius: 9, border: `1px solid ${RC.lineStrong}`, padding: "5px 10px", minWidth: 58, justifyContent: "center" }}>
+          <input value={String(value)} inputMode="numeric" aria-label={`${label} percent`}
+            onChange={e => { const d = e.target.value.replace(/[^0-9]/g, ""); onChange(d === "" ? 0 : parseInt(d, 10)); }}
+            style={{ width: 28, border: "none", background: "transparent", outline: "none", textAlign: "right", fontFamily: RC.head, fontWeight: 800, fontSize: 15, color, padding: 0 }} />
+          <span style={{ fontSize: 13, color: RC.faint, fontWeight: 700 }}>%</span>
+        </div>
+        <button className="rca-stepbtn" style={{ width: 26, height: 26, borderRadius: 7, fontSize: 15 }} onClick={() => onChange(value + 5)}>+</button>
+      </div>
+    </div>
+  );
+}
+
 // ── Step 1 · Staff & wages ──────────────────────────────────────────────
 export function StaffStep({ s, patch, calc, showToggle, revealAll }: StepBodyProps) {
   const sl = s.simpleLabour;
   const totalLabour = calc.instLab + calc.svcLab + calc.adminLab;
   const wagesEntered = (sl.months || []).some(m => m > 0);
-  const allocTotal = (sl.install_pct || 0) + (sl.service_pct || 0) + (sl.admin_pct || 0);
-  type AllocKey = "install_pct" | "service_pct" | "admin_pct";
-  const setAlloc = (k: AllocKey, delta: number) => {
-    const next = Math.max(0, Math.min(100, (sl[k] || 0) + delta));
-    patch({ simpleLabour: { ...sl, [k]: next } });
+  // Work split: Install and Service are the two editable shares; Admin is
+  // always the remainder (100 − the two), so the split can never total
+  // anything but 100%. Each setter clamps the edited share to what's left.
+  const install = sl.install_pct || 0;
+  const service = sl.service_pct || 0;
+  const admin = Math.max(0, 100 - install - service);
+  const setInstall = (v: number) => {
+    const i = Math.max(0, Math.min(100 - service, Math.round(v) || 0));
+    patch({ simpleLabour: { ...sl, install_pct: i, admin_pct: 100 - i - service } });
   };
-  const alloc: [string, AllocKey, string][] = [["Install", "install_pct", RC.install], ["Service", "service_pct", RC.service], ["Admin", "admin_pct", RC.faint]];
+  const setService = (v: number) => {
+    const sv = Math.max(0, Math.min(100 - install, Math.round(v) || 0));
+    patch({ simpleLabour: { ...sl, service_pct: sv, admin_pct: 100 - install - sv } });
+  };
+  // Heal a legacy split that doesn't total 100 (older ± builds could persist
+  // e.g. 65/30/10) by pinning admin to the remainder once, on load.
+  React.useEffect(() => {
+    if (install + service + (sl.admin_pct || 0) !== 100) {
+      patch({ simpleLabour: { ...sl, admin_pct: 100 - install - service } });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [install, service, sl.admin_pct]);
 
   const questions: StackQuestion[] = [
     {
@@ -125,25 +166,28 @@ export function StaffStep({ s, patch, calc, showToggle, revealAll }: StepBodyPro
     {
       id: "split",
       title: "Split that time across the work",
-      hint: "Roughly how the team's hours divide between install, service and admin — must total 100%",
-      answered: allocTotal === 100,
+      hint: "Roughly how the team's hours divide across install and service — Admin fills whatever's left",
+      answered: true, // always 100% by construction — Admin is the remainder
       body: (
         <>
-          {allocTotal !== 100 && <div style={{ fontSize: 12, fontWeight: 700, color: RC.redInk, marginBottom: 10 }}>Must total 100% — currently {allocTotal}%</div>}
-          <div style={{ display: "flex", height: 40, borderRadius: 12, overflow: "hidden" }}>
-            {alloc.map(([l, k, c]) => (sl[k] || 0) > 0 && <div key={k} style={{ width: `${sl[k]}%`, background: c, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: RC.head, fontWeight: 800, fontSize: 12.5, whiteSpace: "nowrap", overflow: "hidden", transition: "width .25s" }}>{(sl[k] || 0) >= 18 ? `${l} · ${sl[k]}%` : (sl[k] || 0) >= 8 ? `${sl[k]}%` : ""}</div>)}
-          </div>
-          <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
-            {alloc.map(([l, k, c]) => (
-              <div key={k} style={{ flex: 1, minWidth: 0, background: RC.card2, borderRadius: 13, border: `1px solid ${RC.line}`, padding: "10px 9px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 5 }}>
-                <span style={{ fontSize: 12, color: RC.ink, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{l}</span>
-                <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-                  <button className="rca-stepbtn" style={{ width: 26, height: 26, borderRadius: 7, fontSize: 15 }} onClick={() => setAlloc(k, -5)}>−</button>
-                  <span style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 15, color: c, minWidth: 31, textAlign: "center" }}>{sl[k]}%</span>
-                  <button className="rca-stepbtn" style={{ width: 26, height: 26, borderRadius: 7, fontSize: 15 }} onClick={() => setAlloc(k, 5)}>+</button>
-                </div>
-              </div>
+          {/* live proportion bar — always exactly full */}
+          <div style={{ display: "flex", height: 40, borderRadius: 12, overflow: "hidden", marginBottom: 14 }}>
+            {([["Install", install, RC.install], ["Service", service, RC.service], ["Admin", admin, RC.faint]] as [string, number, string][]).map(([l, v, c]) => v > 0 && (
+              <div key={l} style={{ width: `${v}%`, background: c, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: RC.head, fontWeight: 800, fontSize: 12.5, whiteSpace: "nowrap", overflow: "hidden", transition: "width .2s" }}>{v >= 18 ? `${l} · ${v}%` : v >= 8 ? `${v}%` : ""}</div>
             ))}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <PctRow label="Install" color={RC.install} value={install} onChange={setInstall} />
+            <PctRow label="Service" color={RC.service} value={service} onChange={setService} />
+            {/* Admin — the remainder, shown but not editable */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, background: RC.card2, borderRadius: 12, border: `1px dashed ${RC.lineStrong}`, padding: "11px 14px" }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+                <span style={{ width: 9, height: 9, borderRadius: "50%", background: RC.faint, flexShrink: 0 }} />
+                <span style={{ fontSize: 13, color: RC.ink, fontWeight: 700 }}>Admin</span>
+                <span style={{ fontSize: 11.5, color: RC.faint, whiteSpace: "nowrap" }}>the rest — overhead &amp; non-billable</span>
+              </span>
+              <span style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 17, color: RC.ink2, flexShrink: 0 }}>{admin}%</span>
+            </div>
           </div>
         </>
       ),

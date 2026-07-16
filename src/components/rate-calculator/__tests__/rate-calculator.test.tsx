@@ -115,6 +115,35 @@ describe("RateCalculator — question-at-a-time steps", () => {
   });
 });
 
+describe("RateCalculator — work split locked at 100%", () => {
+  it("makes Admin the auto remainder and clamps the editable shares", async () => {
+    const user = userEvent.setup();
+    render(<RateCalculator initialState={null} />);
+    await dismissOnboarding(user);
+
+    // wages → staff count → split
+    const month = screen.getAllByDisplayValue("0")[0];
+    await user.click(month);
+    await user.keyboard("40000");
+    await user.click(screen.getByText("Next →")); // → staff count
+    await user.click(screen.getByText("Next →")); // → split
+    expect(screen.getByText("Split that time across the work")).toBeInTheDocument();
+
+    const install = screen.getByLabelText("Install percent");
+    const service = screen.getByLabelText("Service percent");
+    expect(install).toHaveValue("60");
+    expect(service).toHaveValue("30");
+    // Admin is not an editable field — it's the remainder.
+    expect(screen.queryByLabelText("Admin percent")).toBeNull();
+
+    // Service is 30, so Install can never exceed 70 — typing 90 snaps to 70.
+    await user.clear(install);
+    await user.type(install, "90");
+    expect(install).toHaveValue("70");
+    expect(service).toHaveValue("30"); // unchanged — Admin absorbs the difference (now 0)
+  });
+});
+
 describe("RateCalculator — Vehicles yes/no question", () => {
   async function goToVehicles(user: ReturnType<typeof userEvent.setup>) {
     render(<RateCalculator initialState={null} />);

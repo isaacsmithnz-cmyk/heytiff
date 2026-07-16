@@ -221,5 +221,7 @@ export function buildDemoState(): RateCalcState {
     simpleVehicle: { months: [3400, 3300, 3500] },
     mode: { staff: "Simple", business: "Simple", vehicles: "Simple" },
     noVehicles: false,
+    riskAccepted: true,   // the demo simulates a returning user with a
+    profitAccepted: true, // completed setup — defaults already accepted
   };
 }

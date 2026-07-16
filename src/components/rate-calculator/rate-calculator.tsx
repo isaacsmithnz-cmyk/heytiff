@@ -13,7 +13,9 @@ import React from "react";
 import "./rate-calculator.css";
 import type { CalcResult } from "./engine";
 import {
+  allStepsDone,
   daysSinceReviewed,
+  DONE_COMPLETIONS,
   emptyState,
   hydrateState,
   runEngine,
@@ -57,10 +59,6 @@ function stepSummary(key: string, s: RateCalcState, calc: CalcResult): string {
     default: return "";
   }
 }
-
-// A step counts as "done" (for the connector line) when it's complete,
-// customised, or running on sensible defaults.
-const DONE_COMPLETIONS = ["complete", "customised", "defaults"];
 
 // completion → rail node visuals. Solid teal ✓ = data entered (complete /
 // customised); outlined teal ✓ = running on sensible defaults (a valid
@@ -226,7 +224,11 @@ function CalculatorApp({ initial, hasData, demo, showOnboarding, onPersist, save
   // Returning users with a complete setup land on Results (the review moment);
   // first-run / incomplete data lands on Step 1. Example mode simulates a
   // returning user.
-  const [step, setStep] = React.useState(() => (hasData && runEngine(initial).ready) ? 5 : 0); // 0–4 steps, 5 = overview, 6 = insights
+  const [step, setStep] = React.useState(() => {
+    if (!hasData) return 0;
+    const run = runEngine(initial);
+    return run.ready && allStepsDone(run.steps) ? 5 : 0;
+  }); // 0–4 steps, 5 = overview, 6 = insights
   // Onboarding chain (help → rates intro) runs once per fresh empty setup; a
   // manual "?" reopen must NOT re-trigger the intro. "Don't show again" is
   // remembered for the session via sessionStorage — read in an effect so the
@@ -270,9 +272,31 @@ function CalculatorApp({ initial, hasData, demo, showOnboarding, onPersist, save
     completions[0] === "complete",
     completions[1] === "complete",
     completions[2] === "complete",
-    completions[3] === "customised",
-    completions[4] === "customised",
+    // risk/profit: "defaults" only survives runEngine once explicitly
+    // accepted, so accepted-defaults and customised both count.
+    completions[3] === "customised" || completions[3] === "defaults",
+    completions[4] === "customised" || completions[4] === "defaults",
   ].filter(Boolean).length;
+  const allDone = allStepsDone(steps);
+
+  // Continue doubles as acceptance on the defaults steps, and the final
+  // Continue only reaches Results when every step is done — otherwise it
+  // walks the user back to the first incomplete step.
+  const onContinue = () => {
+    if (step === 3 && !s.riskAccepted) patch({ riskAccepted: true });
+    if (step === 4) {
+      if (!s.profitAccepted) patch({ profitAccepted: true });
+      // patch is async — evaluate doneness with profit locally accepted
+      const doneWithProfit = completions
+        .map((c, i) => (i === 4 && c === "not_started") ? "defaults" : c)
+        .every(c => DONE_COMPLETIONS.includes(c));
+      if (doneWithProfit) { setStep(5); return; }
+      const firstIncomplete = completions.findIndex((c, i) => i !== 4 && !DONE_COMPLETIONS.includes(c));
+      setStep(firstIncomplete === -1 ? 5 : firstIncomplete);
+      return;
+    }
+    setStep(step + 1);
+  };
 
   // Simple/Detailed toggles are hidden for the first-run session and return
   // on later visits (hasData) — per step, only where Detailed has data it can
@@ -365,8 +389,16 @@ function CalculatorApp({ initial, hasData, demo, showOnboarding, onPersist, save
             );
           })}
           <div style={{ marginTop: "auto", paddingTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
-            <button className={"rca-railbtn" + (overview ? " on" : "")} onClick={() => setStep(5)}>View results <RcIcon name="arrowUR" size={13} /></button>
-            <button className={"rca-railbtn" + (insights ? " on" : "")} onClick={() => setStep(6)}>Insights <RcIcon name="activity" size={13} /></button>
+            {allDone ? (
+              <>
+                <button className={"rca-railbtn" + (overview ? " on" : "")} onClick={() => setStep(5)}>View results <RcIcon name="arrowUR" size={13} /></button>
+                <button className={"rca-railbtn" + (insights ? " on" : "")} onClick={() => setStep(6)}>Insights <RcIcon name="activity" size={13} /></button>
+              </>
+            ) : (
+              <div style={{ fontSize: 11.5, color: RC.faint, lineHeight: 1.5, textAlign: "center", padding: "8px 6px", border: `1.5px dashed ${RC.lineStrong}`, borderRadius: 11 }}>
+                Complete all 5 steps to see your results
+              </div>
+            )}
           </div>
         </div>
 
@@ -380,7 +412,7 @@ function CalculatorApp({ initial, hasData, demo, showOnboarding, onPersist, save
               <div style={{ flexShrink: 0, padding: "14px 10px 0 2px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <button className="rca-btn ghost" disabled={step === 0} onClick={() => setStep(Math.max(0, step - 1))}>← Back</button>
                 <span style={{ fontSize: 12.5, color: RC.faint, whiteSpace: "nowrap" }}>Step {step + 1} of 5 · {saveLabel}</span>
-                <button className="rca-btn primary" style={{ padding: "0 26px" }} onClick={() => setStep(step + 1)}>{step === 4 ? "See results →" : "Continue →"}</button>
+                <button className="rca-btn primary" style={{ padding: "0 26px" }} onClick={onContinue}>{step === 4 && completions.slice(0, 4).every(c => DONE_COMPLETIONS.includes(c)) ? "See results →" : "Continue →"}</button>
               </div>
             </div>
             <RatesRail s={s} calc={calc} uplift={uplift} ready={ready} missing={missing} onLoadDemo={demo ? undefined : onLoadDemo} />

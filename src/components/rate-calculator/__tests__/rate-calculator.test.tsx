@@ -209,6 +209,83 @@ describe("RateCalculator — Simple/Detailed toggle gating", () => {
   });
 });
 
+describe("RateCalculator — results gated behind all five steps", () => {
+  it("hides View results / Insights until every step is done, then unlocks", async () => {
+    const user = userEvent.setup();
+    render(<RateCalculator initialState={null} />);
+    await dismissOnboarding(user);
+
+    // Gated: buttons hidden, hint shown.
+    expect(screen.queryByText(/View results/)).toBeNull();
+    expect(screen.queryByText("Insights")).toBeNull();
+    expect(screen.getByText(/Complete all 5 steps/)).toBeInTheDocument();
+
+    // Step 1 — wages, then Next through the stack.
+    const month = screen.getAllByDisplayValue("0")[0];
+    await user.click(month);
+    await user.keyboard("40000");
+    await user.click(screen.getByText("Next →"));
+    await user.click(screen.getByText("Next →"));
+    await user.click(screen.getByText("Next →"));
+    await user.click(screen.getByText("Continue →")); // → Business
+
+    // Step 2 — overheads.
+    const biz = screen.getAllByDisplayValue("0")[0];
+    await user.click(biz);
+    await user.keyboard("4000");
+    await user.click(screen.getByText("Continue →")); // → Vehicles
+
+    // Step 3 — no vehicles.
+    await user.click(screen.getByText("No vehicles"));
+    await user.click(screen.getByText("Continue →")); // → Risk
+
+    // Step 4 — accepting the defaults is the Continue click itself.
+    expect(screen.queryByText(/View results/)).toBeNull(); // risk not yet accepted
+    await user.click(screen.getByText("Continue →")); // accepts risk → Profit
+
+    // Step 5 — everything else done, so the button reads See results.
+    await user.click(screen.getByText("See results →")); // accepts profit → Results
+
+    expect(screen.getByText("Your recommended rates")).toBeInTheDocument();
+    expect(screen.getByText(/View results/)).toBeInTheDocument(); // unlocked
+  });
+
+  it("the final Continue redirects to the first incomplete step instead of Results", async () => {
+    const user = userEvent.setup();
+    render(<RateCalculator initialState={null} />);
+    await dismissOnboarding(user);
+
+    // Complete staff only; skip business & vehicles.
+    const month = screen.getAllByDisplayValue("0")[0];
+    await user.click(month);
+    await user.keyboard("40000");
+    await user.click(screen.getByText("Continue →")); // → Business (skipped)
+    await user.click(screen.getByText("Continue →")); // → Vehicles (skipped)
+    await user.click(screen.getByText("Continue →")); // → Risk
+    await user.click(screen.getByText("Continue →")); // accepts risk → Profit
+
+    // Business is still incomplete, so no See-results label and the click
+    // walks back to Step 2 rather than into Results.
+    await user.click(screen.getByText("Continue →"));
+    expect(screen.getByText(/Step 2 of 5 · Simple/)).toBeInTheDocument();
+    expect(screen.queryByText("Your recommended rates")).toBeNull();
+  });
+});
+
+describe("RateCalculator — healthy-rate safeguard on Results", () => {
+  it("never offers Apply when current rates already beat the recommendation", () => {
+    const saved = JSON.parse(JSON.stringify(buildDemoState()));
+    saved.currentRates = { install: 200, service: 200 }; // ≥ recommended ⇒ uplift 0
+    render(<RateCalculator initialState={saved} />);
+
+    expect(screen.getByText("Your recommended rates")).toBeInTheDocument();
+    expect(screen.getByText("Charging a healthy rate")).toBeInTheDocument();
+    expect(screen.getByText("You're priced right")).toBeInTheDocument();
+    expect(screen.getByText(/no increase needed/)).toBeInTheDocument();
+    expect(screen.queryByText("Apply these rates →")).toBeNull();
+  });
+});
+
 describe("RateCalculator — example data mode", () => {
   it("loads Blue Sky, never saves, and exits back to own data", async () => {
     const user = userEvent.setup();

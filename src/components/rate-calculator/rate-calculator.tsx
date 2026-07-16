@@ -112,7 +112,7 @@ function RateCard({ label, k, color, soft, ink, rec, be, ready, currentRates, pa
         </div>
         {ready && diff != null && (diff > 0
           ? <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 800, color: "#B45309", background: "#FCF3E3", padding: "4px 9px", borderRadius: 100, whiteSpace: "nowrap" }}>↑ ${diff}/hr</span>
-          : <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 800, color: "#00745F", background: "#fff", border: "1px solid rgba(0,163,137,.28)", padding: "4px 9px", borderRadius: 100, whiteSpace: "nowrap" }}>✓ {diff < 0 ? "above" : "on target"}</span>)}
+          : <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 800, color: "#17703A", background: "#fff", border: "1px solid rgba(34,165,78,.3)", padding: "4px 9px", borderRadius: 100, whiteSpace: "nowrap" }}>✓ {diff < 0 ? "above" : "on target"}</span>)}
       </div>
 
       <div style={{ fontSize: 11.5, color: RC.ink2, marginTop: 9 }}>
@@ -145,7 +145,7 @@ function RatesRail({ s, calc, uplift, ready, missing, onLoadDemo, patch }: {
         </div>
       )}
       <RateCard label="Install" k="install" color={RC.install} soft={RC.installSoft} ink="#1D4FD7" rec={calc.recInst} be={calc.beInst} ready={ready} currentRates={s.currentRates} patch={patch} />
-      <RateCard label="Service" k="service" color={RC.service} soft={RC.serviceSoft} ink="#00745F" rec={calc.recSvc} be={calc.beSvc} ready={ready} currentRates={s.currentRates} patch={patch} />
+      <RateCard label="Service" k="service" color="#22A54E" soft="#E7F6EC" ink="#17703A" rec={calc.recSvc} be={calc.beSvc} ready={ready} currentRates={s.currentRates} patch={patch} />
       <div style={{ background: "#fff", borderRadius: 14, border: `1px solid rgba(10,12,20,.06)`, boxShadow: "0 1px 2px rgba(10,12,20,.04), 0 20px 50px -30px rgba(10,12,20,.18)", padding: "13px 15px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 9 }}>
           <span style={{ fontSize: 12.5, color: RC.ink2, whiteSpace: "nowrap" }}>Day rate (full day)</span>

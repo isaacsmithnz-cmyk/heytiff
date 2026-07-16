@@ -108,6 +108,19 @@ export function StaffStep({ s, patch, calc, showToggle, revealAll }: StepBodyPro
   const sl = s.simpleLabour;
   const totalLabour = calc.instLab + calc.svcLab + calc.adminLab;
   const wagesEntered = (sl.months || []).some(m => m > 0);
+  const [showBreakdown, setShowBreakdown] = React.useState(false);
+  // Breakdown of the projected "true cost" figure — gross wages projected to
+  // a year, plus the on-costs the engine loads on top.
+  const bd = calc.staffBreakdown[0];
+  const superPct = s.settings.super_pct ?? 12;
+  const wcPct = s.settings.workers_comp_pct ?? 2;
+  const grossWages = bd?.base ?? 0;
+  const costRows: [string, number][] = [
+    ["Gross wages", grossWages],
+    [`Superannuation (${superPct}%)`, grossWages * superPct / 100],
+    [`Workers comp (${wcPct}%)`, grossWages * wcPct / 100],
+    ["Leave loading", bd?.leaveLoading ?? 0],
+  ];
   // Work split: Install and Service are the two editable shares; Admin is
   // always the remainder (100 − the two), so the split can never total
   // anything but 100%. Each setter clamps the edited share to what's left.
@@ -141,12 +154,33 @@ export function StaffStep({ s, patch, calc, showToggle, revealAll }: StepBodyPro
         <>
           <MonthInputs months={sl.months} onChange={m => patch({ simpleLabour: { ...sl, months: m } })} />
           {wagesEntered && (
-            <div style={{ background: RC.serviceSoft, borderRadius: 14, padding: "13px 18px", marginTop: 14, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div>
-                <WsEyebrow color={RC.service}>Projected yearly true cost</WsEyebrow>
-                <div style={{ fontSize: 12.5, color: RC.service, opacity: 0.85, marginTop: 3 }}>wages + super + workers comp + leave loading</div>
-              </div>
-              <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 26, letterSpacing: "-0.02em", color: RC.service }}>{money(totalLabour)}</div>
+            <div style={{ background: RC.serviceSoft, borderRadius: 14, marginTop: 14, overflow: "hidden" }}>
+              <button onClick={() => setShowBreakdown(v => !v)} aria-expanded={showBreakdown}
+                style={{ width: "100%", background: "transparent", border: "none", cursor: "pointer", textAlign: "left", padding: "13px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                <div>
+                  <WsEyebrow color={RC.service}>Projected yearly true cost</WsEyebrow>
+                  <div style={{ fontSize: 12.5, color: RC.service, opacity: 0.85, marginTop: 3 }}>wages + super + workers comp + leave loading</div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                  <span style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 26, letterSpacing: "-0.02em", color: RC.service }}>{money(totalLabour)}</span>
+                  <span style={{ display: "flex", color: RC.service, transform: showBreakdown ? "rotate(180deg)" : "none", transition: "transform .2s" }}><RcIcon name="chevD" size={18} /></span>
+                </div>
+              </button>
+              {showBreakdown && (
+                <div style={{ padding: "0 18px 14px" }}>
+                  <div style={{ height: 1, background: "rgba(0,116,95,.15)", marginBottom: 4 }} />
+                  {costRows.map(([l, v]) => (
+                    <div key={l} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "6px 0", fontSize: 12.5, borderBottom: `1px solid rgba(0,116,95,.08)` }}>
+                      <span style={{ color: RC.ink2 }}>{l}</span>
+                      <span style={{ fontFamily: RC.head, fontWeight: 700, color: RC.ink }}>{money(v)}</span>
+                    </div>
+                  ))}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", paddingTop: 9 }}>
+                    <span style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 12.5, color: RC.ink }}>True cost / yr</span>
+                    <span style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 15, color: RC.service }}>{money(totalLabour)}</span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </>

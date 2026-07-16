@@ -144,6 +144,27 @@ describe("RateCalculator — work split locked at 100%", () => {
   });
 });
 
+describe("RateCalculator — projected cost breakdown", () => {
+  it("expands the projected true cost into its components", async () => {
+    const user = userEvent.setup();
+    render(<RateCalculator initialState={null} />);
+    await dismissOnboarding(user);
+
+    const month = screen.getAllByDisplayValue("0")[0];
+    await user.click(month);
+    await user.keyboard("40000");
+
+    expect(screen.getByText("Projected yearly true cost")).toBeInTheDocument();
+    expect(screen.queryByText("Gross wages")).toBeNull(); // collapsed by default
+
+    await user.click(screen.getByText("Projected yearly true cost"));
+    expect(screen.getByText("Gross wages")).toBeInTheDocument();
+    expect(screen.getByText(/Superannuation/)).toBeInTheDocument();
+    expect(screen.getByText(/Workers comp/)).toBeInTheDocument();
+    expect(screen.getByText("Leave loading")).toBeInTheDocument();
+  });
+});
+
 describe("RateCalculator — Vehicles yes/no question", () => {
   async function goToVehicles(user: ReturnType<typeof userEvent.setup>) {
     render(<RateCalculator initialState={null} />);

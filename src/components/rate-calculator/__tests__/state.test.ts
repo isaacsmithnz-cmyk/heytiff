@@ -36,6 +36,24 @@ describe("demo state", () => {
   });
 });
 
+describe("vehicles no longer auto-complete on an empty fleet", () => {
+  it("empty state leaves Vehicles not_started", () => {
+    expect(runEngine(emptyState()).steps.vehicles.completion).toBe("not_started");
+  });
+  it("confirming No vehicles marks it complete", () => {
+    const run = runEngine({ ...emptyState(), noVehicles: true });
+    expect(run.steps.vehicles.completion).toBe("complete");
+  });
+  it("entering fleet running costs marks it complete", () => {
+    const s = emptyState();
+    s.simpleVehicle = { months: [1200, 1100, 1300] };
+    expect(runEngine(s).steps.vehicles.completion).toBe("complete");
+  });
+  it("demo (a costed fleet) stays complete", () => {
+    expect(runEngine(buildDemoState()).steps.vehicles.completion).toBe("complete");
+  });
+});
+
 describe("hydrateState", () => {
   it("returns defaults for null / garbage input", () => {
     expect(hydrateState(null)).toEqual(emptyState());

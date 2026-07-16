@@ -83,4 +83,9 @@
 @media (prefers-reduced-motion: no-preference) {
   .rca-view { animation:rcaUp .4s cubic-bezier(.22,1,.36,1) backwards; }
   @keyframes rcaUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+
+  /* setup-path steps are revealed one at a time — a node animates when it
+     first mounts (i.e. when it's newly revealed), not on every re-render. */
+  .rca-step { animation:rcaStepIn .32s cubic-bezier(.22,1,.36,1) backwards; }
+  @keyframes rcaStepIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
 }

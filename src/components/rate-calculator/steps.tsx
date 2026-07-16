@@ -171,9 +171,20 @@ export function VehiclesStep({ s, patch, calc }: StepBodyProps) {
   return (
     <>
       <StepHead eyebrow={`Step 3 of 5 · ${s.mode.vehicles}`} title="Vehicles" mode={s.mode.vehicles} onMode={val => patch({ mode: { ...s.mode, vehicles: val as EntryMode } })} />
-      {s.mode.vehicles === "Detailed" ? <VehiclesDetail s={s} patch={patch} calc={calc} /> : (
+      {s.mode.vehicles === "Detailed" ? <VehiclesDetail s={s} patch={patch} calc={calc} /> : s.noVehicles ? (
       <Body>
-        <WsHelpNote id="vehicles-simple" style={{ marginBottom: 16 }}>No fleet? Leave the months at zero — your rates simply carry no vehicle recovery. <b>Detailed</b> mode costs each vehicle individually (replacement cycle, fuel, rego, fit-out).</WsHelpNote>
+        <div style={{ background: "#fff", borderRadius: 16, border: `1px solid ${RC.line}`, boxShadow: "0 8px 30px rgba(0,0,0,.03)", padding: "20px 22px", display: "flex", alignItems: "center", gap: 16 }}>
+          <span style={{ width: 44, height: 44, borderRadius: 13, background: RC.serviceSoft, color: RC.service, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><RcIcon name="truck" size={22} /></span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 16, letterSpacing: "-0.01em", color: RC.ink }}>No vehicles</div>
+            <div style={{ fontSize: 12.5, color: RC.label, marginTop: 2, lineHeight: 1.5 }}>Your rates carry no vehicle recovery. You can add fleet costs any time.</div>
+          </div>
+          <button className="rca-btn ghost sm" onClick={() => patch({ noVehicles: false })}>I do have vehicles</button>
+        </div>
+      </Body>
+      ) : (
+      <Body>
+        <WsHelpNote id="vehicles-simple" style={{ marginBottom: 16 }}>Enter your fleet&apos;s running costs below — or if you don&apos;t run any vehicles, choose <b>No vehicles</b> and this step carries no vehicle recovery. <b>Detailed</b> mode costs each vehicle individually (replacement cycle, fuel, rego, fit-out).</WsHelpNote>
         <WsEyebrow style={{ marginBottom: 11 }}>Last 3 months of fleet running costs</WsEyebrow>
         <MonthInputs months={sv.months} onChange={m => patch({ simpleVehicle: { ...sv, months: m } })} />
         <div style={{ background: RC.serviceSoft, borderRadius: 14, padding: "15px 20px", marginTop: 14, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -194,6 +205,7 @@ export function VehiclesStep({ s, patch, calc }: StepBodyProps) {
             </div>
           ))}
         </div>
+        <button className="rca-btn ghost" style={{ marginTop: 16, alignSelf: "flex-start" }} onClick={() => patch({ noVehicles: true, simpleVehicle: { ...sv, months: [0, 0, 0] } })}>I don&apos;t run any vehicles</button>
       </Body>
       )}
     </>

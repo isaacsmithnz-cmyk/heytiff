@@ -220,5 +220,6 @@ export function buildDemoState(): RateCalcState {
     simpleBusiness: { months: [4060, 3950, 4170] },
     simpleVehicle: { months: [3400, 3300, 3500] },
     mode: { staff: "Simple", business: "Simple", vehicles: "Simple" },
+    noVehicles: false,
   };
 }

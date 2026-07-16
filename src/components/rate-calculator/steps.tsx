@@ -168,9 +168,9 @@ export function StaffStep({ s, patch, calc, showToggle, revealAll }: StepBodyPro
               </button>
               {showBreakdown && (
                 <div style={{ padding: "0 18px 14px" }}>
-                  <div style={{ height: 1, background: "rgba(0,116,95,.15)", marginBottom: 4 }} />
+                  <div style={{ height: 1, background: "rgba(23,112,58,.15)", marginBottom: 4 }} />
                   {costRows.map(([l, v]) => (
-                    <div key={l} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "6px 0", fontSize: 12.5, borderBottom: `1px solid rgba(0,116,95,.08)` }}>
+                    <div key={l} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "6px 0", fontSize: 12.5, borderBottom: `1px solid rgba(23,112,58,.08)` }}>
                       <span style={{ color: RC.ink2 }}>{l}</span>
                       <span style={{ fontFamily: RC.head, fontWeight: 700, color: RC.ink }}>{money(v)}</span>
                     </div>
@@ -326,8 +326,8 @@ export function VehiclesStep({ s, patch, calc, showToggle, revealAll }: StepBody
       <div style={{ display: "flex", alignItems: "center", gap: 14, background: RC.serviceSoft, borderRadius: 13, padding: "13px 16px" }}>
         <span style={{ width: 38, height: 38, borderRadius: 11, background: "#fff", color: RC.service, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><RcIcon name="truck" size={19} /></span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 14, color: "#00745F" }}>No vehicles</div>
-          <div style={{ fontSize: 12, color: "#00745F", opacity: 0.85, marginTop: 1 }}>Your rates carry no vehicle recovery. You can add fleet costs any time.</div>
+          <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 14, color: "#17703A" }}>No vehicles</div>
+          <div style={{ fontSize: 12, color: "#17703A", opacity: 0.85, marginTop: 1 }}>Your rates carry no vehicle recovery. You can add fleet costs any time.</div>
         </div>
         <button className="rca-btn ghost sm" onClick={() => { setSaidYes(false); patch({ noVehicles: false }); }}>I do have vehicles</button>
       </div>

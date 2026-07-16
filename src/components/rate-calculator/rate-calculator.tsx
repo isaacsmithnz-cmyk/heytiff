@@ -145,7 +145,7 @@ function RatesRail({ s, calc, uplift, ready, missing, onLoadDemo, patch }: {
         </div>
       )}
       <RateCard label="Install" k="install" color={RC.install} soft={RC.installSoft} ink="#1D4FD7" rec={calc.recInst} be={calc.beInst} ready={ready} currentRates={s.currentRates} patch={patch} />
-      <RateCard label="Service" k="service" color="#22A54E" soft="#E7F6EC" ink="#17703A" rec={calc.recSvc} be={calc.beSvc} ready={ready} currentRates={s.currentRates} patch={patch} />
+      <RateCard label="Service" k="service" color={RC.service} soft={RC.serviceSoft} ink="#17703A" rec={calc.recSvc} be={calc.beSvc} ready={ready} currentRates={s.currentRates} patch={patch} />
       <div style={{ background: "#fff", borderRadius: 14, border: `1px solid rgba(10,12,20,.06)`, boxShadow: "0 1px 2px rgba(10,12,20,.04), 0 20px 50px -30px rgba(10,12,20,.18)", padding: "13px 15px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 9 }}>
           <span style={{ fontSize: 12.5, color: RC.ink2, whiteSpace: "nowrap" }}>Day rate (full day)</span>
@@ -162,7 +162,7 @@ function RatesRail({ s, calc, uplift, ready, missing, onLoadDemo, patch }: {
       </div>
       <div style={{ marginTop: "auto", paddingTop: 16 }}>
         {ready && uplift != null && uplift > 0 && (
-          <div style={{ background: RC.serviceSoft, borderRadius: 13, padding: "12px 15px", fontSize: 12.5, color: "#00745F", lineHeight: 1.5 }}>
+          <div style={{ background: RC.serviceSoft, borderRadius: 13, padding: "12px 15px", fontSize: 12.5, color: "#17703A", lineHeight: 1.5 }}>
             Re-pricing to recommended recovers <b>+{money(uplift)}/yr</b>.
           </div>
         )}
@@ -376,7 +376,7 @@ function CalculatorApp({ initial, hasData, demo, showOnboarding, onPersist, save
       </div>
 
       {demo && (
-        <div style={{ flexShrink: 0, margin: "10px 20px 0", background: RC.serviceSoft, border: `1px solid rgba(0,163,137,.25)`, borderRadius: 13, padding: "8px 14px", display: "flex", alignItems: "center", gap: 10, fontSize: 12.5, color: "#00745F", fontFamily: RC.body }}>
+        <div style={{ flexShrink: 0, margin: "10px 20px 0", background: RC.serviceSoft, border: `1px solid rgba(34,165,78,.25)`, borderRadius: 13, padding: "8px 14px", display: "flex", alignItems: "center", gap: 10, fontSize: 12.5, color: "#17703A", fontFamily: RC.body }}>
           <span style={{ width: 7, height: 7, borderRadius: "50%", background: RC.service, flexShrink: 0 }} />
           You&apos;re exploring <b>example data</b> (Blue Sky Air Conditioning). Nothing here is saved — your own setup is untouched.
         </div>

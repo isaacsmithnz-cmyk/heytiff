@@ -77,6 +77,11 @@ export interface RateCalcState {
       step no longer auto-completes on an empty fleet, so this records the
       deliberate "no fleet" choice that lets the step count as done. */
   noVehicles: boolean;
+  /** Risk & Profit ship with valid defaults, but the steps only count as
+      complete once the user has explicitly accepted them (clicking Continue
+      on the step, or customising a value). */
+  riskAccepted: boolean;
+  profitAccepted: boolean;
 }
 
 // ─── Defaults (real orgs — independent of the demo dataset) ─────────────
@@ -127,6 +132,8 @@ export function emptyState(): RateCalcState {
     simpleVehicle: { months: [0, 0, 0] },
     mode: { staff: "Simple", business: "Simple", vehicles: "Simple" },
     noVehicles: false,
+    riskAccepted: false,
+    profitAccepted: false,
   };
 }
 
@@ -160,6 +167,8 @@ export function hydrateState(raw: unknown): RateCalcState {
     simpleVehicle: { ...base.simpleVehicle, ...(D.simpleVehicle ?? {}) },
     mode: { ...base.mode, ...(D.mode ?? {}) },
     noVehicles: D.noVehicles === true,
+    riskAccepted: D.riskAccepted === true,
+    profitAccepted: D.profitAccepted === true,
   };
 }
 
@@ -189,6 +198,15 @@ export function daysSinceReviewed(lastReviewed: string | null | undefined, now =
   const t = Date.parse(lastReviewed);
   if (Number.isNaN(t)) return null;
   return Math.max(0, Math.floor((now - t) / 86_400_000));
+}
+
+/** A step counts as "done" when it's complete, customised, or running on
+    explicitly-accepted defaults. */
+export const DONE_COMPLETIONS = ["complete", "customised", "defaults"];
+
+export function allStepsDone(steps: StepStatusMap): boolean {
+  return [steps.staff, steps.business, steps.vehicles, steps.risk, steps.profit]
+    .every(st => DONE_COMPLETIONS.includes(st.completion));
 }
 
 // ─── Engine glue ────────────────────────────────────────────────────────
@@ -246,6 +264,16 @@ export function runEngine(s: RateCalcState): EngineRun {
     steps.vehicles = { ...steps.vehicles, completion: "not_started" };
   } else if (!hasFleet && s.noVehicles) {
     steps.vehicles = { ...steps.vehicles, completion: "complete" };
+  }
+
+  // Risk & Profit defaults are valid but must be explicitly accepted before
+  // the step counts as done ("customised" passes through — editing a value
+  // is acceptance in itself).
+  if (steps.risk.completion === "defaults" && !s.riskAccepted) {
+    steps.risk = { ...steps.risk, completion: "not_started" };
+  }
+  if (steps.profit.completion === "defaults" && !s.profitAccepted) {
+    steps.profit = { ...steps.profit, completion: "not_started" };
   }
 
   // Readiness gate — no rate without genuine labour input.

@@ -31,7 +31,7 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 18px 14px 24px 24px; /* right trimmed to reclaim edge dead space (stays on grey) */
+  padding: 18px 2px 24px 24px; /* right trimmed to a minimal grey gap before the dark frame */
   min-height: calc(100dvh - 96px); /* outlet height: viewport − topbar − well inset */
   color: var(--ink);
 }
@@ -44,6 +44,12 @@
   min-height: 0;
   overflow: hidden;
 }
+/* The studio never scrolls the outlet (only .ds-sidecol scrolls), so the shell's
+   reserved scrollbar gutter is wasted grey on the right — reclaim it here only,
+   letting the cockpit sit a minimal gap from the dark frame. Scoped via :has so
+   other dashboard pages keep their stable gutter. The dark frame itself (.fg /
+   .fg .main padding) is untouched. */
+.fg .outlet:has(.dstudio) { scrollbar-gutter: auto; }
 
 /* ═════════════ Home ═════════════ */
 
@@ -1164,6 +1170,162 @@
   border-color: #dc2626;
   font-weight: 700;
 }
+
+/* Calibrate pill — merged scale + north: orange until both are set, green when
+   complete; the popover (reusing .ds-layers-menu) edits either. */
+.dstudio .ds-calib-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: #b45309;
+  background: rgba(240, 164, 49, 0.16);
+  border: 1px solid rgba(240, 164, 49, 0.4);
+  border-radius: 999px;
+  padding: 5px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.dstudio .ds-calib-pill:hover { background: rgba(240, 164, 49, 0.26); }
+.dstudio .ds-calib-pill.done {
+  color: var(--teal-d);
+  background: rgba(20, 184, 166, 0.08);
+  border-color: var(--teal-d);
+}
+.dstudio .ds-calib-pill.done:hover { background: rgba(20, 184, 166, 0.14); }
+.dstudio .ds-calib-pill.on { box-shadow: 0 0 0 3px rgba(240, 164, 49, 0.18); }
+.dstudio .ds-calib-pill.done.on { box-shadow: 0 0 0 3px rgba(0, 163, 137, 0.16); }
+.dstudio .ds-calib-menu { min-width: 190px; }
+.dstudio .ds-calib-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+}
+.dstudio .ds-calib-row:hover { background: #f3f4f6; }
+.dstudio .ds-calib-row .k { font-weight: 700; }
+.dstudio .ds-calib-row .v {
+  margin-left: auto;
+  color: var(--gray500);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Floor dropdown — current level + a menu of all floors; each row has a delete
+   x that reddens only on hover, behind a two-step "Delete?" confirm. */
+.dstudio .ds-floor-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid #e0e0de;
+  border-radius: 999px;
+  padding: 5px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.dstudio .ds-floor-trigger:hover { border-color: #cfcfcc; }
+.dstudio .ds-floor-trigger.on { border-color: var(--teal-d); color: var(--teal-d); }
+.dstudio .ds-floor-menu { min-width: 200px; }
+.dstudio .ds-floor-row { display: flex; align-items: center; border-radius: 8px; }
+.dstudio .ds-floor-row.on { background: rgba(20, 184, 166, 0.08); }
+.dstudio .ds-floor-pick {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+}
+.dstudio .ds-floor-row:hover .ds-floor-pick { background: #f3f4f6; }
+.dstudio .ds-floor-row.on:hover .ds-floor-pick { background: transparent; }
+.dstudio .ds-floor-pick .lvl {
+  flex: 0 0 auto;
+  min-width: 26px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: #e4e6ec;
+  font-size: 10.5px;
+  font-weight: 800;
+  color: var(--gray500);
+  text-align: center;
+}
+.dstudio .ds-floor-row.on .ds-floor-pick .lvl { background: var(--teal-d); color: #fff; }
+.dstudio .ds-floor-pick .nm {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dstudio .ds-floor-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  margin-right: 4px;
+  border-radius: 7px;
+  color: var(--gray400);
+  cursor: pointer;
+}
+.dstudio .ds-floor-x:hover { background: rgba(220, 38, 38, 0.1); color: #dc2626; }
+.dstudio .ds-floor-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 4px;
+}
+.dstudio .ds-floor-confirm .yes {
+  padding: 4px 9px;
+  border-radius: 7px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.dstudio .ds-floor-confirm .no {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  color: var(--gray500);
+  cursor: pointer;
+}
+.dstudio .ds-floor-confirm .no:hover { background: #f3f4f6; color: var(--ink); }
+.dstudio .ds-floor-add {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  margin-top: 4px;
+  padding: 8px 10px;
+  border-top: 1px solid #ececeb;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--teal-d);
+  cursor: pointer;
+}
+.dstudio .ds-floor-add:hover { background: rgba(20, 184, 166, 0.08); }
 
 /* reference-sheets viewer */
 .ds-ref-overlay {
@@ -4530,7 +4692,7 @@
 }
 .dstudio .ds-ck-caphero-change:hover { color: var(--teal-d); border-color: rgba(0, 163, 137, 0.4); background: rgba(0, 163, 137, 0.06); }
 .dstudio .ds-ck-caphero-change svg { width: 12px; height: 12px; }
-.dstudio .ds-ck-caphero-cols { display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center; }
+.dstudio .ds-ck-caphero-cols { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; }
 .dstudio .ds-ck-caphero-type { font: 800 20px var(--font); letter-spacing: -0.02em; margin: 0 0 10px; }
 .dstudio .ds-ck-caphero-type span { color: var(--teal-d); font-weight: 700; }
 
@@ -4538,7 +4700,7 @@
 .dstudio .ds-ck-ledger { display: flex; flex-direction: column; }
 .dstudio .ds-ck-ledger-row { display: flex; align-items: center; gap: 8px; padding: 5px 10px; border-radius: 8px; }
 .dstudio .ds-ck-ledger-row .k { font: 800 8px var(--font); letter-spacing: 0.07em; text-transform: uppercase; }
-.dstudio .ds-ck-ledger-row .v { margin-left: auto; font: 800 13px var(--font); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.dstudio .ds-ck-ledger-row .v { margin-left: auto; font: 800 13px var(--font); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; white-space: nowrap; }
 .dstudio .ds-ck-ledger-row.req .k { color: var(--gray400); }
 .dstudio .ds-ck-ledger-row.req .v { color: var(--ink2); }
 .dstudio .ds-ck-ledger-row.sel .k { color: var(--gray500); }
@@ -4561,8 +4723,8 @@
 .dstudio .ds-ck-caphero[data-state="empty"] .ds-ck-ledger-row.sum .v { color: var(--gray500); }
 
 /* donut */
-.dstudio .ds-ck-donut { position: relative; width: 110px; height: 110px; }
-.dstudio .ds-ck-donut svg { width: 110px; height: 110px; transform: rotate(-90deg); overflow: visible; }
+.dstudio .ds-ck-donut { position: relative; width: 90px; height: 90px; }
+.dstudio .ds-ck-donut svg { width: 90px; height: 90px; transform: rotate(-90deg); overflow: visible; }
 .dstudio .ds-ck-donut .track { stroke: rgba(10, 12, 20, 0.09); }
 .dstudio .ds-ck-donut .val {
   stroke-dasharray: 282.7;
@@ -4588,7 +4750,7 @@
 .dstudio .ds-ck-caphero[data-state="bad"] .ds-ck-donut .ctr::before { background: radial-gradient(circle, rgba(224, 38, 79, 0.1), transparent 70%); }
 .dstudio .ds-ck-donut .n {
   position: relative;
-  font: 800 23px var(--font);
+  font: 800 20px var(--font);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.03em;
   line-height: 1;

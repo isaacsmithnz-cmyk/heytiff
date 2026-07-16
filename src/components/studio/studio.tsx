@@ -1429,6 +1429,8 @@ function DesignPanel({
   // floors mid-arm can't delete the wrong one
   const [armedDelFloor, setArmedDelFloor] = useState<string | null>(null);
   const [layersOpen, setLayersOpen] = useState(false);
+  const [calibOpen, setCalibOpen] = useState(false);
+  const [floorMenuOpen, setFloorMenuOpen] = useState(false);
   const [zoomApi, setZoomApi] = useState<ZoomApi | null>(null);
   const [zoomPct, setZoomPct] = useState(100);
 
@@ -1495,56 +1497,144 @@ function DesignPanel({
     <div className="ds-design">
       <div className="ds-canvas-col">
         <div className="ds-canvas-top">
-          <div className="ds-floortabs">
-            {floors.map((f) => (
-              <button
-                key={f.id}
-                className={`ds-floortab${f.id === floor.id ? " on" : ""}`}
-                onClick={() => onFloor(f.id)}
-                title={floorDisplayName(f)}
-              >
-                {formatLevel(f.level)}
-              </button>
-            ))}
-            <button className="ds-floortab add" onClick={onAddFloor} title="Add floor">
-              <Icon name="plus" size={13} />
+          {/* Floor dropdown — current level + a menu of all floors (each with a
+              red-on-hover delete x behind an "Are you sure?" confirm) + Add floor */}
+          <div className="ds-layers-wrap ds-floor-wrap">
+            <button
+              className={`ds-floor-trigger${floorMenuOpen ? " on" : ""}`}
+              onClick={() => {
+                setArmedDelFloor(null);
+                setCalibOpen(false);
+                setLayersOpen(false);
+                setFloorMenuOpen((v) => !v);
+              }}
+              title={`${floorDisplayName(floor)} — switch floor`}
+            >
+              <Icon name="layers" size={13} />
+              {formatLevel(floor.level)}
+              <Icon name="chevD" size={12} />
             </button>
+            {floorMenuOpen && (
+              <div className="ds-layers-menu ds-floor-menu" role="menu">
+                {floors.map((f) => (
+                  <div key={f.id} className={`ds-floor-row${f.id === floor.id ? " on" : ""}`}>
+                    <button
+                      className="ds-floor-pick"
+                      onClick={() => {
+                        onFloor(f.id);
+                        setFloorMenuOpen(false);
+                      }}
+                    >
+                      <span className="lvl">{formatLevel(f.level)}</span>
+                      <span className="nm">{floorDisplayName(f)}</span>
+                    </button>
+                    {armedDelFloor === f.id ? (
+                      <span className="ds-floor-confirm">
+                        <button
+                          className="yes"
+                          onClick={() => {
+                            onDeleteFloor(f.id);
+                            setArmedDelFloor(null);
+                          }}
+                        >
+                          Delete?
+                        </button>
+                        <button
+                          className="no"
+                          onClick={() => setArmedDelFloor(null)}
+                          aria-label="Cancel delete"
+                        >
+                          <Icon name="x" size={12} />
+                        </button>
+                      </span>
+                    ) : (
+                      floors.length > 1 && (
+                        <button
+                          className="ds-floor-x"
+                          onClick={() => setArmedDelFloor(f.id)}
+                          title="Delete this floor and everything on it"
+                          aria-label={`Delete ${floorDisplayName(f)}`}
+                        >
+                          <Icon name="x" size={12} />
+                        </button>
+                      )
+                    )}
+                  </div>
+                ))}
+                <button
+                  className="ds-floor-add"
+                  onClick={() => {
+                    onAddFloor();
+                    setFloorMenuOpen(false);
+                  }}
+                >
+                  <Icon name="plus" size={13} />
+                  Add floor
+                </button>
+              </div>
+            )}
           </div>
           <div className="ds-canvas-toggles">
-            {/* Calibrate — prominent CTA until calibrated, then a subtle
-                recalibrate pill (also the way back in after Skip) */}
-            {floor.scaleMmPerUnit == null ? (
+            {/* Calibrate — one pill folding scale + north: orange until both are
+                set, green when complete; the popover edits either */}
+            <div className="ds-layers-wrap">
               <button
-                className={`ds-calib-cta${tool === "calibrate" ? " armed" : ""}`}
-                onClick={() => onTool("calibrate")}
-                title="Click two points a known distance apart on the plan"
+                className={`ds-calib-pill${
+                  floor.scaleMmPerUnit != null && floor.northPos ? " done" : ""
+                }${calibOpen || tool === "calibrate" || tool === "set-north" ? " on" : ""}`}
+                onClick={() => {
+                  setFloorMenuOpen(false);
+                  setLayersOpen(false);
+                  setCalibOpen((v) => !v);
+                }}
+                title="Calibrate — set the scale and north"
               >
                 <Icon name="ruler" size={13} />
-                Calibrate the scale to begin
+                {floor.scaleMmPerUnit != null && floor.northPos ? "Calibrated" : "Calibrate"}
+                <Icon name="chevD" size={12} />
               </button>
-            ) : (
-              <button
-                className={`ds-val-pill set${tool === "calibrate" ? " on" : ""}`}
-                onClick={() => onTool("calibrate")}
-                title="Recalibrate the scale"
-              >
-                <Icon name="ruler" size={13} />
-                {`${floor.scaleMmPerUnit.toFixed(1)} mm/px`}
-              </button>
-            )}
-            <button
-              className={`ds-val-pill${floor.northPos ? " set" : ""}${tool === "set-north" ? " on" : ""}`}
-              onClick={() => onTool("set-north")}
-              title={floor.northPos ? "Reset the north direction" : "Set the north direction on the plan"}
-            >
-              <Icon name="compass" size={13} />
-              {floor.northPos ? `North ${Math.round(floor.northDeg ?? 0)}°` : "Set north"}
-            </button>
+              {calibOpen && (
+                <div className="ds-layers-menu ds-calib-menu" role="menu">
+                  <button
+                    className="ds-calib-row"
+                    onClick={() => {
+                      onTool("calibrate");
+                      setCalibOpen(false);
+                    }}
+                  >
+                    <Icon name="ruler" size={13} />
+                    <span className="k">Scale</span>
+                    <span className="v">
+                      {floor.scaleMmPerUnit != null
+                        ? `${floor.scaleMmPerUnit.toFixed(1)} mm/px`
+                        : "Set scale"}
+                    </span>
+                  </button>
+                  <button
+                    className="ds-calib-row"
+                    onClick={() => {
+                      onTool("set-north");
+                      setCalibOpen(false);
+                    }}
+                  >
+                    <Icon name="compass" size={13} />
+                    <span className="k">North</span>
+                    <span className="v">
+                      {floor.northPos ? `${Math.round(floor.northDeg ?? 0)}°` : "Set north"}
+                    </span>
+                  </button>
+                </div>
+              )}
+            </div>
             {/* View — one pill folding Layers, B&W and Legend into a popover */}
             <div className="ds-layers-wrap">
               <button
                 className={`ds-ctl-btn${layersOpen ? " on" : ""}`}
-                onClick={() => setLayersOpen((v) => !v)}
+                onClick={() => {
+                  setFloorMenuOpen(false);
+                  setCalibOpen(false);
+                  setLayersOpen((v) => !v);
+                }}
                 title="View — layers, black & white and legend"
               >
                 <Icon name="layers" size={14} />
@@ -1623,28 +1713,6 @@ function DesignPanel({
               Reference sheets
             </button>
           )}
-          <button
-            className={`ds-floor-del${armedDelFloor === floor.id ? " arm" : ""}${onOpenReference ? "" : " push"}`}
-            onClick={() => {
-              if (armedDelFloor === floor.id) {
-                onDeleteFloor(floor.id);
-                setArmedDelFloor(null);
-              } else {
-                setArmedDelFloor(floor.id);
-              }
-            }}
-            onBlur={() => setArmedDelFloor(null)}
-            title="Delete this floor and everything on it"
-          >
-            {armedDelFloor === floor.id ? (
-              "Delete floor?"
-            ) : (
-              <>
-                <Icon name="x" size={13} />
-                Delete floor
-              </>
-            )}
-          </button>
         </div>
         <div className="ds-canvas-body">
           <div className="ds-toolrail" role="toolbar" aria-label="Canvas tools">

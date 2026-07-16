@@ -154,7 +154,6 @@ export function SystemCockpit({
 }) {
   const [adding, setAdding] = useState(false);
   const [changingType, setChangingType] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const systems = doc.systems;
   const active = systems.find((s) => s.id === activeSystemId) ?? systems[0] ?? null;
@@ -214,16 +213,13 @@ export function SystemCockpit({
     }));
   };
 
-  const deleteSystem = () => {
-    if (!active) return;
-    const sysId = active.id;
+  const deleteSystem = (id: string) => {
     onMutate((d) => ({
       ...d,
-      systems: d.systems.filter((s) => s.id !== sysId),
-      objects: d.objects.filter((o) => o.systemId !== sysId),
+      systems: d.systems.filter((s) => s.id !== id),
+      objects: d.objects.filter((o) => o.systemId !== id),
     }));
-    onActivate(null);
-    setConfirmDelete(false);
+    if (id === active?.id) onActivate(null);
   };
 
   // no systems yet → the chooser is the whole panel (type-first entry)
@@ -238,35 +234,21 @@ export function SystemCockpit({
   const mod = active ? moduleFor(active.type) : null;
   const showChooser = adding || changingType;
 
+  const systemSelector = (
+    <SystemSelector
+      systems={systems}
+      activeId={active?.id ?? null}
+      onActivate={onActivate}
+      onAdd={() => {
+        setChangingType(false);
+        setAdding(true);
+      }}
+      onDelete={deleteSystem}
+    />
+  );
+
   return (
     <div className="ds-ck">
-      <CockpitTabs
-        systems={systems}
-        activeId={active?.id ?? null}
-        onActivate={onActivate}
-        onAdd={() => {
-          setChangingType(false);
-          setConfirmDelete(false);
-          setAdding(true);
-        }}
-        onRequestClose={() => setConfirmDelete(true)}
-      />
-
-      {confirmDelete && (
-        <div className="ds-ck-delwarn" role="alertdialog" aria-label="Delete system">
-          <div className="ds-ck-delwarn-msg">
-            <Icon name="alert" size={14} />
-            This deletes the system and its objects.
-          </div>
-          <div className="ds-ck-delwarn-actions">
-            <button onClick={() => setConfirmDelete(false)}>Cancel</button>
-            <button className="ds-ck-delwarn-go" onClick={deleteSystem}>
-              Delete
-            </button>
-          </div>
-        </div>
-      )}
-
       {showChooser ? (
         <div className="ds-ck-scroll">
           <SystemTypeChooser
@@ -293,15 +275,15 @@ export function SystemCockpit({
           onEditRoom={onEditRoom}
           onArmPlace={onArmPlace}
           onDrawRoom={onDrawRoom}
+          systemSelector={systemSelector}
           onChangeType={() => {
-            setConfirmDelete(false);
             setAdding(false);
             setChangingType(true);
           }}
         />
       ) : active && mod && !mod.available ? (
         <>
-          <SimpleHero label={mod.label} />
+          <SimpleHero label={mod.label} systemSelector={systemSelector} />
           <div className="ds-ck-scroll">
             <div className="ds-ck-coming">
               <div className="ct">{mod.label}</div>
@@ -313,62 +295,105 @@ export function SystemCockpit({
           </div>
         </>
       ) : active && mod ? (
-        <SimpleHero label={mod.label} />
+        <SimpleHero label={mod.label} systemSelector={systemSelector} />
       ) : null}
     </div>
   );
 }
 
-/* ─────────────────────────── tabs ─────────────────────────── */
-
-function CockpitTabs({
+/* ───────────────── system selector (dropdown, mirrors the floor picker) ─────────────────
+   Lives in the hero's top-left. Trigger shows the active system; the menu lists
+   every system with a red-on-hover delete x behind a two-step confirm, plus Add
+   system. Reuses the shared .ds-layers-menu + .ds-floor-* row/confirm visuals. */
+function SystemSelector({
   systems,
   activeId,
   onActivate,
   onAdd,
-  onRequestClose,
+  onDelete,
 }: {
   systems: DesignSystem[];
   activeId: string | null;
   onActivate: (id: string | null) => void;
   onAdd: () => void;
-  onRequestClose: () => void;
+  onDelete: (id: string) => void;
 }) {
+  const [open, setOpen] = useState(false);
+  const [armedDel, setArmedDel] = useState<string | null>(null);
+  const active = systems.find((s) => s.id === activeId) ?? systems[0] ?? null;
+  if (!active) return null;
   return (
-    <div className="ds-ck-tabs" role="tablist" aria-label="Systems">
-      {systems.map((s) => {
-        const on = s.id === activeId;
-        return (
-          <button
-            key={s.id}
-            role="tab"
-            aria-selected={on}
-            className={`ds-ck-tab${on ? " on" : ""}`}
-            onClick={() => onActivate(s.id)}
-            title={`${s.name} · ${moduleFor(s.type).label}`}
-          >
-            <span className="ds-ck-tabdot" style={{ background: s.colour }} />
-            <span className="ds-ck-tabname">{s.name}</span>
-            {on && (
-              <span
-                className="ds-ck-tabx"
-                role="button"
-                aria-label={`Close ${s.name}`}
-                title="Delete system"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRequestClose();
+    <div className="ds-layers-wrap ds-sys-wrap">
+      <button
+        className={`ds-sys-trigger${open ? " on" : ""}`}
+        onClick={() => {
+          setArmedDel(null);
+          setOpen((v) => !v);
+        }}
+        title={`${active.name} — switch system`}
+      >
+        <span className="ds-sys-dot" style={{ background: active.colour }} />
+        <span className="ds-sys-name">{active.name}</span>
+        <Icon name="chevD" size={12} />
+      </button>
+      {open && (
+        <div className="ds-layers-menu ds-sys-menu" role="menu">
+          {systems.map((s) => (
+            <div key={s.id} className={`ds-sys-row${s.id === active.id ? " on" : ""}`}>
+              <button
+                className="ds-sys-pick"
+                onClick={() => {
+                  onActivate(s.id);
+                  setOpen(false);
                 }}
               >
-                <Glyph name="x" size={11} />
-              </span>
-            )}
+                <span className="ds-sys-dot" style={{ background: s.colour }} />
+                <span className="nm">{s.name}</span>
+                <span className="ty">{moduleFor(s.type).label}</span>
+              </button>
+              {armedDel === s.id ? (
+                <span className="ds-floor-confirm">
+                  <button
+                    className="yes"
+                    onClick={() => {
+                      onDelete(s.id);
+                      setArmedDel(null);
+                    }}
+                  >
+                    Delete?
+                  </button>
+                  <button
+                    className="no"
+                    onClick={() => setArmedDel(null)}
+                    aria-label="Cancel delete"
+                  >
+                    <Glyph name="x" size={12} />
+                  </button>
+                </span>
+              ) : (
+                <button
+                  className="ds-floor-x"
+                  onClick={() => setArmedDel(s.id)}
+                  title="Delete this system and its objects"
+                  aria-label={`Delete ${s.name}`}
+                >
+                  <Glyph name="x" size={12} />
+                </button>
+              )}
+            </div>
+          ))}
+          <button
+            className="ds-floor-add"
+            onClick={() => {
+              onAdd();
+              setOpen(false);
+            }}
+          >
+            <Glyph name="plus" size={13} />
+            Add system
           </button>
-        );
-      })}
-      <button className="ds-ck-tabadd" onClick={onAdd} aria-label="Add system" title="Add system">
-        <Glyph name="plus" size={16} />
-      </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -388,6 +413,7 @@ function ActiveCockpit({
   onArmPlace,
   onDrawRoom,
   onChangeType,
+  systemSelector,
 }: {
   doc: DesignDocument;
   pack: DataPack | null;
@@ -401,6 +427,7 @@ function ActiveCockpit({
   onArmPlace: (p: PlacingUnit | null) => void;
   onDrawRoom: () => void;
   onChangeType: () => void;
+  systemSelector?: React.ReactNode;
 }) {
   const [view, setView] = useState<"rooms" | "components">("rooms");
 
@@ -461,11 +488,12 @@ function ActiveCockpit({
           basis={basis}
           req={req}
           onChangeType={onChangeType}
+          systemSelector={systemSelector}
         />
       ) : conn ? (
-        <CockpitHero hero={computeMultiHero(conn)} onChangeType={onChangeType} />
+        <CockpitHero hero={computeMultiHero(conn)} onChangeType={onChangeType} systemSelector={systemSelector} />
       ) : hero ? (
-        <CockpitHero hero={hero} onChangeType={onChangeType} />
+        <CockpitHero hero={hero} onChangeType={onChangeType} systemSelector={systemSelector} />
       ) : null}
 
       <div className="ds-ck-seg" role="tablist" aria-label="Panel view">
@@ -687,6 +715,7 @@ function HeroShell({
   sumValue,
   donut,
   onChangeType,
+  systemSelector,
 }: {
   label: string;
   state: HeroState;
@@ -696,29 +725,34 @@ function HeroShell({
   sumValue: string;
   donut: React.ReactNode;
   onChangeType?: () => void;
+  systemSelector?: React.ReactNode;
 }) {
   const [name, ratio] = splitLabel(label);
+  const typeInner = (
+    <>
+      {name}
+      {ratio && <span> {ratio}</span>}
+    </>
+  );
   return (
     <div className="ds-ck-caphero" data-state={state}>
+      {/* top row: system selector (left) · clickable type → change (right) */}
       <div className="ds-ck-caphero-top">
-        <span className="ds-ck-caphero-eyebrow">System type</span>
-        {onChangeType && (
+        {systemSelector}
+        {onChangeType ? (
           <button
-            className="ds-ck-caphero-change"
+            className="ds-ck-caphero-type"
             onClick={onChangeType}
             title="Change system type — a different type clears the system's units"
           >
-            <Glyph name="edit" size={12} />
-            Change
+            {typeInner}
           </button>
+        ) : (
+          <span className="ds-ck-caphero-type">{typeInner}</span>
         )}
       </div>
       <div className="ds-ck-caphero-cols">
         <div className="ds-ck-caphero-left">
-          <div className="ds-ck-caphero-type">
-            {name}
-            {ratio && <span> {ratio}</span>}
-          </div>
           <div className="ds-ck-ledger">
             <div className="ds-ck-ledger-row req">
               <span className="k">Required</span>
@@ -740,7 +774,15 @@ function HeroShell({
   );
 }
 
-function CockpitHero({ hero, onChangeType }: { hero: HeroModel; onChangeType: () => void }) {
+function CockpitHero({
+  hero,
+  onChangeType,
+  systemSelector,
+}: {
+  hero: HeroModel;
+  onChangeType: () => void;
+  systemSelector?: React.ReactNode;
+}) {
   return (
     <HeroShell
       label={hero.label}
@@ -750,19 +792,21 @@ function CockpitHero({ hero, onChangeType }: { hero: HeroModel; onChangeType: ()
       sumLabel={hero.sumLabel}
       sumValue={hero.sumValue}
       onChangeType={onChangeType}
+      systemSelector={systemSelector}
       donut={<Donut state={hero.state} pct={hero.pct} dash={hero.dash} over={hero.over} />}
     />
   );
 }
 
 /** a minimal hero for unavailable modules (no pack-driven coverage) */
-function SimpleHero({ label }: { label: string }) {
+function SimpleHero({ label, systemSelector }: { label: string; systemSelector?: React.ReactNode }) {
   return (
     <HeroShell
       label={label}
       state="empty"
       requiredKw={null}
       selectedKw={null}
+      systemSelector={systemSelector}
       sumLabel="Coming soon"
       sumValue="—"
       donut={<Donut state="empty" pct={null} dash={DONUT_CIRC} over={false} />}
@@ -803,6 +847,7 @@ function DuctedHero({
   basis,
   req,
   onChangeType,
+  systemSelector,
 }: {
   doc: DesignDocument;
   pack: DataPack | null;
@@ -810,6 +855,7 @@ function DuctedHero({
   basis: SizingBasis;
   req: DuctedRequirement;
   onChangeType: () => void;
+  systemSelector?: React.ReactNode;
 }) {
   const { iduModel, oduModel } = ductedPair(doc, system);
   const hasPair = Boolean(iduModel && oduModel);
@@ -828,7 +874,7 @@ function DuctedHero({
     pairKw,
     emptySumLabel
   );
-  return <CockpitHero hero={hero} onChangeType={onChangeType} />;
+  return <CockpitHero hero={hero} onChangeType={onChangeType} systemSelector={systemSelector} />;
 }
 
 /* ── Air-handler section: the choose CTA, the chosen pair's engine figures,

@@ -129,7 +129,7 @@ describe("Cockpit ducted body", () => {
     fireEvent.click(screen.getByRole("button", { name: /Select air handler/ }));
     const dialog = screen.getByRole("dialog", { name: "Choose a unit" });
     // opens on the ducted form-factor tab, gated to the required band's units
-    expect(screen.getByRole("button", { name: /Ducted/ }).className).toContain("on");
+    expect(within(dialog).getByRole("button", { name: /Ducted/ }).className).toContain("on");
     const tbl = dialog.querySelector(".ds-ub-table tbody") as HTMLElement;
     fireEvent.click(within(tbl).getByText("PEAD-M100JAA(D)"));
     fireEvent.click(screen.getByRole("button", { name: /Add to plan/ }));

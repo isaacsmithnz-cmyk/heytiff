@@ -661,6 +661,10 @@ function Editor({
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
   /* room whose external walls the canvas should re-mark (from the modal) */
   const [remarkRoomId, setRemarkRoomId] = useState<string | null>(null);
+  /* the drawing tool-rail stays hidden until the first system exists, then
+     latches on for the session — no point showing draw tools with nothing to
+     draw for. Plan-prep (calibrate/crop/move) lives in the top bar regardless. */
+  const [toolsRevealed, setToolsRevealed] = useState(false);
 
   /* the effective active system: the picked one, else the first system. The
      canvas scopes rooms/objects to this; room tools require it (type-first). */
@@ -668,6 +672,10 @@ function Editor({
     activeSystemId && doc.systems.some((s) => s.id === activeSystemId)
       ? activeSystemId
       : (doc.systems[0]?.id ?? null);
+
+  useEffect(() => {
+    if (effectiveSystemId) setToolsRevealed(true);
+  }, [effectiveSystemId]);
 
   useEffect(() => {
     let on = true;
@@ -1009,6 +1017,7 @@ function Editor({
             pack={pack}
             packVersion={packVersion}
             activeSystemId={effectiveSystemId}
+            revealTools={toolsRevealed}
             onActivateSystem={setActiveSystemId}
             placing={placing}
             onArmPlace={armPlace}
@@ -1321,11 +1330,11 @@ const CANVAS_TOOLS: {
   { key: "select", icon: "cursor", label: "Select", kbd: "V" },
   { key: "room-rect", icon: "square", label: "Room (rectangle)", kbd: "R", needsSystem: true },
   { key: "room-poly", icon: "hexagon", label: "Room (polygon)", kbd: "G", needsSystem: true },
-  { key: "pipe", icon: "activity", label: "Refrigerant run", kbd: "P", needsSystem: true },
+  { key: "pipe", icon: "pipe", label: "Refrigerant run", kbd: "P", needsSystem: true },
   { key: "riser", icon: "arrowUp", label: "Riser (joins floors)", kbd: "I", needsSystem: true },
   { key: "crop", icon: "maximize", label: "Crop plan", kbd: "X" },
   { key: "arrange", icon: "hand", label: "Move plans", kbd: "M" },
-  { key: "erase", icon: "x", label: "Eraser", kbd: "E" },
+  { key: "erase", icon: "eraser", label: "Eraser", kbd: "E" },
 ];
 
 const LAYER_LABELS: Record<keyof LayerFlags, string> = {
@@ -1358,6 +1367,7 @@ function DesignPanel({
   pack,
   packVersion,
   activeSystemId,
+  revealTools,
   onActivateSystem,
   placing,
   onArmPlace,
@@ -1401,6 +1411,8 @@ function DesignPanel({
   pack: DataPack | null;
   packVersion: string;
   activeSystemId: string | null;
+  /** reveal the drawing tool-rail — latched true once a system first exists */
+  revealTools: boolean;
   onActivateSystem: (id: string | null) => void;
   placing: PlacingUnit | null;
   onArmPlace: (p: PlacingUnit | null) => void;
@@ -1581,7 +1593,15 @@ function DesignPanel({
               <button
                 className={`ds-calib-pill${
                   floor.scaleMmPerUnit != null && floor.northPos ? " done" : ""
-                }${calibOpen || tool === "calibrate" || tool === "set-north" ? " on" : ""}`}
+                }${
+                  calibOpen ||
+                  tool === "calibrate" ||
+                  tool === "set-north" ||
+                  tool === "crop" ||
+                  tool === "arrange"
+                    ? " on"
+                    : ""
+                }`}
                 onClick={() => {
                   setFloorMenuOpen(false);
                   setLayersOpen(false);
@@ -1622,6 +1642,30 @@ function DesignPanel({
                     <span className="v">
                       {floor.northPos ? `${Math.round(floor.northDeg ?? 0)}°` : "Set north"}
                     </span>
+                  </button>
+                  {/* plan-prep tools relocated out of the drawing rail */}
+                  <div className="ds-view-sep" />
+                  <button
+                    className={`ds-calib-row${tool === "crop" ? " on" : ""}`}
+                    onClick={() => {
+                      onTool("crop");
+                      setCalibOpen(false);
+                    }}
+                  >
+                    <Icon name="maximize" size={13} />
+                    <span className="k">Crop</span>
+                    <span className="v">Trim the plan</span>
+                  </button>
+                  <button
+                    className={`ds-calib-row${tool === "arrange" ? " on" : ""}`}
+                    onClick={() => {
+                      onTool("arrange");
+                      setCalibOpen(false);
+                    }}
+                  >
+                    <Icon name="hand" size={13} />
+                    <span className="k">Move plans</span>
+                    <span className="v">Reposition</span>
                   </button>
                 </div>
               )}
@@ -1715,6 +1759,7 @@ function DesignPanel({
           )}
         </div>
         <div className="ds-canvas-body">
+          {revealTools && (
           <div className="ds-toolrail" role="toolbar" aria-label="Canvas tools">
             {CANVAS_TOOLS.slice(0, 3).map(toolButton)}
             {/* Air group (Stage 7): both tools gate on rooms + an air-capable AHU
@@ -1741,8 +1786,12 @@ function DesignPanel({
                 <ComponentPalette onPick={onArmComponent} onClose={() => onPalette(false)} />
               )}
             </div>
-            {CANVAS_TOOLS.slice(3).map(toolButton)}
+            {/* crop + move-plans live in the Calibrate dropdown now (plan-prep) */}
+            {CANVAS_TOOLS.slice(3)
+              .filter((t) => t.key !== "crop" && t.key !== "arrange")
+              .map(toolButton)}
           </div>
+          )}
           <StudioCanvas
             key={floor.id}
             doc={doc}

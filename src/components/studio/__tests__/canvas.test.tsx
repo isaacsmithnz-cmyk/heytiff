@@ -284,6 +284,31 @@ describe("Design canvas", () => {
     // still there — the eraser is objects-only
     expect(svg.querySelector(".ds-room-name")?.textContent).toBe("Room 1");
   });
+
+  it("hides the drawing rail until the first system, then keeps it after delete", async () => {
+    const user = userEvent.setup();
+    render(localStudio());
+    await user.click(await screen.findByText("New design"));
+    await user.type(screen.getByPlaceholderText(/Design name/), "Rail reveal");
+    await user.click(screen.getByRole("button", { name: /Continue/ }));
+    await user.click(screen.getByText("Blank canvas"));
+    await user.click(screen.getByRole("button", { name: "2 Design" }));
+
+    // no system yet → the drawing rail is hidden (plan-prep stays in the top bar)
+    expect(screen.queryByRole("toolbar", { name: "Canvas tools" })).toBeNull();
+
+    // pick a system type → a system is born and the rail appears
+    await user.click(screen.getByRole("button", { name: /Split \(1:1\)/ }));
+    expect(
+      await screen.findByRole("toolbar", { name: "Canvas tools" })
+    ).toBeInTheDocument();
+
+    // delete that system → the rail stays revealed (latched "first time only")
+    await user.click(screen.getByTitle("System 1 — switch system"));
+    await user.click(screen.getByRole("button", { name: "Delete System 1" }));
+    await user.click(screen.getByRole("button", { name: "Delete?" }));
+    expect(screen.getByRole("toolbar", { name: "Canvas tools" })).toBeInTheDocument();
+  });
 });
 
 describe("redetectOrientations", () => {

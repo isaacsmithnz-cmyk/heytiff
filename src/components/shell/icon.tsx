@@ -92,6 +92,11 @@ export const ICON_PATHS: Record<string, string> = {
   x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
   chevD: '<path d="m6 9 6 6 6-6"/>',
   sync: '<path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/>',
+  // twin parallel bent lines = the refrigerant twin run (liquid + suction)
+  pipe: '<path d="M4 20V10a4 4 0 0 1 4-4h12"/><path d="M9 20v-6a2 2 0 0 1 2-2h9"/>',
+  // Lucide "eraser"
+  eraser:
+    '<path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/>',
 };
 
 export function iconSvg(name: string, size = 20, sw = 2): string {

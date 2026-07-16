@@ -2,7 +2,10 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { auth0 } from "./lib/auth0";
 
-const protectedRoutes = ["/dashboard"];
+// Login gate only (optimistic, per Next 16 proxy guidance). Fine-grained HQ
+// staff authorization (the HQ_EMAILS allowlist → 404) lives in the /hq layout,
+// pages and every /hq server action — never here.
+const protectedRoutes = ["/dashboard", "/hq"];
 
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;

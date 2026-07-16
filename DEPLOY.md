@@ -45,6 +45,7 @@ local `.env.local`), scope = **Production** (and Preview if you want preview bui
 | `APP_BASE_URL` | **`https://heytiff.vercel.app`** ← the one value that differs from local |
 | `SUPABASE_SERVICE_ROLE_KEY` | same as local |
 | `SUPABASE_JWT_SECRET` | same as local |
+| `HQ_EMAILS` | comma-separated allowlist of staff logins for the hidden `/hq` portal (see `docs/hq-portal.md`). **Unset ⇒ `/hq` 404s for everyone** (fail-closed). |
 
 ---
 

@@ -1,4 +1,5 @@
-import { installedPacks, loadInstalledPack } from "@/lib/studio/packs/server";
+import { installedPacks } from "@/lib/studio/packs/server";
+import { loadPackWithOverrides } from "@/lib/studio/packs/overrides-server";
 import { DataLibrary, type PackView } from "@/components/studio/data-library";
 
 /* Data Library — read-only view of the installed data packs (the universal
@@ -11,7 +12,8 @@ export const dynamic = "force-dynamic";
 export default async function DataLibraryPage() {
   const refs = await installedPacks();
   const results = await Promise.allSettled(
-    refs.map((r) => loadInstalledPack(r.brand, r.version))
+    // override-aware so the library's readiness agrees with the studio engine
+    refs.map((r) => loadPackWithOverrides(r.brand, r.version))
   );
 
   const packs: PackView[] = [];

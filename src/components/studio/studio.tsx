@@ -7,6 +7,7 @@ import {
   newId,
   type DesignDocument,
   type DesignVariantRef,
+  type FloorSimplePlan,
 } from "@/lib/studio/document";
 import { openDesignJson, DesignDocumentError } from "@/lib/studio/migrations";
 import {
@@ -43,8 +44,9 @@ import {
 import { MaterialsView, JobView } from "./split-panel";
 import { SystemCockpit } from "./cockpit-panel";
 import { RoomModal } from "./room-modal";
+import { SimpleReviewModal } from "./simple-review";
 import { ReferenceViewer } from "./reference-viewer";
-import { SimControllerCard } from "./sim-controller";
+import { SimPresentMode } from "./sim-present";
 import { SimRuntime } from "@/lib/studio/sim-runtime";
 import type { DataPack, IndoorUnit } from "@/lib/studio/packs/schema";
 import "./studio.css";
@@ -65,6 +67,14 @@ const STEPS = [
 ] as const;
 
 const MODE_LABEL = { plan: "Floor plans", blank: "Blank canvas" } as const;
+
+/** AI simple-view generation state — `review` holds the pending extraction
+    until the user accepts it into the document. */
+export type SimpleGenState = {
+  state: "idle" | "running" | "review" | "error";
+  message?: string;
+  pending?: FloorSimplePlan;
+};
 
 /** Suffix a design's export filename with its variant label, e.g.
     "14-harbour-view-rd-option-2.heytiff-design.json". */
@@ -616,7 +626,69 @@ function Editor({
      grayscale, and the legend panel toggle */
   const [layers, setLayers] = useState<LayerFlags>(ALL_LAYERS_ON);
   const [grayscale, setGrayscale] = useState(false);
+  const [simpleView, setSimpleView] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
+
+  /* AI simple-view generation — review-before-apply: the extraction lands in
+     `pending` first and only Accept writes it to the document. */
+  const [simpleGen, setSimpleGen] = useState<SimpleGenState>({ state: "idle" });
+  const generateSimplePlan = useCallback(
+    async (floorId: string) => {
+      const f = docRef.current?.floors.find((x) => x.id === floorId);
+      if (!f || f.plans.length === 0) return;
+      setSimpleGen({ state: "running" });
+      try {
+        // lazy imports: the server action must never load in jsdom
+        const { extractPlanGeometry } = await import(
+          "@/app/actions/studio-extract"
+        );
+        const { validateExtraction } = await import(
+          "@/lib/studio/simple-extract"
+        );
+        const sheets = [];
+        let model = "";
+        for (const s of f.plans) {
+          if (!s.width || !s.height) {
+            throw new Error(
+              `Sheet "${s.name}" has no recorded size — re-place the plan sheet first`
+            );
+          }
+          const r = await extractPlanGeometry(s.imageRef, {
+            sheetName: s.name,
+            width: s.width,
+            height: s.height,
+          });
+          const v = validateExtraction(
+            r.extraction,
+            s.width,
+            s.height,
+            f.scaleMmPerUnit
+          );
+          if (!v.ok) throw new Error(v.errors[0]);
+          model = r.model;
+          sheets.push({
+            sheetId: s.id,
+            imageRef: s.imageRef,
+            extraction: v.extraction,
+          });
+        }
+        setSimpleGen({
+          state: "review",
+          pending: {
+            generatedAt: new Date().toISOString(),
+            model,
+            sheets,
+          },
+        });
+      } catch (e) {
+        setSimpleGen({
+          state: "error",
+          message: e instanceof Error ? e.message : String(e),
+        });
+      }
+    },
+    []
+  );
 
   /* simulation mode (Stage 12a, dev-flagged): the runtime is transient like
      the view state above — sim NEVER mutates the document. */
@@ -788,6 +860,7 @@ function Editor({
             scaleMmPerUnit: 10,
             northDeg: null,
             northPos: null,
+            simplePlan: null,
             plans: [],
           },
         ],
@@ -1022,6 +1095,12 @@ function Editor({
             onLayers={setLayers}
             grayscale={grayscale}
             onGrayscale={setGrayscale}
+            simpleView={simpleView}
+            onSimpleView={setSimpleView}
+            simpleGen={simpleGen}
+            onGenerateSimple={() =>
+              activeFloorId && void generateSimplePlan(activeFloorId)
+            }
             legendOpen={legendOpen}
             onLegend={setLegendOpen}
             sim={simOn ? simRef.current : null}
@@ -1042,6 +1121,28 @@ function Editor({
           doc={doc}
           planImages={planImages}
           onClose={() => setRefOpen(false)}
+        />
+      )}
+
+      {simpleGen.state === "review" && simpleGen.pending && activeFloorId && (
+        <SimpleReviewModal
+          doc={doc}
+          floorId={activeFloorId}
+          pending={simpleGen.pending}
+          planImages={planImages}
+          onAccept={() => {
+            const pending = simpleGen.pending!;
+            mutate((d) => ({
+              ...d,
+              floors: d.floors.map((f) =>
+                f.id === activeFloorId ? { ...f, simplePlan: pending } : f
+              ),
+            }));
+            setSimpleGen({ state: "idle" });
+            setSimpleView(true);
+          }}
+          onDiscard={() => setSimpleGen({ state: "idle" })}
+          onRegenerate={() => void generateSimplePlan(activeFloorId)}
         />
       )}
 
@@ -1371,6 +1472,10 @@ function DesignPanel({
   onLayers,
   grayscale,
   onGrayscale,
+  simpleView,
+  onSimpleView,
+  simpleGen,
+  onGenerateSimple,
   legendOpen,
   onLegend,
   sim,
@@ -1414,6 +1519,12 @@ function DesignPanel({
   onLayers: (l: LayerFlags) => void;
   grayscale: boolean;
   onGrayscale: (v: boolean) => void;
+  /** simple view: swap the raster base for the clean redrawn plan (like B&W) */
+  simpleView: boolean;
+  onSimpleView: (v: boolean) => void;
+  /** AI generation state + trigger for the active floor's simple view */
+  simpleGen: SimpleGenState;
+  onGenerateSimple: () => void;
   legendOpen: boolean;
   onLegend: (v: boolean) => void;
   /** simulation mode (Stage 12a): live runtime while simming, else null */
@@ -1666,6 +1777,40 @@ function DesignPanel({
                   <label className="ds-layer-row">
                     <input
                       type="checkbox"
+                      checked={simpleView}
+                      onChange={(e) => onSimpleView(e.target.checked)}
+                    />
+                    <span>Simple view</span>
+                  </label>
+                  <div className="ds-simple-gen">
+                    {simpleGen.state === "running" ? (
+                      <span className="ds-sg-busy">
+                        Reading the plan… up to a minute
+                      </span>
+                    ) : simpleGen.state === "error" ? (
+                      <>
+                        <span className="ds-sg-err">{simpleGen.message}</span>
+                        <button onClick={onGenerateSimple}>Retry</button>
+                      </>
+                    ) : floor.plans.length === 0 ? null : floor.simplePlan ? (
+                      <button
+                        onClick={onGenerateSimple}
+                        title="Run the AI extraction again and review before applying"
+                      >
+                        Regenerate simple view
+                      </button>
+                    ) : (
+                      <button
+                        onClick={onGenerateSimple}
+                        title="AI reads this floor's plan and redraws it as a clean simple view (you review before it applies)"
+                      >
+                        ✨ Generate from plan
+                      </button>
+                    )}
+                  </div>
+                  <label className="ds-layer-row">
+                    <input
+                      type="checkbox"
                       checked={legendOpen}
                       onChange={(e) => onLegend(e.target.checked)}
                     />
@@ -1767,7 +1912,8 @@ function DesignPanel({
             onRemarkConsumed={onRemarkConsumed}
             layers={layers}
             grayscale={grayscale}
-            sim={sim}
+            simpleView={simpleView}
+            sim={null}
           />
         </div>
         {/* options HUD — floating pill strip, top-centre over the canvas,
@@ -1779,7 +1925,17 @@ function DesignPanel({
             returnBuiltIn={airGate.row?.return_opening === "built-in"}
           />
         )}
-        {sim && <SimControllerCard runtime={sim} onExit={onToggleSim} />}
+        {sim && floor && (
+          <SimPresentMode
+            doc={doc}
+            floor={floor}
+            pack={pack}
+            planImages={planImages}
+            activeSystemId={activeSystemId}
+            runtime={sim}
+            onExit={onToggleSim}
+          />
+        )}
         {legendOpen && (
           <div className="ds-legend" role="dialog" aria-label="Legend">
             <div className="ds-legend-h">

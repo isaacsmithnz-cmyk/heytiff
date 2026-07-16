@@ -24,6 +24,8 @@ import {
 } from "@/lib/studio/ducted";
 import type { IndoorUnit, OpeningSpec } from "@/lib/studio/packs/schema";
 import type { PlanImages } from "@/lib/studio/plans";
+import { buildSimplePlan, fixturePrimitives } from "@/lib/studio/simple-plan";
+import { buildSimplePlanFromExtraction } from "@/lib/studio/simple-extract";
 import type { SimRuntime } from "@/lib/studio/sim-runtime";
 import { SimOverlay } from "./sim-overlay";
 import {
@@ -384,9 +386,11 @@ export function StudioCanvas({
   onRemarkConsumed,
   layers = ALL_LAYERS_ON,
   grayscale = false,
+  simpleView = false,
   onZoomApi,
   onZoomChange,
   sim = null,
+  bare = false,
 }: {
   doc: DesignDocument;
   floor: Floor;
@@ -402,6 +406,9 @@ export function StudioCanvas({
   layers?: LayerFlags;
   /** desaturate + brighten the plan raster for overlay readability */
   grayscale?: boolean;
+  /** simple view (like B&W, a Display toggle): swap the raster base layer for
+      the clean redrawn plan — design objects render on top in both views */
+  simpleView?: boolean;
   /** receive the zoom controls so the toolbar can render them */
   onZoomApi?: (api: ZoomApi) => void;
   /** current zoom percentage, for the toolbar readout */
@@ -425,6 +432,8 @@ export function StudioCanvas({
   /** live simulation (Stage 12a): renders the overlay + locks editing to
       pan/zoom. The sim never mutates the document — it only reads it. */
   sim?: SimRuntime | null;
+  /** chromeless: drop the editing dot grid (present mode — a clean plan). */
+  bare?: boolean;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -475,6 +484,19 @@ export function StudioCanvas({
           o.floorId === floor.id && o.type === "room" && o.geometry.kind === "polygon"
       ),
     [doc.objects, floor.id]
+  );
+
+  /* simple view: the clean redrawn base plan — from the AI extraction when
+     the floor has one, else welded from traced rooms. Computed only while
+     the toggle is on (deterministic; no raster involved). */
+  const simplePlan = useMemo(
+    () =>
+      simpleView
+        ? floor.simplePlan
+          ? buildSimplePlanFromExtraction(doc, floor.id)
+          : buildSimplePlan(doc, floor.id)
+        : null,
+    [doc, floor, simpleView]
   );
 
   /** served by the active system (drawn or adopted) — rendered full-strength */
@@ -1821,7 +1843,7 @@ export function StudioCanvas({
   const gpx = grid * zoom; // major-dot spacing in screen px
   const dotOffX = (((-vp.x * zoom) % gpx) + gpx) % gpx;
   const dotOffY = (((-vp.y * zoom) % gpx) + gpx) % gpx;
-  const showDots = gpx >= 6;
+  const showDots = !bare && gpx >= 6;
   const showSubDots = gpx >= 24;
   const subDots: { x: number; y: number }[] = [];
   if (showSubDots) {
@@ -1948,8 +1970,9 @@ export function StudioCanvas({
               <path d="M1 1 L7 4 L1 7" fill="none" stroke="currentColor" strokeWidth="1.4" />
             </marker>
           </defs>
-          {/* plan sheets (under everything); arrange tool shows outlines */}
-          {layers.plan && floor.plans.map((s) => {
+          {/* plan sheets (under everything); arrange tool shows outlines.
+              Simple view swaps this raster base for the clean redrawn plan. */}
+          {layers.plan && !simpleView && floor.plans.map((s) => {
             const url = sheetUrls[s.imageRef];
             const dims = sheetSize(s);
             if (!url || !dims) return null;
@@ -1996,6 +2019,174 @@ export function StudioCanvas({
               </g>
             );
           })}
+
+          {/* simple-plan walls: paper + welded wall lines. Thickness is real
+              (mm via calibration), so strokes scale WITH zoom — no
+              vector-effect here, walls are objects not annotations. */}
+          {simpleView && simplePlan && simplePlan.bounds && (
+            <g className="ds-simpleplan">
+              <rect
+                className="ds-simpleplan-paper"
+                x={simplePlan.bounds.minX - 60}
+                y={simplePlan.bounds.minY - 60}
+                width={simplePlan.bounds.maxX - simplePlan.bounds.minX + 120}
+                height={simplePlan.bounds.maxY - simplePlan.bounds.minY + 120}
+              />
+              {simplePlan.walls.map((w, i) => (
+                <line
+                  key={i}
+                  className={`ds-spwall ${w.kind}`}
+                  x1={w.a.x}
+                  y1={w.a.y}
+                  x2={w.b.x}
+                  y2={w.b.y}
+                  strokeWidth={w.thicknessU}
+                />
+              ))}
+              {/* openings: erase the wall across the gap, then the glyph */}
+              {simplePlan.openings.map((o, i) => {
+                const dx = o.b.x - o.a.x;
+                const dy = o.b.y - o.a.y;
+                const len = Math.hypot(dx, dy) || 1;
+                const n = { x: -dy / len, y: dx / len };
+                const tk = o.thicknessU;
+                return (
+                  <g key={`op${i}`} className="ds-spopen">
+                    <line
+                      x1={o.a.x}
+                      y1={o.a.y}
+                      x2={o.b.x}
+                      y2={o.b.y}
+                      stroke="#fff"
+                      strokeWidth={tk * 1.3}
+                      strokeLinecap="butt"
+                    />
+                    {o.kind === "window" &&
+                      [-0.28, 0.28].map((s) => (
+                        <line
+                          key={s}
+                          x1={o.a.x + n.x * tk * s}
+                          y1={o.a.y + n.y * tk * s}
+                          x2={o.b.x + n.x * tk * s}
+                          y2={o.b.y + n.y * tk * s}
+                          stroke="#5f5e5a"
+                          strokeWidth={1.2 / zoom}
+                        />
+                      ))}
+                    {o.kind === "slider" && (
+                      <>
+                        <line
+                          x1={o.a.x + n.x * tk * 0.22}
+                          y1={o.a.y + n.y * tk * 0.22}
+                          x2={(o.a.x + o.b.x) / 2 + n.x * tk * 0.22}
+                          y2={(o.a.y + o.b.y) / 2 + n.y * tk * 0.22}
+                          stroke="#4e4b45"
+                          strokeWidth={2 / zoom}
+                        />
+                        <line
+                          x1={(o.a.x + o.b.x) / 2 - n.x * tk * 0.22}
+                          y1={(o.a.y + o.b.y) / 2 - n.y * tk * 0.22}
+                          x2={o.b.x - n.x * tk * 0.22}
+                          y2={o.b.y - n.y * tk * 0.22}
+                          stroke="#4e4b45"
+                          strokeWidth={2 / zoom}
+                        />
+                      </>
+                    )}
+                    {o.kind === "garage-door" && (
+                      <line
+                        x1={o.a.x}
+                        y1={o.a.y}
+                        x2={o.b.x}
+                        y2={o.b.y}
+                        stroke="#8a867e"
+                        strokeWidth={1.5 / zoom}
+                        strokeDasharray={`${6 / zoom} ${4 / zoom}`}
+                      />
+                    )}
+                    {o.leaf &&
+                      (() => {
+                        const hg = o.leaf.hinge;
+                        const fr = o.leaf.free;
+                        const far =
+                          Math.hypot(hg.x - o.a.x, hg.y - o.a.y) >
+                          Math.hypot(hg.x - o.b.x, hg.y - o.b.y)
+                            ? o.a
+                            : o.b;
+                        const r = Math.hypot(fr.x - hg.x, fr.y - hg.y);
+                        const cross =
+                          (fr.x - hg.x) * (far.y - hg.y) -
+                          (fr.y - hg.y) * (far.x - hg.x);
+                        const sweep = cross > 0 ? 1 : 0;
+                        return (
+                          <>
+                            <line
+                              x1={hg.x}
+                              y1={hg.y}
+                              x2={fr.x}
+                              y2={fr.y}
+                              stroke="#4e4b45"
+                              strokeWidth={1.4 / zoom}
+                            />
+                            <path
+                              d={`M${fr.x},${fr.y} A${r},${r} 0 0 ${sweep} ${far.x},${far.y}`}
+                              fill="none"
+                              stroke="#8a867e"
+                              strokeWidth={1 / zoom}
+                            />
+                          </>
+                        );
+                      })()}
+                  </g>
+                );
+              })}
+              {/* fixtures — parametric symbols, shared with the SVG emitter */}
+              {simplePlan.fixtures.map((fx, i) => (
+                <g
+                  key={`fx${i}`}
+                  className="ds-spfix"
+                  transform={`translate(${fx.cx} ${fx.cy}) rotate(${fx.rotationDeg})`}
+                >
+                  {fixturePrimitives(fx).map((p, j) =>
+                    p.t === "rect" ? (
+                      <rect
+                        key={j}
+                        x={p.x}
+                        y={p.y}
+                        width={p.w}
+                        height={p.h}
+                        rx={p.rx}
+                      />
+                    ) : p.t === "line" ? (
+                      <line key={j} x1={p.x1} y1={p.y1} x2={p.x2} y2={p.y2} />
+                    ) : (
+                      <ellipse key={j} cx={p.cx} cy={p.cy} rx={p.rx} ry={p.ry} />
+                    )
+                  )}
+                </g>
+              ))}
+              {/* extraction labels — names only, no measurements (the AI
+                  spaces are not room objects; traced-room labels keep coming
+                  from the rooms layer) */}
+              {floor.simplePlan &&
+                layers.labels &&
+                simplePlan.rooms.map(
+                  (r) =>
+                    r.name && (
+                      <g key={r.id} className="ds-splabel">
+                        <text
+                          x={r.at.x}
+                          y={r.at.y}
+                          fontSize={13 / zoom}
+                          className="ds-splabel-name"
+                        >
+                          {r.name}
+                        </text>
+                      </g>
+                    )
+                )}
+            </g>
+          )}
 
           {/* rooms */}
           {rooms.map((r) => {

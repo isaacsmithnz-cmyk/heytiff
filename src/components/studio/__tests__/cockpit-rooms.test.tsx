@@ -21,7 +21,7 @@ function loadPack(): DataPack {
   return assemblePack({ meta, sections });
 }
 const pack = loadPack();
-const floor: Floor = { id: "flr", name: "Ground", level: 0, scaleMmPerUnit: 10, northDeg: null, northPos: null, plans: [] };
+const floor: Floor = { id: "flr", name: "Ground", level: 0, scaleMmPerUnit: 10, northDeg: null, northPos: null, simplePlan: null, plans: [] };
 
 const room = (id: string, name: string, systemId: string | null): DesignObject => ({
   id,

@@ -222,6 +222,57 @@ describe("schema versioning + migrations", () => {
     expect(doc.schemaVersion).toBe(SCHEMA_VERSION);
     expect(doc.floors.every((f) => f.northPos === null)).toBe(true);
   });
+
+  it("migrates v6→v7: every floor gains simplePlan: null", () => {
+    const base = createDesign({ name: "x", mode: "blank" });
+    const v6 = { ...JSON.parse(JSON.stringify(base)), schemaVersion: 6 };
+    v6.floors = v6.floors.map((f: Record<string, unknown>) => {
+      const { simplePlan, ...rest } = f; // v6 floors never had it
+      void simplePlan;
+      return rest;
+    });
+    const { doc, migratedFrom } = migrateDesign(v6);
+    expect(migratedFrom).toBe(6);
+    expect(doc.schemaVersion).toBe(SCHEMA_VERSION);
+    expect(doc.floors.every((f) => f.simplePlan === null)).toBe(true);
+  });
+
+  it("round-trips a v7 document carrying an extraction", () => {
+    const base = createDesign({ name: "x", mode: "blank" });
+    base.floors[0].simplePlan = {
+      generatedAt: "2026-07-16T00:00:00.000Z",
+      model: "claude-opus-4-8",
+      sheets: [
+        {
+          sheetId: "sht_a",
+          imageRef: "org/o/plan_a.png",
+          extraction: {
+            imageWidth: 2400,
+            imageHeight: 1697,
+            spaces: [
+              {
+                name: "Bed 2",
+                kind: "room",
+                polygon: [
+                  { x: 0, y: 0 },
+                  { x: 100, y: 0 },
+                  { x: 100, y: 80 },
+                  { x: 0, y: 80 },
+                ],
+              },
+            ],
+            openings: [],
+            fixtures: [],
+            notes: { hasNorthArrow: false, northDeg: 0, uncertainties: [] },
+          },
+        },
+      ],
+    };
+    const { doc } = migrateDesign(JSON.parse(serializeDesign(base)));
+    expect(doc.floors[0].simplePlan?.sheets[0].extraction.spaces[0].name).toBe(
+      "Bed 2"
+    );
+  });
 });
 
 describe("LocalDesignStore", () => {

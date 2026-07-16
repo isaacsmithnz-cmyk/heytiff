@@ -8,7 +8,7 @@ import { createDesign, type DesignDocument, type DesignObject, type Floor } from
 import { emptyPack } from "@/lib/studio/packs/schema";
 
 const pack = emptyPack({ brand: "me", version: "1", packSchemaVersion: 1, name: "t" });
-const floor: Floor = { id: "flr", name: "Ground", level: 0, scaleMmPerUnit: 10, northDeg: null, northPos: null, plans: [] };
+const floor: Floor = { id: "flr", name: "Ground", level: 0, scaleMmPerUnit: 10, northDeg: null, northPos: null, simplePlan: null, plans: [] };
 
 const room = (id: string, name: string): DesignObject => ({
   id,

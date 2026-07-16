@@ -47,7 +47,7 @@ function loadPack(): DataPack {
   return assemblePack({ meta, sections });
 }
 const pack = loadPack();
-const floor: Floor = { id: "flr", name: "Ground", level: 0, scaleMmPerUnit: 10, northDeg: null, northPos: null, plans: [] };
+const floor: Floor = { id: "flr", name: "Ground", level: 0, scaleMmPerUnit: 10, northDeg: null, northPos: null, simplePlan: null, plans: [] };
 
 /* rooms sized so the requirement lands on a real PEAD: 40 m² (5.8 kW) +
    12 m² (1.74 kW) at zone 5 → required ~7.5 kW, gate ≤ 11.3 → the M100s */

@@ -34,7 +34,7 @@ const pack = loadPack();
 function docWith(settings: Record<string, unknown>): { doc: DesignDocument; system: DesignSystem } {
   const d = createDesign({ name: "Comp", mode: "blank", now: "2026-07-10T00:00:00.000Z" });
   d.floors = [
-    { id: "flr", name: "Ground", level: 0, scaleMmPerUnit: 10, northDeg: null, northPos: null, plans: [] },
+    { id: "flr", name: "Ground", level: 0, scaleMmPerUnit: 10, northDeg: null, northPos: null, simplePlan: null, plans: [] },
   ];
   const system: DesignSystem = {
     id: "sys1",

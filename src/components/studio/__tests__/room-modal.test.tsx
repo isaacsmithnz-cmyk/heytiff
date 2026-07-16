@@ -14,7 +14,7 @@ import {
 function docWithRoom(): DesignDocument {
   const d = createDesign({ name: "T", mode: "blank", now: "2026-07-07T00:00:00.000Z" });
   d.floors = [
-    { id: "flr", name: "Ground", level: 0, scaleMmPerUnit: 10, northDeg: null, northPos: null, plans: [] },
+    { id: "flr", name: "Ground", level: 0, scaleMmPerUnit: 10, northDeg: null, northPos: null, simplePlan: null, plans: [] },
   ];
   d.systems = [
     { id: "sys", type: "split", brand: "mitsubishi-electric", colour: "#2E68FF", name: "System 1", settings: {} },

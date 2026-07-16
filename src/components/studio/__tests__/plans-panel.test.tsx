@@ -41,6 +41,7 @@ function seedDesign(store: LocalDesignStore): DesignDocument {
       level: 0,
       scaleMmPerUnit: null,
       northDeg: null, northPos: null,
+      simplePlan: null,
       plans: [
         {
           id: "sht_1",
@@ -60,6 +61,7 @@ function seedDesign(store: LocalDesignStore): DesignDocument {
       level: 1,
       scaleMmPerUnit: 10,
       northDeg: null, northPos: null,
+      simplePlan: null,
       plans: [],
     }
   );
@@ -261,6 +263,7 @@ describe("Plans stage", () => {
       level: 0,
       scaleMmPerUnit: 10,
       northDeg: null, northPos: null,
+      simplePlan: null,
       plans: [],
     });
     d.planImport = { sources: [{ ref: "org/o1/set.pdf", kind: "pdf" }], placed: {}, chosen: [], names: {} };
@@ -278,8 +281,8 @@ describe("Plans stage", () => {
     const store = new LocalDesignStore(window.localStorage);
     const d = createDesign({ name: "Del job", mode: "plan" });
     d.floors.push(
-      { id: "flr_g", name: "Ground floor", level: 0, scaleMmPerUnit: 10, northDeg: null, northPos: null, plans: [] },
-      { id: "flr_1", name: "Level 1", level: 1, scaleMmPerUnit: 10, northDeg: null, northPos: null, plans: [] }
+      { id: "flr_g", name: "Ground floor", level: 0, scaleMmPerUnit: 10, northDeg: null, northPos: null, simplePlan: null, plans: [] },
+      { id: "flr_1", name: "Level 1", level: 1, scaleMmPerUnit: 10, northDeg: null, northPos: null, simplePlan: null, plans: [] }
     );
     await store.save(d);
     const user = userEvent.setup();

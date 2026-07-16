@@ -26,7 +26,7 @@ function loadPack(): DataPack {
   return assemblePack({ meta, sections });
 }
 const pack = loadPack();
-const floor: Floor = { id: "flr", name: "Ground", level: 0, scaleMmPerUnit: 10, northDeg: null, northPos: null, plans: [] };
+const floor: Floor = { id: "flr", name: "Ground", level: 0, scaleMmPerUnit: 10, northDeg: null, northPos: null, simplePlan: null, plans: [] };
 // SLZ-M25FA-A + SUZ-M25VAD-A rate at 2.5 kW cooling
 const PAIR = { pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" };
 

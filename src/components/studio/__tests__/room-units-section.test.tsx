@@ -34,7 +34,7 @@ const room: RoomObj = {
 
 function docWith(system: DesignSystem, extra: DesignObject[] = []): DesignDocument {
   const d = createDesign({ name: "T", mode: "blank", now: "2026-07-10T00:00:00.000Z" });
-  d.floors = [{ id: "flr", name: "G", level: 0, scaleMmPerUnit: 10, northDeg: null, northPos: null, plans: [] }];
+  d.floors = [{ id: "flr", name: "G", level: 0, scaleMmPerUnit: 10, northDeg: null, northPos: null, simplePlan: null, plans: [] }];
   d.systems = [system];
   d.objects = [room, ...extra];
   return d;

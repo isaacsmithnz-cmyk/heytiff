@@ -128,16 +128,22 @@ function draw(
       /* a faint base so the room never reads untouched… */
       ctx.fillStyle = `rgba(${tint.rgb}, ${tint.alpha * 0.25})`;
       fillRoomBounds(ctx, room.points);
-      /* …and the front, growing out of where the air lands */
+      /* …and the front, growing out of where the air lands. Its colour is the
+         DELIVERED air (supply temp) blended toward the room temp as it fills —
+         so a heating room shows a WARM bloom spreading, not the cold room's
+         colour pooling at the unit. Converges to the room tint at p→1 (no pop). */
+      const es = state.handlers[emitter.id];
+      const frontTemp = es ? es.supplyC * (1 - p) + t * p : t;
+      const front = tempTint(frontTemp) ?? { rgb: tint.rgb, alpha: 0 };
       const maxD = room.points.reduce(
         (m, pt) => Math.max(m, Math.hypot(pt.x - emitter.at.x, pt.y - emitter.at.y)),
         0
       );
       const r = Math.max(p * maxD, 1);
       const g = ctx.createRadialGradient(emitter.at.x, emitter.at.y, 0, emitter.at.x, emitter.at.y, r);
-      g.addColorStop(0, `rgba(${tint.rgb}, ${tint.alpha})`);
-      g.addColorStop(0.75, `rgba(${tint.rgb}, ${tint.alpha})`);
-      g.addColorStop(1, `rgba(${tint.rgb}, 0)`);
+      g.addColorStop(0, `rgba(${front.rgb}, ${front.alpha})`);
+      g.addColorStop(0.75, `rgba(${front.rgb}, ${front.alpha})`);
+      g.addColorStop(1, `rgba(${front.rgb}, 0)`);
       ctx.fillStyle = g;
       fillRoomBounds(ctx, room.points);
     }
@@ -258,6 +264,9 @@ function stepEmitter(
   paused: boolean
 ) {
   if (!s.on || paused || !mPerUnit) return;
+  // fanFrac is already gated by the compressor's airflowGate in the engine —
+  // it stays ~0 through preheat, so the plume fades in as the compressor passes
+  // ~30% (cold-blow prevention) with no extra gating needed here.
   const strength = s.fanFrac * (s.running ? 1 : 0.4);
   if (strength < 0.05) return;
   const throwU = throwLengthU(h, s, mPerUnit);

@@ -98,6 +98,17 @@ const MIGRATIONS: Record<number, Migration> = {
     }));
     return { ...doc, floors, schemaVersion: 6 };
   },
+
+  /* v6 → v7: floors gain `simplePlan` — the AI simple-view extraction
+     (spaces/openings/fixtures read from the plan raster). No pre-v7 floor
+     ever generated one, so it starts null. */
+  6: (doc) => {
+    const floors = (doc.floors as Record<string, unknown>[]).map((f) => ({
+      ...f,
+      simplePlan: null,
+    }));
+    return { ...doc, floors, schemaVersion: 7 };
+  },
 };
 
 export class DesignDocumentError extends Error {

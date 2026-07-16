@@ -26,6 +26,7 @@ const floor: Floor = {
   scaleMmPerUnit: 10,
   northDeg: null,
   northPos: null,
+  simplePlan: null,
   plans: [],
 };
 

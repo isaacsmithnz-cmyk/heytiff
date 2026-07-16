@@ -102,7 +102,7 @@ function baseDoc(): DesignDocument {
   const d = createDesign({ name: "Golden A", mode: "blank", now: "2026-07-07T00:00:00.000Z" });
   d.id = "dsn_golden_a";
   d.floors = [
-    { id: "flr_g", name: "Ground floor", level: 0, scaleMmPerUnit: 10, northDeg: null, northPos: null, plans: [] },
+    { id: "flr_g", name: "Ground floor", level: 0, scaleMmPerUnit: 10, northDeg: null, northPos: null, simplePlan: null, plans: [] },
   ];
   d.systems = [
     { id: "sys_split", type: "split", brand: "mitsubishi-electric", colour: "#2E68FF", name: "Lounge split", settings: {} },
@@ -178,7 +178,7 @@ describe("A1 — single-floor split", () => {
 
 function scenarioA2(): DesignDocument {
   const d = baseDoc();
-  d.floors.push({ id: "flr_1", name: "Level 1", level: 1, scaleMmPerUnit: 10, northDeg: null, northPos: null, plans: [] });
+  d.floors.push({ id: "flr_1", name: "Level 1", level: 1, scaleMmPerUnit: 10, northDeg: null, northPos: null, simplePlan: null, plans: [] });
   d.objects.push(
     unit("obj_odu", "flr_g", "odu", "PUZ-M100VKA-A", 100, 100),
     riser("obj_riser_g", "flr_g", "A", 3, 1100, 100),

@@ -6,7 +6,7 @@
    fixtures serialise exactly this shape, so changes require a schema bump and
    a migration (see migrations.ts). */
 
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 /* ── Vertical planes (Layer 1 — placement plane) ── */
 export type Plane =
@@ -60,6 +60,103 @@ export interface PlanSheet {
   crop?: { x: number; y: number; w: number; h: number };
 }
 
+/* ── Simple view — AI plan extraction (schema v7). One Claude-vision pass per
+      sheet reads the raster and returns simplified geometry: spaces, openings,
+      fixtures and labels, in IMAGE-PIXEL coordinates (top-left origin). Pixel
+      coords are stored verbatim — world mapping (sheet x/y offset) happens at
+      render time, so re-arranging sheets never stales the data. The extraction
+      is DISPLAY DATA only: it never creates room objects and never feeds
+      loads/coverage/sim. ── */
+export type ExtractSpaceKind =
+  | "room"
+  | "hallway"
+  | "stairs"
+  | "garage"
+  | "balcony"
+  | "porch"
+  | "alfresco"
+  | "wc"
+  | "other";
+
+export type ExtractOpeningKind =
+  | "door"
+  | "double-door"
+  | "slider"
+  | "cased-opening"
+  | "window"
+  | "garage-door";
+
+export type ExtractFixtureKind =
+  | "bed"
+  | "robe"
+  | "wc"
+  | "shower"
+  | "bath"
+  | "vanity"
+  | "sink"
+  | "kitchen-bench"
+  | "island"
+  | "fridge"
+  | "stove"
+  | "dishwasher"
+  | "laundry-unit"
+  | "stairs"
+  | "sofa"
+  | "table"
+  | "desk"
+  | "car"
+  | "water-heater"
+  | "other";
+
+export interface RawExtraction {
+  /** the model echoes the stated raster size — a cheap coordinate-space gate */
+  imageWidth: number;
+  imageHeight: number;
+  spaces: {
+    /** label read verbatim from the drawing; "" when unlabeled */
+    name: string;
+    kind: ExtractSpaceKind;
+    polygon: Point[];
+  }[];
+  openings: {
+    kind: ExtractOpeningKind;
+    center: Point;
+    widthPx: number;
+    orientation: "h" | "v";
+    /** door leaf hinge; == center when the opening has no hinged leaf */
+    hinge: Point;
+    /** approx free end of the open leaf; == center when no swing is drawn */
+    swingToward: Point;
+  }[];
+  fixtures: {
+    kind: ExtractFixtureKind;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    rotationDeg: number;
+  }[];
+  notes: {
+    hasNorthArrow: boolean;
+    northDeg: number;
+    uncertainties: string[];
+  };
+}
+
+export interface SheetExtraction {
+  sheetId: string;
+  /** the raster this extraction was read from — a re-uploaded sheet makes it
+      stale (build-time check, extraction is then ignored) */
+  imageRef: string;
+  extraction: RawExtraction;
+}
+
+export interface FloorSimplePlan {
+  generatedAt: string; // ISO
+  model: string;
+  sheets: SheetExtraction[];
+}
+
 export interface Floor {
   id: string;
   name: string;
@@ -72,6 +169,8 @@ export interface Floor {
       `northDeg` holds its rotation. */
   northPos: { x: number; y: number } | null;
   plans: PlanSheet[];
+  /** AI simple-view extraction; null = never generated (schema v7) */
+  simplePlan: FloorSimplePlan | null;
 }
 
 /* ── Systems container (Layer 2). Owns objects via systemId. ── */
@@ -214,6 +313,7 @@ export function createDesign(opts: {
               northDeg: null,
               northPos: null,
               plans: [],
+              simplePlan: null,
             },
           ]
         : [],

@@ -69,6 +69,50 @@ describe("RateCalculator — first run (no saved state)", () => {
   });
 });
 
+describe("RateCalculator — gradual step reveal", () => {
+  it("shows only Step 1 at first, revealing the next step one at a time", async () => {
+    const user = userEvent.setup();
+    render(<RateCalculator initialState={null} />);
+    await dismissOnboarding(user);
+
+    // Only the Staff node is in the rail; later steps are hidden.
+    expect(screen.getByText(/Step 1 of 5 · Simple/)).toBeInTheDocument();
+    expect(screen.queryByText("Business costs")).toBeNull();
+    expect(screen.queryByText("Vehicles")).toBeNull();
+    expect(screen.queryByText("HVAC risk")).toBeNull();
+    expect(screen.queryByText("Profit target")).toBeNull();
+
+    // Completing Staff reveals Business — and only Business (no cascade).
+    const monthInput = screen.getAllByDisplayValue("0")[0];
+    await user.click(monthInput);
+    await user.keyboard("40000");
+    expect(screen.getByText("Business costs")).toBeInTheDocument();
+    expect(screen.queryByText("Vehicles")).toBeNull();
+  });
+});
+
+describe("RateCalculator — Vehicles no-fleet choice", () => {
+  it("stays incomplete until 'No vehicles' is chosen, which then reveals Risk", async () => {
+    const user = userEvent.setup();
+    render(<RateCalculator initialState={null} />);
+    await dismissOnboarding(user);
+
+    // Advance to the Vehicles step (Continue is always clickable).
+    await user.click(screen.getByText("Continue →")); // → Business
+    await user.click(screen.getByText("Continue →")); // → Vehicles
+    expect(screen.getByText(/Step 3 of 5 · Simple/)).toBeInTheDocument();
+    // Risk is not revealed yet — Vehicles has not been resolved.
+    expect(screen.queryByText("HVAC risk")).toBeNull();
+
+    await user.click(screen.getByText("I don't run any vehicles"));
+
+    // Confirmed state + Risk now revealed in the rail.
+    expect(screen.getByText("No vehicles")).toBeInTheDocument();
+    expect(screen.getByText("I do have vehicles")).toBeInTheDocument();
+    expect(screen.getByText("HVAC risk")).toBeInTheDocument();
+  });
+});
+
 describe("RateCalculator — example data mode", () => {
   it("loads Blue Sky, never saves, and exits back to own data", async () => {
     const user = userEvent.setup();

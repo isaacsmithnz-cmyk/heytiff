@@ -73,6 +73,10 @@ export interface RateCalcState {
   simpleBusiness: SimpleBusinessData;
   simpleVehicle: SimpleVehicleData;
   mode: ModeState;
+  /** Set when the user explicitly confirms they run no vehicles — the Vehicles
+      step no longer auto-completes on an empty fleet, so this records the
+      deliberate "no fleet" choice that lets the step count as done. */
+  noVehicles: boolean;
 }
 
 // ─── Defaults (real orgs — independent of the demo dataset) ─────────────
@@ -122,6 +126,7 @@ export function emptyState(): RateCalcState {
     simpleBusiness: { months: [0, 0, 0] },
     simpleVehicle: { months: [0, 0, 0] },
     mode: { staff: "Simple", business: "Simple", vehicles: "Simple" },
+    noVehicles: false,
   };
 }
 
@@ -154,7 +159,15 @@ export function hydrateState(raw: unknown): RateCalcState {
     simpleBusiness: { ...base.simpleBusiness, ...(D.simpleBusiness ?? {}) },
     simpleVehicle: { ...base.simpleVehicle, ...(D.simpleVehicle ?? {}) },
     mode: { ...base.mode, ...(D.mode ?? {}) },
+    noVehicles: D.noVehicles === true,
   };
+}
+
+/** Whether the fleet has real running-cost input (either mode). */
+export function fleetCosted(s: RateCalcState): boolean {
+  return s.mode.vehicles === "Simple"
+    ? (s.simpleVehicle.months || []).some(m => m > 0)
+    : s.vehicles.some(v => (v.simpleTotal ?? 0) > 0 || (v.costs?.fuel_per_week ?? 0) > 0);
 }
 
 /** Whole days since the last rate review; null when never reviewed. */
@@ -209,6 +222,17 @@ export function runEngine(s: RateCalcState): EngineRun {
     : (s.businessCosts || []).some(c => (c.amount || 0) > 0);
   if (!bizTouched && steps.business.completion === "complete") {
     steps.business = { ...steps.business, completion: "not_started" };
+  }
+
+  // Vehicles no longer auto-complete on an empty fleet. The engine marks the
+  // step "complete" whenever there are no vehicle records; downgrade that to
+  // "not_started" until the user either enters running costs or explicitly
+  // confirms they run no vehicles (s.noVehicles).
+  const hasFleet = fleetCosted(s);
+  if (!hasFleet && !s.noVehicles && steps.vehicles.completion === "complete") {
+    steps.vehicles = { ...steps.vehicles, completion: "not_started" };
+  } else if (!hasFleet && s.noVehicles) {
+    steps.vehicles = { ...steps.vehicles, completion: "complete" };
   }
 
   // Readiness gate — no rate without genuine labour input.

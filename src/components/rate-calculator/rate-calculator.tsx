@@ -57,6 +57,18 @@ function stepSummary(key: string, s: RateCalcState, calc: CalcResult): string {
   }
 }
 
+// A step counts as "done" (for the connector line and progressive reveal)
+// when it's complete, customised, or running on sensible defaults.
+const DONE_COMPLETIONS = ["complete", "customised", "defaults"];
+
+// Highest step index to reveal from a set of completions: the first not-"done"
+// step (the one to work on next); if every step is done, reveal all 5.
+function revealIndexFor(completions: string[]): number {
+  let i = 0;
+  while (i < 4 && DONE_COMPLETIONS.includes(completions[i])) i++;
+  return i;
+}
+
 // completion → rail node visuals. Solid teal ✓ = data entered (complete /
 // customised); outlined teal ✓ = running on sensible defaults (a valid
 // choice, still "done"); blue = editing now / in progress; gray = untouched.
@@ -258,7 +270,28 @@ function CalculatorApp({ initial, hasData, demo, showOnboarding, onPersist, save
   const insights = step === 6;
   const StepBody = [StaffStep, BusinessStep, VehiclesStep, RiskStep, ProfitStep][step] || StaffStep;
   const completions = [steps.staff.completion, steps.business.completion, steps.vehicles.completion, steps.risk.completion, steps.profit.completion];
-  const doneCount = completions.filter(c => c === "complete" || c === "customised" || c === "defaults").length;
+  // Counter shows only genuinely-entered steps (not default-valid ones): staff/
+  // business/vehicles when actually filled in, risk/profit only when customised.
+  const enteredCount = [
+    completions[0] === "complete",
+    completions[1] === "complete",
+    completions[2] === "complete",
+    completions[3] === "customised",
+    completions[4] === "customised",
+  ].filter(Boolean).length;
+
+  // Progressive reveal — steps 0..maxStep are shown in the rail. Forward-only
+  // high-water mark: a step reveals the next when it becomes "done", and never
+  // re-hides. Only current+1 is ever added, so default/auto steps appear one at
+  // a time as the user advances rather than cascading in together.
+  const [maxStep, setMaxStep] = React.useState(() => revealIndexFor(completions));
+  React.useEffect(() => {
+    const done = step <= 4 && DONE_COMPLETIONS.includes(completions[step]);
+    const target = step > 4 ? 4 : Math.min(4, step + (done ? 1 : 0));
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- monotonic reveal high-water mark
+    setMaxStep(m => (target > m ? target : m));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, completions[0], completions[1], completions[2], completions[3], completions[4]]);
 
   // Review reminder — derived from the stored timestamp, shown only once the
   // configured reminder period has actually elapsed.
@@ -313,13 +346,13 @@ function CalculatorApp({ initial, hasData, demo, showOnboarding, onPersist, save
         <div style={{ width: 236, flexShrink: 0, background: "#fff", borderRadius: 18, border: `1px solid rgba(10,12,20,.06)`, boxShadow: "0 1px 2px rgba(10,12,20,.04), 0 20px 50px -30px rgba(10,12,20,.18)", padding: "18px 16px 16px", display: "flex", flexDirection: "column", overflow: "hidden auto" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
             <WsEyebrow color={RC.label}>Setup path</WsEyebrow>
-            <span style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 13, color: RC.ink }}>{doneCount}<span style={{ color: RC.faint }}> / 5</span></span>
+            <span style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 13, color: RC.ink }}>{enteredCount}<span style={{ color: RC.faint }}> / 5</span></span>
           </div>
-          {STEP_META.map((m, i) => {
+          {STEP_META.slice(0, maxStep + 1).map((m, i) => {
             const cur = i === step && !overview && !insights;
             const comp = completions[i];
             const ns = nodeStyle(comp, cur);
-            const last = i === STEP_META.length - 1;
+            const last = i === maxStep;
             const lineDone = comp === "complete" || comp === "customised" || comp === "defaults";
             return (
               <div key={m.key} className="rca-step" onClick={() => setStep(i)}>

@@ -178,11 +178,26 @@ export function adminHtml(canInvite: boolean) {
     I("arrowR", 16) +
     "</span></a>";
 
+  const rateCalcCard =
+    '<a href="/dashboard/admin/rate-calculator" class="spot" style="display:block;text-decoration:none;background:#fff;border-radius:24px;border:1px solid #f0f0f2;box-shadow:0 8px 30px rgba(0,0,0,.03);padding:32px;max-width:520px">' +
+    '<span class="sglow"></span>' +
+    '<div style="display:flex;align-items:center;gap:16px;margin-bottom:16px">' +
+    '<div style="width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:rgba(46,104,255,0.08);border:1px solid rgba(46,104,255,0.25);color:#2E68FF;flex:0 0 auto">' +
+    I("calc", 22) +
+    "</div>" +
+    '<div><div style="font-size:18px;font-weight:800;color:#050505">Rate Calculator</div>' +
+    '<div style="font-size:13px;color:#6b7280;font-weight:500">Work out charge-out rates from your true costs</div></div></div>' +
+    '<span style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:12px;background:#050505;color:#fff;font-size:14px;font-weight:700">Open calculator ' +
+    I("arrowR", 16) +
+    "</span></a>";
+
   return (
     '<div class="wrap"><div class="stg">' +
     head +
     '<div style="font-size:11px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#9ca3af;margin-bottom:16px">Team</div>' +
     inviteCard +
+    '<div style="font-size:11px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#9ca3af;margin:32px 0 16px">Tools</div>' +
+    rateCalcCard +
     "</div></div>"
   );
 }

@@ -387,6 +387,7 @@ export function StudioCanvas({
   onZoomApi,
   onZoomChange,
   sim = null,
+  bare = false,
 }: {
   doc: DesignDocument;
   floor: Floor;
@@ -425,6 +426,8 @@ export function StudioCanvas({
   /** live simulation (Stage 12a): renders the overlay + locks editing to
       pan/zoom. The sim never mutates the document — it only reads it. */
   sim?: SimRuntime | null;
+  /** chromeless: drop the editing dot grid (present mode — a clean plan). */
+  bare?: boolean;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -1821,7 +1824,7 @@ export function StudioCanvas({
   const gpx = grid * zoom; // major-dot spacing in screen px
   const dotOffX = (((-vp.x * zoom) % gpx) + gpx) % gpx;
   const dotOffY = (((-vp.y * zoom) % gpx) + gpx) % gpx;
-  const showDots = gpx >= 6;
+  const showDots = !bare && gpx >= 6;
   const showSubDots = gpx >= 24;
   const subDots: { x: number; y: number }[] = [];
   if (showSubDots) {

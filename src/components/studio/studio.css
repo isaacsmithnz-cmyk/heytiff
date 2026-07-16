@@ -6202,3 +6202,576 @@
   font-size: 10.5px;
   color: var(--gray500);
 }
+
+/* ── Simple view — clean redrawn base plan (AI extraction, or welded from
+      traced rooms as fallback). Swaps the raster base only; rooms, units and
+      pipework render on top exactly as over the raster. Wall colours by
+      classification: external darkest/thickest, shared internal mid,
+      unmarked boundary lightest. ── */
+.dstudio .ds-simpleplan-paper {
+  fill: #fff;
+  stroke: var(--gray200);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.dstudio .ds-spwall {
+  stroke-linecap: square;
+}
+.dstudio .ds-spwall.external { stroke: #26241f; }
+.dstudio .ds-spwall.shared { stroke: #4e4b45; }
+.dstudio .ds-spwall.boundary { stroke: #8a867e; }
+.dstudio .ds-spfix rect,
+.dstudio .ds-spfix line,
+.dstudio .ds-spfix ellipse {
+  fill: none;
+  stroke: #8a867e;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.dstudio .ds-splabel text {
+  fill: #26241f;
+  font-family: var(--font);
+  font-weight: 800;
+  text-anchor: middle;
+  pointer-events: none;
+}
+.dstudio .ds-splabel .ds-splabel-area {
+  fill: #8a867e;
+  font-weight: 600;
+}
+
+/* ── Simple-view review modal (portalled to body — explicit colours) ── */
+.ds-sx-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 22, 26, 0.55);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.ds-sx {
+  background: #fff;
+  color: #1a1a1a;
+  border-radius: 14px;
+  width: min(1280px, 100%);
+  max-height: min(920px, 100%);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 24px 80px rgba(10, 12, 16, 0.35);
+  font-family: var(--font, "Plus Jakarta Sans", system-ui, sans-serif);
+}
+.ds-sx-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #6b7280;
+  border-bottom: 1px solid #eceef1;
+}
+.ds-sx-head button {
+  border: 0;
+  background: none;
+  font-size: 20px;
+  line-height: 1;
+  color: #6b7280;
+  cursor: pointer;
+}
+.ds-sx-panes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  padding: 14px 18px 0;
+  min-height: 0;
+  flex: 1;
+}
+.ds-sx-panes figure {
+  margin: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ds-sx-panes figcaption {
+  font-size: 12px;
+  font-weight: 700;
+  color: #6b7280;
+  padding-bottom: 6px;
+}
+.ds-sx-pane {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fafafa;
+  overflow: auto;
+  flex: 1;
+  min-height: 280px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+.ds-sx-pane img,
+.ds-sx-pane svg {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+.ds-sx-wait {
+  font-size: 13px;
+  color: #9ca3af;
+  padding: 40px;
+}
+.ds-sx-notes {
+  padding: 10px 18px 0;
+  font-size: 12.5px;
+  color: #4b5563;
+  max-height: 130px;
+  overflow: auto;
+}
+.ds-sx-notes-h {
+  font-weight: 700;
+  color: #92400e;
+}
+.ds-sx-notes ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+.ds-sx-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 18px;
+  border-top: 1px solid #eceef1;
+  margin-top: 12px;
+}
+.ds-sx-btn {
+  border: 1px solid #d3d6db;
+  background: #fff;
+  color: #1f2937;
+  border-radius: 9px;
+  padding: 8px 16px;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+.ds-sx-btn.primary {
+  background: #0e8b6d;
+  border-color: #0e8b6d;
+  color: #fff;
+}
+
+/* View-popover simple-view action row */
+.dstudio .ds-simple-gen {
+  padding: 4px 10px 8px 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.dstudio .ds-simple-gen button {
+  border: 1px solid var(--gray200);
+  background: #fff;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+.dstudio .ds-simple-gen .ds-sg-busy {
+  font-size: 12px;
+  color: var(--gray500);
+}
+.dstudio .ds-simple-gen .ds-sg-err {
+  font-size: 12px;
+  color: #b42318;
+}
+
+/* ══════════ Simulation — Present mode (PowerPoint-style takeover) ══════════
+   Full-screen portal (`.fg .dstudio .ds-present`) that runs the sim on just
+   the plan, no editing chrome. `.fg` already gives position:fixed + inset:0
+   + the shell tokens; we add the dark stage, the bar, and layering here. */
+.dstudio.ds-present,
+.ds-present.dstudio {
+  z-index: 1100;
+  background: #0b0d12;
+  flex-direction: column;
+  color: #eceef4;
+}
+.dstudio .ds-present-bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.dstudio .ds-present-title {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+}
+.dstudio .ds-present-name {
+  font-weight: 800;
+  font-size: 15px;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dstudio .ds-present-sys {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(236, 238, 244, 0.7);
+  white-space: nowrap;
+}
+.dstudio .ds-present-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.dstudio .ds-present-exit {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+  color: #eceef4;
+  font: 700 12px var(--font);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.dstudio .ds-present-exit:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.32);
+}
+.dstudio .ds-present-exit span {
+  font-size: 11px;
+  opacity: 0.7;
+}
+.dstudio .ds-present-stage {
+  flex: 1 1 0;
+  min-height: 0;
+  position: relative;
+  display: flex;
+  padding: 18px 22px 22px;
+}
+/* the canvas is the slide: fill the stage, drop the editor's heavy frame */
+.dstudio .ds-present-stage .ds-canvas {
+  flex: 1 1 0;
+  min-height: 0;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.6);
+}
+
+/* ── Sim: compressor ramp gauge + phase tag (Preheating → Running → Easing) ── */
+.dstudio .ds-sim-comp {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 2px 0 1px;
+}
+.dstudio .ds-sim-comphead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.dstudio .ds-sim-phase {
+  font: 800 9.5px var(--font);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--ds-card2);
+  color: var(--gray500);
+  white-space: nowrap;
+}
+/* preheat is the one the customer needs explained — make it stand out (amber) */
+.dstudio .ds-sim-phase.p-preheat {
+  background: var(--ds-amber-bg);
+  color: var(--ds-amber-d);
+}
+.dstudio .ds-sim-phase.p-airflow,
+.dstudio .ds-sim-phase.p-running {
+  background: var(--ds-teal-bg);
+  color: var(--ds-teal-ink);
+}
+.dstudio .ds-sim-comppct {
+  font: 700 12px var(--font);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.dstudio .ds-sim-compbar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--ds-card2);
+  overflow: hidden;
+}
+.dstudio .ds-sim-compfill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--teal-d);
+  transition: width 0.35s ease, background 0.35s ease;
+}
+.dstudio .ds-sim-compfill.p-preheat {
+  background: var(--ds-amber);
+}
+.dstudio .ds-sim-compfill.p-easing {
+  background: var(--gray400);
+}
+
+/* ── Sim: present-mode start-up banner (Preheating / Starting up) ── */
+.dstudio .ds-present-banner {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(560px, calc(100% - 40px));
+  padding: 9px 14px 9px 10px;
+  border-radius: 999px;
+  background: rgba(20, 22, 28, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 14px 34px -12px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(6px);
+  color: #eceef4;
+  animation: ds-present-banner-in 0.3s ease;
+}
+@keyframes ds-present-banner-in {
+  from { opacity: 0; transform: translate(-50%, -6px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dstudio .ds-present-banner { animation: none; }
+}
+.dstudio .ds-present-tag {
+  flex: none;
+  font: 800 10px var(--font);
+  letter-spacing: 0.08em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--ds-amber);
+  color: #21160a;
+}
+.dstudio .ds-present-bannertext {
+  font: 500 12.5px var(--font);
+  color: rgba(236, 238, 244, 0.92);
+  line-height: 1.3;
+}
+
+/* ══════════ Sim controller — BLACK theme + movable + info card ══════════ */
+/* dark overrides (later in the file → win over the light .ds-sim-card rules) */
+.dstudio .ds-sim-card {
+  background: #0c0d12;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #eceef4;
+  box-shadow: 0 18px 44px -14px rgba(0, 0, 0, 0.7);
+}
+.dstudio .ds-sim-drag {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.dstudio .ds-sim-drag:active {
+  cursor: grabbing;
+}
+.dstudio .ds-sim-title {
+  color: #fff;
+}
+.dstudio .ds-sim-clock {
+  color: rgba(236, 238, 244, 0.55);
+}
+.dstudio .ds-sim-x {
+  color: rgba(236, 238, 244, 0.7);
+}
+.dstudio .ds-sim-x:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+.dstudio .ds-sim-power {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: rgba(236, 238, 244, 0.7);
+}
+.dstudio .ds-sim-power.on {
+  background: var(--teal-d);
+  border-color: var(--teal-d);
+  color: #062b26;
+}
+.dstudio .ds-sim-temp {
+  color: #fff;
+}
+.dstudio .ds-sim-step {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+.dstudio .ds-sim-step:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+.dstudio .ds-sim-live {
+  color: rgba(236, 238, 244, 0.6);
+}
+.dstudio .ds-sim-lbl {
+  color: rgba(236, 238, 244, 0.55);
+}
+.dstudio .ds-sim-outval {
+  font: 700 13px var(--font);
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+}
+.dstudio .ds-sim-chip {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: rgba(236, 238, 244, 0.85);
+}
+/* generic selected chip (fan / speed / outdoor) — light fill reads on black */
+.dstudio .ds-sim-chip.on {
+  background: #eceef4;
+  border-color: #eceef4;
+  color: #0c0d12;
+}
+.dstudio .ds-sim-tab {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: rgba(236, 238, 244, 0.75);
+}
+.dstudio .ds-sim-tab.on {
+  border-color: #fff;
+  color: #fff;
+}
+.dstudio .ds-sim-foot {
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+.dstudio .ds-sim-reason {
+  color: rgba(236, 238, 244, 0.6);
+}
+.dstudio .ds-sim-slider {
+  accent-color: var(--teal);
+}
+
+/* ── the top-left status/info card (read-only, customer-facing) ── */
+.dstudio .ds-sim-info {
+  position: absolute;
+  top: 16px;
+  left: 20px;
+  z-index: 12;
+  width: 244px;
+  padding: 13px 15px 14px;
+  border-radius: 16px;
+  background: #0c0d12;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 18px 44px -14px rgba(0, 0, 0, 0.7);
+  color: #eceef4;
+  font: 500 12px var(--font);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dstudio .ds-sim-info-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dstudio .ds-sim-info-mode {
+  font: 800 9.5px var(--font);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+.dstudio .ds-sim-info-mode.heat {
+  background: var(--ds-orange);
+  color: #211404;
+}
+.dstudio .ds-sim-info-mode.cool {
+  background: #389ae8;
+  color: #04202f;
+}
+.dstudio .ds-sim-info-sys {
+  font-size: 11px;
+  color: rgba(236, 238, 244, 0.6);
+}
+.dstudio .ds-sim-info-phase {
+  font: 800 17px var(--font);
+  letter-spacing: -0.2px;
+  color: #fff;
+}
+.dstudio .ds-sim-info-phase.tone-warn {
+  color: var(--ds-amber);
+}
+.dstudio .ds-sim-info-phase.tone-ok {
+  color: var(--teal);
+}
+.dstudio .ds-sim-info-phase.tone-cool {
+  color: #6cb8f2;
+}
+.dstudio .ds-sim-info-phase.tone-muted {
+  color: rgba(236, 238, 244, 0.5);
+}
+.dstudio .ds-sim-info-desc {
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: rgba(236, 238, 244, 0.62);
+}
+.dstudio .ds-sim-info-comp {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 2px;
+}
+.dstudio .ds-sim-info-clabel {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.dstudio .ds-sim-info-clabel > span:first-child {
+  font: 700 10px var(--font);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(236, 238, 244, 0.55);
+}
+.dstudio .ds-sim-info-cpct {
+  font: 800 16px var(--font);
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+}
+.dstudio .ds-sim-info .ds-sim-compbar {
+  background: rgba(255, 255, 255, 0.1);
+}
+.dstudio .ds-sim-info-nums {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11.5px;
+  color: rgba(236, 238, 244, 0.65);
+  font-variant-numeric: tabular-nums;
+}
+.dstudio .ds-sim-info-nums b {
+  color: #fff;
+  font-weight: 800;
+}
+.dstudio .ds-sim-info-eta {
+  color: var(--teal);
+  font-weight: 700;
+}

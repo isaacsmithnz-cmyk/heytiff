@@ -1,8 +1,32 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import type { SimRuntime } from "@/lib/studio/sim-runtime";
 import { steadyStateC, timeToSetpointSimS, type SimFan, type SimMode } from "@/lib/studio/sim";
+
+/* draggable floating card — reuses the room-modal header-drag idea: screen-px
+   deltas, window listeners so the drag survives leaving the card, a transform
+   over the CSS anchor, and a guard so clicking the controls never drags. */
+function useCardDrag() {
+  const [drag, setDrag] = useState({ dx: 0, dy: 0 });
+  const start = useRef<{ px: number; py: number; dx: number; dy: number } | null>(null);
+  const onPointerDown = (e: React.PointerEvent) => {
+    if ((e.target as HTMLElement).closest("button, input, [role='radiogroup']")) return;
+    start.current = { px: e.clientX, py: e.clientY, dx: drag.dx, dy: drag.dy };
+    const onMove = (ev: PointerEvent) => {
+      const s = start.current;
+      if (s) setDrag({ dx: s.dx + (ev.clientX - s.px), dy: s.dy + (ev.clientY - s.py) });
+    };
+    const onUp = () => {
+      start.current = null;
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  };
+  return { drag, onPointerDown };
+}
 
 /* The simulation's one input surface (spec §6): a floating wall-controller
    card over the canvas — power · mode · setpoint · fan · scenario · time.
@@ -46,10 +70,16 @@ export function SimControllerCard({
 
   const simMin = Math.floor(state.tSim / 60);
   const clock = `${String(Math.floor(simMin / 60)).padStart(2, "0")}:${String(simMin % 60).padStart(2, "0")}`;
+  const { drag, onPointerDown } = useCardDrag();
 
   return (
-    <div className="ds-sim-card" role="dialog" aria-label="Simulation controller">
-      <div className="ds-sim-h">
+    <div
+      className="ds-sim-card"
+      role="dialog"
+      aria-label="Simulation controller"
+      style={{ transform: `translate(${drag.dx}px, ${drag.dy}px)` }}
+    >
+      <div className="ds-sim-h ds-sim-drag" onPointerDown={onPointerDown}>
         <button
           className={`ds-sim-power${hs?.on ? " on" : ""}`}
           disabled={!active}
@@ -140,22 +170,24 @@ export function SimControllerCard({
       )}
 
       <div className="ds-sim-row">
-        <span className="ds-sim-lbl">Outdoor</span>
-        <div className="ds-sim-chips" role="radiogroup" aria-label="Outdoor scenario">
-          <button
-            className={`ds-sim-chip${state.outdoorC === 5 ? " on" : ""}`}
-            onClick={() => runtime.setOutdoor(5)}
-          >
-            Winter 5°
-          </button>
-          <button
-            className={`ds-sim-chip${state.outdoorC === 30 ? " on" : ""}`}
-            onClick={() => runtime.setOutdoor(30)}
-          >
-            Summer 30°
-          </button>
-        </div>
+        <span className="ds-sim-lbl">Outdoor temperature</span>
+        <span className="ds-sim-outval">{Math.round(state.outdoorC)}°</span>
       </div>
+      <div className="ds-sim-chips" role="radiogroup" aria-label="Outdoor scenario">
+        <button
+          className={`ds-sim-chip${state.outdoorC === 5 ? " on" : ""}`}
+          onClick={() => runtime.setOutdoor(5)}
+        >
+          Winter 5°
+        </button>
+        <button
+          className={`ds-sim-chip${state.outdoorC === 30 ? " on" : ""}`}
+          onClick={() => runtime.setOutdoor(30)}
+        >
+          Summer 30°
+        </button>
+      </div>
+      {/* drag the slider to set the outside temperature between the presets */}
       <input
         className="ds-sim-slider"
         type="range"
@@ -164,6 +196,7 @@ export function SimControllerCard({
         step={1}
         value={state.outdoorC}
         aria-label="Outdoor temperature"
+        title="Outside air temperature"
         onChange={(e) => runtime.setOutdoor(Number(e.target.value))}
       />
 

@@ -9,12 +9,16 @@ import { PACK_SECTIONS, type DataPack, type PackMeta } from "../packs/schema";
 import { assemblePack, type PackSource } from "../packs/loader";
 import {
   SIM,
+  airflowGate,
   buildSimModel,
+  compressorPct,
+  compressorPhase,
   freeRunningC,
   inferFacing,
   initSimState,
   rayExitDistance,
   simTick,
+  startupRemainingSimS,
   steadyStateC,
   tempTint,
   throwLengthU,
@@ -216,12 +220,14 @@ describe("simTick — heating scene (winter 5°, set 22°)", () => {
     let s = initSimState(model, { outdoorC: 5, speed: 60 });
     s = { ...s, handlers: { [h.id]: { ...s.handlers[h.id], on: true, setpointC: 22 } } };
     const dt = 0.1;
+    // fastest possible compressor rate (the faster, post-soft-start phase)
+    const maxCompRate = (1 - SIM.AIRFLOW_ON_FRAC) / SIM.RAMP_FULL_S;
     for (let i = 0; i < 400; i++) {
       const n = simTick(model, s, dt);
       const dtSim = dt * s.speed;
-      expect(Math.abs(n.handlers[h.id].outputKw - s.handlers[h.id].outputKw)).toBeLessThanOrEqual(
-        h.ratedHeatKw * (dtSim / SIM.COMP_RAMP_S) + 1e-9
-      );
+      expect(
+        Math.abs(n.handlers[h.id].compressorFrac - s.handlers[h.id].compressorFrac)
+      ).toBeLessThanOrEqual(maxCompRate * dtSim + 1e-9);
       expect(Math.abs(n.handlers[h.id].fanFrac - s.handlers[h.id].fanFrac)).toBeLessThanOrEqual(
         dt / SIM.FAN_RAMP_S + 1e-9
       );
@@ -232,10 +238,13 @@ describe("simTick — heating scene (winter 5°, set 22°)", () => {
 
   it("pause freezes thermal time but the fan keeps breathing", () => {
     let s = initSimState(model, { outdoorC: 5, speed: 60 });
+    // compressor already up (gate open) so the fan can run on the mechanical clock
     s = {
       ...s,
       paused: true,
-      handlers: { [h.id]: { ...s.handlers[h.id], on: true, running: true, setpointC: 22 } },
+      handlers: {
+        [h.id]: { ...s.handlers[h.id], on: true, running: true, setpointC: 22, compressorFrac: 1 },
+      },
     };
     const n = run(model, s, 5);
     expect(n.tSim).toBe(0);
@@ -364,5 +373,84 @@ describe("throw containment", () => {
     // cooling reaches further than heating, but still respects the wall
     const cool = throwLengthU(h, { ...hs, mode: "cool" }, model.mPerUnit);
     expect(cool).toBeLessThanOrEqual(480 * 0.95 + 1e-9);
+  });
+});
+
+describe("compressor ramp-up (the kick-in story)", () => {
+  const model = buildSimModel(simDoc(), pack, "flr");
+  const h = model.handlers[0];
+  const on = (s: SimState, patch: Partial<SimState["handlers"][string]> = {}) =>
+    ({ ...s, handlers: { [h.id]: { ...s.handlers[h.id], on: true, setpointC: 22, ...patch } } }) as SimState;
+
+  it("airflowGate is 0 below 30% and rises to 1 by 60%", () => {
+    expect(airflowGate(0)).toBe(0);
+    expect(airflowGate(0.29)).toBe(0);
+    expect(airflowGate(0.3)).toBe(0);
+    expect(airflowGate(0.45)).toBeGreaterThan(0.2);
+    expect(airflowGate(0.45)).toBeLessThan(0.8);
+    expect(airflowGate(0.6)).toBeCloseTo(1, 5);
+    expect(airflowGate(1)).toBe(1);
+  });
+
+  it("soft-starts to ~30% around 3 minutes, no airflow before then", () => {
+    let s = on(initSimState(model, { outdoorC: 5, speed: 60 }));
+    // ~3 sim-minutes (180 s) at 60× = 3 real-s
+    s = run(model, s, 3);
+    const frac = s.handlers[h.id].compressorFrac;
+    expect(frac).toBeGreaterThan(0.24);
+    expect(frac).toBeLessThan(0.4); // reached ~the airflow-on point, not full
+    // the fan (and thus the plume) has barely engaged this early
+    expect(s.handlers[h.id].fanFrac).toBeLessThan(0.25);
+  });
+
+  it("the room stays ~static through preheat, then moves once air flows", () => {
+    let s = on(initSimState(model, { outdoorC: 5, speed: 60 }), { fan: "hi" });
+    const start = s.roomTempC.room1;
+    s = run(model, s, 2); // ~2 min: still preheating, gate shut
+    expect(compressorPhase(model, s, h.id)).toBe("preheat");
+    expect(Math.abs(s.roomTempC.room1 - start)).toBeLessThan(0.3); // barely moved
+    // watch it ramp: the compressor climbs above full-airflow before setpoint
+    let peakFrac = 0;
+    for (let i = 0; i < 300; i++) {
+      s = simTick(model, s, 0.1);
+      peakFrac = Math.max(peakFrac, s.handlers[h.id].compressorFrac);
+    }
+    expect(peakFrac).toBeGreaterThan(0.85); // did reach (near) full output while warming
+    expect(s.roomTempC.room1).toBeGreaterThan(start + 2); // and the room genuinely warmed
+  });
+
+  it("phase + pct progress preheat → airflow/running → easing", () => {
+    let s = on(initSimState(model, { outdoorC: 5, speed: 60 }));
+    expect(compressorPhase(model, s, h.id)).toBe("preheat");
+    expect(compressorPct(s, h.id)).toBe(0);
+    s = run(model, s, 60); // warm all the way to setpoint
+    // by now it has passed through airflow/running and is at/near setpoint
+    expect(s.roomTempC.room1).toBeGreaterThan(21);
+    expect(compressorPhase(model, s, h.id)).toBe("easing");
+    // easing = modulating down: compressor below full
+    expect(s.handlers[h.id].compressorFrac).toBeLessThan(0.9);
+  });
+
+  it("modulates down (compressor eases) as the room reaches setpoint", () => {
+    let s = on(initSimState(model, { outdoorC: 5, speed: 60 }));
+    s = run(model, s, 10); // ramp up
+    const peak = s.handlers[h.id].compressorFrac;
+    expect(peak).toBeGreaterThan(0.7);
+    s = run(model, s, 60); // approach setpoint
+    expect(s.handlers[h.id].compressorFrac).toBeLessThan(peak); // eased back
+  });
+
+  it("startupRemaining adds the kick-in lag, then vanishes at full speed", () => {
+    expect(startupRemainingSimS(1)).toBe(0);
+    expect(startupRemainingSimS(0)).toBeGreaterThan(SIM.RAMP_FULL_S); // whole ramp ahead
+    expect(startupRemainingSimS(0)).toBeGreaterThan(startupRemainingSimS(0.5));
+    // a cold-start estimate is longer than a warmed-up one for the same room
+    let cold = on(initSimState(model, { outdoorC: 5, speed: 60 }));
+    const tCold = timeToSetpointSimS(model, cold, h.id);
+    let warm = on({ ...cold, handlers: { [h.id]: { ...cold.handlers[h.id], on: true, compressorFrac: 1 } } });
+    const tWarm = timeToSetpointSimS(model, warm, h.id);
+    expect(tCold).not.toBeNull();
+    expect(tWarm).not.toBeNull();
+    expect(tCold!).toBeGreaterThan(tWarm!);
   });
 });

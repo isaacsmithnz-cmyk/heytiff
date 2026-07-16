@@ -29,15 +29,25 @@ export const SIM = {
   AIR_C_PER_M3: 1206,
   /** fan fractions of rated airflow at lo/mid/hi (pack has one nominal-high figure) */
   FAN_FRAC: { lo: 0.6, mid: 0.8, hi: 1.0 } as const,
-  /** idle circulation fraction while on but thermostat-satisfied */
-  FAN_IDLE: 0.2,
   /** fan volume ramp: seconds (real) to travel full range */
   FAN_RAMP_S: 3,
-  /** compressor ramp: sim-seconds to travel full range */
-  COMP_RAMP_S: 60,
+  /* ── inverter compressor start-up (thermal clock, sim-seconds) ──
+     A real inverter soft-starts: it crawls up to a working speed, then ramps
+     harder. We model two phases so the customer sees a believable ~5 min
+     kick-in with airflow held back until the coil is warm (cold-blow
+     prevention). All tunable. */
+  /** slow soft-start: 0 → AIRFLOW_ON_FRAC over this long (~3 min) */
+  SOFT_START_S: 180,
+  /** faster climb: AIRFLOW_ON_FRAC → 1.0 over this long (~2.5 min → ~100% at ~5½ min) */
+  RAMP_FULL_S: 150,
+  /** compressor fraction at which the fan engages and conditioned air begins */
+  AIRFLOW_ON_FRAC: 0.3,
+  /** compressor fraction at which airflow (and the plume) is fully delivered */
+  AIRFLOW_FULL_FRAC: 0.6,
   /** coil first-order lag, sim-seconds */
   COIL_LAG_S: 90,
-  /** inverter proportional band (K), output floor while running, hysteresis */
+  /** inverter proportional band (K); OUTPUT_FLOOR is the modulation floor the
+      compressor holds while running (it doesn't drop to 0 until satisfied). */
   BAND_K: 1.5,
   OUTPUT_FLOOR: 0.2,
   START_ERR_K: 0.35,
@@ -125,9 +135,12 @@ export interface SimHandlerState {
   fan: SimFan;
   /** thermostat state with hysteresis */
   running: boolean;
-  /** 0..1 demand from the proportional band */
+  /** 0..1 demand from the proportional band (the target the compressor chases) */
   demand: number;
-  /** compressor output after ramp, kW */
+  /** 0..1 inverter compressor speed — soft-starts up, modulates down near
+      setpoint. The single honest driver of output, airflow and room change. */
+  compressorFrac: number;
+  /** compressor output after ramp, kW (= compressorFrac × rated) */
   outputKw: number;
   /** fan volume fraction after ramp (mechanical clock) */
   fanFrac: number;
@@ -359,6 +372,7 @@ export function initSimState(
       fan: "auto",
       running: false,
       demand: 0,
+      compressorFrac: 0,
       outputKw: 0,
       fanFrac: 0,
       supplyC: free,
@@ -424,28 +438,46 @@ export function simTick(model: SimModel, state: SimState, dtRealS: number): SimS
     else if (!running && err > SIM.START_ERR_K) running = true;
     else if (running && err < -SIM.STOP_OVERSHOOT_K) running = false;
 
+    /* demand modulates from the proportional band, held at the inverter floor
+       while running (it eases DOWN near setpoint, doesn't slam off) */
     const demand = running
       ? clamp(Math.max(err, 0) / SIM.BAND_K, SIM.OUTPUT_FLOOR, 1)
       : 0;
 
-    /* compressor ramps on the thermal clock */
-    const targetKw = s.on && running ? demand * rated : 0;
-    const maxStep = rated * (dtSim / SIM.COMP_RAMP_S);
-    const outputKw = s.outputKw + clamp(targetKw - s.outputKw, -maxStep, maxStep);
+    /* inverter compressor: soft-starts, then chases `demand`. Two-phase rate —
+       a slow crawl up to the airflow-on point, then a faster climb — so the
+       customer sees a believable ~5-min kick-in. Ramps DOWN at the same rates
+       when demand drops (modulation / shut-off). */
+    const target = s.on && running ? demand : 0;
+    const rate =
+      s.compressorFrac < SIM.AIRFLOW_ON_FRAC
+        ? SIM.AIRFLOW_ON_FRAC / SIM.SOFT_START_S
+        : (1 - SIM.AIRFLOW_ON_FRAC) / SIM.RAMP_FULL_S;
+    const compStep = rate * dtSim;
+    const compressorFrac = clamp(
+      s.compressorFrac + clamp(target - s.compressorFrac, -compStep, compStep),
+      0,
+      1
+    );
+    const outputKw = compressorFrac * rated;
 
-    /* fan ramps on the mechanical clock */
-    const fanTarget = !s.on
-      ? 0
-      : !running
-        ? SIM.FAN_IDLE
-        : s.fan === "auto"
-          ? 0.6 + 0.4 * demand
-          : SIM.FAN_FRAC[s.fan];
+    /* the fan (and conditioned air) is held until the coil is warm — cold-blow
+       prevention — engaging as the compressor passes AIRFLOW_ON_FRAC */
+    const gate = airflowGate(compressorFrac);
+
+    /* fan ramps on the mechanical clock, only once the gate opens */
+    const fanTarget =
+      !s.on || gate <= 0
+        ? 0
+        : (s.fan === "auto" ? 0.6 + 0.4 * demand : SIM.FAN_FRAC[s.fan]) * gate;
     const fanStep = dtReal / SIM.FAN_RAMP_S;
     const fanFrac = s.fanFrac + clamp(fanTarget - s.fanFrac, -fanStep, fanStep);
 
-    /* supply temp chases its computed target through the coil lag */
-    const qLs = Math.max(fanFrac * h.visualLs, 30);
+    /* supply temp = delivery ΔT (compressor-scaled; lower fan → hotter),
+       chased through the coil lag. Uses the fan SETTING (never 0) so it stays
+       finite during preheat and rises smoothly with the compressor. */
+    const fanSet = s.fan === "auto" ? 0.6 + 0.4 * demand : SIM.FAN_FRAC[s.fan];
+    const qLs = Math.max(fanSet * h.visualLs, 30);
     const dT = (outputKw * 1000) / (SIM.RHO_CP * qLs);
     const supplyTarget = clamp(
       s.mode === "heat" ? sensed + dT : sensed - dT,
@@ -455,9 +487,12 @@ export function simTick(model: SimModel, state: SimState, dtRealS: number): SimS
     const supplyC =
       s.supplyC + (supplyTarget - s.supplyC) * Math.min(1, dtSim / SIM.COIL_LAG_S);
 
-    handlers[h.id] = { ...s, running, demand, outputKw, fanFrac, supplyC };
+    handlers[h.id] = { ...s, running, demand, compressorFrac, outputKw, fanFrac, supplyC };
 
-    const signedW = (s.mode === "heat" ? 1 : -1) * outputKw * 1000;
+    /* energy is only DELIVERED once air is flowing (gate) — the kick-in delay:
+       the compressor spins for minutes before the room actually moves */
+    const deliveredKw = outputKw * gate;
+    const signedW = (s.mode === "heat" ? 1 : -1) * deliveredKw * 1000;
     roomInW[h.roomId] = (roomInW[h.roomId] ?? 0) + signedW;
   }
 
@@ -480,6 +515,53 @@ export function simTick(model: SimModel, state: SimState, dtRealS: number): SimS
 }
 
 /* ── derived readouts ── */
+
+/** airflow / conditioned-air delivery fraction for a compressor speed:
+    0 below AIRFLOW_ON_FRAC (fan held — cold-blow prevention), smoothly to 1 by
+    AIRFLOW_FULL_FRAC. Exported: the overlay fades the plume in with it. */
+export function airflowGate(compressorFrac: number): number {
+  const t = clamp(
+    (compressorFrac - SIM.AIRFLOW_ON_FRAC) / (SIM.AIRFLOW_FULL_FRAC - SIM.AIRFLOW_ON_FRAC),
+    0,
+    1
+  );
+  return t * t * (3 - 2 * t); // smoothstep
+}
+
+/** compressor speed as a 0–100 % for the gauge/readout */
+export function compressorPct(state: SimState, handlerId: string): number {
+  return Math.round((state.handlers[handlerId]?.compressorFrac ?? 0) * 100);
+}
+
+export type CompressorPhase = "off" | "preheat" | "airflow" | "running" | "easing";
+
+/** the presentation phase for the notification/tag (mode-aware label lives in
+    the UI, which knows heat vs cool → "Preheating" / "Pre-cooling") */
+export function compressorPhase(
+  model: SimModel,
+  state: SimState,
+  handlerId: string
+): CompressorPhase {
+  const h = model.handlers.find((x) => x.id === handlerId);
+  const s = h && state.handlers[h.id];
+  if (!h || !s || !s.on) return "off";
+  if (s.compressorFrac < SIM.AIRFLOW_ON_FRAC) return "preheat";
+  // past preheat: modulating down (near setpoint) or cycled off → easing;
+  // otherwise ramping up (airflow) or holding full (running)
+  if (!s.running || s.demand < 0.95) return "easing";
+  return s.compressorFrac >= 0.85 ? "running" : "airflow";
+}
+
+/** sim-seconds for the compressor to ramp from its current speed up to full
+    output — the "kick-in" lag the estimate must add on top of the thermal time. */
+export function startupRemainingSimS(compressorFrac: number): number {
+  const on = SIM.AIRFLOW_ON_FRAC;
+  if (compressorFrac >= 1) return 0;
+  if (compressorFrac < on) {
+    return SIM.SOFT_START_S * ((on - compressorFrac) / on) + SIM.RAMP_FULL_S;
+  }
+  return SIM.RAMP_FULL_S * ((1 - compressorFrac) / (1 - on));
+}
 
 /** steady-state temp a room heads to with its handlers at RATED output */
 export function steadyStateC(model: SimModel, state: SimState, roomId: string): number | null {
@@ -516,7 +598,11 @@ export function timeToSetpointSimS(
   if (heat ? T >= S : T <= S) return 0;
   if (heat ? ss <= S : ss >= S) return null;
   const tau = room.capJK / room.uaWK;
-  return tau * Math.log((ss - T) / (ss - S));
+  const thermal = tau * Math.log((ss - T) / (ss - S));
+  /* realistic: add the compressor's remaining ramp-up ("kick-in") on top of
+     the thermal warm-up — a cold start reads longer and tightens as it spins
+     up; near full speed this term vanishes and it reduces to the pure curve. */
+  return startupRemainingSimS(s.compressorFrac) + thermal;
 }
 
 /** fill-front progress 0..1 for a room (spec §5a) */

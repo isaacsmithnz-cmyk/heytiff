@@ -18,7 +18,7 @@
    file renders + arms intents, mutating through onMutate exactly as the old
    panel did. */
 
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import type {
   DesignDocument,
@@ -538,18 +538,69 @@ function ActiveCockpit({
 
 /* ─────────────────────────── hero ─────────────────────────── */
 
+/** the ring circumference (2π·45), the basis for the arc offset. */
+const DONUT_CIRC = 282.7;
+
+type HeroState = "ok" | "warn" | "bad" | "empty";
+
 interface HeroModel {
   label: string; // module label, e.g. "Split (1:1)"
-  covLabel: string; // "Load coverage"
-  main: string;
-  em: string;
-  muted: boolean;
-  barPct: number | null; // null → dashed empty bar
-  badge: { kind: "ok" | "warn" | "muted"; text: string };
-  note: { strong?: string; rest: string };
+  state: HeroState;
+  pct: number | null; // centre %, null when not sized
+  requiredKw: number | null; // ledger "Required" (room load)
+  selectedKw: number | null; // ledger "Selected" (chosen pair capacity)
+  sumLabel: string; // "Spare" / "Short" / "Not sized" / "Select units" / "Calibrate"
+  sumValue: string; // signed delta "+0.7 kW" / "−0.5 kW" / "—"
+  dash: number; // stroke-dashoffset the arc animates to
+  over: boolean; // show the >100% overshoot segment
 }
 
-/** split-summary hero derivation (see the button→route map in the spec). */
+const fmtKw = (n: number | null): string => (n != null ? `${n.toFixed(1)} kW` : "— kW");
+
+/** shared donut math: coverage = selected ÷ required → ≥100% ok · 90–99% warn
+    · <90% bad. Until both figures resolve it's "empty" (muted donut) with
+    `emptySumLabel` naming the missing precondition. */
+function donutModel(
+  label: string,
+  requiredKw: number | null,
+  selectedKw: number | null,
+  emptySumLabel: string
+): HeroModel {
+  const sized =
+    requiredKw != null && requiredKw > 0 && selectedKw != null && selectedKw > 0;
+
+  if (!sized) {
+    return {
+      label,
+      state: "empty",
+      pct: null,
+      requiredKw,
+      selectedKw,
+      sumLabel: emptySumLabel,
+      sumValue: "—",
+      dash: DONUT_CIRC,
+      over: false,
+    };
+  }
+
+  const coverage = selectedKw / requiredKw;
+  const pct = Math.round(coverage * 100);
+  const delta = selectedKw - requiredKw;
+  const state: HeroState = coverage >= 1 ? "ok" : coverage >= 0.9 ? "warn" : "bad";
+  return {
+    label,
+    state,
+    pct,
+    requiredKw,
+    selectedKw,
+    sumLabel: state === "ok" ? "Spare" : "Short",
+    sumValue: `${delta >= 0 ? "+" : "−"}${Math.abs(delta).toFixed(1)} kW`,
+    dash: DONUT_CIRC * (1 - Math.min(coverage, 1)),
+    over: coverage > 1,
+  };
+}
+
+/** capacity-coverage hero: Required (room load) vs Selected (chosen pair kW). */
 function computeHero(
   doc: DesignDocument,
   pack: DataPack | null,
@@ -557,161 +608,165 @@ function computeHero(
   rooms: RoomObj[],
   basis: SizingBasis
 ): HeroModel {
-  const label = moduleFor(system.type).label;
-  const base = { label, covLabel: "Load coverage" };
+  const room = rooms[0] ?? null;
+  const cov = room && pack ? roomCoverage(doc, pack, room, basis) : null;
+  const requiredKw = cov?.loadKw ?? null;
+  const selectedKw = pack ? systemPairKw(doc, pack, system.id, basis) : null;
+  const emptySumLabel =
+    rooms.length === 0 ? "Not sized" : requiredKw == null ? "Calibrate" : "Select units";
+  return donutModel(moduleFor(system.type).label, requiredKw, selectedKw, emptySumLabel);
+}
 
-  if (rooms.length === 0) {
-    return {
-      ...base,
-      main: "—",
-      em: " / — kW",
-      muted: true,
-      barPct: null,
-      badge: { kind: "muted", text: "Not sized" },
-      note: { rest: "0 rooms served" },
-    };
-  }
-
-  const room = rooms[0];
-  const cov = roomCoverage(doc, pack, room, basis);
-  const mine = doc.objects.filter((o) => o.systemId === system.id && o.type === "unit");
-  const placedIdu = mine.find((o) => o.props.role === "idu") ?? null;
-  const iduModel = String(placedIdu?.props.model ?? system.settings.pairIdu ?? "");
-  const oduModel = String(
-    mine.find((o) => o.props.role === "odu")?.props.model ?? system.settings.pairOdu ?? ""
+/** the coverage ring: draws in from empty on mount, then transitions on change. */
+function Donut({ state, pct, dash, over }: Pick<HeroModel, "state" | "pct" | "dash" | "over">) {
+  const [drawn, setDrawn] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setDrawn(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+  const offset = drawn ? dash : DONUT_CIRC;
+  const verdict =
+    state === "empty" ? "not sized" : state === "ok" ? "covered" : state === "warn" ? "tight" : "undersized";
+  return (
+    <div
+      className="ds-ck-donut"
+      role="img"
+      aria-label={pct != null ? `Coverage ${pct}% of required, ${verdict}` : "Not sized"}
+    >
+      <svg viewBox="0 0 110 110" aria-hidden="true">
+        <defs>
+          <linearGradient id="capGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor="#00E5C0" />
+            <stop offset="1" stopColor="#00A389" />
+          </linearGradient>
+        </defs>
+        <circle className="track" cx="55" cy="55" r="45" fill="none" strokeWidth="9" />
+        {state !== "empty" && (
+          <circle
+            className="val"
+            cx="55"
+            cy="55"
+            r="45"
+            fill="none"
+            strokeWidth="9"
+            strokeLinecap="round"
+            style={{ strokeDashoffset: offset }}
+          />
+        )}
+        {over && (
+          <circle
+            className={`over${drawn ? " on" : ""}`}
+            cx="55"
+            cy="55"
+            r="45"
+            fill="none"
+            strokeWidth="9"
+            strokeLinecap="round"
+          />
+        )}
+      </svg>
+      <div className="ctr">
+        <div className="n">{pct != null ? `${pct}%` : "—"}</div>
+        <div className="s">{pct != null ? "of required" : "not sized"}</div>
+      </div>
+      {state !== "empty" && (
+        <span className="badge-tip">
+          <Glyph name={state === "ok" ? "check" : "alert"} size={13} />
+        </span>
+      )}
+    </div>
   );
-  const hasPair = Boolean(iduModel && oduModel);
+}
 
-  if (cov.loadKw == null) {
-    return {
-      ...base,
-      main: "—",
-      em: " / — kW",
-      muted: true,
-      barPct: null,
-      badge: { kind: "muted", text: "Not sized" },
-      note: { rest: "Calibrate to size" },
-    };
-  }
-  const load = cov.loadKw;
-
-  if (!hasPair) {
-    return {
-      ...base,
-      main: "0",
-      em: ` / ${load.toFixed(1)} kW load`,
-      muted: true,
-      barPct: null,
-      badge: { kind: "muted", text: "Not sized" },
-      note: { rest: "Select units to size" },
-    };
-  }
-
-  if (!placedIdu) {
-    return {
-      ...base,
-      main: "2 units selected",
-      em: "",
-      muted: true,
-      barPct: null,
-      badge: { kind: "muted", text: "Awaiting placement" },
-      note: { rest: "Place on plan to size" },
-    };
-  }
-
-  const pct = Math.min(cov.pct ?? 0, 100);
-  if (cov.status === "covered") {
-    const head = cov.coveredKw - load;
-    return {
-      ...base,
-      main: cov.coveredKw.toFixed(1),
-      em: ` / ${load.toFixed(1)} kW load`,
-      muted: false,
-      barPct: pct,
-      badge: { kind: "ok", text: "Covered" },
-      note: { strong: `+${head.toFixed(1)} kW`, rest: " headroom" },
-    };
-  }
-  const short = load - cov.coveredKw;
-  return {
-    ...base,
-    main: cov.coveredKw.toFixed(1),
-    em: ` / ${load.toFixed(1)} kW load`,
-    muted: false,
-    barPct: pct,
-    badge: { kind: "warn", text: "Undersized" },
-    note: { strong: `−${short.toFixed(1)} kW`, rest: " to cover" },
-  };
+function HeroShell({
+  label,
+  state,
+  requiredKw,
+  selectedKw,
+  sumLabel,
+  sumValue,
+  donut,
+  onChangeType,
+}: {
+  label: string;
+  state: HeroState;
+  requiredKw: number | null;
+  selectedKw: number | null;
+  sumLabel: string;
+  sumValue: string;
+  donut: React.ReactNode;
+  onChangeType?: () => void;
+}) {
+  const [name, ratio] = splitLabel(label);
+  return (
+    <div className="ds-ck-caphero" data-state={state}>
+      <div className="ds-ck-caphero-top">
+        <span className="ds-ck-caphero-eyebrow">System type</span>
+        {onChangeType && (
+          <button
+            className="ds-ck-caphero-change"
+            onClick={onChangeType}
+            title="Change system type — a different type clears the system's units"
+          >
+            <Glyph name="edit" size={12} />
+            Change
+          </button>
+        )}
+      </div>
+      <div className="ds-ck-caphero-cols">
+        <div className="ds-ck-caphero-left">
+          <div className="ds-ck-caphero-type">
+            {name}
+            {ratio && <span> {ratio}</span>}
+          </div>
+          <div className="ds-ck-ledger">
+            <div className="ds-ck-ledger-row req">
+              <span className="k">Required</span>
+              <span className="v">{fmtKw(requiredKw)}</span>
+            </div>
+            <div className="ds-ck-ledger-row sel">
+              <span className="k">Selected</span>
+              <span className="v">{fmtKw(selectedKw)}</span>
+            </div>
+            <div className="ds-ck-ledger-row sum">
+              <span className="k">{sumLabel}</span>
+              <span className="v">{sumValue}</span>
+            </div>
+          </div>
+        </div>
+        <div className="ds-ck-caphero-right">{donut}</div>
+      </div>
+    </div>
+  );
 }
 
 function CockpitHero({ hero, onChangeType }: { hero: HeroModel; onChangeType: () => void }) {
-  const [name, ratio] = splitLabel(hero.label);
   return (
-    <div className="ds-ck-hero">
-      <div className="ds-ck-herotop">
-        <span className="ds-ck-eyebrow">System type</span>
-        <button
-          className="ds-ck-change"
-          onClick={onChangeType}
-          title="Change system type — a different type clears the system's units"
-        >
-          Change
-        </button>
-      </div>
-      <div className="ds-ck-herotype">
-        {name}
-        {ratio && <span> {ratio}</span>}
-      </div>
-      <div className="ds-ck-cov">
-        <div className="ds-ck-cr">
-          <span className="k">{hero.covLabel}</span>
-          <span className={`v${hero.muted ? " muted" : ""}`}>
-            {hero.main}
-            {hero.em && <em>{hero.em}</em>}
-          </span>
-        </div>
-        <div className={`ds-ck-bar${hero.barPct == null ? " empty" : ""}`}>
-          {hero.barPct != null && <i style={{ width: `${hero.barPct}%` }} />}
-        </div>
-        <div className="ds-ck-herofoot">
-          <span className={`ds-ck-badge ${hero.badge.kind}`}>
-            {hero.badge.kind === "ok" && <Glyph name="check" size={12} />}
-            {hero.badge.text}
-          </span>
-          <span className="ds-ck-hd">
-            {hero.note.strong && <b>{hero.note.strong}</b>}
-            {hero.note.rest}
-          </span>
-        </div>
-      </div>
-    </div>
+    <HeroShell
+      label={hero.label}
+      state={hero.state}
+      requiredKw={hero.requiredKw}
+      selectedKw={hero.selectedKw}
+      sumLabel={hero.sumLabel}
+      sumValue={hero.sumValue}
+      onChangeType={onChangeType}
+      donut={<Donut state={hero.state} pct={hero.pct} dash={hero.dash} over={hero.over} />}
+    />
   );
 }
 
 /** a minimal hero for unavailable modules (no pack-driven coverage) */
 function SimpleHero({ label }: { label: string }) {
-  const [name, ratio] = splitLabel(label);
   return (
-    <div className="ds-ck-hero">
-      <div className="ds-ck-herotop">
-        <span className="ds-ck-eyebrow">System type</span>
-      </div>
-      <div className="ds-ck-herotype">
-        {name}
-        {ratio && <span> {ratio}</span>}
-      </div>
-      <div className="ds-ck-cov">
-        <div className="ds-ck-cr">
-          <span className="k">Load coverage</span>
-          <span className="v muted">— / — kW</span>
-        </div>
-        <div className="ds-ck-bar empty" />
-        <div className="ds-ck-herofoot">
-          <span className="ds-ck-badge muted">Coming soon</span>
-          <span className="ds-ck-hd">Not yet available</span>
-        </div>
-      </div>
-    </div>
+    <HeroShell
+      label={label}
+      state="empty"
+      requiredKw={null}
+      selectedKw={null}
+      sumLabel="Coming soon"
+      sumValue="—"
+      donut={<Donut state="empty" pct={null} dash={DONUT_CIRC} over={false} />}
+    />
   );
 }
 
@@ -756,65 +811,24 @@ function DuctedHero({
   req: DuctedRequirement;
   onChangeType: () => void;
 }) {
-  const [name, ratio] = splitLabel(moduleFor(system.type).label);
   const { iduModel, oduModel } = ductedPair(doc, system);
   const hasPair = Boolean(iduModel && oduModel);
   const pairKw = hasPair && pack ? systemPairKw(doc, pack, system.id, basis) : null;
-  const barPct =
-    req.requiredKw != null && req.requiredKw > 0 && pairKw != null
-      ? Math.min((pairKw / req.requiredKw) * 100, 100)
-      : null;
-  // requiredKw degrades to "—" + a grey reason, never a guess (Principle 5)
-  const note =
-    req.requiredKw == null
-      ? req.roomCount === 0
-        ? "No rooms served yet"
-        : `Room loads unavailable · ${req.unknownRooms} room${req.unknownRooms === 1 ? "" : "s"}`
-      : hasPair
-        ? pairKw != null
-          ? `${pairKw.toFixed(1)} kW selected`
-          : "Pair capacity unknown"
-        : "Select an air handler to size";
-  return (
-    <div className="ds-ck-hero">
-      <div className="ds-ck-herotop">
-        <span className="ds-ck-eyebrow">System type</span>
-        <button
-          className="ds-ck-change"
-          onClick={onChangeType}
-          title="Change system type — a different type clears the system's units"
-        >
-          Change
-        </button>
-      </div>
-      <div className="ds-ck-herotype">
-        {name}
-        {ratio && <span> {ratio}</span>}
-      </div>
-      <div className="ds-ck-cov">
-        <div className="ds-ck-cr">
-          <span className="k">Required capacity</span>
-          <span className={`v${req.requiredKw == null ? " muted" : ""}`}>
-            {req.requiredKw != null ? `~${req.requiredKw.toFixed(1)}` : "—"}
-            <em>
-              {` kW · ${req.roomCount} room${req.roomCount === 1 ? "" : "s"}${
-                req.spillRooms > 0 ? ` + ${req.spillRooms} spill` : ""
-              }`}
-            </em>
-          </span>
-        </div>
-        <div className={`ds-ck-bar${barPct == null ? " empty" : ""}`}>
-          {barPct != null && <i style={{ width: `${barPct}%` }} />}
-        </div>
-        <div className="ds-ck-herofoot">
-          <span className="ds-ck-badge muted">
-            {hasPair ? "Air handler chosen" : "No air handler"}
-          </span>
-          <span className="ds-ck-hd">{note}</span>
-        </div>
-      </div>
-    </div>
+  // requiredKw degrades to "— kW" + the precondition label, never a guess
+  // (Principle 5); room/spill counts live in the AHU section
+  const emptySumLabel =
+    req.roomCount === 0
+      ? "Not sized"
+      : req.requiredKw == null
+        ? "Calibrate"
+        : "Select units";
+  const hero = donutModel(
+    moduleFor(system.type).label,
+    req.requiredKw,
+    pairKw,
+    emptySumLabel
   );
+  return <CockpitHero hero={hero} onChangeType={onChangeType} />;
 }
 
 /* ── Air-handler section: the choose CTA, the chosen pair's engine figures,
@@ -924,7 +938,13 @@ export function AhuSection({
             </div>
             <div>
               <div className="ue-t">No air handler yet</div>
-              <div className="ue-s">One concealed unit serves every room.</div>
+              <div className="ue-s">
+                {req.requiredKw != null
+                  ? `Needs ~${req.requiredKw.toFixed(1)} kW · ${req.roomCount} room${
+                      req.roomCount === 1 ? "" : "s"
+                    }${req.spillRooms > 0 ? ` + ${req.spillRooms} spill` : ""}`
+                  : "One concealed unit serves every room."}
+              </div>
             </div>
           </div>
           <button
@@ -1013,75 +1033,23 @@ function runTouches(o: DesignObject, unitId: string): boolean {
   return attachId(o.props.startAttach) === unitId || attachId(o.props.endAttach) === unitId;
 }
 
-/** connected-capacity hero (right-panel spec §3: ODU capacity gauge + IDU
-    count) rendered through the same CockpitHero shell as split */
+/** multi-split coverage through the same donut: Required = Σ served-room
+    loads, Selected = Σ connected indoor capacity. The ODU-side story — ports,
+    combination %, rule findings — lives in the outdoor section below
+    (right-panel spec §3); the hero reads load coverage only. */
 function computeMultiHero(conn: MultiConnection): HeroModel {
-  const base = {
-    label: moduleFor("multi-split").label,
-    covLabel: "Connected capacity",
-  };
-  if (conn.rooms.length === 0) {
-    return {
-      ...base,
-      main: "—",
-      em: " / — kW",
-      muted: true,
-      barPct: null,
-      badge: { kind: "muted", text: "Not sized" },
-      note: { rest: "0 rooms served" },
-    };
-  }
-  const loadEm =
-    conn.requiredKw != null
-      ? ` / ${conn.requiredKw.toFixed(1)} kW load`
-      : " kW connected";
-  if (conn.iduCount === 0) {
-    return {
-      ...base,
-      main: "0",
-      em: loadEm,
-      muted: true,
-      barPct: null,
-      badge: { kind: "muted", text: "Not sized" },
-      note: { rest: "Select a unit per room" },
-    };
-  }
-  const connected = conn.connectedKw ?? 0;
-  if (!conn.odu) {
-    // a set-but-unknown model degrades to a grey reason, never a guess
-    const unknown = Boolean(conn.oduModel);
-    return {
-      ...base,
-      main: connected.toFixed(1),
-      em: loadEm,
-      muted: false,
-      barPct: null,
-      badge: { kind: "muted", text: unknown ? "Outdoor unknown" : "No outdoor yet" },
-      note: {
-        rest: unknown
-          ? `${conn.oduModel} isn't in this pack`
-          : `${conn.iduCount} unit${conn.iduCount === 1 ? "" : "s"} — select the shared outdoor`,
-      },
-    };
-  }
-  const rated = conn.oduKw;
-  const pct = rated != null && rated > 0 ? Math.min((connected / rated) * 100, 100) : null;
-  const breach = conn.findings.some((f) => f.severity === "red");
-  return {
-    ...base,
-    main: connected.toFixed(1),
-    em: rated != null ? ` / ${rated.toFixed(1)} kW outdoor` : " kW connected",
-    muted: false,
-    barPct: pct,
-    badge: {
-      kind: breach ? "warn" : "ok",
-      text: conn.ports != null ? `${conn.portsUsed}/${conn.ports} ports` : "Outdoor chosen",
-    },
-    note:
-      conn.comboPct != null
-        ? { strong: `${Math.round(conn.comboPct)}%`, rest: " combination" }
-        : { rest: `${conn.iduCount} unit${conn.iduCount === 1 ? "" : "s"} connected` },
-  };
+  const emptySumLabel =
+    conn.rooms.length === 0
+      ? "Not sized"
+      : conn.requiredKw == null
+        ? "Calibrate"
+        : "Select units";
+  return donutModel(
+    moduleFor("multi-split").label,
+    conn.requiredKw,
+    conn.connectedKw,
+    emptySumLabel
+  );
 }
 
 /* ── Shared-outdoor section: the choose CTA, the connection figures + rule
@@ -1180,6 +1148,13 @@ export function OutdoorSection({
         </>
       ) : (
         <>
+          {/* a set-but-unknown model degrades to a grey reason, never a guess */}
+          {!oduSpec && (
+            <div className="ds-ck-mwarn">
+              <Glyph name="alert" size={12} />
+              {`${conn.oduModel} isn't in this pack`}
+            </div>
+          )}
           <ObjRow
             k="Rated capacity"
             v={conn.oduKw != null ? `${conn.oduKw.toFixed(1)} kW` : "—"}

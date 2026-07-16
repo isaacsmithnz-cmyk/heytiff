@@ -1,9 +1,11 @@
-/* Cockpit multi-split body (Stage 5) — the connected-capacity hero across its
-   states, the shared-outdoor section (choose → settings.pairOdu, swap recalls
-   the placed ODU + its runs but keeps every room's indoor), the per-room Unit
-   tab (choose → settings.multiIdus, surgical recall), the type-change wipe,
-   and the split regression. Runs against the real ME pack so the MXZ
-   proposals and combination figures are genuine. */
+/* Cockpit multi-split body (Stage 5) — the load-coverage donut hero across
+   its states (Required = Σ room loads, Selected = Σ connected indoor kW; the
+   ODU-side ports/combination story lives in the outdoor section), the
+   shared-outdoor section (choose → settings.pairOdu, swap recalls the placed
+   ODU + its runs but keeps every room's indoor), the per-room Unit tab
+   (choose → settings.multiIdus, surgical recall), the type-change wipe, and
+   the split regression. Runs against the real ME pack so the MXZ proposals
+   and combination figures are genuine. */
 
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
@@ -129,59 +131,48 @@ function renderCockpit(
   );
 }
 
+const heroState = (c: HTMLElement) => c.querySelector(".ds-ck-caphero")!.getAttribute("data-state");
+
 describe("Cockpit multi-split hero", () => {
-  it("no rooms → Not sized · 0 rooms served", () => {
-    renderCockpit(mkDoc());
-    expect(screen.getByText("Connected capacity")).toBeInTheDocument();
+  it("no rooms → empty donut, Not sized", () => {
+    const { container } = renderCockpit(mkDoc());
+    expect(heroState(container)).toBe("empty");
     expect(screen.getByText("Not sized")).toBeInTheDocument();
-    expect(screen.getByText("0 rooms served")).toBeInTheDocument();
   });
 
-  it("rooms but no units → Select a unit per room, load as the target", () => {
-    renderCockpit(mkDoc({ objects: twoRooms() }));
-    expect(screen.getByText("Select a unit per room")).toBeInTheDocument();
-    // Σ room loads ≈ 3.5 kW is the em target until an outdoor is chosen
-    expect(screen.getByText(/3\.5 kW load/)).toBeInTheDocument();
+  it("rooms but no units → Select units, Σ loads as the Required figure", () => {
+    const { container } = renderCockpit(mkDoc({ objects: twoRooms() }));
+    expect(heroState(container)).toBe("empty");
+    expect(screen.getByText("Select units", { selector: ".ds-ck-ledger-row .k" })).toBeInTheDocument();
+    // Σ room loads ≈ 3.5 kW is the Required ledger figure
+    expect(screen.getByText("3.5 kW", { selector: ".ds-ck-ledger-row.req .v" })).toBeInTheDocument();
   });
 
-  it("units chosen, no outdoor → connected total + No outdoor yet", () => {
-    renderCockpit(mkDoc({ objects: twoRooms(), settings: bothChosen() }));
-    expect(screen.getByText("No outdoor yet", { selector: ".ds-ck-badge" })).toBeInTheDocument();
-    expect(screen.getByText("4.0", { selector: ".ds-ck-cr .v" })).toBeInTheDocument();
-    expect(screen.getByText(/2 units — select the shared outdoor/)).toBeInTheDocument();
+  it("units chosen → the donut reads connected ÷ load, outdoor-agnostic", () => {
+    const { container } = renderCockpit(mkDoc({ objects: twoRooms(), settings: bothChosen() }));
+    expect(heroState(container)).toBe("ok");
+    expect(screen.getByText("4.0 kW", { selector: ".ds-ck-ledger-row.sel .v" })).toBeInTheDocument();
+    expect(screen.getByText("Spare")).toBeInTheDocument();
   });
 
-  it("outdoor chosen → ports badge + combination note against the rated kW", () => {
-    renderCockpit(
+  it("choosing the outdoor leaves the hero on load coverage (ports live below)", () => {
+    const { container } = renderCockpit(
       mkDoc({ objects: twoRooms(), settings: { ...bothChosen(), pairOdu: "MXZ-2F52VGD" } })
     );
-    expect(screen.getByText("2/2 ports", { selector: ".ds-ck-badge" })).toBeInTheDocument();
-    expect(screen.getByText(/\/ 5\.2 kW outdoor/)).toBeInTheDocument();
-    // the combination note in the hero foot (the outdoor section repeats it)
-    expect(screen.getByText("77%", { selector: ".ds-ck-hd b" })).toBeInTheDocument();
+    expect(heroState(container)).toBe("ok");
+    // the ODU-side figures render in the outdoor section, not the hero
+    const sec = screen.getByTestId("outdoor-section");
+    expect(within(sec).getByText("Combination").closest(".ds-ck-objrow")).toHaveTextContent("77%");
+    expect(within(sec).getByText("Ports").closest(".ds-ck-objrow")).toHaveTextContent("2 / 2");
   });
 
   it("a set-but-unknown outdoor degrades to a grey reason, never a guess", () => {
     renderCockpit(
       mkDoc({ objects: twoRooms(), settings: { ...bothChosen(), pairOdu: "NOT-IN-PACK" } })
     );
-    expect(screen.getByText("Outdoor unknown", { selector: ".ds-ck-badge" })).toBeInTheDocument();
-    expect(screen.getByText(/NOT-IN-PACK isn't in this pack/)).toBeInTheDocument();
-  });
-
-  it("an over-connected outdoor turns the badge to warn", () => {
-    const objects = [...twoRooms(), room("room3", "Bed 3")];
-    renderCockpit(
-      mkDoc({
-        objects,
-        settings: {
-          pairOdu: "MXZ-2F52VGD",
-          multiIdus: { room1: "MSZ-AP20VGD", room2: "MSZ-AP20VGD", room3: "MSZ-AP20VGD" },
-        },
-      })
-    );
-    const badge = screen.getByText("3/2 ports", { selector: ".ds-ck-badge" });
-    expect(badge.className).toContain("warn");
+    const sec = screen.getByTestId("outdoor-section");
+    expect(within(sec).getByText(/NOT-IN-PACK isn't in this pack/)).toBeInTheDocument();
+    expect(within(sec).getByText("Rated capacity").closest(".ds-ck-objrow")).toHaveTextContent("—");
   });
 });
 
@@ -345,11 +336,11 @@ describe("Type change + regressions", () => {
     expect(next!.objects.filter((o) => o.type === "room")).toHaveLength(2);
   });
 
-  it("split systems still render the split load-coverage hero (regression)", () => {
-    renderCockpit(mkDoc({ type: "split", objects: [room("room1", "Bedroom")] }));
-    expect(screen.getByText("Load coverage")).toBeInTheDocument();
-    expect(screen.getByText("Select units to size")).toBeInTheDocument();
-    expect(screen.queryByText("Connected capacity")).toBeNull();
+  it("split systems still render the split body, no outdoor section (regression)", () => {
+    const { container } = renderCockpit(mkDoc({ type: "split", objects: [room("room1", "Bedroom")] }));
+    expect(heroState(container)).toBe("empty");
+    expect(screen.getByText("Select units", { selector: ".ds-ck-ledger-row .k" })).toBeInTheDocument();
     expect(screen.queryByTestId("outdoor-section")).toBeNull();
+    expect(screen.queryByTestId("multi-unit-sub")).toBeNull();
   });
 });

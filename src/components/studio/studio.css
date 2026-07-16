@@ -4497,97 +4497,126 @@
   color: var(--ink2);
 }
 
-/* ── system-type hero (dark ink card) ── */
-.dstudio .ds-ck-hero {
+/* ── system-type hero: capacity donut (light panel · ledger + coverage ring) ── */
+.dstudio .ds-ck-caphero {
   position: relative;
   overflow: hidden;
-  border-radius: 18px;
-  padding: 15px;
-  color: #fff;
-  background: radial-gradient(240px 160px at 92% 0%, rgba(0, 229, 192, 0.3), transparent 62%),
-    radial-gradient(200px 150px at 0% 100%, rgba(46, 104, 255, 0.22), transparent 62%),
-    linear-gradient(135deg, var(--ds-ink-hero), var(--ink2));
-  box-shadow: 0 18px 40px -22px rgba(0, 0, 0, 0.6);
+  border-radius: 16px;
+  padding: 14px;
+  color: var(--ink2);
+  background: var(--ds-card2);
+  border: 1px solid var(--ds-border-s);
 }
-.dstudio .ds-ck-herotop {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 5px;
-}
-.dstudio .ds-ck-eyebrow {
+.dstudio .ds-ck-caphero-top { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.dstudio .ds-ck-caphero-eyebrow {
   font: 800 9.5px var(--font);
   letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--gray400);
 }
-.dstudio .ds-ck-change {
+.dstudio .ds-ck-caphero-change {
   margin-left: auto;
-  font: 700 12px var(--font);
-  color: rgba(255, 255, 255, 0.72);
-  cursor: pointer;
-  border: none;
-  background: none;
-  padding: 0;
-}
-.dstudio .ds-ck-change:hover { color: #fff; }
-.dstudio .ds-ck-herotype {
-  font: 800 22px var(--font);
-  letter-spacing: -0.02em;
-  color: #fff;
-  margin: 0 0 13px;
-}
-.dstudio .ds-ck-herotype span { color: var(--teal); font-weight: 700; }
-.dstudio .ds-ck-cov { margin-top: 14px; }
-.dstudio .ds-ck-cr {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-.dstudio .ds-ck-cr .k { font: 600 11px var(--font); color: rgba(255, 255, 255, 0.6); }
-.dstudio .ds-ck-cr .v { font: 700 13px var(--font); color: #fff; }
-.dstudio .ds-ck-cr .v em { font-style: normal; color: rgba(255, 255, 255, 0.45); font-weight: 500; }
-.dstudio .ds-ck-cr .v.muted { color: rgba(255, 255, 255, 0.4); }
-.dstudio .ds-ck-bar {
-  height: 6px;
-  border-radius: 99px;
-  background: rgba(255, 255, 255, 0.18);
-  overflow: hidden;
-}
-.dstudio .ds-ck-bar > i {
-  display: block;
-  height: 100%;
-  border-radius: 99px;
-  background: var(--ds-grad);
-}
-.dstudio .ds-ck-bar.empty {
-  background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.14) 0 5px, transparent 5px 10px);
-}
-.dstudio .ds-ck-herofoot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 10px;
-}
-.dstudio .ds-ck-hd { font: 600 11px var(--font); color: rgba(255, 255, 255, 0.55); }
-.dstudio .ds-ck-hd b { font-weight: 700; color: var(--teal); }
-.dstudio .ds-ck-badge {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 9px 3px 7px;
+  font: 800 10.5px var(--font);
+  color: var(--ds-teal-ink);
+  cursor: pointer;
+  padding: 5px 11px;
   border-radius: 999px;
-  font: 800 9.5px var(--font);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  background: #fff;
+  border: 1px solid var(--ds-border-s);
+  box-shadow: var(--ds-sh-sm);
 }
-.dstudio .ds-ck-badge svg { width: 12px; height: 12px; }
-.dstudio .ds-ck-badge.ok { background: rgba(0, 229, 192, 0.16); color: var(--teal); }
-.dstudio .ds-ck-badge.warn { background: rgba(240, 164, 49, 0.2); color: var(--ds-amber); }
-.dstudio .ds-ck-badge.muted { background: rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.62); }
+.dstudio .ds-ck-caphero-change:hover { color: var(--teal-d); border-color: rgba(0, 163, 137, 0.4); background: rgba(0, 163, 137, 0.06); }
+.dstudio .ds-ck-caphero-change svg { width: 12px; height: 12px; }
+.dstudio .ds-ck-caphero-cols { display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center; }
+.dstudio .ds-ck-caphero-type { font: 800 20px var(--font); letter-spacing: -0.02em; margin: 0 0 10px; }
+.dstudio .ds-ck-caphero-type span { color: var(--teal-d); font-weight: 700; }
+
+/* equation ledger */
+.dstudio .ds-ck-ledger { display: flex; flex-direction: column; }
+.dstudio .ds-ck-ledger-row { display: flex; align-items: center; gap: 8px; padding: 5px 10px; border-radius: 8px; }
+.dstudio .ds-ck-ledger-row .k { font: 800 8px var(--font); letter-spacing: 0.07em; text-transform: uppercase; }
+.dstudio .ds-ck-ledger-row .v { margin-left: auto; font: 800 13px var(--font); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.dstudio .ds-ck-ledger-row.req .k { color: var(--gray400); }
+.dstudio .ds-ck-ledger-row.req .v { color: var(--ink2); }
+.dstudio .ds-ck-ledger-row.sel .k { color: var(--gray500); }
+.dstudio .ds-ck-ledger-row.sel .v { color: var(--ink2); }
+.dstudio .ds-ck-ledger-row.sum { margin-top: 5px; border-top: 1.5px solid var(--ds-border-s); border-radius: 0 0 8px 8px; padding-top: 8px; }
+.dstudio .ds-ck-ledger-row.sum .k { font-size: 8.5px; }
+.dstudio .ds-ck-ledger-row.sum .v { font-size: 15px; }
+/* verdict tint on the sum row — set by [data-state] on .ds-ck-caphero */
+.dstudio .ds-ck-caphero[data-state="ok"] .ds-ck-ledger-row.sum { background: rgba(0, 163, 137, 0.1); }
+.dstudio .ds-ck-caphero[data-state="ok"] .ds-ck-ledger-row.sum .k,
+.dstudio .ds-ck-caphero[data-state="ok"] .ds-ck-ledger-row.sum .v { color: var(--ds-ok); }
+.dstudio .ds-ck-caphero[data-state="warn"] .ds-ck-ledger-row.sum { background: rgba(240, 164, 49, 0.14); }
+.dstudio .ds-ck-caphero[data-state="warn"] .ds-ck-ledger-row.sum .k,
+.dstudio .ds-ck-caphero[data-state="warn"] .ds-ck-ledger-row.sum .v { color: var(--ds-amber-d); }
+.dstudio .ds-ck-caphero[data-state="bad"] .ds-ck-ledger-row.sum { background: rgba(224, 38, 79, 0.1); }
+.dstudio .ds-ck-caphero[data-state="bad"] .ds-ck-ledger-row.sum .k,
+.dstudio .ds-ck-caphero[data-state="bad"] .ds-ck-ledger-row.sum .v { color: var(--ds-red-d); }
+.dstudio .ds-ck-caphero[data-state="empty"] .ds-ck-ledger-row.sum { background: rgba(10, 12, 20, 0.05); }
+.dstudio .ds-ck-caphero[data-state="empty"] .ds-ck-ledger-row.sum .k,
+.dstudio .ds-ck-caphero[data-state="empty"] .ds-ck-ledger-row.sum .v { color: var(--gray500); }
+
+/* donut */
+.dstudio .ds-ck-donut { position: relative; width: 110px; height: 110px; }
+.dstudio .ds-ck-donut svg { width: 110px; height: 110px; transform: rotate(-90deg); overflow: visible; }
+.dstudio .ds-ck-donut .track { stroke: rgba(10, 12, 20, 0.09); }
+.dstudio .ds-ck-donut .val {
+  stroke-dasharray: 282.7;
+  transition: stroke-dashoffset 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.dstudio .ds-ck-caphero[data-state="ok"] .ds-ck-donut .val { stroke: url(#capGrad); filter: drop-shadow(0 3px 6px rgba(0, 163, 137, 0.4)); }
+.dstudio .ds-ck-caphero[data-state="warn"] .ds-ck-donut .val { stroke: var(--ds-amber); filter: drop-shadow(0 3px 6px rgba(240, 164, 49, 0.4)); }
+.dstudio .ds-ck-caphero[data-state="bad"] .ds-ck-donut .val { stroke: var(--ds-red-d); filter: drop-shadow(0 3px 6px rgba(224, 38, 79, 0.35)); }
+/* overshoot segment — only meaningful when >100% (ok) */
+.dstudio .ds-ck-donut .over { stroke: #7ff3de; stroke-dasharray: 56.5 282.7; stroke-dashoffset: 0; opacity: 0; transition: opacity 0.5s ease; }
+.dstudio .ds-ck-donut .over.on { opacity: 1; }
+.dstudio .ds-ck-donut .ctr { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.dstudio .ds-ck-donut .ctr::before {
+  content: "";
+  position: absolute;
+  width: 66px;
+  height: 66px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(10, 12, 20, 0.05), transparent 70%);
+}
+.dstudio .ds-ck-caphero[data-state="ok"] .ds-ck-donut .ctr::before { background: radial-gradient(circle, rgba(0, 163, 137, 0.1), transparent 70%); }
+.dstudio .ds-ck-caphero[data-state="warn"] .ds-ck-donut .ctr::before { background: radial-gradient(circle, rgba(240, 164, 49, 0.12), transparent 70%); }
+.dstudio .ds-ck-caphero[data-state="bad"] .ds-ck-donut .ctr::before { background: radial-gradient(circle, rgba(224, 38, 79, 0.1), transparent 70%); }
+.dstudio .ds-ck-donut .n {
+  position: relative;
+  font: 800 23px var(--font);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--gray400);
+}
+.dstudio .ds-ck-donut .s { position: relative; font: 600 8.5px var(--font); color: var(--gray400); margin-top: 2px; }
+.dstudio .ds-ck-caphero[data-state="ok"] .ds-ck-donut .n { color: var(--ds-ok); }
+.dstudio .ds-ck-caphero[data-state="warn"] .ds-ck-donut .n { color: var(--ds-amber-d); }
+.dstudio .ds-ck-caphero[data-state="bad"] .ds-ck-donut .n { color: var(--ds-red-d); }
+/* status badge, bottom-right of the ring */
+.dstudio .ds-ck-donut .badge-tip {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* the badge glyph must NOT inherit the ring svg's −90° rotation (it's a
+   separate svg matched by `.ds-ck-donut svg`) — keep the tick upright */
+.dstudio .ds-ck-donut .badge-tip svg { width: 13px; height: 13px; transform: none; }
+.dstudio .ds-ck-caphero[data-state="ok"] .ds-ck-donut .badge-tip { background: var(--ds-ok); box-shadow: 0 3px 8px rgba(0, 163, 137, 0.5); }
+.dstudio .ds-ck-caphero[data-state="warn"] .ds-ck-donut .badge-tip { background: var(--ds-amber); box-shadow: 0 3px 8px rgba(240, 164, 49, 0.5); }
+.dstudio .ds-ck-caphero[data-state="bad"] .ds-ck-donut .badge-tip { background: var(--ds-red-d); box-shadow: 0 3px 8px rgba(224, 38, 79, 0.45); }
 
 /* ── Rooms / Components segmented switch ── */
 .dstudio .ds-ck-seg {

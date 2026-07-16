@@ -110,13 +110,14 @@ function renderCockpit(
   );
 }
 
+const heroState = (c: HTMLElement) => c.querySelector(".ds-ck-caphero")!.getAttribute("data-state");
+
 describe("Cockpit ducted body", () => {
-  it("pre-pair: hero shows the required capacity and the Select air handler CTA", () => {
-    renderCockpit(mkDoc({ objects: twoRooms() }));
-    expect(screen.getByText("Required capacity")).toBeInTheDocument();
-    expect(screen.getByText(/~7\.5/, { selector: ".ds-ck-cr .v" })).toBeInTheDocument();
-    expect(screen.getByText("No air handler", { selector: ".ds-ck-badge" })).toBeInTheDocument();
-    expect(screen.getByText("Select an air handler to size")).toBeInTheDocument();
+  it("pre-pair: donut hero reads the requirement; Select air handler CTA in the section", () => {
+    const { container } = renderCockpit(mkDoc({ objects: twoRooms() }));
+    expect(heroState(container)).toBe("empty");
+    expect(screen.getByText("7.5 kW", { selector: ".ds-ck-ledger-row.req .v" })).toBeInTheDocument();
+    expect(screen.getByText("Select units", { selector: ".ds-ck-ledger-row .k" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Select air handler/ })).toBeInTheDocument();
   });
 
@@ -138,7 +139,7 @@ describe("Cockpit ducted body", () => {
   });
 
   it("post-pair: engine figures as plain lines, Change affordance, both drag cards", () => {
-    renderCockpit(
+    const { container } = renderCockpit(
       mkDoc({
         objects: twoRooms(),
         settings: { pairIdu: "PEAD-M100JAA(D)", pairOdu: "PUZ-M100VKA-A" },
@@ -155,8 +156,10 @@ describe("Cockpit ducted body", () => {
     expect(within(ahu).getByTestId("unit-card-idu")).toBeInTheDocument();
     expect(within(ahu).getByTestId("unit-card-odu")).toBeInTheDocument();
     expect(within(ahu).getAllByText("To place")).toHaveLength(2);
-    // hero follows the pair
-    expect(screen.getByText("Air handler chosen", { selector: ".ds-ck-badge" })).toBeInTheDocument();
+    // hero follows the pair: 10.0 kW selected over ~7.5 required → ok, Spare
+    expect(heroState(container)).toBe("ok");
+    expect(screen.getByText("10.0 kW", { selector: ".ds-ck-ledger-row.sel .v" })).toBeInTheDocument();
+    expect(screen.getByText("Spare")).toBeInTheDocument();
   });
 
   it("Components view resolves ODU + charge rows once the pair resolves", () => {
@@ -172,15 +175,17 @@ describe("Cockpit ducted body", () => {
     expect(screen.getByText("Refrigerant charge")).toBeInTheDocument();
   });
 
-  it("degrades to — with a grey reason when the requirement can't derive", () => {
-    // uncalibrated floor → loads unavailable
+  it("degrades to — with the precondition label when the requirement can't derive", () => {
+    // uncalibrated floor → loads unavailable → Calibrate
     const first = renderCockpit(mkDoc({ objects: twoRooms(), scale: null }));
-    expect(screen.getByText(/^—/, { selector: ".ds-ck-cr .v" })).toBeInTheDocument();
-    expect(screen.getByText(/Room loads unavailable · 2 rooms/)).toBeInTheDocument();
+    expect(heroState(first.container)).toBe("empty");
+    expect(screen.getByText("— kW", { selector: ".ds-ck-ledger-row.req .v" })).toBeInTheDocument();
+    expect(screen.getByText("Calibrate")).toBeInTheDocument();
     first.unmount();
-    // no rooms served at all
-    renderCockpit(mkDoc());
-    expect(screen.getByText("No rooms served yet")).toBeInTheDocument();
+    // no rooms served at all → Not sized
+    const second = renderCockpit(mkDoc());
+    expect(heroState(second.container)).toBe("empty");
+    expect(screen.getByText("Not sized")).toBeInTheDocument();
   });
 
   it("a missing pack row degrades the airflow line, never invents", () => {
@@ -234,16 +239,16 @@ describe("Cockpit ducted body", () => {
     }
   });
 
-  it("split systems still render the split load-coverage hero (regression)", () => {
-    renderCockpit(
+  it("split systems still render the split body, no AHU section (regression)", () => {
+    const { container } = renderCockpit(
       mkDoc({
         type: "split",
         objects: [room("room1", "Bedroom", 200, 200)],
       })
     );
-    expect(screen.getByText("Load coverage")).toBeInTheDocument();
-    expect(screen.getByText("Select units to size")).toBeInTheDocument();
-    expect(screen.queryByText("Required capacity")).toBeNull();
+    expect(heroState(container)).toBe("empty");
+    expect(screen.getByText("Select units", { selector: ".ds-ck-ledger-row .k" })).toBeInTheDocument();
+    expect(screen.queryByTestId("ahu-section")).toBeNull();
     expect(screen.queryByRole("button", { name: /Select air handler/ })).toBeNull();
   });
 });

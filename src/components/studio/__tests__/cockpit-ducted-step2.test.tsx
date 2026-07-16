@@ -308,7 +308,7 @@ describe("spill rooms (Configure toggle + surfaces)", () => {
         settings: {},
       })
     );
-    expect(screen.getByText(/~5\.8/, { selector: ".ds-ck-cr .v" })).toBeInTheDocument();
+    expect(screen.getByText("5.8 kW", { selector: ".ds-ck-ledger-row.req .v" })).toBeInTheDocument();
     expect(screen.getByText(/1 room \+ 1 spill/)).toBeInTheDocument();
     expect(
       screen.getByTitle("Spill room — receives spill air only")

@@ -11,7 +11,7 @@ import { RC } from "./theme";
 export const HEALTH_COLORS: Record<string, { fg: string; bg: string; dot: string }> = {
   danger:  { fg: RC.redInk,   bg: RC.redSoft,     dot: RC.red },
   warning: { fg: RC.amberInk, bg: RC.amberSoft,   dot: RC.amber },
-  success: { fg: "#00745F",   bg: RC.serviceSoft, dot: RC.service },
+  success: { fg: "#17703A",   bg: RC.serviceSoft, dot: RC.service },
   neutral: { fg: RC.ink2,     bg: RC.bg,          dot: RC.faint },
 };
 

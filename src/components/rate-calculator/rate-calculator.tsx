@@ -25,7 +25,7 @@ import {
 import { buildDemoState } from "./demo-data";
 import { RC } from "./theme";
 import { money, rate0, gstOf } from "./format";
-import { HEALTH_COLORS, RcIcon, WsEyebrow } from "./ui";
+import { HEALTH_COLORS, RateNumberInput, RcIcon, WsEyebrow } from "./ui";
 import { StaffStep, BusinessStep, VehiclesStep, RiskStep, ProfitStep } from "./steps";
 import { Overview } from "./overview";
 import { InsightsView } from "./insights";
@@ -100,12 +100,31 @@ function RailTile({ label, c, soft, rec, be, cur, ready }: {
   );
 }
 
-function RatesRail({ s, calc, uplift, ready, missing, onLoadDemo }: {
+function RatesRail({ s, calc, uplift, ready, missing, onLoadDemo, patch }: {
   s: RateCalcState; calc: CalcResult; uplift: number | null; ready: boolean;
-  missing: string[]; onLoadDemo?: () => void;
+  missing: string[]; onLoadDemo?: () => void; patch: (p: Partial<RateCalcState>) => void;
 }) {
+  const rateRow = (label: string, color: string, key: "install" | "service") => (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+      <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+        <span style={{ width: 8, height: 8, borderRadius: "50%", background: color }} />
+        <span style={{ fontSize: 12.5, color: RC.ink2, fontWeight: 700 }}>{label}</span>
+      </span>
+      <RateNumberInput value={s.currentRates[key]} color={color} ariaLabel={`Current ${label.toLowerCase()} rate`}
+        onChange={v => patch({ currentRates: { ...s.currentRates, [key]: v } })} />
+    </div>
+  );
   return (
     <div style={{ width: 300, flexShrink: 0, display: "flex", flexDirection: "column", overflowY: "auto", overflowX: "hidden", paddingTop: 19 }}>
+      {/* What you charge now — editable baseline for the vs-now comparison */}
+      <div style={{ background: "#fff", borderRadius: 16, border: `1px solid rgba(10,12,20,.06)`, boxShadow: "0 1px 2px rgba(10,12,20,.04), 0 20px 50px -30px rgba(10,12,20,.18)", padding: "13px 15px", marginBottom: 12 }}>
+        <WsEyebrow color={RC.label}>What you charge now</WsEyebrow>
+        <div style={{ fontSize: 11.5, color: RC.faint, marginTop: 2, marginBottom: 12 }}>Your baseline — so we can show the gap</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+          {rateRow("Install", RC.install, "install")}
+          {rateRow("Service", RC.service, "service")}
+        </div>
+      </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, padding: "0 2px" }}>
         <WsEyebrow color={RC.label}>Live rates</WsEyebrow>
         <span style={{ fontSize: 11.5, color: RC.faint, display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}><span className={ready ? undefined : "rca-pulse"} style={{ width: 6, height: 6, borderRadius: "50%", background: ready ? RC.teal : RC.install, boxShadow: ready ? `0 0 8px ${RC.teal}` : "none" }} />{ready ? "updates as you edit" : "awaiting inputs"}</span>
@@ -415,7 +434,7 @@ function CalculatorApp({ initial, hasData, demo, showOnboarding, onPersist, save
                 <button className="rca-btn primary" style={{ padding: "0 26px" }} onClick={onContinue}>{step === 4 && completions.slice(0, 4).every(c => DONE_COMPLETIONS.includes(c)) ? "See results →" : "Continue →"}</button>
               </div>
             </div>
-            <RatesRail s={s} calc={calc} uplift={uplift} ready={ready} missing={missing} onLoadDemo={demo ? undefined : onLoadDemo} />
+            <RatesRail s={s} calc={calc} uplift={uplift} ready={ready} missing={missing} onLoadDemo={demo ? undefined : onLoadDemo} patch={patch} />
           </>
         )}
       </div>

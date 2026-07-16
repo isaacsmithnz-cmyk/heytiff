@@ -286,6 +286,34 @@ describe("RateCalculator — healthy-rate safeguard on Results", () => {
   });
 });
 
+describe("RateCalculator — current rates are editable outside onboarding", () => {
+  it("sets current rates from the live-rates rail and persists them", async () => {
+    const user = userEvent.setup();
+    render(<RateCalculator initialState={null} />);
+    await dismissOnboarding(user); // skips the intro → current rates start empty
+
+    const install = screen.getByLabelText("Current install rate");
+    expect(install).toHaveValue(""); // no value yet
+    await user.type(install, "120");
+
+    // The Install tile's vs-now line reflects it immediately.
+    expect(screen.getByText(/vs now \$120/)).toBeInTheDocument();
+
+    // …and it autosaves.
+    await waitFor(() => expect(saveRateCalcState).toHaveBeenCalled(), { timeout: 3000 });
+    expect(saveRateCalcState.mock.calls.at(-1)![0].currentRates.install).toBe(120);
+  });
+
+  it("also exposes current rates in Settings (matching the Results hint)", async () => {
+    const user = userEvent.setup();
+    render(<RateCalculator initialState={null} />);
+    await dismissOnboarding(user);
+    await user.click(screen.getByTitle("Settings"));
+    expect(screen.getByLabelText("Settings install rate")).toBeInTheDocument();
+    expect(screen.getByLabelText("Settings service rate")).toBeInTheDocument();
+  });
+});
+
 describe("RateCalculator — example data mode", () => {
   it("loads Blue Sky, never saves, and exits back to own data", async () => {
     const user = userEvent.setup();

@@ -362,20 +362,42 @@ export function VehiclesStep({ s, patch, calc, showToggle, revealAll }: StepBody
 }
 
 // ── Step 4 · HVAC risk ──────────────────────────────────────────────────
+// One full-width row per rate. Both rows share the same left edge and the
+// same dollar scale (barMax), so the bars line up and compare directly:
+// solid = base cost per hour, striped = the risk buffer added on top.
 function RiskBar({ label, c, soft, be, m, barMax }: {
   label: string; c: string; soft: string; be: number | null; m: number; barMax: number;
 }) {
-  if (be == null) return <div style={{ flex: 1, fontSize: 12.5, color: RC.faint }}>{label}: — (complete earlier steps)</div>;
+  if (be == null) return <div style={{ fontSize: 12.5, color: RC.faint }}>{label}: — (complete earlier steps)</div>;
   const base = be / m, add = be - base;
+  const stripe = `repeating-linear-gradient(135deg, ${soft} 0 5px, #fff 5px 8px)`;
   return (
-    <div style={{ flex: 1 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, gap: 12 }}>
-        <span style={{ fontSize: 13, color: RC.ink, fontWeight: 700 }}>{label}</span>
-        <span style={{ fontSize: 12, color: RC.faint, whiteSpace: "nowrap" }}>base <b style={{ color: RC.ink2 }}>${Math.round(base)}</b> + buffer <b style={{ color: c }}>${Math.round(add)}</b> = <b style={{ color: c }}>${Math.round(be)}</b> break-even</span>
+    <div>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 6 }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13, color: RC.ink, fontWeight: 700, flexShrink: 0 }}>
+          <span style={{ width: 8, height: 8, borderRadius: "50%", background: c }} />{label}
+        </span>
+        <span style={{ fontSize: 12, color: RC.faint, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          base <b style={{ color: RC.ink2 }}>${Math.round(base)}</b> + buffer <b style={{ color: RC.ink2 }}>${Math.round(add)}</b> {"→"} <b style={{ fontFamily: RC.head, fontSize: 13.5, color: c }}>${Math.round(be)}</b> break-even
+        </span>
       </div>
-      <div style={{ display: "flex", height: 14, borderRadius: 7, overflow: "hidden", background: RC.card2 }}>
-        <div style={{ width: `${(base / barMax) * 100}%`, background: c }} /><div style={{ width: `${(add / barMax) * 100}%`, background: soft, borderRight: `2px solid ${c}` }} />
+      <div style={{ display: "flex", height: 16, borderRadius: 8, overflow: "hidden", background: RC.card2 }}>
+        <div style={{ width: `${(base / barMax) * 100}%`, background: c, transition: "width .2s" }} />
+        <div style={{ width: `${(add / barMax) * 100}%`, background: stripe, borderLeft: `2px solid #fff`, boxShadow: `inset 0 0 0 1px ${soft}`, transition: "width .2s" }} />
       </div>
+    </div>
+  );
+}
+
+function RiskLegend() {
+  return (
+    <div style={{ display: "flex", gap: 16, alignItems: "center", fontSize: 11.5, color: RC.label }}>
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+        <span style={{ width: 18, height: 9, borderRadius: 3, background: RC.ink2, opacity: 0.55 }} /> base cost per hour
+      </span>
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+        <span style={{ width: 18, height: 9, borderRadius: 3, background: `repeating-linear-gradient(135deg, ${RC.lineStrong} 0 4px, #fff 4px 7px)`, boxShadow: `inset 0 0 0 1px ${RC.lineStrong}` }} /> risk buffer added
+      </span>
     </div>
   );
 }
@@ -417,9 +439,10 @@ export function RiskStep({ s, patch, calc, revealAll }: StepBodyProps) {
               <WsEyebrow>How the buffer shapes your break-even</WsEyebrow>
               <span style={{ fontSize: 12, color: RC.faint }}>Install +{s.risk.warranty + s.risk.defect}% · Service +{s.risk.callback + s.risk.diagnostic}%</span>
             </div>
-            <div style={{ display: "flex", gap: 24 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <RiskBar label="Install" c={RC.install} soft={RC.installSoft} be={calc.beInst} m={iM} barMax={barMax} />
               <RiskBar label="Service" c={RC.service} soft={RC.serviceSoft} be={calc.beSvc} m={sM} barMax={barMax} />
+              <RiskLegend />
             </div>
           </div>
         </>

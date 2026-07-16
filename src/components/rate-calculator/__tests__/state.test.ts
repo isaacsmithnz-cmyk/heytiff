@@ -1,4 +1,4 @@
-import { daysSinceReviewed, emptyState, hydrateState, runEngine, timesheetWeeks } from "../state";
+import { allStepsDone, daysSinceReviewed, emptyState, hydrateState, runEngine, timesheetWeeks } from "../state";
 import { buildDemoState } from "../demo-data";
 
 describe("emptyState", () => {
@@ -79,6 +79,36 @@ describe("hydrateState", () => {
     const demo = buildDemoState();
     const s = hydrateState(JSON.parse(JSON.stringify(demo)));
     expect(runEngine(s).calc.recInst).toBeCloseTo(runEngine(demo).calc.recInst!, 8);
+  });
+});
+
+describe("risk & profit require explicit acceptance", () => {
+  it("defaults alone leave both steps not_started", () => {
+    const run = runEngine(emptyState());
+    expect(run.steps.risk.completion).toBe("not_started");
+    expect(run.steps.profit.completion).toBe("not_started");
+  });
+  it("accepting flips them to defaults", () => {
+    const run = runEngine({ ...emptyState(), riskAccepted: true, profitAccepted: true });
+    expect(run.steps.risk.completion).toBe("defaults");
+    expect(run.steps.profit.completion).toBe("defaults");
+  });
+  it("customising a value is acceptance in itself", () => {
+    const s = emptyState();
+    s.risk = { ...s.risk, warranty: 5 };
+    s.profit = { ...s.profit, margin: 25 };
+    const run = runEngine(s);
+    expect(run.steps.risk.completion).toBe("customised");
+    expect(run.steps.profit.completion).toBe("customised");
+  });
+  it("demo state passes allStepsDone; empty state does not", () => {
+    expect(allStepsDone(runEngine(buildDemoState()).steps)).toBe(true);
+    expect(allStepsDone(runEngine(emptyState()).steps)).toBe(false);
+  });
+  it("hydrate defaults the flags to false", () => {
+    const s = hydrateState({ businessName: "Acme" });
+    expect(s.riskAccepted).toBe(false);
+    expect(s.profitAccepted).toBe(false);
   });
 });
 

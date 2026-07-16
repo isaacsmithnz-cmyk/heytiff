@@ -292,16 +292,32 @@ describe("RateCalculator — current rates are editable outside onboarding", () 
     render(<RateCalculator initialState={null} />);
     await dismissOnboarding(user); // skips the intro → current rates start empty
 
-    const install = screen.getByLabelText("Current install rate");
+    const install = screen.getByLabelText("Current install rate"); // inside the Install rate card
     expect(install).toHaveValue(""); // no value yet
     await user.type(install, "120");
-
-    // The Install tile's vs-now line reflects it immediately.
-    expect(screen.getByText(/vs now \$120/)).toBeInTheDocument();
+    expect(install).toHaveValue("120");
 
     // …and it autosaves.
     await waitFor(() => expect(saveRateCalcState).toHaveBeenCalled(), { timeout: 3000 });
     expect(saveRateCalcState.mock.calls.at(-1)![0].currentRates.install).toBe(120);
+  });
+
+  it("shows an amber gap chip when current rates sit below recommended", async () => {
+    const user = userEvent.setup();
+    render(<RateCalculator initialState={JSON.parse(JSON.stringify(buildDemoState()))} />);
+    await user.click(screen.getByText("← Back to edit")); // Results → a step page (rail visible)
+    // Demo charges 118/105 vs recommended ~144/149 → "↑ $N/hr" on both cards.
+    expect(screen.getByLabelText("Current install rate")).toHaveValue("118");
+    expect(screen.getAllByText(/↑ \$\d+\/hr/).length).toBeGreaterThan(0);
+  });
+
+  it("shows a healthy chip when current rates already beat the recommendation", async () => {
+    const user = userEvent.setup();
+    const saved = JSON.parse(JSON.stringify(buildDemoState()));
+    saved.currentRates = { install: 300, service: 300 };
+    render(<RateCalculator initialState={saved} />);
+    await user.click(screen.getByText("← Back to edit"));
+    expect(screen.getAllByText(/✓ above/).length).toBeGreaterThan(0);
   });
 
   it("also exposes current rates in Settings (matching the Results hint)", async () => {

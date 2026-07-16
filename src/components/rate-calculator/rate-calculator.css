@@ -79,13 +79,26 @@
 .fg .rca-tip.up:hover::after { transform:translateX(-50%) translateY(0); }
 .fg .rca-tip.up::before { top:auto; bottom:100%; margin-top:0; margin-bottom:-3px; border-bottom-color:transparent; border-top-color:#0A0B10; }
 
+/* live-rates shimmer — placeholder where the rate will appear (static block
+   when the user prefers reduced motion) */
+.rca-shimmer { background:#EEF0F4; border-radius:8px; }
+
 /* fade-up on view switches — matches .page.in */
 @media (prefers-reduced-motion: no-preference) {
   .rca-view { animation:rcaUp .4s cubic-bezier(.22,1,.36,1) backwards; }
   @keyframes rcaUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
 
-  /* setup-path steps are revealed one at a time — a node animates when it
-     first mounts (i.e. when it's newly revealed), not on every re-render. */
+  /* rail nodes fade in with a slight stagger on mount */
   .rca-step { animation:rcaStepIn .32s cubic-bezier(.22,1,.36,1) backwards; }
   @keyframes rcaStepIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
+
+  /* questions are revealed one at a time — a card animates when it first
+     mounts (i.e. when it's newly revealed), not on every re-render */
+  .rca-q { animation:rcaStepIn .32s cubic-bezier(.22,1,.36,1) backwards; }
+
+  /* waiting-for-input treatments on the live-rates rail */
+  .rca-shimmer { background:linear-gradient(90deg,#EEF0F4 25%,#F8F9FB 50%,#EEF0F4 75%); background-size:200% 100%; animation:rcaShimmer 1.4s linear infinite; }
+  @keyframes rcaShimmer { to { background-position:-200% 0; } }
+  .rca-pulse { animation:rcaWaitPulse 1.6s ease-in-out infinite; }
+  @keyframes rcaWaitPulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 }

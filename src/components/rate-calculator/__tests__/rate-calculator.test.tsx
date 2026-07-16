@@ -69,47 +69,114 @@ describe("RateCalculator — first run (no saved state)", () => {
   });
 });
 
-describe("RateCalculator — gradual step reveal", () => {
-  it("shows only Step 1 at first, revealing the next step one at a time", async () => {
+describe("RateCalculator — question-at-a-time steps", () => {
+  it("shows the full stepper rail, but stages the questions within the step", async () => {
     const user = userEvent.setup();
     render(<RateCalculator initialState={null} />);
     await dismissOnboarding(user);
 
-    // Only the Staff node is in the rail; later steps are hidden.
+    // The rail shows every step from the start again…
     expect(screen.getByText(/Step 1 of 5 · Simple/)).toBeInTheDocument();
-    expect(screen.queryByText("Business costs")).toBeNull();
-    expect(screen.queryByText("Vehicles")).toBeNull();
-    expect(screen.queryByText("HVAC risk")).toBeNull();
-    expect(screen.queryByText("Profit target")).toBeNull();
+    expect(screen.getByText("Business costs")).toBeInTheDocument();
+    expect(screen.getByText("Vehicles")).toBeInTheDocument();
+    expect(screen.getByText("HVAC risk")).toBeInTheDocument();
+    expect(screen.getByText("Profit target")).toBeInTheDocument();
 
-    // Completing Staff reveals Business — and only Business (no cascade).
+    // …but the page shows only the first question.
+    expect(screen.getByText("What did you pay in wages over the last 3 months?")).toBeInTheDocument();
+    expect(screen.queryByText("How many staff in total?")).toBeNull();
+
+    // Next is disabled until the question is answered.
+    const next = screen.getByText("Next →").closest("button")!;
+    expect(next).toBeDisabled();
+
     const monthInput = screen.getAllByDisplayValue("0")[0];
     await user.click(monthInput);
     await user.keyboard("40000");
-    expect(screen.getByText("Business costs")).toBeInTheDocument();
-    expect(screen.queryByText("Vehicles")).toBeNull();
+    expect(next).toBeEnabled();
+
+    // Clicking Next reveals Q2 — and only Q2 — with Q1 still on screen.
+    await user.click(next);
+    expect(screen.getByText("How many staff in total?")).toBeInTheDocument();
+    expect(screen.getByText("What did you pay in wages over the last 3 months?")).toBeInTheDocument();
+    expect(screen.queryByText("Split that time across the work")).toBeNull();
+  });
+
+  it("skips staging for returning users — a saved setup shows whole pages", async () => {
+    const user = userEvent.setup();
+    const saved = JSON.parse(JSON.stringify(buildDemoState()));
+    render(<RateCalculator initialState={saved} />);
+    await user.click(screen.getByText("← Back to edit"));
+    // All staff questions visible at once (revealAll).
+    expect(screen.getByText("What did you pay in wages over the last 3 months?")).toBeInTheDocument();
+    expect(screen.getByText("How many staff in total?")).toBeInTheDocument();
+    expect(screen.getByText("Split that time across the work")).toBeInTheDocument();
+    expect(screen.getByText("Billable time assumption")).toBeInTheDocument();
   });
 });
 
-describe("RateCalculator — Vehicles no-fleet choice", () => {
-  it("stays incomplete until 'No vehicles' is chosen, which then reveals Risk", async () => {
-    const user = userEvent.setup();
+describe("RateCalculator — Vehicles yes/no question", () => {
+  async function goToVehicles(user: ReturnType<typeof userEvent.setup>) {
     render(<RateCalculator initialState={null} />);
     await dismissOnboarding(user);
-
-    // Advance to the Vehicles step (Continue is always clickable).
     await user.click(screen.getByText("Continue →")); // → Business
     await user.click(screen.getByText("Continue →")); // → Vehicles
     expect(screen.getByText(/Step 3 of 5 · Simple/)).toBeInTheDocument();
-    // Risk is not revealed yet — Vehicles has not been resolved.
-    expect(screen.queryByText("HVAC risk")).toBeNull();
+    expect(screen.getByText("Do you run vehicles for the business?")).toBeInTheDocument();
+  }
 
-    await user.click(screen.getByText("I don't run any vehicles"));
+  it("choosing No confirms the no-fleet state (with undo)", async () => {
+    const user = userEvent.setup();
+    await goToVehicles(user);
 
-    // Confirmed state + Risk now revealed in the rail.
-    expect(screen.getByText("No vehicles")).toBeInTheDocument();
+    await user.click(screen.getByText("No vehicles"));
     expect(screen.getByText("I do have vehicles")).toBeInTheDocument();
-    expect(screen.getByText("HVAC risk")).toBeInTheDocument();
+    expect(screen.getByText(/no vehicle recovery/)).toBeInTheDocument();
+    // No fleet-costs question when there is no fleet.
+    expect(screen.queryByText(/What did the fleet cost to run/)).toBeNull();
+  });
+
+  it("choosing Yes reveals the fleet-costs question", async () => {
+    const user = userEvent.setup();
+    await goToVehicles(user);
+
+    await user.click(screen.getByText("Yes — we run vehicles"));
+    expect(screen.getByText("What did the fleet cost to run over the last 3 months?")).toBeInTheDocument();
+  });
+});
+
+describe("RateCalculator — Simple/Detailed toggle gating", () => {
+  it("hides all toggles on the first run", async () => {
+    const user = userEvent.setup();
+    render(<RateCalculator initialState={null} />);
+    await dismissOnboarding(user);
+    expect(screen.queryByRole("button", { name: "Detailed" })).toBeNull();
+    await user.click(screen.getByText("Continue →")); // → Business
+    expect(screen.queryByRole("button", { name: "Detailed" })).toBeNull();
+  });
+
+  it("on later visits shows Business always, Staff/Vehicles only with data", async () => {
+    const user = userEvent.setup();
+    // Saved state with wages zeroed → not ready → lands on Step 1; no
+    // timesheets and no vehicle records, so only Business gets its toggle.
+    const saved = JSON.parse(JSON.stringify(buildDemoState()));
+    saved.staff = []; saved.timesheets = {}; saved.vehicles = [];
+    saved.simpleLabour.months = [0, 0, 0];
+    render(<RateCalculator initialState={saved} />);
+
+    expect(screen.getByText(/Step 1 of 5 · Simple/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Detailed" })).toBeNull(); // staff gate: needs 12+ weeks of timesheets
+    await user.click(screen.getByText("Continue →")); // → Business
+    expect(screen.getByRole("button", { name: "Detailed" })).toBeInTheDocument(); // ungated
+    await user.click(screen.getByText("Continue →")); // → Vehicles
+    expect(screen.queryByRole("button", { name: "Detailed" })).toBeNull(); // vehicles gate: needs vehicle records
+  });
+
+  it("demo passes every gate (18 weeks of timesheets + a fleet)", async () => {
+    const user = userEvent.setup();
+    render(<RateCalculator initialState={JSON.parse(JSON.stringify(buildDemoState()))} />);
+    await user.click(screen.getByText("← Back to edit"));
+    expect(screen.getByRole("button", { name: "Detailed" })).toBeInTheDocument(); // staff toggle
   });
 });
 

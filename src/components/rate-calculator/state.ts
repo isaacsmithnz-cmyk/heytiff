@@ -170,6 +170,19 @@ export function fleetCosted(s: RateCalcState): boolean {
     : s.vehicles.some(v => (v.simpleTotal ?? 0) > 0 || (v.costs?.fuel_per_week ?? 0) > 0);
 }
 
+/** Most timesheet history any one staff member has, in distinct weeks.
+    Gates the Staff step's Detailed mode (~3 months = 12 weeks minimum). */
+export function timesheetWeeks(s: RateCalcState): number {
+  let max = 0;
+  for (const p of s.staff) {
+    const entries = s.timesheets[p.id] || [];
+    const weeks = new Set<string>();
+    for (const e of entries) weeks.add(e.week_ending_date || "_");
+    if (weeks.size > max) max = weeks.size;
+  }
+  return max;
+}
+
 /** Whole days since the last rate review; null when never reviewed. */
 export function daysSinceReviewed(lastReviewed: string | null | undefined, now = Date.now()): number | null {
   if (!lastReviewed) return null;

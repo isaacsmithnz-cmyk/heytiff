@@ -17,6 +17,7 @@ import {
   emptyState,
   hydrateState,
   runEngine,
+  timesheetWeeks,
   type RateCalcState,
 } from "./state";
 import { buildDemoState } from "./demo-data";
@@ -57,17 +58,9 @@ function stepSummary(key: string, s: RateCalcState, calc: CalcResult): string {
   }
 }
 
-// A step counts as "done" (for the connector line and progressive reveal)
-// when it's complete, customised, or running on sensible defaults.
+// A step counts as "done" (for the connector line) when it's complete,
+// customised, or running on sensible defaults.
 const DONE_COMPLETIONS = ["complete", "customised", "defaults"];
-
-// Highest step index to reveal from a set of completions: the first not-"done"
-// step (the one to work on next); if every step is done, reveal all 5.
-function revealIndexFor(completions: string[]): number {
-  let i = 0;
-  while (i < 4 && DONE_COMPLETIONS.includes(completions[i])) i++;
-  return i;
-}
 
 // completion → rail node visuals. Solid teal ✓ = data entered (complete /
 // customised); outlined teal ✓ = running on sensible defaults (a valid
@@ -90,10 +83,11 @@ function RailTile({ label, c, soft, rec, be, cur, ready }: {
         <WsEyebrow color={c}>{label}</WsEyebrow><span style={{ width: 8, height: 8, borderRadius: "50%", background: c }} />
       </div>
       <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 40, letterSpacing: "-0.03em", lineHeight: 0.95, color: RC.ink, marginTop: 8 }}>
-        {!ready || rec == null ? <span style={{ color: RC.faint, fontSize: 26 }}>—</span> : <>
+        {!ready ? <span className="rca-shimmer" style={{ display: "inline-block", width: 104, height: 30, verticalAlign: "-4px" }} />
+          : rec == null ? <span style={{ color: RC.faint, fontSize: 26 }}>—</span> : <>
           <span style={{ fontSize: 19, verticalAlign: "10px", color: RC.faint, letterSpacing: 0 }}>$</span>{Math.round(rec)}<span style={{ fontSize: 14, fontWeight: 700, color: RC.faint, letterSpacing: 0 }}>/hr</span></>}
       </div>
-      <div style={{ fontSize: 12, color: RC.label, marginTop: 3 }}>{ready && rec != null ? <>+ GST <b style={{ color: RC.ink2, fontWeight: 700 }}>{gstOf(rec)}</b></> : "awaiting inputs"}</div>
+      <div style={{ fontSize: 12, color: RC.label, marginTop: 3 }}>{!ready ? <span className="rca-pulse">waiting for your numbers…</span> : rec != null ? <>+ GST <b style={{ color: RC.ink2, fontWeight: 700 }}>{gstOf(rec)}</b></> : "awaiting inputs"}</div>
       <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
         <div style={{ flex: 1, background: soft, borderRadius: 10, padding: "8px 10px" }}>
           <div style={{ fontSize: 9.5, color: c, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.07em", whiteSpace: "nowrap" }}>{cur != null ? `vs now $${cur}` : "vs now —"}</div>
@@ -116,7 +110,7 @@ function RatesRail({ s, calc, uplift, ready, missing, onLoadDemo }: {
     <div style={{ width: 300, flexShrink: 0, display: "flex", flexDirection: "column", overflowY: "auto", overflowX: "hidden", paddingTop: 19 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, padding: "0 2px" }}>
         <WsEyebrow color={RC.label}>Live rates</WsEyebrow>
-        <span style={{ fontSize: 11.5, color: RC.faint, display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}><span style={{ width: 6, height: 6, borderRadius: "50%", background: ready ? RC.teal : RC.faint, boxShadow: ready ? `0 0 8px ${RC.teal}` : "none" }} />{ready ? "updates as you edit" : "awaiting inputs"}</span>
+        <span style={{ fontSize: 11.5, color: RC.faint, display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}><span className={ready ? undefined : "rca-pulse"} style={{ width: 6, height: 6, borderRadius: "50%", background: ready ? RC.teal : RC.install, boxShadow: ready ? `0 0 8px ${RC.teal}` : "none" }} />{ready ? "updates as you edit" : "awaiting inputs"}</span>
       </div>
       {!ready && (
         <div style={{ background: RC.installSoft, borderRadius: 13, padding: "13px 15px", marginBottom: 12, fontSize: 12.5, color: "#1D4FD7", lineHeight: 1.5 }}>
@@ -280,18 +274,19 @@ function CalculatorApp({ initial, hasData, demo, showOnboarding, onPersist, save
     completions[4] === "customised",
   ].filter(Boolean).length;
 
-  // Progressive reveal — steps 0..maxStep are shown in the rail. Forward-only
-  // high-water mark: a step reveals the next when it becomes "done", and never
-  // re-hides. Only current+1 is ever added, so default/auto steps appear one at
-  // a time as the user advances rather than cascading in together.
-  const [maxStep, setMaxStep] = React.useState(() => revealIndexFor(completions));
-  React.useEffect(() => {
-    const done = step <= 4 && DONE_COMPLETIONS.includes(completions[step]);
-    const target = step > 4 ? 4 : Math.min(4, step + (done ? 1 : 0));
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- monotonic reveal high-water mark
-    setMaxStep(m => (target > m ? target : m));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, completions[0], completions[1], completions[2], completions[3], completions[4]]);
+  // Simple/Detailed toggles are hidden for the first-run session and return
+  // on later visits (hasData) — per step, only where Detailed has data it can
+  // actually edit: Staff needs ~3 months of timesheets, Vehicles needs
+  // vehicle records; Business is ungated. Gates control toggle VISIBILITY
+  // only — a state already saved in Detailed keeps rendering Detailed.
+  const allowToggles = demo || hasData;
+  const toggleGates = [
+    allowToggles && timesheetWeeks(s) >= 12,
+    allowToggles,
+    allowToggles && s.vehicles.length > 0,
+    false, // risk — no Detailed mode
+    false, // profit — no Detailed mode
+  ];
 
   // Review reminder — derived from the stored timestamp, shown only once the
   // configured reminder period has actually elapsed.
@@ -348,14 +343,14 @@ function CalculatorApp({ initial, hasData, demo, showOnboarding, onPersist, save
             <WsEyebrow color={RC.label}>Setup path</WsEyebrow>
             <span style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 13, color: RC.ink }}>{enteredCount}<span style={{ color: RC.faint }}> / 5</span></span>
           </div>
-          {STEP_META.slice(0, maxStep + 1).map((m, i) => {
+          {STEP_META.map((m, i) => {
             const cur = i === step && !overview && !insights;
             const comp = completions[i];
             const ns = nodeStyle(comp, cur);
-            const last = i === maxStep;
-            const lineDone = comp === "complete" || comp === "customised" || comp === "defaults";
+            const last = i === STEP_META.length - 1;
+            const lineDone = DONE_COMPLETIONS.includes(comp);
             return (
-              <div key={m.key} className="rca-step" onClick={() => setStep(i)}>
+              <div key={m.key} className="rca-step" style={{ animationDelay: `${i * 60}ms` }} onClick={() => setStep(i)}>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 28 }}>
                   <div style={{ width: 28, height: 28, borderRadius: "50%", flexShrink: 0, background: ns.bg, border: ns.border, display: "flex", alignItems: "center", justifyContent: "center", color: ns.fg, fontFamily: RC.head, fontWeight: 800, fontSize: 13, boxShadow: cur ? `0 0 0 5px ${RC.installSoft}` : "none", transition: "all .2s" }}>{ns.icon || i + 1}</div>
                   {!last && <div style={{ flex: 1, width: 2, background: lineDone ? RC.service : "#ECEEF1", minHeight: 24, transition: "background .2s" }} />}
@@ -380,7 +375,7 @@ function CalculatorApp({ initial, hasData, demo, showOnboarding, onPersist, save
           <>
             <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
               <div className="rca-view" key={step} style={{ flex: 1, padding: "18px 10px 6px 2px", overflowY: "auto", overflowX: "hidden" }}>
-                <StepBody s={s} patch={patch} calc={calc} />
+                <StepBody s={s} patch={patch} calc={calc} showToggle={toggleGates[step] ?? false} revealAll={hasData} />
               </div>
               <div style={{ flexShrink: 0, padding: "14px 10px 0 2px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <button className="rca-btn ghost" disabled={step === 0} onClick={() => setStep(Math.max(0, step - 1))}>← Back</button>

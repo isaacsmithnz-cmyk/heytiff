@@ -14,6 +14,10 @@ export interface StepBodyProps {
   s: RateCalcState;
   patch: (p: Partial<RateCalcState>) => void;
   calc: CalcResult;
+  /** Show the Simple/Detailed toggle (host-gated per step). */
+  showToggle?: boolean;
+  /** Returning-user render — question stacks skip staging. */
+  revealAll?: boolean;
 }
 
 const DBody = ({ children }: { children: React.ReactNode }) => (

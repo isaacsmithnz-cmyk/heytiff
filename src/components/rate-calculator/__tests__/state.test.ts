@@ -1,4 +1,4 @@
-import { daysSinceReviewed, emptyState, hydrateState, runEngine } from "../state";
+import { daysSinceReviewed, emptyState, hydrateState, runEngine, timesheetWeeks } from "../state";
 import { buildDemoState } from "../demo-data";
 
 describe("emptyState", () => {
@@ -79,6 +79,15 @@ describe("hydrateState", () => {
     const demo = buildDemoState();
     const s = hydrateState(JSON.parse(JSON.stringify(demo)));
     expect(runEngine(s).calc.recInst).toBeCloseTo(runEngine(demo).calc.recInst!, 8);
+  });
+});
+
+describe("timesheetWeeks", () => {
+  it("is 0 with no staff or timesheets", () => {
+    expect(timesheetWeeks(emptyState())).toBe(0);
+  });
+  it("counts distinct weeks for the demo roster (18)", () => {
+    expect(timesheetWeeks(buildDemoState())).toBe(18);
   });
 });
 

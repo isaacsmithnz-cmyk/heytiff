@@ -72,29 +72,53 @@ function nodeStyle(completion: string, cur: boolean) {
 }
 
 // ── persistent live-rates rail ──────────────────────────────────────────
-function RailTile({ label, c, soft, rec, be, cur, ready }: {
-  label: string; c: string; soft: string; rec: number | null; be: number | null; cur: number | null; ready: boolean;
+// One card per rate, tinted in its accent colour (Install blue, Service
+// teal): the current rate is editable at the top, the recommended rate is
+// the hero below, and the gap between them is a coloured chip.
+function RateCard({ label, k, color, soft, ink, rec, be, ready, currentRates, patch }: {
+  label: string; k: "install" | "service"; color: string; soft: string; ink: string;
+  rec: number | null; be: number | null; ready: boolean;
+  currentRates: RateCalcState["currentRates"]; patch: (p: Partial<RateCalcState>) => void;
 }) {
+  const cur = currentRates[k];
+  const roundedRec = rec == null ? null : Math.round(rec);
+  // diff > 0 → recommended sits above what you charge (raise); <= 0 → healthy.
+  const diff = (roundedRec != null && cur != null) ? roundedRec - cur : null;
   return (
-    <div style={{ background: "#fff", borderRadius: 16, border: `1px solid rgba(10,12,20,.06)`, boxShadow: "0 1px 2px rgba(10,12,20,.04), 0 20px 50px -30px rgba(10,12,20,.18)", padding: "15px 17px", marginBottom: 12 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <WsEyebrow color={c}>{label}</WsEyebrow><span style={{ width: 8, height: 8, borderRadius: "50%", background: c }} />
+    <div style={{ background: soft, borderRadius: 16, padding: "14px 16px", marginBottom: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <WsEyebrow color={ink}>{label}</WsEyebrow>
+        <span style={{ width: 8, height: 8, borderRadius: "50%", background: color }} />
       </div>
-      <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 40, letterSpacing: "-0.03em", lineHeight: 0.95, color: RC.ink, marginTop: 8 }}>
-        {!ready ? <span className="rca-shimmer" style={{ display: "inline-block", width: 104, height: 30, verticalAlign: "-4px" }} />
-          : rec == null ? <span style={{ color: RC.faint, fontSize: 26 }}>—</span> : <>
-          <span style={{ fontSize: 19, verticalAlign: "10px", color: RC.faint, letterSpacing: 0 }}>$</span>{Math.round(rec)}<span style={{ fontSize: 14, fontWeight: 700, color: RC.faint, letterSpacing: 0 }}>/hr</span></>}
+
+      {/* current rate — editable */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 13 }}>
+        <span style={{ fontSize: 12, color: RC.ink2, fontWeight: 600 }}>You charge now</span>
+        <RateNumberInput value={cur} color={color} ariaLabel={`Current ${label.toLowerCase()} rate`}
+          onChange={v => patch({ currentRates: { ...currentRates, [k]: v } })} />
       </div>
-      <div style={{ fontSize: 12, color: RC.label, marginTop: 3 }}>{!ready ? <span className="rca-pulse">waiting for your numbers…</span> : rec != null ? <>+ GST <b style={{ color: RC.ink2, fontWeight: 700 }}>{gstOf(rec)}</b></> : "awaiting inputs"}</div>
-      <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-        <div style={{ flex: 1, background: soft, borderRadius: 10, padding: "8px 10px" }}>
-          <div style={{ fontSize: 9.5, color: c, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.07em", whiteSpace: "nowrap" }}>{cur != null ? `vs now $${cur}` : "vs now —"}</div>
-          <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 17, color: c }}>{!ready || rec == null || cur == null ? "—" : (Math.round(rec) - cur >= 0 ? "+" : "") + "$" + (Math.round(rec) - cur)}<span style={{ fontSize: 11, fontWeight: 700 }}>{ready && rec != null && cur != null ? "/hr" : ""}</span></div>
+
+      <div style={{ height: 1, background: "rgba(10,12,20,.07)", marginBottom: 12 }} />
+
+      {/* recommended — the hero, with the gap chip */}
+      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 8 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "0.07em", textTransform: "uppercase", color: RC.faint, marginBottom: 3 }}>Recommended</div>
+          <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 34, letterSpacing: "-0.03em", lineHeight: 0.95, color: RC.ink }}>
+            {!ready ? <span className="rca-shimmer" style={{ display: "inline-block", width: 96, height: 26, verticalAlign: "-3px" }} />
+              : roundedRec == null ? <span style={{ color: RC.faint, fontSize: 24 }}>—</span>
+              : <><span style={{ fontSize: 17, verticalAlign: "8px", color: RC.faint }}>$</span>{roundedRec}<span style={{ fontSize: 13, fontWeight: 700, color: RC.faint }}>/hr</span></>}
+          </div>
         </div>
-        <div style={{ flex: 1, background: RC.card2, borderRadius: 10, padding: "8px 10px" }}>
-          <div style={{ fontSize: 9.5, color: RC.faint, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.07em" }}>break-even</div>
-          <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 17, color: RC.ink2 }}>{ready ? rate0(be) : "—"}</div>
-        </div>
+        {ready && diff != null && (diff > 0
+          ? <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 800, color: "#B45309", background: "#FCF3E3", padding: "4px 9px", borderRadius: 100, whiteSpace: "nowrap" }}>↑ ${diff}/hr</span>
+          : <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 800, color: "#17703A", background: "#fff", border: "1px solid rgba(34,165,78,.3)", padding: "4px 9px", borderRadius: 100, whiteSpace: "nowrap" }}>✓ {diff < 0 ? "above" : "on target"}</span>)}
+      </div>
+
+      <div style={{ fontSize: 11.5, color: RC.ink2, marginTop: 9 }}>
+        {!ready ? <span className="rca-pulse" style={{ color: RC.label }}>waiting for your numbers…</span>
+          : roundedRec == null ? <span style={{ color: RC.label }}>awaiting inputs</span>
+          : <>+ GST <b style={{ fontWeight: 700 }}>{gstOf(rec)}</b> · break-even <b style={{ fontWeight: 700 }}>{rate0(be)}</b></>}
       </div>
     </div>
   );
@@ -104,33 +128,14 @@ function RatesRail({ s, calc, uplift, ready, missing, onLoadDemo, patch }: {
   s: RateCalcState; calc: CalcResult; uplift: number | null; ready: boolean;
   missing: string[]; onLoadDemo?: () => void; patch: (p: Partial<RateCalcState>) => void;
 }) {
-  const rateRow = (label: string, color: string, key: "install" | "service") => (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-      <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
-        <span style={{ width: 8, height: 8, borderRadius: "50%", background: color }} />
-        <span style={{ fontSize: 12.5, color: RC.ink2, fontWeight: 700 }}>{label}</span>
-      </span>
-      <RateNumberInput value={s.currentRates[key]} color={color} ariaLabel={`Current ${label.toLowerCase()} rate`}
-        onChange={v => patch({ currentRates: { ...s.currentRates, [key]: v } })} />
-    </div>
-  );
   return (
     <div style={{ width: 300, flexShrink: 0, display: "flex", flexDirection: "column", overflowY: "auto", overflowX: "hidden", paddingTop: 19 }}>
-      {/* What you charge now — editable baseline for the vs-now comparison */}
-      <div style={{ background: "#fff", borderRadius: 16, border: `1px solid rgba(10,12,20,.06)`, boxShadow: "0 1px 2px rgba(10,12,20,.04), 0 20px 50px -30px rgba(10,12,20,.18)", padding: "13px 15px", marginBottom: 12 }}>
-        <WsEyebrow color={RC.label}>What you charge now</WsEyebrow>
-        <div style={{ fontSize: 11.5, color: RC.faint, marginTop: 2, marginBottom: 12 }}>Your baseline — so we can show the gap</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-          {rateRow("Install", RC.install, "install")}
-          {rateRow("Service", RC.service, "service")}
-        </div>
-      </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, padding: "0 2px" }}>
-        <WsEyebrow color={RC.label}>Live rates</WsEyebrow>
+        <WsEyebrow color={RC.label}>Your rates</WsEyebrow>
         <span style={{ fontSize: 11.5, color: RC.faint, display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}><span className={ready ? undefined : "rca-pulse"} style={{ width: 6, height: 6, borderRadius: "50%", background: ready ? RC.teal : RC.install, boxShadow: ready ? `0 0 8px ${RC.teal}` : "none" }} />{ready ? "updates as you edit" : "awaiting inputs"}</span>
       </div>
       {!ready && (
-        <div style={{ background: RC.installSoft, borderRadius: 13, padding: "13px 15px", marginBottom: 12, fontSize: 12.5, color: "#1D4FD7", lineHeight: 1.5 }}>
+        <div style={{ background: "#fff", borderRadius: 13, border: `1px solid rgba(10,12,20,.06)`, padding: "13px 15px", marginBottom: 12, fontSize: 12.5, color: "#1D4FD7", lineHeight: 1.5 }}>
           <b>Almost there.</b> To see your rates, enter {missing.length === 1 ? missing[0] : missing.slice(0, -1).join(", ") + " and " + missing[missing.length - 1]}.
           {onLoadDemo && (
             <div style={{ marginTop: 8 }}>
@@ -139,8 +144,8 @@ function RatesRail({ s, calc, uplift, ready, missing, onLoadDemo, patch }: {
           )}
         </div>
       )}
-      <RailTile label="Install" c={RC.install} soft={RC.installSoft} rec={calc.recInst} be={calc.beInst} cur={s.currentRates.install} ready={ready} />
-      <RailTile label="Service" c={RC.service} soft={RC.serviceSoft} rec={calc.recSvc} be={calc.beSvc} cur={s.currentRates.service} ready={ready} />
+      <RateCard label="Install" k="install" color={RC.install} soft={RC.installSoft} ink="#1D4FD7" rec={calc.recInst} be={calc.beInst} ready={ready} currentRates={s.currentRates} patch={patch} />
+      <RateCard label="Service" k="service" color="#22A54E" soft="#E7F6EC" ink="#17703A" rec={calc.recSvc} be={calc.beSvc} ready={ready} currentRates={s.currentRates} patch={patch} />
       <div style={{ background: "#fff", borderRadius: 14, border: `1px solid rgba(10,12,20,.06)`, boxShadow: "0 1px 2px rgba(10,12,20,.04), 0 20px 50px -30px rgba(10,12,20,.18)", padding: "13px 15px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 9 }}>
           <span style={{ fontSize: 12.5, color: RC.ink2, whiteSpace: "nowrap" }}>Day rate (full day)</span>

@@ -61,13 +61,30 @@
   border-radius: 0; /* drop the rounded well corners/notch */
   box-shadow: none; /* drop the bright white inset top line */
 }
+/* ...and paint the start screen's glow field + dot grid on the FRAME itself via
+   the shell's (otherwise unused) full-frame .gridbg layer, so the backdrop spans
+   corner-to-corner behind the transparent topbar and sidebar — one piece, no
+   box edge for the roaming frame fx to cut against. */
+.fg:has(.dstudio:not(.editing)) .gridbg {
+  display: block;
+  background-image: radial-gradient(
+      900px 620px at 84% -14%,
+      rgba(0, 229, 192, 0.2),
+      transparent 60%
+    ),
+    radial-gradient(820px 640px at 2% 118%, rgba(46, 104, 255, 0.18), transparent 60%),
+    radial-gradient(680px 560px at 62% 130%, rgba(138, 43, 226, 0.14), transparent 58%),
+    radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: auto, auto, auto, 26px 26px;
+}
 
 /* ═════════════ Home ═════════════ */
 
-/* Home = full-bleed immersive dark canvas. Scoped to the start screen only
+/* Home = full-bleed immersive dark start screen. Scoped to the start screen only
    (.dstudio:not(.editing)); the editor and every other route stay light. The
-   canvas base is transparent so the black #050505 frame shows through — sidebar,
-   topbar and content read as one continuous dark surface with no seam. */
+   canvas itself is fully transparent — the black #050505 frame, its glow field
+   (.gridbg above) and the roaming frame fx show through, so sidebar, topbar and
+   content read as one continuous dark surface with no seam. */
 .dstudio:not(.editing) {
   padding: 0;
   gap: 0;
@@ -75,41 +92,6 @@
 .dstudio .ds-home {
   position: relative;
   min-height: calc(100dvh - 96px);
-  background-color: transparent;
-  background-image: radial-gradient(
-      900px 620px at 84% -14%,
-      rgba(0, 229, 192, 0.2),
-      transparent 60%
-    ),
-    radial-gradient(820px 640px at 2% 118%, rgba(46, 104, 255, 0.18), transparent 60%),
-    radial-gradient(680px 560px at 62% 130%, rgba(138, 43, 226, 0.14), transparent 58%);
-}
-/* faint dot grid */
-.dstudio .ds-home::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-  background-size: 26px 26px;
-  opacity: 0.55;
-}
-/* edge vignette — melts the glow into the #050505 black frame at the edges */
-.dstudio .ds-home::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  background: linear-gradient(
-      to right,
-      #050505,
-      rgba(5, 5, 5, 0) 10%,
-      rgba(5, 5, 5, 0) 90%,
-      #050505
-    ),
-    linear-gradient(to bottom, #050505, rgba(5, 5, 5, 0) 10%, rgba(5, 5, 5, 0) 90%, #050505);
 }
 .dstudio .ds-home-stack {
   position: relative;
@@ -130,103 +112,14 @@
   }
 }
 
-/* animated airflow — decorative duct lines drawing across the dark canvas */
-.dstudio .ds-airflow {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 0;
-  opacity: 0.55;
-  pointer-events: none;
-}
-.dstudio .ds-airflow .dp {
-  stroke: url(#dsAirflowGrad);
-  stroke-width: 2.5;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  fill: none;
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-}
-.dstudio .ds-airflow .pdot {
-  fill: var(--teal);
-  opacity: 0;
-}
-@media (prefers-reduced-motion: no-preference) {
-  .dstudio .ds-airflow .dp {
-    animation: dsDrawAir 36s cubic-bezier(0.45, 0, 0.25, 1) infinite;
-    animation-delay: var(--d, 0s);
-  }
-  .dstudio .ds-airflow .pdot {
-    animation: dsDotAir 36s linear infinite;
-    animation-delay: var(--d, 0s);
-  }
-}
-@keyframes dsDrawAir {
-  0% {
-    stroke-dashoffset: 1;
-  }
-  20%,
-  64% {
-    stroke-dashoffset: 0;
-  }
-  82%,
-  100% {
-    stroke-dashoffset: -1;
-  }
-}
-@keyframes dsDotAir {
-  0%,
-  4% {
-    opacity: 0;
-  }
-  14%,
-  66% {
-    opacity: 0.9;
-  }
-  80%,
-  100% {
-    opacity: 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .dstudio .ds-airflow .dp {
-    stroke-dashoffset: 0;
-  }
-  .dstudio .ds-airflow .pdot {
-    opacity: 0.6;
-  }
-}
-
-/* New design — transparent hero on the dark canvas (no card) */
+/* New design — transparent hero rendered directly on the black frame (no card,
+   no scrim; the ambience is the frame's soft blobs + glow field only) */
 .dstudio .ds-hero {
   position: relative;
   color: #fff;
   display: flex;
   flex-direction: column;
   justify-content: center;
-}
-/* soft radial darkening behind the copy so it stays legible over the airflow */
-.dstudio .ds-hero::before {
-  content: "";
-  position: absolute;
-  left: -64px;
-  right: -26px;
-  top: -48px;
-  bottom: -44px;
-  z-index: 0;
-  pointer-events: none;
-  background: radial-gradient(
-    132% 116% at 20% 47%,
-    rgba(6, 7, 10, 0.9),
-    rgba(6, 7, 10, 0.44) 52%,
-    transparent 76%
-  );
-}
-.dstudio .ds-hero > * {
-  position: relative;
-  z-index: 1;
 }
 .dstudio .ds-hero-badge {
   display: inline-flex;

@@ -30,6 +30,9 @@ export function ProfileBehaviors({ html }: { html: string }) {
       if (!prof) return;
       prof.querySelectorAll(".card2 > .c2h").forEach((h) => {
         if (h.querySelector(".cardactions")) return;
+        // data-static cards (e.g. Assigned vehicle — linked from Fleet) have no
+        // editable fields, so they get no Edit/Save affordance at all.
+        if (h.parentElement instanceof HTMLElement && h.parentElement.dataset.static !== undefined) return;
         const w = document.createElement("span");
         w.className = "cardactions";
         w.innerHTML =

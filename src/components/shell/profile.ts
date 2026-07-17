@@ -182,7 +182,7 @@ function vehicle(s: DemoStaff) {
   if (!v) {
     return (
       '<section class="psec" data-sec="vehicle">' +
-      `<div class="card2">${head}` +
+      `<div class="card2" data-static>${head}` +
       `<div class="ro-empty"><span class="ei">${ic("car", 20)}</span><b>No vehicle assigned</b><em>Assign a vehicle to this staff member from Assets → Fleet to show rego, service status and fuel here.</em></div>` +
       "</div></section>"
     );
@@ -201,7 +201,7 @@ function vehicle(s: DemoStaff) {
   const fact = (label: string, val: string) => `<span><em>${label}</em><b>${val}</b></span>`;
   return (
     '<section class="psec" data-sec="vehicle">' +
-    `<div class="card2">${head}` +
+    `<div class="card2" data-static>${head}` +
     '<div class="pveh">' +
     `<div class="pvh"><span class="pvi">${ic("truck", 20)}</span>` +
     `<span><b>${v.callsign} · ${vehicleName(v)}</b><em>Plate ${v.plate}</em></span></div>` +

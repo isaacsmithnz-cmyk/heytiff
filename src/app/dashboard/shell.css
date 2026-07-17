@@ -31,7 +31,10 @@
 .fg .side { position:relative; z-index:30; display:flex; flex-direction:column; width:224px; flex:0 0 224px; height:100%;
   background:var(--ink); color:#E8EAED; overflow:hidden; border-right:1px solid rgba(255,255,255,.04);
   box-shadow:20px 0 40px rgba(0,0,0,.1); }
-.fg .side .glow { position:absolute; top:-150px; left:-100px; width:300px; height:300px; border-radius:50%; background:var(--teal); filter:blur(150px); opacity:.15; pointer-events:none; }
+/* teal corner accent — contained to the top-left so its blur doesn't reach the
+   sidebar's right edge (x=224), which would create a tonal step at the
+   sidebar/topbar junction. Kept subtle around the logo. */
+.fg .side .glow { position:absolute; top:-170px; left:-160px; width:250px; height:250px; border-radius:50%; background:var(--teal); filter:blur(120px); opacity:.16; pointer-events:none; }
 .fg .brand { display:flex; align-items:center; gap:16px; padding:40px 32px; position:relative; z-10:1; z-index:10; }
 .fg .ht-logo { display:flex; align-items:center; gap:2px; }
 .fg .ht-logo svg { transition:transform .5s cubic-bezier(.22,1,.36,1); }
@@ -395,7 +398,7 @@
 .fg .toolrow:hover { background:#f9fafb; border-color:#f0f0f2; }
 .fg .toolrow .tdot { width:8px; height:8px; border-radius:50%; flex:0 0 auto; box-shadow:0 1px 2px rgba(0,0,0,.1); }
 .fg .toolrow .tnm { display:flex; align-items:center; gap:12px; flex:1; min-width:0; }
-.fg .toolrow .tnm b { font-size:15px; font-weight:700; color:var(--gray700); transition:color .2s; }
+.fg .toolrow .tnm b { font-size:15px; font-weight:700; color:var(--gray700); transition:color .2s; white-space:nowrap; }
 .fg .toolrow:hover .tnm b { color:var(--ink); }
 .fg .toolrow .tnm em { font-style:normal; font-size:13px; color:var(--gray400); font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 @media (max-width:640px){ .fg .toolrow .tnm em{display:none} }
@@ -511,32 +514,43 @@
 .fg { background:#050505; }
 .fg .gridbg { display:none; }                 /* dotted grid was for a light page bg */
 
-/* sidebar melts into the frame (no edge / shadow) */
-.fg .side { box-shadow:none; border-right:none; }
+/* sidebar melts into the frame (no edge / shadow / own background — the root's
+   #050505 shows through so the frame reads as one piece). Its corner .glow is
+   hidden too: inside the sidebar it clips at the box edge (x=224) and draws a
+   line; the same accent lives unclipped on .framefx below. */
+.fg .side { box-shadow:none; border-right:none; background:transparent; }
+.fg .side .glow { display:none; }
 
 /* top header becomes part of the black frame */
-.fg .topbar { background:transparent; -webkit-backdrop-filter:none; backdrop-filter:none; border-bottom:none; box-shadow:none; padding:0 26px; position:relative; overflow:hidden; }
+.fg .topbar { background:transparent; -webkit-backdrop-filter:none; backdrop-filter:none; border-bottom:none; box-shadow:none; padding:0 26px; position:relative; }
 
-/* soft drifting aurora in the header */
-.fg .topbar::before, .fg .topbar::after { content:''; position:absolute; top:50%; border-radius:50%; pointer-events:none; z-index:0; filter:blur(44px); }
-.fg .topbar::before { width:300px; height:300px; background:radial-gradient(circle, rgba(0,229,192,.20), transparent 68%); transform:translate(-40px,-50%); animation:fgAurora1 16s ease-in-out infinite; }
-.fg .topbar::after { width:260px; height:260px; background:radial-gradient(circle, rgba(46,104,255,.18), transparent 68%); transform:translate(0,-50%); animation:fgAurora2 21s ease-in-out infinite; }
-@keyframes fgAurora1 { 0%{transform:translate(-60px,-50%) scale(1)} 50%{transform:translate(620px,-46%) scale(1.25)} 100%{transform:translate(-60px,-50%) scale(1)} }
-@keyframes fgAurora2 { 0%{transform:translate(680px,-54%) scale(1.1)} 50%{transform:translate(40px,-50%) scale(1)} 100%{transform:translate(680px,-54%) scale(1.1)} }
-/* rising soft-glow aurora orbs */
-.fg .topbar .hdrfx { position:absolute; inset:0; z-index:0; overflow:hidden; pointer-events:none; }
-.fg .topbar .hdrfx i { position:absolute; bottom:-30px; width:120px; height:120px; border-radius:50%; filter:blur(26px); opacity:0; background:radial-gradient(circle, rgba(0,229,192,.55), transparent 70%); animation:fgRiseGlow linear infinite; }
-.fg .topbar .hdrfx i:nth-child(1){ left:4%;  animation-duration:11s; animation-delay:0s; }
-.fg .topbar .hdrfx i:nth-child(2){ left:18%; width:90px; height:90px; background:radial-gradient(circle, rgba(46,104,255,.5), transparent 70%); animation-duration:14s; animation-delay:3s; }
-.fg .topbar .hdrfx i:nth-child(3){ left:33%; width:150px; height:150px; animation-duration:13s; animation-delay:6s; }
-.fg .topbar .hdrfx i:nth-child(4){ left:50%; width:100px; height:100px; background:radial-gradient(circle, rgba(138,43,226,.4), transparent 70%); animation-duration:16s; animation-delay:1.5s; }
-.fg .topbar .hdrfx i:nth-child(5){ left:66%; width:130px; height:130px; background:radial-gradient(circle, rgba(46,104,255,.5), transparent 70%); animation-duration:12s; animation-delay:8s; }
-.fg .topbar .hdrfx i:nth-child(6){ left:80%; width:96px;  height:96px;  animation-duration:15s; animation-delay:4.5s; }
-.fg .topbar .hdrfx i:nth-child(7){ left:91%; width:140px; height:140px; background:radial-gradient(circle, rgba(138,43,226,.38), transparent 70%); animation-duration:13.5s; animation-delay:10s; }
+/* frame-level ambient fx — aurora blobs + rising orbs roam the ENTIRE frame,
+   unclipped by any chrome box. Content (sidebar z-30, main z-10) paints above;
+   the opaque light well occludes whatever passes behind it, so on normal pages
+   the fx shows in the header/sidebar/gutters, and on the studio start screen
+   (well dropped) it drifts across the whole canvas. */
+.fg .framefx { position:absolute; inset:0; z-index:0; pointer-events:none;
+  /* static teal corner accent (replaces the sidebar's clipped .glow) — on the
+     full-frame layer it fades continuously across the sidebar/topbar junction */
+  background:radial-gradient(circle 260px at -35px -45px, rgba(0,229,192,.16), transparent 100%); }
+.fg .framefx::before, .fg .framefx::after { content:''; position:absolute; top:0; left:0; border-radius:50%; pointer-events:none; filter:blur(44px); }
+.fg .framefx::before { width:300px; height:300px; background:radial-gradient(circle, rgba(0,229,192,.20), transparent 68%); animation:fgRoam1 26s ease-in-out infinite; }
+.fg .framefx::after { width:260px; height:260px; background:radial-gradient(circle, rgba(46,104,255,.18), transparent 68%); animation:fgRoam2 33s ease-in-out infinite; }
+@keyframes fgRoam1 { 0%{transform:translate(-60px,-40px) scale(1)} 33%{transform:translate(52vw,8vh) scale(1.25)} 66%{transform:translate(28vw,52vh) scale(1.05)} 100%{transform:translate(-60px,-40px) scale(1)} }
+@keyframes fgRoam2 { 0%{transform:translate(78vw,4vh) scale(1.1)} 40%{transform:translate(8vw,30vh) scale(1)} 70%{transform:translate(60vw,64vh) scale(1.2)} 100%{transform:translate(78vw,4vh) scale(1.1)} }
+/* rising soft-glow orbs, scattered over the whole frame */
+.fg .framefx i { position:absolute; width:120px; height:120px; border-radius:50%; filter:blur(26px); opacity:0; background:radial-gradient(circle, rgba(0,229,192,.55), transparent 70%); animation:fgRiseGlow linear infinite; }
+.fg .framefx i:nth-child(1){ left:4%;  top:12%; animation-duration:11s; animation-delay:0s; }
+.fg .framefx i:nth-child(2){ left:18%; top:70%; width:90px; height:90px; background:radial-gradient(circle, rgba(46,104,255,.5), transparent 70%); animation-duration:14s; animation-delay:3s; }
+.fg .framefx i:nth-child(3){ left:33%; top:38%; width:150px; height:150px; animation-duration:13s; animation-delay:6s; }
+.fg .framefx i:nth-child(4){ left:50%; top:85%; width:100px; height:100px; background:radial-gradient(circle, rgba(138,43,226,.4), transparent 70%); animation-duration:16s; animation-delay:1.5s; }
+.fg .framefx i:nth-child(5){ left:66%; top:22%; width:130px; height:130px; background:radial-gradient(circle, rgba(46,104,255,.5), transparent 70%); animation-duration:12s; animation-delay:8s; }
+.fg .framefx i:nth-child(6){ left:80%; top:58%; width:96px;  height:96px;  animation-duration:15s; animation-delay:4.5s; }
+.fg .framefx i:nth-child(7){ left:91%; top:78%; width:140px; height:140px; background:radial-gradient(circle, rgba(138,43,226,.38), transparent 70%); animation-duration:13.5s; animation-delay:10s; }
 @keyframes fgRiseGlow { 0%{ transform:translateY(0) scale(.7); opacity:0 } 18%{ opacity:.9 } 70%{ opacity:.8 } 100%{ transform:translateY(-150px) scale(1.15); opacity:0 } }
 /* keep the controls above the glow */
 .fg .topbar > * { position:relative; z-index:1; }
-@media (prefers-reduced-motion: reduce) { .fg .topbar::before, .fg .topbar::after, .fg .topbar .hdrfx i { animation:none; } .fg .topbar .hdrfx i { opacity:.5; } }
+@media (prefers-reduced-motion: reduce) { .fg .framefx::before, .fg .framefx::after, .fg .framefx i { animation:none; } .fg .framefx i { opacity:.5; } }
 
 /* topbar controls restyled to read on black */
 .fg .searchbtn .sf { background:rgba(255,255,255,.05); border-color:rgba(255,255,255,.1); color:rgba(255,255,255,.5); box-shadow:none; }

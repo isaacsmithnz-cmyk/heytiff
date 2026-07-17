@@ -28,38 +28,12 @@
   --ds-red-d: #e0264f;
   --ds-grad: linear-gradient(90deg, #00e5c0 0%, #2e68ff 100%);
   --ds-sh-sm: 0 1px 2px rgba(10, 12, 20, 0.05);
-  position: relative; /* containing block for .ds-veil */
   display: flex;
   flex-direction: column;
   gap: 16px;
   padding: 18px 2px 24px 24px; /* right trimmed to a minimal grey gap before the dark frame */
   min-height: calc(100dvh - 96px); /* outlet height: viewport − topbar − well inset */
   color: var(--ink);
-}
-
-/* Dark frosted glass that COVERS the start-screen ↔ editor swap. These two screens
-   can't cross-fade against each other: the content swaps instantly while a
-   background can only crawl, so you'd see the light editor over a dark canvas
-   (and the dot-grid/corner-radius snap regardless). Instead the glass goes up,
-   the swap happens hidden, and the glass lifts. Out of flow, so it doesn't touch
-   .dstudio's flex column. Driven by Studio's throughVeil(). */
-.dstudio .ds-veil {
-  position: absolute;
-  inset: 0;
-  z-index: 90; /* over studio UI (max 30), under portalled modals (1000+) */
-  opacity: 0;
-  pointer-events: none;
-  background: rgba(6, 7, 10, 0.72);
-  /* no -webkit- twin: the build collapses the pair down to the prefixed
-     property alone, which current Chrome doesn't support — so the blur silently
-     vanishes. Let the bundler add prefixes if a target ever needs them. */
-  backdrop-filter: blur(22px);
-  transition: opacity 0.26s ease; /* lifting */
-}
-.dstudio .ds-veil.on {
-  opacity: 1;
-  pointer-events: auto; /* swallow clicks mid-swap */
-  transition-duration: 0.18s; /* going up */
 }
 /* Editor: lock the studio to the viewport so the CANVAS never moves. A definite
    height (not min-height) bounds the flex children, so only the right panel
@@ -76,6 +50,23 @@
    other dashboard pages keep their stable gutter. The dark frame itself (.fg /
    .fg .main padding) is untouched. */
 .fg .outlet:has(.dstudio) { scrollbar-gutter: auto; }
+
+/* Swapping the dark start screen ↔ the light editor: fade the WHOLE screen — the
+   well's background and its content together, as one layer — out to the dark
+   shell frame, swap while it's invisible, then fade the new screen in over that
+   frame. Fading only the background can't work (and read as a glitch): the
+   content swaps instantly while a colour crawls, so the light editor renders on
+   a dark canvas; the dot-grid and corner radius snap too, since neither is
+   animatable. Fading the outlet takes all of it at once, and the frame behind
+   (#050505 + framefx) never moves, so there's nothing to peek through.
+   Driven by Studio's throughFade(). */
+.fg .outlet:has(.dstudio) {
+  transition: opacity 0.34s ease; /* fading back in */
+}
+.fg .outlet:has(.dstudio.swapping) {
+  opacity: 0;
+  transition-duration: 0.26s; /* fading out */
+}
 
 /* Start screen only: dissolve the shell's light "well" so the dark canvas merges
    seamlessly into the black frame (topbar + sidebar + gutters are all #050505).

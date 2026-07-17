@@ -64,9 +64,10 @@ const STEPS = [
 
 const MODE_LABEL = { plan: "Floor plans", blank: "Blank canvas" } as const;
 
-/* frosted-glass veil timings — see throughVeil() */
-const VEIL_IN_MS = 180;
-const VEIL_PAINT_MS = 40;
+/* screen-swap fade timings — see throughFade(). Keep in step with the .26s/.34s
+   opacity transitions on `.fg .outlet:has(.dstudio…)` in studio.css. */
+const FADE_OUT_MS = 260;
+const FADE_PAINT_MS = 40;
 
 function timeAgo(iso: string): string {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
@@ -105,7 +106,7 @@ export function Studio({
     "saved"
   );
 
-  const [veil, setVeil] = useState(false);
+  const [swapping, setSwapping] = useState(false);
 
   const refreshRecents = useCallback(() => {
     void getStore().list().then(setRecents);
@@ -115,29 +116,30 @@ export function Studio({
     refreshRecents();
   }, [refreshRecents]);
 
-  /* Run a screen swap behind the frosted-glass veil. The start screen is dark and
-     the editor is a light well, so letting them cross-fade reads as a glitch —
-     the content swaps instantly while a background can only crawl. Cover it
-     instead: glass up, swap hidden, glass lifts. It wraps the async load too, so
-     it doubles as the loading state. */
-  const veilTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  /* Fade the whole screen out to the dark shell frame, swap while it's invisible,
+     then fade the new screen in over the frame — the start screen is dark and the
+     editor is a light well, and cross-fading them against each other reads as a
+     glitch. The `swapping` class fades the outlet, so the well's background and
+     its content go together and nothing can peek through mid-swap. It wraps the
+     async load too, so it doubles as the loading state. */
+  const fadeTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   useEffect(() => {
-    const timers = veilTimers.current;
+    const timers = fadeTimers.current;
     return () => timers.forEach(clearTimeout);
   }, []);
-  const throughVeil = useCallback(
+  const throughFade = useCallback(
     async (swap: () => void | Promise<void>) => {
       const wait = (ms: number) =>
         new Promise<void>((r) => {
-          veilTimers.current.push(setTimeout(r, ms));
+          fadeTimers.current.push(setTimeout(r, ms));
         });
-      setVeil(true);
+      setSwapping(true);
       try {
-        await wait(VEIL_IN_MS);
+        await wait(FADE_OUT_MS);
         await swap();
-        await wait(VEIL_PAINT_MS);
+        await wait(FADE_PAINT_MS);
       } finally {
-        setVeil(false); // always lift, even if the load throws
+        setSwapping(false); // always fade back in, even if the load throws
       }
     },
     []
@@ -275,8 +277,11 @@ export function Studio({
 
   return (
     <div className="page in">
-      <div className={`dstudio${doc ? " editing" : ""}`}>
-        <div className={`ds-veil${veil ? " on" : ""}`} aria-hidden="true" />
+      <div
+        className={`dstudio${doc ? " editing" : ""}${
+          swapping ? " swapping" : ""
+        }`}
+      >
         {doc ? (
           <Editor
             doc={doc}
@@ -285,7 +290,7 @@ export function Studio({
             onStep={setStep}
             onMutate={mutate}
             onReplace={replaceDoc}
-            onHome={() => throughVeil(goHome)}
+            onHome={() => throughFade(goHome)}
             onAddVariant={addVariant}
             onSwitchVariant={switchVariant}
             onRenameVariant={renameVariant}
@@ -295,14 +300,14 @@ export function Studio({
           <Home
             recents={recents}
             onCreate={(name, mode) =>
-              throughVeil(async () => {
+              throughFade(async () => {
                 const d = createDesign({ name, mode });
                 await getStore().save(d);
                 openDesign(d);
               })
             }
             onOpen={(id) =>
-              throughVeil(async () => {
+              throughFade(async () => {
                 const d = await getStore().load(id);
                 if (d) openDesign(d);
               })
@@ -314,7 +319,7 @@ export function Studio({
               refreshRecents();
             }}
             onImport={(d) =>
-              throughVeil(async () => {
+              throughFade(async () => {
                 await getStore().save(d);
                 openDesign(d);
               })

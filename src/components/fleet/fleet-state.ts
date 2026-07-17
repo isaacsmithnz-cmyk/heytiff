@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   EMPTY_OVERLAY,
+  type AiValuation,
   type FleetOverlay,
   type Vehicle,
   type VehicleLog,
@@ -21,11 +22,13 @@ export type FleetState = {
   hydrated: boolean;
   vehicles: Vehicle[];
   logs: VehicleLog[];
+  aiValues: Record<string, AiValuation>;
   saveVehicle: (v: Vehicle) => void;
   removeVehicle: (id: string) => void;
   assignVehicle: (id: string, staffId: string | null) => void;
   addLog: (log: Omit<VehicleLog, "id" | "when" | "ago">) => void;
   resolveIssue: (logId: string) => void;
+  setValuations: (vals: Record<string, AiValuation>) => void;
 };
 
 /** "Fri 17 Jul" — client-side, event-time only (never during render). */
@@ -136,5 +139,23 @@ export function useFleetState(demoVehicles: Vehicle[], demoLogs: VehicleLog[]): 
     [update],
   );
 
-  return { hydrated, vehicles, logs, saveVehicle, removeVehicle, assignVehicle, addLog, resolveIssue };
+  const setValuations = useCallback(
+    (vals: Record<string, AiValuation>) => {
+      update((o) => ({ ...o, aiValues: { ...o.aiValues, ...vals } }));
+    },
+    [update],
+  );
+
+  return {
+    hydrated,
+    vehicles,
+    logs,
+    aiValues: overlay.aiValues,
+    saveVehicle,
+    removeVehicle,
+    assignVehicle,
+    addLog,
+    resolveIssue,
+    setValuations,
+  };
 }

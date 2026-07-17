@@ -1,9 +1,9 @@
 import {
   EMPTY_OVERLAY,
+  RECEIPT_STATIONS,
   type FleetOverlay,
   type Vehicle,
   type VehicleLog,
-  aiValue,
   daysUntil,
   displayName,
   filterVehicles,
@@ -18,10 +18,13 @@ import {
   migrateVehicle,
   modelLabel,
   openIssueCount,
+  parseValuations,
+  readReceiptOffline,
   serviceDueKm,
   serviceKmLeft,
   slugId,
   sortVehicles,
+  valuationStale,
   vehicleChips,
   vehicleFacts,
   worstState,
@@ -107,28 +110,67 @@ describe("vehicleFacts", () => {
   });
 });
 
-describe("aiValue (Tiff estimate)", () => {
-  it("is null with no price basis and ≈ base when brand new", () => {
-    expect(aiValue(vehicle({ purchasePrice: 0, value: 0 }))).toBeNull();
-    const fresh = aiValue(vehicle({ purchasePrice: 60000, purchaseDateDays: 0, odometer: 500 }));
-    expect(fresh).toBeGreaterThanOrEqual(60000 * 0.8);
-    expect(fresh).toBeLessThanOrEqual(60000 * 1.2);
-  });
+describe("Tiff valuations", () => {
+  const fleet = [vehicle(), vehicle({ id: "ute-01", name: "UTE-01", odometer: 158300 })];
 
-  it("depreciates with age and clamps the km adjustment to ±20% of the curve", () => {
-    const middleAged = aiValue(vehicle())!; // ~4.2y, 84k km
-    expect(middleAged).toBeLessThan(52000);
-    expect(middleAged).toBeGreaterThan(30000);
-    const flogged = aiValue(vehicle({ odometer: 400000 }))!;
-    const curveFloor = middleAged * 0.75; // clamp keeps it near the curve, not $0
-    expect(flogged).toBeGreaterThan(curveFloor * 0.8);
-    expect(flogged % 100).toBe(0); // rounded to $100
-  });
-
-  it("falls back to book value as the base when purchase price is unknown", () => {
-    expect(aiValue(vehicle({ purchasePrice: 0, purchaseDateDays: 0 }))).toBe(
-      aiValue(vehicle({ purchasePrice: 52000, purchaseDateDays: 0 })),
+  it("parses valid model output, clamps and rounds, stamps atOdo", () => {
+    const parsed = parseValuations(
+      {
+        valuations: [
+          { id: "vrf-04", low: 47120, high: 41980, point: 60000, note: "Hiaces hold value" },
+          { id: "ute-01", low: 22000, high: 27000, point: 24850, note: "High kms" },
+        ],
+      },
+      fleet,
     );
+    // low/high were swapped and point clamped into the ordered range
+    expect(parsed["vrf-04"]).toEqual({
+      low: 42000,
+      high: 47100,
+      point: 47100,
+      note: "Hiaces hold value",
+      atOdo: 84120,
+    });
+    expect(parsed["ute-01"].point).toBe(24900);
+    expect(parsed["ute-01"].atOdo).toBe(158300);
+  });
+
+  it("drops unknown ids and junk entries", () => {
+    const parsed = parseValuations(
+      {
+        valuations: [
+          { id: "not-a-vehicle", low: 1, high: 2, point: 1 },
+          { id: "vrf-04", low: NaN, high: 2, point: 1 },
+          "garbage",
+          null,
+        ],
+      },
+      fleet,
+    );
+    expect(parsed).toEqual({});
+    expect(parseValuations(null, fleet)).toEqual({});
+    expect(parseValuations({ valuations: "nope" }, fleet)).toEqual({});
+  });
+
+  it("staleness triggers once the odometer moves well past the valuation", () => {
+    const val = { point: 45000, low: 42000, high: 48000, note: "", atOdo: 84120 };
+    expect(valuationStale(vehicle(), val)).toBe(false);
+    expect(valuationStale(vehicle({ odometer: 86000 }), val)).toBe(false); // within 2,000 km
+    expect(valuationStale(vehicle({ odometer: 86200 }), val)).toBe(true);
+    expect(valuationStale(vehicle(), undefined)).toBe(false);
+  });
+});
+
+describe("readReceiptOffline (demo fallback)", () => {
+  it("is deterministic per file size with plausible AU numbers", () => {
+    const a = readReceiptOffline(123456);
+    expect(readReceiptOffline(123456)).toEqual(a);
+    expect(a.litres).toBeGreaterThanOrEqual(45);
+    expect(a.litres).toBeLessThan(75);
+    expect(a.cost).toBeGreaterThan(a.litres * 1.7);
+    expect(a.cost).toBeLessThan(a.litres * 2.2);
+    expect(Math.round(a.cost * 100)).toBe(a.cost * 100); // cents precision
+    expect(RECEIPT_STATIONS).toContain(a.station);
   });
 });
 
@@ -237,9 +279,12 @@ describe("register filters & sorting", () => {
       "VRF-04",
     ]);
     expect(fleetValue(fleet)).toBe(52000 + 27000 + 31500);
-    expect(fleetAiValue(fleet)).toBe(
-      (aiValue(fleet[0]) ?? 0) + (aiValue(fleet[1]) ?? 0) + (aiValue(fleet[2]) ?? 0),
-    );
+    const aiValues = {
+      "vrf-04": { point: 45000, low: 42000, high: 48000, note: "", atOdo: 84120 },
+      "van-01": { point: 12000, low: 11000, high: 13000, note: "", atOdo: 248900 }, // sold — ignored
+    };
+    expect(fleetAiValue(fleet, aiValues)).toBe(45000);
+    expect(fleetAiValue(fleet, {})).toBeNull();
   });
 });
 

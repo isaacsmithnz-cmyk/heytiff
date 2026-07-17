@@ -1481,3 +1481,29 @@ select.fl-i { cursor:pointer; }
 .fl-fact.tiff em { display:flex; align-items:center; gap:4px; color:#00A389; }
 .fl-manage { display:flex; justify-content:flex-end; gap:10px; margin:-8px 0 20px; }
 .fl-warnhint { font-style:normal; font-size:12px; font-weight:600; color:#b45309; }
+
+/* ---- fleet r3: live Tiff valuations + receipt scanner ---- */
+.fg .fl-valuebtn { color:var(--teal-d); }
+.fg .fl-valuebtn.busy { opacity:.6; pointer-events:none; }
+.fg .fl-valuebtn .i { animation:none; }
+.fg .fl-valuebtn.busy .i { animation:flSpinPulse 1.2s ease-in-out infinite; }
+.fg .fl-aierr { font-size:12.5px; font-weight:600; color:#b45309; margin:-6px 0 12px; }
+.fg .fl-tiff.stale { opacity:.45; }
+@keyframes flSpinPulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:.45; transform:scale(.85); } }
+.fl-fact.tiff.stale { opacity:.55; }
+.fl-fact .fl-range { display:block; font-size:11px; font-weight:600; color:#6b7280; margin-top:2px; }
+.fl-scan { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; text-align:center; padding:34px 20px; border:1.5px dashed #d7dae0; border-radius:18px; background:#fafbfc; cursor:pointer; transition:all .2s; }
+.fl-scan:hover, .fl-scan.over { border-color:#00E5C0; background:rgba(0,229,192,.05); }
+.fl-scan input { display:none; }
+.fl-scan .fl-scanic { width:46px; height:46px; border-radius:14px; display:flex; align-items:center; justify-content:center; background:rgba(0,229,192,.12); color:#00A389; }
+.fl-scan b { font-size:14.5px; font-weight:800; color:#050505; }
+.fl-scan em { font-style:normal; font-size:12.5px; font-weight:600; color:#9ca3af; }
+.fl-modeline { display:block; margin:12px auto 0; font-size:12.5px; font-weight:700; color:#00A389; }
+.fl-modeline:hover { text-decoration:underline; }
+.fl-modeline.inline { margin:0 0 0 auto; }
+.fl-readingwrap { display:flex; flex-direction:column; align-items:center; gap:14px; padding:22px 0 8px; }
+.fl-scanthumb { max-height:120px; max-width:100%; border-radius:14px; border:1px solid #ebecef; box-shadow:0 8px 24px rgba(0,0,0,.1); }
+.fl-scanthumb.small { max-height:44px; border-radius:9px; }
+.fl-reading { display:flex; align-items:center; gap:9px; font-size:13.5px; font-weight:700; color:#00A389; }
+.fl-reading .i { animation:flSpinPulse 1.2s ease-in-out infinite; }
+.fl-scanhead { display:flex; align-items:center; gap:10px; margin-bottom:14px; }

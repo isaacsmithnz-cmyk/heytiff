@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { HqRow } from "@/lib/hq/catalog";
+import type { HqGap, HqRow } from "@/lib/hq/catalog";
 import type { HqBrandGroups, HqSeriesGroup, HqSystemGroup } from "@/lib/hq/grouping";
+import { seriesColumns, type HqSeriesColumns } from "@/lib/hq/table-groups";
 import {
   fieldSpec,
   parseFieldInput,
@@ -22,14 +23,17 @@ const ROLE_OPTIONS = [
 const ROLE_LABEL = new Map<string, string>(ROLE_OPTIONS.map((o) => [o.role, o.label]));
 
 /* HQ universal-table drill-down: system-type tabs → form-factor groups →
-   collapsible series groups → unit rows.
+   collapsible series groups → per-series COMPARISON TABLE (rows = models,
+   columns = spec fields in ordered groups à la table-groups.ts).
 
-   Unit rows keep the smart-gap treatment: filled fields show values (manual
-   overrides highlighted), missing fields show as pills coloured by tier — red
-   "blocks the engine" (with the roles blocked) vs grey "nice to know";
-   structural gaps render as non-clickable warning chips. Multi-role units carry
-   a cross-role badge (fan-out membership means the same row appears under every
-   system type it claims).
+   The smart-gap treatment survives the table form: filled cells show values
+   (manual overrides highlighted amber), missing cells render a "+" coloured by
+   tier — red "blocks the engine" vs neutral dashed "nice to know". Fields no
+   row in the series has yet collapse into a trailing amber "To add" column
+   group; structural gaps surface as a ⚠ chip in the sticky Status column.
+   Model (left) and Status (right) columns stay sticky over the horizontal
+   scroll. Multi-role units carry a cross-role badge (fan-out membership means
+   the same row appears under every system type it claims).
 
    All display labels arrive baked into the grouped VM (grouping.ts is
    server-only; this file type-imports from it, which is erased at compile).
@@ -458,8 +462,14 @@ function SeriesGroup({
   onTags?: (rows: HqRow[], title: string) => void;
 }) {
   const open = !collapsed.has(groupKey);
-  const shownChips = group.blockingFields.slice(0, 3);
-  const extra = group.blockingFields.length - shownChips.length;
+  const cols = useMemo(
+    () =>
+      group.rows.length
+        ? seriesColumns(group.rows[0].section, group.rows)
+        : null,
+    [group]
+  );
+  if (!cols) return null;
 
   return (
     <div className="hq-series">
@@ -472,18 +482,18 @@ function SeriesGroup({
           <span className={`hq-series-chev${open ? " open" : ""}`}>›</span>
           <span className="hq-series-name">{group.series}</span>
           <span className="hq-series-meta">
-            {group.total} unit{group.total === 1 ? "" : "s"}
+            {group.total} model{group.total === 1 ? "" : "s"}
           </span>
           <span className={`hq-series-ready${group.ready === group.total ? " all" : ""}`}>
             {group.ready}/{group.total} ready
           </span>
-          <span className="hq-series-chips">
-            {shownChips.map((f) => (
-              <span key={f} className="hq-gapchip">
-                {f}
-              </span>
-            ))}
-            {extra > 0 ? <span className="hq-gapchip more">+{extra}</span> : null}
+          <span className="hq-series-side">
+            <span className="hq-series-meta">
+              {cols.mappedFields} of {cols.totalFields} specs mapped
+            </span>
+            {cols.mappedFields + cols.toAdd.length > 6 ? (
+              <span className="hq-cmp-scrollhint">scroll for the rest →</span>
+            ) : null}
           </span>
         </button>
         {editable && onTags ? (
@@ -499,50 +509,182 @@ function SeriesGroup({
         ) : null}
       </div>
       {open ? (
-        <div className="hq-series-body hq-units">
-          {group.rows.map((row) => (
-            <UnitRow
-              key={row.rowKey}
-              row={row}
-              editable={editable}
-              onPick={(field) => onPick(row, field)}
-              onTags={onTags ? () => onTags([row], `${row.title} · system tags`) : undefined}
-            />
-          ))}
+        <div className="hq-series-body cmp">
+          <SeriesTable
+            group={group}
+            cols={cols}
+            editable={editable}
+            onPick={onPick}
+            onTags={onTags}
+          />
         </div>
       ) : null}
     </div>
   );
 }
 
-function UnitRow({
+/** flat, render-ready column list: mapped groups then the To-add tail. gstart
+    marks each group's first column (a full-height left border) — except the
+    very first data column, which abuts the sticky model column. */
+interface FlatCol {
+  field: string;
+  sub: string;
+  gstart: boolean;
+  toAdd: boolean;
+  blocks?: boolean;
+  roles?: string[];
+}
+
+function flatColumns(cols: HqSeriesColumns): FlatCol[] {
+  const out: FlatCol[] = [];
+  for (const g of cols.groups) {
+    g.columns.forEach((c, i) =>
+      out.push({ field: c.field, sub: c.sub, gstart: i === 0, toAdd: false })
+    );
+  }
+  cols.toAdd.forEach((c, i) =>
+    out.push({
+      field: c.field,
+      sub: c.sub,
+      gstart: i === 0,
+      toAdd: true,
+      blocks: c.blocks,
+      roles: c.roles,
+    })
+  );
+  if (out.length) out[0].gstart = false;
+  return out;
+}
+
+function SeriesTable({
+  group,
+  cols,
+  editable,
+  onPick,
+  onTags,
+}: {
+  group: HqSeriesGroup;
+  cols: HqSeriesColumns;
+  editable: boolean;
+  onPick: (row: HqRow, field: string) => void;
+  /** present only for indoor-unit series (tags live on IDUs) */
+  onTags?: (rows: HqRow[], title: string) => void;
+}) {
+  const flat = flatColumns(cols);
+
+  return (
+    <>
+      <div className="hq-cmp-scroll">
+        <table className="hq-cmp">
+          <thead>
+            <tr>
+              <th className="hq-cmp-model-h" rowSpan={2}>
+                Model
+              </th>
+              {cols.groups.map((g) => (
+                <th key={g.key} className="hq-cmp-group" colSpan={g.columns.length}>
+                  {g.label}
+                  {g.unit ? <span className="hq-cmp-gunit"> · {g.unit}</span> : null}
+                </th>
+              ))}
+              {cols.toAdd.length > 0 ? (
+                <th className="hq-cmp-group toadd" colSpan={cols.toAdd.length}>
+                  To add · {cols.toAdd.length} field{cols.toAdd.length === 1 ? "" : "s"}
+                </th>
+              ) : null}
+              <th className="hq-cmp-status-h" rowSpan={2}>
+                Status
+              </th>
+            </tr>
+            <tr>
+              {flat.map((c) => (
+                <th
+                  key={c.field}
+                  className={`hq-cmp-sub${c.toAdd ? " toadd" : ""}${c.gstart ? " gstart" : ""}`}
+                >
+                  {c.sub}
+                  {c.toAdd && c.blocks ? (
+                    <span
+                      className="hq-cmp-blockdot"
+                      title={`Blocks: ${(c.roles ?? []).join(", ")}`}
+                    />
+                  ) : null}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {group.rows.map((row) => (
+              <SeriesTableRow
+                key={row.rowKey}
+                row={row}
+                flat={flat}
+                total={cols.totalFields}
+                editable={editable}
+                onPick={onPick}
+                onTags={onTags}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="hq-cmp-legend">
+        <span className="hq-cmp-lg">
+          <span className="hq-rd ok" />
+          Engine-ready
+        </span>
+        <span className="hq-cmp-lg">
+          <span className="hq-cmp-sw cool" />
+          Cooling
+        </span>
+        <span className="hq-cmp-lg">
+          <span className="hq-cmp-sw heat" />
+          Heating
+        </span>
+        <span className="hq-cmp-lg">
+          <span className="hq-cmp-sw add" />
+          Missing — click + to add
+        </span>
+      </div>
+    </>
+  );
+}
+
+function SeriesTableRow({
   row,
+  flat,
+  total,
   editable,
   onPick,
   onTags,
 }: {
   row: HqRow;
+  flat: FlatCol[];
+  total: number;
   editable: boolean;
-  onPick: (field: string) => void;
-  /** opens the tag editor for this row (indoor units only) */
-  onTags?: () => void;
+  onPick: (row: HqRow, field: string) => void;
+  onTags?: (rows: HqRow[], title: string) => void;
 }) {
   const gapByField = new Map(row.gaps.map((g) => [g.field, g]));
   const structural = row.gaps.filter((g) => !g.fillable);
   const tagsEdited = !!row.overridden.system_roles;
+  const filled = Object.values(row.values).filter((v) => v != null).length;
 
   return (
-    <div className="hq-unit">
-      <div className="hq-unit-head">
-        <div className="hq-unit-id">
+    <tr>
+      <th scope="row" className="hq-cmp-model">
+        <div className="hq-cmp-model-row1">
           <span className={`hq-rd ${row.engineReady ? "ok" : "gap"}`} />
-          <span className="hq-unit-title">{row.title}</span>
-          <span className="hq-unit-sub">{row.subtitle}</span>
+          <span className="hq-cmp-model-name">{row.title}</span>
+        </div>
+        <div className="hq-cmp-model-chips">
           {row.roles ? (
             <button
               className={`hq-xrole${tagsEdited ? " edited" : ""}`}
               disabled={!editable || !onTags}
-              onClick={onTags}
+              onClick={
+                onTags ? () => onTags([row], `${row.title} · system tags`) : undefined
+              }
               title={
                 tagsEdited
                   ? "System tags (manually set) — click to edit"
@@ -554,7 +696,12 @@ function UnitRow({
                 : "untagged"}
               {tagsEdited ? <span className="hq-fp-dot" /> : null}
             </button>
-          ) : null}
+          ) : (
+            // ODU system type is fixed; pairs are split-world by definition
+            <span className="hq-xrole static">
+              {row.section === "pair_tables" ? "split 1:1" : row.systemTypes[0]}
+            </span>
+          )}
           {row.derived?.length ? (
             <span
               className="hq-xrole derived"
@@ -564,68 +711,107 @@ function UnitRow({
             </span>
           ) : null}
         </div>
-        <div className="hq-unit-stat">
-          {row.engineReady ? (
-            <span className="hq-stat-ok">Engine-ready</span>
-          ) : (
-            <span className="hq-stat-gap">{row.blockingCount} blocking</span>
-          )}
-        </div>
-      </div>
-
-      <div className="hq-fields">
-        {Object.entries(row.values).map(([field, value]) => {
-          const spec = fieldSpec(row.section, field)!;
-          const gap = gapByField.get(field);
-          const edited = !!row.overridden[field];
-          if (value != null) {
-            return (
-              <button
-                key={field}
-                className={`hq-fpill filled${edited ? " edited" : ""}`}
-                onClick={() => onPick(field)}
-                disabled={!editable}
-                title={edited ? "Manually entered — click to edit" : "Click to edit"}
-              >
-                <span className="hq-fp-label">{spec.label}</span>
-                <span className="hq-fp-val">
-                  {value}
-                  {spec.unit ? <span className="hq-fp-unit">{spec.unit}</span> : null}
-                </span>
-                {edited ? <span className="hq-fp-dot" aria-label="manual override" /> : null}
-              </button>
-            );
-          }
-          // missing — colour by tier
-          const tier = gap?.blocks ? "block" : "nice";
-          return (
-            <button
-              key={field}
-              className={`hq-fpill missing ${tier}`}
-              onClick={() => onPick(field)}
-              disabled={!editable}
-              title={
-                gap?.blocks
-                  ? `Blocks: ${gap.roles.join(", ")}`
-                  : "Nice to know — not required by the engine"
-              }
-            >
-              <span className="hq-fp-label">{spec.label}</span>
-              <span className="hq-fp-add">＋</span>
-            </button>
-          );
-        })}
-
-        {structural.map((g) => (
+      </th>
+      {flat.map((c) => (
+        <CmpCell
+          key={c.field}
+          row={row}
+          col={c}
+          gap={gapByField.get(c.field)}
+          editable={editable}
+          onPick={onPick}
+        />
+      ))}
+      <td className="hq-cmp-status">
+        {row.engineReady ? (
+          <span className="hq-cmp-ready">✓ Ready</span>
+        ) : (
+          <span className="hq-cmp-blocking">{row.blockingCount} blocking</span>
+        )}
+        <span className="hq-cmp-count">
+          {filled}/{total}
+        </span>
+        {structural.length ? (
           <span
-            key={g.field}
-            className="hq-fpill struct"
-            title={g.blocks ? `Blocks: ${g.roles.join(", ")} — not fixable here yet` : g.field}
+            className="hq-cmp-struct"
+            title={structural
+              .map((g) => (g.blocks ? `${g.field} — blocks ${g.roles.join(", ")}` : g.field))
+              .join("\n")}
           >
-            ⚠ {g.field}
+            ⚠ {structural.length}
           </span>
-        ))}
-      </div>
-    </div>
+        ) : null}
+      </td>
+    </tr>
+  );
+}
+
+function CmpCell({
+  row,
+  col,
+  gap,
+  editable,
+  onPick,
+}: {
+  row: HqRow;
+  col: FlatCol;
+  gap: HqGap | undefined;
+  editable: boolean;
+  onPick: (row: HqRow, field: string) => void;
+}) {
+  const spec = fieldSpec(row.section, col.field)!;
+  const value = row.values[col.field];
+  const edited = !!row.overridden[col.field];
+  const tdClass = col.gstart ? "gstart" : undefined;
+
+  if (value == null) {
+    return (
+      <td className={tdClass}>
+        <button
+          className={`hq-cmp-add${gap?.blocks ? " block" : ""}`}
+          disabled={!editable}
+          onClick={() => onPick(row, col.field)}
+          aria-label={`Add ${spec.label} — ${row.title}`}
+          title={
+            gap?.blocks
+              ? `Blocks: ${gap.roles.join(", ")}`
+              : "Nice to know — not required by the engine"
+          }
+        >
+          ＋
+        </button>
+      </td>
+    );
+  }
+
+  const chip =
+    col.field === "capacity_cool_kw" || col.field === "rated_cool_kw"
+      ? "cool"
+      : col.field === "capacity_heat_kw" || col.field === "rated_heat_kw"
+        ? "heat"
+        : col.field === "refrigerant"
+          ? "ref"
+          : null;
+  const numeric = spec.type === "number";
+
+  return (
+    <td className={tdClass}>
+      <button
+        className={`hq-cmp-btn${!chip && !numeric ? " txt" : ""}`}
+        disabled={!editable}
+        onClick={() => onPick(row, col.field)}
+        aria-label={`${spec.label} — ${row.title}: ${value}`}
+        title={edited ? "Manually entered — click to edit" : "Click to edit"}
+      >
+        {chip ? (
+          <span className={`hq-cmp-chip ${chip}${edited ? " edited" : ""}`}>{value}</span>
+        ) : (
+          <span className={`${numeric ? "hq-cmp-num" : "hq-cmp-txt"}${edited ? " edited" : ""}`}>
+            {value}
+          </span>
+        )}
+        {edited ? <span className="hq-fp-dot" aria-label="manual override" /> : null}
+      </button>
+    </td>
   );
 }

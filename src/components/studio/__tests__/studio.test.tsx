@@ -66,8 +66,11 @@ describe("Design Studio shell", () => {
 
     await newDesign(user, "12 Test Street", "Blank canvas");
 
-    // blank canvas lands STRAIGHT on the canvas — no Plans detour
-    expect(screen.getByLabelText("Design name")).toHaveValue("12 Test Street");
+    // blank canvas lands STRAIGHT on the canvas — no Plans detour.
+    // findBy*: the swap runs behind the frosted-glass veil, so it isn't sync.
+    expect(await screen.findByLabelText("Design name")).toHaveValue(
+      "12 Test Street"
+    );
     expect(screen.getByRole("navigation", { name: "Workflow" })).toBeInTheDocument();
     expect(screen.getByTestId("studio-canvas")).toBeInTheDocument();
     // the Plans step still holds the default floor when visited
@@ -115,7 +118,10 @@ describe("Design Studio shell", () => {
     render(localStudio());
     const card = await screen.findByText("Recovery job");
     await user.click(card.closest(".ds-rcard") as HTMLElement);
-    expect(screen.getByLabelText("Design name")).toHaveValue("Recovery job");
+    // findBy*: reopening runs behind the veil, so the editor isn't sync
+    expect(await screen.findByLabelText("Design name")).toHaveValue(
+      "Recovery job"
+    );
     // blank designs reopen on the canvas; the floor is on the Plans step
     await user.click(screen.getByRole("button", { name: /Plans/ }));
     expect(screen.getByDisplayValue("Ground floor")).toBeInTheDocument();

@@ -64,6 +64,10 @@ const STEPS = [
 
 const MODE_LABEL = { plan: "Floor plans", blank: "Blank canvas" } as const;
 
+/* frosted-glass veil timings — see throughVeil() */
+const VEIL_IN_MS = 180;
+const VEIL_PAINT_MS = 40;
+
 function timeAgo(iso: string): string {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
   if (s < 60) return "just now";
@@ -101,6 +105,8 @@ export function Studio({
     "saved"
   );
 
+  const [veil, setVeil] = useState(false);
+
   const refreshRecents = useCallback(() => {
     void getStore().list().then(setRecents);
   }, [getStore]);
@@ -108,6 +114,34 @@ export function Studio({
   useEffect(() => {
     refreshRecents();
   }, [refreshRecents]);
+
+  /* Run a screen swap behind the frosted-glass veil. The start screen is dark and
+     the editor is a light well, so letting them cross-fade reads as a glitch —
+     the content swaps instantly while a background can only crawl. Cover it
+     instead: glass up, swap hidden, glass lifts. It wraps the async load too, so
+     it doubles as the loading state. */
+  const veilTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  useEffect(() => {
+    const timers = veilTimers.current;
+    return () => timers.forEach(clearTimeout);
+  }, []);
+  const throughVeil = useCallback(
+    async (swap: () => void | Promise<void>) => {
+      const wait = (ms: number) =>
+        new Promise<void>((r) => {
+          veilTimers.current.push(setTimeout(r, ms));
+        });
+      setVeil(true);
+      try {
+        await wait(VEIL_IN_MS);
+        await swap();
+        await wait(VEIL_PAINT_MS);
+      } finally {
+        setVeil(false); // always lift, even if the load throws
+      }
+    },
+    []
+  );
 
   /* Every mutation flows through here so updatedAt always bumps and the
      autosave below sees one consistent object. */
@@ -242,6 +276,7 @@ export function Studio({
   return (
     <div className="page in">
       <div className={`dstudio${doc ? " editing" : ""}`}>
+        <div className={`ds-veil${veil ? " on" : ""}`} aria-hidden="true" />
         {doc ? (
           <Editor
             doc={doc}
@@ -250,7 +285,7 @@ export function Studio({
             onStep={setStep}
             onMutate={mutate}
             onReplace={replaceDoc}
-            onHome={goHome}
+            onHome={() => throughVeil(goHome)}
             onAddVariant={addVariant}
             onSwitchVariant={switchVariant}
             onRenameVariant={renameVariant}
@@ -259,25 +294,31 @@ export function Studio({
         ) : (
           <Home
             recents={recents}
-            onCreate={async (name, mode) => {
-              const d = createDesign({ name, mode });
-              await getStore().save(d);
-              openDesign(d);
-            }}
-            onOpen={async (id) => {
-              const d = await getStore().load(id);
-              if (d) openDesign(d);
-            }}
+            onCreate={(name, mode) =>
+              throughVeil(async () => {
+                const d = createDesign({ name, mode });
+                await getStore().save(d);
+                openDesign(d);
+              })
+            }
+            onOpen={(id) =>
+              throughVeil(async () => {
+                const d = await getStore().load(id);
+                if (d) openDesign(d);
+              })
+            }
             onDelete={async (id) => {
               await getStore()
                 .remove(id)
                 .catch(() => {});
               refreshRecents();
             }}
-            onImport={async (d) => {
-              await getStore().save(d);
-              openDesign(d);
-            }}
+            onImport={(d) =>
+              throughVeil(async () => {
+                await getStore().save(d);
+                openDesign(d);
+              })
+            }
           />
         )}
       </div>

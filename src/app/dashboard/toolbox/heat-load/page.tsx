@@ -8,7 +8,7 @@ export default function HeatLoadPage() {
       accent="#00E5C0"
       accentInk="#00A389"
       title="Heat Load"
-      sub="Room-by-room design load sizing — the same rule-of-thumb engine the Design Studio uses, for quick quotes and sanity checks in the field."
+      sub="Instant sizing check — type the room, get the kW and the unit class. Same engine as the Design Studio."
     >
       <HeatLoadCalculator />
     </ToolPage>

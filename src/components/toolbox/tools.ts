@@ -40,7 +40,7 @@ export const TOOL_CATEGORIES: ToolCategory[] = [
     tools: [
       {
         name: "Heat Load",
-        desc: "Room-by-room load sizing",
+        desc: "Instant room sizing check",
         href: "/dashboard/toolbox/heat-load",
         badge: "New",
       },

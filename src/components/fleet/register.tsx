@@ -8,19 +8,25 @@ import {
   type FleetSort,
   type FleetTab,
   type LogKind,
+  aiValue,
+  displayName,
   filterVehicles,
+  fleetAiValue,
   fleetValue,
   fmtMoney,
+  fuelEconomy,
+  logsFor,
+  modelLabel,
   openIssueCount,
   sortVehicles,
   vehicleChips,
-  vehicleName,
   worstState,
 } from "./logic";
 import { DetailModal, LogModal, VehicleFormModal } from "./modals";
 
 /* Fleet register — the Manager/Owner view: whole fleet, assignment, service
-   schedule & valuations. Mirrors the Team directory's tabs → tools → rows shape. */
+   schedule & valuations (book + Tiff estimate). Mirrors the Team directory's
+   tabs → tools → rows shape. */
 
 function driverHue(name: string) {
   let h = 0;
@@ -58,8 +64,10 @@ export function FleetRegister({ fleet, staff }: { fleet: FleetState; staff: Demo
     return (id: string | null) => (id ? (byId.get(id) ?? "") : "");
   }, [staff]);
 
-  const attention = vehicles.filter((v) => vehicleChips(v, openIssueCount(logs, v.id)).length > 0);
-  const pool = vehicles.filter((v) => v.assignedTo === null);
+  const working = vehicles.filter((v) => v.status !== "sold");
+  const sold = vehicles.filter((v) => v.status === "sold");
+  const attention = working.filter((v) => vehicleChips(v, openIssueCount(logs, v.id)).length > 0);
+  const pool = working.filter((v) => v.assignedTo === null);
   const rows = useMemo(
     () => sortVehicles(filterVehicles(vehicles, logs, tab, query, staffName), logs, sort),
     [vehicles, logs, tab, query, staffName, sort],
@@ -75,7 +83,8 @@ export function FleetRegister({ fleet, staff }: { fleet: FleetState; staff: Demo
       <span className="dtsub">{sub}</span>
     </button>
   );
-  const tabIdx = tab === "all" ? 0 : tab === "attention" ? 1 : 2;
+  const tabIdx = tab === "all" ? 0 : tab === "attention" ? 1 : tab === "pool" ? 2 : 3;
+  const tabView = tab === "attention" ? "warn" : tab === "sold" ? "archived" : tab;
 
   if (vehicles.length === 0) {
     return (
@@ -111,11 +120,12 @@ export function FleetRegister({ fleet, staff }: { fleet: FleetState; staff: Demo
 
   return (
     <div ref={rootRef}>
-      <div className="dirtabs" data-view={tab === "attention" ? "warn" : tab} style={{ "--idx": tabIdx } as React.CSSProperties}>
-        <span className="dirtab-slide" style={{ left: `calc(6px + ${tabIdx} * (100% - 12px) / 3)` }} />
-        {tabBtn("all", vehicles.length, "Fleet", "All vehicles")}
+      <div className="dirtabs t4" data-view={tabView} style={{ "--idx": tabIdx } as React.CSSProperties}>
+        <span className="dirtab-slide" style={{ left: `calc(6px + ${tabIdx} * (100% - 12px) / 4)` }} />
+        {tabBtn("all", working.length, "Fleet", "Working vehicles")}
         {tabBtn("attention", attention.length, "Need attention", "Expiries, service & issues")}
         {tabBtn("pool", pool.length, "Pool", "Unassigned & spare")}
+        {tabBtn("sold", sold.length, "Sold", "Kept for history")}
       </div>
 
       <div className="dirtools">
@@ -123,7 +133,7 @@ export function FleetRegister({ fleet, staff }: { fleet: FleetState; staff: Demo
           <Icon name="search" size={17} />
           <input
             className="dsearchin"
-            placeholder="Search callsign, plate or driver..."
+            placeholder="Search rego, name or driver..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -132,7 +142,7 @@ export function FleetRegister({ fleet, staff }: { fleet: FleetState; staff: Demo
           <Icon name="arrowDown" size={14} />
           <select className="dsort" value={sort} onChange={(e) => setSort(e.target.value as FleetSort)}>
             <option value="attention">Needs attention</option>
-            <option value="callsign">Callsign (A–Z)</option>
+            <option value="name">Name (A–Z)</option>
             <option value="value">Value (high–low)</option>
           </select>
         </label>
@@ -156,15 +166,21 @@ export function FleetRegister({ fleet, staff }: { fleet: FleetState; staff: Demo
             const chips = vehicleChips(v, openIssueCount(logs, v.id));
             const chip = chips[0];
             const driver = staffName(v.assignedTo);
+            const isSold = v.status === "sold";
+            const ai = aiValue(v);
             return (
-              <div key={v.id} className="dirrow flrow" onClick={() => setModal({ t: "detail", id: v.id })}>
+              <div
+                key={v.id}
+                className={`dirrow flrow${isSold ? " off" : ""}`}
+                onClick={() => setModal({ t: "detail", id: v.id })}
+              >
                 <span className="dname">
-                  <span className={`fl-av ${worstState(chips)}`}>
+                  <span className={`fl-av ${isSold ? "ok" : worstState(chips)}`}>
                     <Icon name="truck" size={18} />
                   </span>
                   <span>
-                    <b>{v.callsign}</b>
-                    <em>{vehicleName(v)}</em>
+                    <b>{displayName(v)}</b>
+                    <em>{modelLabel(v)}</em>
                   </span>
                 </span>
                 <span className="fl-plate">{v.plate}</span>
@@ -181,15 +197,27 @@ export function FleetRegister({ fleet, staff }: { fleet: FleetState; staff: Demo
                       {driver}
                     </>
                   ) : (
-                    <span className="fl-pool">Pool</span>
+                    <span className="fl-pool">{isSold ? "—" : "Pool"}</span>
                   )}
                 </span>
-                <span className={`dchip ${chip ? chip.state : "ok"}`}>
-                  <Icon name={chip ? (chip.state === "bad" ? "alert" : "clock") : "check"} size={12} />
-                  {chip ? chip.label : "All good"}
-                  {chips.length > 1 && <i className="fl-more">+{chips.length - 1}</i>}
+                {isSold ? (
+                  <span className="dchip mute">Sold</span>
+                ) : (
+                  <span className={`dchip ${chip ? chip.state : "ok"}`}>
+                    <Icon name={chip ? (chip.state === "bad" ? "alert" : "clock") : "check"} size={12} />
+                    {chip ? chip.label : "All good"}
+                    {chips.length > 1 && <i className="fl-more">+{chips.length - 1}</i>}
+                  </span>
+                )}
+                <span className="fl-value">
+                  <b>{fmtMoney(v.value)}</b>
+                  {!isSold && ai !== null && (
+                    <em className="fl-tiff">
+                      <Icon name="sparkles" size={11} />
+                      {fmtMoney(ai)}
+                    </em>
+                  )}
                 </span>
-                <span className="fl-value">{fmtMoney(v.value)}</span>
                 <span className="dmorewrap" onClick={(e) => e.stopPropagation()}>
                   <button
                     className="dmore"
@@ -237,10 +265,15 @@ export function FleetRegister({ fleet, staff }: { fleet: FleetState; staff: Demo
         {rows.length === 0 && <div className="direm on">No vehicles match your filters.</div>}
         <div className="fl-total">
           <span>
-            {vehicles.length} vehicle{vehicles.length === 1 ? "" : "s"}
+            {working.length} vehicle{working.length === 1 ? "" : "s"}
+            {sold.length > 0 && ` · ${sold.length} sold`}
           </span>
           <span>
             Fleet value <b>{fmtMoney(fleetValue(vehicles))}</b>
+            <em className="fl-tiff">
+              <Icon name="sparkles" size={11} />
+              Tiff ≈ {fmtMoney(fleetAiValue(vehicles))}
+            </em>
           </span>
         </div>
       </div>
@@ -273,12 +306,14 @@ export function FleetRegister({ fleet, staff }: { fleet: FleetState; staff: Demo
         <DetailModal
           vehicle={openVehicle}
           chips={vehicleChips(openVehicle, openIssueCount(logs, openVehicle.id))}
-          logs={logs.filter((l) => l.vehicleId === openVehicle.id)}
+          logs={logsFor(logs, openVehicle.id)}
+          eco={fuelEconomy(logsFor(logs, openVehicle.id))}
           staff={staff}
           manager
           onClose={() => setModal({ t: "none" })}
           onEdit={() => setModal({ t: "edit", id: openVehicle.id })}
           onAssign={(sid) => fleet.assignVehicle(openVehicle.id, sid)}
+          onStatus={(status) => fleet.saveVehicle({ ...openVehicle, status })}
           onLog={(kind) => setModal({ t: "log", id: openVehicle.id, kind })}
           onResolve={fleet.resolveIssue}
           onRemove={() => {

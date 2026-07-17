@@ -1,20 +1,28 @@
-/* Fleet — pure logic: vehicle status derivation, prototype-overlay merge,
-   filtering, sorting & formatting. Mirrors timepay/logic.ts: everything here
-   is side-effect free and jest-covered; React state lives in fleet-state.ts. */
+/* Fleet — pure logic: vehicle status derivation, AI value model, prototype-
+   overlay merge, filtering, sorting & formatting. Mirrors timepay/logic.ts:
+   everything here is side-effect free and jest-covered; React state lives in
+   fleet-state.ts. */
+
+export type VehicleStatus = "active" | "offroad" | "sold";
 
 export type Vehicle = {
   id: string;
-  callsign: string; // e.g. "VRF-04" — matches DemoStaff.vehicle
+  /** Optional friendly name / fleet no. (e.g. "VRF-04"); rego is the fallback identity. */
+  name: string;
   make: string;
   model: string;
   year: number;
-  plate: string;
+  plate: string; // rego plate — the primary identifier
+  status: VehicleStatus;
   odometer: number; // km
   assignedTo: string | null; // DemoStaff id; null = pool / unassigned
-  value: number; // $ — shown to Manager+ only
+  value: number; // $ book value — shown to Manager+ only
+  purchasePrice: number; // $ — 0 = unknown; feeds the Tiff estimate
+  purchaseDateDays: number; // days since purchase (0 = unknown/new)
   regoDays: number; // days until rego expires (negative = expired)
   insuranceDays: number; // days until insurance expires
-  serviceDueKm: number; // odometer reading the next service is due at
+  serviceIntervalKm: number; // service every N km
+  lastServiceOdo: number; // odometer at the last completed service
   notes?: string;
 };
 
@@ -35,6 +43,32 @@ export type VehicleLog = {
   status?: "open" | "resolved"; // issues only
 };
 
+export const STATUS_LABEL: Record<VehicleStatus, string> = {
+  active: "In service",
+  offroad: "Off road",
+  sold: "Sold",
+};
+
+/** Row/hero identity: friendly name when set, else the rego plate. */
+export function displayName(v: Vehicle): string {
+  return v.name || v.plate;
+}
+
+/** "Toyota Hiace ZR 2022" (year omitted when unknown). */
+export function modelLabel(v: Vehicle): string {
+  return [v.make, v.model, v.year || null].filter(Boolean).join(" ");
+}
+
+/* ---- service schedule (interval-based; Log service resets the cycle) ---- */
+
+export function serviceDueKm(v: Vehicle): number {
+  return v.lastServiceOdo + v.serviceIntervalKm;
+}
+
+export function serviceKmLeft(v: Vehicle): number {
+  return serviceDueKm(v) - v.odometer;
+}
+
 /* ---- status chips ---- */
 
 export type ChipState = "ok" | "warn" | "bad";
@@ -44,13 +78,11 @@ export const REGO_WARN_DAYS = 30;
 export const INSURANCE_WARN_DAYS = 30;
 export const SERVICE_WARN_KM = 1500;
 
-export function serviceKmLeft(v: Vehicle): number {
-  return v.serviceDueKm - v.odometer;
-}
-
 /** Everything wrong (or soon-wrong) with a vehicle, worst-first. Empty = all good. */
 export function vehicleChips(v: Vehicle, openIssues: number): StatusChip[] {
+  if (v.status === "sold") return [];
   const chips: StatusChip[] = [];
+  if (v.status === "offroad") chips.push({ label: "Off road", state: "bad" });
   if (v.regoDays < 0) chips.push({ label: `Rego expired ${-v.regoDays}d ago`, state: "bad" });
   else if (v.regoDays <= REGO_WARN_DAYS) chips.push({ label: `Rego ${v.regoDays}d`, state: "warn" });
   if (v.insuranceDays < 0) chips.push({ label: "Insurance expired", state: "bad" });
@@ -71,6 +103,57 @@ export function worstState(chips: StatusChip[]): ChipState {
   return "ok";
 }
 
+/* ---- shared fact derivation (detail modal + my-vehicle tiles) ---- */
+
+export type VehicleFact = { key: string; label: string; text: string; state: ChipState };
+
+export function vehicleFacts(v: Vehicle): VehicleFact[] {
+  const left = serviceKmLeft(v);
+  return [
+    { key: "odo", label: "Odometer", text: `${fmtKm(v.odometer)} km`, state: "ok" },
+    {
+      key: "service",
+      label: "Next service",
+      text: left < 0 ? `${fmtKm(-left)} km overdue` : `in ${fmtKm(left)} km`,
+      state: left < 0 ? "bad" : left <= SERVICE_WARN_KM ? "warn" : "ok",
+    },
+    {
+      key: "rego",
+      label: "Rego",
+      text: v.regoDays < 0 ? `expired ${-v.regoDays}d ago` : `renews in ${v.regoDays}d`,
+      state: v.regoDays < 0 ? "bad" : v.regoDays <= REGO_WARN_DAYS ? "warn" : "ok",
+    },
+    {
+      key: "insurance",
+      label: "Insurance",
+      text: v.insuranceDays < 0 ? "expired" : `renews in ${v.insuranceDays}d`,
+      state: v.insuranceDays < 0 ? "bad" : v.insuranceDays <= INSURANCE_WARN_DAYS ? "warn" : "ok",
+    },
+  ];
+}
+
+/* ---- Tiff estimate (AI vehicle value — deterministic demo model) ----
+   Depreciate the purchase price by age, then adjust for kms driven vs the
+   expected 15,000 km/yr, clamped to ±20% of the age curve. Manager+ only in
+   the UI, like every valuation. */
+
+export const AI_YEAR1 = 0.9; // keeps 90% after year 1
+export const AI_ANNUAL = 0.95; // then 95% per year (AU utes/vans hold value)
+export const AI_KM_RATE = 0.06; // $ per km away from the expected odometer
+export const AI_EXPECTED_KM_YR = 15000;
+
+export function aiValue(v: Vehicle): number | null {
+  const base = v.purchasePrice || v.value || 0;
+  if (!base) return null;
+  const age = Math.max(0, v.purchaseDateDays) / 365.25;
+  const ageFactor = age <= 1 ? 1 - (1 - AI_YEAR1) * age : AI_YEAR1 * Math.pow(AI_ANNUAL, age - 1);
+  const curve = base * ageFactor;
+  const expectedKm = age * AI_EXPECTED_KM_YR + 2000;
+  const est = curve + (expectedKm - v.odometer) * AI_KM_RATE;
+  const clamped = Math.min(curve * 1.2, Math.max(curve * 0.8, est));
+  return Math.max(0, Math.round(clamped / 100) * 100);
+}
+
 /* ---- prototype overlay (localStorage stands in for the backend) ---- */
 
 export type FleetOverlay = {
@@ -88,6 +171,32 @@ export const EMPTY_OVERLAY: FleetOverlay = {
   logs: [],
   resolved: [],
 };
+
+/** Backfill v2 fields on records stored by older prototype builds (LS overlays). */
+export function migrateVehicle(raw: Partial<Vehicle> & { callsign?: string; serviceDueKm?: number }): Vehicle {
+  const odometer = raw.odometer ?? 0;
+  const interval = raw.serviceIntervalKm ?? 10000;
+  return {
+    id: raw.id ?? "vehicle",
+    name: raw.name ?? raw.callsign ?? "",
+    make: raw.make ?? "",
+    model: raw.model ?? "",
+    year: raw.year ?? 0,
+    plate: raw.plate ?? "",
+    status: raw.status ?? "active",
+    odometer,
+    assignedTo: raw.assignedTo ?? null,
+    value: raw.value ?? 0,
+    purchasePrice: raw.purchasePrice ?? 0,
+    purchaseDateDays: raw.purchaseDateDays ?? 0,
+    regoDays: raw.regoDays ?? 365,
+    insuranceDays: raw.insuranceDays ?? 365,
+    serviceIntervalKm: interval,
+    // old records stored the due odometer directly — rebuild the cycle from it
+    lastServiceOdo: raw.lastServiceOdo ?? (raw.serviceDueKm ? raw.serviceDueKm - interval : odometer),
+    notes: raw.notes,
+  };
+}
 
 export function mergeFleet(demo: Vehicle[], o: FleetOverlay): Vehicle[] {
   const base = demo.filter((v) => !o.removed.includes(v.id)).map((v) => o.edited[v.id] ?? v);
@@ -110,10 +219,25 @@ export function openIssueCount(logs: VehicleLog[], vehicleId: string): number {
   return logs.filter((l) => l.vehicleId === vehicleId && l.kind === "issue" && l.status === "open").length;
 }
 
+/** L/100km per fuel log, from the odo delta since the previous fill. */
+export function fuelEconomy(logs: VehicleLog[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  const fills = logs
+    .filter((l) => l.kind === "fuel" && typeof l.odo === "number" && (l.litres ?? 0) > 0)
+    .sort((a, b) => b.ago - a.ago); // oldest → newest
+  for (let i = 1; i < fills.length; i++) {
+    const dist = (fills[i].odo as number) - (fills[i - 1].odo as number);
+    if (dist <= 0) continue;
+    const e = ((fills[i].litres as number) / dist) * 100;
+    if (e >= 2 && e <= 40) out[fills[i].id] = Math.round(e * 10) / 10;
+  }
+  return out;
+}
+
 /* ---- register filtering / sorting ---- */
 
-export type FleetTab = "all" | "attention" | "pool";
-export type FleetSort = "callsign" | "attention" | "value";
+export type FleetTab = "all" | "attention" | "pool" | "sold";
+export type FleetSort = "attention" | "name" | "value";
 
 export function filterVehicles(
   vehicles: Vehicle[],
@@ -124,10 +248,15 @@ export function filterVehicles(
 ): Vehicle[] {
   const q = query.trim().toLowerCase();
   return vehicles.filter((v) => {
-    if (tab === "attention" && vehicleChips(v, openIssueCount(logs, v.id)).length === 0) return false;
-    if (tab === "pool" && v.assignedTo !== null) return false;
+    if (tab === "sold") {
+      if (v.status !== "sold") return false;
+    } else {
+      if (v.status === "sold") return false;
+      if (tab === "attention" && vehicleChips(v, openIssueCount(logs, v.id)).length === 0) return false;
+      if (tab === "pool" && v.assignedTo !== null) return false;
+    }
     if (!q) return true;
-    const hay = `${v.callsign} ${v.make} ${v.model} ${v.plate} ${staffName(v.assignedTo)}`.toLowerCase();
+    const hay = `${v.name} ${v.make} ${v.model} ${v.plate} ${staffName(v.assignedTo)}`.toLowerCase();
     return hay.includes(q);
   });
 }
@@ -141,27 +270,34 @@ export function sortVehicles(vehicles: Vehicle[], logs: VehicleLog[], sort: Flee
       const wb = rank[worstState(vehicleChips(b, openIssueCount(logs, b.id)))];
       if (wa !== wb) return wa - wb;
     }
-    return a.callsign.localeCompare(b.callsign);
+    return displayName(a).localeCompare(displayName(b));
   });
 }
 
+/** Book + Tiff totals across the working fleet (sold excluded from both). */
 export function fleetValue(vehicles: Vehicle[]): number {
-  return vehicles.reduce((sum, v) => sum + v.value, 0);
+  return vehicles.filter((v) => v.status !== "sold").reduce((sum, v) => sum + v.value, 0);
+}
+
+export function fleetAiValue(vehicles: Vehicle[]): number {
+  return vehicles
+    .filter((v) => v.status !== "sold")
+    .reduce((sum, v) => sum + (aiValue(v) ?? 0), 0);
 }
 
 /* ---- small helpers ---- */
 
-/** "Toyota Hiace ZR 2022" (year omitted when unknown). */
-export function vehicleName(v: Vehicle): string {
-  return [v.make, v.model, v.year || null].filter(Boolean).join(" ");
-}
-
 export function fmtKm(n: number): string {
-  return Math.round(n).toLocaleString("en-NZ");
+  return Math.round(n).toLocaleString("en-AU");
 }
 
 export function fmtMoney(n: number): string {
-  return `$${Math.round(n).toLocaleString("en-NZ")}`;
+  return `$${Math.round(n).toLocaleString("en-AU")}`;
+}
+
+/** Money with cents — fuel dockets ($158.40). */
+export function fmtCost(n: number): string {
+  return `$${n.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 /** Whole days from today to an ISO date (negative = past). Both args ISO yyyy-mm-dd. */
@@ -171,10 +307,10 @@ export function daysUntil(dateISO: string, todayISO: string): number {
   return Math.round((d - t) / 86400000);
 }
 
-/** Stable unique id from a callsign ("VRF 09" → "vrf-09", "vrf-09-2" if taken). */
-export function slugId(callsign: string, taken: string[]): string {
+/** Stable unique id from a name/plate ("VRF 09" → "vrf-09", "vrf-09-2" if taken). */
+export function slugId(label: string, taken: string[]): string {
   const base =
-    callsign
+    label
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "") || "vehicle";

@@ -1,12 +1,18 @@
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
 import { TeamDirectory } from "@/components/team/directory";
-import { demoPendingInvites, demoStaff } from "@/mock/demo";
+import { demoPendingInvites, demoStaff, getDemoVehicleForStaff } from "@/mock/demo";
+import { displayName } from "@/components/fleet/logic";
 
 // NOTE: reads demo records from mock/demo.ts for now. Delete that mock and the
 // directory falls back to the "No staff yet" empty state below.
+// The Vehicle column derives from the Fleet register's assignments — one source.
 
 export default function TeamPage() {
+  const rows = demoStaff.map((s) => {
+    const v = getDemoVehicleForStaff(s.id);
+    return { ...s, vehicle: v ? displayName(v) : "" };
+  });
   return (
     <div className="page in">
       <div className="wrap">
@@ -36,7 +42,7 @@ export default function TeamPage() {
               <em>Invite your team to start building staff profiles.</em>
             </div>
           ) : (
-            <TeamDirectory staff={demoStaff} pending={demoPendingInvites} />
+            <TeamDirectory staff={rows} pending={demoPendingInvites} />
           )}
         </div>
       </div>

@@ -8,6 +8,7 @@ import {
   type VehicleLog,
   mergeFleet,
   mergeLogs,
+  migrateVehicle,
 } from "./logic";
 
 /* localStorage stands in for the backend (matching timepay's ht_tp_* pattern):
@@ -41,7 +42,15 @@ export function useFleetState(demoVehicles: Vehicle[], demoLogs: VehicleLog[]): 
   useEffect(() => {
     try {
       const raw = localStorage.getItem(LS_KEY);
-      if (raw) setOverlay({ ...EMPTY_OVERLAY, ...(JSON.parse(raw) as Partial<FleetOverlay>) });
+      if (raw) {
+        const parsed = { ...EMPTY_OVERLAY, ...(JSON.parse(raw) as Partial<FleetOverlay>) };
+        // older prototype builds stored v1 vehicle shapes — backfill v2 fields
+        parsed.added = parsed.added.map(migrateVehicle);
+        parsed.edited = Object.fromEntries(
+          Object.entries(parsed.edited).map(([id, v]) => [id, migrateVehicle(v)]),
+        );
+        setOverlay(parsed);
+      }
     } catch {
       /* corrupt prototype state — start clean */
     }
@@ -100,9 +109,13 @@ export function useFleetState(demoVehicles: Vehicle[], demoLogs: VehicleLog[]): 
     (log: Omit<VehicleLog, "id" | "when" | "ago">) => {
       const stamped: VehicleLog = { ...log, id: `pl-${Date.now()}`, when: whenLabel(), ago: 0 };
       update((o) => ({ ...o, logs: [stamped, ...o.logs] }));
-      // fuel/odo entries carry a reading — roll the vehicle's odometer forward
       const v = vehicles.find((x) => x.id === log.vehicleId);
-      if (v && typeof log.odo === "number" && log.odo > v.odometer) {
+      if (!v || typeof log.odo !== "number") return;
+      if (log.kind === "service") {
+        // a completed service resets the cycle from its odo reading
+        saveVehicle({ ...v, lastServiceOdo: log.odo, odometer: Math.max(v.odometer, log.odo) });
+      } else if (log.odo > v.odometer) {
+        // fuel/odo entries carry a reading — roll the vehicle's odometer forward
         saveVehicle({ ...v, odometer: log.odo });
       }
     },

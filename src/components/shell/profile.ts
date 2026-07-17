@@ -4,13 +4,14 @@
 
 import { iconSvg } from "./icon";
 import type { DemoStaff } from "@/mock/demo";
-import { demoVehicleLogs, getDemoVehicleByCallsign } from "@/mock/demo";
+import { demoVehicleLogs, getDemoVehicleForStaff } from "@/mock/demo";
 import {
+  displayName,
   fmtKm,
+  modelLabel,
   openIssueCount,
   serviceKmLeft,
   vehicleChips,
-  vehicleName,
 } from "@/components/fleet/logic";
 
 // profile-specific icons (the rest fall back to the shared icon set)
@@ -178,7 +179,7 @@ function vehicle(s: DemoStaff) {
   const head =
     `<div class="c2h"><span class="ci">${ic("truck", 18)}</span>` +
     "<span><b>Assigned vehicle</b><em>Linked from Fleet — manage in Assets</em></span></div>";
-  const v = getDemoVehicleByCallsign(s.vehicle);
+  const v = getDemoVehicleForStaff(s.id);
   if (!v) {
     return (
       '<section class="psec" data-sec="vehicle">' +
@@ -198,19 +199,22 @@ function vehicle(s: DemoStaff) {
           )
           .join("");
   const left = serviceKmLeft(v);
+  const lastFuel = demoVehicleLogs
+    .filter((l) => l.vehicleId === v.id && l.kind === "fuel")
+    .sort((a, b) => a.ago - b.ago)[0];
   const fact = (label: string, val: string) => `<span><em>${label}</em><b>${val}</b></span>`;
   return (
     '<section class="psec" data-sec="vehicle">' +
     `<div class="card2" data-static>${head}` +
     '<div class="pveh">' +
     `<div class="pvh"><span class="pvi">${ic("truck", 20)}</span>` +
-    `<span><b>${v.callsign} · ${vehicleName(v)}</b><em>Plate ${v.plate}</em></span></div>` +
+    `<span><b>${displayName(v)} · ${modelLabel(v)}</b><em>Rego ${v.plate}</em></span></div>` +
     `<div class="pvchips">${chipHtml}</div>` +
     '<div class="pvfacts">' +
     fact("Odometer", `${fmtKm(v.odometer)} km`) +
     fact("Next service", left < 0 ? `${fmtKm(-left)} km overdue` : `in ${fmtKm(left)} km`) +
     fact("Rego", v.regoDays < 0 ? "expired" : `in ${v.regoDays}d`) +
-    fact("Insurance", v.insuranceDays < 0 ? "expired" : `in ${v.insuranceDays}d`) +
+    fact("Last fuel", lastFuel ? `${lastFuel.litres} L · ${lastFuel.when}` : "—") +
     "</div></div>" +
     "</div></section>"
   );

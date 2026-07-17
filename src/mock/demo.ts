@@ -18,7 +18,6 @@ export type DemoStaff = {
   years: string;
   licenceCount: number;
   status: "Active" | "Inactive";
-  vehicle: string;
   // state drives the chip colour; expiresDays drives the compliance-expiry sort
   compliance: { label: string; state: "ok" | "warn" | "bad"; expiresDays: number };
 };
@@ -44,7 +43,6 @@ export const demoStaff: DemoStaff[] = [
     years: "3.2",
     licenceCount: 4,
     status: "Active",
-    vehicle: "VRF-04",
     compliance: { label: "ARC expires 14d", state: "warn", expiresDays: 14 },
   },
   {
@@ -58,7 +56,6 @@ export const demoStaff: DemoStaff[] = [
     years: "2.9",
     licenceCount: 3,
     status: "Active",
-    vehicle: "SRV-02",
     compliance: { label: "Work rights unverified", state: "warn", expiresDays: 0 },
   },
   {
@@ -72,7 +69,6 @@ export const demoStaff: DemoStaff[] = [
     years: "1.4",
     licenceCount: 1,
     status: "Active",
-    vehicle: "",
     compliance: { label: "White Card expired", state: "bad", expiresDays: -3 },
   },
   {
@@ -86,7 +82,6 @@ export const demoStaff: DemoStaff[] = [
     years: "5.0",
     licenceCount: 1,
     status: "Active",
-    vehicle: "",
     compliance: { label: "Compliant", state: "ok", expiresDays: 9999 },
   },
   {
@@ -100,7 +95,6 @@ export const demoStaff: DemoStaff[] = [
     years: "3.6",
     licenceCount: 3,
     status: "Active",
-    vehicle: "VRF-07",
     compliance: { label: "Insurance 30d", state: "warn", expiresDays: 30 },
   },
   {
@@ -114,7 +108,6 @@ export const demoStaff: DemoStaff[] = [
     years: "2.4",
     licenceCount: 2,
     status: "Active",
-    vehicle: "",
     compliance: { label: "Compliant", state: "ok", expiresDays: 9999 },
   },
   {
@@ -128,7 +121,6 @@ export const demoStaff: DemoStaff[] = [
     years: "4.1",
     licenceCount: 2,
     status: "Inactive",
-    vehicle: "",
     compliance: { label: "—", state: "ok", expiresDays: 9999 },
   },
 ];
@@ -142,97 +134,140 @@ export function getDemoStaff(id: string): DemoStaff | null {
   return demoStaff.find((s) => s.id === id) ?? null;
 }
 
-// Fleet — demo vehicle register + activity history. Callsigns line up with
-// demoStaff.vehicle (VRF-04 Jordan, SRV-02 Priya, VRF-07 Marcus); the rest sit
-// in the pool. Expiries are day-counts (like compliance.expiresDays above) and
+// Fleet — demo vehicle register + activity history. Assignments live here
+// (assignedTo → DemoStaff.id) and drive the directory column + profile card.
+// Expiries/purchase age are day-counts (like compliance.expiresDays above) and
 // log recency is `ago` days — both deterministic so SSR markup stays stable.
 
 export const demoVehicles: Vehicle[] = [
   {
     id: "vrf-04",
-    callsign: "VRF-04",
+    name: "VRF-04",
     make: "Toyota",
     model: "Hiace ZR",
     year: 2022,
     plate: "MKT482",
+    status: "active",
     odometer: 84120,
     assignedTo: "jordan-mills",
     value: 52000,
+    purchasePrice: 58900,
+    purchaseDateDays: 1524,
     regoDays: 21,
     insuranceDays: 208,
-    serviceDueKm: 85500,
+    serviceIntervalKm: 10000,
+    lastServiceOdo: 75500,
   },
   {
     id: "srv-02",
-    callsign: "SRV-02",
+    name: "SRV-02",
     make: "Ford",
     model: "Transit Custom",
     year: 2021,
     plate: "PHD319",
+    status: "active",
     odometer: 112640,
     assignedTo: "priya-nair",
     value: 46500,
+    purchasePrice: 52000,
+    purchaseDateDays: 1800,
     regoDays: 96,
     insuranceDays: 30,
-    serviceDueKm: 115000,
+    serviceIntervalKm: 10000,
+    lastServiceOdo: 105000,
   },
   {
     id: "vrf-07",
-    callsign: "VRF-07",
+    name: "VRF-07",
     make: "Toyota",
     model: "Hilux SR5",
     year: 2023,
     plate: "QCP211",
+    status: "active",
     odometer: 41980,
     assignedTo: "marcus-webb",
     value: 58900,
+    purchasePrice: 61500,
+    purchaseDateDays: 1225,
     regoDays: 152,
     insuranceDays: 289,
-    serviceDueKm: 45000,
+    serviceIntervalKm: 10000,
+    lastServiceOdo: 35000,
   },
   {
     id: "ute-01",
-    callsign: "UTE-01",
+    name: "UTE-01",
     make: "Mitsubishi",
     model: "Triton GLX",
     year: 2019,
     plate: "LRT906",
+    status: "offroad",
     odometer: 158300,
     assignedTo: null,
     value: 31500,
+    purchasePrice: 42000,
+    purchaseDateDays: 2470,
     regoDays: 44,
     insuranceDays: 118,
-    serviceDueKm: 157500,
-    notes: "Pool ute — site runs & tip loads",
+    serviceIntervalKm: 10000,
+    lastServiceOdo: 147500,
+    notes: "Pool ute — off road at Braeside Auto for service & tow-bar mount",
   },
   {
     id: "srv-05",
-    callsign: "SRV-05",
+    name: "SRV-05",
     make: "Ford",
     model: "Transit 350L",
     year: 2018,
     plate: "KWD073",
+    status: "active",
     odometer: 189450,
     assignedTo: null,
     value: 27000,
+    purchasePrice: 49000,
+    purchaseDateDays: 3080,
     regoDays: 7,
     insuranceDays: 61,
-    serviceDueKm: 193000,
+    serviceIntervalKm: 10000,
+    lastServiceOdo: 183000,
   },
   {
     id: "van-03",
-    callsign: "VAN-03",
+    name: "VAN-03",
     make: "Hyundai",
     model: "Staria Load",
     year: 2024,
     plate: "RJB558",
+    status: "active",
     odometer: 12840,
     assignedTo: null,
     value: 54800,
+    purchasePrice: 56500,
+    purchaseDateDays: 620,
     regoDays: 233,
     insuranceDays: 175,
-    serviceDueKm: 15000,
+    serviceIntervalKm: 10000,
+    lastServiceOdo: 10110,
     notes: "New spare — keep for install crews",
+  },
+  {
+    id: "van-01",
+    name: "VAN-01",
+    make: "Toyota",
+    model: "Hiace",
+    year: 2016,
+    plate: "JTB114",
+    status: "sold",
+    odometer: 248900,
+    assignedTo: null,
+    value: 14000,
+    purchasePrice: 44000,
+    purchaseDateDays: 3800,
+    regoDays: 400,
+    insuranceDays: 400,
+    serviceIntervalKm: 10000,
+    lastServiceOdo: 245000,
+    notes: "Sold May 2026 — Pickles auction",
   },
 ];
 
@@ -287,10 +322,10 @@ export const demoVehicleLogs: VehicleLog[] = [
     vehicleId: "vrf-04",
     staffId: null,
     kind: "service",
-    when: "Sat 6 Jun",
-    ago: 41,
-    note: "80,000 km service — ProAuto Botany, brakes & filters",
-    odo: 80090,
+    when: "Sat 6 Dec",
+    ago: 223,
+    note: "75,000 km service — Braeside Auto, brakes & filters",
+    odo: 75500,
   },
   {
     id: "vl-06",
@@ -339,6 +374,17 @@ export const demoVehicleLogs: VehicleLog[] = [
     odo: 158260,
   },
   {
+    id: "vl-13",
+    vehicleId: "ute-01",
+    staffId: "marcus-webb",
+    staffName: "Marcus Webb",
+    kind: "issue",
+    when: "Mon 13 Jul",
+    ago: 4,
+    note: "Tow bar mount cracked — off road until welded",
+    status: "open",
+  },
+  {
     id: "vl-10",
     vehicleId: "ute-01",
     staffId: "dylan-reyes",
@@ -367,14 +413,24 @@ export const demoVehicleLogs: VehicleLog[] = [
     kind: "service",
     when: "Mon 8 Jun",
     ago: 39,
-    note: "10,000 km first service — Hyundai North Shore",
+    note: "10,000 km first service — Hyundai Ringwood",
     odo: 10110,
+  },
+  {
+    id: "vl-14",
+    vehicleId: "van-01",
+    staffId: null,
+    kind: "service",
+    when: "Tue 28 Apr",
+    ago: 80,
+    note: "245,000 km pre-sale check — Braeside Auto",
+    odo: 245000,
   },
 ];
 
-export function getDemoVehicleByCallsign(callsign: string): Vehicle | null {
-  if (!callsign) return null;
-  return demoVehicles.find((v) => v.callsign === callsign) ?? null;
+/** The vehicle a staff member drives (sold vehicles never count). */
+export function getDemoVehicleForStaff(staffId: string): Vehicle | null {
+  return demoVehicles.find((v) => v.assignedTo === staffId && v.status !== "sold") ?? null;
 }
 
 // Knowledge-base documents shown on the Tiff AI page and /dashboard/tiff/knowledge.

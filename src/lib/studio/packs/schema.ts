@@ -223,6 +223,14 @@ export interface OutdoorUnit {
   phase: Phase;
   /** exact supply wording from the sheet, e.g. "230V 1N~ 50Hz" / "400V 3N~ 50Hz" */
   power_supply?: string;
+  /** electrical selection (Tier-3 — like sound/weight, absence never blocks
+      engine-readiness; ready.ts does not gate on these). `mca_a` = minimum
+      circuit ampacity; `breaker_a` = recommended max overcurrent device
+      (MOP/MFA), which the outdoor isolator is sized to match. The cockpit's
+      Electrical row derives its default isolator rating from `breaker_a` and
+      degrades to "—" when absent. */
+  mca_a?: number;
+  breaker_a?: number;
   conn_liquid_mm: number;
   conn_gas_mm: number;
   refrigerant: Refrigerant;
@@ -412,7 +420,11 @@ export interface Accessory {
     | "condensate-pump"
     | "filter"
     | "drain-kit"
-    | "mounting";
+    | "mounting"
+    /** physical support for an OUTDOOR unit (wall bracket / ground pad / roof
+        frame) — distinct from the broad "mounting" grab-bag. The cockpit's
+        Mounting row derives its options from these, compatible-with the ODU. */
+    | "outdoor-mount";
   /** unit model list or family patterns (validated) */
   compatible_with: string[];
   description?: string;

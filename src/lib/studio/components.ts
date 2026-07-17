@@ -1,21 +1,32 @@
 /* Design Studio — system Components rows (Stage 4, cockpit panel).
    A pure derivation: (document, dataPack, system, basis) → the list of
-   system-level parts shown on the cockpit's "Components" tab. Two kinds of row:
+   system-level parts shown on the cockpit's "Components" tab. Every row is
+   DERIVED from the pack + the takeoff engines; two of them additionally accept
+   a persisted OVERRIDE:
 
-   - DERIVED (odu, charge) — read straight from the pack + the takeoff engines
-     (systemPairKw, the additional-charge evaluator, the pipe graph). Nothing is
-     invented; when the data isn't there the row degrades to "—".
-   - CHOICE (electrical, mounting) — the ME pack has no isolator-rating or
-     bracket data, so these are picked from a small static catalogue and stored
-     on `system.settings.components` (choiceKey → optionId). Defaults stand in
-     until the user overrides. When the pack later grows real fields these turn
-     back into derived rows without reshaping this contract.
+   - odu, charge — read straight from the pack + engines (systemPairKw, the
+     additional-charge evaluator, the pipe graph). Nothing is invented; when the
+     data isn't there the row degrades to "—".
+   - electrical, mounting — a DERIVED default the installer can still override.
+     The default comes from real pack data: the ODU's recommended breaker
+     (OutdoorUnit.breaker_a / mca_a) sizes the isolator, and the ODU's form
+     (weight/height) picks a compatible outdoor-mount accessory (wall vs
+     ground). The override is a per-system pick stored on
+     `system.settings.components` (choiceKey → optionId). When the pack lacks the
+     data a row degrades to "—" rather than inventing a value — the same
+     contract the odu/charge rows use.
 
    Rows appear only once a pairing resolves (placed models, else the chosen
    pair) — before that the Components tab is empty, matching the room flow. */
 
 import type { DesignDocument, DesignSystem } from "./document";
-import type { AdditionalChargeRule, DataPack, OutdoorUnit } from "./packs/schema";
+import type {
+  Accessory,
+  AdditionalChargeRule,
+  DataPack,
+  OutdoorUnit,
+  PairTable,
+} from "./packs/schema";
 import { buildSystemGraph, totalPipeLengthM } from "./graph";
 import { systemPairKw } from "./coverage";
 import { sizingCapacityKw, type SizingBasis } from "./loads";
@@ -60,44 +71,128 @@ export interface ComponentRow {
   };
 }
 
-/* ─────────────────────────── choice catalogue ───────────────────────────
-   Static, brand-agnostic defaults. No pack data backs these yet (isolator
-   ratings and outdoor brackets aren't in the ME pack), so they are sensible
-   placeholders the installer can adjust — persisted per system. */
+const phaseLabel = (odu: OutdoorUnit): string => (odu.phase === "3" ? "3Ø" : "1Ø");
 
-export const COMPONENT_CHOICES: ComponentChoiceGroup[] = [
-  {
+/* ─────────────── choice groups — derived from pack, override-able ───────────────
+   Built per resolved ODU: the default option reflects real pack data, and a
+   small set of alternatives lets the installer override. The selected option's
+   `id` is what persists on settings.components; an override that no longer fits
+   (e.g. after a unit swap) falls back to the derived default. */
+
+/** Electrical: the outdoor isolator is sized to the ODU's recommended breaker
+    (MOP). Default = the pack rating; the only override is "supplied by others".
+    Degrades to an "—" rating when the ODU carries no `breaker_a`. */
+export function electricalGroup(odu: OutdoorUnit): ComponentChoiceGroup {
+  const hasRating = typeof odu.breaker_a === "number" && odu.breaker_a > 0;
+  const hasMca = typeof odu.mca_a === "number" && odu.mca_a > 0;
+  const packOpt: ComponentChoiceOption = hasRating
+    ? {
+        id: "pack",
+        name: `Isolator · ${odu.breaker_a} A`,
+        sub: hasMca
+          ? `${phaseLabel(odu)} · sized to ${odu.breaker_a} A breaker (MCA ${odu.mca_a} A)`
+          : `${phaseLabel(odu)} · sized to ${odu.breaker_a} A breaker`,
+        value: "1",
+      }
+    : {
+        id: "pack",
+        name: "Isolator",
+        sub: `${phaseLabel(odu)} · rating not in pack`,
+        value: "—",
+      };
+  return {
     key: "electrical",
     role: "Electrical",
     icon: "bolt",
-    defaultId: "isolator-20a",
+    defaultId: "pack",
     options: [
-      { id: "isolator-20a", name: "Isolator · 20 A", sub: "Weatherproof IP66", value: "1" },
-      { id: "isolator-32a", name: "Isolator · 32 A", sub: "3Ø · weatherproof IP66", value: "1" },
-      { id: "none", name: "Supplied by others", sub: "Not in this takeoff", value: "—" },
+      packOpt,
+      { id: "others", name: "Supplied by others", sub: "Not in this takeoff", value: "—" },
     ],
-  },
-  {
+  };
+}
+
+type MountKind = "wall" | "ground" | "roof";
+
+const MOUNT_LABEL: Record<MountKind, string> = {
+  wall: "Wall bracket",
+  ground: "Ground pad",
+  roof: "Roof frame",
+};
+
+/** classify an outdoor-mount accessory by its model id (OM-WALL-* / -GROUND-* /
+    -ROOF-*). Unknown ids keep their model as the label. */
+function mountKind(model: string): MountKind | null {
+  const m = model.toUpperCase();
+  if (m.includes("WALL")) return "wall";
+  if (m.includes("GROUND")) return "ground";
+  if (m.includes("ROOF")) return "roof";
+  return null;
+}
+
+/** family-pattern match, mirroring the pack's `compatible_with` convention: a
+    trailing "*" is a prefix wildcard, anything else is an exact model. */
+function accessoryFitsUnit(a: Accessory, model: string): boolean {
+  return a.compatible_with.some((p) =>
+    p.endsWith("*") ? model.startsWith(p.slice(0, -1)) : p === model
+  );
+}
+
+/** Mounting: options are the outdoor-mount accessories the pack marks compatible
+    with this ODU; the default reflects the ODU's form — heavy / floor-standing
+    → a ground pad, otherwise a wall bracket. Override = any other compatible
+    support. Degrades to a single "—" option when the pack ships no outdoor-mount
+    accessory for this ODU. */
+export function mountingGroup(pack: DataPack, odu: OutdoorUnit): ComponentChoiceGroup {
+  const compat = pack.accessories.filter(
+    (a) => a.category === "outdoor-mount" && accessoryFitsUnit(a, odu.model)
+  );
+  const options: ComponentChoiceOption[] = compat.map((a) => {
+    const kind = mountKind(a.model);
+    return {
+      id: a.model,
+      name: kind ? MOUNT_LABEL[kind] : a.model,
+      sub: a.description,
+      value: "1 set",
+    };
+  });
+
+  const floorStanding =
+    (typeof odu.weight_kg === "number" && odu.weight_kg >= 70) ||
+    (typeof odu.height_mm === "number" && odu.height_mm >= 1200);
+  const preferKind: MountKind = floorStanding ? "ground" : "wall";
+  const preferred = compat.find((a) => mountKind(a.model) === preferKind) ?? compat[0];
+
+  if (options.length === 0) {
+    options.push({ id: "none", name: "Mounting", sub: "No support in pack", value: "—" });
+  }
+
+  return {
     key: "mounting",
     role: "Mounting",
     icon: "mount",
-    defaultId: "wall-bracket",
-    options: [
-      { id: "wall-bracket", name: "Wall bracket", sub: "Galv. steel · anti-vib feet", value: "1 set" },
-      { id: "ground-pad", name: "Ground pad", sub: "Composite · anti-vib feet", value: "1" },
-      { id: "roof-mount", name: "Roof frame", sub: "Galv. steel · spring feet", value: "1 set" },
-    ],
-  },
-];
+    defaultId: preferred?.model ?? "none",
+    options,
+  };
+}
 
-/** the effective choice selection for a system: persisted overrides ∪ defaults */
-export function componentChoices(system: DesignSystem): Record<string, string> {
+/** the two choice groups for a resolved ODU, in display order. */
+export function componentChoiceGroups(pack: DataPack, odu: OutdoorUnit): ComponentChoiceGroup[] {
+  return [electricalGroup(odu), mountingGroup(pack, odu)];
+}
+
+/** the effective choice selection for a system: persisted overrides ∪ each
+    group's derived default. Missing/invalid keys fall back to the default. */
+export function componentChoices(
+  system: DesignSystem,
+  groups: ComponentChoiceGroup[]
+): Record<string, string> {
   const stored =
     system.settings.components && typeof system.settings.components === "object"
       ? (system.settings.components as Record<string, unknown>)
       : {};
   const out: Record<string, string> = {};
-  for (const g of COMPONENT_CHOICES) {
+  for (const g of groups) {
     const v = stored[g.key];
     const valid = typeof v === "string" && g.options.some((o) => o.id === v);
     out[g.key] = valid ? (v as string) : g.defaultId;
@@ -123,8 +218,6 @@ function resolvePair(
   if (!iduModel || !oduModel) return null;
   return { iduModel, oduModel };
 }
-
-const phaseLabel = (odu: OutdoorUnit): string => (odu.phase === "3" ? "3Ø" : "1Ø");
 
 function oduRow(
   doc: DesignDocument,
@@ -202,13 +295,14 @@ function chargeRow(
   };
 }
 
-function choiceRows(system: DesignSystem): ComponentRow[] {
-  const selected = componentChoices(system);
-  return COMPONENT_CHOICES.map((g) => {
+function choiceRows(system: DesignSystem, groups: ComponentChoiceGroup[]): ComponentRow[] {
+  const selected = componentChoices(system, groups);
+  return groups.map((g) => {
     const selectedId = selected[g.key];
     const opt =
       g.options.find((o) => o.id === selectedId) ??
-      g.options.find((o) => o.id === g.defaultId)!;
+      g.options.find((o) => o.id === g.defaultId) ??
+      g.options[0];
     return {
       id: g.key,
       kind: "choice" as const,
@@ -224,9 +318,9 @@ function choiceRows(system: DesignSystem): ComponentRow[] {
 
 /** The system-level component list for the cockpit's Components tab. Empty
     until a pairing resolves; then ODU + refrigerant charge (derived) followed
-    by the electrical + mounting choice rows. Per-room modules (multi / VRF)
-    anchor on the shared outdoor alone — there is no single pairing — and take
-    their charge rule from multi_rules. */
+    by the electrical + mounting rows (derived default, override-able).
+    Per-room modules (multi / VRF) anchor on the shared outdoor alone — there
+    is no single pairing — and take their charge rule from multi_rules. */
 export function systemComponents(
   doc: DesignDocument,
   pack: DataPack | null,
@@ -247,7 +341,7 @@ export function systemComponents(
     return [
       oduRow(doc, pack, system, basis, odu),
       chargeRow(doc, system, odu, rule?.additional_charge ?? null, null),
-      ...choiceRows(system),
+      ...choiceRows(system, componentChoiceGroups(pack, odu)),
     ];
   }
 
@@ -265,6 +359,6 @@ export function systemComponents(
   return [
     oduRow(doc, pack, system, basis, odu),
     chargeRow(doc, system, odu, pair?.additional_charge ?? null, pair?.pipe_liquid_mm ?? null),
-    ...choiceRows(system),
+    ...choiceRows(system, componentChoiceGroups(pack, odu)),
   ];
 }

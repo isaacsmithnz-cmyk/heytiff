@@ -1,6 +1,8 @@
-/* System Components rows (cockpit panel): derived ODU + refrigerant-charge
-   rows from the real shipped pack, plus the electrical/mounting choice rows
-   with default + persisted selection. Runs against the REAL ME pack. */
+/* System Components rows (cockpit panel): ODU + refrigerant-charge rows and the
+   electrical/mounting rows, all DERIVED from the real shipped ME pack. The
+   electrical/mounting defaults come from pack data (OutdoorUnit.breaker_a /
+   mca_a and the outdoor-mount accessories) and stay override-able via
+   settings.components. Runs against the REAL ME pack. */
 
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
@@ -10,12 +12,20 @@ import {
   type DesignObject,
   type DesignSystem,
 } from "../document";
-import { PACK_SECTIONS, emptyPack, type DataPack, type PackMeta } from "../packs/schema";
+import {
+  PACK_SECTIONS,
+  emptyPack,
+  type DataPack,
+  type OutdoorUnit,
+  type PackMeta,
+} from "../packs/schema";
 import { assemblePack, type PackSource } from "../packs/loader";
 import {
   systemComponents,
   componentChoices,
-  COMPONENT_CHOICES,
+  componentChoiceGroups,
+  electricalGroup,
+  mountingGroup,
 } from "../components";
 
 const SEED_DIR = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
@@ -29,6 +39,9 @@ function loadPack(): DataPack {
   return assemblePack({ meta, sections });
 }
 const pack = loadPack();
+
+const odu = (model: string): OutdoorUnit =>
+  pack.outdoor_units.find((o) => o.model === model)!;
 
 /** a calibrated (10 mm/unit) doc with one split system */
 function docWith(settings: Record<string, unknown>): { doc: DesignDocument; system: DesignSystem } {
@@ -85,11 +98,11 @@ describe("systemComponents — derived rows (small split, no pre-charge)", () =>
   });
 
   it("derives the outdoor-unit row from the pack", () => {
-    const odu = rows.find((r) => r.id === "odu")!;
-    expect(odu.kind).toBe("odu");
-    expect(odu.name).toBe("SUZ-M25VAD-A");
-    expect(odu.sub).toBe("1Ø · R32 condenser");
-    expect(odu.value).toBe("2.5 kW"); // pair rated_cool_kw under the cooling basis
+    const o = rows.find((r) => r.id === "odu")!;
+    expect(o.kind).toBe("odu");
+    expect(o.name).toBe("SUZ-M25VAD-A");
+    expect(o.sub).toBe("1Ø · R32 condenser");
+    expect(o.value).toBe("2.5 kW"); // pair rated_cool_kw under the cooling basis
   });
 
   it("shows no top-up when the pair needs none", () => {
@@ -156,43 +169,105 @@ describe("systemComponents — charge with pre-charge + run length", () => {
   });
 });
 
-describe("component choice rows", () => {
-  it("defaults electrical + mounting when nothing is stored", () => {
+describe("electrical row — derived from the ODU breaker rating", () => {
+  it("defaults to the pack-derived isolator for a single-phase split", () => {
+    // SUZ-M25VAD-A: 2.5 kW / 1Ø → MCA 6 A, breaker 10 A
     const { doc, system } = docWith({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" });
-    const rows = systemComponents(doc, pack, system, "cooling");
-    const elec = rows.find((r) => r.id === "electrical")!;
-    const mount = rows.find((r) => r.id === "mounting")!;
+    const elec = systemComponents(doc, pack, system, "cooling").find((r) => r.id === "electrical")!;
     expect(elec.kind).toBe("choice");
-    expect(elec.choice!.selectedId).toBe("isolator-20a");
-    expect(elec.name).toBe("Isolator · 20 A");
-    expect(mount.choice!.selectedId).toBe("wall-bracket");
-    expect(mount.name).toBe("Wall bracket");
+    expect(elec.choice!.selectedId).toBe("pack");
+    expect(elec.name).toBe("Isolator · 10 A");
+    expect(elec.sub).toBe("1Ø · sized to 10 A breaker (MCA 6 A)");
+    expect(elec.value).toBe("1");
   });
 
-  it("honours a persisted override on settings.components", () => {
+  it("carries the three-phase rating and label for a 3Ø split", () => {
+    // PUZ-ZM100YKA3-A: 10 kW / 3Ø → MCA 10 A, breaker 16 A
+    const { doc, system } = docWith({ pairIdu: "PLA-M100EA2-A", pairOdu: "PUZ-ZM100YKA3-A" });
+    const elec = systemComponents(doc, pack, system, "cooling").find((r) => r.id === "electrical")!;
+    expect(elec.name).toBe("Isolator · 16 A");
+    expect(elec.sub).toBe("3Ø · sized to 16 A breaker (MCA 10 A)");
+  });
+
+  it("honours a persisted 'supplied by others' override", () => {
     const { doc, system } = docWith({
       pairIdu: "SLZ-M25FA-A",
       pairOdu: "SUZ-M25VAD-A",
-      components: { electrical: "isolator-32a", mounting: "roof-mount" },
+      components: { electrical: "others" },
     });
-    const rows = systemComponents(doc, pack, system, "cooling");
-    expect(rows.find((r) => r.id === "electrical")!.name).toBe("Isolator · 32 A");
-    expect(rows.find((r) => r.id === "mounting")!.name).toBe("Roof frame");
+    const elec = systemComponents(doc, pack, system, "cooling").find((r) => r.id === "electrical")!;
+    expect(elec.choice!.selectedId).toBe("others");
+    expect(elec.name).toBe("Supplied by others");
+    expect(elec.value).toBe("—");
   });
 
-  it("componentChoices falls back to defaults for missing/invalid keys", () => {
-    const withBad = { ...COMPONENT_CHOICES }; // guard the catalogue is well-formed
-    expect(withBad).toBeTruthy();
+  it("degrades to an '—' rating when the ODU carries no breaker data", () => {
+    const bare = { ...odu("SUZ-M25VAD-A"), mca_a: undefined, breaker_a: undefined };
+    const g = electricalGroup(bare);
+    expect(g.defaultId).toBe("pack");
+    const packOpt = g.options.find((o) => o.id === "pack")!;
+    expect(packOpt.name).toBe("Isolator");
+    expect(packOpt.sub).toBe("1Ø · rating not in pack");
+    expect(packOpt.value).toBe("—");
+  });
+});
+
+describe("mounting row — derived from the ODU form + outdoor-mount accessories", () => {
+  it("defaults a light wall-hung ODU to the wall bracket", () => {
+    // SUZ-M25VAD-A: 30 kg, 550 mm tall → not floor-standing
+    const { doc, system } = docWith({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" });
+    const mount = systemComponents(doc, pack, system, "cooling").find((r) => r.id === "mounting")!;
+    expect(mount.choice!.selectedId).toBe("OM-WALL-BRACKET");
+    expect(mount.name).toBe("Wall bracket");
+    // the pack marks all three supports compatible with the SUZ series
+    expect(mount.choice!.options.map((o) => o.id).sort()).toEqual([
+      "OM-GROUND-KIT",
+      "OM-ROOF-FRAME",
+      "OM-WALL-BRACKET",
+    ]);
+  });
+
+  it("defaults a heavy floor-standing ODU to the ground pad and hides the wall bracket", () => {
+    // PUZ-M100VKA-A: 76 kg → floor-standing; the wall bracket is not PUZ-compatible
+    const { doc, system } = docWith({ pairIdu: "PLA-M100EA2-A", pairOdu: "PUZ-M100VKA-A" });
+    const mount = systemComponents(doc, pack, system, "cooling").find((r) => r.id === "mounting")!;
+    expect(mount.choice!.selectedId).toBe("OM-GROUND-KIT");
+    expect(mount.name).toBe("Ground pad");
+    expect(mount.choice!.options.map((o) => o.id)).not.toContain("OM-WALL-BRACKET");
+  });
+
+  it("honours a persisted mounting override", () => {
+    const { doc, system } = docWith({
+      pairIdu: "SLZ-M25FA-A",
+      pairOdu: "SUZ-M25VAD-A",
+      components: { mounting: "OM-ROOF-FRAME" },
+    });
+    const mount = systemComponents(doc, pack, system, "cooling").find((r) => r.id === "mounting")!;
+    expect(mount.choice!.selectedId).toBe("OM-ROOF-FRAME");
+    expect(mount.name).toBe("Roof frame");
+  });
+
+  it("degrades to a single '—' option when no outdoor-mount fits the ODU", () => {
+    const stranger = { ...odu("SUZ-M25VAD-A"), model: "ZZZ-9000" };
+    const g = mountingGroup(pack, stranger);
+    expect(g.options).toEqual([{ id: "none", name: "Mounting", sub: "No support in pack", value: "—" }]);
+    expect(g.defaultId).toBe("none");
+  });
+});
+
+describe("componentChoices — overrides ∪ derived defaults", () => {
+  it("falls back to the derived default for missing/invalid keys", () => {
+    const groups = componentChoiceGroups(pack, odu("SUZ-M25VAD-A"));
     const bad: DesignSystem = {
       id: "s",
       type: "split",
-      brand: "b",
+      brand: "mitsubishi-electric",
       colour: "#000",
       name: "S",
       settings: { components: { electrical: "does-not-exist" } },
     };
-    const choices = componentChoices(bad);
-    expect(choices.electrical).toBe("isolator-20a"); // invalid → default
-    expect(choices.mounting).toBe("wall-bracket"); // missing → default
+    const choices = componentChoices(bad, groups);
+    expect(choices.electrical).toBe("pack"); // invalid → default
+    expect(choices.mounting).toBe("OM-WALL-BRACKET"); // missing → derived default
   });
 });

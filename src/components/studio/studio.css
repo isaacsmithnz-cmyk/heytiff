@@ -51,12 +51,23 @@
    .fg .main padding) is untouched. */
 .fg .outlet:has(.dstudio) { scrollbar-gutter: auto; }
 
+/* Start screen only: dissolve the shell's light "well" so the dark canvas merges
+   seamlessly into the black frame (topbar + sidebar + gutters are all #050505).
+   Scoped via :has(...:not(.editing)) so the editor keeps its light well and every
+   other dashboard page is untouched. */
+.fg .outlet:has(.dstudio:not(.editing)) {
+  background: transparent; /* was #EDEFF4 — show the #050505 frame through */
+  background-image: none; /* drop the light dot-grid */
+  border-radius: 0; /* drop the rounded well corners/notch */
+  box-shadow: none; /* drop the bright white inset top line */
+}
+
 /* ═════════════ Home ═════════════ */
 
 /* Home = full-bleed immersive dark canvas. Scoped to the start screen only
    (.dstudio:not(.editing)); the editor and every other route stay light. The
-   shell frame is untouched — the canvas fills the outlet below the light topbar
-   and vignettes to #0A0B10 at its edges so it merges into the dark chrome. */
+   canvas base is transparent so the black #050505 frame shows through — sidebar,
+   topbar and content read as one continuous dark surface with no seam. */
 .dstudio:not(.editing) {
   padding: 0;
   gap: 0;
@@ -64,7 +75,7 @@
 .dstudio .ds-home {
   position: relative;
   min-height: calc(100dvh - 96px);
-  background-color: #0a0b10;
+  background-color: transparent;
   background-image: radial-gradient(
       900px 620px at 84% -14%,
       rgba(0, 229, 192, 0.2),
@@ -84,7 +95,7 @@
   background-size: 26px 26px;
   opacity: 0.55;
 }
-/* edge vignette — softens the glow into a black frame */
+/* edge vignette — melts the glow into the #050505 black frame at the edges */
 .dstudio .ds-home::after {
   content: "";
   position: absolute;
@@ -93,12 +104,12 @@
   pointer-events: none;
   background: linear-gradient(
       to right,
-      #0a0b10,
-      rgba(10, 11, 16, 0) 10%,
-      rgba(10, 11, 16, 0) 90%,
-      #0a0b10
+      #050505,
+      rgba(5, 5, 5, 0) 10%,
+      rgba(5, 5, 5, 0) 90%,
+      #050505
     ),
-    linear-gradient(to bottom, #0a0b10, rgba(10, 11, 16, 0) 10%, rgba(10, 11, 16, 0) 90%, #0a0b10);
+    linear-gradient(to bottom, #050505, rgba(5, 5, 5, 0) 10%, rgba(5, 5, 5, 0) 90%, #050505);
 }
 .dstudio .ds-home-stack {
   position: relative;

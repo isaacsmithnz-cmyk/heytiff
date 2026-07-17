@@ -31,7 +31,10 @@
 .fg .side { position:relative; z-index:30; display:flex; flex-direction:column; width:224px; flex:0 0 224px; height:100%;
   background:var(--ink); color:#E8EAED; overflow:hidden; border-right:1px solid rgba(255,255,255,.04);
   box-shadow:20px 0 40px rgba(0,0,0,.1); }
-.fg .side .glow { position:absolute; top:-150px; left:-100px; width:300px; height:300px; border-radius:50%; background:var(--teal); filter:blur(150px); opacity:.15; pointer-events:none; }
+/* teal corner accent — contained to the top-left so its blur doesn't reach the
+   sidebar's right edge (x=224), which would create a tonal step at the
+   sidebar/topbar junction. Kept subtle around the logo. */
+.fg .side .glow { position:absolute; top:-170px; left:-160px; width:250px; height:250px; border-radius:50%; background:var(--teal); filter:blur(120px); opacity:.16; pointer-events:none; }
 .fg .brand { display:flex; align-items:center; gap:16px; padding:40px 32px; position:relative; z-10:1; z-index:10; }
 .fg .ht-logo { display:flex; align-items:center; gap:2px; }
 .fg .ht-logo svg { transition:transform .5s cubic-bezier(.22,1,.36,1); }

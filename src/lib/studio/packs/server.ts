@@ -96,7 +96,12 @@ export async function loadInstalledPack(
 
 /** The packPins → live DataPack bridge. Loads each pinned pack and merges them
     (later wins), so the engine consumes ONE resolved DataPack for a design.
-    Returns null when a design pins nothing yet. */
+    Returns null when a design pins nothing yet.
+
+    NOTE: this is the RAW loader (no HQ overrides). Engine callers that must
+    reflect staff corrections should use `resolveDesignPacksWithOverrides`
+    (overrides-server.ts). Kept override-free here so server.ts has no Supabase
+    dependency (its jest suite runs without env). Currently unused in prod. */
 export async function resolveDesignPacks(
   packPins: Record<string, string>,
   baseDir = DEFAULT_BASE

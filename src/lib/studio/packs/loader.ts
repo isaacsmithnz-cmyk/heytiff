@@ -39,7 +39,7 @@ export function assemblePack(source: PackSource): DataPack {
 }
 
 /** The identity key for a row within its section — what an overlay overrides. */
-function rowKey(section: PackSection, row: unknown): string {
+export function rowKey(section: PackSection, row: unknown): string {
   const r = row as Record<string, unknown>;
   switch (section) {
     case "brands":

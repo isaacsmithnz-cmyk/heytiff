@@ -6,6 +6,25 @@ export const auth0 = new Auth0Client({
   beforeSessionSaved: async (session) => {
     const userId = session.user.sub;
 
+    // Keep a per-user profile row current — created_at (first login) and
+    // last_login_at power the HQ portal's user lists / tenure / activity. Best
+    // effort: a profiles failure must never block login (same posture as the
+    // org-creation error handling below).
+    try {
+      await supabaseAdmin.from("profiles").upsert(
+        {
+          user_id: userId,
+          email: session.user.email ?? null,
+          name: (session.user.name as string | undefined) ?? null,
+          picture: (session.user.picture as string | undefined) ?? null,
+          last_login_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" }
+      );
+    } catch (e) {
+      console.error("Failed to sync profile:", e);
+    }
+
     const { data: memberships } = await supabaseAdmin
       .from("memberships")
       .select("org_id, role")

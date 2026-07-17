@@ -1,7 +1,8 @@
 "use server";
 
 import { auth0 } from "@/lib/auth0";
-import { installedPacks, loadInstalledPack } from "@/lib/studio/packs/server";
+import { installedPacks } from "@/lib/studio/packs/server";
+import { loadPackWithOverrides } from "@/lib/studio/packs/overrides-server";
 import type { DataPack } from "@/lib/studio/packs/schema";
 
 /* Design Studio — data packs for the client (Stage 4).
@@ -20,7 +21,8 @@ export async function loadStudioPack(
   // latest version for the brand (sorted lexically; versions are "2026.1" style)
   const mine = refs.filter((r) => r.brand === brand).sort((a, b) => b.version.localeCompare(a.version));
   if (mine.length === 0) return null;
-  const { pack } = await loadInstalledPack(brand, mine[0].version);
+  // override-aware: HQ manual corrections feed the studio engine here.
+  const { pack } = await loadPackWithOverrides(brand, mine[0].version);
   return { pack, version: mine[0].version };
 }
 

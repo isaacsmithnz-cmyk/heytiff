@@ -222,7 +222,7 @@ function vehicle(s: DemoStaff) {
   if (!v) {
     return (
       '<section class="psec" data-sec="vehicle">' +
-      `<div class="card2">${head}` +
+      `<div class="card2" data-static>${head}` +
       `<div class="ro-empty"><span class="ei">${ic("car", 20)}</span><b>No vehicle assigned</b><em>Assign a vehicle to this staff member from Assets → Fleet to show rego, service status and fuel here.</em></div>` +
       "</div></section>"
     );

@@ -51,6 +51,16 @@
    .fg .main padding) is untouched. */
 .fg .outlet:has(.dstudio) { scrollbar-gutter: auto; }
 
+/* Cross-fade the well instead of snapping when the start screen (dark) flips to
+   the editor (light well) and back — same route, so the outlet element persists
+   and this transition fires. Timed to the shell's .32s page fade so background
+   and content settle together. Scoped to the studio; no other outlet is touched.
+   (Route CHANGES can't fade: AppShell keys the outlet by pathname, so it mounts
+   fresh — that would need the well painted on a stable layer. Out of scope.) */
+.fg .outlet:has(.dstudio) {
+  transition: background-color 0.35s ease, box-shadow 0.35s ease;
+}
+
 /* Start screen only: dissolve the shell's light "well" so the dark canvas merges
    seamlessly into the black frame (topbar + sidebar + gutters are all #050505).
    Scoped via :has(...:not(.editing)) so the editor keeps its light well and every
@@ -66,7 +76,7 @@
    corner-to-corner behind the transparent topbar and sidebar — one piece, no
    box edge for the roaming frame fx to cut against. */
 .fg:has(.dstudio:not(.editing)) .gridbg {
-  display: block;
+  opacity: 1;
   background-image: radial-gradient(
       900px 620px at 84% -14%,
       rgba(0, 229, 192, 0.2),
@@ -393,11 +403,12 @@
   color: rgba(255, 255, 255, 0.42);
   font-weight: 500;
 }
+/* no overflow here: the card is auto-height so the list never scrolls, and any
+   clip would cut the top row's -2px hover lift (and its focus ring) */
 .dstudio .ds-rlist {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  overflow-y: auto;
 }
 .dstudio .ds-rcard {
   display: flex;

@@ -89,11 +89,15 @@ describe("HeatLoadCalculator UI", () => {
     expect(screen.getByText(/20 m² × 145 W\/m²/)).toBeInTheDocument();
   });
 
-  it("prompts for size until both numbers are in", () => {
-    render(<HeatLoadCalculator />);
+  it("prompts for size until both numbers are in, showing a dim 0.0 (not a dash)", () => {
+    const { container } = render(<HeatLoadCalculator />);
     expect(screen.getByText(/Type the room size/)).toBeInTheDocument();
+    expect(container.querySelector(".hl2-hero .big.empty")).toHaveTextContent("0.0");
     fireEvent.change(screen.getByLabelText("Length in metres"), { target: { value: "5" } });
     expect(screen.getByText(/Type the room size/)).toBeInTheDocument();
+    // both numbers in → placeholder styling drops
+    fireEvent.change(screen.getByLabelText("Width in metres"), { target: { value: "4" } });
+    expect(container.querySelector(".hl2-hero .big.empty")).toBeNull();
   });
 
   it("height sits in the size card and feeds the graduated multiplier", () => {

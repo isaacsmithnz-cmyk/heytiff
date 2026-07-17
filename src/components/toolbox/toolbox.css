@@ -139,6 +139,8 @@
 .fg .tool .hl2-hero .lab { font-size: 11px; font-weight: 800; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); margin-bottom: 8px; }
 .fg .tool .hl2-hero .big { font-size: 52px; font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
 .fg .tool .hl2-hero .big small { font-size: 22px; font-weight: 800; color: rgba(255, 255, 255, 0.65); margin-left: 6px; }
+.fg .tool .hl2-hero .big.empty { color: rgba(255, 255, 255, 0.22); }
+.fg .tool .hl2-hero .big.empty small { color: rgba(255, 255, 255, 0.22); }
 .fg .tool .hl2-hero .cls { margin-top: 14px; font-size: 14.5px; font-weight: 600; color: rgba(255, 255, 255, 0.8); }
 .fg .tool .hl2-hero .cls b { color: var(--tool-accent, var(--teal)); font-weight: 800; }
 .fg .tool .hl2-hero .cls a { color: var(--tool-accent, var(--teal)); font-weight: 800; text-decoration: none; }
@@ -192,7 +194,9 @@
 .fg .tool .hl2-adv .tunit .tin { padding-right: 40px; }
 .fg .tool .hl2-adv .tseg { padding: 4px; border-radius: 11px; }
 .fg .tool .hl2-adv .tseg button { padding: 7px 6px; font-size: 12.5px; }
-.fg .tool .hl2-adv .tchip { padding: 5px 9px; font-size: 11.5px; }
+/* orientation chips: equal-width, single row — no orphan NW wrap */
+.fg .tool .hl2-adv .tchips { flex-wrap: nowrap; gap: 6px; }
+.fg .tool .hl2-adv .tchip { flex: 1; min-width: 0; padding: 5px 0; text-align: center; font-size: 11.5px; }
 .fg .tool .hl2-adv .ttog .tl { font-size: 12.5px; }
 
 /* ---------- running-pressures specifics ---------- */

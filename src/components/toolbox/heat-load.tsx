@@ -309,8 +309,9 @@ export function HeatLoadCalculator() {
       <section className="hl2-hero" aria-live="polite">
         <span className="gl" />
         <div className="lab">Design load</div>
-        <div className="big">
-          {kw !== null ? fmtKw(kw) : "—"}
+        {/* dim 0.0 placeholder — an em-dash under the glow reads as a teal bar */}
+        <div className={"big" + (kw === null ? " empty" : "")}>
+          {kw !== null ? fmtKw(kw) : "0.0"}
           <small>kW</small>
         </div>
         {kw !== null ? (

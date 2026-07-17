@@ -93,6 +93,26 @@ describe("Cockpit Components view", () => {
     expect((next!.systems[0].settings.components as Record<string, string>).mounting).toBe("roof-mount");
   });
 
+  it("shows the Pipework section (moved off the room card) with the system's runs", () => {
+    const doc = mkDoc();
+    doc.objects = [
+      room,
+      {
+        id: "run1",
+        type: "pipe-run",
+        systemId: "sys1",
+        floorId: "flr",
+        geometry: { kind: "polyline", points: [{ x: 0, y: 0 }, { x: 100, y: 0 }] },
+        plane: "room",
+        props: { startAttach: "u1" },
+      },
+    ];
+    renderComponents(doc);
+    // Pipework now lives in the Components pane, not behind a room-card sub-tab
+    expect(screen.getByText("Pipework")).toBeInTheDocument();
+    expect(screen.getByText("Refrigerant run", { selector: ".ds-ck-pt" })).toBeInTheDocument();
+  });
+
   it("shows the empty state until a pair resolves", () => {
     // a system with no chosen pair → no components
     const d = createDesign({ name: "T", mode: "blank", now: "2026-07-11T00:00:00.000Z" });

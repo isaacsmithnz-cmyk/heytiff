@@ -112,7 +112,8 @@ describe("Cockpit object card", () => {
   it("selecting a pipe-run shows its attached ends", () => {
     const doc = mkDoc([room("room1", "Living"), run]);
     renderCockpit(doc, "run1");
-    expect(screen.getByText("Refrigerant run")).toBeInTheDocument();
+    // Pipework (Components pane) also lists "Refrigerant run"; target the object card
+    expect(screen.getByText("Refrigerant run", { selector: ".ds-ck-iname" })).toBeInTheDocument();
     expect(screen.getByText("1 of 2 ends")).toBeInTheDocument();
   });
 

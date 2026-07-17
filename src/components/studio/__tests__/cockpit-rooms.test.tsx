@@ -60,6 +60,7 @@ function renderCockpit(
     selectedId?: string | null;
     onSelect?: (id: string | null) => void;
     onMutate?: (fn: (d: DesignDocument) => DesignDocument) => void;
+    onEditRoom?: (id: string) => void;
     onDrawRoom?: () => void;
   } = {}
 ) {
@@ -73,7 +74,7 @@ function renderCockpit(
       onMutate={handlers.onMutate ?? (() => {})}
       selectedId={handlers.selectedId ?? null}
       onSelect={handlers.onSelect ?? (() => {})}
-      onEditRoom={() => {}}
+      onEditRoom={handlers.onEditRoom ?? (() => {})}
       onArmPlace={() => {}}
       onDrawRoom={handlers.onDrawRoom ?? (() => {})}
       floor={floor}
@@ -134,15 +135,16 @@ describe("Cockpit Rooms view", () => {
     expect(drew).toEqual([1]);
   });
 
-  it("the inspect card defaults to the Units sub-tab and switches to Configure", () => {
+  it("the inspect card shows units only; the pill Configure opens the room editor", () => {
+    const edited: string[] = [];
     const doc = baseDoc([room("room1", "Living", "sys1")]);
-    renderCockpit(doc);
-    // default: Units sub visible (the pair's unit cards), Configure hidden (no facts)
+    renderCockpit(doc, { onEditRoom: (id) => edited.push(id) });
+    // flat card: unit selection, no Configure/Units/Pipework tablist, no facts
     expect(screen.getByTestId("unit-card-idu")).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Configure" })).toBeNull();
     expect(screen.queryByText("Area")).not.toBeInTheDocument();
-    // switch to Configure → its facts appear, the Units sub unmounts
-    fireEvent.click(screen.getByRole("tab", { name: "Configure" }));
-    expect(screen.getByText("Area")).toBeInTheDocument();
-    expect(screen.queryByTestId("unit-card-idu")).not.toBeInTheDocument();
+    // Configure moved onto the room pill → opens the room editor
+    fireEvent.click(screen.getByRole("button", { name: "Configure room" }));
+    expect(edited).toContain("room1");
   });
 });

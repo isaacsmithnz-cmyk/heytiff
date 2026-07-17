@@ -1,5 +1,5 @@
 /* Rate Calculator tokens — the HeyTiff system.
-   Palette: teal #00E5C0 (accent), teal-d #00A389 (readable), blue #2E68FF,
+   Palette: teal #00E5C0 (accent), teal-d #22A54E (readable), blue #2E68FF,
    violet #8A2BE2, ink #0A0B10/#050505, bg #F0F2F5, red #FF3366, amber #F0A431.
    Type: Plus Jakarta Sans everywhere — the system has no mono face. */
 export const RC = {
@@ -18,8 +18,8 @@ export const RC = {
   // brand mapping — Install = HeyTiff blue, Service = readable teal
   install: "#2E68FF",
   installSoft: "#EAF0FF",
-  service: "#00A389",
-  serviceSoft: "#E0F6F0",
+  service: "#22A54E",
+  serviceSoft: "#E7F6EC",
   teal:    "#00E5C0",             // accent glow / dark-surface highlight
   amber:   "#F0A431",
   amberSoft: "#FCF3E3",

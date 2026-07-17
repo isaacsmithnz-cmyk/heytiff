@@ -475,6 +475,29 @@
   gap: 16px;
   min-height: 0;
 }
+/* Design step: two columns so the cockpit spans the full height beside the
+   header, filling the space freed when Export/undo/redo left the top bar */
+.dstudio .ds-editor.two-col {
+  display: grid;
+  grid-template-columns: 1fr 284px;
+  grid-template-rows: auto 1fr;
+  column-gap: 10px;
+  row-gap: 16px;
+}
+.dstudio .ds-editor.two-col > .ds-topbar {
+  grid-column: 1;
+  grid-row: 1;
+}
+.dstudio .ds-editor.two-col > .ds-panel {
+  grid-column: 1;
+  grid-row: 2;
+  min-height: 0;
+}
+.dstudio .ds-editor.two-col > .ds-sidecol {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  min-height: 0;
+}
 .dstudio .ds-topbar {
   display: flex;
   align-items: center;
@@ -873,6 +896,12 @@
   flex-wrap: wrap;
   row-gap: 6px;
   min-width: 0;
+}
+/* tight cluster in the canvas-top row: undo/redo+zoom, and Add option+Reference */
+.dstudio .ds-ctop-grp {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .dstudio .ds-floortabs {
   display: flex;
@@ -4915,6 +4944,34 @@
   display: flex;
   flex-direction: column;
   gap: 7px;
+}
+/* room row + its hover-revealed Configure button (opens the room modal) */
+.dstudio .ds-ck-rrow-wrap { position: relative; }
+.dstudio .ds-ck-rcfg {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--ds-border);
+  background: #fff;
+  border-radius: 8px;
+  color: var(--gray500);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease, color 0.12s, border-color 0.12s;
+}
+.dstudio .ds-ck-rrow-wrap:hover .ds-ck-rcfg,
+.dstudio .ds-ck-rrow-wrap:focus-within .ds-ck-rcfg {
+  opacity: 1;
+}
+.dstudio .ds-ck-rcfg:hover {
+  color: var(--ds-teal-ink);
+  border-color: rgba(0, 163, 137, 0.5);
 }
 .dstudio .ds-ck-rrow {
   display: flex;

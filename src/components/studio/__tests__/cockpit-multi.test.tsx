@@ -257,11 +257,15 @@ describe("Shared-outdoor section", () => {
 });
 
 describe("Per-room Unit tab", () => {
-  it("the inspect card offers Configure · Unit · Pipework for multi rooms", () => {
+  it("the multi room inspect shows per-room unit selection with no sub-tabs", () => {
     renderCockpit(mkDoc({ objects: twoRooms() }));
-    expect(screen.getByRole("tab", { name: "Configure" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Unit" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Pipework" })).toBeInTheDocument();
+    // the Configure/Unit/Pipework switcher is gone — the card is unit selection only
+    expect(screen.queryByRole("tab", { name: "Configure" })).toBeNull();
+    expect(screen.queryByRole("tab", { name: "Unit" })).toBeNull();
+    expect(screen.queryByRole("tab", { name: "Pipework" })).toBeNull();
+    expect(screen.getByTestId("multi-unit-sub")).toBeInTheDocument();
+    // Configure moved onto the room pills
+    expect(screen.getAllByRole("button", { name: "Configure room" }).length).toBeGreaterThan(0);
   });
 
   it("choosing a unit writes settings.multiIdus for THIS room only", () => {

@@ -53,40 +53,165 @@
 
 /* ═════════════ Home ═════════════ */
 
+/* Home = full-bleed immersive dark canvas. Scoped to the start screen only
+   (.dstudio:not(.editing)); the editor and every other route stay light. The
+   shell frame is untouched — the canvas fills the outlet below the light topbar
+   and vignettes to #0A0B10 at its edges so it merges into the dark chrome. */
+.dstudio:not(.editing) {
+  padding: 0;
+  gap: 0;
+}
 .dstudio .ds-home {
-  display: grid;
-  grid-template-columns: 1.25fr 1fr;
-  gap: 16px;
-  align-items: stretch;
-}
-@media (max-width: 1100px) {
-  .dstudio .ds-home {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* New design — ink hero with brand mesh */
-.dstudio .ds-hero {
   position: relative;
-  overflow: hidden;
-  border-radius: 32px;
-  background: var(--ink2);
-  color: #fff;
-  padding: 34px;
-  min-height: 320px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  box-shadow: 0 20px 60px -15px rgba(0, 0, 0, 0.4);
+  min-height: calc(100dvh - 96px);
+  background-color: #0a0b10;
+  background-image: radial-gradient(
+      900px 620px at 84% -14%,
+      rgba(0, 229, 192, 0.2),
+      transparent 60%
+    ),
+    radial-gradient(820px 640px at 2% 118%, rgba(46, 104, 255, 0.18), transparent 60%),
+    radial-gradient(680px 560px at 62% 130%, rgba(138, 43, 226, 0.14), transparent 58%);
 }
-.dstudio .ds-hero::before {
+/* faint dot grid */
+.dstudio .ds-home::before {
   content: "";
   position: absolute;
   inset: 0;
+  z-index: 0;
   pointer-events: none;
-  background: radial-gradient(560px 400px at 88% -12%, rgba(0, 229, 192, 0.2), transparent 62%),
-    radial-gradient(520px 420px at -8% 112%, rgba(46, 104, 255, 0.2), transparent 62%),
-    radial-gradient(420px 360px at 55% 120%, rgba(138, 43, 226, 0.12), transparent 60%);
+  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 26px 26px;
+  opacity: 0.55;
+}
+/* edge vignette — softens the glow into a black frame */
+.dstudio .ds-home::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+      to right,
+      #0a0b10,
+      rgba(10, 11, 16, 0) 10%,
+      rgba(10, 11, 16, 0) 90%,
+      #0a0b10
+    ),
+    linear-gradient(to bottom, #0a0b10, rgba(10, 11, 16, 0) 10%, rgba(10, 11, 16, 0) 90%, #0a0b10);
+}
+.dstudio .ds-home-stack {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 1.35fr 0.92fr;
+  gap: 46px;
+  align-items: center;
+  min-height: calc(100dvh - 96px);
+  padding: 52px 60px;
+}
+@media (max-width: 1100px) {
+  .dstudio .ds-home-stack {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    align-items: stretch;
+    padding: 32px 28px;
+  }
+}
+
+/* animated airflow — decorative duct lines drawing across the dark canvas */
+.dstudio .ds-airflow {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  opacity: 0.55;
+  pointer-events: none;
+}
+.dstudio .ds-airflow .dp {
+  stroke: url(#dsAirflowGrad);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+.dstudio .ds-airflow .pdot {
+  fill: var(--teal);
+  opacity: 0;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dstudio .ds-airflow .dp {
+    animation: dsDrawAir 36s cubic-bezier(0.45, 0, 0.25, 1) infinite;
+    animation-delay: var(--d, 0s);
+  }
+  .dstudio .ds-airflow .pdot {
+    animation: dsDotAir 36s linear infinite;
+    animation-delay: var(--d, 0s);
+  }
+}
+@keyframes dsDrawAir {
+  0% {
+    stroke-dashoffset: 1;
+  }
+  20%,
+  64% {
+    stroke-dashoffset: 0;
+  }
+  82%,
+  100% {
+    stroke-dashoffset: -1;
+  }
+}
+@keyframes dsDotAir {
+  0%,
+  4% {
+    opacity: 0;
+  }
+  14%,
+  66% {
+    opacity: 0.9;
+  }
+  80%,
+  100% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dstudio .ds-airflow .dp {
+    stroke-dashoffset: 0;
+  }
+  .dstudio .ds-airflow .pdot {
+    opacity: 0.6;
+  }
+}
+
+/* New design — transparent hero on the dark canvas (no card) */
+.dstudio .ds-hero {
+  position: relative;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+/* soft radial darkening behind the copy so it stays legible over the airflow */
+.dstudio .ds-hero::before {
+  content: "";
+  position: absolute;
+  left: -64px;
+  right: -26px;
+  top: -48px;
+  bottom: -44px;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    132% 116% at 20% 47%,
+    rgba(6, 7, 10, 0.9),
+    rgba(6, 7, 10, 0.44) 52%,
+    transparent 76%
+  );
 }
 .dstudio .ds-hero > * {
   position: relative;
@@ -95,31 +220,32 @@
 .dstudio .ds-hero-badge {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   align-self: flex-start;
-  font: 800 10px var(--mono);
-  letter-spacing: 0.08em;
+  font: 800 11px var(--mono);
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--ds-orange);
-  background: rgba(255, 138, 0, 0.12);
-  border: 1px solid rgba(255, 138, 0, 0.3);
+  color: var(--teal);
+  background: rgba(0, 229, 192, 0.1);
+  border: 1px solid rgba(0, 229, 192, 0.3);
   border-radius: 999px;
-  padding: 5px 11px;
-  margin-bottom: 18px;
+  padding: 7px 13px;
+  margin-bottom: 22px;
 }
 .dstudio .ds-hero h2 {
-  font-size: 38px;
+  font-size: clamp(38px, 4.4vw, 58px);
   font-weight: 800;
-  letter-spacing: -0.03em;
-  line-height: 1.08;
-  margin: 0 0 10px;
+  letter-spacing: -0.04em;
+  line-height: 1.02;
+  margin: 0 0 18px;
 }
 .dstudio .ds-hero p {
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 15.5px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 17px;
   font-weight: 500;
-  max-width: 400px;
-  margin: 0 0 26px;
+  line-height: 1.5;
+  max-width: 44ch;
+  margin: 0 0 34px;
 }
 .dstudio .ds-cta {
   display: inline-flex;
@@ -277,82 +403,90 @@
   color: #fff;
 }
 
-/* Recent designs — white card */
+/* Recent designs — glass card on the dark canvas */
 .dstudio .ds-recent {
-  background: #fff;
-  border: 1px solid var(--ds-border);
-  border-radius: 32px;
-  box-shadow: var(--ds-card-shadow);
-  padding: 26px;
+  background: rgba(255, 255, 255, 0.055);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 26px;
+  box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 24px 22px;
   display: flex;
   flex-direction: column;
   min-height: 320px;
 }
 .dstudio .ds-recent-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   margin-bottom: 14px;
 }
 .dstudio .ds-cardt {
-  font-size: 15px;
+  flex: 1 1 100%;
+  font-size: 17px;
   font-weight: 800;
-  letter-spacing: -0.01em;
-  color: var(--ink);
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+.dstudio .ds-recent-tools {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 .dstudio .ds-import {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  height: 36px;
-  padding: 0 13px;
-  border-radius: 11px;
-  background: #fff;
-  border: 1px solid rgba(10, 12, 20, 0.08);
-  color: var(--gray700);
-  font-size: 12px;
+  gap: 8px;
+  height: 42px;
+  padding: 0 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 13px;
   font-weight: 700;
-  box-shadow: 0 1px 2px rgba(10, 12, 20, 0.04);
+  white-space: nowrap;
   transition: all 0.2s;
   cursor: pointer;
 }
 .dstudio .ds-import:hover {
   border-color: rgba(0, 229, 192, 0.5);
-  transform: translateY(-1px);
+  color: #fff;
 }
 .dstudio .ds-search {
+  flex: 1;
   display: flex;
   align-items: center;
   gap: 9px;
-  background: #fff;
-  border: 1px solid #e9eaee;
-  border-radius: 13px;
-  height: 44px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  height: 42px;
   padding: 0 14px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
-  margin-bottom: 12px;
   transition: all 0.2s;
 }
 .dstudio .ds-search:focus-within {
-  border-color: var(--blue);
-  box-shadow: 0 0 0 3px rgba(46, 104, 255, 0.12);
+  border-color: rgba(0, 229, 192, 0.5);
 }
 .dstudio .ds-search svg {
-  color: var(--gray400);
+  color: rgba(255, 255, 255, 0.42);
   flex: 0 0 auto;
 }
 .dstudio .ds-search input {
   flex: 1;
+  min-width: 0;
   border: none;
   outline: none;
   background: transparent;
   font-size: 13.5px;
   font-weight: 600;
-  color: var(--ink);
+  color: #fff;
 }
 .dstudio .ds-search input::placeholder {
-  color: #aeb4c0;
+  color: rgba(255, 255, 255, 0.42);
   font-weight: 500;
 }
 .dstudio .ds-rlist {
@@ -366,10 +500,9 @@
   align-items: center;
   gap: 14px;
   padding: 13px 14px;
-  border: 1px solid var(--color-surface-line, #f0f0f2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 18px;
-  background: #fff;
-  box-shadow: 0 1px 2px rgba(10, 12, 20, 0.03);
+  background: rgba(255, 255, 255, 0.04);
   cursor: pointer;
   transition: all 0.22s;
   text-align: left;
@@ -377,8 +510,8 @@
 }
 .dstudio .ds-rcard:hover {
   transform: translateY(-2px);
-  border-color: rgba(0, 229, 192, 0.5);
-  box-shadow: 0 12px 26px -16px rgba(10, 12, 20, 0.24);
+  background: rgba(0, 229, 192, 0.07);
+  border-color: rgba(0, 229, 192, 0.45);
 }
 .dstudio .ds-rthumb {
   flex: 0 0 auto;
@@ -388,8 +521,9 @@
   width: 46px;
   height: 46px;
   border-radius: 13px;
-  background: #f4f5f7;
-  color: var(--gray500);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
 }
 .dstudio .ds-rbody {
   flex: 1;
@@ -399,20 +533,20 @@
   font-size: 14.5px;
   font-weight: 800;
   letter-spacing: -0.01em;
-  color: var(--ink);
+  color: #fff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .dstudio .ds-rmeta {
   font: 700 11px var(--mono);
-  color: var(--gray500);
+  color: rgba(255, 255, 255, 0.5);
   margin-top: 4px;
 }
 .dstudio .ds-rwhen {
   flex: 0 0 auto;
   font: 500 11px var(--mono);
-  color: var(--gray400);
+  color: rgba(255, 255, 255, 0.38);
 }
 .dstudio .ds-rdel {
   flex: 0 0 auto;
@@ -422,18 +556,18 @@
   width: 30px;
   height: 30px;
   border-radius: 9px;
-  color: var(--gray400);
+  color: rgba(255, 255, 255, 0.4);
   transition: all 0.2s;
 }
 .dstudio .ds-rdel:hover {
-  background: rgba(255, 51, 102, 0.09);
-  color: var(--red);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
 }
 .dstudio .ds-rdel.arm {
   width: auto;
   padding: 0 10px;
-  background: rgba(255, 51, 102, 0.09);
-  color: var(--red);
+  background: rgba(255, 51, 102, 0.16);
+  color: #ff6b8a;
   font-size: 11.5px;
   font-weight: 800;
 }
@@ -445,13 +579,13 @@
   justify-content: center;
   gap: 6px;
   text-align: center;
-  color: var(--gray400);
+  color: rgba(255, 255, 255, 0.45);
   padding: 30px 0;
 }
 .dstudio .ds-rempty-t {
   font-size: 15px;
   font-weight: 800;
-  color: var(--gray500);
+  color: rgba(255, 255, 255, 0.75);
 }
 .dstudio .ds-rempty-s {
   font-size: 12.5px;
@@ -462,7 +596,7 @@
 .dstudio .ds-ierr {
   font-size: 12px;
   font-weight: 600;
-  color: var(--red);
+  color: #ff6b8a;
   margin-bottom: 10px;
 }
 

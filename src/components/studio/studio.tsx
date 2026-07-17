@@ -11,8 +11,6 @@ import {
 import { openDesignJson, DesignDocumentError } from "@/lib/studio/migrations";
 import {
   browserDesignStore,
-  designFileName,
-  exportDesignJson,
   SyncedDesignStore,
   type DesignStore,
   type DesignSummary,
@@ -65,18 +63,6 @@ const STEPS = [
 ] as const;
 
 const MODE_LABEL = { plan: "Floor plans", blank: "Blank canvas" } as const;
-
-/** Suffix a design's export filename with its variant label, e.g.
-    "14-harbour-view-rd-option-2.heytiff-design.json". */
-function variantFileName(doc: DesignDocument): string {
-  const base = designFileName(doc).replace(/\.heytiff-design\.json$/, "");
-  if (!doc.meta.variantLabel) return `${base}.heytiff-design.json`;
-  const suffix = doc.meta.variantLabel
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-  return `${base}-${suffix}.heytiff-design.json`;
-}
 
 function timeAgo(iso: string): string {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
@@ -268,7 +254,6 @@ export function Studio({
             onAddVariant={addVariant}
             onSwitchVariant={switchVariant}
             onRenameVariant={renameVariant}
-            onLoadVariant={(id) => getStore().load(id)}
             planImages={planImagesInst}
           />
         ) : (
@@ -548,7 +533,6 @@ function Editor({
   onAddVariant,
   onSwitchVariant,
   onRenameVariant,
-  onLoadVariant,
   planImages,
 }: {
   doc: DesignDocument;
@@ -561,7 +545,6 @@ function Editor({
   onAddVariant: () => void;
   onSwitchVariant: (id: string) => void;
   onRenameVariant: (label: string) => void;
-  onLoadVariant: (id: string) => Promise<DesignDocument | null>;
   planImages: PlanImages;
 }) {
   /* ── undo/redo: record the outgoing document before every mutation ── */
@@ -877,32 +860,8 @@ function Editor({
     return () => window.removeEventListener("keydown", onKey);
   }, [step, undo, redo, effectiveSystemId, airGate.ok, armComponent, changeTool]);
 
-  const downloadDoc = (d: DesignDocument, filename: string) => {
-    const blob = new Blob([exportDesignJson(d)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = Object.assign(document.createElement("a"), {
-      href: url,
-      download: filename,
-    });
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const exportJson = () => downloadDoc(doc, designFileName(doc));
-
-  const exportAllVariants = async () => {
-    const targets =
-      doc.variants.length > 0
-        ? doc.variants
-        : [{ id: doc.id, label: doc.meta.variantLabel ?? "" }];
-    for (const v of targets) {
-      const d = v.id === doc.id ? doc : await onLoadVariant(v.id);
-      if (d) downloadDoc(d, variantFileName(d));
-    }
-  };
-
   return (
-    <div className="ds-editor">
+    <div className={`ds-editor${step === 1 && activeFloor ? " two-col" : ""}`}>
       <header className="ds-topbar">
         <button className="ds-back" onClick={onHome} aria-label="Back to studio home">
           <Icon name="chevL" size={17} />
@@ -919,7 +878,15 @@ function Editor({
               }))
             }
           />
-          <span className="ds-job">{MODE_LABEL[doc.meta.mode]}</span>
+          {/* save status sits with the title now (Export removed, top-right freed) */}
+          <span className={`ds-save ${saveState}`}>
+            <span className="dot" />
+            {saveState === "saving"
+              ? "Saving…"
+              : saveState === "local"
+                ? "Saved locally"
+                : "Saved"}
+          </span>
         </div>
         <nav className="ds-steps" aria-label="Workflow">
           {STEPS.map((s, i) => (
@@ -937,45 +904,6 @@ function Editor({
             </button>
           ))}
         </nav>
-        <div className="ds-tb-right">
-          <VariantSwitcher
-            doc={doc}
-            onAdd={onAddVariant}
-            onSwitch={onSwitchVariant}
-            onRename={onRenameVariant}
-          />
-          <button
-            className="ds-tbicon"
-            onClick={undo}
-            disabled={!hist.undo}
-            aria-label="Undo"
-            title="Undo (⌘Z)"
-          >
-            <Icon name="rotate" size={15} />
-          </button>
-          <button
-            className="ds-tbicon flip"
-            onClick={redo}
-            disabled={!hist.redo}
-            aria-label="Redo"
-            title="Redo (⇧⌘Z)"
-          >
-            <Icon name="rotate" size={15} />
-          </button>
-          <span className={`ds-save ${saveState}`}>
-            <span className="dot" />
-            {saveState === "saving"
-              ? "Saving…"
-              : saveState === "local"
-                ? "Saved locally"
-                : "Saved"}
-          </span>
-          <ExportMenu
-            hasVariants={doc.variants.length > 1}
-            onExportOne={exportJson}
-            onExportAll={exportAllVariants}
-          />
-        </div>
       </header>
 
       {/* Design (step 1) fills the viewport with a fixed canvas; the document-
@@ -1015,16 +943,18 @@ function Editor({
             onMutate={mutate}
             planImages={planImages}
             pack={pack}
-            packVersion={packVersion}
             activeSystemId={effectiveSystemId}
             revealTools={toolsRevealed}
-            onActivateSystem={setActiveSystemId}
             placing={placing}
-            onArmPlace={armPlace}
             onPlaced={onPlaced}
             onRoomCreated={setEditingRoomId}
-            onEditRoom={setEditingRoomId}
             remarkRoomId={remarkRoomId}
+            onAddVariant={onAddVariant}
+            onSwitchVariant={onSwitchVariant}
+            onRenameVariant={onRenameVariant}
+            undo={undo}
+            redo={redo}
+            hist={hist}
             onRemarkConsumed={() => setRemarkRoomId(null)}
             onOpenReference={hasReference ? () => setRefOpen(true) : undefined}
             layers={layers}
@@ -1045,6 +975,27 @@ function Editor({
         {step === 2 && <MaterialsView doc={doc} pack={pack} />}
         {step === 3 && <JobView doc={doc} pack={pack} onMutate={mutate} />}
       </div>
+
+      {/* Cockpit lives at the editor level on the Design step so it spans the
+          full height beside the header (see .ds-editor.two-col grid) */}
+      {step === 1 && activeFloor && (
+        <aside className="ds-sidecol">
+          <SystemCockpit
+            doc={doc}
+            pack={pack}
+            packVersion={packVersion}
+            activeSystemId={effectiveSystemId}
+            onActivate={setActiveSystemId}
+            onMutate={mutate}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            onEditRoom={setEditingRoomId}
+            onArmPlace={armPlace}
+            onDrawRoom={() => changeTool("room-rect")}
+            floor={activeFloor}
+          />
+        </aside>
+      )}
 
       {refOpen && hasReference && (
         <ReferenceViewer
@@ -1250,74 +1201,6 @@ function VariantSwitcher({
   );
 }
 
-function ExportMenu({
-  hasVariants,
-  onExportOne,
-  onExportAll,
-}: {
-  hasVariants: boolean;
-  onExportOne: () => void;
-  onExportAll: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const boxRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    window.addEventListener("mousedown", onDown);
-    return () => window.removeEventListener("mousedown", onDown);
-  }, [open]);
-
-  if (!hasVariants) {
-    return (
-      <button className="ds-tbbtn" onClick={onExportOne}>
-        <Icon name="download" size={15} />
-        Export
-      </button>
-    );
-  }
-
-  return (
-    <div className="ds-variant" ref={boxRef}>
-      <button
-        className="ds-tbbtn"
-        onClick={() => setOpen((o) => !o)}
-        aria-haspopup="menu"
-        aria-expanded={open}
-      >
-        <Icon name="download" size={15} />
-        Export
-        <Icon name="chevD" size={12} />
-      </button>
-      {open && (
-        <div className="ds-variant-menu" role="menu">
-          <button
-            className="ds-variant-item"
-            onClick={() => {
-              setOpen(false);
-              onExportOne();
-            }}
-          >
-            Export this option
-          </button>
-          <button
-            className="ds-variant-item"
-            onClick={() => {
-              setOpen(false);
-              onExportAll();
-            }}
-          >
-            Export all options
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
 /* ═════════════ Stage panels — Stage-0 empty states ═════════════ */
 
 const CANVAS_TOOLS: {
@@ -1365,17 +1248,19 @@ function DesignPanel({
   onMutate,
   planImages,
   pack,
-  packVersion,
   activeSystemId,
   revealTools,
-  onActivateSystem,
   placing,
-  onArmPlace,
   onPlaced,
   onRoomCreated,
-  onEditRoom,
   remarkRoomId,
   onRemarkConsumed,
+  onAddVariant,
+  onSwitchVariant,
+  onRenameVariant,
+  undo,
+  redo,
+  hist,
   onOpenReference,
   layers,
   onLayers,
@@ -1409,18 +1294,21 @@ function DesignPanel({
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   planImages: PlanImages;
   pack: DataPack | null;
-  packVersion: string;
   activeSystemId: string | null;
   /** reveal the drawing tool-rail — latched true once a system first exists */
   revealTools: boolean;
-  onActivateSystem: (id: string | null) => void;
   placing: PlacingUnit | null;
-  onArmPlace: (p: PlacingUnit | null) => void;
   onPlaced: () => void;
   onRoomCreated: (id: string) => void;
-  onEditRoom: (id: string) => void;
   remarkRoomId: string | null;
   onRemarkConsumed: () => void;
+  /** variant switcher (Add option) + undo/redo relocated into ds-canvas-top */
+  onAddVariant: () => void;
+  onSwitchVariant: (id: string) => void;
+  onRenameVariant: (label: string) => void;
+  undo: () => void;
+  redo: () => void;
+  hist: { undo: boolean; redo: boolean };
   onOpenReference?: () => void;
   layers: LayerFlags;
   onLayers: (l: LayerFlags) => void;
@@ -1735,28 +1623,58 @@ function DesignPanel({
               </button>
             )}
           </div>
-          <div className="ds-zoomctl top" role="group" aria-label="Zoom">
-            <button aria-label="Zoom out" onClick={() => zoomApi?.zoomOut()}>
-              −
-            </button>
-            <span>{zoomPct}%</span>
-            <button aria-label="Zoom in" onClick={() => zoomApi?.zoomIn()}>
-              +
-            </button>
-            <button aria-label="Fit to content" onClick={() => zoomApi?.fit()}>
-              Fit
-            </button>
-          </div>
-          {onOpenReference && (
+          <div className="ds-ctop-grp">
+            {/* undo/redo relocated from the header, beside the zoom control */}
             <button
-              className="ds-ref-open"
-              onClick={onOpenReference}
-              title="Browse every uploaded page — heights, sections, details"
+              className="ds-tbicon"
+              onClick={undo}
+              disabled={!hist.undo}
+              aria-label="Undo"
+              title="Undo (⌘Z)"
             >
-              <Icon name="library" size={14} />
-              Reference sheets
+              <Icon name="rotate" size={15} />
             </button>
-          )}
+            <button
+              className="ds-tbicon flip"
+              onClick={redo}
+              disabled={!hist.redo}
+              aria-label="Redo"
+              title="Redo (⇧⌘Z)"
+            >
+              <Icon name="rotate" size={15} />
+            </button>
+            <div className="ds-zoomctl top" role="group" aria-label="Zoom">
+              <button aria-label="Zoom out" onClick={() => zoomApi?.zoomOut()}>
+                −
+              </button>
+              <span>{zoomPct}%</span>
+              <button aria-label="Zoom in" onClick={() => zoomApi?.zoomIn()}>
+                +
+              </button>
+              <button aria-label="Fit to content" onClick={() => zoomApi?.fit()}>
+                Fit
+              </button>
+            </div>
+          </div>
+          <div className="ds-ctop-grp">
+            {/* Add option relocated from the header, beside Reference sheets */}
+            <VariantSwitcher
+              doc={doc}
+              onAdd={onAddVariant}
+              onSwitch={onSwitchVariant}
+              onRename={onRenameVariant}
+            />
+            {onOpenReference && (
+              <button
+                className="ds-ref-open"
+                onClick={onOpenReference}
+                title="Browse every uploaded page — heights, sections, details"
+              >
+                <Icon name="library" size={14} />
+                Reference sheets
+              </button>
+            )}
+          </div>
         </div>
         <div className="ds-canvas-body">
           {revealTools && (
@@ -1856,23 +1774,6 @@ function DesignPanel({
           </div>
         )}
       </div>
-
-      <aside className="ds-sidecol">
-        <SystemCockpit
-          doc={doc}
-          pack={pack}
-          packVersion={packVersion}
-          activeSystemId={activeSystemId}
-          onActivate={onActivateSystem}
-          onMutate={onMutate}
-          selectedId={selectedId}
-          onSelect={onSelect}
-          onEditRoom={onEditRoom}
-          onArmPlace={onArmPlace}
-          onDrawRoom={() => onTool("room-rect")}
-          floor={floor}
-        />
-      </aside>
     </div>
   );
 }

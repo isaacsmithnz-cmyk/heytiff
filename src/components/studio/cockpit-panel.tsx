@@ -31,7 +31,7 @@ import { newId } from "@/lib/studio/document";
 import type { DataPack, IndoorUnit } from "@/lib/studio/packs/schema";
 import { polylineLength, unitsToMeters } from "@/lib/studio/geometry";
 import { sizingCapacityKw, type SizingBasis } from "@/lib/studio/loads";
-import { roomAreaM2, roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
+import { roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
 import { roomsServedBy, roomCoverage, systemPairKw } from "@/lib/studio/coverage";
 import type { PairProposal } from "@/lib/studio/split";
 import { isAirCapable, moduleFor } from "@/lib/studio/modules";
@@ -557,7 +557,15 @@ function ActiveCockpit({
             onArmPlace={onArmPlace}
             onDrawRoom={onDrawRoom}
           />
-          <ComponentsView rows={componentRows} hasRooms={rooms.length > 0} system={system} onMutate={onMutate} />
+          <ComponentsView
+            doc={doc}
+            rows={componentRows}
+            hasRooms={rooms.length > 0}
+            system={system}
+            ducted={ducted}
+            onMutate={onMutate}
+            onSelect={onSelect}
+          />
         </SegWindow>
       </div>
     </>
@@ -1591,30 +1599,44 @@ function RoomsView({
                 ? "none"
                 : "pending";
           const on = r.id === highlightRoomId;
+          const roomName = String(r.props.name ?? "Room");
           return (
-            <button
-              key={r.id}
-              className={`ds-ck-rrow${on ? " on" : ""}`}
-              onClick={() => onSelect(r.id)}
-              title={
-                cov.status === "covered"
-                  ? "Load covered"
-                  : cov.loadKw != null
-                    ? `${(cov.loadKw - cov.coveredKw).toFixed(1)} kW short`
-                    : "Calibrate the floor to compute the load"
-              }
-            >
-              <span className="ds-ck-rnum">{i + 1}</span>
-              <span className={`ds-ck-rdot ${dot}`} />
-              <span className="ds-ck-rnm">{String(r.props.name ?? "Room")}</span>
-              {/* spill rooms carry the ⤢ badge and no sizing expectations
-                  (ducted spec §9b–9c; the share slot arrives at Step 3) */}
-              {ducted && isSpillRoom(r) && (
-                <span className="ds-ck-rspill" title="Spill room — receives spill air only">
-                  ⤢
-                </span>
-              )}
-            </button>
+            <div key={r.id} className="ds-ck-rrow-wrap">
+              <button
+                className={`ds-ck-rrow${on ? " on" : ""}`}
+                onClick={() => onSelect(r.id)}
+                title={
+                  cov.status === "covered"
+                    ? "Load covered"
+                    : cov.loadKw != null
+                      ? `${(cov.loadKw - cov.coveredKw).toFixed(1)} kW short`
+                      : "Calibrate the floor to compute the load"
+                }
+              >
+                <span className="ds-ck-rnum">{i + 1}</span>
+                <span className={`ds-ck-rdot ${dot}`} />
+                <span className="ds-ck-rnm">{roomName}</span>
+                {/* spill rooms carry the ⤢ badge and no sizing expectations
+                    (ducted spec §9b–9c; the share slot arrives at Step 3) */}
+                {ducted && isSpillRoom(r) && (
+                  <span className="ds-ck-rspill" title="Spill room — receives spill air only">
+                    ⤢
+                  </span>
+                )}
+              </button>
+              {/* Configure moved off the room card onto the pill (opens the room modal) */}
+              <button
+                className="ds-ck-rcfg"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEditRoom(r.id);
+                }}
+                title={`Configure ${roomName} — name, area, heat load, walls`}
+                aria-label="Configure room"
+              >
+                <Glyph name="configure" size={14} />
+              </button>
+            </div>
           );
         })}
         {adoptable.length > 0 && !adopting && (
@@ -1671,9 +1693,7 @@ function RoomsView({
           basis={basis}
           ducted={ducted}
           perRoom={perRoom}
-          onSelect={onSelect}
           onMutate={onMutate}
-          onEditRoom={onEditRoom}
           onArmPlace={onArmPlace}
           onRelease={releaseRoom}
         />
@@ -1692,9 +1712,7 @@ function RoomInspectCard({
   basis,
   ducted,
   perRoom,
-  onSelect,
   onMutate,
-  onEditRoom,
   onArmPlace,
   onRelease,
 }: {
@@ -1703,24 +1721,32 @@ function RoomInspectCard({
   system: DesignSystem;
   room: RoomObj;
   basis: SizingBasis;
-  /** ducted rooms get Configure only — Outlets/Duct replace Units/Pipework
-      at Steps 3–4 */
+  /** ducted rooms show the spill toggle only — Outlets/Duct replace Units at
+      Steps 3–4; Configure lives on the room pill; Pipework lives in Components */
   ducted?: boolean;
   /** per-room modules (multi / VRF): one indoor unit per room, shared outdoor */
   perRoom?: boolean;
-  onSelect: (id: string | null) => void;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
-  onEditRoom: (id: string) => void;
   onArmPlace: (p: PlacingUnit | null) => void;
   onRelease: (roomId: string) => void;
 }) {
-  const [tab, setTab] = useState<"configure" | "units" | "pipework">(
-    ducted ? "configure" : "units"
-  );
   const cov = roomCoverage(doc, pack, room, basis);
   const covered = cov.status === "covered";
   const shared = room.systemId !== system.id;
   const dot = covered ? "ok" : cov.status === "under" ? "under" : "none";
+  /* ducted spill flag (spec §9c) — the engine excludes spill rooms from the
+     required-capacity sums; toggle lives here now that Configure moved away */
+  const setSpill = (on: boolean) =>
+    onMutate((d) => ({
+      ...d,
+      objects: d.objects.map((o) => {
+        if (o.id !== room.id) return o;
+        const props = { ...o.props };
+        if (on) props.spill = true;
+        else delete props.spill;
+        return { ...o, props };
+      }),
+    }));
 
   return (
     <div className="ds-ck-inspect">
@@ -1746,161 +1772,49 @@ function RoomInspectCard({
           {covered ? "Covered" : "Not complete"}
         </span>
       </div>
-      <div className="ds-ck-subtabs" role="tablist" aria-label="Inspect section">
-        <button
-          role="tab"
-          aria-selected={tab === "configure"}
-          className={`ds-ck-stb${tab === "configure" ? " on" : ""}`}
-          onClick={() => setTab("configure")}
-        >
-          <Glyph name="configure" size={13} />
-          Configure
-        </button>
-        {!ducted && (
-          <>
-            <button
-              role="tab"
-              aria-selected={tab === "units"}
-              className={`ds-ck-stb${tab === "units" ? " on" : ""}`}
-              onClick={() => setTab("units")}
-            >
-              <Glyph name="unitsq" size={13} />
-              {perRoom ? "Unit" : "Units"}
-            </button>
-            <button
-              role="tab"
-              aria-selected={tab === "pipework"}
-              className={`ds-ck-stb${tab === "pipework" ? " on" : ""}`}
-              onClick={() => setTab("pipework")}
-            >
-              <Glyph name="pipes" size={13} />
-              Pipework
-            </button>
-          </>
-        )}
-      </div>
+      {/* the room card carries unit selection only — Configure is on the pill,
+          Pipework moved to the Components tab */}
       <div className="ds-ck-ibody">
-        {tab === "configure" && (
-          <ConfigureSub
+        {ducted ? (
+          <>
+            <div className="ds-ck-pipeempty">Outlets arrive with ductwork — Step 3</div>
+            <label className="ds-ck-spill">
+              <input
+                type="checkbox"
+                checked={isSpillRoom(room)}
+                onChange={(e) => setSpill(e.target.checked)}
+                aria-label="Spill room"
+              />
+              <span className="ds-ck-spill-tx">
+                <b>Spill room ⤢</b>
+                <small>
+                  receives spill air only — excluded from sizing, needs no outlets
+                </small>
+              </span>
+            </label>
+          </>
+        ) : perRoom ? (
+          <MultiUnitsSub
             doc={doc}
+            pack={pack}
+            system={system}
             room={room}
-            ducted={ducted}
+            basis={basis}
             onMutate={onMutate}
-            onEditRoom={onEditRoom}
+            onArmPlace={onArmPlace}
+          />
+        ) : (
+          <UnitsSub
+            doc={doc}
+            pack={pack}
+            system={system}
+            room={room}
+            basis={basis}
+            onMutate={onMutate}
+            onArmPlace={onArmPlace}
           />
         )}
-        {ducted && (
-          <div className="ds-ck-pipeempty">Outlets arrive with ductwork — Step 3</div>
-        )}
-        {!ducted && tab === "units" && (
-          perRoom ? (
-            <MultiUnitsSub
-              doc={doc}
-              pack={pack}
-              system={system}
-              room={room}
-              basis={basis}
-              onMutate={onMutate}
-              onArmPlace={onArmPlace}
-            />
-          ) : (
-            <UnitsSub
-              doc={doc}
-              pack={pack}
-              system={system}
-              room={room}
-              basis={basis}
-              onMutate={onMutate}
-              onArmPlace={onArmPlace}
-            />
-          )
-        )}
-        {!ducted && tab === "pipework" && (
-          <PipeworkSub doc={doc} system={system} onSelect={onSelect} />
-        )}
       </div>
-    </div>
-  );
-}
-
-function ConfigureSub({
-  doc,
-  room,
-  ducted,
-  onMutate,
-  onEditRoom,
-}: {
-  doc: DesignDocument;
-  room: RoomObj;
-  /** ducted systems gain the Spill toggle (spec §9c) */
-  ducted?: boolean;
-  onMutate?: (fn: (d: DesignDocument) => DesignDocument) => void;
-  onEditRoom: (id: string) => void;
-}) {
-  const area = roomAreaM2(doc, room);
-  const kw = roomLoadKw(doc, room);
-  const floorName = doc.floors.find((f) => f.id === room.floorId)?.name ?? "—";
-  /* the toggle writes room.props.spill — the engine excludes spill rooms from
-     the required-capacity sums, shares and outlet gating */
-  const setSpill = (on: boolean) =>
-    onMutate?.((d) => ({
-      ...d,
-      objects: d.objects.map((o) => {
-        if (o.id !== room.id) return o;
-        const props = { ...o.props };
-        if (on) props.spill = true;
-        else delete props.spill;
-        return { ...o, props };
-      }),
-    }));
-  return (
-    <div className="ds-ck-sub cfg">
-      <div className="ds-ck-subh">
-        <span className="ds-ck-st">
-          <Glyph name="configure" size={14} />
-          Configure
-        </span>
-        <button className="ds-ck-act" onClick={() => onEditRoom(room.id)}>
-          Edit
-          <Glyph name="edit" size={12} />
-        </button>
-      </div>
-      <div className="ds-ck-facts">
-        <div className="ds-ck-fact">
-          <div className="k">Area</div>
-          <div className="v">
-            {area != null ? Math.round(area) : "—"}
-            <small> m²</small>
-          </div>
-        </div>
-        <div className="ds-ck-fact">
-          <div className="k">Heat load</div>
-          <div className="v">
-            {kw != null ? kw.toFixed(1) : "—"}
-            <small> kW</small>
-          </div>
-        </div>
-        <div className="ds-ck-fact">
-          <div className="k">Floor</div>
-          <div className="v">{floorName}</div>
-        </div>
-      </div>
-      {ducted && (
-        <label className="ds-ck-spill">
-          <input
-            type="checkbox"
-            checked={isSpillRoom(room)}
-            onChange={(e) => setSpill(e.target.checked)}
-            aria-label="Spill room"
-          />
-          <span className="ds-ck-spill-tx">
-            <b>Spill room ⤢</b>
-            <small>
-              receives spill air only — excluded from sizing, needs no outlets
-            </small>
-          </span>
-        </label>
-      )}
     </div>
   );
 }
@@ -2210,15 +2124,22 @@ function PipeworkSub({
 /* ─────────────────────────── components view ─────────────────────────── */
 
 function ComponentsView({
+  doc,
   rows,
   hasRooms,
   system,
+  ducted,
   onMutate,
+  onSelect,
 }: {
+  doc: DesignDocument;
   rows: ComponentRow[];
   hasRooms: boolean;
   system: DesignSystem;
+  /** ducted systems route air through ductwork, not refrigerant pipe runs */
+  ducted: boolean;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
+  onSelect: (id: string | null) => void;
 }) {
   const [openKey, setOpenKey] = useState<string | null>(null);
 
@@ -2245,23 +2166,32 @@ function ComponentsView({
     setOpenKey(null);
   };
 
+  /* Pipework (system refrigerant runs) moved here from the room card */
+  const pipework = !ducted ? (
+    <PipeworkSub doc={doc} system={system} onSelect={onSelect} />
+  ) : null;
+
   if (rows.length === 0) {
     return (
-      <div className="ds-ck-emptycard">
-        <div className="ds-ck-emptyic">
-          <Glyph name="cube" size={24} />
+      <>
+        <div className="ds-ck-emptycard">
+          <div className="ds-ck-emptyic">
+            <Glyph name="cube" size={24} />
+          </div>
+          <div className="ds-ck-emptyt">No components yet</div>
+          <div className="ds-ck-emptys">
+            {hasRooms
+              ? "Components appear here once you select units for this room."
+              : "System components appear here once the system has rooms and units."}
+          </div>
         </div>
-        <div className="ds-ck-emptyt">No components yet</div>
-        <div className="ds-ck-emptys">
-          {hasRooms
-            ? "Components appear here once you select units for this room."
-            : "System components appear here once the system has rooms and units."}
-        </div>
-      </div>
+        {pipework}
+      </>
     );
   }
 
   return (
+    <>
     <div className="ds-ck-comps">
       {rows.map((row) => {
         const open = row.kind === "choice" && openKey === row.choice!.key;
@@ -2322,6 +2252,8 @@ function ComponentsView({
         );
       })}
     </div>
+    {pipework}
+    </>
   );
 }
 

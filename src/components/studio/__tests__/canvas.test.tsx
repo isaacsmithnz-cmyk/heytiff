@@ -160,9 +160,8 @@ describe("Design canvas", () => {
     fireEvent.pointerDown(svg, pt(430, 330));
     fireEvent.pointerUp(svg, pt(430, 330));
 
-    // Configure lives behind the Units-default sub-tab switcher now; open it, then Edit
-    await user.click(screen.getByRole("tab", { name: "Configure" }));
-    await user.click(screen.getByRole("button", { name: "Edit" }));
+    // Configure now lives on the room pill and opens the room modal directly
+    await user.click(screen.getByRole("button", { name: "Configure room" }));
     const nameInput = screen.getByPlaceholderText("e.g. Living / Dining");
     await user.clear(nameInput);
     await user.type(nameInput, "Lounge");
@@ -283,6 +282,19 @@ describe("Design canvas", () => {
     fireEvent.pointerUp(svg, pt(440, 330));
     // still there — the eraser is objects-only
     expect(svg.querySelector(".ds-room-name")?.textContent).toBe("Room 1");
+  });
+
+  it("declutters the header and spans the cockpit full-height on the Design step", async () => {
+    await openBlankDesignOnCanvas();
+    // Export removed; Saved moved next to the design title
+    expect(screen.queryByRole("button", { name: "Export" })).toBeNull();
+    expect(document.querySelector(".ds-id .ds-save")).not.toBeNull();
+    // undo/redo + Add option relocated into the canvas-top row
+    const top = document.querySelector(".ds-canvas-top") as HTMLElement;
+    expect(within(top).getByRole("button", { name: "Undo" })).toBeInTheDocument();
+    expect(within(top).getByRole("button", { name: /Add option/ })).toBeInTheDocument();
+    // cockpit hoisted to the editor level → two-column grid layout
+    expect(document.querySelector(".ds-editor.two-col")).not.toBeNull();
   });
 
   it("hides the drawing rail until the first system, then keeps it after delete", async () => {

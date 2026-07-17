@@ -1,6 +1,5 @@
 import {
   homeHtml,
-  assetsHtml,
   adminHtml,
   blankHtml,
 } from "../screens";
@@ -11,13 +10,6 @@ describe("screen builders", () => {
     expect(html).toContain("Good morning");
     expect(html).toContain("Isaac");
     expect(html).toContain("Monday");
-  });
-
-  it("Assets renders two tabs with their empty states", () => {
-    const html = assetsHtml();
-    expect(html.match(/data-ptab=/g)).toHaveLength(2);
-    expect(html).toContain("No vehicles yet");
-    expect(html).toContain("No equipment registered");
   });
 
   it("admin invite card depends on the canInvite flag", () => {

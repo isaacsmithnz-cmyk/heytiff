@@ -5,6 +5,14 @@
 import { iconSvg } from "./icon";
 import type { DemoStaff } from "@/mock/demo";
 import { formatAuDate, type StaffProfile } from "@/lib/staff/profile";
+import { demoVehicleLogs, getDemoVehicleByCallsign } from "@/mock/demo";
+import {
+  fmtKm,
+  openIssueCount,
+  serviceKmLeft,
+  vehicleChips,
+  vehicleName,
+} from "@/components/fleet/logic";
 
 // profile-specific icons (the rest fall back to the shared icon set)
 const EX: Record<string, string> = {
@@ -206,11 +214,44 @@ function workrights(p: StaffProfile | null) {
   );
 }
 
-function vehicle() {
+function vehicle(s: DemoStaff) {
+  const head =
+    `<div class="c2h"><span class="ci">${ic("truck", 18)}</span>` +
+    "<span><b>Assigned vehicle</b><em>Linked from Fleet — manage in Assets</em></span></div>";
+  const v = getDemoVehicleByCallsign(s.vehicle);
+  if (!v) {
+    return (
+      '<section class="psec" data-sec="vehicle">' +
+      `<div class="card2">${head}` +
+      `<div class="ro-empty"><span class="ei">${ic("car", 20)}</span><b>No vehicle assigned</b><em>Assign a vehicle to this staff member from Assets → Fleet to show rego, service status and fuel here.</em></div>` +
+      "</div></section>"
+    );
+  }
+  const chips = vehicleChips(v, openIssueCount(demoVehicleLogs, v.id));
+  const chipHtml =
+    chips.length === 0
+      ? `<span class="dchip ok">${ic("check", 12)}All good</span>`
+      : chips
+          .map(
+            (c) =>
+              `<span class="dchip ${c.state}">${ic(c.state === "bad" ? "alert" : "clock", 12)}${c.label}</span>`,
+          )
+          .join("");
+  const left = serviceKmLeft(v);
+  const fact = (label: string, val: string) => `<span><em>${label}</em><b>${val}</b></span>`;
   return (
     '<section class="psec" data-sec="vehicle">' +
-    `<div class="card2" data-static><div class="c2h"><span class="ci">${ic("truck", 18)}</span><span><b>Assigned vehicle</b><em>Linked from Fleet</em></span></div>` +
-    `<div class="ro-empty"><span class="ei">${ic("car", 20)}</span><b>No vehicle assigned</b><em>Assign a vehicle to this staff member from Assets → Fleet to show rego, service status and fuel here.</em></div>` +
+    `<div class="card2" data-static>${head}` +
+    '<div class="pveh">' +
+    `<div class="pvh"><span class="pvi">${ic("truck", 20)}</span>` +
+    `<span><b>${v.callsign} · ${vehicleName(v)}</b><em>Plate ${v.plate}</em></span></div>` +
+    `<div class="pvchips">${chipHtml}</div>` +
+    '<div class="pvfacts">' +
+    fact("Odometer", `${fmtKm(v.odometer)} km`) +
+    fact("Next service", left < 0 ? `${fmtKm(-left)} km overdue` : `in ${fmtKm(left)} km`) +
+    fact("Rego", v.regoDays < 0 ? "expired" : `in ${v.regoDays}d`) +
+    fact("Insurance", v.insuranceDays < 0 ? "expired" : `in ${v.insuranceDays}d`) +
+    "</div></div>" +
     "</div></section>"
   );
 }
@@ -332,7 +373,7 @@ export function profileHtml(
     `<div class="pquick"><div class="q"><b>${s.licenceCount}</b><em>Licences</em></div><div class="q"><b>${esc(s.years)}</b><em>Years</em></div></div>` +
     `<span class="badge active" style="align-self:flex-start"><span class="d"></span>${esc(s.status)}</span>` +
     "</div></div>" +
-    `<div class="pgrid">${sectionNav(mode)}<div class="ppanel">${personal(p)}${emergency(p)}${licences(p)}${workrights(p)}${vehicle()}${training()}${adminSections}</div></div>` +
+    `<div class="pgrid">${sectionNav(mode)}<div class="ppanel">${personal(p)}${emergency(p)}${licences(p)}${workrights(p)}${vehicle(s)}${training()}${adminSections}</div></div>` +
     "</div>"
   );
 }

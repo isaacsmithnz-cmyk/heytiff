@@ -180,7 +180,9 @@ describe("Plans stage", () => {
     await user.click(await screen.findByRole("button", { name: "Skip for now" }));
     const svg = canvas.querySelector("svg")!;
 
-    await user.click(screen.getByRole("button", { name: "Crop plan" }));
+    // crop now lives in the Calibrate dropdown (plan-prep), not the tool rail
+    await user.click(screen.getByTitle("Calibrate — set the scale and north"));
+    await user.click(screen.getByRole("button", { name: /Crop/ }));
     // drag a rect inside the 1200×900 sheet (screen ≈ 80,60 → 720,540)
     fireEvent.pointerDown(svg, ptc(200, 150));
     fireEvent.pointerMove(svg, ptc(400, 300));
@@ -190,6 +192,45 @@ describe("Plans stage", () => {
       expect(canvas.querySelector("clipPath")).not.toBeNull();
       expect(canvas.querySelector("image.ds-plan")!.getAttribute("clip-path")).toMatch(/url\(#clip-/);
     });
+  });
+
+  it("Fit frames the cropped region, so it no longer over-zooms out", async () => {
+    const user = await openSeeded(new FakePlanImages());
+    await user.click(screen.getAllByRole("button", { name: "Design" })[0]);
+    const canvas = await screen.findByTestId("studio-canvas");
+    await waitFor(() => expect(canvas.querySelector("image.ds-plan")).not.toBeNull());
+    await user.click(await screen.findByRole("button", { name: "Skip for now" }));
+    const svg = canvas.querySelector("svg")!;
+
+    const zoomGroup = screen.getByRole("group", { name: "Zoom" });
+    const readZoom = () => parseInt(zoomGroup.querySelector("span")!.textContent!, 10);
+
+    // fit the whole 1200×900 sheet first
+    await user.click(screen.getByRole("button", { name: "Fit to content" }));
+    const zFull = readZoom();
+
+    // crop to a sub-rect (Crop lives in the Calibrate dropdown now), then re-fit
+    await user.click(screen.getByTitle("Calibrate — set the scale and north"));
+    await user.click(screen.getByRole("button", { name: /Crop/ }));
+    fireEvent.pointerDown(svg, ptc(200, 150));
+    fireEvent.pointerMove(svg, ptc(400, 300));
+    fireEvent.pointerUp(svg, ptc(400, 300));
+    await waitFor(() => expect(canvas.querySelector("clipPath")).not.toBeNull());
+
+    await user.click(screen.getByRole("button", { name: "Fit to content" }));
+    // the crop is a fraction of the sheet, so fitting it zooms in, not way out
+    expect(readZoom()).toBeGreaterThan(zFull);
+  });
+
+  it("the Calibrate dropdown carries the relocated Crop + Move plans tools", async () => {
+    const user = await openSeeded(new FakePlanImages());
+    await user.click(screen.getAllByRole("button", { name: "Design" })[0]);
+    await screen.findByTestId("studio-canvas");
+    await user.click(await screen.findByRole("button", { name: "Skip for now" }));
+
+    await user.click(screen.getByTitle("Calibrate — set the scale and north"));
+    expect(screen.getByRole("button", { name: /Crop/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Move plans/ })).toBeInTheDocument();
   });
 
   it("renders every sheet of a multi-sheet floor at its stored offset", async () => {

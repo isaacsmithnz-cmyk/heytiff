@@ -624,7 +624,16 @@ export function StudioCanvas({
       const dims = sheetSize(s);
       if (dims) {
         const pos = sheetPos(s);
-        pts.push({ x: pos.x, y: pos.y }, { x: pos.x + dims.w, y: pos.y + dims.h });
+        // a cropped sheet only counts its visible region toward fit/min-zoom,
+        // so fitting frames the crop rather than the whole (mostly-empty) raster
+        if (s.crop) {
+          pts.push(
+            { x: pos.x + s.crop.x, y: pos.y + s.crop.y },
+            { x: pos.x + s.crop.x + s.crop.w, y: pos.y + s.crop.y + s.crop.h }
+          );
+        } else {
+          pts.push({ x: pos.x, y: pos.y }, { x: pos.x + dims.w, y: pos.y + dims.h });
+        }
       }
     }
     return pts;

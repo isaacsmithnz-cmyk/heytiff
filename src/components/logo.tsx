@@ -2,8 +2,6 @@
    otherwise it inherits `currentColor` (use white on dark, ink on light).
    Source: public/brand/heytiff-*.svg */
 
-let gradSeq = 0;
-
 export function Chevron({
   size = 24,
   gradient = false,
@@ -13,8 +11,11 @@ export function Chevron({
   gradient?: boolean;
   className?: string;
 }) {
-  // unique gradient id per instance to avoid collisions when several render
-  const gid = `htGrad-${gradient ? ++gradSeq : 0}`;
+  // The gradient is a single fixed brand gradient, so a stable constant id is
+  // safe (identical defs never visually collide) and — unlike a render-time
+  // counter — stays identical between server and client, avoiding a hydration
+  // mismatch. Works in both Server and Client Components (no hook needed).
+  const gid = "htGrad";
   const stroke = gradient ? `url(#${gid})` : "currentColor";
   return (
     <svg

@@ -198,14 +198,16 @@ describe("Cockpit ducted body", () => {
     expect(airflowRow).toHaveTextContent("—");
   });
 
-  it("ducted room inspect shows Configure only, with the outlets placeholder", () => {
+  it("ducted room inspect shows the outlets placeholder and spill toggle, no sub-tabs", () => {
     renderCockpit(mkDoc({ objects: twoRooms() }));
-    // Configure is the sole sub-tab and its facts are live
-    expect(screen.getByRole("tab", { name: "Configure" })).toBeInTheDocument();
+    // the Configure/Units/Pipework switcher is gone; Configure moved to the pill
+    expect(screen.queryByRole("tab", { name: "Configure" })).toBeNull();
     expect(screen.queryByRole("tab", { name: "Units" })).toBeNull();
     expect(screen.queryByRole("tab", { name: "Pipework" })).toBeNull();
-    expect(screen.getByText("Area")).toBeInTheDocument();
+    // facts moved to the room modal; the card keeps the placeholder + spill toggle
+    expect(screen.queryByText("Area")).not.toBeInTheDocument();
     expect(screen.getByText("Outlets arrive with ductwork — Step 3")).toBeInTheDocument();
+    expect(screen.getByLabelText("Spill room")).toBeInTheDocument();
   });
 
   it("changing type away from ducted drops the five air-side types but keeps rooms", () => {

@@ -114,39 +114,10 @@ export function tiffHtml() {
   );
 }
 
-/* ---------------- tabbed empty-state page (Assets) ---------------- */
-function tabPage(title: string, tabs: [string, string, string, string][]) {
-  const tabBar = tabs
-    .map(
-      (t, i) =>
-        `<button class="ptab${i === 0 ? " on" : ""}" data-ptab="${i}">${t[0]}</button>`
-    )
-    .join("");
-  const panels = tabs
-    .map(
-      (t, i) =>
-        `<div class="ptabpanel${i === 0 ? " on" : ""}" data-ppanel="${i}">` +
-        '<div class="emptybox"><span class="ei">' +
-        I(t[1], 24) +
-        `</span><b>${t[2]}</b><em>${t[3]}</em></div></div>`
-    )
-    .join("");
-  return (
-    '<div class="wrap"><div class="stg">' +
-    '<div class="v2head" style="margin-bottom:24px"><div>' +
-    `<h1 style="font-size:44px;font-weight:800;letter-spacing:-0.03em;margin:0">${title}</h1></div></div>` +
-    `<div class="ptabs">${tabBar}</div>` +
-    `<div class="ptabpanels">${panels}</div>` +
-    "</div></div>"
-  );
-}
-
-export function assetsHtml() {
-  return tabPage("Assets", [
-    ["Fleet", "truck", "No vehicles yet", "Assign vehicles, track service, rego &amp; insurance expiry and fuel."],
-    ["Equipment & tools", "box", "No equipment registered", "Register serials, holders and calibration / test-tag dates."],
-  ]);
-}
+/* ---------------- ASSETS ----------------
+   The Assets screen is no longer a static builder — it lives in
+   src/components/fleet/assets-screen.tsx (React: Fleet register / My-vehicle
+   lens + Equipment tab) with its pure logic in src/components/fleet/logic.ts. */
 
 /* ---------------- ADMIN — invite card (admin/owner only) ---------------- */
 export function adminHtml(canInvite: boolean) {

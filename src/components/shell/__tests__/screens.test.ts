@@ -1,7 +1,6 @@
 import {
   homeHtml,
   toolboxHtml,
-  assetsHtml,
   adminHtml,
   blankHtml,
 } from "../screens";
@@ -19,13 +18,6 @@ describe("screen builders", () => {
     expect(html).toContain("<h1>Toolbox</h1>");
     expect(html).toContain("No tools yet");
     expect(html).not.toContain("Field Tools");
-  });
-
-  it("Assets renders two tabs with their empty states", () => {
-    const html = assetsHtml();
-    expect(html.match(/data-ptab=/g)).toHaveLength(2);
-    expect(html).toContain("No vehicles yet");
-    expect(html).toContain("No equipment registered");
   });
 
   it("admin invite card depends on the canInvite flag", () => {

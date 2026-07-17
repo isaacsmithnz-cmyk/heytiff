@@ -11,11 +11,24 @@
   font-family:var(--font-jakarta), 'Plus Jakarta Sans', sans-serif; font-size:13.5px; color:#0A0B10; }
 .rca * { box-sizing:border-box; }
 .rca ::selection { background:rgba(0,229,192,.3); }
-.rca ::-webkit-scrollbar { width:10px; height:10px; }
-.rca ::-webkit-scrollbar-thumb { background:#d4d8e0; border-radius:6px; border:3px solid #EDEFF4; }
-.rca ::-webkit-scrollbar-thumb:hover { background:#c3c8d1; }
-.rca ::-webkit-scrollbar-track, .rca ::-webkit-scrollbar-corner { background:#EDEFF4; }
-.rca { scrollbar-width:thin; scrollbar-color:#d4d8e0 #EDEFF4; }
+
+/* Scrollbars follow the shell's .outlet treatment (shell.css): transparent at
+   rest, a thin grey thumb once the pointer is over the calculator. The colour
+   is the standard `scrollbar-color`, which INHERITS — so setting it on .rca
+   drives every scroll pane inside (rail, step body, panels) and, on Chromium,
+   takes over from the ::-webkit-scrollbar rules below (they're the Safari/old-
+   WebKit fallback). The old value was `#d4d8e0 #EDEFF4`: an always-on grey
+   thumb over a grey TRACK, so on the white inner cards the #EDEFF4 track read
+   as a permanent grey stripe. Transparent track + no colour-until-hover is
+   what actually fixes the look. Only visible on classic/always-shown
+   scrollbars; overlay scrollbars (default macOS) already hid it at rest. */
+.rca { scrollbar-width:thin; scrollbar-color:transparent transparent; transition:scrollbar-color .3s; }
+.rca:hover { scrollbar-color:rgba(120,128,150,.45) transparent; }
+.rca ::-webkit-scrollbar { width:8px; height:8px; }
+.rca ::-webkit-scrollbar-track, .rca ::-webkit-scrollbar-corner { background:transparent; }
+.rca ::-webkit-scrollbar-thumb { background:transparent; border-radius:99px; border:2px solid transparent; background-clip:content-box; transition:background .3s; }
+.rca:hover ::-webkit-scrollbar-thumb { background:rgba(120,128,150,.4); background-clip:content-box; }
+.rca ::-webkit-scrollbar-thumb:hover { background:rgba(120,128,150,.7); background-clip:content-box; }
 .rca input::placeholder { color:#c2c7d0; }
 .rca a { color:#2E68FF; text-decoration:none; }
 .rca a:hover { color:#0A0B10; }

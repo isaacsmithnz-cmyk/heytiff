@@ -3,37 +3,51 @@ import {
   type FleetOverlay,
   type Vehicle,
   type VehicleLog,
+  aiValue,
   daysUntil,
+  displayName,
   filterVehicles,
+  fleetAiValue,
   fleetValue,
+  fmtCost,
   fmtKm,
   fmtMoney,
+  fuelEconomy,
   mergeFleet,
   mergeLogs,
+  migrateVehicle,
+  modelLabel,
   openIssueCount,
+  serviceDueKm,
+  serviceKmLeft,
   slugId,
   sortVehicles,
   vehicleChips,
+  vehicleFacts,
   worstState,
 } from "../logic";
 
 const vehicle = (over: Partial<Vehicle> = {}): Vehicle => ({
   id: "vrf-04",
-  callsign: "VRF-04",
+  name: "VRF-04",
   make: "Toyota",
   model: "Hiace ZR",
   year: 2022,
   plate: "MKT482",
+  status: "active",
   odometer: 84120,
   assignedTo: "jordan-mills",
   value: 52000,
+  purchasePrice: 58900,
+  purchaseDateDays: 1524,
   regoDays: 200,
   insuranceDays: 200,
-  serviceDueKm: 95000,
+  serviceIntervalKm: 10000,
+  lastServiceOdo: 80000,
   ...over,
 });
 
-const issue = (over: Partial<VehicleLog> = {}): VehicleLog => ({
+const log = (over: Partial<VehicleLog> = {}): VehicleLog => ({
   id: "vl-x",
   vehicleId: "vrf-04",
   staffId: "jordan-mills",
@@ -44,40 +58,82 @@ const issue = (over: Partial<VehicleLog> = {}): VehicleLog => ({
   ...over,
 });
 
-describe("vehicleChips", () => {
-  it("is empty when everything is healthy", () => {
-    expect(vehicleChips(vehicle(), 0)).toEqual([]);
+describe("identity & service cycle", () => {
+  it("displayName falls back to the rego plate when no name is set", () => {
+    expect(displayName(vehicle())).toBe("VRF-04");
+    expect(displayName(vehicle({ name: "" }))).toBe("MKT482");
+    expect(modelLabel(vehicle({ year: 0 }))).toBe("Toyota Hiace ZR");
   });
 
-  it("warns inside the rego/insurance windows and flags expiries as bad", () => {
+  it("derives the next service from last-service odo + interval", () => {
+    const v = vehicle({ lastServiceOdo: 75500, serviceIntervalKm: 10000, odometer: 84120 });
+    expect(serviceDueKm(v)).toBe(85500);
+    expect(serviceKmLeft(v)).toBe(1380);
+  });
+});
+
+describe("vehicleChips", () => {
+  it("is empty when everything is healthy, and always empty for sold vehicles", () => {
+    expect(vehicleChips(vehicle(), 0)).toEqual([]);
+    expect(vehicleChips(vehicle({ status: "sold", regoDays: -30 }), 3)).toEqual([]);
+  });
+
+  it("warns inside expiry windows, flags expiries and off-road as bad", () => {
     expect(vehicleChips(vehicle({ regoDays: 21 }), 0)).toEqual([{ label: "Rego 21d", state: "warn" }]);
     expect(vehicleChips(vehicle({ regoDays: -3 }), 0)).toEqual([
       { label: "Rego expired 3d ago", state: "bad" },
     ]);
-    expect(vehicleChips(vehicle({ insuranceDays: 30 }), 0)).toEqual([
-      { label: "Insurance 30d", state: "warn" },
-    ]);
+    const off = vehicleChips(vehicle({ status: "offroad" }), 0);
+    expect(off).toEqual([{ label: "Off road", state: "bad" }]);
   });
 
-  it("derives service state from km remaining", () => {
-    expect(vehicleChips(vehicle({ odometer: 94100, serviceDueKm: 95000 }), 0)).toEqual([
-      { label: "Service in 900 km", state: "warn" },
+  it("derives service state from the cycle and sorts bad first", () => {
+    expect(vehicleChips(vehicle({ odometer: 85000, lastServiceOdo: 75500 }), 0)).toEqual([
+      { label: "Service in 500 km", state: "warn" },
     ]);
-    expect(vehicleChips(vehicle({ odometer: 95800, serviceDueKm: 95000 }), 0)).toEqual([
-      { label: "Service overdue 800 km", state: "bad" },
-    ]);
-  });
-
-  it("counts open issues and sorts bad chips first", () => {
-    const chips = vehicleChips(vehicle({ regoDays: 10, odometer: 96000, serviceDueKm: 95000 }), 2);
-    expect(chips[0].state).toBe("bad");
+    const chips = vehicleChips(vehicle({ odometer: 86300, lastServiceOdo: 75500, regoDays: 10 }), 2);
+    expect(chips[0]).toEqual({ label: "Service overdue 800 km", state: "bad" });
     expect(chips.map((c) => c.label)).toContain("2 issues open");
     expect(worstState(chips)).toBe("bad");
   });
 });
 
-describe("overlay merge", () => {
-  const demo = [vehicle(), vehicle({ id: "ute-01", callsign: "UTE-01", assignedTo: null, value: 31500 })];
+describe("vehicleFacts", () => {
+  it("returns the four shared facts with severity states", () => {
+    const facts = vehicleFacts(vehicle({ regoDays: 21, insuranceDays: -1 }));
+    expect(facts.map((f) => f.key)).toEqual(["odo", "service", "rego", "insurance"]);
+    expect(facts.find((f) => f.key === "rego")).toMatchObject({ state: "warn", text: "renews in 21d" });
+    expect(facts.find((f) => f.key === "insurance")).toMatchObject({ state: "bad", text: "expired" });
+  });
+});
+
+describe("aiValue (Tiff estimate)", () => {
+  it("is null with no price basis and ≈ base when brand new", () => {
+    expect(aiValue(vehicle({ purchasePrice: 0, value: 0 }))).toBeNull();
+    const fresh = aiValue(vehicle({ purchasePrice: 60000, purchaseDateDays: 0, odometer: 500 }));
+    expect(fresh).toBeGreaterThanOrEqual(60000 * 0.8);
+    expect(fresh).toBeLessThanOrEqual(60000 * 1.2);
+  });
+
+  it("depreciates with age and clamps the km adjustment to ±20% of the curve", () => {
+    const middleAged = aiValue(vehicle())!; // ~4.2y, 84k km
+    expect(middleAged).toBeLessThan(52000);
+    expect(middleAged).toBeGreaterThan(30000);
+    const flogged = aiValue(vehicle({ odometer: 400000 }))!;
+    const curveFloor = middleAged * 0.75; // clamp keeps it near the curve, not $0
+    expect(flogged).toBeGreaterThan(curveFloor * 0.8);
+    expect(flogged % 100).toBe(0); // rounded to $100
+  });
+
+  it("falls back to book value as the base when purchase price is unknown", () => {
+    expect(aiValue(vehicle({ purchasePrice: 0, purchaseDateDays: 0 }))).toBe(
+      aiValue(vehicle({ purchasePrice: 52000, purchaseDateDays: 0 })),
+    );
+  });
+});
+
+describe("overlay merge & migration", () => {
+  const demo = [vehicle(), vehicle({ id: "ute-01", name: "UTE-01", assignedTo: null, value: 31500 })];
 
   it("passes demo data through untouched with an empty overlay", () => {
     expect(mergeFleet(demo, EMPTY_OVERLAY)).toEqual(demo);
@@ -88,61 +144,110 @@ describe("overlay merge", () => {
       ...EMPTY_OVERLAY,
       edited: { "vrf-04": vehicle({ odometer: 84800 }) },
       removed: ["ute-01"],
-      added: [vehicle({ id: "van-09", callsign: "VAN-09" })],
+      added: [vehicle({ id: "van-09", name: "VAN-09" })],
     };
     const merged = mergeFleet(demo, o);
     expect(merged.map((v) => v.id)).toEqual(["vrf-04", "van-09"]);
     expect(merged[0].odometer).toBe(84800);
   });
 
+  it("migrates v1 records (callsign + stored due-km) to the v2 shape", () => {
+    const v1 = {
+      id: "srv-09",
+      callsign: "SRV-09",
+      make: "Ford",
+      model: "Transit",
+      plate: "ABC123",
+      odometer: 90000,
+      value: 30000,
+      regoDays: 50,
+      insuranceDays: 90,
+      serviceDueKm: 95000,
+    };
+    const m = migrateVehicle(v1);
+    expect(m.name).toBe("SRV-09");
+    expect(m.status).toBe("active");
+    expect(m.lastServiceOdo).toBe(85000); // due 95k − interval 10k
+    expect(serviceDueKm(m)).toBe(95000);
+    expect(m.purchasePrice).toBe(0);
+  });
+
   it("marks demo issues resolved and floats prototype logs to the top", () => {
-    const demoLogs = [issue({ id: "vl-01", ago: 2 }), issue({ id: "vl-02", ago: 9 })];
+    const demoLogs = [log({ id: "vl-01", ago: 2 }), log({ id: "vl-02", ago: 9 })];
     const o: FleetOverlay = {
       ...EMPTY_OVERLAY,
       resolved: ["vl-01"],
-      logs: [issue({ id: "new-1", ago: 0 })],
+      logs: [log({ id: "new-1", ago: 0 })],
     };
     const merged = mergeLogs(demoLogs, o);
     expect(merged.map((l) => l.id)).toEqual(["new-1", "vl-01", "vl-02"]);
     expect(merged[1].status).toBe("resolved");
-    expect(openIssueCount(merged, "vrf-04")).toBe(2); // new-1 + vl-02 still open
+    expect(openIssueCount(merged, "vrf-04")).toBe(2);
+  });
+});
+
+describe("fuel economy", () => {
+  it("computes L/100km between consecutive fills and skips bad data", () => {
+    const logs = [
+      log({ id: "f3", kind: "fuel", ago: 1, litres: 62.4, odo: 84120, status: undefined }),
+      log({ id: "f2", kind: "fuel", ago: 10, litres: 58.1, odo: 83540, status: undefined }),
+      log({ id: "f1", kind: "fuel", ago: 20, litres: 60, odo: 83000, status: undefined }),
+      log({ id: "bad", kind: "fuel", ago: 30, litres: 55, odo: undefined, status: undefined }),
+    ];
+    const eco = fuelEconomy(logs);
+    expect(eco["f2"]).toBeCloseTo(10.8, 1); // 58.1L over 540km
+    expect(eco["f3"]).toBeCloseTo(10.8, 1); // 62.4L over 580km
+    expect(eco["f1"]).toBeUndefined(); // nothing before it
+    expect(eco["bad"]).toBeUndefined();
   });
 });
 
 describe("register filters & sorting", () => {
   const fleet = [
     vehicle(), // healthy, assigned
-    vehicle({ id: "srv-05", callsign: "SRV-05", plate: "KWD073", assignedTo: null, regoDays: 7, value: 27000 }),
-    vehicle({ id: "ute-01", callsign: "UTE-01", assignedTo: null, odometer: 158300, serviceDueKm: 157500, value: 31500 }),
+    vehicle({ id: "srv-05", name: "SRV-05", plate: "KWD073", assignedTo: null, regoDays: 7, value: 27000 }),
+    vehicle({ id: "ute-01", name: "UTE-01", assignedTo: null, status: "offroad", value: 31500 }),
+    vehicle({ id: "van-01", name: "VAN-01", assignedTo: null, status: "sold", value: 14000 }),
   ];
   const names = (id: string | null) => (id === "jordan-mills" ? "Jordan Mills" : "");
 
-  it("tab filters: attention = has chips, pool = unassigned", () => {
-    expect(filterVehicles(fleet, [], "all", "", names).length).toBe(3);
-    expect(filterVehicles(fleet, [], "attention", "", names).map((v) => v.id)).toEqual(["srv-05", "ute-01"]);
+  it("tabs: sold is its own bucket and excluded everywhere else", () => {
+    expect(filterVehicles(fleet, [], "all", "", names).map((v) => v.id)).toEqual([
+      "vrf-04",
+      "srv-05",
+      "ute-01",
+    ]);
+    expect(filterVehicles(fleet, [], "attention", "", names).map((v) => v.id)).toEqual([
+      "srv-05",
+      "ute-01",
+    ]);
     expect(filterVehicles(fleet, [], "pool", "", names).map((v) => v.id)).toEqual(["srv-05", "ute-01"]);
+    expect(filterVehicles(fleet, [], "sold", "", names).map((v) => v.id)).toEqual(["van-01"]);
   });
 
-  it("search matches callsign, plate and driver name", () => {
+  it("search matches name, plate and driver", () => {
     expect(filterVehicles(fleet, [], "all", "kwd", names).map((v) => v.id)).toEqual(["srv-05"]);
     expect(filterVehicles(fleet, [], "all", "jordan", names).map((v) => v.id)).toEqual(["vrf-04"]);
   });
 
-  it("sorts by attention severity then callsign, and by value", () => {
-    expect(sortVehicles(fleet, [], "attention").map((v) => v.callsign)).toEqual([
-      "UTE-01", // bad (service overdue)
-      "SRV-05", // warn (rego 7d)
+  it("sorts attention-first (off-road = bad) and totals exclude sold", () => {
+    expect(sortVehicles(fleet.slice(0, 3), [], "attention").map((v) => v.name)).toEqual([
+      "UTE-01",
+      "SRV-05",
       "VRF-04",
     ]);
-    expect(sortVehicles(fleet, [], "value")[0].id).toBe("vrf-04");
     expect(fleetValue(fleet)).toBe(52000 + 27000 + 31500);
+    expect(fleetAiValue(fleet)).toBe(
+      (aiValue(fleet[0]) ?? 0) + (aiValue(fleet[1]) ?? 0) + (aiValue(fleet[2]) ?? 0),
+    );
   });
 });
 
 describe("helpers", () => {
-  it("formats km and money", () => {
+  it("formats km, money and cents in en-AU", () => {
     expect(fmtKm(84120)).toBe("84,120");
     expect(fmtMoney(52000)).toBe("$52,000");
+    expect(fmtCost(158.4)).toBe("$158.40");
   });
 
   it("computes whole days between ISO dates", () => {
@@ -150,7 +255,7 @@ describe("helpers", () => {
     expect(daysUntil("2026-07-14", "2026-07-17")).toBe(-3);
   });
 
-  it("slugs callsigns into unique ids", () => {
+  it("slugs labels into unique ids", () => {
     expect(slugId("VAN 09", [])).toBe("van-09");
     expect(slugId("VAN-09", ["van-09"])).toBe("van-09-2");
     expect(slugId("###", [])).toBe("vehicle");

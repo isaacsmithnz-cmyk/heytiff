@@ -6,17 +6,21 @@ import type { DemoStaff } from "@/mock/demo";
 import type { FleetState } from "./fleet-state";
 import {
   type LogKind,
+  displayName,
   fmtKm,
+  fuelEconomy,
+  logsFor,
+  modelLabel,
   openIssueCount,
-  serviceKmLeft,
   vehicleChips,
-  vehicleName,
+  vehicleFacts,
 } from "./logic";
 import { LogModal, LogRow } from "./modals";
 
 /* "My vehicle" — the Staff lens on Assets → Fleet: just the vehicle assigned
    to you, with log fuel / odometer / report-issue actions. No register, no
-   other vehicles, no valuations (spec: Fleet ◐ own for every role). */
+   other vehicles, no valuations (spec: Fleet ◐ own for every role). Off-road
+   vehicles pause fuel/odo logging; reporting issues always works. */
 
 const QUICK: { kind: LogKind; icon: string; label: string; sub: string }[] = [
   { kind: "fuel", icon: "fuel", label: "Log fuel", sub: "Litres, cost & odo" },
@@ -34,7 +38,7 @@ export function MyVehicle({
   viewerId: string;
 }) {
   const [logKind, setLogKind] = useState<LogKind | null>(null);
-  const vehicle = fleet.vehicles.find((v) => v.assignedTo === viewerId);
+  const vehicle = fleet.vehicles.find((v) => v.assignedTo === viewerId && v.status !== "sold");
   const viewer = staff.find((s) => s.id === viewerId);
 
   if (!vehicle) {
@@ -49,27 +53,12 @@ export function MyVehicle({
     );
   }
 
+  const paused = vehicle.status === "offroad";
   const chips = vehicleChips(vehicle, openIssueCount(fleet.logs, vehicle.id));
-  const left = serviceKmLeft(vehicle);
-  const myLogs = fleet.logs.filter((l) => l.vehicleId === vehicle.id).slice(0, 8);
-
-  const upcoming: { label: string; text: string; state: "ok" | "warn" | "bad" }[] = [
-    {
-      label: "Next service",
-      text: left < 0 ? `${fmtKm(-left)} km overdue` : `in ${fmtKm(left)} km`,
-      state: left < 0 ? "bad" : left <= 1500 ? "warn" : "ok",
-    },
-    {
-      label: "Rego",
-      text: vehicle.regoDays < 0 ? `expired ${-vehicle.regoDays}d ago` : `renews in ${vehicle.regoDays}d`,
-      state: vehicle.regoDays < 0 ? "bad" : vehicle.regoDays <= 30 ? "warn" : "ok",
-    },
-    {
-      label: "Insurance",
-      text: vehicle.insuranceDays < 0 ? "expired" : `renews in ${vehicle.insuranceDays}d`,
-      state: vehicle.insuranceDays < 0 ? "bad" : vehicle.insuranceDays <= 30 ? "warn" : "ok",
-    },
-  ];
+  const vLogs = logsFor(fleet.logs, vehicle.id);
+  const eco = fuelEconomy(vLogs);
+  const recent = vLogs.slice(0, 8);
+  const tiles = vehicleFacts(vehicle).filter((f) => f.key !== "odo");
 
   return (
     <div className="fl-my">
@@ -79,10 +68,10 @@ export function MyVehicle({
             <Icon name="truck" size={12} />
             Your vehicle
           </div>
-          <h2>{vehicle.callsign}</h2>
+          <h2>{displayName(vehicle)}</h2>
           <div className="fl-hsub">
-            {vehicleName(vehicle)}
-            <span className="fl-plate2">{vehicle.plate}</span>
+            {modelLabel(vehicle)}
+            {vehicle.name && <span className="fl-plate2">{vehicle.plate}</span>}
           </div>
           <div className="fl-hchips">
             {chips.length === 0 ? (
@@ -107,22 +96,38 @@ export function MyVehicle({
       </div>
 
       <div className="fl-quick">
-        {QUICK.map((q) => (
-          <button key={q.kind} className="fl-qa" onClick={() => setLogKind(q.kind)}>
-            <span className={`fl-qi ${q.kind}`}>
-              <Icon name={q.icon} size={19} />
-            </span>
-            <span>
-              <b>{q.label}</b>
-              <em>{q.sub}</em>
-            </span>
-          </button>
-        ))}
+        {QUICK.map((q) => {
+          const off = paused && q.kind !== "issue";
+          return (
+            <button
+              key={q.kind}
+              className={`fl-qa${off ? " paused" : ""}`}
+              disabled={off}
+              onClick={() => setLogKind(q.kind)}
+            >
+              <span className={`fl-qi ${q.kind}`}>
+                <Icon name={q.icon} size={19} />
+              </span>
+              <span>
+                <b>{q.label}</b>
+                <em>{off ? "Paused while off road" : q.sub}</em>
+              </span>
+            </button>
+          );
+        })}
       </div>
 
+      {paused && (
+        <div className="fl-offnote">
+          <Icon name="alert" size={15} />
+          {displayName(vehicle)} is off the road — fuel &amp; odometer logging is paused. You can still
+          report issues.
+        </div>
+      )}
+
       <div className="fl-up">
-        {upcoming.map((u) => (
-          <div key={u.label} className={`fl-ut ${u.state}`}>
+        {tiles.map((u) => (
+          <div key={u.key} className={`fl-ut ${u.state}`}>
             <em>{u.label}</em>
             <b>{u.text}</b>
           </div>
@@ -136,13 +141,13 @@ export function MyVehicle({
           </span>
           <span>
             <b>Recent activity</b>
-            <em>Your fuel, odometer &amp; issue history on {vehicle.callsign}</em>
+            <em>Your fuel, odometer &amp; issue history on {displayName(vehicle)}</em>
           </span>
         </div>
-        {myLogs.length === 0 ? (
+        {recent.length === 0 ? (
           <div className="fl-hempty">Nothing logged yet — your fuel, odo and issue reports land here.</div>
         ) : (
-          myLogs.map((l) => <LogRow key={l.id} log={l} />)
+          recent.map((l) => <LogRow key={l.id} log={l} eco={eco[l.id]} />)
         )}
       </div>
 

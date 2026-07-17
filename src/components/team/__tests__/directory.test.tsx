@@ -1,10 +1,17 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TeamDirectory } from "../directory";
-import { demoPendingInvites, demoStaff } from "@/mock/demo";
+import { demoPendingInvites, demoStaff, getDemoVehicleForStaff } from "@/mock/demo";
+import { displayName } from "@/components/fleet/logic";
+
+// mirror team/page.tsx: the Vehicle column derives from the Fleet register
+const rows = demoStaff.map((s) => {
+  const v = getDemoVehicleForStaff(s.id);
+  return { ...s, vehicle: v ? displayName(v) : "" };
+});
 
 function setup() {
-  render(<TeamDirectory staff={demoStaff} pending={demoPendingInvites} />);
+  render(<TeamDirectory staff={rows} pending={demoPendingInvites} />);
 }
 
 describe("TeamDirectory", () => {

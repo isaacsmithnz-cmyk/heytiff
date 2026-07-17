@@ -1,23 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
 import type { DemoStaff } from "@/mock/demo";
+import { readFuelReceipt } from "@/app/actions/fleet-ai";
 import {
   STATUS_LABEL,
+  type AiValuation,
   type LogKind,
   type StatusChip,
   type Vehicle,
   type VehicleStatus,
   type VehicleLog,
-  aiValue,
   daysUntil,
   displayName,
   fmtCost,
   fmtKm,
   fmtMoney,
   modelLabel,
+  readReceiptOffline,
   slugId,
   vehicleFacts,
 } from "./logic";
@@ -36,6 +38,15 @@ function dateFromDays(days: number): string {
 function num(s: string): number {
   const n = parseFloat(s.replace(/[^0-9.\-]/g, ""));
   return Number.isFinite(n) ? n : 0;
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).split(",")[1] ?? "");
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(file);
+  });
 }
 
 export function FleetModal({
@@ -239,7 +250,7 @@ export function VehicleFormModal({
           <input
             className="fl-i"
             type="number"
-            placeholder="Feeds the Tiff estimate"
+            placeholder="Helps Tiff value it"
             value={f.purchasePrice}
             onChange={set("purchasePrice")}
           />
@@ -290,14 +301,19 @@ export function VehicleFormModal({
   );
 }
 
-/* ---------------- log fuel / odometer / issue / service ---------------- */
+/* ---------------- log fuel / odometer / issue / service ----------------
+   Fuel opens in Scan mode: photograph or upload the receipt, Tiff reads
+   litres/cost/station (offline fallback = deterministic demo read), then a
+   confirm step with everything editable. Manual entry is one link away. */
 
 const LOG_COPY: Record<LogKind, { title: string; sub: string; icon: string }> = {
-  fuel: { title: "Log fuel", sub: "Fill-up against this vehicle", icon: "fuel" },
+  fuel: { title: "Log fuel", sub: "Scan the receipt — Tiff reads it", icon: "fuel" },
   odo: { title: "Update odometer", sub: "Current reading off the dash", icon: "gauge" },
   issue: { title: "Report an issue", sub: "Flag something wrong with this vehicle", icon: "alert" },
   service: { title: "Log service", sub: "Resets the service cycle from this odo", icon: "wrench" },
 };
+
+type FuelMode = "scan" | "reading" | "confirm" | "manual";
 
 export function LogModal({
   kind,
@@ -316,12 +332,60 @@ export function LogModal({
   const [cost, setCost] = useState("");
   const [odo, setOdo] = useState("");
   const [note, setNote] = useState("");
+  const [station, setStation] = useState("");
+  const [mode, setMode] = useState<FuelMode>(kind === "fuel" ? "scan" : "manual");
+  const [thumb, setThumb] = useState<string | null>(null);
+  const [scanTag, setScanTag] = useState<"tiff" | "offline" | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   const copy = LOG_COPY[kind];
+
+  useEffect(() => {
+    return () => {
+      if (thumb) URL.revokeObjectURL(thumb);
+    };
+  }, [thumb]);
+
+  const handleFile = async (file: File | null | undefined) => {
+    if (!file || !file.type.startsWith("image/")) return;
+    setThumb(URL.createObjectURL(file));
+    setMode("reading");
+    let filled = false;
+    try {
+      const b64 = await fileToBase64(file);
+      const res = await readFuelReceipt(b64, file.type);
+      if (res.ok) {
+        if (res.litres !== null) setLitres(String(res.litres));
+        if (res.cost !== null) setCost(res.cost.toFixed(2));
+        if (res.station) setStation(res.station);
+        setScanTag("tiff");
+        filled = true;
+      }
+    } catch {
+      /* offline fallback below */
+    }
+    if (!filled) {
+      const off = readReceiptOffline(file.size);
+      setLitres(String(off.litres));
+      setCost(off.cost.toFixed(2));
+      setStation(off.station);
+      setScanTag("offline");
+    }
+    setMode("confirm");
+  };
+
+  const rescan = () => {
+    setScanTag(null);
+    setLitres("");
+    setCost("");
+    setStation("");
+    setMode("scan");
+  };
 
   const odoLow = odo.trim() !== "" && num(odo) < vehicle.odometer;
   const ready =
     kind === "fuel"
-      ? litres.trim() !== ""
+      ? litres.trim() !== "" && (mode === "confirm" || mode === "manual")
       : kind === "odo" || kind === "service"
         ? odo.trim() !== ""
         : note.trim() !== "";
@@ -338,61 +402,151 @@ export function LogModal({
       odo: kind !== "issue" && odo.trim() ? num(odo) : undefined,
       note: note.trim() || undefined,
       status: kind === "issue" ? "open" : undefined,
+      station: kind === "fuel" && station.trim() ? station.trim() : undefined,
+      source: kind === "fuel" ? (scanTag ? "scan" : "manual") : undefined,
     });
   };
 
+  const fuelFields = (
+    <>
+      <Field label="Litres" req>
+        <input className="fl-i" type="number" placeholder="e.g. 62.4" value={litres} onChange={(e) => setLitres(e.target.value)} />
+      </Field>
+      <Field label="Cost ($)">
+        <input className="fl-i" type="number" placeholder="e.g. 158.40" value={cost} onChange={(e) => setCost(e.target.value)} />
+      </Field>
+      <Field label="Station">
+        <input className="fl-i" placeholder="e.g. Shell Coburg" value={station} onChange={(e) => setStation(e.target.value)} />
+      </Field>
+      <Field
+        label="Odometer (km)"
+        hint={odoLow ? `Lower than the current ${fmtKm(vehicle.odometer)} km — double-check the reading` : undefined}
+      >
+        <input
+          className="fl-i"
+          type="number"
+          placeholder={`Currently ${fmtKm(vehicle.odometer)}`}
+          value={odo}
+          onChange={(e) => setOdo(e.target.value)}
+        />
+      </Field>
+      <Field label="Note" span>
+        <textarea className="fl-i" placeholder="Optional" value={note} onChange={(e) => setNote(e.target.value)} />
+      </Field>
+    </>
+  );
+
   return (
     <FleetModal title={copy.title} sub={`${displayName(vehicle)} · ${modelLabel(vehicle)}`} onClose={onClose}>
-      <div className="fl-grid">
-        {kind === "fuel" && (
-          <>
-            <Field label="Litres" req>
-              <input className="fl-i" type="number" placeholder="e.g. 62.4" value={litres} onChange={(e) => setLitres(e.target.value)} />
-            </Field>
-            <Field label="Cost ($)">
-              <input className="fl-i" type="number" placeholder="e.g. 158.40" value={cost} onChange={(e) => setCost(e.target.value)} />
-            </Field>
-          </>
-        )}
-        {kind !== "issue" && (
-          <Field
-            label={kind === "service" ? "Serviced at odo (km)" : "Odometer (km)"}
-            req={kind !== "fuel"}
-            span={kind !== "fuel"}
-            hint={odoLow ? `Lower than the current ${fmtKm(vehicle.odometer)} km — double-check the reading` : undefined}
+      {kind === "fuel" && mode === "scan" && (
+        <>
+          <label
+            className={`fl-scan${dragOver ? " over" : ""}`}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOver(true);
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragOver(false);
+              void handleFile(e.dataTransfer.files?.[0]);
+            }}
           >
             <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={(e) => void handleFile(e.target.files?.[0])}
+            />
+            <span className="fl-scanic">
+              <Icon name="sparkles" size={22} />
+            </span>
+            <b>Snap or upload the receipt</b>
+            <em>Tiff reads the litres, cost &amp; servo for you</em>
+          </label>
+          <button className="fl-modeline" onClick={() => setMode("manual")}>
+            enter manually instead
+          </button>
+        </>
+      )}
+
+      {kind === "fuel" && mode === "reading" && (
+        <div className="fl-readingwrap">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {thumb && <img className="fl-scanthumb" src={thumb} alt="Receipt" />}
+          <div className="fl-reading">
+            <Icon name="sparkles" size={17} />
+            Tiff is reading the receipt…
+          </div>
+        </div>
+      )}
+
+      {kind === "fuel" && mode === "confirm" && (
+        <>
+          <div className="fl-scanhead">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {thumb && <img className="fl-scanthumb small" src={thumb} alt="Receipt" />}
+            <span className={`dchip2 ${scanTag === "tiff" ? "ok" : "mute"}`}>
+              <Icon name="sparkles" size={12} />
+              {scanTag === "tiff" ? "Read by Tiff — check & save" : "Demo read — Tiff offline"}
+            </span>
+            <button className="fl-modeline inline" onClick={rescan}>
+              re-scan
+            </button>
+          </div>
+          <div className="fl-grid">{fuelFields}</div>
+        </>
+      )}
+
+      {kind === "fuel" && mode === "manual" && <div className="fl-grid">{fuelFields}</div>}
+
+      {kind !== "fuel" && (
+        <div className="fl-grid">
+          {kind !== "issue" && (
+            <Field
+              label={kind === "service" ? "Serviced at odo (km)" : "Odometer (km)"}
+              req
+              span
+              hint={odoLow ? `Lower than the current ${fmtKm(vehicle.odometer)} km — double-check the reading` : undefined}
+            >
+              <input
+                className="fl-i"
+                type="number"
+                placeholder={`Currently ${fmtKm(vehicle.odometer)}`}
+                value={odo}
+                onChange={(e) => setOdo(e.target.value)}
+              />
+            </Field>
+          )}
+          <Field label={kind === "issue" ? "What's wrong" : "Note"} req={kind === "issue"} span>
+            <textarea
               className="fl-i"
-              type="number"
-              placeholder={`Currently ${fmtKm(vehicle.odometer)}`}
-              value={odo}
-              onChange={(e) => setOdo(e.target.value)}
+              placeholder={
+                kind === "issue"
+                  ? "e.g. Sliding door latch sticking — needs adjustment"
+                  : kind === "service"
+                    ? "e.g. 85,000 km service — Braeside Auto"
+                    : "Optional"
+              }
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
             />
           </Field>
-        )}
-        <Field label={kind === "issue" ? "What's wrong" : "Note"} req={kind === "issue"} span>
-          <textarea
-            className="fl-i"
-            placeholder={
-              kind === "issue"
-                ? "e.g. Sliding door latch sticking — needs adjustment"
-                : kind === "service"
-                  ? "e.g. 85,000 km service — Braeside Auto"
-                  : "Optional"
-            }
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-          />
-        </Field>
-      </div>
+        </div>
+      )}
+
       <div className="fl-foot">
         <button className="fl-btn ghost" onClick={onClose}>
           Cancel
         </button>
-        <button className="fl-btn primary" disabled={!ready} onClick={save}>
-          <Icon name={copy.icon} size={15} />
-          {copy.title}
-        </button>
+        {(kind !== "fuel" || mode === "confirm" || mode === "manual") && (
+          <button className="fl-btn primary" disabled={!ready} onClick={save}>
+            <Icon name={copy.icon} size={15} />
+            {copy.title}
+          </button>
+        )}
       </div>
     </FleetModal>
   );
@@ -421,6 +575,7 @@ export function LogRow({
         : log.kind === "service"
           ? `Service — ${log.note ?? "completed"}`
           : `Issue — ${log.note ?? "reported"}`;
+  const meta = [log.when, log.staffName, log.station].filter(Boolean).join(" · ");
   return (
     <div className={`fl-log${log.kind === "issue" && log.status === "open" ? " open" : ""}`}>
       <span className={`fl-li ${log.kind}`}>
@@ -428,10 +583,7 @@ export function LogRow({
       </span>
       <span className="fl-lk">
         <b>{title}</b>
-        <em>
-          {log.when}
-          {log.staffName ? ` · ${log.staffName}` : ""}
-        </em>
+        <em>{meta}</em>
       </span>
       {log.kind === "issue" ? (
         <span className="fl-lr">
@@ -460,6 +612,8 @@ export function DetailModal({
   chips,
   logs,
   eco,
+  valuation,
+  valuationIsStale,
   staff,
   manager,
   onClose,
@@ -474,6 +628,8 @@ export function DetailModal({
   chips: StatusChip[];
   logs: VehicleLog[];
   eco: Record<string, number>;
+  valuation?: AiValuation;
+  valuationIsStale?: boolean;
   staff: DemoStaff[];
   manager: boolean;
   onClose: () => void;
@@ -487,12 +643,16 @@ export function DetailModal({
   const [confirmRemove, setConfirmRemove] = useState(false);
   const driver = staff.find((s) => s.id === vehicle.assignedTo);
   const facts = vehicleFacts(vehicle);
-  const ai = aiValue(vehicle);
   const purchaseText = vehicle.purchasePrice
     ? `${fmtMoney(vehicle.purchasePrice)}${
         vehicle.purchaseDateDays ? ` · ${(vehicle.purchaseDateDays / 365.25).toFixed(1)} yrs ago` : ""
       }`
     : "—";
+  const tiffTitle = valuation
+    ? valuationIsStale
+      ? "Odometer has moved since Tiff valued this — run Value with Tiff again"
+      : valuation.note || "Tiff's AU-market estimate"
+    : "Run “Value with Tiff” in the register to get a live AI valuation";
 
   return (
     <FleetModal
@@ -536,15 +696,17 @@ export function DetailModal({
               <em>Book value</em>
               <b>{fmtMoney(vehicle.value)}</b>
             </div>
-            <div
-              className="fl-fact tiff"
-              title="Tiff AI market estimate from purchase price, age & kms — demo model"
-            >
+            <div className={`fl-fact tiff${valuationIsStale ? " stale" : ""}`} title={tiffTitle}>
               <em>
                 <Icon name="sparkles" size={11} />
-                Tiff estimate
+                Tiff value
               </em>
-              <b>{ai === null ? "—" : fmtMoney(ai)}</b>
+              <b>{valuation ? fmtMoney(valuation.point) : "—"}</b>
+              {valuation && (
+                <span className="fl-range">
+                  {fmtMoney(valuation.low)}–{fmtMoney(valuation.high)}
+                </span>
+              )}
             </div>
             <div className="fl-fact">
               <em>Status</em>

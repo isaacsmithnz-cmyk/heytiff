@@ -3,12 +3,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import type { DemoStaff } from "@/mock/demo";
+import { type FleetAiVehicle, valueFleet } from "@/app/actions/fleet-ai";
 import type { FleetState } from "./fleet-state";
 import {
+  STATUS_LABEL,
   type FleetSort,
   type FleetTab,
   type LogKind,
-  aiValue,
   displayName,
   filterVehicles,
   fleetAiValue,
@@ -18,7 +19,9 @@ import {
   logsFor,
   modelLabel,
   openIssueCount,
+  parseValuations,
   sortVehicles,
+  valuationStale,
   vehicleChips,
   worstState,
 } from "./logic";
@@ -48,6 +51,8 @@ export function FleetRegister({ fleet, staff }: { fleet: FleetState; staff: Demo
   const [sort, setSort] = useState<FleetSort>("attention");
   const [modal, setModal] = useState<ModalState>({ t: "none" });
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [valuing, setValuing] = useState(false);
+  const [valueErr, setValueErr] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -75,6 +80,32 @@ export function FleetRegister({ fleet, staff }: { fleet: FleetState; staff: Demo
 
   const openVehicle = "id" in modal ? vehicles.find((v) => v.id === modal.id) : undefined;
   const takenIds = vehicles.map((v) => v.id);
+  const aiTotal = fleetAiValue(vehicles, fleet.aiValues);
+
+  const runValuation = async () => {
+    if (valuing) return;
+    setValuing(true);
+    setValueErr(null);
+    const payload: FleetAiVehicle[] = working.map((v) => ({
+      id: v.id,
+      make: v.make,
+      model: v.model,
+      year: v.year,
+      odometerKm: v.odometer,
+      status: STATUS_LABEL[v.status],
+      purchasePriceAud: v.purchasePrice || null,
+      ageYears: v.purchaseDateDays ? Math.round((v.purchaseDateDays / 365.25) * 10) / 10 : null,
+      notes: v.notes,
+    }));
+    try {
+      const res = await valueFleet(payload);
+      if (res.ok) fleet.setValuations(parseValuations(res, vehicles));
+      else setValueErr(res.reason === "no-key" ? "Tiff is offline — no API key configured." : res.reason);
+    } catch {
+      setValueErr("Tiff couldn't be reached.");
+    }
+    setValuing(false);
+  };
 
   const tabBtn = (key: FleetTab, val: number, label: string, sub: string) => (
     <button key={key} className={`dirtab${tab === key ? " on" : ""}`} onClick={() => setTab(key)}>
@@ -146,11 +177,21 @@ export function FleetRegister({ fleet, staff }: { fleet: FleetState; staff: Demo
             <option value="value">Value (high–low)</option>
           </select>
         </label>
+        <button
+          className={`pbtn ghost fl-add fl-valuebtn${valuing ? " busy" : ""}`}
+          disabled={valuing}
+          onClick={runValuation}
+          title="Tiff estimates each vehicle's AU market value — Manager+ only"
+        >
+          <Icon name="sparkles" size={16} />
+          {valuing ? "Tiff is valuing…" : "Value with Tiff"}
+        </button>
         <button className="pbtn primary fl-add" onClick={() => setModal({ t: "add" })}>
           <Icon name="plus" size={16} />
           Add vehicle
         </button>
       </div>
+      {valueErr && <div className="fl-aierr">{valueErr}</div>}
 
       <div className="dir">
         <div className="dirhead flhead">
@@ -167,7 +208,8 @@ export function FleetRegister({ fleet, staff }: { fleet: FleetState; staff: Demo
             const chip = chips[0];
             const driver = staffName(v.assignedTo);
             const isSold = v.status === "sold";
-            const ai = aiValue(v);
+            const val = fleet.aiValues[v.id];
+            const stale = valuationStale(v, val);
             return (
               <div
                 key={v.id}
@@ -211,10 +253,17 @@ export function FleetRegister({ fleet, staff }: { fleet: FleetState; staff: Demo
                 )}
                 <span className="fl-value">
                   <b>{fmtMoney(v.value)}</b>
-                  {!isSold && ai !== null && (
-                    <em className="fl-tiff">
+                  {!isSold && val && (
+                    <em
+                      className={`fl-tiff${stale ? " stale" : ""}`}
+                      title={
+                        stale
+                          ? "Odometer has moved since Tiff valued this — run Value with Tiff again"
+                          : `Tiff: ${fmtMoney(val.low)}–${fmtMoney(val.high)}${val.note ? ` · ${val.note}` : ""}`
+                      }
+                    >
                       <Icon name="sparkles" size={11} />
-                      {fmtMoney(ai)}
+                      {fmtMoney(val.point)}
                     </em>
                   )}
                 </span>
@@ -270,10 +319,12 @@ export function FleetRegister({ fleet, staff }: { fleet: FleetState; staff: Demo
           </span>
           <span>
             Fleet value <b>{fmtMoney(fleetValue(vehicles))}</b>
-            <em className="fl-tiff">
-              <Icon name="sparkles" size={11} />
-              Tiff ≈ {fmtMoney(fleetAiValue(vehicles))}
-            </em>
+            {aiTotal !== null && (
+              <em className="fl-tiff">
+                <Icon name="sparkles" size={11} />
+                Tiff ≈ {fmtMoney(aiTotal)}
+              </em>
+            )}
           </span>
         </div>
       </div>
@@ -308,6 +359,8 @@ export function FleetRegister({ fleet, staff }: { fleet: FleetState; staff: Demo
           chips={vehicleChips(openVehicle, openIssueCount(logs, openVehicle.id))}
           logs={logsFor(logs, openVehicle.id)}
           eco={fuelEconomy(logsFor(logs, openVehicle.id))}
+          valuation={fleet.aiValues[openVehicle.id]}
+          valuationIsStale={valuationStale(openVehicle, fleet.aiValues[openVehicle.id])}
           staff={staff}
           manager
           onClose={() => setModal({ t: "none" })}

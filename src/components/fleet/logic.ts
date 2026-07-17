@@ -41,6 +41,8 @@ export type VehicleLog = {
   cost?: number;
   odo?: number;
   status?: "open" | "resolved"; // issues only
+  source?: "scan" | "manual"; // fuel logs: receipt-scanned vs typed
+  station?: string; // fuel logs: where the fill happened
 };
 
 export const STATUS_LABEL: Record<VehicleStatus, string> = {
@@ -132,26 +134,55 @@ export function vehicleFacts(v: Vehicle): VehicleFact[] {
   ];
 }
 
-/* ---- Tiff estimate (AI vehicle value — deterministic demo model) ----
-   Depreciate the purchase price by age, then adjust for kms driven vs the
-   expected 15,000 km/yr, clamped to ±20% of the age curve. Manager+ only in
-   the UI, like every valuation. */
+/* ---- Tiff valuations (real AI — src/app/actions/fleet-ai.ts) ----
+   The server action asks Claude for AU-market valuations; the validated
+   results live in the prototype overlay (aiValues) stamped with the odometer
+   they were computed at. Manager+ only in the UI, like every valuation. */
 
-export const AI_YEAR1 = 0.9; // keeps 90% after year 1
-export const AI_ANNUAL = 0.95; // then 95% per year (AU utes/vans hold value)
-export const AI_KM_RATE = 0.06; // $ per km away from the expected odometer
-export const AI_EXPECTED_KM_YR = 15000;
+export type AiValuation = {
+  point: number;
+  low: number;
+  high: number;
+  note: string;
+  atOdo: number; // odometer reading when Tiff valued it
+};
 
-export function aiValue(v: Vehicle): number | null {
-  const base = v.purchasePrice || v.value || 0;
-  if (!base) return null;
-  const age = Math.max(0, v.purchaseDateDays) / 365.25;
-  const ageFactor = age <= 1 ? 1 - (1 - AI_YEAR1) * age : AI_YEAR1 * Math.pow(AI_ANNUAL, age - 1);
-  const curve = base * ageFactor;
-  const expectedKm = age * AI_EXPECTED_KM_YR + 2000;
-  const est = curve + (expectedKm - v.odometer) * AI_KM_RATE;
-  const clamped = Math.min(curve * 1.2, Math.max(curve * 0.8, est));
-  return Math.max(0, Math.round(clamped / 100) * 100);
+export const VALUATION_STALE_KM = 2000;
+
+/** A valuation goes stale once the vehicle has driven well past where it was valued. */
+export function valuationStale(v: Vehicle, val: AiValuation | undefined): boolean {
+  return !!val && v.odometer - val.atOdo > VALUATION_STALE_KM;
+}
+
+/** Validate/clamp raw model output against the actual fleet. Unknown ids and
+    junk entries are dropped; low/high are ordered, point clamped between them,
+    everything rounded to $100 and stamped with the vehicle's current odo. */
+export function parseValuations(raw: unknown, vehicles: Vehicle[]): Record<string, AiValuation> {
+  const byId = new Map(vehicles.map((v) => [v.id, v]));
+  const out: Record<string, AiValuation> = {};
+  const list = (raw as { valuations?: unknown })?.valuations;
+  if (!Array.isArray(list)) return out;
+  for (const item of list) {
+    if (!item || typeof item !== "object") continue;
+    const rec = item as Record<string, unknown>;
+    const v = byId.get(String(rec.id));
+    if (!v) continue;
+    let low = Number(rec.low);
+    let high = Number(rec.high);
+    let point = Number(rec.point);
+    if (![low, high, point].every((n) => Number.isFinite(n) && n >= 0)) continue;
+    if (low > high) [low, high] = [high, low];
+    point = Math.min(high, Math.max(low, point));
+    const r = (n: number) => Math.max(0, Math.round(n / 100) * 100);
+    out[v.id] = {
+      point: r(point),
+      low: r(low),
+      high: r(high),
+      note: typeof rec.note === "string" ? rec.note.slice(0, 200) : "",
+      atOdo: v.odometer,
+    };
+  }
+  return out;
 }
 
 /* ---- prototype overlay (localStorage stands in for the backend) ---- */
@@ -162,6 +193,7 @@ export type FleetOverlay = {
   removed: string[];
   logs: VehicleLog[]; // prototype-added logs (ago 0)
   resolved: string[]; // demo issue-log ids marked resolved
+  aiValues: Record<string, AiValuation>; // Tiff valuations, keyed by vehicle id
 };
 
 export const EMPTY_OVERLAY: FleetOverlay = {
@@ -170,6 +202,7 @@ export const EMPTY_OVERLAY: FleetOverlay = {
   removed: [],
   logs: [],
   resolved: [],
+  aiValues: {},
 };
 
 /** Backfill v2 fields on records stored by older prototype builds (LS overlays). */
@@ -217,6 +250,31 @@ export function logsFor(logs: VehicleLog[], vehicleId: string): VehicleLog[] {
 
 export function openIssueCount(logs: VehicleLog[], vehicleId: string): number {
   return logs.filter((l) => l.vehicleId === vehicleId && l.kind === "issue" && l.status === "open").length;
+}
+
+/* ---- offline receipt fallback (deterministic — no Tiff needed) ----
+   When the readFuelReceipt action can't run (no API key, offline dev), derive
+   a plausible AU fill from the image's file size so the scan flow still demos:
+   same file, same reading. */
+
+export const RECEIPT_STATIONS = [
+  "Shell Coburg",
+  "BP Ringwood",
+  "Ampol Dandenong",
+  "7-Eleven Preston",
+  "United Braeside",
+];
+
+export function readReceiptOffline(fileSizeBytes: number): {
+  litres: number;
+  cost: number;
+  station: string;
+} {
+  const size = Math.max(0, Math.floor(fileSizeBytes));
+  const litres = Math.round((45 + (size % 300) / 10) * 10) / 10; // 45.0–74.9 L
+  const perLitre = 1.75 + (size % 40) / 100; // $1.75–$2.14
+  const cost = Math.round(litres * perLitre * 100) / 100;
+  return { litres, cost, station: RECEIPT_STATIONS[size % RECEIPT_STATIONS.length] };
 }
 
 /** L/100km per fuel log, from the odo delta since the previous fill. */
@@ -279,10 +337,17 @@ export function fleetValue(vehicles: Vehicle[]): number {
   return vehicles.filter((v) => v.status !== "sold").reduce((sum, v) => sum + v.value, 0);
 }
 
-export function fleetAiValue(vehicles: Vehicle[]): number {
-  return vehicles
+/** Sum of Tiff point estimates across valued working vehicles; null until any exist. */
+export function fleetAiValue(
+  vehicles: Vehicle[],
+  aiValues: Record<string, AiValuation>,
+): number | null {
+  const points = vehicles
     .filter((v) => v.status !== "sold")
-    .reduce((sum, v) => sum + (aiValue(v) ?? 0), 0);
+    .map((v) => aiValues[v.id]?.point)
+    .filter((n): n is number => typeof n === "number");
+  if (points.length === 0) return null;
+  return points.reduce((a, b) => a + b, 0);
 }
 
 /* ---- small helpers ---- */

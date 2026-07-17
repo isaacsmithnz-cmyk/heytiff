@@ -13,6 +13,7 @@
     "dev:verify": "NEXT_DIST_DIR=.next-verify next dev -p 3200"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.112.3",
     "@auth0/nextjs-auth0": "^4.22.0",
     "@supabase/supabase-js": "^2.108.2",
     "jose": "^6.2.3",

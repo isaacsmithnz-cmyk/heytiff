@@ -10,6 +10,7 @@ const LINKS = [
   { href: "/hq", label: "Overview" },
   { href: "/hq/data", label: "Data" },
   { href: "/hq/changes", label: "Changes" },
+  { href: "/hq/map", label: "System map" },
 ];
 
 function isActive(href: string, pathname: string): boolean {

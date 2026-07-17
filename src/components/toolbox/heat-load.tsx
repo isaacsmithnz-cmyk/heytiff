@@ -314,22 +314,39 @@ export function HeatLoadCalculator() {
             {fmtArea(areaM2)} m² × {effectiveWm2} W/m² and factors
           </div>
         )}
+        <div className="meta dim2">
+          Rule-of-thumb — same engine as Studio rooms. Verify borderline picks.
+        </div>
       </section>
 
       {/* -------- advanced — full width, collapsed behind its summary -------- */}
       <section className="tcard hl2-adv">
-        <button
-          type="button"
-          className="hl2-advhead"
-          aria-expanded={adjustOpen}
-          onClick={() => setAdjustOpen((o) => !o)}
-        >
-          <b>Advanced</b>
-          <span className="sum">{summary}</span>
-          <span className={"chev" + (adjustOpen ? " open" : "")}>
-            <Icon name="chevR" size={16} />
-          </span>
-        </button>
+        <div className="hl2-advbar">
+          <button
+            type="button"
+            className="hl2-advhead"
+            aria-expanded={adjustOpen}
+            onClick={() => setAdjustOpen((o) => !o)}
+          >
+            <b>Advanced</b>
+            <span className="sum">{summary}</span>
+            <span className={"chev" + (adjustOpen ? " open" : "")}>
+              <Icon name="chevR" size={16} />
+            </span>
+          </button>
+          {adjustOpen && (
+            <button
+              type="button"
+              className="hl2-mode reset"
+              onClick={() => {
+                const { lengthM, widthM, areaM2: a, areaMode, ceilingHeightM } = s;
+                setS({ ...HL_DEFAULTS, lengthM, widthM, areaM2: a, areaMode, ceilingHeightM });
+              }}
+            >
+              Reset factors
+            </button>
+          )}
+        </div>
 
         {adjustOpen && (
           <div className="hl2-fpanel">
@@ -351,7 +368,6 @@ export function HeatLoadCalculator() {
                   </select>
                   <Icon name="chevD" size={16} />
                 </div>
-                <p className="tnote">{zone.cities}</p>
               </div>
               <div>
                 <label className="tlab" htmlFor="hl-wm2">Base rate override</label>
@@ -360,13 +376,12 @@ export function HeatLoadCalculator() {
                     id="hl-wm2"
                     className="tin"
                     inputMode="decimal"
-                    placeholder={String(zoneWm2)}
+                    placeholder={`${zoneWm2} (zone table)`}
                     value={s.wm2Override}
                     onChange={(e) => patch({ wm2Override: e.target.value })}
                   />
                   <span className="u">W/m²</span>
                 </div>
-                <p className="tnote">Zone table gives {zoneWm2} W/m².</p>
               </div>
               <div>
                 <label className="tlab">Building type</label>
@@ -434,7 +449,7 @@ export function HeatLoadCalculator() {
                     </button>
                   ))}
                 </div>
-                <label className="ttog" style={{ marginTop: 10 }}>
+                <label className="ttog" style={{ marginTop: 8 }}>
                   <input
                     type="checkbox"
                     checked={s.internal}
@@ -445,26 +460,8 @@ export function HeatLoadCalculator() {
                 </label>
               </div>
             </div>
-
-            <div>
-              <button
-                type="button"
-                className="hl2-mode"
-                onClick={() => {
-                  const { lengthM, widthM, areaM2: a, areaMode, ceilingHeightM } = s;
-                  setS({ ...HL_DEFAULTS, lengthM, widthM, areaM2: a, areaMode, ceilingHeightM });
-                }}
-              >
-                Reset factors to defaults
-              </button>
-            </div>
           </div>
         )}
-
-        <p className="tnote hl2-foot">
-          Rule-of-thumb estimate — the same engine as Design Studio rooms.
-          Verify borderline or commercial picks with a full calculation.
-        </p>
       </section>
     </div>
   );

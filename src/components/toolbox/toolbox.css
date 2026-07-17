@@ -145,10 +145,14 @@
 .fg .tool .hl2-hero .cls a:hover { text-decoration: underline; }
 .fg .tool .hl2-hero .cls.dim { color: rgba(255, 255, 255, 0.45); }
 .fg .tool .hl2-hero .meta { margin-top: 10px; font-size: 12px; font-weight: 700; color: rgba(255, 255, 255, 0.45); }
-/* advanced panel — full width under the two top cards */
+.fg .tool .hl2-hero .meta.dim2 { margin-top: 6px; font-size: 10.5px; font-weight: 600; color: rgba(255, 255, 255, 0.32); }
+/* advanced panel — full width under the two top cards; the expanded state
+   must still fit the viewport, so everything inside runs one size down */
 .fg .tool .hl2-adv { grid-column: 1 / -1; padding: 0; overflow: hidden; }
+.fg .tool .hl2-advbar { display: flex; align-items: center; }
+.fg .tool .hl2-advbar .hl2-mode.reset { flex: 0 0 auto; margin: 0 22px 0 0; }
 .fg .tool .hl2-advhead {
-  display: flex; align-items: center; gap: 14px; width: 100%; padding: 15px 22px;
+  display: flex; align-items: center; gap: 14px; flex: 1; min-width: 0; padding: 13px 22px;
   background: none; border: 0; cursor: pointer; font-family: var(--font); text-align: left;
 }
 .fg .tool .hl2-advhead:hover { background: #fafbfc; }
@@ -156,13 +160,16 @@
 .fg .tool .hl2-advhead .sum { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 600; color: var(--gray400); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fg .tool .hl2-advhead .chev { color: #c8cdd6; display: flex; flex: 0 0 auto; transition: transform 0.25s; }
 .fg .tool .hl2-advhead .chev.open { transform: rotate(90deg); }
-.fg .tool .hl2-fpanel { padding: 16px 22px 18px; border-top: 1px solid #f3f4f6; display: grid; gap: 16px; }
-.fg .tool .hl2-fpanel .row3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.fg .tool .hl2-fpanel { padding: 12px 22px 14px; border-top: 1px solid #f3f4f6; display: grid; gap: 12px; }
+.fg .tool .hl2-fpanel .row3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 @media (max-width: 900px) { .fg .tool .hl2-fpanel .row3 { grid-template-columns: 1fr; } }
-.fg .tool .hl2-adv .tseg button { padding: 8px 6px; font-size: 12.5px; }
-.fg .tool .hl2-adv .tchip { padding: 6px 11px; font-size: 12px; }
-.fg .tool .hl2-adv .tnote { font-size: 11.5px; margin-top: 6px; }
-.fg .tool .hl2-foot { margin: 0; padding: 10px 22px; border-top: 1px solid #f3f4f6; font-size: 11.5px; }
+.fg .tool .hl2-adv .tlab { font-size: 10.5px; margin-bottom: 6px; }
+.fg .tool .hl2-adv .tin, .fg .tool .hl2-adv select.tin { padding: 9px 12px; font-size: 13.5px; border-radius: 12px; }
+.fg .tool .hl2-adv .tunit .tin { padding-right: 40px; }
+.fg .tool .hl2-adv .tseg { padding: 4px; border-radius: 11px; }
+.fg .tool .hl2-adv .tseg button { padding: 7px 6px; font-size: 12.5px; }
+.fg .tool .hl2-adv .tchip { padding: 5px 9px; font-size: 11.5px; }
+.fg .tool .hl2-adv .ttog .tl { font-size: 12.5px; }
 
 /* ---------- running-pressures specifics ---------- */
 .fg .tool .rp-ctl { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 20px; }

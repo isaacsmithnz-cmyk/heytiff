@@ -42,7 +42,7 @@ import { MaterialsView, JobView } from "./split-panel";
 import { SystemCockpit } from "./cockpit-panel";
 import { RoomModal } from "./room-modal";
 import { ReferenceViewer } from "./reference-viewer";
-import { SimControllerCard } from "./sim-controller";
+import { SimPresentMode } from "./sim-present";
 import { SimRuntime } from "@/lib/studio/sim-runtime";
 import type { DataPack, IndoorUnit } from "@/lib/studio/packs/schema";
 import "./studio.css";
@@ -1734,7 +1734,7 @@ function DesignPanel({
             onRemarkConsumed={onRemarkConsumed}
             layers={layers}
             grayscale={grayscale}
-            sim={sim}
+            sim={null}
           />
         </div>
         {/* options HUD — floating pill strip, top-centre over the canvas,
@@ -1746,7 +1746,17 @@ function DesignPanel({
             returnBuiltIn={airGate.row?.return_opening === "built-in"}
           />
         )}
-        {sim && <SimControllerCard runtime={sim} onExit={onToggleSim} />}
+        {sim && floor && (
+          <SimPresentMode
+            doc={doc}
+            floor={floor}
+            pack={pack}
+            planImages={planImages}
+            activeSystemId={activeSystemId}
+            runtime={sim}
+            onExit={onToggleSim}
+          />
+        )}
         {legendOpen && (
           <div className="ds-legend" role="dialog" aria-label="Legend">
             <div className="ds-legend-h">

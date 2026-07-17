@@ -1,6 +1,5 @@
-import { Screen } from "@/components/shell/screen";
-import { toolboxHtml } from "@/components/shell/screens";
+import { ToolboxScreen } from "@/components/toolbox/toolbox-screen";
 
 export default function ToolboxPage() {
-  return <Screen html={toolboxHtml()} />;
+  return <ToolboxScreen />;
 }

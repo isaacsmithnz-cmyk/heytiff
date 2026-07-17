@@ -55,6 +55,9 @@
 }
 .fg .tool .tin:focus { box-shadow: 0 0 0 4px var(--tool-ring, rgba(0, 229, 192, 0.18)); border-color: var(--tool-accent, var(--teal)); }
 .fg .tool .tin::placeholder { color: #c3c8d1; font-weight: 500; }
+/* clear the example value on focus — with center-aligned fields the caret
+   otherwise blinks right on top of the placeholder digit */
+.fg .tool .tin:focus::placeholder { color: transparent; }
 .fg .tool .tselwrap { position: relative; }
 .fg .tool .tselwrap svg { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--gray400); pointer-events: none; }
 .fg .tool select.tin { padding-right: 38px; cursor: pointer; }

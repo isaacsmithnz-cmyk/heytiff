@@ -25,7 +25,7 @@ import {
 import { buildDemoState } from "./demo-data";
 import { RC } from "./theme";
 import { money, rate0, gstOf } from "./format";
-import { HEALTH_COLORS, RateNumberInput, RcIcon, WsEyebrow } from "./ui";
+import { HEALTH_COLORS, parseRate, RcIcon, WsEyebrow } from "./ui";
 import { StaffStep, BusinessStep, VehiclesStep, RiskStep, ProfitStep } from "./steps";
 import { Overview } from "./overview";
 import { InsightsView } from "./insights";
@@ -72,11 +72,12 @@ function nodeStyle(completion: string, cur: boolean) {
 }
 
 // ── persistent live-rates rail ──────────────────────────────────────────
-// One card per rate, filled solid in its accent colour (Install blue,
-// Service green) with white text: the current rate is editable at the top,
-// the recommended rate is the hero below, the gap between them a chip.
-function RateCard({ label, k, color, rec, be, ready, currentRates, patch }: {
-  label: string; k: "install" | "service"; color: string;
+// One card per rate, filled in its accent gradient (Install blue, Service
+// green): the recommended rate is the hero with GST on its baseline and
+// break-even pilled underneath, and what you charge today sits in the frosted
+// bar at the foot — editable in place, chipped with the gap to recommended.
+function RateCard({ label, k, rec, be, ready, currentRates, patch }: {
+  label: string; k: "install" | "service";
   rec: number | null; be: number | null; ready: boolean;
   currentRates: RateCalcState["currentRates"]; patch: (p: Partial<RateCalcState>) => void;
 }) {
@@ -85,38 +86,43 @@ function RateCard({ label, k, color, rec, be, ready, currentRates, patch }: {
   // diff > 0 → recommended sits above what you charge (raise); <= 0 → healthy.
   const diff = (roundedRec != null && cur != null) ? roundedRec - cur : null;
   return (
-    <div style={{ background: color, borderRadius: 16, padding: "14px 16px", marginBottom: 12 }}>
-      <WsEyebrow color="rgba(255,255,255,.9)" style={{ marginBottom: 12 }}>{label}</WsEyebrow>
+    <div className={`rca-rc ${k}`}>
+      <div className="rca-rc-eyebrow">{label}</div>
+      <div className="rca-rc-rec">Recommended</div>
 
-      {/* current rate — editable */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 13 }}>
-        <span style={{ fontSize: 12, color: "rgba(255,255,255,.8)", fontWeight: 600 }}>You charge now</span>
-        <RateNumberInput value={cur} color={color} ariaLabel={`Current ${label.toLowerCase()} rate`}
-          onChange={v => patch({ currentRates: { ...currentRates, [k]: v } })} />
+      {/* recommended — the hero */}
+      <div className="rca-rc-hero">
+        {!ready ? <span className="rca-shimmer" style={{ display: "inline-block", width: 114, height: 32 }} />
+          : roundedRec == null ? <span className="rca-rc-dash">—</span>
+          : <>
+              <span className="rca-rc-fig"><span className="cur">$</span><span className="val">{roundedRec}</span><span className="unit">/hr</span></span>
+              <span className="rca-rc-gst">+ GST <b>{gstOf(rec)}</b></span>
+            </>}
       </div>
 
-      <div style={{ height: 1, background: "rgba(255,255,255,.22)", marginBottom: 12 }} />
+      {!ready ? <div className="rca-rc-wait rca-pulse">waiting for your numbers…</div>
+        : be == null ? <div className="rca-rc-wait">awaiting inputs</div>
+        : <div className="rca-rc-be"><span className="k">Break-even</span><span className="v">{rate0(be)}<span className="u">/hr</span></span></div>}
 
-      {/* recommended — the hero, with the gap chip */}
-      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 8 }}>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "0.07em", textTransform: "uppercase", color: "rgba(255,255,255,.65)", marginBottom: 3 }}>Recommended</div>
-          <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 34, letterSpacing: "-0.03em", lineHeight: 0.95, color: "#fff" }}>
-            {!ready ? <span className="rca-shimmer" style={{ display: "inline-block", width: 96, height: 26, verticalAlign: "-3px" }} />
-              : roundedRec == null ? <span style={{ color: "rgba(255,255,255,.7)", fontSize: 24 }}>—</span>
-              : <><span style={{ fontSize: 17, verticalAlign: "8px", color: "rgba(255,255,255,.65)" }}>$</span>{roundedRec}<span style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,.65)" }}>/hr</span></>}
-          </div>
-        </div>
+      <div className="rca-rc-rule" />
+
+      {/* what you charge today — the bar is the field, so clicking it types */}
+      <label className="rca-rc-now">
+        <span className="rca-rc-now-l">
+          <span className="rca-rc-now-lab">You currently charge</span>
+          <span className="rca-rc-now-val">
+            <span className="fix">$</span>
+            <input value={cur == null ? "" : String(cur)} inputMode="decimal" placeholder="0"
+              aria-label={`Current ${label.toLowerCase()} rate`}
+              style={{ width: `${Math.max(1, String(cur ?? "").length)}ch` }}
+              onChange={e => patch({ currentRates: { ...currentRates, [k]: parseRate(e.target.value) } })} />
+            <span className="fix">/hr</span>
+          </span>
+        </span>
         {ready && diff != null && (diff > 0
-          ? <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 800, color: "#B45309", background: "#FCF3E3", padding: "4px 9px", borderRadius: 100, whiteSpace: "nowrap" }}>↑ ${diff}/hr</span>
-          : <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 800, color: "#17703A", background: "#fff", padding: "4px 9px", borderRadius: 100, whiteSpace: "nowrap" }}>✓ {diff < 0 ? "above" : "on target"}</span>)}
-      </div>
-
-      <div style={{ fontSize: 11.5, color: "rgba(255,255,255,.85)", marginTop: 9 }}>
-        {!ready ? <span className="rca-pulse" style={{ color: "rgba(255,255,255,.85)" }}>waiting for your numbers…</span>
-          : roundedRec == null ? <span style={{ color: "rgba(255,255,255,.7)" }}>awaiting inputs</span>
-          : <>+ GST <b style={{ color: "#fff", fontWeight: 700 }}>{gstOf(rec)}</b> · break-even <b style={{ color: "#fff", fontWeight: 700 }}>{rate0(be)}</b></>}
-      </div>
+          ? <span className="rca-rc-chip up">↑ ${diff}/hr</span>
+          : <span className="rca-rc-chip ok">✓ {diff < 0 ? `$${-diff} above` : "on target"}</span>)}
+      </label>
     </div>
   );
 }
@@ -126,7 +132,7 @@ function RatesRail({ s, calc, uplift, ready, missing, onLoadDemo, patch }: {
   missing: string[]; onLoadDemo?: () => void; patch: (p: Partial<RateCalcState>) => void;
 }) {
   return (
-    <div style={{ width: 300, flexShrink: 0, display: "flex", flexDirection: "column", overflowY: "auto", overflowX: "hidden", paddingTop: 19 }}>
+    <div style={{ width: 300, flexShrink: 0, display: "flex", flexDirection: "column", overflowY: "auto", overflowX: "hidden", scrollbarGutter: "stable", paddingTop: 14 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, padding: "0 2px" }}>
         <WsEyebrow color={RC.label}>Your rates</WsEyebrow>
         <span style={{ fontSize: 11.5, color: RC.faint, display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}><span className={ready ? undefined : "rca-pulse"} style={{ width: 6, height: 6, borderRadius: "50%", background: ready ? RC.teal : RC.install, boxShadow: ready ? `0 0 8px ${RC.teal}` : "none" }} />{ready ? "updates as you edit" : "awaiting inputs"}</span>
@@ -141,29 +147,29 @@ function RatesRail({ s, calc, uplift, ready, missing, onLoadDemo, patch }: {
           )}
         </div>
       )}
-      <RateCard label="Install" k="install" color={RC.install} rec={calc.recInst} be={calc.beInst} ready={ready} currentRates={s.currentRates} patch={patch} />
-      <RateCard label="Service" k="service" color={RC.service} rec={calc.recSvc} be={calc.beSvc} ready={ready} currentRates={s.currentRates} patch={patch} />
-      <div style={{ background: "#fff", borderRadius: 14, border: `1px solid rgba(10,12,20,.06)`, boxShadow: "0 1px 2px rgba(10,12,20,.04), 0 20px 50px -30px rgba(10,12,20,.18)", padding: "13px 15px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 9 }}>
-          <span style={{ fontSize: 12.5, color: RC.ink2, whiteSpace: "nowrap" }}>Day rate (full day)</span>
-          <span style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 14, color: RC.ink }}>{ready ? money(calc.daily) : "—"}</span>
+      <RateCard label="Install" k="install" rec={calc.recInst} be={calc.beInst} ready={ready} currentRates={s.currentRates} patch={patch} />
+      <RateCard label="Service" k="service" rec={calc.recSvc} be={calc.beSvc} ready={ready} currentRates={s.currentRates} patch={patch} />
+      <div className="rca-rc-sum">
+        <div className="rca-rc-sumrow">
+          <span className="k">Day rate (full day)</span>
+          <span className="v day">{ready ? money(calc.daily) : "—"}</span>
         </div>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 9 }}>
-          <span style={{ fontSize: 12.5, color: RC.ink2, whiteSpace: "nowrap" }}>After-hrs / emergency</span>
-          <span style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 14, color: RC.violet, whiteSpace: "nowrap" }}>{ready ? `${rate0(calc.afterHrs)} / ${rate0(calc.emergency)}` : "—"}</span>
+        <div className="rca-rc-sumrow">
+          <span className="k">After-hrs / emergency</span>
+          <span className="v after">{ready ? `${rate0(calc.afterHrs)} / ${rate0(calc.emergency)}` : "—"}</span>
         </div>
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <span style={{ fontSize: 12.5, color: RC.ink2, whiteSpace: "nowrap" }}>Confidence</span>
-          <span style={{ fontSize: 12.5, fontWeight: 700, color: RC.service, whiteSpace: "nowrap" }}>{ready ? calc.confidence.label : "—"}</span>
+        <div className="rca-rc-sumrow">
+          <span className="k">Confidence</span>
+          <span className="v conf">{ready ? calc.confidence.label : "—"}</span>
         </div>
       </div>
-      <div style={{ marginTop: "auto", paddingTop: 16 }}>
-        {ready && uplift != null && uplift > 0 && (
+      {ready && uplift != null && uplift > 0 && (
+        <div style={{ marginTop: "auto", paddingTop: 16 }}>
           <div style={{ background: RC.serviceSoft, borderRadius: 13, padding: "12px 15px", fontSize: 12.5, color: "#17703A", lineHeight: 1.5 }}>
             Re-pricing to recommended recovers <b>+{money(uplift)}/yr</b>.
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

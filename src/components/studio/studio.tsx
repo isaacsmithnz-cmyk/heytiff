@@ -335,187 +335,198 @@ function Home({
   };
 
   return (
-    <div className="ds-home stgp">
-      <section className="ds-hero">
-        {step === "name" ? (
-          <>
-            <span className="ds-hero-step">Step 1 of 2</span>
-            <h3 className="ds-hero-etitle">Name your design</h3>
-            <p className="ds-hero-esub">
-              Give the job a name — you&apos;ll choose how to start next.
-            </p>
-            <input
-              className="ds-name-input"
-              placeholder="Design name — e.g. 14 Harbour View Rd"
-              value={name}
-              autoFocus
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && trimmed) setStep("mode");
-                if (e.key === "Escape") cancel();
-              }}
-            />
-            <div className="ds-hero-nav">
-              <button className="ds-hero-back" onClick={cancel}>
-                <Icon name="chevL" size={14} />
-                Cancel
-              </button>
-              <button
-                className="ds-cta sm"
-                disabled={!trimmed}
-                onClick={() => setStep("mode")}
-              >
-                Continue
-                <Icon name="chevR" size={16} />
-              </button>
-            </div>
-          </>
-        ) : step === "mode" ? (
-          <>
-            <span className="ds-hero-step">Step 2 of 2</span>
-            <h3 className="ds-hero-etitle">How do you want to start?</h3>
-            <p className="ds-hero-esub">
-              Designing <b>{trimmed}</b>
-            </p>
-            <div className="ds-opts">
-              <button className="ds-opt" onClick={() => create("plan")}>
-                <span className="ds-opt-ic">
-                  <Icon name="file" size={20} />
-                </span>
-                <span className="ds-opt-n">Upload floor plans</span>
-                <span className="ds-opt-d">
-                  Bring in PDF or image plans, calibrate the scale and design to
-                  size on the real drawing.
-                </span>
-              </button>
-              <button className="ds-opt" onClick={() => create("blank")}>
-                <span className="ds-opt-ic">
-                  <Icon name="square" size={20} />
-                </span>
-                <span className="ds-opt-n">Blank canvas</span>
-                <span className="ds-opt-d">
-                  Sketch a system with no plan — a scaled grid keeps everything
-                  true to size.
-                </span>
-              </button>
-            </div>
-            <button className="ds-hero-back" onClick={() => setStep("name")}>
-              <Icon name="chevL" size={14} />
-              Back
-            </button>
-          </>
-        ) : (
-          <>
-            <span className="ds-hero-badge">
-              <Icon name="wind" size={12} />
-              Design Studio
-            </span>
-            <h2>
-              Every system on the job,
-              <br />
-              on one canvas.
-            </h2>
-            <p>
-              Splits, ducted, VRF and ventilation — designed on calibrated
-              plans, validated live, with the materials list built for you.
-            </p>
-            <button className="ds-cta" onClick={() => setStep("name")}>
-              <Icon name="plus" size={18} />
-              New design
-            </button>
-          </>
-        )}
-      </section>
-
-      <section className="ds-recent">
-        <div className="ds-recent-head">
-          <span className="ds-cardt">Recent designs</span>
-          <button
-            className="ds-import"
-            title="Restore a design exported from HeyTiff (.heytiff-design.json) — not for floor plans or CAD files"
-            onClick={() => fileRef.current?.click()}
-          >
-            <Icon name="arrowUp" size={14} />
-            Import design file
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="application/json,.json"
-            hidden
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) void importFile(f);
-              e.target.value = "";
-            }}
-          />
-        </div>
-        {importError && <div className="ds-ierr">{importError}</div>}
-        {recents.length > 0 && (
-          <label className="ds-search">
-            <Icon name="search" size={16} />
-            <input
-              placeholder="Search designs..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </label>
-        )}
-        {visible.length > 0 ? (
-          <div className="ds-rlist">
-            {visible.map((r) => (
-              <div
-                key={r.id}
-                className="ds-rcard"
-                role="button"
-                tabIndex={0}
-                onClick={() => onOpen(r.id)}
-                onKeyDown={(e) => e.key === "Enter" && onOpen(r.id)}
-              >
-                <span className="ds-rthumb">
-                  <Icon name={r.mode === "plan" ? "file" : "square"} size={19} />
-                </span>
-                <span className="ds-rbody">
-                  <div className="ds-rnm">{r.name}</div>
-                  <div className="ds-rmeta">
-                    {MODE_LABEL[r.mode]} · {r.floorCount}{" "}
-                    {r.floorCount === 1 ? "floor" : "floors"} · {r.systemCount}{" "}
-                    {r.systemCount === 1 ? "system" : "systems"}
-                  </div>
-                </span>
-                <span className="ds-rwhen">{timeAgo(r.updatedAt)}</span>
+    <div className="ds-home">
+      <div className="ds-home-stack stgp">
+        <section className="ds-hero">
+          {step === "name" ? (
+            <>
+              <span className="ds-hero-step">Step 1 of 2</span>
+              <h3 className="ds-hero-etitle">Name your design</h3>
+              <p className="ds-hero-esub">
+                Give the job a name — you&apos;ll choose how to start next.
+              </p>
+              <input
+                className="ds-name-input"
+                placeholder="Design name — e.g. 14 Harbour View Rd"
+                value={name}
+                autoFocus
+                onChange={(e) => setName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && trimmed) setStep("mode");
+                  if (e.key === "Escape") cancel();
+                }}
+              />
+              <div className="ds-hero-nav">
+                <button className="ds-hero-back" onClick={cancel}>
+                  <Icon name="chevL" size={14} />
+                  Cancel
+                </button>
                 <button
-                  className={`ds-rdel${armedDelete === r.id ? " arm" : ""}`}
-                  aria-label={`Delete ${r.name}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (armedDelete === r.id) {
-                      setArmedDelete(null);
-                      onDelete(r.id);
-                    } else {
-                      setArmedDelete(r.id);
-                    }
-                  }}
-                  onBlur={() => setArmedDelete(null)}
+                  className="ds-cta sm"
+                  disabled={!trimmed}
+                  onClick={() => setStep("mode")}
                 >
-                  {armedDelete === r.id ? "Delete?" : <Icon name="x" size={15} />}
+                  Continue
+                  <Icon name="chevR" size={16} />
                 </button>
               </div>
-            ))}
-          </div>
-        ) : (
-          <div className="ds-rempty">
-            <div className="ds-rempty-t">
-              {recents.length ? "No matches" : "No designs yet"}
+            </>
+          ) : step === "mode" ? (
+            <>
+              <span className="ds-hero-step">Step 2 of 2</span>
+              <h3 className="ds-hero-etitle">How do you want to start?</h3>
+              <p className="ds-hero-esub">
+                Designing <b>{trimmed}</b>
+              </p>
+              <div className="ds-opts">
+                <button className="ds-opt" onClick={() => create("plan")}>
+                  <span className="ds-opt-ic">
+                    <Icon name="file" size={20} />
+                  </span>
+                  <span className="ds-opt-n">Upload floor plans</span>
+                  <span className="ds-opt-d">
+                    Bring in PDF or image plans, calibrate the scale and design
+                    to size on the real drawing.
+                  </span>
+                </button>
+                <button className="ds-opt" onClick={() => create("blank")}>
+                  <span className="ds-opt-ic">
+                    <Icon name="square" size={20} />
+                  </span>
+                  <span className="ds-opt-n">Blank canvas</span>
+                  <span className="ds-opt-d">
+                    Sketch a system with no plan — a scaled grid keeps everything
+                    true to size.
+                  </span>
+                </button>
+              </div>
+              <button className="ds-hero-back" onClick={() => setStep("name")}>
+                <Icon name="chevL" size={14} />
+                Back
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="ds-hero-badge">
+                <Icon name="wind" size={12} />
+                Design Studio
+              </span>
+              <h2>
+                Every system on the job,
+                <br />
+                on one canvas.
+              </h2>
+              <p>
+                Splits, ducted, VRF and ventilation — designed on calibrated
+                plans, validated live, with the materials list built for you.
+              </p>
+              <button className="ds-cta" onClick={() => setStep("name")}>
+                <Icon name="plus" size={18} />
+                New design
+              </button>
+            </>
+          )}
+        </section>
+
+        <section className="ds-recent">
+          <div className="ds-recent-head">
+            <span className="ds-cardt">Recent designs</span>
+            <div className="ds-recent-tools">
+              {recents.length > 0 && (
+                <label className="ds-search">
+                  <Icon name="search" size={16} />
+                  <input
+                    placeholder="Search designs..."
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                  />
+                </label>
+              )}
+              <button
+                className="ds-import"
+                title="Restore a design exported from HeyTiff (.heytiff-design.json) — not for floor plans or CAD files"
+                onClick={() => fileRef.current?.click()}
+              >
+                <Icon name="arrowUp" size={14} />
+                Import design file
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="application/json,.json"
+                hidden
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void importFile(f);
+                  e.target.value = "";
+                }}
+              />
             </div>
-            <div className="ds-rempty-s">
-              {recents.length
-                ? "Nothing matches that search."
-                : "Your recent work will appear here — start your first design on the left."}
-            </div>
           </div>
-        )}
-      </section>
+          {importError && <div className="ds-ierr">{importError}</div>}
+          {visible.length > 0 ? (
+            <div className="ds-rlist">
+              {visible.map((r) => (
+                <div
+                  key={r.id}
+                  className="ds-rcard"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => onOpen(r.id)}
+                  onKeyDown={(e) => e.key === "Enter" && onOpen(r.id)}
+                >
+                  <span className="ds-rthumb">
+                    <Icon
+                      name={r.mode === "plan" ? "file" : "square"}
+                      size={19}
+                    />
+                  </span>
+                  <span className="ds-rbody">
+                    <div className="ds-rnm">{r.name}</div>
+                    <div className="ds-rmeta">
+                      {MODE_LABEL[r.mode]} · {r.floorCount}{" "}
+                      {r.floorCount === 1 ? "floor" : "floors"} · {r.systemCount}{" "}
+                      {r.systemCount === 1 ? "system" : "systems"}
+                    </div>
+                  </span>
+                  <span className="ds-rwhen">{timeAgo(r.updatedAt)}</span>
+                  <button
+                    className={`ds-rdel${armedDelete === r.id ? " arm" : ""}`}
+                    aria-label={`Delete ${r.name}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (armedDelete === r.id) {
+                        setArmedDelete(null);
+                        onDelete(r.id);
+                      } else {
+                        setArmedDelete(r.id);
+                      }
+                    }}
+                    onBlur={() => setArmedDelete(null)}
+                  >
+                    {armedDelete === r.id ? (
+                      "Delete?"
+                    ) : (
+                      <Icon name="x" size={15} />
+                    )}
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="ds-rempty">
+              <div className="ds-rempty-t">
+                {recents.length ? "No matches" : "No designs yet"}
+              </div>
+              <div className="ds-rempty-s">
+                {recents.length
+                  ? "Nothing matches that search."
+                  : "Your recent work will appear here — start your first design on the left."}
+              </div>
+            </div>
+          )}
+        </section>
+      </div>
     </div>
   );
 }

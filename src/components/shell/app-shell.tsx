@@ -60,6 +60,17 @@ export function AppShell({
   return (
     <div className="fg" onMouseMove={onMouseMove} onClick={onClick}>
       <div className="gridbg" />
+      {/* frame-level ambient fx: aurora blobs + rising orbs roam the whole black
+          frame (behind the sidebar/topbar content and the floating light well) */}
+      <div className="framefx" aria-hidden="true">
+        <i />
+        <i />
+        <i />
+        <i />
+        <i />
+        <i />
+        <i />
+      </div>
       <Sidebar />
       <div className="main">
         <Topbar user={user} onOpenCommand={openCmd} />

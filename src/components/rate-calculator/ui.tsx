@@ -218,6 +218,14 @@ export function QuestionStack({ questions, revealAll = false, stageFromTop = fal
 }
 
 // ── Current-rate input ($/hr) — nullable, shared by the rail + settings ──
+/** Read a typed $/hr field: digits and a decimal point only, blank → null.
+    Shared so the rail card and the settings panel accept the same keystrokes. */
+export const parseRate = (input: string): number | null => {
+  const raw = input.replace(/[^0-9.]/g, "");
+  const n = parseFloat(raw);
+  return raw === "" || isNaN(n) ? null : n;
+};
+
 export function RateNumberInput({ value, onChange, color, ariaLabel }: {
   value: number | null; onChange: (v: number | null) => void; color?: string; ariaLabel?: string;
 }) {
@@ -225,7 +233,7 @@ export function RateNumberInput({ value, onChange, color, ariaLabel }: {
     <div style={{ display: "inline-flex", alignItems: "baseline", gap: 3, background: "#fff", borderRadius: 10, padding: "7px 11px", border: `1px solid ${RC.lineStrong}` }}>
       <span style={{ fontSize: 13, color: RC.faint, fontWeight: 600 }}>$</span>
       <input value={value == null ? "" : String(value)} inputMode="decimal" placeholder="0" aria-label={ariaLabel}
-        onChange={e => { const raw = e.target.value.replace(/[^0-9.]/g, ""); const n = parseFloat(raw); onChange(raw === "" || isNaN(n) ? null : n); }}
+        onChange={e => onChange(parseRate(e.target.value))}
         style={{ width: 56, border: "none", background: "transparent", outline: "none", fontFamily: RC.head, fontWeight: 800, fontSize: 16, color: color ?? RC.ink, padding: 0 }} />
       <span style={{ fontSize: 12, color: RC.faint, fontWeight: 600 }}>/hr</span>
     </div>

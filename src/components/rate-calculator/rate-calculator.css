@@ -83,6 +83,79 @@
    when the user prefers reduced motion) */
 .rca-shimmer { background:#EEF0F4; border-radius:8px; }
 
+/* ── live-rates cards — "Rate Cards · Restyle", direction A (polished solid).
+   Gradients, the amber break-even pill and the frosted chips carry the
+   design's own palette: its green lands on RC.service, its blue runs a shade
+   deeper than RC.install. Every figure is tabular so a rate doesn't jitter
+   while the engine re-runs on each keystroke.
+
+   Scaled ~0.8x off the mock (hero 60→46, padding 24→16, and so on down): the
+   mock is drawn on a 336px-wide panel, the rail is 300px and ~700px tall, and
+   at full size two cards plus the summary overflow it by ~210px — the whole
+   point of the rail is seeing both rates move as you type. Keep both cards +
+   the summary inside ~700px if you touch these numbers. */
+/* flex-shrink:0 — the rail is a flex column; without it the cards get
+   squashed to fit and clip their own contents */
+.rca-rc { position:relative; flex-shrink:0; border-radius:20px; padding:16px 16px 15px; margin-bottom:12px; overflow:hidden; color:#fff; }
+.rca-rc.install { background:linear-gradient(158deg,#4A67F3,#2C46D8); box-shadow:0 20px 42px -16px rgba(44,70,216,.55); }
+.rca-rc.service { background:linear-gradient(158deg,#28AC53,#167C37); box-shadow:0 20px 42px -16px rgba(22,124,55,.5); }
+.rca-rc-eyebrow { font-size:13px; font-weight:800; letter-spacing:.13em; text-transform:uppercase; color:#fff; }
+.rca-rc-rec { margin-top:9px; font-size:10.5px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:rgba(255,255,255,.72); }
+
+/* hero — the recommended rate, GST sharing its baseline */
+.rca-rc-hero { display:flex; align-items:baseline; gap:8px; margin-top:6px; }
+.rca-rc-fig { display:flex; align-items:baseline; gap:2px; line-height:.9; font-variant-numeric:tabular-nums; }
+.rca-rc-fig .cur { font-size:20px; font-weight:700; color:rgba(255,255,255,.55); }
+.rca-rc-fig .val { font-size:46px; font-weight:800; letter-spacing:-.03em; color:#fff; }
+.rca-rc-fig .unit { font-size:14px; font-weight:700; color:rgba(255,255,255,.6); }
+.rca-rc-gst { font-size:12.5px; font-weight:700; color:rgba(255,255,255,.7); white-space:nowrap; }
+.rca-rc-gst b { color:#fff; font-weight:800; }
+.rca-rc-dash { font-size:26px; font-weight:800; line-height:.9; color:rgba(255,255,255,.7); }
+
+/* break-even pill, and the waiting line that stands in its place */
+.rca-rc-be { display:inline-flex; align-items:baseline; gap:6px; margin-top:7px; padding:5px 11px; border-radius:100px;
+  background:rgba(255,201,94,.18); border:1px solid rgba(255,201,94,.45); }
+.rca-rc-be .k { font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:#FFD98A; }
+.rca-rc-be .v { font-size:14px; font-weight:800; color:#FFE7B8; font-variant-numeric:tabular-nums; }
+.rca-rc-be .u { font-size:10px; font-weight:600; color:rgba(255,231,184,.72); margin-left:1px; }
+.rca-rc-wait { margin-top:11px; font-size:11.5px; color:rgba(255,255,255,.85); }
+.rca-rc-rule { height:1px; background:rgba(255,255,255,.2); margin:11px 0 9px; }
+
+/* "you currently charge" — the frosted bar IS the field surround, so the
+   whole bar is a label (click anywhere to type) and earns hover/focus states
+   the flat mock doesn't need but an editable number does. */
+.rca-rc-now { display:flex; align-items:center; justify-content:space-between; gap:10px; cursor:text;
+  background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.22); border-radius:12px; padding:9px 12px;
+  transition:background .2s, border-color .2s, box-shadow .2s; }
+.rca-rc-now:hover { background:rgba(255,255,255,.18); border-color:rgba(255,255,255,.34); }
+.rca-rc-now:focus-within { background:rgba(255,255,255,.18); border-color:rgba(255,255,255,.5); box-shadow:0 0 0 3px rgba(255,255,255,.16); }
+.rca-rc-now-l { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.rca-rc-now-lab { font-size:11px; font-weight:500; color:rgba(255,255,255,.72); white-space:nowrap; }
+.rca-rc-now-val { display:flex; align-items:baseline; gap:1px; }
+.rca-rc-now-val .fix { font-size:12px; font-weight:700; color:rgba(255,255,255,.55); }
+.fg .rca-rc-now-val input { min-width:1ch; padding:0; border:none; border-bottom:1px solid transparent; background:transparent; outline:none;
+  font-family:var(--font-jakarta), 'Plus Jakarta Sans', sans-serif; font-size:16px; font-weight:800; color:#fff;
+  font-variant-numeric:tabular-nums; transition:border-color .2s; }
+.rca-rc-now:hover .rca-rc-now-val input, .fg .rca-rc-now-val input:focus { border-bottom-color:rgba(255,255,255,.45); }
+.rca .rca-rc-now-val input::placeholder { color:rgba(255,255,255,.45); }
+
+/* verdict chip — green once you're at or above recommended, amber while it's a raise */
+.rca-rc-chip { display:inline-flex; align-items:center; flex-shrink:0; white-space:nowrap; border-radius:100px;
+  padding:5px 9px; font-size:12px; font-weight:800; font-variant-numeric:tabular-nums; }
+.rca-rc-chip.ok { background:rgba(120,240,170,.2); border:1px solid rgba(120,240,170,.34); color:#CFF6DF; }
+.rca-rc-chip.up { background:rgba(255,201,94,.2); border:1px solid rgba(255,201,94,.4); color:#FFE7B8; }
+
+/* day rate / after-hours / confidence — scaled with the cards above it */
+.rca-rc-sum { flex-shrink:0; background:#fff; border-radius:16px; padding:1px 16px;
+  box-shadow:0 16px 36px -20px rgba(14,18,32,.3), 0 1px 2px rgba(14,18,32,.05); }
+.rca-rc-sumrow { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 0; border-top:1px solid #eef0f3; }
+.rca-rc-sumrow:first-child { border-top:none; }
+.rca-rc-sumrow .k { font-size:12.5px; font-weight:500; color:#374151; white-space:nowrap; }
+.rca-rc-sumrow .v { font-size:13.5px; font-weight:800; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.rca-rc-sumrow .v.day { color:#0A0B10; }
+.rca-rc-sumrow .v.after { color:#8A2BE2; }
+.rca-rc-sumrow .v.conf { font-size:12px; color:#22A54E; }
+
 /* fade-up on view switches — matches .page.in */
 @media (prefers-reduced-motion: no-preference) {
   .rca-view { animation:rcaUp .4s cubic-bezier(.22,1,.36,1) backwards; }

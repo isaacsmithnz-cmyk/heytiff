@@ -338,7 +338,8 @@ describe("RateCalculator — current rates are editable outside onboarding", () 
     saved.currentRates = { install: 300, service: 300 };
     render(<RateCalculator initialState={saved} />);
     await user.click(screen.getByText("← Back to edit"));
-    expect(screen.getAllByText(/✓ above/).length).toBeGreaterThan(0);
+    // 300 charged vs recommended ~144/149 → "✓ $N above" on both cards.
+    expect(screen.getAllByText(/✓ \$\d+ above/).length).toBeGreaterThan(0);
   });
 
   it("also exposes current rates in Settings (matching the Results hint)", async () => {

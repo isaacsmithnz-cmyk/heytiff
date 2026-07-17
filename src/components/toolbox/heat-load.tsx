@@ -48,6 +48,21 @@ const BUILDING_OPTS: { value: BuildingType; label: string }[] = [
   { value: "commercial", label: "Commercial" },
 ];
 
+/* info-marker copy — glazing/insulation verbatim from the studio room modal
+   so both surfaces explain the factors identically */
+const TIP_GLAZING =
+  "Amount of glass in the room. Low (double glazed) reduces load by 20%. High (large or single glazed) increases it by 24%.";
+const TIP_CONDITION =
+  "Building envelope quality. Well insulated reduces load by 15%. Poor insulation increases it by 20%. Standard = no adjustment.";
+const TIP_ORIENT =
+  "Direction the room's main outside wall faces. West is worst (×1.30) — low afternoon sun at peak heat. South is mildest (×0.85). Internal rooms take the ×0.85 floor.";
+const TIP_OVERRIDE =
+  "Your own base W/m² instead of the zone table (blank = table value). Every other factor multiplies this rate.";
+const TIP_BUILDING =
+  "Zone-table column — light commercial and commercial carry higher base W/m² for people, equipment and door traffic.";
+const TIP_HEIGHT =
+  "Standard band to 2.7 m (×1.00). Taller rooms grow with volume — 3.0 m ×1.13, 3.5 m ×1.23, 4.0 m ×1.33, capped at ×1.50.";
+
 /* ---------- state ---------- */
 
 export interface HlState {
@@ -209,7 +224,12 @@ export function HeatLoadCalculator() {
         />
         <span className="u">m</span>
       </div>
-      <div className="hl2-cap">height</div>
+      <div className="hl2-cap">
+        height{" "}
+        <i className="htip" data-tip={TIP_HEIGHT}>
+          i
+        </i>
+      </div>
     </div>
   );
 
@@ -352,7 +372,15 @@ export function HeatLoadCalculator() {
           <div className="hl2-fpanel">
             <div className="row3">
               <div>
-                <label className="tlab" htmlFor="hl-zone">Climate zone</label>
+                <label className="tlab" htmlFor="hl-zone">
+                  Climate zone{" "}
+                  <i
+                    className="htip tip-l"
+                    data-tip={`Sets the base rate from the NCC climate-zone table. This zone covers: ${zone.cities}.`}
+                  >
+                    i
+                  </i>
+                </label>
                 <div className="tselwrap">
                   <select
                     id="hl-zone"
@@ -370,7 +398,12 @@ export function HeatLoadCalculator() {
                 </div>
               </div>
               <div>
-                <label className="tlab" htmlFor="hl-wm2">Base rate override</label>
+                <label className="tlab" htmlFor="hl-wm2">
+                  Base rate override{" "}
+                  <i className="htip" data-tip={TIP_OVERRIDE}>
+                    i
+                  </i>
+                </label>
                 <div className="tunit">
                   <input
                     id="hl-wm2"
@@ -384,7 +417,12 @@ export function HeatLoadCalculator() {
                 </div>
               </div>
               <div>
-                <label className="tlab">Building type</label>
+                <label className="tlab">
+                  Building type{" "}
+                  <i className="htip tip-r" data-tip={TIP_BUILDING}>
+                    i
+                  </i>
+                </label>
                 <div className="tseg" role="group" aria-label="Building type">
                   {BUILDING_OPTS.map((b) => (
                     <button
@@ -402,7 +440,12 @@ export function HeatLoadCalculator() {
 
             <div className="row3">
               <div>
-                <label className="tlab">Glazing</label>
+                <label className="tlab">
+                  Glazing{" "}
+                  <i className="htip tip-l" data-tip={TIP_GLAZING}>
+                    i
+                  </i>
+                </label>
                 <div className="tseg" role="group" aria-label="Glazing">
                   {GLAZING_OPTS.map((g) => (
                     <button
@@ -418,7 +461,12 @@ export function HeatLoadCalculator() {
                 </div>
               </div>
               <div>
-                <label className="tlab">Insulation</label>
+                <label className="tlab">
+                  Insulation{" "}
+                  <i className="htip" data-tip={TIP_CONDITION}>
+                    i
+                  </i>
+                </label>
                 <div className="tseg" role="group" aria-label="Insulation">
                   {CONDITION_OPTS.map((c) => (
                     <button
@@ -434,7 +482,12 @@ export function HeatLoadCalculator() {
                 </div>
               </div>
               <div>
-                <label className="tlab">Primary exposed wall faces</label>
+                <label className="tlab">
+                  Primary exposed wall faces{" "}
+                  <i className="htip tip-r" data-tip={TIP_ORIENT}>
+                    i
+                  </i>
+                </label>
                 <div className="tchips" role="group" aria-label="Orientation">
                   {ORIENTATIONS.map((o) => (
                     <button

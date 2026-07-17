@@ -146,16 +146,40 @@
 .fg .tool .hl2-hero .cls.dim { color: rgba(255, 255, 255, 0.45); }
 .fg .tool .hl2-hero .meta { margin-top: 10px; font-size: 12px; font-weight: 700; color: rgba(255, 255, 255, 0.45); }
 .fg .tool .hl2-hero .meta.dim2 { margin-top: 6px; font-size: 10.5px; font-weight: 600; color: rgba(255, 255, 255, 0.32); }
+/* info markers — the studio room modal's ds-tip pattern (pure-CSS hover
+   tooltip via data-tip), restyled onto the toolbox palette */
+.fg .tool .htip {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 13px; height: 13px; border-radius: 50%; background: #d9dbe0;
+  color: #4b5563; font-size: 8.5px; font-weight: 800; font-style: normal;
+  line-height: 1; cursor: help; position: relative; vertical-align: middle;
+  margin-left: 2px;
+}
+.fg .tool .htip::after {
+  content: attr(data-tip);
+  position: absolute; bottom: calc(100% + 7px); left: 50%; transform: translateX(-50%);
+  background: #1e293b; color: #f8fafc; font-size: 11px; font-weight: 400;
+  line-height: 1.45; letter-spacing: 0; text-transform: none;
+  padding: 8px 11px; border-radius: 8px; width: max-content; max-width: 240px;
+  white-space: normal; pointer-events: none; opacity: 0; transition: opacity 0.15s;
+  z-index: 30; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+}
+.fg .tool .htip.tip-l::after { left: 0; transform: none; }
+.fg .tool .htip.tip-r::after { left: auto; right: 0; transform: none; }
+.fg .tool .htip:hover::after { opacity: 1; }
+
 /* advanced panel — full width under the two top cards; the expanded state
    must still fit the viewport, so everything inside runs one size down */
-.fg .tool .hl2-adv { grid-column: 1 / -1; padding: 0; overflow: hidden; }
+/* no overflow:hidden here — hover tooltips from the top control row rise
+   above the card edge; the header hover wash rounds itself instead */
+.fg .tool .hl2-adv { grid-column: 1 / -1; padding: 0; }
 .fg .tool .hl2-advbar { display: flex; align-items: center; }
 .fg .tool .hl2-advbar .hl2-mode.reset { flex: 0 0 auto; margin: 0 22px 0 0; }
 .fg .tool .hl2-advhead {
   display: flex; align-items: center; gap: 14px; flex: 1; min-width: 0; padding: 13px 22px;
   background: none; border: 0; cursor: pointer; font-family: var(--font); text-align: left;
 }
-.fg .tool .hl2-advhead:hover { background: #fafbfc; }
+.fg .tool .hl2-advhead:hover { background: #fafbfc; border-radius: 18px; }
 .fg .tool .hl2-advhead b { font-size: 14px; font-weight: 800; color: var(--ink); flex: 0 0 auto; }
 .fg .tool .hl2-advhead .sum { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 600; color: var(--gray400); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fg .tool .hl2-advhead .chev { color: #c8cdd6; display: flex; flex: 0 0 auto; transition: transform 0.25s; }

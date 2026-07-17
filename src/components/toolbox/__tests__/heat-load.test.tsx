@@ -133,6 +133,21 @@ describe("HeatLoadCalculator UI", () => {
     );
   });
 
+  it("info markers explain every factor and its multiplier", () => {
+    const { container } = render(<HeatLoadCalculator />);
+    // height marker lives in the size card — visible without opening Advanced
+    expect(container.querySelector('[data-tip*="4.0 m ×1.33"]')).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Advanced/ }));
+    const tips = [...container.querySelectorAll(".htip")].map((t) => t.getAttribute("data-tip") ?? "");
+    expect(tips.length).toBe(7); // height + zone, override, building, glazing, insulation, orientation
+    expect(tips.some((t) => t.includes("NCC climate-zone table"))).toBe(true);
+    expect(tips.some((t) => t.includes("double glazed) reduces load by 20%"))).toBe(true);
+    expect(tips.some((t) => t.includes("Poor insulation increases it by 20%"))).toBe(true);
+    expect(tips.some((t) => t.includes("West is worst (×1.30)"))).toBe(true);
+    expect(tips.some((t) => t.includes("zone table (blank = table value)".slice(0, 10)))).toBe(true);
+    expect(tips.some((t) => t.includes("higher base W/m²"))).toBe(true);
+  });
+
   it("Advanced starts collapsed with a summary line; the header reveals the panel", () => {
     render(<HeatLoadCalculator />);
     expect(screen.getByText(/Zone 5 · Residential · moderate glass/)).toBeInTheDocument();

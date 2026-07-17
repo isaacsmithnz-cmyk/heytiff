@@ -1,7 +1,9 @@
 /* Shared chrome for Toolbox tool pages — back link, category eyebrow, title,
    subtitle; children render below inside the shell's stagger wrapper. Each
    tool passes its category accent, exposed to the CSS as --tool-accent* so
-   controls pick up the right colour without per-tool stylesheets. */
+   controls pick up the right colour without per-tool stylesheets.
+   `compact` collapses the header to one tight block for tools that must fit
+   a single viewport (the quick-check calculators). */
 
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
@@ -13,6 +15,7 @@ export function ToolPage({
   accentInk,
   title,
   sub,
+  compact = false,
   children,
 }: {
   category: string;
@@ -21,13 +24,15 @@ export function ToolPage({
   accentInk: string;
   title: string;
   sub: string;
+  /** tighter header for single-viewport tools */
+  compact?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <div className="page in">
       <div className="wrap">
         <div
-          className="tool"
+          className={"tool" + (compact ? " compact" : "")}
           style={
             {
               "--tool-accent": accent,
@@ -39,13 +44,15 @@ export function ToolPage({
           }
         >
           <div className="thead stg">
-            <Link href="/dashboard/toolbox" className="tback">
-              <Icon name="chevL" size={15} />
-              Toolbox
-            </Link>
-            <div className="teyebrow" style={{ color: accentInk }}>
-              <span className="edot" style={{ background: accent }} />
-              {category}
+            <div className="trow1">
+              <Link href="/dashboard/toolbox" className="tback">
+                <Icon name="chevL" size={15} />
+                Toolbox
+              </Link>
+              <div className="teyebrow" style={{ color: accentInk }}>
+                <span className="edot" style={{ background: accent }} />
+                {category}
+              </div>
             </div>
             <h1>{title}</h1>
             <p className="tsub">{sub}</p>

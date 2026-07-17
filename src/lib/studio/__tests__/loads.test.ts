@@ -7,6 +7,7 @@
 import {
   CLIMATE_ZONES,
   baseWm2,
+  heightMult,
   roomHeatLoadKw,
   sizingCapacityKw,
   unitMeetsLoad,
@@ -35,6 +36,25 @@ describe("climate zones + base W/m²", () => {
   });
 });
 
+describe("heightMult — graduated tall-space factor", () => {
+  it("standard band ≤2.7 m is ×1.00", () => {
+    expect(heightMult(2.4)).toBe(1);
+    expect(heightMult(2.7)).toBe(1);
+  });
+
+  it("legacy ×1.10 floor just above the band, then grows with height", () => {
+    expect(heightMult(2.8)).toBe(1.1); // floored at the old flat factor
+    expect(heightMult(3.0)).toBe(1.125);
+    expect(heightMult(3.5)).toBeCloseTo(1.229, 3);
+    expect(heightMult(4.0)).toBeCloseTo(1.333, 3);
+  });
+
+  it("caps at ×1.50 for warehouse-height spaces", () => {
+    expect(heightMult(4.8)).toBe(1.5);
+    expect(heightMult(7)).toBe(1.5);
+  });
+});
+
 describe("roomHeatLoadKw — hand-worked", () => {
   it("base case: 20 m², Zone 5 res, defaults → 20×145 = 2.9 kW", () => {
     expect(roomHeatLoadKw({ areaM2: 20, climateZone: 5, buildingType: "residential" })).toBe(2.9);
@@ -46,14 +66,14 @@ describe("roomHeatLoadKw — hand-worked", () => {
     ).toBe(3.77);
   });
 
-  it("all factors stacked: 25 m² Zone 1 res, high glass, poor, 3.0 m, W → 9.841 kW", () => {
-    // 25×185×1.24×1.2×1.1×1.30 = 9841.26 → round → 9841 W
+  it("all factors stacked: 25 m² Zone 1 res, high glass, poor, 3.0 m, W → 10.065 kW", () => {
+    // 25×185×1.24×1.2×1.125×1.30 = 10064.925 → round → 10065 W
     expect(
       roomHeatLoadKw({
         areaM2: 25, climateZone: 1, buildingType: "residential",
         glazing: "high", condition: "poor", ceilingHeightM: 3.0, orientation: "W",
       })
-    ).toBe(9.841);
+    ).toBe(10.065);
   });
 
   it("party wall floors solar gain at the table minimum (orientation ignored)", () => {

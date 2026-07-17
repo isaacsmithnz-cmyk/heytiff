@@ -96,6 +96,23 @@ describe("HeatLoadCalculator UI", () => {
     expect(screen.getByText(/Type the room size/)).toBeInTheDocument();
   });
 
+  it("height sits in the size card and feeds the graduated multiplier", () => {
+    render(<HeatLoadCalculator />);
+    // visible immediately — no Advanced needed
+    const height = screen.getByLabelText("Ceiling height in metres");
+    expect(height).toHaveValue("2.4");
+    fireEvent.change(screen.getByLabelText("Length in metres"), { target: { value: "5" } });
+    fireEvent.change(screen.getByLabelText("Width in metres"), { target: { value: "4" } });
+    fireEvent.change(height, { target: { value: "3" } });
+    // 2900 W × 1.125 = 3262.5 → 3.3 kW, summary flags the multiplier
+    expect(screen.getByText("3.3")).toBeInTheDocument();
+    expect(screen.getByText(/high ceiling ×1.13/)).toBeInTheDocument();
+    // 4 m ceiling: 2900 × 1.333 = 3867 → 3.9 kW — not the old flat 10%
+    fireEvent.change(height, { target: { value: "4" } });
+    expect(screen.getByText("3.9")).toBeInTheDocument();
+    expect(screen.getByText(/high ceiling ×1.33/)).toBeInTheDocument();
+  });
+
   it("area mode swaps to a single m² field", () => {
     render(<HeatLoadCalculator />);
     fireEvent.click(screen.getByRole("button", { name: /Enter m² instead/ }));
@@ -116,11 +133,11 @@ describe("HeatLoadCalculator UI", () => {
     );
   });
 
-  it("factors start collapsed with a summary line; Adjust reveals them", () => {
+  it("Advanced starts collapsed with a summary line; the header reveals the panel", () => {
     render(<HeatLoadCalculator />);
     expect(screen.getByText(/Zone 5 · Residential · moderate glass/)).toBeInTheDocument();
     expect(screen.queryByLabelText("Glazing")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Adjust" }));
+    fireEvent.click(screen.getByRole("button", { name: /Advanced/ }));
     expect(screen.getByLabelText("Glazing")).toBeInTheDocument();
     // west-facing bumps 2.9 → 3.8 live
     fireEvent.change(screen.getByLabelText("Length in metres"), { target: { value: "5" } });
@@ -133,7 +150,7 @@ describe("HeatLoadCalculator UI", () => {
   it("remembers factors but never the size", async () => {
     jest.useFakeTimers();
     const first = render(<HeatLoadCalculator />);
-    fireEvent.click(screen.getByRole("button", { name: "Adjust" }));
+    fireEvent.click(screen.getByRole("button", { name: /Advanced/ }));
     fireEvent.click(screen.getByRole("button", { name: "Commercial" }));
     fireEvent.change(screen.getByLabelText("Length in metres"), { target: { value: "6" } });
     jest.advanceTimersByTime(500);
@@ -150,15 +167,16 @@ describe("HeatLoadCalculator UI", () => {
     expect(screen.getByLabelText("Length in metres")).toHaveValue("");
   });
 
-  it("reset restores default factors but keeps the typed size", () => {
+  it("reset restores default factors but keeps the typed size and height", () => {
     render(<HeatLoadCalculator />);
     fireEvent.change(screen.getByLabelText("Length in metres"), { target: { value: "5" } });
     fireEvent.change(screen.getByLabelText("Width in metres"), { target: { value: "4" } });
-    fireEvent.click(screen.getByRole("button", { name: "Adjust" }));
+    fireEvent.click(screen.getByRole("button", { name: /Advanced/ }));
     fireEvent.click(screen.getByRole("button", { name: "W" }));
     expect(screen.getByText("3.8")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Reset factors/ }));
     expect(screen.getByText("2.9")).toBeInTheDocument();
     expect(screen.getByLabelText("Length in metres")).toHaveValue("5");
+    expect(screen.getByLabelText("Ceiling height in metres")).toHaveValue("2.4");
   });
 });

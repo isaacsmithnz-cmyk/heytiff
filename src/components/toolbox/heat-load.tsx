@@ -5,10 +5,9 @@
    SAME engine as the Design Studio rooms (lib/studio/loads.ts), so a number
    quoted here always matches the studio for the same inputs.
 
-   Flow is optimised for speed in the field: the size inputs are the only
-   required interaction; every factor (zone, building type, glazing,
-   insulation, ceiling, orientation) hides behind an "Adjust" line with
-   sensible defaults, and the last-used factors are remembered per browser
+   Flow is optimised for speed in the field: two cards up top (room size →
+   answer), everything else in a full-width Advanced panel below, collapsed
+   behind its one-line summary. Last-used factors are remembered per browser
    so repeat checks on the same site keep their context. */
 
 import { useEffect, useRef, useState } from "react";
@@ -20,6 +19,7 @@ import {
   CONDITION_MULT,
   DEFAULT_CLIMATE_ZONE,
   GLAZING_MULT,
+  heightMult,
   ORIENT_LABELS,
   ORIENT_MULT,
   ORIENTATIONS,
@@ -180,6 +180,7 @@ export function HeatLoadCalculator() {
   const areaM2 = hlArea(s);
   const kw = hlLoadKw(s);
   const cls = kw !== null ? suggestClassKw(kw) : null;
+  const hMult = heightMult(parseNum(s.ceilingHeightM) ?? 2.4);
 
   /* one-line recap of the factors driving the number */
   const summary = [
@@ -188,11 +189,29 @@ export function HeatLoadCalculator() {
     parseNum(s.wm2Override) ? `${effectiveWm2} W/m² override` : null,
     `${GLAZING_OPTS.find((g) => g.value === s.glazing)?.label.toLowerCase()} glass`,
     `${CONDITION_OPTS.find((c) => c.value === s.condition)?.label.toLowerCase()} insulation`,
-    (parseNum(s.ceilingHeightM) ?? 2.4) > 2.7 ? "high ceiling" : null,
+    hMult > 1 ? `high ceiling ×${hMult.toFixed(2)}` : null,
     s.internal ? "internal room" : `${s.orientation}-facing`,
   ]
     .filter(Boolean)
     .join(" · ");
+
+  /* height lives in the size card — it's a room dimension, not a factor */
+  const heightInput = (
+    <div className="dim1">
+      <div className="tunit">
+        <input
+          id="hl-ch"
+          className="tin hl2-in"
+          inputMode="decimal"
+          aria-label="Ceiling height in metres"
+          value={s.ceilingHeightM}
+          onChange={(e) => patch({ ceilingHeightM: e.target.value })}
+        />
+        <span className="u">m</span>
+      </div>
+      <div className="hl2-cap">height</div>
+    </div>
+  );
 
   return (
     <div className="hl2 stgp">
@@ -201,45 +220,60 @@ export function HeatLoadCalculator() {
         <label className="tlab" htmlFor="hl-len">Room size</label>
         {s.areaMode === "dims" ? (
           <div className="hl2-dims">
-            <div className="tunit">
-              <input
-                id="hl-len"
-                ref={lenRef}
-                className="tin hl2-in"
-                inputMode="decimal"
-                placeholder="5"
-                aria-label="Length in metres"
-                value={s.lengthM}
-                onChange={(e) => patch({ lengthM: e.target.value })}
-              />
-              <span className="u">m</span>
+            <div className="dim1">
+              <div className="tunit">
+                <input
+                  id="hl-len"
+                  ref={lenRef}
+                  className="tin hl2-in"
+                  inputMode="decimal"
+                  placeholder="5"
+                  aria-label="Length in metres"
+                  value={s.lengthM}
+                  onChange={(e) => patch({ lengthM: e.target.value })}
+                />
+                <span className="u">m</span>
+              </div>
+              <div className="hl2-cap">length</div>
             </div>
             <span className="x">×</span>
-            <div className="tunit">
-              <input
-                className="tin hl2-in"
-                inputMode="decimal"
-                placeholder="4"
-                aria-label="Width in metres"
-                value={s.widthM}
-                onChange={(e) => patch({ widthM: e.target.value })}
-              />
-              <span className="u">m</span>
+            <div className="dim1">
+              <div className="tunit">
+                <input
+                  className="tin hl2-in"
+                  inputMode="decimal"
+                  placeholder="4"
+                  aria-label="Width in metres"
+                  value={s.widthM}
+                  onChange={(e) => patch({ widthM: e.target.value })}
+                />
+                <span className="u">m</span>
+              </div>
+              <div className="hl2-cap">width</div>
             </div>
+            <span className="x">×</span>
+            {heightInput}
           </div>
         ) : (
-          <div className="tunit">
-            <input
-              id="hl-len"
-              ref={lenRef}
-              className="tin hl2-in"
-              inputMode="decimal"
-              placeholder="20"
-              aria-label="Floor area in square metres"
-              value={s.areaM2}
-              onChange={(e) => patch({ areaM2: e.target.value })}
-            />
-            <span className="u">m²</span>
+          <div className="hl2-dims">
+            <div className="dim1 wide">
+              <div className="tunit">
+                <input
+                  id="hl-len"
+                  ref={lenRef}
+                  className="tin hl2-in"
+                  inputMode="decimal"
+                  placeholder="20"
+                  aria-label="Floor area in square metres"
+                  value={s.areaM2}
+                  onChange={(e) => patch({ areaM2: e.target.value })}
+                />
+                <span className="u">m²</span>
+              </div>
+              <div className="hl2-cap">floor area</div>
+            </div>
+            <span className="x">×</span>
+            {heightInput}
           </div>
         )}
         <button
@@ -282,24 +316,24 @@ export function HeatLoadCalculator() {
         )}
       </section>
 
-      {/* -------- factors — collapsed behind a summary line -------- */}
-      <section className="tcard hl2-fac">
-        <div className="hl2-fsum">
-          <p className="sum">{summary}</p>
-          <button
-            type="button"
-            className="tbtn ghost"
-            style={{ padding: "8px 14px", fontSize: 13 }}
-            aria-expanded={adjustOpen}
-            onClick={() => setAdjustOpen((o) => !o)}
-          >
-            {adjustOpen ? "Done" : "Adjust"}
-          </button>
-        </div>
+      {/* -------- advanced — full width, collapsed behind its summary -------- */}
+      <section className="tcard hl2-adv">
+        <button
+          type="button"
+          className="hl2-advhead"
+          aria-expanded={adjustOpen}
+          onClick={() => setAdjustOpen((o) => !o)}
+        >
+          <b>Advanced</b>
+          <span className="sum">{summary}</span>
+          <span className={"chev" + (adjustOpen ? " open" : "")}>
+            <Icon name="chevR" size={16} />
+          </span>
+        </button>
 
         {adjustOpen && (
           <div className="hl2-fpanel">
-            <div className="row2">
+            <div className="row3">
               <div>
                 <label className="tlab" htmlFor="hl-zone">Climate zone</label>
                 <div className="tselwrap">
@@ -334,25 +368,24 @@ export function HeatLoadCalculator() {
                 </div>
                 <p className="tnote">Zone table gives {zoneWm2} W/m².</p>
               </div>
-            </div>
-
-            <div>
-              <label className="tlab">Building type</label>
-              <div className="tseg" role="group" aria-label="Building type">
-                {BUILDING_OPTS.map((b) => (
-                  <button
-                    key={b.value}
-                    type="button"
-                    className={s.buildingType === b.value ? "on" : ""}
-                    onClick={() => patch({ buildingType: b.value })}
-                  >
-                    {b.label}
-                  </button>
-                ))}
+              <div>
+                <label className="tlab">Building type</label>
+                <div className="tseg" role="group" aria-label="Building type">
+                  {BUILDING_OPTS.map((b) => (
+                    <button
+                      key={b.value}
+                      type="button"
+                      className={s.buildingType === b.value ? "on" : ""}
+                      onClick={() => patch({ buildingType: b.value })}
+                    >
+                      {b.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
-            <div className="row2">
+            <div className="row3">
               <div>
                 <label className="tlab">Glazing</label>
                 <div className="tseg" role="group" aria-label="Glazing">
@@ -385,52 +418,31 @@ export function HeatLoadCalculator() {
                   ))}
                 </div>
               </div>
-            </div>
-
-            <div className="row2">
               <div>
-                <label className="tlab" htmlFor="hl-ch">Ceiling height</label>
-                <div className="tunit">
-                  <input
-                    id="hl-ch"
-                    className="tin"
-                    inputMode="decimal"
-                    value={s.ceilingHeightM}
-                    onChange={(e) => patch({ ceilingHeightM: e.target.value })}
-                  />
-                  <span className="u">m</span>
+                <label className="tlab">Primary exposed wall faces</label>
+                <div className="tchips" role="group" aria-label="Orientation">
+                  {ORIENTATIONS.map((o) => (
+                    <button
+                      key={o}
+                      type="button"
+                      className={"tchip" + (s.orientation === o && !s.internal ? " on" : "")}
+                      disabled={s.internal}
+                      title={`${ORIENT_LABELS[o]} ×${ORIENT_MULT[o].toFixed(2)}`}
+                      onClick={() => patch({ orientation: o })}
+                    >
+                      {o}
+                    </button>
+                  ))}
                 </div>
-                <p className="tnote">Over 2.7 m adds 10%.</p>
-              </div>
-              <div>
-                <label className="tlab">Internal room</label>
-                <label className="ttog" style={{ marginTop: 8 }}>
+                <label className="ttog" style={{ marginTop: 10 }}>
                   <input
                     type="checkbox"
                     checked={s.internal}
                     onChange={(e) => patch({ internal: e.target.checked })}
                   />
                   <span className="tr" />
-                  <span className="tl">No external walls</span>
+                  <span className="tl">Internal room — no external walls</span>
                 </label>
-              </div>
-            </div>
-
-            <div>
-              <label className="tlab">Primary exposed wall faces</label>
-              <div className="tchips" role="group" aria-label="Orientation">
-                {ORIENTATIONS.map((o) => (
-                  <button
-                    key={o}
-                    type="button"
-                    className={"tchip" + (s.orientation === o && !s.internal ? " on" : "")}
-                    disabled={s.internal}
-                    title={`${ORIENT_LABELS[o]} ×${ORIENT_MULT[o].toFixed(2)}`}
-                    onClick={() => patch({ orientation: o })}
-                  >
-                    {o}
-                  </button>
-                ))}
               </div>
             </div>
 
@@ -439,8 +451,8 @@ export function HeatLoadCalculator() {
                 type="button"
                 className="hl2-mode"
                 onClick={() => {
-                  const { lengthM, widthM, areaM2: a, areaMode } = s;
-                  setS({ ...HL_DEFAULTS, lengthM, widthM, areaM2: a, areaMode });
+                  const { lengthM, widthM, areaM2: a, areaMode, ceilingHeightM } = s;
+                  setS({ ...HL_DEFAULTS, lengthM, widthM, areaM2: a, areaMode, ceilingHeightM });
                 }}
               >
                 Reset factors to defaults
@@ -448,13 +460,12 @@ export function HeatLoadCalculator() {
             </div>
           </div>
         )}
-      </section>
 
-      <p className="tnote hl2-foot">
-        Rule-of-thumb estimate (area × zone W/m² × factors) — the same engine as
-        Design Studio rooms. Verify borderline or commercial picks with a full
-        heat-load calculation.
-      </p>
+        <p className="tnote hl2-foot">
+          Rule-of-thumb estimate — the same engine as Design Studio rooms.
+          Verify borderline or commercial picks with a full calculation.
+        </p>
+      </section>
     </div>
   );
 }

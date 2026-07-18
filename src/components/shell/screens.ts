@@ -21,55 +21,10 @@ export function homeHtml(opts: { greeting: string; firstName: string; date: stri
   );
 }
 
-/* small inline empty-state hint (no extra CSS needed) */
-function hint(text: string) {
-  return (
-    '<div style="padding:22px;text-align:center;color:#9ca3af;font-size:13px;font-weight:600;' +
-    'border:1.5px dashed #e6e8ee;border-radius:16px;background:linear-gradient(180deg,#fafbfc,#fff)">' +
-    text +
-    "</div>"
-  );
-}
-
-/* ---------------- TOOLBOX — 4 category cards, no tools yet ---------------- */
-export function toolboxHtml() {
-  const cats: [string, string, string, string][] = [
-    ["Calculators", "calc", "#00E5C0", "Precise field calculations"],
-    ["Troubleshooting", "alert", "#FF3366", "Diagnose & resolve"],
-    ["Design Tools", "layers", "#2E68FF", "System design & layout"],
-    ["Reference Library", "library", "#8A2BE2", "Specs & standards"],
-  ];
-  const card = (c: [string, string, string, string]) =>
-    '<div class="catwrap"><div class="cat spot" style="--sc:' +
-    c[2] +
-    '1f"><span class="sglow"></span>' +
-    '<div class="ctop" style="background:' +
-    c[2] +
-    '"></div>' +
-    '<div class="cin"><div class="chd"><div class="cic" style="background:' +
-    c[2] +
-    "15;border:1px solid " +
-    c[2] +
-    '30">' +
-    I(c[1], 24) +
-    "</div>" +
-    '<div><div class="cht">' +
-    c[0] +
-    '</div><div class="chs">' +
-    c[3] +
-    "</div></div></div>" +
-    hint("No tools yet") +
-    "</div></div></div>";
-  return (
-    '<div class="wrap"><div class="tbx-head"><div class="stg"><h1>Toolbox</h1></div>' +
-    '<div class="tbx-search">' +
-    I("search", 18) +
-    '<input placeholder="Search tools..."></div></div>' +
-    '<div class="tbx-grid stgp">' +
-    cats.map(card).join("") +
-    "</div></div>"
-  );
-}
+/* ---------------- TOOLBOX ----------------
+   The Toolbox screen is no longer a static builder — it lives in
+   src/components/toolbox/toolbox-screen.tsx (React: tool links + live search)
+   with its tool registry in src/components/toolbox/tools.ts. */
 
 /* ---------------- TIFF AI — hero + icon suggestions + empty threads ---------------- */
 export function tiffHtml() {

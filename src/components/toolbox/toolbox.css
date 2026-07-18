@@ -1,0 +1,288 @@
+/* Toolbox tool pages — shared chrome + controls for the field tools
+   (Heat Load, Running Pressures, Fault Finder). Scoped under .fg .tool so the
+   shell's variables (--font, --ink, --teal…) and stagger animations apply.
+   Visual language matches the dashboard cards: white, 24px radii, soft
+   shadows, Jakarta everywhere (no mono — --mono aliases Jakarta anyway). */
+
+/* ---------- page head ---------- */
+.fg .tool { max-width: 1180px; margin: 0 auto; }
+.fg .tool .thead { margin-bottom: 32px; }
+.fg .tool .trow1 { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+.fg .tool .tback {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 700; color: var(--gray500); text-decoration: none;
+  padding: 8px 14px 8px 10px; border-radius: 999px; background: #fff;
+  border: 1px solid #eceef2; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition: all 0.2s;
+}
+.fg .tool .tback:hover { color: var(--ink); border-color: #e0e3e9; transform: translateX(-2px); }
+.fg .tool .teyebrow {
+  display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 800;
+  letter-spacing: 0.2em; text-transform: uppercase;
+}
+.fg .tool .teyebrow .edot { width: 7px; height: 7px; border-radius: 50%; }
+.fg .tool .thead h1 { font-size: 40px; font-weight: 800; color: var(--ink); letter-spacing: -0.03em; line-height: 1.05; margin: 0 0 10px; }
+.fg .tool .tsub { font-size: 15px; color: var(--gray500); font-weight: 500; max-width: 640px; line-height: 1.55; margin: 0; }
+
+/* compact header — single-viewport tools (quick-check calculators) */
+.fg .tool.compact .thead { margin-bottom: 20px; }
+.fg .tool.compact .trow1 { margin-bottom: 10px; }
+.fg .tool.compact .thead h1 { font-size: 26px; margin-bottom: 4px; }
+.fg .tool.compact .tsub { font-size: 13px; }
+
+/* ---------- layout ---------- */
+.fg .tool .tcols { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 28px; align-items: start; }
+@media (max-width: 1080px) { .fg .tool .tcols { grid-template-columns: 1fr; } }
+.fg .tool .tstick { position: sticky; top: 8px; }
+@media (max-width: 1080px) { .fg .tool .tstick { position: static; } }
+
+/* ---------- cards ---------- */
+.fg .tool .tcard {
+  background: #fff; border-radius: 24px; border: 1px solid #f0f0f2;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04); padding: 24px; position: relative;
+}
+.fg .tool .tcard + .tcard { margin-top: 20px; }
+.fg .tool .tcard .tct { font-size: 16px; font-weight: 800; color: var(--ink); margin: 0 0 4px; }
+.fg .tool .tcard .tcs { font-size: 13px; color: var(--gray400); font-weight: 500; margin: 0 0 18px; }
+
+/* ---------- fields ---------- */
+.fg .tool .tlab { display: block; font-size: 11.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gray500); margin: 0 0 8px; }
+.fg .tool .tin, .fg .tool select.tin {
+  width: 100%; padding: 11px 14px; background: #fff; border-radius: 14px;
+  border: 1px solid #e5e7eb; font-size: 14.5px; font-weight: 600; color: var(--ink);
+  outline: none; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03); transition: all 0.2s;
+  font-family: var(--font); appearance: none;
+}
+.fg .tool .tin:focus { box-shadow: 0 0 0 4px var(--tool-ring, rgba(0, 229, 192, 0.18)); border-color: var(--tool-accent, var(--teal)); }
+.fg .tool .tin::placeholder { color: #c3c8d1; font-weight: 500; }
+/* clear the example value on focus — with center-aligned fields the caret
+   otherwise blinks right on top of the placeholder digit */
+.fg .tool .tin:focus::placeholder { color: transparent; }
+.fg .tool .tselwrap { position: relative; }
+.fg .tool .tselwrap svg { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--gray400); pointer-events: none; }
+.fg .tool select.tin { padding-right: 38px; cursor: pointer; }
+.fg .tool .tunit { position: relative; }
+.fg .tool .tunit .u { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 12.5px; font-weight: 700; color: var(--gray400); pointer-events: none; }
+.fg .tool .tunit .tin { padding-right: 44px; }
+.fg .tool .tnote { font-size: 12.5px; color: var(--gray400); font-weight: 500; line-height: 1.5; margin-top: 8px; }
+
+/* segmented control */
+.fg .tool .tseg { display: flex; padding: 5px; background: #f3f4f6; border-radius: 13px; box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05); gap: 2px; }
+.fg .tool .tseg button {
+  flex: 1; padding: 8px 10px; border-radius: 9px; font-size: 13px; font-weight: 700;
+  color: var(--gray500); transition: all 0.25s; font-family: var(--font);
+  background: transparent; border: 0; cursor: pointer; white-space: nowrap;
+}
+.fg .tool .tseg button.on { background: #fff; color: var(--ink); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); }
+.fg .tool .tseg button:not(.on):hover { color: var(--gray700); }
+
+/* chip row (orientation compass, symptom picker…) */
+.fg .tool .tchips { display: flex; flex-wrap: wrap; gap: 8px; }
+.fg .tool .tchip {
+  padding: 8px 14px; border-radius: 999px; font-size: 13px; font-weight: 700;
+  color: var(--gray500); background: #fff; border: 1px solid #e5e7eb;
+  cursor: pointer; transition: all 0.2s; font-family: var(--font);
+}
+.fg .tool .tchip:hover { border-color: #d4d8e0; color: var(--ink); }
+.fg .tool .tchip.on {
+  background: var(--tool-accent-soft, rgba(0, 229, 192, 0.12));
+  border-color: var(--tool-accent, var(--teal));
+  color: var(--tool-accent-ink, var(--teal-d));
+}
+.fg .tool .tchip:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* toggle (checkbox pill) */
+.fg .tool .ttog { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
+.fg .tool .ttog .tr { width: 38px; height: 22px; border-radius: 999px; background: #e5e7eb; position: relative; transition: background 0.25s; flex: 0 0 auto; }
+.fg .tool .ttog .tr::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); transition: transform 0.25s; }
+.fg .tool .ttog input { display: none; }
+.fg .tool .ttog input:checked + .tr { background: var(--tool-accent, var(--teal)); }
+.fg .tool .ttog input:checked + .tr::after { transform: translateX(16px); }
+.fg .tool .ttog .tl { font-size: 13.5px; font-weight: 700; color: var(--gray700); }
+
+/* buttons */
+.fg .tool .tbtn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px 20px; border-radius: 14px; font-size: 14px; font-weight: 800;
+  font-family: var(--font); cursor: pointer; transition: all 0.2s; border: 0;
+  background: var(--ink); color: #fff; box-shadow: 0 4px 14px rgba(5, 5, 5, 0.18);
+}
+.fg .tool .tbtn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(5, 5, 5, 0.24); }
+.fg .tool .tbtn.ghost { background: #fff; color: var(--gray700); border: 1px solid #e5e7eb; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04); }
+.fg .tool .tbtn.ghost:hover { border-color: #d4d8e0; color: var(--ink); }
+.fg .tool .ticon {
+  width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 11px; background: #fff; border: 1px solid #eceef2; color: var(--gray400);
+  cursor: pointer; transition: all 0.2s; flex: 0 0 auto;
+}
+.fg .tool .ticon:hover { color: var(--ink); border-color: #d4d8e0; background: #f9fafb; }
+.fg .tool .ticon.danger:hover { color: var(--red); border-color: rgba(255, 51, 102, 0.4); background: rgba(255, 51, 102, 0.06); }
+
+/* ---------- heat-load (quick check) ----------
+   Layout: two cards up top (size | answer, equal height), Advanced panel
+   spanning full width beneath. */
+.fg .tool .hl2 { max-width: 1020px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: stretch; }
+@media (max-width: 900px) { .fg .tool .hl2 { grid-template-columns: 1fr; } }
+.fg .tool .hl2-size { padding: 22px 24px; display: flex; flex-direction: column; justify-content: center; }
+.fg .tool .hl2-dims { display: flex; align-items: flex-start; gap: 10px; }
+.fg .tool .hl2-dims .dim1 { flex: 1; min-width: 0; }
+.fg .tool .hl2-dims .dim1.wide { flex: 2; }
+.fg .tool .hl2-dims .x { font-size: 18px; font-weight: 800; color: var(--gray400); flex: 0 0 auto; margin-top: 16px; }
+.fg .tool .hl2-cap { margin-top: 6px; text-align: center; font-size: 10.5px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--gray400); }
+.fg .tool .hl2-in { font-size: 20px; font-weight: 800; padding: 12px 10px; text-align: center; letter-spacing: -0.01em; }
+.fg .tool .tunit .hl2-in { padding-right: 32px; }
+.fg .tool .hl2-dims .tunit .u { right: 10px; }
+.fg .tool .hl2-mode { margin-top: 12px; background: none; border: 0; padding: 0; cursor: pointer; font-family: var(--font); font-size: 12.5px; font-weight: 700; color: var(--tool-accent-ink, var(--teal-d)); }
+.fg .tool .hl2-mode:hover { text-decoration: underline; }
+.fg .tool .hl2-hero { text-align: center; padding: 22px 26px; border-radius: 24px; color: #fff; position: relative; overflow: hidden;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: radial-gradient(120% 160% at 50% 0%, #0d2b26 0%, #050505 65%), var(--ink); border: 1px solid rgba(255, 255, 255, 0.06); }
+@media (max-width: 900px) { .fg .tool .hl2-hero { min-height: 200px; } }
+.fg .tool .hl2-hero .gl { position: absolute; top: -80px; left: 50%; transform: translateX(-50%); width: 240px; height: 200px; border-radius: 50%; background: var(--tool-accent, var(--teal)); filter: blur(90px); opacity: 0.35; pointer-events: none; }
+.fg .tool .hl2-hero .lab { font-size: 11px; font-weight: 800; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); margin-bottom: 8px; }
+.fg .tool .hl2-hero .big { font-size: 52px; font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
+.fg .tool .hl2-hero .big small { font-size: 22px; font-weight: 800; color: rgba(255, 255, 255, 0.65); margin-left: 6px; }
+.fg .tool .hl2-hero .big.empty { color: rgba(255, 255, 255, 0.22); }
+.fg .tool .hl2-hero .big.empty small { color: rgba(255, 255, 255, 0.22); }
+.fg .tool .hl2-hero .cls { margin-top: 14px; font-size: 14.5px; font-weight: 600; color: rgba(255, 255, 255, 0.8); }
+.fg .tool .hl2-hero .cls b { color: var(--tool-accent, var(--teal)); font-weight: 800; }
+.fg .tool .hl2-hero .cls a { color: var(--tool-accent, var(--teal)); font-weight: 800; text-decoration: none; }
+.fg .tool .hl2-hero .cls a:hover { text-decoration: underline; }
+.fg .tool .hl2-hero .cls.dim { color: rgba(255, 255, 255, 0.45); }
+.fg .tool .hl2-hero .meta { margin-top: 10px; font-size: 12px; font-weight: 700; color: rgba(255, 255, 255, 0.45); }
+.fg .tool .hl2-hero .meta.dim2 { margin-top: 6px; font-size: 10.5px; font-weight: 600; color: rgba(255, 255, 255, 0.32); }
+/* info markers — the studio room modal's ds-tip pattern (pure-CSS hover
+   tooltip via data-tip), restyled onto the toolbox palette */
+.fg .tool .htip {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 13px; height: 13px; border-radius: 50%; background: #d9dbe0;
+  color: #4b5563; font-size: 8.5px; font-weight: 800; font-style: normal;
+  line-height: 1; cursor: help; position: relative; vertical-align: middle;
+  margin-left: 2px;
+}
+.fg .tool .htip::after {
+  content: attr(data-tip);
+  position: absolute; bottom: calc(100% + 7px); left: 50%; transform: translateX(-50%);
+  background: #1e293b; color: #f8fafc; font-size: 11px; font-weight: 400;
+  line-height: 1.45; letter-spacing: 0; text-transform: none;
+  padding: 8px 11px; border-radius: 8px; width: max-content; max-width: 240px;
+  white-space: normal; pointer-events: none; opacity: 0; transition: opacity 0.15s;
+  z-index: 30; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+}
+.fg .tool .htip.tip-l::after { left: 0; transform: none; }
+.fg .tool .htip.tip-r::after { left: auto; right: 0; transform: none; }
+.fg .tool .htip:hover::after { opacity: 1; }
+
+/* advanced panel — full width under the two top cards; the expanded state
+   must still fit the viewport, so everything inside runs one size down */
+/* no overflow:hidden here — hover tooltips from the top control row rise
+   above the card edge; the header hover wash rounds itself instead */
+.fg .tool .hl2-adv { grid-column: 1 / -1; padding: 0; }
+.fg .tool .hl2-advbar { display: flex; align-items: center; }
+.fg .tool .hl2-advbar .hl2-mode.reset { flex: 0 0 auto; margin: 0 22px 0 0; }
+.fg .tool .hl2-advhead {
+  display: flex; align-items: center; gap: 14px; flex: 1; min-width: 0; padding: 13px 22px;
+  background: none; border: 0; cursor: pointer; font-family: var(--font); text-align: left;
+}
+.fg .tool .hl2-advhead:hover { background: #fafbfc; border-radius: 18px; }
+.fg .tool .hl2-advhead b { font-size: 14px; font-weight: 800; color: var(--ink); flex: 0 0 auto; }
+.fg .tool .hl2-advhead .sum { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 600; color: var(--gray400); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fg .tool .hl2-advhead .chev { color: #c8cdd6; display: flex; flex: 0 0 auto; transition: transform 0.25s; }
+.fg .tool .hl2-advhead .chev.open { transform: rotate(90deg); }
+.fg .tool .hl2-fpanel { padding: 12px 22px 14px; border-top: 1px solid #f3f4f6; display: grid; gap: 12px; }
+.fg .tool .hl2-fpanel .row3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 900px) { .fg .tool .hl2-fpanel .row3 { grid-template-columns: 1fr; } }
+.fg .tool .hl2-adv .tlab { font-size: 10.5px; margin-bottom: 6px; }
+.fg .tool .hl2-adv .tin, .fg .tool .hl2-adv select.tin { padding: 9px 12px; font-size: 13.5px; border-radius: 12px; }
+.fg .tool .hl2-adv .tunit .tin { padding-right: 40px; }
+.fg .tool .hl2-adv .tseg { padding: 4px; border-radius: 11px; }
+.fg .tool .hl2-adv .tseg button { padding: 7px 6px; font-size: 12.5px; }
+/* orientation chips: equal-width, single row — no orphan NW wrap */
+.fg .tool .hl2-adv .tchips { flex-wrap: nowrap; gap: 6px; }
+.fg .tool .hl2-adv .tchip { flex: 1; min-width: 0; padding: 5px 0; text-align: center; font-size: 11.5px; }
+.fg .tool .hl2-adv .ttog .tl { font-size: 12.5px; }
+
+/* ---------- running-pressures specifics ---------- */
+.fg .tool .rp-ctl { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 20px; }
+.fg .tool .rp-ctl .tseg { flex: 0 0 auto; }
+.fg .tool .rp-ctl .tseg button { padding: 9px 18px; }
+.fg .tool .rp-win { display: flex; align-items: flex-start; gap: 14px; padding: 14px 2px; border-bottom: 1px solid #f3f4f6; }
+.fg .tool .rp-win:last-child { border-bottom: 0; }
+.fg .tool .rp-win .ic { width: 34px; height: 34px; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; margin-top: 2px; }
+.fg .tool .rp-win .bd { flex: 1; min-width: 0; }
+.fg .tool .rp-win .bd b { display: block; font-size: 14px; font-weight: 800; color: var(--ink); }
+.fg .tool .rp-win .bd em { font-style: normal; display: block; font-size: 12.5px; color: var(--gray400); font-weight: 500; line-height: 1.5; margin-top: 3px; }
+.fg .tool .rp-win .pv { text-align: right; flex: 0 0 auto; }
+.fg .tool .rp-win .pv b { display: block; font-size: 16px; font-weight: 800; color: var(--ink); white-space: nowrap; }
+.fg .tool .rp-win .pv em { font-style: normal; font-size: 11.5px; font-weight: 700; color: var(--gray400); white-space: nowrap; }
+.fg .tool .rp-legend { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+.fg .tool .rp-legend span { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; color: var(--gray500); }
+.fg .tool .rp-legend i { width: 10px; height: 10px; border-radius: 3px; }
+.fg .tool .rp-tablewrap { overflow-x: auto; border: 1px solid #eef0f4; border-radius: 16px; }
+.fg .tool table.rp-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.fg .tool .rp-table th { position: sticky; top: 0; background: #f9fafb; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gray500); padding: 10px 14px; text-align: right; border-bottom: 1px solid #eef0f4; }
+.fg .tool .rp-table th:first-child { text-align: left; }
+.fg .tool .rp-table td { padding: 8px 14px; text-align: right; font-weight: 600; color: var(--gray700); border-bottom: 1px solid #f6f7f9; }
+.fg .tool .rp-table tr:last-child td { border-bottom: 0; }
+.fg .tool .rp-table td:first-child { text-align: left; font-weight: 800; color: var(--ink); }
+.fg .tool .rp-table td.sel { color: var(--ink); font-weight: 800; background: var(--tool-accent-soft, rgba(255, 51, 102, 0.05)); }
+.fg .tool .rp-table tr.evap td:first-child { box-shadow: inset 3px 0 0 #2e68ff; }
+.fg .tool .rp-table tr.cond td:first-child { box-shadow: inset 3px 0 0 #ff8a00; }
+.fg .tool .rp-res { margin-top: 14px; padding: 16px; border-radius: 16px; background: #f9fafb; border: 1px solid #eef0f4; }
+.fg .tool .rp-res .val { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; color: var(--ink); line-height: 1; }
+.fg .tool .rp-res .val small { font-size: 15px; font-weight: 800; color: var(--gray400); margin-left: 4px; }
+.fg .tool .rp-res .st { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 800; }
+.fg .tool .rp-res .why { font-size: 12.5px; color: var(--gray500); font-weight: 500; line-height: 1.5; margin: 10px 0 0; }
+.fg .tool .rp-sat { font-size: 12.5px; font-weight: 700; color: var(--gray400); margin-top: 8px; }
+
+/* ---------- fault-finder specifics ---------- */
+.fg .tool .ff-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 640px) { .fg .tool .ff-grid { grid-template-columns: 1fr; } }
+.fg .tool .ff-sym {
+  display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: 18px;
+  background: #fff; border: 1px solid #eef0f4; cursor: pointer; text-align: left;
+  transition: all 0.2s; font-family: var(--font);
+}
+.fg .tool .ff-sym:hover { border-color: #dfe3ea; transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05); }
+.fg .tool .ff-sym.on { border-color: var(--tool-accent, var(--red)); background: var(--tool-accent-soft, rgba(255, 51, 102, 0.06)); box-shadow: 0 6px 18px rgba(255, 51, 102, 0.08); }
+.fg .tool .ff-sym .ic { width: 40px; height: 40px; border-radius: 13px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; background: #f4f5f8; color: var(--gray500); transition: all 0.2s; }
+.fg .tool .ff-sym.on .ic { background: var(--tool-accent, var(--red)); color: #fff; }
+.fg .tool .ff-sym b { display: block; font-size: 14px; font-weight: 800; color: var(--ink); }
+.fg .tool .ff-sym em { font-style: normal; display: block; font-size: 12px; color: var(--gray400); font-weight: 600; margin-top: 2px; }
+.fg .tool .ff-safety {
+  display: flex; gap: 12px; align-items: flex-start; padding: 16px 18px; border-radius: 16px;
+  background: rgba(255, 51, 102, 0.07); border: 1px solid rgba(255, 51, 102, 0.25);
+  color: #ba1740; font-size: 13.5px; font-weight: 600; line-height: 1.55; margin-bottom: 18px;
+}
+.fg .tool .ff-safety svg { flex: 0 0 auto; margin-top: 1px; }
+.fg .tool .ff-cause { border: 1px solid #eef0f4; border-radius: 16px; background: #fff; transition: all 0.2s; overflow: hidden; }
+.fg .tool .ff-cause + .ff-cause { margin-top: 10px; }
+.fg .tool .ff-cause.out { opacity: 0.45; }
+.fg .tool .ff-cause.out .ff-chead b { text-decoration: line-through; }
+.fg .tool .ff-chead {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 16px;
+  background: transparent; border: 0; cursor: pointer; text-align: left; font-family: var(--font);
+}
+.fg .tool .ff-chead:hover { background: #fafbfc; }
+.fg .tool .ff-chead b { flex: 1; min-width: 0; font-size: 14.5px; font-weight: 800; color: var(--ink); }
+.fg .tool .ff-chead .chev { color: #c8cdd6; transition: transform 0.25s; flex: 0 0 auto; display: flex; }
+.fg .tool .ff-cause.open .ff-chead .chev { transform: rotate(90deg); }
+.fg .tool .ff-lk { font-size: 10.5px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding: 4px 10px; border-radius: 8px; flex: 0 0 auto; }
+.fg .tool .ff-lk.common { background: rgba(0, 229, 192, 0.13); color: #00A389; }
+.fg .tool .ff-lk.possible { background: rgba(46, 104, 255, 0.11); color: #2E68FF; }
+.fg .tool .ff-lk.rare { background: rgba(138, 43, 226, 0.1); color: #8A2BE2; }
+.fg .tool .ff-esc { font-size: 10.5px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding: 4px 10px; border-radius: 8px; flex: 0 0 auto; background: rgba(255, 138, 0, 0.13); color: #E07800; }
+.fg .tool .ff-cbody { padding: 2px 16px 16px; }
+.fg .tool .ff-step { display: flex; gap: 10px; margin-top: 10px; }
+.fg .tool .ff-step .k { font-size: 10.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gray400); flex: 0 0 52px; padding-top: 2px; }
+.fg .tool .ff-step p { margin: 0; font-size: 13.5px; color: var(--gray700); font-weight: 500; line-height: 1.55; }
+.fg .tool .ff-rule { margin-top: 14px; display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700; color: var(--gray500); background: none; border: 0; cursor: pointer; padding: 0; font-family: var(--font); }
+.fg .tool .ff-rule:hover { color: var(--ink); }
+.fg .tool .ff-rule .bx { width: 18px; height: 18px; border-radius: 6px; border: 1.5px solid #d4d8e0; display: inline-flex; align-items: center; justify-content: center; color: transparent; transition: all 0.2s; }
+.fg .tool .ff-cause.out .ff-rule .bx { background: var(--gray400); border-color: var(--gray400); color: #fff; }
+.fg .tool .ff-links a { display: flex; align-items: center; gap: 10px; padding: 12px 4px; border-bottom: 1px solid #f3f4f6; text-decoration: none; font-size: 13.5px; font-weight: 700; color: var(--gray700); transition: color 0.2s; }
+.fg .tool .ff-links a:last-child { border-bottom: 0; }
+.fg .tool .ff-links a:hover { color: var(--ink); }
+.fg .tool .ff-links a .dot2 { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
+.fg .tool .ff-links a svg { margin-left: auto; color: #c8cdd6; }
+

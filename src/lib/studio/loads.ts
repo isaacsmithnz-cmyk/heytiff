@@ -67,6 +67,19 @@ export const ORIENT_LABELS: Record<Orientation, string> = {
     instead, so marking external walls can never DECREASE the load. */
 export const NO_SOLAR_MULT = Math.min(...Object.values(ORIENT_MULT)); // = S ×0.85
 
+/** Ceiling-height multiplier — graduated, replacing DUCTR's flat ×1.1 which
+    under-sized tall spaces (a 4 m ceiling is ~67% more air than 2.4 m, not
+    10%). ≤2.7 m is the standard band (×1.00); above it the factor grows with
+    half the raw volume ratio (loads aren't purely volumetric — envelope and
+    solar dominate), floored at the legacy ×1.10 so old estimates never shrink,
+    and capped at ×1.50 (~4.8 m — beyond that it's warehouse territory and the
+    area rule-of-thumb itself stops being credible). 3.0 m → ×1.125,
+    3.5 m → ×1.23, 4.0 m → ×1.33. */
+export function heightMult(ceilingHeightM: number): number {
+  if (ceilingHeightM <= 2.7) return 1;
+  return Math.min(1.5, Math.max(1.1, 1 + 0.5 * (ceilingHeightM / 2.4 - 1)));
+}
+
 export const ORIENTATIONS: readonly Orientation[] = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 
 /** The base W/m² for a job's climate zone + building type, honouring a manual
@@ -92,7 +105,7 @@ export interface RoomLoadInputs {
   baseWm2Override?: number | null;
   glazing?: GlazingLevel; // default moderate
   condition?: RoomCondition; // default standard
-  ceilingHeightM?: number; // default 2.4; >2.7 adds 10%
+  ceilingHeightM?: number; // default 2.4; >2.7 graduated via heightMult (4 m → ×1.33)
   orientation?: Orientation; // primary exposed wall; default N
   /** internal room sharing a party wall — no solar gain (NO_SOLAR_MULT) */
   partyWall?: boolean;
@@ -113,7 +126,7 @@ export function roomHeatLoadKw(input: RoomLoadInputs): number {
   });
   const glass = GLAZING_MULT[input.glazing ?? "moderate"];
   const cond = CONDITION_MULT[input.condition ?? "standard"];
-  const height = (input.ceilingHeightM ?? 2.4) > 2.7 ? 1.1 : 1;
+  const height = heightMult(input.ceilingHeightM ?? 2.4);
   const noSolar = input.partyWall || input.hasExternalWalls === false;
   const orient = noSolar ? NO_SOLAR_MULT : ORIENT_MULT[input.orientation ?? "N"];
   const watts = Math.round(input.areaM2 * base * glass * cond * height * orient);

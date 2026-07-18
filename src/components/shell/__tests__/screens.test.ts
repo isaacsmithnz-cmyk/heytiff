@@ -1,6 +1,5 @@
 import {
   homeHtml,
-  toolboxHtml,
   assetsHtml,
   adminHtml,
   blankHtml,
@@ -12,13 +11,6 @@ describe("screen builders", () => {
     expect(html).toContain("Good morning");
     expect(html).toContain("Isaac");
     expect(html).toContain("Monday");
-  });
-
-  it("toolbox drops the old eyebrow and shows the empty state", () => {
-    const html = toolboxHtml();
-    expect(html).toContain("<h1>Toolbox</h1>");
-    expect(html).toContain("No tools yet");
-    expect(html).not.toContain("Field Tools");
   });
 
   it("Assets renders two tabs with their empty states", () => {

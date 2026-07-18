@@ -327,7 +327,7 @@ describe("RateCalculator — current rates are editable outside onboarding", () 
     const user = userEvent.setup();
     render(<RateCalculator initialState={JSON.parse(JSON.stringify(buildDemoState()))} />);
     await user.click(screen.getByText("← Back to edit")); // Results → a step page (rail visible)
-    // Demo charges 118/105 vs recommended ~144/149 → "↑ $N/hr" on both cards.
+    // Demo charges 118/105 vs recommended ~132/143 → "↑ $N/hr" on both cards.
     expect(screen.getByLabelText("Current install rate")).toHaveValue("118");
     expect(screen.getAllByText(/↑ \$\d+\/hr/).length).toBeGreaterThan(0);
   });
@@ -338,7 +338,7 @@ describe("RateCalculator — current rates are editable outside onboarding", () 
     saved.currentRates = { install: 300, service: 300 };
     render(<RateCalculator initialState={saved} />);
     await user.click(screen.getByText("← Back to edit"));
-    // 300 charged vs recommended ~144/149 → "✓ $N above" on both cards.
+    // 300 charged vs recommended ~132/143 → "✓ $N above" on both cards.
     expect(screen.getAllByText(/✓ \$\d+ above/).length).toBeGreaterThan(0);
   });
 

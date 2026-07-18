@@ -19,7 +19,6 @@ const BASELINE_SETTINGS = {
   payroll_tax_threshold: 1_200_000,
   payroll_tax_rate: 5.45,
   working_weeks: 48,
-  working_days: 5,
   working_hours: 8,
 };
 
@@ -134,26 +133,26 @@ describe("calculate — Blue Sky baseline (simple mode)", () => {
 
   it("reproduces the ground-truth outputs of the original engine", () => {
     expectClose(calc as unknown as Record<string, unknown>, {
-      recInst: 126.225608,
-      recSvc: 136.54258,
-      beInst: 100.980487,
-      beSvc: 109.234064,
-      afterHrs: 204.813871,
-      emergency: 273.085161,
-      projInst: 130.012376,
-      projSvc: 140.638858,
-      profInst: 25.245122,
-      profSvc: 27.308516,
-      daily: 1037.316791,
-      instLab: 307628.5,
-      svcLab: 153814.25,
-      adminLab: 51271.416667,
+      recInst: 126.118936,
+      recSvc: 136.432861,
+      beInst: 100.895149,
+      beSvc: 109.146289,
+      afterHrs: 204.649291,
+      emergency: 272.865722,
+      projInst: 129.902505,
+      projSvc: 140.525847,
+      profInst: 25.223787,
+      profSvc: 27.286572,
+      daily: 1036.455291,
+      instLab: 307328.307692,
+      svcLab: 153664.153846,
+      adminLab: 51221.384615,
       instVehicle: 20400,
       svcVehicle: 20400,
       adminVehicle: 0,
-      totalInst: 394689.444444,
-      totalSvc: 207544.722222,
-      pool: 99991.416667,
+      totalInst: 394355.897436,
+      totalSvc: 207377.948718,
+      pool: 99941.384615,
       sharedCosts: 48720,
       directInst: 0,
       directSvc: 0,
@@ -271,10 +270,10 @@ describe("payroll tax — simple labour mode", () => {
 
   it("applies payroll tax when the wage bill crosses the threshold", () => {
     const calc = simpleTax([110_000, 110_000, 110_000]);
-    // projAnnual 1.32M + super 158,400 + leave loading 19,250 = 1,497,650
-    expect(calc.totalWages).toBeCloseTo(1_497_650, 4);
-    // excess 297,650 × 5.45%
-    expect(calc.payrollTax).toBeCloseTo(16_221.925, 4);
+    // projAnnual 1.32M + super 158,400 + leave loading 17,769.23 = 1,496,169.23
+    expect(calc.totalWages).toBeCloseTo(1_496_169.2307692308, 4);
+    // excess 296,169.23 × 5.45%
+    expect(calc.payrollTax).toBeCloseTo(16_141.2230769231, 4);
   });
 
   it("conserves the tax into the labour pools and raises break-even", () => {
@@ -289,6 +288,37 @@ describe("payroll tax — simple labour mode", () => {
   it("is zero below the threshold and when disabled", () => {
     expect(simpleTax([50_000, 50_000, 50_000]).payrollTax).toBe(0);
     expect(simpleTax([110_000, 110_000, 110_000], false).payrollTax).toBe(0);
+  });
+});
+
+// ─── Simple-mode leave loading ──────────────────────────────────────────
+// Regression: this used to divide the monthly wage bill by weeks/12, so the
+// loading scaled by 52/weeks — 8.3% high at 48, and drifting with a setting
+// that has nothing to do with what leave costs. Lowering working_weeks would
+// cut billable hours AND inflate this cost, compounding in the same direction.
+describe("simple-mode leave loading", () => {
+  const ll = (working_weeks: number) => calculate({
+    simpleLabourData: { months: [110_000, 110_000, 110_000], install_pct: 60, service_pct: 30, admin_pct: 10, staff_count: 8, billable_pct: 75 },
+    settings: { ...TAX_SETTINGS, working_weeks, payroll_tax_enabled: false },
+  }).staffBreakdown[0].leaveLoading;
+
+  it("does not move with working_weeks", () => {
+    expect(ll(44)).toBeCloseTo(ll(48), 8);
+    expect(ll(52)).toBeCloseTo(ll(48), 8);
+  });
+
+  it("derives the weekly wage from the 52 weeks actually paid", () => {
+    expect(ll(48)).toBeCloseTo(1_320_000 / 52 * 4 * 0.175, 6); // 17,769.230769
+  });
+
+  it("matches detailed mode on the same 52-week wage bill", () => {
+    const annualWage = 58 * 38 * 52; // 114,608 — one full-timer
+    const detailed = calculate({ staff: [roster10[0]], settings: { ...TAX_SETTINGS, payroll_tax_enabled: false } });
+    const simple = calculate({
+      simpleLabourData: { months: [annualWage / 12, annualWage / 12, annualWage / 12], install_pct: 60, service_pct: 30, admin_pct: 10, staff_count: 1, billable_pct: 75 },
+      settings: { ...TAX_SETTINGS, payroll_tax_enabled: false },
+    });
+    expect(simple.staffBreakdown[0].leaveLoading).toBeCloseTo(detailed.staffBreakdown[0].leaveLoading, 6);
   });
 });
 

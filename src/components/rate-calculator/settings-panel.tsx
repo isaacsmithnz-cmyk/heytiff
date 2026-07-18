@@ -7,7 +7,7 @@
    fixed positioning (see room-modal.tsx / timepay settings for the pattern). */
 
 import React from "react";
-import { PAYROLL_TAX, type CalcSettings } from "./engine";
+import { DEFAULT_WORKING_WEEKS, PAYROLL_TAX, type CalcSettings } from "./engine";
 import type { RateCalcState } from "./state";
 import { RC } from "./theme";
 import { money } from "./format";
@@ -35,14 +35,20 @@ function Field({ label, hint, tip, tipUp, children }: {
   );
 }
 
-function Stepper({ value, onChange, suffix = "", step = 1, min = 0 }: {
-  value: number; onChange: (v: number) => void; suffix?: string; step?: number; min?: number;
+// `max` is optional — left undefined the clamp is a no-op beyond `min`, so the
+// steppers that don't pass one behave exactly as before.
+function Stepper({ value, onChange, suffix = "", step = 1, min = 0, max }: {
+  value: number; onChange: (v: number) => void; suffix?: string; step?: number; min?: number; max?: number;
 }) {
+  const clamp = (v: number) => {
+    const r = Math.max(min, Math.round(v * 100) / 100);
+    return max != null ? Math.min(max, r) : r;
+  };
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 3, background: RC.card2, borderRadius: 10, padding: 4, border: `1px solid ${RC.line}`, flexShrink: 0 }}>
-      <button className="rca-stepbtn" style={{ width: 26, height: 26, borderRadius: 7, fontSize: 16, border: "none", background: "#fff", boxShadow: "0 1px 2px rgba(10,12,20,.08)" }} onClick={() => onChange(Math.max(min, Math.round((value - step) * 100) / 100))}>−</button>
+      <button className="rca-stepbtn" style={{ width: 26, height: 26, borderRadius: 7, fontSize: 16, border: "none", background: "#fff", boxShadow: "0 1px 2px rgba(10,12,20,.08)" }} onClick={() => onChange(clamp(value - step))}>−</button>
       <span style={{ minWidth: 54, textAlign: "center", fontFamily: RC.head, fontWeight: 800, fontSize: 14.5, color: RC.ink, whiteSpace: "nowrap" }}>{value}{suffix}</span>
-      <button className="rca-stepbtn" style={{ width: 26, height: 26, borderRadius: 7, fontSize: 16, border: "none", background: "#fff", boxShadow: "0 1px 2px rgba(10,12,20,.08)" }} onClick={() => onChange(Math.round((value + step) * 100) / 100)}>+</button>
+      <button className="rca-stepbtn" style={{ width: 26, height: 26, borderRadius: 7, fontSize: 16, border: "none", background: "#fff", boxShadow: "0 1px 2px rgba(10,12,20,.08)" }} onClick={() => onChange(clamp(value + step))}>+</button>
     </div>
   );
 }
@@ -184,11 +190,11 @@ export function SettingsPanel({ st, patch, onClose }: {
           </Field>
 
           <WsEyebrow color={RC.install} style={{ marginTop: 24, marginBottom: 4 }}>Working pattern</WsEyebrow>
-          <Field label="Working weeks / year" hint="After leave & public holidays · feeds the rate maths" tip="Weeks your techs actually work once annual leave, public holidays and sick days come out. This one drives the rates: it sets annual paid hours and casual/subbie paid weeks. Full-time Aussie trades typically land on 46–48.">
-            <Stepper value={g.working_weeks ?? 48} min={1} onChange={v => set("working_weeks", v)} />
+          <Field label="Working weeks / year" hint="After leave & public holidays · feeds the rate maths" tip="Weeks your techs actually work once annual leave and public holidays come out — 52, less 4 weeks leave, less about 2 for public holidays. This one drives the rates: it sets annual paid hours and casual/subbie paid weeks. Sick days aren't netted off here — if your crew usually takes their full personal leave, drop this to about 44.">
+            <Stepper value={g.working_weeks ?? DEFAULT_WORKING_WEEKS} min={1} max={52} onChange={v => set("working_weeks", v)} />
           </Field>
           <Field label="Hours in a full day on-site" hint="Only sets the Day rate figure" tip="Hours billed when a tech spends the whole day on one job. Day rate = hourly rate × these hours. This isn't utilisation — travel, quoting and slow days are already priced into the hourly rate, so a full day on the tools bills all its hours.">
-            <Stepper value={g.working_hours ?? 8} min={1} onChange={v => set("working_hours", v)} />
+            <Stepper value={g.working_hours ?? 8} min={1} max={24} onChange={v => set("working_hours", v)} />
           </Field>
           <div style={{ background: RC.installSoft, borderRadius: 12, padding: "12px 15px", marginTop: 12, fontSize: 12, color: "#1D4FD7", lineHeight: 1.55 }}>
             <b>Where billable time comes from:</b> your rates divide costs by the hours you can invoice — set in the Staff step (Simple mode&apos;s billable-time %, or measured from timesheets in Detailed). These settings never scale it twice.

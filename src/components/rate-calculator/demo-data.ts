@@ -14,6 +14,7 @@
  * each financial year alongside PAYROLL_TAX in engine.ts.
  */
 
+import { DEFAULT_WORKING_WEEKS } from "./engine";
 import type {
   BusinessCost,
   CalcSettings,
@@ -144,8 +145,7 @@ const SETTINGS: CalcSettings = {
   payroll_tax_threshold: 1_200_000,
   payroll_tax_rate: 5.45,
   payroll_tax_fy: "2026-27",
-  working_weeks: 48,
-  working_days: 5,
+  working_weeks: DEFAULT_WORKING_WEEKS,
   working_hours: 8,
   annual_cost_increase_pct: 3,
   review_reminder_months: 6,

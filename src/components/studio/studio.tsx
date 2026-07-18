@@ -108,6 +108,10 @@ export function Studio({
   );
 
   const [swapping, setSwapping] = useState(false);
+  /* true only while the OLD screen is leaving. The well's colour keys off this so
+     it can start dissolving the moment you leave the canvas, instead of holding
+     on until the swap lands. */
+  const [exiting, setExiting] = useState(false);
 
   const refreshRecents = useCallback(() => {
     void getStore().list().then(setRecents);
@@ -139,12 +143,15 @@ export function Studio({
           swapTimers.current.push(setTimeout(r, ms));
         });
       setSwapping(true);
+      setExiting(true);
       try {
         const [value] = await Promise.all([prepare(), wait(SWAP_OUT_MS)]);
         apply(value);
+        setExiting(false); // same commit as the swap: the old screen is gone
         await wait(SWAP_PAINT_MS);
       } finally {
         setSwapping(false); // always bring the screen back, even if the load throws
+        setExiting(false);
       }
     },
     []
@@ -289,7 +296,7 @@ export function Studio({
       <div
         className={`dstudio${doc ? " editing" : ""}${
           swapping ? " swapping" : ""
-        }`}
+        }${exiting ? " exiting" : ""}`}
       >
         {doc ? (
           <Editor

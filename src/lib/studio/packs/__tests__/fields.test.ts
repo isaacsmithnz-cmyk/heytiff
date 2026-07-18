@@ -180,3 +180,15 @@ describe("filter (built-in vs field-supplied)", () => {
     expect(parseFieldInput(filter, "washable")).toMatchObject({ ok: false });
   });
 });
+
+describe("drain pressure + pump", () => {
+  it("are indoor-only enums with the trade answers", () => {
+    const pressure = fieldSpec("indoor_units", "drain_pressure")!;
+    const pump = fieldSpec("indoor_units", "drain_pump")!;
+    expect(pressure.enumValues).toEqual(["positive", "negative"]);
+    expect(pump.enumValues).toEqual(["built-in", "none"]);
+    expect(fieldSpec("outdoor_units", "drain_pressure")).toBeUndefined();
+    expect(parseFieldInput(pressure, "negative")).toEqual({ ok: true, value: "negative" });
+    expect(parseFieldInput(pump, "gravity")).toMatchObject({ ok: false });
+  });
+});

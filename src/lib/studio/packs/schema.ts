@@ -192,6 +192,11 @@ export interface IndoorUnit {
   /** return-air filter: "built-in" (integral washable) vs "field-supplied"
       (by others — typical for ducted forms). Tier-3 — never gates readiness. */
   filter?: "built-in" | "field-supplied";
+  /** condensate drainage: which pressure side the drain connection sits on
+      ("negative" needs the deeper trap) and whether a lift pump is integral.
+      Both Tier-3 — installer info, never gate readiness. */
+  drain_pressure?: "positive" | "negative";
+  drain_pump?: "built-in" | "none";
   conn_liquid_mm: number;
   conn_gas_mm: number;
   conn_condensate?: string;

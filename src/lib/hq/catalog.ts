@@ -131,6 +131,8 @@ const IDU_NICE = [
   "power_supply",
   "max_amps_a",
   "filter",
+  "drain_pressure",
+  "drain_pump",
 ];
 const ODU_NICE = [
   "sound_low_dba",

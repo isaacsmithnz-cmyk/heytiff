@@ -61,8 +61,8 @@ describe("TABLE_GROUPS — registry drift guard", () => {
     expect([...grouped].sort()).toEqual([...sectionFields(section)].sort());
   });
 
-  it("matches the known section totals (indoor 20 / outdoor 25 / pairs 6)", () => {
-    expect(sectionFields("indoor_units")).toHaveLength(20);
+  it("matches the known section totals (indoor 22 / outdoor 25 / pairs 6)", () => {
+    expect(sectionFields("indoor_units")).toHaveLength(22);
     expect(sectionFields("outdoor_units")).toHaveLength(25);
     expect(sectionFields("pair_tables")).toHaveLength(6);
     // sanity: derived from the same registry the editor validates against
@@ -96,10 +96,10 @@ describe("seriesColumns — to-add partition", () => {
   });
 
   it("keeps mapped + toAdd = total, and toAdd in registry order", () => {
-    // wall series → the ducted-only airway columns don't apply: total is 18
+    // wall series → the ducted-only airway columns don't apply: total is 20
     const view = buildCatalogView(packOf([idu({ model: "A" })]), []);
     const cols = seriesColumns("indoor_units", view.indoor);
-    expect(cols.totalFields).toBe(18);
+    expect(cols.totalFields).toBe(20);
     expect(cols.mappedFields + cols.toAdd.length).toBe(cols.totalFields);
     const order = sectionFields("indoor_units");
     const idx = cols.toAdd.map((c) => order.indexOf(c.field));
@@ -114,10 +114,10 @@ describe("seriesColumns — to-add partition", () => {
 });
 
 describe("seriesColumns — form-factor column filtering (airways)", () => {
-  it("ducted series carry the airway columns (total 20, blocking toAdd)", () => {
+  it("ducted series carry the airway columns (total 22, blocking toAdd)", () => {
     const view = buildCatalogView(packOf([idu({ model: "D", form_factor: "ducted" })]), []);
     const cols = seriesColumns("indoor_units", view.indoor);
-    expect(cols.totalFields).toBe(20);
+    expect(cols.totalFields).toBe(22);
     const supply = cols.toAdd.find((c) => c.field === "supply_opening")!;
     expect(supply.sub).toBe("Supply airway");
     expect(supply.blocks).toBe(true);
@@ -125,10 +125,10 @@ describe("seriesColumns — form-factor column filtering (airways)", () => {
     expect(cols.toAdd.find((c) => c.field === "return_opening")?.sub).toBe("Return airway");
   });
 
-  it("wall series exclude the airway columns everywhere (total 18)", () => {
+  it("wall series exclude the airway columns everywhere (total 20)", () => {
     const view = buildCatalogView(packOf([idu({ model: "W" })]), []);
     const cols = seriesColumns("indoor_units", view.indoor);
-    expect(cols.totalFields).toBe(18);
+    expect(cols.totalFields).toBe(20);
     const everywhere = [
       ...cols.groups.flatMap((g) => g.columns.map((c) => c.field)),
       ...cols.toAdd.map((c) => c.field),
@@ -145,7 +145,25 @@ describe("seriesColumns — form-factor column filtering (airways)", () => {
       []
     );
     const cols = seriesColumns("indoor_units", view.indoor);
-    expect(cols.totalFields).toBe(20);
+    expect(cols.totalFields).toBe(22);
+  });
+
+  it("drain pressure + pump are neutral columns; values map into the Drain group", () => {
+    const empty = buildCatalogView(packOf([idu({ model: "W" })]), []);
+    const cols = seriesColumns("indoor_units", empty.indoor);
+    expect(cols.toAdd.find((c) => c.field === "drain_pressure")?.blocks).toBe(false);
+    expect(cols.toAdd.find((c) => c.field === "drain_pump")?.sub).toBe("Drain pump");
+
+    const filled = buildCatalogView(
+      packOf([idu({ model: "C", drain_pressure: "negative", drain_pump: "built-in" })]),
+      []
+    );
+    const drain = seriesColumns("indoor_units", filled.indoor).groups.find(
+      (g) => g.key === "drain"
+    )!;
+    expect(drain.columns.map((c) => c.sub)).toEqual(["Pressure", "Pump"]);
+    expect(filled.indoor[0].values.drain_pressure).toBe("negative");
+    expect(filled.indoor[0].values.drain_pump).toBe("built-in");
   });
 
   it("filter (built-in vs field-supplied) is a neutral column on every indoor form", () => {

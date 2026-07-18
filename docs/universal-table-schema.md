@@ -54,6 +54,8 @@ The largest section. One row per model.
 | `static_pressure_pa` | O (Tier-3 in v1) | External static, numeric — no ESP check yet; becomes required when the ESP check lands. Optional: selectable ESP settings list |
 | `supply_opening`, `return_opening` | **R for ducted forms — gates ducted-ready** | Data-book airway openings: `{w_mm,h_mm}` mm, or `"built-in"` (integral return), or `"spigots"` (factory spigots). Size the plenum base (ducted spec §1b) — never the unit width |
 | `filter` | O | Return-air filter provenance: `"built-in"` (integral washable) vs `"field-supplied"` (by others — typical for ducted forms). Tier-3 |
+| `drain_pressure` | O | Which pressure side the drain connection sits on: `"positive"` vs `"negative"` (negative needs the deeper trap). Tier-3 |
+| `drain_pump` | O | Condensate lift pump: `"built-in"` vs `"none"` (gravity — field pump by others). Tier-3 |
 | `conn_liquid_mm`, `conn_gas_mm` | **R** | Connection sizes |
 | `conn_condensate` | O | Size/type; pump built-in flag |
 | `default_plane`, `allowed_planes` | **R** | `room · ceiling-cavity · floor-cavity …` — drives placement behaviour |

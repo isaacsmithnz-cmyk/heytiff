@@ -50,6 +50,7 @@ export const TABLE_GROUPS: Record<EditableSection, HqColumnGroup[]> = {
     { key: "index", label: "Index", columns: [col("capacity_index", "Cap. index")] },
     { key: "air", label: "Air", columns: [col("airflow_ls", "Airflow L/s"), col("static_pressure_pa", "Static Pa"), col("filter", "Filter")] },
     { key: "airways", label: "Airways", unit: "mm", columns: [col("supply_opening", "Supply", DUCTED_ONLY), col("return_opening", "Return", DUCTED_ONLY)] },
+    { key: "drain", label: "Drain", columns: [col("drain_pressure", "Pressure"), col("drain_pump", "Pump")] },
     { key: "dims", label: "Dimensions", unit: "mm", columns: [col("width_mm", "W"), col("depth_mm", "D"), col("height_mm", "H")] },
     { key: "mass", label: "Mass", columns: [col("weight_kg", "kg")] },
     { key: "pipes", label: "Pipe Ø", unit: "mm", columns: [col("conn_liquid_mm", "Liquid"), col("conn_gas_mm", "Gas")] },

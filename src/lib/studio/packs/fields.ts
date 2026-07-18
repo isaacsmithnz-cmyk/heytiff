@@ -62,6 +62,10 @@ const OPENING_ALTS = ["built-in", "spigots"] as const;
 /** IndoorUnit.filter — integral washable vs supplied by others */
 const FILTER_TYPES = ["built-in", "field-supplied"] as const;
 
+/** IndoorUnit condensate drainage (see schema.ts) */
+const DRAIN_PRESSURES = ["positive", "negative"] as const;
+const DRAIN_PUMPS = ["built-in", "none"] as const;
+
 export const EDITABLE_FIELDS: readonly EditableFieldSpec[] = [
   // ── indoor units ──
   { section: "indoor_units", field: "capacity_cool_kw", label: "Cooling capacity", unit: "kW", type: "number", ...KW },
@@ -74,6 +78,8 @@ export const EDITABLE_FIELDS: readonly EditableFieldSpec[] = [
   // Tier-1 for the ducted role (they size the plenum base, ducted spec §1b)
   { section: "indoor_units", field: "supply_opening", label: "Supply airway", unit: "mm", type: "opening", enumValues: OPENING_ALTS, ...MM },
   { section: "indoor_units", field: "return_opening", label: "Return airway", unit: "mm", type: "opening", enumValues: OPENING_ALTS, ...MM },
+  { section: "indoor_units", field: "drain_pressure", label: "Drain pressure", type: "enum", enumValues: DRAIN_PRESSURES },
+  { section: "indoor_units", field: "drain_pump", label: "Drain pump", type: "enum", enumValues: DRAIN_PUMPS },
   { section: "indoor_units", field: "conn_liquid_mm", label: "Liquid connection", unit: "mm", type: "number", ...CONN },
   { section: "indoor_units", field: "conn_gas_mm", label: "Gas connection", unit: "mm", type: "number", ...CONN },
   { section: "indoor_units", field: "width_mm", label: "Width", unit: "mm", type: "number", ...MM },

@@ -318,16 +318,21 @@ type FuelMode = "scan" | "reading" | "confirm" | "manual";
 export function LogModal({
   kind,
   vehicle,
+  fleetVehicles,
   loggedBy,
   onSave,
   onClose,
 }: {
   kind: LogKind;
   vehicle: Vehicle;
+  /** Working fleet for the rego picker — lets a driver log against a borrowed
+      or pool vehicle instead of their own. Omit to lock to `vehicle`. */
+  fleetVehicles?: Vehicle[];
   loggedBy: { id: string | null; name: string };
   onSave: (log: Omit<VehicleLog, "id" | "when" | "ago">) => void;
   onClose: () => void;
 }) {
+  const [vehicleId, setVehicleId] = useState(vehicle.id);
   const [litres, setLitres] = useState("");
   const [cost, setCost] = useState("");
   const [odo, setOdo] = useState("");
@@ -339,6 +344,27 @@ export function LogModal({
   const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const copy = LOG_COPY[kind];
+
+  // rego picker: default vehicle first, then the rest of the working fleet by plate
+  const pickable = [...(fleetVehicles ?? [])]
+    .filter((v) => v.status !== "sold")
+    .sort(
+      (a, b) =>
+        (a.id === vehicle.id ? -1 : 0) - (b.id === vehicle.id ? -1 : 0) ||
+        a.plate.localeCompare(b.plate),
+    );
+  const target = pickable.find((v) => v.id === vehicleId) ?? vehicle;
+  const vehiclePicker = pickable.length > 1 && (
+    <Field label="Vehicle / rego" span>
+      <select className="fl-i" value={target.id} onChange={(e) => setVehicleId(e.target.value)}>
+        {pickable.map((v) => (
+          <option key={v.id} value={v.id}>
+            {v.plate} — {v.name || modelLabel(v)}
+          </option>
+        ))}
+      </select>
+    </Field>
+  );
 
   useEffect(() => {
     return () => {
@@ -382,7 +408,7 @@ export function LogModal({
     setMode("scan");
   };
 
-  const odoLow = odo.trim() !== "" && num(odo) < vehicle.odometer;
+  const odoLow = odo.trim() !== "" && num(odo) < target.odometer;
   const ready =
     kind === "fuel"
       ? litres.trim() !== "" && (mode === "confirm" || mode === "manual")
@@ -393,7 +419,7 @@ export function LogModal({
   const save = () => {
     if (!ready) return;
     onSave({
-      vehicleId: vehicle.id,
+      vehicleId: target.id,
       staffId: loggedBy.id,
       staffName: loggedBy.name,
       kind,
@@ -420,12 +446,12 @@ export function LogModal({
       </Field>
       <Field
         label="Odometer (km)"
-        hint={odoLow ? `Lower than the current ${fmtKm(vehicle.odometer)} km — double-check the reading` : undefined}
+        hint={odoLow ? `Lower than the current ${fmtKm(target.odometer)} km — double-check the reading` : undefined}
       >
         <input
           className="fl-i"
           type="number"
-          placeholder={`Currently ${fmtKm(vehicle.odometer)}`}
+          placeholder={`Currently ${fmtKm(target.odometer)}`}
           value={odo}
           onChange={(e) => setOdo(e.target.value)}
         />
@@ -437,9 +463,10 @@ export function LogModal({
   );
 
   return (
-    <FleetModal title={copy.title} sub={`${displayName(vehicle)} · ${modelLabel(vehicle)}`} onClose={onClose}>
+    <FleetModal title={copy.title} sub={`${displayName(target)} · ${modelLabel(target)}`} onClose={onClose}>
       {kind === "fuel" && mode === "scan" && (
         <>
+          {vehiclePicker && <div className="fl-grid" style={{ marginBottom: 14 }}>{vehiclePicker}</div>}
           <label
             className={`fl-scan${dragOver ? " over" : ""}`}
             onDragOver={(e) => {
@@ -496,25 +523,26 @@ export function LogModal({
               re-scan
             </button>
           </div>
-          <div className="fl-grid">{fuelFields}</div>
+          <div className="fl-grid">{vehiclePicker}{fuelFields}</div>
         </>
       )}
 
-      {kind === "fuel" && mode === "manual" && <div className="fl-grid">{fuelFields}</div>}
+      {kind === "fuel" && mode === "manual" && <div className="fl-grid">{vehiclePicker}{fuelFields}</div>}
 
       {kind !== "fuel" && (
         <div className="fl-grid">
+          {vehiclePicker}
           {kind !== "issue" && (
             <Field
               label={kind === "service" ? "Serviced at odo (km)" : "Odometer (km)"}
               req
               span
-              hint={odoLow ? `Lower than the current ${fmtKm(vehicle.odometer)} km — double-check the reading` : undefined}
+              hint={odoLow ? `Lower than the current ${fmtKm(target.odometer)} km — double-check the reading` : undefined}
             >
               <input
                 className="fl-i"
                 type="number"
-                placeholder={`Currently ${fmtKm(vehicle.odometer)}`}
+                placeholder={`Currently ${fmtKm(target.odometer)}`}
                 value={odo}
                 onChange={(e) => setOdo(e.target.value)}
               />

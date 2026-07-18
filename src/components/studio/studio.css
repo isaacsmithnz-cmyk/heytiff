@@ -51,22 +51,55 @@
    .fg .main padding) is untouched. */
 .fg .outlet:has(.dstudio) { scrollbar-gutter: auto; }
 
-/* Swapping the dark start screen ↔ the light editor: fade the WHOLE screen — the
-   well's background and its content together, as one layer — out to the dark
-   shell frame, swap while it's invisible, then fade the new screen in over that
-   frame. Fading only the background can't work (and read as a glitch): the
-   content swaps instantly while a colour crawls, so the light editor renders on
-   a dark canvas; the dot-grid and corner radius snap too, since neither is
-   animatable. Fading the outlet takes all of it at once, and the frame behind
-   (#050505 + framefx) never moves, so there's nothing to peek through.
-   Driven by Studio's throughFade(). */
+/* Screen-swap choreography (driven by Studio's throughSwap()).
+
+   The start screen and the editor can't cross-fade against each other — one is
+   dark, the other a light well — so they take turns: the leaving screen clears
+   out, the well's colour eases underneath, then the arriving screen comes in.
+
+   The start screen travels DOWNWARD on the way out and rises back from below on
+   the way in. Dipping the whole outlet's opacity was tried first and read as a
+   glitch however it was timed; directional motion reads as intentional, and the
+   travel is what gives the design room to load — by the time the canvas arrives
+   it's already there.
+
+   Both screens sit hidden while `.swapping`, so each mounts in its "away" state
+   and animates in when the class drops (throughSwap holds a paint beat in
+   between, so there's a frame to transition from). */
 .fg .outlet:has(.dstudio) {
-  transition: opacity 0.12s ease; /* fading back in */
+  transition: background-color 0.24s ease; /* the well's colour, not its content */
 }
+/* a transform adds to a scroll container's overflow, so pin the outlet while the
+   start screen travels — otherwise a scrollbar can flash in and shift the layout */
 .fg .outlet:has(.dstudio.swapping) {
+  overflow: hidden;
+}
+.dstudio.swapping {
+  pointer-events: none; /* swallow clicks mid-swap */
+}
+
+/* start screen: sinks away, returns from below */
+.dstudio .ds-home-stack {
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.28s ease;
+  will-change: transform, opacity;
+}
+.dstudio.swapping .ds-home-stack {
+  transform: translateY(72px);
   opacity: 0;
-  pointer-events: none; /* invisible ≠ unclickable — swallow clicks mid-swap */
-  transition-duration: 0.09s; /* fading out */
+}
+
+/* editor: fades only — the canvas shouldn't slide around */
+.dstudio .ds-editor {
+  transition: opacity 0.28s ease;
+}
+.dstudio.swapping .ds-editor {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dstudio.swapping .ds-home-stack {
+    transform: none; /* keep the fade, drop the travel */
+  }
 }
 
 /* Start screen only: dissolve the shell's light "well" so the dark canvas merges

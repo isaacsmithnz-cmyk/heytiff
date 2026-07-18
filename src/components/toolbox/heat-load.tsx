@@ -226,7 +226,9 @@ export function HeatLoadCalculator() {
       </div>
       <div className="hl2-cap">
         height{" "}
-        <i className="htip" data-tip={TIP_HEIGHT}>
+        {/* right-aligned: height is the last column, so a centred 240px bubble
+            would overhang the card and land under the hero */}
+        <i className="htip tip-r" data-tip={TIP_HEIGHT}>
           i
         </i>
       </div>

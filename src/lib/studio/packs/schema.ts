@@ -189,6 +189,14 @@ export interface IndoorUnit {
       ducted spec §1b; absent → grey derived default (never the unit width). */
   supply_opening?: OpeningSpec;
   return_opening?: OpeningSpec;
+  /** return-air filter: "built-in" (integral washable) vs "field-supplied"
+      (by others — typical for ducted forms). Tier-3 — never gates readiness. */
+  filter?: "built-in" | "field-supplied";
+  /** condensate drainage: which pressure side the drain connection sits on
+      ("negative" needs the deeper trap) and whether a lift pump is integral.
+      Both Tier-3 — installer info, never gate readiness. */
+  drain_pressure?: "positive" | "negative";
+  drain_pump?: "built-in" | "none";
   conn_liquid_mm: number;
   conn_gas_mm: number;
   conn_condensate?: string;
@@ -198,6 +206,8 @@ export interface IndoorUnit {
   refrigerant: Refrigerant;
   phase?: Phase;
   power_supply?: string;
+  /** max running current, amps (Tier-3 — electrical planning nicety, never gates readiness) */
+  max_amps_a?: number;
   width_mm: number;
   depth_mm: number;
   height_mm: number;
@@ -223,6 +233,8 @@ export interface OutdoorUnit {
   phase: Phase;
   /** exact supply wording from the sheet, e.g. "230V 1N~ 50Hz" / "400V 3N~ 50Hz" */
   power_supply?: string;
+  /** max running current, amps (Tier-3 — electrical planning nicety, never gates readiness) */
+  max_amps_a?: number;
   conn_liquid_mm: number;
   conn_gas_mm: number;
   refrigerant: Refrigerant;

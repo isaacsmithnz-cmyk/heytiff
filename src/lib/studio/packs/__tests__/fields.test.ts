@@ -18,6 +18,8 @@ describe("EDITABLE_FIELDS registry", () => {
       ["indoor_units", "capacity_heat_kw"],
       ["indoor_units", "capacity_index"],
       ["indoor_units", "airflow_ls"],
+      ["indoor_units", "supply_opening"],
+      ["indoor_units", "return_opening"],
       ["indoor_units", "conn_liquid_mm"],
       ["indoor_units", "conn_gas_mm"],
       ["indoor_units", "width_mm"],
@@ -116,5 +118,77 @@ describe("tags type (system_roles)", () => {
 
   it("is not editable through the text-input parser", () => {
     expect(parseFieldInput(tags, "vrf")).toMatchObject({ ok: false });
+  });
+});
+
+describe("opening type (supply/return airways)", () => {
+  const supply = fieldSpec("indoor_units", "supply_opening")!;
+
+  it("is registered as an opening spec with the keyword alternatives", () => {
+    expect(supply.type).toBe("opening");
+    expect(supply.enumValues).toEqual(["built-in", "spigots"]);
+    expect(fieldSpec("indoor_units", "return_opening")?.type).toBe("opening");
+  });
+
+  it("accepts a W×H box in band and returns a clean two-key copy", () => {
+    const messy = { w_mm: 600, h_mm: 200, stray: "x" };
+    expect(validateFieldValue(supply, messy)).toEqual({
+      ok: true,
+      value: { w_mm: 600, h_mm: 200 },
+    });
+  });
+
+  it("accepts the keyword answers", () => {
+    expect(validateFieldValue(supply, "built-in")).toEqual({ ok: true, value: "built-in" });
+    expect(validateFieldValue(supply, " spigots ")).toEqual({ ok: true, value: "spigots" });
+  });
+
+  it("rejects free text, malformed boxes and out-of-band dimensions", () => {
+    expect(validateFieldValue(supply, "600x200")).toMatchObject({ ok: false });
+    expect(validateFieldValue(supply, { w_mm: -1, h_mm: 200 })).toMatchObject({ ok: false });
+    expect(validateFieldValue(supply, { w_mm: 6000, h_mm: 200 })).toMatchObject({ ok: false });
+    expect(validateFieldValue(supply, { w_mm: 600 })).toMatchObject({ ok: false });
+    expect(validateFieldValue(supply, null)).toMatchObject({ ok: false });
+    expect(validateFieldValue(supply, [600, 200])).toMatchObject({ ok: false });
+    expect(validateFieldValue(supply, 600)).toMatchObject({ ok: false });
+  });
+
+  it("is not editable through the text-input parser", () => {
+    expect(parseFieldInput(supply, "600 × 200")).toMatchObject({ ok: false });
+  });
+});
+
+describe("max running amps", () => {
+  it("is a bounded number on both unit sections", () => {
+    const idu = fieldSpec("indoor_units", "max_amps_a")!;
+    const odu = fieldSpec("outdoor_units", "max_amps_a")!;
+    expect(idu.type).toBe("number");
+    expect(odu.unit).toBe("A");
+    expect(parseFieldInput(odu, "12.5")).toEqual({ ok: true, value: 12.5 });
+    expect(parseFieldInput(idu, "0")).toMatchObject({ ok: false });
+    expect(parseFieldInput(idu, "999")).toMatchObject({ ok: false });
+  });
+});
+
+describe("filter (built-in vs field-supplied)", () => {
+  it("is an indoor-only enum with the two provenance answers", () => {
+    const filter = fieldSpec("indoor_units", "filter")!;
+    expect(filter.type).toBe("enum");
+    expect(filter.enumValues).toEqual(["built-in", "field-supplied"]);
+    expect(fieldSpec("outdoor_units", "filter")).toBeUndefined();
+    expect(parseFieldInput(filter, "built-in")).toEqual({ ok: true, value: "built-in" });
+    expect(parseFieldInput(filter, "washable")).toMatchObject({ ok: false });
+  });
+});
+
+describe("drain pressure + pump", () => {
+  it("are indoor-only enums with the trade answers", () => {
+    const pressure = fieldSpec("indoor_units", "drain_pressure")!;
+    const pump = fieldSpec("indoor_units", "drain_pump")!;
+    expect(pressure.enumValues).toEqual(["positive", "negative"]);
+    expect(pump.enumValues).toEqual(["built-in", "none"]);
+    expect(fieldSpec("outdoor_units", "drain_pressure")).toBeUndefined();
+    expect(parseFieldInput(pressure, "negative")).toEqual({ ok: true, value: "negative" });
+    expect(parseFieldInput(pump, "gravity")).toMatchObject({ ok: false });
   });
 });

@@ -1551,3 +1551,25 @@
   width: 16px;
   height: 16px;
 }
+
+/* airway (opening) editor — W × H inputs under the "Opening size" radio */
+.hq-pop-openwh {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 2px 26px;
+}
+.hq-pop-openwh .hq-pop-input {
+  width: 88px;
+  text-align: center;
+}
+.hq-pop-openwh .hq-pop-input:disabled {
+  opacity: 0.45;
+}
+.hq-pop-openx {
+  color: var(--hq-mut);
+  font-weight: 600;
+}
+.hq-pop-openwh .hq-pop-unit {
+  margin-top: 0;
+}

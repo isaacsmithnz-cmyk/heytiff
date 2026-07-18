@@ -14,12 +14,18 @@ import {
   fieldSpec,
   type EditableSection,
 } from "@/lib/studio/packs/fields";
+import type { FormFactor } from "@/lib/studio/packs/schema";
 import type { HqRow } from "./catalog";
 
 export interface HqColumn {
   field: string;
   /** short sub-header under the group ("Cooling", "W", "kg") */
   sub: string;
+  /** restrict to these indoor form factors: the column applies to a series
+      when ANY of its rows matches (real series are single-form). Filtered
+      columns leave groups, toAdd AND totalFields for that series. Unset =
+      applies everywhere. */
+  only?: FormFactor[];
 }
 
 export interface HqColumnGroup {
@@ -32,18 +38,24 @@ export interface HqColumnGroup {
   columns: HqColumn[];
 }
 
-const col = (field: string, sub: string): HqColumn => ({ field, sub });
+const col = (field: string, sub: string, only?: FormFactor[]): HqColumn =>
+  only ? { field, sub, only } : { field, sub };
+
+/** forms with duct airways — mirrors DUCTED_FORMS in catalog.ts/ready.ts */
+const DUCTED_ONLY: FormFactor[] = ["ducted", "bulkhead"];
 
 export const TABLE_GROUPS: Record<EditableSection, HqColumnGroup[]> = {
   indoor_units: [
     { key: "capacity", label: "Capacity", unit: "kW", columns: [col("capacity_cool_kw", "Cooling"), col("capacity_heat_kw", "Heating")] },
     { key: "index", label: "Index", columns: [col("capacity_index", "Cap. index")] },
-    { key: "air", label: "Air", columns: [col("airflow_ls", "Airflow L/s"), col("static_pressure_pa", "Static Pa")] },
+    { key: "air", label: "Air", columns: [col("airflow_ls", "Airflow L/s"), col("static_pressure_pa", "Static Pa"), col("filter", "Filter")] },
+    { key: "airways", label: "Airways", unit: "mm", columns: [col("supply_opening", "Supply", DUCTED_ONLY), col("return_opening", "Return", DUCTED_ONLY)] },
+    { key: "drain", label: "Drain", columns: [col("drain_pressure", "Pressure"), col("drain_pump", "Pump")] },
     { key: "dims", label: "Dimensions", unit: "mm", columns: [col("width_mm", "W"), col("depth_mm", "D"), col("height_mm", "H")] },
     { key: "mass", label: "Mass", columns: [col("weight_kg", "kg")] },
     { key: "pipes", label: "Pipe Ø", unit: "mm", columns: [col("conn_liquid_mm", "Liquid"), col("conn_gas_mm", "Gas")] },
     { key: "sound", label: "Sound", unit: "dBA", columns: [col("sound_low_dba", "Lo"), col("sound_high_dba", "Hi")] },
-    { key: "power", label: "Power", columns: [col("power_supply", "Supply"), col("phase", "Phase")] },
+    { key: "power", label: "Power", columns: [col("power_supply", "Supply"), col("phase", "Phase"), col("max_amps_a", "Max amps")] },
     { key: "refrig", label: "Refrig.", columns: [col("refrigerant", "Type")] },
   ],
   outdoor_units: [
@@ -67,7 +79,7 @@ export const TABLE_GROUPS: Record<EditableSection, HqColumnGroup[]> = {
     { key: "dims", label: "Dimensions", unit: "mm", columns: [col("width_mm", "W"), col("depth_mm", "D"), col("height_mm", "H")] },
     { key: "mass", label: "Mass", columns: [col("weight_kg", "kg")] },
     { key: "sound", label: "Sound", unit: "dBA", columns: [col("sound_low_dba", "Lo"), col("sound_high_dba", "Hi")] },
-    { key: "power", label: "Power", columns: [col("power_supply", "Supply"), col("phase", "Phase")] },
+    { key: "power", label: "Power", columns: [col("power_supply", "Supply"), col("phase", "Phase"), col("max_amps_a", "Max amps")] },
     { key: "refrig", label: "Refrig.", columns: [col("refrigerant", "Type")] },
   ],
   pair_tables: [
@@ -99,13 +111,21 @@ export const sectionFields = (section: EditableSection): string[] =>
     (f) => f.field
   );
 
-/** Partition a series' columns: a field is "to add" only when no row has it. */
+/** Partition a series' columns: a field is "to add" only when no row has it.
+    Columns with an `only` restriction that matches no row's form factor are
+    excluded entirely — from groups, toAdd and the totals. */
 export function seriesColumns(section: EditableSection, rows: HqRow[]): HqSeriesColumns {
-  const fields = sectionFields(section);
+  const colBy = new Map<string, HqColumn>(
+    TABLE_GROUPS[section].flatMap((g) => g.columns.map((c) => [c.field, c] as const))
+  );
+  const applies = (c: HqColumn | undefined) =>
+    !c?.only || rows.some((r) => r.formFactor && c.only!.includes(r.formFactor));
+
+  const fields = sectionFields(section).filter((f) => applies(colBy.get(f)));
   const empty = new Set(fields.filter((f) => rows.every((r) => r.values[f] == null)));
 
   const groups = TABLE_GROUPS[section]
-    .map((g) => ({ ...g, columns: g.columns.filter((c) => !empty.has(c.field)) }))
+    .map((g) => ({ ...g, columns: g.columns.filter((c) => applies(c) && !empty.has(c.field)) }))
     .filter((g) => g.columns.length > 0);
 
   const toAdd: HqToAddColumn[] = fields

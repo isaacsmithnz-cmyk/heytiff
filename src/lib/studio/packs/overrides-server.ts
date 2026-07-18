@@ -15,12 +15,13 @@ import { completenessByRange } from "./ready";
 import { resolvePacks } from "./loader";
 import { loadInstalledPack, type LoadedPack } from "./server";
 import type { DataPack } from "./schema";
+import type { FieldValue } from "./fields";
 
 type OverrideRow = {
   section: string;
   row_key: string;
   field: string;
-  value: number | string | string[];
+  value: FieldValue;
   entered_by: string;
   entered_at: string;
 };
@@ -48,7 +49,7 @@ export interface OverrideWrite {
   section: string;
   rowKey: string;
   field: string;
-  value: number | string | string[];
+  value: FieldValue;
   enteredBy: string;
 }
 
@@ -92,8 +93,8 @@ export interface OverrideLogEvent {
   rowKey: string;
   field: string;
   action: "set" | "clear";
-  oldValue: number | string | string[] | null;
-  newValue: number | string | string[] | null;
+  oldValue: FieldValue | null;
+  newValue: FieldValue | null;
   enteredBy: string;
 }
 

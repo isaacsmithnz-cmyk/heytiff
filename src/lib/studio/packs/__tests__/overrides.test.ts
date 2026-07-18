@@ -24,6 +24,8 @@ function ductedIdu(patch: Partial<IndoorUnit> = {}): IndoorUnit {
     form_factor: "ducted",
     capacity_cool_kw: 5,
     capacity_heat_kw: 6,
+    supply_opening: { w_mm: 600, h_mm: 200 },
+    return_opening: "built-in",
     conn_liquid_mm: 6.35,
     conn_gas_mm: 12.7,
     default_plane: "ceiling-cavity",
@@ -86,6 +88,24 @@ describe("applyOverrides", () => {
     const readiness = indoorReadiness(out, eff);
     expect(readiness.roles.ducted).toBe(true);
     expect(Object.keys(readiness.missing)).toHaveLength(0);
+  });
+
+  it("patches an airway opening box and flips ducted readiness", () => {
+    const pack = packWith([
+      ductedIdu({ airflow_ls: 210, supply_opening: undefined }),
+    ]);
+    expect(indoorReadiness(pack, pack.indoor_units[0]).roles.ducted).toBe(false);
+
+    const out = applyOverrides(pack, [
+      {
+        section: "indoor_units",
+        rowKey: "DUCT-1",
+        field: "supply_opening",
+        value: { w_mm: 600, h_mm: 200 },
+      },
+    ]);
+    expect(out.indoor_units[0].supply_opening).toEqual({ w_mm: 600, h_mm: 200 });
+    expect(indoorReadiness(out, out.indoor_units[0]).roles.ducted).toBe(true);
   });
 
   it("patches pair rows by composite idu+odu key", () => {

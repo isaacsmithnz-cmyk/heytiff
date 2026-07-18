@@ -607,6 +607,15 @@
 .dstudio .ds-editor.two-col > .ds-topbar {
   grid-column: 1;
   grid-row: 1;
+  /* the canvas controls share the line on the Design step — the 1fr track
+     must be allowed to shrink (title absorbs the slack), never wrap */
+  min-width: 0;
+  gap: 10px;
+}
+/* the title is flex-basis 0 — without a floor the fixed pills can crush it
+   to nothing on laptop widths */
+.dstudio .ds-editor.two-col .ds-id {
+  min-width: 150px;
 }
 .dstudio .ds-editor.two-col > .ds-panel {
   grid-column: 1;
@@ -623,8 +632,13 @@
   align-items: center;
   gap: 14px;
 }
-.dstudio .ds-back {
+/* the studio menu — the old back-arrow spot, now New/Open/Save/Export/
+   Edit plans/Reference sheets */
+.dstudio .ds-menu-wrap {
+  position: relative;
   flex: 0 0 auto;
+}
+.dstudio .ds-menu-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -637,10 +651,52 @@
   box-shadow: 0 1px 2px rgba(10, 12, 20, 0.04);
   transition: all 0.2s;
 }
-.dstudio .ds-back:hover {
+.dstudio .ds-menu-btn:hover {
   color: var(--ink);
   transform: translateY(-1px);
   border-color: rgba(0, 229, 192, 0.5);
+}
+.dstudio .ds-menu-btn.on {
+  color: var(--ink);
+  border-color: rgba(0, 229, 192, 0.5);
+}
+.dstudio .ds-menu-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 200px;
+  background: #fff;
+  border: 1px solid var(--ds-border);
+  border-radius: 14px;
+  box-shadow: 0 24px 60px -18px rgba(10, 12, 20, 0.4);
+  padding: 6px;
+  z-index: 30;
+}
+.dstudio .ds-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 9px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--gray700);
+  text-align: left;
+}
+.dstudio .ds-menu-item:hover:not(:disabled) {
+  background: #f4f5f7;
+  color: var(--ink);
+}
+.dstudio .ds-menu-item:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.dstudio .ds-menu-sep {
+  height: 1px;
+  margin: 6px 4px;
+  background: rgba(10, 12, 20, 0.08);
 }
 .dstudio .ds-id {
   display: flex;
@@ -713,29 +769,6 @@
   background: #fff;
   color: var(--ink);
   box-shadow: 0 3px 8px -3px rgba(10, 12, 20, 0.28);
-}
-.dstudio .ds-step-num {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 999px;
-  font-size: 10.5px;
-  font-weight: 800;
-  background: rgba(10, 12, 20, 0.08);
-  color: var(--gray500);
-}
-.dstudio .ds-step.active .ds-step-num {
-  background: var(--ink);
-  color: #fff;
-}
-.dstudio .ds-step.done {
-  color: var(--teal-d);
-}
-.dstudio .ds-step.done .ds-step-num {
-  background: var(--teal);
-  color: #053b34;
 }
 
 .dstudio .ds-tb-right {
@@ -859,6 +892,22 @@
   box-shadow: 0 0 0 3px rgba(0, 229, 192, 0.15);
 }
 
+/* the one-line topbar tightens before it would ever overflow: pill labels
+   collapse to icons (colour/tooltips still carry the state), the save word
+   drops (the dot still signals) and the title caps. Design step only — the
+   other screens keep full labels at any width. */
+@media (max-width: 1430px) {
+  .dstudio .ds-editor.two-col .ds-ctl-word,
+  .dstudio .ds-editor.two-col .ds-save .ds-save-word {
+    display: none;
+  }
+  .dstudio .ds-editor.two-col .ds-step {
+    padding: 8px 10px;
+  }
+  .dstudio .ds-editor.two-col .ds-title-input {
+    max-width: 220px;
+  }
+}
 @media (max-width: 1150px) {
   .dstudio .ds-id .ds-job {
     display: none;
@@ -985,6 +1034,23 @@
   color: var(--ink);
   box-shadow: 0 0 15px rgba(0, 229, 192, 0.4);
 }
+.dstudio .ds-tool:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.dstudio .ds-tool:disabled:hover {
+  background: none;
+  color: var(--gray500);
+}
+.dstudio .ds-tool.flip svg {
+  transform: scaleX(-1);
+}
+/* history group divider at the foot of the rail */
+.dstudio .ds-rail-sep {
+  height: 1px;
+  margin: 3px 6px;
+  background: rgba(10, 12, 20, 0.08);
+}
 
 .dstudio .ds-canvas-col {
   flex: 1;
@@ -1005,53 +1071,6 @@
   min-height: 0;
 }
 .dstudio .ds-canvas-body > .ds-canvas { min-width: 0; }
-.dstudio .ds-canvas-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  /* the strip must never overflow into the cockpit column — at narrow
-     widths it wraps instead (an overflowing pill once sat under the
-     cockpit's add-tab and stole its clicks) */
-  flex-wrap: wrap;
-  row-gap: 6px;
-  min-width: 0;
-}
-/* tight cluster in the canvas-top row: undo/redo+zoom, and Add option+Reference */
-.dstudio .ds-ctop-grp {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.dstudio .ds-floortabs {
-  display: flex;
-  gap: 3px;
-  background: #e4e6ec;
-  border: 1px solid rgba(10, 12, 20, 0.05);
-  border-radius: 12px;
-  padding: 3px;
-}
-.dstudio .ds-floortab {
-  padding: 6px 13px;
-  border-radius: 9px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--gray500);
-  transition: all 0.18s;
-}
-.dstudio .ds-floortab:hover {
-  color: var(--ink);
-}
-.dstudio .ds-floortab.on {
-  background: #fff;
-  color: var(--ink);
-  box-shadow: 0 3px 8px -3px rgba(10, 12, 20, 0.25);
-}
-.dstudio .ds-floortab.add {
-  display: flex;
-  align-items: center;
-  padding: 6px 9px;
-}
 .dstudio .ds-calib-cta {
   display: inline-flex;
   align-items: center;
@@ -1075,8 +1094,8 @@
   box-shadow: 0 3px 10px -3px rgba(217, 143, 31, 0.6);
 }
 
-/* canvas control strip — Layers / B&W / Legend toggles */
-.dstudio .ds-canvas-toggles { display: inline-flex; align-items: center; gap: 6px; }
+/* canvas controls — Floor / Calibrate / View / Simulate, on the topbar line */
+.dstudio .ds-canvas-toggles { display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; }
 .dstudio .ds-layers-wrap { position: relative; }
 .dstudio .ds-ctl-btn {
   display: inline-flex;
@@ -1278,24 +1297,6 @@
   border-color: var(--teal-d);
 }
 
-/* set-north prompt (chained from calibration) */
-.dstudio .ds-ref-open {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: auto;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  color: #444;
-  background: #fff;
-  border: 1px solid #e0e0de;
-  border-radius: 999px;
-  padding: 5px 12px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.dstudio .ds-ref-open:hover { border-color: #cfcfcc; color: #1a1a1a; }
 .dstudio .ds-floor-del {
   display: inline-flex;
   align-items: center;
@@ -1924,15 +1925,6 @@
   font-weight: 700;
   color: var(--gray500);
 }
-/* zoom cluster relocated into the top toolbar */
-.dstudio .ds-zoomctl.top {
-  position: static;
-  right: auto;
-  bottom: auto;
-}
-.dstudio .ds-zoomctl.top button { min-width: 26px; height: 26px; }
-.dstudio .ds-zoomctl.top span { min-width: 40px; }
-
 /* in-progress step guidance — top-centre pill */
 .dstudio .ds-tool-hint {
   position: absolute;
@@ -3397,13 +3389,7 @@
   font-weight: 800;
 }
 
-/* materials */
-.dstudio .ds-materials {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  align-items: stretch;
-}
+/* materials (takeoff sections, now on the Summary screen) */
 .dstudio .ds-mat-sys {
   border: 1px solid var(--ds-border);
   border-radius: 16px;
@@ -4616,8 +4602,14 @@
 .ds-rm-btn.primary:hover { background: var(--teal-d, #0f766e); }
 .dstudio .ds-insp-edit { justify-content: center; margin-top: 4px; }
 
-/* ═════════ job page (Slice 2 companion) ═════════ */
+/* ═════════ summary page (job details + takeoff + printable pack) ═════════ */
 .dstudio .ds-job { display: flex; flex-direction: column; gap: 20px; align-items: stretch; }
+.dstudio .ds-sum-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  align-items: stretch;
+}
 .dstudio .ds-job-form {
   border: 1px solid var(--ds-border);
   border-radius: 16px;
@@ -4642,7 +4634,10 @@
 }
 .dstudio .ds-job-print { justify-content: center; align-self: flex-start; }
 
+/* screen-hidden: the pack repeats the on-screen takeoff — print is its stage.
+   The border/padding remain the pack's frame if it ever shows in-flow. */
 .dstudio .ds-jobpack {
+  display: none;
   border: 1px solid var(--ds-border);
   border-radius: 16px;
   padding: 28px 30px;
@@ -4663,11 +4658,14 @@
 .dstudio .ds-jobpack-sec h2 { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--gray500); margin: 0 0 8px; }
 .dstudio .ds-jobpack-foot { margin-top: 8px; font-size: 11px; color: var(--gray400); border-top: 1px solid var(--ds-border); padding-top: 12px; }
 
-/* print: show only the job pack */
+/* print: show only the job pack (the id out-specifies .dstudio .ds-jobpack's
+   screen display:none). The on-screen summary stack is display:none'd too —
+   visibility:hidden alone keeps its layout and inflates the page count. */
 @media print {
   body * { visibility: hidden !important; }
   #ds-jobpack, #ds-jobpack * { visibility: visible !important; }
   #ds-jobpack {
+    display: block;
     position: absolute;
     left: 0;
     top: 0;
@@ -4675,6 +4673,7 @@
     border: none;
     padding: 0;
   }
+  .dstudio .ds-sum-screen { display: none; }
 }
 
 .dstudio .ds-job-settingst { margin-top: 4px; }
@@ -4704,8 +4703,10 @@
   /* inset the cards so the full-width white page (::before) shows a border
      around them — the handoff's rail bleeds the page ~9px past the cards.
      Right inset trimmed to push the card toward the screen edge and reclaim
-     the dead space, while a small gutter keeps it on the light-grey field. */
-  padding: 0 4px 0 9px;
+     the dead space, while a small gutter keeps it on the light-grey field.
+     Top inset matches the left bleed so the white page shows above the grey
+     hero card instead of sharing its top line. */
+  padding: 9px 4px 0 9px;
 }
 .dstudio .ds-ck::before {
   content: "";

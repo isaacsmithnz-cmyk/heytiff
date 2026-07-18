@@ -12,119 +12,12 @@ import {
 import { systemBadge, type BadgeStatus } from "@/lib/studio/split";
 import { buildMaterials } from "@/lib/studio/materials";
 
-/* Materials + Job-pack views (Design Studio steps 2 & 3). The Design-step
-   right panel now lives in cockpit-panel.tsx; this file is only the downstream
-   takeoff/print views. All numbers come from the engines (materials/split) —
-   this file renders, never computes. */
-
-/* room-load derivation lives in lib (loads-room.ts) so the coverage engine can
-   share it; re-exported here for existing importers. */
-export { roomLoadKw } from "@/lib/studio/loads-room";
-
-/* ─────────────────────────── materials view ─────────────────────────── */
-
-export function MaterialsView({
-  doc,
-  pack,
-}: {
-  doc: DesignDocument;
-  pack: DataPack | null;
-}) {
-  const schedule = useMemo(() => buildMaterials(doc, pack), [doc, pack]);
-
-  if (schedule.systems.length === 0) {
-    return (
-      <div className="ds-panel-card">
-        <div className="ds-empty">
-          <span className="ds-empty-ic">
-            <Icon name="receipt" size={22} />
-          </span>
-          <div className="ds-empty-t">An empty design is an empty schedule</div>
-          <div className="ds-empty-s">
-            Add a system and place its units on the Design step — the takeoff
-            builds itself from what you draw. Nothing here is ever typed in by
-            hand.
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="ds-panel-card ds-materials">
-      {schedule.systems.map((s) => (
-        <section key={s.systemId} className="ds-mat-sys">
-          <header>
-            <span className="ds-sysdot" style={{ background: s.colour }} />
-            <h3>{s.name}</h3>
-            <span className="ds-mat-type">
-              {s.type} · {s.brand}
-            </span>
-          </header>
-          {s.units.length > 0 && (
-            <table className="ds-mat-table">
-              <thead>
-                <tr>
-                  <th>Unit</th>
-                  <th></th>
-                  <th>Qty</th>
-                </tr>
-              </thead>
-              <tbody>
-                {s.units.map((u) => (
-                  <tr key={u.model}>
-                    <td className="ds-mat-model">{u.model}</td>
-                    <td>{u.description}</td>
-                    <td>{u.qty}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-          {s.pipe.length > 0 && (
-            <table className="ds-mat-table">
-              <thead>
-                <tr>
-                  <th>Pipe (pair coil)</th>
-                  <th></th>
-                  <th>Length</th>
-                </tr>
-              </thead>
-              <tbody>
-                {s.pipe.map((p, i) => (
-                  <tr key={i}>
-                    <td className="ds-mat-model">
-                      ø{p.liquid_mm} / ø{p.gas_mm}
-                    </td>
-                    <td>liquid / gas mm</td>
-                    <td>{p.lengthM} m</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-          {s.charge && (
-            <div className="ds-mat-charge">
-              Additional refrigerant: <b>{s.charge.grams} g</b>
-              <span> — {s.charge.note}</span>
-            </div>
-          )}
-          {s.notes.map((n, i) => (
-            <div key={i} className="ds-mat-note">
-              <Icon name="ruler" size={12} />
-              {n}
-            </div>
-          ))}
-          {s.units.length === 0 && s.pipe.length === 0 && (
-            <div className="ds-mat-note">Nothing placed for this system yet.</div>
-          )}
-        </section>
-      ))}
-    </div>
-  );
-}
-
-/* ─────────────────────────── job pack view ─────────────────────────── */
+/* Summary view (Design Studio step 2) — the old Materials and Job steps merged
+   onto one scrollable screen: job details + load settings up top, the
+   per-system takeoff beneath, a whole-job rollup at the bottom, and the
+   printable pack last (print-only — on screen it would just repeat the
+   tables). All numbers come from the engines (materials/split) — this file
+   renders, never computes. */
 
 const BADGE_WORD: Record<BadgeStatus, string> = {
   green: "OK",
@@ -133,7 +26,7 @@ const BADGE_WORD: Record<BadgeStatus, string> = {
   empty: "Empty",
 };
 
-export function JobView({
+export function SummaryView({
   doc,
   pack,
   onMutate,
@@ -165,95 +58,212 @@ export function JobView({
   const empty = schedule.systems.length === 0;
 
   return (
-    <div className="ds-panel-card ds-job">
-      <div className="ds-job-form">
-        <span className="ds-cardt">Job details</span>
-        <div className="ds-job-fields">
-          <label>
-            <span>Job number</span>
-            <input
-              autoComplete="off"
-              value={doc.meta.jobNumber}
-              onChange={(e) => setMeta("jobNumber", e.target.value)}
-              placeholder="e.g. 2026-014"
-            />
-          </label>
-          <label>
-            <span>Client</span>
-            <input
-              autoComplete="off"
-              value={doc.meta.client}
-              onChange={(e) => setMeta("client", e.target.value)}
-              placeholder="Client name"
-            />
-          </label>
-          <label>
-            <span>Site</span>
-            <input
-              autoComplete="off"
-              value={doc.meta.site}
-              onChange={(e) => setMeta("site", e.target.value)}
-              placeholder="Site address"
-            />
-          </label>
-        </div>
-        <span className="ds-cardt ds-job-settingst">Load settings</span>
-        <div className="ds-job-fields">
-          <label>
-            <span>Climate zone</span>
-            <select
-              value={String(activeZone)}
-              onChange={(e) => setSetting({ climateZone: e.target.value })}
-            >
-              {Object.entries(CLIMATE_ZONES).map(([z, info]) => (
-                <option key={z} value={z}>
-                  {info.label} — {info.cities.split(",")[0]}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span>Building type</span>
-            <select
-              value={(doc.settings.buildingType as BuildingType) ?? "residential"}
-              onChange={(e) => setSetting({ buildingType: e.target.value })}
-            >
-              <option value="residential">Residential</option>
-              <option value="light_commercial">Light commercial</option>
-              <option value="commercial">Commercial</option>
-            </select>
-          </label>
-          <label>
-            <span>Size on</span>
-            <select
-              value={doc.settings.sizingBasis}
-              onChange={(e) =>
-                setSetting({ sizingBasis: e.target.value as SizingBasis })
-              }
-            >
-              <option value="cooling">Cooling</option>
-              <option value="heating">Heating</option>
-              <option value="worst-of-both">Worst of both</option>
-            </select>
-          </label>
+    <div className="ds-panel-card ds-job ds-summary">
+      <div className="ds-sum-screen">
+        <div className="ds-job-form">
+          <span className="ds-cardt">Job details</span>
+          <div className="ds-job-fields">
+            <label>
+              <span>Job number</span>
+              <input
+                autoComplete="off"
+                value={doc.meta.jobNumber}
+                onChange={(e) => setMeta("jobNumber", e.target.value)}
+                placeholder="e.g. 2026-014"
+              />
+            </label>
+            <label>
+              <span>Client</span>
+              <input
+                autoComplete="off"
+                value={doc.meta.client}
+                onChange={(e) => setMeta("client", e.target.value)}
+                placeholder="Client name"
+              />
+            </label>
+            <label>
+              <span>Site</span>
+              <input
+                autoComplete="off"
+                value={doc.meta.site}
+                onChange={(e) => setMeta("site", e.target.value)}
+                placeholder="Site address"
+              />
+            </label>
+          </div>
+          <span className="ds-cardt ds-job-settingst">Load settings</span>
+          <div className="ds-job-fields">
+            <label>
+              <span>Climate zone</span>
+              <select
+                value={String(activeZone)}
+                onChange={(e) => setSetting({ climateZone: e.target.value })}
+              >
+                {Object.entries(CLIMATE_ZONES).map(([z, info]) => (
+                  <option key={z} value={z}>
+                    {info.label} — {info.cities.split(",")[0]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Building type</span>
+              <select
+                value={(doc.settings.buildingType as BuildingType) ?? "residential"}
+                onChange={(e) => setSetting({ buildingType: e.target.value })}
+              >
+                <option value="residential">Residential</option>
+                <option value="light_commercial">Light commercial</option>
+                <option value="commercial">Commercial</option>
+              </select>
+            </label>
+            <label>
+              <span>Size on</span>
+              <select
+                value={doc.settings.sizingBasis}
+                onChange={(e) =>
+                  setSetting({ sizingBasis: e.target.value as SizingBasis })
+                }
+              >
+                <option value="cooling">Cooling</option>
+                <option value="heating">Heating</option>
+                <option value="worst-of-both">Worst of both</option>
+              </select>
+            </label>
+          </div>
+
+          <button
+            className="ds-tbbtn ds-job-print"
+            onClick={() => window.print()}
+            disabled={empty}
+          >
+            <Icon name="download" size={14} />
+            Print / Save PDF
+          </button>
+          {empty && (
+            <div className="ds-insp-hint">
+              The job pack fills in once a system has units placed.
+            </div>
+          )}
         </div>
 
-        <button
-          className="ds-tbbtn ds-job-print"
-          onClick={() => window.print()}
-          disabled={empty}
-        >
-          <Icon name="download" size={14} />
-          Print / Save PDF
-        </button>
-        {empty && (
-          <div className="ds-insp-hint">
-            The job pack fills in once a system has units placed.
+        {empty ? (
+          <div className="ds-empty">
+            <span className="ds-empty-ic">
+              <Icon name="receipt" size={22} />
+            </span>
+            <div className="ds-empty-t">An empty design is an empty schedule</div>
+            <div className="ds-empty-s">
+              Add a system and place its units on the Design step — the takeoff
+              builds itself from what you draw. Nothing here is ever typed in by
+              hand.
+            </div>
           </div>
+        ) : (
+          schedule.systems.map((s) => (
+            <section key={s.systemId} className="ds-mat-sys">
+              <header>
+                <span className="ds-sysdot" style={{ background: s.colour }} />
+                <h3>{s.name}</h3>
+                <span className="ds-mat-type">
+                  {s.type} · {s.brand}
+                </span>
+              </header>
+              {s.units.length > 0 && (
+                <table className="ds-mat-table">
+                  <thead>
+                    <tr>
+                      <th>Unit</th>
+                      <th></th>
+                      <th>Qty</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {s.units.map((u) => (
+                      <tr key={u.model}>
+                        <td className="ds-mat-model">{u.model}</td>
+                        <td>{u.description}</td>
+                        <td>{u.qty}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              {s.pipe.length > 0 && (
+                <table className="ds-mat-table">
+                  <thead>
+                    <tr>
+                      <th>Pipe (pair coil)</th>
+                      <th></th>
+                      <th>Length</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {s.pipe.map((p, i) => (
+                      <tr key={i}>
+                        <td className="ds-mat-model">
+                          ø{p.liquid_mm} / ø{p.gas_mm}
+                        </td>
+                        <td>liquid / gas mm</td>
+                        <td>{p.lengthM} m</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              {s.charge && (
+                <div className="ds-mat-charge">
+                  Additional refrigerant: <b>{s.charge.grams} g</b>
+                  <span> — {s.charge.note}</span>
+                </div>
+              )}
+              {s.notes.map((n, i) => (
+                <div key={i} className="ds-mat-note">
+                  <Icon name="ruler" size={12} />
+                  {n}
+                </div>
+              ))}
+              {s.units.length === 0 && s.pipe.length === 0 && (
+                <div className="ds-mat-note">
+                  Nothing placed for this system yet.
+                </div>
+              )}
+            </section>
+          ))
+        )}
+
+        {!empty && rollup.size > 0 && (
+          <section className="ds-mat-sys">
+            <header>
+              <h3>Whole job</h3>
+              <span className="ds-mat-type">all systems rolled up</span>
+            </header>
+            <table className="ds-mat-table">
+              <thead>
+                <tr>
+                  <th>Model</th>
+                  <th></th>
+                  <th>Qty</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...rollup.entries()]
+                  .sort((a, b) => a[0].localeCompare(b[0]))
+                  .map(([model, r]) => (
+                    <tr key={model}>
+                      <td className="ds-mat-model">{model}</td>
+                      <td>{r.description}</td>
+                      <td>{r.qty}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </section>
         )}
       </div>
 
-      {/* the printable pack — a print stylesheet shows only this */}
+      {/* the printable pack — hidden on screen (it repeats the takeoff), and
+         the print stylesheet shows only this */}
       <div className="ds-jobpack" id="ds-jobpack">
         <header className="ds-jobpack-head">
           <div>

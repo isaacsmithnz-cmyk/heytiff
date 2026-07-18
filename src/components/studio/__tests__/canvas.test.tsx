@@ -21,7 +21,7 @@ async function openBlankDesignOnCanvas() {
   await user.type(screen.getByPlaceholderText(/Design name/), "Canvas test");
   await user.click(screen.getByRole("button", { name: /Continue/ }));
   await user.click(screen.getByText("Blank canvas"));
-  await user.click(await screen.findByRole("button", { name: "2 Design" }));
+  await user.click(await screen.findByRole("button", { name: "Design" }));
   // type-first flow: pick a system type before the room tools unlock
   await user.click(screen.getByRole("button", { name: /Split \(1:1\)/ }));
   const canvas = screen.getByTestId("studio-canvas");
@@ -286,13 +286,17 @@ describe("Design canvas", () => {
 
   it("declutters the header and spans the cockpit full-height on the Design step", async () => {
     await openBlankDesignOnCanvas();
-    // Export removed; Saved moved next to the design title
+    // Export lives in the (closed) studio menu, not the chrome
     expect(screen.queryByRole("button", { name: "Export" })).toBeNull();
     expect(document.querySelector(".ds-id .ds-save")).not.toBeNull();
-    // undo/redo + Add option relocated into the canvas-top row
-    const top = document.querySelector(".ds-canvas-top") as HTMLElement;
-    expect(within(top).getByRole("button", { name: "Undo" })).toBeInTheDocument();
-    expect(within(top).getByRole("button", { name: /Add option/ })).toBeInTheDocument();
+    // undo/redo live at the foot of the tool rail now
+    const rail = screen.getByRole("toolbar", { name: "Canvas tools" });
+    expect(within(rail).getByRole("button", { name: "Undo" })).toBeInTheDocument();
+    expect(within(rail).getByRole("button", { name: "Redo" })).toBeInTheDocument();
+    // the topbar carries the canvas controls + Add option on one line
+    const bar = document.querySelector(".ds-topbar") as HTMLElement;
+    expect(within(bar).getByRole("button", { name: /Add option/ })).toBeInTheDocument();
+    expect(within(bar).getByTitle("View — layers, black & white and legend")).toBeInTheDocument();
     // cockpit hoisted to the editor level → two-column grid layout
     expect(document.querySelector(".ds-editor.two-col")).not.toBeNull();
   });
@@ -304,7 +308,7 @@ describe("Design canvas", () => {
     await user.type(screen.getByPlaceholderText(/Design name/), "Rail reveal");
     await user.click(screen.getByRole("button", { name: /Continue/ }));
     await user.click(screen.getByText("Blank canvas"));
-    await user.click(await screen.findByRole("button", { name: "2 Design" }));
+    await user.click(await screen.findByRole("button", { name: "Design" }));
 
     // no system yet → the drawing rail is hidden (plan-prep stays in the top bar)
     expect(screen.queryByRole("toolbar", { name: "Canvas tools" })).toBeNull();

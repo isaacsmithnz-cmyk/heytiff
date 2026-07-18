@@ -67,15 +67,23 @@
    and animates in when the class drops (throughSwap holds a paint beat in
    between, so there's a frame to transition from). */
 .fg .outlet:has(.dstudio) {
-  transition: background-color 0.24s ease; /* the well's colour, not its content */
+  transition: background-color 0.2s ease; /* the well's colour, not its content */
 }
-/* a transform adds to a scroll container's overflow, so pin the outlet while the
-   start screen travels — otherwise a scrollbar can flash in and shift the layout */
-.fg .outlet:has(.dstudio.swapping) {
-  overflow: hidden;
+/* Reserve the scrollbar on the start screen: its recents list arrives async, so
+   otherwise the scrollbar pops in as the list fills and shunts the whole column
+   sideways by its own width. The editor keeps `auto` (above) — its cockpit sits
+   deliberately tight to the frame and it never scrolls the outlet. */
+.fg .outlet:has(.dstudio:not(.editing)) {
+  scrollbar-gutter: stable;
 }
 .dstudio.swapping {
   pointer-events: none; /* swallow clicks mid-swap */
+}
+/* Contain the start screen's travel here rather than by flipping the outlet's
+   overflow — toggling that also toggles the scrollbar gutter, which is itself a
+   sideways jump. `clip` bounds the transform without making a scroll container. */
+.dstudio .ds-home {
+  overflow: clip;
 }
 
 /* Start screen: sinks away, returns from below.
@@ -115,11 +123,19 @@
   }
 }
 
-/* Start screen only: dissolve the shell's light "well" so the dark canvas merges
-   seamlessly into the black frame (topbar + sidebar + gutters are all #050505).
-   Scoped via :has(...:not(.editing)) so the editor keeps its light well and every
-   other dashboard page is untouched. */
-.fg .outlet:has(.dstudio:not(.editing)) {
+/* Dissolve the shell's light "well" so the dark start screen merges seamlessly
+   into the black frame (topbar + sidebar + gutters are all #050505). Scoped via
+   :has so the editor keeps its light well and every other dashboard page is
+   untouched.
+
+   `.editing.exiting` matters as much as `:not(.editing)`: leaving the canvas, the
+   well used to stay lit for the whole exit and only then start a fade — the light
+   hung around long after the canvas had gone. Keying off `exiting` starts the
+   dissolve on the click, so it's dark by the time the start screen rises. On the
+   way IN the flag is already cleared when the editor mounts, so the well lights
+   up with the canvas rather than behind it. */
+.fg .outlet:has(.dstudio:not(.editing)),
+.fg .outlet:has(.dstudio.editing.exiting) {
   background: transparent; /* was #EDEFF4 — show the #050505 frame through */
   background-image: none; /* drop the light dot-grid */
   border-radius: 0; /* drop the rounded well corners/notch */

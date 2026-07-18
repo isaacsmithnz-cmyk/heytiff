@@ -48,7 +48,7 @@ export const TABLE_GROUPS: Record<EditableSection, HqColumnGroup[]> = {
   indoor_units: [
     { key: "capacity", label: "Capacity", unit: "kW", columns: [col("capacity_cool_kw", "Cooling"), col("capacity_heat_kw", "Heating")] },
     { key: "index", label: "Index", columns: [col("capacity_index", "Cap. index")] },
-    { key: "air", label: "Air", columns: [col("airflow_ls", "Airflow L/s"), col("static_pressure_pa", "Static Pa")] },
+    { key: "air", label: "Air", columns: [col("airflow_ls", "Airflow L/s"), col("static_pressure_pa", "Static Pa"), col("filter", "Filter")] },
     { key: "airways", label: "Airways", unit: "mm", columns: [col("supply_opening", "Supply", DUCTED_ONLY), col("return_opening", "Return", DUCTED_ONLY)] },
     { key: "dims", label: "Dimensions", unit: "mm", columns: [col("width_mm", "W"), col("depth_mm", "D"), col("height_mm", "H")] },
     { key: "mass", label: "Mass", columns: [col("weight_kg", "kg")] },

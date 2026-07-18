@@ -130,6 +130,7 @@ const IDU_NICE = [
   "weight_kg",
   "power_supply",
   "max_amps_a",
+  "filter",
 ];
 const ODU_NICE = [
   "sound_low_dba",

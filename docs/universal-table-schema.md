@@ -53,6 +53,7 @@ The largest section. One row per model.
 | `airflow_ls` | R for ducted/vent roles | Nominal (high). Optional: per fan speed. **Feeds duct sizing, grille shares, sheet metal — missing from the legacy import** |
 | `static_pressure_pa` | O (Tier-3 in v1) | External static, numeric — no ESP check yet; becomes required when the ESP check lands. Optional: selectable ESP settings list |
 | `supply_opening`, `return_opening` | **R for ducted forms — gates ducted-ready** | Data-book airway openings: `{w_mm,h_mm}` mm, or `"built-in"` (integral return), or `"spigots"` (factory spigots). Size the plenum base (ducted spec §1b) — never the unit width |
+| `filter` | O | Return-air filter provenance: `"built-in"` (integral washable) vs `"field-supplied"` (by others — typical for ducted forms). Tier-3 |
 | `conn_liquid_mm`, `conn_gas_mm` | **R** | Connection sizes |
 | `conn_condensate` | O | Size/type; pump built-in flag |
 | `default_plane`, `allowed_planes` | **R** | `room · ceiling-cavity · floor-cavity …` — drives placement behaviour |

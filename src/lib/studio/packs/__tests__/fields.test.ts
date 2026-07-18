@@ -169,3 +169,14 @@ describe("max running amps", () => {
     expect(parseFieldInput(idu, "999")).toMatchObject({ ok: false });
   });
 });
+
+describe("filter (built-in vs field-supplied)", () => {
+  it("is an indoor-only enum with the two provenance answers", () => {
+    const filter = fieldSpec("indoor_units", "filter")!;
+    expect(filter.type).toBe("enum");
+    expect(filter.enumValues).toEqual(["built-in", "field-supplied"]);
+    expect(fieldSpec("outdoor_units", "filter")).toBeUndefined();
+    expect(parseFieldInput(filter, "built-in")).toEqual({ ok: true, value: "built-in" });
+    expect(parseFieldInput(filter, "washable")).toMatchObject({ ok: false });
+  });
+});

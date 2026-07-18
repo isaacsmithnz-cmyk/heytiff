@@ -59,6 +59,9 @@ const AMPS = { min: 0.1, max: 200 } as const;
 /** non-box OpeningSpec answers (see schema.ts: integral return / factory spigots) */
 const OPENING_ALTS = ["built-in", "spigots"] as const;
 
+/** IndoorUnit.filter — integral washable vs supplied by others */
+const FILTER_TYPES = ["built-in", "field-supplied"] as const;
+
 export const EDITABLE_FIELDS: readonly EditableFieldSpec[] = [
   // ── indoor units ──
   { section: "indoor_units", field: "capacity_cool_kw", label: "Cooling capacity", unit: "kW", type: "number", ...KW },
@@ -66,6 +69,7 @@ export const EDITABLE_FIELDS: readonly EditableFieldSpec[] = [
   { section: "indoor_units", field: "capacity_index", label: "Capacity index", type: "number", ...INDEX },
   { section: "indoor_units", field: "airflow_ls", label: "Airflow (Hi)", unit: "L/s", type: "number", min: 1, max: 2000 },
   { section: "indoor_units", field: "static_pressure_pa", label: "External static", unit: "Pa", type: "number", min: 0, max: 500 },
+  { section: "indoor_units", field: "filter", label: "Filter", type: "enum", enumValues: FILTER_TYPES },
   // airway openings (ducted forms) — {w_mm,h_mm} box or built-in/spigots;
   // Tier-1 for the ducted role (they size the plenum base, ducted spec §1b)
   { section: "indoor_units", field: "supply_opening", label: "Supply airway", unit: "mm", type: "opening", enumValues: OPENING_ALTS, ...MM },

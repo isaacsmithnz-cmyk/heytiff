@@ -160,7 +160,7 @@ describe("HqBrandCatalog — drill-down structure", () => {
     // fields missing across the whole series collapse into the To-add group
     expect(screen.getByText(/To add · \d+ fields/)).toBeInTheDocument();
     expect(screen.getByText("Airflow (Hi)")).toBeInTheDocument(); // To-add sub-header
-    expect(screen.getByText(/of 19 specs mapped/)).toBeInTheDocument();
+    expect(screen.getByText(/of 20 specs mapped/)).toBeInTheDocument();
   });
 
   it("renders capacity chips and the per-row status cell", () => {
@@ -170,7 +170,7 @@ describe("HqBrandCatalog — drill-down structure", () => {
     const heat = screen.getByRole("button", { name: /Heating capacity — D1: 6/ });
     expect(heat.querySelector(".hq-cmp-chip.heat")).not.toBeNull();
     expect(screen.getByText("3 blocking")).toBeInTheDocument(); // airflow + both airways
-    expect(screen.getByText("8/19")).toBeInTheDocument(); // specs filled / total
+    expect(screen.getByText("8/20")).toBeInTheDocument(); // specs filled / total
   });
 
   it("renders airway columns for ducted series only, with a blocking +", () => {

@@ -189,6 +189,9 @@ export interface IndoorUnit {
       ducted spec §1b; absent → grey derived default (never the unit width). */
   supply_opening?: OpeningSpec;
   return_opening?: OpeningSpec;
+  /** return-air filter: "built-in" (integral washable) vs "field-supplied"
+      (by others — typical for ducted forms). Tier-3 — never gates readiness. */
+  filter?: "built-in" | "field-supplied";
   conn_liquid_mm: number;
   conn_gas_mm: number;
   conn_condensate?: string;

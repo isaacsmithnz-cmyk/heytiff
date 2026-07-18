@@ -2,17 +2,20 @@
    Running Pressures tool. Zero deps, no React (lib/studio discipline).
 
    Covers the refrigerants an Australian HVAC tech actually meets, ordered
-   most-relevant-first. Saturation tables are standard published property
-   data (gauge pressure at sea level, 101 kPa atmospheric), 5°C steps
-   −20…65°C — the same numbers as a printed field PT chart, within ±1–3%.
+   most-relevant-first. Tables are kPa GAUGE (sea level, −101.325 kPa from
+   absolute), 5°C steps −20…65°C.
 
-   Glide: pure fluids and near-azeotropes (R32, R410A, R404A ≲0.7 K) use a
-   single pressure per temperature (liquid === vapor, chart convention).
-   R407C has real glide (~5–6 K), so it carries separate LIQUID (bubble)
-   and VAPOR (dew) columns — superheat reads the vapor column, subcooling
-   reads the liquid column, exactly like the printed two-column charts.
+   DATA PROVENANCE (web-verified 2026-07-18, explicitly authorised):
+   - R32, R22, R134a, R290: NIST Chemistry WebBook (SRD 69) saturation
+     pressures, converted absolute → gauge. Exact to the kPa.
+   - R410A: A-Gas (UK) PT chart (liquid/vapour barg columns).
+   - R404A, R407C: iGas USA PT charts (liquid/vapour psig columns × 6.895).
+   Blends carry their real LIQUID (bubble) and VAPOR (dew) columns —
+   superheat reads vapor, subcooling reads liquid, like a printed two-column
+   card. R410A/R404A glide is small (<1 K); R407C glides ~6 K, so using the
+   right column there genuinely matters.
 
-   NOT manufacturer pack data — physics reference only. */
+   NOT manufacturer pack data — refrigerant physics reference only. */
 
 export type RefrigerantKey =
   | "R32"
@@ -122,10 +125,11 @@ export const REFRIGERANTS: Refrigerant[] = [
     flammable: true,
     glideK: 0,
     color: "#00E5C0",
+    /* NIST WebBook, abs − 101.325 */
     table: flat([
-      [-20, 304], [-15, 387], [-10, 483], [-5, 592], [0, 716], [5, 857],
-      [10, 1014], [15, 1191], [20, 1387], [25, 1605], [30, 1845], [35, 2110],
-      [40, 2401], [45, 2719], [50, 3065], [55, 3443], [60, 3853], [65, 4298],
+      [-20, 304], [-15, 387], [-10, 481], [-5, 589], [0, 712], [5, 850],
+      [10, 1006], [15, 1180], [20, 1373], [25, 1588], [30, 1826], [35, 2089],
+      [40, 2377], [45, 2694], [50, 3040], [55, 3419], [60, 3832], [65, 4283],
     ]),
     cooling: AC_COOLING,
     heating: AC_HEATING,
@@ -139,11 +143,27 @@ export const REFRIGERANTS: Refrigerant[] = [
     flammable: false,
     glideK: 0.1,
     color: "#2E68FF",
-    table: flat([
-      [-20, 299], [-15, 380], [-10, 472], [-5, 578], [0, 697], [5, 832],
-      [10, 984], [15, 1154], [20, 1343], [25, 1553], [30, 1784], [35, 2039],
-      [40, 2319], [45, 2626], [50, 2960], [55, 3325], [60, 3721], [65, 4152],
-    ]),
+    /* A-Gas PT chart, barg × 100 — real liquid/vapour columns */
+    table: [
+      { c: -20, liquid: 299, vapor: 298 },
+      { c: -15, liquid: 381, vapor: 379 },
+      { c: -10, liquid: 473, vapor: 471 },
+      { c: -5, liquid: 580, vapor: 578 },
+      { c: 0, liquid: 699, vapor: 697 },
+      { c: 5, liquid: 836, vapor: 833 },
+      { c: 10, liquid: 987, vapor: 984 },
+      { c: 15, liquid: 1158, vapor: 1154 },
+      { c: 20, liquid: 1346, vapor: 1342 },
+      { c: 25, liquid: 1557, vapor: 1551 },
+      { c: 30, liquid: 1788, vapor: 1782 },
+      { c: 35, liquid: 2045, vapor: 2038 },
+      { c: 40, liquid: 2324, vapor: 2317 },
+      { c: 45, liquid: 2633, vapor: 2626 },
+      { c: 50, liquid: 2969, vapor: 2962 },
+      { c: 55, liquid: 3339, vapor: 3331 },
+      { c: 60, liquid: 3741, vapor: 3733 },
+      { c: 65, liquid: 4182, vapor: 4176 },
+    ],
     cooling: AC_COOLING,
     heating: AC_HEATING,
   },
@@ -156,10 +176,11 @@ export const REFRIGERANTS: Refrigerant[] = [
     flammable: false,
     glideK: 0,
     color: "#FF8A00",
+    /* NIST WebBook, abs − 101.325 */
     table: flat([
-      [-20, 144], [-15, 195], [-10, 254], [-5, 321], [0, 397], [5, 483],
-      [10, 580], [15, 690], [20, 809], [25, 943], [30, 1090], [35, 1254],
-      [40, 1433], [45, 1628], [50, 1842], [55, 2074], [60, 2326], [65, 2599],
+      [-20, 144], [-15, 195], [-10, 253], [-5, 321], [0, 397], [5, 483],
+      [10, 580], [15, 688], [20, 809], [25, 943], [30, 1091], [35, 1254],
+      [40, 1432], [45, 1628], [50, 1841], [55, 2074], [60, 2326], [65, 2600],
     ]),
     cooling: AC_COOLING,
     heating: AC_HEATING,
@@ -173,27 +194,27 @@ export const REFRIGERANTS: Refrigerant[] = [
     flammable: false,
     glideK: 5.5,
     color: "#8A2BE2",
-    /* bubble (liquid) / dew (vapor) — blend-computed, ±3%. Subcool from the
-       LIQUID column, superheat from the VAPOR column. */
+    /* iGas PT chart, psig × 6.895 — bubble (liquid) / dew (vapor). Subcool
+       from the LIQUID column, superheat from the VAPOR column. */
     table: [
-      { c: -20, liquid: 172, vapor: 108 },
-      { c: -15, liquid: 229, vapor: 156 },
-      { c: -10, liquid: 295, vapor: 210 },
-      { c: -5, liquid: 370, vapor: 272 },
-      { c: 0, liquid: 457, vapor: 346 },
-      { c: 5, liquid: 557, vapor: 430 },
-      { c: 10, liquid: 668, vapor: 524 },
-      { c: 15, liquid: 793, vapor: 632 },
-      { c: 20, liquid: 933, vapor: 752 },
-      { c: 25, liquid: 1089, vapor: 885 },
-      { c: 30, liquid: 1262, vapor: 1035 },
-      { c: 35, liquid: 1454, vapor: 1203 },
-      { c: 40, liquid: 1666, vapor: 1387 },
-      { c: 45, liquid: 1898, vapor: 1591 },
-      { c: 50, liquid: 2152, vapor: 1811 },
-      { c: 55, liquid: 2431, vapor: 2054 },
-      { c: 60, liquid: 2735, vapor: 2326 },
-      { c: 65, liquid: 3066, vapor: 2616 },
+      { c: -20, liquid: 179, vapor: 113 },
+      { c: -15, liquid: 237, vapor: 162 },
+      { c: -10, liquid: 303, vapor: 219 },
+      { c: -5, liquid: 380, vapor: 284 },
+      { c: 0, liquid: 467, vapor: 359 },
+      { c: 5, liquid: 565, vapor: 445 },
+      { c: 10, liquid: 675, vapor: 543 },
+      { c: 15, liquid: 798, vapor: 654 },
+      { c: 20, liquid: 936, vapor: 779 },
+      { c: 25, liquid: 1089, vapor: 919 },
+      { c: 30, liquid: 1258, vapor: 1075 },
+      { c: 35, liquid: 1444, vapor: 1248 },
+      { c: 40, liquid: 1648, vapor: 1440 },
+      { c: 45, liquid: 1871, vapor: 1653 },
+      { c: 50, liquid: 2115, vapor: 1886 },
+      { c: 55, liquid: 2380, vapor: 2144 },
+      { c: 60, liquid: 2668, vapor: 2428 },
+      { c: 65, liquid: 2980, vapor: 2739 },
     ],
     cooling: AC_COOLING,
     heating: AC_HEATING,
@@ -207,10 +228,11 @@ export const REFRIGERANTS: Refrigerant[] = [
     flammable: false,
     glideK: 0,
     color: "#38BDF8",
+    /* NIST WebBook, abs − 101.325 */
     table: flat([
-      [-20, 32], [-15, 63], [-10, 100], [-5, 142], [0, 192], [5, 249],
-      [10, 314], [15, 388], [20, 471], [25, 564], [30, 669], [35, 786],
-      [40, 916], [45, 1059], [50, 1217], [55, 1390], [60, 1581], [65, 1789],
+      [-20, 31], [-15, 63], [-10, 99], [-5, 142], [0, 191], [5, 248],
+      [10, 313], [15, 387], [20, 470], [25, 564], [30, 669], [35, 786],
+      [40, 915], [45, 1059], [50, 1217], [55, 1390], [60, 1580], [65, 1789],
     ]),
     cooling: [
       {
@@ -241,11 +263,27 @@ export const REFRIGERANTS: Refrigerant[] = [
     flammable: false,
     glideK: 0.5,
     color: "#FF3366",
-    table: flat([
-      [-20, 199], [-15, 264], [-10, 338], [-5, 424], [0, 521], [5, 632],
-      [10, 758], [15, 899], [20, 1058], [25, 1235], [30, 1431], [35, 1649],
-      [40, 1890], [45, 2155], [50, 2446], [55, 2765], [60, 3115], [65, 3499],
-    ]),
+    /* iGas PT chart, psig × 6.895 — real liquid/vapour columns */
+    table: [
+      { c: -20, liquid: 205, vapor: 199 },
+      { c: -15, liquid: 268, vapor: 260 },
+      { c: -10, liquid: 338, vapor: 330 },
+      { c: -5, liquid: 418, vapor: 409 },
+      { c: 0, liquid: 509, vapor: 499 },
+      { c: 5, liquid: 611, vapor: 600 },
+      { c: 10, liquid: 726, vapor: 714 },
+      { c: 15, liquid: 854, vapor: 842 },
+      { c: 20, liquid: 996, vapor: 983 },
+      { c: 25, liquid: 1153, vapor: 1140 },
+      { c: 30, liquid: 1327, vapor: 1313 },
+      { c: 35, liquid: 1518, vapor: 1504 },
+      { c: 40, liquid: 1728, vapor: 1713 },
+      { c: 45, liquid: 1958, vapor: 1943 },
+      { c: 50, liquid: 2209, vapor: 2195 },
+      { c: 55, liquid: 2484, vapor: 2469 },
+      { c: 60, liquid: 2783, vapor: 2770 },
+      { c: 65, liquid: 3112, vapor: 3099 },
+    ],
     cooling: [
       {
         key: "mt-suction",
@@ -283,10 +321,11 @@ export const REFRIGERANTS: Refrigerant[] = [
     flammable: true,
     glideK: 0,
     color: "#22C55E",
+    /* NIST WebBook, abs − 101.325 */
     table: flat([
-      [-20, 144], [-15, 191], [-10, 244], [-5, 305], [0, 374], [5, 451],
-      [10, 537], [15, 634], [20, 735], [25, 852], [30, 979], [35, 1118],
-      [40, 1269], [45, 1434], [50, 1613], [55, 1806], [60, 2015], [65, 2240],
+      [-20, 143], [-15, 190], [-10, 244], [-5, 305], [0, 373], [5, 450],
+      [10, 535], [15, 630], [20, 735], [25, 851], [30, 978], [35, 1117],
+      [40, 1268], [45, 1433], [50, 1612], [55, 1806], [60, 2015], [65, 2242],
     ]),
     cooling: AC_COOLING,
     heating: AC_HEATING,

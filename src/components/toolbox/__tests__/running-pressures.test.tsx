@@ -13,8 +13,8 @@ describe("RunningPressures", () => {
     const cards = [...picker.querySelectorAll("button")];
     expect(cards.map((c) => c.querySelector("b")?.textContent)).toEqual([...REFRIGERANT_KEYS]);
     expect(cards[0]).toHaveAttribute("aria-pressed", "true");
-    // R32 0–12°C → 716–1085 kPa (12° interpolated between 1014 and 1191)
-    expect(screen.getByText(/716–1085/)).toBeInTheDocument();
+    // R32 0–12°C → 712–1076 kPa (12° interpolated between 1006 and 1180)
+    expect(screen.getByText(/712–1076/)).toBeInTheDocument();
     // manifold panels labelled by hose side
     expect(screen.getByText("Low side")).toBeInTheDocument();
     expect(screen.getByText("High side")).toBeInTheDocument();
@@ -29,8 +29,8 @@ describe("RunningPressures", () => {
   it("switching refrigerant re-derives the windows and facts strip", () => {
     render(<RunningPressures />);
     fireEvent.click(screen.getByRole("button", { name: /^R22\b/ }));
-    // R22 cooling suction 0–12°C → 397–624 kPa
-    expect(screen.getByText(/397–624/)).toBeInTheDocument();
+    // R22 cooling suction 0–12°C → 397–623 kPa
+    expect(screen.getByText(/397–623/)).toBeInTheDocument();
     expect(screen.getByText(/Legacy splits/)).toBeInTheDocument();
     expect(screen.getByText(/Phase-out/)).toBeInTheDocument();
   });
@@ -46,8 +46,8 @@ describe("RunningPressures", () => {
   it("heating mode swaps the AC bands", () => {
     render(<RunningPressures />);
     fireEvent.click(screen.getByRole("button", { name: "Heating" }));
-    // R32 heating suction −15…5°C → 387–857 kPa
-    expect(screen.getByText(/387–857/)).toBeInTheDocument();
+    // R32 heating suction −15…5°C → 387–850 kPa
+    expect(screen.getByText(/387–850/)).toBeInTheDocument();
   });
 
   it("R407C shows the glide facts + two-column chart", () => {
@@ -65,8 +65,8 @@ describe("RunningPressures", () => {
   it("psi toggle converts the chart", () => {
     render(<RunningPressures />);
     fireEvent.click(screen.getByRole("button", { name: "psi" }));
-    // R32 25°C: 1605 kPa ≈ 233 psi
-    expect(screen.getByText("233")).toBeInTheDocument();
+    // R32 25°C: 1588 kPa ≈ 230 psi
+    expect(screen.getByText("230")).toBeInTheDocument();
   });
 
   it("computes superheat with sat-temp trace and status", () => {
@@ -82,10 +82,10 @@ describe("RunningPressures", () => {
   it("R407C calculators read the correct columns (dew for SH, bubble for SC)", () => {
     render(<RunningPressures />);
     fireEvent.click(screen.getByRole("button", { name: /R407C/ }));
-    // 346 kPag = dew 0°C; line 7°C → 7.0 K superheat
-    fireEvent.change(screen.getByLabelText("Suction pressure in kPa"), { target: { value: "346" } });
+    // 359 kPag = dew 0°C; line 7°C → 7.0 K superheat
+    fireEvent.change(screen.getByLabelText("Suction pressure in kPa"), { target: { value: "359" } });
     fireEvent.change(screen.getByLabelText("Suction line temperature in °C"), { target: { value: "7" } });
-    expect(screen.getByText(/346 kPa → sat 0.0°C \(dew\)/)).toBeInTheDocument();
+    expect(screen.getByText(/359 kPa → sat 0.0°C \(dew\)/)).toBeInTheDocument();
     // 1089 kPag = bubble 25°C; line 18°C → 7.0 K subcooling
     fireEvent.change(screen.getByLabelText("Liquid pressure in kPa"), { target: { value: "1089" } });
     fireEvent.change(screen.getByLabelText("Liquid line temperature in °C"), { target: { value: "18" } });
@@ -95,9 +95,9 @@ describe("RunningPressures", () => {
 
   it("accepts negative line temps (heating mode) via signed parse", () => {
     render(<RunningPressures />);
-    fireEvent.change(screen.getByLabelText("Suction pressure in kPa"), { target: { value: "716" } });
+    fireEvent.change(screen.getByLabelText("Suction pressure in kPa"), { target: { value: "712" } });
     fireEvent.change(screen.getByLabelText("Suction line temperature in °C"), { target: { value: "-2" } });
-    // R32 716 kPa → 0°C sat; line −2°C → −2 K (flood-back warning)
+    // R32 712 kPa → 0°C sat; line −2°C → −2 K (flood-back warning)
     expect(screen.getByText("-2.0")).toBeInTheDocument();
     expect(screen.getByText(/flood-back risk/)).toBeInTheDocument();
   });

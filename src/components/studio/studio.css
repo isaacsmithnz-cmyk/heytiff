@@ -51,6 +51,24 @@
    .fg .main padding) is untouched. */
 .fg .outlet:has(.dstudio) { scrollbar-gutter: auto; }
 
+/* Swapping the dark start screen ↔ the light editor: fade the WHOLE screen — the
+   well's background and its content together, as one layer — out to the dark
+   shell frame, swap while it's invisible, then fade the new screen in over that
+   frame. Fading only the background can't work (and read as a glitch): the
+   content swaps instantly while a colour crawls, so the light editor renders on
+   a dark canvas; the dot-grid and corner radius snap too, since neither is
+   animatable. Fading the outlet takes all of it at once, and the frame behind
+   (#050505 + framefx) never moves, so there's nothing to peek through.
+   Driven by Studio's throughFade(). */
+.fg .outlet:has(.dstudio) {
+  transition: opacity 0.34s ease; /* fading back in */
+}
+.fg .outlet:has(.dstudio.swapping) {
+  opacity: 0;
+  pointer-events: none; /* invisible ≠ unclickable — swallow clicks mid-swap */
+  transition-duration: 0.26s; /* fading out */
+}
+
 /* Start screen only: dissolve the shell's light "well" so the dark canvas merges
    seamlessly into the black frame (topbar + sidebar + gutters are all #050505).
    Scoped via :has(...:not(.editing)) so the editor keeps its light well and every
@@ -66,7 +84,7 @@
    corner-to-corner behind the transparent topbar and sidebar — one piece, no
    box edge for the roaming frame fx to cut against. */
 .fg:has(.dstudio:not(.editing)) .gridbg {
-  display: block;
+  opacity: 1;
   background-image: radial-gradient(
       900px 620px at 84% -14%,
       rgba(0, 229, 192, 0.2),
@@ -313,8 +331,9 @@
   border: 1px solid rgba(255, 255, 255, 0.13);
   border-radius: 26px;
   box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.6);
+  /* no -webkit- twin — see .ds-veil: the pair collapses to the prefixed
+     property alone and the blur is silently dropped */
   backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   padding: 24px 22px;
   display: flex;
   flex-direction: column;
@@ -393,11 +412,12 @@
   color: rgba(255, 255, 255, 0.42);
   font-weight: 500;
 }
+/* no overflow here: the card is auto-height so the list never scrolls, and any
+   clip would cut the top row's -2px hover lift (and its focus ring) */
 .dstudio .ds-rlist {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  overflow-y: auto;
 }
 .dstudio .ds-rcard {
   display: flex;

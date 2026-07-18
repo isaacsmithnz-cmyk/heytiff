@@ -64,6 +64,11 @@ const STEPS = [
 
 const MODE_LABEL = { plan: "Floor plans", blank: "Blank canvas" } as const;
 
+/* screen-swap fade timings — see throughFade(). Keep in step with the .26s/.34s
+   opacity transitions on `.fg .outlet:has(.dstudio…)` in studio.css. */
+const FADE_OUT_MS = 260;
+const FADE_PAINT_MS = 40;
+
 function timeAgo(iso: string): string {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
   if (s < 60) return "just now";
@@ -101,6 +106,8 @@ export function Studio({
     "saved"
   );
 
+  const [swapping, setSwapping] = useState(false);
+
   const refreshRecents = useCallback(() => {
     void getStore().list().then(setRecents);
   }, [getStore]);
@@ -108,6 +115,35 @@ export function Studio({
   useEffect(() => {
     refreshRecents();
   }, [refreshRecents]);
+
+  /* Fade the whole screen out to the dark shell frame, swap while it's invisible,
+     then fade the new screen in over the frame — the start screen is dark and the
+     editor is a light well, and cross-fading them against each other reads as a
+     glitch. The `swapping` class fades the outlet, so the well's background and
+     its content go together and nothing can peek through mid-swap. It wraps the
+     async load too, so it doubles as the loading state. */
+  const fadeTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  useEffect(() => {
+    const timers = fadeTimers.current;
+    return () => timers.forEach(clearTimeout);
+  }, []);
+  const throughFade = useCallback(
+    async (swap: () => void | Promise<void>) => {
+      const wait = (ms: number) =>
+        new Promise<void>((r) => {
+          fadeTimers.current.push(setTimeout(r, ms));
+        });
+      setSwapping(true);
+      try {
+        await wait(FADE_OUT_MS);
+        await swap();
+        await wait(FADE_PAINT_MS);
+      } finally {
+        setSwapping(false); // always fade back in, even if the load throws
+      }
+    },
+    []
+  );
 
   /* Every mutation flows through here so updatedAt always bumps and the
      autosave below sees one consistent object. */
@@ -241,7 +277,11 @@ export function Studio({
 
   return (
     <div className="page in">
-      <div className={`dstudio${doc ? " editing" : ""}`}>
+      <div
+        className={`dstudio${doc ? " editing" : ""}${
+          swapping ? " swapping" : ""
+        }`}
+      >
         {doc ? (
           <Editor
             doc={doc}
@@ -250,7 +290,7 @@ export function Studio({
             onStep={setStep}
             onMutate={mutate}
             onReplace={replaceDoc}
-            onHome={goHome}
+            onHome={() => throughFade(goHome)}
             onAddVariant={addVariant}
             onSwitchVariant={switchVariant}
             onRenameVariant={renameVariant}
@@ -259,25 +299,31 @@ export function Studio({
         ) : (
           <Home
             recents={recents}
-            onCreate={async (name, mode) => {
-              const d = createDesign({ name, mode });
-              await getStore().save(d);
-              openDesign(d);
-            }}
-            onOpen={async (id) => {
-              const d = await getStore().load(id);
-              if (d) openDesign(d);
-            }}
+            onCreate={(name, mode) =>
+              throughFade(async () => {
+                const d = createDesign({ name, mode });
+                await getStore().save(d);
+                openDesign(d);
+              })
+            }
+            onOpen={(id) =>
+              throughFade(async () => {
+                const d = await getStore().load(id);
+                if (d) openDesign(d);
+              })
+            }
             onDelete={async (id) => {
               await getStore()
                 .remove(id)
                 .catch(() => {});
               refreshRecents();
             }}
-            onImport={async (d) => {
-              await getStore().save(d);
-              openDesign(d);
-            }}
+            onImport={(d) =>
+              throughFade(async () => {
+                await getStore().save(d);
+                openDesign(d);
+              })
+            }
           />
         )}
       </div>

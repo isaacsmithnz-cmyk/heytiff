@@ -62,6 +62,9 @@ async function openPlanJob(fake: PlanImages) {
   const user = userEvent.setup();
   render(<Studio store={store} planImages={fake} />);
   await user.click(await screen.findByText("Job"));
+  // opening dips through the screen-swap fade; wait for the Plans-step uploader
+  // so uploads don't land in Home's still-mounted import input mid-transition
+  await screen.findByText("Drop floor plans here");
   return user;
 }
 
@@ -267,6 +270,7 @@ describe("installer scenarios: upload → floors", () => {
       </StrictMode>
     );
     await user.click(await screen.findByText("Strict job"));
+    await screen.findByText("Drop floor plans here"); // past the screen-swap fade
 
     uploadPdf();
     await user.click(await screen.findByRole("button", { name: "Page 2" }));
@@ -474,7 +478,7 @@ describe("installer scenarios: upload → floors", () => {
 
   it("plan-mode Design step with no floors points to Plans — no blank-floor escape hatch", async () => {
     const user = await openPlanJob(new CountingPlanImages());
-    await user.click(screen.getByRole("button", { name: "2 Design" }));
+    await user.click(await screen.findByRole("button", { name: "2 Design" }));
     expect(screen.getByText("No floors yet")).toBeInTheDocument();
     expect(screen.queryByText("Add a blank floor")).toBeNull();
     await user.click(screen.getByRole("button", { name: /Go to Plans/ }));

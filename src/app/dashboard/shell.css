@@ -512,7 +512,10 @@
 
 /* the frame colour */
 .fg { background:#050505; }
-.fg .gridbg { display:none; }                 /* dotted grid was for a light page bg */
+/* the light page's dotted grid is off in the dark frame — hidden via opacity (not
+   display) so routes that DO paint this layer, like the studio start screen, can
+   cross-fade it in/out. It's absolute + pointer-events:none, so it costs no layout. */
+.fg .gridbg { opacity:0; transition:opacity .35s ease; }
 
 /* sidebar melts into the frame (no edge / shadow / own background — the root's
    #050505 shows through so the frame reads as one piece). Its corner .glow is

@@ -64,12 +64,11 @@ const STEPS = [
 
 const MODE_LABEL = { plan: "Floor plans", blank: "Blank canvas" } as const;
 
-/* screen-swap fade timings — see throughFade(). Keep in step with the .09s/.12s
-   opacity transitions on `.fg .outlet:has(.dstudio…)` in studio.css. Deliberately
-   brisk: this only has to mask the dark↔light snap, and anything longer reads as
-   a stall rather than a transition. */
-const FADE_OUT_MS = 90;
-const FADE_PAINT_MS = 16; // one frame, just enough to paint before fading back in
+/* screen-swap timings — see throughSwap(). Must stay in step with the .28s
+   transitions on `.dstudio .ds-home-stack` / `.ds-editor` in studio.css: the
+   leaving screen has to finish travelling before the swap lands. */
+const SWAP_OUT_MS = 280;
+const SWAP_PAINT_MS = 16; // one frame, so the arriving screen has a state to animate from
 
 function timeAgo(iso: string): string {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
@@ -118,35 +117,34 @@ export function Studio({
     refreshRecents();
   }, [refreshRecents]);
 
-  /* Fade the whole screen out to the dark shell frame, swap while it's invisible,
-     then fade the new screen in over the frame — the start screen is dark and the
-     editor is a light well, and cross-fading them against each other reads as a
-     glitch. The `swapping` class fades the outlet, so the well's background and
-     its content go together and nothing can peek through mid-swap.
+  /* Run a screen swap as a hand-off rather than a cross-fade: the leaving screen
+     clears out, then the arriving one comes in. `swapping` drives both sides in
+     studio.css — the start screen sinks downward and rises back from below, the
+     editor fades.
 
-     `prepare` (the load/save) runs DURING the fade-out, not after it: doing the
-     server round-trip on a blank screen left a dead beat long enough to read as
-     "did it break?". `apply` then mounts the new screen at zero opacity. So a
-     quick load costs no extra time at all, and a slow one only shows the gap it
-     genuinely needs. */
-  const fadeTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+     `prepare` (the load/save) runs DURING the exit, so the travel time is real
+     work: by the time the start screen has sunk away, the design is loaded and
+     the canvas can arrive already populated. `apply` then mounts the new screen
+     in its "away" state, and one paint beat later `swapping` drops so it has a
+     frame to animate in from. */
+  const swapTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   useEffect(() => {
-    const timers = fadeTimers.current;
+    const timers = swapTimers.current;
     return () => timers.forEach(clearTimeout);
   }, []);
-  const throughFade = useCallback(
+  const throughSwap = useCallback(
     async <T,>(prepare: () => T | Promise<T>, apply: (value: T) => void) => {
       const wait = (ms: number) =>
         new Promise<void>((r) => {
-          fadeTimers.current.push(setTimeout(r, ms));
+          swapTimers.current.push(setTimeout(r, ms));
         });
       setSwapping(true);
       try {
-        const [value] = await Promise.all([prepare(), wait(FADE_OUT_MS)]);
+        const [value] = await Promise.all([prepare(), wait(SWAP_OUT_MS)]);
         apply(value);
-        await wait(FADE_PAINT_MS); // one beat to paint before fading back in
+        await wait(SWAP_PAINT_MS);
       } finally {
-        setSwapping(false); // always fade back in, even if the load throws
+        setSwapping(false); // always bring the screen back, even if the load throws
       }
     },
     []
@@ -301,7 +299,7 @@ export function Studio({
             onStep={setStep}
             onMutate={mutate}
             onReplace={replaceDoc}
-            onHome={() => throughFade(flushSave, backToHome)}
+            onHome={() => throughSwap(flushSave, backToHome)}
             onAddVariant={addVariant}
             onSwitchVariant={switchVariant}
             onRenameVariant={renameVariant}
@@ -311,14 +309,14 @@ export function Studio({
           <Home
             recents={recents}
             onCreate={(name, mode) =>
-              throughFade(async () => {
+              throughSwap(async () => {
                 const d = createDesign({ name, mode });
                 await getStore().save(d);
                 return d;
               }, openDesign)
             }
             onOpen={(id) =>
-              throughFade(
+              throughSwap(
                 () => getStore().load(id),
                 (d) => {
                   if (d) openDesign(d);
@@ -332,7 +330,7 @@ export function Studio({
               refreshRecents();
             }}
             onImport={(d) =>
-              throughFade(async () => {
+              throughSwap(async () => {
                 await getStore().save(d);
                 return d;
               }, openDesign)

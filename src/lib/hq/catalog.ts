@@ -28,7 +28,10 @@ import { multiCapableIdus } from "@/lib/studio/multi";
 import {
   EDITABLE_FIELDS,
   fieldSpec,
+  isOpeningBox,
   type EditableSection,
+  type FieldValue,
+  type OpeningBox,
 } from "@/lib/studio/packs/fields";
 import { applyOverrides, type FieldOverride } from "@/lib/studio/packs/overrides";
 import { validatePack } from "@/lib/studio/packs/validate";
@@ -50,10 +53,12 @@ export interface HqOverrideMark {
   by: string | null;
   at: string | null;
   /** the underlying pack value being shadowed (null when the pack had none) */
-  packValue: number | string | string[] | null;
+  packValue: FieldValue | null;
 }
 
-export type Scalar = number | string | null;
+/** an effective cell value: scalar, or an airway opening box ("built-in" /
+    "spigots" arrive as plain strings) */
+export type HqValue = number | string | OpeningBox | null;
 
 export interface HqRow {
   section: EditableSection;
@@ -76,7 +81,7 @@ export interface HqRow {
   /** indoor units only */
   formFactor?: FormFactor;
   /** every editable field for the section → effective value (null when absent) */
-  values: Record<string, Scalar>;
+  values: Record<string, HqValue>;
   gaps: HqGap[];
   blockingCount: number;
   engineReady: boolean;
@@ -119,18 +124,35 @@ function iduSystemTypes(roles: SystemRole[] | undefined): SystemType[] {
 // surfacing so staff can complete a row. Role-specific fields (airflow_ls,
 // capacity_index, …) are NOT listed here — they surface as blocking gaps only
 // when they actually gate a claimed role (via ready.ts).
-const IDU_NICE = ["sound_low_dba", "sound_high_dba", "weight_kg", "power_supply"];
+const IDU_NICE = [
+  "sound_low_dba",
+  "sound_high_dba",
+  "weight_kg",
+  "power_supply",
+  "max_amps_a",
+];
 const ODU_NICE = [
   "sound_low_dba",
   "sound_high_dba",
   "weight_kg",
   "power_supply",
+  "max_amps_a",
   "precharged_kg",
 ];
 
-function scalarOf(row: Record<string, unknown>, field: string): Scalar {
+/** Effective cell value for a field: scalar passthrough, airway boxes for
+    opening-type fields (copied to a clean two-key object), null otherwise. */
+function valueOf(
+  section: EditableSection,
+  row: Record<string, unknown>,
+  field: string
+): HqValue {
   const v = row[field];
-  return typeof v === "number" || typeof v === "string" ? v : null;
+  if (typeof v === "number" || typeof v === "string") return v;
+  if (fieldSpec(section, field)?.type === "opening" && isOpeningBox(v)) {
+    return { w_mm: v.w_mm, h_mm: v.h_mm };
+  }
+  return null;
 }
 
 /** Blocking gaps from a readiness result: each missing field → the claimed
@@ -159,7 +181,7 @@ function niceGaps(
   const out: HqGap[] = [];
   for (const f of niceFields) {
     if (blocking.has(f)) continue;
-    if (scalarOf(effRow, f) === null) {
+    if (valueOf(section, effRow, f) === null) {
       out.push({ field: f, blocks: false, roles: [], fillable: !!fieldSpec(section, f) });
     }
   }
@@ -169,9 +191,10 @@ function niceGaps(
 function packValueOf(
   row: Record<string, unknown>,
   field: string
-): number | string | string[] | null {
+): FieldValue | null {
   const v = row[field];
   if (typeof v === "number" || typeof v === "string") return v;
+  if (isOpeningBox(v)) return v;
   if (Array.isArray(v) && v.every((x) => typeof x === "string")) return v as string[];
   return null;
 }
@@ -196,9 +219,9 @@ function editableValues(
   section: EditableSection,
   effRow: Record<string, unknown>,
   fields: string[]
-): Record<string, Scalar> {
-  const values: Record<string, Scalar> = {};
-  for (const f of fields) values[f] = scalarOf(effRow, f);
+): Record<string, HqValue> {
+  const values: Record<string, HqValue> = {};
+  for (const f of fields) values[f] = valueOf(section, effRow, f);
   return values;
 }
 
@@ -291,10 +314,11 @@ function buildPairRow(
   // simulation, which needs at least one rated capacity; missing both blocks it.
   const eff = effPair as unknown as Record<string, unknown>;
   const ratedMissing =
-    scalarOf(eff, "rated_cool_kw") === null && scalarOf(eff, "rated_heat_kw") === null;
+    valueOf("pair_tables", eff, "rated_cool_kw") === null &&
+    valueOf("pair_tables", eff, "rated_heat_kw") === null;
   const gaps: HqGap[] = [];
   for (const f of fieldsForSection("pair_tables")) {
-    if (scalarOf(eff, f) !== null) continue;
+    if (valueOf("pair_tables", eff, f) !== null) continue;
     const isRated = f === "rated_cool_kw" || f === "rated_heat_kw";
     if (isRated && ratedMissing) {
       gaps.push({ field: f, blocks: true, roles: ["simulation"], fillable: true });

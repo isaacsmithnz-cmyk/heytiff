@@ -51,15 +51,18 @@ The largest section. One row per model.
 | `capacity_cool_kw`, `capacity_heat_kw` | **R** | Rated |
 | `capacity_index` | R for VRF/multi roles | Brand's index (Mitsubishi P-number, Daikin class). Used for connection-ratio + pipe/joint lookups |
 | `airflow_ls` | R for ducted/vent roles | Nominal (high). Optional: per fan speed. **Feeds duct sizing, grille shares, sheet metal — missing from the legacy import** |
-| `static_pressure_pa` | R for ducted forms | External static, numeric. Optional: selectable ESP settings list |
+| `static_pressure_pa` | O (Tier-3 in v1) | External static, numeric — no ESP check yet; becomes required when the ESP check lands. Optional: selectable ESP settings list |
+| `supply_opening`, `return_opening` | **R for ducted forms — gates ducted-ready** | Data-book airway openings: `{w_mm,h_mm}` mm, or `"built-in"` (integral return), or `"spigots"` (factory spigots). Size the plenum base (ducted spec §1b) — never the unit width |
 | `conn_liquid_mm`, `conn_gas_mm` | **R** | Connection sizes |
 | `conn_condensate` | O | Size/type; pump built-in flag |
 | `default_plane`, `allowed_planes` | **R** | `room · ceiling-cavity · floor-cavity …` — drives placement behaviour |
 | `system_roles` | **R** | Which contexts this model may serve in: `["split-pair", "multi", "vrf"]` — e.g. PEFY = vrf only, MSZ = split/multi, PEAD = split (and multi where the book allows) |
 | `refrigerant` | **R** | R32 / R410A — pairing + charge calcs |
 | `phase`, `power_supply` | O (R for materials/electrical later) | |
+| `max_amps_a` | O | Max running amps (Tier-3 — never blocks; electrical planning) |
 | `width_mm`, `depth_mm`, `height_mm` | **R** | Plan footprint rendering |
-| `sound_dba`, `weight_kg` | O | Spec-sheet niceties |
+| `sound_low_dba`, `sound_high_dba` | O | Spec-sheet niceties. A sheet publishing ONE figure fills `sound_high_dba` only |
+| `weight_kg` | O | Spec-sheet nicety |
 | `provenance` | **R** | |
 
 ### 3. `outdoor_units`
@@ -71,6 +74,7 @@ The largest section. One row per model.
 | `capacity_cool_kw`, `capacity_heat_kw`, `hp` | **R** | |
 | `capacity_index` | R for VRF | |
 | `phase` | **R** | 1Ø/3Ø — filters selection |
+| `max_amps_a` | O | Max running amps (Tier-3 — never blocks; electrical planning) |
 | `conn_liquid_mm`, `conn_gas_mm` | **R** | |
 | `refrigerant`, `precharged_kg`, `max_charge_kg` | R for charge calc | |
 | Multi only: `ports`, `min_connected` / `max_connected` (kW or index per brand), `branch_box_required` | **R** for multi role | |
@@ -132,7 +136,7 @@ A row is offered by the engine only when its role's required set is complete:
 | **Multi-ready** | Placeable + capacities (+ index if brand uses it) + ODU `multi_rules` complete |
 | **VRF-ready (IDU)** | Placeable + capacities + `capacity_index` + connection sizes |
 | **VRF-ready (ODU)** | above + ratio limits + complete `vrf_pipe_tables` for its series (sizes, joints, limits, charge) |
-| **Ducted-ready** | Placeable + `airflow_ls` + `static_pressure_pa` |
+| **Ducted-ready** | Placeable + `airflow_ls` + `supply_opening` + `return_opening` (`static_pressure_pa` optional in v1 — no ESP check yet) |
 | **Vent-ready** | vent type + airflow (+static for ducted vent) |
 
 The pack browser shows completeness per range: *"PEFY-P VMA: 12/12 VRF-ready, 0/12 ducted-ready (airflow missing)"* — which doubles as the extraction to-do list.
@@ -145,7 +149,7 @@ The pack browser shows completeness per range: *"PEFY-P VMA: 12/12 VRF-ready, 0/
 
 **Missing — the first extraction pass per Mitsubishi book:**
 1. `capacity_index` (P-numbers) for all VRF units — currently only kW
-2. `airflow_ls` + numeric `static_pressure_pa` for every ducted/cassette model (`esp` is a text note today)
+2. `airflow_ls` + numeric `static_pressure_pa` for every ducted/cassette model (`esp` is a text note today), plus `supply_opening`/`return_opening` airway sizes for every ducted model and `max_amps_a` from the electrical tables
 3. **CMY joint & header selection tables by downstream index** — the heart of VRF auto-sizing; absent entirely
 4. `size_by_downstream_index` pipe tables per series (the legacy kW-bucket rule is an approximation to replace)
 5. Length/lift limits per series and per pair

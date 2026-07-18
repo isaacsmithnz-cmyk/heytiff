@@ -94,6 +94,8 @@ describe("indoor engine-ready", () => {
     capacity_heat_kw: 5.0,
     capacity_index: 40,
     airflow_ls: 200,
+    supply_opening: { w_mm: 600, h_mm: 200 },
+    return_opening: "built-in",
     conn_liquid_mm: 6.35,
     conn_gas_mm: 12.7,
     default_plane: "ceiling-cavity",
@@ -126,6 +128,24 @@ describe("indoor engine-ready", () => {
     const r = indoorReadiness(packWith([noAir]), noAir);
     expect(r.roles.ducted).toBe(false);
     expect(r.missing.ducted).toContain("airflow_ls");
+  });
+
+  it("missing airway openings block ducted-ready (they size the plenum base)", () => {
+    const noOpenings = { ...idu, supply_opening: undefined, return_opening: undefined };
+    const r = indoorReadiness(packWith([noOpenings]), noOpenings);
+    expect(r.roles.ducted).toBe(false);
+    expect(r.missing.ducted).toContain("supply_opening");
+    expect(r.missing.ducted).toContain("return_opening");
+  });
+
+  it("accepts 'spigots' as a complete airway answer, rejects a zero-size box", () => {
+    const spigots = { ...idu, supply_opening: "spigots" as const };
+    expect(indoorReadiness(packWith([spigots]), spigots).roles.ducted).toBe(true);
+
+    const zero = { ...idu, supply_opening: { w_mm: 0, h_mm: 200 } };
+    const r = indoorReadiness(packWith([zero]), zero);
+    expect(r.roles.ducted).toBe(false);
+    expect(r.missing.ducted).toContain("supply_opening");
   });
 
   it("completenessByRange rolls up ready/total per series+role", () => {

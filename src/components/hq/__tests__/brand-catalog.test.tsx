@@ -160,7 +160,7 @@ describe("HqBrandCatalog — drill-down structure", () => {
     // fields missing across the whole series collapse into the To-add group
     expect(screen.getByText(/To add · \d+ fields/)).toBeInTheDocument();
     expect(screen.getByText("Airflow (Hi)")).toBeInTheDocument(); // To-add sub-header
-    expect(screen.getByText(/of 16 specs mapped/)).toBeInTheDocument();
+    expect(screen.getByText(/of 19 specs mapped/)).toBeInTheDocument();
   });
 
   it("renders capacity chips and the per-row status cell", () => {
@@ -169,8 +169,48 @@ describe("HqBrandCatalog — drill-down structure", () => {
     expect(cool.querySelector(".hq-cmp-chip.cool")).not.toBeNull();
     const heat = screen.getByRole("button", { name: /Heating capacity — D1: 6/ });
     expect(heat.querySelector(".hq-cmp-chip.heat")).not.toBeNull();
-    expect(screen.getByText("1 blocking")).toBeInTheDocument(); // ducted airflow gap
-    expect(screen.getByText("8/16")).toBeInTheDocument(); // specs filled / total
+    expect(screen.getByText("3 blocking")).toBeInTheDocument(); // airflow + both airways
+    expect(screen.getByText("8/19")).toBeInTheDocument(); // specs filled / total
+  });
+
+  it("renders airway columns for ducted series only, with a blocking +", () => {
+    render(
+      <HqBrandCatalog
+        groups={groupsOf((p) => {
+          p.indoor_units = [ducted("D1"), ducted("W1", { form_factor: "wall" })];
+        })}
+      />
+    );
+    // ducted D1 gets red-tinted airway + cells; amps stays a neutral +
+    const supply = screen.getByRole("button", { name: /Add Supply airway — D1/ });
+    expect(supply.className).toMatch(/block/);
+    const amps = screen.getByRole("button", { name: /Add Max running amps — D1/ });
+    expect(amps.className).not.toMatch(/block/);
+    // the wall series has no airway cells at all
+    expect(
+      screen.queryByRole("button", { name: /Add Supply airway — W1/ })
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders a saved airway box as W × H and a keyword answer as text", () => {
+    render(
+      <HqBrandCatalog
+        groups={groupsOf((p) => {
+          p.indoor_units = [
+            ducted("D1", {
+              supply_opening: { w_mm: 595, h_mm: 195 },
+              return_opening: "built-in",
+            }),
+          ];
+        })}
+      />
+    );
+    expect(
+      screen.getByRole("button", { name: /Supply airway — D1: 595 × 195/ })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Return airway — D1: built-in/ })
+    ).toBeInTheDocument();
   });
 
   it("shows ✓ Ready for engine-ready rows", () => {
@@ -314,6 +354,80 @@ describe("HqBrandCatalog — tag editor", () => {
     );
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({ rowKey: "D2", field: "system_roles" })
+    );
+  });
+});
+
+describe("HqBrandCatalog — airway editor", () => {
+  it("saves a W×H box through the airway control", async () => {
+    const onSave = jest.fn().mockResolvedValue({ ok: true });
+    const user = userEvent.setup();
+    render(<HqBrandCatalog groups={groupsOf()} onSave={onSave} />);
+
+    await user.click(screen.getByRole("button", { name: /Add Supply airway — D1/ }));
+    await user.type(screen.getByLabelText("Width (mm)"), "595");
+    await user.type(screen.getByLabelText("Height (mm)"), "195");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(onSave).toHaveBeenCalledWith({
+      section: "indoor_units",
+      rowKey: "D1",
+      field: "supply_opening",
+      value: { w_mm: 595, h_mm: 195 },
+    });
+  });
+
+  it("saves the built-in keyword via its radio", async () => {
+    const onSave = jest.fn().mockResolvedValue({ ok: true });
+    const user = userEvent.setup();
+    render(<HqBrandCatalog groups={groupsOf()} onSave={onSave} />);
+
+    await user.click(screen.getByRole("button", { name: /Add Return airway — D1/ }));
+    await user.click(screen.getByRole("radio", { name: /Built-in/ }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(onSave).toHaveBeenCalledWith({
+      section: "indoor_units",
+      rowKey: "D1",
+      field: "return_opening",
+      value: "built-in",
+    });
+  });
+
+  it("requires both dimensions before saving a box", async () => {
+    const onSave = jest.fn().mockResolvedValue({ ok: true });
+    const user = userEvent.setup();
+    render(<HqBrandCatalog groups={groupsOf()} onSave={onSave} />);
+
+    await user.click(screen.getByRole("button", { name: /Add Supply airway — D1/ }));
+    await user.type(screen.getByLabelText("Width (mm)"), "595");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByText(/enter both width and height/i)).toBeInTheDocument();
+  });
+
+  it("seeds the control from an existing box and round-trips an edit", async () => {
+    const onSave = jest.fn().mockResolvedValue({ ok: true });
+    const user = userEvent.setup();
+    render(
+      <HqBrandCatalog
+        groups={groupsOf((p) => {
+          p.indoor_units = [ducted("D1", { supply_opening: { w_mm: 595, h_mm: 195 } })];
+        })}
+        onSave={onSave}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: /Supply airway — D1: 595 × 195/ }));
+    const width = screen.getByLabelText("Width (mm)");
+    expect(width).toHaveValue("595");
+    await user.clear(width);
+    await user.type(width, "600");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ field: "supply_opening", value: { w_mm: 600, h_mm: 195 } })
     );
   });
 });

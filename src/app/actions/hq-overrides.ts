@@ -10,7 +10,12 @@ import {
   logOverride,
 } from "@/lib/studio/packs/overrides-server";
 import { applyOverrides, newValidationErrors } from "@/lib/studio/packs/overrides";
-import { fieldSpec, validateFieldValue } from "@/lib/studio/packs/fields";
+import {
+  fieldSpec,
+  isOpeningBox,
+  validateFieldValue,
+  type FieldValue,
+} from "@/lib/studio/packs/fields";
 import { validatePack } from "@/lib/studio/packs/validate";
 import { rowKey } from "@/lib/studio/packs/loader";
 import type { DataPack, PackSection } from "@/lib/studio/packs/schema";
@@ -42,12 +47,13 @@ function readValue(
   section: string,
   key: string,
   field: string
-): number | string | string[] | null {
+): FieldValue | null {
   const row = rows(pack, section).find(
     (r) => rowKey(section as PackSection, r) === key
   );
   const v = row?.[field];
   if (typeof v === "number" || typeof v === "string") return v;
+  if (isOpeningBox(v)) return v;
   if (Array.isArray(v) && v.every((x) => typeof x === "string")) return v as string[];
   return null;
 }

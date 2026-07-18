@@ -78,22 +78,35 @@
   pointer-events: none; /* swallow clicks mid-swap */
 }
 
-/* start screen: sinks away, returns from below */
+/* Start screen: sinks away, returns from below.
+
+   Each direction gets its OWN curve — the transition declared on the state being
+   entered is the one that runs. Sharing a single ease-out across both was the bug
+   that made this feel broken: on the way OUT it put 85% of the travel into the
+   first third and then hung there fading, which reads as a lurch followed by a
+   stall. Leaving accelerates away (ease-in); arriving decelerates in (ease-out). */
 .dstudio .ds-home-stack {
-  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.28s ease;
+  /* arriving */
+  transition: transform 0.26s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.22s ease-out;
   will-change: transform, opacity;
 }
 .dstudio.swapping .ds-home-stack {
+  /* leaving — both properties land together, so the swap can happen the moment
+     the screen is actually gone rather than waiting on invisible movement */
   transform: translateY(72px);
   opacity: 0;
+  transition: transform 0.2s cubic-bezier(0.45, 0, 0.85, 0.35),
+    opacity 0.2s cubic-bezier(0.45, 0, 0.85, 0.35);
 }
 
 /* editor: fades only — the canvas shouldn't slide around */
 .dstudio .ds-editor {
-  transition: opacity 0.28s ease;
+  transition: opacity 0.26s ease-out;
 }
 .dstudio.swapping .ds-editor {
   opacity: 0;
+  transition: opacity 0.18s ease-in;
 }
 
 @media (prefers-reduced-motion: reduce) {

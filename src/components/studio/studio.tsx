@@ -64,10 +64,10 @@ const STEPS = [
 
 const MODE_LABEL = { plan: "Floor plans", blank: "Blank canvas" } as const;
 
-/* screen-swap timings — see throughSwap(). Must stay in step with the .28s
-   transitions on `.dstudio .ds-home-stack` / `.ds-editor` in studio.css: the
-   leaving screen has to finish travelling before the swap lands. */
-const SWAP_OUT_MS = 280;
+/* screen-swap timings — see throughSwap(). Must stay in step with the .2s
+   exit transitions on `.dstudio.swapping .ds-home-stack` in studio.css: the
+   leaving screen has to be fully gone before the swap lands. */
+const SWAP_OUT_MS = 200;
 const SWAP_PAINT_MS = 16; // one frame, so the arriving screen has a state to animate from
 
 function timeAgo(iso: string): string {

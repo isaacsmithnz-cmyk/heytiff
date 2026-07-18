@@ -9,7 +9,7 @@
    (universal-table-schema.md §5), never a guess. The badge the cockpit shows
    ("3/4 ports · 112% combo") is derived here. */
 
-import type { DesignDocument, DesignSystem } from "./document";
+import type { DesignDocument, DesignObject, DesignSystem } from "./document";
 import type {
   CompatibilityRule,
   DataPack,
@@ -22,6 +22,10 @@ import { capacityFit, type UnitFit } from "./fit";
 import { roomLoadKw, type RoomObj } from "./loads-room";
 import { roomsServedBy } from "./coverage";
 import { sizingCapacityKw, type SizingBasis } from "./loads";
+import { buildSystemGraph, findPath } from "./graph";
+// type-only — a runtime import of split.ts here would cycle (its systemBadge
+// dispatches to validateMultiSystem below)
+import type { BadgeStatus, Finding } from "./split";
 
 /* ─────────────────────────── settings readers ─────────────────────────── */
 
@@ -484,4 +488,243 @@ export function multiConnection(
     placedOduId: placedOdu?.id ?? null,
     findings,
   };
+}
+
+/* ───────────────────── graph validation (the badge) ─────────────────────
+   The multi mirror of validateSplitSystem: judges what is actually PLACED on
+   the plan. Selection state (settings.multiIdus) stays the cockpit's business
+   (multiConnection / coverage). One shared outdoor, a branch per indoor. */
+
+export interface MultiBranch {
+  /** placed indoor-unit object id */
+  iduId: string;
+  model: string;
+  /** null = model not in the pack */
+  idu: IndoorUnit | null;
+  /** props.roomId stamp; "" when the unit sits outside any room */
+  roomId: string;
+  roomName: string;
+  /** 0-based port after allocation; null = no rule / beyond the port count */
+  port: number | null;
+  liquidMm: number | null;
+  gasMm: number | null;
+  connected: boolean;
+  /** metres along this branch's IDU→ODU path; null = unconnected/uncalibrated */
+  lengthM: number | null;
+  liftM: number | null;
+}
+
+export interface MultiValidation {
+  status: BadgeStatus;
+  findings: Finding[];
+  /** one per placed indoor unit, in port order */
+  branches: MultiBranch[];
+  /** Σ branch path lengths — each port runs its own pair coil end-to-end, so
+      a shared drawn segment counts once per branch riding it (the books state
+      the total limit as the sum of the per-room lines). Null while any placed
+      indoor is unconnected or any branch is uncalibrated. */
+  totalLengthM: number | null;
+  rule: MultiRule | null;
+  oduModel: string;
+  odu: DesignObject | null;
+}
+
+const propModel = (o: DesignObject): string => String(o.props.model ?? "");
+
+/** Validate one multi-split system: one shared approved outdoor, every placed
+    indoor connected to it, each branch and the total within the rule's
+    length/lift limits. Mirrors validateSplitSystem stanza for stanza. */
+export function validateMultiSystem(
+  doc: DesignDocument,
+  pack: DataPack,
+  systemId: string
+): MultiValidation {
+  const findings: Finding[] = [];
+  const objs = doc.objects.filter((o) => o.systemId === systemId);
+  const units = objs.filter((o) => o.type === "unit");
+  const idus = units.filter((o) => o.props.role === "idu");
+  const odus = units.filter((o) => o.props.role === "odu");
+  const runs = objs.filter((o) => o.type === "pipe-run");
+  const risers = objs.filter((o) => o.type === "riser");
+
+  // Unlike split, multi rooms carry the system id — so "empty" is judged on
+  // placed gear only, not on every object the system owns.
+  if (units.length + runs.length + risers.length === 0) {
+    return {
+      status: "empty",
+      findings,
+      branches: [],
+      totalLengthM: null,
+      rule: null,
+      oduModel: "",
+      odu: null,
+    };
+  }
+
+  if (idus.length === 0)
+    findings.push({ severity: "red", code: "no-idu", message: "Place the indoor units" });
+  if (odus.length === 0)
+    findings.push({
+      severity: "red",
+      code: "no-odu",
+      message: "Place the shared outdoor unit",
+    });
+  if (odus.length > 1)
+    findings.push({
+      severity: "red",
+      code: "extra-units",
+      message: "A multi-split system shares exactly one outdoor unit",
+    });
+
+  const odu = odus[0] ?? null;
+  const oduModel = odu ? propModel(odu) : "";
+
+  // the outdoor's rule row — from the PLACED outdoor, as split resolves its
+  // pair from what's on the plan
+  let rule: MultiRule | null = null;
+  let oduSpec: OutdoorUnit | null = null;
+  if (odu) {
+    oduSpec = pack.outdoor_units.find((o) => o.model === oduModel) ?? null;
+    if (!oduSpec) {
+      findings.push({
+        severity: "red",
+        code: "unknown-model",
+        message: `Unknown model: ${oduModel}`,
+      });
+    } else {
+      rule = pack.multi_rules.find((r) => r.odu_model_ref === oduModel) ?? null;
+      if (!rule)
+        findings.push({
+          severity: "red",
+          code: "no-rule",
+          message: `${oduModel} has no multi rules in this pack`,
+        });
+    }
+  }
+
+  // placed indoor specs (duplicates count — two of a model use two ports)
+  const specByModel = new Map(pack.indoor_units.map((u) => [u.model, u]));
+  const unknownIdus = new Set<string>();
+  const iduSpecs: IndoorUnit[] = [];
+  for (const u of idus) {
+    const spec = specByModel.get(propModel(u));
+    if (spec) iduSpecs.push(spec);
+    else if (propModel(u)) unknownIdus.add(propModel(u));
+  }
+  for (const m of unknownIdus)
+    findings.push({ severity: "red", code: "unknown-model", message: `Unknown model: ${m}` });
+
+  // catalogue compatibility — MultiFinding shares Finding's shape (split.ts)
+  if (oduSpec && rule) findings.push(...checkMultiCompatibility(rule, oduSpec, iduSpecs));
+
+  const roomName = (roomId: string): string => {
+    if (!roomId) return "";
+    const room = doc.objects.find((o) => o.id === roomId && o.type === "room");
+    return String(room?.props.name ?? "");
+  };
+
+  // Port allocation: the books hang the highest-capacity indoor on port A —
+  // the port with the larger gas line on the 4/5/6-port outdoors. Catalogue
+  // cool kW (basis-independent) so the takeoff never flips with the sizing
+  // basis; ties break by model then object id for determinism.
+  const ordered = [...idus].sort((a, b) => {
+    const ka = specByModel.get(propModel(a))?.capacity_cool_kw ?? -1;
+    const kb = specByModel.get(propModel(b))?.capacity_cool_kw ?? -1;
+    return (
+      kb - ka ||
+      propModel(a).localeCompare(propModel(b)) ||
+      a.id.localeCompare(b.id)
+    );
+  });
+
+  // connectivity + limits (graph v0) — needs the shared outdoor placed
+  const graph = odu ? buildSystemGraph(doc.objects, doc.floors, systemId) : null;
+  const branches: MultiBranch[] = [];
+  let totalLengthM: number | null = odu && idus.length ? 0 : null;
+  let uncalibrated = false;
+
+  ordered.forEach((u, i) => {
+    const model = propModel(u);
+    const port = rule && i < rule.port_pipe_sizes.length ? i : null;
+    const sizes = port != null && rule ? rule.port_pipe_sizes[port] : null;
+    const roomId = String(u.props.roomId ?? "");
+    const rn = roomName(roomId);
+
+    const path = graph && odu ? findPath(graph, u.id, odu.id) : null;
+    const lengthM = path?.lengthM ?? null;
+    const liftM = path ? path.liftM : null;
+
+    if (odu && !path) {
+      totalLengthM = null;
+      findings.push({
+        severity: "red",
+        code: "not-connected",
+        message:
+          runs.length === 0
+            ? "Draw the refrigerant runs between each indoor and the outdoor unit"
+            : `${rn || model || "An indoor unit"} isn't connected — snap a run to its anchors`,
+      });
+    } else if (path && lengthM == null) {
+      totalLengthM = null;
+      uncalibrated = true;
+    } else if (path && lengthM != null) {
+      if (totalLengthM != null) totalLengthM += lengthM;
+      if (rule) {
+        if (lengthM > rule.max_per_branch_m)
+          findings.push({
+            severity: "red",
+            code: "over-length",
+            message: `${rn || model}: branch is ${lengthM.toFixed(1)} m — max ${rule.max_per_branch_m} m per branch on ${oduModel}`,
+          });
+        if (liftM != null && liftM > rule.max_lift_m)
+          findings.push({
+            severity: "red",
+            code: "over-lift",
+            message: `${rn || model}: height difference is ${liftM.toFixed(1)} m — max ${rule.max_lift_m} m on ${oduModel}`,
+          });
+      }
+    }
+
+    branches.push({
+      iduId: u.id,
+      model,
+      idu: specByModel.get(model) ?? null,
+      roomId,
+      roomName: rn,
+      port,
+      liquidMm: sizes?.liquid_mm ?? null,
+      gasMm: sizes?.gas_mm ?? null,
+      connected: Boolean(path),
+      lengthM,
+      liftM,
+    });
+  });
+
+  if (uncalibrated)
+    findings.push({
+      severity: "amber",
+      code: "uncalibrated",
+      message: "Floor not calibrated — pipe lengths are unknown",
+    });
+
+  if (totalLengthM != null && rule && totalLengthM > rule.max_total_pipe_m)
+    findings.push({
+      severity: "red",
+      code: "over-total-length",
+      message: `Total pipework is ${totalLengthM.toFixed(1)} m — max ${rule.max_total_pipe_m} m on ${oduModel}`,
+    });
+
+  if (graph && graph.orphanRuns.length)
+    findings.push({
+      severity: "amber",
+      code: "orphan-run",
+      message: `${graph.orphanRuns.length} run${graph.orphanRuns.length > 1 ? "s" : ""} not attached at both ends`,
+    });
+
+  const status: BadgeStatus = findings.some((f) => f.severity === "red")
+    ? "red"
+    : findings.some((f) => f.severity === "amber")
+      ? "amber"
+      : "green";
+  return { status, findings, branches, totalLengthM, rule, oduModel, odu };
 }

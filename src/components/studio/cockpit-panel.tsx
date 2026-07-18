@@ -67,6 +67,7 @@ import {
 import {
   multiConnection,
   multiIduSelections,
+  validateMultiSystem,
   type MultiConnection,
   type MultiOduProposal,
 } from "@/lib/studio/multi";
@@ -790,10 +791,12 @@ function ActiveCockpit({
           />
           <ComponentsView
             doc={doc}
+            pack={pack}
             rows={componentRows}
             hasRooms={rooms.length > 0}
             system={system}
             ducted={ducted}
+            perRoom={perRoom}
             onMutate={onMutate}
             onSelect={onSelect}
           />
@@ -2486,23 +2489,196 @@ function PipeworkSub({
   );
 }
 
+/* Multi-split pipework: a branch per placed indoor unit back to the shared
+   outdoor, each at its port's pipe sizes, judged against the rule's
+   per-branch, total and lift limits (multi_rules). Compatibility findings
+   stay in the shared-outdoor section — only geometry renders here. */
+const MULTI_GEOMETRY_CODES = new Set([
+  "not-connected",
+  "over-length",
+  "over-total-length",
+  "over-lift",
+  "uncalibrated",
+  "orphan-run",
+]);
+
+function MultiPipeworkSub({
+  doc,
+  pack,
+  system,
+  onSelect,
+}: {
+  doc: DesignDocument;
+  pack: DataPack | null;
+  system: DesignSystem;
+  onSelect: (id: string | null) => void;
+}) {
+  const v = useMemo(
+    () => (pack ? validateMultiSystem(doc, pack, system.id) : null),
+    [doc, pack, system.id]
+  );
+  const runs = doc.objects.filter(
+    (o) => o.systemId === system.id && o.type === "pipe-run"
+  );
+  const risers = doc.objects.filter(
+    (o) => o.systemId === system.id && o.type === "riser"
+  );
+  /* attached runs are accounted for inside the branches; loose ends stay
+     visible (they also raise the amber orphan finding) */
+  const loose = runs.filter((r) => !r.props.startAttach || !r.props.endAttach);
+
+  const red = { color: "var(--ds-red-d)" } as const;
+  const rule = v?.rule ?? null;
+  const branches = v?.branches ?? [];
+  const maxLiftM = branches.reduce<number | null>(
+    (a, b) => (b.liftM == null ? a : a == null ? b.liftM : Math.max(a, b.liftM)),
+    null
+  );
+  const overTotal =
+    rule != null && v?.totalLengthM != null && v.totalLengthM > rule.max_total_pipe_m;
+  const overLift = rule != null && maxLiftM != null && maxLiftM > rule.max_lift_m;
+  const geomFindings = (v?.findings ?? []).filter((f) =>
+    MULTI_GEOMETRY_CODES.has(f.code)
+  );
+
+  return (
+    <div className="ds-ck-sub pipes" data-testid="multi-pipework">
+      <div className="ds-ck-subh">
+        <span className="ds-ck-st">
+          <Glyph name="pipes" size={14} />
+          Pipework
+        </span>
+      </div>
+      {branches.length + loose.length + risers.length === 0 ? (
+        <div className="ds-ck-pipeempty">No pipe run added yet</div>
+      ) : (
+        <>
+          {branches.map((b) => {
+            const over =
+              rule != null && b.lengthM != null && b.lengthM > rule.max_per_branch_m;
+            return (
+              <button
+                key={b.iduId}
+                className="ds-ck-pipe"
+                onClick={() => onSelect(b.iduId)}
+              >
+                <span className="ds-ck-pico">
+                  <Glyph name="run" size={15} />
+                </span>
+                <div>
+                  <div className="ds-ck-pt">
+                    {b.roomName || b.model || "Indoor unit"}
+                  </div>
+                  <div className="ds-ck-ps">
+                    {[
+                      b.roomName ? b.model : null,
+                      b.port != null ? `Port ${b.port + 1}` : null,
+                      b.liquidMm != null && b.gasMm != null
+                        ? `ø${b.liquidMm} / ø${b.gasMm}`
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ") || "—"}
+                  </div>
+                </div>
+                <span
+                  className="ds-ck-pv"
+                  style={!b.connected || over ? red : undefined}
+                >
+                  {!b.connected
+                    ? "Not connected"
+                    : b.lengthM == null
+                      ? "— m"
+                      : rule
+                        ? `${b.lengthM.toFixed(1)} / ${rule.max_per_branch_m} m`
+                        : `${b.lengthM.toFixed(1)} m`}
+                </span>
+              </button>
+            );
+          })}
+          {loose.map((r) => (
+            <button key={r.id} className="ds-ck-pipe" onClick={() => onSelect(r.id)}>
+              <span className="ds-ck-pico">
+                <Glyph name="run" size={15} />
+              </span>
+              <div>
+                <div className="ds-ck-pt">Refrigerant run</div>
+                <div className="ds-ck-ps">
+                  {(r.props.startAttach ? 1 : 0) + (r.props.endAttach ? 1 : 0)}/2 ends
+                </div>
+              </div>
+              <span className="ds-ck-pv">—</span>
+            </button>
+          ))}
+          {risers.map((r) => (
+            <button key={r.id} className="ds-ck-pipe" onClick={() => onSelect(r.id)}>
+              <span className="ds-ck-pico">
+                <Glyph name="riser" size={15} />
+              </span>
+              <div>
+                <div className="ds-ck-pt">Riser R-{String(r.props.group ?? "A")}</div>
+                <div className="ds-ck-ps">Vertical · up</div>
+              </div>
+              <span className="ds-ck-pv">{String(r.props.heightM ?? 3)} m</span>
+            </button>
+          ))}
+          {rule && branches.length > 0 && (
+            <>
+              <div className="ds-ck-objrow" style={{ marginTop: 9 }}>
+                <span>Total pipe</span>
+                <b style={overTotal ? red : undefined}>
+                  {v?.totalLengthM != null
+                    ? `${v.totalLengthM.toFixed(1)} / ${rule.max_total_pipe_m} m`
+                    : `— / ${rule.max_total_pipe_m} m`}
+                </b>
+              </div>
+              <div className="ds-ck-objrow" style={{ marginTop: 5 }}>
+                <span>Max lift</span>
+                <b style={overLift ? red : undefined}>
+                  {maxLiftM != null
+                    ? `${maxLiftM.toFixed(1)} / ${rule.max_lift_m} m`
+                    : `— / ${rule.max_lift_m} m`}
+                </b>
+              </div>
+            </>
+          )}
+        </>
+      )}
+      {geomFindings.map((f) => (
+        <div
+          key={f.code + f.message}
+          className={`ds-ck-mwarn${f.severity === "red" ? " red" : ""}`}
+        >
+          <Glyph name="alert" size={12} />
+          {f.message}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ─────────────────────────── components view ─────────────────────────── */
 
 function ComponentsView({
   doc,
+  pack,
   rows,
   hasRooms,
   system,
   ducted,
+  perRoom,
   onMutate,
   onSelect,
 }: {
   doc: DesignDocument;
+  pack: DataPack | null;
   rows: ComponentRow[];
   hasRooms: boolean;
   system: DesignSystem;
   /** ducted systems route air through ductwork, not refrigerant pipe runs */
   ducted: boolean;
+  /** per-room modules (multi-split; VRF later) get the per-branch pipework */
+  perRoom: boolean;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   onSelect: (id: string | null) => void;
 }) {
@@ -2531,10 +2707,13 @@ function ComponentsView({
     setOpenKey(null);
   };
 
-  /* Pipework (system refrigerant runs) moved here from the room card */
-  const pipework = !ducted ? (
+  /* Pipework (system refrigerant runs) moved here from the room card;
+     per-room modules get the per-branch view with port sizes + limits */
+  const pipework = ducted ? null : perRoom ? (
+    <MultiPipeworkSub doc={doc} pack={pack} system={system} onSelect={onSelect} />
+  ) : (
     <PipeworkSub doc={doc} system={system} onSelect={onSelect} />
-  ) : null;
+  );
 
   if (rows.length === 0) {
     return (

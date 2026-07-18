@@ -12,6 +12,7 @@ import type { DataPack, IndoorUnit, OutdoorUnit, PairTable } from "./packs/schem
 import { indoorReadiness } from "./packs/ready";
 import { buildSystemGraph, findPath, type SystemGraph } from "./graph";
 import { sizingCapacityKw, type SizingBasis } from "./loads";
+import { validateMultiSystem } from "./multi";
 
 /* ─────────────────────────── pair proposals ─────────────────────────── */
 
@@ -86,7 +87,21 @@ export interface Finding {
     | "over-length"
     | "over-lift"
     | "uncalibrated"
-    | "under-capacity";
+    | "under-capacity"
+    // multi-split (Stage 5) — MultiFinding shares this shape, so compatibility
+    // findings spread straight into a badge (see multi.ts validateMultiSystem)
+    | "not-in-whitelist"
+    | "over-max-count"
+    | "over-per-port"
+    | "outside-capacity-band"
+    | "outside-index-band"
+    | "not-in-combination-table"
+    | "ratio-under"
+    | "ratio-over"
+    | "index-unknown"
+    | "over-ports"
+    | "no-rule"
+    | "over-total-length";
   message: string;
 }
 
@@ -220,23 +235,25 @@ export function validateSplitSystem(
   return { status, findings, lengthM, liftM, pair, idu, odu };
 }
 
-/** Badge for any system type — split is the only module so far; other types
-    render as empty (no rules registered yet). */
+/** What every system-type validator agrees on — the badge + its findings.
+    SplitValidation and MultiValidation both satisfy this shape. */
+export interface SystemValidation {
+  status: BadgeStatus;
+  findings: Finding[];
+}
+
+/** Badge for any system type — split and multi-split have validators; other
+    types render as empty (their rules register at later stages). */
 export function systemBadge(
   doc: DesignDocument,
   pack: DataPack | null,
   system: DesignSystem
-): SplitValidation {
+): SystemValidation {
   if (system.type === "split" && pack) {
     return validateSplitSystem(doc, pack, system.id);
   }
-  return {
-    status: "empty",
-    findings: [],
-    lengthM: null,
-    liftM: null,
-    pair: null,
-    idu: null,
-    odu: null,
-  };
+  if (system.type === "multi-split" && pack) {
+    return validateMultiSystem(doc, pack, system.id);
+  }
+  return { status: "empty", findings: [] };
 }

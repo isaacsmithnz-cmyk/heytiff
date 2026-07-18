@@ -376,3 +376,82 @@ describe("Type change + regressions", () => {
     expect(screen.queryByTestId("multi-unit-sub")).toBeNull();
   });
 });
+
+/* ── Stage-5 build-out: per-branch Pipework in the Components tab ── */
+
+const fullRun = (id: string, iduId: string, lengthUnits: number): DesignObject => ({
+  id,
+  type: "pipe-run",
+  systemId: "sys1",
+  floorId: "flr",
+  geometry: { kind: "polyline", points: [{ x: 0, y: 0 }, { x: lengthUnits, y: 0 }] },
+  plane: "room",
+  props: {
+    startAttach: { kind: "unit", id: iduId },
+    endAttach: { kind: "unit", id: "odu1" },
+  },
+});
+
+/* two rooms, both indoors placed + plumbed to a placed MXZ-3F54VGD */
+const pipeworkDoc = (lens: [number, number] = [1000, 1200], extras: DesignObject[] = []) =>
+  mkDoc({
+    settings: bothChosen(),
+    objects: [
+      ...twoRooms(),
+      unit("idu1", "idu", "MSZ-AP20VGD", "room1"),
+      unit("idu2", "idu", "MSZ-AP20VGD", "room2"),
+      unit("odu1", "odu", "MXZ-3F54VGD"),
+      fullRun("run1", "idu1", lens[0]),
+      fullRun("run2", "idu2", lens[1]),
+      ...extras,
+    ],
+  });
+
+describe("Pipework (Components tab)", () => {
+  it("a branch row per indoor: room, port, sizes, length vs the branch limit", () => {
+    renderCockpit(pipeworkDoc());
+    fireEvent.click(screen.getByRole("tab", { name: /Components/ }));
+    const pw = within(screen.getByTestId("multi-pipework"));
+    expect(pw.getByText("Bed 1")).toBeInTheDocument();
+    expect(pw.getByText("MSZ-AP20VGD · Port 1 · ø6.35 / ø9.52")).toBeInTheDocument();
+    expect(pw.getByText("MSZ-AP20VGD · Port 2 · ø6.35 / ø9.52")).toBeInTheDocument();
+    expect(pw.getByText("10.0 / 25 m")).toBeInTheDocument();
+    expect(pw.getByText("12.0 / 25 m")).toBeInTheDocument();
+  });
+
+  it("totals judge the whole system: total pipe and max lift vs the rule", () => {
+    renderCockpit(pipeworkDoc());
+    fireEvent.click(screen.getByRole("tab", { name: /Components/ }));
+    const pw = within(screen.getByTestId("multi-pipework"));
+    expect(pw.getByText("Total pipe")).toBeInTheDocument();
+    expect(pw.getByText("22.0 / 50 m")).toBeInTheDocument();
+    expect(pw.getByText("Max lift")).toBeInTheDocument();
+    expect(pw.getByText("0.0 / 10 m")).toBeInTheDocument();
+  });
+
+  it("an over-limit branch reads red with the engine's finding", () => {
+    renderCockpit(pipeworkDoc([2600, 500]));
+    fireEvent.click(screen.getByRole("tab", { name: /Components/ }));
+    const pw = within(screen.getByTestId("multi-pipework"));
+    expect(pw.getByText("26.0 / 25 m")).toBeInTheDocument();
+    expect(
+      pw.getByText("Bed 1: branch is 26.0 m — max 25 m per branch on MXZ-3F54VGD")
+    ).toBeInTheDocument();
+  });
+
+  it("risers stay listed alongside the branches", () => {
+    const riser: DesignObject = {
+      id: "riser1",
+      type: "riser",
+      systemId: "sys1",
+      floorId: "flr",
+      geometry: { kind: "point", at: { x: 50, y: 50 } },
+      plane: "room",
+      props: { group: "A", heightM: 3 },
+    };
+    renderCockpit(pipeworkDoc([1000, 1200], [riser]));
+    fireEvent.click(screen.getByRole("tab", { name: /Components/ }));
+    const pw = within(screen.getByTestId("multi-pipework"));
+    expect(pw.getByText("Riser R-A")).toBeInTheDocument();
+  });
+});

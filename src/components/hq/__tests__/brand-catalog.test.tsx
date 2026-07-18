@@ -64,10 +64,12 @@ function groupsOf(mutate?: (p: DataPack) => void) {
 }
 
 describe("HqBrandCatalog — ported editor behaviours", () => {
-  it("renders a blocking gap pill and a nice-to-know pill", () => {
+  it("renders a blocking + and a nice-to-know + for missing fields", () => {
     render(<HqBrandCatalog groups={groupsOf()} />);
-    expect(screen.getByRole("button", { name: /Airflow/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Weight/ })).toBeInTheDocument();
+    const airflow = screen.getByRole("button", { name: /Add Airflow/ });
+    expect(airflow.className).toMatch(/block/); // Tier-1: ducted needs airflow
+    const weight = screen.getByRole("button", { name: /Add Weight/ });
+    expect(weight.className).not.toMatch(/block/); // Tier-3: never blocks
     expect(screen.getByText(/of 1 engine-ready/)).toBeInTheDocument();
   });
 
@@ -118,10 +120,10 @@ describe("HqBrandCatalog — ported editor behaviours", () => {
     const user = userEvent.setup();
     render(<HqBrandCatalog groups={groupBrandCatalog(view)} onSave={onSave} />);
 
-    const pill = screen.getByRole("button", { name: /Airflow.*210/ });
-    expect(pill.className).toMatch(/edited/);
+    const cell = screen.getByRole("button", { name: /Airflow.*210/ });
+    expect(cell.querySelector(".edited")).not.toBeNull(); // amber value + dot
 
-    await user.click(pill);
+    await user.click(cell);
     expect(screen.getByText(/Manual override/)).toBeInTheDocument();
     expect(screen.getByText(/Pack value/)).toBeInTheDocument();
   });
@@ -155,8 +157,46 @@ describe("HqBrandCatalog — drill-down structure", () => {
     expect(screen.getByText("Ducted")).toBeInTheDocument(); // form label
     expect(screen.getByText("PEAD-M-JAA")).toBeInTheDocument(); // series
     expect(screen.getByText("0/1 ready")).toBeInTheDocument();
-    // blocking field chip on the series header
-    expect(screen.getByText("airflow_ls")).toBeInTheDocument();
+    // fields missing across the whole series collapse into the To-add group
+    expect(screen.getByText(/To add · \d+ fields/)).toBeInTheDocument();
+    expect(screen.getByText("Airflow (Hi)")).toBeInTheDocument(); // To-add sub-header
+    expect(screen.getByText(/of 16 specs mapped/)).toBeInTheDocument();
+  });
+
+  it("renders capacity chips and the per-row status cell", () => {
+    render(<HqBrandCatalog groups={groupsOf()} />);
+    const cool = screen.getByRole("button", { name: /Cooling capacity — D1: 5/ });
+    expect(cool.querySelector(".hq-cmp-chip.cool")).not.toBeNull();
+    const heat = screen.getByRole("button", { name: /Heating capacity — D1: 6/ });
+    expect(heat.querySelector(".hq-cmp-chip.heat")).not.toBeNull();
+    expect(screen.getByText("1 blocking")).toBeInTheDocument(); // ducted airflow gap
+    expect(screen.getByText("8/16")).toBeInTheDocument(); // specs filled / total
+  });
+
+  it("shows ✓ Ready for engine-ready rows", () => {
+    render(
+      <HqBrandCatalog
+        groups={groupsOf((p) => {
+          p.indoor_units = [ducted("W1", { form_factor: "wall" })];
+        })}
+      />
+    );
+    expect(screen.getByText("✓ Ready")).toBeInTheDocument();
+  });
+
+  it("shows a static system chip for outdoor units (not a tag button)", async () => {
+    const user = userEvent.setup();
+    render(
+      <HqBrandCatalog
+        groups={groupsOf((p) => {
+          p.outdoor_units = [multiOdu("MXZ-1")];
+        })}
+      />
+    );
+    await user.click(screen.getByRole("button", { name: /Multi-split/ }));
+    const chip = screen.getByText("multi");
+    expect(chip.tagName).toBe("SPAN");
+    expect(chip.className).toMatch(/static/);
   });
 
   it("collapses and expands a series group", async () => {

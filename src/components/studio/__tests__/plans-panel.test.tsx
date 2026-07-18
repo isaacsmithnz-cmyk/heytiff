@@ -75,7 +75,7 @@ async function openSeeded(planImages: PlanImages) {
   await user.click(await screen.findByText("Plan job"));
   // a design that already has floors now opens straight on the canvas so you
   // resume where you left off — step back to Plans for the floor-list view
-  await user.click(screen.getByRole("button", { name: /Plans/ }));
+  await user.click(await screen.findByRole("button", { name: /Plans/ }));
   return user;
 }
 
@@ -106,7 +106,7 @@ describe("Plans stage", () => {
     await user.click(await screen.findByText("Sketch job"));
 
     // blank designs open on the canvas; the floor tools live on the Plans step
-    await user.click(screen.getByRole("button", { name: /Plans/ }));
+    await user.click(await screen.findByRole("button", { name: /Plans/ }));
     await user.click(screen.getByRole("button", { name: "Blank floor" }));
     expect(screen.getByDisplayValue("Level 1")).toBeInTheDocument();
   });
@@ -251,7 +251,7 @@ describe("Plans stage", () => {
     render(<Studio store={store} planImages={new FakePlanImages()} />);
     await user.click(await screen.findByText("Plan job"));
     // opens on the canvas now — step back to Plans for the floor list
-    await user.click(screen.getByRole("button", { name: /Plans/ }));
+    await user.click(await screen.findByRole("button", { name: /Plans/ }));
 
     expect(screen.getByText("2 sheets")).toBeInTheDocument();
 

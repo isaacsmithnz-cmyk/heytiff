@@ -21,7 +21,7 @@ async function openBlankDesignOnCanvas() {
   await user.type(screen.getByPlaceholderText(/Design name/), "Air dock test");
   await user.click(screen.getByRole("button", { name: /Continue/ }));
   await user.click(screen.getByText("Blank canvas"));
-  await user.click(screen.getByRole("button", { name: "2 Design" }));
+  await user.click(await screen.findByRole("button", { name: "2 Design" }));
   await user.click(screen.getByRole("button", { name: /Split \(1:1\)/ }));
   const canvas = screen.getByTestId("studio-canvas");
   const svg = canvas.querySelector("svg")!;

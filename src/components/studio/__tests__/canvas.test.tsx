@@ -21,7 +21,7 @@ async function openBlankDesignOnCanvas() {
   await user.type(screen.getByPlaceholderText(/Design name/), "Canvas test");
   await user.click(screen.getByRole("button", { name: /Continue/ }));
   await user.click(screen.getByText("Blank canvas"));
-  await user.click(screen.getByRole("button", { name: "2 Design" }));
+  await user.click(await screen.findByRole("button", { name: "2 Design" }));
   // type-first flow: pick a system type before the room tools unlock
   await user.click(screen.getByRole("button", { name: /Split \(1:1\)/ }));
   const canvas = screen.getByTestId("studio-canvas");
@@ -304,7 +304,7 @@ describe("Design canvas", () => {
     await user.type(screen.getByPlaceholderText(/Design name/), "Rail reveal");
     await user.click(screen.getByRole("button", { name: /Continue/ }));
     await user.click(screen.getByText("Blank canvas"));
-    await user.click(screen.getByRole("button", { name: "2 Design" }));
+    await user.click(await screen.findByRole("button", { name: "2 Design" }));
 
     // no system yet → the drawing rail is hidden (plan-prep stays in the top bar)
     expect(screen.queryByRole("toolbar", { name: "Canvas tools" })).toBeNull();

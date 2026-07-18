@@ -41,7 +41,7 @@ describe("reference link across the wall-marking flow", () => {
   beforeEach(() => window.localStorage.clear());
 
   async function drawRoomNoWalls(user: Awaited<ReturnType<typeof openPlanDesignOnCanvas>>["user"], svg: SVGSVGElement) {
-    await user.click(screen.getByRole("button", { name: "Room (rectangle)" }));
+    await user.click(await screen.findByRole("button", { name: "Room (rectangle)" }));
     fireEvent.pointerDown(svg, pt(400, 300));
     fireEvent.pointerMove(svg, pt(456, 356));
     fireEvent.pointerUp(svg, pt(456, 356));

@@ -197,6 +197,10 @@
 .fg .tool .hl2-adv .tunit .tin { padding-right: 40px; }
 .fg .tool .hl2-adv .tseg { padding: 4px; border-radius: 11px; }
 .fg .tool .hl2-adv .tseg button { padding: 7px 6px; font-size: 12.5px; }
+/* multiplier segments — the ×factor rides under each option */
+.fg .tool .mseg button { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 5px 6px 6px; line-height: 1.2; }
+.fg .tool .mseg button .m { font-size: 10px; font-weight: 700; color: var(--gray400); }
+.fg .tool .mseg button.on .m { color: var(--tool-accent-ink, var(--teal-d)); }
 /* orientation chips: equal-width, single row — no orphan NW wrap */
 .fg .tool .hl2-adv .tchips { flex-wrap: nowrap; gap: 6px; }
 .fg .tool .hl2-adv .tchip { flex: 1; min-width: 0; padding: 5px 0; text-align: center; font-size: 11.5px; }

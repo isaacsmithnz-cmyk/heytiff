@@ -152,6 +152,35 @@ describe("HeatLoadCalculator UI", () => {
     expect(tips.some((t) => t.includes("higher base W/m²"))).toBe(true);
   });
 
+  it("zone options name the areas serviced, not climate jargon", () => {
+    render(<HeatLoadCalculator />);
+    fireEvent.click(screen.getByRole("button", { name: /Advanced/ }));
+    expect(screen.getByRole("option", { name: "Zone 5 — Sydney, Perth, Adelaide" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Zone 6 — Melbourne, Geelong, Canberra" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /Warm temperate/ })).not.toBeInTheDocument();
+    // the climate descriptor moved into the info tip
+    const zoneTip = document.querySelector('[data-tip*="Warm temperate"]');
+    expect(zoneTip?.getAttribute("data-tip")).toContain("Sydney");
+  });
+
+  it("glazing and insulation options wear their multipliers; summary echoes non-default ones", () => {
+    render(<HeatLoadCalculator />);
+    fireEvent.change(screen.getByLabelText("Length in metres"), { target: { value: "5" } });
+    fireEvent.change(screen.getByLabelText("Width in metres"), { target: { value: "4" } });
+    fireEvent.click(screen.getByRole("button", { name: /Advanced/ }));
+    // multipliers visible on every option, selected or not
+    expect(screen.getByRole("button", { name: "Low ×0.80" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "High ×1.24" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Good ×0.85" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Poor ×1.20" })).toBeInTheDocument();
+    // picking non-defaults echoes the factor into the summary line
+    fireEvent.click(screen.getByRole("button", { name: "High ×1.24" }));
+    fireEvent.click(screen.getByRole("button", { name: "Poor ×1.20" }));
+    expect(screen.getByText(/high glass ×1.24 · poor insulation ×1.20/)).toBeInTheDocument();
+    // 2900 × 1.24 × 1.2 = 4315 W → 4.3 kW
+    expect(screen.getByText("4.3")).toBeInTheDocument();
+  });
+
   it("Advanced starts collapsed with a summary line; the header reveals the panel", () => {
     render(<HeatLoadCalculator />);
     expect(screen.getByText(/Zone 5 · Residential · moderate glass/)).toBeInTheDocument();

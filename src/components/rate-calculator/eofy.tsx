@@ -3,7 +3,7 @@
 /* EOFY comparison (reference-only) — math verbatim from the handoff. */
 
 import React from "react";
-import { PAYROLL_TAX, type CalcResult } from "./engine";
+import { DEFAULT_WORKING_WEEKS, PAYROLL_TAX, type CalcResult } from "./engine";
 import type { RateCalcState, EofyData } from "./state";
 import { RC } from "./theme";
 import { money, rate0 } from "./format";
@@ -116,7 +116,7 @@ export function EofyPanel({ s, patch, calc }: {
     const stdWages = staff.reduce((a, p) => {
       const isSubbie = p.employment_type === "Subcontractor";
       const isCasual = p.employment_type === "Casual";
-      const paidWeeks = (isSubbie || isCasual) ? (s.settings?.working_weeks || 48) : 52;
+      const paidWeeks = (isSubbie || isCasual) ? (s.settings?.working_weeks || DEFAULT_WORKING_WEEKS) : 52;
       return a + (p.hourly_wage || 0) * (p.contracted_hours_per_week || 38) * paidWeeks;
     }, 0);
     if (stdWages === 0) return null;

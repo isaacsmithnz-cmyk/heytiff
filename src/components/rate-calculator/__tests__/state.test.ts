@@ -1,5 +1,6 @@
 import { allStepsDone, daysSinceReviewed, emptyState, hydrateState, runEngine, timesheetWeeks } from "../state";
 import { buildDemoState } from "../demo-data";
+import { calculate, DEFAULT_WORKING_WEEKS } from "../engine";
 
 describe("emptyState", () => {
   it("is not ready and reports what is missing", () => {
@@ -66,7 +67,7 @@ describe("hydrateState", () => {
     expect(s.businessName).toBe("Acme Air");
     expect(s.currentRates).toEqual({ install: 120, service: null });
     expect(s.mode).toEqual({ staff: "Simple", business: "Simple", vehicles: "Simple" });
-    expect(s.settings.working_weeks).toBe(48);
+    expect(s.settings.working_weeks).toBe(DEFAULT_WORKING_WEEKS);
   });
 
   it("drops the legacy stored daysSince and keeps lastReviewed", () => {
@@ -134,5 +135,29 @@ describe("daysSinceReviewed", () => {
     expect(daysSinceReviewed(null, now)).toBeNull();
     expect(daysSinceReviewed(undefined, now)).toBeNull();
     expect(daysSinceReviewed("not-a-date", now)).toBeNull();
+  });
+});
+
+// ─── Working-weeks default ──────────────────────────────────────────────
+// The UI shipped 48 while the engine fell back to 44, so the two disagreed
+// silently for anyone whose settings didn't carry the key. One constant now
+// feeds both; this pins that they can't drift apart again.
+describe("working weeks default", () => {
+  it("is 46 — 52 less annual leave less public holidays", () => {
+    expect(DEFAULT_WORKING_WEEKS).toBe(46);
+    expect(emptyState().settings.working_weeks).toBe(DEFAULT_WORKING_WEEKS);
+  });
+
+  it("the engine's own fallback matches the shipped default", () => {
+    // A casual exercises the paidWeeks path; totalAnnualPaid exercises the
+    // billable-hours divisor — one fixture covers both engine fallbacks.
+    const staff = [{
+      id: "c1", name: "Cas", hourly_wage: 50, employment_type: "Casual",
+      contracted_hours_per_week: 38, install_pct: 100, service_pct: 0, admin_pct: 0,
+    }];
+    const fallback = calculate({ staff, settings: {} });
+    const explicit = calculate({ staff, settings: { working_weeks: DEFAULT_WORKING_WEEKS } });
+    expect(fallback.totalAnnualPaid).toBe(explicit.totalAnnualPaid);
+    expect(fallback.staffBreakdown[0].base).toBe(explicit.staffBreakdown[0].base);
   });
 });

@@ -95,7 +95,6 @@ export interface CalcSettings {
   payroll_tax_rate?: number;
   payroll_tax_fy?: string;
   working_weeks?: number;
-  working_days?: number;
   working_hours?: number;
   annual_cost_increase_pct?: number;
   review_reminder_months?: number;
@@ -253,6 +252,12 @@ export const PAYROLL_TAX: Record<string, { threshold: number; rate: number; fy: 
 
 export const LEAVE_LOADING_PCT = 17.5; // award rate, fixed
 export const ANNUAL_LEAVE_WEEKS = 4;
+/** Weeks a tech is actually on the tools: 52 − 4 annual leave − ~2 public
+    holidays (11 gazetted days ≈ 2.2 weeks). Personal/sick leave is NOT netted
+    off — crews that take it in full should set 44. Single source of truth:
+    state.ts, demo-data.ts, eofy.tsx and the settings stepper all read this, so
+    the engine fallback can never silently disagree with the UI again. */
+export const DEFAULT_WORKING_WEEKS = 46;
 export const SANITY_CEILING_HR = 1000; // any rate above this = data error
 export const MIN_WEEKS_FOR_CONFIDENCE = 4;
 export const MIN_WEEKS_FOR_TAX_WARNING = 8;
@@ -290,7 +295,7 @@ function staffAnnualCost(
 ): StaffCost {
   const wage = staff.hourly_wage || 0;
   const contracted = staff.contracted_hours_per_week || 38;
-  const weeks = settings.working_weeks || 44;
+  const weeks = settings.working_weeks || DEFAULT_WORKING_WEEKS;
 
   // Employment type drives paid weeks and entitlements:
   //   Full/Part Time  → paid 52 weeks/yr (annual leave, sick leave and public
@@ -378,7 +383,7 @@ export function calculate(data: EngineData): CalcResult {
     settings = {},
   } = data;
 
-  const weeks = settings.working_weeks || 44;
+  const weeks = settings.working_weeks || DEFAULT_WORKING_WEEKS;
   const hoursPerDay = settings.working_hours || 8;
 
   // Declared here so both simple-mode and normal paths can set/read them
@@ -399,7 +404,12 @@ export function calculate(data: EngineData): CalcResult {
       totalWages          = projAnnual;
       const burdenPct     = (settings.super_pct ?? 12) + (settings.workers_comp_pct ?? 2);
       const withBurden    = projAnnual * (1 + burdenPct / 100);
-      const leaveLoading  = (avgMonthly / (weeks / 12)) * ANNUAL_LEAVE_WEEKS * (LEAVE_LOADING_PCT / 100);
+      // projAnnual is 52 weeks of pay (avgMonthly × 12), so the true weekly wage
+      // bill is projAnnual / 52 — not projAnnual / working_weeks. Dividing by
+      // working_weeks overstated the loading by 52/weeks (8.3% at 48) and made
+      // it drift with a setting that has nothing to do with what leave costs.
+      // Detailed mode uses contracted × wage, which is likewise weeks-independent.
+      const leaveLoading  = (projAnnual / 52) * ANNUAL_LEAVE_WEEKS * (LEAVE_LOADING_PCT / 100);
       const totalAnnual   = withBurden + leaveLoading;
       const iPct = sl.install_pct ?? 60;
       const sPct = sl.service_pct ?? 30;

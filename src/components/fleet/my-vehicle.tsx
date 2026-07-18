@@ -38,22 +38,55 @@ export function MyVehicle({
   viewerId: string;
 }) {
   const [logKind, setLogKind] = useState<LogKind | null>(null);
+  const [logTarget, setLogTarget] = useState<string | null>(null);
   const vehicle = fleet.vehicles.find((v) => v.assignedTo === viewerId && v.status !== "sold");
   const viewer = staff.find((s) => s.id === viewerId);
+  const loggedBy = { id: viewerId, name: viewer?.name ?? "You" };
+  const working = fleet.vehicles.filter((v) => v.status !== "sold");
+  const closeLog = () => {
+    setLogKind(null);
+    setLogTarget(null);
+  };
 
   if (!vehicle) {
+    // No assignment — but you can still fuel the pool ute you borrowed today.
+    const fallback = working.find((v) => v.assignedTo === null) ?? working[0];
     return (
-      <div className="emptybox">
-        <span className="ei">
-          <Icon name="truck" size={24} />
-        </span>
-        <b>No vehicle assigned</b>
-        <em>When a vehicle is assigned to you, its rego, service status and fuel logging will live here.</em>
+      <div>
+        <div className="emptybox">
+          <span className="ei">
+            <Icon name="truck" size={24} />
+          </span>
+          <b>No vehicle assigned</b>
+          <em>When a vehicle is assigned to you, its rego, service status and fuel logging will live here.</em>
+        </div>
+        {fallback && (
+          <div className="fl-emptyadd">
+            <button className="pbtn ghost" onClick={() => setLogKind("fuel")}>
+              <Icon name="fuel" size={16} />
+              Log fuel for a pool vehicle
+            </button>
+          </div>
+        )}
+        {logKind && fallback && (
+          <LogModal
+            kind={logKind}
+            vehicle={fallback}
+            fleetVehicles={working}
+            loggedBy={loggedBy}
+            onSave={(log) => {
+              fleet.addLog(log);
+              closeLog();
+            }}
+            onClose={closeLog}
+          />
+        )}
       </div>
     );
   }
 
   const paused = vehicle.status === "offroad";
+  const borrowable = working.filter((v) => v.id !== vehicle.id && v.status === "active");
   const chips = vehicleChips(vehicle, openIssueCount(fleet.logs, vehicle.id));
   const vLogs = logsFor(fleet.logs, vehicle.id);
   const eco = fuelEconomy(vLogs);
@@ -122,6 +155,18 @@ export function MyVehicle({
           <Icon name="alert" size={15} />
           {displayName(vehicle)} is off the road — fuel &amp; odometer logging is paused. You can still
           report issues.
+          {borrowable.length > 0 && (
+            <button
+              className="fl-offbtn"
+              onClick={() => {
+                setLogTarget(borrowable[0].id);
+                setLogKind("fuel");
+              }}
+            >
+              <Icon name="fuel" size={13} />
+              Log fuel for another vehicle
+            </button>
+          )}
         </div>
       )}
 
@@ -154,13 +199,14 @@ export function MyVehicle({
       {logKind && (
         <LogModal
           kind={logKind}
-          vehicle={vehicle}
-          loggedBy={{ id: viewerId, name: viewer?.name ?? "You" }}
+          vehicle={(logTarget && working.find((v) => v.id === logTarget)) || vehicle}
+          fleetVehicles={working}
+          loggedBy={loggedBy}
           onSave={(log) => {
             fleet.addLog(log);
-            setLogKind(null);
+            closeLog();
           }}
-          onClose={() => setLogKind(null)}
+          onClose={closeLog}
         />
       )}
     </div>

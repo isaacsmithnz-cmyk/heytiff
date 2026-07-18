@@ -379,6 +379,7 @@ export function FleetRegister({ fleet, staff }: { fleet: FleetState; staff: Demo
         <LogModal
           kind={modal.kind}
           vehicle={openVehicle}
+          fleetVehicles={vehicles}
           loggedBy={{ id: null, name: "You" }}
           onSave={(log) => {
             fleet.addLog(log);

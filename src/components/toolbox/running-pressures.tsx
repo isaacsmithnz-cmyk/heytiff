@@ -1,30 +1,36 @@
 "use client";
 
-/* Running Pressures — Toolbox troubleshooting reference. Standard R32/R410A
-   saturation data (lib/toolbox/refrigerant.ts) presented three ways:
-   typical operating windows per mode, the full PT chart, and a live
-   superheat / subcooling calculator. Windows are sanity bands for a
-   stabilised system — inverters modulate, so they're deliberately wide. */
+/* Running Pressures — Toolbox troubleshooting reference, rebuilt around the
+   original app's toolbox identity (the tile always promised "R32 · R410A ·
+   R22"): a colour-coded refrigerant picker with those three leading, then
+   every refrigerant an Australian tech meets.
+
+   Reads like a manifold: LOW side panel is BLUE, HIGH side panel is RED
+   (hose colours), each showing the expected pressure band big, with a bar
+   showing where the band sits on the refrigerant's full chart scale. Below,
+   the PT chart for the selected refrigerant — one column for pure fluids,
+   liquid/vapor columns for glide blends (R407C) — and live superheat /
+   subcooling calculators that automatically read the correct column. */
 
 import { useState } from "react";
-import { Icon } from "@/components/shell/icon";
 import {
-  COOLING_WINDOWS,
-  HEATING_WINDOWS,
+  getRefrigerant,
   kpaToPsi,
   psiToKpa,
-  R32_SAT,
-  R410A_SAT,
   REFRIGERANTS,
   satTempC,
   subcoolingK,
   superheatK,
   windowPressures,
   type OperatingWindow,
-  type Refrigerant,
+  type RefrigerantKey,
 } from "@/lib/toolbox/refrigerant";
 
 type Unit = "kPa" | "psi";
+type Mode = "cooling" | "heating";
+
+const LOW = "#2E68FF"; // manifold low-side hose blue
+const HIGH = "#FF3366"; // manifold high-side hose red
 
 const fmtP = (kpa: number, unit: Unit) =>
   unit === "kPa" ? `${Math.round(kpa)}` : `${Math.round(kpaToPsi(kpa))}`;
@@ -34,7 +40,7 @@ function num(s: string): number | null {
   const n = Number(String(s).trim().replace(",", "."));
   return Number.isFinite(n) && n > 0 ? n : null;
 }
-/** Temps can legitimately be negative (heating mode suction lines). */
+/** Temps can legitimately be negative (heating mode, cold rooms). */
 function numSigned(s: string): number | null {
   const t = String(s).trim().replace(",", ".");
   if (t === "" || t === "-") return null;
@@ -60,45 +66,79 @@ const TONE_STYLE: Record<"ok" | "low" | "high", React.CSSProperties> = {
   high: { background: "rgba(255,51,102,0.12)", color: "#E0244B" },
 };
 
-function WindowRow({
+/* ---------- pressure band bar: where the window sits on the chart scale ---------- */
+
+function BandBar({
+  refKey,
   w,
-  refrigerant,
-  unit,
+  color,
 }: {
+  refKey: RefrigerantKey;
   w: OperatingWindow;
-  refrigerant: Refrigerant;
-  unit: Unit;
+  color: string;
 }) {
-  const p = windowPressures(refrigerant, w);
-  const suction = w.side === "suction";
+  const r = getRefrigerant(refKey);
+  const band = windowPressures(refKey, w);
+  if (!band) return null;
+  const side = w.side === "suction" ? "vapor" : "liquid";
+  const max = r.table[r.table.length - 1][side];
+  const lo = Math.max(0, (band.lo / max) * 100);
+  const hi = Math.min(100, (band.hi / max) * 100);
   return (
-    <div className="rp-win">
-      <div
-        className="ic"
-        style={{
-          background: suction ? "rgba(46,104,255,0.1)" : "rgba(255,138,0,0.12)",
-          color: suction ? "#2E68FF" : "#E07800",
-        }}
-      >
-        <Icon name={suction ? "arrowDown" : "arrowUp"} size={16} />
-      </div>
-      <div className="bd">
-        <b>{w.label}</b>
-        <em>{w.note}</em>
-      </div>
-      <div className="pv">
-        {p && (
-          <b>
-            {fmtP(p.lo, unit)}–{fmtP(p.hi, unit)} {unit}
-          </b>
-        )}
-        <em>
-          sat {w.satLoC}…{w.satHiC}°C
-        </em>
-      </div>
+    <div className="rp2-bar" aria-hidden="true">
+      <span
+        className="fill"
+        style={{ left: `${lo}%`, width: `${Math.max(hi - lo, 2)}%`, background: color }}
+      />
     </div>
   );
 }
+
+function SidePanel({
+  refKey,
+  windows,
+  side,
+  unit,
+}: {
+  refKey: RefrigerantKey;
+  windows: OperatingWindow[];
+  side: "suction" | "discharge";
+  unit: Unit;
+}) {
+  const low = side === "suction";
+  const color = low ? LOW : HIGH;
+  const ws = windows.filter((w) => w.side === side);
+  return (
+    <div className={"rp2-side " + (low ? "low" : "high")}>
+      <div className="hdr">
+        <span className="hose" style={{ background: color }} />
+        <b>{low ? "Low side" : "High side"}</b>
+        <em>{low ? "suction · vapor" : "discharge · liquid"}</em>
+      </div>
+      {ws.map((w) => {
+        const band = windowPressures(refKey, w);
+        return (
+          <div key={w.key} className="rp2-win">
+            <div className="wl">{w.label}</div>
+            {band && (
+              <div className="big" style={{ color }}>
+                {fmtP(band.lo, unit)}–{fmtP(band.hi, unit)}
+                <small> {unit}</small>
+              </div>
+            )}
+            <div className="sat">
+              sat {w.satLoC}…{w.satHiC}°C
+            </div>
+            <BandBar refKey={refKey} w={w} color={color} />
+            <p className="note">{w.note}</p>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ---------- calculators ---------- */
 
 function CalcResult({
   value,
@@ -128,46 +168,88 @@ function CalcResult({
 }
 
 export function RunningPressures() {
-  const [refrigerant, setRefrigerant] = useState<Refrigerant>("R32");
+  const [refKey, setRefKey] = useState<RefrigerantKey>("R32");
   const [unit, setUnit] = useState<Unit>("kPa");
+  const [mode, setMode] = useState<Mode>("cooling");
 
-  /* superheat inputs */
+  /* superheat / subcool inputs */
   const [shP, setShP] = useState("");
   const [shT, setShT] = useState("");
-  /* subcool inputs */
   const [scP, setScP] = useState("");
   const [scT, setScT] = useState("");
+
+  const r = getRefrigerant(refKey);
+  const hasHeating = r.heating.length > 0;
+  const activeMode: Mode = hasHeating ? mode : "cooling";
+  const windows = activeMode === "cooling" ? r.cooling : r.heating;
+  const glide = r.glideK >= 1;
 
   const toKpa = (v: number) => (unit === "kPa" ? v : psiToKpa(v));
 
   const shPk = num(shP) !== null ? toKpa(num(shP)!) : null;
   const shTemp = numSigned(shT);
-  const sh = shPk !== null && shTemp !== null ? superheatK(refrigerant, shPk, shTemp) : null;
-  const shSat = shPk !== null ? satTempC(refrigerant, shPk) : null;
+  const sh = shPk !== null && shTemp !== null ? superheatK(refKey, shPk, shTemp) : null;
+  const shSat = shPk !== null ? satTempC(refKey, shPk, "vapor") : null;
 
   const scPk = num(scP) !== null ? toKpa(num(scP)!) : null;
   const scTemp = numSigned(scT);
-  const sc = scPk !== null && scTemp !== null ? subcoolingK(refrigerant, scPk, scTemp) : null;
-  const scSat = scPk !== null ? satTempC(refrigerant, scPk) : null;
-
-  const offChart = (p: number | null, entered: string) =>
-    entered.trim() !== "" && num(entered) !== null && p !== null && satTempC(refrigerant, p) === null;
+  const sc = scPk !== null && scTemp !== null ? subcoolingK(refKey, scPk, scTemp) : null;
+  const scSat = scPk !== null ? satTempC(refKey, scPk, "liquid") : null;
 
   return (
     <>
+      {/* -------- refrigerant picker — colour-coded, most relevant first -------- */}
+      <div className="rp2-picker stg" role="group" aria-label="Refrigerant">
+        {REFRIGERANTS.map((x) => (
+          <button
+            key={x.key}
+            type="button"
+            className={"rp2-card" + (x.key === refKey ? " on" : "")}
+            style={{ "--rc": x.color } as React.CSSProperties}
+            onClick={() => setRefKey(x.key)}
+            aria-pressed={x.key === refKey}
+          >
+            <span className="dot" />
+            <b>{x.key}</b>
+            <em>{x.status}</em>
+            {x.flammable && (
+              <span className="fl">{x.safety.startsWith("A3") ? "A3" : "A2L"}</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* facts strip for the selected refrigerant */}
+      <div className="rp2-facts stg">
+        <b style={{ color: r.color }}>{r.key}</b>
+        <span>{r.name}</span>
+        <span className="sep">·</span>
+        <span>{r.uses}</span>
+        <span className="sep">·</span>
+        <span>{r.safety}</span>
+        {glide && (
+          <>
+            <span className="sep">·</span>
+            <span className="glide">glide ~{r.glideK} K — two-column chart</span>
+          </>
+        )}
+      </div>
+
       <div className="rp-ctl stg">
-        <div className="tseg" role="group" aria-label="Refrigerant">
-          {REFRIGERANTS.map((r) => (
-            <button
-              key={r}
-              type="button"
-              className={refrigerant === r ? "on" : ""}
-              onClick={() => setRefrigerant(r)}
-            >
-              {r}
-            </button>
-          ))}
-        </div>
+        {hasHeating && (
+          <div className="tseg" role="group" aria-label="Mode">
+            {(["cooling", "heating"] as Mode[]).map((m) => (
+              <button
+                key={m}
+                type="button"
+                className={activeMode === m ? "on" : ""}
+                onClick={() => setMode(m)}
+              >
+                {m === "cooling" ? "Cooling" : "Heating"}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="tseg" role="group" aria-label="Pressure unit">
           {(["kPa", "psi"] as Unit[]).map((u) => (
             <button key={u} type="button" className={unit === u ? "on" : ""} onClick={() => setUnit(u)}>
@@ -179,60 +261,78 @@ export function RunningPressures() {
 
       <div className="tcols stgp">
         <div>
-          {/* -------- typical windows -------- */}
-          <section className="tcard">
-            <h2 className="tct">Typical running pressures — {refrigerant}</h2>
+          {/* -------- the manifold view: low blue, high red -------- */}
+          <section className="tcard rp2-gauges">
+            <h2 className="tct">
+              Typical running pressures — {r.key}
+              {activeMode === "heating" ? " · heating" : ""}
+            </h2>
             <p className="tcs">
-              Gauge pressure at the service ports, system stabilised 10–15 minutes. Inverters modulate —
-              treat these as sanity windows, not a spec.
+              Gauge pressure at the service ports, system stabilised 10–15 minutes. Inverters
+              modulate — sanity windows, not a spec.
             </p>
-            <h3 className="tlab" style={{ marginTop: 4 }}>Cooling mode</h3>
-            {COOLING_WINDOWS.map((w) => (
-              <WindowRow key={w.key} w={w} refrigerant={refrigerant} unit={unit} />
-            ))}
-            <h3 className="tlab" style={{ marginTop: 22 }}>Heating mode</h3>
-            {HEATING_WINDOWS.map((w) => (
-              <WindowRow key={w.key} w={w} refrigerant={refrigerant} unit={unit} />
-            ))}
+            <div className="rp2-sides">
+              <SidePanel refKey={refKey} windows={windows} side="suction" unit={unit} />
+              <SidePanel refKey={refKey} windows={windows} side="discharge" unit={unit} />
+            </div>
           </section>
 
-          {/* -------- PT chart -------- */}
+          {/* -------- PT chart for the selected refrigerant -------- */}
           <section className="tcard">
-            <h2 className="tct">Pressure–temperature chart</h2>
-            <p className="tcs">Saturation pressure, {unit} gauge. Standard published data (±1%).</p>
-            <div className="rp-legend">
-              <span>
-                <i style={{ background: "#2e68ff" }} /> typical evaporating band (0–12°C)
-              </span>
-              <span>
-                <i style={{ background: "#ff8a00" }} /> typical condensing band (40–55°C)
-              </span>
-            </div>
+            <h2 className="tct">PT chart — {r.key}</h2>
+            <p className="tcs">
+              Saturation pressure, {unit} gauge. Standard published data (±1–3%).
+              {glide ? " Subcool from the Liquid column, superheat from the Vapor column." : ""}
+            </p>
             <div className="rp-tablewrap">
               <table className="rp-table">
                 <thead>
                   <tr>
                     <th>Sat temp °C</th>
-                    <th>R32 ({unit})</th>
-                    <th>R410A ({unit})</th>
+                    {glide ? (
+                      <>
+                        <th>Liquid ({unit})</th>
+                        <th>Vapor ({unit})</th>
+                      </>
+                    ) : (
+                      <th>Pressure ({unit})</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
-                  {R32_SAT.map((row, i) => {
+                  {r.table.map((row) => {
+                    const suction = windows.find((w) => w.side === "suction");
+                    const discharge = windows.find((w) => w.side === "discharge");
                     const band =
-                      row.c >= 0 && row.c <= 12 ? "evap" : row.c >= 40 && row.c <= 55 ? "cond" : "";
+                      suction && row.c >= suction.satLoC && row.c <= suction.satHiC
+                        ? "evap"
+                        : discharge && row.c >= discharge.satLoC && row.c <= discharge.satHiC
+                          ? "cond"
+                          : "";
                     return (
                       <tr key={row.c} className={band}>
                         <td>{row.c}°</td>
-                        <td className={refrigerant === "R32" ? "sel" : ""}>{fmtP(row.kpa, unit)}</td>
-                        <td className={refrigerant === "R410A" ? "sel" : ""}>
-                          {fmtP(R410A_SAT[i].kpa, unit)}
-                        </td>
+                        {glide ? (
+                          <>
+                            <td>{fmtP(row.liquid, unit)}</td>
+                            <td>{fmtP(row.vapor, unit)}</td>
+                          </>
+                        ) : (
+                          <td>{fmtP(row.vapor, unit)}</td>
+                        )}
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
+            </div>
+            <div className="rp-legend" style={{ marginTop: 12, marginBottom: 0 }}>
+              <span>
+                <i style={{ background: LOW }} /> typical evaporating band
+              </span>
+              <span>
+                <i style={{ background: HIGH }} /> typical condensing band
+              </span>
             </div>
           </section>
         </div>
@@ -241,7 +341,9 @@ export function RunningPressures() {
         <div className="tstick">
           <section className="tcard">
             <h2 className="tct">Superheat</h2>
-            <p className="tcs">Suction pressure + suction line temperature at the outdoor unit.</p>
+            <p className="tcs">
+              Suction pressure + suction line temperature{glide ? " (vapor column)" : ""}.
+            </p>
             <div style={{ display: "flex", gap: 10 }}>
               <div className="tunit" style={{ flex: 1 }}>
                 <input
@@ -272,8 +374,8 @@ export function RunningPressures() {
               status={sh !== null ? shStatus(sh) : null}
               satLine={
                 shSat !== null
-                  ? `${fmtP(shPk!, unit)} ${unit} → sat ${shSat.toFixed(1)}°C`
-                  : offChart(shPk, shP)
+                  ? `${fmtP(shPk!, unit)} ${unit} → sat ${shSat.toFixed(1)}°C${glide ? " (dew)" : ""}`
+                  : shPk !== null
                     ? "Pressure is off the chart range"
                     : null
               }
@@ -282,7 +384,9 @@ export function RunningPressures() {
 
           <section className="tcard">
             <h2 className="tct">Subcooling</h2>
-            <p className="tcs">Liquid pressure + liquid line temperature.</p>
+            <p className="tcs">
+              Liquid pressure + liquid line temperature{glide ? " (liquid column)" : ""}.
+            </p>
             <div style={{ display: "flex", gap: 10 }}>
               <div className="tunit" style={{ flex: 1 }}>
                 <input
@@ -313,8 +417,8 @@ export function RunningPressures() {
               status={sc !== null ? scStatus(sc) : null}
               satLine={
                 scSat !== null
-                  ? `${fmtP(scPk!, unit)} ${unit} → sat ${scSat.toFixed(1)}°C`
-                  : offChart(scPk, scP)
+                  ? `${fmtP(scPk!, unit)} ${unit} → sat ${scSat.toFixed(1)}°C${glide ? " (bubble)" : ""}`
+                  : scPk !== null
                     ? "Pressure is off the chart range"
                     : null
               }
@@ -325,10 +429,11 @@ export function RunningPressures() {
             <h2 className="tct">Field notes</h2>
             <ul style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 8 }}>
               {[
-                "Purge hoses before reading; measure at the service ports.",
-                "Let the system stabilise 10–15 min at a fixed demand before judging.",
-                "R32 runs slightly higher pressure than R410A at the same temperature — never mix charts.",
-                "Typical targets: superheat ~4–10 K, subcooling ~5–8 K. Manufacturer figures override these.",
+                "Blue hose = low side (suction), red = high side (discharge) — the panels above match.",
+                "Purge hoses before reading; measure at the service ports; let it stabilise 10–15 min.",
+                "Typical AC targets: superheat ~4–10 K, subcooling ~5–8 K. Manufacturer figures override these.",
+                "R32 (A2L) and R290 (A3) are flammable — no open flame, ventilate, use rated recovery gear.",
+                "R407C glides ~5.5 K — always use the two-column chart, never a single-value app for it.",
                 "Pressures alone don't confirm charge — weigh refrigerant for anything beyond top-up diagnosis.",
               ].map((n) => (
                 <li key={n} className="tnote" style={{ margin: 0 }}>

@@ -8,7 +8,7 @@ export default function RunningPressuresPage() {
       accent="#FF3366"
       accentInk="#E0244B"
       title="Running Pressures"
-      sub="R32 / R410A saturation reference — typical operating windows, the full PT chart, and a live superheat / subcooling calculator."
+      sub="R32 · R410A · R22 and every refrigerant you'll meet — expected gauge readings at a glance, the PT chart, and live superheat / subcooling."
     >
       <RunningPressures />
     </ToolPage>

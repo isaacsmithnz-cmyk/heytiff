@@ -64,10 +64,11 @@ const STEPS = [
 
 const MODE_LABEL = { plan: "Floor plans", blank: "Blank canvas" } as const;
 
-/* screen-swap fade timings — see throughFade(). Keep in step with the .26s/.34s
-   opacity transitions on `.fg .outlet:has(.dstudio…)` in studio.css. */
-const FADE_OUT_MS = 260;
-const FADE_PAINT_MS = 40;
+/* screen-swap fade timings — see throughFade(). Keep in step with the .15s/.2s
+   opacity transitions on `.fg .outlet:has(.dstudio…)` in studio.css. Kept brisk:
+   a longer dip reads as a stall rather than a transition. */
+const FADE_OUT_MS = 150;
+const FADE_PAINT_MS = 20;
 
 function timeAgo(iso: string): string {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
@@ -120,24 +121,29 @@ export function Studio({
      then fade the new screen in over the frame — the start screen is dark and the
      editor is a light well, and cross-fading them against each other reads as a
      glitch. The `swapping` class fades the outlet, so the well's background and
-     its content go together and nothing can peek through mid-swap. It wraps the
-     async load too, so it doubles as the loading state. */
+     its content go together and nothing can peek through mid-swap.
+
+     `prepare` (the load/save) runs DURING the fade-out, not after it: doing the
+     server round-trip on a blank screen left a dead beat long enough to read as
+     "did it break?". `apply` then mounts the new screen at zero opacity. So a
+     quick load costs no extra time at all, and a slow one only shows the gap it
+     genuinely needs. */
   const fadeTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   useEffect(() => {
     const timers = fadeTimers.current;
     return () => timers.forEach(clearTimeout);
   }, []);
   const throughFade = useCallback(
-    async (swap: () => void | Promise<void>) => {
+    async <T,>(prepare: () => T | Promise<T>, apply: (value: T) => void) => {
       const wait = (ms: number) =>
         new Promise<void>((r) => {
           fadeTimers.current.push(setTimeout(r, ms));
         });
       setSwapping(true);
       try {
-        await wait(FADE_OUT_MS);
-        await swap();
-        await wait(FADE_PAINT_MS);
+        const [value] = await Promise.all([prepare(), wait(FADE_OUT_MS)]);
+        apply(value);
+        await wait(FADE_PAINT_MS); // one beat to paint before fading back in
       } finally {
         setSwapping(false); // always fade back in, even if the load throws
       }
@@ -264,16 +270,20 @@ export function Studio({
     [doc, getStore, mutate]
   );
 
-  const goHome = useCallback(async () => {
+  /* leaving the editor: flush the debounce before going (the local buffer already
+     has it) — this runs during the fade-out, then backToHome lands the swap */
+  const flushSave = useCallback(async () => {
     if (doc) {
-      // flush the debounce before leaving; local buffer already has it
       await getStore()
         .save(doc)
         .catch(() => {});
     }
+  }, [doc, getStore]);
+
+  const backToHome = useCallback(() => {
     setDoc(null);
     refreshRecents();
-  }, [doc, getStore, refreshRecents]);
+  }, [refreshRecents]);
 
   return (
     <div className="page in">
@@ -290,7 +300,7 @@ export function Studio({
             onStep={setStep}
             onMutate={mutate}
             onReplace={replaceDoc}
-            onHome={() => throughFade(goHome)}
+            onHome={() => throughFade(flushSave, backToHome)}
             onAddVariant={addVariant}
             onSwitchVariant={switchVariant}
             onRenameVariant={renameVariant}
@@ -303,14 +313,16 @@ export function Studio({
               throughFade(async () => {
                 const d = createDesign({ name, mode });
                 await getStore().save(d);
-                openDesign(d);
-              })
+                return d;
+              }, openDesign)
             }
             onOpen={(id) =>
-              throughFade(async () => {
-                const d = await getStore().load(id);
-                if (d) openDesign(d);
-              })
+              throughFade(
+                () => getStore().load(id),
+                (d) => {
+                  if (d) openDesign(d);
+                }
+              )
             }
             onDelete={async (id) => {
               await getStore()
@@ -321,8 +333,8 @@ export function Studio({
             onImport={(d) =>
               throughFade(async () => {
                 await getStore().save(d);
-                openDesign(d);
-              })
+                return d;
+              }, openDesign)
             }
           />
         )}

@@ -815,9 +815,9 @@
 
   .fg-cmd { position:fixed; inset:0; z-index:100; display:none; align-items:flex-start; justify-content:center; padding-top:15vh; font-family:var(--font-jakarta), sans-serif; }
   .fg-cmd.open { display:flex; }
-  .fg-cmd .ov { position:absolute; inset:0; background:rgba(5,5,5,.4); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); animation:fgcFade .2s both; }
+  .fg-cmd .ov { position:absolute; inset:0; background:rgba(5,5,5,.4); backdrop-filter:blur(8px); animation:fgcFade .2s both; }
   @keyframes fgcFade { from{opacity:0} to{opacity:1} }
-  .fg-cmd .box { position:relative; width:640px; max-width:calc(100vw - 32px); border-radius:28px; overflow:hidden; background:rgba(255,255,255,.9); backdrop-filter:blur(24px) saturate(1.6); -webkit-backdrop-filter:blur(24px) saturate(1.6); border:1px solid #fff; box-shadow:0 30px 80px -20px rgba(0,0,0,.4); animation:fgcIn .3s cubic-bezier(.34,1.4,.5,1) both; }
+  .fg-cmd .box { position:relative; width:640px; max-width:calc(100vw - 32px); border-radius:28px; overflow:hidden; background:rgba(255,255,255,.9); backdrop-filter:blur(24px) saturate(1.6); border:1px solid #fff; box-shadow:0 30px 80px -20px rgba(0,0,0,.4); animation:fgcIn .3s cubic-bezier(.34,1.4,.5,1) both; }
   @keyframes fgcIn { from{opacity:0;transform:scale(.96) translateY(-8px)} to{opacity:1;transform:none} }
   .fg-cmd .box .glow { position:absolute; top:-80px; left:50%; transform:translateX(-50%); width:300px; height:160px; background:#00E5C0; filter:blur(100px); opacity:.2; pointer-events:none; }
   .fg-cmd .cin { position:relative; display:flex; align-items:center; gap:16px; padding:20px 24px; border-bottom:1px solid #f3f4f6; }

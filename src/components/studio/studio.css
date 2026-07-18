@@ -61,12 +61,12 @@
    (#050505 + framefx) never moves, so there's nothing to peek through.
    Driven by Studio's throughFade(). */
 .fg .outlet:has(.dstudio) {
-  transition: opacity 0.34s ease; /* fading back in */
+  transition: opacity 0.2s ease; /* fading back in */
 }
 .fg .outlet:has(.dstudio.swapping) {
   opacity: 0;
   pointer-events: none; /* invisible ≠ unclickable — swallow clicks mid-swap */
-  transition-duration: 0.26s; /* fading out */
+  transition-duration: 0.15s; /* fading out */
 }
 
 /* Start screen only: dissolve the shell's light "well" so the dark canvas merges

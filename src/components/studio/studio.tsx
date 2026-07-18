@@ -64,11 +64,12 @@ const STEPS = [
 
 const MODE_LABEL = { plan: "Floor plans", blank: "Blank canvas" } as const;
 
-/* screen-swap fade timings — see throughFade(). Keep in step with the .15s/.2s
-   opacity transitions on `.fg .outlet:has(.dstudio…)` in studio.css. Kept brisk:
-   a longer dip reads as a stall rather than a transition. */
-const FADE_OUT_MS = 150;
-const FADE_PAINT_MS = 20;
+/* screen-swap fade timings — see throughFade(). Keep in step with the .09s/.12s
+   opacity transitions on `.fg .outlet:has(.dstudio…)` in studio.css. Deliberately
+   brisk: this only has to mask the dark↔light snap, and anything longer reads as
+   a stall rather than a transition. */
+const FADE_OUT_MS = 90;
+const FADE_PAINT_MS = 16; // one frame, just enough to paint before fading back in
 
 function timeAgo(iso: string): string {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
@@ -394,7 +395,11 @@ function Home({
 
   return (
     <div className="ds-home">
-      <div className="ds-home-stack stgp">
+      {/* no `stgp`: the shell's pop-in stagger (.4s plus up to .18s of delays)
+          replays every time Home remounts, so it ran ON TOP of the screen-swap
+          fade and kept things moving for ~600ms after the swap had landed. The
+          fade is the transition now. */}
+      <div className="ds-home-stack">
         <section className="ds-hero">
           {step === "name" ? (
             <>

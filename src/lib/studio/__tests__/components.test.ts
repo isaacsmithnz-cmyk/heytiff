@@ -75,8 +75,9 @@ describe("systemComponents — gating", () => {
   });
 });
 
-describe("systemComponents — derived rows (small split, no pre-charge)", () => {
-  // SLZ-M25FA-A + SUZ-M25VAD-A: ODU phase 1 · R32 · no precharge; charge none_required
+describe("systemComponents — derived rows (small split, no top-up)", () => {
+  // SLZ-M25FA-A + SUZ-M25VAD-A: ODU phase 1 · R32 · precharge 0.65 kg (AU
+  // brochure p.24); charge none_required
   const { doc, system } = docWith({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" });
   const rows = systemComponents(doc, pack, system, "cooling");
 
@@ -92,11 +93,11 @@ describe("systemComponents — derived rows (small split, no pre-charge)", () =>
     expect(odu.value).toBe("2.5 kW"); // pair rated_cool_kw under the cooling basis
   });
 
-  it("shows no top-up when the pair needs none", () => {
+  it("shows the factory pre-charge with no top-up when the pair needs none", () => {
     const charge = rows.find((r) => r.id === "charge")!;
     expect(charge.name).toBe("R32");
     expect(charge.sub).toBe("Pre-charged — no top-up");
-    expect(charge.value).toBe("—"); // no factory pre-charge on this small ODU
+    expect(charge.value).toBe("0.65 kg"); // factory pre-charge on this small ODU
   });
 });
 

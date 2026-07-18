@@ -3397,8 +3397,22 @@
    "kind": "extracted",
    "source": "M-P Series (Mr Slim) Data Book; sound: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
    "edition": "M-P0922 (2024)",
-   "page": "A-84"
-  }
+   "page": "A-84; AU Ducted Brochure 2024 p.25"
+  },
+  "supply_opening": {
+   "w_mm": 860,
+   "h_mm": 178
+  },
+  "return_opening": {
+   "w_mm": 858,
+   "h_mm": 210
+  },
+  "weight_kg": 27,
+  "power_supply": "230 V, Single-phase, 50/60 Hz",
+  "phase": "1",
+  "static_pressure_pa": 125,
+  "drain_pump": "built-in",
+  "filter": "built-in"
  },
  {
   "model": "PEAD-M60JAA(D)",
@@ -3427,8 +3441,22 @@
    "kind": "extracted",
    "source": "M-P Series (Mr Slim) Data Book; sound: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
    "edition": "M-P0922 (2024)",
-   "page": "A-84"
-  }
+   "page": "A-84; AU Ducted Brochure 2024 p.25"
+  },
+  "supply_opening": {
+   "w_mm": 1060,
+   "h_mm": 178
+  },
+  "return_opening": {
+   "w_mm": 1058,
+   "h_mm": 210
+  },
+  "weight_kg": 30,
+  "power_supply": "230 V, Single-phase, 50/60 Hz",
+  "phase": "1",
+  "static_pressure_pa": 125,
+  "drain_pump": "built-in",
+  "filter": "built-in"
  },
  {
   "model": "PEAD-M71JAA(D)",
@@ -3457,8 +3485,22 @@
    "kind": "extracted",
    "source": "M-P Series (Mr Slim) Data Book; sound: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
    "edition": "M-P0922 (2024)",
-   "page": "A-86"
-  }
+   "page": "A-86; AU Ducted Brochure 2024 p.25"
+  },
+  "supply_opening": {
+   "w_mm": 1060,
+   "h_mm": 178
+  },
+  "return_opening": {
+   "w_mm": 1058,
+   "h_mm": 210
+  },
+  "weight_kg": 30,
+  "power_supply": "230 V, Single-phase, 50/60 Hz",
+  "phase": "1",
+  "static_pressure_pa": 125,
+  "drain_pump": "built-in",
+  "filter": "built-in"
  },
  {
   "model": "PEAD-M100JAA(D)",
@@ -3487,8 +3529,22 @@
    "kind": "extracted",
    "source": "M-P Series (Mr Slim) Data Book; sound: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
    "edition": "M-P0922 (2024)",
-   "page": "A-86"
-  }
+   "page": "A-86; AU Ducted Brochure 2024 p.25"
+  },
+  "supply_opening": {
+   "w_mm": 1360,
+   "h_mm": 178
+  },
+  "return_opening": {
+   "w_mm": 1358,
+   "h_mm": 210
+  },
+  "weight_kg": 39,
+  "power_supply": "230 V, Single-phase, 50 Hz",
+  "phase": "1",
+  "static_pressure_pa": 125,
+  "drain_pump": "built-in",
+  "filter": "built-in"
  },
  {
   "model": "PEAD-M125JAA(D)",
@@ -3517,8 +3573,22 @@
    "kind": "extracted",
    "source": "M-P Series (Mr Slim) Data Book; sound: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
    "edition": "M-P0922 (2024)",
-   "page": "A-86"
-  }
+   "page": "A-86; AU Ducted Brochure 2024 p.25"
+  },
+  "supply_opening": {
+   "w_mm": 1360,
+   "h_mm": 178
+  },
+  "return_opening": {
+   "w_mm": 1358,
+   "h_mm": 210
+  },
+  "weight_kg": 40,
+  "power_supply": "230 V, Single-phase, 50 Hz",
+  "phase": "1",
+  "static_pressure_pa": 125,
+  "drain_pump": "built-in",
+  "filter": "built-in"
  },
  {
   "model": "PEAD-M140JAA(D)",
@@ -3547,8 +3617,22 @@
    "kind": "extracted",
    "source": "M-P Series (Mr Slim) Data Book; sound: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
    "edition": "M-P0922 (2024)",
-   "page": "A-86"
-  }
+   "page": "A-86; AU Ducted Brochure 2024 p.25"
+  },
+  "supply_opening": {
+   "w_mm": 1560,
+   "h_mm": 178
+  },
+  "return_opening": {
+   "w_mm": 1558,
+   "h_mm": 210
+  },
+  "weight_kg": 44,
+  "power_supply": "230 V, Single-phase, 50 Hz",
+  "phase": "1",
+  "static_pressure_pa": 125,
+  "drain_pump": "built-in",
+  "filter": "built-in"
  },
  {
   "model": "PEA-M100HAA",
@@ -3576,8 +3660,19 @@
    "kind": "extracted",
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
-   "page": "A-89"
-  }
+   "page": "A-89; AU Ducted Brochure 2024 p.28-29"
+  },
+  "supply_opening": {
+   "w_mm": 1325,
+   "h_mm": 266
+  },
+  "return_opening": "spigots",
+  "sound_low_dba": 29,
+  "sound_high_dba": 38,
+  "phase": "1",
+  "static_pressure_pa": 150,
+  "drain_pump": "none",
+  "power_supply": "Outdoor power supply"
  },
  {
   "model": "PEA-M125HAA",
@@ -3605,8 +3700,19 @@
    "kind": "extracted",
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
-   "page": "A-89"
-  }
+   "page": "A-89; AU Ducted Brochure 2024 p.28-29"
+  },
+  "supply_opening": {
+   "w_mm": 1325,
+   "h_mm": 266
+  },
+  "return_opening": "spigots",
+  "sound_low_dba": 35,
+  "sound_high_dba": 45,
+  "phase": "1",
+  "static_pressure_pa": 150,
+  "drain_pump": "none",
+  "power_supply": "Outdoor power supply"
  },
  {
   "model": "PEA-M140HAA",
@@ -3634,8 +3740,19 @@
    "kind": "extracted",
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
-   "page": "A-89"
-  }
+   "page": "A-89; AU Ducted Brochure 2024 p.28-29"
+  },
+  "supply_opening": {
+   "w_mm": 1325,
+   "h_mm": 266
+  },
+  "return_opening": "spigots",
+  "sound_low_dba": 35,
+  "sound_high_dba": 45,
+  "phase": "1",
+  "static_pressure_pa": 150,
+  "drain_pump": "none",
+  "power_supply": "Outdoor power supply"
  },
  {
   "model": "PEA-M160HAA",
@@ -3663,8 +3780,20 @@
    "kind": "extracted",
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
-   "page": "A-89"
-  }
+   "page": "A-89; AU Ducted Brochure 2024 p.29 + LC Flyer 2023 p.4"
+  },
+  "supply_opening": {
+   "w_mm": 1325,
+   "h_mm": 266
+  },
+  "return_opening": "spigots",
+  "sound_low_dba": 35,
+  "sound_high_dba": 45,
+  "power_supply": "230 V, Single-phase, 50 Hz",
+  "max_amps_a": 3.7,
+  "phase": "1",
+  "static_pressure_pa": 150,
+  "drain_pump": "none"
  },
  {
   "model": "PEA-M100GAA",
@@ -3692,8 +3821,22 @@
    "kind": "extracted",
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
-   "page": "A-92"
-  }
+   "page": "A-92; AU Ducted Brochure 2024 p.27"
+  },
+  "supply_opening": {
+   "w_mm": 921,
+   "h_mm": 250
+  },
+  "return_opening": {
+   "w_mm": 1102,
+   "h_mm": 330
+  },
+  "sound_low_dba": 39,
+  "sound_high_dba": 42,
+  "phase": "1",
+  "static_pressure_pa": 150,
+  "drain_pump": "none",
+  "power_supply": "Outdoor power supply"
  },
  {
   "model": "PEA-M125GAA",
@@ -3721,8 +3864,22 @@
    "kind": "extracted",
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
-   "page": "A-92"
-  }
+   "page": "A-92; AU Ducted Brochure 2024 p.27"
+  },
+  "supply_opening": {
+   "w_mm": 921,
+   "h_mm": 250
+  },
+  "return_opening": {
+   "w_mm": 1102,
+   "h_mm": 330
+  },
+  "sound_low_dba": 42,
+  "sound_high_dba": 45,
+  "phase": "1",
+  "static_pressure_pa": 150,
+  "drain_pump": "none",
+  "power_supply": "Outdoor power supply"
  },
  {
   "model": "PEA-M140GAA",
@@ -3750,8 +3907,22 @@
    "kind": "extracted",
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
-   "page": "A-92"
-  }
+   "page": "A-92; AU Ducted Brochure 2024 p.27"
+  },
+  "supply_opening": {
+   "w_mm": 921,
+   "h_mm": 250
+  },
+  "return_opening": {
+   "w_mm": 1102,
+   "h_mm": 330
+  },
+  "sound_low_dba": 42,
+  "sound_high_dba": 45,
+  "phase": "1",
+  "static_pressure_pa": 150,
+  "drain_pump": "none",
+  "power_supply": "Outdoor power supply"
  },
  {
   "model": "PEA-M180LAA",
@@ -3779,8 +3950,23 @@
    "kind": "extracted",
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
-   "page": "A-94"
-  }
+   "page": "A-94; AU Ducted Brochure 2024 p.30 + LC Flyer 2023 p.4"
+  },
+  "supply_opening": {
+   "w_mm": 1100,
+   "h_mm": 340
+  },
+  "return_opening": {
+   "w_mm": 1100,
+   "h_mm": 420
+  },
+  "sound_low_dba": 30,
+  "sound_high_dba": 46,
+  "power_supply": "230 V, Single-phase, 50 Hz",
+  "max_amps_a": 4.8,
+  "phase": "1",
+  "static_pressure_pa": 250,
+  "drain_pump": "none"
  },
  {
   "model": "PEA-M200LAA",
@@ -3808,8 +3994,23 @@
    "kind": "extracted",
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
-   "page": "A-94"
-  }
+   "page": "A-94; AU Ducted Brochure 2024 p.30 + LC Flyer 2023 p.4"
+  },
+  "supply_opening": {
+   "w_mm": 1100,
+   "h_mm": 340
+  },
+  "return_opening": {
+   "w_mm": 1100,
+   "h_mm": 420
+  },
+  "sound_low_dba": 30,
+  "sound_high_dba": 46,
+  "power_supply": "230 V, Single-phase, 50 Hz",
+  "max_amps_a": 4.8,
+  "phase": "1",
+  "static_pressure_pa": 250,
+  "drain_pump": "none"
  },
  {
   "model": "PEA-M250LAA",
@@ -3837,8 +4038,23 @@
    "kind": "extracted",
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
-   "page": "A-94"
-  }
+   "page": "A-94; AU Ducted Brochure 2024 p.30 + LC Flyer 2023 p.4"
+  },
+  "supply_opening": {
+   "w_mm": 1100,
+   "h_mm": 340
+  },
+  "return_opening": {
+   "w_mm": 1100,
+   "h_mm": 420
+  },
+  "sound_low_dba": 32.5,
+  "sound_high_dba": 48.5,
+  "power_supply": "230 V, Single-phase, 50 Hz",
+  "max_amps_a": 4.8,
+  "phase": "1",
+  "static_pressure_pa": 250,
+  "drain_pump": "none"
  },
  {
   "model": "SLZ-M25FA-A",
@@ -3978,8 +4194,22 @@
    "kind": "extracted",
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
-   "page": "B-30"
-  }
+   "page": "B-30; AU Ducted Brochure 2024 p.24"
+  },
+  "supply_opening": {
+   "w_mm": 660,
+   "h_mm": 150
+  },
+  "return_opening": {
+   "w_mm": 660,
+   "h_mm": 157.5
+  },
+  "sound_low_dba": 22,
+  "sound_high_dba": 29,
+  "phase": "1",
+  "static_pressure_pa": 50,
+  "drain_pump": "none",
+  "power_supply": "230 V, Single-phase, 50/60 Hz (outdoor unit supply)"
  },
  {
   "model": "SEZ-M35DA(L)",
@@ -4007,8 +4237,22 @@
    "kind": "extracted",
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
-   "page": "B-30"
-  }
+   "page": "B-30; AU Ducted Brochure 2024 p.24"
+  },
+  "supply_opening": {
+   "w_mm": 860,
+   "h_mm": 150
+  },
+  "return_opening": {
+   "w_mm": 860,
+   "h_mm": 157.5
+  },
+  "sound_low_dba": 23,
+  "sound_high_dba": 33,
+  "phase": "1",
+  "static_pressure_pa": 50,
+  "drain_pump": "none",
+  "power_supply": "230 V, Single-phase, 50/60 Hz (outdoor unit supply)"
  },
  {
   "model": "SEZ-M50DA(L)",
@@ -4036,8 +4280,22 @@
    "kind": "extracted",
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
-   "page": "B-30"
-  }
+   "page": "B-30; AU Ducted Brochure 2024 p.24"
+  },
+  "supply_opening": {
+   "w_mm": 860,
+   "h_mm": 150
+  },
+  "return_opening": {
+   "w_mm": 860,
+   "h_mm": 157.5
+  },
+  "sound_low_dba": 29,
+  "sound_high_dba": 36,
+  "phase": "1",
+  "static_pressure_pa": 50,
+  "drain_pump": "none",
+  "power_supply": "230 V, Single-phase, 50/60 Hz (outdoor unit supply)"
  },
  {
   "model": "SEZ-M60DA(L)",
@@ -4065,8 +4323,22 @@
    "kind": "extracted",
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
-   "page": "B-30"
-  }
+   "page": "B-30; AU Ducted Brochure 2024 p.24"
+  },
+  "supply_opening": {
+   "w_mm": 1060,
+   "h_mm": 150
+  },
+  "return_opening": {
+   "w_mm": 1060,
+   "h_mm": 157.5
+  },
+  "sound_low_dba": 29,
+  "sound_high_dba": 37,
+  "phase": "1",
+  "static_pressure_pa": 50,
+  "drain_pump": "none",
+  "power_supply": "230 V, Single-phase, 50/60 Hz (outdoor unit supply)"
  },
  {
   "model": "SEZ-M71DA(L)",
@@ -4094,8 +4366,22 @@
    "kind": "extracted",
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
-   "page": "B-30"
-  }
+   "page": "B-30; AU Ducted Brochure 2024 p.24"
+  },
+  "supply_opening": {
+   "w_mm": 1060,
+   "h_mm": 150
+  },
+  "return_opening": {
+   "w_mm": 1060,
+   "h_mm": 157.5
+  },
+  "sound_low_dba": 29,
+  "sound_high_dba": 39,
+  "phase": "1",
+  "static_pressure_pa": 50,
+  "drain_pump": "none",
+  "power_supply": "230 V, Single-phase, 50/60 Hz (outdoor unit supply)"
  },
  {
   "model": "MSZ-LN25VG2V",

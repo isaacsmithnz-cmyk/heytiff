@@ -7857,6 +7857,18 @@
   border-color: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(14px);
 }
+/* The switcher matches the system card below it — same width, same right edge
+   (the card is inset from the cockpit column by .ds-ck's padding), so the two
+   read as one column. Derived from the cockpit tokens, not hard-coded. */
+.dstudio .ds-tb-right .ds-steps {
+  width: var(--ds-syscard-w);
+  margin-right: var(--ds-ck-pad-r);
+}
+.dstudio .ds-tb-right .ds-step {
+  flex: 1;
+  justify-content: center;
+  padding: 8px 10px;
+}
 /* keep the centre cluster off the flanks at laptop widths */
 .dstudio .ds-editor > .ds-topbar > .ds-canvas-toggles {
   margin: 0 16px;

@@ -157,6 +157,26 @@ describe("indoor engine-ready", () => {
     expect(r.missing.ducted).toContain("supply_opening");
   });
 
+  it("accepts SIZED factory spigots — the book's '2 × Ø400' is the face's size", () => {
+    const sized = {
+      ...idu,
+      supply_opening: { spigots: [{ count: 2, dia_mm: 400 }] },
+    };
+    expect(indoorReadiness(packWith([sized]), sized).roles.ducted).toBe(true);
+  });
+
+  it("an empty or zero-size spigot list is a gap, not an answer", () => {
+    const empty = { ...idu, supply_opening: { spigots: [] } };
+    const r1 = indoorReadiness(packWith([empty]), empty);
+    expect(r1.roles.ducted).toBe(false);
+    expect(r1.missing.ducted).toContain("supply_opening");
+
+    const zeroDia = { ...idu, supply_opening: { spigots: [{ count: 2, dia_mm: 0 }] } };
+    const r2 = indoorReadiness(packWith([zeroDia]), zeroDia);
+    expect(r2.roles.ducted).toBe(false);
+    expect(r2.missing.ducted).toContain("supply_opening");
+  });
+
   it("completenessByRange rolls up ready/total per series+role", () => {
     const ready = idu;
     const notReady = { ...idu, model: "PEFY-P25VMA-E", capacity_index: undefined };

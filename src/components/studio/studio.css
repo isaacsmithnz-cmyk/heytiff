@@ -6664,6 +6664,22 @@
   stroke-width: 1.4px;
   vector-effect: non-scaling-stroke;
 }
+/* factory spigots straight off the unit face (no plenum body). Sized from the
+   book they draw solid at true Ø; an unsized "spigots" answer is an
+   airflow-derived fan, greyed + dashed like any derived default. */
+.dstudio .ds-spigot-label {
+  fill: currentColor;
+  text-anchor: middle;
+  font-weight: 700;
+  paint-order: stroke;
+  stroke: #fff;
+  stroke-width: 3px;
+}
+.dstudio .ds-ahu-spigots.derived .ds-spigot-fixed {
+  stroke: var(--gray500);
+  stroke-dasharray: 4 3;
+}
+.dstudio .ds-ahu-spigots.derived .ds-spigot-label { fill: var(--gray500); }
 /* plenum drop zones — one per long face while a plenum is armed */
 .dstudio .ds-plenum-dropzone {
   fill: #16a34a;

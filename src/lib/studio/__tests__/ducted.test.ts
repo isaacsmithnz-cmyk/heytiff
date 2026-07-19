@@ -21,6 +21,11 @@ import {
   suggestedMainDucts,
   type PlenumSpigot,
 } from "../ducted";
+import {
+  hasFactorySpigots,
+  spigotDiametersMm,
+  spigotLabel,
+} from "../packs/schema";
 
 /* ── fixtures ── */
 
@@ -318,6 +323,59 @@ describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
     expect(b.factorySpigots).toBe(true);
     expect(b.builtIn).toBe(false);
     expect(b.derived).toBe(false);
+  });
+
+  it("SIZED factory spigots flag the same way — 2 × Ø400 still means no plenum", () => {
+    const b = plenumBody({
+      opening: { spigots: [{ count: 2, dia_mm: 400 }] },
+      unitWidthMm: 900,
+      spigots: [],
+      units: "mm",
+    });
+    expect(b.factorySpigots).toBe(true);
+    expect(b.builtIn).toBe(false);
+    // a sized spigot face is a positive, published answer — never "derived"
+    expect(b.derived).toBe(false);
+  });
+
+  it("a sized-spigot opening is NOT mistaken for a W×H box", () => {
+    // it's an object like a box is, but carries no w_mm — the base must fall
+    // back to the derived width rather than reading undefined
+    const b = plenumBody({
+      opening: { spigots: [{ count: 2, dia_mm: 400 }] },
+      unitWidthMm: 800,
+      spigots: [],
+      units: "mm",
+    });
+    expect(b.baseWMm).toBe(720); // 800 × 0.9, not NaN
+  });
+});
+
+describe("factory-spigot openings (pack schema helpers)", () => {
+  it("both grades read as factory spigots; other openings do not", () => {
+    expect(hasFactorySpigots("spigots")).toBe(true);
+    expect(hasFactorySpigots({ spigots: [{ count: 2, dia_mm: 400 }] })).toBe(true);
+    expect(hasFactorySpigots("built-in")).toBe(false);
+    expect(hasFactorySpigots("open")).toBe(false);
+    expect(hasFactorySpigots({ w_mm: 900, h_mm: 250 })).toBe(false);
+    expect(hasFactorySpigots(undefined)).toBe(false);
+  });
+
+  it("flattens groups to one entry per physical takeoff", () => {
+    expect(spigotDiametersMm({ spigots: [{ count: 2, dia_mm: 400 }] })).toEqual([400, 400]);
+    expect(
+      spigotDiametersMm({ spigots: [{ count: 2, dia_mm: 400 }, { count: 1, dia_mm: 300 }] })
+    ).toEqual([400, 400, 300]);
+    // the unsized answer has no diameters to draw — the canvas derives a fan
+    expect(spigotDiametersMm("spigots")).toEqual([]);
+  });
+
+  it("labels the face the way the book states it", () => {
+    expect(spigotLabel({ spigots: [{ count: 2, dia_mm: 400 }] })).toBe("2 × Ø400");
+    expect(
+      spigotLabel({ spigots: [{ count: 2, dia_mm: 400 }, { count: 1, dia_mm: 300 }] })
+    ).toBe("2 × Ø400 · 1 × Ø300");
+    expect(spigotLabel("spigots")).toBe(""); // nothing published to show
   });
 });
 

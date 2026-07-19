@@ -166,18 +166,74 @@ export interface Brand {
   notes?: string;
 }
 
+/** one published spigot group on a factory-spigot face — `2 × Ø400`. Books
+    state the takeoffs rather than an opening size, so this IS the face's
+    published dimension. Several groups only where a face mixes sizes. */
+export interface SpigotGroup {
+  count: number;
+  dia_mm: number;
+}
+
 /** the unit's air opening from the data book (ducted spec §1b): `{w,h}` mm
     sizes the plenum base (NOT the unit width); `"built-in"` = integral
-    return; `"spigots"` = factory spigots on the opening; `"open"` = a bare or
-    filtered face that takes a duct but has no published opening size, so the
-    installer sizes the plenum on site (it renders as the grey derived
-    default, exactly like an absent opening — the difference is that "open" is
-    a positive answer and satisfies the ducted role). Brand-agnostic. */
+    return; `"open"` = a bare or filtered face that takes a duct but has no
+    published opening size, so the installer sizes the plenum on site (it
+    renders as the grey derived default, exactly like an absent opening — the
+    difference is that "open" is a positive answer and satisfies the ducted
+    role). Brand-agnostic.
+
+    Factory spigots come in two grades, both meaning "no plenum — duct
+    connects straight to the unit":
+    - `{ spigots: [{count, dia_mm}] }` — the book published the takeoff sizes
+      ("2 × Ø400"), so the canvas can draw them at true size and label them.
+    - `"spigots"` — factory spigots confirmed, sizes NOT published (or not yet
+      extracted). Positive answer, satisfies the ducted role; the canvas falls
+      back to an airflow-derived fan of takeoffs, drawn as derived. Prefer the
+      sized form whenever the book states the diameters. */
 export type OpeningSpec =
   | { w_mm: number; h_mm: number }
+  | { spigots: SpigotGroup[] }
   | "built-in"
   | "spigots"
   | "open";
+
+/** the sized factory-spigot variant of OpeningSpec. Takes `unknown` — it
+    narrows loosely-typed catalog/override values at their boundaries too. */
+export function isSpigotOpening(o: unknown): o is { spigots: SpigotGroup[] } {
+  return (
+    typeof o === "object" &&
+    o !== null &&
+    Array.isArray((o as { spigots?: unknown }).spigots)
+  );
+}
+
+/** does this face carry factory spigots (sized or not)? Both grades mean the
+    duct connects to the unit itself — no plenum is fabricated. */
+export function hasFactorySpigots(o: unknown): boolean {
+  return o === "spigots" || isSpigotOpening(o);
+}
+
+/** flatten a sized spigot opening to one entry per physical takeoff; `[]` for
+    every other opening kind (including the unsized `"spigots"`). */
+export function spigotDiametersMm(o: unknown): number[] {
+  if (!isSpigotOpening(o)) return [];
+  const out: number[] = [];
+  for (const g of o.spigots) {
+    if (!Number.isFinite(g.count) || !Number.isFinite(g.dia_mm)) continue;
+    for (let i = 0; i < Math.max(0, Math.round(g.count)); i++) out.push(g.dia_mm);
+  }
+  return out;
+}
+
+/** `2 × Ø400` / `2 × Ø400 · 1 × Ø300` — the face's published size, as the
+    canvas and the HQ catalog both show it. Empty string when unsized. */
+export function spigotLabel(o: unknown): string {
+  if (!isSpigotOpening(o)) return "";
+  return o.spigots
+    .filter((g) => Number.isFinite(g.count) && Number.isFinite(g.dia_mm))
+    .map((g) => `${Math.round(g.count)} × Ø${Math.round(g.dia_mm)}`)
+    .join(" · ");
+}
 
 /** §2 indoor units — the largest section, one row per model. */
 export interface IndoorUnit {

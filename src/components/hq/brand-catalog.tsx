@@ -13,6 +13,7 @@ import {
   type FieldValue,
   type ParseResult,
 } from "@/lib/studio/packs/fields";
+import { isSpigotOpening, spigotLabel } from "@/lib/studio/packs/schema";
 import type { SaveInput, ClearInput, SaveResult } from "./edit-types";
 
 /** system_roles values ↔ human labels for the tag editor */
@@ -41,11 +42,17 @@ const ROLE_LABEL = new Map<string, string>(ROLE_OPTIONS.map((o) => [o.role, o.la
    server-only; this file type-imports from it, which is erased at compile).
    Editing is enabled only when save/clear actions are injected. */
 
-/** airway-editor state: a W×H box (text inputs) or one of the keyword answers */
+/** airway-editor state: a W×H box (text inputs), a sized factory-spigot face
+    (count × Ø — the size the book publishes instead of an opening), or one of
+    the keyword answers. Leaving the spigot size blank saves the bare
+    "spigots" answer: confirmed spigots, size not published. */
 interface OpeningDraft {
   mode: "wh" | "built-in" | "spigots" | "open";
   w: string;
   h: string;
+  /** spigot mode — how many takeoffs, and their diameter in mm */
+  count: string;
+  dia: string;
 }
 
 interface Editing {
@@ -65,7 +72,9 @@ interface Editing {
 function fmtFieldValue(v: FieldValue | null): string {
   if (v == null) return "—";
   if (Array.isArray(v)) return v.join(", ");
-  if (typeof v === "object") return `${v.w_mm} × ${v.h_mm} mm`;
+  if (typeof v === "object") {
+    return isSpigotOpening(v) ? spigotLabel(v) : `${v.w_mm} × ${v.h_mm} mm`;
+  }
   return String(v);
 }
 
@@ -114,14 +123,23 @@ export function HqBrandCatalog({
     if (!spec) return;
     const cur = row.values[field];
     const mark = row.overridden[field];
+    const blank = { w: "", h: "", count: "", dia: "" };
     const opening: OpeningDraft | undefined =
       spec.type !== "opening"
         ? undefined
-        : typeof cur === "object" && cur !== null
-          ? { mode: "wh", w: String(cur.w_mm), h: String(cur.h_mm) }
-          : cur === "built-in" || cur === "spigots" || cur === "open"
-            ? { mode: cur, w: "", h: "" }
-            : { mode: "wh", w: "", h: "" };
+        : isSpigotOpening(cur)
+          ? {
+              ...blank,
+              mode: "spigots",
+              // the editor takes ONE group; multi-size faces are extraction-only
+              count: cur.spigots[0] ? String(cur.spigots[0].count) : "",
+              dia: cur.spigots[0] ? String(cur.spigots[0].dia_mm) : "",
+            }
+          : typeof cur === "object" && cur !== null
+            ? { ...blank, mode: "wh", w: String(cur.w_mm), h: String(cur.h_mm) }
+            : cur === "built-in" || cur === "spigots" || cur === "open"
+              ? { ...blank, mode: cur }
+              : { ...blank, mode: "wh" };
     setError(null);
     setEditing({
       section: row.section,
@@ -145,9 +163,20 @@ export function HqBrandCatalog({
         setError("Enter both width and height");
         return;
       }
+      // spigot mode: both boxes filled → the sized answer; both empty → the
+      // bare "spigots" (confirmed, size not published). Half-filled is a slip.
+      const sized = o.mode === "spigots" && (o.count.trim() || o.dia.trim());
+      if (sized && (!o.count.trim() || !o.dia.trim())) {
+        setError("Enter both a spigot count and a diameter — or leave both blank");
+        return;
+      }
       parsed = validateFieldValue(
         spec,
-        o.mode === "wh" ? { w_mm: Number(o.w), h_mm: Number(o.h) } : o.mode
+        o.mode === "wh"
+          ? { w_mm: Number(o.w), h_mm: Number(o.h) }
+          : sized
+            ? { spigots: [{ count: Number(o.count), dia_mm: Number(o.dia) }] }
+            : o.mode
       );
     } else {
       parsed = parseFieldInput(spec, editing.value);
@@ -383,7 +412,7 @@ export function HqBrandCatalog({
                     onChange={(e) =>
                       setEditing({
                         ...editing,
-                        opening: { mode: "wh", w: e.target.value, h: editing.opening!.h },
+                        opening: { ...editing.opening!, mode: "wh", w: e.target.value },
                       })
                     }
                     onKeyDown={(e) => {
@@ -402,7 +431,7 @@ export function HqBrandCatalog({
                     onChange={(e) =>
                       setEditing({
                         ...editing,
-                        opening: { mode: "wh", w: editing.opening!.w, h: e.target.value },
+                        opening: { ...editing.opening!, mode: "wh", h: e.target.value },
                       })
                     }
                     onKeyDown={(e) => {
@@ -418,7 +447,10 @@ export function HqBrandCatalog({
                     name="hq-open-mode"
                     checked={editing.opening.mode === "built-in"}
                     onChange={() =>
-                      setEditing({ ...editing, opening: { mode: "built-in", w: "", h: "" } })
+                      setEditing({
+                        ...editing,
+                        opening: { ...editing.opening!, mode: "built-in" },
+                      })
                     }
                   />
                   Built-in — integral return
@@ -429,18 +461,63 @@ export function HqBrandCatalog({
                     name="hq-open-mode"
                     checked={editing.opening.mode === "spigots"}
                     onChange={() =>
-                      setEditing({ ...editing, opening: { mode: "spigots", w: "", h: "" } })
+                      setEditing({
+                        ...editing,
+                        opening: { ...editing.opening!, mode: "spigots" },
+                      })
                     }
                   />
-                  Spigots — factory spigots on the opening
+                  Spigots — duct connects to the unit, no plenum
                 </label>
+                {/* the book publishes takeoff sizes instead of an opening
+                    ("2 × Ø400"); blank = spigots confirmed, size not published */}
+                <div className="hq-pop-openwh">
+                  <input
+                    className="hq-pop-input"
+                    inputMode="numeric"
+                    placeholder="Qty"
+                    aria-label="Spigot count"
+                    disabled={editing.opening.mode !== "spigots"}
+                    value={editing.opening.count}
+                    onChange={(e) =>
+                      setEditing({
+                        ...editing,
+                        opening: { ...editing.opening!, mode: "spigots", count: e.target.value },
+                      })
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") save();
+                      if (e.key === "Escape") setEditing(null);
+                    }}
+                  />
+                  <span className="hq-pop-openx">× Ø</span>
+                  <input
+                    className="hq-pop-input"
+                    inputMode="decimal"
+                    placeholder="Size"
+                    aria-label="Spigot diameter (mm)"
+                    disabled={editing.opening.mode !== "spigots"}
+                    value={editing.opening.dia}
+                    onChange={(e) =>
+                      setEditing({
+                        ...editing,
+                        opening: { ...editing.opening!, mode: "spigots", dia: e.target.value },
+                      })
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") save();
+                      if (e.key === "Escape") setEditing(null);
+                    }}
+                  />
+                  <span className="hq-pop-unit">mm</span>
+                </div>
                 <label className="hq-tagcheck">
                   <input
                     type="radio"
                     name="hq-open-mode"
                     checked={editing.opening.mode === "open"}
                     onChange={() =>
-                      setEditing({ ...editing, opening: { mode: "open", w: "", h: "" } })
+                      setEditing({ ...editing, opening: { ...editing.opening!, mode: "open" } })
                     }
                   />
                   Open — takes a duct, installer sizes the plenum
@@ -922,10 +999,14 @@ function CmpCell({
         : col.field === "refrigerant"
           ? "ref"
           : null;
-  // airway boxes render like numerics ("595 × 195"); "built-in"/"spigots"
-  // fall through the string path
-  const isBox = typeof value === "object";
-  const display = isBox ? `${value.w_mm} × ${value.h_mm}` : String(value);
+  // airway boxes render like numerics ("595 × 195"), sized spigot faces as
+  // "2 × Ø400"; "built-in"/"spigots"/"open" fall through the string path
+  const isBox = typeof value === "object" && !isSpigotOpening(value);
+  const display = isBox
+    ? `${value.w_mm} × ${value.h_mm}`
+    : isSpigotOpening(value)
+      ? spigotLabel(value)
+      : String(value);
   const numeric = spec.type === "number" || isBox;
 
   return (

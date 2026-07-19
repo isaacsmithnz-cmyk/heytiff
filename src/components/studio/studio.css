@@ -601,8 +601,11 @@
   row-gap: 16px;
   min-height: 0;
 }
+/* The bar spans BOTH tracks so its width never changes between steps — that's
+   what pins the Design/Summary switcher in place. Centred in a constant-width
+   bar, it doesn't move when the cockpit opens or closes. */
 .dstudio .ds-editor > .ds-topbar {
-  grid-column: 1;
+  grid-column: 1 / -1;
   grid-row: 1;
   /* the canvas controls share the line on the Design step — the 1fr track
      must be allowed to shrink (title absorbs the slack), never wrap */
@@ -621,8 +624,47 @@
 }
 .dstudio .ds-editor > .ds-sidecol {
   grid-column: 2;
-  grid-row: 1 / 3;
+  grid-row: 2;
   min-height: 0;
+}
+
+/* ── the page ──
+   ONE white surface for every step, living in the content cell so it can
+   stretch. On Design it sits pixel-exact behind the canvas's paper rect
+   (inset by the tool rail); on Plans/Summary it IS the page. So switching
+   steps reads as the paper reshaping — it widens as the cockpit closes and
+   its left edge slides over where the rail was — rather than one white card
+   being swapped for another. */
+.dstudio .ds-editor::before {
+  content: "";
+  grid-column: 1;
+  grid-row: 2;
+  z-index: 0;
+  background: #fff;
+  border-radius: 24px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4),
+    0 30px 70px -30px rgba(0, 0, 0, 0.75);
+  transition: margin-left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+/* clear the tool rail (56px) + its 10px gutter */
+.dstudio .ds-editor.two-col::before {
+  margin-left: 66px;
+}
+.dstudio .ds-editor > .ds-panel {
+  position: relative;
+  z-index: 1;
+}
+/* The page is the plate now — the cards ride on it. Needs the extra class to
+   out-specify the base .ds-panel-card fill defined further down the file. */
+.dstudio .ds-editor .ds-panel-card {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dstudio .ds-editor::before {
+    transition: none;
+  }
 }
 .dstudio .ds-topbar {
   display: flex;
@@ -7325,8 +7367,7 @@
 .dstudio.editing .ds-tbbtn,
 .dstudio.editing .ds-ctl-btn,
 .dstudio.editing .ds-floor-trigger,
-.dstudio.editing .ds-sys-trigger,
-.dstudio.editing .ds-toolrail {
+.dstudio.editing .ds-sys-trigger {
   background: rgba(255, 255, 255, 0.07);
   border-color: rgba(255, 255, 255, 0.12);
   backdrop-filter: blur(14px);
@@ -7433,6 +7474,17 @@
   color: #0a0b10;
 }
 
+/* The rail is DARK-tinted rather than white-tinted: the page slides under it
+   for the length of the reshape, and white-on-white made it disappear. Dark
+   glass reads over the frame and over the paper both — same reason a drawing
+   app's floating toolbar is dark on a light artboard. */
+.dstudio.editing .ds-toolrail {
+  background: rgba(20, 22, 30, 0.74);
+  border-color: rgba(255, 255, 255, 0.13);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5),
+    0 20px 44px -22px rgba(0, 0, 0, 0.9);
+}
 /* the armed-tool teal still reads on glass; the icon just needs darkening */
 .dstudio.editing .ds-tool.on {
   color: #04241f;

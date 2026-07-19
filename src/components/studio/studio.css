@@ -7568,6 +7568,35 @@
 .dstudio.editing .ds-ck-donut .track {
   stroke: rgba(255, 255, 255, 0.12);
 }
+/* ── system selection (the type chooser + its host card) ──
+   These live in the cockpit column but hard-code #fff / #f2f2f0, so the token
+   retint misses them and they stayed a white sheet on the dark panel. */
+.dstudio.editing .ds-syscard {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(22px) saturate(1.3);
+  box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.85),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.dstudio.editing .ds-chooser-card {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.13);
+}
+.dstudio.editing .ds-chooser-card:hover:not(:disabled) {
+  background: rgba(0, 229, 192, 0.1);
+  border-color: var(--teal);
+  box-shadow: 0 0 0 1px var(--teal);
+}
+.dstudio.editing .ds-chooser-ic {
+  background: rgba(0, 229, 192, 0.16);
+  color: var(--teal);
+}
+.dstudio.editing .ds-chooser-card.soon .ds-chooser-ic,
+.dstudio.editing .ds-chooser-soon {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.6);
+}
+
 /* the primary CTA was near-black — on a dark panel it has to invert to teal */
 .dstudio.editing .ds-ck-inkbtn {
   background: var(--teal);

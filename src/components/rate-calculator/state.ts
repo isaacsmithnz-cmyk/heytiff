@@ -107,6 +107,24 @@ export const DEFAULT_RISK: RiskSettings = { warranty: 3, defect: 2, callback: 4,
 export const DEFAULT_PROFIT: ProfitSettings = { margin: 20, costIncrease: 3 };
 export const DEFAULT_MULTIPLIERS: Multipliers = { afterHours: 1.5, emergency: 2.0 };
 
+/** Overhead categories most HVAC businesses carry. The Detailed business table
+    seeds from these (at $0) so it opens as a checklist to price rather than a
+    blank slate, and offers any the user removed as one-tap chips. Order and
+    names match the demo dataset so both speak the same vocabulary. */
+export const SUGGESTED_BUSINESS_COSTS: readonly string[] = [
+  "Public liability",
+  "Software & subscriptions",
+  "Phones & internet",
+  "Accounting fees",
+  "Marketing & website",
+  "Rent & utilities",
+  "Training & PPE",
+];
+
+export function suggestedBusinessCosts(): BusinessCost[] {
+  return SUGGESTED_BUSINESS_COSTS.map(name => ({ name, amount: 0, allocated_to: "shared" }));
+}
+
 const EMPTY_EOFY: EofyData = {
   revenue: null, cost_of_sales: null, operating_profit: null,
   staff_costs: null, vehicle_costs: null, business_overheads: null,

@@ -158,6 +158,30 @@ describe("buildSimModel", () => {
     const idu = strayIdu.objects.find((o) => o.id === "idu1")!;
     delete idu.props.roomId;
     expect(buildSimModel(strayIdu, pack, "flr").notReady[0].reason).toMatch(/not inside a room/);
+
+    // a stale roomId stamp (unit metres away from its room) fails loudly
+    const stranded = simDoc();
+    stranded.objects.find((o) => o.id === "idu1")!.geometry = {
+      kind: "point",
+      at: { x: -250, y: 200 }, // 2.5 m outside at 10 mm/unit
+    };
+    expect(buildSimModel(stranded, pack, "flr").notReady[0].reason).toMatch(/outside its room/);
+
+    // mounted exactly ON the boundary is fine (wall units live there)
+    const onEdge = simDoc();
+    onEdge.objects.find((o) => o.id === "idu1")!.geometry = {
+      kind: "point",
+      at: { x: 0, y: 200 },
+    };
+    expect(buildSimModel(onEdge, pack, "flr").notReady).toEqual([]);
+
+    // roomLock means the user attributed the room by hand, so the stamp
+    // outranks the position — the same stray placement simulates fine
+    const pinned = simDoc();
+    const pinnedIdu = pinned.objects.find((o) => o.id === "idu1")!;
+    pinnedIdu.geometry = { kind: "point", at: { x: -250, y: 200 } };
+    pinnedIdu.props.roomLock = true;
+    expect(buildSimModel(pinned, pack, "flr").notReady).toEqual([]);
   });
 });
 

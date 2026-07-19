@@ -238,8 +238,10 @@
       "kind": "extracted",
       "source": "M-P Series (Mr Slim) Data Book; sound/power: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
       "edition": "M-P0922 (2024)",
-      "page": "A-84"
-    }
+      "page": "A-84; AU Ducted Brochure 2024 p.24; book A-44, B-30, B-4, C-365"
+    },
+    "precharged_kg": 1.2,
+    "max_amps_a": 13.5
   },
   {
     "model": "SUZ-M60VAD-A",
@@ -263,8 +265,10 @@
       "kind": "extracted",
       "source": "M-P Series (Mr Slim) Data Book; sound/power: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
       "edition": "M-P0922 (2024)",
-      "page": "A-84"
-    }
+      "page": "A-84; AU Ducted Brochure 2024 p.24; book A-44, B-30, B-4"
+    },
+    "precharged_kg": 1.25,
+    "max_amps_a": 14.8
   },
   {
     "model": "SUZ-M71VAD-A",
@@ -288,8 +292,10 @@
       "kind": "extracted",
       "source": "M-P Series (Mr Slim) Data Book; sound/power: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
       "edition": "M-P0922 (2024)",
-      "page": "A-4"
-    }
+      "page": "A-4; AU Ducted Brochure 2024 p.24; book A-44, B-30"
+    },
+    "precharged_kg": 1.45,
+    "max_amps_a": 14.8
   },
   {
     "model": "PUZ-M100VKA-A",
@@ -315,8 +321,9 @@
       "kind": "extracted",
       "source": "M-P Series (Mr Slim) Data Book; sound/power: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
       "edition": "M-P0922 (2024)",
-      "page": "A-5, A-227"
-    }
+      "page": "A-5, A-227; book A-45, A-85, A-88, A-91"
+    },
+    "max_amps_a": 20.0
   },
   {
     "model": "PUZ-M125VKA-A",
@@ -342,8 +349,9 @@
       "kind": "extracted",
       "source": "M-P Series (Mr Slim) Data Book; sound/power: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
       "edition": "M-P0922 (2024)",
-      "page": "A-5, A-227"
-    }
+      "page": "A-5, A-227; book A-45, A-85, A-88, A-91"
+    },
+    "max_amps_a": 26.5
   },
   {
     "model": "PUZ-M140VKA-A",
@@ -369,8 +377,9 @@
       "kind": "extracted",
       "source": "M-P Series (Mr Slim) Data Book; sound/power: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
       "edition": "M-P0922 (2024)",
-      "page": "A-85, A-227"
-    }
+      "page": "A-85, A-227; book A-88, A-91"
+    },
+    "max_amps_a": 30.0
   },
   {
     "model": "PUZ-ZM71VHA2-A",
@@ -396,8 +405,9 @@
       "kind": "extracted",
       "source": "M-P Series (Mr Slim) Data Book; sound/power: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
       "edition": "M-P0922 (2024)",
-      "page": "A-6, A-227"
-    }
+      "page": "A-6, A-227; book A-74"
+    },
+    "max_amps_a": 19.0
   },
   {
     "model": "PUZ-ZM100VKA2-A",
@@ -451,7 +461,8 @@
       "source": "M-P Series (Mr Slim) Data Book; sound/power: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
       "edition": "M-P0922 (2024)",
       "page": "A-6, A-227"
-    }
+    },
+    "max_amps_a": 28.0
   },
   {
     "model": "PUZ-ZM140VKA2-A",
@@ -477,8 +488,9 @@
       "kind": "extracted",
       "source": "M-P Series (Mr Slim) Data Book; sound/power: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
       "edition": "M-P0922 (2024)",
-      "page": "A-86, A-227"
-    }
+      "page": "A-86, A-227; book A-6"
+    },
+    "max_amps_a": 28.0
   },
   {
     "model": "PUZ-ZM100YKA3-A",
@@ -504,8 +516,9 @@
       "kind": "extracted",
       "source": "M-P Series (Mr Slim) Data Book; sound/power: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
       "edition": "M-P0922 (2024)",
-      "page": "A-7, A-227"
-    }
+      "page": "A-7, A-227; book A-87"
+    },
+    "max_amps_a": 11.5
   },
   {
     "model": "PUZ-ZM125YKA2-A",
@@ -531,8 +544,9 @@
       "kind": "extracted",
       "source": "M-P Series (Mr Slim) Data Book; sound/power: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
       "edition": "M-P0922 (2024)",
-      "page": "A-7, A-227"
-    }
+      "page": "A-7, A-227; book A-87"
+    },
+    "max_amps_a": 11.5
   },
   {
     "model": "PUZ-ZM140YKA2-A",
@@ -558,8 +572,9 @@
       "kind": "extracted",
       "source": "M-P Series (Mr Slim) Data Book; sound/power: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
       "edition": "M-P0922 (2024)",
-      "page": "A-87, A-227"
-    }
+      "page": "A-87, A-227; book A-7"
+    },
+    "max_amps_a": 11.5
   },
   {
     "model": "PUZ-ZM160VKA-A",
@@ -582,8 +597,10 @@
       "kind": "extracted",
       "source": "M-P Series (Mr Slim) Data Book",
       "edition": "M-P0922 (2024)",
-      "page": "A-89, A-227"
-    }
+      "page": "A-89, A-227; LC Flyer 2023 p.4"
+    },
+    "max_amps_a": 29.36,
+    "power_supply": "230 V, Single-phase, 50 Hz"
   },
   {
     "model": "PUZ-ZM160YKA-A",
@@ -606,8 +623,10 @@
       "kind": "extracted",
       "source": "M-P Series (Mr Slim) Data Book",
       "edition": "M-P0922 (2024)",
-      "page": "A-90, A-227"
-    }
+      "page": "A-90, A-227; LC Flyer 2023 p.4"
+    },
+    "max_amps_a": 10.56,
+    "power_supply": "400 V, Three-phase, 50 Hz"
   },
   {
     "model": "PUZ-ZM180VKA-A",
@@ -630,8 +649,10 @@
       "kind": "extracted",
       "source": "M-P Series (Mr Slim) Data Book",
       "edition": "M-P0922 (2024)",
-      "page": "A-94, A-227"
-    }
+      "page": "A-94, A-227; AU Ducted Brochure 2024 p.30"
+    },
+    "max_amps_a": 28.22,
+    "power_supply": "230 V, Single-phase, 50 Hz"
   },
   {
     "model": "PUZ-ZM180YKA-A",
@@ -654,8 +675,10 @@
       "kind": "extracted",
       "source": "M-P Series (Mr Slim) Data Book",
       "edition": "M-P0922 (2024)",
-      "page": "A-94, A-227"
-    }
+      "page": "A-94, A-227; AU Ducted Brochure 2024 p.30"
+    },
+    "max_amps_a": 9.27,
+    "power_supply": "400 V, Three-phase, 50 Hz"
   },
   {
     "model": "PUZ-ZM200YKA-A",
@@ -678,8 +701,10 @@
       "kind": "extracted",
       "source": "M-P Series (Mr Slim) Data Book",
       "edition": "M-P0922 (2024)",
-      "page": "A-94, A-227"
-    }
+      "page": "A-94, A-227; AU Ducted Brochure 2024 p.30"
+    },
+    "max_amps_a": 18.0,
+    "power_supply": "400 V, Three-phase, 50 Hz"
   },
   {
     "model": "PUZ-ZM250YKA-A",
@@ -702,49 +727,993 @@
       "kind": "extracted",
       "source": "M-P Series (Mr Slim) Data Book",
       "edition": "M-P0922 (2024)",
-      "page": "A-94, A-227"
-    }
+      "page": "A-94, A-227; AU Ducted Brochure 2024 p.30"
+    },
+    "max_amps_a": 20.0,
+    "power_supply": "400 V, Three-phase, 50 Hz"
   },
-  {"model": "SUZ-M25VAD-A", "brand": "mitsubishi-electric", "series": "SUZ-M-VAD-A", "system_type": "split", "capacity_cool_kw": 2.5, "capacity_heat_kw": 3.0, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 9.52, "refrigerant": "R32", "width_mm": 800, "depth_mm": 285, "height_mm": 550, "weight_kg": 30, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "B-4, B-60"}},
-  {"model": "SUZ-M35VAD-A", "brand": "mitsubishi-electric", "series": "SUZ-M-VAD-A", "system_type": "split", "capacity_cool_kw": 3.5, "capacity_heat_kw": 4.0, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 9.52, "refrigerant": "R32", "width_mm": 800, "depth_mm": 285, "height_mm": 550, "weight_kg": 35, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "B-4, B-60"}},
-  {"model": "MUZ-LN25VG2", "brand": "mitsubishi-electric", "series": "MUZ-LN", "system_type": "split", "capacity_cool_kw": 2.5, "capacity_heat_kw": 3.2, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 9.52, "refrigerant": "R32", "width_mm": 800, "depth_mm": 285, "height_mm": 550, "weight_kg": 33, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-4"}},
-  {"model": "MUZ-LN25VGHZ2", "brand": "mitsubishi-electric", "series": "MUZ-LN", "system_type": "split", "capacity_cool_kw": 2.5, "capacity_heat_kw": 3.2, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 9.52, "refrigerant": "R32", "width_mm": 800, "depth_mm": 285, "height_mm": 550, "weight_kg": 34, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-5"}},
-  {"model": "MUZ-LN35VG2", "brand": "mitsubishi-electric", "series": "MUZ-LN", "system_type": "split", "capacity_cool_kw": 3.5, "capacity_heat_kw": 4.0, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 9.52, "refrigerant": "R32", "width_mm": 800, "depth_mm": 285, "height_mm": 550, "weight_kg": 34, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-4"}},
-  {"model": "MUZ-LN35VGHZ2", "brand": "mitsubishi-electric", "series": "MUZ-LN", "system_type": "split", "capacity_cool_kw": 3.5, "capacity_heat_kw": 4.0, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 9.52, "refrigerant": "R32", "width_mm": 800, "depth_mm": 285, "height_mm": 550, "weight_kg": 34, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-5"}},
-  {"model": "MUZ-LN50VG3", "brand": "mitsubishi-electric", "series": "MUZ-LN", "system_type": "split", "capacity_cool_kw": 5.0, "capacity_heat_kw": 6.0, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 9.52, "refrigerant": "R32", "width_mm": 800, "depth_mm": 285, "height_mm": 714, "weight_kg": 40, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-4"}},
-  {"model": "MUZ-LN50VGHZ2", "brand": "mitsubishi-electric", "series": "MUZ-LN", "system_type": "split", "capacity_cool_kw": 5.0, "capacity_heat_kw": 6.0, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 9.52, "refrigerant": "R32", "width_mm": 840, "depth_mm": 330, "height_mm": 880, "weight_kg": 53, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-5"}},
-  {"model": "MUZ-LN60VG2", "brand": "mitsubishi-electric", "series": "MUZ-LN", "system_type": "split", "capacity_cool_kw": 6.1, "capacity_heat_kw": 6.8, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 12.7, "refrigerant": "R32", "width_mm": 840, "depth_mm": 330, "height_mm": 880, "weight_kg": 53, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-4"}},
-  {"model": "MUZ-EF25VG", "brand": "mitsubishi-electric", "series": "MUZ-EF", "system_type": "split", "capacity_cool_kw": 2.5, "capacity_heat_kw": 3.2, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 9.52, "refrigerant": "R32", "width_mm": 800, "depth_mm": 285, "height_mm": 550, "weight_kg": 31, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-6"}},
-  {"model": "MUZ-EF35VG", "brand": "mitsubishi-electric", "series": "MUZ-EF", "system_type": "split", "capacity_cool_kw": 3.5, "capacity_heat_kw": 4.0, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 9.52, "refrigerant": "R32", "width_mm": 800, "depth_mm": 285, "height_mm": 550, "weight_kg": 34, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-6"}},
-  {"model": "MUZ-EF42VG", "brand": "mitsubishi-electric", "series": "MUZ-EF", "system_type": "split", "capacity_cool_kw": 4.2, "capacity_heat_kw": 5.4, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 9.52, "refrigerant": "R32", "width_mm": 800, "depth_mm": 285, "height_mm": 550, "weight_kg": 35, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-7"}},
-  {"model": "MUZ-EF50VG", "brand": "mitsubishi-electric", "series": "MUZ-EF", "system_type": "split", "capacity_cool_kw": 5.0, "capacity_heat_kw": 5.8, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 9.52, "refrigerant": "R32", "width_mm": 800, "depth_mm": 285, "height_mm": 714, "weight_kg": 40, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-7"}},
-  {"model": "MUZ-AP20VG", "brand": "mitsubishi-electric", "series": "MUZ-AP", "system_type": "split", "capacity_cool_kw": 2.0, "capacity_heat_kw": 2.5, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 9.52, "refrigerant": "R32", "width_mm": 800, "depth_mm": 285, "height_mm": 550, "weight_kg": 31, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-8"}},
-  {"model": "MUZ-AP25VG2", "brand": "mitsubishi-electric", "series": "MUZ-AP", "system_type": "split", "capacity_cool_kw": 2.5, "capacity_heat_kw": 3.2, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 9.52, "refrigerant": "R32", "width_mm": 800, "depth_mm": 285, "height_mm": 550, "weight_kg": 34, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-9"}},
-  {"model": "MUZ-AP35VG2", "brand": "mitsubishi-electric", "series": "MUZ-AP", "system_type": "split", "capacity_cool_kw": 3.5, "capacity_heat_kw": 3.7, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 9.52, "refrigerant": "R32", "width_mm": 800, "depth_mm": 285, "height_mm": 550, "weight_kg": 34, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-9"}},
-  {"model": "MUZ-AP42VG2", "brand": "mitsubishi-electric", "series": "MUZ-AP", "system_type": "split", "capacity_cool_kw": 4.2, "capacity_heat_kw": 5.4, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 9.52, "refrigerant": "R32", "width_mm": 800, "depth_mm": 285, "height_mm": 550, "weight_kg": 35, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-9"}},
-  {"model": "MUZ-AP50VG2", "brand": "mitsubishi-electric", "series": "MUZ-AP", "system_type": "split", "capacity_cool_kw": 5.0, "capacity_heat_kw": 6.0, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 12.7, "refrigerant": "R32", "width_mm": 800, "depth_mm": 285, "height_mm": 714, "weight_kg": 40, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-10"}},
-  {"model": "MUZ-AP60VG2", "brand": "mitsubishi-electric", "series": "MUZ-AP", "system_type": "split", "capacity_cool_kw": 6.0, "capacity_heat_kw": 6.8, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 12.7, "refrigerant": "R32", "width_mm": 800, "depth_mm": 285, "height_mm": 714, "weight_kg": 40, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-10"}},
-  {"model": "MUZ-AP71VG2", "brand": "mitsubishi-electric", "series": "MUZ-AP", "system_type": "split", "capacity_cool_kw": 7.1, "capacity_heat_kw": 8.0, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 12.7, "refrigerant": "R32", "width_mm": 840, "depth_mm": 330, "height_mm": 880, "weight_kg": 53, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-10"}},
-  {"model": "MUZ-AP80VG2", "brand": "mitsubishi-electric", "series": "MUZ-AP", "system_type": "split", "capacity_cool_kw": 7.8, "capacity_heat_kw": 9.0, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 12.7, "refrigerant": "R32", "width_mm": 840, "depth_mm": 330, "height_mm": 880, "weight_kg": 53, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-10"}},
-  {"model": "MUZ-AS90VGD", "brand": "mitsubishi-electric", "series": "MUZ-AS", "system_type": "split", "capacity_cool_kw": 9.0, "capacity_heat_kw": 10.3, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 12.7, "refrigerant": "R32", "width_mm": 840, "depth_mm": 330, "height_mm": 880, "weight_kg": 53, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-11"}},
-  {"model": "MUZ-GS25VFD", "brand": "mitsubishi-electric", "series": "MUZ-GS", "system_type": "split", "capacity_cool_kw": 2.5, "capacity_heat_kw": 3.1, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 9.52, "refrigerant": "R32", "width_mm": 800, "depth_mm": 285, "height_mm": 550, "weight_kg": 28, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-12"}},
-  {"model": "MUZ-GS35VFD", "brand": "mitsubishi-electric", "series": "MUZ-GS", "system_type": "split", "capacity_cool_kw": 3.5, "capacity_heat_kw": 3.7, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 9.52, "refrigerant": "R32", "width_mm": 800, "depth_mm": 285, "height_mm": 550, "weight_kg": 28.5, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-12"}},
-  {"model": "MUZ-GS50VFD", "brand": "mitsubishi-electric", "series": "MUZ-GS", "system_type": "split", "capacity_cool_kw": 5.0, "capacity_heat_kw": 5.5, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 12.7, "refrigerant": "R32", "width_mm": 800, "depth_mm": 285, "height_mm": 714, "weight_kg": 41, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-12"}},
-  {"model": "MUZ-GS60VFD", "brand": "mitsubishi-electric", "series": "MUZ-GS", "system_type": "split", "capacity_cool_kw": 6.0, "capacity_heat_kw": 6.6, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 12.7, "refrigerant": "R32", "width_mm": 800, "depth_mm": 285, "height_mm": 714, "weight_kg": 41, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-13"}},
-  {"model": "MUZ-GS71VFD", "brand": "mitsubishi-electric", "series": "MUZ-GS", "system_type": "split", "capacity_cool_kw": 7.1, "capacity_heat_kw": 8.0, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 12.7, "refrigerant": "R32", "width_mm": 800, "depth_mm": 285, "height_mm": 714, "weight_kg": 41, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-13"}},
-  {"model": "MUZ-GS80VFD", "brand": "mitsubishi-electric", "series": "MUZ-GS", "system_type": "split", "capacity_cool_kw": 7.8, "capacity_heat_kw": 9.0, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 12.7, "refrigerant": "R32", "width_mm": 840, "depth_mm": 330, "height_mm": 880, "weight_kg": 53, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-13"}},
-  {"model": "MUFZ-KW25VG", "brand": "mitsubishi-electric", "series": "MUFZ-KW", "system_type": "split", "capacity_cool_kw": 2.5, "capacity_heat_kw": 3.4, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 9.52, "refrigerant": "R32", "width_mm": 800, "depth_mm": 285, "height_mm": 550, "weight_kg": 35, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-294"}},
-  {"model": "MUFZ-KW35VG", "brand": "mitsubishi-electric", "series": "MUFZ-KW", "system_type": "split", "capacity_cool_kw": 3.5, "capacity_heat_kw": 4.3, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 9.52, "refrigerant": "R32", "width_mm": 800, "depth_mm": 285, "height_mm": 550, "weight_kg": 35, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-294"}},
-  {"model": "MUFZ-KW42VG", "brand": "mitsubishi-electric", "series": "MUFZ-KW", "system_type": "split", "capacity_cool_kw": 4.2, "capacity_heat_kw": 5.4, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 9.52, "refrigerant": "R32", "width_mm": 800, "depth_mm": 285, "height_mm": 550, "weight_kg": 35, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-294"}},
-  {"model": "MUFZ-KW50VG", "brand": "mitsubishi-electric", "series": "MUFZ-KW", "system_type": "split", "capacity_cool_kw": 5.0, "capacity_heat_kw": 5.8, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 12.7, "refrigerant": "R32", "width_mm": 840, "depth_mm": 330, "height_mm": 880, "weight_kg": 54, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-295"}},
-  {"model": "MUFZ-KW60VG", "brand": "mitsubishi-electric", "series": "MUFZ-KW", "system_type": "split", "capacity_cool_kw": 6.1, "capacity_heat_kw": 6.5, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 12.7, "refrigerant": "R32", "width_mm": 840, "depth_mm": 330, "height_mm": 880, "weight_kg": 54, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-295"}},
-  {"model": "MUFZ-KW50VGHZ", "brand": "mitsubishi-electric", "series": "MUFZ-KW", "system_type": "split", "capacity_cool_kw": 5.0, "capacity_heat_kw": 5.8, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 12.7, "refrigerant": "R32", "width_mm": 840, "depth_mm": 330, "height_mm": 880, "weight_kg": 54, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-296"}},
-  {"model": "MUFZ-KW60VGHZ", "brand": "mitsubishi-electric", "series": "MUFZ-KW", "system_type": "split", "capacity_cool_kw": 6.1, "capacity_heat_kw": 6.5, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 12.7, "refrigerant": "R32", "width_mm": 840, "depth_mm": 330, "height_mm": 880, "weight_kg": 54, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-296"}},
-  {"model": "MXZ-2F52VF", "brand": "mitsubishi-electric", "series": "MXZ-F", "system_type": "multi", "capacity_cool_kw": 5.2, "capacity_heat_kw": 6.1, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 9.52, "refrigerant": "R32", "precharged_kg": 1.0, "ports": 2, "width_mm": 800, "depth_mm": 285, "height_mm": 550, "weight_kg": 37, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-382"}},
-  {"model": "MXZ-2F52VGD", "brand": "mitsubishi-electric", "series": "MXZ-F", "system_type": "multi", "capacity_cool_kw": 5.2, "capacity_heat_kw": 6.1, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 9.52, "refrigerant": "R32", "precharged_kg": 2.4, "ports": 2, "width_mm": 840, "depth_mm": 330, "height_mm": 710, "weight_kg": 57, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-383"}},
-  {"model": "MXZ-3F54VGD", "brand": "mitsubishi-electric", "series": "MXZ-F", "system_type": "multi", "capacity_cool_kw": 5.4, "capacity_heat_kw": 7.0, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 9.52, "refrigerant": "R32", "precharged_kg": 2.4, "ports": 3, "width_mm": 840, "depth_mm": 330, "height_mm": 710, "weight_kg": 58, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-383"}},
-  {"model": "MXZ-4F71VGD", "brand": "mitsubishi-electric", "series": "MXZ-F", "system_type": "multi", "capacity_cool_kw": 7.1, "capacity_heat_kw": 8.0, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 12.7, "refrigerant": "R32", "precharged_kg": 2.4, "ports": 4, "width_mm": 840, "depth_mm": 330, "height_mm": 710, "weight_kg": 59, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-383"}},
-  {"model": "MXZ-4F80VGD", "brand": "mitsubishi-electric", "series": "MXZ-F", "system_type": "multi", "capacity_cool_kw": 8.0, "capacity_heat_kw": 8.8, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 12.7, "refrigerant": "R32", "precharged_kg": 2.4, "ports": 4, "width_mm": 950, "depth_mm": 330, "height_mm": 796, "weight_kg": 61, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-384"}},
-  {"model": "MXZ-5F100VGD", "brand": "mitsubishi-electric", "series": "MXZ-F", "system_type": "multi", "capacity_cool_kw": 10.0, "capacity_heat_kw": 10.0, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 12.7, "refrigerant": "R32", "precharged_kg": 2.4, "ports": 5, "width_mm": 950, "depth_mm": 330, "height_mm": 796, "weight_kg": 62, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-384"}},
-  {"model": "MXZ-6F120VGD", "brand": "mitsubishi-electric", "series": "MXZ-F", "system_type": "multi", "capacity_cool_kw": 12.0, "capacity_heat_kw": 13.2, "phase": "1", "conn_liquid_mm": 6.35, "conn_gas_mm": 12.7, "refrigerant": "R32", "precharged_kg": 2.4, "ports": 6, "width_mm": 950, "depth_mm": 330, "height_mm": 1048, "weight_kg": 87, "provenance": {"kind": "extracted", "source": "M-P Series (Mr Slim) Data Book", "edition": "M-P0922 (2024)", "page": "C-384"}}
+  {
+    "model": "SUZ-M25VAD-A",
+    "brand": "mitsubishi-electric",
+    "series": "SUZ-M-VAD-A",
+    "system_type": "split",
+    "capacity_cool_kw": 2.5,
+    "capacity_heat_kw": 3.0,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 9.52,
+    "refrigerant": "R32",
+    "width_mm": 800,
+    "depth_mm": 285,
+    "height_mm": 550,
+    "weight_kg": 30,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "B-4, B-60; AU Ducted Brochure 2024 p.24; book B-30, C-365"
+    },
+    "precharged_kg": 0.65,
+    "power_supply": "230 V, Single-phase, 50/60 Hz",
+    "max_amps_a": 6.8
+  },
+  {
+    "model": "SUZ-M35VAD-A",
+    "brand": "mitsubishi-electric",
+    "series": "SUZ-M-VAD-A",
+    "system_type": "split",
+    "capacity_cool_kw": 3.5,
+    "capacity_heat_kw": 4.0,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 9.52,
+    "refrigerant": "R32",
+    "width_mm": 800,
+    "depth_mm": 285,
+    "height_mm": 550,
+    "weight_kg": 35,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "B-4, B-60; AU Ducted Brochure 2024 p.24; book B-30, C-365"
+    },
+    "precharged_kg": 0.9,
+    "power_supply": "230 V, Single-phase, 50/60 Hz",
+    "max_amps_a": 8.5
+  },
+  {
+    "model": "MUZ-LN25VG2",
+    "brand": "mitsubishi-electric",
+    "series": "MUZ-LN",
+    "system_type": "split",
+    "capacity_cool_kw": 2.5,
+    "capacity_heat_kw": 3.2,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 9.52,
+    "refrigerant": "R32",
+    "width_mm": 800,
+    "depth_mm": 285,
+    "height_mm": 550,
+    "weight_kg": 33,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-4"
+    },
+    "max_amps_a": 6.8
+  },
+  {
+    "model": "MUZ-LN25VGHZ2",
+    "brand": "mitsubishi-electric",
+    "series": "MUZ-LN",
+    "system_type": "split",
+    "capacity_cool_kw": 2.5,
+    "capacity_heat_kw": 3.2,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 9.52,
+    "refrigerant": "R32",
+    "width_mm": 800,
+    "depth_mm": 285,
+    "height_mm": 550,
+    "weight_kg": 34,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-5"
+    },
+    "max_amps_a": 9.6
+  },
+  {
+    "model": "MUZ-LN35VG2",
+    "brand": "mitsubishi-electric",
+    "series": "MUZ-LN",
+    "system_type": "split",
+    "capacity_cool_kw": 3.5,
+    "capacity_heat_kw": 4.0,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 9.52,
+    "refrigerant": "R32",
+    "width_mm": 800,
+    "depth_mm": 285,
+    "height_mm": 550,
+    "weight_kg": 34,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-4"
+    },
+    "max_amps_a": 9.6
+  },
+  {
+    "model": "MUZ-LN35VGHZ2",
+    "brand": "mitsubishi-electric",
+    "series": "MUZ-LN",
+    "system_type": "split",
+    "capacity_cool_kw": 3.5,
+    "capacity_heat_kw": 4.0,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 9.52,
+    "refrigerant": "R32",
+    "width_mm": 800,
+    "depth_mm": 285,
+    "height_mm": 550,
+    "weight_kg": 34,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-5"
+    },
+    "max_amps_a": 10.2
+  },
+  {
+    "model": "MUZ-LN50VG3",
+    "brand": "mitsubishi-electric",
+    "series": "MUZ-LN",
+    "system_type": "split",
+    "capacity_cool_kw": 5.0,
+    "capacity_heat_kw": 6.0,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 9.52,
+    "refrigerant": "R32",
+    "width_mm": 800,
+    "depth_mm": 285,
+    "height_mm": 714,
+    "weight_kg": 40,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-4"
+    },
+    "max_amps_a": 13.5
+  },
+  {
+    "model": "MUZ-LN50VGHZ2",
+    "brand": "mitsubishi-electric",
+    "series": "MUZ-LN",
+    "system_type": "split",
+    "capacity_cool_kw": 5.0,
+    "capacity_heat_kw": 6.0,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 9.52,
+    "refrigerant": "R32",
+    "width_mm": 840,
+    "depth_mm": 330,
+    "height_mm": 880,
+    "weight_kg": 53,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-5"
+    },
+    "max_amps_a": 14.8
+  },
+  {
+    "model": "MUZ-LN60VG2",
+    "brand": "mitsubishi-electric",
+    "series": "MUZ-LN",
+    "system_type": "split",
+    "capacity_cool_kw": 6.1,
+    "capacity_heat_kw": 6.8,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 12.7,
+    "refrigerant": "R32",
+    "width_mm": 840,
+    "depth_mm": 330,
+    "height_mm": 880,
+    "weight_kg": 53,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-4"
+    },
+    "max_amps_a": 14.8
+  },
+  {
+    "model": "MUZ-EF25VG",
+    "brand": "mitsubishi-electric",
+    "series": "MUZ-EF",
+    "system_type": "split",
+    "capacity_cool_kw": 2.5,
+    "capacity_heat_kw": 3.2,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 9.52,
+    "refrigerant": "R32",
+    "width_mm": 800,
+    "depth_mm": 285,
+    "height_mm": 550,
+    "weight_kg": 31,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-6"
+    },
+    "max_amps_a": 6.8
+  },
+  {
+    "model": "MUZ-EF35VG",
+    "brand": "mitsubishi-electric",
+    "series": "MUZ-EF",
+    "system_type": "split",
+    "capacity_cool_kw": 3.5,
+    "capacity_heat_kw": 4.0,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 9.52,
+    "refrigerant": "R32",
+    "width_mm": 800,
+    "depth_mm": 285,
+    "height_mm": 550,
+    "weight_kg": 34,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-6"
+    },
+    "max_amps_a": 6.8
+  },
+  {
+    "model": "MUZ-EF42VG",
+    "brand": "mitsubishi-electric",
+    "series": "MUZ-EF",
+    "system_type": "split",
+    "capacity_cool_kw": 4.2,
+    "capacity_heat_kw": 5.4,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 9.52,
+    "refrigerant": "R32",
+    "width_mm": 800,
+    "depth_mm": 285,
+    "height_mm": 550,
+    "weight_kg": 35,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-7"
+    },
+    "max_amps_a": 9.6
+  },
+  {
+    "model": "MUZ-EF50VG",
+    "brand": "mitsubishi-electric",
+    "series": "MUZ-EF",
+    "system_type": "split",
+    "capacity_cool_kw": 5.0,
+    "capacity_heat_kw": 5.8,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 9.52,
+    "refrigerant": "R32",
+    "width_mm": 800,
+    "depth_mm": 285,
+    "height_mm": 714,
+    "weight_kg": 40,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-7"
+    },
+    "max_amps_a": 13.6
+  },
+  {
+    "model": "MUZ-AP20VG",
+    "brand": "mitsubishi-electric",
+    "series": "MUZ-AP",
+    "system_type": "split",
+    "capacity_cool_kw": 2.0,
+    "capacity_heat_kw": 2.5,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 9.52,
+    "refrigerant": "R32",
+    "width_mm": 800,
+    "depth_mm": 285,
+    "height_mm": 550,
+    "weight_kg": 31,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-8"
+    },
+    "max_amps_a": 6.9
+  },
+  {
+    "model": "MUZ-AP25VG2",
+    "brand": "mitsubishi-electric",
+    "series": "MUZ-AP",
+    "system_type": "split",
+    "capacity_cool_kw": 2.5,
+    "capacity_heat_kw": 3.2,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 9.52,
+    "refrigerant": "R32",
+    "width_mm": 800,
+    "depth_mm": 285,
+    "height_mm": 550,
+    "weight_kg": 34,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-9"
+    },
+    "max_amps_a": 6.8
+  },
+  {
+    "model": "MUZ-AP35VG2",
+    "brand": "mitsubishi-electric",
+    "series": "MUZ-AP",
+    "system_type": "split",
+    "capacity_cool_kw": 3.5,
+    "capacity_heat_kw": 3.7,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 9.52,
+    "refrigerant": "R32",
+    "width_mm": 800,
+    "depth_mm": 285,
+    "height_mm": 550,
+    "weight_kg": 34,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-9"
+    },
+    "max_amps_a": 6.8
+  },
+  {
+    "model": "MUZ-AP42VG2",
+    "brand": "mitsubishi-electric",
+    "series": "MUZ-AP",
+    "system_type": "split",
+    "capacity_cool_kw": 4.2,
+    "capacity_heat_kw": 5.4,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 9.52,
+    "refrigerant": "R32",
+    "width_mm": 800,
+    "depth_mm": 285,
+    "height_mm": 550,
+    "weight_kg": 35,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-9"
+    },
+    "max_amps_a": 9.6
+  },
+  {
+    "model": "MUZ-AP50VG2",
+    "brand": "mitsubishi-electric",
+    "series": "MUZ-AP",
+    "system_type": "split",
+    "capacity_cool_kw": 5.0,
+    "capacity_heat_kw": 6.0,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 12.7,
+    "refrigerant": "R32",
+    "width_mm": 800,
+    "depth_mm": 285,
+    "height_mm": 714,
+    "weight_kg": 40,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-10"
+    },
+    "max_amps_a": 13.5
+  },
+  {
+    "model": "MUZ-AP60VG2",
+    "brand": "mitsubishi-electric",
+    "series": "MUZ-AP",
+    "system_type": "split",
+    "capacity_cool_kw": 6.0,
+    "capacity_heat_kw": 6.8,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 12.7,
+    "refrigerant": "R32",
+    "width_mm": 800,
+    "depth_mm": 285,
+    "height_mm": 714,
+    "weight_kg": 40,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-10"
+    },
+    "max_amps_a": 13.5
+  },
+  {
+    "model": "MUZ-AP71VG2",
+    "brand": "mitsubishi-electric",
+    "series": "MUZ-AP",
+    "system_type": "split",
+    "capacity_cool_kw": 7.1,
+    "capacity_heat_kw": 8.0,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 12.7,
+    "refrigerant": "R32",
+    "width_mm": 840,
+    "depth_mm": 330,
+    "height_mm": 880,
+    "weight_kg": 53,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-10"
+    },
+    "max_amps_a": 16.0
+  },
+  {
+    "model": "MUZ-AP80VG2",
+    "brand": "mitsubishi-electric",
+    "series": "MUZ-AP",
+    "system_type": "split",
+    "capacity_cool_kw": 7.8,
+    "capacity_heat_kw": 9.0,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 12.7,
+    "refrigerant": "R32",
+    "width_mm": 840,
+    "depth_mm": 330,
+    "height_mm": 880,
+    "weight_kg": 53,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-10"
+    },
+    "max_amps_a": 16.0
+  },
+  {
+    "model": "MUZ-AS90VGD",
+    "brand": "mitsubishi-electric",
+    "series": "MUZ-AS",
+    "system_type": "split",
+    "capacity_cool_kw": 9.0,
+    "capacity_heat_kw": 10.3,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 12.7,
+    "refrigerant": "R32",
+    "width_mm": 840,
+    "depth_mm": 330,
+    "height_mm": 880,
+    "weight_kg": 53,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-11"
+    },
+    "max_amps_a": 17.2
+  },
+  {
+    "model": "MUZ-GS25VFD",
+    "brand": "mitsubishi-electric",
+    "series": "MUZ-GS",
+    "system_type": "split",
+    "capacity_cool_kw": 2.5,
+    "capacity_heat_kw": 3.1,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 9.52,
+    "refrigerant": "R32",
+    "width_mm": 800,
+    "depth_mm": 285,
+    "height_mm": 550,
+    "weight_kg": 28,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-12"
+    },
+    "max_amps_a": 7.3
+  },
+  {
+    "model": "MUZ-GS35VFD",
+    "brand": "mitsubishi-electric",
+    "series": "MUZ-GS",
+    "system_type": "split",
+    "capacity_cool_kw": 3.5,
+    "capacity_heat_kw": 3.7,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 9.52,
+    "refrigerant": "R32",
+    "width_mm": 800,
+    "depth_mm": 285,
+    "height_mm": 550,
+    "weight_kg": 28.5,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-12"
+    },
+    "max_amps_a": 7.3
+  },
+  {
+    "model": "MUZ-GS50VFD",
+    "brand": "mitsubishi-electric",
+    "series": "MUZ-GS",
+    "system_type": "split",
+    "capacity_cool_kw": 5.0,
+    "capacity_heat_kw": 5.5,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 12.7,
+    "refrigerant": "R32",
+    "width_mm": 800,
+    "depth_mm": 285,
+    "height_mm": 714,
+    "weight_kg": 41,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-12"
+    },
+    "max_amps_a": 13.5
+  },
+  {
+    "model": "MUZ-GS60VFD",
+    "brand": "mitsubishi-electric",
+    "series": "MUZ-GS",
+    "system_type": "split",
+    "capacity_cool_kw": 6.0,
+    "capacity_heat_kw": 6.6,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 12.7,
+    "refrigerant": "R32",
+    "width_mm": 800,
+    "depth_mm": 285,
+    "height_mm": 714,
+    "weight_kg": 41,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-13"
+    },
+    "max_amps_a": 13.5
+  },
+  {
+    "model": "MUZ-GS71VFD",
+    "brand": "mitsubishi-electric",
+    "series": "MUZ-GS",
+    "system_type": "split",
+    "capacity_cool_kw": 7.1,
+    "capacity_heat_kw": 8.0,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 12.7,
+    "refrigerant": "R32",
+    "width_mm": 800,
+    "depth_mm": 285,
+    "height_mm": 714,
+    "weight_kg": 41,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-13"
+    },
+    "max_amps_a": 13.5
+  },
+  {
+    "model": "MUZ-GS80VFD",
+    "brand": "mitsubishi-electric",
+    "series": "MUZ-GS",
+    "system_type": "split",
+    "capacity_cool_kw": 7.8,
+    "capacity_heat_kw": 9.0,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 12.7,
+    "refrigerant": "R32",
+    "width_mm": 840,
+    "depth_mm": 330,
+    "height_mm": 880,
+    "weight_kg": 53,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-13"
+    },
+    "max_amps_a": 17.5
+  },
+  {
+    "model": "MUFZ-KW25VG",
+    "brand": "mitsubishi-electric",
+    "series": "MUFZ-KW",
+    "system_type": "split",
+    "capacity_cool_kw": 2.5,
+    "capacity_heat_kw": 3.4,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 9.52,
+    "refrigerant": "R32",
+    "width_mm": 800,
+    "depth_mm": 285,
+    "height_mm": 550,
+    "weight_kg": 35,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-294"
+    },
+    "max_amps_a": 9.6
+  },
+  {
+    "model": "MUFZ-KW35VG",
+    "brand": "mitsubishi-electric",
+    "series": "MUFZ-KW",
+    "system_type": "split",
+    "capacity_cool_kw": 3.5,
+    "capacity_heat_kw": 4.3,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 9.52,
+    "refrigerant": "R32",
+    "width_mm": 800,
+    "depth_mm": 285,
+    "height_mm": 550,
+    "weight_kg": 35,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-294"
+    },
+    "max_amps_a": 9.6
+  },
+  {
+    "model": "MUFZ-KW42VG",
+    "brand": "mitsubishi-electric",
+    "series": "MUFZ-KW",
+    "system_type": "split",
+    "capacity_cool_kw": 4.2,
+    "capacity_heat_kw": 5.4,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 9.52,
+    "refrigerant": "R32",
+    "width_mm": 800,
+    "depth_mm": 285,
+    "height_mm": 550,
+    "weight_kg": 35,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-294"
+    },
+    "max_amps_a": 9.6
+  },
+  {
+    "model": "MUFZ-KW50VG",
+    "brand": "mitsubishi-electric",
+    "series": "MUFZ-KW",
+    "system_type": "split",
+    "capacity_cool_kw": 5.0,
+    "capacity_heat_kw": 5.8,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 12.7,
+    "refrigerant": "R32",
+    "width_mm": 840,
+    "depth_mm": 330,
+    "height_mm": 880,
+    "weight_kg": 54,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-295"
+    },
+    "max_amps_a": 14.8
+  },
+  {
+    "model": "MUFZ-KW60VG",
+    "brand": "mitsubishi-electric",
+    "series": "MUFZ-KW",
+    "system_type": "split",
+    "capacity_cool_kw": 6.1,
+    "capacity_heat_kw": 6.5,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 12.7,
+    "refrigerant": "R32",
+    "width_mm": 840,
+    "depth_mm": 330,
+    "height_mm": 880,
+    "weight_kg": 54,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-295"
+    },
+    "max_amps_a": 14.8
+  },
+  {
+    "model": "MUFZ-KW50VGHZ",
+    "brand": "mitsubishi-electric",
+    "series": "MUFZ-KW",
+    "system_type": "split",
+    "capacity_cool_kw": 5.0,
+    "capacity_heat_kw": 5.8,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 12.7,
+    "refrigerant": "R32",
+    "width_mm": 840,
+    "depth_mm": 330,
+    "height_mm": 880,
+    "weight_kg": 54,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-296"
+    },
+    "max_amps_a": 14.8
+  },
+  {
+    "model": "MUFZ-KW60VGHZ",
+    "brand": "mitsubishi-electric",
+    "series": "MUFZ-KW",
+    "system_type": "split",
+    "capacity_cool_kw": 6.1,
+    "capacity_heat_kw": 6.5,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 12.7,
+    "refrigerant": "R32",
+    "width_mm": 840,
+    "depth_mm": 330,
+    "height_mm": 880,
+    "weight_kg": 54,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-296"
+    },
+    "max_amps_a": 14.8
+  },
+  {
+    "model": "MXZ-2F52VF",
+    "brand": "mitsubishi-electric",
+    "series": "MXZ-F",
+    "system_type": "multi",
+    "capacity_cool_kw": 5.2,
+    "capacity_heat_kw": 6.1,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 9.52,
+    "refrigerant": "R32",
+    "precharged_kg": 1.0,
+    "ports": 2,
+    "width_mm": 800,
+    "depth_mm": 285,
+    "height_mm": 550,
+    "weight_kg": 37,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-382"
+    },
+    "max_amps_a": 10.2
+  },
+  {
+    "model": "MXZ-2F52VGD",
+    "brand": "mitsubishi-electric",
+    "series": "MXZ-F",
+    "system_type": "multi",
+    "capacity_cool_kw": 5.2,
+    "capacity_heat_kw": 6.1,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 9.52,
+    "refrigerant": "R32",
+    "precharged_kg": 2.4,
+    "ports": 2,
+    "width_mm": 840,
+    "depth_mm": 330,
+    "height_mm": 710,
+    "weight_kg": 57,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-383"
+    },
+    "max_amps_a": 10.2
+  },
+  {
+    "model": "MXZ-3F54VGD",
+    "brand": "mitsubishi-electric",
+    "series": "MXZ-F",
+    "system_type": "multi",
+    "capacity_cool_kw": 5.4,
+    "capacity_heat_kw": 7.0,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 9.52,
+    "refrigerant": "R32",
+    "precharged_kg": 2.4,
+    "ports": 3,
+    "width_mm": 840,
+    "depth_mm": 330,
+    "height_mm": 710,
+    "weight_kg": 58,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-383"
+    },
+    "max_amps_a": 15.0
+  },
+  {
+    "model": "MXZ-4F71VGD",
+    "brand": "mitsubishi-electric",
+    "series": "MXZ-F",
+    "system_type": "multi",
+    "capacity_cool_kw": 7.1,
+    "capacity_heat_kw": 8.0,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 12.7,
+    "refrigerant": "R32",
+    "precharged_kg": 2.4,
+    "ports": 4,
+    "width_mm": 840,
+    "depth_mm": 330,
+    "height_mm": 710,
+    "weight_kg": 59,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-383"
+    },
+    "max_amps_a": 15.0
+  },
+  {
+    "model": "MXZ-4F80VGD",
+    "brand": "mitsubishi-electric",
+    "series": "MXZ-F",
+    "system_type": "multi",
+    "capacity_cool_kw": 8.0,
+    "capacity_heat_kw": 8.8,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 12.7,
+    "refrigerant": "R32",
+    "precharged_kg": 2.4,
+    "ports": 4,
+    "width_mm": 950,
+    "depth_mm": 330,
+    "height_mm": 796,
+    "weight_kg": 61,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-384"
+    },
+    "max_amps_a": 18.4
+  },
+  {
+    "model": "MXZ-5F100VGD",
+    "brand": "mitsubishi-electric",
+    "series": "MXZ-F",
+    "system_type": "multi",
+    "capacity_cool_kw": 10.0,
+    "capacity_heat_kw": 10.0,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 12.7,
+    "refrigerant": "R32",
+    "precharged_kg": 2.4,
+    "ports": 5,
+    "width_mm": 950,
+    "depth_mm": 330,
+    "height_mm": 796,
+    "weight_kg": 62,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-384"
+    },
+    "max_amps_a": 18.4
+  },
+  {
+    "model": "MXZ-6F120VGD",
+    "brand": "mitsubishi-electric",
+    "series": "MXZ-F",
+    "system_type": "multi",
+    "capacity_cool_kw": 12.0,
+    "capacity_heat_kw": 13.2,
+    "phase": "1",
+    "conn_liquid_mm": 6.35,
+    "conn_gas_mm": 12.7,
+    "refrigerant": "R32",
+    "precharged_kg": 2.4,
+    "ports": 6,
+    "width_mm": 950,
+    "depth_mm": 330,
+    "height_mm": 1048,
+    "weight_kg": 87,
+    "provenance": {
+      "kind": "extracted",
+      "source": "M-P Series (Mr Slim) Data Book",
+      "edition": "M-P0922 (2024)",
+      "page": "C-384"
+    },
+    "max_amps_a": 26.8
+  }
 ]

@@ -2252,9 +2252,17 @@
   "weight_kg": 100,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "142"
+   "page": "142; City Multi book 3-209 (MEES21K026)"
+  },
+  "supply_opening": {
+   "w_mm": 1100,
+   "h_mm": 340
+  },
+  "return_opening": {
+   "w_mm": 1100,
+   "h_mm": 420
   }
  },
  {
@@ -2283,9 +2291,17 @@
   "weight_kg": 100,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "142"
+   "page": "142; City Multi book 3-209 (MEES21K026)"
+  },
+  "supply_opening": {
+   "w_mm": 1100,
+   "h_mm": 340
+  },
+  "return_opening": {
+   "w_mm": 1100,
+   "h_mm": 420
   }
  },
  {

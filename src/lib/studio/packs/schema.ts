@@ -202,7 +202,12 @@ export interface IndoorUnit {
   filter?: "built-in" | "field-supplied";
   /** condensate drainage: which pressure side the drain connection sits on
       ("negative" needs the deeper trap) and whether a lift pump is integral.
-      Both Tier-3 — installer info, never gate readiness. */
+      Both Tier-3 — installer info, never gate readiness.
+
+      `drain_pressure` is STAFF-ENTERED, not extracted: no Mitsubishi document
+      states it, so it is left out of the HQ "nice-to-know" gap list (see
+      lib/hq/catalog.ts) and simply stays editable per row. `drain_pump` IS
+      published and is extracted normally. */
   drain_pressure?: "positive" | "negative";
   drain_pump?: "built-in" | "none";
   conn_liquid_mm: number;

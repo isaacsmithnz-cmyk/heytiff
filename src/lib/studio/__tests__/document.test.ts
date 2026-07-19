@@ -246,7 +246,7 @@ describe("schema versioning + migrations", () => {
     expect(migratedFrom).toBe(6);
     expect(doc.schemaVersion).toBe(SCHEMA_VERSION);
 
-    const models = (doc.objects as { props: { model: string } }[]).map((o) => o.props.model);
+    const models = doc.objects.map((o) => String(o.props.model));
     expect(models).toEqual(["PEFY-P63VMA-E4", "PEFY-P100VMA-E4", "PLFY-P32VEM-A"]);
 
     const s = (doc.systems as { settings: Record<string, unknown> }[])[0].settings;
@@ -263,9 +263,7 @@ describe("schema versioning + migrations", () => {
     const v6 = { ...JSON.parse(JSON.stringify(base)), schemaVersion: 6 };
     v6.objects = [{ id: "u1", type: "unit", props: { model: "PEFY-P63VMA-E4" } }];
     const { doc } = migrateDesign(v6);
-    expect((doc.objects as { props: { model: string } }[])[0].props.model).toBe(
-      "PEFY-P63VMA-E4"
-    );
+    expect(String(doc.objects[0].props.model)).toBe("PEFY-P63VMA-E4");
   });
 });
 

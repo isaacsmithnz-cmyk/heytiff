@@ -5,6 +5,7 @@ import {
   type PackMeta,
 } from "@/lib/studio/packs/schema";
 import { buildCatalogView, catalogKpis, type HqRow } from "../catalog";
+import { fieldSpec } from "@/lib/studio/packs/fields";
 
 const META: PackMeta = { brand: "test", version: "1.0", packSchemaVersion: 1, name: "Test" };
 
@@ -65,6 +66,22 @@ describe("buildCatalogView — gap classification", () => {
     expect(sound.roles).toEqual([]);
     const weight = gap(view.indoor[0], "weight_kg")!;
     expect(weight.blocks).toBe(false);
+  });
+
+  it("never reports drain_pressure as a gap — it is staff-entered, not extracted", () => {
+    // no ME document states which pressure side the drain sits on, so listing
+    // it as nice-to-know reported a permanent debt against every indoor row.
+    // It must stay editable, but never nag.
+    const view = buildCatalogView(packOf([idu({ model: "W" })]), []);
+    expect(gap(view.indoor[0], "drain_pressure")).toBeUndefined();
+    // the neighbouring drain field IS published, so it still surfaces
+    expect(gap(view.indoor[0], "drain_pump")).toBeDefined();
+  });
+
+  it("keeps drain_pressure editable with exactly positive/negative", () => {
+    const spec = fieldSpec("indoor_units", "drain_pressure")!;
+    expect(spec.type).toBe("enum");
+    expect(spec.enumValues).toEqual(["positive", "negative"]);
   });
 
   it("surfaces a missing pair row as a structural (non-fillable) blocking gap", () => {

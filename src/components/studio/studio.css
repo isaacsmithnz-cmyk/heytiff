@@ -760,7 +760,11 @@
   font-size: 12.5px;
   font-weight: 700;
   color: var(--gray500);
-  transition: all 0.2s;
+  /* NOT `all`: crossfading the label between dark and light passes through a
+     mid-grey that's unreadable against the mid-grey the pill is fading
+     through — the label visibly blanked for ~200ms mid-switch. The colour
+     snaps; only the pill itself moves. */
+  transition: background 0.2s, box-shadow 0.2s;
 }
 .dstudio .ds-step:hover {
   color: var(--ink);
@@ -936,6 +940,40 @@
 .dstudio .ds-panel.scroll {
   overflow-y: auto;
   overflow-x: hidden;
+}
+/* A step change swaps the panel's content outright, so the arriving screen
+   animates ITSELF in; paired with the cockpit column's glide the whole switch
+   reads as one move rather than a cut. Documents get a small rise, the canvas
+   gets opacity only — it maps pointer coords through getBoundingClientRect,
+   and a mid-flight translate would shift that under the cursor. */
+.dstudio .ds-panel > * {
+  animation: ds-panel-in 0.34s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+.dstudio .ds-panel > .ds-design {
+  animation-name: ds-panel-fade;
+}
+@keyframes ds-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes ds-panel-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dstudio .ds-panel > * {
+    animation: none;
+  }
 }
 .dstudio .ds-canvas-well {
   flex: 1;
@@ -3246,10 +3284,12 @@
   /* the cockpit is a fixed frame — the tabs, hero and Rooms/Components switch
      stay put; only the views inside scroll (.ds-ck-scroll). */
   overflow: hidden;
+  /* opacity rides the same curve as the width — at 0.26s the panel went blank
+     early and you watched an empty gap finish closing */
   transition:
     width 0.4s cubic-bezier(0.4, 0, 0.2, 1),
     margin-left 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 0.26s ease;
+    opacity 0.34s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .dstudio .ds-editor.two-col > .ds-sidecol {
   width: 284px;
@@ -4803,7 +4843,16 @@
   border: 1px solid var(--ds-border);
   border-radius: 9px;
 }
-.dstudio .ds-job-print { justify-content: center; align-self: flex-start; }
+.dstudio .ds-job-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.dstudio .ds-job-print,
+.dstudio .ds-job-export { justify-content: center; flex: 0 0 auto; }
+.dstudio .ds-job-print:disabled { opacity: 0.45; cursor: default; }
+.dstudio .ds-job-print:disabled:hover { transform: none; border-color: rgba(10, 12, 20, 0.08); box-shadow: 0 1px 2px rgba(10, 12, 20, 0.04); }
 
 /* screen-hidden: the pack repeats the on-screen takeoff — print is its stage.
    The border/padding remain the pack's frame if it ever shows in-flow. */

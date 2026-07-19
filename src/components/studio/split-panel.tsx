@@ -30,10 +30,14 @@ export function SummaryView({
   doc,
   pack,
   onMutate,
+  onExport,
 }: {
   doc: DesignDocument;
   pack: DataPack | null;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
+  /** download the .heytiff-design.json backup — sits with Print, since both
+      are ways of getting something out of the design */
+  onExport: () => void;
 }) {
   const schedule = useMemo(() => buildMaterials(doc, pack), [doc, pack]);
 
@@ -132,14 +136,26 @@ export function SummaryView({
             </label>
           </div>
 
-          <button
-            className="ds-tbbtn ds-job-print"
-            onClick={() => window.print()}
-            disabled={empty}
-          >
-            <Icon name="download" size={14} />
-            Print / Save PDF
-          </button>
+          <div className="ds-job-actions">
+            <button
+              className="ds-tbbtn ds-job-print"
+              onClick={() => window.print()}
+              disabled={empty}
+            >
+              <Icon name="download" size={14} />
+              Print / Save PDF
+            </button>
+            {/* stays enabled when empty — a backup of an empty design is
+                still a valid backup */}
+            <button
+              className="ds-tbbtn ds-job-export"
+              onClick={onExport}
+              title="Download this design as a .heytiff-design.json backup — re-open it with Import on the studio home"
+            >
+              <Icon name="arrowUp" size={14} />
+              Export design file
+            </button>
+          </div>
           {empty && (
             <div className="ds-insp-hint">
               The job pack fills in once a system has units placed.

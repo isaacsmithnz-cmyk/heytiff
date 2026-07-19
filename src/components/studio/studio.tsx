@@ -1005,7 +1005,6 @@ function Editor({
             onNew={onNew}
             onOpen={onHome}
             onSave={onSaveNow}
-            onExport={() => downloadDesign(doc)}
             onEditPlans={() => onStep(0)}
             onReference={hasReference ? () => setRefOpen(true) : undefined}
           />
@@ -1130,7 +1129,14 @@ function Editor({
             }}
           />
         )}
-        {step === 2 && <SummaryView doc={doc} pack={pack} onMutate={mutate} />}
+        {step === 2 && (
+          <SummaryView
+            doc={doc}
+            pack={pack}
+            onMutate={mutate}
+            onExport={() => downloadDesign(doc)}
+          />
+        )}
       </div>
 
       {/* Cockpit lives at the editor level so it spans the full height beside
@@ -1239,21 +1245,20 @@ function Editor({
 /* ═════════════ Studio menu ═════════════ */
 
 /* The top-left menu — the file-style actions that used to be scattered chrome
-   (the back arrow, Export, Reference sheets) plus the Plans step, now behind
-   "Edit plans". New/Open leave through the same swap as the old back arrow:
-   Home IS the open-a-design screen. */
+   (the back arrow, Reference sheets) plus the Plans step, now behind "Edit
+   plans". New/Open leave through the same swap as the old back arrow: Home IS
+   the open-a-design screen. Export lives on Summary with Print — both are
+   "get something out of this design". */
 function StudioMenu({
   onNew,
   onOpen,
   onSave,
-  onExport,
   onEditPlans,
   onReference,
 }: {
   onNew: () => void;
   onOpen: () => void;
   onSave: () => void;
-  onExport: () => void;
   onEditPlans: () => void;
   /** absent until plan pages exist — the item shows disabled */
   onReference?: () => void;
@@ -1315,7 +1320,6 @@ function StudioMenu({
           {item("plus", "New", onNew)}
           {item("folder", "Open", onOpen)}
           {item("save", "Save", onSave)}
-          {item("download", "Export", onExport)}
           <div className="ds-menu-sep" />
           {item("edit", "Edit plans", onEditPlans)}
           {item(

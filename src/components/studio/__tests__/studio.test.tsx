@@ -166,13 +166,18 @@ describe("Design Studio shell", () => {
     expect(await screen.findByText("Step 1 of 2")).toBeInTheDocument();
   });
 
-  it("menu Export downloads the design file", async () => {
+  it("Summary's Export downloads the design file (it left the menu)", async () => {
     const user = userEvent.setup();
     render(localStudio());
     await newDesign(user, "Export me", "Blank canvas");
     expect(await screen.findByLabelText("Design name")).toHaveValue(
       "Export me"
     );
+
+    // no longer a menu item
+    await user.click(screen.getByRole("button", { name: "Studio menu" }));
+    expect(screen.queryByRole("menuitem", { name: "Export" })).toBeNull();
+    await user.keyboard("{Escape}");
 
     // jsdom has no createObjectURL — stub the download seam
     const createURL = jest.fn(() => "blob:mock");
@@ -189,7 +194,15 @@ describe("Design Studio shell", () => {
       .spyOn(HTMLAnchorElement.prototype, "click")
       .mockImplementation(() => {});
 
-    await menuPick(user, "Export");
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Workflow" })).getByRole(
+        "button",
+        { name: "Summary" }
+      )
+    );
+    await user.click(
+      await screen.findByRole("button", { name: /Export design file/ })
+    );
     expect(createURL).toHaveBeenCalledTimes(1);
     expect(click).toHaveBeenCalledTimes(1);
     expect(revokeURL).toHaveBeenCalledWith("blob:mock");

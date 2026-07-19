@@ -1,5 +1,5 @@
 import { allStepsDone, daysSinceReviewed, emptyState, hydrateState, runEngine, timesheetWeeks } from "../state";
-import { buildDemoState } from "../demo-data";
+import { buildBaselineState } from "./fixtures/baseline-org";
 import { calculate, DEFAULT_WORKING_WEEKS } from "../engine";
 
 describe("emptyState", () => {
@@ -20,7 +20,7 @@ describe("emptyState", () => {
 
 describe("demo state", () => {
   it("is ready and lands Underpriced against demo current rates", () => {
-    const run = runEngine(buildDemoState());
+    const run = runEngine(buildBaselineState());
     expect(run.ready).toBe(true);
     expect(run.missing).toEqual([]);
     expect(run.health.status).toBe("Underpriced");
@@ -28,10 +28,10 @@ describe("demo state", () => {
   });
 
   it("is deep-cloned — mutating one build never affects the next", () => {
-    const a = buildDemoState();
+    const a = buildBaselineState();
     a.staff[0].hourly_wage = 999;
     a.timesheets[10].push({ week_ending_date: "X", standard_hours: 1 });
-    const b = buildDemoState();
+    const b = buildBaselineState();
     expect(b.staff[0].hourly_wage).not.toBe(999);
     expect(b.timesheets[10].some(t => t.week_ending_date === "X")).toBe(false);
   });
@@ -51,7 +51,7 @@ describe("vehicles no longer auto-complete on an empty fleet", () => {
     expect(runEngine(s).steps.vehicles.completion).toBe("complete");
   });
   it("demo (a costed fleet) stays complete", () => {
-    expect(runEngine(buildDemoState()).steps.vehicles.completion).toBe("complete");
+    expect(runEngine(buildBaselineState()).steps.vehicles.completion).toBe("complete");
   });
 });
 
@@ -77,7 +77,7 @@ describe("hydrateState", () => {
   });
 
   it("round-trips a full demo state through JSON", () => {
-    const demo = buildDemoState();
+    const demo = buildBaselineState();
     const s = hydrateState(JSON.parse(JSON.stringify(demo)));
     expect(runEngine(s).calc.recInst).toBeCloseTo(runEngine(demo).calc.recInst!, 8);
   });
@@ -103,7 +103,7 @@ describe("risk & profit require explicit acceptance", () => {
     expect(run.steps.profit.completion).toBe("customised");
   });
   it("demo state passes allStepsDone; empty state does not", () => {
-    expect(allStepsDone(runEngine(buildDemoState()).steps)).toBe(true);
+    expect(allStepsDone(runEngine(buildBaselineState()).steps)).toBe(true);
     expect(allStepsDone(runEngine(emptyState()).steps)).toBe(false);
   });
   it("hydrate defaults the flags to false", () => {
@@ -118,7 +118,7 @@ describe("timesheetWeeks", () => {
     expect(timesheetWeeks(emptyState())).toBe(0);
   });
   it("counts distinct weeks for the demo roster (18)", () => {
-    expect(timesheetWeeks(buildDemoState())).toBe(18);
+    expect(timesheetWeeks(buildBaselineState())).toBe(18);
   });
 });
 

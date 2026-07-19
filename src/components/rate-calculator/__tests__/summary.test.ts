@@ -1,14 +1,14 @@
 import { calculate } from "../engine";
 import { generateSummary, toPlainText } from "../summary";
 import { emptyState } from "../state";
-import { buildDemoState } from "../demo-data";
+import { buildBaselineState } from "./fixtures/baseline-org";
 import { buildEngineData } from "../state";
 
 // Pinned dates — generateSummary is date-dependent (July award check, generatedAt).
 const JULY = new Date("2026-07-16T10:00:00");
 const MARCH = new Date("2026-03-10T10:00:00");
 
-const demo = buildDemoState();
+const demo = buildBaselineState();
 const demoCalc = calculate(buildEngineData(demo));
 
 describe("generateSummary", () => {
@@ -20,7 +20,7 @@ describe("generateSummary", () => {
   });
 
   it("flags below-recommended rates and quantifies the gap", () => {
-    // Blue Sky charges $118/$105 vs higher recommended — below recommended, above BE
+    // The baseline org charges $118/$105 vs higher recommended — below recommended, above BE
     const sum = generateSummary(demoCalc, demo.eofy, demo.settings, demo.profit, demo.currentRates, MARCH);
     expect(sum.whereStand).toMatch(/covers costs but sits \$\d+\/hr below the recommended/);
     expect(sum.attentionItems.some(i => i.heading === "Rate increase to target")).toBe(true);
@@ -35,7 +35,7 @@ describe("generateSummary", () => {
 
   it("warns when taxable wages approach the payroll threshold with tax disabled", () => {
     // Inflate the wage bill so totalWages (incl. super) crosses 80% of the threshold
-    const s = buildDemoState();
+    const s = buildBaselineState();
     s.simpleLabour.months = [85_000, 85_000, 85_000]; // ~1.02M + super ≈ 1.14M ≈ 95% of 1.2M
     const calc = calculate(buildEngineData(s));
     const sum = generateSummary(calc, s.eofy, s.settings, s.profit, s.currentRates, MARCH);

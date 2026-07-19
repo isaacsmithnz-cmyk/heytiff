@@ -22,7 +22,6 @@ import {
   timesheetWeeks,
   type RateCalcState,
 } from "./state";
-import { buildDemoState } from "./demo-data";
 import { RC } from "./theme";
 import { money, rate0, gstOf } from "./format";
 import { HEALTH_COLORS, parseRate, RcIcon, WsEyebrow } from "./ui";
@@ -39,6 +38,9 @@ const actions = () => import("@/app/actions/rate-calc");
 
 const BUFFER_KEY = "heytiff.rate-calc.buffer";
 const HELP_DISMISSED_KEY = "rc-help-dismissed";
+/** The example org the calculator used to ship with. Only referenced to
+    recognise and discard leftovers of it — see the crash-buffer restore. */
+const RETIRED_EXAMPLE_ORG = "Blue Sky Air Conditioning";
 
 const STEP_META = [
   { key: "staff", title: "Staff & wages" },
@@ -127,9 +129,9 @@ function RateCard({ label, k, rec, be, ready, currentRates, patch }: {
   );
 }
 
-function RatesRail({ s, calc, uplift, ready, missing, onLoadDemo, patch }: {
+function RatesRail({ s, calc, uplift, ready, missing, patch }: {
   s: RateCalcState; calc: CalcResult; uplift: number | null; ready: boolean;
-  missing: string[]; onLoadDemo?: () => void; patch: (p: Partial<RateCalcState>) => void;
+  missing: string[]; patch: (p: Partial<RateCalcState>) => void;
 }) {
   return (
     <div style={{ width: 300, flexShrink: 0, display: "flex", flexDirection: "column", overflowY: "auto", overflowX: "hidden", scrollbarGutter: "stable", paddingTop: 14 }}>
@@ -140,11 +142,6 @@ function RatesRail({ s, calc, uplift, ready, missing, onLoadDemo, patch }: {
       {!ready && (
         <div style={{ background: "#fff", borderRadius: 13, border: `1px solid rgba(10,12,20,.06)`, padding: "13px 15px", marginBottom: 12, fontSize: 12.5, color: "#1D4FD7", lineHeight: 1.5 }}>
           <b>Almost there.</b> To see your rates, enter {missing.length === 1 ? missing[0] : missing.slice(0, -1).join(", ") + " and " + missing[missing.length - 1]}.
-          {onLoadDemo && (
-            <div style={{ marginTop: 8 }}>
-              <button onClick={onLoadDemo} style={{ border: "none", background: "transparent", padding: 0, color: "#1D4FD7", fontFamily: RC.body, fontSize: 12.5, fontWeight: 700, textDecoration: "underline", cursor: "pointer" }}>Or explore with example data →</button>
-            </div>
-          )}
         </div>
       )}
       <RateCard label="Install" k="install" rec={calc.recInst} be={calc.beInst} ready={ready} currentRates={s.currentRates} patch={patch} />
@@ -238,15 +235,12 @@ function RatesIntro({ s, patch, onDone }: {
 type SaveState = "idle" | "saving" | "saved" | "local";
 
 // ── Calculator app (remounted per data mode) ────────────────────────────
-function CalculatorApp({ initial, hasData, demo, showOnboarding, onPersist, saveState, onLoadDemo, onExitDemo }: {
+function CalculatorApp({ initial, hasData, showOnboarding, onPersist, saveState }: {
   initial: RateCalcState;
   hasData: boolean;
-  demo: boolean;
   showOnboarding: boolean;
   onPersist: ((next: RateCalcState) => void) | null;
   saveState: SaveState;
-  onLoadDemo?: () => void;
-  onExitDemo?: () => void;
 }) {
   // Returning users with a complete setup land on Results (the review moment);
   // first-run / incomplete data lands on Step 1. Example mode simulates a
@@ -330,7 +324,7 @@ function CalculatorApp({ initial, hasData, demo, showOnboarding, onPersist, save
   // actually edit: Staff needs ~3 months of timesheets, Vehicles needs
   // vehicle records; Business is ungated. Gates control toggle VISIBILITY
   // only — a state already saved in Detailed keeps rendering Detailed.
-  const allowToggles = demo || hasData;
+  const allowToggles = hasData;
   const toggleGates = [
     allowToggles && timesheetWeeks(s) >= 12,
     allowToggles,
@@ -350,8 +344,7 @@ function CalculatorApp({ initial, hasData, demo, showOnboarding, onPersist, save
     if (onboardRef.current) { onboardRef.current = false; setShowRatesIntro(true); }
   };
 
-  const saveLabel = demo ? "example data — nothing is saved"
-    : saveState === "saving" ? "saving…"
+  const saveLabel = saveState === "saving" ? "saving…"
     : saveState === "local" ? "saved locally — will retry"
     : saveState === "saved" ? "saved"
     : "saves automatically";
@@ -372,18 +365,10 @@ function CalculatorApp({ initial, hasData, demo, showOnboarding, onPersist, save
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
           {s.businessName && <span style={{ fontFamily: RC.head, fontSize: 12, fontWeight: 700, color: RC.label, background: "#fff", border: `1px solid rgba(10,12,20,.07)`, padding: "4px 9px", borderRadius: 6, whiteSpace: "nowrap" }}>{s.businessName}</span>}
-          {demo && onExitDemo && <button className="rca-btn sm ghost" onClick={onExitDemo}>Exit example</button>}
           <button className="rca-iconbtn" onClick={() => setShowHelp(true)} title="How to use" style={{ fontWeight: 800, fontSize: 15 }}>?</button>
           <button className="rca-iconbtn" onClick={() => setShowSettings(true)} title="Settings"><RcIcon name="settings" size={16} /></button>
         </div>
       </div>
-
-      {demo && (
-        <div style={{ flexShrink: 0, margin: "10px 20px 0", background: RC.serviceSoft, border: `1px solid rgba(34,165,78,.25)`, borderRadius: 13, padding: "8px 14px", display: "flex", alignItems: "center", gap: 10, fontSize: 12.5, color: "#17703A", fontFamily: RC.body }}>
-          <span style={{ width: 7, height: 7, borderRadius: "50%", background: RC.service, flexShrink: 0 }} />
-          You&apos;re exploring <b>example data</b> (Blue Sky Air Conditioning). Nothing here is saved — your own setup is untouched.
-        </div>
-      )}
 
       {showBanner && !overview && !insights && reviewDue && <NotifBanner daysSince={daysSince} message={s.reviewState.message || null} onReview={() => { setShowBanner(false); setStep(0); }} onDismiss={() => setShowBanner(false)} />}
 
@@ -442,7 +427,7 @@ function CalculatorApp({ initial, hasData, demo, showOnboarding, onPersist, save
                 <button className="rca-btn primary" style={{ padding: "0 26px" }} onClick={onContinue}>{step === 4 && completions.slice(0, 4).every(c => DONE_COMPLETIONS.includes(c)) ? "See results →" : "Continue →"}</button>
               </div>
             </div>
-            <RatesRail s={s} calc={calc} uplift={uplift} ready={ready} missing={missing} onLoadDemo={demo ? undefined : onLoadDemo} patch={patch} />
+            <RatesRail s={s} calc={calc} uplift={uplift} ready={ready} missing={missing} patch={patch} />
           </>
         )}
       </div>
@@ -457,7 +442,6 @@ export function RateCalculator({ initialState, initialUpdatedAt }: {
 }) {
   void initialUpdatedAt; // reserved for buffer-vs-server reconciliation
   const hasServerState = initialState != null;
-  const [demo, setDemo] = React.useState(false);
   const [restored, setRestored] = React.useState<RateCalcState | null>(null);
   const [saveState, setSaveState] = React.useState<SaveState>("idle");
   const saveTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -494,6 +478,13 @@ export function RateCalculator({ initialState, initialUpdatedAt }: {
     try { const raw = window.localStorage.getItem(BUFFER_KEY); buf = raw ? JSON.parse(raw) : null; } catch { buf = null; }
     if (buf?.state == null) return;
     const state = hydrateState(buf.state);
+    // One-time cleanup: the retired "Blue Sky Air Conditioning" example org
+    // could be left in a stale buffer, and restoring it would write the demo
+    // straight back onto a clean org. Drop such a buffer instead.
+    if (state.businessName === RETIRED_EXAMPLE_ORG) {
+      try { window.localStorage.removeItem(BUFFER_KEY); } catch { /* ignore */ }
+      return;
+    }
     // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage is client-only; must diverge from the SSR-safe initial render
     setRestored(state);
     persist(state); // push the recovered edits up immediately
@@ -507,21 +498,6 @@ export function RateCalculator({ initialState, initialUpdatedAt }: {
     if (payload) { actions().then(({ saveRateCalcState }) => saveRateCalcState(payload)).catch(() => { /* buffer holds it */ }); }
   }, []);
 
-  if (demo) {
-    return (
-      <CalculatorApp
-        key="demo"
-        initial={buildDemoState()}
-        hasData
-        demo
-        showOnboarding={false}
-        onPersist={null}
-        saveState="idle"
-        onExitDemo={() => setDemo(false)}
-      />
-    );
-  }
-
   const initial = hasServerState ? hydrateState(initialState) : (restored ?? emptyState());
   const hasData = hasServerState || restored != null;
   return (
@@ -529,11 +505,9 @@ export function RateCalculator({ initialState, initialUpdatedAt }: {
       key={hasServerState ? "server" : restored ? "buffer" : "fresh"}
       initial={initial}
       hasData={hasData}
-      demo={false}
       showOnboarding={!hasData}
       onPersist={persist}
       saveState={saveState}
-      onLoadDemo={() => setDemo(true)}
     />
   );
 }

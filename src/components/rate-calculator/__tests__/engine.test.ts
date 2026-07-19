@@ -1,16 +1,16 @@
 /**
  * Engine tests.
  *
- * The "Blue Sky baseline" blocks pin the TypeScript port to ground-truth
+ * The "engine baseline" blocks pin the TypeScript port to ground-truth
  * outputs captured by running the original handoff engine (plain JS) over
  * the same inputs. They pass EXPLICIT settings so they stay valid as the
  * demo defaults / FY tax table move each year.
  */
 import { calculate, healthStatus, stepStatus, type EngineData } from "../engine";
-import { DEMO_DATA, DEMO_RISK, DEMO_PROFIT, DEMO_MULTIPLIERS } from "../demo-data";
+import { BASELINE_DATA, BASELINE_RISK, BASELINE_PROFIT, BASELINE_MULTIPLIERS } from "./fixtures/baseline-org";
 
 // Settings frozen to the values the ground-truth run used — independent of
-// DEMO_DATA.settings, which tracks the current FY.
+// BASELINE_DATA.settings, which tracks the current FY.
 const BASELINE_SETTINGS = {
   state: "NSW",
   super_pct: 11.5,
@@ -23,13 +23,13 @@ const BASELINE_SETTINGS = {
 };
 
 const detailedData: EngineData = {
-  staff: DEMO_DATA.staff,
-  timesheets: DEMO_DATA.timesheets,
-  vehicles: DEMO_DATA.vehicles,
-  businessCosts: DEMO_DATA.businessCosts,
-  risk: DEMO_RISK,
-  profit: DEMO_PROFIT,
-  multipliers: DEMO_MULTIPLIERS,
+  staff: BASELINE_DATA.staff,
+  timesheets: BASELINE_DATA.timesheets,
+  vehicles: BASELINE_DATA.vehicles,
+  businessCosts: BASELINE_DATA.businessCosts,
+  risk: BASELINE_RISK,
+  profit: BASELINE_PROFIT,
+  multipliers: BASELINE_MULTIPLIERS,
   settings: BASELINE_SETTINGS,
 };
 
@@ -50,7 +50,7 @@ function expectClose(actual: Record<string, unknown>, expected: Record<string, n
   }
 }
 
-describe("calculate — Blue Sky baseline (detailed mode)", () => {
+describe("calculate — engine baseline (detailed mode)", () => {
   const calc = calculate(detailedData);
 
   it("reproduces the ground-truth outputs of the original engine", () => {
@@ -113,8 +113,8 @@ describe("calculate — Blue Sky baseline (detailed mode)", () => {
     expect(calc.confidence).toEqual({ label: "Reliable", level: "reliable" });
   });
 
-  it("flags Blue Sky's current rates as Underpriced", () => {
-    expect(healthStatus(calc, DEMO_DATA.currentRates)).toEqual({ status: "Underpriced", type: "warning" });
+  it("flags the baseline org's current rates as Underpriced", () => {
+    expect(healthStatus(calc, BASELINE_DATA.currentRates)).toEqual({ status: "Underpriced", type: "warning" });
   });
 
   it("reports step completion", () => {
@@ -128,7 +128,7 @@ describe("calculate — Blue Sky baseline (detailed mode)", () => {
   });
 });
 
-describe("calculate — Blue Sky baseline (simple mode)", () => {
+describe("calculate — engine baseline (simple mode)", () => {
   const calc = calculate(simpleData);
 
   it("reproduces the ground-truth outputs of the original engine", () => {

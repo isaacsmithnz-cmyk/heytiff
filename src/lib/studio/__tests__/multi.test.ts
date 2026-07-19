@@ -164,10 +164,14 @@ describe("multiCapableIdus", () => {
   const capable = multiCapableIdus(pack);
   const models = capable.map((u) => u.model);
 
-  it("derives the whitelisted families from multi_rules (31 models)", () => {
-    expect(capable).toHaveLength(31);
+  it("derives capability from both rule shapes (31 whitelisted + 103 index-band)", () => {
+    // MXZ rules whitelist families; the PUMY-SP/P rules use index_ratio_band,
+    // which admits any indoor carrying a capacity_index inside the band — i.e.
+    // the whole City Multi P*FY range, which is what those outdoors connect.
+    expect(capable).toHaveLength(134);
     expect(models).toContain("MSZ-AP20VGD");
     expect(models).toContain("PEAD-M50JAA(D)"); // a ducted IDU among the hi-walls
+    expect(models).toContain("PEFY-P40VMHS-E"); // City Multi, via a PUMY index band
   });
 
   it("excludes family models over every rule's per-port limit", () => {
@@ -176,13 +180,23 @@ describe("multiCapableIdus", () => {
     expect(models).not.toContain("PEAD-M125JAA(D)");
   });
 
-  it("excludes models outside every whitelist", () => {
+  it("admits nothing a rule doesn't actually reach", () => {
+    // every capable unit is authorised by one of the two mechanisms: an MXZ
+    // family prefix, or a capacity_index inside some rule's index band
+    const families = ["MSZ-LN", "MSZ-EF", "MSZ-AP", "MFXZ-KW", "MLZ-KP", "SLZ-M", "SEZ-M", "PEAD-M"];
+    const bands = pack.multi_rules
+      .flatMap((r) => r.compatibility)
+      .filter((c) => c.method === "index_ratio_band");
     for (const u of capable) {
-      expect(
-        ["MSZ-LN", "MSZ-EF", "MSZ-AP", "MFXZ-KW", "MLZ-KP", "SLZ-M", "SEZ-M", "PEAD-M"].some(
-          (f) => u.model.startsWith(f)
-        )
-      ).toBe(true);
+      const byFamily = families.some((f) => u.model.startsWith(f));
+      const byIndex =
+        u.capacity_index != null &&
+        bands.some(
+          (b) =>
+            u.capacity_index! >= (b.index_min ?? 0) &&
+            u.capacity_index! <= (b.index_max ?? Infinity)
+        );
+      expect(byFamily || byIndex).toBe(true);
     }
   });
 });
@@ -210,7 +224,7 @@ describe("proposeMultiIdus", () => {
 
   it("null load = the full capable catalogue, nothing recommended", () => {
     const props = proposeMultiIdus(pack, null, basis);
-    expect(props).toHaveLength(31);
+    expect(props).toHaveLength(134);
     expect(props.some((p) => p.recommended)).toBe(false);
   });
 });
@@ -263,8 +277,10 @@ describe("proposeMultiOdus", () => {
   const twoSmall = [idu("MSZ-AP20VGD"), idu("MSZ-AP20VGD")];
 
   it("offers every multi-ready outdoor, fitting units first, smallest first", () => {
+    // 7 MXZ + 11 PUMY-SP/P — the PUMY rules carry a `ports` count, without
+    // which proposeMultiOdus drops an outdoor from the picker silently
     const props = proposeMultiOdus(pack, twoSmall, basis, { requiredKw: 3.48 });
-    expect(props).toHaveLength(7);
+    expect(props).toHaveLength(18);
     expect(props.every((p) => p.fits)).toBe(true);
     // smallest clean fit covering 3.48 kW → the 5.2 kW 2-port
     const rec = props.filter((p) => p.recommended);

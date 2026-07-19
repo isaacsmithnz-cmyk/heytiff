@@ -55,7 +55,8 @@ export function SimControllerCard({
   onExit,
 }: {
   runtime: SimRuntime;
-  onExit: () => void;
+  /** absent on the public live link — there is nowhere to exit TO */
+  onExit?: () => void;
 }) {
   const state = useSyncExternalStore(
     (cb) => runtime.subscribe(cb),
@@ -91,9 +92,11 @@ export function SimControllerCard({
         </button>
         <span className="ds-sim-title">Simulate</span>
         <span className="ds-sim-clock">{clock}</span>
-        <button className="ds-sim-x" onClick={onExit} title="Exit simulation" aria-label="Exit simulation">
-          ×
-        </button>
+        {onExit && (
+          <button className="ds-sim-x" onClick={onExit} title="Exit simulation" aria-label="Exit simulation">
+            ×
+          </button>
+        )}
       </div>
 
       {model.handlers.length > 1 && (

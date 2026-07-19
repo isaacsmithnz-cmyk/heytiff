@@ -12,6 +12,7 @@ import {
 } from "@/lib/studio/summary";
 import { buildMaterials, rollupUnits } from "@/lib/studio/materials";
 import { SimCard, type SimReady } from "./sim-card";
+import { ShareCard } from "./share-card";
 import { ExportCard } from "./export-card";
 
 /* Summary view (Design Studio step 2) — the whole design on one scrollable
@@ -117,6 +118,7 @@ export function SummaryView({
 
           <div className="ds-sum-actions">
             {simFlag && <SimCard ready={simReady} onSimulate={onSimulate} />}
+            <ShareCard key={doc.id} designId={doc.id} />
             <ExportCard
               doc={doc}
               pack={pack}

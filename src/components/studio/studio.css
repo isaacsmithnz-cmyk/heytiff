@@ -8059,3 +8059,74 @@
   border-color: var(--teal);
   color: #04241f;
 }
+
+/* ══════════════ Live link — the customer viewer (/live/[token]) ══════════════
+   Present mode as a whole page: same dark stage and bar, a HeyTiff mark
+   instead of an Exit, floor pills when there are several. .ds-live-404 also
+   dresses the dead-link page. */
+.dstudio .ds-live-brand {
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: -0.01em;
+  color: var(--teal, #00e5c0);
+  white-space: nowrap;
+}
+.dstudio .ds-live-floors {
+  display: flex;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+.dstudio .ds-live-floor {
+  padding: 6px 13px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.04);
+  color: #eceef4;
+  font: 700 12px var(--font);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.dstudio .ds-live-floor:hover { background: rgba(255, 255, 255, 0.1); }
+.dstudio .ds-live-floor.on {
+  background: var(--teal, #00e5c0);
+  border-color: var(--teal, #00e5c0);
+  color: #04241f;
+}
+.ds-live-404 {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #0b0d12;
+  color: #eceef4;
+  text-align: center;
+  padding: 24px;
+  font-family: var(--font, 'Plus Jakarta Sans', sans-serif);
+}
+.ds-live-404 .ds-live-brand { font-size: 15px; margin-bottom: 6px; color: var(--teal, #00e5c0); }
+.ds-live-404 h1 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+.ds-live-404 p { margin: 0; max-width: 420px; font-size: 13px; line-height: 1.55; color: rgba(236, 238, 244, 0.65); }
+
+/* share card — the live-link URL row + armed revoke */
+.dstudio .ds-share-url {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--ds-card2, #f4f5f7);
+  border: 1px solid var(--ds-border);
+  border-radius: 8px;
+  padding: 7px 9px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dstudio .ds-share-meta {
+  font-size: 10.5px;
+  color: var(--gray400);
+}
+.dstudio .ds-share-kill {
+  border-color: rgba(220, 38, 38, 0.45);
+  color: #b42318;
+}

@@ -105,6 +105,7 @@ export const EDITABLE_FIELDS: readonly EditableFieldSpec[] = [
   { section: "outdoor_units", field: "phase", label: "Phase", type: "enum", enumValues: PHASES },
   { section: "outdoor_units", field: "power_supply", label: "Power supply", type: "string" },
   { section: "outdoor_units", field: "max_amps_a", label: "Max running amps", unit: "A", type: "number", ...AMPS },
+  { section: "outdoor_units", field: "mca_a", label: "MCA (circuit sizing)", unit: "A", type: "number", ...AMPS },
   { section: "outdoor_units", field: "conn_liquid_mm", label: "Liquid connection", unit: "mm", type: "number", ...CONN },
   { section: "outdoor_units", field: "conn_gas_mm", label: "Gas connection", unit: "mm", type: "number", ...CONN },
   { section: "outdoor_units", field: "precharged_kg", label: "Pre-charged", unit: "kg", type: "number", min: 0, max: 100 },

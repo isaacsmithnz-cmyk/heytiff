@@ -235,6 +235,12 @@ export interface OutdoorUnit {
   power_supply?: string;
   /** max running current, amps (Tier-3 — electrical planning nicety, never gates readiness) */
   max_amps_a?: number;
+  /** max circuit amps — the circuit-SIZING figure (≈125% of the largest motor
+      plus the rest), NOT a running current. Kept separate from `max_amps_a`
+      because some sheets publish only one of the two: the City Multi book
+      (MEES21K067) prints MCA and rated running current but never a max
+      operating current, while the Mr Slim book prints the reverse. Tier-3. */
+  mca_a?: number;
   conn_liquid_mm: number;
   conn_gas_mm: number;
   refrigerant: Refrigerant;

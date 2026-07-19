@@ -79,7 +79,7 @@ export const TABLE_GROUPS: Record<EditableSection, HqColumnGroup[]> = {
     { key: "dims", label: "Dimensions", unit: "mm", columns: [col("width_mm", "W"), col("depth_mm", "D"), col("height_mm", "H")] },
     { key: "mass", label: "Mass", columns: [col("weight_kg", "kg")] },
     { key: "sound", label: "Sound", unit: "dBA", columns: [col("sound_low_dba", "Lo"), col("sound_high_dba", "Hi")] },
-    { key: "power", label: "Power", columns: [col("power_supply", "Supply"), col("phase", "Phase"), col("max_amps_a", "Max amps")] },
+    { key: "power", label: "Power", columns: [col("power_supply", "Supply"), col("phase", "Phase"), col("max_amps_a", "Max amps"), col("mca_a", "MCA")] },
     { key: "refrig", label: "Refrig.", columns: [col("refrigerant", "Type")] },
   ],
   pair_tables: [

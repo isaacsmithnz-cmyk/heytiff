@@ -61,9 +61,9 @@ describe("TABLE_GROUPS — registry drift guard", () => {
     expect([...grouped].sort()).toEqual([...sectionFields(section)].sort());
   });
 
-  it("matches the known section totals (indoor 22 / outdoor 25 / pairs 6)", () => {
+  it("matches the known section totals (indoor 22 / outdoor 26 / pairs 6)", () => {
     expect(sectionFields("indoor_units")).toHaveLength(22);
-    expect(sectionFields("outdoor_units")).toHaveLength(25);
+    expect(sectionFields("outdoor_units")).toHaveLength(26); // +mca_a
     expect(sectionFields("pair_tables")).toHaveLength(6);
     // sanity: derived from the same registry the editor validates against
     expect(EDITABLE_FIELDS.some((f) => f.type === "tags")).toBe(true);

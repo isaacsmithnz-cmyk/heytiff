@@ -25,10 +25,13 @@
     "weight_kg": 215,
     "provenance": {
       "kind": "extracted",
-      "source": "PUHY-P-Y(S)NW-A1 Data Book",
+      "source": "PUHY-P-Y(S)NW-A1 Data Book; City Multi Data Book",
       "edition": "MEES21K029 (MY21-1)",
-      "page": "2"
-    }
+      "page": "2; City Multi book 1-115, 1-2 ff."
+    },
+    "mca_a": 16.1,
+    "power_supply": "380-400-415 V, Three-phase, 50/60 Hz",
+    "sound_high_dba": 59.0
   },
   {
     "model": "PUHY-P250YNW-A1",
@@ -56,10 +59,13 @@
     "weight_kg": 215,
     "provenance": {
       "kind": "extracted",
-      "source": "PUHY-P-Y(S)NW-A1 Data Book",
+      "source": "PUHY-P-Y(S)NW-A1 Data Book; City Multi Data Book",
       "edition": "MEES21K029 (MY21-1)",
-      "page": "3"
-    }
+      "page": "3; City Multi book 1-115, 1-2 ff."
+    },
+    "mca_a": 17.8,
+    "power_supply": "380-400-415 V, Three-phase, 50/60 Hz",
+    "sound_high_dba": 61.0
   },
   {
     "model": "PUHY-P300YNW-A1",
@@ -87,10 +93,13 @@
     "weight_kg": 228,
     "provenance": {
       "kind": "extracted",
-      "source": "PUHY-P-Y(S)NW-A1 Data Book",
+      "source": "PUHY-P-Y(S)NW-A1 Data Book; City Multi Data Book",
       "edition": "MEES21K029 (MY21-1)",
-      "page": "4"
-    }
+      "page": "4; City Multi book 1-115, 1-2 ff."
+    },
+    "mca_a": 22.7,
+    "power_supply": "380-400-415 V, Three-phase, 50/60 Hz",
+    "sound_high_dba": 64.5
   },
   {
     "model": "PUHY-P350YNW-A1",
@@ -118,10 +127,13 @@
     "weight_kg": 279,
     "provenance": {
       "kind": "extracted",
-      "source": "PUHY-P-Y(S)NW-A1 Data Book",
+      "source": "PUHY-P-Y(S)NW-A1 Data Book; City Multi Data Book",
       "edition": "MEES21K029 (MY21-1)",
-      "page": "5"
-    }
+      "page": "5; City Multi book 1-115, 1-2 ff."
+    },
+    "mca_a": 26.4,
+    "power_supply": "380-400-415 V, Three-phase, 50/60 Hz",
+    "sound_high_dba": 64.0
   },
   {
     "model": "PUHY-P400YNW-A1",
@@ -149,10 +161,13 @@
     "weight_kg": 279,
     "provenance": {
       "kind": "extracted",
-      "source": "PUHY-P-Y(S)NW-A1 Data Book",
+      "source": "PUHY-P-Y(S)NW-A1 Data Book; City Multi Data Book",
       "edition": "MEES21K029 (MY21-1)",
-      "page": "6"
-    }
+      "page": "6; City Multi book 1-115, 1-2 ff."
+    },
+    "mca_a": 31.9,
+    "power_supply": "380-400-415 V, Three-phase, 50/60 Hz",
+    "sound_high_dba": 67.0
   },
   {
     "model": "PUHY-P450YNW-A1",
@@ -180,10 +195,13 @@
     "weight_kg": 295,
     "provenance": {
       "kind": "extracted",
-      "source": "PUHY-P-Y(S)NW-A1 Data Book",
+      "source": "PUHY-P-Y(S)NW-A1 Data Book; City Multi Data Book",
       "edition": "MEES21K029 (MY21-1)",
-      "page": "7"
-    }
+      "page": "7; City Multi book 1-115, 1-2 ff."
+    },
+    "mca_a": 37.1,
+    "power_supply": "380-400-415 V, Three-phase, 50/60 Hz",
+    "sound_high_dba": 69.5
   },
   {
     "model": "PUHY-P500YNW-A1",
@@ -211,10 +229,13 @@
     "weight_kg": 337,
     "provenance": {
       "kind": "extracted",
-      "source": "PUHY-P-Y(S)NW-A1 Data Book",
+      "source": "PUHY-P-Y(S)NW-A1 Data Book; City Multi Data Book",
       "edition": "MEES21K029 (MY21-1)",
-      "page": "8"
-    }
+      "page": "8; City Multi book 1-115, 1-2 ff."
+    },
+    "mca_a": 43.7,
+    "power_supply": "380-400-415 V, Three-phase, 50/60 Hz",
+    "sound_high_dba": 66.5
   },
   {
     "model": "SUZ-M50VAD-A",

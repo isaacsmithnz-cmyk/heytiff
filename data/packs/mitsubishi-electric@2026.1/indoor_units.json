@@ -23,10 +23,14 @@
   "weight_kg": 19,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "116"
-  }
+   "page": "116; City Multi book PDF p.1086, PDF p.1098"
+  },
+  "airflow_ls": 283,
+  "sound_low_dba": 26,
+  "sound_high_dba": 31,
+  "max_amps_a": 0.32
  },
  {
   "model": "PLFY-P40VEM-A",
@@ -52,10 +56,14 @@
   "weight_kg": 19,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "116"
-  }
+   "page": "116; City Multi book PDF p.1086, PDF p.1098"
+  },
+  "airflow_ls": 300,
+  "sound_low_dba": 26,
+  "sound_high_dba": 31,
+  "max_amps_a": 0.32
  },
  {
   "model": "PLFY-P50VEM-A",
@@ -81,10 +89,14 @@
   "weight_kg": 19,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "116"
-  }
+   "page": "116; City Multi book PDF p.1086, PDF p.1098"
+  },
+  "airflow_ls": 317,
+  "sound_low_dba": 26,
+  "sound_high_dba": 31,
+  "max_amps_a": 0.32
  },
  {
   "model": "PLFY-P63VEM-A",
@@ -110,10 +122,14 @@
   "weight_kg": 21,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "116"
-  }
+   "page": "116; City Multi book PDF p.1086, PDF p.1098"
+  },
+  "airflow_ls": 317,
+  "sound_low_dba": 28,
+  "sound_high_dba": 32,
+  "max_amps_a": 0.36
  },
  {
   "model": "PLFY-P80VEM-A",
@@ -139,10 +155,14 @@
   "weight_kg": 21,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "116"
-  }
+   "page": "116; City Multi book PDF p.1087, PDF p.1098"
+  },
+  "airflow_ls": 383,
+  "sound_low_dba": 28,
+  "sound_high_dba": 37,
+  "max_amps_a": 0.5
  },
  {
   "model": "PLFY-P100VEM-A",
@@ -168,10 +188,14 @@
   "weight_kg": 24,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "116"
-  }
+   "page": "116; City Multi book PDF p.1087, PDF p.1098"
+  },
+  "airflow_ls": 483,
+  "sound_low_dba": 34,
+  "sound_high_dba": 41,
+  "max_amps_a": 0.67
  },
  {
   "model": "PLFY-P125VEM-A",
@@ -197,10 +221,14 @@
   "weight_kg": 24,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "116"
-  }
+   "page": "116; City Multi book PDF p.1087, PDF p.1098"
+  },
+  "airflow_ls": 583,
+  "sound_low_dba": 35,
+  "sound_high_dba": 45,
+  "max_amps_a": 1.06
  },
  {
   "model": "PLFY-P15VFM-E1",
@@ -226,10 +254,12 @@
   "weight_kg": 14,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "119"
-  }
+   "page": "119; City Multi book 3-30, PDF p.1105"
+  },
+  "airflow_ls": 133,
+  "max_amps_a": 0.19
  },
  {
   "model": "PLFY-P20VFM-E1",
@@ -255,10 +285,12 @@
   "weight_kg": 14,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "119"
-  }
+   "page": "119; City Multi book 3-30, PDF p.1105"
+  },
+  "airflow_ls": 142,
+  "max_amps_a": 0.23
  },
  {
   "model": "PLFY-P25VFM-E1",
@@ -284,10 +316,12 @@
   "weight_kg": 14,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "119"
-  }
+   "page": "119; City Multi book 3-30, PDF p.1105"
+  },
+  "airflow_ls": 150,
+  "max_amps_a": 0.23
  },
  {
   "model": "PLFY-P32VFM-E1",
@@ -313,10 +347,12 @@
   "weight_kg": 15,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "119"
-  }
+   "page": "119; City Multi book 3-30, PDF p.1106"
+  },
+  "airflow_ls": 158,
+  "max_amps_a": 0.28
  },
  {
   "model": "PLFY-P40VFM-E1",
@@ -342,10 +378,12 @@
   "weight_kg": 15,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "119"
-  }
+   "page": "119; City Multi book 3-30, PDF p.1106"
+  },
+  "airflow_ls": 183,
+  "max_amps_a": 0.28
  },
  {
   "model": "PLFY-P50VFM-E1",
@@ -371,10 +409,12 @@
   "weight_kg": 15,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "119"
-  }
+   "page": "119; City Multi book 3-30, PDF p.1106"
+  },
+  "airflow_ls": 217,
+  "max_amps_a": 0.28
  },
  {
   "model": "PMFY-P20VBM-E",
@@ -400,10 +440,13 @@
   "weight_kg": 14,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "127"
-  }
+   "page": "127; City Multi book 3-50, 3-56"
+  },
+  "sound_low_dba": 27,
+  "sound_high_dba": 35,
+  "max_amps_a": 0.2
  },
  {
   "model": "PMFY-P25VBM-E",
@@ -429,10 +472,13 @@
   "weight_kg": 14,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "127"
-  }
+   "page": "127; City Multi book 3-50, 3-56"
+  },
+  "sound_low_dba": 32,
+  "sound_high_dba": 37,
+  "max_amps_a": 0.21
  },
  {
   "model": "PMFY-P32VBM-E",
@@ -458,10 +504,13 @@
   "weight_kg": 14,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "127"
-  }
+   "page": "127; City Multi book 3-50, 3-56"
+  },
+  "sound_low_dba": 32,
+  "sound_high_dba": 37,
+  "max_amps_a": 0.21
  },
  {
   "model": "PMFY-P40VBM-E",
@@ -487,10 +536,13 @@
   "weight_kg": 14,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "127"
-  }
+   "page": "127; City Multi book 3-50, 3-56"
+  },
+  "sound_low_dba": 33,
+  "sound_high_dba": 39,
+  "max_amps_a": 0.26
  },
  {
   "model": "PEFY-P20VMR-E-L",
@@ -517,10 +569,15 @@
   "weight_kg": 18,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "131"
-  }
+   "page": "131; City Multi book 3-86"
+  },
+  "sound_low_dba": 20,
+  "sound_high_dba": 30,
+  "static_pressure_pa": 5,
+  "filter": "built-in",
+  "drain_pump": "none"
  },
  {
   "model": "PEFY-P25VMR-E-L",
@@ -547,10 +604,14 @@
   "weight_kg": 18,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "131"
-  }
+   "page": "131; City Multi book 3-86"
+  },
+  "sound_low_dba": 20,
+  "sound_high_dba": 30,
+  "filter": "built-in",
+  "drain_pump": "none"
  },
  {
   "model": "PEFY-P32VMR-E-L",
@@ -577,10 +638,15 @@
   "weight_kg": 18,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "131"
-  }
+   "page": "131; City Multi book 3-86"
+  },
+  "sound_low_dba": 20,
+  "sound_high_dba": 33,
+  "static_pressure_pa": 5,
+  "filter": "built-in",
+  "drain_pump": "none"
  },
  {
   "model": "PEFY-P20VMR-E-R",
@@ -607,10 +673,15 @@
   "weight_kg": 18,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "131"
-  }
+   "page": "131; City Multi book 3-86"
+  },
+  "sound_low_dba": 20,
+  "sound_high_dba": 30,
+  "static_pressure_pa": 5,
+  "filter": "built-in",
+  "drain_pump": "none"
  },
  {
   "model": "PEFY-P25VMR-E-R",
@@ -637,10 +708,14 @@
   "weight_kg": 18,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "131"
-  }
+   "page": "131; City Multi book 3-86"
+  },
+  "sound_low_dba": 20,
+  "sound_high_dba": 30,
+  "filter": "built-in",
+  "drain_pump": "none"
  },
  {
   "model": "PEFY-P32VMR-E-R",
@@ -667,10 +742,15 @@
   "weight_kg": 18,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "131"
-  }
+   "page": "131; City Multi book 3-86"
+  },
+  "sound_low_dba": 20,
+  "sound_high_dba": 33,
+  "static_pressure_pa": 5,
+  "filter": "built-in",
+  "drain_pump": "none"
  },
  {
   "model": "PEFY-P15VMX-E",
@@ -696,9 +776,19 @@
   "height_mm": 200,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "133"
+   "page": "133; City Multi book 3-58, 3-62, 3-79"
+  },
+  "sound_low_dba": 26,
+  "sound_high_dba": 30,
+  "static_pressure_pa": 35,
+  "max_amps_a": 0.83,
+  "filter": "built-in",
+  "drain_pump": "built-in",
+  "supply_opening": {
+   "w_mm": 658,
+   "h_mm": 160
   }
  },
  {
@@ -725,9 +815,19 @@
   "height_mm": 200,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "133"
+   "page": "133; City Multi book 3-58, 3-62, 3-79"
+  },
+  "sound_low_dba": 26,
+  "sound_high_dba": 32,
+  "static_pressure_pa": 35,
+  "max_amps_a": 0.83,
+  "filter": "built-in",
+  "drain_pump": "built-in",
+  "supply_opening": {
+   "w_mm": 658,
+   "h_mm": 160
   }
  },
  {
@@ -754,9 +854,19 @@
   "height_mm": 200,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "133"
+   "page": "133; City Multi book 3-58, 3-62, 3-79"
+  },
+  "sound_low_dba": 28,
+  "sound_high_dba": 34,
+  "static_pressure_pa": 35,
+  "max_amps_a": 1.1,
+  "filter": "built-in",
+  "drain_pump": "built-in",
+  "supply_opening": {
+   "w_mm": 658,
+   "h_mm": 160
   }
  },
  {
@@ -783,9 +893,19 @@
   "height_mm": 200,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "133"
+   "page": "133; City Multi book 3-58, 3-62, 3-79"
+  },
+  "sound_low_dba": 28,
+  "sound_high_dba": 36,
+  "static_pressure_pa": 35,
+  "max_amps_a": 1.25,
+  "filter": "built-in",
+  "drain_pump": "built-in",
+  "supply_opening": {
+   "w_mm": 658,
+   "h_mm": 160
   }
  },
  {
@@ -812,9 +932,19 @@
   "height_mm": 200,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "133"
+   "page": "133; City Multi book 3-59, 3-62, 3-79"
+  },
+  "sound_low_dba": 31,
+  "sound_high_dba": 42,
+  "static_pressure_pa": 35,
+  "max_amps_a": 1.53,
+  "filter": "built-in",
+  "drain_pump": "built-in",
+  "supply_opening": {
+   "w_mm": 658,
+   "h_mm": 160
   }
  },
  {
@@ -841,9 +971,19 @@
   "height_mm": 200,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "133"
+   "page": "133; City Multi book 3-59, 3-62, 3-79"
+  },
+  "sound_low_dba": 30,
+  "sound_high_dba": 42,
+  "static_pressure_pa": 45,
+  "max_amps_a": 1.64,
+  "filter": "built-in",
+  "drain_pump": "built-in",
+  "supply_opening": {
+   "w_mm": 908,
+   "h_mm": 160
   }
  },
  {
@@ -870,9 +1010,19 @@
   "height_mm": 200,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "133"
+   "page": "133; City Multi book 3-59, 3-62, 3-79"
+  },
+  "sound_low_dba": 30,
+  "sound_high_dba": 37,
+  "static_pressure_pa": 45,
+  "max_amps_a": 1.76,
+  "filter": "built-in",
+  "drain_pump": "built-in",
+  "supply_opening": {
+   "w_mm": 1108,
+   "h_mm": 160
   }
  },
  {
@@ -899,9 +1049,17 @@
   "height_mm": 200,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "135"
+   "page": "135; City Multi book 3-108, 3-87, 3-90"
+  },
+  "static_pressure_pa": 50,
+  "max_amps_a": 0.5,
+  "filter": "built-in",
+  "drain_pump": "built-in",
+  "supply_opening": {
+   "w_mm": 660,
+   "h_mm": 150
   }
  },
  {
@@ -928,9 +1086,19 @@
   "height_mm": 200,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "135"
+   "page": "135; City Multi book 3-108, 3-87, 3-90"
+  },
+  "sound_low_dba": 22,
+  "sound_high_dba": 32,
+  "static_pressure_pa": 50,
+  "max_amps_a": 0.56,
+  "filter": "built-in",
+  "drain_pump": "built-in",
+  "supply_opening": {
+   "w_mm": 660,
+   "h_mm": 150
   }
  },
  {
@@ -957,9 +1125,17 @@
   "height_mm": 200,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "135"
+   "page": "135; City Multi book 3-108, 3-87, 3-90"
+  },
+  "static_pressure_pa": 50,
+  "max_amps_a": 0.6,
+  "filter": "built-in",
+  "drain_pump": "built-in",
+  "supply_opening": {
+   "w_mm": 660,
+   "h_mm": 150
   }
  },
  {
@@ -986,9 +1162,17 @@
   "height_mm": 200,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "135"
+   "page": "135; City Multi book 3-108, 3-87, 3-90"
+  },
+  "static_pressure_pa": 50,
+  "max_amps_a": 0.6,
+  "filter": "built-in",
+  "drain_pump": "built-in",
+  "supply_opening": {
+   "w_mm": 660,
+   "h_mm": 150
   }
  },
  {
@@ -1015,9 +1199,19 @@
   "height_mm": 200,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "135"
+   "page": "135; City Multi book 3-108, 3-88, 3-90"
+  },
+  "sound_low_dba": 28,
+  "sound_high_dba": 33,
+  "static_pressure_pa": 50,
+  "max_amps_a": 0.66,
+  "filter": "built-in",
+  "drain_pump": "built-in",
+  "supply_opening": {
+   "w_mm": 860,
+   "h_mm": 150
   }
  },
  {
@@ -1044,9 +1238,19 @@
   "height_mm": 200,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "135"
+   "page": "135; City Multi book 3-108, 3-88, 3-90"
+  },
+  "sound_low_dba": 30,
+  "sound_high_dba": 35,
+  "static_pressure_pa": 50,
+  "max_amps_a": 0.81,
+  "filter": "built-in",
+  "drain_pump": "built-in",
+  "supply_opening": {
+   "w_mm": 860,
+   "h_mm": 150
   }
  },
  {
@@ -1073,9 +1277,19 @@
   "height_mm": 200,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "135"
+   "page": "135; City Multi book 3-108, 3-88, 3-90"
+  },
+  "sound_low_dba": 30,
+  "sound_high_dba": 36,
+  "static_pressure_pa": 50,
+  "max_amps_a": 0.86,
+  "filter": "built-in",
+  "drain_pump": "built-in",
+  "supply_opening": {
+   "w_mm": 1060,
+   "h_mm": 150
   }
  },
  {
@@ -1433,9 +1647,16 @@
   "weight_kg": 27,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "137"
+   "page": "137; City Multi book 3-158, 3-161, 3-178"
+  },
+  "max_amps_a": 1.39,
+  "filter": "built-in",
+  "drain_pump": "built-in",
+  "supply_opening": {
+   "w_mm": 860,
+   "h_mm": 178
   }
  },
  {
@@ -1463,9 +1684,23 @@
   "weight_kg": 35,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "141"
+   "page": "141; City Multi book 3-182, 3-185, 3-202"
+  },
+  "sound_low_dba": 20,
+  "sound_high_dba": 27,
+  "static_pressure_pa": 200,
+  "max_amps_a": 1.42,
+  "filter": "field-supplied",
+  "drain_pump": "none",
+  "supply_opening": {
+   "w_mm": 550,
+   "h_mm": 250
+  },
+  "return_opening": {
+   "w_mm": 600,
+   "h_mm": 340
   }
  },
  {
@@ -1493,9 +1728,23 @@
   "weight_kg": 35,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "141"
+   "page": "141; City Multi book 3-182, 3-185, 3-202"
+  },
+  "sound_low_dba": 20,
+  "sound_high_dba": 27,
+  "static_pressure_pa": 200,
+  "max_amps_a": 1.42,
+  "filter": "field-supplied",
+  "drain_pump": "none",
+  "supply_opening": {
+   "w_mm": 550,
+   "h_mm": 250
+  },
+  "return_opening": {
+   "w_mm": 600,
+   "h_mm": 340
   }
  },
  {
@@ -1523,9 +1772,23 @@
   "weight_kg": 35,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "141"
+   "page": "141; City Multi book 3-182, 3-185, 3-202"
+  },
+  "sound_low_dba": 24,
+  "sound_high_dba": 32,
+  "static_pressure_pa": 200,
+  "max_amps_a": 1.57,
+  "filter": "field-supplied",
+  "drain_pump": "none",
+  "supply_opening": {
+   "w_mm": 550,
+   "h_mm": 250
+  },
+  "return_opening": {
+   "w_mm": 600,
+   "h_mm": 340
   }
  },
  {
@@ -1553,9 +1816,23 @@
   "weight_kg": 45,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "141"
+   "page": "141; City Multi book 3-182, 3-185, 3-202"
+  },
+  "sound_low_dba": 24,
+  "sound_high_dba": 30,
+  "static_pressure_pa": 200,
+  "max_amps_a": 1.9,
+  "filter": "field-supplied",
+  "drain_pump": "none",
+  "supply_opening": {
+   "w_mm": 835,
+   "h_mm": 250
+  },
+  "return_opening": {
+   "w_mm": 885,
+   "h_mm": 340
   }
  },
  {
@@ -1583,9 +1860,22 @@
   "weight_kg": 45,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "141"
+   "page": "141; City Multi book 3-183, 3-185"
+  },
+  "sound_low_dba": 25,
+  "sound_high_dba": 30,
+  "static_pressure_pa": 200,
+  "filter": "field-supplied",
+  "drain_pump": "none",
+  "supply_opening": {
+   "w_mm": 835,
+   "h_mm": 250
+  },
+  "return_opening": {
+   "w_mm": 885,
+   "h_mm": 340
   }
  },
  {
@@ -1613,9 +1903,22 @@
   "weight_kg": 51,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "141"
+   "page": "141; City Multi book 3-183, 3-185"
+  },
+  "sound_low_dba": 27,
+  "sound_high_dba": 34,
+  "static_pressure_pa": 200,
+  "filter": "field-supplied",
+  "drain_pump": "none",
+  "supply_opening": {
+   "w_mm": 1000,
+   "h_mm": 250
+  },
+  "return_opening": {
+   "w_mm": 1050,
+   "h_mm": 340
   }
  },
  {
@@ -1643,9 +1946,23 @@
   "weight_kg": 51,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "141"
+   "page": "141; City Multi book 3-183, 3-185, 3-202"
+  },
+  "sound_low_dba": 27,
+  "sound_high_dba": 34,
+  "static_pressure_pa": 200,
+  "max_amps_a": 3.08,
+  "filter": "field-supplied",
+  "drain_pump": "none",
+  "supply_opening": {
+   "w_mm": 1000,
+   "h_mm": 250
+  },
+  "return_opening": {
+   "w_mm": 1050,
+   "h_mm": 340
   }
  },
  {
@@ -1673,9 +1990,23 @@
   "weight_kg": 53,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "141"
+   "page": "141; City Multi book 3-183, 3-185, 3-202"
+  },
+  "sound_low_dba": 27,
+  "sound_high_dba": 36,
+  "static_pressure_pa": 200,
+  "max_amps_a": 3.14,
+  "filter": "field-supplied",
+  "drain_pump": "none",
+  "supply_opening": {
+   "w_mm": 1000,
+   "h_mm": 250
+  },
+  "return_opening": {
+   "w_mm": 1050,
+   "h_mm": 340
   }
  },
  {
@@ -1703,9 +2034,22 @@
   "weight_kg": 97,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "142"
+   "page": "142; City Multi book 3-184, 3-187, 3-202"
+  },
+  "sound_low_dba": 36,
+  "sound_high_dba": 43,
+  "max_amps_a": 5.6,
+  "filter": "field-supplied",
+  "drain_pump": "none",
+  "supply_opening": {
+   "w_mm": 1100,
+   "h_mm": 340
+  },
+  "return_opening": {
+   "w_mm": 1100,
+   "h_mm": 420
   }
  },
  {
@@ -1733,9 +2077,22 @@
   "weight_kg": 100,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "142"
+   "page": "142; City Multi book 3-184, 3-187, 3-202"
+  },
+  "sound_low_dba": 39,
+  "sound_high_dba": 46,
+  "max_amps_a": 6.0,
+  "filter": "field-supplied",
+  "drain_pump": "none",
+  "supply_opening": {
+   "w_mm": 1100,
+   "h_mm": 340
+  },
+  "return_opening": {
+   "w_mm": 1100,
+   "h_mm": 420
   }
  },
  {
@@ -1825,9 +2182,20 @@
   "weight_kg": 50,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "145"
+   "page": "145; City Multi book 3-230, 3-231"
+  },
+  "static_pressure_pa": 170,
+  "filter": "field-supplied",
+  "drain_pump": "none",
+  "supply_opening": {
+   "w_mm": 800,
+   "h_mm": 250
+  },
+  "return_opening": {
+   "w_mm": 850,
+   "h_mm": 340
   }
  },
  {
@@ -1855,9 +2223,20 @@
   "weight_kg": 67,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "145"
+   "page": "145; City Multi book 3-230, 3-231"
+  },
+  "static_pressure_pa": 170,
+  "filter": "field-supplied",
+  "drain_pump": "none",
+  "supply_opening": {
+   "w_mm": 1000,
+   "h_mm": 250
+  },
+  "return_opening": {
+   "w_mm": 1050,
+   "h_mm": 340
   }
  },
  {
@@ -1886,9 +2265,20 @@
   "weight_kg": 100,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "146"
+   "page": "146; City Multi book 3-230, 3-232"
+  },
+  "static_pressure_pa": 200,
+  "filter": "field-supplied",
+  "drain_pump": "none",
+  "supply_opening": {
+   "w_mm": 1100,
+   "h_mm": 340
+  },
+  "return_opening": {
+   "w_mm": 1100,
+   "h_mm": 420
   }
  },
  {
@@ -1917,9 +2307,20 @@
   "weight_kg": 100,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "146"
+   "page": "146; City Multi book 3-230, 3-232"
+  },
+  "static_pressure_pa": 190,
+  "filter": "field-supplied",
+  "drain_pump": "none",
+  "supply_opening": {
+   "w_mm": 1100,
+   "h_mm": 340
+  },
+  "return_opening": {
+   "w_mm": 1100,
+   "h_mm": 420
   }
  },
  {
@@ -1946,9 +2347,23 @@
   "weight_kg": 49,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "147"
+   "page": "147; City Multi book 3-206, 3-207, 3-225"
+  },
+  "airflow_ls": 333,
+  "sound_low_dba": 34,
+  "sound_high_dba": 42,
+  "max_amps_a": 2.11,
+  "filter": "field-supplied",
+  "drain_pump": "none",
+  "supply_opening": {
+   "w_mm": 1000,
+   "h_mm": 250
+  },
+  "return_opening": {
+   "w_mm": 1050,
+   "h_mm": 340
   }
  },
  {
@@ -1975,9 +2390,24 @@
   "weight_kg": 78,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "147"
+   "page": "147; City Multi book 3-206, 3-209, 3-225"
+  },
+  "airflow_ls": 533,
+  "sound_low_dba": 35,
+  "sound_high_dba": 42,
+  "static_pressure_pa": 250,
+  "max_amps_a": 2.57,
+  "filter": "field-supplied",
+  "drain_pump": "none",
+  "supply_opening": {
+   "w_mm": 1100,
+   "h_mm": 340
+  },
+  "return_opening": {
+   "w_mm": 1100,
+   "h_mm": 420
   }
  },
  {
@@ -2004,9 +2434,23 @@
   "weight_kg": 81,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "147"
+   "page": "147; City Multi book 3-206, 3-209, 3-225"
+  },
+  "airflow_ls": 667,
+  "sound_low_dba": 38,
+  "sound_high_dba": 45,
+  "max_amps_a": 3.45,
+  "filter": "field-supplied",
+  "drain_pump": "none",
+  "supply_opening": {
+   "w_mm": 1100,
+   "h_mm": 340
+  },
+  "return_opening": {
+   "w_mm": 1100,
+   "h_mm": 420
   }
  },
  {
@@ -2033,10 +2477,14 @@
   "weight_kg": 24,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "152"
-  }
+   "page": "152; City Multi book 3-252, 3-262"
+  },
+  "airflow_ls": 217,
+  "sound_low_dba": 29,
+  "sound_high_dba": 36,
+  "max_amps_a": 0.28
  },
  {
   "model": "PCFY-P63VKM-E",
@@ -2062,10 +2510,14 @@
   "weight_kg": 32,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "152"
-  }
+   "page": "152; City Multi book 3-252, 3-262"
+  },
+  "airflow_ls": 300,
+  "sound_low_dba": 31,
+  "sound_high_dba": 37,
+  "max_amps_a": 0.33
  },
  {
   "model": "PCFY-P100VKM-E",
@@ -2091,10 +2543,14 @@
   "weight_kg": 36,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "152"
-  }
+   "page": "152; City Multi book 3-252, 3-262"
+  },
+  "airflow_ls": 467,
+  "sound_low_dba": 36,
+  "sound_high_dba": 43,
+  "max_amps_a": 0.65
  },
  {
   "model": "PCFY-P125VKM-E",
@@ -2120,10 +2576,14 @@
   "weight_kg": 38,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "152"
-  }
+   "page": "152; City Multi book 3-252, 3-262"
+  },
+  "airflow_ls": 517,
+  "sound_low_dba": 36,
+  "sound_high_dba": 44,
+  "max_amps_a": 0.76
  },
  {
   "model": "PKFY-P10VLM-E",
@@ -2149,10 +2609,14 @@
   "weight_kg": 11,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "155"
-  }
+   "page": "155; City Multi book 3-266, 3-278"
+  },
+  "airflow_ls": 70,
+  "sound_low_dba": 22,
+  "sound_high_dba": 28,
+  "max_amps_a": 0.2
  },
  {
   "model": "PKFY-P15VLM-E",
@@ -2178,10 +2642,14 @@
   "weight_kg": 11,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "155"
-  }
+   "page": "155; City Multi book 3-266, 3-278"
+  },
+  "airflow_ls": 78,
+  "sound_low_dba": 22,
+  "sound_high_dba": 28,
+  "max_amps_a": 0.2
  },
  {
   "model": "PKFY-P20VLM-E",
@@ -2207,10 +2675,14 @@
   "weight_kg": 11,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "155"
-  }
+   "page": "155; City Multi book 3-266, 3-278"
+  },
+  "airflow_ls": 90,
+  "sound_low_dba": 22,
+  "sound_high_dba": 31,
+  "max_amps_a": 0.2
  },
  {
   "model": "PKFY-P25VLM-E",
@@ -2236,10 +2708,14 @@
   "weight_kg": 11,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "155"
-  }
+   "page": "155; City Multi book 3-267, 3-278"
+  },
+  "airflow_ls": 112,
+  "sound_low_dba": 22,
+  "sound_high_dba": 35,
+  "max_amps_a": 0.25
  },
  {
   "model": "PKFY-P32VLM-E",
@@ -2265,10 +2741,14 @@
   "weight_kg": 11,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "155"
-  }
+   "page": "155; City Multi book 3-267, 3-278"
+  },
+  "airflow_ls": 140,
+  "sound_low_dba": 24,
+  "sound_high_dba": 41,
+  "max_amps_a": 0.35
  },
  {
   "model": "PKFY-P40VLM-E",
@@ -2294,10 +2774,14 @@
   "weight_kg": 13,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "155"
-  }
+   "page": "155; City Multi book 3-267, 3-278"
+  },
+  "airflow_ls": 167,
+  "sound_low_dba": 29,
+  "sound_high_dba": 40,
+  "max_amps_a": 0.35
  },
  {
   "model": "PKFY-P50VLM-E",
@@ -2323,10 +2807,14 @@
   "weight_kg": 13,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "155"
-  }
+   "page": "155; City Multi book 3-278, PDF p.1351"
+  },
+  "airflow_ls": 207,
+  "sound_low_dba": 31,
+  "sound_high_dba": 46,
+  "max_amps_a": 0.45
  },
  {
   "model": "PKFY-P63VKM-E",
@@ -2352,10 +2840,14 @@
   "weight_kg": 21,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "156"
-  }
+   "page": "156; City Multi book 3-278, PDF p.1351"
+  },
+  "airflow_ls": 333,
+  "sound_low_dba": 39,
+  "sound_high_dba": 45,
+  "max_amps_a": 0.29
  },
  {
   "model": "PKFY-P100VKM-E",
@@ -2381,10 +2873,14 @@
   "weight_kg": 21,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "156"
-  }
+   "page": "156; City Multi book 3-278, PDF p.1351"
+  },
+  "airflow_ls": 433,
+  "sound_low_dba": 41,
+  "sound_high_dba": 49,
+  "max_amps_a": 0.5
  },
  {
   "model": "PFFY-P20VKM-E2",
@@ -2410,10 +2906,14 @@
   "weight_kg": 15,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "159"
-  }
+   "page": "159; City Multi book 3-284, 3-290"
+  },
+  "airflow_ls": 145,
+  "sound_low_dba": 27,
+  "sound_high_dba": 37,
+  "max_amps_a": 0.2
  },
  {
   "model": "PFFY-P25VKM-E2",
@@ -2439,10 +2939,14 @@
   "weight_kg": 15,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "159"
-  }
+   "page": "159; City Multi book 3-284, 3-290"
+  },
+  "airflow_ls": 152,
+  "sound_low_dba": 28,
+  "sound_high_dba": 38,
+  "max_amps_a": 0.2
  },
  {
   "model": "PFFY-P32VKM-E2",
@@ -2468,10 +2972,14 @@
   "weight_kg": 15,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "159"
-  }
+   "page": "159; City Multi book 3-284, 3-290"
+  },
+  "airflow_ls": 152,
+  "sound_low_dba": 28,
+  "sound_high_dba": 38,
+  "max_amps_a": 0.2
  },
  {
   "model": "PFFY-P40VKM-E2",
@@ -2497,10 +3005,14 @@
   "weight_kg": 15,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "159"
-  }
+   "page": "159; City Multi book 3-284, 3-290"
+  },
+  "airflow_ls": 178,
+  "sound_low_dba": 35,
+  "sound_high_dba": 44,
+  "max_amps_a": 0.24
  },
  {
   "model": "PFFY-P20VLEM-E",
@@ -2525,10 +3037,14 @@
   "height_mm": 630,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "161"
-  }
+   "page": "161; City Multi book 3-292, 3-299"
+  },
+  "airflow_ls": 108,
+  "sound_low_dba": 32,
+  "sound_high_dba": 38,
+  "max_amps_a": 0.25
  },
  {
   "model": "PFFY-P25VLEM-E",
@@ -2553,10 +3069,14 @@
   "height_mm": 630,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "161"
-  }
+   "page": "161; City Multi book 3-292, 3-299"
+  },
+  "airflow_ls": 108,
+  "sound_low_dba": 32,
+  "sound_high_dba": 38,
+  "max_amps_a": 0.25
  },
  {
   "model": "PFFY-P32VLEM-E",
@@ -2581,10 +3101,13 @@
   "height_mm": 630,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "161"
-  }
+   "page": "161; City Multi book 3-292"
+  },
+  "airflow_ls": 150,
+  "sound_low_dba": 33,
+  "sound_high_dba": 38
  },
  {
   "model": "PFFY-P40VLEM-E",
@@ -2609,10 +3132,13 @@
   "height_mm": 630,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "161"
-  }
+   "page": "161; City Multi book 3-292"
+  },
+  "airflow_ls": 183,
+  "sound_low_dba": 36,
+  "sound_high_dba": 41
  },
  {
   "model": "PFFY-P50VLEM-E",
@@ -2637,10 +3163,14 @@
   "height_mm": 630,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "161"
-  }
+   "page": "161; City Multi book 3-293, 3-299"
+  },
+  "airflow_ls": 233,
+  "sound_low_dba": 36,
+  "sound_high_dba": 41,
+  "max_amps_a": 0.41
  },
  {
   "model": "PFFY-P63VLEM-E",
@@ -2665,10 +3195,14 @@
   "height_mm": 630,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
+   "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "161"
-  }
+   "page": "161; City Multi book 3-293, 3-299"
+  },
+  "airflow_ls": 258,
+  "sound_low_dba": 38,
+  "sound_high_dba": 44,
+  "max_amps_a": 0.47
  },
  {
   "model": "PFFY-P20VLRM-E",

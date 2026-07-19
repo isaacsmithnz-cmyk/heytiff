@@ -107,12 +107,12 @@ describe("Design Studio shell", () => {
     );
     expect(screen.getByTestId("studio-canvas")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Summary" }));
-    expect(screen.getByText("Job details")).toBeInTheDocument();
+    expect(screen.getByText("Design basis")).toBeInTheDocument();
     expect(
-      screen.getByText("An empty design is an empty schedule")
+      screen.getByRole("group", { name: "Design snapshot" })
     ).toBeInTheDocument();
     expect(
-      screen.getByText("The job pack fills in once a system has units placed.")
+      screen.getByText("An empty design is an empty schedule")
     ).toBeInTheDocument();
   });
 
@@ -201,7 +201,7 @@ describe("Design Studio shell", () => {
       )
     );
     await user.click(
-      await screen.findByRole("button", { name: /Export design file/ })
+      await screen.findByRole("button", { name: /Design file/ })
     );
     expect(createURL).toHaveBeenCalledTimes(1);
     expect(click).toHaveBeenCalledTimes(1);

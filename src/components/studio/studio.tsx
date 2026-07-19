@@ -52,7 +52,9 @@ import {
   RemotePlanImages,
   type PlanImages,
 } from "@/lib/studio/plans";
-import { SummaryView } from "./split-panel";
+import { SummaryView } from "./summary/summary";
+import type { SimReady } from "./summary/sim-card";
+import { buildSimModel } from "@/lib/studio/sim";
 import { SystemCockpit } from "./cockpit-panel";
 import { RoomModal } from "./room-modal";
 import { ReferenceViewer } from "./reference-viewer";
@@ -106,12 +108,20 @@ function downloadDesign(doc: DesignDocument) {
   URL.revokeObjectURL(url);
 }
 
+/** test/harness seam — defaults to the auth-gated server action */
+export type PackLoader = () => Promise<{
+  pack: DataPack;
+  version: string;
+} | null>;
+
 export function Studio({
   store,
   planImages,
+  packLoader,
 }: {
   store?: DesignStore;
   planImages?: PlanImages;
+  packLoader?: PackLoader;
 }) {
   // the store is browser-only; create it lazily so SSR prerender never touches
   // it. Server rows are the source of truth; localStorage is the crash buffer.
@@ -358,6 +368,7 @@ export function Studio({
             onSwitchVariant={switchVariant}
             onRenameVariant={renameVariant}
             planImages={planImagesInst}
+            packLoader={packLoader}
           />
         ) : (
           <Home
@@ -669,6 +680,7 @@ function Editor({
   onSwitchVariant,
   onRenameVariant,
   planImages,
+  packLoader,
 }: {
   doc: DesignDocument;
   step: number;
@@ -686,6 +698,7 @@ function Editor({
   onSwitchVariant: (id: string) => void;
   onRenameVariant: (label: string) => void;
   planImages: PlanImages;
+  packLoader?: PackLoader;
 }) {
   /* ── undo/redo: record the outgoing document before every mutation ── */
   const historyRef = useRef(new History<DesignDocument>(50));
@@ -746,10 +759,11 @@ function Editor({
   const [legendOpen, setLegendOpen] = useState(false);
 
   /* simulation mode (Stage 12a, dev-flagged): the runtime is transient like
-     the view state above — sim NEVER mutates the document. */
+     the view state above — sim NEVER mutates the document. Held in STATE (not
+     a ref) because present mode renders from it at the Editor level. */
   const [simFlag, setSimFlag] = useState(false);
-  const [simOn, setSimOn] = useState(false);
-  const simRef = useRef<SimRuntime | null>(null);
+  const [simRt, setSimRt] = useState<SimRuntime | null>(null);
+  const simOn = simRt !== null;
   useEffect(() => {
     try {
       setSimFlag(
@@ -806,8 +820,10 @@ function Editor({
 
   useEffect(() => {
     let on = true;
-    packActions()
-      .then((a) => a.loadStudioPack("mitsubishi-electric"))
+    const load =
+      packLoader ??
+      (() => packActions().then((a) => a.loadStudioPack("mitsubishi-electric")));
+    load()
       .then((r) => {
         if (on && r) {
           setPack(r.pack);
@@ -820,7 +836,7 @@ function Editor({
     return () => {
       on = false;
     };
-  }, []);
+  }, [packLoader]);
 
   /* arm (or null-disarm) unit placement — armed by dragging a unit card */
   const armPlace = useCallback((p: PlacingUnit | null) => {
@@ -891,26 +907,46 @@ function Editor({
      simming */
   const toggleSim = useCallback(() => {
     if (simOn) {
-      simRef.current = null;
-      setSimOn(false);
+      setSimRt(null);
       return;
     }
     if (!activeFloorId) return;
-    simRef.current = new SimRuntime(doc, pack, activeFloorId, 5);
+    setSimRt(new SimRuntime(doc, pack, activeFloorId, 5));
     setPlacing(null);
     setAirComp(null);
     setPaletteOpen(false);
     setTool("select");
     setSelectedId(null);
-    setSimOn(true);
   }, [simOn, doc, pack, activeFloorId]);
 
   /* any doc/floor change while simulating re-derives the model in place —
      temps and controller settings carry across by id */
   useEffect(() => {
-    if (simOn && simRef.current && activeFloorId)
-      simRef.current.rebuild(doc, pack, activeFloorId);
-  }, [simOn, doc, pack, activeFloorId]);
+    if (simRt && activeFloorId) simRt.rebuild(doc, pack, activeFloorId);
+  }, [simRt, doc, pack, activeFloorId]);
+
+  /* Simulate-from-Summary readiness: derive the active floor's model the same
+     way toggleSim will, so the card can say WHY it's disabled instead of
+     just greying out */
+  const simReady = useMemo<SimReady>(() => {
+    if (!activeFloor)
+      return {
+        ok: false,
+        reason: "Add a floor first — there is nothing to simulate yet.",
+        floorName: "",
+      };
+    const floorName = floorDisplayName(activeFloor);
+    const m = buildSimModel(doc, pack, activeFloor.id);
+    if (m.handlers.length > 0) return { ok: true, reason: "", floorName };
+    const first = m.notReady[0];
+    return {
+      ok: false,
+      reason: first
+        ? `${first.systemName}: ${first.reason}`
+        : "Draw a room and place a split system's units on the Design step first.",
+      floorName,
+    };
+  }, [doc, pack, activeFloor]);
 
   const addFloor = useCallback(() => {
     mutate((d) => {
@@ -1073,7 +1109,14 @@ function Editor({
           />
         )}
         <div className="ds-tb-right">
-          <nav className="ds-steps" aria-label="Workflow">
+          {/* data-active drives the sliding thumb; -1 on the Plans screen,
+              where neither tab is current and the thumb fades out */}
+          <nav
+            className="ds-steps"
+            aria-label="Workflow"
+            data-active={TABS.findIndex((t) => t.step === step)}
+          >
+            <span className="ds-steps-thumb" aria-hidden="true" />
             {TABS.map((t) => (
               <button
                 key={t.step}
@@ -1140,8 +1183,6 @@ function Editor({
             grayscale={grayscale}
             legendOpen={legendOpen}
             onLegend={setLegendOpen}
-            sim={simOn ? simRef.current : null}
-            onToggleSim={toggleSim}
             onCalibrated={() => {
               const f = docRef.current.floors.find((x) => x.id === activeFloorId);
               if (f && !f.northPos) setNorthPrompt(true);
@@ -1153,7 +1194,10 @@ function Editor({
             doc={doc}
             pack={pack}
             onMutate={mutate}
-            onExport={() => downloadDesign(doc)}
+            onExportJson={() => downloadDesign(doc)}
+            simFlag={simFlag}
+            simReady={simReady}
+            onSimulate={toggleSim}
           />
         )}
       </div>
@@ -1186,6 +1230,21 @@ function Editor({
             onRenameVariant={onRenameVariant}
           />
         </aside>
+      )}
+
+      {/* present mode lives at the Editor level (it's a body portal), so
+          Simulate works from Summary as well as the canvas pill — exiting
+          lands you back on whichever step you launched from */}
+      {simRt && activeFloor && (
+        <SimPresentMode
+          doc={doc}
+          floor={activeFloor}
+          pack={pack}
+          planImages={planImages}
+          activeSystemId={effectiveSystemId}
+          runtime={simRt}
+          onExit={toggleSim}
+        />
       )}
 
       {refOpen && hasReference && (
@@ -1797,8 +1856,6 @@ function DesignPanel({
   grayscale,
   legendOpen,
   onLegend,
-  sim,
-  onToggleSim,
   onCalibrated,
 }: {
   doc: DesignDocument;
@@ -1838,9 +1895,6 @@ function DesignPanel({
   grayscale: boolean;
   legendOpen: boolean;
   onLegend: (v: boolean) => void;
-  /** simulation mode (Stage 12a): live runtime while simming, else null */
-  sim: SimRuntime | null;
-  onToggleSim: () => void;
   onCalibrated: () => void;
 }) {
   const floor = doc.floors.find((f) => f.id === activeFloorId) ?? null;
@@ -2046,17 +2100,6 @@ function DesignPanel({
             stream={airComp.stream}
             onStream={onAirStream}
             returnBuiltIn={airGate.row?.return_opening === "built-in"}
-          />
-        )}
-        {sim && floor && (
-          <SimPresentMode
-            doc={doc}
-            floor={floor}
-            pack={pack}
-            planImages={planImages}
-            activeSystemId={activeSystemId}
-            runtime={sim}
-            onExit={onToggleSim}
           />
         )}
         {legendOpen && (

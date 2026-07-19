@@ -8,12 +8,15 @@
    design snapshot and the per-floor rooms & loads tables. */
 
 import type { DesignDocument, DesignSettings } from "./document";
+import type { DataPack } from "./packs/schema";
 import {
   CLIMATE_ZONES,
   DEFAULT_CLIMATE_ZONE,
   type BuildingType,
   type SizingBasis,
 } from "./loads";
+import { roomAreaM2, roomLoadKw, type RoomObj } from "./loads-room";
+import { roomCoverage } from "./coverage";
 
 /** The zone number the engine actually uses — settings store a stringified
     zone ("5") or null; anything unparsable falls back like loads-room.ts.
@@ -67,4 +70,115 @@ export function designBasis(doc: DesignDocument): DesignBasis {
     basis: doc.settings.sizingBasis,
     basisLabel: BASIS_LABELS[doc.settings.sizingBasis],
   };
+}
+
+const isRoom = (o: DesignDocument["objects"][number]): o is RoomObj =>
+  o.type === "room" && o.geometry.kind === "polygon";
+
+/* ── Design snapshot — the stat strip. Areas/loads sum what's measurable
+      (uncalibrated floors have no scale → no area); the unmeasured count is
+      surfaced so a partial total never reads as the whole job. ── */
+export interface DesignSnapshot {
+  floorCount: number;
+  roomCount: number;
+  /** summed area of the measurable rooms; null when none are measurable */
+  areaM2: number | null;
+  /** summed design load of the measurable rooms; null when none */
+  totalLoadKw: number | null;
+  /** rooms on uncalibrated floors — excluded from the totals above */
+  unmeasuredRoomCount: number;
+  uncalibratedFloorCount: number;
+  systemCount: number;
+  iduCount: number;
+  oduCount: number;
+}
+
+export function buildDesignSnapshot(doc: DesignDocument): DesignSnapshot {
+  let roomCount = 0;
+  let unmeasured = 0;
+  let area: number | null = null;
+  let load: number | null = null;
+  for (const o of doc.objects) {
+    if (!isRoom(o)) continue;
+    roomCount++;
+    const a = roomAreaM2(doc, o);
+    const l = roomLoadKw(doc, o);
+    if (a == null || l == null) {
+      unmeasured++;
+      continue;
+    }
+    area = (area ?? 0) + a;
+    load = (load ?? 0) + l;
+  }
+  let idu = 0;
+  let odu = 0;
+  for (const o of doc.objects) {
+    if (o.type !== "unit") continue;
+    if (o.props.role === "idu") idu++;
+    else if (o.props.role === "odu") odu++;
+  }
+  return {
+    floorCount: doc.floors.length,
+    roomCount,
+    areaM2: area == null ? null : Math.round(area * 10) / 10,
+    totalLoadKw: load == null ? null : Math.round(load * 10) / 10,
+    unmeasuredRoomCount: unmeasured,
+    uncalibratedFloorCount: doc.floors.filter((f) => f.scaleMmPerUnit == null)
+      .length,
+    systemCount: doc.systems.length,
+    iduCount: idu,
+    oduCount: odu,
+  };
+}
+
+/* ── Rooms & loads — one table row per room, grouped by floor, with the
+      units serving it (coverage contributors, so multi/VRF attribute their
+      per-room IDUs and splits their pair). ── */
+export interface RoomRow {
+  roomId: string;
+  name: string;
+  areaM2: number | null;
+  loadKw: number | null;
+  serving: { model: string; systemName: string; colour: string }[];
+}
+
+export interface FloorRooms {
+  floorId: string;
+  name: string;
+  level: number;
+  calibrated: boolean;
+  rooms: RoomRow[];
+}
+
+export function roomsByFloor(
+  doc: DesignDocument,
+  pack: DataPack | null
+): FloorRooms[] {
+  const out: FloorRooms[] = [];
+  for (const floor of doc.floors) {
+    const rooms: RoomRow[] = [];
+    for (const o of doc.objects) {
+      if (o.floorId !== floor.id || !isRoom(o)) continue;
+      const cov = roomCoverage(doc, pack, o, doc.settings.sizingBasis);
+      rooms.push({
+        roomId: o.id,
+        name: String(o.props.name ?? "Room"),
+        areaM2: roomAreaM2(doc, o),
+        loadKw: roomLoadKw(doc, o),
+        serving: cov.contributors.map((c) => ({
+          model: c.model,
+          systemName: c.systemName,
+          colour: c.colour,
+        })),
+      });
+    }
+    out.push({
+      floorId: floor.id,
+      name: floor.name,
+      level: floor.level,
+      calibrated: floor.scaleMmPerUnit != null,
+      rooms,
+    });
+  }
+  return out;
 }

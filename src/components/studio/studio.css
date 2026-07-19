@@ -7217,3 +7217,271 @@
   .dstudio .ds-present-stat-desc { display: none; }
   .dstudio .ds-present-status { gap: 16px; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   DARK EDITOR CHROME
+   The editor sits straight on the shell's black frame — no light "well" — so
+   the chrome is dark glass and the two LIGHT things left are the ones that
+   should be light: the canvas (it's paper — plans are printed on white) and
+   the Summary document. Everything between them is glass.
+
+   Scoping: the tokens are retinted on the CHROME CONTAINERS only, never on
+   `.dstudio` as a whole — the canvas and the Summary sheet live inside
+   `.ds-panel` and must keep their dark-on-light values. Popovers inherit
+   because they are DOM children of these containers.
+
+   Glass recipe follows the house pattern (.ds-recent / .fg .ring-bento):
+   translucent white fill, hairline white border, blur, deep black shadow.
+   NEVER add a -webkit-backdrop-filter twin — the build ships only the
+   prefixed property and the blur silently dies. */
+
+/* Drop the light well under the editor too, so the frame runs corner to
+   corner behind every studio screen (Home already did this). The `.editing`
+   exit-dissolve rule above is now a no-op — both states are transparent, so
+   the backdrop simply never changes between Home and the editor. */
+.fg .outlet:has(.dstudio.editing) {
+  background: transparent;
+  background-image: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Only chrome that sits on the FRAME goes dark. The zoom pill, room-shape
+   pill, tool hint, legend and plenum HUD all float over the white canvas —
+   glass there would be white-on-white — so they stay light on purpose. */
+.dstudio.editing .ds-topbar,
+.dstudio.editing .ds-sidecol,
+.dstudio.editing .ds-toolrail {
+  /* text ramp inverted */
+  --ink: #ffffff;
+  --ink2: rgba(255, 255, 255, 0.94);
+  --gray700: rgba(255, 255, 255, 0.8);
+  --gray500: rgba(255, 255, 255, 0.62);
+  --gray400: rgba(255, 255, 255, 0.42);
+  /* surfaces + edges */
+  --ds-card2: rgba(255, 255, 255, 0.06);
+  --ds-border: rgba(255, 255, 255, 0.1);
+  --ds-border-s: rgba(255, 255, 255, 0.17);
+  --ds-sh-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --ds-card-shadow: 0 1px 2px rgba(0, 0, 0, 0.5),
+    0 24px 60px -24px rgba(0, 0, 0, 0.85);
+  /* mid-dark accents lift to their bright twins so they read on glass */
+  --ds-teal-ink: var(--teal);
+  --ds-amber-d: #fbbf24;
+  --ds-ok: #2ee9c9;
+}
+
+/* ── glass primitives ── */
+.dstudio.editing .ds-menu-btn,
+.dstudio.editing .ds-tbbtn,
+.dstudio.editing .ds-ctl-btn,
+.dstudio.editing .ds-floor-trigger,
+.dstudio.editing .ds-sys-trigger,
+.dstudio.editing .ds-toolrail {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+.dstudio.editing .ds-menu-btn:hover,
+.dstudio.editing .ds-tbbtn:hover,
+.dstudio.editing .ds-ctl-btn:hover,
+.dstudio.editing .ds-floor-trigger:hover,
+.dstudio.editing .ds-sys-trigger:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+/* these two hard-code their ink (#444 / #1a1a1a) rather than using the ramp,
+   so the retint misses them and they read as disabled on glass */
+.dstudio.editing .ds-ctl-btn {
+  color: rgba(255, 255, 255, 0.86);
+}
+.dstudio.editing .ds-ctl-btn:hover,
+.dstudio.editing .ds-tool-hint {
+  color: #fff;
+}
+/* Popovers routinely straddle the frame AND the white canvas, so they're
+   near-opaque: at 0.82 the canvas showed through as a bright panel down one
+   half of the menu. Dense enough to read identically over either. */
+.dstudio.editing .ds-menu-pop,
+.dstudio.editing .ds-layers-menu,
+.dstudio.editing .ds-variant-menu,
+.dstudio.editing .ds-sys-menu {
+  background: rgba(18, 20, 27, 0.94);
+  border-color: rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(24px) saturate(1.4);
+  box-shadow: 0 30px 80px -24px rgba(0, 0, 0, 0.9);
+}
+.dstudio.editing .ds-menu-item:hover:not(:disabled),
+.dstudio.editing .ds-layer-row:hover,
+.dstudio.editing .ds-calib-row:hover,
+.dstudio.editing .ds-floor-row:hover .ds-floor-pick,
+.dstudio.editing .ds-sys-row:hover .ds-sys-pick,
+.dstudio.editing .ds-var-row:hover .ds-var-pick,
+.dstudio.editing .ds-tool:hover:not(:disabled),
+.dstudio.editing .ds-var-edit:hover,
+.dstudio.editing .ds-floor-confirm .no:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+.dstudio.editing .ds-menu-sep,
+.dstudio.editing .ds-rail-sep,
+.dstudio.editing .ds-view-sep,
+.dstudio.editing .ds-variant-sep {
+  background: rgba(255, 255, 255, 0.12);
+}
+.dstudio.editing .ds-floor-add,
+.dstudio.editing .ds-legend-sym {
+  border-top-color: rgba(255, 255, 255, 0.12);
+}
+.dstudio.editing .ds-var-sec {
+  border-left-color: rgba(255, 255, 255, 0.12);
+}
+.dstudio.editing .ds-floor-pick .lvl {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* ── tab switcher + title ── */
+.dstudio.editing .ds-title-input {
+  color: #fff;
+}
+.dstudio.editing .ds-title-input:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+.dstudio.editing .ds-title-input:focus {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+.dstudio.editing .ds-save {
+  color: rgba(255, 255, 255, 0.45);
+}
+.dstudio.editing .ds-save.local {
+  color: #fbbf24;
+}
+.dstudio.editing .ds-steps {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(14px);
+}
+/* keep the switcher from butting into the control pills at laptop widths */
+.dstudio .ds-editor > .ds-topbar > .ds-steps {
+  margin: 0 16px;
+}
+.dstudio.editing .ds-step {
+  color: rgba(255, 255, 255, 0.62);
+}
+.dstudio.editing .ds-step:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.09);
+}
+.dstudio.editing .ds-step.active {
+  background: #fff;
+  color: var(--ink2, #0a0b10);
+  box-shadow: 0 3px 10px -3px rgba(0, 0, 0, 0.7);
+}
+/* the active pill is white — its label must stay dark despite the retint */
+.dstudio.editing .ds-steps .ds-step.active {
+  color: #0a0b10;
+}
+
+/* the armed-tool teal still reads on glass; the icon just needs darkening */
+.dstudio.editing .ds-tool.on {
+  color: #04241f;
+}
+
+/* ── cockpit: the page plate is the pivot ── */
+.dstudio.editing .ds-ck::before {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(22px) saturate(1.3);
+  box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.85),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+/* cards sitting ON the plate: no nested blur (muddy + costly), just fills */
+.dstudio.editing .ds-ck-caphero,
+.dstudio.editing .ds-ck-inspect,
+.dstudio.editing .ds-ck-fact,
+.dstudio.editing .ds-ck-unit,
+.dstudio.editing .ds-ck-pipe,
+.dstudio.editing .ds-ck-rrow,
+.dstudio.editing .ds-ck-uempty,
+.dstudio.editing .ds-ck-pipeempty,
+.dstudio.editing .ds-ck-compic {
+  background: rgba(255, 255, 255, 0.06);
+}
+.dstudio.editing .ds-ck-sub,
+.dstudio.editing .ds-ck-comp,
+.dstudio.editing .ds-ck-opt,
+.dstudio.editing .ds-ck-emptycard,
+.dstudio.editing .ds-ck-adoptrow,
+.dstudio.editing .ds-ck-delwarn,
+.dstudio.editing .ds-ck-coming,
+.dstudio.editing .ds-ck-rcfg,
+.dstudio.editing .ds-ck-caphero-change,
+.dstudio.editing .ds-ck-recall,
+.dstudio.editing .ds-ck-pico,
+.dstudio.editing .ds-ck-airflip button,
+.dstudio.editing .ds-ck-objfield select,
+.dstudio.editing .ds-ck-objfield input,
+.dstudio.editing .ds-ck-objdel,
+.dstudio.editing .ds-ck-delwarn-actions button {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+.dstudio.editing .ds-ck-rrow.on {
+  background: rgba(0, 229, 192, 0.14);
+  border-color: rgba(0, 229, 192, 0.45);
+  box-shadow: 0 0 0 1px rgba(0, 229, 192, 0.35);
+}
+/* segmented switches: dark trough, white active chip */
+.dstudio.editing .ds-ck-seg,
+.dstudio.editing .ds-ck-subtabs {
+  background: rgba(255, 255, 255, 0.07);
+}
+.dstudio.editing .ds-ck-segbtn.on,
+.dstudio.editing .ds-ck-stb.on {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+.dstudio.editing .ds-ck-segn {
+  background: rgba(255, 255, 255, 0.1);
+}
+.dstudio.editing .ds-ck-segbtn.on .ds-ck-segn {
+  background: rgba(0, 229, 192, 0.2);
+  color: var(--teal);
+}
+/* small knockouts that keyed off the old light fills */
+.dstudio.editing .ds-ck-rnum,
+.dstudio.editing .ds-ck-ishared,
+.dstudio.editing .ds-ck-st {
+  background: rgba(255, 255, 255, 0.1);
+}
+.dstudio.editing .ds-ck-pdot {
+  border-color: rgba(30, 33, 42, 0.9);
+}
+.dstudio.editing .ds-ck-uico.odu {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.75);
+}
+.dstudio.editing .ds-ck-donut .track {
+  stroke: rgba(255, 255, 255, 0.12);
+}
+/* the primary CTA was near-black — on a dark panel it has to invert to teal */
+.dstudio.editing .ds-ck-inkbtn {
+  background: var(--teal);
+  color: #04241f;
+  box-shadow: 0 12px 26px -12px rgba(0, 229, 192, 0.6);
+}
+.dstudio.editing .ds-ck-inkbtn:hover {
+  background: #4ff0d8;
+}
+.dstudio.editing .ds-ck-inkbtn svg {
+  color: #04241f;
+}
+/* Simulate's active state was solid ink — invisible on a dark bar */
+.dstudio.editing .ds-sim-go.on {
+  background: var(--teal);
+  border-color: var(--teal);
+  color: #04241f;
+}

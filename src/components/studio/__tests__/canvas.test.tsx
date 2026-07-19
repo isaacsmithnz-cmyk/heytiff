@@ -293,9 +293,10 @@ describe("Design canvas", () => {
     const rail = screen.getByRole("toolbar", { name: "Canvas tools" });
     expect(within(rail).getByRole("button", { name: "Undo" })).toBeInTheDocument();
     expect(within(rail).getByRole("button", { name: "Redo" })).toBeInTheDocument();
-    // the topbar carries the canvas controls + Add option on one line
+    // the topbar carries the canvas controls on one line; design variations
+    // moved off it into the cockpit's system dropdown
     const bar = document.querySelector(".ds-topbar") as HTMLElement;
-    expect(within(bar).getByRole("button", { name: /Add option/ })).toBeInTheDocument();
+    expect(within(bar).queryByRole("button", { name: /variation/i })).toBeNull();
     expect(within(bar).getByTitle("View — layers, black & white and legend")).toBeInTheDocument();
     // cockpit hoisted to the editor level → two-column grid layout
     expect(document.querySelector(".ds-editor.two-col")).not.toBeNull();

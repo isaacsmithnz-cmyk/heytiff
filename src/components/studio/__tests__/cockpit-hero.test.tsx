@@ -66,6 +66,9 @@ function renderHero(doc: DesignDocument) {
       onArmPlace={() => {}}
       onDrawRoom={() => {}}
       floor={floor}
+      onAddVariant={() => {}}
+      onSwitchVariant={() => {}}
+      onRenameVariant={() => {}}
     />
   );
 }

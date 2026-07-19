@@ -106,6 +106,9 @@ function renderCockpit(
       onArmPlace={() => {}}
       onDrawRoom={() => {}}
       floor={floor}
+      onAddVariant={() => {}}
+      onSwitchVariant={() => {}}
+      onRenameVariant={() => {}}
     />
   );
 }

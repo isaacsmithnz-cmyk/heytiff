@@ -58,6 +58,9 @@ function renderComponents(doc: DesignDocument, onMutate: (fn: (d: DesignDocument
       onArmPlace={() => {}}
       onDrawRoom={() => {}}
       floor={floor}
+      onAddVariant={() => {}}
+      onSwitchVariant={() => {}}
+      onRenameVariant={() => {}}
     />
   );
   // reveal the Components view

@@ -59,6 +59,9 @@ function renderPanel(onMutate: (fn: (d: DesignDocument) => DesignDocument) => vo
       onArmPlace={() => {}}
       onDrawRoom={() => {}}
       floor={floor}
+      onAddVariant={() => {}}
+      onSwitchVariant={() => {}}
+      onRenameVariant={() => {}}
     />
   );
 }
@@ -108,6 +111,9 @@ describe("SystemCockpit — close a system", () => {
         onArmPlace={() => {}}
         onDrawRoom={() => {}}
         floor={floor}
+        onAddVariant={() => {}}
+        onSwitchVariant={() => {}}
+        onRenameVariant={() => {}}
       />
     );
     // open the system dropdown, arm the delete x — nothing removed yet

@@ -1043,12 +1043,6 @@ function Editor({
             onToggleSim={toggleSim}
           />
         )}
-        <VariantSwitcher
-          doc={doc}
-          onAdd={onAddVariant}
-          onSwitch={onSwitchVariant}
-          onRename={onRenameVariant}
-        />
         <nav className="ds-steps" aria-label="Workflow">
           {TABS.map((t) => (
             <button
@@ -1139,6 +1133,9 @@ function Editor({
             onArmPlace={armPlace}
             onDrawRoom={() => changeTool("room-rect")}
             floor={activeFloor}
+            onAddVariant={onAddVariant}
+            onSwitchVariant={onSwitchVariant}
+            onRenameVariant={onRenameVariant}
           />
         </aside>
       )}
@@ -1211,137 +1208,6 @@ function Editor({
             changeTool("set-north");
           }}
         />
-      )}
-    </div>
-  );
-}
-
-/* ═════════════ Design variations ═════════════ */
-
-function VariantSwitcher({
-  doc,
-  onAdd,
-  onSwitch,
-  onRename,
-}: {
-  doc: DesignDocument;
-  onAdd: () => void;
-  onSwitch: (id: string) => void;
-  onRename: (label: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
-  const boxRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (boxRef.current && !boxRef.current.contains(e.target as Node)) {
-        setOpen(false);
-        setEditing(false);
-      }
-    };
-    window.addEventListener("mousedown", onDown);
-    return () => window.removeEventListener("mousedown", onDown);
-  }, [open]);
-
-  const label = doc.meta.variantLabel;
-  const variants: DesignVariantRef[] =
-    doc.variants.length > 0
-      ? doc.variants
-      : label
-        ? [{ id: doc.id, label }]
-        : [];
-
-  if (variants.length === 0) {
-    return (
-      <button
-        className="ds-tbbtn"
-        onClick={onAdd}
-        title="Branch this design into multiple options — Option 1, Option 2…"
-      >
-        <Icon name="layers" size={15} />
-        <span className="ds-ctl-word">Add option</span>
-      </button>
-    );
-  }
-
-  return (
-    <div className="ds-variant" ref={boxRef}>
-      <button
-        className="ds-tbbtn"
-        onClick={() => setOpen((o) => !o)}
-        aria-haspopup="menu"
-        aria-expanded={open}
-      >
-        <Icon name="layers" size={15} />
-        <span className="ds-ctl-word">{label ?? "Option"}</span>
-        <Icon name="chevD" size={12} />
-      </button>
-      {open && (
-        <div className="ds-variant-menu" role="menu">
-          {variants.map((v) => (
-            <button
-              key={v.id}
-              className={`ds-variant-item${v.id === doc.id ? " on" : ""}`}
-              role="menuitemradio"
-              aria-checked={v.id === doc.id}
-              onClick={() => {
-                setOpen(false);
-                if (v.id !== doc.id) onSwitch(v.id);
-              }}
-            >
-              {v.id === doc.id ? (
-                <Icon name="check" size={12} />
-              ) : (
-                <span className="ds-variant-dot" />
-              )}
-              {v.label}
-            </button>
-          ))}
-          <div className="ds-variant-sep" />
-          {editing ? (
-            <form
-              className="ds-variant-rename"
-              onSubmit={(e) => {
-                e.preventDefault();
-                onRename(draft);
-                setEditing(false);
-                setOpen(false);
-              }}
-            >
-              <input
-                autoFocus
-                value={draft}
-                aria-label="Rename current option"
-                onChange={(e) => setDraft(e.target.value)}
-                onBlur={() => setEditing(false)}
-              />
-            </form>
-          ) : (
-            <button
-              className="ds-variant-item"
-              onClick={() => {
-                setDraft(label ?? "");
-                setEditing(true);
-              }}
-            >
-              <Icon name="edit" size={12} />
-              Rename current option
-            </button>
-          )}
-          <button
-            className="ds-variant-item"
-            onClick={() => {
-              setOpen(false);
-              onAdd();
-            }}
-          >
-            <Icon name="plus" size={12} />
-            Add another option
-          </button>
-        </div>
       )}
     </div>
   );

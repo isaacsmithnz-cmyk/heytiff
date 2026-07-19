@@ -64,7 +64,7 @@ export function MyVehicle({
           <div className="fl-emptyadd">
             <button className="pbtn ghost" onClick={() => setLogKind("fuel")}>
               <Icon name="fuel" size={16} />
-              Log fuel for a pool vehicle
+              Lodge fuel for company vehicle
             </button>
           </div>
         )}
@@ -164,7 +164,7 @@ export function MyVehicle({
               }}
             >
               <Icon name="fuel" size={13} />
-              Log fuel for another vehicle
+              Lodge fuel for another vehicle
             </button>
           )}
         </div>

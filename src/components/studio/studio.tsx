@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Icon } from "@/components/shell/icon";
 import {
   createDesign,
@@ -1369,6 +1376,39 @@ const LAYER_LABELS: Record<keyof LayerFlags, string> = {
 
 /* ═════════════ Canvas controls (topbar, Design step) ═════════════ */
 
+/* A control menu is wider than the pill it hangs from, so it wants to be
+   CENTRED on that pill — anchored to either edge it sits under a neighbouring
+   pill and reads as belonging to that one instead. But the pills sit near the
+   right of the bar and `.dstudio` clips with overflow:hidden, so centring
+   alone pushes the rightmost menu off the frame and it gets sliced.
+   So: centre, measure, and nudge back inside if it would overhang. The caret
+   stays on the WRAPPER, so it keeps pointing at the trigger however far the
+   menu is nudged. */
+const MENU_EDGE_GAP = 8;
+
+function useClampedMenu(open: boolean) {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!open || !el) return;
+    const place = () => {
+      // measure from the centred position, then correct
+      el.style.setProperty("--ds-menu-nudge", "0px");
+      const frame = el.closest(".dstudio")?.getBoundingClientRect();
+      if (!frame) return;
+      const r = el.getBoundingClientRect();
+      const over = r.right - (frame.right - MENU_EDGE_GAP);
+      const under = frame.left + MENU_EDGE_GAP - r.left;
+      const nudge = over > 0 ? -over : under > 0 ? under : 0;
+      el.style.setProperty("--ds-menu-nudge", `${Math.round(nudge)}px`);
+    };
+    place();
+    window.addEventListener("resize", place);
+    return () => window.removeEventListener("resize", place);
+  }, [open]);
+  return ref;
+}
+
 /* Floor ▾ · Calibrate · View · Simulate — relocated from the old strip above
    the canvas onto the topbar line. Everything they drive lives at the Editor
    level; only the popover-open state is local here. */
@@ -1415,6 +1455,9 @@ function CanvasControls({
   const [layersOpen, setLayersOpen] = useState(false);
   const [calibOpen, setCalibOpen] = useState(false);
   const [floorMenuOpen, setFloorMenuOpen] = useState(false);
+  const floorMenuRef = useClampedMenu(floorMenuOpen);
+  const calibMenuRef = useClampedMenu(calibOpen);
+  const viewMenuRef = useClampedMenu(layersOpen);
 
   return (
     <div className="ds-canvas-toggles">
@@ -1436,7 +1479,7 @@ function CanvasControls({
           <Icon name="chevD" size={12} />
         </button>
         {floorMenuOpen && (
-          <div className="ds-layers-menu ds-floor-menu" role="menu">
+          <div className="ds-layers-menu ds-floor-menu" role="menu" ref={floorMenuRef}>
             {sorted.map((f) => (
               <div key={f.id} className={`ds-floor-row${f.id === floor.id ? " on" : ""}`}>
                 <button
@@ -1524,9 +1567,17 @@ function CanvasControls({
           <Icon name="chevD" size={12} />
         </button>
         {calibOpen && (
-          <div className="ds-layers-menu ds-calib-menu" role="menu">
+          /* Two groups, captioned like the View menu: the calibration pair
+             report a VALUE (or "Not set"), the plan tools are plain actions.
+             They used to share one column, so "10.0 mm/px" and "Trim the
+             plan" — a measurement and a description — read as the same kind
+             of thing. Rows are .ds-calib-item, not .ds-calib-row: that name
+             belongs to the on-canvas scale widget too, and its margin was
+             bleeding 10px under every row in here. */
+          <div className="ds-layers-menu ds-calib-menu" role="menu" ref={calibMenuRef}>
+            <div className="ds-view-grp">Calibration</div>
             <button
-              className="ds-calib-row"
+              className="ds-calib-item"
               onClick={() => {
                 onTool("calibrate");
                 setCalibOpen(false);
@@ -1534,14 +1585,14 @@ function CanvasControls({
             >
               <Icon name="ruler" size={13} />
               <span className="k">Scale</span>
-              <span className="v">
+              <span className={`v${floor.scaleMmPerUnit == null ? " unset" : ""}`}>
                 {floor.scaleMmPerUnit != null
                   ? `${floor.scaleMmPerUnit.toFixed(1)} mm/px`
-                  : "Set scale"}
+                  : "Not set"}
               </span>
             </button>
             <button
-              className="ds-calib-row"
+              className="ds-calib-item"
               onClick={() => {
                 onTool("set-north");
                 setCalibOpen(false);
@@ -1549,33 +1600,34 @@ function CanvasControls({
             >
               <Icon name="compass" size={13} />
               <span className="k">North</span>
-              <span className="v">
-                {floor.northPos ? `${Math.round(floor.northDeg ?? 0)}°` : "Set north"}
+              <span className={`v${floor.northPos ? "" : " unset"}`}>
+                {floor.northPos ? `${Math.round(floor.northDeg ?? 0)}°` : "Not set"}
               </span>
             </button>
             {/* plan-prep tools relocated out of the drawing rail */}
             <div className="ds-view-sep" />
+            <div className="ds-view-grp">Plan</div>
             <button
-              className={`ds-calib-row${tool === "crop" ? " on" : ""}`}
+              className={`ds-calib-item${tool === "crop" ? " on" : ""}`}
               onClick={() => {
                 onTool("crop");
                 setCalibOpen(false);
               }}
+              title="Crop the plan to the area you're working on"
             >
               <Icon name="maximize" size={13} />
               <span className="k">Crop</span>
-              <span className="v">Trim the plan</span>
             </button>
             <button
-              className={`ds-calib-row${tool === "arrange" ? " on" : ""}`}
+              className={`ds-calib-item${tool === "arrange" ? " on" : ""}`}
               onClick={() => {
                 onTool("arrange");
                 setCalibOpen(false);
               }}
+              title="Reposition the plan sheets on this floor"
             >
               <Icon name="hand" size={13} />
               <span className="k">Move plans</span>
-              <span className="v">Reposition</span>
             </button>
           </div>
         )}
@@ -1595,7 +1647,7 @@ function CanvasControls({
           <span className="ds-ctl-word">View</span>
         </button>
         {layersOpen && (
-          <div className="ds-layers-menu ds-view-menu" role="menu">
+          <div className="ds-layers-menu ds-view-menu" role="menu" ref={viewMenuRef}>
             <div className="ds-view-grp">Layers</div>
             {(Object.keys(LAYER_LABELS) as (keyof LayerFlags)[]).map((k) => (
               <label key={k} className="ds-layer-row">

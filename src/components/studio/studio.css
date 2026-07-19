@@ -1434,8 +1434,10 @@
 .dstudio .ds-calib-pill.done:hover { background: rgba(20, 184, 166, 0.14); }
 .dstudio .ds-calib-pill.on { box-shadow: 0 0 0 3px rgba(240, 164, 49, 0.18); }
 .dstudio .ds-calib-pill.done.on { box-shadow: 0 0 0 3px rgba(0, 163, 137, 0.16); }
-.dstudio .ds-calib-menu { min-width: 190px; }
-.dstudio .ds-calib-row {
+/* wide enough that "Move plans" can't wrap — it was breaking onto a second
+   line and making that row half again as tall as its neighbours */
+.dstudio .ds-calib-menu { min-width: 212px; }
+.dstudio .ds-calib-item {
   display: flex;
   align-items: center;
   gap: 9px;
@@ -1446,14 +1448,19 @@
   font-weight: 600;
   color: var(--ink);
   cursor: pointer;
+  text-align: left;
 }
-.dstudio .ds-calib-row:hover { background: #f3f4f6; }
-.dstudio .ds-calib-row .k { font-weight: 700; }
-.dstudio .ds-calib-row .v {
+.dstudio .ds-calib-item:hover { background: #f3f4f6; }
+.dstudio .ds-calib-item.on { color: var(--teal-d); background: rgba(20, 184, 166, 0.08); }
+.dstudio .ds-calib-item .k { font-weight: 700; white-space: nowrap; }
+.dstudio .ds-calib-item .v {
   margin-left: auto;
   color: var(--gray500);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
+/* unset reads as the thing to go fix, matching the pill's own amber */
+.dstudio .ds-calib-item .v.unset { color: var(--ds-amber-d); font-weight: 700; }
 
 /* Floor dropdown — current level + a menu of all floors; each row has a delete
    x that reddens only on hover, behind a two-step "Delete?" confirm. */
@@ -7387,6 +7394,15 @@
 .dstudio.editing .ds-ctl-btn {
   color: rgba(255, 255, 255, 0.86);
 }
+/* An open pill reads as pressed, so it's unmistakable which one owns the menu
+   below it — the accent stays whatever the pill's own state colour is. */
+.dstudio.editing .ds-ctl-btn.on,
+.dstudio.editing .ds-floor-trigger.on,
+.dstudio.editing .ds-calib-pill.on {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: #fff;
+}
 .dstudio.editing .ds-ctl-btn:hover,
 .dstudio.editing .ds-tool-hint {
   color: #fff;
@@ -7405,7 +7421,7 @@
 }
 .dstudio.editing .ds-menu-item:hover:not(:disabled),
 .dstudio.editing .ds-layer-row:hover,
-.dstudio.editing .ds-calib-row:hover,
+.dstudio.editing .ds-calib-item:hover,
 .dstudio.editing .ds-floor-row:hover .ds-floor-pick,
 .dstudio.editing .ds-sys-row:hover .ds-sys-pick,
 .dstudio.editing .ds-var-row:hover .ds-var-pick,
@@ -7461,9 +7477,17 @@
    open LEFTWARD. Anchored left:0 they ran off the frame — .dstudio clips at
    overflow:hidden, so View lost its right edge outright. Right-anchoring is
    safe for the whole flank however narrow the window gets. */
+/* Centred on the pill, not flushed to one side. Anchored to either edge, a
+   menu that's wider than its trigger sits under a NEIGHBOURING pill and reads
+   as belonging to it — left-anchored View ran off the frame, right-anchored it
+   lined up under Calibrate. Centred, each pill sits in the middle of its own
+   menu, and there's room because Simulate (no menu) holds the right end. */
 .dstudio .ds-tb-right .ds-layers-menu {
-  left: auto;
-  right: 0;
+  left: 50%;
+  right: auto;
+  /* --ds-menu-nudge is set by useClampedMenu when centring would overhang
+     the frame (which clips), so the menu slides back inside */
+  transform: translateX(calc(-50% + var(--ds-menu-nudge, 0px)));
 }
 /* A menu is wider than the pill it hangs from, so right-anchoring spills it
    left under the NEIGHBOURING pill — View's menu lined up under Calibrate and

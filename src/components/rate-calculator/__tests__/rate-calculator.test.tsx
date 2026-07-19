@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { RateCalculator } from "../rate-calculator";
-import { buildDemoState } from "../demo-data";
+import { buildBaselineState } from "./fixtures/baseline-org";
 
 // The component lazy-imports the server-action module; mock it so jsdom never
 // touches the auth0 runtime and so we can assert save behaviour.
@@ -104,7 +104,7 @@ describe("RateCalculator — question-at-a-time steps", () => {
 
   it("skips staging for returning users — a saved setup shows whole pages", async () => {
     const user = userEvent.setup();
-    const saved = JSON.parse(JSON.stringify(buildDemoState()));
+    const saved = JSON.parse(JSON.stringify(buildBaselineState()));
     render(<RateCalculator initialState={saved} />);
     await user.click(screen.getByText("← Back to edit"));
     // All staff questions visible at once (revealAll).
@@ -209,7 +209,7 @@ describe("RateCalculator — Simple/Detailed toggle gating", () => {
     const user = userEvent.setup();
     // Saved state with wages zeroed → not ready → lands on Step 1; no
     // timesheets and no vehicle records, so only Business gets its toggle.
-    const saved = JSON.parse(JSON.stringify(buildDemoState()));
+    const saved = JSON.parse(JSON.stringify(buildBaselineState()));
     saved.staff = []; saved.timesheets = {}; saved.vehicles = [];
     saved.simpleLabour.months = [0, 0, 0];
     render(<RateCalculator initialState={saved} />);
@@ -224,7 +224,7 @@ describe("RateCalculator — Simple/Detailed toggle gating", () => {
 
   it("demo passes every gate (18 weeks of timesheets + a fleet)", async () => {
     const user = userEvent.setup();
-    render(<RateCalculator initialState={JSON.parse(JSON.stringify(buildDemoState()))} />);
+    render(<RateCalculator initialState={JSON.parse(JSON.stringify(buildBaselineState()))} />);
     await user.click(screen.getByText("← Back to edit"));
     expect(screen.getByRole("button", { name: "Detailed" })).toBeInTheDocument(); // staff toggle
   });
@@ -233,7 +233,7 @@ describe("RateCalculator — Simple/Detailed toggle gating", () => {
 describe("RateCalculator — Detailed business costs suggestions", () => {
   // Saved state with wages zeroed → lands on Step 1; Business toggle is ungated.
   function savedState() {
-    const saved = JSON.parse(JSON.stringify(buildDemoState()));
+    const saved = JSON.parse(JSON.stringify(buildBaselineState()));
     saved.staff = []; saved.timesheets = {}; saved.vehicles = [];
     saved.simpleLabour.months = [0, 0, 0];
     return saved;
@@ -371,7 +371,7 @@ describe("RateCalculator — results gated behind all five steps", () => {
 
 describe("RateCalculator — healthy-rate safeguard on Results", () => {
   it("never offers Apply when current rates already beat the recommendation", () => {
-    const saved = JSON.parse(JSON.stringify(buildDemoState()));
+    const saved = JSON.parse(JSON.stringify(buildBaselineState()));
     saved.currentRates = { install: 200, service: 200 }; // ≥ recommended ⇒ uplift 0
     render(<RateCalculator initialState={saved} />);
 
@@ -401,7 +401,7 @@ describe("RateCalculator — current rates are editable outside onboarding", () 
 
   it("shows an amber gap chip when current rates sit below recommended", async () => {
     const user = userEvent.setup();
-    render(<RateCalculator initialState={JSON.parse(JSON.stringify(buildDemoState()))} />);
+    render(<RateCalculator initialState={JSON.parse(JSON.stringify(buildBaselineState()))} />);
     await user.click(screen.getByText("← Back to edit")); // Results → a step page (rail visible)
     // Demo charges 118/105 vs recommended ~132/143 → "↑ $N/hr" on both cards.
     expect(screen.getByLabelText("Current install rate")).toHaveValue("118");
@@ -410,7 +410,7 @@ describe("RateCalculator — current rates are editable outside onboarding", () 
 
   it("shows a healthy chip when current rates already beat the recommendation", async () => {
     const user = userEvent.setup();
-    const saved = JSON.parse(JSON.stringify(buildDemoState()));
+    const saved = JSON.parse(JSON.stringify(buildBaselineState()));
     saved.currentRates = { install: 300, service: 300 };
     render(<RateCalculator initialState={saved} />);
     await user.click(screen.getByText("← Back to edit"));
@@ -428,40 +428,40 @@ describe("RateCalculator — current rates are editable outside onboarding", () 
   });
 });
 
-describe("RateCalculator — example data mode", () => {
-  it("loads Blue Sky, never saves, and exits back to own data", async () => {
+describe("RateCalculator — retired example data", () => {
+  it("offers no example-data escape hatch on an empty setup", async () => {
     const user = userEvent.setup();
     render(<RateCalculator initialState={null} />);
     await dismissOnboarding(user);
 
-    // The onboarding skip already queued one save of the empty baseline —
-    // let it settle, then require that demo interactions add none.
-    await waitFor(() => expect(saveRateCalcState).toHaveBeenCalled(), { timeout: 3000 });
-    const callsBeforeDemo = saveRateCalcState.mock.calls.length;
+    // The not-ready callout used to carry "explore with example data".
+    expect(screen.getByText(/Almost there/)).toBeInTheDocument();
+    expect(screen.queryByText(/example data/i)).toBeNull();
+    expect(screen.queryByText(/Blue Sky/i)).toBeNull();
+  });
 
-    await user.click(screen.getByText("Or explore with example data →"));
+  it("discards a stale crash buffer still holding the retired example org", () => {
+    // A buffer is normally restored and pushed to the server; one carrying the
+    // old demo org must be dropped instead, or it writes Blue Sky onto a clean
+    // org the moment the calculator opens.
+    localStorage.setItem("heytiff.rate-calc.buffer", JSON.stringify({
+      state: { ...buildBaselineState(), businessName: "Blue Sky Air Conditioning" },
+      savedAt: 1_784_000_000_000,
+    }));
+    render(<RateCalculator initialState={null} />);
 
-    // Demo is a "returning user" — lands on results with Blue Sky everywhere
-    expect(screen.getAllByText(/Blue Sky Air Conditioning/).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Nothing here is saved/)).toBeInTheDocument();
-
-    // Interacting with demo data never calls the save action
-    await user.click(screen.getByText("← Back to edit"));
-    const monthInput = screen.getAllByDisplayValue("38,200")[0];
-    await user.click(monthInput);
-    await user.keyboard("1");
-    await new Promise(r => setTimeout(r, 800));
-    expect(saveRateCalcState.mock.calls.length).toBe(callsBeforeDemo);
-
-    // Exit restores the (empty) real setup
-    await user.click(screen.getByText("Exit example"));
+    // Treated as a first run, not a returning user
+    expect(screen.getByText("How to use this tool")).toBeInTheDocument();
     expect(screen.queryByText(/Blue Sky Air Conditioning/)).toBeNull();
+    // …and the poisoned buffer is gone, so nothing can write it back
+    expect(localStorage.getItem("heytiff.rate-calc.buffer")).toBeNull();
+    expect(saveRateCalcState).not.toHaveBeenCalled();
   });
 });
 
 describe("RateCalculator — returning user with saved state", () => {
   it("lands on Results when the saved setup is complete", () => {
-    render(<RateCalculator initialState={JSON.parse(JSON.stringify(buildDemoState()))} />);
+    render(<RateCalculator initialState={JSON.parse(JSON.stringify(buildBaselineState()))} />);
     // No onboarding for returning users
     expect(screen.queryByText("How to use this tool")).toBeNull();
     expect(screen.getByText("Your recommended rates")).toBeInTheDocument();

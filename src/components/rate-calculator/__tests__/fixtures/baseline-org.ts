@@ -1,20 +1,21 @@
 /**
- * Live Demo Data — Blue Sky Air Conditioning, Sydney NSW
+ * Baseline org — TEST FIXTURE ONLY, a full NSW org for engine assertions.
  * ────────────────────────────────────────────────────────────────────────
- * Frozen constants for the calculator's example mode. The component renders
- * with this data substituted for real state.
+ * This was the app's "example data" (Blue Sky Air Conditioning) until it was
+ * removed from the product: shipping a demo org taught nobody anything and
+ * kept leaking into real saved state. It lives here now purely as a fixture,
+ * and MUST NOT be imported by anything under src/ outside __tests__ — the
+ * app has no demo mode to render it in.
  *
- * This data is CLIENT-SIDE ONLY and is discarded immediately on exit.
- * Nothing is persisted. It never touches the database.
- *
- * Rates are deliberately higher than most operators currently charge.
- * The goal: "Am I really that far below where I should be?" reaction.
+ * The numbers are load-bearing: the "engine baseline" blocks in engine.test.ts
+ * pin this TypeScript port to ground-truth outputs of the original JS engine.
+ * Change a figure here and those assertions move — that is the point.
  *
  * Maintenance: update payroll_tax_fy (and the seeded NSW threshold/rate)
  * each financial year alongside PAYROLL_TAX in engine.ts.
  */
 
-import { DEFAULT_WORKING_WEEKS } from "./engine";
+import { DEFAULT_WORKING_WEEKS } from "../../engine";
 import type {
   BusinessCost,
   CalcSettings,
@@ -24,8 +25,8 @@ import type {
   StaffMember,
   TimesheetEntry,
   VehicleRecord,
-} from "./engine";
-import type { RateCalcState } from "./state";
+} from "../../engine";
+import type { RateCalcState } from "../../state";
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 function buildWeeks(n = 18): string[] {
@@ -152,7 +153,7 @@ const SETTINGS: CalcSettings = {
 };
 
 // ── EOFY ──────────────────────────────────────────────────────────────────
-// Last year Blue Sky charged $118/$105 — below where the calculator now says
+// The org charges $118/$105 — below where the calculator now says
 // they should be. The better-off number creates the "am I that far below?"
 // realisation when the owner compares to their own business.
 const EOFY = {
@@ -171,14 +172,14 @@ const CURRENT_RATES = { install: 118, service: 105 };
 const REVIEW_STATE = { lastReviewed: "2026-04-10" };
 
 // ── Risk + profit settings ────────────────────────────────────────────────
-export const DEMO_RISK: RiskSettings = { warranty: 3, defect: 2, callback: 5, diagnostic: 3 };
-export const DEMO_PROFIT: ProfitSettings = { margin: 20, costIncrease: 3 };
-export const DEMO_MULTIPLIERS: Multipliers = { afterHours: 1.5, emergency: 2.0 };
+export const BASELINE_RISK: RiskSettings = { warranty: 3, defect: 2, callback: 5, diagnostic: 3 };
+export const BASELINE_PROFIT: ProfitSettings = { margin: 20, costIncrease: 3 };
+export const BASELINE_MULTIPLIERS: Multipliers = { afterHours: 1.5, emergency: 2.0 };
 
 // ── Full demo data object ─────────────────────────────────────────────────
-export const DEMO_DATA = Object.freeze({
+export const BASELINE_DATA = Object.freeze({
   // Identity
-  businessName: "Blue Sky Air Conditioning",
+  businessName: "Baseline Org",
   location:     "Sydney, NSW",
 
   // Data feeds (same shape as real state)
@@ -190,19 +191,19 @@ export const DEMO_DATA = Object.freeze({
   reviewState:   REVIEW_STATE,
   settings:      SETTINGS,
   eofy:          EOFY,
-  risk:          DEMO_RISK,
-  profit:        DEMO_PROFIT,
-  multipliers:   DEMO_MULTIPLIERS,
+  risk:          BASELINE_RISK,
+  profit:        BASELINE_PROFIT,
+  multipliers:   BASELINE_MULTIPLIERS,
 });
 
 /**
- * Full calculator state seeded with the Blue Sky example. Deep-cloned every
- * call — DEMO_DATA is frozen, and editors must never mutate shared refs.
+ * Full calculator state for the baseline org. Deep-cloned every call —
+ * BASELINE_DATA is frozen, and tests must never mutate shared refs.
  */
-export function buildDemoState(): RateCalcState {
+export function buildBaselineState(): RateCalcState {
   // JSON round-trip: exact for this dataset (plain data, no dates/undefined),
   // and available in every runtime the app targets (jsdom lacks structuredClone).
-  const d = JSON.parse(JSON.stringify(DEMO_DATA)) as typeof DEMO_DATA;
+  const d = JSON.parse(JSON.stringify(BASELINE_DATA)) as typeof BASELINE_DATA;
   return {
     businessName: d.businessName,
     staff: d.staff,

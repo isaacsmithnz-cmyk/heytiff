@@ -13,6 +13,16 @@ import { Icon } from "@/components/shell/icon";
 import { orientationFromWalls } from "@/lib/studio/loads";
 import { roomAtPoint } from "@/lib/studio/coverage";
 import { isAirCapable } from "@/lib/studio/modules";
+import { attachOf } from "@/lib/studio/graph";
+import {
+  deleteRoomWithContents,
+  moveEndpointTo,
+  reconcileAttachedRuns,
+  releaseRoomsFromSystems,
+  roomMemberIds,
+  stripAttachesTo,
+  translateRoomWithContents,
+} from "@/lib/studio/attach";
 import {
   isPlenumOf,
   isSpillRoom,
@@ -331,7 +341,7 @@ function defaultViewport(
 
 type Drag =
   | { kind: "pan"; startScreen: Point; origVp: Viewport }
-  | { kind: "move"; id: string; startWorld: Point; orig: Point[] }
+  | { kind: "move"; id: string; startWorld: Point; orig: Point[]; memberIds: ReadonlySet<string> }
   | { kind: "vertex"; id: string; index: number; orig: Point[] }
   | { kind: "rect"; start: Point }
   | { kind: "sheet"; id: string; startWorld: Point; orig: Point }
@@ -436,7 +446,14 @@ export function StudioCanvas({
   const [drag, setDrag] = useState<Drag | null>(null);
   /* live geometry override while dragging, committed on pointer-up so the
      autosave/history pipeline sees one mutation per gesture */
-  const [liveGeom, setLiveGeom] = useState<{ id: string; points: Point[] } | null>(null);
+  const [liveGeom, setLiveGeom] = useState<{
+    id: string;
+    points: Point[];
+    /** whole-room move only: the rigid delta + the units travelling along */
+    dx?: number;
+    dy?: number;
+    memberIds?: ReadonlySet<string>;
+  } | null>(null);
   const [draftPoly, setDraftPoly] = useState<Point[]>([]);
   const [draftRect, setDraftRect] = useState<{ a: Point; b: Point } | null>(null);
   /* wall-marking (DUCTR parity): after a room boundary is closed, the user
@@ -531,10 +548,46 @@ export function StudioCanvas({
 
   /** live position for point objects (units/risers) while dragging */
   const [livePoint, setLivePoint] = useState<{ id: string; at: Point } | null>(null);
+  const pointById = useMemo(() => {
+    const m = new Map<string, { id: string; geometry: { at: Point } }>();
+    for (const o of [...units, ...risers]) m.set(o.id, o);
+    return m;
+  }, [units, risers]);
+  /** live anchor for an attach target: the point object being dragged, or a
+      unit travelling with a mid-drag room move; null when the target is at
+      rest (render from the document) */
+  const liveAnchorAt = useCallback(
+    (id: string): Point | null => {
+      if (livePoint && livePoint.id === id) return livePoint.at;
+      if (liveGeom?.dx != null && liveGeom.memberIds?.has(id)) {
+        const o = pointById.get(id);
+        if (o)
+          return { x: o.geometry.at.x + liveGeom.dx, y: o.geometry.at.y + (liveGeom.dy ?? 0) };
+      }
+      return null;
+    },
+    [livePoint, liveGeom, pointById]
+  );
   const pointAt = useCallback(
     (o: { id: string; geometry: { at: Point } }): Point =>
-      livePoint && livePoint.id === o.id ? livePoint.at : o.geometry.at,
-    [livePoint]
+      liveAnchorAt(o.id) ?? o.geometry.at,
+    [liveAnchorAt]
+  );
+  /** run points with attached endpoints tracking a mid-drag unit/riser (or a
+      unit riding a room move) — the same moveEndpointTo the commit uses, so
+      the preview is pixel-equal to the committed geometry */
+  const liveRunPoints = useCallback(
+    (r: { props: Record<string, unknown>; geometry: { points: Point[] } }): Point[] => {
+      let pts = r.geometry.points;
+      const s = attachOf(r.props.startAttach);
+      const sAt = s ? liveAnchorAt(s.id) : null;
+      if (sAt) pts = moveEndpointTo(pts, "start", sAt);
+      const e = attachOf(r.props.endAttach);
+      const eAt = e ? liveAnchorAt(e.id) : null;
+      if (eAt) pts = moveEndpointTo(pts, "end", eAt);
+      return pts;
+    },
+    [liveAnchorAt]
   );
 
   /* pipe drafting: clicked vertices + what the first click attached to */
@@ -978,13 +1031,28 @@ export function StudioCanvas({
       }
       if ((e.key === "Delete" || e.key === "Backspace") && !isTyping(e) && selectedId) {
         e.preventDefault();
-        // deleting an AHU carries its plenums (they're its plenums — spec §10.3)
-        onMutate((d) => ({
-          ...d,
-          objects: d.objects.filter(
-            (o) => o.id !== selectedId && !isPlenumOf(o, selectedId)
-          ),
-        }));
+        onMutate((d) => {
+          // a room takes its units (and their plenums) with it, the same way
+          // a room move carries them — and frees its id from every system
+          if (d.objects.find((o) => o.id === selectedId)?.type === "room") {
+            return {
+              ...d,
+              systems: releaseRoomsFromSystems(d.systems, new Set([selectedId])),
+              objects: deleteRoomWithContents(d.objects, selectedId),
+            };
+          }
+          // deleting an AHU carries its plenums (they're its plenums — spec
+          // §10.3); runs that attached to it lose the ref and become open ends
+          return {
+            ...d,
+            objects: stripAttachesTo(
+              d.objects.filter(
+                (o) => o.id !== selectedId && !isPlenumOf(o, selectedId)
+              ),
+              new Set([selectedId])
+            ),
+          };
+        });
         onSelect(null);
       }
     };
@@ -1117,6 +1185,18 @@ export function StudioCanvas({
     [onMutate]
   );
 
+  /** whole-room move: the polygon, its member units and their attached runs
+      translate in one mutate, so a single undo restores everything */
+  const commitRoomMove = useCallback(
+    (roomId: string, memberIds: ReadonlySet<string>, delta: Point) => {
+      onMutate((d) => ({
+        ...d,
+        objects: translateRoomWithContents(d.objects, roomId, memberIds, delta),
+      }));
+    },
+    [onMutate]
+  );
+
   const hitRoom = useCallback(
     (w: Point): string | null => {
       const tol = HIT_EDGE_PX / vp.zoom;
@@ -1165,7 +1245,8 @@ export function StudioCanvas({
     [plenums, plenumShapes, units, risers, runs, pointAt, footprint, vp.zoom]
   );
 
-  /* Eraser: objects only (rooms delete via the inspector ✕, canvas rule #6).
+  /* Eraser: objects only (a room deletes by selecting it and pressing Delete,
+     which carries its units — canvas rule #6).
      A pipe loses just its nearest segment (one vertex) unless it's down to a
      single segment; units/risers delete whole. Forgiving hit tolerance. */
   const eraseAt = useCallback(
@@ -1177,10 +1258,14 @@ export function StudioCanvas({
         const at = pointAt(u);
         const fp = footprint(Number(u.props.widthMm ?? 800), Number(u.props.depthMm ?? 300));
         if (Math.abs(w.x - at.x) <= fp.w / 2 + tol && Math.abs(w.y - at.y) <= fp.h / 2 + tol) {
-          // erasing an AHU takes its plenums with it (anchored objects)
+          // erasing an AHU takes its plenums with it (anchored objects);
+          // runs that attached to it lose the ref and become open ends
           onMutate((d) => ({
             ...d,
-            objects: d.objects.filter((o) => o.id !== u.id && !isPlenumOf(o, u.id)),
+            objects: stripAttachesTo(
+              d.objects.filter((o) => o.id !== u.id && !isPlenumOf(o, u.id)),
+              new Set([u.id])
+            ),
           }));
           if (selectedId === u.id) onSelect(null);
           return;
@@ -1189,7 +1274,13 @@ export function StudioCanvas({
       for (let i = risers.length - 1; i >= 0; i--) {
         if (dist(pointAt(risers[i]), w) <= 12 / vp.zoom + tol) {
           const id = risers[i].id;
-          onMutate((d) => ({ ...d, objects: d.objects.filter((o) => o.id !== id) }));
+          onMutate((d) => ({
+            ...d,
+            objects: stripAttachesTo(
+              d.objects.filter((o) => o.id !== id),
+              new Set([id])
+            ),
+          }));
           if (selectedId === id) onSelect(null);
           return;
         }
@@ -1434,7 +1525,14 @@ export function StudioCanvas({
           // foreign rooms are selectable (to inspect) but only the system
           // that drew a room may move it
           if (roomEditable(room)) {
-            setDrag({ kind: "move", id: hit, startWorld: w, orig: roomPoints(room) });
+            // units stamped to this room travel with the move
+            setDrag({
+              kind: "move",
+              id: hit,
+              startWorld: w,
+              orig: roomPoints(room),
+              memberIds: roomMemberIds(doc.objects, hit),
+            });
           }
         } else {
           onSelect(null);
@@ -1570,6 +1668,9 @@ export function StudioCanvas({
         setLiveGeom({
           id: drag.id,
           points: drag.orig.map((p) => ({ x: p.x + dx, y: p.y + dy })),
+          dx,
+          dy,
+          memberIds: drag.memberIds,
         });
         break;
       }
@@ -1657,7 +1758,15 @@ export function StudioCanvas({
         room &&
         JSON.stringify(room.geometry.points) !== JSON.stringify(liveGeom.points)
       ) {
-        commitGeometry(liveGeom.id, liveGeom.points);
+        if (drag.kind === "move") {
+          // the room's units (and their pipes) ride along — one undo step
+          commitRoomMove(liveGeom.id, drag.memberIds, {
+            x: liveGeom.dx ?? 0,
+            y: liveGeom.dy ?? 0,
+          });
+        } else {
+          commitGeometry(liveGeom.id, liveGeom.points);
+        }
       }
       setLiveGeom(null);
     }
@@ -1708,17 +1817,22 @@ export function StudioCanvas({
                     : s
                 )
               : d.systems,
-            objects: d.objects.map((o) => {
-              if (o.id !== id) return o;
-              const next = { ...o, geometry: { kind: "point" as const, at } };
-              if (restamp) {
-                const props = { ...next.props };
-                if (room) props.roomId = room.id;
-                else delete props.roomId;
-                next.props = props;
-              }
-              return next;
-            }),
+            // attached runs follow: their endpoints snap onto the new point
+            // in the same mutate, so one undo restores unit and pipes together
+            objects: reconcileAttachedRuns(
+              d.objects.map((o) => {
+                if (o.id !== id) return o;
+                const next = { ...o, geometry: { kind: "point" as const, at } };
+                if (restamp) {
+                  const props = { ...next.props };
+                  if (room) props.roomId = room.id;
+                  else delete props.roomId;
+                  next.props = props;
+                }
+                return next;
+              }),
+              new Set([id])
+            ),
           };
         });
       }
@@ -2058,7 +2172,7 @@ export function StudioCanvas({
 
           {/* pipe runs (Stage 4) — system colour, length when calibrated */}
           {layers.pipes && runs.map((r) => {
-            const pts = r.geometry.points;
+            const pts = liveRunPoints(r);
             const colour = sysColour.get(r.systemId ?? "") ?? "#888";
             const midI = Math.floor((pts.length - 1) / 2);
             const mid = {

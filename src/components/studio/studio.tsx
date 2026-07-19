@@ -6,9 +6,11 @@ import {
   createDesign,
   newId,
   type DesignDocument,
+  type DesignObject,
   type DesignVariantRef,
 } from "@/lib/studio/document";
 import { openDesignJson, DesignDocumentError } from "@/lib/studio/migrations";
+import { pruneObjects, releaseRoomsFromSystems, removedRoomIds } from "@/lib/studio/attach";
 import {
   browserDesignStore,
   SyncedDesignStore,
@@ -872,10 +874,13 @@ function Editor({
     (id: string) => {
       const sheets = doc.floors.find((f) => f.id === id)?.plans ?? [];
       const removedRefs = new Set(sheets.map((s) => s.imageRef));
+      const keep = (o: DesignObject) => o.floorId !== id;
       mutate((d) => ({
         ...d,
         floors: d.floors.filter((f) => f.id !== id),
-        objects: d.objects.filter((o) => o.floorId !== id),
+        // cross-floor runs (risers) lose attaches to what went with the floor
+        systems: releaseRoomsFromSystems(d.systems, removedRoomIds(d.objects, keep)),
+        objects: pruneObjects(d.objects, keep),
         planImport: d.planImport
           ? {
               ...d.planImport,

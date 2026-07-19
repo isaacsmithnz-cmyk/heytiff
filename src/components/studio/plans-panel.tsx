@@ -4,10 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import type {
   DesignDocument,
+  DesignObject,
   Floor,
   PlanImport,
   PlanImportSource,
 } from "@/lib/studio/document";
+import { pruneObjects, releaseRoomsFromSystems, removedRoomIds } from "@/lib/studio/attach";
 import { createPortal } from "react-dom";
 import {
   applyBuilderRows,
@@ -324,10 +326,13 @@ export function PlansPanel({
   };
 
   const removeFloor = (floor: Floor) => {
+    const keep = (o: DesignObject) => o.floorId !== floor.id;
     onMutate((d) => ({
       ...d,
       floors: d.floors.filter((f) => f.id !== floor.id),
-      objects: d.objects.filter((o) => o.floorId !== floor.id),
+      // cross-floor runs (risers) lose attaches to what went with the floor
+      systems: releaseRoomsFromSystems(d.systems, removedRoomIds(d.objects, keep)),
+      objects: pruneObjects(d.objects, keep),
     }));
     for (const sheet of floor.plans) {
       void planImages.remove(sheet.imageRef).catch(() => {});

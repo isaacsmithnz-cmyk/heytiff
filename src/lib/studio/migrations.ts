@@ -9,6 +9,12 @@ import {
   isDesignDocumentShape,
   type DesignDocument,
 } from "./document";
+import { attachOf } from "./graph";
+import {
+  ATTACHED_RUN_TYPES,
+  reconcileAttachedRuns,
+  stripAttachesTo,
+} from "./attach";
 
 /** A migration takes a document at version N and returns it at N+1.
     Input is loosely typed on purpose — old shapes no longer exist in TS. */
@@ -207,9 +213,31 @@ export function migrateDesign(raw: unknown): {
     }
   }
   return {
-    doc: doc as unknown as DesignDocument,
+    doc: normalizeDesign(doc as unknown as DesignDocument),
     migratedFrom: startVersion < SCHEMA_VERSION ? startVersion : null,
   };
+}
+
+/** Value-only normalisation applied on every open (idempotent, no schema
+    bump). Documents saved while unit moves stranded attached pipework — or
+    while deletes left runs referencing gone objects — get repaired here:
+    dead attach refs are stripped, then attached endpoints snap onto their
+    referenced object's current position. Safe as pure repair: no gesture can
+    legitimately separate an attached endpoint from its target while keeping
+    the ref. */
+export function normalizeDesign(doc: DesignDocument): DesignDocument {
+  const ids = new Set(doc.objects.map((o) => o.id));
+  const dead = new Set<string>();
+  for (const o of doc.objects) {
+    if (!ATTACHED_RUN_TYPES.has(o.type)) continue;
+    for (const key of ["startAttach", "endAttach"] as const) {
+      const a = attachOf(o.props?.[key]);
+      if (a && !ids.has(a.id)) dead.add(a.id);
+    }
+  }
+  let objects = dead.size ? stripAttachesTo(doc.objects, dead) : doc.objects;
+  objects = reconcileAttachedRuns(objects, null);
+  return objects === doc.objects ? doc : { ...doc, objects };
 }
 
 /** Parse a JSON string into a current-version design document. */

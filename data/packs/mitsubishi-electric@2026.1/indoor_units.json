@@ -4286,7 +4286,7 @@
    "kind": "extracted",
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
-   "page": "B-30; AU Ducted Brochure 2024 p.24"
+   "page": "B-30; AU Ducted Brochure 2024 p.24; book B-31"
   },
   "supply_opening": {
    "w_mm": 660,
@@ -4302,7 +4302,8 @@
   "static_pressure_pa": 50,
   "drain_pump": "none",
   "power_supply": "230 V, Single-phase, 50/60 Hz (outdoor unit supply)",
-  "max_amps_a": 0.39
+  "max_amps_a": 0.39,
+  "filter": "built-in"
  },
  {
   "model": "SEZ-M35DA(L)",
@@ -4330,7 +4331,7 @@
    "kind": "extracted",
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
-   "page": "B-30; AU Ducted Brochure 2024 p.24"
+   "page": "B-30; AU Ducted Brochure 2024 p.24; book B-31"
   },
   "supply_opening": {
    "w_mm": 860,
@@ -4346,7 +4347,8 @@
   "static_pressure_pa": 50,
   "drain_pump": "none",
   "power_supply": "230 V, Single-phase, 50/60 Hz (outdoor unit supply)",
-  "max_amps_a": 0.46
+  "max_amps_a": 0.46,
+  "filter": "built-in"
  },
  {
   "model": "SEZ-M50DA(L)",
@@ -4374,7 +4376,7 @@
    "kind": "extracted",
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
-   "page": "B-30; AU Ducted Brochure 2024 p.24"
+   "page": "B-30; AU Ducted Brochure 2024 p.24; book B-31"
   },
   "supply_opening": {
    "w_mm": 860,
@@ -4390,7 +4392,8 @@
   "static_pressure_pa": 50,
   "drain_pump": "none",
   "power_supply": "230 V, Single-phase, 50/60 Hz (outdoor unit supply)",
-  "max_amps_a": 0.63
+  "max_amps_a": 0.63,
+  "filter": "built-in"
  },
  {
   "model": "SEZ-M60DA(L)",
@@ -4418,7 +4421,7 @@
    "kind": "extracted",
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
-   "page": "B-30; AU Ducted Brochure 2024 p.24"
+   "page": "B-30; AU Ducted Brochure 2024 p.24; book B-31"
   },
   "supply_opening": {
    "w_mm": 1060,
@@ -4434,7 +4437,8 @@
   "static_pressure_pa": 50,
   "drain_pump": "none",
   "power_supply": "230 V, Single-phase, 50/60 Hz (outdoor unit supply)",
-  "max_amps_a": 0.63
+  "max_amps_a": 0.63,
+  "filter": "built-in"
  },
  {
   "model": "SEZ-M71DA(L)",
@@ -4462,7 +4466,7 @@
    "kind": "extracted",
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
-   "page": "B-30; AU Ducted Brochure 2024 p.24"
+   "page": "B-30; AU Ducted Brochure 2024 p.24; book B-31"
   },
   "supply_opening": {
    "w_mm": 1060,
@@ -4478,7 +4482,8 @@
   "static_pressure_pa": 50,
   "drain_pump": "none",
   "power_supply": "230 V, Single-phase, 50/60 Hz (outdoor unit supply)",
-  "max_amps_a": 0.84
+  "max_amps_a": 0.84,
+  "filter": "built-in"
  },
  {
   "model": "MSZ-LN25VG2V",

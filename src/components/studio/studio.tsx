@@ -14,8 +14,11 @@ import {
   newId,
   type DesignDocument,
   type DesignObject,
+  type DesignSettings,
   type DesignVariantRef,
 } from "@/lib/studio/document";
+import { CLIMATE_ZONES, type SizingBasis } from "@/lib/studio/loads";
+import { effectiveClimateZone, effectiveBuildingType } from "@/lib/studio/summary";
 import { openDesignJson, DesignDocumentError } from "@/lib/studio/migrations";
 import { pruneObjects, releaseRoomsFromSystems, removedRoomIds } from "@/lib/studio/attach";
 import {
@@ -1019,6 +1022,10 @@ function Editor({
             onSave={onSaveNow}
             onEditPlans={() => onStep(0)}
             onReference={hasReference ? () => setRefOpen(true) : undefined}
+            settings={doc.settings}
+            onSettings={(patch) =>
+              mutate((d) => ({ ...d, settings: { ...d.settings, ...patch } }))
+            }
           />
           <div className="ds-id">
             <input
@@ -1260,13 +1267,21 @@ function Editor({
    (the back arrow, Reference sheets) plus the Plans step, now behind "Edit
    plans". New/Open leave through the same swap as the old back arrow: Home IS
    the open-a-design screen. Export lives on Summary with Print — both are
-   "get something out of this design". */
+   "get something out of this design".
+
+   The load settings (climate zone / building type / sizing basis) live here
+   too: they re-load every room in the engine, so they belong with the design
+   chrome you use WHILE designing — the Summary only echoes them read-only.
+   Changing a select keeps the menu open (only .ds-menu-item clicks close it),
+   so you can watch the cockpit numbers move as you try zones. */
 function StudioMenu({
   onNew,
   onOpen,
   onSave,
   onEditPlans,
   onReference,
+  settings,
+  onSettings,
 }: {
   onNew: () => void;
   onOpen: () => void;
@@ -1274,6 +1289,8 @@ function StudioMenu({
   onEditPlans: () => void;
   /** absent until plan pages exist — the item shows disabled */
   onReference?: () => void;
+  settings: DesignSettings;
+  onSettings: (patch: Partial<DesignSettings>) => void;
 }) {
   const [open, setOpen] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
@@ -1342,6 +1359,52 @@ function StudioMenu({
               ? "Browse every uploaded page — heights, sections, details"
               : "Reference sheets — upload plan pages first"
           )}
+          <div className="ds-menu-sep" />
+          <div
+            className="ds-menu-set"
+            role="group"
+            aria-label="Load settings"
+            title="Every room load re-derives from these — the whole design updates live"
+          >
+            <span className="ds-menu-set-t">Load settings</span>
+            <label className="ds-menu-set-row">
+              <span>Climate zone</span>
+              <select
+                value={String(effectiveClimateZone(settings))}
+                onChange={(e) => onSettings({ climateZone: e.target.value })}
+              >
+                {Object.entries(CLIMATE_ZONES).map(([z, info]) => (
+                  <option key={z} value={z}>
+                    {info.label} — {info.cities.split(",")[0]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="ds-menu-set-row">
+              <span>Building type</span>
+              <select
+                value={effectiveBuildingType(settings)}
+                onChange={(e) => onSettings({ buildingType: e.target.value })}
+              >
+                <option value="residential">Residential</option>
+                <option value="light_commercial">Light commercial</option>
+                <option value="commercial">Commercial</option>
+              </select>
+            </label>
+            <label className="ds-menu-set-row">
+              <span>Size on</span>
+              <select
+                value={settings.sizingBasis}
+                onChange={(e) =>
+                  onSettings({ sizingBasis: e.target.value as SizingBasis })
+                }
+              >
+                <option value="cooling">Cooling</option>
+                <option value="heating">Heating</option>
+                <option value="worst-of-both">Worst of both</option>
+              </select>
+            </label>
+          </div>
         </div>
       )}
     </div>

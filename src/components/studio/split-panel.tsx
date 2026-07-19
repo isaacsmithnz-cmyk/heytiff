@@ -4,11 +4,7 @@ import { useMemo } from "react";
 import { Icon } from "@/components/shell/icon";
 import type { DesignDocument } from "@/lib/studio/document";
 import type { DataPack } from "@/lib/studio/packs/schema";
-import {
-  CLIMATE_ZONES,
-  type BuildingType,
-  type SizingBasis,
-} from "@/lib/studio/loads";
+import { designBasis } from "@/lib/studio/summary";
 import { systemBadge, type BadgeStatus } from "@/lib/studio/split";
 import { buildMaterials } from "@/lib/studio/materials";
 
@@ -44,11 +40,7 @@ export function SummaryView({
   const setMeta = (k: "jobNumber" | "client" | "site", v: string) =>
     onMutate((d) => ({ ...d, meta: { ...d.meta, [k]: v } }));
 
-  const setSetting = (patch: Partial<DesignDocument["settings"]>) =>
-    onMutate((d) => ({ ...d, settings: { ...d.settings, ...patch } }));
-
-  const zone = parseInt(doc.settings.climateZone ?? "", 10);
-  const activeZone = Number.isFinite(zone) ? zone : 5;
+  const basis = designBasis(doc);
 
   /* whole-job unit rollup across systems (common-consumables style) */
   const rollup = new Map<string, { qty: number; description: string }>();
@@ -95,45 +87,18 @@ export function SummaryView({
               />
             </label>
           </div>
-          <span className="ds-cardt ds-job-settingst">Load settings</span>
-          <div className="ds-job-fields">
-            <label>
-              <span>Climate zone</span>
-              <select
-                value={String(activeZone)}
-                onChange={(e) => setSetting({ climateZone: e.target.value })}
-              >
-                {Object.entries(CLIMATE_ZONES).map(([z, info]) => (
-                  <option key={z} value={z}>
-                    {info.label} — {info.cities.split(",")[0]}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>Building type</span>
-              <select
-                value={(doc.settings.buildingType as BuildingType) ?? "residential"}
-                onChange={(e) => setSetting({ buildingType: e.target.value })}
-              >
-                <option value="residential">Residential</option>
-                <option value="light_commercial">Light commercial</option>
-                <option value="commercial">Commercial</option>
-              </select>
-            </label>
-            <label>
-              <span>Size on</span>
-              <select
-                value={doc.settings.sizingBasis}
-                onChange={(e) =>
-                  setSetting({ sizingBasis: e.target.value as SizingBasis })
-                }
-              >
-                <option value="cooling">Cooling</option>
-                <option value="heating">Heating</option>
-                <option value="worst-of-both">Worst of both</option>
-              </select>
-            </label>
+          {/* the loads were computed FROM these — edited in the studio menu
+              (they re-load every room), echoed here for the record */}
+          <span className="ds-cardt ds-job-settingst">Design basis</span>
+          <div
+            className="ds-sum-chips"
+            title="Set in the studio menu (top left) — changing them re-loads every room"
+          >
+            <span className="ds-sum-chip">
+              Zone {basis.zone} · {basis.zoneCity}
+            </span>
+            <span className="ds-sum-chip">{basis.buildingLabel}</span>
+            <span className="ds-sum-chip">{basis.basisLabel}</span>
           </div>
 
           <div className="ds-job-actions">

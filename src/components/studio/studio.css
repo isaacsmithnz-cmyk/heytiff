@@ -737,6 +737,44 @@
   margin: 6px 4px;
   background: rgba(10, 12, 20, 0.08);
 }
+/* load settings — the engine inputs ride the bottom of the menu (see
+   StudioMenu). Stacked label-over-select rows sized to the 200px pop;
+   changing one keeps the menu open so the canvas numbers move in view. */
+.dstudio .ds-menu-set {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 2px 6px 6px;
+}
+.dstudio .ds-menu-set-t {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gray500);
+}
+.dstudio .ds-menu-set-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.dstudio .ds-menu-set-row > span {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gray500);
+}
+.dstudio .ds-menu-set-row select {
+  width: 100%;
+  height: 30px;
+  padding: 0 6px;
+  border: 1px solid var(--ds-border);
+  border-radius: 8px;
+  background: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+}
 /* title with the save status stacked beneath it — the pill was getting lost
    floating mid-bar, and under the name it costs no bar width */
 .dstudio .ds-id {
@@ -4945,7 +4983,30 @@
   .dstudio .ds-sum-screen { display: none; }
 }
 
+/* .ds-cardt is a Home-screen title (white — dark backdrop); on the summary's
+   light paper it vanished outright, so re-ink it here */
+.dstudio .ds-sum-screen .ds-cardt { color: var(--ink); font-size: 14px; }
 .dstudio .ds-job-settingst { margin-top: 4px; }
+
+/* design basis — read-only echo of the load settings (edited in the studio
+   menu; changing them re-loads every room, so Summary only records them) */
+.dstudio .ds-sum-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.dstudio .ds-sum-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 11px;
+  border: 1px solid var(--ds-border);
+  border-radius: 999px;
+  background: var(--ds-card2, #f7f8fa);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gray700);
+}
 
 /* ═══════════════════════════════════════════════════════════════════════
    Cockpit panel (v3) — the Design-step right rail. Imported pixel-faithfully
@@ -7435,6 +7496,17 @@
 .dstudio.editing .ds-view-sep,
 .dstudio.editing .ds-variant-sep {
   background: rgba(255, 255, 255, 0.12);
+}
+/* the load-settings selects join the glass — but the popup LIST a select
+   opens is native chrome that never retints, so options pin dark-on-light */
+.dstudio.editing .ds-menu-set-row select {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+.dstudio.editing .ds-menu-set-row select option {
+  background: #fff;
+  color: #111;
 }
 .dstudio.editing .ds-floor-add,
 .dstudio.editing .ds-legend-sym {

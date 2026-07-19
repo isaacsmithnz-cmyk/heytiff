@@ -7457,6 +7457,14 @@
 .dstudio .ds-editor > .ds-topbar > .ds-steps {
   margin: 0 16px;
 }
+/* The control pills live at the right edge of the bar, so their menus have to
+   open LEFTWARD. Anchored left:0 they ran off the frame — .dstudio clips at
+   overflow:hidden, so View lost its right edge outright. Right-anchoring is
+   safe for the whole flank however narrow the window gets. */
+.dstudio .ds-tb-right .ds-layers-menu {
+  left: auto;
+  right: 0;
+}
 .dstudio.editing .ds-step {
   color: rgba(255, 255, 255, 0.62);
 }

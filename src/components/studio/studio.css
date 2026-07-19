@@ -819,7 +819,7 @@
 }
 
 /* equal-weight flanks: both take flex-basis 0 and share the leftover width, so
-   whatever they hold the tab switcher between them lands dead-centre */
+   whatever sits between them lands dead-centre (the canvas-control pills) */
 .dstudio .ds-tb-left,
 .dstudio .ds-tb-right {
   flex: 1 1 0;
@@ -7469,20 +7469,16 @@
   border-color: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(14px);
 }
-/* keep the switcher from butting into the control pills at laptop widths */
-.dstudio .ds-editor > .ds-topbar > .ds-steps {
+/* keep the centre cluster off the flanks at laptop widths */
+.dstudio .ds-editor > .ds-topbar > .ds-canvas-toggles {
   margin: 0 16px;
 }
-/* The control pills live at the right edge of the bar, so their menus have to
-   open LEFTWARD. Anchored left:0 they ran off the frame — .dstudio clips at
-   overflow:hidden, so View lost its right edge outright. Right-anchoring is
-   safe for the whole flank however narrow the window gets. */
 /* Centred on the pill, not flushed to one side. Anchored to either edge, a
    menu that's wider than its trigger sits under a NEIGHBOURING pill and reads
    as belonging to it — left-anchored View ran off the frame, right-anchored it
-   lined up under Calibrate. Centred, each pill sits in the middle of its own
-   menu, and there's room because Simulate (no menu) holds the right end. */
-.dstudio .ds-tb-right .ds-layers-menu {
+   lined up under Calibrate. Scoped to the toggles cluster rather than a slot
+   in the bar, so it survives the pills being moved around. */
+.dstudio .ds-canvas-toggles .ds-layers-menu {
   left: 50%;
   right: auto;
   /* --ds-menu-nudge is set by useClampedMenu when centring would overhang
@@ -7493,7 +7489,7 @@
    left under the NEIGHBOURING pill — View's menu lined up under Calibrate and
    read as Calibrate's. The caret sits on the WRAPPER, not the menu, so it
    points at its own trigger's centre whichever way the menu is anchored. */
-.dstudio.editing .ds-tb-right .ds-layers-wrap:has(.ds-layers-menu)::after {
+.dstudio.editing .ds-canvas-toggles .ds-layers-wrap:has(.ds-layers-menu)::after {
   content: "";
   position: absolute;
   top: calc(100% + 1px);

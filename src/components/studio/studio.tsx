@@ -1043,40 +1043,40 @@ function Editor({
             </span>
           </div>
         </div>
-        <nav className="ds-steps" aria-label="Workflow">
-          {TABS.map((t) => (
-            <button
-              key={t.step}
-              className={`ds-step${step === t.step ? " active" : ""}`}
-              onClick={() => onStep(t.step)}
-            >
-              {t.label}
-            </button>
-          ))}
-        </nav>
+        {/* the canvas controls take the centre slot — the strip above the
+            canvas is gone. Design step only; they're floor-scoped. */}
+        {step === 1 && activeFloor && (
+          <CanvasControls
+            floors={doc.floors}
+            floor={activeFloor}
+            onFloor={setPickedFloorId}
+            onAddFloor={addFloor}
+            onDeleteFloor={deleteFloor}
+            tool={tool}
+            onTool={changeTool}
+            layers={layers}
+            onLayers={setLayers}
+            grayscale={grayscale}
+            onGrayscale={setGrayscale}
+            legendOpen={legendOpen}
+            onLegend={setLegendOpen}
+            simFlag={simFlag}
+            simOn={simOn}
+            onToggleSim={toggleSim}
+          />
+        )}
         <div className="ds-tb-right">
-          {/* the canvas controls live on this same line now — the strip above
-              the canvas is gone. Design step only; they're floor-scoped. */}
-          {step === 1 && activeFloor && (
-            <CanvasControls
-              floors={doc.floors}
-              floor={activeFloor}
-              onFloor={setPickedFloorId}
-              onAddFloor={addFloor}
-              onDeleteFloor={deleteFloor}
-              tool={tool}
-              onTool={changeTool}
-              layers={layers}
-              onLayers={setLayers}
-              grayscale={grayscale}
-              onGrayscale={setGrayscale}
-              legendOpen={legendOpen}
-              onLegend={setLegendOpen}
-              simFlag={simFlag}
-              simOn={simOn}
-              onToggleSim={toggleSim}
-            />
-          )}
+          <nav className="ds-steps" aria-label="Workflow">
+            {TABS.map((t) => (
+              <button
+                key={t.step}
+                className={`ds-step${step === t.step ? " active" : ""}`}
+                onClick={() => onStep(t.step)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </nav>
         </div>
       </header>
 

@@ -7465,6 +7465,24 @@
   left: auto;
   right: 0;
 }
+/* A menu is wider than the pill it hangs from, so right-anchoring spills it
+   left under the NEIGHBOURING pill — View's menu lined up under Calibrate and
+   read as Calibrate's. The caret sits on the WRAPPER, not the menu, so it
+   points at its own trigger's centre whichever way the menu is anchored. */
+.dstudio.editing .ds-tb-right .ds-layers-wrap:has(.ds-layers-menu)::after {
+  content: "";
+  position: absolute;
+  top: calc(100% + 1px);
+  left: 50%;
+  z-index: 19;
+  width: 11px;
+  height: 11px;
+  transform: translateX(-50%) rotate(45deg);
+  background: rgba(18, 20, 27, 0.94);
+  border-left: 1px solid rgba(255, 255, 255, 0.14);
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 2px 0 0 0;
+}
 .dstudio.editing .ds-step {
   color: rgba(255, 255, 255, 0.62);
 }

@@ -44,6 +44,12 @@ import { roomsServedBy, roomCoverage, systemPairKw } from "@/lib/studio/coverage
 import type { PairProposal } from "@/lib/studio/split";
 import { isAirCapable, moduleFor } from "@/lib/studio/modules";
 import {
+  pruneObjects,
+  releaseRoomsFromSystems,
+  removedRoomIds,
+  stripAttachesTo,
+} from "@/lib/studio/attach";
+import {
   distributeSpigots,
   ductedRequirement,
   DUCTED_OBJECT_TYPES,
@@ -229,11 +235,19 @@ export function SystemCockpit({
   };
 
   const deleteSystem = (id: string) => {
-    onMutate((d) => ({
-      ...d,
-      systems: d.systems.filter((s) => s.id !== id),
-      objects: d.objects.filter((o) => o.systemId !== id),
-    }));
+    onMutate((d) => {
+      // another system's runs must not keep attaches to units that went with
+      // this one, and its rooms must not linger in anyone's adopted list
+      const keep = (o: DesignObject) => o.systemId !== id;
+      return {
+        ...d,
+        systems: releaseRoomsFromSystems(
+          d.systems.filter((s) => s.id !== id),
+          removedRoomIds(d.objects, keep)
+        ),
+        objects: pruneObjects(d.objects, keep),
+      };
+    });
     if (id === active?.id) onActivate(null);
   };
 
@@ -2405,11 +2419,15 @@ function ObjectInspectCard({
 }) {
   const system = doc.systems.find((s) => s.id === obj.systemId);
   const del = () => {
-    // deleting an AHU carries its plenums (spec §10.3 — confirm copy Step 8)
+    // deleting an AHU carries its plenums (spec §10.3 — confirm copy Step 8);
+    // runs that attached to the object lose the ref and become open ends
     onMutate((d) => ({
       ...d,
-      objects: d.objects.filter(
-        (o) => o.id !== obj.id && !(obj.type === "unit" && isPlenumOf(o, obj.id))
+      objects: stripAttachesTo(
+        d.objects.filter(
+          (o) => o.id !== obj.id && !(obj.type === "unit" && isPlenumOf(o, obj.id))
+        ),
+        new Set([obj.id])
       ),
     }));
     onSelect(null);

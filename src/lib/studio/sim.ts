@@ -2,7 +2,7 @@ import type { DesignDocument } from "./document";
 import type { Point } from "./document";
 import type { DataPack } from "./packs/schema";
 import { roomAreaM2, roomLoadKw, type RoomObj } from "./loads-room";
-import { clamp, polygonCentroid } from "./geometry";
+import { clamp, distToSegment, pointInPolygon, polygonCentroid } from "./geometry";
 
 /* Simulation engine (Stage 12a — split slice) — pure data + pure functions,
    no React, no canvas (docs/design-studio-simulation-spec.md). The model is
@@ -67,6 +67,10 @@ export const SIM = {
   THROW_MAX_M: 8,
   THROW_COOL_X: 1.4,
   THROW_HEAT_X: 0.7,
+  /** readiness: how far outside its room's polygon a unit may sit (m) —
+      wall-mounted units land ON the boundary, so forgive placement slop
+      while catching metre-scale strays */
+  ROOM_TOL_M: 0.5,
 } as const;
 
 export type SimMode = "heat" | "cool";
@@ -317,6 +321,21 @@ export function buildSimModel(
     const room = roomId ? roomById.get(roomId) : undefined;
     if (!room) {
       fail(roomId ? "its room has no heat load yet" : "indoor unit is not inside a room");
+      continue;
+    }
+    /* for an unpinned unit the roomId stamp is positional truth from drop/move
+       time — re-check it before simulating, so a stray unit fails loudly
+       instead of emitting from outside the wall (rayExitDistance would
+       collapse the throw). roomLock means the user attributed the room by
+       hand, so the stamp outranks the position (coverage.ts) — skip the check
+       exactly like the canvas skips restamping. */
+    const at = idu.geometry.at;
+    const tolU = SIM.ROOM_TOL_M / mPerUnit;
+    const nearBoundary = room.points.some((p, i) =>
+      distToSegment(at, p, room.points[(i + 1) % room.points.length]) <= tolU
+    );
+    if (idu.props.roomLock !== true && !pointInPolygon(at, room.points) && !nearBoundary) {
+      fail("indoor unit sits outside its room");
       continue;
     }
     const rated = pairRatedKw(doc, pack, sys.id);

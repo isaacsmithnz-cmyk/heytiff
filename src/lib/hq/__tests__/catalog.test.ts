@@ -5,6 +5,7 @@ import {
   type PackMeta,
 } from "@/lib/studio/packs/schema";
 import { buildCatalogView, catalogKpis, type HqRow } from "../catalog";
+import { fieldSpec } from "@/lib/studio/packs/fields";
 
 const META: PackMeta = { brand: "test", version: "1.0", packSchemaVersion: 1, name: "Test" };
 
@@ -67,6 +68,22 @@ describe("buildCatalogView — gap classification", () => {
     expect(weight.blocks).toBe(false);
   });
 
+  it("never reports drain_pressure as a gap — it is staff-entered, not extracted", () => {
+    // no ME document states which pressure side the drain sits on, so listing
+    // it as nice-to-know reported a permanent debt against every indoor row.
+    // It must stay editable, but never nag.
+    const view = buildCatalogView(packOf([idu({ model: "W" })]), []);
+    expect(gap(view.indoor[0], "drain_pressure")).toBeUndefined();
+    // the neighbouring drain field IS published, so it still surfaces
+    expect(gap(view.indoor[0], "drain_pump")).toBeDefined();
+  });
+
+  it("keeps drain_pressure editable with exactly positive/negative", () => {
+    const spec = fieldSpec("indoor_units", "drain_pressure")!;
+    expect(spec.type).toBe("enum");
+    expect(spec.enumValues).toEqual(["positive", "negative"]);
+  });
+
   it("surfaces a missing pair row as a structural (non-fillable) blocking gap", () => {
     const view = buildCatalogView(
       packOf([idu({ model: "P", system_roles: ["split-pair"] })]), // no pair_tables row
@@ -76,20 +93,77 @@ describe("buildCatalogView — gap classification", () => {
     expect(g.blocks).toBe(true);
     expect(g.fillable).toBe(false);
   });
+
+  it("flags missing airway openings as blocking on ducted units only", () => {
+    const view = buildCatalogView(
+      packOf([idu({ model: "D", form_factor: "ducted" }), idu({ model: "W" })]),
+      []
+    );
+    const ducted = view.indoor[0];
+    for (const f of ["supply_opening", "return_opening"]) {
+      const g = gap(ducted, f)!;
+      expect(g.blocks).toBe(true);
+      expect(g.roles).toContain("ducted");
+      expect(g.fillable).toBe(true);
+    }
+    // wall unit: airways are not a gap at all, and the values slot stays null
+    const wall = view.indoor[1];
+    expect(gap(wall, "supply_opening")).toBeUndefined();
+    expect(wall.values.supply_opening).toBeNull();
+  });
+
+  it("passes airway values through: box as {w_mm,h_mm}, keyword as string", () => {
+    const view = buildCatalogView(
+      packOf([
+        idu({
+          model: "D",
+          form_factor: "ducted",
+          airflow_ls: 200,
+          supply_opening: { w_mm: 595, h_mm: 195 },
+          return_opening: "built-in",
+        }),
+      ]),
+      []
+    );
+    const row = view.indoor[0];
+    expect(row.values.supply_opening).toEqual({ w_mm: 595, h_mm: 195 });
+    expect(row.values.return_opening).toBe("built-in");
+    expect(row.engineReady).toBe(true);
+  });
+
+  it("treats missing max running amps as nice-to-know on both unit sections", () => {
+    const view = buildCatalogView(
+      packOf([idu({ model: "W" })], ),
+      []
+    );
+    const amps = gap(view.indoor[0], "max_amps_a")!;
+    expect(amps.blocks).toBe(false);
+    expect(amps.fillable).toBe(true);
+  });
 });
 
 describe("buildCatalogView — overrides", () => {
   it("clears the blocking gap and records an override marker once a value is filled", () => {
-    const view = buildCatalogView(packOf([idu({ model: "D", form_factor: "ducted" })]), [
-      {
-        section: "indoor_units",
-        rowKey: "D",
-        field: "airflow_ls",
-        value: 210,
-        by: "isaac@heytiff.com",
-        at: "2026-07-16T02:30:00Z",
-      },
-    ]);
+    const view = buildCatalogView(
+      packOf([
+        idu({
+          model: "D",
+          form_factor: "ducted",
+          supply_opening: { w_mm: 600, h_mm: 200 },
+          return_opening: "built-in",
+        }),
+      ]),
+      [
+        {
+          section: "indoor_units",
+          rowKey: "D",
+          field: "airflow_ls",
+          value: 210,
+          by: "isaac@heytiff.com",
+          at: "2026-07-16T02:30:00Z",
+        },
+      ]
+    );
     const row = view.indoor[0];
     expect(row.values.airflow_ls).toBe(210);
     expect(gap(row, "airflow_ls")).toBeUndefined(); // no longer missing
@@ -99,6 +173,27 @@ describe("buildCatalogView — overrides", () => {
       at: "2026-07-16T02:30:00Z",
       packValue: null, // pack had no airflow
     });
+  });
+
+  it("an airway-box override clears the opening gap and marks the cell", () => {
+    const view = buildCatalogView(
+      packOf([idu({ model: "D", form_factor: "ducted", airflow_ls: 200, return_opening: "spigots" })]),
+      [
+        {
+          section: "indoor_units",
+          rowKey: "D",
+          field: "supply_opening",
+          value: { w_mm: 595, h_mm: 195 },
+          by: "isaac@heytiff.com",
+          at: "2026-07-18T00:00:00Z",
+        },
+      ]
+    );
+    const row = view.indoor[0];
+    expect(row.values.supply_opening).toEqual({ w_mm: 595, h_mm: 195 });
+    expect(gap(row, "supply_opening")).toBeUndefined();
+    expect(row.engineReady).toBe(true);
+    expect(row.overridden.supply_opening?.packValue).toBeNull();
   });
 });
 

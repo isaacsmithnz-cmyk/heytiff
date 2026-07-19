@@ -10,6 +10,8 @@ import {
   parseFieldInput,
   validateFieldValue,
   type EditableSection,
+  type FieldValue,
+  type ParseResult,
 } from "@/lib/studio/packs/fields";
 import type { SaveInput, ClearInput, SaveResult } from "./edit-types";
 
@@ -39,14 +41,32 @@ const ROLE_LABEL = new Map<string, string>(ROLE_OPTIONS.map((o) => [o.role, o.la
    server-only; this file type-imports from it, which is erased at compile).
    Editing is enabled only when save/clear actions are injected. */
 
+/** airway-editor state: a W×H box (text inputs) or one of the keyword answers */
+interface OpeningDraft {
+  mode: "wh" | "built-in" | "spigots" | "open";
+  w: string;
+  h: string;
+}
+
 interface Editing {
   section: EditableSection;
   rowKey: string;
   field: string;
   title: string;
+  /** text value for number/string/enum fields (unused for openings) */
   value: string;
-  packValue: number | string | string[] | null;
+  /** present only for type "opening" — drives the airway control */
+  opening?: OpeningDraft;
+  packValue: FieldValue | null;
   overridden: boolean;
+}
+
+/** human form of any pack/override value, for the popover provenance note */
+function fmtFieldValue(v: FieldValue | null): string {
+  if (v == null) return "—";
+  if (Array.isArray(v)) return v.join(", ");
+  if (typeof v === "object") return `${v.w_mm} × ${v.h_mm} mm`;
+  return String(v);
 }
 
 /** tag-editor popover state — one row, or a whole series (bulk) */
@@ -94,13 +114,22 @@ export function HqBrandCatalog({
     if (!spec) return;
     const cur = row.values[field];
     const mark = row.overridden[field];
+    const opening: OpeningDraft | undefined =
+      spec.type !== "opening"
+        ? undefined
+        : typeof cur === "object" && cur !== null
+          ? { mode: "wh", w: String(cur.w_mm), h: String(cur.h_mm) }
+          : cur === "built-in" || cur === "spigots" || cur === "open"
+            ? { mode: cur, w: "", h: "" }
+            : { mode: "wh", w: "", h: "" };
     setError(null);
     setEditing({
       section: row.section,
       rowKey: row.rowKey,
       field,
       title: `${row.title} · ${spec.label}`,
-      value: cur == null ? "" : String(cur),
+      value: cur == null || typeof cur === "object" ? "" : String(cur),
+      opening,
       packValue: mark ? mark.packValue : null,
       overridden: !!mark,
     });
@@ -109,7 +138,20 @@ export function HqBrandCatalog({
   async function save() {
     if (!editing || !onSave) return;
     const spec = fieldSpec(editing.section, editing.field)!;
-    const parsed = parseFieldInput(spec, editing.value);
+    let parsed: ParseResult;
+    if (spec.type === "opening" && editing.opening) {
+      const o = editing.opening;
+      if (o.mode === "wh" && (!o.w.trim() || !o.h.trim())) {
+        setError("Enter both width and height");
+        return;
+      }
+      parsed = validateFieldValue(
+        spec,
+        o.mode === "wh" ? { w_mm: Number(o.w), h_mm: Number(o.h) } : o.mode
+      );
+    } else {
+      parsed = parseFieldInput(spec, editing.value);
+    }
     if (!parsed.ok) {
       setError(parsed.error);
       return;
@@ -317,7 +359,94 @@ export function HqBrandCatalog({
         <div className="hq-pop-back" onClick={() => !busy && setEditing(null)}>
           <div className="hq-pop" onClick={(e) => e.stopPropagation()}>
             <div className="hq-pop-title">{editing.title}</div>
-            {editingSpec.type === "enum" ? (
+            {editingSpec.type === "opening" && editing.opening ? (
+              <div className="hq-tagchecks">
+                <label className="hq-tagcheck">
+                  <input
+                    type="radio"
+                    name="hq-open-mode"
+                    checked={editing.opening.mode === "wh"}
+                    onChange={() =>
+                      setEditing({ ...editing, opening: { ...editing.opening!, mode: "wh" } })
+                    }
+                  />
+                  Opening size (W × H)
+                </label>
+                <div className="hq-pop-openwh">
+                  <input
+                    className="hq-pop-input"
+                    inputMode="decimal"
+                    placeholder="W"
+                    aria-label="Width (mm)"
+                    disabled={editing.opening.mode !== "wh"}
+                    value={editing.opening.w}
+                    onChange={(e) =>
+                      setEditing({
+                        ...editing,
+                        opening: { mode: "wh", w: e.target.value, h: editing.opening!.h },
+                      })
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") save();
+                      if (e.key === "Escape") setEditing(null);
+                    }}
+                  />
+                  <span className="hq-pop-openx">×</span>
+                  <input
+                    className="hq-pop-input"
+                    inputMode="decimal"
+                    placeholder="H"
+                    aria-label="Height (mm)"
+                    disabled={editing.opening.mode !== "wh"}
+                    value={editing.opening.h}
+                    onChange={(e) =>
+                      setEditing({
+                        ...editing,
+                        opening: { mode: "wh", w: editing.opening!.w, h: e.target.value },
+                      })
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") save();
+                      if (e.key === "Escape") setEditing(null);
+                    }}
+                  />
+                  <span className="hq-pop-unit">mm</span>
+                </div>
+                <label className="hq-tagcheck">
+                  <input
+                    type="radio"
+                    name="hq-open-mode"
+                    checked={editing.opening.mode === "built-in"}
+                    onChange={() =>
+                      setEditing({ ...editing, opening: { mode: "built-in", w: "", h: "" } })
+                    }
+                  />
+                  Built-in — integral return
+                </label>
+                <label className="hq-tagcheck">
+                  <input
+                    type="radio"
+                    name="hq-open-mode"
+                    checked={editing.opening.mode === "spigots"}
+                    onChange={() =>
+                      setEditing({ ...editing, opening: { mode: "spigots", w: "", h: "" } })
+                    }
+                  />
+                  Spigots — factory spigots on the opening
+                </label>
+                <label className="hq-tagcheck">
+                  <input
+                    type="radio"
+                    name="hq-open-mode"
+                    checked={editing.opening.mode === "open"}
+                    onChange={() =>
+                      setEditing({ ...editing, opening: { mode: "open", w: "", h: "" } })
+                    }
+                  />
+                  Open — takes a duct, installer sizes the plenum
+                </label>
+              </div>
+            ) : editingSpec.type === "enum" ? (
               <select
                 className="hq-pop-input"
                 value={editing.value}
@@ -345,12 +474,13 @@ export function HqBrandCatalog({
                 }}
               />
             )}
-            {editingSpec.unit ? <span className="hq-pop-unit">{editingSpec.unit}</span> : null}
+            {editingSpec.unit && editingSpec.type !== "opening" ? (
+              <span className="hq-pop-unit">{editingSpec.unit}</span>
+            ) : null}
 
             {editing.overridden ? (
               <div className="hq-pop-note">
-                Manual override. Pack value:{" "}
-                <b>{editing.packValue == null ? "—" : String(editing.packValue)}</b>
+                Manual override. Pack value: <b>{fmtFieldValue(editing.packValue)}</b>
               </div>
             ) : null}
             {error ? <div className="hq-pop-error">{error}</div> : null}
@@ -792,7 +922,11 @@ function CmpCell({
         : col.field === "refrigerant"
           ? "ref"
           : null;
-  const numeric = spec.type === "number";
+  // airway boxes render like numerics ("595 × 195"); "built-in"/"spigots"
+  // fall through the string path
+  const isBox = typeof value === "object";
+  const display = isBox ? `${value.w_mm} × ${value.h_mm}` : String(value);
+  const numeric = spec.type === "number" || isBox;
 
   return (
     <td className={tdClass}>
@@ -800,14 +934,14 @@ function CmpCell({
         className={`hq-cmp-btn${!chip && !numeric ? " txt" : ""}`}
         disabled={!editable}
         onClick={() => onPick(row, col.field)}
-        aria-label={`${spec.label} — ${row.title}: ${value}`}
+        aria-label={`${spec.label} — ${row.title}: ${display}`}
         title={edited ? "Manually entered — click to edit" : "Click to edit"}
       >
         {chip ? (
-          <span className={`hq-cmp-chip ${chip}${edited ? " edited" : ""}`}>{value}</span>
+          <span className={`hq-cmp-chip ${chip}${edited ? " edited" : ""}`}>{display}</span>
         ) : (
           <span className={`${numeric ? "hq-cmp-num" : "hq-cmp-txt"}${edited ? " edited" : ""}`}>
-            {value}
+            {display}
           </span>
         )}
         {edited ? <span className="hq-fp-dot" aria-label="manual override" /> : null}

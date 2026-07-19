@@ -204,8 +204,14 @@ export function isPlenumOf(
 
 /** The unit's air opening (spec §1b): dims from the data book size the
     plenum base; `"built-in"` = integral return (no plenum); `"spigots"` =
-    factory spigots on the opening (no drawn plenum body). */
-export type OpeningSpec = { w_mm: number; h_mm: number } | "built-in" | "spigots";
+    factory spigots on the opening (no drawn plenum body); `"open"` = a bare or
+    filtered face that takes a duct at a size the book never publishes, so the
+    plenum falls back to the derived default and the installer sizes it. */
+export type OpeningSpec =
+  | { w_mm: number; h_mm: number }
+  | "built-in"
+  | "spigots"
+  | "open";
 
 /** How far a drawn plenum protrudes from the unit in plan (mm). Not a
     published figure — a construction default. */
@@ -252,8 +258,13 @@ export function plenumBody(opts: {
 }): PlenumBody {
   const builtIn = opts.opening === "built-in";
   const factorySpigots = opts.opening === "spigots";
+  // "open" is a positive answer with no size in it, so it takes the same
+  // derived-default body as an absent opening — the installer sizes the plenum.
   const real =
-    opts.opening && opts.opening !== "built-in" && opts.opening !== "spigots"
+    opts.opening &&
+    opts.opening !== "built-in" &&
+    opts.opening !== "spigots" &&
+    opts.opening !== "open"
       ? opts.opening
       : null;
   const derived = !builtIn && !factorySpigots && real == null;

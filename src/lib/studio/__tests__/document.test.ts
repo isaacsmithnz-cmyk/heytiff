@@ -222,6 +222,49 @@ describe("schema versioning + migrations", () => {
     expect(doc.schemaVersion).toBe(SCHEMA_VERSION);
     expect(doc.floors.every((f) => f.northPos === null)).toBe(true);
   });
+
+  it("migrates v6→v7: PEFY-P*VMA-E references follow the E4 re-base", () => {
+    const base = createDesign({ name: "x", mode: "blank" });
+    const v6 = { ...JSON.parse(JSON.stringify(base)), schemaVersion: 6 };
+    v6.objects = [
+      { id: "u1", type: "unit", props: { model: "PEFY-P63VMA-E" } },
+      { id: "u2", type: "unit", props: { model: "PEFY-P100VMA-E" } },
+      { id: "u3", type: "unit", props: { model: "PLFY-P32VEM-A" } }, // untouched
+    ];
+    v6.systems = [
+      {
+        id: "s1",
+        settings: {
+          pairIdu: "PEFY-P20VMA-E",
+          pairOdu: "PUHY-P200YNW-A1",
+          multiIdus: { room1: "PEFY-P140VMA-E", room2: "PKFY-P20VLM-E" },
+        },
+      },
+    ];
+
+    const { doc, migratedFrom } = migrateDesign(v6);
+    expect(migratedFrom).toBe(6);
+    expect(doc.schemaVersion).toBe(SCHEMA_VERSION);
+
+    const models = doc.objects.map((o) => String(o.props.model));
+    expect(models).toEqual(["PEFY-P63VMA-E4", "PEFY-P100VMA-E4", "PLFY-P32VEM-A"]);
+
+    const s = (doc.systems as { settings: Record<string, unknown> }[])[0].settings;
+    expect(s.pairIdu).toBe("PEFY-P20VMA-E4");
+    expect(s.pairOdu).toBe("PUHY-P200YNW-A1"); // outdoors untouched
+    expect(s.multiIdus).toEqual({
+      room1: "PEFY-P140VMA-E4",
+      room2: "PKFY-P20VLM-E",
+    });
+  });
+
+  it("v6→v7 is idempotent on names that are already E4", () => {
+    const base = createDesign({ name: "x", mode: "blank" });
+    const v6 = { ...JSON.parse(JSON.stringify(base)), schemaVersion: 6 };
+    v6.objects = [{ id: "u1", type: "unit", props: { model: "PEFY-P63VMA-E4" } }];
+    const { doc } = migrateDesign(v6);
+    expect(String(doc.objects[0].props.model)).toBe("PEFY-P63VMA-E4");
+  });
 });
 
 describe("LocalDesignStore", () => {

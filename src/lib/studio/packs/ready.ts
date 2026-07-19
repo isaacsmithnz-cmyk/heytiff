@@ -5,7 +5,7 @@
    simply not offered. The `missing` lists double as the extraction to-do list
    and the generated gap questionnaire ("airflow missing for this range"). */
 
-import type { DataPack, IndoorUnit, OutdoorUnit } from "./schema";
+import type { DataPack, IndoorUnit, OpeningSpec, OutdoorUnit } from "./schema";
 
 export type ReadyRole =
   | "placeable"
@@ -26,6 +26,15 @@ const DUCTED_FORMS = new Set(["ducted", "bulkhead"]);
 /** Is a numeric field present and positive? (0/NaN/undefined all fail.) */
 function has(n: number | undefined): boolean {
   return typeof n === "number" && Number.isFinite(n) && n > 0;
+}
+
+/** Airway opening present? "built-in"/"spigots"/"open" are complete answers —
+    "open" says the face takes a duct at an installer-decided size, which is as
+    much as some books ever publish; a box needs a positive W and H. (Never
+    pass an OpeningSpec to `has` — it's number-typed.) */
+function hasOpening(o: OpeningSpec | undefined): boolean {
+  if (o === "built-in" || o === "spigots" || o === "open") return true;
+  return typeof o === "object" && o !== null && has(o.w_mm) && has(o.h_mm);
 }
 
 function placeableMissing(u: {
@@ -84,10 +93,14 @@ export function indoorReadiness(pack: DataPack, idu: IndoorUnit): Readiness {
     if (m.length) missing["vrf-idu"] = m;
   }
 
-  // Ducted-ready: placeable + airflow (+ static is optional in v1 — no ESP check).
+  // Ducted-ready: placeable + airflow + supply/return airway openings (they
+  // size the plenum base — ducted spec §1b). Static stays optional in v1 (no
+  // ESP check yet).
   if (DUCTED_FORMS.has(idu.form_factor)) {
     const m = [...placeM];
     if (!has(idu.airflow_ls)) m.push("airflow_ls");
+    if (!hasOpening(idu.supply_opening)) m.push("supply_opening");
+    if (!hasOpening(idu.return_opening)) m.push("return_opening");
     if (m.length) missing.ducted = m;
   }
 

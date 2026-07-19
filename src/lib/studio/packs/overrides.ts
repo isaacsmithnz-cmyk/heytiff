@@ -11,14 +11,16 @@
 
 import { PACK_SECTIONS, type DataPack, type PackSection } from "./schema";
 import { rowKey } from "./loader";
+import type { FieldValue } from "./fields";
 import type { ValidationIssue } from "./validate";
 
 export interface FieldOverride {
   section: string; // an editable PackSection ("indoor_units" | "outdoor_units" | "pair_tables")
   rowKey: string; // loader rowKey: model, or `${idu_model}+${odu_model}`
   field: string;
-  /** scalar for value fields; string[] for tag fields (system_roles) */
-  value: number | string | string[];
+  /** scalar for value fields; string[] for tags (system_roles); {w_mm,h_mm}
+      box or "built-in"/"spigots" keyword for airway opening fields */
+  value: FieldValue;
   by?: string;
   at?: string;
 }

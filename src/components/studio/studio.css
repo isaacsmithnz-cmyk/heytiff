@@ -698,10 +698,14 @@
   margin: 6px 4px;
   background: rgba(10, 12, 20, 0.08);
 }
+/* title with the save status stacked beneath it — the pill was getting lost
+   floating mid-bar, and under the name it costs no bar width */
 .dstudio .ds-id {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 1px;
   min-width: 0;
   flex: 1;
 }
@@ -712,7 +716,7 @@
   border: 1px solid transparent;
   border-radius: 10px;
   background: transparent;
-  padding: 7px 10px;
+  padding: 4px 10px;
   font-family: var(--font);
   font-size: 17px;
   font-weight: 800;
@@ -782,6 +786,8 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  /* indent so the dot sits under the title's text, not its pill edge */
+  padding-left: 11px;
   font: 700 10.5px var(--mono);
   color: var(--gray400);
   white-space: nowrap;
@@ -893,12 +899,10 @@
 }
 
 /* the one-line topbar tightens before it would ever overflow: pill labels
-   collapse to icons (colour/tooltips still carry the state), the save word
-   drops (the dot still signals) and the title caps. Design step only — the
-   other screens keep full labels at any width. */
+   collapse to icons (colour/tooltips still carry the state) and the title
+   caps. Design step only — the other screens keep full labels at any width. */
 @media (max-width: 1430px) {
-  .dstudio .ds-editor.two-col .ds-ctl-word,
-  .dstudio .ds-editor.two-col .ds-save .ds-save-word {
+  .dstudio .ds-editor.two-col .ds-ctl-word {
     display: none;
   }
   .dstudio .ds-editor.two-col .ds-step {

@@ -1011,16 +1011,14 @@ function Editor({
               }))
             }
           />
+          {/* save status rides under the title — off the bar's width budget */}
           <span className={`ds-save ${saveState}`}>
             <span className="dot" />
-            {/* the word hides at narrow widths (the dot still signals) */}
-            <span className="ds-save-word">
-              {saveState === "saving"
-                ? "Saving…"
-                : saveState === "local"
-                  ? "Saved locally"
-                  : "Saved"}
-            </span>
+            {saveState === "saving"
+              ? "Saving…"
+              : saveState === "local"
+                ? "Saved locally"
+                : "Saved"}
           </span>
         </div>
         {/* the canvas controls live on this same line now — the strip above

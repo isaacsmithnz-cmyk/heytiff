@@ -98,6 +98,62 @@ const MIGRATIONS: Record<number, Migration> = {
     }));
     return { ...doc, floors, schemaVersion: 6 };
   },
+
+  /* v6 → v7: the ME pack's PEFY-P-VMA-E rows were re-based onto the VMA-E4
+     revision they actually describe — the 2021 City Multi data book publishes
+     only E4, and it is a different chassis (every model differs in weight, and
+     the P63 is 900 mm wide where the old -E row said 1100). Models resolve by
+     exact string, so a document holding "PEFY-P63VMA-E" would silently lose
+     its spec row. Rename every stored reference. */
+  6: (doc) => {
+    const RENAMED: Record<string, string> = Object.fromEntries(
+      [20, 25, 32, 40, 50, 63, 71, 80, 100, 125, 140].map((p) => [
+        `PEFY-P${p}VMA-E`,
+        `PEFY-P${p}VMA-E4`,
+      ])
+    );
+    const to = (v: unknown) =>
+      typeof v === "string" && RENAMED[v] ? RENAMED[v] : v;
+
+    const objects = (doc.objects as Record<string, unknown>[] | undefined)?.map(
+      (o) => {
+        const props = o.props as Record<string, unknown> | undefined;
+        if (!props || !RENAMED[String(props.model ?? "")]) return o;
+        return { ...o, props: { ...props, model: to(props.model) } };
+      }
+    );
+
+    const systems = (doc.systems as Record<string, unknown>[] | undefined)?.map(
+      (s) => {
+        const settings = s.settings as Record<string, unknown> | undefined;
+        if (!settings) return s;
+        const multiIdus = settings.multiIdus;
+        const remapped =
+          multiIdus && typeof multiIdus === "object"
+            ? Object.fromEntries(
+                Object.entries(multiIdus as Record<string, unknown>).map(
+                  ([roomId, model]) => [roomId, to(model)]
+                )
+              )
+            : multiIdus;
+        return {
+          ...s,
+          settings: {
+            ...settings,
+            pairIdu: to(settings.pairIdu),
+            multiIdus: remapped,
+          },
+        };
+      }
+    );
+
+    return {
+      ...doc,
+      ...(objects ? { objects } : {}),
+      ...(systems ? { systems } : {}),
+      schemaVersion: 7,
+    };
+  },
 };
 
 export class DesignDocumentError extends Error {

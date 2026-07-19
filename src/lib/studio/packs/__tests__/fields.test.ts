@@ -126,7 +126,7 @@ describe("opening type (supply/return airways)", () => {
 
   it("is registered as an opening spec with the keyword alternatives", () => {
     expect(supply.type).toBe("opening");
-    expect(supply.enumValues).toEqual(["built-in", "spigots"]);
+    expect(supply.enumValues).toEqual(["built-in", "spigots", "open"]);
     expect(fieldSpec("indoor_units", "return_opening")?.type).toBe("opening");
   });
 
@@ -141,6 +141,8 @@ describe("opening type (supply/return airways)", () => {
   it("accepts the keyword answers", () => {
     expect(validateFieldValue(supply, "built-in")).toEqual({ ok: true, value: "built-in" });
     expect(validateFieldValue(supply, " spigots ")).toEqual({ ok: true, value: "spigots" });
+    // "open" = ductable face, size decided on site (books often publish none)
+    expect(validateFieldValue(supply, "open")).toEqual({ ok: true, value: "open" });
   });
 
   it("rejects free text, malformed boxes and out-of-band dimensions", () => {

@@ -43,7 +43,7 @@ const ROLE_LABEL = new Map<string, string>(ROLE_OPTIONS.map((o) => [o.role, o.la
 
 /** airway-editor state: a W×H box (text inputs) or one of the keyword answers */
 interface OpeningDraft {
-  mode: "wh" | "built-in" | "spigots";
+  mode: "wh" | "built-in" | "spigots" | "open";
   w: string;
   h: string;
 }
@@ -119,7 +119,7 @@ export function HqBrandCatalog({
         ? undefined
         : typeof cur === "object" && cur !== null
           ? { mode: "wh", w: String(cur.w_mm), h: String(cur.h_mm) }
-          : cur === "built-in" || cur === "spigots"
+          : cur === "built-in" || cur === "spigots" || cur === "open"
             ? { mode: cur, w: "", h: "" }
             : { mode: "wh", w: "", h: "" };
     setError(null);
@@ -433,6 +433,17 @@ export function HqBrandCatalog({
                     }
                   />
                   Spigots — factory spigots on the opening
+                </label>
+                <label className="hq-tagcheck">
+                  <input
+                    type="radio"
+                    name="hq-open-mode"
+                    checked={editing.opening.mode === "open"}
+                    onChange={() =>
+                      setEditing({ ...editing, opening: { mode: "open", w: "", h: "" } })
+                    }
+                  />
+                  Open — takes a duct, installer sizes the plenum
                 </label>
               </div>
             ) : editingSpec.type === "enum" ? (

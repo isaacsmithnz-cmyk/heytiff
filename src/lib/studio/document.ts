@@ -6,7 +6,7 @@
    fixtures serialise exactly this shape, so changes require a schema bump and
    a migration (see migrations.ts). */
 
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 /* ── Vertical planes (Layer 1 — placement plane) ── */
 export type Plane =

@@ -1761,6 +1761,11 @@ function RoomsView({
             </div>
           );
         })}
+        {/* same shape-first path as the empty state's Draw a room */}
+        <button className="ds-ck-rowadd" onClick={onDrawRoom}>
+          <Glyph name="edit" size={14} />
+          Add room
+        </button>
         {adoptable.length > 0 && !adopting && (
           <button className="ds-ck-rowadd" onClick={() => setAdopting(true)}>
             <Glyph name="plus" size={14} />

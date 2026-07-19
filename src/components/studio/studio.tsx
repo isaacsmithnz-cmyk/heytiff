@@ -719,6 +719,10 @@ function Editor({
       ? pickedFloorId
       : (doc.floors[0]?.id ?? null);
   const [tool, setTool] = useState<CanvasTool>("select");
+  /* room drawing is shape-first: "Draw a room" raises a pill offering the
+     rectangle and polygon tools (they left the rail), and it folds away once
+     a room lands */
+  const [roomPicker, setRoomPicker] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   /* reference-sheets viewer — browse the uploaded plan set without placing it */
   const [refOpen, setRefOpen] = useState(false);
@@ -859,6 +863,9 @@ function Editor({
       setAirComp(null);
       setPaletteOpen(false);
     }
+    /* the room-shape pill mirrors whichever room tool is armed — any other
+       tool (including the auto-disarm after a room lands) folds it away */
+    setRoomPicker(t === "room-rect" || t === "room-poly");
     setTool(t);
   }, []);
 
@@ -990,59 +997,41 @@ function Editor({
 
   return (
     <div className={`ds-editor${step === 1 && activeFloor ? " two-col" : ""}`}>
+      {/* three tracks so the tab switcher sits dead-centre: the flanks share
+          the leftover width equally, whatever each of them holds */}
       <header className="ds-topbar">
-        <StudioMenu
-          onNew={onNew}
-          onOpen={onHome}
-          onSave={onSaveNow}
-          onExport={() => downloadDesign(doc)}
-          onEditPlans={() => onStep(0)}
-          onReference={hasReference ? () => setRefOpen(true) : undefined}
-        />
-        <div className="ds-id">
-          <input
-            className="ds-title-input"
-            value={doc.meta.name}
-            aria-label="Design name"
-            onChange={(e) =>
-              mutate((d) => ({
-                ...d,
-                meta: { ...d.meta, name: e.target.value },
-              }))
-            }
+        <div className="ds-tb-left">
+          <StudioMenu
+            onNew={onNew}
+            onOpen={onHome}
+            onSave={onSaveNow}
+            onExport={() => downloadDesign(doc)}
+            onEditPlans={() => onStep(0)}
+            onReference={hasReference ? () => setRefOpen(true) : undefined}
           />
-          {/* save status rides under the title — off the bar's width budget */}
-          <span className={`ds-save ${saveState}`}>
-            <span className="dot" />
-            {saveState === "saving"
-              ? "Saving…"
-              : saveState === "local"
-                ? "Saved locally"
-                : "Saved"}
-          </span>
+          <div className="ds-id">
+            <input
+              className="ds-title-input"
+              value={doc.meta.name}
+              aria-label="Design name"
+              onChange={(e) =>
+                mutate((d) => ({
+                  ...d,
+                  meta: { ...d.meta, name: e.target.value },
+                }))
+              }
+            />
+            {/* save status rides under the title — off the bar's width budget */}
+            <span className={`ds-save ${saveState}`}>
+              <span className="dot" />
+              {saveState === "saving"
+                ? "Saving…"
+                : saveState === "local"
+                  ? "Saved locally"
+                  : "Saved"}
+            </span>
+          </div>
         </div>
-        {/* the canvas controls live on this same line now — the strip above
-            the canvas is gone. Design step only; they're floor-scoped. */}
-        {step === 1 && activeFloor && (
-          <CanvasControls
-            floors={doc.floors}
-            floor={activeFloor}
-            onFloor={setPickedFloorId}
-            onAddFloor={addFloor}
-            onDeleteFloor={deleteFloor}
-            tool={tool}
-            onTool={changeTool}
-            layers={layers}
-            onLayers={setLayers}
-            grayscale={grayscale}
-            onGrayscale={setGrayscale}
-            legendOpen={legendOpen}
-            onLegend={setLegendOpen}
-            simFlag={simFlag}
-            simOn={simOn}
-            onToggleSim={toggleSim}
-          />
-        )}
         <nav className="ds-steps" aria-label="Workflow">
           {TABS.map((t) => (
             <button
@@ -1054,6 +1043,30 @@ function Editor({
             </button>
           ))}
         </nav>
+        <div className="ds-tb-right">
+          {/* the canvas controls live on this same line now — the strip above
+              the canvas is gone. Design step only; they're floor-scoped. */}
+          {step === 1 && activeFloor && (
+            <CanvasControls
+              floors={doc.floors}
+              floor={activeFloor}
+              onFloor={setPickedFloorId}
+              onAddFloor={addFloor}
+              onDeleteFloor={deleteFloor}
+              tool={tool}
+              onTool={changeTool}
+              layers={layers}
+              onLayers={setLayers}
+              grayscale={grayscale}
+              onGrayscale={setGrayscale}
+              legendOpen={legendOpen}
+              onLegend={setLegendOpen}
+              simFlag={simFlag}
+              simOn={simOn}
+              onToggleSim={toggleSim}
+            />
+          )}
+        </div>
       </header>
 
       {/* Design (step 1) fills the viewport with a fixed canvas; the document-
@@ -1093,9 +1106,13 @@ function Editor({
             pack={pack}
             activeSystemId={effectiveSystemId}
             revealTools={toolsRevealed}
+            roomPicker={roomPicker}
             placing={placing}
             onPlaced={onPlaced}
-            onRoomCreated={setEditingRoomId}
+            onRoomCreated={(id) => {
+              setRoomPicker(false);
+              setEditingRoomId(id);
+            }}
             remarkRoomId={remarkRoomId}
             undo={undo}
             redo={redo}
@@ -1116,10 +1133,16 @@ function Editor({
         {step === 2 && <SummaryView doc={doc} pack={pack} onMutate={mutate} />}
       </div>
 
-      {/* Cockpit lives at the editor level on the Design step so it spans the
-          full height beside the header (see .ds-editor.two-col grid) */}
-      {step === 1 && activeFloor && (
-        <aside className="ds-sidecol">
+      {/* Cockpit lives at the editor level so it spans the full height beside
+          the header (see the .ds-editor grid). It stays MOUNTED off the Design
+          step — its column animates shut instead of the panel snapping wide —
+          and goes inert while collapsed so it's out of the tab order. */}
+      {activeFloor && (
+        <aside
+          className="ds-sidecol"
+          aria-hidden={step !== 1 ? true : undefined}
+          inert={step !== 1 ? true : undefined}
+        >
           <SystemCockpit
             doc={doc}
             pack={pack}
@@ -1131,7 +1154,7 @@ function Editor({
             onSelect={setSelectedId}
             onEditRoom={setEditingRoomId}
             onArmPlace={armPlace}
-            onDrawRoom={() => changeTool("room-rect")}
+            onDrawRoom={() => setRoomPicker(true)}
             floor={activeFloor}
             onAddVariant={onAddVariant}
             onSwitchVariant={onSwitchVariant}
@@ -1637,6 +1660,7 @@ function DesignPanel({
   pack,
   activeSystemId,
   revealTools,
+  roomPicker,
   placing,
   onPlaced,
   onRoomCreated,
@@ -1675,6 +1699,8 @@ function DesignPanel({
   activeSystemId: string | null;
   /** reveal the drawing tool-rail — latched true once a system first exists */
   revealTools: boolean;
+  /** the room-shape pill is up (raised by "Draw a room" / "Add room") */
+  roomPicker: boolean;
   placing: PlacingUnit | null;
   onPlaced: () => void;
   onRoomCreated: (id: string) => void;
@@ -1762,7 +1788,9 @@ function DesignPanel({
         <div className="ds-canvas-body">
           {revealTools && (
           <div className="ds-toolrail" role="toolbar" aria-label="Canvas tools">
-            {CANVAS_TOOLS.slice(0, 3).map(toolButton)}
+            {/* room tools left the rail — they're offered by the shape pill,
+                raised from the cockpit's Draw a room / Add room */}
+            {CANVAS_TOOLS.slice(0, 1).map(toolButton)}
             {/* Air group (Stage 7): both tools gate on rooms + an air-capable AHU
                 (spec §2); Duct arms at Step 4, Component opens the palette */}
             <button
@@ -1853,6 +1881,40 @@ function DesignPanel({
             Fit
           </button>
         </div>
+        {/* room shape pill — the rectangle/polygon choice, raised by "Draw a
+            room". It stays up while you draw so you can switch shape, and
+            folds away the moment a room lands. */}
+        {roomPicker && (
+          <div className="ds-roomhud" role="toolbar" aria-label="Room shape">
+            <span className="ds-roomhud-t">Draw a room</span>
+            <button
+              className={`ds-roomhud-b${tool === "room-rect" ? " on" : ""}`}
+              onClick={() => onTool("room-rect")}
+              title="Rectangle room (R)"
+              aria-label="Rectangle room"
+              aria-pressed={tool === "room-rect"}
+            >
+              <Icon name="square" size={16} />
+            </button>
+            <button
+              className={`ds-roomhud-b${tool === "room-poly" ? " on" : ""}`}
+              onClick={() => onTool("room-poly")}
+              title="Polygon room (G)"
+              aria-label="Polygon room"
+              aria-pressed={tool === "room-poly"}
+            >
+              <Icon name="hexagon" size={16} />
+            </button>
+            <button
+              className="ds-roomhud-x"
+              onClick={() => onTool("select")}
+              title="Cancel"
+              aria-label="Cancel drawing a room"
+            >
+              <Icon name="x" size={13} />
+            </button>
+          </div>
+        )}
         {/* options HUD — floating pill strip, top-centre over the canvas,
             while a tool with options is armed (Step 2: the plenum variant) */}
         {tool === "component" && airComp?.kind === "plenum" && (

@@ -37,6 +37,20 @@ const pt = (x: number, y: number) => ({
   pointerId: 1,
 });
 
+/* Room tools left the rail: the cockpit raises a shape pill ("Draw a room"
+   when there are none yet, "Add room" thereafter), and you pick the shape
+   from that. */
+async function armRoom(
+  user: ReturnType<typeof userEvent.setup>,
+  shape: "Rectangle" | "Polygon" = "Rectangle"
+) {
+  const raise =
+    screen.queryByRole("button", { name: "Draw a room" }) ??
+    (await screen.findByRole("button", { name: "Add room" }));
+  await user.click(raise);
+  await user.click(await screen.findByRole("button", { name: `${shape} room` }));
+}
+
 /* Closing a boundary opens wall-marking first (DUCTR parity). Commit it with
    no external walls, then dismiss the load modal — the room stays either way. */
 async function finishRoom(user: ReturnType<typeof userEvent.setup>) {
@@ -51,7 +65,7 @@ describe("Design canvas", () => {
     const { user, svg } = await openBlankDesignOnCanvas();
 
     // rect tool: drag (400,300) → (456,342) = 100×75 units @10mm = 0.75 m²
-    await user.click(screen.getByRole("button", { name: "Room (rectangle)" }));
+    await armRoom(user);
     fireEvent.pointerDown(svg, pt(400, 300));
     fireEvent.pointerMove(svg, pt(456, 342));
     fireEvent.pointerUp(svg, pt(456, 342));
@@ -98,7 +112,7 @@ describe("Design canvas", () => {
   it("dragging a rectangle-room corner resizes it but keeps it rectangular", async () => {
     const { user, svg } = await openBlankDesignOnCanvas();
     // 100×100-unit room: screen (400,300) → (456,356)
-    await user.click(screen.getByRole("button", { name: "Room (rectangle)" }));
+    await armRoom(user);
     fireEvent.pointerDown(svg, pt(400, 300));
     fireEvent.pointerMove(svg, pt(456, 356));
     fireEvent.pointerUp(svg, pt(456, 356));
@@ -126,7 +140,7 @@ describe("Design canvas", () => {
 
   it("polygon tool highlights the first vertex when the cursor can close the loop", async () => {
     const { user, svg } = await openBlankDesignOnCanvas();
-    await user.click(screen.getByRole("button", { name: "Room (polygon)" }));
+    await armRoom(user, "Polygon");
     fireEvent.pointerDown(svg, pt(400, 300));
     fireEvent.pointerUp(svg, pt(400, 300));
     fireEvent.pointerDown(svg, pt(456, 300));
@@ -149,7 +163,7 @@ describe("Design canvas", () => {
 
   it("selecting a room opens the Inspect card; Edit renames via the modal; Delete key removes it", async () => {
     const { user, svg } = await openBlankDesignOnCanvas();
-    await user.click(screen.getByRole("button", { name: "Room (rectangle)" }));
+    await armRoom(user);
     fireEvent.pointerDown(svg, pt(400, 300));
     fireEvent.pointerMove(svg, pt(500, 380));
     fireEvent.pointerUp(svg, pt(500, 380));
@@ -176,7 +190,7 @@ describe("Design canvas", () => {
 
   it("wall-marking opens before the modal; Cancel discards the fresh room", async () => {
     const { user, svg } = await openBlankDesignOnCanvas();
-    await user.click(screen.getByRole("button", { name: "Room (rectangle)" }));
+    await armRoom(user);
     fireEvent.pointerDown(svg, pt(400, 300));
     fireEvent.pointerMove(svg, pt(456, 342));
     fireEvent.pointerUp(svg, pt(456, 342));
@@ -193,7 +207,7 @@ describe("Design canvas", () => {
 
   it("marking a wall commits the room and derives orientation from it", async () => {
     const { user, svg } = await openBlankDesignOnCanvas();
-    await user.click(screen.getByRole("button", { name: "Room (rectangle)" }));
+    await armRoom(user);
     // world rect (0,0)-(100,75); top edge midpoint is world (50,0) = screen (428,300)
     fireEvent.pointerDown(svg, pt(400, 300));
     fireEvent.pointerMove(svg, pt(456, 342));
@@ -216,7 +230,7 @@ describe("Design canvas", () => {
 
   it("places rooms free (pixel-precise) — no grid snapping", async () => {
     const { user, svg } = await openBlankDesignOnCanvas();
-    await user.click(screen.getByRole("button", { name: "Room (rectangle)" }));
+    await armRoom(user);
     // drag to screen (455,341) → world ≈ (98.21, 73.21): NOT on the old
     // grid/4 (=25) lattice, so free placement keeps the raw coordinate
     fireEvent.pointerDown(svg, pt(400, 300));
@@ -256,7 +270,7 @@ describe("Design canvas", () => {
 
   it("the Labels layer toggle hides room name/area text", async () => {
     const { user, svg } = await openBlankDesignOnCanvas();
-    await user.click(screen.getByRole("button", { name: "Room (rectangle)" }));
+    await armRoom(user);
     fireEvent.pointerDown(svg, pt(400, 300));
     fireEvent.pointerMove(svg, pt(456, 342));
     fireEvent.pointerUp(svg, pt(456, 342));
@@ -270,7 +284,7 @@ describe("Design canvas", () => {
 
   it("the eraser does not delete rooms (rooms delete via the inspector ✕)", async () => {
     const { user, svg } = await openBlankDesignOnCanvas();
-    await user.click(screen.getByRole("button", { name: "Room (rectangle)" }));
+    await armRoom(user);
     fireEvent.pointerDown(svg, pt(400, 300));
     fireEvent.pointerMove(svg, pt(500, 380));
     fireEvent.pointerUp(svg, pt(500, 380));

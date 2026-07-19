@@ -10,6 +10,21 @@ import { Studio } from "../studio";
 import { ComponentPalette, PlenumHud, PALETTE_ENTRIES } from "../air-tools";
 import { LocalDesignStore } from "@/lib/studio/store";
 
+/* Room tools left the rail: the cockpit raises a shape pill ("Draw a room"
+   when there are none yet, "Add room" thereafter), and you pick the shape
+   from that. */
+async function armRoom(
+  user: ReturnType<typeof userEvent.setup>,
+  shape: "Rectangle" | "Polygon" = "Rectangle"
+) {
+  const raise =
+    screen.queryByRole("button", { name: "Draw a room" }) ??
+    (await screen.findByRole("button", { name: "Add room" }));
+  await user.click(raise);
+  await user.click(await screen.findByRole("button", { name: `${shape} room` }));
+}
+
+
 const localStudio = () => (
   <Studio store={new LocalDesignStore(window.localStorage)} />
 );
@@ -52,7 +67,7 @@ describe("air dock group (studio toolrail)", () => {
 
   it("with a room served, Component still needs an air-capable air handler", async () => {
     const { user, svg } = await openBlankDesignOnCanvas();
-    await user.click(screen.getByRole("button", { name: "Room (rectangle)" }));
+    await armRoom(user);
     fireEvent.pointerDown(svg, pt(400, 300));
     fireEvent.pointerMove(svg, pt(456, 342));
     fireEvent.pointerUp(svg, pt(456, 342));

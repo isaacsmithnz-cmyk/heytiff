@@ -229,6 +229,22 @@ function checkBlock(
           code: "over-max-count",
           message: `${idus.length} indoor units — ${odu.model} accepts up to ${c.max_idus}`,
         });
+      // the band's per-unit index bounds are a hard limit, same as the
+      // whitelist arm's — `iduEligibleForRule` honours them, so the whole-set
+      // check must too or an out-of-range unit picked by hand passes silently
+      for (const u of idus) {
+        const idx = u.capacity_index;
+        if (idx == null) continue; // reported as index-unknown below
+        if (
+          (c.index_min != null && idx < c.index_min) ||
+          (c.index_max != null && idx > c.index_max)
+        )
+          out.push({
+            severity: "red",
+            code: "outside-index-band",
+            message: `${u.model} is index P${idx} — ${odu.model} takes P${c.index_min ?? 0}–P${c.index_max ?? "∞"}`,
+          });
+      }
       const missing = idus.filter((u) => u.capacity_index == null);
       if (missing.length) {
         out.push({

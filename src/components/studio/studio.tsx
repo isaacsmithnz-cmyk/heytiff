@@ -1073,7 +1073,14 @@ function Editor({
           />
         )}
         <div className="ds-tb-right">
-          <nav className="ds-steps" aria-label="Workflow">
+          {/* data-active drives the sliding thumb; -1 on the Plans screen,
+              where neither tab is current and the thumb fades out */}
+          <nav
+            className="ds-steps"
+            aria-label="Workflow"
+            data-active={TABS.findIndex((t) => t.step === step)}
+          >
+            <span className="ds-steps-thumb" aria-hidden="true" />
             {TABS.map((t) => (
               <button
                 key={t.step}

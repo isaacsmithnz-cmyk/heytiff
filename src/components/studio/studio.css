@@ -8,6 +8,12 @@
 
 .dstudio {
   --ds-orange: #ff8a00; /* reserved Design Studio accent (nav.ts) */
+  /* cockpit geometry — the tab switcher sizes itself off these so it lines up
+     with the system card below it; change them here, not at the use sites */
+  --ds-cockpit-w: 284px;
+  --ds-ck-pad-l: 9px;
+  --ds-ck-pad-r: 4px;
+  --ds-syscard-w: calc(var(--ds-cockpit-w) - var(--ds-ck-pad-l) - var(--ds-ck-pad-r));
   --ds-border: rgba(10, 12, 20, 0.07);
   --ds-card-shadow: 0 1px 2px rgba(10, 12, 20, 0.04),
     0 20px 50px -30px rgba(10, 12, 20, 0.24);
@@ -644,7 +650,7 @@
   border-radius: 24px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4),
     0 30px 70px -30px rgba(0, 0, 0, 0.75);
-  transition: margin-left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: margin-left 0.42s cubic-bezier(0.4, 0, 0.2, 1);
 }
 /* clear the tool rail (56px) + its 10px gutter */
 .dstudio .ds-editor.two-col::before {
@@ -821,8 +827,11 @@
   white-space: nowrap;
 }
 
-/* stepper — segmented switcher, HeyTiff pay-cycle-toggle language */
+/* stepper — segmented switcher, HeyTiff pay-cycle-toggle language.
+   The selected pill is a single THUMB that slides between the tabs rather
+   than a background that hops from one button to the other. */
 .dstudio .ds-steps {
+  position: relative;
   flex: 0 0 auto;
   display: flex;
   gap: 3px;
@@ -831,7 +840,33 @@
   border-radius: 15px;
   padding: 4px;
 }
+/* Sized off the track, so it stays exact at any switcher width: two equal
+   tabs share (100% − 2×4px padding − 3px gap). */
+.dstudio .ds-steps-thumb {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc((100% - 11px) / 2);
+  border-radius: 11px;
+  background: #fff;
+  box-shadow: 0 3px 8px -3px rgba(10, 12, 20, 0.28);
+  transition: transform 0.42s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.2s ease;
+}
+.dstudio .ds-steps[data-active="0"] .ds-steps-thumb {
+  transform: translateX(0);
+}
+.dstudio .ds-steps[data-active="1"] .ds-steps-thumb {
+  transform: translateX(calc(100% + 3px));
+}
+/* Plans: neither tab is current, so the thumb parks and fades out */
+.dstudio .ds-steps[data-active="-1"] .ds-steps-thumb {
+  opacity: 0;
+}
 .dstudio .ds-step {
+  position: relative;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -840,20 +875,17 @@
   font-size: 12.5px;
   font-weight: 700;
   color: var(--gray500);
-  /* NOT `all`: crossfading the label between dark and light passes through a
-     mid-grey that's unreadable against the mid-grey the pill is fading
-     through — the label visibly blanked for ~200ms mid-switch. The colour
-     snaps; only the pill itself moves. */
-  transition: background 0.2s, box-shadow 0.2s;
+  /* the thumb carries the movement; the label's colour snaps, because
+     crossfading it between dark and light passes through a mid-grey that's
+     unreadable against the pill sliding underneath it */
+  transition: none;
 }
 .dstudio .ds-step:hover {
   color: var(--ink);
-  background: rgba(255, 255, 255, 0.55);
 }
+/* colour only — the thumb behind it paints the pill */
 .dstudio .ds-step.active {
-  background: #fff;
   color: var(--ink);
-  box-shadow: 0 3px 8px -3px rgba(10, 12, 20, 0.28);
 }
 
 /* equal-weight flanks: both take flex-basis 0 and share the leftover width, so
@@ -1027,7 +1059,10 @@
    gets opacity only — it maps pointer coords through getBoundingClientRect,
    and a mid-flight translate would shift that under the cursor. */
 .dstudio .ds-panel > * {
-  animation: ds-panel-in 0.34s cubic-bezier(0.4, 0, 0.2, 1) both;
+  /* Slight delay so the page has STARTED reshaping before its contents
+     arrive — everything firing at once read as a jump. Shorter and gentler
+     than the plate's move (6px, not 10px) so the content settles first. */
+  animation: ds-panel-in 0.3s cubic-bezier(0.4, 0, 0.2, 1) 0.08s both;
 }
 .dstudio .ds-panel > .ds-design {
   animation-name: ds-panel-fade;
@@ -1035,7 +1070,7 @@
 @keyframes ds-panel-in {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -3374,17 +3409,17 @@
   /* opacity rides the same curve as the width — at 0.26s the panel went blank
      early and you watched an empty gap finish closing */
   transition:
-    width 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-    margin-left 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 0.34s cubic-bezier(0.4, 0, 0.2, 1);
+    width 0.42s cubic-bezier(0.4, 0, 0.2, 1),
+    margin-left 0.42s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.42s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .dstudio .ds-editor.two-col > .ds-sidecol {
-  width: 284px;
+  width: var(--ds-cockpit-w);
   margin-left: 10px;
   opacity: 1;
 }
 .dstudio .ds-sidecol > * {
-  min-width: 284px;
+  min-width: var(--ds-cockpit-w);
 }
 
 .dstudio .ds-syscard {
@@ -5036,7 +5071,7 @@
      the dead space, while a small gutter keeps it on the light-grey field.
      Top inset matches the left bleed so the white page shows above the grey
      hero card instead of sharing its top line. */
-  padding: 9px 4px 0 9px;
+  padding: var(--ds-ck-pad-l) var(--ds-ck-pad-r) 0 var(--ds-ck-pad-l);
 }
 .dstudio .ds-ck::before {
   content: "";
@@ -7541,6 +7576,18 @@
   border-color: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(14px);
 }
+/* The switcher matches the system card below it — same width, same right edge
+   (the card is inset from the cockpit column by .ds-ck's padding), so the two
+   read as one column. Derived from the cockpit tokens, not hard-coded. */
+.dstudio .ds-tb-right .ds-steps {
+  width: var(--ds-syscard-w);
+  margin-right: var(--ds-ck-pad-r);
+}
+.dstudio .ds-tb-right .ds-step {
+  flex: 1;
+  justify-content: center;
+  padding: 8px 10px;
+}
 /* keep the centre cluster off the flanks at laptop widths */
 .dstudio .ds-editor > .ds-topbar > .ds-canvas-toggles {
   margin: 0 16px;
@@ -7580,14 +7627,12 @@
 }
 .dstudio.editing .ds-step:hover {
   color: #fff;
-  background: rgba(255, 255, 255, 0.09);
 }
-.dstudio.editing .ds-step.active {
-  background: #fff;
-  color: var(--ink2, #0a0b10);
+.dstudio.editing .ds-steps-thumb {
   box-shadow: 0 3px 10px -3px rgba(0, 0, 0, 0.7);
 }
-/* the active pill is white — its label must stay dark despite the retint */
+/* the thumb is white — the label riding on it must stay dark despite the
+   inverted ink ramp */
 .dstudio.editing .ds-steps .ds-step.active {
   color: #0a0b10;
 }

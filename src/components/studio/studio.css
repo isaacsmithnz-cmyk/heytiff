@@ -4976,15 +4976,9 @@
 .dstudio .ds-job-print:disabled { opacity: 0.45; cursor: default; }
 .dstudio .ds-job-print:disabled:hover { transform: none; border-color: rgba(10, 12, 20, 0.08); box-shadow: 0 1px 2px rgba(10, 12, 20, 0.04); }
 
-/* screen-hidden: the pack repeats the on-screen takeoff — print is its stage.
-   The border/padding remain the pack's frame if it ever shows in-flow. */
-.dstudio .ds-jobpack {
-  display: none;
-  border: 1px solid var(--ds-border);
-  border-radius: 16px;
-  padding: 28px 30px;
-  background: #fff;
-}
+/* ── the print/export document (#ds-printdoc, summary/print-doc.tsx) —
+      mounted on demand, screen-hidden; @media print reveals only it. The
+      cover typography reuses the ds-jobpack-* classes below. ── */
 .dstudio .ds-jobpack-head {
   display: flex;
   justify-content: space-between;
@@ -5000,22 +4994,61 @@
 .dstudio .ds-jobpack-sec h2 { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--gray500); margin: 0 0 8px; }
 .dstudio .ds-jobpack-foot { margin-top: 8px; font-size: 11px; color: var(--gray400); border-top: 1px solid var(--ds-border); padding-top: 12px; }
 
-/* print: show only the job pack (the id out-specifies .dstudio .ds-jobpack's
-   screen display:none). The on-screen summary stack is display:none'd too —
-   visibility:hidden alone keeps its layout and inflates the page count. */
+#ds-printdoc { display: none; }
+#ds-printdoc .ds-print-variant { /* label chip beside the h1 */
+  display: inline-block;
+  margin-left: 10px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--teal-d);
+  border: 1px solid rgba(0, 229, 192, 0.4);
+  border-radius: 999px;
+  padding: 2px 10px;
+  vertical-align: middle;
+}
+#ds-printdoc .ds-print-basis { margin-top: 6px; font-weight: 700; }
+#ds-printdoc .ds-print-cap {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  border-bottom: 1.5px solid var(--ink);
+  padding-bottom: 6px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--gray500);
+}
+#ds-printdoc .ds-print-cap b { color: var(--ink); font-size: 14px; }
+/* the plan box: a fixed height per paper/orientation so the figure fills the
+   sheet; the SVG letterboxes itself inside (preserveAspectRatio) */
+#ds-printdoc .ds-print-plan { height: 233mm; }
+#ds-printdoc.paper-a4.landscape .ds-print-plan { height: 152mm; }
+#ds-printdoc.paper-a3.portrait .ds-print-plan { height: 362mm; }
+#ds-printdoc.paper-a3.landscape .ds-print-plan { height: 240mm; }
+
+/* print: reveal only the print document. The studio grid children are
+   display:none'd outright — visibility:hidden alone keeps their layout and
+   inflates the page count (the old jobpack learned this the hard way). */
 @media print {
   body * { visibility: hidden !important; }
-  #ds-jobpack, #ds-jobpack * { visibility: visible !important; }
-  #ds-jobpack {
+  #ds-printdoc, #ds-printdoc * { visibility: visible !important; }
+  #ds-printdoc {
     display: block;
     position: absolute;
     left: 0;
     top: 0;
     width: 100%;
-    border: none;
-    padding: 0;
+    background: #fff;
+    print-color-adjust: exact;
   }
-  .dstudio .ds-sum-screen { display: none; }
+  .dstudio .ds-topbar,
+  .dstudio .ds-panel,
+  .dstudio .ds-sidecol,
+  .dstudio .ds-toolrail { display: none !important; }
+  #ds-printdoc .ds-print-cover { break-after: page; }
+  #ds-printdoc .ds-print-page { break-after: page; }
+  #ds-printdoc .ds-print-variant-block:last-child .ds-print-page:last-child { break-after: auto; }
+  #ds-printdoc .ds-jobpack-sec { break-inside: avoid; }
+  #ds-printdoc .ds-mat-table tr { break-inside: avoid; }
 }
 
 /* .ds-cardt is a Home-screen title (white — dark backdrop); on the summary's

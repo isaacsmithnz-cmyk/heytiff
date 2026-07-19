@@ -1,0 +1,131 @@
+import { render } from "@testing-library/react";
+import { createDesign, type DesignDocument, type DesignObject } from "@/lib/studio/document";
+import { PlanFigure, planFigureBounds } from "../summary/plan-figure";
+
+/* The static print/export plan figure — a self-contained SVG mirror of the
+   canvas. These pin the structural contract the print document and the PNG
+   serializer rely on: bounds from content, one <image> per resolvable sheet,
+   room/pipe/unit marks, layer gating, and the grayscale filter reaching the
+   whole content group (vectors included — the canvas only desaturated
+   rasters). */
+
+const rect = (x: number, y: number, w: number, h: number) => ({
+  kind: "polygon" as const,
+  points: [
+    { x, y },
+    { x: x + w, y },
+    { x: x + w, y: y + h },
+    { x, y: y + h },
+  ],
+});
+
+function fixtureDoc(): DesignDocument {
+  const d = createDesign({ name: "Fig", mode: "plan", now: "2026-07-19T00:00:00.000Z" });
+  d.floors = [
+    {
+      id: "f1",
+      name: "Ground",
+      level: 0,
+      scaleMmPerUnit: 10,
+      northDeg: 30,
+      northPos: { x: 50, y: 60 },
+      plans: [
+        { id: "s1", imageRef: "ref-a", pageNumber: 1, name: "GF", width: 1000, height: 700, x: 0, y: 0 },
+        { id: "s2", imageRef: "ref-missing", pageNumber: 2, name: "GF East", width: 800, height: 600, x: 1000, y: 0 },
+      ],
+    },
+  ];
+  d.systems = [
+    { id: "sys1", type: "split", brand: "mitsubishi-electric", colour: "#2E68FF", name: "System 1", settings: {} },
+  ];
+  const objs: DesignObject[] = [
+    { id: "room1", type: "room", systemId: "sys1", floorId: "f1", geometry: rect(0, 0, 500, 400), plane: "room", props: { name: "Lounge" } },
+    { id: "run1", type: "pipe-run", systemId: "sys1", floorId: "f1", geometry: { kind: "polyline", points: [{ x: 100, y: 100 }, { x: 300, y: 100 }] }, plane: "room", props: {} },
+    { id: "i1", type: "unit", systemId: "sys1", floorId: "f1", geometry: { kind: "point", at: { x: 200, y: 200 } }, plane: "room", props: { role: "idu", model: "MSZ-AP25VGD", widthMm: 800, depthMm: 300 } },
+    { id: "r1", type: "riser", systemId: "sys1", floorId: "f1", geometry: { kind: "point", at: { x: 400, y: 300 } }, plane: "room", props: { group: "A" } },
+  ];
+  d.objects = objs;
+  return d;
+}
+
+const ALL = { plan: true, units: true, pipes: true, labels: true };
+
+describe("planFigureBounds", () => {
+  it("covers sheets, objects and the north arrow with padding", () => {
+    const d = fixtureDoc();
+    const b = planFigureBounds(d, d.floors[0])!;
+    expect(b).not.toBeNull();
+    // sheets span x 0..1800 — bounds must reach both extremes (plus padding)
+    expect(b.x).toBeLessThan(0);
+    expect(b.x + b.w).toBeGreaterThan(1800);
+  });
+
+  it("an empty floor has no bounds", () => {
+    const d = createDesign({ name: "E", mode: "blank" });
+    d.floors = [{ id: "f", name: "G", level: 0, scaleMmPerUnit: null, northDeg: null, northPos: null, plans: [] }];
+    expect(planFigureBounds(d, d.floors[0])).toBeNull();
+  });
+});
+
+describe("PlanFigure", () => {
+  it("draws sheets with URLs, rooms, pipes, units, risers and north", () => {
+    const d = fixtureDoc();
+    const { container } = render(
+      <PlanFigure doc={d} floor={d.floors[0]} layers={ALL} grayscale={false} legend={false} urls={{ "ref-a": "blob:sheet-a" }} />
+    );
+    // one <image> — the ref without a URL is skipped, never a broken raster
+    expect(container.querySelectorAll("image")).toHaveLength(1);
+    expect(container.querySelectorAll(".ds-room polygon")).toHaveLength(1);
+    expect(container.querySelectorAll(".ds-pipe polyline")).toHaveLength(1);
+    expect(container.querySelectorAll(".ds-unit")).toHaveLength(1);
+    expect(container.querySelectorAll(".ds-riser")).toHaveLength(1);
+    expect(container.querySelectorAll(".ds-north")).toHaveLength(1);
+    // self-contained: the embedded style carries the font
+    expect(container.querySelector("style")?.textContent).toContain("Plus Jakarta Sans");
+    // calibrated floor gets a scale bar
+    expect(container.querySelectorAll(".ds-pf-bar")).toHaveLength(1);
+  });
+
+  it("layer flags gate their groups", () => {
+    const d = fixtureDoc();
+    const { container } = render(
+      <PlanFigure
+        doc={d}
+        floor={d.floors[0]}
+        layers={{ plan: false, units: false, pipes: false, labels: false }}
+        grayscale={false}
+        legend={false}
+        urls={{ "ref-a": "blob:sheet-a" }}
+      />
+    );
+    expect(container.querySelectorAll("image")).toHaveLength(0);
+    expect(container.querySelectorAll(".ds-unit")).toHaveLength(0);
+    expect(container.querySelectorAll(".ds-pipe")).toHaveLength(0);
+    // rooms always draw; their labels are gated
+    expect(container.querySelectorAll(".ds-room polygon")).toHaveLength(1);
+    expect(container.querySelectorAll(".ds-room-name")).toHaveLength(0);
+  });
+
+  it("grayscale applies a desaturate filter to the whole content group", () => {
+    const d = fixtureDoc();
+    const { container } = render(
+      <PlanFigure doc={d} floor={d.floors[0]} layers={ALL} grayscale legend={false} urls={{}} />
+    );
+    const filter = container.querySelector("filter feColorMatrix");
+    expect(filter?.getAttribute("type")).toBe("saturate");
+    expect(filter?.getAttribute("values")).toBe("0");
+    const g = container.querySelector(`g[filter="url(#pf-f1-desat)"]`);
+    expect(g).not.toBeNull();
+  });
+
+  it("legend lists the symbol key and this floor's systems", () => {
+    const d = fixtureDoc();
+    const { container } = render(
+      <PlanFigure doc={d} floor={d.floors[0]} layers={ALL} grayscale={false} legend urls={{}} />
+    );
+    const legend = container.querySelector(".ds-pf-legend");
+    expect(legend?.textContent).toContain("Room");
+    expect(legend?.textContent).toContain("Riser");
+    expect(legend?.textContent).toContain("System 1");
+  });
+});

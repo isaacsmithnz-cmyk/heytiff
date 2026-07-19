@@ -4,14 +4,13 @@ import { useMemo } from "react";
 import { Icon } from "@/components/shell/icon";
 import type { DesignDocument } from "@/lib/studio/document";
 import type { DataPack } from "@/lib/studio/packs/schema";
-import { floorDisplayName } from "@/lib/studio/plans";
+import { floorDisplayName, type PlanImages } from "@/lib/studio/plans";
 import {
   buildDesignSnapshot,
   designBasis,
   roomsByFloor,
 } from "@/lib/studio/summary";
 import { buildMaterials, rollupUnits } from "@/lib/studio/materials";
-import { PrintDoc } from "./print-doc";
 import { SimCard, type SimReady } from "./sim-card";
 import { ExportCard } from "./export-card";
 
@@ -32,6 +31,7 @@ export function SummaryView({
   simFlag,
   simReady,
   onSimulate,
+  planImages,
 }: {
   doc: DesignDocument;
   pack: DataPack | null;
@@ -41,6 +41,8 @@ export function SummaryView({
   simFlag: boolean;
   simReady: SimReady;
   onSimulate: () => void;
+  /** resolves plan-sheet refs for the print/PNG export */
+  planImages: PlanImages;
 }) {
   const schedule = useMemo(() => buildMaterials(doc, pack), [doc, pack]);
   const rollup = useMemo(() => rollupUnits(schedule), [schedule]);
@@ -112,7 +114,13 @@ export function SummaryView({
 
           <div className="ds-sum-actions">
             {simFlag && <SimCard ready={simReady} onSimulate={onSimulate} />}
-            <ExportCard empty={empty} onExportJson={onExportJson} />
+            <ExportCard
+              doc={doc}
+              pack={pack}
+              planImages={planImages}
+              empty={empty}
+              onExportJson={onExportJson}
+            />
           </div>
         </div>
 
@@ -328,8 +336,6 @@ export function SummaryView({
           </section>
         )}
       </div>
-
-      <PrintDoc doc={doc} pack={pack} schedule={schedule} rollup={rollup} />
     </div>
   );
 }

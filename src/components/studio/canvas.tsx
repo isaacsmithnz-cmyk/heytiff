@@ -164,8 +164,9 @@ function rectResize(orig: Point[], i: number, p: Point): Point[] {
    rather than a bare box: an outdoor unit gets its condenser fan, an indoor
    unit its discharge louvres. Used both for placed units and the drag ghost, so
    the ghost previews exactly what lands. Styling (colour/dash) comes from the
-   enclosing .ds-unit / .ds-place-ghost group. */
-function unitGlyph(cx: number, cy: number, w: number, h: number, role: string, zoom: number) {
+   enclosing .ds-unit / .ds-place-ghost group. Exported for the print/export
+   PlanFigure so paper units match the canvas exactly. */
+export function unitGlyph(cx: number, cy: number, w: number, h: number, role: string, zoom: number) {
   const left = cx - w / 2;
   const top = cy - h / 2;
   const rx = 2 / zoom;

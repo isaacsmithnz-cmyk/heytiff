@@ -1198,6 +1198,7 @@ function Editor({
             simFlag={simFlag}
             simReady={simReady}
             onSimulate={toggleSim}
+            planImages={planImages}
           />
         )}
       </div>

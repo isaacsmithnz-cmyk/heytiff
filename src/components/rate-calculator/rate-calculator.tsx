@@ -94,7 +94,14 @@ function RateCard({ label, k, rec, be, ready, currentRates, patch }: {
 
       {/* recommended — the hero */}
       <div className="rca-rc-hero">
-        {!ready ? <span className="rca-shimmer" style={{ display: "inline-block", width: 114, height: 32 }} />
+        {!ready ? (
+            // Ghost of the real figure, so the card holds its shape and reads as
+            // an empty field rather than a missing one. The waiting line below
+            // carries the meaning, so this is decorative.
+            <span className="rca-rc-fig ghost" aria-hidden="true">
+              <span className="cur">$</span><span className="val">—</span><span className="unit">/hr</span>
+            </span>
+          )
           : roundedRec == null ? <span className="rca-rc-dash">—</span>
           : <>
               <span className="rca-rc-fig"><span className="cur">$</span><span className="val">{roundedRec}</span><span className="unit">/hr</span></span>

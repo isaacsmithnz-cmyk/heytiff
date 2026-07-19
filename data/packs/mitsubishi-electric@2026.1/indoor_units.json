@@ -571,13 +571,14 @@
    "kind": "extracted",
    "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "131; City Multi book 3-86"
+   "page": "131; City Multi book 3-86; City Multi book 3-89"
   },
   "sound_low_dba": 20,
   "sound_high_dba": 30,
   "static_pressure_pa": 5,
   "filter": "built-in",
-  "drain_pump": "none"
+  "drain_pump": "none",
+  "return_opening": "open"
  },
  {
   "model": "PEFY-P25VMR-E-L",
@@ -606,12 +607,13 @@
    "kind": "extracted",
    "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "131; City Multi book 3-86"
+   "page": "131; City Multi book 3-86; City Multi book 3-89"
   },
   "sound_low_dba": 20,
   "sound_high_dba": 30,
   "filter": "built-in",
-  "drain_pump": "none"
+  "drain_pump": "none",
+  "return_opening": "open"
  },
  {
   "model": "PEFY-P32VMR-E-L",
@@ -640,13 +642,14 @@
    "kind": "extracted",
    "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "131; City Multi book 3-86"
+   "page": "131; City Multi book 3-86; City Multi book 3-89"
   },
   "sound_low_dba": 20,
   "sound_high_dba": 33,
   "static_pressure_pa": 5,
   "filter": "built-in",
-  "drain_pump": "none"
+  "drain_pump": "none",
+  "return_opening": "open"
  },
  {
   "model": "PEFY-P20VMR-E-R",
@@ -675,13 +678,14 @@
    "kind": "extracted",
    "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "131; City Multi book 3-86"
+   "page": "131; City Multi book 3-86; City Multi book 3-89"
   },
   "sound_low_dba": 20,
   "sound_high_dba": 30,
   "static_pressure_pa": 5,
   "filter": "built-in",
-  "drain_pump": "none"
+  "drain_pump": "none",
+  "return_opening": "open"
  },
  {
   "model": "PEFY-P25VMR-E-R",
@@ -710,12 +714,13 @@
    "kind": "extracted",
    "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "131; City Multi book 3-86"
+   "page": "131; City Multi book 3-86; City Multi book 3-89"
   },
   "sound_low_dba": 20,
   "sound_high_dba": 30,
   "filter": "built-in",
-  "drain_pump": "none"
+  "drain_pump": "none",
+  "return_opening": "open"
  },
  {
   "model": "PEFY-P32VMR-E-R",
@@ -744,13 +749,14 @@
    "kind": "extracted",
    "source": "City Multi Brochure; City Multi Data Book",
    "edition": "2019",
-   "page": "131; City Multi book 3-86"
+   "page": "131; City Multi book 3-86; City Multi book 3-89"
   },
   "sound_low_dba": 20,
   "sound_high_dba": 33,
   "static_pressure_pa": 5,
   "filter": "built-in",
-  "drain_pump": "none"
+  "drain_pump": "none",
+  "return_opening": "open"
  },
  {
   "model": "PEFY-P15VMX-E",
@@ -789,7 +795,8 @@
   "supply_opening": {
    "w_mm": 658,
    "h_mm": 160
-  }
+  },
+  "return_opening": "open"
  },
  {
   "model": "PEFY-P20VMX-E",
@@ -828,7 +835,8 @@
   "supply_opening": {
    "w_mm": 658,
    "h_mm": 160
-  }
+  },
+  "return_opening": "open"
  },
  {
   "model": "PEFY-P25VMX-E",
@@ -867,7 +875,8 @@
   "supply_opening": {
    "w_mm": 658,
    "h_mm": 160
-  }
+  },
+  "return_opening": "open"
  },
  {
   "model": "PEFY-P32VMX-E",
@@ -906,7 +915,8 @@
   "supply_opening": {
    "w_mm": 658,
    "h_mm": 160
-  }
+  },
+  "return_opening": "open"
  },
  {
   "model": "PEFY-P40VMX-E",
@@ -945,7 +955,8 @@
   "supply_opening": {
    "w_mm": 658,
    "h_mm": 160
-  }
+  },
+  "return_opening": "open"
  },
  {
   "model": "PEFY-P50VMX-E",
@@ -984,7 +995,8 @@
   "supply_opening": {
    "w_mm": 908,
    "h_mm": 160
-  }
+  },
+  "return_opening": "open"
  },
  {
   "model": "PEFY-P63VMX-E",
@@ -1023,7 +1035,8 @@
   "supply_opening": {
    "w_mm": 1108,
    "h_mm": 160
-  }
+  },
+  "return_opening": "open"
  },
  {
   "model": "PEFY-P15VMS1-E",
@@ -1060,7 +1073,8 @@
   "supply_opening": {
    "w_mm": 660,
    "h_mm": 150
-  }
+  },
+  "return_opening": "open"
  },
  {
   "model": "PEFY-P20VMS1-E",
@@ -1099,7 +1113,8 @@
   "supply_opening": {
    "w_mm": 660,
    "h_mm": 150
-  }
+  },
+  "return_opening": "open"
  },
  {
   "model": "PEFY-P25VMS1-E",
@@ -1136,7 +1151,8 @@
   "supply_opening": {
    "w_mm": 660,
    "h_mm": 150
-  }
+  },
+  "return_opening": "open"
  },
  {
   "model": "PEFY-P32VMS1-E",
@@ -1173,7 +1189,8 @@
   "supply_opening": {
    "w_mm": 660,
    "h_mm": 150
-  }
+  },
+  "return_opening": "open"
  },
  {
   "model": "PEFY-P40VMS1-E",
@@ -1212,7 +1229,8 @@
   "supply_opening": {
    "w_mm": 860,
    "h_mm": 150
-  }
+  },
+  "return_opening": "open"
  },
  {
   "model": "PEFY-P50VMS1-E",
@@ -1251,7 +1269,8 @@
   "supply_opening": {
    "w_mm": 860,
    "h_mm": 150
-  }
+  },
+  "return_opening": "open"
  },
  {
   "model": "PEFY-P63VMS1-E",
@@ -1290,12 +1309,13 @@
   "supply_opening": {
    "w_mm": 1060,
    "h_mm": 150
-  }
+  },
+  "return_opening": "open"
  },
  {
-  "model": "PEFY-P20VMA-E",
+  "model": "PEFY-P20VMA-E4",
   "brand": "mitsubishi-electric",
-  "series": "PEFY-P-VMA-E",
+  "series": "PEFY-P-VMA-E4",
   "form_factor": "ducted",
   "capacity_cool_kw": 2.2,
   "capacity_heat_kw": 2.5,
@@ -1314,18 +1334,28 @@
   "width_mm": 700,
   "depth_mm": 732,
   "height_mm": 250,
-  "weight_kg": 23,
+  "weight_kg": 21.5,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
-   "edition": "2019",
-   "page": "137"
-  }
+   "source": "City Multi Data Book",
+   "edition": "MEES21K067 (2021)",
+   "page": "3-116, 3-122, 3-147"
+  },
+  "sound_low_dba": 22,
+  "sound_high_dba": 28,
+  "max_amps_a": 0.74,
+  "filter": "built-in",
+  "drain_pump": "built-in",
+  "supply_opening": {
+   "w_mm": 660,
+   "h_mm": 178
+  },
+  "return_opening": "open"
  },
  {
-  "model": "PEFY-P25VMA-E",
+  "model": "PEFY-P25VMA-E4",
   "brand": "mitsubishi-electric",
-  "series": "PEFY-P-VMA-E",
+  "series": "PEFY-P-VMA-E4",
   "form_factor": "ducted",
   "capacity_cool_kw": 2.8,
   "capacity_heat_kw": 3.2,
@@ -1344,18 +1374,28 @@
   "width_mm": 700,
   "depth_mm": 732,
   "height_mm": 250,
-  "weight_kg": 23,
+  "weight_kg": 21.5,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
-   "edition": "2019",
-   "page": "137"
-  }
+   "source": "City Multi Data Book",
+   "edition": "MEES21K067 (2021)",
+   "page": "3-116, 3-122, 3-147"
+  },
+  "sound_low_dba": 22,
+  "sound_high_dba": 28,
+  "max_amps_a": 0.74,
+  "filter": "built-in",
+  "drain_pump": "built-in",
+  "supply_opening": {
+   "w_mm": 660,
+   "h_mm": 178
+  },
+  "return_opening": "open"
  },
  {
-  "model": "PEFY-P32VMA-E",
+  "model": "PEFY-P32VMA-E4",
   "brand": "mitsubishi-electric",
-  "series": "PEFY-P-VMA-E",
+  "series": "PEFY-P-VMA-E4",
   "form_factor": "ducted",
   "capacity_cool_kw": 3.6,
   "capacity_heat_kw": 4.0,
@@ -1374,18 +1414,28 @@
   "width_mm": 700,
   "depth_mm": 732,
   "height_mm": 250,
-  "weight_kg": 23,
+  "weight_kg": 21.5,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
-   "edition": "2019",
-   "page": "137"
-  }
+   "source": "City Multi Data Book",
+   "edition": "MEES21K067 (2021)",
+   "page": "3-116, 3-122, 3-147"
+  },
+  "sound_low_dba": 24,
+  "sound_high_dba": 31,
+  "max_amps_a": 0.95,
+  "filter": "built-in",
+  "drain_pump": "built-in",
+  "supply_opening": {
+   "w_mm": 660,
+   "h_mm": 178
+  },
+  "return_opening": "open"
  },
  {
-  "model": "PEFY-P40VMA-E",
+  "model": "PEFY-P40VMA-E4",
   "brand": "mitsubishi-electric",
-  "series": "PEFY-P-VMA-E",
+  "series": "PEFY-P-VMA-E4",
   "form_factor": "ducted",
   "capacity_cool_kw": 4.5,
   "capacity_heat_kw": 5.0,
@@ -1407,15 +1457,25 @@
   "weight_kg": 26,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
-   "edition": "2019",
-   "page": "137"
-  }
+   "source": "City Multi Data Book",
+   "edition": "MEES21K067 (2021)",
+   "page": "3-116, 3-122, 3-147"
+  },
+  "sound_low_dba": 24,
+  "sound_high_dba": 32,
+  "max_amps_a": 1.16,
+  "filter": "built-in",
+  "drain_pump": "built-in",
+  "supply_opening": {
+   "w_mm": 860,
+   "h_mm": 178
+  },
+  "return_opening": "open"
  },
  {
-  "model": "PEFY-P50VMA-E",
+  "model": "PEFY-P50VMA-E4",
   "brand": "mitsubishi-electric",
-  "series": "PEFY-P-VMA-E",
+  "series": "PEFY-P-VMA-E4",
   "form_factor": "ducted",
   "capacity_cool_kw": 5.6,
   "capacity_heat_kw": 6.3,
@@ -1437,15 +1497,25 @@
   "weight_kg": 26,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
-   "edition": "2019",
-   "page": "137"
-  }
+   "source": "City Multi Data Book",
+   "edition": "MEES21K067 (2021)",
+   "page": "3-117, 3-122, 3-147"
+  },
+  "sound_low_dba": 25,
+  "sound_high_dba": 35,
+  "max_amps_a": 1.24,
+  "filter": "built-in",
+  "drain_pump": "built-in",
+  "supply_opening": {
+   "w_mm": 860,
+   "h_mm": 178
+  },
+  "return_opening": "open"
  },
  {
-  "model": "PEFY-P63VMA-E",
+  "model": "PEFY-P63VMA-E4",
   "brand": "mitsubishi-electric",
-  "series": "PEFY-P-VMA-E",
+  "series": "PEFY-P-VMA-E4",
   "form_factor": "ducted",
   "capacity_cool_kw": 7.1,
   "capacity_heat_kw": 8.0,
@@ -1461,21 +1531,31 @@
    "vrf"
   ],
   "refrigerant": "R410A",
-  "width_mm": 1100,
+  "width_mm": 900,
   "depth_mm": 732,
   "height_mm": 250,
-  "weight_kg": 32,
+  "weight_kg": 27,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
-   "edition": "2019",
-   "page": "137"
-  }
+   "source": "City Multi Data Book",
+   "edition": "MEES21K067 (2021)",
+   "page": "3-117, 3-122, 3-147"
+  },
+  "sound_low_dba": 28,
+  "sound_high_dba": 36,
+  "max_amps_a": 1.35,
+  "filter": "built-in",
+  "drain_pump": "built-in",
+  "supply_opening": {
+   "w_mm": 860,
+   "h_mm": 178
+  },
+  "return_opening": "open"
  },
  {
-  "model": "PEFY-P71VMA-E",
+  "model": "PEFY-P71VMA-E4",
   "brand": "mitsubishi-electric",
-  "series": "PEFY-P-VMA-E",
+  "series": "PEFY-P-VMA-E4",
   "form_factor": "ducted",
   "capacity_cool_kw": 8.0,
   "capacity_heat_kw": 9.0,
@@ -1494,18 +1574,28 @@
   "width_mm": 1100,
   "depth_mm": 732,
   "height_mm": 250,
-  "weight_kg": 32,
+  "weight_kg": 30,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
-   "edition": "2019",
-   "page": "137"
-  }
+   "source": "City Multi Data Book",
+   "edition": "MEES21K067 (2021)",
+   "page": "3-117, 3-122, 3-147"
+  },
+  "sound_low_dba": 26,
+  "sound_high_dba": 35,
+  "max_amps_a": 1.85,
+  "filter": "built-in",
+  "drain_pump": "built-in",
+  "supply_opening": {
+   "w_mm": 1060,
+   "h_mm": 178
+  },
+  "return_opening": "open"
  },
  {
-  "model": "PEFY-P80VMA-E",
+  "model": "PEFY-P80VMA-E4",
   "brand": "mitsubishi-electric",
-  "series": "PEFY-P-VMA-E",
+  "series": "PEFY-P-VMA-E4",
   "form_factor": "ducted",
   "capacity_cool_kw": 9.0,
   "capacity_heat_kw": 10.0,
@@ -1524,23 +1614,33 @@
   "width_mm": 1100,
   "depth_mm": 732,
   "height_mm": 250,
-  "weight_kg": 32,
+  "weight_kg": 30,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
-   "edition": "2019",
-   "page": "137"
-  }
+   "source": "City Multi Data Book",
+   "edition": "MEES21K067 (2021)",
+   "page": "3-117, 3-122, 3-147"
+  },
+  "sound_low_dba": 26,
+  "sound_high_dba": 35,
+  "max_amps_a": 1.9,
+  "filter": "built-in",
+  "drain_pump": "built-in",
+  "supply_opening": {
+   "w_mm": 1060,
+   "h_mm": 178
+  },
+  "return_opening": "open"
  },
  {
-  "model": "PEFY-P100VMA-E",
+  "model": "PEFY-P100VMA-E4",
   "brand": "mitsubishi-electric",
-  "series": "PEFY-P-VMA-E",
+  "series": "PEFY-P-VMA-E4",
   "form_factor": "ducted",
   "capacity_cool_kw": 11.2,
   "capacity_heat_kw": 12.5,
   "capacity_index": 100,
-  "airflow_ls": 550,
+  "airflow_ls": 533,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "default_plane": "ceiling-cavity",
@@ -1554,23 +1654,33 @@
   "width_mm": 1400,
   "depth_mm": 732,
   "height_mm": 250,
-  "weight_kg": 42,
+  "weight_kg": 37.5,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
-   "edition": "2019",
-   "page": "137"
-  }
+   "source": "City Multi Data Book",
+   "edition": "MEES21K067 (2021)",
+   "page": "3-118, 3-122, 3-147"
+  },
+  "sound_low_dba": 31,
+  "sound_high_dba": 39,
+  "max_amps_a": 2.25,
+  "filter": "built-in",
+  "drain_pump": "built-in",
+  "supply_opening": {
+   "w_mm": 1360,
+   "h_mm": 178
+  },
+  "return_opening": "open"
  },
  {
-  "model": "PEFY-P125VMA-E",
+  "model": "PEFY-P125VMA-E4",
   "brand": "mitsubishi-electric",
-  "series": "PEFY-P-VMA-E",
+  "series": "PEFY-P-VMA-E4",
   "form_factor": "ducted",
   "capacity_cool_kw": 14.0,
   "capacity_heat_kw": 16.0,
   "capacity_index": 125,
-  "airflow_ls": 667,
+  "airflow_ls": 617,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "default_plane": "ceiling-cavity",
@@ -1584,23 +1694,33 @@
   "width_mm": 1400,
   "depth_mm": 732,
   "height_mm": 250,
-  "weight_kg": 42,
+  "weight_kg": 38.5,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
-   "edition": "2019",
-   "page": "137"
-  }
+   "source": "City Multi Data Book",
+   "edition": "MEES21K067 (2021)",
+   "page": "3-118, 3-122, 3-147"
+  },
+  "sound_low_dba": 35,
+  "sound_high_dba": 41,
+  "max_amps_a": 2.34,
+  "filter": "built-in",
+  "drain_pump": "built-in",
+  "supply_opening": {
+   "w_mm": 1360,
+   "h_mm": 178
+  },
+  "return_opening": "open"
  },
  {
-  "model": "PEFY-P140VMA-E",
+  "model": "PEFY-P140VMA-E4",
   "brand": "mitsubishi-electric",
-  "series": "PEFY-P-VMA-E",
+  "series": "PEFY-P-VMA-E4",
   "form_factor": "ducted",
   "capacity_cool_kw": 16.0,
   "capacity_heat_kw": 18.0,
   "capacity_index": 140,
-  "airflow_ls": 700,
+  "airflow_ls": 667,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "default_plane": "ceiling-cavity",
@@ -1614,13 +1734,23 @@
   "width_mm": 1600,
   "depth_mm": 732,
   "height_mm": 250,
-  "weight_kg": 46,
+  "weight_kg": 41.5,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure",
-   "edition": "2019",
-   "page": "137"
-  }
+   "source": "City Multi Data Book",
+   "edition": "MEES21K067 (2021)",
+   "page": "3-118, 3-122, 3-147"
+  },
+  "sound_low_dba": 34,
+  "sound_high_dba": 41,
+  "max_amps_a": 2.63,
+  "filter": "built-in",
+  "drain_pump": "built-in",
+  "supply_opening": {
+   "w_mm": 1560,
+   "h_mm": 178
+  },
+  "return_opening": "open"
  },
  {
   "model": "PEFY-P20VMA3-E",
@@ -1657,7 +1787,8 @@
   "supply_opening": {
    "w_mm": 860,
    "h_mm": 178
-  }
+  },
+  "return_opening": "open"
  },
  {
   "model": "PEFY-P40VMHS-E",

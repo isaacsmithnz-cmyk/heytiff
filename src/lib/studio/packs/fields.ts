@@ -36,7 +36,8 @@ export interface EditableFieldSpec {
   /** "tags" = multi-enum array (e.g. system_roles) — edited via checkboxes,
       never rendered as a value pill. "opening" = an airway OpeningSpec:
       a {w_mm,h_mm} box (min/max band applies to each dimension) or one of
-      `enumValues` ("built-in" | "spigots") — edited via the airway control. */
+      `enumValues` ("built-in" | "spigots" | "open") — edited via the airway
+      control. */
   type: "number" | "string" | "enum" | "tags" | "opening";
   enumValues?: readonly string[];
   /** number only — inclusive sanity band (broad; the real gate is validatePack) */
@@ -56,8 +57,9 @@ const KG = { min: 0.1, max: 2000 } as const;
 const INDEX = { min: 1, max: 2000, integer: true } as const;
 const AMPS = { min: 0.1, max: 200 } as const;
 
-/** non-box OpeningSpec answers (see schema.ts: integral return / factory spigots) */
-const OPENING_ALTS = ["built-in", "spigots"] as const;
+/** non-box OpeningSpec answers (see schema.ts: integral return / factory
+    spigots / ductable face with no published size) */
+const OPENING_ALTS = ["built-in", "spigots", "open"] as const;
 
 /** IndoorUnit.filter — integral washable vs supplied by others */
 const FILTER_TYPES = ["built-in", "field-supplied"] as const;
@@ -187,7 +189,10 @@ export function validateFieldValue(
       // fresh two-key object — strips any stray keys from the caller
       return { ok: true, value: { w_mm: value.w_mm, h_mm: value.h_mm } };
     }
-    return { ok: false, error: "Must be W × H in mm, built-in, or spigots" };
+    return {
+      ok: false,
+      error: `Must be W × H in mm, or one of: ${spec.enumValues?.join(", ")}`,
+    };
   }
   if (spec.type === "number") {
     if (typeof value !== "number" || !Number.isFinite(value)) {

@@ -168,8 +168,16 @@ export interface Brand {
 
 /** the unit's air opening from the data book (ducted spec §1b): `{w,h}` mm
     sizes the plenum base (NOT the unit width); `"built-in"` = integral
-    return; `"spigots"` = factory spigots on the opening. Brand-agnostic. */
-export type OpeningSpec = { w_mm: number; h_mm: number } | "built-in" | "spigots";
+    return; `"spigots"` = factory spigots on the opening; `"open"` = a bare or
+    filtered face that takes a duct but has no published opening size, so the
+    installer sizes the plenum on site (it renders as the grey derived
+    default, exactly like an absent opening — the difference is that "open" is
+    a positive answer and satisfies the ducted role). Brand-agnostic. */
+export type OpeningSpec =
+  | { w_mm: number; h_mm: number }
+  | "built-in"
+  | "spigots"
+  | "open";
 
 /** §2 indoor units — the largest section, one row per model. */
 export interface IndoorUnit {

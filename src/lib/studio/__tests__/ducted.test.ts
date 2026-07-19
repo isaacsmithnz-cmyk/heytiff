@@ -296,6 +296,16 @@ describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
     expect(b.baseWMm).toBe(720); // 800 × 0.9 — a plausible opening, not a long unit width
   });
 
+  it("'open' takes the derived default — a positive answer with no size in it", () => {
+    // the face is ductable but the book publishes no opening, so the plenum
+    // falls back to the same grey default as absent data (installer sizes it)
+    const b = plenumBody({ opening: "open", unitWidthMm: 800, spigots: [], units: "mm" });
+    expect(b.derived).toBe(true);
+    expect(b.baseWMm).toBe(720);
+    expect(b.builtIn).toBe(false);
+    expect(b.factorySpigots).toBe(false);
+  });
+
   it("built-in return short-circuits", () => {
     const b = plenumBody({ opening: "built-in", unitWidthMm: 900, spigots: [], units: "mm" });
     expect(b.builtIn).toBe(true);

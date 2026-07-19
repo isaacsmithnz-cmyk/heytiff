@@ -138,6 +138,15 @@ describe("indoor engine-ready", () => {
     expect(r.missing.ducted).toContain("return_opening");
   });
 
+  it("accepts 'open' as a complete airway answer (ductable, installer sizes it)", () => {
+    // several PEFY series duct the supply but leave the return a filtered open
+    // face the book never dimensions — "open" is the answer, not a gap
+    const open = { ...idu, return_opening: "open" as const };
+    const r = indoorReadiness(packWith([open]), open);
+    expect(r.roles.ducted).toBe(true);
+    expect(r.missing.ducted ?? []).not.toContain("return_opening");
+  });
+
   it("accepts 'spigots' as a complete airway answer, rejects a zero-size box", () => {
     const spigots = { ...idu, supply_opening: "spigots" as const };
     expect(indoorReadiness(packWith([spigots]), spigots).roles.ducted).toBe(true);

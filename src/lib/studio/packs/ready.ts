@@ -28,11 +28,12 @@ function has(n: number | undefined): boolean {
   return typeof n === "number" && Number.isFinite(n) && n > 0;
 }
 
-/** Airway opening present? "built-in"/"spigots" are complete answers; a box
-    needs a positive W and H. (Never pass an OpeningSpec to `has` — it's
-    number-typed.) */
+/** Airway opening present? "built-in"/"spigots"/"open" are complete answers —
+    "open" says the face takes a duct at an installer-decided size, which is as
+    much as some books ever publish; a box needs a positive W and H. (Never
+    pass an OpeningSpec to `has` — it's number-typed.) */
 function hasOpening(o: OpeningSpec | undefined): boolean {
-  if (o === "built-in" || o === "spigots") return true;
+  if (o === "built-in" || o === "spigots" || o === "open") return true;
   return typeof o === "object" && o !== null && has(o.w_mm) && has(o.h_mm);
 }
 

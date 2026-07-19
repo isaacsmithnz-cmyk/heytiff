@@ -124,6 +124,13 @@ function iduSystemTypes(roles: SystemRole[] | undefined): SystemType[] {
 // surfacing so staff can complete a row. Role-specific fields (airflow_ls,
 // capacity_index, …) are NOT listed here — they surface as blocking gaps only
 // when they actually gate a claimed role (via ready.ts).
+//
+// `drain_pressure` is deliberately ABSENT from this list. It stays a fully
+// editable positive/negative field on every air-handling row, but no
+// Mitsubishi document we hold states it (checked across M-P0922, the AU Ducted
+// Brochure 2024 and City Multi MEES21K067), so listing it here reported a
+// permanent extraction debt against all 172 indoor rows for a figure no book
+// will ever supply. It is entered by staff, not extracted.
 const IDU_NICE = [
   "sound_low_dba",
   "sound_high_dba",
@@ -131,7 +138,6 @@ const IDU_NICE = [
   "power_supply",
   "max_amps_a",
   "filter",
-  "drain_pressure",
   "drain_pump",
 ];
 const ODU_NICE = [

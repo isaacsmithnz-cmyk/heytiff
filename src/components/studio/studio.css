@@ -5019,7 +5019,9 @@
 }
 #ds-printdoc .ds-print-cap b { color: var(--ink); font-size: 14px; }
 /* the plan box: a fixed height per paper/orientation so the figure fills the
-   sheet; the SVG letterboxes itself inside (preserveAspectRatio) */
+   sheet; the SVG letterboxes itself inside (preserveAspectRatio). The figure
+   root carries NO size of its own — the PNG path injects pixel attributes. */
+#ds-printdoc .ds-print-plan svg.ds-pf { width: 100%; height: 100%; display: block; }
 #ds-printdoc .ds-print-plan { height: 233mm; }
 #ds-printdoc.paper-a4.landscape .ds-print-plan { height: 152mm; }
 #ds-printdoc.paper-a3.portrait .ds-print-plan { height: 362mm; }
@@ -5138,6 +5140,74 @@
   border-color: rgba(10, 12, 20, 0.08);
   box-shadow: 0 1px 2px rgba(10, 12, 20, 0.04);
 }
+
+/* export customizer — collapsed behind Customise (defaults are everything);
+   captioned groups of checkbox rows + mini segment pills, all on the light
+   card */
+.dstudio .ds-export-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  align-self: flex-start;
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--gray700);
+  padding: 2px 0;
+}
+.dstudio .ds-export-toggle:hover { color: var(--ink); }
+.dstudio .ds-export-opts {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-top: 1px solid rgba(10, 12, 20, 0.07);
+  padding-top: 10px;
+}
+.dstudio .ds-export-grp {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.dstudio .ds-export-cap {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--gray500);
+}
+.dstudio .ds-export-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gray700);
+  cursor: pointer;
+}
+.dstudio .ds-export-row input { accent-color: var(--teal-d); }
+.dstudio .ds-export-row em {
+  font-style: normal;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--gray400);
+}
+.dstudio .ds-export-row em.err { color: #dc2626; }
+.dstudio .ds-export-segs { display: flex; gap: 6px; }
+.dstudio .ds-export-seg {
+  flex: 1 1 0;
+  height: 26px;
+  border: 1px solid var(--ds-border);
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--gray700);
+  background: #fff;
+}
+.dstudio .ds-export-seg.on {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+}
+.dstudio .ds-export-seg:not(.on):hover { border-color: var(--gray400); }
 
 /* snapshot strip — one tile per figure, auto-wrapping */
 .dstudio .ds-sum-stats {

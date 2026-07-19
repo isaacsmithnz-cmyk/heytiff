@@ -32,6 +32,7 @@ export function SummaryView({
   simReady,
   onSimulate,
   planImages,
+  loadVariant,
 }: {
   doc: DesignDocument;
   pack: DataPack | null;
@@ -43,6 +44,8 @@ export function SummaryView({
   onSimulate: () => void;
   /** resolves plan-sheet refs for the print/PNG export */
   planImages: PlanImages;
+  /** loads a sibling variant's document for multi-option export */
+  loadVariant: (id: string) => Promise<DesignDocument | null>;
 }) {
   const schedule = useMemo(() => buildMaterials(doc, pack), [doc, pack]);
   const rollup = useMemo(() => rollupUnits(schedule), [schedule]);
@@ -120,6 +123,7 @@ export function SummaryView({
               planImages={planImages}
               empty={empty}
               onExportJson={onExportJson}
+              loadVariant={loadVariant}
             />
           </div>
         </div>

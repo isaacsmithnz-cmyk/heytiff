@@ -369,6 +369,7 @@ export function Studio({
             onRenameVariant={renameVariant}
             planImages={planImagesInst}
             packLoader={packLoader}
+            loadVariant={(id) => getStore().load(id)}
           />
         ) : (
           <Home
@@ -681,6 +682,7 @@ function Editor({
   onRenameVariant,
   planImages,
   packLoader,
+  loadVariant,
 }: {
   doc: DesignDocument;
   step: number;
@@ -699,6 +701,8 @@ function Editor({
   onRenameVariant: (label: string) => void;
   planImages: PlanImages;
   packLoader?: PackLoader;
+  /** sibling variant docs for multi-option export (store-scoped) */
+  loadVariant: (id: string) => Promise<DesignDocument | null>;
 }) {
   /* ── undo/redo: record the outgoing document before every mutation ── */
   const historyRef = useRef(new History<DesignDocument>(50));
@@ -1199,6 +1203,7 @@ function Editor({
             simReady={simReady}
             onSimulate={toggleSim}
             planImages={planImages}
+            loadVariant={loadVariant}
           />
         )}
       </div>

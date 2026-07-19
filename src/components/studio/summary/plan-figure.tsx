@@ -159,7 +159,6 @@ export function PlanFigure({
       viewBox={`${x} ${y} ${w} ${h}`}
       preserveAspectRatio="xMidYMid meet"
       xmlns="http://www.w3.org/2000/svg"
-      style={{ width: "100%", height: "100%", display: "block" }}
     >
       <style>{`
         .ds-pf { font-family: 'Plus Jakarta Sans', 'Jakarta', sans-serif; }
@@ -421,7 +420,12 @@ export function PlanFigure({
           );
           const cy0 = (i: number) => ly + padd + i * rowH + sw / 2;
           return (
-            <g className="ds-pf-legend">
+            /* the legend desaturates WITH the plan — coloured swatches keying
+               a grey drawing would key nothing */
+            <g
+              className="ds-pf-legend"
+              filter={grayscale ? `url(#${pid}-desat)` : undefined}
+            >
               <rect
                 className="card"
                 x={lx}

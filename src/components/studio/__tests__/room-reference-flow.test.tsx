@@ -9,6 +9,21 @@ import { createDesign } from "@/lib/studio/document";
 import { LocalDesignStore } from "@/lib/studio/store";
 import type { PlanImages } from "@/lib/studio/plans";
 
+/* Room tools left the rail: the cockpit raises a shape pill ("Draw a room"
+   when there are none yet, "Add room" thereafter), and you pick the shape
+   from that. */
+async function armRoom(
+  user: ReturnType<typeof userEvent.setup>,
+  shape: "Rectangle" | "Polygon" = "Rectangle"
+) {
+  const raise =
+    screen.queryByRole("button", { name: "Draw a room" }) ??
+    (await screen.findByRole("button", { name: "Add room" }));
+  await user.click(raise);
+  await user.click(await screen.findByRole("button", { name: `${shape} room` }));
+}
+
+
 const fake: PlanImages = {
   upload: async () => "x",
   uploadSource: async () => "x",
@@ -41,7 +56,7 @@ describe("reference link across the wall-marking flow", () => {
   beforeEach(() => window.localStorage.clear());
 
   async function drawRoomNoWalls(user: Awaited<ReturnType<typeof openPlanDesignOnCanvas>>["user"], svg: SVGSVGElement) {
-    await user.click(await screen.findByRole("button", { name: "Room (rectangle)" }));
+    await armRoom(user);
     fireEvent.pointerDown(svg, pt(400, 300));
     fireEvent.pointerMove(svg, pt(456, 356));
     fireEvent.pointerUp(svg, pt(456, 356));

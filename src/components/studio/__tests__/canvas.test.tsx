@@ -21,7 +21,7 @@ async function openBlankDesignOnCanvas() {
   await user.type(screen.getByPlaceholderText(/Design name/), "Canvas test");
   await user.click(screen.getByRole("button", { name: /Continue/ }));
   await user.click(screen.getByText("Blank canvas"));
-  await user.click(await screen.findByRole("button", { name: "2 Design" }));
+  await user.click(await screen.findByRole("button", { name: "Design" }));
   // type-first flow: pick a system type before the room tools unlock
   await user.click(screen.getByRole("button", { name: /Split \(1:1\)/ }));
   const canvas = screen.getByTestId("studio-canvas");
@@ -37,6 +37,20 @@ const pt = (x: number, y: number) => ({
   pointerId: 1,
 });
 
+/* Room tools left the rail: the cockpit raises a shape pill ("Draw a room"
+   when there are none yet, "Add room" thereafter), and you pick the shape
+   from that. */
+async function armRoom(
+  user: ReturnType<typeof userEvent.setup>,
+  shape: "Rectangle" | "Polygon" = "Rectangle"
+) {
+  const raise =
+    screen.queryByRole("button", { name: "Draw a room" }) ??
+    (await screen.findByRole("button", { name: "Add room" }));
+  await user.click(raise);
+  await user.click(await screen.findByRole("button", { name: `${shape} room` }));
+}
+
 /* Closing a boundary opens wall-marking first (DUCTR parity). Commit it with
    no external walls, then dismiss the load modal — the room stays either way. */
 async function finishRoom(user: ReturnType<typeof userEvent.setup>) {
@@ -51,7 +65,7 @@ describe("Design canvas", () => {
     const { user, svg } = await openBlankDesignOnCanvas();
 
     // rect tool: drag (400,300) → (456,342) = 100×75 units @10mm = 0.75 m²
-    await user.click(screen.getByRole("button", { name: "Room (rectangle)" }));
+    await armRoom(user);
     fireEvent.pointerDown(svg, pt(400, 300));
     fireEvent.pointerMove(svg, pt(456, 342));
     fireEvent.pointerUp(svg, pt(456, 342));
@@ -98,7 +112,7 @@ describe("Design canvas", () => {
   it("dragging a rectangle-room corner resizes it but keeps it rectangular", async () => {
     const { user, svg } = await openBlankDesignOnCanvas();
     // 100×100-unit room: screen (400,300) → (456,356)
-    await user.click(screen.getByRole("button", { name: "Room (rectangle)" }));
+    await armRoom(user);
     fireEvent.pointerDown(svg, pt(400, 300));
     fireEvent.pointerMove(svg, pt(456, 356));
     fireEvent.pointerUp(svg, pt(456, 356));
@@ -126,7 +140,7 @@ describe("Design canvas", () => {
 
   it("polygon tool highlights the first vertex when the cursor can close the loop", async () => {
     const { user, svg } = await openBlankDesignOnCanvas();
-    await user.click(screen.getByRole("button", { name: "Room (polygon)" }));
+    await armRoom(user, "Polygon");
     fireEvent.pointerDown(svg, pt(400, 300));
     fireEvent.pointerUp(svg, pt(400, 300));
     fireEvent.pointerDown(svg, pt(456, 300));
@@ -149,7 +163,7 @@ describe("Design canvas", () => {
 
   it("selecting a room opens the Inspect card; Edit renames via the modal; Delete key removes it", async () => {
     const { user, svg } = await openBlankDesignOnCanvas();
-    await user.click(screen.getByRole("button", { name: "Room (rectangle)" }));
+    await armRoom(user);
     fireEvent.pointerDown(svg, pt(400, 300));
     fireEvent.pointerMove(svg, pt(500, 380));
     fireEvent.pointerUp(svg, pt(500, 380));
@@ -176,7 +190,7 @@ describe("Design canvas", () => {
 
   it("wall-marking opens before the modal; Cancel discards the fresh room", async () => {
     const { user, svg } = await openBlankDesignOnCanvas();
-    await user.click(screen.getByRole("button", { name: "Room (rectangle)" }));
+    await armRoom(user);
     fireEvent.pointerDown(svg, pt(400, 300));
     fireEvent.pointerMove(svg, pt(456, 342));
     fireEvent.pointerUp(svg, pt(456, 342));
@@ -193,7 +207,7 @@ describe("Design canvas", () => {
 
   it("marking a wall commits the room and derives orientation from it", async () => {
     const { user, svg } = await openBlankDesignOnCanvas();
-    await user.click(screen.getByRole("button", { name: "Room (rectangle)" }));
+    await armRoom(user);
     // world rect (0,0)-(100,75); top edge midpoint is world (50,0) = screen (428,300)
     fireEvent.pointerDown(svg, pt(400, 300));
     fireEvent.pointerMove(svg, pt(456, 342));
@@ -216,7 +230,7 @@ describe("Design canvas", () => {
 
   it("places rooms free (pixel-precise) — no grid snapping", async () => {
     const { user, svg } = await openBlankDesignOnCanvas();
-    await user.click(screen.getByRole("button", { name: "Room (rectangle)" }));
+    await armRoom(user);
     // drag to screen (455,341) → world ≈ (98.21, 73.21): NOT on the old
     // grid/4 (=25) lattice, so free placement keeps the raw coordinate
     fireEvent.pointerDown(svg, pt(400, 300));
@@ -256,7 +270,7 @@ describe("Design canvas", () => {
 
   it("the Labels layer toggle hides room name/area text", async () => {
     const { user, svg } = await openBlankDesignOnCanvas();
-    await user.click(screen.getByRole("button", { name: "Room (rectangle)" }));
+    await armRoom(user);
     fireEvent.pointerDown(svg, pt(400, 300));
     fireEvent.pointerMove(svg, pt(456, 342));
     fireEvent.pointerUp(svg, pt(456, 342));
@@ -270,7 +284,7 @@ describe("Design canvas", () => {
 
   it("the eraser does not delete rooms (rooms delete via the inspector ✕)", async () => {
     const { user, svg } = await openBlankDesignOnCanvas();
-    await user.click(screen.getByRole("button", { name: "Room (rectangle)" }));
+    await armRoom(user);
     fireEvent.pointerDown(svg, pt(400, 300));
     fireEvent.pointerMove(svg, pt(500, 380));
     fireEvent.pointerUp(svg, pt(500, 380));
@@ -286,13 +300,18 @@ describe("Design canvas", () => {
 
   it("declutters the header and spans the cockpit full-height on the Design step", async () => {
     await openBlankDesignOnCanvas();
-    // Export removed; Saved moved next to the design title
+    // Export lives in the (closed) studio menu, not the chrome
     expect(screen.queryByRole("button", { name: "Export" })).toBeNull();
     expect(document.querySelector(".ds-id .ds-save")).not.toBeNull();
-    // undo/redo + Add option relocated into the canvas-top row
-    const top = document.querySelector(".ds-canvas-top") as HTMLElement;
-    expect(within(top).getByRole("button", { name: "Undo" })).toBeInTheDocument();
-    expect(within(top).getByRole("button", { name: /Add option/ })).toBeInTheDocument();
+    // undo/redo live at the foot of the tool rail now
+    const rail = screen.getByRole("toolbar", { name: "Canvas tools" });
+    expect(within(rail).getByRole("button", { name: "Undo" })).toBeInTheDocument();
+    expect(within(rail).getByRole("button", { name: "Redo" })).toBeInTheDocument();
+    // the topbar carries the canvas controls on one line; design variations
+    // moved off it into the cockpit's system dropdown
+    const bar = document.querySelector(".ds-topbar") as HTMLElement;
+    expect(within(bar).queryByRole("button", { name: /variation/i })).toBeNull();
+    expect(within(bar).getByTitle("View — layers, black & white and legend")).toBeInTheDocument();
     // cockpit hoisted to the editor level → two-column grid layout
     expect(document.querySelector(".ds-editor.two-col")).not.toBeNull();
   });
@@ -304,7 +323,7 @@ describe("Design canvas", () => {
     await user.type(screen.getByPlaceholderText(/Design name/), "Rail reveal");
     await user.click(screen.getByRole("button", { name: /Continue/ }));
     await user.click(screen.getByText("Blank canvas"));
-    await user.click(await screen.findByRole("button", { name: "2 Design" }));
+    await user.click(await screen.findByRole("button", { name: "Design" }));
 
     // no system yet → the drawing rail is hidden (plan-prep stays in the top bar)
     expect(screen.queryByRole("toolbar", { name: "Canvas tools" })).toBeNull();

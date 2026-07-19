@@ -1,18 +1,30 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Icon } from "@/components/shell/icon";
 import {
   createDesign,
   newId,
   type DesignDocument,
   type DesignObject,
+  type DesignSettings,
   type DesignVariantRef,
 } from "@/lib/studio/document";
+import { CLIMATE_ZONES, type SizingBasis } from "@/lib/studio/loads";
+import { effectiveClimateZone, effectiveBuildingType } from "@/lib/studio/summary";
 import { openDesignJson, DesignDocumentError } from "@/lib/studio/migrations";
 import { pruneObjects, releaseRoomsFromSystems, removedRoomIds } from "@/lib/studio/attach";
 import {
   browserDesignStore,
+  designFileName,
+  exportDesignJson,
   SyncedDesignStore,
   type DesignStore,
   type DesignSummary,
@@ -40,7 +52,9 @@ import {
   RemotePlanImages,
   type PlanImages,
 } from "@/lib/studio/plans";
-import { MaterialsView, JobView } from "./split-panel";
+import { SummaryView } from "./summary/summary";
+import type { SimReady } from "./summary/sim-card";
+import { buildSimModel } from "@/lib/studio/sim";
 import { SystemCockpit } from "./cockpit-panel";
 import { RoomModal } from "./room-modal";
 import { ReferenceViewer } from "./reference-viewer";
@@ -57,11 +71,12 @@ const packActions = () => import("@/app/actions/studio-packs");
    stepper, autosaving document, per-stage empty states. The canvas engine,
    plans pipeline and system modules land in Stages 1+ on top of this frame. */
 
-const STEPS = [
-  { key: "plans", label: "Plans" },
-  { key: "design", label: "Design" },
-  { key: "materials", label: "Materials" },
-  { key: "job", label: "Job" },
+/* Three screens, two tabs: Plans (step 0) lives behind the menu's "Edit
+   plans"; Design (1) and Summary (2) are the tab switcher. On Plans neither
+   tab lights up. */
+const TABS = [
+  { step: 1, label: "Design" },
+  { step: 2, label: "Summary" },
 ] as const;
 
 const MODE_LABEL = { plan: "Floor plans", blank: "Blank canvas" } as const;
@@ -80,12 +95,33 @@ function timeAgo(iso: string): string {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
+/* menu Export — the .heytiff-design.json download; round-trips through the
+   Home screen's "Import design file" (openDesignJson) */
+function downloadDesign(doc: DesignDocument) {
+  const url = URL.createObjectURL(
+    new Blob([exportDesignJson(doc)], { type: "application/json" })
+  );
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = designFileName(doc);
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/** test/harness seam — defaults to the auth-gated server action */
+export type PackLoader = () => Promise<{
+  pack: DataPack;
+  version: string;
+} | null>;
+
 export function Studio({
   store,
   planImages,
+  packLoader,
 }: {
   store?: DesignStore;
   planImages?: PlanImages;
+  packLoader?: PackLoader;
 }) {
   // the store is browser-only; create it lazily so SSR prerender never touches
   // it. Server rows are the source of truth; localStorage is the crash buffer.
@@ -108,6 +144,8 @@ export function Studio({
   const [saveState, setSaveState] = useState<"saved" | "saving" | "local">(
     "saved"
   );
+  /* menu New lands on Home with the new-design wizard already open */
+  const [homeAutoNew, setHomeAutoNew] = useState(false);
 
   const [swapping, setSwapping] = useState(false);
   /* true only while the OLD screen is leaving. The well's colour keys off this so
@@ -288,10 +326,25 @@ export function Studio({
     }
   }, [doc, getStore]);
 
-  const backToHome = useCallback(() => {
-    setDoc(null);
-    refreshRecents();
-  }, [refreshRecents]);
+  const backToHome = useCallback(
+    (opts?: { autoNew?: boolean }) => {
+      setHomeAutoNew(Boolean(opts?.autoNew));
+      setDoc(null);
+      refreshRecents();
+    },
+    [refreshRecents]
+  );
+
+  /* menu Save — the same pipeline as autosave, just on demand. The debounced
+     save may fire again right after; the upsert is idempotent. */
+  const saveNow = useCallback(() => {
+    if (!doc) return;
+    setSaveState("saving");
+    void getStore()
+      .save(doc)
+      .then(() => setSaveState("saved"))
+      .catch(() => setSaveState("local"));
+  }, [doc, getStore]);
 
   return (
     <div className="page in">
@@ -308,15 +361,20 @@ export function Studio({
             onStep={setStep}
             onMutate={mutate}
             onReplace={replaceDoc}
-            onHome={() => throughSwap(flushSave, backToHome)}
+            onHome={() => throughSwap(flushSave, () => backToHome())}
+            onNew={() => throughSwap(flushSave, () => backToHome({ autoNew: true }))}
+            onSaveNow={saveNow}
             onAddVariant={addVariant}
             onSwitchVariant={switchVariant}
             onRenameVariant={renameVariant}
             planImages={planImagesInst}
+            packLoader={packLoader}
+            loadVariant={(id) => getStore().load(id)}
           />
         ) : (
           <Home
             recents={recents}
+            autoNew={homeAutoNew}
             onCreate={(name, mode) =>
               throughSwap(async () => {
                 const d = createDesign({ name, mode });
@@ -355,19 +413,25 @@ export function Studio({
 
 function Home({
   recents,
+  autoNew,
   onCreate,
   onOpen,
   onDelete,
   onImport,
 }: {
   recents: DesignSummary[];
+  /** arrive with the new-design wizard already open (menu → New) */
+  autoNew?: boolean;
   onCreate: (name: string, mode: "plan" | "blank") => void;
   onOpen: (id: string) => void;
   onDelete: (id: string) => void;
   onImport: (doc: DesignDocument) => void;
 }) {
-  // new-design wizard: name the job first, then choose how to start
-  const [step, setStep] = useState<null | "name" | "mode">(null);
+  // new-design wizard: name the job first, then choose how to start. Home
+  // remounts on every editor exit, so initial state is enough for autoNew.
+  const [step, setStep] = useState<null | "name" | "mode">(
+    autoNew ? "name" : null
+  );
   const [name, setName] = useState("");
   const [query, setQuery] = useState("");
   const [armedDelete, setArmedDelete] = useState<string | null>(null);
@@ -611,10 +675,14 @@ function Editor({
   onMutate,
   onReplace,
   onHome,
+  onNew,
+  onSaveNow,
   onAddVariant,
   onSwitchVariant,
   onRenameVariant,
   planImages,
+  packLoader,
+  loadVariant,
 }: {
   doc: DesignDocument;
   step: number;
@@ -622,11 +690,19 @@ function Editor({
   onStep: (i: number) => void;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   onReplace: (d: DesignDocument) => void;
+  /** menu Open — Home IS the open-a-design screen */
   onHome: () => void;
+  /** menu New — Home with the wizard auto-opened */
+  onNew: () => void;
+  /** menu Save — explicit flush of the autosave pipeline */
+  onSaveNow: () => void;
   onAddVariant: () => void;
   onSwitchVariant: (id: string) => void;
   onRenameVariant: (label: string) => void;
   planImages: PlanImages;
+  packLoader?: PackLoader;
+  /** sibling variant docs for multi-option export (store-scoped) */
+  loadVariant: (id: string) => Promise<DesignDocument | null>;
 }) {
   /* ── undo/redo: record the outgoing document before every mutation ── */
   const historyRef = useRef(new History<DesignDocument>(50));
@@ -672,6 +748,10 @@ function Editor({
       ? pickedFloorId
       : (doc.floors[0]?.id ?? null);
   const [tool, setTool] = useState<CanvasTool>("select");
+  /* room drawing is shape-first: "Draw a room" raises a pill offering the
+     rectangle and polygon tools (they left the rail), and it folds away once
+     a room lands */
+  const [roomPicker, setRoomPicker] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   /* reference-sheets viewer — browse the uploaded plan set without placing it */
   const [refOpen, setRefOpen] = useState(false);
@@ -683,10 +763,11 @@ function Editor({
   const [legendOpen, setLegendOpen] = useState(false);
 
   /* simulation mode (Stage 12a, dev-flagged): the runtime is transient like
-     the view state above — sim NEVER mutates the document. */
+     the view state above — sim NEVER mutates the document. Held in STATE (not
+     a ref) because present mode renders from it at the Editor level. */
   const [simFlag, setSimFlag] = useState(false);
-  const [simOn, setSimOn] = useState(false);
-  const simRef = useRef<SimRuntime | null>(null);
+  const [simRt, setSimRt] = useState<SimRuntime | null>(null);
+  const simOn = simRt !== null;
   useEffect(() => {
     try {
       setSimFlag(
@@ -743,8 +824,10 @@ function Editor({
 
   useEffect(() => {
     let on = true;
-    packActions()
-      .then((a) => a.loadStudioPack("mitsubishi-electric"))
+    const load =
+      packLoader ??
+      (() => packActions().then((a) => a.loadStudioPack("mitsubishi-electric")));
+    load()
       .then((r) => {
         if (on && r) {
           setPack(r.pack);
@@ -757,7 +840,7 @@ function Editor({
     return () => {
       on = false;
     };
-  }, []);
+  }, [packLoader]);
 
   /* arm (or null-disarm) unit placement — armed by dragging a unit card */
   const armPlace = useCallback((p: PlacingUnit | null) => {
@@ -812,6 +895,9 @@ function Editor({
       setAirComp(null);
       setPaletteOpen(false);
     }
+    /* the room-shape pill mirrors whichever room tool is armed — any other
+       tool (including the auto-disarm after a room lands) folds it away */
+    setRoomPicker(t === "room-rect" || t === "room-poly");
     setTool(t);
   }, []);
 
@@ -825,26 +911,46 @@ function Editor({
      simming */
   const toggleSim = useCallback(() => {
     if (simOn) {
-      simRef.current = null;
-      setSimOn(false);
+      setSimRt(null);
       return;
     }
     if (!activeFloorId) return;
-    simRef.current = new SimRuntime(doc, pack, activeFloorId, 5);
+    setSimRt(new SimRuntime(doc, pack, activeFloorId, 5));
     setPlacing(null);
     setAirComp(null);
     setPaletteOpen(false);
     setTool("select");
     setSelectedId(null);
-    setSimOn(true);
   }, [simOn, doc, pack, activeFloorId]);
 
   /* any doc/floor change while simulating re-derives the model in place —
      temps and controller settings carry across by id */
   useEffect(() => {
-    if (simOn && simRef.current && activeFloorId)
-      simRef.current.rebuild(doc, pack, activeFloorId);
-  }, [simOn, doc, pack, activeFloorId]);
+    if (simRt && activeFloorId) simRt.rebuild(doc, pack, activeFloorId);
+  }, [simRt, doc, pack, activeFloorId]);
+
+  /* Simulate-from-Summary readiness: derive the active floor's model the same
+     way toggleSim will, so the card can say WHY it's disabled instead of
+     just greying out */
+  const simReady = useMemo<SimReady>(() => {
+    if (!activeFloor)
+      return {
+        ok: false,
+        reason: "Add a floor first — there is nothing to simulate yet.",
+        floorName: "",
+      };
+    const floorName = floorDisplayName(activeFloor);
+    const m = buildSimModel(doc, pack, activeFloor.id);
+    if (m.handlers.length > 0) return { ok: true, reason: "", floorName };
+    const first = m.notReady[0];
+    return {
+      ok: false,
+      reason: first
+        ? `${first.systemName}: ${first.reason}`
+        : "Draw a room and place a split system's units on the Design step first.",
+      floorName,
+    };
+  }, [doc, pack, activeFloor]);
 
   const addFloor = useCallback(() => {
     mutate((d) => {
@@ -946,52 +1052,90 @@ function Editor({
 
   return (
     <div className={`ds-editor${step === 1 && activeFloor ? " two-col" : ""}`}>
+      {/* three tracks so the tab switcher sits dead-centre: the flanks share
+          the leftover width equally, whatever each of them holds */}
       <header className="ds-topbar">
-        <button className="ds-back" onClick={onHome} aria-label="Back to studio home">
-          <Icon name="chevL" size={17} />
-        </button>
-        <div className="ds-id">
-          <input
-            className="ds-title-input"
-            value={doc.meta.name}
-            aria-label="Design name"
-            onChange={(e) =>
-              mutate((d) => ({
-                ...d,
-                meta: { ...d.meta, name: e.target.value },
-              }))
+        <div className="ds-tb-left">
+          <StudioMenu
+            onNew={onNew}
+            onOpen={onHome}
+            onSave={onSaveNow}
+            onEditPlans={() => onStep(0)}
+            onReference={hasReference ? () => setRefOpen(true) : undefined}
+            settings={doc.settings}
+            onSettings={(patch) =>
+              mutate((d) => ({ ...d, settings: { ...d.settings, ...patch } }))
             }
           />
-          {/* save status sits with the title now (Export removed, top-right freed) */}
-          <span className={`ds-save ${saveState}`}>
-            <span className="dot" />
-            {saveState === "saving"
-              ? "Saving…"
-              : saveState === "local"
-                ? "Saved locally"
-                : "Saved"}
-          </span>
+          <div className="ds-id">
+            <input
+              className="ds-title-input"
+              value={doc.meta.name}
+              aria-label="Design name"
+              onChange={(e) =>
+                mutate((d) => ({
+                  ...d,
+                  meta: { ...d.meta, name: e.target.value },
+                }))
+              }
+            />
+            {/* save status rides under the title — off the bar's width budget */}
+            <span className={`ds-save ${saveState}`}>
+              <span className="dot" />
+              {saveState === "saving"
+                ? "Saving…"
+                : saveState === "local"
+                  ? "Saved locally"
+                  : "Saved"}
+            </span>
+          </div>
         </div>
-        <nav className="ds-steps" aria-label="Workflow">
-          {STEPS.map((s, i) => (
-            <button
-              key={s.key}
-              className={`ds-step${i === step ? " active" : ""}${
-                i < step ? " done" : ""
-              }`}
-              onClick={() => onStep(i)}
-            >
-              <span className="ds-step-num">
-                {i < step ? <Icon name="check" size={11} /> : i + 1}
-              </span>
-              {s.label}
-            </button>
-          ))}
-        </nav>
+        {/* the canvas controls take the centre slot — the strip above the
+            canvas is gone. Design step only; they're floor-scoped. */}
+        {step === 1 && activeFloor && (
+          <CanvasControls
+            floors={doc.floors}
+            floor={activeFloor}
+            onFloor={setPickedFloorId}
+            onAddFloor={addFloor}
+            onDeleteFloor={deleteFloor}
+            tool={tool}
+            onTool={changeTool}
+            layers={layers}
+            onLayers={setLayers}
+            grayscale={grayscale}
+            onGrayscale={setGrayscale}
+            legendOpen={legendOpen}
+            onLegend={setLegendOpen}
+            simFlag={simFlag}
+            simOn={simOn}
+            onToggleSim={toggleSim}
+          />
+        )}
+        <div className="ds-tb-right">
+          {/* data-active drives the sliding thumb; -1 on the Plans screen,
+              where neither tab is current and the thumb fades out */}
+          <nav
+            className="ds-steps"
+            aria-label="Workflow"
+            data-active={TABS.findIndex((t) => t.step === step)}
+          >
+            <span className="ds-steps-thumb" aria-hidden="true" />
+            {TABS.map((t) => (
+              <button
+                key={t.step}
+                className={`ds-step${step === t.step ? " active" : ""}`}
+                onClick={() => onStep(t.step)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </nav>
+        </div>
       </header>
 
       {/* Design (step 1) fills the viewport with a fixed canvas; the document-
-         like steps (Plans/Materials/Job) scroll inside the locked page */}
+         like steps (Plans/Summary) scroll inside the locked page */}
       <div className={`ds-panel${step === 1 ? "" : " scroll"}`}>
         {step === 0 && (
           <PlansPanel
@@ -1009,9 +1153,7 @@ function Editor({
           <DesignPanel
             doc={doc}
             activeFloorId={activeFloorId}
-            onFloor={setPickedFloorId}
             onAddFloor={addFloor}
-            onDeleteFloor={deleteFloor}
             onGoPlans={() => onStep(0)}
             tool={tool}
             onTool={changeTool}
@@ -1029,41 +1171,53 @@ function Editor({
             pack={pack}
             activeSystemId={effectiveSystemId}
             revealTools={toolsRevealed}
+            roomPicker={roomPicker}
             placing={placing}
             onPlaced={onPlaced}
-            onRoomCreated={setEditingRoomId}
+            onRoomCreated={(id) => {
+              setRoomPicker(false);
+              setEditingRoomId(id);
+            }}
             remarkRoomId={remarkRoomId}
-            onAddVariant={onAddVariant}
-            onSwitchVariant={onSwitchVariant}
-            onRenameVariant={onRenameVariant}
             undo={undo}
             redo={redo}
             hist={hist}
             onRemarkConsumed={() => setRemarkRoomId(null)}
-            onOpenReference={hasReference ? () => setRefOpen(true) : undefined}
             layers={layers}
-            onLayers={setLayers}
             grayscale={grayscale}
-            onGrayscale={setGrayscale}
             legendOpen={legendOpen}
             onLegend={setLegendOpen}
-            sim={simOn ? simRef.current : null}
-            simFlag={simFlag}
-            onToggleSim={toggleSim}
             onCalibrated={() => {
               const f = docRef.current.floors.find((x) => x.id === activeFloorId);
               if (f && !f.northPos) setNorthPrompt(true);
             }}
           />
         )}
-        {step === 2 && <MaterialsView doc={doc} pack={pack} />}
-        {step === 3 && <JobView doc={doc} pack={pack} onMutate={mutate} />}
+        {step === 2 && (
+          <SummaryView
+            doc={doc}
+            pack={pack}
+            onMutate={mutate}
+            onExportJson={() => downloadDesign(doc)}
+            simFlag={simFlag}
+            simReady={simReady}
+            onSimulate={toggleSim}
+            planImages={planImages}
+            loadVariant={loadVariant}
+          />
+        )}
       </div>
 
-      {/* Cockpit lives at the editor level on the Design step so it spans the
-          full height beside the header (see .ds-editor.two-col grid) */}
-      {step === 1 && activeFloor && (
-        <aside className="ds-sidecol">
+      {/* Cockpit lives at the editor level so it spans the full height beside
+          the header (see the .ds-editor grid). It stays MOUNTED off the Design
+          step — its column animates shut instead of the panel snapping wide —
+          and goes inert while collapsed so it's out of the tab order. */}
+      {activeFloor && (
+        <aside
+          className="ds-sidecol"
+          aria-hidden={step !== 1 ? true : undefined}
+          inert={step !== 1 ? true : undefined}
+        >
           <SystemCockpit
             doc={doc}
             pack={pack}
@@ -1075,10 +1229,28 @@ function Editor({
             onSelect={setSelectedId}
             onEditRoom={setEditingRoomId}
             onArmPlace={armPlace}
-            onDrawRoom={() => changeTool("room-rect")}
+            onDrawRoom={() => setRoomPicker(true)}
             floor={activeFloor}
+            onAddVariant={onAddVariant}
+            onSwitchVariant={onSwitchVariant}
+            onRenameVariant={onRenameVariant}
           />
         </aside>
+      )}
+
+      {/* present mode lives at the Editor level (it's a body portal), so
+          Simulate works from Summary as well as the canvas pill — exiting
+          lands you back on whichever step you launched from */}
+      {simRt && activeFloor && (
+        <SimPresentMode
+          doc={doc}
+          floor={activeFloor}
+          pack={pack}
+          planImages={planImages}
+          activeSystemId={effectiveSystemId}
+          runtime={simRt}
+          onExit={toggleSim}
+        />
       )}
 
       {refOpen && hasReference && (
@@ -1154,131 +1326,150 @@ function Editor({
   );
 }
 
-/* ═════════════ Design variations ═════════════ */
+/* ═════════════ Studio menu ═════════════ */
 
-function VariantSwitcher({
-  doc,
-  onAdd,
-  onSwitch,
-  onRename,
+/* The top-left menu — the file-style actions that used to be scattered chrome
+   (the back arrow, Reference sheets) plus the Plans step, now behind "Edit
+   plans". New/Open leave through the same swap as the old back arrow: Home IS
+   the open-a-design screen. Export lives on Summary with Print — both are
+   "get something out of this design".
+
+   The load settings (climate zone / building type / sizing basis) live here
+   too: they re-load every room in the engine, so they belong with the design
+   chrome you use WHILE designing — the Summary only echoes them read-only.
+   Changing a select keeps the menu open (only .ds-menu-item clicks close it),
+   so you can watch the cockpit numbers move as you try zones. */
+function StudioMenu({
+  onNew,
+  onOpen,
+  onSave,
+  onEditPlans,
+  onReference,
+  settings,
+  onSettings,
 }: {
-  doc: DesignDocument;
-  onAdd: () => void;
-  onSwitch: (id: string) => void;
-  onRename: (label: string) => void;
+  onNew: () => void;
+  onOpen: () => void;
+  onSave: () => void;
+  onEditPlans: () => void;
+  /** absent until plan pages exist — the item shows disabled */
+  onReference?: () => void;
+  settings: DesignSettings;
+  onSettings: (patch: Partial<DesignSettings>) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
   const boxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
-      if (boxRef.current && !boxRef.current.contains(e.target as Node)) {
+      if (boxRef.current && !boxRef.current.contains(e.target as Node))
         setOpen(false);
-        setEditing(false);
-      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
     };
     window.addEventListener("mousedown", onDown);
-    return () => window.removeEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
   }, [open]);
 
-  const label = doc.meta.variantLabel;
-  const variants: DesignVariantRef[] =
-    doc.variants.length > 0
-      ? doc.variants
-      : label
-        ? [{ id: doc.id, label }]
-        : [];
-
-  if (variants.length === 0) {
-    return (
-      <button
-        className="ds-tbbtn"
-        onClick={onAdd}
-        title="Branch this design into multiple options — Option 1, Option 2…"
-      >
-        <Icon name="layers" size={15} />
-        Add option
-      </button>
-    );
-  }
+  const item = (
+    icon: string,
+    label: string,
+    action: (() => void) | undefined,
+    title?: string
+  ) => (
+    <button
+      className="ds-menu-item"
+      role="menuitem"
+      disabled={!action}
+      title={title}
+      onClick={() => {
+        setOpen(false);
+        action?.();
+      }}
+    >
+      <Icon name={icon} size={14} />
+      {label}
+    </button>
+  );
 
   return (
-    <div className="ds-variant" ref={boxRef}>
+    <div className="ds-menu-wrap" ref={boxRef}>
       <button
-        className="ds-tbbtn"
+        className={`ds-menu-btn${open ? " on" : ""}`}
         onClick={() => setOpen((o) => !o)}
+        aria-label="Studio menu"
         aria-haspopup="menu"
         aria-expanded={open}
       >
-        <Icon name="layers" size={15} />
-        {label ?? "Option"}
-        <Icon name="chevD" size={12} />
+        <Icon name="menu" size={17} />
       </button>
       {open && (
-        <div className="ds-variant-menu" role="menu">
-          {variants.map((v) => (
-            <button
-              key={v.id}
-              className={`ds-variant-item${v.id === doc.id ? " on" : ""}`}
-              role="menuitemradio"
-              aria-checked={v.id === doc.id}
-              onClick={() => {
-                setOpen(false);
-                if (v.id !== doc.id) onSwitch(v.id);
-              }}
-            >
-              {v.id === doc.id ? (
-                <Icon name="check" size={12} />
-              ) : (
-                <span className="ds-variant-dot" />
-              )}
-              {v.label}
-            </button>
-          ))}
-          <div className="ds-variant-sep" />
-          {editing ? (
-            <form
-              className="ds-variant-rename"
-              onSubmit={(e) => {
-                e.preventDefault();
-                onRename(draft);
-                setEditing(false);
-                setOpen(false);
-              }}
-            >
-              <input
-                autoFocus
-                value={draft}
-                aria-label="Rename current option"
-                onChange={(e) => setDraft(e.target.value)}
-                onBlur={() => setEditing(false)}
-              />
-            </form>
-          ) : (
-            <button
-              className="ds-variant-item"
-              onClick={() => {
-                setDraft(label ?? "");
-                setEditing(true);
-              }}
-            >
-              <Icon name="edit" size={12} />
-              Rename current option
-            </button>
+        <div className="ds-menu-pop" role="menu">
+          {item("plus", "New", onNew)}
+          {item("folder", "Open", onOpen)}
+          {item("save", "Save", onSave)}
+          <div className="ds-menu-sep" />
+          {item("edit", "Edit plans", onEditPlans)}
+          {item(
+            "library",
+            "Reference sheets",
+            onReference,
+            onReference
+              ? "Browse every uploaded page — heights, sections, details"
+              : "Reference sheets — upload plan pages first"
           )}
-          <button
-            className="ds-variant-item"
-            onClick={() => {
-              setOpen(false);
-              onAdd();
-            }}
+          <div className="ds-menu-sep" />
+          <div
+            className="ds-menu-set"
+            role="group"
+            aria-label="Load settings"
+            title="Every room load re-derives from these — the whole design updates live"
           >
-            <Icon name="plus" size={12} />
-            Add another option
-          </button>
+            <span className="ds-menu-set-t">Load settings</span>
+            <label className="ds-menu-set-row">
+              <span>Climate zone</span>
+              <select
+                value={String(effectiveClimateZone(settings))}
+                onChange={(e) => onSettings({ climateZone: e.target.value })}
+              >
+                {Object.entries(CLIMATE_ZONES).map(([z, info]) => (
+                  <option key={z} value={z}>
+                    {info.label} — {info.cities.split(",")[0]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="ds-menu-set-row">
+              <span>Building type</span>
+              <select
+                value={effectiveBuildingType(settings)}
+                onChange={(e) => onSettings({ buildingType: e.target.value })}
+              >
+                <option value="residential">Residential</option>
+                <option value="light_commercial">Light commercial</option>
+                <option value="commercial">Commercial</option>
+              </select>
+            </label>
+            <label className="ds-menu-set-row">
+              <span>Size on</span>
+              <select
+                value={settings.sizingBasis}
+                onChange={(e) =>
+                  onSettings({ sizingBasis: e.target.value as SizingBasis })
+                }
+              >
+                <option value="cooling">Cooling</option>
+                <option value="heating">Heating</option>
+                <option value="worst-of-both">Worst of both</option>
+              </select>
+            </label>
+          </div>
         </div>
       )}
     </div>
@@ -1311,12 +1502,336 @@ const LAYER_LABELS: Record<keyof LayerFlags, string> = {
   labels: "Labels",
 };
 
-function DesignPanel({
-  doc,
-  activeFloorId,
+/* ═════════════ Canvas controls (topbar, Design step) ═════════════ */
+
+/* A control menu is wider than the pill it hangs from, so it wants to be
+   CENTRED on that pill — anchored to either edge it sits under a neighbouring
+   pill and reads as belonging to that one instead. But the pills sit near the
+   right of the bar and `.dstudio` clips with overflow:hidden, so centring
+   alone pushes the rightmost menu off the frame and it gets sliced.
+   So: centre, measure, and nudge back inside if it would overhang. The caret
+   stays on the WRAPPER, so it keeps pointing at the trigger however far the
+   menu is nudged. */
+const MENU_EDGE_GAP = 8;
+
+function useClampedMenu(open: boolean) {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!open || !el) return;
+    const place = () => {
+      // measure from the centred position, then correct
+      el.style.setProperty("--ds-menu-nudge", "0px");
+      const frame = el.closest(".dstudio")?.getBoundingClientRect();
+      if (!frame) return;
+      const r = el.getBoundingClientRect();
+      const over = r.right - (frame.right - MENU_EDGE_GAP);
+      const under = frame.left + MENU_EDGE_GAP - r.left;
+      const nudge = over > 0 ? -over : under > 0 ? under : 0;
+      el.style.setProperty("--ds-menu-nudge", `${Math.round(nudge)}px`);
+    };
+    place();
+    window.addEventListener("resize", place);
+    return () => window.removeEventListener("resize", place);
+  }, [open]);
+  return ref;
+}
+
+/* Floor ▾ · Calibrate · View · Simulate — relocated from the old strip above
+   the canvas onto the topbar line. Everything they drive lives at the Editor
+   level; only the popover-open state is local here. */
+function CanvasControls({
+  floors,
+  floor,
   onFloor,
   onAddFloor,
   onDeleteFloor,
+  tool,
+  onTool,
+  layers,
+  onLayers,
+  grayscale,
+  onGrayscale,
+  legendOpen,
+  onLegend,
+  simFlag,
+  simOn,
+  onToggleSim,
+}: {
+  floors: DesignDocument["floors"];
+  floor: DesignDocument["floors"][number];
+  onFloor: (id: string) => void;
+  onAddFloor: () => void;
+  onDeleteFloor: (id: string) => void;
+  tool: CanvasTool;
+  onTool: (t: CanvasTool) => void;
+  layers: LayerFlags;
+  onLayers: (l: LayerFlags) => void;
+  grayscale: boolean;
+  onGrayscale: (v: boolean) => void;
+  legendOpen: boolean;
+  onLegend: (v: boolean) => void;
+  /** dev flag — the Simulate pill only renders when it's on */
+  simFlag: boolean;
+  simOn: boolean;
+  onToggleSim: () => void;
+}) {
+  const sorted = [...floors].sort((a, b) => a.level - b.level);
+  // two-step delete of a floor — armed per floor id so switching floors
+  // mid-arm can't delete the wrong one
+  const [armedDelFloor, setArmedDelFloor] = useState<string | null>(null);
+  const [layersOpen, setLayersOpen] = useState(false);
+  const [calibOpen, setCalibOpen] = useState(false);
+  const [floorMenuOpen, setFloorMenuOpen] = useState(false);
+  const floorMenuRef = useClampedMenu(floorMenuOpen);
+  const calibMenuRef = useClampedMenu(calibOpen);
+  const viewMenuRef = useClampedMenu(layersOpen);
+
+  return (
+    <div className="ds-canvas-toggles">
+      {/* Floor dropdown — current level + a menu of all floors (each with a
+          red-on-hover delete x behind an "Are you sure?" confirm) + Add floor */}
+      <div className="ds-layers-wrap ds-floor-wrap">
+        <button
+          className={`ds-floor-trigger${floorMenuOpen ? " on" : ""}`}
+          onClick={() => {
+            setArmedDelFloor(null);
+            setCalibOpen(false);
+            setLayersOpen(false);
+            setFloorMenuOpen((v) => !v);
+          }}
+          title={`${floorDisplayName(floor)} — switch floor`}
+        >
+          <Icon name="layers" size={13} />
+          {formatLevel(floor.level)}
+          <Icon name="chevD" size={12} />
+        </button>
+        {floorMenuOpen && (
+          <div className="ds-layers-menu ds-floor-menu" role="menu" ref={floorMenuRef}>
+            {sorted.map((f) => (
+              <div key={f.id} className={`ds-floor-row${f.id === floor.id ? " on" : ""}`}>
+                <button
+                  className="ds-floor-pick"
+                  onClick={() => {
+                    onFloor(f.id);
+                    setFloorMenuOpen(false);
+                  }}
+                >
+                  <span className="lvl">{formatLevel(f.level)}</span>
+                  <span className="nm">{floorDisplayName(f)}</span>
+                </button>
+                {armedDelFloor === f.id ? (
+                  <span className="ds-floor-confirm">
+                    <button
+                      className="yes"
+                      onClick={() => {
+                        onDeleteFloor(f.id);
+                        setArmedDelFloor(null);
+                      }}
+                    >
+                      Delete?
+                    </button>
+                    <button
+                      className="no"
+                      onClick={() => setArmedDelFloor(null)}
+                      aria-label="Cancel delete"
+                    >
+                      <Icon name="x" size={12} />
+                    </button>
+                  </span>
+                ) : (
+                  sorted.length > 1 && (
+                    <button
+                      className="ds-floor-x"
+                      onClick={() => setArmedDelFloor(f.id)}
+                      title="Delete this floor and everything on it"
+                      aria-label={`Delete ${floorDisplayName(f)}`}
+                    >
+                      <Icon name="x" size={12} />
+                    </button>
+                  )
+                )}
+              </div>
+            ))}
+            <button
+              className="ds-floor-add"
+              onClick={() => {
+                onAddFloor();
+                setFloorMenuOpen(false);
+              }}
+            >
+              <Icon name="plus" size={13} />
+              Add floor
+            </button>
+          </div>
+        )}
+      </div>
+      {/* Calibrate — one pill folding scale + north: orange until both are
+          set, green when complete; the popover edits either */}
+      <div className="ds-layers-wrap">
+        <button
+          className={`ds-calib-pill${
+            floor.scaleMmPerUnit != null && floor.northPos ? " done" : ""
+          }${
+            calibOpen ||
+            tool === "calibrate" ||
+            tool === "set-north" ||
+            tool === "crop" ||
+            tool === "arrange"
+              ? " on"
+              : ""
+          }`}
+          onClick={() => {
+            setFloorMenuOpen(false);
+            setLayersOpen(false);
+            setCalibOpen((v) => !v);
+          }}
+          title="Calibrate — set the scale and north"
+        >
+          <Icon name="ruler" size={13} />
+          <span className="ds-ctl-word">
+            {floor.scaleMmPerUnit != null && floor.northPos ? "Calibrated" : "Calibrate"}
+          </span>
+          <Icon name="chevD" size={12} />
+        </button>
+        {calibOpen && (
+          /* Two groups, captioned like the View menu: the calibration pair
+             report a VALUE (or "Not set"), the plan tools are plain actions.
+             They used to share one column, so "10.0 mm/px" and "Trim the
+             plan" — a measurement and a description — read as the same kind
+             of thing. Rows are .ds-calib-item, not .ds-calib-row: that name
+             belongs to the on-canvas scale widget too, and its margin was
+             bleeding 10px under every row in here. */
+          <div className="ds-layers-menu ds-calib-menu" role="menu" ref={calibMenuRef}>
+            <div className="ds-view-grp">Calibration</div>
+            <button
+              className="ds-calib-item"
+              onClick={() => {
+                onTool("calibrate");
+                setCalibOpen(false);
+              }}
+            >
+              <Icon name="ruler" size={13} />
+              <span className="k">Scale</span>
+              <span className={`v${floor.scaleMmPerUnit == null ? " unset" : ""}`}>
+                {floor.scaleMmPerUnit != null
+                  ? `${floor.scaleMmPerUnit.toFixed(1)} mm/px`
+                  : "Not set"}
+              </span>
+            </button>
+            <button
+              className="ds-calib-item"
+              onClick={() => {
+                onTool("set-north");
+                setCalibOpen(false);
+              }}
+            >
+              <Icon name="compass" size={13} />
+              <span className="k">North</span>
+              <span className={`v${floor.northPos ? "" : " unset"}`}>
+                {floor.northPos ? `${Math.round(floor.northDeg ?? 0)}°` : "Not set"}
+              </span>
+            </button>
+            {/* plan-prep tools relocated out of the drawing rail */}
+            <div className="ds-view-sep" />
+            <div className="ds-view-grp">Plan</div>
+            <button
+              className={`ds-calib-item${tool === "crop" ? " on" : ""}`}
+              onClick={() => {
+                onTool("crop");
+                setCalibOpen(false);
+              }}
+              title="Crop the plan to the area you're working on"
+            >
+              <Icon name="maximize" size={13} />
+              <span className="k">Crop</span>
+            </button>
+            <button
+              className={`ds-calib-item${tool === "arrange" ? " on" : ""}`}
+              onClick={() => {
+                onTool("arrange");
+                setCalibOpen(false);
+              }}
+              title="Reposition the plan sheets on this floor"
+            >
+              <Icon name="hand" size={13} />
+              <span className="k">Move plans</span>
+            </button>
+          </div>
+        )}
+      </div>
+      {/* View — one pill folding Layers, B&W and Legend into a popover */}
+      <div className="ds-layers-wrap">
+        <button
+          className={`ds-ctl-btn${layersOpen ? " on" : ""}`}
+          onClick={() => {
+            setFloorMenuOpen(false);
+            setCalibOpen(false);
+            setLayersOpen((v) => !v);
+          }}
+          title="View — layers, black & white and legend"
+        >
+          <Icon name="layers" size={14} />
+          <span className="ds-ctl-word">View</span>
+        </button>
+        {layersOpen && (
+          <div className="ds-layers-menu ds-view-menu" role="menu" ref={viewMenuRef}>
+            <div className="ds-view-grp">Layers</div>
+            {(Object.keys(LAYER_LABELS) as (keyof LayerFlags)[]).map((k) => (
+              <label key={k} className="ds-layer-row">
+                <input
+                  type="checkbox"
+                  checked={layers[k]}
+                  onChange={(e) => onLayers({ ...layers, [k]: e.target.checked })}
+                />
+                <span>{LAYER_LABELS[k]}</span>
+              </label>
+            ))}
+            <div className="ds-view-sep" />
+            <div className="ds-view-grp">Display</div>
+            <label className="ds-layer-row">
+              <input
+                type="checkbox"
+                checked={grayscale}
+                onChange={(e) => onGrayscale(e.target.checked)}
+              />
+              <span>Black &amp; white</span>
+            </label>
+            <label className="ds-layer-row">
+              <input
+                type="checkbox"
+                checked={legendOpen}
+                onChange={(e) => onLegend(e.target.checked)}
+              />
+              <span>Show legend</span>
+            </label>
+          </div>
+        )}
+      </div>
+      {simFlag && (
+        <button
+          className={`ds-ctl-btn ds-sim-go${simOn ? " on" : ""}`}
+          onClick={onToggleSim}
+          title={
+            simOn
+              ? "Exit the simulation"
+              : "Simulate this floor — read-only, nothing in the design changes"
+          }
+        >
+          <span className="ds-sim-play" aria-hidden>
+            {simOn ? "■" : "▶"}
+          </span>
+          <span className="ds-ctl-word">{simOn ? "Exit sim" : "Simulate"}</span>
+        </button>
+      )}
+    </div>
+  );
+}
+
+function DesignPanel({
+  doc,
+  activeFloorId,
+  onAddFloor,
   onGoPlans,
   tool,
   onTool,
@@ -1334,34 +1849,24 @@ function DesignPanel({
   pack,
   activeSystemId,
   revealTools,
+  roomPicker,
   placing,
   onPlaced,
   onRoomCreated,
   remarkRoomId,
   onRemarkConsumed,
-  onAddVariant,
-  onSwitchVariant,
-  onRenameVariant,
   undo,
   redo,
   hist,
-  onOpenReference,
   layers,
-  onLayers,
   grayscale,
-  onGrayscale,
   legendOpen,
   onLegend,
-  sim,
-  simFlag,
-  onToggleSim,
   onCalibrated,
 }: {
   doc: DesignDocument;
   activeFloorId: string | null;
-  onFloor: (id: string) => void;
   onAddFloor: () => void;
-  onDeleteFloor: (id: string) => void;
   onGoPlans: () => void;
   tool: CanvasTool;
   onTool: (t: CanvasTool) => void;
@@ -1381,40 +1886,24 @@ function DesignPanel({
   activeSystemId: string | null;
   /** reveal the drawing tool-rail — latched true once a system first exists */
   revealTools: boolean;
+  /** the room-shape pill is up (raised by "Draw a room" / "Add room") */
+  roomPicker: boolean;
   placing: PlacingUnit | null;
   onPlaced: () => void;
   onRoomCreated: (id: string) => void;
   remarkRoomId: string | null;
   onRemarkConsumed: () => void;
-  /** variant switcher (Add option) + undo/redo relocated into ds-canvas-top */
-  onAddVariant: () => void;
-  onSwitchVariant: (id: string) => void;
-  onRenameVariant: (label: string) => void;
+  /** undo/redo — rendered as tools at the bottom of the rail */
   undo: () => void;
   redo: () => void;
   hist: { undo: boolean; redo: boolean };
-  onOpenReference?: () => void;
   layers: LayerFlags;
-  onLayers: (l: LayerFlags) => void;
   grayscale: boolean;
-  onGrayscale: (v: boolean) => void;
   legendOpen: boolean;
   onLegend: (v: boolean) => void;
-  /** simulation mode (Stage 12a): live runtime while simming, else null */
-  sim: SimRuntime | null;
-  /** dev flag — the Simulate pill only renders when it's on */
-  simFlag: boolean;
-  onToggleSim: () => void;
   onCalibrated: () => void;
 }) {
-  const floors = [...doc.floors].sort((a, b) => a.level - b.level);
-  const floor = floors.find((f) => f.id === activeFloorId) ?? null;
-  // two-step delete of the active floor — armed per floor id so switching
-  // floors mid-arm can't delete the wrong one
-  const [armedDelFloor, setArmedDelFloor] = useState<string | null>(null);
-  const [layersOpen, setLayersOpen] = useState(false);
-  const [calibOpen, setCalibOpen] = useState(false);
-  const [floorMenuOpen, setFloorMenuOpen] = useState(false);
+  const floor = doc.floors.find((f) => f.id === activeFloorId) ?? null;
   const [zoomApi, setZoomApi] = useState<ZoomApi | null>(null);
   const [zoomPct, setZoomPct] = useState(100);
 
@@ -1480,290 +1969,12 @@ function DesignPanel({
   return (
     <div className="ds-design">
       <div className="ds-canvas-col">
-        <div className="ds-canvas-top">
-          {/* Floor dropdown — current level + a menu of all floors (each with a
-              red-on-hover delete x behind an "Are you sure?" confirm) + Add floor */}
-          <div className="ds-layers-wrap ds-floor-wrap">
-            <button
-              className={`ds-floor-trigger${floorMenuOpen ? " on" : ""}`}
-              onClick={() => {
-                setArmedDelFloor(null);
-                setCalibOpen(false);
-                setLayersOpen(false);
-                setFloorMenuOpen((v) => !v);
-              }}
-              title={`${floorDisplayName(floor)} — switch floor`}
-            >
-              <Icon name="layers" size={13} />
-              {formatLevel(floor.level)}
-              <Icon name="chevD" size={12} />
-            </button>
-            {floorMenuOpen && (
-              <div className="ds-layers-menu ds-floor-menu" role="menu">
-                {floors.map((f) => (
-                  <div key={f.id} className={`ds-floor-row${f.id === floor.id ? " on" : ""}`}>
-                    <button
-                      className="ds-floor-pick"
-                      onClick={() => {
-                        onFloor(f.id);
-                        setFloorMenuOpen(false);
-                      }}
-                    >
-                      <span className="lvl">{formatLevel(f.level)}</span>
-                      <span className="nm">{floorDisplayName(f)}</span>
-                    </button>
-                    {armedDelFloor === f.id ? (
-                      <span className="ds-floor-confirm">
-                        <button
-                          className="yes"
-                          onClick={() => {
-                            onDeleteFloor(f.id);
-                            setArmedDelFloor(null);
-                          }}
-                        >
-                          Delete?
-                        </button>
-                        <button
-                          className="no"
-                          onClick={() => setArmedDelFloor(null)}
-                          aria-label="Cancel delete"
-                        >
-                          <Icon name="x" size={12} />
-                        </button>
-                      </span>
-                    ) : (
-                      floors.length > 1 && (
-                        <button
-                          className="ds-floor-x"
-                          onClick={() => setArmedDelFloor(f.id)}
-                          title="Delete this floor and everything on it"
-                          aria-label={`Delete ${floorDisplayName(f)}`}
-                        >
-                          <Icon name="x" size={12} />
-                        </button>
-                      )
-                    )}
-                  </div>
-                ))}
-                <button
-                  className="ds-floor-add"
-                  onClick={() => {
-                    onAddFloor();
-                    setFloorMenuOpen(false);
-                  }}
-                >
-                  <Icon name="plus" size={13} />
-                  Add floor
-                </button>
-              </div>
-            )}
-          </div>
-          <div className="ds-canvas-toggles">
-            {/* Calibrate — one pill folding scale + north: orange until both are
-                set, green when complete; the popover edits either */}
-            <div className="ds-layers-wrap">
-              <button
-                className={`ds-calib-pill${
-                  floor.scaleMmPerUnit != null && floor.northPos ? " done" : ""
-                }${
-                  calibOpen ||
-                  tool === "calibrate" ||
-                  tool === "set-north" ||
-                  tool === "crop" ||
-                  tool === "arrange"
-                    ? " on"
-                    : ""
-                }`}
-                onClick={() => {
-                  setFloorMenuOpen(false);
-                  setLayersOpen(false);
-                  setCalibOpen((v) => !v);
-                }}
-                title="Calibrate — set the scale and north"
-              >
-                <Icon name="ruler" size={13} />
-                {floor.scaleMmPerUnit != null && floor.northPos ? "Calibrated" : "Calibrate"}
-                <Icon name="chevD" size={12} />
-              </button>
-              {calibOpen && (
-                <div className="ds-layers-menu ds-calib-menu" role="menu">
-                  <button
-                    className="ds-calib-row"
-                    onClick={() => {
-                      onTool("calibrate");
-                      setCalibOpen(false);
-                    }}
-                  >
-                    <Icon name="ruler" size={13} />
-                    <span className="k">Scale</span>
-                    <span className="v">
-                      {floor.scaleMmPerUnit != null
-                        ? `${floor.scaleMmPerUnit.toFixed(1)} mm/px`
-                        : "Set scale"}
-                    </span>
-                  </button>
-                  <button
-                    className="ds-calib-row"
-                    onClick={() => {
-                      onTool("set-north");
-                      setCalibOpen(false);
-                    }}
-                  >
-                    <Icon name="compass" size={13} />
-                    <span className="k">North</span>
-                    <span className="v">
-                      {floor.northPos ? `${Math.round(floor.northDeg ?? 0)}°` : "Set north"}
-                    </span>
-                  </button>
-                  {/* plan-prep tools relocated out of the drawing rail */}
-                  <div className="ds-view-sep" />
-                  <button
-                    className={`ds-calib-row${tool === "crop" ? " on" : ""}`}
-                    onClick={() => {
-                      onTool("crop");
-                      setCalibOpen(false);
-                    }}
-                  >
-                    <Icon name="maximize" size={13} />
-                    <span className="k">Crop</span>
-                    <span className="v">Trim the plan</span>
-                  </button>
-                  <button
-                    className={`ds-calib-row${tool === "arrange" ? " on" : ""}`}
-                    onClick={() => {
-                      onTool("arrange");
-                      setCalibOpen(false);
-                    }}
-                  >
-                    <Icon name="hand" size={13} />
-                    <span className="k">Move plans</span>
-                    <span className="v">Reposition</span>
-                  </button>
-                </div>
-              )}
-            </div>
-            {/* View — one pill folding Layers, B&W and Legend into a popover */}
-            <div className="ds-layers-wrap">
-              <button
-                className={`ds-ctl-btn${layersOpen ? " on" : ""}`}
-                onClick={() => {
-                  setFloorMenuOpen(false);
-                  setCalibOpen(false);
-                  setLayersOpen((v) => !v);
-                }}
-                title="View — layers, black & white and legend"
-              >
-                <Icon name="layers" size={14} />
-                View
-              </button>
-              {layersOpen && (
-                <div className="ds-layers-menu ds-view-menu" role="menu">
-                  <div className="ds-view-grp">Layers</div>
-                  {(Object.keys(LAYER_LABELS) as (keyof LayerFlags)[]).map((k) => (
-                    <label key={k} className="ds-layer-row">
-                      <input
-                        type="checkbox"
-                        checked={layers[k]}
-                        onChange={(e) => onLayers({ ...layers, [k]: e.target.checked })}
-                      />
-                      <span>{LAYER_LABELS[k]}</span>
-                    </label>
-                  ))}
-                  <div className="ds-view-sep" />
-                  <div className="ds-view-grp">Display</div>
-                  <label className="ds-layer-row">
-                    <input
-                      type="checkbox"
-                      checked={grayscale}
-                      onChange={(e) => onGrayscale(e.target.checked)}
-                    />
-                    <span>Black &amp; white</span>
-                  </label>
-                  <label className="ds-layer-row">
-                    <input
-                      type="checkbox"
-                      checked={legendOpen}
-                      onChange={(e) => onLegend(e.target.checked)}
-                    />
-                    <span>Show legend</span>
-                  </label>
-                </div>
-              )}
-            </div>
-            {simFlag && (
-              <button
-                className={`ds-ctl-btn ds-sim-go${sim ? " on" : ""}`}
-                onClick={onToggleSim}
-                title={
-                  sim
-                    ? "Exit the simulation"
-                    : "Simulate this floor — read-only, nothing in the design changes"
-                }
-              >
-                <span className="ds-sim-play" aria-hidden>
-                  {sim ? "■" : "▶"}
-                </span>
-                {sim ? "Exit sim" : "Simulate"}
-              </button>
-            )}
-          </div>
-          <div className="ds-ctop-grp">
-            {/* undo/redo relocated from the header, beside the zoom control */}
-            <button
-              className="ds-tbicon"
-              onClick={undo}
-              disabled={!hist.undo}
-              aria-label="Undo"
-              title="Undo (⌘Z)"
-            >
-              <Icon name="rotate" size={15} />
-            </button>
-            <button
-              className="ds-tbicon flip"
-              onClick={redo}
-              disabled={!hist.redo}
-              aria-label="Redo"
-              title="Redo (⇧⌘Z)"
-            >
-              <Icon name="rotate" size={15} />
-            </button>
-            <div className="ds-zoomctl top" role="group" aria-label="Zoom">
-              <button aria-label="Zoom out" onClick={() => zoomApi?.zoomOut()}>
-                −
-              </button>
-              <span>{zoomPct}%</span>
-              <button aria-label="Zoom in" onClick={() => zoomApi?.zoomIn()}>
-                +
-              </button>
-              <button aria-label="Fit to content" onClick={() => zoomApi?.fit()}>
-                Fit
-              </button>
-            </div>
-          </div>
-          <div className="ds-ctop-grp">
-            {/* Add option relocated from the header, beside Reference sheets */}
-            <VariantSwitcher
-              doc={doc}
-              onAdd={onAddVariant}
-              onSwitch={onSwitchVariant}
-              onRename={onRenameVariant}
-            />
-            {onOpenReference && (
-              <button
-                className="ds-ref-open"
-                onClick={onOpenReference}
-                title="Browse every uploaded page — heights, sections, details"
-              >
-                <Icon name="library" size={14} />
-                Reference sheets
-              </button>
-            )}
-          </div>
-        </div>
         <div className="ds-canvas-body">
           {revealTools && (
           <div className="ds-toolrail" role="toolbar" aria-label="Canvas tools">
-            {CANVAS_TOOLS.slice(0, 3).map(toolButton)}
+            {/* room tools left the rail — they're offered by the shape pill,
+                raised from the cockpit's Draw a room / Add room */}
+            {CANVAS_TOOLS.slice(0, 1).map(toolButton)}
             {/* Air group (Stage 7): both tools gate on rooms + an air-capable AHU
                 (spec §2); Duct arms at Step 4, Component opens the palette */}
             <button
@@ -1792,6 +2003,26 @@ function DesignPanel({
             {CANVAS_TOOLS.slice(3)
               .filter((t) => t.key !== "crop" && t.key !== "arrange")
               .map(toolButton)}
+            {/* history — undo/redo live at the foot of the rail */}
+            <div className="ds-rail-sep" />
+            <button
+              className="ds-tool"
+              onClick={undo}
+              disabled={!hist.undo}
+              aria-label="Undo"
+              title="Undo (⌘Z)"
+            >
+              <Icon name="rotate" size={17} />
+            </button>
+            <button
+              className="ds-tool flip"
+              onClick={redo}
+              disabled={!hist.redo}
+              aria-label="Redo"
+              title="Redo (⇧⌘Z)"
+            >
+              <Icon name="rotate" size={17} />
+            </button>
           </div>
           )}
           <StudioCanvas
@@ -1821,6 +2052,53 @@ function DesignPanel({
             sim={null}
           />
         </div>
+        {/* zoom floats over the canvas, bottom-right — its pre-strip home */}
+        <div className="ds-zoomctl" role="group" aria-label="Zoom">
+          <button aria-label="Zoom out" onClick={() => zoomApi?.zoomOut()}>
+            −
+          </button>
+          <span>{zoomPct}%</span>
+          <button aria-label="Zoom in" onClick={() => zoomApi?.zoomIn()}>
+            +
+          </button>
+          <button aria-label="Fit to content" onClick={() => zoomApi?.fit()}>
+            Fit
+          </button>
+        </div>
+        {/* room shape pill — the rectangle/polygon choice, raised by "Draw a
+            room". It stays up while you draw so you can switch shape, and
+            folds away the moment a room lands. */}
+        {roomPicker && (
+          <div className="ds-roomhud" role="toolbar" aria-label="Room shape">
+            <span className="ds-roomhud-t">Draw a room</span>
+            <button
+              className={`ds-roomhud-b${tool === "room-rect" ? " on" : ""}`}
+              onClick={() => onTool("room-rect")}
+              title="Rectangle room (R)"
+              aria-label="Rectangle room"
+              aria-pressed={tool === "room-rect"}
+            >
+              <Icon name="square" size={16} />
+            </button>
+            <button
+              className={`ds-roomhud-b${tool === "room-poly" ? " on" : ""}`}
+              onClick={() => onTool("room-poly")}
+              title="Polygon room (G)"
+              aria-label="Polygon room"
+              aria-pressed={tool === "room-poly"}
+            >
+              <Icon name="hexagon" size={16} />
+            </button>
+            <button
+              className="ds-roomhud-x"
+              onClick={() => onTool("select")}
+              title="Cancel"
+              aria-label="Cancel drawing a room"
+            >
+              <Icon name="x" size={13} />
+            </button>
+          </div>
+        )}
         {/* options HUD — floating pill strip, top-centre over the canvas,
             while a tool with options is armed (Step 2: the plenum variant) */}
         {tool === "component" && airComp?.kind === "plenum" && (
@@ -1828,17 +2106,6 @@ function DesignPanel({
             stream={airComp.stream}
             onStream={onAirStream}
             returnBuiltIn={airGate.row?.return_opening === "built-in"}
-          />
-        )}
-        {sim && floor && (
-          <SimPresentMode
-            doc={doc}
-            floor={floor}
-            pack={pack}
-            planImages={planImages}
-            activeSystemId={activeSystemId}
-            runtime={sim}
-            onExit={onToggleSim}
           />
         )}
         {legendOpen && (

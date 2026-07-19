@@ -70,6 +70,20 @@ export async function installedPacks(
   return packs;
 }
 
+/** The newest installed version of a brand (versions are "2026.1"-style, so
+    lexical order IS version order) — the sort the studio and the public live
+    route both resolve packs through. */
+export async function latestInstalledPack(
+  brand: string,
+  baseDir = DEFAULT_BASE
+): Promise<InstalledPackRef | null> {
+  const refs = await installedPacks(baseDir);
+  const mine = refs
+    .filter((r) => r.brand === brand)
+    .sort((a, b) => b.version.localeCompare(a.version));
+  return mine[0] ?? null;
+}
+
 export interface LoadedPack {
   meta: PackMeta;
   pack: DataPack;

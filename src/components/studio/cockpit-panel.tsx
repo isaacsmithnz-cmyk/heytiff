@@ -18,12 +18,20 @@
    file renders + arms intents, mutating through onMutate exactly as the old
    panel did. */
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Icon } from "@/components/shell/icon";
 import type {
   DesignDocument,
   DesignObject,
   DesignSystem,
+  DesignVariantRef,
   Floor,
   SystemType,
 } from "@/lib/studio/document";
@@ -144,6 +152,9 @@ export function SystemCockpit({
   onArmPlace,
   onDrawRoom,
   floor,
+  onAddVariant,
+  onSwitchVariant,
+  onRenameVariant,
 }: {
   doc: DesignDocument;
   pack: DataPack | null;
@@ -157,6 +168,10 @@ export function SystemCockpit({
   onArmPlace: (p: PlacingUnit | null) => void;
   onDrawRoom: () => void;
   floor: Floor;
+  /** design variations — branched/switched from the system dropdown */
+  onAddVariant: () => void;
+  onSwitchVariant: (id: string) => void;
+  onRenameVariant: (label: string) => void;
 }) {
   const [adding, setAdding] = useState(false);
   const [changingType, setChangingType] = useState(false);
@@ -248,6 +263,14 @@ export function SystemCockpit({
   const mod = active ? moduleFor(active.type) : null;
   const showChooser = adding || changingType;
 
+  /* an unbranched design has no roster yet — show the one it is, if named */
+  const variants: DesignVariantRef[] =
+    doc.variants.length > 0
+      ? doc.variants
+      : doc.meta.variantLabel
+        ? [{ id: doc.id, label: doc.meta.variantLabel }]
+        : [];
+
   const systemSelector = (
     <SystemSelector
       systems={systems}
@@ -258,6 +281,11 @@ export function SystemCockpit({
         setAdding(true);
       }}
       onDelete={deleteSystem}
+      variants={variants}
+      currentVariantId={doc.id}
+      onAddVariant={onAddVariant}
+      onSwitchVariant={onSwitchVariant}
+      onRenameVariant={onRenameVariant}
     />
   );
 
@@ -318,22 +346,41 @@ export function SystemCockpit({
 /* ───────────────── system selector (dropdown, mirrors the floor picker) ─────────────────
    Lives in the hero's top-left. Trigger shows the active system; the menu lists
    every system with a red-on-hover delete x behind a two-step confirm, plus Add
-   system. Reuses the shared .ds-layers-menu + .ds-floor-* row/confirm visuals. */
+   system. Reuses the shared .ds-layers-menu + .ds-floor-* row/confirm visuals.
+
+   Design variations hang off the ACTIVE system's row: switch between them,
+   rename the current one, or branch a new one. They read as "another take on
+   what I'm working on" here, which is where the thought occurs — but the
+   caption says *design* variations because a variation carries the WHOLE
+   design (every system), not just the one it sits under. */
 function SystemSelector({
   systems,
   activeId,
   onActivate,
   onAdd,
   onDelete,
+  variants,
+  currentVariantId,
+  onAddVariant,
+  onSwitchVariant,
+  onRenameVariant,
 }: {
   systems: DesignSystem[];
   activeId: string | null;
   onActivate: (id: string | null) => void;
   onAdd: () => void;
   onDelete: (id: string) => void;
+  /** the design's sibling options — empty until the first branch */
+  variants: DesignVariantRef[];
+  currentVariantId: string;
+  onAddVariant: () => void;
+  onSwitchVariant: (id: string) => void;
+  onRenameVariant: (label: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [armedDel, setArmedDel] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState(false);
+  const [draft, setDraft] = useState("");
   const active = systems.find((s) => s.id === activeId) ?? systems[0] ?? null;
   if (!active) return null;
   return (
@@ -353,48 +400,123 @@ function SystemSelector({
       {open && (
         <div className="ds-layers-menu ds-sys-menu" role="menu">
           {systems.map((s) => (
-            <div key={s.id} className={`ds-sys-row${s.id === active.id ? " on" : ""}`}>
-              <button
-                className="ds-sys-pick"
-                onClick={() => {
-                  onActivate(s.id);
-                  setOpen(false);
-                }}
-              >
-                <span className="ds-sys-dot" style={{ background: s.colour }} />
-                <span className="nm">{s.name}</span>
-                <span className="ty">{moduleFor(s.type).label}</span>
-              </button>
-              {armedDel === s.id ? (
-                <span className="ds-floor-confirm">
+            <Fragment key={s.id}>
+              <div className={`ds-sys-row${s.id === active.id ? " on" : ""}`}>
+                <button
+                  className="ds-sys-pick"
+                  onClick={() => {
+                    onActivate(s.id);
+                    setOpen(false);
+                  }}
+                >
+                  <span className="ds-sys-dot" style={{ background: s.colour }} />
+                  <span className="nm">{s.name}</span>
+                  <span className="ty">{moduleFor(s.type).label}</span>
+                </button>
+                {armedDel === s.id ? (
+                  <span className="ds-floor-confirm">
+                    <button
+                      className="yes"
+                      onClick={() => {
+                        onDelete(s.id);
+                        setArmedDel(null);
+                      }}
+                    >
+                      Delete?
+                    </button>
+                    <button
+                      className="no"
+                      onClick={() => setArmedDel(null)}
+                      aria-label="Cancel delete"
+                    >
+                      <Glyph name="x" size={12} />
+                    </button>
+                  </span>
+                ) : (
                   <button
-                    className="yes"
-                    onClick={() => {
-                      onDelete(s.id);
-                      setArmedDel(null);
-                    }}
-                  >
-                    Delete?
-                  </button>
-                  <button
-                    className="no"
-                    onClick={() => setArmedDel(null)}
-                    aria-label="Cancel delete"
+                    className="ds-floor-x"
+                    onClick={() => setArmedDel(s.id)}
+                    title="Delete this system and its objects"
+                    aria-label={`Delete ${s.name}`}
                   >
                     <Glyph name="x" size={12} />
                   </button>
-                </span>
-              ) : (
-                <button
-                  className="ds-floor-x"
-                  onClick={() => setArmedDel(s.id)}
-                  title="Delete this system and its objects"
-                  aria-label={`Delete ${s.name}`}
-                >
-                  <Glyph name="x" size={12} />
-                </button>
+                )}
+              </div>
+              {s.id === active.id && (
+                <div className="ds-var-sec">
+                  <div className="ds-var-cap">Design variations</div>
+                  {variants.map((v) =>
+                    renaming && v.id === currentVariantId ? (
+                      <form
+                        key={v.id}
+                        className="ds-var-rename"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          onRenameVariant(draft);
+                          setRenaming(false);
+                          setOpen(false);
+                        }}
+                      >
+                        <input
+                          autoFocus
+                          value={draft}
+                          aria-label="Rename this variation"
+                          onChange={(e) => setDraft(e.target.value)}
+                          onBlur={() => setRenaming(false)}
+                        />
+                      </form>
+                    ) : (
+                      <div
+                        key={v.id}
+                        className={`ds-var-row${v.id === currentVariantId ? " on" : ""}`}
+                      >
+                        <button
+                          className="ds-var-pick"
+                          role="menuitemradio"
+                          aria-checked={v.id === currentVariantId}
+                          onClick={() => {
+                            setOpen(false);
+                            if (v.id !== currentVariantId) onSwitchVariant(v.id);
+                          }}
+                        >
+                          {v.id === currentVariantId ? (
+                            <Glyph name="check" size={11} />
+                          ) : (
+                            <span className="ds-var-dot" />
+                          )}
+                          <span className="nm">{v.label}</span>
+                        </button>
+                        {v.id === currentVariantId && (
+                          <button
+                            className="ds-var-edit"
+                            onClick={() => {
+                              setDraft(v.label);
+                              setRenaming(true);
+                            }}
+                            title="Rename this variation"
+                            aria-label="Rename this variation"
+                          >
+                            <Glyph name="edit" size={11} />
+                          </button>
+                        )}
+                      </div>
+                    )
+                  )}
+                  <button
+                    className="ds-var-add"
+                    onClick={() => {
+                      onAddVariant();
+                      setOpen(false);
+                    }}
+                    title="Branch the whole design into another option — every system comes with it"
+                  >
+                    <Glyph name="plus" size={12} />
+                    Add variation
+                  </button>
+                </div>
               )}
-            </div>
+            </Fragment>
           ))}
           <button
             className="ds-floor-add"
@@ -1653,6 +1775,11 @@ function RoomsView({
             </div>
           );
         })}
+        {/* same shape-first path as the empty state's Draw a room */}
+        <button className="ds-ck-rowadd" onClick={onDrawRoom}>
+          <Glyph name="edit" size={14} />
+          Add room
+        </button>
         {adoptable.length > 0 && !adopting && (
           <button className="ds-ck-rowadd" onClick={() => setAdopting(true)}>
             <Glyph name="plus" size={14} />

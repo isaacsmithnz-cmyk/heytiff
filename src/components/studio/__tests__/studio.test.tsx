@@ -1,8 +1,9 @@
 /* Stage-0 UI verification: the studio mounts as a real React tree, the
-   new-design flow creates + autosaves a document, the stepper switches stage
-   panels, and a remount recovers the design from persistence. */
+   new-design flow creates + autosaves a document, the Design/Summary tabs and
+   the studio menu switch stage panels, and a remount recovers the design from
+   persistence. */
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Studio } from "../studio";
 import { LocalDesignStore } from "@/lib/studio/store";
@@ -25,6 +26,15 @@ async function newDesign(
   await user.type(screen.getByPlaceholderText(/Design name/), name);
   await user.click(screen.getByRole("button", { name: /Continue/ }));
   await user.click(screen.getByText(mode));
+}
+
+/* the top-left studio menu: open it, then pick an item */
+async function menuPick(
+  user: ReturnType<typeof userEvent.setup>,
+  item: string
+) {
+  await user.click(screen.getByRole("button", { name: "Studio menu" }));
+  await user.click(screen.getByRole("menuitem", { name: item }));
 }
 
 describe("Design Studio shell", () => {
@@ -73,8 +83,8 @@ describe("Design Studio shell", () => {
     );
     expect(screen.getByRole("navigation", { name: "Workflow" })).toBeInTheDocument();
     expect(screen.getByTestId("studio-canvas")).toBeInTheDocument();
-    // the Plans step still holds the default floor when visited
-    await user.click(screen.getByRole("button", { name: /Plans/ }));
+    // the Plans screen (menu → Edit plans) still holds the default floor
+    await menuPick(user, "Edit plans");
     expect(screen.getByDisplayValue("Ground floor")).toBeInTheDocument();
 
     // autosave lands in localStorage (debounced)
@@ -87,17 +97,22 @@ describe("Design Studio shell", () => {
       { timeout: 3000 }
     );
 
-    // stepper click-to-jump renders each stage
-    await user.click(screen.getByRole("button", { name: "2 Design" }));
+    // tab click-to-jump renders each stage; Summary is Materials+Job merged.
+    // Scope to the tab nav — the Plans floor rows also offer a "Design" button.
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Workflow" })).getByRole(
+        "button",
+        { name: "Design" }
+      )
+    );
     expect(screen.getByTestId("studio-canvas")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /Materials/ }));
+    await user.click(screen.getByRole("button", { name: "Summary" }));
+    expect(screen.getByText("Design basis")).toBeInTheDocument();
+    expect(
+      screen.getByRole("group", { name: "Design snapshot" })
+    ).toBeInTheDocument();
     expect(
       screen.getByText("An empty design is an empty schedule")
-    ).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /Job/ }));
-    expect(screen.getByText("Job details")).toBeInTheDocument();
-    expect(
-      screen.getByText("The job pack fills in once a system has units placed.")
     ).toBeInTheDocument();
   });
 
@@ -122,8 +137,75 @@ describe("Design Studio shell", () => {
     expect(await screen.findByLabelText("Design name")).toHaveValue(
       "Recovery job"
     );
-    // blank designs reopen on the canvas; the floor is on the Plans step
-    await user.click(screen.getByRole("button", { name: /Plans/ }));
+    // blank designs reopen on the canvas; the floor is on the Plans screen
+    await menuPick(user, "Edit plans");
     expect(screen.getByDisplayValue("Ground floor")).toBeInTheDocument();
+  });
+
+  it("menu Open exits to a plain Home; menu New arrives mid-wizard", async () => {
+    const user = userEvent.setup();
+    render(localStudio());
+    await newDesign(user, "Menu flows", "Blank canvas");
+    expect(await screen.findByLabelText("Design name")).toHaveValue(
+      "Menu flows"
+    );
+
+    // Open → the home/recents screen, hero CTA idle
+    await menuPick(user, "Open");
+    expect(await screen.findByText("New design")).toBeInTheDocument();
+    expect(screen.queryByText("Step 1 of 2")).toBeNull();
+
+    // back into the design, then New → home with the wizard already open
+    await user.click(
+      (await screen.findByText("Menu flows")).closest(".ds-rcard") as HTMLElement
+    );
+    expect(await screen.findByLabelText("Design name")).toHaveValue(
+      "Menu flows"
+    );
+    await menuPick(user, "New");
+    expect(await screen.findByText("Step 1 of 2")).toBeInTheDocument();
+  });
+
+  it("Summary's Export downloads the design file (it left the menu)", async () => {
+    const user = userEvent.setup();
+    render(localStudio());
+    await newDesign(user, "Export me", "Blank canvas");
+    expect(await screen.findByLabelText("Design name")).toHaveValue(
+      "Export me"
+    );
+
+    // no longer a menu item
+    await user.click(screen.getByRole("button", { name: "Studio menu" }));
+    expect(screen.queryByRole("menuitem", { name: "Export" })).toBeNull();
+    await user.keyboard("{Escape}");
+
+    // jsdom has no createObjectURL — stub the download seam
+    const createURL = jest.fn(() => "blob:mock");
+    const revokeURL = jest.fn();
+    Object.defineProperty(URL, "createObjectURL", {
+      value: createURL,
+      configurable: true,
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      value: revokeURL,
+      configurable: true,
+    });
+    const click = jest
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {});
+
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Workflow" })).getByRole(
+        "button",
+        { name: "Summary" }
+      )
+    );
+    await user.click(
+      await screen.findByRole("button", { name: /Design file/ })
+    );
+    expect(createURL).toHaveBeenCalledTimes(1);
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(revokeURL).toHaveBeenCalledWith("blob:mock");
+    click.mockRestore();
   });
 });

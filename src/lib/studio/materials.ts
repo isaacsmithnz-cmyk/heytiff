@@ -175,3 +175,22 @@ export function buildMaterials(
   }
   return { systems };
 }
+
+export interface RollupRow {
+  model: string;
+  description: string;
+  qty: number;
+}
+
+/** Cross-system unit rollup ("whole job" schedule) — the same model ordered
+    by two systems shows once with the summed qty. Screen and print share it. */
+export function rollupUnits(schedule: MaterialsSchedule): RollupRow[] {
+  const map = new Map<string, RollupRow>();
+  for (const s of schedule.systems)
+    for (const u of s.units) {
+      const cur = map.get(u.model);
+      if (cur) cur.qty += u.qty;
+      else map.set(u.model, { model: u.model, description: u.description, qty: u.qty });
+    }
+  return [...map.values()].sort((a, b) => a.model.localeCompare(b.model));
+}

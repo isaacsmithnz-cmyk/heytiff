@@ -1,7 +1,7 @@
 /* Plans stage: floor management + the canvas plan-image layer, with the
    storage seam faked (the pdf.js raster path is browser-only). */
 
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Studio } from "../studio";
 import { createDesign, type DesignDocument } from "@/lib/studio/document";
@@ -67,6 +67,22 @@ function seedDesign(store: LocalDesignStore): DesignDocument {
   return d;
 }
 
+/* Plans lives behind the top-left studio menu now ("Edit plans") */
+async function gotoPlans(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByRole("button", { name: "Studio menu" }));
+  await user.click(screen.getByRole("menuitem", { name: "Edit plans" }));
+}
+
+/* the Design TAB shares its name with the floor-row Design buttons — scope
+   to the step panel so [0] is the first floor row, never the tab */
+const clickFloorDesign = (user: ReturnType<typeof userEvent.setup>) =>
+  user.click(
+    within(document.querySelector(".ds-panel") as HTMLElement).getAllByRole(
+      "button",
+      { name: "Design" }
+    )[0]
+  );
+
 async function openSeeded(planImages: PlanImages) {
   const store = new LocalDesignStore(window.localStorage);
   seedDesign(store);
@@ -75,7 +91,7 @@ async function openSeeded(planImages: PlanImages) {
   await user.click(await screen.findByText("Plan job"));
   // a design that already has floors now opens straight on the canvas so you
   // resume where you left off — step back to Plans for the floor-list view
-  await user.click(await screen.findByRole("button", { name: /Plans/ }));
+  await gotoPlans(user);
   return user;
 }
 
@@ -106,7 +122,7 @@ describe("Plans stage", () => {
     await user.click(await screen.findByText("Sketch job"));
 
     // blank designs open on the canvas; the floor tools live on the Plans step
-    await user.click(await screen.findByRole("button", { name: /Plans/ }));
+    await gotoPlans(user);
     await user.click(screen.getByRole("button", { name: "Blank floor" }));
     expect(screen.getByDisplayValue("Level 1")).toBeInTheDocument();
   });
@@ -114,7 +130,7 @@ describe("Plans stage", () => {
   it("Design button opens that floor on the canvas with the plan image under the grid", async () => {
     const user = await openSeeded(new FakePlanImages());
 
-    await user.click(screen.getAllByRole("button", { name: "Design" })[0]);
+    await clickFloorDesign(user);
     const canvas = await screen.findByTestId("studio-canvas");
     await waitFor(() => {
       const img = canvas.querySelector("image.ds-plan");
@@ -130,7 +146,7 @@ describe("Plans stage", () => {
 
   it("opening an uncalibrated plan floor pops the Calibrate step, which arms the tool", async () => {
     const user = await openSeeded(new FakePlanImages());
-    await user.click(screen.getAllByRole("button", { name: "Design" })[0]);
+    await clickFloorDesign(user);
     await screen.findByTestId("studio-canvas");
     // the guided-step popup, not a silent tool arm
     expect(await screen.findByText("Calibrate the plan")).toBeInTheDocument();
@@ -144,7 +160,7 @@ describe("Plans stage", () => {
 
   it("confirming the scale chains into the Set-north step popup", async () => {
     const user = await openSeeded(new FakePlanImages());
-    await user.click(screen.getAllByRole("button", { name: "Design" })[0]);
+    await clickFloorDesign(user);
     const canvas = await screen.findByTestId("studio-canvas");
     const svg = canvas.querySelector("svg")!;
     await user.click(await screen.findByRole("button", { name: "Calibrate scale →" }));
@@ -161,7 +177,7 @@ describe("Plans stage", () => {
 
   it("B&W toggle applies a grayscale filter to the plan image", async () => {
     const user = await openSeeded(new FakePlanImages());
-    await user.click(screen.getAllByRole("button", { name: "Design" })[0]);
+    await clickFloorDesign(user);
     const canvas = await screen.findByTestId("studio-canvas");
     await waitFor(() => expect(canvas.querySelector("image.ds-plan")).not.toBeNull());
     await user.click(await screen.findByRole("button", { name: "Skip for now" }));
@@ -174,7 +190,7 @@ describe("Plans stage", () => {
 
   it("the crop tool clips the plan sheet to the dragged rect", async () => {
     const user = await openSeeded(new FakePlanImages());
-    await user.click(screen.getAllByRole("button", { name: "Design" })[0]);
+    await clickFloorDesign(user);
     const canvas = await screen.findByTestId("studio-canvas");
     await waitFor(() => expect(canvas.querySelector("image.ds-plan")).not.toBeNull());
     await user.click(await screen.findByRole("button", { name: "Skip for now" }));
@@ -196,7 +212,7 @@ describe("Plans stage", () => {
 
   it("Fit frames the cropped region, so it no longer over-zooms out", async () => {
     const user = await openSeeded(new FakePlanImages());
-    await user.click(screen.getAllByRole("button", { name: "Design" })[0]);
+    await clickFloorDesign(user);
     const canvas = await screen.findByTestId("studio-canvas");
     await waitFor(() => expect(canvas.querySelector("image.ds-plan")).not.toBeNull());
     await user.click(await screen.findByRole("button", { name: "Skip for now" }));
@@ -224,7 +240,7 @@ describe("Plans stage", () => {
 
   it("the Calibrate dropdown carries the relocated Crop + Move plans tools", async () => {
     const user = await openSeeded(new FakePlanImages());
-    await user.click(screen.getAllByRole("button", { name: "Design" })[0]);
+    await clickFloorDesign(user);
     await screen.findByTestId("studio-canvas");
     await user.click(await screen.findByRole("button", { name: "Skip for now" }));
 
@@ -251,11 +267,11 @@ describe("Plans stage", () => {
     render(<Studio store={store} planImages={new FakePlanImages()} />);
     await user.click(await screen.findByText("Plan job"));
     // opens on the canvas now — step back to Plans for the floor list
-    await user.click(await screen.findByRole("button", { name: /Plans/ }));
+    await gotoPlans(user);
 
     expect(screen.getByText("2 sheets")).toBeInTheDocument();
 
-    await user.click(screen.getAllByRole("button", { name: "Design" })[0]);
+    await clickFloorDesign(user);
     const canvas = await screen.findByTestId("studio-canvas");
     await waitFor(() => {
       const images = canvas.querySelectorAll("image.ds-plan");
@@ -310,8 +326,9 @@ describe("Plans stage", () => {
     render(<Studio store={store} planImages={new FakePlanImages()} />);
     await user.click(await screen.findByText("Ref job"));
 
-    // opens on the canvas; Reference sheets is offered and opens the viewer
-    await user.click(await screen.findByRole("button", { name: /Reference sheets/ }));
+    // opens on the canvas; Reference sheets lives in the studio menu now
+    await user.click(await screen.findByRole("button", { name: "Studio menu" }));
+    await user.click(screen.getByRole("menuitem", { name: "Reference sheets" }));
     expect(await screen.findByTitle("Reference PDF")).toBeInTheDocument();
   });
 

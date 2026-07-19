@@ -1,7 +1,7 @@
 "use server";
 
 import { auth0 } from "@/lib/auth0";
-import { installedPacks } from "@/lib/studio/packs/server";
+import { installedPacks, latestInstalledPack } from "@/lib/studio/packs/server";
 import { loadPackWithOverrides } from "@/lib/studio/packs/overrides-server";
 import type { DataPack } from "@/lib/studio/packs/schema";
 
@@ -17,13 +17,11 @@ export async function loadStudioPack(
   const session = await auth0.getSession();
   if (!session) throw new Error("Not authenticated");
 
-  const refs = await installedPacks();
-  // latest version for the brand (sorted lexically; versions are "2026.1" style)
-  const mine = refs.filter((r) => r.brand === brand).sort((a, b) => b.version.localeCompare(a.version));
-  if (mine.length === 0) return null;
+  const latest = await latestInstalledPack(brand);
+  if (!latest) return null;
   // override-aware: HQ manual corrections feed the studio engine here.
-  const { pack } = await loadPackWithOverrides(brand, mine[0].version);
-  return { pack, version: mine[0].version };
+  const { pack } = await loadPackWithOverrides(brand, latest.version);
+  return { pack, version: latest.version };
 }
 
 /** Brands with an installed pack — drives the add-system brand picker. */

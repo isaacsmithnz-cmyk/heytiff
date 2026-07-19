@@ -106,14 +106,19 @@ const subfloorGap = () => {
 };
 const dropPage = (el: Element, idx: number) => fireEvent.drop(el, dropPayload(`p:${idx}`));
 
+/* Plans lives behind the top-left studio menu now ("Edit plans") */
+async function gotoPlans(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByRole("button", { name: "Studio menu" }));
+  await user.click(screen.getByRole("menuitem", { name: "Edit plans" }));
+}
+
 /* "Start design" commits the floors and jumps straight to the canvas; going
-   back to the Plans step restores the saved session (the stacker rebuilds
+   back to Plans restores the saved session (the stacker rebuilds
    asynchronously), and the committed-floor list sits beneath it */
 async function startDesignThenReviewPlans(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole("button", { name: /Start design/ }));
   expect(await screen.findByTestId("studio-canvas")).toBeInTheDocument();
-  // the completed Plans step shows a check (no number) → name is just "Plans"
-  await user.click(screen.getByRole("button", { name: /Plans/ }));
+  await gotoPlans(user);
   // the restored session rehydrates from storage — wait for the rebuilt stacker
   await screen.findByText("Stack your floors");
 }
@@ -156,7 +161,7 @@ describe("installer scenarios: upload → floors", () => {
 
     // the floor still lives on the (now-completed) Plans step — the restored
     // stacker shows it (the redundant floor overview is gone)
-    await user.click(screen.getByRole("button", { name: /Plans/ }));
+    await gotoPlans(user);
     await screen.findByText("Stack your floors");
     expect(floorCard("Ground floor")).toBeInTheDocument();
   });
@@ -179,7 +184,7 @@ describe("installer scenarios: upload → floors", () => {
     expect(screen.queryByRole("button", { name: /Page 6/ })).toBeNull();
 
     // and the restored stacker names the floor by position too, never "Page 6"
-    await user.click(screen.getByRole("button", { name: /Plans/ }));
+    await gotoPlans(user);
     await screen.findByText("Stack your floors");
     expect(floorCard("Ground floor")).toBeInTheDocument();
     expect(floorCard("Page 6")).toBeNull();
@@ -478,7 +483,7 @@ describe("installer scenarios: upload → floors", () => {
 
   it("plan-mode Design step with no floors points to Plans — no blank-floor escape hatch", async () => {
     const user = await openPlanJob(new CountingPlanImages());
-    await user.click(await screen.findByRole("button", { name: "2 Design" }));
+    await user.click(await screen.findByRole("button", { name: "Design" }));
     expect(screen.getByText("No floors yet")).toBeInTheDocument();
     expect(screen.queryByText("Add a blank floor")).toBeNull();
     await user.click(screen.getByRole("button", { name: /Go to Plans/ }));

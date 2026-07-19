@@ -5,7 +5,7 @@
 
 import React from "react";
 import type { CalcResult, VehicleCosts } from "./engine";
-import type { RateCalcState } from "./state";
+import { SUGGESTED_BUSINESS_COSTS, suggestedBusinessCosts, type RateCalcState } from "./state";
 import { RC } from "./theme";
 import { money, normUtil } from "./format";
 import { NumInput, RcIcon, WsEyebrow, WsHelpNote } from "./ui";
@@ -95,9 +95,31 @@ export function StaffDetail({ s, patch, calc }: StepBodyProps) {
 export function BusinessDetail({ s, patch }: StepBodyProps) {
   const cols: TableCol[] = [{ label: "Cost", w: "1.8fr" }, { label: "Recover via", w: "1fr", align: "center" }, { label: "Amount / yr", w: "1fr", align: "right" }, { label: "", w: "44px", align: "right" }];
   const cycle: Record<string, string> = { shared: "install", install: "service", service: "shared" };
+
+  // Opening Detailed on an unpriced table fills it with the suggested
+  // categories, so the step reads as a checklist to price. The moment any row
+  // carries an amount the table is the user's — never seeded again, so a
+  // deliberately removed category stays gone (the chips below re-add it).
+  const seeded = React.useRef(false);
+  React.useEffect(() => {
+    if (seeded.current) return;
+    seeded.current = true;
+    if (s.businessCosts.some(c => (c.amount || 0) > 0)) return;
+    const suggested = new Set(SUGGESTED_BUSINESS_COSTS.map(n => n.toLowerCase()));
+    // Keep genuinely-named extras; drop blanks and the legacy "New cost" default.
+    const kept = s.businessCosts.filter(c => {
+      const n = c.name.trim().toLowerCase();
+      return n !== "" && n !== "new cost" && !suggested.has(n);
+    });
+    patch({ businessCosts: [...suggestedBusinessCosts(), ...kept] });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const setCost = (i: number, p: Partial<RateCalcState["businessCosts"][number]>) =>
     patch({ businessCosts: s.businessCosts.map((c, j) => j === i ? { ...c, ...p } : c) });
   const total = s.businessCosts.reduce((a, c) => a + c.amount, 0);
+  const have = new Set(s.businessCosts.map(c => c.name.trim().toLowerCase()));
+  const suggestions = SUGGESTED_BUSINESS_COSTS.filter(n => !have.has(n.toLowerCase()));
   return (
     <DBody>
       <WsHelpNote id="business-detailed" style={{ marginBottom: 16 }}><b>shared</b> costs pool with admin labour and split by your labour ratio; <b>install</b> / <b>service</b> costs load directly onto that rate only — so a service-only phone plan never inflates your install rate.</WsHelpNote>
@@ -107,7 +129,8 @@ export function BusinessDetail({ s, patch }: StepBodyProps) {
           const ch = chipColor(o.allocated_to);
           return (
             <div key={i} style={{ display: "grid", gridTemplateColumns: cols.map(c => c.w).join(" "), alignItems: "center", padding: "9px 18px", borderBottom: `1px solid ${RC.line}` }}>
-              <span style={{ fontSize: 13.5, color: RC.ink, fontWeight: 600 }}>{o.name}</span>
+              <input value={o.name} onChange={e => setCost(i, { name: e.target.value })} placeholder="Cost name" aria-label="Cost name"
+                style={{ border: "none", background: "transparent", outline: "none", font: "inherit", fontSize: 13.5, color: RC.ink, fontWeight: 600, width: "100%", padding: 0 }} />
               <div style={{ textAlign: "center" }}>
                 <button className="rca-chipbtn" onClick={() => setCost(i, { allocated_to: cycle[o.allocated_to] || "shared" })}
                   style={{ fontSize: 11.5, fontWeight: 700, color: ch.c, background: ch.bg, padding: "5px 12px", borderRadius: 100, textTransform: "capitalize" }}>{o.allocated_to}</button>
@@ -124,7 +147,16 @@ export function BusinessDetail({ s, patch }: StepBodyProps) {
           <div />
         </div>
       </Table>
-      <button onClick={() => patch({ businessCosts: [...s.businessCosts, { name: "New cost", amount: 0, allocated_to: "shared" }] })}
+      {suggestions.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+          <span style={{ fontSize: 11.5, color: RC.faint, fontWeight: 700 }}>Suggested:</span>
+          {suggestions.map(n => (
+            <button key={n} className="rca-chipbtn" onClick={() => patch({ businessCosts: [...s.businessCosts, { name: n, amount: 0, allocated_to: "shared" }] })}
+              style={{ fontSize: 12, fontWeight: 700, color: RC.install, background: RC.installSoft, padding: "6px 12px", borderRadius: 100 }}>+ {n}</button>
+          ))}
+        </div>
+      )}
+      <button onClick={() => patch({ businessCosts: [...s.businessCosts, { name: "", amount: 0, allocated_to: "shared" }] })}
         style={{ marginTop: 12, border: `1.5px dashed ${RC.lineStrong}`, background: "transparent", color: RC.install, borderRadius: 12, padding: "12px 0", width: "100%", fontFamily: RC.body, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>+ Add a cost</button>
     </DBody>
   );

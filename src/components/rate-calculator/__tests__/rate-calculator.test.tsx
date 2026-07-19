@@ -230,6 +230,82 @@ describe("RateCalculator — Simple/Detailed toggle gating", () => {
   });
 });
 
+describe("RateCalculator — Detailed business costs suggestions", () => {
+  // Saved state with wages zeroed → lands on Step 1; Business toggle is ungated.
+  function savedState() {
+    const saved = JSON.parse(JSON.stringify(buildDemoState()));
+    saved.staff = []; saved.timesheets = {}; saved.vehicles = [];
+    saved.simpleLabour.months = [0, 0, 0];
+    return saved;
+  }
+
+  it("seeds the suggested categories when switching to Detailed with no costs", async () => {
+    const user = userEvent.setup();
+    const saved = savedState();
+    saved.businessCosts = [];
+    render(<RateCalculator initialState={saved} />);
+    await user.click(screen.getByText("Continue →")); // → Business
+    await user.click(screen.getByRole("button", { name: "Detailed" }));
+
+    // The table arrives pre-filled with every suggested category at $0…
+    expect(screen.getByDisplayValue("Public liability")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Rent & utilities")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Training & PPE")).toBeInTheDocument();
+    // …so no suggestion chips remain.
+    expect(screen.queryByText("Suggested:")).toBeNull();
+    // Seeded $0 rows are not an answer — the step stays incomplete.
+    expect(screen.getByText("$0")).toBeInTheDocument();
+  });
+
+  it("fills an unpriced table already saved in Detailed, dropping the legacy placeholder", async () => {
+    const user = userEvent.setup();
+    const saved = savedState();
+    saved.mode.business = "Detailed";
+    saved.businessCosts = [{ name: "New cost", amount: 0, allocated_to: "shared" }];
+    render(<RateCalculator initialState={saved} />);
+    await user.click(screen.getByText("Continue →")); // → Business
+
+    expect(screen.getByDisplayValue("Public liability")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Accounting fees")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("New cost")).toBeNull();
+  });
+
+  it("never re-seeds a table that carries real amounts", async () => {
+    const user = userEvent.setup();
+    const saved = savedState();
+    saved.mode.business = "Detailed";
+    saved.businessCosts = [{ name: "Yard lease", amount: 21000, allocated_to: "install" }];
+    render(<RateCalculator initialState={saved} />);
+    await user.click(screen.getByText("Continue →")); // → Business
+
+    // The user's one priced row survives untouched; categories stay as chips.
+    expect(screen.getByDisplayValue("Yard lease")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("Public liability")).toBeNull();
+    expect(screen.getByText("Suggested:")).toBeInTheDocument();
+  });
+
+  it("offers the missing categories as one-tap chips and keeps names editable", async () => {
+    const user = userEvent.setup();
+    const saved = savedState();
+    saved.businessCosts = [{ name: "Public liability", amount: 5500, allocated_to: "shared" }];
+    saved.mode.business = "Detailed";
+    render(<RateCalculator initialState={saved} />);
+    await user.click(screen.getByText("Continue →")); // → Business
+
+    // Already-present categories don't repeat as chips; tapping one adds its row.
+    expect(screen.queryByRole("button", { name: "+ Public liability" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "+ Rent & utilities" }));
+    expect(screen.getByDisplayValue("Rent & utilities")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "+ Rent & utilities" })).toBeNull();
+
+    // The cost name is a real input, not static text.
+    const name = screen.getByDisplayValue("Public liability");
+    await user.clear(name);
+    await user.type(name, "PI insurance");
+    expect(screen.getByDisplayValue("PI insurance")).toBeInTheDocument();
+  });
+});
+
 describe("RateCalculator — results gated behind all five steps", () => {
   it("hides View results / Insights until every step is done, then unlocks", async () => {
     const user = userEvent.setup();

@@ -578,7 +578,11 @@
   "static_pressure_pa": 5,
   "filter": "built-in",
   "drain_pump": "none",
-  "return_opening": "open"
+  "return_opening": "open",
+  "supply_opening": {
+   "w_mm": 480,
+   "h_mm": 105
+  }
  },
  {
   "model": "PEFY-P25VMR-E-L",
@@ -613,7 +617,11 @@
   "sound_high_dba": 30,
   "filter": "built-in",
   "drain_pump": "none",
-  "return_opening": "open"
+  "return_opening": "open",
+  "supply_opening": {
+   "w_mm": 480,
+   "h_mm": 105
+  }
  },
  {
   "model": "PEFY-P32VMR-E-L",
@@ -649,7 +657,11 @@
   "static_pressure_pa": 5,
   "filter": "built-in",
   "drain_pump": "none",
-  "return_opening": "open"
+  "return_opening": "open",
+  "supply_opening": {
+   "w_mm": 480,
+   "h_mm": 105
+  }
  },
  {
   "model": "PEFY-P20VMR-E-R",
@@ -685,7 +697,11 @@
   "static_pressure_pa": 5,
   "filter": "built-in",
   "drain_pump": "none",
-  "return_opening": "open"
+  "return_opening": "open",
+  "supply_opening": {
+   "w_mm": 480,
+   "h_mm": 105
+  }
  },
  {
   "model": "PEFY-P25VMR-E-R",
@@ -720,7 +736,11 @@
   "sound_high_dba": 30,
   "filter": "built-in",
   "drain_pump": "none",
-  "return_opening": "open"
+  "return_opening": "open",
+  "supply_opening": {
+   "w_mm": 480,
+   "h_mm": 105
+  }
  },
  {
   "model": "PEFY-P32VMR-E-R",
@@ -756,7 +776,11 @@
   "static_pressure_pa": 5,
   "filter": "built-in",
   "drain_pump": "none",
-  "return_opening": "open"
+  "return_opening": "open",
+  "supply_opening": {
+   "w_mm": 480,
+   "h_mm": 105
+  }
  },
  {
   "model": "PEFY-P15VMX-E",

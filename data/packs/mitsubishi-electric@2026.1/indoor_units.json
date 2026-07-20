@@ -568,17 +568,23 @@
   "height_mm": 292,
   "weight_kg": 18,
   "provenance": {
-   "kind": "extracted",
-   "source": "City Multi Brochure; City Multi Data Book",
+   "kind": "user-entered",
+   "source": "Supply opening staff-entered: 480 width is annotated on outline 3-89 (Air outlet, 50x9=450 fixing pitch); the 100 height is the staff reading of that sheet's side elevation. Other fields extracted from City Multi Brochure and City Multi Data Book",
    "edition": "2019",
-   "page": "131; City Multi book 3-86; City Multi book 3-89"
+   "page": "131; City Multi book 3-86; City Multi book 3-89",
+   "by": "isaacsmithnz",
+   "at": "2026-07-20"
   },
   "sound_low_dba": 20,
   "sound_high_dba": 30,
   "static_pressure_pa": 5,
   "filter": "built-in",
   "drain_pump": "none",
-  "return_opening": "open"
+  "return_opening": "open",
+  "supply_opening": {
+   "w_mm": 480,
+   "h_mm": 100
+  }
  },
  {
   "model": "PEFY-P25VMR-E-L",
@@ -604,16 +610,22 @@
   "height_mm": 292,
   "weight_kg": 18,
   "provenance": {
-   "kind": "extracted",
-   "source": "City Multi Brochure; City Multi Data Book",
+   "kind": "user-entered",
+   "source": "Supply opening staff-entered: 480 width is annotated on outline 3-89 (Air outlet, 50x9=450 fixing pitch); the 100 height is the staff reading of that sheet's side elevation. Other fields extracted from City Multi Brochure and City Multi Data Book",
    "edition": "2019",
-   "page": "131; City Multi book 3-86; City Multi book 3-89"
+   "page": "131; City Multi book 3-86; City Multi book 3-89",
+   "by": "isaacsmithnz",
+   "at": "2026-07-20"
   },
   "sound_low_dba": 20,
   "sound_high_dba": 30,
   "filter": "built-in",
   "drain_pump": "none",
-  "return_opening": "open"
+  "return_opening": "open",
+  "supply_opening": {
+   "w_mm": 480,
+   "h_mm": 100
+  }
  },
  {
   "model": "PEFY-P32VMR-E-L",
@@ -639,17 +651,23 @@
   "height_mm": 292,
   "weight_kg": 18,
   "provenance": {
-   "kind": "extracted",
-   "source": "City Multi Brochure; City Multi Data Book",
+   "kind": "user-entered",
+   "source": "Supply opening staff-entered: 480 width is annotated on outline 3-89 (Air outlet, 50x9=450 fixing pitch); the 100 height is the staff reading of that sheet's side elevation. Other fields extracted from City Multi Brochure and City Multi Data Book",
    "edition": "2019",
-   "page": "131; City Multi book 3-86; City Multi book 3-89"
+   "page": "131; City Multi book 3-86; City Multi book 3-89",
+   "by": "isaacsmithnz",
+   "at": "2026-07-20"
   },
   "sound_low_dba": 20,
   "sound_high_dba": 33,
   "static_pressure_pa": 5,
   "filter": "built-in",
   "drain_pump": "none",
-  "return_opening": "open"
+  "return_opening": "open",
+  "supply_opening": {
+   "w_mm": 480,
+   "h_mm": 100
+  }
  },
  {
   "model": "PEFY-P20VMR-E-R",
@@ -675,17 +693,23 @@
   "height_mm": 292,
   "weight_kg": 18,
   "provenance": {
-   "kind": "extracted",
-   "source": "City Multi Brochure; City Multi Data Book",
+   "kind": "user-entered",
+   "source": "Supply opening staff-entered: 480 width is annotated on outline 3-89 (Air outlet, 50x9=450 fixing pitch); the 100 height is the staff reading of that sheet's side elevation. Other fields extracted from City Multi Brochure and City Multi Data Book",
    "edition": "2019",
-   "page": "131; City Multi book 3-86; City Multi book 3-89"
+   "page": "131; City Multi book 3-86; City Multi book 3-89",
+   "by": "isaacsmithnz",
+   "at": "2026-07-20"
   },
   "sound_low_dba": 20,
   "sound_high_dba": 30,
   "static_pressure_pa": 5,
   "filter": "built-in",
   "drain_pump": "none",
-  "return_opening": "open"
+  "return_opening": "open",
+  "supply_opening": {
+   "w_mm": 480,
+   "h_mm": 100
+  }
  },
  {
   "model": "PEFY-P25VMR-E-R",
@@ -711,16 +735,22 @@
   "height_mm": 292,
   "weight_kg": 18,
   "provenance": {
-   "kind": "extracted",
-   "source": "City Multi Brochure; City Multi Data Book",
+   "kind": "user-entered",
+   "source": "Supply opening staff-entered: 480 width is annotated on outline 3-89 (Air outlet, 50x9=450 fixing pitch); the 100 height is the staff reading of that sheet's side elevation. Other fields extracted from City Multi Brochure and City Multi Data Book",
    "edition": "2019",
-   "page": "131; City Multi book 3-86; City Multi book 3-89"
+   "page": "131; City Multi book 3-86; City Multi book 3-89",
+   "by": "isaacsmithnz",
+   "at": "2026-07-20"
   },
   "sound_low_dba": 20,
   "sound_high_dba": 30,
   "filter": "built-in",
   "drain_pump": "none",
-  "return_opening": "open"
+  "return_opening": "open",
+  "supply_opening": {
+   "w_mm": 480,
+   "h_mm": 100
+  }
  },
  {
   "model": "PEFY-P32VMR-E-R",
@@ -746,17 +776,23 @@
   "height_mm": 292,
   "weight_kg": 18,
   "provenance": {
-   "kind": "extracted",
-   "source": "City Multi Brochure; City Multi Data Book",
+   "kind": "user-entered",
+   "source": "Supply opening staff-entered: 480 width is annotated on outline 3-89 (Air outlet, 50x9=450 fixing pitch); the 100 height is the staff reading of that sheet's side elevation. Other fields extracted from City Multi Brochure and City Multi Data Book",
    "edition": "2019",
-   "page": "131; City Multi book 3-86; City Multi book 3-89"
+   "page": "131; City Multi book 3-86; City Multi book 3-89",
+   "by": "isaacsmithnz",
+   "at": "2026-07-20"
   },
   "sound_low_dba": 20,
   "sound_high_dba": 33,
   "static_pressure_pa": 5,
   "filter": "built-in",
   "drain_pump": "none",
-  "return_opening": "open"
+  "return_opening": "open",
+  "supply_opening": {
+   "w_mm": 480,
+   "h_mm": 100
+  }
  },
  {
   "model": "PEFY-P15VMX-E",

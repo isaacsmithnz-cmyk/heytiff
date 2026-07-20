@@ -2184,7 +2184,8 @@
   },
   "phase": "1",
   "power_supply": "230 V, Single-phase, 50/60 Hz",
-  "conn_condensate": "O.D. 32 mm (1-1/4\")"
+  "conn_condensate": "O.D. 32 mm (1-1/4\")",
+  "static_pressure_pa": 250
  },
  {
   "model": "PEFY-P250VMHS-E",
@@ -2230,7 +2231,8 @@
   },
   "phase": "1",
   "power_supply": "230 V, Single-phase, 50/60 Hz",
-  "conn_condensate": "O.D. 32 mm (1-1/4\")"
+  "conn_condensate": "O.D. 32 mm (1-1/4\")",
+  "static_pressure_pa": 250
  },
  {
   "model": "PEFY-P200VMH-E",

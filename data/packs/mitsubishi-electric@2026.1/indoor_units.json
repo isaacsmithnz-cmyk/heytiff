@@ -578,11 +578,7 @@
   "static_pressure_pa": 5,
   "filter": "built-in",
   "drain_pump": "none",
-  "return_opening": "open",
-  "supply_opening": {
-   "w_mm": 480,
-   "h_mm": 105
-  }
+  "return_opening": "open"
  },
  {
   "model": "PEFY-P25VMR-E-L",
@@ -617,11 +613,7 @@
   "sound_high_dba": 30,
   "filter": "built-in",
   "drain_pump": "none",
-  "return_opening": "open",
-  "supply_opening": {
-   "w_mm": 480,
-   "h_mm": 105
-  }
+  "return_opening": "open"
  },
  {
   "model": "PEFY-P32VMR-E-L",
@@ -657,11 +649,7 @@
   "static_pressure_pa": 5,
   "filter": "built-in",
   "drain_pump": "none",
-  "return_opening": "open",
-  "supply_opening": {
-   "w_mm": 480,
-   "h_mm": 105
-  }
+  "return_opening": "open"
  },
  {
   "model": "PEFY-P20VMR-E-R",
@@ -697,11 +685,7 @@
   "static_pressure_pa": 5,
   "filter": "built-in",
   "drain_pump": "none",
-  "return_opening": "open",
-  "supply_opening": {
-   "w_mm": 480,
-   "h_mm": 105
-  }
+  "return_opening": "open"
  },
  {
   "model": "PEFY-P25VMR-E-R",
@@ -736,11 +720,7 @@
   "sound_high_dba": 30,
   "filter": "built-in",
   "drain_pump": "none",
-  "return_opening": "open",
-  "supply_opening": {
-   "w_mm": 480,
-   "h_mm": 105
-  }
+  "return_opening": "open"
  },
  {
   "model": "PEFY-P32VMR-E-R",
@@ -776,11 +756,7 @@
   "static_pressure_pa": 5,
   "filter": "built-in",
   "drain_pump": "none",
-  "return_opening": "open",
-  "supply_opening": {
-   "w_mm": 480,
-   "h_mm": 105
-  }
+  "return_opening": "open"
  },
  {
   "model": "PEFY-P15VMX-E",
@@ -2206,7 +2182,6 @@
    "w_mm": 1100,
    "h_mm": 420
   },
-  "static_pressure_pa": 150,
   "phase": "1",
   "power_supply": "230 V, Single-phase, 50/60 Hz",
   "conn_condensate": "O.D. 32 mm (1-1/4\")"
@@ -2253,7 +2228,6 @@
    "w_mm": 1100,
    "h_mm": 420
   },
-  "static_pressure_pa": 150,
   "phase": "1",
   "power_supply": "230 V, Single-phase, 50/60 Hz",
   "conn_condensate": "O.D. 32 mm (1-1/4\")"
@@ -2284,17 +2258,9 @@
   "weight_kg": 100,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure; City Multi Data Book",
+   "source": "City Multi Brochure",
    "edition": "2019",
-   "page": "142; City Multi book 3-209 (MEES21K026)"
-  },
-  "supply_opening": {
-   "w_mm": 1100,
-   "h_mm": 340
-  },
-  "return_opening": {
-   "w_mm": 1100,
-   "h_mm": 420
+   "page": "142"
   }
  },
  {
@@ -2323,17 +2289,9 @@
   "weight_kg": 100,
   "provenance": {
    "kind": "extracted",
-   "source": "City Multi Brochure; City Multi Data Book",
+   "source": "City Multi Brochure",
    "edition": "2019",
-   "page": "142; City Multi book 3-209 (MEES21K026)"
-  },
-  "supply_opening": {
-   "w_mm": 1100,
-   "h_mm": 340
-  },
-  "return_opening": {
-   "w_mm": 1100,
-   "h_mm": 420
+   "page": "142"
   }
  },
  {

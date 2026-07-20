@@ -2259,10 +2259,20 @@
   "height_mm": 470,
   "weight_kg": 100,
   "provenance": {
-   "kind": "extracted",
-   "source": "City Multi Brochure",
+   "kind": "user-entered",
+   "source": "Openings staff-entered: casing is shared with PEFY-P·VMHS-E-F (1250x1120x470), whose outline 3-209 gives 1100x340 / 1100x420; the VMH-E range is not documented in MEES21K067. Other fields extracted from City Multi Brochure p.142",
    "edition": "2019",
-   "page": "142"
+   "page": "142",
+   "by": "isaacsmithnz",
+   "at": "2026-07-20"
+  },
+  "supply_opening": {
+   "w_mm": 1100,
+   "h_mm": 340
+  },
+  "return_opening": {
+   "w_mm": 1100,
+   "h_mm": 420
   }
  },
  {
@@ -2290,10 +2300,20 @@
   "height_mm": 470,
   "weight_kg": 100,
   "provenance": {
-   "kind": "extracted",
-   "source": "City Multi Brochure",
+   "kind": "user-entered",
+   "source": "Openings staff-entered: casing is shared with PEFY-P·VMHS-E-F (1250x1120x470), whose outline 3-209 gives 1100x340 / 1100x420; the VMH-E range is not documented in MEES21K067. Other fields extracted from City Multi Brochure p.142",
    "edition": "2019",
-   "page": "142"
+   "page": "142",
+   "by": "isaacsmithnz",
+   "at": "2026-07-20"
+  },
+  "supply_opening": {
+   "w_mm": 1100,
+   "h_mm": 340
+  },
+  "return_opening": {
+   "w_mm": 1100,
+   "h_mm": 420
   }
  },
  {

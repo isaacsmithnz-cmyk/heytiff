@@ -1,12 +1,20 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { TeamDirectory } from "@/components/team/directory";
+import { can } from "@/lib/permissions-server";
 import { demoPendingInvites, demoStaff } from "@/mock/demo";
 
 // NOTE: reads demo records from mock/demo.ts for now. Delete that mock and the
 // directory falls back to the "No staff yet" empty state below.
 
-export default function TeamPage() {
+// Capability-gated (`team`, default admin+): the directory exposes every staff
+// member's card. The nav entry is hidden for staff too (nav.ts minRole), but
+// this is the check that actually enforces it.
+
+export default async function TeamPage() {
+  if (!(await can("team"))) redirect("/dashboard");
+
   return (
     <div className="page in">
       <div className="wrap">

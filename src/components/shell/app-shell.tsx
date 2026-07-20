@@ -8,9 +8,12 @@ import { CommandPalette } from "./command-palette";
 
 export function AppShell({
   user,
+  orgName = null,
   children,
 }: {
   user: ShellUser;
+  /** trading name → sidebar "HeyTiff × …"; null hides the line */
+  orgName?: string | null;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -71,7 +74,7 @@ export function AppShell({
         <i />
         <i />
       </div>
-      <Sidebar />
+      <Sidebar role={user.role} orgName={orgName} />
       <div className="main">
         <Topbar user={user} onOpenCommand={openCmd} />
         {/* key by pathname so each screen remounts (and its entrance animation replays) on navigation */}
@@ -79,7 +82,7 @@ export function AppShell({
           {children}
         </main>
       </div>
-      <CommandPalette open={cmdOpen} onClose={closeCmd} />
+      <CommandPalette open={cmdOpen} onClose={closeCmd} role={user.role} />
     </div>
   );
 }

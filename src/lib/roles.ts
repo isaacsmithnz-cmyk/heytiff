@@ -1,15 +1,12 @@
-import { auth0 } from "./auth0";
+/* Role type + hierarchy check, re-exported for server code.
 
-export type Role = "owner" | "admin" | "staff";
+   There is deliberately NO session-reading role helper here any more.
+   The old getOrgRole() read the session-cached orgRole, which goes stale
+   until re-login — it let a demoted admin keep invite rights and was the
+   root cause of two fixed holes. For enforcement use:
+     - can(capability)  from "@/lib/permissions-server"  (feature gates)
+     - getDbRole()      from "@/lib/permissions-server"  (owner-intrinsics)
+   Both read memberships fresh per request. */
 
-const hierarchy: Record<Role, number> = { owner: 3, admin: 2, staff: 1 };
-
-export async function getOrgRole(): Promise<Role | null> {
-  const session = await auth0.getSession();
-  return (session?.orgRole as Role) ?? null;
-}
-
-export function hasMinRole(userRole: Role | null, min: Role): boolean {
-  if (!userRole) return false;
-  return hierarchy[userRole] >= hierarchy[min];
-}
+export type { Role } from "./roles-shared";
+export { hasMinRole } from "./roles-shared";

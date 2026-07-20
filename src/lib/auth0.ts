@@ -1,6 +1,37 @@
 import { Auth0Client } from "@auth0/nextjs-auth0/server";
 import { supabaseAdmin } from "./supabase-server";
 
+/* Make sure the user has a staff card in this org. Best effort, like the
+   profiles upsert: a failure here must never block login — /dashboard/profile
+   creates the row on demand as well. */
+async function ensureStaffCard(
+  orgId: string,
+  userId: string,
+  session: { user: { name?: unknown; email?: string | null; picture?: unknown } }
+) {
+  try {
+    const { data } = await supabaseAdmin
+      .from("staff_profiles")
+      .select("id")
+      .eq("org_id", orgId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (data) return;
+
+    await supabaseAdmin.from("staff_profiles").insert({
+      org_id: orgId,
+      user_id: userId,
+      full_name:
+        (session.user.name as string | undefined) ??
+        session.user.email?.split("@")[0] ??
+        null,
+      photo_url: (session.user.picture as string | undefined) ?? null,
+    });
+  } catch (e) {
+    console.error("Failed to ensure staff card:", e);
+  }
+}
+
 export const auth0 = new Auth0Client({
   signInReturnToPath: "/dashboard",
   beforeSessionSaved: async (session) => {
@@ -34,6 +65,7 @@ export const auth0 = new Auth0Client({
     const existing = memberships?.[0];
 
     if (existing) {
+      await ensureStaffCard(existing.org_id, userId, session);
       return { ...session, orgId: existing.org_id, orgRole: existing.role };
     }
 
@@ -66,6 +98,8 @@ export const auth0 = new Auth0Client({
     await supabaseAdmin
       .from("memberships")
       .insert({ user_id: userId, org_id: org.id, role: "owner" });
+
+    await ensureStaffCard(org.id, userId, session);
 
     return { ...session, orgId: org.id, orgRole: "owner" };
   },

@@ -41,6 +41,11 @@
 .fg .ht-logo:hover svg { transform:scale(1.08); }
 .fg .ht-wm { font-size:22px; font-weight:800; letter-spacing:-0.035em; line-height:1; color:#fff; }
 .fg .ht-wm span { color:var(--teal); }
+/* HeyTiff × org — trading name from Organisation settings, under the logo.
+   Additive only: the brand row's layout and animations are untouched. */
+.fg .ht-brandcol { display:flex; flex-direction:column; gap:7px; min-width:0; }
+.fg .ht-orgx { padding-left:44px; font-size:11.5px; font-weight:700; letter-spacing:.01em; color:rgba(255,255,255,.48); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fg .ht-orgx .x { color:var(--teal); font-weight:800; margin-right:5px; }
 .fg .ht-logo .htmk-p1, .fg .ht-logo .htmk-p2 { stroke-dasharray:1; }
 @media (prefers-reduced-motion: no-preference) {
   .fg .ht-logo .htmk-p1 { animation:htmkDraw 70s ease-in-out infinite; }
@@ -278,16 +283,33 @@
 .fg .dchip.warn { background:rgba(240,164,49,.13); color:#b45309; }
 .fg .dchip.bad { background:rgba(255,51,102,.1); color:#e0264f; }
 
-/* user moved to top-right of header */
-.fg .topbar .me-top { display:flex; align-items:center; gap:11px; cursor:default; }
+/* user moved to top-right of header — the whole block is the menu trigger */
+.fg .topbar .me-top { position:relative; display:flex; align-items:center; }
+.fg .topbar .me-trigger { display:flex; align-items:center; gap:11px; padding:0; background:none; border:0; text-align:left; cursor:pointer; }
+.fg .topbar .me-top .mk { min-width:0; }
 .fg .topbar .me-top .mk b { display:block; font-size:13.5px; font-weight:700; color:#fff; line-height:1.1; }
-.fg .topbar .me-top .mk em { font-style:normal; font-size:11px; color:rgba(255,255,255,.45); font-family:var(--mono); }
-.fg .topbar .me-top .av { position:relative; width:38px; height:38px; flex:0 0 auto; }
-.fg .topbar .me-top .av .ring { width:38px; height:38px; border-radius:50%; background:linear-gradient(45deg,#2E68FF,#00E5C0); padding:2px; }
+.fg .topbar .me-top .mk em { display:block; font-style:normal; font-size:11px; color:rgba(255,255,255,.45); font-family:var(--mono); }
+.fg .topbar .me-top .av { position:relative; display:block; width:38px; height:38px; flex:0 0 auto; }
+.fg .topbar .me-top .av .ring { display:block; width:38px; height:38px; border-radius:50%; background:linear-gradient(45deg,#2E68FF,#00E5C0); padding:2px; }
 .fg .topbar .me-top .av .inner { width:100%; height:100%; border-radius:50%; background:#0A0B10; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#fff; }
 .fg .topbar .me-top .av .st { position:absolute; bottom:0; right:0; width:11px; height:11px; border-radius:50%; background:#00E5C0; border:2px solid #050505; }
 .fg .topbar .me-gear { width:42px; height:42px; border-radius:13px; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,.55); background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); transition:all .2s; }
-.fg .topbar .me-gear:hover { color:#fff; background:rgba(255,255,255,.12); transform:translateY(-1px); }
+.fg .topbar .me-trigger:hover .me-gear { color:#fff; background:rgba(255,255,255,.12); transform:translateY(-1px); }
+.fg .topbar .me-trigger.on .me-gear { color:#fff; background:rgba(255,255,255,.14); }
+
+/* user dropdown — absolute inside .me-top, NOT fixed (the .page.in will-change
+   trap breaks position:fixed in this shell; the topbar sits outside .page). */
+.fg .topbar .me-menu { position:absolute; top:calc(100% + 10px); right:0; z-index:60; width:250px; padding:7px; border-radius:16px; background:rgba(14,15,20,.92); border:1px solid rgba(255,255,255,.1); box-shadow:0 24px 60px rgba(0,0,0,.5); backdrop-filter:blur(20px) saturate(140%); animation:meMenuIn .16s ease both; }
+@keyframes meMenuIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
+.fg .topbar .me-item { display:flex; align-items:center; gap:11px; width:100%; padding:10px 11px; border-radius:11px; color:rgba(255,255,255,.7); transition:background .18s, color .18s; }
+.fg .topbar .me-item:hover { background:rgba(255,255,255,.08); color:#fff; }
+.fg .topbar .me-item .mi { display:flex; align-items:center; justify-content:center; width:32px; height:32px; flex:0 0 auto; border-radius:10px; background:rgba(255,255,255,.06); }
+.fg .topbar .me-item .mk2 { min-width:0; }
+.fg .topbar .me-item .mk2 b { display:block; font-size:13px; font-weight:700; line-height:1.2; }
+.fg .topbar .me-item .mk2 em { display:block; font-style:normal; font-size:11px; color:rgba(255,255,255,.4); }
+.fg .topbar .me-item.danger:hover { background:rgba(255,51,102,.14); color:#ff6b8a; }
+.fg .topbar .me-item.danger:hover .mi { background:rgba(255,51,102,.16); }
+.fg .topbar .me-div { height:1px; margin:6px 8px; background:rgba(255,255,255,.09); }
 .fg .topbar .sep { width:1px; height:30px; background:rgba(255,255,255,.14); }
 
 /* page-level tabs (Time & Pay, Assets) */
@@ -670,6 +692,13 @@
 .fg .help { font-size:11.5px; color:var(--gray400); font-weight:500; }
 
 /* read-only profile mode */
+/* per-card save state */
+.fg .card2.saving { pointer-events:none; }
+.fg .card2.saving .inp { opacity:.55; }
+.fg .card2 [data-save][disabled] { opacity:.6; cursor:default; }
+.fg .carderr { margin-top:14px; padding:10px 13px; border-radius:11px; font-size:12.5px; font-weight:600; color:#e0264f; background:rgba(255,51,102,.08); border:1px solid rgba(255,51,102,.2); }
+.fg .card2.readonly .carderr { display:none; }
+
 .fg .card2:not(.readonly) [data-edit] { display:none; }
 .fg .card2.readonly [data-cancel], .fg .card2.readonly [data-save] { display:none; }
 .fg .card2.readonly .inp { background:transparent; border-color:transparent; box-shadow:none; padding-left:0; padding-right:0; pointer-events:none; font-weight:600; }

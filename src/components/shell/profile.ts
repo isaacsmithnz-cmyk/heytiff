@@ -4,6 +4,7 @@
 
 import { iconSvg } from "./icon";
 import type { DemoStaff } from "@/mock/demo";
+import { formatAuDate, type StaffProfile } from "@/lib/staff/profile";
 
 // profile-specific icons (the rest fall back to the shared icon set)
 const EX: Record<string, string> = {
@@ -51,15 +52,34 @@ export function profileIcon(n: string, s?: number, w?: number): string {
 }
 
 // ---- field helpers ----
-const field = (label: string, inner: string, opts: { req?: boolean; help?: string } = {}) =>
+
+/* Values reach the DOM through dangerouslySetInnerHTML, so everything the user
+   typed MUST be escaped here. Applies to the header too — a name is user data
+   the moment it comes from staff_profiles rather than the demo fixtures. */
+export function esc(v: string | null | undefined): string {
+  return String(v ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+// exported: the organisation settings screen reuses this form vocabulary
+export const field = (label: string, inner: string, opts: { req?: boolean; help?: string } = {}) =>
   `<div class="field"><label>${label}${opts.req ? ' <span class="req">*</span>' : ""}</label>${inner}${opts.help ? `<span class="help">${opts.help}</span>` : ""}</div>`;
-const input = (ph?: string, type?: string) => `<input class="inp" type="${type || "text"}" placeholder="${ph || ""}">`;
-const selectP = (ph: string, opts: string[]) =>
-  `<div class="selwrap"><select class="inp"><option value="" selected>${ph}</option>${opts.map((o) => `<option>${o}</option>`).join("")}</select><span class="chev">${ic("chev", 16)}</span></div>`;
+export const input = (name: string, ph?: string, type?: string, value?: string | null) =>
+  `<input class="inp" name="${name}" type="${type || "text"}" placeholder="${esc(ph)}" value="${esc(value)}">`;
+export const selectP = (name: string, ph: string, opts: readonly string[], value?: string | null) =>
+  `<div class="selwrap"><select class="inp" name="${name}"><option value=""${!value ? " selected" : ""}>${esc(ph)}</option>${opts
+    .map((o) => `<option${o === value ? " selected" : ""}>${esc(o)}</option>`)
+    .join("")}</select><span class="chev">${ic("chev", 16)}</span></div>`;
+export const textarea = (name: string, ph: string, value?: string | null, style?: string) =>
+  `<textarea class="inp" name="${name}" placeholder="${esc(ph)}"${style ? ` style="${style}"` : ""}>${esc(value)}</textarea>`;
 const pct = (ph?: string) =>
-  `<div class="suffixwrap"><input class="inp with-suffix" type="text" placeholder="${ph || ""}"><span class="sfx">%</span></div>`;
+  `<div class="suffixwrap"><input class="inp with-suffix" type="text" placeholder="${esc(ph)}"><span class="sfx">%</span></div>`;
 const money = (ph?: string) =>
-  `<div class="suffixwrap"><input class="inp" style="padding-left:30px" type="text" placeholder="${ph || ""}"><span class="sfx" style="left:14px;right:auto">$</span></div>`;
+  `<div class="suffixwrap"><input class="inp" style="padding-left:30px" type="text" placeholder="${esc(ph)}"><span class="sfx" style="left:14px;right:auto">$</span></div>`;
 
 // ---- licence registry (shared with the add-licence behavior) ----
 export type LicType = { name: string; sub?: string; color?: string };
@@ -81,7 +101,7 @@ export function licCard(t: LicType): string {
   );
 }
 
-function sectionNav() {
+function sectionNav(mode: ProfileMode) {
   const items = [
     ["personal", "Personal details", "user"],
     ["emergency", "Emergency contact", "phone"],
@@ -95,6 +115,9 @@ function sectionNav() {
         `<button class="pn${i === 0 ? " on" : ""}" data-psec="${n[0]}"><span class="pi">${ic(n[2], 17)}</span>${n[1]}</button>`
     )
     .join("");
+  // Payroll / Permissions / Notes are admin-only and exist solely in the
+  // admin-gated Team section — never on your own card.
+  if (mode === "self") return `<nav class="pnav">${items}</nav>`;
   const admin =
     `<button class="pn adminrow" data-psec="payroll"><span class="pi">${ic("dollar", 17)}</span>Payroll<span class="lock">${ic("lock", 15)}</span></button>` +
     `<button class="pn adminrow" data-psec="permissions"><span class="pi">${ic("usershield", 17)}</span>Permissions<span class="lock">${ic("lock", 15)}</span></button>` +
@@ -102,30 +125,36 @@ function sectionNav() {
   return `<nav class="pnav">${items}<div class="ndiv"></div><div class="ngl">Admin only</div>${admin}</nav>`;
 }
 
-function personal(s: DemoStaff) {
+function personal(p: StaffProfile | null) {
+  const active = (p?.status ?? "Active") === "Active";
+  const seg =
+    '<div class="seg" data-seg="status">' +
+    `<button class="${active ? "on green" : ""}" type="button" data-segval="Active">Active</button>` +
+    `<button class="${active ? "" : "on"}" type="button" data-segval="Inactive">Inactive</button>` +
+    `<input type="hidden" name="status" value="${active ? "Active" : "Inactive"}"></div>`;
   return (
     '<section class="psec on" data-sec="personal">' +
-    `<div class="card2"><div class="c2h"><span class="ci">${ic("user", 18)}</span><span><b>Personal details</b><em>Identity, contact & employment basics</em></span></div>` +
-    `<div class="frow c2">${field("Full name", input("e.g. Jordan Mills"), { req: true })}${field("Preferred / nickname", input("e.g. Jordy"))}</div>` +
-    `<div class="frow c2">${field("Phone", input("04xx xxx xxx", "tel"), { req: true })}${field("Birthday", input("dd / mm / yyyy"))}</div>` +
-    `<div class="frow">${field("Address", input("Street, suburb, state, postcode"))}</div>` +
-    `<div class="frow c2">${field("Start date", input("dd / mm / yyyy"))}${field("Employment type", selectP("Select employment type", ["Full-time", "Part-time", "Casual", "Apprentice", "Subcontractor"]))}</div>` +
-    `<div class="frow c2">${field("Status", '<div class="seg"><button class="on green" type="button">Active</button><button type="button">Inactive</button></div>')}${field("Profile photo", `<div class="drop"><span class="di">${ic("cam", 20)}</span><span class="dk"><b>Upload a photo</b><em>JPG or PNG, square works best</em></span></div>`)}</div>` +
+    `<div class="card2" data-section="personal"><div class="c2h"><span class="ci">${ic("user", 18)}</span><span><b>Personal details</b><em>Identity, contact & employment basics</em></span></div>` +
+    `<div class="frow c2">${field("Full name", input("full_name", "e.g. Jordan Mills", "text", p?.full_name), { req: true })}${field("Preferred / nickname", input("preferred_name", "e.g. Jordy", "text", p?.preferred_name))}</div>` +
+    `<div class="frow c2">${field("Phone", input("phone", "04xx xxx xxx", "tel", p?.phone), { req: true })}${field("Birthday", input("birthday", "dd / mm / yyyy", "text", formatAuDate(p?.birthday)))}</div>` +
+    `<div class="frow">${field("Address", input("address", "Street, suburb, state, postcode", "text", p?.address))}</div>` +
+    `<div class="frow c2">${field("Start date", input("start_date", "dd / mm / yyyy", "text", formatAuDate(p?.start_date)))}${field("Employment type", selectP("employment_type", "Select employment type", ["Full-time", "Part-time", "Casual", "Apprentice", "Subcontractor"], p?.employment_type))}</div>` +
+    `<div class="frow c2">${field("Status", seg)}${field("Profile photo", `<div class="drop"><span class="di">${ic("cam", 20)}</span><span class="dk"><b>Upload a photo</b><em>JPG or PNG, square works best</em></span></div>`)}</div>` +
     "</div></section>"
   );
 }
 
-function emergency() {
+function emergency(p: StaffProfile | null) {
   return (
     '<section class="psec" data-sec="emergency">' +
-    `<div class="card2"><div class="c2h"><span class="ci">${ic("phone", 18)}</span><span><b>Emergency contact</b><em>Who we call if something happens on site</em></span></div>` +
-    `<div class="frow c2">${field("Contact name", input("e.g. Sarah Mills"), { req: true })}${field("Contact phone", input("04xx xxx xxx", "tel"), { req: true })}</div>` +
-    `<div class="frow c2">${field("Relationship", selectP("Select relationship", ["Partner", "Parent", "Sibling", "Friend", "Other"]))}${field("Alternate phone", input("Optional", "tel"))}</div>` +
+    `<div class="card2" data-section="emergency"><div class="c2h"><span class="ci">${ic("phone", 18)}</span><span><b>Emergency contact</b><em>Who we call if something happens on site</em></span></div>` +
+    `<div class="frow c2">${field("Contact name", input("emergency_name", "e.g. Sarah Mills", "text", p?.emergency_name), { req: true })}${field("Contact phone", input("emergency_phone", "04xx xxx xxx", "tel", p?.emergency_phone), { req: true })}</div>` +
+    `<div class="frow c2">${field("Relationship", selectP("emergency_relationship", "Select relationship", ["Partner", "Parent", "Sibling", "Friend", "Other"], p?.emergency_relationship))}${field("Alternate phone", input("emergency_alt_phone", "Optional", "tel", p?.emergency_alt_phone))}</div>` +
     "</div></section>"
   );
 }
 
-function licences() {
+function licences(p: StaffProfile | null) {
   const typeOpts =
     LIC_TYPES.map((t) => `<option value="${t.name}">${t.name}</option>`).join("") +
     '<option value="__custom">Custom…</option>';
@@ -137,25 +166,36 @@ function licences() {
   const emptyHint = `<div class="ro-empty" id="lic-empty" style="margin-top:18px"><span class="ei">${ic("shield", 20)}</span><b>No licences added yet</b><em>Choose a type above (or add a custom one) to generate a card with number, expiry and a document upload.</em></div>`;
   return (
     '<section class="psec" data-sec="licences">' +
-    `<div class="card2"><div class="c2h"><span class="ci">${ic("shield", 18)}</span><span><b>Compliance</b><em>Licences &amp; qualifications — add a licence to generate a card tracking number, expiry &amp; a document upload</em></span></div>` +
+    `<div class="card2" data-static><div class="c2h"><span class="ci">${ic("shield", 18)}</span><span><b>Compliance</b><em>Licences &amp; qualifications — add a licence to generate a card tracking number, expiry &amp; a document upload</em></span></div>` +
     addbar +
     '<div class="lics" id="lic-list"></div>' +
     emptyHint +
     "</div>" +
-    `<div class="card2"><div class="c2h"><span class="ci">${ic("grad", 18)}</span><span><b>Other qualifications</b><em>Free-text list of tickets &amp; courses</em></span></div>` +
-    `<div class="frow">${field("Qualifications", '<textarea class="inp" placeholder="One per line — e.g. EWP ticket, Working at Heights, Confined Spaces…"></textarea>')}</div>` +
+    `<div class="card2" data-section="licences"><div class="c2h"><span class="ci">${ic("grad", 18)}</span><span><b>Other qualifications</b><em>Free-text list of tickets &amp; courses</em></span></div>` +
+    `<div class="frow">${field("Qualifications", textarea("qualifications", "One per line — e.g. EWP ticket, Working at Heights, Confined Spaces…", p?.qualifications))}</div>` +
     "</div></section>"
   );
 }
 
-function workrights() {
+function workrights(p: StaffProfile | null) {
+  const WR = [
+    "Australian citizen",
+    "Permanent resident",
+    "Full working rights (visa)",
+    "Conditional working rights (visa)",
+    "No working rights",
+  ];
+  const wrSelect =
+    `<div class="selwrap"><select class="inp" id="wr-status" name="work_rights_status"><option value="">— Select —</option>` +
+    WR.map((o) => `<option${o === p?.work_rights_status ? " selected" : ""}>${esc(o)}</option>`).join("") +
+    `</select><span class="chev">${ic("chev", 16)}</span></div>`;
   return (
     '<section class="psec" data-sec="workrights">' +
-    `<div class="card2"><div class="c2h"><span class="ci">${ic("passport", 18)}</span><span><b>Work rights</b><em>Australian working-rights / visa status</em></span></div>` +
-    `<div class="frow c2">${field("Work rights status", `<div class="selwrap"><select class="inp" id="wr-status"><option value="">— Select —</option><option>Australian citizen</option><option>Permanent resident</option><option>Full working rights (visa)</option><option>Conditional working rights (visa)</option><option>No working rights</option></select><span class="chev">${ic("chev", 16)}</span></div>`)}<div></div></div>` +
+    `<div class="card2" data-section="workrights"><div class="c2h"><span class="ci">${ic("passport", 18)}</span><span><b>Work rights</b><em>Australian working-rights / visa status</em></span></div>` +
+    `<div class="frow c2">${field("Work rights status", wrSelect)}<div></div></div>` +
     '<div id="wr-visa">' +
-    `<div class="frow c2">${field("Visa type", input("e.g. 482 TSS, 500 Student, 417 WHM"))}${field("Visa expiry", input("dd / mm / yyyy"))}</div>` +
-    `<div class="frow c2">${field('Hours condition <span style="color:#9ca3af;font-weight:600">(cap, if any)</span>', input("e.g. unlimited, 48 hrs/fortnight"))}${field(`VEVO last checked <span class="infobtn" tabindex="0">${ic("info", 14)}<span class="tip">VEVO (Visa Entitlement Verification Online) is the Australian Government service that confirms a person’s visa and working-rights conditions. Record the date you last checked it.</span></span>`, input("dd / mm / yyyy"))}</div>` +
+    `<div class="frow c2">${field("Visa type", input("visa_type", "e.g. 482 TSS, 500 Student, 417 WHM", "text", p?.visa_type))}${field("Visa expiry", input("visa_expiry", "dd / mm / yyyy", "text", formatAuDate(p?.visa_expiry)))}</div>` +
+    `<div class="frow c2">${field('Hours condition <span style="color:#9ca3af;font-weight:600">(cap, if any)</span>', input("hours_condition", "e.g. unlimited, 48 hrs/fortnight", "text", p?.hours_condition))}${field(`VEVO last checked <span class="infobtn" tabindex="0">${ic("info", 14)}<span class="tip">VEVO (Visa Entitlement Verification Online) is the Australian Government service that confirms a person’s visa and working-rights conditions. Record the date you last checked it.</span></span>`, input("vevo_checked_at", "dd / mm / yyyy", "text", formatAuDate(p?.vevo_checked_at)))}</div>` +
     "</div>" +
     `<div class="frow">${field(
       "Verification document",
@@ -169,7 +209,7 @@ function workrights() {
 function vehicle() {
   return (
     '<section class="psec" data-sec="vehicle">' +
-    `<div class="card2"><div class="c2h"><span class="ci">${ic("truck", 18)}</span><span><b>Assigned vehicle</b><em>Linked from Fleet</em></span></div>` +
+    `<div class="card2" data-static><div class="c2h"><span class="ci">${ic("truck", 18)}</span><span><b>Assigned vehicle</b><em>Linked from Fleet</em></span></div>` +
     `<div class="ro-empty"><span class="ei">${ic("car", 20)}</span><b>No vehicle assigned</b><em>Assign a vehicle to this staff member from Assets → Fleet to show rego, service status and fuel here.</em></div>` +
     "</div></section>"
   );
@@ -178,7 +218,7 @@ function vehicle() {
 function training() {
   return (
     '<section class="psec" data-sec="training">' +
-    `<div class="card2"><div class="c2h"><span class="ci">${ic("grad", 18)}</span><span><b>Training progress</b><em>Pathways & sign-offs · read-only</em></span></div>` +
+    `<div class="card2" data-static><div class="c2h"><span class="ci">${ic("grad", 18)}</span><span><b>Training progress</b><em>Pathways & sign-offs · read-only</em></span></div>` +
     `<div class="ro-empty"><span class="ei">${ic("grad", 20)}</span><b>No training pathways yet</b><em>Assigned pathways and competency sign-offs will appear here once Training is set up in Admin.</em></div>` +
     "</div></section>"
   );
@@ -202,8 +242,10 @@ function payroll() {
   return (
     '<section class="psec" data-sec="payroll">' +
     `<div class="card2"><div class="c2h"><span class="ci" style="background:rgba(255,51,102,.1);color:#e0264f">${ic("dollar", 18)}</span><span><b>Payroll</b><em>Drives charge-out rate & job costing</em></span><span class="pill2 adminpill">${ic("lock", 11)}Admin only</span></div>` +
-    `<div class="frow c2">${field("Hourly wage", money("e.g. 45.00"), { req: true })}${field("Employment type", selectP("Select employment type", ["Full-time", "Part-time", "Casual", "Apprentice", "Subcontractor"]))}</div>` +
-    `<div class="frow c2">${field("Contracted hours / week", input("e.g. 38"))}${field(`Default utilisation <span class="infobtn" tabindex="0">${ic("info", 14)}<span class="tip">The share of paid hours that are billable to jobs (vs. admin, travel or downtime). Drives the charge-out rate — e.g. 85% means most of their time is on the tools.</span></span>`, pct("e.g. 85"))}</div>` +
+    // Admin-only and not yet persisted — deliberately unnamed, so the save
+    // collector ([name]) never picks these up.
+    `<div class="frow c2">${field("Hourly wage", money("e.g. 45.00"), { req: true })}${field("Employment type", selectP("", "Select employment type", ["Full-time", "Part-time", "Casual", "Apprentice", "Subcontractor"]))}</div>` +
+    `<div class="frow c2">${field("Contracted hours / week", input("", "e.g. 38"))}${field(`Default utilisation <span class="infobtn" tabindex="0">${ic("info", 14)}<span class="tip">The share of paid hours that are billable to jobs (vs. admin, travel or downtime). Drives the charge-out rate — e.g. 85% means most of their time is on the tools.</span></span>`, pct("e.g. 85"))}</div>` +
     `<div class="frow" style="margin-top:18px">${split}</div>` +
     "</div></section>"
   );
@@ -219,15 +261,22 @@ function permissions() {
     (r, i) =>
       `<label class="permrole${i === 1 ? " on" : ""}"><input type="radio" name="permrole"${i === 1 ? " checked" : ""}><span class="prdot" style="background:${r[2]}"></span><span class="prk"><b>${r[0]}</b><em>${r[1]}</em></span><span class="prcheck">${ic("check", 14)}</span></label>`
   ).join("");
+  // Mirrors the capability model (lib/permissions.ts). Labels say "everyone's"
+  // where the capability gates the team-wide view only — revoking it never
+  // touches the person's own timesheet / own vehicle, which are intrinsic.
+  // Toggle states here are the staff-role defaults; real values wire up when
+  // this card writes to memberships.permissions.
   const ACCESS: [string, string, boolean][] = [
     ["Toolbox", "Calculators & references", true],
     ["Design Studio", "Create & edit VRF designs", true],
     ["Tiff AI", "Assistant & knowledge base", true],
-    ["Team directory", "View other staff records", false],
-    ["Time & Pay", "Timesheets, leave & expenses", true],
+    ["Team directory", "View & manage other staff records", false],
+    ["Time & Pay — everyone's", "All timesheets, leave & expenses", false],
     ["Approvals", "Approve hours, leave & expenses", false],
-    ["Assets", "Fleet & equipment", false],
-    ["Financials", "Pay rates & charge-out — admin", false],
+    ["Assets — whole register", "Full fleet & equipment", false],
+    ["Financials", "Other people's pay, rates & charge-out", false],
+    ["Permissions", "Change other people's access — owner-granted", false],
+    ["Invites", "Invite & offboard staff — staff role only", false],
   ];
   const accessRows = ACCESS.map(
     (a) =>
@@ -254,21 +303,36 @@ function notes() {
   );
 }
 
-export function profileHtml(s: DemoStaff): string {
-  const nick = s.nickname ? ` <em>“${s.nickname}”</em>` : "";
+/** "self" = My profile (own staff card). "admin" = Team viewing someone else. */
+export type ProfileMode = "self" | "admin";
+
+export function profileHtml(
+  s: DemoStaff,
+  opts: { mode?: ProfileMode; profile?: StaffProfile | null } = {}
+): string {
+  const mode: ProfileMode = opts.mode ?? "admin";
+  const p = opts.profile ?? null;
+  const nick = s.nickname ? ` <em>“${esc(s.nickname)}”</em>` : "";
   // Per-card edit: the profile opens read-only and each card unlocks on its own
   // Edit (handled in profile-behaviors). No global readonly / Save-all bar.
+  const crumb =
+    mode === "self"
+      ? '<div class="crumb"><b>My profile</b></div>'
+      : `<div class="crumb"><a data-nav="people">Team</a><span class="sep">/</span><a data-nav="people">Staff</a><span class="sep">/</span><b>${esc(s.name)}</b></div>`;
+  // Admin-only sections are omitted entirely from your own card — not rendered,
+  // not in the nav. The server action's allowlist has no such columns either.
+  const adminSections = mode === "self" ? "" : `${payroll()}${permissions()}${notes()}`;
   return (
     '<div class="prof">' +
-    `<div class="pbar"><div class="crumb"><a data-nav="people">Team</a><span class="sep">/</span><a data-nav="people">Staff</a><span class="sep">/</span><b>${s.name}</b></div></div>` +
+    `<div class="pbar">${crumb}</div>` +
     '<div class="phead"><div class="mesh"><i class="m1"></i><i class="m2"></i></div><div class="inner">' +
-    `<div class="pphoto"><div class="inn">${s.initials}</div><span class="cam">${ic("cam", 15)}</span></div>` +
-    `<div class="pid"><h1>${s.name}${nick}</h1>` +
-    `<div class="sub"><span>${ic("truck", 14)}${s.role}</span><span class="dot"></span><span>${s.employmentType}</span><span class="dot"></span><span>Started ${s.started}</span></div></div>` +
-    `<div class="pquick"><div class="q"><b>${s.licenceCount}</b><em>Licences</em></div><div class="q"><b>${s.years}</b><em>Years</em></div></div>` +
-    `<span class="badge active" style="align-self:flex-start"><span class="d"></span>${s.status}</span>` +
+    `<div class="pphoto"><div class="inn">${esc(s.initials)}</div><span class="cam">${ic("cam", 15)}</span></div>` +
+    `<div class="pid"><h1>${esc(s.name)}${nick}</h1>` +
+    `<div class="sub"><span>${ic("truck", 14)}${esc(s.role)}</span><span class="dot"></span><span>${esc(s.employmentType)}</span><span class="dot"></span><span>Started ${esc(s.started)}</span></div></div>` +
+    `<div class="pquick"><div class="q"><b>${s.licenceCount}</b><em>Licences</em></div><div class="q"><b>${esc(s.years)}</b><em>Years</em></div></div>` +
+    `<span class="badge active" style="align-self:flex-start"><span class="d"></span>${esc(s.status)}</span>` +
     "</div></div>" +
-    `<div class="pgrid">${sectionNav()}<div class="ppanel">${personal(s)}${emergency()}${licences()}${workrights()}${vehicle()}${training()}${payroll()}${permissions()}${notes()}</div></div>` +
+    `<div class="pgrid">${sectionNav(mode)}<div class="ppanel">${personal(p)}${emergency(p)}${licences(p)}${workrights(p)}${vehicle()}${training()}${adminSections}</div></div>` +
     "</div>"
   );
 }

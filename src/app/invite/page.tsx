@@ -1,15 +1,21 @@
 import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { getOrgRole, hasMinRole } from "@/lib/roles";
+import { getCapabilities, getDbRole } from "@/lib/permissions-server";
+import { invitableRoles } from "@/lib/permissions";
 import { createInvite } from "@/app/actions/invite";
 import { redirect } from "next/navigation";
+
+// Legacy scaffold superseded by /dashboard/admin/invite — kept only because
+// /invite/accept lives in this segment. Same `invites` gate as its successor
+// (it lists live invite tokens). Candidate for deletion once nothing links here.
 
 export default async function InvitePage() {
   const session = await auth0.getSession();
   if (!session) redirect("/auth/login");
 
-  const role = await getOrgRole();
-  if (!hasMinRole(role, "admin")) redirect("/dashboard");
+  const [actorRole, caps] = await Promise.all([getDbRole(), getCapabilities()]);
+  const allowedRoles = invitableRoles(actorRole, caps);
+  if (allowedRoles.length === 0) redirect("/dashboard");
 
   const orgId = session.orgId as string;
   const appUrl = process.env.APP_BASE_URL ?? "http://localhost:3000";
@@ -36,8 +42,11 @@ export default async function InvitePage() {
           name="role"
           className="border border-zinc-200 dark:border-zinc-700 rounded px-3 py-2 text-sm bg-transparent"
         >
-          <option value="admin">Admin</option>
-          <option value="staff">Staff</option>
+          {allowedRoles.map((r) => (
+            <option key={r} value={r}>
+              {r === "admin" ? "Admin" : "Staff"}
+            </option>
+          ))}
         </select>
         <button
           type="submit"

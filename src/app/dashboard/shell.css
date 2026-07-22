@@ -43,9 +43,13 @@
 .fg .ht-wm span { color:var(--teal); }
 /* HeyTiff × org — trading name from Organisation settings, under the logo.
    Additive only: the brand row's layout and animations are untouched. */
-.fg .ht-brandcol { display:flex; flex-direction:column; gap:7px; min-width:0; }
-.fg .ht-orgx { padding-left:44px; font-size:11.5px; font-weight:700; letter-spacing:.01em; color:rgba(255,255,255,.48); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.fg .ht-orgx .x { color:var(--teal); font-weight:800; margin-right:5px; }
+/* Centred lockup: the × and the business name sit centred under the logo. */
+.fg .ht-brandcol { display:flex; flex-direction:column; align-items:center; gap:7px; min-width:0; }
+.fg .ht-orgx { display:flex; flex-direction:column; align-items:center; text-align:center; gap:2px; min-width:0; width:100%; }
+.fg .ht-orgx .x { color:var(--teal); font-size:13px; font-weight:800; line-height:1.2; }
+/* Wraps rather than truncates: the name has its own line now, so a long
+   business name should use a second one instead of turning into an ellipsis. */
+.fg .ht-orgx .nm { font-size:15px; font-weight:800; letter-spacing:-0.02em; line-height:1.15; color:rgba(255,255,255,.78); overflow-wrap:anywhere; }
 .fg .ht-logo .htmk-p1, .fg .ht-logo .htmk-p2 { stroke-dasharray:1; }
 @media (prefers-reduced-motion: no-preference) {
   .fg .ht-logo .htmk-p1 { animation:htmkDraw 70s ease-in-out infinite; }

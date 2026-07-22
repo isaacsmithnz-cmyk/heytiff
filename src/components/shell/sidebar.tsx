@@ -43,10 +43,13 @@ export function Sidebar({
               Hey<span>Tiff</span>
             </span>
           </div>
-          {/* HeyTiff × the business — trading name from Organisation settings */}
+          {/* Stacked lockup: HeyTiff / × / the business — trading name from
+              Organisation settings. The × sits on its own line so the two
+              names read as equals rather than one qualifying the other. */}
           {orgName ? (
             <div className="ht-orgx" title={orgName}>
-              <span className="x">×</span> {orgName}
+              <span className="x">×</span>
+              <span className="nm">{orgName}</span>
             </div>
           ) : null}
         </div>

@@ -31,12 +31,12 @@ const columnsOf = (i = 0) => selected[i].split(",").map((c) => c.trim());
 
 describe("everyone's timesheets", () => {
   it("does not select the wage column without `financials`", async () => {
-    await listStaffWeeks("org-1", "2026-06-29", { pay: false });
+    await listStaffWeeks("org-1", "2026-06-29", { pay: false, cycle: "Weekly" });
     expect(columnsOf()).not.toContain("hourly_wage");
   });
 
   it("selects it with `financials`", async () => {
-    await listStaffWeeks("org-1", "2026-06-29", { pay: true });
+    await listStaffWeeks("org-1", "2026-06-29", { pay: true, cycle: "Weekly" });
     expect(columnsOf()).toContain("hourly_wage");
   });
 
@@ -45,7 +45,7 @@ describe("everyone's timesheets", () => {
       { id: "me", full_name: "Isaac", job_title: "Owner", hourly_wage: 58 },
       { id: "other", full_name: "Sam", job_title: "Installer", hourly_wage: 44 },
     ];
-    const weeks = await listStaffWeeks("org-1", "2026-06-29", { pay: false });
+    const weeks = await listStaffWeeks("org-1", "2026-06-29", { pay: false, cycle: "Weekly" });
     // even if a wage somehow rode along on the row, the mapper refuses it —
     // this screen is about other people, so it stays uniformly money-free
     expect(weeks.map((w) => w.rate)).toEqual([null, null]);
@@ -55,7 +55,7 @@ describe("everyone's timesheets", () => {
 describe("your own timesheet", () => {
   it("always includes your own rate, with no capability at all", async () => {
     staffRows = [{ id: "me", full_name: "Isaac", job_title: "Owner", hourly_wage: 58 }];
-    const me = await getMyWeek("org-1", "me", "2026-06-29");
+    const me = await getMyWeek("org-1", "me", "2026-06-29", "Weekly");
     expect(columnsOf()).toContain("hourly_wage");
     expect(me?.rate).toBe(58);
   });
@@ -63,7 +63,7 @@ describe("your own timesheet", () => {
   it("reports no rate rather than zero when none is set", async () => {
     // $0.00/h would read as a real wage of nothing
     staffRows = [{ id: "me", full_name: "Isaac", job_title: "Owner", hourly_wage: null }];
-    const me = await getMyWeek("org-1", "me", "2026-06-29");
+    const me = await getMyWeek("org-1", "me", "2026-06-29", "Weekly");
     expect(me?.rate).toBeNull();
   });
 });

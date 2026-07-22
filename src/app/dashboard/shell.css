@@ -1583,3 +1583,11 @@ select.fl-i { cursor:pointer; }
 .fg .mts-facts { display:flex; gap:8px; margin-left:auto; }
 .fg .mts-foot { display:flex; align-items:center; gap:16px; margin-top:22px; padding-top:18px; border-top:1px solid rgba(10,11,16,.08); }
 .fg .mts-foot span { flex:1; font-size:13px; font-weight:600; color:var(--gray500); }
+
+/* A fortnight reads as two week-rows and a month as four-plus, which is how
+   people actually think about a pay period — so the day tiles wrap at seven
+   instead of being squeezed into one long line. */
+.fg .tpr .tiles { flex-wrap:wrap; }
+.fg .tpr .tiles > * { flex:1 1 calc((100% - 6 * 11px) / 7); min-width:74px; }
+.fg .tpr .crow .mini { flex-wrap:wrap; overflow:visible; }
+.fg .mts-days { --mts-cols:1; }

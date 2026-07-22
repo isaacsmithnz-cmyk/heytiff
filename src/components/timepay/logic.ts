@@ -10,7 +10,13 @@
      but never flagged it for review).
    Known limitation carried over: the `ph` / `night` penalty rules are part of
    the settings but can't apply yet — day entries have no worked-public-holiday
-   or night-shift representation. */
+   or night-shift representation.
+
+   A PERIOD IS NOT A WEEK. It's 7, 14 or a calendar month of days depending on
+   the pay cycle, so nothing here may assume `days[5]` is a Saturday. Weekend
+   and weekday rules key off the DAY OF WEEK, read from the period's own day
+   tuples — day 5 of a fortnight is the second Saturday, and day 7 is a
+   Monday. Getting this positionally wrong pays weekend rates on a Tuesday. */
 
 export type DayEntry =
   | { t: "work"; in: string; out: string; h: number }
@@ -107,8 +113,17 @@ export const fmtHval = (v: number): string => fmt(v) + "h";
 export const dayLabel = (w: WeekDay): string =>
   w[0].charAt(0) + w[0].slice(1).toLowerCase() + " " + w[1] + " " + w[2];
 
-/* Split one worked day's hours into rate buckets using the workspace rules. */
-export function splitDay(h: number, i: number, s: Settings): Split {
+const DOW = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+
+/** Day of week (Mon 0 … Sun 6) for a period day — NOT its column index. */
+export const dowOf = (w: WeekDay | undefined): number => (w ? DOW.indexOf(w[0]) : 0);
+
+export const isWeekend = (dow: number): boolean => dow >= 5;
+
+/* Split one worked day's hours into rate buckets using the workspace rules.
+   `dow` is the DAY OF WEEK (Mon 0 … Sun 6), not a position in the period —
+   use dowOf(ctx.week[i]) to get it. */
+export function splitDay(h: number, dow: number, s: Settings): Split {
   const wknd = (k: "sat" | "sun"): Split | null => {
     const rl = s.rules[k];
     if (!rl.on) return null;
@@ -116,11 +131,11 @@ export function splitDay(h: number, i: number, s: Settings): Split {
     const a = Math.min(h, rl.up || 0);
     return { n: 0, o15: a, o2: h - a };
   };
-  if (i === 5) {
+  if (dow === 5) {
     const r = wknd("sat");
     if (r) return r;
   }
-  if (i === 6) {
+  if (dow === 6) {
     const r = wknd("sun");
     if (r) return r;
   }
@@ -146,15 +161,16 @@ export function derive(staff: StaffWeek, s: Settings, ctx: WeekCtx): Derived {
   const dlab = (i: number) => dayLabel(ctx.week[i]);
 
   staff.days.forEach((d, i) => {
+    const dow = dowOf(ctx.week[i]);
     if (d.t === "work") {
-      const sp = splitDay(d.h, i, s);
+      const sp = splitDay(d.h, dow, s);
       normal += sp.n;
       ot += sp.o15;
       ot2 += sp.o2;
       worked += d.h;
       entries++;
-      if (i === 5 || i === 6) {
-        const dayName = i === 5 ? "Saturday" : "Sunday";
+      if (isWeekend(dow)) {
+        const dayName = dow === 5 ? "Saturday" : "Sunday";
         if (sp.o15 || sp.o2)
           bullets.push(
             dlab(i) +
@@ -199,7 +215,7 @@ export function derive(staff: StaffWeek, s: Settings, ctx: WeekCtx): Derived {
     } else if (d.t === "ph") {
       ph += d.h;
       entries++;
-    } else if (d.t === "empty" && i < 5 && i <= ctx.today) {
+    } else if (d.t === "empty" && !isWeekend(dow) && i <= ctx.today) {
       missing++;
       bullets.push(dlab(i) + " — no entry logged");
     }
@@ -267,14 +283,16 @@ export function derive(staff: StaffWeek, s: Settings, ctx: WeekCtx): Derived {
 
 /* Day → colour class, driven by the same split rules as pay. */
 export function dayClass(d: DayEntry, i: number, s: Settings, ctx: WeekCtx): DayClass {
-  if (d.t === "empty") return i < 5 && i <= ctx.today ? "miss" : "empty";
+  const dow = dowOf(ctx.week[i]);
+  const weekday = !isWeekend(dow);
+  if (d.t === "empty") return weekday && i <= ctx.today ? "miss" : "empty";
   if (d.t === "leave") return "leave";
   if (d.t === "sick") return "sick";
   if (d.t === "ph") return "ph";
-  const sp = splitDay(d.h, i, s);
+  const sp = splitDay(d.h, dow, s);
   if (sp.o15 || sp.o2) return "over";
   /* under days apply to weekdays only, matching derive's review flag */
-  return i < 5 && d.h < s.standard ? "under" : "std";
+  return weekday && d.h < s.standard ? "under" : "std";
 }
 
 export const initials = (n: string): string =>

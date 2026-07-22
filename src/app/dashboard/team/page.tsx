@@ -3,10 +3,12 @@ import { redirect } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { TeamDirectory } from "@/components/team/directory";
 import { can } from "@/lib/permissions-server";
-import { demoPendingInvites, demoStaff } from "@/mock/demo";
+import { demoPendingInvites, demoStaff, getDemoVehicleForStaff } from "@/mock/demo";
+import { displayName } from "@/components/fleet/logic";
 
 // NOTE: reads demo records from mock/demo.ts for now. Delete that mock and the
 // directory falls back to the "No staff yet" empty state below.
+// The Vehicle column derives from the Fleet register's assignments — one source.
 
 // Capability-gated (`team`, default admin+): the directory exposes every staff
 // member's card. The nav entry is hidden for staff too (nav.ts minRole), but
@@ -14,6 +16,11 @@ import { demoPendingInvites, demoStaff } from "@/mock/demo";
 
 export default async function TeamPage() {
   if (!(await can("team"))) redirect("/dashboard");
+
+  const rows = demoStaff.map((s) => {
+    const v = getDemoVehicleForStaff(s.id);
+    return { ...s, vehicle: v ? displayName(v) : "" };
+  });
 
   return (
     <div className="page in">
@@ -44,7 +51,7 @@ export default async function TeamPage() {
               <em>Invite your team to start building staff profiles.</em>
             </div>
           ) : (
-            <TeamDirectory staff={demoStaff} pending={demoPendingInvites} />
+            <TeamDirectory staff={rows} pending={demoPendingInvites} />
           )}
         </div>
       </div>

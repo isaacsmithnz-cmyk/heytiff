@@ -1,0 +1,393 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Icon } from "@/components/shell/icon";
+import type { DemoStaff } from "@/mock/demo";
+import { type FleetAiVehicle, valueFleet } from "@/app/actions/fleet-ai";
+import type { FleetState } from "./fleet-state";
+import {
+  STATUS_LABEL,
+  type FleetSort,
+  type FleetTab,
+  type LogKind,
+  displayName,
+  filterVehicles,
+  fleetAiValue,
+  fleetValue,
+  fmtMoney,
+  fuelEconomy,
+  logsFor,
+  modelLabel,
+  openIssueCount,
+  parseValuations,
+  sortVehicles,
+  valuationStale,
+  vehicleChips,
+  worstState,
+} from "./logic";
+import { DetailModal, LogModal, VehicleFormModal } from "./modals";
+
+/* Fleet register — the Manager/Owner view: whole fleet, assignment, service
+   schedule & valuations (book + Tiff estimate). Mirrors the Team directory's
+   tabs → tools → rows shape. */
+
+function driverHue(name: string) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360;
+  return h;
+}
+
+type ModalState =
+  | { t: "none" }
+  | { t: "add" }
+  | { t: "edit"; id: string }
+  | { t: "detail"; id: string }
+  | { t: "log"; id: string; kind: LogKind };
+
+export function FleetRegister({ fleet, staff }: { fleet: FleetState; staff: DemoStaff[] }) {
+  const { vehicles, logs } = fleet;
+  const [tab, setTab] = useState<FleetTab>("all");
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<FleetSort>("attention");
+  const [modal, setModal] = useState<ModalState>({ t: "none" });
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [valuing, setValuing] = useState(false);
+  const [valueErr, setValueErr] = useState<string | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!openMenu) return;
+    const close = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest(".dmorewrap")) setOpenMenu(null);
+    };
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [openMenu]);
+
+  const staffName = useMemo(() => {
+    const byId = new Map(staff.map((s) => [s.id, s.name]));
+    return (id: string | null) => (id ? (byId.get(id) ?? "") : "");
+  }, [staff]);
+
+  const working = vehicles.filter((v) => v.status !== "sold");
+  const sold = vehicles.filter((v) => v.status === "sold");
+  const attention = working.filter((v) => vehicleChips(v, openIssueCount(logs, v.id)).length > 0);
+  const pool = working.filter((v) => v.assignedTo === null);
+  const rows = useMemo(
+    () => sortVehicles(filterVehicles(vehicles, logs, tab, query, staffName), logs, sort),
+    [vehicles, logs, tab, query, staffName, sort],
+  );
+
+  const openVehicle = "id" in modal ? vehicles.find((v) => v.id === modal.id) : undefined;
+  const takenIds = vehicles.map((v) => v.id);
+  const aiTotal = fleetAiValue(vehicles, fleet.aiValues);
+
+  const runValuation = async () => {
+    if (valuing) return;
+    setValuing(true);
+    setValueErr(null);
+    const payload: FleetAiVehicle[] = working.map((v) => ({
+      id: v.id,
+      make: v.make,
+      model: v.model,
+      year: v.year,
+      odometerKm: v.odometer,
+      status: STATUS_LABEL[v.status],
+      purchasePriceAud: v.purchasePrice || null,
+      ageYears: v.purchaseDateDays ? Math.round((v.purchaseDateDays / 365.25) * 10) / 10 : null,
+      notes: v.notes,
+    }));
+    try {
+      const res = await valueFleet(payload);
+      if (res.ok) fleet.setValuations(parseValuations(res, vehicles));
+      else setValueErr(res.reason === "no-key" ? "Tiff is offline — no API key configured." : res.reason);
+    } catch {
+      setValueErr("Tiff couldn't be reached.");
+    }
+    setValuing(false);
+  };
+
+  const tabBtn = (key: FleetTab, val: number, label: string, sub: string) => (
+    <button key={key} className={`dirtab${tab === key ? " on" : ""}`} onClick={() => setTab(key)}>
+      <span className="dtval">{val}</span>
+      <span className="dtlab">{label}</span>
+      <span className="dtsub">{sub}</span>
+    </button>
+  );
+  const tabIdx = tab === "all" ? 0 : tab === "attention" ? 1 : tab === "pool" ? 2 : 3;
+  const tabView = tab === "attention" ? "warn" : tab === "sold" ? "archived" : tab;
+
+  if (vehicles.length === 0) {
+    return (
+      <div>
+        <div className="emptybox">
+          <span className="ei">
+            <Icon name="truck" size={24} />
+          </span>
+          <b>No vehicles yet</b>
+          <em>Assign vehicles, track service, rego &amp; insurance expiry and fuel.</em>
+        </div>
+        <div className="fl-emptyadd">
+          <button className="pbtn primary" onClick={() => setModal({ t: "add" })}>
+            <Icon name="plus" size={16} />
+            Add your first vehicle
+          </button>
+        </div>
+        {modal.t === "add" && (
+          <VehicleFormModal
+            initial={null}
+            takenIds={takenIds}
+            staff={staff}
+            onSave={(v) => {
+              fleet.saveVehicle(v);
+              setModal({ t: "none" });
+            }}
+            onClose={() => setModal({ t: "none" })}
+          />
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div ref={rootRef}>
+      <div className="dirtabs t4" data-view={tabView} style={{ "--idx": tabIdx } as React.CSSProperties}>
+        <span className="dirtab-slide" style={{ left: `calc(6px + ${tabIdx} * (100% - 12px) / 4)` }} />
+        {tabBtn("all", working.length, "Fleet", "Working vehicles")}
+        {tabBtn("attention", attention.length, "Need attention", "Expiries, service & issues")}
+        {tabBtn("pool", pool.length, "Pool", "Unassigned & spare")}
+        {tabBtn("sold", sold.length, "Sold", "Kept for history")}
+      </div>
+
+      <div className="dirtools">
+        <div className="dsearch">
+          <Icon name="search" size={17} />
+          <input
+            className="dsearchin"
+            placeholder="Search rego, name or driver..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+        <label className="dsortwrap">
+          <Icon name="arrowDown" size={14} />
+          <select className="dsort" value={sort} onChange={(e) => setSort(e.target.value as FleetSort)}>
+            <option value="attention">Needs attention</option>
+            <option value="name">Name (A–Z)</option>
+            <option value="value">Value (high–low)</option>
+          </select>
+        </label>
+        <button
+          className={`pbtn ghost fl-add fl-valuebtn${valuing ? " busy" : ""}`}
+          disabled={valuing}
+          onClick={runValuation}
+          title="Tiff estimates each vehicle's AU market value — Manager+ only"
+        >
+          <Icon name="sparkles" size={16} />
+          {valuing ? "Tiff is valuing…" : "Value with Tiff"}
+        </button>
+        <button className="pbtn primary fl-add" onClick={() => setModal({ t: "add" })}>
+          <Icon name="plus" size={16} />
+          Add vehicle
+        </button>
+      </div>
+      {valueErr && <div className="fl-aierr">{valueErr}</div>}
+
+      <div className="dir">
+        <div className="dirhead flhead">
+          <span>Vehicle</span>
+          <span>Rego</span>
+          <span>Driver</span>
+          <span>Status</span>
+          <span className="flval">Value</span>
+          <span></span>
+        </div>
+        <div className="dirrows">
+          {rows.map((v) => {
+            const chips = vehicleChips(v, openIssueCount(logs, v.id));
+            const chip = chips[0];
+            const driver = staffName(v.assignedTo);
+            const isSold = v.status === "sold";
+            const val = fleet.aiValues[v.id];
+            const stale = valuationStale(v, val);
+            return (
+              <div
+                key={v.id}
+                className={`dirrow flrow${isSold ? " off" : ""}`}
+                onClick={() => setModal({ t: "detail", id: v.id })}
+              >
+                <span className="dname">
+                  <span className={`fl-av ${isSold ? "ok" : worstState(chips)}`}>
+                    <Icon name="truck" size={18} />
+                  </span>
+                  <span>
+                    <b>{displayName(v)}</b>
+                    <em>{modelLabel(v)}</em>
+                  </span>
+                </span>
+                <span className="fl-plate">{v.plate}</span>
+                <span className="fl-driver">
+                  {driver ? (
+                    <>
+                      <span className="fl-dav" style={{ background: `hsl(${driverHue(driver)} 64% 42%)` }}>
+                        {driver
+                          .split(" ")
+                          .map((p) => p[0])
+                          .join("")
+                          .slice(0, 2)}
+                      </span>
+                      {driver}
+                    </>
+                  ) : (
+                    <span className="fl-pool">{isSold ? "—" : "Pool"}</span>
+                  )}
+                </span>
+                {isSold ? (
+                  <span className="dchip mute">Sold</span>
+                ) : (
+                  <span className={`dchip ${chip ? chip.state : "ok"}`}>
+                    <Icon name={chip ? (chip.state === "bad" ? "alert" : "clock") : "check"} size={12} />
+                    {chip ? chip.label : "All good"}
+                    {chips.length > 1 && <i className="fl-more">+{chips.length - 1}</i>}
+                  </span>
+                )}
+                <span className="fl-value">
+                  <b>{fmtMoney(v.value)}</b>
+                  {!isSold && val && (
+                    <em
+                      className={`fl-tiff${stale ? " stale" : ""}`}
+                      title={
+                        stale
+                          ? "Odometer has moved since Tiff valued this — run Value with Tiff again"
+                          : `Tiff: ${fmtMoney(val.low)}–${fmtMoney(val.high)}${val.note ? ` · ${val.note}` : ""}`
+                      }
+                    >
+                      <Icon name="sparkles" size={11} />
+                      {fmtMoney(val.point)}
+                    </em>
+                  )}
+                </span>
+                <span className="dmorewrap" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    className="dmore"
+                    aria-label="Actions"
+                    onClick={() => setOpenMenu(openMenu === v.id ? null : v.id)}
+                  >
+                    <Icon name="dots" size={18} />
+                  </button>
+                  {openMenu === v.id && (
+                    <div className="dmenu open">
+                      <button
+                        onClick={() => {
+                          setModal({ t: "detail", id: v.id });
+                          setOpenMenu(null);
+                        }}
+                      >
+                        <Icon name="arrowUR" size={15} />
+                        View details
+                      </button>
+                      <button
+                        onClick={() => {
+                          setModal({ t: "edit", id: v.id });
+                          setOpenMenu(null);
+                        }}
+                      >
+                        <Icon name="edit" size={15} />
+                        Edit vehicle
+                      </button>
+                      <button
+                        onClick={() => {
+                          setModal({ t: "log", id: v.id, kind: "service" });
+                          setOpenMenu(null);
+                        }}
+                      >
+                        <Icon name="wrench" size={15} />
+                        Log service
+                      </button>
+                    </div>
+                  )}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+        {rows.length === 0 && <div className="direm on">No vehicles match your filters.</div>}
+        <div className="fl-total">
+          <span>
+            {working.length} vehicle{working.length === 1 ? "" : "s"}
+            {sold.length > 0 && ` · ${sold.length} sold`}
+          </span>
+          <span>
+            Fleet value <b>{fmtMoney(fleetValue(vehicles))}</b>
+            {aiTotal !== null && (
+              <em className="fl-tiff">
+                <Icon name="sparkles" size={11} />
+                Tiff ≈ {fmtMoney(aiTotal)}
+              </em>
+            )}
+          </span>
+        </div>
+      </div>
+
+      {modal.t === "add" && (
+        <VehicleFormModal
+          initial={null}
+          takenIds={takenIds}
+          staff={staff}
+          onSave={(v) => {
+            fleet.saveVehicle(v);
+            setModal({ t: "none" });
+          }}
+          onClose={() => setModal({ t: "none" })}
+        />
+      )}
+      {modal.t === "edit" && openVehicle && (
+        <VehicleFormModal
+          initial={openVehicle}
+          takenIds={takenIds}
+          staff={staff}
+          onSave={(v) => {
+            fleet.saveVehicle(v);
+            setModal({ t: "detail", id: v.id });
+          }}
+          onClose={() => setModal({ t: "detail", id: openVehicle.id })}
+        />
+      )}
+      {modal.t === "detail" && openVehicle && (
+        <DetailModal
+          vehicle={openVehicle}
+          chips={vehicleChips(openVehicle, openIssueCount(logs, openVehicle.id))}
+          logs={logsFor(logs, openVehicle.id)}
+          eco={fuelEconomy(logsFor(logs, openVehicle.id))}
+          valuation={fleet.aiValues[openVehicle.id]}
+          valuationIsStale={valuationStale(openVehicle, fleet.aiValues[openVehicle.id])}
+          staff={staff}
+          manager
+          onClose={() => setModal({ t: "none" })}
+          onEdit={() => setModal({ t: "edit", id: openVehicle.id })}
+          onAssign={(sid) => fleet.assignVehicle(openVehicle.id, sid)}
+          onStatus={(status) => fleet.saveVehicle({ ...openVehicle, status })}
+          onLog={(kind) => setModal({ t: "log", id: openVehicle.id, kind })}
+          onResolve={fleet.resolveIssue}
+          onRemove={() => {
+            fleet.removeVehicle(openVehicle.id);
+            setModal({ t: "none" });
+          }}
+        />
+      )}
+      {modal.t === "log" && openVehicle && (
+        <LogModal
+          kind={modal.kind}
+          vehicle={openVehicle}
+          fleetVehicles={vehicles}
+          loggedBy={{ id: null, name: "You" }}
+          onSave={(log) => {
+            fleet.addLog(log);
+            setModal({ t: "detail", id: openVehicle.id });
+          }}
+          onClose={() => setModal({ t: "detail", id: openVehicle.id })}
+        />
+      )}
+    </div>
+  );
+}

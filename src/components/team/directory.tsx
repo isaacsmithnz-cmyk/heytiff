@@ -7,6 +7,8 @@ import type { DemoStaff, PendingInvite } from "@/mock/demo";
 
 type View = "active" | "warn" | "pending";
 type Sort = "name" | "role" | "exp";
+/** Directory rows carry the derived Fleet assignment (see team/page.tsx). */
+type DirStaff = DemoStaff & { vehicle: string };
 
 function hue(name: string) {
   let h = 0;
@@ -18,7 +20,7 @@ export function TeamDirectory({
   staff,
   pending,
 }: {
-  staff: DemoStaff[];
+  staff: DirStaff[];
   pending: PendingInvite[];
 }) {
   const [view, setView] = useState<View>("active");

@@ -12,6 +12,7 @@ import {
   type SelectFilters,
   type SelectSort,
   type UnitOption,
+  type UnitFit,
 } from "@/lib/studio/select";
 import {
   COLUMN_SPECS,
@@ -29,8 +30,9 @@ import type { PairProposal } from "@/lib/studio/split";
 type CompareEntry = { key: string; brand: string; option: UnitOption; pair: PairProposal };
 
 /* Unit browser (Stage 5 overhaul) — model-first selection: form factor tabs,
-   capacity as a gate (load → 150%, toggleable), a supply-phase filter, then
-   fit filters (W×D×H, airflow) and sortable columns. Two panes: a lean table
+   the whole style on offer with what suits the load leading and everything
+   else filed underneath (flagged oversized / undersized), a supply-phase
+   filter, then fit filters (W×D×H, airflow) and sortable columns. Two panes: a lean table
    of indoor models on the left, and a detail panel on the right showing the
    highlighted option's full spec sheet — Indoor unit / Outdoor unit / Pairing
    — with the outdoor pairing picked there (phase badges), not in the row.
@@ -42,6 +44,36 @@ type CompareEntry = { key: string; brand: string; option: UnitOption; pair: Pair
     required figure up to ~135% of it — the same oversize spirit as the
     browser's 150% gate, tighter so the badge stays meaningful. */
 export const REQUIRED_BAND_CAP = 1.35;
+
+/** The row's sizing flag. Nothing on a unit that suits the load — the
+    Recommended heading already said so, and a chip on every row is noise. */
+function FitChip({
+  fit,
+  loadKw,
+  capacityKw,
+}: {
+  fit: UnitFit;
+  loadKw: number | null;
+  capacityKw: number;
+}) {
+  if (fit === "fits" || loadKw == null) return null;
+  const pct = Math.round((capacityKw / loadKw) * 100);
+  return fit === "undersized" ? (
+    <em
+      className="ds-ub-under"
+      title={`${capacityKw.toFixed(1)} kW against a ${loadKw.toFixed(1)} kW load — ${pct}%, it won't hold the room`}
+    >
+      undersized
+    </em>
+  ) : (
+    <em
+      className="ds-ub-over"
+      title={`${capacityKw.toFixed(1)} kW against a ${loadKw.toFixed(1)} kW load — ${pct}%`}
+    >
+      oversized
+    </em>
+  );
+}
 
 export function UnitBrowser({
   pack,
@@ -63,7 +95,6 @@ export function UnitBrowser({
   /** highlight — never filter — pairs sized within REQUIRED_BAND_CAP of this */
   requiredKw?: number | null;
 }) {
-  const [includeOversized, setIncludeOversized] = useState(false);
   const [filters, setFilters] = useState<SelectFilters>({});
   const [sort, setSort] = useState<SelectSort>("capacity");
   /** outdoor supply phase filter — null = any */
@@ -105,28 +136,22 @@ export function UnitBrowser({
     });
 
   const tabs = useMemo(
-    () => formFactorSummary(pack, loadKw, basis, includeOversized, phase),
-    [pack, loadKw, basis, includeOversized, phase]
+    () => formFactorSummary(pack, loadKw, basis, phase),
+    [pack, loadKw, basis, phase]
   );
 
-  /** default tab: the caller's requested form factor, else the recommended
+  /** default tab: the caller's requested form factor, else the best-fit
       option's, else the first tab */
   const [tab, setTab] = useState<FormFactor | null>(initialFormFactor ?? null);
   const activeTab = useMemo(() => {
     if (tab && tabs.some((t) => t.formFactor === tab && t.count > 0)) return tab;
     if (loadKw != null) {
-      const all = unitOptions(pack, {
-        loadKw,
-        basis,
-        formFactor: null,
-        phase,
-        includeOversized,
-      });
-      const rec = all.find((o) => o.recommended);
+      const all = unitOptions(pack, { loadKw, basis, formFactor: null, phase });
+      const rec = all.find((o) => o.bestFit);
       if (rec) return rec.idu.form_factor;
     }
     return tabs[0]?.formFactor ?? null;
-  }, [tab, tabs, pack, loadKw, basis, phase, includeOversized]);
+  }, [tab, tabs, pack, loadKw, basis, phase]);
 
   const options = useMemo(
     () =>
@@ -137,9 +162,8 @@ export function UnitBrowser({
         phase,
         filters,
         sort,
-        includeOversized,
       }),
-    [pack, loadKw, basis, activeTab, phase, filters, sort, includeOversized]
+    [pack, loadKw, basis, activeTab, phase, filters, sort]
   );
 
   const isDucted = activeTab === "ducted";
@@ -164,12 +188,12 @@ export function UnitBrowser({
     p.capacityKw <= requiredKw * REQUIRED_BAND_CAP;
 
   /* group same-series rows adjacently, preserving the sorted order within each
-     group and ordering groups by first appearance (keeps the recommended unit's
+     group and ordering groups by first appearance (keeps the best-fit unit's
      series near the top). Headers only make sense with 2+ series. */
-  const groups = useMemo(() => {
+  const seriesGroups = (items: UnitOption[]) => {
     const order: string[] = [];
     const bySeries = new Map<string, UnitOption[]>();
-    for (const o of options) {
+    for (const o of items) {
       const s = o.idu.series || "Other";
       if (!bySeries.has(s)) {
         bySeries.set(s, []);
@@ -178,22 +202,76 @@ export function UnitBrowser({
       bySeries.get(s)!.push(o);
     }
     return order.map((series) => ({ series, items: bySeries.get(series)! }));
-  }, [options]);
-  const showGroups = groupBySeries && groups.length > 1;
+  };
 
-  /* rows in on-screen order (series grouping reorders) — keyboard nav + the
-     selection fallback both follow what the installer actually sees */
-  const visibleOptions = useMemo(
-    () => (showGroups ? groups.flatMap((g) => g.items) : options),
-    [showGroups, groups, options]
-  );
+  /* Sections: what suits the load leads, the rest files underneath in fit
+     order (oversized, then undersized). Recommended shows even when it's
+     empty — "nothing here fits" is the answer that sends you to another tab,
+     and it can only be read if the section is on screen. Without a load
+     there's nothing to rank against, so it stays one plain list. */
+  const sections = useMemo(() => {
+    const build = (key: string, title: string | null, hint: string | null, items: UnitOption[]) => {
+      const groups = seriesGroups(items);
+      const grouped = groupBySeries && groups.length > 1;
+      return {
+        key,
+        title,
+        hint,
+        groups,
+        grouped,
+        items: grouped ? groups.flatMap((g) => g.items) : items,
+      };
+    };
+    if (loadKw == null) return [build("all", null, null, options)];
+    const pick = (f: UnitFit) => options.filter((o) => o.fit === f);
+    const out = [
+      build(
+        "fits",
+        "Recommended",
+        `Covers ${loadKw.toFixed(1)} kW without over-sizing past ${Math.round(OVERSIZE_CAP * 100)}%`,
+        pick("fits")
+      ),
+    ];
+    /* Oversized and undersized get a heading each, not one "other" bucket:
+       they're opposite mistakes. Oversized is a judgement call you might
+       still make (short-cycling, cost); undersized won't hold the room on a
+       design day at all. Rolling them together read as one pile of rejects. */
+    const over = pick("oversized");
+    const under = pick("undersized");
+    if (over.length)
+      out.push(
+        build(
+          "over",
+          "Oversized",
+          `More than ${Math.round(OVERSIZE_CAP * 100)}% of the ${loadKw.toFixed(1)} kW load — short-cycles and costs more`,
+          over
+        )
+      );
+    if (under.length)
+      out.push(
+        build(
+          "under",
+          "Undersized",
+          `Under the ${loadKw.toFixed(1)} kW load — won't hold the room on a design day`,
+          under
+        )
+      );
+    return out;
+  }, [options, loadKw, groupBySeries]);
+
+  /** the Group-by-series control only earns its place where it'd do something */
+  const canGroup = sections.some((s) => s.groups.length > 1);
+
+  /* rows in on-screen order (sections + series grouping reorder) — keyboard
+     nav + the selection fallback both follow what the installer actually sees */
+  const visibleOptions = useMemo(() => sections.flatMap((s) => s.items), [sections]);
 
   /** the row the detail panel shows: the clicked one while it survives the
-      current filters, else the recommended row, else the first row */
+      current filters, else the best-fit row, else the first row */
   const selectedOption = useMemo(() => {
     return (
       visibleOptions.find((o) => o.idu.model === selected) ??
-      visibleOptions.find((o) => o.recommended) ??
+      visibleOptions.find((o) => o.bestFit) ??
       visibleOptions[0] ??
       null
     );
@@ -218,7 +296,7 @@ export function UnitBrowser({
           const curModel =
             cur && list.some((o) => o.idu.model === cur)
               ? cur
-              : (list.find((o) => o.recommended) ?? list[0]).idu.model;
+              : (list.find((o) => o.bestFit) ?? list[0]).idu.model;
           const idx = list.findIndex((o) => o.idu.model === curModel);
           const next =
             list[Math.min(list.length - 1, Math.max(0, idx + (e.key === "ArrowDown" ? 1 : -1)))];
@@ -253,7 +331,9 @@ export function UnitBrowser({
     return (
       <tr
         key={o.idu.model}
-        className={`${o.recommended ? "rec" : ""}${isSel ? " sel" : ""}${band ? " band" : ""}`}
+        className={`${o.bestFit ? "rec" : ""}${isSel ? " sel" : ""}${band ? " band" : ""}${
+          o.fit !== "fits" ? ` ${o.fit}` : ""
+        }`}
         aria-selected={isSel}
         onClick={() => setSelected(o.idu.model)}
       >
@@ -273,8 +353,9 @@ export function UnitBrowser({
         </td>
         <td className="ds-ub-model">
           {o.idu.model}
-          {o.recommended && <em>best fit</em>}
-          {band && !o.recommended && (
+          {o.bestFit && <em>best fit</em>}
+          <FitChip fit={o.fit} loadKw={loadKw} capacityKw={pair.capacityKw} />
+          {band && !o.bestFit && (
             <em className="ds-ub-inband" title="Within the required capacity band">
               in range
             </em>
@@ -308,7 +389,7 @@ export function UnitBrowser({
             {loadKw != null ? (
               <span>
                 {requiredKw != null ? "Requires" : "Room load"} ≈ <b>{loadKw.toFixed(1)} kW</b>{" "}
-                · {basis} · showing up to {Math.round(OVERSIZE_CAP * 100)}%
+                · {basis}
               </span>
             ) : (
               <span>No room selected — full catalogue</span>
@@ -338,16 +419,6 @@ export function UnitBrowser({
               3φ
             </button>
           </div>
-          {loadKw != null && (
-            <label className="ds-ub-oversize">
-              <input
-                type="checkbox"
-                checked={includeOversized}
-                onChange={(e) => setIncludeOversized(e.target.checked)}
-              />
-              Include oversized
-            </label>
-          )}
           <button className="ds-ub-close" onClick={onClose} aria-label="Close">
             <Icon name="x" size={16} />
           </button>
@@ -360,9 +431,24 @@ export function UnitBrowser({
               className={t.formFactor === activeTab ? "on" : ""}
               disabled={t.count === 0}
               onClick={() => setTab(t.formFactor)}
+              title={
+                loadKw == null
+                  ? `${t.count} ${t.label.toLowerCase()} unit${t.count === 1 ? "" : "s"}`
+                  : `${t.fitCount} of ${t.count} suit a ${loadKw.toFixed(1)} kW load`
+              }
             >
               {t.label}
-              <span className="ds-ub-count">{t.count}</span>
+              {/* the fit count leads — it's the number you're shopping on —
+                  with the full catalogue count behind it so an empty tab still
+                  reads as "there are units here, none of them suit" */}
+              {loadKw != null ? (
+                <span className={`ds-ub-count${t.fitCount === 0 ? " none" : " fit"}`}>
+                  {t.fitCount}
+                  <i>/{t.count}</i>
+                </span>
+              ) : (
+                <span className="ds-ub-count">{t.count}</span>
+              )}
             </button>
           ))}
         </nav>
@@ -379,7 +465,7 @@ export function UnitBrowser({
             </button>
           )}
           <div className="ds-ub-fright">
-            {groups.length > 1 && (
+            {canGroup && (
               <label className="ds-ub-groupby">
                 <input
                   type="checkbox"
@@ -424,23 +510,48 @@ export function UnitBrowser({
                   </tr>
                 </thead>
                 <tbody>
-                  {showGroups
-                    ? groups.flatMap((g) => [
-                        <tr key={`grp-${g.series}`} className="ds-ub-group">
-                          <td colSpan={colSpan}>
-                            {g.series}
-                            <span className="ds-ub-count">{g.items.length}</span>
-                          </td>
-                        </tr>,
-                        ...g.items.map(renderRow),
-                      ])
-                    : options.map(renderRow)}
+                  {/* with nothing at all in the tab the sections would just be
+                      two empty headings — the single message below says it */}
+                  {(options.length === 0 ? [] : sections).flatMap((s) => [
+                    ...(s.title
+                      ? [
+                          <tr key={`sec-${s.key}`} className={`ds-ub-sec ds-ub-sec-${s.key}`}>
+                            <td colSpan={colSpan}>
+                              <b>{s.title}</b>
+                              <span className="ds-ub-count">{s.items.length}</span>
+                              {s.hint && <span className="ds-ub-sechint">{s.hint}</span>}
+                            </td>
+                          </tr>,
+                        ]
+                      : []),
+                    ...(s.items.length === 0
+                      ? [
+                          <tr key={`sec-${s.key}-none`}>
+                            <td colSpan={colSpan} className="ds-ub-none">
+                              {Object.values(filters).some((v) => v != null)
+                                ? "Nothing in this style suits the load at these sizes — loosen a fit limit, or take one from below."
+                                : "Nothing in this style suits the load — try another style, or take one from below."}
+                            </td>
+                          </tr>,
+                        ]
+                      : s.grouped
+                        ? s.groups.flatMap((g) => [
+                            <tr key={`grp-${s.key}-${g.series}`} className="ds-ub-group">
+                              <td colSpan={colSpan}>
+                                {g.series}
+                                <span className="ds-ub-count">{g.items.length}</span>
+                              </td>
+                            </tr>,
+                            ...g.items.map(renderRow),
+                          ])
+                        : s.items.map(renderRow)),
+                  ])}
                   {options.length === 0 && (
                     <tr>
                       <td colSpan={colSpan} className="ds-ub-none">
                         {phase != null
                           ? `No ${phase === "3" ? "three" : "single"}-phase pairings match — set Power to Any or loosen a filter.`
-                          : "Nothing matches these filters — loosen a limit or include oversized units."}
+                          : "Nothing matches these filters — loosen a limit."}
                       </td>
                     </tr>
                   )}
@@ -454,6 +565,7 @@ export function UnitBrowser({
               <DetailPanel
                 option={selectedOption}
                 pair={pairFor(selectedOption)}
+                loadKw={loadKw}
                 onPickOdu={(oduModel) =>
                   setOduPick((m) => ({ ...m, [selectedOption.idu.model]: oduModel }))
                 }
@@ -571,11 +683,14 @@ function OduPicker({
 function DetailPanel({
   option,
   pair,
+  loadKw,
   onPickOdu,
   onAdd,
 }: {
   option: UnitOption;
   pair: PairProposal;
+  /** the load the flag is measured against — null under the full catalogue */
+  loadKw: number | null;
   onPickOdu: (oduModel: string) => void;
   onAdd: () => void;
 }) {
@@ -592,7 +707,10 @@ function DetailPanel({
       <div className="ds-ub-dscroll">
         <div className="ds-ub-dhead">
           <b>{option.idu.model}</b>
-          {option.recommended && <em>best fit</em>}
+          {option.bestFit && <em>best fit</em>}
+          {/* the flag follows the unit into the panel — the last screen before
+              Add is where a wrong size most needs to still be saying so */}
+          <FitChip fit={option.fit} loadKw={loadKw} capacityKw={pair.capacityKw} />
           <span className="ds-ub-dseries">{option.idu.series}</span>
         </div>
 

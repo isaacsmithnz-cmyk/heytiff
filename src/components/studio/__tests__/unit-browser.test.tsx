@@ -156,17 +156,94 @@ describe("UnitBrowser", () => {
     expect(within(tbl()).queryByText("DUCT-TALL")).not.toBeInTheDocument();
   });
 
-  it("capacity gate + oversized toggle; the best fit row is pre-selected", () => {
+  it("the best fit row is pre-selected under a load", () => {
     render(
       <UnitBrowser pack={fixturePack()} loadKw={2.4} basis="cooling" onChoose={noop} onClose={noop} />
     );
-    // load 2.4, cap 3.6: WALL-25 (2.5) qualifies; WALL-35 (3.5) also ≤3.6 → both
+    // load 2.4, cap 3.6: WALL-25 (2.5) and WALL-35 (3.5) both fit
     fireEvent.click(screen.getByRole("button", { name: /Wall/ }));
     const row = rowOf("WALL-25");
     // WALL-25 is the smallest → best fit tag, and it feeds the detail panel
     expect(within(row).getByText("best fit")).toBeInTheDocument();
     expect(row).toHaveAttribute("aria-selected", "true");
     expect(within(detailPanel()).getByText("WALL-25")).toBeInTheDocument();
+  });
+
+  it("a load sections the tab: what fits leads, the rest follows flagged", () => {
+    // load 2.2, cap 3.3: WALL-25 (2.5) fits, WALL-35 (3.5) is past the cap
+    render(
+      <UnitBrowser pack={fixturePack()} loadKw={2.2} basis="cooling" onChoose={noop} onClose={noop} />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Wall/ }));
+    expect(within(tbl()).getByText("Recommended")).toBeInTheDocument();
+    expect(within(tbl()).getByText("Oversized")).toBeInTheDocument();
+    // both units are on offer — the oversized one is flagged, not hidden
+    expect(within(rowOf("WALL-25")).getByText("best fit")).toBeInTheDocument();
+    expect(within(rowOf("WALL-35")).getByText("oversized")).toBeInTheDocument();
+    // and it sits below the Recommended heading it isn't part of
+    const rows = within(tbl()).getAllByRole("row");
+    const at = (t: string) => rows.findIndex((r) => r.textContent?.includes(t));
+    expect(at("Recommended")).toBeLessThan(at("WALL-25"));
+    expect(at("WALL-25")).toBeLessThan(at("Oversized"));
+    expect(at("Oversized")).toBeLessThan(at("WALL-35"));
+    // no undersized unit here, so that heading stays away entirely
+    expect(within(tbl()).queryByText("Undersized")).not.toBeInTheDocument();
+  });
+
+  it("oversized and undersized are separate sections, not one 'other' pile", () => {
+    // load 3.4: WALL-35 (3.5) fits; add nothing oversized, so pair it with a
+    // load that splits the ducted tab — DUCT-LOW 3.5 fits, DUCT-TALL 3.6 fits.
+    // The wall tab at 2.2 gives fits+oversized, at 3.4 gives fits+undersized.
+    render(
+      <UnitBrowser pack={fixturePack()} loadKw={3.4} basis="cooling" onChoose={noop} onClose={noop} />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Wall/ }));
+    expect(within(tbl()).getByText("Undersized")).toBeInTheDocument();
+    expect(within(tbl()).queryByText("Oversized")).not.toBeInTheDocument();
+    // the heading carries the verdict's own colour class, not a shared one
+    const head = within(tbl()).getByText("Undersized").closest("tr")!;
+    expect(head.className).toContain("ds-ub-sec-under");
+  });
+
+  it("units too small for the load are still listed, flagged undersized, at the bottom", () => {
+    // load 3.4: WALL-35 (3.5) fits, WALL-25 (2.5) can't cover it
+    render(
+      <UnitBrowser pack={fixturePack()} loadKw={3.4} basis="cooling" onChoose={noop} onClose={noop} />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Wall/ }));
+    expect(within(rowOf("WALL-25")).getByText("undersized")).toBeInTheDocument();
+    expect(rowOf("WALL-25").className).toContain("undersized");
+    const rows = within(tbl()).getAllByRole("row");
+    const at = (t: string) => rows.findIndex((r) => r.textContent?.includes(t));
+    expect(at("WALL-35")).toBeLessThan(at("WALL-25"));
+  });
+
+  it("a tab where nothing fits says so and still lists the units", () => {
+    render(
+      <UnitBrowser pack={fixturePack()} loadKw={99} basis="cooling" onChoose={noop} onClose={noop} />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Wall/ }));
+    expect(within(tbl()).getByText(/Nothing in this style suits the load/)).toBeInTheDocument();
+    expect(within(tbl()).getByText("WALL-25")).toBeInTheDocument();
+    expect(within(tbl()).getByText("WALL-35")).toBeInTheDocument();
+    expect(within(tbl()).getAllByText("undersized")).toHaveLength(2);
+  });
+
+  it("no Include-oversized toggle — capacity never hides a unit now", () => {
+    render(
+      <UnitBrowser pack={fixturePack()} loadKw={2.2} basis="cooling" onChoose={noop} onClose={noop} />
+    );
+    expect(screen.queryByText(/Include oversized/i)).not.toBeInTheDocument();
+  });
+
+  it("tab counts read fits-of-total under a load, and never drop to zero total", () => {
+    render(
+      <UnitBrowser pack={fixturePack()} loadKw={99} basis="cooling" onChoose={noop} onClose={noop} />
+    );
+    // nothing fits anywhere, but every style is still reachable
+    const wall = screen.getByRole("button", { name: /Wall/ });
+    expect(wall).not.toBeDisabled();
+    expect(wall.textContent).toContain("0/2");
   });
 
   it("sorting by height reorders the table", () => {

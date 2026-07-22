@@ -127,3 +127,68 @@ describe("ProfileBehaviors — per-card edit model", () => {
     expect(one.querySelector<HTMLInputElement>('[name="a"]')!.value).toBe("kept");
   });
 });
+
+describe("ProfileBehaviors — permissions card controls", () => {
+  const PERMS = `
+    <div class="prof">
+      <div class="card2" data-section="permissions">
+        <div class="c2h"><span><b>Permissions</b></span></div>
+        <div class="permroles">
+          <label class="permrole"><input type="radio" name="org_role" value="staff" checked></label>
+          <label class="permrole"><input type="radio" name="org_role" value="admin"></label>
+          <label class="permrole"><input type="radio" name="org_role" value="owner"></label>
+        </div>
+        <div class="togrow"><div class="tk"><b>Team</b></div>
+          <div class="toggle" data-toggle></div>
+          <input type="hidden" name="cap_team" value="off"></div>
+        <div class="togrow locked"><div class="tk"><b>Financials</b></div>
+          <div class="toggle" data-toggle data-locked></div>
+          <input type="hidden" name="cap_financials" value="off"></div>
+      </div>
+    </div>`;
+
+  it("sends the SELECTED role, not the last radio in the group", async () => {
+    const onSave = jest.fn().mockResolvedValue({ ok: true });
+    const { container } = render(<ProfileBehaviors html={PERMS} onSave={onSave} />);
+    await waitFor(() => expect(container.querySelectorAll(".cardactions")).toHaveLength(1));
+
+    const card = container.querySelector<HTMLElement>(".card2")!;
+    card.querySelector<HTMLElement>("[data-edit]")!.click();
+    card.querySelector<HTMLInputElement>('input[value="admin"]')!.checked = true;
+    card.querySelector<HTMLInputElement>('input[value="staff"]')!.checked = false;
+    card.querySelector<HTMLElement>("[data-save]")!.click();
+
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(onSave.mock.calls[0][1].org_role).toBe("admin");
+  });
+
+  it("a capability toggle writes through to its hidden input", async () => {
+    const onSave = jest.fn().mockResolvedValue({ ok: true });
+    const { container } = render(<ProfileBehaviors html={PERMS} onSave={onSave} />);
+    await waitFor(() => expect(container.querySelectorAll(".cardactions")).toHaveLength(1));
+
+    const card = container.querySelector<HTMLElement>(".card2")!;
+    card.querySelector<HTMLElement>("[data-edit]")!.click();
+    card.querySelector<HTMLElement>('[data-toggle]:not([data-locked])')!.click();
+    card.querySelector<HTMLElement>("[data-save]")!.click();
+
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(onSave.mock.calls[0][1].cap_team).toBe("on");
+  });
+
+  it("a locked toggle does not move — the server would refuse it anyway", async () => {
+    const onSave = jest.fn().mockResolvedValue({ ok: true });
+    const { container } = render(<ProfileBehaviors html={PERMS} onSave={onSave} />);
+    await waitFor(() => expect(container.querySelectorAll(".cardactions")).toHaveLength(1));
+
+    const card = container.querySelector<HTMLElement>(".card2")!;
+    card.querySelector<HTMLElement>("[data-edit]")!.click();
+    const locked = card.querySelector<HTMLElement>("[data-locked]")!;
+    locked.click();
+    expect(locked.classList.contains("on")).toBe(false);
+
+    card.querySelector<HTMLElement>("[data-save]")!.click();
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(onSave.mock.calls[0][1].cap_financials).toBe("off");
+  });
+});

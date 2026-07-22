@@ -3,8 +3,10 @@
    Header values come from the demo record; form fields render empty (as designed). */
 
 import { iconSvg } from "./icon";
-import type { DemoStaff } from "@/mock/demo";
 import { formatAuDate, type StaffProfile } from "@/lib/staff/profile";
+import type { StaffRow } from "@/lib/staff/types";
+import type { Capability } from "@/lib/permissions";
+import type { Role } from "@/lib/roles-shared";
 import { demoVehicleLogs, getDemoVehicleForStaff } from "@/mock/demo";
 import {
   displayName,
@@ -85,10 +87,10 @@ export const selectP = (name: string, ph: string, opts: readonly string[], value
     .join("")}</select><span class="chev">${ic("chev", 16)}</span></div>`;
 export const textarea = (name: string, ph: string, value?: string | null, style?: string) =>
   `<textarea class="inp" name="${name}" placeholder="${esc(ph)}"${style ? ` style="${style}"` : ""}>${esc(value)}</textarea>`;
-const pct = (ph?: string) =>
-  `<div class="suffixwrap"><input class="inp with-suffix" type="text" placeholder="${esc(ph)}"><span class="sfx">%</span></div>`;
-const money = (ph?: string) =>
-  `<div class="suffixwrap"><input class="inp" style="padding-left:30px" type="text" placeholder="${esc(ph)}"><span class="sfx" style="left:14px;right:auto">$</span></div>`;
+const pct = (name: string, ph?: string, value?: string | null) =>
+  `<div class="suffixwrap"><input class="inp with-suffix"${name ? ` name="${name}"` : ""} type="text" placeholder="${esc(ph)}" value="${esc(value)}"><span class="sfx">%</span></div>`;
+const money = (name: string, ph?: string, value?: string | null) =>
+  `<div class="suffixwrap"><input class="inp"${name ? ` name="${name}"` : ""} style="padding-left:30px" type="text" placeholder="${esc(ph)}" value="${esc(value)}"><span class="sfx" style="left:14px;right:auto">$</span></div>`;
 
 // ---- licence registry (shared with the add-licence behavior) ----
 export type LicType = { name: string; sub?: string; color?: string };
@@ -215,7 +217,7 @@ function workrights(p: StaffProfile | null) {
   );
 }
 
-function vehicle(s: DemoStaff) {
+function vehicle(s: { id: string }) {
   const head =
     `<div class="c2h"><span class="ci">${ic("truck", 18)}</span>` +
     "<span><b>Assigned vehicle</b><em>Linked from Fleet — manage in Assets</em></span></div>";
@@ -269,91 +271,168 @@ function training() {
   );
 }
 
-function payroll() {
+function payroll(p: PayFields | null) {
+  /* cost_split is one jsonb column but three sliders. Each carries its own
+     name; the save action reassembles them into { install, service, admin }.
+     Percentages are stored as whole numbers and must total 100 — the client
+     auto-balances as you drag (profile-behaviors), and the action re-checks. */
+  const cs = p?.cost_split ?? null;
+  const csv = (k: "install" | "service" | "admin", dflt: number) => {
+    const v = cs && typeof cs === "object" ? (cs as Record<string, unknown>)[k] : null;
+    return typeof v === "number" ? Math.round(v) : dflt;
+  };
+  const [ins, srv, adm] = [csv("install", 34), csv("service", 33), csv("admin", 33)];
+  const off1 = -ins;
+  const off2 = -(ins + srv);
   const split =
     '<div class="field" style="grid-column:1/-1"><label>Cost-category split <span class="help" style="font-weight:500;margin-left:4px">— how their cost spreads across work types (must total 100%)</span></label>' +
     '<div class="csgrid">' +
     '<div class="costsplit">' +
-    '<div class="csrow"><span class="csdot" style="background:var(--teal)"></span><span class="cslbl">Install</span><div class="cspct"><input class="csrange" type="range" min="0" max="100" value="34" data-cs="0"><span class="csval">34%</span></div></div>' +
-    '<div class="csrow"><span class="csdot" style="background:var(--blue)"></span><span class="cslbl">Service</span><div class="cspct"><input class="csrange" type="range" min="0" max="100" value="33" data-cs="1"><span class="csval">33%</span></div></div>' +
-    '<div class="csrow"><span class="csdot" style="background:#8A2BE2"></span><span class="cslbl">Admin</span><div class="cspct"><input class="csrange" type="range" min="0" max="100" value="33" data-cs="2"><span class="csval">33%</span></div></div>' +
+    `<div class="csrow"><span class="csdot" style="background:var(--teal)"></span><span class="cslbl">Install</span><div class="cspct"><input class="csrange" name="cost_install" type="range" min="0" max="100" value="${ins}" data-cs="0"><span class="csval">${ins}%</span></div></div>` +
+    `<div class="csrow"><span class="csdot" style="background:var(--blue)"></span><span class="cslbl">Service</span><div class="cspct"><input class="csrange" name="cost_service" type="range" min="0" max="100" value="${srv}" data-cs="1"><span class="csval">${srv}%</span></div></div>` +
+    `<div class="csrow"><span class="csdot" style="background:#8A2BE2"></span><span class="cslbl">Admin</span><div class="cspct"><input class="csrange" name="cost_admin" type="range" min="0" max="100" value="${adm}" data-cs="2"><span class="csval">${adm}%</span></div></div>` +
     "</div>" +
     '<div class="cspie"><svg viewBox="0 0 36 36"><circle class="csbg" cx="18" cy="18" r="15.915" fill="none" stroke="#eef0f4" stroke-width="4"/>' +
-    '<circle class="csseg s0" cx="18" cy="18" r="15.915" fill="none" stroke="var(--teal)" stroke-width="4" stroke-dasharray="34 66" stroke-dashoffset="0" transform="rotate(-90 18 18)"/>' +
-    '<circle class="csseg s1" cx="18" cy="18" r="15.915" fill="none" stroke="var(--blue)" stroke-width="4" stroke-dasharray="33 67" stroke-dashoffset="-34" transform="rotate(-90 18 18)"/>' +
-    '<circle class="csseg s2" cx="18" cy="18" r="15.915" fill="none" stroke="#8A2BE2" stroke-width="4" stroke-dasharray="33 67" stroke-dashoffset="-67" transform="rotate(-90 18 18)"/></svg>' +
+    `<circle class="csseg s0" cx="18" cy="18" r="15.915" fill="none" stroke="var(--teal)" stroke-width="4" stroke-dasharray="${ins} ${100 - ins}" stroke-dashoffset="0" transform="rotate(-90 18 18)"/>` +
+    `<circle class="csseg s1" cx="18" cy="18" r="15.915" fill="none" stroke="var(--blue)" stroke-width="4" stroke-dasharray="${srv} ${100 - srv}" stroke-dashoffset="${off1}" transform="rotate(-90 18 18)"/>` +
+    `<circle class="csseg s2" cx="18" cy="18" r="15.915" fill="none" stroke="#8A2BE2" stroke-width="4" stroke-dasharray="${adm} ${100 - adm}" stroke-dashoffset="${off2}" transform="rotate(-90 18 18)"/></svg>` +
     '<div class="cstot"><b>100</b><em>%</em></div></div>' +
     "</div></div>";
+  const num = (v: number | null | undefined) => (v === null || v === undefined ? "" : String(v));
   return (
     '<section class="psec" data-sec="payroll">' +
-    `<div class="card2"><div class="c2h"><span class="ci" style="background:rgba(255,51,102,.1);color:#e0264f">${ic("dollar", 18)}</span><span><b>Payroll</b><em>Drives charge-out rate & job costing</em></span><span class="pill2 adminpill">${ic("lock", 11)}Admin only</span></div>` +
-    // Admin-only and not yet persisted — deliberately unnamed, so the save
-    // collector ([name]) never picks these up.
-    `<div class="frow c2">${field("Hourly wage", money("e.g. 45.00"), { req: true })}${field("Employment type", selectP("", "Select employment type", ["Full-time", "Part-time", "Casual", "Apprentice", "Subcontractor"]))}</div>` +
-    `<div class="frow c2">${field("Contracted hours / week", input("", "e.g. 38"))}${field(`Default utilisation <span class="infobtn" tabindex="0">${ic("info", 14)}<span class="tip">The share of paid hours that are billable to jobs (vs. admin, travel or downtime). Drives the charge-out rate — e.g. 85% means most of their time is on the tools.</span></span>`, pct("e.g. 85"))}</div>` +
+    `<div class="card2" data-section="payroll"><div class="c2h"><span class="ci" style="background:rgba(255,51,102,.1);color:#e0264f">${ic("dollar", 18)}</span><span><b>Payroll</b><em>Drives charge-out rate & job costing</em></span><span class="pill2 adminpill">${ic("lock", 11)}Owner only</span></div>` +
+    `<div class="frow c2">${field("Hourly wage", money("hourly_wage", "e.g. 45.00", num(p?.hourly_wage)), { req: true })}${field("Employment type", selectP("employment_type", "Select employment type", ["Full-time", "Part-time", "Casual", "Apprentice", "Subcontractor"], p?.employment_type ?? null))}</div>` +
+    `<div class="frow c2">${field("Contracted hours / week", input("contracted_hours", "e.g. 38", "text", num(p?.contracted_hours)))}${field(`Default utilisation <span class="infobtn" tabindex="0">${ic("info", 14)}<span class="tip">The share of paid hours that are billable to jobs (vs. admin, travel or downtime). Drives the charge-out rate — e.g. 85% means most of their time is on the tools.</span></span>`, pct("utilisation", "e.g. 85", num(p?.utilisation)))}</div>` +
     `<div class="frow" style="margin-top:18px">${split}</div>` +
     "</div></section>"
   );
 }
 
-function permissions() {
-  const ROLES: [string, string, string][] = [
-    ["Staff", "Field worker — own data only", "#00A389"],
-    ["Admin", "Manage the team — approve & assign", "#2E68FF"],
-    ["Owner", "Full access incl. pay & financials", "#8A2BE2"],
+function permissions(ctx: PermissionsCtx) {
+  const ROLES: [Role, string, string, string][] = [
+    ["staff", "Staff", "Field worker — own data only", "#00A389"],
+    ["admin", "Admin", "Manage the team — approve & assign", "#2E68FF"],
+    ["owner", "Owner", "Full access incl. pay & financials", "#8A2BE2"],
   ];
+  /* Role is owner-only and never settable on yourself or on the master owner.
+     A locked selector still SHOWS the current role — hiding it would leave an
+     admin unable to see why someone has the access they have. */
+  const roleLocked = !ctx.canChangeRole;
   const roleCards = ROLES.map(
-    (r, i) =>
-      `<label class="permrole${i === 1 ? " on" : ""}"><input type="radio" name="permrole"${i === 1 ? " checked" : ""}><span class="prdot" style="background:${r[2]}"></span><span class="prk"><b>${r[0]}</b><em>${r[1]}</em></span><span class="prcheck">${ic("check", 14)}</span></label>`
+    (r) =>
+      `<label class="permrole${r[0] === ctx.role ? " on" : ""}${roleLocked ? " locked" : ""}">` +
+      `<input type="radio" name="org_role" value="${r[0]}"${r[0] === ctx.role ? " checked" : ""}${roleLocked ? " disabled" : ""}>` +
+      `<span class="prdot" style="background:${r[3]}"></span>` +
+      `<span class="prk"><b>${r[1]}</b><em>${r[2]}</em></span>` +
+      `<span class="prcheck">${ic("check", 14)}</span></label>`
   ).join("");
-  // Mirrors the capability model (lib/permissions.ts). Labels say "everyone's"
-  // where the capability gates the team-wide view only — revoking it never
-  // touches the person's own timesheet / own vehicle, which are intrinsic.
-  // Toggle states here are the staff-role defaults; real values wire up when
-  // this card writes to memberships.permissions.
-  const ACCESS: [string, string, boolean][] = [
-    ["Toolbox", "Calculators & references", true],
-    ["Design Studio", "Create & edit VRF designs", true],
-    ["Tiff AI", "Assistant & knowledge base", true],
-    ["Team directory", "View & manage other staff records", false],
-    ["Time & Pay — everyone's", "All timesheets, leave & expenses", false],
-    ["Approvals", "Approve hours, leave & expenses", false],
-    ["Assets — whole register", "Full fleet & equipment", false],
-    ["Financials", "Other people's pay, rates & charge-out", false],
-    ["Permissions", "Change other people's access — owner-granted", false],
-    ["Invites", "Invite & offboard staff — staff role only", false],
+
+  /* Labels say "everyone's" where the capability gates the team-wide view only
+     — revoking it never touches the person's own timesheet or own vehicle,
+     which are intrinsic. Owner-tier rows render locked for a delegated
+     manager, matching what canSetCapability will actually accept. */
+  const ACCESS: [Capability, string, string][] = [
+    ["toolbox", "Toolbox", "Calculators & references"],
+    ["studio", "Design Studio", "Create & edit VRF designs"],
+    ["tiff", "Tiff AI", "Assistant & knowledge base"],
+    ["team", "Team directory", "View & manage other staff records"],
+    ["timepay_all", "Time & Pay — everyone's", "All timesheets, leave & expenses"],
+    ["approvals", "Approvals", "Approve hours, leave & expenses"],
+    ["assets_all", "Assets — whole register", "Full fleet & equipment"],
+    ["financials", "Financials", "Other people's pay, rates & charge-out"],
+    ["permissions", "Permissions", "Change other people's access"],
+    ["invites", "Invites", "Invite & offboard staff — staff role only"],
   ];
-  const accessRows = ACCESS.map(
-    (a) =>
-      `<div class="togrow"><div class="tk"><b>${a[0]}</b><em>${a[1]}</em></div><div class="toggle${a[2] ? " on" : ""}" data-toggle></div></div>`
-  ).join("");
+  const accessRows = ACCESS.map(([cap, label, hint]) => {
+    const on = ctx.caps.has(cap);
+    const locked = !ctx.settable.has(cap);
+    return (
+      `<div class="togrow${locked ? " locked" : ""}"><div class="tk"><b>${esc(label)}</b>` +
+      `<em>${esc(hint)}${locked ? " · owner-granted" : ""}</em></div>` +
+      `<div class="toggle${on ? " on" : ""}" data-toggle${locked ? " data-locked" : ""}></div>` +
+      `<input type="hidden" name="cap_${cap}" value="${on ? "on" : "off"}"></div>`
+    );
+  }).join("");
+
+  const note = ctx.lockedReason
+    ? `<div class="ro-empty" style="margin-bottom:18px"><span class="ei">${ic("lock", 20)}</span><b>Read-only</b><em>${esc(ctx.lockedReason)}</em></div>`
+    : "";
+
   return (
     '<section class="psec" data-sec="permissions">' +
-    `<div class="card2"><div class="c2h"><span class="ci" style="background:rgba(138,43,226,.12);color:#8A2BE2">${ic("usershield", 18)}</span><span><b>Permissions</b><em>Role &amp; what this person can access</em></span><span class="pill2 adminpill">${ic("lock", 11)}Admin only</span></div>` +
+    `<div class="card2"${ctx.editable ? ' data-section="permissions"' : " data-static"}><div class="c2h"><span class="ci" style="background:rgba(138,43,226,.12);color:#8A2BE2">${ic("usershield", 18)}</span><span><b>Permissions</b><em>Role &amp; what this person can access</em></span><span class="pill2 adminpill">${ic("lock", 11)}Admin only</span></div>` +
+    note +
     `<div class="field" style="margin-bottom:20px"><label>Role</label><div class="permroles">${roleCards}</div></div>` +
     `<div class="field"><label>Access <span class="help" style="font-weight:500;margin-left:4px">— fine-tune what the role can reach</span></label><div class="accessgrid">${accessRows}</div></div>` +
     "</div></section>"
   );
 }
 
-function notes() {
+function notes(p: { notes?: string | null } | null) {
   return (
     '<section class="psec" data-sec="notes">' +
-    `<div class="card2"><div class="c2h"><span class="ci">${ic("note", 18)}</span><span><b>Notes</b><em>Internal — visible to managers & admin</em></span></div>` +
-    `<div class="frow">${field("Notes", '<textarea class="inp" placeholder="e.g. First-aid officer · prefers north-side jobs · on light duties until June" style="min-height:120px"></textarea>')}</div>` +
+    `<div class="card2" data-section="notes"><div class="c2h"><span class="ci">${ic("note", 18)}</span><span><b>Notes</b><em>Internal — visible to managers & admin</em></span></div>` +
+    `<div class="frow">${field("Notes", textarea("notes", "e.g. First-aid officer · prefers north-side jobs · on light duties until June", p?.notes ?? null, "min-height:120px"))}</div>` +
     "</div>" +
-    `<div class="card2"><div class="c2h"><span class="ci" style="background:rgba(240,164,49,.14);color:#d98a00">${ic("alert", 18)}</span><span><b>Flags</b><em>Things that need attention</em></span><button class="pbtn ghost pill2" style="height:36px">${ic("plus", 15)}Add flag</button></div>` +
+    `<div class="card2" data-static><div class="c2h"><span class="ci" style="background:rgba(240,164,49,.14);color:#d98a00">${ic("alert", 18)}</span><span><b>Flags</b><em>Things that need attention</em></span></div>` +
     `<div class="ro-empty"><span class="ei">${ic("check", 20)}</span><b>No active flags</b><em>This staff member is all clear.</em></div>` +
     "</div></section>"
   );
 }
 
+/* The hero only needs these — StaffRow satisfies it, so callers pass a real
+   row and nothing here depends on the demo fixtures any more. */
+export type ProfileHeader = Pick<
+  StaffRow,
+  "id" | "initials" | "name" | "email" | "role" | "employmentType" | "started" | "years" | "licenceCount" | "status"
+> & { nickname?: string };
+
+/** Pay fields — only present when the viewer holds `financials`. */
+export type PayFields = {
+  hourly_wage?: number | null;
+  contracted_hours?: number | null;
+  utilisation?: number | null;
+  cost_split?: unknown;
+  employment_type?: string | null;
+};
+
+/** Everything the Permissions card needs to render honestly. */
+export type PermissionsCtx = {
+  /** the target's current role */
+  role: Role | null;
+  /** the target's resolved capabilities */
+  caps: ReadonlySet<Capability>;
+  /** which of those the VIEWER may actually change */
+  settable: ReadonlySet<Capability>;
+  /** may the viewer change this person's role at all */
+  canChangeRole: boolean;
+  /** false renders the whole card read-only (data-static, no Save) */
+  editable: boolean;
+  /** shown when the card is locked, so it isn't a mystery */
+  lockedReason?: string;
+};
+
+/** Which admin-only sections to render. Absent = omit entirely. */
+export type ProfileSections = {
+  payroll?: PayFields | null;
+  permissions?: PermissionsCtx;
+  notes?: { notes?: string | null } | null;
+};
+
 /** "self" = My profile (own staff card). "admin" = Team viewing someone else. */
 export type ProfileMode = "self" | "admin";
 
 export function profileHtml(
-  s: DemoStaff,
-  opts: { mode?: ProfileMode; profile?: StaffProfile | null } = {}
+  s: ProfileHeader,
+  opts: {
+    mode?: ProfileMode;
+    profile?: StaffProfile | null;
+    /* admin mode only. Each key present renders that section; absent omits it
+       entirely — that is how `financials` and owner-only gate the Payroll and
+       Permissions cards, rather than rendering them disabled. */
+    sections?: ProfileSections;
+  } = {}
 ): string {
   const mode: ProfileMode = opts.mode ?? "admin";
   const p = opts.profile ?? null;
@@ -366,7 +445,15 @@ export function profileHtml(
       : `<div class="crumb"><a data-nav="people">Team</a><span class="sep">/</span><a data-nav="people">Staff</a><span class="sep">/</span><b>${esc(s.name)}</b></div>`;
   // Admin-only sections are omitted entirely from your own card — not rendered,
   // not in the nav. The server action's allowlist has no such columns either.
-  const adminSections = mode === "self" ? "" : `${payroll()}${permissions()}${notes()}`;
+  const sec = opts.sections ?? {};
+  const adminSections =
+    mode === "self"
+      ? ""
+      : [
+          sec.payroll !== undefined ? payroll(sec.payroll) : "",
+          sec.permissions ? permissions(sec.permissions) : "",
+          sec.notes !== undefined ? notes(sec.notes) : "",
+        ].join("");
   return (
     '<div class="prof">' +
     `<div class="pbar">${crumb}</div>` +

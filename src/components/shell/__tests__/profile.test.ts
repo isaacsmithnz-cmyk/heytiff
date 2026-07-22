@@ -1,6 +1,7 @@
-import { esc, profileHtml } from "../profile";
+import { esc, profileHtml, type PermissionsCtx } from "../profile";
 import type { StaffProfile } from "@/lib/staff/profile";
-import type { DemoStaff } from "@/mock/demo";
+import { CAPABILITIES, resolve } from "@/lib/permissions";
+import type { StaffRow } from "@/lib/staff/types";
 
 const blank: StaffProfile = {
   id: "p1",
@@ -30,8 +31,12 @@ const blank: StaffProfile = {
   qualifications: null,
 };
 
-const staff: DemoStaff = {
-  id: "jordan-mills",
+const staff: StaffRow = {
+  id: "9f1d0c2a-0000-4000-8000-000000000001",
+  userId: "auth0|jordan",
+  orgRole: "staff",
+  isMaster: false,
+  vehicle: "—",
   initials: "JM",
   name: "Jordan Mills",
   nickname: "Jordy",
@@ -81,22 +86,135 @@ describe("profileHtml — self mode (My profile)", () => {
 });
 
 describe("profileHtml — admin mode (Team)", () => {
-  const html = profileHtml(staff, { mode: "admin" });
-
-  it("includes the admin-only sections", () => {
-    for (const sec of ADMIN_SECTIONS) {
-      expect(html).toContain(`data-sec="${sec}"`);
-    }
-    expect(html).toContain("Admin only");
+  /* Admin sections are opt-in per capability now: the caller passes only the
+     ones the viewer may see, so a section that isn't rendered can't be a
+     section that was rendered-then-hidden. */
+  const ownerCtx: PermissionsCtx = {
+    role: "staff",
+    caps: resolve("staff"),
+    settable: new Set(CAPABILITIES),
+    canChangeRole: true,
+    editable: true,
+  };
+  const full = profileHtml(staff, {
+    mode: "admin",
+    sections: { payroll: {}, permissions: ownerCtx, notes: {} },
   });
 
-  it("defaults to admin mode when no option is given", () => {
-    expect(profileHtml(staff)).toBe(html);
+  it("includes the admin-only sections when the viewer may see them", () => {
+    for (const sec of ADMIN_SECTIONS) {
+      expect(full).toContain(`data-sec="${sec}"`);
+    }
+    expect(full).toContain("Admin only");
+  });
+
+  it("omits Payroll entirely without `financials` — not rendered then hidden", () => {
+    const noPay = profileHtml(staff, {
+      mode: "admin",
+      sections: { permissions: ownerCtx, notes: {} },
+    });
+    expect(noPay).not.toContain('data-sec="payroll"');
+    expect(noPay).not.toContain("Hourly wage");
+    expect(noPay).not.toContain('name="hourly_wage"');
+    expect(noPay).toContain('data-sec="permissions"');
+  });
+
+  it("omits Notes when looking at your own card", () => {
+    const own = profileHtml(staff, { mode: "admin", sections: { permissions: ownerCtx } });
+    expect(own).not.toContain('data-sec="notes"');
+  });
+
+  it("renders no admin sections at all when none are passed", () => {
+    const bare = profileHtml(staff, { mode: "admin" });
+    for (const sec of ADMIN_SECTIONS) expect(bare).not.toContain(`data-sec="${sec}"`);
   });
 
   it("shows the Team breadcrumb", () => {
-    expect(html).toContain('data-nav="people"');
-    expect(html).toContain("Jordan Mills");
+    expect(full).toContain('data-nav="people"');
+    expect(full).toContain("Jordan Mills");
+  });
+});
+
+describe("profileHtml — payroll card", () => {
+  const ctx: PermissionsCtx = {
+    role: "staff",
+    caps: resolve("staff"),
+    settable: new Set(CAPABILITIES),
+    canChangeRole: true,
+    editable: true,
+  };
+
+  it("names its fields so the save collector picks them up", () => {
+    const html = profileHtml(staff, {
+      mode: "admin",
+      sections: { payroll: { hourly_wage: 52.5, contracted_hours: 38, utilisation: 85 }, permissions: ctx },
+    });
+    expect(html).toContain('name="hourly_wage"');
+    expect(html).toContain('value="52.5"');
+    expect(html).toContain('name="contracted_hours"');
+    expect(html).toContain('name="utilisation"');
+    expect(html).toContain('data-section="payroll"');
+  });
+
+  it("seeds the three cost sliders from the stored split", () => {
+    const html = profileHtml(staff, {
+      mode: "admin",
+      sections: {
+        payroll: { cost_split: { install: 50, service: 30, admin: 20 } },
+        permissions: ctx,
+      },
+    });
+    expect(html).toContain('name="cost_install" type="range" min="0" max="100" value="50"');
+    expect(html).toContain('name="cost_service" type="range" min="0" max="100" value="30"');
+    expect(html).toContain('name="cost_admin" type="range" min="0" max="100" value="20"');
+  });
+
+  it("falls back to 34/33/33 when nothing is stored", () => {
+    const html = profileHtml(staff, { mode: "admin", sections: { payroll: {}, permissions: ctx } });
+    expect(html).toContain('name="cost_install" type="range" min="0" max="100" value="34"');
+  });
+});
+
+describe("profileHtml — permissions card", () => {
+  const base: PermissionsCtx = {
+    role: "admin",
+    caps: resolve("admin"),
+    settable: new Set(CAPABILITIES),
+    canChangeRole: true,
+    editable: true,
+  };
+  const render = (over: Partial<PermissionsCtx> = {}) =>
+    profileHtml(staff, { mode: "admin", sections: { permissions: { ...base, ...over } } });
+
+  it("checks the target's current role", () => {
+    expect(render()).toContain('name="org_role" value="admin" checked');
+  });
+
+  it("reflects each capability's real state in a hidden input", () => {
+    const html = render();
+    expect(html).toContain('name="cap_team" value="on"'); // admin default
+    expect(html).toContain('name="cap_financials" value="off"'); // admin default
+  });
+
+  it("locks the owner-tier rows for a delegated manager", () => {
+    const html = render({
+      settable: new Set(CAPABILITIES.filter((c) => c !== "financials" && c !== "permissions")),
+    });
+    // locked rows carry data-locked and say why
+    expect(html).toMatch(/Financials[\s\S]*?owner-granted/);
+    expect(html).toContain("data-locked");
+  });
+
+  it("renders read-only, with a reason, when the viewer may not edit", () => {
+    const html = render({
+      editable: false,
+      canChangeRole: false,
+      lockedReason: "You can't change your own access. Ask another owner.",
+    });
+    expect(html).toContain("data-static");
+    expect(html).not.toContain('data-section="permissions"');
+    expect(html).toContain("You can&#39;t change your own access.");
+    expect(html).toContain("disabled");
   });
 });
 

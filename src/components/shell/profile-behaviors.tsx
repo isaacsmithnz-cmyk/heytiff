@@ -66,7 +66,14 @@ export function ProfileBehaviors({
       card
         .querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>("[name]")
         .forEach((el) => {
-          if (el.name) fields[el.name] = el.value;
+          if (!el.name) return;
+          // A radio group shares one name across several inputs — reading each
+          // in turn would leave the LAST value, not the selected one.
+          if (el instanceof HTMLInputElement && el.type === "radio") {
+            if (el.checked) fields[el.name] = el.value;
+            return;
+          }
+          fields[el.name] = el.value;
         });
 
       setError(card, null);
@@ -164,7 +171,14 @@ export function ProfileBehaviors({
 
       // permission toggle
       const ptog = t.closest<HTMLElement>("[data-toggle]");
-      if (ptog) ptog.classList.toggle("on");
+      if (ptog) {
+        // Owner-tier rows render locked — the server would refuse the change,
+        // so the switch must not move and imply otherwise.
+        if (ptog.hasAttribute("data-locked")) return;
+        ptog.classList.toggle("on");
+        const hidden = ptog.parentElement?.querySelector<HTMLInputElement>('input[type="hidden"][name^="cap_"]');
+        if (hidden) hidden.value = ptog.classList.contains("on") ? "on" : "off";
+      }
 
       // segmented (Active / Inactive)
       const pseg = t.closest<HTMLButtonElement>(".seg button");

@@ -89,19 +89,20 @@ describe("capability gating", () => {
     // staff hold nothing in Operations, so the whole group goes; Personal stays
     expect(groups.map((g) => g.label)).toEqual(["Workspace", "Personal"]);
     expect(groups.find((g) => g.label === "Personal")?.items.map((i) => i.key)).toEqual([
+      "mytimesheet",
       "myvehicle",
     ]);
     expect(groups.every((g) => g.items.length > 0)).toBe(true);
   });
 
-  it("Personal is ungated — every viewer keeps their own vehicle", () => {
+  it("Personal is ungated — every viewer keeps their own timesheet and vehicle", () => {
     for (const role of ["staff", "admin", "owner"] as const) {
       expect(navGroupsFor(viewer(role)).find((g) => g.label === "Personal")?.items.map((i) => i.key))
-        .toEqual(["myvehicle"]);
+        .toEqual(["mytimesheet", "myvehicle"]);
     }
-    // and revoking the register doesn't take it away
-    expect(keys({ caps: resolve("owner", { assets_all: false }), role: "owner" }))
-      .toEqual(expect.arrayContaining(["myvehicle"]));
+    // revoking the team-wide screens doesn't touch your own
+    expect(keys({ caps: resolve("owner", { assets_all: false, timepay_all: false }), role: "owner" }))
+      .toEqual(expect.arrayContaining(["mytimesheet", "myvehicle"]));
   });
 
   it("owner sees the full rail", () => {

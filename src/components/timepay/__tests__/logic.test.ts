@@ -2,6 +2,8 @@ import {
   DEFAULT_SETTINGS,
   type DayEntry,
   type Settings,
+  type StaffWeek,
+  type WeekDay,
   type WeekCtx,
   dayClass,
   derive,
@@ -11,7 +13,43 @@ import {
   splitDay,
   submitNote,
 } from "../logic";
-import { demoTimepayStaff, demoTimepayToday, demoTimepayWeek } from "@/mock/demo";
+/* The prototype-parity roster. It used to live in mock/demo.ts; Stage 5 moved
+   Time & Pay onto real tables and deleted that file's timepay fixtures, but
+   these expectations were verified against the design prototype's own derive
+   pipeline run in Node, so the roster stays here as the parity fixture. */
+
+const LV: DayEntry = { t: "leave", h: 8 };
+const SK: DayEntry = { t: "sick", h: 8 };
+const w = (i: string, o: string, h: number): DayEntry => ({ t: "work", in: i, out: o, h });
+const NO = { t: "empty" } as DayEntry;
+
+const demoTimepayWeek: WeekDay[] = [
+  ["MON", 29, "Jun"],
+  ["TUE", 30, "Jun"],
+  ["WED", 1, "Jul"],
+  ["THU", 2, "Jul"],
+  ["FRI", 3, "Jul"],
+  ["SAT", 4, "Jul"],
+  ["SUN", 5, "Jul"],
+];
+const demoTimepayToday = 4;
+
+const demoTimepayStaff: StaffWeek[] = [
+  { id: "s1", name: "Boston Hayes", role: "Installer", rate: 44,
+    days: [w("07:00", "16:00", 9), w("07:00", "15:00", 8), w("07:00", "16:00", 9), w("07:00", "15:00", 8), w("07:00", "15:00", 8), NO, NO] },
+  { id: "s2", name: "Priya Nair", role: "Service Technician", rate: 46,
+    days: [w("08:00", "16:00", 8), w("06:30", "19:30", 11.5), w("08:00", "16:00", 8), w("08:00", "16:00", 8), w("08:00", "16:00", 8), NO, NO] },
+  { id: "s3", name: "Marcus Webb", role: "Installer", rate: 44,
+    days: [w("07:00", "15:00", 8), w("07:00", "15:00", 8), w("07:00", "15:00", 8), w("07:00", "15:00", 8), w("07:00", "15:00", 8), NO, NO] },
+  { id: "s4", name: "Jordan Mills", role: "Lead Installer", rate: 52,
+    days: [w("06:30", "14:30", 8), w("06:30", "16:00", 9.5), w("06:30", "14:30", 8), w("06:30", "14:30", 8), w("06:30", "14:30", 8), w("07:00", "11:00", 4), NO] },
+  { id: "s5", name: "Hannah Cole", role: "Estimator", rate: 48,
+    days: [w("09:00", "17:00", 8), w("09:00", "17:00", 8), w("09:00", "17:00", 8), SK, w("09:00", "17:00", 8), NO, NO] },
+  { id: "s6", name: "Sophie Tran", role: "Office Manager", rate: 45,
+    days: [w("08:30", "16:30", 8), w("08:30", "16:30", 8), w("08:30", "16:30", 8), w("08:30", "16:30", 8), LV, NO, NO] },
+  { id: "s7", name: "Dylan Reyes", role: "Installer", rate: 44,
+    days: [w("07:00", "15:00", 8), w("07:00", "15:00", 8), w("07:00", "15:00", 8), w("07:00", "15:00", 8), w("07:00", "15:00", 8), NO, NO] },
+];
 
 /* Expectations verified against the design prototype's derive pipeline
    (design_handoff_time_and_pay/app/timepay-review.js) run in Node. */
@@ -23,7 +61,13 @@ const S = (over: Partial<Settings> = {}): Settings =>
 const W = (i: string, o: string, h: number): DayEntry => ({ t: "work", in: i, out: o, h });
 const w8 = W("07:00", "15:00", 8);
 const EM: DayEntry = { t: "empty" };
-const staff = (days: DayEntry[]) => ({ name: "Test Person", role: "Installer", rate: 40, days });
+const staff = (days: DayEntry[], rate: number | null = 40) => ({
+  id: "staff-1",
+  name: "Test Person",
+  role: "Installer",
+  rate,
+  days,
+});
 
 describe("splitDay", () => {
   it("splits a weekday beyond dblAfter into 1x/1.5x/2x", () => {
@@ -132,6 +176,16 @@ describe("derive — rules and edge cases", () => {
     s.rules.sat.on = false;
     const d = derive(staff([w8, w8, w8, w8, w8, W("07:00", "11:00", 4), EM]), s, ctx);
     expect([d.normal, d.ot, d.ot2, d.status]).toEqual([44, 0, 0, "ready"]);
+  });
+
+  it("returns no gross at all when the rate is absent", () => {
+    // the hours-only payload: without `financials` the query never selects the
+    // wage column, so there is nothing to state a wage from — and derive()
+    // must say so rather than quietly computing zero dollars
+    const d = derive(staff([w8, w8, w8, w8, w8, EM, EM], null), S(), ctx);
+    expect(d.gross).toBeNull();
+    expect(d.worked).toBe(40); // hours are unaffected
+    expect(d.weighted).toBe(40); // weighted HOURS, not money
   });
 
   it("gross multiplies buckets by the staff rate", () => {

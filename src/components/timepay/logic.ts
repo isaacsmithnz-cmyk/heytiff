@@ -33,7 +33,23 @@ export type Settings = {
   exportDetail: boolean;
 };
 
-export type StaffWeek = { name: string; role: string; rate: number; days: DayEntry[] };
+/* A person's week.
+
+   `rate` is NULLABLE and that is the whole money boundary in one field. The
+   team screen's query selects the rate column only for a viewer holding
+   `financials`; the my-timesheet query always includes your own. So an
+   hours-only payload literally has no rate to compute a wage from — the
+   absence is structural, not a render-time decision.
+
+   Keyed by `id` (staff_profiles.id), not by name: two people can share a name,
+   and the approval envelope has to point at a row. */
+export type StaffWeek = {
+  id: string;
+  name: string;
+  role: string;
+  rate: number | null;
+  days: DayEntry[];
+};
 
 /* ['MON', 29, 'Jun'] — weekday label, day number, month */
 export type WeekDay = [string, number, string];
@@ -56,7 +72,8 @@ export type Derived = {
   status: "review" | "ready";
   bullets: string[];
   issueTitle: string;
-  gross: number;
+  /** null whenever the rate is absent — there is no wage to state. */
+  gross: number | null;
 };
 
 export type StaffStatus = "review" | "ready" | "approved" | "sent";
@@ -239,10 +256,12 @@ export function derive(staff: StaffWeek, s: Settings, ctx: WeekCtx): Derived {
     bullets,
     issueTitle,
     gross:
-      normal * staff.rate +
-      ot * staff.rate * 1.5 +
-      ot2 * staff.rate * 2 +
-      (sick + leave + ph) * staff.rate,
+      staff.rate == null
+        ? null
+        : normal * staff.rate +
+          ot * staff.rate * 1.5 +
+          ot2 * staff.rate * 2 +
+          (sick + leave + ph) * staff.rate,
   };
 }
 

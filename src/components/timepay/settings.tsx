@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
 import { type RateRule, type Settings, fmtHval, ruleSummary } from "./logic";
-import type { DemoPayPeriod } from "@/mock/demo";
+import type { PayPeriod } from "./timepay";
 
 /* Pay-settings modal: a 7-step wizard on first run, then a flat menu with the
    same controls plus the pay-run PDF export. Edits happen on a draft; nothing
@@ -50,7 +50,7 @@ export function TimePaySettings({
 }: {
   settings: Settings;
   firstRun: boolean;
-  period: DemoPayPeriod;
+  period: PayPeriod;
   onClose: () => void;
   onSave: (s: Settings) => void;
 }) {

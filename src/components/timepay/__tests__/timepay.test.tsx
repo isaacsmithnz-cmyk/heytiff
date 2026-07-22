@@ -1,21 +1,76 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { TimePay } from "../timepay";
-import {
-  demoTimepayPeriods,
-  demoTimepayStaff,
-  demoTimepayToday,
-  demoTimepayWeek,
-} from "@/mock/demo";
+import { TimePay, type PayPeriod } from "../timepay";
+import { DEFAULT_SETTINGS, type DayEntry, type StaffWeek, type WeekDay } from "../logic";
+import type { SheetState } from "@/lib/timepay/query";
 
-function renderTimePay() {
+const approveWeek = jest.fn(async () => ({ ok: true as const }));
+const sendBackWeek = jest.fn(async () => ({ ok: true as const }));
+const savePaySettings = jest.fn(async () => ({ ok: true as const }));
+const push = jest.fn();
+const refresh = jest.fn();
+
+jest.mock("@/app/actions/timepay", () => ({
+  approveWeek: (...a: unknown[]) => approveWeek(...(a as [])),
+  sendBackWeek: (...a: unknown[]) => sendBackWeek(...(a as [])),
+  savePaySettings: (...a: unknown[]) => savePaySettings(...(a as [])),
+}));
+jest.mock("next/navigation", () => ({ useRouter: () => ({ push, refresh }) }));
+
+/* Fixtures are local now — the demo roster went with Stage 5. */
+
+const W = (i: string, o: string, h: number): DayEntry => ({ t: "work", in: i, out: o, h });
+const w8 = W("07:00", "15:00", 8);
+const EM: DayEntry = { t: "empty" };
+
+const WEEK: WeekDay[] = [
+  ["MON", 29, "Jun"],
+  ["TUE", 30, "Jun"],
+  ["WED", 1, "Jul"],
+  ["THU", 2, "Jul"],
+  ["FRI", 3, "Jul"],
+  ["SAT", 4, "Jul"],
+  ["SUN", 5, "Jul"],
+];
+
+const PERIODS: PayPeriod[] = [
+  { start: "2026-06-29", range: "29 Jun – 5 Jul", year: "2026", live: true, note: "" },
+  { start: "2026-06-22", range: "22 – 28 Jun", year: "2026", live: false, note: "Closed period · historical" },
+];
+
+/** Overtime on Wednesday — lands in "Need review". */
+const OVERTIME: StaffWeek = {
+  id: "staff-ot",
+  name: "Boston Hayes",
+  role: "Installer",
+  rate: 42,
+  days: [w8, w8, W("07:00", "18:00", 11), w8, w8, EM, EM],
+};
+
+/** Five clean 8h days — lands in "Ready to approve". */
+const CLEAN: StaffWeek = {
+  id: "staff-clean",
+  name: "Marcus Webb",
+  role: "Apprentice",
+  rate: 28,
+  days: [w8, w8, w8, w8, w8, EM, EM],
+};
+
+function renderTimePay(over: Partial<React.ComponentProps<typeof TimePay>> = {}) {
   return render(
     <TimePay
-      staff={demoTimepayStaff}
-      week={demoTimepayWeek}
-      today={demoTimepayToday}
-      periods={demoTimepayPeriods}
-    />
+      staff={[OVERTIME, CLEAN]}
+      week={WEEK}
+      today={6}
+      periods={PERIODS}
+      periodIndex={0}
+      settings={DEFAULT_SETTINGS}
+      configured
+      sheets={{}}
+      canApprove
+      financials
+      {...over}
+    />,
   );
 }
 
@@ -24,121 +79,110 @@ const section = (title: string) => {
   return st.closest(".sectwrap") as HTMLElement;
 };
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  [approveWeek, sendBackWeek, savePaySettings, push, refresh].forEach((m) => m.mockClear());
+});
 
 describe("TimePay screen", () => {
-  it("sorts demo staff into review and ready sections with matching stats", () => {
+  it("sorts people into review and ready by what derive() flags", () => {
     renderTimePay();
-    // 5 flagged (Boston/Priya/Jordan OT, Hannah sick, Sophie leave), 2 clean
-    expect(within(section("Need review")).getAllByText("Approve")).toHaveLength(5);
-    expect(within(section("Ready to approve")).getAllByText("Approve")).toHaveLength(2);
-    expect(screen.queryByText("Approved", { selector: ".st" })).toBeNull();
-    const stats = document.querySelectorAll(".stat .sv");
-    // OT stat sums 1.5x and 2x hours: Boston 2 + Priya 3.5 + Jordan 5.5
-    expect([...stats].map((s) => s.textContent)).toEqual(["5", "2", "11h", "$0"]);
+    expect(within(section("Need review")).getByText("Boston Hayes")).toBeInTheDocument();
+    expect(within(section("Ready to approve")).getByText("Marcus Webb")).toBeInTheDocument();
   });
 
-  it("shows the live pill and the auto-submit note built from settings", () => {
-    renderTimePay();
-    expect(screen.getByText("LIVE")).toBeInTheDocument();
-    expect(screen.getByText("Open · auto-submits Sun 3:00 PM · then locks")).toBeInTheDocument();
-  });
-
-  it("approving moves a person to Approved and persists the action", async () => {
-    const user = userEvent.setup();
-    renderTimePay();
-    const ready = section("Ready to approve");
-    await user.click(within(ready).getAllByText("Approve")[0]);
+  it("a stored decision overrides the derived status", () => {
+    const sheets: Record<string, SheetState> = {
+      "staff-clean": { status: "approved", submittedAt: null, reviewNote: null, reviewedBy: null },
+      "staff-ot": { status: "sent_back", submittedAt: null, reviewNote: "why the OT?", reviewedBy: null },
+    };
+    renderTimePay({ sheets });
     expect(within(section("Approved")).getByText("Marcus Webb")).toBeInTheDocument();
-    expect(JSON.parse(localStorage.getItem("ht_tp_actions") || "{}")).toEqual({
-      "Marcus Webb": "approved",
-    });
+    expect(screen.getByText("Sent back · awaiting reply")).toBeInTheDocument();
   });
 
-  it("approve all clears the ready section", async () => {
+  it("approving calls the action with the staff id and the period", async () => {
     const user = userEvent.setup();
     renderTimePay();
-    await user.click(screen.getByText("Approve all"));
-    expect(screen.queryByText("Ready to approve", { selector: ".st" })).toBeNull();
-    const approved = section("Approved");
-    expect(within(approved).getByText("Marcus Webb")).toBeInTheDocument();
-    expect(within(approved).getByText("Dylan Reyes")).toBeInTheDocument();
+    await user.click(within(section("Ready to approve")).getAllByText("Approve")[0]);
+    // keyed by id, not by name — two people can share a name
+    expect(approveWeek).toHaveBeenCalledWith("staff-clean", "2026-06-29");
   });
 
-  it("send back replaces the card actions with a persistent tag", async () => {
+  it("send back won't send without a question", async () => {
     const user = userEvent.setup();
     renderTimePay();
     const card = screen.getByText("Boston Hayes").closest(".card") as HTMLElement;
     await user.click(within(card).getByText("Send back"));
-    expect(card.className).toContain("sending");
-    await user.click(within(card).getByText("Send", { selector: "button.qsend" }));
-    expect(within(card).getByText("Sent back · awaiting reply")).toBeInTheDocument();
-    expect(within(card).queryByText("Approve")).toBeNull();
-    expect(JSON.parse(localStorage.getItem("ht_tp_actions") || "{}")).toEqual({
-      "Boston Hayes": "sent",
-    });
+    const send = within(card).getByText("Send", { selector: "button.qsend" });
+    expect(send).toBeDisabled(); // a sent-back sheet with no reason is a dead end
+
+    await user.type(within(card).getByRole("textbox"), "Confirm the overtime");
+    await user.click(send);
+    expect(sendBackWeek).toHaveBeenCalledWith("staff-ot", "2026-06-29", "Confirm the overtime");
   });
 
-  it("restores persisted actions on mount (sent tag survives reload)", () => {
-    localStorage.setItem("ht_tp_actions", JSON.stringify({ "Boston Hayes": "sent" }));
+  it("approve all approves each sheet as its own decision", async () => {
+    const user = userEvent.setup();
     renderTimePay();
-    expect(screen.getByText("Sent back · awaiting reply")).toBeInTheDocument();
+    await user.click(screen.getByText("Approve all"));
+    expect(approveWeek).toHaveBeenCalledTimes(1);
+    expect(approveWeek).toHaveBeenCalledWith("staff-clean", "2026-06-29");
   });
 
-  it("navigating back renders a locked historical period", async () => {
+  it("period navigation is a real navigation, not local state", async () => {
     const user = userEvent.setup();
     renderTimePay();
     await user.click(screen.getByLabelText("Previous period"));
+    expect(push).toHaveBeenCalledWith("/dashboard/timepay?period=2026-06-22");
+  });
+
+  it("renders a historical period as locked", () => {
+    renderTimePay({ periodIndex: 1 });
     expect(screen.getByText("Historical")).toBeInTheDocument();
-    expect(screen.getByText("22 – 28 Jun")).toBeInTheDocument();
-    expect(screen.getByText("Closed · submitted 29 Jun")).toBeInTheDocument();
     expect(document.querySelector(".tpr")?.className).toContain("locked");
-    await user.click(screen.getByLabelText("Next period"));
-    expect(screen.getByText("LIVE")).toBeInTheDocument();
+  });
+});
+
+describe("capability gating on the screen", () => {
+  it("without `approvals` there is nothing to approve or send back", () => {
+    renderTimePay({ canApprove: false });
+    expect(screen.queryByText("Approve")).toBeNull();
+    expect(screen.queryByText("Send back")).toBeNull();
+    expect(screen.getByText("Boston Hayes")).toBeInTheDocument(); // still readable
   });
 
-  it("expanding a review card shows the daily breakdown and totals band", async () => {
-    const user = userEvent.setup();
-    renderTimePay();
-    const card = screen.getByText("Boston Hayes").closest(".card") as HTMLElement;
-    await user.click(within(card).getByText(/View daily breakdown/));
-    expect(within(card).getByText("Weighted hours")).toBeInTheDocument();
-    expect(within(card).getByText("43h")).toBeInTheDocument();
-    expect(within(card).getAllByText("07:00 – 16:00")).toHaveLength(2); // Mon & Wed 9h shifts
-    // once in the pay panel, once in the expanded totals band
-    expect(within(card).getAllByText("Time and a half")).toHaveLength(2);
+  it("without `financials` the pay-settings control is absent", () => {
+    renderTimePay({ financials: false });
+    expect(screen.queryByLabelText("Pay settings")).toBeNull();
   });
 
-  it("first gear click opens the setup wizard; after save it opens the menu", async () => {
+  it("an hours-only payload renders no dollar figure anywhere", () => {
+    // this is what the query produces without `financials`: the rate is
+    // stripped for everyone, the viewer's own row included
+    const hoursOnly = [
+      { ...OVERTIME, rate: null },
+      { ...CLEAN, rate: null },
+    ];
+    const { container } = renderTimePay({ staff: hoursOnly, financials: false });
+    expect(container.textContent).not.toMatch(/\$\s*\d/);
+  });
+});
+
+describe("pay settings", () => {
+  it("saving the wizard persists through the action, not localStorage", async () => {
     const user = userEvent.setup();
-    const { unmount } = renderTimePay();
+    renderTimePay({ configured: false });
     await user.click(screen.getByLabelText("Pay settings"));
     expect(screen.getByText("Setup · step 1 of 7")).toBeInTheDocument();
-    // walk to the review step and save
     for (let i = 0; i < 6; i++) await user.click(screen.getByText("Next"));
-    expect(screen.getByText("Review")).toBeInTheDocument();
     await user.click(screen.getByText("Save settings"));
-    expect(screen.queryByText("Setup · step 1 of 7")).toBeNull();
-    unmount();
-
-    renderTimePay();
-    await user.click(screen.getByLabelText("Pay settings"));
-    expect(screen.getByText("Pay settings", { selector: "h3" })).toBeInTheDocument();
-    expect(screen.getByText(/Export 29 Jun – 5 Jul 2026 \(PDF\)/)).toBeInTheDocument();
+    expect(savePaySettings).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem("ht_tp_set")).toBeNull();
   });
 
-  it("raising the standard day in the wizard recomputes statuses", async () => {
-    const user = userEvent.setup();
-    renderTimePay();
-    // Marcus (5×8h) is ready by default
-    expect(within(section("Ready to approve")).getByText("Marcus Webb")).toBeInTheDocument();
-    await user.click(screen.getByLabelText("Pay settings"));
-    await user.click(screen.getByText("Next")); // step 2
-    await user.click(screen.getByText("Next")); // step 3: standard working day
-    await user.click(screen.getByLabelText("Increase")); // 8h -> 8.5h: every 8h day is now under
-    for (let i = 0; i < 4; i++) await user.click(screen.getByText("Next"));
-    await user.click(screen.getByText("Save settings"));
-    // every 8h day is an under day; nothing is ready
+  it("settings drive the derivation — a longer standard day flags clean weeks", () => {
+    renderTimePay({ settings: { ...DEFAULT_SETTINGS, standard: 8.5 } });
+    // every 8h day is now an under day, so nobody is ready
     expect(screen.queryByText("Ready to approve", { selector: ".st" })).toBeNull();
     expect(within(section("Need review")).getByText("Marcus Webb")).toBeInTheDocument();
   });

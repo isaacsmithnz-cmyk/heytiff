@@ -117,7 +117,17 @@ export const NODES: MapNode[] = [
     status: "building",
     blurb: "Expected gauge pressures by ambient, plus pressure fault-finding.",
     detail:
-      "Estimate view predicts both sides from refrigerant, duty and ambient temperature; Troubleshoot view takes measured pressures and returns the likely cause with a checklist. Absorbed the former standalone Fault Finder — diagnosis here is pressure-driven. Self-contained: published PT data, no pack data, no backend.",
+      "Estimate view predicts both sides from refrigerant, duty and ambient temperature; Troubleshoot view takes measured pressures and returns the likely cause with a checklist — diagnosis here is pressure-driven. Self-contained: published PT data, no pack data, no backend.",
+  },
+  {
+    id: "tb-fault",
+    name: "Fault Finder",
+    kind: "feature",
+    group: "Toolbox",
+    status: "building",
+    blurb: "Guided symptom-based troubleshooting flows.",
+    detail:
+      "Symptom-first triage (no cooling, icing, water, noise, trips) — the general counterpart to Running Pressures' pressure-driven diagnosis; the two may merge later. Deliberately pack-free: fault codes stay out of the universal table, so the flows are hand-authored and fully standalone.",
   },
 
   /* — business tools — */

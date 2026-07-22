@@ -26,6 +26,10 @@ describe("ToolboxScreen", () => {
       "href",
       "/dashboard/toolbox/running-pressures"
     );
+    expect(screen.getByRole("link", { name: /Fault Finder/ })).toHaveAttribute(
+      "href",
+      "/dashboard/toolbox/troubleshooting"
+    );
     expect(screen.getByRole("link", { name: /Outdoor Unit Placement/ })).toHaveAttribute(
       "href",
       "/dashboard/toolbox/outdoor-unit"

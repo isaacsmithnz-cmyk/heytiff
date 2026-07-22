@@ -59,6 +59,12 @@ export const TOOL_CATEGORIES: ToolCategory[] = [
         href: "/dashboard/toolbox/running-pressures",
         badge: "New",
       },
+      {
+        name: "Fault Finder",
+        desc: "Symptom-based diagnosis",
+        href: "/dashboard/toolbox/troubleshooting",
+        badge: "New",
+      },
     ],
   },
   {

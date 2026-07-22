@@ -27,8 +27,8 @@ describe("SystemMap", () => {
     render(<SystemMap />);
     expect(screen.getByText("How to read this")).toBeInTheDocument();
     expect(screen.getByText("Standalone pieces")).toBeInTheDocument();
-    // Running Pressures shows on the board and in the standalone list
-    expect(screen.getAllByText("Running Pressures").length).toBe(2);
+    // Fault Finder shows on the board and in the standalone list
+    expect(screen.getAllByText("Fault Finder").length).toBe(2);
   });
 
   it("selecting a node opens its inspector with lineage", async () => {
@@ -57,7 +57,7 @@ describe("SystemMap", () => {
   it("a standalone selection says so", async () => {
     const user = userEvent.setup();
     render(<SystemMap />);
-    await user.click(cardName("Running Pressures"));
+    await user.click(cardName("Fault Finder"));
     expect(screen.getByText(/no wires in or out/i)).toBeInTheDocument();
   });
 });

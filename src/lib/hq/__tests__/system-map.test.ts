@@ -36,7 +36,7 @@ describe("system map registry", () => {
     // list together with the edge change. `tiff` joined the list in Stage 7:
     // deleting mock/demo.ts removed its only edge, and its knowledge library is
     // empty until the Documents/storage track lands real uploads.
-    expect(standaloneIds().sort()).toEqual(["hq-map", "tb-press", "tiff"].sort());
+    expect(standaloneIds().sort()).toEqual(["hq-map", "tb-fault", "tb-press", "tiff"].sort());
   });
 
   it("helpers agree with the raw edge list", () => {

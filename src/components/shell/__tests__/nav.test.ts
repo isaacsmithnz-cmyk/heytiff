@@ -1,4 +1,6 @@
-import { NAV, NAV_GROUPS, isActive, navFor, navGroupsFor, type NavItem } from "../nav";
+import { NAV, NAV_GROUPS, isActive, navFor, navGroupsFor, type NavItem, type NavViewer } from "../nav";
+import { CAPABILITIES, resolve } from "@/lib/permissions";
+import type { Role } from "@/lib/roles-shared";
 
 const byKey = (key: string) => NAV.find((n) => n.key === key) as NavItem;
 
@@ -28,51 +30,76 @@ describe("nav config", () => {
   });
 });
 
-describe("role gating", () => {
-  it("hides Team and Time & Pay below admin", () => {
-    const staffKeys = navFor("staff").map((n) => n.key);
-    expect(staffKeys).not.toContain("people");
-    expect(staffKeys).not.toContain("timepay");
-    expect(navFor("admin").map((n) => n.key)).toEqual(
-      expect.arrayContaining(["people", "timepay"])
-    );
+describe("capability gating", () => {
+  /* The viewer is (capabilities + role): capabilities drive everything
+     grantable, role only the intrinsic Admin section. */
+  const viewer = (role: Role | null) => ({ caps: resolve(role), role });
+  const keys = (v: NavViewer) => navFor(v).map((n) => n.key);
+
+  it("hides Team and Time & Pay from staff, shows them to admins", () => {
+    expect(keys(viewer("staff"))).not.toContain("people");
+    expect(keys(viewer("staff"))).not.toContain("timepay");
+    expect(keys(viewer("admin"))).toEqual(expect.arrayContaining(["people", "timepay"]));
   });
 
-  it("hides Admin from staff only — admins reach the section, owner-only items gate inside it", () => {
-    expect(navFor("staff").map((n) => n.key)).not.toContain("admin");
-    expect(navFor("admin").map((n) => n.key)).toContain("admin");
-    expect(navFor("owner").map((n) => n.key)).toContain("admin");
+  it("hides Admin from staff only — the section is role-intrinsic", () => {
+    expect(keys(viewer("staff"))).not.toContain("admin");
+    expect(keys(viewer("admin"))).toContain("admin");
+    expect(keys(viewer("owner"))).toContain("admin");
   });
 
-  it("hides gated entries from a signed-out / role-less user", () => {
-    const keys = navFor(null).map((n) => n.key);
-    for (const gated of ["people", "timepay", "admin"]) {
-      expect(keys).not.toContain(gated);
+  it("shows nothing gated to a signed-out / role-less viewer", () => {
+    const k = keys(viewer(null));
+    for (const gated of ["people", "timepay", "admin", "toolbox", "ductr", "tiff"]) {
+      expect(k).not.toContain(gated);
     }
+    expect(k).toEqual(expect.arrayContaining(["home", "assets"]));
   });
 
-  it("leaves ungated entries alone for every role", () => {
-    const ungated = NAV.filter((n) => !n.minRole).map((n) => n.key);
+  it("GRANTING a capability reveals its entry — the point of the model", () => {
+    // an admin granted `team`-adjacent access they lacked by default
+    const plain = keys({ caps: resolve("staff"), role: "staff" });
+    expect(plain).not.toContain("people");
+
+    const granted = keys({ caps: resolve("staff", { team: true }), role: "staff" });
+    expect(granted).toContain("people");
+    // and nothing else leaked in with it
+    expect(granted).not.toContain("timepay");
+    expect(granted).not.toContain("admin");
+  });
+
+  it("REVOKING a default capability hides its entry", () => {
+    const revoked = keys({ caps: resolve("staff", { toolbox: false }), role: "staff" });
+    expect(revoked).not.toContain("toolbox");
+    expect(revoked).toContain("ductr"); // Design Studio — key is the legacy v3 id
+  });
+
+  it("leaves genuinely ungated entries alone for everyone", () => {
+    const ungated = NAV.filter((n) => !n.capability && !n.minRole).map((n) => n.key);
+    expect(ungated).toEqual(expect.arrayContaining(["home", "assets"]));
     for (const role of ["staff", "admin", "owner", null] as const) {
-      expect(navFor(role).map((n) => n.key)).toEqual(
-        expect.arrayContaining(ungated)
-      );
+      expect(keys(viewer(role))).toEqual(expect.arrayContaining(ungated));
     }
   });
 
   it("keeps groups but drops those emptied by filtering", () => {
-    const groups = navGroupsFor("staff");
+    const groups = navGroupsFor(viewer("staff"));
     expect(groups.map((g) => g.label)).toEqual(["Workspace", "Operations"]);
-    // staff keep only the ungated assets placeholder in Operations for now;
-    // it becomes My vehicle when the Mine group lands
-    expect(groups.find((g) => g.label === "Operations")?.items.map((i) => i.key))
-      .toEqual(["assets"]);
+    expect(groups.find((g) => g.label === "Operations")?.items.map((i) => i.key)).toEqual([
+      "assets",
+    ]);
     expect(groups.every((g) => g.items.length > 0)).toBe(true);
   });
 
-  it("owner sees the full Operations group", () => {
-    expect(navGroupsFor("owner").find((g) => g.label === "Operations")?.items.map((i) => i.key))
+  it("owner sees the full rail", () => {
+    expect(navGroupsFor(viewer("owner")).find((g) => g.label === "Operations")?.items.map((i) => i.key))
       .toEqual(["people", "timepay", "assets", "admin"]);
+  });
+
+  it("every capability named in the nav is a real capability", () => {
+    for (const n of NAV) {
+      if (n.capability) expect(CAPABILITIES).toContain(n.capability);
+    }
   });
 });
 

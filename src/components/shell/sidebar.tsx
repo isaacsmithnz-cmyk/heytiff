@@ -6,25 +6,30 @@ import { Icon } from "./icon";
 import { Chevron } from "../logo";
 import { navGroupsFor, isActive } from "./nav";
 import type { Role } from "@/lib/roles-shared";
+import type { Capability } from "@/lib/permissions";
 
 export type ShellUser = {
   name: string;
   roleLabel: string;
   initials: string;
-  /** org role, drives nav visibility. Routes gate themselves independently. */
+  /** org role — for the role-intrinsic Admin entry */
   role: Role | null;
+  /** resolved capabilities; drives nav visibility. Routes gate themselves too. */
+  caps: readonly Capability[];
 };
 
 export function Sidebar({
   role,
+  caps,
   orgName = null,
 }: {
   role: Role | null;
+  caps: readonly Capability[];
   /** trading name from org settings; null (unset) hides the × line */
   orgName?: string | null;
 }) {
   const pathname = usePathname();
-  const groups = navGroupsFor(role);
+  const groups = navGroupsFor({ caps: new Set(caps), role });
 
   return (
     <aside className="side">

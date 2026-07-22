@@ -1,8 +1,15 @@
 /* Single source of truth for the shell nav. Drives the sidebar (grouped),
    active-state detection, and the ⌘K command palette.
-   `key` matches the original v3 data-nav id; `href` is the App Router route. */
+   `key` matches the original v3 data-nav id; `href` is the App Router route.
+
+   Visibility is driven by CAPABILITIES, not roles, so granting someone a
+   capability makes its entry appear on their next request — without a
+   re-login and without a code change. `minRole` remains for the handful of
+   things that are role-intrinsic rather than grantable (the Admin section).
+   Either way this only decides what we OFFER: every route gates itself. */
 
 import { hasMinRole, type Role } from "@/lib/roles-shared";
+import type { Capability } from "@/lib/permissions";
 
 export type NavItem = {
   key: string;
@@ -13,8 +20,9 @@ export type NavItem = {
   accent: string;
   /** pulsing dot in the sidebar when not active */
   dot?: boolean;
-  /** hide the entry below this role. The route must gate itself too — this
-      only stops us offering a link that would bounce the user straight back. */
+  /** hide unless the viewer holds this capability */
+  capability?: Capability;
+  /** hide below this role — for role-intrinsic sections only */
   minRole?: Role;
 };
 
@@ -25,19 +33,22 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Workspace",
     items: [
       { key: "home", label: "Dashboard", icon: "dashboard", href: "/dashboard", hint: "Workspace landing", accent: "#00E5C0" },
-      { key: "toolbox", label: "Toolbox", icon: "wrench", href: "/dashboard/toolbox", hint: "Calculators & references", accent: "#8A2BE2" },
-      { key: "ductr", label: "Design Studio", icon: "wind", href: "/dashboard/studio", hint: "VRF design canvas", accent: "#FF8A00" },
-      { key: "tiff", label: "Tiff AI", icon: "sparkles", href: "/dashboard/tiff", hint: "Assistant & knowledge base", accent: "#2E68FF", dot: true },
+      { key: "toolbox", label: "Toolbox", icon: "wrench", href: "/dashboard/toolbox", hint: "Calculators & references", accent: "#8A2BE2", capability: "toolbox" },
+      { key: "ductr", label: "Design Studio", icon: "wind", href: "/dashboard/studio", hint: "VRF design canvas", accent: "#FF8A00", capability: "studio" },
+      { key: "tiff", label: "Tiff AI", icon: "sparkles", href: "/dashboard/tiff", hint: "Assistant & knowledge base", accent: "#2E68FF", dot: true, capability: "tiff" },
     ],
   },
   {
     label: "Operations",
     items: [
-      { key: "people", label: "Team", icon: "users", href: "/dashboard/team", hint: "People & their day", accent: "#00A389", minRole: "admin" },
-      { key: "timepay", label: "Time & Pay", icon: "clock", href: "/dashboard/timepay", hint: "Timesheets, leave & expenses", accent: "#2E68FF", minRole: "admin" },
+      { key: "people", label: "Team", icon: "users", href: "/dashboard/team", hint: "People & their day", accent: "#00A389", capability: "team" },
+      { key: "timepay", label: "Time & Pay", icon: "clock", href: "/dashboard/timepay", hint: "Timesheets, leave & expenses", accent: "#2E68FF", capability: "timepay_all" },
+      // Ungated for now: this route carries BOTH lenses — the register
+      // (assets_all) and, for everyone else, their own vehicle. It splits when
+      // /dashboard/my-vehicle lands and moves to the Personal group.
       { key: "assets", label: "Assets", icon: "truck", href: "/dashboard/assets", hint: "Fleet & equipment", accent: "#FF8A00" },
-      // Section is admin+ (staff hidden entirely); the owner-only items inside
-      // it — invites/users/roles, financial tools — gate individually.
+      // Role-intrinsic, not grantable: the section is admin+ (staff hidden
+      // entirely) and the owner-only items inside it gate individually.
       { key: "admin", label: "Admin", icon: "shield", href: "/dashboard/admin", hint: "Compliance, documents & settings", accent: "#FF3366", minRole: "admin" },
     ],
   },
@@ -46,17 +57,25 @@ export const NAV_GROUPS: NavGroup[] = [
 /** Flat list (for the command palette). */
 export const NAV: NavItem[] = NAV_GROUPS.flatMap((g) => g.items);
 
-/** Entries this role may see. */
-export function navFor(role: Role | null): NavItem[] {
-  return NAV.filter((n) => !n.minRole || hasMinRole(role, n.minRole));
+/** Who is looking: their capabilities, plus the role for role-intrinsic entries. */
+export type NavViewer = { caps: ReadonlySet<Capability>; role: Role | null };
+
+function visible(n: NavItem, viewer: NavViewer): boolean {
+  if (n.capability && !viewer.caps.has(n.capability)) return false;
+  if (n.minRole && !hasMinRole(viewer.role, n.minRole)) return false;
+  return true;
 }
 
-/** Grouped entries this role may see; groups left empty are dropped. */
-export function navGroupsFor(role: Role | null): NavGroup[] {
-  return NAV_GROUPS.map((g) => ({
-    ...g,
-    items: g.items.filter((n) => !n.minRole || hasMinRole(role, n.minRole)),
-  })).filter((g) => g.items.length > 0);
+/** Entries this viewer may see. */
+export function navFor(viewer: NavViewer): NavItem[] {
+  return NAV.filter((n) => visible(n, viewer));
+}
+
+/** Grouped entries this viewer may see; groups left empty are dropped. */
+export function navGroupsFor(viewer: NavViewer): NavGroup[] {
+  return NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((n) => visible(n, viewer)) })).filter(
+    (g) => g.items.length > 0
+  );
 }
 
 /** Active item for a given pathname. /dashboard is an exact match; the rest match by prefix. */

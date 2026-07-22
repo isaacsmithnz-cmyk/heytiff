@@ -5,15 +5,18 @@ import { useRouter } from "next/navigation";
 import { Icon } from "./icon";
 import { navFor } from "./nav";
 import type { Role } from "@/lib/roles-shared";
+import type { Capability } from "@/lib/permissions";
 
 export function CommandPalette({
   open,
   onClose,
   role,
+  caps,
 }: {
   open: boolean;
   onClose: () => void;
   role: Role | null;
+  caps: readonly Capability[];
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -22,10 +25,10 @@ export function CommandPalette({
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return navFor(role).filter(
+    return navFor({ caps: new Set(caps), role }).filter(
       (n) => !q || `${n.label} ${n.hint}`.toLowerCase().includes(q)
     );
-  }, [query, role]);
+  }, [query, role, caps]);
 
   // reset + focus when opened
   useEffect(() => {

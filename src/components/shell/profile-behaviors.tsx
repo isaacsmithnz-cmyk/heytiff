@@ -108,9 +108,38 @@ export function ProfileBehaviors({
         .querySelectorAll<HTMLInputElement>("input.inp, textarea.inp, select.inp")
         .forEach((el) => el.classList.toggle("is-empty", !el.value));
     };
-    // Open every card read-only; each unlocks individually via its own Edit.
-    root.querySelectorAll(".card2").forEach((c) => c.classList.add("readonly"));
-    profileEmpties();
+    /* Open every card read-only; each unlocks individually via its own Edit.
+
+       Seeding is idempotent and marked per card, so it can run again safely:
+       a card that has already been seeded is left alone (re-locking it would
+       throw away what someone is mid-way through typing), while a card we
+       have never seen gets the readonly class and its injected buttons. */
+    const seedCards = () => {
+      root.querySelectorAll<HTMLElement>(".card2").forEach((c) => {
+        if (c.dataset.profSeeded !== undefined) return;
+        c.dataset.profSeeded = "";
+        c.classList.add("readonly");
+      });
+      profileEmpties();
+    };
+    seedCards();
+
+    /* Re-seed if the subtree is replaced underneath us.
+
+       This screen is injected with dangerouslySetInnerHTML, so when React
+       re-renders it with a different html string — which a server action does,
+       since the page re-renders with the newly saved values — it swaps in
+       fresh nodes. Those nodes come from the server markup, which has neither
+       the readonly class nor the Edit/Cancel/Save buttons (both are added
+       here, on the client). Without this observer the card is left unlocked
+       with no way to save it and only a reload recovers, which is exactly the
+       state seen while testing the organisation screen.
+
+       Safe against loops: the only DOM this adds is the .cardactions span, and
+       a second pass finds it already present and mutates nothing, so the
+       observer settles after one round. */
+    const observer = new MutationObserver(() => seedCards());
+    observer.observe(root, { childList: true, subtree: true });
 
     const onClick = (e: Event) => {
       const t = e.target as HTMLElement;
@@ -350,6 +379,7 @@ export function ProfileBehaviors({
     root.addEventListener("input", onInput);
     root.addEventListener("change", onChange);
     return () => {
+      observer.disconnect();
       root.removeEventListener("click", onClick);
       root.removeEventListener("input", onInput);
       root.removeEventListener("change", onChange);

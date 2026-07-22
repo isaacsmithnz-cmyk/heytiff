@@ -42,7 +42,6 @@ const staff: DemoStaff = {
   years: "3.2",
   licenceCount: 4,
   status: "Active",
-  vehicle: "VRF-04",
   compliance: { label: "ARC expires 14d", state: "warn", expiresDays: 14 },
 };
 

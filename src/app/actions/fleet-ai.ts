@@ -1,7 +1,7 @@
 "use server";
 
 import Anthropic from "@anthropic-ai/sdk";
-import { getOrgRole, hasMinRole } from "@/lib/roles";
+import { can, getDbRole } from "@/lib/permissions-server";
 
 /* Fleet ← Tiff AI: live AU-market vehicle valuations + fuel-receipt reading.
    First real Claude integration in the app. Role rules are enforced HERE, not
@@ -65,8 +65,11 @@ const VALUATION_SCHEMA = {
 };
 
 export async function valueFleet(vehicles: FleetAiVehicle[]): Promise<ValueFleetResult> {
-  const role = await getOrgRole();
-  if (!hasMinRole(role, "admin")) return { ok: false, reason: "Valuations are Manager+ only." };
+  // Valuations ride on `assets_all` (the register capability), not on pay —
+  // fleet value is deliberately separate from financials.
+  if (!(await can("assets_all"))) {
+    return { ok: false, reason: "Valuations need access to the fleet register." };
+  }
   if (offline()) return { ok: false, reason: "Tiff is offline — no API key configured." };
   if (vehicles.length === 0) return { ok: false, reason: "No vehicles to value." };
 
@@ -129,8 +132,9 @@ export async function readFuelReceipt(
   imageBase64: string,
   mediaType: string,
 ): Promise<ReadReceiptResult> {
-  const role = await getOrgRole();
-  if (!role) return { ok: false, reason: "Sign in to scan receipts." };
+  // Any member may scan a receipt — logging fuel is intrinsic, even for
+  // someone with no vehicle assigned (they may fuel a pool vehicle).
+  if (!(await getDbRole())) return { ok: false, reason: "Sign in to scan receipts." };
   if (offline()) return { ok: false, reason: "no-key" };
   if (!RECEIPT_MEDIA.includes(mediaType as ReceiptMedia)) {
     return { ok: false, reason: "Unsupported image type." };

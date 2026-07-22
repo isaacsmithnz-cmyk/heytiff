@@ -51,7 +51,6 @@ export default async function MyProfilePage() {
     years: yearsSince(profile.start_date),
     licenceCount: 0,
     status: profile.status,
-    vehicle: "",
     compliance: { label: "—", state: "ok", expiresDays: 9999 },
   };
 

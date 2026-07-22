@@ -18,6 +18,7 @@ import type {
   OutdoorUnit,
 } from "./packs/schema";
 import { outdoorReadiness } from "./packs/ready";
+import { capacityFit, type UnitFit } from "./fit";
 import { roomLoadKw, type RoomObj } from "./loads-room";
 import { roomsServedBy } from "./coverage";
 import { sizingCapacityKw, type SizingBasis } from "./loads";
@@ -97,41 +98,43 @@ export function multiCapableIdus(pack: DataPack): IndoorUnit[] {
 
 /* ─────────────────────── per-room IDU proposals ─────────────────────── */
 
-/** Oversize cap for the per-room gate — mirrors select.ts (OVERSIZE_CAP). */
+/** Oversize cap for the per-room ranking — mirrors select.ts (OVERSIZE_CAP). */
 export const MULTI_OVERSIZE_CAP = 1.5;
 
 export interface MultiIduProposal {
   idu: IndoorUnit;
   /** capacity under the sizing basis */
   capacityKw: number;
-  /** smallest option that still covers the room load */
-  recommended: boolean;
+  /** how that capacity sizes against the room load */
+  fit: UnitFit;
+  /** smallest option that SUITS the room load */
+  bestFit: boolean;
 }
 
-/** Multi-capable indoor units sized under `basis`. With a load: covering
-    units sorted smallest-first (≤150% unless oversized are included) and the
-    first marked recommended. Without a load: the full set, smallest-first. */
+/** Multi-capable indoor units sized under `basis`, smallest-first, each
+    labelled with how it sizes against the load. Nothing is filtered out —
+    the picker leads with what suits and files the rest underneath, same as
+    the split selector. Without a load everything reads `fits`. */
 export function proposeMultiIdus(
   pack: DataPack,
   loadKw: number | null,
-  basis: SizingBasis,
-  opts: { includeOversized?: boolean } = {}
+  basis: SizingBasis
 ): MultiIduProposal[] {
-  const all: MultiIduProposal[] = multiCapableIdus(pack).map((idu) => ({
-    idu,
-    capacityKw: sizingCapacityKw(idu, basis),
-    recommended: false,
-  }));
+  const all: MultiIduProposal[] = multiCapableIdus(pack).map((idu) => {
+    const capacityKw = sizingCapacityKw(idu, basis);
+    return {
+      idu,
+      capacityKw,
+      fit: capacityFit(capacityKw, loadKw, MULTI_OVERSIZE_CAP),
+      bestFit: false,
+    };
+  });
   all.sort((a, b) => a.capacityKw - b.capacityKw || a.idu.model.localeCompare(b.idu.model));
 
-  if (loadKw == null) return all;
-  const covering = all.filter(
-    (p) =>
-      p.capacityKw >= loadKw &&
-      (opts.includeOversized || p.capacityKw <= loadKw * MULTI_OVERSIZE_CAP)
-  );
-  if (covering.length) covering[0].recommended = true;
-  return covering;
+  // smallest SUITABLE unit — an oversized or undersized row is never the pick
+  const best = all.find((p) => p.fit === "fits");
+  if (loadKw != null && best) best.bestFit = true;
+  return all;
 }
 
 /* ─────────────────────── compatibility validation ───────────────────────

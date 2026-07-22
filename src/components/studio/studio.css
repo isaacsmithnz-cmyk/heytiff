@@ -3926,16 +3926,6 @@
 .ds-ub-title { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
 .ds-ub-title > b { font-size: 16px; font-weight: 800; color: #1a1a1a; }
 .ds-ub-title > span { font-size: 12.5px; color: #767676; }
-.ds-ub-oversize {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: #444;
-  white-space: nowrap;
-  cursor: pointer;
-}
 /* supply-phase segmented filter (header) */
 .ds-ub-powerseg {
   display: inline-flex;

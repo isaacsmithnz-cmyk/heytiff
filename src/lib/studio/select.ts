@@ -12,6 +12,11 @@
 import type { DataPack, FormFactor, IndoorUnit, Phase } from "./packs/schema";
 import type { SizingBasis } from "./loads";
 import { proposePairs, type PairProposal } from "./split";
+import { capacityFit, FIT_RANK, type UnitFit } from "./fit";
+
+/* the ranking vocabulary is shared with the multi picker — re-exported here
+   so the split browser has one import, not two */
+export { FIT_RANK, type UnitFit };
 
 /** Oversize cap: a unit "fits" when it covers the load without exceeding this
     multiple of it. Past the cap it's still offered, flagged oversized. */
@@ -29,13 +34,6 @@ export const FORM_FACTOR_LABELS: Record<FormFactor, string> = {
   "floor-concealed": "Floor concealed",
   bulkhead: "Bulkhead",
 };
-
-/** How an option's capacity sits against the room load:
-    - `fits` — covers the load, within OVERSIZE_CAP of it
-    - `oversized` — covers the load, but past the cap
-    - `undersized` — doesn't cover the load at all
-    With no load gate (full catalogue) everything reads `fits`. */
-export type UnitFit = "fits" | "oversized" | "undersized";
 
 export interface UnitOption {
   idu: IndoorUnit;
@@ -73,18 +71,8 @@ export interface SelectCriteria {
 }
 
 /** Where a pairing's capacity sits against the load. */
-export function pairFit(p: PairProposal, loadKw: number | null): UnitFit {
-  if (loadKw == null) return "fits";
-  if (p.capacityKw < loadKw) return "undersized";
-  return p.capacityKw <= loadKw * OVERSIZE_CAP ? "fits" : "oversized";
-}
-
-/** Presentation order for the three fits — the browser's section order too. */
-export const FIT_RANK: Record<UnitFit, number> = {
-  fits: 0,
-  oversized: 1,
-  undersized: 2,
-};
+export const pairFit = (p: PairProposal, loadKw: number | null): UnitFit =>
+  capacityFit(p.capacityKw, loadKw, OVERSIZE_CAP);
 
 const passesPhase = (p: PairProposal, phase: Phase | null | undefined): boolean =>
   phase == null || p.odu.phase === phase;

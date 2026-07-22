@@ -1,12 +1,13 @@
-/* Selector-overhaul lock gate: capacity gate + oversize cap, form-factor
-   grouping, fit filters, sorts, and IDU-first grouping with ODU sub-choices —
-   all against the real shipped Mitsubishi pack (so data drift fails here). */
+/* Selector-overhaul lock gate: capacity as a RANKING (nothing hidden), form-
+   factor grouping, fit filters, sorts, and IDU-first grouping with ODU sub-
+   choices — all against the real shipped Mitsubishi pack (so data drift fails
+   here). */
 
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { PACK_SECTIONS, type DataPack, type PackMeta } from "../packs/schema";
 import { assemblePack, type PackSource } from "../packs/loader";
-import { unitOptions, formFactorSummary, OVERSIZE_CAP } from "../select";
+import { unitOptions, formFactorSummary, pairFit, FIT_RANK, OVERSIZE_CAP } from "../select";
 
 const SEED_DIR = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
 function loadPack(): DataPack {
@@ -20,41 +21,64 @@ function loadPack(): DataPack {
 }
 const pack = loadPack();
 
-describe("capacity gate + oversize cap", () => {
-  it("2.9 kW load: every option covers the load and stays within the cap", () => {
+describe("capacity ranking", () => {
+  it("a load hides nothing — the whole catalogue comes back, labelled", () => {
+    const all = unitOptions(pack, { loadKw: null, basis: "worst-of-both", formFactor: null });
+    const loaded = unitOptions(pack, { loadKw: 2.9, basis: "worst-of-both", formFactor: null });
+    expect(loaded).toHaveLength(all.length);
+    expect(loaded.map((o) => o.idu.model).sort()).toEqual(all.map((o) => o.idu.model).sort());
+  });
+
+  it("fit labels follow the load and the cap", () => {
     const opts = unitOptions(pack, { loadKw: 2.9, basis: "worst-of-both", formFactor: null });
-    expect(opts.length).toBeGreaterThan(0);
     for (const o of opts) {
-      expect(o.defaultPair.capacityKw).toBeGreaterThanOrEqual(2.9);
-      expect(o.defaultPair.capacityKw).toBeLessThanOrEqual(2.9 * OVERSIZE_CAP);
+      const cap = o.defaultPair.capacityKw;
+      if (o.fit === "fits") {
+        expect(cap).toBeGreaterThanOrEqual(2.9);
+        expect(cap).toBeLessThanOrEqual(2.9 * OVERSIZE_CAP);
+      } else if (o.fit === "oversized") {
+        expect(cap).toBeGreaterThan(2.9 * OVERSIZE_CAP);
+      } else {
+        expect(cap).toBeLessThan(2.9);
+      }
     }
+    // a mid-range load exercises all three buckets
+    expect(new Set(opts.map((o) => o.fit))).toEqual(
+      new Set(["fits", "oversized", "undersized"])
+    );
   });
 
-  it("includeOversized lifts the cap and grows the list", () => {
-    const capped = unitOptions(pack, { loadKw: 2.9, basis: "worst-of-both", formFactor: null });
-    const open = unitOptions(pack, {
-      loadKw: 2.9,
-      basis: "worst-of-both",
-      formFactor: null,
-      includeOversized: true,
-    });
-    expect(open.length).toBeGreaterThan(capped.length);
-    expect(open.some((o) => o.defaultPair.capacityKw > 2.9 * OVERSIZE_CAP)).toBe(true);
-  });
-
-  it("null load = full catalogue (69 split IDUs), nothing recommended", () => {
+  it("null load = full catalogue (69 split IDUs), no best fit", () => {
     const opts = unitOptions(pack, { loadKw: null, basis: "worst-of-both", formFactor: null });
     expect(opts).toHaveLength(69);
-    expect(opts.some((o) => o.recommended)).toBe(false);
+    expect(opts.some((o) => o.bestFit)).toBe(false);
+    expect(opts.every((o) => o.fit === "fits")).toBe(true);
   });
 
-  it("exactly one recommended option under a load gate", () => {
+  it("exactly one best fit under a load, and it's the smallest FITTING one", () => {
     const opts = unitOptions(pack, { loadKw: 2.9, basis: "worst-of-both", formFactor: "wall" });
-    expect(opts.filter((o) => o.recommended)).toHaveLength(1);
-    // and it's the smallest capacity in view
-    const rec = opts.find((o) => o.recommended)!;
-    for (const o of opts)
+    expect(opts.filter((o) => o.bestFit)).toHaveLength(1);
+    const rec = opts.find((o) => o.bestFit)!;
+    expect(rec.fit).toBe("fits");
+    for (const o of opts.filter((o) => o.fit === "fits"))
       expect(rec.defaultPair.capacityKw).toBeLessThanOrEqual(o.defaultPair.capacityKw);
+  });
+
+  it("a load nothing can cover leaves every row undersized and no best fit", () => {
+    const opts = unitOptions(pack, { loadKw: 999, basis: "worst-of-both", formFactor: "wall" });
+    expect(opts.length).toBeGreaterThan(0);
+    expect(opts.every((o) => o.fit === "undersized")).toBe(true);
+    expect(opts.some((o) => o.bestFit)).toBe(false);
+  });
+
+  it("a model is judged on its best pairing, not its first in the book", () => {
+    const opts = unitOptions(pack, { loadKw: 2.9, basis: "worst-of-both", formFactor: null });
+    for (const o of opts.filter((x) => x.pairs.length > 1)) {
+      // no pairing sizes better than the one the row speaks for
+      const best = FIT_RANK[o.fit];
+      for (const p of o.pairs) expect(FIT_RANK[pairFit(p, 2.9)]).toBeGreaterThanOrEqual(best);
+      expect(o.pairs[0]).toBe(o.defaultPair);
+    }
   });
 });
 
@@ -167,18 +191,21 @@ describe("IDU-first grouping with ODU sub-choice", () => {
     ]);
   });
 
-  it("the gate applies per pairing — an option keeps only qualifying ODUs", () => {
-    // PCA-M125KA2 pairs rate 11.5 (M) and 12.5 (ZM) — at load 12.0 only ZM qualify
+  it("pairings sort best-fit first — the short one is kept, just not the default", () => {
+    // PCA-M125KA2 pairs rate 11.5 (M) and 12.5 (ZM) — at load 12.0 only ZM covers
     const opts = unitOptions(pack, {
       loadKw: 12.0,
       basis: "cooling",
       formFactor: "under-ceiling",
-      includeOversized: true,
     });
-    const m125 = opts.find((o) => o.idu.model === "PCA-M125KA2");
+    const m125 = opts.find((o) => o.idu.model === "PCA-M125KA2")!;
     expect(m125).toBeDefined();
-    for (const p of m125!.pairs) expect(p.capacityKw).toBeGreaterThanOrEqual(12.0);
-    expect(m125!.pairs.some((p) => p.odu.model === "PUZ-M125VKA-A")).toBe(false);
+    // the undersized 11.5 pairing is still offered...
+    expect(m125.pairs.some((p) => p.odu.model === "PUZ-M125VKA-A")).toBe(true);
+    // ...but it sorts last, and the row speaks for a pairing that covers
+    expect(m125.pairs[m125.pairs.length - 1].odu.model).toBe("PUZ-M125VKA-A");
+    expect(m125.defaultPair.capacityKw).toBeGreaterThanOrEqual(12.0);
+    expect(m125.fit).not.toBe("undersized");
   });
 });
 
@@ -216,23 +243,56 @@ describe("phase filter", () => {
 
   it("tab counts agree with the filtered option list (count-consistency lock)", () => {
     for (const phase of ["1", "3"] as const) {
-      const sum = formFactorSummary(pack, null, "worst-of-both", false, phase);
+      const sum = formFactorSummary(pack, null, "worst-of-both", phase);
       const dCount = sum.find((s) => s.formFactor === "ducted")?.count ?? 0;
       expect(dCount).toBe(ducted(phase).length);
     }
   });
 
-  it("exactly one recommended option under load + phase, and it satisfies both", () => {
+  it("exactly one best fit under load + phase, and it satisfies both", () => {
     const opts = unitOptions(pack, {
       loadKw: 9.5,
       basis: "cooling",
       formFactor: "ducted",
       phase: "3",
     });
-    const rec = opts.filter((o) => o.recommended);
+    const rec = opts.filter((o) => o.bestFit);
     expect(rec).toHaveLength(1);
     expect(rec[0].defaultPair.odu.phase).toBe("3");
     expect(rec[0].defaultPair.capacityKw).toBeGreaterThanOrEqual(9.5);
+  });
+});
+
+describe("form-factor tab counts", () => {
+  it("a load never empties a tab — only the fit count moves", () => {
+    const bare = formFactorSummary(pack, null, "worst-of-both");
+    const loaded = formFactorSummary(pack, 2.9, "worst-of-both");
+    expect(loaded.map((s) => [s.formFactor, s.count])).toEqual(
+      bare.map((s) => [s.formFactor, s.count])
+    );
+    for (const s of loaded) expect(s.fitCount).toBeLessThanOrEqual(s.count);
+    expect(loaded.some((s) => s.fitCount > 0)).toBe(true);
+  });
+
+  it("a tab where nothing suits still reports its full catalogue", () => {
+    const sum = formFactorSummary(pack, 999, "worst-of-both");
+    expect(sum.length).toBeGreaterThan(0);
+    for (const s of sum) {
+      expect(s.count).toBeGreaterThan(0);
+      expect(s.fitCount).toBe(0);
+    }
+  });
+
+  it("fitCount agrees with the option list it labels", () => {
+    for (const s of formFactorSummary(pack, 2.9, "worst-of-both")) {
+      const opts = unitOptions(pack, {
+        loadKw: 2.9,
+        basis: "worst-of-both",
+        formFactor: s.formFactor,
+      });
+      expect(opts).toHaveLength(s.count);
+      expect(opts.filter((o) => o.fit === "fits")).toHaveLength(s.fitCount);
+    }
   });
 });
 

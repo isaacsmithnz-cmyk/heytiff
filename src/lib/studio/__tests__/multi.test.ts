@@ -204,28 +204,44 @@ describe("multiCapableIdus", () => {
 /* ── per-room IDU proposals ── */
 
 describe("proposeMultiIdus", () => {
-  it("1.74 kW room: covering units within the oversize cap, smallest recommended", () => {
+  it("1.74 kW room: the whole capable catalogue, labelled, smallest fit best", () => {
     const props = proposeMultiIdus(pack, 1.74, basis);
-    expect(props.length).toBeGreaterThan(0);
+    // a load never shortens the list — it only labels it
+    expect(props).toHaveLength(134);
     for (const p of props) {
-      expect(p.capacityKw).toBeGreaterThanOrEqual(1.74);
-      expect(p.capacityKw).toBeLessThanOrEqual(1.74 * MULTI_OVERSIZE_CAP);
+      if (p.fit === "fits") {
+        expect(p.capacityKw).toBeGreaterThanOrEqual(1.74);
+        expect(p.capacityKw).toBeLessThanOrEqual(1.74 * MULTI_OVERSIZE_CAP);
+      } else if (p.fit === "oversized") {
+        expect(p.capacityKw).toBeGreaterThan(1.74 * MULTI_OVERSIZE_CAP);
+      } else {
+        expect(p.capacityKw).toBeLessThan(1.74);
+      }
     }
-    const rec = props.filter((p) => p.recommended);
+    const rec = props.filter((p) => p.bestFit);
     expect(rec).toHaveLength(1);
     expect(rec[0].idu.model).toBe("MSZ-AP20VGD"); // 2.0 kW worst-of-both
+    expect(rec[0].fit).toBe("fits");
   });
 
-  it("includeOversized lifts the cap", () => {
-    const capped = proposeMultiIdus(pack, 1.74, basis);
-    const open = proposeMultiIdus(pack, 1.74, basis, { includeOversized: true });
-    expect(open.length).toBeGreaterThan(capped.length);
+  it("oversized units are offered, not hidden", () => {
+    const props = proposeMultiIdus(pack, 1.74, basis);
+    expect(props.some((p) => p.fit === "oversized")).toBe(true);
+    expect(props.some((p) => p.fit === "undersized")).toBe(true);
   });
 
-  it("null load = the full capable catalogue, nothing recommended", () => {
+  it("a load nothing can cover leaves every row undersized and no best fit", () => {
+    const props = proposeMultiIdus(pack, 999, basis);
+    expect(props).toHaveLength(134);
+    expect(props.every((p) => p.fit === "undersized")).toBe(true);
+    expect(props.some((p) => p.bestFit)).toBe(false);
+  });
+
+  it("null load = the full capable catalogue, nothing flagged", () => {
     const props = proposeMultiIdus(pack, null, basis);
     expect(props).toHaveLength(134);
-    expect(props.some((p) => p.recommended)).toBe(false);
+    expect(props.some((p) => p.bestFit)).toBe(false);
+    expect(props.every((p) => p.fit === "fits")).toBe(true);
   });
 });
 

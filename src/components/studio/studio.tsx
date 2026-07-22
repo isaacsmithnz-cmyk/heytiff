@@ -2067,9 +2067,17 @@ function DesignPanel({
         </div>
         {/* room shape pill — the rectangle/polygon choice, raised by "Draw a
             room". It stays up while you draw so you can switch shape, and
-            folds away the moment a room lands. */}
+            folds away the moment a room lands. Dark, with a marching ring
+            until a shape is armed: it floats over the white plan, where the
+            light HUD treatment made it vanish into the paper. */}
         {roomPicker && (
-          <div className="ds-roomhud" role="toolbar" aria-label="Room shape">
+          <div
+            className={`ds-roomhud${
+              tool === "room-rect" || tool === "room-poly" ? " armed" : ""
+            }`}
+            role="toolbar"
+            aria-label="Room shape"
+          >
             <span className="ds-roomhud-t">Draw a room</span>
             <button
               className={`ds-roomhud-b${tool === "room-rect" ? " on" : ""}`}

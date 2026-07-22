@@ -1,16 +1,25 @@
 /* Design Studio — unit selection engine (Stage 4 selector overhaul).
    Model-first selection the way gear is actually chosen: form factor first,
-   capacity as a GATE (covers the load, and not grossly oversized), then the
-   real differentiators — physical fit (W×D×H) and airflow. Pure functions on
-   top of proposePairs (split.ts); one row per INDOOR model with its qualifying
-   outdoor pairings as a sub-choice. */
+   capacity as a RANKING (does it cover the load without being grossly
+   oversized?), then the real differentiators — physical fit (W×D×H) and
+   airflow. Pure functions on top of proposePairs (split.ts); one row per
+   INDOOR model with its qualifying outdoor pairings as a sub-choice.
+
+   Capacity never hides a unit. The whole form factor is always on the table —
+   options carry a `fit` so the browser can lead with the ones that suit the
+   load and file the rest underneath, flagged for what they are. */
 
 import type { DataPack, FormFactor, IndoorUnit, Phase } from "./packs/schema";
 import type { SizingBasis } from "./loads";
 import { proposePairs, type PairProposal } from "./split";
+import { capacityFit, FIT_RANK, type UnitFit } from "./fit";
 
-/** Oversize cap: qualifying units cover the load without exceeding this
-    multiple of it (toggleable in the UI via `includeOversized`). */
+/* the ranking vocabulary is shared with the multi picker — re-exported here
+   so the split browser has one import, not two */
+export { FIT_RANK, type UnitFit };
+
+/** Oversize cap: a unit "fits" when it covers the load without exceeding this
+    multiple of it. Past the cap it's still offered, flagged oversized. */
 export const OVERSIZE_CAP = 1.5;
 
 export const FORM_FACTOR_LABELS: Record<FormFactor, string> = {
@@ -28,11 +37,14 @@ export const FORM_FACTOR_LABELS: Record<FormFactor, string> = {
 
 export interface UnitOption {
   idu: IndoorUnit;
-  /** qualifying outdoor pairings, pack (book) order — standard series first */
+  /** qualifying outdoor pairings, best fit first then pack (book) order */
   pairs: PairProposal[];
+  /** the pairing the row speaks for — the best-fitting one available */
   defaultPair: PairProposal;
-  /** smallest-capacity qualifying option in the current view */
-  recommended: boolean;
+  /** how defaultPair sizes against the load */
+  fit: UnitFit;
+  /** smallest-capacity FITTING option in the current view */
+  bestFit: boolean;
 }
 
 export interface SelectFilters {
@@ -51,67 +63,59 @@ export interface SelectCriteria {
   /** null = all form factors */
   formFactor: FormFactor | null;
   /** outdoor-unit supply phase; null/undefined = any. Filters PAIRINGS — an
-      indoor model whose every pairing is filtered out drops from the list. */
+      indoor model whose every pairing is filtered out drops from the list.
+      The only capacity-adjacent thing that still REMOVES rows. */
   phase?: Phase | null;
   filters?: SelectFilters;
   sort?: SelectSort;
-  includeOversized?: boolean;
 }
 
-/** A pair passes the capacity gate when it covers the load and — unless
-    oversized units are included — stays within OVERSIZE_CAP of it. */
-function passesGate(
-  p: PairProposal,
-  loadKw: number | null,
-  includeOversized: boolean
-): boolean {
-  if (loadKw == null) return true;
-  if (p.capacityKw < loadKw) return false;
-  return includeOversized || p.capacityKw <= loadKw * OVERSIZE_CAP;
-}
+/** Where a pairing's capacity sits against the load. */
+export const pairFit = (p: PairProposal, loadKw: number | null): UnitFit =>
+  capacityFit(p.capacityKw, loadKw, OVERSIZE_CAP);
 
 const passesPhase = (p: PairProposal, phase: Phase | null | undefined): boolean =>
   phase == null || p.odu.phase === phase;
 
-/** Group gated pairs by indoor model, preserving pack (book) order. */
-function groupByIdu(pairs: PairProposal[]): UnitOption[] {
+/** Group pairs by indoor model. Within a model the pairings sort best-fit
+    first (stable, so pack/book order breaks ties) and the leader becomes the
+    defaultPair — a model is judged on the best pairing it can offer, not on
+    whichever one happened to come first in the book. */
+function groupByIdu(pairs: PairProposal[], loadKw: number | null): UnitOption[] {
   const byModel = new Map<string, PairProposal[]>();
   for (const p of pairs) {
     const arr = byModel.get(p.idu.model) ?? [];
     arr.push(p);
     byModel.set(p.idu.model, arr);
   }
-  return [...byModel.values()].map((arr) => ({
-    idu: arr[0].idu,
-    pairs: arr,
-    defaultPair: arr[0],
-    recommended: false,
-  }));
+  return [...byModel.values()].map((arr) => {
+    const ranked = arr
+      .map((p, i) => ({ p, i, rank: FIT_RANK[pairFit(p, loadKw)] }))
+      .sort((a, b) => a.rank - b.rank || a.i - b.i)
+      .map((x) => x.p);
+    return {
+      idu: ranked[0].idu,
+      pairs: ranked,
+      defaultPair: ranked[0],
+      fit: pairFit(ranked[0], loadKw),
+      bestFit: false,
+    };
+  });
 }
 
 const num = (v: number | undefined): number => (typeof v === "number" ? v : Infinity);
 
-/** The selector's result set: gate → form factor → fit filters → sort. */
+/** The selector's result set: form factor → fit filters → sort, every unit
+    kept and labelled with how it sizes. */
 export function unitOptions(pack: DataPack, criteria: SelectCriteria): UnitOption[] {
-  const {
-    loadKw,
-    basis,
-    formFactor,
-    phase = null,
-    filters = {},
-    sort = "capacity",
-    includeOversized = false,
-  } = criteria;
+  const { loadKw, basis, formFactor, phase = null, filters = {}, sort = "capacity" } = criteria;
 
-  // full catalogue (capacity-ascending), then gate each pairing individually.
-  // Phase filters BEFORE grouping, so defaultPair / recommended / drop-outs
-  // all reflect the surviving pairings.
+  // full catalogue (capacity-ascending). Phase filters BEFORE grouping, so
+  // defaultPair / fit / drop-outs all reflect the surviving pairings.
   const all = proposePairs(pack, null, basis, formFactor ? { formFactor } : {});
-  const gated = all.filter(
-    (p) => passesGate(p, loadKw, includeOversized) && passesPhase(p, phase)
-  );
+  const gated = all.filter((p) => passesPhase(p, phase));
 
-  let options = groupByIdu(gated);
+  let options = groupByIdu(gated, loadKw);
 
   // physical-fit filters on the indoor unit
   const { maxWidthMm, maxDepthMm, maxHeightMm, minAirflowLs } = filters;
@@ -123,13 +127,17 @@ export function unitOptions(pack: DataPack, criteria: SelectCriteria): UnitOptio
     return true;
   });
 
-  // recommended = smallest qualifying capacity in this view (only meaningful
-  // under a load gate), independent of the chosen sort
-  if (loadKw != null && options.length) {
-    let best = options[0];
-    for (const o of options)
-      if (o.defaultPair.capacityKw < best.defaultPair.capacityKw) best = o;
-    best.recommended = true;
+  // bestFit = smallest FITTING capacity in this view (only meaningful under a
+  // load), independent of the chosen sort. Oversized and undersized rows are
+  // never the pick of the bunch, however close they land.
+  if (loadKw != null) {
+    const fitting = options.filter((o) => o.fit === "fits");
+    if (fitting.length) {
+      let best = fitting[0];
+      for (const o of fitting)
+        if (o.defaultPair.capacityKw < best.defaultPair.capacityKw) best = o;
+      best.bestFit = true;
+    }
   }
 
   const key = (o: UnitOption): number => {
@@ -154,28 +162,34 @@ export function unitOptions(pack: DataPack, criteria: SelectCriteria): UnitOptio
 export interface FormFactorCount {
   formFactor: FormFactor;
   label: string;
+  /** every indoor model of this form factor the pack can pair */
   count: number;
+  /** how many of them suit the load — 0 is a real, showable answer */
+  fitCount: number;
 }
 
-/** Qualifying-option counts per form factor for the tab row. Reflects the
-    capacity gate and phase filter — fit filters narrow within a tab, not
-    across tabs. */
+/** Per-form-factor counts for the tab row: the whole catalogue, plus how much
+    of it suits the load. Only the phase filter removes anything; fit filters
+    narrow within a tab, not across tabs. */
 export function formFactorSummary(
   pack: DataPack,
   loadKw: number | null,
   basis: SizingBasis,
-  includeOversized = false,
   phase: Phase | null = null
 ): FormFactorCount[] {
   const all = proposePairs(pack, null, basis);
-  const gated = all.filter(
-    (p) => passesGate(p, loadKw, includeOversized) && passesPhase(p, phase)
-  );
+  const gated = all.filter((p) => passesPhase(p, phase));
   const counts = new Map<FormFactor, Set<string>>();
+  const fits = new Map<FormFactor, Set<string>>();
   for (const p of gated) {
     const set = counts.get(p.idu.form_factor) ?? new Set<string>();
     set.add(p.idu.model);
     counts.set(p.idu.form_factor, set);
+    if (pairFit(p, loadKw) === "fits") {
+      const f = fits.get(p.idu.form_factor) ?? new Set<string>();
+      f.add(p.idu.model);
+      fits.set(p.idu.form_factor, f);
+    }
   }
   return (Object.keys(FORM_FACTOR_LABELS) as FormFactor[])
     .filter((f) => counts.has(f))
@@ -183,5 +197,6 @@ export function formFactorSummary(
       formFactor: f,
       label: FORM_FACTOR_LABELS[f],
       count: counts.get(f)!.size,
+      fitCount: fits.get(f)?.size ?? 0,
     }));
 }

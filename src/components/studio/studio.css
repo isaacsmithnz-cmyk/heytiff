@@ -1327,10 +1327,7 @@
   right: 14px;
   z-index: 15;
   min-width: 176px;
-  background: #fff;
-  border: 1px solid #e5e5e2;
   border-radius: 14px;
-  box-shadow: 0 14px 34px -12px rgba(10, 12, 20, 0.32);
   padding: 12px 14px;
 }
 .dstudio .ds-legend-h {
@@ -1369,9 +1366,20 @@
 .dstudio .ds-legend-sym {
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px solid #eee;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
-.dstudio .ds-legend-ic { width: 13px; height: 13px; flex: none; }
+/* `.idu`/`.odu`/`.riser` are bare words, and shell.css has an unrelated
+   `.fg .odu` CARD rule (padding 24px + grey fill) that was matching this
+   swatch and blowing it up to 50px. Reset the box explicitly rather than
+   rename — shell.css is fragile and shared. */
+.dstudio .ds-legend-ic {
+  width: 13px;
+  height: 13px;
+  flex: none;
+  padding: 0;
+  background: none;
+  box-shadow: none;
+}
 .dstudio .ds-legend-ic.room { background: rgba(240, 164, 49, 0.2); border: 1.5px solid #d98f1f; }
 .dstudio .ds-legend-ic.idu { border: 1.5px solid #14b8a6; border-radius: 2px; }
 .dstudio .ds-legend-ic.odu { border: 1.5px solid #14b8a6; border-radius: 50%; }
@@ -1819,6 +1827,10 @@
   gap: 8px;
   font-size: 14px;
   min-width: 0;
+  /* the dialog PORTALS to body, so it inherits the body ink ramp rather than
+     the studio's — without this the heading lands mid-grey on white and can't
+     be read. Set here, not on .ds-ref, so .ds-ref-sub stays deliberately quiet */
+  color: #1a1a1a;
 }
 .ds-ref-sub {
   font-size: 12px;
@@ -1850,6 +1862,8 @@
   border-color: #d8d8d5;
   color: #1a1a1a;
 }
+/* the sheet's own messages — same portal-inheritance trap as the title */
+.ds-ref-msg { color: #1a1a1a; }
 .ds-ref-body {
   flex: 1;
   min-height: 0;
@@ -2155,11 +2169,8 @@
   display: flex;
   align-items: center;
   gap: 2px;
-  background: #fff;
-  border: 1px solid var(--ds-border);
   border-radius: 12px;
   padding: 3px;
-  box-shadow: 0 1px 2px rgba(10, 12, 20, 0.05);
 }
 .dstudio .ds-zoomctl button {
   min-width: 30px;
@@ -2170,10 +2181,6 @@
   font-weight: 800;
   color: var(--gray500);
 }
-.dstudio .ds-zoomctl button:hover {
-  background: #f4f5f7;
-  color: var(--ink);
-}
 .dstudio .ds-zoomctl span {
   min-width: 44px;
   text-align: center;
@@ -2181,8 +2188,43 @@
   font-weight: 700;
   color: var(--gray500);
 }
-/* room shape pill — the rectangle/polygon choice, floating top-centre over the
-   canvas while a room is being drawn (the room tools left the rail) */
+/* ── canvas HUDs ──────────────────────────────────────────────────────
+   Everything that floats over the PLAN is dark. studio.css used to argue
+   these "stay light on purpose" because they sit over the white canvas —
+   backwards: the plan is white paper with grey linework, so a light pill
+   with a hairline border disappears into the drawing. The room pill
+   proved it in testing; the rest had the same flaw.
+
+   One treatment in one place — surface, edge, shadow, and the inverted
+   ink ramp every child reads through. Anything new that floats over the
+   canvas joins this list rather than restating it. */
+.dstudio .ds-roomhud,
+.dstudio .ds-zoomctl,
+.dstudio .ds-tool-hint,
+.dstudio .ds-legend,
+.dstudio .ds-hud {
+  background: rgba(17, 20, 28, 0.92);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 2px 6px rgba(10, 12, 20, 0.28),
+    0 18px 44px -18px rgba(10, 12, 20, 0.7);
+  --ink: #ffffff;
+  --ink2: rgba(255, 255, 255, 0.94);
+  --gray700: rgba(255, 255, 255, 0.8);
+  --gray500: rgba(255, 255, 255, 0.66);
+  --gray400: rgba(255, 255, 255, 0.46);
+}
+/* hover/inset fills read off the surface, not off a light palette */
+.dstudio .ds-roomhud-b:hover,
+.dstudio .ds-roomhud-x:hover,
+.dstudio .ds-zoomctl button:hover,
+.dstudio .ds-legend-h button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--ink);
+}
+
+/* Room-shape pill. The marching-ants ring says "this is a choice, make
+   it" — it runs only until you commit to a shape (.armed drops it). */
 .dstudio .ds-roomhud {
   position: absolute;
   left: 50%;
@@ -2192,17 +2234,54 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: #fff;
-  border: 1px solid var(--ds-border);
   border-radius: 999px;
   padding: 5px 6px 5px 14px;
-  box-shadow: 0 1px 2px rgba(10, 12, 20, 0.05),
-    0 16px 40px -20px rgba(10, 12, 20, 0.4);
+}
+/* the marching ring — a separate layer so the dash animation can't drag the
+   pill's own paint, and so it sits OUTSIDE the border without changing size */
+.dstudio .ds-roomhud::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: 999px;
+  pointer-events: none;
+  /* a dashed ring drawn as a masked gradient: `border: dashed` can't animate
+     its dashes, but a repeating gradient can march by background-position */
+  padding: 1.5px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--teal) 0 7px,
+    transparent 7px 14px
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  background-size: 14px 100%;
+  animation: ds-roomhud-march 0.55s linear infinite;
+  opacity: 0.9;
+}
+/* once a shape is armed the pill has done its job — the ring stops so it
+   isn't competing with the cursor you're now drawing with */
+.dstudio .ds-roomhud.armed::after {
+  animation: none;
+  opacity: 0.4;
+}
+@keyframes ds-roomhud-march {
+  to { background-position: 14px 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dstudio .ds-roomhud::after { animation: none; }
 }
 .dstudio .ds-roomhud-t {
   font-size: 11.5px;
   font-weight: 800;
-  color: var(--gray500);
+  /* full ink — it's the instruction, not a caption */
+  color: var(--ink);
   white-space: nowrap;
   margin-right: 4px;
 }
@@ -2217,13 +2296,10 @@
   cursor: pointer;
   transition: all 0.18s;
 }
-.dstudio .ds-roomhud-b:hover {
-  background: #f4f5f7;
-  color: var(--ink);
-}
 .dstudio .ds-roomhud-b.on {
   background: var(--teal);
-  color: var(--ink);
+  /* teal is a bright accent — it needs dark ink on it, not the pill's white */
+  color: #0b0d13;
   box-shadow: 0 0 14px rgba(0, 229, 192, 0.45);
 }
 .dstudio .ds-roomhud-x {
@@ -2237,7 +2313,6 @@
   color: var(--gray400);
   cursor: pointer;
 }
-.dstudio .ds-roomhud-x:hover { background: #f4f5f7; color: var(--ink); }
 
 /* in-progress step guidance — top-centre pill */
 .dstudio .ds-tool-hint {
@@ -2251,15 +2326,14 @@
   gap: 7px;
   font-size: 12px;
   font-weight: 700;
-  color: #1a1a1a;
-  background: #fff;
-  border: 1px solid #e5e5e2;
+  color: var(--ink);
   border-radius: 999px;
   padding: 7px 14px;
-  box-shadow: 0 8px 22px -10px rgba(10, 12, 20, 0.4);
   pointer-events: none;
 }
-.dstudio .ds-tool-hint svg { color: #00a389; }
+/* the mid-dark teal reads as muddy grey-green on the dark surface — the
+   bright twin is the one that carries, same swap the frame chrome makes */
+.dstudio .ds-tool-hint svg { color: var(--teal); }
 .dstudio .ds-insp-head {
   display: flex;
   align-items: center;
@@ -3852,16 +3926,6 @@
 .ds-ub-title { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
 .ds-ub-title > b { font-size: 16px; font-weight: 800; color: #1a1a1a; }
 .ds-ub-title > span { font-size: 12.5px; color: #767676; }
-.ds-ub-oversize {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: #444;
-  white-space: nowrap;
-  cursor: pointer;
-}
 /* supply-phase segmented filter (header) */
 .ds-ub-powerseg {
   display: inline-flex;
@@ -3955,6 +4019,15 @@
   border-radius: 999px;
   padding: 1px 7px;
 }
+/* tab count under a load: "4/17" — the fits number leads in teal, the full
+   catalogue trails behind it so a 0 reads as "none suit", not "none here" */
+.ds-ub-count.fit { background: rgba(15, 118, 110, 0.1); color: var(--teal-d, #0f766e); }
+.ds-ub-count.none { background: #f0f0ee; color: #767676; }
+.ds-ub-count i {
+  font-style: normal;
+  font-weight: 700;
+  opacity: 0.55;
+}
 .ds-ub-filters {
   display: flex;
   align-items: center;
@@ -4046,6 +4119,64 @@
   color: #565656;
 }
 .ds-ub-table tr.ds-ub-group .ds-ub-count { margin-left: 8px; }
+
+/* Fit section header — louder than the series band, and it STICKS: the flags
+   on individual rows only mean something next to the heading that framed
+   them, and a long catalogue scrolls that heading away in a hurry.
+   Recommended / Oversized / Undersized are three different verdicts, so each
+   gets its own colour and a clear break above it — a shared "other" pile read
+   as one undifferentiated set of rejects. */
+.ds-ub-table tr.ds-ub-sec td,
+.ds-ub-table tr.ds-ub-sec:hover td {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #fff;
+  /* the break: a wide inset rule above, drawn with the row's own colour so
+     the boundary and the verdict are the same signal */
+  border-top: 1px solid #ececec;
+  border-bottom: 1px solid #ececec;
+  padding: 22px 12px 9px;
+}
+/* the accent bar that opens each section, sat in the padding above the label */
+.ds-ub-table tr.ds-ub-sec td::before {
+  content: "";
+  position: absolute;
+  left: 12px;
+  top: 11px;
+  width: 22px;
+  height: 2.5px;
+  border-radius: 2px;
+  background: currentColor;
+  opacity: 0.85;
+}
+.ds-ub-table tr.ds-ub-sec:first-child td {
+  border-top: none;
+  padding-top: 18px;
+}
+.ds-ub-table tr.ds-ub-sec b {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: currentColor;
+}
+/* one colour per verdict — matching the row flags, so the heading and the
+   chip under it are never telling you different things */
+.ds-ub-table tr.ds-ub-sec-fits td { color: var(--teal-d, #0f766e); }
+.ds-ub-table tr.ds-ub-sec-over td { color: var(--ds-amber-d, #b45309); }
+.ds-ub-table tr.ds-ub-sec-under td { color: var(--ds-red-d, #e0264f); }
+.ds-ub-table tr.ds-ub-sec-all td { color: #1a1a1a; }
+.ds-ub-table tr.ds-ub-sec .ds-ub-count {
+  margin-left: 8px;
+  color: #565656;
+}
+.ds-ub-sechint {
+  margin-left: 10px;
+  font-size: 11.5px;
+  font-weight: 500;
+  /* the hint stays neutral — the colour belongs to the verdict, not the prose */
+  color: #767676;
+}
 .ds-ub-fright {
   display: inline-flex;
   align-items: center;
@@ -4287,6 +4418,16 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+/* sizing flags. Undersized is the only one that's actually a mistake, so it
+   carries the semantic danger red; oversized is a judgement call and stays
+   amber. Neither is the page accent (that's the teal "best fit"). */
+.ds-ub-model em.ds-ub-under { color: var(--ds-red-d, #e0264f); }
+.ds-ub-model em.ds-ub-over { color: var(--ds-amber-d, #b45309); }
+/* the whole row steps back — these are the ones you scrolled past on purpose */
+.ds-ub-table tr.undersized .ds-ub-model,
+.ds-ub-table tr.oversized .ds-ub-model { color: #565656; }
+.ds-ub-table tr.undersized td,
+.ds-ub-table tr.oversized td { color: #767676; }
 .ds-ub-odu { font-size: 12.5px; }
 .ds-ub-oducell .ds-ub-phase { margin-left: 7px; }
 .ds-ub-morepairs {
@@ -6558,12 +6699,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #fff;
-  border: 1px solid var(--ds-border);
   border-radius: 999px;
   padding: 5px 6px 5px 13px;
-  box-shadow: 0 1px 2px rgba(10, 12, 20, 0.04),
-    0 14px 34px -18px rgba(10, 12, 20, 0.35);
 }
 .dstudio .ds-hud-label {
   font-size: 11px;
@@ -6575,7 +6712,9 @@
 .dstudio .ds-hud-seg {
   display: flex;
   gap: 3px;
-  background: #eef0f4;
+  /* the segmented track is an inset well, so it goes DARKER than the pill,
+     not lighter — a light track would be the old white pill in miniature */
+  background: rgba(0, 0, 0, 0.32);
   border-radius: 999px;
   padding: 2px;
 }
@@ -6588,9 +6727,14 @@
   transition: all 0.15s;
 }
 .dstudio .ds-hud-chip.on {
-  background: #fff;
+  /* same "armed" language as the room pill's chosen shape */
+  background: var(--teal);
+  color: #0b0d13;
+  box-shadow: 0 2px 6px -2px rgba(0, 0, 0, 0.5);
+}
+.dstudio .ds-hud-chip:hover:not(.on):not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
   color: var(--ink);
-  box-shadow: 0 2px 6px -2px rgba(10, 12, 20, 0.3);
 }
 .dstudio .ds-hud-chip:disabled { opacity: 0.4; cursor: not-allowed; }
 
@@ -7721,9 +7865,10 @@
   box-shadow: none;
 }
 
-/* Only chrome that sits on the FRAME goes dark. The zoom pill, room-shape
-   pill, tool hint, legend and plenum HUD all float over the white canvas —
-   glass there would be white-on-white — so they stay light on purpose. */
+/* This block retints chrome that sits on the FRAME. The HUDs floating over
+   the canvas are dark too, but they're dark ALWAYS — see the canvas-HUD
+   block above; they don't wait for .editing, because the plan underneath
+   them is white paper in every mode. */
 .dstudio.editing .ds-topbar,
 .dstudio.editing .ds-sidecol,
 .dstudio.editing .ds-toolrail {
@@ -7780,8 +7925,7 @@
   border-color: rgba(255, 255, 255, 0.4);
   color: #fff;
 }
-.dstudio.editing .ds-ctl-btn:hover,
-.dstudio.editing .ds-tool-hint {
+.dstudio.editing .ds-ctl-btn:hover {
   color: #fff;
 }
 /* Popovers routinely straddle the frame AND the white canvas, so they're
@@ -7824,8 +7968,7 @@
   background: #fff;
   color: #111;
 }
-.dstudio.editing .ds-floor-add,
-.dstudio.editing .ds-legend-sym {
+.dstudio.editing .ds-floor-add {
   border-top-color: rgba(255, 255, 255, 0.12);
 }
 .dstudio.editing .ds-var-sec {

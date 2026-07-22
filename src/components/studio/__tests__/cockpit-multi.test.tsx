@@ -280,13 +280,38 @@ describe("Per-room Unit tab", () => {
     expect(within(sub).getByText("No unit for this room yet")).toBeInTheDocument();
     fireEvent.click(within(sub).getByRole("button", { name: /Select unit/ }));
     const dialog = screen.getByRole("dialog", { name: "Choose an indoor unit" });
-    // the room load gates the list; the smallest covering unit is marked
+    // the room load RANKS the list; the smallest suitable unit is marked
     expect(within(dialog).getByText(/Room load ≈/)).toHaveTextContent("1.7 kW");
     const rec = within(dialog).getByText("best fit").closest("tr")!;
     expect(rec).toHaveTextContent("MSZ-AP20VGD");
     fireEvent.click(within(dialog).getByText("MSZ-AP20VGD"));
 
     expect(next!.systems[0].settings.multiIdus).toEqual({ room1: "MSZ-AP20VGD" });
+  });
+
+  it("the picker ranks rather than filters — same sections as the split browser", () => {
+    renderCockpit(mkDoc({ objects: twoRooms() }));
+    fireEvent.click(
+      within(screen.getByTestId("multi-unit-sub")).getByRole("button", { name: /Select unit/ })
+    );
+    const dialog = screen.getByRole("dialog", { name: "Choose an indoor unit" });
+
+    // no toggle — capacity never removes a unit here either
+    expect(within(dialog).queryByText(/Include oversized/i)).not.toBeInTheDocument();
+
+    expect(within(dialog).getByText("Recommended")).toBeInTheDocument();
+    expect(within(dialog).getByText("Oversized")).toBeInTheDocument();
+    expect(within(dialog).getByText("Undersized")).toBeInTheDocument();
+
+    // and the units that used to be filtered out are on screen, flagged
+    expect(within(dialog).getAllByText("oversized").length).toBeGreaterThan(0);
+    expect(within(dialog).getAllByText("undersized").length).toBeGreaterThan(0);
+
+    // sections run fits → oversized → undersized
+    const rows = within(dialog).getAllByRole("row");
+    const at = (t: string) => rows.findIndex((r) => r.textContent?.includes(t));
+    expect(at("Recommended")).toBeLessThan(at("Oversized"));
+    expect(at("Oversized")).toBeLessThan(at("Undersized"));
   });
 
   it("a chosen unit renders the drag card with its own capacity", () => {

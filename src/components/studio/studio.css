@@ -1327,10 +1327,7 @@
   right: 14px;
   z-index: 15;
   min-width: 176px;
-  background: #fff;
-  border: 1px solid #e5e5e2;
   border-radius: 14px;
-  box-shadow: 0 14px 34px -12px rgba(10, 12, 20, 0.32);
   padding: 12px 14px;
 }
 .dstudio .ds-legend-h {
@@ -1369,9 +1366,20 @@
 .dstudio .ds-legend-sym {
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px solid #eee;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
-.dstudio .ds-legend-ic { width: 13px; height: 13px; flex: none; }
+/* `.idu`/`.odu`/`.riser` are bare words, and shell.css has an unrelated
+   `.fg .odu` CARD rule (padding 24px + grey fill) that was matching this
+   swatch and blowing it up to 50px. Reset the box explicitly rather than
+   rename — shell.css is fragile and shared. */
+.dstudio .ds-legend-ic {
+  width: 13px;
+  height: 13px;
+  flex: none;
+  padding: 0;
+  background: none;
+  box-shadow: none;
+}
 .dstudio .ds-legend-ic.room { background: rgba(240, 164, 49, 0.2); border: 1.5px solid #d98f1f; }
 .dstudio .ds-legend-ic.idu { border: 1.5px solid #14b8a6; border-radius: 2px; }
 .dstudio .ds-legend-ic.odu { border: 1.5px solid #14b8a6; border-radius: 50%; }
@@ -2161,11 +2169,8 @@
   display: flex;
   align-items: center;
   gap: 2px;
-  background: #fff;
-  border: 1px solid var(--ds-border);
   border-radius: 12px;
   padding: 3px;
-  box-shadow: 0 1px 2px rgba(10, 12, 20, 0.05);
 }
 .dstudio .ds-zoomctl button {
   min-width: 30px;
@@ -2176,10 +2181,6 @@
   font-weight: 800;
   color: var(--gray500);
 }
-.dstudio .ds-zoomctl button:hover {
-  background: #f4f5f7;
-  color: var(--ink);
-}
 .dstudio .ds-zoomctl span {
   min-width: 44px;
   text-align: center;
@@ -2187,14 +2188,43 @@
   font-weight: 700;
   color: var(--gray500);
 }
-/* room shape pill — the rectangle/polygon choice, floating top-centre over the
-   canvas while a room is being drawn (the room tools left the rail) */
-/* Room-shape pill. This one floats over the PLAN — white paper with grey
-   linework — so the light treatment the other canvas HUDs use disappeared
-   into it. It goes dark instead: ink-on-paper is the strongest contrast
-   available here, and it's the same glass chrome the frame already wears.
-   The marching-ants ring says "this is a choice, make it" — it runs only
-   until you commit to a shape (.armed drops it). */
+/* ── canvas HUDs ──────────────────────────────────────────────────────
+   Everything that floats over the PLAN is dark. studio.css used to argue
+   these "stay light on purpose" because they sit over the white canvas —
+   backwards: the plan is white paper with grey linework, so a light pill
+   with a hairline border disappears into the drawing. The room pill
+   proved it in testing; the rest had the same flaw.
+
+   One treatment in one place — surface, edge, shadow, and the inverted
+   ink ramp every child reads through. Anything new that floats over the
+   canvas joins this list rather than restating it. */
+.dstudio .ds-roomhud,
+.dstudio .ds-zoomctl,
+.dstudio .ds-tool-hint,
+.dstudio .ds-legend,
+.dstudio .ds-hud {
+  background: rgba(17, 20, 28, 0.92);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 2px 6px rgba(10, 12, 20, 0.28),
+    0 18px 44px -18px rgba(10, 12, 20, 0.7);
+  --ink: #ffffff;
+  --ink2: rgba(255, 255, 255, 0.94);
+  --gray700: rgba(255, 255, 255, 0.8);
+  --gray500: rgba(255, 255, 255, 0.66);
+  --gray400: rgba(255, 255, 255, 0.46);
+}
+/* hover/inset fills read off the surface, not off a light palette */
+.dstudio .ds-roomhud-b:hover,
+.dstudio .ds-roomhud-x:hover,
+.dstudio .ds-zoomctl button:hover,
+.dstudio .ds-legend-h button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--ink);
+}
+
+/* Room-shape pill. The marching-ants ring says "this is a choice, make
+   it" — it runs only until you commit to a shape (.armed drops it). */
 .dstudio .ds-roomhud {
   position: absolute;
   left: 50%;
@@ -2204,17 +2234,8 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: rgba(17, 20, 28, 0.92);
-  backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 999px;
   padding: 5px 6px 5px 14px;
-  box-shadow: 0 2px 6px rgba(10, 12, 20, 0.28),
-    0 18px 44px -18px rgba(10, 12, 20, 0.7);
-  /* the dark pill needs the inverted text ramp, same as the frame chrome */
-  --ink: #ffffff;
-  --gray500: rgba(255, 255, 255, 0.66);
-  --gray400: rgba(255, 255, 255, 0.46);
 }
 /* the marching ring — a separate layer so the dash animation can't drag the
    pill's own paint, and so it sits OUTSIDE the border without changing size */
@@ -2275,10 +2296,6 @@
   cursor: pointer;
   transition: all 0.18s;
 }
-.dstudio .ds-roomhud-b:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--ink);
-}
 .dstudio .ds-roomhud-b.on {
   background: var(--teal);
   /* teal is a bright accent — it needs dark ink on it, not the pill's white */
@@ -2296,7 +2313,6 @@
   color: var(--gray400);
   cursor: pointer;
 }
-.dstudio .ds-roomhud-x:hover { background: rgba(255, 255, 255, 0.1); color: var(--ink); }
 
 /* in-progress step guidance — top-centre pill */
 .dstudio .ds-tool-hint {
@@ -2310,15 +2326,14 @@
   gap: 7px;
   font-size: 12px;
   font-weight: 700;
-  color: #1a1a1a;
-  background: #fff;
-  border: 1px solid #e5e5e2;
+  color: var(--ink);
   border-radius: 999px;
   padding: 7px 14px;
-  box-shadow: 0 8px 22px -10px rgba(10, 12, 20, 0.4);
   pointer-events: none;
 }
-.dstudio .ds-tool-hint svg { color: #00a389; }
+/* the mid-dark teal reads as muddy grey-green on the dark surface — the
+   bright twin is the one that carries, same swap the frame chrome makes */
+.dstudio .ds-tool-hint svg { color: var(--teal); }
 .dstudio .ds-insp-head {
   display: flex;
   align-items: center;
@@ -6694,12 +6709,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #fff;
-  border: 1px solid var(--ds-border);
   border-radius: 999px;
   padding: 5px 6px 5px 13px;
-  box-shadow: 0 1px 2px rgba(10, 12, 20, 0.04),
-    0 14px 34px -18px rgba(10, 12, 20, 0.35);
 }
 .dstudio .ds-hud-label {
   font-size: 11px;
@@ -6711,7 +6722,9 @@
 .dstudio .ds-hud-seg {
   display: flex;
   gap: 3px;
-  background: #eef0f4;
+  /* the segmented track is an inset well, so it goes DARKER than the pill,
+     not lighter — a light track would be the old white pill in miniature */
+  background: rgba(0, 0, 0, 0.32);
   border-radius: 999px;
   padding: 2px;
 }
@@ -6724,9 +6737,14 @@
   transition: all 0.15s;
 }
 .dstudio .ds-hud-chip.on {
-  background: #fff;
+  /* same "armed" language as the room pill's chosen shape */
+  background: var(--teal);
+  color: #0b0d13;
+  box-shadow: 0 2px 6px -2px rgba(0, 0, 0, 0.5);
+}
+.dstudio .ds-hud-chip:hover:not(.on):not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
   color: var(--ink);
-  box-shadow: 0 2px 6px -2px rgba(10, 12, 20, 0.3);
 }
 .dstudio .ds-hud-chip:disabled { opacity: 0.4; cursor: not-allowed; }
 
@@ -7857,9 +7875,10 @@
   box-shadow: none;
 }
 
-/* Only chrome that sits on the FRAME goes dark. The zoom pill, room-shape
-   pill, tool hint, legend and plenum HUD all float over the white canvas —
-   glass there would be white-on-white — so they stay light on purpose. */
+/* This block retints chrome that sits on the FRAME. The HUDs floating over
+   the canvas are dark too, but they're dark ALWAYS — see the canvas-HUD
+   block above; they don't wait for .editing, because the plan underneath
+   them is white paper in every mode. */
 .dstudio.editing .ds-topbar,
 .dstudio.editing .ds-sidecol,
 .dstudio.editing .ds-toolrail {
@@ -7916,8 +7935,7 @@
   border-color: rgba(255, 255, 255, 0.4);
   color: #fff;
 }
-.dstudio.editing .ds-ctl-btn:hover,
-.dstudio.editing .ds-tool-hint {
+.dstudio.editing .ds-ctl-btn:hover {
   color: #fff;
 }
 /* Popovers routinely straddle the frame AND the white canvas, so they're
@@ -7960,8 +7978,7 @@
   background: #fff;
   color: #111;
 }
-.dstudio.editing .ds-floor-add,
-.dstudio.editing .ds-legend-sym {
+.dstudio.editing .ds-floor-add {
   border-top-color: rgba(255, 255, 255, 0.12);
 }
 .dstudio.editing .ds-var-sec {

@@ -17,11 +17,32 @@
 | Role | Scope |
 |---|---|
 | **Super Admin** | HeyTiff platform team. Cross-org oversight, separate & audited. Not a normal business role. (Treat as Owner within an org for now; cross-org tooling is out of scope for these sections.) |
-| **Owner/Admin** | Full access within their business — everything, incl. financials, pay, billing, settings. |
+| **Owner/Admin** | Full access within their business — everything, incl. financials, pay, billing, settings. Multiple owners are allowed: exactly one **master owner** (`organizations.primary_owner_user_id`, shown as "Owner") plus any number of **co-owners** (also `role='owner'`, shown as "Co-owner"). Co-owners hold every capability; only the master can transfer ownership, hold billing or delete the org, and **nobody can demote, remove or edit the master**. |
 | **Manager/Supervisor** | Runs the crew, not the money. Sees everyone's data + approves. **No** financials (pay rates, charge-out, billing) and **no** org settings. |
 | **Staff** | Own data + shared tools only. No team-wide views, no approvals, no financials, no admin. |
 
 Legend: ✓ = full · ◐ = own/limited · ✗ = no access (enforce server-side)
+
+> **2026-07-20 — capability model (implemented).** Role is a *default*, not a
+> verdict: it seeds a per-person capability set (`src/lib/permissions.ts`) and
+> the owner can grant/revoke individual capabilities in Team (sparse overrides
+> in `memberships.permissions`; a role change resets them). Enforcement asks
+> `can(capability)` (`src/lib/permissions-server.ts`, fresh DB read per
+> request) — never the role — except owner-intrinsics (change roles,
+> invite/offboard, billing, org settings), which use the fresh DB role.
+> Permission management itself is the `permissions` capability, so the owner
+> can delegate it — but the owner-tier grants (`financials`, `permissions`)
+> stay owner-only (`OWNER_TIER` + `canSetCapability`/`canEditPermissionsOf` in
+> `src/lib/permissions.ts`), so delegation can't become a side door into pay.
+> Onboarding is likewise the `invites` capability, but a delegated inviter can
+> only invite at **staff** role (`invitableRoles`) — picking a role is a role
+> assignment, which stays owner-only. So the rows below that read "Manager ✗"
+> mean *by default*: the owner can grant Invites or Financials to a specific
+> admin. Only role changes, billing and org settings are ungrantable.
+> The three-role DB stays: the doc's "Manager" tier is the `admin` role's
+> default set (everything operational, no money); granting `financials` to an
+> admin is how an owner delegates pay visibility. The tables below remain the
+> source for the *defaults*.
 
 ---
 
@@ -76,8 +97,9 @@ Legend: ✓ = full · ◐ = own/limited · ✗ = no access (enforce server-side)
 ## Admin (existing section)
 | Item | Manager | Owner |
 |---|---|---|
-| Invites / users / roles / settings | ✗ | ✓ |
-| Charge-out rate calculator | ✗ | ✓ |
+| Invites / users / roles / settings | ✗ (invites grantable via `invites`, staff-role only) | ✓ |
+| **Organisation settings** *(built 2026-07-20)* — trading/legal name, ABN (checksummed), ACN, GST, contact & address (state → public holidays), ARC RTA, contractor licence, public liability insurance, logo (upload deferred). Trading name renders as the sidebar's "HeyTiff × …" line. | ✗ | ✓ (incl. co-owners) |
+| Charge-out rate calculator | ✗ (grantable via `financials`) | ✓ |
 | Compliance (incidents, QA) | ✓ | ✓ |
 | Documents (store/verify/share) | ✓ | ✓ |
 | Licences & insurances (expiry tracking) | ✓ | ✓ |
@@ -106,7 +128,13 @@ Legend: ✓ = full · ◐ = own/limited · ✗ = no access (enforce server-side)
 > also carry a `user_id`/`staff_id` that RLS restricts Staff to their own rows.
 
 ## Entities & key relationships
-- **organizations** *(exists)* — the business. Root of every tenant scope.
+- **organizations** *(exists; extended 2026-07-20)* — the business. Root of every
+  tenant scope. Now also carries the **company profile** (trading/legal name,
+  ABN/ACN, GST flag, contact, address + `state` with an AU CHECK — the state
+  that public holidays key off — ARC RTA, contractor licence, public-liability
+  insurance incl. expiry `date`, `logo_url`) and **`primary_owner_user_id`**
+  (NOT NULL, composite FK → memberships): the master owner, undeletable until
+  ownership is transferred. Legacy `name` = signup-email seed, never displayed.
 - **memberships** *(exists)* — `user_id` ↔ `org_id` + `role` (owner/admin/manager/staff).
 - **invitations** *(exists)* — pending invites by email + role.
 - **staff** *(new)* — the profile record per person. Likely links 1:1 to a

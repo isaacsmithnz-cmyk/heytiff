@@ -2,6 +2,7 @@
 
 import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { can } from "@/lib/permissions-server";
 
 /* Rate Calculator persistence — server side. Follows the studio-action
    pattern: authenticate the Auth0 session, then read/write via the service
@@ -25,6 +26,9 @@ async function requireOrg(): Promise<{ orgId: string; userId: string }> {
   if (!session) throw new Error("Not authenticated");
   const orgId = session.orgId as string | undefined;
   if (!orgId) throw new Error("No active organization");
+  // The whole rate model is wage-derived — `financials` gates both directions.
+  // Previously any signed-in member could POST these and read every wage.
+  if (!(await can("financials"))) throw new Error("Insufficient permissions");
   return { orgId, userId: session.user.sub as string };
 }
 

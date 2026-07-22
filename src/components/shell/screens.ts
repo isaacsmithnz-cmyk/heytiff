@@ -104,18 +104,30 @@ export function assetsHtml() {
 }
 
 /* ---------------- ADMIN — invite card (admin/owner only) ---------------- */
-export function adminHtml(canInvite: boolean) {
+/* Admin landing. The SECTION is admin+ (staff never see it); the ITEMS gate
+   individually — invites/users/roles are owner-only, the rate calculator needs
+   `financials`. An admin with neither still gets the section, because the
+   manager-visible tools the spec puts here (compliance, documents, licences &
+   insurances, training) will live in it. Passing a bare boolean here was the
+   bug: it collapsed a per-item gate into a whole-section one. */
+export function adminHtml(opts: {
+  canInvite: boolean;
+  canFinancials: boolean;
+  /** owner-intrinsic: the organisation profile card */
+  canOrgSettings?: boolean;
+}) {
+  const { canInvite, canFinancials, canOrgSettings = false } = opts;
   const head =
     '<div class="v2head" style="margin-bottom:32px"><div>' +
     '<h1 style="font-size:44px;font-weight:800;letter-spacing:-0.03em;margin:0">Admin</h1></div></div>';
 
-  if (!canInvite) {
+  if (!canInvite && !canFinancials && !canOrgSettings) {
     return (
       '<div class="wrap"><div class="stg">' +
       head +
       '<div style="padding:80px 16px;text-align:center;border:1.5px dashed #e6e8ee;border-radius:24px;background:linear-gradient(180deg,#fafbfc,#fff)">' +
-      '<b style="display:block;font-size:16px;font-weight:700;color:#6b7280">Admin tools</b>' +
-      '<em style="font-style:normal;display:block;font-size:13px;color:#9ca3af;margin-top:6px">Available to owners and admins.</em></div>' +
+      '<b style="display:block;font-size:16px;font-weight:700;color:#6b7280">Nothing here for you yet</b>' +
+      '<em style="font-style:normal;display:block;font-size:13px;color:#9ca3af;margin-top:6px">Compliance, documents, licences &amp; insurances and training will appear here. Invites and financial tools are owner-only.</em></div>' +
       "</div></div>"
     );
   }
@@ -146,15 +158,29 @@ export function adminHtml(canInvite: boolean) {
     I("arrowR", 16) +
     "</span></a>";
 
-  return (
-    '<div class="wrap"><div class="stg">' +
-    head +
-    '<div style="font-size:11px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#9ca3af;margin-bottom:16px">Team</div>' +
-    inviteCard +
-    '<div style="font-size:11px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#9ca3af;margin:32px 0 16px">Tools</div>' +
-    rateCalcCard +
-    "</div></div>"
-  );
+  const orgCard =
+    '<a href="/dashboard/admin/organization" class="spot" style="display:block;text-decoration:none;background:#fff;border-radius:24px;border:1px solid #f0f0f2;box-shadow:0 8px 30px rgba(0,0,0,.03);padding:32px;max-width:520px">' +
+    '<span class="sglow"></span>' +
+    '<div style="display:flex;align-items:center;gap:16px;margin-bottom:16px">' +
+    '<div style="width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:rgba(138,43,226,0.08);border:1px solid rgba(138,43,226,0.25);color:#8A2BE2;flex:0 0 auto">' +
+    I("hexagon", 22) +
+    "</div>" +
+    '<div><div style="font-size:18px;font-weight:800;color:#050505">Organisation</div>' +
+    '<div style="font-size:13px;color:#6b7280;font-weight:500">Company name, ABN, address, licences &amp; insurance</div></div></div>' +
+    '<span style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:12px;background:#050505;color:#fff;font-size:14px;font-weight:700">Open settings ' +
+    I("arrowR", 16) +
+    "</span></a>";
+
+  const group = (label: string, card: string, first: boolean) =>
+    `<div style="font-size:11px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#9ca3af;margin:${first ? "0 0 16px" : "32px 0 16px"}">${label}</div>` +
+    card;
+
+  const groups: string[] = [];
+  if (canOrgSettings) groups.push(group("Business", orgCard, groups.length === 0));
+  if (canInvite) groups.push(group("Team", inviteCard, groups.length === 0));
+  if (canFinancials) groups.push(group("Tools", rateCalcCard, groups.length === 0));
+
+  return '<div class="wrap"><div class="stg">' + head + groups.join("") + "</div></div>";
 }
 
 /* ---------------- generic titled empty screen (Team / Studio / Admin) ---------------- */

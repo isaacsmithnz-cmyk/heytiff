@@ -17,19 +17,85 @@ import { NAV } from "./nav";
    ⚠ ON RE-IMPORT: the fresh export will reset this to `.prof.readonly` in both
    shell.css and the handler — re-scope it to `.card2` again (or fix it in the
    Claude design so it survives). */
-export function ProfileBehaviors({ html }: { html: string }) {
+export type SaveSection = (
+  section: string,
+  fields: Record<string, string>
+) => Promise<{ ok: true } | { ok: false; error: string }>;
+
+export function ProfileBehaviors({
+  html,
+  onSave,
+}: {
+  html: string;
+  /** omit to keep the pre-persistence behaviour (Save just re-locks the card) */
+  onSave?: SaveSection;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const router = useRouter();
+
+  /* Held in a ref, NOT an effect dependency. An inline onSave gets a new
+     identity on every parent render; depending on it would re-run this effect
+     mid-edit and re-lock every card, discarding what the user was typing. */
+  const saveRef = useRef<SaveSection | undefined>(onSave);
+  useEffect(() => {
+    saveRef.current = onSave;
+  }, [onSave]);
 
   useEffect(() => {
     const root = ref.current;
     if (!root) return;
+
+    const setError = (card: HTMLElement, msg: string | null) => {
+      let box = card.querySelector<HTMLElement>(".carderr");
+      if (!msg) {
+        box?.remove();
+        return;
+      }
+      if (!box) {
+        box = document.createElement("div");
+        box.className = "carderr";
+        card.appendChild(box);
+      }
+      box.textContent = msg;
+    };
+
+    const saveCard = async (card: HTMLElement, section: string, btn: HTMLElement) => {
+      const save = saveRef.current;
+      if (!save) return;
+      const fields: Record<string, string> = {};
+      card
+        .querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>("[name]")
+        .forEach((el) => {
+          if (el.name) fields[el.name] = el.value;
+        });
+
+      setError(card, null);
+      card.classList.add("saving");
+      btn.setAttribute("disabled", "");
+      try {
+        const res = await save(section, fields);
+        if (res.ok) {
+          card.classList.add("readonly");
+        } else {
+          setError(card, res.error);
+        }
+      } catch {
+        setError(card, "Couldn’t save — check your connection and try again.");
+      } finally {
+        card.classList.remove("saving");
+        btn.removeAttribute("disabled");
+        profileEmpties();
+      }
+    };
 
     const profileEmpties = () => {
       const prof = root.querySelector(".prof");
       if (!prof) return;
       prof.querySelectorAll(".card2 > .c2h").forEach((h) => {
         if (h.querySelector(".cardactions")) return;
+        // data-static cards (Training, Assigned vehicle) have no editable
+        // fields, so they get no Edit/Save affordance at all.
+        if (h.parentElement instanceof HTMLElement && h.parentElement.dataset.static !== undefined) return;
         const w = document.createElement("span");
         w.className = "cardactions";
         w.innerHTML =
@@ -97,15 +163,35 @@ export function ProfileBehaviors({ html }: { html: string }) {
       }
       const pca = t.closest<HTMLElement>("[data-cancel]");
       if (pca) {
-        pca.closest(".card2")?.classList.add("readonly");
+        const card = pca.closest<HTMLElement>(".card2");
+        if (card) {
+          setError(card, null);
+          card.classList.add("readonly");
+        }
         profileEmpties();
         return;
       }
       const psv = t.closest<HTMLElement>("[data-save]");
       if (psv) {
-        psv.closest(".card2")?.classList.add("readonly");
-        profileEmpties();
+        const card = psv.closest<HTMLElement>(".card2");
+        if (!card) return;
+        const section = card.dataset.section;
+        // Cards with no data-section aren't persisted yet — keep the original
+        // optimistic close rather than pretending to save.
+        if (!section || !saveRef.current) {
+          card.classList.add("readonly");
+          profileEmpties();
+          return;
+        }
+        void saveCard(card, section, psv);
         return;
+      }
+
+      // segmented (Active / Inactive) writes through to its hidden input
+      const segb = t.closest<HTMLButtonElement>(".seg [data-segval]");
+      if (segb) {
+        const hidden = segb.closest(".seg")?.querySelector<HTMLInputElement>('input[type="hidden"]');
+        if (hidden) hidden.value = segb.dataset.segval || "";
       }
 
       // doc verify / upload / delete
@@ -268,7 +354,7 @@ export function ProfileBehaviors({ html }: { html: string }) {
       root.removeEventListener("input", onInput);
       root.removeEventListener("change", onChange);
     };
-  }, [router]);
+  }, [router, html]);
 
   return <div ref={ref} className="page in" dangerouslySetInnerHTML={{ __html: html }} />;
 }

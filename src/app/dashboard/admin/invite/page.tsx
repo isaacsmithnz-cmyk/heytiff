@@ -1,18 +1,27 @@
 import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { getOrgRole, hasMinRole } from "@/lib/roles";
+import { getCapabilities, getDbRole } from "@/lib/permissions-server";
+import { invitableRoles } from "@/lib/permissions";
 import { createInvite } from "@/app/actions/invite";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { Icon } from "@/components/shell/icon";
 import { CopyLink } from "@/components/shell/copy-link";
 
+// Gated by the `invites` capability — owner by default, grantable to whoever
+// handles onboarding. WHICH roles they may create is a second question:
+// non-owners can invite staff only (invitableRoles), because picking a role
+// is a role assignment and those are owner-only.
+
+const ROLE_LABEL: Record<string, string> = { admin: "Admin", staff: "Staff" };
+
 export default async function InvitePage() {
   const session = await auth0.getSession();
   if (!session) redirect("/auth/login");
 
-  const role = await getOrgRole();
-  if (!hasMinRole(role, "admin")) redirect("/dashboard");
+  const [actorRole, caps] = await Promise.all([getDbRole(), getCapabilities()]);
+  const allowedRoles = invitableRoles(actorRole, caps);
+  if (allowedRoles.length === 0) redirect("/dashboard");
 
   const orgId = session.orgId as string;
 
@@ -125,8 +134,11 @@ export default async function InvitePage() {
                   Role
                 </label>
                 <select id="role" name="role" style={input} defaultValue="staff">
-                  <option value="admin">Admin</option>
-                  <option value="staff">Staff</option>
+                  {allowedRoles.map((r) => (
+                    <option key={r} value={r}>
+                      {ROLE_LABEL[r] ?? r}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>

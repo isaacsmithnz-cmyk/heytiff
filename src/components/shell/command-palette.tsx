@@ -3,14 +3,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "./icon";
-import { NAV } from "./nav";
+import { navFor } from "./nav";
+import type { Role } from "@/lib/roles-shared";
 
 export function CommandPalette({
   open,
   onClose,
+  role,
 }: {
   open: boolean;
   onClose: () => void;
+  role: Role | null;
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -19,10 +22,10 @@ export function CommandPalette({
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return NAV.filter(
+    return navFor(role).filter(
       (n) => !q || `${n.label} ${n.hint}`.toLowerCase().includes(q)
     );
-  }, [query]);
+  }, [query, role]);
 
   // reset + focus when opened
   useEffect(() => {

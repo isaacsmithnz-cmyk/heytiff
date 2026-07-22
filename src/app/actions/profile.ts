@@ -1,0 +1,124 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { auth0 } from "@/lib/auth0";
+import { supabaseAdmin } from "@/lib/supabase-server";
+import {
+  buildPatch,
+  isSelfSection,
+  type StaffProfile,
+} from "@/lib/staff/profile";
+
+/* My profile persistence — your own staff card.
+
+   Server Functions are reachable by direct POST, so this re-checks the session
+   itself and never trusts the section key from the client. The allowlist in
+   lib/staff/profile.ts contains no payroll, permissions or notes columns, so
+   there is no section value that reaches them — hiding them in the UI is a
+   convenience, not the control.
+
+   Tables: staff_profiles / staff_licences (migration
+   `create_staff_profiles_and_licences`). RLS on, no policies — service-role
+   only, same posture as studio_designs / rate_calc_state. */
+
+const COLUMNS =
+  "id, org_id, user_id, full_name, preferred_name, phone, birthday, address, " +
+  "start_date, employment_type, job_title, status, photo_url, " +
+  "emergency_name, emergency_phone, emergency_relationship, emergency_alt_phone, " +
+  "work_rights_status, visa_type, visa_expiry, hours_condition, vevo_checked_at, " +
+  "work_rights_doc_url, work_rights_verified_at, qualifications";
+// NB: hourly_wage / contracted_hours / utilisation / cost_split / notes are
+// intentionally absent — this module must never read or write them.
+
+async function requireOrg(): Promise<{ orgId: string; userId: string }> {
+  const session = await auth0.getSession();
+  if (!session) throw new Error("Not authenticated");
+  const orgId = session.orgId as string | undefined;
+  if (!orgId) throw new Error("No active organization");
+  return { orgId, userId: session.user.sub as string };
+}
+
+/** Load (or lazily create) the signed-in user's staff card. */
+export async function loadMyProfile(): Promise<StaffProfile> {
+  const { orgId, userId } = await requireOrg();
+
+  const { data, error } = await supabaseAdmin
+    .from("staff_profiles")
+    .select(COLUMNS)
+    .eq("org_id", orgId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (data) return data as unknown as StaffProfile;
+
+  // First visit — seed from the Auth0 identity we already have.
+  const session = await auth0.getSession();
+  const seedName =
+    (session?.user.name as string | undefined) ??
+    session?.user.email?.split("@")[0] ??
+    null;
+
+  const { data: created, error: insertError } = await supabaseAdmin
+    .from("staff_profiles")
+    .insert({
+      org_id: orgId,
+      user_id: userId,
+      full_name: seedName,
+      photo_url: (session?.user.picture as string | undefined) ?? null,
+    })
+    .select(COLUMNS)
+    .single();
+
+  // A concurrent request may have won the insert — fall back to reading it.
+  if (insertError) {
+    const { data: existing } = await supabaseAdmin
+      .from("staff_profiles")
+      .select(COLUMNS)
+      .eq("org_id", orgId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (existing) return existing as unknown as StaffProfile;
+    throw new Error(insertError.message);
+  }
+
+  return created as unknown as StaffProfile;
+}
+
+export type SaveResult = { ok: true } | { ok: false; error: string };
+
+/** Save one card of your own profile. */
+export async function saveMyProfileSection(
+  section: string,
+  fields: Record<string, string>
+): Promise<SaveResult> {
+  const { orgId, userId } = await requireOrg();
+
+  if (!isSelfSection(section)) {
+    // Covers payroll / permissions / notes and anything invented.
+    return { ok: false, error: "That section can't be edited here." };
+  }
+
+  const { patch, invalid } = buildPatch(section, Object.entries(fields ?? {}));
+
+  if (invalid.length) {
+    return { ok: false, error: "Check the date format — use dd/mm/yyyy." };
+  }
+  if (Object.keys(patch).length === 0) {
+    return { ok: true };
+  }
+
+  // Make sure the row exists before updating.
+  await loadMyProfile();
+
+  const { error } = await supabaseAdmin
+    .from("staff_profiles")
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq("org_id", orgId)
+    .eq("user_id", userId);
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/dashboard/profile");
+  revalidatePath("/dashboard/team");
+  return { ok: true };
+}

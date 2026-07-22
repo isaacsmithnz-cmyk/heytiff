@@ -20,11 +20,11 @@ describe("refrigerant catalogue", () => {
     expect(REFRIGERANT_KEYS).toEqual(["R32", "R410A", "R22", "R407C", "R134a", "R404A", "R290"]);
   });
 
-  it("every table spans −20…65°C in 5° steps, strictly increasing both columns", () => {
+  it("every table runs to 65°C in 5° steps, strictly increasing both columns", () => {
     for (const r of REFRIGERANTS) {
-      expect(r.table).toHaveLength(18);
-      expect(r.table[0].c).toBe(-20);
-      expect(r.table[17].c).toBe(65);
+      // R404A is extended to −40°C for freezer duty; the rest start at −20°C
+      expect(r.table[0].c).toBe(r.key === "R404A" ? -40 : -20);
+      expect(r.table[r.table.length - 1].c).toBe(65);
       for (let i = 1; i < r.table.length; i++) {
         expect(r.table[i].c - r.table[i - 1].c).toBe(5);
         expect(r.table[i].liquid).toBeGreaterThan(r.table[i - 1].liquid);
@@ -141,6 +141,12 @@ describe("operating windows", () => {
     const w = getRefrigerant("R410A").cooling.find((x) => x.key === "cool-suction")!;
     expect(windowPressures("R410A", w)).toEqual({ lo: 697, hi: 1052 });
     expect(windowPressures("R32", w)!.lo).toBe(712);
+  });
+
+  it("R404A reaches freezer temperatures", () => {
+    expect(satPressureKpa("R404A", -35)).toBe(62); // vapor
+    expect(satPressureKpa("R404A", -26, "vapor")).not.toBeNull();
+    expect(satTempC("R404A", 62, "vapor")).toBe(-35);
   });
 
   it("R404A carries refrigeration duty windows (MT + LT + discharge)", () => {

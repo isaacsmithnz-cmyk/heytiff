@@ -263,8 +263,14 @@ export const REFRIGERANTS: Refrigerant[] = [
     flammable: false,
     glideK: 0.5,
     color: "#FF3366",
-    /* iGas PT chart, psig × 6.895 — real liquid/vapour columns */
+    /* iGas PT chart, psig × 6.895 — real liquid/vapour columns. Extended
+       down to −40°C (the chart's own low end) because freezer duty
+       evaporates well below the −20°C floor the other tables use. */
     table: [
+      { c: -40, liquid: 34, vapor: 30 },
+      { c: -35, liquid: 67, vapor: 62 },
+      { c: -30, liquid: 106, vapor: 101 },
+      { c: -25, liquid: 152, vapor: 146 },
       { c: -20, liquid: 205, vapor: 199 },
       { c: -15, liquid: 268, vapor: 260 },
       { c: -10, liquid: 338, vapor: 330 },

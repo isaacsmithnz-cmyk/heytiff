@@ -115,19 +115,9 @@ export const NODES: MapNode[] = [
     kind: "feature",
     group: "Toolbox",
     status: "building",
-    blurb: "Refrigerant pressure–temperature reference for on-site checks.",
+    blurb: "Expected gauge pressures by ambient, plus pressure fault-finding.",
     detail:
-      "Being built on the toolbox branch. Self-contained PT tables — no pack data, no backend.",
-  },
-  {
-    id: "tb-fault",
-    name: "Fault Finder",
-    kind: "feature",
-    group: "Toolbox",
-    status: "building",
-    blurb: "Guided symptom-based troubleshooting flows.",
-    detail:
-      "Being built on the toolbox branch. Deliberately pack-free: fault codes stay out of the universal table, so the flows are hand-authored and fully standalone.",
+      "Estimate view predicts both sides from refrigerant, duty and ambient temperature; Troubleshoot view takes measured pressures and returns the likely cause with a checklist. Absorbed the former standalone Fault Finder — diagnosis here is pressure-driven. Self-contained: published PT data, no pack data, no backend.",
   },
 
   /* — business tools — */

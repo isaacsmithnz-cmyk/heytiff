@@ -55,14 +55,8 @@ export const TOOL_CATEGORIES: ToolCategory[] = [
     tools: [
       {
         name: "Running Pressures",
-        desc: "R32 · R410A · R22 & more",
+        desc: "Estimate & diagnose · R32 · R410A · R22",
         href: "/dashboard/toolbox/running-pressures",
-        badge: "New",
-      },
-      {
-        name: "Fault Finder",
-        desc: "Symptom-based diagnosis",
-        href: "/dashboard/toolbox/troubleshooting",
         badge: "New",
       },
     ],

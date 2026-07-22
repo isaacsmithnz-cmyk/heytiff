@@ -16,7 +16,7 @@ describe("ToolboxScreen", () => {
     }
   });
 
-  it("links the four live tools to their routes", () => {
+  it("links the live tools to their routes", () => {
     render(<ToolboxScreen />);
     expect(screen.getByRole("link", { name: /Heat Load/ })).toHaveAttribute(
       "href",
@@ -25,10 +25,6 @@ describe("ToolboxScreen", () => {
     expect(screen.getByRole("link", { name: /Running Pressures/ })).toHaveAttribute(
       "href",
       "/dashboard/toolbox/running-pressures"
-    );
-    expect(screen.getByRole("link", { name: /Fault Finder/ })).toHaveAttribute(
-      "href",
-      "/dashboard/toolbox/troubleshooting"
     );
     expect(screen.getByRole("link", { name: /Outdoor Unit Placement/ })).toHaveAttribute(
       "href",

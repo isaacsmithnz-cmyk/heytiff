@@ -249,10 +249,52 @@
 .fg .tool .rp2-win .wl { font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gray500); }
 .fg .tool .rp2-win .big { font-size: 27px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; white-space: nowrap; }
 .fg .tool .rp2-win .big small { font-size: 13px; font-weight: 800; color: var(--gray400); }
-.fg .tool .rp2-win .sat { font-size: 11.5px; font-weight: 700; color: var(--gray400); margin-bottom: 7px; }
-.fg .tool .rp2-bar { position: relative; height: 8px; border-radius: 999px; background: rgba(0, 0, 0, 0.06); overflow: hidden; }
-.fg .tool .rp2-bar .fill { position: absolute; top: 0; bottom: 0; border-radius: 999px; opacity: 0.85; }
+.fg .tool .rp2-win .sat { font-size: 11.5px; font-weight: 700; color: var(--gray400); }
 .fg .tool .rp2-win .note { margin: 8px 0 0; font-size: 11.5px; font-weight: 500; color: var(--gray500); line-height: 1.5; }
+
+/* view switch + on-site conditions bar */
+.fg .tool .rp2-bar2 { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+.fg .tool .rp2-bar2 .tseg { flex: 0 0 auto; }
+.fg .tool .rp2-bar2 .tseg button { padding: 9px 16px; }
+.fg .tool .rp2-view button.on { color: var(--tool-accent-ink, var(--red)); }
+.fg .tool .rp2-temps { display: flex; gap: 10px; margin-left: auto; }
+.fg .tool .rp2-temps .tt { display: flex; align-items: center; gap: 8px; }
+.fg .tool .rp2-temps .tt > span { font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gray500); white-space: nowrap; }
+.fg .tool .rp2-temps .tunit { width: 92px; }
+.fg .tool .rp2-temps .tin { padding: 9px 34px 9px 12px; font-size: 14px; font-weight: 800; text-align: center; }
+.fg .tool .rp2-temps .u { right: 10px; }
+.fg .tool .rp2-basis { margin: 12px 0 0; font-size: 11.5px; font-weight: 600; color: var(--gray400); line-height: 1.5; }
+.fg .tool .rp2-basis.warn { color: #E07800; font-weight: 700; }
+
+/* troubleshoot: measured inputs */
+.fg .tool .rp2-inputs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 640px) { .fg .tool .rp2-inputs { grid-template-columns: 1fr; } }
+.fg .tool .rp2-big { font-size: 20px; font-weight: 800; padding: 12px 46px 12px 14px; }
+
+/* troubleshoot: diagnosis card */
+.fg .tool .rp2-dx { border-left: 4px solid var(--gray400); }
+.fg .tool .rp2-dx.ok { border-left-color: #00A389; }
+.fg .tool .rp2-dx.watch { border-left-color: #FF8A00; }
+.fg .tool .rp2-dx.fault { border-left-color: #FF3366; }
+.fg .tool .rp2-reads { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+.fg .tool .rp2-read { padding: 12px 14px; border-radius: 14px; background: #f9fafb; border: 1px solid #eef0f4; }
+.fg .tool .rp2-read .rl { font-size: 10.5px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--gray500); }
+.fg .tool .rp2-read .rv { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.2; }
+.fg .tool .rp2-read .rd { font-size: 11.5px; font-weight: 600; color: var(--gray400); }
+.fg .tool .rp2-head { font-size: 18px; font-weight: 800; color: var(--ink); margin: 0 0 8px; letter-spacing: -0.01em; }
+.fg .tool .rp2-expl { margin: 0; font-size: 13.5px; font-weight: 500; color: var(--gray700); line-height: 1.6; }
+.fg .tool .rp2-shsc { display: flex; gap: 18px; margin-top: 14px; flex-wrap: wrap; }
+.fg .tool .rp2-shsc span { font-size: 12.5px; font-weight: 700; color: var(--gray500); }
+.fg .tool .rp2-shsc b { font-size: 15px; font-weight: 800; color: var(--ink); }
+.fg .tool .rp2-charge { margin: 10px 0 0; font-size: 12.5px; font-weight: 700; color: var(--tool-accent-ink, var(--red)); line-height: 1.5; }
+.fg .tool .rp2-checks { margin-top: 18px; padding-top: 16px; border-top: 1px solid #f3f4f6; }
+.fg .tool .rp2-checks .ct { font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gray500); margin-bottom: 10px; }
+.fg .tool .rp2-checks ul { margin: 0; padding-left: 18px; display: grid; gap: 9px; }
+.fg .tool .rp2-checks li { font-size: 13.5px; font-weight: 500; color: var(--gray700); line-height: 1.55; }
+.fg .tool .rp2-cta .tbtn { width: 100%; }
+.fg .tool .rp2-mini { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.fg .tool .rp2-mini .ml { display: block; font-size: 10.5px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; }
+.fg .tool .rp2-mini b { font-size: 17px; font-weight: 800; color: var(--ink); white-space: nowrap; }
 .fg .tool .rp-legend { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
 .fg .tool .rp-legend span { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; color: var(--gray500); }
 .fg .tool .rp-legend i { width: 10px; height: 10px; border-radius: 3px; }

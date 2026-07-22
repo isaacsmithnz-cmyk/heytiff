@@ -74,7 +74,7 @@ export function AppShell({
         <i />
         <i />
       </div>
-      <Sidebar role={user.role} orgName={orgName} />
+      <Sidebar role={user.role} caps={user.caps} orgName={orgName} />
       <div className="main">
         <Topbar user={user} onOpenCommand={openCmd} />
         {/* key by pathname so each screen remounts (and its entrance animation replays) on navigation */}
@@ -82,7 +82,7 @@ export function AppShell({
           {children}
         </main>
       </div>
-      <CommandPalette open={cmdOpen} onClose={closeCmd} role={user.role} />
+      <CommandPalette open={cmdOpen} onClose={closeCmd} role={user.role} caps={user.caps} />
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { auth0 } from "@/lib/auth0";
 import { AppShell } from "@/components/shell/app-shell";
 import type { ShellUser } from "@/components/shell/sidebar";
 import type { Role } from "@/lib/roles-shared";
-import { getOrgName, getOwnership } from "@/lib/permissions-server";
+import { getCapabilities, getOrgName, getOwnership } from "@/lib/permissions-server";
 import { ownerLabel } from "@/lib/permissions";
 import "./shell.css";
 
@@ -33,7 +33,7 @@ export default async function DashboardLayout({
 
   // Fresh from the DB, not the session-cached orgRole: a role change (or an
   // ownership transfer) must show on the next request, not the next login.
-  const ownership = await getOwnership();
+  const [ownership, caps] = await Promise.all([getOwnership(), getCapabilities()]);
   const orgRole = ownership.role ?? "";
 
   const user: ShellUser = {
@@ -41,6 +41,9 @@ export default async function DashboardLayout({
     roleLabel: ownerLabel(ownership) ?? ROLE_LABEL[orgRole] ?? "Member",
     initials: initialsFrom(displayName || email || "U"),
     role: (orgRole as Role) || null,
+    // resolved per request, so a granted capability shows its nav entry on the
+    // very next navigation — no re-login
+    caps: [...caps],
   };
 
   return (

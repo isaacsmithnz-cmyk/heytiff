@@ -1,5 +1,13 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { Sidebar } from "../sidebar";
+import { resolve } from "@/lib/permissions";
+import type { Role } from "@/lib/roles-shared";
+
+/* Render as a real role would resolve — capabilities come from the same
+   resolver the server uses, so these tests track the real defaults. */
+const as = (role: Role, orgName: string | null = null) => (
+  <Sidebar role={role} caps={[...resolve(role)]} orgName={orgName} />
+);
 
 jest.mock("next/navigation", () => ({
   usePathname: () => "/dashboard",
@@ -11,7 +19,7 @@ afterEach(cleanup);
 
 describe("Sidebar — HeyTiff × org line", () => {
   it("shows the trading name under the logo when set", () => {
-    const { container } = render(<Sidebar role="owner" orgName="Smith Air Conditioning" />);
+    const { container } = render(as("owner", "Smith Air Conditioning"));
     const line = container.querySelector(".ht-orgx");
     expect(line).not.toBeNull();
     expect(line?.textContent).toContain("×");
@@ -21,17 +29,17 @@ describe("Sidebar — HeyTiff × org line", () => {
   });
 
   it("renders no line at all while the org has no trading name", () => {
-    const { container } = render(<Sidebar role="owner" orgName={null} />);
+    const { container } = render(as("owner"));
     expect(container.querySelector(".ht-orgx")).toBeNull();
   });
 
   it("renders no line when the prop is omitted", () => {
-    const { container } = render(<Sidebar role="owner" />);
+    const { container } = render(as("owner"));
     expect(container.querySelector(".ht-orgx")).toBeNull();
   });
 
   it("keeps the wordmark regardless", () => {
-    render(<Sidebar role="owner" orgName={null} />);
+    render(as("owner"));
     expect(screen.getByText("Hey")).toBeTruthy();
     expect(screen.getByText("Tiff")).toBeTruthy();
   });
@@ -39,7 +47,7 @@ describe("Sidebar — HeyTiff × org line", () => {
 
 describe("Sidebar — role-gated nav", () => {
   it("staff see no Operations entries beyond the ungated placeholder", () => {
-    render(<Sidebar role="staff" orgName={null} />);
+    render(as("staff"));
     expect(screen.queryByText("Team")).toBeNull();
     expect(screen.queryByText("Time & Pay")).toBeNull();
     expect(screen.queryByText("Admin")).toBeNull();
@@ -48,16 +56,37 @@ describe("Sidebar — role-gated nav", () => {
   });
 
   it("admins get Team, Time & Pay and the Admin section (its items gate inside)", () => {
-    render(<Sidebar role="admin" orgName={null} />);
+    render(as("admin"));
     expect(screen.getByText("Team")).toBeTruthy();
     expect(screen.getByText("Time & Pay")).toBeTruthy();
     expect(screen.getByText("Admin")).toBeTruthy();
   });
 
   it("owners get the full rail", () => {
-    render(<Sidebar role="owner" orgName="Smith Air" />);
+    render(as("owner", "Smith Air"));
     for (const label of ["Dashboard", "Toolbox", "Design Studio", "Tiff AI", "Team", "Time & Pay", "Assets", "Admin"]) {
       expect(screen.getByText(label)).toBeTruthy();
     }
+  });
+});
+
+describe("Sidebar — a granted capability shows its entry", () => {
+  /* The gap this closes: during the signed-in walkthrough, granting an admin
+     `financials` opened the Rate Calculator ROUTE but no nav entry appeared,
+     because the sidebar still filtered by role. */
+  it("reveals Team for a staff member granted `team`", () => {
+    render(<Sidebar role="staff" caps={[...resolve("staff", { team: true })]} />);
+    expect(screen.getByText("Team")).toBeTruthy();
+    expect(screen.queryByText("Time & Pay")).toBeNull(); // nothing else leaked in
+  });
+
+  it("hides Toolbox when it is revoked, even though every role has it by default", () => {
+    render(<Sidebar role="owner" caps={[...resolve("owner")]} />);
+    expect(screen.getByText("Toolbox")).toBeTruthy();
+    cleanup();
+    // an explicit revoke is respected for non-owners
+    render(<Sidebar role="admin" caps={[...resolve("admin", { toolbox: false })]} />);
+    expect(screen.queryByText("Toolbox")).toBeNull();
+    expect(screen.getByText("Design Studio")).toBeTruthy();
   });
 });

@@ -55,7 +55,7 @@ export const TOOL_CATEGORIES: ToolCategory[] = [
     tools: [
       {
         name: "Running Pressures",
-        desc: "Estimate & diagnose · R32 · R410A · R22",
+        desc: "Expected pressures & diagnosis",
         href: "/dashboard/toolbox/running-pressures",
         badge: "New",
       },

@@ -4,6 +4,81 @@
    Visual language matches the dashboard cards: white, 24px radii, soft
    shadows, Jakarta everywhere (no mono — --mono aliases Jakarta anyway). */
 
+/* ============ toolbox landing: category cards (.tbx2-*) ============
+   Self-scoped so shell.css's older .cat card (40px radius + 6px coloured
+   cap) can keep serving the Tiff AI knowledge screen untouched. Here the
+   accent lives in the icon chip, the row hover and the chevron — no stripe.
+   Radius/shadow/border match the tool pages and the admin cards. */
+
+.fg .tbx2-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; align-items: start; }
+@media (max-width: 900px) { .fg .tbx2-grid { grid-template-columns: 1fr; } }
+
+.fg .tbx2-card {
+  position: relative; background: #fff; border-radius: 24px; overflow: hidden;
+  border: 1px solid #eef0f4;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 10px 30px rgba(0, 0, 0, 0.035);
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.45s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.3s;
+}
+.fg .tbx2-card:hover {
+  transform: translateY(-3px); border-color: #e5e9f0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03), 0 18px 44px rgba(0, 0, 0, 0.085);
+}
+
+/* header */
+.fg .tbx2-head { display: flex; align-items: center; gap: 15px; padding: 24px 24px 18px; }
+.fg .tbx2-ic {
+  width: 46px; height: 46px; border-radius: 15px; flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.7);
+}
+.fg .tbx2-ht { flex: 1; min-width: 0; }
+.fg .tbx2-ht b { display: block; font-size: 17px; font-weight: 800; color: var(--ink); letter-spacing: -0.015em; line-height: 1.25; }
+.fg .tbx2-ht em { font-style: normal; display: block; font-size: 12.5px; font-weight: 500; color: var(--gray400); margin-top: 2px; }
+.fg .tbx2-count {
+  flex: 0 0 auto; font-size: 11px; font-weight: 800; color: var(--gray400);
+  background: #f4f5f8; border-radius: 999px; min-width: 22px; text-align: center; padding: 4px 8px;
+}
+
+/* tool rows */
+.fg .tbx2-rows { padding: 0 12px 12px; }
+.fg .tbx2-row {
+  position: relative; display: flex; align-items: center; gap: 12px;
+  padding: 12px 12px; border-radius: 14px; text-decoration: none; color: inherit;
+  transition: background 0.2s;
+}
+.fg .tbx2-row + .tbx2-row::before {
+  content: ""; position: absolute; left: 12px; right: 12px; top: 0; height: 1px;
+  background: #f2f4f7; transition: opacity 0.2s;
+}
+.fg .tbx2-row:hover { background: var(--rowbg, #f9fafb); }
+.fg .tbx2-row:hover::before, .fg .tbx2-row:hover + .tbx2-row::before { opacity: 0; }
+.fg .tbx2-row .nm { flex: 1; min-width: 0; }
+.fg .tbx2-row .nm b { display: block; font-size: 14.5px; font-weight: 700; color: var(--gray700); transition: color 0.2s; }
+.fg .tbx2-row:hover .nm b { color: var(--ink); }
+.fg .tbx2-row .nm em {
+  font-style: normal; display: block; font-size: 12.5px; font-weight: 500; color: var(--gray400);
+  margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.fg .tbx2-row .bg {
+  flex: 0 0 auto; font-size: 10px; font-weight: 800; letter-spacing: 0.04em;
+  padding: 4px 9px; border-radius: 7px;
+}
+.fg .tbx2-row .ch { flex: 0 0 auto; display: flex; color: #cdd2da; transition: transform 0.2s, color 0.2s; }
+.fg .tbx2-row:hover .ch { transform: translateX(3px); color: var(--ac, var(--gray500)); }
+
+/* empty states */
+.fg .tbx2-empty {
+  margin: 0 24px 24px; padding: 18px; border-radius: 14px;
+  background: #fafbfc; border: 1px solid #f1f3f6;
+  text-align: center; font-size: 12.5px; font-weight: 600; color: #a8aeb9;
+}
+.fg .tbx2-noresult {
+  padding: 40px 20px; border-radius: 20px; background: #fff; border: 1px solid #eef0f4;
+  text-align: center; font-size: 13.5px; font-weight: 600; color: var(--gray400);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
 /* ---------- page head ---------- */
 .fg .tool { max-width: 1180px; margin: 0 auto; }
 .fg .tool .thead { margin-bottom: 32px; }

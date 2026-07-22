@@ -1,5 +1,5 @@
 /* Toolbox screen — category cards render from the registry, live tools link
-   to their pages, empty categories keep the "No tools yet" hint, and the
+   to their pages, empty categories keep their hint, and the
    search box filters rows / hides cards with no matches. */
 
 import { render, screen, fireEvent } from "@testing-library/react";
@@ -36,10 +36,10 @@ describe("ToolboxScreen", () => {
     );
   });
 
-  it("empty categories show the No tools yet hint", () => {
+  it("empty categories show the empty hint", () => {
     render(<ToolboxScreen />);
     // Design Tools is the only category with no built tools yet
-    expect(screen.getAllByText("No tools yet")).toHaveLength(1);
+    expect(screen.getAllByText("Nothing here yet")).toHaveLength(1);
   });
 
   it("search filters rows and drops categories with no matches", () => {
@@ -48,7 +48,7 @@ describe("ToolboxScreen", () => {
     expect(screen.getByRole("link", { name: /Running Pressures/ })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Heat Load/ })).not.toBeInTheDocument();
     // empty-category hints hidden while searching
-    expect(screen.queryByText("No tools yet")).not.toBeInTheDocument();
+    expect(screen.queryByText("Nothing here yet")).not.toBeInTheDocument();
     expect(screen.queryByText("Calculators")).not.toBeInTheDocument();
   });
 

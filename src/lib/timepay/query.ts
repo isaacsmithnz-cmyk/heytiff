@@ -1,6 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { DEFAULT_SETTINGS, type DayEntry, type Settings, type StaffWeek } from "@/components/timepay/logic";
-import { dateOfDay } from "./period";
+import { dateOfDay, periodEnd, periodLength } from "./period";
 
 /* Time & Pay queries. Org-scoped throughout, like lib/staff and lib/fleet.
 
@@ -70,12 +70,16 @@ export async function getPaySettings(
 
 /* ---- entries ---- */
 
-/** Seven DayEntry cells for one person, from their rows for the period. */
-function toDays(rows: Record<string, unknown>[], periodStart: string): DayEntry[] {
+/** One DayEntry cell per day of the period — 7, 14 or a calendar month. */
+function toDays(
+  rows: Record<string, unknown>[],
+  periodStart: string,
+  cycle: Settings["cycle"],
+): DayEntry[] {
   const byDate = new Map<string, Record<string, unknown>>();
   for (const r of rows) byDate.set(String(r.work_date).slice(0, 10), r);
 
-  return Array.from({ length: 7 }, (_, i) => {
+  return Array.from({ length: periodLength(cycle, periodStart) }, (_, i) => {
     const r = byDate.get(dateOfDay(periodStart, i));
     if (!r) return { t: "empty" } as DayEntry;
     const h = Number(r.hours) || 0;
@@ -88,6 +92,7 @@ function toDays(rows: Record<string, unknown>[], periodStart: string): DayEntry[
 async function entriesFor(
   orgId: string,
   periodStart: string,
+  cycle: Settings["cycle"],
   staffIds?: string[],
 ): Promise<Map<string, Record<string, unknown>[]>> {
   let q = supabaseAdmin
@@ -95,7 +100,7 @@ async function entriesFor(
     .select("staff_profile_id, work_date, kind, start_time, end_time, hours")
     .eq("org_id", orgId)
     .gte("work_date", periodStart)
-    .lte("work_date", dateOfDay(periodStart, 6));
+    .lte("work_date", periodEnd(periodStart, cycle));
   if (staffIds) q = q.in("staff_profile_id", staffIds);
   const { data } = await q;
 
@@ -140,7 +145,7 @@ function nameOf(r: Record<string, unknown>): string {
 export async function listStaffWeeks(
   orgId: string,
   periodStart: string,
-  opts: { pay: boolean },
+  opts: { pay: boolean; cycle: Settings["cycle"] },
 ): Promise<StaffWeek[]> {
   const { data } = await supabaseAdmin
     .from("staff_profiles")
@@ -150,14 +155,14 @@ export async function listStaffWeeks(
     .order("full_name");
 
   const rows = (data ?? []) as unknown as Record<string, unknown>[];
-  const entries = await entriesFor(orgId, periodStart, rows.map((r) => String(r.id)));
+  const entries = await entriesFor(orgId, periodStart, opts.cycle, rows.map((r) => String(r.id)));
 
   return rows.map((r) => ({
     id: String(r.id),
     name: nameOf(r),
     role: (r.job_title as string) || "—",
     rate: opts.pay && r[RATE_COLUMN] != null ? Number(r[RATE_COLUMN]) : null,
-    days: toDays(entries.get(String(r.id)) ?? [], periodStart),
+    days: toDays(entries.get(String(r.id)) ?? [], periodStart, opts.cycle),
   }));
 }
 
@@ -168,6 +173,7 @@ export async function getMyWeek(
   orgId: string,
   staffProfileId: string,
   periodStart: string,
+  cycle: Settings["cycle"],
 ): Promise<StaffWeek | null> {
   const { data } = await supabaseAdmin
     .from("staff_profiles")
@@ -178,12 +184,12 @@ export async function getMyWeek(
   if (!data) return null;
 
   const r = data as unknown as Record<string, unknown>;
-  const entries = await entriesFor(orgId, periodStart, [staffProfileId]);
+  const entries = await entriesFor(orgId, periodStart, cycle, [staffProfileId]);
   return {
     id: staffProfileId,
     name: nameOf(r),
     role: (r.job_title as string) || "—",
     rate: r[RATE_COLUMN] != null ? Number(r[RATE_COLUMN]) : null,
-    days: toDays(entries.get(staffProfileId) ?? [], periodStart),
+    days: toDays(entries.get(staffProfileId) ?? [], periodStart, cycle),
   };
 }

@@ -5,7 +5,8 @@ import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { can } from "@/lib/permissions-server";
 import { staffProfileIdFor } from "@/lib/fleet/query";
-import { dateOfDay } from "@/lib/timepay/period";
+import { dateOfDay, periodLength } from "@/lib/timepay/period";
+import { getPaySettings } from "@/lib/timepay/query";
 import type { DayEntry, Settings } from "@/components/timepay/logic";
 
 /* Time & Pay mutations.
@@ -65,7 +66,11 @@ export async function saveDay(
 ): Promise<TimepayResult> {
   const ctx = await context();
   if (!ctx?.staffId) return { ok: false, error: "No staff record for this account." };
-  if (dayIndex < 0 || dayIndex > 6) return { ok: false, error: "That day isn't in this week." };
+  // the period is 7, 14 or a calendar month long depending on the pay cycle,
+  // so the bound is not "6" — a fortnightly day 9 is perfectly valid
+  const { settings } = await getPaySettings(ctx.orgId);
+  if (dayIndex < 0 || dayIndex >= periodLength(settings.cycle, periodStart))
+    return { ok: false, error: "That day isn't in this pay period." };
 
   const status = await statusOf(ctx.orgId, ctx.staffId, periodStart);
   if (!editable(status))

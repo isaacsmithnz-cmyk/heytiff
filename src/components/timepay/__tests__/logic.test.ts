@@ -234,3 +234,46 @@ describe("formatting helpers", () => {
     expect(submitNote({ ...DEFAULT_SETTINGS, lock: false })).toBe("Open · auto-submits Sun 3:00 PM");
   });
 });
+
+describe("a period is not a week", () => {
+  /* Fourteen day tuples: two full weeks starting Monday 29 Jun. */
+  const fortnight: WeekDay[] = [
+    ["MON", 29, "Jun"], ["TUE", 30, "Jun"], ["WED", 1, "Jul"], ["THU", 2, "Jul"],
+    ["FRI", 3, "Jul"], ["SAT", 4, "Jul"], ["SUN", 5, "Jul"],
+    ["MON", 6, "Jul"], ["TUE", 7, "Jul"], ["WED", 8, "Jul"], ["THU", 9, "Jul"],
+    ["FRI", 10, "Jul"], ["SAT", 11, "Jul"], ["SUN", 12, "Jul"],
+  ];
+  const fnCtx: WeekCtx = { week: fortnight, today: 13 };
+  const none = { t: "empty" } as DayEntry;
+
+  it("pays the SECOND Saturday at weekend rates, not weekday rates", () => {
+    // day 12 is a Saturday. Positionally it is neither 5 nor 6, so the old
+    // index-based rule silently paid it as an ordinary weekday.
+    const days = [w8, w8, w8, w8, w8, none, none, w8, w8, w8, w8, w8, W("07:00", "11:00", 4), none];
+    const d = derive(staff(days), S(), fnCtx);
+    expect(d.bullets).toContain("Sat 11 Jul — 4h at Saturday rates (2h @1.5×, then 2h @2×)");
+    expect([d.ot, d.ot2]).toEqual([2, 2]);
+  });
+
+  it("does not treat the second Monday as a weekend", () => {
+    // day 7 is a Monday; the old rule had already run out of week by then
+    const days = [...Array(7).fill(none), W("07:00", "18:00", 11), ...Array(6).fill(none)];
+    const d = derive(staff(days as DayEntry[]), S(), fnCtx);
+    expect([d.normal, d.ot, d.ot2]).toEqual([8, 3, 0]); // weekday overtime, not 2x all day
+  });
+
+  it("flags a missing SECOND-week weekday, and never a weekend", () => {
+    const days = Array(14).fill(none) as DayEntry[];
+    const d = derive(staff(days), S(), fnCtx);
+    // 10 weekdays across the fortnight, no weekend days
+    expect(d.missing).toBe(10);
+    expect(d.bullets).toContain("Thu 9 Jul — no entry logged");
+    expect(d.bullets.some((b) => b.includes("Sat") || b.includes("Sun"))).toBe(false);
+  });
+
+  it("dayClass reads the weekday from the period, not the column", () => {
+    expect(dayClass(W("07:00", "11:00", 4), 12, S(), fnCtx)).toBe("over"); // 2nd Saturday
+    expect(dayClass(W("07:00", "11:00", 4), 8, S(), fnCtx)).toBe("under"); // 2nd Tuesday
+    expect(dayClass({ t: "empty" }, 13, S(), fnCtx)).toBe("empty"); // Sunday is never missing
+  });
+});

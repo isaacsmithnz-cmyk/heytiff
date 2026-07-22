@@ -43,8 +43,9 @@
 .fg .ht-wm span { color:var(--teal); }
 /* HeyTiff × org — trading name from Organisation settings, under the logo.
    Additive only: the brand row's layout and animations are untouched. */
-.fg .ht-brandcol { display:flex; flex-direction:column; gap:7px; min-width:0; }
-.fg .ht-orgx { display:flex; flex-direction:column; gap:2px; min-width:0; }
+/* Centred lockup: the × and the business name sit centred under the logo. */
+.fg .ht-brandcol { display:flex; flex-direction:column; align-items:center; gap:7px; min-width:0; }
+.fg .ht-orgx { display:flex; flex-direction:column; align-items:center; text-align:center; gap:2px; min-width:0; width:100%; }
 .fg .ht-orgx .x { color:var(--teal); font-size:13px; font-weight:800; line-height:1.2; }
 /* Wraps rather than truncates: the name has its own line now, so a long
    business name should use a second one instead of turning into an ellipsis. */

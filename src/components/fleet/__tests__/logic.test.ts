@@ -1,7 +1,5 @@
 import {
-  EMPTY_OVERLAY,
   RECEIPT_STATIONS,
-  type FleetOverlay,
   type Vehicle,
   type VehicleLog,
   daysUntil,
@@ -13,16 +11,14 @@ import {
   fmtKm,
   fmtMoney,
   fuelEconomy,
-  mergeFleet,
-  mergeLogs,
-  migrateVehicle,
   modelLabel,
+  odoEffect,
+  odoRejection,
   openIssueCount,
   parseValuations,
   readReceiptOffline,
   serviceDueKm,
   serviceKmLeft,
-  slugId,
   sortVehicles,
   valuationStale,
   vehicleChips,
@@ -37,6 +33,7 @@ const vehicle = (over: Partial<Vehicle> = {}): Vehicle => ({
   model: "Hiace ZR",
   year: 2022,
   plate: "MKT482",
+  plateState: "VIC",
   status: "active",
   odometer: 84120,
   assignedTo: "jordan-mills",
@@ -174,57 +171,33 @@ describe("readReceiptOffline (demo fallback)", () => {
   });
 });
 
-describe("overlay merge & migration", () => {
-  const demo = [vehicle(), vehicle({ id: "ute-01", name: "UTE-01", assignedTo: null, value: 31500 })];
-
-  it("passes demo data through untouched with an empty overlay", () => {
-    expect(mergeFleet(demo, EMPTY_OVERLAY)).toEqual(demo);
+describe("odometer guardrail", () => {
+  it("rejects a reading below the current one and accepts one at or above", () => {
+    expect(odoRejection(84120, 84119)).toMatch(/84,120 km/);
+    expect(odoRejection(84120, -1)).toMatch(/negative/);
+    expect(odoRejection(84120, 84120)).toBeNull();
+    expect(odoRejection(84120, 90000)).toBeNull();
+    expect(odoRejection(84120, undefined)).toBeNull(); // issues carry no reading
   });
 
-  it("applies edits, removals and additions", () => {
-    const o: FleetOverlay = {
-      ...EMPTY_OVERLAY,
-      edited: { "vrf-04": vehicle({ odometer: 84800 }) },
-      removed: ["ute-01"],
-      added: [vehicle({ id: "van-09", name: "VAN-09" })],
-    };
-    const merged = mergeFleet(demo, o);
-    expect(merged.map((v) => v.id)).toEqual(["vrf-04", "van-09"]);
-    expect(merged[0].odometer).toBe(84800);
+  it("rolls the odometer forward only when a log carries a higher reading", () => {
+    const v = { odometer: 84120, lastServiceOdo: 80000 };
+    expect(odoEffect(v, { kind: "fuel", odo: 84800 })).toEqual({ odometer: 84800 });
+    expect(odoEffect(v, { kind: "fuel", odo: 84120 })).toBeNull();
+    expect(odoEffect(v, { kind: "issue" })).toBeNull();
   });
 
-  it("migrates v1 records (callsign + stored due-km) to the v2 shape", () => {
-    const v1 = {
-      id: "srv-09",
-      callsign: "SRV-09",
-      make: "Ford",
-      model: "Transit",
-      plate: "ABC123",
+  it("a completed service resets the cycle from its own reading", () => {
+    const v = { odometer: 84120, lastServiceOdo: 80000 };
+    expect(odoEffect(v, { kind: "service", odo: 84000 })).toEqual({
+      // the service happened at 84,000 but the clock stays at its high-water mark
+      odometer: 84120,
+      lastServiceOdo: 84000,
+    });
+    expect(odoEffect(v, { kind: "service", odo: 90000 })).toEqual({
       odometer: 90000,
-      value: 30000,
-      regoDays: 50,
-      insuranceDays: 90,
-      serviceDueKm: 95000,
-    };
-    const m = migrateVehicle(v1);
-    expect(m.name).toBe("SRV-09");
-    expect(m.status).toBe("active");
-    expect(m.lastServiceOdo).toBe(85000); // due 95k − interval 10k
-    expect(serviceDueKm(m)).toBe(95000);
-    expect(m.purchasePrice).toBe(0);
-  });
-
-  it("marks demo issues resolved and floats prototype logs to the top", () => {
-    const demoLogs = [log({ id: "vl-01", ago: 2 }), log({ id: "vl-02", ago: 9 })];
-    const o: FleetOverlay = {
-      ...EMPTY_OVERLAY,
-      resolved: ["vl-01"],
-      logs: [log({ id: "new-1", ago: 0 })],
-    };
-    const merged = mergeLogs(demoLogs, o);
-    expect(merged.map((l) => l.id)).toEqual(["new-1", "vl-01", "vl-02"]);
-    expect(merged[1].status).toBe("resolved");
-    expect(openIssueCount(merged, "vrf-04")).toBe(2);
+      lastServiceOdo: 90000,
+    });
   });
 });
 
@@ -298,11 +271,5 @@ describe("helpers", () => {
   it("computes whole days between ISO dates", () => {
     expect(daysUntil("2026-08-07", "2026-07-17")).toBe(21);
     expect(daysUntil("2026-07-14", "2026-07-17")).toBe(-3);
-  });
-
-  it("slugs labels into unique ids", () => {
-    expect(slugId("VAN 09", [])).toBe("van-09");
-    expect(slugId("VAN-09", ["van-09"])).toBe("van-09-2");
-    expect(slugId("###", [])).toBe("vehicle");
   });
 });

@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { auth0 } from "@/lib/auth0";
 import { profileHtml, type PermissionsCtx } from "@/components/shell/profile";
+import { assignedVehicleFor } from "@/lib/fleet/query";
 import { ProfileBehaviors } from "@/components/shell/profile-behaviors";
 import { can, getCapabilities, getOwnership } from "@/lib/permissions-server";
 import {
@@ -56,6 +57,8 @@ export default async function StaffProfilePage({
     CAPABILITIES.filter((c) => canSetCapability(ownership.role, c))
   );
   const targetOverrides = row.userId ? await permissionsOf(orgId, row.userId) : null;
+  // derived from the register, never stored on the staff record
+  const assignedVehicle = await assignedVehicleFor(orgId, staffId);
 
   const permissionsCtx: PermissionsCtx = {
     role: row.orgRole,
@@ -86,6 +89,7 @@ export default async function StaffProfilePage({
   return (
     <ProfileBehaviors
       html={profileHtml(row, {
+        vehicle: assignedVehicle,
         mode: "admin",
         profile: profile as unknown as StaffProfile,
         sections: {

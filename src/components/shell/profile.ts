@@ -7,12 +7,11 @@ import { formatAuDate, type StaffProfile } from "@/lib/staff/profile";
 import type { StaffRow } from "@/lib/staff/types";
 import type { Capability } from "@/lib/permissions";
 import type { Role } from "@/lib/roles-shared";
-import { demoVehicleLogs, getDemoVehicleForStaff } from "@/mock/demo";
 import {
+  type VehicleWithFacts,
   displayName,
   fmtKm,
   modelLabel,
-  openIssueCount,
   serviceKmLeft,
   vehicleChips,
 } from "@/components/fleet/logic";
@@ -217,12 +216,21 @@ function workrights(p: StaffProfile | null) {
   );
 }
 
-function vehicle(s: { id: string }) {
+/* The Assigned-vehicle card. Fleet is the single source of the assignment —
+   this card derives, it never stores. The join is async and this module builds
+   strings synchronously, so the caller resolves it (lib/fleet/query.ts) and
+   passes the result in; absent = no vehicle. */
+export type AssignedVehicle = {
+  vehicle: VehicleWithFacts;
+  openIssues: number;
+  lastFuel: { litres?: number; when: string } | null;
+};
+
+function vehicle(av: AssignedVehicle | null) {
   const head =
     `<div class="c2h"><span class="ci">${ic("truck", 18)}</span>` +
     "<span><b>Assigned vehicle</b><em>Linked from Fleet — manage in Assets</em></span></div>";
-  const v = getDemoVehicleForStaff(s.id);
-  if (!v) {
+  if (!av) {
     return (
       '<section class="psec" data-sec="vehicle">' +
       `<div class="card2" data-static>${head}` +
@@ -230,7 +238,8 @@ function vehicle(s: { id: string }) {
       "</div></section>"
     );
   }
-  const chips = vehicleChips(v, openIssueCount(demoVehicleLogs, v.id));
+  const v = av.vehicle;
+  const chips = vehicleChips(v, av.openIssues);
   const chipHtml =
     chips.length === 0
       ? `<span class="dchip ok">${ic("check", 12)}All good</span>`
@@ -241,9 +250,7 @@ function vehicle(s: { id: string }) {
           )
           .join("");
   const left = serviceKmLeft(v);
-  const lastFuel = demoVehicleLogs
-    .filter((l) => l.vehicleId === v.id && l.kind === "fuel")
-    .sort((a, b) => a.ago - b.ago)[0];
+  const lastFuel = av.lastFuel;
   const fact = (label: string, val: string) => `<span><em>${label}</em><b>${val}</b></span>`;
   return (
     '<section class="psec" data-sec="vehicle">' +
@@ -432,6 +439,8 @@ export function profileHtml(
        entirely — that is how `financials` and owner-only gate the Payroll and
        Permissions cards, rather than rendering them disabled. */
     sections?: ProfileSections;
+    /** Resolved by the caller — see AssignedVehicle. */
+    vehicle?: AssignedVehicle | null;
   } = {}
 ): string {
   const mode: ProfileMode = opts.mode ?? "admin";
@@ -464,7 +473,7 @@ export function profileHtml(
     `<div class="pquick"><div class="q"><b>${s.licenceCount}</b><em>Licences</em></div><div class="q"><b>${esc(s.years)}</b><em>Years</em></div></div>` +
     `<span class="badge active" style="align-self:flex-start"><span class="d"></span>${esc(s.status)}</span>` +
     "</div></div>" +
-    `<div class="pgrid">${sectionNav(mode)}<div class="ppanel">${personal(p)}${emergency(p)}${licences(p)}${workrights(p)}${vehicle(s)}${training()}${adminSections}</div></div>` +
+    `<div class="pgrid">${sectionNav(mode)}<div class="ppanel">${personal(p)}${emergency(p)}${licences(p)}${workrights(p)}${vehicle(opts.vehicle ?? null)}${training()}${adminSections}</div></div>` +
     "</div>"
   );
 }

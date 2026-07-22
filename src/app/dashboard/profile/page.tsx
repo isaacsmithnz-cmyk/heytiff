@@ -4,6 +4,7 @@ import { profileHtml, type ProfileHeader } from "@/components/shell/profile";
 import { ProfileBehaviors } from "@/components/shell/profile-behaviors";
 import { loadMyProfile, saveMyProfileSection } from "@/app/actions/profile";
 import { initialsFrom, startedLabel, yearsSince } from "@/lib/staff/derive";
+import { assignedVehicleFor } from "@/lib/fleet/query";
 
 /* My profile — your own staff card, and the values that fill in Team.
 
@@ -17,6 +18,8 @@ export default async function MyProfilePage() {
   if (!session) redirect("/auth/login");
 
   const profile = await loadMyProfile();
+  const orgId = session.orgId as string | undefined;
+  const assignedVehicle = orgId ? await assignedVehicleFor(orgId, profile.id) : null;
 
   const email = session.user.email ?? "";
   const displayName =
@@ -43,7 +46,7 @@ export default async function MyProfilePage() {
 
   return (
     <ProfileBehaviors
-      html={profileHtml(header, { mode: "self", profile })}
+      html={profileHtml(header, { mode: "self", profile, vehicle: assignedVehicle })}
       onSave={saveMyProfileSection}
     />
   );

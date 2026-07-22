@@ -299,8 +299,11 @@ describe("vehicle picker projection — the minimum-identity contract", () => {
   });
 
   it("is exactly the plan's list — identity + guardrail, nothing else", () => {
+    // `plateState` and `year` joined when Fleet moved to real tables: both are
+    // part of NAMING the vehicle in the picker (an AU plate isn't unique
+    // without its state), neither tells you anything about the business.
     expect([...VEHICLE_PICKER_FIELDS].sort()).toEqual(
-      ["id", "make", "model", "name", "odometer", "plate", "status"].sort()
+      ["id", "make", "model", "name", "odometer", "plate", "plateState", "status", "year"].sort()
     );
   });
 

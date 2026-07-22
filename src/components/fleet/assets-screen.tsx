@@ -2,9 +2,15 @@
 
 import { useState } from "react";
 import { Icon } from "@/components/shell/icon";
-import type { DemoStaff } from "@/mock/demo";
-import { useFleetState } from "./fleet-state";
-import type { Vehicle, VehicleLog } from "./logic";
+import { useFleetActions } from "./fleet-state";
+import type {
+  AiValuation,
+  FleetStaff,
+  Vehicle,
+  VehicleIdentity,
+  VehicleLog,
+  VehicleWithFacts,
+} from "./logic";
 import { MyVehicle } from "./my-vehicle";
 import { FleetRegister } from "./register";
 
@@ -12,28 +18,39 @@ import { FleetRegister } from "./register";
    old static screen: the shell's delegated click handler does the tab
    switching, so these classNames stay static (never re-rendered with state).
 
-   Role rules (docs/roles-and-permissions.md): Manager/Owner get the whole
-   register incl. valuations; Staff get only their assigned vehicle ("My
-   vehicle") with log fuel/odo/issue actions. Managers also get a Staff
-   preview toggle so the staff lens can be reviewed without switching accounts
-   (demo-only affordance, like the directory's deactivate). */
+   Role rules (docs/roles-and-permissions.md): `assets_all` gets the whole
+   register incl. valuations; everyone else gets only their own vehicle. The
+   two lenses take DIFFERENT props, not the same props filtered — `register`
+   is simply absent from a staff member's payload, so there is nothing for a
+   render bug to leak. Managers also get a Staff preview toggle so the staff
+   lens can be reviewed without switching accounts. */
 
-export function AssetsScreen({
-  manager,
-  staff,
-  vehicles,
-  logs,
-  viewerId,
-}: {
-  manager: boolean;
-  staff: DemoStaff[];
+export type OwnFleet = {
+  vehicle: VehicleWithFacts | null;
+  pickable: VehicleIdentity[];
+  logs: VehicleLog[];
+};
+
+export type Register = {
   vehicles: Vehicle[];
   logs: VehicleLog[];
-  viewerId: string;
+  aiValues: Record<string, AiValuation>;
+  staff: FleetStaff[];
+};
+
+export function AssetsScreen({
+  own,
+  register,
+  today,
+}: {
+  own: OwnFleet;
+  /** Present only for holders of `assets_all`. */
+  register?: Register;
+  today: string;
 }) {
-  const fleet = useFleetState(vehicles, logs);
+  const actions = useFleetActions();
   const [preview, setPreview] = useState<"manager" | "staff">("manager");
-  const staffLens = !manager || preview === "staff";
+  const staffLens = !register || preview === "staff";
 
   return (
     <div className="page in">
@@ -45,7 +62,7 @@ export function AssetsScreen({
                 Assets
               </h1>
             </div>
-            {manager && (
+            {register && (
               <div className="fl-seg" title="Preview how this page looks for each role">
                 <em>Preview</em>
                 <button className={preview === "manager" ? "on" : ""} onClick={() => setPreview("manager")}>
@@ -71,9 +88,19 @@ export function AssetsScreen({
           <div className="ptabpanels">
             <div className="ptabpanel on" data-ppanel="0">
               {staffLens ? (
-                <MyVehicle fleet={fleet} staff={staff} viewerId={viewerId} />
+                <MyVehicle
+                  vehicle={own.vehicle}
+                  pickable={own.pickable}
+                  logs={own.logs}
+                  error={actions.error}
+                  onLog={actions.addLog}
+                />
               ) : (
-                <FleetRegister fleet={fleet} staff={staff} />
+                <FleetRegister
+                  fleet={{ ...actions, ...register }}
+                  staff={register.staff}
+                  today={today}
+                />
               )}
             </div>
             <div className="ptabpanel" data-ppanel="1">

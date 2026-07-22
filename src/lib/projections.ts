@@ -17,8 +17,10 @@ export const VEHICLE_PICKER_FIELDS = [
   "id",
   "name",
   "plate",
+  "plateState", // an AU plate doesn't identify a vehicle without its state
   "make",
   "model",
+  "year", // part of naming the vehicle: "MKT482 — Toyota Hiace ZR 2022"
   "status", // active/offroad — the picker excludes sold and flags off-road
   "odometer", // drives the can't-go-backwards guardrail in the log modal
 ] as const;

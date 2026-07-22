@@ -1,32 +1,70 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TeamDirectory } from "../directory";
-import { demoPendingInvites, demoStaff, getDemoVehicleForStaff } from "@/mock/demo";
-import { displayName } from "@/components/fleet/logic";
+import type { PendingInviteRow, StaffRow } from "@/lib/staff/types";
 
-// mirror team/page.tsx: the Vehicle column derives from the Fleet register
-const rows = demoStaff.map((s) => {
-  const v = getDemoVehicleForStaff(s.id);
-  return { ...s, vehicle: v ? displayName(v) : "" };
+/* Own fixtures rather than the demo mock — the directory now renders real
+   rows, and the point of this stage is that deleting mock/demo.ts changes
+   nothing here. Shapes match what listStaff() returns. */
+
+const staffRow = (over: Partial<StaffRow> & Pick<StaffRow, "id" | "name">): StaffRow => ({
+  userId: `auth0|${over.id}`,
+  initials: over.name.slice(0, 2).toUpperCase(),
+  email: `${over.id}@heytiff.co`,
+  role: "Installer",
+  employmentType: "Full-time",
+  started: "Mar 2021",
+  years: "3.2",
+  licenceCount: 0,
+  status: "Active",
+  vehicle: "—",
+  compliance: { label: "Compliant", state: "ok", expiresDays: 9999 },
+  orgRole: "staff",
+  isMaster: false,
+  ...over,
 });
 
+const STAFF: StaffRow[] = [
+  staffRow({
+    id: "a1",
+    name: "Jordan Mills",
+    role: "Lead Installer",
+    compliance: { label: "ARC licence expires 14d", state: "warn", expiresDays: 14 },
+  }),
+  staffRow({
+    id: "b2",
+    name: "Liam O’Brien",
+    role: "Apprentice",
+    compliance: { label: "White Card expired", state: "bad", expiresDays: -3 },
+  }),
+  staffRow({ id: "c3", name: "Sophie Tran", role: "Office Manager" }),
+  staffRow({ id: "d4", name: "Marcus Webb", role: "Installer" }),
+  staffRow({ id: "e5", name: "Hannah Cole", role: "Estimator" }),
+  staffRow({ id: "f6", name: "Dylan Reyes", role: "Installer", status: "Inactive" }),
+];
+
+const PENDING: PendingInviteRow[] = [
+  { name: "ben.fletcher", email: "ben.fletcher@gmail.com", role: "Staff", state: "live", note: "Expires in 5 days" },
+  { name: "k.santos", email: "k.santos@outlook.com", role: "Admin", state: "expired", note: "Expired 2 days ago" },
+];
+
 function setup() {
-  render(<TeamDirectory staff={rows} pending={demoPendingInvites} />);
+  render(<TeamDirectory staff={STAFF} pending={PENDING} />);
 }
 
 describe("TeamDirectory", () => {
   it("renders every staff member in the default view", () => {
     setup();
-    for (const s of demoStaff) {
+    for (const s of STAFF) {
       expect(screen.getByText(s.name)).toBeInTheDocument();
     }
   });
 
   it("shows the three-state compliance chips", () => {
     setup();
-    expect(screen.getByText("ARC expires 14d")).toBeInTheDocument();
+    expect(screen.getByText("ARC licence expires 14d")).toBeInTheDocument();
     expect(screen.getByText("White Card expired")).toBeInTheDocument();
-    expect(screen.getAllByText("Compliant")).toHaveLength(2);
+    expect(screen.getAllByText("Compliant")).toHaveLength(4);
   });
 
   it("marks inactive staff", () => {
@@ -45,7 +83,7 @@ describe("TeamDirectory", () => {
   it("shows pending invites on the invites tab", async () => {
     setup();
     await userEvent.click(screen.getByText("Pending invites"));
-    expect(screen.getByText("Ben Fletcher")).toBeInTheDocument();
+    expect(screen.getByText("ben.fletcher")).toBeInTheDocument();
     expect(screen.getByText("Expired 2 days ago")).toBeInTheDocument();
   });
 
@@ -57,11 +95,12 @@ describe("TeamDirectory", () => {
     expect(screen.queryByText("Hannah Cole")).not.toBeInTheDocument();
   });
 
-  it("opens the row menu with a profile link", async () => {
+  it("links each row to its card by UUID", async () => {
     setup();
     const menuButtons = screen.getAllByLabelText("Actions");
     await userEvent.click(menuButtons[0]);
     const link = screen.getByText("View profile").closest("a");
+    // the id is the staff_profiles UUID, not a slug
     expect(link).toHaveAttribute("href", expect.stringContaining("/dashboard/team/"));
   });
 });

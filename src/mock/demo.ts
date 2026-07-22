@@ -1,6 +1,13 @@
 // DEMO DATA — remove before production. Every export here is placeholder.
-// Acceptance test: delete this file and the app still compiles, with the Team
-// directory falling back to its "No staff yet" empty state.
+//
+// Team no longer reads from here: the directory, staff cards and pending
+// invites all come from staff_profiles / invitations (see lib/staff/query.ts).
+// What remains is FLEET's demo register plus the `demoStaff` roster it uses for
+// driver assignment — both go when Fleet moves to real tables (Stage 4), and
+// `demoStaff` should be deleted with them.
+//
+// Acceptance test: delete this file and the app still compiles, with every
+// screen falling back to its empty state.
 
 import type { KbDoc } from "@/components/tiff/kb";
 import type { Vehicle, VehicleLog } from "@/components/fleet/logic";
@@ -22,13 +29,6 @@ export type DemoStaff = {
   compliance: { label: string; state: "ok" | "warn" | "bad"; expiresDays: number };
 };
 
-export type PendingInvite = {
-  name: string;
-  email: string;
-  role: string;
-  state: "live" | "expired";
-  note: string;
-};
 
 export const demoStaff: DemoStaff[] = [
   {
@@ -125,14 +125,7 @@ export const demoStaff: DemoStaff[] = [
   },
 ];
 
-export const demoPendingInvites: PendingInvite[] = [
-  { name: "Ben Fletcher", email: "ben.fletcher@gmail.com", role: "Installer", state: "live", note: "Expires in 5 days" },
-  { name: "Kim Santos", email: "k.santos@outlook.com", role: "Service Technician", state: "expired", note: "Expired 2 days ago" },
-];
 
-export function getDemoStaff(id: string): DemoStaff | null {
-  return demoStaff.find((s) => s.id === id) ?? null;
-}
 
 // Fleet — demo vehicle register + activity history. Assignments live here
 // (assignedTo → DemoStaff.id) and drive the directory column + profile card.

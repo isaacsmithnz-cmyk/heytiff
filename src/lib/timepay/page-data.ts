@@ -11,15 +11,30 @@ import {
   sheetStates,
   type SheetState,
 } from "./query";
-import { periodDays, periodLabel, periodStartFor, periodYear, recentPeriods, todayIndex } from "./period";
+import {
+  periodDays,
+  periodLabel,
+  periodStartFor,
+  periodYear,
+  recentPeriods,
+  todayIndex,
+  type PeriodConfig,
+} from "./period";
 
 /* Shared page loading for both Time & Pay routes, so the *my* screen and the
    *all* screen can't disagree about which period it is or what the rules are.
 
-   Settings load FIRST and everything else follows, because the pay cycle
-   decides how long a period is and therefore which entries belong to it. */
+   Settings load FIRST and everything else follows, because the cycle and its
+   anchors decide how long a period is and where it begins — and therefore
+   which entries belong to it. */
 
 export type Ctx = { orgId: string; staffId: string | null; today: string };
+
+const periodConfig = (s: Settings): PeriodConfig => ({
+  cycle: s.cycle,
+  fortnightAnchor: s.fortnightAnchor,
+  monthStartDay: s.monthStartDay,
+});
 
 export async function timepayContext(): Promise<Ctx | null> {
   const session = await auth0.getSession();
@@ -29,18 +44,18 @@ export async function timepayContext(): Promise<Ctx | null> {
   return { orgId, staffId: await staffProfileIdFor(orgId, userId), today: todayInAu() };
 }
 
-/** Resolve ?period=YYYY-MM-DD against this org's cycle, defaulting to the
-    current period and refusing anything that isn't one we offer. */
+/** Resolve ?period=YYYY-MM-DD against this org's configuration, defaulting to
+    the current period and refusing anything that isn't one we offer. */
 export function resolvePeriod(
   today: string,
-  cycle: Settings["cycle"],
+  cfg: PeriodConfig,
   requested?: string,
 ): { start: string; index: number; periods: PayPeriod[] } {
-  const starts = recentPeriods(today, cycle);
-  const current = periodStartFor(today, cycle);
+  const starts = recentPeriods(today, cfg);
+  const current = periodStartFor(today, cfg);
   const periods: PayPeriod[] = starts.map((start) => ({
     start,
-    range: periodLabel(start, cycle),
+    range: periodLabel(start, cfg),
     year: periodYear(start),
     live: start === current,
     note: "Closed period · historical",
@@ -54,9 +69,10 @@ export async function loadMyTimesheet(requested?: string) {
   if (!ctx?.staffId) return null;
 
   const { settings } = await getPaySettings(ctx.orgId);
-  const { start, periods, index } = resolvePeriod(ctx.today, settings.cycle, requested);
+  const cfg = periodConfig(settings);
+  const { start, periods, index } = resolvePeriod(ctx.today, cfg, requested);
   const [me, sheets] = await Promise.all([
-    getMyWeek(ctx.orgId, ctx.staffId, start, settings.cycle),
+    getMyWeek(ctx.orgId, ctx.staffId, start, cfg),
     sheetStates(ctx.orgId, start),
   ]);
   if (!me) return null;
@@ -64,8 +80,8 @@ export async function loadMyTimesheet(requested?: string) {
   return {
     me,
     settings,
-    week: periodDays(start, settings.cycle),
-    today: todayIndex(start, ctx.today, settings.cycle),
+    week: periodDays(start, cfg),
+    today: todayIndex(start, ctx.today, cfg),
     periodStart: start,
     periodLabel: `${periods[index].range} ${periods[index].year}`,
     sheet: sheets.get(ctx.staffId) ?? EMPTY_SHEET,
@@ -77,9 +93,10 @@ export async function loadTimepay(opts: { pay: boolean }, requested?: string) {
   if (!ctx) return null;
 
   const { settings, configured } = await getPaySettings(ctx.orgId);
-  const { start, periods, index } = resolvePeriod(ctx.today, settings.cycle, requested);
+  const cfg = periodConfig(settings);
+  const { start, periods, index } = resolvePeriod(ctx.today, cfg, requested);
   const [staff, sheets] = await Promise.all([
-    listStaffWeeks(ctx.orgId, start, { pay: opts.pay, cycle: settings.cycle }),
+    listStaffWeeks(ctx.orgId, start, { pay: opts.pay, cfg }),
     sheetStates(ctx.orgId, start),
   ]);
 
@@ -87,8 +104,8 @@ export async function loadTimepay(opts: { pay: boolean }, requested?: string) {
     staff,
     settings,
     configured,
-    week: periodDays(start, settings.cycle),
-    today: todayIndex(start, ctx.today, settings.cycle),
+    week: periodDays(start, cfg),
+    today: todayIndex(start, ctx.today, cfg),
     periods,
     periodIndex: index,
     sheets: Object.fromEntries(sheets) as Record<string, SheetState>,

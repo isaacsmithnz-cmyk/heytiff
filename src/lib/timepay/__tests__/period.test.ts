@@ -2,12 +2,26 @@ import {
   addDays,
   dateOfDay,
   mondayIndex,
+  periodDays,
   periodLabel,
+  periodLength,
   periodStartFor,
   recentPeriods,
   todayIndex,
-  periodDays,
+  type PeriodConfig,
 } from "../period";
+
+const WEEKLY: PeriodConfig = { cycle: "Weekly", fortnightAnchor: null, monthStartDay: 1 };
+const FN = (anchor: string | null = null): PeriodConfig => ({
+  cycle: "Fortnightly",
+  fortnightAnchor: anchor,
+  monthStartDay: 1,
+});
+const MONTHLY = (startDay = 1): PeriodConfig => ({
+  cycle: "Monthly",
+  fortnightAnchor: null,
+  monthStartDay: startDay,
+});
 
 describe("week anchoring", () => {
   it("indexes Monday as 0 and Sunday as 6 — the order splitDay assumes", () => {
@@ -19,13 +33,13 @@ describe("week anchoring", () => {
   it("snaps any day back to its Monday, including the Sunday", () => {
     // the classic off-by-one: Sunday belongs to the week that STARTED on the
     // 29th, not the one starting the next day
-    expect(periodStartFor("2026-07-05")).toBe("2026-06-29");
-    expect(periodStartFor("2026-06-29")).toBe("2026-06-29");
-    expect(periodStartFor("2026-07-02")).toBe("2026-06-29");
+    expect(periodStartFor("2026-07-05", WEEKLY)).toBe("2026-06-29");
+    expect(periodStartFor("2026-06-29", WEEKLY)).toBe("2026-06-29");
+    expect(periodStartFor("2026-07-02", WEEKLY)).toBe("2026-06-29");
   });
 
   it("builds the seven grid columns, crossing a month boundary", () => {
-    expect(periodDays("2026-06-29")).toEqual([
+    expect(periodDays("2026-06-29", WEEKLY)).toEqual([
       ["MON", 29, "Jun"],
       ["TUE", 30, "Jun"],
       ["WED", 1, "Jul"],
@@ -34,7 +48,7 @@ describe("week anchoring", () => {
       ["SAT", 4, "Jul"],
       ["SUN", 5, "Jul"],
     ]);
-    expect(periodLabel("2026-06-29")).toBe("29 Jun – 5 Jul");
+    expect(periodLabel("2026-06-29", WEEKLY)).toBe("29 Jun – 5 Jul");
   });
 
   it("maps a grid column back to the date the entry is stored against", () => {
@@ -45,48 +59,42 @@ describe("week anchoring", () => {
 
 describe("todayIndex", () => {
   it("is the position of today inside the current week", () => {
-    expect(todayIndex("2026-06-29", "2026-07-01")).toBe(2);
+    expect(todayIndex("2026-06-29", "2026-07-01", WEEKLY)).toBe(2);
   });
 
   it("saturates at 6 for a past week, so every weekday counts as missing", () => {
-    // otherwise last week's unfilled Thursday never gets flagged
-    expect(todayIndex("2026-06-29", "2026-08-01")).toBe(6);
+    expect(todayIndex("2026-06-29", "2026-08-01", WEEKLY)).toBe(6);
   });
 
   it("is -1 for a future week — nothing is late yet", () => {
-    expect(todayIndex("2026-08-03", "2026-07-01")).toBe(-1);
+    expect(todayIndex("2026-08-03", "2026-07-01", WEEKLY)).toBe(-1);
   });
 });
 
-describe("the period switcher", () => {
+describe("the weekly period switcher", () => {
   it("lists whole weeks back from the current one, newest first", () => {
-    const p = recentPeriods("2026-07-01", "Weekly", 3);
-    expect(p).toEqual(["2026-06-29", "2026-06-22", "2026-06-15"]);
+    expect(recentPeriods("2026-07-01", WEEKLY, 3)).toEqual(["2026-06-29", "2026-06-22", "2026-06-15"]);
   });
 
   it("steps by exact days across a DST-style boundary", () => {
-    // dates are handled in UTC precisely so a clock change can't drop an hour
-    // and shift the week start
     expect(addDays("2026-04-04", 1)).toBe("2026-04-05");
     expect(addDays("2026-10-03", 1)).toBe("2026-10-04");
   });
 });
 
-describe("cycles longer than a week", () => {
-  it("a fortnight is 14 days and its second week is the right dates", () => {
-    const days = periodDays("2026-06-29", "Fortnightly");
+describe("fortnights", () => {
+  it("are 14 days, with the second Saturday landing at day 12", () => {
+    const days = periodDays("2026-06-29", FN());
     expect(days).toHaveLength(14);
-    expect(days[0]).toEqual(["MON", 29, "Jun"]);
     expect(days[7]).toEqual(["MON", 6, "Jul"]); // day 7 is a MONDAY, not a Sunday
     expect(days[13]).toEqual(["SUN", 12, "Jul"]);
   });
 
-  it("marks BOTH weekends in a fortnight", () => {
-    // the bug this whole change exists to kill: with a fixed 7-column
-    // assumption, day 12 (the second Saturday) read as a Friday
-    const days = periodDays("2026-06-29", "Fortnightly");
-    const weekendDays = days.map((d, i) => [i, d[0]]).filter(([, n]) => n === "SAT" || n === "SUN");
-    expect(weekendDays).toEqual([
+  it("marks BOTH weekends", () => {
+    const weekend = periodDays("2026-06-29", FN())
+      .map((d, i) => [i, d[0]] as const)
+      .filter(([, n]) => n === "SAT" || n === "SUN");
+    expect(weekend).toEqual([
       [5, "SAT"],
       [6, "SUN"],
       [12, "SAT"],
@@ -94,52 +102,76 @@ describe("cycles longer than a week", () => {
     ]);
   });
 
-  /* The fortnight anchor is a fixed epoch Monday rather than a date anyone
-     picked, so these assert the PROPERTIES that matter — always a Monday,
-     stable, 14 apart, and every day of the fortnight resolving to one start —
-     instead of hardcoding boundaries that just re-state the epoch. */
-  it("always starts on a Monday", () => {
-    for (const d of ["2026-06-29", "2026-07-05", "2026-07-08", "2026-12-31"]) {
-      expect(mondayIndex(periodStartFor(d, "Fortnightly"))).toBe(0);
-    }
+  it("align to a configured anchor, snapped to that week's Monday", () => {
+    // owner says a fortnight begins Wed 15 Jul 2026; we snap to Mon 13 Jul and
+    // count every fortnight from there
+    const cfg = FN("2026-07-15");
+    const anchorMonday = "2026-07-13";
+    expect(periodStartFor("2026-07-15", cfg)).toBe(anchorMonday);
+    expect(periodStartFor("2026-07-20", cfg)).toBe(anchorMonday); // still the same fortnight
+    expect(periodStartFor("2026-07-27", cfg)).toBe(addDays(anchorMonday, 14)); // the next one
+    // a week that is one week OFF the anchor snaps back to the anchor's phase
+    expect(periodStartFor("2026-07-08", cfg)).toBe(addDays(anchorMonday, -14));
   });
 
-  it("resolves every day of a fortnight to the same start", () => {
-    const start = periodStartFor("2026-06-30", "Fortnightly");
-    for (let i = 0; i < 14; i++) {
-      expect(periodStartFor(addDays(start, i), "Fortnightly")).toBe(start);
+  it("put a given date in different fortnights under different anchors", () => {
+    // the whole point of a configurable anchor: the same Monday can be the
+    // start of a period under one anchor and mid-period under another
+    const monday = "2026-07-20";
+    expect(periodStartFor(monday, FN("2026-07-20"))).toBe(monday); // period start
+    expect(periodStartFor(monday, FN("2026-07-13"))).toBe("2026-07-13"); // mid-period
+  });
+
+  it("default (unset) anchor is still deterministic and Monday-aligned", () => {
+    for (const d of ["2026-06-29", "2026-07-05", "2026-12-31"]) {
+      expect(mondayIndex(periodStartFor(d, FN()))).toBe(0);
     }
-    // and the very next day belongs to the following fortnight
-    expect(periodStartFor(addDays(start, 14), "Fortnightly")).toBe(addDays(start, 14));
+    const start = periodStartFor("2026-06-30", FN());
+    for (let i = 0; i < 14; i++) expect(periodStartFor(addDays(start, i), FN())).toBe(start);
+    expect(periodStartFor(addDays(start, 14), FN())).toBe(addDays(start, 14));
   });
 
   it("steps the switcher by a fortnight, not a week", () => {
-    const p = recentPeriods("2026-07-01", "Fortnightly", 3);
-    expect(p[0]).toBe(periodStartFor("2026-07-01", "Fortnightly"));
+    const p = recentPeriods("2026-07-01", FN(), 3);
     expect(p[1]).toBe(addDays(p[0], -14));
     expect(p[2]).toBe(addDays(p[0], -28));
   });
+});
 
-  it("a month is its own calendar length, including February", () => {
-    expect(periodDays("2026-07-01", "Monthly")).toHaveLength(31);
-    expect(periodDays("2026-06-01", "Monthly")).toHaveLength(30);
-    expect(periodDays("2026-02-01", "Monthly")).toHaveLength(28);
-    expect(periodDays("2028-02-01", "Monthly")).toHaveLength(29); // leap year
-    expect(periodStartFor("2026-07-17", "Monthly")).toBe("2026-07-01");
-    expect(periodLabel("2026-07-01", "Monthly")).toBe("Jul");
+describe("monthly periods", () => {
+  it("a calendar month is its own length, including February and leap years", () => {
+    expect(periodLength("2026-07-01", MONTHLY())).toBe(31);
+    expect(periodLength("2026-06-01", MONTHLY())).toBe(30);
+    expect(periodLength("2026-02-01", MONTHLY())).toBe(28);
+    expect(periodLength("2028-02-01", MONTHLY())).toBe(29);
+    expect(periodStartFor("2026-07-17", MONTHLY())).toBe("2026-07-01");
+    expect(periodLabel("2026-07-01", MONTHLY())).toBe("Jul");
+  });
+
+  it("run monthStartDay -> the day before next month's, at the right length", () => {
+    // a 16th–15th pay month: mid-July resolves to the period that began 16 Jun
+    const cfg = MONTHLY(16);
+    expect(periodStartFor("2026-07-10", cfg)).toBe("2026-06-16");
+    expect(periodStartFor("2026-07-16", cfg)).toBe("2026-07-16");
+    // 16 Jun -> 15 Jul inclusive is 30 days
+    expect(periodLength("2026-06-16", cfg)).toBe(30);
+    const days = periodDays("2026-06-16", cfg);
+    expect(days[0]).toEqual(["TUE", 16, "Jun"]);
+    expect(days[days.length - 1]).toEqual(["WED", 15, "Jul"]);
+    // not a plain calendar month, so it keeps the date range in its label
+    expect(periodLabel("2026-06-16", cfg)).toBe("16 Jun – 15 Jul");
+  });
+
+  it("steps back over uneven month lengths", () => {
+    expect(recentPeriods("2026-03-15", MONTHLY(), 3)).toEqual(["2026-03-01", "2026-02-01", "2026-01-01"]);
+    // anchored months step by whole months too
+    expect(recentPeriods("2026-03-20", MONTHLY(16), 2)).toEqual(["2026-03-16", "2026-02-16"]);
   });
 
   it("todayIndex saturates at the real end of the period", () => {
-    expect(todayIndex("2026-06-29", "2026-07-09", "Fortnightly")).toBe(10);
-    expect(todayIndex("2026-06-29", "2026-09-01", "Fortnightly")).toBe(13);
-    expect(todayIndex("2026-07-01", "2026-09-01", "Monthly")).toBe(30);
-  });
-
-  it("steps monthly periods back over uneven month lengths", () => {
-    expect(recentPeriods("2026-03-15", "Monthly", 3)).toEqual([
-      "2026-03-01",
-      "2026-02-01",
-      "2026-01-01",
-    ]);
+    expect(todayIndex("2026-06-29", "2026-07-09", FN())).toBe(10);
+    expect(todayIndex("2026-06-29", "2026-09-01", FN())).toBe(13);
+    expect(todayIndex("2026-07-01", "2026-09-01", MONTHLY())).toBe(30);
+    expect(todayIndex("2026-02-01", "2026-01-15", MONTHLY())).toBe(-1);
   });
 });

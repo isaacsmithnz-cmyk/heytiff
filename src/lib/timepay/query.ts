@@ -1,6 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { DEFAULT_SETTINGS, type DayEntry, type Settings, type StaffWeek } from "@/components/timepay/logic";
-import { dateOfDay, periodEnd, periodLength } from "./period";
+import { dateOfDay, periodEnd, periodLength, type PeriodConfig } from "./period";
 
 /* Time & Pay queries. Org-scoped throughout, like lib/staff and lib/fleet.
 
@@ -54,6 +54,8 @@ export async function getPaySettings(
     settings: {
       cycle: (data.cycle as Settings["cycle"]) ?? DEFAULT_SETTINGS.cycle,
       weekStart: (data.week_start as string) ?? DEFAULT_SETTINGS.weekStart,
+      fortnightAnchor: (data.fortnight_anchor as string) ?? null,
+      monthStartDay: Number(data.month_start_day ?? DEFAULT_SETTINGS.monthStartDay),
       standard: Number(data.standard ?? DEFAULT_SETTINGS.standard),
       otAfter: Number(data.ot_after ?? DEFAULT_SETTINGS.otAfter),
       otUnit: (data.ot_unit as Settings["otUnit"]) ?? DEFAULT_SETTINGS.otUnit,
@@ -74,12 +76,12 @@ export async function getPaySettings(
 function toDays(
   rows: Record<string, unknown>[],
   periodStart: string,
-  cycle: Settings["cycle"],
+  cfg: PeriodConfig,
 ): DayEntry[] {
   const byDate = new Map<string, Record<string, unknown>>();
   for (const r of rows) byDate.set(String(r.work_date).slice(0, 10), r);
 
-  return Array.from({ length: periodLength(cycle, periodStart) }, (_, i) => {
+  return Array.from({ length: periodLength(periodStart, cfg) }, (_, i) => {
     const r = byDate.get(dateOfDay(periodStart, i));
     if (!r) return { t: "empty" } as DayEntry;
     const h = Number(r.hours) || 0;
@@ -92,7 +94,7 @@ function toDays(
 async function entriesFor(
   orgId: string,
   periodStart: string,
-  cycle: Settings["cycle"],
+  cfg: PeriodConfig,
   staffIds?: string[],
 ): Promise<Map<string, Record<string, unknown>[]>> {
   let q = supabaseAdmin
@@ -100,7 +102,7 @@ async function entriesFor(
     .select("staff_profile_id, work_date, kind, start_time, end_time, hours")
     .eq("org_id", orgId)
     .gte("work_date", periodStart)
-    .lte("work_date", periodEnd(periodStart, cycle));
+    .lte("work_date", periodEnd(periodStart, cfg));
   if (staffIds) q = q.in("staff_profile_id", staffIds);
   const { data } = await q;
 
@@ -145,7 +147,7 @@ function nameOf(r: Record<string, unknown>): string {
 export async function listStaffWeeks(
   orgId: string,
   periodStart: string,
-  opts: { pay: boolean; cycle: Settings["cycle"] },
+  opts: { pay: boolean; cfg: PeriodConfig },
 ): Promise<StaffWeek[]> {
   const { data } = await supabaseAdmin
     .from("staff_profiles")
@@ -155,14 +157,14 @@ export async function listStaffWeeks(
     .order("full_name");
 
   const rows = (data ?? []) as unknown as Record<string, unknown>[];
-  const entries = await entriesFor(orgId, periodStart, opts.cycle, rows.map((r) => String(r.id)));
+  const entries = await entriesFor(orgId, periodStart, opts.cfg, rows.map((r) => String(r.id)));
 
   return rows.map((r) => ({
     id: String(r.id),
     name: nameOf(r),
     role: (r.job_title as string) || "—",
     rate: opts.pay && r[RATE_COLUMN] != null ? Number(r[RATE_COLUMN]) : null,
-    days: toDays(entries.get(String(r.id)) ?? [], periodStart, opts.cycle),
+    days: toDays(entries.get(String(r.id)) ?? [], periodStart, opts.cfg),
   }));
 }
 
@@ -173,7 +175,7 @@ export async function getMyWeek(
   orgId: string,
   staffProfileId: string,
   periodStart: string,
-  cycle: Settings["cycle"],
+  cfg: PeriodConfig,
 ): Promise<StaffWeek | null> {
   const { data } = await supabaseAdmin
     .from("staff_profiles")
@@ -184,12 +186,12 @@ export async function getMyWeek(
   if (!data) return null;
 
   const r = data as unknown as Record<string, unknown>;
-  const entries = await entriesFor(orgId, periodStart, cycle, [staffProfileId]);
+  const entries = await entriesFor(orgId, periodStart, cfg, [staffProfileId]);
   return {
     id: staffProfileId,
     name: nameOf(r),
     role: (r.job_title as string) || "—",
     rate: r[RATE_COLUMN] != null ? Number(r[RATE_COLUMN]) : null,
-    days: toDays(entries.get(staffProfileId) ?? [], periodStart, cycle),
+    days: toDays(entries.get(staffProfileId) ?? [], periodStart, cfg),
   };
 }

@@ -84,6 +84,45 @@ export function TimePaySettings({
     </div>
   );
 
+  /* Where the chosen cycle actually begins. A fortnight has no natural start,
+     so the owner names one; a month can run from any day. Shown inline with
+     the cycle choice, since it's meaningless for a weekly cycle. */
+  const anchorField = () => {
+    if (draft.cycle === "Fortnightly")
+      return (
+        <label className="wz-anchor">
+          <span>First fortnight starts</span>
+          <input
+            type="date"
+            className="fl-i"
+            value={draft.fortnightAnchor ?? ""}
+            onChange={(e) => patch({ fortnightAnchor: e.target.value || null })}
+          />
+          <em>Every pay fortnight is counted from this date. Snaps to that week&rsquo;s Monday.</em>
+        </label>
+      );
+    if (draft.cycle === "Monthly")
+      return (
+        <label className="wz-anchor">
+          <span>Pay month starts on the</span>
+          <select
+            className="fl-i"
+            value={draft.monthStartDay}
+            onChange={(e) => patch({ monthStartDay: Number(e.target.value) })}
+          >
+            {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => (
+              <option key={d} value={d}>
+                {d}
+                {d === 1 ? "st" : d === 2 ? "nd" : d === 3 ? "rd" : d === 21 ? "st" : d === 22 ? "nd" : d === 23 ? "rd" : "th"}
+              </option>
+            ))}
+          </select>
+          <em>1st = calendar month. Runs to the day before next month&rsquo;s start.</em>
+        </label>
+      );
+    return null;
+  };
+
   const unitPills = (extraClass = "") => (
     <div className={`wz-pills sm ${extraClass}`.trim()}>
       {([["day", "Per day"], ["week", "Per week"]] as const).map(([u, label]) => (
@@ -195,6 +234,7 @@ export function TimePaySettings({
               {tag ? <span className="wz-tag">{tag}</span> : null}
             </button>
           ))}
+          {anchorField()}
         </div>
       ),
     },
@@ -371,13 +411,16 @@ export function TimePaySettings({
             <div className="wz-body wz-menu">
               {menuSection(
                 "Pay cycle",
-                <div className="wz-pills sm">
-                  {(["Weekly", "Fortnightly", "Monthly"] as const).map((c) => (
-                    <button key={c} className={`wz-pill${draft.cycle === c ? " on" : ""}`} onClick={() => patch({ cycle: c })}>
-                      {c}
-                    </button>
-                  ))}
-                </div>
+                <>
+                  <div className="wz-pills sm">
+                    {(["Weekly", "Fortnightly", "Monthly"] as const).map((c) => (
+                      <button key={c} className={`wz-pill${draft.cycle === c ? " on" : ""}`} onClick={() => patch({ cycle: c })}>
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                  {anchorField()}
+                </>
               )}
               {menuSection(
                 "Week starts on",

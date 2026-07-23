@@ -14,6 +14,7 @@ import {
   dayLabel,
   derive,
   fmt,
+  weekGroups,
 } from "./logic";
 
 /* My timesheet — everyone, always. The first hours-ENTRY surface in the app:
@@ -168,6 +169,8 @@ export function MyTimesheet({
   const [error, setError] = useState<string | null>(null);
   const ctx: WeekCtx = { week, today };
   const d = derive(me, settings, ctx);
+  const groups = weekGroups(me.days);
+  const multiWeek = groups.length > 1; // fortnight / month read as week-rows
   const locked = sheet.status === "submitted" || sheet.status === "approved";
   const status = STATUS_COPY[sheet.status];
 
@@ -211,7 +214,7 @@ export function MyTimesheet({
 
           <div className="mts-tiles">
             <div className="mts-tile">
-              <em>Hours this week</em>
+              <em>{multiWeek ? "Hours this period" : "Hours this week"}</em>
               <b>{fmt(d.worked)}h</b>
             </div>
             <div className="mts-tile">
@@ -226,19 +229,29 @@ export function MyTimesheet({
             </div>
           </div>
 
-          <div className="mts-days">
-            {me.days.map((day, i) => (
-              <DayRow
-                key={i}
-                index={i}
-                entry={day}
-                ctx={ctx}
-                settings={settings}
-                locked={locked || pending}
-                onSave={(idx, e) => run(() => saveDay(periodStart, idx, e))}
-              />
-            ))}
-          </div>
+          {groups.map((g) => (
+            <div className="mts-week" key={g.start}>
+              {multiWeek && (
+                <div className="mts-wh">
+                  <span>{g.label}</span>
+                  <em>{fmt(g.workedHours)}h</em>
+                </div>
+              )}
+              <div className="mts-days">
+                {g.days.map(({ entry, index }) => (
+                  <DayRow
+                    key={index}
+                    index={index}
+                    entry={entry}
+                    ctx={ctx}
+                    settings={settings}
+                    locked={locked || pending}
+                    onSave={(idx, e) => run(() => saveDay(periodStart, idx, e))}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
 
           <div className="mts-foot">
             <span>{status.sub}</span>

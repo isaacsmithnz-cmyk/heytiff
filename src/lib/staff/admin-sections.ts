@@ -55,6 +55,8 @@ export const ADMIN_SECTIONS = {
       "hourly_wage",
       "contracted_hours",
       "utilisation",
+      "super_override",
+      "workers_comp_override",
       "employment_type",
       // assembled from the three sliders — see buildAdminPatch
       "cost_install",
@@ -88,7 +90,13 @@ const ADMIN_PATCH_CONFIG: SectionConfig = {
 };
 
 /** Columns stored as numbers — the form sends text. */
-const NUMERIC = new Set(["hourly_wage", "contracted_hours", "utilisation"]);
+const NUMERIC = new Set([
+  "hourly_wage",
+  "contracted_hours",
+  "utilisation",
+  "super_override",
+  "workers_comp_override",
+]);
 
 export type AdminPatch = {
   patch: Record<string, unknown>;

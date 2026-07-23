@@ -6,7 +6,7 @@
  * the same inputs. They pass EXPLICIT settings so they stay valid as the
  * demo defaults / FY tax table move each year.
  */
-import { calculate, healthStatus, stepStatus, type EngineData } from "../engine";
+import { calculate, classifyEmployment, healthStatus, stepStatus, type EngineData } from "../engine";
 import { BASELINE_DATA, BASELINE_RISK, BASELINE_PROFIT, BASELINE_MULTIPLIERS } from "./fixtures/baseline-org";
 
 // Settings frozen to the values the ground-truth run used — independent of
@@ -259,6 +259,47 @@ describe("payroll tax — taxable wage base (detailed mode)", () => {
     const calc = calculate({ staff: [casual], settings: TAX_SETTINGS });
     // base 50×38×48 = 91,200 paid weeks only; × 1.12 for super
     expect(calc.totalWages).toBeCloseTo(91_200 * 1.12, 6);
+  });
+});
+
+describe("employment classification — the roster vocabulary", () => {
+  it("maps the roster labels to their pay class, tolerant of spelling", () => {
+    // permanent
+    for (const v of ["Full-time", "Full Time", "part-time", "Part Time", "Apprentice", "", undefined])
+      expect(classifyEmployment(v)).toBe("permanent");
+    // subbie — the one whose misclassification changes the tax base
+    for (const v of ["Subcontractor", "Sub-contractor", "sub contractor", "contractor"])
+      expect(classifyEmployment(v)).toBe("subbie");
+    expect(classifyEmployment("Casual")).toBe("casual");
+  });
+
+  it("classifies an APPRENTICE as permanent — super + leave, not special", () => {
+    const appr = {
+      id: "a1", name: "Appr", hourly_wage: 30, employment_type: "Apprentice",
+      contracted_hours_per_week: 38, install_pct: 100, service_pct: 0, admin_pct: 0,
+    };
+    const perm = { ...appr, id: "p1", employment_type: "Full-time" };
+    // an apprentice is priced exactly like any other permanent
+    expect(calculate({ staff: [appr], settings: TAX_SETTINGS }).totalWages)
+      .toBeCloseTo(calculate({ staff: [perm], settings: TAX_SETTINGS }).totalWages, 6);
+    // and unlike a subbie, they DO carry super into the wage base
+    expect(calculate({ staff: [appr], settings: TAX_SETTINGS }).totalWages).toBeGreaterThan(0);
+  });
+
+  it("prices the roster's hyphenated vocab identically to the old spaced labels", () => {
+    // the parity guarantee: feeding staff_profiles.employment_type straight in
+    // produces the same numbers the space-separated fixtures always did
+    const hyphen = { id: "x", name: "X", hourly_wage: 60, employment_type: "Full-time",
+      contracted_hours_per_week: 38, install_pct: 100, service_pct: 0, admin_pct: 0 };
+    const spaced = { ...hyphen, employment_type: "Full Time" };
+    expect(calculate({ staff: [hyphen], settings: TAX_SETTINGS }).totalWages)
+      .toBe(calculate({ staff: [spaced], settings: TAX_SETTINGS }).totalWages);
+
+    const subHyphen = { ...hyphen, id: "s", employment_type: "Sub-contractor" };
+    const subPlain = { ...hyphen, id: "s", employment_type: "Subcontractor" };
+    // both are subbies → zero wage base
+    expect(calculate({ staff: [subHyphen], settings: TAX_SETTINGS }).totalWages).toBe(0);
+    expect(calculate({ staff: [subPlain], settings: TAX_SETTINGS }).totalWages).toBe(0);
   });
 });
 

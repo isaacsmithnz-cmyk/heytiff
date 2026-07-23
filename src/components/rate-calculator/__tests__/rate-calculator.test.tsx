@@ -69,6 +69,30 @@ describe("RateCalculator — first run (no saved state)", () => {
   });
 });
 
+describe("RateCalculator — staff come from the roster, wages are never written", () => {
+  it("never persists the staff array, even when a roster is supplied", async () => {
+    const user = userEvent.setup();
+    const roster = [
+      { id: "s1", name: "Ana", hourly_wage: 60, employment_type: "Full-time",
+        contracted_hours_per_week: 38, install_pct: 60, service_pct: 30, admin_pct: 10 },
+    ];
+    render(<RateCalculator initialState={null} roster={roster} />);
+    await dismissOnboarding(user);
+
+    // make any edit to trigger a save
+    const monthInput = screen.getAllByDisplayValue("0")[0];
+    await user.click(monthInput);
+    await user.keyboard("40000");
+
+    await waitFor(() => expect(saveRateCalcState).toHaveBeenCalled(), { timeout: 3000 });
+    // the persisted row carries NO staff — wages live on staff_profiles, and the
+    // tool is forbidden from writing staff data back
+    for (const call of saveRateCalcState.mock.calls) {
+      expect(call[0].staff).toEqual([]);
+    }
+  });
+});
+
 describe("RateCalculator — question-at-a-time steps", () => {
   it("shows the full stepper rail, but stages the questions within the step", async () => {
     const user = userEvent.setup();
@@ -224,7 +248,9 @@ describe("RateCalculator — Simple/Detailed toggle gating", () => {
 
   it("demo passes every gate (18 weeks of timesheets + a fleet)", async () => {
     const user = userEvent.setup();
-    render(<RateCalculator initialState={JSON.parse(JSON.stringify(buildBaselineState()))} />);
+    const baseline = buildBaselineState();
+    // staff come from the roster now, not the saved state
+    render(<RateCalculator initialState={JSON.parse(JSON.stringify(baseline))} roster={baseline.staff} />);
     await user.click(screen.getByText("← Back to edit"));
     expect(screen.getByRole("button", { name: "Detailed" })).toBeInTheDocument(); // staff toggle
   });

@@ -11,7 +11,7 @@
 
 import React from "react";
 import "./rate-calculator.css";
-import type { CalcResult } from "./engine";
+import type { CalcResult, StaffMember } from "./engine";
 import {
   allStepsDone,
   daysSinceReviewed,
@@ -443,9 +443,12 @@ function CalculatorApp({ initial, hasData, showOnboarding, onPersist, saveState 
 }
 
 // ── Root: persistence + example-data mode ───────────────────────────────
-export function RateCalculator({ initialState, initialUpdatedAt }: {
+export function RateCalculator({ initialState, initialUpdatedAt, roster = [] }: {
   initialState: unknown;
   initialUpdatedAt?: string | null;
+  /** Staff come from the roster (staff_profiles) now — the calculator reads
+      them, never stores them. Wages are managed in Team. */
+  roster?: StaffMember[];
 }) {
   void initialUpdatedAt; // reserved for buffer-vs-server reconciliation
   const hasServerState = initialState != null;
@@ -455,6 +458,10 @@ export function RateCalculator({ initialState, initialUpdatedAt }: {
   const pendingRef = React.useRef<RateCalcState | null>(null);
 
   const persist = React.useCallback((next: RateCalcState) => {
+    // The staff array is roster-sourced now, so it is NEVER persisted — the
+    // stored row slims to the org's settings and it's re-fed from the roster on
+    // every load. (Empty array keeps the save-shape guard happy.)
+    next = { ...next, staff: [] };
     // Crash buffer first — synchronous, survives tab close mid-debounce.
     try { window.localStorage.setItem(BUFFER_KEY, JSON.stringify({ state: next, savedAt: Date.now() })); } catch { /* storage full/blocked */ }
     pendingRef.current = next;
@@ -505,7 +512,12 @@ export function RateCalculator({ initialState, initialUpdatedAt }: {
     if (payload) { actions().then(({ saveRateCalcState }) => saveRateCalcState(payload)).catch(() => { /* buffer holds it */ }); }
   }, []);
 
-  const initial = hasServerState ? hydrateState(initialState) : (restored ?? emptyState());
+  // Staff always come from the roster, whatever the stored/buffered row held —
+  // it's the source of truth for wages now, and it's read-only in the tool.
+  const initial = {
+    ...(hasServerState ? hydrateState(initialState) : (restored ?? emptyState())),
+    staff: roster,
+  };
   const hasData = hasServerState || restored != null;
   return (
     <CalculatorApp

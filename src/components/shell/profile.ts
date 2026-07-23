@@ -311,6 +311,9 @@ function payroll(p: PayFields | null) {
     `<div class="card2" data-section="payroll"><div class="c2h"><span class="ci" style="background:rgba(255,51,102,.1);color:#e0264f">${ic("dollar", 18)}</span><span><b>Payroll</b><em>Drives charge-out rate & job costing</em></span><span class="pill2 adminpill">${ic("lock", 11)}Owner only</span></div>` +
     `<div class="frow c2">${field("Hourly wage", money("hourly_wage", "e.g. 45.00", num(p?.hourly_wage)), { req: true })}${field("Employment type", selectP("employment_type", "Select employment type", ["Full-time", "Part-time", "Casual", "Apprentice", "Subcontractor"], p?.employment_type ?? null))}</div>` +
     `<div class="frow c2">${field("Contracted hours / week", input("contracted_hours", "e.g. 38", "text", num(p?.contracted_hours)))}${field(`Default utilisation <span class="infobtn" tabindex="0">${ic("info", 14)}<span class="tip">The share of paid hours that are billable to jobs (vs. admin, travel or downtime). Drives the charge-out rate — e.g. 85% means most of their time is on the tools.</span></span>`, pct("utilisation", "e.g. 85", num(p?.utilisation)))}</div>` +
+    // Per-person super / workers-comp — blank means "use the org default" set in
+    // the Rate Calculator. These feed the calculator; they're not written there.
+    `<div class="frow c2">${field(`Super override <span class="infobtn" tabindex="0">${ic("info", 14)}<span class="tip">Leave blank to use the organisation's default super rate. Set a value only if this person's super differs.</span></span>`, pct("super_override", "Default", num(p?.super_override)))}${field(`Workers-comp override <span class="infobtn" tabindex="0">${ic("info", 14)}<span class="tip">Leave blank to use the organisation's default workers-comp rate.</span></span>`, pct("workers_comp_override", "Default", num(p?.workers_comp_override)))}</div>` +
     `<div class="frow" style="margin-top:18px">${split}</div>` +
     "</div></section>"
   );
@@ -400,6 +403,8 @@ export type PayFields = {
   hourly_wage?: number | null;
   contracted_hours?: number | null;
   utilisation?: number | null;
+  super_override?: number | null;
+  workers_comp_override?: number | null;
   cost_split?: unknown;
   employment_type?: string | null;
 };

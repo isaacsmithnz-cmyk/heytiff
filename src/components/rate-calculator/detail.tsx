@@ -42,26 +42,44 @@ export const chipColor = (a: string | undefined) =>
   : a === "service" || a === "Service" ? { c: RC.service, bg: RC.serviceSoft }
   : { c: RC.violet, bg: RC.violetSoft };
 
-// ── DETAILED · Staff ────────────────────────────────────────────────────
-export function StaffDetail({ s, patch, calc }: StepBodyProps) {
+// ── DETAILED · Staff (read-only — wages come from the roster) ─────────────
+export function StaffDetail({ s, calc }: StepBodyProps) {
   const cols: TableCol[] = [{ label: "Team member", w: "1.6fr" }, { label: "Hourly wage", w: "1fr", align: "right" }, { label: "Weeks of data", w: "0.9fr", align: "right" }, { label: "True cost / yr", w: "1fr", align: "right" }, { label: "Split I/S/A", w: "1fr", align: "right" }];
   const bd = Object.fromEntries((calc.staffBreakdown || []).map(b => [b.id, b]));
   const totalTrue = (calc.staffBreakdown || []).reduce((a, b) => a + b.annualCost, 0);
-  const setWage = (i: number, v: number) => patch({ staff: s.staff.map((p, j) => j === i ? { ...p, hourly_wage: v } : p) });
+  // Anyone the tool can't price yet — no wage, type or allocation on their card.
+  const gaps = s.staff.filter(p => p.payroll_complete === false);
+
+  if (s.staff.length === 0) {
+    return (
+      <DBody>
+        <div style={{ background: "#fff", borderRadius: 16, border: `1px solid ${RC.line}`, padding: "34px 24px", textAlign: "center" }}>
+          <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 15, color: RC.ink }}>No staff on the roster yet</div>
+          <div style={{ fontSize: 12.5, color: RC.faint, marginTop: 6, lineHeight: 1.5 }}>The calculator prices the people in <a href="/dashboard/team" style={{ color: RC.service, fontWeight: 700 }}>Team</a>. Add staff and their wages there and they&rsquo;ll appear here — or use Simple mode to estimate from a monthly wage bill.</div>
+        </div>
+      </DBody>
+    );
+  }
   return (
     <DBody>
-      <WsHelpNote id="staff-detailed" style={{ marginBottom: 16 }}><b>Detailed mode</b> prices each person from their real timesheet weeks (incl. overtime at 1.5× / 2×), adds super, workers comp and leave loading, and measures billable utilisation instead of assuming it. Edit a wage and watch the rates move.</WsHelpNote>
-      <WsEyebrow style={{ marginBottom: 11 }}>Per-person wages · {s.staff.length} staff · priced from timesheets</WsEyebrow>
+      <WsHelpNote id="staff-detailed" style={{ marginBottom: 16 }}><b>Detailed mode</b> prices each person from their real timesheet weeks (incl. overtime at 1.5× / 2×), adds super, workers comp and leave loading, and measures billable utilisation. Wages come from <a href="/dashboard/team" style={{ color: RC.service, fontWeight: 700 }}>Team</a> — change one there and the rates move.</WsHelpNote>
+      <WsEyebrow style={{ marginBottom: 11 }}>Per-person wages · {s.staff.length} staff · from your roster</WsEyebrow>
+      {gaps.length > 0 && (
+        <div style={{ background: RC.card2, borderRadius: 12, border: `1px solid ${RC.line}`, padding: "10px 15px", marginBottom: 11, fontSize: 12.5, color: RC.label }}>
+          {gaps.length === 1 ? `${gaps[0].name} is` : `${gaps.length} people are`} missing a wage, employment type or work split — <a href="/dashboard/team" style={{ color: RC.service, fontWeight: 700 }}>finish their Team card</a> to price them accurately.
+        </div>
+      )}
       <Table cols={cols}>
-        {s.staff.map((p, i) => {
+        {s.staff.map((p) => {
           const b = bd[p.id];
+          const incomplete = p.payroll_complete === false;
           return (
-            <div key={p.id} style={{ display: "grid", gridTemplateColumns: cols.map(c => c.w).join(" "), alignItems: "center", padding: "10px 18px", borderBottom: `1px solid ${RC.line}` }}>
+            <div key={p.id} style={{ display: "grid", gridTemplateColumns: cols.map(c => c.w).join(" "), alignItems: "center", padding: "10px 18px", borderBottom: `1px solid ${RC.line}`, opacity: incomplete ? 0.72 : 1 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <span style={{ width: 30, height: 30, borderRadius: "50%", flexShrink: 0, background: `hsl(${(String(p.name).split("").reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 360, 0))} 64% 42%)`, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: RC.head, fontWeight: 800, fontSize: 12.5 }}>{p.name[0]}</span>
                 <div><div style={{ fontSize: 13.5, color: RC.ink, fontWeight: 700 }}>{p.name}</div><div style={{ fontSize: 11.5, color: RC.faint }}>{p.role || p.employment_type}</div></div>
               </div>
-              <div style={{ textAlign: "right" }}><NumInput value={p.hourly_wage} w={92} size={14} onChange={v => setWage(i, v)} /></div>
+              <div style={{ textAlign: "right", fontFamily: RC.head, fontWeight: 700, fontSize: 14, color: p.hourly_wage > 0 ? RC.ink : RC.faint }}>{p.hourly_wage > 0 ? money(p.hourly_wage) + "/h" : "—"}</div>
               <div style={{ textAlign: "right", fontSize: 13, color: b?.weeksSubmitted ? RC.ink2 : RC.faint, fontWeight: 600 }}>{b?.weeksSubmitted || 0} wks</div>
               <div style={{ textAlign: "right", fontFamily: RC.head, fontWeight: 800, fontSize: 14.5, color: RC.ink }}>{money(b?.annualCost)}</div>
               <div style={{ textAlign: "right", fontFamily: RC.head, fontWeight: 700, fontSize: 13, color: RC.ink2, whiteSpace: "nowrap" }}>

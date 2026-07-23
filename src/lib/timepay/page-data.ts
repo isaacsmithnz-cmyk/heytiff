@@ -1,0 +1,114 @@
+import { auth0 } from "@/lib/auth0";
+import { todayInAu } from "@/lib/au-dates";
+import { staffProfileIdFor } from "@/lib/fleet/query";
+import type { PayPeriod } from "@/components/timepay/timepay";
+import type { Settings } from "@/components/timepay/logic";
+import {
+  EMPTY_SHEET,
+  getMyWeek,
+  getPaySettings,
+  listStaffWeeks,
+  sheetStates,
+  type SheetState,
+} from "./query";
+import {
+  periodDays,
+  periodLabel,
+  periodStartFor,
+  periodYear,
+  recentPeriods,
+  todayIndex,
+  type PeriodConfig,
+} from "./period";
+
+/* Shared page loading for both Time & Pay routes, so the *my* screen and the
+   *all* screen can't disagree about which period it is or what the rules are.
+
+   Settings load FIRST and everything else follows, because the cycle and its
+   anchors decide how long a period is and where it begins — and therefore
+   which entries belong to it. */
+
+export type Ctx = { orgId: string; staffId: string | null; today: string };
+
+const periodConfig = (s: Settings): PeriodConfig => ({
+  cycle: s.cycle,
+  weekStart: s.weekStart,
+  fortnightAnchor: s.fortnightAnchor,
+  monthStartDay: s.monthStartDay,
+});
+
+export async function timepayContext(): Promise<Ctx | null> {
+  const session = await auth0.getSession();
+  const orgId = session?.orgId as string | undefined;
+  const userId = session?.user?.sub as string | undefined;
+  if (!orgId || !userId) return null;
+  return { orgId, staffId: await staffProfileIdFor(orgId, userId), today: todayInAu() };
+}
+
+/** Resolve ?period=YYYY-MM-DD against this org's configuration, defaulting to
+    the current period and refusing anything that isn't one we offer. */
+export function resolvePeriod(
+  today: string,
+  cfg: PeriodConfig,
+  requested?: string,
+): { start: string; index: number; periods: PayPeriod[] } {
+  const starts = recentPeriods(today, cfg);
+  const current = periodStartFor(today, cfg);
+  const periods: PayPeriod[] = starts.map((start) => ({
+    start,
+    range: periodLabel(start, cfg),
+    year: periodYear(start),
+    live: start === current,
+    note: "Closed period · historical",
+  }));
+  const index = requested ? Math.max(0, starts.indexOf(requested)) : 0;
+  return { start: starts[index], index, periods };
+}
+
+export async function loadMyTimesheet(requested?: string) {
+  const ctx = await timepayContext();
+  if (!ctx?.staffId) return null;
+
+  const { settings } = await getPaySettings(ctx.orgId);
+  const cfg = periodConfig(settings);
+  const { start, periods, index } = resolvePeriod(ctx.today, cfg, requested);
+  const [me, sheets] = await Promise.all([
+    getMyWeek(ctx.orgId, ctx.staffId, start, cfg),
+    sheetStates(ctx.orgId, start),
+  ]);
+  if (!me) return null;
+
+  return {
+    me,
+    settings,
+    week: periodDays(start, cfg),
+    today: todayIndex(start, ctx.today, cfg),
+    periodStart: start,
+    periodLabel: `${periods[index].range} ${periods[index].year}`,
+    sheet: sheets.get(ctx.staffId) ?? EMPTY_SHEET,
+  };
+}
+
+export async function loadTimepay(opts: { pay: boolean }, requested?: string) {
+  const ctx = await timepayContext();
+  if (!ctx) return null;
+
+  const { settings, configured } = await getPaySettings(ctx.orgId);
+  const cfg = periodConfig(settings);
+  const { start, periods, index } = resolvePeriod(ctx.today, cfg, requested);
+  const [staff, sheets] = await Promise.all([
+    listStaffWeeks(ctx.orgId, start, { pay: opts.pay, cfg }),
+    sheetStates(ctx.orgId, start),
+  ]);
+
+  return {
+    staff,
+    settings,
+    configured,
+    week: periodDays(start, cfg),
+    today: todayIndex(start, ctx.today, cfg),
+    periods,
+    periodIndex: index,
+    sheets: Object.fromEntries(sheets) as Record<string, SheetState>,
+  };
+}

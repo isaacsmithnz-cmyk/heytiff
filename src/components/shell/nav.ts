@@ -51,9 +51,10 @@ export const NAV_GROUPS: NavGroup[] = [
   },
   {
     // Your own things, ungated — the group heading carries the "my", so the
-    // labels don't repeat it. Timesheet joins this in Stage 5.
+    // labels don't repeat it.
     label: "Personal",
     items: [
+      { key: "mytimesheet", label: "Timesheet", icon: "clock", href: "/dashboard/my-timesheet", hint: "Your hours & submissions", accent: "#2E68FF" },
       { key: "myvehicle", label: "Vehicle", icon: "truck", href: "/dashboard/my-vehicle", hint: "Your vehicle, fuel & issues", accent: "#FF8A00" },
     ],
   },

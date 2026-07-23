@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { Icon } from "@/components/shell/icon";
 import {
   DEFAULT_SETTINGS,
@@ -16,20 +16,39 @@ import {
   initials,
   nameHue,
   submitNote,
+  weekGroups,
 } from "./logic";
 import { TimePaySettings } from "./settings";
-import type { DemoPayPeriod } from "@/mock/demo";
+import { useRouter } from "next/navigation";
+import {
+  approveWeek,
+  savePaySettings,
+  sendBackWeek,
+  type TimepayResult,
+} from "@/app/actions/timepay";
+import type { SheetState } from "@/lib/timepay/query";
+
+/** One entry in the period switcher. `start` is the ISO Monday it begins. */
+export type PayPeriod = { start: string; range: string; year: string; live: boolean; note: string };
 
 /* Time & Pay — admin weekly payroll review, ported from the design handoff.
    Sections sort staff by what needs action (Need review → Ready to approve →
    Approved); approvals/send-backs and pay settings persist in localStorage
    until a backend exists (matching the prototype's ht_tp_* keys). */
 
-type TimePayAction = "approved" | "sent";
 type Row = { s: StaffWeek; d: Derived; status: StaffStatus };
 
-const LS_ACT = "ht_tp_actions";
-const LS_SET = "ht_tp_set";
+/** DB status -> the four states this screen renders. A submitted sheet still
+    shows as review/ready on its merits; only a decision overrides that. */
+function rowStatus(sheet: SheetState | undefined, derived: StaffStatus): StaffStatus {
+  if (sheet?.status === "approved") return "approved";
+  if (sheet?.status === "sent_back") return "sent";
+  return derived;
+}
+
+/* ht_tp_actions / ht_tp_set are gone: approvals live in `timesheets` and pay
+   settings in `pay_settings`, both org-scoped and both written by server
+   actions that re-check the capability. */
 
 function Avatar({ name }: { name: string }) {
   const h = nameHue(name);
@@ -123,43 +142,52 @@ function PerDay({ s, d, ctx }: { s: StaffWeek; d: Derived; ctx: WeekCtx }) {
         </div>
       </div>
     ) : null;
+  const groups = weekGroups(s.days);
+  const multiWeek = groups.length > 1; // a fortnight/month gets week dividers
+  const dayRow = (day: (typeof s.days)[number], i: number) => {
+    const w = ctx.week[i];
+    if (day.t === "empty")
+      return (
+        <div className="drow none" key={i}>
+          <span className="wd">{w[0]}</span>
+          <span className="dt">{w[1]} {w[2]}</span>
+          <span className="sh">No entry</span>
+          <span></span>
+          <span className="hh">—</span>
+        </div>
+      );
+    const label =
+      day.t === "work"
+        ? `${day.in} – ${day.out}`
+        : day.t === "leave"
+          ? "Annual leave"
+          : day.t === "sick"
+            ? "Sick leave"
+            : "Public holiday";
+    return (
+      <div className="drow" key={i}>
+        <span className="wd">{w[0]}</span>
+        <span className="dt">{w[1]} {w[2]}</span>
+        <span className="sh">{label}</span>
+        <span></span>
+        <span className="hh">{fmt(day.h)}h</span>
+      </div>
+    );
+  };
   return (
     <div className="detail">
       <div className="drows">
-        {s.days.map((day, i) => {
-          const w = ctx.week[i];
-          if (day.t === "empty")
-            return (
-              <div className="drow none" key={i}>
-                <span className="wd">{w[0]}</span>
-                <span className="dt">{w[1]} {w[2]}</span>
-                <span className="sh">No entry</span>
-                <span></span>
-                <span className="hh">—</span>
+        {groups.map((g) => (
+          <div className="dweek" key={g.start}>
+            {multiWeek && (
+              <div className="dwh">
+                <span>{g.label}</span>
+                <em>{fmt(g.workedHours)}h</em>
               </div>
-            );
-          if (day.t !== "work") {
-            const lab = day.t === "leave" ? "Annual leave" : day.t === "sick" ? "Sick leave" : "Public holiday";
-            return (
-              <div className="drow" key={i}>
-                <span className="wd">{w[0]}</span>
-                <span className="dt">{w[1]} {w[2]}</span>
-                <span className="sh">{lab}</span>
-                <span></span>
-                <span className="hh">{fmt(day.h)}h</span>
-              </div>
-            );
-          }
-          return (
-            <div className="drow" key={i}>
-              <span className="wd">{w[0]}</span>
-              <span className="dt">{w[1]} {w[2]}</span>
-              <span className="sh">{day.in} – {day.out}</span>
-              <span></span>
-              <span className="hh">{fmt(day.h)}h</span>
-            </div>
-          );
-        })}
+            )}
+            {g.days.map(({ entry, index }) => dayRow(entry, index))}
+          </div>
+        ))}
       </div>
       <div className="totals">
         <div className="tcell w">
@@ -182,12 +210,17 @@ function ReviewCard({
   row,
   settings,
   ctx,
-  onAction,
+  onApprove,
+  onSendBack,
+  canApprove,
 }: {
   row: Row;
   settings: Settings;
   ctx: WeekCtx;
-  onAction: (name: string, a: TimePayAction) => void;
+  onApprove: (staffId: string) => void;
+  onSendBack: (staffId: string, question: string) => void;
+  /** `approvals` — without it this is a read-only view of the week */
+  canApprove: boolean;
 }) {
   const { s, d } = row;
   const [open, setOpen] = useState(false);
@@ -210,9 +243,9 @@ function ReviewCard({
               <Icon name="send" size={13} />
               Sent back · awaiting reply
             </span>
-          ) : (
+          ) : !canApprove ? null : (
             <>
-              <button className="capprove" onClick={() => onAction(s.name, "approved")}>
+              <button className="capprove" onClick={() => onApprove(s.id)}>
                 <Icon name="check" size={15} sw={2.6} />
                 Approve
               </button>
@@ -241,9 +274,11 @@ function ReviewCard({
           />
           <button
             className="qsend"
+            disabled={!question.trim()}
             onClick={() => {
               setSending(false);
-              onAction(s.name, "sent");
+              onSendBack(s.id, question);
+              setQuestion("");
             }}
           >
             <Icon name="send" size={13} />
@@ -308,11 +343,13 @@ function CompactRow({
   settings,
   ctx,
   onApprove,
+  canApprove,
 }: {
   row: Row;
   settings: Settings;
   ctx: WeekCtx;
-  onApprove: (name: string) => void;
+  onApprove: (staffId: string) => void;
+  canApprove: boolean;
 }) {
   const { s, d } = row;
   const done = row.status === "approved";
@@ -337,9 +374,9 @@ function CompactRow({
           <Icon name="check" size={14} sw={2.6} />
           Approved
         </span>
-      ) : (
+      ) : !canApprove ? null : (
         <>
-          <button className="capprove" onClick={() => onApprove(s.name)}>
+          <button className="capprove" onClick={() => onApprove(s.id)}>
             <Icon name="check" size={14} sw={2.6} />
             Approve
           </button>
@@ -358,57 +395,52 @@ export function TimePay({
   week,
   today,
   periods,
+  periodIndex,
+  settings,
+  configured,
+  sheets,
+  canApprove,
+  financials,
 }: {
   staff: StaffWeek[];
   week: WeekCtx["week"];
   today: number;
-  periods: DemoPayPeriod[];
+  periods: PayPeriod[];
+  periodIndex: number;
+  settings: Settings;
+  configured: boolean;
+  /** timesheet row per staff id, for the period being viewed */
+  sheets: Record<string, SheetState>;
+  canApprove: boolean;
+  financials: boolean;
 }) {
+  const router = useRouter();
   const ctx: WeekCtx = useMemo(() => ({ week, today }), [week, today]);
-  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
-  const [setupDone, setSetupDone] = useState(false);
-  const [actions, setActions] = useState<Record<string, TimePayAction>>({});
-  const [hydrated, setHydrated] = useState(false);
-  const [pIdx, setPIdx] = useState(0);
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  /* localStorage stands in for the backend; read after mount to keep SSR stable */
-  useEffect(() => {
-    try {
-      const sv = localStorage.getItem(LS_SET);
-      if (sv) {
-        const saved = JSON.parse(sv);
-        if (saved.settings) setSettings({ ...DEFAULT_SETTINGS, ...saved.settings });
-        setSetupDone(!!saved.done);
-      }
-      setActions(JSON.parse(localStorage.getItem(LS_ACT) || "{}"));
-    } catch {
-      /* corrupted or unavailable storage — start from defaults */
-    }
-    setHydrated(true);
-  }, []);
-  useEffect(() => {
-    if (!hydrated) return;
-    try {
-      localStorage.setItem(LS_ACT, JSON.stringify(actions));
-    } catch {}
-  }, [actions, hydrated]);
+  const run = (action: () => Promise<TimepayResult>) => {
+    setError(null);
+    start(async () => {
+      const res = await action();
+      if (res.ok) router.refresh();
+      else setError(res.error);
+    });
+  };
 
-  const saveSettings = (next: Settings) => {
-    setSettings(next);
-    setSetupDone(true);
-    try {
-      localStorage.setItem(LS_SET, JSON.stringify({ settings: next, done: true }));
-    } catch {}
+  const goPeriod = (i: number) => {
+    const target = periods[i];
+    if (target) router.push(`/dashboard/timepay?period=${target.start}`);
   };
 
   const rows: Row[] = useMemo(
     () =>
       staff.map((s) => {
         const d = derive(s, settings, ctx);
-        return { s, d, status: actions[s.name] ?? d.status };
+        return { s, d, status: rowStatus(sheets[s.id], d.status) };
       }),
-    [staff, settings, ctx, actions]
+    [staff, settings, ctx, sheets]
   );
 
   const review = rows.filter((r) => r.status === "review" || r.status === "sent");
@@ -416,9 +448,10 @@ export function TimePay({
   const approved = rows.filter((r) => r.status === "approved");
   const otTot = rows.reduce((a, r) => a + r.d.ot + r.d.ot2, 0);
 
-  const period = periods[pIdx];
+  const period = periods[periodIndex];
   const note = period.live ? submitNote(settings) : period.note;
-  const setAction = (name: string, a: TimePayAction) => setActions((p) => ({ ...p, [name]: a }));
+  const approve = (staffId: string) => run(() => approveWeek(staffId, period.start));
+  const sendBack = (staffId: string, q: string) => run(() => sendBackWeek(staffId, period.start, q));
 
   return (
     <div className="page in">
@@ -431,8 +464,8 @@ export function TimePay({
                 <button
                   className="arw"
                   aria-label="Previous period"
-                  disabled={pIdx >= periods.length - 1}
-                  onClick={() => setPIdx((i) => Math.min(periods.length - 1, i + 1))}
+                  disabled={periodIndex >= periods.length - 1 || pending}
+                  onClick={() => goPeriod(periodIndex + 1)}
                 >
                   <Icon name="chevL" size={17} />
                 </button>
@@ -442,8 +475,8 @@ export function TimePay({
                 <button
                   className="arw"
                   aria-label="Next period"
-                  disabled={pIdx <= 0}
-                  onClick={() => setPIdx((i) => Math.max(0, i - 1))}
+                  disabled={periodIndex <= 0 || pending}
+                  onClick={() => goPeriod(periodIndex - 1)}
                 >
                   <Icon name="chevR" size={17} />
                 </button>
@@ -458,11 +491,14 @@ export function TimePay({
               <div className="autosub">{note}</div>
             </div>
             <div className="racts">
-              <button className="bbtn sq" aria-label="Pay settings" onClick={() => setSettingsOpen(true)}>
-                <Icon name="settings" size={17} />
-              </button>
+              {financials && (
+                <button className="bbtn sq" aria-label="Pay settings" onClick={() => setSettingsOpen(true)}>
+                  <Icon name="settings" size={17} />
+                </button>
+              )}
             </div>
           </div>
+          {error && <div className="tp-err">{error}</div>}
 
           <div className="stats">
             <div className="stat review">
@@ -489,14 +525,19 @@ export function TimePay({
                 <div className="ss">This week</div>
               </div>
             </div>
-            <div className="stat exp">
-              <span className="si"><Icon name="receipt" size={18} /></span>
-              <div className="stk">
-                <div className="sv">$0</div>
-                <div className="sl">Expenses</div>
-                <div className="ss">To review</div>
+            {/* Money, so it rides with `financials` like every other dollar
+                on this screen — an hours-only view shows no figure at all,
+                not a $0 placeholder. Expenses themselves are still unbuilt. */}
+            {financials && (
+              <div className="stat exp">
+                <span className="si"><Icon name="receipt" size={18} /></span>
+                <div className="stk">
+                  <div className="sv">$0</div>
+                  <div className="sl">Expenses</div>
+                  <div className="ss">To review</div>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           <div className="legend">
@@ -525,7 +566,7 @@ export function TimePay({
                 <span className="ln"></span>
               </div>
               {review.map((r) => (
-                <ReviewCard key={r.s.name} row={r} settings={settings} ctx={ctx} onAction={setAction} />
+                <ReviewCard key={r.s.id} row={r} settings={settings} ctx={ctx} onApprove={approve} onSendBack={sendBack} canApprove={canApprove} />
               ))}
             </div>
           )}
@@ -537,11 +578,17 @@ export function TimePay({
                 <span className="ln"></span>
                 <button
                   className="allbtn"
+                  disabled={pending || !canApprove}
+                  hidden={!canApprove}
                   onClick={() =>
-                    setActions((p) => {
-                      const next = { ...p };
-                      for (const r of ready) next[r.s.name] = "approved";
-                      return next;
+                    // sequential on purpose: each one is a separate decision
+                    // with its own server-side guard, not a bulk update
+                    run(async () => {
+                      for (const r of ready) {
+                        const res = await approveWeek(r.s.id, period.start);
+                        if (!res.ok) return res;
+                      }
+                      return { ok: true };
                     })
                   }
                 >
@@ -550,7 +597,7 @@ export function TimePay({
                 </button>
               </div>
               {ready.map((r) => (
-                <CompactRow key={r.s.name} row={r} settings={settings} ctx={ctx} onApprove={(n) => setAction(n, "approved")} />
+                <CompactRow key={r.s.id} row={r} settings={settings} ctx={ctx} onApprove={approve} canApprove={canApprove} />
               ))}
             </div>
           )}
@@ -562,7 +609,7 @@ export function TimePay({
                 <span className="ln"></span>
               </div>
               {approved.map((r) => (
-                <CompactRow key={r.s.name} row={r} settings={settings} ctx={ctx} onApprove={(n) => setAction(n, "approved")} />
+                <CompactRow key={r.s.id} row={r} settings={settings} ctx={ctx} onApprove={approve} canApprove={canApprove} />
               ))}
             </div>
           )}
@@ -570,11 +617,11 @@ export function TimePay({
           {settingsOpen && (
             <TimePaySettings
               settings={settings}
-              firstRun={!setupDone}
+              firstRun={!configured}
               period={period}
               onClose={() => setSettingsOpen(false)}
               onSave={(next) => {
-                saveSettings(next);
+                run(() => savePaySettings(next));
                 setSettingsOpen(false);
               }}
             />

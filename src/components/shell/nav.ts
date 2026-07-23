@@ -55,6 +55,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Personal",
     items: [
       { key: "mytimesheet", label: "Timesheet", icon: "clock", href: "/dashboard/my-timesheet", hint: "Your hours & submissions", accent: "#2E68FF" },
+      { key: "myleave", label: "Leave", icon: "calendar", href: "/dashboard/my-leave", hint: "Book leave & see balances", accent: "#00A389" },
       { key: "myvehicle", label: "Vehicle", icon: "truck", href: "/dashboard/my-vehicle", hint: "Your vehicle, fuel & issues", accent: "#FF8A00" },
     ],
   },

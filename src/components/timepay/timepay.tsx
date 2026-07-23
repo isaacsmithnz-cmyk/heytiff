@@ -27,6 +27,7 @@ import {
   type TimepayResult,
 } from "@/app/actions/timepay";
 import type { SheetState } from "@/lib/timepay/query";
+import { TimepayNav } from "./timepay-nav";
 
 /** One entry in the period switcher. `start` is the ISO Monday it begins. */
 export type PayPeriod = { start: string; range: string; year: string; live: boolean; note: string };
@@ -498,6 +499,7 @@ export function TimePay({
               )}
             </div>
           </div>
+          <TimepayNav active="sheets" />
           {error && <div className="tp-err">{error}</div>}
 
           <div className="stats">

@@ -12,6 +12,7 @@ import {
   ruleSummary,
   splitDay,
   submitNote,
+  weekGroups,
 } from "../logic";
 /* The prototype-parity roster. It used to live in mock/demo.ts; Stage 5 moved
    Time & Pay onto real tables and deleted that file's timepay fixtures, but
@@ -275,5 +276,33 @@ describe("a period is not a week", () => {
     expect(dayClass(W("07:00", "11:00", 4), 12, S(), fnCtx)).toBe("over"); // 2nd Saturday
     expect(dayClass(W("07:00", "11:00", 4), 8, S(), fnCtx)).toBe("under"); // 2nd Tuesday
     expect(dayClass({ t: "empty" }, 13, S(), fnCtx)).toBe("empty"); // Sunday is never missing
+  });
+
+  it("applies WEEKLY overtime per week, not once across the fortnight", () => {
+    // 38h in each week is a full standard fortnight — ZERO overtime. The old
+    // rule summed 76h against the 38h threshold and invented 38h of overtime.
+    const wk = W("07:36", "16:00", 7.6); // 5 × 7.6 = 38
+    const days = [wk, wk, wk, wk, wk, none, none, wk, wk, wk, wk, wk, none, none];
+    const weekly = S({ otUnit: "week", otAfter: 38 });
+    const d = derive(staff(days), weekly, fnCtx);
+    expect([d.normal, d.ot]).toEqual([76, 0]);
+
+    // push ONE week to 42h: only that week's 4h excess is overtime
+    const busy = [...days];
+    busy[0] = W("07:00", "17:24", 10.4); // week 1 = 40.8; +2.8 over
+    const d2 = derive(staff(busy), weekly, fnCtx);
+    expect(d2.ot).toBeCloseTo(2.8, 5);
+  });
+
+  it("weekGroups splits a fortnight into two week-rows with subtotals", () => {
+    const days = [w8, w8, w8, w8, w8, none, none, w8, w8, w8, none, none, none, none];
+    const groups = weekGroups(days);
+    expect(groups).toHaveLength(2);
+    expect(groups[0]).toMatchObject({ label: "Week 1", start: 0, workedHours: 40 });
+    expect(groups[1]).toMatchObject({ label: "Week 2", start: 7, workedHours: 24 });
+    // indices stay absolute so dayClass/splitDay still get the right day
+    expect(groups[1].days[0].index).toBe(7);
+    // a plain week is a single group
+    expect(weekGroups(days.slice(0, 7))).toHaveLength(1);
   });
 });

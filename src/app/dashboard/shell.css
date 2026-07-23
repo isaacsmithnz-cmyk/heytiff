@@ -1591,3 +1591,17 @@ select.fl-i { cursor:pointer; }
 .fg .tpr .tiles > * { flex:1 1 calc((100% - 6 * 11px) / 7); min-width:74px; }
 .fg .tpr .crow .mini { flex-wrap:wrap; overflow:visible; }
 .fg .mts-days { --mts-cols:1; }
+
+/* Multi-week periods (fortnight / month) read as week-rows. */
+.fg .mts-week { margin-bottom:8px; }
+.fg .mts-wh { display:flex; align-items:baseline; justify-content:space-between; padding:4px 2px 8px; }
+.fg .mts-wh span { font-size:12px; font-weight:800; color:var(--gray400); text-transform:uppercase; letter-spacing:.05em; }
+.fg .mts-wh em { font-style:normal; font-size:13px; font-weight:700; color:var(--gray700); }
+.fg .tpr .dweek + .dweek { border-top:2px solid #eef0f3; }
+.fg .tpr .dwh { display:flex; align-items:baseline; justify-content:space-between; padding:9px 14px 5px; background:#fafbfc; }
+.fg .tpr .dwh span { font-size:11px; font-weight:800; color:var(--gray400); text-transform:uppercase; letter-spacing:.05em; }
+.fg .tpr .dwh em { font-style:normal; font-size:12px; font-weight:700; color:var(--gray700); }
+.fg .wz-anchor { display:flex; flex-direction:column; gap:6px; margin-top:14px; width:100%; }
+.fg .wz-anchor > span { font-size:12.5px; font-weight:800; color:var(--ink); }
+.fg .wz-anchor em { font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray400); }
+.fg .wz-anchor .fl-i { max-width:220px; }

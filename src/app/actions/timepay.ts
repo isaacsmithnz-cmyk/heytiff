@@ -69,7 +69,12 @@ export async function saveDay(
   // the period is 7, 14 or a calendar month long depending on the pay cycle,
   // so the bound is not "6" — a fortnightly day 9 is perfectly valid
   const { settings } = await getPaySettings(ctx.orgId);
-  if (dayIndex < 0 || dayIndex >= periodLength(settings.cycle, periodStart))
+  const cfg = {
+    cycle: settings.cycle,
+    fortnightAnchor: settings.fortnightAnchor,
+    monthStartDay: settings.monthStartDay,
+  };
+  if (dayIndex < 0 || dayIndex >= periodLength(periodStart, cfg))
     return { ok: false, error: "That day isn't in this pay period." };
 
   const status = await statusOf(ctx.orgId, ctx.staffId, periodStart);
@@ -215,6 +220,8 @@ export async function savePaySettings(settings: Settings): Promise<TimepayResult
     org_id: ctx.orgId,
     cycle: settings.cycle,
     week_start: settings.weekStart,
+    fortnight_anchor: settings.fortnightAnchor,
+    month_start_day: settings.monthStartDay,
     standard: settings.standard,
     ot_after: settings.otAfter,
     ot_unit: settings.otUnit,

@@ -28,6 +28,11 @@ export type RateRule = { on: boolean; rate: 1.5 | 2; up: number | null };
 export type Settings = {
   cycle: "Weekly" | "Fortnightly" | "Monthly";
   weekStart: string;
+  /** Start date (ISO) of one fortnightly period; every fortnight counts in
+      14-day steps from here. Null = a fixed epoch fallback. Fortnightly only. */
+  fortnightAnchor: string | null;
+  /** Day of month a monthly period begins (1..28). 1 = calendar month. */
+  monthStartDay: number;
   standard: number;
   otAfter: number;
   otUnit: "day" | "week";
@@ -88,6 +93,8 @@ export type DayClass = "std" | "over" | "under" | "leave" | "sick" | "ph" | "emp
 export const DEFAULT_SETTINGS: Settings = {
   cycle: "Weekly",
   weekStart: "Mon",
+  fortnightAnchor: null,
+  monthStartDay: 1,
   standard: 8,
   otAfter: 8,
   otUnit: "day",
@@ -159,12 +166,19 @@ export function derive(staff: StaffWeek, s: Settings, ctx: WeekCtx): Derived {
     missing = 0;
   const bullets: string[] = [];
   const dlab = (i: number) => dayLabel(ctx.week[i]);
+  // weekly-overtime mode caps NORMAL hours PER WEEK, so a fortnight or month
+  // is bucketed into 7-day chunks from the period start — otherwise 38h + 38h
+  // across a fortnight reads as a week's worth of overtime. Weekly cycle = one
+  // bucket, so its result is unchanged.
+  const weekNormal: number[] = [];
+  const bucketOf = (i: number) => Math.floor(i / 7);
 
   staff.days.forEach((d, i) => {
     const dow = dowOf(ctx.week[i]);
     if (d.t === "work") {
       const sp = splitDay(d.h, dow, s);
       normal += sp.n;
+      weekNormal[bucketOf(i)] = (weekNormal[bucketOf(i)] ?? 0) + sp.n;
       ot += sp.o15;
       ot2 += sp.o2;
       worked += d.h;
@@ -221,9 +235,10 @@ export function derive(staff: StaffWeek, s: Settings, ctx: WeekCtx): Derived {
     }
   });
 
-  /* weekly overtime mode: excess of the whole week over the threshold moves to 1.5× */
-  if (s.otUnit === "week" && normal > s.otAfter) {
-    const ex = normal - s.otAfter;
+  /* weekly overtime mode: each week's excess over the threshold moves to 1.5×,
+     summed across the period's weeks (one week for the weekly cycle). */
+  if (s.otUnit === "week") {
+    const ex = weekNormal.reduce((sum, wn) => sum + Math.max(0, (wn ?? 0) - s.otAfter), 0);
     normal -= ex;
     ot += ex;
   }
@@ -279,6 +294,32 @@ export function derive(staff: StaffWeek, s: Settings, ctx: WeekCtx): Derived {
           ot2 * staff.rate * 2 +
           (sick + leave + ph) * staff.rate,
   };
+}
+
+/* A period splits into calendar weeks for display: a fortnight reads as two
+   week-rows and a month as four-or-five, which is how a pay period is actually
+   read. Buckets are the same 7-day chunks the weekly-overtime rule uses, so
+   the week boundaries the eye sees are the ones pay is calculated on.
+
+   `start`/`end` index into the ORIGINAL days[] so callers keep passing the
+   right `i` to dayClass/splitDay (which read the absolute weekday). */
+export type WeekGroup = {
+  label: string; // "Week 1", or the sole group is unlabelled by the caller
+  start: number; // first day index (inclusive)
+  days: { entry: DayEntry; index: number }[];
+  workedHours: number; // worked + leave + sick + ph — the week's paid hours
+};
+
+export function weekGroups(days: DayEntry[]): WeekGroup[] {
+  const groups: WeekGroup[] = [];
+  for (let i = 0; i < days.length; i++) {
+    const w = Math.floor(i / 7);
+    if (!groups[w]) groups[w] = { label: `Week ${w + 1}`, start: i, days: [], workedHours: 0 };
+    const entry = days[i];
+    groups[w].days.push({ entry, index: i });
+    if (entry.t !== "empty") groups[w].workedHours += entry.h;
+  }
+  return groups;
 }
 
 /* Day → colour class, driven by the same split rules as pay. */

@@ -16,6 +16,7 @@ import {
   initials,
   nameHue,
   submitNote,
+  weekGroups,
 } from "./logic";
 import { TimePaySettings } from "./settings";
 import { useRouter } from "next/navigation";
@@ -141,43 +142,52 @@ function PerDay({ s, d, ctx }: { s: StaffWeek; d: Derived; ctx: WeekCtx }) {
         </div>
       </div>
     ) : null;
+  const groups = weekGroups(s.days);
+  const multiWeek = groups.length > 1; // a fortnight/month gets week dividers
+  const dayRow = (day: (typeof s.days)[number], i: number) => {
+    const w = ctx.week[i];
+    if (day.t === "empty")
+      return (
+        <div className="drow none" key={i}>
+          <span className="wd">{w[0]}</span>
+          <span className="dt">{w[1]} {w[2]}</span>
+          <span className="sh">No entry</span>
+          <span></span>
+          <span className="hh">—</span>
+        </div>
+      );
+    const label =
+      day.t === "work"
+        ? `${day.in} – ${day.out}`
+        : day.t === "leave"
+          ? "Annual leave"
+          : day.t === "sick"
+            ? "Sick leave"
+            : "Public holiday";
+    return (
+      <div className="drow" key={i}>
+        <span className="wd">{w[0]}</span>
+        <span className="dt">{w[1]} {w[2]}</span>
+        <span className="sh">{label}</span>
+        <span></span>
+        <span className="hh">{fmt(day.h)}h</span>
+      </div>
+    );
+  };
   return (
     <div className="detail">
       <div className="drows">
-        {s.days.map((day, i) => {
-          const w = ctx.week[i];
-          if (day.t === "empty")
-            return (
-              <div className="drow none" key={i}>
-                <span className="wd">{w[0]}</span>
-                <span className="dt">{w[1]} {w[2]}</span>
-                <span className="sh">No entry</span>
-                <span></span>
-                <span className="hh">—</span>
+        {groups.map((g) => (
+          <div className="dweek" key={g.start}>
+            {multiWeek && (
+              <div className="dwh">
+                <span>{g.label}</span>
+                <em>{fmt(g.workedHours)}h</em>
               </div>
-            );
-          if (day.t !== "work") {
-            const lab = day.t === "leave" ? "Annual leave" : day.t === "sick" ? "Sick leave" : "Public holiday";
-            return (
-              <div className="drow" key={i}>
-                <span className="wd">{w[0]}</span>
-                <span className="dt">{w[1]} {w[2]}</span>
-                <span className="sh">{lab}</span>
-                <span></span>
-                <span className="hh">{fmt(day.h)}h</span>
-              </div>
-            );
-          }
-          return (
-            <div className="drow" key={i}>
-              <span className="wd">{w[0]}</span>
-              <span className="dt">{w[1]} {w[2]}</span>
-              <span className="sh">{day.in} – {day.out}</span>
-              <span></span>
-              <span className="hh">{fmt(day.h)}h</span>
-            </div>
-          );
-        })}
+            )}
+            {g.days.map(({ entry, index }) => dayRow(entry, index))}
+          </div>
+        ))}
       </div>
       <div className="totals">
         <div className="tcell w">

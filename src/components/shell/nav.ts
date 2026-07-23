@@ -43,13 +43,18 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { key: "people", label: "Team", icon: "users", href: "/dashboard/team", hint: "People & their day", accent: "#00A389", capability: "team" },
       { key: "timepay", label: "Time & Pay", icon: "clock", href: "/dashboard/timepay", hint: "Timesheets, leave & expenses", accent: "#2E68FF", capability: "timepay_all" },
-      // Ungated for now: this route carries BOTH lenses — the register
-      // (assets_all) and, for everyone else, their own vehicle. It splits when
-      // /dashboard/my-vehicle lands and moves to the Personal group.
-      { key: "assets", label: "Assets", icon: "truck", href: "/dashboard/assets", hint: "Fleet & equipment", accent: "#FF8A00" },
+      { key: "assets", label: "Assets", icon: "truck", href: "/dashboard/assets", hint: "Fleet & equipment", accent: "#FF8A00", capability: "assets_all" },
       // Role-intrinsic, not grantable: the section is admin+ (staff hidden
       // entirely) and the owner-only items inside it gate individually.
       { key: "admin", label: "Admin", icon: "shield", href: "/dashboard/admin", hint: "Compliance, documents & settings", accent: "#FF3366", minRole: "admin" },
+    ],
+  },
+  {
+    // Your own things, ungated — the group heading carries the "my", so the
+    // labels don't repeat it. Timesheet joins this in Stage 5.
+    label: "Personal",
+    items: [
+      { key: "myvehicle", label: "Vehicle", icon: "truck", href: "/dashboard/my-vehicle", hint: "Your vehicle, fuel & issues", accent: "#FF8A00" },
     ],
   },
 ];

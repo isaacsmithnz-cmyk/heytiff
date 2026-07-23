@@ -53,7 +53,8 @@ describe("capability gating", () => {
     for (const gated of ["people", "timepay", "admin", "toolbox", "ductr", "tiff"]) {
       expect(k).not.toContain(gated);
     }
-    expect(k).toEqual(expect.arrayContaining(["home", "assets"]));
+    expect(k).toEqual(expect.arrayContaining(["home", "myvehicle"]));
+    expect(k).not.toContain("assets"); // the register is gated now that My vehicle exists
   });
 
   it("GRANTING a capability reveals its entry — the point of the model", () => {
@@ -76,7 +77,8 @@ describe("capability gating", () => {
 
   it("leaves genuinely ungated entries alone for everyone", () => {
     const ungated = NAV.filter((n) => !n.capability && !n.minRole).map((n) => n.key);
-    expect(ungated).toEqual(expect.arrayContaining(["home", "assets"]));
+    // your own vehicle is intrinsic, like your own timesheet will be
+    expect(ungated).toEqual(expect.arrayContaining(["home", "myvehicle"]));
     for (const role of ["staff", "admin", "owner", null] as const) {
       expect(keys(viewer(role))).toEqual(expect.arrayContaining(ungated));
     }
@@ -84,11 +86,22 @@ describe("capability gating", () => {
 
   it("keeps groups but drops those emptied by filtering", () => {
     const groups = navGroupsFor(viewer("staff"));
-    expect(groups.map((g) => g.label)).toEqual(["Workspace", "Operations"]);
-    expect(groups.find((g) => g.label === "Operations")?.items.map((i) => i.key)).toEqual([
-      "assets",
+    // staff hold nothing in Operations, so the whole group goes; Personal stays
+    expect(groups.map((g) => g.label)).toEqual(["Workspace", "Personal"]);
+    expect(groups.find((g) => g.label === "Personal")?.items.map((i) => i.key)).toEqual([
+      "myvehicle",
     ]);
     expect(groups.every((g) => g.items.length > 0)).toBe(true);
+  });
+
+  it("Personal is ungated — every viewer keeps their own vehicle", () => {
+    for (const role of ["staff", "admin", "owner"] as const) {
+      expect(navGroupsFor(viewer(role)).find((g) => g.label === "Personal")?.items.map((i) => i.key))
+        .toEqual(["myvehicle"]);
+    }
+    // and revoking the register doesn't take it away
+    expect(keys({ caps: resolve("owner", { assets_all: false }), role: "owner" }))
+      .toEqual(expect.arrayContaining(["myvehicle"]));
   });
 
   it("owner sees the full rail", () => {

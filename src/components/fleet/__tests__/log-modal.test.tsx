@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { LogModal } from "../modals";
-import type { Vehicle, VehicleLog } from "../logic";
+import type { NewLog, Vehicle } from "../logic";
 
 // the receipt reader is a server action — never call it from a component test
 jest.mock("@/app/actions/fleet-ai", () => ({
@@ -15,6 +15,7 @@ const vehicle = (over: Partial<Vehicle> = {}): Vehicle => ({
   model: "Hiace ZR",
   year: 2022,
   plate: "MKT482",
+  plateState: "VIC",
   status: "active",
   odometer: 84120,
   assignedTo: "jordan-mills",
@@ -40,7 +41,6 @@ function setup(kind: "fuel" | "odo" = "odo", opts: { withFleet?: boolean } = { w
       kind={kind}
       vehicle={mine}
       fleetVehicles={opts.withFleet ? fleetVehicles : undefined}
-      loggedBy={{ id: "jordan-mills", name: "Jordan Mills" }}
       onSave={onSave}
       onClose={jest.fn()}
     />,
@@ -70,10 +70,12 @@ describe("LogModal rego picker", () => {
     await user.click(screen.getByRole("button", { name: /Update odometer/ }));
 
     expect(onSave).toHaveBeenCalledTimes(1);
-    const log = onSave.mock.calls[0][0] as Omit<VehicleLog, "id" | "when" | "ago">;
+    const log = onSave.mock.calls[0][0] as NewLog;
     expect(log.vehicleId).toBe("ute-01"); // not the driver's own vrf-04
     expect(log.odo).toBe(158500);
-    expect(log.staffName).toBe("Jordan Mills"); // attribution follows the person, not the vehicle
+    // attribution is the server's — a client that could name the author could name anyone
+    expect(log).not.toHaveProperty("staffId");
+    expect(log).not.toHaveProperty("staffName");
   });
 
   it("moves the odometer guardrail to the selected vehicle", async () => {

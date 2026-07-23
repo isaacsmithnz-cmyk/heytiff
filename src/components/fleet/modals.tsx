@@ -3,14 +3,17 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
-import type { DemoStaff } from "@/mock/demo";
 import { readFuelReceipt } from "@/app/actions/fleet-ai";
+import { dateFromDays } from "@/lib/fleet/map";
 import {
   STATUS_LABEL,
   type AiValuation,
   type LogKind,
+  type FleetStaff,
+  type NewLog,
   type StatusChip,
   type Vehicle,
+  type VehicleIdentity,
   type VehicleStatus,
   type VehicleLog,
   daysUntil,
@@ -20,20 +23,11 @@ import {
   fmtMoney,
   modelLabel,
   readReceiptOffline,
-  slugId,
   vehicleFacts,
 } from "./logic";
 
 /* Modals portal to <body> (fl-ov is unscoped in shell.css, like .fg-cmd) —
    .page.in's will-change would trap position:fixed inside the shell. */
-
-function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function dateFromDays(days: number): string {
-  return new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
-}
 
 function num(s: string): number {
   const n = parseFloat(s.replace(/[^0-9.\-]/g, ""));
@@ -116,16 +110,23 @@ function Field({
 
 /* ---------------- add / edit vehicle ---------------- */
 
+/** An AU rego plate is only unique within its state or territory, so the
+    register stores which one it came from (matching the DB check constraint). */
+const AU_STATES = ["NSW", "VIC", "QLD", "SA", "WA", "TAS", "NT", "ACT"] as const;
+
 export function VehicleFormModal({
   initial,
-  takenIds,
   staff,
+  today,
   onSave,
   onClose,
 }: {
   initial: Vehicle | null;
-  takenIds: string[];
-  staff: DemoStaff[];
+  staff: FleetStaff[];
+  /** The AU calendar date, from the server. The browser's clock is not the
+      anchor: the day-counts this form produces are converted back to dates
+      server-side against the same day, and the two must agree. */
+  today: string;
   onSave: (v: Vehicle) => void;
   onClose: () => void;
 }) {
@@ -134,15 +135,16 @@ export function VehicleFormModal({
       ? {
           name: initial.name,
           plate: initial.plate,
+          plateState: initial.plateState ?? "",
           make: initial.make,
           model: initial.model,
           year: initial.year ? String(initial.year) : "",
           odometer: String(initial.odometer),
-          rego: dateFromDays(initial.regoDays),
-          insurance: dateFromDays(initial.insuranceDays),
+          rego: dateFromDays(initial.regoDays, today),
+          insurance: dateFromDays(initial.insuranceDays, today),
           intervalKm: String(initial.serviceIntervalKm),
           lastServiceOdo: String(initial.lastServiceOdo),
-          purchaseDate: initial.purchaseDateDays ? dateFromDays(-initial.purchaseDateDays) : "",
+          purchaseDate: initial.purchaseDateDays ? dateFromDays(-initial.purchaseDateDays, today) : "",
           purchasePrice: initial.purchasePrice ? String(initial.purchasePrice) : "",
           value: String(initial.value),
           status: initial.status as VehicleStatus,
@@ -152,6 +154,7 @@ export function VehicleFormModal({
       : {
           name: "",
           plate: "",
+          plateState: "",
           make: "",
           model: "",
           year: "",
@@ -177,12 +180,13 @@ export function VehicleFormModal({
 
   const save = () => {
     if (!ready) return;
-    const today = todayISO();
     const odometer = num(f.odometer);
     onSave({
-      id: initial?.id ?? slugId(f.name.trim() || f.plate.trim(), takenIds),
+      // blank id = a new row; the database mints the uuid
+      id: initial?.id ?? "",
       name: f.name.trim().toUpperCase(),
       plate: f.plate.trim().toUpperCase(),
+      plateState: f.plateState || null,
       make: f.make.trim(),
       model: f.model.trim(),
       year: Math.round(num(f.year)),
@@ -209,6 +213,16 @@ export function VehicleFormModal({
       <div className="fl-grid">
         <Field label="Rego plate" req>
           <input className="fl-i" placeholder="e.g. MKT482" value={f.plate} onChange={set("plate")} />
+        </Field>
+        <Field label="Registered in" hint="Plates are only unique within a state">
+          <select className="fl-i" value={f.plateState} onChange={set("plateState")}>
+            <option value="">Not stated</option>
+            {AU_STATES.map((st) => (
+              <option key={st} value={st}>
+                {st}
+              </option>
+            ))}
+          </select>
         </Field>
         <Field label="Name / fleet no.">
           <input className="fl-i" placeholder="Optional — e.g. VRF-09" value={f.name} onChange={set("name")} />
@@ -274,7 +288,7 @@ export function VehicleFormModal({
               .filter((s) => s.status === "Active")
               .map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.name} — {s.role}
+                  {s.name}
                 </option>
               ))}
           </select>
@@ -319,17 +333,17 @@ export function LogModal({
   kind,
   vehicle,
   fleetVehicles,
-  loggedBy,
   onSave,
   onClose,
 }: {
   kind: LogKind;
-  vehicle: Vehicle;
+  /** Identity width on purpose: logging needs a name, a plate and an odometer
+      reading, which is exactly what someone without `assets_all` is sent. */
+  vehicle: VehicleIdentity;
   /** Working fleet for the rego picker — lets a driver log against a borrowed
       or pool vehicle instead of their own. Omit to lock to `vehicle`. */
-  fleetVehicles?: Vehicle[];
-  loggedBy: { id: string | null; name: string };
-  onSave: (log: Omit<VehicleLog, "id" | "when" | "ago">) => void;
+  fleetVehicles?: VehicleIdentity[];
+  onSave: (log: NewLog) => void;
   onClose: () => void;
 }) {
   const [vehicleId, setVehicleId] = useState(vehicle.id);
@@ -420,14 +434,11 @@ export function LogModal({
     if (!ready) return;
     onSave({
       vehicleId: target.id,
-      staffId: loggedBy.id,
-      staffName: loggedBy.name,
       kind,
       litres: kind === "fuel" ? num(litres) : undefined,
       cost: kind === "fuel" && cost.trim() ? num(cost) : undefined,
       odo: kind !== "issue" && odo.trim() ? num(odo) : undefined,
       note: note.trim() || undefined,
-      status: kind === "issue" ? "open" : undefined,
       station: kind === "fuel" && station.trim() ? station.trim() : undefined,
       source: kind === "fuel" ? (scanTag ? "scan" : "manual") : undefined,
     });
@@ -658,7 +669,7 @@ export function DetailModal({
   eco: Record<string, number>;
   valuation?: AiValuation;
   valuationIsStale?: boolean;
-  staff: DemoStaff[];
+  staff: FleetStaff[];
   manager: boolean;
   onClose: () => void;
   onEdit: () => void;

@@ -1,11 +1,23 @@
-/* Fleet — pure logic: vehicle status derivation, AI value model, prototype-
-   overlay merge, filtering, sorting & formatting. Mirrors timepay/logic.ts:
-   everything here is side-effect free and jest-covered; React state lives in
-   fleet-state.ts. */
+/* Fleet — pure logic: vehicle status derivation, the odometer guardrail,
+   valuation parsing, filtering, sorting & formatting. Mirrors timepay/logic.ts:
+   everything here is side-effect free and jest-covered. Data comes from
+   lib/fleet/query.ts and mutations go through app/actions/fleet.ts; this file
+   knows about neither. */
 
 export type VehicleStatus = "active" | "offroad" | "sold";
 
-export type Vehicle = {
+/* The vehicle type comes in three widths, and they are the projection boundary
+   (lib/projections.ts) written as types — a function that only needs identity
+   takes VehicleIdentity, so it cannot accidentally be passed data a staff
+   member was never sent.
+
+   Day-counts (regoDays, insuranceDays) are a VIEW of real `date` columns,
+   derived once at the query boundary against an AU calendar date. Nothing
+   below this line knows a date exists. */
+
+/** What anyone may see about a vehicle they're allowed to act on — the pool
+    picker's payload, and nothing more (VEHICLE_PICKER_FIELDS). */
+export type VehicleIdentity = {
   id: string;
   /** Optional friendly name / fleet no. (e.g. "VRF-04"); rego is the fallback identity. */
   name: string;
@@ -13,20 +25,49 @@ export type Vehicle = {
   model: string;
   year: number;
   plate: string; // rego plate — the primary identifier
+  /** AU plates are only unique within a state/territory; null = unstated. */
+  plateState: string | null;
   status: VehicleStatus;
-  odometer: number; // km
-  assignedTo: string | null; // DemoStaff id; null = pool / unassigned
-  value: number; // $ book value — shown to Manager+ only
-  purchasePrice: number; // $ — 0 = unknown; feeds the Tiff estimate
-  purchaseDateDays: number; // days since purchase (0 = unknown/new)
+  odometer: number; // km — drives the can't-go-backwards guardrail
+};
+
+/** Your own vehicle: identity plus the compliance facts My vehicle exists to
+    show. Still no money and no assignment — those are register knowledge. */
+export type VehicleWithFacts = VehicleIdentity & {
   regoDays: number; // days until rego expires (negative = expired)
   insuranceDays: number; // days until insurance expires
   serviceIntervalKm: number; // service every N km
   lastServiceOdo: number; // odometer at the last completed service
+};
+
+/** The full register record — `assets_all` only. */
+export type Vehicle = VehicleWithFacts & {
+  assignedTo: string | null; // staff_profiles.id; null = pool / unassigned
+  value: number; // $ book value
+  purchasePrice: number; // $ — 0 = unknown; feeds the Tiff estimate
+  purchaseDateDays: number; // days since purchase (0 = unknown/new)
   notes?: string;
 };
 
+/** The roster as Fleet knows it. Assigning a vehicle needs a name and whether
+    they still work here — not an HR record. Sourced by lib/fleet/query.ts. */
+export type FleetStaff = { id: string; name: string; status: "Active" | "Inactive" };
+
 export type LogKind = "fuel" | "odo" | "issue" | "service";
+
+/** What the log modal submits. Who logged it, when, and which org are the
+    server's to decide — a client that could name the author could name
+    someone else. */
+export type NewLog = {
+  vehicleId: string;
+  kind: LogKind;
+  note?: string;
+  litres?: number;
+  cost?: number;
+  odo?: number;
+  source?: "scan" | "manual";
+  station?: string;
+};
 
 export type VehicleLog = {
   id: string;
@@ -52,22 +93,22 @@ export const STATUS_LABEL: Record<VehicleStatus, string> = {
 };
 
 /** Row/hero identity: friendly name when set, else the rego plate. */
-export function displayName(v: Vehicle): string {
+export function displayName(v: VehicleIdentity): string {
   return v.name || v.plate;
 }
 
 /** "Toyota Hiace ZR 2022" (year omitted when unknown). */
-export function modelLabel(v: Vehicle): string {
+export function modelLabel(v: VehicleIdentity): string {
   return [v.make, v.model, v.year || null].filter(Boolean).join(" ");
 }
 
 /* ---- service schedule (interval-based; Log service resets the cycle) ---- */
 
-export function serviceDueKm(v: Vehicle): number {
+export function serviceDueKm(v: VehicleWithFacts): number {
   return v.lastServiceOdo + v.serviceIntervalKm;
 }
 
-export function serviceKmLeft(v: Vehicle): number {
+export function serviceKmLeft(v: VehicleWithFacts): number {
   return serviceDueKm(v) - v.odometer;
 }
 
@@ -81,7 +122,7 @@ export const INSURANCE_WARN_DAYS = 30;
 export const SERVICE_WARN_KM = 1500;
 
 /** Everything wrong (or soon-wrong) with a vehicle, worst-first. Empty = all good. */
-export function vehicleChips(v: Vehicle, openIssues: number): StatusChip[] {
+export function vehicleChips(v: VehicleWithFacts, openIssues: number): StatusChip[] {
   if (v.status === "sold") return [];
   const chips: StatusChip[] = [];
   if (v.status === "offroad") chips.push({ label: "Off road", state: "bad" });
@@ -109,7 +150,7 @@ export function worstState(chips: StatusChip[]): ChipState {
 
 export type VehicleFact = { key: string; label: string; text: string; state: ChipState };
 
-export function vehicleFacts(v: Vehicle): VehicleFact[] {
+export function vehicleFacts(v: VehicleWithFacts): VehicleFact[] {
   const left = serviceKmLeft(v);
   return [
     { key: "odo", label: "Odometer", text: `${fmtKm(v.odometer)} km`, state: "ok" },
@@ -136,8 +177,9 @@ export function vehicleFacts(v: Vehicle): VehicleFact[] {
 
 /* ---- Tiff valuations (real AI — src/app/actions/fleet-ai.ts) ----
    The server action asks Claude for AU-market valuations; the validated
-   results live in the prototype overlay (aiValues) stamped with the odometer
-   they were computed at. Manager+ only in the UI, like every valuation. */
+   results are cached on vehicles.ai_value, stamped with the odometer they were
+   computed at. Manager+ only — the column is in the `assets_all` projection
+   and nowhere else. */
 
 export type AiValuation = {
   point: number;
@@ -150,14 +192,14 @@ export type AiValuation = {
 export const VALUATION_STALE_KM = 2000;
 
 /** A valuation goes stale once the vehicle has driven well past where it was valued. */
-export function valuationStale(v: Vehicle, val: AiValuation | undefined): boolean {
+export function valuationStale(v: VehicleIdentity, val: AiValuation | undefined): boolean {
   return !!val && v.odometer - val.atOdo > VALUATION_STALE_KM;
 }
 
 /** Validate/clamp raw model output against the actual fleet. Unknown ids and
     junk entries are dropped; low/high are ordered, point clamped between them,
     everything rounded to $100 and stamped with the vehicle's current odo. */
-export function parseValuations(raw: unknown, vehicles: Vehicle[]): Record<string, AiValuation> {
+export function parseValuations(raw: unknown, vehicles: VehicleIdentity[]): Record<string, AiValuation> {
   const byId = new Map(vehicles.map((v) => [v.id, v]));
   const out: Record<string, AiValuation> = {};
   const list = (raw as { valuations?: unknown })?.valuations;
@@ -185,63 +227,29 @@ export function parseValuations(raw: unknown, vehicles: Vehicle[]): Record<strin
   return out;
 }
 
-/* ---- prototype overlay (localStorage stands in for the backend) ---- */
+/* ---- odometer guardrail ----
+   A reading can only ever go forward. The modal shows this as a hint before
+   you save; the server action re-runs it, because the modal is not a control. */
 
-export type FleetOverlay = {
-  added: Vehicle[];
-  edited: Record<string, Vehicle>; // full replacement records, keyed by id
-  removed: string[];
-  logs: VehicleLog[]; // prototype-added logs (ago 0)
-  resolved: string[]; // demo issue-log ids marked resolved
-  aiValues: Record<string, AiValuation>; // Tiff valuations, keyed by vehicle id
-};
-
-export const EMPTY_OVERLAY: FleetOverlay = {
-  added: [],
-  edited: {},
-  removed: [],
-  logs: [],
-  resolved: [],
-  aiValues: {},
-};
-
-/** Backfill v2 fields on records stored by older prototype builds (LS overlays). */
-export function migrateVehicle(raw: Partial<Vehicle> & { callsign?: string; serviceDueKm?: number }): Vehicle {
-  const odometer = raw.odometer ?? 0;
-  const interval = raw.serviceIntervalKm ?? 10000;
-  return {
-    id: raw.id ?? "vehicle",
-    name: raw.name ?? raw.callsign ?? "",
-    make: raw.make ?? "",
-    model: raw.model ?? "",
-    year: raw.year ?? 0,
-    plate: raw.plate ?? "",
-    status: raw.status ?? "active",
-    odometer,
-    assignedTo: raw.assignedTo ?? null,
-    value: raw.value ?? 0,
-    purchasePrice: raw.purchasePrice ?? 0,
-    purchaseDateDays: raw.purchaseDateDays ?? 0,
-    regoDays: raw.regoDays ?? 365,
-    insuranceDays: raw.insuranceDays ?? 365,
-    serviceIntervalKm: interval,
-    // old records stored the due odometer directly — rebuild the cycle from it
-    lastServiceOdo: raw.lastServiceOdo ?? (raw.serviceDueKm ? raw.serviceDueKm - interval : odometer),
-    notes: raw.notes,
-  };
+export function odoRejection(current: number, reading: number | undefined): string | null {
+  if (typeof reading !== "number" || !Number.isFinite(reading)) return null;
+  if (reading < 0) return "An odometer reading can't be negative.";
+  if (reading < current)
+    return `That's below the last reading of ${fmtKm(current)} km — odometers only go forward.`;
+  return null;
 }
 
-export function mergeFleet(demo: Vehicle[], o: FleetOverlay): Vehicle[] {
-  const base = demo.filter((v) => !o.removed.includes(v.id)).map((v) => o.edited[v.id] ?? v);
-  return [...base, ...o.added.filter((v) => !o.removed.includes(v.id))];
-}
-
-/** Newest first: prototype logs (ago 0) sit above demo history. */
-export function mergeLogs(demo: VehicleLog[], o: FleetOverlay): VehicleLog[] {
-  const marked = demo.map((l) =>
-    l.kind === "issue" && o.resolved.includes(l.id) ? { ...l, status: "resolved" as const } : l,
-  );
-  return [...o.logs, ...marked].sort((a, b) => a.ago - b.ago);
+/** What a log does to its vehicle's odometer/service cycle. Returns the fields
+    to patch, or null when the log leaves the vehicle alone (issues, no reading). */
+export function odoEffect(
+  v: Pick<Vehicle, "odometer" | "lastServiceOdo">,
+  log: { kind: LogKind; odo?: number },
+): { odometer: number; lastServiceOdo?: number } | null {
+  if (typeof log.odo !== "number") return null;
+  // a completed service resets the cycle from its own reading
+  if (log.kind === "service")
+    return { odometer: Math.max(v.odometer, log.odo), lastServiceOdo: log.odo };
+  return log.odo > v.odometer ? { odometer: log.odo } : null;
 }
 
 export function logsFor(logs: VehicleLog[], vehicleId: string): VehicleLog[] {

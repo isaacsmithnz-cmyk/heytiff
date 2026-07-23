@@ -46,12 +46,13 @@ describe("Sidebar — HeyTiff × org line", () => {
 });
 
 describe("Sidebar — role-gated nav", () => {
-  it("staff see no Operations entries beyond the ungated placeholder", () => {
+  it("staff see no Operations entries, but keep their own vehicle", () => {
     render(as("staff"));
     expect(screen.queryByText("Team")).toBeNull();
     expect(screen.queryByText("Time & Pay")).toBeNull();
     expect(screen.queryByText("Admin")).toBeNull();
-    expect(screen.getByText("Assets")).toBeTruthy();
+    expect(screen.queryByText("Assets")).toBeNull(); // the register is admin+
+    expect(screen.getByText("Vehicle")).toBeTruthy(); // Personal group carries the "my"
     expect(screen.getByText("Toolbox")).toBeTruthy();
   });
 
@@ -64,7 +65,7 @@ describe("Sidebar — role-gated nav", () => {
 
   it("owners get the full rail", () => {
     render(as("owner", "Smith Air"));
-    for (const label of ["Dashboard", "Toolbox", "Design Studio", "Tiff AI", "Team", "Time & Pay", "Assets", "Admin"]) {
+    for (const label of ["Dashboard", "Toolbox", "Design Studio", "Tiff AI", "Team", "Time & Pay", "Assets", "Admin", "Vehicle"]) {
       expect(screen.getByText(label)).toBeTruthy();
     }
   });

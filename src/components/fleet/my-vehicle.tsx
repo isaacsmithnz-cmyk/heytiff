@@ -2,14 +2,15 @@
 
 import { useState } from "react";
 import { Icon } from "@/components/shell/icon";
-import type { DemoStaff } from "@/mock/demo";
-import type { FleetState } from "./fleet-state";
 import {
   type LogKind,
+  type NewLog,
+  type VehicleIdentity,
+  type VehicleLog,
+  type VehicleWithFacts,
   displayName,
   fmtKm,
   fuelEconomy,
-  logsFor,
   modelLabel,
   openIssueCount,
   vehicleChips,
@@ -17,10 +18,15 @@ import {
 } from "./logic";
 import { LogModal, LogRow } from "./modals";
 
-/* "My vehicle" — the Staff lens on Assets → Fleet: just the vehicle assigned
-   to you, with log fuel / odometer / report-issue actions. No register, no
-   other vehicles, no valuations (spec: Fleet ◐ own for every role). Off-road
-   vehicles pause fuel/odo logging; reporting issues always works. */
+/* "My vehicle" — the Staff lens: just the vehicle assigned to you, with log
+   fuel / odometer / report-issue actions. No register, no other vehicles, no
+   valuations (spec: Fleet ◐ own for every role). Off-road vehicles pause
+   fuel/odo logging; reporting issues always works.
+
+   The props are the projection made visible. `vehicle` is facts-width (no
+   money, no assignment) and `pickable` is identity-width, because a driver
+   without `assets_all` is sent exactly enough to name a pool vehicle and
+   satisfy the odometer guardrail — see lib/projections.ts. */
 
 const QUICK: { kind: LogKind; icon: string; label: string; sub: string }[] = [
   { kind: "fuel", icon: "fuel", label: "Log fuel", sub: "Litres, cost & odo" },
@@ -29,30 +35,35 @@ const QUICK: { kind: LogKind; icon: string; label: string; sub: string }[] = [
 ];
 
 export function MyVehicle({
-  fleet,
-  staff,
-  viewerId,
+  vehicle,
+  pickable,
+  logs,
+  error,
+  onLog,
 }: {
-  fleet: FleetState;
-  staff: DemoStaff[];
-  viewerId: string;
+  /** The vehicle assigned to you, or null when you have none. */
+  vehicle: VehicleWithFacts | null;
+  /** Every vehicle you may log against — yours plus the pool. */
+  pickable: VehicleIdentity[];
+  /** History for your vehicle. */
+  logs: VehicleLog[];
+  error: string | null;
+  onLog: (log: NewLog) => void;
 }) {
   const [logKind, setLogKind] = useState<LogKind | null>(null);
   const [logTarget, setLogTarget] = useState<string | null>(null);
-  const vehicle = fleet.vehicles.find((v) => v.assignedTo === viewerId && v.status !== "sold");
-  const viewer = staff.find((s) => s.id === viewerId);
-  const loggedBy = { id: viewerId, name: viewer?.name ?? "You" };
-  const working = fleet.vehicles.filter((v) => v.status !== "sold");
   const closeLog = () => {
     setLogKind(null);
     setLogTarget(null);
   };
+  const errBox = error ? <div className="fl-aierr">{error}</div> : null;
 
   if (!vehicle) {
     // No assignment — but you can still fuel the pool ute you borrowed today.
-    const fallback = working.find((v) => v.assignedTo === null) ?? working[0];
+    const fallback = pickable[0];
     return (
       <div>
+        {errBox}
         <div className="emptybox">
           <span className="ei">
             <Icon name="truck" size={24} />
@@ -72,10 +83,9 @@ export function MyVehicle({
           <LogModal
             kind={logKind}
             vehicle={fallback}
-            fleetVehicles={working}
-            loggedBy={loggedBy}
+            fleetVehicles={pickable}
             onSave={(log) => {
-              fleet.addLog(log);
+              onLog(log);
               closeLog();
             }}
             onClose={closeLog}
@@ -86,15 +96,15 @@ export function MyVehicle({
   }
 
   const paused = vehicle.status === "offroad";
-  const borrowable = working.filter((v) => v.id !== vehicle.id && v.status === "active");
-  const chips = vehicleChips(vehicle, openIssueCount(fleet.logs, vehicle.id));
-  const vLogs = logsFor(fleet.logs, vehicle.id);
-  const eco = fuelEconomy(vLogs);
-  const recent = vLogs.slice(0, 8);
+  const borrowable = pickable.filter((v) => v.id !== vehicle.id && v.status === "active");
+  const chips = vehicleChips(vehicle, openIssueCount(logs, vehicle.id));
+  const eco = fuelEconomy(logs);
+  const recent = logs.slice(0, 8);
   const tiles = vehicleFacts(vehicle).filter((f) => f.key !== "odo");
 
   return (
     <div className="fl-my">
+      {errBox}
       <div className="fl-hero">
         <div className="fl-hlead">
           <div className="fl-htag">
@@ -199,11 +209,10 @@ export function MyVehicle({
       {logKind && (
         <LogModal
           kind={logKind}
-          vehicle={(logTarget && working.find((v) => v.id === logTarget)) || vehicle}
-          fleetVehicles={working}
-          loggedBy={loggedBy}
+          vehicle={(logTarget && pickable.find((v) => v.id === logTarget)) || vehicle}
+          fleetVehicles={pickable}
           onSave={(log) => {
-            fleet.addLog(log);
+            onLog(log);
             closeLog();
           }}
           onClose={closeLog}

@@ -20,6 +20,24 @@ export function parseAuDate(input: string): string | null {
   return `${year}-${pad(month)}-${pad(day)}`;
 }
 
+/* Every AU state is ahead of UTC, so "today" on a UTC server is yesterday in
+   the yard for most of the working day. Anything that counts days to an expiry
+   has to anchor on an AU calendar date or the chips read one day out. The
+   eastern zone is the anchor: the states differ by at most 2h among
+   themselves, which never moves the date during business hours. */
+const AU_ANCHOR_TZ = "Australia/Sydney";
+
+/** Today's calendar date in AU, as ISO yyyy-mm-dd. */
+export function todayInAu(now: Date = new Date()): string {
+  // en-CA formats as yyyy-mm-dd, which is exactly the ISO date we want
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: AU_ANCHOR_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+}
+
 /** ISO yyyy-mm-dd -> dd/mm/yyyy for the design's text inputs. */
 export function formatAuDate(iso: string | null | undefined): string {
   if (!iso) return "";

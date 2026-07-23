@@ -2,12 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/shell/icon";
-import type { DemoStaff } from "@/mock/demo";
 import { type FleetAiVehicle, valueFleet } from "@/app/actions/fleet-ai";
 import type { FleetState } from "./fleet-state";
 import {
   STATUS_LABEL,
   type FleetSort,
+  type FleetStaff,
   type FleetTab,
   type LogKind,
   displayName,
@@ -44,7 +44,15 @@ type ModalState =
   | { t: "detail"; id: string }
   | { t: "log"; id: string; kind: LogKind };
 
-export function FleetRegister({ fleet, staff }: { fleet: FleetState; staff: DemoStaff[] }) {
+export function FleetRegister({
+  fleet,
+  staff,
+  today,
+}: {
+  fleet: FleetState;
+  staff: FleetStaff[];
+  today: string;
+}) {
   const { vehicles, logs } = fleet;
   const [tab, setTab] = useState<FleetTab>("all");
   const [query, setQuery] = useState("");
@@ -79,7 +87,6 @@ export function FleetRegister({ fleet, staff }: { fleet: FleetState; staff: Demo
   );
 
   const openVehicle = "id" in modal ? vehicles.find((v) => v.id === modal.id) : undefined;
-  const takenIds = vehicles.map((v) => v.id);
   const aiTotal = fleetAiValue(vehicles, fleet.aiValues);
 
   const runValuation = async () => {
@@ -136,8 +143,8 @@ export function FleetRegister({ fleet, staff }: { fleet: FleetState; staff: Demo
         {modal.t === "add" && (
           <VehicleFormModal
             initial={null}
-            takenIds={takenIds}
             staff={staff}
+            today={today}
             onSave={(v) => {
               fleet.saveVehicle(v);
               setModal({ t: "none" });
@@ -192,6 +199,7 @@ export function FleetRegister({ fleet, staff }: { fleet: FleetState; staff: Demo
         </button>
       </div>
       {valueErr && <div className="fl-aierr">{valueErr}</div>}
+      {fleet.error && <div className="fl-aierr">{fleet.error}</div>}
 
       <div className="dir">
         <div className="dirhead flhead">
@@ -332,8 +340,8 @@ export function FleetRegister({ fleet, staff }: { fleet: FleetState; staff: Demo
       {modal.t === "add" && (
         <VehicleFormModal
           initial={null}
-          takenIds={takenIds}
           staff={staff}
+          today={today}
           onSave={(v) => {
             fleet.saveVehicle(v);
             setModal({ t: "none" });
@@ -344,8 +352,8 @@ export function FleetRegister({ fleet, staff }: { fleet: FleetState; staff: Demo
       {modal.t === "edit" && openVehicle && (
         <VehicleFormModal
           initial={openVehicle}
-          takenIds={takenIds}
           staff={staff}
+          today={today}
           onSave={(v) => {
             fleet.saveVehicle(v);
             setModal({ t: "detail", id: v.id });
@@ -380,7 +388,6 @@ export function FleetRegister({ fleet, staff }: { fleet: FleetState; staff: Demo
           kind={modal.kind}
           vehicle={openVehicle}
           fleetVehicles={vehicles}
-          loggedBy={{ id: null, name: "You" }}
           onSave={(log) => {
             fleet.addLog(log);
             setModal({ t: "detail", id: openVehicle.id });

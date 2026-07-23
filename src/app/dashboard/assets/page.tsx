@@ -1,23 +1,14 @@
+import { redirect } from "next/navigation";
 import { AssetsScreen } from "@/components/fleet/assets-screen";
-import { can } from "@/lib/permissions-server";
-import { demoStaff, demoVehicleLogs, demoVehicles } from "@/mock/demo";
+import { loadFleetPage } from "@/lib/fleet/page-data";
 
-// NOTE: reads the demo fleet from mock/demo.ts for now — empty the mock and the
-// register falls back to its "No vehicles yet" state. viewerId picks which demo
-// staff member the "My vehicle" lens renders as; a real session → staff link
-// arrives with the backend build.
+/* Assets is the register, so it gates on `assets_all`. It was ungated until
+   now only because it was also a staff member's single path to their own
+   vehicle; /dashboard/my-vehicle is that path from this stage on, so someone
+   without the capability is sent there rather than to a lens-shaped Assets. */
 
 export default async function AssetsPage() {
-  // `assets_all` = the whole register; without it the screen renders the
-  // own-vehicle lens only (My vehicle gets its own route in Stage 4).
-  const manager = await can("assets_all");
-  return (
-    <AssetsScreen
-      manager={manager}
-      staff={demoStaff}
-      vehicles={demoVehicles}
-      logs={demoVehicleLogs}
-      viewerId="jordan-mills"
-    />
-  );
+  const { own, register, today } = await loadFleetPage({ withRegister: true });
+  if (!register) redirect("/dashboard/my-vehicle");
+  return <AssetsScreen own={own} register={register} today={today} />;
 }

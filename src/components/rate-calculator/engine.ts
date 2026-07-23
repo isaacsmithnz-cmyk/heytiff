@@ -16,7 +16,37 @@
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
-export type EmploymentType = "Full Time" | "Part Time" | "Casual" | "Subcontractor";
+/* The roster's vocabulary is the one that wins (staff_profiles.employment_type:
+   Full-time · Part-time · Casual · Apprentice · Subcontractor). The engine
+   never string-matches it directly — it classifies through the boundary below,
+   so a hyphen, a space or a new label can't silently misclassify someone. The
+   old union kept "Full Time"/"Part Time" (spaces); those still classify
+   correctly, which is what keeps the existing fixtures green. */
+export type EmploymentType =
+  | "Full-time"
+  | "Part-time"
+  | "Casual"
+  | "Apprentice"
+  | "Subcontractor";
+
+/** How pay burden actually differs. Everything the engine needs to know about
+    an employment type collapses to one of these three. */
+export type EmploymentClass = "subbie" | "casual" | "permanent";
+
+/** Map any employment label to its pay class, tolerant of spelling. Normalises
+    case and every kind of separator, so "Full Time", "full-time" and "Full
+    time" all land the same place.
+      subbie    — invoices for work; no super, no workers comp, no leave
+      casual    — paid weeks worked only; loading is in the wage, no leave loading
+      permanent — full/part-time AND APPRENTICES: 52 paid weeks, super + leave
+    Apprentices are employees, so they are permanent — the one label people
+    most expect to be "special" but which the burden model treats as ordinary. */
+export function classifyEmployment(raw?: string | null): EmploymentClass {
+  const v = (raw ?? "").toLowerCase().replace(/[\s._-]+/g, "");
+  if (v === "subcontractor" || v === "subcontract" || v === "contractor") return "subbie";
+  if (v === "casual") return "casual";
+  return "permanent"; // full-time, part-time, apprentice, or unspecified
+}
 
 export interface StaffMember {
   id: number | string;
@@ -303,9 +333,10 @@ function staffAnnualCost(
   //   Casual          → paid only for weeks worked (working_weeks); no leave
   //                     loading (casual loading is built into their hourly wage)
   //   Subcontractor   → invoices for work done; no burden, no loading
-  const isSubbie    = staff.employment_type === "Subcontractor";
-  const isCasual    = staff.employment_type === "Casual";
-  const isPermanent = !isSubbie && !isCasual; // Full Time, Part Time, or unspecified
+  const empClass    = classifyEmployment(staff.employment_type);
+  const isSubbie    = empClass === "subbie";
+  const isCasual    = empClass === "casual";
+  const isPermanent = empClass === "permanent"; // full/part-time, apprentice, or unspecified
 
   const paidWeeks = isPermanent ? 52 : weeks;
 

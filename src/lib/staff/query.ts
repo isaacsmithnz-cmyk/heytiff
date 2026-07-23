@@ -19,7 +19,8 @@ const IDENTITY_COLUMNS =
   "work_rights_status, visa_type, visa_expiry, hours_condition, vevo_checked_at, " +
   "work_rights_doc_url, work_rights_verified_at, qualifications";
 
-const PAY_COLUMNS = "hourly_wage, contracted_hours, utilisation, cost_split";
+const PAY_COLUMNS =
+  "hourly_wage, contracted_hours, utilisation, super_override, workers_comp_override, cost_split";
 
 /** Notes are written *about* a person; they ride with `team`, not with pay. */
 const NOTE_COLUMNS = "notes";

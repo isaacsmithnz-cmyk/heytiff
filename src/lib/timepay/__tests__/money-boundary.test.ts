@@ -23,7 +23,7 @@ jest.mock("@/lib/supabase-server", () => ({ supabaseAdmin: { from: () => chain()
 import { getMyWeek, listStaffWeeks } from "../query";
 import type { PeriodConfig } from "../period";
 
-const WEEKLY: PeriodConfig = { cycle: "Weekly", fortnightAnchor: null, monthStartDay: 1 };
+const WEEKLY: PeriodConfig = { cycle: "Weekly", weekStart: "Mon", fortnightAnchor: null, monthStartDay: 1 };
 
 beforeEach(() => {
   selected.length = 0;

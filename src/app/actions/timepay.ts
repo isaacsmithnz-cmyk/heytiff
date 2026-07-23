@@ -71,6 +71,7 @@ export async function saveDay(
   const { settings } = await getPaySettings(ctx.orgId);
   const cfg = {
     cycle: settings.cycle,
+    weekStart: settings.weekStart,
     fortnightAnchor: settings.fortnightAnchor,
     monthStartDay: settings.monthStartDay,
   };

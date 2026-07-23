@@ -11,14 +11,17 @@ import {
   type PeriodConfig,
 } from "../period";
 
-const WEEKLY: PeriodConfig = { cycle: "Weekly", fortnightAnchor: null, monthStartDay: 1 };
-const FN = (anchor: string | null = null): PeriodConfig => ({
+const WEEKLY: PeriodConfig = { cycle: "Weekly", weekStart: "Mon", fortnightAnchor: null, monthStartDay: 1 };
+const WEEKLY_SUN: PeriodConfig = { ...WEEKLY, weekStart: "Sun" };
+const FN = (anchor: string | null = null, weekStart = "Mon"): PeriodConfig => ({
   cycle: "Fortnightly",
+  weekStart,
   fortnightAnchor: anchor,
   monthStartDay: 1,
 });
 const MONTHLY = (startDay = 1): PeriodConfig => ({
   cycle: "Monthly",
+  weekStart: "Mon",
   fortnightAnchor: null,
   monthStartDay: startDay,
 });
@@ -79,6 +82,43 @@ describe("the weekly period switcher", () => {
   it("steps by exact days across a DST-style boundary", () => {
     expect(addDays("2026-04-04", 1)).toBe("2026-04-05");
     expect(addDays("2026-10-03", 1)).toBe("2026-10-04");
+  });
+});
+
+describe("a configurable week start", () => {
+  it("snaps a weekly period back to the chosen start day, not always Monday", () => {
+    // Sun 5 Jul 2026 begins the week that Wed 8 Jul falls in
+    expect(periodStartFor("2026-07-08", WEEKLY_SUN)).toBe("2026-07-05");
+    expect(periodStartFor("2026-07-05", WEEKLY_SUN)).toBe("2026-07-05");
+    // the Saturday BEFORE still belongs to the previous Sunday-started week
+    expect(periodStartFor("2026-07-04", WEEKLY_SUN)).toBe("2026-06-28");
+  });
+
+  it("shifts the grid so day 0 is the chosen start and the weekend sits mid-week", () => {
+    const days = periodDays("2026-07-05", WEEKLY_SUN);
+    expect(days[0]).toEqual(["SUN", 5, "Jul"]);
+    expect(days[6]).toEqual(["SAT", 11, "Jul"]);
+    // weekend is still Sat/Sun by NAME — the rates don't move, only the columns
+    const weekend = days.map((d, i) => [i, d[0]] as const).filter(([, n]) => n === "SAT" || n === "SUN");
+    expect(weekend).toEqual([
+      [0, "SUN"],
+      [6, "SAT"],
+    ]);
+  });
+
+  it("steps the switcher by the chosen week", () => {
+    const p = recentPeriods("2026-07-08", WEEKLY_SUN, 2);
+    expect(p[0]).toBe("2026-07-05");
+    expect(p[1]).toBe("2026-06-28");
+  });
+
+  it("anchors a fortnight on the chosen week start", () => {
+    // weekStart Sunday, anchor a fortnight at Sun 5 Jul
+    const cfg = FN("2026-07-05", "Sun");
+    expect(periodStartFor("2026-07-08", cfg)).toBe("2026-07-05");
+    expect(periodStartFor("2026-07-15", cfg)).toBe("2026-07-05"); // still week 2 of it
+    expect(periodStartFor("2026-07-19", cfg)).toBe("2026-07-19"); // the next fortnight
+    expect(mondayIndex(periodStartFor("2026-08-01", cfg))).toBe(6); // always a Sunday
   });
 });
 

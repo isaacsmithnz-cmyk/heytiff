@@ -18,9 +18,10 @@
 import type { Settings } from "@/components/timepay/logic";
 
 /** The slice of settings that decides period shape. */
-export type PeriodConfig = Pick<Settings, "cycle" | "fortnightAnchor" | "monthStartDay">;
+export type PeriodConfig = Pick<Settings, "cycle" | "weekStart" | "fortnightAnchor" | "monthStartDay">;
 
 const DAY_NAMES = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"] as const;
+const WEEKDAY_ABBR = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 /* Fortnights need an anchor or "which fortnight is this?" has no answer. When
@@ -32,10 +33,18 @@ const FORTNIGHT_EPOCH = "1970-01-05"; // a Monday
 const DAY_MS = 86_400_000;
 const utc = (iso: string) => new Date(`${iso}T00:00:00Z`).getTime();
 
-/** Weekday index with MONDAY as 0, matching logic.ts's dowOf. */
+/** Weekday index with MONDAY as 0, matching logic.ts's dowOf. This is the
+    ABSOLUTE weekday and never shifts — weekend rates key off it, so Saturday
+    stays Saturday however the roster week is configured. */
 export function mondayIndex(iso: string): number {
   const dow = new Date(utc(iso)).getUTCDay(); // 0 = Sunday
   return (dow + 6) % 7;
+}
+
+/** weekStart ("Mon".."Sun") as a Monday-0 index; unknown falls back to Monday. */
+function weekStartIndex(weekStart: string): number {
+  const i = WEEKDAY_ABBR.indexOf(weekStart.slice(0, 3) as (typeof WEEKDAY_ABBR)[number]);
+  return i < 0 ? 0 : i;
 }
 
 export function addDays(iso: string, n: number): string {
@@ -46,9 +55,12 @@ export function daysBetween(from: string, to: string): number {
   return Math.round((utc(to) - utc(from)) / DAY_MS);
 }
 
-/** The Monday of the week containing `iso` — the week basis for the grid. */
-function mondayOf(iso: string): string {
-  return addDays(iso, -mondayIndex(iso));
+/** The start of the roster week containing `iso`, for the configured weekStart.
+    weekStart="Mon" makes this the containing Monday; "Sun" the containing
+    Sunday, and so on. This is the week basis for the grid and the fortnight. */
+function startOfWeek(iso: string, weekStart: string): string {
+  const back = (mondayIndex(iso) - weekStartIndex(weekStart) + 7) % 7;
+  return addDays(iso, -back);
 }
 
 /* ---- monthly helpers (a monthStartDay-anchored "month") ---- */
@@ -79,12 +91,13 @@ function nextMonthStart(periodStart: string, startDay: number): string {
 /** The start of the period containing `iso`, for this configuration. */
 export function periodStartFor(iso: string, cfg: PeriodConfig): string {
   if (cfg.cycle === "Monthly") return monthStart(iso, cfg.monthStartDay);
-  const monday = mondayOf(iso);
-  if (cfg.cycle !== "Fortnightly") return monday;
-  // align to the anchor's own week, then snap back to an even number of weeks
-  const anchor = mondayOf(cfg.fortnightAnchor ?? FORTNIGHT_EPOCH);
-  const weeks = Math.floor(daysBetween(anchor, monday) / 7);
-  return addDays(monday, weeks % 2 === 0 ? 0 : -7);
+  const weekStart = startOfWeek(iso, cfg.weekStart);
+  if (cfg.cycle !== "Fortnightly") return weekStart;
+  // align to the anchor's own roster week, then snap back to an even number of
+  // weeks (both measured on the configured weekStart)
+  const anchor = startOfWeek(cfg.fortnightAnchor ?? FORTNIGHT_EPOCH, cfg.weekStart);
+  const weeks = Math.floor(daysBetween(anchor, weekStart) / 7);
+  return addDays(weekStart, weeks % 2 === 0 ? 0 : -7);
 }
 
 /** How many days this period covers. Monthly is the true span to the next

@@ -32,6 +32,7 @@ export type Ctx = { orgId: string; staffId: string | null; today: string };
 
 const periodConfig = (s: Settings): PeriodConfig => ({
   cycle: s.cycle,
+  weekStart: s.weekStart,
   fortnightAnchor: s.fortnightAnchor,
   monthStartDay: s.monthStartDay,
 });

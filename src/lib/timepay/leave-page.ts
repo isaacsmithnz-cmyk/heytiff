@@ -1,0 +1,86 @@
+import { todayInAu } from "@/lib/au-dates";
+import { timepayContext } from "./page-data";
+import { getPaySettings } from "./query";
+import {
+  approvedInSpan,
+  holidaysInSpan,
+  myBalances,
+  myRequests,
+  pendingRequests,
+  stateFor,
+} from "./leave-query";
+import { addDays } from "./period";
+import {
+  balanceView,
+  calendarDays,
+  type BalanceView,
+  type CalendarDay,
+  type LeaveRequest,
+} from "./leave";
+
+/* Page loaders for the two leave surfaces, so My leave and the team Leave tab
+   agree on today, the standard day and the holiday calendar. */
+
+export type MyLeaveData = {
+  today: string;
+  standard: number;
+  balances: BalanceView[];
+  requests: LeaveRequest[];
+  holidays: { date: string; name: string }[]; // upcoming, for the request helper + list
+};
+
+export async function loadMyLeave(): Promise<MyLeaveData | null> {
+  const ctx = await timepayContext();
+  if (!ctx?.staffId) return null;
+
+  const horizon = addDays(ctx.today, 120); // a quarter ahead is enough to plan against
+  const [{ settings }, balances, requests, state] = await Promise.all([
+    getPaySettings(ctx.orgId),
+    myBalances(ctx.orgId, ctx.staffId),
+    myRequests(ctx.orgId, ctx.staffId),
+    stateFor(ctx.orgId, ctx.staffId),
+  ]);
+  const holidays = await holidaysInSpan(ctx.orgId, state, ctx.today, horizon);
+
+  return {
+    today: ctx.today,
+    standard: settings.standard,
+    balances: balances.map((b) => balanceView(b, requests)),
+    requests,
+    holidays,
+  };
+}
+
+export type TeamLeaveData = {
+  today: string;
+  pending: LeaveRequest[];
+  calendar: CalendarDay[];
+  spanStart: string;
+  spanEnd: string;
+  holidays: { date: string; name: string }[];
+};
+
+export async function loadTeamLeave(): Promise<TeamLeaveData | null> {
+  const ctx = await timepayContext();
+  if (!ctx) return null;
+
+  // the calendar shows a rolling window: a week back for context, a quarter on
+  const spanStart = addDays(ctx.today, -7);
+  const spanEnd = addDays(ctx.today, 90);
+  const [pending, approved] = await Promise.all([
+    pendingRequests(ctx.orgId),
+    approvedInSpan(ctx.orgId, spanStart, spanEnd),
+  ]);
+  // the org's own state drives the holiday overlay on the shared calendar
+  const orgState = await stateFor(ctx.orgId, "");
+  const holidays = await holidaysInSpan(ctx.orgId, orgState, spanStart, spanEnd);
+
+  return {
+    today: ctx.today,
+    pending,
+    calendar: calendarDays(approved, spanStart, spanEnd),
+    spanStart,
+    spanEnd,
+    holidays,
+  };
+}

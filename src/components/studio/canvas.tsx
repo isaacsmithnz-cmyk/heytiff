@@ -349,7 +349,8 @@ type Drag =
   | { kind: "point"; id: string; startWorld: Point; orig: Point }
   | { kind: "crop"; sheetId: string; start: Point }
   | { kind: "north-move"; startWorld: Point; orig: { x: number; y: number } }
-  | { kind: "north-rotate"; center: { x: number; y: number } };
+  | { kind: "north-rotate"; center: { x: number; y: number } }
+  | { kind: "unit-rotate"; id: string; center: Point };
 
 /** Re-derive every non-locked room's orientation from the new north bearing
     (DUCTR autoDetectOrientations). Manual per-room overrides (orientationLocked)
@@ -627,7 +628,32 @@ export function StudioCanvas({
   const [liveNorth, setLiveNorth] = useState<{ pos: { x: number; y: number }; deg: number } | null>(null);
   /* live crop rectangle while dragging a crop over a sheet */
   const [liveCrop, setLiveCrop] = useState<{ sheetId: string; a: Point; b: Point } | null>(null);
+  /* live unit rotation while dragging its knob, committed on pointer-up */
+  const [liveRotate, setLiveRotate] = useState<{ id: string; deg: number } | null>(null);
   const northArrow = liveNorth ?? (floor.northPos ? { pos: floor.northPos, deg: floor.northDeg ?? 0 } : null);
+
+  /* Rotating a placed SIMPLE unit — a wall head, floor console or outdoor
+     unit, which is just a glyph on the plan. Ducted AHUs are excluded: their
+     orientation drives the supply/return faces, attached plenums and pipe
+     endpoints, so rotating them is a separate air-side job. */
+  type UnitObj = (typeof units)[number];
+  const isSimpleUnit = (o: UnitObj) => !ahuRow(o);
+  const unitRotDeg = (o: UnitObj) =>
+    liveRotate?.id === o.id ? liveRotate.deg : o.geometry.rotation ?? 0;
+  /* the rotate knob's world position: local "up" (top of the footprint plus a
+     gap) turned by the unit's current angle — the same sin/-cos the north
+     knob uses, so the grab target tracks the on-screen handle */
+  const unitRotKnob = (o: UnitObj) => {
+    const at = pointAt(o);
+    const fp = footprint(Number(o.props.widthMm ?? 800), Number(o.props.depthMm ?? 300));
+    const gap = fp.h / 2 + grid * 0.55;
+    const rad = (unitRotDeg(o) * Math.PI) / 180;
+    return {
+      at,
+      gap,
+      knob: { x: at.x + Math.sin(rad) * gap, y: at.y - Math.cos(rad) * gap },
+    };
+  };
 
   useEffect(() => {
     let on = true;
@@ -1030,6 +1056,28 @@ export function StudioCanvas({
         // discard an in-progress wall-marking (a fresh draft makes no room)
         setWallSelect(null);
       }
+      // [ / ] rotate the selected simple unit in 90° steps
+      if ((e.key === "[" || e.key === "]") && !isTyping(e) && selectedId) {
+        const u = units.find((x) => x.id === selectedId);
+        if (u && u.type === "unit" && !ahuRow(u) && u.geometry.kind === "point") {
+          e.preventDefault();
+          const step = e.key === "]" ? 90 : -90;
+          onMutate((d) => ({
+            ...d,
+            objects: d.objects.map((o) =>
+              o.id === selectedId && o.geometry.kind === "point"
+                ? {
+                    ...o,
+                    geometry: {
+                      ...o.geometry,
+                      rotation: ((((o.geometry.rotation ?? 0) + step) % 360) + 360) % 360,
+                    },
+                  }
+                : o
+            ),
+          }));
+        }
+      }
       if ((e.key === "Delete" || e.key === "Backspace") && !isTyping(e) && selectedId) {
         e.preventDefault();
         onMutate((d) => {
@@ -1066,7 +1114,7 @@ export function StudioCanvas({
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
     };
-  }, [selectedId, onMutate, onSelect]);
+  }, [selectedId, onMutate, onSelect, units, ahuRow]);
 
   /* ── document intents ── */
   /* A closed boundary doesn't create a room outright — it opens wall-marking
@@ -1508,6 +1556,18 @@ export function StudioCanvas({
             break;
           }
         }
+        // rotate knob on the selected simple unit — grab it before the body,
+        // so the knob rotates and the footprint still moves (screen-space test)
+        if (selectedId) {
+          const su = units.find((u) => u.id === selectedId);
+          if (su && isSimpleUnit(su)) {
+            const ks = worldToScreen(unitRotKnob(su).knob, vp);
+            if (dist(worldToScreen(w, vp), ks) <= 14) {
+              setDrag({ kind: "unit-rotate", id: su.id, center: pointAt(su) });
+              break;
+            }
+          }
+        }
         const sys = hitSystemObject(w);
         if (sys) {
           onSelect(sys.id);
@@ -1730,6 +1790,15 @@ export function StudioCanvas({
         setLiveNorth({ pos: drag.center, deg });
         break;
       }
+      case "unit-rotate": {
+        const c = worldToScreen(drag.center, vp);
+        const s = worldToScreen(w, vp);
+        let deg = ((Math.atan2(s.x - c.x, -(s.y - c.y)) * 180) / Math.PI + 360) % 360;
+        // Shift snaps to 15° while dragging; 90° steps live on the keyboard
+        if (e.shiftKey) deg = (Math.round(deg / 15) * 15) % 360;
+        setLiveRotate({ id: drag.id, deg });
+        break;
+      }
     }
   };
 
@@ -1849,6 +1918,18 @@ export function StudioCanvas({
         objects: redetectOrientations(d.objects, floor.id, deg),
       }));
       setLiveNorth(null);
+    }
+    if (drag.kind === "unit-rotate" && liveRotate) {
+      const { id, deg } = liveRotate;
+      onMutate((d) => ({
+        ...d,
+        objects: d.objects.map((o) =>
+          o.id === id && o.geometry.kind === "point"
+            ? { ...o, geometry: { ...o.geometry, rotation: deg } }
+            : o
+        ),
+      }));
+      setLiveRotate(null);
     }
     if (drag.kind === "crop" && liveCrop) {
       const { sheetId, a, b } = liveCrop;
@@ -2211,12 +2292,17 @@ export function StudioCanvas({
             const ends = air ? ahuEnds.filter((e) => e.unit.id === u.id) : [];
             const sockD = 150 * perMm;
             const builtInD = 350 * perMm; // engine's default plenum depth
+            const rot = unitRotDeg(u); // simple units only; AHUs stay at 0
+            const rk = u.id === selectedId && isSimpleUnit(u) ? unitRotKnob(u) : null;
             return (
               <g
                 key={u.id}
                 className={`ds-unit${u.id === selectedId ? " sel" : ""}`}
                 style={{ color: colour }}
               >
+                {/* only the glyph (and, on AHUs, its air side) turns — the text
+                    labels below stay upright */}
+                <g transform={rot ? `rotate(${rot} ${at.x} ${at.y})` : undefined}>
                 {unitGlyph(at.x, at.y, fp.w, fp.h, String(u.props.role ?? "idu"), zoom)}
                 {(() => {
                   /* the airflow arrow + face labels appear only ONCE the unit
@@ -2308,6 +2394,7 @@ export function StudioCanvas({
                     />
                   );
                 })}
+                </g>
                 {layers.labels && (
                   <>
                     <text x={at.x} y={at.y + 4 / zoom} fontSize={11 / zoom} className="ds-unit-role">
@@ -2323,6 +2410,36 @@ export function StudioCanvas({
                     </text>
                   </>
                 )}
+                {rk && (() => {
+                  // the handle: a stem from the footprint's turned top edge out
+                  // to a grab knob (drag to spin, Shift snaps 15°; [ / ] step 90°)
+                  const rad = (rot * Math.PI) / 180;
+                  const edge = {
+                    x: at.x + Math.sin(rad) * (fp.h / 2),
+                    y: at.y - Math.cos(rad) * (fp.h / 2),
+                  };
+                  return (
+                    <g className="ds-rot-knob">
+                      <line
+                        x1={edge.x}
+                        y1={edge.y}
+                        x2={rk.knob.x}
+                        y2={rk.knob.y}
+                        stroke="currentColor"
+                        strokeWidth={1.5 / zoom}
+                        strokeDasharray={`${3 / zoom} ${3 / zoom}`}
+                      />
+                      <circle
+                        cx={rk.knob.x}
+                        cy={rk.knob.y}
+                        r={6 / zoom}
+                        fill="#fff"
+                        stroke="currentColor"
+                        strokeWidth={1.5 / zoom}
+                      />
+                    </g>
+                  );
+                })()}
               </g>
             );
           })}

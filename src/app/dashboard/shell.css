@@ -1645,3 +1645,22 @@ select.fl-i { cursor:pointer; }
 .fg .lv-caldate { min-width:120px; font-size:13px; font-weight:700; color:var(--ink); }
 .fg .lv-calnames { display:flex; flex-wrap:wrap; gap:5px; }
 @media (max-width:820px){ .fg .lv-cols { grid-template-columns:1fr; } }
+
+/* ---- public holidays: timesheet badges + upcoming panel + admin manager ---- */
+.fg .mts-day.holiday { border-color:rgba(0,163,137,.32); background:rgba(0,163,137,.04); }
+.fg .mts-hbadge { display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:8px; background:rgba(0,163,137,.12); color:var(--teal-d); font-size:11px; font-weight:800; white-space:nowrap; }
+.fg .mts-hols { margin-top:22px; border:1px solid rgba(10,11,16,.08); border-radius:16px; overflow:hidden; }
+.fg .mts-holh { display:flex; align-items:center; gap:8px; padding:12px 16px; font-size:12.5px; font-weight:800; color:var(--gray700); text-transform:uppercase; letter-spacing:.04em; background:#fafbfc; border-bottom:1px solid rgba(10,11,16,.06); }
+.fg .mts-hollist { display:flex; flex-direction:column; }
+.fg .mts-hol { display:flex; align-items:center; gap:12px; padding:11px 16px; border-bottom:1px solid rgba(10,11,16,.05); }
+.fg .mts-hol.next { background:rgba(0,163,137,.06); }
+.fg .mts-hol b { font-size:13px; font-weight:800; color:var(--ink); min-width:120px; }
+.fg .mts-hol em { flex:1; font-style:normal; font-size:12.5px; font-weight:600; color:var(--gray500); }
+.fg .mts-holnext { font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--teal-d); background:rgba(0,163,137,.12); padding:3px 9px; border-radius:7px; }
+.fg .hol-intro { max-width:640px; font-size:13.5px; font-weight:500; color:var(--gray500); line-height:1.55; margin:0 0 20px; }
+.fg .hol-year { border:1px solid rgba(10,11,16,.08); border-radius:16px; overflow:hidden; margin-top:16px; }
+.fg .hol-row { display:flex; align-items:center; gap:12px; padding:11px 16px; border-bottom:1px solid rgba(10,11,16,.05); }
+.fg .hol-date { min-width:150px; font-size:13px; font-weight:700; color:var(--ink); }
+.fg .hol-name { flex:1; font-size:13.5px; font-weight:600; color:var(--gray700); }
+.fg .hol-src { font-size:11px; font-weight:700; color:var(--gray400); text-transform:capitalize; }
+.fg .hol-src.synced { color:var(--teal-d); }

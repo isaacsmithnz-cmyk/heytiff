@@ -31,6 +31,8 @@ export default async function AdminPage() {
         canFinancials,
         // org settings are owner-intrinsic (co-owners included), not a capability
         canOrgSettings: hasMinRole(role, "owner"),
+        // the holiday calendar is a manager tool — admin+, like the section
+        canHolidays: hasMinRole(role, "admin"),
       })}
     />
   );

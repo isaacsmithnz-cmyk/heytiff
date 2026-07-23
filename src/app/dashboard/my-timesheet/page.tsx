@@ -32,10 +32,12 @@ export default async function MyTimesheetPage({
       me={data.me}
       week={data.week}
       today={data.today}
+      todayISO={data.todayISO}
       periodStart={data.periodStart}
       periodLabel={data.periodLabel}
       settings={data.settings}
       sheet={data.sheet}
+      holidays={data.holidays}
     />
   );
 }

@@ -6,6 +6,7 @@ import {
   leaveDates,
   shortfall,
   suggestedHours,
+  upcomingHolidays,
   type LeaveBalance,
   type LeaveRequest,
 } from "../leave";
@@ -112,6 +113,32 @@ describe("shortfall — the request guard", () => {
 
   it("never restricts unpaid leave", () => {
     expect(shortfall("unpaid", 999, [], [])).toBe(0);
+  });
+});
+
+describe("upcoming holidays", () => {
+  const hols = [
+    { date: "2026-01-01", name: "New Year's Day" },
+    { date: "2026-01-26", name: "Australia Day" },
+    { date: "2026-12-25", name: "Christmas Day" },
+  ];
+
+  it("drops past dates and keeps today onward, soonest first", () => {
+    const up = upcomingHolidays(hols, "2026-01-26");
+    expect(up.map((h) => h.date)).toEqual(["2026-01-26", "2026-12-25"]); // today included, NYD gone
+  });
+
+  it("returns everything when today is before them all", () => {
+    expect(upcomingHolidays(hols, "2025-12-31")).toHaveLength(3);
+  });
+
+  it("sorts out-of-order input", () => {
+    const shuffled = [hols[2], hols[0], hols[1]];
+    expect(upcomingHolidays(shuffled, "2026-01-01").map((h) => h.date)).toEqual([
+      "2026-01-01",
+      "2026-01-26",
+      "2026-12-25",
+    ]);
   });
 });
 

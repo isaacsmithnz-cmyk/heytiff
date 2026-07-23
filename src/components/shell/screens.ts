@@ -86,13 +86,15 @@ export function adminHtml(opts: {
   canFinancials: boolean;
   /** owner-intrinsic: the organisation profile card */
   canOrgSettings?: boolean;
+  /** admin+: the public-holiday calendar (Time & Pay reads it) */
+  canHolidays?: boolean;
 }) {
-  const { canInvite, canFinancials, canOrgSettings = false } = opts;
+  const { canInvite, canFinancials, canOrgSettings = false, canHolidays = false } = opts;
   const head =
     '<div class="v2head" style="margin-bottom:32px"><div>' +
     '<h1 style="font-size:44px;font-weight:800;letter-spacing:-0.03em;margin:0">Admin</h1></div></div>';
 
-  if (!canInvite && !canFinancials && !canOrgSettings) {
+  if (!canInvite && !canFinancials && !canOrgSettings && !canHolidays) {
     return (
       '<div class="wrap"><div class="stg">' +
       head +
@@ -142,6 +144,19 @@ export function adminHtml(opts: {
     I("arrowR", 16) +
     "</span></a>";
 
+  const holidayCard =
+    '<a href="/dashboard/admin/holidays" class="spot" style="display:block;text-decoration:none;background:#fff;border-radius:24px;border:1px solid #f0f0f2;box-shadow:0 8px 30px rgba(0,0,0,.03);padding:32px;max-width:520px">' +
+    '<span class="sglow"></span>' +
+    '<div style="display:flex;align-items:center;gap:16px;margin-bottom:16px">' +
+    '<div style="width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:rgba(0,163,137,0.08);border:1px solid rgba(0,163,137,0.25);color:#00A389;flex:0 0 auto">' +
+    I("calendar", 22) +
+    "</div>" +
+    '<div><div style="font-size:18px;font-weight:800;color:#050505">Public holidays</div>' +
+    '<div style="font-size:13px;color:#6b7280;font-weight:500">Keep your state&rsquo;s dates current — staff see them on timesheets</div></div></div>' +
+    '<span style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:12px;background:#050505;color:#fff;font-size:14px;font-weight:700">Manage calendar ' +
+    I("arrowR", 16) +
+    "</span></a>";
+
   const group = (label: string, card: string, first: boolean) =>
     `<div style="font-size:11px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#9ca3af;margin:${first ? "0 0 16px" : "32px 0 16px"}">${label}</div>` +
     card;
@@ -149,6 +164,7 @@ export function adminHtml(opts: {
   const groups: string[] = [];
   if (canOrgSettings) groups.push(group("Business", orgCard, groups.length === 0));
   if (canInvite) groups.push(group("Team", inviteCard, groups.length === 0));
+  if (canHolidays) groups.push(group("Time & Pay", holidayCard, groups.length === 0));
   if (canFinancials) groups.push(group("Tools", rateCalcCard, groups.length === 0));
 
   return '<div class="wrap"><div class="stg">' + head + groups.join("") + "</div></div>";

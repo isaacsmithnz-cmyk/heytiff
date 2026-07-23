@@ -118,9 +118,12 @@ export async function approvedInSpan(
   return ((data ?? []) as Record<string, unknown>[]).map((r) => toRequest(r, name));
 }
 
-/** Public-holiday dates for a state within a span (for suggested-hours + the
-    calendar). Empty until the holiday table is seeded — never guessed. */
+/** Public-holiday dates for this org + state within a span (for suggested-hours,
+    the leave calendar and the timesheet). The calendar is per-org, so it
+    reflects the days THIS business closes for. Empty until seeded/entered —
+    never guessed. */
 export async function holidaysInSpan(
+  orgId: string,
   state: string | null,
   spanStart: string,
   spanEnd: string,
@@ -129,6 +132,7 @@ export async function holidaysInSpan(
   const { data } = await supabaseAdmin
     .from("public_holidays")
     .select("holiday_date, name")
+    .eq("org_id", orgId)
     .eq("state", state)
     .gte("holiday_date", spanStart)
     .lte("holiday_date", spanEnd)
@@ -146,6 +150,26 @@ async function orgState(orgId: string): Promise<string | null> {
     .eq("id", orgId)
     .maybeSingle();
   return (data?.state as string) ?? null;
+}
+
+export type Holiday = { id: string; state: string; date: string; name: string; source: string };
+
+/** Every holiday in the org's calendar from `fromISO` on — the admin manager's
+    list. All states, so a multi-state business sees the whole picture. */
+export async function listOrgHolidays(orgId: string, fromISO: string): Promise<Holiday[]> {
+  const { data } = await supabaseAdmin
+    .from("public_holidays")
+    .select("id, state, holiday_date, name, source")
+    .eq("org_id", orgId)
+    .gte("holiday_date", fromISO)
+    .order("holiday_date");
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    id: String(r.id),
+    state: String(r.state),
+    date: String(r.holiday_date).slice(0, 10),
+    name: String(r.name),
+    source: String(r.source),
+  }));
 }
 
 /** The state whose holiday calendar applies to a staff member (theirs, else

@@ -134,6 +134,14 @@ export function shortfall(
   return Math.max(0, Math.round((hours - available) * 100) / 100);
 }
 
+/* ---- public holidays (display helpers) ---- */
+
+/** Holidays still to come, soonest first — the timesheet panel's list. The
+    first is "the next day off"; past holidays drop away. */
+export function upcomingHolidays<T extends { date: string }>(list: T[], todayISO: string): T[] {
+  return list.filter((h) => h.date >= todayISO).sort((a, b) => a.date.localeCompare(b.date));
+}
+
 /* ---- calendar ---- */
 
 export type CalendarDay = { date: string; entries: { staffId: string; staffName: string; kind: LeaveKind }[] };

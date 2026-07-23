@@ -40,7 +40,7 @@ export async function loadMyLeave(): Promise<MyLeaveData | null> {
     myRequests(ctx.orgId, ctx.staffId),
     stateFor(ctx.orgId, ctx.staffId),
   ]);
-  const holidays = await holidaysInSpan(state, ctx.today, horizon);
+  const holidays = await holidaysInSpan(ctx.orgId, state, ctx.today, horizon);
 
   return {
     today: ctx.today,
@@ -73,7 +73,7 @@ export async function loadTeamLeave(): Promise<TeamLeaveData | null> {
   ]);
   // the org's own state drives the holiday overlay on the shared calendar
   const orgState = await stateFor(ctx.orgId, "");
-  const holidays = await holidaysInSpan(orgState, spanStart, spanEnd);
+  const holidays = await holidaysInSpan(ctx.orgId, orgState, spanStart, spanEnd);
 
   return {
     today: ctx.today,

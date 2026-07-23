@@ -12,7 +12,9 @@ import {
   type SheetState,
 } from "./query";
 import {
+  addDays,
   periodDays,
+  periodEnd,
   periodLabel,
   periodStartFor,
   periodYear,
@@ -20,6 +22,7 @@ import {
   todayIndex,
   type PeriodConfig,
 } from "./period";
+import { holidaysInSpan, stateFor } from "./leave-query";
 
 /* Shared page loading for both Time & Pay routes, so the *my* screen and the
    *all* screen can't disagree about which period it is or what the rules are.
@@ -72,9 +75,14 @@ export async function loadMyTimesheet(requested?: string) {
   const { settings } = await getPaySettings(ctx.orgId);
   const cfg = periodConfig(settings);
   const { start, periods, index } = resolvePeriod(ctx.today, cfg, requested);
-  const [me, sheets] = await Promise.all([
+  const state = await stateFor(ctx.orgId, ctx.staffId);
+  // one query covers both jobs: mark holidays that fall in the shown period,
+  // and list the upcoming ones (out to a quarter ahead)
+  const spanStart = start < ctx.today ? start : ctx.today;
+  const [me, sheets, holidays] = await Promise.all([
     getMyWeek(ctx.orgId, ctx.staffId, start, cfg),
     sheetStates(ctx.orgId, start),
+    holidaysInSpan(ctx.orgId, state, spanStart, addDays(ctx.today, 120)),
   ]);
   if (!me) return null;
 
@@ -83,9 +91,12 @@ export async function loadMyTimesheet(requested?: string) {
     settings,
     week: periodDays(start, cfg),
     today: todayIndex(start, ctx.today, cfg),
+    todayISO: ctx.today,
     periodStart: start,
+    periodEnd: periodEnd(start, cfg),
     periodLabel: `${periods[index].range} ${periods[index].year}`,
     sheet: sheets.get(ctx.staffId) ?? EMPTY_SHEET,
+    holidays,
   };
 }
 

@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { saveDay, submitWeek, type TimepayResult } from "@/app/actions/timepay";
 import type { SheetState } from "@/lib/timepay/query";
+import { dateOfDay } from "@/lib/timepay/period";
+import { upcomingHolidays } from "@/lib/timepay/leave";
 import {
   type DayEntry,
   type Settings,
@@ -34,6 +36,18 @@ const KINDS: { t: DayEntry["t"]; label: string }[] = [
   { t: "empty", label: "Nothing" },
 ];
 
+/** "Mon 25 Dec" for a holiday date. */
+function fmtHolidayDate(iso: string): string {
+  return new Intl.DateTimeFormat("en-AU", {
+    timeZone: "UTC",
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  })
+    .format(new Date(`${iso}T00:00:00Z`))
+    .replace(",", "");
+}
+
 const STATUS_COPY: Record<SheetState["status"], { label: string; tone: string; sub: string }> = {
   draft: { label: "Draft", tone: "warn", sub: "Not sent yet — fill in your days and submit." },
   submitted: { label: "Submitted", tone: "ok", sub: "With your manager. You'll be told if anything needs a look." },
@@ -47,6 +61,7 @@ function DayRow({
   ctx,
   settings,
   locked,
+  holidayName,
   onSave,
 }: {
   index: number;
@@ -54,6 +69,8 @@ function DayRow({
   ctx: WeekCtx;
   settings: Settings;
   locked: boolean;
+  /** set when this day is a public holiday — shown as a badge on the row */
+  holidayName?: string;
   onSave: (i: number, e: DayEntry) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -86,9 +103,15 @@ function DayRow({
   };
 
   return (
-    <div className={`mts-day ${cls}`}>
+    <div className={`mts-day ${cls}${holidayName ? " holiday" : ""}`}>
       <div className="mts-dh">
         <span className="mts-dlab">{dayLabel(ctx.week[index])}</span>
+        {holidayName && (
+          <span className="mts-hbadge" title={holidayName}>
+            <Icon name="calendar" size={11} />
+            {holidayName}
+          </span>
+        )}
         <span className="mts-dsum">{summary}</span>
         {!locked && (
           <button className="mts-edit" onClick={() => setOpen(!open)}>
@@ -151,18 +174,23 @@ export function MyTimesheet({
   me,
   week,
   today,
+  todayISO,
   periodStart,
   periodLabel,
   settings,
   sheet,
+  holidays,
 }: {
   me: StaffWeek;
   week: WeekCtx["week"];
   today: number;
+  todayISO: string;
   periodStart: string;
   periodLabel: string;
   settings: Settings;
   sheet: SheetState;
+  /** org holidays for this staff member's state — period + upcoming */
+  holidays: { date: string; name: string }[];
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -173,6 +201,11 @@ export function MyTimesheet({
   const multiWeek = groups.length > 1; // fortnight / month read as week-rows
   const locked = sheet.status === "submitted" || sheet.status === "approved";
   const status = STATUS_COPY[sheet.status];
+
+  const holidayByDate = useMemo(() => new Map(holidays.map((h) => [h.date, h.name])), [holidays]);
+  // in-period holidays badge the grid; the panel lists what's still to come, the
+  // nearest one highlighted so "the next day off" is obvious at a glance
+  const upcoming = useMemo(() => upcomingHolidays(holidays, todayISO), [holidays, todayISO]);
 
   const run = (action: () => Promise<TimepayResult>) => {
     setError(null);
@@ -246,6 +279,7 @@ export function MyTimesheet({
                     ctx={ctx}
                     settings={settings}
                     locked={locked || pending}
+                    holidayName={holidayByDate.get(dateOfDay(periodStart, index))}
                     onSave={(idx, e) => run(() => saveDay(periodStart, idx, e))}
                   />
                 ))}
@@ -266,6 +300,24 @@ export function MyTimesheet({
               </button>
             )}
           </div>
+
+          {upcoming.length > 0 && (
+            <div className="mts-hols">
+              <div className="mts-holh">
+                <Icon name="calendar" size={14} />
+                Public holidays coming up
+              </div>
+              <div className="mts-hollist">
+                {upcoming.slice(0, 6).map((h, i) => (
+                  <div className={`mts-hol${i === 0 ? " next" : ""}`} key={h.date}>
+                    <b>{fmtHolidayDate(h.date)}</b>
+                    <em>{h.name}</em>
+                    {i === 0 && <span className="mts-holnext">Next</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

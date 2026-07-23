@@ -188,6 +188,21 @@
 .fg .hero h1 span { background:linear-gradient(90deg,#fff,#fff,rgba(255,255,255,.6)); -webkit-background-clip:text; background-clip:text; color:transparent; }
 .fg .hero .lede { font-size:16px; color:rgba(255,255,255,.5); max-width:512px; line-height:1.6; margin:0 0 40px; font-weight:500; }
 .fg .hero .lede b { color:#fff; font-weight:700; }
+
+/* ---- Dashboard home: action-required / roster / payroll section rows.
+   Additive only — reuses the existing .card2 / .c2h / .dchip2 primitives. ---- */
+.fg .dash-sub { font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--gray400); margin:4px 2px 12px; }
+.fg .dash-sub:not(:first-of-type) { margin-top:22px; }
+.fg .dash-row { display:flex; align-items:center; gap:14px; padding:13px 16px; border:1px solid #f0f0f2; border-radius:16px; text-decoration:none; color:inherit; }
+.fg .dash-row + .dash-row { margin-top:8px; }
+.fg a.dash-row { transition:border-color .15s, background .15s; }
+.fg a.dash-row:hover { border-color:#e2e4ea; background:#fafbfc; }
+.fg .dash-row .dr-subj { font-size:14px; font-weight:700; color:var(--ink); }
+.fg .dash-row .dr-detail { font-size:13px; font-weight:500; color:var(--gray400); }
+.fg .dash-row .dr-chev { margin-left:auto; color:#c3c8d2; flex:0 0 auto; display:flex; }
+.fg .dash-ph { display:flex; align-items:center; gap:10px; padding:14px 16px; border-radius:16px; background:rgba(46,104,255,.06); border:1px solid rgba(46,104,255,.16); color:#1f4bd8; font-weight:700; font-size:13.5px; margin-bottom:12px; }
+.fg .dash-mini { font-size:13px; font-weight:500; color:var(--gray400); padding:4px 2px; }
+
 .fg .hstats { display:flex; flex-wrap:wrap; gap:20px; }
 .fg .hstat { position:relative; overflow:hidden; display:flex; flex-direction:column; justify-content:center; min-width:200px; padding:24px 28px; border-radius:24px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.1); backdrop-filter:blur(8px); transition:background .3s; }
 .fg .hstat:hover { background:rgba(255,255,255,.06); }

@@ -162,7 +162,7 @@ export const NODES: MapNode[] = [
     group: "People & AI",
     blurb: "Staff profiles, roles and the invite flow.",
     detail:
-      "The directory itself still reads demo staff records, but invites are real: sending one writes the invitations table, accepting creates a membership.",
+      "The directory reads real staff_profiles; invites write the invitations table and accepting creates a membership.",
     href: "/dashboard/team",
     paths: ["src/components/team", "src/app/actions/invite.ts"],
   },
@@ -173,7 +173,7 @@ export const NODES: MapNode[] = [
     group: "People & AI",
     blurb: "The assistant + its four-category knowledge library.",
     detail:
-      "Install procedures, fault codes, specs and SOPs drive the sidebar. Documents are demo content until uploads land.",
+      "Install procedures, fault codes, specs and SOPs drive the sidebar. The library is empty until real uploads land (Documents/storage track).",
     href: "/dashboard/tiff",
     paths: ["src/components/tiff"],
   },
@@ -319,16 +319,6 @@ export const NODES: MapNode[] = [
     paths: ["data/packs"],
   },
   {
-    id: "demo",
-    name: "Demo & local data",
-    kind: "store",
-    group: "Files & local",
-    blurb: "mock/demo.ts records + localStorage stand-in backends.",
-    detail:
-      "What Team, Tiff's library and Time & Pay run on today. Each edge into this node is a future migration to a real table.",
-    paths: ["src/mock/demo.ts"],
-  },
-  {
     id: "auth0",
     name: "Auth0",
     kind: "external",
@@ -358,12 +348,9 @@ export const EDGES: MapEdge[] = [
   { from: "rate", to: "eng-rate", label: "cost build-up → charge-out rates" },
   { from: "rate", to: "db-rate", label: "saves calculator state per org" },
   { from: "rate", to: "timepay", label: "pull real wages & hours into rate inputs", status: "planned" },
-  { from: "timepay", to: "demo", label: "timesheets & pay settings in localStorage" },
 
   /* people & AI */
-  { from: "team", to: "demo", label: "directory reads demo staff records" },
   { from: "team", to: "db-accounts", label: "invites written; accepting creates membership" },
-  { from: "tiff", to: "demo", label: "knowledge docs are demo content for now" },
 
   /* HQ portal */
   { from: "hq-overview", to: "eng-auth", label: "HQ_EMAILS allowlist guards all of /hq" },

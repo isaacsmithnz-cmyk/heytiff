@@ -4,10 +4,13 @@
 
 import { iconSvg as I } from "./icon";
 
-/* ---------------- DASHBOARD (home) — greeting hero ---------------- */
-export function homeHtml(opts: { greeting: string; firstName: string; date: string }) {
+/* ---------------- DASHBOARD (home) — greeting hero ----------------
+   heroHtml is just the hero block; the React dashboard (which renders live
+   chips/roster/payroll sections beneath it) reuses it so the greeting stays
+   byte-identical to the original. homeHtml wraps it for anything still rendering
+   the static screen. */
+export function heroHtml(opts: { greeting: string; firstName: string; date: string }) {
   return (
-    '<div class="wrap"><div class="stg">' +
     '<div class="hero"><div class="mesh"><i class="m1"></i><i class="m2"></i><i class="m3"></i></div>' +
     '<div class="hrow"><div class="hlead">' +
     '<div class="pill">' +
@@ -16,9 +19,12 @@ export function homeHtml(opts: { greeting: string; firstName: string; date: stri
     "</div>" +
     `<h1>${opts.greeting},<br><span>${opts.firstName}.</span></h1>` +
     '<p class="lede">Welcome back. Your workspace is ready.</p>' +
-    "</div></div></div>" +
-    "</div></div>"
+    "</div></div></div>"
   );
+}
+
+export function homeHtml(opts: { greeting: string; firstName: string; date: string }) {
+  return '<div class="wrap"><div class="stg">' + heroHtml(opts) + "</div></div>";
 }
 
 /* ---------------- TOOLBOX ----------------

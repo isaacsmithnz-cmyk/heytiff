@@ -37,6 +37,66 @@ plausible-looking invented number is far worse than a visible gap: the engine is
 built so that gaps are safe (an incomplete row is simply never offered), and
 invented numbers are not.
 
+**Staff may enter figures the book doesn't publish; you may not.** Some rows
+carry `provenance.kind: "user-entered"` — an owner's judgement call, labelled so
+the app can say "not manufacturer documentation for this model". Those rows are
+not a precedent for you. An extraction agent writes `extracted` values or
+nothing: absent stays absent, and the gap goes in your report.
+
+## 1b. Read the PDF, never a screenshot
+
+Every extraction error made on this pack so far came from reading a page image
+instead of the source PDF. Three in one session: two model-code misreads and a
+convention misread, each caught within minutes of opening the book.
+
+**If the PDF is on disk, open it.** Do not extract from a pasted image, a
+screenshot, or a photo — not to save time, not when the figure "looks obvious".
+Ask for the file instead.
+
+The recipe, cheap enough that there is no excuse (times are for a 1596-page,
+124 MB book):
+
+```bash
+pdftotext -layout book.pdf out.txt          # ~20 s; gives you a searchable text layer
+pdftoppm -r 400 -png -f N -l N \
+  -x 3150 -y 800 -W 1500 -H 1700 book.pdf crop   # crop-zoom before believing a dimension
+```
+
+- **Map printed folio → PDF page once, and verify it.** The offset is constant
+  within a section (it was +1083 for section 3 of the City Multi book) but you
+  must confirm it against several known folios before trusting it.
+- **Confirm the title block AND the model table** of every page you cite — not
+  the drawing. Model codes one letter apart (`VMH-E` / `VMHS-E` / `VMHS-E-F`)
+  are indistinguishable at screen resolution and their outlines are nearly
+  identical. Grep the text layer for the exact code before writing a value.
+- **A code in a page footer may be a SECTION code, not the book's.** Folios
+  3-205…3-228 of `MEES21K067` print `MEES21K026`. A differing code is not
+  evidence of a different document.
+- **Check what a dimension is attached to, not just its value.** On the VMR-E
+  outline the `105` sits near the air outlet but is dimensioned against "439
+  (Suspension bolt pitch)" — it is a bolt offset. Follow the leader lines.
+- **Grep before concluding a model is absent, and before concluding it is
+  present.** `PEFY-P·VMH-E` occurs once in 1596 pages, in a controller
+  compatibility list: the family is referenced, but no spec or dimension section
+  covers it.
+
+## 1c. When your reading contradicts the pack, suspect your reading
+
+Existing rows are evidence. If a figure you have just read disagrees with what
+the pack already holds for sibling models, the likeliest explanation is that you
+are reading the wrong column, the wrong row, or the wrong convention — not that
+the existing data is wrong.
+
+The case that proves it: external static is published as a selectable list,
+`50 - <100> - <150> - <200>`. The un-bracketed figure is the factory setting;
+the pack stores the **maximum**. A pass that read the factory setting produced
+150 for two rows whose siblings all held maxima, then concluded the eight
+existing rows were inconsistent. They were correct; the new reading was wrong.
+
+So: derive the convention from the rows already there, state it in your report,
+and if you still believe the pack is wrong, say so in the report rather than
+"fixing" it.
+
 ## 2. Work in passes, not in one gulp
 
 One book, or one series-family, per session. Within it, go section by section in
@@ -160,6 +220,22 @@ Write it in the PR description:
    precedent: a PEFY liquid/gas swap). Flag, transcribe as printed, never
    silently "fix".
 5. **Schema-extension requests** — any method from §3 that didn't fit.
+
+Before you write it, **re-verify your own citations against the PDF** — open
+each page you cited and confirm its title block names the models you wrote to.
+This is the check that catches the errors in §1b, and it is fastest immediately
+after the pass, while you still remember which page was which.
+
+## 9b. If you find an earlier extraction was wrong
+
+Retract it, in its own commit, before doing anything else. Say what was wrong,
+what the correct reading is, and how it was caught. Do not quietly overwrite the
+bad value in a later commit — the review trail is what makes the pack
+trustworthy, and a silent fix looks identical to a silent error.
+
+If a retraction lowers the readiness rollup, that is the correct outcome: the
+rollup was overstating. Never leave a number in place because removing it would
+look like going backwards.
 
 ## 10. Ground rules
 

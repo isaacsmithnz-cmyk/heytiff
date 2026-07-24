@@ -6779,16 +6779,20 @@
 .dstudio .ds-plenum-label {
   fill: currentColor;
   text-anchor: middle;
+  /* centred ON the body, so the label reads as part of the thing it names */
+  dominant-baseline: central;
   font-weight: 700;
   paint-order: stroke;
   stroke: #fff;
   stroke-width: 3px;
 }
 .dstudio .ds-plenum-label.derived { fill: var(--gray500); }
-/* each takeoff's own diameter, sat at the takeoff */
+/* each takeoff's own diameter, centred ON the takeoff */
 .dstudio .ds-spigot-dia {
   fill: currentColor;
   font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: central;
 }
 /* built-in return: integral hatched box fused to the AHU body */
 .dstudio .ds-plenum-builtin {

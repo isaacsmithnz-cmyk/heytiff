@@ -244,9 +244,6 @@ interface PlenumSpigotRect {
   capped: boolean;
   /** its own diameter (mm) — every takeoff is labelled AT the takeoff */
   diaMm: number;
-  /** the outer tip of the stub, where that diameter label hangs */
-  tipX: number;
-  tipY: number;
 }
 interface PlenumShape {
   body: Point[];
@@ -316,8 +313,6 @@ function plenumShape(opts: {
         ny: dir,
         capped: s.capped === true,
         diaMm: s.diaMm,
-        tipX: p.x,
-        tipY: yOut,
       };
     }
     // side spigot: Ø across the sloped edge (in y), stub outward (in x)
@@ -338,19 +333,13 @@ function plenumShape(opts: {
       ny: 0,
       capped: s.capped === true,
       diaMm: s.diaMm,
-      tipX: xOut,
-      tipY: p.y,
     };
   });
 
-  /* the label hangs below EVERYTHING, spigots included. Anchoring it to the
-     body alone put it inside the takeoffs, which stand off the far face by
-     `stub` — the label then read straight through the ducts it was naming. */
-  const lowest = spigots.reduce(
-    (lo, s) => Math.max(lo, ...s.rect.map((p) => p.y)),
-    Math.max(y0, y1)
-  );
-  return { body, spigots, labelAt: { x: cx, y: lowest } };
+  /* the label sits CENTRED ON the plenum body — a label belongs on the thing
+     it names, and centring also keeps it clear of the takeoffs, which stand
+     off the far face rather than over the body. */
+  return { body, spigots, labelAt: { x: cx, y: (y0 + y1) / 2 } };
 }
 
 /** the pack's air-opening for one stream of an indoor unit, or null */
@@ -2595,17 +2584,15 @@ export function StudioCanvas({
                         y2={sp.cy + sp.nx * 4}
                       />
                     )}
-                    {/* the duct size sits ON its own takeoff, where the fitter
-                        is looking — not rolled into one bar under the plenum
-                        that has to be read back against the drawing to work
-                        out which duct is which. Sides read outboard; front
-                        reads past the tip, following the outward normal. */}
+                    {/* the duct size sits ON its own takeoff, centred, where
+                        the fitter is already looking — not rolled into one bar
+                        under the plenum that has to be read back against the
+                        drawing to work out which duct is which. */}
                     {layers.labels && (
                       <text
                         className="ds-spigot-dia"
-                        x={sp.tipX + sp.nx * (7 / labelZoom)}
-                        y={sp.tipY + sp.ny * (10 / labelZoom) + (sp.ny === 0 ? 3 / labelZoom : 0)}
-                        textAnchor={sp.nx === 0 ? "middle" : sp.nx > 0 ? "start" : "end"}
+                        x={sp.cx}
+                        y={sp.cy}
                         fontSize={9 / labelZoom}
                       >
                         {formatDia(sp.diaMm, doc.settings.units)}
@@ -2617,7 +2604,7 @@ export function StudioCanvas({
                   <text
                     className={`ds-plenum-label${s.derived ? " derived" : ""}`}
                     x={s.labelAt.x}
-                    y={s.labelAt.y + 13 / labelZoom}
+                    y={s.labelAt.y}
                     fontSize={10 / labelZoom}
                   >
                     {s.label}

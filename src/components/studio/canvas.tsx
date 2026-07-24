@@ -2050,6 +2050,15 @@ export function StudioCanvas({
 
   /* ── render ── */
   const zoom = vp.zoom;
+  /* Label sizing. Dividing by `zoom` pins text to a constant SCREEN size —
+     right when you're zoomed in, but it swamps the drawing when you zoom out:
+     the plan shrinks and the text doesn't, until the room names are bigger
+     than the rooms. Clamping the divisor at 1 makes labels behave like
+     DRAWING entities below 100% (they shrink with the plan, so the drawing
+     stays readable) and like UI above it (constant on screen, never
+     ballooning). Use this for text — never for stroke widths, which should
+     stay hairline at every zoom. */
+  const labelZoom = Math.max(zoom, 1);
   const mm = floor.scaleMmPerUnit;
   const activeColour = sysColour.get(activeSystemId ?? "") ?? "#888";
   const calibScreenB = calib.b ? worldToScreen(calib.b, vp) : null;
@@ -2228,9 +2237,9 @@ export function StudioCanvas({
                     />
                     <text
                       className="ds-sheet-name"
-                      x={pos.x + 14 / zoom}
-                      y={pos.y + 26 / zoom}
-                      fontSize={13 / zoom}
+                      x={pos.x + 14 / labelZoom}
+                      y={pos.y + 26 / labelZoom}
+                      fontSize={13 / labelZoom}
                     >
                       {s.name}
                     </text>
@@ -2255,15 +2264,15 @@ export function StudioCanvas({
                 <polygon points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />
                 {layers.labels && (
                   <>
-                    <text x={c.x} y={c.y} fontSize={13 / zoom} className="ds-room-name">
+                    <text x={c.x} y={c.y} fontSize={13 / labelZoom} className="ds-room-name">
                       {String(r.props.name ?? "Room")}
                       {/* spill rooms wear the ⤢ chip (ducted spec §9c) */}
                       {isSpillRoom(r) ? " ⤢" : ""}
                     </text>
                     <text
                       x={c.x}
-                      y={c.y + 16 / zoom}
-                      fontSize={11 / zoom}
+                      y={c.y + 16 / labelZoom}
+                      fontSize={11 / labelZoom}
                       className="ds-room-area"
                     >
                       {mm ? formatArea(areaUnitsToM2(areaU, mm)) : "not calibrated"}
@@ -2304,7 +2313,7 @@ export function StudioCanvas({
               >
                 <polyline points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />
                 {mm && layers.labels && (
-                  <text x={mid.x} y={mid.y - 7 / zoom} fontSize={11 / zoom} className="ds-pipe-len">
+                  <text x={mid.x} y={mid.y - 7 / labelZoom} fontSize={11 / labelZoom} className="ds-pipe-len">
                     {formatMeters(unitsToMeters(polylineLength(pts), mm))}
                   </text>
                 )}
@@ -2365,8 +2374,8 @@ export function StudioCanvas({
                               key={`fl-${e.end}`}
                               className="ds-ahu-face-label"
                               x={f.mid.x}
-                              y={f.mid.y + (f.dir === 1 ? -5 : 12) / zoom}
-                              fontSize={8 / zoom}
+                              y={f.mid.y + (f.dir === 1 ? -5 : 12) / labelZoom}
+                              fontSize={8 / labelZoom}
                             >
                               {e.end.toUpperCase()}
                             </text>
@@ -2454,7 +2463,7 @@ export function StudioCanvas({
                                 ? f.mid.y + stub + 10 / zoom
                                 : f.mid.y - stub - 4 / zoom
                             }
-                            fontSize={9 / zoom}
+                            fontSize={9 / labelZoom}
                           >
                             {label}
                           </text>
@@ -2480,13 +2489,13 @@ export function StudioCanvas({
                 </g>
                 {layers.labels && (
                   <>
-                    <text x={at.x} y={at.y + 4 / zoom} fontSize={11 / zoom} className="ds-unit-role">
+                    <text x={at.x} y={at.y + 4 / labelZoom} fontSize={11 / labelZoom} className="ds-unit-role">
                       {role}
                     </text>
                     <text
                       x={at.x}
-                      y={at.y + fp.h / 2 + 13 / zoom}
-                      fontSize={10 / zoom}
+                      y={at.y + fp.h / 2 + 13 / labelZoom}
+                      fontSize={10 / labelZoom}
                       className="ds-unit-model"
                     >
                       {String(u.props.model ?? "")}
@@ -2567,8 +2576,8 @@ export function StudioCanvas({
                   <text
                     className={`ds-plenum-label${s.derived ? " derived" : ""}`}
                     x={s.labelAt.x}
-                    y={s.labelAt.y + 13 / zoom}
-                    fontSize={10 / zoom}
+                    y={s.labelAt.y + 13 / labelZoom}
+                    fontSize={10 / labelZoom}
                   >
                     {s.label}
                   </text>
@@ -2757,8 +2766,8 @@ export function StudioCanvas({
               {mm && (
                 <text
                   x={(draftRect.a.x + draftRect.b.x) / 2}
-                  y={Math.min(draftRect.a.y, draftRect.b.y) - 8 / zoom}
-                  fontSize={11 / zoom}
+                  y={Math.min(draftRect.a.y, draftRect.b.y) - 8 / labelZoom}
+                  fontSize={11 / labelZoom}
                   className="ds-draft-dims"
                 >
                   {formatMeters(unitsToMeters(Math.abs(draftRect.b.x - draftRect.a.x), mm))} ×{" "}

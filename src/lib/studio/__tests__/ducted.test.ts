@@ -542,13 +542,34 @@ describe("distributeSpigots", () => {
     face,
   });
 
-  it("packs a face evenly at t = (i+1)/(n+1), preserving left-to-right order", () => {
+  it("packs gap · \u00d8 · gap along the face, preserving left-to-right order", () => {
     const out = distributeSpigots([spig("a", 1 / 3), spig("b", 2 / 3), spig("new", 0.5)]);
     const byId = new Map(out.map((s) => [s.id, s.t]));
-    // order by current t: a (.33) · new (.5) · b (.67) → 0.25 / 0.5 / 0.75
-    expect(byId.get("a")).toBeCloseTo(0.25, 6);
+    // 3 \u00d7 \u00d8350 + 4 \u00d7 50 gaps = 1250 span; centres at 225 / 625 / 1025
+    expect(byId.get("a")).toBeCloseTo(225 / 1250, 6);
+    expect(byId.get("new")).toBeCloseTo(625 / 1250, 6);
+    expect(byId.get("b")).toBeCloseTo(1025 / 1250, 6);
+    // equal diameters still land symmetrically about the middle
     expect(byId.get("new")).toBeCloseTo(0.5, 6);
-    expect(byId.get("b")).toBeCloseTo(0.75, 6);
+  });
+
+  /* The bug this replaced: sizing the face by DIAMETER while placing by INDEX
+     could never agree, so a wide takeoff overran its neighbour and the two
+     drew on top of each other. Assert the property, not the arithmetic. */
+  it("mixed diameters never overlap on the face", () => {
+    const mixed: PlenumSpigot[] = [
+      { id: "small", diaMm: 150, t: 0.3, face: "front" },
+      { id: "big", diaMm: 250, t: 0.7, face: "front" },
+    ];
+    const out = distributeSpigots(mixed);
+    const span = 150 + 250 + 3 * 50; // what plenumBody sizes the face to
+    const edges = out
+      .map((s) => ({ lo: s.t * span - s.diaMm / 2, hi: s.t * span + s.diaMm / 2 }))
+      .sort((a, b) => a.lo - b.lo);
+    expect(edges[0].hi).toBeLessThanOrEqual(edges[1].lo + 1e-9);
+    // and each keeps a full gap from the face edges
+    expect(edges[0].lo).toBeCloseTo(50, 6);
+    expect(span - edges[1].hi).toBeCloseTo(50, 6);
   });
 
   it("each face packs independently (side spigots never shift the front)", () => {
@@ -558,8 +579,9 @@ describe("distributeSpigots", () => {
       spig("l1", 0.7, "left"),
     ]);
     const byId = new Map(out.map((s) => [s.id, s.t]));
-    expect(byId.get("f1")).toBeCloseTo(1 / 3, 6);
-    expect(byId.get("f2")).toBeCloseTo(2 / 3, 6);
+    // 2 × Ø350 + 3 × 50 = 850 span; centres at 225 / 625
+    expect(byId.get("f1")).toBeCloseTo(225 / 850, 6);
+    expect(byId.get("f2")).toBeCloseTo(625 / 850, 6);
     expect(byId.get("l1")).toBeCloseTo(0.5, 6); // alone on its face → centred
   });
 
@@ -567,8 +589,8 @@ describe("distributeSpigots", () => {
     const three = distributeSpigots([spig("a", 0.25), spig("b", 0.5), spig("c", 0.75)]);
     const two = distributeSpigots(three.filter((s) => s.id !== "b"));
     const byId = new Map(two.map((s) => [s.id, s.t]));
-    expect(byId.get("a")).toBeCloseTo(1 / 3, 6);
-    expect(byId.get("c")).toBeCloseTo(2 / 3, 6);
+    expect(byId.get("a")).toBeCloseTo(225 / 850, 6); // re-packed for two
+    expect(byId.get("c")).toBeCloseTo(625 / 850, 6);
   });
 });
 

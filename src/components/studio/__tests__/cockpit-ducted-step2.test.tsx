@@ -187,10 +187,12 @@ describe("plenum inspect card", () => {
     expect(list).toHaveLength(3);
     const added = list.find((s) => s.diaMm === 400)!;
     expect(added.face).toBe("front");
-    // even re-pack: .33 / .5 (new) / .67 → 0.25 / 0.5 / 0.75
-    expect(added.t).toBeCloseTo(0.5, 6);
-    expect(list.find((s) => s.id === "s1")!.t).toBeCloseTo(0.25, 6);
-    expect(list.find((s) => s.id === "s2")!.t).toBeCloseTo(0.75, 6);
+    /* re-packed gap · Ø · gap by DIAMETER, not by index: Ø350 + Ø400 + Ø350
+       with 4 × 50 gaps = 1300 span, centres at 225 / 650 / 1075. The new
+       Ø400 lands mid-face; the equal outer pair sits symmetrically. */
+    expect(added.t).toBeCloseTo(650 / 1300, 6);
+    expect(list.find((s) => s.id === "s1")!.t).toBeCloseTo(225 / 1300, 6);
+    expect(list.find((s) => s.id === "s2")!.t).toBeCloseTo(1075 / 1300, 6);
   });
 
   it("the face picker routes new spigots to a side face, independently packed", () => {
@@ -209,8 +211,8 @@ describe("plenum inspect card", () => {
     const added = list.find((s) => s.diaMm === 250)!;
     expect(added.face).toBe("left");
     expect(added.t).toBeCloseTo(0.5, 6); // alone on its face
-    // the front pair stays put
-    expect(list.find((s) => s.id === "s1")!.t).toBeCloseTo(1 / 3, 6);
+    // the front pair re-packs among themselves: 2 × Ø350 + 3 × 50 = 850
+    expect(list.find((s) => s.id === "s1")!.t).toBeCloseTo(225 / 850, 6);
   });
 
   it("deleting a spigot re-packs the survivors; delete-plenum drops the object", () => {

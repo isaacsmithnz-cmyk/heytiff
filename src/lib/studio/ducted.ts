@@ -179,8 +179,16 @@ export function spigotsOf(props: Record<string, unknown>): PlenumSpigot[] {
 
 export const SPIGOT_GAP_MM = 50;
 
-/** Even re-pack (v1 — drag-slide is a later nicety): per face, keep the
-    current left-to-right order (by t) and respace to t = (i+1)/(n+1).
+/** Re-pack a face: keep the current left-to-right order (by t) and lay the
+    takeoffs out as gap, Ø, gap, Ø … gap — the SAME layout the face width is
+    sized for in `plenumBody`, normalised to t ∈ 0..1.
+
+    It used to respace to t = (i+1)/(n+1), which gives every takeoff an equal
+    share of the face regardless of size. With mixed diameters the wide ones
+    then overran their neighbours and the spigots drew ON TOP of each other
+    (a Ø250 beside a Ø150 overlapped by ~17 mm). Sizing the face by diameter
+    while placing by index could never agree; now both use one layout.
+
     Called on every spigot add/delete so the face stays tidy. */
 export function distributeSpigots(spigots: PlenumSpigot[]): PlenumSpigot[] {
   const byFace = new Map<PlenumSpigot["face"], PlenumSpigot[]>();
@@ -192,7 +200,14 @@ export function distributeSpigots(spigots: PlenumSpigot[]): PlenumSpigot[] {
   const packed = new Map<string, number>();
   for (const arr of byFace.values()) {
     const ordered = [...arr].sort((a, b) => a.t - b.t);
-    ordered.forEach((s, i) => packed.set(s.id, (i + 1) / (ordered.length + 1)));
+    const span =
+      ordered.reduce((a, s) => a + s.diaMm, 0) + SPIGOT_GAP_MM * (ordered.length + 1);
+    let cursor = SPIGOT_GAP_MM;
+    for (const s of ordered) {
+      const centre = cursor + s.diaMm / 2;
+      packed.set(s.id, span > 0 ? centre / span : 0.5);
+      cursor += s.diaMm + SPIGOT_GAP_MM;
+    }
   }
   return spigots.map((s) => ({ ...s, t: packed.get(s.id) ?? s.t }));
 }

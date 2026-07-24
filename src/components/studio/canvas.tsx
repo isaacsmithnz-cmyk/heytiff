@@ -28,6 +28,7 @@ import {
   isSpillRoom,
   plenumBody,
   spigotsOf,
+  distributeSpigots,
   streamOf,
   suggestedMainDucts,
   type PlenumSpigot,
@@ -330,7 +331,14 @@ function plenumShape(opts: {
     };
   });
 
-  return { body, spigots, labelAt: { x: cx, y: Math.max(y0, y1) } };
+  /* the label hangs below EVERYTHING, spigots included. Anchoring it to the
+     body alone put it inside the takeoffs, which stand off the far face by
+     `stub` — the label then read straight through the ducts it was naming. */
+  const lowest = spigots.reduce(
+    (lo, s) => Math.max(lo, ...s.rect.map((p) => p.y)),
+    Math.max(y0, y1)
+  );
+  return { body, spigots, labelAt: { x: cx, y: lowest } };
 }
 
 /** the pack's air-opening for one stream of an indoor unit, or null */
@@ -985,7 +993,13 @@ export function StudioCanvas({
       const perMm = fp.w / Math.max(widthMm, 1); // world units per mm (works uncalibrated)
       const row = iduSpec?.(String(unit.props.model ?? "")) ?? null;
       const opening = openingOf(row, end);
-      const sp = spigotsOf(p.props);
+      /* Re-pack on the way out, not just on add/delete. `t` is machine-
+         assigned today (there is no drag-slide yet), and designs saved before
+         the packing fix still carry evenly-spaced values that overlap once the
+         diameters differ. Normalising here heals them without a migration —
+         revisit when spigots become draggable and `t` is genuinely the
+         installer's own placement. */
+      const sp = distributeSpigots(spigotsOf(p.props));
       const body = plenumBody({
         opening,
         unitWidthMm: widthMm, // the mounting face is a LONG face (spec §1a)

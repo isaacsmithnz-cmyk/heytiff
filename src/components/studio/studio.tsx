@@ -867,9 +867,9 @@ function Editor({
      (spec §11.1), via the pack row of the placed IDU or settings.pairIdu. */
   const airGate = useMemo((): { ok: boolean; reason: string; row: IndoorUnit | null } => {
     if (!effectiveSystemId)
-      return { ok: false, reason: "activate a system first", row: null };
+      return { ok: false, reason: "pick a system first", row: null };
     if (roomsServedBy(doc, effectiveSystemId).length === 0)
-      return { ok: false, reason: "serve a room first", row: null };
+      return { ok: false, reason: "add a room first", row: null };
     const sys = doc.systems.find((s) => s.id === effectiveSystemId);
     const placedIdu = doc.objects.find(
       (o) =>
@@ -877,8 +877,16 @@ function Editor({
     );
     const model = String(placedIdu?.props.model ?? sys?.settings.pairIdu ?? "");
     const row = (model && pack?.indoor_units.find((u) => u.model === model)) || null;
+    /* Say what to DO, not what's missing. "air-capable air handler" is the
+       code's word for it and told you nothing — in particular it read as a
+       different SYSTEM type, when the gate is really about the UNIT: a split
+       pair with a ducted indoor is fine, a wall unit never is. */
     if (!row || !isAirCapable(row))
-      return { ok: false, reason: "needs an air-capable air handler", row: null };
+      return {
+        ok: false,
+        reason: "needs a ducted indoor unit; wall and cassette units carry no ductwork",
+        row: null,
+      };
     return { ok: true, reason: "", row };
   }, [doc, pack, effectiveSystemId]);
 
@@ -1955,7 +1963,7 @@ function DesignPanel({
       className={`ds-tool${tool === t.key ? " on" : ""}`}
       title={
         t.needsSystem && !activeSystemId
-          ? `${t.label} — activate a system first`
+          ? `${t.label} — pick a system first`
           : `${t.label} (${t.kbd})`
       }
       aria-label={t.label}

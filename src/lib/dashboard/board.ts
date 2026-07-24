@@ -1,5 +1,6 @@
 import type { EventDetail } from "./events";
 import type { PollResult } from "./polls";
+import type { ReactionSummary } from "./reactions";
 import type { NoticeWithRead } from "./tasks";
 
 /* The composed shape a noticeboard row actually renders as.
@@ -17,4 +18,6 @@ export type BoardNotice = NoticeWithRead & {
   poll: PollResult | null;
   /** Present only on kind === "event"; carries the RSVPs in the poll's shape. */
   event: EventDetail | null;
+  /** Every kind can be reacted to — it's a reply, not an answer. */
+  reactions: ReactionSummary;
 };

@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { asNoticeKind } from "./notices";
 import { tallyPoll, type PollOptionRow, type PollVoteRow } from "./polls";
 import { asRsvpAnswer, tallyRsvp, type RsvpRow } from "./events";
+import { asReaction, tallyReactions, type ReactionRow } from "./reactions";
 import type { BoardNotice } from "./board";
 import { isDelegated, noticeReadState, type DashTask } from "./tasks";
 
@@ -163,9 +164,12 @@ export async function listNotices(
   const name = (id: string) => names.get(id) ?? "Unnamed";
   const idsOfKind = (kind: string) =>
     noticeRows.filter((r) => asNoticeKind(r.kind) === kind).map((r) => String(r.id));
-  const [polls, rsvps] = await Promise.all([
+  const allIds = noticeRows.map((r) => String(r.id));
+  const [polls, rsvps, reactions] = await Promise.all([
     pollsFor(orgId, idsOfKind("poll"), name),
     rsvpsFor(orgId, idsOfKind("event"), name),
+    // reactions are not kind-specific: anything on the board can be reacted to
+    reactionsFor(orgId, allIds, name),
   ]);
 
   return noticeRows.map((r) => {
@@ -216,6 +220,7 @@ export async function listNotices(
               rsvp: tallyRsvp(rsvps.get(id) ?? [], staffProfileId),
             }
           : null,
+      reactions: tallyReactions(reactions.get(id) ?? [], staffProfileId),
     };
   });
 }
@@ -283,6 +288,33 @@ async function rsvpsFor(
     const list = out.get(key) ?? [];
     const staffId = String(r.staff_profile_id);
     list.push({ staffId, staffName: name(staffId), answer });
+    out.set(key, list);
+  }
+  return out;
+}
+
+/** Who reacted to what, across the whole page. */
+async function reactionsFor(
+  orgId: string,
+  noticeIds: readonly string[],
+  name: (id: string) => string,
+): Promise<Map<string, ReactionRow[]>> {
+  const out = new Map<string, ReactionRow[]>();
+  if (noticeIds.length === 0) return out;
+
+  const { data } = await supabaseAdmin
+    .from("notice_reactions")
+    .select("notice_id, staff_profile_id, emoji")
+    .eq("org_id", orgId)
+    .in("notice_id", [...noticeIds]);
+
+  for (const r of (data ?? []) as Record<string, unknown>[]) {
+    const emoji = asReaction(r.emoji);
+    if (!emoji) continue; // a reaction we no longer offer simply isn't shown
+    const key = String(r.notice_id);
+    const list = out.get(key) ?? [];
+    const staffId = String(r.staff_profile_id);
+    list.push({ staffId, staffName: name(staffId), emoji });
     out.set(key, list);
   }
   return out;

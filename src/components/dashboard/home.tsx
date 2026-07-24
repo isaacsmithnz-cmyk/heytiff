@@ -93,6 +93,8 @@ export function DashboardHome({
             today={data.today}
             mine={tasks.mine}
             team={tasks.team}
+            done={tasks.done}
+            reported={tasks.reported}
             viewerStaffId={viewerStaffId}
             canManage={canManage}
             assignable={assignable}

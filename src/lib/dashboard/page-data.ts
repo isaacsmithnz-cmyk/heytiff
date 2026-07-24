@@ -11,8 +11,8 @@ import { assembleChips, type DashboardChips } from "./assemble";
 import { listStaffCompliance, orgInsurance, type StaffCompliance } from "./query";
 import { rosterToday, type RosterToday } from "./roster";
 import { payRunItem, tallySheets, type MoneyItem } from "./money";
-import { myTasks, teamTasks, listNotices } from "./tasks-query";
-import { sortNotices, sortTasks, type DashTask, type NoticeWithRead } from "./tasks";
+import { myTasks, teamTasks, recentlyDoneTasks, assignedByMeRecentlyDone, listNotices } from "./tasks-query";
+import { RECENT_DONE_DAYS, sortNotices, sortTasks, type DashTask, type NoticeWithRead } from "./tasks";
 
 /* Dashboard page loader. The capability scoping and every derivation are pure
    and live in ./assemble, ./roster and ./money; this file is the thin I/O layer
@@ -30,8 +30,9 @@ export type DashboardData = {
   roster: RosterToday | null;
   /** Empty unless the viewer holds `financials`. */
   money: MoneyItem[];
-  /** Your open tasks (always) and the team's (only with `team`). */
-  tasks: { mine: DashTask[]; team: DashTask[] | null };
+  /** Your open tasks (always), the team's (only with `team`), and your
+      recently-completed ones so finishing something leaves a trace. */
+  tasks: { mine: DashTask[]; team: DashTask[] | null; done: DashTask[]; reported: DashTask[] };
   /** Recent notices with your read state joined in. */
   notices: NoticeWithRead[];
   /** Staff you can assign a task to — populated only with `team`. */
@@ -47,7 +48,7 @@ const EMPTY: DashboardData = {
   chips: { self: [], team: [] },
   roster: null,
   money: [],
-  tasks: { mine: [], team: null },
+  tasks: { mine: [], team: null, done: [], reported: [] },
   notices: [],
   assignable: [],
   canManage: false,
@@ -105,12 +106,19 @@ async function loadTasks(
   orgId: string,
   viewerStaffId: string | null,
   canManage: boolean,
-): Promise<{ mine: DashTask[]; team: DashTask[] | null }> {
-  const [mine, team] = await Promise.all([
+): Promise<{ mine: DashTask[]; team: DashTask[] | null; done: DashTask[]; reported: DashTask[] }> {
+  const [mine, team, done, reported] = await Promise.all([
     viewerStaffId ? myTasks(orgId, viewerStaffId).then(sortTasks) : Promise.resolve([]),
     canManage ? teamTasks(orgId).then(sortTasks) : Promise.resolve(null),
+    viewerStaffId
+      ? recentlyDoneTasks(orgId, viewerStaffId, RECENT_DONE_DAYS)
+      : Promise.resolve([] as DashTask[]),
+    // work you handed out that has come back done — the assigner's report
+    viewerStaffId
+      ? assignedByMeRecentlyDone(orgId, viewerStaffId, RECENT_DONE_DAYS)
+      : Promise.resolve([] as DashTask[]),
   ]);
-  return { mine, team };
+  return { mine, team, done, reported };
 }
 
 /* ---------------- chips ---------------- */

@@ -18,7 +18,27 @@ export type DashTask = {
   status: TaskStatus;
   createdBy: string | null;
   createdAt: string;
+  /** Set once completed — a done task is kept, never deleted. */
+  doneAt: string | null;
+  doneByName: string | null;
 };
+
+/* Completing a task hides it from the open list, but it must not vanish: one
+   tap is easy to make by accident, and "did I already do that?" is a real
+   question. Recently-completed tasks stay visible for this long, with an undo.
+   The same window covers what an assigner sees come back completed. */
+export const RECENT_DONE_DAYS = 7;
+
+/* A task you wrote for yourself is a private to-do; a task someone gave you is
+   delegated work. Only delegated work is management's business — it's what
+   shows in the team list, and what reports back to whoever assigned it when
+   it's done. A self-assigned task stays with the person who made it.
+
+   A task with no recorded creator counts as delegated: it wasn't self-made, so
+   defaulting it to private would hide it from everyone. */
+export function isDelegated(task: Pick<DashTask, "assigneeId" | "createdBy">): boolean {
+  return task.createdBy !== task.assigneeId;
+}
 
 export type NoticeItem = {
   id: string;

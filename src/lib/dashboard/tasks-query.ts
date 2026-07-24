@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { noticeReadState, type DashTask, type NoticeWithRead } from "./tasks";
+import { isDelegated, noticeReadState, type DashTask, type NoticeWithRead } from "./tasks";
 
 /* Queries for the task list and noticeboard. Org-scoped throughout.
 
@@ -25,10 +25,11 @@ async function staffNames(orgId: string): Promise<Map<string, string>> {
 }
 
 const TASK_COLUMNS =
-  "id, title, detail, assigned_to, created_by, due_date, status, created_at";
+  "id, title, detail, assigned_to, created_by, due_date, status, created_at, done_at, done_by";
 
 function toTask(r: Record<string, unknown>, name: (id: string) => string): DashTask {
   const assigneeId = String(r.assigned_to);
+  const doneBy = (r.done_by as string) ?? null;
   return {
     id: String(r.id),
     title: String(r.title),
@@ -39,6 +40,8 @@ function toTask(r: Record<string, unknown>, name: (id: string) => string): DashT
     status: r.status === "done" ? "done" : "open",
     createdBy: (r.created_by as string) ?? null,
     createdAt: String(r.created_at),
+    doneAt: r.done_at ? String(r.done_at) : null,
+    doneByName: doneBy ? name(doneBy) : null,
   };
 }
 
@@ -56,7 +59,36 @@ export async function myTasks(orgId: string, staffProfileId: string): Promise<Da
   return ((data ?? []) as Record<string, unknown>[]).map((r) => toTask(r, (id) => names.get(id) ?? "Unnamed"));
 }
 
-/** Every open task across the org — the `team` management view. */
+/* Your recently-completed tasks. A done task is kept, not deleted, so finishing
+   one leaves a trace you can check — and undo if the tap was a mistake. */
+export async function recentlyDoneTasks(
+  orgId: string,
+  staffProfileId: string,
+  sinceDays: number,
+  now = new Date(),
+): Promise<DashTask[]> {
+  const since = new Date(now.getTime() - sinceDays * 86_400_000).toISOString();
+  const [{ data }, names] = await Promise.all([
+    supabaseAdmin
+      .from("tasks")
+      .select(TASK_COLUMNS)
+      .eq("org_id", orgId)
+      .eq("assigned_to", staffProfileId)
+      .eq("status", "done")
+      .gte("done_at", since)
+      .order("done_at", { ascending: false })
+      .limit(5),
+    staffNames(orgId),
+  ]);
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => toTask(r, (id) => names.get(id) ?? "Unnamed"));
+}
+
+/* Open DELEGATED work across the org — the `team` management view.
+
+   Self-assigned tasks are deliberately excluded: a to-do someone wrote for
+   themselves is private to them, not management's business. Only work that was
+   handed to someone appears here. The column-to-column comparison isn't
+   expressible as a PostgREST filter, so it's applied here via isDelegated. */
 export async function teamTasks(orgId: string): Promise<DashTask[]> {
   const [{ data }, names] = await Promise.all([
     supabaseAdmin
@@ -66,7 +98,36 @@ export async function teamTasks(orgId: string): Promise<DashTask[]> {
       .eq("status", "open"),
     staffNames(orgId),
   ]);
-  return ((data ?? []) as Record<string, unknown>[]).map((r) => toTask(r, (id) => names.get(id) ?? "Unnamed"));
+  return ((data ?? []) as Record<string, unknown>[])
+    .map((r) => toTask(r, (id) => names.get(id) ?? "Unnamed"))
+    .filter(isDelegated);
+}
+
+/* Work YOU handed to someone else that has since been completed — the "it's
+   done" report back to whoever assigned it. Self-assigned tasks never appear:
+   you don't need telling that you finished your own to-do. */
+export async function assignedByMeRecentlyDone(
+  orgId: string,
+  staffProfileId: string,
+  sinceDays: number,
+  now = new Date(),
+): Promise<DashTask[]> {
+  const since = new Date(now.getTime() - sinceDays * 86_400_000).toISOString();
+  const [{ data }, names] = await Promise.all([
+    supabaseAdmin
+      .from("tasks")
+      .select(TASK_COLUMNS)
+      .eq("org_id", orgId)
+      .eq("created_by", staffProfileId)
+      .eq("status", "done")
+      .gte("done_at", since)
+      .order("done_at", { ascending: false })
+      .limit(5),
+    staffNames(orgId),
+  ]);
+  return ((data ?? []) as Record<string, unknown>[])
+    .map((r) => toTask(r, (id) => names.get(id) ?? "Unnamed"))
+    .filter((t) => t.assigneeId !== staffProfileId);
 }
 
 /** Recent notices with the viewer's read state joined in. Newest-ish out of the

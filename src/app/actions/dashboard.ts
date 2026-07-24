@@ -104,6 +104,34 @@ export async function completeTask(taskId: string): Promise<DashResult> {
   return { ok: true };
 }
 
+/** Undo a completion. Same rule as completing it: your own task, or `team`.
+    Completing is a single tap, so it has to be reversible. */
+export async function reopenTask(taskId: string): Promise<DashResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "Not signed in." };
+
+  const { data } = await supabaseAdmin
+    .from("tasks")
+    .select("assigned_to, status")
+    .eq("org_id", ctx.orgId)
+    .eq("id", taskId)
+    .maybeSingle();
+  if (!data) return { ok: false, error: "That task no longer exists." };
+  if (data.status !== "done") return { ok: false, error: "That task is already open." };
+
+  const mine = ctx.staffId && ctx.staffId === data.assigned_to;
+  if (!mine && !(await can("team"))) return { ok: false, error: "That task isn't yours to reopen." };
+
+  const { error } = await supabaseAdmin
+    .from("tasks")
+    .update({ status: "open", done_at: null, done_by: null, updated_at: new Date().toISOString() })
+    .eq("org_id", ctx.orgId)
+    .eq("id", taskId);
+  if (error) return { ok: false, error: "Couldn't reopen that task." };
+  refresh();
+  return { ok: true };
+}
+
 /* ---------------- notices ---------------- */
 
 export async function postNotice(input: {

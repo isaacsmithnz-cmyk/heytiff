@@ -1,5 +1,6 @@
 import {
   dueLabel,
+  isDelegated,
   noticeReadState,
   sortNotices,
   sortTasks,
@@ -20,6 +21,8 @@ const task = (over: Partial<DashTask>): DashTask => ({
   status: "open",
   createdBy: null,
   createdAt: "2026-07-01T00:00:00Z",
+  doneAt: null,
+  doneByName: null,
   ...over,
 });
 
@@ -62,6 +65,28 @@ describe("sortTasks", () => {
     const copy = [...input];
     sortTasks(input);
     expect(input).toEqual(copy);
+  });
+});
+
+describe("isDelegated", () => {
+  it("is false for a to-do you wrote for yourself — that stays private", () => {
+    expect(isDelegated({ assigneeId: "s1", createdBy: "s1" })).toBe(false);
+  });
+
+  it("is true when someone else assigned it to you", () => {
+    expect(isDelegated({ assigneeId: "s1", createdBy: "manager" })).toBe(true);
+  });
+
+  it("treats an unknown creator as delegated, so it can't vanish from everyone", () => {
+    expect(isDelegated({ assigneeId: "s1", createdBy: null })).toBe(true);
+  });
+
+  it("keeps a manager's own to-do out of the team list", () => {
+    const rows = [
+      task({ id: "own", assigneeId: "mgr", createdBy: "mgr" }),
+      task({ id: "handed-out", assigneeId: "s2", createdBy: "mgr" }),
+    ];
+    expect(rows.filter(isDelegated).map((t) => t.id)).toEqual(["handed-out"]);
   });
 });
 

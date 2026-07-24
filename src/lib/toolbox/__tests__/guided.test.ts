@@ -497,7 +497,14 @@ describe("proving a compressor — taught, not assumed", () => {
     const setup = getOutcome(outcomeId(notYet.next))!;
     expect(setup.actions.join(" ")).toMatch(/lock or tag/i);
     expect(setup.actions.join(" ")).toMatch(/photograph the terminal lid/i);
-    expect(setup.actions.join(" ")).toMatch(/bleed resistor/i);
+    // discharge advice has to work with what's actually in the van: wait,
+    // prove it with the meter everyone carries, and only then reach for a load
+    const setupText = setup.actions.join(" ");
+    expect(setupText).toMatch(/give the run capacitor a minute/i); // wait first
+    expect(setupText).toMatch(/meter on DC volts/i); // prove with what's in hand
+    expect(setupText).toMatch(/never a screwdriver blade/i);
+    // a discharge resistor is offered, never assumed — most vans don't carry one
+    expect(setupText).toMatch(/or a resistor if you carry one/i);
   });
 
   it("teaches the meter, not just the test", () => {
@@ -534,7 +541,8 @@ describe("proving a compressor — taught, not assumed", () => {
   it("a sound compressor points at the start gear, with the capacitor test taught", () => {
     const sound = getOutcome("comp-sound")!;
     const joined = sound.actions.join(" ");
-    expect(joined).toMatch(/discharge it first/i);
+    expect(joined).toMatch(/prove it's discharged on DC volts first/i);
+    expect(joined).toMatch(/take at least one capacitor lead off/i);
     expect(joined).toMatch(/µF/);
     expect(joined).toMatch(/ONE conductor only/);
     expect(joined).toMatch(/pitted or welded contacts/i);

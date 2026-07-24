@@ -897,7 +897,7 @@ export const QUESTIONS: Question[] = [
   {
     id: "comp.iso",
     ask: "Locked off, leads off, and capacitors dealt with?",
-    why: "Isolate at the local isolator AND the switchboard, and lock or tag what you switched. Photograph the terminal lid and the wiring before a single lead comes off — the lid diagram is your map back. Then pull the leads off the compressor terminals, because testing through the board or the drive tests the wrong thing and can wreck it. Single-phase: discharge the run capacitor through a bleed resistor on insulated leads for a few seconds. Inverter: the drive stores power in big capacitors (the DC bus) — wait the time printed on the panel, then prove them dead with your meter on DC volts.",
+    why: "Isolate at the local isolator AND the switchboard, and lock or tag what you switched. Photograph the terminal lid and the wiring before a single lead comes off — the lid diagram is your map back. Then pull the leads off the compressor terminals, because testing through the board or the drive tests the wrong thing and can wreck it. Then the stored charge. Single-phase: leave the run capacitor a minute — most have a bleed resistor built across them and drain on their own — then prove it with the meter on DC volts across its two terminals. Inverter: the drive stores power in big capacitors (the DC bus), so wait the time printed on the panel and prove those dead the same way. Proving beats assuming, and the meter is already in your hand.",
     safety:
       "Damaged or corroded terminals on a pressurised system can blow out of the shell. Keep the terminal cover on until power is dealt with, glasses on, and stand to the side of the terminal box — never square in front of it.",
     answers: [
@@ -2123,7 +2123,8 @@ export const OUTCOMES: Outcome[] = [
       "Isolate at the local isolator and the switchboard, and lock or tag what you switched off",
       "Photograph the terminal lid and the wiring exactly as found — the lid diagram is your map back when it's time to reconnect",
       "Pull the leads off the compressor terminals; testing through the board or the drive tests the wrong thing, and a megger through electronics kills them",
-      "Single-phase: discharge the run capacitor — bridge its terminals through a bleed resistor on insulated leads for a few seconds, never a bare screwdriver blade",
+      "Single-phase: give the run capacitor a minute after isolating — most drain themselves through a bleed resistor built across the terminals — then meter on DC volts across it to prove it, rather than trusting it",
+      "Still holding volts? Discharge it through something resistive, not a dead short: an incandescent test lamp across the terminals, or a resistor if you carry one. Never a screwdriver blade — it welds the tip, pits the terminals and can damage the capacitor",
       "Inverter: the drive stores power in big capacitors (the DC bus) after the power is off — wait the time printed on the panel, then prove them dead with the meter on DC volts across the marked points",
       "Then come back and walk the test",
     ],
@@ -2220,7 +2221,9 @@ export const OUTCOMES: Outcome[] = [
     explain:
       "Windings intact and balanced, nothing to earth: the motor is healthy. A healthy compressor that still won't run is being failed by what's around it — the start gear, the switching, or the supply.",
     actions: [
-      "Single-phase: test the run capacitor. Discharge it first through a bleed resistor, meter on the capacitance setting (marked µF), and expect the printed rating within about ten percent — bulged, leaking or way off means replace it",
+      "Single-phase: test the run capacitor. Prove it's discharged on DC volts first, then switch to the capacitance setting — marked µF — and expect the printed rating within about ten percent",
+      "Take at least one capacitor lead off before you measure it: left in circuit you're reading the motor windings in parallel with it, and the number means nothing",
+      "Bulged, weeping or well off its rating means replace it — and a bulged one is a fair bet for why the compressor was struggling",
       "Single-phase: check the start relay or PTC starter — burnt contacts, or a rattle when you shake it",
       "Three-phase: open the contactor and look at the contacts — pitted or welded contacts single-phase the motor",
       "Measure voltage at the compressor terminals during a start attempt, not at rest — a sagging supply only shows itself under load",

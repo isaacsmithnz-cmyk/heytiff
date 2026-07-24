@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { asNoticeKind } from "./notices";
 import { isDelegated, noticeReadState, type DashTask, type NoticeWithRead } from "./tasks";
 
 /* Queries for the task list and noticeboard. Org-scoped throughout.
@@ -140,7 +141,9 @@ export async function listNotices(
   const [{ data }, names, reads, activeStaff] = await Promise.all([
     supabaseAdmin
       .from("notices")
-      .select("id, title, body, pinned, posted_by, created_at, revision, edited_at")
+      .select(
+        "id, title, body, pinned, posted_by, created_at, revision, edited_at, kind, expires_at, archived_at",
+      )
       .eq("org_id", orgId)
       .order("created_at", { ascending: false })
       .limit(limit),
@@ -169,6 +172,9 @@ export async function listNotices(
       createdAt: String(r.created_at),
       revision,
       editedAt: r.edited_at ? String(r.edited_at) : null,
+      kind: asNoticeKind(r.kind),
+      expiresAt: r.expires_at ? String(r.expires_at).slice(0, 10) : null,
+      archivedAt: r.archived_at ? String(r.archived_at) : null,
       ackedRevision,
       state: noticeReadState(revision, ackedRevision),
       mine: !!poster && poster === staffProfileId,

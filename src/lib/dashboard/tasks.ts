@@ -8,6 +8,11 @@ import { daysUntil } from "@/components/fleet/logic";
 
 export type TaskStatus = "open" | "done";
 
+/* What a noticeboard post IS. Declared here with the row type it belongs to;
+   the rules about kinds (labels, narrowing, lifecycle) live in ./notices, which
+   depends on this file and never the other way around. */
+export type NoticeKind = "notice" | "poll" | "event";
+
 export type DashTask = {
   id: string;
   title: string;
@@ -52,6 +57,12 @@ export type NoticeItem = {
   revision: number;
   /** Null until the first material edit; drives the "edited" marker. */
   editedAt: string | null;
+  /** What the post is: a plain notice, a poll, an event. See lib/dashboard/notices. */
+  kind: NoticeKind;
+  /** Inclusive last day on the board (ISO date), or null to never expire. */
+  expiresAt: string | null;
+  /** Set when someone filed it off the board; distinct from expiry. */
+  archivedAt: string | null;
 };
 
 /* Reading is passive, like a messaging app: a notice marks itself read once the

@@ -88,18 +88,22 @@ export type NoticeBoardData = {
   canManage: boolean;
   /** false when the account has no staff record — no read can be attributed */
   canRead: boolean;
+  /** Today in AU. Expiry is derived, so the board needs the same date the
+      server used — never the browser's clock, which may be in another zone. */
+  today: string;
 };
 
 export async function loadNoticeBoard(): Promise<NoticeBoardData> {
   const session = await auth0.getSession();
   const orgId = session?.orgId as string | undefined;
   const userId = session?.user?.sub as string | undefined;
-  if (!orgId || !userId) return { notices: [], canManage: false, canRead: false };
+  const today = todayInAu();
+  if (!orgId || !userId) return { notices: [], canManage: false, canRead: false, today };
 
   const caps = await getCapabilities();
   const viewerStaffId = await staffProfileIdFor(orgId, userId);
   const notices = sortNotices(await listNotices(orgId, viewerStaffId, 100));
-  return { notices, canManage: caps.has("team"), canRead: viewerStaffId !== null };
+  return { notices, canManage: caps.has("team"), canRead: viewerStaffId !== null, today };
 }
 
 /* The action-required page. Like the noticeboard, the dashboard carries only a

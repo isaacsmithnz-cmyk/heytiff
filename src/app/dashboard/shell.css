@@ -270,6 +270,11 @@
 .fg .nb-title { font-size:16px; font-weight:800; letter-spacing:-0.01em; color:var(--ink); }
 .fg .nb-meta { font-size:12.5px; font-weight:500; color:var(--gray400); margin-top:3px; }
 .fg .nb-body { font-size:14px; font-weight:500; color:#4b5563; line-height:1.55; margin-top:12px; white-space:pre-wrap; }
+.fg .nb-foot { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:14px; }
+.fg .nb-footnote { font-size:12px; font-weight:600; color:var(--gray400); }
+/* the archived drawer: a quiet divider you open, not a second board */
+.fg .nb-archtoggle { display:flex; align-items:center; gap:8px; margin:26px 2px 14px; padding:0; border:0; background:none; cursor:pointer; font-family:var(--font); font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--gray400); transition:color .15s; }
+.fg .nb-archtoggle:hover { color:#6b7280; }
 
 .fg .hstats { display:flex; flex-wrap:wrap; gap:20px; }
 .fg .hstat { position:relative; overflow:hidden; display:flex; flex-direction:column; justify-content:center; min-width:200px; padding:24px 28px; border-radius:24px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.1); backdrop-filter:blur(8px); transition:background .3s; }

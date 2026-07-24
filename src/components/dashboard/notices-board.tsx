@@ -38,6 +38,10 @@ import {
   type CommentRow,
   type MentionTarget,
 } from "@/lib/dashboard/comments";
+import { deleteDocument } from "@/app/actions/documents";
+import { ALLOWED_TYPES, displayName, fmtBytes, MAX_NOTICE_FILES } from "@/lib/documents/files";
+import { uploadFile, type UploadedFile } from "@/lib/documents/upload-client";
+import type { StoredDocument } from "@/lib/documents/query";
 import type { BoardNotice } from "@/lib/dashboard/board";
 
 /* The noticeboard page — where notices are actually read.
@@ -251,6 +255,46 @@ function ReactionRow({
             <span aria-hidden>{emoji}</span>
           </button>
         ))}
+    </div>
+  );
+}
+
+/* Files on a post.
+
+   Photos show as photos — a job is easier to describe with a picture than with
+   a paragraph, and a thumbnail you have to click to identify is no better than
+   a filename. Anything else is a labelled chip with its size, so nobody
+   downloads 8 MB to find out what it was.
+
+   Every URL here is signed and short-lived: the bucket is private, so a link
+   somebody keeps stops working rather than quietly staying open. */
+function Attachments({ files }: { files: StoredDocument[] }) {
+  if (files.length === 0) return null;
+  return (
+    <div className="nb-files">
+      {files.map((f) =>
+        f.image && f.url ? (
+          <a key={f.id} className="nb-file img" href={f.url} target="_blank" rel="noreferrer">
+            {/* eslint-disable-next-line @next/next/no-img-element -- signed,
+                short-lived storage URL: the image optimiser can't cache it */}
+            <img src={f.url} alt={displayName(f.fileName)} loading="lazy" />
+          </a>
+        ) : (
+          <a
+            key={f.id}
+            className="nb-file doc"
+            href={f.url ?? "#"}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <Icon name="file" size={15} />
+            <span>
+              <b>{displayName(f.fileName)}</b>
+              <em>{fmtBytes(f.sizeBytes)}</em>
+            </span>
+          </a>
+        ),
+      )}
     </div>
   );
 }
@@ -526,6 +570,7 @@ function NoticeCard({ notice: n, acts }: { notice: BoardNotice; acts: Acts }) {
         </span>
       </div>
       {n.body && <div className="nb-body">{n.body}</div>}
+      <Attachments files={n.attachments} />
       {n.poll && (
         <PollBlock
           poll={n.poll}
@@ -617,6 +662,11 @@ export function NoticesBoard({
   const [eventDate, setEventDate] = useState("");
   const [eventTime, setEventTime] = useState("");
   const [eventLocation, setEventLocation] = useState("");
+  // files land in storage as they're picked, BEFORE the notice exists; posting
+  // is what claims them. An abandoned composer therefore leaves rows nobody can
+  // see rather than a half-attached notice.
+  const [files, setFiles] = useState<UploadedFile[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   const draftPoll = useMemo(() => cleanPollOptions(options), [options]);
 
@@ -645,8 +695,43 @@ export function NoticesBoard({
     setEventDate("");
     setEventTime("");
     setEventLocation("");
+    for (const f of files) if (f.previewUrl) URL.revokeObjectURL(f.previewUrl);
+    setFiles([]);
     setEditingId(null);
     setOpen(false);
+  };
+
+  /* Picking files uploads them straight away — the notice they'll hang off
+     doesn't exist yet, and won't until Post. One failure doesn't cancel the
+     rest of the selection; it just says which one didn't make it. */
+  const pickFiles = async (picked: FileList | null) => {
+    if (!picked || picked.length === 0) return;
+    setError(null);
+    setUploading(true);
+    let room = MAX_NOTICE_FILES - files.length;
+    for (const file of Array.from(picked)) {
+      if (room <= 0) {
+        setError(`You can attach up to ${MAX_NOTICE_FILES} files.`);
+        break;
+      }
+      const res = await uploadFile(file, "notice_attachment");
+      if (!res.ok) {
+        setError(`${displayName(file.name)}: ${res.error}`);
+        continue;
+      }
+      room -= 1;
+      setFiles((prev) => [...prev, res.file]);
+    }
+    setUploading(false);
+  };
+
+  const dropFile = (documentId: string) => {
+    const going = files.find((f) => f.documentId === documentId);
+    if (going?.previewUrl) URL.revokeObjectURL(going.previewUrl);
+    setFiles((prev) => prev.filter((f) => f.documentId !== documentId));
+    // it was already in storage, so taking it out of the composer has to take
+    // it out of the bucket too — otherwise it's billable and invisible
+    void deleteDocument(documentId);
   };
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>, after?: () => void) => {
@@ -708,6 +793,7 @@ export function NoticesBoard({
               body: body || undefined,
               pinned,
               expiresAt: expiresAt || null,
+              documentIds: files.map((f) => f.documentId),
               ...(showingEvent
                 ? { eventDate, eventTime: eventTime || undefined, eventLocation }
                 : {}),
@@ -718,6 +804,7 @@ export function NoticesBoard({
               pinned,
               expiresAt: expiresAt || null,
               kind,
+              documentIds: files.map((f) => f.documentId),
               ...(kind === "poll" ? { options, multi } : {}),
               ...(showingEvent
                 ? { eventDate, eventTime: eventTime || undefined, eventLocation }
@@ -897,6 +984,60 @@ export function NoticesBoard({
                 </div>
               )}
 
+              <div className="nb-optedit">
+                <span className="nb-optedith">Photos & files</span>
+                {files.length > 0 && (
+                  <div className="nb-files">
+                    {files.map((f) => (
+                      <div className="nb-pending" key={f.documentId}>
+                        {f.previewUrl ? (
+                          /* eslint-disable-next-line @next/next/no-img-element --
+                             an in-memory object URL; there is nothing to optimise */
+                          <img src={f.previewUrl} alt={displayName(f.fileName)} />
+                        ) : (
+                          <span className="nb-pendingdoc">
+                            <Icon name="file" size={16} />
+                          </span>
+                        )}
+                        <span className="nb-pendingname">
+                          <b>{displayName(f.fileName)}</b>
+                          <em>{fmtBytes(f.sizeBytes)}</em>
+                        </span>
+                        <button
+                          type="button"
+                          className="nb-optdrop"
+                          aria-label={`Remove ${displayName(f.fileName)}`}
+                          onClick={() => dropFile(f.documentId)}
+                        >
+                          <Icon name="x" size={13} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {files.length < MAX_NOTICE_FILES && (
+                  <label className="fl-btn ghost" style={{ cursor: "pointer" }}>
+                    <Icon name="plus" size={13} />
+                    {uploading ? "Uploading…" : "Attach a photo or file"}
+                    <input
+                      type="file"
+                      multiple
+                      accept={Object.keys(ALLOWED_TYPES).join(",")}
+                      disabled={uploading}
+                      style={{ display: "none" }}
+                      onChange={(e) => {
+                        void pickFiles(e.target.files);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                )}
+                <div className="dash-mini">
+                  Photos and PDFs, up to {MAX_NOTICE_FILES} of them. Only people in your
+                  organisation can open them.
+                </div>
+              </div>
+
               <div className="lv-fnote">
                 <label className="mts-f" style={{ flex: 1 }}>
                   <span>
@@ -922,7 +1063,11 @@ export function NoticesBoard({
                   <span style={{ margin: 0 }}>Pin to the top</span>
                 </label>
                 <div className="mts-facts">
-                  <button className="fl-btn primary" disabled={pending || blocked} onClick={submit}>
+                  <button
+                    className="fl-btn primary"
+                    disabled={pending || uploading || blocked}
+                    onClick={submit}
+                  >
                     <Icon name="send" size={14} />
                     {editingId
                       ? "Save changes"

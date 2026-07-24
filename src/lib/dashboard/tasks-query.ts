@@ -10,6 +10,7 @@ import {
   type MentionTarget,
 } from "./comments";
 import type { BoardNotice } from "./board";
+import { documentsForNotices } from "@/lib/documents/query";
 import { isDelegated, noticeReadState, type DashTask } from "./tasks";
 
 /* Queries for the task list and noticeboard. Org-scoped throughout.
@@ -171,13 +172,14 @@ export async function listNotices(
   const idsOfKind = (kind: string) =>
     noticeRows.filter((r) => asNoticeKind(r.kind) === kind).map((r) => String(r.id));
   const allIds = noticeRows.map((r) => String(r.id));
-  const [polls, rsvps, reactions, comments] = await Promise.all([
+  const [polls, rsvps, reactions, comments, attachments] = await Promise.all([
     pollsFor(orgId, idsOfKind("poll"), name),
     rsvpsFor(orgId, idsOfKind("event"), name),
     // reactions and comments are not kind-specific: anything on the board can
     // be reacted to, and talked about
     reactionsFor(orgId, allIds, name),
     commentsFor(orgId, allIds, name),
+    documentsForNotices(orgId, allIds),
   ]);
 
   const threaded = new Map(
@@ -235,6 +237,7 @@ export async function listNotices(
       reactions: tallyReactions(reactions.get(id) ?? [], staffProfileId),
       comments: threaded.get(id) ?? [],
       mentionsMe: mentionsOf(threaded.get(id) ?? [], staffProfileId),
+      attachments: attachments.get(id) ?? [],
     };
   });
 }

@@ -1,5 +1,6 @@
 import { Auth0Client } from "@auth0/nextjs-auth0/server";
 import { supabaseAdmin } from "./supabase-server";
+import { splitName } from "./staff/name";
 
 /* Make sure the user has a staff card in this org. Best effort, like the
    profiles upsert: a failure here must never block login — /dashboard/profile
@@ -18,13 +19,17 @@ async function ensureStaffCard(
       .maybeSingle();
     if (data) return;
 
+    const seedName =
+      (session.user.name as string | undefined) ??
+      session.user.email?.split("@")[0] ??
+      null;
     await supabaseAdmin.from("staff_profiles").insert({
       org_id: orgId,
       user_id: userId,
-      full_name:
-        (session.user.name as string | undefined) ??
-        session.user.email?.split("@")[0] ??
-        null,
+      // Auth0 hands us one `name` claim, so the seed splits it best-effort;
+      // the person can correct either half on their own card.
+      ...splitName(seedName),
+      full_name: seedName,
       photo_url: (session.user.picture as string | undefined) ?? null,
     });
   } catch (e) {

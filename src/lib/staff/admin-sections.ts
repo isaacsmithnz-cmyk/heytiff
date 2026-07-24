@@ -15,7 +15,10 @@ export const ADMIN_SECTIONS = {
   personal: {
     capability: "team" as Capability,
     columns: [
-      "full_name",
+      // full_name is derived from these two — see lib/staff/name.ts — so it is
+      // deliberately not writable here either.
+      "first_name",
+      "last_name",
       "preferred_name",
       "phone",
       "birthday",

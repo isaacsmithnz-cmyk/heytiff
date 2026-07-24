@@ -10,6 +10,10 @@ export type StaffProfile = {
   org_id: string;
   user_id: string | null;
 
+  first_name: string | null;
+  last_name: string | null;
+  /* Derived — written as "first last" whenever either half is saved. Never
+     split back apart; see lib/staff/name.ts. */
   full_name: string | null;
   preferred_name: string | null;
   phone: string | null;
@@ -43,7 +47,10 @@ export type StaffProfile = {
    control. */
 export const SELF_EDITABLE_SECTIONS = {
   personal: [
-    "full_name",
+    // full_name is absent deliberately: it is derived from these two, so a
+    // direct POST must not be able to set it out of step with them.
+    "first_name",
+    "last_name",
     "preferred_name",
     "phone",
     "birthday",

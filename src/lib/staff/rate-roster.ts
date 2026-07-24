@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { displayNameOf } from "./name";
 import type { StaffMember } from "@/components/rate-calculator/engine";
 
 /* The roster, shaped for the Rate Calculator. This is the single source of a
@@ -14,7 +15,7 @@ import type { StaffMember } from "@/components/rate-calculator/engine";
    Gaps are surfaced in the tool with a link back to their Team card. */
 
 const ROSTER_COLUMNS =
-  "id, full_name, preferred_name, job_title, employment_type, status, " +
+  "id, first_name, last_name, full_name, preferred_name, job_title, employment_type, status, " +
   "hourly_wage, contracted_hours, utilisation, cost_split, super_override, workers_comp_override";
 
 type Split = { install?: number; service?: number; admin?: number };
@@ -39,7 +40,7 @@ export function toStaffMember(r: Record<string, unknown>): StaffMember {
 
   return {
     id: String(r.id),
-    name: ((r.preferred_name as string) || (r.full_name as string) || "Unnamed").trim(),
+    name: displayNameOf(r),
     role: (r.job_title as string) || undefined,
     hourly_wage: wage,
     employment_type: employment,
@@ -60,6 +61,7 @@ export async function rosterForRateCalc(orgId: string): Promise<StaffMember[]> {
     .select(ROSTER_COLUMNS)
     .eq("org_id", orgId)
     .eq("status", "Active")
-    .order("full_name");
+    .order("first_name")
+    .order("last_name");
   return ((data ?? []) as unknown as Record<string, unknown>[]).map(toStaffMember);
 }

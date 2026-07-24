@@ -145,11 +145,14 @@ function personal(p: StaffProfile | null) {
   return (
     '<section class="psec on" data-sec="personal">' +
     `<div class="card2" data-section="personal"><div class="c2h"><span class="ci">${ic("user", 18)}</span><span><b>Personal details</b><em>Identity, contact & employment basics</em></span></div>` +
-    `<div class="frow c2">${field("Full name", input("full_name", "e.g. Jordan Mills", "text", p?.full_name), { req: true })}${field("Preferred / nickname", input("preferred_name", "e.g. Jordy", "text", p?.preferred_name))}</div>` +
-    `<div class="frow c2">${field("Phone", input("phone", "04xx xxx xxx", "tel", p?.phone), { req: true })}${field("Birthday", input("birthday", "dd / mm / yyyy", "text", formatAuDate(p?.birthday)))}</div>` +
+    /* A name is two fields, not one free-text box: first and last are what we
+       store, and full_name is derived from them on save (lib/staff/name.ts). */
+    `<div class="frow c2">${field("First name", input("first_name", "e.g. Jordan", "text", p?.first_name), { req: true })}${field("Last name", input("last_name", "e.g. Mills", "text", p?.last_name), { req: true })}</div>` +
+    `<div class="frow c2">${field("Preferred / nickname", input("preferred_name", "e.g. Jordy", "text", p?.preferred_name))}${field("Phone", input("phone", "04xx xxx xxx", "tel", p?.phone), { req: true })}</div>` +
+    `<div class="frow c2">${field("Birthday", input("birthday", "dd / mm / yyyy", "text", formatAuDate(p?.birthday)))}${field("Start date", input("start_date", "dd / mm / yyyy", "text", formatAuDate(p?.start_date)))}</div>` +
     `<div class="frow">${field("Address", input("address", "Street, suburb, state, postcode", "text", p?.address))}</div>` +
-    `<div class="frow c2">${field("Start date", input("start_date", "dd / mm / yyyy", "text", formatAuDate(p?.start_date)))}${field("Employment type", selectP("employment_type", "Select employment type", ["Full-time", "Part-time", "Casual", "Apprentice", "Subcontractor"], p?.employment_type))}</div>` +
-    `<div class="frow c2">${field("Status", seg)}${field("Profile photo", `<div class="drop"><span class="di">${ic("cam", 20)}</span><span class="dk"><b>Upload a photo</b><em>JPG or PNG, square works best</em></span></div>`)}</div>` +
+    `<div class="frow c2">${field("Employment type", selectP("employment_type", "Select employment type", ["Full-time", "Part-time", "Casual", "Apprentice", "Subcontractor"], p?.employment_type))}${field("Status", seg)}</div>` +
+    `<div class="frow c2">${field("Profile photo", `<div class="drop"><span class="di">${ic("cam", 20)}</span><span class="dk"><b>Upload a photo</b><em>JPG or PNG, square works best</em></span></div>`)}<div></div></div>` +
     "</div></section>"
   );
 }

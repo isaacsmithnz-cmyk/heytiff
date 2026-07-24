@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { displayNameOf } from "@/lib/staff/name";
 
 /* Dashboard reads. Org-scoped throughout, like every other query module.
 
@@ -23,9 +24,6 @@ export type StaffCompliance = {
   licences: Licence[];
 };
 
-function displayName(full: unknown, preferred: unknown): string {
-  return ((preferred as string) || (full as string) || "Unnamed").trim() || "Unnamed";
-}
 
 /** Licences for a set of staff, grouped by staff_profile_id. */
 async function licencesByStaff(orgId: string, staffIds: string[]): Promise<Map<string, Licence[]>> {
@@ -63,7 +61,7 @@ export async function listStaffCompliance(
   let q = supabaseAdmin
     .from("staff_profiles")
     .select(
-      "id, full_name, preferred_name, work_rights_status, visa_type, visa_expiry, work_rights_verified_at",
+      "id, first_name, last_name, full_name, preferred_name, work_rights_status, visa_type, visa_expiry, work_rights_verified_at",
     )
     .eq("org_id", orgId);
   q = staffId ? q.eq("id", staffId) : q.eq("status", "Active");
@@ -74,7 +72,7 @@ export async function listStaffCompliance(
 
   return rows.map((r) => ({
     staffId: r.id as string,
-    name: displayName(r.full_name, r.preferred_name),
+    name: displayNameOf(r),
     workRights: {
       status: (r.work_rights_status as string) ?? null,
       visaType: (r.visa_type as string) ?? null,

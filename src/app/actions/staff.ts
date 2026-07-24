@@ -14,6 +14,7 @@ import {
   type Capability,
 } from "@/lib/permissions";
 import { buildAdminPatch, capabilityFor, isAdminSection } from "@/lib/staff/admin-sections";
+import { withDerivedFullName } from "@/lib/staff/name";
 import type { Role } from "@/lib/roles-shared";
 
 /* Editing SOMEONE ELSE'S card, from Team.
@@ -48,20 +49,33 @@ async function context(): Promise<Ctx | null> {
   };
 }
 
+type Target = {
+  userId: string | null;
+  role: Role | null;
+  permissions: unknown;
+  name: { first_name: string | null; last_name: string | null };
+};
+
 /** The target, resolved inside the caller's org — never by id alone. */
 async function targetIn(
   ctx: Ctx,
   staffId: string
-): Promise<{ userId: string | null; role: Role | null; permissions: unknown } | null> {
+): Promise<Target | null> {
   const { data } = await supabaseAdmin
     .from("staff_profiles")
-    .select("user_id")
+    // the name halves ride along so a one-field save can still derive the
+    // whole full_name — see lib/staff/name.ts
+    .select("user_id, first_name, last_name")
     .eq("org_id", ctx.orgId)
     .eq("id", staffId)
     .maybeSingle();
   if (!data) return null;
+  const name = {
+    first_name: (data.first_name as string) ?? null,
+    last_name: (data.last_name as string) ?? null,
+  };
   const userId = (data.user_id as string) ?? null;
-  if (!userId) return { userId: null, role: null, permissions: null };
+  if (!userId) return { userId: null, role: null, permissions: null, name };
   const { data: m } = await supabaseAdmin
     .from("memberships")
     .select("role, permissions")
@@ -72,6 +86,7 @@ async function targetIn(
     userId,
     role: (m?.role as Role) ?? null,
     permissions: m?.permissions ?? null,
+    name,
   };
 }
 
@@ -124,7 +139,10 @@ export async function saveStaffSection(
 
   const { error } = await supabaseAdmin
     .from("staff_profiles")
-    .update({ ...patch, updated_at: new Date().toISOString() })
+    .update({
+      ...withDerivedFullName(patch, target.name),
+      updated_at: new Date().toISOString(),
+    })
     .eq("org_id", ctx.orgId)
     .eq("id", staffId);
   if (error) return { ok: false, error: error.message };
@@ -140,7 +158,7 @@ export async function saveStaffSection(
 async function savePermissions(
   ctx: Ctx,
   staffId: string,
-  target: { userId: string | null; role: Role | null; permissions: unknown },
+  target: Target,
   fields: Record<string, string>
 ): Promise<SaveResult> {
   if (!target.userId) {

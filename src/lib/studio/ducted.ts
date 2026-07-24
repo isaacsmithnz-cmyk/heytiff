@@ -217,11 +217,22 @@ export type { OpeningSpec } from "./packs/schema";
    2026-07-23, not built yet). Until then they live here as named constants
    rather than magic numbers at the call site. */
 
-/** SUPPLY: deep enough to turn air into the takeoffs. */
-export const PLENUM_PROTRUSION_MM = 400;
+/** SUPPLY, base → V point: shallow with one takeoff, deeper as more are
+    added (the fan-out needs the length). Bounded — past the cap you're
+    building a transition, not a plenum. */
+export const SUPPLY_PLENUM_DEPTH_MIN_MM = 200;
+export const SUPPLY_PLENUM_DEPTH_MAX_MM = 300;
+const SUPPLY_DEPTH_PER_EXTRA_SPIGOT_MM = 25;
 
 /** RETURN: a shallow box on the back of the unit (field standard). */
 export const RETURN_PLENUM_DEPTH_MM = 150;
+
+/** How deep a supply plenum runs from the unit face to the spigot face.
+    One duct sits at the minimum; each extra pushes it out, capped. */
+export function supplyPlenumDepthMm(spigotCount: number): number {
+  const extra = Math.max(0, spigotCount - 1) * SUPPLY_DEPTH_PER_EXTRA_SPIGOT_MM;
+  return Math.min(SUPPLY_PLENUM_DEPTH_MAX_MM, SUPPLY_PLENUM_DEPTH_MIN_MM + extra);
+}
 
 /** Derived-default base when the data book opening is absent (Principle 5):
     ~90 % of the discharge END the plenum bolts to (the caller passes the
@@ -321,7 +332,12 @@ export function plenumBody(opts: {
     baseWMm,
     spigotFaceWMm,
     openingHMm,
-    depthMm: rectangular ? RETURN_PLENUM_DEPTH_MM : PLENUM_PROTRUSION_MM,
+    /* depth follows EVERY connected spigot, not just the ones on the far
+       face — a plenum fed by two side takeoffs still has to run out far
+       enough to reach them (field sketch 2026-07-23) */
+    depthMm: rectangular
+      ? RETURN_PLENUM_DEPTH_MM
+      : supplyPlenumDepthMm(opts.spigots.length),
     builtIn,
     factorySpigots,
     derived,

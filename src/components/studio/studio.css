@@ -6800,11 +6800,28 @@
   opacity: 0.55;
   vector-effect: non-scaling-stroke;
 }
+/* Airflow direction earns its OWN colour and weight instead of inheriting the
+   system tint. It answers a different question from everything else on the
+   plan — which way the air actually goes — and at 1.2px / 0.7 opacity in the
+   system colour it read as just more system-coloured linework. Blue is the
+   unclaimed slot in the plan language (amber = building, teal = accent,
+   red = danger) and it reads as air. */
+.dstudio {
+  --ds-air: #2563eb;
+}
 .dstudio .ds-ahu-flow {
-  stroke: currentColor;
-  stroke-width: 1.2px;
-  opacity: 0.7;
+  stroke: var(--ds-air);
+  stroke-width: 2.4px;
+  opacity: 1;
+  stroke-linecap: round;
   vector-effect: non-scaling-stroke;
+}
+/* the head matches the line by NAME, never by currentColor — see the marker */
+.dstudio .ds-flow-arrowhead {
+  stroke: var(--ds-air);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 /* the long faces labelled SUPPLY / RETURN — appear only once determined */
 .dstudio .ds-ahu-face-label {

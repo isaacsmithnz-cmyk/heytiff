@@ -267,7 +267,7 @@ describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
     expect(b.baseWMm).toBe(1200);
     expect(b.spigotFaceWMm).toBe(850);
     expect(b.overSpigot).toBe(false);
-    expect(b.depthMm).toBe(400);
+    expect(b.depthMm).toBe(225); // 2 spigots: 200 + 1 × 25
     expect(b.derived).toBe(false);
     expect(b.label).toBe('1200 × 250 · 2 × 14"');
   });
@@ -345,8 +345,8 @@ describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
     const b = plenumBody({ opening: { w_mm: 660, h_mm: 150 }, spigots: [], units: "mm" });
     expect(b.label).toBe("660 × 150");
     expect(b.openingHMm).toBe(150);
-    expect(b.depthMm).toBe(400); // still 400 deep — the depth just isn't labelled
-    expect(b.label).not.toContain("400");
+    expect(b.depthMm).toBe(200); // no spigots yet → the shallow end of the range
+    expect(b.label).not.toContain("200"); // depth is never in the label
   });
 
   it("an unknown opening height shows a dash, not a dropped dimension", () => {
@@ -383,7 +383,7 @@ describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
     expect(b.overHeight).toBe(false); // unknown is not the same as breached
   });
 
-  it("a RETURN box is 150 deep; supply on the same unit stays 400", () => {
+  it("a RETURN box is 150 deep; supply runs 200–300 by spigot count", () => {
     const ret = plenumBody({
       opening: { w_mm: 660, h_mm: 157.5 },
       spigots: [],
@@ -397,7 +397,48 @@ describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
       stream: "supply",
     });
     expect(ret.depthMm).toBe(150);
-    expect(sup.depthMm).toBe(400);
+    expect(sup.depthMm).toBe(200); // no spigots → minimum
+  });
+
+  /* The two shapes from the field sketch (2026-07-23). LEFT: two takeoffs on
+     the SLOPED SIDES, nothing on the far face, so the body closes to a true V
+     point. RIGHT: the same two plus one on the far face, which is then only as
+     wide as that single duct needs. */
+  it("sketch LEFT — side takeoffs only ⇒ the far face is nothing (a true V)", () => {
+    const b = plenumBody({
+      opening: { w_mm: 660, h_mm: 150 },
+      spigots: [spig(200, "left"), spig(200, "right")],
+      units: "mm",
+      stream: "supply",
+    });
+    expect(b.spigotFaceWMm).toBe(0); // no lip — the V closes to a point
+    expect(b.overSpigot).toBe(false); // nothing is landing on the face to overflow it
+    expect(b.depthMm).toBe(225); // 2 connected spigots: 200 + 1 × 25
+  });
+
+  it("sketch RIGHT — one on the far face ⇒ a flat bottom just wide enough", () => {
+    const b = plenumBody({
+      opening: { w_mm: 660, h_mm: 150 },
+      spigots: [spig(200, "left"), spig(200, "right"), spig(200)],
+      units: "mm",
+      stream: "supply",
+    });
+    expect(b.spigotFaceWMm).toBe(300); // the ONE front duct: 200 + 2 × 50 gaps
+    expect(b.spigotFaceWMm).toBeLessThan(b.baseWMm); // still a trapezoid
+    expect(b.depthMm).toBe(250); // 3 connected spigots: 200 + 2 × 25
+  });
+
+  it("depth climbs with every connected spigot and stops at 300", () => {
+    const at = (n: number) =>
+      plenumBody({
+        opening: { w_mm: 1600, h_mm: 300 },
+        spigots: Array.from({ length: n }, () => spig(150, "left")),
+        units: "mm",
+        stream: "supply",
+      }).depthMm;
+    expect([at(0), at(1), at(2), at(3)]).toEqual([200, 200, 225, 250]);
+    expect(at(5)).toBe(300);
+    expect(at(20)).toBe(300); // capped — past this it's a transition, not a plenum
   });
 
   it("no opening data → grey derived default (~90% of the discharge END, NOT the unit width)", () => {

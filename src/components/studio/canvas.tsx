@@ -265,8 +265,11 @@ function plenumShape(opts: {
   const y0 = cy; // base, on the unit
   const y1 = cy + dir * depth; // spigot face, outward
   const hBase = baseHalf;
-  // never let the far face collapse fully — a lone spigot still needs a lip
-  const hSpig = Math.min(hBase, Math.max(opts.spigotHalf, hBase * 0.12));
+  /* The far face is exactly as wide as the ducts landing ON it — no artificial
+     lip. With every takeoff on the SIDES the face is nothing and the body
+     closes to a true V point, which is how these are drawn by hand (field
+     sketch 2026-07-23); the old 12% floor left a stub that read as a mistake. */
+  const hSpig = Math.min(hBase, opts.spigotHalf);
   const stub = depth * 0.4; // how far the spigot rectangles stand off the face
 
   // trapezoid: WIDE at the unit (y0, ±hBase) → NARROW at the spigot face (y1, ±hSpig)
@@ -2172,16 +2175,20 @@ export function StudioCanvas({
                 strokeWidth={1 / zoom}
               />
             </pattern>
+            {/* Airflow head. Styled in CSS, not with currentColor: inside a
+                <marker> currentColor resolves against the marker's own
+                context — NOT the line referencing it — so the head could
+                never be trusted to match the flow line. */}
             <marker
               id="ds-flow-arrow"
               viewBox="0 0 8 8"
               refX="6"
               refY="4"
-              markerWidth="6"
-              markerHeight="6"
+              markerWidth="7"
+              markerHeight="7"
               orient="auto-start-reverse"
             >
-              <path d="M1 1 L7 4 L1 7" fill="none" stroke="currentColor" strokeWidth="1.4" />
+              <path className="ds-flow-arrowhead" d="M1 1 L7 4 L1 7" fill="none" />
             </marker>
           </defs>
           {/* plan sheets (under everything); arrange tool shows outlines */}

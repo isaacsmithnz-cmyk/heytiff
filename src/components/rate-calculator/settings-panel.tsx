@@ -139,9 +139,19 @@ function ExplainerSection() {
   );
 }
 
-export function SettingsPanel({ st, patch, onClose }: {
+export function SettingsPanel({ st: committed, patch: commit, onClose }: {
   st: RateCalcState; patch: (p: Partial<RateCalcState>) => void; onClose: () => void;
 }) {
+  // Edits live in a local draft until "Save settings" — Cancel (and the ✕, and
+  // clicking the scrim) throws the draft away. Nothing reaches the real state
+  // until the user commits, so a half-made change never silently sticks.
+  type Draft = Pick<RateCalcState, "settings" | "currentRates" | "profit">;
+  const [st, setDraft] = React.useState<Draft>({
+    settings: committed.settings, currentRates: committed.currentRates, profit: committed.profit,
+  });
+  const patch = (p: Partial<Draft>) => setDraft(d => ({ ...d, ...p }));
+  const save = () => { commit(st); onClose(); };
+
   const g = st.settings;
   const set = (k: keyof CalcSettings, v: CalcSettings[keyof CalcSettings]) => patch({ settings: { ...g, [k]: v } });
   const setState = (stCode: string) => {
@@ -159,7 +169,7 @@ export function SettingsPanel({ st, patch, onClose }: {
             <WsEyebrow>Rate Calculator</WsEyebrow>
             <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 22, letterSpacing: "-0.02em", color: RC.ink, lineHeight: 1.1, marginTop: 3 }}>Settings</div>
           </div>
-          <button className="rca-iconbtn" onClick={onClose} title="Close"><RcIcon name="x" size={16} /></button>
+          <button className="rca-iconbtn" onClick={onClose} title="Cancel"><RcIcon name="x" size={16} /></button>
         </div>
 
         <div style={{ flex: 1, overflow: "auto", padding: "8px 26px 26px" }}>
@@ -212,8 +222,8 @@ export function SettingsPanel({ st, patch, onClose }: {
         </div>
 
         <div style={{ flexShrink: 0, padding: "16px 26px", background: "#fff", borderTop: `1px solid ${RC.line}`, display: "flex", gap: 12 }}>
-          <button className="rca-btn ghost" style={{ flex: 1 }} onClick={onClose}>Close</button>
-          <button className="rca-btn primary" style={{ flex: 1.4 }} onClick={onClose}>Save settings</button>
+          <button className="rca-btn ghost" style={{ flex: 1 }} onClick={onClose}>Cancel</button>
+          <button className="rca-btn primary" style={{ flex: 1.4 }} onClick={save}>Save settings</button>
         </div>
       </div>
     </div>

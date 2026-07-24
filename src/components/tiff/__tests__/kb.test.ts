@@ -1,6 +1,16 @@
 import { KB_CATEGORIES, filterKbDocs, kbCounts, type KbDoc } from "../kb";
-import { demoKbDocs } from "@/mock/demo";
 import { ICON_PATHS } from "@/components/shell/icon";
+
+// A small local sample — one doc per category. Used to exercise kbCounts and
+// the category config. (There is no demo library any more; real uploads land
+// with the Documents/storage track.)
+const sampleDocs: KbDoc[] = [
+  { id: "s1", category: "install", title: "Ducted install checklist", kind: "PDF", source: "HeyTiff", updated: "May 2026" },
+  { id: "s2", category: "faults", title: "City Multi fault codes", kind: "PDF", source: "Service handbook", updated: "Jun 2026" },
+  { id: "s3", category: "specs", title: "PEAD-M datasheets", kind: "PDF", source: "Mitsubishi", updated: "May 2026" },
+  { id: "s4", category: "sops", title: "Warranty claim process", kind: "Doc", source: "Company SOP", updated: "Jun 2026" },
+  { id: "s5", category: "faults", title: "VRV error index", kind: "PDF", source: "Daikin", updated: "Mar 2026" },
+];
 
 describe("knowledge base config", () => {
   it("has four categories with unique keys and real icons", () => {
@@ -13,18 +23,19 @@ describe("knowledge base config", () => {
     }
   });
 
-  it("every demo doc belongs to a defined category", () => {
+  it("every sample doc belongs to a defined category", () => {
     const keys = new Set(KB_CATEGORIES.map((c) => c.key));
-    for (const d of demoKbDocs) expect(keys.has(d.category)).toBe(true);
+    for (const d of sampleDocs) expect(keys.has(d.category)).toBe(true);
   });
 
   it("kbCounts covers every category and sums to the doc total", () => {
-    const counts = kbCounts(demoKbDocs);
+    const counts = kbCounts(sampleDocs);
     for (const c of KB_CATEGORIES) {
       expect(typeof counts[c.key]).toBe("number");
     }
     const total = Object.values(counts).reduce((a, b) => a + b, 0);
-    expect(total).toBe(demoKbDocs.length);
+    expect(total).toBe(sampleDocs.length);
+    expect(counts.faults).toBe(2);
   });
 
   it("kbCounts returns zeros for an empty library", () => {

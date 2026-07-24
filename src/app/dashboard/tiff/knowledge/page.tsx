@@ -1,6 +1,7 @@
 import { KnowledgeBase } from "@/components/tiff/knowledge";
-import { demoKbDocs } from "@/mock/demo";
 
+// Empty until real uploads land (Documents/storage track); the knowledge base
+// renders a per-category "No documents yet" state from an empty library.
 export default function KnowledgeBasePage() {
-  return <KnowledgeBase docs={demoKbDocs} />;
+  return <KnowledgeBase docs={[]} />;
 }

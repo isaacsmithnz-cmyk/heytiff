@@ -1,6 +1,7 @@
 /* Knowledge-base structure for Tiff AI. The four categories are product
    structure (they drive the Tiff sidebar and the /dashboard/tiff/knowledge
-   page); the documents inside them come from mock/demo.ts until uploads land. */
+   page); the library is empty until real uploads land (Documents/storage
+   track), and every screen renders a per-category empty state until then. */
 
 export type KbCategoryKey = "install" | "faults" | "specs" | "sops";
 

@@ -33,8 +33,10 @@ describe("system map registry", () => {
 
   it("standalone pieces are exactly the ones we mean to be standalone", () => {
     // Going connected ↔ standalone should be a conscious decision: update this
-    // list together with the edge change.
-    expect(standaloneIds().sort()).toEqual(["hq-map", "tb-fault", "tb-press"].sort());
+    // list together with the edge change. `tiff` joined the list in Stage 7:
+    // deleting mock/demo.ts removed its only edge, and its knowledge library is
+    // empty until the Documents/storage track lands real uploads.
+    expect(standaloneIds().sort()).toEqual(["hq-map", "tb-fault", "tb-press", "tiff"].sort());
   });
 
   it("helpers agree with the raw edge list", () => {

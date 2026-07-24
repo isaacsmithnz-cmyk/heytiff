@@ -1,6 +1,6 @@
 import { auth0 } from "@/lib/auth0";
-import { Screen } from "@/components/shell/screen";
-import { homeHtml } from "@/components/shell/screens";
+import { DashboardHome } from "@/components/dashboard/home";
+import { loadDashboard } from "@/lib/dashboard/page-data";
 
 function greetingFor(hour: number): string {
   if (hour < 12) return "Good morning";
@@ -8,7 +8,7 @@ function greetingFor(hour: number): string {
   return "Good evening";
 }
 
-export default async function DashboardHome() {
+export default async function DashboardHomePage() {
   const session = await auth0.getSession();
   const email = session?.user.email ?? "";
   const name = (session?.user.name as string | undefined) ?? email.split("@")[0] ?? "there";
@@ -21,7 +21,14 @@ export default async function DashboardHome() {
     month: "long",
   });
 
+  const data = await loadDashboard();
+
   return (
-    <Screen html={homeHtml({ greeting: greetingFor(now.getHours()), firstName, date })} />
+    <DashboardHome
+      greeting={greetingFor(now.getHours())}
+      firstName={firstName}
+      date={date}
+      data={data}
+    />
   );
 }

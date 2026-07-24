@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/shell/icon";
+import { SHARE_TTL_DAYS } from "@/lib/studio/share";
 
 /* Share action card — the customer live link. One link per design: create
    rotates a fresh token, Copy puts the URL on the clipboard, Revoke (armed,
@@ -17,7 +18,14 @@ type ShareState =
   | { kind: "unavailable" }
   | { kind: "none" }
   | { kind: "busy" }
-  | { kind: "active"; url: string; createdAt: string };
+  | {
+      kind: "active";
+      url: string;
+      createdAt: string;
+      expiresAt: string;
+      expired: boolean;
+      daysLeft: number;
+    };
 
 export function ShareCard({ designId }: { designId: string }) {
   const [state, setState] = useState<ShareState>({ kind: "loading" });
@@ -89,7 +97,7 @@ export function ShareCard({ designId }: { designId: string }) {
           <span className="ds-act-s">
             Give the customer a live, read-only link: the latest saved design
             with the simulation running — they can try setpoints, nothing can
-            be changed.
+            be changed. The link works for {SHARE_TTL_DAYS} days.
           </span>
           <div className="ds-act-row">
             <button
@@ -105,18 +113,39 @@ export function ShareCard({ designId }: { designId: string }) {
 
       {state.kind === "active" && (
         <>
-          <span className="ds-share-url" title={state.url}>
+          <span
+            className={`ds-share-url${state.expired ? " dead" : ""}`}
+            title={state.url}
+          >
             {state.url.replace(/^https?:\/\//, "")}
           </span>
-          <span className="ds-share-meta">
-            Live since {new Date(state.createdAt).toLocaleDateString()} — always
-            shows the latest saved design.
-          </span>
+          {state.expired ? (
+            /* say it plainly — the link still LOOKS like a link, so the card
+               has to be the thing that tells you it stopped working */
+            <span className="ds-share-meta dead">
+              Expired {new Date(state.expiresAt).toLocaleDateString()} — anyone
+              opening it now sees nothing. Create a new link to share again.
+            </span>
+          ) : (
+            <span className="ds-share-meta">
+              Always shows the latest saved design. Expires in{" "}
+              <b>
+                {state.daysLeft} day{state.daysLeft === 1 ? "" : "s"}
+              </b>{" "}
+              ({new Date(state.expiresAt).toLocaleDateString()}).
+            </span>
+          )}
           <div className="ds-act-row">
-            <button className="ds-tbbtn" onClick={() => copy(state.url)}>
-              <Icon name={copied ? "check" : "file"} size={14} />
-              {copied ? "Copied" : "Copy link"}
-            </button>
+            {state.expired ? (
+              <button className="ds-tbbtn ds-act-go" onClick={create}>
+                Create a new link
+              </button>
+            ) : (
+              <button className="ds-tbbtn" onClick={() => copy(state.url)}>
+                <Icon name={copied ? "check" : "file"} size={14} />
+                {copied ? "Copied" : "Copy link"}
+              </button>
+            )}
             {armed ? (
               <>
                 <button className="ds-tbbtn ds-share-kill" onClick={revoke}>

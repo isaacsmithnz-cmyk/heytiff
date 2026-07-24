@@ -13,6 +13,7 @@ import {
 import { buildMaterials, rollupUnits } from "@/lib/studio/materials";
 import { SimCard, type SimReady } from "./sim-card";
 import { ShareCard } from "./share-card";
+import { ContributorsCard } from "./contributors-card";
 import { ExportCard } from "./export-card";
 
 /* Summary view (Design Studio step 2) — the whole design on one scrollable
@@ -114,6 +115,9 @@ export function SummaryView({
               <span className="ds-sum-chip">{basis.buildingLabel}</span>
               <span className="ds-sum-chip">{basis.basisLabel}</span>
             </div>
+            {/* who has worked on this — history, not ownership: the design
+                belongs to the business (see contributors-card) */}
+            <ContributorsCard key={doc.id} designId={doc.id} />
           </div>
 
           <div className="ds-sum-actions">

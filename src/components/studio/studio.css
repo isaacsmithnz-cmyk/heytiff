@@ -7965,7 +7965,13 @@
 .dstudio.editing .ds-menu-pop,
 .dstudio.editing .ds-layers-menu,
 .dstudio.editing .ds-variant-menu,
-.dstudio.editing .ds-sys-menu {
+.dstudio.editing .ds-sys-menu,
+/* .ds-pal was missing from this list and rendered as a BLANK WHITE BOX: it's
+   a child of the tool rail, so it inherits the rail's inverted ink ramp
+   (--ink:#fff) while keeping its own white background — white on white. It
+   went unnoticed because the palette used to sit behind the canvas entirely;
+   fixing that stacking bug is what finally made the blank box visible. */
+.dstudio.editing .ds-pal {
   background: rgba(18, 20, 27, 0.94);
   border-color: rgba(255, 255, 255, 0.14);
   backdrop-filter: blur(24px) saturate(1.4);
@@ -7979,6 +7985,7 @@
 .dstudio.editing .ds-var-row:hover .ds-var-pick,
 .dstudio.editing .ds-tool:hover:not(:disabled),
 .dstudio.editing .ds-var-edit:hover,
+.dstudio.editing .ds-pal-item:hover:not(:disabled),
 .dstudio.editing .ds-floor-confirm .no:hover {
   background: rgba(255, 255, 255, 0.12);
 }

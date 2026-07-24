@@ -1,6 +1,6 @@
 import { Icon } from "@/components/shell/icon";
 import { currentUnreadCount, partitionNotices } from "@/lib/dashboard/notices";
-import type { NoticeWithRead } from "@/lib/dashboard/tasks";
+import type { BoardNotice } from "@/lib/dashboard/board";
 
 /* The dashboard's noticeboard card — a summary and a door, nothing more.
 
@@ -14,7 +14,7 @@ import type { NoticeWithRead } from "@/lib/dashboard/tasks";
    announcement in the unread count would make the badge a chore rather than a
    signal. */
 
-export function NoticesCard({ notices, today }: { notices: NoticeWithRead[]; today: string }) {
+export function NoticesCard({ notices, today }: { notices: BoardNotice[]; today: string }) {
   const { active } = partitionNotices(notices, today);
   const unread = currentUnreadCount(notices, today);
   const latest = active.slice(0, 3);

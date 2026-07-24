@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import {
+  castPollVote,
   deleteNotice,
   editNotice,
   markNoticesRead,
@@ -11,7 +12,14 @@ import {
   setNoticeArchived,
 } from "@/app/actions/dashboard";
 import { expiryLabel, partitionNotices } from "@/lib/dashboard/notices";
-import type { NoticeWithRead } from "@/lib/dashboard/tasks";
+import {
+  cleanPollOptions,
+  MAX_POLL_OPTIONS,
+  nextSelection,
+  POLL_ERROR_TEXT,
+  type PollResult,
+} from "@/lib/dashboard/polls";
+import type { BoardNotice } from "@/lib/dashboard/board";
 
 /* The noticeboard page — where notices are actually read.
 
@@ -33,7 +41,7 @@ import type { NoticeWithRead } from "@/lib/dashboard/tasks";
    browser's clock — a phone in another timezone must not see a different
    board. */
 
-function ReadReceipt({ notice }: { notice: NoticeWithRead }) {
+function ReadReceipt({ notice }: { notice: BoardNotice }) {
   if (notice.audience === 0) return null;
   const all = notice.readBy >= notice.audience;
   return (
@@ -48,16 +56,88 @@ function fmtWhen(iso: string): string {
   return new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "short" }).format(new Date(iso));
 }
 
+/* A poll's answers.
+
+   The bar behind each answer is the share of the people who have ANSWERED, not
+   of the org — "half the crew who replied said Friday" is the number you can
+   actually act on, and it doesn't quietly punish a poll for not having heard
+   from everyone yet. Who voted for what is shown on request rather than by
+   default: it's never a secret (see lib/dashboard/polls), but a wall of names
+   under every answer buries the result.
+
+   A closed poll — expired or archived — still renders, and still shows who
+   said what. It just stops taking answers: "who's coming Friday" must not keep
+   moving after Friday. */
+function PollBlock({
+  poll,
+  closed,
+  pending,
+  onVote,
+}: {
+  poll: PollResult;
+  closed: boolean;
+  pending: boolean;
+  onVote: (optionIds: string[]) => void;
+}) {
+  const [showVoters, setShowVoters] = useState(false);
+  const anyVoters = poll.voters > 0;
+
+  return (
+    <div className="nb-poll">
+      {poll.options.map((o) => (
+        <div key={o.id}>
+          <button
+            type="button"
+            className={`nb-opt${o.mine ? " on" : ""}${closed ? " shut" : ""}`}
+            disabled={closed || pending}
+            aria-pressed={o.mine}
+            onClick={() => onVote(nextSelection(poll.myOptionIds, o.id, poll.multi))}
+          >
+            <span className="nb-optbar" style={{ width: `${o.share}%` }} aria-hidden />
+            <span className={`nb-optbox${poll.multi ? " sq" : ""}`}>
+              {o.mine && <Icon name="check" size={10} />}
+            </span>
+            <span className="nb-optlabel">{o.label}</span>
+            <span className="nb-optn">{o.votes}</span>
+          </button>
+          {showVoters && o.voters.length > 0 && (
+            <div className="nb-optwho">{o.voters.map((v) => v.name).join(", ")}</div>
+          )}
+        </div>
+      ))}
+      <div className="nb-pollfoot">
+        <span>
+          {closed
+            ? "Voting closed"
+            : poll.multi
+              ? "Pick as many as apply"
+              : "Pick one — tap again to take it back"}
+          {" · "}
+          {poll.voters === 0
+            ? "No answers yet"
+            : `${poll.voters} ${poll.voters === 1 ? "person has" : "people have"} answered`}
+        </span>
+        {anyVoters && (
+          <button type="button" className="nb-wholink" onClick={() => setShowVoters((v) => !v)}>
+            {showVoters ? "Hide who voted" : "Who voted"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 type Acts = {
   pending: boolean;
   canManage: boolean;
   today: string;
-  onEdit: (n: NoticeWithRead) => void;
-  onArchive: (n: NoticeWithRead) => void;
+  onEdit: (n: BoardNotice) => void;
+  onArchive: (n: BoardNotice) => void;
   onRemove: (id: string) => void;
+  onVote: (noticeId: string, optionIds: string[]) => void;
 };
 
-function NoticeCard({ notice: n, acts }: { notice: NoticeWithRead; acts: Acts }) {
+function NoticeCard({ notice: n, acts }: { notice: BoardNotice; acts: Acts }) {
   const expiry = expiryLabel(n.expiresAt, acts.today);
   const filed = n.archivedAt !== null;
   const canFile = n.mine || acts.canManage;
@@ -71,6 +151,11 @@ function NoticeCard({ notice: n, acts }: { notice: NoticeWithRead; acts: Acts })
               <span className="dchip2 warn" style={{ marginRight: 8 }}>
                 <Icon name="alert" size={11} />
                 Pinned
+              </span>
+            )}
+            {n.kind === "poll" && (
+              <span className="dchip2 mute" style={{ marginRight: 8 }}>
+                Poll
               </span>
             )}
             {n.title}
@@ -109,6 +194,14 @@ function NoticeCard({ notice: n, acts }: { notice: NoticeWithRead; acts: Acts })
         </span>
       </div>
       {n.body && <div className="nb-body">{n.body}</div>}
+      {n.poll && (
+        <PollBlock
+          poll={n.poll}
+          closed={filed || expiry?.state === "bad"}
+          pending={acts.pending}
+          onVote={(ids) => acts.onVote(n.id, ids)}
+        />
+      )}
       {(expiry || filed) && (
         <div className="nb-foot">
           {filed ? (
@@ -137,7 +230,7 @@ export function NoticesBoard({
   canRead,
   today,
 }: {
-  notices: NoticeWithRead[];
+  notices: BoardNotice[];
   canManage: boolean;
   canRead: boolean;
   today: string;
@@ -153,6 +246,12 @@ export function NoticesBoard({
   const [body, setBody] = useState("");
   const [pinned, setPinned] = useState(false);
   const [expiresAt, setExpiresAt] = useState("");
+  const [kind, setKind] = useState<"notice" | "poll">("notice");
+  // two empty answers up front: a poll needs two, so ask for two
+  const [options, setOptions] = useState<string[]>(["", ""]);
+  const [multi, setMulti] = useState(false);
+
+  const draftPoll = useMemo(() => cleanPollOptions(options), [options]);
 
   const { active, archived } = useMemo(() => partitionNotices(notices, today), [notices, today]);
 
@@ -173,6 +272,9 @@ export function NoticesBoard({
     setBody("");
     setPinned(false);
     setExpiresAt("");
+    setKind("notice");
+    setOptions(["", ""]);
+    setMulti(false);
     setEditingId(null);
     setOpen(false);
   };
@@ -199,18 +301,25 @@ export function NoticesBoard({
       setBody(n.body ?? "");
       setPinned(n.pinned);
       setExpiresAt(n.expiresAt ?? "");
+      setKind(n.kind === "poll" ? "poll" : "notice");
       setOpen(true);
       setError(null);
     },
     onArchive: (n) => run(() => setNoticeArchived(n.id, n.archivedAt === null)),
     onRemove: (id) => run(() => deleteNotice(id)),
+    onVote: (noticeId, optionIds) => run(() => castPollVote(noticeId, optionIds)),
   };
+
+  const composingPoll = kind === "poll" && !editingId;
 
   const submit = () =>
     run(
       () =>
         editingId
-          ? editNotice({
+          ? // an EDIT only ever reaches the wording — a poll's answers are
+            // fixed once people start voting, or the result stops meaning
+            // what the early voters agreed to
+            editNotice({
               noticeId: editingId,
               title,
               body: body || undefined,
@@ -222,9 +331,13 @@ export function NoticesBoard({
               body: body || undefined,
               pinned,
               expiresAt: expiresAt || null,
+              kind,
+              ...(kind === "poll" ? { options, multi } : {}),
             }),
       reset,
     );
+
+  const blocked = !title.trim() || (composingPoll && !draftPoll.ok);
 
   return (
     <div className="page in">
@@ -268,19 +381,36 @@ export function NoticesBoard({
 
           {open && (
             <div className="lv-form">
+              {!editingId && (
+                <div className="nb-kinds" role="group" aria-label="What are you posting">
+                  {(["notice", "poll"] as const).map((k) => (
+                    <button
+                      key={k}
+                      type="button"
+                      className={`nb-kind${kind === k ? " on" : ""}`}
+                      aria-pressed={kind === k}
+                      onClick={() => setKind(k)}
+                    >
+                      {k === "notice" ? "Notice" : "Poll"}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className="lv-fnote">
                 <label className="mts-f" style={{ flex: 1 }}>
-                  <span>Title</span>
+                  <span>{composingPoll ? "Question" : "Title"}</span>
                   <input
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    placeholder="e.g. Depot closed Friday"
+                    placeholder={
+                      composingPoll ? "e.g. Which day suits for the toolbox talk?" : "e.g. Depot closed Friday"
+                    }
                   />
                 </label>
               </div>
               <div className="lv-fnote">
                 <label className="mts-f" style={{ flex: 1 }}>
-                  <span>Message (optional)</span>
+                  <span>{composingPoll ? "Any detail (optional)" : "Message (optional)"}</span>
                   <input
                     value={body}
                     onChange={(e) => setBody(e.target.value)}
@@ -288,6 +418,60 @@ export function NoticesBoard({
                   />
                 </label>
               </div>
+
+              {composingPoll && (
+                <div className="nb-optedit">
+                  <span className="nb-optedith">Answers</span>
+                  {options.map((o, i) => (
+                    <div className="nb-optrow" key={i}>
+                      <input
+                        value={o}
+                        placeholder={`Answer ${i + 1}`}
+                        onChange={(e) =>
+                          setOptions((prev) => prev.map((x, j) => (j === i ? e.target.value : x)))
+                        }
+                      />
+                      {options.length > 2 && (
+                        <button
+                          type="button"
+                          className="nb-optdrop"
+                          aria-label={`Remove answer ${i + 1}`}
+                          onClick={() => setOptions((prev) => prev.filter((_, j) => j !== i))}
+                        >
+                          <Icon name="x" size={13} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {options.length < MAX_POLL_OPTIONS && (
+                    <button
+                      type="button"
+                      className="fl-btn ghost"
+                      onClick={() => setOptions((prev) => [...prev, ""])}
+                    >
+                      <Icon name="plus" size={13} />
+                      Add an answer
+                    </button>
+                  )}
+                  <label
+                    className="mts-f"
+                    style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={multi}
+                      onChange={(e) => setMulti(e.target.checked)}
+                      style={{ width: "auto" }}
+                    />
+                    <span style={{ margin: 0 }}>Allow more than one answer</span>
+                  </label>
+                  {/* only nag once there's something to nag about */}
+                  {!draftPoll.ok && options.some((o) => o.trim()) && (
+                    <div className="dash-mini">{POLL_ERROR_TEXT[draftPoll.error]}</div>
+                  )}
+                </div>
+              )}
+
               <div className="lv-fnote">
                 <label className="mts-f" style={{ flex: 1 }}>
                   <span>Comes off the board after (optional)</span>
@@ -309,13 +493,9 @@ export function NoticesBoard({
                   <span style={{ margin: 0 }}>Pin to the top</span>
                 </label>
                 <div className="mts-facts">
-                  <button
-                    className="fl-btn primary"
-                    disabled={pending || !title.trim()}
-                    onClick={submit}
-                  >
+                  <button className="fl-btn primary" disabled={pending || blocked} onClick={submit}>
                     <Icon name="send" size={14} />
-                    {editingId ? "Save changes" : "Post"}
+                    {editingId ? "Save changes" : composingPoll ? "Post the poll" : "Post"}
                   </button>
                   <button className="fl-btn ghost" onClick={reset}>
                     Cancel
@@ -326,6 +506,7 @@ export function NoticesBoard({
                 <div className="dash-mini">
                   Rewording marks it Edited. Anyone who only saw the old version drops out of your
                   read count until they next open the board.
+                  {kind === "poll" && " A poll's answers can't be changed once it's up."}
                 </div>
               )}
             </div>

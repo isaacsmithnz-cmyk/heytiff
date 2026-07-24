@@ -5,7 +5,10 @@ import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { can } from "@/lib/permissions-server";
 import { staffProfileIdFor } from "@/lib/fleet/query";
-import { asNoticeKind } from "@/lib/dashboard/notices";
+import { asNoticeKind, noticeLifecycle } from "@/lib/dashboard/notices";
+import { cleanPollOptions, POLL_ERROR_TEXT } from "@/lib/dashboard/polls";
+import { pollOptionIds } from "@/lib/dashboard/tasks-query";
+import { todayInAu } from "@/lib/au-dates";
 
 /* Dashboard mutations — tasks and the noticeboard.
 
@@ -142,6 +145,10 @@ export async function postNotice(input: {
   kind?: string;
   /** Inclusive last day on the board, ISO yyyy-mm-dd. */
   expiresAt?: string | null;
+  /** kind === "poll" only: the answers, in the order they were typed. */
+  options?: string[];
+  /** kind === "poll" only: more than one answer allowed. */
+  multi?: boolean;
 }): Promise<DashResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "Not signed in." };
@@ -152,6 +159,20 @@ export async function postNotice(input: {
   if (input.expiresAt && !isISODate(input.expiresAt))
     return { ok: false, error: "Check the expiry date." };
 
+  // an unrecognised kind is narrowed, never rejected — the column's CHECK is
+  // the backstop, this keeps a stale client from erroring
+  const kind = asNoticeKind(input.kind);
+
+  // A poll with no answers is a notice with a question mark, so the answers
+  // are validated BEFORE the notice row exists — no half-built poll on the
+  // board if the second insert fails.
+  let options: string[] = [];
+  if (kind === "poll") {
+    const cleaned = cleanPollOptions(input.options ?? []);
+    if (!cleaned.ok) return { ok: false, error: POLL_ERROR_TEXT[cleaned.error] };
+    options = cleaned.options;
+  }
+
   const { data, error } = await supabaseAdmin
     .from("notices")
     .insert({
@@ -160,14 +181,29 @@ export async function postNotice(input: {
       body: input.body?.trim().slice(0, 2000) || null,
       posted_by: ctx.staffId,
       pinned: input.pinned === true,
-      // an unrecognised kind is narrowed, never rejected — the column's CHECK
-      // is the backstop, this keeps a stale client from erroring
-      kind: asNoticeKind(input.kind),
+      kind,
       expires_at: input.expiresAt || null,
+      poll_multi: kind === "poll" && input.multi === true,
     })
     .select("id, revision")
     .maybeSingle();
   if (error || !data) return { ok: false, error: "Couldn't post that notice." };
+
+  if (options.length > 0) {
+    const { error: optErr } = await supabaseAdmin.from("notice_poll_options").insert(
+      options.map((label, i) => ({
+        org_id: ctx.orgId,
+        notice_id: data.id as string,
+        label,
+        position: i,
+      })),
+    );
+    // an answerless poll is worse than no poll — take the notice back out
+    if (optErr) {
+      await supabaseAdmin.from("notices").delete().eq("org_id", ctx.orgId).eq("id", data.id as string);
+      return { ok: false, error: "Couldn't post that poll." };
+    }
+  }
 
   // The author has, by definition, read their own notice — record the ack up
   // front so notice_reads stays the single source of truth for "who has read
@@ -256,6 +292,76 @@ export async function editNotice(input: {
       },
       { onConflict: "notice_id,staff_profile_id" },
     );
+  }
+  refresh();
+  return { ok: true };
+}
+
+/* Answering a poll is INTRINSIC — no capability. Posting the question is a
+   management act; having an opinion about Friday is not.
+
+   The whole answer is sent every time and replaces whatever was there, so
+   changing your mind is the same operation as answering, and an empty list
+   retracts. That also makes the action idempotent: a double-tap or a retry
+   lands on the same rows rather than doubling a vote.
+
+   A poll that has expired or been archived is CLOSED. The board still shows
+   the result, but the tally stops moving — otherwise "who's coming Friday"
+   keeps changing after Friday. */
+export async function castPollVote(
+  noticeId: string,
+  optionIds: string[],
+): Promise<DashResult> {
+  const ctx = await context();
+  if (!ctx?.staffId) return { ok: false, error: "No staff record for this account." };
+
+  const { data } = await supabaseAdmin
+    .from("notices")
+    .select("kind, poll_multi, expires_at, archived_at")
+    .eq("org_id", ctx.orgId)
+    .eq("id", noticeId)
+    .maybeSingle();
+  if (!data) return { ok: false, error: "That poll no longer exists." };
+  if (data.kind !== "poll") return { ok: false, error: "That notice isn't a poll." };
+
+  const lifecycle = noticeLifecycle(
+    {
+      expiresAt: data.expires_at ? String(data.expires_at).slice(0, 10) : null,
+      archivedAt: data.archived_at ? String(data.archived_at) : null,
+    },
+    todayInAu(),
+  );
+  if (lifecycle !== "active") return { ok: false, error: "That poll has closed." };
+
+  const picks = [...new Set(optionIds)].filter(Boolean);
+  if (data.poll_multi !== true && picks.length > 1)
+    return { ok: false, error: "This poll takes one answer." };
+
+  // every pick must be an answer ON THIS POLL, in this org — an id alone
+  // proves nothing
+  const valid = new Set(await pollOptionIds(ctx.orgId, noticeId));
+  if (picks.some((id) => !valid.has(id)))
+    return { ok: false, error: "That answer isn't on this poll." };
+
+  // replace, don't merge: the submitted list IS the answer
+  const { error: clearErr } = await supabaseAdmin
+    .from("notice_poll_votes")
+    .delete()
+    .eq("org_id", ctx.orgId)
+    .eq("notice_id", noticeId)
+    .eq("staff_profile_id", ctx.staffId);
+  if (clearErr) return { ok: false, error: "Couldn't record that vote." };
+
+  if (picks.length > 0) {
+    const { error } = await supabaseAdmin.from("notice_poll_votes").insert(
+      picks.map((optionId) => ({
+        org_id: ctx.orgId,
+        notice_id: noticeId,
+        option_id: optionId,
+        staff_profile_id: ctx.staffId,
+      })),
+    );
+    if (error) return { ok: false, error: "Couldn't record that vote." };
   }
   refresh();
   return { ok: true };

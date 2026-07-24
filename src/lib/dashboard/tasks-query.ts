@@ -1,6 +1,8 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { asNoticeKind } from "./notices";
-import { isDelegated, noticeReadState, type DashTask, type NoticeWithRead } from "./tasks";
+import { tallyPoll, type PollOptionRow, type PollResult, type PollVoteRow } from "./polls";
+import type { BoardNotice } from "./board";
+import { isDelegated, noticeReadState, type DashTask } from "./tasks";
 
 /* Queries for the task list and noticeboard. Org-scoped throughout.
 
@@ -137,12 +139,12 @@ export async function listNotices(
   orgId: string,
   staffProfileId: string | null,
   limit = 20,
-): Promise<NoticeWithRead[]> {
+): Promise<BoardNotice[]> {
   const [{ data }, names, reads, activeStaff] = await Promise.all([
     supabaseAdmin
       .from("notices")
       .select(
-        "id, title, body, pinned, posted_by, created_at, revision, edited_at, kind, expires_at, archived_at",
+        "id, title, body, pinned, posted_by, created_at, revision, edited_at, kind, expires_at, archived_at, poll_multi",
       )
       .eq("org_id", orgId)
       .order("created_at", { ascending: false })
@@ -152,7 +154,15 @@ export async function listNotices(
     activeStaffCount(orgId),
   ]);
 
-  return ((data ?? []) as Record<string, unknown>[]).map((r) => {
+  const noticeRows = (data ?? []) as Record<string, unknown>[];
+  // Only pay for the poll join when the page actually holds a poll — a board of
+  // plain notices costs exactly what it did before.
+  const pollIds = noticeRows
+    .filter((r) => asNoticeKind(r.kind) === "poll")
+    .map((r) => String(r.id));
+  const polls = await pollsFor(orgId, pollIds, (id) => names.get(id) ?? "Unnamed");
+
+  return noticeRows.map((r) => {
     const id = String(r.id);
     const poster = (r.posted_by as string) ?? null;
     const revision = Number(r.revision) || 1;
@@ -180,8 +190,69 @@ export async function listNotices(
       mine: !!poster && poster === staffProfileId,
       readBy,
       audience: Math.max(0, activeStaff - (poster ? 1 : 0)),
+      poll:
+        asNoticeKind(r.kind) === "poll"
+          ? tallyPoll({
+              options: polls.options.get(id) ?? [],
+              votes: polls.votes.get(id) ?? [],
+              multi: r.poll_multi === true,
+              viewerStaffId: staffProfileId,
+            })
+          : null,
     };
   });
+}
+
+/* Options and votes for the polls on THIS page, keyed by notice. Two flat
+   reads and a group-by rather than a nested select: the shapes are tiny, and
+   the tally itself stays in the pure module where it can be tested. */
+async function pollsFor(
+  orgId: string,
+  noticeIds: readonly string[],
+  name: (id: string) => string,
+): Promise<{ options: Map<string, PollOptionRow[]>; votes: Map<string, PollVoteRow[]> }> {
+  const options = new Map<string, PollOptionRow[]>();
+  const votes = new Map<string, PollVoteRow[]>();
+  if (noticeIds.length === 0) return { options, votes };
+
+  const [opt, vote] = await Promise.all([
+    supabaseAdmin
+      .from("notice_poll_options")
+      .select("id, notice_id, label, position")
+      .eq("org_id", orgId)
+      .in("notice_id", [...noticeIds]),
+    supabaseAdmin
+      .from("notice_poll_votes")
+      .select("notice_id, option_id, staff_profile_id")
+      .eq("org_id", orgId)
+      .in("notice_id", [...noticeIds]),
+  ]);
+
+  for (const r of (opt.data ?? []) as Record<string, unknown>[]) {
+    const key = String(r.notice_id);
+    const list = options.get(key) ?? [];
+    list.push({ id: String(r.id), label: String(r.label), position: Number(r.position) || 0 });
+    options.set(key, list);
+  }
+  for (const r of (vote.data ?? []) as Record<string, unknown>[]) {
+    const key = String(r.notice_id);
+    const list = votes.get(key) ?? [];
+    const staffId = String(r.staff_profile_id);
+    list.push({ optionId: String(r.option_id), staffId, staffName: name(staffId) });
+    votes.set(key, list);
+  }
+  return { options, votes };
+}
+
+/** The answers a poll offers, for the actions that must check a vote is for a
+    real option on the right notice. */
+export async function pollOptionIds(orgId: string, noticeId: string): Promise<string[]> {
+  const { data } = await supabaseAdmin
+    .from("notice_poll_options")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("notice_id", noticeId);
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => String(r.id));
 }
 
 type ReadRow = { staffId: string; revision: number };

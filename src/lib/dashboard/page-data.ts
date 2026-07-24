@@ -12,7 +12,8 @@ import { listStaffCompliance, orgInsurance, type StaffCompliance } from "./query
 import { rosterToday, type RosterToday } from "./roster";
 import { payRunItem, tallySheets, type MoneyItem } from "./money";
 import { myTasks, teamTasks, recentlyDoneTasks, assignedByMeRecentlyDone, listNotices } from "./tasks-query";
-import { RECENT_DONE_DAYS, sortNotices, sortTasks, type DashTask, type NoticeWithRead } from "./tasks";
+import type { BoardNotice } from "./board";
+import { RECENT_DONE_DAYS, sortNotices, sortTasks, type DashTask } from "./tasks";
 
 /* Dashboard page loader. The capability scoping and every derivation are pure
    and live in ./assemble, ./roster and ./money; this file is the thin I/O layer
@@ -34,7 +35,7 @@ export type DashboardData = {
       recently-completed ones so finishing something leaves a trace. */
   tasks: { mine: DashTask[]; team: DashTask[] | null; done: DashTask[]; reported: DashTask[] };
   /** Recent notices with your read state joined in. */
-  notices: NoticeWithRead[];
+  notices: BoardNotice[];
   /** Staff you can assign a task to — populated only with `team`. */
   assignable: { id: string; name: string }[];
   /** `team`: can assign tasks / post notices / see the team's tasks. */
@@ -84,7 +85,7 @@ export async function loadDashboard(): Promise<DashboardData> {
    dashboard only carries a summary card, so arriving here is a deliberate act —
    which is what makes marking everything read defensible. */
 export type NoticeBoardData = {
-  notices: NoticeWithRead[];
+  notices: BoardNotice[];
   canManage: boolean;
   /** false when the account has no staff record — no read can be attributed */
   canRead: boolean;

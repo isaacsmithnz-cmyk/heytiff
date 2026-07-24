@@ -61,7 +61,7 @@ export const TOOL_CATEGORIES: ToolCategory[] = [
       },
       {
         name: "Fault Finder",
-        desc: "Symptom-based diagnosis",
+        desc: "Guided step-by-step diagnosis",
         href: "/dashboard/toolbox/troubleshooting",
         badge: "New",
       },

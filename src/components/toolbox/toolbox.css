@@ -235,56 +235,145 @@
 .fg .tool .rp-res .why { font-size: 12.5px; color: var(--gray500); font-weight: 500; line-height: 1.5; margin: 10px 0 0; }
 .fg .tool .rp-sat { font-size: 12.5px; font-weight: 700; color: var(--gray400); margin-top: 8px; }
 
-/* ---------- fault-finder specifics ---------- */
-.fg .tool .ff-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-@media (max-width: 640px) { .fg .tool .ff-grid { grid-template-columns: 1fr; } }
-.fg .tool .ff-sym {
-  display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: 18px;
+/* ---------- fault-finder: guided one-question-at-a-time flow (.ffg-*) ----------
+   Optimised for a phone at a job: one decision on screen, big tap targets,
+   and the trail of answers kept above so you can step back without losing
+   your place. Colour comes from the chosen symptom via --sc2. */
+
+.fg .tool .ffg { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; align-items: start; }
+@media (max-width: 1000px) { .fg .tool .ffg { grid-template-columns: 1fr; } }
+.fg .tool .ffg-run { grid-template-columns: minmax(0, 1fr); max-width: 720px; margin: 0 auto; }
+.fg .tool .ffg-main { min-width: 0; }
+.fg .tool .ffg-side { display: grid; gap: 20px; }
+
+/* symptom picker */
+.fg .tool .ffg-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 620px) { .fg .tool .ffg-grid { grid-template-columns: 1fr; } }
+.fg .tool .ffg-sym {
+  display: flex; align-items: center; gap: 13px; padding: 15px; border-radius: 18px;
   background: #fff; border: 1px solid #eef0f4; cursor: pointer; text-align: left;
-  transition: all 0.2s; font-family: var(--font);
+  font-family: var(--font); transition: all 0.2s;
 }
-.fg .tool .ff-sym:hover { border-color: #dfe3ea; transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05); }
-.fg .tool .ff-sym.on { border-color: var(--tool-accent, var(--red)); background: var(--tool-accent-soft, rgba(255, 51, 102, 0.06)); box-shadow: 0 6px 18px rgba(255, 51, 102, 0.08); }
-.fg .tool .ff-sym .ic { width: 40px; height: 40px; border-radius: 13px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; background: #f4f5f8; color: var(--gray500); transition: all 0.2s; }
-.fg .tool .ff-sym.on .ic { background: var(--tool-accent, var(--red)); color: #fff; }
-.fg .tool .ff-sym b { display: block; font-size: 14px; font-weight: 800; color: var(--ink); }
-.fg .tool .ff-sym em { font-style: normal; display: block; font-size: 12px; color: var(--gray400); font-weight: 600; margin-top: 2px; }
-.fg .tool .ff-safety {
-  display: flex; gap: 12px; align-items: flex-start; padding: 16px 18px; border-radius: 16px;
+.fg .tool .ffg-sym:hover {
+  border-color: color-mix(in srgb, var(--sc2) 45%, #fff); transform: translateY(-2px);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--sc2) 18%, transparent);
+}
+.fg .tool .ffg-sym .ic {
+  width: 42px; height: 42px; border-radius: 14px; flex: 0 0 auto; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(145deg, var(--sc2), color-mix(in srgb, var(--sc2) 66%, #000));
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--sc2) 38%, transparent);
+}
+.fg .tool .ffg-sym .tx { min-width: 0; }
+.fg .tool .ffg-sym b { display: block; font-size: 14.5px; font-weight: 800; color: var(--ink); }
+.fg .tool .ffg-sym em { font-style: normal; display: block; font-size: 12px; color: var(--gray400); font-weight: 500; margin-top: 2px; }
+
+/* the symptom you're working, with the step counter */
+.fg .tool .ffg-head {
+  display: flex; align-items: center; gap: 11px; margin-bottom: 16px;
+  padding: 11px 14px; border-radius: 16px; background: #fff; border: 1px solid #eef0f4;
+}
+.fg .tool .ffg-head .ic {
+  width: 30px; height: 30px; border-radius: 10px; flex: 0 0 auto; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(145deg, var(--sc2), color-mix(in srgb, var(--sc2) 66%, #000));
+}
+.fg .tool .ffg-head b { font-size: 14.5px; font-weight: 800; color: var(--ink); }
+.fg .tool .ffg-head .step {
+  margin-left: auto; font-size: 11px; font-weight: 800; letter-spacing: 0.06em;
+  text-transform: uppercase; color: color-mix(in srgb, var(--sc2) 72%, #000);
+  background: color-mix(in srgb, var(--sc2) 12%, #fff); padding: 4px 10px; border-radius: 999px;
+}
+.fg .tool .ffg-head .chg {
+  background: none; border: 0; padding: 0 2px; cursor: pointer; font-family: var(--font);
+  font-size: 12.5px; font-weight: 700; color: var(--gray400);
+}
+.fg .tool .ffg-head .chg:hover { color: var(--ink); }
+
+/* trail of answers already given — click any to rewind */
+.fg .tool .ffg-trail { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 6px; }
+.fg .tool .ffg-trail button {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  padding: 9px 13px; border-radius: 12px; background: #f7f8fa; border: 1px solid transparent;
+  cursor: pointer; font-family: var(--font); transition: all 0.18s;
+}
+.fg .tool .ffg-trail button:hover { background: #fff; border-color: #e5e9f0; }
+.fg .tool .ffg-trail .q { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 600; color: var(--gray500); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fg .tool .ffg-trail .a { font-size: 12.5px; font-weight: 800; flex: 0 0 auto; }
+.fg .tool .ffg-trail svg { color: #c8cdd6; flex: 0 0 auto; }
+
+/* the question */
+.fg .tool .ffg-q {
+  background: #fff; border-radius: 24px; border: 1px solid #eef0f4; padding: 26px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 12px 34px rgba(0, 0, 0, 0.04);
+}
+.fg .tool .ffg-q h2 { font-size: 23px; font-weight: 800; color: var(--ink); letter-spacing: -0.02em; line-height: 1.28; margin: 0; }
+.fg .tool .ffg-q .why { margin: 10px 0 0; font-size: 13.5px; font-weight: 500; color: var(--gray500); line-height: 1.6; }
+.fg .tool .ffg-answers { display: grid; gap: 10px; margin-top: 22px; }
+.fg .tool .ffg-a {
+  display: flex; align-items: center; gap: 14px; width: 100%; text-align: left;
+  padding: 16px 18px; border-radius: 16px; background: #fff; border: 1.5px solid #e9edf3;
+  cursor: pointer; font-family: var(--font); transition: all 0.18s;
+}
+.fg .tool .ffg-a:hover {
+  border-color: var(--sc2); background: color-mix(in srgb, var(--sc2) 6%, #fff);
+  transform: translateX(2px);
+}
+.fg .tool .ffg-a .al { flex: 1; min-width: 0; }
+.fg .tool .ffg-a b { display: block; font-size: 15.5px; font-weight: 700; color: var(--ink); }
+.fg .tool .ffg-a em { font-style: normal; display: block; font-size: 12.5px; font-weight: 500; color: var(--gray400); margin-top: 2px; }
+.fg .tool .ffg-a svg { color: #cdd2da; flex: 0 0 auto; transition: color 0.18s, transform 0.18s; }
+.fg .tool .ffg-a:hover svg { color: var(--sc2); transform: translateX(3px); }
+
+/* safety */
+.fg .tool .ffg-safety {
+  display: flex; gap: 12px; align-items: flex-start; padding: 15px 17px; border-radius: 16px;
   background: rgba(255, 51, 102, 0.07); border: 1px solid rgba(255, 51, 102, 0.25);
-  color: #ba1740; font-size: 13.5px; font-weight: 600; line-height: 1.55; margin-bottom: 18px;
+  color: #ba1740; font-size: 13.5px; font-weight: 600; line-height: 1.55; margin-bottom: 16px;
 }
-.fg .tool .ff-safety svg { flex: 0 0 auto; margin-top: 1px; }
-.fg .tool .ff-cause { border: 1px solid #eef0f4; border-radius: 16px; background: #fff; transition: all 0.2s; overflow: hidden; }
-.fg .tool .ff-cause + .ff-cause { margin-top: 10px; }
-.fg .tool .ff-cause.out { opacity: 0.45; }
-.fg .tool .ff-cause.out .ff-chead b { text-decoration: line-through; }
-.fg .tool .ff-chead {
-  display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 16px;
-  background: transparent; border: 0; cursor: pointer; text-align: left; font-family: var(--font);
+.fg .tool .ffg-safety.inline { margin: 16px 0 0; font-size: 13px; }
+.fg .tool .ffg-safety svg { flex: 0 0 auto; margin-top: 1px; }
+
+/* the outcome — the one dark element, like the other tools' answer heroes */
+.fg .tool .ffg-outcome {
+  position: relative; overflow: hidden; border-radius: 24px; padding: 28px 26px; color: #fff;
+  background: radial-gradient(120% 150% at 12% 0%, color-mix(in srgb, var(--sc2) 32%, #0a0b10) 0%, #08090d 62%), var(--ink);
+  border: 1px solid rgba(255, 255, 255, 0.07);
 }
-.fg .tool .ff-chead:hover { background: #fafbfc; }
-.fg .tool .ff-chead b { flex: 1; min-width: 0; font-size: 14.5px; font-weight: 800; color: var(--ink); }
-.fg .tool .ff-chead .chev { color: #c8cdd6; transition: transform 0.25s; flex: 0 0 auto; display: flex; }
-.fg .tool .ff-cause.open .ff-chead .chev { transform: rotate(90deg); }
-.fg .tool .ff-lk { font-size: 10.5px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding: 4px 10px; border-radius: 8px; flex: 0 0 auto; }
-.fg .tool .ff-lk.common { background: rgba(0, 229, 192, 0.13); color: #00A389; }
-.fg .tool .ff-lk.possible { background: rgba(46, 104, 255, 0.11); color: #2E68FF; }
-.fg .tool .ff-lk.rare { background: rgba(138, 43, 226, 0.1); color: #8A2BE2; }
-.fg .tool .ff-esc { font-size: 10.5px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding: 4px 10px; border-radius: 8px; flex: 0 0 auto; background: rgba(255, 138, 0, 0.13); color: #E07800; }
-.fg .tool .ff-cbody { padding: 2px 16px 16px; }
-.fg .tool .ff-step { display: flex; gap: 10px; margin-top: 10px; }
-.fg .tool .ff-step .k { font-size: 10.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gray400); flex: 0 0 52px; padding-top: 2px; }
-.fg .tool .ff-step p { margin: 0; font-size: 13.5px; color: var(--gray700); font-weight: 500; line-height: 1.55; }
-.fg .tool .ff-rule { margin-top: 14px; display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700; color: var(--gray500); background: none; border: 0; cursor: pointer; padding: 0; font-family: var(--font); }
-.fg .tool .ff-rule:hover { color: var(--ink); }
-.fg .tool .ff-rule .bx { width: 18px; height: 18px; border-radius: 6px; border: 1.5px solid #d4d8e0; display: inline-flex; align-items: center; justify-content: center; color: transparent; transition: all 0.2s; }
-.fg .tool .ff-cause.out .ff-rule .bx { background: var(--gray400); border-color: var(--gray400); color: #fff; }
-.fg .tool .ff-links a { display: flex; align-items: center; gap: 10px; padding: 12px 4px; border-bottom: 1px solid #f3f4f6; text-decoration: none; font-size: 13.5px; font-weight: 700; color: var(--gray700); transition: color 0.2s; }
-.fg .tool .ff-links a:last-child { border-bottom: 0; }
-.fg .tool .ff-links a:hover { color: var(--ink); }
-.fg .tool .ff-links a .dot2 { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
-.fg .tool .ff-links a svg { margin-left: auto; color: #c8cdd6; }
+.fg .tool .ffg-outcome .gl {
+  position: absolute; top: -90px; right: -50px; width: 220px; height: 200px; border-radius: 50%;
+  background: var(--sc2); filter: blur(85px); opacity: 0.4; pointer-events: none;
+}
+.fg .tool .ffg-outcome .lab {
+  position: relative; display: flex; align-items: center; gap: 10px; font-size: 11px; font-weight: 800;
+  letter-spacing: 0.18em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); margin-bottom: 10px;
+}
+.fg .tool .ffg-outcome .esc {
+  letter-spacing: 0.06em; padding: 3px 9px; border-radius: 7px;
+  background: rgba(255, 138, 0, 0.2); color: #FFB259;
+}
+.fg .tool .ffg-outcome h2 { position: relative; font-size: 27px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.2; margin: 0 0 12px; }
+.fg .tool .ffg-outcome p { position: relative; margin: 0; font-size: 14px; font-weight: 500; line-height: 1.65; color: rgba(255, 255, 255, 0.76); }
+
+/* what to do */
+.fg .tool .ffg-actions { margin-top: 18px; }
+.fg .tool .ffg-actions ol { margin: 0; padding-left: 20px; display: grid; gap: 11px; }
+.fg .tool .ffg-actions li { font-size: 14px; font-weight: 500; color: var(--gray700); line-height: 1.6; }
+.fg .tool .ffg-actions li::marker { font-weight: 800; color: var(--gray400); }
+.fg .tool .ffg-tool { margin-top: 20px; text-decoration: none; width: 100%; }
+
+/* nav */
+.fg .tool .ffg-nav { display: flex; gap: 10px; margin-top: 20px; }
+.fg .tool .ffg-nav .tbtn { flex: 1; }
+
+/* side rail */
+.fg .tool .ffg-notes { margin: 0; padding-left: 18px; display: grid; gap: 9px; }
+.fg .tool .ffg-notes li { font-size: 12.5px; font-weight: 500; color: var(--gray500); line-height: 1.55; }
+.fg .tool .ffg-links a { display: flex; align-items: center; gap: 10px; padding: 12px 4px; border-bottom: 1px solid #f3f4f6; text-decoration: none; font-size: 13.5px; font-weight: 700; color: var(--gray700); transition: color 0.2s; }
+.fg .tool .ffg-links a:last-child { border-bottom: 0; }
+.fg .tool .ffg-links a:hover { color: var(--ink); }
+.fg .tool .ffg-links a .dot2 { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
+.fg .tool .ffg-links a svg { margin-left: auto; color: #c8cdd6; }
 
 
 

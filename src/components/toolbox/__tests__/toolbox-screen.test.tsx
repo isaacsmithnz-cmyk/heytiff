@@ -16,7 +16,7 @@ describe("ToolboxScreen", () => {
     }
   });
 
-  it("links the three live tools to their routes", () => {
+  it("links the four live tools to their routes", () => {
     render(<ToolboxScreen />);
     expect(screen.getByRole("link", { name: /Heat Load/ })).toHaveAttribute(
       "href",
@@ -30,12 +30,16 @@ describe("ToolboxScreen", () => {
       "href",
       "/dashboard/toolbox/troubleshooting"
     );
+    expect(screen.getByRole("link", { name: /Outdoor Unit Placement/ })).toHaveAttribute(
+      "href",
+      "/dashboard/toolbox/outdoor-unit"
+    );
   });
 
   it("empty categories show the No tools yet hint", () => {
     render(<ToolboxScreen />);
-    // Design Tools + Reference Library have no built tools yet
-    expect(screen.getAllByText("No tools yet")).toHaveLength(2);
+    // Design Tools is the only category with no built tools yet
+    expect(screen.getAllByText("No tools yet")).toHaveLength(1);
   });
 
   it("search filters rows and drops categories with no matches", () => {

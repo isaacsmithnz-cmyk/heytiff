@@ -11,7 +11,7 @@ const answer = (name: RegExp | string) =>
   fireEvent.click(screen.getByRole("button", { name }));
 
 describe("FaultFinder — picking a symptom", () => {
-  it("opens on the symptom picker with all ten symptoms", () => {
+  it("opens on the symptom picker with all eleven symptoms", () => {
     render(<FaultFinder />);
     expect(screen.getByText("What's it doing?")).toBeInTheDocument();
     for (const s of SYMPTOMS) {
@@ -25,7 +25,7 @@ describe("FaultFinder — picking a symptom", () => {
     render(<FaultFinder />);
     pickSymptom(/Not cooling/);
     expect(screen.getByText("Question 1")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent(/outdoor unit running/i);
+    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent(/set to COOL/i);
     // exactly one question on screen at a time
     expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(1);
   });
@@ -41,29 +41,30 @@ describe("FaultFinder — walking the tree", () => {
   it("each answer advances to the next question and counts the step", () => {
     render(<FaultFinder />);
     pickSymptom(/Not cooling/);
-    answer(/Yes, it's running/);
+    answer(/Yes, definitely cooling/);
     expect(screen.getByText("Question 2")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent(/noticeably colder/i);
-    answer(/No, it's barely cool/);
+    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent(/what's actually happening/i);
+    answer(/Running, but the air is barely cool/);
     expect(screen.getByText("Question 3")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent(/filters and the indoor coil/i);
+    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent(/filters and indoor coil/i);
   });
 
   it("builds a trail of the answers given", () => {
     const { container } = render(<FaultFinder />);
     pickSymptom(/Not cooling/);
-    answer(/Yes, it's running/);
-    answer(/No, it's barely cool/);
+    answer(/Yes, definitely cooling/);
+    answer(/Running, but the air is barely cool/);
     const trail = container.querySelectorAll(".ffg-trail li");
     expect(trail).toHaveLength(2);
-    expect(trail[0]).toHaveTextContent(/outdoor unit running/i);
-    expect(trail[0]).toHaveTextContent(/Yes, it's running/);
+    expect(trail[1]).toHaveTextContent(/what's actually happening/i);
+    expect(trail[1]).toHaveTextContent(/barely cool/);
   });
 
   it("reaches an outcome with a reason and an ordered what-to-do list", () => {
     const { container } = render(<FaultFinder />);
     pickSymptom(/Not cooling/);
-    answer(/No, it's dead/);
+    answer(/Yes, definitely cooling/);
+    answer(/The outdoor unit isn't running/);
     answer(/Yes, indoor works/);
     expect(screen.getByText("Diagnosis")).toBeInTheDocument();
     expect(container.querySelector(".ffg-outcome h2")).toHaveTextContent(/outdoor unit isn't/i);
@@ -84,14 +85,56 @@ describe("FaultFinder — walking the tree", () => {
   it("hands off to Running Pressures when pressures decide it", () => {
     render(<FaultFinder />);
     pickSymptom(/Not cooling/);
-    answer(/Yes, it's running/);
-    answer(/No, it's barely cool/);
+    answer(/Yes, definitely cooling/);
+    answer(/Running, but the air is barely cool/);
     answer(/Clean, good airflow/);
     answer(/No ice/);
     answer(/Clean and clear/);
-    answer(/Yes, gauges are on/);
     const link = screen.getByRole("link", { name: /Open Running Pressures/ });
     expect(link).toHaveAttribute("href", "/dashboard/toolbox/running-pressures");
+  });
+});
+
+describe("FaultFinder — how much further", () => {
+  it("shows what's left to answer, so a long branch doesn't read as endless", () => {
+    const { container } = render(<FaultFinder />);
+    pickSymptom(/Not cooling/);
+    expect(container.querySelector(".ffg-head .left")).toHaveTextContent(/up to 4 more/i);
+  });
+
+  it("names the last question as the last one", () => {
+    const { container } = render(<FaultFinder />);
+    pickSymptom(/Bad smell/);
+    expect(container.querySelector(".ffg-head .left")).toHaveTextContent(/last question/i);
+  });
+
+  it("drops the counter once there's a diagnosis", () => {
+    const { container } = render(<FaultFinder />);
+    pickSymptom(/Bad smell/);
+    answer(/Musty or mouldy/);
+    expect(screen.getByText("Diagnosis")).toBeInTheDocument();
+    expect(container.querySelector(".ffg-head .left")).toBeNull();
+  });
+});
+
+describe("FaultFinder — multi and VRF", () => {
+  it("asks scope first, then diagnoses a mode clash as design", () => {
+    const { container } = render(<FaultFinder />);
+    pickSymptom(/Multi or VRF/);
+    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent(/how much of the system/i);
+    answer(/Some heads heat while others want cool/);
+    answer(/Two-pipe, or not sure/);
+    expect(container.querySelector(".ffg-outcome h2")).toHaveTextContent(/mode conflict/i);
+    // it isn't a fault, so it shouldn't be flagged as specialist work
+    expect(container.querySelector(".ffg-outcome .esc")).toBeNull();
+  });
+
+  it("a head conditioning while it's off is one question deep", () => {
+    const { container } = render(<FaultFinder />);
+    pickSymptom(/Multi or VRF/);
+    answer(/A head is warm or cold when it's off/);
+    expect(screen.getByText("Diagnosis")).toBeInTheDocument();
+    expect(container.querySelector(".ffg-outcome h2")).toHaveTextContent(/creeping/i);
   });
 });
 
@@ -99,33 +142,34 @@ describe("FaultFinder — going back", () => {
   it("Back returns to the previous question and drops that answer", () => {
     const { container } = render(<FaultFinder />);
     pickSymptom(/Not cooling/);
-    answer(/Yes, it's running/);
-    answer(/No, it's barely cool/);
+    answer(/Yes, definitely cooling/);
+    answer(/Running, but the air is barely cool/);
     expect(container.querySelectorAll(".ffg-trail li")).toHaveLength(2);
     answer(/^Back$/);
     expect(screen.getByText("Question 2")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent(/noticeably colder/i);
+    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent(/what's actually happening/i);
     expect(container.querySelectorAll(".ffg-trail li")).toHaveLength(1);
   });
 
   it("clicking a trail step rewinds to it and discards everything after", () => {
     const { container } = render(<FaultFinder />);
     pickSymptom(/Not cooling/);
-    answer(/Yes, it's running/);
-    answer(/No, it's barely cool/);
+    answer(/Yes, definitely cooling/);
+    answer(/Running, but the air is barely cool/);
     answer(/Clean, good airflow/);
     expect(container.querySelectorAll(".ffg-trail li")).toHaveLength(3);
     // jump back to the very first question
     fireEvent.click(within(container.querySelectorAll(".ffg-trail li")[0] as HTMLElement).getByRole("button"));
     expect(screen.getByText("Question 1")).toBeInTheDocument();
     expect(container.querySelectorAll(".ffg-trail li")).toHaveLength(0);
-    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent(/outdoor unit running/i);
+    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent(/set to COOL/i);
   });
 
   it("Back from an outcome returns to the last question", () => {
     render(<FaultFinder />);
     pickSymptom(/Not cooling/);
-    answer(/No, it's dead/);
+    answer(/Yes, definitely cooling/);
+    answer(/The outdoor unit isn't running/);
     answer(/Yes, indoor works/);
     expect(screen.getByText("Diagnosis")).toBeInTheDocument();
     answer(/^Back$/);
@@ -136,7 +180,8 @@ describe("FaultFinder — going back", () => {
   it("Start over returns to the symptom picker", () => {
     render(<FaultFinder />);
     pickSymptom(/Not cooling/);
-    answer(/Yes, it's running/);
+    answer(/Yes, definitely cooling/);
+    answer(/Running, but the air is barely cool/);
     answer(/^Start over$/);
     expect(screen.getByText("What's it doing?")).toBeInTheDocument();
     expect(screen.queryByText(/^Question /)).not.toBeInTheDocument();
@@ -145,7 +190,8 @@ describe("FaultFinder — going back", () => {
   it("Change swaps symptom without leaving stale answers behind", () => {
     const { container } = render(<FaultFinder />);
     pickSymptom(/Not cooling/);
-    answer(/Yes, it's running/);
+    answer(/Yes, definitely cooling/);
+    answer(/Running, but the air is barely cool/);
     answer(/^Change$/);
     pickSymptom(/Won't turn on/);
     expect(screen.getByText("Question 1")).toBeInTheDocument();

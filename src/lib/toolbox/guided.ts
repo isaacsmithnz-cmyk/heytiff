@@ -7,7 +7,11 @@
    of causes — each answer either asks the next question or lands on an
    outcome (what it probably is + what to do about it).
 
-   Content is generic split / ducted field knowledge. Deliberately NO
+   Every question has to earn its place by narrowing the fault. A question
+   that branches on what's in the tech's toolbag rather than on what the
+   machine is doing belongs in the outcome, not in the tree.
+
+   Content is generic split / ducted / multi / VRF field knowledge. NO
    manufacturer fault-code tables: codes vary per brand and model, and
    universal-table data only enters HeyTiff through uploaded documents, so the
    error-code branch sends you to that unit's service manual instead. */
@@ -22,7 +26,8 @@ export type SymptomKey =
   | "noise"
   | "breaker"
   | "smell"
-  | "code";
+  | "code"
+  | "multi";
 
 export interface Symptom {
   key: SymptomKey;
@@ -81,7 +86,7 @@ export const SYMPTOMS: Symptom[] = [
     blurb: "Runs but the room stays warm",
     icon: "thermo",
     color: "#2E68FF",
-    start: "cool.odu",
+    start: "cool.mode",
   },
   {
     key: "heating",
@@ -159,6 +164,14 @@ export const SYMPTOMS: Symptom[] = [
     color: "#E0244B",
     start: "code.recorded",
   },
+  {
+    key: "multi",
+    label: "Multi or VRF",
+    blurb: "One head out, or mode clash",
+    icon: "layers",
+    color: "#D946EF",
+    start: "vrf.scope",
+  },
 ];
 
 /* ───────────────────────────── questions ─────────────────────────────
@@ -168,12 +181,29 @@ export const SYMPTOMS: Symptom[] = [
 export const QUESTIONS: Question[] = [
   /* ---------------- not cooling ---------------- */
   {
-    id: "cool.odu",
-    ask: "Is the outdoor unit running?",
-    why: "Look and listen at the outdoor unit: the fan should be turning and the compressor humming. Give it a few minutes after a start — some units delay.",
+    id: "cool.mode",
+    ask: "Is it set to COOL, with the setpoint below room temperature?",
+    why: "Check the remote or wall controller. Auto mode can sit in heating, fan-only and dry won't pull the room down, and a schedule or eco limit can cap how low the setpoint will go. Five seconds, and it's a top-three cause of a no-cool callout.",
     answers: [
-      { label: "Yes, it's running", next: "cool.cold" },
-      { label: "No, it's dead", next: "cool.indoor" },
+      { label: "No — or I'm not sure", next: "out:settings-cool" },
+      { label: "Yes, definitely cooling", next: "cool.state" },
+    ],
+  },
+  {
+    /* One walk-around, not two questions. A tech checks the outdoor unit and
+       feels the air on the same lap, so asking them separately spent a step
+       to learn nothing the first look didn't already give. */
+    id: "cool.state",
+    ask: "Walk up to it — what's actually happening?",
+    why: "Two things in one look. At the outdoor unit the fan should be turning and the compressor humming; give it a few minutes after a start, some units delay. At the indoor unit, hand in front of the outlet — or measure the return-to-supply split, around 8–12 K on a stabilised system with a reasonably dry coil.",
+    answers: [
+      { label: "The outdoor unit isn't running", next: "cool.indoor" },
+      {
+        label: "Running, and the air is properly cold",
+        hint: "It cools — the room just isn't getting there",
+        next: "cool.load",
+      },
+      { label: "Running, but the air is barely cool", next: "cool.filters" },
     ],
   },
   {
@@ -183,15 +213,6 @@ export const QUESTIONS: Question[] = [
     answers: [
       { label: "Yes, indoor works", hint: "Only the outdoor unit is dead", next: "out:odu-no-power" },
       { label: "No, nothing at all", next: "out:no-power" },
-    ],
-  },
-  {
-    id: "cool.cold",
-    ask: "Is the air coming out of the indoor unit noticeably colder than the room?",
-    why: "Hand in front of the outlet, or measure the return-to-supply split — around 8–12 K is healthy on a stabilised system.",
-    answers: [
-      { label: "Yes, it's cold", hint: "It cools, the room just isn't getting there", next: "cool.load" },
-      { label: "No, it's barely cool", next: "cool.filters" },
     ],
   },
   {
@@ -205,10 +226,10 @@ export const QUESTIONS: Question[] = [
   },
   {
     id: "cool.filters",
-    ask: "Are the return-air filters and the indoor coil clean?",
-    why: "Pull the filters out and look at the coil face behind them. Check the return grille isn't blocked by furniture or curtains.",
+    ask: "Are the filters and indoor coil clean, with the fan on a normal speed?",
+    why: "Pull the filters out and look at the coil face behind them. Check the return grille isn't blocked by furniture or curtains — and that the indoor fan is actually moving air at a normal speed. A slow or failing fan reads exactly like a dirty filter at the grille.",
     answers: [
-      { label: "They're dirty or blocked", next: "out:airflow-starved" },
+      { label: "Dirty, blocked, or fan on low", next: "out:airflow-starved" },
       { label: "Clean, good airflow", next: "cool.ice" },
     ],
   },
@@ -226,16 +247,7 @@ export const QUESTIONS: Question[] = [
     why: "Check between the fins, not just the face. Look for a fence, plants, a clothesline or a wall recirculating the discharge air back in.",
     answers: [
       { label: "Dirty or blocked in", next: "out:condenser-blocked" },
-      { label: "Clean and clear", next: "cool.gauges" },
-    ],
-  },
-  {
-    id: "cool.gauges",
-    ask: "Do you have gauges on it?",
-    why: "Airflow and the condenser are ruled out, so the next honest step is pressures.",
-    answers: [
-      { label: "Yes, gauges are on", next: "out:go-pressures" },
-      { label: "No gauges today", next: "out:need-gauges" },
+      { label: "Clean and clear", next: "out:go-pressures" },
     ],
   },
 
@@ -509,6 +521,94 @@ export const QUESTIONS: Question[] = [
       { label: "No, it's cleared", next: "out:code-transient" },
     ],
   },
+
+  /* ---------------- multi / VRF ----------------
+     These systems fail in ways a single split can't: one head out of many,
+     heads disagreeing about mode, a shared outdoor unit that was never
+     sized to run everything at once. Scope is the question that narrows it
+     fastest, so it goes first. */
+  {
+    id: "vrf.scope",
+    ask: "How much of the system is affected?",
+    why: "This narrows a multi or VRF further than anything else you can ask. One head points at that branch; everything points at the outdoor unit, the charge or the design; heads disagreeing about mode usually isn't a fault at all.",
+    answers: [
+      { label: "One indoor unit", hint: "The others are working normally", next: "vrf.one" },
+      { label: "Everything on this outdoor unit", next: "vrf.all" },
+      { label: "Some heads heat while others want cool", next: "vrf.mode" },
+      { label: "A head is warm or cold when it's off", next: "out:vrf-creep" },
+    ],
+  },
+  {
+    id: "vrf.one",
+    ask: "Does that head respond to its own controller?",
+    why: "Lights, a beep, the fan running, the louvre moving. You're separating a dead head from a running head that just isn't conditioning.",
+    answers: [
+      { label: "No, it's dead", next: "vrf.one.power" },
+      { label: "Yes, it runs — but no heating or cooling", next: "vrf.one.flow" },
+    ],
+  },
+  {
+    id: "vrf.one.power",
+    ask: "Does that head have its own supply, and is it on?",
+    why: "Most multi and VRF indoor units are fed locally, with the transmission line carrying only comms. A dead head sitting beside live ones is usually its own breaker, or the comms line that reaches it.",
+    answers: [
+      { label: "Found its supply off or tripped", next: "out:restore-power" },
+      { label: "Supply is present at the head", next: "out:vrf-comms" },
+    ],
+  },
+  {
+    id: "vrf.one.flow",
+    ask: "With that head calling, do its pipes change temperature?",
+    why: "Feel the liquid and gas lines at the head, or at the branch box if you can reach it. You're asking one thing: is refrigerant arriving at this circuit at all?",
+    answers: [
+      { label: "No, they stay at room temperature", next: "out:vrf-branch" },
+      { label: "Yes, they get cold or hot", next: "out:vrf-head-airside" },
+    ],
+  },
+  {
+    id: "vrf.mode",
+    ask: "Is this a two-pipe system, or three-pipe heat recovery?",
+    why: "A two-pipe multi or VRF shares one circuit and can only run one mode at a time — the first head to call, or a designated master, sets it. Three-pipe heat recovery, with branch controllers, can genuinely heat and cool at once. Count the pipes at the outdoor unit if the paperwork is missing.",
+    answers: [
+      { label: "Two-pipe, or not sure", next: "out:mode-conflict" },
+      { label: "Three-pipe heat recovery", next: "vrf.mode.bc" },
+    ],
+  },
+  {
+    id: "vrf.mode.bc",
+    ask: "Does the affected head change over once the others are switched off?",
+    why: "If it only misbehaves while the rest of the system is calling the other way, it's being held by mode priority. If it won't change over even on its own, the valve set serving it isn't shifting.",
+    answers: [
+      { label: "Yes, it works on its own", next: "out:mode-priority" },
+      { label: "No, it still won't change over", next: "out:bc-valve" },
+    ],
+  },
+  {
+    id: "vrf.all",
+    ask: "Is the outdoor unit running?",
+    answers: [
+      { label: "No, it's dead", next: "out:odu-no-power" },
+      { label: "Yes, it's running", next: "vrf.all.calling" },
+    ],
+  },
+  {
+    id: "vrf.all.calling",
+    ask: "Is every head calling at once, on a hot or cold day?",
+    why: "Multi and VRF outdoor units are deliberately sized below the total of the heads connected to them — a connection ratio over 100% is normal design, not a mistake. With everything calling on a design day, no head gets its full nameplate.",
+    answers: [
+      { label: "Yes, the whole system is calling", next: "out:vrf-diversity" },
+      { label: "No, only one or two are on", next: "vrf.all.charge" },
+    ],
+  },
+  {
+    id: "vrf.all.charge",
+    ask: "Was extra refrigerant weighed in for the pipe run at commissioning?",
+    why: "These systems ship with enough charge for a nominal run and need a calculated top-up per additional metre. Check the commissioning sheet, or the charge label inside the outdoor unit's cover.",
+    answers: [
+      { label: "No record, or clearly not", next: "out:vrf-charge" },
+      { label: "Yes, it's documented", next: "out:vrf-monitor" },
+    ],
+  },
 ];
 
 /* ───────────────────────────── outcomes ───────────────────────────── */
@@ -603,26 +703,15 @@ export const OUTCOMES: Outcome[] = [
     title: "Time to read the gauges",
     confidence: "info",
     explain:
-      "Mode, airflow and the condenser are all ruled out, so the remaining candidates are charge, the metering device or the compressor — and pressures are what separate them.",
+      "Mode, airflow and the condenser are all ruled out, so the remaining candidates are charge, the metering device or the compressor — and pressures are what separate them. Everything checkable by eye is behind you.",
     actions: [
       "Let it stabilise 10–15 minutes at a fixed demand before reading",
       "Take suction and discharge, plus line temperatures for superheat and subcooling",
       "Compare against the expected pressures for this refrigerant and ambient",
-    ],
-    tool: PRESSURES,
-  },
-  {
-    id: "need-gauges",
-    title: "Needs gauges to go further",
-    confidence: "info",
-    explain:
-      "Everything checkable by eye is ruled out. What's left — charge, metering, compressor — can't be honestly diagnosed without connecting gauges.",
-    actions: [
-      "Book a return with gauges and a scale",
-      "Meanwhile, leave the filters clean and airflow clear",
-      "Note the ambient and indoor conditions now, for comparison later",
+      "No gauges today? Note the ambient and indoor conditions now for comparison, leave the airflow clear, and book a return with gauges and a scale",
       "Don't add refrigerant speculatively — weigh it in against the nameplate",
     ],
+    tool: PRESSURES,
   },
   {
     id: "load-excess",
@@ -651,6 +740,21 @@ export const OUTCOMES: Outcome[] = [
       "Look for leaking or disconnected duct in the roof space",
     ],
     tool: HEATLOAD,
+  },
+
+  {
+    id: "settings-cool",
+    title: "Mode or setpoint isn't calling for cooling",
+    confidence: "likely",
+    explain:
+      "Auto mode can sit in heating, fan-only and dry modes won't pull a room down, and schedules or eco limits can cap the setpoint. Worth being certain before walking outside to the condenser.",
+    actions: [
+      "Set the controller explicitly to COOL, not AUTO or DRY",
+      "Put the setpoint several degrees below room temperature",
+      "Clear any timer, schedule or eco/away limit",
+      "Check the fan isn't stuck on its lowest speed",
+      "Give it 15 minutes running before judging it",
+    ],
   },
 
   /* heating */
@@ -1153,6 +1257,147 @@ export const OUTCOMES: Outcome[] = [
       "A repeating 'transient' is a real fault building up",
     ],
   },
+
+  /* multi / VRF */
+  {
+    id: "vrf-creep",
+    title: "Refrigerant creeping through a valve that should be shut",
+    confidence: "likely",
+    explain:
+      "A head that quietly warms or cools while it's switched off is being fed refrigerant it shouldn't be getting: its expansion valve isn't closing fully, so a trickle passes whenever the system runs for somebody else. Common on multi systems, and usually reported as a haunted room rather than a fault.",
+    actions: [
+      "Confirm it's the head — check with the whole system off, then with a neighbouring head running",
+      "Rule out sunlight, a nearby duct or a leaking damper before condemning a valve",
+      "Check that head's expansion valve drives fully closed, and its coil sensor reads correctly",
+      "Look for debris holding the valve off its seat — the clearances are fine",
+      "The fix is at that branch, not at the outdoor unit",
+    ],
+    escalate: true,
+  },
+  {
+    id: "mode-conflict",
+    title: "Mode conflict — it can only do one at a time",
+    confidence: "likely",
+    explain:
+      "A two-pipe multi or VRF shares one refrigerant circuit, so the whole system heats or cools together. Whichever head calls first — or a designated master controller — sets the mode, and the rest wait, drop to fan only, or show a standby indication. Nothing is broken.",
+    actions: [
+      "Check which head or controller holds mode priority",
+      "Set the disagreeing heads to the same mode, or to fan only",
+      "Explain the limitation to the customer — it's how the system was specified, not a fault to chase",
+      "If both modes are genuinely needed at once, that's three-pipe heat recovery or a separate system, and it's a quoting conversation",
+    ],
+  },
+  {
+    id: "mode-priority",
+    title: "Mode priority is holding that head",
+    confidence: "likely",
+    explain:
+      "It changes over happily on its own, so the head and its branch are both fine. A priority setting or a master controller is making it follow the rest of the system instead of running the mode it's asking for.",
+    actions: [
+      "Find which controller or head is set as master",
+      "Check the priority setting on the branch controller and on any central controller",
+      "Re-assign priority to match how the building is actually used",
+      "Confirm the change by calling opposite modes on two heads again",
+    ],
+  },
+  {
+    id: "bc-valve",
+    title: "Changeover valve at the branch controller",
+    confidence: "possible",
+    explain:
+      "It won't change over even with the rest of the system off, so the branch controller isn't routing hot gas or liquid to that circuit. That points at the valve set serving this head rather than anything at the head itself.",
+    actions: [
+      "Identify which branch controller port serves that head",
+      "Check the valve coils energise when the mode is called",
+      "Feel the pipes into and out of that port through a changeover",
+      "Branch controller work needs the service manual for that system",
+    ],
+    escalate: true,
+  },
+  {
+    id: "vrf-comms",
+    title: "Transmission line or addressing",
+    confidence: "likely",
+    explain:
+      "It has power, but the system isn't talking to it. On multi and VRF the transmission line daisy-chains every indoor unit, so a break, a reversed pair, a duplicated address or a shield earthed at both ends takes out one head — or everything past it.",
+    actions: [
+      "Check the transmission terminals at that head for a loose or reversed conductor",
+      "Confirm its address or dip-switch setting isn't duplicated with another head",
+      "Follow the daisy-chain: if everything downstream is out too, the break is upstream of them all",
+      "Confirm the shield is earthed at one end only, and the line isn't run alongside power cable",
+    ],
+    escalate: true,
+  },
+  {
+    id: "vrf-branch",
+    title: "Refrigerant isn't reaching that head",
+    confidence: "likely",
+    explain:
+      "The head runs and asks for it, but its pipes stay at room temperature — so the problem is upstream, in the expansion valve or the branch serving that circuit. The rest of the system being fine is exactly what tells you it's local.",
+    actions: [
+      "Check the expansion valve for that circuit drives open when the head calls",
+      "At a branch box, confirm the port was connected to the head it was meant for — crossed ports are a common commissioning error",
+      "Check that head's coil and gas-line sensors; a misread sensor closes the valve on purpose",
+      "Confirm the service valves for that branch are fully open",
+    ],
+    escalate: true,
+  },
+  {
+    id: "vrf-head-airside",
+    title: "Refrigerant is arriving — treat this head on its own",
+    confidence: "likely",
+    explain:
+      "Its pipes get cold or hot, so the outdoor unit, the branch and the comms are all doing their job for this circuit. Whatever's wrong is inside this head, and from here it diagnoses exactly like a single split.",
+    actions: [
+      "Check that head's filters, coil face and fan speed",
+      "Ducted head: check for crushed or disconnected flexible duct on that run",
+      "Confirm its louvres and any zone damper are actually open",
+      "Compare its supply-air split against a head that's working properly",
+    ],
+  },
+  {
+    id: "vrf-diversity",
+    title: "Everything calling at once — that's diversity, not a fault",
+    confidence: "info",
+    explain:
+      "Multi and VRF outdoor units are deliberately sized below the sum of the heads connected to them, because in a real building they don't all run flat out together. On a design day with every head calling, each one gets less than its nameplate and the whole building drifts.",
+    actions: [
+      "Check the connection ratio: total indoor capacity against the outdoor unit's rating",
+      "Watch whether it recovers as heads satisfy and drop out",
+      "Stagger start times, or set back the rooms nobody is using",
+      "If every head genuinely runs together every day, the system was specified on the wrong assumption",
+    ],
+    tool: HEATLOAD,
+  },
+  {
+    id: "vrf-charge",
+    title: "Additional charge was probably never weighed in",
+    confidence: "likely",
+    explain:
+      "These systems carry enough refrigerant for a nominal pipe run and need a calculated top-up for every metre beyond it. Miss that at commissioning and the whole system underperforms quietly for years — which is exactly what everything-is-a-bit-weak looks like.",
+    actions: [
+      "Measure the actual pipe runs and calculate the additional charge required",
+      "Check the outdoor unit's charge label — it should record what was added and when",
+      "Leak-test before adding anything: a missing top-up and a slow leak look identical from here",
+      "Weigh the charge in against the calculation — never trim it in on pressure",
+    ],
+    tool: PRESSURES,
+    escalate: true,
+  },
+  {
+    id: "vrf-monitor",
+    title: "Read it from the service monitor, not just the gauges",
+    confidence: "info",
+    explain:
+      "The charge is documented and only part of the system is calling, so the next step is data. On an inverter multi or VRF the gauge ports tell you far less than the unit already knows — it is metering every valve, every sensor and the compressor speed itself.",
+    actions: [
+      "Put the outdoor unit into its service or check mode and read the live sensor data",
+      "Record compressor speed, discharge temperature and each indoor unit's valve position",
+      "Compare the heads against each other — the outlier is the circuit to chase",
+      "Take gauge readings alongside it so the two can be cross-checked",
+    ],
+    tool: PRESSURES,
+  },
 ];
 
 /* ───────────────────────────── helpers ───────────────────────────── */
@@ -1192,4 +1437,50 @@ export interface TrailStep {
 /** Every id an answer can point at — used by the integrity tests. */
 export function allReferences(): string[] {
   return QUESTIONS.flatMap((q) => q.answers.map((a) => a.next));
+}
+
+const REMAINING = new Map<string, { min: number; max: number }>();
+
+/** How many questions still lie ahead AFTER the one at `id`, best case to
+    worst case.
+
+    A bare "Question 5" with no denominator reads as endless, which is the
+    real reason a long branch feels long — the tech can't tell whether
+    they're one answer from the end or five. The trees know the answer, so
+    the header can say. Safe to call on every render: the shape is static,
+    so each id is computed once. */
+export function stepsRemaining(id: string): { min: number; max: number } {
+  const cached = REMAINING.get(id);
+  if (cached) return cached;
+
+  const q = QUESTION_BY_ID.get(id);
+  if (!q) return { min: 0, max: 0 };
+
+  let min = Number.POSITIVE_INFINITY;
+  let max = 0;
+  for (const a of q.answers) {
+    let lo = 0;
+    let hi = 0;
+    if (!isOutcomeRef(a.next)) {
+      const d = stepsRemaining(a.next);
+      lo = 1 + d.min;
+      hi = 1 + d.max;
+    }
+    if (lo < min) min = lo;
+    if (hi > max) max = hi;
+  }
+
+  const out = { min: Number.isFinite(min) ? min : 0, max };
+  REMAINING.set(id, out);
+  return out;
+}
+
+/** The header's "how much further" line, or null when there's nothing
+    useful to say. */
+export function remainingLabel(id: string): string | null {
+  const { min, max } = stepsRemaining(id);
+  if (max === 0) return "Last question";
+  if (min === 0) return `up to ${max} more`;
+  if (min === max) return min === 1 ? "1 more" : `${min} more`;
+  return `${min}–${max} more`;
 }

@@ -19,6 +19,7 @@ import {
   getSymptom,
   isOutcomeRef,
   outcomeId,
+  remainingLabel,
   SYMPTOMS,
   type Answer,
   type Outcome,
@@ -229,6 +230,8 @@ export function FaultFinder() {
           <span className="step">
             {outcome ? "Diagnosis" : `Question ${trail.length + 1}`}
           </span>
+          {/* how much further — without it a long branch reads as endless */}
+          {question && <span className="left">{remainingLabel(question.id)}</span>}
           <button type="button" className="chg" onClick={restart}>
             Change
           </button>

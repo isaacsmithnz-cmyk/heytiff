@@ -11,6 +11,8 @@ import {
   outcomeId,
   OUTCOMES,
   QUESTIONS,
+  remainingLabel,
+  stepsRemaining,
   SYMPTOMS,
 } from "../guided";
 
@@ -109,8 +111,8 @@ describe("content quality", () => {
     }
   });
 
-  it("all ten symptoms are covered, each with an icon and colour", () => {
-    expect(SYMPTOMS).toHaveLength(10);
+  it("all eleven symptoms are covered, each with an icon and colour", () => {
+    expect(SYMPTOMS).toHaveLength(11);
     for (const s of SYMPTOMS) {
       expect(s.color).toMatch(/^#[0-9A-Fa-f]{6}$/);
       expect(s.icon.length).toBeGreaterThan(2);
@@ -145,10 +147,20 @@ describe("content quality", () => {
 });
 
 describe("walking a tree", () => {
-  it("not cooling → outdoor dead → indoor alive → outdoor has no power", () => {
+  it("cooling opens on mode and setpoint, the way heating does", () => {
     const q1 = getQuestion(getSymptom("cooling")!.start)!;
-    expect(q1.ask).toMatch(/outdoor unit running/i);
-    const dead = q1.answers.find((a) => a.label.includes("dead"))!;
+    expect(q1.ask).toMatch(/set to COOL/i);
+    // and it offers a one-question exit, which the tree used to lack
+    const wrong = q1.answers.find((a) => a.label.startsWith("No"))!;
+    expect(isOutcomeRef(wrong.next)).toBe(true);
+    expect(getOutcome(outcomeId(wrong.next))!.title).toMatch(/isn't calling for cooling/i);
+  });
+
+  it("not cooling → outdoor dead → indoor alive → outdoor has no power", () => {
+    const mode = getQuestion(getSymptom("cooling")!.start)!;
+    const q1 = getQuestion(mode.answers.find((a) => a.label.includes("definitely"))!.next)!;
+    expect(q1.ask).toMatch(/what's actually happening/i);
+    const dead = q1.answers.find((a) => a.label.includes("isn't running"))!;
     const q2 = getQuestion(dead.next)!;
     expect(q2.ask).toMatch(/indoor unit respond/i);
     const alive = q2.answers.find((a) => a.label.includes("indoor works"))!;
@@ -158,7 +170,7 @@ describe("walking a tree", () => {
 
   it("not cooling → all basics good → ends at the pressures hand-off", () => {
     let id = getSymptom("cooling")!.start;
-    const answers = ["Yes, it's running", "No, it's barely cool", "Clean, good airflow", "No ice", "Clean and clear", "Yes, gauges are on"];
+    const answers = ["Yes, definitely cooling", "Running, but the air is barely cool", "Clean, good airflow", "No ice", "Clean and clear"];
     let final = "";
     for (const label of answers) {
       const q = getQuestion(id)!;
@@ -181,5 +193,91 @@ describe("walking a tree", () => {
   it("icing and breaker symptoms carry up-front safety notes", () => {
     expect(getSymptom("ice")!.safety).toMatch(/never chip/i);
     expect(getSymptom("breaker")!.safety).toMatch(/licensed/i);
+  });
+
+  it("no question branches on the tech's toolbag instead of the machine", () => {
+    // "Do you have gauges on it?" narrowed nothing — both answers meant the
+    // same fault. That belongs in the outcome, not as a step in the tree.
+    for (const q of QUESTIONS) {
+      expect(q.ask).not.toMatch(/do you have|have you got/i);
+    }
+  });
+});
+
+describe("multi and VRF", () => {
+  it("opens on scope, which narrows these systems fastest", () => {
+    const q = getQuestion(getSymptom("multi")!.start)!;
+    expect(q.ask).toMatch(/how much of the system/i);
+    expect(q.answers.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it("a head that conditions while switched off is valve creep, in one question", () => {
+    const q = getQuestion(getSymptom("multi")!.start)!;
+    const creep = q.answers.find((a) => a.label.includes("when it's off"))!;
+    expect(isOutcomeRef(creep.next)).toBe(true);
+    expect(getOutcome(outcomeId(creep.next))!.title).toMatch(/creeping/i);
+  });
+
+  it("heads disagreeing on a two-pipe system is explained as design, not a fault", () => {
+    let id = getSymptom("multi")!.start;
+    let final = "";
+    for (const label of ["Some heads heat while others want cool", "Two-pipe, or not sure"]) {
+      const a = getQuestion(id)!.answers.find((x) => x.label === label)!;
+      expect(a).toBeDefined();
+      if (isOutcomeRef(a.next)) { final = outcomeId(a.next); break; }
+      id = a.next;
+    }
+    const out = getOutcome(final)!;
+    expect(out.title).toMatch(/mode conflict/i);
+    expect(out.explain).toMatch(/nothing is broken/i);
+    expect(out.escalate).toBeFalsy(); // it isn't a fault to escalate
+  });
+
+  it("one dead head with live neighbours lands on comms, not the outdoor unit", () => {
+    let id = getSymptom("multi")!.start;
+    let final = "";
+    for (const label of ["One indoor unit", "No, it's dead", "Supply is present at the head"]) {
+      const a = getQuestion(id)!.answers.find((x) => x.label === label)!;
+      expect(a).toBeDefined();
+      if (isOutcomeRef(a.next)) { final = outcomeId(a.next); break; }
+      id = a.next;
+    }
+    expect(getOutcome(final)!.title).toMatch(/transmission line or addressing/i);
+  });
+
+  it("sends inverter multi and VRF to the service monitor, not just gauges", () => {
+    expect(getOutcome("vrf-monitor")!.explain).toMatch(/gauge ports tell you far less/i);
+  });
+});
+
+describe("telling the tech how much further", () => {
+  it("counts the questions still ahead, best case to worst", () => {
+    // the cooling spine is the deepest branch in the tool
+    const start = getSymptom("cooling")!.start;
+    const { min, max } = stepsRemaining(start);
+    expect(min).toBe(0); // "no, wrong mode" ends it right there
+    expect(max).toBe(4); // and the deepest walk is four more after this one
+  });
+
+  it("the walk-around is one question, not two", () => {
+    // "is the outdoor unit running" and "is the air cold" are one look
+    const state = getQuestion("cool.state")!;
+    expect(state.answers).toHaveLength(3);
+    expect(getQuestion("cool.odu")).toBeUndefined();
+    expect(getQuestion("cool.cold")).toBeUndefined();
+  });
+
+  it("the deepest path is five questions, down from six", () => {
+    const { max } = stepsRemaining(getSymptom("cooling")!.start);
+    expect(max + 1).toBe(5);
+  });
+
+  it("says something useful at every question in every tree", () => {
+    for (const q of QUESTIONS) {
+      expect(remainingLabel(q.id)).toBeTruthy();
+    }
+    // and names the end when it is the end
+    const smell = getSymptom("smell")!.start;
+    expect(remainingLabel(smell)).toBe("Last question");
   });
 });

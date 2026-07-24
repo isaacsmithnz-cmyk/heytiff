@@ -29,7 +29,8 @@ export type SymptomKey =
   | "code"
   | "multi"
   | "pumping"
-  | "zoning";
+  | "zoning"
+  | "condensation";
 
 export interface Symptom {
   key: SymptomKey;
@@ -189,6 +190,14 @@ export const SYMPTOMS: Symptom[] = [
     icon: "wind",
     color: "#EAB308",
     start: "zone.which",
+  },
+  {
+    key: "condensation",
+    label: "Sweating surfaces",
+    blurb: "Damp grilles, ceilings or duct",
+    icon: "pipe",
+    color: "#0891B2",
+    start: "cond.where",
   },
 ];
 
@@ -385,7 +394,11 @@ export const QUESTIONS: Question[] = [
     ask: "Where is the water actually coming from?",
     answers: [
       { label: "The indoor unit itself", hint: "Dripping from the head or grille", next: "water.drain" },
-      { label: "Pipework or ceiling nearby", next: "out:sweating" },
+      /* Deliberate hand-off across trees: water away from the unit isn't an
+         overflow, it's condensation — and the condensation tree already asks
+         the right next question. Better than keeping a second, thinner copy
+         of those outcomes here. */
+      { label: "Pipework or ceiling nearby", next: "cond.where" },
     ],
   },
   {
@@ -403,7 +416,24 @@ export const QUESTIONS: Question[] = [
     why: "Ducted and cassette units often do. Listen for it humming or cycling; lifting the float should start it.",
     answers: [
       { label: "Yes, there's a pump", next: "out:pump-fault" },
-      { label: "No, gravity drain", next: "out:drain-blocked" },
+      { label: "No, gravity drain", next: "water.age" },
+    ],
+  },
+  {
+    /* Age is the cheapest discriminator in the whole water tree and it costs
+       nothing to ask: a drain that never had fall, trap or connection right
+       has leaked since day one, while a drain that ran for five summers and
+       then stopped is silted up. They are not the same job. */
+    id: "water.age",
+    ask: "Has it always done this, or did it start recently?",
+    why: "Ask the customer. It separates an installation fault from a maintenance one before you spend an hour clearing a line that was never going to work.",
+    answers: [
+      {
+        label: "It's new, or has never been right",
+        hint: "Since install, or since someone worked on it",
+        next: "out:drain-install",
+      },
+      { label: "It drained fine for years, then started", next: "out:drain-blocked" },
     ],
   },
   {
@@ -772,6 +802,50 @@ export const QUESTIONS: Question[] = [
       { label: "No, it's worse with everything open", next: "out:zone-capacity" },
     ],
   },
+
+  /* ---------------- condensation on surfaces ----------------
+     Distinct from "Water leaking": nothing has overflowed and nothing is
+     blocked. A surface has simply dropped below the dew point of the air
+     touching it. WHERE it forms is the whole diagnosis — a sweating grille
+     face, a damp ring in the ceiling around it, and wet duct in the roof
+     are three different faults that look identical from the floor. */
+  {
+    id: "cond.where",
+    ask: "Where is the moisture actually forming?",
+    why: "Get up close and look, because from the floor these all read as 'water near the vent'. You're after the coldest surface — that's where condensation starts, and it tells you which fault you've got.",
+    answers: [
+      { label: "On the face of a grille or the indoor unit", next: "cond.spread" },
+      {
+        label: "On the ceiling around a diffuser",
+        hint: "A damp ring or a stain spreading outwards",
+        next: "out:cond-leak",
+      },
+      { label: "On duct or pipework in the roof space", next: "out:cond-insulation" },
+      {
+        label: "On windows and walls generally",
+        hint: "Not only near the system",
+        next: "out:cond-building",
+      },
+    ],
+  },
+  {
+    id: "cond.spread",
+    ask: "Is it just one or two grilles, or every one of them?",
+    why: "If every grille in the place is wet, the grilles aren't the problem — they're just the coldest thing in a room that's too humid. One wet grille among dry ones is a fault at that grille.",
+    answers: [
+      { label: "Just one or two", next: "cond.flow" },
+      { label: "All of them", next: "out:cond-humidity" },
+    ],
+  },
+  {
+    id: "cond.flow",
+    ask: "Is the airflow at that grille weaker than the others?",
+    why: "Less air over the same coil comes out colder, and a colder grille face finds the dew point sooner. Compare by hand against a grille that stays dry.",
+    answers: [
+      { label: "Yes, noticeably weaker", next: "out:cond-airflow" },
+      { label: "No, airflow looks the same", next: "out:cond-grille" },
+    ],
+  },
 ];
 
 /* ───────────────────────────── outcomes ───────────────────────────── */
@@ -1047,24 +1121,11 @@ export const OUTCOMES: Outcome[] = [
 
   /* water */
   {
-    id: "sweating",
-    title: "Condensation on pipework, not a drain fault",
-    confidence: "likely",
-    explain:
-      "Water away from the unit — on pipes or the ceiling — is usually cold surfaces sweating in humid air, not the drain overflowing.",
-    actions: [
-      "Check the suction line insulation is continuous, sealed and not perished",
-      "Re-insulate any bare pipe, especially at joints and through walls",
-      "Check ceiling-space humidity and ventilation",
-      "Confirm the drain itself is insulated where it runs through warm roof space",
-    ],
-  },
-  {
     id: "drain-blocked",
     title: "Blocked condensate drain",
     confidence: "likely",
     explain:
-      "The unit is producing water but it isn't leaving, so the tray fills and spills. Almost always slime and dust at the tray outlet.",
+      "It drained fine for years and now it doesn't, so something has closed a path that used to be open. The unit is still producing water, the tray fills, and it spills. Almost always slime and dust at the tray outlet or in the line.",
     actions: [
       "Clear the line — vacuum from the discharge end or nitrogen from the tray side",
       "Flush it through and confirm a steady flow outside",
@@ -1785,6 +1846,109 @@ export const OUTCOMES: Outcome[] = [
       "If every zone genuinely has to run together, it was specified on the wrong assumption",
     ],
     tool: HEATLOAD,
+  },
+
+  {
+    id: "drain-install",
+    title: "It was never going to drain",
+    confidence: "likely",
+    explain:
+      "A drain that has never worked, or that stopped the day someone worked on it, isn't blocked — it was built wrong. No fall, an uphill section, a trap that can't hold a seal, or a line that was never connected to anything at all.",
+    actions: [
+      "Sight the whole run for continuous fall — one uphill section holds water and stops everything behind it",
+      "Confirm the line actually terminates somewhere sensible and wasn't just left in the ceiling",
+      "Check the trap suits the unit's fan pressure: too shallow and it blows dry, too deep and it never clears",
+      "Confirm the indoor unit is level, or sitting very slightly down towards its drain outlet",
+      "Re-run the bad section rather than trying to clear a line that was never right",
+    ],
+  },
+
+  /* condensation on surfaces */
+  {
+    id: "cond-leak",
+    title: "Supply air is leaking into the ceiling",
+    confidence: "likely",
+    explain:
+      "A damp ring in the plasterboard around a diffuser is cold supply air escaping at the collar instead of going through it. It chills the ceiling from above, humid room air condenses on the cold patch, and the mark spreads outwards in a ring.",
+    actions: [
+      "Get above it and check the flex is clamped and taped onto the diffuser collar properly",
+      "Seal the collar to the plasterboard — the gap around the cut-out is where it escapes",
+      "Pull the insulation right down over the collar and tape it, leaving no bare metal in the roof space",
+      "Check every other diffuser for the same thing; one bad collar is usually a habit, not an accident",
+      "Replace stained plasterboard once it's dried out, or it will ghost back through the paint",
+    ],
+  },
+  {
+    id: "cond-insulation",
+    title: "Bare or failed insulation in the roof",
+    confidence: "likely",
+    explain:
+      "Cold duct or pipe sitting in warm humid roof air sweats wherever it isn't covered. The water then runs along the outside and drops somewhere else entirely, which is why this usually gets reported as a leak from a completely unrelated spot.",
+    actions: [
+      "Follow the run and find where insulation is missing, split, compressed or unsealed",
+      "Look hardest at joints, bends and anywhere it passes through a frame — that's where it gets left open",
+      "Check the vapour barrier is continuous and taped; insulation without a sealed barrier just sweats on the inside instead",
+      "Check the suction line and the drain line too — both run cold through warm roof space and both get left bare",
+      "Check whether the roof space itself is unusually humid or poorly ventilated",
+      "Trace where the water actually lands, so nobody chases the wrong ceiling next visit",
+    ],
+  },
+  {
+    id: "cond-building",
+    title: "That's building humidity, not the system",
+    confidence: "info",
+    explain:
+      "Condensation on windows, external walls and in corners well away from the air conditioning is a building problem — moisture being made indoors faster than it's being removed, meeting cold surfaces. The system can help with it, but it didn't cause it.",
+    actions: [
+      "Look for the sources: washing dried indoors, unflued gas heating, long showers, a damp subfloor",
+      "Check bathroom and kitchen fans actually run, and discharge outside rather than into the roof space",
+      "Running cooling or dry mode will pull humidity down while it runs",
+      "Persistent mould alongside the condensation is a health conversation, not just a comfort one",
+      "Where the building needs ventilation, that's the fix — a bigger air conditioner isn't",
+    ],
+  },
+  {
+    id: "cond-humidity",
+    title: "The room's dew point is too high",
+    confidence: "likely",
+    explain:
+      "Every grille sweating means the air in the room is humid enough that anything cold will collect water. The grilles aren't faulty — they're just the coldest surfaces in the room, so they go first.",
+    actions: [
+      "Measure room temperature and humidity, work out the dew point, and compare it against the supply air temperature",
+      "Find the moisture source: doors open to humid air, a wet process, a room full of people",
+      "Check it runs long enough to dehumidify — short cycles cool the air without drying it",
+      "Try dry mode, or drop the fan a speed, to take more moisture out per pass",
+      "An oversized system satisfies before it dehumidifies; check capacity against the room",
+    ],
+    tool: HEATLOAD,
+  },
+  {
+    id: "cond-airflow",
+    title: "Low airflow is making that grille cold",
+    confidence: "likely",
+    explain:
+      "Less air over the same coil leaves colder, so the grille face runs colder too — and once it drops below the room's dew point it sweats. Same starved-airflow story that ices coils, just caught earlier.",
+    actions: [
+      "Check the return filter and the indoor coil first",
+      "Raise the fan a speed and see whether the sweating stops",
+      "Check that grille's own run for crushed or kinked flex",
+      "Check the balancing damper at its takeoff isn't mostly shut",
+      "Make sure too many zones aren't closed down at once",
+    ],
+  },
+  {
+    id: "cond-grille",
+    title: "The grille itself is the cold spot",
+    confidence: "possible",
+    explain:
+      "Airflow is fine and only this one does it, so the grille is simply the surface that gets coldest. Bare metal with no thermal break, in a humid room, will find the dew point before anything else in the space does.",
+    actions: [
+      "Check whether it's a plain metal face — insulated and plastic-faced diffusers exist for exactly this",
+      "Check the back of the grille and its collar are insulated right up to the face",
+      "Look at the throw: a pattern that washes back across the face keeps it cold",
+      "Check it isn't hard against a cold surface or sitting in a dead corner with no movement",
+      "In a genuinely humid room, lifting the supply air temperature slightly is often the practical fix",
+    ],
   },
 ];
 

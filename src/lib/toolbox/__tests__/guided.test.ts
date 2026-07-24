@@ -111,8 +111,8 @@ describe("content quality", () => {
     }
   });
 
-  it("all thirteen symptoms are covered, each with an icon and colour", () => {
-    expect(SYMPTOMS).toHaveLength(13);
+  it("all fourteen symptoms are covered, each with an icon and colour", () => {
+    expect(SYMPTOMS).toHaveLength(14);
     for (const s of SYMPTOMS) {
       expect(s.color).toMatch(/^#[0-9A-Fa-f]{6}$/);
       expect(s.icon.length).toBeGreaterThan(2);
@@ -304,6 +304,76 @@ describe("three-phase and a compressor that isn't pumping", () => {
 
   it("overcurrent on the breaker path mentions measuring all three legs", () => {
     expect(getOutcome("compressor-amps")!.actions.join(" ")).toMatch(/all three legs/i);
+  });
+});
+
+describe("water: how old the fault is", () => {
+  it("a drain that never worked is an install fault, not a blockage", () => {
+    const q = getQuestion("water.age")!;
+    expect(q.ask).toMatch(/always done this|start(ed)? recently/i);
+    const [neverRight, wentBad] = q.answers.map((a) => getOutcome(outcomeId(a.next))!);
+    expect(neverRight.title).toMatch(/never going to drain/i);
+    expect(wentBad.title).toMatch(/blocked condensate drain/i);
+  });
+
+  it("the blockage outcome no longer claims slime on a line that never ran", () => {
+    // it is only reached once the customer says it drained fine for years
+    const out = getOutcome("drain-blocked")!;
+    expect(out.explain).toMatch(/drained fine for years/i);
+  });
+
+  it("the install outcome checks fall, trap and level rather than clearing it", () => {
+    const actions = getOutcome("drain-install")!.actions.join(" ");
+    expect(actions).toMatch(/fall/i);
+    expect(actions).toMatch(/trap/i);
+    expect(actions).toMatch(/level/i);
+  });
+});
+
+describe("condensation on surfaces", () => {
+  it("where it forms is the whole diagnosis", () => {
+    const q = getQuestion(getSymptom("condensation")!.start)!;
+    expect(q.ask).toMatch(/where is the moisture/i);
+    expect(q.answers).toHaveLength(4);
+  });
+
+  it("a ring around a diffuser is supply air escaping at the collar", () => {
+    const q = getQuestion(getSymptom("condensation")!.start)!;
+    const ring = q.answers.find((a) => a.label.includes("ceiling around a diffuser"))!;
+    expect(getOutcome(outcomeId(ring.next))!.title).toMatch(/leaking into the ceiling/i);
+  });
+
+  it("sweating away from the system is called a building problem, not a fault", () => {
+    const q = getQuestion(getSymptom("condensation")!.start)!;
+    const walls = q.answers.find((a) => a.label.includes("windows and walls"))!;
+    const out = getOutcome(outcomeId(walls.next))!;
+    expect(out.confidence).toBe("info");
+    expect(out.actions.join(" ")).toMatch(/bigger air conditioner isn't/i);
+  });
+
+  it("every grille wet is dew point; one grille wet is that grille", () => {
+    const spread = getQuestion("cond.spread")!;
+    const all = spread.answers.find((a) => a.label.includes("All of them"))!;
+    expect(getOutcome(outcomeId(all.next))!.title).toMatch(/dew point is too high/i);
+
+    const flow = getQuestion(spread.answers[0].next)!;
+    expect(flow.id).toBe("cond.flow");
+    expect(flow.answers.map((a) => outcomeId(a.next))).toEqual(["cond-airflow", "cond-grille"]);
+  });
+
+  it("the water tree hands off here instead of keeping a thinner copy", () => {
+    const where = getQuestion(getSymptom("water")!.start)!;
+    const away = where.answers.find((a) => a.label.includes("Pipework or ceiling"))!;
+    expect(away.next).toBe("cond.where");
+    // the outcome it used to point at is gone, not orphaned
+    expect(getOutcome("sweating")).toBeUndefined();
+    // and the surviving outcome kept what that one knew about drain insulation
+    expect(getOutcome("cond-insulation")!.actions.join(" ")).toMatch(/drain line/i);
+  });
+
+  it("stays distinct from the water-leak tree — nothing here has overflowed", () => {
+    expect(getSymptom("condensation")!.label).not.toMatch(/leak/i);
+    expect(getSymptom("water")!.label).toMatch(/leak/i);
   });
 });
 

@@ -7,6 +7,8 @@ import { loadNoticeBoard } from "@/lib/dashboard/page-data";
    Reading happens on THIS page rather than the dashboard: getting here takes a
    deliberate click, which is what makes marking the notices read honest. */
 export default async function NoticesPage() {
-  const { notices, canManage, canRead } = await loadNoticeBoard();
-  return <NoticesBoard notices={notices} canManage={canManage} canRead={canRead} />;
+  const { notices, canManage, canRead, today } = await loadNoticeBoard();
+  return (
+    <NoticesBoard notices={notices} canManage={canManage} canRead={canRead} today={today} />
+  );
 }

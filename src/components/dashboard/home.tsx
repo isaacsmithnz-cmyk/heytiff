@@ -37,6 +37,7 @@ export function DashboardHome({
     assignable,
     canManage,
     viewerStaffId,
+    today,
   } = data;
   // worst-first across both sections, so the band can name the top item
   const action = heroAction(
@@ -62,7 +63,7 @@ export function DashboardHome({
           <div className="dash-cols">
             <div className="dash-col">
               <TasksSection
-                today={data.today}
+                today={today}
                 mine={tasks.mine}
                 team={tasks.team}
                 done={tasks.done}
@@ -74,7 +75,7 @@ export function DashboardHome({
             </div>
 
             <div className="dash-col">
-              <NoticesCard notices={notices} />
+              <NoticesCard notices={notices} today={today} />
 
               {roster && (
                 <div className="card2">

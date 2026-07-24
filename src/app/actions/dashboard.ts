@@ -5,6 +5,7 @@ import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { can } from "@/lib/permissions-server";
 import { staffProfileIdFor } from "@/lib/fleet/query";
+import { asNoticeKind } from "@/lib/dashboard/notices";
 
 /* Dashboard mutations — tasks and the noticeboard.
 
@@ -138,6 +139,9 @@ export async function postNotice(input: {
   title: string;
   body?: string;
   pinned?: boolean;
+  kind?: string;
+  /** Inclusive last day on the board, ISO yyyy-mm-dd. */
+  expiresAt?: string | null;
 }): Promise<DashResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "Not signed in." };
@@ -145,6 +149,8 @@ export async function postNotice(input: {
 
   const title = input.title.trim();
   if (!title) return { ok: false, error: "Give the notice a title." };
+  if (input.expiresAt && !isISODate(input.expiresAt))
+    return { ok: false, error: "Check the expiry date." };
 
   const { data, error } = await supabaseAdmin
     .from("notices")
@@ -154,6 +160,10 @@ export async function postNotice(input: {
       body: input.body?.trim().slice(0, 2000) || null,
       posted_by: ctx.staffId,
       pinned: input.pinned === true,
+      // an unrecognised kind is narrowed, never rejected — the column's CHECK
+      // is the backstop, this keeps a stale client from erroring
+      kind: asNoticeKind(input.kind),
+      expires_at: input.expiresAt || null,
     })
     .select("id, revision")
     .maybeSingle();
@@ -191,12 +201,15 @@ export async function editNotice(input: {
   title: string;
   body?: string;
   pinned?: boolean;
+  expiresAt?: string | null;
 }): Promise<DashResult> {
   const ctx = await context();
   if (!ctx?.staffId) return { ok: false, error: "No staff record for this account." };
 
   const title = input.title.trim();
   if (!title) return { ok: false, error: "Give the notice a title." };
+  if (input.expiresAt && !isISODate(input.expiresAt))
+    return { ok: false, error: "Check the expiry date." };
 
   const { data } = await supabaseAdmin
     .from("notices")
@@ -220,6 +233,9 @@ export async function editNotice(input: {
       title: nextTitle,
       body: nextBody,
       pinned: input.pinned === true,
+      // changing WHEN it comes down is not a change to WHAT IT SAYS, so it
+      // leaves the revision (and everyone's read receipt) alone
+      expires_at: input.expiresAt || null,
       revision,
       ...(reworded ? { edited_at: now } : {}),
       updated_at: now,
@@ -241,6 +257,44 @@ export async function editNotice(input: {
       { onConflict: "notice_id,staff_profile_id" },
     );
   }
+  refresh();
+  return { ok: true };
+}
+
+/* Take a notice off the board without destroying it — the gentler half of
+   Remove, and the one that should be reached for first. Same permission as
+   removal (the author, or `team` moderating), because it's the same decision
+   made reversibly. Archiving is deliberately NOT the same thing as expiring:
+   expiry is the calendar, this is a person. */
+export async function setNoticeArchived(
+  noticeId: string,
+  archived: boolean,
+): Promise<DashResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "Not signed in." };
+
+  const { data } = await supabaseAdmin
+    .from("notices")
+    .select("posted_by")
+    .eq("org_id", ctx.orgId)
+    .eq("id", noticeId)
+    .maybeSingle();
+  if (!data) return { ok: false, error: "That notice no longer exists." };
+
+  const mine = ctx.staffId && ctx.staffId === data.posted_by;
+  if (!mine && !(await can("team")))
+    return { ok: false, error: "You can't file that notice away." };
+
+  const { error } = await supabaseAdmin
+    .from("notices")
+    .update({
+      archived_at: archived ? new Date().toISOString() : null,
+      archived_by: archived ? ctx.staffId : null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("org_id", ctx.orgId)
+    .eq("id", noticeId);
+  if (error) return { ok: false, error: "Couldn't file that notice away." };
   refresh();
   return { ok: true };
 }

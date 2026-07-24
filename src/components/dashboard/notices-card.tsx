@@ -1,16 +1,23 @@
 import { Icon } from "@/components/shell/icon";
-import { unreadCount, type NoticeWithRead } from "@/lib/dashboard/tasks";
+import { currentUnreadCount, partitionNotices } from "@/lib/dashboard/notices";
+import type { NoticeWithRead } from "@/lib/dashboard/tasks";
 
 /* The dashboard's noticeboard card — a summary and a door, nothing more.
 
    Deliberately NOT where notices are read: it shows what's waiting and links
    through. Reading (and posting, and editing) all happen on /dashboard/notices,
    because clicking through is an intent signal that something merely scrolling
-   into view on the dashboard could never be. */
+   into view on the dashboard could never be.
 
-export function NoticesCard({ notices }: { notices: NoticeWithRead[] }) {
-  const unread = unreadCount(notices);
-  const latest = notices.slice(0, 3);
+   Only the CURRENT board is summarised. Expired and archived notices exist,
+   but the dashboard is a "what needs me today" surface — putting last month's
+   announcement in the unread count would make the badge a chore rather than a
+   signal. */
+
+export function NoticesCard({ notices, today }: { notices: NoticeWithRead[]; today: string }) {
+  const { active } = partitionNotices(notices, today);
+  const unread = currentUnreadCount(notices, today);
+  const latest = active.slice(0, 3);
 
   return (
     <a className="card2 dash-card-link" href="/dashboard/notices">
@@ -30,7 +37,7 @@ export function NoticesCard({ notices }: { notices: NoticeWithRead[] }) {
         </span>
       </div>
 
-      {notices.length === 0 ? (
+      {active.length === 0 ? (
         <div className="dash-mini">Nothing on the board right now.</div>
       ) : (
         <>
@@ -50,9 +57,9 @@ export function NoticesCard({ notices }: { notices: NoticeWithRead[] }) {
               )}
             </div>
           ))}
-          {notices.length > latest.length && (
+          {active.length > latest.length && (
             <div className="dash-mini">
-              +{notices.length - latest.length} more on the board
+              +{active.length - latest.length} more on the board
             </div>
           )}
         </>

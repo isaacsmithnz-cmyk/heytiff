@@ -305,7 +305,6 @@ export function plenumBody(opts: {
   opening?: PackOpeningSpec | null;
   unitWidthMm?: number | null;
   spigots: PlenumSpigot[];
-  units: "mm" | "inch";
   /** which side of the unit — RETURN is a box, SUPPLY tapers. Defaults to
       supply so an un-updated caller keeps the old shape rather than silently
       squaring off every plenum. */
@@ -359,28 +358,29 @@ export function plenumBody(opts: {
     overSpigot,
     overHeight,
     rectangular,
-    label: plenumLabel(baseWMm, openingHMm, opts.spigots, opts.units),
+    label: plenumLabel(opts.stream ?? "supply", baseWMm, openingHMm),
   };
 }
 
-/** The plan label: the OPENING, `W × H`. The plan depth is deliberately not
-    in it — on a drawing the two figures that matter are the ones the duct has
-    to fit through, and the height is what sizes the spigots. An unknown
-    height shows as a dash rather than being quietly dropped. */
+/** The plan label: which plenum it is, then the OPENING as `W × H`.
+
+    The duct sizes are NOT in here — each spigot carries its own diameter at
+    the spigot, where the fitter is actually looking, instead of being rolled
+    into one long bar under the plenum that has to be read back against the
+    drawing to work out which duct is which.
+
+    The plan depth is not in it either: on a drawing the two figures that
+    matter are the ones the duct has to fit through, and the height is what
+    sizes the spigots. An unknown height shows as a dash rather than being
+    quietly dropped. */
 export function plenumLabel(
+  stream: "supply" | "return",
   baseWMm: number,
-  openingHMm: number | null,
-  spigots: PlenumSpigot[],
-  units: "mm" | "inch"
+  openingHMm: number | null
 ): string {
-  const counts = new Map<number, number>();
-  for (const s of spigots) counts.set(s.diaMm, (counts.get(s.diaMm) ?? 0) + 1);
-  const parts = [...counts.entries()]
-    .sort((a, b) => b[0] - a[0])
-    .map(([dia, n]) => `${n} × ${formatDia(dia, units)}`);
   const h = openingHMm == null ? "—" : String(Math.round(openingHMm));
-  const dims = `${Math.round(baseWMm)} × ${h}`;
-  return `${dims}${parts.length ? ` · ${parts.join(" · ")}` : ""}`;
+  const name = stream === "return" ? "Return" : "Supply";
+  return `${name} · ${Math.round(baseWMm)} × ${h}`;
 }
 
 /* ── Plenum supply-duct count guidance (spec §6b-iii) — the spigots are the

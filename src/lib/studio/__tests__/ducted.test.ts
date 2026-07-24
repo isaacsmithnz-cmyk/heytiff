@@ -262,36 +262,48 @@ describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
   const opening = { w_mm: 1200, h_mm: 250 }; // data-book supply opening
 
   it("base = the opening width; spigot face stays ≤ base while ducts fit", () => {
-    const b = plenumBody({ opening, spigots: [spig(350), spig(350)], units: "inch" });
+    const b = plenumBody({ opening, spigots: [spig(350), spig(350)] });
     // 2×350 + 3×50 = 850 ≤ 1200 base → not over
     expect(b.baseWMm).toBe(1200);
     expect(b.spigotFaceWMm).toBe(850);
     expect(b.overSpigot).toBe(false);
     expect(b.depthMm).toBe(225); // 2 spigots: 200 + 1 × 25
     expect(b.derived).toBe(false);
-    expect(b.label).toBe('1200 × 250 · 2 × 14"');
+    expect(b.label).toBe("Supply · 1200 × 250");
   });
 
   it("one spigot → a near-point arrow (small spigot face), base unchanged", () => {
-    const b = plenumBody({ opening, spigots: [spig(350)], units: "inch" });
+    const b = plenumBody({ opening, spigots: [spig(350)] });
     expect(b.baseWMm).toBe(1200); // base never shrinks
     expect(b.spigotFaceWMm).toBe(350 + 100); // 1×350 + 2×50 gaps
     expect(b.overSpigot).toBe(false);
-    expect(b.label).toBe('1200 × 250 · 1 × 14"');
+    expect(b.label).toBe("Supply · 1200 × 250");
   });
 
   it("too many ducts → overSpigot, base never grows past the unit", () => {
     // 4×350 + 5×50 = 1650 > 1200 base
-    const b = plenumBody({ opening, spigots: [spig(350), spig(350), spig(350), spig(350)], units: "inch" });
+    const b = plenumBody({ opening, spigots: [spig(350), spig(350), spig(350), spig(350)] });
     expect(b.overSpigot).toBe(true);
     expect(b.baseWMm).toBe(1200); // stays the opening width, does NOT grow
     expect(b.spigotFaceWMm).toBe(1200); // clamped to base for rendering
-    expect(b.label).toBe('1200 × 250 · 4 × 14"'); // no "(3-face)" — that model is gone
+    expect(b.label).toBe("Supply · 1200 × 250"); // duct sizes ride their own spigots now
   });
 
-  it("mixed sizes label descending, per units setting", () => {
-    const b = plenumBody({ opening, spigots: [spig(250), spig(350), spig(250)], units: "mm" });
-    expect(b.label).toBe("1200 × 250 · 1 × Ø350 · 2 × Ø250");
+  /* The plan label names the plenum and its opening — nothing else. Duct
+     sizes were rolled into one long bar under the plenum, which had to be
+     read back against the drawing to tell which duct was which; each takeoff
+     now carries its own Ø at the takeoff (field feedback 2026-07-23). */
+  it("the label is name + opening only — never the duct sizes", () => {
+    const b = plenumBody({ opening, spigots: [spig(250), spig(350), spig(250)] });
+    expect(b.label).toBe("Supply · 1200 × 250");
+    expect(b.label).not.toMatch(/Ø|"/); // no diameters in the bar
+  });
+
+  it("the label names which plenum it is", () => {
+    const sup = plenumBody({ opening, spigots: [], stream: "supply" });
+    const ret = plenumBody({ opening, spigots: [], stream: "return" });
+    expect(sup.label.startsWith("Supply")).toBe(true);
+    expect(ret.label.startsWith("Return")).toBe(true);
   });
 
   /* Field feedback 2026-07-23: a RETURN plenum is a box bolted to the back of
@@ -299,12 +311,12 @@ describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
      it must not taper. Only the supply side has spigots to narrow toward. */
   it("a RETURN plenum is a plain box — far face = base, so it draws square", () => {
     const ret = { w_mm: 660, h_mm: 157.5 }; // SEZ-M25DA(L) return opening
-    const b = plenumBody({ opening: ret, spigots: [], units: "mm", stream: "return" });
+    const b = plenumBody({ opening: ret, spigots: [], stream: "return" });
     expect(b.rectangular).toBe(true);
     expect(b.baseWMm).toBe(660);
     expect(b.spigotFaceWMm).toBe(660); // equal ⇒ rectangle, not a wedge
     expect(b.depthMm).toBe(150); // a return box is shallow
-    expect(b.label).toBe("660 × 158"); // opening W × H — never the depth
+    expect(b.label).toBe("Return · 660 × 158"); // name + opening W × H, never the depth
   });
 
   it("a return box stays square even with a spigot on it", () => {
@@ -312,7 +324,6 @@ describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
     const b = plenumBody({
       opening: ret,
       spigots: [spig(350)],
-      units: "mm",
       stream: "return",
     });
     expect(b.spigotFaceWMm).toBe(660); // NOT narrowed to 350 + gaps
@@ -324,7 +335,6 @@ describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
     const b = plenumBody({
       opening: sup,
       spigots: [spig(350)],
-      units: "mm",
       stream: "supply",
     });
     expect(b.rectangular).toBe(false);
@@ -333,7 +343,7 @@ describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
   });
 
   it("an omitted stream keeps the tapering shape — no silent square-off", () => {
-    const b = plenumBody({ opening, spigots: [spig(350)], units: "mm" });
+    const b = plenumBody({ opening, spigots: [spig(350)] });
     expect(b.rectangular).toBe(false);
     expect(b.spigotFaceWMm).toBeLessThan(b.baseWMm);
   });
@@ -342,18 +352,18 @@ describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
      appears: on a drawing the two figures that matter are the ones the duct
      has to fit through (field feedback 2026-07-23). */
   it("labels the opening W × H, never the plan depth", () => {
-    const b = plenumBody({ opening: { w_mm: 660, h_mm: 150 }, spigots: [], units: "mm" });
-    expect(b.label).toBe("660 × 150");
+    const b = plenumBody({ opening: { w_mm: 660, h_mm: 150 }, spigots: [] });
+    expect(b.label).toBe("Supply · 660 × 150");
     expect(b.openingHMm).toBe(150);
     expect(b.depthMm).toBe(200); // no spigots yet → the shallow end of the range
     expect(b.label).not.toContain("200"); // depth is never in the label
   });
 
   it("an unknown opening height shows a dash, not a dropped dimension", () => {
-    const b = plenumBody({ opening: null, unitWidthMm: 800, spigots: [], units: "mm" });
+    const b = plenumBody({ opening: null, unitWidthMm: 800, spigots: [] });
     expect(b.openingHMm).toBeNull();
     expect(b.derived).toBe(true);
-    expect(b.label).toBe("720 × —");
+    expect(b.label).toBe("Supply · 720 × —");
   });
 
   /* A round takeoff can't be taller than the opening it lands on: a 150-high
@@ -362,7 +372,6 @@ describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
     const b = plenumBody({
       opening: { w_mm: 660, h_mm: 150 },
       spigots: [spig(250)],
-      units: "inch",
     });
     expect(b.overHeight).toBe(true);
     expect(b.overSpigot).toBe(false); // it fits ACROSS the width — height is the problem
@@ -372,13 +381,12 @@ describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
     const b = plenumBody({
       opening: { w_mm: 660, h_mm: 150 },
       spigots: [spig(150)],
-      units: "mm",
     });
     expect(b.overHeight).toBe(false);
   });
 
   it("no height in the pack → never a false height warning", () => {
-    const b = plenumBody({ opening: null, unitWidthMm: 800, spigots: [spig(400)], units: "mm" });
+    const b = plenumBody({ opening: null, unitWidthMm: 800, spigots: [spig(400)] });
     expect(b.openingHMm).toBeNull();
     expect(b.overHeight).toBe(false); // unknown is not the same as breached
   });
@@ -387,13 +395,11 @@ describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
     const ret = plenumBody({
       opening: { w_mm: 660, h_mm: 157.5 },
       spigots: [],
-      units: "mm",
       stream: "return",
     });
     const sup = plenumBody({
       opening: { w_mm: 660, h_mm: 150 },
       spigots: [],
-      units: "mm",
       stream: "supply",
     });
     expect(ret.depthMm).toBe(150);
@@ -408,7 +414,6 @@ describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
     const b = plenumBody({
       opening: { w_mm: 660, h_mm: 150 },
       spigots: [spig(200, "left"), spig(200, "right")],
-      units: "mm",
       stream: "supply",
     });
     expect(b.spigotFaceWMm).toBe(0); // no lip — the V closes to a point
@@ -420,7 +425,6 @@ describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
     const b = plenumBody({
       opening: { w_mm: 660, h_mm: 150 },
       spigots: [spig(200, "left"), spig(200, "right"), spig(200)],
-      units: "mm",
       stream: "supply",
     });
     expect(b.spigotFaceWMm).toBe(300); // the ONE front duct: 200 + 2 × 50 gaps
@@ -433,7 +437,6 @@ describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
       plenumBody({
         opening: { w_mm: 1600, h_mm: 300 },
         spigots: Array.from({ length: n }, () => spig(150, "left")),
-        units: "mm",
         stream: "supply",
       }).depthMm;
     expect([at(0), at(1), at(2), at(3)]).toEqual([200, 200, 225, 250]);
@@ -443,7 +446,7 @@ describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
 
   it("no opening data → grey derived default (~90% of the discharge END, NOT the unit width)", () => {
     // caller passes the unit's SHORT-end width (the discharge face), e.g. 800
-    const b = plenumBody({ opening: null, unitWidthMm: 800, spigots: [], units: "mm" });
+    const b = plenumBody({ opening: null, unitWidthMm: 800, spigots: [] });
     expect(b.derived).toBe(true);
     expect(b.baseWMm).toBe(720); // 800 × 0.9 — a plausible opening, not a long unit width
   });
@@ -451,7 +454,7 @@ describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
   it("'open' takes the derived default — a positive answer with no size in it", () => {
     // the face is ductable but the book publishes no opening, so the plenum
     // falls back to the same grey default as absent data (installer sizes it)
-    const b = plenumBody({ opening: "open", unitWidthMm: 800, spigots: [], units: "mm" });
+    const b = plenumBody({ opening: "open", unitWidthMm: 800, spigots: [] });
     expect(b.derived).toBe(true);
     expect(b.baseWMm).toBe(720);
     expect(b.builtIn).toBe(false);
@@ -459,14 +462,14 @@ describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
   });
 
   it("built-in return short-circuits", () => {
-    const b = plenumBody({ opening: "built-in", unitWidthMm: 900, spigots: [], units: "mm" });
+    const b = plenumBody({ opening: "built-in", unitWidthMm: 900, spigots: [] });
     expect(b.builtIn).toBe(true);
     expect(b.factorySpigots).toBe(false);
     expect(b.derived).toBe(false);
   });
 
   it("factory spigots flagged (no drawn plenum body)", () => {
-    const b = plenumBody({ opening: "spigots", unitWidthMm: 900, spigots: [], units: "mm" });
+    const b = plenumBody({ opening: "spigots", unitWidthMm: 900, spigots: [] });
     expect(b.factorySpigots).toBe(true);
     expect(b.builtIn).toBe(false);
     expect(b.derived).toBe(false);
@@ -477,7 +480,6 @@ describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
       opening: { spigots: [{ count: 2, dia_mm: 400 }] },
       unitWidthMm: 900,
       spigots: [],
-      units: "mm",
     });
     expect(b.factorySpigots).toBe(true);
     expect(b.builtIn).toBe(false);
@@ -492,7 +494,6 @@ describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
       opening: { spigots: [{ count: 2, dia_mm: 400 }] },
       unitWidthMm: 800,
       spigots: [],
-      units: "mm",
     });
     expect(b.baseWMm).toBe(720); // 800 × 0.9, not NaN
   });

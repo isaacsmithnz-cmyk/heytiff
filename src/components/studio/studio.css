@@ -6785,6 +6785,11 @@
   stroke-width: 3px;
 }
 .dstudio .ds-plenum-label.derived { fill: var(--gray500); }
+/* each takeoff's own diameter, sat at the takeoff */
+.dstudio .ds-spigot-dia {
+  fill: currentColor;
+  font-weight: 700;
+}
 /* built-in return: integral hatched box fused to the AHU body */
 .dstudio .ds-plenum-builtin {
   stroke: currentColor;
@@ -6861,6 +6866,7 @@
 .dstudio .ds-pipe-len,
 .dstudio .ds-unit-model,
 .dstudio .ds-plenum-label,
+.dstudio .ds-spigot-dia,
 .dstudio .ds-spigot-label {
   paint-order: stroke;
   stroke: #fff;

@@ -29,6 +29,7 @@ import {
   plenumBody,
   spigotsOf,
   distributeSpigots,
+  formatDia,
   streamOf,
   suggestedMainDucts,
   type PlenumSpigot,
@@ -241,6 +242,11 @@ interface PlenumSpigotRect {
   nx: number;
   ny: number;
   capped: boolean;
+  /** its own diameter (mm) — every takeoff is labelled AT the takeoff */
+  diaMm: number;
+  /** the outer tip of the stub, where that diameter label hangs */
+  tipX: number;
+  tipY: number;
 }
 interface PlenumShape {
   body: Point[];
@@ -309,6 +315,9 @@ function plenumShape(opts: {
         nx: 0,
         ny: dir,
         capped: s.capped === true,
+        diaMm: s.diaMm,
+        tipX: p.x,
+        tipY: yOut,
       };
     }
     // side spigot: Ø across the sloped edge (in y), stub outward (in x)
@@ -328,6 +337,9 @@ function plenumShape(opts: {
       nx,
       ny: 0,
       capped: s.capped === true,
+      diaMm: s.diaMm,
+      tipX: xOut,
+      tipY: p.y,
     };
   });
 
@@ -1004,7 +1016,6 @@ export function StudioCanvas({
         opening,
         unitWidthMm: widthMm, // the mounting face is a LONG face (spec §1a)
         spigots: sp,
-        units: doc.settings.units,
         stream: end, // return draws as a box; supply tapers to its spigots
       });
       if (body.builtIn || body.factorySpigots) continue; // no drawn plenum object
@@ -2584,6 +2595,22 @@ export function StudioCanvas({
                         y2={sp.cy + sp.nx * 4}
                       />
                     )}
+                    {/* the duct size sits ON its own takeoff, where the fitter
+                        is looking — not rolled into one bar under the plenum
+                        that has to be read back against the drawing to work
+                        out which duct is which. Sides read outboard; front
+                        reads past the tip, following the outward normal. */}
+                    {layers.labels && (
+                      <text
+                        className="ds-spigot-dia"
+                        x={sp.tipX + sp.nx * (7 / labelZoom)}
+                        y={sp.tipY + sp.ny * (10 / labelZoom) + (sp.ny === 0 ? 3 / labelZoom : 0)}
+                        textAnchor={sp.nx === 0 ? "middle" : sp.nx > 0 ? "start" : "end"}
+                        fontSize={9 / labelZoom}
+                      >
+                        {formatDia(sp.diaMm, doc.settings.units)}
+                      </text>
+                    )}
                   </g>
                 ))}
                 {layers.labels && (
@@ -2645,7 +2672,6 @@ export function StudioCanvas({
                             opening: openingOf(e.row, e.end),
                             unitWidthMm: widthMm,
                             spigots: [],
-                            units: doc.settings.units,
                             // the ghost must promise the shape you'll get
                             stream: e.end,
                           });

@@ -2642,8 +2642,7 @@ export function PlenumInspectCard({
     // the mounting face is a LONG face — the unit's width (spec §1a)
     unitWidthMm: Number(unit?.props.widthMm) || null,
     spigots,
-    units,
-    stream,
+        stream,
   });
   /* Which face a NEW takeoff lands on. Sides fill first, then the far face:
      two ducts come off the sloped sides and the body closes to a V point;

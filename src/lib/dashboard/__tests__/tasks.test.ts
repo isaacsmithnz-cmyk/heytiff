@@ -1,4 +1,12 @@
-import { dueLabel, sortNotices, sortTasks, unreadCount, type DashTask, type NoticeWithRead } from "../tasks";
+import {
+  dueLabel,
+  noticeReadState,
+  sortNotices,
+  sortTasks,
+  unreadCount,
+  type DashTask,
+  type NoticeWithRead,
+} from "../tasks";
 
 const TODAY = "2026-07-20";
 
@@ -71,19 +79,59 @@ describe("sortNotices", () => {
   });
 });
 
+describe("noticeReadState", () => {
+  it("is unread when never acknowledged", () => {
+    expect(noticeReadState(1, null)).toBe("unread");
+  });
+
+  it("is read when the acked revision matches", () => {
+    expect(noticeReadState(1, 1)).toBe("read");
+    expect(noticeReadState(3, 3)).toBe("read");
+  });
+
+  it("is stale when they only acked an earlier wording", () => {
+    expect(noticeReadState(2, 1)).toBe("stale");
+    expect(noticeReadState(5, 2)).toBe("stale");
+  });
+
+  it("treats an ack ahead of the revision as read, never stale", () => {
+    // shouldn't happen, but a stale-looking ack must never be invented
+    expect(noticeReadState(1, 2)).toBe("read");
+  });
+});
+
 describe("unreadCount", () => {
-  const notice = (id: string, read: boolean): NoticeWithRead => ({
+  const notice = (
+    id: string,
+    over: Partial<NoticeWithRead> = {},
+  ): NoticeWithRead => ({
     id,
     title: id,
     body: null,
     pinned: false,
+    postedById: null,
     postedByName: null,
     createdAt: "2026-07-01T00:00:00Z",
-    read,
+    revision: 1,
+    editedAt: null,
+    ackedRevision: null,
+    state: "unread",
+    mine: false,
+    readBy: 0,
+    audience: 0,
+    ...over,
   });
 
-  it("counts only unread notices", () => {
-    expect(unreadCount([notice("a", true), notice("b", false), notice("c", false)])).toBe(2);
+  it("counts notices never read", () => {
+    expect(unreadCount([notice("a", { state: "read" }), notice("b"), notice("c")])).toBe(2);
     expect(unreadCount([])).toBe(0);
+  });
+
+  it("counts a stale ack as still wanting attention", () => {
+    expect(unreadCount([notice("a", { state: "stale", ackedRevision: 1, revision: 2 })])).toBe(1);
+  });
+
+  it("never counts your own notices — you wrote them", () => {
+    expect(unreadCount([notice("a", { mine: true }), notice("b", { mine: true, state: "stale" })])).toBe(0);
   });
 });

@@ -79,6 +79,28 @@ export async function loadDashboard(): Promise<DashboardData> {
   return { chips, roster, money, tasks, notices, assignable, canManage, viewerStaffId, today };
 }
 
+/* The noticeboard page. Reading happens THERE, not on the dashboard: the
+   dashboard only carries a summary card, so arriving here is a deliberate act —
+   which is what makes marking everything read defensible. */
+export type NoticeBoardData = {
+  notices: NoticeWithRead[];
+  canManage: boolean;
+  /** false when the account has no staff record — no read can be attributed */
+  canRead: boolean;
+};
+
+export async function loadNoticeBoard(): Promise<NoticeBoardData> {
+  const session = await auth0.getSession();
+  const orgId = session?.orgId as string | undefined;
+  const userId = session?.user?.sub as string | undefined;
+  if (!orgId || !userId) return { notices: [], canManage: false, canRead: false };
+
+  const caps = await getCapabilities();
+  const viewerStaffId = await staffProfileIdFor(orgId, userId);
+  const notices = sortNotices(await listNotices(orgId, viewerStaffId, 100));
+  return { notices, canManage: caps.has("team"), canRead: viewerStaffId !== null };
+}
+
 async function loadTasks(
   orgId: string,
   viewerStaffId: string | null,

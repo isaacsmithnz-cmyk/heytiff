@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
-import type { DashTask, NoticeWithRead } from "./tasks";
+import { noticeReadState, type DashTask, type NoticeWithRead } from "./tasks";
 
 /* Queries for the task list and noticeboard. Org-scoped throughout.
 
@@ -76,38 +76,71 @@ export async function listNotices(
   staffProfileId: string | null,
   limit = 20,
 ): Promise<NoticeWithRead[]> {
-  const [{ data }, names, reads] = await Promise.all([
+  const [{ data }, names, reads, activeStaff] = await Promise.all([
     supabaseAdmin
       .from("notices")
-      .select("id, title, body, pinned, posted_by, created_at")
+      .select("id, title, body, pinned, posted_by, created_at, revision, edited_at")
       .eq("org_id", orgId)
       .order("created_at", { ascending: false })
       .limit(limit),
     staffNames(orgId),
-    readIds(orgId, staffProfileId),
+    allReads(orgId),
+    activeStaffCount(orgId),
   ]);
+
   return ((data ?? []) as Record<string, unknown>[]).map((r) => {
     const id = String(r.id);
     const poster = (r.posted_by as string) ?? null;
+    const revision = Number(r.revision) || 1;
+    const rows = reads.get(id) ?? [];
+    const mineRow = staffProfileId ? rows.find((x) => x.staffId === staffProfileId) : undefined;
+    const ackedRevision = mineRow ? mineRow.revision : null;
+    // read receipts are about the AUDIENCE, so the author never counts toward
+    // either side of "read by n of m"
+    const readBy = rows.filter((x) => x.staffId !== poster && x.revision >= revision).length;
     return {
       id,
       title: String(r.title),
       body: typeof r.body === "string" && r.body ? r.body : null,
       pinned: r.pinned === true,
+      postedById: poster,
       postedByName: poster ? names.get(poster) ?? null : null,
       createdAt: String(r.created_at),
-      read: reads.has(id),
+      revision,
+      editedAt: r.edited_at ? String(r.edited_at) : null,
+      ackedRevision,
+      state: noticeReadState(revision, ackedRevision),
+      mine: !!poster && poster === staffProfileId,
+      readBy,
+      audience: Math.max(0, activeStaff - (poster ? 1 : 0)),
     };
   });
 }
 
-/** The set of notice ids this staff member has acknowledged. */
-async function readIds(orgId: string, staffProfileId: string | null): Promise<Set<string>> {
-  if (!staffProfileId) return new Set();
+type ReadRow = { staffId: string; revision: number };
+
+/** Every read receipt in the org, grouped by notice. Small data — one query
+    serves both "did I read it" and the author's "read by n of m". */
+async function allReads(orgId: string): Promise<Map<string, ReadRow[]>> {
+  const out = new Map<string, ReadRow[]>();
   const { data } = await supabaseAdmin
     .from("notice_reads")
-    .select("notice_id")
+    .select("notice_id, staff_profile_id, revision")
+    .eq("org_id", orgId);
+  for (const r of (data ?? []) as Record<string, unknown>[]) {
+    const id = String(r.notice_id);
+    const list = out.get(id) ?? [];
+    list.push({ staffId: String(r.staff_profile_id), revision: Number(r.revision) || 1 });
+    out.set(id, list);
+  }
+  return out;
+}
+
+async function activeStaffCount(orgId: string): Promise<number> {
+  const { count } = await supabaseAdmin
+    .from("staff_profiles")
+    .select("id", { count: "exact", head: true })
     .eq("org_id", orgId)
-    .eq("staff_profile_id", staffProfileId);
-  return new Set(((data ?? []) as Record<string, unknown>[]).map((r) => String(r.notice_id)));
+    .eq("status", "Active");
+  return count ?? 0;
 }

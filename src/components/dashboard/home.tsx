@@ -1,7 +1,7 @@
 import { Icon } from "@/components/shell/icon";
 import { heroHtml } from "@/components/shell/screens";
 import { TasksSection } from "./tasks-section";
-import { NoticesSection } from "./notices-section";
+import { NoticesCard } from "./notices-card";
 import type { ActionChip } from "@/lib/dashboard/chips";
 import type { DashboardData } from "@/lib/dashboard/page-data";
 
@@ -98,7 +98,7 @@ export function DashboardHome({
             assignable={assignable}
           />
 
-          <NoticesSection notices={notices} canManage={canManage} canAck={viewerStaffId !== null} />
+          <NoticesCard notices={notices} />
 
           {roster && (
             <div className="card2">

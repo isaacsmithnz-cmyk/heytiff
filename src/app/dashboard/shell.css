@@ -203,6 +203,18 @@
 .fg .dash-ph { display:flex; align-items:center; gap:10px; padding:14px 16px; border-radius:16px; background:rgba(46,104,255,.06); border:1px solid rgba(46,104,255,.16); color:#1f4bd8; font-weight:700; font-size:13.5px; margin-bottom:12px; }
 .fg .dash-mini { font-size:13px; font-weight:500; color:var(--gray400); padding:4px 2px; }
 
+/* the dashboard's noticeboard card is a door into /dashboard/notices */
+.fg a.dash-card-link { display:block; text-decoration:none; color:inherit; transition:border-color .15s, box-shadow .15s; }
+.fg a.dash-card-link:hover { border-color:#e2e4ea; box-shadow:0 10px 34px rgba(0,0,0,.05); }
+.fg a.dash-card-link:hover .dr-chev { color:#6b7280; }
+
+/* noticeboard page items */
+.fg .nb-item { padding:22px 26px; }
+.fg .nb-head { display:flex; align-items:flex-start; gap:14px; }
+.fg .nb-title { font-size:16px; font-weight:800; letter-spacing:-0.01em; color:var(--ink); }
+.fg .nb-meta { font-size:12.5px; font-weight:500; color:var(--gray400); margin-top:3px; }
+.fg .nb-body { font-size:14px; font-weight:500; color:#4b5563; line-height:1.55; margin-top:12px; white-space:pre-wrap; }
+
 .fg .hstats { display:flex; flex-wrap:wrap; gap:20px; }
 .fg .hstat { position:relative; overflow:hidden; display:flex; flex-direction:column; justify-content:center; min-width:200px; padding:24px 28px; border-radius:24px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.1); backdrop-filter:blur(8px); transition:background .3s; }
 .fg .hstat:hover { background:rgba(255,255,255,.06); }

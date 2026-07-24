@@ -107,6 +107,15 @@ function OutcomeCard({ outcome, color }: { outcome: Outcome; color: string }) {
         <p>{outcome.explain}</p>
       </section>
 
+      {/* explaining it first, then doing it — on these calls the words are
+          most of the job */}
+      {outcome.customer && (
+        <section className="tcard ffg-say" style={{ "--sc2": color } as React.CSSProperties}>
+          <h3 className="tct">What to tell the customer</h3>
+          <p>{outcome.customer}</p>
+        </section>
+      )}
+
       <section className="tcard ffg-actions">
         <h3 className="tct">What to do</h3>
         <ol>

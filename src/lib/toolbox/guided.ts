@@ -74,6 +74,10 @@ export interface Outcome {
   explain: string;
   /** ordered next actions */
   actions: string[];
+  /** Plain words to say on site, for the outcomes where explaining it IS
+      half the job — the "nothing is broken" calls that get argued about
+      because the honest answer sounds like an excuse. */
+  customer?: string;
   /** licensed / specialist work beyond a routine visit */
   escalate?: boolean;
   /** hand-off to another Toolbox tool */
@@ -843,7 +847,16 @@ export const QUESTIONS: Question[] = [
     why: "Less air over the same coil comes out colder, and a colder grille face finds the dew point sooner. Compare by hand against a grille that stays dry.",
     answers: [
       { label: "Yes, noticeably weaker", next: "out:cond-airflow" },
-      { label: "No, airflow looks the same", next: "out:cond-grille" },
+      { label: "No, airflow looks the same", next: "cond.metal" },
+    ],
+  },
+  {
+    id: "cond.metal",
+    ask: "What's the grille made of?",
+    why: "Look at the face and the back of it. Aluminium conducts heat about a thousand times better than plastic, so a bare aluminium grille sitting in the supply airstream settles within a degree or two of the air passing through it — which makes it comfortably the coldest surface in the room. A plastic face, or an insulated pad bonded to the back, behaves completely differently.",
+    answers: [
+      { label: "Bare aluminium", hint: "Painted or anodised still counts", next: "out:cond-aluminium" },
+      { label: "Plastic face, or insulated on the back", next: "out:cond-grille-place" },
     ],
   },
 ];
@@ -1014,6 +1027,8 @@ export const OUTCOMES: Outcome[] = [
     confidence: "info",
     explain:
       "In cold weather the outdoor coil frosts up, and the system briefly reverses to melt it. The indoor fan stops so it doesn't blow cold air, and the outdoor unit steams. It's the system working, not failing.",
+    customer:
+      "In cold weather ice builds up on the outside unit, so every so often the system runs backwards for a few minutes to melt it off. That's the steam you can see out there, and it's why the indoor fan goes quiet — it's holding off rather than blowing cold air at you. Normal heating comes back within about ten minutes.",
     actions: [
       "Explain the cycle to the customer — it's the single most common 'fault' call in winter",
       "Normal heating resumes within about ten minutes",
@@ -1505,6 +1520,8 @@ export const OUTCOMES: Outcome[] = [
     confidence: "likely",
     explain:
       "A two-pipe multi or VRF shares one refrigerant circuit, so the whole system heats or cools together. Whichever head calls first — or a designated master controller — sets the mode, and the rest wait, drop to fan only, or show a standby indication. Nothing is broken.",
+    customer:
+      "All the indoor units share one outdoor unit and one set of pipes, so the whole system has to be either heating or cooling — it can't do both at the same time. Whichever room asks first sets it, and the others wait or run their fan until it changes. That's how the system was designed rather than something that's failed.",
     actions: [
       "Check which head or controller holds mode priority",
       "Set the disagreeing heads to the same mode, or to fan only",
@@ -1899,6 +1916,8 @@ export const OUTCOMES: Outcome[] = [
     confidence: "info",
     explain:
       "Condensation on windows, external walls and in corners well away from the air conditioning is a building problem — moisture being made indoors faster than it's being removed, meeting cold surfaces. The system can help with it, but it didn't cause it.",
+    customer:
+      "This is moisture being made inside the house faster than it's getting out — showers, cooking, washing dried indoors — meeting cold glass and cold walls. The air conditioner will pull some of it out while it's running, but it isn't what caused it, and a bigger one wouldn't fix it. Getting the moist air out of the building is what fixes it.",
     actions: [
       "Look for the sources: washing dried indoors, unflued gas heating, long showers, a damp subfloor",
       "Check bathroom and kitchen fans actually run, and discharge outside rather than into the roof space",
@@ -1913,6 +1932,8 @@ export const OUTCOMES: Outcome[] = [
     confidence: "likely",
     explain:
       "Every grille sweating means the air in the room is humid enough that anything cold will collect water. The grilles aren't faulty — they're just the coldest surfaces in the room, so they go first.",
+    customer:
+      "The grilles aren't the problem — they're the coldest things in the room, so they're where the moisture shows up first. The air in here is holding more water than it can keep hold of once it touches something cold. Bring the humidity down and the sweating stops on its own.",
     actions: [
       "Measure room temperature and humidity, work out the dew point, and compare it against the supply air temperature",
       "Find the moisture source: doors open to humid air, a wet process, a room full of people",
@@ -1937,17 +1958,39 @@ export const OUTCOMES: Outcome[] = [
     ],
   },
   {
-    id: "cond-grille",
-    title: "The grille itself is the cold spot",
+    id: "cond-aluminium",
+    title: "Aluminium grille sitting below the room's dew point",
+    confidence: "likely",
+    explain:
+      "Aluminium conducts heat roughly a thousand times better than plastic, so a bare aluminium grille in the supply airstream ends up within a degree or two of the air going through it — about 10–14°C on a system in cooling. A room at 24°C and 60% humidity has a dew point near 16°C; at 70% it's over 18°C. The face is sitting several degrees below that, so the moisture in the room air condenses onto it. Nothing is leaking and nothing has failed — it's simply the coldest surface in the room, so it collects water first.",
+    customer:
+      "It's the same thing a cold drink does on a summer day: the glass isn't leaking, the air is dropping its moisture onto a cold surface. Aluminium carries cold better than almost anything else in the room, so the grilles end up the coldest thing you've got and the water turns up there first. We fix it by making the air less humid, making the grille less cold, or a bit of both.",
+    actions: [
+      "Raise the fan a speed. More air over the coil leaves warmer, which lifts the grille face temperature — fastest fix there is, and the opposite of what most people expect",
+      "Lift the setpoint a degree or two; it moves the face temperature more than it sounds like it should",
+      "Clean the return filter and the coil — anything starving airflow drives the supply air colder",
+      "Open more zones, or set up a constant zone, so all the air isn't forced through a small area",
+      "Bring the room's humidity down: shut doors and windows to humid air, make sure wet-area extraction runs and discharges outside, stop washing being dried indoors",
+      "Let it run longer and steadier instead of in short bursts — short cycles cool without dehumidifying, which is exactly the wrong combination",
+      "Insulate the back of the grille and its neck right up to the face, and check the flex insulation is pulled over the collar and taped",
+      "Where it keeps coming back, change to a thermal-break or plastic-faced diffuser. Powder coating and anodising do NOT fix it — the coating is microns thick and the metal underneath still conducts",
+      "Fit a closed-cell gasket between the frame and the ceiling so it stops cold-bridging into the plasterboard",
+      "If it persists everywhere, check the system isn't oversized — one that satisfies too fast never gets around to dehumidifying",
+    ],
+    tool: HEATLOAD,
+  },
+  {
+    id: "cond-grille-place",
+    title: "Where it sits, or where the air goes",
     confidence: "possible",
     explain:
-      "Airflow is fine and only this one does it, so the grille is simply the surface that gets coldest. Bare metal with no thermal break, in a humid room, will find the dew point before anything else in the space does.",
+      "It isn't bare aluminium and the airflow is normal, so the face isn't cold for either of the usual reasons. What's left is position and throw — a jet curling back across the face, a grille bridging to a cold surface, or a dead corner where humid air sits still against it.",
     actions: [
-      "Check whether it's a plain metal face — insulated and plastic-faced diffusers exist for exactly this",
-      "Check the back of the grille and its collar are insulated right up to the face",
-      "Look at the throw: a pattern that washes back across the face keeps it cold",
-      "Check it isn't hard against a cold surface or sitting in a dead corner with no movement",
-      "In a genuinely humid room, lifting the supply air temperature slightly is often the practical fix",
+      "Watch the throw: cold air washing back over the face keeps it cold and keeps feeding it humid room air",
+      "Adjust the blades or vanes so the jet leaves cleanly instead of hugging the ceiling straight back to the grille",
+      "Check it isn't hard against a cold wall, a bulkhead or an uninsulated surface it can bridge to",
+      "Look for a dead corner with no air movement — still humid air against any cool surface will condense",
+      "Check the back of the grille and its neck are insulated whatever the face is made of",
     ],
   },
 ];

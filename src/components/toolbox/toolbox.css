@@ -296,6 +296,13 @@
 }
 .fg .tool .ffg-head .chg:hover { color: var(--ink); }
 
+/* the words to say on site — reads as something you'd speak, not a spec */
+.fg .tool .ffg-say { margin-top: 14px; border-left: 3px solid var(--sc2); }
+.fg .tool .ffg-say p {
+  margin: 8px 0 0; font-size: 14.5px; font-weight: 500; line-height: 1.65;
+  color: var(--gray600, #4b5563); font-style: italic;
+}
+
 /* trail of answers already given — click any to rewind */
 .fg .tool .ffg-trail { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 6px; }
 .fg .tool .ffg-trail button {

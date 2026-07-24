@@ -358,7 +358,48 @@ describe("condensation on surfaces", () => {
 
     const flow = getQuestion(spread.answers[0].next)!;
     expect(flow.id).toBe("cond.flow");
-    expect(flow.answers.map((a) => outcomeId(a.next))).toEqual(["cond-airflow", "cond-grille"]);
+    expect(outcomeId(flow.answers[0].next)).toBe("cond-airflow");
+    expect(flow.answers[1].next).toBe("cond.metal");
+  });
+
+  it("bare aluminium is its own diagnosis, and names the dew point numbers", () => {
+    const metal = getQuestion("cond.metal")!;
+    const alu = metal.answers.find((a) => a.label.includes("aluminium"))!;
+    const out = getOutcome(outcomeId(alu.next))!;
+    expect(out.title).toMatch(/aluminium/i);
+    // the explanation has to carry the actual physics, not just "it's cold"
+    expect(out.explain).toMatch(/dew point/i);
+    expect(out.explain).toMatch(/conducts/i);
+  });
+
+  it("says plainly that powder coating and anodising do not fix it", () => {
+    const actions = getOutcome("cond-aluminium")!.actions.join(" ");
+    expect(actions).toMatch(/powder coating and anodising do NOT fix it/i);
+    // and leads with the counter-intuitive one that actually works
+    expect(actions).toMatch(/opposite of what most people expect/i);
+    expect(getOutcome("cond-aluminium")!.actions[0]).toMatch(/raise the fan/i);
+  });
+});
+
+describe("words for the customer", () => {
+  it("carries a script wherever explaining it is most of the job", () => {
+    for (const id of ["cond-aluminium", "cond-humidity", "cond-building", "defrost-normal", "mode-conflict"]) {
+      const out = getOutcome(id)!;
+      expect(out.customer).toBeTruthy();
+      expect(out.customer!.length).toBeGreaterThan(80);
+    }
+  });
+
+  it("the script is plain speech, not the technical explanation repeated", () => {
+    for (const o of OUTCOMES.filter((x) => x.customer)) {
+      expect(o.customer).not.toBe(o.explain);
+      // no jargon that would need explaining in turn
+      expect(o.customer).not.toMatch(/dew point|superheat|subcool|static pressure|refrigerant circuit/i);
+    }
+  });
+
+  it("the aluminium script reaches for the cold-drink analogy", () => {
+    expect(getOutcome("cond-aluminium")!.customer).toMatch(/cold drink/i);
   });
 
   it("the water tree hands off here instead of keeping a thinner copy", () => {

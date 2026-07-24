@@ -78,6 +78,9 @@ export interface Outcome {
       half the job — the "nothing is broken" calls that get argued about
       because the honest answer sounds like an excuse. */
   customer?: string;
+  /** safety note specific to acting on this outcome — rendered as the same
+      red alert the questions use */
+  safety?: string;
   /** licensed / specialist work beyond a routine visit */
   escalate?: boolean;
   /** hand-off to another Toolbox tool */
@@ -537,6 +540,7 @@ export const QUESTIONS: Question[] = [
   {
     id: "brk.when",
     ask: "When does it trip?",
+    why: "And note WHICH device lets go while you're at the board. The safety switch (RCD) tripping points at current leaking to earth; the MCB tripping points at overcurrent. Same dead unit, different fault entirely.",
     answers: [
       { label: "Instantly, the moment it starts", next: "out:short-earth" },
       { label: "After it's been running a while", next: "brk.condenser" },
@@ -692,25 +696,29 @@ export const QUESTIONS: Question[] = [
 
   /* ---------------- pressures won't split ----------------
      Suction and discharge sitting on top of each other means the compressor
-     isn't moving gas. On three-phase that is reverse rotation until proven
-     otherwise — which is why the phase question comes before anything
-     mechanical, and why it carries a stop-now warning. */
+     isn't moving gas. What can even be wrong depends on the compressor:
+     a fixed-speed (DOL) three-phase scroll runs whichever way the supply
+     turns it, so reverse rotation comes first there and carries a stop-now
+     warning. An inverter builds its own three phases from a DC bus — the
+     drive sets the rotation, swapped supply phases can't run it backwards,
+     and the question becomes whether the drive is letting it ramp at all. */
   {
     id: "nop.running",
     ask: "Is the compressor actually running while you're reading that?",
     why: "Equalising is exactly what a system does at rest — leave it off a few minutes and the two gauges always meet. It's only a fault if they stay together while the compressor runs.",
     answers: [
       { label: "No, it's stopped", next: "out:equal-at-rest" },
-      { label: "Yes, it's running", next: "nop.phase" },
+      { label: "Yes, it's running", next: "nop.type" },
     ],
   },
   {
-    id: "nop.phase",
-    ask: "Is it a three-phase unit?",
-    why: "Check the data plate and the supply. It matters more here than anywhere else in this tool, because a three-phase scroll only pumps one way round.",
+    id: "nop.type",
+    ask: "Is it an inverter unit, or fixed-speed?",
+    why: "Check the data plate — this decides what can even be wrong. A fixed-speed (DOL) three-phase scroll runs whichever way the supply spins it, so swapped phases make it pump nothing. An inverter rectifies the supply to a DC bus and builds its own three phases, so the drive sets the rotation and swapped supply phases can't run it backwards. Most splits and VRF on the wall today are inverter; DOL three-phase is alive and well in plant rooms and cool rooms.",
     answers: [
-      { label: "Yes, three-phase", next: "nop.rotation" },
-      { label: "No, single-phase", next: "nop.valve" },
+      { label: "Fixed-speed, three-phase", next: "nop.rotation" },
+      { label: "Fixed-speed, single-phase", next: "nop.valve" },
+      { label: "Inverter", hint: "Variable speed — most modern splits and VRF", next: "nop.ramp" },
     ],
   },
   {
@@ -722,6 +730,15 @@ export const QUESTIONS: Question[] = [
     answers: [
       { label: "Reversed, or I can't confirm it", next: "out:reverse-rotation" },
       { label: "Sequence is correct", next: "nop.valve" },
+    ],
+  },
+  {
+    id: "nop.ramp",
+    ask: "Watch a restart — does the compressor actually ramp up?",
+    why: "Isolate, wait out the restart delay, then start it with a call for full demand. An inverter creeps for the first minute or two and then climbs — you'll hear it, and the discharge line will warm under your hand. One that starts and stays at a murmur, or winds back every time it tries to climb, isn't failing to pump — the drive is holding it.",
+    answers: [
+      { label: "It holds at a crawl, or keeps winding back", next: "out:drive-limited" },
+      { label: "It ramps up hard, pressures still won't split", next: "nop.valve" },
     ],
   },
   {
@@ -957,6 +974,7 @@ export const OUTCOMES: Outcome[] = [
     actions: [
       "Let it stabilise 10–15 minutes at a fixed demand before reading",
       "Take suction and discharge, plus line temperatures for superheat and subcooling",
+      "Inverter systems: note compressor speed alongside every reading — pressures at an unknown speed prove nothing, and the unit reports its speed in check mode",
       "Compare against the expected pressures for this refrigerant and ambient",
       "No gauges today? Note the ambient and indoor conditions now for comparison, leave the airflow clear, and book a return with gauges and a scale",
       "Don't add refrigerant speculatively — weigh it in against the nameplate",
@@ -1131,6 +1149,8 @@ export const OUTCOMES: Outcome[] = [
       "Look for obvious damage — burnt tracks, swollen capacitors, water ingress, insects",
       "Board-level diagnosis and replacement from here",
     ],
+    safety:
+      "On inverter equipment the DC bus capacitors hold hundreds of volts after the isolator is off. Prove them dead with a meter before touching any board.",
     escalate: true,
   },
 
@@ -1244,6 +1264,7 @@ export const OUTCOMES: Outcome[] = [
       "The room hits setpoint in a couple of minutes, so the unit shuts down, the temperature drifts, and it starts again. Hard on the compressor and poor at removing humidity.",
     actions: [
       "Check the unit's capacity against the room's actual load",
+      "Inverter: it should ramp down and cruise, not stop — one that stop-starts can't turn down far enough for the load, which is the same oversizing story told a different way",
       "Widen the controller deadband if it allows it",
       "Raise fan speed to spread the air and slow the pull-down",
       "Long term, correct sizing is the real fix",
@@ -1362,7 +1383,7 @@ export const OUTCOMES: Outcome[] = [
     title: "High head pressure pulling excess current",
     confidence: "likely",
     explain:
-      "Running for a while then tripping is an overcurrent story, and a blocked condenser is the usual reason — the compressor works harder and harder until the breaker lets go.",
+      "Running for a while then tripping is an overcurrent story, and a blocked condenser is the usual reason — the compressor works harder and harder until the breaker lets go. An Australian summer gives it nowhere to hide: at 40 degrees ambient a blocked coil has no margin left at all.",
     actions: [
       "Clean the condenser coil properly and confirm the fan runs",
       "Restore clearance and stop discharge air recirculating",
@@ -1380,7 +1401,7 @@ export const OUTCOMES: Outcome[] = [
       "The condenser is clean, so the high current is coming from the compressor itself — worn, tight, or a failing start component.",
     actions: [
       "Measure running and locked-rotor current against the nameplate",
-      "Check the capacitor and any start components",
+      "Fixed-speed: check the capacitor and any start components. Inverter: it has neither — high current is the drive working against something, so read target versus actual speed in check mode",
       "Confirm supply voltage holds up under load — low volts raises current",
       "Three-phase: measure all three legs. A lost or unbalanced phase drives the current up on the ones that are left",
       "Compressor or component replacement from here",
@@ -1727,6 +1748,23 @@ export const OUTCOMES: Outcome[] = [
     ],
     tool: PRESSURES,
     escalate: true,
+  },
+  {
+    id: "drive-limited",
+    title: "The drive is holding it back",
+    confidence: "likely",
+    explain:
+      "An inverter compressor only does what the drive lets it. Starting and then sitting at minimum speed — or winding back every time it tries to climb — is the drive protecting something: current, discharge temperature, a power module running hot, or a condenser that can't reject heat pulling it into current limit. The pressures never split because the compressor never really gets going. The unit knows exactly which limit it's sitting on — read it out of the boards instead of guessing from the gauges.",
+    actions: [
+      "Put it in service or check mode and read the live data: target versus actual speed, current, discharge temperature — the drive names the limit it's riding",
+      "Clean the condenser and confirm the fan before blaming electronics — on a 40-degree afternoon a dirty coil will current-limit a perfectly healthy compressor",
+      "Check supply voltage under load at the outdoor terminals; a sagging supply pulls current up and the drive winds back to survive it",
+      "If the drive flags the power module or won't run the compressor at any speed, it's board-level work — model-specific, out with that unit's service manual",
+    ],
+    safety:
+      "Inverter drives hold hundreds of volts in their DC bus capacitors long after the isolator is off. Isolate, wait, and prove them dead with a meter before fingers or probes go anywhere near the board.",
+    escalate: true,
+    tool: PRESSURES,
   },
   {
     id: "phase-protection",

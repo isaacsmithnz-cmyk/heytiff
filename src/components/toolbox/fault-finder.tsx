@@ -107,6 +107,15 @@ function OutcomeCard({ outcome, color }: { outcome: Outcome; color: string }) {
         <p>{outcome.explain}</p>
       </section>
 
+      {/* safety before anything else — the DC-bus class of warning has to be
+          read before the first action, not discovered halfway down the list */}
+      {outcome.safety && (
+        <div className="ffg-safety" role="alert">
+          <Icon name="alert" size={18} />
+          <span>{outcome.safety}</span>
+        </div>
+      )}
+
       {/* explaining it first, then doing it — on these calls the words are
           most of the job */}
       {outcome.customer && (

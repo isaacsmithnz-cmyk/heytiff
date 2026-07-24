@@ -261,15 +261,40 @@ describe("multi and VRF", () => {
 });
 
 describe("three-phase and a compressor that isn't pumping", () => {
-  it("asks about phase before anything mechanical, with a stop-now warning", () => {
-    let id = getSymptom("pumping")!.start;
-    for (const label of ["Yes, it's running", "Yes, three-phase"]) {
-      id = getQuestion(id)!.answers.find((x) => x.label === label)!.next;
-    }
-    const rotation = getQuestion(id)!;
+  it("asks what the compressor IS before what's wrong with it", () => {
+    const running = getQuestion(getSymptom("pumping")!.start)!;
+    const type = getQuestion(running.answers.find((a) => a.label.includes("running"))!.next)!;
+    expect(type.id).toBe("nop.type");
+    expect(type.ask).toMatch(/inverter unit, or fixed-speed/i);
+    expect(type.answers).toHaveLength(3);
+    // and the why carries the actual reason, not just a fork
+    expect(type.why).toMatch(/DC bus/);
+    expect(type.why).toMatch(/DOL/);
+  });
+
+  it("rotation is only asked on fixed-speed three-phase, with a stop-now warning", () => {
+    const type = getQuestion("nop.type")!;
+    const dol3 = type.answers.find((a) => a.label === "Fixed-speed, three-phase")!;
+    const rotation = getQuestion(dol3.next)!;
     expect(rotation.ask).toMatch(/phase sequence/i);
     expect(rotation.safety).toMatch(/isolate it now/i);
     expect(rotation.safety).toMatch(/licensed/i);
+  });
+
+  it("an inverter is never sent chasing rotation — the drive sets it", () => {
+    // walk the entire inverter subtree; nop.rotation must be unreachable
+    const type = getQuestion("nop.type")!;
+    const inv = type.answers.find((a) => a.label === "Inverter")!;
+    const seen = new Set<string>();
+    const walk = (id: string) => {
+      if (isOutcomeRef(id) || seen.has(id)) return;
+      seen.add(id);
+      for (const a of getQuestion(id)!.answers) walk(a.next);
+    };
+    walk(inv.next);
+    expect(seen.has("nop.rotation")).toBe(false);
+    // and it CAN reach the drive outcome
+    expect(getQuestion("nop.ramp")!.answers.some((a) => a.next === "out:drive-limited")).toBe(true);
   });
 
   it("reverse rotation leads with isolating, because it destroys the scroll", () => {
@@ -287,9 +312,16 @@ describe("three-phase and a compressor that isn't pumping", () => {
   });
 
   it("single-phase skips the rotation question and goes to the reversing valve", () => {
-    const phase = getQuestion("nop.phase")!;
-    const single = phase.answers.find((a) => a.label.includes("single-phase"))!;
+    const type = getQuestion("nop.type")!;
+    const single = type.answers.find((a) => a.label.includes("single-phase"))!;
     expect(single.next).toBe("nop.valve");
+  });
+
+  it("the drive outcome reads the boards instead of guessing from gauges", () => {
+    const out = getOutcome("drive-limited")!;
+    expect(out.explain).toMatch(/read it out of the boards/i);
+    expect(out.actions[0]).toMatch(/service or check mode/i);
+    expect(out.escalate).toBe(true);
   });
 
   it("a three-phase unit that won't start checks phase protection before the board", () => {
@@ -389,6 +421,54 @@ describe("condensation on surfaces", () => {
     // and leads with the counter-intuitive one that actually works
     expect(actions).toMatch(/opposite of what most people expect/i);
     expect(getOutcome("cond-aluminium")!.actions[0]).toMatch(/raise the fan/i);
+  });
+});
+
+describe("built for the field, not for a search box", () => {
+  it("carries the DC-bus warning wherever board work is the next step", () => {
+    for (const id of ["drive-limited", "control-board"]) {
+      const out = getOutcome(id)!;
+      expect(out.safety).toMatch(/DC bus|capacitors hold/i);
+      expect(out.safety).toMatch(/prove them dead|meter/i);
+    }
+  });
+
+  it("never gives DOL start-component advice as if it were universal", () => {
+    // anywhere capacitors or start gear are mentioned, the inverter case
+    // must be distinguished in the same breath
+    for (const o of OUTCOMES) {
+      for (const a of o.actions) {
+        if (/start component|capacitor and/i.test(a)) {
+          expect(a).toMatch(/inverter/i);
+        }
+      }
+    }
+  });
+
+  it("pressures on an inverter are read against compressor speed", () => {
+    expect(getOutcome("go-pressures")!.actions.join(" ")).toMatch(/speed alongside every reading/i);
+  });
+
+  it("knows an inverter should ramp down, not stop-start", () => {
+    expect(getOutcome("oversized")!.actions.join(" ")).toMatch(/ramp down and cruise/i);
+  });
+
+  it("reads the switchboard the Australian way — RCD versus MCB", () => {
+    const q = getQuestion("brk.when")!;
+    expect(q.why).toMatch(/safety switch \(RCD\)/i);
+    expect(q.why).toMatch(/MCB/);
+  });
+
+  it("speaks Australian English and Australian weather", () => {
+    const text = JSON.stringify({ QUESTIONS, OUTCOMES, SYMPTOMS });
+    // the vocabulary a local tech expects
+    for (const term of ["switchboard", "isolator", "roof space", "RCD"]) {
+      expect(text).toContain(term);
+    }
+    // and none of the imports
+    expect(text).not.toMatch(/attic|furnace|crawl ?space|freon|aluminum|anodized/i);
+    // design-day heat is 40, not 95F
+    expect(text).toMatch(/40.degree|40°C/);
   });
 });
 

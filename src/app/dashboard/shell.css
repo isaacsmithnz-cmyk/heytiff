@@ -296,6 +296,12 @@
 .fg .nb-wholink { margin-left:auto; padding:0; border:0; background:none; cursor:pointer; font-family:var(--font); font-size:12.5px; font-weight:700; color:#1f4bd8; }
 .fg .nb-wholink:hover { text-decoration:underline; }
 
+/* events: the when and where sit above the RSVP, which IS the poll control */
+.fg .nb-when { display:flex; flex-direction:column; gap:7px; margin-top:14px; padding:13px 15px; border-radius:14px; background:#fafbfc; border:1px solid #f0f0f2; }
+.fg .nb-whenline { display:flex; align-items:center; gap:9px; font-size:13.5px; font-weight:700; color:var(--ink); }
+.fg .nb-whenline svg { color:#9ca3af; flex:0 0 auto; }
+.fg .nb-whensum { font-size:12.5px; font-weight:600; color:var(--gray400); padding-left:22px; }
+
 /* composer: what am I posting, and (for a poll) the answers */
 .fg .nb-kinds { display:inline-flex; gap:4px; padding:3px; border-radius:12px; background:#eef0f4; margin-bottom:4px; }
 .fg .nb-kind { padding:6px 16px; border:0; border-radius:9px; background:none; cursor:pointer; font-family:var(--font); font-size:12.5px; font-weight:700; color:var(--gray500); transition:background .15s, color .15s; }

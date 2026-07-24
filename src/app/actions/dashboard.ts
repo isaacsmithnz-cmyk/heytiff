@@ -7,6 +7,7 @@ import { can } from "@/lib/permissions-server";
 import { staffProfileIdFor } from "@/lib/fleet/query";
 import { asNoticeKind, noticeLifecycle } from "@/lib/dashboard/notices";
 import { cleanPollOptions, POLL_ERROR_TEXT } from "@/lib/dashboard/polls";
+import { asRsvpAnswer, isEventTime } from "@/lib/dashboard/events";
 import { pollOptionIds } from "@/lib/dashboard/tasks-query";
 import { todayInAu } from "@/lib/au-dates";
 
@@ -149,6 +150,10 @@ export async function postNotice(input: {
   options?: string[];
   /** kind === "poll" only: more than one answer allowed. */
   multi?: boolean;
+  /** kind === "event" only. Date is required; time is "HH:MM" or absent. */
+  eventDate?: string;
+  eventTime?: string;
+  eventLocation?: string;
 }): Promise<DashResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "Not signed in." };
@@ -173,6 +178,20 @@ export async function postNotice(input: {
     options = cleaned.options;
   }
 
+  const eventTime = input.eventTime?.trim() || null;
+  if (kind === "event") {
+    if (!input.eventDate || !isISODate(input.eventDate))
+      return { ok: false, error: "An event needs a date." };
+    if (eventTime && !isEventTime(eventTime)) return { ok: false, error: "Check the start time." };
+  }
+
+  // An event comes off the board once it's happened, unless the poster said
+  // otherwise. Nobody wants last Tuesday's toolbox talk at the top of the board
+  // on Wednesday, and asking them to set an expiry that always equals the event
+  // date would be asking them to say the same thing twice.
+  const expiresAt =
+    input.expiresAt || (kind === "event" ? (input.eventDate ?? null) : null) || null;
+
   const { data, error } = await supabaseAdmin
     .from("notices")
     .insert({
@@ -182,8 +201,11 @@ export async function postNotice(input: {
       posted_by: ctx.staffId,
       pinned: input.pinned === true,
       kind,
-      expires_at: input.expiresAt || null,
+      expires_at: expiresAt,
       poll_multi: kind === "poll" && input.multi === true,
+      event_date: kind === "event" ? input.eventDate : null,
+      event_time: kind === "event" ? eventTime : null,
+      event_location: kind === "event" ? input.eventLocation?.trim().slice(0, 200) || null : null,
     })
     .select("id, revision")
     .maybeSingle();
@@ -231,13 +253,22 @@ export async function postNotice(input: {
    bumps the revision (and stamps edited_at), so anyone who acknowledged the
    older wording now reads as "stale" rather than being silently counted as
    having seen text they never saw. Pinning is not a reword, so it leaves the
-   revision alone. */
+   revision alone.
+
+   MOVING AN EVENT COUNTS AS REWORDING IT. "Friday 7am at the depot" is what
+   people said yes to; changing the day, the time or the place changes the thing
+   they agreed to, so it bumps the revision exactly like changing the text
+   would. Their RSVP is kept — they're still coming unless they say otherwise —
+   but they drop out of the read count until they've seen the new details. */
 export async function editNotice(input: {
   noticeId: string;
   title: string;
   body?: string;
   pinned?: boolean;
   expiresAt?: string | null;
+  eventDate?: string;
+  eventTime?: string;
+  eventLocation?: string;
 }): Promise<DashResult> {
   const ctx = await context();
   if (!ctx?.staffId) return { ok: false, error: "No staff record for this account." };
@@ -249,7 +280,7 @@ export async function editNotice(input: {
 
   const { data } = await supabaseAdmin
     .from("notices")
-    .select("posted_by, title, body, revision")
+    .select("posted_by, title, body, revision, kind, event_date, event_time, event_location")
     .eq("org_id", ctx.orgId)
     .eq("id", input.noticeId)
     .maybeSingle();
@@ -257,9 +288,25 @@ export async function editNotice(input: {
   if (data.posted_by !== ctx.staffId)
     return { ok: false, error: "Only whoever posted a notice can edit it." };
 
+  const isEvent = data.kind === "event";
+  const nextEventTime = input.eventTime?.trim() || null;
+  if (isEvent) {
+    if (!input.eventDate || !isISODate(input.eventDate))
+      return { ok: false, error: "An event needs a date." };
+    if (nextEventTime && !isEventTime(nextEventTime))
+      return { ok: false, error: "Check the start time." };
+  }
+  const nextEventLocation = isEvent ? input.eventLocation?.trim().slice(0, 200) || null : null;
+  const eventMoved =
+    isEvent &&
+    (input.eventDate !== String(data.event_date ?? "").slice(0, 10) ||
+      nextEventTime !== (data.event_time ? String(data.event_time).slice(0, 5) : null) ||
+      nextEventLocation !== (data.event_location ?? null));
+
   const nextTitle = title.slice(0, 200);
   const nextBody = input.body?.trim().slice(0, 2000) || null;
-  const reworded = nextTitle !== data.title || nextBody !== (data.body ?? null);
+  const reworded =
+    nextTitle !== data.title || nextBody !== (data.body ?? null) || eventMoved;
   const revision = (Number(data.revision) || 1) + (reworded ? 1 : 0);
   const now = new Date().toISOString();
 
@@ -269,6 +316,13 @@ export async function editNotice(input: {
       title: nextTitle,
       body: nextBody,
       pinned: input.pinned === true,
+      ...(isEvent
+        ? {
+            event_date: input.eventDate,
+            event_time: nextEventTime,
+            event_location: nextEventLocation,
+          }
+        : {}),
       // changing WHEN it comes down is not a change to WHAT IT SAYS, so it
       // leaves the revision (and everyone's read receipt) alone
       expires_at: input.expiresAt || null,
@@ -363,6 +417,61 @@ export async function castPollVote(
     );
     if (error) return { ok: false, error: "Couldn't record that vote." };
   }
+  refresh();
+  return { ok: true };
+}
+
+/* Saying whether you're coming. Intrinsic, like voting — and like voting, the
+   answer replaces itself, with null meaning "I take it back".
+
+   An event stays open until it's OVER, not until it expires: the expiry is
+   normally the event's own date, so cutting RSVPs off at expiry would close the
+   list on the morning of the thing. Archiving still closes it — that's a person
+   saying it's done with. */
+export async function setRsvp(noticeId: string, answer: string | null): Promise<DashResult> {
+  const ctx = await context();
+  if (!ctx?.staffId) return { ok: false, error: "No staff record for this account." };
+
+  const { data } = await supabaseAdmin
+    .from("notices")
+    .select("kind, event_date, archived_at")
+    .eq("org_id", ctx.orgId)
+    .eq("id", noticeId)
+    .maybeSingle();
+  if (!data) return { ok: false, error: "That event no longer exists." };
+  if (data.kind !== "event") return { ok: false, error: "That notice isn't an event." };
+  if (data.archived_at) return { ok: false, error: "That event has been filed away." };
+
+  const eventDate = data.event_date ? String(data.event_date).slice(0, 10) : null;
+  if (eventDate && eventDate < todayInAu())
+    return { ok: false, error: "That event has already happened." };
+
+  if (answer === null) {
+    const { error } = await supabaseAdmin
+      .from("notice_rsvps")
+      .delete()
+      .eq("org_id", ctx.orgId)
+      .eq("notice_id", noticeId)
+      .eq("staff_profile_id", ctx.staffId);
+    if (error) return { ok: false, error: "Couldn't record that." };
+    refresh();
+    return { ok: true };
+  }
+
+  const valid = asRsvpAnswer(answer);
+  if (!valid) return { ok: false, error: "That isn't an answer to this event." };
+
+  const { error } = await supabaseAdmin.from("notice_rsvps").upsert(
+    {
+      org_id: ctx.orgId,
+      notice_id: noticeId,
+      staff_profile_id: ctx.staffId,
+      answer: valid,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "notice_id,staff_profile_id" },
+  );
+  if (error) return { ok: false, error: "Couldn't record that." };
   refresh();
   return { ok: true };
 }

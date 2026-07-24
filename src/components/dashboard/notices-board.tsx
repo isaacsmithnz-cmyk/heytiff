@@ -10,6 +10,7 @@ import {
   markNoticesRead,
   postNotice,
   setNoticeArchived,
+  setRsvp,
 } from "@/app/actions/dashboard";
 import { expiryLabel, partitionNotices } from "@/lib/dashboard/notices";
 import {
@@ -19,6 +20,7 @@ import {
   POLL_ERROR_TEXT,
   type PollResult,
 } from "@/lib/dashboard/polls";
+import { eventWhen, isEventTime, rsvpSummary } from "@/lib/dashboard/events";
 import type { BoardNotice } from "@/lib/dashboard/board";
 
 /* The noticeboard page — where notices are actually read.
@@ -127,6 +129,55 @@ function PollBlock({
   );
 }
 
+/* An event: when, where, and who's coming.
+
+   The RSVP is rendered by the SAME component as a poll's answers, because that
+   is what it is — one pick from three, changeable, and public. Building a
+   second voting control would have meant two places to get "tap again to take
+   it back" wrong. */
+function EventBlock({
+  event,
+  closed,
+  pending,
+  today,
+  onRsvp,
+}: {
+  event: NonNullable<BoardNotice["event"]>;
+  closed: boolean;
+  pending: boolean;
+  today: string;
+  onRsvp: (answer: string | null) => void;
+}) {
+  const when = eventWhen(event.date, event.time, today);
+  const summary = rsvpSummary(event.rsvp);
+
+  return (
+    <>
+      <div className="nb-when">
+        <span className="nb-whenline">
+          <Icon name="calendar" size={13} />
+          {when.day}
+          {when.time && ` · ${when.time}`}
+          {when.soon && <span className="dchip2 warn">{when.soon}</span>}
+        </span>
+        {event.location && (
+          <span className="nb-whenline">
+            <Icon name="compass" size={13} />
+            {event.location}
+          </span>
+        )}
+        {summary && <span className="nb-whensum">{summary}</span>}
+      </div>
+      <PollBlock
+        poll={event.rsvp}
+        closed={closed || when.past}
+        pending={pending}
+        onVote={(ids) => onRsvp(ids[0] ?? null)}
+      />
+    </>
+  );
+}
+
 type Acts = {
   pending: boolean;
   canManage: boolean;
@@ -135,6 +186,7 @@ type Acts = {
   onArchive: (n: BoardNotice) => void;
   onRemove: (id: string) => void;
   onVote: (noticeId: string, optionIds: string[]) => void;
+  onRsvp: (noticeId: string, answer: string | null) => void;
 };
 
 function NoticeCard({ notice: n, acts }: { notice: BoardNotice; acts: Acts }) {
@@ -153,9 +205,9 @@ function NoticeCard({ notice: n, acts }: { notice: BoardNotice; acts: Acts }) {
                 Pinned
               </span>
             )}
-            {n.kind === "poll" && (
+            {(n.kind === "poll" || n.kind === "event") && (
               <span className="dchip2 mute" style={{ marginRight: 8 }}>
-                Poll
+                {n.kind === "poll" ? "Poll" : "Event"}
               </span>
             )}
             {n.title}
@@ -202,6 +254,17 @@ function NoticeCard({ notice: n, acts }: { notice: BoardNotice; acts: Acts }) {
           onVote={(ids) => acts.onVote(n.id, ids)}
         />
       )}
+      {n.event && (
+        /* an event's expiry is normally its own date, so expiry must NOT close
+           the RSVP — it would shut the list on the morning of the thing */
+        <EventBlock
+          event={n.event}
+          closed={filed}
+          pending={acts.pending}
+          today={acts.today}
+          onRsvp={(answer) => acts.onRsvp(n.id, answer)}
+        />
+      )}
       {(expiry || filed) && (
         <div className="nb-foot">
           {filed ? (
@@ -246,10 +309,13 @@ export function NoticesBoard({
   const [body, setBody] = useState("");
   const [pinned, setPinned] = useState(false);
   const [expiresAt, setExpiresAt] = useState("");
-  const [kind, setKind] = useState<"notice" | "poll">("notice");
+  const [kind, setKind] = useState<"notice" | "poll" | "event">("notice");
   // two empty answers up front: a poll needs two, so ask for two
   const [options, setOptions] = useState<string[]>(["", ""]);
   const [multi, setMulti] = useState(false);
+  const [eventDate, setEventDate] = useState("");
+  const [eventTime, setEventTime] = useState("");
+  const [eventLocation, setEventLocation] = useState("");
 
   const draftPoll = useMemo(() => cleanPollOptions(options), [options]);
 
@@ -275,6 +341,9 @@ export function NoticesBoard({
     setKind("notice");
     setOptions(["", ""]);
     setMulti(false);
+    setEventDate("");
+    setEventTime("");
+    setEventLocation("");
     setEditingId(null);
     setOpen(false);
   };
@@ -301,30 +370,39 @@ export function NoticesBoard({
       setBody(n.body ?? "");
       setPinned(n.pinned);
       setExpiresAt(n.expiresAt ?? "");
-      setKind(n.kind === "poll" ? "poll" : "notice");
+      setKind(n.kind);
+      setEventDate(n.event?.date ?? "");
+      setEventTime(n.event?.time ?? "");
+      setEventLocation(n.event?.location ?? "");
       setOpen(true);
       setError(null);
     },
     onArchive: (n) => run(() => setNoticeArchived(n.id, n.archivedAt === null)),
     onRemove: (id) => run(() => deleteNotice(id)),
     onVote: (noticeId, optionIds) => run(() => castPollVote(noticeId, optionIds)),
+    onRsvp: (noticeId, answer) => run(() => setRsvp(noticeId, answer)),
   };
 
   const composingPoll = kind === "poll" && !editingId;
+  // an event's when/where stays editable after posting — plans move
+  const showingEvent = kind === "event";
 
   const submit = () =>
     run(
       () =>
         editingId
-          ? // an EDIT only ever reaches the wording — a poll's answers are
-            // fixed once people start voting, or the result stops meaning
-            // what the early voters agreed to
+          ? // an EDIT reaches the wording, and an event's when/where — but
+            // never a poll's answers, which are fixed once people start voting
+            // or the result stops meaning what the early voters agreed to
             editNotice({
               noticeId: editingId,
               title,
               body: body || undefined,
               pinned,
               expiresAt: expiresAt || null,
+              ...(showingEvent
+                ? { eventDate, eventTime: eventTime || undefined, eventLocation }
+                : {}),
             })
           : postNotice({
               title,
@@ -333,11 +411,17 @@ export function NoticesBoard({
               expiresAt: expiresAt || null,
               kind,
               ...(kind === "poll" ? { options, multi } : {}),
+              ...(showingEvent
+                ? { eventDate, eventTime: eventTime || undefined, eventLocation }
+                : {}),
             }),
       reset,
     );
 
-  const blocked = !title.trim() || (composingPoll && !draftPoll.ok);
+  const blocked =
+    !title.trim() ||
+    (composingPoll && !draftPoll.ok) ||
+    (showingEvent && (!eventDate || (!!eventTime && !isEventTime(eventTime))));
 
   return (
     <div className="page in">
@@ -383,7 +467,7 @@ export function NoticesBoard({
             <div className="lv-form">
               {!editingId && (
                 <div className="nb-kinds" role="group" aria-label="What are you posting">
-                  {(["notice", "poll"] as const).map((k) => (
+                  {(["notice", "poll", "event"] as const).map((k) => (
                     <button
                       key={k}
                       type="button"
@@ -391,19 +475,23 @@ export function NoticesBoard({
                       aria-pressed={kind === k}
                       onClick={() => setKind(k)}
                     >
-                      {k === "notice" ? "Notice" : "Poll"}
+                      {k === "notice" ? "Notice" : k === "poll" ? "Poll" : "Event"}
                     </button>
                   ))}
                 </div>
               )}
               <div className="lv-fnote">
                 <label className="mts-f" style={{ flex: 1 }}>
-                  <span>{composingPoll ? "Question" : "Title"}</span>
+                  <span>{composingPoll ? "Question" : showingEvent ? "What's on" : "Title"}</span>
                   <input
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder={
-                      composingPoll ? "e.g. Which day suits for the toolbox talk?" : "e.g. Depot closed Friday"
+                      composingPoll
+                        ? "e.g. Which day suits for the toolbox talk?"
+                        : showingEvent
+                          ? "e.g. Toolbox talk"
+                          : "e.g. Depot closed Friday"
                     }
                   />
                 </label>
@@ -418,6 +506,35 @@ export function NoticesBoard({
                   />
                 </label>
               </div>
+
+              {showingEvent && (
+                <div className="lv-fnote" style={{ gap: 12, flexWrap: "wrap" }}>
+                  <label className="mts-f" style={{ flex: "1 1 180px" }}>
+                    <span>Day</span>
+                    <input
+                      type="date"
+                      value={eventDate}
+                      onChange={(e) => setEventDate(e.target.value)}
+                    />
+                  </label>
+                  <label className="mts-f" style={{ flex: "0 1 140px" }}>
+                    <span>Start (optional)</span>
+                    <input
+                      type="time"
+                      value={eventTime}
+                      onChange={(e) => setEventTime(e.target.value)}
+                    />
+                  </label>
+                  <label className="mts-f" style={{ flex: "1 1 220px" }}>
+                    <span>Where (optional)</span>
+                    <input
+                      value={eventLocation}
+                      onChange={(e) => setEventLocation(e.target.value)}
+                      placeholder="e.g. The depot"
+                    />
+                  </label>
+                </div>
+              )}
 
               {composingPoll && (
                 <div className="nb-optedit">
@@ -474,7 +591,11 @@ export function NoticesBoard({
 
               <div className="lv-fnote">
                 <label className="mts-f" style={{ flex: 1 }}>
-                  <span>Comes off the board after (optional)</span>
+                  <span>
+                    {showingEvent
+                      ? "Comes off the board after (defaults to the day itself)"
+                      : "Comes off the board after (optional)"}
+                  </span>
                   <input
                     type="date"
                     value={expiresAt}
@@ -495,7 +616,13 @@ export function NoticesBoard({
                 <div className="mts-facts">
                   <button className="fl-btn primary" disabled={pending || blocked} onClick={submit}>
                     <Icon name="send" size={14} />
-                    {editingId ? "Save changes" : composingPoll ? "Post the poll" : "Post"}
+                    {editingId
+                      ? "Save changes"
+                      : composingPoll
+                        ? "Post the poll"
+                        : showingEvent
+                          ? "Post the event"
+                          : "Post"}
                   </button>
                   <button className="fl-btn ghost" onClick={reset}>
                     Cancel
@@ -507,6 +634,8 @@ export function NoticesBoard({
                   Rewording marks it Edited. Anyone who only saw the old version drops out of your
                   read count until they next open the board.
                   {kind === "poll" && " A poll's answers can't be changed once it's up."}
+                  {showingEvent &&
+                    " Moving the day, time or place counts as rewording it — everyone keeps their RSVP, but they'll see the change."}
                 </div>
               )}
             </div>

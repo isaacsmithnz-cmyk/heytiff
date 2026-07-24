@@ -316,6 +316,33 @@ describe("telling the tech how much further", () => {
     expect(max).toBe(4); // and the deepest walk is four more after this one
   });
 
+  it("heating collapses three questions into the same one walk-around", () => {
+    // heat.odu + heat.iced + heat.warm were one lap at the outdoor unit
+    const state = getQuestion("heat.state")!;
+    expect(state.answers).toHaveLength(4);
+    for (const gone of ["heat.odu", "heat.iced", "heat.warm"]) {
+      expect(getQuestion(gone)).toBeUndefined();
+    }
+    // every outcome the old chain could reach is still reachable
+    const reached = new Set(
+      state.answers.filter((a) => isOutcomeRef(a.next)).map((a) => outcomeId(a.next))
+    );
+    expect(reached).toContain("odu-no-power");
+    expect(reached).toContain("defrost-fault");
+    expect(reached).toContain("heat-none");
+  });
+
+  it("cold air in heat mode skips the filter check, and says why", () => {
+    // starved airflow makes weak WARM air, never cold air — so filters were
+    // never a candidate on that branch, and the outcome must not claim they
+    // were checked
+    const cold = getQuestion("heat.state")!.answers.find((a) => a.label.includes("the air is cold"))!;
+    expect(outcomeId(cold.next)).toBe("heat-none");
+    const out = getOutcome("heat-none")!;
+    expect(out.explain).not.toMatch(/clean airflow/i);
+    expect(out.explain).toMatch(/never cold air/i);
+  });
+
   it("the walk-around is one question, not two", () => {
     // "is the outdoor unit running" and "is the air cold" are one look
     const state = getQuestion("cool.state")!;

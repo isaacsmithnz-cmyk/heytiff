@@ -276,40 +276,42 @@ export const QUESTIONS: Question[] = [
     why: "That's a defrost cycle: the outdoor coil ices in cold weather and the system reverses briefly to clear it. Normal in winter.",
     answers: [
       { label: "Yes, that's happening now", next: "out:defrost-normal" },
-      { label: "No, nothing like that", next: "heat.odu" },
+      { label: "No, nothing like that", next: "heat.state" },
     ],
   },
   {
-    id: "heat.odu",
-    ask: "Is the outdoor unit running?",
+    /* Heating lives or dies at the outdoor unit, and you're standing there
+       anyway — so running, iced and air temperature are one lap rather than
+       three questions. Replaces heat.odu + heat.iced + heat.warm.
+
+       Splitting warm-from-cold here also skips the filter check on the cold
+       branch, which is correct: starved airflow makes weak warm air, never
+       cold air, so it was never a candidate for that answer. */
+    id: "heat.state",
+    ask: "Walk up to it — what's actually happening?",
+    why: "Three things on one lap. At the outdoor unit: is the fan turning, and is the coil clear? Frost that clears on a defrost is normal — solid ice that never goes is not. Then indoors, hand in front of the outlet. Warm-but-weak and stone-cold are completely different faults, so be honest about which one you've got.",
     answers: [
-      { label: "Yes, it's running", next: "heat.filters" },
-      { label: "No, it's dead", next: "out:odu-no-power" },
+      { label: "The outdoor unit isn't running", next: "out:odu-no-power" },
+      { label: "Running, but the outdoor coil is iced solid", next: "out:defrost-fault" },
+      {
+        label: "Running and clear, and the air is warm",
+        hint: "Warm — just not keeping up",
+        next: "heat.filters",
+      },
+      {
+        label: "Running and clear, but the air is cold",
+        hint: "Cold, or no better than room temperature",
+        next: "out:heat-none",
+      },
     ],
   },
   {
     id: "heat.filters",
-    ask: "Are the filters and indoor coil clean?",
+    ask: "Are the filters and indoor coil clean, with the fan on a normal speed?",
+    why: "Same check as the cooling side: pull the filters, look at the coil face behind them, and confirm the indoor fan is actually moving air. In heating it also matters that the louvres point down — warm air stratifies at the ceiling and the room never feels it.",
     answers: [
-      { label: "Dirty or blocked", next: "out:airflow-starved" },
-      { label: "Clean", next: "heat.iced" },
-    ],
-  },
-  {
-    id: "heat.iced",
-    ask: "Is the outdoor coil iced up and staying that way?",
-    why: "A bit of frost that clears on defrost is normal. Solid ice that never clears is not.",
-    answers: [
-      { label: "Yes, iced solid", next: "out:defrost-fault" },
-      { label: "No, it's clear", next: "heat.warm" },
-    ],
-  },
-  {
-    id: "heat.warm",
-    ask: "Is the air from the indoor unit warm at all?",
-    answers: [
-      { label: "Warm, just not enough", next: "out:heat-capacity" },
-      { label: "Cold, or room temperature", next: "out:heat-none" },
+      { label: "Dirty, blocked, or fan on low", next: "out:airflow-starved" },
+      { label: "Clean, good airflow", next: "out:heat-capacity" },
     ],
   },
 
@@ -896,7 +898,7 @@ export const OUTCOMES: Outcome[] = [
     title: "No heat being produced",
     confidence: "likely",
     explain:
-      "It's in heat mode, running, with clean airflow, and still blowing cold. That points at the reversing valve not shifting, or the system being short of refrigerant.",
+      "It's in heat mode, the outdoor unit is running with a clear coil, and it's still blowing cold. Airflow isn't a candidate here — starved airflow makes weak warm air, never cold air. That points at the reversing valve not shifting, or the system being short of refrigerant.",
     actions: [
       "Feel the discharge line — it should be hot within a few minutes",
       "Check the reversing valve body temperatures for internal bypass",

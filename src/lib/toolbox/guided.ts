@@ -28,7 +28,8 @@ export type SymptomKey =
   | "smell"
   | "code"
   | "multi"
-  | "pumping";
+  | "pumping"
+  | "zoning";
 
 export interface Symptom {
   key: SymptomKey;
@@ -180,6 +181,14 @@ export const SYMPTOMS: Symptom[] = [
     icon: "gauge",
     color: "#4F46E5",
     start: "nop.running",
+  },
+  {
+    key: "zoning",
+    label: "Some rooms, not others",
+    blurb: "Ducted — one room misses out",
+    icon: "wind",
+    color: "#EAB308",
+    start: "zone.which",
   },
 ];
 
@@ -688,6 +697,79 @@ export const QUESTIONS: Question[] = [
     answers: [
       { label: "It won't change over, or it sticks", next: "out:reversing-valve" },
       { label: "Changes over fine, or it's cooling only", next: "out:not-pumping" },
+    ],
+  },
+
+  /* ---------------- ducted zoning ----------------
+     Deliberately ducted-only: "some rooms fine, others not" on a multi is
+     the multi tree's job, where it means a branch or a crossed head. Here
+     it means the air is being shared out wrongly, which is a different
+     conversation entirely.
+
+     Whether the bad room is always the SAME room is what splits it — a
+     constant offender has something wrong with it, a problem that moves
+     with whichever zones are running is system-level. */
+  {
+    id: "zone.which",
+    ask: "Is it always the same rooms, or does it move around?",
+    why: "Ask the customer rather than guessing — they know. A room that's always the worst has something wrong with that room. A problem that follows whichever zones happen to be running is about how much of the duct is open.",
+    answers: [
+      { label: "Always the same room or rooms", next: "zone.air" },
+      { label: "It moves — depends which zones are on", next: "zone.count" },
+      {
+        label: "Everything's weak, all the time",
+        hint: "No room is really getting there",
+        next: "out:zone-not-zoning",
+      },
+    ],
+  },
+  {
+    id: "zone.air",
+    ask: "With that zone calling, what's coming out of its outlets?",
+    why: "Hand at the diffuser, and compare it against a room that works. You're separating three different jobs: air that never arrives, air that arrives short, and air that arrives fine and still doesn't do anything.",
+    answers: [
+      { label: "Nothing, or barely a trickle", next: "zone.damper" },
+      { label: "Some air, but clearly less than the good rooms", next: "zone.balance" },
+      {
+        label: "Plenty of air, the room still won't get there",
+        next: "zone.return",
+      },
+    ],
+  },
+  {
+    id: "zone.damper",
+    ask: "Does that zone's damper actually move when you call the zone?",
+    why: "Before you get into the ceiling, confirm the zone is enabled at the controller and isn't switched off or held by a schedule. Then have someone toggle it while you listen or feel at the damper — a motorised damper is audible.",
+    answers: [
+      { label: "No, it never moves", next: "out:zone-damper" },
+      { label: "Yes, it opens", next: "out:zone-duct" },
+    ],
+  },
+  {
+    id: "zone.balance",
+    ask: "Is that room the far end of the system, or on a long or bent run?",
+    why: "Pull the ceiling access and look at the run itself. Long flex, extra bends, a length squashed over a truss or left draped in a sag all cost air — and the far room pays first on a system that was never balanced.",
+    answers: [
+      { label: "Yes, it's the far end or a long, bent run", next: "out:zone-balance" },
+      { label: "No, it's a short straight run", next: "out:zone-outlet" },
+    ],
+  },
+  {
+    id: "zone.return",
+    ask: "With the door shut, can the air get back out of the room?",
+    why: "A room needs a return path or it pressurises and simply stops accepting supply air. Look for a relief grille, a transfer duct, or a genuine undercut on the door — then shut the door and see whether the airflow at the diffuser falls away.",
+    answers: [
+      { label: "No obvious way back out", next: "out:zone-return" },
+      { label: "There's a relief grille or transfer duct", next: "out:zone-load" },
+    ],
+  },
+  {
+    id: "zone.count",
+    ask: "Is it worse when only one or two zones are open?",
+    why: "A ducted system needs a minimum amount of duct open to work at all. Shut too much down and static pressure climbs, the bypass dumps supply air straight back to the return, and even the open zones stop getting a useful share.",
+    answers: [
+      { label: "Yes, worse with only a few zones open", next: "out:zone-minimum" },
+      { label: "No, it's worse with everything open", next: "out:zone-capacity" },
     ],
   },
 ];
@@ -1582,6 +1664,127 @@ export const OUTCOMES: Outcome[] = [
       "Supply testing and correction is licensed electrical work",
     ],
     escalate: true,
+  },
+
+  /* ducted zoning */
+  {
+    id: "zone-not-zoning",
+    title: "That isn't a zoning problem",
+    confidence: "info",
+    explain:
+      "Every room weak all the time, whatever's open, means the system isn't producing or moving enough in the first place. Zoning only decides how the air gets shared out — it can't hand out air that was never there.",
+    actions: [
+      "Work the 'Not cooling' or 'Not heating' path instead",
+      "Start with the return-air filter — on a ducted system that's one big grille, and it's the most forgotten filter in the trade",
+      "Then the outdoor coil and the indoor fan speed",
+      "Come back here if it turns out one room really is worse than the rest",
+    ],
+  },
+  {
+    id: "zone-damper",
+    title: "Zone damper isn't opening",
+    confidence: "likely",
+    explain:
+      "The zone calls and the damper serving it never moves, so that branch of the duct stays shut no matter what the controller thinks it's doing. It's the damper motor, its wiring, or the controller output driving it.",
+    actions: [
+      "Swap the plug with a zone that works — if the fault follows the damper it's the motor, if it stays put it's the wiring or the board",
+      "Check the blade hasn't jammed on insulation, a stray screw or a sagging flex",
+      "Confirm the controller is calling that zone and hasn't had it disabled in the setup",
+      "Check the damper is wired to the zone everyone thinks it is — mislabelled zones are common",
+    ],
+  },
+  {
+    id: "zone-duct",
+    title: "Duct is off, crushed or kinked",
+    confidence: "likely",
+    explain:
+      "The damper opens, so the controller and the motor are both doing their job — the air simply isn't arriving. Somewhere between that damper and the outlet the flexible duct has pulled off, been crushed, or been bent hard enough to choke it.",
+    actions: [
+      "Follow that run in the ceiling from the damper right through to the outlet",
+      "Look for a flex pulled off its spigot — a disconnected run air-conditions the roof space instead of the room",
+      "Check where the run crosses a truss or a downlight for crushing",
+      "Re-clamp and tape properly, and support long runs so they can't sag into a trap",
+    ],
+  },
+  {
+    id: "zone-balance",
+    title: "Never balanced, and the far room pays",
+    confidence: "likely",
+    explain:
+      "Air takes the easy path. With nothing set, the short straight runs nearest the indoor unit take more than their share and whatever sits at the end of the longest run lives on the leftovers. Extremely common on systems installed and never commissioned.",
+    actions: [
+      "Balance it properly: partly close the takeoffs on the rooms that are over-served rather than only opening the poor one",
+      "Measure at the diffusers instead of judging by hand",
+      "Straighten, shorten and support that long run while you're up there — every bend costs air",
+      "Check the flex size on that run matches what the outlet actually needs",
+    ],
+  },
+  {
+    id: "zone-outlet",
+    title: "Outlet or takeoff is the restriction",
+    confidence: "possible",
+    explain:
+      "Short straight run, damper open, and still short of air — so the restriction is at one end or the other. Either the takeoff off the plenum is undersized, its balancing damper is partly shut, or the diffuser can't pass what the room needs.",
+    actions: [
+      "Check the balancing damper at the takeoff is genuinely open",
+      "Compare the flex and spigot size against the rooms that work",
+      "Check the diffuser isn't a smaller size or a more restrictive pattern than the others",
+      "Look for insulation or debris pulled into the spigot",
+    ],
+  },
+  {
+    id: "zone-return",
+    title: "The room can't get its air back out",
+    confidence: "likely",
+    explain:
+      "Supply air has to leave the room or it pressurises and stops accepting any more. With the door shut and nowhere to go, a room can have a perfectly good outlet and still never get there.",
+    actions: [
+      "Shut the door and check the diffuser again — a clear drop in airflow confirms it",
+      "Fit a relief grille or a transfer duct through to the hallway",
+      "Undercutting the door helps but rarely does the job on its own",
+      "Check the main return grille isn't blocked by furniture while you're at it",
+    ],
+  },
+  {
+    id: "zone-load",
+    title: "That room needs more than its share",
+    confidence: "possible",
+    explain:
+      "Plenty of air arrives, it can get back out, and the room still won't hold temperature — so the outlet was sized on floor area rather than on what the room actually does. West glass, a skylight, a wall of windows or a room full of equipment all beat a nominal share of air.",
+    actions: [
+      "Work that room's load out properly instead of by area",
+      "Compare it against what that outlet can actually deliver",
+      "Add an outlet, or up-size the run, where the load justifies it",
+      "Shade the glass — usually cheaper than re-ducting",
+    ],
+    tool: HEATLOAD,
+  },
+  {
+    id: "zone-minimum",
+    title: "Too much of the system shut down",
+    confidence: "likely",
+    explain:
+      "A ducted system needs a minimum amount of duct open to work. Close too many zones and static pressure climbs, the bypass dumps supply air straight back into the return, and even the zones that are open stop getting a useful share — or the unit cuts out on protection.",
+    actions: [
+      "Find how many zones this system needs open, and whether a constant zone was ever set up",
+      "Leave a constant or dump zone open — a hallway is the usual choice",
+      "Set the bypass so it holds static without dumping most of the air",
+      "Watch the supply-air temperature: bypassed air returning to the coil drags it back towards room temperature",
+    ],
+  },
+  {
+    id: "zone-capacity",
+    title: "It can't run every zone at once",
+    confidence: "possible",
+    explain:
+      "Worse with everything open means the indoor unit is being asked for more than it was sized to give. Ducted systems are routinely specified on the assumption that the whole house never calls together — which is fine right up until it does.",
+    actions: [
+      "Add up the load of all the zones and compare it against the unit's capacity",
+      "Check what diversity the system was designed on, if anyone wrote it down",
+      "Stagger zones by time of day rather than running the lot",
+      "If every zone genuinely has to run together, it was specified on the wrong assumption",
+    ],
+    tool: HEATLOAD,
   },
 ];
 

@@ -111,8 +111,8 @@ describe("content quality", () => {
     }
   });
 
-  it("all twelve symptoms are covered, each with an icon and colour", () => {
-    expect(SYMPTOMS).toHaveLength(12);
+  it("all thirteen symptoms are covered, each with an icon and colour", () => {
+    expect(SYMPTOMS).toHaveLength(13);
     for (const s of SYMPTOMS) {
       expect(s.color).toMatch(/^#[0-9A-Fa-f]{6}$/);
       expect(s.icon.length).toBeGreaterThan(2);
@@ -304,6 +304,51 @@ describe("three-phase and a compressor that isn't pumping", () => {
 
   it("overcurrent on the breaker path mentions measuring all three legs", () => {
     expect(getOutcome("compressor-amps")!.actions.join(" ")).toMatch(/all three legs/i);
+  });
+});
+
+describe("ducted zoning", () => {
+  it("splits on whether it's always the same room — that narrows it fastest", () => {
+    const q = getQuestion(getSymptom("zoning")!.start)!;
+    expect(q.ask).toMatch(/always the same rooms/i);
+    expect(q.answers).toHaveLength(3);
+  });
+
+  it("weak everywhere is sent back to the cooling or heating path, not diagnosed here", () => {
+    const q = getQuestion(getSymptom("zoning")!.start)!;
+    const all = q.answers.find((a) => a.label.includes("Everything's weak"))!;
+    const out = getOutcome(outcomeId(all.next))!;
+    expect(out.confidence).toBe("info");
+    expect(out.title).toMatch(/isn't a zoning problem/i);
+    expect(out.actions[0]).toMatch(/not cooling.*not heating/i);
+  });
+
+  it("no air splits damper from duct; plenty of air splits return path from load", () => {
+    const air = getQuestion("zone.air")!;
+    expect(air.answers).toHaveLength(3);
+
+    const none = getQuestion(air.answers[0].next)!;
+    expect(none.id).toBe("zone.damper");
+    expect(none.answers.map((a) => outcomeId(a.next))).toEqual(["zone-damper", "zone-duct"]);
+
+    const plenty = getQuestion(air.answers[2].next)!;
+    expect(plenty.id).toBe("zone.return");
+    expect(plenty.answers.map((a) => outcomeId(a.next))).toEqual(["zone-return", "zone-load"]);
+  });
+
+  it("the moving problem separates too-few-zones from can't-do-them-all", () => {
+    const q = getQuestion("zone.count")!;
+    const [few, all] = q.answers.map((a) => getOutcome(outcomeId(a.next))!);
+    expect(few.title).toMatch(/too much of the system shut down/i);
+    expect(all.title).toMatch(/can't run every zone at once/i);
+    expect(all.tool!.href).toContain("heat-load");
+  });
+
+  it("stays out of the multi tree's way — this one is ducted", () => {
+    const s = getSymptom("zoning")!;
+    expect(s.blurb).toMatch(/ducted/i);
+    // the multi tree owns "one head out", this one owns "one room out"
+    expect(getSymptom("multi")!.blurb).toMatch(/head/i);
   });
 });
 

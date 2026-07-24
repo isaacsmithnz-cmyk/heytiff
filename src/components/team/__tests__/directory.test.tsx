@@ -3,6 +3,14 @@ import userEvent from "@testing-library/user-event";
 import { TeamDirectory } from "../directory";
 import type { PendingInviteRow, StaffRow } from "@/lib/staff/types";
 
+/* The whole row navigates now, so the component calls useRouter() — which
+   throws outside an app-router context. Same mock the other component tests
+   use, with `push` captured so the row-click behaviour can be asserted. */
+const push = jest.fn();
+jest.mock("next/navigation", () => ({ useRouter: () => ({ push, refresh: jest.fn() }) }));
+
+beforeEach(() => push.mockClear());
+
 /* Own fixtures rather than the demo mock — the directory now renders real
    rows, and the point of this stage is that deleting mock/demo.ts changes
    nothing here. Shapes match what listStaff() returns. */
@@ -102,5 +110,19 @@ describe("TeamDirectory", () => {
     const link = screen.getByText("View profile").closest("a");
     // the id is the staff_profiles UUID, not a slug
     expect(link).toHaveAttribute("href", expect.stringContaining("/dashboard/team/"));
+  });
+
+  it("navigates to the card when the row itself is clicked", async () => {
+    setup();
+    await userEvent.click(screen.getByText("Jordan Mills"));
+    expect(push).toHaveBeenCalledWith(expect.stringContaining("/dashboard/team/"));
+  });
+
+  it("opens the actions menu without navigating", async () => {
+    setup();
+    await userEvent.click(screen.getAllByLabelText("Actions")[0]);
+    // the menu stops its clicks reaching the row, so no navigation happens
+    expect(push).not.toHaveBeenCalled();
+    expect(screen.getByText("View profile")).toBeInTheDocument();
   });
 });

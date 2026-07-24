@@ -372,6 +372,17 @@ describe("condensation on surfaces", () => {
     expect(out.explain).toMatch(/conducts/i);
   });
 
+  it("names the fan-speed trade-off, so the list isn't read as do-all-of-these", () => {
+    const actions = getOutcome("cond-aluminium")!.actions;
+    const joined = actions.join(" ");
+    // more air warms the face but removes less moisture — the one real
+    // tension in the list, and it isn't between fan speed and zoning
+    expect(joined).toMatch(/less moisture/i);
+    expect(joined).toMatch(/dew point creeps up/i);
+    // and zoning is stated as the SAME lever, not a competing one
+    expect(joined).toMatch(/same lever as the fan/i);
+  });
+
   it("says plainly that powder coating and anodising do not fix it", () => {
     const actions = getOutcome("cond-aluminium")!.actions.join(" ");
     expect(actions).toMatch(/powder coating and anodising do NOT fix it/i);

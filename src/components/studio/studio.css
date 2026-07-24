@@ -1168,6 +1168,15 @@
   flex-direction: column;
   gap: 4px;
   align-self: center;
+  /* The rail must OWN a layer above the canvas. Its .editing treatment sets
+     backdrop-filter, which silently makes the rail a stacking context — so
+     the component palette's own z-index was scoped INSIDE the rail and could
+     never clear .ds-canvas (position:relative, painted in the positioned
+     layer). The flyout rendered entirely behind the plan, with only the
+     sliver past the canvas edge visible, and clicks landed on the canvas.
+     Lifting the rail itself is the fix; the palette rides along. */
+  position: relative;
+  z-index: 20;
   background: #fff;
   border: 1px solid var(--ds-border);
   border-radius: 18px;

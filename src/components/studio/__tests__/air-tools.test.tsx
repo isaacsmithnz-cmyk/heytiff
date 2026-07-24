@@ -62,10 +62,10 @@ describe("air dock group (studio toolrail)", () => {
 
     const component = screen.getByRole("button", { name: "Component" });
     expect(component).toBeDisabled();
-    expect(component).toHaveAttribute("title", "Component — serve a room first");
+    expect(component).toHaveAttribute("title", "Component — add a room first");
   });
 
-  it("with a room served, Component still needs an air-capable air handler", async () => {
+  it("with a room served, Component asks for a ducted indoor unit in plain words", async () => {
     const { user, svg } = await openBlankDesignOnCanvas();
     await armRoom(user);
     fireEvent.pointerDown(svg, pt(400, 300));
@@ -78,8 +78,13 @@ describe("air dock group (studio toolrail)", () => {
     expect(component).toBeDisabled();
     expect(component).toHaveAttribute(
       "title",
-      "Component — needs an air-capable air handler"
+      "Component — needs a ducted indoor unit; wall and cassette units carry no ductwork"
     );
+    /* the old wording said "air-capable air handler", which read as a
+       different SYSTEM type and sent a real user hunting in the wrong place.
+       The gate is about the UNIT — keep the word "ducted" in the message. */
+    expect(component.getAttribute("title")).toContain("ducted");
+    expect(component.getAttribute("title")).not.toContain("air-capable");
   });
 });
 

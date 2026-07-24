@@ -27,7 +27,8 @@ export type SymptomKey =
   | "breaker"
   | "smell"
   | "code"
-  | "multi";
+  | "multi"
+  | "pumping";
 
 export interface Symptom {
   key: SymptomKey;
@@ -171,6 +172,14 @@ export const SYMPTOMS: Symptom[] = [
     icon: "layers",
     color: "#D946EF",
     start: "vrf.scope",
+  },
+  {
+    key: "pumping",
+    label: "Pressures won't split",
+    blurb: "Suction and discharge equalise",
+    icon: "gauge",
+    color: "#4F46E5",
+    start: "nop.running",
   },
 ];
 
@@ -346,7 +355,16 @@ export const QUESTIONS: Question[] = [
     why: "A tripped float switch stops the unit starting to prevent an overflow. Worth ruling out before condemning electronics.",
     answers: [
       { label: "Yes, wet tray or blocked drain", next: "out:float-tripped" },
-      { label: "Dry, or it's a wall split", next: "out:control-board" },
+      { label: "Dry, or it's a wall split", next: "pwr.phase" },
+    ],
+  },
+  {
+    id: "pwr.phase",
+    ask: "Is it three-phase, with a phase protection relay?",
+    why: "Most three-phase units carry a phase failure or phase sequence relay that blocks the start on a lost, reversed or badly unbalanced supply. When that's holding the unit off it's doing its job, and the fault is upstream in the supply rather than in the air conditioner. Worth ruling out before condemning a board.",
+    answers: [
+      { label: "Yes, and the relay is indicating a fault", next: "out:phase-protection" },
+      { label: "Single-phase, or the relay is happy", next: "out:control-board" },
     ],
   },
 
@@ -536,6 +554,11 @@ export const QUESTIONS: Question[] = [
       { label: "Everything on this outdoor unit", next: "vrf.all" },
       { label: "Some heads heat while others want cool", next: "vrf.mode" },
       { label: "A head is warm or cold when it's off", next: "out:vrf-creep" },
+      {
+        label: "The wrong room responds",
+        hint: "One head's controller runs another head",
+        next: "vrf.crossed",
+      },
     ],
   },
   {
@@ -607,6 +630,62 @@ export const QUESTIONS: Question[] = [
     answers: [
       { label: "No record, or clearly not", next: "out:vrf-charge" },
       { label: "Yes, it's documented", next: "out:vrf-monitor" },
+    ],
+  },
+  {
+    id: "vrf.crossed",
+    ask: "Shut it all down, then start one head on its own — what happens?",
+    why: "The definitive test for a crossed install. Turn everything off, start a single head from its own controller, then go and stand in that room. Pipework and comms are run separately on a multi, so they can be crossed independently — and the two faults look nothing alike.",
+    answers: [
+      { label: "A different head starts up", next: "out:vrf-crossed-comms" },
+      {
+        label: "The right head runs, but only gets cold when another head calls",
+        next: "out:vrf-crossed-pipes",
+      },
+    ],
+  },
+
+  /* ---------------- pressures won't split ----------------
+     Suction and discharge sitting on top of each other means the compressor
+     isn't moving gas. On three-phase that is reverse rotation until proven
+     otherwise — which is why the phase question comes before anything
+     mechanical, and why it carries a stop-now warning. */
+  {
+    id: "nop.running",
+    ask: "Is the compressor actually running while you're reading that?",
+    why: "Equalising is exactly what a system does at rest — leave it off a few minutes and the two gauges always meet. It's only a fault if they stay together while the compressor runs.",
+    answers: [
+      { label: "No, it's stopped", next: "out:equal-at-rest" },
+      { label: "Yes, it's running", next: "nop.phase" },
+    ],
+  },
+  {
+    id: "nop.phase",
+    ask: "Is it a three-phase unit?",
+    why: "Check the data plate and the supply. It matters more here than anywhere else in this tool, because a three-phase scroll only pumps one way round.",
+    answers: [
+      { label: "Yes, three-phase", next: "nop.rotation" },
+      { label: "No, single-phase", next: "nop.valve" },
+    ],
+  },
+  {
+    id: "nop.rotation",
+    ask: "Is the phase sequence at the unit correct?",
+    why: "Swap any two phases and a scroll turns backwards. It still energises and still draws current, but it moves nothing — so the gauges never separate — and it runs noticeably louder than normal. Confirm with a rotation meter at the supply terminals.",
+    safety:
+      "Reverse rotation wrecks a scroll in minutes. Isolate it now rather than leaving it running while you work this out. Testing and correcting phase sequence is licensed electrical work.",
+    answers: [
+      { label: "Reversed, or I can't confirm it", next: "out:reverse-rotation" },
+      { label: "Sequence is correct", next: "nop.valve" },
+    ],
+  },
+  {
+    id: "nop.valve",
+    ask: "Is it a heat pump, and will it change over between heating and cooling?",
+    why: "A reversing valve stuck part-way sends discharge gas straight back into the suction line. The compressor runs, the current looks reasonable, and the two pressures sit on top of each other.",
+    answers: [
+      { label: "It won't change over, or it sticks", next: "out:reversing-valve" },
+      { label: "Changes over fine, or it's cooling only", next: "out:not-pumping" },
     ],
   },
 ];
@@ -1143,6 +1222,7 @@ export const OUTCOMES: Outcome[] = [
       "Measure running and locked-rotor current against the nameplate",
       "Check the capacitor and any start components",
       "Confirm supply voltage holds up under load — low volts raises current",
+      "Three-phase: measure all three legs. A lost or unbalanced phase drives the current up on the ones that are left",
       "Compressor or component replacement from here",
     ],
     escalate: true,
@@ -1397,6 +1477,109 @@ export const OUTCOMES: Outcome[] = [
       "Take gauge readings alongside it so the two can be cross-checked",
     ],
     tool: PRESSURES,
+  },
+  {
+    id: "vrf-crossed-comms",
+    title: "Control wiring crossed between heads",
+    confidence: "likely",
+    explain:
+      "One room's controller is commanding another room's unit, so the transmission pairs — or the addresses set on the indoor boards — were swapped at install. The refrigerant side may well be perfectly correct.",
+    actions: [
+      "Map it properly: run each head alone and write down which room actually responds",
+      "Trace the transmission pairs back to the outdoor unit or branch controller and re-land them to match",
+      "Where addressing is set on the indoor boards, correct the switches or settings instead of re-pulling cable",
+      "Re-test every head one at a time before you leave — crossings almost always come in pairs",
+      "Label both ends while you're in there, so the next visit isn't this visit",
+    ],
+  },
+  {
+    id: "vrf-crossed-pipes",
+    title: "Pipework crossed at the branch",
+    confidence: "likely",
+    explain:
+      "The right head answers its own controller, so the comms are correct — but the refrigerant reaching it belongs to a different port. The outdoor unit opens the valve for the head it believes is calling, and the gas turns up somewhere else. That's exactly why it only performs when another room calls.",
+    actions: [
+      "Confirm it: call one head on its own and feel which head's pipes go cold",
+      "Trace each liquid and gas pair from the branch box back to the head it actually serves",
+      "Re-pipe to match the ports, or re-land the comms to match the pipes — whichever is the smaller job",
+      "Every sensor reading has been meaningless until this is fixed, so re-check operation on all heads afterwards",
+      "Re-piping means recovery, braze and recharge — plan the visit for it",
+    ],
+    escalate: true,
+  },
+
+  /* pressures won't split */
+  {
+    id: "equal-at-rest",
+    title: "That's a system at rest, not a fault",
+    confidence: "info",
+    explain:
+      "With the compressor stopped, the high and low sides bleed together until they meet — usually within a few minutes. Equal pressures only tell you anything while it's running under load.",
+    actions: [
+      "Get it running and stabilised for 10–15 minutes at a fixed demand, then read again",
+      "If it won't run at all, work the 'Won't turn on' path instead",
+      "If it starts and stops within a minute or two, work 'Short cycling' — protection is cutting it out",
+    ],
+  },
+  {
+    id: "reverse-rotation",
+    title: "Scroll is running backwards",
+    confidence: "likely",
+    explain:
+      "A three-phase scroll compresses in one direction only. With two phases swapped it still energises and still draws current, but it moves no gas — so suction and discharge never separate. It runs distinctly louder than normal, and it destroys itself if it's left that way.",
+    actions: [
+      "Isolate it now — every minute of reverse running costs the compressor",
+      "Confirm the sequence with a phase rotation meter at the supply terminals",
+      "Correct it by swapping any two phases at the isolator, never inside the compressor",
+      "Restart and confirm the pressures split within a minute and the noise has gone",
+      "New install or recent switchboard work? Check the rest of the site — anything else three-phase will be reversed too",
+    ],
+    escalate: true,
+  },
+  {
+    id: "reversing-valve",
+    title: "Reversing valve is bypassing",
+    confidence: "likely",
+    explain:
+      "A valve stuck between positions lets discharge gas run straight back into the suction line. The compressor works, the pressures equalise, and the system makes neither heat nor cold.",
+    actions: [
+      "Feel the four pipes at the valve body — when it's bypassing they sit at much the same temperature",
+      "Check the solenoid coil energises, and separate coil from valve by calling a changeover with the coil off",
+      "Tap the body gently while calling a changeover; a valve held on debris will sometimes shift",
+      "A valve that won't seat needs replacing — recovery, braze and recharge",
+    ],
+    tool: PRESSURES,
+    escalate: true,
+  },
+  {
+    id: "not-pumping",
+    title: "Compressor isn't pumping",
+    confidence: "likely",
+    explain:
+      "It runs, the rotation is right and the reversing valve isn't bypassing, so the compressor itself has stopped moving refrigerant — worn scrolls, broken internals, or a failed internal discharge valve. Current usually reads low rather than high, because it isn't doing any work.",
+    actions: [
+      "Measure running current — well under the nameplate figure supports this",
+      "Confirm the service valves are fully open before condemning anything",
+      "Check for a failed internal discharge check valve, and for a compressor terminal fault",
+      "Compressor replacement from here — find out what killed it before fitting the new one",
+    ],
+    tool: PRESSURES,
+    escalate: true,
+  },
+  {
+    id: "phase-protection",
+    title: "Phase protection is blocking the start",
+    confidence: "likely",
+    explain:
+      "The relay is holding the contactor out because it doesn't like what it sees on the supply — a lost phase, a reversed sequence, or voltage unbalance beyond its setting. Resetting it without fixing the supply just single-phases the compressor.",
+    actions: [
+      "Measure all three phases at the unit's terminals, phase to phase and phase to neutral",
+      "A missing phase is usually a blown fuse, a dropped connection or a utility fault — not the unit",
+      "Check the sequence if the site has had switchboard work or a new supply",
+      "Compare the unbalance against the relay's setting before deciding the relay is faulty",
+      "Supply testing and correction is licensed electrical work",
+    ],
+    escalate: true,
   },
 ];
 

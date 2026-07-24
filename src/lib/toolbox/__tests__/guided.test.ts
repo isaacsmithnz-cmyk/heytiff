@@ -111,8 +111,8 @@ describe("content quality", () => {
     }
   });
 
-  it("all eleven symptoms are covered, each with an icon and colour", () => {
-    expect(SYMPTOMS).toHaveLength(11);
+  it("all twelve symptoms are covered, each with an icon and colour", () => {
+    expect(SYMPTOMS).toHaveLength(12);
     for (const s of SYMPTOMS) {
       expect(s.color).toMatch(/^#[0-9A-Fa-f]{6}$/);
       expect(s.icon.length).toBeGreaterThan(2);
@@ -247,6 +247,63 @@ describe("multi and VRF", () => {
 
   it("sends inverter multi and VRF to the service monitor, not just gauges", () => {
     expect(getOutcome("vrf-monitor")!.explain).toMatch(/gauge ports tell you far less/i);
+  });
+
+  it("separates crossed comms from crossed pipework — they present differently", () => {
+    const q = getQuestion("vrf.crossed")!;
+    const [comms, pipes] = q.answers.map((a) => getOutcome(outcomeId(a.next))!);
+    expect(comms.title).toMatch(/control wiring crossed/i);
+    expect(pipes.title).toMatch(/pipework crossed/i);
+    // re-piping is a recovery-and-recharge job; re-landing comms isn't
+    expect(pipes.escalate).toBe(true);
+    expect(comms.escalate).toBeFalsy();
+  });
+});
+
+describe("three-phase and a compressor that isn't pumping", () => {
+  it("asks about phase before anything mechanical, with a stop-now warning", () => {
+    let id = getSymptom("pumping")!.start;
+    for (const label of ["Yes, it's running", "Yes, three-phase"]) {
+      id = getQuestion(id)!.answers.find((x) => x.label === label)!.next;
+    }
+    const rotation = getQuestion(id)!;
+    expect(rotation.ask).toMatch(/phase sequence/i);
+    expect(rotation.safety).toMatch(/isolate it now/i);
+    expect(rotation.safety).toMatch(/licensed/i);
+  });
+
+  it("reverse rotation leads with isolating, because it destroys the scroll", () => {
+    const out = getOutcome("reverse-rotation")!;
+    expect(out.actions[0]).toMatch(/isolate/i);
+    expect(out.escalate).toBe(true);
+  });
+
+  it("equal pressures with the compressor stopped is called normal, not a fault", () => {
+    const q = getQuestion(getSymptom("pumping")!.start)!;
+    const stopped = q.answers.find((a) => a.label.includes("stopped"))!;
+    const out = getOutcome(outcomeId(stopped.next))!;
+    expect(out.confidence).toBe("info");
+    expect(out.title).toMatch(/at rest, not a fault/i);
+  });
+
+  it("single-phase skips the rotation question and goes to the reversing valve", () => {
+    const phase = getQuestion("nop.phase")!;
+    const single = phase.answers.find((a) => a.label.includes("single-phase"))!;
+    expect(single.next).toBe("nop.valve");
+  });
+
+  it("a three-phase unit that won't start checks phase protection before the board", () => {
+    const q = getQuestion("pwr.phase")!;
+    expect(q.ask).toMatch(/phase protection relay/i);
+    const faulted = q.answers.find((a) => a.label.includes("indicating a fault"))!;
+    expect(getOutcome(outcomeId(faulted.next))!.title).toMatch(/phase protection is blocking/i);
+    // and it still reaches the board when the supply is fine
+    const ok = q.answers.find((a) => a.label.includes("Single-phase"))!;
+    expect(outcomeId(ok.next)).toBe("control-board");
+  });
+
+  it("overcurrent on the breaker path mentions measuring all three legs", () => {
+    expect(getOutcome("compressor-amps")!.actions.join(" ")).toMatch(/all three legs/i);
   });
 });
 

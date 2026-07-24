@@ -286,3 +286,160 @@
 .fg .tool .ff-links a .dot2 { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
 .fg .tool .ff-links a svg { margin-left: auto; color: #c8cdd6; }
 
+
+
+/* ---------- outdoor-unit-placement specifics ----------
+   Same shape as the heat-load quick check: primary input + dark answer two-up,
+   supporting detail full width beneath, the rest folded behind a summary bar.
+   Everything is one size down so the whole tool clears a single viewport. */
+.fg .tool .oup { max-width: 1020px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 20px; align-items: stretch; }
+@media (max-width: 900px) { .fg .tool .oup { grid-template-columns: 1fr; } }
+.fg .tool .oup-fig, .fg .tool .oup-fine { grid-column: 1 / -1; }
+
+/* the list — the studio cockpit checklist treatment (.ds-ck-rrow): rows rest
+   in the grey field and rise to white with a ring once answered, with a 9px
+   state dot. Semantic state is ALWAYS ok-teal / danger-red, never the page
+   accent — the accent is identity, not meaning. */
+.fg .tool .oup-list { padding: 0 0 20px; }
+/* the job strip — the premise for the list, so it sits above it and reads as a
+   toolbar rather than another card */
+/* two up, then heritage full width — its three options don't fit a third of
+   the row alongside the other two */
+.fg .tool .oup-job { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 14px; align-items: end;
+  padding: 16px 20px; background: #fafbfc; border-bottom: 1px solid #f0f1f4; border-radius: 24px 24px 0 0; }
+.fg .tool .oup-job > .wide { grid-column: 1 / -1; }
+@media (max-width: 780px) { .fg .tool .oup-job { grid-template-columns: 1fr; gap: 14px; } }
+.fg .tool .oup-job .tlab { margin-bottom: 6px; font-size: 10.5px; }
+.fg .tool .oup-job .tseg { padding: 4px; border-radius: 11px; }
+.fg .tool .oup-job .tseg button { padding: 6px 12px; font-size: 12.5px; }
+/* list heading */
+.fg .tool .oup-lhead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 16px 20px 10px; }
+.fg .tool .oup-lhead .tlab { margin: 0; }
+.fg .tool .oup-lhead .ct { font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gray400); }
+.fg .tool .oup-list .oup-row { margin-left: 20px; margin-right: 20px; }
+.fg .tool .oup-row {
+  display: flex; align-items: center; gap: 11px; width: 100%;
+  border: 1px solid #eceef2; background: #f6f7f9; border-radius: 13px; padding: 9px 11px;
+  transition: transform 0.14s cubic-bezier(0.34, 1.35, 0.5, 1), box-shadow 0.14s ease,
+    border-color 0.12s, background 0.12s;
+}
+.fg .tool .oup-row + .oup-row { margin-top: 7px; }
+.fg .tool .oup-row:hover { transform: translateY(-1px); border-color: #dfe3ea; box-shadow: 0 8px 18px -12px rgba(10, 12, 20, 0.35); }
+.fg .tool .oup-row.yes, .fg .tool .oup-row.no {
+  background: #fff; border-color: var(--st-line);
+  box-shadow: 0 0 0 1px var(--st-line), 0 10px 22px -14px rgba(10, 12, 20, 0.4);
+}
+.fg .tool .oup-row.yes { --st: #00a389; --st-line: rgba(0, 163, 137, 0.42); }
+.fg .tool .oup-row.no { --st: #e0264f; --st-line: rgba(224, 38, 79, 0.4); }
+.fg .tool .oup-row .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--gray400); transition: background 0.15s; }
+.fg .tool .oup-row.yes .dot, .fg .tool .oup-row.no .dot { background: var(--st); }
+.fg .tool .oup-row .lb { flex: 1; min-width: 0; font-size: 13.5px; line-height: 1.35; }
+.fg .tool .oup-row .lb b { font-weight: 700; color: var(--ink); }
+.fg .tool .oup-row .tseg { flex: 0 0 auto; padding: 3px; border-radius: 10px; background: #eceef1; }
+.fg .tool .oup-row.yes .tseg, .fg .tool .oup-row.no .tseg { background: #f3f4f6; }
+.fg .tool .oup-row .tseg button { padding: 5px 11px; font-size: 11.5px; border-radius: 7px; }
+.fg .tool .oup-row.yes .tseg button.on { color: #00a389; }
+.fg .tool .oup-row.no .tseg button.on { color: #e0264f; }
+
+/* the answer — the heat-load hero, recoloured by verdict */
+/* Not a dark card — a CUTOUT in the light well showing the shell frame beneath.
+   #050505 is the frame's own colour (shell.css `.fg`), so it reads as a hole,
+   and the two aurora echoes are background-attachment:fixed so they sit still
+   while the card scrolls over them — the parallax a real window would give.
+   No border: a hole has no edge, just the light well's cut lip. */
+.fg .tool .oup-hero { text-align: center; padding: 22px 24px; border-radius: 24px; color: #fff; position: relative; overflow: hidden;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background:
+    radial-gradient(circle 320px at 14% 16%, rgba(0, 229, 192, 0.13), transparent 70%),
+    radial-gradient(circle 280px at 82% 78%, rgba(46, 104, 255, 0.12), transparent 70%),
+    #050505;
+  background-attachment: fixed, fixed, scroll;
+  border: 0;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.03); }
+.fg .tool .oup-hero .bar, .fg .tool .oup-hero .cls { width: 100%; }
+.fg .tool .oup-hero .lab { font-size: 11px; font-weight: 800; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); margin-bottom: 8px; }
+.fg .tool .oup-hero .big { font-size: 38px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; }
+.fg .tool .oup-hero.clear .big { color: var(--tool-accent, var(--teal)); }
+.fg .tool .oup-hero.stop .big { color: #ff6b8f; }
+.fg .tool .oup-hero .big.empty { color: rgba(255, 255, 255, 0.22); }
+.fg .tool .oup-hero .cls { margin-top: 12px; font-size: 13.5px; font-weight: 600; color: rgba(255, 255, 255, 0.8); line-height: 1.5; }
+.fg .tool .oup-hero .cls.dim { color: rgba(255, 255, 255, 0.45); }
+.fg .tool .oup-hero .bar { height: 4px; border-radius: 999px; background: rgba(255, 255, 255, 0.12); overflow: hidden; margin-top: 16px; }
+.fg .tool .oup-hero .bar i { display: block; height: 100%; border-radius: 999px; background: currentColor; transition: width 0.3s; }
+.fg .tool .oup-hero.clear .bar i { background: var(--tool-accent, var(--teal)); }
+.fg .tool .oup-hero.stop .bar i { background: #ff6b8f; }
+.fg .tool .oup-hero.wait .bar i { background: rgba(255, 255, 255, 0.4); }
+.fg .tool .oup-hero .meta { margin-top: 9px; font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.45); }
+
+/* the drawing card — full width, figure held to a legible size and centred */
+.fg .tool .oup-fig { padding: 16px 20px 12px; }
+/* on a phone the card is narrower than the figure's legible size — let the
+   figure keep its width and scroll inside the card, not the page sideways */
+@media (max-width: 760px) {
+  .fg .tool .oup-fig { overflow-x: auto; }
+  .fg .tool .oup-dia { min-width: 680px; }
+}
+
+/* the fine print — on screen, not behind a fold: the running hours are a real
+   rule, and the sources carry the "check with your council" caveat */
+.fg .tool .oup-fine { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 28px; padding: 20px 22px; }
+@media (max-width: 780px) { .fg .tool .oup-fine { grid-template-columns: 1fr; gap: 18px; } }
+.fg .tool .oup-fine .tct { display: flex; align-items: center; gap: 7px; margin-bottom: 10px; }
+.fg .tool .oup-fine .tct svg { color: var(--gray400); }
+.fg .tool .oup-hours { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid #f3f4f6; }
+.fg .tool .oup-hours:last-of-type { border-bottom: 0; }
+.fg .tool .oup-hours b { font-size: 12.5px; font-weight: 800; color: var(--ink); }
+.fg .tool .oup-hours em { font-style: normal; font-size: 11.5px; font-weight: 700; color: var(--gray400); white-space: nowrap; }
+
+/* ---------- placement drawing (elevation) ----------
+   A section through the side yard in the Design Studio's drawing language:
+   amber building fabric, the neighbour's place ghost-dashed, hatched ground,
+   slate chrome, hairline non-scaling strokes, white text halos. Class-driven
+   only — no colour attributes in the TSX — with `--m` carrying the mk-ok /
+   mk-bad state the checklist sets. State colours are ok-teal / danger-red, NOT
+   the page accent; the accent only identifies the unit itself. */
+.fg .tool .oup-dia { display: block; width: 100%; height: auto; font-family: var(--font); }
+/* house halo so labels never fight the linework */
+.fg .tool .oup-dia text { paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+
+.fg .tool .oup-dia .paper { fill: #fff; }
+
+/* next door — ghosted and dashed: "not mine" */
+.fg .tool .oup-dia .ghost .bldg-g { fill: rgba(120, 130, 145, 0.06); stroke: #b8bec8; stroke-width: 1.5; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
+
+/* the house */
+.fg .tool .oup-dia .bldg { fill: rgba(240, 164, 49, 0.13); stroke: #d98f1f; stroke-width: 1.6; vector-effect: non-scaling-stroke; }
+.fg .tool .oup-dia .eave { stroke: #d98f1f; stroke-width: 2.2; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+
+/* ground — hatched section below the line, per drafting convention */
+.fg .tool .oup-dia .soil { fill: rgba(120, 130, 145, 0.06); }
+.fg .tool .oup-dia .hatch { stroke: #94a3b8; stroke-width: 1; stroke-opacity: 0.55; vector-effect: non-scaling-stroke; }
+.fg .tool .oup-dia .gnd { stroke: #475569; stroke-width: 2; vector-effect: non-scaling-stroke; }
+
+/* the unit — the studio ODU glyph, carrying the tool accent */
+.fg .tool .oup-dia .unit { color: var(--tool-accent-ink, #334155); }
+.fg .tool .oup-dia .unit rect { fill: color-mix(in srgb, currentColor 14%, #fff); stroke: currentColor; stroke-width: 1.6px; vector-effect: non-scaling-stroke; }
+.fg .tool .oup-dia .unit .detail { fill: none; stroke: currentColor; stroke-width: 1.2px; vector-effect: non-scaling-stroke; }
+.fg .tool .oup-dia .unit .hub { fill: currentColor; stroke: none; }
+
+/* type — ALL-CAPS for structures, lowercase for annotations */
+.fg .tool .oup-dia .lb { fill: #475569; font-size: 13px; font-weight: 700; }
+.fg .tool .oup-dia .lb.sm { fill: #94a3b8; font-size: 11.5px; font-weight: 600; }
+.fg .tool .oup-dia .bldg-t { fill: #334155; font-size: 15px; font-weight: 800; letter-spacing: 0.02em; }
+.fg .tool .oup-dia .unit-t { fill: var(--tool-accent-ink, #334155); font-size: 10.5px; font-weight: 800; letter-spacing: 0.07em; }
+
+/* markable parts — --m carries the state colour through each group.
+   Resting colours are slate, never a state colour, so state is the only
+   colour event on the drawing. */
+.fg .tool .oup-dia .bdy { --m: #94a3b8; }
+.fg .tool .oup-dia .bdy line { stroke: var(--m); stroke-width: 2.5; vector-effect: non-scaling-stroke; }
+.fg .tool .oup-dia .bdy .rail { stroke-width: 3.5; stroke-linecap: round; }
+.fg .tool .oup-dia .bdy-t { --m: #94a3b8; fill: var(--m); }
+.fg .tool .oup-dia .win { --m: #64748b; fill: var(--m); }
+.fg .tool .oup-dia .dim { --m: #334155; }
+.fg .tool .oup-dia .dim line { stroke: var(--m); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.fg .tool .oup-dia .dim .tick { stroke-width: 1.2; opacity: 0.5; }
+.fg .tool .oup-dia .dim .head { fill: var(--m); stroke: none; }
+.fg .tool .oup-dia .dim .dim-t { fill: var(--m); font-size: 12.5px; font-weight: 800; }
+.fg .tool .oup-dia .mk-ok { --m: #00a389; }
+.fg .tool .oup-dia .mk-bad { --m: #e0264f; }

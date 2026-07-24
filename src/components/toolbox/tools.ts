@@ -81,7 +81,14 @@ export const TOOL_CATEGORIES: ToolCategory[] = [
     sub: "Specs & standards",
     icon: "library",
     accent: "#8A2BE2",
-    tools: [],
+    tools: [
+      {
+        name: "Outdoor Unit Placement",
+        desc: "Where it can sit — NSW",
+        href: "/dashboard/toolbox/outdoor-unit",
+        badge: "New",
+      },
+    ],
   },
 ];
 

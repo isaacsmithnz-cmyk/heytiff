@@ -1,3 +1,4 @@
+import type { CommentNode } from "./comments";
 import type { EventDetail } from "./events";
 import type { PollResult } from "./polls";
 import type { ReactionSummary } from "./reactions";
@@ -20,4 +21,8 @@ export type BoardNotice = NoticeWithRead & {
   event: EventDetail | null;
   /** Every kind can be reacted to — it's a reply, not an answer. */
   reactions: ReactionSummary;
+  /** The conversation under the post, one level of threading, oldest first. */
+  comments: CommentNode[];
+  /** How many of those comments mention the viewer by name. */
+  mentionsMe: number;
 };

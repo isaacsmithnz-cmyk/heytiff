@@ -3,6 +3,12 @@ import { asNoticeKind } from "./notices";
 import { tallyPoll, type PollOptionRow, type PollVoteRow } from "./polls";
 import { asRsvpAnswer, tallyRsvp, type RsvpRow } from "./events";
 import { asReaction, tallyReactions, type ReactionRow } from "./reactions";
+import {
+  mentionsOf,
+  threadComments,
+  type CommentRow,
+  type MentionTarget,
+} from "./comments";
 import type { BoardNotice } from "./board";
 import { isDelegated, noticeReadState, type DashTask } from "./tasks";
 
@@ -165,12 +171,18 @@ export async function listNotices(
   const idsOfKind = (kind: string) =>
     noticeRows.filter((r) => asNoticeKind(r.kind) === kind).map((r) => String(r.id));
   const allIds = noticeRows.map((r) => String(r.id));
-  const [polls, rsvps, reactions] = await Promise.all([
+  const [polls, rsvps, reactions, comments] = await Promise.all([
     pollsFor(orgId, idsOfKind("poll"), name),
     rsvpsFor(orgId, idsOfKind("event"), name),
-    // reactions are not kind-specific: anything on the board can be reacted to
+    // reactions and comments are not kind-specific: anything on the board can
+    // be reacted to, and talked about
     reactionsFor(orgId, allIds, name),
+    commentsFor(orgId, allIds, name),
   ]);
+
+  const threaded = new Map(
+    [...comments.entries()].map(([noticeId, rows]) => [noticeId, threadComments(rows)] as const),
+  );
 
   return noticeRows.map((r) => {
     const id = String(r.id);
@@ -221,6 +233,8 @@ export async function listNotices(
             }
           : null,
       reactions: tallyReactions(reactions.get(id) ?? [], staffProfileId),
+      comments: threaded.get(id) ?? [],
+      mentionsMe: mentionsOf(threaded.get(id) ?? [], staffProfileId),
     };
   });
 }
@@ -318,6 +332,72 @@ async function reactionsFor(
     out.set(key, list);
   }
   return out;
+}
+
+/* The conversation under every post on the page, with its mentions attached.
+   Two flat reads again: the comments, then the mention rows, joined in memory
+   so the threading rule stays in the pure module where it is tested. */
+async function commentsFor(
+  orgId: string,
+  noticeIds: readonly string[],
+  name: (id: string) => string,
+): Promise<Map<string, CommentRow[]>> {
+  const out = new Map<string, CommentRow[]>();
+  if (noticeIds.length === 0) return out;
+
+  const [comment, mention] = await Promise.all([
+    supabaseAdmin
+      .from("notice_comments")
+      .select("id, notice_id, parent_id, author_id, body, created_at")
+      .eq("org_id", orgId)
+      .in("notice_id", [...noticeIds])
+      .order("created_at", { ascending: true }),
+    supabaseAdmin
+      .from("notice_comment_mentions")
+      .select("comment_id, staff_profile_id")
+      .eq("org_id", orgId)
+      .in("notice_id", [...noticeIds]),
+  ]);
+
+  const byComment = new Map<string, string[]>();
+  for (const m of (mention.data ?? []) as Record<string, unknown>[]) {
+    const key = String(m.comment_id);
+    byComment.set(key, [...(byComment.get(key) ?? []), String(m.staff_profile_id)]);
+  }
+
+  for (const c of (comment.data ?? []) as Record<string, unknown>[]) {
+    const key = String(c.notice_id);
+    const id = String(c.id);
+    const author = (c.author_id as string) ?? null;
+    const list = out.get(key) ?? [];
+    list.push({
+      id,
+      parentId: (c.parent_id as string) ?? null,
+      authorId: author,
+      authorName: author ? name(author) : null,
+      body: String(c.body),
+      createdAt: String(c.created_at),
+      mentions: byComment.get(id) ?? [],
+    });
+    out.set(key, list);
+  }
+  return out;
+}
+
+/** Everyone a comment can @mention: the org's active staff, by display name.
+    Shared by the action (to resolve who was meant) and the page (to paint the
+    highlight), so the two can never disagree about what counts as a mention. */
+export async function mentionableStaff(orgId: string): Promise<MentionTarget[]> {
+  const { data } = await supabaseAdmin
+    .from("staff_profiles")
+    .select("id, full_name, preferred_name")
+    .eq("org_id", orgId)
+    .eq("status", "Active");
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    id: String(r.id),
+    name:
+      (((r.preferred_name as string) || (r.full_name as string) || "Unnamed").trim() || "Unnamed"),
+  }));
 }
 
 /** The answers a poll offers, for the actions that must check a vote is for a

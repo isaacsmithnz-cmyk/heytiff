@@ -9,7 +9,8 @@ import { asNoticeKind, noticeLifecycle } from "@/lib/dashboard/notices";
 import { cleanPollOptions, POLL_ERROR_TEXT } from "@/lib/dashboard/polls";
 import { asRsvpAnswer, isEventTime } from "@/lib/dashboard/events";
 import { asReaction } from "@/lib/dashboard/reactions";
-import { pollOptionIds } from "@/lib/dashboard/tasks-query";
+import { mentionedIds, MAX_COMMENT } from "@/lib/dashboard/comments";
+import { mentionableStaff, pollOptionIds } from "@/lib/dashboard/tasks-query";
 import { todayInAu } from "@/lib/au-dates";
 
 /* Dashboard mutations — tasks and the noticeboard.
@@ -473,6 +474,110 @@ export async function setRsvp(noticeId: string, answer: string | null): Promise<
     { onConflict: "notice_id,staff_profile_id" },
   );
   if (error) return { ok: false, error: "Couldn't record that." };
+  refresh();
+  return { ok: true };
+}
+
+/* Commenting. Intrinsic — a noticeboard where only management may speak is a
+   pinboard, and the whole point of this shape is that people can reply.
+
+   THREADING IS ONE LEVEL. A reply to a reply is re-parented to the comment that
+   stands on the notice, so a conversation can't disappear three indents deep.
+
+   MENTIONS ARE RESOLVED HERE, ONCE. The body is stored as the person typed it;
+   who they meant is worked out against this org's own staff list and written as
+   rows. A later rename can't re-point an old mention at somebody else, and the
+   same matcher paints the highlight on screen, so what was recorded and what is
+   shown can never drift apart. */
+export async function commentOnNotice(input: {
+  noticeId: string;
+  body: string;
+  /** The comment being replied to, if any. */
+  parentId?: string | null;
+}): Promise<DashResult> {
+  const ctx = await context();
+  if (!ctx?.staffId) return { ok: false, error: "No staff record for this account." };
+
+  const body = input.body.trim().slice(0, MAX_COMMENT);
+  if (!body) return { ok: false, error: "Write something first." };
+
+  const { data: notice } = await supabaseAdmin
+    .from("notices")
+    .select("id, archived_at")
+    .eq("org_id", ctx.orgId)
+    .eq("id", input.noticeId)
+    .maybeSingle();
+  if (!notice) return { ok: false, error: "That notice no longer exists." };
+  if (notice.archived_at) return { ok: false, error: "That notice has been filed away." };
+
+  // the parent must be a comment on THIS notice, and a reply to a reply joins
+  // the thread it's in rather than starting a third level
+  let parentId: string | null = null;
+  if (input.parentId) {
+    const { data: parent } = await supabaseAdmin
+      .from("notice_comments")
+      .select("id, parent_id, notice_id")
+      .eq("org_id", ctx.orgId)
+      .eq("id", input.parentId)
+      .maybeSingle();
+    if (!parent || parent.notice_id !== input.noticeId)
+      return { ok: false, error: "That reply has nothing to reply to." };
+    parentId = (parent.parent_id as string) ?? (parent.id as string);
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("notice_comments")
+    .insert({
+      org_id: ctx.orgId,
+      notice_id: input.noticeId,
+      parent_id: parentId,
+      author_id: ctx.staffId,
+      body,
+    })
+    .select("id")
+    .maybeSingle();
+  if (error || !data) return { ok: false, error: "Couldn't post that comment." };
+
+  const mentions = mentionedIds(body, await mentionableStaff(ctx.orgId));
+  if (mentions.length > 0) {
+    // a mention that fails to record is not worth losing the comment over —
+    // the words are already up, and the highlight still renders from the text
+    await supabaseAdmin.from("notice_comment_mentions").insert(
+      mentions.map((staffId) => ({
+        org_id: ctx.orgId,
+        comment_id: data.id as string,
+        notice_id: input.noticeId,
+        staff_profile_id: staffId,
+      })),
+    );
+  }
+  refresh();
+  return { ok: true };
+}
+
+/** Remove a comment — its author, or anyone with `team` (moderation). A thread
+    goes with the comment that opened it, via the parent cascade. */
+export async function deleteComment(commentId: string): Promise<DashResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "Not signed in." };
+
+  const { data } = await supabaseAdmin
+    .from("notice_comments")
+    .select("author_id")
+    .eq("org_id", ctx.orgId)
+    .eq("id", commentId)
+    .maybeSingle();
+  if (!data) return { ok: false, error: "That comment is already gone." };
+
+  const mine = ctx.staffId && ctx.staffId === data.author_id;
+  if (!mine && !(await can("team"))) return { ok: false, error: "That comment isn't yours." };
+
+  const { error } = await supabaseAdmin
+    .from("notice_comments")
+    .delete()
+    .eq("org_id", ctx.orgId)
+    .eq("id", commentId);
+  if (error) return { ok: false, error: "Couldn't remove that comment." };
   refresh();
   return { ok: true };
 }

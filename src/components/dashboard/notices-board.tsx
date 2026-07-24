@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import {
   castPollVote,
+  commentOnNotice,
+  deleteComment,
   deleteNotice,
   editNotice,
   markNoticesRead,
@@ -28,6 +30,14 @@ import {
   type Reaction,
   type ReactionSummary,
 } from "@/lib/dashboard/reactions";
+import {
+  commentCount,
+  MAX_COMMENT,
+  segmentBody,
+  type CommentNode,
+  type CommentRow,
+  type MentionTarget,
+} from "@/lib/dashboard/comments";
 import type { BoardNotice } from "@/lib/dashboard/board";
 
 /* The noticeboard page — where notices are actually read.
@@ -245,16 +255,218 @@ function ReactionRow({
   );
 }
 
+function fmtStamp(iso: string): string {
+  return new Intl.DateTimeFormat("en-AU", {
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(iso));
+}
+
+/* A comment body, with its @mentions painted.
+
+   The segmenting runs over the SAME staff list the server resolved the mention
+   against, so a name that highlights here is a name that got recorded. Being
+   the one mentioned is called out more strongly than mentioning someone else —
+   that's the whole reason to type the @. */
+function CommentBody({
+  body,
+  staff,
+  viewerStaffId,
+}: {
+  body: string;
+  staff: MentionTarget[];
+  viewerStaffId: string | null;
+}) {
+  return (
+    <div className="nb-cbody">
+      {segmentBody(body, staff, viewerStaffId).map((part, i) =>
+        part.kind === "mention" ? (
+          <span key={i} className={`nb-at${part.me ? " me" : ""}`}>
+            {part.text}
+          </span>
+        ) : (
+          <span key={i}>{part.text}</span>
+        ),
+      )}
+    </div>
+  );
+}
+
+function CommentLine({
+  comment,
+  staff,
+  viewerStaffId,
+  canManage,
+  pending,
+  onReply,
+  onDelete,
+}: {
+  comment: CommentRow;
+  staff: MentionTarget[];
+  viewerStaffId: string | null;
+  canManage: boolean;
+  pending: boolean;
+  onReply: (() => void) | null;
+  onDelete: () => void;
+}) {
+  const mine = viewerStaffId !== null && comment.authorId === viewerStaffId;
+  const atMe = viewerStaffId !== null && comment.mentions.includes(viewerStaffId);
+
+  return (
+    <div className={`nb-c${atMe ? " atme" : ""}`}>
+      <div className="nb-chead">
+        <b>{mine ? "You" : comment.authorName ?? "Someone"}</b>
+        <span>{fmtStamp(comment.createdAt)}</span>
+        {onReply && (
+          <button type="button" className="nb-clink" disabled={pending} onClick={onReply}>
+            Reply
+          </button>
+        )}
+        {(mine || canManage) && (
+          <button type="button" className="nb-clink" disabled={pending} onClick={onDelete}>
+            Delete
+          </button>
+        )}
+      </div>
+      <CommentBody body={comment.body} staff={staff} viewerStaffId={viewerStaffId} />
+    </div>
+  );
+}
+
+/* The conversation under a post.
+
+   Collapsed by default once there's more than a couple, because a board of
+   twenty notices each with a thread open is unreadable — EXCEPT when one of
+   them mentions you, which is exactly the case where you want it in front of
+   you without hunting. */
+function CommentThread({
+  notice,
+  staff,
+  viewerStaffId,
+  canManage,
+  canWrite,
+  pending,
+  onComment,
+  onDelete,
+}: {
+  notice: BoardNotice;
+  staff: MentionTarget[];
+  viewerStaffId: string | null;
+  canManage: boolean;
+  canWrite: boolean;
+  pending: boolean;
+  onComment: (body: string, parentId: string | null) => void;
+  onDelete: (commentId: string) => void;
+}) {
+  const total = commentCount(notice.comments);
+  const [open, setOpen] = useState(total > 0 && (total <= 2 || notice.mentionsMe > 0));
+  const [replyTo, setReplyTo] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+
+  const send = () => {
+    const body = draft.trim();
+    if (!body) return;
+    onComment(body, replyTo);
+    setDraft("");
+    setReplyTo(null);
+  };
+
+  const line = (c: CommentRow, canReply: boolean) => (
+    <CommentLine
+      key={c.id}
+      comment={c}
+      staff={staff}
+      viewerStaffId={viewerStaffId}
+      canManage={canManage}
+      pending={pending}
+      onReply={canWrite && canReply ? () => setReplyTo(c.id) : null}
+      onDelete={() => onDelete(c.id)}
+    />
+  );
+
+  return (
+    <div className="nb-thread">
+      <div className="nb-threadhead">
+        <button type="button" className="nb-clink" onClick={() => setOpen((v) => !v)}>
+          <Icon name={open ? "chevD" : "chevR"} size={12} />
+          {total === 0 ? "Add a comment" : total === 1 ? "1 comment" : `${total} comments`}
+        </button>
+        {notice.mentionsMe > 0 && (
+          <span className="dchip2 warn">
+            <Icon name="alert" size={11} />
+            {notice.mentionsMe === 1 ? "Mentions you" : `Mentions you ×${notice.mentionsMe}`}
+          </span>
+        )}
+      </div>
+
+      {open && (
+        <>
+          {notice.comments.map((c: CommentNode) => (
+            <div key={c.id}>
+              {line(c, true)}
+              {c.replies.length > 0 && (
+                <div className="nb-creplies">{c.replies.map((r) => line(r, true))}</div>
+              )}
+            </div>
+          ))}
+
+          {canWrite && (
+            <div className="nb-cform">
+              {replyTo && (
+                <div className="nb-creplyto">
+                  Replying to that comment
+                  <button type="button" className="nb-clink" onClick={() => setReplyTo(null)}>
+                    Cancel
+                  </button>
+                </div>
+              )}
+              <div className="nb-crow">
+                <input
+                  value={draft}
+                  maxLength={MAX_COMMENT}
+                  placeholder="Say something — @ someone to get their attention"
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      send();
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  className="fl-btn primary"
+                  disabled={pending || !draft.trim()}
+                  onClick={send}
+                >
+                  <Icon name="send" size={13} />
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 type Acts = {
   pending: boolean;
   canManage: boolean;
   today: string;
+  staff: MentionTarget[];
+  viewerStaffId: string | null;
+  canRead: boolean;
   onEdit: (n: BoardNotice) => void;
   onArchive: (n: BoardNotice) => void;
   onRemove: (id: string) => void;
   onVote: (noticeId: string, optionIds: string[]) => void;
   onRsvp: (noticeId: string, answer: string | null) => void;
   onReact: (noticeId: string, emoji: string | null) => void;
+  onComment: (noticeId: string, body: string, parentId: string | null) => void;
+  onDeleteComment: (commentId: string) => void;
 };
 
 function NoticeCard({ notice: n, acts }: { notice: BoardNotice; acts: Acts }) {
@@ -338,6 +550,18 @@ function NoticeCard({ notice: n, acts }: { notice: BoardNotice; acts: Acts }) {
         pending={acts.pending}
         onReact={(emoji) => acts.onReact(n.id, emoji)}
       />
+      <CommentThread
+        notice={n}
+        staff={acts.staff}
+        viewerStaffId={acts.viewerStaffId}
+        canManage={acts.canManage}
+        /* filed away means the conversation is closed too — the notice is no
+           longer something anyone is being asked to act on */
+        canWrite={acts.canRead && !filed}
+        pending={acts.pending}
+        onComment={(body, parentId) => acts.onComment(n.id, body, parentId)}
+        onDelete={acts.onDeleteComment}
+      />
       {(expiry || filed) && (
         <div className="nb-foot">
           {filed ? (
@@ -365,11 +589,15 @@ export function NoticesBoard({
   canManage,
   canRead,
   today,
+  staff,
+  viewerStaffId,
 }: {
   notices: BoardNotice[];
   canManage: boolean;
   canRead: boolean;
   today: string;
+  staff: MentionTarget[];
+  viewerStaffId: string | null;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -437,6 +665,9 @@ export function NoticesBoard({
     pending,
     canManage,
     today,
+    staff,
+    viewerStaffId,
+    canRead,
     onEdit: (n) => {
       setEditingId(n.id);
       setTitle(n.title);
@@ -455,6 +686,9 @@ export function NoticesBoard({
     onVote: (noticeId, optionIds) => run(() => castPollVote(noticeId, optionIds)),
     onRsvp: (noticeId, answer) => run(() => setRsvp(noticeId, answer)),
     onReact: (noticeId, emoji) => run(() => reactToNotice(noticeId, emoji)),
+    onComment: (noticeId, body, parentId) =>
+      run(() => commentOnNotice({ noticeId, body, parentId })),
+    onDeleteComment: (commentId) => run(() => deleteComment(commentId)),
   };
 
   const composingPoll = kind === "poll" && !editingId;

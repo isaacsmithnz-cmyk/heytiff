@@ -51,16 +51,10 @@ function CategoryCard({ cat, query }: { cat: ToolCategory; query: string }) {
       }
     >
       <span className="sglow" />
+      <span className="tbx2-wash" />
       <div className="tbx2-head">
-        <span
-          className="tbx2-ic"
-          style={{
-            background: cat.accent + "14",
-            border: `1px solid ${cat.accent}2e`,
-            color: cat.accent,
-          }}
-        >
-          <Icon name={cat.icon} size={22} />
+        <span className="tbx2-ic">
+          <Icon name={cat.icon} size={24} />
         </span>
         <span className="tbx2-ht">
           <b>{cat.title}</b>

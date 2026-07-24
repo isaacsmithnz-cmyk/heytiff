@@ -903,6 +903,11 @@ export const QUESTIONS: Question[] = [
     answers: [
       { label: "All done — meter in hand", next: "comp.type" },
       { label: "Not yet — walk me through it", next: "out:comp-setup" },
+      {
+        label: "It's already out — reading the oil",
+        hint: "Work out what killed it before the new one goes in",
+        next: "comp.oil",
+      },
     ],
   },
   {
@@ -946,13 +951,30 @@ export const QUESTIONS: Question[] = [
   {
     id: "comp.earth",
     ask: "Insulation test to earth — what do the windings read?",
-    why: "This needs an insulation tester — a megger — which is the setting marked MΩ with a test voltage beside it. A multimeter on ohms pushes a few volts and will call damp windings healthy; the megger pushes 500 V DC and finds what's really there. Set 500 V. Leads still disconnected at the compressor — never test through the drive or a board, it destroys them. Clip one lead to clean bare metal on the compressor body or pipework (scrape the paint back), touch the other to each terminal in turn, and hold the test button until the number stops moving.",
+    why: "This one needs an insulation tester — a megger. It pushes a known high voltage through the insulation between the windings and the steel shell, measures how much current leaks across, and reports that as resistance in megohms. That is why a multimeter can't do it: yours pushes a few volts off a battery, so weak insulation reads perfect right up until 400 V of running voltage finds the hole. On the meter it's the setting marked MΩ with a test voltage beside it — set 500 V. Standalone testers start a couple of hundred dollars at any refrigeration or electrical wholesaler and plenty of mid-range multimeters have it built in. Leads still disconnected at the compressor — never test through a drive or a board, it destroys them. Clip one lead to clean bare metal on the compressor body or pipework (scrape the paint back), touch the other to each terminal in turn, and hold the test button until the number stops moving.",
     safety:
       "Never insulation-test a system that's under vacuum — the windings can arc through the thin gas and finish off a motor that was still alive. Test before evacuation or after charging, never during.",
     answers: [
       { label: "Hundreds of MΩ, or OL, on every terminal", next: "out:comp-sound" },
       { label: "Low megohms — roughly 1 to 20", next: "out:comp-damp" },
       { label: "Under 1 MΩ, or the tester howls", next: "out:comp-earthed" },
+    ],
+  },
+  {
+    id: "comp.oil",
+    ask: "What does the oil look and smell like?",
+    why: "Getting a sample: on one you've already pulled, tip oil out of the suction stub into the vial — cleanest sample you'll get. Still fitted, take it from the drain plug or the oil trap. An acid test kit is a small vial of indicator fluid from any refrigeration wholesaler, twenty or thirty dollars, single use: add oil to the marked line, cap it, shake it, then compare against the chart on the pack. Colours differ between brands, so read THAT kit's chart rather than the last one you used. And look at the oil itself while you're there — colour, smell and whatever is floating in it tell you more than the acid result on its own.",
+    safety:
+      "Used refrigeration oil from a failed compressor can be acidic. Gloves and glasses, and keep it off your skin — a burnout will find every cut on your hands.",
+    answers: [
+      { label: "Clear to light straw, no smell", next: "out:oil-clean" },
+      { label: "Dark, with a sharp acrid smell", next: "out:oil-burnout" },
+      {
+        label: "Metal in it — glitter, grit or shavings",
+        hint: "Even if the acid test comes back clear",
+        next: "out:oil-metal",
+      },
+      { label: "Cloudy or milky", next: "out:oil-moisture" },
     ],
   },
 ];
@@ -2156,7 +2178,7 @@ export const OUTCOMES: Outcome[] = [
       "Measure at the compressor terminals themselves, not the ends of the leads — a corroded spade or a broken lead reads identical",
       "Make sure it's actually cold: internal overloads can take hours to reset on a big machine, and three-phase units can carry them too",
       "Check the terminal posts — a burnt or loose post reads open at the same spot",
-      "Once it's proven, condemn and replace — and find what killed it before the new one goes in",
+      "Once it's proven, condemn and replace — then read the oil out of the old one before the new one goes on. Start this tile again and pick 'It's already out': the oil is the only witness to why it died",
     ],
     escalate: true,
   },
@@ -2197,7 +2219,7 @@ export const OUTCOMES: Outcome[] = [
     actions: [
       "Dry and clean the terminal box and retest first — a wet plug reads exactly like a sick motor",
       "Record the reading, the date and the ambient: the trend is the diagnosis, not the single number",
-      "Acid-test the oil if there's any burnout history on this system",
+      "Acid-test the oil if there's any burnout history on this system — the 'already out' path on this tile walks the test and what the oil is telling you",
       "Change the liquid-line drier and retest after a good run — still falling means the windings are finished",
     ],
     escalate: true,
@@ -2211,7 +2233,7 @@ export const OUTCOMES: Outcome[] = [
     actions: [
       "Stop resetting the RCD on it — each reset does more damage",
       "Double-check the finding before condemning: dry the terminal box, leads off, clean earth point, test again",
-      "Treat it as a burnout until proven otherwise: acid-test the oil and plan driers and a flush for the new one",
+      "Treat it as a burnout until proven otherwise — read the oil out of the old compressor once it's off, via the 'already out' path on this tile, and plan driers and a flush",
       "Burnt oil is acidic — gloves on when the system gets opened",
     ],
     escalate: true,
@@ -2231,6 +2253,71 @@ export const OUTCOMES: Outcome[] = [
       "Measure voltage at the compressor terminals during a start attempt, not at rest — a sagging supply only shows itself under load",
       "Clamp meter on for the start: around ONE conductor only — around the whole cable the fields cancel and it reads zero",
       "If it runs but pumps nothing, that's the 'Pressures won't split' path from here",
+    ],
+  },
+
+  /* reading the oil — what killed it */
+  {
+    id: "oil-metal",
+    title: "Metal in the oil — it wore out, and something starved it",
+    confidence: "likely",
+    explain:
+      "Glitter, grit or shavings mean metal has been running on metal inside the shell: bearings, scrolls or vanes turning without a film of oil between them. The acid test can come back completely clear on one of these, because the motor never burned — the mechanical end simply wore itself out, usually getting noisy for a while first. The wear is the symptom. The cause is nearly always oil that stopped coming back to the compressor.",
+    actions: [
+      "Work out why the oil wasn't returning BEFORE you quote the new compressor, or the new one dies exactly the same way",
+      "Check suction line sizing and pitch — gas velocity is what carries oil home, and an oversized suction riser is the classic offender",
+      "Check there are traps at the foot of risers, and that long horizontal runs fall back towards the compressor",
+      "Inverter systems: months of cruising at minimum speed drops velocity right off, so oil never gets swept back — check what speed it actually lives at, not what it can do",
+      "Rule out flood-back and migration too: oil diluted with liquid refrigerant isn't lubricating either",
+      "Flush the system before the new one goes on — those shavings are downstream now. New liquid-line drier, and consider a suction filter for the first run",
+      "Match oil type and charge to the new compressor, and check the level once it's run: POE and mineral don't mix",
+    ],
+    escalate: true,
+  },
+  {
+    id: "oil-burnout",
+    title: "Motor burnout — the system is contaminated",
+    confidence: "likely",
+    explain:
+      "Dark oil with a sharp acrid smell is a burnout. The windings cooked, and the breakdown products — acid, sludge and moisture — are now spread through everything the oil reached. Left in there, that acid starts on the new compressor's windings from the first hour it runs.",
+    actions: [
+      "Acid-test to confirm it and to gauge how far gone it is",
+      "Recover the charge separately and don't reuse it",
+      "Flush the lines, or replace them where the burnout is severe — a mild one may clean up on driers alone, a bad one won't",
+      "Fit an oversized liquid-line drier, add a suction-line drier for the clean-up run, then re-test acid after a few hours running and change them again",
+      "Keep re-testing until it comes back clean; that's the whole job, not an optional extra",
+      "Tell the customer plainly this is a clean-up as well as a compressor — it's why the quote isn't just a part and an hour",
+    ],
+    safety:
+      "Burnt refrigeration oil is acidic. Gloves and glasses, ventilate the space, and don't breathe the vapour when the system comes apart.",
+    escalate: true,
+  },
+  {
+    id: "oil-moisture",
+    title: "Moisture in the oil",
+    confidence: "likely",
+    explain:
+      "Cloudy or milky oil means water has got in — a low-side leak drawing it in every cycle, a system left open on the bench, or POE oil doing what POE does, which is pull moisture out of the air fast and refuse to give it back. Water plus refrigerant plus heat makes acid, so an untreated wet system becomes a burnout eventually.",
+    actions: [
+      "Acid-test as well — moisture and acid usually turn up together",
+      "Find how the water got in before you charge anything: a leak on the low side pulls air and moisture in continuously",
+      "New liquid-line drier, and pull a proper deep vacuum to a micron gauge rather than to the clock",
+      "Triple-evacuate with dry nitrogen breaks on a genuinely wet system — one pull-down will not get it out",
+      "Cap the compressor stubs and don't leave POE open to atmosphere any longer than you have to",
+    ],
+    escalate: true,
+  },
+  {
+    id: "oil-clean",
+    title: "Oil is clean — now keep it that way",
+    confidence: "info",
+    explain:
+      "Clear to light straw, no smell, nothing floating in it. The oil isn't accusing the motor or the mechanical end, and the system isn't contaminated — which is the best result you can get on a change-out, and it makes the clean-up simple.",
+    actions: [
+      "Run the acid test anyway and write the result on the job — clean-looking oil with acid present is an early burnout you'd otherwise hand straight to the new compressor",
+      "Change the liquid-line drier regardless: cheapest insurance on the whole job",
+      "Check oil type and charge against what the new compressor wants",
+      "If it failed mechanically but the oil is clean, look harder at oil return and short cycling before you blame the part",
     ],
   },
 ];

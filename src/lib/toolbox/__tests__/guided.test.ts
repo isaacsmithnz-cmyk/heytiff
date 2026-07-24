@@ -530,7 +530,7 @@ describe("proving a compressor — taught, not assumed", () => {
     const earth = getQuestion("comp.earth")!;
     expect(earth.why).toMatch(/megger/i);
     expect(earth.why).toMatch(/500 V/);
-    expect(earth.why).toMatch(/never test through the drive/i);
+    expect(earth.why).toMatch(/never test through a drive or a board/i);
     expect(earth.why).toMatch(/scrape the paint/i);
     // and the vacuum trap
     expect(earth.safety).toMatch(/under vacuum/i);
@@ -567,6 +567,62 @@ describe("proving a compressor — taught, not assumed", () => {
     for (const id of ["short-earth", "rcd-moisture", "not-pumping"]) {
       expect(getOutcome(id)!.actions.join(" ")).toMatch(/Compressor suspect/);
     }
+  });
+});
+
+describe("reading the oil — the only witness to why it died", () => {
+  it("a compressor already off the wall has its own way in", () => {
+    const gate = getQuestion(getSymptom("compressor")!.start)!;
+    const out = gate.answers.find((a) => a.label.includes("already out"))!;
+    expect(out.next).toBe("comp.oil");
+    expect(out.hint).toMatch(/before the new one goes in/i);
+  });
+
+  it("teaches the acid test: sample, kit, cost, and read THAT kit's chart", () => {
+    const q = getQuestion("comp.oil")!;
+    expect(q.why).toMatch(/suction stub|drain plug/i); // where the sample comes from
+    expect(q.why).toMatch(/wholesaler/i); // where the kit comes from
+    expect(q.why).toMatch(/twenty or thirty dollars/i); // and that it's cheap
+    expect(q.why).toMatch(/marked line/i); // how much oil
+    expect(q.why).toMatch(/shake/i);
+    expect(q.why).toMatch(/read THAT kit's chart/); // colours differ between brands
+    expect(q.safety).toMatch(/acidic/i);
+  });
+
+  it("explains what a megger DOES, not just which setting to use", () => {
+    const why = getQuestion("comp.earth")!.why!;
+    expect(why).toMatch(/how much current leaks/i);
+    expect(why).toMatch(/few volts off a battery/i); // why a multimeter can't
+    expect(why).toMatch(/wholesaler/i); // and that one is buyable
+  });
+
+  it("metal with a clear acid test is its own diagnosis, not a null result", () => {
+    const q = getQuestion("comp.oil")!;
+    const metal = q.answers.find((a) => a.label.includes("Metal in it"))!;
+    expect(metal.hint).toMatch(/even if the acid test comes back clear/i);
+    const out = getOutcome(outcomeId(metal.next))!;
+    expect(out.explain).toMatch(/acid test can come back completely clear/i);
+    expect(out.explain).toMatch(/oil that stopped coming back/i);
+    // the whole point: fix the cause or kill the replacement
+    expect(out.actions[0]).toMatch(/BEFORE you quote/);
+    expect(out.actions[0]).toMatch(/dies exactly the same way/i);
+  });
+
+  it("names the real oil-return culprits, including the inverter one", () => {
+    const joined = getOutcome("oil-metal")!.actions.join(" ");
+    expect(joined).toMatch(/oversized suction riser/i);
+    expect(joined).toMatch(/traps at the foot of risers/i);
+    expect(joined).toMatch(/minimum speed/i); // low-speed inverter running
+    expect(joined).toMatch(/flush/i); // shavings are downstream now
+  });
+
+  it("every oil answer lands somewhere that says what to do about it", () => {
+    for (const a of getQuestion("comp.oil")!.answers) {
+      const out = getOutcome(outcomeId(a.next))!;
+      expect(out.actions.length).toBeGreaterThanOrEqual(4);
+    }
+    // and clean oil still gets acid-tested, because early burnout hides there
+    expect(getOutcome("oil-clean")!.actions[0]).toMatch(/acid test anyway/i);
   });
 });
 

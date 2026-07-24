@@ -12,12 +12,18 @@
    writes. The final structural gate is validatePack, not this registry — dangling
    refs etc. are caught there. */
 
-import { REFRIGERANTS, SYSTEM_ROLES, type OpeningSpec } from "./schema";
+import {
+  REFRIGERANTS,
+  SYSTEM_ROLES,
+  isSpigotOpening,
+  type SpigotGroup,
+} from "./schema";
 
 export type EditableSection = "indoor_units" | "outdoor_units" | "pair_tables";
 
-/** the structured variant of OpeningSpec — a W×H airway box in mm */
-export type OpeningBox = Extract<OpeningSpec, object>;
+/** the W×H box variant of OpeningSpec (spelled out, not Extract<…, object> —
+    the sized-spigot variant is an object too) */
+export type OpeningBox = { w_mm: number; h_mm: number };
 
 export function isOpeningBox(v: unknown): v is OpeningBox {
   if (typeof v !== "object" || v === null || Array.isArray(v)) return false;
@@ -148,7 +154,12 @@ export function fieldSpec(
   return BY_KEY.get(`${section}:${field}`);
 }
 
-export type FieldValue = number | string | string[] | OpeningBox;
+export type FieldValue =
+  | number
+  | string
+  | string[]
+  | OpeningBox
+  | { spigots: SpigotGroup[] };
 
 export type ParseResult =
   | { ok: true; value: FieldValue }
@@ -189,9 +200,36 @@ export function validateFieldValue(
       // fresh two-key object — strips any stray keys from the caller
       return { ok: true, value: { w_mm: value.w_mm, h_mm: value.h_mm } };
     }
+    // sized factory spigots — "2 × Ø400" as the book publishes it
+    if (isSpigotOpening(value as never)) {
+      const raw = (value as { spigots: unknown[] }).spigots;
+      if (raw.length === 0) return { ok: false, error: "Add at least one spigot size" };
+      const groups: SpigotGroup[] = [];
+      for (const g of raw) {
+        if (typeof g !== "object" || g === null) {
+          return { ok: false, error: "Each spigot group needs a count and a diameter" };
+        }
+        const { count, dia_mm } = g as { count?: unknown; dia_mm?: unknown };
+        if (typeof count !== "number" || !Number.isInteger(count) || count < 1) {
+          return { ok: false, error: "Spigot count must be a whole number ≥ 1" };
+        }
+        if (typeof dia_mm !== "number" || !Number.isFinite(dia_mm)) {
+          return { ok: false, error: "Spigot diameter must be a number" };
+        }
+        if (
+          (spec.min !== undefined && dia_mm < spec.min) ||
+          (spec.max !== undefined && dia_mm > spec.max)
+        ) {
+          return { ok: false, error: `Spigot diameter must be ${spec.min}–${spec.max} mm` };
+        }
+        // fresh two-key group — strips any stray keys from the caller
+        groups.push({ count, dia_mm });
+      }
+      return { ok: true, value: { spigots: groups } };
+    }
     return {
       ok: false,
-      error: `Must be W × H in mm, or one of: ${spec.enumValues?.join(", ")}`,
+      error: `Must be W × H in mm, sized spigots, or one of: ${spec.enumValues?.join(", ")}`,
     };
   }
   if (spec.type === "number") {

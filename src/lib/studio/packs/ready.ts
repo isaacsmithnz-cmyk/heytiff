@@ -5,7 +5,14 @@
    simply not offered. The `missing` lists double as the extraction to-do list
    and the generated gap questionnaire ("airflow missing for this range"). */
 
-import type { DataPack, IndoorUnit, OpeningSpec, OutdoorUnit } from "./schema";
+import {
+  isSpigotOpening,
+  spigotDiametersMm,
+  type DataPack,
+  type IndoorUnit,
+  type OpeningSpec,
+  type OutdoorUnit,
+} from "./schema";
 
 export type ReadyRole =
   | "placeable"
@@ -30,10 +37,12 @@ function has(n: number | undefined): boolean {
 
 /** Airway opening present? "built-in"/"spigots"/"open" are complete answers —
     "open" says the face takes a duct at an installer-decided size, which is as
-    much as some books ever publish; a box needs a positive W and H. (Never
-    pass an OpeningSpec to `has` — it's number-typed.) */
+    much as some books ever publish; a box needs a positive W and H, and a
+    sized spigot face needs at least one real takeoff. (Never pass an
+    OpeningSpec to `has` — it's number-typed.) */
 function hasOpening(o: OpeningSpec | undefined): boolean {
   if (o === "built-in" || o === "spigots" || o === "open") return true;
+  if (isSpigotOpening(o)) return spigotDiametersMm(o).some((d) => d > 0);
   return typeof o === "object" && o !== null && has(o.w_mm) && has(o.h_mm);
 }
 

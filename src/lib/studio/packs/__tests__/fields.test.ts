@@ -145,6 +145,31 @@ describe("opening type (supply/return airways)", () => {
     expect(validateFieldValue(supply, "open")).toEqual({ ok: true, value: "open" });
   });
 
+  it("accepts sized factory spigots and returns clean two-key groups", () => {
+    const messy = { spigots: [{ count: 2, dia_mm: 400, stray: "x" }] };
+    expect(validateFieldValue(supply, messy)).toEqual({
+      ok: true,
+      value: { spigots: [{ count: 2, dia_mm: 400 }] },
+    });
+    // a face that mixes sizes keeps its groups in order
+    expect(
+      validateFieldValue(supply, {
+        spigots: [{ count: 2, dia_mm: 400 }, { count: 1, dia_mm: 300 }],
+      })
+    ).toEqual({
+      ok: true,
+      value: { spigots: [{ count: 2, dia_mm: 400 }, { count: 1, dia_mm: 300 }] },
+    });
+  });
+
+  it("rejects malformed or out-of-band spigot groups", () => {
+    expect(validateFieldValue(supply, { spigots: [] })).toMatchObject({ ok: false });
+    expect(validateFieldValue(supply, { spigots: [{ count: 0, dia_mm: 400 }] })).toMatchObject({ ok: false });
+    expect(validateFieldValue(supply, { spigots: [{ count: 1.5, dia_mm: 400 }] })).toMatchObject({ ok: false });
+    expect(validateFieldValue(supply, { spigots: [{ count: 2 }] })).toMatchObject({ ok: false });
+    expect(validateFieldValue(supply, { spigots: [{ count: 2, dia_mm: 99999 }] })).toMatchObject({ ok: false });
+  });
+
   it("rejects free text, malformed boxes and out-of-band dimensions", () => {
     expect(validateFieldValue(supply, "600x200")).toMatchObject({ ok: false });
     expect(validateFieldValue(supply, { w_mm: -1, h_mm: 200 })).toMatchObject({ ok: false });

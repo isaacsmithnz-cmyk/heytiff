@@ -22,6 +22,12 @@
 # production
 /build
 
+# data books — ingestion sources only. Manufacturer PDFs are never committed
+# or redistributed (see data/packs/AGENTS.md and the data-usage rules in
+# docs/universal-table-schema.md); only the facts extracted from them are.
+/data/books/*
+!/data/books/README.md
+
 # misc
 .DS_Store
 *.pem

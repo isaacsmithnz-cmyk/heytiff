@@ -7,6 +7,11 @@
 import type { DesignDocument, DesignSystem } from "./document";
 import { roomLoadKw } from "./loads-room";
 import { roomsServedBy } from "./coverage";
+import {
+  hasFactorySpigots,
+  isSpigotOpening,
+  type OpeningSpec as PackOpeningSpec,
+} from "./packs/schema";
 
 /* ── Object conventions (spec §13) — placed via the component palette ── */
 
@@ -202,16 +207,9 @@ export function isPlenumOf(
   return o.type === "plenum" && o.props.unitId === unitId;
 }
 
-/** The unit's air opening (spec §1b): dims from the data book size the
-    plenum base; `"built-in"` = integral return (no plenum); `"spigots"` =
-    factory spigots on the opening (no drawn plenum body); `"open"` = a bare or
-    filtered face that takes a duct at a size the book never publishes, so the
-    plenum falls back to the derived default and the installer sizes it. */
-export type OpeningSpec =
-  | { w_mm: number; h_mm: number }
-  | "built-in"
-  | "spigots"
-  | "open";
+/** The unit's air opening (spec §1b) — ONE definition, in the pack schema
+    (both grades of factory spigot mean "no drawn plenum body"; see there). */
+export type { OpeningSpec } from "./packs/schema";
 
 /** How far a drawn plenum protrudes from the unit in plan (mm). Not a
     published figure — a construction default. */
@@ -251,20 +249,21 @@ export interface PlenumBody {
     plenum" (the airflow limit made geometric). No refacet, no growing past
     the unit (spec §1b, field feedback 2026-07-14). */
 export function plenumBody(opts: {
-  opening?: OpeningSpec | null;
+  opening?: PackOpeningSpec | null;
   unitWidthMm?: number | null;
   spigots: PlenumSpigot[];
   units: "mm" | "inch";
 }): PlenumBody {
   const builtIn = opts.opening === "built-in";
-  const factorySpigots = opts.opening === "spigots";
+  // both grades of factory spigot (sized or bare) mean no fabricated plenum
+  const factorySpigots = hasFactorySpigots(opts.opening);
   // "open" is a positive answer with no size in it, so it takes the same
   // derived-default body as an absent opening — the installer sizes the plenum.
+  // A sized-spigot opening is an object too, but it carries no W×H.
   const real =
     opts.opening &&
-    opts.opening !== "built-in" &&
-    opts.opening !== "spigots" &&
-    opts.opening !== "open"
+    typeof opts.opening === "object" &&
+    !isSpigotOpening(opts.opening)
       ? opts.opening
       : null;
   const derived = !builtIn && !factorySpigots && real == null;

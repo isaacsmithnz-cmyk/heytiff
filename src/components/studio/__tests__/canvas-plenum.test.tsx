@@ -344,6 +344,78 @@ describe("built-in return (pack flag)", () => {
   });
 });
 
+describe("factory spigots on the unit (pack opening)", () => {
+  /** the PEA-M HAA case: the book publishes takeoffs, not an opening */
+  const sized = peadRow({ spigots: [{ count: 2, dia_mm: 400 }] });
+
+  it("determines the unit — no plenum body, takeoffs drawn, size labelled", () => {
+    const doc = mkDoc([ahu()]);
+    const { svg } = renderCanvas({ doc, row: sized });
+    // spigots ARE the connection: nothing is fabricated, so no plenum body
+    expect(svg.querySelector(".ds-plenum-body")).toBeNull();
+    expect(svg.querySelector(".ds-plenum-builtin")).toBeNull();
+    // ...but the face is visibly connected: 2 takeoffs + the book's label
+    const g = svg.querySelector(".ds-ahu-spigots")!;
+    expect(g).not.toBeNull();
+    expect(g.classList.contains("derived")).toBe(false); // published, not derived
+    expect(g.querySelectorAll(".ds-spigot-fixed")).toHaveLength(2);
+    expect(svg.querySelector(".ds-spigot-label")!.textContent).toBe("2 × Ø400");
+    // and the unit is oriented on placement, exactly like a built-in return
+    expect(svg.querySelector(".ds-ahu-flow")).not.toBeNull();
+  });
+
+  it("draws the takeoffs at TRUE diameter (Ø400 at the unit's mm-per-px)", () => {
+    const doc = mkDoc([ahu()]);
+    const { svg } = renderCanvas({ doc, row: sized });
+    const rect = svg.querySelector(".ds-ahu-spigots .ds-spigot-fixed")!;
+    // the AHU is 1400 mm wide; its drawn footprint sets mm→world scale
+    const fpW = Number(svg.querySelector(".ds-unit rect")!.getAttribute("width"));
+    const perMm = fpW / 1400;
+    expect(Number(rect.getAttribute("width"))).toBeCloseTo(400 * perMm, 3);
+  });
+
+  it("refuses a plenum on the spigot face — its drop zone never offers", () => {
+    // peadRow()'s argument is the RETURN opening, so the spigots are on the
+    // return face; arming a return plenum must find nowhere to land
+    const doc = mkDoc([ahu()]);
+    const onMutate = jest.fn();
+    const { svg } = renderCanvas({
+      doc,
+      row: sized,
+      component: { kind: "plenum", stream: "return" },
+      onMutate,
+    });
+    expect(svg.querySelectorAll(".ds-plenum-dropzone")).toHaveLength(0);
+    fireEvent.pointerDown(svg, pt(361, 300));
+    expect(onMutate).not.toHaveBeenCalled();
+  });
+
+  it("the OTHER face still takes a plenum — spigots fix one face, not the unit", () => {
+    // supply here is a normal W×H opening, so it must still accept a plenum
+    const doc = mkDoc([ahu()]);
+    const onMutate = jest.fn();
+    const { svg } = renderCanvas({
+      doc,
+      row: sized,
+      component: { kind: "plenum", stream: "supply" },
+      onMutate,
+    });
+    expect(svg.querySelectorAll(".ds-plenum-dropzone").length).toBeGreaterThan(0);
+    fireEvent.pointerDown(svg, pt(400, 320));
+    expect(onMutate).toHaveBeenCalled();
+  });
+
+  it("an UNSIZED 'spigots' answer still connects — derived fan, no size label", () => {
+    const doc = mkDoc([ahu()]);
+    const { svg } = renderCanvas({ doc, row: peadRow("spigots") });
+    const g = svg.querySelector(".ds-ahu-spigots")!;
+    expect(g).not.toBeNull();
+    expect(g.classList.contains("derived")).toBe(true); // greyed: nothing published
+    expect(g.querySelectorAll(".ds-spigot-fixed").length).toBeGreaterThan(0);
+    expect(svg.querySelector(".ds-spigot-label")).toBeNull(); // no size to state
+  });
+});
+
 describe("AHU lifecycle carries plenums", () => {
   it("the Delete key on the AHU removes its plenums with it", () => {
     const doc = mkDoc([ahu(), plenum()]);

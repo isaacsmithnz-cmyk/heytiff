@@ -32,7 +32,13 @@ import {
   suggestedMainDucts,
   type PlenumSpigot,
 } from "@/lib/studio/ducted";
-import type { IndoorUnit, OpeningSpec } from "@/lib/studio/packs/schema";
+import {
+  hasFactorySpigots,
+  spigotDiametersMm,
+  spigotLabel,
+  type IndoorUnit,
+  type OpeningSpec,
+} from "@/lib/studio/packs/schema";
 import type { PlanImages } from "@/lib/studio/plans";
 import type { SimRuntime } from "@/lib/studio/sim-runtime";
 import { SimOverlay } from "./sim-overlay";
@@ -843,7 +849,7 @@ export function StudioCanvas({
   );
 
   /** every plenum mounting face of the placed air-capable AHUs, with its
-      occupancy (existing plenum, or a pack built-in return) */
+      occupancy (existing plenum, a pack built-in return, or factory spigots) */
   const ahuEnds = useMemo(() => {
     const out: {
       unit: (typeof units)[number];
@@ -851,6 +857,9 @@ export function StudioCanvas({
       end: "supply" | "return";
       occupied: boolean;
       builtIn: boolean;
+      /** factory spigots on this face — the duct connects to the unit, so no
+          plenum is fabricated and the face can never take one */
+      spigots: boolean;
       /** a placed plenum has fixed the orientation (spec §1a: the first
           placement decides; until then either face may take either stream) */
       determined: boolean;
@@ -858,15 +867,23 @@ export function StudioCanvas({
     for (const u of units) {
       const row = ahuRow(u);
       if (!row) continue;
-      // a placed plenum OR a built-in return fixes the orientation (spec §1a):
-      // built-in units know their return face the moment they're placed
+      // a placed plenum, a built-in return OR a factory-spigot face fixes the
+      // orientation (spec §1a): each is a published, fixed connection, so the
+      // unit knows which face is which the moment it's placed
       const builtInReturn = row.return_opening === "built-in";
-      const determined = builtInReturn || plenums.some((p) => p.props.unitId === u.id);
+      const anySpigots = (["supply", "return"] as const).some((e) =>
+        hasFactorySpigots(openingOf(row, e))
+      );
+      const determined =
+        builtInReturn || anySpigots || plenums.some((p) => p.props.unitId === u.id);
       for (const end of ["supply", "return"] as const) {
         const builtIn = end === "return" && builtInReturn;
+        const spigots = hasFactorySpigots(openingOf(row, end));
         const occupied =
-          builtIn || plenums.some((p) => p.props.unitId === u.id && p.props.end === end);
-        out.push({ unit: u, row, end, occupied, builtIn, determined });
+          builtIn ||
+          spigots ||
+          plenums.some((p) => p.props.unitId === u.id && p.props.end === end);
+        out.push({ unit: u, row, end, occupied, builtIn, spigots, determined });
       }
     }
     return out;
@@ -2376,6 +2393,54 @@ export function StudioCanvas({
                       <g key={e.end} className="ds-plenum-builtin-g">
                         {box}
                         {spigs}
+                      </g>
+                    );
+                  }
+                  if (e.spigots) {
+                    /* factory spigots: no plenum body at all — the takeoffs
+                       stand straight off the unit face. Sized openings draw at
+                       TRUE diameter and carry the book's label ("2 × Ø400");
+                       an unsized "spigots" answer falls back to an
+                       airflow-derived fan, drawn greyed like any derived
+                       default (spec §1b). */
+                    const opening = openingOf(e.row, e.end);
+                    const dias = spigotDiametersMm(opening);
+                    const derived = dias.length === 0;
+                    const n = derived
+                      ? Math.min(3, Math.max(1, suggestedMainDucts(air?.airflow_ls ?? null, 289) ?? 2))
+                      : dias.length;
+                    const stub = 150 * perMm;
+                    const label = spigotLabel(opening);
+                    return (
+                      <g key={e.end} className={`ds-ahu-spigots${derived ? " derived" : ""}`}>
+                        {Array.from({ length: n }, (_, i) => {
+                          const r = ((derived ? 350 : dias[i]) * perMm) / 2;
+                          const cx = f.a.x + ((i + 1) / (n + 1)) * (f.b.x - f.a.x);
+                          return (
+                            <rect
+                              key={i}
+                              className="ds-spigot-fixed"
+                              x={cx - r}
+                              y={f.dir === 1 ? f.mid.y : f.mid.y - stub}
+                              width={r * 2}
+                              height={stub}
+                            />
+                          );
+                        })}
+                        {layers.labels && label ? (
+                          <text
+                            className="ds-spigot-label"
+                            x={f.mid.x}
+                            y={
+                              f.dir === 1
+                                ? f.mid.y + stub + 10 / zoom
+                                : f.mid.y - stub - 4 / zoom
+                            }
+                            fontSize={9 / zoom}
+                          >
+                            {label}
+                          </text>
+                        ) : null}
                       </g>
                     );
                   }

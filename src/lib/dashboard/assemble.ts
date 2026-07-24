@@ -5,6 +5,7 @@ import {
   orgInsuranceChip,
   sortChips,
   vehicleChips,
+  vehicleLabel,
   workRightsChips,
   type ActionChip,
 } from "./chips";
@@ -57,7 +58,7 @@ export function assembleChips(src: ChipSources, caps: ReadonlySet<Capability>): 
     self.push(...workRightsChips({ staffId: src.viewerStaffId, ...src.self.workRights }, ctx));
   }
   if (src.selfVehicle) {
-    self.push(...vehicleChips(src.selfVehicle, { subject: src.selfVehicle.name, href: "/dashboard/my-vehicle" }));
+    self.push(...vehicleChips(src.selfVehicle, { subject: vehicleLabel(src.selfVehicle), href: "/dashboard/my-vehicle" }));
   }
 
   const team: ActionChip[] = [];
@@ -74,7 +75,7 @@ export function assembleChips(src: ChipSources, caps: ReadonlySet<Capability>): 
     for (const v of src.fleet) {
       // your own van's chips are already in `self` — don't list them twice
       if (v.assignedTo && v.assignedTo === src.viewerStaffId) continue;
-      team.push(...vehicleChips(v, { subject: v.name, href: "/dashboard/assets" }));
+      team.push(...vehicleChips(v, { subject: vehicleLabel(v), href: "/dashboard/assets" }));
     }
   }
 

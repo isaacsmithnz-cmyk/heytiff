@@ -55,6 +55,35 @@ export type ActionChip = {
   urgency: number;
 };
 
+/* Which part of the business a chip belongs to.
+
+   The state (red/amber) says how urgent something is, but on its own it never
+   says what KIND of thing it is — an expiring rego and an expiring licence
+   looked identical apart from their wording. The group is the second channel:
+   colour carries urgency, the icon and tag carry the domain, so a mixed list is
+   scannable without reading every label. Icons match the ones the nav already
+   uses for those areas (Assets is a truck), so the association is pre-taught. */
+export type ChipGroup = "Fleet" | "People" | "Business";
+
+const GROUP_OF: Record<ChipKind, ChipGroup> = {
+  licence: "People",
+  "work-rights": "People",
+  rego: "Fleet",
+  insurance: "Fleet",
+  service: "Fleet",
+  "org-insurance": "Business",
+};
+
+export const GROUP_ICON: Record<ChipGroup, string> = {
+  Fleet: "truck",
+  People: "shield",
+  Business: "hexagon",
+};
+
+export function chipGroup(kind: ChipKind): ChipGroup {
+  return GROUP_OF[kind];
+}
+
 /* Bad chips always rank before warn chips; within a bucket, closer-to-now wins.
    Date sources contribute `daysUntil` directly (negative = overdue = smallest =
    first). Service is km-based, so its km-left is normalised to a days-like
@@ -208,6 +237,13 @@ export function serviceChip(
   };
 }
 
+/* What to call a vehicle in a chip. `name` is optional in the register — plenty
+   of vehicles are only ever known by their plate — so falling back keeps the
+   chip from rendering with a blank subject and no way to tell which van it is. */
+export function vehicleLabel(v: Pick<VehicleWithFacts, "name" | "plate">): string {
+  return v.name?.trim() || v.plate?.trim() || "Unnamed vehicle";
+}
+
 /** All expiry/overdue chips for one vehicle, worst-first. */
 export function vehicleChips(
   v: VehicleWithFacts,
@@ -237,6 +273,63 @@ export function orgInsuranceChip(
     subject: org.insurer?.trim() || "Public liability insurance",
     href: ctx.href,
     urgency: urgency(state, days),
+  };
+}
+
+/* The one-line version, for the hero tile. The dashboard shows the COUNT and
+   links through to the full board — the same bargain the noticeboard makes, and
+   for the same reason: a summary you click into is honest about being a summary,
+   where a truncated list pretends to be the whole picture. */
+export type ChipSummary = { total: number; bad: number; warn: number };
+
+export function chipSummary(chips: readonly ActionChip[]): ChipSummary {
+  let bad = 0;
+  let warn = 0;
+  for (const c of chips) {
+    if (c.state === "bad") bad += 1;
+    else warn += 1;
+  }
+  return { total: bad + warn, bad, warn };
+}
+
+/** "1 overdue · 2 due soon". Empty when all clear. */
+export function summaryLine(s: ChipSummary): string {
+  const parts: string[] = [];
+  if (s.bad > 0) parts.push(`${s.bad} overdue`);
+  if (s.warn > 0) parts.push(`${s.warn} due soon`);
+  return parts.join(" · ");
+}
+
+/* The hero's action band.
+
+   A bare count tells you there's a problem but not what it is, which just moves
+   the question along. Naming the worst item means the hero is useful at a
+   glance and the click is optional — you already know whether it can wait. */
+export type HeroAction = {
+  state: ActionState | "ok";
+  title: string;
+  sub: string;
+  href: string;
+};
+
+export function heroAction(sorted: readonly ActionChip[], href: string): HeroAction {
+  const s = chipSummary(sorted);
+  if (s.total === 0) {
+    return {
+      state: "ok",
+      title: "All clear",
+      sub: "Nothing due in the next 30 days",
+      href,
+    };
+  }
+  // `sorted` is worst-first, so the head is the thing most worth naming
+  const worst = sorted[0];
+  const rest = s.total - 1;
+  return {
+    state: worst.state,
+    title: s.total === 1 ? "1 thing needs your attention" : `${s.total} things need your attention`,
+    sub: `${worst.label} · ${worst.subject}${rest > 0 ? ` · +${rest} more` : ""}`,
+    href,
   };
 }
 

@@ -2175,6 +2175,12 @@
   position: absolute;
   right: 14px;
   bottom: 12px;
+  /* The one canvas HUD that never declared a layer. Its glass makes it a
+     stacking context, so on z-index:auto it sat at the bottom of the
+     positioned pile and ANY other overlay would cover it. 12 puts it with
+     the persistent canvas furniture (present banner, sim readout) — above
+     the transient guidance cards, below the interactive HUDs and menus. */
+  z-index: 12;
   display: flex;
   align-items: center;
   gap: 2px;

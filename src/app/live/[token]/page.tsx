@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+/* the expired branch renders without LiveViewer, so bring its dress along */
+import "@/components/studio/studio.css";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { migrateDesign } from "@/lib/studio/migrations";
 import type { DesignDocument } from "@/lib/studio/document";
@@ -8,6 +10,23 @@ import { loadPackWithOverrides } from "@/lib/studio/packs/overrides-server";
 import { trimPackForLive } from "@/lib/studio/packs/live-trim";
 import type { DataPack } from "@/lib/studio/packs/schema";
 import { LiveViewer } from "./live-viewer";
+import { isShareExpired, SHARE_TTL_DAYS } from "@/lib/studio/share";
+
+/** A link that has aged out. Wears the same dead-link dress as not-found and
+    says nothing about the design — an expired token shouldn't confirm what it
+    used to point at. */
+function ExpiredLink() {
+  return (
+    <div className="ds-live-404">
+      <span className="ds-live-brand">HeyTiff</span>
+      <h1>This link has expired</h1>
+      <p>
+        Live design links stay open for {SHARE_TTL_DAYS} days. Ask whoever sent
+        it for a fresh one.
+      </p>
+    </div>
+  );
+}
 
 /* The customer live link — /live/<token>, public by design (proxy.ts guards
    only /dashboard and /hq). The token IS the authorization: it finds exactly
@@ -15,7 +34,13 @@ import { LiveViewer } from "./live-viewer";
    LATEST saved doc (force-dynamic, never a snapshot), a pack trimmed to the
    models the design references (the full catalogue is licensed data), and
    signed plan-image URLs minted here because the customer has no session to
-   mint their own. Revoking nulls the token and this page 404s. */
+   mint their own. Revoking nulls the token and this page 404s.
+
+   Links also age out on their own (SHARE_TTL_DAYS): the token is the only
+   thing protecting a design that anyone can read without signing in, so it
+   must not stay valid forever. An expired link gets a plain "ask for a new
+   one" page rather than a 404 — the customer did nothing wrong and needs to
+   know what to do next. */
 
 export const dynamic = "force-dynamic";
 
@@ -37,10 +62,14 @@ export default async function LivePage({
 
   const { data, error } = await supabaseAdmin
     .from("studio_designs")
-    .select("doc")
+    .select("doc, share_created_at")
     .eq("share_token", token)
     .maybeSingle();
   if (error || !data?.doc) notFound();
+
+  /* enforced HERE, not just in the UI — this route is the only thing standing
+     between a public token and the design */
+  if (isShareExpired(data.share_created_at as string | null)) return <ExpiredLink />;
 
   let doc: DesignDocument;
   try {

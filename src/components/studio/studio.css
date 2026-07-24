@@ -8300,6 +8300,80 @@
   font-size: 10.5px;
   color: var(--gray400);
 }
+/* an expired link still LOOKS like a link, so both the URL and its caption
+   have to carry the fact that it stopped working */
+.dstudio .ds-share-url.dead {
+  color: var(--gray400);
+  text-decoration: line-through;
+}
+.dstudio .ds-share-meta.dead {
+  color: var(--ds-red-d, #e0264f);
+  font-weight: 600;
+}
+
+/* ── Summary: contributors ── */
+.dstudio .ds-contrib {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 14px;
+}
+.dstudio .ds-contrib-h {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--gray500);
+}
+.dstudio .ds-contrib-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.dstudio .ds-contrib-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+}
+.dstudio .ds-contrib-av {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ds-card2, #f4f5f7);
+  border: 1px solid var(--ds-border);
+  font-size: 9.5px;
+  font-weight: 800;
+  color: var(--gray500);
+}
+.dstudio .ds-contrib-av img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.dstudio .ds-contrib-nm { font-weight: 700; color: var(--ink); }
+.dstudio .ds-contrib-when {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--gray400);
+  white-space: nowrap;
+}
+.dstudio .ds-contrib-note {
+  font-size: 10.5px;
+  color: var(--gray400);
+}
 .dstudio .ds-share-kill {
   border-color: rgba(220, 38, 38, 0.45);
   color: #b42318;

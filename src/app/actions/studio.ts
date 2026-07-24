@@ -3,6 +3,7 @@
 import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { isDesignDocumentShape } from "@/lib/studio/document";
+import { recordContribution } from "./studio-contributors";
 import type { DesignSummary } from "@/lib/studio/store";
 
 /* Design Studio persistence — server side. Follows the invite-action pattern:
@@ -86,6 +87,9 @@ export async function saveStudioDesign(doc: unknown): Promise<void> {
       doc,
       floor_count: doc.floors.length,
       system_count: doc.systems.length,
+      /* NB this is overwritten on every save, so it holds the LAST saver, not
+         the creator. Who made it — and everyone since — comes from
+         studio_design_contributors below. */
       created_by: userId,
       created_at: typeof meta.createdAt === "string" ? meta.createdAt : undefined,
       updated_at: typeof meta.updatedAt === "string" ? meta.updatedAt : new Date().toISOString(),
@@ -93,6 +97,15 @@ export async function saveStudioDesign(doc: unknown): Promise<void> {
     { onConflict: "org_id,id" }
   );
   if (error) throw new Error(error.message);
+
+  /* Record the saver as a contributor. Deliberately non-fatal: the design is
+     already stored by this point, and losing a line of credit must never
+     surface to the user as "your save failed". */
+  try {
+    await recordContribution(orgId, doc.id, userId);
+  } catch {
+    /* the save itself succeeded — that's what matters */
+  }
 }
 
 export async function deleteStudioDesign(id: string): Promise<void> {

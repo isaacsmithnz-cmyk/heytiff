@@ -502,9 +502,16 @@ describe("proving a compressor — taught, not assumed", () => {
     const setupText = setup.actions.join(" ");
     expect(setupText).toMatch(/give the run capacitor a minute/i); // wait first
     expect(setupText).toMatch(/meter on DC volts/i); // prove with what's in hand
-    expect(setupText).toMatch(/never a screwdriver blade/i);
-    // a discharge resistor is offered, never assumed — most vans don't carry one
-    expect(setupText).toMatch(/or a resistor if you carry one/i);
+    expect(setupText).toMatch(/screwdriver/i); // the habit is named and banned
+    expect(setupText).toMatch(/involuntary jerk/i); // and says what the real risk is
+    // no tool is assumed to be in the van. A resistor may be SUGGESTED for the
+    // kit, but the walk must work end to end without it — and must not lean on
+    // props nobody carries (a test lamp was the second wrong guess here)
+    expect(setupText).not.toMatch(/test lamp|incandescent|globe/i);
+    expect(setupText).toMatch(/worth two dollars in the meter case/i);
+    // a cap that won't self-drain is treated as a FINDING, not a puzzle
+    expect(setupText).toMatch(/bleed resistor has failed/i);
+    expect(setupText).toMatch(/due for replacement/i);
   });
 
   it("teaches the meter, not just the test", () => {

@@ -276,6 +276,37 @@
 .fg .nb-archtoggle { display:flex; align-items:center; gap:8px; margin:26px 2px 14px; padding:0; border:0; background:none; cursor:pointer; font-family:var(--font); font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--gray400); transition:color .15s; }
 .fg .nb-archtoggle:hover { color:#6b7280; }
 
+/* polls: the bar lives BEHIND the answer, so the row reads as a label with a
+   fill rather than a chart with a caption */
+.fg .nb-poll { margin-top:16px; display:flex; flex-direction:column; gap:8px; }
+.fg .nb-opt { position:relative; overflow:hidden; display:flex; align-items:center; gap:11px; width:100%; padding:11px 14px; border:1px solid #eceef3; border-radius:14px; background:#fff; cursor:pointer; text-align:left; font-family:var(--font); transition:border-color .15s, background .15s; }
+.fg .nb-opt:hover:not(:disabled) { border-color:#d8dbe4; }
+.fg .nb-opt.on { border-color:rgba(46,104,255,.4); }
+.fg .nb-opt.shut { cursor:default; }
+.fg .nb-opt:disabled { opacity:1; }
+.fg .nb-optbar { position:absolute; left:0; top:0; bottom:0; background:rgba(46,104,255,.08); transition:width .3s ease; pointer-events:none; }
+.fg .nb-opt.on .nb-optbar { background:rgba(46,104,255,.14); }
+.fg .nb-optbox { position:relative; flex:0 0 auto; width:17px; height:17px; border-radius:999px; border:1.5px solid #cdd2dd; display:flex; align-items:center; justify-content:center; color:#fff; }
+.fg .nb-optbox.sq { border-radius:6px; }
+.fg .nb-opt.on .nb-optbox { background:#2e68ff; border-color:#2e68ff; }
+.fg .nb-optlabel { position:relative; flex:1; min-width:0; font-size:14px; font-weight:700; color:var(--ink); }
+.fg .nb-optn { position:relative; flex:0 0 auto; font-size:13px; font-weight:800; color:var(--gray400); font-variant-numeric:tabular-nums; }
+.fg .nb-optwho { font-size:12px; font-weight:600; color:var(--gray400); padding:6px 14px 2px; line-height:1.5; }
+.fg .nb-pollfoot { display:flex; align-items:center; gap:12px; flex-wrap:wrap; font-size:12.5px; font-weight:600; color:var(--gray400); padding:2px 2px 0; }
+.fg .nb-wholink { margin-left:auto; padding:0; border:0; background:none; cursor:pointer; font-family:var(--font); font-size:12.5px; font-weight:700; color:#1f4bd8; }
+.fg .nb-wholink:hover { text-decoration:underline; }
+
+/* composer: what am I posting, and (for a poll) the answers */
+.fg .nb-kinds { display:inline-flex; gap:4px; padding:3px; border-radius:12px; background:#eef0f4; margin-bottom:4px; }
+.fg .nb-kind { padding:6px 16px; border:0; border-radius:9px; background:none; cursor:pointer; font-family:var(--font); font-size:12.5px; font-weight:700; color:var(--gray500); transition:background .15s, color .15s; }
+.fg .nb-kind.on { background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.07); }
+.fg .nb-optedit { display:flex; flex-direction:column; align-items:flex-start; gap:8px; margin-top:14px; }
+.fg .nb-optedith { font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--gray400); }
+.fg .nb-optrow { display:flex; align-items:center; gap:8px; width:100%; }
+.fg .nb-optrow input { flex:1; height:38px; padding:0 11px; border-radius:11px; border:1px solid rgba(10,11,16,.14); background:#fff; font-family:var(--font); font-size:13.5px; font-weight:600; color:var(--ink); }
+.fg .nb-optdrop { flex:0 0 auto; width:30px; height:30px; display:flex; align-items:center; justify-content:center; border:0; border-radius:9px; background:none; cursor:pointer; color:#c3c8d2; transition:background .15s, color .15s; }
+.fg .nb-optdrop:hover { background:#f3f4f7; color:#6b7280; }
+
 .fg .hstats { display:flex; flex-wrap:wrap; gap:20px; }
 .fg .hstat { position:relative; overflow:hidden; display:flex; flex-direction:column; justify-content:center; min-width:200px; padding:24px 28px; border-radius:24px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.1); backdrop-filter:blur(8px); transition:background .3s; }
 .fg .hstat:hover { background:rgba(255,255,255,.06); }

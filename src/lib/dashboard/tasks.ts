@@ -18,19 +18,68 @@ export type DashTask = {
   status: TaskStatus;
   createdBy: string | null;
   createdAt: string;
+  /** Set once completed — a done task is kept, never deleted. */
+  doneAt: string | null;
+  doneByName: string | null;
 };
+
+/* Completing a task hides it from the open list, but it must not vanish: one
+   tap is easy to make by accident, and "did I already do that?" is a real
+   question. Recently-completed tasks stay visible for this long, with an undo.
+   The same window covers what an assigner sees come back completed. */
+export const RECENT_DONE_DAYS = 7;
+
+/* A task you wrote for yourself is a private to-do; a task someone gave you is
+   delegated work. Only delegated work is management's business — it's what
+   shows in the team list, and what reports back to whoever assigned it when
+   it's done. A self-assigned task stays with the person who made it.
+
+   A task with no recorded creator counts as delegated: it wasn't self-made, so
+   defaulting it to private would hide it from everyone. */
+export function isDelegated(task: Pick<DashTask, "assigneeId" | "createdBy">): boolean {
+  return task.createdBy !== task.assigneeId;
+}
 
 export type NoticeItem = {
   id: string;
   title: string;
   body: string | null;
   pinned: boolean;
+  postedById: string | null;
   postedByName: string | null;
   createdAt: string;
+  /** Bumped only when the title/body changes — pinning is not a reword. */
+  revision: number;
+  /** Null until the first material edit; drives the "edited" marker. */
+  editedAt: string | null;
 };
 
-/** A notice plus whether the viewer has acknowledged it. */
-export type NoticeWithRead = NoticeItem & { read: boolean };
+/* Reading is passive, like a messaging app: a notice marks itself read once the
+   reader has actually had it on screen. There is no acknowledge button.
+
+   A read still means "I read THIS text", so it records the revision it was for.
+   Editing therefore doesn't invalidate anything destructively — it just means
+   readers who only saw the old wording stop counting as having read the current
+   one, and quietly count again next time they see it. The author sees that as
+   their read count dipping after an edit, which is the honest signal. */
+export type NoticeReadState = "unread" | "read" | "stale";
+
+export type NoticeWithRead = NoticeItem & {
+  /** The revision the viewer last read; null if they never have. */
+  ackedRevision: number | null;
+  state: NoticeReadState;
+  /** True when the viewer posted it — authors never "read" their own notice. */
+  mine: boolean;
+  /** How many others have read the CURRENT revision (author excluded). */
+  readBy: number;
+  /** How many others could read it — active staff, author excluded. */
+  audience: number;
+};
+
+export function noticeReadState(revision: number, ackedRevision: number | null): NoticeReadState {
+  if (ackedRevision === null) return "unread";
+  return ackedRevision >= revision ? "read" : "stale";
+}
 
 export type DueState = "bad" | "warn" | "ok";
 
@@ -77,7 +126,8 @@ export function sortNotices<T extends { pinned: boolean; createdAt: string }>(no
   });
 }
 
-/** How many notices the viewer hasn't acknowledged yet. */
+/** Notices still wanting the viewer's attention — never read, or read at an
+    older revision. Your own notices never count: you wrote them. */
 export function unreadCount(notices: readonly NoticeWithRead[]): number {
-  return notices.reduce((n, x) => n + (x.read ? 0 : 1), 0);
+  return notices.reduce((n, x) => n + (!x.mine && x.state !== "read" ? 1 : 0), 0);
 }

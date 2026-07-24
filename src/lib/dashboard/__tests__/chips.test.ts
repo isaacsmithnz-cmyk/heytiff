@@ -1,4 +1,9 @@
 import {
+  GROUP_ICON,
+  chipGroup,
+  chipSummary,
+  heroAction,
+  summaryLine,
   insuranceChip,
   licenceChip,
   orgInsuranceChip,
@@ -6,10 +11,13 @@ import {
   serviceChip,
   sortChips,
   vehicleChips,
+  vehicleLabel,
   workRightsChips,
   type ActionChip,
+  type ChipKind,
 } from "../chips";
 import type { VehicleWithFacts } from "@/components/fleet/logic";
+import { ICON_PATHS } from "@/components/shell/icon";
 
 // Anchor day for every date-based case. daysUntil counts from this.
 const TODAY = "2026-07-19";
@@ -149,6 +157,100 @@ describe("vehicle chips", () => {
     // the rego warn; the km-overdue service normalises as the more urgent of the two
     expect(chips.map((c) => c.kind)).toEqual(["service", "insurance", "rego"]);
     expect(chips[chips.length - 1].state).toBe("warn");
+  });
+});
+
+describe("chipSummary / summaryLine", () => {
+  const c = (state: "bad" | "warn"): ActionChip => ({
+    key: `k${Math.random()}`,
+    kind: "rego",
+    state,
+    label: "l",
+    subject: "s",
+    href: "h",
+    urgency: 0,
+  });
+
+  it("counts each urgency separately and totals them", () => {
+    expect(chipSummary([c("bad"), c("warn"), c("warn")])).toEqual({ total: 3, bad: 1, warn: 2 });
+  });
+
+  it("is all zeros when nothing needs attention", () => {
+    expect(chipSummary([])).toEqual({ total: 0, bad: 0, warn: 0 });
+    expect(summaryLine({ total: 0, bad: 0, warn: 0 })).toBe("");
+  });
+
+  it("names only the buckets that have something in them", () => {
+    expect(summaryLine({ total: 3, bad: 1, warn: 2 })).toBe("1 overdue · 2 due soon");
+    expect(summaryLine({ total: 2, bad: 2, warn: 0 })).toBe("2 overdue");
+    expect(summaryLine({ total: 1, bad: 0, warn: 1 })).toBe("1 due soon");
+  });
+});
+
+describe("heroAction", () => {
+  const chip = (over: Partial<ActionChip>): ActionChip => ({
+    key: "k", kind: "rego", state: "warn", label: "Rego expires 10d",
+    subject: "EVD72G", href: "h", urgency: 0, ...over,
+  });
+
+  it("reassures, rather than showing a zero, when nothing is due", () => {
+    expect(heroAction([], "/x")).toEqual({
+      state: "ok", title: "All clear", sub: "Nothing due in the next 30 days", href: "/x",
+    });
+  });
+
+  it("names the worst item instead of only counting — a count moves the question along", () => {
+    const a = heroAction([chip({ state: "bad", label: "Rego expired 14d ago", subject: "FRU397" })], "/x");
+    expect(a).toMatchObject({ state: "bad", title: "1 thing needs your attention" });
+    expect(a.sub).toBe("Rego expired 14d ago · FRU397");
+  });
+
+  it("counts the rest and takes its state from the worst (head of a sorted list)", () => {
+    const a = heroAction(
+      [chip({ state: "bad", label: "Rego expired 14d ago", subject: "FRU397" }), chip({}), chip({})],
+      "/x",
+    );
+    expect(a).toMatchObject({ state: "bad", title: "3 things need your attention" });
+    expect(a.sub).toBe("Rego expired 14d ago · FRU397 · +2 more");
+  });
+});
+
+describe("chipGroup", () => {
+  it("files every vehicle source under Fleet", () => {
+    expect(chipGroup("rego")).toBe("Fleet");
+    expect(chipGroup("insurance")).toBe("Fleet");
+    expect(chipGroup("service")).toBe("Fleet");
+  });
+
+  it("files person-compliance under People and the business under Business", () => {
+    expect(chipGroup("licence")).toBe("People");
+    expect(chipGroup("work-rights")).toBe("People");
+    expect(chipGroup("org-insurance")).toBe("Business");
+  });
+
+  it("gives every kind a group and every group a real icon", () => {
+    const kinds: ChipKind[] = ["licence", "work-rights", "rego", "insurance", "service", "org-insurance"];
+    for (const k of kinds) {
+      const g = chipGroup(k);
+      expect(g).toBeTruthy();
+      expect(ICON_PATHS[GROUP_ICON[g]]).toBeTruthy();
+    }
+  });
+});
+
+describe("vehicleLabel", () => {
+  it("uses the name when there is one", () => {
+    expect(vehicleLabel({ name: "VRF-04", plate: "ABC123" })).toBe("VRF-04");
+  });
+
+  it("falls back to the plate — a chip with a blank subject names nothing", () => {
+    // the register leaves `name` empty for vehicles only known by their plate
+    expect(vehicleLabel({ name: "", plate: "EVD72G" })).toBe("EVD72G");
+    expect(vehicleLabel({ name: "   ", plate: "EVD72G" })).toBe("EVD72G");
+  });
+
+  it("never renders empty, even with neither", () => {
+    expect(vehicleLabel({ name: "", plate: "" })).toBe("Unnamed vehicle");
   });
 });
 

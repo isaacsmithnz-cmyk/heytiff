@@ -9,7 +9,27 @@ import { iconSvg as I } from "./icon";
    chips/roster/payroll sections beneath it) reuses it so the greeting stays
    byte-identical to the original. homeHtml wraps it for anything still rendering
    the static screen. */
-export function heroHtml(opts: { greeting: string; firstName: string; date: string }) {
+export function heroHtml(opts: {
+  greeting: string;
+  firstName: string;
+  date: string;
+  /* The action band, spanning the width of the hero beneath the greeting.
+
+     A lone stat tile floating to the right of a big dark hero read as an
+     afterthought — that styling was built for a ROW of stats, not one. A band
+     fills the space it's given and, more usefully, has room to NAME the worst
+     item instead of just counting it. */
+  action?: { state: "bad" | "warn" | "ok"; title: string; sub: string; href: string };
+}) {
+  const a = opts.action;
+  const band = a
+    ? `<a class="hact ${a.state}" href="${a.href}">` +
+      `<span class="ha-ic">${I(a.state === "ok" ? "check" : "alert", 18)}</span>` +
+      `<span class="ha-main"><b class="ha-title">${a.title}</b><em class="ha-sub">${a.sub}</em></span>` +
+      `<span class="ha-chev">${I("arrowR", 18)}</span>` +
+      "</a>"
+    : "";
+
   return (
     '<div class="hero"><div class="mesh"><i class="m1"></i><i class="m2"></i><i class="m3"></i></div>' +
     '<div class="hrow"><div class="hlead">' +
@@ -19,7 +39,9 @@ export function heroHtml(opts: { greeting: string; firstName: string; date: stri
     "</div>" +
     `<h1>${opts.greeting},<br><span>${opts.firstName}.</span></h1>` +
     '<p class="lede">Welcome back. Your workspace is ready.</p>' +
-    "</div></div></div>"
+    "</div></div>" +
+    band +
+    "</div>"
   );
 }
 

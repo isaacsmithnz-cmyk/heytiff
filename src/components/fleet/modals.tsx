@@ -89,12 +89,15 @@ function Field({
   children,
   span,
   hint,
+  /** "warn" for a caution; the default just explains what the field means. */
+  hintTone = "muted",
 }: {
   label: string;
   req?: boolean;
   children: React.ReactNode;
   span?: boolean;
   hint?: string;
+  hintTone?: "warn" | "muted";
 }) {
   return (
     <label className={`fl-f${span ? " span" : ""}`}>
@@ -103,7 +106,7 @@ function Field({
         {req && <i>*</i>}
       </span>
       {children}
-      {hint && <em className="fl-warnhint">{hint}</em>}
+      {hint && <em className={hintTone === "warn" ? "fl-warnhint" : "fl-hint"}>{hint}</em>}
     </label>
   );
 }
@@ -214,7 +217,7 @@ export function VehicleFormModal({
         <Field label="Rego plate" req>
           <input className="fl-i" placeholder="e.g. MKT482" value={f.plate} onChange={set("plate")} />
         </Field>
-        <Field label="Registered in" hint="Plates are only unique within a state">
+        <Field label="Registered in" hint="Plates are only unique within a state" hintTone="warn">
           <select className="fl-i" value={f.plateState} onChange={set("plateState")}>
             <option value="">Not stated</option>
             {AU_STATES.map((st) => (
@@ -260,17 +263,17 @@ export function VehicleFormModal({
         <Field label="Purchase date">
           <input className="fl-i" type="date" value={f.purchaseDate} onChange={set("purchaseDate")} />
         </Field>
-        <Field label="Purchase price ($)">
+        <Field label="Purchase price ($)" hint="What you paid for it. Never changes — it's history, and it anchors Tiff's estimate.">
           <input
             className="fl-i"
             type="number"
-            placeholder="Helps Tiff value it"
+            placeholder="What you paid"
             value={f.purchasePrice}
             onChange={set("purchasePrice")}
           />
         </Field>
-        <Field label="Book value ($)">
-          <input className="fl-i" type="number" placeholder="e.g. 52000" value={f.value} onChange={set("value")} />
+        <Field label="Book value ($)" hint="What it's worth today. You keep this current; it's what the fleet total adds up.">
+          <input className="fl-i" type="number" placeholder="What it's worth now" value={f.value} onChange={set("value")} />
         </Field>
         <Field label="Status">
           <select className="fl-i" value={f.status} onChange={set("status")}>

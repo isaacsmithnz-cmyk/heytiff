@@ -8,6 +8,7 @@ import { staffProfileIdFor } from "@/lib/fleet/query";
 import { asNoticeKind, noticeLifecycle } from "@/lib/dashboard/notices";
 import { cleanPollOptions, POLL_ERROR_TEXT } from "@/lib/dashboard/polls";
 import { asRsvpAnswer, isEventTime } from "@/lib/dashboard/events";
+import { asReaction } from "@/lib/dashboard/reactions";
 import { pollOptionIds } from "@/lib/dashboard/tasks-query";
 import { todayInAu } from "@/lib/au-dates";
 
@@ -468,6 +469,53 @@ export async function setRsvp(noticeId: string, answer: string | null): Promise<
       staff_profile_id: ctx.staffId,
       answer: valid,
       updated_at: new Date().toISOString(),
+    },
+    { onConflict: "notice_id,staff_profile_id" },
+  );
+  if (error) return { ok: false, error: "Couldn't record that." };
+  refresh();
+  return { ok: true };
+}
+
+/* Reacting. Intrinsic, one per person, and null takes it back.
+
+   Deliberately NOT gated on the lifecycle. Voting on a closed poll would
+   corrupt a result and RSVPing to a past event would be a lie, but a 🙏 on
+   something that has already come off the board is just someone reading the
+   archive and saying thanks — there is nothing there to get wrong. */
+export async function reactToNotice(noticeId: string, emoji: string | null): Promise<DashResult> {
+  const ctx = await context();
+  if (!ctx?.staffId) return { ok: false, error: "No staff record for this account." };
+
+  const { data } = await supabaseAdmin
+    .from("notices")
+    .select("id")
+    .eq("org_id", ctx.orgId)
+    .eq("id", noticeId)
+    .maybeSingle();
+  if (!data) return { ok: false, error: "That notice no longer exists." };
+
+  if (emoji === null) {
+    const { error } = await supabaseAdmin
+      .from("notice_reactions")
+      .delete()
+      .eq("org_id", ctx.orgId)
+      .eq("notice_id", noticeId)
+      .eq("staff_profile_id", ctx.staffId);
+    if (error) return { ok: false, error: "Couldn't record that." };
+    refresh();
+    return { ok: true };
+  }
+
+  const valid = asReaction(emoji);
+  if (!valid) return { ok: false, error: "That isn't one of the reactions." };
+
+  const { error } = await supabaseAdmin.from("notice_reactions").upsert(
+    {
+      org_id: ctx.orgId,
+      notice_id: noticeId,
+      staff_profile_id: ctx.staffId,
+      emoji: valid,
     },
     { onConflict: "notice_id,staff_profile_id" },
   );

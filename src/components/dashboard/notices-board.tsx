@@ -9,6 +9,7 @@ import {
   editNotice,
   markNoticesRead,
   postNotice,
+  reactToNotice,
   setNoticeArchived,
   setRsvp,
 } from "@/app/actions/dashboard";
@@ -21,6 +22,12 @@ import {
   type PollResult,
 } from "@/lib/dashboard/polls";
 import { eventWhen, isEventTime, rsvpSummary } from "@/lib/dashboard/events";
+import {
+  nextReaction,
+  REACTIONS,
+  type Reaction,
+  type ReactionSummary,
+} from "@/lib/dashboard/reactions";
 import type { BoardNotice } from "@/lib/dashboard/board";
 
 /* The noticeboard page — where notices are actually read.
@@ -178,6 +185,66 @@ function EventBlock({
   );
 }
 
+/* The reaction row: what people already said, then a way to say it too.
+
+   Given reactions come first and are always visible; the palette hides behind
+   a single button, because six emoji permanently under every notice is a lot
+   of colour for a page whose job is to be read. */
+function ReactionRow({
+  reactions,
+  pending,
+  onReact,
+}: {
+  reactions: ReactionSummary;
+  pending: boolean;
+  onReact: (emoji: Reaction | null) => void;
+}) {
+  const [picking, setPicking] = useState(false);
+
+  return (
+    <div className="nb-reacts">
+      {reactions.tallies.map((t) => (
+        <button
+          key={t.emoji}
+          type="button"
+          className={`nb-react${t.mine ? " on" : ""}`}
+          disabled={pending}
+          aria-pressed={t.mine}
+          title={t.names.join(", ")}
+          onClick={() => onReact(nextReaction(reactions.mine, t.emoji))}
+        >
+          <span aria-hidden>{t.emoji}</span>
+          {t.count}
+        </button>
+      ))}
+      <button
+        type="button"
+        className="nb-react add"
+        aria-label={picking ? "Close the reactions" : "React to this"}
+        aria-expanded={picking}
+        onClick={() => setPicking((v) => !v)}
+      >
+        <Icon name={picking ? "x" : "plus"} size={12} />
+      </button>
+      {picking &&
+        REACTIONS.map((emoji) => (
+          <button
+            key={emoji}
+            type="button"
+            className={`nb-react pick${reactions.mine === emoji ? " on" : ""}`}
+            disabled={pending}
+            onClick={() => {
+              onReact(nextReaction(reactions.mine, emoji));
+              setPicking(false);
+            }}
+          >
+            <span aria-hidden>{emoji}</span>
+          </button>
+        ))}
+    </div>
+  );
+}
+
 type Acts = {
   pending: boolean;
   canManage: boolean;
@@ -187,6 +254,7 @@ type Acts = {
   onRemove: (id: string) => void;
   onVote: (noticeId: string, optionIds: string[]) => void;
   onRsvp: (noticeId: string, answer: string | null) => void;
+  onReact: (noticeId: string, emoji: string | null) => void;
 };
 
 function NoticeCard({ notice: n, acts }: { notice: BoardNotice; acts: Acts }) {
@@ -265,6 +333,11 @@ function NoticeCard({ notice: n, acts }: { notice: BoardNotice; acts: Acts }) {
           onRsvp={(answer) => acts.onRsvp(n.id, answer)}
         />
       )}
+      <ReactionRow
+        reactions={n.reactions}
+        pending={acts.pending}
+        onReact={(emoji) => acts.onReact(n.id, emoji)}
+      />
       {(expiry || filed) && (
         <div className="nb-foot">
           {filed ? (
@@ -381,6 +454,7 @@ export function NoticesBoard({
     onRemove: (id) => run(() => deleteNotice(id)),
     onVote: (noticeId, optionIds) => run(() => castPollVote(noticeId, optionIds)),
     onRsvp: (noticeId, answer) => run(() => setRsvp(noticeId, answer)),
+    onReact: (noticeId, emoji) => run(() => reactToNotice(noticeId, emoji)),
   };
 
   const composingPoll = kind === "poll" && !editingId;

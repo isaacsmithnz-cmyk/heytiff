@@ -30,7 +30,8 @@ export type SymptomKey =
   | "multi"
   | "pumping"
   | "zoning"
-  | "condensation";
+  | "condensation"
+  | "compressor";
 
 export interface Symptom {
   key: SymptomKey;
@@ -205,6 +206,16 @@ export const SYMPTOMS: Symptom[] = [
     icon: "pipe",
     color: "#0891B2",
     start: "cond.where",
+  },
+  {
+    key: "compressor",
+    label: "Compressor suspect",
+    blurb: "Prove it before you condemn it",
+    icon: "activity",
+    color: "#14B8A6",
+    start: "comp.iso",
+    safety:
+      "Compressor testing is done dead: isolated, leads off, capacitors discharged. The first step walks all of that — don't skip it.",
   },
 ];
 
@@ -714,7 +725,7 @@ export const QUESTIONS: Question[] = [
   {
     id: "nop.type",
     ask: "Is it an inverter unit, or fixed-speed?",
-    why: "Check the data plate — this decides what can even be wrong. A fixed-speed (DOL) three-phase scroll runs whichever way the supply spins it, so swapped phases make it pump nothing. An inverter rectifies the supply to a DC bus and builds its own three phases, so the drive sets the rotation and swapped supply phases can't run it backwards. Most splits and VRF on the wall today are inverter; DOL three-phase is alive and well in plant rooms and cool rooms.",
+    why: "Check the data plate — this decides what can even be wrong. A fixed-speed (DOL) three-phase scroll runs whichever way the supply spins it, so swapped phases make it pump nothing. An inverter rectifies the supply onto a bank of big storage capacitors — that bank is called the DC bus — and builds its own three phases from it, so the drive sets the rotation and swapped supply phases can't run it backwards. Most splits and VRF on the wall today are inverter; DOL three-phase is alive and well in plant rooms and cool rooms.",
     answers: [
       { label: "Fixed-speed, three-phase", next: "nop.rotation" },
       { label: "Fixed-speed, single-phase", next: "nop.valve" },
@@ -874,6 +885,74 @@ export const QUESTIONS: Question[] = [
     answers: [
       { label: "Bare aluminium", hint: "Painted or anodised still counts", next: "out:cond-aluminium" },
       { label: "Plastic face, or insulated on the back", next: "out:cond-grille-place" },
+    ],
+  },
+
+  /* ---------------- compressor suspect ----------------
+     A proving workflow, not a symptom: everything points at the compressor,
+     now make the meter say so before anyone pays for one. Written for the
+     apprentice who has never done it — every step says what to set, where
+     the leads land, and what the number should be. The answers ARE the
+     meter readings, which is exactly what this tree shape is for. */
+  {
+    id: "comp.iso",
+    ask: "Locked off, leads off, and capacitors dealt with?",
+    why: "Isolate at the local isolator AND the switchboard, and lock or tag what you switched. Photograph the terminal lid and the wiring before a single lead comes off — the lid diagram is your map back. Then pull the leads off the compressor terminals, because testing through the board or the drive tests the wrong thing and can wreck it. Single-phase: discharge the run capacitor through a bleed resistor on insulated leads for a few seconds. Inverter: the drive stores power in big capacitors (the DC bus) — wait the time printed on the panel, then prove them dead with your meter on DC volts.",
+    safety:
+      "Damaged or corroded terminals on a pressurised system can blow out of the shell. Keep the terminal cover on until power is dealt with, glasses on, and stand to the side of the terminal box — never square in front of it.",
+    answers: [
+      { label: "All done — meter in hand", next: "comp.type" },
+      { label: "Not yet — walk me through it", next: "out:comp-setup" },
+    ],
+  },
+  {
+    id: "comp.type",
+    ask: "Single-phase or three-phase compressor?",
+    why: "The data plate says — 230 V single-phase or 400 V three-phase. So does the terminal block: single-phase has C, R and S on the lid diagram (common, run, start); three-phase has three identical terminals marked U, V, W or T1, T2, T3. Lid diagram missing? The resistance readings on the next step will identify the terminals for you.",
+    answers: [
+      { label: "Single-phase", hint: "C, R and S terminals", next: "comp.1ph" },
+      { label: "Three-phase", hint: "U, V, W — or T1, T2, T3", next: "comp.3ph" },
+    ],
+  },
+  {
+    id: "comp.1ph",
+    ask: "Meter on Ω — what do the three pairs read?",
+    why: "Set the meter to ohms (Ω, auto-range is fine) and touch the leads together first — whatever it shows, usually 0.2 to 0.5, is the leads themselves; subtract it or press REL to zero it out. Then measure all three pairs. Expect the run winding C–R lowest (roughly 0.5–4 Ω), the start winding C–S higher (roughly 2–15 Ω), and R–S to equal the two added together — that sum is the real health check. No lid diagram? The pair with the highest reading is R–S, so the terminal NOT in that pair is C; from C, the higher reading is Start, the lower is Run.",
+    answers: [
+      { label: "All three read, and C–R plus C–S equals R–S", next: "comp.earth" },
+      {
+        label: "C to anything reads OL, but R–S still reads",
+        hint: "That's the internal overload, not a dead motor",
+        next: "out:comp-overload",
+      },
+      { label: "A pair reads OL even stone cold", next: "out:comp-open" },
+      { label: "Far below normal — nearly a dead short", next: "out:comp-short" },
+    ],
+  },
+  {
+    id: "comp.3ph",
+    ask: "Meter on Ω — what do U–V, V–W and W–U read?",
+    why: "Zero the leads first — big three-phase windings read well under an ohm, so lead resistance lies. All three pairs should be low and near identical: 0.3–3 Ω is typical, and the balance matters far more than the number. More than about ten percent between the highest and lowest pair is a winding in trouble.",
+    answers: [
+      { label: "All three low and near identical", next: "comp.earth" },
+      {
+        label: "One pair reads OL",
+        hint: "Cool it and retest before condemning — some carry an internal overload too",
+        next: "out:comp-open",
+      },
+      { label: "One pair reads clearly different from the others", next: "out:comp-unbalanced" },
+    ],
+  },
+  {
+    id: "comp.earth",
+    ask: "Insulation test to earth — what do the windings read?",
+    why: "This needs an insulation tester — a megger — which is the setting marked MΩ with a test voltage beside it. A multimeter on ohms pushes a few volts and will call damp windings healthy; the megger pushes 500 V DC and finds what's really there. Set 500 V. Leads still disconnected at the compressor — never test through the drive or a board, it destroys them. Clip one lead to clean bare metal on the compressor body or pipework (scrape the paint back), touch the other to each terminal in turn, and hold the test button until the number stops moving.",
+    safety:
+      "Never insulation-test a system that's under vacuum — the windings can arc through the thin gas and finish off a motor that was still alive. Test before evacuation or after charging, never during.",
+    answers: [
+      { label: "Hundreds of MΩ, or OL, on every terminal", next: "out:comp-sound" },
+      { label: "Low megohms — roughly 1 to 20", next: "out:comp-damp" },
+      { label: "Under 1 MΩ, or the tester howls", next: "out:comp-earthed" },
     ],
   },
 ];
@@ -1150,7 +1229,7 @@ export const OUTCOMES: Outcome[] = [
       "Board-level diagnosis and replacement from here",
     ],
     safety:
-      "On inverter equipment the DC bus capacitors hold hundreds of volts after the isolator is off. Prove them dead with a meter before touching any board.",
+      "On inverter equipment the big storage capacitors — the DC bus — hold hundreds of volts after the isolator is off. Wait the time printed on the panel, then prove them dead with a meter on DC volts before touching any board.",
     escalate: true,
   },
 
@@ -1373,7 +1452,7 @@ export const OUTCOMES: Outcome[] = [
     actions: [
       "Isolate and leave it isolated",
       "Do not keep resetting the breaker",
-      "Insulation-test the circuit and the compressor windings",
+      "Insulation-test the circuit and the compressor windings — the 'Compressor suspect' tile in this tool walks that test terminal by terminal, meter settings included",
       "Licensed electrical fault-finding from here",
     ],
     escalate: true,
@@ -1400,7 +1479,7 @@ export const OUTCOMES: Outcome[] = [
     explain:
       "The condenser is clean, so the high current is coming from the compressor itself — worn, tight, or a failing start component.",
     actions: [
-      "Measure running and locked-rotor current against the nameplate",
+      "Measure running and locked-rotor current against the nameplate — clamp around ONE conductor only; around the whole cable the fields cancel and it reads zero",
       "Fixed-speed: check the capacitor and any start components. Inverter: it has neither — high current is the drive working against something, so read target versus actual speed in check mode",
       "Confirm supply voltage holds up under load — low volts raises current",
       "Three-phase: measure all three legs. A lost or unbalanced phase drives the current up on the ones that are left",
@@ -1417,7 +1496,7 @@ export const OUTCOMES: Outcome[] = [
     actions: [
       "Inspect the outdoor terminal box for water ingress and corrosion",
       "Check cable glands, entries and the weatherproofing above them",
-      "Dry and reseal, then insulation-test to confirm",
+      "Dry and reseal, then insulation-test to confirm — and if the box and glands come up dry, test the compressor windings to earth: the 'Compressor suspect' tile walks it step by step",
       "Check any crankcase heater circuit, a common culprit",
     ],
     escalate: true,
@@ -1743,7 +1822,7 @@ export const OUTCOMES: Outcome[] = [
     actions: [
       "Measure running current — well under the nameplate figure supports this",
       "Confirm the service valves are fully open before condemning anything",
-      "Check for a failed internal discharge check valve, and for a compressor terminal fault",
+      "Check for a failed internal discharge check valve, and for a compressor terminal fault — the 'Compressor suspect' tile walks the electrical proof of the motor itself",
       "Compressor replacement from here — find out what killed it before fitting the new one",
     ],
     tool: PRESSURES,
@@ -1762,7 +1841,7 @@ export const OUTCOMES: Outcome[] = [
       "If the drive flags the power module or won't run the compressor at any speed, it's board-level work — model-specific, out with that unit's service manual",
     ],
     safety:
-      "Inverter drives hold hundreds of volts in their DC bus capacitors long after the isolator is off. Isolate, wait, and prove them dead with a meter before fingers or probes go anywhere near the board.",
+      "An inverter drive stores power in big capacitors — the DC bus — and they hold hundreds of volts long after the isolator is off. Isolate, wait the time printed on the panel, then prove them dead with a meter on DC volts before fingers or probes go anywhere near the board.",
     escalate: true,
     tool: PRESSURES,
   },
@@ -2030,6 +2109,123 @@ export const OUTCOMES: Outcome[] = [
       "Check it isn't hard against a cold wall, a bulkhead or an uninsulated surface it can bridge to",
       "Look for a dead corner with no air movement — still humid air against any cool surface will condense",
       "Check the back of the grille and its neck are insulated whatever the face is made of",
+    ],
+  },
+
+  /* compressor suspect */
+  {
+    id: "comp-setup",
+    title: "Set up the test before the test",
+    confidence: "info",
+    explain:
+      "Ten minutes of setup is what makes the readings mean anything — and keeps the meter, the drive and your hands out of trouble. Compressor testing is done dead, disconnected and discharged, every single time.",
+    actions: [
+      "Isolate at the local isolator and the switchboard, and lock or tag what you switched off",
+      "Photograph the terminal lid and the wiring exactly as found — the lid diagram is your map back when it's time to reconnect",
+      "Pull the leads off the compressor terminals; testing through the board or the drive tests the wrong thing, and a megger through electronics kills them",
+      "Single-phase: discharge the run capacitor — bridge its terminals through a bleed resistor on insulated leads for a few seconds, never a bare screwdriver blade",
+      "Inverter: the drive stores power in big capacitors (the DC bus) after the power is off — wait the time printed on the panel, then prove them dead with the meter on DC volts across the marked points",
+      "Then come back and walk the test",
+    ],
+    safety:
+      "Damaged or corroded terminals on a pressurised system can blow out of the shell. Terminal cover on until power is dealt with, glasses on, stand to the side.",
+  },
+  {
+    id: "comp-overload",
+    title: "The internal overload is open — the motor may be fine",
+    confidence: "info",
+    explain:
+      "Single-phase hermetics carry a thermal overload inside the shell, in series with the common terminal. When it opens, C to anything reads open — but R to S still reads, because that path doesn't go through it. That exact signature is a protector doing its job, not a dead compressor — and condemning one on a hot afternoon is the classic expensive mistake.",
+    actions: [
+      "Let it cool and retest — half an hour for a small unit, hours for a big scroll that's been baking in the sun",
+      "When C–R and C–S come back, the motor is intact — now find what overheated it",
+      "Check the condenser, the charge, the supply voltage and the run capacitor: overloads trip for a reason",
+      "If it never comes back once it's genuinely stone cold, then it really is an open winding",
+    ],
+  },
+  {
+    id: "comp-open",
+    title: "Open winding",
+    confidence: "likely",
+    explain:
+      "A winding that reads open circuit on a stone-cold compressor is broken inside the shell, and there's no repair on a hermetic — the fix is a compressor. Prove it properly first, because two cheaper faults read exactly the same from the wrong spot.",
+    actions: [
+      "Measure at the compressor terminals themselves, not the ends of the leads — a corroded spade or a broken lead reads identical",
+      "Make sure it's actually cold: internal overloads can take hours to reset on a big machine, and three-phase units can carry them too",
+      "Check the terminal posts — a burnt or loose post reads open at the same spot",
+      "Once it's proven, condemn and replace — and find what killed it before the new one goes in",
+    ],
+    escalate: true,
+  },
+  {
+    id: "comp-short",
+    title: "Shorted winding",
+    confidence: "likely",
+    explain:
+      "A reading far below what the winding should be means turns have welded together inside. It pulls big current, trips protection, and it often takes the capacitor or the start gear down with it on the way out.",
+    actions: [
+      "Compare against the winding spec if you can get one — 'low' only means something against a number",
+      "Insulation-test to earth as well; shorted turns and earthed windings usually travel together",
+      "Test the run capacitor and start gear before the replacement goes in, or the new compressor inherits the same death",
+      "Replacement is refrigeration work: recovery, braze, driers, evacuation",
+    ],
+    escalate: true,
+  },
+  {
+    id: "comp-unbalanced",
+    title: "One winding out of balance",
+    confidence: "possible",
+    explain:
+      "Three-phase windings are identical by construction, so the pairs should read the same. One pair sitting clearly away from the others is a winding partly gone — shorted turns starting, or a joint on the way out — and it doesn't get better.",
+    actions: [
+      "Zero the leads and measure again — at these resistances the leads themselves can invent an imbalance",
+      "Insulation-test all three to earth while you're connected",
+      "Under load, compare the three phase currents — the sick winding shows there too",
+      "Plan the replacement; partial winding failures finish the job without warning",
+    ],
+    escalate: true,
+  },
+  {
+    id: "comp-damp",
+    title: "Insulation is breaking down",
+    confidence: "possible",
+    explain:
+      "Low megohms isn't dead — it's dying. Moisture in the system, acid from an old burnout, or years of heat all drag insulation down, and the number you just took is one point on a curve heading the wrong way.",
+    actions: [
+      "Dry and clean the terminal box and retest first — a wet plug reads exactly like a sick motor",
+      "Record the reading, the date and the ambient: the trend is the diagnosis, not the single number",
+      "Acid-test the oil if there's any burnout history on this system",
+      "Change the liquid-line drier and retest after a good run — still falling means the windings are finished",
+    ],
+    escalate: true,
+  },
+  {
+    id: "comp-earthed",
+    title: "Windings down to earth",
+    confidence: "likely",
+    explain:
+      "The insulation between the windings and the shell has failed, and current is leaking straight to earth — this is the compressor that keeps taking out the safety switch. Every reset pushes fault current through a dying motor.",
+    actions: [
+      "Stop resetting the RCD on it — each reset does more damage",
+      "Double-check the finding before condemning: dry the terminal box, leads off, clean earth point, test again",
+      "Treat it as a burnout until proven otherwise: acid-test the oil and plan driers and a flush for the new one",
+      "Burnt oil is acidic — gloves on when the system gets opened",
+    ],
+    escalate: true,
+  },
+  {
+    id: "comp-sound",
+    title: "The compressor is electrically sound — look at what feeds it",
+    confidence: "likely",
+    explain:
+      "Windings intact and balanced, nothing to earth: the motor is healthy. A healthy compressor that still won't run is being failed by what's around it — the start gear, the switching, or the supply.",
+    actions: [
+      "Single-phase: test the run capacitor. Discharge it first through a bleed resistor, meter on the capacitance setting (marked µF), and expect the printed rating within about ten percent — bulged, leaking or way off means replace it",
+      "Single-phase: check the start relay or PTC starter — burnt contacts, or a rattle when you shake it",
+      "Three-phase: open the contactor and look at the contacts — pitted or welded contacts single-phase the motor",
+      "Measure voltage at the compressor terminals during a start attempt, not at rest — a sagging supply only shows itself under load",
+      "Clamp meter on for the start: around ONE conductor only — around the whole cable the fields cancel and it reads zero",
+      "If it runs but pumps nothing, that's the 'Pressures won't split' path from here",
     ],
   },
 ];

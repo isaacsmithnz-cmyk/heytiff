@@ -111,8 +111,8 @@ describe("content quality", () => {
     }
   });
 
-  it("all fourteen symptoms are covered, each with an icon and colour", () => {
-    expect(SYMPTOMS).toHaveLength(14);
+  it("all fifteen symptoms are covered, each with an icon and colour", () => {
+    expect(SYMPTOMS).toHaveLength(15);
     for (const s of SYMPTOMS) {
       expect(s.color).toMatch(/^#[0-9A-Fa-f]{6}$/);
       expect(s.icon.length).toBeGreaterThan(2);
@@ -435,8 +435,11 @@ describe("built for the field, not for a search box", () => {
 
   it("never gives DOL start-component advice as if it were universal", () => {
     // anywhere capacitors or start gear are mentioned, the inverter case
-    // must be distinguished in the same breath
+    // must be distinguished in the same breath — EXCEPT inside the
+    // compressor-proving tree, where the type question has already been
+    // answered before any of these outcomes can be reached
     for (const o of OUTCOMES) {
+      if (o.id.startsWith("comp-")) continue;
       for (const a of o.actions) {
         if (/start component|capacitor and/i.test(a)) {
           expect(a).toMatch(/inverter/i);
@@ -469,6 +472,86 @@ describe("built for the field, not for a search box", () => {
     expect(text).not.toMatch(/attic|furnace|crawl ?space|freon|aluminum|anodized/i);
     // design-day heat is 40, not 95F
     expect(text).toMatch(/40.degree|40°C/);
+  });
+});
+
+describe("proving a compressor — taught, not assumed", () => {
+  const textFields = (): string[] => {
+    const out: string[] = [];
+    for (const q of QUESTIONS) {
+      out.push(q.ask, q.why ?? "", q.safety ?? "");
+      for (const a of q.answers) out.push(a.label, a.hint ?? "");
+    }
+    for (const o of OUTCOMES) {
+      out.push(o.title, o.explain, o.customer ?? "", o.safety ?? "", ...o.actions);
+    }
+    for (const sy of SYMPTOMS) out.push(sy.label, sy.blurb, sy.safety ?? "");
+    return out.filter(Boolean);
+  };
+
+  it("opens on setup, and 'not yet' gets the full walk instead of a shrug", () => {
+    const gate = getQuestion(getSymptom("compressor")!.start)!;
+    expect(gate.id).toBe("comp.iso");
+    expect(gate.safety).toMatch(/stand to the side/i);
+    const notYet = gate.answers.find((a) => a.label.includes("Not yet"))!;
+    const setup = getOutcome(outcomeId(notYet.next))!;
+    expect(setup.actions.join(" ")).toMatch(/lock or tag/i);
+    expect(setup.actions.join(" ")).toMatch(/photograph the terminal lid/i);
+    expect(setup.actions.join(" ")).toMatch(/bleed resistor/i);
+  });
+
+  it("teaches the meter, not just the test", () => {
+    const ohms1 = getQuestion("comp.1ph")!;
+    // zeroing the leads, expected ranges, and the sum rule
+    expect(ohms1.why).toMatch(/touch the leads together|REL/);
+    expect(ohms1.why).toMatch(/0\.5–4/);
+    expect(ohms1.why).toMatch(/equal the two added together/i);
+    // the unmarked-terminal trick
+    expect(ohms1.why).toMatch(/highest reading is R–S/i);
+    // three-phase: balance over absolute number
+    expect(getQuestion("comp.3ph")!.why).toMatch(/balance matters far more/i);
+  });
+
+  it("the megger step says what a megger IS, where the leads land, and the volts", () => {
+    const earth = getQuestion("comp.earth")!;
+    expect(earth.why).toMatch(/megger/i);
+    expect(earth.why).toMatch(/500 V/);
+    expect(earth.why).toMatch(/never test through the drive/i);
+    expect(earth.why).toMatch(/scrape the paint/i);
+    // and the vacuum trap
+    expect(earth.safety).toMatch(/under vacuum/i);
+  });
+
+  it("catches the internal-overload trap before a good motor gets condemned", () => {
+    const q = getQuestion("comp.1ph")!;
+    const sig = q.answers.find((a) => a.label.includes("R–S still reads"))!;
+    const out = getOutcome(outcomeId(sig.next))!;
+    expect(out.confidence).toBe("info"); // it is NOT a condemnation
+    expect(out.actions[0]).toMatch(/cool/i);
+    expect(out.explain).toMatch(/classic expensive mistake/i);
+  });
+
+  it("a sound compressor points at the start gear, with the capacitor test taught", () => {
+    const sound = getOutcome("comp-sound")!;
+    const joined = sound.actions.join(" ");
+    expect(joined).toMatch(/discharge it first/i);
+    expect(joined).toMatch(/µF/);
+    expect(joined).toMatch(/ONE conductor only/);
+    expect(joined).toMatch(/pitted or welded contacts/i);
+  });
+
+  it("'DC bus' never appears without plain words for what it is", () => {
+    for (const t of textFields()) {
+      if (t.includes("DC bus")) {
+        expect(t).toMatch(/capacitor/i);
+      }
+    }
+  });
+
+  it("the outcomes that used to say 'insulation-test' now point at the walkthrough", () => {
+    for (const id of ["short-earth", "rcd-moisture", "not-pumping"]) {
+      expect(getOutcome(id)!.actions.join(" ")).toMatch(/Compressor suspect/);
+    }
   });
 });
 

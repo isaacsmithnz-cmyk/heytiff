@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { asNoticeKind } from "./notices";
-import { tallyPoll, type PollOptionRow, type PollResult, type PollVoteRow } from "./polls";
+import { tallyPoll, type PollOptionRow, type PollVoteRow } from "./polls";
+import { asRsvpAnswer, tallyRsvp, type RsvpRow } from "./events";
 import type { BoardNotice } from "./board";
 import { isDelegated, noticeReadState, type DashTask } from "./tasks";
 
@@ -144,7 +145,9 @@ export async function listNotices(
     supabaseAdmin
       .from("notices")
       .select(
-        "id, title, body, pinned, posted_by, created_at, revision, edited_at, kind, expires_at, archived_at, poll_multi",
+        // one literal, not a concatenation: supabase-js infers the row type
+        // FROM this string, and a `+` erases that back to unknown
+        "id, title, body, pinned, posted_by, created_at, revision, edited_at, kind, expires_at, archived_at, poll_multi, event_date, event_time, event_location",
       )
       .eq("org_id", orgId)
       .order("created_at", { ascending: false })
@@ -155,12 +158,15 @@ export async function listNotices(
   ]);
 
   const noticeRows = (data ?? []) as Record<string, unknown>[];
-  // Only pay for the poll join when the page actually holds a poll — a board of
-  // plain notices costs exactly what it did before.
-  const pollIds = noticeRows
-    .filter((r) => asNoticeKind(r.kind) === "poll")
-    .map((r) => String(r.id));
-  const polls = await pollsFor(orgId, pollIds, (id) => names.get(id) ?? "Unnamed");
+  // Only pay for an attachment's join when the page actually holds one — a
+  // board of plain notices costs exactly what it did before.
+  const name = (id: string) => names.get(id) ?? "Unnamed";
+  const idsOfKind = (kind: string) =>
+    noticeRows.filter((r) => asNoticeKind(r.kind) === kind).map((r) => String(r.id));
+  const [polls, rsvps] = await Promise.all([
+    pollsFor(orgId, idsOfKind("poll"), name),
+    rsvpsFor(orgId, idsOfKind("event"), name),
+  ]);
 
   return noticeRows.map((r) => {
     const id = String(r.id);
@@ -198,6 +204,17 @@ export async function listNotices(
               multi: r.poll_multi === true,
               viewerStaffId: staffProfileId,
             })
+          : null,
+      // an event row without a date can't exist (DB CHECK), but a null read
+      // must degrade to "not an event" rather than to an event on 1 Jan 1970
+      event:
+        asNoticeKind(r.kind) === "event" && r.event_date
+          ? {
+              date: String(r.event_date).slice(0, 10),
+              time: r.event_time ? String(r.event_time).slice(0, 5) : null,
+              location: typeof r.event_location === "string" && r.event_location ? r.event_location : null,
+              rsvp: tallyRsvp(rsvps.get(id) ?? [], staffProfileId),
+            }
           : null,
     };
   });
@@ -242,6 +259,33 @@ async function pollsFor(
     votes.set(key, list);
   }
   return { options, votes };
+}
+
+/** Who has replied to each event on this page. */
+async function rsvpsFor(
+  orgId: string,
+  noticeIds: readonly string[],
+  name: (id: string) => string,
+): Promise<Map<string, RsvpRow[]>> {
+  const out = new Map<string, RsvpRow[]>();
+  if (noticeIds.length === 0) return out;
+
+  const { data } = await supabaseAdmin
+    .from("notice_rsvps")
+    .select("notice_id, staff_profile_id, answer")
+    .eq("org_id", orgId)
+    .in("notice_id", [...noticeIds]);
+
+  for (const r of (data ?? []) as Record<string, unknown>[]) {
+    const answer = asRsvpAnswer(r.answer);
+    if (!answer) continue; // an unreadable answer is no answer, never a guess
+    const key = String(r.notice_id);
+    const list = out.get(key) ?? [];
+    const staffId = String(r.staff_profile_id);
+    list.push({ staffId, staffName: name(staffId), answer });
+    out.set(key, list);
+  }
+  return out;
 }
 
 /** The answers a poll offers, for the actions that must check a vote is for a

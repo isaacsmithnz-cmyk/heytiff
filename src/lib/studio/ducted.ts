@@ -238,21 +238,36 @@ export interface PlenumBody {
   derived: boolean;
   /** spigots need a face wider than the base → too many ducts for this plenum */
   overSpigot: boolean;
+  /** a plain BOX — the far face equals the base, so it draws as a rectangle
+      instead of tapering. Always true for a return plenum. */
+  rectangular: boolean;
   /** `1200 × 400 · 3 × 14"` — base W × depth D, spigots per units setting */
   label: string;
 }
 
-/** Resolve a plenum's body from the unit's opening. The base (widest edge)
-    sits on the unit at the opening width; the plenum tapers OUTWARD to a
-    narrow spigot face that seats the spigots and stays ≤ the base — when the
-    spigots would need more, `overSpigot` flags "too many ducts for this
-    plenum" (the airflow limit made geometric). No refacet, no growing past
-    the unit (spec §1b, field feedback 2026-07-14). */
+/** Resolve a plenum's body from the unit's opening.
+
+    SUPPLY tapers: the base (widest edge) sits on the unit at the opening
+    width and narrows OUTWARD to a spigot face that seats the round takeoffs
+    and stays ≤ the base — when the spigots would need more, `overSpigot`
+    flags "too many ducts for this plenum" (the airflow limit made geometric).
+
+    RETURN does not. A return plenum is a plain BOX bolted to the back of the
+    unit — a return-air/filter box, not a transition to round ducts — so its
+    far face is the full base width and it draws as a rectangle (field
+    feedback 2026-07-23). Only the supply side has spigots to narrow toward.
+
+    No refacet, no growing past the unit (spec §1b, field feedback
+    2026-07-14). */
 export function plenumBody(opts: {
   opening?: PackOpeningSpec | null;
   unitWidthMm?: number | null;
   spigots: PlenumSpigot[];
   units: "mm" | "inch";
+  /** which side of the unit — RETURN is a box, SUPPLY tapers. Defaults to
+      supply so an un-updated caller keeps the old shape rather than silently
+      squaring off every plenum. */
+  stream?: "supply" | "return";
 }): PlenumBody {
   const builtIn = opts.opening === "built-in";
   // both grades of factory spigot (sized or bare) mean no fabricated plenum
@@ -275,8 +290,10 @@ export function plenumBody(opts: {
       ? 0
       : onFace.reduce((a, s) => a + s.diaMm, 0) + SPIGOT_GAP_MM * (onFace.length + 1);
   const overSpigot = needed > baseWMm;
-  // 1 spigot → a near-point (arrow); more → widens toward (never past) the base
-  const spigotFaceWMm = overSpigot ? baseWMm : needed;
+  // a return box keeps its full width to the far face; supply narrows —
+  // 1 spigot → a near-point (arrow), more → widens toward (never past) the base
+  const rectangular = opts.stream === "return";
+  const spigotFaceWMm = rectangular || overSpigot ? baseWMm : needed;
   return {
     baseWMm,
     spigotFaceWMm,
@@ -285,6 +302,7 @@ export function plenumBody(opts: {
     factorySpigots,
     derived,
     overSpigot,
+    rectangular,
     label: plenumLabel(baseWMm, PLENUM_PROTRUSION_MM, opts.spigots, opts.units),
   };
 }

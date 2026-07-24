@@ -222,8 +222,11 @@ const PLENUM_SNAP_PX = 20; // screen px to snap the plenum ghost onto an AHU end
 /* ── Plenum plan geometry (spec §1b, field feedback 2026-07-14). All
    DIMENSIONS come from the engine (plenumBody); this only lays the resolved
    mm out in world space. The BASE (widest edge) sits ON the unit at the
-   opening width and the body tapers OUTWARD to a narrow spigot face —
-   1 spigot ≈ an arrow, 3–4 ≈ a trapezoid, base always widest. Spigots are
+   opening width. A SUPPLY plenum tapers OUTWARD to a narrow spigot face —
+   1 spigot ≈ an arrow, 3–4 ≈ a trapezoid, base always widest. A RETURN
+   plenum does not taper at all: it's a box on the back of the unit, so the
+   engine hands back a far face equal to the base and the same code draws a
+   rectangle (no special case here). Spigots are
    RECTANGLES (plan view of a round takeoff) standing off the spigot face at
    true width; side-face spigots ride the left/right edges. ── */
 interface PlenumSpigotRect {
@@ -979,6 +982,7 @@ export function StudioCanvas({
         unitWidthMm: widthMm, // the mounting face is a LONG face (spec §1a)
         spigots: sp,
         units: doc.settings.units,
+        stream: end, // return draws as a box; supply tapers to its spigots
       });
       if (body.builtIn || body.factorySpigots) continue; // no drawn plenum object
       const f = endFace(unit, end);
@@ -2601,6 +2605,8 @@ export function StudioCanvas({
                             unitWidthMm: widthMm,
                             spigots: [],
                             units: doc.settings.units,
+                            // the ghost must promise the shape you'll get
+                            stream: e.end,
                           });
                           const ghost = plenumShape({
                             cx: f.mid.x,

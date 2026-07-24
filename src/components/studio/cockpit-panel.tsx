@@ -2643,6 +2643,7 @@ export function PlenumInspectCard({
     unitWidthMm: Number(unit?.props.widthMm) || null,
     spigots,
     units,
+    stream,
   });
   const [face, setFace] = useState<PlenumSpigot["face"]>("front");
 

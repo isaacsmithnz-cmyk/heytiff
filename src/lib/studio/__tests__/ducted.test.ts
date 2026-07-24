@@ -294,6 +294,50 @@ describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
     expect(b.label).toBe("1200 × 400 · 1 × Ø350 · 2 × Ø250");
   });
 
+  /* Field feedback 2026-07-23: a RETURN plenum is a box bolted to the back of
+     the unit — a return-air/filter box, not a transition to round ducts — so
+     it must not taper. Only the supply side has spigots to narrow toward. */
+  it("a RETURN plenum is a plain box — far face = base, so it draws square", () => {
+    const ret = { w_mm: 660, h_mm: 157.5 }; // SEZ-M25DA(L) return opening
+    const b = plenumBody({ opening: ret, spigots: [], units: "mm", stream: "return" });
+    expect(b.rectangular).toBe(true);
+    expect(b.baseWMm).toBe(660);
+    expect(b.spigotFaceWMm).toBe(660); // equal ⇒ rectangle, not a wedge
+    expect(b.depthMm).toBe(400);
+    expect(b.label).toBe("660 × 400");
+  });
+
+  it("a return box stays square even with a spigot on it", () => {
+    const ret = { w_mm: 660, h_mm: 157.5 };
+    const b = plenumBody({
+      opening: ret,
+      spigots: [spig(350)],
+      units: "mm",
+      stream: "return",
+    });
+    expect(b.spigotFaceWMm).toBe(660); // NOT narrowed to 350 + gaps
+    expect(b.rectangular).toBe(true);
+  });
+
+  it("SUPPLY still tapers — the same width narrows toward its spigot", () => {
+    const sup = { w_mm: 660, h_mm: 150 };
+    const b = plenumBody({
+      opening: sup,
+      spigots: [spig(350)],
+      units: "mm",
+      stream: "supply",
+    });
+    expect(b.rectangular).toBe(false);
+    expect(b.spigotFaceWMm).toBe(450); // 350 + 2×50 gaps
+    expect(b.spigotFaceWMm).toBeLessThan(b.baseWMm);
+  });
+
+  it("an omitted stream keeps the tapering shape — no silent square-off", () => {
+    const b = plenumBody({ opening, spigots: [spig(350)], units: "mm" });
+    expect(b.rectangular).toBe(false);
+    expect(b.spigotFaceWMm).toBeLessThan(b.baseWMm);
+  });
+
   it("no opening data → grey derived default (~90% of the discharge END, NOT the unit width)", () => {
     // caller passes the unit's SHORT-end width (the discharge face), e.g. 800
     const b = plenumBody({ opening: null, unitWidthMm: 800, spigots: [], units: "mm" });

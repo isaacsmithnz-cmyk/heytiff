@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { deriveCompliance, initialsFrom, startedLabel, yearsSince } from "./derive";
 import type { PendingInviteRow, StaffLicence, StaffRow } from "./types";
@@ -223,6 +224,37 @@ function toStaffRow(
     isMaster: ctx.isMaster,
   };
 }
+
+/* The signed-in person's own name, for the shell topbar and the dashboard
+   greeting.
+
+   Both used to derive this from the Auth0 session, which sets no `name` claim
+   here — so they fell back to the email prefix and showed "isaacsmithnz1"
+   instead of a name. The staff record is the real, editable source of truth, so
+   read it and keep the session only as a last resort for someone with no card
+   yet. Cached, so the layout and the page share one query per request. */
+export type ViewerName = { full: string; first: string };
+
+export const getViewerName = cache(
+  async (orgId: string, userId: string, fallback: string): Promise<ViewerName> => {
+    const { data } = await supabaseAdmin
+      .from("staff_profiles")
+      .select("full_name, preferred_name")
+      .eq("org_id", orgId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    const full = ((data?.full_name as string) ?? "").trim();
+    const preferred = ((data?.preferred_name as string) ?? "").trim();
+    const safeFallback = fallback.trim() || "there";
+
+    return {
+      full: full || safeFallback,
+      // a preferred name IS the first name when it's set — that's the point of it
+      first: preferred || full.split(/\s+/)[0] || safeFallback,
+    };
+  },
+);
 
 /** Outstanding invitations, shaped for the directory's Pending tab. */
 export async function listPendingInvites(

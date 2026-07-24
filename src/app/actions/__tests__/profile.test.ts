@@ -4,7 +4,9 @@
 const update = jest.fn().mockReturnValue({
   eq: jest.fn().mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) }),
 });
-const maybeSingle = jest.fn().mockResolvedValue({ data: { id: "p1" }, error: null });
+const maybeSingle = jest
+  .fn()
+  .mockResolvedValue({ data: { id: "p1", first_name: "Jordan", last_name: "Mills" }, error: null });
 const select = jest.fn().mockReturnValue({
   eq: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ maybeSingle }) }),
 });
@@ -40,21 +42,37 @@ describe("saveMyProfileSection — section guard", () => {
   );
 
   it("refuses an invented section without touching the database", async () => {
-    const res = await saveMyProfileSection("__proto__", { full_name: "x" });
+    const res = await saveMyProfileSection("__proto__", { first_name: "x" });
     expect(res.ok).toBe(false);
     expect(from).not.toHaveBeenCalled();
   });
 
   it("accepts a legitimate section", async () => {
-    const res = await saveMyProfileSection("personal", { full_name: "Jordan" });
+    const res = await saveMyProfileSection("personal", {
+      first_name: "Jordan",
+      last_name: "Mills",
+    });
     expect(res).toEqual({ ok: true });
     expect(update).toHaveBeenCalledTimes(1);
-    expect(update.mock.calls[0][0]).toMatchObject({ full_name: "Jordan" });
+    expect(update.mock.calls[0][0]).toMatchObject({
+      first_name: "Jordan",
+      last_name: "Mills",
+      // derived, never submitted by the form
+      full_name: "Jordan Mills",
+    });
+  });
+
+  it("keeps the surname when only the first name is submitted", async () => {
+    // the stored card supplies the half the patch doesn't carry, so a partial
+    // save can't quietly truncate someone's name
+    const res = await saveMyProfileSection("personal", { first_name: "Jordan" });
+    expect(res).toEqual({ ok: true });
+    expect(update.mock.calls[0][0]).toMatchObject({ full_name: "Jordan Mills" });
   });
 
   it("strips payroll columns from an otherwise valid section", async () => {
     await saveMyProfileSection("personal", {
-      full_name: "Jordan",
+      first_name: "Jordan",
       hourly_wage: "999",
       notes: "sneaky",
     });
@@ -70,13 +88,13 @@ describe("saveMyProfileSection — section guard", () => {
   });
 
   it("no-ops when nothing allowed survives", async () => {
-    const res = await saveMyProfileSection("emergency", { full_name: "wrong section" });
+    const res = await saveMyProfileSection("emergency", { first_name: "wrong section" });
     expect(res).toEqual({ ok: true });
     expect(update).not.toHaveBeenCalled();
   });
 
   it("always stamps updated_at", async () => {
-    await saveMyProfileSection("personal", { full_name: "Jordan" });
+    await saveMyProfileSection("personal", { first_name: "Jordan" });
     expect(update.mock.calls[0][0]).toHaveProperty("updated_at");
   });
 });

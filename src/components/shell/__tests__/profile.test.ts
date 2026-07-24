@@ -7,6 +7,8 @@ const blank: StaffProfile = {
   id: "p1",
   org_id: "o1",
   user_id: "auth0|1",
+  first_name: null,
+  last_name: null,
   full_name: null,
   preferred_name: null,
   phone: null,
@@ -238,7 +240,7 @@ describe("escaping — values reach the DOM via dangerouslySetInnerHTML", () => 
   it("does not emit a raw script tag from a stored field value", () => {
     const html = profileHtml(staff, {
       mode: "self",
-      profile: { ...blank, full_name: '<script>alert(1)</script>', address: '"><img onerror=x>' },
+      profile: { ...blank, first_name: '<script>alert(1)</script>', address: '"><img onerror=x>' },
     });
     expect(html).not.toContain("<script>alert(1)</script>");
     expect(html).not.toContain('"><img');
@@ -275,16 +277,26 @@ describe("escaping — values reach the DOM via dangerouslySetInnerHTML", () => 
 describe("seeding stored values into the form", () => {
   it("renders empty fields when there is no stored card", () => {
     const html = profileHtml(staff, { mode: "self", profile: null });
-    expect(html).toContain('name="full_name" type="text" placeholder="e.g. Jordan Mills" value=""');
+    expect(html).toContain('name="first_name" type="text" placeholder="e.g. Jordan" value=""');
+    expect(html).toContain('name="last_name" type="text" placeholder="e.g. Mills" value=""');
   });
 
   it("fills inputs from the stored card", () => {
     const html = profileHtml(staff, {
       mode: "self",
-      profile: { ...blank, full_name: "Jordan Mills", phone: "0400 000 000" },
+      profile: { ...blank, first_name: "Jordan", last_name: "Mills", phone: "0400 000 000" },
     });
-    expect(html).toContain('value="Jordan Mills"');
+    expect(html).toContain('value="Jordan"');
+    expect(html).toContain('value="Mills"');
     expect(html).toContain('value="0400 000 000"');
+  });
+
+  it("edits a name as two fields, and never as one free-text box", () => {
+    const html = profileHtml(staff, { mode: "self", profile: blank });
+    expect(html).toContain("<label>First name");
+    expect(html).toContain("<label>Last name");
+    // full_name is derived on save — there is nothing to type it into
+    expect(html).not.toContain('name="full_name"');
   });
 
   it("renders stored dates back as dd/mm/yyyy", () => {

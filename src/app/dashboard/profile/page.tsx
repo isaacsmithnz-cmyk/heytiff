@@ -4,6 +4,7 @@ import { profileHtml, type ProfileHeader } from "@/components/shell/profile";
 import { ProfileBehaviors } from "@/components/shell/profile-behaviors";
 import { loadMyProfile, saveMyProfileSection } from "@/app/actions/profile";
 import { initialsFrom, startedLabel, yearsSince } from "@/lib/staff/derive";
+import { fullNameOf } from "@/lib/staff/name";
 import { assignedVehicleFor } from "@/lib/fleet/query";
 
 /* My profile — your own staff card, and the values that fill in Team.
@@ -23,7 +24,7 @@ export default async function MyProfilePage() {
 
   const email = session.user.email ?? "";
   const displayName =
-    profile.full_name ||
+    fullNameOf(profile) ||
     (session.user.name as string | undefined) ||
     email.split("@")[0] ||
     "User";

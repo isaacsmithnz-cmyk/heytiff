@@ -103,7 +103,7 @@ describe("buildPatch", () => {
   it("keeps only the section's own columns", () => {
     const { patch } = buildPatch("emergency", [
       ["emergency_name", "Sarah Mills"],
-      ["full_name", "Should Be Dropped"],
+      ["first_name", "Should Be Dropped"],
       ["hourly_wage", "999"],
     ]);
     expect(patch).toEqual({ emergency_name: "Sarah Mills" });
@@ -111,12 +111,19 @@ describe("buildPatch", () => {
 
   it("drops payroll columns even when the section is legitimate", () => {
     const { patch } = buildPatch("personal", [
-      ["full_name", "Jordan"],
+      ["first_name", "Jordan"],
       ["hourly_wage", "500"],
       ["cost_split", '{"install":100}'],
       ["notes", "give me a raise"],
     ]);
-    expect(patch).toEqual({ full_name: "Jordan" });
+    expect(patch).toEqual({ first_name: "Jordan" });
+  });
+
+  it("won't let a direct POST set the derived full_name", () => {
+    // full_name is composed from first + last on save; accepting it here would
+    // let a hand-rolled POST leave the two out of step
+    const { patch } = buildPatch("personal", [["full_name", "Someone Else"]]);
+    expect(patch).toEqual({});
   });
 
   it("converts dd/mm/yyyy date columns to ISO", () => {
@@ -128,10 +135,10 @@ describe("buildPatch", () => {
   it("reports unparseable dates instead of silently dropping them", () => {
     const { patch, invalid } = buildPatch("personal", [
       ["birthday", "31/02/1990"],
-      ["full_name", "Jordan"],
+      ["first_name", "Jordan"],
     ]);
     expect(invalid).toEqual(["birthday"]);
-    expect(patch).toEqual({ full_name: "Jordan" });
+    expect(patch).toEqual({ first_name: "Jordan" });
   });
 
   it("clears a date when the field is emptied", () => {
@@ -146,8 +153,8 @@ describe("buildPatch", () => {
   });
 
   it("trims whitespace", () => {
-    const { patch } = buildPatch("personal", [["full_name", "  Jordan Mills  "]]);
-    expect(patch).toEqual({ full_name: "Jordan Mills" });
+    const { patch } = buildPatch("personal", [["last_name", "  van der Berg  "]]);
+    expect(patch).toEqual({ last_name: "van der Berg" });
   });
 
   it("accepts valid status values and ignores invalid ones", () => {
@@ -159,7 +166,7 @@ describe("buildPatch", () => {
   });
 
   it("returns an empty patch when nothing is allowed through", () => {
-    const { patch } = buildPatch("workrights", [["full_name", "x"]]);
+    const { patch } = buildPatch("workrights", [["first_name", "x"]]);
     expect(patch).toEqual({});
   });
 
@@ -167,7 +174,7 @@ describe("buildPatch", () => {
     for (const section of Object.keys(SELF_EDITABLE_SECTIONS) as Array<
       keyof typeof SELF_EDITABLE_SECTIONS
     >) {
-      expect(() => buildPatch(section, [["full_name", "x"]])).not.toThrow();
+      expect(() => buildPatch(section, [["first_name", "x"]])).not.toThrow();
     }
   });
 });

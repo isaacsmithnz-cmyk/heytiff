@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { deriveCompliance, initialsFrom, startedLabel, yearsSince } from "./derive";
+import { firstNameOf, fullNameOf } from "./name";
 import type { PendingInviteRow, StaffLicence, StaffRow } from "./types";
 import type { Role } from "@/lib/roles-shared";
 
@@ -14,7 +15,7 @@ import type { Role } from "@/lib/roles-shared";
    list "for convenience". */
 
 const IDENTITY_COLUMNS =
-  "id, user_id, full_name, preferred_name, phone, birthday, address, start_date, " +
+  "id, user_id, first_name, last_name, full_name, preferred_name, phone, birthday, address, start_date, " +
   "employment_type, job_title, status, photo_url, " +
   "emergency_name, emergency_phone, emergency_relationship, emergency_alt_phone, " +
   "work_rights_status, visa_type, visa_expiry, hours_condition, vevo_checked_at, " +
@@ -35,6 +36,8 @@ export function staffColumns(opts: { pay: boolean; notes: boolean }): string {
 type StaffProfileRow = Record<string, unknown> & {
   id: string;
   user_id: string | null;
+  first_name: string | null;
+  last_name: string | null;
   full_name: string | null;
   preferred_name: string | null;
   job_title: string | null;
@@ -198,11 +201,12 @@ function toStaffRow(
     now: Date;
   }
 ): StaffRow {
-  const name = p.full_name?.trim() || ctx.email.split("@")[0] || "Unnamed";
+  const stored = fullNameOf(p);
+  const name = stored || ctx.email.split("@")[0] || "Unnamed";
   return {
     id: p.id,
     userId: p.user_id,
-    initials: initialsFrom(p.full_name, ctx.email),
+    initials: initialsFrom(stored, ctx.email),
     name,
     nickname: p.preferred_name || undefined,
     email: ctx.email,
@@ -239,19 +243,19 @@ export const getViewerName = cache(
   async (orgId: string, userId: string, fallback: string): Promise<ViewerName> => {
     const { data } = await supabaseAdmin
       .from("staff_profiles")
-      .select("full_name, preferred_name")
+      .select("first_name, last_name, full_name, preferred_name")
       .eq("org_id", orgId)
       .eq("user_id", userId)
       .maybeSingle();
 
-    const full = ((data?.full_name as string) ?? "").trim();
-    const preferred = ((data?.preferred_name as string) ?? "").trim();
+    const row = data ?? {};
+    const full = fullNameOf(row);
     const safeFallback = fallback.trim() || "there";
 
     return {
       full: full || safeFallback,
-      // a preferred name IS the first name when it's set — that's the point of it
-      first: preferred || full.split(/\s+/)[0] || safeFallback,
+      // firstNameOf lets a preferred name win — that's the point of it
+      first: firstNameOf(row) || safeFallback,
     };
   },
 );

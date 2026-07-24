@@ -11,6 +11,7 @@ import {
 } from "./comments";
 import type { BoardNotice } from "./board";
 import { documentsForNotices } from "@/lib/documents/query";
+import { displayNameOf } from "@/lib/staff/name";
 import { isDelegated, noticeReadState, type DashTask } from "./tasks";
 
 /* Queries for the task list and noticeboard. Org-scoped throughout.
@@ -25,14 +26,10 @@ import { isDelegated, noticeReadState, type DashTask } from "./tasks";
 async function staffNames(orgId: string): Promise<Map<string, string>> {
   const { data } = await supabaseAdmin
     .from("staff_profiles")
-    .select("id, full_name, preferred_name")
+    .select("id, first_name, last_name, full_name, preferred_name")
     .eq("org_id", orgId);
   const map = new Map<string, string>();
-  for (const r of data ?? [])
-    map.set(
-      r.id as string,
-      (((r.preferred_name as string) || (r.full_name as string) || "Unnamed").trim() || "Unnamed"),
-    );
+  for (const r of data ?? []) map.set(r.id as string, displayNameOf(r));
   return map;
 }
 

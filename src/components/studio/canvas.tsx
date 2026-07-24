@@ -964,7 +964,13 @@ export function StudioCanvas({
   const plenumShapes = useMemo(() => {
     const m = new Map<
       string,
-      PlenumShape & { label: string; derived: boolean; overSpigot: boolean; unitId: string }
+      PlenumShape & {
+        label: string;
+        derived: boolean;
+        overSpigot: boolean;
+        overHeight: boolean;
+        unitId: string;
+      }
     >();
     for (const p of plenums) {
       const unit = units.find((u) => u.id === String(p.props.unitId ?? ""));
@@ -1002,6 +1008,7 @@ export function StudioCanvas({
         label: body.label,
         derived: body.derived,
         overSpigot: body.overSpigot,
+        overHeight: body.overHeight,
         unitId: unit.id,
       });
     }
@@ -2523,7 +2530,11 @@ export function StudioCanvas({
             return (
               <g
                 key={p.id}
-                className={`ds-plenum${p.id === selectedId ? " sel" : ""}${s.overSpigot ? " over" : ""}`}
+                /* "over" = this plenum can't take its ducts — too many across
+                   the face, OR one too tall for the opening */
+                className={`ds-plenum${p.id === selectedId ? " sel" : ""}${
+                  s.overSpigot || s.overHeight ? " over" : ""
+                }`}
                 style={{ color: colour }}
               >
                 <polygon

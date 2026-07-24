@@ -160,8 +160,8 @@ describe("plenum inspect card", () => {
     });
     const card = screen.getByTestId("plenum-card");
     expect(within(card).getByText("Supply plenum")).toBeInTheDocument();
-    // seeded supply opening 1400 wide × 400 protrusion → base W × depth D
-    expect(within(card).getByText("1400 × 400 mm")).toBeInTheDocument();
+    // the seeded OPENING, W × H — the plan depth is geometry, never shown
+    expect(within(card).getByText("1400 × 250 mm")).toBeInTheDocument();
     // real opening → not the grey estimated default, and 2×14" fits (not over)
     expect(within(card).queryByText("estimated — no opening data in pack")).toBeNull();
     expect(within(card).queryByText("too many ducts for this plenum")).toBeNull();
@@ -245,8 +245,8 @@ describe("plenum inspect card", () => {
     );
     const card = screen.getByTestId("plenum-card");
     expect(within(card).getByText("too many ducts for this plenum")).toBeInTheDocument();
-    // base label is "<base> × 400 mm" — depth is the 400 mm protrusion, not 450
-    expect(within(card).getByText(/× 400 mm$/)).toBeInTheDocument();
+    // the card shows the OPENING height (250), not the plan depth
+    expect(within(card).getByText(/× 250 mm$/)).toBeInTheDocument();
     const roster = card.querySelector(".ds-ck-spigs") as HTMLElement;
     expect(within(roster).getAllByText('14"')).toHaveLength(4);
   });

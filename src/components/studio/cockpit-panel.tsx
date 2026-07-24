@@ -2677,13 +2677,22 @@ export function PlenumInspectCard({
       <div className="ds-ck-objbody">
         <ObjRow
           k="Base"
-          v={`${Math.round(body.baseWMm)} × ${Math.round(body.depthMm)} mm`}
+          /* the OPENING (W × H) — what the duct has to fit through. The plan
+             depth is geometry, not a spec figure, and never shown. */
+          v={`${Math.round(body.baseWMm)} × ${
+            body.openingHMm == null ? "—" : Math.round(body.openingHMm)
+          } mm`}
         />
         {body.derived && (
           <div className="ds-ck-usub">estimated — no opening data in pack</div>
         )}
         {body.overSpigot && (
           <div className="ds-ck-usub warn">too many ducts for this plenum</div>
+        )}
+        {body.overHeight && (
+          <div className="ds-ck-usub warn">
+            duct taller than the opening — the plenum needs oversizing
+          </div>
         )}
         <ObjRow k="On" v={model || "—"} />
         <ObjRow k="On" v={model || "—"} />

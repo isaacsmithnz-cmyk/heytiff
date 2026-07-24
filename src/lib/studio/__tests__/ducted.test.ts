@@ -269,7 +269,7 @@ describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
     expect(b.overSpigot).toBe(false);
     expect(b.depthMm).toBe(400);
     expect(b.derived).toBe(false);
-    expect(b.label).toBe('1200 × 400 · 2 × 14"');
+    expect(b.label).toBe('1200 × 250 · 2 × 14"');
   });
 
   it("one spigot → a near-point arrow (small spigot face), base unchanged", () => {
@@ -277,7 +277,7 @@ describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
     expect(b.baseWMm).toBe(1200); // base never shrinks
     expect(b.spigotFaceWMm).toBe(350 + 100); // 1×350 + 2×50 gaps
     expect(b.overSpigot).toBe(false);
-    expect(b.label).toBe('1200 × 400 · 1 × 14"');
+    expect(b.label).toBe('1200 × 250 · 1 × 14"');
   });
 
   it("too many ducts → overSpigot, base never grows past the unit", () => {
@@ -286,12 +286,12 @@ describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
     expect(b.overSpigot).toBe(true);
     expect(b.baseWMm).toBe(1200); // stays the opening width, does NOT grow
     expect(b.spigotFaceWMm).toBe(1200); // clamped to base for rendering
-    expect(b.label).toBe('1200 × 400 · 4 × 14"'); // no "(3-face)" — that model is gone
+    expect(b.label).toBe('1200 × 250 · 4 × 14"'); // no "(3-face)" — that model is gone
   });
 
   it("mixed sizes label descending, per units setting", () => {
     const b = plenumBody({ opening, spigots: [spig(250), spig(350), spig(250)], units: "mm" });
-    expect(b.label).toBe("1200 × 400 · 1 × Ø350 · 2 × Ø250");
+    expect(b.label).toBe("1200 × 250 · 1 × Ø350 · 2 × Ø250");
   });
 
   /* Field feedback 2026-07-23: a RETURN plenum is a box bolted to the back of
@@ -303,8 +303,8 @@ describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
     expect(b.rectangular).toBe(true);
     expect(b.baseWMm).toBe(660);
     expect(b.spigotFaceWMm).toBe(660); // equal ⇒ rectangle, not a wedge
-    expect(b.depthMm).toBe(400);
-    expect(b.label).toBe("660 × 400");
+    expect(b.depthMm).toBe(150); // a return box is shallow
+    expect(b.label).toBe("660 × 158"); // opening W × H — never the depth
   });
 
   it("a return box stays square even with a spigot on it", () => {
@@ -336,6 +336,68 @@ describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
     const b = plenumBody({ opening, spigots: [spig(350)], units: "mm" });
     expect(b.rectangular).toBe(false);
     expect(b.spigotFaceWMm).toBeLessThan(b.baseWMm);
+  });
+
+  /* The label is the OPENING — W × H. The plan depth is geometry and never
+     appears: on a drawing the two figures that matter are the ones the duct
+     has to fit through (field feedback 2026-07-23). */
+  it("labels the opening W × H, never the plan depth", () => {
+    const b = plenumBody({ opening: { w_mm: 660, h_mm: 150 }, spigots: [], units: "mm" });
+    expect(b.label).toBe("660 × 150");
+    expect(b.openingHMm).toBe(150);
+    expect(b.depthMm).toBe(400); // still 400 deep — the depth just isn't labelled
+    expect(b.label).not.toContain("400");
+  });
+
+  it("an unknown opening height shows a dash, not a dropped dimension", () => {
+    const b = plenumBody({ opening: null, unitWidthMm: 800, spigots: [], units: "mm" });
+    expect(b.openingHMm).toBeNull();
+    expect(b.derived).toBe(true);
+    expect(b.label).toBe("720 × —");
+  });
+
+  /* A round takeoff can't be taller than the opening it lands on: a 150-high
+     plenum needs oversizing before it can take a 10" (250 Ø). */
+  it("flags a spigot taller than the opening — the 150-high / 10-inch case", () => {
+    const b = plenumBody({
+      opening: { w_mm: 660, h_mm: 150 },
+      spigots: [spig(250)],
+      units: "inch",
+    });
+    expect(b.overHeight).toBe(true);
+    expect(b.overSpigot).toBe(false); // it fits ACROSS the width — height is the problem
+  });
+
+  it("a spigot within the opening height is fine", () => {
+    const b = plenumBody({
+      opening: { w_mm: 660, h_mm: 150 },
+      spigots: [spig(150)],
+      units: "mm",
+    });
+    expect(b.overHeight).toBe(false);
+  });
+
+  it("no height in the pack → never a false height warning", () => {
+    const b = plenumBody({ opening: null, unitWidthMm: 800, spigots: [spig(400)], units: "mm" });
+    expect(b.openingHMm).toBeNull();
+    expect(b.overHeight).toBe(false); // unknown is not the same as breached
+  });
+
+  it("a RETURN box is 150 deep; supply on the same unit stays 400", () => {
+    const ret = plenumBody({
+      opening: { w_mm: 660, h_mm: 157.5 },
+      spigots: [],
+      units: "mm",
+      stream: "return",
+    });
+    const sup = plenumBody({
+      opening: { w_mm: 660, h_mm: 150 },
+      spigots: [],
+      units: "mm",
+      stream: "supply",
+    });
+    expect(ret.depthMm).toBe(150);
+    expect(sup.depthMm).toBe(400);
   });
 
   it("no opening data → grey derived default (~90% of the discharge END, NOT the unit width)", () => {

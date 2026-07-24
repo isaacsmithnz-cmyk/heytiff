@@ -211,9 +211,17 @@ export function isPlenumOf(
     (both grades of factory spigot mean "no drawn plenum body"; see there). */
 export type { OpeningSpec } from "./packs/schema";
 
-/** How far a drawn plenum protrudes from the unit in plan (mm). Not a
-    published figure — a construction default. */
+/* Plan protrusion of a drawn plenum (mm). Neither is a published figure —
+   both are construction defaults, and both are destined for the pack's
+   components section so a brand/installer can set their own (noted
+   2026-07-23, not built yet). Until then they live here as named constants
+   rather than magic numbers at the call site. */
+
+/** SUPPLY: deep enough to turn air into the takeoffs. */
 export const PLENUM_PROTRUSION_MM = 400;
+
+/** RETURN: a shallow box on the back of the unit (field standard). */
+export const RETURN_PLENUM_DEPTH_MM = 150;
 
 /** Derived-default base when the data book opening is absent (Principle 5):
     ~90 % of the discharge END the plenum bolts to (the caller passes the
@@ -228,7 +236,12 @@ export interface PlenumBody {
   baseWMm: number;
   /** far spigot face width (seats the spigots); ≤ baseWMm unless overSpigot */
   spigotFaceWMm: number;
-  /** plan protrusion from the unit face */
+  /** the opening HEIGHT — how deep the duct can be where it meets the unit.
+      Null when the pack has no opening for this face. Sizes the spigots (a
+      takeoff can't be taller than the plenum), so it is the figure that
+      belongs beside the width — NOT the plan depth. */
+  openingHMm: number | null;
+  /** plan protrusion from the unit face. GEOMETRY ONLY — never labelled. */
   depthMm: number;
   /** integral return — no drawn plenum */
   builtIn: boolean;
@@ -238,10 +251,13 @@ export interface PlenumBody {
   derived: boolean;
   /** spigots need a face wider than the base → too many ducts for this plenum */
   overSpigot: boolean;
+  /** a spigot is bigger than the opening is HIGH — it can't land on a plenum
+      this shallow without oversizing it (e.g. a 250 Ø on a 150 high plenum) */
+  overHeight: boolean;
   /** a plain BOX — the far face equals the base, so it draws as a rectangle
       instead of tapering. Always true for a return plenum. */
   rectangular: boolean;
-  /** `1200 × 400 · 3 × 14"` — base W × depth D, spigots per units setting */
+  /** `1200 × 250 · 3 × 14"` — opening W × H, then spigots per units setting */
   label: string;
 }
 
@@ -294,22 +310,35 @@ export function plenumBody(opts: {
   // 1 spigot → a near-point (arrow), more → widens toward (never past) the base
   const rectangular = opts.stream === "return";
   const spigotFaceWMm = rectangular || overSpigot ? baseWMm : needed;
+  const openingHMm = real?.h_mm ?? null;
+  /* the OTHER way a duct fails to fit: a round takeoff can't be taller than
+     the opening it lands on. A 150 high plenum can't take a 10" (250 Ø)
+     without being oversized — the height is what decides that, which is why
+     it's the figure shown beside the width. */
+  const overHeight =
+    openingHMm != null && opts.spigots.some((s) => s.diaMm > openingHMm);
   return {
     baseWMm,
     spigotFaceWMm,
-    depthMm: PLENUM_PROTRUSION_MM,
+    openingHMm,
+    depthMm: rectangular ? RETURN_PLENUM_DEPTH_MM : PLENUM_PROTRUSION_MM,
     builtIn,
     factorySpigots,
     derived,
     overSpigot,
+    overHeight,
     rectangular,
-    label: plenumLabel(baseWMm, PLENUM_PROTRUSION_MM, opts.spigots, opts.units),
+    label: plenumLabel(baseWMm, openingHMm, opts.spigots, opts.units),
   };
 }
 
+/** The plan label: the OPENING, `W × H`. The plan depth is deliberately not
+    in it — on a drawing the two figures that matter are the ones the duct has
+    to fit through, and the height is what sizes the spigots. An unknown
+    height shows as a dash rather than being quietly dropped. */
 export function plenumLabel(
   baseWMm: number,
-  depthMm: number,
+  openingHMm: number | null,
   spigots: PlenumSpigot[],
   units: "mm" | "inch"
 ): string {
@@ -318,7 +347,8 @@ export function plenumLabel(
   const parts = [...counts.entries()]
     .sort((a, b) => b[0] - a[0])
     .map(([dia, n]) => `${n} × ${formatDia(dia, units)}`);
-  const dims = `${Math.round(baseWMm)} × ${Math.round(depthMm)}`;
+  const h = openingHMm == null ? "—" : String(Math.round(openingHMm));
+  const dims = `${Math.round(baseWMm)} × ${h}`;
   return `${dims}${parts.length ? ` · ${parts.join(" · ")}` : ""}`;
 }
 

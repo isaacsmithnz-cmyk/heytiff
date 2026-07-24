@@ -88,6 +88,35 @@ describe("RoomModal", () => {
     expect(room.props.orientation).toBeDefined();
   });
 
+  it("lets you type a decimal ceiling height — the dot used to be eaten", () => {
+    render(
+      <RoomModal doc={docWithRoom()} roomId="room1" onMutate={() => {}} onClose={() => {}} />
+    );
+    const h = screen.getByLabelText("Ceiling height (m)") as HTMLInputElement;
+    // default 2.4 m over 20 m² → 48 m³
+    expect(screen.getByText(/48 m³/)).toBeInTheDocument();
+
+    // a bare "2." must SURVIVE keystroke-to-keystroke — the old code reparsed
+    // it to 2 and the dot vanished, so 2.4 was unreachable
+    fireEvent.change(h, { target: { value: "2." } });
+    expect(h.value).toBe("2.");
+
+    // finishing the decimal flows into the volume: 20 × 2.7 = 54 m³
+    fireEvent.change(h, { target: { value: "2.7" } });
+    expect(h.value).toBe("2.7");
+    expect(screen.getByText(/54 m³/)).toBeInTheDocument();
+
+    // letters are rejected outright (input unchanged)
+    fireEvent.change(h, { target: { value: "2.7x" } });
+    expect(h.value).toBe("2.7");
+
+    // clearing then blurring normalises back to the 2.4 default
+    fireEvent.change(h, { target: { value: "" } });
+    expect(h.value).toBe("");
+    fireEvent.blur(h);
+    expect(h.value).toBe("2.4");
+  });
+
   it("shows the reference-sheets link regardless of external walls", () => {
     const open = jest.fn();
     // no external walls marked

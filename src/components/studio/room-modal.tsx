@@ -151,6 +151,14 @@ export function RoomModal({
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) =>
     setDraft((d) => ({ ...d, [k]: v }));
 
+  /* The height field keeps its OWN text state. Binding the input straight to
+     the number (`value={String(draft.ceilingHeightM)}` + parseFloat on every
+     keystroke) ate the decimal point: typing "2." reparsed to 2 and the dot
+     vanished, so you could never reach "2.4" — and the volume/load calc ran
+     on whole metres. The text survives intermediate states ("", "2."); the
+     draft only takes a valid positive number; blur normalises. */
+  const [heightText, setHeightText] = useState(() => String(draft.ceilingHeightM));
+
   /* the effective orientation: user's pick when overridden, else auto */
   const orientation: Orientation = overridden ? draft.orientation : autoOri;
 
@@ -319,10 +327,21 @@ export function RoomModal({
                     inputMode="decimal"
                     autoComplete="off"
                     aria-label="Ceiling height (m)"
-                    value={String(draft.ceilingHeightM)}
+                    value={heightText}
                     onChange={(e) => {
-                      const v = parseFloat(e.target.value);
-                      set("ceilingHeightM", Number.isFinite(v) ? v : 2.4);
+                      const t = e.target.value;
+                      // digits with at most one dot — lets "" and "2." stand
+                      // while typing toward "2.4"
+                      if (!/^\d*\.?\d*$/.test(t)) return;
+                      setHeightText(t);
+                      const v = parseFloat(t);
+                      if (Number.isFinite(v) && v > 0) set("ceilingHeightM", v);
+                    }}
+                    onBlur={() => {
+                      const v = parseFloat(heightText);
+                      const h = Number.isFinite(v) && v > 0 ? v : 2.4;
+                      set("ceilingHeightM", h);
+                      setHeightText(String(h));
                     }}
                   />
                   m

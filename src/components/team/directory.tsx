@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import type { PendingInviteRow, StaffRow } from "@/lib/staff/types";
 
@@ -26,6 +27,9 @@ export function TeamDirectory({
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<Sort>("name");
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  // menu flips above its button when the row is low in the viewport
+  const [menuUp, setMenuUp] = useState(false);
+  const router = useRouter();
   // demo-only deactivate/reactivate toggles, keyed by staff id
   const [statusOverride, setStatusOverride] = useState<Record<string, StaffRow["status"]>>({});
   const rootRef = useRef<HTMLDivElement>(null);
@@ -137,7 +141,19 @@ export function TeamDirectory({
             {rows.map((s) => {
               const inactive = s.status === "Inactive";
               return (
-                <div key={s.id} className={`dirrow${inactive ? " off" : ""}`}>
+                <div
+                  key={s.id}
+                  className={`dirrow${inactive ? " off" : ""}`}
+                  role="link"
+                  tabIndex={0}
+                  onClick={() => router.push(`/dashboard/team/${s.id}`)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      router.push(`/dashboard/team/${s.id}`);
+                    }
+                  }}
+                >
                   <span className="dname">
                     <span className="dav" style={{ background: `hsl(${hue(s.name)} 64% 42%)` }}>
                       {s.initials}
@@ -156,16 +172,21 @@ export function TeamDirectory({
                     )}
                     {s.compliance.label}
                   </span>
-                  <span className="dmorewrap">
+                  {/* the whole row navigates, so the menu keeps its clicks to itself */}
+                  <span className="dmorewrap" onClick={(e) => e.stopPropagation()}>
                     <button
                       className="dmore"
                       aria-label="Actions"
-                      onClick={() => setOpenMenu(openMenu === s.id ? null : s.id)}
+                      onClick={(e) => {
+                        const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                        setMenuUp(r.bottom + 220 > window.innerHeight);
+                        setOpenMenu(openMenu === s.id ? null : s.id);
+                      }}
                     >
                       <Icon name="dots" size={18} />
                     </button>
                     {openMenu === s.id && (
-                      <div className="dmenu open">
+                      <div className={`dmenu open${menuUp ? " up" : ""}`}>
                         <Link href={`/dashboard/team/${s.id}`}>
                           <Icon name="arrowUR" size={15} />
                           View profile

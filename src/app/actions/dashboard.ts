@@ -11,6 +11,7 @@ import { asRsvpAnswer, isEventTime } from "@/lib/dashboard/events";
 import { asReaction } from "@/lib/dashboard/reactions";
 import { mentionedIds, MAX_COMMENT } from "@/lib/dashboard/comments";
 import { mentionableStaff, pollOptionIds } from "@/lib/dashboard/tasks-query";
+import { MAX_NOTICE_FILES } from "@/lib/documents/files";
 import { todayInAu } from "@/lib/au-dates";
 
 /* Dashboard mutations — tasks and the noticeboard.
@@ -37,6 +38,32 @@ async function context(): Promise<Ctx | null> {
 }
 
 const refresh = () => revalidatePath("/dashboard");
+
+/* Attaching already-uploaded files to a notice.
+
+   The composer uploads as you pick, before the notice exists, so the files
+   arrive unattached and are CLAIMED here once there's something to attach them
+   to. Every condition is re-checked: in this org, the right kind, uploaded by
+   the person now claiming them, actually finished, and not already on another
+   notice. An id on its own proves nothing. */
+async function claimDocuments(
+  ctx: Ctx,
+  noticeId: string,
+  documentIds: readonly string[],
+): Promise<void> {
+  const ids = [...new Set(documentIds)].filter(Boolean).slice(0, MAX_NOTICE_FILES);
+  if (ids.length === 0 || !ctx.staffId) return;
+
+  await supabaseAdmin
+    .from("documents")
+    .update({ notice_id: noticeId })
+    .eq("org_id", ctx.orgId)
+    .eq("kind", "notice_attachment")
+    .eq("uploaded_by", ctx.staffId)
+    .is("notice_id", null)
+    .not("uploaded_at", "is", null)
+    .in("id", ids);
+}
 
 const isISODate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s);
 
@@ -156,6 +183,8 @@ export async function postNotice(input: {
   eventDate?: string;
   eventTime?: string;
   eventLocation?: string;
+  /** Files already uploaded by this person and not yet on a notice. */
+  documentIds?: string[];
 }): Promise<DashResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "Not signed in." };
@@ -229,6 +258,8 @@ export async function postNotice(input: {
     }
   }
 
+  await claimDocuments(ctx, data.id as string, input.documentIds ?? []);
+
   // The author has, by definition, read their own notice — record the ack up
   // front so notice_reads stays the single source of truth for "who has read
   // this" and the author is never prompted to acknowledge their own words.
@@ -271,6 +302,8 @@ export async function editNotice(input: {
   eventDate?: string;
   eventTime?: string;
   eventLocation?: string;
+  /** Files added while editing — the ones already on it stay put. */
+  documentIds?: string[];
 }): Promise<DashResult> {
   const ctx = await context();
   if (!ctx?.staffId) return { ok: false, error: "No staff record for this account." };
@@ -335,6 +368,8 @@ export async function editNotice(input: {
     .eq("org_id", ctx.orgId)
     .eq("id", input.noticeId);
   if (error) return { ok: false, error: "Couldn't save that notice." };
+
+  await claimDocuments(ctx, input.noticeId, input.documentIds ?? []);
 
   // the author has read what they just wrote — carry their ack to the new revision
   if (reworded) {

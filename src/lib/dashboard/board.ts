@@ -3,6 +3,7 @@ import type { EventDetail } from "./events";
 import type { PollResult } from "./polls";
 import type { ReactionSummary } from "./reactions";
 import type { NoticeWithRead } from "./tasks";
+import type { StoredDocument } from "@/lib/documents/query";
 
 /* The composed shape a noticeboard row actually renders as.
 
@@ -25,4 +26,6 @@ export type BoardNotice = NoticeWithRead & {
   comments: CommentNode[];
   /** How many of those comments mention the viewer by name. */
   mentionsMe: number;
+  /** Photos and files on the post, each with a short-lived signed URL. */
+  attachments: StoredDocument[];
 };

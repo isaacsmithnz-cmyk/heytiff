@@ -172,7 +172,10 @@ describe("plenum inspect card", () => {
     expect(within(roster).getAllByText("front")).toHaveLength(2);
   });
 
-  it("+ spigot adds at the picked size and re-packs the face evenly", () => {
+  /* Sides fill before the far face: two takeoffs come off the slopes and the
+     body closes to a V, and only a third needs a flat face. Defaulting every
+     spigot to "front" forced a trapezoid as soon as there were two. */
+  it("a new spigot fills a free SIDE before the far face", () => {
     const doc = mkDoc({ objects: [...twoRooms(), placedAhu(), plenumObj(spigs)] });
     let next: DesignDocument | undefined;
     renderCockpit(doc, { selectedId: "pl1", onMutate: (fn) => (next = fn(doc)) });
@@ -186,10 +189,30 @@ describe("plenum inspect card", () => {
     }[];
     expect(list).toHaveLength(3);
     const added = list.find((s) => s.diaMm === 400)!;
+    expect(added.face).toBe("left"); // NOT front — the slopes go first
+    expect(added.t).toBeCloseTo(0.5, 6); // alone on that face → centred
+    // the untouched front pair re-packs among themselves: 2 × Ø350 + 3 × 50
+    expect(list.find((s) => s.id === "s1")!.t).toBeCloseTo(225 / 850, 6);
+    expect(list.find((s) => s.id === "s2")!.t).toBeCloseTo(625 / 850, 6);
+  });
+
+  it("picking a face explicitly overrides the side-first default", () => {
+    const doc = mkDoc({ objects: [...twoRooms(), placedAhu(), plenumObj(spigs)] });
+    let next: DesignDocument | undefined;
+    renderCockpit(doc, { selectedId: "pl1", onMutate: (fn) => (next = fn(doc)) });
+
+    fireEvent.click(screen.getByRole("radio", { name: "front" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ø400" }));
+    const list = next!.objects.find((o) => o.id === "pl1")!.props.spigots as {
+      id: string;
+      diaMm: number;
+      t: number;
+      face: string;
+    }[];
+    const added = list.find((s) => s.diaMm === 400)!;
     expect(added.face).toBe("front");
-    /* re-packed gap · Ø · gap by DIAMETER, not by index: Ø350 + Ø400 + Ø350
-       with 4 × 50 gaps = 1300 span, centres at 225 / 650 / 1075. The new
-       Ø400 lands mid-face; the equal outer pair sits symmetrically. */
+    /* now three on the face, packed gap · Ø · gap by DIAMETER not index:
+       Ø350 + Ø400 + Ø350 with 4 × 50 = 1300 span → centres 225 / 650 / 1075 */
     expect(added.t).toBeCloseTo(650 / 1300, 6);
     expect(list.find((s) => s.id === "s1")!.t).toBeCloseTo(225 / 1300, 6);
     expect(list.find((s) => s.id === "s2")!.t).toBeCloseTo(1075 / 1300, 6);

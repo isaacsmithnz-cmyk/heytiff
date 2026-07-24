@@ -2645,7 +2645,21 @@ export function PlenumInspectCard({
     units,
     stream,
   });
-  const [face, setFace] = useState<PlenumSpigot["face"]>("front");
+  /* Which face a NEW takeoff lands on. Sides fill first, then the far face:
+     two ducts come off the sloped sides and the body closes to a V point;
+     only a third needs a flat face to sit on, sized to that one duct. That's
+     how these are drawn by hand (field sketch 2026-07-23) — defaulting every
+     spigot to "front" forced a trapezoid the moment there were two.
+     An explicit pick always wins and sticks. */
+  const nextFreeFace = (): PlenumSpigot["face"] =>
+    !spigots.some((s) => s.face === "left")
+      ? "left"
+      : !spigots.some((s) => s.face === "right")
+        ? "right"
+        : "front";
+  const [facePick, setFacePick] = useState<PlenumSpigot["face"] | null>(null);
+  const face = facePick ?? nextFreeFace();
+  const setFace = (f: PlenumSpigot["face"]) => setFacePick(f);
 
   const writeSpigots = (next: PlenumSpigot[]) =>
     onMutate((d) => ({

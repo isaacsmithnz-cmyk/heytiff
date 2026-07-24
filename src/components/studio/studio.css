@@ -6851,6 +6851,24 @@
   stroke: #fff;
   stroke-width: 3px;
 }
+/* ── plan text halo ──────────────────────────────────────────────────
+   `paint-order: stroke` lays a white outline UNDER the glyphs so a label
+   stays readable over drawing linework. The default MITER join fires a long
+   spike off every sharp glyph corner, and at a 3px halo those spikes were
+   the white starbursts erupting around every label — they obscured the very
+   text the halo exists to reveal. Round joins are mandatory here, and every
+   halo'd label on the plan shares this one rule so none can drift back. */
+.dstudio .ds-pipe-len,
+.dstudio .ds-unit-model,
+.dstudio .ds-plenum-label,
+.dstudio .ds-spigot-label {
+  paint-order: stroke;
+  stroke: #fff;
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
 .dstudio .ds-ahu-spigots.derived .ds-spigot-fixed {
   stroke: var(--gray500);
   stroke-dasharray: 4 3;

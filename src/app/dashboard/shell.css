@@ -296,6 +296,26 @@
 .fg .nb-wholink { margin-left:auto; padding:0; border:0; background:none; cursor:pointer; font-family:var(--font); font-size:12.5px; font-weight:700; color:#1f4bd8; }
 .fg .nb-wholink:hover { text-decoration:underline; }
 
+/* comments: the conversation under a post, one level of indent and no more */
+.fg .nb-thread { margin-top:16px; padding-top:14px; border-top:1px solid #f3f4f7; }
+.fg .nb-threadhead { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.fg .nb-clink { display:inline-flex; align-items:center; gap:5px; padding:0; border:0; background:none; cursor:pointer; font-family:var(--font); font-size:12.5px; font-weight:700; color:var(--gray400); transition:color .15s; }
+.fg .nb-clink:hover:not(:disabled) { color:#1f4bd8; }
+.fg .nb-c { padding:10px 0 2px; }
+.fg .nb-c.atme { padding-left:12px; border-left:2px solid rgba(46,104,255,.35); }
+.fg .nb-chead { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.fg .nb-chead b { font-size:13px; font-weight:800; color:var(--ink); }
+.fg .nb-chead span { font-size:11.5px; font-weight:600; color:#c3c8d2; }
+.fg .nb-cbody { font-size:13.5px; font-weight:500; color:#4b5563; line-height:1.55; margin-top:3px; white-space:pre-wrap; }
+.fg .nb-at { font-weight:800; color:#1f4bd8; }
+.fg .nb-at.me { background:rgba(46,104,255,.12); border-radius:5px; padding:0 3px; }
+.fg .nb-creplies { margin-left:16px; padding-left:12px; border-left:1px solid #f0f0f2; }
+.fg .nb-cform { margin-top:12px; }
+.fg .nb-creplyto { display:flex; align-items:center; gap:10px; font-size:12px; font-weight:600; color:var(--gray400); margin-bottom:7px; }
+.fg .nb-crow { display:flex; align-items:center; gap:8px; }
+.fg .nb-crow input { flex:1; min-width:0; height:38px; padding:0 13px; border-radius:999px; border:1px solid rgba(10,11,16,.14); background:#fff; font-family:var(--font); font-size:13.5px; font-weight:500; color:var(--ink); }
+.fg .nb-crow input:focus { outline:none; border-color:rgba(46,104,255,.4); }
+
 /* reactions: given ones first, the palette behind one button */
 .fg .nb-reacts { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:14px; }
 .fg .nb-react { display:inline-flex; align-items:center; gap:5px; height:28px; padding:0 10px; border:1px solid #eceef3; border-radius:999px; background:#fff; cursor:pointer; font-family:var(--font); font-size:12.5px; font-weight:700; color:var(--gray500); line-height:1; transition:border-color .15s, background .15s; }

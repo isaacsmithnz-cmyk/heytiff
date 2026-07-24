@@ -11,7 +11,15 @@ import { assembleChips, type DashboardChips } from "./assemble";
 import { listStaffCompliance, orgInsurance, type StaffCompliance } from "./query";
 import { rosterToday, type RosterToday } from "./roster";
 import { payRunItem, tallySheets, type MoneyItem } from "./money";
-import { myTasks, teamTasks, recentlyDoneTasks, assignedByMeRecentlyDone, listNotices } from "./tasks-query";
+import {
+  myTasks,
+  teamTasks,
+  recentlyDoneTasks,
+  assignedByMeRecentlyDone,
+  listNotices,
+  mentionableStaff,
+} from "./tasks-query";
+import type { MentionTarget } from "./comments";
 import type { BoardNotice } from "./board";
 import { RECENT_DONE_DAYS, sortNotices, sortTasks, type DashTask } from "./tasks";
 
@@ -92,6 +100,11 @@ export type NoticeBoardData = {
   /** Today in AU. Expiry is derived, so the board needs the same date the
       server used — never the browser's clock, which may be in another zone. */
   today: string;
+  /** Who a comment can @mention, and what to paint. The SAME list the action
+      resolves against, so the highlight and the recorded mention agree. */
+  staff: MentionTarget[];
+  /** Null when the account has no staff record — it can't be mentioned either. */
+  viewerStaffId: string | null;
 };
 
 export async function loadNoticeBoard(): Promise<NoticeBoardData> {
@@ -99,12 +112,30 @@ export async function loadNoticeBoard(): Promise<NoticeBoardData> {
   const orgId = session?.orgId as string | undefined;
   const userId = session?.user?.sub as string | undefined;
   const today = todayInAu();
-  if (!orgId || !userId) return { notices: [], canManage: false, canRead: false, today };
+  if (!orgId || !userId)
+    return {
+      notices: [],
+      canManage: false,
+      canRead: false,
+      today,
+      staff: [],
+      viewerStaffId: null,
+    };
 
   const caps = await getCapabilities();
   const viewerStaffId = await staffProfileIdFor(orgId, userId);
-  const notices = sortNotices(await listNotices(orgId, viewerStaffId, 100));
-  return { notices, canManage: caps.has("team"), canRead: viewerStaffId !== null, today };
+  const [notices, staff] = await Promise.all([
+    listNotices(orgId, viewerStaffId, 100).then(sortNotices),
+    mentionableStaff(orgId),
+  ]);
+  return {
+    notices,
+    canManage: caps.has("team"),
+    canRead: viewerStaffId !== null,
+    today,
+    staff,
+    viewerStaffId,
+  };
 }
 
 /* The action-required page. Like the noticeboard, the dashboard carries only a

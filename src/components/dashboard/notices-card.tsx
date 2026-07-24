@@ -18,6 +18,9 @@ export function NoticesCard({ notices, today }: { notices: BoardNotice[]; today:
   const { active } = partitionNotices(notices, today);
   const unread = currentUnreadCount(notices, today);
   const latest = active.slice(0, 3);
+  // being named in a conversation outranks having something to read: someone
+  // is waiting on YOU, so it leads the card
+  const mentions = active.reduce((n, x) => n + x.mentionsMe, 0);
 
   return (
     <a className="card2 dash-card-link" href="/dashboard/notices">
@@ -30,7 +33,12 @@ export function NoticesCard({ notices, today }: { notices: BoardNotice[]; today:
           <em>Announcements for the team</em>
         </div>
         <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
-          {unread > 0 && <span className="dchip2 warn">{unread} unread</span>}
+          {mentions > 0 && (
+            <span className="dchip2 warn">
+              {mentions === 1 ? "Mentions you" : `${mentions} mentions`}
+            </span>
+          )}
+          {unread > 0 && <span className="dchip2 mute">{unread} unread</span>}
           <span className="dr-chev">
             <Icon name="arrowR" size={16} />
           </span>

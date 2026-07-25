@@ -18,7 +18,7 @@ import type { SimRuntime } from "@/lib/studio/sim-runtime";
 
    Drawn per frame: room temperature tints with the §5a fill-front, cone
    plumes off each emitter (particles; static chevrons under reduced motion),
-   inferred-facing ticks, and screen-space temperature chips. */
+   facing ticks, and screen-space temperature chips. */
 
 interface Particle {
   x: number;
@@ -414,7 +414,8 @@ function drawChevrons(
   }
 }
 
-/* the inferred-facing tick (§5a: visible and auditable) */
+/* the facing tick (§5a: visible and auditable) — the unit's rotation when
+   it has one, otherwise the wall-inferred direction (sim.facingOf) */
 function drawFacingTick(
   ctx: CanvasRenderingContext2D,
   h: SimHandlerModel,

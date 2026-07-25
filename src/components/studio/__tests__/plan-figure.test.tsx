@@ -86,6 +86,31 @@ describe("PlanFigure", () => {
     expect(container.querySelectorAll(".ds-pf-bar")).toHaveLength(1);
   });
 
+  /* Units can be turned on the canvas, so the printed sheet has to agree —
+     an export that squares everything up is a different drawing. */
+  it("prints a turned unit turned, with its labels left upright", () => {
+    const d = fixtureDoc();
+    const idu = d.objects.find((o) => o.id === "i1")!;
+    idu.geometry = { kind: "point", at: { x: 200, y: 200 }, rotation: 90 };
+    const { container } = render(
+      <PlanFigure doc={d} floor={d.floors[0]} layers={ALL} grayscale={false} legend={false} urls={{}} />
+    );
+    const unit = container.querySelector(".ds-unit")!;
+    const turned = unit.querySelector("g[transform]")!;
+    expect(turned.getAttribute("transform")).toBe("rotate(90 200 200)");
+    // the model / role text is a sibling of the turned group, not inside it
+    expect(turned.querySelector(".ds-unit-model")).toBeNull();
+    expect(unit.querySelector(".ds-unit-model")).not.toBeNull();
+  });
+
+  it("leaves an unturned unit without a transform at all", () => {
+    const d = fixtureDoc();
+    const { container } = render(
+      <PlanFigure doc={d} floor={d.floors[0]} layers={ALL} grayscale={false} legend={false} urls={{}} />
+    );
+    expect(container.querySelector(".ds-unit g[transform]")).toBeNull();
+  });
+
   it("layer flags gate their groups", () => {
     const d = fixtureDoc();
     const { container } = render(

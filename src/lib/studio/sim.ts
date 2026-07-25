@@ -171,6 +171,21 @@ export interface SimState {
 export const freeRunningC = (outdoorC: number): number =>
   clamp(outdoorC + SIM.FREE_RUN_GAIN_K, 8, 34);
 
+/** Which way a placed unit blows. A TURNED unit answers for itself — its
+    glyph discharges plan-down, so the rotation carries the louvre round with
+    it — and only an untouched one falls back to inferring the facing from the
+    wall it hangs on. Before units could rotate this was inference-only, which
+    left a deliberately turned unit still blowing at the nearest wall. */
+export function facingOf(
+  geom: { at: Point; rotation?: number },
+  roomPoints: Point[]
+): Point {
+  if (geom.rotation == null) return inferFacing(geom.at, roomPoints);
+  const r = (geom.rotation * Math.PI) / 180;
+  // plan-down (0,1) turned by the unit's angle (SVG's sense, y down)
+  return { x: -Math.sin(r), y: Math.cos(r) };
+}
+
 /* ── facing inference (spec §5a): a split IDU hangs on a wall — its
       discharge direction is the inward normal of the containing room's
       nearest edge. Fallback: plan-down (the glyph's louvre edge). ── */
@@ -346,7 +361,7 @@ export function buildSimModel(
     const packIdu = pack.indoor_units.find((u) => u.model === String(idu.props.model ?? ""));
     const visualLs =
       packIdu?.airflow_ls ?? SIM.VISUAL_LS_PER_KW * Math.max(rated.heatKw, rated.coolKw);
-    const dir = inferFacing(idu.geometry.at, room.points);
+    const dir = facingOf(idu.geometry, room.points);
     handlers.push({
       id: idu.id,
       systemId: sys.id,

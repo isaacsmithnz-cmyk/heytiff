@@ -286,9 +286,14 @@ export function PlanFigure({
               ? { w: widthMm / scale, h: depthMm / scale }
               : { w: 45 * u, h: 45 * u * (depthMm / Math.max(widthMm, 1)) };
             const role = String(o.props.role ?? "idu");
+            /* a turned unit prints turned — same rule as the canvas: the glyph
+               rotates, the labels under it stay upright and readable */
+            const rot = (o.geometry as { rotation?: number }).rotation ?? 0;
             return (
               <g key={o.id} className="ds-unit" style={{ color: colourOf(o) }}>
-                {unitGlyph(at.x, at.y, fp.w, fp.h, role, 1 / u)}
+                <g transform={rot ? `rotate(${rot} ${at.x} ${at.y})` : undefined}>
+                  {unitGlyph(at.x, at.y, fp.w, fp.h, role, 1 / u)}
+                </g>
                 {layers.labels && (
                   <>
                     <text

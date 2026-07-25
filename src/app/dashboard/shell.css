@@ -2013,15 +2013,14 @@ select.fl-i { cursor:pointer; }
 .fg .mypay-foot { margin:16px 0 0; font-size:12.5px; font-weight:600; color:var(--gray400); }
 
 /* ---- date entry (components/profile/fields.tsx :: DateField) ----
-   Every date is picked. A native date input carries its own metrics and its
-   own calendar button, so it needs a little help to sit flush in a row of
-   .inp text boxes: the indicator gets the same muted treatment as the select
-   chevron, and the field keeps the .inp height rather than the UA's. */
-.fg .inp.date { height:46px; padding-right:12px; cursor:pointer; font-variant-numeric:tabular-nums; }
-.fg .inp.date::-webkit-calendar-picker-indicator { opacity:.45; cursor:pointer; transition:opacity .2s; }
-.fg .inp.date:hover::-webkit-calendar-picker-indicator { opacity:.85; }
-/* iOS shrink-wraps a date input to its content and left-aligns the text */
-.fg .inp.date::-webkit-date-and-time-value { text-align:left; }
+   Every date is picked — through the ui calendar popover now, not a native
+   input. The popover button carries its own compact metrics (.datef, 38px),
+   so inside a profile form it takes the .inp measurements instead and sits
+   flush in a row of text boxes. Scoped to .field/.licexp so the fleet and
+   timepay uses keep their own sizing — and metrics ONLY: border and background
+   stay on the base .datef rules, where .err and focus (lower specificity than
+   this scoped selector) can still win them. */
+.fg .field .datef, .fg .licexp .datef { width:100%; height:46px; padding:0 15px; border-radius:13px; font-size:14px; }
 .fg .licexp { display:flex; align-items:center; gap:10px; flex:1; min-width:0; }
 .fg .licexp > span { flex:0 0 auto; font-size:12px; font-weight:800; color:var(--gray700); }
 @media (max-width:560px){ .fg .licexp { width:100%; } }
@@ -2069,6 +2068,9 @@ select.fl-i { cursor:pointer; }
 .datef:hover:not(:disabled) { border-color:rgba(10,11,16,.3); }
 .datef:focus-visible, .datef[aria-expanded="true"] { outline:none; border-color:#00E5C0; box-shadow:0 0 0 3px rgba(0,229,192,.15); }
 .datef:disabled { opacity:.5; cursor:not-allowed; }
+/* invalid — the same ring .inp.err wears, so a rejected date reads like any other rejected field */
+.datef.err { border-color:rgba(255,51,102,.55); background:rgba(255,51,102,.04); }
+.datef.err:focus-visible, .datef.err[aria-expanded="true"] { border-color:#e0264f; box-shadow:0 0 0 3px rgba(255,51,102,.13); }
 .datef .datef-v { flex:1; min-width:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-variant-numeric:tabular-nums; }
 .datef.empty .datef-v { color:#aeb4c0; font-weight:500; }
 .datef .datef-ic { display:flex; flex:0 0 auto; color:#9ca3af; }

@@ -51,6 +51,8 @@ export type DateFieldProps = {
   clearable?: boolean;
   id?: string;
   disabled?: boolean;
+  /** rings the field red, the way `.inp.err` does — the caller says why */
+  invalid?: boolean;
   /** The AU calendar date. Pass the server's day wherever the screen has one —
       the browser clock is a different day for most of the working morning. */
   today?: string;
@@ -68,6 +70,7 @@ export const DateField = forwardRef<HTMLButtonElement, DateFieldProps>(function 
     clearable,
     id,
     disabled,
+    invalid,
     today,
     size = "md",
   },
@@ -164,8 +167,9 @@ export const DateField = forwardRef<HTMLButtonElement, DateFieldProps>(function 
           if (typeof ref === "function") ref(el);
           else if (ref) ref.current = el;
         }}
-        className={`datef${size === "lg" ? " lg" : ""}${value ? "" : " empty"}`}
+        className={`datef${size === "lg" ? " lg" : ""}${value ? "" : " empty"}${invalid ? " err" : ""}`}
         disabled={disabled}
+        aria-invalid={invalid || undefined}
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={toggle}

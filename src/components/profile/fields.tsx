@@ -2,6 +2,7 @@
 
 import { isValidElement, type ReactNode } from "react";
 import { Icon } from "@/components/shell/icon";
+import { DateField as CalendarField } from "@/components/ui/date-field";
 
 /* Controlled form primitives over the design's existing `.field / .inp /
    .selwrap / .seg` classes — the same vocabulary the injected renderer built
@@ -97,16 +98,21 @@ export function TextInput({
    dd/mm vs mm/dd, two-digit years, "31/02". A calendar ends it — a value that
    can only ever be a real yyyy-mm-dd.
 
-   THIS COMPONENT IS A SEAM, AND THAT IS THE POINT. The internals are a native
-   <input type="date"> today and will be a design-matched calendar popover
-   next; because no call site anywhere writes a raw type="date", that swap is
-   one file. Do not inline a date input at a call site, however small — use
-   DateField, or the popover will land in some places and not others.
+   THIS COMPONENT IS A SEAM, AND THAT IS THE POINT. The internals were a
+   native <input type="date"> until the design's own calendar popover
+   (components/ui/date-field.tsx) existed; because no call site anywhere wrote
+   a raw type="date", that swap was this one file. Do not inline a date input
+   at a call site, however small — use DateField, or a future change will land
+   in some places and not others.
 
    Note the name: `Field` is the label wrapper that goes AROUND a control;
    `DateField` is the control itself, and sits inside a `Field` like the rest.
 
-   The VALUE is ISO. Read mode renders dd/mm/yyyy itself, via formatAuDate. */
+   The VALUE is ISO — "" for "no date", never null, because the cards' drafts
+   are plain string maps. The popover speaks null for empty, so the seam
+   translates at the boundary. `name` becomes the popover's id, which keeps the
+   `Field` wrapper's htmlFor pointing at the control it labels. Read mode
+   renders dd/mm/yyyy itself, via formatAuDate. */
 export function DateField({
   name,
   value,
@@ -124,16 +130,13 @@ export function DateField({
   min?: string;
 }) {
   return (
-    <input
-      className={invalid ? "inp date err" : "inp date"}
-      name={name}
+    <CalendarField
       id={name}
-      type="date"
-      value={value}
-      max={max}
+      value={value || null}
       min={min}
-      aria-invalid={invalid || undefined}
-      onChange={(e) => onChange(e.target.value)}
+      max={max}
+      invalid={invalid}
+      onChange={(iso) => onChange(iso ?? "")}
     />
   );
 }

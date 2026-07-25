@@ -72,6 +72,20 @@ describe("the field", () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
+  /* The profile cards mark a field the server rejected; this is how the mark
+     reaches a control that is a button, not an input. */
+  it("wears the invalid mark when told to, and not otherwise", () => {
+    const { field } = setup({ invalid: true });
+    expect(field()).toHaveAttribute("aria-invalid", "true");
+    expect(field().className).toContain("err");
+  });
+
+  it("carries no invalid mark by default", () => {
+    const { field } = setup();
+    expect(field()).not.toHaveAttribute("aria-invalid");
+    expect(field().className).not.toContain("err");
+  });
+
   it("says nothing and opens nothing when disabled", async () => {
     const { user, field } = setup({ disabled: true });
     expect(field()).toBeDisabled();

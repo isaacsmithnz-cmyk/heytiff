@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CAPABILITIES, resolve } from "@/lib/permissions";
 import { ProfileScreen } from "../profile-screen";
@@ -35,9 +35,9 @@ function setup(actions: ReturnType<typeof okActions>) {
 
 const editButtons = () => screen.getAllByRole("button", { name: /^Edit$/ });
 
-/** Dates are picked, not typed — a picker emits one ISO change, not keystrokes. */
-const pick = (input: HTMLElement, iso: string) =>
-  fireEvent.change(input, { target: { value: iso } });
+/* Dates are picked, not typed — through the calendar popover, the way a person
+   does it. The popover opens on the value's own month, so a test that starts
+   from a stored date knows exactly which days are on screen. */
 
 describe("a rejected save", () => {
   it("keeps what was typed, marks the field, and stays in edit mode", async () => {
@@ -50,14 +50,15 @@ describe("a rejected save", () => {
     setup(actions);
 
     await user.click(editButtons()[0]);
-    const birthday = screen.getByLabelText("Birthday");
-    // a real date the server happens to refuse — pre-validation passes it
-    pick(birthday, "1990-01-01");
+    // a real date the server happens to refuse — pre-validation passes it.
+    // The picker opens on December 1990, the stored birthday's month.
+    await user.click(screen.getByLabelText("Birthday"));
+    await user.click(screen.getByRole("button", { name: "Saturday 1 December 1990" }));
     await user.click(screen.getByRole("button", { name: /^Save$/ }));
 
     expect(await screen.findByText("Check the date format — use dd/mm/yyyy.")).toBeInTheDocument();
-    // what was entered is still there…
-    expect(screen.getByLabelText("Birthday")).toHaveValue("1990-01-01");
+    // what was picked is still there…
+    expect(screen.getByLabelText("Birthday")).toHaveTextContent("01/12/1990");
     // …the field is marked…
     expect(screen.getByLabelText("Birthday")).toHaveAttribute("aria-invalid", "true");
     // …and the card never went back to read mode
@@ -248,14 +249,16 @@ describe("dates are picked, never typed", () => {
 
     await user.click(editButtons()[0]);
     for (const label of ["Birthday", "Start date"]) {
-      expect(screen.getByLabelText(label)).toHaveAttribute("type", "date");
+      expect(screen.getByLabelText(label)).toHaveAttribute("aria-haspopup", "dialog");
     }
+    expect(document.querySelector('input[type="date"]')).toBeNull();
 
     await user.click(screen.getByRole("button", { name: /Work rights/ }));
     await user.click(editButtons()[0]);
     for (const label of ["Visa expiry", /VEVO last checked/]) {
-      expect(screen.getByLabelText(label)).toHaveAttribute("type", "date");
+      expect(screen.getByLabelText(label)).toHaveAttribute("aria-haspopup", "dialog");
     }
+    expect(document.querySelector('input[type="date"]')).toBeNull();
   });
 
   it("submits the ISO the picker produced, and shows dd/mm/yyyy once saved", async () => {
@@ -264,23 +267,34 @@ describe("dates are picked, never typed", () => {
     const { rerender, props } = setup(actions);
 
     await user.click(editButtons()[0]);
-    pick(screen.getByLabelText("Start date"), "2027-06-30");
+    // opens on June 2020 — the stored start date's month
+    await user.click(screen.getByLabelText("Start date"));
+    await user.click(screen.getByRole("button", { name: "Tuesday 30 June 2020" }));
     await user.click(screen.getByRole("button", { name: /^Save$/ }));
 
     expect(actions.onSave).toHaveBeenCalledWith(
       "personal",
-      expect.objectContaining({ start_date: "2027-06-30" })
+      expect.objectContaining({ start_date: "2020-06-30" })
     );
 
-    rerender(<ProfileScreen {...props} profile={{ ...jordan, start_date: "2027-06-30" }} />);
+    rerender(<ProfileScreen {...props} profile={{ ...jordan, start_date: "2020-06-30" }} />);
     // entry is ISO; reading a date back is still how an Australian writes one
-    expect(screen.getByText("30/06/2027")).toBeInTheDocument();
+    expect(screen.getByText("30/06/2020")).toBeInTheDocument();
   });
 
   it("seeds the picker from the stored date, not from the displayed one", async () => {
     const user = userEvent.setup();
     setup(okActions());
     await user.click(editButtons()[0]);
-    expect(screen.getByLabelText("Birthday")).toHaveValue("1990-12-25");
+    const birthday = screen.getByLabelText("Birthday");
+    expect(birthday).toHaveTextContent("25/12/1990");
+
+    // and opening it lands on that date's month, with the day itself selected
+    await user.click(birthday);
+    expect(screen.getByText("December 1990")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Tuesday 25 December 1990" })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
   });
 });

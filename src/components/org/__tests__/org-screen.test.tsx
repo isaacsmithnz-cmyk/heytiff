@@ -12,6 +12,18 @@ jest.mock("@/lib/documents/upload-client", () => ({
   uploadFile: (...a: unknown[]) => uploadFile(...a),
 }));
 
+/* The credential modal's expiry starts empty, so its calendar opens on
+   "today's" month — which must be the fixture's today, not the machine's, or
+   the test couldn't name a day to click. Only the no-argument "what day is it
+   now" call is pinned; auDayOf and friends still convert real timestamps. */
+jest.mock("@/lib/au-dates", () => {
+  const actual = jest.requireActual("@/lib/au-dates");
+  return {
+    ...actual,
+    todayInAu: (now?: Date) => (now ? actual.todayInAu(now) : "2026-07-24"),
+  };
+});
+
 import { OrgScreen } from "../org-screen";
 
 /* The Organisation screen, on the staff card's machinery.
@@ -252,11 +264,23 @@ describe("the credential modal", () => {
 
   it("asks for the expiry with a calendar, never a text box", async () => {
     const user = userEvent.setup();
-    setup();
+    const { actions } = setup();
     await user.click(screen.getByRole("button", { name: /Add licence or insurance/ }));
-    expect(within(screen.getByRole("dialog")).getByLabelText("Expiry")).toHaveAttribute(
-      "type",
-      "date"
+    const dialog = screen.getByRole("dialog");
+    const expiry = within(dialog).getByLabelText("Expiry");
+    expect(expiry.tagName).toBe("BUTTON");
+    expect(document.querySelector('input[type="date"]')).toBeNull();
+
+    // and what the calendar picks reaches the action as the ISO it is
+    await user.type(within(dialog).getByLabelText(/^Name/), "Working at Heights");
+    await user.click(expiry);
+    await user.click(screen.getByRole("button", { name: "Next month" }));
+    await user.click(screen.getByRole("button", { name: "Saturday 1 August 2026" }));
+    expect(expiry).toHaveTextContent("01/08/2026");
+
+    await user.click(within(dialog).getByRole("button", { name: /Save/ }));
+    expect(actions.onAddCredential).toHaveBeenCalledWith(
+      expect.objectContaining({ expiryDate: "2026-08-01" })
     );
   });
 

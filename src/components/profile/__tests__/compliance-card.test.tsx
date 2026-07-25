@@ -1,8 +1,20 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { StaffLicence } from "@/lib/staff/types";
 import { ComplianceCard } from "../compliance-card";
 import { TODAY } from "./fixtures/staff";
+
+/* The add form's expiry starts empty, so its calendar opens on "today's"
+   month — which must be the fixture's today, not the machine's, or the test
+   couldn't name a day to click. Only the no-argument "what day is it now" call
+   is pinned; auDayOf and friends still convert real timestamps. */
+jest.mock("@/lib/au-dates", () => {
+  const actual = jest.requireActual("@/lib/au-dates");
+  return {
+    ...actual,
+    todayInAu: (now?: Date) => (now ? actual.todayInAu(now) : "2026-07-24"),
+  };
+});
 
 /* The Compliance card: credential cards plus the little add form.
 
@@ -65,20 +77,28 @@ describe("adding one", () => {
     await user.selectOptions(screen.getByRole("combobox", { name: "Licence type" }), "ARC licence");
     await user.type(screen.getByLabelText("Licence number"), "AU999");
     // picked, not typed — the calendar emits ISO
-    fireEvent.change(screen.getByLabelText("Expiry"), { target: { value: "2028-01-01" } });
+    await user.click(screen.getByLabelText("Expiry"));
+    await user.click(screen.getByRole("button", { name: "Next month" }));
+    await user.click(screen.getByRole("button", { name: "Saturday 1 August 2026" }));
     await user.click(screen.getByRole("button", { name: /Add/ }));
 
     expect(onAdd).toHaveBeenCalledWith({
       typeName: "ARC licence",
       licenceNumber: "AU999",
-      expiryDate: "2028-01-01",
+      expiryDate: "2026-08-01",
       color: "#00A389",
     });
   });
 
-  it("asks for the expiry with a calendar, not a text box", () => {
+  it("asks for the expiry with a calendar, not a text box", async () => {
+    const user = userEvent.setup();
     setup();
-    expect(screen.getByLabelText("Expiry")).toHaveAttribute("type", "date");
+    const expiry = screen.getByLabelText("Expiry");
+    expect(expiry.tagName).toBe("BUTTON");
+    expect(document.querySelector('input[type="date"]')).toBeNull();
+
+    await user.click(expiry);
+    expect(screen.getByRole("dialog", { name: "Choose a date" })).toBeInTheDocument();
   });
 
   it("swaps in a free-text name for a custom ticket", async () => {
@@ -95,23 +115,26 @@ describe("adding one", () => {
   });
 
   /* An impossible expiry is no longer something a person can ENTER: the
-     control is a calendar, and it refuses 31 February outright rather than
-     accepting it and failing later. That is the whole reason this field
-     stopped being a text box.
+     control is a calendar, and February simply never shows a 31st — the
+     format class of error is designed out rather than caught. The leap day
+     proves the grid draws the real calendar: February 2028 has a 29th, and
+     picking it comes out as the ISO it is.
 
-     buildLicenceRow still refuses one too — a direct POST can send anything —
-     and that is pinned in lib/staff/__tests__/licence.test.ts. */
-  it("won't even hold an impossible date", async () => {
+     buildLicenceRow still refuses a bad date — a direct POST can send
+     anything — and that is pinned in lib/staff/__tests__/licence.test.ts. */
+  it("won't even offer an impossible date", async () => {
     const user = userEvent.setup();
     const { onAdd } = setup();
-    const expiry = screen.getByLabelText("Expiry");
 
     await user.selectOptions(screen.getByRole("combobox", { name: "Licence type" }), "White card");
-    fireEvent.change(expiry, { target: { value: "2028-02-31" } });
-    expect(expiry).toHaveValue("");
-
-    fireEvent.change(expiry, { target: { value: "2028-02-29" } }); // 2028 is a leap year
-    expect(expiry).toHaveValue("2028-02-29");
+    await user.click(screen.getByLabelText("Expiry"));
+    for (let i = 0; i < 19; i++) {
+      await user.click(screen.getByRole("button", { name: "Next month" }));
+    }
+    expect(screen.getByText("February 2028")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /31 February/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Tuesday 29 February 2028" }));
+    expect(screen.getByLabelText("Expiry")).toHaveTextContent("29/02/2028");
 
     await user.click(screen.getByRole("button", { name: /Add/ }));
     expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ expiryDate: "2028-02-29" }));

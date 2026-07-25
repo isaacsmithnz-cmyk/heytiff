@@ -780,6 +780,17 @@ export function StudioCanvas({
   );
   const mountContent = useRef({ points: contentPoints(), grid });
   const measured = useRef(false);
+  /* Has the user framed the view themselves (pan, zoom, a drag that moves the
+     canvas)? Until they have, the view belongs to the CONTENT: the canvas
+     re-fits whenever its box changes size or a late plan raster finally
+     reports its dimensions.
+
+     Fitting once on the first measurement was the bug behind "the plan opens
+     low": the first box the ResizeObserver sees is not the settled one — the
+     editor's rows are still resolving — so the drawing was centred in a taller
+     box than it ended up in and stayed sitting below centre for the rest of
+     the session. Nothing here overrides a view the user chose. */
+  const userFramed = useRef(false);
 
   /* zoom-out floor: you can't zoom out past ~fit (a little margin), so the
      drawing never shrinks into a speck. Empty floors keep the absolute min. */
@@ -802,23 +813,20 @@ export function StudioCanvas({
   useEffect(() => {
     contentPointsRef.current = contentPoints;
   }, [contentPoints]);
-  const zoomInApi = useCallback(
-    () =>
-      setVp((v) =>
-        zoomAt(v, { x: sizeRef.current.w / 2, y: sizeRef.current.h / 2 }, 1.3, minZoomRef.current)
-      ),
-    []
-  );
-  const zoomOutApi = useCallback(
-    () =>
-      setVp((v) =>
-        zoomAt(v, { x: sizeRef.current.w / 2, y: sizeRef.current.h / 2 }, 1 / 1.3, minZoomRef.current)
-      ),
-    []
-  );
+  /* the zoom buttons frame the view by hand; Fit hands the framing back to
+     the content, so it deliberately does NOT set the flag */
+  const zoomBy = useCallback((k: number) => {
+    userFramed.current = true;
+    setVp((v) =>
+      zoomAt(v, { x: sizeRef.current.w / 2, y: sizeRef.current.h / 2 }, k, minZoomRef.current)
+    );
+  }, []);
+  const zoomInApi = useCallback(() => zoomBy(1.3), [zoomBy]);
+  const zoomOutApi = useCallback(() => zoomBy(1 / 1.3), [zoomBy]);
   const fitApi = useCallback(() => {
     const b = boundsOfPoints(contentPointsRef.current());
     if (b) setVp(fitBounds(b, sizeRef.current.w, sizeRef.current.h, 60));
+    userFramed.current = false;
   }, []);
   useEffect(() => {
     onZoomApi?.({ zoomIn: zoomInApi, zoomOut: zoomOutApi, fit: fitApi });
@@ -1110,21 +1118,30 @@ export function StudioCanvas({
       const r = el.getBoundingClientRect();
       if (!r.width || !r.height) return;
       setSize({ w: r.width, h: r.height });
-      if (!measured.current) {
-        measured.current = true;
-        setVp(
-          defaultViewport(
-            mountContent.current.points,
-            r.width,
-            r.height,
-            mountContent.current.grid
-          )
-        );
-      }
+      if (userFramed.current) return; // their view, not ours — leave it alone
+      // first measure fits the mount-time content; later ones re-fit whatever
+      // is on the floor now, so a settling layout can't strand the drawing
+      const points = measured.current
+        ? contentPointsRef.current()
+        : mountContent.current.points;
+      measured.current = true;
+      setVp(defaultViewport(points, r.width, r.height, mountContent.current.grid));
     });
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  /* A plan sheet saved without stored dimensions only reports its size once
+     the raster decodes, which is after the first fit — so the sheet was not
+     content yet when the view was framed, and a plan-backed floor could open
+     showing empty grid. Re-fit when those dimensions land, unless the user has
+     already framed the view themselves. */
+  useEffect(() => {
+    if (userFramed.current || !measured.current) return;
+    if (Object.keys(sheetDims).length === 0) return;
+    const b = boundsOfPoints(contentPointsRef.current());
+    if (b) setVp(fitBounds(b, sizeRef.current.w, sizeRef.current.h, 60));
+  }, [sheetDims]);
 
   /* ── coordinate helpers ── */
   const toWorld = useCallback(
@@ -1146,6 +1163,7 @@ export function StudioCanvas({
     if (!svg) return;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
+      userFramed.current = true;
       const r = svg.getBoundingClientRect();
       const screen = { x: e.clientX - r.left, y: e.clientY - r.top };
       setVp((v) => zoomAt(v, screen, e.deltaY < 0 ? 1.12 : 1 / 1.12, minZoomRef.current));
@@ -1885,6 +1903,7 @@ export function StudioCanvas({
       case "pan": {
         const dx = (e.clientX - drag.startScreen.x) / vp.zoom;
         const dy = (e.clientY - drag.startScreen.y) / vp.zoom;
+        if (dx || dy) userFramed.current = true;
         setVp({ ...vp, x: drag.origVp.x - dx, y: drag.origVp.y - dy });
         break;
       }

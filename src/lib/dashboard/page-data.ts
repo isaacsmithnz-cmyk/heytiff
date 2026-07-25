@@ -17,7 +17,9 @@ import {
   recentlyDoneTasks,
   assignedByMeRecentlyDone,
   listNotices,
+  loadStaffNames,
   mentionableStaff,
+  type StaffNames,
 } from "./tasks-query";
 import type { MentionTarget } from "./comments";
 import type { BoardNotice } from "./board";
@@ -76,12 +78,18 @@ export async function loadDashboard(): Promise<DashboardData> {
   const today = todayInAu();
   const viewerStaffId = await staffProfileIdFor(orgId, userId);
 
+  /* Five of the queries below label rows with a person's name, and each used to
+     read the whole staff table for itself. Read it once and hand the same map
+     round — the names cannot disagree between sections either, which they could
+     when five reads raced an edit. */
+  const names = await loadStaffNames(orgId);
+
   const [chips, roster, money, tasks, notices, assignable] = await Promise.all([
     loadChips(orgId, viewerStaffId, caps, today),
     canManage ? loadRoster(orgId, today) : Promise.resolve(null),
     caps.has("financials") ? loadMoney(orgId, today) : Promise.resolve([]),
-    loadTasks(orgId, viewerStaffId, canManage),
-    listNotices(orgId, viewerStaffId).then(sortNotices),
+    loadTasks(orgId, viewerStaffId, canManage, names),
+    listNotices(orgId, viewerStaffId, 20, names).then(sortNotices),
     // the assign picker only needs names, and only when you can assign
     canManage ? listFleetStaff(orgId).then((s) => s.map((x) => ({ id: x.id, name: x.name }))) : Promise.resolve([]),
   ]);
@@ -157,16 +165,17 @@ async function loadTasks(
   orgId: string,
   viewerStaffId: string | null,
   canManage: boolean,
+  names: StaffNames,
 ): Promise<{ mine: DashTask[]; team: DashTask[] | null; done: DashTask[]; reported: DashTask[] }> {
   const [mine, team, done, reported] = await Promise.all([
-    viewerStaffId ? myTasks(orgId, viewerStaffId).then(sortTasks) : Promise.resolve([]),
-    canManage ? teamTasks(orgId).then(sortTasks) : Promise.resolve(null),
+    viewerStaffId ? myTasks(orgId, viewerStaffId, names).then(sortTasks) : Promise.resolve([]),
+    canManage ? teamTasks(orgId, names).then(sortTasks) : Promise.resolve(null),
     viewerStaffId
-      ? recentlyDoneTasks(orgId, viewerStaffId, RECENT_DONE_DAYS)
+      ? recentlyDoneTasks(orgId, viewerStaffId, RECENT_DONE_DAYS, new Date(), names)
       : Promise.resolve([] as DashTask[]),
     // work you handed out that has come back done — the assigner's report
     viewerStaffId
-      ? assignedByMeRecentlyDone(orgId, viewerStaffId, RECENT_DONE_DAYS)
+      ? assignedByMeRecentlyDone(orgId, viewerStaffId, RECENT_DONE_DAYS, new Date(), names)
       : Promise.resolve([] as DashTask[]),
   ]);
   return { mine, team, done, reported };

@@ -51,6 +51,28 @@ export function auDayOf(when: string | Date): string {
   return Number.isNaN(d.getTime()) ? "" : todayInAu(d);
 }
 
+/* A short day-and-month label for an ISO DATE — "15 Jan", "15 July".
+
+   Note the inconsistent width: en-AU's abbreviated months are three letters
+   except June, July and Sept, which it writes out. That is correct Australian
+   style, so it is left alone rather than forced to three letters with a foreign
+   locale — but it does mean a chip holding one of those three months is wider,
+   which is worth knowing before laying one out in a fixed space.
+
+   The date is formatted in UTC deliberately: the input is a calendar date with
+   no time, so it is pinned to midnight UTC and read back in the same zone. Any
+   other zone would shift it a day. For a TIMESTAMP, resolve it with `auDayOf`
+   first — see the note there. */
+export function fmtAuDayMonth(iso: string | null | undefined): string {
+  const day = String(iso ?? "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return "";
+  return new Intl.DateTimeFormat("en-AU", {
+    timeZone: "UTC",
+    day: "numeric",
+    month: "short",
+  }).format(new Date(`${day}T00:00:00Z`));
+}
+
 /** ISO yyyy-mm-dd -> dd/mm/yyyy for the design's text inputs. */
 export function formatAuDate(iso: string | null | undefined): string {
   if (!iso) return "";

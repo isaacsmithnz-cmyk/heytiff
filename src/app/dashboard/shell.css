@@ -112,8 +112,12 @@
 
 /* ============================ MAIN + TOPBAR ============================ */
 .fg .main { flex:1; min-width:0; display:flex; flex-direction:column; position:relative; z-index:10; }
+/* No backdrop-filter here. The one-piece frame further down makes this bar
+   transparent unconditionally (same specificity, later rule), so the blur this
+   used to carry never painted — and it carried it as a `-webkit-` PAIR, which
+   is the footgun that silently kills the blur wherever it IS wanted. */
 .fg .topbar { height:80px; flex:0 0 80px; display:flex; align-items:center; justify-content:space-between; padding:0 40px;
-  background:rgba(255,255,255,.4); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border-bottom:1px solid #fff; box-shadow:0 4px 30px rgba(0,0,0,.02); z-index:20; }
+  background:rgba(255,255,255,.4); border-bottom:1px solid #fff; box-shadow:0 4px 30px rgba(0,0,0,.02); z-index:20; }
 .fg .topbar.hide { display:none; }
 .fg .searchbtn { position:relative; flex:1; max-width:512px; text-align:left; }
 .fg .searchbtn .si { position:absolute; left:16px; top:50%; transform:translateY(-50%); color:var(--gray400); transition:color .3s; pointer-events:none; }

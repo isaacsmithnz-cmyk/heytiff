@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { completeTask, createTask, reopenTask } from "@/app/actions/dashboard";
 import { dueLabel, type DashTask } from "@/lib/dashboard/tasks";
-import { auDayOf } from "@/lib/au-dates";
+import { auDayOf, fmtAuDayMonth } from "@/lib/au-dates";
 
 /* Your tasks (everyone) plus, for `team` holders, an assign form and the rest
    of the team's open tasks. Completing your own is intrinsic; assigning and
@@ -59,18 +59,7 @@ function TaskRow({
 function doneLabel(iso: string, today: string): string {
   const day = auDayOf(iso);
   if (day === today) return "Done today";
-  return `Done ${fmtAuDay(day)}`;
-}
-
-/** "22 July" from an ISO date — formatted as a plain date, never a timestamp,
-    so the zone can't shift it back a day on the way out. */
-function fmtAuDay(iso: string): string {
-  if (!iso) return "";
-  return new Intl.DateTimeFormat("en-AU", {
-    timeZone: "UTC",
-    day: "numeric",
-    month: "short",
-  }).format(new Date(`${iso}T00:00:00Z`));
+  return `Done ${fmtAuDayMonth(day)}`;
 }
 
 export function TasksSection({

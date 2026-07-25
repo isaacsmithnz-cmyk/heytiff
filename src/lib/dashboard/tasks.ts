@@ -1,4 +1,5 @@
 import { daysUntil } from "@/components/fleet/logic";
+import { fmtAuDayMonth as fmtDate } from "@/lib/au-dates";
 
 /* Tasks & notices — the two writable dashboard surfaces.
 
@@ -108,13 +109,6 @@ export function dueLabel(
   if (days === 0) return { label: "Due today", state: "warn" };
   if (days <= DUE_SOON_DAYS) return { label: `Due in ${days}d`, state: "warn" };
   return { label: `Due ${fmtDate(dueDate)}`, state: "ok" };
-}
-
-/** "15 Jul" — a compact due date for the calm (not-soon) case. */
-function fmtDate(iso: string): string {
-  return new Intl.DateTimeFormat("en-AU", { timeZone: "UTC", day: "numeric", month: "short" }).format(
-    new Date(`${iso}T00:00:00Z`),
-  );
 }
 
 /* Open tasks, most urgent first: anything with a due date sorts by that date

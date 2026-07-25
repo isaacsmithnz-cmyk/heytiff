@@ -1,4 +1,5 @@
 import { daysUntil } from "@/components/fleet/logic";
+import { fmtAuDayMonth as fmtDate } from "@/lib/au-dates";
 import type { DueState, NoticeKind, NoticeWithRead } from "./tasks";
 
 /* The noticeboard's lifecycle rules — what a post IS, and whether it's still
@@ -67,12 +68,6 @@ export function expiryLabel(
   if (days === 1) return { label: "Until tomorrow", state: "warn" };
   if (days <= 7) return { label: `${days} days left`, state: "warn" };
   return { label: `Until ${fmtDate(expiresAt)}`, state: "ok" };
-}
-
-function fmtDate(iso: string): string {
-  return new Intl.DateTimeFormat("en-AU", { timeZone: "UTC", day: "numeric", month: "short" }).format(
-    new Date(`${iso}T00:00:00Z`),
-  );
 }
 
 /* Split a sorted board into what's on it and what's behind it. Order within

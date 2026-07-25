@@ -22,16 +22,36 @@ import { isDelegated, noticeReadState, type DashTask } from "./tasks";
    Notices are org-wide by design (that's what a noticeboard is), so everyone
    reads them; the join tells each viewer which they've acknowledged. */
 
-/** id → display name for every staff member in the org. */
-async function staffNames(orgId: string): Promise<Map<string, string>> {
+/* Everything `displayNameOf` needs, named once. Selecting a subset is how the
+   two name resolvers drifted apart in the first place. */
+export const NAME_COLUMNS = "id, first_name, last_name, full_name, preferred_name";
+
+export type StaffNames = Map<string, string>;
+
+/* id → display name for every staff member in the org.
+
+   Every function below wants this map, and the dashboard calls five of them at
+   once — so it is a PARAMETER, and the loader reads it once and hands the same
+   map to all five. Left to fetch its own, this ran five identical full-table
+   reads per dashboard render. It stays optional so a caller with one query to
+   run (and every test) needn't thread it through. */
+async function staffNames(orgId: string): Promise<StaffNames> {
   const { data } = await supabaseAdmin
     .from("staff_profiles")
-    .select("id, first_name, last_name, full_name, preferred_name")
+    .select(NAME_COLUMNS)
     .eq("org_id", orgId);
-  const map = new Map<string, string>();
+  const map: StaffNames = new Map();
   for (const r of data ?? []) map.set(r.id as string, displayNameOf(r));
   return map;
 }
+
+/** The caller's map if it brought one, otherwise a fresh read. */
+const namesFor = (orgId: string, given?: StaffNames): Promise<StaffNames> =>
+  given ? Promise.resolve(given) : staffNames(orgId);
+
+/** Everyone's names, for a caller that is about to make several of these
+    queries and wants them to share one read. */
+export const loadStaffNames = staffNames;
 
 const TASK_COLUMNS =
   "id, title, detail, assigned_to, created_by, due_date, status, created_at, done_at, done_by";
@@ -55,7 +75,11 @@ function toTask(r: Record<string, unknown>, name: (id: string) => string): DashT
 }
 
 /** Your own open tasks. */
-export async function myTasks(orgId: string, staffProfileId: string): Promise<DashTask[]> {
+export async function myTasks(
+  orgId: string,
+  staffProfileId: string,
+  known?: StaffNames,
+): Promise<DashTask[]> {
   const [{ data }, names] = await Promise.all([
     supabaseAdmin
       .from("tasks")
@@ -63,7 +87,7 @@ export async function myTasks(orgId: string, staffProfileId: string): Promise<Da
       .eq("org_id", orgId)
       .eq("assigned_to", staffProfileId)
       .eq("status", "open"),
-    staffNames(orgId),
+    namesFor(orgId, known),
   ]);
   return ((data ?? []) as Record<string, unknown>[]).map((r) => toTask(r, (id) => names.get(id) ?? "Unnamed"));
 }
@@ -75,6 +99,7 @@ export async function recentlyDoneTasks(
   staffProfileId: string,
   sinceDays: number,
   now = new Date(),
+  known?: StaffNames,
 ): Promise<DashTask[]> {
   const since = new Date(now.getTime() - sinceDays * 86_400_000).toISOString();
   const [{ data }, names] = await Promise.all([
@@ -87,7 +112,7 @@ export async function recentlyDoneTasks(
       .gte("done_at", since)
       .order("done_at", { ascending: false })
       .limit(5),
-    staffNames(orgId),
+    namesFor(orgId, known),
   ]);
   return ((data ?? []) as Record<string, unknown>[]).map((r) => toTask(r, (id) => names.get(id) ?? "Unnamed"));
 }
@@ -98,14 +123,14 @@ export async function recentlyDoneTasks(
    themselves is private to them, not management's business. Only work that was
    handed to someone appears here. The column-to-column comparison isn't
    expressible as a PostgREST filter, so it's applied here via isDelegated. */
-export async function teamTasks(orgId: string): Promise<DashTask[]> {
+export async function teamTasks(orgId: string, known?: StaffNames): Promise<DashTask[]> {
   const [{ data }, names] = await Promise.all([
     supabaseAdmin
       .from("tasks")
       .select(TASK_COLUMNS)
       .eq("org_id", orgId)
       .eq("status", "open"),
-    staffNames(orgId),
+    namesFor(orgId, known),
   ]);
   return ((data ?? []) as Record<string, unknown>[])
     .map((r) => toTask(r, (id) => names.get(id) ?? "Unnamed"))
@@ -120,6 +145,7 @@ export async function assignedByMeRecentlyDone(
   staffProfileId: string,
   sinceDays: number,
   now = new Date(),
+  known?: StaffNames,
 ): Promise<DashTask[]> {
   const since = new Date(now.getTime() - sinceDays * 86_400_000).toISOString();
   const [{ data }, names] = await Promise.all([
@@ -132,7 +158,7 @@ export async function assignedByMeRecentlyDone(
       .gte("done_at", since)
       .order("done_at", { ascending: false })
       .limit(5),
-    staffNames(orgId),
+    namesFor(orgId, known),
   ]);
   return ((data ?? []) as Record<string, unknown>[])
     .map((r) => toTask(r, (id) => names.get(id) ?? "Unnamed"))
@@ -145,8 +171,9 @@ export async function listNotices(
   orgId: string,
   staffProfileId: string | null,
   limit = 20,
+  known?: StaffNames,
 ): Promise<BoardNotice[]> {
-  const [{ data }, names, reads, activeStaff] = await Promise.all([
+  const [{ data }, names, activeStaff] = await Promise.all([
     supabaseAdmin
       .from("notices")
       .select(
@@ -157,8 +184,7 @@ export async function listNotices(
       .eq("org_id", orgId)
       .order("created_at", { ascending: false })
       .limit(limit),
-    staffNames(orgId),
-    allReads(orgId),
+    namesFor(orgId, known),
     activeStaffCount(orgId),
   ]);
 
@@ -169,7 +195,7 @@ export async function listNotices(
   const idsOfKind = (kind: string) =>
     noticeRows.filter((r) => asNoticeKind(r.kind) === kind).map((r) => String(r.id));
   const allIds = noticeRows.map((r) => String(r.id));
-  const [polls, rsvps, reactions, comments, attachments] = await Promise.all([
+  const [polls, rsvps, reactions, comments, attachments, reads] = await Promise.all([
     pollsFor(orgId, idsOfKind("poll"), name),
     rsvpsFor(orgId, idsOfKind("event"), name),
     // reactions and comments are not kind-specific: anything on the board can
@@ -177,6 +203,11 @@ export async function listNotices(
     reactionsFor(orgId, allIds, name),
     commentsFor(orgId, allIds, name),
     documentsForNotices(orgId, allIds),
+    // joins the ids-known batch so it can be scoped to the page: read receipts
+    // are one row per person per notice and nothing ever prunes them, so
+    // reading the org's entire history to render twenty posts grows without
+    // bound — every other join here is already keyed to these same ids
+    readsFor(orgId, allIds),
   ]);
 
   const threaded = new Map(
@@ -384,19 +415,25 @@ async function commentsFor(
   return out;
 }
 
-/** Everyone a comment can @mention: the org's active staff, by display name.
-    Shared by the action (to resolve who was meant) and the page (to paint the
-    highlight), so the two can never disagree about what counts as a mention. */
+/* Everyone a comment can @mention: the org's active staff, by display name.
+   Shared by the action (to resolve who was meant) and the page (to paint the
+   highlight), so the two can never disagree about what counts as a mention.
+
+   Resolved through `displayNameOf`, like every other name in the app. It used
+   to read `preferred_name || full_name` by hand and not even select the name
+   parts, which meant a card whose `full_name` had fallen out of step with
+   `first_name`/`last_name` was mentionable under a different name from the one
+   the board showed on their own comments — or, with `full_name` empty, only as
+   "Unnamed", which nobody can type. One resolver, one answer. */
 export async function mentionableStaff(orgId: string): Promise<MentionTarget[]> {
   const { data } = await supabaseAdmin
     .from("staff_profiles")
-    .select("id, full_name, preferred_name")
+    .select(NAME_COLUMNS)
     .eq("org_id", orgId)
     .eq("status", "Active");
   return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
     id: String(r.id),
-    name:
-      (((r.preferred_name as string) || (r.full_name as string) || "Unnamed").trim() || "Unnamed"),
+    name: displayNameOf(r),
   }));
 }
 
@@ -413,14 +450,19 @@ export async function pollOptionIds(orgId: string, noticeId: string): Promise<st
 
 type ReadRow = { staffId: string; revision: number };
 
-/** Every read receipt in the org, grouped by notice. Small data — one query
+/** The read receipts for the notices on THIS page, grouped by notice. One query
     serves both "did I read it" and the author's "read by n of m". */
-async function allReads(orgId: string): Promise<Map<string, ReadRow[]>> {
+async function readsFor(
+  orgId: string,
+  noticeIds: readonly string[],
+): Promise<Map<string, ReadRow[]>> {
   const out = new Map<string, ReadRow[]>();
+  if (noticeIds.length === 0) return out;
   const { data } = await supabaseAdmin
     .from("notice_reads")
     .select("notice_id, staff_profile_id, revision")
-    .eq("org_id", orgId);
+    .eq("org_id", orgId)
+    .in("notice_id", [...noticeIds]);
   for (const r of (data ?? []) as Record<string, unknown>[]) {
     const id = String(r.notice_id);
     const list = out.get(id) ?? [];

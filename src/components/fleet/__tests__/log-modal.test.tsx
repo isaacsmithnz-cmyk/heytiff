@@ -58,6 +58,17 @@ describe("LogModal rego picker", () => {
     expect(picker.value).toBe("vrf-04"); // defaults to the driver's own vehicle
   });
 
+  /* A native <option> can only hold text, so the plate can't be styled inside
+     the list. It goes beside the select instead, showing the CHOSEN vehicle —
+     the one the answer to "right van?" actually depends on. */
+  it("shows the selected vehicle's plate beside the picker, and follows the pick", async () => {
+    const { user } = setup();
+    const plate = () => document.querySelector(".fl-pickrow .au-plate")?.textContent;
+    expect(plate()).toBe("MKT482VIC");
+    await user.selectOptions(screen.getByRole("combobox"), "ute-01");
+    expect(plate()).toBe("LRT906VIC");
+  });
+
   it("is hidden when no fleet is passed (single-vehicle context)", () => {
     setup("odo", { withFleet: false });
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();

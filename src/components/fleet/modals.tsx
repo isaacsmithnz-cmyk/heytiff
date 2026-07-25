@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
 import { readFuelReceipt } from "@/app/actions/fleet-ai";
 import { dateFromDays } from "@/lib/fleet/map";
+import { Plate } from "./plate";
 import {
   STATUS_LABEL,
   type AiValuation,
@@ -51,7 +52,9 @@ export function FleetModal({
   children,
 }: {
   title: string;
-  sub?: string;
+  /* ReactNode, not string: the detail modal sets its rego as a <Plate>, and a
+     plate that only renders inside the register is half a component. */
+  sub?: React.ReactNode;
   wide?: boolean;
   onClose: () => void;
   children: React.ReactNode;
@@ -372,14 +375,21 @@ export function LogModal({
     );
   const target = pickable.find((v) => v.id === vehicleId) ?? vehicle;
   const vehiclePicker = pickable.length > 1 && (
+    /* A native <option> can only hold text, so the list stays plain and the
+       CHOSEN vehicle gets the plate beside the select — which is the one that
+       matters anyway: it's the answer to "am I about to log this against the
+       right van", asked at the moment the fuel docket is in the other hand. */
     <Field label="Vehicle / rego" span>
-      <select className="fl-i" value={target.id} onChange={(e) => setVehicleId(e.target.value)}>
-        {pickable.map((v) => (
-          <option key={v.id} value={v.id}>
-            {v.plate} — {v.name || modelLabel(v)}
-          </option>
-        ))}
-      </select>
+      <div className="fl-pickrow">
+        <select className="fl-i" value={target.id} onChange={(e) => setVehicleId(e.target.value)}>
+          {pickable.map((v) => (
+            <option key={v.id} value={v.id}>
+              {v.plate} — {v.name || modelLabel(v)}
+            </option>
+          ))}
+        </select>
+        <Plate plate={target.plate} state={target.plateState} size="sm" />
+      </div>
     </Field>
   );
 
@@ -699,7 +709,12 @@ export function DetailModal({
   return (
     <FleetModal
       title={displayName(vehicle)}
-      sub={`${modelLabel(vehicle)} · ${vehicle.plate}`}
+      sub={
+        <>
+          {modelLabel(vehicle)}
+          <Plate plate={vehicle.plate} state={vehicle.plateState} size="sm" />
+        </>
+      }
       wide
       onClose={onClose}
     >

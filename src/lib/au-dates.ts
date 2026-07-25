@@ -38,6 +38,19 @@ export function todayInAu(now: Date = new Date()): string {
   }).format(now);
 }
 
+/* The AU calendar day a TIMESTAMP fell on, as ISO yyyy-mm-dd.
+
+   `todayInAu` answers "what day is it now"; this answers "what day was that",
+   and the two have to be derived the same way or they can't be compared. A
+   `done_at` of 22:00 UTC is 8am the NEXT morning in the yard, so deriving the
+   day with toISOString() and comparing it against todayInAu() reads a task
+   finished at breakfast as having been done yesterday — for the whole of the
+   working morning, every day. */
+export function auDayOf(when: string | Date): string {
+  const d = when instanceof Date ? when : new Date(when);
+  return Number.isNaN(d.getTime()) ? "" : todayInAu(d);
+}
+
 /** ISO yyyy-mm-dd -> dd/mm/yyyy for the design's text inputs. */
 export function formatAuDate(iso: string | null | undefined): string {
   if (!iso) return "";

@@ -821,6 +821,8 @@ function Editor({
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
   /* room whose external walls the canvas should re-mark (from the modal) */
   const [remarkRoomId, setRemarkRoomId] = useState<string | null>(null);
+  /* room whose SHAPE the canvas should unpin for editing (from the modal) */
+  const [reshapeRoomId, setReshapeRoomId] = useState<string | null>(null);
   /* the drawing tool-rail stays hidden until the first system exists, then
      latches on for the session — no point showing draw tools with nothing to
      draw for. Plan-prep (calibrate/crop/move) lives in the top bar regardless. */
@@ -1204,6 +1206,8 @@ function Editor({
               setEditingRoomId(id);
             }}
             remarkRoomId={remarkRoomId}
+            reshapeRoomId={reshapeRoomId}
+            onReshapeConsumed={() => setReshapeRoomId(null)}
             undo={undo}
             redo={redo}
             hist={hist}
@@ -1295,6 +1299,10 @@ function Editor({
           onRemarkWalls={(id) => {
             setEditingRoomId(null);
             setRemarkRoomId(id);
+          }}
+          onEditShape={(id) => {
+            setEditingRoomId(null);
+            setReshapeRoomId(id);
           }}
           onOpenReference={hasReference ? () => setRefOpen(true) : undefined}
         />
@@ -1880,6 +1888,8 @@ function DesignPanel({
   onRoomCreated,
   remarkRoomId,
   onRemarkConsumed,
+  reshapeRoomId,
+  onReshapeConsumed,
   undo,
   redo,
   hist,
@@ -1918,6 +1928,8 @@ function DesignPanel({
   onRoomCreated: (id: string) => void;
   remarkRoomId: string | null;
   onRemarkConsumed: () => void;
+  reshapeRoomId: string | null;
+  onReshapeConsumed: () => void;
   /** undo/redo — rendered as tools at the bottom of the rail */
   undo: () => void;
   redo: () => void;
@@ -2071,6 +2083,8 @@ function DesignPanel({
             iduSpec={iduSpec}
             onRoomCreated={onRoomCreated}
             remarkRoomId={remarkRoomId}
+            reshapeRoomId={reshapeRoomId}
+            onReshapeConsumed={onReshapeConsumed}
             onRemarkConsumed={onRemarkConsumed}
             layers={layers}
             grayscale={grayscale}

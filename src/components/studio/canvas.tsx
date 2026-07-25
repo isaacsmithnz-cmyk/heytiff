@@ -255,8 +255,10 @@ function plenumShape(opts: {
   /** face midpoint (on the AHU long face — air flows through the depth) */
   cx: number;
   cy: number;
-  /** outward direction along y: +1 = the +y face, −1 = the −y face */
-  dir: 1 | -1;
+  /** unit vector pointing OUT of that face (the unit's rotation is in here) */
+  out: Point;
+  /** unit vector running ALONG the face, so the shape turns with the unit */
+  ax: Point;
   /** half the BASE width — on the unit, the widest edge (world units) */
   baseHalf: number;
   /** half the SPIGOT-FACE width — the narrow far edge (world units, ≤ base) */
@@ -265,9 +267,20 @@ function plenumShape(opts: {
   depth: number;
   spigots: (PlenumSpigot & { r: number })[];
 }): PlenumShape {
-  const { cx, cy, dir, baseHalf, depth } = opts;
-  const y0 = cy; // base, on the unit
-  const y1 = cy + dir * depth; // spigot face, outward
+  const { cx, cy, out, ax, baseHalf, depth } = opts;
+  /* The whole shape is laid out in the FACE's own frame — `a` runs across the
+     face, `o` out of it — and mapped to world through the unit's basis. That
+     is what lets a rotated AHU carry its plenum round with it; the frame is
+     (1,0)/(0,±1) for an unrotated unit, which is the geometry this drew before
+     ducted units could turn. */
+  const P = (a: number, o: number): Point => ({
+    x: cx + ax.x * a + out.x * o,
+    y: cy + ax.y * a + out.y * o,
+  });
+  const V = (a: number, o: number): Point => ({
+    x: ax.x * a + out.x * o,
+    y: ax.y * a + out.y * o,
+  });
   const hBase = baseHalf;
   /* The far face is exactly as wide as the ducts landing ON it — no artificial
      lip. With every takeoff on the SIDES the face is nothing and the body
@@ -276,61 +289,68 @@ function plenumShape(opts: {
   const hSpig = Math.min(hBase, opts.spigotHalf);
   const stub = depth * 0.4; // how far the spigot rectangles stand off the face
 
-  // trapezoid: WIDE at the unit (y0, ±hBase) → NARROW at the spigot face (y1, ±hSpig)
+  // trapezoid: WIDE on the unit (±hBase) → NARROW at the spigot face (±hSpig)
   const body: Point[] = [
-    { x: cx - hBase, y: y0 },
-    { x: cx - hSpig, y: y1 },
-    { x: cx + hSpig, y: y1 },
-    { x: cx + hBase, y: y0 },
+    P(-hBase, 0),
+    P(-hSpig, depth),
+    P(hSpig, depth),
+    P(hBase, 0),
   ];
-
-  /* front spigots: t ∈ 0..1 left→right along the (narrow) spigot face */
-  const frontAt = (t: number): Point => ({ x: cx - hSpig + t * 2 * hSpig, y: y1 });
-  /* side spigots ride the left (x−) / right (x+) sloped edge, base→spigot corner */
-  const sideAt = (t: number, side: "left" | "right"): Point => {
-    const s = side === "left" ? -1 : 1;
-    const a = { x: cx + s * hBase, y: y0 };
-    const b = { x: cx + s * hSpig, y: y1 };
-    return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
-  };
 
   const spigots: PlenumSpigotRect[] = opts.spigots.map((s) => {
     if (s.face === "front") {
-      // rectangle: Ø across the face (in x), stub outward (in y)
-      const p = frontAt(s.t);
-      const yOut = p.y + dir * stub;
+      /* front spigots: t ∈ 0..1 left→right along the (narrow) spigot face.
+         Rectangle: Ø across the face, stub standing off it */
+      const a = -hSpig + s.t * 2 * hSpig;
       return {
         id: s.id,
         rect: [
-          { x: p.x - s.r, y: p.y },
-          { x: p.x - s.r, y: yOut },
-          { x: p.x + s.r, y: yOut },
-          { x: p.x + s.r, y: p.y },
+          P(a - s.r, depth),
+          P(a - s.r, depth + stub),
+          P(a + s.r, depth + stub),
+          P(a + s.r, depth),
         ],
-        cx: p.x,
-        cy: p.y + (dir * stub) / 2,
-        nx: 0,
-        ny: dir,
+        cx: P(a, depth + stub / 2).x,
+        cy: P(a, depth + stub / 2).y,
+        nx: out.x,
+        ny: out.y,
         capped: s.capped === true,
         diaMm: s.diaMm,
       };
     }
-    // side spigot: Ø across the sloped edge (in y), stub outward (in x)
-    const p = sideAt(s.t, s.face);
-    const nx = s.face === "left" ? -1 : 1;
-    const xOut = p.x + nx * stub;
+    /* side spigot: it comes off the SLOPED edge, so the takeoff has to be
+       square to that edge — Ø along the slope, stub along the slope's outward
+       normal. Drawing it axis-aligned (the old ±y × ±x box) left the duct
+       hanging off the angled face at a visible angle (field feedback
+       2026-07-25). */
+    const sgn = s.face === "left" ? -1 : 1;
+    // the sloped edge, base corner → spigot-face corner
+    const ea = sgn * hSpig - sgn * hBase;
+    const eo = depth;
+    const len = Math.hypot(ea, eo) || 1;
+    const ta = ea / len; // unit tangent along the edge
+    const to = eo / len;
+    // its normal, flipped to point AWAY from the body (outward across the face)
+    let na = to;
+    let no = -ta;
+    if (na * sgn < 0) {
+      na = -na;
+      no = -no;
+    }
+    const pa = sgn * hBase + ea * s.t; // seat of the takeoff on the edge
+    const po = eo * s.t;
     return {
       id: s.id,
       rect: [
-        { x: p.x, y: p.y - s.r },
-        { x: xOut, y: p.y - s.r },
-        { x: xOut, y: p.y + s.r },
-        { x: p.x, y: p.y + s.r },
+        P(pa - ta * s.r, po - to * s.r), // edge footprint, Ø wide
+        P(pa - ta * s.r + na * stub, po - to * s.r + no * stub),
+        P(pa + ta * s.r + na * stub, po + to * s.r + no * stub),
+        P(pa + ta * s.r, po + to * s.r),
       ],
-      cx: p.x + (nx * stub) / 2,
-      cy: p.y,
-      nx,
-      ny: 0,
+      cx: P(pa + (na * stub) / 2, po + (no * stub) / 2).x,
+      cy: P(pa + (na * stub) / 2, po + (no * stub) / 2).y,
+      nx: V(na, no).x,
+      ny: V(na, no).y,
       capped: s.capped === true,
       diaMm: s.diaMm,
     };
@@ -339,7 +359,7 @@ function plenumShape(opts: {
   /* the label sits CENTRED ON the plenum body — a label belongs on the thing
      it names, and centring also keeps it clear of the takeoffs, which stand
      off the far face rather than over the body. */
-  return { body, spigots, labelAt: { x: cx, y: (y0 + y1) / 2 } };
+  return { body, spigots, labelAt: P(0, depth / 2) };
 }
 
 /** the pack's air-opening for one stream of an indoor unit, or null */
@@ -415,6 +435,8 @@ export function StudioCanvas({
   onRoomCreated,
   remarkRoomId = null,
   onRemarkConsumed,
+  reshapeRoomId = null,
+  onReshapeConsumed,
   layers = ALL_LAYERS_ON,
   grayscale = false,
   onZoomApi,
@@ -456,6 +478,9 @@ export function StudioCanvas({
   /** request to re-enter wall-marking for an existing room (from the modal) */
   remarkRoomId?: string | null;
   onRemarkConsumed?: () => void;
+  /** request to UNPIN an existing room and edit its shape (from the modal) */
+  reshapeRoomId?: string | null;
+  onReshapeConsumed?: () => void;
   /** live simulation (Stage 12a): renders the overlay + locks editing to
       pan/zoom. The sim never mutates the document — it only reads it. */
   sim?: SimRuntime | null;
@@ -479,15 +504,22 @@ export function StudioCanvas({
   } | null>(null);
   const [draftPoly, setDraftPoly] = useState<Point[]>([]);
   const [draftRect, setDraftRect] = useState<{ a: Point; b: Point } | null>(null);
-  /* wall-marking (DUCTR parity): after a room boundary is closed, the user
-     marks which edges are external BEFORE the load modal opens. `roomId` null =
-     a fresh draft (Cancel discards it); set = re-marking an existing room. */
+  /* wall-marking (DUCTR parity): once the room is SAVED the user marks which
+     edges are external, before the load modal opens. `isNew` = the room has
+     just been drawn (Cancel drops back to sizing it); false = re-marking an
+     existing room, which returns to the modal. */
   const [wallSelect, setWallSelect] = useState<{
     points: Point[];
     selected: Set<number>;
-    roomId: string | null;
-    shape?: "rect" | "poly";
+    roomId: string;
+    isNew: boolean;
   } | null>(null);
+  /* Sizing a room (field feedback 2026-07-25): a drawn room stays LOOSE until
+     it's saved — only the adjust room's body and corners drag. Every other
+     room is pinned to the plan, so a mis-grabbed pan no longer drags a whole
+     space across the drawing; re-open one with Edit shape in the room modal.
+     `orig` is the geometry to restore if the edit is cancelled. */
+  const [adjust, setAdjust] = useState<{ id: string; isNew: boolean } | null>(null);
   const [calib, setCalib] = useState<{ a?: Point; b?: Point }>({});
   const [calibMeters, setCalibMeters] = useState("");
   const spaceDown = useRef(false);
@@ -653,12 +685,12 @@ export function StudioCanvas({
   const [liveRotate, setLiveRotate] = useState<{ id: string; deg: number } | null>(null);
   const northArrow = liveNorth ?? (floor.northPos ? { pos: floor.northPos, deg: floor.northDeg ?? 0 } : null);
 
-  /* Rotating a placed SIMPLE unit — a wall head, floor console or outdoor
-     unit, which is just a glyph on the plan. Ducted AHUs are excluded: their
-     orientation drives the supply/return faces, attached plenums and pipe
-     endpoints, so rotating them is a separate air-side job. */
+  /* Rotating a placed unit. Wall heads, floor consoles and outdoor units are
+     just glyphs, but a ducted AHU carries its air side round with it: the
+     supply/return faces, their plenums and takeoffs all derive from the same
+     angle (the faces come back rotated from `endFace`, and the plenum body is
+     laid out in that face's frame). */
   type UnitObj = (typeof units)[number];
-  const isSimpleUnit = (o: UnitObj) => !ahuRow(o);
   const unitRotDeg = (o: UnitObj) =>
     liveRotate?.id === o.id ? liveRotate.deg : o.geometry.rotation ?? 0;
   /* the rotate knob's world position: local "up" (top of the footprint plus a
@@ -841,11 +873,14 @@ export function StudioCanvas({
     [iduSpec]
   );
 
-  /** an AHU air face as a world segment + outward direction. Air flows
-      through the DEPTH (spec §1a) — the openings are the two LONG faces
-      (±y). Supply defaults to the +y face; `props.airFlip` swaps, and the
-      first placed plenum writes airFlip so its face IS its stream. */
-  const endFace = useCallback(
+  /** an AHU air face in the unit's OWN (unrotated) frame. Air flows through
+      the DEPTH (spec §1a) — the openings are the two LONG faces (±y). Supply
+      defaults to the +y face; `props.airFlip` swaps, and the first placed
+      plenum writes airFlip so its face IS its stream.
+
+      Everything drawn INSIDE the unit's rotate group works in these coords —
+      the group transform turns it. Anything outside wants `endFace`. */
+  const endFaceLocal = useCallback(
     (u: DesignObject & { geometry: { at: Point } }, end: "supply" | "return") => {
       const at = pointAt(u);
       const fp = footprint(Number(u.props.widthMm ?? 800), Number(u.props.depthMm ?? 300));
@@ -861,6 +896,41 @@ export function StudioCanvas({
       };
     },
     [pointAt, footprint]
+  );
+
+  /** the same face in WORLD space, turned by the unit's rotation, plus the
+      basis that goes with it: `out` points out of the face and `ax` runs
+      along it (a → b). Plenums, drop zones and hit-tests all live out here,
+      so they get the turned face rather than the unit's local one. */
+  const endFace = useCallback(
+    (u: DesignObject & { geometry: { at: Point } }, end: "supply" | "return") => {
+      const f = endFaceLocal(u, end);
+      const deg =
+        liveRotate?.id === u.id
+          ? liveRotate.deg
+          : (u.geometry as { rotation?: number }).rotation ?? 0;
+      if (!deg) {
+        return { ...f, out: { x: 0, y: f.dir }, ax: { x: 1, y: 0 } };
+      }
+      const at = pointAt(u);
+      const rad = (deg * Math.PI) / 180;
+      const c = Math.cos(rad);
+      const s = Math.sin(rad);
+      const rp = (p: Point): Point => ({
+        x: at.x + (p.x - at.x) * c - (p.y - at.y) * s,
+        y: at.y + (p.x - at.x) * s + (p.y - at.y) * c,
+      });
+      return {
+        a: rp(f.a),
+        b: rp(f.b),
+        mid: rp(f.mid),
+        dir: f.dir,
+        faceHalf: f.faceHalf,
+        out: { x: -f.dir * s, y: f.dir * c },
+        ax: { x: c, y: s },
+      };
+    },
+    [endFaceLocal, pointAt, liveRotate]
   );
 
   /** every plenum mounting face of the placed air-capable AHUs, with its
@@ -1008,7 +1078,7 @@ export function StudioCanvas({
         stream: end, // return draws as a box; supply tapers to its spigots
       });
       if (body.builtIn || body.factorySpigots) continue; // no drawn plenum object
-      const f = endFace(unit, end);
+      const f = endFace(unit, end); // rotated: the plenum turns with its AHU
       // base = the discharge opening (a plenum box fans wider than the slim
       // unit end, so it is NOT clamped to the mounting-face length)
       const baseHalf = (body.baseWMm * perMm) / 2;
@@ -1016,7 +1086,8 @@ export function StudioCanvas({
         ...plenumShape({
           cx: f.mid.x,
           cy: f.mid.y,
-          dir: f.dir,
+          out: f.out,
+          ax: f.ax,
           baseHalf,
           spigotHalf: (body.spigotFaceWMm * perMm) / 2,
           depth: body.depthMm * perMm,
@@ -1104,7 +1175,7 @@ export function StudioCanvas({
       // [ / ] rotate the selected simple unit in 90° steps
       if ((e.key === "[" || e.key === "]") && !isTyping(e) && selectedId) {
         const u = units.find((x) => x.id === selectedId);
-        if (u && u.type === "unit" && !ahuRow(u) && u.geometry.kind === "point") {
+        if (u && u.type === "unit" && u.geometry.kind === "point") {
           e.preventDefault();
           const step = e.key === "]" ? 90 : -90;
           onMutate((d) => ({
@@ -1162,21 +1233,13 @@ export function StudioCanvas({
   }, [selectedId, onMutate, onSelect, units, ahuRow]);
 
   /* ── document intents ── */
-  /* A closed boundary doesn't create a room outright — it opens wall-marking
-     (DUCTR: closePolygon → startWallSelect). The room is committed only when
-     the user confirms which walls are external. */
-  const beginWallSelect = useCallback((points: Point[], shape: "rect" | "poly") => {
-    setWallSelect({ points, selected: new Set(), roomId: null, shape });
-  }, []);
-
-  const commitRoom = useCallback(
-    (points: Point[], externalWalls: number[], shape?: "rect" | "poly") => {
+  /* A closed boundary lands the room on the plan LOOSE — the user tweaks its
+     size, then Save pins it and hands over to wall-marking (which used to run
+     straight off the draw). Nothing is external yet; the walls are marked on
+     the saved shape. */
+  const beginRoomAdjust = useCallback(
+    (points: Point[], shape: "rect" | "poly") => {
       const id = newId("obj");
-      const orientation = orientationFromWalls(
-        points,
-        externalWalls,
-        floor.northDeg ?? 0
-      );
       onMutate((d) => {
         // rooms belong to the active system (type-first flow); scoped per system
         const n =
@@ -1192,58 +1255,84 @@ export function StudioCanvas({
           plane: "room",
           props: {
             name: `Room ${n}`,
-            externalWalls,
-            hasExternalWalls: externalWalls.length > 0,
+            externalWalls: [],
+            hasExternalWalls: false,
             // rectangle-tool rooms stay rectangular when their corners are edited
             ...(shape ? { shape } : {}),
-            ...(orientation ? { orientation } : {}),
           },
         };
         return { ...d, objects: [...d.objects, room] };
       });
-      // hand the fresh room to the configuration modal (load inputs)
-      onRoomCreated?.(id);
+      setAdjust({ id, isNew: true });
+      onSelect(id);
+      onToolDone(); // back to select so the corners and body drag
     },
-    [onMutate, floor.id, floor.northDeg, activeSystemId, onRoomCreated]
+    [onMutate, floor.id, activeSystemId, onSelect, onToolDone]
   );
+
+  /** Save: pin the room to the plan. A fresh room goes on to wall-marking; a
+      re-opened one returns to its modal. Either way it stops being draggable. */
+  const saveRoomAdjust = useCallback(() => {
+    if (!adjust) return;
+    const room = rooms.find((r) => r.id === adjust.id);
+    setAdjust(null);
+    if (!room) return;
+    if (adjust.isNew) {
+      setWallSelect({
+        points: room.geometry.points,
+        selected: new Set(),
+        roomId: adjust.id,
+        isNew: true,
+      });
+    } else {
+      onRoomCreated?.(adjust.id);
+    }
+  }, [adjust, rooms, onRoomCreated]);
+
+  /** Discard a just-drawn room. Re-opened rooms have no discard — their edits
+      are already in history, so Ctrl-Z is the way back. */
+  const discardRoomAdjust = useCallback(() => {
+    if (!adjust?.isNew) return;
+    const { id } = adjust;
+    setAdjust(null);
+    onMutate((d) => ({ ...d, objects: d.objects.filter((o) => o.id !== id) }));
+    onSelect(null);
+  }, [adjust, onMutate, onSelect]);
 
   const confirmWallSelect = useCallback(() => {
     if (!wallSelect) return;
-    const { points, selected, roomId, shape } = wallSelect;
+    const { points, selected, roomId } = wallSelect;
     const walls = [...selected].sort((a, b) => a - b);
-    if (roomId) {
-      // re-marking an existing room: update walls + derived orientation
-      const orientation = orientationFromWalls(points, walls, floor.northDeg ?? 0);
-      onMutate((d) => ({
-        ...d,
-        objects: d.objects.map((o) =>
-          o.id === roomId
-            ? {
-                ...o,
-                props: {
-                  ...o.props,
-                  externalWalls: walls,
-                  hasExternalWalls: walls.length > 0,
-                  ...(orientation ? { orientation } : {}),
-                },
-              }
-            : o
-        ),
-      }));
-    } else {
-      commitRoom(points, walls, shape);
-    }
+    const orientation = orientationFromWalls(points, walls, floor.northDeg ?? 0);
+    onMutate((d) => ({
+      ...d,
+      objects: d.objects.map((o) =>
+        o.id === roomId
+          ? {
+              ...o,
+              props: {
+                ...o.props,
+                externalWalls: walls,
+                hasExternalWalls: walls.length > 0,
+                ...(orientation ? { orientation } : {}),
+              },
+            }
+          : o
+      ),
+    }));
     setWallSelect(null);
     onToolDone();
-    if (roomId) onRoomCreated?.(roomId); // return to the modal after re-marking
-  }, [wallSelect, floor.northDeg, onMutate, commitRoom, onToolDone, onRoomCreated]);
+    onRoomCreated?.(roomId); // the load modal (fresh room) / back to it (re-mark)
+  }, [wallSelect, floor.northDeg, onMutate, onToolDone, onRoomCreated]);
 
   const cancelWallSelect = useCallback(() => {
-    const roomId = wallSelect?.roomId ?? null;
+    if (!wallSelect) return;
+    const { roomId, isNew } = wallSelect;
     setWallSelect(null);
     onToolDone();
-    // a fresh draft is discarded (no room made); re-mark returns to the modal
-    if (roomId) onRoomCreated?.(roomId);
+    // a fresh room falls back to sizing; re-marking returns to the modal
+    if (isNew) setAdjust({ id: roomId, isNew: true });
+    else onRoomCreated?.(roomId);
   }, [wallSelect, onToolDone, onRoomCreated]);
 
   /* modal asked to re-mark an existing room — seed wall-select from its walls */
@@ -1261,11 +1350,26 @@ export function StudioCanvas({
         points: room.geometry.points,
         selected: new Set(walls),
         roomId: remarkRoomId,
+        isNew: false,
       });
     }
     onRemarkConsumed?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [remarkRoomId]);
+
+  /* modal asked to edit an existing room's shape — unpin it for adjusting */
+  useEffect(() => {
+    if (!reshapeRoomId) return;
+    const room = doc.objects.find((o) => o.id === reshapeRoomId);
+    if (room && room.geometry.kind === "polygon") {
+      // one-shot prop→state handoff, same as the re-mark request above
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setAdjust({ id: reshapeRoomId, isNew: false });
+      onSelect(reshapeRoomId);
+    }
+    onReshapeConsumed?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reshapeRoomId]);
 
   const commitGeometry = useCallback(
     (id: string, points: Point[]) => {
@@ -1319,7 +1423,19 @@ export function StudioCanvas({
         const u = units[i];
         const at = pointAt(u);
         const fp = footprint(Number(u.props.widthMm ?? 800), Number(u.props.depthMm ?? 300));
-        if (Math.abs(w.x - at.x) <= fp.w / 2 && Math.abs(w.y - at.y) <= fp.h / 2)
+        /* turn the POINT back into the unit's own frame rather than growing a
+           bounding box — a rotated unit is grabbed by the footprint you can
+           actually see */
+        const deg =
+          liveRotate?.id === u.id
+            ? liveRotate.deg
+            : (u.geometry as { rotation?: number }).rotation ?? 0;
+        const rad = (-deg * Math.PI) / 180;
+        const dx = w.x - at.x;
+        const dy = w.y - at.y;
+        const lx = dx * Math.cos(rad) - dy * Math.sin(rad);
+        const ly = dx * Math.sin(rad) + dy * Math.cos(rad);
+        if (Math.abs(lx) <= fp.w / 2 && Math.abs(ly) <= fp.h / 2)
           return { id: u.id, kind: "unit" };
       }
       for (let i = risers.length - 1; i >= 0; i--) {
@@ -1336,7 +1452,7 @@ export function StudioCanvas({
       }
       return null;
     },
-    [plenums, plenumShapes, units, risers, runs, pointAt, footprint, vp.zoom]
+    [plenums, plenumShapes, units, risers, runs, pointAt, footprint, vp.zoom, liveRotate]
   );
 
   /* Eraser: objects only (a room deletes by selecting it and pressing Delete,
@@ -1605,7 +1721,7 @@ export function StudioCanvas({
         // so the knob rotates and the footprint still moves (screen-space test)
         if (selectedId) {
           const su = units.find((u) => u.id === selectedId);
-          if (su && isSimpleUnit(su)) {
+          if (su) {
             const ks = worldToScreen(unitRotKnob(su).knob, vp);
             if (dist(worldToScreen(w, vp), ks) <= 14) {
               setDrag({ kind: "unit-rotate", id: su.id, center: pointAt(su) });
@@ -1628,9 +1744,11 @@ export function StudioCanvas({
         if (hit) {
           onSelect(hit);
           const room = rooms.find((r) => r.id === hit)!;
-          // foreign rooms are selectable (to inspect) but only the system
-          // that drew a room may move it
-          if (roomEditable(room)) {
+          /* A saved room is PINNED: it selects on click but drags the plan, so
+             panning across a drawing can't take a whole space with it. Only
+             the room being adjusted moves — and only for the system that drew
+             it (foreign rooms stay inspect-only). */
+          if (roomEditable(room) && adjust?.id === hit) {
             // units stamped to this room travel with the move
             setDrag({
               kind: "move",
@@ -1639,6 +1757,8 @@ export function StudioCanvas({
               orig: roomPoints(room),
               memberIds: roomMemberIds(doc.objects, hit),
             });
+          } else {
+            pan();
           }
         } else {
           onSelect(null);
@@ -1685,7 +1805,7 @@ export function StudioCanvas({
           const firstScreen = worldToScreen(draftPoly[0], vp);
           const hereScreen = worldToScreen(w, vp);
           if (dist(firstScreen, hereScreen) <= CLOSE_SNAP_PX) {
-            beginWallSelect(draftPoly, "poly");
+            beginRoomAdjust(draftPoly, "poly");
             setDraftPoly([]);
             return;
           }
@@ -1888,7 +2008,7 @@ export function StudioCanvas({
     if (drag.kind === "rect" && draftRect) {
       const { a, b } = draftRect;
       if (Math.abs(b.x - a.x) >= snapStep && Math.abs(b.y - a.y) >= snapStep) {
-        beginWallSelect(
+        beginRoomAdjust(
           [
             { x: a.x, y: a.y },
             { x: b.x, y: a.y },
@@ -2024,7 +2144,7 @@ export function StudioCanvas({
   const onDoubleClick = () => {
     if (sim) return;
     if (tool === "room-poly" && draftPoly.length >= 3) {
-      beginWallSelect(draftPoly, "poly");
+      beginRoomAdjust(draftPoly, "poly");
       setDraftPoly([]);
     }
     // double-click ends a pipe run without an end anchor (open run)
@@ -2041,7 +2161,9 @@ export function StudioCanvas({
       /* jsdom */
     }
     const room = rooms.find((r) => r.id === id);
-    if (room) setDrag({ kind: "vertex", id, index, orig: roomPoints(room) });
+    // corners only pull on the room being sized — saved rooms are pinned
+    if (room && adjust?.id === id)
+      setDrag({ kind: "vertex", id, index, orig: roomPoints(room) });
   };
 
   const confirmCalibration = () => {
@@ -2270,10 +2392,14 @@ export function StudioCanvas({
             const areaU = polygonArea(pts);
             const selected = r.id === selectedId;
             const ghost = !roomServed(r);
+            // the room being sized reads as loose (dashed) until it's saved
+            const loose = adjust?.id === r.id;
             return (
               <g
                 key={r.id}
-                className={`ds-room${selected ? " sel" : ""}${ghost ? " ghost" : ""}`}
+                className={`ds-room${selected ? " sel" : ""}${ghost ? " ghost" : ""}${
+                  loose ? " loose" : ""
+                }`}
               >
                 <polygon points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />
                 {layers.labels && (
@@ -2293,7 +2419,7 @@ export function StudioCanvas({
                     </text>
                   </>
                 )}
-                {selected &&
+                {loose &&
                   tool === "select" &&
                   roomEditable(r) &&
                   pts.map((p, i) => (
@@ -2351,7 +2477,7 @@ export function StudioCanvas({
             const sockD = 150 * perMm;
             const builtInD = 350 * perMm; // engine's default plenum depth
             const rot = unitRotDeg(u); // simple units only; AHUs stay at 0
-            const rk = u.id === selectedId && isSimpleUnit(u) ? unitRotKnob(u) : null;
+            const rk = u.id === selectedId ? unitRotKnob(u) : null;
             return (
               <g
                 key={u.id}
@@ -2369,7 +2495,7 @@ export function StudioCanvas({
                      arrow on a bare unit (spec §1a). */
                   const oriented = ends.some((e) => e.determined);
                   if (!air || !oriented) return null;
-                  const sdir = endFace(u, "supply").dir;
+                  const sdir = endFaceLocal(u, "supply").dir;
                   return (
                     <>
                       <line
@@ -2382,7 +2508,7 @@ export function StudioCanvas({
                       />
                       {layers.labels &&
                         ends.map((e) => {
-                          const f = endFace(e.unit, e.end);
+                          const f = endFaceLocal(e.unit, e.end);
                           return (
                             <text
                               key={`fl-${e.end}`}
@@ -2399,7 +2525,8 @@ export function StudioCanvas({
                   );
                 })()}
                 {ends.map((e) => {
-                  const f = endFace(e.unit, e.end);
+                  // inside the rotate group: the unit's own frame
+                  const f = endFaceLocal(e.unit, e.end);
                   if (e.builtIn) {
                     /* built-in return: the fused box + its return spigots pop
                        up automatically (spec §1a) — a default fan of return
@@ -2585,11 +2712,13 @@ export function StudioCanvas({
                   <g key={sp.id} className="ds-spigot">
                     <polygon points={sp.rect.map((pt) => `${pt.x},${pt.y}`).join(" ")} />
                     {sp.capped && (
+                      /* the blank sits ACROSS the takeoff — the true tangent
+                         (−ny, nx), so it stays square on a sloped side face */
                       <line
                         className="ds-spigot-cap"
-                        x1={sp.cx - sp.ny * 4}
+                        x1={sp.cx + sp.ny * 4}
                         y1={sp.cy - sp.nx * 4}
-                        x2={sp.cx + sp.ny * 4}
+                        x2={sp.cx - sp.ny * 4}
                         y2={sp.cy + sp.nx * 4}
                       />
                     )}
@@ -2643,15 +2772,20 @@ export function StudioCanvas({
                       Number(e.unit.props.depthMm ?? 300)
                     );
                     const zoneD = fp.h * 0.55; // drop-zone depth off the face
+                    /* a polygon, not a rect: the zone stands off the face
+                       along its own outward normal, so it stays on the face
+                       when the AHU is turned */
+                    const zone = [
+                      f.a,
+                      { x: f.a.x + f.out.x * zoneD, y: f.a.y + f.out.y * zoneD },
+                      { x: f.b.x + f.out.x * zoneD, y: f.b.y + f.out.y * zoneD },
+                      f.b,
+                    ];
                     return (
                       <g key={`${e.unit.id}:${e.end}:${c.needsFlip ? "flip" : "as-is"}`}>
-                        <rect
+                        <polygon
                           className={`ds-plenum-dropzone${ready ? " ready" : ""}`}
-                          x={f.a.x}
-                          y={f.dir === 1 ? f.mid.y : f.mid.y - zoneD}
-                          width={f.b.x - f.a.x}
-                          height={zoneD}
-                          rx={6 / vp.zoom}
+                          points={zone.map((p) => `${p.x},${p.y}`).join(" ")}
                         />
                         <line
                           className={`ds-plenum-face${ready ? " ready" : ""}`}
@@ -2674,7 +2808,8 @@ export function StudioCanvas({
                           const ghost = plenumShape({
                             cx: f.mid.x,
                             cy: f.mid.y,
-                            dir: f.dir,
+                            out: f.out,
+                            ax: f.ax,
                             baseHalf: (body.baseWMm * perMm) / 2,
                             spigotHalf: (body.spigotFaceWMm * perMm) / 2,
                             depth: body.depthMm * perMm,
@@ -2993,6 +3128,41 @@ export function StudioCanvas({
                 </button>
                 <button className="ds-calib-ok" onClick={confirmWallSelect}>
                   {n > 0 ? "Done" : "No external walls"}
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+
+      {/* room sizing panel — the room is loose until this Save pins it */}
+      {adjust &&
+        (() => {
+          const room = rooms.find((r) => r.id === adjust.id);
+          if (!room) return null;
+          const pts = roomPoints(room);
+          const areaU = polygonArea(pts);
+          return (
+            <div className="ds-wallsel-panel" role="dialog" aria-label="Size the room">
+              <div className="ds-wallsel-title">
+                {adjust.isNew ? "Size the room" : "Edit the room"}
+              </div>
+              <div className="ds-wallsel-hint">
+                Drag a corner to resize, or the room to move it. Saving pins it
+                to the plan so panning can&apos;t drag it — reopen it any time
+                with Edit shape.
+              </div>
+              <div className="ds-wallsel-count on">
+                {mm ? formatArea(areaUnitsToM2(areaU, mm)) : "not calibrated"}
+              </div>
+              <div className="ds-wallsel-actions">
+                {adjust.isNew && (
+                  <button className="ds-calib-cancel" onClick={discardRoomAdjust}>
+                    Discard
+                  </button>
+                )}
+                <button className="ds-calib-ok" onClick={saveRoomAdjust}>
+                  {/* not "Save room" — that's the load modal's own button */}
+                  {adjust.isNew ? "Save & continue" : "Save shape"}
                 </button>
               </div>
             </div>

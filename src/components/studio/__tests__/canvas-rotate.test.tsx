@@ -1,9 +1,9 @@
-/* Canvas WIRING for rotating a placed SIMPLE unit (wall head / floor console
-   / outdoor). The geometry already carried an optional `rotation`; this covers
+/* Canvas WIRING for rotating a placed unit (wall head / floor console /
+   outdoor). The geometry already carried an optional `rotation`; this covers
    the controls that set it — the [ / ] 90° keyboard steps, the on-canvas knob,
-   and that the glyph actually renders turned. Ducted AHUs are excluded (their
-   orientation drives the air side) — but with no pack in the harness every
-   unit reads as simple, which is exactly the case under test.
+   and that the glyph actually renders turned. Ducted AHUs turn too, carrying
+   their air side with them — canvas-rotate-ahu.test.tsx covers that half,
+   since it needs a pack row to read as air-capable.
 
    jsdom has no layout: blank floor (10 mm/unit -> grid 100) opens at zoom 0.56,
    world origin at screen centre (400,300). */

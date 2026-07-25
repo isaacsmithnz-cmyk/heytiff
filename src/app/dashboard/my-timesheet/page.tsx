@@ -34,7 +34,8 @@ export default async function MyTimesheetPage({
       today={data.today}
       todayISO={data.todayISO}
       periodStart={data.periodStart}
-      periodLabel={data.periodLabel}
+      periods={data.periods}
+      periodIndex={data.periodIndex}
       settings={data.settings}
       sheet={data.sheet}
       holidays={data.holidays}

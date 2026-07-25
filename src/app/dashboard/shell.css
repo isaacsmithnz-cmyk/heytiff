@@ -1831,7 +1831,6 @@ select.fl-i { cursor:pointer; }
 .fg .mts-hol b { font-size:13px; font-weight:800; color:var(--ink); min-width:120px; }
 .fg .mts-hol em { flex:1; font-style:normal; font-size:12.5px; font-weight:600; color:var(--gray500); }
 .fg .mts-holnext { font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--teal-d); background:rgba(0,163,137,.12); padding:3px 9px; border-radius:7px; }
-.fg .hol-intro { max-width:640px; font-size:13.5px; font-weight:500; color:var(--gray500); line-height:1.55; margin:0 0 20px; }
 .fg .hol-year { border:1px solid rgba(10,11,16,.08); border-radius:16px; overflow:hidden; margin-top:16px; }
 .fg .hol-row { display:flex; align-items:center; gap:12px; padding:11px 16px; border-bottom:1px solid rgba(10,11,16,.05); }
 .fg .hol-date { min-width:150px; font-size:13px; font-weight:700; color:var(--ink); }
@@ -2112,3 +2111,30 @@ select.fl-i { cursor:pointer; }
 .fg .cal-fbtn:disabled { opacity:.4; cursor:not-allowed; }
 .fg .cal-fbtn.clear { margin-left:auto; color:#e0264f; background:rgba(255,51,102,.07); }
 .fg .cal-fbtn.clear:hover { background:rgba(255,51,102,.13); color:#e0264f; }
+
+/* ---- Admin settings index (components/admin/admin-index.tsx) ----
+   A settings landing is a menu, so it is rows, not cards: one white card per
+   group with hairline-separated rows inside. The column is narrower than the
+   1500px .wrap because a list of one-line rows stretched to a wide desktop
+   reads as a spreadsheet — 760px keeps title, sub and chevron in one glance.
+   The icon-chip accent is inline (per row, ~10% tint) the way the nav and the
+   toolbox do it; everything structural lives here. */
+.fg .adm-stg { max-width:760px; }
+.fg .adm-group + .adm-group { margin-top:30px; }
+.fg .adm-glabel { font-size:11px; font-weight:800; letter-spacing:.2em; text-transform:uppercase; color:var(--gray400); margin:0 0 12px 2px; }
+.fg .adm-card { background:#fff; border:1px solid #f0f0f2; border-radius:24px; box-shadow:0 8px 30px rgba(0,0,0,.03); overflow:hidden; }
+.fg .adm-row { display:flex; align-items:center; gap:14px; padding:15px 20px; text-decoration:none; color:inherit; border-top:1px solid #f5f6f8; transition:background .15s; }
+.fg .adm-row:first-child { border-top:0; }
+.fg a.adm-row:hover { background:#fafbfc; }
+.fg .adm-ic { flex:0 0 auto; width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; }
+.fg .adm-main { flex:1; min-width:0; }
+.fg .adm-main b { display:block; font-size:15px; font-weight:800; letter-spacing:-0.01em; color:var(--ink); }
+.fg .adm-main em { display:block; font-style:normal; font-size:13px; font-weight:500; color:var(--gray500); margin-top:2px; }
+.fg .adm-ch { flex:0 0 auto; display:flex; color:var(--gray400); transition:transform .15s; }
+.fg a.adm-row:hover .adm-ch { transform:translateX(2px); }
+/* planned: present, legible, plainly not yet clickable */
+.fg .adm-row.soon { opacity:.55; }
+.fg .adm-soon { flex:0 0 auto; padding:4px 10px; border-radius:999px; background:#f4f5f7; font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--gray500); }
+.fg .adm-empty { padding:80px 16px; text-align:center; border:1.5px dashed #e6e8ee; border-radius:24px; background:linear-gradient(180deg,#fafbfc,#fff); }
+.fg .adm-empty b { display:block; font-size:16px; font-weight:700; color:var(--gray500); }
+.fg .adm-empty em { display:block; max-width:420px; margin:6px auto 0; font-style:normal; font-size:13px; font-weight:500; color:var(--gray400); line-height:1.5; }

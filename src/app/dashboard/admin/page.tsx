@@ -1,19 +1,19 @@
 import { redirect } from "next/navigation";
-import { Screen } from "@/components/shell/screen";
-import { adminHtml } from "@/components/shell/screens";
+import { AdminIndex } from "@/components/admin/admin-index";
 import { hasMinRole } from "@/lib/roles";
 import { can, getDbRole } from "@/lib/permissions-server";
 
 /* The Admin SECTION is admin+ — "Staff: Admin section hidden entirely" per
    docs/roles-and-permissions.md. Its ITEMS gate individually: the rate
-   calculator needs `financials` — owner by default and grantable to an admin.
+   calculator needs `financials` — owner by default and grantable to an admin —
+   while organisation settings and the owner tools are owner-INTRINSIC (co-owners
+   included), which is why the flag passed down is the role, not a capability.
    (Inviting is gated the same way by `invites`, but it lives on the Team page
-   now, not here.) Admins also get the section's manager-visible tools —
-   compliance, documents, licences & insurances, training — once those are
-   built.
+   now; the public-holiday calendar moved into the Time & Pay settings gear.)
 
-   Section visibility stays role-based only while none of those manager tools
-   exist. When the first one lands it gets a capability, and this becomes
+   Section visibility stays role-based only while the manager-visible tools it
+   lists as planned — compliance, documents, licences & insurances, training —
+   don't exist. When the first one lands it gets a capability, and this becomes
    "has any admin-section capability", so an owner could grant a senior staff
    member compliance access without making them an admin. */
 
@@ -22,15 +22,5 @@ export default async function AdminPage() {
   if (!hasMinRole(role, "admin")) redirect("/dashboard");
 
   const canFinancials = await can("financials");
-  return (
-    <Screen
-      html={adminHtml({
-        canFinancials,
-        // org settings are owner-intrinsic (co-owners included), not a capability
-        canOrgSettings: hasMinRole(role, "owner"),
-        // the holiday calendar is a manager tool — admin+, like the section
-        canHolidays: hasMinRole(role, "admin"),
-      })}
-    />
-  );
+  return <AdminIndex isOwner={hasMinRole(role, "owner")} canFinancials={canFinancials} />;
 }

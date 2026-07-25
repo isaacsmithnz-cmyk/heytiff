@@ -9,11 +9,14 @@ import { CommandPalette } from "./command-palette";
 export function AppShell({
   user,
   orgName = null,
+  orgLogoUrl = null,
   children,
 }: {
   user: ShellUser;
   /** trading name → sidebar "HeyTiff × …"; null hides the line */
   orgName?: string | null;
+  /** signed logo link, minted per render; null falls back to the × glyph */
+  orgLogoUrl?: string | null;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -74,7 +77,7 @@ export function AppShell({
         <i />
         <i />
       </div>
-      <Sidebar role={user.role} caps={user.caps} orgName={orgName} />
+      <Sidebar role={user.role} caps={user.caps} orgName={orgName} orgLogoUrl={orgLogoUrl} />
       <div className="main">
         <Topbar user={user} onOpenCommand={openCmd} />
         {/* key by pathname so each screen remounts (and its entrance animation replays) on navigation */}

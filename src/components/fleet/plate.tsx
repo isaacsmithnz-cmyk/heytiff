@@ -49,8 +49,8 @@ export function Plate({
   );
 }
 
-/* The HTML-string twin, for the screens that compose markup rather than JSX
-   (components/shell/profile.ts). Unlike the duration formatter's twin, THIS ONE
+/* The HTML-string twin, for screens that compose markup rather than JSX
+   (components/shell/screens.ts). Unlike the duration formatter's twin, THIS ONE
    ESCAPES: a plate and a state are typed by whoever added the vehicle, and the
    staff card they land on is read by that person's manager. Same guarantee
    screens-escaping.test.ts makes for the dashboard hero, tested the same way. */

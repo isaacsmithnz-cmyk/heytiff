@@ -3,7 +3,8 @@ import { auth0 } from "@/lib/auth0";
 import { AppShell } from "@/components/shell/app-shell";
 import type { ShellUser } from "@/components/shell/sidebar";
 import type { Role } from "@/lib/roles-shared";
-import { getCapabilities, getOrgName, getOwnership } from "@/lib/permissions-server";
+import { getCapabilities, getOrgLogoRef, getOrgName, getOwnership } from "@/lib/permissions-server";
+import { signOne } from "@/lib/documents/query";
 import { getViewerName } from "@/lib/staff/query";
 import { ownerLabel } from "@/lib/permissions";
 import "./shell.css";
@@ -55,8 +56,14 @@ export default async function DashboardLayout({
     caps: [...caps],
   };
 
+  // The lockup under the logo: the trading name, and the business's own logo
+  // when it has uploaded one. The ref rides the membership query that already
+  // ran; the link is signed here because the bucket is private and a stored URL
+  // would be one that stops working.
+  const [orgName, logoRef] = await Promise.all([getOrgName(), getOrgLogoRef()]);
+
   return (
-    <AppShell user={user} orgName={await getOrgName()}>
+    <AppShell user={user} orgName={orgName} orgLogoUrl={await signOne(logoRef)}>
       {children}
     </AppShell>
   );

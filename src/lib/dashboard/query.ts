@@ -83,17 +83,28 @@ export async function listStaffCompliance(
   }));
 }
 
-/** The business's own public-liability insurance, for the org-insurance chip. */
+/* The business's own insurance, for the org-insurance chip.
+
+   It used to be two columns on `organizations`. It's a row in org_credentials
+   now (a business can hold public liability AND professional indemnity AND
+   workers comp), so the chip takes the SOONEST expiry — the one actually about
+   to lapse — and names its insurer, falling back to the policy's own name. */
 export async function orgInsurance(
   orgId: string,
 ): Promise<{ insurer: string | null; insuranceExpiry: string | null }> {
   const { data } = await supabaseAdmin
-    .from("organizations")
-    .select("insurer, insurance_expiry")
-    .eq("id", orgId)
+    .from("org_credentials")
+    .select("name, issuer, expiry_date")
+    .eq("org_id", orgId)
+    .eq("kind", "insurance")
+    .not("expiry_date", "is", null)
+    .order("expiry_date", { ascending: true })
+    .limit(1)
     .maybeSingle();
+  if (!data) return { insurer: null, insuranceExpiry: null };
+  const issuer = ((data.issuer as string) ?? "").trim();
   return {
-    insurer: (data?.insurer as string) ?? null,
-    insuranceExpiry: (data?.insurance_expiry as string) ?? null,
+    insurer: issuer || ((data.name as string) ?? null),
+    insuranceExpiry: (data.expiry_date as string) ?? null,
   };
 }

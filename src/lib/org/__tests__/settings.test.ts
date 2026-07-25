@@ -2,15 +2,28 @@ import {
   AU_STATES,
   ORG_EDITABLE_SECTIONS,
   buildOrgPatch,
+  formatAbn,
+  formatAcn,
   isOrgSection,
   isValidAbn,
   isValidAcn,
   normalizeAbn,
+  preValidateOrg,
 } from "../settings";
 
 describe("section guard", () => {
-  it("accepts the three org sections", () => {
-    for (const s of ["identity", "contact", "compliance"]) expect(isOrgSection(s)).toBe(true);
+  it("accepts the two org sections", () => {
+    for (const s of ["identity", "contact"]) expect(isOrgSection(s)).toBe(true);
+  });
+
+  /* `compliance` was the third card — five flat columns holding one ARC
+     authorisation, one contractor licence and one insurance policy. Those are
+     rows in org_credentials now, so the section is not merely unrendered: the
+     guard refuses it, and buildOrgPatch can no longer produce a patch that
+     touches those columns even from a hand-written POST. */
+  it("refuses the retired compliance section", () => {
+    expect(isOrgSection("compliance")).toBe(false);
+    expect(buildOrgPatch("identity", [["insurance_expiry", "01/03/2027"]]).patch).toEqual({});
   });
 
   it("rejects junk, staff sections and prototype names", () => {
@@ -21,11 +34,65 @@ describe("section guard", () => {
 });
 
 describe("allowlist contents", () => {
-  it("never reaches ownership, the legacy name, or the deferred logo", () => {
+  it("never reaches ownership, the legacy name, or the logo column", () => {
     const all = Object.values(ORG_EDITABLE_SECTIONS).flat() as string[];
     for (const forbidden of ["primary_owner_user_id", "name", "id", "logo_url", "created_at"]) {
       expect(all).not.toContain(forbidden);
     }
+  });
+
+  /* The logo is set by setOrgLogo, which verifies the document behind it —
+     never by a section patch carrying a path somebody typed. */
+  it("keeps the retired compliance columns out of every section", () => {
+    const all = Object.values(ORG_EDITABLE_SECTIONS).flat() as string[];
+    for (const gone of [
+      "arc_rta",
+      "contractor_licence",
+      "insurer",
+      "insurance_policy",
+      "insurance_expiry",
+    ]) {
+      expect(all).not.toContain(gone);
+    }
+  });
+});
+
+describe("formatting for reading", () => {
+  it("groups an ABN 2-3-3-3 and an ACN 3-3-3", () => {
+    expect(formatAbn("51824753556")).toBe("51 824 753 556");
+    expect(formatAbn("51 824 753 556")).toBe("51 824 753 556");
+    expect(formatAcn("123456789")).toBe("123 456 789");
+  });
+
+  it("leaves anything that isn't the right length alone", () => {
+    expect(formatAbn("5182475")).toBe("5182475");
+    expect(formatAbn(null)).toBe("");
+    expect(formatAcn(undefined)).toBe("");
+  });
+});
+
+/* The card runs the same rules the action runs, so a typo'd ABN is answered on
+   the field instead of after a round trip. The messages are copied from the
+   action verbatim — the same mistake has to read the same either way. */
+describe("preValidateOrg", () => {
+  it("marks a bad ABN, with the action's own wording", () => {
+    expect(preValidateOrg("identity", { abn: "51824753557" })).toEqual({
+      error: "That ABN doesn't check out — it should be 11 digits.",
+      fields: ["abn"],
+    });
+  });
+
+  it("marks a bad ACN", () => {
+    expect(preValidateOrg("identity", { acn: "1234" })).toEqual({
+      error: "An ACN is 9 digits.",
+      fields: ["acn"],
+    });
+  });
+
+  it("passes a clean identity, a blank ABN and any contact patch", () => {
+    expect(preValidateOrg("identity", { abn: "51 824 753 556", acn: "123456789" })).toBeNull();
+    expect(preValidateOrg("identity", { abn: "", acn: "" })).toBeNull();
+    expect(preValidateOrg("contact", { postcode: "not a postcode" })).toBeNull();
   });
 });
 
@@ -73,17 +140,6 @@ describe("buildOrgPatch", () => {
       ["primary_owner_user_id", "attack"],
     ]);
     expect(patch).toEqual({ trading_name: "Smith Air" });
-  });
-
-  it("converts the insurance expiry from dd/mm/yyyy", () => {
-    const { patch, invalid } = buildOrgPatch("compliance", [["insurance_expiry", "01/03/2027"]]);
-    expect(patch).toEqual({ insurance_expiry: "2027-03-01" });
-    expect(invalid).toEqual([]);
-  });
-
-  it("reports an unreadable expiry instead of dropping it", () => {
-    const { invalid } = buildOrgPatch("compliance", [["insurance_expiry", "31/02/2027"]]);
-    expect(invalid).toEqual(["insurance_expiry"]);
   });
 
   it("accepts real states, clears on empty, drops junk", () => {

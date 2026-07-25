@@ -2,7 +2,8 @@
 
 import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { can } from "@/lib/permissions-server";
+import { can, getDbRole } from "@/lib/permissions-server";
+import { hasMinRole } from "@/lib/roles";
 import { staffProfileIdFor } from "@/lib/fleet/query";
 import {
   asDocumentKind,
@@ -49,9 +50,16 @@ async function context(): Promise<Ctx | null> {
 /* Which capability a kind needs. Attaching a photo to a notice is part of
    posting one, so it needs `team`; a licence scan is evidence about YOU and is
    intrinsic. Anything not listed is management by default — a new kind must
-   opt IN to being intrinsic, never inherit it by being forgotten. */
+   opt IN to being intrinsic, never inherit it by being forgotten.
+
+   org_logo is the one kind that goes the OTHER way: it is the company's face,
+   on the sidebar of everyone who signs in, so it is owner-only rather than
+   `team` — the same gate the rest of the organisation profile carries
+   (actions/org.ts). A delegated admin manages people, not the company's
+   identity. Refusing it here means the bytes never even get a slot. */
 async function mayUpload(kind: DocumentKind): Promise<boolean> {
   if (kind === "licence" || kind === "work_rights" || kind === "staff_photo") return true;
+  if (kind === "org_logo") return hasMinRole(await getDbRole(), "owner");
   return can("team");
 }
 

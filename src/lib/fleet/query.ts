@@ -9,7 +9,12 @@ import type {
   VehicleLog,
   VehicleWithFacts,
 } from "@/components/fleet/logic";
-import type { AssignedVehicle } from "@/components/shell/profile";
+/* The Assigned-vehicle join this module resolves. It lived in
+   components/shell/profile.ts (the injected-HTML renderer) until that module
+   was deleted; the staff card's own types module already carried an identical
+   copy, so the type now has ONE home — the card that renders it — and this is
+   the same direction as the VehicleWithFacts import above. */
+import type { AssignedVehicle } from "@/components/profile/types";
 import { toIdentity, toLog, toValuation, toVehicle, toVehicleWithFacts } from "./map";
 
 /* Fleet queries. Every one is scoped by org_id, like lib/staff/query.ts, and

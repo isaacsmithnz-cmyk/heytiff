@@ -22,6 +22,8 @@ type Membership = {
   primaryOwnerUserId: string;
   /** organizations.trading_name — drives the sidebar "HeyTiff x ..." line */
   orgName: string | null;
+  /** organizations.logo_url — a STORAGE REF, signed by the caller that renders it */
+  orgLogoRef: string | null;
 };
 
 const EMPTY: Membership = {
@@ -32,6 +34,7 @@ const EMPTY: Membership = {
   // match when we failed to load anything.
   primaryOwnerUserId: " none",
   orgName: null,
+  orgLogoRef: null,
 };
 
 const getMembership = cache(async (): Promise<Membership> => {
@@ -49,7 +52,7 @@ const getMembership = cache(async (): Promise<Membership> => {
       .maybeSingle(),
     supabaseAdmin
       .from("organizations")
-      .select("primary_owner_user_id, trading_name")
+      .select("primary_owner_user_id, trading_name, logo_url")
       .eq("id", orgId)
       .maybeSingle(),
   ]);
@@ -63,6 +66,7 @@ const getMembership = cache(async (): Promise<Membership> => {
     primaryOwnerUserId:
       (org.data?.primary_owner_user_id as string | undefined) ?? EMPTY.primaryOwnerUserId,
     orgName: (org.data?.trading_name as string | undefined) ?? null,
+    orgLogoRef: (org.data?.logo_url as string | undefined) ?? null,
   };
 });
 
@@ -71,6 +75,14 @@ const getMembership = cache(async (): Promise<Membership> => {
     seed and is deliberately never shown). */
 export async function getOrgName(): Promise<string | null> {
   return (await getMembership()).orgName;
+}
+
+/** The org logo's STORAGE REF, for the sidebar lockup. Rides the membership
+    query that was already being made, so it costs no extra round trip; the
+    caller signs it (lib/documents/query.ts::signOne) because a link into a
+    private bucket has to be minted per render. */
+export async function getOrgLogoRef(): Promise<string | null> {
+  return (await getMembership()).orgLogoRef;
 }
 
 /** Role + identity + who the org's master owner is — for ownership checks. */

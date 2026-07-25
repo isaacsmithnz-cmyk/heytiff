@@ -819,7 +819,7 @@
 .fg .pphoto .inn { width:100%; height:100%; border-radius:24px; background:#0A0B10; display:flex; align-items:center; justify-content:center; font-size:30px; font-weight:800; color:#fff; }
 .fg .pphoto .cam { position:absolute; right:-6px; bottom:-6px; width:30px; height:30px; border-radius:50%; background:#fff; color:var(--ink); display:flex; align-items:center; justify-content:center; box-shadow:0 6px 14px rgba(0,0,0,.3); cursor:pointer; }
 /* PER-CARD EDIT: header avatar isn't a card, so its camera badge has no edit
-   mode — hide it. (See profile-behaviors.tsx note on re-import.) */
+   mode — hide it. */
 .fg .prof .pphoto .cam { display:none; }
 .fg .pid { flex:1; min-width:240px; }
 .fg .pid h1 { font-size:30px; font-weight:800; letter-spacing:-0.03em; margin:0; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
@@ -2138,3 +2138,51 @@ select.fl-i { cursor:pointer; }
 .fg .adm-empty { padding:80px 16px; text-align:center; border:1.5px dashed #e6e8ee; border-radius:24px; background:linear-gradient(180deg,#fafbfc,#fff); }
 .fg .adm-empty b { display:block; font-size:16px; font-weight:700; color:var(--gray500); }
 .fg .adm-empty em { display:block; max-width:420px; margin:6px auto 0; font-style:normal; font-size:13px; font-weight:500; color:var(--gray400); line-height:1.5; }
+
+/* ---- Organisation screen (components/org/) ----
+   Additive: the company profile reuses .card2 / .idc / .cred wholesale, and
+   only these six things are new — a clickable credential card, the add tile,
+   the issuer line, the logo uploader, the colour swatches, and a link inside a
+   read-mode fact row. */
+.fg .ro-link { color:var(--teal-d); text-decoration:none; border-bottom:1px solid rgba(0,163,137,.35); font-weight:700; }
+.fg .ro-link:hover { border-bottom-color:var(--teal-d); }
+
+/* A card you click to edit, rather than an × you click to destroy. The button
+   is stretched over the whole card so the target is the card, while the
+   accessible name stays on a real control. */
+.fg .cred.clickable { transition:border-color .2s, box-shadow .2s, transform .2s; }
+.fg .cred.clickable:hover { border-color:#e2e5ea; box-shadow:0 10px 26px -14px rgba(10,12,20,.25); transform:translateY(-1px); }
+.fg .cred-open { position:absolute; inset:0; z-index:1; border-radius:16px; }
+.fg .cred-open:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
+.fg .cred-issuer { margin-top:4px; font-size:12px; font-weight:600; color:var(--gray400); overflow-wrap:anywhere; }
+
+/* The add tile lives IN the grid, so "one more" is the same shape as the
+   things it joins. */
+.fg .cred-add { display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:7px; min-height:132px; padding:16px; border-radius:16px; border:1.5px dashed #d8dde6; background:#fafbfc; text-align:left; transition:all .2s; }
+.fg .cred-add:hover { border-color:var(--teal); background:rgba(0,229,192,.04); }
+.fg .cred-add .ci { width:34px; height:34px; border-radius:11px; display:flex; align-items:center; justify-content:center; background:#fff; color:var(--teal-d); border:1px solid #eef0f4; }
+.fg .cred-add b { font-size:13.5px; font-weight:800; color:var(--gray700); }
+.fg .cred-add em { font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray400); }
+
+/* Logo uploader — the drop tile, with something in it now. */
+.fg .orglogo-row { display:flex; align-items:center; gap:14px; padding:14px; border-radius:14px; border:1.5px dashed #d8dde6; background:#fafbfc; }
+.fg .orglogo-prev { width:54px; height:54px; flex:0 0 auto; border-radius:14px; display:flex; align-items:center; justify-content:center; background:#fff; border:1px solid #eef0f4; color:#aeb4c0; overflow:hidden; }
+.fg .orglogo-prev img { width:100%; height:100%; object-fit:contain; padding:5px; }
+.fg .orglogo-k { min-width:0; flex:1; }
+.fg .orglogo-k b { font-size:13px; font-weight:700; }
+.fg .orglogo-k em { font-style:normal; display:block; font-size:11.5px; color:var(--gray400); margin-top:2px; }
+.fg .orglogo-act { display:flex; gap:8px; flex:0 0 auto; }
+.fg .orglogo-act .pbtn { height:38px; padding:0 14px; font-size:12.5px; }
+@media (max-width:560px){ .fg .orglogo-row { flex-wrap:wrap; } .fg .orglogo-act { width:100%; } }
+
+/* Colour swatches in the credential modal. Scoped like every field beside
+   them: the modal portals to <body> inside a display:contents `.fg`, so the
+   design tokens and `.fg .inp` styles still reach it. */
+.fg .oc-sw { display:flex; align-items:center; gap:8px; height:46px; }
+.fg .oc-swb { width:26px; height:26px; border-radius:9px; border:2px solid transparent; box-shadow:0 0 0 1px rgba(10,12,20,.08) inset; transition:transform .15s, border-color .15s; }
+.fg .oc-swb.auto { background:repeating-linear-gradient(45deg,#eef0f4,#eef0f4 4px,#fff 4px,#fff 8px); }
+.fg .oc-swb:hover { transform:scale(1.08); }
+.fg .oc-swb.on { border-color:var(--ink); }
+
+/* The sidebar lockup's logo, where the × sits when there isn't one. */
+.fg .ht-orgx .ht-orglogo { width:40px; height:40px; border-radius:11px; object-fit:contain; background:rgba(255,255,255,.06); padding:4px; }

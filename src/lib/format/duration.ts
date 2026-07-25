@@ -155,7 +155,7 @@ export function dueIn(days: number): string {
 }
 
 /* The HTML twin, for the handful of screens that compose markup strings
-   (components/shell/profile.ts). The number carries the weight and the unit
+   (components/shell/screens.ts). The number carries the weight and the unit
    sits back — the same typographic trick the fact tiles already use, which is
    what makes an adaptive unit cheap to read at a glance.
 

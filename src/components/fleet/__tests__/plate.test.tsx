@@ -1,8 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import { Plate, plateHtml } from "../plate";
 
-/* The two halves have to stay interchangeable: profile.ts renders the string
-   twin into the same card the register renders the component into, so anything
+/* The two halves have to stay interchangeable: the string twin is rendered
+   into the same markup the register renders the component into, so anything
    that is true of one below is asserted of the other. */
 
 describe("Plate", () => {

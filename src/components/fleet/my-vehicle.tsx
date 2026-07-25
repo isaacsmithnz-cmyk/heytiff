@@ -17,6 +17,7 @@ import {
   vehicleFacts,
 } from "./logic";
 import { LogModal, LogRow } from "./modals";
+import { Plate } from "./plate";
 
 /* "My vehicle" — the Staff lens: just the vehicle assigned to you, with log
    fuel / odometer / report-issue actions. No register, no other vehicles, no
@@ -114,7 +115,7 @@ export function MyVehicle({
           <h2>{displayName(vehicle)}</h2>
           <div className="fl-hsub">
             {modelLabel(vehicle)}
-            {vehicle.name && <span className="fl-plate2">{vehicle.plate}</span>}
+            {vehicle.name && <Plate plate={vehicle.plate} state={vehicle.plateState} />}
           </div>
           <div className="fl-hchips">
             {chips.length === 0 ? (

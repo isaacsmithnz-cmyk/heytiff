@@ -51,11 +51,21 @@ export type CardViewerCaps = {
   userId: string;
 };
 
-/** An outstanding invitation, shaped for the directory's Pending tab. */
+/** An outstanding invitation, shaped for the directory's Pending tab.
+
+    `token` is the invite link itself — possessing it is what lets someone
+    join the org, so the query selects it (and `id`) only when the caller asks
+    `withLinks`, which the Team page does only for a viewer who may invite.
+    For everyone else both are null and never left the database. */
 export type PendingInviteRow = {
+  /** invitations.id — what renew/revoke act on; null without `withLinks` */
+  id: string | null;
   name: string;
   email: string;
   role: string;
   state: "live" | "expired";
   note: string;
+  token: string | null;
+  /** raw ISO timestamp behind `note`, for anything that needs the date itself */
+  expiresAt: string;
 };

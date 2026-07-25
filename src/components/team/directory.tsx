@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
+import { CopyLink } from "@/components/shell/copy-link";
+import { renewInvite, revokeInvite, type InviteResult } from "@/app/actions/invite";
 import type { PendingInviteRow, StaffRow } from "@/lib/staff/types";
 
 type View = "active" | "warn" | "pending";
@@ -19,9 +21,15 @@ function hue(name: string) {
 export function TeamDirectory({
   staff,
   pending,
+  /** viewer holds `invites` — the link, Renew and Revoke are theirs alone */
+  canInvite = false,
+  /** origin the invite links are built from, resolved server-side */
+  appUrl = "",
 }: {
   staff: StaffRow[];
   pending: PendingInviteRow[];
+  canInvite?: boolean;
+  appUrl?: string;
 }) {
   const [view, setView] = useState<View>("active");
   const [query, setQuery] = useState("");
@@ -33,6 +41,19 @@ export function TeamDirectory({
   // demo-only deactivate/reactivate toggles, keyed by staff id
   const [statusOverride, setStatusOverride] = useState<Record<string, StaffRow["status"]>>({});
   const rootRef = useRef<HTMLDivElement>(null);
+  // invite actions: one in flight at a time, one row armed for revoke at a time
+  const [busy, startInvite] = useTransition();
+  const [armed, setArmed] = useState<string | null>(null);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+
+  const runInvite = (action: () => Promise<InviteResult>) => {
+    setInviteError(null);
+    startInvite(async () => {
+      const res = await action();
+      if (res.ok) router.refresh();
+      else setInviteError(res.error);
+    });
+  };
 
   useEffect(() => {
     if (!openMenu) return;
@@ -119,8 +140,10 @@ export function TeamDirectory({
 
       {view === "pending" ? (
         <div className="dir">
+          {inviteError && <div className="invmsg">{inviteError}</div>}
+          {pending.length === 0 && <div className="direm on">No invites waiting.</div>}
           {pending.map((p) => (
-            <div key={p.email} className={`invrow${p.state === "expired" ? " expired" : ""}`}>
+            <div key={p.id} className={`invrow${p.state === "expired" ? " expired" : ""}`}>
               <span className="invwho">
                 <span className="invav">
                   <Icon name="mail" size={16} />
@@ -135,6 +158,40 @@ export function TeamDirectory({
                 <Icon name={p.state === "expired" ? "alert" : "clock"} size={12} />
                 {p.note}
               </span>
+              {/* No email sending yet: the link IS the invite, so whoever may
+                  invite gets it, plus the two things they can do about a row
+                  that's gone stale. token/id are non-null exactly when the
+                  page asked withLinks — i.e. when canInvite. */}
+              {canInvite && p.token != null && p.id != null && (
+                <div className="invtools">
+                  <CopyLink url={`${appUrl}/invite/accept?token=${p.token}`} />
+                  <div className="invbtns">
+                    {p.state === "expired" && (
+                      <button
+                        className="fl-btn tiny"
+                        disabled={busy}
+                        onClick={() => runInvite(() => renewInvite(p.id!))}
+>
+                        <Icon name="rotate" size={13} />
+                        Renew
+                      </button>
+                    )}
+                    <button
+                      className={`fl-btn tiny danger${armed === p.id ? " arm" : ""}`}
+                      disabled={busy}
+                      onBlur={() => setArmed((a) => (a === p.id ? null : a))}
+                      onClick={() => {
+                        if (armed !== p.id) return setArmed(p.id);
+                        setArmed(null);
+                        runInvite(() => revokeInvite(p.id!));
+                      }}
+                    >
+                      <Icon name="x" size={13} />
+                      {armed === p.id ? "Confirm revoke" : "Revoke"}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>

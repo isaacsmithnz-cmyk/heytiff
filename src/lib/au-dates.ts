@@ -51,6 +51,22 @@ export function auDayOf(when: string | Date): string {
   return Number.isNaN(d.getTime()) ? "" : todayInAu(d);
 }
 
+/* Whole days from one calendar date to another (negative = already past).
+
+   This lives here, next to `todayInAu`, because the two are a pair: the answer
+   is only right if `todayISO` came from the AU anchor above. It used to sit in
+   components/fleet/logic.ts, where half the app imported a fleet module purely
+   to count days to a licence expiry; fleet re-exports it for its own callers.
+
+   Both arguments are ISO yyyy-mm-dd and both are pinned to midnight UTC, so the
+   subtraction is between two calendar days with no zone in it — the rounding is
+   belt-and-braces against a leap second, not doing real work. */
+export function daysUntil(dateISO: string, todayISO: string): number {
+  const d = new Date(`${dateISO}T00:00:00Z`).getTime();
+  const t = new Date(`${todayISO}T00:00:00Z`).getTime();
+  return Math.round((d - t) / 86400000);
+}
+
 /* A short day-and-month label for an ISO DATE — "15 Jan", "15 July".
 
    Note the inconsistent width: en-AU's abbreviated months are three letters

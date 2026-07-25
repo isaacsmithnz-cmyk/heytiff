@@ -32,7 +32,7 @@ describe("dueLabel", () => {
   });
 
   it("is bad and counts days when overdue", () => {
-    expect(dueLabel("2026-07-16", TODAY)).toEqual({ label: "Overdue 4d", state: "bad" });
+    expect(dueLabel("2026-07-16", TODAY)).toEqual({ label: "Overdue 4 days", state: "bad" });
   });
 
   it("says due today", () => {
@@ -40,7 +40,7 @@ describe("dueLabel", () => {
   });
 
   it("warns within the soon window", () => {
-    expect(dueLabel("2026-07-27", TODAY)).toEqual({ label: "Due in 7d", state: "warn" });
+    expect(dueLabel("2026-07-27", TODAY)).toEqual({ label: "Due in 7 days", state: "warn" });
   });
 
   it("is calm and dated beyond the window", () => {

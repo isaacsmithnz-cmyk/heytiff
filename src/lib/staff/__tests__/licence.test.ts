@@ -43,8 +43,8 @@ describe("licenceStatus", () => {
   });
 
   it("warns inside the 30-day window, matching the dashboard chip", () => {
-    expect(licenceStatus("2026-08-07", TODAY)).toEqual({ label: "Expires 14d", tone: "warn" });
-    expect(licenceStatus(TODAY, TODAY)).toEqual({ label: "Expires 0d", tone: "warn" });
+    expect(licenceStatus("2026-08-07", TODAY)).toEqual({ label: "Expires in 2 weeks", tone: "warn" });
+    expect(licenceStatus(TODAY, TODAY)).toEqual({ label: "Expires today", tone: "warn" });
   });
 
   it("is valid comfortably out", () => {

@@ -1555,8 +1555,6 @@
 .fg .invrole {font-size:13.5px; color:#6b7280; font-weight:600;}
 .fg .invexp {display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:700; color:#b45309;}
 .fg .invrow.expired .invexp {color:#e0264f;}
-.fg .invrow {grid-template-columns:1fr auto}
-.fg .invrole,.fg .invexp {display:none}
 /* directory port shims — anchor items in the row menu + toggled empty state */
 .fg .dmenu a { display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:9px; font-size:13.5px; font-weight:600; color:var(--gray700); text-align:left; transition:background .15s; }
 .fg .dmenu a:hover { background:#f6f7f9; }
@@ -1571,7 +1569,6 @@
 .fg .fl-av { width:40px; height:40px; border-radius:12px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:rgba(255,138,0,.12); color:#d97706; }
 .fg .fl-av.warn { background:rgba(240,164,49,.14); color:#b45309; }
 .fg .fl-av.bad { background:rgba(255,51,102,.1); color:#e0264f; }
-.fg .fl-plate { font-size:12px; font-weight:800; letter-spacing:.07em; color:#374151; background:#f3f4f7; border:1px solid #e9eaee; padding:4px 10px; border-radius:8px; width:fit-content; }
 .fg .fl-driver { display:flex; align-items:center; gap:9px; font-size:13.5px; font-weight:600; color:#374151; min-width:0; }
 .fg .fl-dav { width:26px; height:26px; border-radius:50%; flex:0 0 auto; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:800; color:#fff; }
 .fg .fl-pool { font-size:11px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#9ca3af; border:1.5px dashed #d7dae0; padding:4px 11px; border-radius:999px; }
@@ -1593,7 +1590,6 @@
 .fg .fl-htag { display:inline-flex; align-items:center; gap:6px; font-size:10.5px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:#d97706; background:rgba(255,138,0,.1); border:1px solid rgba(255,138,0,.25); padding:6px 12px; border-radius:999px; }
 .fg .fl-hero h2 { font-size:38px; font-weight:800; letter-spacing:-0.03em; margin:12px 0 4px; color:var(--ink); }
 .fg .fl-hsub { display:flex; align-items:center; gap:10px; font-size:14px; font-weight:600; color:#6b7280; }
-.fg .fl-plate2 { font-size:12px; font-weight:800; letter-spacing:.07em; color:#374151; background:#f3f4f7; border:1px solid #e9eaee; padding:3px 10px; border-radius:8px; }
 .fg .fl-hchips { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
 .fg .fl-odo { text-align:right; flex:0 0 auto; }
 .fg .fl-odo b { display:block; font-size:36px; font-weight:800; letter-spacing:-0.02em; color:var(--ink); line-height:1.1; }
@@ -1624,7 +1620,7 @@
 .fg .pvh { display:flex; align-items:center; gap:13px; }
 .fg .pvi { width:44px; height:44px; border-radius:13px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:rgba(255,138,0,.12); color:#d97706; }
 .fg .pvh b { display:block; font-size:15px; font-weight:800; color:var(--ink); }
-.fg .pvh em { font-style:normal; display:block; font-size:12px; font-weight:600; color:#9ca3af; margin-top:2px; }
+.fg .pvh em { font-style:normal; display:block; font-size:12px; font-weight:600; color:#9ca3af; margin-top:5px; }
 .fg .pvchips { display:flex; flex-wrap:wrap; gap:8px; }
 .fg .pvfacts { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
 .fg .pvfacts span { background:#fafbfc; border:1px solid #f0f0f2; border-radius:12px; padding:10px 13px; }
@@ -1643,7 +1639,7 @@
 .fl-modal svg.i { display:block; flex:0 0 auto; }
 .fl-mh { position:sticky; top:0; z-index:2; display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:24px 26px 14px; background:#fff; border-bottom:1px solid #f5f6f8; }
 .fl-mh b { display:block; font-size:19px; font-weight:800; letter-spacing:-0.01em; color:#050505; }
-.fl-mh em { font-style:normal; display:block; font-size:12.5px; font-weight:600; color:#9ca3af; margin-top:2px; }
+.fl-mh em { font-style:normal; display:flex; align-items:center; gap:9px; font-size:12.5px; font-weight:600; color:#9ca3af; margin-top:4px; }
 /* Resting state carries a surface and a readable glyph: bare #9ca3af on white is
    ~2.6:1, under the 3:1 minimum for an interactive control, so the close button
    was easy to miss on a card. */
@@ -1876,3 +1872,46 @@ select.fl-i { cursor:pointer; }
 .fg .hol-sugmain em { display:block; font-style:normal; font-size:12px; font-weight:500; color:var(--gray400); line-height:1.45; margin-top:2px; }
 .fg .hol-sugadd { display:flex; align-items:center; gap:5px; height:30px; padding:0 11px; border-radius:9px; border:1px solid rgba(10,11,16,.12); background:#fff; font-size:12px; font-weight:700; color:var(--gray700); }
 .fg .hol-sugadd:hover { border-color:rgba(0,163,137,.4); color:var(--teal-d); }
+
+/* ---- pending invites: link + renew/revoke (Team page, `invites` only) ----
+   The tools sit on their own line of the row's grid: CopyLink is a full-width
+   box by design, and squeezing a token into a table cell only ever truncates
+   the one thing you came for. */
+.fg .invtools { grid-column:1/-1; display:flex; align-items:flex-start; gap:12px; }
+.fg .invtools > div:first-child { flex:1; min-width:0; }
+.fg .invbtns { display:flex; gap:8px; flex:0 0 auto; margin-top:12px; }
+/* .fl-btn.tiny is declared after .fl-btn.danger, so on its own it would repaint
+   a revoke button neutral — the destructive one stays red until it's armed. */
+.fg .invbtns .fl-btn.danger { background:rgba(255,51,102,.07); border:1px solid rgba(255,51,102,.22); color:#e0264f; }
+.fg .invbtns .fl-btn.danger.arm { background:#e0264f; border-color:#e0264f; color:#fff; }
+.fg .invmsg { padding:12px 24px; font-size:12.5px; font-weight:600; color:#e0264f; border-bottom:1px solid #f5f6f8; }
+
+/* invite modal — UNSCOPED: it portals to <body>, outside .fg (see .fl-ov) */
+.fl-err { background:rgba(255,51,102,.07); border:1px solid rgba(255,51,102,.22); border-radius:12px; padding:10px 14px; margin-bottom:14px; font-size:12.5px; font-weight:600; color:#e0264f; }
+
+/* ---- adaptive durations (lib/format/duration.ts) ----
+   The number does the work; the unit only has to be legible. Muting it keeps a
+   fact tile scannable at a glance without the label growing louder as the
+   wording gets longer ("6 weeks" is wider than "45d" — this is the rent). */
+.fg .dur-u { margin-left:3px; font-size:.86em; font-weight:500; color:#9ca3af; }
+
+/* ---- AU rego plate (components/fleet/plate.tsx) ----
+   UNSCOPED — no `.fg` prefix. The fleet modals portal to document.body, which
+   is outside the `.fg` frame, so a scoped rule would style the register rows
+   and silently skip the detail modal. Every other selector in this file is
+   scoped; this one is the exception, on purpose.
+
+   The emboss is one inset shadow, not a gradient: it survives the light and
+   dark surfaces it lands on (white row, tinted hero, modal header) where a
+   baked-in gradient would show its seams on two of the three. Font is
+   inherited — Jakarta, never mono; a plate reads as a plate because of the
+   slab and the tracking, not because of a typeface that isn't in the app. */
+.au-plate { display:inline-flex; align-items:center; gap:7px; width:fit-content; padding:5px 10px; border-radius:8px; background:#f8f9fb; border:1.5px solid #d7dae0; box-shadow:inset 0 -2px 0 rgba(10,11,16,.06); font-size:12.5px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:#374151; white-space:nowrap; }
+.au-plate .st { padding-left:7px; border-left:1px solid #d7dae0; font-size:8.5px; font-weight:800; letter-spacing:.1em; color:#9ca3af; }
+.au-plate.sm { padding:4px 10px; font-size:11px; }
+.au-plate.sm .st { font-size:8px; }
+
+/* log-modal vehicle picker: the select, and the chosen plate beside it.
+   Unscoped for the same reason .au-plate is — the modal lives on document.body. */
+.fl-pickrow { display:flex; align-items:center; gap:10px; }
+.fl-pickrow .fl-i { flex:1; min-width:0; }

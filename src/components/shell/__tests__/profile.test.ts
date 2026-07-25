@@ -2,6 +2,7 @@ import { esc, profileHtml, type PermissionsCtx } from "../profile";
 import type { StaffProfile } from "@/lib/staff/profile";
 import { CAPABILITIES, resolve } from "@/lib/permissions";
 import type { StaffRow } from "@/lib/staff/types";
+import type { VehicleWithFacts } from "@/components/fleet/logic";
 
 const blank: StaffProfile = {
   id: "p1",
@@ -49,7 +50,7 @@ const staff: StaffRow = {
   years: "3.2",
   licenceCount: 4,
   status: "Active",
-  compliance: { label: "ARC expires 14d", state: "warn", expiresDays: 14 },
+  compliance: { label: "ARC expires in 2 weeks", state: "warn", expiresDays: 14 },
 };
 
 const ADMIN_SECTIONS = ["payroll", "permissions", "notes"];
@@ -343,6 +344,49 @@ describe("read-only cards", () => {
     }
   });
 
+  /* The assigned-vehicle card is composed as an HTML string, so the plate that
+     lands on it goes through plateHtml rather than <Plate>. Everything a person
+     typed about that vehicle — its name, its make and model, its plate — is
+     read here by their manager, which is exactly the reach the dashboard hero's
+     stored XSS had. */
+  const assigned = (over: Partial<VehicleWithFacts> = {}) => ({
+    vehicle: {
+      id: "vrf-04",
+      name: "VRF-04",
+      make: "Toyota",
+      model: "Hiace ZR",
+      year: 2022,
+      plate: "mkt482",
+      plateState: "vic",
+      status: "active" as const,
+      odometer: 84120,
+      regoDays: 21,
+      insuranceDays: 200,
+      serviceIntervalKm: 10000,
+      lastServiceOdo: 75500,
+      ...over,
+    },
+    openIssues: 0,
+    lastFuel: null,
+  });
+
+  it("renders the assigned vehicle's rego as a plate, uppercased with its state", () => {
+    const html = profileHtml(staff, { mode: "self", vehicle: assigned() });
+    expect(html).toContain('<span class="au-plate">MKT482<span class="st">VIC</span></span>');
+    expect(html).not.toContain("Rego mkt482"); // the old plain-text label is gone
+  });
+
+  it("escapes the vehicle name, model and plate on the way into the card", () => {
+    const payload = `<img src=x onerror="alert(1)">`;
+    const html = profileHtml(staff, {
+      mode: "admin",
+      vehicle: assigned({ name: payload, model: payload, plate: payload }),
+    });
+    expect(html).not.toMatch(/<img/i);
+    expect(html).toContain("&lt;IMG"); // the plate, uppercased then escaped
+    expect(html).toContain("&lt;img"); // the name and model
+  });
+
   it("marks the Compliance card data-live — no edit cycle, its own add/delete", () => {
     // Licences are added and removed directly, so the card is never locked and
     // never gets a Save button; it must not carry data-static (which would lock
@@ -365,7 +409,7 @@ describe("read-only cards", () => {
     expect(html).toContain('data-lic-id="L1"');
     expect(html).toContain("ARC licence");
     expect(html).toContain("No. AU123");
-    expect(html).toContain("Expires 14d");
+    expect(html).toContain("Expires in 2 weeks");
     expect(html).toContain('data-licdel data-lic-id="L1"');
     // the empty hint is hidden once there's at least one
     expect(html).toContain('id="lic-empty" style="margin-top:18px;display:none"');

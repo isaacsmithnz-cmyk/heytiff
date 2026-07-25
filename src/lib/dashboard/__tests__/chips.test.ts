@@ -64,19 +64,19 @@ describe("licenceChip", () => {
       subject: "Jordan Mills",
       href: "/dashboard/profile",
     });
-    expect(chip?.label).toBe("White Card expires 13d");
+    expect(chip?.label).toBe("White Card expires in 13 days");
   });
 
   it("is bad once expired, with a days-ago label", () => {
     const chip = licenceChip({ id: "l1", typeName: "White Card", expiryDate: "2026-07-15" }, licCtx);
     expect(chip?.state).toBe("bad");
-    expect(chip?.label).toBe("White Card expired 4d ago");
+    expect(chip?.label).toBe("White Card expired 4 days ago");
   });
 
   it("treats the boundary day (exactly 30d) as a warn, not nothing", () => {
     const chip = licenceChip({ id: "l1", typeName: "White Card", expiryDate: "2026-08-18" }, licCtx);
     expect(chip?.state).toBe("warn");
-    expect(chip?.label).toBe("White Card expires 30d");
+    expect(chip?.label).toBe("White Card expires in 4 weeks");
   });
 });
 
@@ -105,7 +105,7 @@ describe("workRightsChips", () => {
     );
     expect(chips).toHaveLength(1);
     expect(chips[0]).toMatchObject({ kind: "work-rights", state: "warn", key: "work-rights-visa:s1" });
-    expect(chips[0].label).toBe("482 TSS expires 13d");
+    expect(chips[0].label).toBe("482 TSS expires in 13 days");
   });
 
   it("raises BOTH a visa-expiry and an unverified chip when both apply", () => {
@@ -119,7 +119,7 @@ describe("workRightsChips", () => {
 
   it("falls back to 'Visa' when no visa type is recorded", () => {
     const chips = workRightsChips({ ...base, visaExpiry: "2026-08-01" }, licCtx);
-    expect(chips[0].label).toBe("Visa expires 13d");
+    expect(chips[0].label).toBe("Visa expires in 13 days");
   });
 });
 
@@ -135,13 +135,13 @@ describe("vehicle chips", () => {
   });
 
   it("warn on a soon rego and go bad once expired", () => {
-    expect(regoChip(vehicle({ regoDays: 12 }), vCtx)).toMatchObject({ state: "warn", label: "Rego expires 12d" });
-    expect(regoChip(vehicle({ regoDays: -4 }), vCtx)).toMatchObject({ state: "bad", label: "Rego expired 4d ago" });
+    expect(regoChip(vehicle({ regoDays: 12 }), vCtx)).toMatchObject({ state: "warn", label: "Rego expires in 12 days" });
+    expect(regoChip(vehicle({ regoDays: -4 }), vCtx)).toMatchObject({ state: "bad", label: "Rego expired 4 days ago" });
   });
 
   it("warn on soon insurance and go bad once expired", () => {
-    expect(insuranceChip(vehicle({ insuranceDays: 5 }), vCtx)).toMatchObject({ state: "warn", label: "Insurance expires 5d" });
-    expect(insuranceChip(vehicle({ insuranceDays: -1 }), vCtx)).toMatchObject({ state: "bad", label: "Insurance expired 1d ago" });
+    expect(insuranceChip(vehicle({ insuranceDays: 5 }), vCtx)).toMatchObject({ state: "warn", label: "Insurance expires in 5 days" });
+    expect(insuranceChip(vehicle({ insuranceDays: -1 }), vCtx)).toMatchObject({ state: "bad", label: "Insurance expired yesterday" });
   });
 
   it("warn inside the service window and go bad once overdue", () => {
@@ -189,7 +189,7 @@ describe("chipSummary / summaryLine", () => {
 
 describe("heroAction", () => {
   const chip = (over: Partial<ActionChip>): ActionChip => ({
-    key: "k", kind: "rego", state: "warn", label: "Rego expires 10d",
+    key: "k", kind: "rego", state: "warn", label: "Rego expires in 10 days",
     subject: "EVD72G", href: "h", urgency: 0, ...over,
   });
 
@@ -200,18 +200,18 @@ describe("heroAction", () => {
   });
 
   it("names the worst item instead of only counting — a count moves the question along", () => {
-    const a = heroAction([chip({ state: "bad", label: "Rego expired 14d ago", subject: "FRU397" })], "/x");
+    const a = heroAction([chip({ state: "bad", label: "Rego expired 2 weeks ago", subject: "FRU397" })], "/x");
     expect(a).toMatchObject({ state: "bad", title: "1 thing needs your attention" });
-    expect(a.sub).toBe("Rego expired 14d ago · FRU397");
+    expect(a.sub).toBe("Rego expired 2 weeks ago · FRU397");
   });
 
   it("counts the rest and takes its state from the worst (head of a sorted list)", () => {
     const a = heroAction(
-      [chip({ state: "bad", label: "Rego expired 14d ago", subject: "FRU397" }), chip({}), chip({})],
+      [chip({ state: "bad", label: "Rego expired 2 weeks ago", subject: "FRU397" }), chip({}), chip({})],
       "/x",
     );
     expect(a).toMatchObject({ state: "bad", title: "3 things need your attention" });
-    expect(a.sub).toBe("Rego expired 14d ago · FRU397 · +2 more");
+    expect(a.sub).toBe("Rego expired 2 weeks ago · FRU397 · +2 more");
   });
 });
 
@@ -264,7 +264,7 @@ describe("orgInsuranceChip", () => {
   it("uses the insurer name as the subject when set", () => {
     const chip = orgInsuranceChip({ insurer: "CGU", insuranceExpiry: "2026-08-02" }, ctx);
     expect(chip).toMatchObject({ kind: "org-insurance", state: "warn", subject: "CGU" });
-    expect(chip?.label).toBe("Public liability expires 14d");
+    expect(chip?.label).toBe("Public liability expires in 2 weeks");
   });
 
   it("falls back to a generic subject with no insurer", () => {

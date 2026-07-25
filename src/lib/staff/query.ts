@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { expiresIn } from "@/lib/format/duration";
 import { deriveCompliance, initialsFrom, startedLabel, yearsSince } from "./derive";
 import { firstNameOf, fullNameOf } from "./name";
 import type { PendingInviteRow, StaffLicence, StaffRow } from "./types";
@@ -265,33 +266,44 @@ export const getViewerName = cache(
   },
 );
 
-/** Outstanding invitations, shaped for the directory's Pending tab. */
+/** Outstanding invitations, shaped for the directory's Pending tab.
+
+    `withLinks` follows the house money-boundary pattern: the token IS the
+    invite (possessing the link is what joins someone to the org), so it is
+    selected only for a viewer who may invite — absent from the payload, not
+    hidden in the UI. Same for `id`, which renew/revoke act on. */
 export async function listPendingInvites(
   orgId: string,
+  opts: { withLinks?: boolean } = {},
   now = new Date()
 ): Promise<PendingInviteRow[]> {
+  const withLinks = opts.withLinks === true;
+  // plain `string` so supabase-js doesn't try to parse the union literal
+  const cols: string = withLinks
+    ? "id, email, role, token, expires_at, accepted_at"
+    : "email, role, expires_at, accepted_at";
   const { data } = await supabaseAdmin
     .from("invitations")
-    .select("email, role, expires_at, accepted_at")
+    .select(cols)
     .eq("org_id", orgId)
     .is("accepted_at", null)
     .order("created_at", { ascending: false });
 
-  return (data ?? []).map((r) => {
-    const expires = new Date(r.expires_at as string);
+  return ((data ?? []) as unknown as Record<string, unknown>[]).map((r) => {
+    const expiresAt = r.expires_at as string;
+    const expires = new Date(expiresAt);
     const days = Math.round((expires.getTime() - now.getTime()) / 86_400_000);
     const live = days >= 0;
     return {
+      id: withLinks ? (r.id as string) : null,
       // no name until they accept — the email is the only thing we know
       name: (r.email as string).split("@")[0],
       email: r.email as string,
       role: r.role === "admin" ? "Admin" : "Staff",
       state: live ? ("live" as const) : ("expired" as const),
-      note: live
-        ? days === 0
-          ? "Expires today"
-          : `Expires in ${days} day${days === 1 ? "" : "s"}`
-        : `Expired ${-days} day${days === -1 ? "" : "s"} ago`,
+      note: expiresIn(days),
+      token: withLinks ? (r.token as string) : null,
+      expiresAt,
     };
   });
 }

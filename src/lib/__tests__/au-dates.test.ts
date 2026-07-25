@@ -1,4 +1,4 @@
-import { auDayOf, fmtAuDayMonth, fmtAuWeekdayDayMonth, fmtAuWeekdayDate, todayInAu, parseAuDate, formatAuDate } from "../au-dates";
+import { auDayOf, daysUntil, fmtAuDayMonth, fmtAuWeekdayDayMonth, fmtAuWeekdayDate, todayInAu, parseAuDate, formatAuDate } from "../au-dates";
 
 /* The date helpers everything else anchors on. `todayInAu` answers "what day is
    it now" and `auDayOf` answers "what day was that" — they have to agree, or a
@@ -31,6 +31,27 @@ describe("auDayOf — the AU day a timestamp fell on", () => {
 
   it("returns empty for something unparseable rather than a wrong day", () => {
     expect(auDayOf("not a date")).toBe("");
+  });
+});
+
+describe("daysUntil", () => {
+  it("counts whole calendar days in both directions", () => {
+    expect(daysUntil("2026-08-07", "2026-07-17")).toBe(21);
+    expect(daysUntil("2026-07-14", "2026-07-17")).toBe(-3);
+    expect(daysUntil("2026-07-17", "2026-07-17")).toBe(0);
+  });
+
+  it("crosses month and year boundaries without drifting", () => {
+    expect(daysUntil("2026-08-01", "2026-07-31")).toBe(1);
+    expect(daysUntil("2027-01-01", "2026-12-31")).toBe(1);
+    // 2028 is a leap year: February really does have 29 days
+    expect(daysUntil("2028-03-01", "2028-02-01")).toBe(29);
+  });
+
+  it("is unaffected by the machine's own timezone", () => {
+    // both ends are pinned to midnight UTC, so a server in Sydney and one in
+    // Los Angeles agree — the reason this lives beside todayInAu
+    expect(daysUntil("2026-07-18", "2026-07-17")).toBe(1);
   });
 });
 

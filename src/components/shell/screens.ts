@@ -110,49 +110,37 @@ export function tiffHtml() {
    src/components/fleet/assets-screen.tsx (React: Fleet register / My-vehicle
    lens + Equipment tab) with its pure logic in src/components/fleet/logic.ts. */
 
-/* ---------------- ADMIN — invite card (admin/owner only) ---------------- */
+/* ---------------- ADMIN — landing cards (admin/owner only) ---------------- */
 /* Admin landing. The SECTION is admin+ (staff never see it); the ITEMS gate
-   individually — invites/users/roles are owner-only, the rate calculator needs
+   individually — users/roles are owner-only, the rate calculator needs
    `financials`. An admin with neither still gets the section, because the
    manager-visible tools the spec puts here (compliance, documents, licences &
    insurances, training) will live in it. Passing a bare boolean here was the
-   bug: it collapsed a per-item gate into a whole-section one. */
+   bug: it collapsed a per-item gate into a whole-section one.
+   Inviting is not here at all — it lives on the Team page, next to the people
+   it produces. */
 export function adminHtml(opts: {
-  canInvite: boolean;
   canFinancials: boolean;
   /** owner-intrinsic: the organisation profile card */
   canOrgSettings?: boolean;
   /** admin+: the public-holiday calendar (Time & Pay reads it) */
   canHolidays?: boolean;
 }) {
-  const { canInvite, canFinancials, canOrgSettings = false, canHolidays = false } = opts;
+  const { canFinancials, canOrgSettings = false, canHolidays = false } = opts;
   const head =
     '<div class="v2head" style="margin-bottom:32px"><div>' +
     '<h1 style="font-size:44px;font-weight:800;letter-spacing:-0.03em;margin:0">Admin</h1></div></div>';
 
-  if (!canInvite && !canFinancials && !canOrgSettings && !canHolidays) {
+  if (!canFinancials && !canOrgSettings && !canHolidays) {
     return (
       '<div class="wrap"><div class="stg">' +
       head +
       '<div style="padding:80px 16px;text-align:center;border:1.5px dashed #e6e8ee;border-radius:24px;background:linear-gradient(180deg,#fafbfc,#fff)">' +
       '<b style="display:block;font-size:16px;font-weight:700;color:#6b7280">Nothing here for you yet</b>' +
-      '<em style="font-style:normal;display:block;font-size:13px;color:#9ca3af;margin-top:6px">Compliance, documents, licences &amp; insurances and training will appear here. Invites and financial tools are owner-only.</em></div>' +
+      '<em style="font-style:normal;display:block;font-size:13px;color:#9ca3af;margin-top:6px">Compliance, documents, licences &amp; insurances and training will appear here. Financial tools are owner-only.</em></div>' +
       "</div></div>"
     );
   }
-
-  const inviteCard =
-    '<a href="/dashboard/admin/invite" class="spot" style="display:block;text-decoration:none;background:#fff;border-radius:24px;border:1px solid #f0f0f2;box-shadow:0 8px 30px rgba(0,0,0,.03);padding:32px;max-width:520px">' +
-    '<span class="sglow"></span>' +
-    '<div style="display:flex;align-items:center;gap:16px;margin-bottom:16px">' +
-    '<div style="width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:rgba(0,229,192,0.1);border:1px solid rgba(0,229,192,0.3);color:#00A389;flex:0 0 auto">' +
-    I("users", 22) +
-    "</div>" +
-    '<div><div style="font-size:18px;font-weight:800;color:#050505">Invite your team</div>' +
-    '<div style="font-size:13px;color:#6b7280;font-weight:500">Send an invite link and assign a role</div></div></div>' +
-    '<span style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:12px;background:#050505;color:#fff;font-size:14px;font-weight:700">Invite someone ' +
-    I("arrowR", 16) +
-    "</span></a>";
 
   const rateCalcCard =
     '<a href="/dashboard/admin/rate-calculator" class="spot" style="display:block;text-decoration:none;background:#fff;border-radius:24px;border:1px solid #f0f0f2;box-shadow:0 8px 30px rgba(0,0,0,.03);padding:32px;max-width:520px">' +
@@ -199,7 +187,6 @@ export function adminHtml(opts: {
 
   const groups: string[] = [];
   if (canOrgSettings) groups.push(group("Business", orgCard, groups.length === 0));
-  if (canInvite) groups.push(group("Team", inviteCard, groups.length === 0));
   if (canHolidays) groups.push(group("Time & Pay", holidayCard, groups.length === 0));
   if (canFinancials) groups.push(group("Tools", rateCalcCard, groups.length === 0));
 

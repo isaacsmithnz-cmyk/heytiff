@@ -1555,8 +1555,6 @@
 .fg .invrole {font-size:13.5px; color:#6b7280; font-weight:600;}
 .fg .invexp {display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:700; color:#b45309;}
 .fg .invrow.expired .invexp {color:#e0264f;}
-.fg .invrow {grid-template-columns:1fr auto}
-.fg .invrole,.fg .invexp {display:none}
 /* directory port shims — anchor items in the row menu + toggled empty state */
 .fg .dmenu a { display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:9px; font-size:13.5px; font-weight:600; color:var(--gray700); text-align:left; transition:background .15s; }
 .fg .dmenu a:hover { background:#f6f7f9; }
@@ -1858,3 +1856,19 @@ select.fl-i { cursor:pointer; }
 .fg .hol-name { flex:1; font-size:13.5px; font-weight:600; color:var(--gray700); }
 .fg .hol-src { font-size:11px; font-weight:700; color:var(--gray400); text-transform:capitalize; }
 .fg .hol-src.synced { color:var(--teal-d); }
+
+/* ---- pending invites: link + renew/revoke (Team page, `invites` only) ----
+   The tools sit on their own line of the row's grid: CopyLink is a full-width
+   box by design, and squeezing a token into a table cell only ever truncates
+   the one thing you came for. */
+.fg .invtools { grid-column:1/-1; display:flex; align-items:flex-start; gap:12px; }
+.fg .invtools > div:first-child { flex:1; min-width:0; }
+.fg .invbtns { display:flex; gap:8px; flex:0 0 auto; margin-top:12px; }
+/* .fl-btn.tiny is declared after .fl-btn.danger, so on its own it would repaint
+   a revoke button neutral — the destructive one stays red until it's armed. */
+.fg .invbtns .fl-btn.danger { background:rgba(255,51,102,.07); border:1px solid rgba(255,51,102,.22); color:#e0264f; }
+.fg .invbtns .fl-btn.danger.arm { background:#e0264f; border-color:#e0264f; color:#fff; }
+.fg .invmsg { padding:12px 24px; font-size:12.5px; font-weight:600; color:#e0264f; border-bottom:1px solid #f5f6f8; }
+
+/* invite modal — UNSCOPED: it portals to <body>, outside .fg (see .fl-ov) */
+.fl-err { background:rgba(255,51,102,.07); border:1px solid rgba(255,51,102,.22); border-radius:12px; padding:10px 14px; margin-bottom:14px; font-size:12.5px; font-weight:600; color:#e0264f; }

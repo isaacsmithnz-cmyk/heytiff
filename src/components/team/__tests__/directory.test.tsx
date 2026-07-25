@@ -7,9 +7,25 @@ import type { PendingInviteRow, StaffRow } from "@/lib/staff/types";
    throws outside an app-router context. Same mock the other component tests
    use, with `push` captured so the row-click behaviour can be asserted. */
 const push = jest.fn();
-jest.mock("next/navigation", () => ({ useRouter: () => ({ push, refresh: jest.fn() }) }));
+const refresh = jest.fn();
+jest.mock("next/navigation", () => ({ useRouter: () => ({ push, refresh }) }));
 
-beforeEach(() => push.mockClear());
+/* The pending rows now call server actions — mocked, never called for real. */
+const renewInvite = jest.fn(async () => ({ ok: true }) as { ok: boolean; error?: string });
+const revokeInvite = jest.fn(async () => ({ ok: true }) as { ok: boolean; error?: string });
+jest.mock("@/app/actions/invite", () => ({
+  renewInvite: (...a: unknown[]) => renewInvite(...(a as [])),
+  revokeInvite: (...a: unknown[]) => revokeInvite(...(a as [])),
+}));
+
+beforeEach(() => {
+  push.mockClear();
+  refresh.mockClear();
+  renewInvite.mockClear();
+  revokeInvite.mockClear();
+  renewInvite.mockResolvedValue({ ok: true });
+  revokeInvite.mockResolvedValue({ ok: true });
+});
 
 /* Own fixtures rather than the demo mock — the directory now renders real
    rows, and the point of this stage is that deleting mock/demo.ts changes
@@ -52,12 +68,37 @@ const STAFF: StaffRow[] = [
 ];
 
 const PENDING: PendingInviteRow[] = [
-  { name: "ben.fletcher", email: "ben.fletcher@gmail.com", role: "Staff", state: "live", note: "Expires in 5 days" },
-  { name: "k.santos", email: "k.santos@outlook.com", role: "Admin", state: "expired", note: "Expired 2 days ago" },
+  {
+    id: "inv-live",
+    name: "ben.fletcher",
+    email: "ben.fletcher@gmail.com",
+    role: "Staff",
+    state: "live",
+    note: "Expires in 5 days",
+    token: "tok-live",
+    expiresAt: "2026-08-01T00:00:00Z",
+  },
+  {
+    id: "inv-dead",
+    name: "k.santos",
+    email: "k.santos@outlook.com",
+    role: "Admin",
+    state: "expired",
+    note: "Expired 2 days ago",
+    token: "tok-dead",
+    expiresAt: "2026-07-20T00:00:00Z",
+  },
 ];
 
-function setup() {
-  render(<TeamDirectory staff={STAFF} pending={PENDING} />);
+function setup(opts: { canInvite?: boolean } = {}) {
+  render(
+    <TeamDirectory
+      staff={STAFF}
+      pending={PENDING}
+      canInvite={opts.canInvite ?? false}
+      appUrl="https://heytiff.test"
+    />,
+  );
 }
 
 describe("TeamDirectory", () => {
@@ -124,5 +165,65 @@ describe("TeamDirectory", () => {
     // the menu stops its clicks reaching the row, so no navigation happens
     expect(push).not.toHaveBeenCalled();
     expect(screen.getByText("View profile")).toBeInTheDocument();
+  });
+});
+
+describe("TeamDirectory pending-invite actions", () => {
+  const openPending = async () => userEvent.click(screen.getByText("Pending invites"));
+
+  it("keeps the link and the actions away from a viewer without `invites`", async () => {
+    setup();
+    await openPending();
+    expect(screen.queryByText("Copy")).not.toBeInTheDocument();
+    expect(screen.queryByText(/tok-live/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Revoke/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Renew/ })).not.toBeInTheDocument();
+  });
+
+  it("shows an accept link per row for someone who may invite", async () => {
+    setup({ canInvite: true });
+    await openPending();
+    expect(
+      screen.getByText("https://heytiff.test/invite/accept?token=tok-live"),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("Copy")).toHaveLength(2);
+  });
+
+  it("offers Renew on the expired row only", async () => {
+    setup({ canInvite: true });
+    await openPending();
+    const renew = screen.getAllByRole("button", { name: /Renew/ });
+    expect(renew).toHaveLength(1);
+
+    await userEvent.click(renew[0]);
+    expect(renewInvite).toHaveBeenCalledWith("inv-dead");
+    expect(refresh).toHaveBeenCalled();
+  });
+
+  it("makes Revoke a two-step: arm, then confirm", async () => {
+    setup({ canInvite: true });
+    await openPending();
+    const revoke = screen.getAllByRole("button", { name: /Revoke/ })[0];
+
+    await userEvent.click(revoke);
+    expect(revokeInvite).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: /Confirm revoke/ })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /Confirm revoke/ }));
+    expect(revokeInvite).toHaveBeenCalledWith("inv-live");
+    expect(refresh).toHaveBeenCalled();
+  });
+
+  it("surfaces an action's refusal instead of pretending it worked", async () => {
+    revokeInvite.mockResolvedValue({ ok: false, error: "That invite has already been accepted." });
+    setup({ canInvite: true });
+    await openPending();
+    await userEvent.click(screen.getAllByRole("button", { name: /Revoke/ })[0]);
+    await userEvent.click(screen.getByRole("button", { name: /Confirm revoke/ }));
+
+    expect(
+      await screen.findByText("That invite has already been accepted."),
+    ).toBeInTheDocument();
+    expect(refresh).not.toHaveBeenCalled();
   });
 });

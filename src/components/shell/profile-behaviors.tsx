@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { LIC_TYPES, licCard, profileIcon as ic } from "./profile";
+import { profileIcon as ic } from "./profile";
 import { NAV } from "./nav";
 
 /* Renders the staff-profile HTML and attaches the v3 design's interactions:
@@ -22,13 +22,26 @@ export type SaveSection = (
   fields: Record<string, string>
 ) => Promise<{ ok: true } | { ok: false; error: string }>;
 
+export type LicenceInput = {
+  typeName: string;
+  licenceNumber?: string;
+  expiryDate?: string;
+  color?: string;
+};
+export type LicenceResult = { ok: true } | { ok: false; error: string };
+
 export function ProfileBehaviors({
   html,
   onSave,
+  onAddLicence,
+  onRemoveLicence,
 }: {
   html: string;
   /** omit to keep the pre-persistence behaviour (Save just re-locks the card) */
   onSave?: SaveSection;
+  /** wire the Compliance card to persist; omit and add/remove do nothing */
+  onAddLicence?: (input: LicenceInput) => Promise<LicenceResult>;
+  onRemoveLicence?: (licenceId: string) => Promise<LicenceResult>;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -37,9 +50,13 @@ export function ProfileBehaviors({
      identity on every parent render; depending on it would re-run this effect
      mid-edit and re-lock every card, discarding what the user was typing. */
   const saveRef = useRef<SaveSection | undefined>(onSave);
+  const addLicRef = useRef(onAddLicence);
+  const removeLicRef = useRef(onRemoveLicence);
   useEffect(() => {
     saveRef.current = onSave;
-  }, [onSave]);
+    addLicRef.current = onAddLicence;
+    removeLicRef.current = onRemoveLicence;
+  }, [onSave, onAddLicence, onRemoveLicence]);
 
   useEffect(() => {
     const root = ref.current;
@@ -57,6 +74,16 @@ export function ProfileBehaviors({
         card.appendChild(box);
       }
       box.textContent = msg;
+    };
+
+    /* The Compliance card's own error line — it has no Save button, so it needs
+       its own place to show what went wrong. Defined before onClick so the
+       handler closes over it cleanly. */
+    const setLicError = (msg: string | null) => {
+      const box = root.querySelector<HTMLElement>("#lic-err");
+      if (!box) return;
+      box.textContent = msg ?? "";
+      box.style.display = msg ? "" : "none";
     };
 
     const saveCard = async (card: HTMLElement, section: string, btn: HTMLElement) => {
@@ -100,9 +127,13 @@ export function ProfileBehaviors({
       if (!prof) return;
       prof.querySelectorAll(".card2 > .c2h").forEach((h) => {
         if (h.querySelector(".cardactions")) return;
-        // data-static cards (Training, Assigned vehicle) have no editable
-        // fields, so they get no Edit/Save affordance at all.
-        if (h.parentElement instanceof HTMLElement && h.parentElement.dataset.static !== undefined) return;
+        // data-static (Training, Assigned vehicle) and data-live (Compliance)
+        // cards have no per-field Edit/Save cycle, so they get no such buttons —
+        // static is read-only facts, live has its own always-on controls.
+        if (h.parentElement instanceof HTMLElement) {
+          const ds = h.parentElement.dataset;
+          if (ds.static !== undefined || ds.live !== undefined) return;
+        }
         const w = document.createElement("span");
         w.className = "cardactions";
         w.innerHTML =
@@ -125,7 +156,9 @@ export function ProfileBehaviors({
       root.querySelectorAll<HTMLElement>(".card2").forEach((c) => {
         if (c.dataset.profSeeded !== undefined) return;
         c.dataset.profSeeded = "";
-        c.classList.add("readonly");
+        // a data-live card (Compliance) is never locked — its add/delete
+        // controls are always on. Only edit-cycle and static cards go readonly.
+        if (c.dataset.live === undefined) c.classList.add("readonly");
       });
       profileEmpties();
     };
@@ -278,45 +311,49 @@ export function ProfileBehaviors({
         return;
       }
 
-      // licence remove
+      // licence remove — persists, then the server re-renders the card
       const ldel = t.closest<HTMLElement>("[data-licdel]");
       if (ldel) {
-        ldel.closest(".lic")?.remove();
-        const ll = root.querySelector("#lic-list");
-        const le = root.querySelector<HTMLElement>("#lic-empty");
-        if (ll && le && !ll.children.length) le.style.display = "";
+        const id = ldel.dataset.licId;
+        const remove = removeLicRef.current;
+        if (!id || !remove) return;
+        ldel.setAttribute("disabled", "");
+        void remove(id).then((res) => {
+          if (res.ok) router.refresh();
+          else {
+            ldel.removeAttribute("disabled");
+            setLicError(res.error);
+          }
+        });
         return;
       }
 
-      // licence add
+      // licence add — reads the little form, persists, re-renders on success
       const ladd = t.closest<HTMLElement>("#lic-add");
       if (ladd) {
+        const add = addLicRef.current;
         const sel = root.querySelector<HTMLSelectElement>("#lic-type");
         const cu = root.querySelector<HTMLInputElement>("#lic-custom");
-        const ll = root.querySelector("#lic-list");
-        const le = root.querySelector<HTMLElement>("#lic-empty");
-        if (!sel || !cu || !ll) return;
-        let lic = null as null | { name: string; sub?: string; color?: string };
-        if (sel.value === "__custom") {
-          const nm = (cu.value || "").trim();
-          if (!nm) {
-            cu.focus();
-            return;
-          }
-          lic = { name: nm };
-        } else if (sel.value) {
-          lic = LIC_TYPES.find((x) => x.name === sel.value) ?? null;
-        }
-        if (!lic) {
-          sel.focus();
+        const num = root.querySelector<HTMLInputElement>("#lic-number");
+        const exp = root.querySelector<HTMLInputElement>("#lic-expiry");
+        if (!sel || !add) return;
+
+        const typeName = sel.value === "__custom" ? (cu?.value || "").trim() : sel.value;
+        if (!typeName) {
+          (sel.value === "__custom" ? cu : sel)?.focus();
+          setLicError("Choose a licence type, or name a custom one.");
           return;
         }
-        ll.insertAdjacentHTML("beforeend", licCard(lic));
-        if (le) le.style.display = "none";
-        sel.selectedIndex = 0;
-        cu.value = "";
-        cu.style.display = "none";
-        sel.style.display = "";
+        const opt = sel.selectedOptions[0];
+        const color = sel.value === "__custom" ? "" : opt?.dataset.color || "";
+
+        setLicError(null);
+        (ladd as HTMLButtonElement).disabled = true;
+        void add({ typeName, licenceNumber: num?.value, expiryDate: exp?.value, color }).then((res) => {
+          (ladd as HTMLButtonElement).disabled = false;
+          if (res.ok) router.refresh();
+          else setLicError(res.error);
+        });
         return;
       }
     };

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { WorkRightsCard, workRightsPayload } from "../workrights-card";
 import { blankProfile, TODAY, okActions } from "./fixtures/staff";
@@ -87,28 +87,41 @@ describe("choosing a no-visa status", () => {
 
     // the draft kept them, so a misclick costs nothing
     expect(screen.getByDisplayValue("482 TSS")).toBeInTheDocument();
-    expect(screen.getByLabelText("Visa expiry")).toHaveValue("2026-08-07");
+    expect(screen.getByLabelText("Visa expiry")).toHaveTextContent("07/08/2026");
   });
 
   it("asks for both of its dates with a calendar, never a text box", async () => {
     const user = userEvent.setup();
     setup(onVisa);
     await user.click(edit());
-    expect(screen.getByLabelText("Visa expiry")).toHaveAttribute("type", "date");
-    expect(screen.getByLabelText(/VEVO last checked/)).toHaveAttribute("type", "date");
-    // a check you already did can't be in the future
-    expect(screen.getByLabelText(/VEVO last checked/)).toHaveAttribute("max", TODAY);
+    for (const label of ["Visa expiry", /VEVO last checked/]) {
+      const field = screen.getByLabelText(label);
+      expect(field.tagName).toBe("BUTTON");
+      expect(field).toHaveAttribute("aria-haspopup", "dialog");
+    }
+
+    // a check you already did can't be in the future: it opens on the month it
+    // holds (June 2026), and the days past TODAY aren't there to be clicked
+    await user.click(screen.getByLabelText(/VEVO last checked/));
+    const pop = () => within(screen.getByRole("dialog"));
+    await user.click(pop().getByRole("button", { name: "Next month" }));
+    expect(pop().getByRole("button", { name: "Friday 24 July 2026" })).toBeEnabled(); // TODAY
+    expect(pop().getByRole("button", { name: "Saturday 25 July 2026" })).toBeDisabled();
   });
 
   it("submits the ISO the picker produced", async () => {
     const user = userEvent.setup();
     const actions = setup(onVisa);
     await user.click(edit());
-    fireEvent.change(screen.getByLabelText("Visa expiry"), { target: { value: "2027-06-30" } });
+    // the expiry opens on its own month — August 2026
+    await user.click(screen.getByLabelText("Visa expiry"));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Monday 31 August 2026" })
+    );
     await user.click(save());
     expect(actions.onSave).toHaveBeenCalledWith(
       "workrights",
-      expect.objectContaining({ visa_expiry: "2027-06-30" })
+      expect.objectContaining({ visa_expiry: "2026-08-31" })
     );
   });
 });

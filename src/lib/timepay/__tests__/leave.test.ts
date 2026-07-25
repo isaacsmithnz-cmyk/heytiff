@@ -4,6 +4,7 @@ import {
   businessDays,
   calendarDays,
   leaveDates,
+  rangeBreakdown,
   shortfall,
   suggestedHours,
   upcomingHolidays,
@@ -55,6 +56,55 @@ describe("date maths", () => {
       "2026-08-04",
       "2026-08-05",
     ]);
+  });
+});
+
+/* The breakdown is what the calendar SAYS about a chosen span, so every case
+   here is a sentence someone reads while deciding: how many days this costs,
+   and which ones are free. */
+describe("range breakdown", () => {
+  const AUS_DAY = new Map([["2027-01-26", "Australia Day"]]); // a Tuesday
+
+  it("splits a fortnight into working days and the weekends between", () => {
+    // Mon 3 Aug – Fri 14 Aug 2026: 10 weekdays, one weekend in the middle
+    const b = rangeBreakdown("2026-08-03", "2026-08-14");
+    expect(b).toEqual({ working: 10, weekends: 2, holidays: [] });
+  });
+
+  it("names the public holiday it skips, and doesn't charge for it", () => {
+    // Mon 25 Jan – Fri 29 Jan 2027, with Australia Day on the Tuesday
+    const b = rangeBreakdown("2027-01-25", "2027-01-29", AUS_DAY);
+    expect(b.working).toBe(4);
+    expect(b.holidays).toEqual([{ date: "2027-01-26", name: "Australia Day" }]);
+    // and it agrees with the number the hours suggestion is built on
+    expect(b.working).toBe(businessDays("2027-01-25", "2027-01-29", new Set(AUS_DAY.keys())));
+  });
+
+  it("counts a single day as itself", () => {
+    expect(rangeBreakdown("2026-08-03", "2026-08-03")).toEqual({
+      working: 1,
+      weekends: 0,
+      holidays: [],
+    });
+    expect(rangeBreakdown("2026-08-08", "2026-08-08")).toEqual({
+      working: 0,
+      weekends: 1,
+      holidays: [],
+    });
+  });
+
+  /* A holiday that lands on a Saturday is not a day back — counting it in both
+     buckets would tell someone a weekend trip skipped a day of leave. */
+  it("counts a holiday that falls on a weekend once, as a weekend", () => {
+    const boxing = new Map([["2026-12-26", "Boxing Day"]]); // a Saturday
+    const b = rangeBreakdown("2026-12-25", "2026-12-27", boxing);
+    expect(b).toEqual({ working: 1, weekends: 2, holidays: [] });
+  });
+
+  it("says nothing at all for a backwards or empty range", () => {
+    const none = { working: 0, weekends: 0, holidays: [] };
+    expect(rangeBreakdown("2026-08-07", "2026-08-03")).toEqual(none);
+    expect(rangeBreakdown("", "")).toEqual(none);
   });
 });
 

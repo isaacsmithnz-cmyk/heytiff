@@ -72,6 +72,22 @@ describe("the field", () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
+  /* The staff card's rows are 46px `.inp` boxes and the fleet modals' are
+     44px `.fl-i` ones. A field that can't take the surrounding metrics gets
+     re-implemented locally, which is how a picker rollout ends up half done. */
+  it("takes the host screen's class, and says when it's been rejected", () => {
+    setup({ className: "inpd", invalid: true });
+    const field = screen.getByLabelText("Due");
+    expect(field.className).toContain("inpd");
+    expect(field.className).toContain("err");
+    expect(field).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("says nothing about validity when there's nothing wrong", () => {
+    setup({ className: "inpd" });
+    expect(screen.getByLabelText("Due")).not.toHaveAttribute("aria-invalid");
+  });
+
   it("says nothing and opens nothing when disabled", async () => {
     const { user, field } = setup({ disabled: true });
     expect(field()).toBeDisabled();

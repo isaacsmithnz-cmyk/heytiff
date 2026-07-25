@@ -4,17 +4,20 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { DateField } from "@/components/ui/date-field";
+import { MonthGrid, monthOf } from "@/components/ui/month-grid";
 import { fmtAuDayMonth } from "@/lib/au-dates";
 import { UpcomingHolidays } from "./upcoming-holidays";
 import { cancelLeave, requestLeave, type LeaveResult } from "@/app/actions/leave";
 import {
   LEAVE_LABEL,
   SOURCE_LABEL,
+  rangeBreakdown,
   suggestedHours,
   type BalanceView,
   type LeaveKind,
   type LeaveRequest,
   type LeaveStatus,
+  type RangeBreakdown,
 } from "@/lib/timepay/leave";
 import { fmt } from "./logic";
 
@@ -35,6 +38,25 @@ function fmtRange(startISO: string, endISO: string): string {
   return startISO === endISO
     ? fmtAuDayMonth(startISO)
     : `${fmtAuDayMonth(startISO)} – ${fmtAuDayMonth(endISO)}`;
+}
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+/* What the span costs you, in words.
+
+   A leave request is a range of dates, but what a person is actually deciding
+   is how many days of entitlement it spends — and the two differ every time a
+   public holiday lands mid-trip. So the line names the holidays it skipped
+   while there are few enough to read (two), and counts them after that. */
+export function breakdownLine(b: RangeBreakdown): string {
+  const parts = [plural(b.working, "working day", "working days")];
+  if (b.holidays.length > 0) {
+    const named = b.holidays.length <= 2 ? ` (${b.holidays.map((h) => h.name).join(", ")})` : "";
+    parts.push(
+      `${plural(b.holidays.length, "public holiday", "public holidays")} skipped${named}`,
+    );
+  }
+  return parts.join(" · ");
 }
 
 export function MyLeave({
@@ -60,12 +82,51 @@ export function MyLeave({
   const [endDate, setEndDate] = useState(today);
   const [hours, setHours] = useState("");
   const [note, setNote] = useState("");
+  /* The calendar's month, and whether a range is half-drawn. `awaitingEnd` is
+     the whole of the click-click protocol: one click puts a single day down,
+     the next stretches it, and a third starts again. No drag — a drag on a
+     phone is a scroll, and the same gesture has to work on both. */
+  const [month, setMonth] = useState(() => monthOf(startDate || today));
+  const [awaitingEnd, setAwaitingEnd] = useState(false);
 
-  const holidaySet = useMemo(() => new Set(holidays.map((h) => h.date)), [holidays]);
+  const holidayMap = useMemo(
+    () => new Map(holidays.map((h) => [h.date, h.name] as const)),
+    [holidays],
+  );
+  const holidaySet = useMemo(() => new Set(holidayMap.keys()), [holidayMap]);
   const suggested = useMemo(
     () => suggestedHours(startDate, endDate, standard, holidaySet),
     [startDate, endDate, standard, holidaySet],
   );
+  const breakdown = useMemo(
+    () => rangeBreakdown(startDate, endDate, holidayMap),
+    [startDate, endDate, holidayMap],
+  );
+
+  /* Clicking the grid and typing in the fields are the same edit: both write
+     startDate/endDate, and the band is drawn from them. Nothing is mirrored,
+     so the two can't drift. */
+  const pickDay = (iso: string) => {
+    if (awaitingEnd) {
+      // ordered, whichever end was clicked second
+      if (iso < startDate) {
+        setEndDate(startDate);
+        setStartDate(iso);
+      } else setEndDate(iso);
+      setAwaitingEnd(false);
+    } else {
+      setStartDate(iso);
+      setEndDate(iso);
+      setAwaitingEnd(true);
+    }
+  };
+
+  const setFrom = (iso: string) => {
+    setStartDate(iso);
+    if (iso && iso > endDate) setEndDate(iso);
+    setAwaitingEnd(false);
+    if (iso) setMonth(monthOf(iso)); // bring the band into view rather than leaving it a month away
+  };
   const effectiveHours = hours.trim() === "" ? suggested : Number(hours);
   const balanceOf = (k: LeaveKind) => balances.find((b) => b.kind === k);
 
@@ -141,57 +202,85 @@ export function MyLeave({
 
           {open && (
             <div className="lv-form">
-              <div className="lv-frow">
-                <label className="mts-f">
-                  <span>Type</span>
-                  <select value={kind} onChange={(e) => setKind(e.target.value as LeaveKind)}>
-                    {KINDS.map((k) => (
-                      <option key={k} value={k}>
-                        {LEAVE_LABEL[k]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="mts-f">
-                  <span>From</span>
-                  <DateField
-                    value={startDate || null}
+              <div className="lv-cal">
+                {/* The calendar leads, because the question is "which days" —
+                    and a public holiday inside the span is the one thing the
+                    fields alone can't show. Violet says "you don't spend
+                    this one", and the band keeps its colour underneath. */}
+                <div className="lv-calside">
+                  <MonthGrid
+                    month={month}
                     today={today}
-                    onChange={(iso) => {
-                      const next = iso ?? "";
-                      setStartDate(next);
-                      if (next > endDate) setEndDate(next);
-                    }}
+                    range={startDate && endDate ? { start: startDate, end: endDate } : null}
+                    holidays={holidayMap}
+                    min={today}
+                    onPick={pickDay}
+                    onMonthChange={setMonth}
                   />
-                </label>
-                <label className="mts-f">
-                  <span>To</span>
-                  <DateField
-                    value={endDate || null}
-                    today={today}
-                    min={startDate}
-                    onChange={(iso) => setEndDate(iso ?? "")}
-                  />
-                </label>
-                <label className="mts-f">
-                  <span>Hours</span>
-                  <input
-                    type="number"
-                    placeholder={String(suggested)}
-                    value={hours}
-                    onChange={(e) => setHours(e.target.value)}
-                  />
-                </label>
-              </div>
-              <div className="lv-fnote">
-                <label className="mts-f" style={{ flex: 1 }}>
-                  <span>Note (optional)</span>
-                  <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. family holiday" />
-                </label>
+                  <p className="lv-callegend">
+                    <span className="lv-legdot hol" aria-hidden="true" />
+                    Public holiday — free, not leave
+                  </p>
+                  {/* a click-click range has to say so once; a drag is a
+                      scroll on the phone half of this, so it isn't offered */}
+                  <p className="lv-calhint">
+                    {awaitingEnd ? "Now pick the last day off" : "Pick the first day off, then the last"}
+                  </p>
+                </div>
+
+                <div className="lv-calfields">
+                  <div className="lv-frow">
+                    <label className="mts-f">
+                      <span>Type</span>
+                      <select value={kind} onChange={(e) => setKind(e.target.value as LeaveKind)}>
+                        {KINDS.map((k) => (
+                          <option key={k} value={k}>
+                            {LEAVE_LABEL[k]}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="mts-f">
+                      <span>From</span>
+                      <DateField
+                        value={startDate || null}
+                        today={today}
+                        onChange={(iso) => setFrom(iso ?? "")}
+                      />
+                    </label>
+                    <label className="mts-f">
+                      <span>To</span>
+                      <DateField
+                        value={endDate || null}
+                        today={today}
+                        min={startDate}
+                        onChange={(iso) => {
+                          setEndDate(iso ?? "");
+                          setAwaitingEnd(false);
+                        }}
+                      />
+                    </label>
+                    <label className="mts-f">
+                      <span>Hours</span>
+                      <input
+                        type="number"
+                        placeholder={String(suggested)}
+                        value={hours}
+                        onChange={(e) => setHours(e.target.value)}
+                      />
+                    </label>
+                  </div>
+                  <div className="lv-fnote">
+                    <label className="mts-f" style={{ flex: 1 }}>
+                      <span>Note (optional)</span>
+                      <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. family holiday" />
+                    </label>
+                  </div>
+                </div>
               </div>
               <div className="lv-fmeta">
                 <span>
-                  {suggested}h across the working days in this range
+                  {breakdownLine(breakdown)}
                   {kind !== "unpaid" && balanceOf(kind) ? ` · ${fmt(balanceOf(kind)!.available)}h available` : ""}
                 </span>
                 <div className="mts-facts">

@@ -80,6 +80,45 @@ export function businessDays(startISO: string, endISO: string, holidays: Set<str
   return n;
 }
 
+/** What a chosen span is actually made of. */
+export type RangeBreakdown = {
+  /** days that come off the balance — the same count businessDays returns */
+  working: number;
+  /** Saturdays and Sundays in the span */
+  weekends: number;
+  /** the public holidays the span passes over, in date order, named */
+  holidays: { date: string; name: string }[];
+};
+
+/* Why the calendar can say "8 working days, and Australia Day is free".
+
+   businessDays answers with a number, which is all the hours suggestion needs.
+   A person choosing dates needs the WORKING, though: a fortnight off is ten
+   days or nine depending on whether a public holiday falls in it, and the
+   difference is a day of leave they either keep or spend without noticing.
+
+   The three buckets are exclusive and add up to the span, so a holiday that
+   lands on a weekend is counted ONCE — as a weekend. Nobody is "given" a
+   Saturday back, and listing it as a skipped holiday would imply they were. */
+export function rangeBreakdown(
+  startISO: string,
+  endISO: string,
+  holidays: Map<string, string> = new Map(),
+): RangeBreakdown {
+  const out: RangeBreakdown = { working: 0, weekends: 0, holidays: [] };
+  if (!startISO || !endISO || endISO < startISO) return out;
+  for (let i = 0; i <= daysBetween(startISO, endISO); i++) {
+    const d = addDays(startISO, i);
+    if (isWeekendISO(d)) out.weekends++;
+    else {
+      const name = holidays.get(d);
+      if (name === undefined) out.working++;
+      else out.holidays.push({ date: d, name });
+    }
+  }
+  return out;
+}
+
 /** Suggested hours for a leave span — working days × the standard day. The
     requester can override for a part-day; this is only the sensible default. */
 export function suggestedHours(

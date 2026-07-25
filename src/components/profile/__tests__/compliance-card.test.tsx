@@ -1,6 +1,7 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { StaffLicence } from "@/lib/staff/types";
+import { todayInAu } from "@/lib/au-dates";
 import { ComplianceCard } from "../compliance-card";
 import { TODAY } from "./fixtures/staff";
 
@@ -64,21 +65,29 @@ describe("adding one", () => {
 
     await user.selectOptions(screen.getByRole("combobox", { name: "Licence type" }), "ARC licence");
     await user.type(screen.getByLabelText("Licence number"), "AU999");
-    // picked, not typed — the calendar emits ISO
-    fireEvent.change(screen.getByLabelText("Expiry"), { target: { value: "2028-01-01" } });
+    // picked, not typed — the calendar emits ISO. Today is the one day this
+    // card can name without knowing what day the suite is run on.
+    await user.click(screen.getByLabelText("Expiry"));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Today" }));
     await user.click(screen.getByRole("button", { name: /Add/ }));
 
     expect(onAdd).toHaveBeenCalledWith({
       typeName: "ARC licence",
       licenceNumber: "AU999",
-      expiryDate: "2028-01-01",
+      expiryDate: todayInAu(),
       color: "#00A389",
     });
   });
 
-  it("asks for the expiry with a calendar, not a text box", () => {
+  it("asks for the expiry with a calendar, not a text box", async () => {
+    const user = userEvent.setup();
     setup();
-    expect(screen.getByLabelText("Expiry")).toHaveAttribute("type", "date");
+    const expiry = screen.getByLabelText("Expiry");
+    expect(expiry.tagName).toBe("BUTTON");
+    expect(expiry).toHaveAttribute("aria-haspopup", "dialog");
+
+    await user.click(expiry);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
   it("swaps in a free-text name for a custom ticket", async () => {
@@ -94,27 +103,28 @@ describe("adding one", () => {
     );
   });
 
-  /* An impossible expiry is no longer something a person can ENTER: the
-     control is a calendar, and it refuses 31 February outright rather than
-     accepting it and failing later. That is the whole reason this field
-     stopped being a text box.
+  /* An impossible expiry isn't something a person can ENTER any more, and the
+     reason has changed: it isn't that the control refuses 31 February, it's
+     that there is nowhere to say it. 31 February is not a cell on a calendar,
+     and the picker has no text entry at all — open it and count the inputs.
 
      buildLicenceRow still refuses one too — a direct POST can send anything —
      and that is pinned in lib/staff/__tests__/licence.test.ts. */
-  it("won't even hold an impossible date", async () => {
+  it("gives an impossible date nowhere to be typed", async () => {
     const user = userEvent.setup();
     const { onAdd } = setup();
-    const expiry = screen.getByLabelText("Expiry");
 
     await user.selectOptions(screen.getByRole("combobox", { name: "Licence type" }), "White card");
-    fireEvent.change(expiry, { target: { value: "2028-02-31" } });
-    expect(expiry).toHaveValue("");
+    await user.click(screen.getByLabelText("Expiry"));
 
-    fireEvent.change(expiry, { target: { value: "2028-02-29" } }); // 2028 is a leap year
-    expect(expiry).toHaveValue("2028-02-29");
+    const pop = screen.getByRole("dialog");
+    expect(pop.querySelectorAll("input")).toHaveLength(0);
+    expect(within(pop).queryAllByRole("textbox")).toHaveLength(0);
 
+    // and what does come out is a real calendar date
+    await user.click(within(pop).getByRole("button", { name: "Today" }));
     await user.click(screen.getByRole("button", { name: /Add/ }));
-    expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ expiryDate: "2028-02-29" }));
+    expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ expiryDate: todayInAu() }));
   });
 
   it("refuses an unnamed licence", async () => {

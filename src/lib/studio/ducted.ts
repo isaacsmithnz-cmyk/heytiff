@@ -179,8 +179,16 @@ export function spigotsOf(props: Record<string, unknown>): PlenumSpigot[] {
 
 export const SPIGOT_GAP_MM = 50;
 
-/** Even re-pack (v1 — drag-slide is a later nicety): per face, keep the
-    current left-to-right order (by t) and respace to t = (i+1)/(n+1).
+/** Re-pack a face: keep the current left-to-right order (by t) and lay the
+    takeoffs out as gap, Ø, gap, Ø … gap — the SAME layout the face width is
+    sized for in `plenumBody`, normalised to t ∈ 0..1.
+
+    It used to respace to t = (i+1)/(n+1), which gives every takeoff an equal
+    share of the face regardless of size. With mixed diameters the wide ones
+    then overran their neighbours and the spigots drew ON TOP of each other
+    (a Ø250 beside a Ø150 overlapped by ~17 mm). Sizing the face by diameter
+    while placing by index could never agree; now both use one layout.
+
     Called on every spigot add/delete so the face stays tidy. */
 export function distributeSpigots(spigots: PlenumSpigot[]): PlenumSpigot[] {
   const byFace = new Map<PlenumSpigot["face"], PlenumSpigot[]>();
@@ -192,7 +200,14 @@ export function distributeSpigots(spigots: PlenumSpigot[]): PlenumSpigot[] {
   const packed = new Map<string, number>();
   for (const arr of byFace.values()) {
     const ordered = [...arr].sort((a, b) => a.t - b.t);
-    ordered.forEach((s, i) => packed.set(s.id, (i + 1) / (ordered.length + 1)));
+    const span =
+      ordered.reduce((a, s) => a + s.diaMm, 0) + SPIGOT_GAP_MM * (ordered.length + 1);
+    let cursor = SPIGOT_GAP_MM;
+    for (const s of ordered) {
+      const centre = cursor + s.diaMm / 2;
+      packed.set(s.id, span > 0 ? centre / span : 0.5);
+      cursor += s.diaMm + SPIGOT_GAP_MM;
+    }
   }
   return spigots.map((s) => ({ ...s, t: packed.get(s.id) ?? s.t }));
 }
@@ -211,9 +226,28 @@ export function isPlenumOf(
     (both grades of factory spigot mean "no drawn plenum body"; see there). */
 export type { OpeningSpec } from "./packs/schema";
 
-/** How far a drawn plenum protrudes from the unit in plan (mm). Not a
-    published figure — a construction default. */
-export const PLENUM_PROTRUSION_MM = 400;
+/* Plan protrusion of a drawn plenum (mm). Neither is a published figure —
+   both are construction defaults, and both are destined for the pack's
+   components section so a brand/installer can set their own (noted
+   2026-07-23, not built yet). Until then they live here as named constants
+   rather than magic numbers at the call site. */
+
+/** SUPPLY, base → V point: shallow with one takeoff, deeper as more are
+    added (the fan-out needs the length). Bounded — past the cap you're
+    building a transition, not a plenum. */
+export const SUPPLY_PLENUM_DEPTH_MIN_MM = 200;
+export const SUPPLY_PLENUM_DEPTH_MAX_MM = 300;
+const SUPPLY_DEPTH_PER_EXTRA_SPIGOT_MM = 25;
+
+/** RETURN: a shallow box on the back of the unit (field standard). */
+export const RETURN_PLENUM_DEPTH_MM = 150;
+
+/** How deep a supply plenum runs from the unit face to the spigot face.
+    One duct sits at the minimum; each extra pushes it out, capped. */
+export function supplyPlenumDepthMm(spigotCount: number): number {
+  const extra = Math.max(0, spigotCount - 1) * SUPPLY_DEPTH_PER_EXTRA_SPIGOT_MM;
+  return Math.min(SUPPLY_PLENUM_DEPTH_MAX_MM, SUPPLY_PLENUM_DEPTH_MIN_MM + extra);
+}
 
 /** Derived-default base when the data book opening is absent (Principle 5):
     ~90 % of the discharge END the plenum bolts to (the caller passes the
@@ -228,7 +262,12 @@ export interface PlenumBody {
   baseWMm: number;
   /** far spigot face width (seats the spigots); ≤ baseWMm unless overSpigot */
   spigotFaceWMm: number;
-  /** plan protrusion from the unit face */
+  /** the opening HEIGHT — how deep the duct can be where it meets the unit.
+      Null when the pack has no opening for this face. Sizes the spigots (a
+      takeoff can't be taller than the plenum), so it is the figure that
+      belongs beside the width — NOT the plan depth. */
+  openingHMm: number | null;
+  /** plan protrusion from the unit face. GEOMETRY ONLY — never labelled. */
   depthMm: number;
   /** integral return — no drawn plenum */
   builtIn: boolean;
@@ -238,21 +277,38 @@ export interface PlenumBody {
   derived: boolean;
   /** spigots need a face wider than the base → too many ducts for this plenum */
   overSpigot: boolean;
-  /** `1200 × 400 · 3 × 14"` — base W × depth D, spigots per units setting */
+  /** a spigot is bigger than the opening is HIGH — it can't land on a plenum
+      this shallow without oversizing it (e.g. a 250 Ø on a 150 high plenum) */
+  overHeight: boolean;
+  /** a plain BOX — the far face equals the base, so it draws as a rectangle
+      instead of tapering. Always true for a return plenum. */
+  rectangular: boolean;
+  /** `1200 × 250 · 3 × 14"` — opening W × H, then spigots per units setting */
   label: string;
 }
 
-/** Resolve a plenum's body from the unit's opening. The base (widest edge)
-    sits on the unit at the opening width; the plenum tapers OUTWARD to a
-    narrow spigot face that seats the spigots and stays ≤ the base — when the
-    spigots would need more, `overSpigot` flags "too many ducts for this
-    plenum" (the airflow limit made geometric). No refacet, no growing past
-    the unit (spec §1b, field feedback 2026-07-14). */
+/** Resolve a plenum's body from the unit's opening.
+
+    SUPPLY tapers: the base (widest edge) sits on the unit at the opening
+    width and narrows OUTWARD to a spigot face that seats the round takeoffs
+    and stays ≤ the base — when the spigots would need more, `overSpigot`
+    flags "too many ducts for this plenum" (the airflow limit made geometric).
+
+    RETURN does not. A return plenum is a plain BOX bolted to the back of the
+    unit — a return-air/filter box, not a transition to round ducts — so its
+    far face is the full base width and it draws as a rectangle (field
+    feedback 2026-07-23). Only the supply side has spigots to narrow toward.
+
+    No refacet, no growing past the unit (spec §1b, field feedback
+    2026-07-14). */
 export function plenumBody(opts: {
   opening?: PackOpeningSpec | null;
   unitWidthMm?: number | null;
   spigots: PlenumSpigot[];
-  units: "mm" | "inch";
+  /** which side of the unit — RETURN is a box, SUPPLY tapers. Defaults to
+      supply so an un-updated caller keeps the old shape rather than silently
+      squaring off every plenum. */
+  stream?: "supply" | "return";
 }): PlenumBody {
   const builtIn = opts.opening === "built-in";
   // both grades of factory spigot (sized or bare) mean no fabricated plenum
@@ -275,33 +331,56 @@ export function plenumBody(opts: {
       ? 0
       : onFace.reduce((a, s) => a + s.diaMm, 0) + SPIGOT_GAP_MM * (onFace.length + 1);
   const overSpigot = needed > baseWMm;
-  // 1 spigot → a near-point (arrow); more → widens toward (never past) the base
-  const spigotFaceWMm = overSpigot ? baseWMm : needed;
+  // a return box keeps its full width to the far face; supply narrows —
+  // 1 spigot → a near-point (arrow), more → widens toward (never past) the base
+  const rectangular = opts.stream === "return";
+  const spigotFaceWMm = rectangular || overSpigot ? baseWMm : needed;
+  const openingHMm = real?.h_mm ?? null;
+  /* the OTHER way a duct fails to fit: a round takeoff can't be taller than
+     the opening it lands on. A 150 high plenum can't take a 10" (250 Ø)
+     without being oversized — the height is what decides that, which is why
+     it's the figure shown beside the width. */
+  const overHeight =
+    openingHMm != null && opts.spigots.some((s) => s.diaMm > openingHMm);
   return {
     baseWMm,
     spigotFaceWMm,
-    depthMm: PLENUM_PROTRUSION_MM,
+    openingHMm,
+    /* depth follows EVERY connected spigot, not just the ones on the far
+       face — a plenum fed by two side takeoffs still has to run out far
+       enough to reach them (field sketch 2026-07-23) */
+    depthMm: rectangular
+      ? RETURN_PLENUM_DEPTH_MM
+      : supplyPlenumDepthMm(opts.spigots.length),
     builtIn,
     factorySpigots,
     derived,
     overSpigot,
-    label: plenumLabel(baseWMm, PLENUM_PROTRUSION_MM, opts.spigots, opts.units),
+    overHeight,
+    rectangular,
+    label: plenumLabel(opts.stream ?? "supply", baseWMm, openingHMm),
   };
 }
 
+/** The plan label: which plenum it is, then the OPENING as `W × H`.
+
+    The duct sizes are NOT in here — each spigot carries its own diameter at
+    the spigot, where the fitter is actually looking, instead of being rolled
+    into one long bar under the plenum that has to be read back against the
+    drawing to work out which duct is which.
+
+    The plan depth is not in it either: on a drawing the two figures that
+    matter are the ones the duct has to fit through, and the height is what
+    sizes the spigots. An unknown height shows as a dash rather than being
+    quietly dropped. */
 export function plenumLabel(
+  stream: "supply" | "return",
   baseWMm: number,
-  depthMm: number,
-  spigots: PlenumSpigot[],
-  units: "mm" | "inch"
+  openingHMm: number | null
 ): string {
-  const counts = new Map<number, number>();
-  for (const s of spigots) counts.set(s.diaMm, (counts.get(s.diaMm) ?? 0) + 1);
-  const parts = [...counts.entries()]
-    .sort((a, b) => b[0] - a[0])
-    .map(([dia, n]) => `${n} × ${formatDia(dia, units)}`);
-  const dims = `${Math.round(baseWMm)} × ${Math.round(depthMm)}`;
-  return `${dims}${parts.length ? ` · ${parts.join(" · ")}` : ""}`;
+  const h = openingHMm == null ? "—" : String(Math.round(openingHMm));
+  const name = stream === "return" ? "Return" : "Supply";
+  return `${name} · ${Math.round(baseWMm)} × ${h}`;
 }
 
 /* ── Plenum supply-duct count guidance (spec §6b-iii) — the spigots are the

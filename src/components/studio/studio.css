@@ -3758,11 +3758,13 @@
 .dstudio .ds-unit-role {
   fill: currentColor;
   text-anchor: middle;
+  dominant-baseline: central;
   font-weight: 800;
 }
 .dstudio .ds-unit-model {
   fill: var(--gray700);
   text-anchor: middle;
+  dominant-baseline: central;
   paint-order: stroke;
   stroke: #fff;
   stroke-width: 3px;
@@ -6779,12 +6781,21 @@
 .dstudio .ds-plenum-label {
   fill: currentColor;
   text-anchor: middle;
+  /* centred ON the body, so the label reads as part of the thing it names */
+  dominant-baseline: central;
   font-weight: 700;
   paint-order: stroke;
   stroke: #fff;
   stroke-width: 3px;
 }
 .dstudio .ds-plenum-label.derived { fill: var(--gray500); }
+/* each takeoff's own diameter, centred ON the takeoff */
+.dstudio .ds-spigot-dia {
+  fill: currentColor;
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
 /* built-in return: integral hatched box fused to the AHU body */
 .dstudio .ds-plenum-builtin {
   stroke: currentColor;
@@ -6800,11 +6811,28 @@
   opacity: 0.55;
   vector-effect: non-scaling-stroke;
 }
+/* Airflow direction earns its OWN colour and weight instead of inheriting the
+   system tint. It answers a different question from everything else on the
+   plan — which way the air actually goes — and at 1.2px / 0.7 opacity in the
+   system colour it read as just more system-coloured linework. Blue is the
+   unclaimed slot in the plan language (amber = building, teal = accent,
+   red = danger) and it reads as air. */
+.dstudio {
+  --ds-air: #2563eb;
+}
 .dstudio .ds-ahu-flow {
-  stroke: currentColor;
-  stroke-width: 1.2px;
-  opacity: 0.7;
+  stroke: var(--ds-air);
+  stroke-width: 2.4px;
+  opacity: 1;
+  stroke-linecap: round;
   vector-effect: non-scaling-stroke;
+}
+/* the head matches the line by NAME, never by currentColor — see the marker */
+.dstudio .ds-flow-arrowhead {
+  stroke: var(--ds-air);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 /* the long faces labelled SUPPLY / RETURN — appear only once determined */
 .dstudio .ds-ahu-face-label {
@@ -6834,6 +6862,25 @@
   stroke: #fff;
   stroke-width: 3px;
 }
+/* ── plan text halo ──────────────────────────────────────────────────
+   `paint-order: stroke` lays a white outline UNDER the glyphs so a label
+   stays readable over drawing linework. The default MITER join fires a long
+   spike off every sharp glyph corner, and at a 3px halo those spikes were
+   the white starbursts erupting around every label — they obscured the very
+   text the halo exists to reveal. Round joins are mandatory here, and every
+   halo'd label on the plan shares this one rule so none can drift back. */
+.dstudio .ds-pipe-len,
+.dstudio .ds-unit-model,
+.dstudio .ds-plenum-label,
+.dstudio .ds-spigot-dia,
+.dstudio .ds-spigot-label {
+  paint-order: stroke;
+  stroke: #fff;
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
 .dstudio .ds-ahu-spigots.derived .ds-spigot-fixed {
   stroke: var(--gray500);
   stroke-dasharray: 4 3;
@@ -7965,7 +8012,13 @@
 .dstudio.editing .ds-menu-pop,
 .dstudio.editing .ds-layers-menu,
 .dstudio.editing .ds-variant-menu,
-.dstudio.editing .ds-sys-menu {
+.dstudio.editing .ds-sys-menu,
+/* .ds-pal was missing from this list and rendered as a BLANK WHITE BOX: it's
+   a child of the tool rail, so it inherits the rail's inverted ink ramp
+   (--ink:#fff) while keeping its own white background — white on white. It
+   went unnoticed because the palette used to sit behind the canvas entirely;
+   fixing that stacking bug is what finally made the blank box visible. */
+.dstudio.editing .ds-pal {
   background: rgba(18, 20, 27, 0.94);
   border-color: rgba(255, 255, 255, 0.14);
   backdrop-filter: blur(24px) saturate(1.4);
@@ -7979,6 +8032,7 @@
 .dstudio.editing .ds-var-row:hover .ds-var-pick,
 .dstudio.editing .ds-tool:hover:not(:disabled),
 .dstudio.editing .ds-var-edit:hover,
+.dstudio.editing .ds-pal-item:hover:not(:disabled),
 .dstudio.editing .ds-floor-confirm .no:hover {
   background: rgba(255, 255, 255, 0.12);
 }

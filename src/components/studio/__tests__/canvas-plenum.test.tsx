@@ -240,8 +240,8 @@ describe("plenum rendering", () => {
       return Math.max(...xs) - Math.min(...xs);
     };
     expect(spanAt(nearY)).toBeGreaterThan(spanAt(farY));
-    // base 1000 mm × 400 depth, from the engine
-    expect(svg.querySelector(".ds-plenum-label")!.textContent).toBe("1000 × 400");
+    // the OPENING, W × H (1000 × 250) — the plan depth is never labelled
+    expect(svg.querySelector(".ds-plenum-label")!.textContent).toBe("Supply · 1000 × 250");
   });
 
   it("spigots render as RECTANGLES on the narrow face, no refacet", () => {
@@ -253,7 +253,10 @@ describe("plenum rendering", () => {
     const { svg } = renderCanvas({ doc });
     const label = svg.querySelector(".ds-plenum-label")!;
     // 2×350 + 3×50 = 850 ≤ 1000 base → a clean trapezoid, no "(3-face)"
-    expect(label.textContent).toBe('1000 × 400 · 2 × 14"');
+    /* the bar names the plenum + opening; each Ø rides its own spigot */
+    expect(label.textContent).toBe("Supply · 1000 × 250");
+    const dias = [...svg.querySelectorAll(".ds-spigot-dia")].map((n) => n.textContent);
+    expect(dias).toEqual(['14"', '14"']);
     // spigots are rectangles (polygons), not circles
     expect(svg.querySelectorAll(".ds-spigot polygon")).toHaveLength(2);
     expect(svg.querySelectorAll(".ds-spigot circle")).toHaveLength(0);

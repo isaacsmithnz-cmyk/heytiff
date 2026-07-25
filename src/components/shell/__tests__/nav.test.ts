@@ -19,6 +19,12 @@ describe("nav config", () => {
     }
   });
 
+  it("orders the rail Workspace, then Personal, then Operations", () => {
+    // Personal sits above Operations: everyone has personal screens,
+    // only some people manage.
+    expect(NAV_GROUPS.map((g) => g.label)).toEqual(["Workspace", "Personal", "Operations"]);
+  });
+
   it("groups the operations section as designed", () => {
     const ops = NAV_GROUPS.find((g) => g.label === "Operations");
     expect(ops?.items.map((i) => i.key)).toEqual([

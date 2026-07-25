@@ -11,7 +11,8 @@ import { asRsvpAnswer, isEventTime } from "@/lib/dashboard/events";
 import { asReaction } from "@/lib/dashboard/reactions";
 import { mentionedIds, MAX_COMMENT } from "@/lib/dashboard/comments";
 import { mentionableStaff, pollOptionIds } from "@/lib/dashboard/tasks-query";
-import { MAX_NOTICE_FILES } from "@/lib/documents/files";
+import { MAX_NOTICE_FILES, refIsOrgs } from "@/lib/documents/files";
+import { DOCUMENTS_BUCKET } from "@/lib/documents/query";
 import { todayInAu } from "@/lib/au-dates";
 
 /* Dashboard mutations — tasks and the noticeboard.
@@ -720,6 +721,13 @@ export async function deleteNotice(noticeId: string): Promise<DashResult> {
   if (!mine && !(await can("team")))
     return { ok: false, error: "You can't remove that notice." };
 
+  /* Take the attachments out of the bucket FIRST. `documents.notice_id` is
+     ON DELETE CASCADE, so dropping the notice drops the rows that name the
+     objects — and an object no row points at is unreachable but still billable,
+     exactly what deleteDocument() goes out of its way to avoid. Done before the
+     delete because afterwards there is nothing left to read the refs from. */
+  await removeNoticeFiles(ctx.orgId, noticeId);
+
   const { error } = await supabaseAdmin
     .from("notices")
     .delete()
@@ -728,6 +736,26 @@ export async function deleteNotice(noticeId: string): Promise<DashResult> {
   if (error) return { ok: false, error: "Couldn't remove that notice." };
   refresh();
   return { ok: true };
+}
+
+/* The stored objects behind a notice's attachments. Kept separate so the
+   cascade's blind spot is closed in one named place; a failure here is logged
+   and swallowed, because leaving a billable object behind is a smaller harm
+   than refusing to let someone delete their own post. */
+async function removeNoticeFiles(orgId: string, noticeId: string): Promise<void> {
+  const { data } = await supabaseAdmin
+    .from("documents")
+    .select("storage_ref")
+    .eq("org_id", orgId)
+    .eq("notice_id", noticeId);
+
+  const refs = ((data ?? []) as Record<string, unknown>[])
+    .map((r) => String(r.storage_ref))
+    .filter((ref) => refIsOrgs(ref, orgId));
+  if (refs.length === 0) return;
+
+  const { error } = await supabaseAdmin.storage.from(DOCUMENTS_BUCKET).remove(refs);
+  if (error) console.error("Couldn't remove notice attachments from storage:", error);
 }
 
 /* Reading is passive — the client reports which notices have actually been on

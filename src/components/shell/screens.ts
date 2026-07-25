@@ -3,6 +3,7 @@
    Pages render these via dangerouslySetInnerHTML inside the shell's .page wrapper. */
 
 import { iconSvg as I } from "./icon";
+import { esc } from "./profile";
 
 /* ---------------- DASHBOARD (home) — greeting hero ----------------
    heroHtml is just the hero block; the React dashboard (which renders live
@@ -21,11 +22,18 @@ export function heroHtml(opts: {
      item instead of just counting it. */
   action?: { state: "bad" | "warn" | "ok"; title: string; sub: string; href: string };
 }) {
+  /* Everything below reaches the DOM through dangerouslySetInnerHTML, so every
+     value that came from a person MUST be escaped — the same rule profile.ts
+     and the organisation settings screen already follow. The action band is
+     where it bites: `sub` carries a chip's label and subject, which are a
+     licence type name, a vehicle's name or plate, a staff member's name or the
+     insurer — all typed in by users, and a licence anyone may add to their own
+     card lands on a manager's dashboard. */
   const a = opts.action;
   const band = a
-    ? `<a class="hact ${a.state}" href="${a.href}">` +
+    ? `<a class="hact ${a.state}" href="${esc(a.href)}">` +
       `<span class="ha-ic">${I(a.state === "ok" ? "check" : "alert", 18)}</span>` +
-      `<span class="ha-main"><b class="ha-title">${a.title}</b><em class="ha-sub">${a.sub}</em></span>` +
+      `<span class="ha-main"><b class="ha-title">${esc(a.title)}</b><em class="ha-sub">${esc(a.sub)}</em></span>` +
       `<span class="ha-chev">${I("arrowR", 18)}</span>` +
       "</a>"
     : "";
@@ -35,9 +43,9 @@ export function heroHtml(opts: {
     '<div class="hrow"><div class="hlead">' +
     '<div class="pill">' +
     I("activity", 12) +
-    opts.date +
+    esc(opts.date) +
     "</div>" +
-    `<h1>${opts.greeting},<br><span>${opts.firstName}.</span></h1>` +
+    `<h1>${esc(opts.greeting)},<br><span>${esc(opts.firstName)}.</span></h1>` +
     '<p class="lede">Welcome back. Your workspace is ready.</p>' +
     "</div></div>" +
     band +

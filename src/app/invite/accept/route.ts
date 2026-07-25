@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { auth0 } from "@/lib/auth0";
+import { auth0, ensureStaffCard } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
 
 export async function GET(request: NextRequest) {
@@ -42,6 +42,16 @@ export async function GET(request: NextRequest) {
     .from("invitations")
     .update({ accepted_at: new Date().toISOString() })
     .eq("id", invite.id);
+
+  /* The staff card has to exist before they land on /dashboard. `updateSession`
+     below writes the cookie directly and does NOT run `beforeSessionSaved`, so
+     nothing else creates it until their NEXT sign-in — and without it
+     `staffProfileIdFor` returns null, which silently refuses commenting,
+     reacting, RSVPing, poll votes and every document upload ("No staff record
+     for this account"), and leaves them out of the team list so they can't even
+     be assigned a task. That's the whole first session for every invited
+     employee, which is the one path every real staff member takes. */
+  await ensureStaffCard(invite.org_id, session.user.sub, session);
 
   await auth0.updateSession({
     ...session,

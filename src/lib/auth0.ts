@@ -4,8 +4,13 @@ import { splitName } from "./staff/name";
 
 /* Make sure the user has a staff card in this org. Best effort, like the
    profiles upsert: a failure here must never block login — /dashboard/profile
-   creates the row on demand as well. */
-async function ensureStaffCard(
+   creates the row on demand as well.
+
+   Exported because the invite-accept route needs it too: `beforeSessionSaved`
+   runs only when the SDK saves a session it built, not on `updateSession`, so
+   accepting an invite would otherwise leave a member with an org but no staff
+   card for the whole of their first session. */
+export async function ensureStaffCard(
   orgId: string,
   userId: string,
   session: { user: { name?: unknown; email?: string | null; picture?: unknown } }

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { completeTask, createTask, reopenTask } from "@/app/actions/dashboard";
 import { dueLabel, type DashTask } from "@/lib/dashboard/tasks";
+import { auDayOf } from "@/lib/au-dates";
 
 /* Your tasks (everyone) plus, for `team` holders, an assign form and the rest
    of the team's open tasks. Completing your own is intrinsic; assigning and
@@ -50,11 +51,26 @@ function TaskRow({
   );
 }
 
-/** "Done today" / "Done 22 Jul" — when a completed task was ticked off. */
+/* "Done today" / "Done 22 July" — when a completed task was ticked off.
+
+   `today` is an AU calendar date, so the completion has to be resolved to one
+   too: done_at is a timestamp, and reading its day in UTC puts anything
+   finished before ~10am AEST on the previous date. */
 function doneLabel(iso: string, today: string): string {
-  const day = new Date(iso).toISOString().slice(0, 10);
+  const day = auDayOf(iso);
   if (day === today) return "Done today";
-  return `Done ${new Intl.DateTimeFormat("en-AU", { timeZone: "UTC", day: "numeric", month: "short" }).format(new Date(iso))}`;
+  return `Done ${fmtAuDay(day)}`;
+}
+
+/** "22 July" from an ISO date — formatted as a plain date, never a timestamp,
+    so the zone can't shift it back a day on the way out. */
+function fmtAuDay(iso: string): string {
+  if (!iso) return "";
+  return new Intl.DateTimeFormat("en-AU", {
+    timeZone: "UTC",
+    day: "numeric",
+    month: "short",
+  }).format(new Date(`${iso}T00:00:00Z`));
 }
 
 export function TasksSection({

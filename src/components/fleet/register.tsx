@@ -26,6 +26,7 @@ import {
   worstState,
 } from "./logic";
 import { DetailModal, LogModal, VehicleFormModal } from "./modals";
+import { Plate } from "./plate";
 
 /* Fleet register — the Manager/Owner view: whole fleet, assignment, service
    schedule & valuations (book + Tiff estimate). Mirrors the Team directory's
@@ -233,7 +234,7 @@ export function FleetRegister({
                     <em>{modelLabel(v)}</em>
                   </span>
                 </span>
-                <span className="fl-plate">{v.plate}</span>
+                <Plate plate={v.plate} state={v.plateState} size="sm" />
                 <span className="fl-driver">
                   {driver ? (
                     <>

@@ -8,6 +8,8 @@ import type { StaffLicence, StaffRow } from "@/lib/staff/types";
 import { licenceStatus } from "@/lib/staff/licence";
 import { todayInAu } from "@/lib/au-dates";
 import { inHtml } from "@/lib/format/duration";
+import { escapeHtml as esc } from "@/lib/format/html";
+import { plateHtml } from "@/components/fleet/plate";
 import type { Capability } from "@/lib/permissions";
 import type { Role } from "@/lib/roles-shared";
 import {
@@ -68,15 +70,12 @@ export function profileIcon(n: string, s?: number, w?: number): string {
 
 /* Values reach the DOM through dangerouslySetInnerHTML, so everything the user
    typed MUST be escaped here. Applies to the header too — a name is user data
-   the moment it comes from staff_profiles rather than the demo fixtures. */
-export function esc(v: string | null | undefined): string {
-  return String(v ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
+   the moment it comes from staff_profiles rather than the demo fixtures.
+
+   The implementation moved to lib/format/html.ts so the fleet plate can share
+   the same one instead of growing a near-copy; this alias keeps the short name
+   the several hundred call sites below already use. */
+export { esc };
 
 // exported: the organisation settings screen reuses this form vocabulary
 export const field = (label: string, inner: string, opts: { req?: boolean; help?: string } = {}) =>
@@ -282,7 +281,10 @@ function vehicle(av: AssignedVehicle | null) {
     `<div class="card2" data-static>${head}` +
     '<div class="pveh">' +
     `<div class="pvh"><span class="pvi">${ic("truck", 20)}</span>` +
-    `<span><b>${displayName(v)} · ${modelLabel(v)}</b><em>Rego ${v.plate}</em></span></div>` +
+    // the name and model are typed by whoever added the vehicle — escaped like
+    // every other user value that reaches this card's innerHTML
+    `<span><b>${esc(displayName(v))} · ${esc(modelLabel(v))}</b>` +
+    `<em>${plateHtml(v.plate, v.plateState)}</em></span></div>` +
     `<div class="pvchips">${chipHtml}</div>` +
     '<div class="pvfacts">' +
     fact("Odometer", `${fmtKm(v.odometer)} km`) +

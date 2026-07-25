@@ -27,14 +27,15 @@ export default async function TeamPage() {
   const orgId = session?.orgId as string | undefined;
   if (!orgId) redirect("/dashboard");
 
-  const [staff, pending, actorRole, caps] = await Promise.all([
+  const [staff, actorRole, caps] = await Promise.all([
     listStaff(orgId),
-    listPendingInvites(orgId),
     getDbRole(),
     getCapabilities(),
   ]);
   const invitableAt = invitableRoles(actorRole, caps);
   const canInvite = invitableAt.length > 0;
+  // tokens/ids ride along only when this viewer may act on them
+  const pending = await listPendingInvites(orgId, { withLinks: canInvite });
 
   // Prefer the configured base URL; otherwise derive it from the incoming
   // request so invite links are always correct in production (never localhost).

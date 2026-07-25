@@ -160,8 +160,9 @@ export function TeamDirectory({
               </span>
               {/* No email sending yet: the link IS the invite, so whoever may
                   invite gets it, plus the two things they can do about a row
-                  that's gone stale. */}
-              {canInvite && (
+                  that's gone stale. token/id are non-null exactly when the
+                  page asked withLinks — i.e. when canInvite. */}
+              {canInvite && p.token != null && p.id != null && (
                 <div className="invtools">
                   <CopyLink url={`${appUrl}/invite/accept?token=${p.token}`} />
                   <div className="invbtns">
@@ -169,8 +170,8 @@ export function TeamDirectory({
                       <button
                         className="fl-btn tiny"
                         disabled={busy}
-                        onClick={() => runInvite(() => renewInvite(p.id))}
-                      >
+                        onClick={() => runInvite(() => renewInvite(p.id!))}
+>
                         <Icon name="rotate" size={13} />
                         Renew
                       </button>
@@ -182,7 +183,7 @@ export function TeamDirectory({
                       onClick={() => {
                         if (armed !== p.id) return setArmed(p.id);
                         setArmed(null);
-                        runInvite(() => revokeInvite(p.id));
+                        runInvite(() => revokeInvite(p.id!));
                       }}
                     >
                       <Icon name="x" size={13} />

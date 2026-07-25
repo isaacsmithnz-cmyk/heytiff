@@ -81,11 +81,14 @@ export const auth0 = new Auth0Client({
 
     // If there's a pending invite for this email, don't auto-create an org —
     // the invite accept flow will create the membership and set orgId.
+    // Lowercased to match the write side: createInvite normalises on insert,
+    // but Auth0 relays whatever casing the identity provider holds, and a
+    // missed match here strands the invitee as owner of a phantom org.
     if (session.user.email) {
       const { data: pendingInvite } = await supabaseAdmin
         .from("invitations")
         .select("id")
-        .eq("email", session.user.email)
+        .eq("email", session.user.email.toLowerCase())
         .is("accepted_at", null)
         .gt("expires_at", new Date().toISOString())
         .limit(1);

@@ -25,7 +25,10 @@ export async function GET(request: NextRequest) {
   if (error || !invite) return errRedirect("Invite not found or already used.");
   if (invite.accepted_at) return errRedirect("This invite has already been accepted.");
   if (new Date(invite.expires_at) < new Date()) return errRedirect("This invite has expired.");
-  if (invite.email !== session.user.email) {
+  // Case-insensitive: the row is stored lowercased, but Auth0 relays the
+  // identity provider's casing. Only the comparison normalises — the error
+  // message below shows each address as its own side spelt it.
+  if (invite.email.toLowerCase() !== session.user.email?.toLowerCase()) {
     return errRedirect(
       `This invite was sent to ${invite.email}. You're signed in as ${session.user.email}.`
     );

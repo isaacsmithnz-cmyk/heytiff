@@ -2,6 +2,8 @@
 
 import { Icon } from "@/components/shell/icon";
 import { displayName, fmtKm, modelLabel, serviceKmLeft, vehicleChips } from "@/components/fleet/logic";
+import { Plate } from "@/components/fleet/plate";
+import { daysDuration } from "@/lib/format/duration";
 import { StaticCard } from "./section-card";
 import type { AssignedVehicle } from "./types";
 
@@ -32,6 +34,20 @@ function Empty() {
   );
 }
 
+/* The JSX twin of `inHtml` — "in 6 weeks", number carrying the weight and the
+   unit sitting back. Same shape, same classes; the HTML-string original exists
+   for the screens that still compose markup, and this card no longer does. */
+function InDuration({ days }: { days: number }) {
+  const d = daysDuration(days);
+  if (d.unit === "") return <>{d.label}</>;
+  return (
+    <>
+      in {d.value}
+      <span className="dur-u">{d.unit}</span>
+    </>
+  );
+}
+
 function Assigned({ av }: { av: AssignedVehicle }) {
   const v = av.vehicle;
   const chips = vehicleChips(v, av.openIssues);
@@ -48,7 +64,9 @@ function Assigned({ av }: { av: AssignedVehicle }) {
           <b>
             {displayName(v)} · {modelLabel(v)}
           </b>
-          <em>Rego {v.plate}</em>
+          <em>
+            <Plate plate={v.plate} state={v.plateState} size="sm" />
+          </em>
         </span>
       </div>
       <div className="pvchips">
@@ -77,7 +95,7 @@ function Assigned({ av }: { av: AssignedVehicle }) {
         </span>
         <span>
           <em>Rego</em>
-          <b>{v.regoDays < 0 ? "expired" : `in ${v.regoDays}d`}</b>
+          <b>{v.regoDays < 0 ? "expired" : <InDuration days={v.regoDays} />}</b>
         </span>
         <span>
           <em>Last fuel</em>

@@ -2050,17 +2050,6 @@ export function UnitsSub({
         {hasPair && !allPlaced && (
           <span className="ds-ck-placecount">{placedCount} / 2 placed</span>
         )}
-        {/* The swap used to wait for BOTH units to be on the plan, so picking
-            the wrong pair and placing one of them left you stuck with it
-            (field feedback 2026-07-25). Changing the pair is exactly what you
-            want mid-placement — `choose` takes any placed unit back off the
-            plan with it, so there is nothing to strand. */}
-        {hasPair && (
-          <button className="ds-ck-act" onClick={() => setBrowsing(true)} title="Swap the chosen unit">
-            Select units
-            <Glyph name="chev" size={12} />
-          </button>
-        )}
       </div>
 
       {!hasPair ? (
@@ -2117,6 +2106,21 @@ export function UnitsSub({
           {!allPlaced && (
             <div className="ds-ck-placenote">Drag each card onto the plan to place it.</div>
           )}
+          {/* Same slot as the first-run button above — the action for this
+              section sits UNDER what it acts on, so it reads as "these units,
+              change them" rather than as a header control. It stays offered
+              mid-placement: picking the wrong pair and placing one of them
+              used to leave you stuck with it, and `choose` takes any placed
+              unit back off the plan with it, so nothing is stranded. */}
+          <button
+            className="ds-ck-inkbtn"
+            style={{ marginTop: 10 }}
+            onClick={() => setBrowsing(true)}
+            title="Swap the chosen units"
+          >
+            <Glyph name="rotate" size={16} />
+            Swap units
+          </button>
         </>
       )}
 

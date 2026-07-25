@@ -86,6 +86,8 @@ describe("UnitsSub", () => {
   it("shows Select units until a pair is chosen", () => {
     renderSub(sys({}));
     expect(screen.getByRole("button", { name: /Select units/ })).toBeInTheDocument();
+    // and nothing to swap yet
+    expect(screen.queryByRole("button", { name: /Swap units/ })).not.toBeInTheDocument();
     expect(screen.queryByTestId("unit-card-idu")).not.toBeInTheDocument();
   });
 
@@ -105,7 +107,7 @@ describe("UnitsSub", () => {
       unit("u_idu", "idu", "SLZ-M25FA-A"),
     ]);
     expect(screen.getByText("1 / 2 placed")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Select units/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Swap units/ })).toBeInTheDocument();
   });
 
   it("drops the counter once both are down, keeping the swap", () => {
@@ -114,7 +116,7 @@ describe("UnitsSub", () => {
       unit("u_odu", "odu", "SUZ-M25VAD-A"),
     ]);
     expect(screen.queryByText(/placed$/)).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Select units/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Swap units/ })).toBeInTheDocument();
   });
 
   it("an unplaced row is draggable and arms placement; dragend disarms", () => {
@@ -182,12 +184,19 @@ describe("UnitsSub", () => {
     expect(ids).toContain("room1"); // the room stays
   });
 
-  it("offers a reselect (Select units) affordance once both units are placed", () => {
+  it("names the reopen action for what it does, under the units it acts on", () => {
     renderSub(sys({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" }), [
       unit("u_idu", "idu", "SLZ-M25FA-A"),
       unit("u_odu", "odu", "SUZ-M25VAD-A"),
     ]);
-    // previously a "Change" button; now the header "Select units ›" reopen action
-    expect(screen.getByRole("button", { name: /Select units/ })).toBeInTheDocument();
+    /* "Select units" is the first-run wording only; with a pair chosen the
+       same slot reads "Swap units" (field feedback 2026-07-26). It sits after
+       the two unit cards, not in the section header. */
+    const swap = screen.getByRole("button", { name: /Swap units/ });
+    expect(screen.queryByRole("button", { name: /Select units/ })).not.toBeInTheDocument();
+    const cards = screen.getAllByTestId(/^unit-card-/);
+    expect(
+      cards[1].compareDocumentPosition(swap) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
   });
 });

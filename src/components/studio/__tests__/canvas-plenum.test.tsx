@@ -265,6 +265,52 @@ describe("plenum rendering", () => {
     expect(body.getAttribute("points")!.split(" ")).toHaveLength(4);
   });
 
+  /* Field feedback 2026-07-25: the first two takeoffs default to the SIDE
+     faces, which slope. They used to draw as axis-aligned boxes, so the duct
+     visibly hung off the angled face at an angle. */
+  it("side spigots sit SQUARE to the sloped face, not axis-aligned", () => {
+    const spigs = [
+      { id: "s1", diaMm: 300, t: 0.5, face: "left" },
+      { id: "s2", diaMm: 300, t: 0.5, face: "right" },
+    ];
+    const { svg } = renderCanvas({ doc: mkDoc([ahu(), plenum(spigs)]) });
+    const pts = (el: Element) =>
+      el.getAttribute("points")!.split(" ").map((p) => {
+        const [x, y] = p.split(",").map(Number);
+        return { x, y };
+      });
+    const sub = (a: { x: number; y: number }, b: { x: number; y: number }) => ({
+      x: a.x - b.x,
+      y: a.y - b.y,
+    });
+    const unit = (v: { x: number; y: number }) => {
+      const m = Math.hypot(v.x, v.y);
+      return { x: v.x / m, y: v.y / m };
+    };
+    const cross = (a: { x: number; y: number }, b: { x: number; y: number }) =>
+      unit(a).x * unit(b).y - unit(a).y * unit(b).x;
+    const dot = (a: { x: number; y: number }, b: { x: number; y: number }) =>
+      unit(a).x * unit(b).x + unit(a).y * unit(b).y;
+
+    // body corners: base-left, face-left, face-right, base-right
+    const body = pts(svg.querySelector(".ds-plenum-body")!);
+    const edges = [sub(body[1], body[0]), sub(body[2], body[3])]; // left, right
+    // both sides really slope (otherwise this test proves nothing)
+    for (const e of edges) {
+      expect(Math.abs(e.x)).toBeGreaterThan(1);
+      expect(Math.abs(e.y)).toBeGreaterThan(1);
+    }
+
+    const rects = [...svg.querySelectorAll(".ds-spigot polygon")].map(pts);
+    expect(rects).toHaveLength(2);
+    rects.forEach((r, i) => {
+      const foot = sub(r[3], r[0]); // the edge seated on the plenum face
+      const stub = sub(r[1], r[0]); // how far the takeoff stands off it
+      expect(cross(foot, edges[i])).toBeCloseTo(0, 6); // parallel to the slope
+      expect(dot(foot, stub)).toBeCloseTo(0, 6); // and a true rectangle
+    });
+  });
+
   it("too many ducts for the opening → the over-spigot warning state", () => {
     const spigs = [0.2, 0.4, 0.6, 0.8].map((t, i) => ({
       id: `s${i}`,

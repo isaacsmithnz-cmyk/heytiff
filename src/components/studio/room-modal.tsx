@@ -76,6 +76,7 @@ export function RoomModal({
   onMutate,
   onClose,
   onRemarkWalls,
+  onEditShape,
   onOpenReference,
 }: {
   doc: DesignDocument;
@@ -84,6 +85,8 @@ export function RoomModal({
   onClose: () => void;
   /** re-enter canvas wall-marking for this room (saves first, then re-marks) */
   onRemarkWalls?: (roomId: string) => void;
+  /** unpin the room on the canvas to resize / move it (saves first) */
+  onEditShape?: (roomId: string) => void;
   onOpenReference?: () => void;
 }) {
   const room = useMemo(() => doc.objects.find((o) => o.id === roomId), [doc.objects, roomId]);
@@ -258,6 +261,13 @@ export function RoomModal({
   const remark = () => {
     save();
     onRemarkWalls?.(roomId);
+  };
+
+  /* back to the canvas to resize or move the room — it's pinned once saved, so
+     this is the only way to move it (field feedback 2026-07-25) */
+  const reshape = () => {
+    save();
+    onEditShape?.(roomId);
   };
 
   if (!room || room.geometry.kind !== "polygon") return null;
@@ -487,6 +497,27 @@ export function RoomModal({
                     markedWalls.length > 1 ? "s" : ""
                   } marked — click to edit`
                 : "Mark external walls on canvas"}
+            </button>
+          )}
+
+          {/* the room is PINNED to the plan once saved, so resizing / moving it
+              is a deliberate trip back to the canvas — a stray pan can't drag a
+              whole space any more (field feedback 2026-07-25) */}
+          {onEditShape && (
+            <button type="button" className="ds-rm-remark" onClick={reshape}>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 14 14"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M2.5 4.5V2.5h2M9.5 2.5h2v2M11.5 9.5v2h-2M4.5 11.5h-2v-2" />
+              </svg>
+              Edit room shape — resize or move it on the plan
             </button>
           )}
 

@@ -122,6 +122,8 @@ function renderCanvas(opts: {
   tool?: "select" | "erase";
   selectedId?: string | null;
   onMutate?: (fn: (d: DesignDocument) => DesignDocument) => void;
+  /** unpin a saved room for resizing / moving (the modal's Edit shape) */
+  reshapeRoomId?: string;
 }) {
   const utils = render(
     <StudioCanvas
@@ -138,6 +140,8 @@ function renderCanvas(opts: {
       onPlaced={() => {}}
       onRoomCreated={() => {}}
       onRemarkConsumed={() => {}}
+      reshapeRoomId={opts.reshapeRoomId ?? null}
+      onReshapeConsumed={() => {}}
     />
   );
   return { ...utils, svg: utils.container.querySelector("svg")! };
@@ -214,7 +218,13 @@ describe("moving a room carries its units and their pipework", () => {
       lRun(),
     ]);
     let next: DesignDocument | undefined;
-    const { svg } = renderCanvas({ doc, onMutate: (fn) => (next = fn(doc)) });
+    /* a saved room is pinned to the plan — Edit shape unpins it, which is the
+       only state where a room drag moves anything (field feedback 2026-07-25) */
+    const { svg } = renderCanvas({
+      doc,
+      reshapeRoomId: "rm1",
+      onMutate: (fn) => (next = fn(doc)),
+    });
 
     // grab the room away from the IDU footprint (±40×15 world at (0,0))
     fireEvent.pointerDown(svg, pt(sx(100), sy(100)));

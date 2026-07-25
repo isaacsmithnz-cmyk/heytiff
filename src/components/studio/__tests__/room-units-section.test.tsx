@@ -97,6 +97,26 @@ describe("UnitsSub", () => {
     expect(screen.getByText("SUZ-M25VAD-A")).toBeInTheDocument();
   });
 
+  /* The swap used to wait for BOTH units to be on the plan, which stranded
+     anyone who picked the wrong pair and placed one of them (field feedback
+     2026-07-25). */
+  it("offers the swap mid-placement, beside the placed counter", () => {
+    renderSub(sys({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" }), [
+      unit("u_idu", "idu", "SLZ-M25FA-A"),
+    ]);
+    expect(screen.getByText("1 / 2 placed")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Select units/ })).toBeInTheDocument();
+  });
+
+  it("drops the counter once both are down, keeping the swap", () => {
+    renderSub(sys({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" }), [
+      unit("u_idu", "idu", "SLZ-M25FA-A"),
+      unit("u_odu", "odu", "SUZ-M25VAD-A"),
+    ]);
+    expect(screen.queryByText(/placed$/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Select units/ })).toBeInTheDocument();
+  });
+
   it("an unplaced row is draggable and arms placement; dragend disarms", () => {
     const armed: (PlacingUnit | null)[] = [];
     renderSub(sys({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" }), [], {

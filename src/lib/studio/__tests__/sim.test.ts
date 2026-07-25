@@ -14,6 +14,7 @@ import {
   compressorPct,
   compressorPhase,
   freeRunningC,
+  facingOf,
   inferFacing,
   initSimState,
   rayExitDistance,
@@ -370,6 +371,33 @@ describe("inferFacing", () => {
   });
   it("falls back to plan-down on degenerate input", () => {
     expect(inferFacing({ x: 0, y: 0 }, [])).toEqual({ x: 0, y: 1 });
+  });
+});
+
+/* Units can be turned on the plan now, so the wall the unit happens to sit
+   near no longer gets to decide which way it blows. */
+describe("facingOf (a turned unit answers for itself)", () => {
+  const room = rect(0, 0, 100, 100).points;
+
+  it("still infers from the wall when the unit was never turned", () => {
+    expect(facingOf({ at: { x: 2, y: 50 } }, room).x).toBeCloseTo(1);
+  });
+
+  it("takes the rotation when there is one, wall or no wall", () => {
+    // hard against the left wall (inference would say +x) but turned to blow up
+    const up = facingOf({ at: { x: 2, y: 50 }, rotation: 180 }, room);
+    expect(up.x).toBeCloseTo(0);
+    expect(up.y).toBeCloseTo(-1);
+    // a quarter-turn discharges to −x (SVG's sense, y down)
+    const left = facingOf({ at: { x: 50, y: 50 }, rotation: 90 }, room);
+    expect(left.x).toBeCloseTo(-1);
+    expect(left.y).toBeCloseTo(0);
+  });
+
+  it("0° is a real answer — plan-down, the glyph's own louvre edge", () => {
+    const d = facingOf({ at: { x: 2, y: 50 }, rotation: 0 }, room);
+    expect(d.x).toBeCloseTo(0);
+    expect(d.y).toBeCloseTo(1);
   });
 });
 

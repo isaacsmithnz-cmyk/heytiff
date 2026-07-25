@@ -51,9 +51,11 @@ async function armRoom(
   await user.click(await screen.findByRole("button", { name: `${shape} room` }));
 }
 
-/* Closing a boundary opens wall-marking first (DUCTR parity). Commit it with
-   no external walls, then dismiss the load modal — the room stays either way. */
+/* Closing a boundary drops the room LOOSE for sizing; Save pins it and hands
+   over to wall-marking (DUCTR parity). Commit that with no external walls,
+   then dismiss the load modal — the room stays either way. */
 async function finishRoom(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole("button", { name: "Save & continue" }));
   await user.click(screen.getByRole("button", { name: "No external walls" }));
   await user.click(screen.getByRole("button", { name: "Cancel" }));
 }
@@ -98,9 +100,12 @@ describe("Design canvas", () => {
     expect(screen.getByRole("button", { name: /Scale/ })).toHaveTextContent("16.7 mm/px");
     await user.click(screen.getByTitle("Calibrate — set the scale and north"));
 
-    // undo twice: calibration, then the room itself
+    /* undo: calibration, then the wall marking, then the room itself —
+       saving the shape and marking the walls are two separate steps now, so
+       a fresh room lands in history as two entries */
     await user.click(screen.getByRole("button", { name: "Undo" }));
     expect(screen.getByText("0.8 m²")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Undo" }));
     await user.click(screen.getByRole("button", { name: "Undo" }));
     expect(screen.queryByText("Room 1")).not.toBeInTheDocument();
 
@@ -116,16 +121,15 @@ describe("Design canvas", () => {
     fireEvent.pointerDown(svg, pt(400, 300));
     fireEvent.pointerMove(svg, pt(456, 356));
     fireEvent.pointerUp(svg, pt(456, 356));
-    await finishRoom(user);
 
-    // select it, then drag corner 0 (at screen 400,300) inward +25,+25 units
-    await user.click(screen.getByRole("button", { name: "Select" }));
-    fireEvent.pointerDown(svg, pt(420, 320));
-    fireEvent.pointerUp(svg, pt(420, 320));
+    /* the freshly drawn room is loose for sizing — its corners pull straight
+       away, no extra select needed. Drag corner 0 (screen 400,300) inward
+       +25,+25 units, then save the shape. */
     const vertex = svg.querySelectorAll(".ds-vertex")[0]!;
     fireEvent.pointerDown(vertex, pt(400, 300));
     fireEvent.pointerMove(svg, pt(414, 314));
     fireEvent.pointerUp(svg, pt(414, 314));
+    await finishRoom(user);
 
     // rect stays rectangular: corner 0 → (25,25), the opposite corner (100,100)
     // stays put and the two neighbours follow — never a skewed quad
@@ -188,21 +192,28 @@ describe("Design canvas", () => {
     expect(screen.queryByText("Lounge")).not.toBeInTheDocument();
   });
 
-  it("wall-marking opens before the modal; Cancel discards the fresh room", async () => {
+  it("sizing comes first, then wall-marking, then the modal; Discard drops it", async () => {
     const { user, svg } = await openBlankDesignOnCanvas();
     await armRoom(user);
     fireEvent.pointerDown(svg, pt(400, 300));
     fireEvent.pointerMove(svg, pt(456, 342));
     fireEvent.pointerUp(svg, pt(456, 342));
 
-    // wall-marking panel, not the load modal, comes up first
-    expect(screen.getByText("Mark external walls")).toBeInTheDocument();
+    // sizing panel first — neither wall-marking nor the load modal yet
+    expect(screen.getByText("Size the room")).toBeInTheDocument();
+    expect(screen.queryByText("Mark external walls")).not.toBeInTheDocument();
     expect(screen.queryByText("Configure room")).not.toBeInTheDocument();
 
-    // Cancel on a fresh draft throws the room away (DUCTR parity)
+    // Save pins it and moves on to the walls; Cancel there falls BACK to sizing
+    await user.click(screen.getByRole("button", { name: "Save & continue" }));
+    expect(screen.getByText("Mark external walls")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByText("Size the room")).toBeInTheDocument();
+
+    // Discard on a fresh room throws it away (the old wall-Cancel behaviour)
+    await user.click(screen.getByRole("button", { name: "Discard" }));
     expect(screen.queryByText("Room 1")).not.toBeInTheDocument();
-    expect(screen.queryByText("Mark external walls")).not.toBeInTheDocument();
+    expect(screen.queryByText("Size the room")).not.toBeInTheDocument();
   });
 
   it("marking a wall commits the room and derives orientation from it", async () => {
@@ -212,6 +223,7 @@ describe("Design canvas", () => {
     fireEvent.pointerDown(svg, pt(400, 300));
     fireEvent.pointerMove(svg, pt(456, 342));
     fireEvent.pointerUp(svg, pt(456, 342));
+    await user.click(screen.getByRole("button", { name: "Save & continue" }));
 
     // click the top edge to mark it external
     fireEvent.pointerDown(svg, pt(428, 300));

@@ -71,6 +71,7 @@ describe("air dock group (studio toolrail)", () => {
     fireEvent.pointerDown(svg, pt(400, 300));
     fireEvent.pointerMove(svg, pt(456, 342));
     fireEvent.pointerUp(svg, pt(456, 342));
+    await user.click(screen.getByRole("button", { name: "Save & continue" }));
     await user.click(screen.getByRole("button", { name: "No external walls" }));
     await user.click(screen.getByRole("button", { name: "Cancel" }));
 

@@ -1940,6 +1940,16 @@
   stroke: #d98f1f;
   stroke-width: 1.6;
   vector-effect: non-scaling-stroke;
+  /* pinned once saved: the plan pans under it. Only the room being sized
+     (.loose, below) advertises a move cursor. */
+  cursor: default;
+}
+/* the room being SIZED — loose on the plan until Save pins it */
+.dstudio .ds-room.loose polygon {
+  fill: rgba(240, 164, 49, 0.22);
+  stroke: var(--ink);
+  stroke-width: 2;
+  stroke-dasharray: 7 5;
   cursor: move;
 }
 .dstudio .ds-room.sel polygon {
@@ -8137,13 +8147,19 @@
 .dstudio.editing .ds-step:hover {
   color: #fff;
 }
+/* On the dark chrome the thumb was a solid white card — the one opaque panel
+   in a bar that is otherwise all glass, and it read as a sticker on top of the
+   frame. It's now a brighter pane of the SAME glass (the cockpit's own
+   segmented control, .ds-ck-segbtn.on, is lit exactly this way), so selection
+   is carried by tone rather than by a white block. */
 .dstudio.editing .ds-steps-thumb {
-  box-shadow: 0 3px 10px -3px rgba(0, 0, 0, 0.7);
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2),
+    0 2px 8px -3px rgba(0, 0, 0, 0.6);
 }
-/* the thumb is white — the label riding on it must stay dark despite the
-   inverted ink ramp */
+/* the thumb is glass now, so the label on it stays in the inverted ink ramp */
 .dstudio.editing .ds-steps .ds-step.active {
-  color: #0a0b10;
+  color: #fff;
 }
 
 /* The rail is DARK-tinted rather than white-tinted: the page slides under it

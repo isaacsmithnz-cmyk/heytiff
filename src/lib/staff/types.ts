@@ -51,11 +51,19 @@ export type CardViewerCaps = {
   userId: string;
 };
 
-/** An outstanding invitation, shaped for the directory's Pending tab. */
+/** An outstanding invitation, shaped for the directory's Pending tab.
+
+    `token` is the invite link itself — it is only ever handed to a viewer who
+    holds `invites`, because possessing it is what lets someone join the org. */
 export type PendingInviteRow = {
+  /** invitations.id — what renew/revoke act on */
+  id: string;
   name: string;
   email: string;
   role: string;
   state: "live" | "expired";
   note: string;
+  token: string;
+  /** raw ISO timestamp behind `note`, for anything that needs the date itself */
+  expiresAt: string;
 };

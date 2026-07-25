@@ -1,40 +1,132 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { getCapabilities, getDbRole } from "@/lib/permissions-server";
 import { invitableRoles } from "@/lib/permissions";
-import { redirect } from "next/navigation";
+import type { Role } from "@/lib/roles-shared";
 
-export async function createInvite(formData: FormData) {
+/* Invitations — created, renewed and revoked from the Team page.
+
+   Two separate checks, both server-side: MAY they invite at all, and may they
+   invite AT THIS ROLE. The modal only offers permitted roles, but a direct call
+   can say anything — a delegated inviter asking for "admin" is a role
+   assignment, and those are owner-only (invitableRoles).
+
+   Email sending isn't wired up, so an invite is only ever as good as its link:
+   "resend" would be a lie, and renew + copy the link is the honest version of
+   the same act. Renew and revoke re-run the same gate, and both are org-scoped
+   — an id from another org matches nothing. */
+
+export type InviteResult = { ok: true } | { ok: false; error: string };
+
+/** Matches the DB default on invitations.expires_at, `now() + '7 days'`. */
+export const INVITE_WINDOW_DAYS = 7;
+
+const NO_PERMISSION = "You don't have permission to invite people.";
+
+type Ctx = { orgId: string; userId: string; allowedRoles: Role[] };
+
+async function inviterContext(): Promise<Ctx | null> {
   const session = await auth0.getSession();
-  if (!session) throw new Error("Not authenticated");
+  const orgId = session?.orgId as string | undefined;
+  const userId = session?.user?.sub as string | undefined;
+  if (!orgId || !userId) return null;
 
-  // Two separate checks, both server-side: MAY they invite at all, and may
-  // they invite AT THIS ROLE. The form only offers permitted roles, but a
-  // direct POST can say anything — a delegated inviter asking for "admin"
-  // is a role assignment, and those are owner-only.
   const [actorRole, caps] = await Promise.all([getDbRole(), getCapabilities()]);
   const allowedRoles = invitableRoles(actorRole, caps);
-  if (allowedRoles.length === 0) throw new Error("Insufficient permissions");
+  if (allowedRoles.length === 0) return null;
+  return { orgId, userId, allowedRoles };
+}
 
-  const email = formData.get("email") as string;
-  const role = formData.get("role") as string;
-  if (!allowedRoles.includes(role as (typeof allowedRoles)[number])) {
-    throw new Error("Insufficient permissions to invite at that role");
+/** now + the invite window, as an ISO timestamp. */
+function expiryFrom(now = new Date()): string {
+  return new Date(now.getTime() + INVITE_WINDOW_DAYS * 86_400_000).toISOString();
+}
+
+/** An invitation of this org that nobody has accepted yet — the only kind
+    renew and revoke may touch. An accepted row is history: the membership it
+    created is real, and deleting the row would erase how that person got in. */
+async function openInvite(ctx: Ctx, id: string): Promise<InviteResult> {
+  const { data, error } = await supabaseAdmin
+    .from("invitations")
+    .select("id, accepted_at")
+    .eq("org_id", ctx.orgId)
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error || !data) return { ok: false, error: "That invite no longer exists." };
+  if (data.accepted_at) return { ok: false, error: "That invite has already been accepted." };
+  return { ok: true };
+}
+
+export async function createInvite(input: { email: string; role: string }): Promise<InviteResult> {
+  const ctx = await inviterContext();
+  if (!ctx) return { ok: false, error: NO_PERMISSION };
+
+  const email = input.email.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { ok: false, error: "Enter a valid email address." };
   }
-  const orgId = session.orgId as string;
+  if (!ctx.allowedRoles.includes(input.role as Role)) {
+    return { ok: false, error: "You can't invite someone at that role." };
+  }
 
   const { error } = await supabaseAdmin.from("invitations").insert({
-    org_id: orgId,
+    org_id: ctx.orgId,
     email,
-    role,
-    invited_by: session.user.sub,
+    role: input.role,
+    invited_by: ctx.userId,
+    // Written rather than left to the column default, so renewInvite extends by
+    // the same window this granted — one number, in one place.
+    expires_at: expiryFrom(),
   });
+  if (error) return { ok: false, error: "Couldn't create that invite." };
 
-  if (error) throw new Error(error.message);
+  // TODO: send the invite email via Resend when it's wired up. Until then the
+  // Pending tab's Copy link is how an invite actually reaches anyone.
+  revalidatePath("/dashboard/team");
+  return { ok: true };
+}
 
-  // TODO: send invite email via Resend when wired up
+/** Withdraw an invitation nobody has accepted. */
+export async function revokeInvite(id: string): Promise<InviteResult> {
+  const ctx = await inviterContext();
+  if (!ctx) return { ok: false, error: NO_PERMISSION };
 
-  redirect("/dashboard/admin/invite");
+  const open = await openInvite(ctx, id);
+  if (!open.ok) return open;
+
+  const { error } = await supabaseAdmin
+    .from("invitations")
+    .delete()
+    .eq("org_id", ctx.orgId)
+    .eq("id", id)
+    // repeated on the write, not just the read: they can accept in between
+    .is("accepted_at", null);
+  if (error) return { ok: false, error: "Couldn't revoke that invite." };
+
+  revalidatePath("/dashboard/team");
+  return { ok: true };
+}
+
+/** Give an invitation a fresh window — the same one createInvite grants. */
+export async function renewInvite(id: string): Promise<InviteResult> {
+  const ctx = await inviterContext();
+  if (!ctx) return { ok: false, error: NO_PERMISSION };
+
+  const open = await openInvite(ctx, id);
+  if (!open.ok) return open;
+
+  const { error } = await supabaseAdmin
+    .from("invitations")
+    .update({ expires_at: expiryFrom() })
+    .eq("org_id", ctx.orgId)
+    .eq("id", id)
+    .is("accepted_at", null);
+  if (error) return { ok: false, error: "Couldn't renew that invite." };
+
+  revalidatePath("/dashboard/team");
+  return { ok: true };
 }

@@ -272,16 +272,18 @@ export async function listPendingInvites(
 ): Promise<PendingInviteRow[]> {
   const { data } = await supabaseAdmin
     .from("invitations")
-    .select("email, role, expires_at, accepted_at")
+    .select("id, email, role, token, expires_at, accepted_at")
     .eq("org_id", orgId)
     .is("accepted_at", null)
     .order("created_at", { ascending: false });
 
   return (data ?? []).map((r) => {
-    const expires = new Date(r.expires_at as string);
+    const expiresAt = r.expires_at as string;
+    const expires = new Date(expiresAt);
     const days = Math.round((expires.getTime() - now.getTime()) / 86_400_000);
     const live = days >= 0;
     return {
+      id: r.id as string,
       // no name until they accept — the email is the only thing we know
       name: (r.email as string).split("@")[0],
       email: r.email as string,
@@ -292,6 +294,10 @@ export async function listPendingInvites(
           ? "Expires today"
           : `Expires in ${days} day${days === 1 ? "" : "s"}`
         : `Expired ${-days} day${days === -1 ? "" : "s"} ago`,
+      // the link the inviter copies — the Team page only passes these rows on
+      // to a viewer with `invites`
+      token: r.token as string,
+      expiresAt,
     };
   });
 }

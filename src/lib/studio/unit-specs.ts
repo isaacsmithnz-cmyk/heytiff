@@ -21,6 +21,26 @@ export const SPEC_GROUP_LABELS: Record<SpecGroup, string> = {
   pair: "Pairing",
 };
 
+/** the human name for a form factor ("cassette-4way" → "4-way cassette").
+    Lives here rather than in a component so the cockpit panel and the canvas
+    read the same wording — a unit must not be called one thing in the
+    inspector and another on the plan. */
+export function formFactorLabel(ff: string): string {
+  const map: Record<string, string> = {
+    wall: "Wall-mounted",
+    ducted: "Ducted",
+    "cassette-4way": "4-way cassette",
+    "cassette-2way": "2-way cassette",
+    "cassette-1way": "1-way cassette",
+    "cassette-compact": "Compact cassette",
+    "under-ceiling": "Under-ceiling",
+    "floor-console": "Floor console",
+    "floor-concealed": "Floor concealed",
+    bulkhead: "Bulkhead",
+  };
+  return map[ff] ?? ff;
+}
+
 /** "30–38 dBA" (range) · "38 dBA" (single figure or low==high) · "—" */
 export function formatSoundRange(low?: number, high?: number): string {
   if (low != null && high != null && low !== high) return `${low}–${high} dBA`;

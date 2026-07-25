@@ -42,6 +42,7 @@ import { sizingCapacityKw, type SizingBasis } from "@/lib/studio/loads";
 import { roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
 import { roomsServedBy, roomCoverage, systemPairKw } from "@/lib/studio/coverage";
 import type { PairProposal } from "@/lib/studio/split";
+import { formFactorLabel } from "@/lib/studio/unit-specs";
 import { isAirCapable, moduleFor } from "@/lib/studio/modules";
 import {
   pruneObjects,
@@ -2789,18 +2790,3 @@ function ObjRow({ k, v }: { k: string; v: string }) {
 }
 
 /* form-factor → a friendly label for the unit sub-line */
-function formFactorLabel(ff: string): string {
-  const map: Record<string, string> = {
-    wall: "Wall-mounted",
-    ducted: "Ducted",
-    "cassette-4way": "4-way cassette",
-    "cassette-2way": "2-way cassette",
-    "cassette-1way": "1-way cassette",
-    "cassette-compact": "Compact cassette",
-    "under-ceiling": "Under-ceiling",
-    "floor-console": "Floor console",
-    "floor-concealed": "Floor concealed",
-    bulkhead: "Bulkhead",
-  };
-  return map[ff] ?? ff;
-}

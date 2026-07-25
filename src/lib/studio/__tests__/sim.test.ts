@@ -22,6 +22,10 @@ import {
   startupRemainingSimS,
   steadyStateC,
   tempTint,
+  comfortWeight,
+  roomSetpointC,
+  COMFORT_IN_K,
+  COMFORT_OUT_K,
   throwLengthU,
   timeToSetpointSimS,
   fillProgress,
@@ -318,12 +322,79 @@ describe("estimates & visuals", () => {
     expect(p).toBeLessThanOrEqual(1);
   });
 
-  it("the tint anchors clear at 21° and holds blue/orange apart from it", () => {
+  it("with no setpoint the tint is the plain 21° thermometer", () => {
+    // an unconditioned room has no target, so it keeps the absolute read
     expect(tempTint(21)).toBeNull();
     expect(tempTint(15)!.rgb).toBe("56, 154, 232");
     expect(tempTint(27)!.rgb).toBe("255, 138, 0");
     expect(tempTint(13)!.alpha).toBeGreaterThan(tempTint(18)!.alpha);
     expect(tempTint(13)!.alpha).toBeLessThanOrEqual(0.35);
+  });
+
+  it("the tint anchors on the SETPOINT, not on 21°", () => {
+    /* the bug this replaced: a room correctly held at 24° in winter read as
+       permanently orange, because the anchor was a fixed 21°. */
+    expect(tempTint(24, 24)!.rgb).toBe("0, 163, 137");
+    // 18° is cool of a 24° target even though it is "warm" against 21°
+    expect(tempTint(18, 24)!.rgb).toBe("56, 154, 232");
+    // …and warm of a 15° cooling target
+    expect(tempTint(18, 15)!.rgb).toBe("255, 138, 0");
+    // further from target = stronger
+    expect(tempTint(14, 24)!.alpha).toBeGreaterThan(tempTint(21, 24)!.alpha);
+  });
+
+  it("at temperature the room is coloured, never clear", () => {
+    /* the whole point: arriving used to mean the tint vanished, so the one
+       state worth showing was the one with no colour at all */
+    for (const sp of [18, 21, 24, 26]) {
+      const t = tempTint(sp, sp);
+      expect(t).not.toBeNull();
+      expect(t!.alpha).toBeGreaterThan(0.1);
+      expect(t!.rgb).toBe("0, 163, 137");
+    }
+  });
+
+  it("comfort crossfades rather than snapping, so cycling can't flash it", () => {
+    expect(comfortWeight(21, 21)).toBe(1);
+    expect(comfortWeight(21.2, 21)).toBe(1); // inside the band
+    expect(comfortWeight(24, 21)).toBe(0); // well outside
+    const mid = comfortWeight(21.75, 21);
+    expect(mid).toBeGreaterThan(0);
+    expect(mid).toBeLessThan(1);
+    // monotonic on the way out — no reversal a viewer would read as flicker
+    expect(comfortWeight(21.5, 21)).toBeGreaterThan(comfortWeight(21.9, 21));
+    // and the tint follows it continuously: no visible seam at the band edge
+    const inside = tempTint(21 + COMFORT_IN_K - 0.001, 21)!;
+    const outside = tempTint(21 + COMFORT_IN_K + 0.001, 21)!;
+    expect(Math.abs(inside.alpha - outside.alpha)).toBeLessThan(0.01);
+  });
+
+  it("comfort is undefined without a setpoint", () => {
+    expect(comfortWeight(21, null)).toBe(0);
+  });
+
+  it("roomSetpointC reports only a RUNNING handler's target", () => {
+    const rt = new SimRuntime(simDoc(), pack, "flr", 5);
+    const hid = rt.model.handlers[0].id;
+    expect(roomSetpointC(rt.model, rt.state, "room1")).toBeNull();
+    rt.setOn(hid, true);
+    rt.setSetpoint(hid, 23);
+    expect(roomSetpointC(rt.model, rt.state, "room1")).toBe(23);
+    rt.setOn(hid, false);
+    expect(roomSetpointC(rt.model, rt.state, "room1")).toBeNull();
+  });
+
+  it("a room driven to its setpoint ends up in the comfort colour", () => {
+    const rt = new SimRuntime(simDoc(), pack, "flr", 5);
+    const hid = rt.model.handlers[0].id;
+    rt.setOn(hid, true);
+    rt.setSetpoint(hid, 22);
+    for (let i = 0; i < 4000; i++) rt.advance(0.1);
+    const sp = roomSetpointC(rt.model, rt.state, "room1");
+    const t = rt.state.roomTempC.room1;
+    expect(Math.abs(t - 22)).toBeLessThan(COMFORT_OUT_K);
+    expect(comfortWeight(t, sp)).toBeGreaterThan(0);
+    expect(tempTint(t, sp)!.alpha).toBeGreaterThan(0.05);
   });
 });
 

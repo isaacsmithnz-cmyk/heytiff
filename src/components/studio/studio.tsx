@@ -1951,6 +1951,11 @@ function DesignPanel({
     (model: string) => pack?.indoor_units.find((u) => u.model === model) ?? null,
     [pack]
   );
+  /** its outdoor twin — the hover card names both sides of a system */
+  const oduSpec = useCallback(
+    (model: string) => pack?.outdoor_units.find((u) => u.model === model) ?? null,
+    [pack]
+  );
 
   if (!floor) {
     return (
@@ -2082,6 +2087,7 @@ function DesignPanel({
             component={airComp}
             onComponentPlaced={onComponentPlaced}
             iduSpec={iduSpec}
+            oduSpec={oduSpec}
             onRoomCreated={onRoomCreated}
             remarkRoomId={remarkRoomId}
             reshapeRoomId={reshapeRoomId}

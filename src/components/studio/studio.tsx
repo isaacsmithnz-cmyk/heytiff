@@ -1107,15 +1107,30 @@ function Editor({
                 }))
               }
             />
-            {/* save status rides under the title — off the bar's width budget */}
-            <span className={`ds-save ${saveState}`}>
-              <span className="dot" />
-              {saveState === "saving"
-                ? "Saving…"
-                : saveState === "local"
-                  ? "Saved locally"
-                  : "Saved"}
-            </span>
+            {/* Save status rides under the title — off the bar's width budget.
+
+                When the server save has FAILED the label becomes the button:
+                nothing retries on its own, so "Saved locally" would otherwise
+                sit there until the next edit fired the debounce, and the only
+                way out was a menu row you had to think to open. The affordance
+                belongs where the person is already looking when they're
+                worried. Every other state is a plain label — there is nothing
+                to do about "Saved". */}
+            {saveState === "local" ? (
+              <button
+                className="ds-save local retry"
+                onClick={onSaveNow}
+                title="This design is saved on this device only — click to save it to the server again"
+              >
+                <span className="dot" />
+                Saved locally — retry
+              </button>
+            ) : (
+              <span className={`ds-save ${saveState}`}>
+                <span className="dot" />
+                {saveState === "saving" ? "Saving…" : "Saved"}
+              </span>
+            )}
           </div>
         </div>
         {/* the canvas controls take the centre slot — the strip above the

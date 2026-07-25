@@ -2050,7 +2050,12 @@ export function UnitsSub({
         {hasPair && !allPlaced && (
           <span className="ds-ck-placecount">{placedCount} / 2 placed</span>
         )}
-        {hasPair && allPlaced && (
+        {/* The swap used to wait for BOTH units to be on the plan, so picking
+            the wrong pair and placing one of them left you stuck with it
+            (field feedback 2026-07-25). Changing the pair is exactly what you
+            want mid-placement — `choose` takes any placed unit back off the
+            plan with it, so there is nothing to strand. */}
+        {hasPair && (
           <button className="ds-ck-act" onClick={() => setBrowsing(true)} title="Swap the chosen unit">
             Select units
             <Glyph name="chev" size={12} />

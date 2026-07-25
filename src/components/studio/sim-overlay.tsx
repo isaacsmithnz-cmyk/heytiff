@@ -3,7 +3,9 @@
 import { useEffect, useRef } from "react";
 import type { Point } from "@/lib/studio/document";
 import {
+  comfortWeight,
   fillProgress,
+  roomSetpointC,
   tempTint,
   throwLengthU,
   type SimHandlerModel,
@@ -19,6 +21,14 @@ import type { SimRuntime } from "@/lib/studio/sim-runtime";
    Drawn per frame: room temperature tints with the §5a fill-front, cone
    plumes off each emitter (particles; static chevrons under reduced motion),
    facing ticks, and screen-space temperature chips. */
+
+/* A room at temperature breathes: a very slow, very shallow swing on the
+   comfort wash. Holding a setpoint is something the system is DOING — the
+   compressor is cycling to keep it there — so the state that earns the calmest
+   colour still has to look alive rather than finished. Amplitude is a couple of
+   percent of alpha; it reads as presence, not as animation. */
+const BREATHE_PERIOD_S = 4.5;
+const BREATHE_AMP = 0.022;
 
 interface Particle {
   x: number;
@@ -49,6 +59,9 @@ export function SimOverlay({
   const ref = useRef<HTMLCanvasElement>(null);
   const particles = useRef<Particle[]>([]);
   const spawnDebt = useRef<Record<string, number>>({});
+  /* the breathe's own clock — held apart from performance.now() so pausing the
+     sim stills it too (a paused frame should be a still frame) */
+  const breatheS = useRef(0);
 
   /* The animation loop is started once (it keys off `runtime`) but has to draw
      at the CURRENT pan/zoom, so the viewport reaches it through a ref rather
@@ -76,7 +89,18 @@ export function SimOverlay({
       const dtReal = Math.min((now - last) / 1000, 0.25);
       last = now;
       runtime.advance(dtReal);
-      draw(ctx, cv, runtime, view.current, particles.current, spawnDebt.current, dtReal, reduced);
+      if (!runtime.state.paused && !reduced) breatheS.current += dtReal;
+      draw(
+        ctx,
+        cv,
+        runtime,
+        view.current,
+        particles.current,
+        spawnDebt.current,
+        dtReal,
+        reduced,
+        breatheS.current
+      );
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
@@ -106,7 +130,8 @@ function draw(
   particles: Particle[],
   spawnDebt: Record<string, number>,
   dtReal: number,
-  reduced: boolean
+  reduced: boolean,
+  breatheS: number
 ) {
   const { model, state } = runtime;
   const dpr = cv.width / Math.max(1, parseFloat(cv.style.width) || cv.width);
@@ -120,10 +145,22 @@ function draw(
   world();
 
   /* 1 — room tints with the fill-front */
+  /* centred on zero, so the settled colour is the MIDPOINT of the swing rather
+     than its floor — and a stilled clock (paused, or reduced motion) lands
+     exactly on the designed alpha instead of a permanent offset */
+  const breathe = Math.sin((breatheS / BREATHE_PERIOD_S) * Math.PI * 2);
   for (const room of model.rooms) {
     const t = state.roomTempC[room.id];
-    const tint = tempTint(t);
+    /* the tint is anchored on the room's OWN setpoint, so it reads distance
+       from target rather than distance from 21°, and settles into the comfort
+       green on arrival instead of draining to nothing */
+    const sp = roomSetpointC(model, state, room.id);
+    const tint = tempTint(t, sp);
     if (!tint) continue;
+    const comfort = comfortWeight(t, sp);
+    /* only the settled wash breathes — a room still travelling is already
+       moving (the front is growing) and doesn't need a second motion on top */
+    const alpha = tint.alpha + comfort * breathe * BREATHE_AMP;
     const p = fillProgress(model, state, room.id);
     const emitter = model.handlers.find((h) => h.roomId === room.id);
 
@@ -131,7 +168,7 @@ function draw(
     tracePolygon(ctx, room.points);
     ctx.clip();
     if (p >= 1 || !emitter) {
-      ctx.fillStyle = `rgba(${tint.rgb}, ${tint.alpha})`;
+      ctx.fillStyle = `rgba(${tint.rgb}, ${alpha})`;
       fillRoomBounds(ctx, room.points);
     } else {
       /* a faint base so the room never reads untouched… */
@@ -143,7 +180,9 @@ function draw(
          colour pooling at the unit. Converges to the room tint at p→1 (no pop). */
       const es = state.handlers[emitter.id];
       const frontTemp = es ? es.supplyC * (1 - p) + t * p : t;
-      const front = tempTint(frontTemp) ?? { rgb: tint.rgb, alpha: 0 };
+      /* the SAME anchor as the room tint — a front measured against a different
+         reference wouldn't converge, and would pop as the fill completes */
+      const front = tempTint(frontTemp, sp) ?? { rgb: tint.rgb, alpha: 0 };
       const maxD = room.points.reduce(
         (m, pt) => Math.max(m, Math.hypot(pt.x - emitter.at.x, pt.y - emitter.at.y)),
         0
@@ -175,7 +214,18 @@ function draw(
     const t = state.roomTempC[room.id];
     const prev = state.prevTempC[room.id] ?? t;
     const trend = t - prev > 0.05 ? "↗" : t - prev < -0.05 ? "↘" : "→";
-    drawChip(ctx, room.centroid, vp, `${t.toFixed(1)}° ${trend}`, false);
+    /* at temperature the chip says so in words with a green dot, so the state
+       never rests on hue alone (the wash is green; ~8% of men can't tell that
+       from the warm tint). Off target it keeps the trend arrow. */
+    const holding = comfortWeight(t, roomSetpointC(model, state, room.id)) >= 0.5;
+    drawChip(
+      ctx,
+      room.centroid,
+      vp,
+      holding ? `${t.toFixed(1)}° · Holding` : `${t.toFixed(1)}° ${trend}`,
+      false,
+      holding
+    );
   }
   for (const room of model.unknownRooms) drawChip(ctx, room.centroid, vp, "—", true);
 }
@@ -444,12 +494,14 @@ function drawChip(
   centroid: Point,
   vp: { x: number; y: number; zoom: number },
   label: string,
-  muted: boolean
+  muted: boolean,
+  dot = false
 ) {
   const sx = (centroid.x - vp.x) * vp.zoom;
   const sy = (centroid.y - vp.y) * vp.zoom - 18;
   ctx.font = '600 11px "Plus Jakarta Sans", system-ui, sans-serif';
-  const w = ctx.measureText(label).width + 14;
+  const dotPad = dot ? 13 : 0;
+  const w = ctx.measureText(label).width + 14 + dotPad;
   const hgt = 19;
   const x = sx - w / 2;
   const y = sy - hgt / 2;
@@ -466,8 +518,14 @@ function drawChip(
   ctx.strokeStyle = "rgba(5, 5, 5, 0.12)";
   ctx.lineWidth = 1;
   ctx.stroke();
+  if (dot) {
+    ctx.beginPath();
+    ctx.arc(x + 11, sy, 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = "#00A389";
+    ctx.fill();
+  }
   ctx.fillStyle = muted ? "rgba(5, 5, 5, 0.35)" : "rgba(5, 5, 5, 0.85)";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(label, sx, sy + 0.5);
+  ctx.fillText(label, sx + dotPad / 2, sy + 0.5);
 }

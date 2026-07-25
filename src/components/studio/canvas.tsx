@@ -40,7 +40,9 @@ import {
   spigotLabel,
   type IndoorUnit,
   type OpeningSpec,
+  type OutdoorUnit,
 } from "@/lib/studio/packs/schema";
+import { formFactorLabel } from "@/lib/studio/unit-specs";
 import type { PlanImages } from "@/lib/studio/plans";
 import type { SimRuntime } from "@/lib/studio/sim-runtime";
 import { SimOverlay } from "./sim-overlay";
@@ -432,6 +434,7 @@ export function StudioCanvas({
   component = null,
   onComponentPlaced,
   iduSpec,
+  oduSpec,
   onRoomCreated,
   remarkRoomId = null,
   onRemarkConsumed,
@@ -473,6 +476,8 @@ export function StudioCanvas({
   /** pack-row resolver for placed indoor units — plenum specs + air
       capability come from unit DATA, never system type (ducted spec §11.1) */
   iduSpec?: (model: string) => IndoorUnit | null;
+  /** the same resolver for outdoor units — the hover card names both sides */
+  oduSpec?: (model: string) => OutdoorUnit | null;
   /** a room finished wall-marking — open its configuration modal (Slice 2) */
   onRoomCreated?: (id: string) => void;
   /** request to re-enter wall-marking for an existing room (from the modal) */
@@ -492,6 +497,10 @@ export function StudioCanvas({
   const [size, setSize] = useState({ w: 800, h: 600 });
   const [cursor, setCursor] = useState<Point | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
+  /* the unit under the pointer — named in the corner card instead of on the
+     plan itself. Hit-tested from the same footprint the click uses, so what
+     names itself is exactly what would select. */
+  const [hoverUnitId, setHoverUnitId] = useState<string | null>(null);
   /* live geometry override while dragging, committed on pointer-up so the
      autosave/history pipeline sees one mutation per gesture */
   const [liveGeom, setLiveGeom] = useState<{
@@ -1910,6 +1919,11 @@ export function StudioCanvas({
   const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
     const w = toWorld(e);
     setCursor(w);
+    /* Hover naming is a RESTING read: it goes quiet the moment a gesture, a
+       drawing tool or the simulation takes over, so it can never sit over the
+       work in hand — and during sim that corner is the sim's own readout. */
+    const hit = drag || tool !== "select" || sim ? null : hitSystemObject(w);
+    setHoverUnitId(hit?.kind === "unit" ? hit.id : null);
     if (!drag) return;
     switch (drag.kind) {
       case "pan": {
@@ -2227,6 +2241,44 @@ export function StudioCanvas({
      stay hairline at every zoom. */
   const labelZoom = Math.max(zoom, 1);
   const mm = floor.scaleMmPerUnit;
+
+  /* what the corner card says about the hovered unit. Everything the labels
+     used to spell out on the plan, plus the things that never fitted there —
+     capacity, form factor, the room it serves. Selection is unaffected: this
+     is a read, and clicking still opens the unit in the inspector. */
+  const hoverCard = useMemo(() => {
+    const u = hoverUnitId ? units.find((x) => x.id === hoverUnitId) : null;
+    if (!u) return null;
+    const isIdu = String(u.props.role ?? "idu") === "idu";
+    const model = String(u.props.model ?? "");
+    const spec = isIdu ? (iduSpec?.(model) ?? null) : (oduSpec?.(model) ?? null);
+    const roomId = u.props.roomId
+      ? String(u.props.roomId)
+      : isIdu
+        ? (roomAtPoint(doc.objects, u.floorId, pointAt(u))?.id ?? null)
+        : null;
+    return {
+      model,
+      colour: sysColour.get(u.systemId ?? "") ?? "#888",
+      role: isIdu ? "Indoor unit" : "Outdoor unit",
+      system: doc.systems.find((s) => s.id === u.systemId)?.name ?? null,
+      kind:
+        spec && "form_factor" in spec
+          ? formFactorLabel(spec.form_factor)
+          : spec
+            ? spec.series
+            : null,
+      capacity: spec
+        ? `${spec.capacity_cool_kw} kW cool · ${spec.capacity_heat_kw} kW heat`
+        : null,
+      room: roomId
+        ? ((rooms.find((r) => r.id === roomId)?.props.name as string | undefined) ?? null)
+        : null,
+      size: `${Math.round(Number(u.props.widthMm ?? 0))} × ${Math.round(
+        Number(u.props.depthMm ?? 0)
+      )} mm`,
+    };
+  }, [hoverUnitId, units, iduSpec, oduSpec, doc.objects, doc.systems, rooms, sysColour, pointAt]);
   const activeColour = sysColour.get(activeSystemId ?? "") ?? "#888";
   const calibScreenB = calib.b ? worldToScreen(calib.b, vp) : null;
 
@@ -2300,6 +2352,7 @@ export function StudioCanvas({
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
+        onPointerLeave={() => setHoverUnitId(null)}
         onDoubleClick={onDoubleClick}
         onDragOver={onDragOver}
         onDrop={onDrop}
@@ -2514,7 +2567,6 @@ export function StudioCanvas({
             const widthMm = Number(u.props.widthMm ?? 800);
             const fp = footprint(widthMm, Number(u.props.depthMm ?? 300));
             const colour = sysColour.get(u.systemId ?? "") ?? "#888";
-            const role = String(u.props.role ?? "idu").toUpperCase();
             /* air-capable ducted-form AHUs grow their air side (spec §1a):
                a straight-through flow arrow, dashed socket outlines on the
                unoccupied end faces, and the fused built-in return box */
@@ -2531,8 +2583,7 @@ export function StudioCanvas({
                 className={`ds-unit${u.id === selectedId ? " sel" : ""}`}
                 style={{ color: colour }}
               >
-                {/* only the glyph (and, on AHUs, its air side) turns — the text
-                    labels below stay upright */}
+                {/* the glyph and, on AHUs, its whole air side turn together */}
                 <g transform={rot ? `rotate(${rot} ${at.x} ${at.y})` : undefined}>
                 {unitGlyph(at.x, at.y, fp.w, fp.h, String(u.props.role ?? "idu"), zoom)}
                 {(() => {
@@ -2675,30 +2726,14 @@ export function StudioCanvas({
                   );
                 })}
                 </g>
-                {layers.labels && (
-                  /* role + model stack CENTRED on the unit — the model belongs
-                     on the box it names, not hung below it. Role rides just
-                     above the middle, model just below, so the pair reads as
-                     one centred block. */
-                  <>
-                    <text
-                      x={at.x}
-                      y={at.y - 6 / labelZoom}
-                      fontSize={9 / labelZoom}
-                      className="ds-unit-role"
-                    >
-                      {role}
-                    </text>
-                    <text
-                      x={at.x}
-                      y={at.y + 6 / labelZoom}
-                      fontSize={10 / labelZoom}
-                      className="ds-unit-model"
-                    >
-                      {String(u.props.model ?? "")}
-                    </text>
-                  </>
-                )}
+                {/* No text on the unit. Role and model used to sit stacked on
+                    every box, and with face labels, spigot diameters and pipe
+                    lengths alongside them the plan stopped being readable. The
+                    glyph and the system colour carry identity on the drawing;
+                    hovering names the unit in the corner card, clicking opens
+                    it in the inspector. (Print is a different renderer —
+                    summary/plan-figure.tsx — and keeps the full labels, because
+                    paper can't be hovered.) */}
                 {rk && (() => {
                   // the handle: a stem from the footprint's turned top edge out
                   // to a grab knob (drag to spin, Shift snaps 15°; [ / ] step 90°)
@@ -3221,6 +3256,39 @@ export function StudioCanvas({
         <div className="ds-tool-hint" role="status">
           <Icon name={toolHint.icon} size={14} />
           <span>{toolHint.text}</span>
+        </div>
+      )}
+
+      {/* what's under the pointer, named in the corner instead of on the plan */}
+      {hoverCard && (
+        <div className="ds-unitcard" role="status" aria-live="polite">
+          <div className="ds-unitcard-h">
+            <span className="ds-unitcard-sw" style={{ background: hoverCard.colour }} />
+            <span className="ds-unitcard-role">{hoverCard.role}</span>
+            {hoverCard.system && (
+              <span className="ds-unitcard-sys">{hoverCard.system}</span>
+            )}
+          </div>
+          <div className="ds-unitcard-model">{hoverCard.model || "No model yet"}</div>
+          {hoverCard.kind && <div className="ds-unitcard-kind">{hoverCard.kind}</div>}
+          <dl className="ds-unitcard-rows">
+            {hoverCard.capacity && (
+              <div>
+                <dt>Capacity</dt>
+                <dd>{hoverCard.capacity}</dd>
+              </div>
+            )}
+            {hoverCard.room && (
+              <div>
+                <dt>Serves</dt>
+                <dd>{hoverCard.room}</dd>
+              </div>
+            )}
+            <div>
+              <dt>Size</dt>
+              <dd>{hoverCard.size}</dd>
+            </div>
+          </dl>
         </div>
       )}
 

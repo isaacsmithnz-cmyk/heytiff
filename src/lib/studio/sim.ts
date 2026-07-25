@@ -666,15 +666,76 @@ export function fillProgress(model: SimModel, state: SimState, roomId: string): 
   return clamp((state.roomTempC[roomId] - base) / span, 0, 1);
 }
 
-/** blue↔orange temperature tint (spec §5): anchored at 21° = clear.
-    Returns null when the tint would be invisible. Colour is deliberately held
-    apart from the system-hue cycle (#2E68FF / #E4572E). */
-export function tempTint(tC: number): { rgb: string; alpha: number } | null {
-  const d = tC - 21;
+/** the active setpoint governing a room, or null when nothing is conditioning
+    it — an unconditioned room has no target it could be "at". */
+export function roomSetpointC(
+  model: SimModel,
+  state: SimState,
+  roomId: string
+): number | null {
+  for (const h of model.handlers) {
+    if (h.roomId !== roomId) continue;
+    const s = state.handlers[h.id];
+    if (s?.on) return s.setpointC;
+  }
+  return null;
+}
+
+/* ── the comfort read ──
+   Inside COMFORT_IN_K of setpoint the room is at temperature; past
+   COMFORT_OUT_K it isn't; between, it crossfades. Deliberately a fade and not
+   a threshold: the compressor cycles either side of setpoint, and a hard
+   cutover would flash the room in and out of comfort on every cycle. */
+export const COMFORT_IN_K = 0.3;
+export const COMFORT_OUT_K = 1.2;
+/** the design system's "ok" (#00A389) — teal-leaning, so it stays separable
+    from the warm tint for red/green colour blindness. */
+const COMFORT_RGB: [number, number, number] = [0, 163, 137];
+/** held constant while satisfied: calm, but never absent. Matched to the room
+    fill's own weight so a comfortable room reads as deliberately coloured. */
+const COMFORT_ALPHA = 0.13;
+const COOL_RGB: [number, number, number] = [56, 154, 232];
+const WARM_RGB: [number, number, number] = [255, 138, 0];
+
+/** how much a room reads as "at temperature", 0..1 */
+export function comfortWeight(tC: number, setpointC: number | null): number {
+  if (setpointC == null) return 0;
+  const a = Math.abs(tC - setpointC);
+  if (a <= COMFORT_IN_K) return 1;
+  if (a >= COMFORT_OUT_K) return 0;
+  const x = (COMFORT_OUT_K - a) / (COMFORT_OUT_K - COMFORT_IN_K);
+  return x * x * (3 - 2 * x); // smoothstep — no visible seam at either end
+}
+
+/** Room tint (spec §5): cool↔warm by distance from the room's OWN setpoint,
+    settling to the comfort green once it gets there.
+
+    Anchoring on the setpoint rather than a fixed 21° is the point. A room held
+    at 24° in winter is doing exactly what was asked of it, and used to read as
+    permanently orange ("too hot"); "at temperature" used to mean the tint
+    vanished, so the one state worth celebrating was the one with no colour at
+    all. Now the colour means distance from target, and arriving is a state of
+    its own. Colour is still held apart from the system-hue cycle
+    (#2E68FF / #E4572E).
+
+    With no setpoint (nothing conditioning the room) it falls back to the plain
+    21° thermometer — an unconditioned room has no target to be measured
+    against. Returns null when the tint would be invisible. */
+export function tempTint(
+  tC: number,
+  setpointC: number | null = null
+): { rgb: string; alpha: number } | null {
+  const d = tC - (setpointC ?? 21);
   const a = Math.abs(d);
-  const alpha = a <= 1 ? a * 0.06 : a <= 4 ? 0.06 + ((a - 1) / 3) * 0.12 : 0.18 + ((a - 4) / 4) * 0.14;
-  if (alpha < 0.015) return null;
-  return { rgb: d < 0 ? "56, 154, 232" : "255, 138, 0", alpha: Math.min(alpha, 0.35) };
+  const ramp = a <= 1 ? a * 0.06 : a <= 4 ? 0.06 + ((a - 1) / 3) * 0.12 : 0.18 + ((a - 4) / 4) * 0.14;
+  const offAlpha = Math.min(ramp, 0.35);
+  const off = d < 0 ? COOL_RGB : WARM_RGB;
+
+  const g = comfortWeight(tC, setpointC);
+  if (g <= 0) return offAlpha < 0.015 ? null : { rgb: off.join(", "), alpha: offAlpha };
+
+  const rgb = off.map((c, i) => Math.round(c + (COMFORT_RGB[i] - c) * g));
+  return { rgb: rgb.join(", "), alpha: offAlpha * (1 - g) + COMFORT_ALPHA * g };
 }
 
 /** cone throw length in world units for an emitter (spec §5a mode factors):

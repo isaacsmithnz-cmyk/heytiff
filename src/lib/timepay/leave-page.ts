@@ -12,6 +12,7 @@ import {
   type Holiday,
 } from "./leave-query";
 import { addDays } from "./period";
+import { ensureHolidays } from "./holiday-sync";
 import {
   balanceView,
   calendarDays,
@@ -42,6 +43,7 @@ export async function loadMyLeave(): Promise<MyLeaveData | null> {
     myRequests(ctx.orgId, ctx.staffId),
     stateFor(ctx.orgId, ctx.staffId),
   ]);
+  await ensureHolidays(ctx.orgId, state, ctx.today);
   const holidays = await holidaysInSpan(ctx.orgId, state, ctx.today, horizon);
 
   return {
@@ -94,6 +96,7 @@ export async function loadTeamLeave(): Promise<TeamLeaveData | null> {
   ]);
   // the org's own state drives the holiday overlay on the shared calendar
   const orgState = await stateFor(ctx.orgId, "");
+  await ensureHolidays(ctx.orgId, orgState, ctx.today);
   const holidays = await holidaysInSpan(ctx.orgId, orgState, spanStart, spanEnd);
 
   return {

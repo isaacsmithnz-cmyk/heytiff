@@ -2,7 +2,6 @@ import { auth0 } from "@/lib/auth0";
 import { todayInAu } from "@/lib/au-dates";
 import { staffProfileIdFor } from "@/lib/fleet/query";
 import type { PayPeriod } from "@/components/timepay/timepay";
-import type { Settings } from "@/components/timepay/logic";
 import {
   EMPTY_SHEET,
   getMyWeek,
@@ -13,6 +12,7 @@ import {
 } from "./query";
 import {
   addDays,
+  periodConfig,
   periodDays,
   periodEnd,
   periodLabel,
@@ -33,13 +33,6 @@ import { ensureHolidays } from "./holiday-sync";
    which entries belong to it. */
 
 export type Ctx = { orgId: string; staffId: string | null; today: string };
-
-const periodConfig = (s: Settings): PeriodConfig => ({
-  cycle: s.cycle,
-  weekStart: s.weekStart,
-  fortnightAnchor: s.fortnightAnchor,
-  monthStartDay: s.monthStartDay,
-});
 
 export async function timepayContext(): Promise<Ctx | null> {
   const session = await auth0.getSession();

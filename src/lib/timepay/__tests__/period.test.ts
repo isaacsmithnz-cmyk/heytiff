@@ -1,6 +1,7 @@
 import {
   addDays,
   dateOfDay,
+  isIsoDate,
   mondayIndex,
   periodDays,
   periodLabel,
@@ -24,6 +25,19 @@ const MONTHLY = (startDay = 1): PeriodConfig => ({
   weekStart: "Mon",
   fortnightAnchor: null,
   monthStartDay: startDay,
+});
+
+describe("isIsoDate", () => {
+  it("accepts only a real calendar date in the exact shape addDays assumes", () => {
+    expect(isIsoDate("2026-06-29")).toBe(true);
+    expect(isIsoDate("2026-02-28")).toBe(true);
+    expect(isIsoDate("2026-02-31")).toBe(false); // no such day
+    expect(isIsoDate("2026-13-01")).toBe(false); // no such month
+    expect(isIsoDate("2026-6-2")).toBe(false); // right date, wrong shape
+    expect(isIsoDate("29/06/2026")).toBe(false);
+    expect(isIsoDate("garbage")).toBe(false);
+    expect(isIsoDate("")).toBe(false);
+  });
 });
 
 describe("week anchoring", () => {

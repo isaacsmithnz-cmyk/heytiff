@@ -58,9 +58,13 @@ jest.mock("@/lib/permissions-server", () => ({
 }));
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
 
-import { INVITE_WINDOW_DAYS, createInvite, renewInvite, revokeInvite } from "../invite";
+import { createInvite, renewInvite, revokeInvite } from "../invite";
 
 const DAY = 86_400_000;
+/* The action keeps its window private — a "use server" module may only export
+   async functions — so it is restated here, matching the DB default on
+   invitations.expires_at (now() + '7 days'). */
+const INVITE_WINDOW_DAYS = 7;
 const writes = (op: string) => calls.filter((c) => c.op === op);
 const payloadOf = (c: Call): Record<string, string> => (c.payload ?? {}) as Record<string, string>;
 

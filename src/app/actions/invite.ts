@@ -21,8 +21,10 @@ import type { Role } from "@/lib/roles-shared";
 
 export type InviteResult = { ok: true } | { ok: false; error: string };
 
-/** Matches the DB default on invitations.expires_at, `now() + '7 days'`. */
-export const INVITE_WINDOW_DAYS = 7;
+/* Matches the DB default on invitations.expires_at, `now() + '7 days'`.
+   Not exported: a "use server" module may only export async functions, and a
+   stray const here fails the build rather than the type-check. */
+const INVITE_WINDOW_DAYS = 7;
 
 const NO_PERMISSION = "You don't have permission to invite people.";
 

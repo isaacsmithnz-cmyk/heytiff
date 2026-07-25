@@ -52,8 +52,21 @@ async function claimDocuments(
   noticeId: string,
   documentIds: readonly string[],
 ): Promise<void> {
-  const ids = [...new Set(documentIds)].filter(Boolean).slice(0, MAX_NOTICE_FILES);
+  const ids = [...new Set(documentIds)].filter(Boolean);
   if (ids.length === 0 || !ctx.staffId) return;
+
+  /* The cap is on the NOTICE, not on the request. Editing claims only the files
+     added this time round, so slicing the incoming list let six more through on
+     every save — an unbounded pile, six at a time. Count what is already on the
+     post and take only the room that is actually left. */
+  const { count } = await supabaseAdmin
+    .from("documents")
+    .select("id", { count: "exact", head: true })
+    .eq("org_id", ctx.orgId)
+    .eq("notice_id", noticeId);
+
+  const room = MAX_NOTICE_FILES - (count ?? 0);
+  if (room <= 0) return;
 
   await supabaseAdmin
     .from("documents")
@@ -63,7 +76,7 @@ async function claimDocuments(
     .eq("uploaded_by", ctx.staffId)
     .is("notice_id", null)
     .not("uploaded_at", "is", null)
-    .in("id", ids);
+    .in("id", ids.slice(0, room));
 }
 
 const isISODate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s);

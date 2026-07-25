@@ -77,12 +77,12 @@ export async function loadMyTimesheet(requested?: string) {
   const { start, periods, index } = resolvePeriod(ctx.today, cfg, requested);
   const state = await stateFor(ctx.orgId, ctx.staffId);
   // one query covers both jobs: mark holidays that fall in the shown period,
-  // and list the upcoming ones (out to a quarter ahead)
+  // and list the upcoming ones (a full year, so nothing sneaks up unseen)
   const spanStart = start < ctx.today ? start : ctx.today;
   const [me, sheets, holidays] = await Promise.all([
     getMyWeek(ctx.orgId, ctx.staffId, start, cfg),
     sheetStates(ctx.orgId, start),
-    holidaysInSpan(ctx.orgId, state, spanStart, addDays(ctx.today, 120)),
+    holidaysInSpan(ctx.orgId, state, spanStart, addDays(ctx.today, 365)),
   ]);
   if (!me) return null;
 

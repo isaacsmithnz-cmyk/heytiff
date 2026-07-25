@@ -1,4 +1,4 @@
-import { auDayOf, fmtAuDayMonth, todayInAu, parseAuDate, formatAuDate } from "../au-dates";
+import { auDayOf, fmtAuDayMonth, fmtAuWeekdayDayMonth, fmtAuWeekdayDate, todayInAu, parseAuDate, formatAuDate } from "../au-dates";
 
 /* The date helpers everything else anchors on. `todayInAu` answers "what day is
    it now" and `auDayOf` answers "what day was that" — they have to agree, or a
@@ -70,5 +70,21 @@ describe("parseAuDate / formatAuDate round trip", () => {
 
   it("rejects an impossible day rather than rolling it forward", () => {
     expect(parseAuDate("31/02/2026")).toBeNull();
+  });
+});
+
+describe("fmtAuWeekdayDayMonth / fmtAuWeekdayDate", () => {
+  it("renders weekday day month without the en-AU comma", () => {
+    expect(fmtAuWeekdayDayMonth("2026-12-25")).toBe("Fri 25 Dec");
+    expect(fmtAuWeekdayDate("2026-12-25")).toBe("Fri 25 Dec 2026");
+  });
+
+  it("keeps en-AU's full June/July/Sept months, same as fmtAuDayMonth", () => {
+    expect(fmtAuWeekdayDayMonth("2026-06-08")).toBe("Mon 8 June");
+  });
+
+  it("returns empty for junk", () => {
+    expect(fmtAuWeekdayDayMonth("not-a-date")).toBe("");
+    expect(fmtAuWeekdayDate(null)).toBe("");
   });
 });

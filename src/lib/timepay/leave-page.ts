@@ -33,7 +33,7 @@ export async function loadMyLeave(): Promise<MyLeaveData | null> {
   const ctx = await timepayContext();
   if (!ctx?.staffId) return null;
 
-  const horizon = addDays(ctx.today, 120); // a quarter ahead is enough to plan against
+  const horizon = addDays(ctx.today, 365); // a full year — leave is planned that far out
   const [{ settings }, balances, requests, state] = await Promise.all([
     getPaySettings(ctx.orgId),
     myBalances(ctx.orgId, ctx.staffId),

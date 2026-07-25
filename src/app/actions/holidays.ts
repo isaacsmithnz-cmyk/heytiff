@@ -6,13 +6,18 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { getDbRole } from "@/lib/permissions-server";
 import { hasMinRole } from "@/lib/roles";
 
-/* Public-holiday management — the yearly-maintenance path.
+/* Public-holiday management.
 
-   Holidays are the org's operational calendar, so an admin maintains them
-   (admin+, the same tier as the Admin section they live in). Anything entered
-   here is `source='manual'`; a future accounting sync would write its own
-   source and this path never touches those rows. Staff only ever READ the
-   calendar — on their timesheet and against leave. */
+   The calendar largely maintains itself now — `lib/timepay/holiday-sync.ts`
+   tops the table up from the statutory rules — so this path is for the
+   exceptions: a proclaimed one-off, or a day this business treats
+   differently. Anything entered here is `source='manual'`; auto rows carry
+   `source='auto'` and a future accounting sync would write its own source.
+
+   Removal depends on provenance: a manual row is simply deleted, but an
+   auto/synced row would be re-created by the next top-up — so removing one
+   writes a tombstone (`suppressed=true`) the sync must never resurrect.
+   Staff only ever READ the calendar — on their timesheet and against leave. */
 
 export type HolidayResult = { ok: true } | { ok: false; error: string };
 
@@ -29,6 +34,12 @@ async function adminContext(): Promise<Ctx | null> {
   return { orgId };
 }
 
+function revalidateHolidayScreens() {
+  revalidatePath("/dashboard/timepay");
+  revalidatePath("/dashboard/my-timesheet");
+  revalidatePath("/dashboard/my-leave");
+}
+
 export async function addHoliday(input: {
   state: string;
   date: string;
@@ -42,6 +53,7 @@ export async function addHoliday(input: {
   const name = input.name.trim();
   if (!name) return { ok: false, error: "Give the holiday a name." };
 
+  // `suppressed: false` on conflict: re-adding a removed day un-tombstones it.
   const { error } = await supabaseAdmin.from("public_holidays").upsert(
     {
       org_id: ctx.orgId,
@@ -49,13 +61,12 @@ export async function addHoliday(input: {
       holiday_date: input.date,
       name,
       source: "manual",
+      suppressed: false,
     },
     { onConflict: "org_id,state,holiday_date" },
   );
   if (error) return { ok: false, error: "Couldn't add that holiday." };
-  revalidatePath("/dashboard/admin/holidays");
-  revalidatePath("/dashboard/my-timesheet");
-  revalidatePath("/dashboard/my-leave");
+  revalidateHolidayScreens();
   return { ok: true };
 }
 
@@ -63,14 +74,42 @@ export async function removeHoliday(id: string): Promise<HolidayResult> {
   const ctx = await adminContext();
   if (!ctx) return { ok: false, error: "Only an admin can manage public holidays." };
 
+  const { data: row } = await supabaseAdmin
+    .from("public_holidays")
+    .select("source")
+    .eq("org_id", ctx.orgId)
+    .eq("id", id)
+    .maybeSingle();
+  if (!row) return { ok: false, error: "That holiday is already gone." };
+
+  const { error } =
+    row.source === "manual"
+      ? await supabaseAdmin
+          .from("public_holidays")
+          .delete()
+          .eq("org_id", ctx.orgId)
+          .eq("id", id)
+      : await supabaseAdmin
+          .from("public_holidays")
+          .update({ suppressed: true })
+          .eq("org_id", ctx.orgId)
+          .eq("id", id);
+  if (error) return { ok: false, error: "Couldn't remove that holiday." };
+  revalidateHolidayScreens();
+  return { ok: true };
+}
+
+/** Bring back an auto/synced day that was removed. */
+export async function restoreHoliday(id: string): Promise<HolidayResult> {
+  const ctx = await adminContext();
+  if (!ctx) return { ok: false, error: "Only an admin can manage public holidays." };
+
   const { error } = await supabaseAdmin
     .from("public_holidays")
-    .delete()
+    .update({ suppressed: false })
     .eq("org_id", ctx.orgId)
     .eq("id", id);
-  if (error) return { ok: false, error: "Couldn't remove that holiday." };
-  revalidatePath("/dashboard/admin/holidays");
-  revalidatePath("/dashboard/my-timesheet");
-  revalidatePath("/dashboard/my-leave");
+  if (error) return { ok: false, error: "Couldn't restore that holiday." };
+  revalidateHolidayScreens();
   return { ok: true };
 }

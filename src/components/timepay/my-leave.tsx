@@ -3,6 +3,8 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
+import { fmtAuDayMonth } from "@/lib/au-dates";
+import { UpcomingHolidays } from "./upcoming-holidays";
 import { cancelLeave, requestLeave, type LeaveResult } from "@/app/actions/leave";
 import {
   LEAVE_LABEL,
@@ -29,11 +31,9 @@ const STATUS_COPY: Record<LeaveStatus, { label: string; tone: string }> = {
 const KINDS: LeaveKind[] = ["annual", "personal", "unpaid"];
 
 function fmtRange(startISO: string, endISO: string): string {
-  const d = (iso: string) =>
-    new Intl.DateTimeFormat("en-AU", { timeZone: "UTC", day: "numeric", month: "short" }).format(
-      new Date(`${iso}T00:00:00Z`),
-    );
-  return startISO === endISO ? d(startISO) : `${d(startISO)} – ${d(endISO)}`;
+  return startISO === endISO
+    ? fmtAuDayMonth(startISO)
+    : `${fmtAuDayMonth(startISO)} – ${fmtAuDayMonth(endISO)}`;
 }
 
 export function MyLeave({
@@ -245,19 +245,16 @@ export function MyLeave({
             </div>
 
             <div className="lv-col">
-              <div className="lv-ch">Public holidays</div>
               {holidays.length === 0 ? (
-                <div className="fl-hempty">
-                  No public holidays loaded for your state yet — they&rsquo;ll appear here once added.
-                </div>
-              ) : (
-                holidays.map((h) => (
-                  <div className="lv-hol" key={h.date}>
-                    <Icon name="calendar" size={14} />
-                    <b>{h.name}</b>
-                    <em>{fmtRange(h.date, h.date)}</em>
+                <>
+                  <div className="lv-ch">Public holidays</div>
+                  <div className="fl-hempty">
+                    No public holidays loaded for your state yet — they&rsquo;ll appear here once
+                    added.
                   </div>
-                ))
+                </>
+              ) : (
+                <UpcomingHolidays holidays={holidays} today={today} />
               )}
             </div>
           </div>

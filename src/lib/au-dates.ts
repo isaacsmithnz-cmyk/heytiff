@@ -73,6 +73,37 @@ export function fmtAuDayMonth(iso: string | null | undefined): string {
   }).format(new Date(`${day}T00:00:00Z`));
 }
 
+/* "Mon 25 Dec" — weekday + day + month for an ISO DATE. Same UTC pinning and
+   en-AU month widths as fmtAuDayMonth (see the notes there). The comma en-AU
+   puts after the weekday is dropped: chips and rows read cleaner without it. */
+export function fmtAuWeekdayDayMonth(iso: string | null | undefined): string {
+  const day = String(iso ?? "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return "";
+  return new Intl.DateTimeFormat("en-AU", {
+    timeZone: "UTC",
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  })
+    .format(new Date(`${day}T00:00:00Z`))
+    .replace(",", "");
+}
+
+/** "Mon 25 Dec 2026" — fmtAuWeekdayDayMonth with the year, for lists that span years. */
+export function fmtAuWeekdayDate(iso: string | null | undefined): string {
+  const day = String(iso ?? "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return "";
+  return new Intl.DateTimeFormat("en-AU", {
+    timeZone: "UTC",
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  })
+    .format(new Date(`${day}T00:00:00Z`))
+    .replace(",", "");
+}
+
 /** ISO yyyy-mm-dd -> dd/mm/yyyy for the design's text inputs. */
 export function formatAuDate(iso: string | null | undefined): string {
   if (!iso) return "";

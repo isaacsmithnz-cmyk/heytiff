@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
+import { fmtAuWeekdayDate } from "@/lib/au-dates";
 import { addHoliday, removeHoliday, type HolidayResult } from "@/app/actions/holidays";
 import type { Holiday } from "@/lib/timepay/leave-query";
 
@@ -13,17 +14,6 @@ import type { Holiday } from "@/lib/timepay/leave-query";
 
 const STATES = ["NSW", "VIC", "QLD", "SA", "WA", "TAS", "NT", "ACT"] as const;
 
-function fmtDate(iso: string): string {
-  return new Intl.DateTimeFormat("en-AU", {
-    timeZone: "UTC",
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  })
-    .format(new Date(`${iso}T00:00:00Z`))
-    .replace(",", "");
-}
 
 export function HolidayManager({
   holidays,
@@ -121,7 +111,7 @@ export function HolidayManager({
               <div className="lv-ch">{year}</div>
               {rows.map((h) => (
                 <div className="hol-row" key={h.id}>
-                  <span className="hol-date">{fmtDate(h.date)}</span>
+                  <span className="hol-date">{fmtAuWeekdayDate(h.date)}</span>
                   <span className="hol-name">{h.name}</span>
                   <span className="dchip2 mute">{h.state}</span>
                   <span className={`hol-src${h.source === "manual" ? "" : " synced"}`}>{h.source}</span>

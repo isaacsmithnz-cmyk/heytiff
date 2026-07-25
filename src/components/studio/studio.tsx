@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import { Icon } from "@/components/shell/icon";
 import {
@@ -62,6 +63,23 @@ import { SimPresentMode } from "./sim-present";
 import { SimRuntime } from "@/lib/studio/sim-runtime";
 import type { DataPack, IndoorUnit } from "@/lib/studio/packs/schema";
 import "./studio.css";
+
+/* The sim flag never changes after load, so there is nothing to subscribe to —
+   this store is read once and then quiet. Both functions are module-level
+   constants: useSyncExternalStore re-reads whenever the subscribe or snapshot
+   identity changes, so defining them inline would re-read every render. */
+const subscribeNever = () => () => {};
+const readSimFlag = (): boolean => {
+  try {
+    return (
+      process.env.NEXT_PUBLIC_STUDIO_SIM === "1" ||
+      window.localStorage.getItem("studio.sim") === "1"
+    );
+  } catch {
+    return false; // storage unavailable (private mode, blocked cookies)
+  }
+};
+
 
 /* server actions load lazily so jsdom tests never parse the auth0 runtime —
    same pattern as remote-store.ts */
@@ -765,19 +783,16 @@ function Editor({
   /* simulation mode (Stage 12a, dev-flagged): the runtime is transient like
      the view state above — sim NEVER mutates the document. Held in STATE (not
      a ref) because present mode renders from it at the Editor level. */
-  const [simFlag, setSimFlag] = useState(false);
   const [simRt, setSimRt] = useState<SimRuntime | null>(null);
   const simOn = simRt !== null;
-  useEffect(() => {
-    try {
-      setSimFlag(
-        process.env.NEXT_PUBLIC_STUDIO_SIM === "1" ||
-          window.localStorage.getItem("studio.sim") === "1"
-      );
-    } catch {
-      /* storage unavailable — flag stays off */
-    }
-  }, []);
+
+  /* Whether the sim is offered at all — an env flag, or the localStorage
+     opt-in. Read through useSyncExternalStore rather than set from an effect:
+     localStorage does not exist on the server, so the value has to be `false`
+     for the markup that gets hydrated and only then become true. That is
+     exactly what the server-snapshot argument is for, and it avoids a mount
+     render that says "off" followed by a second one that says "on". */
+  const simFlag = useSyncExternalStore(subscribeNever, readSimFlag, () => false);
 
   /* guided calibration: opening an uncalibrated plan floor pops a "Calibrate
      the plan" step modal (DUCTR showCalibratePrompt) — once per floor, tracked
@@ -818,9 +833,11 @@ function Editor({
       ? activeSystemId
       : (doc.systems[0]?.id ?? null);
 
-  useEffect(() => {
-    if (effectiveSystemId) setToolsRevealed(true);
-  }, [effectiveSystemId]);
+  /* A one-way latch: once a system exists the tools stay out, even if the
+     system is later removed. Latched while rendering rather than in an effect,
+     so the tools are present in the same paint that first has a system —
+     an effect revealed them one render late. */
+  if (effectiveSystemId && !toolsRevealed) setToolsRevealed(true);
 
   useEffect(() => {
     let on = true;

@@ -45,8 +45,13 @@ async function catalogSummary(): Promise<{ units: number; readyPct: number }> {
 export default async function HqOverviewPage() {
   await requireHqPage();
 
-  const cutoff = new Date(Date.now() - 30 * DAY_MS).toISOString();
-  const nowIso = new Date().toISOString();
+  /* One clock reading, not two. The window and its end have to come from the
+     same instant or the "last 30 days" figures are measured against a moment
+     that has already moved on — and reading the clock twice mid-render is the
+     impurity the compiler objects to. */
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const cutoff = new Date(now.getTime() - 30 * DAY_MS).toISOString();
 
   const [
     orgCount,

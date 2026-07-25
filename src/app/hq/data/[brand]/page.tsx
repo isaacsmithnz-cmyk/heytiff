@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireHqPage } from "@/lib/hq/guard";
 import { latestPackRef } from "@/lib/hq/packs";
@@ -55,9 +56,9 @@ export default async function HqBrandPage({
 
   return (
     <main className="hq-main">
-      <a className="hq-back" href="/hq/data">
+      <Link className="hq-back" href="/hq/data">
         ← Data packs
-      </a>
+      </Link>
       <h1 className="hq-h1">{displayName}</h1>
       <p className="hq-lede">
         {ref.version} · {ref.meta.name}

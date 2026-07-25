@@ -47,10 +47,19 @@ export function SimOverlay({
   size: { w: number; h: number };
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
-  const view = useRef(vp);
-  view.current = vp;
   const particles = useRef<Particle[]>([]);
   const spawnDebt = useRef<Record<string, number>>({});
+
+  /* The animation loop is started once (it keys off `runtime`) but has to draw
+     at the CURRENT pan/zoom, so the viewport reaches it through a ref rather
+     than by restarting the loop on every scroll wheel tick. Written in an
+     effect, not during render: a render can be thrown away or replayed, and a
+     ref written during one would then carry a viewport that was never shown.
+     The effect runs before the next frame, so the loop still never draws stale. */
+  const view = useRef(vp);
+  useEffect(() => {
+    view.current = vp;
+  }, [vp]);
 
   useEffect(() => {
     const cv = ref.current;

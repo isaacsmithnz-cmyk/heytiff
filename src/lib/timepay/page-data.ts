@@ -97,7 +97,10 @@ export async function loadMyTimesheet(requested?: string) {
     todayISO: ctx.today,
     periodStart: start,
     periodEnd: periodEnd(start, cfg),
-    periodLabel: `${periods[index].range} ${periods[index].year}`,
+    // the same switcher the *all* screen gets, so both screens step through
+    // the same list of periods rather than two ideas of "last fortnight"
+    periods,
+    periodIndex: index,
     sheet: sheets.get(ctx.staffId) ?? EMPTY_SHEET,
     holidays,
   };

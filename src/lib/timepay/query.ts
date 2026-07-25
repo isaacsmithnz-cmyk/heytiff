@@ -6,15 +6,17 @@ import { dateOfDay, periodEnd, periodLength, type PeriodConfig } from "./period"
 /* Time & Pay queries. Org-scoped throughout, like lib/staff and lib/fleet.
 
    THE MONEY RULE, restated for this module: the wage column is named ONCE,
-   in RATE_COLUMN, and reaching it takes an explicit `pay: true`. Everything
-   else selects identity and hours. The rule is SCOPE, not role:
+   in RATE_COLUMN, and exactly one query here reaches it — listStaffWeeks,
+   and only with an explicit `pay: true`. The rule is SCOPE, not role:
 
      the *all* screen  includes rates only with `financials` — and then for
                        everyone, your own row included
-     the *my* screen   always includes your own rate, no capability needed
+     the *my* screen   NEVER reads a rate. A timesheet is hours; your own
+                       rate lives on My profile → My Pay, a different query
+                       on a screen that can give it context.
 
-   One query each, no per-row branching. A payload without `financials` has no
-   rate anywhere, so StaffWeek.rate is null and derive() returns gross: null.
+   One query each, no per-row branching. A timesheet payload has no rate
+   anywhere, so StaffWeek.rate is null and derive() returns gross: null.
    There is nothing for a component to forget to hide. */
 
 const RATE_COLUMN = "hourly_wage";
@@ -171,9 +173,14 @@ export async function listStaffWeeks(
   }));
 }
 
-/** Your own week — the intrinsic screen. Your rate is always included; it is
-    yours, and it is read-only here (changing a wage needs `financials` in
-    Team). Gross is still never rendered on this screen. */
+/** Your own week — the intrinsic screen. HOURS ONLY: this no longer reads
+    your wage. My timesheet is about days and hours, and a rate sitting on it
+    made a gross figure one multiplication away from a screen that must not
+    state one. Your rate is still yours to see — it lives on My profile → My
+    Pay, which asks for it in its own query and can put it in context.
+
+    So the select list here is identity + hours, `rate` is structurally null,
+    and derive() returns gross: null. Nothing to forget to hide. */
 export async function getMyWeek(
   orgId: string,
   staffProfileId: string,
@@ -182,7 +189,7 @@ export async function getMyWeek(
 ): Promise<StaffWeek | null> {
   const { data } = await supabaseAdmin
     .from("staff_profiles")
-    .select(`${STAFF_COLUMNS}, ${RATE_COLUMN}`)
+    .select(STAFF_COLUMNS)
     .eq("org_id", orgId)
     .eq("id", staffProfileId)
     .maybeSingle();
@@ -194,7 +201,7 @@ export async function getMyWeek(
     id: staffProfileId,
     name: nameOf(r),
     role: (r.job_title as string) || "—",
-    rate: r[RATE_COLUMN] != null ? Number(r[RATE_COLUMN]) : null,
+    rate: null,
     days: toDays(entries.get(staffProfileId) ?? [], periodStart, cfg),
   };
 }

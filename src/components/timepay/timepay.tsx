@@ -3,21 +3,17 @@
 import { useMemo, useState, useTransition } from "react";
 import { Icon } from "@/components/shell/icon";
 import {
-  DEFAULT_SETTINGS,
-  type DayEntry,
   type Derived,
   type Settings,
   type StaffStatus,
   type StaffWeek,
   type WeekCtx,
-  dayClass,
   derive,
   fmt,
-  initials,
-  nameHue,
   submitNote,
   weekGroups,
 } from "./logic";
+import { Avatar, DayLegend, MiniTile, Tile } from "./tiles";
 import { TimePaySettings } from "./settings";
 import { HolidaySection } from "./holiday-section";
 import type { HolidayManagerData } from "@/lib/timepay/leave-page";
@@ -52,56 +48,6 @@ function rowStatus(sheet: SheetState | undefined, derived: StaffStatus): StaffSt
 /* ht_tp_actions / ht_tp_set are gone: approvals live in `timesheets` and pay
    settings in `pay_settings`, both org-scoped and both written by server
    actions that re-check the capability. */
-
-function Avatar({ name }: { name: string }) {
-  const h = nameHue(name);
-  return (
-    <span
-      className="av"
-      style={{ background: `linear-gradient(135deg,hsl(${h} 68% 52%),hsl(${(h + 38) % 360} 64% 44%))` }}
-    >
-      {initials(name)}
-    </span>
-  );
-}
-
-function Tile({ d, i, settings, ctx }: { d: DayEntry; i: number; settings: Settings; ctx: WeekCtx }) {
-  const w = ctx.week[i];
-  const cls = dayClass(d, i, settings, ctx);
-  const hh =
-    cls === "empty" ? "—"
-    : cls === "miss" ? "Missing"
-    : cls === "leave" ? "Leave"
-    : cls === "sick" ? "Sick"
-    : cls === "ph" ? "Pub hol"
-    : fmt((d as { h: number }).h) + "h";
-  return (
-    <div className={`tile ${cls}${i === ctx.today ? " today" : ""}`}>
-      <span className="wd">{w[0]}</span>
-      <span className="dn">{w[1]}</span>
-      <span className="hh">{hh}</span>
-    </div>
-  );
-}
-
-function MiniTile({ d, i, settings, ctx }: { d: DayEntry; i: number; settings: Settings; ctx: WeekCtx }) {
-  const cls = dayClass(d, i, settings, ctx);
-  const label =
-    cls === "empty" ? "No entry"
-    : cls === "miss" ? "Missing entry"
-    : cls === "leave" ? "Leave"
-    : cls === "sick" ? "Sick"
-    : cls === "ph" ? "Public holiday"
-    : fmt((d as { h: number }).h) +
-      "h" +
-      (cls === "std" ? " · standard" : cls === "over" ? " · overtime" : " · under standard");
-  return (
-    <span
-      className={`mt ${cls}${i === ctx.today ? " today" : ""}`}
-      title={`${ctx.week[i][0]} ${ctx.week[i][1]} — ${label}`}
-    ></span>
-  );
-}
 
 function PayBar({ t }: { t: Derived }) {
   const any = t.normal || t.ot || t.ot2;
@@ -547,23 +493,7 @@ export function TimePay({
             )}
           </div>
 
-          <div className="legend">
-            <span className="llbl">Day colour</span>
-            {([
-              ["std", "Standard"],
-              ["over", "Overtime"],
-              ["under", "Under day"],
-              ["leave", "Leave"],
-              ["sick", "Sick"],
-              ["ph", "Public hol"],
-              ["empty", "No entry"],
-            ] as const).map(([k, label]) => (
-              <span className="lg" key={k}>
-                <i className={`sw ${k}`}></i>
-                {label}
-              </span>
-            ))}
-          </div>
+          <DayLegend />
 
           {review.length > 0 && (
             <div className="sectwrap">

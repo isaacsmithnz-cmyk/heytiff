@@ -39,6 +39,17 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    // Your own things, ungated — the group heading carries the "my", so the
+    // labels don't repeat it. Sits above Operations: everyone has these,
+    // only some people manage.
+    label: "Personal",
+    items: [
+      { key: "mytimesheet", label: "Timesheet", icon: "clock", href: "/dashboard/my-timesheet", hint: "Your hours & submissions", accent: "#2E68FF" },
+      { key: "myleave", label: "Leave", icon: "calendar", href: "/dashboard/my-leave", hint: "Book leave & see balances", accent: "#00A389" },
+      { key: "myvehicle", label: "Vehicle", icon: "truck", href: "/dashboard/my-vehicle", hint: "Your vehicle, fuel & issues", accent: "#FF8A00" },
+    ],
+  },
+  {
     label: "Operations",
     items: [
       { key: "people", label: "Team", icon: "users", href: "/dashboard/team", hint: "People & their day", accent: "#00A389", capability: "team" },
@@ -47,16 +58,6 @@ export const NAV_GROUPS: NavGroup[] = [
       // Role-intrinsic, not grantable: the section is admin+ (staff hidden
       // entirely) and the owner-only items inside it gate individually.
       { key: "admin", label: "Admin", icon: "shield", href: "/dashboard/admin", hint: "Compliance, documents & settings", accent: "#FF3366", minRole: "admin" },
-    ],
-  },
-  {
-    // Your own things, ungated — the group heading carries the "my", so the
-    // labels don't repeat it.
-    label: "Personal",
-    items: [
-      { key: "mytimesheet", label: "Timesheet", icon: "clock", href: "/dashboard/my-timesheet", hint: "Your hours & submissions", accent: "#2E68FF" },
-      { key: "myleave", label: "Leave", icon: "calendar", href: "/dashboard/my-leave", hint: "Book leave & see balances", accent: "#00A389" },
-      { key: "myvehicle", label: "Vehicle", icon: "truck", href: "/dashboard/my-vehicle", hint: "Your vehicle, fuel & issues", accent: "#FF8A00" },
     ],
   },
 ];

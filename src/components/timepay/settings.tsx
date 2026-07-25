@@ -194,6 +194,48 @@ export function TimePaySettings({
     </>
   );
 
+  /* Breaks. Menu-only, deliberately: the first-run wizard is seven steps and
+     an eighth would push a decision most workspaces don't have to make into
+     everyone's setup. The default (0 minutes, paid) is "no break configured",
+     which is what the wizard would have chosen anyway. */
+  const breakControls = (
+    <>
+      <div className="wz-pills sm">
+        {([[true, "Paid"], [false, "Unpaid"]] as const).map(([paid, label]) => (
+          <button
+            key={label}
+            className={`wz-pill${draft.breakPaid === paid ? " on" : ""}`}
+            onClick={() => patch({ breakPaid: paid })}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <div className="wz-step" style={{ marginTop: 10 }}>
+        <button
+          className="wz-sbtn"
+          aria-label="Shorter break"
+          onClick={() => patch({ breakMinutes: Math.max(0, draft.breakMinutes - 15) })}
+        >
+          −
+        </button>
+        <span className="wz-val">
+          {draft.breakMinutes === 0 ? "No standard break" : draft.breakMinutes + " min"}
+        </span>
+        <button
+          className="wz-sbtn"
+          aria-label="Longer break"
+          onClick={() => patch({ breakMinutes: Math.min(120, draft.breakMinutes + 15) })}
+        >
+          +
+        </button>
+      </div>
+      <p className="ms-p">
+        Deducted from worked hours when unpaid. Staff can adjust a day&rsquo;s break when logging it.
+      </p>
+    </>
+  );
+
   const submitPicker = (
     <div className="wz-subgrid">
       <div>
@@ -444,6 +486,7 @@ export function TimePaySettings({
                 </div>
               )}
               {menuSection("Standard working day", stepper("standard"))}
+              {menuSection("Breaks", breakControls)}
               {menuSection(
                 "Overtime after",
                 <>

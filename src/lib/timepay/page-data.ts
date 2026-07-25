@@ -103,6 +103,9 @@ export async function loadMyTimesheet(requested?: string) {
     periodIndex: index,
     sheet: sheets.get(ctx.staffId) ?? EMPTY_SHEET,
     holidays,
+    // whose calendar these holidays are — the rail names it ("All NSW public
+    // holidays") so nobody reads another state's roster as their own
+    state,
   };
 }
 

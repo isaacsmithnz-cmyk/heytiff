@@ -1746,20 +1746,17 @@ select.fl-i { cursor:pointer; }
 .fg .fl-offbtn:hover { background:rgba(240,164,49,.12); }
 
 /* ---- Time & Pay: My timesheet ----
-   The screen itself now lives in the `.tpr` review language (day tiles,
-   legend, period nav); what's left here is the entry chrome around it. No
-   money rules, because there is no money on the screen. */
+   Shared entry chrome. The screen's own layout is the `.mts2-*` block further
+   down; the period nav and status chip still come from `.tpr`. No money rules,
+   because there is no money on the screen. */
 .fg .tp-err { font-size:12.5px; font-weight:600; color:var(--red-d,#e0264f); margin:-6px 0 14px; }
 .fg .mts-back { display:flex; gap:10px; align-items:flex-start; padding:13px 15px; border-radius:14px; background:rgba(255,51,102,.06); border:1px solid rgba(255,51,102,.2); color:var(--red-d,#e0264f); margin-bottom:18px; }
 .fg .mts-back b { display:block; font-size:13px; font-weight:800; }
 .fg .mts-back em { display:block; font-style:normal; font-size:12.5px; font-weight:600; color:var(--gray700); margin-top:3px; }
-.fg .mts-form { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; padding:0 15px 15px; border-top:1px solid rgba(10,11,16,.06); padding-top:14px; }
 .fg .mts-f { display:flex; flex-direction:column; gap:5px; }
 .fg .mts-f span { font-size:11.5px; font-weight:700; color:var(--gray400); text-transform:uppercase; letter-spacing:.04em; }
 .fg .mts-f input, .fg .mts-f select { height:38px; padding:0 11px; border-radius:11px; border:1px solid rgba(10,11,16,.14); background:#fff; font-family:var(--font); font-size:13.5px; font-weight:600; color:var(--ink); min-width:120px; }
 .fg .mts-facts { display:flex; gap:8px; margin-left:auto; }
-.fg .mts-foot { display:flex; align-items:center; gap:16px; margin-top:22px; padding-top:18px; border-top:1px solid rgba(10,11,16,.08); }
-.fg .mts-foot span { flex:1; font-size:13px; font-weight:600; color:var(--gray500); }
 
 /* A fortnight reads as two week-rows and a month as four-plus, which is how
    people actually think about a pay period — so the day tiles wrap at seven
@@ -1769,7 +1766,6 @@ select.fl-i { cursor:pointer; }
 .fg .tpr .crow .mini { flex-wrap:wrap; overflow:visible; }
 
 /* Multi-week periods (fortnight / month) read as week-rows. */
-.fg .mts-week { margin-bottom:8px; }
 .fg .mts-wh { display:flex; align-items:baseline; justify-content:space-between; padding:4px 2px 8px; }
 .fg .mts-wh span { font-size:12px; font-weight:800; color:var(--gray400); text-transform:uppercase; letter-spacing:.05em; }
 .fg .mts-wh em { font-style:normal; font-size:13px; font-weight:700; color:var(--gray700); }
@@ -2026,31 +2022,131 @@ select.fl-i { cursor:pointer; }
 .fg .licexp > span { flex:0 0 auto; font-size:12px; font-weight:800; color:var(--gray700); }
 @media (max-width:560px){ .fg .licexp { width:100%; } }
 
-/* ---- My timesheet in the review language ----
-   Same `.stg tpr` scope as the admin screen, so a colour means one thing in
-   the whole product. Two additions: the tiles are buttons (you pick a day),
-   and one editor card opens under the week row you picked in. */
-.fg .tpr .stats.n3 { grid-template-columns:repeat(3,1fr); }
-.fg .tpr .stat.hrs .si { background:var(--ink); color:#fff; }
-.fg .tpr .stat.lv .si { background:var(--blue); color:#fff; }
+/* ---- My timesheet (.mts2-*) ----
+   The original staff-facing design's mechanics — a week strip of day chips
+   over a stack of day rows, one row expanding in place, a rail that totals the
+   period — wearing the current app language: white cards on #f0f0f2 hairlines,
+   16–24px radii, Jakarta, ink/teal. The day COLOURS are still the `.tpr`
+   palette (std teal, over amber, leave blue, sick red, ph violet, missing
+   red), because a colour has to mean the same thing here as it does on the
+   approver's screen — only the shape changed, from solid tiles to pills.
+
+   `.legend .sw.miss` stays below: `MY_DAY_LEGEND` is still an exported
+   primitive with its own test, and this is the one class the shared legend
+   can't style without it. */
 .fg .tpr .legend .sw.miss { background:#fff; border:2px dashed var(--red); }
 
-/* A selectable day. The TODAY ring is ink and marks *when*; the selection
-   ring is teal and marks *what you're editing* — never the same colour, or
-   Monday-is-today reads as Monday-is-open. */
-.fg .tpr button.tile { cursor:pointer; text-align:center; }
-.fg .tpr .tile.sel { box-shadow:0 0 0 2px #fff, 0 0 0 4px var(--teal-d); }
-.fg .tpr .tile.today.sel { box-shadow:0 0 0 2px #fff, 0 0 0 4px var(--ink), 0 0 0 6px var(--teal-d); }
-.fg .tpr button.tile:focus-visible { outline:none; box-shadow:0 0 0 2px #fff, 0 0 0 4px var(--teal-d); }
+/* two columns, main + rail; one column on a phone */
+.fg .mts2-cols { display:grid; grid-template-columns:minmax(0,2fr) minmax(280px,1fr); gap:22px; align-items:start; }
+@media (max-width:960px){ .fg .mts2-cols { grid-template-columns:minmax(0,1fr); } }
+.fg .mts2-main { min-width:0; }
+.fg .mts2-wk { margin-bottom:26px; }
 
-/* One day editor, in normal flow under its week's tiles — editing a day is a
-   small job and shouldn't take the screen away from the week it belongs to. */
-.fg .tpr .dayedit { background:#fff; border:1px solid rgba(10,11,16,.09); border-radius:16px; padding:16px 18px; margin:-4px 0 22px; box-shadow:0 14px 30px -24px rgba(10,12,20,.5); animation:tprUp .22s ease backwards; }
-.fg .tpr .dehead { display:flex; align-items:center; gap:10px; margin-bottom:13px; }
-.fg .tpr .dehead b { font-size:15px; font-weight:800; letter-spacing:-.01em; color:var(--ink); }
-.fg .tpr .dehol { display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:8px; background:rgba(0,163,137,.12); color:var(--teal-d); font-size:11px; font-weight:800; white-space:nowrap; }
-.fg .tpr .dayedit .mts-form { padding:0; border-top:none; }
-.fg .tpr .mts-foot .bbtn { height:44px; }
+/* ---- the day-chip strip ---- */
+.fg .mts2-chips { display:flex; gap:8px; margin-bottom:12px; }
+.fg .mts2-chip { position:relative; flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:center; gap:3px; padding:9px 4px 8px; border-radius:14px; background:#fff; border:1px solid #f0f0f2; box-shadow:0 1px 2px rgba(10,12,20,.03); transition:transform .16s, border-color .16s, box-shadow .16s; }
+.fg .mts2-chip .cw { font-size:9px; font-weight:800; letter-spacing:.07em; color:var(--gray400); }
+.fg .mts2-chip .cd { font-size:16px; font-weight:800; line-height:1; color:var(--ink); }
+.fg .mts2-chip .cdot { width:6px; height:6px; border-radius:50%; background:transparent; }
+.fg .mts2-chip.done .cdot { background:var(--teal-d); }
+/* a weekend nobody worked is background, not a to-do */
+.fg .mts2-chip.wknd { background:#fafbfc; }
+.fg .mts2-chip.wknd .cd, .fg .mts2-chip.wknd .cw { opacity:.5; }
+.fg .mts2-chip.wknd.done .cd, .fg .mts2-chip.wknd.done .cw { opacity:1; }
+/* TODAY is an ink ring (when); SELECTED is a teal ring (what you're editing) */
+.fg .mts2-chip.today { box-shadow:0 0 0 2px var(--ink); border-color:transparent; }
+.fg .mts2-chip.sel { box-shadow:0 0 0 2px var(--teal-d); border-color:transparent; }
+.fg .mts2-chip.today.sel { box-shadow:0 0 0 2px var(--ink), 0 0 0 4px var(--teal-d); }
+.fg button.mts2-chip:hover { transform:translateY(-2px); border-color:rgba(0,229,192,.55); }
+.fg button.mts2-chip:focus-visible { outline:none; box-shadow:0 0 0 2px var(--teal-d); }
+
+/* ---- day rows ---- */
+.fg .mts2-rows { display:flex; flex-direction:column; gap:8px; }
+.fg .mts2-row { position:relative; background:#fff; border:1px solid #f0f0f2; border-radius:16px; overflow:hidden; box-shadow:0 1px 2px rgba(10,12,20,.03); transition:box-shadow .18s, border-color .18s; }
+/* a logged day wears a quiet teal accent — a marker, not the old solid tile */
+.fg .mts2-row.has::before { content:""; position:absolute; left:0; top:10px; bottom:10px; width:3px; border-radius:0 3px 3px 0; background:var(--teal-d); }
+.fg .mts2-row.open { border-color:rgba(0,163,137,.3); box-shadow:0 14px 30px -24px rgba(10,12,20,.5); }
+.fg .mts2-rh { display:flex; align-items:center; gap:12px; width:100%; padding:13px 15px; text-align:left; }
+.fg .mts2-rh:disabled { cursor:default; }
+.fg .mts2-rh:focus-visible { outline:2px solid var(--teal-d); outline-offset:-2px; }
+.fg .mts2-rd { display:flex; flex-direction:column; gap:1px; flex:0 0 76px; }
+.fg .mts2-rd b { font-size:11px; font-weight:800; letter-spacing:.06em; color:var(--gray400); }
+.fg .mts2-rd em { font-style:normal; font-size:14px; font-weight:800; letter-spacing:-.01em; color:var(--ink); }
+.fg .mts2-sum { margin-left:auto; font-size:12.5px; font-weight:700; color:var(--gray700); white-space:nowrap; font-variant-numeric:tabular-nums; }
+.fg .mts2-chev { display:flex; color:var(--gray400); transition:transform .2s; }
+.fg .mts2-row.open .mts2-chev { transform:rotate(180deg); }
+.fg .mts2-rh:disabled .mts2-chev { opacity:0; }
+
+/* the kind pill — the `.tpr` day palette, restated as a tinted pill */
+.fg .mts2-pill { display:inline-flex; align-items:center; height:24px; padding:0 10px; border-radius:999px; font-size:11px; font-weight:800; letter-spacing:-.01em; white-space:nowrap; }
+.fg .mts2-pill.std { background:rgba(0,229,192,.16); color:#04564a; }
+.fg .mts2-pill.over { background:rgba(240,164,49,.18); color:var(--amber-d,#b45309); }
+.fg .mts2-pill.under { background:rgba(255,221,87,.3); color:#6b5300; }
+.fg .mts2-pill.leave { background:rgba(46,104,255,.12); color:#1d4ed8; }
+.fg .mts2-pill.sick { background:rgba(255,51,102,.12); color:#e0264f; }
+.fg .mts2-pill.ph { background:rgba(138,43,226,.12); color:var(--violet-d,#7322c4); }
+.fg .mts2-pill.miss { background:rgba(255,51,102,.1); color:#e0264f; box-shadow:inset 0 0 0 1px rgba(255,51,102,.45); }
+.fg .mts2-pill.empty { background:#f1f2f5; color:var(--gray500); }
+
+/* ---- weekend offers ---- */
+.fg .mts2-offers { display:flex; gap:8px; margin-top:10px; }
+.fg .mts2-offer { display:inline-flex; align-items:center; gap:6px; flex:1 1 0; justify-content:center; height:40px; border-radius:14px; border:1.5px dashed #dfe1e7; color:var(--gray500); font-size:12.5px; font-weight:700; transition:all .18s; }
+.fg .mts2-offer:hover { border-color:var(--teal-d); color:var(--teal-d); background:rgba(0,229,192,.05); }
+
+/* ---- the inline editor ---- */
+.fg .mts2-edit { padding:2px 15px 15px; border-top:1px solid #f0f0f2; animation:tprUp .2s ease backwards; }
+.fg .mts2-ehol { display:inline-flex; align-items:center; gap:5px; margin:12px 0 0; padding:3px 9px; border-radius:8px; background:rgba(0,163,137,.12); color:var(--teal-d); font-size:11px; font-weight:800; }
+.fg .mts2-form { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; padding-top:14px; }
+.fg .mts2-brk { display:flex; align-items:center; gap:10px; margin-top:13px; }
+.fg .mts2-brkl { font-size:12.5px; font-weight:700; color:var(--gray700); }
+.fg .mts2-brkstep { display:inline-flex; align-items:center; gap:2px; border:1px solid #ececf0; border-radius:11px; padding:2px; }
+.fg .mts2-brkstep button { width:26px; height:26px; border-radius:9px; font-size:15px; font-weight:800; color:var(--gray500); }
+.fg .mts2-brkstep button:hover { background:#f4f5f7; color:var(--ink); }
+.fg .mts2-brkstep b { min-width:30px; text-align:center; font-size:12.5px; font-weight:800; font-variant-numeric:tabular-nums; }
+/* the derived hours — this line IS the hours field */
+.fg .mts2-derv { display:flex; align-items:center; gap:8px; margin-top:13px; padding:10px 13px; border-radius:13px; background:rgba(0,229,192,.07); color:var(--gray700); font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; }
+.fg .mts2-derv b { font-size:14px; font-weight:800; color:var(--ink); }
+.fg .mts2-derv svg { color:var(--teal-d); }
+.fg .mts2-derv.bad { background:rgba(255,51,102,.07); color:#e0264f; }
+.fg .mts2-derv.bad svg { color:#e0264f; }
+.fg .mts2-pay { display:flex; align-items:center; gap:10px; margin-top:9px; padding:0 2px; }
+.fg .mts2-payl { font-size:10.5px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--gray400); }
+.fg .mts2-paych { font-size:12.5px; font-weight:700; color:var(--gray700); font-variant-numeric:tabular-nums; }
+.fg .mts2-paych b { font-weight:800; color:var(--ink); }
+.fg .mts2-eacts { display:flex; gap:8px; margin-top:15px; }
+.fg .mts2-btn { display:inline-flex; align-items:center; gap:7px; height:38px; padding:0 15px; border-radius:12px; border:1px solid #ececf0; background:#fff; font-size:12.5px; font-weight:800; color:var(--gray700); transition:all .18s; }
+.fg .mts2-btn:hover { border-color:rgba(0,229,192,.6); color:var(--ink); }
+.fg .mts2-btn.primary { background:var(--ink); border-color:var(--ink); color:#fff; }
+.fg .mts2-btn.primary svg { color:var(--teal); }
+.fg .mts2-btn:disabled { opacity:.45; pointer-events:none; }
+
+/* ---- the rail ---- */
+.fg .mts2-rail { display:flex; flex-direction:column; gap:14px; position:sticky; top:0; }
+@media (max-width:960px){ .fg .mts2-rail { position:static; } }
+.fg .mts2-card { background:#fff; border:1px solid #f0f0f2; border-radius:20px; padding:18px; box-shadow:0 1px 2px rgba(10,12,20,.03), 0 18px 36px -30px rgba(10,12,20,.35); }
+.fg .mts2-ch { display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:11px; font-weight:800; letter-spacing:.09em; text-transform:uppercase; color:var(--gray400); }
+.fg .mts2-range { margin-top:6px; font-size:17px; font-weight:800; letter-spacing:-.02em; color:var(--ink); }
+.fg .mts2-range em { font-style:normal; color:var(--gray400); }
+.fg .mts2-tot { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
+.fg .mts2-t { padding:12px 13px; border-radius:15px; background:#fafbfc; border:1px solid #f0f0f2; }
+.fg .mts2-t b { display:block; font-size:22px; font-weight:800; letter-spacing:-.03em; line-height:1; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .mts2-t em { display:block; font-style:normal; margin-top:5px; font-size:11px; font-weight:700; color:var(--gray500); }
+.fg .mts2-t.pay { background:rgba(0,229,192,.08); border-color:rgba(0,229,192,.22); }
+.fg .mts2-bk { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+.fg .mts2-bkc { font-size:11px; font-weight:800; padding:4px 9px; border-radius:999px; background:#f4f5f7; color:var(--gray700); font-variant-numeric:tabular-nums; }
+.fg .mts2-sub { margin-top:13px; font-size:12px; font-weight:600; color:var(--gray500); line-height:1.45; }
+.fg .tpr .mts2-submit { width:100%; justify-content:center; height:46px; margin-top:13px; }
+.fg .tpr .mts2-submit:disabled { opacity:.45; pointer-events:none; }
+.fg .mts2-none { margin-top:12px; font-size:12.5px; font-weight:600; color:var(--gray400); }
+.fg .mts2-hlist { display:flex; flex-direction:column; margin-top:10px; }
+.fg .mts2-h { display:flex; align-items:baseline; gap:10px; padding:7px 0; border-bottom:1px solid #f4f5f7; }
+.fg .mts2-h:last-child { border-bottom:none; }
+.fg .mts2-h b { min-width:22px; font-size:13px; font-weight:800; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .mts2-h em { font-style:normal; font-size:12.5px; font-weight:600; color:var(--gray700); }
+.fg .mts2-hlink { display:inline-flex; align-items:center; gap:5px; margin-top:11px; font-size:12px; font-weight:800; color:var(--teal-d); }
+.fg .mts2-hlink:hover { text-decoration:underline; }
+.fg .mts2-card .mts-hols { margin-top:12px; }
+.fg .mts2-rules { margin:0; padding:0 4px; font-size:11.5px; font-weight:600; line-height:1.6; color:var(--gray400); }
 /* ---- date picker (components/ui/date-field.tsx + month-grid.tsx) ----
    Every date field in the app is this: a button showing dd/mm/yyyy that opens
    our own calendar. No `<input type="date">` anywhere — its rendering and its

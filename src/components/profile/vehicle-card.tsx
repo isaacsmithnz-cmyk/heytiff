@@ -34,9 +34,8 @@ function Empty() {
   );
 }
 
-/* The JSX twin of `inHtml` — "in 6 weeks", number carrying the weight and the
-   unit sitting back. Same shape, same classes; the HTML-string original exists
-   for the screens that still compose markup, and this card no longer does. */
+/* "in 6 weeks" — number carrying the weight and the unit sitting back, the
+   marked-up shape of `inLabel` (lib/format/duration), same specials rule. */
 function InDuration({ days }: { days: number }) {
   const d = daysDuration(days);
   if (d.unit === "") return <>{d.label}</>;

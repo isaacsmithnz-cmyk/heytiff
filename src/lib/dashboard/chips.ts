@@ -102,8 +102,8 @@ function urgency(state: ActionState, metric: number): number {
    different ways when only one of them gets edited.
 
    These labels are PLAIN TEXT on purpose. They ride into the hero band, which
-   escapes everything it is given (screens.ts), so the marked-up `durationHtml`
-   twin would arrive on screen as visible angle brackets. */
+   escapes everything it is given (screens.ts), so any markup in a label would
+   arrive on screen as visible angle brackets. */
 function expiryLabel(what: string, days: number): string {
   return `${what} ${expiryClause(days)}`;
 }

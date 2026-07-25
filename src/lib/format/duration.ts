@@ -153,22 +153,3 @@ export function dueClause(days: number): string {
 export function dueIn(days: number): string {
   return capitalise(dueClause(days));
 }
-
-/* The HTML twin, for the handful of screens that compose markup strings
-   (components/shell/screens.ts). The number carries the weight and the unit
-   sits back — the same typographic trick the fact tiles already use, which is
-   what makes an adaptive unit cheap to read at a glance.
-
-   NO ESCAPING HAPPENS HERE, and none is needed: every character in the output
-   comes from this module's own vocabulary and a number derived from a date.
-   Never route user input through it. */
-export function durationHtml(days: number): string {
-  const d = daysDuration(days);
-  if (d.unit === "") return `<b>${d.label}</b>`;
-  return `<b>${d.value}</b><span class="dur-u">${d.unit}</span>`;
-}
-
-/** The marked-up twin of `inLabel`: "in <b>6</b><span…>weeks</span>". */
-export function inHtml(days: number): string {
-  return daysDuration(days).unit === "" ? durationHtml(days) : `in ${durationHtml(days)}`;
-}

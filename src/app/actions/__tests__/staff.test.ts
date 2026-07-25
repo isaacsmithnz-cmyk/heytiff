@@ -5,7 +5,11 @@
 import { resolve, type Capability } from "@/lib/permissions";
 import type { Role } from "@/lib/roles-shared";
 
-type TargetRow = { user_id: string | null };
+type TargetRow = {
+  user_id: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+};
 type MemberRow = { role: Role; permissions: unknown } | null;
 
 const staffUpdate = jest.fn();
@@ -85,7 +89,7 @@ beforeEach(() => {
   staffUpdate.mockClear();
   membershipUpdate.mockClear();
   auditInsert.mockClear();
-  target = { user_id: "auth0|target" };
+  target = { user_id: "auth0|target", first_name: "Jordan", last_name: "Mills" };
   member = { role: "staff", permissions: {} };
   actor = {
     userId: "auth0|owner",
@@ -107,16 +111,33 @@ const asAdmin = (extra: Record<string, boolean> = {}) => {
 describe("section + capability gating", () => {
   it("refuses everything without `team`", async () => {
     actor = { ...actor, role: "staff", caps: resolve("staff") };
-    const res = await saveStaffSection("s1", "personal", { full_name: "X" });
+    const res = await saveStaffSection("s1", "personal", { first_name: "X" });
     expect(res).toEqual({ ok: false, error: "You don't have access to staff records." });
     expect(staffUpdate).not.toHaveBeenCalled();
   });
 
   it("lets an admin edit identity", async () => {
     asAdmin();
-    const res = await saveStaffSection("s1", "personal", { full_name: "Jordan Mills" });
+    const res = await saveStaffSection("s1", "personal", {
+      first_name: "Jordan",
+      last_name: "Mills",
+    });
     expect(res).toEqual({ ok: true });
-    expect(staffUpdate.mock.calls[0][0]).toMatchObject({ full_name: "Jordan Mills" });
+    expect(staffUpdate.mock.calls[0][0]).toMatchObject({
+      first_name: "Jordan",
+      last_name: "Mills",
+      // derived from the two halves, never submitted
+      full_name: "Jordan Mills",
+    });
+  });
+
+  it("derives full_name from the stored half a partial save doesn't carry", async () => {
+    asAdmin();
+    const res = await saveStaffSection("s1", "personal", { last_name: "van der Berg" });
+    expect(res).toEqual({ ok: true });
+    expect(staffUpdate.mock.calls[0][0]).toMatchObject({
+      full_name: "Jordan van der Berg",
+    });
   });
 
   it("refuses payroll for an admin without `financials`", async () => {
@@ -134,14 +155,14 @@ describe("section + capability gating", () => {
   });
 
   it("refuses an invented section without touching the database", async () => {
-    const res = await saveStaffSection("s1", "__proto__", { full_name: "X" });
+    const res = await saveStaffSection("s1", "__proto__", { first_name: "X" });
     expect(res.ok).toBe(false);
     expect(staffUpdate).not.toHaveBeenCalled();
   });
 
   it("strips pay columns from a non-pay section", async () => {
     const res = await saveStaffSection("s1", "personal", {
-      full_name: "Jordan",
+      first_name: "Jordan",
       hourly_wage: "999",
     });
     expect(res).toEqual({ ok: true });
@@ -150,7 +171,7 @@ describe("section + capability gating", () => {
 
   it("404s a staff id that isn't in this org", async () => {
     target = null; // the org-scoped lookup found nothing
-    const res = await saveStaffSection("someone-elses-uuid", "personal", { full_name: "X" });
+    const res = await saveStaffSection("someone-elses-uuid", "personal", { first_name: "X" });
     expect(res).toEqual({ ok: false, error: "That staff member doesn't exist." });
     expect(staffUpdate).not.toHaveBeenCalled();
   });

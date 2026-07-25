@@ -28,6 +28,8 @@ import {
   isSpillRoom,
   plenumBody,
   spigotsOf,
+  distributeSpigots,
+  formatDia,
   streamOf,
   suggestedMainDucts,
   type PlenumSpigot,
@@ -222,8 +224,11 @@ const PLENUM_SNAP_PX = 20; // screen px to snap the plenum ghost onto an AHU end
 /* ── Plenum plan geometry (spec §1b, field feedback 2026-07-14). All
    DIMENSIONS come from the engine (plenumBody); this only lays the resolved
    mm out in world space. The BASE (widest edge) sits ON the unit at the
-   opening width and the body tapers OUTWARD to a narrow spigot face —
-   1 spigot ≈ an arrow, 3–4 ≈ a trapezoid, base always widest. Spigots are
+   opening width. A SUPPLY plenum tapers OUTWARD to a narrow spigot face —
+   1 spigot ≈ an arrow, 3–4 ≈ a trapezoid, base always widest. A RETURN
+   plenum does not taper at all: it's a box on the back of the unit, so the
+   engine hands back a far face equal to the base and the same code draws a
+   rectangle (no special case here). Spigots are
    RECTANGLES (plan view of a round takeoff) standing off the spigot face at
    true width; side-face spigots ride the left/right edges. ── */
 interface PlenumSpigotRect {
@@ -237,6 +242,8 @@ interface PlenumSpigotRect {
   nx: number;
   ny: number;
   capped: boolean;
+  /** its own diameter (mm) — every takeoff is labelled AT the takeoff */
+  diaMm: number;
 }
 interface PlenumShape {
   body: Point[];
@@ -262,8 +269,11 @@ function plenumShape(opts: {
   const y0 = cy; // base, on the unit
   const y1 = cy + dir * depth; // spigot face, outward
   const hBase = baseHalf;
-  // never let the far face collapse fully — a lone spigot still needs a lip
-  const hSpig = Math.min(hBase, Math.max(opts.spigotHalf, hBase * 0.12));
+  /* The far face is exactly as wide as the ducts landing ON it — no artificial
+     lip. With every takeoff on the SIDES the face is nothing and the body
+     closes to a true V point, which is how these are drawn by hand (field
+     sketch 2026-07-23); the old 12% floor left a stub that read as a mistake. */
+  const hSpig = Math.min(hBase, opts.spigotHalf);
   const stub = depth * 0.4; // how far the spigot rectangles stand off the face
 
   // trapezoid: WIDE at the unit (y0, ±hBase) → NARROW at the spigot face (y1, ±hSpig)
@@ -302,6 +312,7 @@ function plenumShape(opts: {
         nx: 0,
         ny: dir,
         capped: s.capped === true,
+        diaMm: s.diaMm,
       };
     }
     // side spigot: Ø across the sloped edge (in y), stub outward (in x)
@@ -321,10 +332,14 @@ function plenumShape(opts: {
       nx,
       ny: 0,
       capped: s.capped === true,
+      diaMm: s.diaMm,
     };
   });
 
-  return { body, spigots, labelAt: { x: cx, y: Math.max(y0, y1) } };
+  /* the label sits CENTRED ON the plenum body — a label belongs on the thing
+     it names, and centring also keeps it clear of the takeoffs, which stand
+     off the far face rather than over the body. */
+  return { body, spigots, labelAt: { x: cx, y: (y0 + y1) / 2 } };
 }
 
 /** the pack's air-opening for one stream of an indoor unit, or null */
@@ -961,7 +976,13 @@ export function StudioCanvas({
   const plenumShapes = useMemo(() => {
     const m = new Map<
       string,
-      PlenumShape & { label: string; derived: boolean; overSpigot: boolean; unitId: string }
+      PlenumShape & {
+        label: string;
+        derived: boolean;
+        overSpigot: boolean;
+        overHeight: boolean;
+        unitId: string;
+      }
     >();
     for (const p of plenums) {
       const unit = units.find((u) => u.id === String(p.props.unitId ?? ""));
@@ -973,12 +994,18 @@ export function StudioCanvas({
       const perMm = fp.w / Math.max(widthMm, 1); // world units per mm (works uncalibrated)
       const row = iduSpec?.(String(unit.props.model ?? "")) ?? null;
       const opening = openingOf(row, end);
-      const sp = spigotsOf(p.props);
+      /* Re-pack on the way out, not just on add/delete. `t` is machine-
+         assigned today (there is no drag-slide yet), and designs saved before
+         the packing fix still carry evenly-spaced values that overlap once the
+         diameters differ. Normalising here heals them without a migration —
+         revisit when spigots become draggable and `t` is genuinely the
+         installer's own placement. */
+      const sp = distributeSpigots(spigotsOf(p.props));
       const body = plenumBody({
         opening,
         unitWidthMm: widthMm, // the mounting face is a LONG face (spec §1a)
         spigots: sp,
-        units: doc.settings.units,
+        stream: end, // return draws as a box; supply tapers to its spigots
       });
       if (body.builtIn || body.factorySpigots) continue; // no drawn plenum object
       const f = endFace(unit, end);
@@ -998,6 +1025,7 @@ export function StudioCanvas({
         label: body.label,
         derived: body.derived,
         overSpigot: body.overSpigot,
+        overHeight: body.overHeight,
         unitId: unit.id,
       });
     }
@@ -2036,6 +2064,15 @@ export function StudioCanvas({
 
   /* ── render ── */
   const zoom = vp.zoom;
+  /* Label sizing. Dividing by `zoom` pins text to a constant SCREEN size —
+     right when you're zoomed in, but it swamps the drawing when you zoom out:
+     the plan shrinks and the text doesn't, until the room names are bigger
+     than the rooms. Clamping the divisor at 1 makes labels behave like
+     DRAWING entities below 100% (they shrink with the plan, so the drawing
+     stays readable) and like UI above it (constant on screen, never
+     ballooning). Use this for text — never for stroke widths, which should
+     stay hairline at every zoom. */
+  const labelZoom = Math.max(zoom, 1);
   const mm = floor.scaleMmPerUnit;
   const activeColour = sysColour.get(activeSystemId ?? "") ?? "#888";
   const calibScreenB = calib.b ? worldToScreen(calib.b, vp) : null;
@@ -2161,16 +2198,20 @@ export function StudioCanvas({
                 strokeWidth={1 / zoom}
               />
             </pattern>
+            {/* Airflow head. Styled in CSS, not with currentColor: inside a
+                <marker> currentColor resolves against the marker's own
+                context — NOT the line referencing it — so the head could
+                never be trusted to match the flow line. */}
             <marker
               id="ds-flow-arrow"
               viewBox="0 0 8 8"
               refX="6"
               refY="4"
-              markerWidth="6"
-              markerHeight="6"
+              markerWidth="7"
+              markerHeight="7"
               orient="auto-start-reverse"
             >
-              <path d="M1 1 L7 4 L1 7" fill="none" stroke="currentColor" strokeWidth="1.4" />
+              <path className="ds-flow-arrowhead" d="M1 1 L7 4 L1 7" fill="none" />
             </marker>
           </defs>
           {/* plan sheets (under everything); arrange tool shows outlines */}
@@ -2210,9 +2251,9 @@ export function StudioCanvas({
                     />
                     <text
                       className="ds-sheet-name"
-                      x={pos.x + 14 / zoom}
-                      y={pos.y + 26 / zoom}
-                      fontSize={13 / zoom}
+                      x={pos.x + 14 / labelZoom}
+                      y={pos.y + 26 / labelZoom}
+                      fontSize={13 / labelZoom}
                     >
                       {s.name}
                     </text>
@@ -2237,15 +2278,15 @@ export function StudioCanvas({
                 <polygon points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />
                 {layers.labels && (
                   <>
-                    <text x={c.x} y={c.y} fontSize={13 / zoom} className="ds-room-name">
+                    <text x={c.x} y={c.y} fontSize={13 / labelZoom} className="ds-room-name">
                       {String(r.props.name ?? "Room")}
                       {/* spill rooms wear the ⤢ chip (ducted spec §9c) */}
                       {isSpillRoom(r) ? " ⤢" : ""}
                     </text>
                     <text
                       x={c.x}
-                      y={c.y + 16 / zoom}
-                      fontSize={11 / zoom}
+                      y={c.y + 16 / labelZoom}
+                      fontSize={11 / labelZoom}
                       className="ds-room-area"
                     >
                       {mm ? formatArea(areaUnitsToM2(areaU, mm)) : "not calibrated"}
@@ -2286,7 +2327,7 @@ export function StudioCanvas({
               >
                 <polyline points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />
                 {mm && layers.labels && (
-                  <text x={mid.x} y={mid.y - 7 / zoom} fontSize={11 / zoom} className="ds-pipe-len">
+                  <text x={mid.x} y={mid.y - 7 / labelZoom} fontSize={11 / labelZoom} className="ds-pipe-len">
                     {formatMeters(unitsToMeters(polylineLength(pts), mm))}
                   </text>
                 )}
@@ -2347,8 +2388,8 @@ export function StudioCanvas({
                               key={`fl-${e.end}`}
                               className="ds-ahu-face-label"
                               x={f.mid.x}
-                              y={f.mid.y + (f.dir === 1 ? -5 : 12) / zoom}
-                              fontSize={8 / zoom}
+                              y={f.mid.y + (f.dir === 1 ? -5 : 12) / labelZoom}
+                              fontSize={8 / labelZoom}
                             >
                               {e.end.toUpperCase()}
                             </text>
@@ -2436,7 +2477,7 @@ export function StudioCanvas({
                                 ? f.mid.y + stub + 10 / zoom
                                 : f.mid.y - stub - 4 / zoom
                             }
-                            fontSize={9 / zoom}
+                            fontSize={9 / labelZoom}
                           >
                             {label}
                           </text>
@@ -2461,14 +2502,23 @@ export function StudioCanvas({
                 })}
                 </g>
                 {layers.labels && (
+                  /* role + model stack CENTRED on the unit — the model belongs
+                     on the box it names, not hung below it. Role rides just
+                     above the middle, model just below, so the pair reads as
+                     one centred block. */
                   <>
-                    <text x={at.x} y={at.y + 4 / zoom} fontSize={11 / zoom} className="ds-unit-role">
+                    <text
+                      x={at.x}
+                      y={at.y - 6 / labelZoom}
+                      fontSize={9 / labelZoom}
+                      className="ds-unit-role"
+                    >
                       {role}
                     </text>
                     <text
                       x={at.x}
-                      y={at.y + fp.h / 2 + 13 / zoom}
-                      fontSize={10 / zoom}
+                      y={at.y + 6 / labelZoom}
+                      fontSize={10 / labelZoom}
                       className="ds-unit-model"
                     >
                       {String(u.props.model ?? "")}
@@ -2519,7 +2569,11 @@ export function StudioCanvas({
             return (
               <g
                 key={p.id}
-                className={`ds-plenum${p.id === selectedId ? " sel" : ""}${s.overSpigot ? " over" : ""}`}
+                /* "over" = this plenum can't take its ducts — too many across
+                   the face, OR one too tall for the opening */
+                className={`ds-plenum${p.id === selectedId ? " sel" : ""}${
+                  s.overSpigot || s.overHeight ? " over" : ""
+                }`}
                 style={{ color: colour }}
               >
                 <polygon
@@ -2539,14 +2593,28 @@ export function StudioCanvas({
                         y2={sp.cy + sp.nx * 4}
                       />
                     )}
+                    {/* the duct size sits ON its own takeoff, centred, where
+                        the fitter is already looking — not rolled into one bar
+                        under the plenum that has to be read back against the
+                        drawing to work out which duct is which. */}
+                    {layers.labels && (
+                      <text
+                        className="ds-spigot-dia"
+                        x={sp.cx}
+                        y={sp.cy}
+                        fontSize={9 / labelZoom}
+                      >
+                        {formatDia(sp.diaMm, doc.settings.units)}
+                      </text>
+                    )}
                   </g>
                 ))}
                 {layers.labels && (
                   <text
                     className={`ds-plenum-label${s.derived ? " derived" : ""}`}
                     x={s.labelAt.x}
-                    y={s.labelAt.y + 13 / zoom}
-                    fontSize={10 / zoom}
+                    y={s.labelAt.y}
+                    fontSize={10 / labelZoom}
                   >
                     {s.label}
                   </text>
@@ -2600,7 +2668,8 @@ export function StudioCanvas({
                             opening: openingOf(e.row, e.end),
                             unitWidthMm: widthMm,
                             spigots: [],
-                            units: doc.settings.units,
+                            // the ghost must promise the shape you'll get
+                            stream: e.end,
                           });
                           const ghost = plenumShape({
                             cx: f.mid.x,
@@ -2733,8 +2802,8 @@ export function StudioCanvas({
               {mm && (
                 <text
                   x={(draftRect.a.x + draftRect.b.x) / 2}
-                  y={Math.min(draftRect.a.y, draftRect.b.y) - 8 / zoom}
-                  fontSize={11 / zoom}
+                  y={Math.min(draftRect.a.y, draftRect.b.y) - 8 / labelZoom}
+                  fontSize={11 / labelZoom}
                   className="ds-draft-dims"
                 >
                   {formatMeters(unitsToMeters(Math.abs(draftRect.b.x - draftRect.a.x), mm))} ×{" "}

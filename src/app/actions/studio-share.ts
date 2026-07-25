@@ -3,6 +3,7 @@
 import { randomUUID } from "crypto";
 import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { shareExpiresAt, isShareExpired, shareDaysLeft } from "@/lib/studio/share";
 
 /* Design Studio — the customer live link. One token per design, riding the
    studio_designs row itself (share_token unique, nullable): create rotates a
@@ -21,7 +22,21 @@ async function requireOrg(): Promise<{ orgId: string; userId: string }> {
 export interface ShareLink {
   url: string;
   createdAt: string;
+  /** when it stops working — links last SHARE_TTL_DAYS (see lib/studio/share) */
+  expiresAt: string;
+  /** already past it: the link is dead until someone creates a new one */
+  expired: boolean;
+  /** whole days remaining, 0 once expired */
+  daysLeft: number;
 }
+
+const describe = (token: string, createdAt: string): ShareLink => ({
+  url: linkFor(token),
+  createdAt,
+  expiresAt: shareExpiresAt(createdAt).toISOString(),
+  expired: isShareExpired(createdAt),
+  daysLeft: shareDaysLeft(createdAt),
+});
 
 const linkFor = (token: string): string =>
   `${process.env.APP_BASE_URL ?? ""}/live/${token}`;
@@ -40,7 +55,7 @@ export async function createShareLink(designId: string): Promise<ShareLink> {
   if (error) throw new Error(`share failed: ${error.message}`);
   if (!data || data.length === 0)
     throw new Error("design not found — save it first");
-  return { url: linkFor(token), createdAt };
+  return describe(token, createdAt);
 }
 
 export async function getShareLink(
@@ -55,10 +70,9 @@ export async function getShareLink(
     .maybeSingle();
   if (error) throw new Error(`share lookup failed: ${error.message}`);
   if (!data?.share_token) return null;
-  return {
-    url: linkFor(data.share_token),
-    createdAt: data.share_created_at ?? new Date(0).toISOString(),
-  };
+  /* a row with no timestamp predates the expiry rule — epoch reads as long
+     expired, which is the safe way round */
+  return describe(data.share_token, data.share_created_at ?? new Date(0).toISOString());
 }
 
 export async function revokeShareLink(designId: string): Promise<void> {

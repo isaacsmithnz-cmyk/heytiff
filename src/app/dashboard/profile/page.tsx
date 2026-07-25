@@ -2,9 +2,17 @@ import { redirect } from "next/navigation";
 import { auth0 } from "@/lib/auth0";
 import { profileHtml, type ProfileHeader } from "@/components/shell/profile";
 import { ProfileBehaviors } from "@/components/shell/profile-behaviors";
-import { loadMyProfile, saveMyProfileSection } from "@/app/actions/profile";
+import {
+  addMyLicence,
+  loadMyProfile,
+  removeMyLicence,
+  saveMyProfileSection,
+} from "@/app/actions/profile";
 import { initialsFrom, startedLabel, yearsSince } from "@/lib/staff/derive";
+import { fullNameOf } from "@/lib/staff/name";
 import { assignedVehicleFor } from "@/lib/fleet/query";
+import { listLicences } from "@/lib/staff/query";
+import { todayInAu } from "@/lib/au-dates";
 
 /* My profile — your own staff card, and the values that fill in Team.
 
@@ -19,11 +27,14 @@ export default async function MyProfilePage() {
 
   const profile = await loadMyProfile();
   const orgId = session.orgId as string | undefined;
-  const assignedVehicle = orgId ? await assignedVehicleFor(orgId, profile.id) : null;
+  const [assignedVehicle, licences] = await Promise.all([
+    orgId ? assignedVehicleFor(orgId, profile.id) : Promise.resolve(null),
+    orgId ? listLicences(orgId, profile.id) : Promise.resolve([]),
+  ]);
 
   const email = session.user.email ?? "";
   const displayName =
-    profile.full_name ||
+    fullNameOf(profile) ||
     (session.user.name as string | undefined) ||
     email.split("@")[0] ||
     "User";
@@ -40,14 +51,22 @@ export default async function MyProfilePage() {
     employmentType: profile.employment_type || "—",
     started: startedLabel(profile.start_date),
     years: yearsSince(profile.start_date),
-    licenceCount: 0,
+    licenceCount: licences.length,
     status: profile.status,
   };
 
   return (
     <ProfileBehaviors
-      html={profileHtml(header, { mode: "self", profile, vehicle: assignedVehicle })}
+      html={profileHtml(header, {
+        mode: "self",
+        profile,
+        vehicle: assignedVehicle,
+        licences,
+        today: todayInAu(),
+      })}
       onSave={saveMyProfileSection}
+      onAddLicence={addMyLicence}
+      onRemoveLicence={removeMyLicence}
     />
   );
 }

@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { displayNameOf } from "@/lib/staff/name";
 import { DEFAULT_SETTINGS, type DayEntry, type Settings, type StaffWeek } from "@/components/timepay/logic";
 import { dateOfDay, periodEnd, periodLength, type PeriodConfig } from "./period";
 
@@ -18,7 +19,8 @@ import { dateOfDay, periodEnd, periodLength, type PeriodConfig } from "./period"
 
 const RATE_COLUMN = "hourly_wage";
 
-const STAFF_COLUMNS = "id, full_name, preferred_name, job_title, status";
+const STAFF_COLUMNS =
+  "id, first_name, last_name, full_name, preferred_name, job_title, status";
 
 export type TimesheetStatus = "draft" | "submitted" | "approved" | "sent_back";
 
@@ -137,7 +139,7 @@ export async function sheetStates(
 }
 
 function nameOf(r: Record<string, unknown>): string {
-  return ((r.preferred_name as string) || (r.full_name as string) || "Unnamed").trim();
+  return displayNameOf(r);
 }
 
 /** Everyone's week — the `timepay_all` screen.
@@ -154,7 +156,8 @@ export async function listStaffWeeks(
     .select(opts.pay ? `${STAFF_COLUMNS}, ${RATE_COLUMN}` : STAFF_COLUMNS)
     .eq("org_id", orgId)
     .eq("status", "Active")
-    .order("full_name");
+    .order("first_name")
+    .order("last_name");
 
   const rows = (data ?? []) as unknown as Record<string, unknown>[];
   const entries = await entriesFor(orgId, periodStart, opts.cfg, rows.map((r) => String(r.id)));

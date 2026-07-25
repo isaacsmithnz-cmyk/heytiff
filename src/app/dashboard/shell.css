@@ -203,6 +203,164 @@
 .fg .dash-ph { display:flex; align-items:center; gap:10px; padding:14px 16px; border-radius:16px; background:rgba(46,104,255,.06); border:1px solid rgba(46,104,255,.16); color:#1f4bd8; font-weight:700; font-size:13.5px; margin-bottom:12px; }
 .fg .dash-mini { font-size:13px; font-weight:500; color:var(--gray400); padding:4px 2px; }
 
+/* ---- the hero's action band ----
+   Spans the hero beneath the greeting and links into the full board. A single
+   `.hstat` tile floated right read as an afterthought (that styling was built
+   for a ROW of stats); a band fills its space and has room to NAME the worst
+   item rather than only counting it. Single backdrop-filter, no -webkit twin —
+   pairing them ships only the prefixed one and the blur dies. */
+.fg .hact { position:relative; z-index:10; display:inline-flex; align-items:center; gap:14px; margin-top:8px; padding:15px 18px; border-radius:18px; text-decoration:none; color:inherit; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.12); backdrop-filter:blur(8px); transition:background .25s, border-color .25s, transform .25s; width:fit-content; max-width:100%; }
+.fg a.hact:hover { background:rgba(255,255,255,.09); border-color:rgba(255,255,255,.22); }
+.fg .hact .ha-ic { width:38px; height:38px; border-radius:12px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; }
+.fg .hact.bad .ha-ic { background:rgba(255,51,102,.18); color:#FF6B8A; }
+.fg .hact.warn .ha-ic { background:rgba(240,164,49,.18); color:#F0A431; }
+.fg .hact.ok .ha-ic { background:rgba(0,229,192,.14); color:var(--teal); }
+.fg .hact .ha-main { min-width:0; flex:1; display:flex; flex-direction:column; gap:3px; }
+.fg .hact .ha-title { font-size:15px; font-weight:800; letter-spacing:-0.01em; color:#fff; }
+.fg .hact .ha-sub { font-style:normal; font-size:13px; font-weight:500; color:rgba(255,255,255,.55); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fg .hact .ha-chev { color:rgba(255,255,255,.45); flex:0 0 auto; display:flex; }
+.fg a.hact:hover .ha-chev { color:rgba(255,255,255,.8); }
+
+/* ---- Dashboard columns ----
+   The dashboard was a single stack of full-width cards, so on a wide screen
+   every card was mostly empty AND you still had to scroll past all of them.
+   Below the hero the cards split into two columns: the thing you ACT on (tasks)
+   takes the wider one, and the things you READ (noticeboard, who's about,
+   payroll) stack in the narrower one.
+
+   `align-items:start` is load-bearing — without it grid stretches both columns
+   to the tallest, which is exactly the dead space this is meant to remove. */
+.fg .dash-cols { display:grid; grid-template-columns:1fr; gap:20px; align-items:start; }
+@media (min-width:1080px){ .fg .dash-cols { grid-template-columns:minmax(0,1.4fr) minmax(0,1fr); } }
+.fg .dash-col { display:flex; flex-direction:column; gap:20px; min-width:0; }
+/* the column owns the spacing, so the cards inside must not add their own */
+.fg .dash-col > .card2 { margin-bottom:0; }
+
+/* ---- Action-required tiles ----
+   A full-width row per chip wasted most of the card: ~200px of content stretched
+   across ~1300px, with the group tag floating far from the thing it describes.
+   These are compact tiles that flow into as many columns as the width allows —
+   two up on a laptop, one on a phone — so the content stays together and the
+   card shows several items at a glance instead of one per line.
+
+   Two channels, as before: the glyph is the DOMAIN, the colour is the URGENCY. */
+.fg .dash-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(440px, 1fr)); gap:10px; }
+@media (max-width:640px){ .fg .dash-grid { grid-template-columns:1fr; } }
+.fg .dash-tile { display:flex; align-items:center; gap:12px; padding:12px 14px; border:1px solid #f0f0f2; border-radius:14px; text-decoration:none; color:inherit; transition:border-color .15s, background .15s; }
+.fg .dash-tile:hover { border-color:#e2e4ea; background:#fafbfc; }
+.fg .dash-tile .dt-ic { width:32px; height:32px; border-radius:10px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; }
+.fg .dash-tile.bad .dt-ic { background:rgba(255,51,102,.1); color:#e0264f; }
+.fg .dash-tile.warn .dt-ic { background:rgba(240,164,49,.13); color:#b45309; }
+.fg .dash-tile .dt-main { min-width:0; flex:1; display:flex; flex-direction:column; gap:2px; }
+.fg .dash-tile .dt-label { font-size:13.5px; font-weight:800; letter-spacing:-0.01em; }
+.fg .dash-tile.bad .dt-label { color:#e0264f; }
+.fg .dash-tile.warn .dt-label { color:#b45309; }
+.fg .dash-tile .dt-sub { font-style:normal; font-size:12.5px; font-weight:600; color:var(--gray400); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fg .dash-tile .dt-chev { color:#c3c8d2; flex:0 0 auto; display:flex; }
+.fg .dash-tile:hover .dt-chev { color:#6b7280; }
+
+/* the dashboard's noticeboard card is a door into /dashboard/notices */
+.fg a.dash-card-link { display:block; text-decoration:none; color:inherit; transition:border-color .15s, box-shadow .15s; }
+.fg a.dash-card-link:hover { border-color:#e2e4ea; box-shadow:0 10px 34px rgba(0,0,0,.05); }
+.fg a.dash-card-link:hover .dr-chev { color:#6b7280; }
+
+/* noticeboard page items */
+.fg .nb-item { padding:22px 26px; }
+.fg .nb-head { display:flex; align-items:flex-start; gap:14px; }
+.fg .nb-title { font-size:16px; font-weight:800; letter-spacing:-0.01em; color:var(--ink); }
+.fg .nb-meta { font-size:12.5px; font-weight:500; color:var(--gray400); margin-top:3px; }
+.fg .nb-body { font-size:14px; font-weight:500; color:#4b5563; line-height:1.55; margin-top:12px; white-space:pre-wrap; }
+.fg .nb-foot { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:14px; }
+.fg .nb-footnote { font-size:12px; font-weight:600; color:var(--gray400); }
+/* the archived drawer: a quiet divider you open, not a second board */
+.fg .nb-archtoggle { display:flex; align-items:center; gap:8px; margin:26px 2px 14px; padding:0; border:0; background:none; cursor:pointer; font-family:var(--font); font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--gray400); transition:color .15s; }
+.fg .nb-archtoggle:hover { color:#6b7280; }
+
+/* polls: the bar lives BEHIND the answer, so the row reads as a label with a
+   fill rather than a chart with a caption */
+.fg .nb-poll { margin-top:16px; display:flex; flex-direction:column; gap:8px; }
+.fg .nb-opt { position:relative; overflow:hidden; display:flex; align-items:center; gap:11px; width:100%; padding:11px 14px; border:1px solid #eceef3; border-radius:14px; background:#fff; cursor:pointer; text-align:left; font-family:var(--font); transition:border-color .15s, background .15s; }
+.fg .nb-opt:hover:not(:disabled) { border-color:#d8dbe4; }
+.fg .nb-opt.on { border-color:rgba(46,104,255,.4); }
+.fg .nb-opt.shut { cursor:default; }
+.fg .nb-opt:disabled { opacity:1; }
+.fg .nb-optbar { position:absolute; left:0; top:0; bottom:0; background:rgba(46,104,255,.08); transition:width .3s ease; pointer-events:none; }
+.fg .nb-opt.on .nb-optbar { background:rgba(46,104,255,.14); }
+.fg .nb-optbox { position:relative; flex:0 0 auto; width:17px; height:17px; border-radius:999px; border:1.5px solid #cdd2dd; display:flex; align-items:center; justify-content:center; color:#fff; }
+.fg .nb-optbox.sq { border-radius:6px; }
+.fg .nb-opt.on .nb-optbox { background:#2e68ff; border-color:#2e68ff; }
+.fg .nb-optlabel { position:relative; flex:1; min-width:0; font-size:14px; font-weight:700; color:var(--ink); }
+.fg .nb-optn { position:relative; flex:0 0 auto; font-size:13px; font-weight:800; color:var(--gray400); font-variant-numeric:tabular-nums; }
+.fg .nb-optwho { font-size:12px; font-weight:600; color:var(--gray400); padding:6px 14px 2px; line-height:1.5; }
+.fg .nb-pollfoot { display:flex; align-items:center; gap:12px; flex-wrap:wrap; font-size:12.5px; font-weight:600; color:var(--gray400); padding:2px 2px 0; }
+.fg .nb-wholink { margin-left:auto; padding:0; border:0; background:none; cursor:pointer; font-family:var(--font); font-size:12.5px; font-weight:700; color:#1f4bd8; }
+.fg .nb-wholink:hover { text-decoration:underline; }
+
+/* attachments: photos show as photos, everything else as a labelled chip */
+.fg .nb-files { display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; }
+.fg .nb-file { display:flex; text-decoration:none; color:inherit; border-radius:14px; overflow:hidden; border:1px solid #eceef3; transition:border-color .15s; }
+.fg .nb-file:hover { border-color:#d8dbe4; }
+.fg .nb-file.img { width:132px; height:132px; }
+.fg .nb-file.img img { width:100%; height:100%; object-fit:cover; display:block; }
+.fg .nb-file.doc { align-items:center; gap:11px; padding:11px 15px; background:#fafbfc; }
+.fg .nb-file.doc svg { color:#9ca3af; flex:0 0 auto; }
+.fg .nb-file.doc span { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.fg .nb-file.doc b { font-size:13px; font-weight:700; color:var(--ink); }
+.fg .nb-file.doc em { font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray400); }
+/* the composer's copy, which also has a remove control */
+.fg .nb-pending { display:flex; align-items:center; gap:11px; padding:8px 8px 8px 10px; border:1px solid #eceef3; border-radius:14px; background:#fff; }
+.fg .nb-pending img { width:40px; height:40px; border-radius:9px; object-fit:cover; flex:0 0 auto; }
+.fg .nb-pendingdoc { width:40px; height:40px; border-radius:9px; background:#f3f4f7; color:#aeb4c0; display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
+.fg .nb-pendingname { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.fg .nb-pendingname b { font-size:12.5px; font-weight:700; color:var(--ink); }
+.fg .nb-pendingname em { font-style:normal; font-size:11px; font-weight:600; color:var(--gray400); }
+
+/* comments: the conversation under a post, one level of indent and no more */
+.fg .nb-thread { margin-top:16px; padding-top:14px; border-top:1px solid #f3f4f7; }
+.fg .nb-threadhead { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.fg .nb-clink { display:inline-flex; align-items:center; gap:5px; padding:0; border:0; background:none; cursor:pointer; font-family:var(--font); font-size:12.5px; font-weight:700; color:var(--gray400); transition:color .15s; }
+.fg .nb-clink:hover:not(:disabled) { color:#1f4bd8; }
+.fg .nb-c { padding:10px 0 2px; }
+.fg .nb-c.atme { padding-left:12px; border-left:2px solid rgba(46,104,255,.35); }
+.fg .nb-chead { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.fg .nb-chead b { font-size:13px; font-weight:800; color:var(--ink); }
+.fg .nb-chead span { font-size:11.5px; font-weight:600; color:#c3c8d2; }
+.fg .nb-cbody { font-size:13.5px; font-weight:500; color:#4b5563; line-height:1.55; margin-top:3px; white-space:pre-wrap; }
+.fg .nb-at { font-weight:800; color:#1f4bd8; }
+.fg .nb-at.me { background:rgba(46,104,255,.12); border-radius:5px; padding:0 3px; }
+.fg .nb-creplies { margin-left:16px; padding-left:12px; border-left:1px solid #f0f0f2; }
+.fg .nb-cform { margin-top:12px; }
+.fg .nb-creplyto { display:flex; align-items:center; gap:10px; font-size:12px; font-weight:600; color:var(--gray400); margin-bottom:7px; }
+.fg .nb-crow { display:flex; align-items:center; gap:8px; }
+.fg .nb-crow input { flex:1; min-width:0; height:38px; padding:0 13px; border-radius:999px; border:1px solid rgba(10,11,16,.14); background:#fff; font-family:var(--font); font-size:13.5px; font-weight:500; color:var(--ink); }
+.fg .nb-crow input:focus { outline:none; border-color:rgba(46,104,255,.4); }
+
+/* reactions: given ones first, the palette behind one button */
+.fg .nb-reacts { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:14px; }
+.fg .nb-react { display:inline-flex; align-items:center; gap:5px; height:28px; padding:0 10px; border:1px solid #eceef3; border-radius:999px; background:#fff; cursor:pointer; font-family:var(--font); font-size:12.5px; font-weight:700; color:var(--gray500); line-height:1; transition:border-color .15s, background .15s; }
+.fg .nb-react:hover:not(:disabled) { border-color:#d8dbe4; background:#fafbfc; }
+.fg .nb-react.on { border-color:rgba(46,104,255,.4); background:rgba(46,104,255,.07); color:#1f4bd8; }
+.fg .nb-react.add { width:28px; padding:0; justify-content:center; color:#c3c8d2; }
+.fg .nb-react.add:hover { color:#6b7280; }
+.fg .nb-react.pick { font-size:14px; padding:0 9px; }
+
+/* events: the when and where sit above the RSVP, which IS the poll control */
+.fg .nb-when { display:flex; flex-direction:column; gap:7px; margin-top:14px; padding:13px 15px; border-radius:14px; background:#fafbfc; border:1px solid #f0f0f2; }
+.fg .nb-whenline { display:flex; align-items:center; gap:9px; font-size:13.5px; font-weight:700; color:var(--ink); }
+.fg .nb-whenline svg { color:#9ca3af; flex:0 0 auto; }
+.fg .nb-whensum { font-size:12.5px; font-weight:600; color:var(--gray400); padding-left:22px; }
+
+/* composer: what am I posting, and (for a poll) the answers */
+.fg .nb-kinds { display:inline-flex; gap:4px; padding:3px; border-radius:12px; background:#eef0f4; margin-bottom:4px; }
+.fg .nb-kind { padding:6px 16px; border:0; border-radius:9px; background:none; cursor:pointer; font-family:var(--font); font-size:12.5px; font-weight:700; color:var(--gray500); transition:background .15s, color .15s; }
+.fg .nb-kind.on { background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.07); }
+.fg .nb-optedit { display:flex; flex-direction:column; align-items:flex-start; gap:8px; margin-top:14px; }
+.fg .nb-optedith { font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--gray400); }
+.fg .nb-optrow { display:flex; align-items:center; gap:8px; width:100%; }
+.fg .nb-optrow input { flex:1; height:38px; padding:0 11px; border-radius:11px; border:1px solid rgba(10,11,16,.14); background:#fff; font-family:var(--font); font-size:13.5px; font-weight:600; color:var(--ink); }
+.fg .nb-optdrop { flex:0 0 auto; width:30px; height:30px; display:flex; align-items:center; justify-content:center; border:0; border-radius:9px; background:none; cursor:pointer; color:#c3c8d2; transition:background .15s, color .15s; }
+.fg .nb-optdrop:hover { background:#f3f4f7; color:#6b7280; }
+
 .fg .hstats { display:flex; flex-wrap:wrap; gap:20px; }
 .fg .hstat { position:relative; overflow:hidden; display:flex; flex-direction:column; justify-content:center; min-width:200px; padding:24px 28px; border-radius:24px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.1); backdrop-filter:blur(8px); transition:background .3s; }
 .fg .hstat:hover { background:rgba(255,255,255,.06); }
@@ -1471,8 +1629,11 @@
 .fl-mh { position:sticky; top:0; z-index:2; display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:24px 26px 14px; background:#fff; border-bottom:1px solid #f5f6f8; }
 .fl-mh b { display:block; font-size:19px; font-weight:800; letter-spacing:-0.01em; color:#050505; }
 .fl-mh em { font-style:normal; display:block; font-size:12.5px; font-weight:600; color:#9ca3af; margin-top:2px; }
-.fl-x { width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:#9ca3af; transition:all .18s; flex:0 0 auto; }
-.fl-x:hover { background:#f1f2f4; color:#050505; }
+/* Resting state carries a surface and a readable glyph: bare #9ca3af on white is
+   ~2.6:1, under the 3:1 minimum for an interactive control, so the close button
+   was easy to miss on a card. */
+.fl-x { width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:#4b5563; background:#f1f2f4; border:1px solid #e6e8ee; transition:all .18s; flex:0 0 auto; }
+.fl-x:hover { background:#e6e8ee; border-color:#d6d9e0; color:#050505; }
 .fl-mb { padding:18px 26px 26px; }
 .fl-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
 .fl-f { display:flex; flex-direction:column; gap:6px; min-width:0; }
@@ -1538,6 +1699,9 @@ select.fl-i { cursor:pointer; }
 .fl-fact.tiff em { display:flex; align-items:center; gap:4px; color:#00A389; }
 .fl-manage { display:flex; justify-content:flex-end; gap:10px; margin:-8px 0 20px; }
 .fl-warnhint { font-style:normal; font-size:12px; font-weight:600; color:#b45309; }
+/* neutral sibling of fl-warnhint — explains a field rather than cautioning about
+   it. Literal colour, not a var: these modals portal to body, outside .fg. */
+.fl-hint { font-style:normal; font-size:12px; font-weight:600; color:#6b7280; }
 
 /* ---- fleet r3: live Tiff valuations + receipt scanner ---- */
 .fg .fl-valuebtn { color:var(--teal-d); }

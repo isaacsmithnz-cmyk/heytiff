@@ -1,0 +1,31 @@
+import type { CommentNode } from "./comments";
+import type { EventDetail } from "./events";
+import type { PollResult } from "./polls";
+import type { ReactionSummary } from "./reactions";
+import type { NoticeWithRead } from "./tasks";
+import type { StoredDocument } from "@/lib/documents/query";
+
+/* The composed shape a noticeboard row actually renders as.
+
+   The noticeboard is one ordered stream of posts that happen to carry
+   different attachments — a poll's answers, later an event's RSVPs, reactions,
+   comments. Each of those owns its own pure module and its own tables; this
+   file is only the seam where they meet, so `tasks.ts` never has to learn what
+   a poll is and no feature module imports another.
+
+   Type-only on purpose: nothing here runs. */
+
+export type BoardNotice = NoticeWithRead & {
+  /** Present only on kind === "poll". */
+  poll: PollResult | null;
+  /** Present only on kind === "event"; carries the RSVPs in the poll's shape. */
+  event: EventDetail | null;
+  /** Every kind can be reacted to — it's a reply, not an answer. */
+  reactions: ReactionSummary;
+  /** The conversation under the post, one level of threading, oldest first. */
+  comments: CommentNode[];
+  /** How many of those comments mention the viewer by name. */
+  mentionsMe: number;
+  /** Photos and files on the post, each with a short-lived signed URL. */
+  attachments: StoredDocument[];
+};

@@ -11,8 +11,17 @@ import { assembleChips, type DashboardChips } from "./assemble";
 import { listStaffCompliance, orgInsurance, type StaffCompliance } from "./query";
 import { rosterToday, type RosterToday } from "./roster";
 import { payRunItem, tallySheets, type MoneyItem } from "./money";
-import { myTasks, teamTasks, listNotices } from "./tasks-query";
-import { sortNotices, sortTasks, type DashTask, type NoticeWithRead } from "./tasks";
+import {
+  myTasks,
+  teamTasks,
+  recentlyDoneTasks,
+  assignedByMeRecentlyDone,
+  listNotices,
+  mentionableStaff,
+} from "./tasks-query";
+import type { MentionTarget } from "./comments";
+import type { BoardNotice } from "./board";
+import { RECENT_DONE_DAYS, sortNotices, sortTasks, type DashTask } from "./tasks";
 
 /* Dashboard page loader. The capability scoping and every derivation are pure
    and live in ./assemble, ./roster and ./money; this file is the thin I/O layer
@@ -30,10 +39,11 @@ export type DashboardData = {
   roster: RosterToday | null;
   /** Empty unless the viewer holds `financials`. */
   money: MoneyItem[];
-  /** Your open tasks (always) and the team's (only with `team`). */
-  tasks: { mine: DashTask[]; team: DashTask[] | null };
+  /** Your open tasks (always), the team's (only with `team`), and your
+      recently-completed ones so finishing something leaves a trace. */
+  tasks: { mine: DashTask[]; team: DashTask[] | null; done: DashTask[]; reported: DashTask[] };
   /** Recent notices with your read state joined in. */
-  notices: NoticeWithRead[];
+  notices: BoardNotice[];
   /** Staff you can assign a task to — populated only with `team`. */
   assignable: { id: string; name: string }[];
   /** `team`: can assign tasks / post notices / see the team's tasks. */
@@ -47,7 +57,7 @@ const EMPTY: DashboardData = {
   chips: { self: [], team: [] },
   roster: null,
   money: [],
-  tasks: { mine: [], team: null },
+  tasks: { mine: [], team: null, done: [], reported: [] },
   notices: [],
   assignable: [],
   canManage: false,
@@ -79,16 +89,87 @@ export async function loadDashboard(): Promise<DashboardData> {
   return { chips, roster, money, tasks, notices, assignable, canManage, viewerStaffId, today };
 }
 
+/* The noticeboard page. Reading happens THERE, not on the dashboard: the
+   dashboard only carries a summary card, so arriving here is a deliberate act —
+   which is what makes marking everything read defensible. */
+export type NoticeBoardData = {
+  notices: BoardNotice[];
+  canManage: boolean;
+  /** false when the account has no staff record — no read can be attributed */
+  canRead: boolean;
+  /** Today in AU. Expiry is derived, so the board needs the same date the
+      server used — never the browser's clock, which may be in another zone. */
+  today: string;
+  /** Who a comment can @mention, and what to paint. The SAME list the action
+      resolves against, so the highlight and the recorded mention agree. */
+  staff: MentionTarget[];
+  /** Null when the account has no staff record — it can't be mentioned either. */
+  viewerStaffId: string | null;
+};
+
+export async function loadNoticeBoard(): Promise<NoticeBoardData> {
+  const session = await auth0.getSession();
+  const orgId = session?.orgId as string | undefined;
+  const userId = session?.user?.sub as string | undefined;
+  const today = todayInAu();
+  if (!orgId || !userId)
+    return {
+      notices: [],
+      canManage: false,
+      canRead: false,
+      today,
+      staff: [],
+      viewerStaffId: null,
+    };
+
+  const caps = await getCapabilities();
+  const viewerStaffId = await staffProfileIdFor(orgId, userId);
+  const [notices, staff] = await Promise.all([
+    listNotices(orgId, viewerStaffId, 100).then(sortNotices),
+    mentionableStaff(orgId),
+  ]);
+  return {
+    notices,
+    canManage: caps.has("team"),
+    canRead: viewerStaffId !== null,
+    today,
+    staff,
+    viewerStaffId,
+  };
+}
+
+/* The action-required page. Like the noticeboard, the dashboard carries only a
+   summary (the hero tile) and the full list lives on its own screen — a count
+   you click into is honest about being a count, where a truncated list on the
+   dashboard would pretend to be the whole picture. */
+export async function loadActionRequired(): Promise<DashboardChips> {
+  const session = await auth0.getSession();
+  const orgId = session?.orgId as string | undefined;
+  const userId = session?.user?.sub as string | undefined;
+  if (!orgId || !userId) return { self: [], team: [] };
+
+  const caps = await getCapabilities();
+  const viewerStaffId = await staffProfileIdFor(orgId, userId);
+  return loadChips(orgId, viewerStaffId, caps, todayInAu());
+}
+
 async function loadTasks(
   orgId: string,
   viewerStaffId: string | null,
   canManage: boolean,
-): Promise<{ mine: DashTask[]; team: DashTask[] | null }> {
-  const [mine, team] = await Promise.all([
+): Promise<{ mine: DashTask[]; team: DashTask[] | null; done: DashTask[]; reported: DashTask[] }> {
+  const [mine, team, done, reported] = await Promise.all([
     viewerStaffId ? myTasks(orgId, viewerStaffId).then(sortTasks) : Promise.resolve([]),
     canManage ? teamTasks(orgId).then(sortTasks) : Promise.resolve(null),
+    viewerStaffId
+      ? recentlyDoneTasks(orgId, viewerStaffId, RECENT_DONE_DAYS)
+      : Promise.resolve([] as DashTask[]),
+    // work you handed out that has come back done — the assigner's report
+    viewerStaffId
+      ? assignedByMeRecentlyDone(orgId, viewerStaffId, RECENT_DONE_DAYS)
+      : Promise.resolve([] as DashTask[]),
   ]);
-  return { mine, team };
+  return { mine, team, done, reported };
 }
 
 /* ---------------- chips ---------------- */

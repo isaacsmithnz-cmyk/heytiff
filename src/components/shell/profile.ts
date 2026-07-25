@@ -4,7 +4,9 @@
 
 import { iconSvg } from "./icon";
 import { formatAuDate, type StaffProfile } from "@/lib/staff/profile";
-import type { StaffRow } from "@/lib/staff/types";
+import type { StaffLicence, StaffRow } from "@/lib/staff/types";
+import { licenceStatus } from "@/lib/staff/licence";
+import { todayInAu } from "@/lib/au-dates";
 import type { Capability } from "@/lib/permissions";
 import type { Role } from "@/lib/roles-shared";
 import {
@@ -99,17 +101,6 @@ export const LIC_TYPES: LicType[] = [
   { name: "White card", sub: "Construction induction", color: "#8A2BE2" },
   { name: "Contractor licence", sub: "Trade contractor", color: "#F0A431" },
 ];
-export function licCard(t: LicType): string {
-  const color = t.color || "#00A389";
-  const sub = t.sub || "Custom licence / ticket";
-  return (
-    `<div class="lic"><div class="lh"><span class="li" style="background:${color}18;color:${color}">${ic("shield", 18)}</span>` +
-    `<span><b>${t.name}</b><em>${sub}</em></span>` +
-    `<span class="lstat">Not set</span><button class="licdel" title="Remove licence" data-licdel>${ic("x", 15)}</button></div>` +
-    `<div class="frow c2">${field("Licence number", input("e.g. 1234 5678"))}${field("Expiry date", input("dd / mm / yyyy"))}</div>` +
-    `<div class="frow" style="margin-top:14px">${field("Photo / scan", `<div class="drop"><span class="di">${ic("upload", 18)}</span><span class="dk"><b>Upload document</b><em>Front of card or certificate</em></span></div>`)}</div></div>`
-  );
-}
 
 function sectionNav(mode: ProfileMode) {
   const items = [
@@ -145,11 +136,14 @@ function personal(p: StaffProfile | null) {
   return (
     '<section class="psec on" data-sec="personal">' +
     `<div class="card2" data-section="personal"><div class="c2h"><span class="ci">${ic("user", 18)}</span><span><b>Personal details</b><em>Identity, contact & employment basics</em></span></div>` +
-    `<div class="frow c2">${field("Full name", input("full_name", "e.g. Jordan Mills", "text", p?.full_name), { req: true })}${field("Preferred / nickname", input("preferred_name", "e.g. Jordy", "text", p?.preferred_name))}</div>` +
-    `<div class="frow c2">${field("Phone", input("phone", "04xx xxx xxx", "tel", p?.phone), { req: true })}${field("Birthday", input("birthday", "dd / mm / yyyy", "text", formatAuDate(p?.birthday)))}</div>` +
+    /* A name is two fields, not one free-text box: first and last are what we
+       store, and full_name is derived from them on save (lib/staff/name.ts). */
+    `<div class="frow c2">${field("First name", input("first_name", "e.g. Jordan", "text", p?.first_name), { req: true })}${field("Last name", input("last_name", "e.g. Mills", "text", p?.last_name), { req: true })}</div>` +
+    `<div class="frow c2">${field("Preferred / nickname", input("preferred_name", "e.g. Jordy", "text", p?.preferred_name))}${field("Phone", input("phone", "04xx xxx xxx", "tel", p?.phone), { req: true })}</div>` +
+    `<div class="frow c2">${field("Birthday", input("birthday", "dd / mm / yyyy", "text", formatAuDate(p?.birthday)))}${field("Start date", input("start_date", "dd / mm / yyyy", "text", formatAuDate(p?.start_date)))}</div>` +
     `<div class="frow">${field("Address", input("address", "Street, suburb, state, postcode", "text", p?.address))}</div>` +
-    `<div class="frow c2">${field("Start date", input("start_date", "dd / mm / yyyy", "text", formatAuDate(p?.start_date)))}${field("Employment type", selectP("employment_type", "Select employment type", ["Full-time", "Part-time", "Casual", "Apprentice", "Subcontractor"], p?.employment_type))}</div>` +
-    `<div class="frow c2">${field("Status", seg)}${field("Profile photo", `<div class="drop"><span class="di">${ic("cam", 20)}</span><span class="dk"><b>Upload a photo</b><em>JPG or PNG, square works best</em></span></div>`)}</div>` +
+    `<div class="frow c2">${field("Employment type", selectP("employment_type", "Select employment type", ["Full-time", "Part-time", "Casual", "Apprentice", "Subcontractor"], p?.employment_type))}${field("Status", seg)}</div>` +
+    `<div class="frow c2">${field("Profile photo", `<div class="drop"><span class="di">${ic("cam", 20)}</span><span class="dk"><b>Upload a photo</b><em>JPG or PNG, square works best</em></span></div>`)}<div></div></div>` +
     "</div></section>"
   );
 }
@@ -164,21 +158,51 @@ function emergency(p: StaffProfile | null) {
   );
 }
 
-function licences(p: StaffProfile | null) {
+/* One stored licence, as a fact card with a delete. Editing a licence is
+   delete-and-re-add rather than inline: a licence is a small, whole thing
+   (type + number + expiry), so re-entering it is simpler — and safer — than an
+   inline mini-form saving on every keystroke inside the injected-HTML shell. */
+function storedLicence(l: StaffLicence, today: string): string {
+  const color = l.color || "#00A389";
+  const st = licenceStatus(l.expiryDate, today);
+  const toneBg: Record<string, string> = {
+    ok: "rgba(0,229,192,.12);color:#00A389",
+    warn: "rgba(240,164,49,.16);color:#b45309",
+    bad: "rgba(255,51,102,.12);color:#e0264f",
+    mute: "#f3f4f6;color:#9ca3af",
+  };
+  const sub = [l.licenceNumber ? `No. ${esc(l.licenceNumber)}` : "No number", l.expiryDate ? `Expires ${formatAuDate(l.expiryDate)}` : "No expiry date"].join(" · ");
+  return (
+    `<div class="lic" data-lic-id="${esc(l.id)}"><div class="lh">` +
+    `<span class="li" style="background:${color}18;color:${color}">${ic("shield", 18)}</span>` +
+    `<span><b>${esc(l.typeName)}</b><em>${sub}</em></span>` +
+    `<span class="lstat" style="background:${toneBg[st.tone]}">${st.label}</span>` +
+    `<button class="licdel" title="Remove licence" data-licdel data-lic-id="${esc(l.id)}">${ic("x", 15)}</button>` +
+    "</div></div>"
+  );
+}
+
+function licences(p: StaffProfile | null, list: StaffLicence[] = [], today = todayInAu()) {
   const typeOpts =
-    LIC_TYPES.map((t) => `<option value="${t.name}">${t.name}</option>`).join("") +
+    LIC_TYPES.map((t) => `<option value="${t.name}" data-color="${t.color ?? ""}">${t.name}</option>`).join("") +
     '<option value="__custom">Custom…</option>';
   const addbar =
     '<div class="licadd">' +
     `<div class="selwrap" style="flex:1; min-width:0"><select class="inp" id="lic-type"><option value="" disabled selected>Choose a licence to add…</option>${typeOpts}</select><span class="chev">${ic("chev", 16)}</span></div>` +
     '<input class="inp" id="lic-custom" placeholder="Name this licence / ticket…" style="flex:1; min-width:0; display:none">' +
-    `<button class="pbtn primary" id="lic-add" style="height:46px; flex:0 0 auto">${ic("plus", 16)}Add</button></div>`;
-  const emptyHint = `<div class="ro-empty" id="lic-empty" style="margin-top:18px"><span class="ei">${ic("shield", 20)}</span><b>No licences added yet</b><em>Choose a type above (or add a custom one) to generate a card with number, expiry and a document upload.</em></div>`;
+    "</div>" +
+    '<div class="licadd" style="margin-top:10px">' +
+    '<input class="inp" id="lic-number" placeholder="Licence number (optional)" style="flex:1; min-width:0">' +
+    '<input class="inp" id="lic-expiry" placeholder="Expiry — dd / mm / yyyy" style="flex:1; min-width:0">' +
+    `<button class="pbtn primary" id="lic-add" style="height:46px; flex:0 0 auto">${ic("plus", 16)}Add</button></div>` +
+    '<div class="carderr" id="lic-err" style="display:none"></div>';
+  const rows = list.map((l) => storedLicence(l, today)).join("");
+  const emptyHint = `<div class="ro-empty" id="lic-empty" style="margin-top:18px${list.length ? ";display:none" : ""}"><span class="ei">${ic("shield", 20)}</span><b>No licences added yet</b><em>Pick a type (or name a custom one), add a number and expiry, and it tracks here — and raises a reminder on your dashboard before it lapses.</em></div>`;
   return (
     '<section class="psec" data-sec="licences">' +
-    `<div class="card2" data-static><div class="c2h"><span class="ci">${ic("shield", 18)}</span><span><b>Compliance</b><em>Licences &amp; qualifications — add a licence to generate a card tracking number, expiry &amp; a document upload</em></span></div>` +
+    `<div class="card2" data-live><div class="c2h"><span class="ci">${ic("shield", 18)}</span><span><b>Compliance</b><em>Licences &amp; tickets — each one tracks its number and expiry, and warns on your dashboard before it lapses</em></span></div>` +
     addbar +
-    '<div class="lics" id="lic-list"></div>' +
+    `<div class="lics" id="lic-list">${rows}</div>` +
     emptyHint +
     "</div>" +
     `<div class="card2" data-section="licences"><div class="c2h"><span class="ci">${ic("grad", 18)}</span><span><b>Other qualifications</b><em>Free-text list of tickets &amp; courses</em></span></div>` +
@@ -446,6 +470,10 @@ export function profileHtml(
     sections?: ProfileSections;
     /** Resolved by the caller — see AssignedVehicle. */
     vehicle?: AssignedVehicle | null;
+    /** The person's stored licences, for the Compliance card. */
+    licences?: StaffLicence[];
+    /** AU calendar date, so licence status labels agree with the dashboard. */
+    today?: string;
   } = {}
 ): string {
   const mode: ProfileMode = opts.mode ?? "admin";
@@ -478,7 +506,7 @@ export function profileHtml(
     `<div class="pquick"><div class="q"><b>${s.licenceCount}</b><em>Licences</em></div><div class="q"><b>${esc(s.years)}</b><em>Years</em></div></div>` +
     `<span class="badge active" style="align-self:flex-start"><span class="d"></span>${esc(s.status)}</span>` +
     "</div></div>" +
-    `<div class="pgrid">${sectionNav(mode)}<div class="ppanel">${personal(p)}${emergency(p)}${licences(p)}${workrights(p)}${vehicle(opts.vehicle ?? null)}${training()}${adminSections}</div></div>` +
+    `<div class="pgrid">${sectionNav(mode)}<div class="ppanel">${personal(p)}${emergency(p)}${licences(p, opts.licences ?? [], opts.today ?? todayInAu())}${workrights(p)}${vehicle(opts.vehicle ?? null)}${training()}${adminSections}</div></div>` +
     "</div>"
   );
 }

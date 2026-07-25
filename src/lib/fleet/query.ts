@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { todayInAu } from "@/lib/au-dates";
+import { displayNameOf } from "@/lib/staff/name";
 import type {
   AiValuation,
   FleetStaff,
@@ -38,12 +39,13 @@ const FULL_COLUMNS =
 export async function listFleetStaff(orgId: string): Promise<FleetStaff[]> {
   const { data } = await supabaseAdmin
     .from("staff_profiles")
-    .select("id, full_name, preferred_name, status")
+    .select("id, first_name, last_name, full_name, preferred_name, status")
     .eq("org_id", orgId)
-    .order("full_name");
+    .order("first_name")
+    .order("last_name");
   return (data ?? []).map((r) => ({
     id: r.id as string,
-    name: (r.preferred_name as string) || (r.full_name as string) || "Unnamed",
+    name: displayNameOf(r),
     status: (r.status as "Active" | "Inactive") ?? "Active",
   }));
 }

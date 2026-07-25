@@ -4,6 +4,7 @@ import { AppShell } from "@/components/shell/app-shell";
 import type { ShellUser } from "@/components/shell/sidebar";
 import type { Role } from "@/lib/roles-shared";
 import { getCapabilities, getOrgName, getOwnership } from "@/lib/permissions-server";
+import { getViewerName } from "@/lib/staff/query";
 import { ownerLabel } from "@/lib/permissions";
 import "./shell.css";
 
@@ -28,8 +29,16 @@ export default async function DashboardLayout({
   if (!session) redirect("/auth/login");
 
   const email = session.user.email ?? "";
-  const displayName =
-    (session.user.name as string | undefined) ?? email.split("@")[0] ?? "User";
+  const orgId = session.orgId as string | undefined;
+  const userId = session.user.sub as string | undefined;
+
+  // The staff record owns the name — the Auth0 session has no name claim here,
+  // so trusting it showed people their own email address in the topbar.
+  const viewer =
+    orgId && userId
+      ? await getViewerName(orgId, userId, (session.user.name as string) || email.split("@")[0] || "User")
+      : { full: (session.user.name as string) || email.split("@")[0] || "User", first: "there" };
+  const displayName = viewer.full;
 
   // Fresh from the DB, not the session-cached orgRole: a role change (or an
   // ownership transfer) must show on the next request, not the next login.

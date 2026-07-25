@@ -7,6 +7,8 @@ const blank: StaffProfile = {
   id: "p1",
   org_id: "o1",
   user_id: "auth0|1",
+  first_name: null,
+  last_name: null,
   full_name: null,
   preferred_name: null,
   phone: null,
@@ -238,7 +240,7 @@ describe("escaping — values reach the DOM via dangerouslySetInnerHTML", () => 
   it("does not emit a raw script tag from a stored field value", () => {
     const html = profileHtml(staff, {
       mode: "self",
-      profile: { ...blank, full_name: '<script>alert(1)</script>', address: '"><img onerror=x>' },
+      profile: { ...blank, first_name: '<script>alert(1)</script>', address: '"><img onerror=x>' },
     });
     expect(html).not.toContain("<script>alert(1)</script>");
     expect(html).not.toContain('"><img');
@@ -275,16 +277,26 @@ describe("escaping — values reach the DOM via dangerouslySetInnerHTML", () => 
 describe("seeding stored values into the form", () => {
   it("renders empty fields when there is no stored card", () => {
     const html = profileHtml(staff, { mode: "self", profile: null });
-    expect(html).toContain('name="full_name" type="text" placeholder="e.g. Jordan Mills" value=""');
+    expect(html).toContain('name="first_name" type="text" placeholder="e.g. Jordan" value=""');
+    expect(html).toContain('name="last_name" type="text" placeholder="e.g. Mills" value=""');
   });
 
   it("fills inputs from the stored card", () => {
     const html = profileHtml(staff, {
       mode: "self",
-      profile: { ...blank, full_name: "Jordan Mills", phone: "0400 000 000" },
+      profile: { ...blank, first_name: "Jordan", last_name: "Mills", phone: "0400 000 000" },
     });
-    expect(html).toContain('value="Jordan Mills"');
+    expect(html).toContain('value="Jordan"');
+    expect(html).toContain('value="Mills"');
     expect(html).toContain('value="0400 000 000"');
+  });
+
+  it("edits a name as two fields, and never as one free-text box", () => {
+    const html = profileHtml(staff, { mode: "self", profile: blank });
+    expect(html).toContain("<label>First name");
+    expect(html).toContain("<label>Last name");
+    // full_name is derived on save — there is nothing to type it into
+    expect(html).not.toContain('name="full_name"');
   });
 
   it("renders stored dates back as dd/mm/yyyy", () => {
@@ -323,13 +335,46 @@ describe("seeding stored values into the form", () => {
 });
 
 describe("read-only cards", () => {
-  it("marks the three no-edit cards static in both modes", () => {
-    // Compliance (licences are added directly, not via edit mode),
-    // Assigned vehicle and Training have no editable persisted fields.
+  it("marks Assigned vehicle and Training static in both modes", () => {
+    // Both are read-only facts with no editable fields at all.
     for (const mode of ["self", "admin"] as const) {
       const html = profileHtml(staff, { mode });
-      expect(html.match(/class="card2" data-static/g)).toHaveLength(3);
+      expect(html.match(/class="card2" data-static/g)).toHaveLength(2);
     }
+  });
+
+  it("marks the Compliance card data-live — no edit cycle, its own add/delete", () => {
+    // Licences are added and removed directly, so the card is never locked and
+    // never gets a Save button; it must not carry data-static (which would lock
+    // it) nor data-section (which would route it through the flat save).
+    const html = profileHtml(staff, { mode: "self" });
+    expect(html).toContain('class="card2" data-live');
+    expect(html).toContain('id="lic-add"');
+  });
+
+  it("renders stored licences with a delete handle and a status pill", () => {
+    const html = profileHtml(staff, {
+      mode: "self",
+      today: "2026-07-24",
+      licences: [
+        { id: "L1", typeName: "ARC licence", licenceNumber: "AU123", expiryDate: "2026-08-07", color: "#00A389" },
+        { id: "L2", typeName: "White card", licenceNumber: null, expiryDate: null, color: null },
+      ],
+    });
+    // the licence is on the card, with an id-bearing delete and its warn status
+    expect(html).toContain('data-lic-id="L1"');
+    expect(html).toContain("ARC licence");
+    expect(html).toContain("No. AU123");
+    expect(html).toContain("Expires 14d");
+    expect(html).toContain('data-licdel data-lic-id="L1"');
+    // the empty hint is hidden once there's at least one
+    expect(html).toContain('id="lic-empty" style="margin-top:18px;display:none"');
+  });
+
+  it("shows the empty hint when there are no licences", () => {
+    const html = profileHtml(staff, { mode: "self", licences: [] });
+    expect(html).not.toContain("data-lic-id=");
+    expect(html).toContain('id="lic-empty" style="margin-top:18px"');
   });
 
   it("gives every persisted card a data-section", () => {

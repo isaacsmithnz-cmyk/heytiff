@@ -14,6 +14,8 @@ import {
   type Capability,
 } from "@/lib/permissions";
 import { buildAdminPatch, capabilityFor, isAdminSection } from "@/lib/staff/admin-sections";
+import { withDerivedFullName } from "@/lib/staff/name";
+import { buildLicenceRow, type LicenceInput } from "@/lib/staff/licence";
 import type { Role } from "@/lib/roles-shared";
 
 /* Editing SOMEONE ELSE'S card, from Team.
@@ -48,20 +50,33 @@ async function context(): Promise<Ctx | null> {
   };
 }
 
+type Target = {
+  userId: string | null;
+  role: Role | null;
+  permissions: unknown;
+  name: { first_name: string | null; last_name: string | null };
+};
+
 /** The target, resolved inside the caller's org — never by id alone. */
 async function targetIn(
   ctx: Ctx,
   staffId: string
-): Promise<{ userId: string | null; role: Role | null; permissions: unknown } | null> {
+): Promise<Target | null> {
   const { data } = await supabaseAdmin
     .from("staff_profiles")
-    .select("user_id")
+    // the name halves ride along so a one-field save can still derive the
+    // whole full_name — see lib/staff/name.ts
+    .select("user_id, first_name, last_name")
     .eq("org_id", ctx.orgId)
     .eq("id", staffId)
     .maybeSingle();
   if (!data) return null;
+  const name = {
+    first_name: (data.first_name as string) ?? null,
+    last_name: (data.last_name as string) ?? null,
+  };
   const userId = (data.user_id as string) ?? null;
-  if (!userId) return { userId: null, role: null, permissions: null };
+  if (!userId) return { userId: null, role: null, permissions: null, name };
   const { data: m } = await supabaseAdmin
     .from("memberships")
     .select("role, permissions")
@@ -72,6 +87,7 @@ async function targetIn(
     userId,
     role: (m?.role as Role) ?? null,
     permissions: m?.permissions ?? null,
+    name,
   };
 }
 
@@ -124,10 +140,55 @@ export async function saveStaffSection(
 
   const { error } = await supabaseAdmin
     .from("staff_profiles")
-    .update({ ...patch, updated_at: new Date().toISOString() })
+    .update({
+      ...withDerivedFullName(patch, target.name),
+      updated_at: new Date().toISOString(),
+    })
     .eq("org_id", ctx.orgId)
     .eq("id", staffId);
   if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/dashboard/team/${staffId}`);
+  revalidatePath("/dashboard/team");
+  return { ok: true };
+}
+
+/* Someone else's licences — the Compliance card in Team. Managing another
+   person's record is the `team` capability (same as their identity + the
+   qualifications text), and every write is scoped to the org AND that person,
+   resolved server-side, so a forged post can't reach a third party's licences. */
+
+export async function addStaffLicence(staffId: string, input: LicenceInput): Promise<SaveResult> {
+  const ctx = await context();
+  if (!ctx) throw new Error("Not authenticated");
+  if (!ctx.caps.has("team")) return { ok: false, error: "You don't have access to staff records." };
+  if (!(await targetIn(ctx, staffId))) return { ok: false, error: "That staff member doesn't exist." };
+
+  const built = buildLicenceRow(input);
+  if ("error" in built) return { ok: false, error: built.error };
+
+  const { error } = await supabaseAdmin
+    .from("staff_licences")
+    .insert({ org_id: ctx.orgId, staff_profile_id: staffId, ...built.row });
+  if (error) return { ok: false, error: "Couldn't add that licence." };
+
+  revalidatePath(`/dashboard/team/${staffId}`);
+  revalidatePath("/dashboard/team");
+  return { ok: true };
+}
+
+export async function removeStaffLicence(staffId: string, licenceId: string): Promise<SaveResult> {
+  const ctx = await context();
+  if (!ctx) throw new Error("Not authenticated");
+  if (!ctx.caps.has("team")) return { ok: false, error: "You don't have access to staff records." };
+
+  const { error } = await supabaseAdmin
+    .from("staff_licences")
+    .delete()
+    .eq("org_id", ctx.orgId)
+    .eq("staff_profile_id", staffId)
+    .eq("id", licenceId);
+  if (error) return { ok: false, error: "Couldn't remove that licence." };
 
   revalidatePath(`/dashboard/team/${staffId}`);
   revalidatePath("/dashboard/team");
@@ -140,7 +201,7 @@ export async function saveStaffSection(
 async function savePermissions(
   ctx: Ctx,
   staffId: string,
-  target: { userId: string | null; role: Role | null; permissions: unknown },
+  target: Target,
   fields: Record<string, string>
 ): Promise<SaveResult> {
   if (!target.userId) {

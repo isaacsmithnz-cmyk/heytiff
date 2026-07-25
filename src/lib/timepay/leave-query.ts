@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { displayNameOf } from "@/lib/staff/name";
 import type {
   BalanceKind,
   BalanceSource,
@@ -77,11 +78,10 @@ export async function balancesFor(
 async function staffNames(orgId: string): Promise<(id: string) => string | undefined> {
   const { data } = await supabaseAdmin
     .from("staff_profiles")
-    .select("id, full_name, preferred_name")
+    .select("id, first_name, last_name, full_name, preferred_name")
     .eq("org_id", orgId);
   const map = new Map<string, string>();
-  for (const r of data ?? [])
-    map.set(r.id as string, ((r.preferred_name as string) || (r.full_name as string) || "Unnamed").trim());
+  for (const r of data ?? []) map.set(r.id as string, displayNameOf(r));
   return (id: string) => map.get(id);
 }
 

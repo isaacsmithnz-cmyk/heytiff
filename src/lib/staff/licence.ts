@@ -54,6 +54,34 @@ export function buildLicenceRow(input: LicenceInput): { row: LicenceRow } | { er
   };
 }
 
+/* The 2–4 letter stamp on a credential card.
+
+   Known types get the abbreviation a tradesperson would actually say ("ARC",
+   "DL", "WC", "CL"); anything custom is initialled from its words. Colour
+   rides along so a card and its badge agree without the caller repeating the
+   mapping — teal is the fallback, matching the licence colour default. */
+export type CredBadge = { code: string; color: string };
+
+const KNOWN_BADGES: [RegExp, CredBadge][] = [
+  [/\barc\b/i, { code: "ARC", color: "#00A389" }],
+  [/driver|drivers|driver’s|driver's/i, { code: "DL", color: "#2E68FF" }],
+  [/white\s*card/i, { code: "WC", color: "#8A2BE2" }],
+  [/contractor/i, { code: "CL", color: "#F0A431" }],
+];
+
+export function credBadgeCode(typeName: string | null | undefined): CredBadge {
+  const name = (typeName ?? "").trim();
+  if (!name) return { code: "—", color: "#00A389" };
+  for (const [re, badge] of KNOWN_BADGES) if (re.test(name)) return badge;
+  const initials = name
+    .split(/[\s/&-]+/)
+    .filter(Boolean)
+    .slice(0, 3)
+    .map((w) => w[0].toUpperCase())
+    .join("");
+  return { code: initials || name.slice(0, 2).toUpperCase(), color: "#00A389" };
+}
+
 export type LicenceStatus = { label: string; tone: "ok" | "warn" | "bad" | "mute" };
 
 /* The little status pill on a licence card. Same 30-day warning window the

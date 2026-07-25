@@ -1858,3 +1858,8 @@ select.fl-i { cursor:pointer; }
 .fg .hol-name { flex:1; font-size:13.5px; font-weight:600; color:var(--gray700); }
 .fg .hol-src { font-size:11px; font-weight:700; color:var(--gray400); text-transform:capitalize; }
 .fg .hol-src.synced { color:var(--teal-d); }
+
+/* removed (suppressed) holidays — tombstones an admin can restore */
+.fg .hol-year.removed { opacity:.75; }
+.fg .hol-year.removed .lv-ch { color:#9ca3af; }
+.fg .hol-row.off .hol-date, .fg .hol-row.off .hol-name { color:#9ca3af; text-decoration:line-through; text-decoration-thickness:1px; }

@@ -4,10 +4,12 @@ import { getPaySettings } from "./query";
 import {
   approvedInSpan,
   holidaysInSpan,
+  listOrgHolidays,
   myBalances,
   myRequests,
   pendingRequests,
   stateFor,
+  type Holiday,
 } from "./leave-query";
 import { addDays } from "./period";
 import {
@@ -49,6 +51,25 @@ export async function loadMyLeave(): Promise<MyLeaveData | null> {
     requests,
     holidays,
   };
+}
+
+export type HolidayManagerData = {
+  holidays: Holiday[];
+  orgState: string | null;
+  today: string;
+};
+
+/** Everything the holiday manager (settings-modal section or the old admin
+    page) needs: the org's calendar from Jan 1 this year, incl. suppressed
+    rows so they can be restored. Caller is responsible for the admin+ gate. */
+export async function loadHolidayManager(): Promise<HolidayManagerData | null> {
+  const ctx = await timepayContext();
+  if (!ctx) return null;
+  const [holidays, orgState] = await Promise.all([
+    listOrgHolidays(ctx.orgId, `${ctx.today.slice(0, 4)}-01-01`),
+    stateFor(ctx.orgId, ""),
+  ]);
+  return { holidays, orgState, today: ctx.today };
 }
 
 export type TeamLeaveData = {

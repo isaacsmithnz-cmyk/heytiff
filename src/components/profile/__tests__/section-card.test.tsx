@@ -1,7 +1,8 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { CAPABILITIES, resolve } from "@/lib/permissions";
 import { ProfileScreen } from "../profile-screen";
-import type { SaveResult } from "../types";
+import type { PermissionsCtx, SaveResult } from "../types";
 import { TODAY, header, jordan, okActions } from "./fixtures/staff";
 
 /* The per-card edit cycle — and the second production bug this rewrite kills.
@@ -34,6 +35,10 @@ function setup(actions: ReturnType<typeof okActions>) {
 
 const editButtons = () => screen.getAllByRole("button", { name: /^Edit$/ });
 
+/** Dates are picked, not typed — a picker emits one ISO change, not keystrokes. */
+const pick = (input: HTMLElement, iso: string) =>
+  fireEvent.change(input, { target: { value: iso } });
+
 describe("a rejected save", () => {
   it("keeps what was typed, marks the field, and stays in edit mode", async () => {
     const user = userEvent.setup();
@@ -45,17 +50,16 @@ describe("a rejected save", () => {
     setup(actions);
 
     await user.click(editButtons()[0]);
-    const birthday = screen.getByDisplayValue("25/12/1990");
-    await user.clear(birthday);
+    const birthday = screen.getByLabelText("Birthday");
     // a real date the server happens to refuse — pre-validation passes it
-    await user.type(birthday, "01/01/1990");
+    pick(birthday, "1990-01-01");
     await user.click(screen.getByRole("button", { name: /^Save$/ }));
 
     expect(await screen.findByText("Check the date format — use dd/mm/yyyy.")).toBeInTheDocument();
-    // what was typed is still there…
-    expect(screen.getByDisplayValue("01/01/1990")).toBeInTheDocument();
+    // what was entered is still there…
+    expect(screen.getByLabelText("Birthday")).toHaveValue("1990-01-01");
     // …the field is marked…
-    expect(screen.getByDisplayValue("01/01/1990")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("Birthday")).toHaveAttribute("aria-invalid", "true");
     // …and the card never went back to read mode
     expect(screen.getByRole("button", { name: /^Save$/ })).toBeInTheDocument();
   });
@@ -157,43 +161,126 @@ describe("the edit cycle", () => {
   });
 });
 
+/* Pre-validation runs the same builder the action runs, and only calls the
+   action if it comes back clean.
+
+   Note what is NOT tested here any more: a malformed date. Every date on this
+   card is a calendar picker, so "31/02/1990" is no longer something a person
+   can enter — the format class of error is designed out rather than caught.
+   What remains reachable is the free-text numbers on the Payroll card, which
+   is what this exercises. The date rules themselves are still pinned, in
+   lib/staff/__tests__/pre-validate.test.ts. */
 describe("pre-validation", () => {
-  it("never calls the action for a date it can already tell is wrong", async () => {
+  const adminCtx: PermissionsCtx = {
+    role: "staff",
+    caps: resolve("staff"),
+    settable: new Set(CAPABILITIES),
+    canChangeRole: true,
+    editable: true,
+  };
+
+  function adminSetup(actions: ReturnType<typeof okActions>) {
+    render(
+      <ProfileScreen
+        mode="admin"
+        header={header}
+        profile={jordan}
+        licences={[]}
+        vehicle={null}
+        today={TODAY}
+        org="Smith Air"
+        adminExtras={{ payroll: { hourly_wage: 45 }, permissions: adminCtx }}
+        actions={actions}
+      />
+    );
+  }
+
+  it("never calls the action for a number it can already tell is wrong", async () => {
     const user = userEvent.setup();
     const actions = okActions();
-    setup(actions);
+    adminSetup(actions);
 
-    await user.click(editButtons()[0]);
-    const birthday = screen.getByDisplayValue("25/12/1990");
-    await user.clear(birthday);
-    await user.type(birthday, "31/02/1990"); // no such day
+    await user.click(screen.getByRole("button", { name: /Payroll/ }));
+    await user.click(screen.getByRole("button", { name: /^Edit$/ }));
+    const wage = screen.getByLabelText(/Hourly wage/);
+    await user.clear(wage);
+    await user.type(wage, "45o"); // a typo'd letter, not a number
+
     await user.click(screen.getByRole("button", { name: /^Save$/ }));
 
-    expect(await screen.findByText("Check the date format — use dd/mm/yyyy.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Check the numbers — they should be plain figures.")
+    ).toBeInTheDocument();
     expect(actions.onSave).not.toHaveBeenCalled();
-    expect(screen.getByDisplayValue("31/02/1990")).toHaveAttribute("aria-invalid", "true");
+    expect(wage).toHaveAttribute("aria-invalid", "true");
+    // and it kept what was typed, so the fix is one character
+    expect(wage).toHaveValue("45o");
   });
 
-  it("clears the mark once the date is fixed and the save goes through", async () => {
+  it("clears the mark once it's fixed and the save goes through", async () => {
     const user = userEvent.setup();
     const actions = okActions();
-    setup(actions);
+    adminSetup(actions);
+
+    await user.click(screen.getByRole("button", { name: /Payroll/ }));
+    await user.click(screen.getByRole("button", { name: /^Edit$/ }));
+    const wage = screen.getByLabelText(/Hourly wage/);
+    await user.clear(wage);
+    await user.type(wage, "45o");
+    await user.click(screen.getByRole("button", { name: /^Save$/ }));
+    await screen.findByText("Check the numbers — they should be plain figures.");
+
+    await user.clear(wage);
+    await user.type(wage, "45");
+    await user.click(screen.getByRole("button", { name: /^Save$/ }));
+
+    expect(actions.onSave).toHaveBeenCalledWith(
+      "payroll",
+      expect.objectContaining({ hourly_wage: "45" })
+    );
+  });
+});
+
+describe("dates are picked, never typed", () => {
+  it("offers a calendar for every date the card edits", async () => {
+    const user = userEvent.setup();
+    setup(okActions());
 
     await user.click(editButtons()[0]);
-    const birthday = screen.getByDisplayValue("25/12/1990");
-    await user.clear(birthday);
-    await user.type(birthday, "31/02/1990");
-    await user.click(screen.getByRole("button", { name: /^Save$/ }));
-    await screen.findByText("Check the date format — use dd/mm/yyyy.");
+    for (const label of ["Birthday", "Start date"]) {
+      expect(screen.getByLabelText(label)).toHaveAttribute("type", "date");
+    }
 
-    // same input node — it is controlled, not remounted
-    await user.clear(birthday);
-    await user.type(birthday, "28/02/1990");
+    await user.click(screen.getByRole("button", { name: /Work rights/ }));
+    await user.click(editButtons()[0]);
+    for (const label of ["Visa expiry", /VEVO last checked/]) {
+      expect(screen.getByLabelText(label)).toHaveAttribute("type", "date");
+    }
+  });
+
+  it("submits the ISO the picker produced, and shows dd/mm/yyyy once saved", async () => {
+    const user = userEvent.setup();
+    const actions = okActions();
+    const { rerender, props } = setup(actions);
+
+    await user.click(editButtons()[0]);
+    pick(screen.getByLabelText("Start date"), "2027-06-30");
     await user.click(screen.getByRole("button", { name: /^Save$/ }));
 
     expect(actions.onSave).toHaveBeenCalledWith(
       "personal",
-      expect.objectContaining({ birthday: "28/02/1990" })
+      expect.objectContaining({ start_date: "2027-06-30" })
     );
+
+    rerender(<ProfileScreen {...props} profile={{ ...jordan, start_date: "2027-06-30" }} />);
+    // entry is ISO; reading a date back is still how an Australian writes one
+    expect(screen.getByText("30/06/2027")).toBeInTheDocument();
+  });
+
+  it("seeds the picker from the stored date, not from the displayed one", async () => {
+    const user = userEvent.setup();
+    setup(okActions());
+    await user.click(editButtons()[0]);
+    expect(screen.getByLabelText("Birthday")).toHaveValue("1990-12-25");
   });
 });

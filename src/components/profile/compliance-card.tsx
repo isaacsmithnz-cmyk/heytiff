@@ -6,6 +6,7 @@ import { CredentialCard } from "@/components/cards/credential-card";
 import { buildLicenceRow, licenceStatus } from "@/lib/staff/licence";
 import { formatAuDate } from "@/lib/staff/profile";
 import type { StaffLicence } from "@/lib/staff/types";
+import { DateField } from "./fields";
 import type { LicenceInput, SaveResult } from "./types";
 
 /* Compliance — the licences and tickets, as a wall of credential cards.
@@ -143,14 +144,13 @@ export function ComplianceCard({
           value={number}
           onChange={(e) => setNumber(e.target.value)}
         />
-        <input
-          className="inp"
-          style={{ flex: 1, minWidth: 0 }}
-          placeholder="Expiry — dd / mm / yyyy"
-          aria-label="Licence expiry"
-          value={expiry}
-          onChange={(e) => setExpiry(e.target.value)}
-        />
+        {/* picked, not typed — like every other date in the app. The label is
+            explicit because a bare calendar in a row of text boxes doesn't say
+            what it is for. */}
+        <label className="licexp">
+          <span>Expiry</span>
+          <DateField name="lic-expiry" value={expiry} onChange={setExpiry} />
+        </label>
         <button
           className="pbtn primary"
           type="button"

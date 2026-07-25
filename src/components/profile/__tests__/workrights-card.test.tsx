@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { WorkRightsCard, workRightsPayload } from "../workrights-card";
 import { blankProfile, TODAY, okActions } from "./fixtures/staff";
@@ -50,7 +50,8 @@ describe("choosing a no-visa status", () => {
     );
 
     expect(screen.queryByDisplayValue("482 TSS")).not.toBeInTheDocument();
-    expect(screen.queryByDisplayValue("07/08/2026")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Visa expiry")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/VEVO last checked/)).not.toBeInTheDocument();
     expect(screen.queryByDisplayValue("unlimited")).not.toBeInTheDocument();
     expect(screen.getByText("No visa required")).toBeInTheDocument();
   });
@@ -86,7 +87,29 @@ describe("choosing a no-visa status", () => {
 
     // the draft kept them, so a misclick costs nothing
     expect(screen.getByDisplayValue("482 TSS")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("07/08/2026")).toBeInTheDocument();
+    expect(screen.getByLabelText("Visa expiry")).toHaveValue("2026-08-07");
+  });
+
+  it("asks for both of its dates with a calendar, never a text box", async () => {
+    const user = userEvent.setup();
+    setup(onVisa);
+    await user.click(edit());
+    expect(screen.getByLabelText("Visa expiry")).toHaveAttribute("type", "date");
+    expect(screen.getByLabelText(/VEVO last checked/)).toHaveAttribute("type", "date");
+    // a check you already did can't be in the future
+    expect(screen.getByLabelText(/VEVO last checked/)).toHaveAttribute("max", TODAY);
+  });
+
+  it("submits the ISO the picker produced", async () => {
+    const user = userEvent.setup();
+    const actions = setup(onVisa);
+    await user.click(edit());
+    fireEvent.change(screen.getByLabelText("Visa expiry"), { target: { value: "2027-06-30" } });
+    await user.click(save());
+    expect(actions.onSave).toHaveBeenCalledWith(
+      "workrights",
+      expect.objectContaining({ visa_expiry: "2027-06-30" })
+    );
   });
 });
 

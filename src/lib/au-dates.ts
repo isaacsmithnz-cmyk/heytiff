@@ -3,19 +3,42 @@
    lib/staff/profile.ts re-exports these so its existing importers are
    untouched. */
 
-/** dd/mm/yyyy (any separator, optional spaces) -> ISO yyyy-mm-dd. */
+/** A real calendar date? Rejects 31 Feb rather than letting Date roll it on. */
+function realDate(year: number, month: number, day: number): boolean {
+  if (month < 1 || month > 12 || day < 1) return false;
+  return day <= new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+/* Form date -> ISO yyyy-mm-dd.
+
+   Two shapes go in, because two kinds of client send dates:
+
+   - yyyy-mm-dd, which is what a native <input type="date"> speaks. Every date
+     the staff card edits is a calendar picker now, so this is the normal path
+     and it is a validation-and-pass-through rather than a conversion.
+   - dd/mm/yyyy (any separator), the format the design's text inputs used and
+     the way an Australian writes a date. Still accepted: the organisation
+     screen still types them, and a direct POST from an older client must not
+     start failing because the UI moved on.
+
+   Both are checked against the real calendar, so "2026-02-31" is refused from
+   a picker exactly as "31/02/2026" is from a keyboard. */
 export function parseAuDate(input: string): string | null {
   const s = input.trim();
   if (!s) return null;
+
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) {
+    const [, y, m, d] = iso;
+    return realDate(Number(y), Number(m), Number(d)) ? s : null;
+  }
+
   const m = s.match(/^(\d{1,2})\s*[/\-. ]\s*(\d{1,2})\s*[/\-. ]\s*(\d{4})$/);
   if (!m) return null;
   const day = Number(m[1]);
   const month = Number(m[2]);
   const year = Number(m[3]);
-  if (month < 1 || month > 12 || day < 1) return null;
-  // reject 31 Feb etc. rather than letting Date roll it forward
-  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  if (day > daysInMonth) return null;
+  if (!realDate(year, month, day)) return null;
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${year}-${pad(month)}-${pad(day)}`;
 }
@@ -120,7 +143,18 @@ export function fmtAuWeekdayDate(iso: string | null | undefined): string {
     .replace(",", "");
 }
 
-/** ISO yyyy-mm-dd -> dd/mm/yyyy for the design's text inputs. */
+/* A stored date as an <input type="date"> value.
+
+   The column is a `date`, but a driver may hand it back as a full timestamp,
+   and the native input refuses anything that isn't exactly yyyy-mm-dd — it
+   silently renders empty rather than complaining, which looks like data loss.
+   So the value is trimmed to the calendar day and checked before it goes in. */
+export function dateInputValue(iso: string | null | undefined): string {
+  const day = String(iso ?? "").slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : "";
+}
+
+/** ISO yyyy-mm-dd -> dd/mm/yyyy, for READING a date back. */
 export function formatAuDate(iso: string | null | undefined): string {
   if (!iso) return "";
   const m = String(iso).slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/);

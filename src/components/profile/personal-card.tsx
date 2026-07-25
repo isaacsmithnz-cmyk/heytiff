@@ -2,25 +2,26 @@
 
 import { Icon } from "@/components/shell/icon";
 import { IdCard } from "@/components/cards/id-card";
-import { formatAuDate, type StaffProfile } from "@/lib/staff/profile";
+import { type StaffProfile } from "@/lib/staff/profile";
+import { dateInputValue, formatAuDate } from "@/lib/au-dates";
 import { preValidate } from "@/lib/staff/pre-validate";
 import { SectionCard } from "./section-card";
-import { Field, FactRow, Seg, SelectInput, TextInput } from "./fields";
+import { DateField, Field, FactRow, Seg, SelectInput, TextInput } from "./fields";
 import type { ProfileMode, SaveSection } from "./types";
 
 const EMPLOYMENT = ["Full-time", "Part-time", "Casual", "Apprentice", "Subcontractor"] as const;
 
-/** The form's values, straight off the stored card. Dates are dd/mm/yyyy here
-    and ISO in the column — au-dates is the only bridge between the two. */
+/** The EDIT values. Dates are ISO here because the pickers speak ISO; read
+    mode formats them as dd/mm/yyyy for itself, straight off the profile. */
 export function personalValues(p: StaffProfile | null, mode: ProfileMode): Record<string, string> {
   const base = {
     first_name: p?.first_name ?? "",
     last_name: p?.last_name ?? "",
     preferred_name: p?.preferred_name ?? "",
     phone: p?.phone ?? "",
-    birthday: formatAuDate(p?.birthday),
+    birthday: dateInputValue(p?.birthday),
     address: p?.address ?? "",
-    start_date: formatAuDate(p?.start_date),
+    start_date: dateInputValue(p?.start_date),
     employment_type: p?.employment_type ?? "",
     status: p?.status ?? "Active",
   };
@@ -46,6 +47,10 @@ export function PersonalCard({
   const fullName = [values.first_name, values.last_name].filter(Boolean).join(" ");
   const jobTitle = profile?.job_title ?? "";
   const blank = !fullName && !values.phone && !values.address && !values.birthday;
+  // read mode is dd/mm/yyyy — how an Australian reads a date. Only ENTRY is ISO,
+  // because that is what a calendar picker speaks.
+  const born = formatAuDate(profile?.birthday);
+  const started = formatAuDate(profile?.start_date);
 
   const sub = [jobTitle, values.employment_type].filter(Boolean).join(" · ");
 
@@ -71,9 +76,9 @@ export function PersonalCard({
         name={fullName || "—"}
         sub={sub || "Staff member"}
         facts={[
-          { em: "Started", b: values.start_date || "—" },
+          { em: "Started", b: started || "—" },
           { em: "Phone", b: values.phone || "—" },
-          { em: "Date of birth", b: values.birthday || "—" },
+          { em: "Date of birth", b: born || "—" },
         ]}
       />
       <div className="ro-rows">
@@ -142,25 +147,17 @@ export function PersonalCard({
             </Field>
           </div>
           <div className="frow c2">
-            <Field
-              label="Birthday"
-              error={invalid("birthday") ? "Use dd/mm/yyyy" : null}
-            >
-              <TextInput
+            <Field label="Birthday" error={invalid("birthday") ? "Pick a real date" : null}>
+              <DateField
                 name="birthday"
-                placeholder="dd / mm / yyyy"
                 value={draft.birthday}
                 invalid={invalid("birthday")}
                 onChange={(v) => set("birthday", v)}
               />
             </Field>
-            <Field
-              label="Start date"
-              error={invalid("start_date") ? "Use dd/mm/yyyy" : null}
-            >
-              <TextInput
+            <Field label="Start date" error={invalid("start_date") ? "Pick a real date" : null}>
+              <DateField
                 name="start_date"
-                placeholder="dd / mm / yyyy"
                 value={draft.start_date}
                 invalid={invalid("start_date")}
                 onChange={(v) => set("start_date", v)}

@@ -74,6 +74,54 @@ export function TextInput({
   );
 }
 
+/* Every date in this app is PICKED, never typed — and every one of them comes
+   through here.
+
+   A text date input is a format argument you have with the user forever:
+   dd/mm vs mm/dd, two-digit years, "31/02". A calendar ends it — a value that
+   can only ever be a real yyyy-mm-dd.
+
+   THIS COMPONENT IS A SEAM, AND THAT IS THE POINT. The internals are a native
+   <input type="date"> today and will be a design-matched calendar popover
+   next; because no call site anywhere writes a raw type="date", that swap is
+   one file. Do not inline a date input at a call site, however small — use
+   DateField, or the popover will land in some places and not others.
+
+   Note the name: `Field` is the label wrapper that goes AROUND a control;
+   `DateField` is the control itself, and sits inside a `Field` like the rest.
+
+   The VALUE is ISO. Read mode renders dd/mm/yyyy itself, via formatAuDate. */
+export function DateField({
+  name,
+  value,
+  onChange,
+  invalid,
+  max,
+  min,
+}: {
+  name: string;
+  /** yyyy-mm-dd, or "" */
+  value: string;
+  onChange: (v: string) => void;
+  invalid?: boolean;
+  max?: string;
+  min?: string;
+}) {
+  return (
+    <input
+      className={invalid ? "inp date err" : "inp date"}
+      name={name}
+      id={name}
+      type="date"
+      value={value}
+      max={max}
+      min={min}
+      aria-invalid={invalid || undefined}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  );
+}
+
 export function SelectInput({
   name,
   value,

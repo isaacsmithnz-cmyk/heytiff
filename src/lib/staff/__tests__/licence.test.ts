@@ -11,15 +11,25 @@ describe("buildLicenceRow", () => {
     });
   });
 
-  it("parses a dd/mm/yyyy expiry to ISO", () => {
+  /* The add-licence form is a calendar picker now, so it sends ISO; a typed
+     dd/mm/yyyy still parses, because parseAuDate takes both and this validator
+     is the same one a direct POST hits. */
+  it("takes an ISO expiry from the picker", () => {
+    const r = buildLicenceRow({ typeName: "ARC licence", expiryDate: "2026-08-07" });
+    expect(r).toEqual({ row: expect.objectContaining({ expiry_date: "2026-08-07" }) });
+  });
+
+  it("still parses a typed dd/mm/yyyy expiry to ISO", () => {
     const r = buildLicenceRow({ typeName: "ARC licence", expiryDate: "07/08/2026" });
     expect(r).toEqual({ row: expect.objectContaining({ expiry_date: "2026-08-07" }) });
   });
 
   it("rejects an unparseable expiry rather than storing garbage", () => {
-    expect(buildLicenceRow({ typeName: "ARC", expiryDate: "31/31/2026" })).toEqual({
-      error: expect.stringMatching(/dd\/mm\/yyyy/i),
-    });
+    for (const bad of ["31/31/2026", "2026-02-31", "whenever"]) {
+      expect(buildLicenceRow({ typeName: "ARC", expiryDate: bad })).toEqual({
+        error: expect.stringMatching(/expiry date/i),
+      });
+    }
   });
 
   it("trims a number and only keeps a real hex colour", () => {

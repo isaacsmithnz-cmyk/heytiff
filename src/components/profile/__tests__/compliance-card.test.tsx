@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { StaffLicence } from "@/lib/staff/types";
 import { ComplianceCard } from "../compliance-card";
@@ -40,8 +40,8 @@ describe("the credential grid", () => {
     expect(screen.getByText("ARC")).toBeInTheDocument();
     expect(screen.getByText("No. AU123")).toBeInTheDocument();
     expect(screen.getByText("Expires 07/08/2026")).toBeInTheDocument();
-    // 14 days out, same window as the dashboard chip
-    expect(screen.getByText("Expires 14d")).toBeInTheDocument();
+    // 14 days out, same window and the same wording as the dashboard chip
+    expect(screen.getByText("Expires in 2 weeks")).toBeInTheDocument();
   });
 
   it("says so plainly when a licence carries no number or expiry", () => {
@@ -64,15 +64,21 @@ describe("adding one", () => {
 
     await user.selectOptions(screen.getByRole("combobox", { name: "Licence type" }), "ARC licence");
     await user.type(screen.getByLabelText("Licence number"), "AU999");
-    await user.type(screen.getByLabelText("Licence expiry"), "01/01/2028");
+    // picked, not typed — the calendar emits ISO
+    fireEvent.change(screen.getByLabelText("Expiry"), { target: { value: "2028-01-01" } });
     await user.click(screen.getByRole("button", { name: /Add/ }));
 
     expect(onAdd).toHaveBeenCalledWith({
       typeName: "ARC licence",
       licenceNumber: "AU999",
-      expiryDate: "01/01/2028",
+      expiryDate: "2028-01-01",
       color: "#00A389",
     });
+  });
+
+  it("asks for the expiry with a calendar, not a text box", () => {
+    setup();
+    expect(screen.getByLabelText("Expiry")).toHaveAttribute("type", "date");
   });
 
   it("swaps in a free-text name for a custom ticket", async () => {
@@ -88,16 +94,27 @@ describe("adding one", () => {
     );
   });
 
-  it("refuses a bad expiry before the action is called at all", async () => {
+  /* An impossible expiry is no longer something a person can ENTER: the
+     control is a calendar, and it refuses 31 February outright rather than
+     accepting it and failing later. That is the whole reason this field
+     stopped being a text box.
+
+     buildLicenceRow still refuses one too — a direct POST can send anything —
+     and that is pinned in lib/staff/__tests__/licence.test.ts. */
+  it("won't even hold an impossible date", async () => {
     const user = userEvent.setup();
     const { onAdd } = setup();
+    const expiry = screen.getByLabelText("Expiry");
 
     await user.selectOptions(screen.getByRole("combobox", { name: "Licence type" }), "White card");
-    await user.type(screen.getByLabelText("Licence expiry"), "31/02/2028");
-    await user.click(screen.getByRole("button", { name: /Add/ }));
+    fireEvent.change(expiry, { target: { value: "2028-02-31" } });
+    expect(expiry).toHaveValue("");
 
-    expect(await screen.findByText("Check the expiry date — use dd/mm/yyyy.")).toBeInTheDocument();
-    expect(onAdd).not.toHaveBeenCalled();
+    fireEvent.change(expiry, { target: { value: "2028-02-29" } }); // 2028 is a leap year
+    expect(expiry).toHaveValue("2028-02-29");
+
+    await user.click(screen.getByRole("button", { name: /Add/ }));
+    expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ expiryDate: "2028-02-29" }));
   });
 
   it("refuses an unnamed licence", async () => {

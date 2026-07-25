@@ -2028,3 +2028,17 @@ select.fl-i { cursor:pointer; }
 .fg .mpt span { display:block; margin-top:3px; font-size:12px; font-weight:600; color:var(--gray500); }
 .fg .mypay-chips { display:flex; flex-wrap:wrap; gap:9px; margin-top:14px; font-variant-numeric:tabular-nums; }
 .fg .mypay-foot { margin:16px 0 0; font-size:12.5px; font-weight:600; color:var(--gray400); }
+
+/* ---- date entry (components/profile/fields.tsx :: DateField) ----
+   Every date is picked. A native date input carries its own metrics and its
+   own calendar button, so it needs a little help to sit flush in a row of
+   .inp text boxes: the indicator gets the same muted treatment as the select
+   chevron, and the field keeps the .inp height rather than the UA's. */
+.fg .inp.date { height:46px; padding-right:12px; cursor:pointer; font-variant-numeric:tabular-nums; }
+.fg .inp.date::-webkit-calendar-picker-indicator { opacity:.45; cursor:pointer; transition:opacity .2s; }
+.fg .inp.date:hover::-webkit-calendar-picker-indicator { opacity:.85; }
+/* iOS shrink-wraps a date input to its content and left-aligns the text */
+.fg .inp.date::-webkit-date-and-time-value { text-align:left; }
+.fg .licexp { display:flex; align-items:center; gap:10px; flex:1; min-width:0; }
+.fg .licexp > span { flex:0 0 auto; font-size:12px; font-weight:800; color:var(--gray700); }
+@media (max-width:560px){ .fg .licexp { width:100%; } }

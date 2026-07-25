@@ -2,11 +2,12 @@
 
 import { Icon } from "@/components/shell/icon";
 import { IdCard } from "@/components/cards/id-card";
-import { formatAuDate, type StaffProfile } from "@/lib/staff/profile";
+import { type StaffProfile } from "@/lib/staff/profile";
+import { dateInputValue, formatAuDate } from "@/lib/au-dates";
 import { licenceStatus } from "@/lib/staff/licence";
 import { preValidate } from "@/lib/staff/pre-validate";
 import { SectionCard } from "./section-card";
-import { Field, InfoTip, SelectInput, TextInput } from "./fields";
+import { DateField, Field, InfoTip, SelectInput, TextInput } from "./fields";
 import type { ProfileMode, SaveSection } from "./types";
 
 export const WORK_RIGHTS = [
@@ -26,9 +27,10 @@ export function workRightsValues(p: StaffProfile | null): Record<string, string>
   return {
     work_rights_status: p?.work_rights_status ?? "",
     visa_type: p?.visa_type ?? "",
-    visa_expiry: formatAuDate(p?.visa_expiry),
+    // ISO: these are picked, not typed. Read mode formats them for itself.
+    visa_expiry: dateInputValue(p?.visa_expiry),
     hours_condition: p?.hours_condition ?? "",
-    vevo_checked_at: formatAuDate(p?.vevo_checked_at),
+    vevo_checked_at: dateInputValue(p?.vevo_checked_at),
   };
 }
 
@@ -62,6 +64,8 @@ export function WorkRightsCard({
   const noVisa = isNoVisa(status);
 
   const expiryStatus = licenceStatus(profile?.visa_expiry ?? null, today);
+  const visaExpiry = formatAuDate(profile?.visa_expiry);
+  const vevoChecked = formatAuDate(profile?.vevo_checked_at);
 
   const read = !status ? (
     <div className="ro-empty">
@@ -88,11 +92,11 @@ export function WorkRightsCard({
           : [
               {
                 em: "Expiry",
-                b: values.visa_expiry || "—",
-                tone: values.visa_expiry ? expiryStatus.tone : "mute",
+                b: visaExpiry || "—",
+                tone: visaExpiry ? expiryStatus.tone : "mute",
               },
               { em: "Hours cap", b: values.hours_condition || "None recorded" },
-              { em: "VEVO checked", b: values.vevo_checked_at || "Never" },
+              { em: "VEVO checked", b: vevoChecked || "Never" },
             ]
       }
     >
@@ -152,11 +156,10 @@ export function WorkRightsCard({
                   </Field>
                   <Field
                     label="Visa expiry"
-                    error={invalid("visa_expiry") ? "Use dd/mm/yyyy" : null}
+                    error={invalid("visa_expiry") ? "Pick a real date" : null}
                   >
-                    <TextInput
+                    <DateField
                       name="visa_expiry"
-                      placeholder="dd / mm / yyyy"
                       value={draft.visa_expiry}
                       invalid={invalid("visa_expiry")}
                       onChange={(v) => set("visa_expiry", v)}
@@ -190,12 +193,13 @@ export function WorkRightsCard({
                         </InfoTip>
                       </>
                     }
-                    error={invalid("vevo_checked_at") ? "Use dd/mm/yyyy" : null}
+                    error={invalid("vevo_checked_at") ? "Pick a real date" : null}
                   >
-                    <TextInput
+                    {/* a check you already did — it can't be in the future */}
+                    <DateField
                       name="vevo_checked_at"
-                      placeholder="dd / mm / yyyy"
                       value={draft.vevo_checked_at}
+                      max={today}
                       invalid={invalid("vevo_checked_at")}
                       onChange={(v) => set("vevo_checked_at", v)}
                     />

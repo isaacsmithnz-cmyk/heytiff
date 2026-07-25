@@ -19,6 +19,8 @@ import {
   weekGroups,
 } from "./logic";
 import { TimePaySettings } from "./settings";
+import { HolidaySection } from "./holiday-section";
+import type { HolidayManagerData } from "@/lib/timepay/leave-page";
 import { useRouter } from "next/navigation";
 import {
   approveWeek,
@@ -402,6 +404,7 @@ export function TimePay({
   sheets,
   canApprove,
   financials,
+  holidayData,
 }: {
   staff: StaffWeek[];
   week: WeekCtx["week"];
@@ -414,6 +417,8 @@ export function TimePay({
   sheets: Record<string, SheetState>;
   canApprove: boolean;
   financials: boolean;
+  /** admin+ only — presence unlocks the holidays section in the gear */
+  holidayData: HolidayManagerData | null;
 }) {
   const router = useRouter();
   const ctx: WeekCtx = useMemo(() => ({ week, today }), [week, today]);
@@ -492,8 +497,8 @@ export function TimePay({
               <div className="autosub">{note}</div>
             </div>
             <div className="racts">
-              {financials && (
-                <button className="bbtn sq" aria-label="Pay settings" onClick={() => setSettingsOpen(true)}>
+              {(financials || holidayData) && (
+                <button className="bbtn sq" aria-label="Settings" onClick={() => setSettingsOpen(true)}>
                   <Icon name="settings" size={17} />
                 </button>
               )}
@@ -621,6 +626,16 @@ export function TimePay({
               settings={settings}
               firstRun={!configured}
               period={period}
+              canPay={financials}
+              holidaySection={
+                holidayData ? (
+                  <HolidaySection
+                    holidays={holidayData.holidays}
+                    orgState={holidayData.orgState}
+                    today={holidayData.today}
+                  />
+                ) : null
+              }
               onClose={() => setSettingsOpen(false)}
               onSave={(next) => {
                 run(() => savePaySettings(next));

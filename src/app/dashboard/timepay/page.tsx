@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
-import { can } from "@/lib/permissions-server";
+import { can, getDbRole } from "@/lib/permissions-server";
+import { hasMinRole } from "@/lib/roles";
 import { TimePay } from "@/components/timepay/timepay";
 import { loadTimepay } from "@/lib/timepay/page-data";
+import { loadHolidayManager } from "@/lib/timepay/leave-page";
 
 /* Capability-gated: this is the EVERYONE view. Your own timesheet lives at
    /dashboard/my-timesheet and is never gated.
@@ -10,7 +12,12 @@ import { loadTimepay } from "@/lib/timepay/page-data";
    without it this screen is hours-only for everyone, INCLUDING the viewer's
    own row. Your own figures live on My timesheet; this screen is about other
    people, so it stays uniformly money-free rather than showing one row
-   differently. */
+   differently.
+
+   The settings gear serves two audiences: pay settings need `financials`,
+   the public-holiday calendar needs admin+ (it's the org's operational
+   calendar, same tier as the old admin page it replaced). Either unlocks the
+   gear; each section gates itself inside. */
 
 export default async function TimePayPage({
   searchParams,
@@ -19,12 +26,17 @@ export default async function TimePayPage({
 }) {
   if (!(await can("timepay_all"))) redirect("/dashboard/my-timesheet");
 
-  const [{ period }, pay, approvals] = await Promise.all([
+  const [{ period }, pay, approvals, role] = await Promise.all([
     searchParams,
     can("financials"),
     can("approvals"),
+    getDbRole(),
   ]);
-  const data = await loadTimepay({ pay }, period);
+  const canHolidays = hasMinRole(role, "admin");
+  const [data, holidayData] = await Promise.all([
+    loadTimepay({ pay }, period),
+    canHolidays ? loadHolidayManager() : Promise.resolve(null),
+  ]);
   if (!data) redirect("/dashboard");
 
   return (
@@ -39,6 +51,7 @@ export default async function TimePayPage({
       sheets={data.sheets}
       canApprove={approvals}
       financials={pay}
+      holidayData={holidayData}
     />
   );
 }

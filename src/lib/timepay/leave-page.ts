@@ -4,12 +4,15 @@ import { getPaySettings } from "./query";
 import {
   approvedInSpan,
   holidaysInSpan,
+  listOrgHolidays,
   myBalances,
   myRequests,
   pendingRequests,
   stateFor,
+  type Holiday,
 } from "./leave-query";
 import { addDays } from "./period";
+import { ensureHolidays } from "./holiday-sync";
 import {
   balanceView,
   calendarDays,
@@ -33,13 +36,14 @@ export async function loadMyLeave(): Promise<MyLeaveData | null> {
   const ctx = await timepayContext();
   if (!ctx?.staffId) return null;
 
-  const horizon = addDays(ctx.today, 120); // a quarter ahead is enough to plan against
+  const horizon = addDays(ctx.today, 365); // a full year — leave is planned that far out
   const [{ settings }, balances, requests, state] = await Promise.all([
     getPaySettings(ctx.orgId),
     myBalances(ctx.orgId, ctx.staffId),
     myRequests(ctx.orgId, ctx.staffId),
     stateFor(ctx.orgId, ctx.staffId),
   ]);
+  await ensureHolidays(ctx.orgId, state, ctx.today);
   const holidays = await holidaysInSpan(ctx.orgId, state, ctx.today, horizon);
 
   return {
@@ -49,6 +53,25 @@ export async function loadMyLeave(): Promise<MyLeaveData | null> {
     requests,
     holidays,
   };
+}
+
+export type HolidayManagerData = {
+  holidays: Holiday[];
+  orgState: string | null;
+  today: string;
+};
+
+/** Everything the holiday manager (settings-modal section or the old admin
+    page) needs: the org's calendar from Jan 1 this year, incl. suppressed
+    rows so they can be restored. Caller is responsible for the admin+ gate. */
+export async function loadHolidayManager(): Promise<HolidayManagerData | null> {
+  const ctx = await timepayContext();
+  if (!ctx) return null;
+  const [holidays, orgState] = await Promise.all([
+    listOrgHolidays(ctx.orgId, `${ctx.today.slice(0, 4)}-01-01`),
+    stateFor(ctx.orgId, ""),
+  ]);
+  return { holidays, orgState, today: ctx.today };
 }
 
 export type TeamLeaveData = {
@@ -73,6 +96,7 @@ export async function loadTeamLeave(): Promise<TeamLeaveData | null> {
   ]);
   // the org's own state drives the holiday overlay on the shared calendar
   const orgState = await stateFor(ctx.orgId, "");
+  await ensureHolidays(ctx.orgId, orgState, ctx.today);
   const holidays = await holidaysInSpan(ctx.orgId, orgState, spanStart, spanEnd);
 
   return {

@@ -134,6 +134,7 @@ export async function holidaysInSpan(
     .select("holiday_date, name")
     .eq("org_id", orgId)
     .eq("state", state)
+    .eq("suppressed", false)
     .gte("holiday_date", spanStart)
     .lte("holiday_date", spanEnd)
     .order("holiday_date");
@@ -152,14 +153,24 @@ async function orgState(orgId: string): Promise<string | null> {
   return (data?.state as string) ?? null;
 }
 
-export type Holiday = { id: string; state: string; date: string; name: string; source: string };
+export type Holiday = {
+  id: string;
+  state: string;
+  date: string;
+  name: string;
+  source: string;
+  suppressed: boolean;
+};
 
 /** Every holiday in the org's calendar from `fromISO` on — the admin manager's
-    list. All states, so a multi-state business sees the whole picture. */
+    list. All states, so a multi-state business sees the whole picture.
+    Suppressed rows are INCLUDED (the manager lists them under "Removed" with
+    a restore); every staff-facing read goes through `holidaysInSpan`, which
+    filters them. */
 export async function listOrgHolidays(orgId: string, fromISO: string): Promise<Holiday[]> {
   const { data } = await supabaseAdmin
     .from("public_holidays")
-    .select("id, state, holiday_date, name, source")
+    .select("id, state, holiday_date, name, source, suppressed")
     .eq("org_id", orgId)
     .gte("holiday_date", fromISO)
     .order("holiday_date");
@@ -169,6 +180,7 @@ export async function listOrgHolidays(orgId: string, fromISO: string): Promise<H
     date: String(r.holiday_date).slice(0, 10),
     name: String(r.name),
     source: String(r.source),
+    suppressed: Boolean(r.suppressed),
   }));
 }
 

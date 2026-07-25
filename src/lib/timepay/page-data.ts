@@ -23,6 +23,7 @@ import {
   type PeriodConfig,
 } from "./period";
 import { holidaysInSpan, stateFor } from "./leave-query";
+import { ensureHolidays } from "./holiday-sync";
 
 /* Shared page loading for both Time & Pay routes, so the *my* screen and the
    *all* screen can't disagree about which period it is or what the rules are.
@@ -76,13 +77,15 @@ export async function loadMyTimesheet(requested?: string) {
   const cfg = periodConfig(settings);
   const { start, periods, index } = resolvePeriod(ctx.today, cfg, requested);
   const state = await stateFor(ctx.orgId, ctx.staffId);
+  // top the calendar up from the statutory rules before reading it
+  await ensureHolidays(ctx.orgId, state, ctx.today);
   // one query covers both jobs: mark holidays that fall in the shown period,
-  // and list the upcoming ones (out to a quarter ahead)
+  // and list the upcoming ones (a full year, so nothing sneaks up unseen)
   const spanStart = start < ctx.today ? start : ctx.today;
   const [me, sheets, holidays] = await Promise.all([
     getMyWeek(ctx.orgId, ctx.staffId, start, cfg),
     sheetStates(ctx.orgId, start),
-    holidaysInSpan(ctx.orgId, state, spanStart, addDays(ctx.today, 120)),
+    holidaysInSpan(ctx.orgId, state, spanStart, addDays(ctx.today, 365)),
   ]);
   if (!me) return null;
 

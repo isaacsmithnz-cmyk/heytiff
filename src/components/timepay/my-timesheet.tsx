@@ -6,7 +6,7 @@ import { Icon } from "@/components/shell/icon";
 import { saveDay, submitWeek, type TimepayResult } from "@/app/actions/timepay";
 import type { SheetState } from "@/lib/timepay/query";
 import { dateOfDay } from "@/lib/timepay/period";
-import { upcomingHolidays } from "@/lib/timepay/leave";
+import { UpcomingHolidays } from "./upcoming-holidays";
 import {
   type DayEntry,
   type Settings,
@@ -35,18 +35,6 @@ const KINDS: { t: DayEntry["t"]; label: string }[] = [
   { t: "ph", label: "Public holiday" },
   { t: "empty", label: "Nothing" },
 ];
-
-/** "Mon 25 Dec" for a holiday date. */
-function fmtHolidayDate(iso: string): string {
-  return new Intl.DateTimeFormat("en-AU", {
-    timeZone: "UTC",
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  })
-    .format(new Date(`${iso}T00:00:00Z`))
-    .replace(",", "");
-}
 
 const STATUS_COPY: Record<SheetState["status"], { label: string; tone: string; sub: string }> = {
   draft: { label: "Draft", tone: "warn", sub: "Not sent yet — fill in your days and submit." },
@@ -202,10 +190,8 @@ export function MyTimesheet({
   const locked = sheet.status === "submitted" || sheet.status === "approved";
   const status = STATUS_COPY[sheet.status];
 
+  // in-period holidays badge the grid; the shared panel below lists the year ahead
   const holidayByDate = useMemo(() => new Map(holidays.map((h) => [h.date, h.name])), [holidays]);
-  // in-period holidays badge the grid; the panel lists what's still to come, the
-  // nearest one highlighted so "the next day off" is obvious at a glance
-  const upcoming = useMemo(() => upcomingHolidays(holidays, todayISO), [holidays, todayISO]);
 
   const run = (action: () => Promise<TimepayResult>) => {
     setError(null);
@@ -301,23 +287,7 @@ export function MyTimesheet({
             )}
           </div>
 
-          {upcoming.length > 0 && (
-            <div className="mts-hols">
-              <div className="mts-holh">
-                <Icon name="calendar" size={14} />
-                Public holidays coming up
-              </div>
-              <div className="mts-hollist">
-                {upcoming.slice(0, 6).map((h, i) => (
-                  <div className={`mts-hol${i === 0 ? " next" : ""}`} key={h.date}>
-                    <b>{fmtHolidayDate(h.date)}</b>
-                    <em>{h.name}</em>
-                    {i === 0 && <span className="mts-holnext">Next</span>}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <UpcomingHolidays holidays={holidays} today={todayISO} />
         </div>
       </div>
     </div>

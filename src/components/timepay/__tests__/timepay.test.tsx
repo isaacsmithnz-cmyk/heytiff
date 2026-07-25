@@ -15,6 +15,13 @@ jest.mock("@/app/actions/timepay", () => ({
   sendBackWeek: (...a: unknown[]) => sendBackWeek(...(a as [])),
   savePaySettings: (...a: unknown[]) => savePaySettings(...(a as [])),
 }));
+// the gear's holiday section pulls these in; the real module drags next/cache
+// into jsdom, so mock like every other action import
+jest.mock("@/app/actions/holidays", () => ({
+  addHoliday: jest.fn(async () => ({ ok: true })),
+  removeHoliday: jest.fn(async () => ({ ok: true })),
+  restoreHoliday: jest.fn(async () => ({ ok: true })),
+}));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push, refresh }) }));
 
 /* Fixtures are local now — the demo roster went with Stage 5. */
@@ -69,6 +76,7 @@ function renderTimePay(over: Partial<React.ComponentProps<typeof TimePay>> = {})
       sheets={{}}
       canApprove
       financials
+      holidayData={null}
       {...over}
     />,
   );
@@ -151,9 +159,36 @@ describe("capability gating on the screen", () => {
     expect(screen.getByText("Boston Hayes")).toBeInTheDocument(); // still readable
   });
 
-  it("without `financials` the pay-settings control is absent", () => {
+  it("without `financials` (and not an admin) the settings gear is absent", () => {
     renderTimePay({ financials: false });
-    expect(screen.queryByLabelText("Pay settings")).toBeNull();
+    expect(screen.queryByLabelText("Settings")).toBeNull();
+  });
+
+  it("an admin without `financials` still gets the gear — holidays only, no pay controls", async () => {
+    const user = userEvent.setup();
+    renderTimePay({
+      financials: false,
+      holidayData: { holidays: [], orgState: "NSW", today: "2026-07-25" },
+    });
+    await user.click(screen.getByLabelText("Settings"));
+    expect(screen.getByText("Public holidays")).toBeInTheDocument();
+    expect(screen.queryByText("Pay cycle")).toBeNull();
+    expect(screen.queryByText("Re-run setup")).toBeNull();
+    // holiday edits apply immediately — no draft Save, just a way out
+    expect(screen.queryByText("Save")).toBeNull();
+    expect(screen.getByText("Close")).toBeInTheDocument();
+  });
+
+  it("with both `financials` and admin, the gear carries holidays AND pay controls", async () => {
+    const user = userEvent.setup();
+    renderTimePay({
+      holidayData: { holidays: [], orgState: "NSW", today: "2026-07-25" },
+    });
+    await user.click(screen.getByLabelText("Settings"));
+    // "Public holidays" appears as the manager section and as the rate rule
+    expect(screen.getAllByText("Public holidays").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("Pay cycle")).toBeInTheDocument();
+    expect(screen.getByText("Save")).toBeInTheDocument();
   });
 
   it("an hours-only payload renders no dollar figure anywhere", () => {
@@ -172,7 +207,7 @@ describe("pay settings", () => {
   it("saving the wizard persists through the action, not localStorage", async () => {
     const user = userEvent.setup();
     renderTimePay({ configured: false });
-    await user.click(screen.getByLabelText("Pay settings"));
+    await user.click(screen.getByLabelText("Settings"));
     expect(screen.getByText("Setup · step 1 of 7")).toBeInTheDocument();
     for (let i = 0; i < 6; i++) await user.click(screen.getByText("Next"));
     await user.click(screen.getByText("Save settings"));

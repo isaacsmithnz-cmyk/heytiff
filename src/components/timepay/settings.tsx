@@ -45,17 +45,24 @@ export function TimePaySettings({
   settings,
   firstRun,
   period,
+  canPay,
+  holidaySection,
   onClose,
   onSave,
 }: {
   settings: Settings;
   firstRun: boolean;
   period: PayPeriod;
+  /** `financials` — gates every pay control, the wizard and Save */
+  canPay: boolean;
+  /** admin+ public-holiday manager, or null when the viewer isn't one */
+  holidaySection?: React.ReactNode;
   onClose: () => void;
   onSave: (s: Settings) => void;
 }) {
   const [draft, setDraft] = useState<Settings>(() => JSON.parse(JSON.stringify(settings)));
-  const [mode, setMode] = useState<"wizard" | "menu">(firstRun ? "wizard" : "menu");
+  // an admin without `financials` only ever sees the menu (holidays live there)
+  const [mode, setMode] = useState<"wizard" | "menu">(firstRun && canPay ? "wizard" : "menu");
   const [step, setStep] = useState(0);
   const [exporting, setExporting] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -409,6 +416,9 @@ export function TimePaySettings({
               </button>
             </div>
             <div className="wz-body wz-menu">
+              {holidaySection ? menuSection("Public holidays", holidaySection) : null}
+              {canPay && (
+                <>
               {menuSection(
                 "Pay cycle",
                 <>
@@ -488,26 +498,40 @@ export function TimePaySettings({
                   </button>
                 </>
               )}
+                </>
+              )}
             </div>
             <div className="wz-foot menu">
-              <button
-                className="wz-rerun"
-                onClick={() => {
-                  setMode("wizard");
-                  setStep(0);
-                }}
-              >
-                <Icon name="sync" size={14} />
-                Re-run setup
-              </button>
+              {canPay && (
+                <button
+                  className="wz-rerun"
+                  onClick={() => {
+                    setMode("wizard");
+                    setStep(0);
+                  }}
+                >
+                  <Icon name="sync" size={14} />
+                  Re-run setup
+                </button>
+              )}
               <span className="spx"></span>
-              <button className="bbtn" onClick={onClose}>
-                Cancel
-              </button>
-              <button className="bbtn teal" onClick={() => onSave(draft)}>
-                <Icon name="check" size={16} sw={2.6} />
-                Save
-              </button>
+              {canPay ? (
+                <>
+                  <button className="bbtn" onClick={onClose}>
+                    Cancel
+                  </button>
+                  <button className="bbtn teal" onClick={() => onSave(draft)}>
+                    <Icon name="check" size={16} sw={2.6} />
+                    Save
+                  </button>
+                </>
+              ) : (
+                // holiday edits apply immediately (server actions), so
+                // there's no draft to save — just a way out
+                <button className="bbtn" onClick={onClose}>
+                  Close
+                </button>
+              )}
             </div>
           </>
         )}

@@ -52,9 +52,12 @@ export function OrgCredentialModal({
   onSave,
   onDelete,
   onClose,
+  today,
 }: {
   /** null = adding a new one */
   credential: OrgCredential | null;
+  /** the server's AU day, anchoring the expiry picker */
+  today?: string;
   onSave: (input: OrgCredentialInput) => Promise<CredResult>;
   /** edit mode only */
   onDelete?: () => Promise<CredResult>;
@@ -194,7 +197,7 @@ export function OrgCredentialModal({
             <div className="frow c2" style={{ marginTop: 18 }}>
               {/* picked, never typed — like every date in this app */}
               <Field label="Expiry">
-                <DateField name="cred-expiry" value={expiry} onChange={setExpiry} />
+                <DateField name="cred-expiry" value={expiry} onChange={setExpiry} today={today} />
               </Field>
               <Field label="Colour">
                 <div className="oc-sw" role="group" aria-label="Colour">

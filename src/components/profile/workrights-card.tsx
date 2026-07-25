@@ -163,6 +163,7 @@ export function WorkRightsCard({
                       value={draft.visa_expiry}
                       invalid={invalid("visa_expiry")}
                       onChange={(v) => set("visa_expiry", v)}
+                      today={today}
                     />
                   </Field>
                 </div>
@@ -202,6 +203,7 @@ export function WorkRightsCard({
                       max={today}
                       invalid={invalid("vevo_checked_at")}
                       onChange={(v) => set("vevo_checked_at", v)}
+                      today={today}
                     />
                   </Field>
                 </div>

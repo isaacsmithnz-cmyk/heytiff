@@ -176,6 +176,7 @@ export function ProfileScreen({
                   org={org}
                   initials={header.initials}
                   addressLookup={addressLookup}
+                  today={today}
                   onSave={actions.onSave}
                 />
               )}

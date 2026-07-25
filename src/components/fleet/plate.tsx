@@ -1,4 +1,3 @@
-import { escapeHtml } from "@/lib/format/html";
 
 /* An Australian rego plate, rendered as one.
 
@@ -49,16 +48,6 @@ export function Plate({
   );
 }
 
-/* The HTML-string twin, for screens that compose markup rather than JSX
-   (components/shell/screens.ts). Unlike the duration formatter's twin, THIS ONE
-   ESCAPES: a plate and a state are typed by whoever added the vehicle, and the
-   staff card they land on is read by that person's manager. Same guarantee
-   screens-escaping.test.ts makes for the dashboard hero, tested the same way. */
-export function plateHtml(plate: string, state?: string | null, size: PlateSize = "md"): string {
-  const tag = norm(state);
-  return (
-    `<span class="au-plate${size === "sm" ? " sm" : ""}">${escapeHtml(norm(plate))}` +
-    (tag ? `<span class="st">${escapeHtml(tag)}</span>` : "") +
-    "</span>"
-  );
-}
+/* There used to be an HTML-string twin here (plateHtml) for the injected-HTML
+   staff card. That screen is React now, so the string builder went with its
+   last caller — <Plate> is the only way a plate renders. */

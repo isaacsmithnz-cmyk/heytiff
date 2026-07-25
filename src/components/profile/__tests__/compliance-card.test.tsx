@@ -1,7 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { StaffLicence } from "@/lib/staff/types";
-import { todayInAu } from "@/lib/au-dates";
 import { ComplianceCard } from "../compliance-card";
 import { TODAY } from "./fixtures/staff";
 
@@ -74,7 +73,7 @@ describe("adding one", () => {
     expect(onAdd).toHaveBeenCalledWith({
       typeName: "ARC licence",
       licenceNumber: "AU999",
-      expiryDate: todayInAu(),
+      expiryDate: TODAY, // the threaded server day, not the browser clock
       color: "#00A389",
     });
   });
@@ -124,7 +123,7 @@ describe("adding one", () => {
     // and what does come out is a real calendar date
     await user.click(within(pop).getByRole("button", { name: "Today" }));
     await user.click(screen.getByRole("button", { name: /Add/ }));
-    expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ expiryDate: todayInAu() }));
+    expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ expiryDate: TODAY }));
   });
 
   it("refuses an unnamed licence", async () => {

@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { Plate, plateHtml } from "../plate";
+import { Plate } from "../plate";
 
 /* The two halves have to stay interchangeable: the string twin is rendered
    into the same markup the register renders the component into, so anything
@@ -43,36 +43,3 @@ describe("Plate", () => {
   });
 });
 
-describe("plateHtml", () => {
-  it("matches the component: uppercased, tag only when given", () => {
-    expect(plateHtml("mkt482")).toBe('<span class="au-plate">MKT482</span>');
-    expect(plateHtml("MKT482", "VIC")).toBe(
-      '<span class="au-plate">MKT482<span class="st">VIC</span></span>',
-    );
-    expect(plateHtml("MKT482", "  ")).toBe('<span class="au-plate">MKT482</span>');
-    expect(plateHtml("MKT482", null, "sm")).toBe('<span class="au-plate sm">MKT482</span>');
-  });
-
-  /* A plate is typed by whoever added the vehicle, and this string lands on a
-     staff card their MANAGER opens — the same shape as the stored XSS the
-     dashboard hero had. So it escapes, and the test proves it rather than
-     trusting the call site to remember. */
-  it("escapes a plate carrying markup", () => {
-    // note the uppercasing runs first, so the payload arrives shouting — the
-    // escaping is what matters and it is unaffected
-    const html = plateHtml(`<img src=x onerror="alert(1)">`);
-    expect(html).not.toMatch(/<img/i);
-    expect(html).toContain("&lt;IMG");
-    expect(html).toContain("&quot;");
-  });
-
-  it("escapes the state tag too — it is user-chosen data as well", () => {
-    const html = plateHtml("MKT482", `<script>alert(1)</script>`);
-    expect(html).not.toMatch(/<script>/i);
-    expect(html).toContain("&lt;SCRIPT&gt;");
-  });
-
-  it("cannot be tricked into closing its own span with a quote", () => {
-    expect(plateHtml(`"><script>x</script>`)).not.toMatch(/<script>/i);
-  });
-});

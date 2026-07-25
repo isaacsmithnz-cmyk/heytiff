@@ -4,10 +4,8 @@ import {
   daysDuration,
   dueIn,
   durationDays,
-  durationHtml,
   expiresIn,
   expiryClause,
-  inHtml,
   inLabel,
   magnitudeLabel,
 } from "../duration";
@@ -156,26 +154,3 @@ describe("inLabel / magnitudeLabel", () => {
   });
 });
 
-describe("durationHtml", () => {
-  it("splits the number from its unit so the unit can be muted", () => {
-    expect(durationHtml(45)).toBe('<b>6</b><span class="dur-u">weeks</span>');
-    expect(durationHtml(9)).toBe('<b>9</b><span class="dur-u">days</span>');
-  });
-
-  it("gives the specials no unit span — there is no number to set apart", () => {
-    expect(durationHtml(0)).toBe("<b>today</b>");
-    expect(durationHtml(1)).toBe("<b>tomorrow</b>");
-  });
-
-  it("emits only its own vocabulary — nothing user-typed can reach it", () => {
-    // the guarantee that lets profile.ts drop it straight into an HTML string
-    for (const n of [-400, -1, 0, 1, 45, 400]) {
-      expect(durationHtml(n)).toMatch(/^<b>[a-z0-9 ]+<\/b>(<span class="dur-u">[a-z]+<\/span>)?$/);
-    }
-  });
-
-  it("has an `in` twin that keeps the same rule", () => {
-    expect(inHtml(45)).toBe('in <b>6</b><span class="dur-u">weeks</span>');
-    expect(inHtml(0)).toBe("<b>today</b>");
-  });
-});

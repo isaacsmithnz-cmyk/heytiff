@@ -37,6 +37,7 @@ export function PersonalCard({
   org,
   initials,
   addressLookup = false,
+  today,
   onSave,
 }: {
   profile: StaffProfile | null;
@@ -46,6 +47,8 @@ export function PersonalCard({
   /** server-computed Boolean(GOOGLE_MAPS_API_KEY). False leaves Address the
       plain text box it has always been — the field never depends on it. */
   addressLookup?: boolean;
+  /** the server's AU day, for the date pickers */
+  today?: string;
   onSave: SaveSection;
 }) {
   const values = personalValues(profile, mode);
@@ -158,6 +161,7 @@ export function PersonalCard({
                 value={draft.birthday}
                 invalid={invalid("birthday")}
                 onChange={(v) => set("birthday", v)}
+                today={today}
               />
             </Field>
             <Field label="Start date" error={invalid("start_date") ? "Pick a real date" : null}>
@@ -166,6 +170,7 @@ export function PersonalCard({
                 value={draft.start_date}
                 invalid={invalid("start_date")}
                 onChange={(v) => set("start_date", v)}
+                today={today}
               />
             </Field>
           </div>

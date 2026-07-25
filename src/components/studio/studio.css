@@ -2427,9 +2427,28 @@
   width: min(880px, 100%);
   align-self: center;
 }
+/* The plan is decoded before it is ever handed to <image> (see canvas.tsx), so
+   it arrives whole rather than wiping down the page as it streamed. It fades
+   up into the held frame — the drawing settling onto the page, not a picture
+   being drawn. Held opacity is 0.92: the plan is a BACKGROUND for the design
+   work on top of it. */
 .dstudio .ds-plan {
   opacity: 0.92;
   pointer-events: none;
+  animation: ds-plan-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes ds-plan-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 0.92;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dstudio .ds-plan {
+    animation: none;
+  }
 }
 /* the sheet's footprint while its raster is still downloading — a held frame,
    not a spinner: the plan then lands INTO its place instead of appearing from

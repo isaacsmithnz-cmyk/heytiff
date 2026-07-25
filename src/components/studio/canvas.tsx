@@ -716,17 +716,29 @@ export function StudioCanvas({
         .url(sheet.imageRef)
         .then(async (url) => {
           if (!on) return;
-          setSheetUrls((m) => ({ ...m, [sheet.imageRef]: url }));
-          if (!sheet.width || !sheet.height) {
-            const img = new Image();
-            img.src = url;
+          /* DECODE BEFORE DRAWING. Handing the URL straight to <image> let the
+             browser paint the raster as it streamed — a plan that appeared
+             from the top and wiped downward over a second or two, which reads
+             as the tool struggling. Decoding off-DOM first means the element
+             mounts with the whole picture ready, so it can simply fade in
+             (.ds-plan). The bytes are in the browser's cache by then, so this
+             costs a cache hit, not a second download. */
+          const img = new Image();
+          img.src = url;
+          try {
             await img.decode();
-            if (on)
-              setSheetDims((m) => ({
-                ...m,
-                [sheet.id]: { w: img.naturalWidth, h: img.naturalHeight },
-              }));
+          } catch {
+            /* a browser that won't decode it (or an SVG without intrinsic
+               size) still gets the URL below — better a hard cut than no plan */
           }
+          if (!on) return;
+          if (!sheet.width || !sheet.height) {
+            setSheetDims((m) => ({
+              ...m,
+              [sheet.id]: { w: img.naturalWidth, h: img.naturalHeight },
+            }));
+          }
+          setSheetUrls((m) => ({ ...m, [sheet.imageRef]: url }));
         })
         .catch(() => {
           /* offline or expired ref — the grid still works */

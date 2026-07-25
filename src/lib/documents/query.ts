@@ -74,6 +74,19 @@ function toStored(r: Record<string, unknown>, urls: Map<string, string>): Stored
   };
 }
 
+/* A single link — the org logo, on the sidebar and on the company card.
+
+   Same rule as everything else here: the ref is what's stored, the URL is
+   minted per render and expires. Null when the object is gone, so a caller
+   renders its fallback (initials) rather than a broken image. */
+export async function signOne(ref: string | null | undefined): Promise<string | null> {
+  if (!ref) return null;
+  const { data } = await supabaseAdmin.storage
+    .from(DOCUMENTS_BUCKET)
+    .createSignedUrl(ref, SIGNED_URL_SECONDS);
+  return data?.signedUrl ?? null;
+}
+
 /* One round trip for every link on the page. createSignedUrls takes the whole
    list, so a board with twenty photos costs one call rather than twenty. */
 async function signMany(refs: readonly string[]): Promise<Map<string, string>> {

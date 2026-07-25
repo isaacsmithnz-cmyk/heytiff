@@ -136,6 +136,14 @@ export const ICON_PATHS: Record<string, string> = {
     '<path d="M4 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><circle cx="12" cy="10" r="3"/><path d="M9 16h6"/>',
   usershield:
     '<circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/>',
+  /* The last two glyphs from the injected renderer's private `EX` map, which
+     went with components/shell/profile.ts. The logo uploader on the
+     Organisation screen is what still needs them; `chev` is not here because
+     it was a duplicate of `chevD`. */
+  cam:
+    '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3"/>',
+  upload:
+    '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/>',
 };
 
 export function iconSvg(name: string, size = 20, sw = 2): string {

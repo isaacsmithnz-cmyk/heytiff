@@ -43,6 +43,27 @@ describe("Sidebar — HeyTiff × org line", () => {
     expect(screen.getByText("Hey")).toBeTruthy();
     expect(screen.getByText("Tiff")).toBeTruthy();
   });
+
+  /* An uploaded logo takes the × line's place — the mark IS the join between
+     the two names. The URL is signed per render, so the sidebar only ever
+     receives a link, never a path it would have to know how to resolve. */
+  it("shows the company logo in place of the × once there is one", () => {
+    const { container } = render(
+      <Sidebar
+        role="owner"
+        caps={[...resolve("owner")]}
+        orgName="Smith Air"
+        orgLogoUrl="https://signed.example/logo.png"
+      />
+    );
+    const line = container.querySelector(".ht-orgx")!;
+    expect(line.querySelector("img.ht-orglogo")).toHaveAttribute(
+      "src",
+      "https://signed.example/logo.png"
+    );
+    expect(line.textContent).not.toContain("×");
+    expect(line.textContent).toContain("Smith Air");
+  });
 });
 
 describe("Sidebar — role-gated nav", () => {

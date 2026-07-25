@@ -52,6 +52,7 @@ export function TextInput({
   placeholder,
   type = "text",
   invalid,
+  suggestions,
 }: {
   name: string;
   value: string;
@@ -59,18 +60,33 @@ export function TextInput({
   placeholder?: string;
   type?: string;
   invalid?: boolean;
+  /* Names people mostly type here, offered as a datalist. SUGGESTIONS, not
+     options: the field stays free text, because the next business will hold a
+     policy nobody thought to list. */
+  suggestions?: readonly string[];
 }) {
+  const listId = suggestions?.length ? `${name}-suggestions` : undefined;
   return (
-    <input
-      className={invalid ? "inp err" : "inp"}
-      name={name}
-      id={name}
-      type={type}
-      placeholder={placeholder}
-      value={value}
-      aria-invalid={invalid || undefined}
-      onChange={(e) => onChange(e.target.value)}
-    />
+    <>
+      <input
+        className={invalid ? "inp err" : "inp"}
+        name={name}
+        id={name}
+        type={type}
+        placeholder={placeholder}
+        value={value}
+        list={listId}
+        aria-invalid={invalid || undefined}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      {listId && (
+        <datalist id={listId}>
+          {suggestions!.map((s) => (
+            <option key={s} value={s} />
+          ))}
+        </datalist>
+      )}
+    </>
   );
 }
 

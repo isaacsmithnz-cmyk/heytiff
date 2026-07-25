@@ -2,8 +2,9 @@ import { heroHtml } from "../screens";
 import { heroAction, licenceChip, sortChips } from "@/lib/dashboard/chips";
 
 /* The hero reaches the DOM through dangerouslySetInnerHTML (home.tsx), so every
-   value that came from a person has to be escaped on the way in — the same
-   guarantee profile.test.ts and org-settings.test.ts make for their screens.
+   value that came from a person has to be escaped on the way in. It is the last
+   screen that needs this guarantee: the staff card and the organisation profile
+   made it too, until both became React.
 
    The action band is the one that matters. `sub` is built from a chip's label
    and subject, and those are a licence type name, a vehicle's name or plate, a

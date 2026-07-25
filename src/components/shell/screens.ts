@@ -3,7 +3,10 @@
    Pages render these via dangerouslySetInnerHTML inside the shell's .page wrapper. */
 
 import { iconSvg as I } from "./icon";
-import { esc } from "./profile";
+/* The one escaper, straight from lib — components/shell/profile.ts used to
+   re-export it as `esc` for the string screens, and that module is gone now
+   that the Organisation page is React. Same function, one hop fewer. */
+import { escapeHtml as esc } from "@/lib/format/html";
 
 /* ---------------- DASHBOARD (home) — greeting hero ----------------
    heroHtml is just the hero block; the React dashboard (which renders live

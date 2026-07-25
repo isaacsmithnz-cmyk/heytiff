@@ -254,10 +254,11 @@ describe("the credential modal", () => {
     const user = userEvent.setup();
     setup();
     await user.click(screen.getByRole("button", { name: /Add licence or insurance/ }));
-    expect(within(screen.getByRole("dialog")).getByLabelText("Expiry")).toHaveAttribute(
-      "type",
-      "date"
-    );
+    const dialog = screen.getByRole("dialog");
+    // the shared popover picker: a button that opens the drawn calendar —
+    // there is nothing to type a date into, well- or ill-formatted
+    expect(within(dialog).getByLabelText("Expiry")).toHaveAttribute("type", "button");
+    expect(dialog.querySelector('input[type="date"]')).toBeNull();
   });
 
   it("deletes only after a second, deliberate click", async () => {

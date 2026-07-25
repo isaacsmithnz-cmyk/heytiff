@@ -2075,6 +2075,10 @@ select.fl-i { cursor:pointer; }
 .datef svg { display:block; }
 /* fleet modals run taller controls (.fl-i) — match them or the row steps */
 .datef.lg { width:100%; height:44px; padding:0 14px; border:1.5px solid #e5e7eb; border-radius:12px; }
+/* the staff card runs 46px .inp boxes — match them or the row steps
+   (components/profile/fields.tsx) */
+.datef.inpd { width:100%; height:46px; padding:0 15px; border-radius:13px; border:1px solid #e5e7eb; background:#fafbfc; font-size:14px; font-weight:500; }
+.datef.inpd.err { border-color:rgba(255,51,102,.55); background:rgba(255,51,102,.04); }
 
 .fg .cal-pop { position:fixed; z-index:200; width:300px; padding:14px; border-radius:16px; background:#fff; border:1px solid #f0f0f2; box-shadow:0 20px 50px -20px rgba(0,0,0,.35); animation:calPop .16s ease; }
 @keyframes calPop { from { opacity:0; transform:translateY(-4px); } }
@@ -2186,3 +2190,21 @@ select.fl-i { cursor:pointer; }
 
 /* The sidebar lockup's logo, where the × sits when there isn't one. */
 .fg .ht-orgx .ht-orglogo { width:40px; height:40px; border-radius:11px; object-fit:contain; background:rgba(255,255,255,.06); padding:4px; }
+/* ---- My leave: the request calendar (components/timepay/my-leave.tsx) ----
+   The month grid is INLINE here, not a popover: choosing leave is choosing a
+   shape on a calendar — which days, how many of them, and which ones the
+   public holidays give back — and none of that reads off two date fields. The
+   fields stay beside it as the exact answer, and edit the same two dates. */
+.fg .lv-cal { display:grid; grid-template-columns:300px minmax(0,1fr); gap:20px; align-items:start; }
+.fg .lv-calside .cal { padding:12px 13px 13px; border-radius:14px; background:#fff; border:1px solid rgba(10,11,16,.08); }
+.fg .lv-callegend { display:flex; align-items:center; gap:7px; margin:9px 2px 0; font-size:11.5px; font-weight:600; color:var(--gray500); }
+.fg .lv-legdot { width:8px; height:8px; border-radius:50%; flex:0 0 auto; }
+.fg .lv-legdot.hol { background:var(--violet); }
+.fg .lv-calhint { margin:4px 2px 0; font-size:11.5px; font-weight:600; color:var(--gray400); }
+.fg .lv-calfields { display:flex; flex-direction:column; gap:12px; }
+.fg .lv-calfields .lv-fnote { margin-top:0; }
+.fg .lv-cal .mts-f { flex:1 1 130px; }
+@media (max-width:860px){
+  .fg .lv-cal { grid-template-columns:minmax(0,1fr); }
+  .fg .lv-calside { max-width:340px; }
+}

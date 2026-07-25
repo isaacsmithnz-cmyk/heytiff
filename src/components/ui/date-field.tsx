@@ -56,6 +56,11 @@ export type DateFieldProps = {
   today?: string;
   /** "lg" matches the fleet modals' taller `.fl-i` controls. */
   size?: "md" | "lg";
+  /** Extra class on the button — how a screen with its own control metrics
+      (the staff card's 46px `.inp` rows) makes this sit flush in a row. */
+  className?: string;
+  /** rings the field and says so to a screen reader, like `.inp.err` */
+  invalid?: boolean;
 };
 
 export const DateField = forwardRef<HTMLButtonElement, DateFieldProps>(function DateField(
@@ -70,6 +75,8 @@ export const DateField = forwardRef<HTMLButtonElement, DateFieldProps>(function 
     disabled,
     today,
     size = "md",
+    className,
+    invalid,
   },
   ref,
 ) {
@@ -156,6 +163,11 @@ export const DateField = forwardRef<HTMLButtonElement, DateFieldProps>(function 
 
   return (
     <>
+      {/* A rejected save rings this field red; aria-invalid below is how that
+          reaches someone who can't see the ring, and it is what the native date
+          input this replaced carried. ARIA doesn't list the property against
+          role=button, hence the rule — but a silently-red control is worse. */}
+      {/* eslint-disable-next-line jsx-a11y/role-supports-aria-props */}
       <button
         type="button"
         id={id}
@@ -164,10 +176,19 @@ export const DateField = forwardRef<HTMLButtonElement, DateFieldProps>(function 
           if (typeof ref === "function") ref(el);
           else if (ref) ref.current = el;
         }}
-        className={`datef${size === "lg" ? " lg" : ""}${value ? "" : " empty"}`}
+        className={[
+          "datef",
+          size === "lg" && "lg",
+          className,
+          invalid && "err",
+          !value && "empty",
+        ]
+          .filter(Boolean)
+          .join(" ")}
         disabled={disabled}
         aria-haspopup="dialog"
         aria-expanded={open}
+        aria-invalid={invalid || undefined}
         onClick={toggle}
       >
         <span className="datef-v">{value ? formatAuDate(value) : placeholder}</span>

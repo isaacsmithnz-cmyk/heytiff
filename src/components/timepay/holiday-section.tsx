@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
+import { DateField } from "@/components/ui/date-field";
 import { fmtAuWeekdayDate } from "@/lib/au-dates";
 import {
   addHoliday,
@@ -47,7 +48,7 @@ export function HolidaySection({
   const [state, setState] = useState<string>(orgState ?? "NSW");
   const [date, setDate] = useState("");
   const [name, setName] = useState("");
-  const dateRef = useRef<HTMLInputElement>(null);
+  const dateRef = useRef<HTMLButtonElement>(null);
 
   const run = (action: () => Promise<HolidayResult>, onOk?: () => void) => {
     setError(null);
@@ -106,12 +107,12 @@ export function HolidaySection({
           </label>
           <label className="mts-f">
             <span>Date</span>
-            <input
+            <DateField
               ref={dateRef}
-              type="date"
-              value={date}
+              value={date || null}
+              today={today}
               min={today.slice(0, 4) + "-01-01"}
-              onChange={(e) => setDate(e.target.value)}
+              onChange={(iso) => setDate(iso ?? "")}
             />
           </label>
           <label className="mts-f" style={{ flex: 1, minWidth: 200 }}>

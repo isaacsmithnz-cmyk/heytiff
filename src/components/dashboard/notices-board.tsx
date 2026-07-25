@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
+import { DateField } from "@/components/ui/date-field";
 import {
   castPollVote,
   commentOnNotice,
@@ -953,10 +954,10 @@ export function NoticesBoard({
                 <div className="lv-fnote" style={{ gap: 12, flexWrap: "wrap" }}>
                   <label className="mts-f" style={{ flex: "1 1 180px" }}>
                     <span>Day</span>
-                    <input
-                      type="date"
-                      value={eventDate}
-                      onChange={(e) => setEventDate(e.target.value)}
+                    <DateField
+                      value={eventDate || null}
+                      today={today}
+                      onChange={(iso) => setEventDate(iso ?? "")}
                     />
                   </label>
                   <label className="mts-f" style={{ flex: "0 1 140px" }}>
@@ -1092,10 +1093,12 @@ export function NoticesBoard({
                       ? "Comes off the board after (defaults to the day itself)"
                       : "Comes off the board after (optional)"}
                   </span>
-                  <input
-                    type="date"
-                    value={expiresAt}
-                    onChange={(e) => setExpiresAt(e.target.value)}
+                  <DateField
+                    value={expiresAt || null}
+                    today={today}
+                    clearable
+                    placeholder="No date"
+                    onChange={(iso) => setExpiresAt(iso ?? "")}
                   />
                 </label>
               </div>

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
+import { DateField } from "@/components/ui/date-field";
 import { type RateRule, type Settings, fmtHval, ruleSummary } from "./logic";
 import type { PayPeriod } from "./timepay";
 
@@ -99,11 +100,11 @@ export function TimePaySettings({
       return (
         <label className="wz-anchor">
           <span>First fortnight starts</span>
-          <input
-            type="date"
-            className="fl-i"
-            value={draft.fortnightAnchor ?? ""}
-            onChange={(e) => patch({ fortnightAnchor: e.target.value || null })}
+          <DateField
+            size="lg"
+            clearable
+            value={draft.fortnightAnchor ?? null}
+            onChange={(iso) => patch({ fortnightAnchor: iso })}
           />
           <em>Every pay fortnight is counted from this date. Snaps to that week&rsquo;s Monday.</em>
         </label>

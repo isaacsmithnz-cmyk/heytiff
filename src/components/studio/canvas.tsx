@@ -2502,13 +2502,22 @@ export function StudioCanvas({
                 })}
                 </g>
                 {layers.labels && (
+                  /* role + model stack CENTRED on the unit — the model belongs
+                     on the box it names, not hung below it. Role rides just
+                     above the middle, model just below, so the pair reads as
+                     one centred block. */
                   <>
-                    <text x={at.x} y={at.y + 4 / labelZoom} fontSize={11 / labelZoom} className="ds-unit-role">
+                    <text
+                      x={at.x}
+                      y={at.y - 6 / labelZoom}
+                      fontSize={9 / labelZoom}
+                      className="ds-unit-role"
+                    >
                       {role}
                     </text>
                     <text
                       x={at.x}
-                      y={at.y + fp.h / 2 + 13 / labelZoom}
+                      y={at.y + 6 / labelZoom}
                       fontSize={10 / labelZoom}
                       className="ds-unit-model"
                     >

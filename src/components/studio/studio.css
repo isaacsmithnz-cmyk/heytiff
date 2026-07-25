@@ -3758,11 +3758,13 @@
 .dstudio .ds-unit-role {
   fill: currentColor;
   text-anchor: middle;
+  dominant-baseline: central;
   font-weight: 800;
 }
 .dstudio .ds-unit-model {
   fill: var(--gray700);
   text-anchor: middle;
+  dominant-baseline: central;
   paint-order: stroke;
   stroke: #fff;
   stroke-width: 3px;

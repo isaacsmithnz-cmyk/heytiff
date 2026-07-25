@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HqBrandCatalog } from "../brand-catalog";
 import { buildCatalogView } from "@/lib/hq/catalog";
@@ -63,9 +63,17 @@ function groupsOf(mutate?: (p: DataPack) => void) {
   return groupBrandCatalog(buildCatalogView(p, []));
 }
 
+/** Series groups now load CLOSED — these table-level assertions want them open,
+    so every render here goes through the Expand all control first. */
+function renderOpen(ui: React.ReactElement) {
+  const res = render(ui);
+  fireEvent.click(screen.getByRole("button", { name: "Expand all" }));
+  return res;
+}
+
 describe("HqBrandCatalog — ported editor behaviours", () => {
   it("renders a blocking + and a nice-to-know + for missing fields", () => {
-    render(<HqBrandCatalog groups={groupsOf()} />);
+    renderOpen(<HqBrandCatalog groups={groupsOf()} />);
     const airflow = screen.getByRole("button", { name: /Add Airflow/ });
     expect(airflow.className).toMatch(/block/); // Tier-1: ducted needs airflow
     const weight = screen.getByRole("button", { name: /Add Weight/ });
@@ -76,7 +84,7 @@ describe("HqBrandCatalog — ported editor behaviours", () => {
   it("calls the injected save action with a parsed numeric value", async () => {
     const onSave = jest.fn().mockResolvedValue({ ok: true });
     const user = userEvent.setup();
-    render(<HqBrandCatalog groups={groupsOf()} onSave={onSave} />);
+    renderOpen(<HqBrandCatalog groups={groupsOf()} onSave={onSave} />);
 
     await user.click(screen.getByRole("button", { name: /Airflow/ }));
     await user.type(screen.getByLabelText("Airflow (Hi)"), "210");
@@ -93,7 +101,7 @@ describe("HqBrandCatalog — ported editor behaviours", () => {
   it("blocks save on invalid input and shows an error", async () => {
     const onSave = jest.fn().mockResolvedValue({ ok: true });
     const user = userEvent.setup();
-    render(<HqBrandCatalog groups={groupsOf()} onSave={onSave} />);
+    renderOpen(<HqBrandCatalog groups={groupsOf()} onSave={onSave} />);
 
     await user.click(screen.getByRole("button", { name: /Airflow/ }));
     await user.type(screen.getByLabelText("Airflow (Hi)"), "abc");
@@ -118,7 +126,7 @@ describe("HqBrandCatalog — ported editor behaviours", () => {
     ]);
     const onSave = jest.fn().mockResolvedValue({ ok: true });
     const user = userEvent.setup();
-    render(<HqBrandCatalog groups={groupBrandCatalog(view)} onSave={onSave} />);
+    renderOpen(<HqBrandCatalog groups={groupBrandCatalog(view)} onSave={onSave} />);
 
     const cell = screen.getByRole("button", { name: /Airflow.*210/ });
     expect(cell.querySelector(".edited")).not.toBeNull(); // amber value + dot
@@ -132,7 +140,7 @@ describe("HqBrandCatalog — ported editor behaviours", () => {
 describe("HqBrandCatalog — drill-down structure", () => {
   it("renders three system tabs and switches content on click", async () => {
     const user = userEvent.setup();
-    render(
+    renderOpen(
       <HqBrandCatalog
         groups={groupsOf((p) => {
           p.outdoor_units = [multiOdu("MXZ-1")];
@@ -153,7 +161,7 @@ describe("HqBrandCatalog — drill-down structure", () => {
   });
 
   it("renders form-factor and series group headers with readiness summary", () => {
-    render(<HqBrandCatalog groups={groupsOf()} />);
+    renderOpen(<HqBrandCatalog groups={groupsOf()} />);
     expect(screen.getByText("Ducted")).toBeInTheDocument(); // form label
     expect(screen.getByText("PEAD-M-JAA")).toBeInTheDocument(); // series
     expect(screen.getByText("0/1 ready")).toBeInTheDocument();
@@ -164,7 +172,7 @@ describe("HqBrandCatalog — drill-down structure", () => {
   });
 
   it("renders capacity chips and the per-row status cell", () => {
-    render(<HqBrandCatalog groups={groupsOf()} />);
+    renderOpen(<HqBrandCatalog groups={groupsOf()} />);
     const cool = screen.getByRole("button", { name: /Cooling capacity — D1: 5/ });
     expect(cool.querySelector(".hq-cmp-chip.cool")).not.toBeNull();
     const heat = screen.getByRole("button", { name: /Heating capacity — D1: 6/ });
@@ -174,7 +182,7 @@ describe("HqBrandCatalog — drill-down structure", () => {
   });
 
   it("renders airway columns for ducted series only, with a blocking +", () => {
-    render(
+    renderOpen(
       <HqBrandCatalog
         groups={groupsOf((p) => {
           p.indoor_units = [ducted("D1"), ducted("W1", { form_factor: "wall" })];
@@ -193,7 +201,7 @@ describe("HqBrandCatalog — drill-down structure", () => {
   });
 
   it("renders a saved airway box as W × H and a keyword answer as text", () => {
-    render(
+    renderOpen(
       <HqBrandCatalog
         groups={groupsOf((p) => {
           p.indoor_units = [
@@ -214,7 +222,7 @@ describe("HqBrandCatalog — drill-down structure", () => {
   });
 
   it("shows ✓ Ready for engine-ready rows", () => {
-    render(
+    renderOpen(
       <HqBrandCatalog
         groups={groupsOf((p) => {
           p.indoor_units = [ducted("W1", { form_factor: "wall" })];
@@ -226,7 +234,7 @@ describe("HqBrandCatalog — drill-down structure", () => {
 
   it("shows a static system chip for outdoor units (not a tag button)", async () => {
     const user = userEvent.setup();
-    render(
+    renderOpen(
       <HqBrandCatalog
         groups={groupsOf((p) => {
           p.outdoor_units = [multiOdu("MXZ-1")];
@@ -239,25 +247,44 @@ describe("HqBrandCatalog — drill-down structure", () => {
     expect(chip.className).toMatch(/static/);
   });
 
-  it("collapses and expands a series group", async () => {
+  it("loads with every series group closed, and expands one on click", async () => {
     const user = userEvent.setup();
     render(<HqBrandCatalog groups={groupsOf()} />);
 
     const header = screen.getByRole("button", { name: /PEAD-M-JAA/ });
-    expect(header).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByText("D1")).toBeInTheDocument();
-
-    await user.click(header);
     expect(header).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByText("D1")).not.toBeInTheDocument();
 
     await user.click(header);
+    expect(header).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByText("D1")).toBeInTheDocument();
+
+    await user.click(header);
+    expect(screen.queryByText("D1")).not.toBeInTheDocument();
+  });
+
+  it("expands and collapses every group from one control", async () => {
+    const user = userEvent.setup();
+    render(
+      <HqBrandCatalog
+        groups={groupsOf((p) => {
+          p.indoor_units = [ducted("D1"), ducted("W1", { form_factor: "wall" })];
+        })}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: "Expand all" }));
+    expect(screen.getByText("D1")).toBeInTheDocument();
+    expect(screen.getByText("W1")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Collapse all" }));
+    expect(screen.queryByText("D1")).not.toBeInTheDocument();
+    expect(screen.queryByText("W1")).not.toBeInTheDocument();
   });
 
   it("shows the multi empty state when only ODUs serve multi", async () => {
     const user = userEvent.setup();
-    render(
+    renderOpen(
       <HqBrandCatalog
         groups={groupsOf((p) => {
           p.outdoor_units = [multiOdu("MXZ-1")];
@@ -271,7 +298,7 @@ describe("HqBrandCatalog — drill-down structure", () => {
   });
 
   it("shows a unit's system tags on its row", () => {
-    render(
+    renderOpen(
       <HqBrandCatalog
         groups={groupsOf((p) => {
           p.indoor_units = [ducted("DUAL", { system_roles: ["split-pair", "vrf"] })];
@@ -287,7 +314,7 @@ describe("HqBrandCatalog — tag editor", () => {
   it("saves toggled tags through the injected action", async () => {
     const onSave = jest.fn().mockResolvedValue({ ok: true });
     const user = userEvent.setup();
-    render(
+    renderOpen(
       <HqBrandCatalog
         groups={groupsOf((p) => {
           p.indoor_units = [ducted("D1", { system_roles: ["split-pair"] })];
@@ -311,7 +338,7 @@ describe("HqBrandCatalog — tag editor", () => {
   it("refuses to save an empty tag set", async () => {
     const onSave = jest.fn().mockResolvedValue({ ok: true });
     const user = userEvent.setup();
-    render(
+    renderOpen(
       <HqBrandCatalog
         groups={groupsOf((p) => {
           p.indoor_units = [ducted("D1", { system_roles: ["split-pair"] })];
@@ -331,7 +358,7 @@ describe("HqBrandCatalog — tag editor", () => {
   it("applies tags to a whole series via the bulk button", async () => {
     const onSave = jest.fn().mockResolvedValue({ ok: true });
     const user = userEvent.setup();
-    render(
+    renderOpen(
       <HqBrandCatalog
         groups={groupsOf((p) => {
           p.indoor_units = [
@@ -362,7 +389,7 @@ describe("HqBrandCatalog — airway editor", () => {
   it("saves a W×H box through the airway control", async () => {
     const onSave = jest.fn().mockResolvedValue({ ok: true });
     const user = userEvent.setup();
-    render(<HqBrandCatalog groups={groupsOf()} onSave={onSave} />);
+    renderOpen(<HqBrandCatalog groups={groupsOf()} onSave={onSave} />);
 
     await user.click(screen.getByRole("button", { name: /Add Supply airway — D1/ }));
     await user.type(screen.getByLabelText("Width (mm)"), "595");
@@ -380,7 +407,7 @@ describe("HqBrandCatalog — airway editor", () => {
   it("saves the built-in keyword via its radio", async () => {
     const onSave = jest.fn().mockResolvedValue({ ok: true });
     const user = userEvent.setup();
-    render(<HqBrandCatalog groups={groupsOf()} onSave={onSave} />);
+    renderOpen(<HqBrandCatalog groups={groupsOf()} onSave={onSave} />);
 
     await user.click(screen.getByRole("button", { name: /Add Return airway — D1/ }));
     await user.click(screen.getByRole("radio", { name: /Built-in/ }));
@@ -397,7 +424,7 @@ describe("HqBrandCatalog — airway editor", () => {
   it("requires both dimensions before saving a box", async () => {
     const onSave = jest.fn().mockResolvedValue({ ok: true });
     const user = userEvent.setup();
-    render(<HqBrandCatalog groups={groupsOf()} onSave={onSave} />);
+    renderOpen(<HqBrandCatalog groups={groupsOf()} onSave={onSave} />);
 
     await user.click(screen.getByRole("button", { name: /Add Supply airway — D1/ }));
     await user.type(screen.getByLabelText("Width (mm)"), "595");
@@ -410,7 +437,7 @@ describe("HqBrandCatalog — airway editor", () => {
   it("seeds the control from an existing box and round-trips an edit", async () => {
     const onSave = jest.fn().mockResolvedValue({ ok: true });
     const user = userEvent.setup();
-    render(
+    renderOpen(
       <HqBrandCatalog
         groups={groupsOf((p) => {
           p.indoor_units = [ducted("D1", { supply_opening: { w_mm: 595, h_mm: 195 } })];
@@ -428,6 +455,79 @@ describe("HqBrandCatalog — airway editor", () => {
 
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({ field: "supply_opening", value: { w_mm: 600, h_mm: 195 } })
+    );
+  });
+});
+
+describe("HqBrandCatalog — search", () => {
+  const mixed = () =>
+    groupsOf((p) => {
+      p.indoor_units = [
+        ducted("PEAD-M50", { series: "PEAD-M-JAA" }),
+        ducted("PEAD-M60", { series: "PEAD-M-JAA", capacity_cool_kw: 6 }),
+        ducted("MSZ-AP25", { series: "MSZ-AP", form_factor: "wall" }),
+      ];
+      p.outdoor_units = [multiOdu("MXZ-1")];
+    });
+
+  it("filters to matching models and opens the surviving group", async () => {
+    const user = userEvent.setup();
+    render(<HqBrandCatalog groups={mixed()} />);
+
+    await user.type(screen.getByLabelText("Search models or series"), "ap25");
+
+    // matches render open — no second click needed
+    expect(screen.getByText("MSZ-AP25")).toBeInTheDocument();
+    expect(screen.queryByText("PEAD-M50")).not.toBeInTheDocument();
+    // the non-matching series group is gone entirely, not just closed
+    expect(
+      screen.queryByRole("button", { name: /PEAD-M-JAA/ })
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(/1 match in this pack/)).toBeInTheDocument();
+  });
+
+  it("keeps a whole series when the series name matches", async () => {
+    const user = userEvent.setup();
+    render(<HqBrandCatalog groups={mixed()} />);
+
+    await user.type(screen.getByLabelText("Search models or series"), "pead");
+
+    expect(screen.getByText("PEAD-M50")).toBeInTheDocument();
+    expect(screen.getByText("PEAD-M60")).toBeInTheDocument();
+    expect(screen.queryByText("MSZ-AP25")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /PEAD-M-JAA/ })).toHaveAttribute(
+      "aria-expanded",
+      "true"
+    );
+  });
+
+  it("counts matches per system tab", async () => {
+    const user = userEvent.setup();
+    render(<HqBrandCatalog groups={mixed()} />);
+
+    await user.type(screen.getByLabelText("Search models or series"), "mxz");
+
+    // the hit lives on the multi tab; split shows a dimmed zero
+    const split = screen.getByRole("button", { name: /Split systems/ });
+    expect(split.className).toMatch(/none/);
+    expect(split).toHaveTextContent("0");
+    await user.click(screen.getByRole("button", { name: /Multi-split/ }));
+    expect(screen.getByText("MXZ-1")).toBeInTheDocument();
+  });
+
+  it("says so when nothing matches, and clearing restores the closed page", async () => {
+    const user = userEvent.setup();
+    render(<HqBrandCatalog groups={mixed()} />);
+
+    const box = screen.getByLabelText("Search models or series");
+    await user.type(box, "zzz");
+    expect(screen.getByText(/No model, series or model code/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Clear" }));
+    expect(box).toHaveValue("");
+    expect(screen.getByRole("button", { name: /PEAD-M-JAA/ })).toHaveAttribute(
+      "aria-expanded",
+      "false"
     );
   });
 });

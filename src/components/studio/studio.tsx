@@ -104,6 +104,10 @@ const MODE_LABEL = { plan: "Floor plans", blank: "Blank canvas" } as const;
    exit transitions on `.dstudio.swapping .ds-home-stack` in studio.css: the
    leaving screen has to be fully gone before the swap lands. */
 const SWAP_OUT_MS = 200;
+/* failed-save retry: doubles from 5s to a 60s ceiling. Long enough that a
+   session-long outage keeps being retried, slow enough never to be a poll. */
+const RETRY_BASE_MS = 5_000;
+const RETRY_MAX_MS = 60_000;
 const SWAP_PAINT_MS = 16; // one frame, so the arriving screen has a state to animate from
 
 function timeAgo(iso: string): string {
@@ -163,6 +167,8 @@ export function Studio({
   const [saveState, setSaveState] = useState<"saved" | "saving" | "local">(
     "saved"
   );
+  /** how long to wait before the next automatic retry (see the effect below) */
+  const retryIn = useRef(RETRY_BASE_MS);
   /* menu New lands on Home with the new-design wizard already open */
   const [homeAutoNew, setHomeAutoNew] = useState(false);
 
@@ -239,11 +245,73 @@ export function Studio({
     const t = setTimeout(() => {
       void getStore()
         .save(doc)
-        .then(() => setSaveState("saved"))
+        .then(() => {
+          retryIn.current = RETRY_BASE_MS;
+          setSaveState("saved");
+        })
         .catch(() => setSaveState("local"));
     }, 600);
     return () => clearTimeout(t);
   }, [doc, getStore]);
+
+  /* A failed save retries ITSELF. Nothing did before: the debounce only fires
+     on the next edit, so a design saved while the connection was down could
+     sit local long after the network came back, with the amber pill the only
+     hint and a click the only cure.
+
+     Two triggers. `online` is the fast one — the browser telling us the
+     connection is back — and it retries at once and resets the wait. The
+     backoff is the honest one, because `online` lies both ways: it doesn't
+     fire for a server that was down rather than a network that was, and it
+     fires on a captive portal that goes nowhere. Doubling from 5s to a 60s
+     ceiling keeps trying for a session-long outage without ever becoming a
+     poll. */
+  const latestDoc = useRef(doc);
+  useEffect(() => {
+    latestDoc.current = doc;
+  }, [doc]);
+
+  useEffect(() => {
+    if (saveState !== "local") return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    /* An automatic attempt does NOT flip the pill to "Saving…". Partly because
+       a flicker every few seconds is noise for a fact that hasn't changed —
+       the design IS still saved locally — and partly because it would end this
+       effect mid-flight (the state is its own dependency) and take the retry
+       schedule with it. Each failure arms the next attempt from inside the
+       same effect instead. A save the USER asked for still reports itself. */
+    const attempt = () => {
+      const d = latestDoc.current;
+      if (stopped || !d) return;
+      void getStore()
+        .save(d)
+        .then(() => {
+          if (stopped) return;
+          retryIn.current = RETRY_BASE_MS;
+          setSaveState("saved");
+        })
+        .catch(() => {
+          if (stopped) return;
+          retryIn.current = Math.min(retryIn.current * 2, RETRY_MAX_MS);
+          timer = setTimeout(attempt, retryIn.current);
+        });
+    };
+
+    timer = setTimeout(attempt, retryIn.current);
+    const onOnline = () => {
+      retryIn.current = RETRY_BASE_MS;
+      clearTimeout(timer);
+      attempt();
+    };
+    window.addEventListener("online", onOnline);
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+      window.removeEventListener("online", onOnline);
+    };
+  }, [saveState, getStore]);
 
   const openDesign = useCallback((d: DesignDocument) => {
     setDoc(d);
@@ -361,7 +429,10 @@ export function Studio({
     setSaveState("saving");
     void getStore()
       .save(doc)
-      .then(() => setSaveState("saved"))
+      .then(() => {
+        retryIn.current = RETRY_BASE_MS;
+        setSaveState("saved");
+      })
       .catch(() => setSaveState("local"));
   }, [doc, getStore]);
 

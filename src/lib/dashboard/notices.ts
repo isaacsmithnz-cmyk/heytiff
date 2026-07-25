@@ -1,4 +1,5 @@
-import { daysUntil } from "@/components/fleet/logic";
+import { daysUntil } from "@/lib/au-dates";
+import { daysDuration } from "@/lib/format/duration";
 import { fmtAuDayMonth as fmtDate } from "@/lib/au-dates";
 import type { DueState, NoticeKind, NoticeWithRead } from "./tasks";
 
@@ -66,7 +67,7 @@ export function expiryLabel(
   if (days < 0) return { label: `Expired ${fmtDate(expiresAt)}`, state: "bad" };
   if (days === 0) return { label: "Last day", state: "warn" };
   if (days === 1) return { label: "Until tomorrow", state: "warn" };
-  if (days <= 7) return { label: `${days} days left`, state: "warn" };
+  if (days <= 7) return { label: `${daysDuration(days).label} left`, state: "warn" };
   return { label: `Until ${fmtDate(expiresAt)}`, state: "ok" };
 }
 

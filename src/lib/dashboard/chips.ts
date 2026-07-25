@@ -21,12 +21,13 @@ import {
   INSURANCE_WARN_DAYS,
   REGO_WARN_DAYS,
   SERVICE_WARN_KM,
-  daysUntil,
   fmtKm,
   serviceKmLeft,
   type ChipState,
   type VehicleWithFacts,
 } from "@/components/fleet/logic";
+import { daysUntil } from "@/lib/au-dates";
+import { expiryClause } from "@/lib/format/duration";
 import { EXPIRY_WARN_DAYS } from "@/lib/staff/derive";
 
 export type ChipKind =
@@ -95,9 +96,16 @@ function urgency(state: ActionState, metric: number): number {
   return (state === "bad" ? 0 : 10_000) + metric;
 }
 
-/** "4d ago" / "1d ago" — the trailing clause on an expired label. */
-function agoDays(days: number): string {
-  return `${-days}d ago`;
+/* Every chip label is "<thing> <expiry clause>", from lib/format/duration —
+   "Rego expires in 2 weeks", "White Card expired 4 days ago". Keeping it in one
+   helper is what stops a rego chip and a licence chip wording the same fact two
+   different ways when only one of them gets edited.
+
+   These labels are PLAIN TEXT on purpose. They ride into the hero band, which
+   escapes everything it is given (screens.ts), so the marked-up `durationHtml`
+   twin would arrive on screen as visible angle brackets. */
+function expiryLabel(what: string, days: number): string {
+  return `${what} ${expiryClause(days)}`;
 }
 
 /** A single licence → a chip when it is expired or expiring soon, else null. */
@@ -113,7 +121,7 @@ export function licenceChip(
     key: `licence:${lic.id}`,
     kind: "licence",
     state,
-    label: days < 0 ? `${lic.typeName} expired ${agoDays(days)}` : `${lic.typeName} expires ${days}d`,
+    label: expiryLabel(lic.typeName, days),
     subject: ctx.subject,
     href: ctx.href,
     urgency: urgency(state, days),
@@ -151,7 +159,7 @@ export function workRightsChips(
         key: `work-rights-visa:${wr.staffId}`,
         kind: "work-rights",
         state,
-        label: days < 0 ? `${what} expired ${agoDays(days)}` : `${what} expires ${days}d`,
+        label: expiryLabel(what, days),
         subject: ctx.subject,
         href: ctx.href,
         urgency: urgency(state, days),
@@ -188,7 +196,7 @@ export function regoChip(
     key: `rego:${v.id}`,
     kind: "rego",
     state,
-    label: v.regoDays < 0 ? `Rego expired ${agoDays(v.regoDays)}` : `Rego expires ${v.regoDays}d`,
+    label: expiryLabel("Rego", v.regoDays),
     subject: ctx.subject,
     href: ctx.href,
     urgency: urgency(state, v.regoDays),
@@ -207,10 +215,7 @@ export function insuranceChip(
     key: `insurance:${v.id}`,
     kind: "insurance",
     state,
-    label:
-      v.insuranceDays < 0
-        ? `Insurance expired ${agoDays(v.insuranceDays)}`
-        : `Insurance expires ${v.insuranceDays}d`,
+    label: expiryLabel("Insurance", v.insuranceDays),
     subject: ctx.subject,
     href: ctx.href,
     urgency: urgency(state, v.insuranceDays),
@@ -269,7 +274,7 @@ export function orgInsuranceChip(
     key: "org-insurance",
     kind: "org-insurance",
     state,
-    label: days < 0 ? `Public liability expired ${agoDays(days)}` : `Public liability expires ${days}d`,
+    label: expiryLabel("Public liability", days),
     subject: org.insurer?.trim() || "Public liability insurance",
     href: ctx.href,
     urgency: urgency(state, days),

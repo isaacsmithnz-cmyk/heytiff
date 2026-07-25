@@ -1,4 +1,5 @@
-import { daysUntil } from "@/components/fleet/logic";
+import { daysUntil } from "@/lib/au-dates";
+import { daysDuration } from "@/lib/format/duration";
 import { tallyPoll, type PollResult } from "./polls";
 
 /* Events on the noticeboard, and who's coming.
@@ -93,7 +94,17 @@ export function eventWhen(date: string, time: string | null, today: string): Eve
       month: "long",
     }).format(new Date(`${date}T00:00:00Z`)),
     time: fmtTime(time),
-    soon: days === 0 ? "Today" : days === 1 ? "Tomorrow" : days > 1 && days <= 7 ? `In ${days} days` : null,
+    /* Today and Tomorrow keep their capitals — they're the whole phrase here,
+       not a quantity. Anything else borrows the shared adaptive wording, so a
+       date on the board counts down in the same words as one on a chip. */
+    soon:
+      days === 0
+        ? "Today"
+        : days === 1
+          ? "Tomorrow"
+          : days > 1 && days <= 7
+            ? `In ${daysDuration(days).label}`
+            : null,
     past: days < 0,
   };
 }

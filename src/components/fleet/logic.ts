@@ -4,6 +4,8 @@
    lib/fleet/query.ts and mutations go through app/actions/fleet.ts; this file
    knows about neither. */
 
+import { agoLabel, expiryClause, inLabel } from "@/lib/format/duration";
+
 export type VehicleStatus = "active" | "offroad" | "sold";
 
 /* The vehicle type comes in three widths, and they are the projection boundary
@@ -126,11 +128,12 @@ export function vehicleChips(v: VehicleWithFacts, openIssues: number): StatusChi
   if (v.status === "sold") return [];
   const chips: StatusChip[] = [];
   if (v.status === "offroad") chips.push({ label: "Off road", state: "bad" });
-  if (v.regoDays < 0) chips.push({ label: `Rego expired ${-v.regoDays}d ago`, state: "bad" });
-  else if (v.regoDays <= REGO_WARN_DAYS) chips.push({ label: `Rego ${v.regoDays}d`, state: "warn" });
+  // one label for both tenses now that expiryClause carries the tense itself
+  if (v.regoDays <= REGO_WARN_DAYS)
+    chips.push({ label: `Rego ${expiryClause(v.regoDays)}`, state: v.regoDays < 0 ? "bad" : "warn" });
   if (v.insuranceDays < 0) chips.push({ label: "Insurance expired", state: "bad" });
   else if (v.insuranceDays <= INSURANCE_WARN_DAYS)
-    chips.push({ label: `Insurance ${v.insuranceDays}d`, state: "warn" });
+    chips.push({ label: `Insurance ${expiryClause(v.insuranceDays)}`, state: "warn" });
   const left = serviceKmLeft(v);
   if (left < 0) chips.push({ label: `Service overdue ${fmtKm(-left)} km`, state: "bad" });
   else if (left <= SERVICE_WARN_KM) chips.push({ label: `Service in ${fmtKm(left)} km`, state: "warn" });
@@ -163,13 +166,13 @@ export function vehicleFacts(v: VehicleWithFacts): VehicleFact[] {
     {
       key: "rego",
       label: "Rego",
-      text: v.regoDays < 0 ? `expired ${-v.regoDays}d ago` : `renews in ${v.regoDays}d`,
+      text: v.regoDays < 0 ? `expired ${agoLabel(v.regoDays)}` : `renews ${inLabel(v.regoDays)}`,
       state: v.regoDays < 0 ? "bad" : v.regoDays <= REGO_WARN_DAYS ? "warn" : "ok",
     },
     {
       key: "insurance",
       label: "Insurance",
-      text: v.insuranceDays < 0 ? "expired" : `renews in ${v.insuranceDays}d`,
+      text: v.insuranceDays < 0 ? "expired" : `renews ${inLabel(v.insuranceDays)}`,
       state: v.insuranceDays < 0 ? "bad" : v.insuranceDays <= INSURANCE_WARN_DAYS ? "warn" : "ok",
     },
   ];
@@ -373,12 +376,10 @@ export function fmtCost(n: number): string {
   return `$${n.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-/** Whole days from today to an ISO date (negative = past). Both args ISO yyyy-mm-dd. */
-export function daysUntil(dateISO: string, todayISO: string): number {
-  const d = new Date(`${dateISO}T00:00:00Z`).getTime();
-  const t = new Date(`${todayISO}T00:00:00Z`).getTime();
-  return Math.round((d - t) / 86400000);
-}
+/* Whole days from today to an ISO date (negative = past). The implementation
+   moved to lib/au-dates.ts, beside the `todayInAu` that has to produce its
+   second argument; this re-export keeps fleet's own callers pointed here. */
+export { daysUntil } from "@/lib/au-dates";
 
 /** Stable unique id from a name/plate ("VRF 09" → "vrf-09", "vrf-09-2" if taken). */
 export function slugId(label: string, taken: string[]): string {

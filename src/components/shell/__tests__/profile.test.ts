@@ -49,7 +49,7 @@ const staff: StaffRow = {
   years: "3.2",
   licenceCount: 4,
   status: "Active",
-  compliance: { label: "ARC expires 14d", state: "warn", expiresDays: 14 },
+  compliance: { label: "ARC expires in 2 weeks", state: "warn", expiresDays: 14 },
 };
 
 const ADMIN_SECTIONS = ["payroll", "permissions", "notes"];
@@ -365,7 +365,7 @@ describe("read-only cards", () => {
     expect(html).toContain('data-lic-id="L1"');
     expect(html).toContain("ARC licence");
     expect(html).toContain("No. AU123");
-    expect(html).toContain("Expires 14d");
+    expect(html).toContain("Expires in 2 weeks");
     expect(html).toContain('data-licdel data-lic-id="L1"');
     // the empty hint is hidden once there's at least one
     expect(html).toContain('id="lic-empty" style="margin-top:18px;display:none"');

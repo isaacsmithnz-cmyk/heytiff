@@ -1,5 +1,5 @@
-import { daysUntil } from "@/components/fleet/logic";
-import { fmtAuDayMonth as fmtDate } from "@/lib/au-dates";
+import { daysUntil, fmtAuDayMonth as fmtDate } from "@/lib/au-dates";
+import { dueIn } from "@/lib/format/duration";
 
 /* Tasks & notices — the two writable dashboard surfaces.
 
@@ -105,9 +105,9 @@ export function dueLabel(
 ): { label: string; state: DueState } | null {
   if (!dueDate) return null;
   const days = daysUntil(dueDate, today);
-  if (days < 0) return { label: `Overdue ${-days}d`, state: "bad" };
-  if (days === 0) return { label: "Due today", state: "warn" };
-  if (days <= DUE_SOON_DAYS) return { label: `Due in ${days}d`, state: "warn" };
+  // Inside the window the gap is what matters, so it reads as a duration; past
+  // it, the date itself is more use than "due in 4 months".
+  if (days <= DUE_SOON_DAYS) return { label: dueIn(days), state: days < 0 ? "bad" : "warn" };
   return { label: `Due ${fmtDate(dueDate)}`, state: "ok" };
 }
 

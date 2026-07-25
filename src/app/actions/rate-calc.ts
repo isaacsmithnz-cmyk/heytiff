@@ -1,13 +1,14 @@
 "use server";
 
-import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { can } from "@/lib/permissions-server";
+import { requireOrg } from "@/lib/permissions-server";
 
 /* Rate Calculator persistence — server side. Follows the studio-action
    pattern: authenticate the Auth0 session, then read/write via the service
    role with an explicit org_id scope. Server Functions are reachable by
-   direct POST, so every function re-checks the session itself.
+   direct POST, so every function re-checks for itself — on `financials`,
+   because the whole rate model is wage-derived and the gate must hold in
+   both directions (a member without it could otherwise read every wage).
 
    Table (created via Supabase migration `create_rate_calc_state`):
      create table if not exists public.rate_calc_state (
@@ -21,16 +22,6 @@ import { can } from "@/lib/permissions-server";
      -- no policies: service-role access only, same posture as studio_designs
 */
 
-async function requireOrg(): Promise<{ orgId: string; userId: string }> {
-  const session = await auth0.getSession();
-  if (!session) throw new Error("Not authenticated");
-  const orgId = session.orgId as string | undefined;
-  if (!orgId) throw new Error("No active organization");
-  // The whole rate model is wage-derived — `financials` gates both directions.
-  // Previously any signed-in member could POST these and read every wage.
-  if (!(await can("financials"))) throw new Error("Insufficient permissions");
-  return { orgId, userId: session.user.sub as string };
-}
 
 /* Cheap structural guard — full hydration/tolerance lives client-side in
    hydrateState(); this only rejects payloads that clearly aren't calculator
@@ -44,7 +35,7 @@ function isRateCalcStateShape(v: unknown): boolean {
 }
 
 export async function loadRateCalcState(): Promise<{ state: unknown; updatedAt: string } | null> {
-  const { orgId } = await requireOrg();
+  const { orgId } = await requireOrg("financials");
   const { data, error } = await supabaseAdmin
     .from("rate_calc_state")
     .select("state, updated_at")
@@ -56,7 +47,7 @@ export async function loadRateCalcState(): Promise<{ state: unknown; updatedAt: 
 }
 
 export async function saveRateCalcState(state: unknown): Promise<void> {
-  const { orgId, userId } = await requireOrg();
+  const { orgId, userId } = await requireOrg("financials");
   if (!isRateCalcStateShape(state)) throw new Error("Invalid rate calculator state");
   const { error } = await supabaseAdmin
     .from("rate_calc_state")

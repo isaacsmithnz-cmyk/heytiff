@@ -1,23 +1,16 @@
 "use server";
 
-import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { requireOrg } from "@/lib/permissions-server";
 import { isDesignDocumentShape } from "@/lib/studio/document";
-import { recordContribution } from "./studio-contributors";
+import { recordContribution } from "@/lib/studio/contributions-server";
 import type { DesignSummary } from "@/lib/studio/store";
 
 /* Design Studio persistence — server side. Follows the invite-action pattern:
    authenticate the Auth0 session, then read/write via the service role with
    an explicit org_id scope. Server Functions are reachable by direct POST, so
-   every function re-checks the session itself. */
-
-async function requireOrg(): Promise<{ orgId: string; userId: string }> {
-  const session = await auth0.getSession();
-  if (!session) throw new Error("Not authenticated");
-  const orgId = session.orgId as string | undefined;
-  if (!orgId) throw new Error("No active organization");
-  return { orgId, userId: session.user.sub as string };
-}
+   every function re-checks for itself — and `studio` is revocable, so each
+   one names the capability, same as the route gate. */
 
 type DesignRow = {
   id: string;
@@ -42,7 +35,7 @@ function toSummary(r: DesignRow): DesignSummary {
 }
 
 export async function listStudioDesigns(): Promise<DesignSummary[]> {
-  const { orgId } = await requireOrg();
+  const { orgId } = await requireOrg("studio");
   const { data, error } = await supabaseAdmin
     .from("studio_designs")
     .select("id, name, mode, floor_count, system_count, created_at, updated_at")
@@ -53,7 +46,7 @@ export async function listStudioDesigns(): Promise<DesignSummary[]> {
 }
 
 export async function loadStudioDesign(id: string): Promise<unknown | null> {
-  const { orgId } = await requireOrg();
+  const { orgId } = await requireOrg("studio");
   const { data, error } = await supabaseAdmin
     .from("studio_designs")
     .select("doc")
@@ -66,7 +59,7 @@ export async function loadStudioDesign(id: string): Promise<unknown | null> {
 }
 
 export async function saveStudioDesign(doc: unknown): Promise<void> {
-  const { orgId, userId } = await requireOrg();
+  const { orgId, userId } = await requireOrg("studio");
   if (!isDesignDocumentShape(doc)) throw new Error("Not a design document");
   const meta = doc.meta as {
     name?: unknown;
@@ -109,7 +102,7 @@ export async function saveStudioDesign(doc: unknown): Promise<void> {
 }
 
 export async function deleteStudioDesign(id: string): Promise<void> {
-  const { orgId } = await requireOrg();
+  const { orgId } = await requireOrg("studio");
   const { error } = await supabaseAdmin
     .from("studio_designs")
     .delete()

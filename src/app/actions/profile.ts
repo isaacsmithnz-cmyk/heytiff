@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { requireOrg } from "@/lib/permissions-server";
 import {
   buildPatch,
   isSelfSection,
@@ -32,13 +33,8 @@ const COLUMNS =
 // NB: hourly_wage / contracted_hours / utilisation / cost_split / notes are
 // intentionally absent — this module must never read or write them.
 
-async function requireOrg(): Promise<{ orgId: string; userId: string }> {
-  const session = await auth0.getSession();
-  if (!session) throw new Error("Not authenticated");
-  const orgId = session.orgId as string | undefined;
-  if (!orgId) throw new Error("No active organization");
-  return { orgId, userId: session.user.sub as string };
-}
+/* No capability on requireOrg here — your own card is intrinsic to being a
+   signed-in member; the section allowlist above is the actual control. */
 
 /** Load (or lazily create) the signed-in user's staff card. */
 export async function loadMyProfile(): Promise<StaffProfile> {

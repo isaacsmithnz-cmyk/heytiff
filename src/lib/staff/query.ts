@@ -74,6 +74,11 @@ async function licencesByStaff(
   return out;
 }
 
+/** One staff member's licences, org-scoped — for their own Compliance card. */
+export async function listLicences(orgId: string, staffProfileId: string): Promise<StaffLicence[]> {
+  return (await licencesByStaff(orgId, [staffProfileId])).get(staffProfileId) ?? [];
+}
+
 /** Emails live on `profiles` (written at login), keyed by Auth0 sub. */
 async function emailsByUser(userIds: string[]): Promise<Map<string, string>> {
   const out = new Map<string, string>();

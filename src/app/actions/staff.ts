@@ -15,6 +15,7 @@ import {
 } from "@/lib/permissions";
 import { buildAdminPatch, capabilityFor, isAdminSection } from "@/lib/staff/admin-sections";
 import { withDerivedFullName } from "@/lib/staff/name";
+import { buildLicenceRow, type LicenceInput } from "@/lib/staff/licence";
 import type { Role } from "@/lib/roles-shared";
 
 /* Editing SOMEONE ELSE'S card, from Team.
@@ -146,6 +147,48 @@ export async function saveStaffSection(
     .eq("org_id", ctx.orgId)
     .eq("id", staffId);
   if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/dashboard/team/${staffId}`);
+  revalidatePath("/dashboard/team");
+  return { ok: true };
+}
+
+/* Someone else's licences — the Compliance card in Team. Managing another
+   person's record is the `team` capability (same as their identity + the
+   qualifications text), and every write is scoped to the org AND that person,
+   resolved server-side, so a forged post can't reach a third party's licences. */
+
+export async function addStaffLicence(staffId: string, input: LicenceInput): Promise<SaveResult> {
+  const ctx = await context();
+  if (!ctx) throw new Error("Not authenticated");
+  if (!ctx.caps.has("team")) return { ok: false, error: "You don't have access to staff records." };
+  if (!(await targetIn(ctx, staffId))) return { ok: false, error: "That staff member doesn't exist." };
+
+  const built = buildLicenceRow(input);
+  if ("error" in built) return { ok: false, error: built.error };
+
+  const { error } = await supabaseAdmin
+    .from("staff_licences")
+    .insert({ org_id: ctx.orgId, staff_profile_id: staffId, ...built.row });
+  if (error) return { ok: false, error: "Couldn't add that licence." };
+
+  revalidatePath(`/dashboard/team/${staffId}`);
+  revalidatePath("/dashboard/team");
+  return { ok: true };
+}
+
+export async function removeStaffLicence(staffId: string, licenceId: string): Promise<SaveResult> {
+  const ctx = await context();
+  if (!ctx) throw new Error("Not authenticated");
+  if (!ctx.caps.has("team")) return { ok: false, error: "You don't have access to staff records." };
+
+  const { error } = await supabaseAdmin
+    .from("staff_licences")
+    .delete()
+    .eq("org_id", ctx.orgId)
+    .eq("staff_profile_id", staffId)
+    .eq("id", licenceId);
+  if (error) return { ok: false, error: "Couldn't remove that licence." };
 
   revalidatePath(`/dashboard/team/${staffId}`);
   revalidatePath("/dashboard/team");

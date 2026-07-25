@@ -13,8 +13,9 @@ import {
   type Capability,
 } from "@/lib/permissions";
 import { getStaff, permissionsOf } from "@/lib/staff/query";
-import { saveStaffSection } from "@/app/actions/staff";
+import { addStaffLicence, removeStaffLicence, saveStaffSection } from "@/app/actions/staff";
 import type { StaffProfile } from "@/lib/staff/profile";
+import { todayInAu } from "@/lib/au-dates";
 
 /* One staff member's card, as an admin sees it.
 
@@ -46,7 +47,7 @@ export default async function StaffProfilePage({
   const found = await getStaff(orgId, staffId, { pay: canPay, notes: true });
   if (!found) notFound();
 
-  const { row, profile } = found;
+  const { row, profile, licences } = found;
   const isSelf = !!row.userId && row.userId === ownership.userId;
 
   const editable = canEditPermissionsOf(
@@ -92,6 +93,8 @@ export default async function StaffProfilePage({
         vehicle: assignedVehicle,
         mode: "admin",
         profile: profile as unknown as StaffProfile,
+        licences,
+        today: todayInAu(),
         sections: {
           // omitted entirely without `financials` — not rendered-then-hidden
           ...(canPay ? { payroll: profile } : {}),
@@ -101,6 +104,8 @@ export default async function StaffProfilePage({
         },
       })}
       onSave={saveStaffSection.bind(null, staffId)}
+      onAddLicence={addStaffLicence.bind(null, staffId)}
+      onRemoveLicence={removeStaffLicence.bind(null, staffId)}
     />
   );
 }

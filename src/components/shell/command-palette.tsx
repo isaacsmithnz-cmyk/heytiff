@@ -21,7 +21,7 @@ export function CommandPalette({
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
-  const [sel, setSel] = useState(0);
+  const [selRaw, setSel] = useState(0);
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -30,20 +30,32 @@ export function CommandPalette({
     );
   }, [query, role, caps]);
 
-  // reset + focus when opened
-  useEffect(() => {
+  /* The highlighted row, clamped as you read it rather than corrected after the
+     fact. Typing shortens the list, which can strand the selection past the
+     end; an effect that wrote the selection back would render the stale row
+     once before fixing it. Derived, it is never wrong for even one frame. */
+  const sel = results.length ? Math.min(selRaw, results.length - 1) : 0;
+
+  /* Reopening starts clean. Done while rendering the change rather than in an
+     effect: this is state derived from `open`, and an effect would paint the
+     previous session's query for a frame first. The palette stays mounted when
+     closed (it animates on a class), so without this the old text would still
+     be sitting there next time. */
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (open) {
       setQuery("");
       setSel(0);
-      const t = setTimeout(() => inputRef.current?.focus(), 40);
-      return () => clearTimeout(t);
     }
-  }, [open]);
+  }
 
-  // keep selection in range as results change
+  // focusing the input is a DOM effect, and stays one
   useEffect(() => {
-    setSel((s) => (results.length ? Math.min(s, results.length - 1) : 0));
-  }, [results.length]);
+    if (!open) return;
+    const t = setTimeout(() => inputRef.current?.focus(), 40);
+    return () => clearTimeout(t);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;

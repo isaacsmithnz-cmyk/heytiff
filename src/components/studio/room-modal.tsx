@@ -86,30 +86,43 @@ export function RoomModal({
   onRemarkWalls?: (roomId: string) => void;
   onOpenReference?: () => void;
 }) {
-  const room = doc.objects.find((o) => o.id === roomId);
-  const floor = room ? doc.floors.find((f) => f.id === room.floorId) : null;
-  const poly =
-    room && room.geometry.kind === "polygon" ? room.geometry.points : null;
+  const room = useMemo(() => doc.objects.find((o) => o.id === roomId), [doc.objects, roomId]);
+  const floor = useMemo(
+    () => (room ? doc.floors.find((f) => f.id === room.floorId) : null),
+    [doc.floors, room],
+  );
+  /* A copy, not the document's own array. Everything below memoises on `poly`,
+     and handing those memos a live reference into the document means their
+     dependency can be mutated underneath them by whoever edits the room next —
+     the memo would then hold a value derived from points it can no longer see.
+     A room polygon is a handful of points; copying it is free. */
+  const poly = useMemo(
+    () => (room && room.geometry.kind === "polygon" ? [...room.geometry.points] : null),
+    [room],
+  );
+
+  /* Pulled out so the memos below depend on the NUMBER rather than on an
+     optional chain into `floor`. `floor?.scaleMmPerUnit` as a dependency reads
+     as a different value to the compiler than the `floor.scaleMmPerUnit` the
+     bodies actually use, which is enough to make it give up on the component. */
+  const scaleMmPerUnit = floor?.scaleMmPerUnit;
 
   const areaM2 = useMemo(
-    () =>
-      poly && floor?.scaleMmPerUnit
-        ? areaUnitsToM2(polygonArea(poly), floor.scaleMmPerUnit)
-        : null,
-    [poly, floor?.scaleMmPerUnit]
+    () => (poly && scaleMmPerUnit ? areaUnitsToM2(polygonArea(poly), scaleMmPerUnit) : null),
+    [poly, scaleMmPerUnit],
   );
 
   /* width × length from the drawn shape's bounding box (exact for a rectangle;
      the load still uses the true polygon area, shown in the heat-load panel). */
   const dims = useMemo(() => {
-    if (!poly || !floor?.scaleMmPerUnit) return null;
+    if (!poly || !scaleMmPerUnit) return null;
     const b = boundsOfPoints(poly);
     if (!b) return null;
     return {
-      w: unitsToMeters(b.maxX - b.minX, floor.scaleMmPerUnit),
-      l: unitsToMeters(b.maxY - b.minY, floor.scaleMmPerUnit),
+      w: unitsToMeters(b.maxX - b.minX, scaleMmPerUnit),
+      l: unitsToMeters(b.maxY - b.minY, scaleMmPerUnit),
     };
-  }, [poly, floor?.scaleMmPerUnit]);
+  }, [poly, scaleMmPerUnit]);
 
   /* width × length only equals the area for a rectangle; for an L-shape the
      bbox overstates it, so we drop the multiplication and just state the area. */
@@ -122,6 +135,10 @@ export function RoomModal({
     ? (room!.props.externalWalls as number[])
     : [];
   const hasExternalWalls = markedWalls.length > 0;
+  /* A stable key for the marked-wall set. The array is rebuilt every render, so
+     it can't be a dependency itself; the joined string can, and it has to be a
+     plain variable rather than an expression inside the dependency list. */
+  const markedWallsKey = markedWalls.join(",");
 
   /* auto orientation: the marked-walls compass, falling back to the polygon's
      longest exposed edge. Shown unless the user overrides the dropdown. */
@@ -131,7 +148,7 @@ export function RoomModal({
       (poly ? detectOrientation(poly, floor?.northDeg ?? 0) : null) ??
       "N",
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [poly, floor?.northDeg, markedWalls.join(",")]
+    [poly, floor?.northDeg, markedWallsKey]
   );
 
   const [overridden, setOverridden] = useState<boolean>(

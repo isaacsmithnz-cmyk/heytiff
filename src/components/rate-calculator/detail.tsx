@@ -3,6 +3,7 @@
 /* "Detailed" mode step bodies — edit the engine's REAL arrays; per-row
    figures come from calc breakdowns. */
 
+import Link from "next/link";
 import React from "react";
 import type { CalcResult, VehicleCosts } from "./engine";
 import { SUGGESTED_BUSINESS_COSTS, suggestedBusinessCosts, type RateCalcState } from "./state";
@@ -55,18 +56,18 @@ export function StaffDetail({ s, calc }: StepBodyProps) {
       <DBody>
         <div style={{ background: "#fff", borderRadius: 16, border: `1px solid ${RC.line}`, padding: "34px 24px", textAlign: "center" }}>
           <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 15, color: RC.ink }}>No staff on the roster yet</div>
-          <div style={{ fontSize: 12.5, color: RC.faint, marginTop: 6, lineHeight: 1.5 }}>The calculator prices the people in <a href="/dashboard/team" style={{ color: RC.service, fontWeight: 700 }}>Team</a>. Add staff and their wages there and they&rsquo;ll appear here — or use Simple mode to estimate from a monthly wage bill.</div>
+          <div style={{ fontSize: 12.5, color: RC.faint, marginTop: 6, lineHeight: 1.5 }}>The calculator prices the people in <Link href="/dashboard/team" style={{ color: RC.service, fontWeight: 700 }}>Team</Link>. Add staff and their wages there and they&rsquo;ll appear here — or use Simple mode to estimate from a monthly wage bill.</div>
         </div>
       </DBody>
     );
   }
   return (
     <DBody>
-      <WsHelpNote id="staff-detailed" style={{ marginBottom: 16 }}><b>Detailed mode</b> prices each person from their real timesheet weeks (incl. overtime at 1.5× / 2×), adds super, workers comp and leave loading, and measures billable utilisation. Wages come from <a href="/dashboard/team" style={{ color: RC.service, fontWeight: 700 }}>Team</a> — change one there and the rates move.</WsHelpNote>
+      <WsHelpNote id="staff-detailed" style={{ marginBottom: 16 }}><b>Detailed mode</b> prices each person from their real timesheet weeks (incl. overtime at 1.5× / 2×), adds super, workers comp and leave loading, and measures billable utilisation. Wages come from <Link href="/dashboard/team" style={{ color: RC.service, fontWeight: 700 }}>Team</Link> — change one there and the rates move.</WsHelpNote>
       <WsEyebrow style={{ marginBottom: 11 }}>Per-person wages · {s.staff.length} staff · from your roster</WsEyebrow>
       {gaps.length > 0 && (
         <div style={{ background: RC.card2, borderRadius: 12, border: `1px solid ${RC.line}`, padding: "10px 15px", marginBottom: 11, fontSize: 12.5, color: RC.label }}>
-          {gaps.length === 1 ? `${gaps[0].name} is` : `${gaps.length} people are`} missing a wage, employment type or work split — <a href="/dashboard/team" style={{ color: RC.service, fontWeight: 700 }}>finish their Team card</a> to price them accurately.
+          {gaps.length === 1 ? `${gaps[0].name} is` : `${gaps.length} people are`} missing a wage, employment type or work split — <Link href="/dashboard/team" style={{ color: RC.service, fontWeight: 700 }}>finish their Team card</Link> to price them accurately.
         </div>
       )}
       <Table cols={cols}>

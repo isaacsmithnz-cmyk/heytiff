@@ -44,8 +44,18 @@ export function TeamDirectory({
     return () => document.removeEventListener("click", close);
   }, [openMenu]);
 
-  const withStatus = staff.map((s) => ({ ...s, status: statusOverride[s.id] ?? s.status }));
-  const warnStaff = withStatus.filter((s) => s.compliance.state !== "ok");
+  /* Memoised because `rows` below depends on them. Rebuilt inline they were a
+     fresh array on every render, so the dependency list underneath never
+     matched and the memo did no work at all — it re-sorted the whole directory
+     on every keystroke, menu toggle and hover. */
+  const withStatus = useMemo(
+    () => staff.map((s) => ({ ...s, status: statusOverride[s.id] ?? s.status })),
+    [staff, statusOverride],
+  );
+  const warnStaff = useMemo(
+    () => withStatus.filter((s) => s.compliance.state !== "ok"),
+    [withStatus],
+  );
   const activeCount = withStatus.filter((s) => s.status === "Active").length;
 
   const rows = useMemo(() => {

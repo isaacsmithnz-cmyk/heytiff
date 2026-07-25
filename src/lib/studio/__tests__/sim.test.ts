@@ -387,7 +387,7 @@ describe("throw containment", () => {
     const h = model.handlers[0];
     // unit at x=20 facing +x in a 500-unit (5 m) room → 480 units to the wall
     expect(h.roomExtentU).toBeCloseTo(480);
-    let s = initSimState(model, { outdoorC: 5 });
+    const s = initSimState(model, { outdoorC: 5 });
     const hs = { ...s.handlers[h.id], on: true, running: true, fanFrac: 1, mode: "heat" as const };
     const t = throwLengthU(h, hs, model.mPerUnit);
     // 6 kW visual default = 330 L/s → (2 + 6.6) capped at 8 → ×0.7 heat = 5.6 m
@@ -485,9 +485,9 @@ describe("compressor ramp-up (the kick-in story)", () => {
     expect(startupRemainingSimS(0)).toBeGreaterThan(SIM.RAMP_FULL_S); // whole ramp ahead
     expect(startupRemainingSimS(0)).toBeGreaterThan(startupRemainingSimS(0.5));
     // a cold-start estimate is longer than a warmed-up one for the same room
-    let cold = on(initSimState(model, { outdoorC: 5, speed: 60 }));
+    const cold = on(initSimState(model, { outdoorC: 5, speed: 60 }));
     const tCold = timeToSetpointSimS(model, cold, h.id);
-    let warm = on({ ...cold, handlers: { [h.id]: { ...cold.handlers[h.id], on: true, compressorFrac: 1 } } });
+    const warm = on({ ...cold, handlers: { [h.id]: { ...cold.handlers[h.id], on: true, compressorFrac: 1 } } });
     const tWarm = timeToSetpointSimS(model, warm, h.id);
     expect(tCold).not.toBeNull();
     expect(tWarm).not.toBeNull();

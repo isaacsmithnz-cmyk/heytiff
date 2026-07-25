@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import {
@@ -268,17 +269,62 @@ function ReactionRow({
 
    Every URL here is signed and short-lived: the bucket is private, so a link
    somebody keeps stops working rather than quietly staying open. */
+/* A full-screen image viewer. Portalled to <body>, NOT rendered inside the page:
+   .page.in carries a will-change that breaks position:fixed, so a lightbox left
+   in the tree would anchor to the scroll box instead of the viewport (see the
+   dashboard modal-portal rule). Closes on the ✕, a backdrop click, or Escape,
+   and restores page scrolling on the way out — a viewer you can't get out of is
+   worse than no viewer. */
+function Lightbox({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [onClose]);
+
+  if (typeof document === "undefined") return null;
+  return createPortal(
+    <div className="nb-lb" role="dialog" aria-modal="true" onClick={onClose}>
+      <button type="button" className="nb-lb-x" aria-label="Close" onClick={onClose}>
+        <Icon name="x" size={22} />
+      </button>
+      {/* stop the image itself from closing; the backdrop around it does */}
+      {/* eslint-disable-next-line @next/next/no-img-element -- signed storage URL */}
+      <img src={src} alt={alt} onClick={(e) => e.stopPropagation()} />
+      <a className="nb-lb-open" href={src} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
+        Open original
+      </a>
+    </div>,
+    document.body,
+  );
+}
+
 function Attachments({ files }: { files: StoredDocument[] }) {
+  const [viewing, setViewing] = useState<{ url: string; alt: string } | null>(null);
   if (files.length === 0) return null;
   return (
     <div className="nb-files">
       {files.map((f) =>
         f.image && f.url ? (
-          <a key={f.id} className="nb-file img" href={f.url} target="_blank" rel="noreferrer">
+          // a thumbnail opens the in-app viewer, not a raw new tab you can't
+          // get back from
+          <button
+            key={f.id}
+            type="button"
+            className="nb-file img"
+            onClick={() => setViewing({ url: f.url as string, alt: displayName(f.fileName) })}
+          >
             {/* eslint-disable-next-line @next/next/no-img-element -- signed,
                 short-lived storage URL: the image optimiser can't cache it */}
             <img src={f.url} alt={displayName(f.fileName)} loading="lazy" />
-          </a>
+          </button>
         ) : (
           <a
             key={f.id}
@@ -295,6 +341,7 @@ function Attachments({ files }: { files: StoredDocument[] }) {
           </a>
         ),
       )}
+      {viewing && <Lightbox src={viewing.url} alt={viewing.alt} onClose={() => setViewing(null)} />}
     </div>
   );
 }

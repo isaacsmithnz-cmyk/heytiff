@@ -298,7 +298,7 @@
 
 /* attachments: photos show as photos, everything else as a labelled chip */
 .fg .nb-files { display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; }
-.fg .nb-file { display:flex; text-decoration:none; color:inherit; border-radius:14px; overflow:hidden; border:1px solid #eceef3; transition:border-color .15s; }
+.fg .nb-file { display:flex; text-decoration:none; color:inherit; border-radius:14px; overflow:hidden; border:1px solid #eceef3; transition:border-color .15s; background:none; padding:0; margin:0; font:inherit; cursor:pointer; text-align:left; }
 .fg .nb-file:hover { border-color:#d8dbe4; }
 .fg .nb-file.img { width:132px; height:132px; }
 .fg .nb-file.img img { width:100%; height:100%; object-fit:cover; display:block; }
@@ -307,6 +307,17 @@
 .fg .nb-file.doc span { display:flex; flex-direction:column; gap:2px; min-width:0; }
 .fg .nb-file.doc b { font-size:13px; font-weight:700; color:var(--ink); }
 .fg .nb-file.doc em { font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray400); }
+
+/* Attachment lightbox. UNSCOPED (no .fg prefix) on purpose: it portals to
+   <body>, outside the shell root, so a .fg-scoped rule would never match — same
+   reason .dchip2 is unscoped. Single backdrop-filter, no -webkit twin. */
+.nb-lb { position:fixed; inset:0; z-index:1000; display:flex; align-items:center; justify-content:center; padding:44px; background:rgba(5,5,5,.86); backdrop-filter:blur(4px); cursor:zoom-out; animation:nbLbIn .16s ease; }
+@keyframes nbLbIn { from { opacity:0; } to { opacity:1; } }
+.nb-lb img { max-width:100%; max-height:100%; border-radius:12px; box-shadow:0 24px 90px rgba(0,0,0,.6); cursor:default; }
+.nb-lb-x { position:fixed; top:20px; right:24px; width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,.14); color:#fff; border:none; cursor:pointer; transition:background .15s; }
+.nb-lb-x:hover { background:rgba(255,255,255,.26); }
+.nb-lb-open { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); padding:8px 16px; border-radius:999px; background:rgba(255,255,255,.12); color:rgba(255,255,255,.8); font-size:13px; font-weight:600; text-decoration:none; }
+.nb-lb-open:hover { color:#fff; background:rgba(255,255,255,.2); }
 /* the composer's copy, which also has a remove control */
 .fg .nb-pending { display:flex; align-items:center; gap:11px; padding:8px 8px 8px 10px; border:1px solid #eceef3; border-radius:14px; background:#fff; }
 .fg .nb-pending img { width:40px; height:40px; border-radius:9px; object-fit:cover; flex:0 0 auto; }

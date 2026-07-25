@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { OrgCredential } from "@/lib/org/credentials";
 import type { OrgSettings } from "@/lib/org/settings";
@@ -70,7 +70,14 @@ const CREDENTIALS: OrgCredential[] = [
   },
 ];
 
-function setup(over: { org?: Partial<OrgSettings>; credentials?: OrgCredential[]; logoUrl?: string } = {}) {
+function setup(
+  over: {
+    org?: Partial<OrgSettings>;
+    credentials?: OrgCredential[];
+    logoUrl?: string;
+    addressLookup?: boolean;
+  } = {}
+) {
   const actions = {
     onSave: jest.fn().mockResolvedValue({ ok: true }),
     onAddCredential: jest.fn().mockResolvedValue({ ok: true }),
@@ -85,6 +92,7 @@ function setup(over: { org?: Partial<OrgSettings>; credentials?: OrgCredential[]
       credentials={over.credentials ?? CREDENTIALS}
       logoUrl={over.logoUrl ?? null}
       today={TODAY}
+      addressLookup={over.addressLookup ?? false}
       actions={actions}
     />
   );
@@ -317,6 +325,168 @@ describe("the credential modal", () => {
     );
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(actions.onAddCredential).not.toHaveBeenCalled();
+  });
+});
+
+/* The address, which is FOUR fields and one lookup.
+
+   This is the surface where autocomplete earns its keep: pick the address once
+   and suburb, state and postcode fill themselves — including the state, which
+   also picks the org's public-holiday calendar. The street box keeps the STREET
+   line, not the whole formatted address, or the suburb would be printed twice
+   on the same card.
+
+   `fetch` is mocked for these tests and the only URL it may see is our own
+   /api/address; the key lives on the server and has no way into this file. */
+describe("the address", () => {
+  const fetchMock = jest.fn();
+  const realFetch = global.fetch;
+
+  const SUGGESTION = { placeId: "PLACE_1", text: "12 Trade St, Ringwood VIC 3134, Australia" };
+  const PARTS = { address: "12 Trade St", suburb: "Ringwood", state: "VIC", postcode: "3134" };
+  const jsonOk = (body: unknown) => ({ ok: true, status: 200, json: async () => body });
+
+  beforeAll(() => {
+    global.fetch = fetchMock as unknown as typeof fetch;
+  });
+  afterAll(() => {
+    global.fetch = realFetch;
+  });
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    fetchMock.mockImplementation((_url: string, init: { body: string }) => {
+      const { op } = JSON.parse(init.body);
+      if (op === "suggest")
+        return Promise.resolve(jsonOk({ enabled: true, suggestions: [SUGGESTION] }));
+      return Promise.resolve(
+        jsonOk({ enabled: true, formatted: SUGGESTION.text, parts: PARTS })
+      );
+    });
+  });
+
+  // the second card is Contact & address — its own Edit, its own Save
+  const openContact = async (user: ReturnType<typeof userEvent.setup>) =>
+    user.click(screen.getAllByRole("button", { name: /Edit/ })[1]);
+  const saveContact = () => screen.getAllByRole("button", { name: /Save/ })[1];
+
+  const blank = {
+    org: { address: null, suburb: null, state: null, postcode: null },
+  };
+
+  it("is four plain boxes when no key is configured", async () => {
+    const user = userEvent.setup();
+    const { actions } = setup({ ...blank, addressLookup: false });
+
+    await openContact(user);
+    await user.type(screen.getByLabelText("Street address"), "12 Trade Street");
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 300));
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+
+    await user.click(saveContact());
+    expect(actions.onSave).toHaveBeenCalledWith(
+      "contact",
+      expect.objectContaining({ address: "12 Trade Street" })
+    );
+  });
+
+  it("fills suburb, state and postcode from one pick", async () => {
+    const user = userEvent.setup();
+    setup({ ...blank, addressLookup: true });
+
+    await openContact(user);
+    await user.type(screen.getByLabelText("Street address"), "12 Trade");
+    await screen.findByRole("listbox");
+    await user.click(screen.getByText(SUGGESTION.text));
+
+    await waitFor(() => expect(screen.getByLabelText("Suburb")).toHaveValue("Ringwood"));
+    // the State SELECT, so the holiday calendar follows — a code it can show
+    expect(screen.getByLabelText(/^State/)).toHaveValue("VIC");
+    expect(screen.getByLabelText("Postcode")).toHaveValue("3134");
+  });
+
+  it("keeps the street line in the street box, not the whole address", async () => {
+    const user = userEvent.setup();
+    const { actions } = setup({ ...blank, addressLookup: true });
+
+    await openContact(user);
+    await user.type(screen.getByLabelText("Street address"), "12 Trade");
+    await screen.findByRole("listbox");
+    await user.click(screen.getByText(SUGGESTION.text));
+
+    await waitFor(() => expect(screen.getByLabelText("Street address")).toHaveValue("12 Trade St"));
+
+    await user.click(saveContact());
+    expect(actions.onSave).toHaveBeenCalledWith("contact", expect.objectContaining(PARTS));
+  });
+
+  /* A suburb-level match has no street number and no route, and an empty
+     street box would be a worse answer than the line the person picked. */
+  it("falls back to the formatted line when Google had no street", async () => {
+    fetchMock.mockImplementation((_url: string, init: { body: string }) => {
+      const { op } = JSON.parse(init.body);
+      if (op === "suggest")
+        return Promise.resolve(
+          jsonOk({ enabled: true, suggestions: [{ placeId: "P2", text: "Ringwood VIC, Australia" }] })
+        );
+      return Promise.resolve(
+        jsonOk({
+          enabled: true,
+          formatted: "Ringwood VIC, Australia",
+          parts: { address: "", suburb: "Ringwood", state: "VIC", postcode: "" },
+        })
+      );
+    });
+    const user = userEvent.setup();
+    setup({ ...blank, addressLookup: true });
+
+    await openContact(user);
+    await user.type(screen.getByLabelText("Street address"), "Ringwood");
+    await screen.findByRole("listbox");
+    await user.click(screen.getByText("Ringwood VIC, Australia"));
+
+    await waitFor(() =>
+      expect(screen.getByLabelText("Street address")).toHaveValue("Ringwood VIC, Australia")
+    );
+    expect(screen.getByLabelText("Suburb")).toHaveValue("Ringwood");
+  });
+
+  it("still lets an address be typed in full, and typed over afterwards", async () => {
+    const user = userEvent.setup();
+    const { actions } = setup({ ...blank, addressLookup: true });
+
+    await openContact(user);
+    await user.type(screen.getByLabelText("Street address"), "12 Trade");
+    await screen.findByRole("listbox");
+    await user.click(screen.getByText(SUGGESTION.text));
+    await waitFor(() => expect(screen.getByLabelText("Suburb")).toHaveValue("Ringwood"));
+
+    // Google's answer is a starting point, not a lock
+    await user.clear(screen.getByLabelText("Street address"));
+    await user.type(screen.getByLabelText("Street address"), "Unit 9, 12 Trade St");
+    await user.click(saveContact());
+
+    expect(actions.onSave).toHaveBeenCalledWith(
+      "contact",
+      expect.objectContaining({ address: "Unit 9, 12 Trade St", suburb: "Ringwood", state: "VIC" })
+    );
+  });
+
+  it("only ever talks to our own proxy", async () => {
+    const user = userEvent.setup();
+    setup({ ...blank, addressLookup: true });
+
+    await openContact(user);
+    await user.type(screen.getByLabelText("Street address"), "12 Trade");
+    await screen.findByRole("listbox");
+    await user.click(screen.getByText(SUGGESTION.text));
+    await waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThan(1));
+
+    for (const [url] of fetchMock.mock.calls) expect(url).toBe("/api/address");
   });
 });
 

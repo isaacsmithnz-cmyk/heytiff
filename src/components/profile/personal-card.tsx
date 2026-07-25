@@ -2,6 +2,7 @@
 
 import { Icon } from "@/components/shell/icon";
 import { IdCard } from "@/components/cards/id-card";
+import { AddressField } from "@/components/address/address-field";
 import { type StaffProfile } from "@/lib/staff/profile";
 import { dateInputValue, formatAuDate } from "@/lib/au-dates";
 import { preValidate } from "@/lib/staff/pre-validate";
@@ -35,12 +36,16 @@ export function PersonalCard({
   mode,
   org,
   initials,
+  addressLookup = false,
   onSave,
 }: {
   profile: StaffProfile | null;
   mode: ProfileMode;
   org: string | null;
   initials: string;
+  /** server-computed Boolean(GOOGLE_MAPS_API_KEY). False leaves Address the
+      plain text box it has always been — the field never depends on it. */
+  addressLookup?: boolean;
   onSave: SaveSection;
 }) {
   const values = personalValues(profile, mode);
@@ -164,12 +169,17 @@ export function PersonalCard({
               />
             </Field>
           </div>
+          {/* One line, and it stays one line: a staff member's home address is
+              read, not queried, so the whole formatted address goes in the same
+              box AddressField already writes to via onChange. No onResolve —
+              there are no sibling fields here to fill. */}
           <div className="frow">
             <Field label="Address">
-              <TextInput
+              <AddressField
                 name="address"
                 placeholder="Street, suburb, state, postcode"
                 value={draft.address}
+                enabled={addressLookup}
                 onChange={(v) => set("address", v)}
               />
             </Field>

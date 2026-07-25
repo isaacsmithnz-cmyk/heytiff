@@ -2208,3 +2208,17 @@ select.fl-i { cursor:pointer; }
   .fg .lv-cal { grid-template-columns:minmax(0,1fr); }
   .fg .lv-calside { max-width:340px; }
 }
+
+/* Address suggestions — the same plate as the calendar popover (.cal-pop),
+   because they are the same object: a small white card that appears under a
+   field and portals to <body>. Fixed positioning is set inline by the
+   component; everything that makes it look like HeyTiff is here.
+
+   Scrolls at eight-ish rows rather than growing to whatever Places returns —
+   a dropdown taller than the card it hangs off reads as a page, not a hint. */
+.fg .adr-pop { position:fixed; z-index:200; min-width:220px; max-height:262px; overflow-y:auto; padding:6px; border-radius:14px; background:#fff; border:1px solid #f0f0f2; box-shadow:0 20px 50px -20px rgba(0,0,0,.35); animation:calPop .16s ease; }
+.fg .adr-opt { padding:9px 11px; border-radius:10px; font-size:13.5px; font-weight:600; line-height:1.35; color:var(--ink); cursor:pointer; transition:background .12s, color .12s; }
+/* Hover and keyboard land on the SAME class: arrowing down and moving the
+   mouse must not be able to highlight two different rows at once. */
+.fg .adr-opt:hover, .fg .adr-opt.on { background:#fafbfc; }
+.fg .adr-opt.on { box-shadow:inset 0 0 0 1px rgba(0,163,137,.35); color:var(--teal-d); }

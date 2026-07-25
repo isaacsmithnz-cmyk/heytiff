@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuWeekdayDate } from "@/lib/au-dates";
@@ -10,6 +10,7 @@ import {
   restoreHoliday,
   type HolidayResult,
 } from "@/app/actions/holidays";
+import { provisionalHolidays } from "@/lib/timepay/holiday-rules";
 import type { Holiday } from "@/lib/timepay/leave-query";
 
 /* The public-holiday manager, embeddable — it lives inside the Time & Pay
@@ -20,7 +21,13 @@ import type { Holiday } from "@/lib/timepay/leave-query";
    statutory rules), so this is the exceptions surface: add a proclaimed
    one-off, remove a day this business works, restore one removed by mistake.
    Removed auto days stay listed under "Removed" — they're tombstones the
-   sync must not resurrect, so they must stay visible and reversible. */
+   sync must not resurrect, so they must stay visible and reversible.
+
+   "Worth confirming" covers the other half of the calendar: days that are real
+   but whose DATE nobody can compute (WA's proclaimed King's Birthday, the
+   Friday before the AFL Grand Final). The rules module never auto-writes those,
+   so the admin gets a quiet nudge with the usual timing, prefills the form from
+   it, and types the date off the gazette — which lands it as a manual row. */
 
 const STATES = ["NSW", "VIC", "QLD", "SA", "WA", "TAS", "NT", "ACT"] as const;
 
@@ -40,6 +47,7 @@ export function HolidaySection({
   const [state, setState] = useState<string>(orgState ?? "NSW");
   const [date, setDate] = useState("");
   const [name, setName] = useState("");
+  const dateRef = useRef<HTMLInputElement>(null);
 
   const run = (action: () => Promise<HolidayResult>, onOk?: () => void) => {
     setError(null);
@@ -54,6 +62,24 @@ export function HolidaySection({
 
   const active = holidays.filter((h) => !h.suppressed);
   const removed = holidays.filter((h) => h.suppressed);
+
+  // Proclamation-dependent days for this org's state, this year and next, minus
+  // any already on the calendar under that name — including removed ones, since
+  // a tombstone is a decision not to observe it, not an invitation to re-suggest.
+  const thisYear = Number(today.slice(0, 4));
+  const suggestions = !orgState
+    ? []
+    : [thisYear, thisYear + 1].flatMap((year) =>
+        provisionalHolidays(orgState, year)
+          .filter(
+            (p) =>
+              !holidays.some(
+                (h) =>
+                  h.state === orgState && h.name === p.name && h.date.slice(0, 4) === String(year),
+              ),
+          )
+          .map((p) => ({ ...p, year, state: orgState })),
+      );
 
   // group by year for a scannable list
   const byYear = new Map<string, Holiday[]>();
@@ -81,6 +107,7 @@ export function HolidaySection({
           <label className="mts-f">
             <span>Date</span>
             <input
+              ref={dateRef}
               type="date"
               value={date}
               min={today.slice(0, 4) + "-01-01"}
@@ -111,6 +138,37 @@ export function HolidaySection({
           </div>
         </div>
       </div>
+
+      {suggestions.length > 0 && (
+        <div className="hol-sug">
+          <div className="hol-sugh">
+            Worth confirming
+            <span>These are set by proclamation — add the date once it&rsquo;s gazetted.</span>
+          </div>
+          {suggestions.map((s) => (
+            <div className="hol-sugrow" key={`${s.year}-${s.name}`}>
+              <span className="hol-sugy">{s.year}</span>
+              <span className="hol-sugmain">
+                <b>{s.name}</b>
+                <em>{s.usual}</em>
+              </span>
+              <button
+                className="hol-sugadd"
+                title="Prefill the form — you supply the gazetted date"
+                onClick={() => {
+                  setState(s.state);
+                  setName(s.name);
+                  setDate("");
+                  dateRef.current?.focus();
+                }}
+              >
+                <Icon name="plus" size={13} />
+                Add
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {active.length === 0 ? (
         <div className="fl-hempty" style={{ marginTop: 20 }}>

@@ -33,15 +33,17 @@ describe("system map registry", () => {
 
   it("standalone pieces are exactly the ones we mean to be standalone", () => {
     // Going connected ↔ standalone should be a conscious decision: update this
-    // list together with the edge change. `tiff` joined the list in Stage 7:
-    // deleting mock/demo.ts removed its only edge, and its knowledge library is
-    // empty until the Documents/storage track lands real uploads.
-    expect(standaloneIds().sort()).toEqual(["hq-map", "tb-fault", "tb-press", "tiff"].sort());
+    // list together with the edge change. The three hand-authored toolbox
+    // tools are deliberately pack-free and backend-free; `tiff` stays here
+    // until the knowledge screen is wired to the live documents track.
+    expect(standaloneIds().sort()).toEqual(
+      ["hq-map", "tb-fault", "tb-outdoor", "tb-press", "tiff"].sort()
+    );
   });
 
   it("helpers agree with the raw edge list", () => {
     expect(drawsFrom("rate").map((e) => e.to).sort()).toEqual(
-      ["db-rate", "eng-rate", "timepay"].sort()
+      ["db-rate", "db-staff", "eng-rate", "timepay"].sort()
     );
     expect(feeds("eng-loads").map((e) => e.from).sort()).toEqual(
       ["eng-sim", "studio", "tb-heat"].sort()

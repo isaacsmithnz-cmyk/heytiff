@@ -25,9 +25,15 @@ const ROLE_OPTIONS = [
 
 const ROLE_LABEL = new Map<string, string>(ROLE_OPTIONS.map((o) => [o.role, o.label]));
 
-/* HQ universal-table drill-down: system-type tabs → form-factor groups →
-   collapsible series groups → per-series COMPARISON TABLE (rows = models,
-   columns = spec fields in ordered groups à la table-groups.ts).
+/* HQ universal-table drill-down: search box → system-type tabs → form-factor
+   groups → collapsible series groups → per-series COMPARISON TABLE (rows =
+   models, columns = spec fields in ordered groups à la table-groups.ts).
+
+   Every series group starts CLOSED — a brand pack is hundreds of models, so
+   the page opens as a scannable index and you open what you want. Search is
+   the fast path in: typing filters rows to matching models/series across every
+   tab (tab pills switch to match counts) and the surviving groups render open
+   so the hits are visible without a second click.
 
    The smart-gap treatment survives the table form: filled cells show values
    (manual overrides highlighted amber), missing cells render a "+" coloured by
@@ -87,6 +93,97 @@ interface TagEditing {
   packValue: string[] | null;
 }
 
+/** a series group plus the stable key its open/closed state is stored under */
+interface KeyedGroup {
+  key: string;
+  group: HqSeriesGroup;
+}
+
+/** one system tab, narrowed to the rows that survive the current search */
+interface FilteredSystem {
+  system: HqSystemGroup;
+  iduForms: { formFactor: string; label: string; groups: KeyedGroup[] }[];
+  oduSeries: KeyedGroup[];
+  pairSeries: KeyedGroup[];
+  counts: { idu: number; odu: number; pairs: number; ready: number; blocking: number };
+  /** rows matching the search in this tab (all rows when not searching) */
+  matches: number;
+  keys: string[];
+}
+
+/** model name, series or model key — the three things you'd type to find a unit */
+function rowMatches(row: HqRow, q: string): boolean {
+  return (
+    row.title.toLowerCase().includes(q) ||
+    row.series.toLowerCase().includes(q) ||
+    row.rowKey.toLowerCase().includes(q)
+  );
+}
+
+/** Narrow series groups to matching rows; a series-name hit keeps the whole
+    series (you searched for the family, not one model). */
+function filterSeries(list: HqSeriesGroup[], prefix: string, q: string): KeyedGroup[] {
+  const out: KeyedGroup[] = [];
+  for (const g of list) {
+    const key = `${prefix}:${g.series}`;
+    if (!q || g.series.toLowerCase().includes(q)) {
+      out.push({ key, group: g });
+      continue;
+    }
+    const rows = g.rows.filter((r) => rowMatches(r, q));
+    if (rows.length === 0) continue;
+    out.push({
+      key,
+      group: {
+        ...g,
+        rows,
+        total: rows.length,
+        ready: rows.filter((r) => r.engineReady).length,
+      },
+    });
+  }
+  return out;
+}
+
+function filterSystem(system: HqSystemGroup, q: string): FilteredSystem {
+  const iduForms = system.iduForms
+    .map((f) => ({
+      formFactor: f.formFactor,
+      label: f.label,
+      groups: filterSeries(f.seriesGroups, `${system.key}:idu:${f.formFactor}`, q),
+    }))
+    .filter((f) => f.groups.length > 0);
+  const oduSeries = filterSeries(system.oduSeries, `${system.key}:odu`, q);
+  const pairSeries = filterSeries(system.pairSeries, `${system.key}:pair`, q);
+
+  const iduRows = iduForms.flatMap((f) => f.groups.flatMap((k) => k.group.rows));
+  const oduRows = oduSeries.flatMap((k) => k.group.rows);
+  const pairRows = pairSeries.flatMap((k) => k.group.rows);
+  const units = [...iduRows, ...oduRows];
+
+  return {
+    system,
+    iduForms,
+    oduSeries,
+    pairSeries,
+    counts: {
+      idu: iduRows.length,
+      odu: oduRows.length,
+      pairs: pairRows.length,
+      ready: units.filter((r) => r.engineReady).length,
+      blocking:
+        units.reduce((n, r) => n + r.blockingCount, 0) +
+        pairRows.reduce((n, r) => n + r.blockingCount, 0),
+    },
+    matches: iduRows.length + oduRows.length + pairRows.length,
+    keys: [
+      ...iduForms.flatMap((f) => f.groups.map((k) => k.key)),
+      ...oduSeries.map((k) => k.key),
+      ...pairSeries.map((k) => k.key),
+    ],
+  };
+}
+
 export function HqBrandCatalog({
   groups,
   onSave,
@@ -98,23 +195,55 @@ export function HqBrandCatalog({
 }) {
   const router = useRouter();
   const [tabKey, setTabKey] = useState(groups.systems[0]?.key ?? "split");
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [query, setQuery] = useState("");
+  /* Open groups, tagged with the query they belong to. Null — or a stale tag —
+     means "no manual choice yet for this query", which falls back to the
+     default: closed, or open when a search is narrowing the page. Deriving it
+     this way (rather than syncing an effect) keeps groups open across the
+     router.refresh() that follows every save. */
+  const [openState, setOpenState] = useState<{ q: string; keys: Set<string> } | null>(null);
   const [editing, setEditing] = useState<Editing | null>(null);
   const [tagEditing, setTagEditing] = useState<TagEditing | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const tab: HqSystemGroup =
-    groups.systems.find((s) => s.key === tabKey) ?? groups.systems[0];
+  const q = query.trim().toLowerCase();
+  const searching = q.length > 0;
   const editable = !!onSave;
 
+  const filtered = useMemo(
+    () => groups.systems.map((s) => filterSystem(s, q)),
+    [groups, q]
+  );
+  const allKeys = useMemo(() => filtered.flatMap((f) => f.keys), [filtered]);
+  const totalMatches = filtered.reduce((n, f) => n + f.matches, 0);
+
+  const tabIndex = Math.max(
+    0,
+    groups.systems.findIndex((s) => s.key === tabKey)
+  );
+  const tab: HqSystemGroup = groups.systems[tabIndex];
+  const view = filtered[tabIndex];
+
+  function isOpen(key: string) {
+    if (openState && openState.q === q) return openState.keys.has(key);
+    return searching;
+  }
+
   function toggle(key: string) {
-    setCollapsed((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
+    setOpenState((prev) => {
+      const keys =
+        prev && prev.q === q ? new Set(prev.keys) : new Set(searching ? allKeys : []);
+      if (keys.has(key)) keys.delete(key);
+      else keys.add(key);
+      return { q, keys };
     });
+  }
+
+  const allOpen = allKeys.length > 0 && allKeys.every(isOpen);
+
+  function toggleAll() {
+    setOpenState({ q, keys: allOpen ? new Set() : new Set(allKeys) });
   }
 
   function openEditor(row: HqRow, field: string) {
@@ -279,57 +408,121 @@ export function HqBrandCatalog({
   }
 
   const editingSpec = editing ? fieldSpec(editing.section, editing.field) : null;
-  const unitTotal = tab.counts.idu + tab.counts.odu;
+  const unitTotal = view.counts.idu + view.counts.odu;
+  const emptyTab = view.matches === 0;
 
   return (
     <div className="hq-dt">
-      <div className="hq-tabs">
-        {groups.systems.map((s) => (
-          <button
-            key={s.key}
-            className={`hq-tab${tab.key === s.key ? " active" : ""}`}
-            onClick={() => setTabKey(s.key)}
-          >
-            {s.label}{" "}
-            <span className="hq-tab-n">{s.counts.idu + s.counts.odu + s.counts.pairs}</span>
-          </button>
-        ))}
-      </div>
-
-      <div className="hq-dt-summary">
-        <b>{tab.counts.ready}</b> of {unitTotal} engine-ready
-        {tab.counts.blocking > 0 ? (
-          <>
-            {" · "}
-            <span className="hq-dt-block">
-              {tab.counts.blocking} blocking gap{tab.counts.blocking === 1 ? "" : "s"}
-            </span>
-          </>
+      <div className="hq-dt-bar">
+        <div className="hq-search">
+          <span className="hq-search-ic" aria-hidden="true">
+            ⌕
+          </span>
+          <input
+            className="hq-search-in"
+            type="search"
+            value={query}
+            placeholder="Search models or series…"
+            aria-label="Search models or series"
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setQuery("");
+            }}
+          />
+          {searching ? (
+            <button className="hq-search-x" onClick={() => setQuery("")}>
+              Clear
+            </button>
+          ) : null}
+        </div>
+        {searching ? (
+          <span className="hq-search-n">
+            {totalMatches} match{totalMatches === 1 ? "" : "es"} in this pack
+          </span>
         ) : null}
+        <button className="hq-dt-all" onClick={toggleAll} disabled={allKeys.length === 0}>
+          {allOpen ? "Collapse all" : "Expand all"}
+        </button>
       </div>
 
-      {unitTotal === 0 && tab.counts.pairs === 0 ? (
+      <div className="hq-tabs">
+        {groups.systems.map((s, i) => {
+          const f = filtered[i];
+          const n = searching
+            ? f.matches
+            : s.counts.idu + s.counts.odu + s.counts.pairs;
+          return (
+            <button
+              key={s.key}
+              className={`hq-tab${tab.key === s.key ? " active" : ""}${
+                searching && f.matches === 0 ? " none" : ""
+              }`}
+              onClick={() => setTabKey(s.key)}
+            >
+              {s.label} <span className="hq-tab-n">{n}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {searching ? (
+        <div className="hq-dt-summary">
+          {view.matches === 0 ? (
+            <>
+              No {tab.label.toLowerCase()} rows match <b className="hq-dt-q">{query}</b>
+            </>
+          ) : (
+            <>
+              <b>{view.matches}</b> match{view.matches === 1 ? "" : "es"} for{" "}
+              <b className="hq-dt-q">{query}</b> · {view.counts.ready} of {unitTotal}{" "}
+              engine-ready
+            </>
+          )}
+        </div>
+      ) : (
+        <div className="hq-dt-summary">
+          <b>{view.counts.ready}</b> of {unitTotal} engine-ready
+          {view.counts.blocking > 0 ? (
+            <>
+              {" · "}
+              <span className="hq-dt-block">
+                {view.counts.blocking} blocking gap
+                {view.counts.blocking === 1 ? "" : "s"}
+              </span>
+            </>
+          ) : null}
+        </div>
+      )}
+
+      {emptyTab && searching ? (
+        <div className="hq-empty">
+          {totalMatches > 0
+            ? "Nothing here — try another system tab, the match counts are on the tabs."
+            : "No model, series or model code in this pack matches that."}
+        </div>
+      ) : null}
+
+      {emptyTab && !searching ? (
         <div className="hq-empty">Nothing in this pack serves {tab.label} yet.</div>
       ) : null}
 
-      {tab.counts.idu > 0 ? (
+      {view.counts.idu > 0 ? (
         <>
           <h3 className="hq-section-h">Indoor units</h3>
-          {tab.iduForms.map((form) => (
+          {view.iduForms.map((form) => (
             <div key={form.formFactor}>
               <div className="hq-form-h">
                 {form.label}
                 <span className="hq-form-n">
-                  {form.seriesGroups.reduce((n, s) => n + s.total, 0)} units
+                  {form.groups.reduce((n, s) => n + s.group.total, 0)} units
                 </span>
               </div>
-              {form.seriesGroups.map((sg) => (
+              {form.groups.map((kg) => (
                 <SeriesGroup
-                  key={sg.series}
-                  group={sg}
-                  groupKey={`${tab.key}:idu:${form.formFactor}:${sg.series}`}
-                  collapsed={collapsed}
-                  onToggle={toggle}
+                  key={kg.key}
+                  group={kg.group}
+                  open={isOpen(kg.key)}
+                  onToggle={() => toggle(kg.key)}
                   editable={editable}
                   onPick={openEditor}
                   onTags={openTagEditor}
@@ -338,7 +531,7 @@ export function HqBrandCatalog({
             </div>
           ))}
         </>
-      ) : tab.counts.odu > 0 ? (
+      ) : view.counts.odu > 0 && !searching ? (
         <div className="hq-empty">
           {tab.key === "multi"
             ? "This pack has multi-split outdoor units only — no indoor units are tagged for multi yet."
@@ -346,18 +539,17 @@ export function HqBrandCatalog({
         </div>
       ) : null}
 
-      {tab.counts.odu > 0 ? (
+      {view.counts.odu > 0 ? (
         <>
           <h3 className="hq-section-h" style={{ marginTop: 26 }}>
             Outdoor units
           </h3>
-          {tab.oduSeries.map((sg) => (
+          {view.oduSeries.map((kg) => (
             <SeriesGroup
-              key={sg.series}
-              group={sg}
-              groupKey={`${tab.key}:odu:${sg.series}`}
-              collapsed={collapsed}
-              onToggle={toggle}
+              key={kg.key}
+              group={kg.group}
+              open={isOpen(kg.key)}
+              onToggle={() => toggle(kg.key)}
               editable={editable}
               onPick={openEditor}
             />
@@ -365,18 +557,17 @@ export function HqBrandCatalog({
         </>
       ) : null}
 
-      {tab.key === "split" && tab.counts.pairs > 0 ? (
+      {tab.key === "split" && view.counts.pairs > 0 ? (
         <>
           <h3 className="hq-section-h" style={{ marginTop: 26 }}>
             Pair tables
           </h3>
-          {tab.pairSeries.map((sg) => (
+          {view.pairSeries.map((kg) => (
             <SeriesGroup
-              key={sg.series}
-              group={sg}
-              groupKey={`${tab.key}:pair:${sg.series}`}
-              collapsed={collapsed}
-              onToggle={toggle}
+              key={kg.key}
+              group={kg.group}
+              open={isOpen(kg.key)}
+              onToggle={() => toggle(kg.key)}
               editable={editable}
               onPick={openEditor}
             />
@@ -652,23 +843,20 @@ export function HqBrandCatalog({
 
 function SeriesGroup({
   group,
-  groupKey,
-  collapsed,
+  open,
   onToggle,
   editable,
   onPick,
   onTags,
 }: {
   group: HqSeriesGroup;
-  groupKey: string;
-  collapsed: Set<string>;
-  onToggle: (key: string) => void;
+  open: boolean;
+  onToggle: () => void;
   editable: boolean;
   onPick: (row: HqRow, field: string) => void;
   /** present only for indoor-unit series (tags live on IDUs) */
   onTags?: (rows: HqRow[], title: string) => void;
 }) {
-  const open = !collapsed.has(groupKey);
   const cols = useMemo(
     () =>
       group.rows.length
@@ -684,7 +872,7 @@ function SeriesGroup({
         <button
           className="hq-series-h"
           aria-expanded={open}
-          onClick={() => onToggle(groupKey)}
+          onClick={onToggle}
         >
           <span className={`hq-series-chev${open ? " open" : ""}`}>›</span>
           <span className="hq-series-name">{group.series}</span>

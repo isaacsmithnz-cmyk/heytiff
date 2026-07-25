@@ -273,6 +273,83 @@
 }
 
 /* ── data table (universal-table editor) ── */
+/* search + expand-all bar above the system tabs */
+.hq-dt-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.hq-search {
+  flex: 1 1 320px;
+  max-width: 420px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--hq-line);
+  background: var(--hq-panel);
+}
+.hq-search:focus-within {
+  border-color: color-mix(in srgb, var(--hq-accent) 55%, var(--hq-line));
+}
+.hq-search-ic {
+  color: var(--hq-mut-2);
+  font-size: 16px;
+  line-height: 1;
+}
+.hq-search-in {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 0;
+  border: none;
+  background: transparent;
+  color: var(--hq-ink);
+  font-family: inherit;
+  font-size: 13.5px;
+  outline: none;
+}
+.hq-search-in::placeholder {
+  color: var(--hq-mut-2);
+}
+/* the UA clear affordance duplicates our own Clear button */
+.hq-search-in::-webkit-search-cancel-button {
+  display: none;
+}
+.hq-search-x,
+.hq-dt-all {
+  flex: 0 0 auto;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--hq-mut);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.hq-search-x:hover {
+  color: var(--hq-ink);
+}
+.hq-dt-all {
+  margin-left: auto;
+  padding: 8px 14px;
+  border-radius: 9px;
+  border-color: var(--hq-line);
+}
+.hq-dt-all:hover:not(:disabled) {
+  color: var(--hq-ink);
+  background: var(--hq-panel);
+}
+.hq-dt-all:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.hq-search-n {
+  font-size: 12.5px;
+  color: var(--hq-mut-2);
+  white-space: nowrap;
+}
 .hq-tabs {
   display: flex;
   gap: 4px;
@@ -301,6 +378,10 @@
   font-weight: 700;
   margin-left: 4px;
 }
+/* a tab with no search hits: still clickable, visibly empty */
+.hq-tab.none {
+  opacity: 0.45;
+}
 .hq-dt-summary {
   font-size: 13px;
   color: var(--hq-mut);
@@ -312,6 +393,11 @@
 .hq-dt-block {
   color: var(--hq-block);
   font-weight: 600;
+}
+/* the echoed query in the summary line — plain ink, not the ready green that
+   .hq-dt-summary b otherwise paints */
+.hq-dt-summary b.hq-dt-q {
+  color: var(--hq-ink);
 }
 
 .hq-rd {

@@ -5,11 +5,17 @@ import {
   type StaffWeek,
   type WeekDay,
   type WeekCtx,
+  breakLine,
   dayClass,
   derive,
+  derivedDayHours,
   fmt,
+  fmtH,
   initials,
+  parseClock,
   ruleSummary,
+  seedBreakMinutes,
+  spanHours,
   splitDay,
   submitNote,
   weekGroups,
@@ -304,5 +310,167 @@ describe("a period is not a week", () => {
     expect(groups[1].days[0].index).toBe(7);
     // a plain week is a single group
     expect(weekGroups(days.slice(0, 7))).toHaveLength(1);
+  });
+});
+
+/* ---------------- clock → hours ----------------
+
+   The bug this replaced: a worked day carried a start, a finish AND a typed
+   `h`, so a day could be saved with both times set and 0.00 hours. These are
+   the pure functions that make the hours a consequence of the times, so the
+   two can no longer disagree. */
+
+const withBreak = (minutes: number, paid: boolean): Settings => ({
+  ...DEFAULT_SETTINGS,
+  breakMinutes: minutes,
+  breakPaid: paid,
+});
+
+describe("parseClock", () => {
+  it.each([
+    ["7:00 AM", 7 * 60],
+    ["7:00 am", 7 * 60],
+    ["07:00", 7 * 60],
+    ["7", 7 * 60],
+    ["7am", 7 * 60],
+    ["7 a.m.", 7 * 60],
+    ["0700", 7 * 60],
+    ["3:30 PM", 15 * 60 + 30],
+    ["3.30 pm", 15 * 60 + 30],
+    ["15:30", 15 * 60 + 30],
+    ["1530", 15 * 60 + 30],
+    ["  3:30PM  ", 15 * 60 + 30],
+    ["12:00 AM", 0],
+    ["12:30 AM", 30],
+    ["12:00 PM", 12 * 60],
+    ["12:45 PM", 12 * 60 + 45],
+    ["00:00", 0],
+    ["23:59", 23 * 60 + 59],
+  ])("reads %s", (input, minutes) => {
+    expect(parseClock(input)).toBe(minutes);
+  });
+
+  it.each([
+    "",
+    "   ",
+    "half seven",
+    "24:00",
+    "7:60",
+    "13:00 PM",
+    "0:30 AM",
+    "am",
+    "700",
+    "7:00:30",
+    "-3",
+  ])("refuses %s rather than guessing", (input) => {
+    expect(parseClock(input)).toBeNull();
+  });
+
+  it("reads one minute digit literally — 3.3 pm is 3:03, not half past", () => {
+    // padding it the other way would silently invent 27 minutes
+    expect(parseClock("3.3 pm")).toBe(15 * 60 + 3);
+  });
+});
+
+describe("spanHours", () => {
+  it("measures a normal day", () => {
+    expect(spanHours("7:00 AM", "3:00 PM")).toBe(8);
+    expect(spanHours("7:00 AM", "3:30 PM")).toBe(8.5);
+  });
+
+  it("crosses midnight rather than going negative", () => {
+    expect(spanHours("10:00 PM", "6:00 AM")).toBe(8);
+    expect(spanHours("23:30", "00:30")).toBe(1);
+  });
+
+  it("is null when either end can't be read", () => {
+    expect(spanHours("banana", "3:00 PM")).toBeNull();
+    expect(spanHours("7:00 AM", "")).toBeNull();
+  });
+});
+
+describe("derivedDayHours", () => {
+  it("is the whole span when no break is configured", () => {
+    expect(derivedDayHours("7:00 AM", "3:00 PM", DEFAULT_SETTINGS)).toBe(8);
+  });
+
+  it("deducts an unpaid break", () => {
+    expect(derivedDayHours("7:00 AM", "3:00 PM", withBreak(30, false))).toBe(7.5);
+    expect(derivedDayHours("7:00 AM", "3:00 PM", withBreak(45, false))).toBe(7.25);
+  });
+
+  it("deducts nothing for a paid break — it's on the clock", () => {
+    expect(derivedDayHours("7:00 AM", "3:00 PM", withBreak(30, true))).toBe(8);
+  });
+
+  it("takes a per-day override, but only when the break is unpaid", () => {
+    expect(derivedDayHours("7:00 AM", "3:00 PM", withBreak(30, false), 20)).toBe(7.67);
+    expect(derivedDayHours("7:00 AM", "3:00 PM", withBreak(30, false), 0)).toBe(8);
+    // paid: an override is meaningless, so it changes nothing
+    expect(derivedDayHours("7:00 AM", "3:00 PM", withBreak(30, true), 60)).toBe(8);
+  });
+
+  it("clamps the deduction at the span — a short call-out is 0h, never below", () => {
+    expect(derivedDayHours("7:00 AM", "7:20 AM", withBreak(30, false))).toBe(0);
+    expect(derivedDayHours("7:00 AM", "7:20 AM", withBreak(120, false))).toBe(0);
+  });
+
+  it("carries the cross-midnight span through the break", () => {
+    expect(derivedDayHours("10:00 PM", "6:00 AM", withBreak(30, false))).toBe(7.5);
+  });
+
+  it("is null when the times can't be read — the caller must refuse to save", () => {
+    expect(derivedDayHours("half seven", "3:00 PM", DEFAULT_SETTINGS)).toBeNull();
+    expect(derivedDayHours("7:00 AM", "", withBreak(30, false))).toBeNull();
+  });
+
+  it("rounds to two places, so 20 minutes off eight hours is 7.67", () => {
+    expect(derivedDayHours("7:00 AM", "3:00 PM", withBreak(20, false))).toBe(7.67);
+  });
+});
+
+describe("seedBreakMinutes", () => {
+  const day = (i: string, o: string, h: number): DayEntry => ({ t: "work", in: i, out: o, h });
+
+  it("recovers the break that was actually taken — span minus stored hours", () => {
+    // no column stores a per-day break, so it is read back out of the entry
+    expect(seedBreakMinutes(day("7:00 AM", "3:00 PM", 7.5), withBreak(30, false))).toBe(30);
+    expect(seedBreakMinutes(day("7:00 AM", "3:00 PM", 7.25), withBreak(30, false))).toBe(45);
+  });
+
+  it("falls back to the org standard when there's nothing to read it from", () => {
+    expect(seedBreakMinutes({ t: "empty" }, withBreak(30, false))).toBe(30);
+    expect(seedBreakMinutes(day("nope", "3:00 PM", 8), withBreak(30, false))).toBe(30);
+    // out of the stepper's range (a legacy row with hours nobody derived)
+    expect(seedBreakMinutes(day("7:00 AM", "3:00 PM", 2), withBreak(30, false))).toBe(30);
+  });
+
+  it("is just the org number when the break is paid or absent", () => {
+    expect(seedBreakMinutes(day("7:00 AM", "3:00 PM", 7.5), withBreak(30, true))).toBe(30);
+    expect(seedBreakMinutes(day("7:00 AM", "3:00 PM", 7.5), DEFAULT_SETTINGS)).toBe(0);
+  });
+});
+
+describe("breakLine", () => {
+  it("is empty when no break is configured", () => {
+    expect(breakLine(DEFAULT_SETTINGS)).toBe("");
+  });
+
+  it("says the minutes and whether they're paid", () => {
+    expect(breakLine(withBreak(30, false))).toBe("Break: 30 min · unpaid");
+    expect(breakLine(withBreak(30, true))).toBe("Break: 30 min · paid");
+    expect(breakLine(withBreak(30, false), 20)).toBe("Break: 20 min · unpaid");
+  });
+});
+
+describe("fmtH", () => {
+  it("states hours at the precision they are stored, unlike fmt", () => {
+    expect(fmtH(8)).toBe("8");
+    expect(fmtH(7.5)).toBe("7.5");
+    // fmt rounds to one place for a review column; a field that is about to
+    // save 7.67 must not print 7.7
+    expect(fmtH(7.67)).toBe("7.67");
+    expect(fmt(7.67)).toBe("7.7");
+    expect(fmtH(null)).toBe("—");
   });
 });

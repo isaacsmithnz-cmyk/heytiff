@@ -38,6 +38,13 @@ export type Settings = {
   otUnit: "day" | "week";
   rules: { sat: RateRule; sun: RateRule; ph: RateRule; night: RateRule };
   dblAfter: number;
+  /** The org's standard unpaid/paid break, in minutes. 0 = none configured,
+      which is the default so an existing workspace sees no change until
+      someone opts in. */
+  breakMinutes: number;
+  /** Paid breaks are on the clock: nothing is deducted, and a person can't
+      shorten one per day because it makes no difference to their hours. */
+  breakPaid: boolean;
   submitDay: string;
   submitTime: string;
   lock: boolean;
@@ -105,6 +112,8 @@ export const DEFAULT_SETTINGS: Settings = {
     night: { on: true, rate: 2, up: null },
   },
   dblAfter: 12,
+  breakMinutes: 0,
+  breakPaid: true,
   submitDay: "Sun",
   submitTime: "3:00 PM",
   lock: true,
@@ -116,9 +125,135 @@ export const fmt = (h: number | null | undefined): string =>
 
 export const fmtHval = (v: number): string => fmt(v) + "h";
 
+/* Hours at the precision they are STORED: 8 → "8", 7.5 → "7.5", 7.67 → "7.67".
+
+   `fmt` rounds to one place, which is right for a review column where the eye
+   is scanning a grid. It is wrong for My timesheet: that screen states the
+   number it is about to save, and a derived 7.67h printed as "7.7h" is the
+   same species of lie as the typed-hours field this replaced. */
+export const fmtH = (h: number | null | undefined): string =>
+  h == null ? "—" : String(Math.round(h * 100) / 100);
+
 /* "Mon 29 Jun" from a week-day tuple */
 export const dayLabel = (w: WeekDay): string =>
   w[0].charAt(0) + w[0].slice(1).toLowerCase() + " " + w[1] + " " + w[2];
+
+/* ---------------- clock → hours ----------------
+
+   HOURS ARE DERIVED, NEVER TYPED. A worked day used to carry a start, a
+   finish AND a hand-entered `h`, which meant a day could be saved with both
+   times filled and 0.00 hours — a timesheet that looks complete and pays
+   nothing. The times are the entry; the hours are what the times mean.
+
+   `start_time`/`end_time` are TEXT columns holding whatever the person typed
+   ("7:00 AM"), because that is the format the design asks for and the one an
+   installer writes on a docket. So the parser has to be forgiving of the ways
+   the same moment gets written — but only in ways that can't mean two things.
+   Anything it can't read returns null, and null means "don't save", not
+   "zero". */
+
+/** Minutes since midnight for a typed clock time, or null if unreadable.
+
+    Accepted: "7:00 AM", "07:00", "3.30 pm", "7 AM", "15:30", "0700", "7pm",
+    "7.00a.m.". Rejected (null): empty, "half seven", "25:00", "7:60", a
+    12-hour reading outside 1–12, and any bare number that isn't 1–2 digits
+    (an hour) or exactly 4 (HHMM). One-digit minutes read literally: "3.3 pm"
+    is 3:03 PM, not 3:30 — padding it the other way would silently invent
+    half an hour. */
+export function parseClock(input: string): number | null {
+  if (typeof input !== "string") return null;
+  let s = input.trim().toLowerCase();
+  if (!s) return null;
+
+  // meridiem, however it's punctuated: "am", "a.m.", "AM", " pm"
+  let mer: "am" | "pm" | null = null;
+  const m = s.match(/([ap])\.?\s?m\.?$/);
+  if (m) {
+    mer = m[1] === "a" ? "am" : "pm";
+    s = s.slice(0, m.index).trim();
+  }
+  if (!s) return null;
+
+  let hh: number;
+  let mm: number;
+  const sep = s.match(/^(\d{1,2})\s*[:.]\s*(\d{1,2})$/);
+  if (sep) {
+    hh = Number(sep[1]);
+    mm = Number(sep[2]);
+  } else if (/^\d{4}$/.test(s)) {
+    // "0700" / "1530" — unambiguous because it's exactly four digits
+    hh = Number(s.slice(0, 2));
+    mm = Number(s.slice(2));
+  } else if (/^\d{1,2}$/.test(s)) {
+    hh = Number(s);
+    mm = 0;
+  } else return null;
+
+  if (mm > 59) return null;
+  if (mer) {
+    if (hh < 1 || hh > 12) return null;
+    if (hh === 12) hh = 0;
+    if (mer === "pm") hh += 12;
+  } else if (hh > 23) return null;
+
+  return hh * 60 + mm;
+}
+
+/** Hours between two typed times, or null if either is unreadable.
+
+    A finish at or before the start crosses midnight and gains 24h — a night
+    shift is the normal reason two times run "backwards", and reading it as a
+    negative day would be worse than reading it as a long one. */
+export function spanHours(start: string, end: string): number | null {
+  const a = parseClock(start);
+  const b = parseClock(end);
+  if (a == null || b == null) return null;
+  return ((b <= a ? b + 1440 : b) - a) / 60;
+}
+
+/** What a worked day is actually worth: the span, less the break when the
+    break is unpaid. Null when the times can't be read — the caller must
+    refuse to save rather than write a zero.
+
+    `overrideMin` lets one day deviate from the org's standard break; it is
+    ignored when the break is paid, because a paid break deducts nothing and
+    there is nothing to deviate from. The deduction is clamped at the span, so
+    a 20-minute call-out with a 30-minute break is 0h, never −0.17h. */
+export function derivedDayHours(
+  start: string,
+  end: string,
+  s: Settings,
+  overrideMin?: number,
+): number | null {
+  const span = spanHours(start, end);
+  if (span == null) return null;
+  const mins = s.breakPaid ? 0 : Math.max(0, overrideMin ?? s.breakMinutes);
+  const deduct = Math.min(mins / 60, span);
+  return Math.round((span - deduct) * 100) / 100;
+}
+
+/** The break minutes to put in a day's stepper when its editor opens.
+
+    A per-day break has nowhere to live — a time entry is (kind, start, end,
+    hours) and the actions are not changing — so it is recovered from what was
+    saved: span minus stored hours IS the break that was taken. Falls back to
+    the org standard when there's nothing to read it from or the answer is out
+    of the stepper's range. */
+export function seedBreakMinutes(entry: DayEntry, s: Settings): number {
+  if (s.breakPaid || s.breakMinutes <= 0 || entry.t !== "work") return s.breakMinutes;
+  const span = spanHours(entry.in, entry.out);
+  if (span == null) return s.breakMinutes;
+  const mins = Math.round(((span - entry.h) * 60) / 5) * 5;
+  return mins >= 0 && mins <= 120 ? mins : s.breakMinutes;
+}
+
+/** "Break: 30 min · unpaid" — the one sentence, so the editor and the rules
+    footnote can't word it differently. Empty when no break is configured. */
+export function breakLine(s: Settings, mins?: number): string {
+  const n = mins ?? s.breakMinutes;
+  if (s.breakMinutes <= 0) return "";
+  return `Break: ${n} min · ${s.breakPaid ? "paid" : "unpaid"}`;
+}
 
 const DOW = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
 

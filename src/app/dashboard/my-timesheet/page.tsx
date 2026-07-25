@@ -39,6 +39,7 @@ export default async function MyTimesheetPage({
       settings={data.settings}
       sheet={data.sheet}
       holidays={data.holidays}
+      state={data.state}
     />
   );
 }

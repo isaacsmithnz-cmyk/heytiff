@@ -66,6 +66,12 @@ export async function getPaySettings(
       // a half-written rules blob must not silently disable a penalty rule
       rules: { ...DEFAULT_SETTINGS.rules, ...rules },
       dblAfter: Number(data.dbl_after ?? DEFAULT_SETTINGS.dblAfter),
+      /* Both columns tolerate their own absence: the select is `*`, so a
+         workspace whose database hasn't taken the breaks migration yet simply
+         has no key here and lands on the defaults — 0 minutes, paid — which
+         is exactly "no break configured" and changes nobody's hours. */
+      breakMinutes: Number(data.break_minutes ?? DEFAULT_SETTINGS.breakMinutes),
+      breakPaid: data.break_paid ?? DEFAULT_SETTINGS.breakPaid,
       submitDay: (data.submit_day as string) ?? DEFAULT_SETTINGS.submitDay,
       submitTime: (data.submit_time as string) ?? DEFAULT_SETTINGS.submitTime,
       lock: data.lock ?? DEFAULT_SETTINGS.lock,

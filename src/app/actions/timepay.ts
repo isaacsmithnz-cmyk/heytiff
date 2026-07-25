@@ -228,6 +228,8 @@ export async function savePaySettings(settings: Settings): Promise<TimepayResult
     ot_unit: settings.otUnit,
     rules: settings.rules,
     dbl_after: settings.dblAfter,
+    break_minutes: settings.breakMinutes,
+    break_paid: settings.breakPaid,
     submit_day: settings.submitDay,
     submit_time: settings.submitTime,
     lock: settings.lock,

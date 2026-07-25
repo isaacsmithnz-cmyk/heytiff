@@ -430,8 +430,86 @@ export interface PlanImages {
   remove(ref: string): Promise<void>;
 }
 
+/* ── plan raster cache ──────────────────────────────────────────────────────
+   Opening a design re-downloaded every plan sheet in full — a 2400px-wide PNG
+   per sheet — which is why the tool appeared first and the plan eased in after
+   it. The browser's own cache could never help: each open SIGNS A NEW URL, so
+   the raster arrived at a URL string it had never seen before.
+
+   A ref's bytes never change (a re-upload mints a new ref), so they cache
+   forever, keyed by ref rather than by the URL of the day. Second and later
+   opens paint from disk with no network at all, offline included.
+
+   Everything here degrades to today's behaviour: no Cache Storage (or an
+   insecure context, or a quota refusal) simply means the signed URL is used
+   directly. Cache misses do the same — the caller gets the signed URL straight
+   away so the image starts streaming, and the cache warms behind it. */
+const PLAN_CACHE = "heytiff-plan-rasters-v1";
+/** synthetic key — never fetched, it just names the entry */
+const cacheKey = (ref: string) => `/__plan-raster/${encodeURIComponent(ref)}`;
+
+async function planCache(): Promise<Cache | null> {
+  if (typeof caches === "undefined") return null;
+  try {
+    return await caches.open(PLAN_CACHE);
+  } catch {
+    return null; // private mode / storage disabled
+  }
+}
+
 export class RemotePlanImages implements PlanImages {
   private urls = new Map<string, { url: string; expires: number }>();
+  /** ref → object URL for a cached raster (one per ref, so it can be revoked) */
+  private objectUrls = new Map<string, string>();
+  private warming = new Set<string>();
+
+  /** hand back a cached raster as an object URL, or null if it isn't cached */
+  private async cached(ref: string): Promise<string | null> {
+    const held = this.objectUrls.get(ref);
+    if (held) return held;
+    const cache = await planCache();
+    if (!cache) return null;
+    try {
+      const hit = await cache.match(cacheKey(ref));
+      if (!hit) return null;
+      const url = URL.createObjectURL(await hit.blob());
+      this.objectUrls.set(ref, url);
+      return url;
+    } catch {
+      return null;
+    }
+  }
+
+  /** pull the raster into the cache behind the image that is already loading */
+  private warm(ref: string, signed: string): void {
+    if (this.warming.has(ref)) return;
+    this.warming.add(ref);
+    void (async () => {
+      try {
+        const cache = await planCache();
+        if (!cache) return;
+        // same URL the <image> is fetching, so this usually costs nothing:
+        // the browser serves it from its own cache
+        const res = await fetch(signed);
+        if (res.ok) await cache.put(cacheKey(ref), res);
+      } catch {
+        /* offline, quota, expired ref — the plan still draws from the URL */
+      } finally {
+        this.warming.delete(ref);
+      }
+    })();
+  }
+
+  /** drop a ref's cached bytes (its object is gone, or is being replaced) */
+  private async evict(ref: string): Promise<void> {
+    const held = this.objectUrls.get(ref);
+    if (held) {
+      URL.revokeObjectURL(held);
+      this.objectUrls.delete(ref);
+    }
+    const cache = await planCache();
+    await cache?.delete(cacheKey(ref)).catch(() => {});
+  }
 
   async upload(page: PageImage): Promise<string> {
     if (!page.blob || !page.ext) {
@@ -479,6 +557,16 @@ export class RemotePlanImages implements PlanImages {
   }
 
   async url(ref: string): Promise<string> {
+    // cached bytes beat any URL: no signing round trip, no download
+    const local = await this.cached(ref);
+    if (local) return local;
+    const signed = await this.signed(ref);
+    this.warm(ref, signed);
+    return signed;
+  }
+
+  /** a signed URL for the ref, reusing one until it is close to expiring */
+  private async signed(ref: string): Promise<string> {
     const hit = this.urls.get(ref);
     if (hit && hit.expires > Date.now()) return hit.url;
     const { planImageUrl } = await import("@/app/actions/studio-plans");
@@ -490,6 +578,7 @@ export class RemotePlanImages implements PlanImages {
   async remove(ref: string): Promise<void> {
     const { deletePlanImage } = await import("@/app/actions/studio-plans");
     await deletePlanImage(ref);
+    await this.evict(ref);
     this.urls.delete(ref);
   }
 }

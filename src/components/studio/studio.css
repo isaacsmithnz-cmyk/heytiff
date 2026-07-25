@@ -2431,6 +2431,32 @@
   opacity: 0.92;
   pointer-events: none;
 }
+/* the sheet's footprint while its raster is still downloading — a held frame,
+   not a spinner: the plan then lands INTO its place instead of appearing from
+   nowhere. Only ever seen on the first open of a design (after that the raster
+   comes off the local cache). */
+.dstudio .ds-sheet-loading {
+  fill: rgba(10, 12, 20, 0.035);
+  stroke: rgba(10, 12, 20, 0.14);
+  stroke-width: 1.4;
+  stroke-dasharray: 9 7;
+  vector-effect: non-scaling-stroke;
+  animation: ds-sheet-wait 1.6s ease-in-out infinite;
+}
+@keyframes ds-sheet-wait {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dstudio .ds-sheet-loading {
+    animation: none;
+  }
+}
 .dstudio .ds-sheet-outline {
   fill: none;
   stroke: var(--blue);

@@ -2359,8 +2359,24 @@ export function StudioCanvas({
           {layers.plan && floor.plans.map((s) => {
             const url = sheetUrls[s.imageRef];
             const dims = sheetSize(s);
-            if (!url || !dims) return null;
+            if (!dims) return null;
             const pos = sheetPos(s);
+            if (!url) {
+              /* the raster is still on its way (first open of a design — after
+                 that it comes off the local cache). Hold its footprint rather
+                 than showing bare grid, so the plan lands INTO its frame
+                 instead of arriving out of nowhere. */
+              return (
+                <rect
+                  key={s.id}
+                  className="ds-sheet-loading"
+                  x={pos.x}
+                  y={pos.y}
+                  width={dims.w}
+                  height={dims.h}
+                />
+              );
+            }
             const crop = s.crop;
             const clipId = `clip-${s.id}`;
             return (

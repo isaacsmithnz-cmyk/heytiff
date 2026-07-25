@@ -202,8 +202,10 @@ export function HeatLoadCalculator() {
     zone.label.split(" — ")[0],
     BUILDING_OPTS.find((b) => b.value === s.buildingType)?.label,
     parseNum(s.wm2Override) ? `${effectiveWm2} W/m² override` : null,
-    `${GLAZING_OPTS.find((g) => g.value === s.glazing)?.label.toLowerCase()} glass`,
-    `${CONDITION_OPTS.find((c) => c.value === s.condition)?.label.toLowerCase()} insulation`,
+    `${GLAZING_OPTS.find((g) => g.value === s.glazing)?.label.toLowerCase()} glass` +
+      (GLAZING_MULT[s.glazing] !== 1 ? ` ×${GLAZING_MULT[s.glazing].toFixed(2)}` : ""),
+    `${CONDITION_OPTS.find((c) => c.value === s.condition)?.label.toLowerCase()} insulation` +
+      (CONDITION_MULT[s.condition] !== 1 ? ` ×${CONDITION_MULT[s.condition].toFixed(2)}` : ""),
     hMult > 1 ? `high ceiling ×${hMult.toFixed(2)}` : null,
     s.internal ? "internal room" : `${s.orientation}-facing`,
   ]
@@ -377,7 +379,7 @@ export function HeatLoadCalculator() {
                   Climate zone{" "}
                   <i
                     className="htip tip-l"
-                    data-tip={`Sets the base rate from the NCC climate-zone table. This zone covers: ${zone.cities}.`}
+                    data-tip={`Sets the base rate from the NCC climate-zone table. ${zone.label.split(" — ")[1]}. Covers: ${zone.cities}.`}
                   >
                     i
                   </i>
@@ -389,9 +391,11 @@ export function HeatLoadCalculator() {
                     value={s.climateZone}
                     onChange={(e) => patch({ climateZone: Number(e.target.value) })}
                   >
+                    {/* areas first — techs know their cities, not NCC climate
+                        jargon; the descriptor lives in the info tip */}
                     {Object.entries(CLIMATE_ZONES).map(([num, z]) => (
                       <option key={num} value={num}>
-                        {z.label}
+                        Zone {num} — {z.cities.split(", ").slice(0, 3).join(", ")}
                       </option>
                     ))}
                   </select>
@@ -447,16 +451,16 @@ export function HeatLoadCalculator() {
                     i
                   </i>
                 </label>
-                <div className="tseg" role="group" aria-label="Glazing">
+                <div className="tseg mseg" role="group" aria-label="Glazing">
                   {GLAZING_OPTS.map((g) => (
                     <button
                       key={g.value}
                       type="button"
                       className={s.glazing === g.value ? "on" : ""}
-                      title={`×${GLAZING_MULT[g.value].toFixed(2)}`}
                       onClick={() => patch({ glazing: g.value })}
                     >
                       {g.label}
+                      <span className="m">×{GLAZING_MULT[g.value].toFixed(2)}</span>
                     </button>
                   ))}
                 </div>
@@ -468,16 +472,16 @@ export function HeatLoadCalculator() {
                     i
                   </i>
                 </label>
-                <div className="tseg" role="group" aria-label="Insulation">
+                <div className="tseg mseg" role="group" aria-label="Insulation">
                   {CONDITION_OPTS.map((c) => (
                     <button
                       key={c.value}
                       type="button"
                       className={s.condition === c.value ? "on" : ""}
-                      title={`×${CONDITION_MULT[c.value].toFixed(2)}`}
                       onClick={() => patch({ condition: c.value })}
                     >
                       {c.label}
+                      <span className="m">×{CONDITION_MULT[c.value].toFixed(2)}</span>
                     </button>
                   ))}
                 </div>

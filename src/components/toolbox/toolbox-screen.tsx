@@ -1,58 +1,34 @@
 "use client";
 
-/* Toolbox screen — the v3 four-category grid, now a live React component so
-   tool rows link to their pages and the search box actually filters. Markup
-   classes match the ported static screen exactly (shell.css .tbx-* / .cat /
-   .toolrow), so the existing styles + stagger animations apply unchanged. */
+/* Toolbox screen — the four category cards + live search.
+
+   Styling is deliberately self-scoped (.tbx2-* in toolbox.css) rather than
+   reusing shell.css's .cat/.ctop card: that older pattern (40px radius, 6px
+   coloured cap) is still shared with the Tiff AI knowledge screen, so the
+   toolbox carries its own premium variant — flat white card, 24px radius,
+   accent living in the icon chip and the row hover instead of a top stripe. */
 
 import { useState } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
 import { BADGE_COLORS, TOOL_CATEGORIES, toolMatches, type Tool, type ToolCategory } from "./tools";
+import "./toolbox.css";
 
-/* small inline empty-state hint (matches screens.ts hint()) */
-function Hint({ text }: { text: string }) {
-  return (
-    <div
-      style={{
-        padding: 22,
-        textAlign: "center",
-        color: "#9ca3af",
-        fontSize: 13,
-        fontWeight: 600,
-        border: "1.5px dashed #e6e8ee",
-        borderRadius: 16,
-        background: "linear-gradient(180deg,#fafbfc,#fff)",
-      }}
-    >
-      {text}
-    </div>
-  );
-}
-
-function ToolRow({ tool, accent, first }: { tool: Tool; accent: string; first: boolean }) {
+function ToolRow({ tool }: { tool: Tool }) {
   const badge = tool.badge ? BADGE_COLORS[tool.badge] : null;
   return (
-    <Link
-      href={tool.href}
-      className="toolrow"
-      style={{ textDecoration: "none", color: "inherit" }}
-    >
-      <span className="tdot" style={{ background: first ? accent : "#e5e7eb" }} />
-      <div className="tnm">
+    <Link href={tool.href} className="tbx2-row">
+      <span className="nm">
         <b>{tool.name}</b>
         <em>{tool.desc}</em>
-      </div>
+      </span>
       {badge && tool.badge && (
-        <span
-          className="tbg"
-          style={{ background: badge[0], color: badge[1], borderColor: badge[1] + "30" }}
-        >
+        <span className="bg" style={{ background: badge[0], color: badge[1] }}>
           {tool.badge}
         </span>
       )}
-      <span className="tch" style={{ display: "flex" }}>
-        <Icon name="chevR" size={18} />
+      <span className="ch">
+        <Icon name="chevR" size={16} />
       </span>
     </Link>
   );
@@ -64,30 +40,37 @@ function CategoryCard({ cat, query }: { cat: ToolCategory; query: string }) {
   /* while searching, drop cards with nothing to show */
   if (searching && visible.length === 0) return null;
   return (
-    <div className="catwrap">
-      <div className="cat spot" style={{ "--sc": cat.accent + "1f" } as React.CSSProperties}>
-        <span className="sglow" />
-        <div className="ctop" style={{ background: cat.accent }} />
-        <div className="cin">
-          <div className="chd">
-            <div
-              className="cic"
-              style={{ background: cat.accent + "15", border: `1px solid ${cat.accent}30` }}
-            >
-              <Icon name={cat.icon} size={24} />
-            </div>
-            <div>
-              <div className="cht">{cat.title}</div>
-              <div className="chs">{cat.sub}</div>
-            </div>
-          </div>
-          {visible.length > 0 ? (
-            visible.map((t, i) => <ToolRow key={t.href} tool={t} accent={cat.accent} first={i === 0} />)
-          ) : (
-            <Hint text="No tools yet" />
-          )}
-        </div>
+    <div
+      className="tbx2-card spot"
+      style={
+        {
+          "--ac": cat.accent,
+          "--sc": cat.accent + "1a",
+          "--rowbg": cat.accent + "0f",
+        } as React.CSSProperties
+      }
+    >
+      <span className="sglow" />
+      <span className="tbx2-wash" />
+      <div className="tbx2-head">
+        <span className="tbx2-ic">
+          <Icon name={cat.icon} size={24} />
+        </span>
+        <span className="tbx2-ht">
+          <b>{cat.title}</b>
+          <em>{cat.sub}</em>
+        </span>
+        {visible.length > 0 && <span className="tbx2-count">{visible.length}</span>}
       </div>
+      {visible.length > 0 ? (
+        <div className="tbx2-rows">
+          {visible.map((t) => (
+            <ToolRow key={t.href} tool={t} />
+          ))}
+        </div>
+      ) : (
+        <div className="tbx2-empty">Nothing here yet</div>
+      )}
     </div>
   );
 }
@@ -116,13 +99,13 @@ export function ToolboxScreen() {
           </div>
         </div>
         {anyMatch ? (
-          <div className="tbx-grid stgp">
+          <div className="tbx2-grid stgp">
             {TOOL_CATEGORIES.map((c) => (
               <CategoryCard key={c.key} cat={c} query={query} />
             ))}
           </div>
         ) : (
-          <Hint text={`No tools match “${query.trim()}”`} />
+          <div className="tbx2-noresult">No tools match “{query.trim()}”</div>
         )}
       </div>
     </div>

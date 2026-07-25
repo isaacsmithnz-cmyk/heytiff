@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
+import { DateField } from "@/components/ui/date-field";
 import { completeTask, createTask, reopenTask } from "@/app/actions/dashboard";
 import { dueLabel, type DashTask } from "@/lib/dashboard/tasks";
 import { auDayOf, fmtAuDayMonth } from "@/lib/au-dates";
@@ -161,7 +162,13 @@ export function TasksSection({
             </label>
             <label className="mts-f">
               <span>Due (optional)</span>
-              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+              <DateField
+                value={dueDate || null}
+                today={today}
+                clearable
+                placeholder="No date"
+                onChange={(iso) => setDueDate(iso ?? "")}
+              />
             </label>
           </div>
           <div className="lv-fnote">

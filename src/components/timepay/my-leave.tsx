@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
+import { DateField } from "@/components/ui/date-field";
 import { fmtAuDayMonth } from "@/lib/au-dates";
 import { UpcomingHolidays } from "./upcoming-holidays";
 import { cancelLeave, requestLeave, type LeaveResult } from "@/app/actions/leave";
@@ -153,18 +154,24 @@ export function MyLeave({
                 </label>
                 <label className="mts-f">
                   <span>From</span>
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => {
-                      setStartDate(e.target.value);
-                      if (e.target.value > endDate) setEndDate(e.target.value);
+                  <DateField
+                    value={startDate || null}
+                    today={today}
+                    onChange={(iso) => {
+                      const next = iso ?? "";
+                      setStartDate(next);
+                      if (next > endDate) setEndDate(next);
                     }}
                   />
                 </label>
                 <label className="mts-f">
                   <span>To</span>
-                  <input type="date" value={endDate} min={startDate} onChange={(e) => setEndDate(e.target.value)} />
+                  <DateField
+                    value={endDate || null}
+                    today={today}
+                    min={startDate}
+                    onChange={(iso) => setEndDate(iso ?? "")}
+                  />
                 </label>
                 <label className="mts-f">
                   <span>Hours</span>

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
+import { DateField } from "@/components/ui/date-field";
 import { readFuelReceipt } from "@/app/actions/fleet-ai";
 import { dateFromDays } from "@/lib/fleet/map";
 import { Plate } from "./plate";
@@ -181,6 +182,10 @@ export function VehicleFormModal({
     (k: keyof typeof f) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
       setF((p) => ({ ...p, [k]: e.target.value }));
+  /* DateField hands back an ISO date or null, not an event — the form keeps
+     dates as "" when unset, which is what `save` already reads. */
+  const setDate = (k: keyof typeof f) => (iso: string | null) =>
+    setF((p) => ({ ...p, [k]: iso ?? "" }));
 
   const ready = f.plate.trim() && f.make.trim();
 
@@ -246,10 +251,10 @@ export function VehicleFormModal({
           <input className="fl-i" type="number" placeholder="e.g. 84120" value={f.odometer} onChange={set("odometer")} />
         </Field>
         <Field label="Rego expiry">
-          <input className="fl-i" type="date" value={f.rego} onChange={set("rego")} />
+          <DateField size="lg" clearable today={today} value={f.rego || null} onChange={setDate("rego")} />
         </Field>
         <Field label="Insurance expiry">
-          <input className="fl-i" type="date" value={f.insurance} onChange={set("insurance")} />
+          <DateField size="lg" clearable today={today} value={f.insurance || null} onChange={setDate("insurance")} />
         </Field>
         <Field label="Service interval (km)">
           <input className="fl-i" type="number" placeholder="e.g. 10000" value={f.intervalKm} onChange={set("intervalKm")} />
@@ -264,7 +269,13 @@ export function VehicleFormModal({
           />
         </Field>
         <Field label="Purchase date">
-          <input className="fl-i" type="date" value={f.purchaseDate} onChange={set("purchaseDate")} />
+          <DateField
+            size="lg"
+            clearable
+            today={today}
+            value={f.purchaseDate || null}
+            onChange={setDate("purchaseDate")}
+          />
         </Field>
         <Field label="Purchase price ($)" hint="What you paid for it. Never changes — it's history, and it anchors Tiff's estimate.">
           <input

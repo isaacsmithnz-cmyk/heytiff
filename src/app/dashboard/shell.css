@@ -1780,7 +1780,7 @@ select.fl-i { cursor:pointer; }
 .fg .wz-anchor { display:flex; flex-direction:column; gap:6px; margin-top:14px; width:100%; }
 .fg .wz-anchor > span { font-size:12.5px; font-weight:800; color:var(--ink); }
 .fg .wz-anchor em { font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray400); }
-.fg .wz-anchor .fl-i { max-width:220px; }
+.fg .wz-anchor .fl-i, .fg .wz-anchor .datef { max-width:220px; }
 
 /* ---- Time & Pay: leave (stage 5b) ---- */
 .fg .tp-tabs { display:inline-flex; gap:4px; padding:4px; border-radius:13px; background:#f2f4f7; margin:2px 0 20px; }
@@ -2052,3 +2052,63 @@ select.fl-i { cursor:pointer; }
 .fg .tpr .dehol { display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:8px; background:rgba(0,163,137,.12); color:var(--teal-d); font-size:11px; font-weight:800; white-space:nowrap; }
 .fg .tpr .dayedit .mts-form { padding:0; border-top:none; }
 .fg .tpr .mts-foot .bbtn { height:44px; }
+/* ---- date picker (components/ui/date-field.tsx + month-grid.tsx) ----
+   Every date field in the app is this: a button showing dd/mm/yyyy that opens
+   our own calendar. No `<input type="date">` anywhere — its rendering and its
+   typed format are the browser's choice, and dd/mm vs mm/dd is exactly the
+   mistake nobody notices.
+
+   .datef is UNSCOPED, like .fl-ov and .au-plate: the fleet modals portal to
+   <body>, outside .fg, so a scoped rule would style the timepay forms and
+   silently skip the vehicle form. Literal colours for the same reason — the
+   frame's custom properties don't reach past it.
+
+   .cal-* CAN stay scoped: the popover always portals wrapped in
+   `<div class="fg" style="display:contents">` (see timepay/settings.tsx), so
+   `.fg .cal-…` matches in both placements. */
+.datef { box-sizing:border-box; display:flex; align-items:center; gap:8px; min-width:120px; height:38px; padding:0 11px; border-radius:11px; border:1px solid rgba(10,11,16,.14); background:#fff; font-family:var(--font-jakarta), sans-serif; font-size:13.5px; font-weight:600; color:#050505; text-align:left; cursor:pointer; transition:border-color .18s, box-shadow .18s; }
+.datef:hover:not(:disabled) { border-color:rgba(10,11,16,.3); }
+.datef:focus-visible, .datef[aria-expanded="true"] { outline:none; border-color:#00E5C0; box-shadow:0 0 0 3px rgba(0,229,192,.15); }
+.datef:disabled { opacity:.5; cursor:not-allowed; }
+.datef .datef-v { flex:1; min-width:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-variant-numeric:tabular-nums; }
+.datef.empty .datef-v { color:#aeb4c0; font-weight:500; }
+.datef .datef-ic { display:flex; flex:0 0 auto; color:#9ca3af; }
+.datef svg { display:block; }
+/* fleet modals run taller controls (.fl-i) — match them or the row steps */
+.datef.lg { width:100%; height:44px; padding:0 14px; border:1.5px solid #e5e7eb; border-radius:12px; }
+
+.fg .cal-pop { position:fixed; z-index:200; width:300px; padding:14px; border-radius:16px; background:#fff; border:1px solid #f0f0f2; box-shadow:0 20px 50px -20px rgba(0,0,0,.35); animation:calPop .16s ease; }
+@keyframes calPop { from { opacity:0; transform:translateY(-4px); } }
+.fg .cal-head { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+.fg .cal-mo { flex:1; text-align:center; font-size:14px; font-weight:800; letter-spacing:-.01em; color:var(--ink); }
+.fg .cal-arw { width:30px; height:30px; flex:0 0 auto; border-radius:10px; display:flex; align-items:center; justify-content:center; color:var(--gray500); background:#fff; border:1px solid rgba(0,0,0,.07); transition:color .18s, border-color .18s; }
+.fg .cal-arw:hover:not(:disabled) { color:var(--ink); border-color:rgba(0,229,192,.5); }
+.fg .cal-arw:disabled { opacity:.35; cursor:not-allowed; }
+.fg .cal-wd, .fg .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+.fg .cal-wd span { text-align:center; padding-bottom:5px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--gray400); }
+/* Jakarta's proportional digits make a column of dates wobble; tabular figures
+   are the one place a grid of numbers needs them (there is no mono face). */
+.fg .cal-d { position:relative; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:12.5px; font-weight:700; font-variant-numeric:tabular-nums; color:var(--ink); background:transparent; transition:background .14s, color .14s; }
+.fg .cal-d:hover:not(:disabled) { background:#f2f4f7; }
+.fg .cal-d.wknd { background:#fafbfc; }
+.fg .cal-d.out { color:#c3c7cf; font-weight:600; }
+.fg .cal-d:disabled { color:#d8dbe1; background:transparent; cursor:not-allowed; }
+/* range: solid ends, tinted band between — the middle is context, not a choice */
+.fg .cal-d.rng { background:rgba(0,229,192,.12); border-radius:0; }
+.fg .cal-d.rng-s { border-radius:10px 0 0 10px; }
+.fg .cal-d.rng-e { border-radius:0 10px 10px 0; }
+.fg .cal-d.rng-s.rng-e { border-radius:10px; }
+.fg .cal-d.rng-s, .fg .cal-d.rng-e { background:var(--teal); color:#053b34; }
+/* violet = public holiday, the same one the day tiles use. Declared AFTER the
+   range so it survives inside a band: a holiday isn't a day you're taking. */
+.fg .cal-d.hol { background:rgba(138,43,226,.12); color:var(--violet); }
+.fg .cal-d.hol::after { content:""; position:absolute; bottom:4px; left:50%; transform:translateX(-50%); width:4px; height:4px; border-radius:50%; background:var(--violet); }
+.fg .cal-d.on { background:var(--teal); color:#053b34; }
+.fg .cal-d.today { box-shadow:0 0 0 1.5px #fff, 0 0 0 3px var(--ink); }
+.fg .cal-d:focus-visible { outline:none; box-shadow:0 0 0 2px #fff, 0 0 0 4px var(--teal-d); }
+.fg .cal-foot { display:flex; align-items:center; gap:8px; margin-top:10px; padding-top:10px; border-top:1px solid #f0f0f2; }
+.fg .cal-fbtn { height:30px; padding:0 11px; border-radius:9px; font-size:12px; font-weight:700; color:var(--gray700); background:#f4f5f7; transition:background .16s, color .16s; }
+.fg .cal-fbtn:hover:not(:disabled) { background:#eceef1; color:var(--ink); }
+.fg .cal-fbtn:disabled { opacity:.4; cursor:not-allowed; }
+.fg .cal-fbtn.clear { margin-left:auto; color:#e0264f; background:rgba(255,51,102,.07); }
+.fg .cal-fbtn.clear:hover { background:rgba(255,51,102,.13); color:#e0264f; }

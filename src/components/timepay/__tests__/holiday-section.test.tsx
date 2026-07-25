@@ -106,19 +106,27 @@ it("Add prefills the form's state and name, and leaves the date to the admin", a
 
   expect(screen.getByLabelText<HTMLInputElement>("Holiday name").value).toBe("King's Birthday");
   expect(screen.getByLabelText<HTMLSelectElement>("State").value).toBe("WA");
-  expect(screen.getByLabelText<HTMLInputElement>("Date").value).toBe("");
+  expect(screen.getByLabelText("Date")).toHaveTextContent("dd/mm/yyyy");
   // nothing is written until a date is supplied
   expect(screen.getByRole("button", { name: /add holiday/i })).toBeDisabled();
   expect(addHoliday).not.toHaveBeenCalled();
 });
 
-it("still writes through the normal add path once the gazetted date is typed", async () => {
+/* The date is picked off a calendar, never typed — a gazetted date read off a
+   notice and keyed as 09/28 instead of 28/09 is the exact mistake this costs
+   nothing to make impossible. */
+it("still writes through the normal add path once the gazetted date is picked", async () => {
   const user = userEvent.setup();
   provisional.mockReturnValue([KINGS]);
   renderSection();
 
   await user.click(screen.getAllByRole("button", { name: /^add$/i })[0]);
-  await user.type(screen.getByLabelText("Date"), "2026-09-28");
+  await user.click(screen.getByLabelText("Date"));
+  await user.click(screen.getByRole("button", { name: "Next month" }));
+  await user.click(screen.getByRole("button", { name: "Next month" }));
+  await user.click(screen.getByRole("button", { name: "Monday 28 September 2026" }));
+  expect(screen.getByLabelText("Date")).toHaveTextContent("28/09/2026");
+
   await user.click(screen.getByRole("button", { name: /add holiday/i }));
 
   expect(addHoliday).toHaveBeenCalledWith({
@@ -126,4 +134,22 @@ it("still writes through the normal add path once the gazetted date is typed", a
     date: "2026-09-28",
     name: "King's Birthday",
   });
+});
+
+/* The year's opening day is the floor — the manager is for this year on, not
+   for backfilling last year's calendar. */
+it("locks the picker out of the years before this one", async () => {
+  const user = userEvent.setup();
+  renderSection();
+
+  await user.click(screen.getByLabelText("Date"));
+  await user.click(screen.getByRole("button", { name: "Previous month" })); // June 2026
+  await user.click(screen.getByRole("button", { name: "Previous month" })); // May
+  expect(screen.getByText("May 2026")).toBeInTheDocument();
+
+  for (let i = 0; i < 4; i++) {
+    await user.click(screen.getByRole("button", { name: "Previous month" }));
+  }
+  expect(screen.getByText("January 2026")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Previous month" })).toBeDisabled();
 });

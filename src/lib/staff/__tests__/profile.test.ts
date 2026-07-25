@@ -5,6 +5,7 @@ import {
   isSelfSection,
   parseAuDate,
 } from "../profile";
+import { dateInputValue } from "@/lib/au-dates";
 
 describe("isSelfSection", () => {
   it("accepts the four self-editable sections", () => {
@@ -75,9 +76,63 @@ describe("parseAuDate", () => {
   });
 
   it("rejects malformed input", () => {
-    for (const bad of ["2026-03-05", "5 March 2026", "5/3/26", "abc", "5//2026"]) {
+    for (const bad of ["5 March 2026", "5/3/26", "abc", "5//2026"]) {
       expect(parseAuDate(bad)).toBeNull();
     }
+  });
+
+  /* Every date the staff card edits is a calendar picker now, and a picker
+     speaks ISO — so yyyy-mm-dd is the NORMAL input here, not a malformed one.
+     dd/mm/yyyy above stays accepted: the organisation screen still types them,
+     and a direct POST from an older client must not start failing because the
+     UI moved on. */
+  describe("ISO, straight from a date picker", () => {
+    it("passes a valid yyyy-mm-dd through untouched", () => {
+      expect(parseAuDate("2026-03-05")).toBe("2026-03-05");
+      expect(parseAuDate(" 2025-12-31 ")).toBe("2025-12-31");
+    });
+
+    it("still refuses an impossible one — a picker is no licence to skip the check", () => {
+      expect(parseAuDate("2026-02-31")).toBeNull();
+      expect(parseAuDate("2026-13-01")).toBeNull();
+      expect(parseAuDate("2026-01-32")).toBeNull();
+      expect(parseAuDate("2026-01-00")).toBeNull();
+      expect(parseAuDate("2026-00-01")).toBeNull();
+    });
+
+    it("keeps a real leap day and refuses one that isn't", () => {
+      expect(parseAuDate("2024-02-29")).toBe("2024-02-29");
+      expect(parseAuDate("2026-02-29")).toBeNull();
+    });
+
+    it("insists on the padded shape, so nothing loose sneaks in year-first", () => {
+      expect(parseAuDate("2026-3-5")).toBeNull();
+      expect(parseAuDate("26-03-05")).toBeNull();
+    });
+
+    it("still reads dd-mm-yyyy day-first — ISO must not swallow it", () => {
+      expect(parseAuDate("05-03-2026")).toBe("2026-03-05");
+    });
+  });
+});
+
+describe("dateInputValue", () => {
+  it("hands a stored date to a picker as yyyy-mm-dd", () => {
+    expect(dateInputValue("2026-03-05")).toBe("2026-03-05");
+  });
+
+  it("trims a timestamp to its calendar day", () => {
+    // a driver may return a `date` column as a full timestamp; the native
+    // input renders EMPTY for anything that isn't exactly yyyy-mm-dd, which
+    // reads as data loss rather than as a bug
+    expect(dateInputValue("2026-03-05T00:00:00Z")).toBe("2026-03-05");
+  });
+
+  it("is empty for nothing, and for anything it can't vouch for", () => {
+    expect(dateInputValue(null)).toBe("");
+    expect(dateInputValue(undefined)).toBe("");
+    expect(dateInputValue("")).toBe("");
+    expect(dateInputValue("05/03/2026")).toBe("");
   });
 });
 

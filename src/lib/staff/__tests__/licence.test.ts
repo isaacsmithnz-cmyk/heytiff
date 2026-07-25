@@ -1,4 +1,4 @@
-import { buildLicenceRow, licenceStatus } from "../licence";
+import { buildLicenceRow, credBadgeCode, licenceStatus } from "../licence";
 
 describe("buildLicenceRow", () => {
   it("refuses a blank type", () => {
@@ -11,15 +11,25 @@ describe("buildLicenceRow", () => {
     });
   });
 
-  it("parses a dd/mm/yyyy expiry to ISO", () => {
+  /* The add-licence form is a calendar picker now, so it sends ISO; a typed
+     dd/mm/yyyy still parses, because parseAuDate takes both and this validator
+     is the same one a direct POST hits. */
+  it("takes an ISO expiry from the picker", () => {
+    const r = buildLicenceRow({ typeName: "ARC licence", expiryDate: "2026-08-07" });
+    expect(r).toEqual({ row: expect.objectContaining({ expiry_date: "2026-08-07" }) });
+  });
+
+  it("still parses a typed dd/mm/yyyy expiry to ISO", () => {
     const r = buildLicenceRow({ typeName: "ARC licence", expiryDate: "07/08/2026" });
     expect(r).toEqual({ row: expect.objectContaining({ expiry_date: "2026-08-07" }) });
   });
 
   it("rejects an unparseable expiry rather than storing garbage", () => {
-    expect(buildLicenceRow({ typeName: "ARC", expiryDate: "31/31/2026" })).toEqual({
-      error: expect.stringMatching(/dd\/mm\/yyyy/i),
-    });
+    for (const bad of ["31/31/2026", "2026-02-31", "whenever"]) {
+      expect(buildLicenceRow({ typeName: "ARC", expiryDate: bad })).toEqual({
+        error: expect.stringMatching(/expiry date/i),
+      });
+    }
   });
 
   it("trims a number and only keeps a real hex colour", () => {
@@ -49,5 +59,39 @@ describe("licenceStatus", () => {
 
   it("is valid comfortably out", () => {
     expect(licenceStatus("2027-01-01", TODAY)).toEqual({ label: "Valid", tone: "ok" });
+  });
+});
+
+/* The 2–4 letter stamp on a credential card. It has to be stable and it has
+   to be recognisable at a glance — "ARC" and "WC" are what a tradesperson
+   would actually say, so a card reads the way the ticket does. */
+describe("credBadgeCode", () => {
+  it("gives the known tickets their real abbreviations and colours", () => {
+    expect(credBadgeCode("ARC licence")).toEqual({ code: "ARC", color: "#00A389" });
+    expect(credBadgeCode("Driver’s licence")).toEqual({ code: "DL", color: "#2E68FF" });
+    expect(credBadgeCode("White card")).toEqual({ code: "WC", color: "#8A2BE2" });
+    expect(credBadgeCode("Contractor licence")).toEqual({ code: "CL", color: "#F0A431" });
+  });
+
+  it("matches however the type was typed", () => {
+    expect(credBadgeCode("arc").code).toBe("ARC");
+    expect(credBadgeCode("Drivers Licence (NSW)").code).toBe("DL");
+    expect(credBadgeCode("White Card").code).toBe("WC");
+  });
+
+  it("initialises a custom ticket, at most three letters", () => {
+    expect(credBadgeCode("Working at Heights")).toEqual({ code: "WAH", color: "#00A389" });
+    expect(credBadgeCode("Confined Spaces Entry Permit").code).toBe("CSE");
+    expect(credBadgeCode("EWP").code).toBe("E");
+  });
+
+  it("splits on the separators a ticket name actually uses", () => {
+    expect(credBadgeCode("Test & Tag").code).toBe("TT");
+    expect(credBadgeCode("First-Aid").code).toBe("FA");
+  });
+
+  it("has something to show for a blank name", () => {
+    expect(credBadgeCode("").code).toBe("—");
+    expect(credBadgeCode(null).code).toBe("—");
   });
 });

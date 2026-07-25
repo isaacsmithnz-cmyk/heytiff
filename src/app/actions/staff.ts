@@ -25,7 +25,11 @@ import type { Role } from "@/lib/roles-shared";
    section must map to a capability the caller actually holds, and the
    permissions path re-runs the same ownership guards the card rendered with. */
 
-export type SaveResult = { ok: true } | { ok: false; error: string };
+/* `fields` carries the `invalid` array buildAdminPatch already computed, so the
+   card can ring the input it choked on instead of only printing a sentence
+   above itself. Additive and optional — a failure with nothing field-specific
+   to say omits it, and every existing caller ignores it. */
+export type SaveResult = { ok: true } | { ok: false; error: string; fields?: string[] };
 
 type Ctx = {
   orgId: string;
@@ -126,7 +130,7 @@ export async function saveStaffSection(
 
   const { patch, invalid } = buildAdminPatch(section, Object.entries(fields ?? {}));
   if (invalid.includes("cost_split")) {
-    return { ok: false, error: "The cost split has to add up to 100%." };
+    return { ok: false, error: "The cost split has to add up to 100%.", fields: invalid };
   }
   if (invalid.length) {
     return {
@@ -134,6 +138,7 @@ export async function saveStaffSection(
       error: invalid.some((k) => k.includes("date") || k === "birthday")
         ? "Check the date format — use dd/mm/yyyy."
         : "Check the numbers — they should be plain figures.",
+      fields: invalid,
     };
   }
   if (Object.keys(patch).length === 0) return { ok: true };

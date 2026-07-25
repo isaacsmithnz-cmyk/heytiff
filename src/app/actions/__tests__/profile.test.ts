@@ -81,9 +81,15 @@ describe("saveMyProfileSection — section guard", () => {
     expect(patch).not.toHaveProperty("notes");
   });
 
-  it("rejects a bad date before writing", async () => {
+  it("rejects a bad date before writing, and names the field", async () => {
     const res = await saveMyProfileSection("personal", { birthday: "31/02/1990" });
-    expect(res).toEqual({ ok: false, error: "Check the date format — use dd/mm/yyyy." });
+    // `fields` carries buildPatch's own `invalid` list so the card can ring
+    // the input rather than only printing a sentence above itself
+    expect(res).toEqual({
+      ok: false,
+      error: "Check the date format — use dd/mm/yyyy.",
+      fields: ["birthday"],
+    });
     expect(update).not.toHaveBeenCalled();
   });
 

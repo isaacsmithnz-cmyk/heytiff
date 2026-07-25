@@ -1915,3 +1915,130 @@ select.fl-i { cursor:pointer; }
    Unscoped for the same reason .au-plate is — the modal lives on document.body. */
 .fl-pickrow { display:flex; align-items:center; gap:10px; }
 .fl-pickrow .fl-i { flex:1; min-width:0; }
+
+/* ===== Staff card, in React — plastic ID cards, credentials, My pay =====
+   Additive only; the ported v3 rules above are untouched. The read views of
+   the profile are these cards; the edit views still use .card2 / .field /
+   .inp exactly as before, so a card in edit mode is visually unchanged. */
+
+/* ---- the plastic card (.idc) ----
+   CR80 (856:540) is the wallet-card ratio. Below 480px the ratio is unlocked:
+   at phone width a fixed ratio squeezes the facts row past readability, and a
+   card you have to pinch-zoom is not a card. */
+.fg .idc { position:relative; overflow:hidden; width:100%; max-width:460px; aspect-ratio:856/540; border-radius:20px; padding:22px; font-variant-numeric:tabular-nums; }
+.fg .idc.dark { background:var(--ink2); color:#fff; border:1px solid rgba(255,255,255,.08); box-shadow:0 16px 40px -16px rgba(0,0,0,.45); }
+.fg .idc.light { background:#fff; color:var(--ink); border:1px solid #ecedf1; box-shadow:0 16px 40px -22px rgba(10,12,20,.28); }
+.fg .idc .idc-sheen { position:absolute; inset:0; pointer-events:none; background:linear-gradient(115deg, rgba(255,255,255,.07), transparent 40%); }
+.fg .idc.light .idc-sheen { background:linear-gradient(115deg, rgba(10,12,20,.035), transparent 40%); }
+.fg .idc .idc-mesh { position:absolute; inset:0; pointer-events:none; opacity:.5; mix-blend-mode:screen; }
+.fg .idc.light .idc-mesh { display:none; }
+.fg .idc .idc-mesh i { position:absolute; border-radius:50%; filter:blur(70px); }
+.fg .idc .idc-mesh .m1 { top:-70%; left:-14%; width:58%; height:190%; background:var(--teal); opacity:.13; }
+.fg .idc .idc-mesh .m2 { bottom:-70%; right:-8%; width:52%; height:190%; background:var(--blue); opacity:.11; }
+.fg .idc .idc-in { position:relative; z-index:2; height:100%; display:flex; flex-direction:column; gap:12px; }
+.fg .idc .idc-top { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+.fg .idc .idc-org { font-size:10px; font-weight:800; letter-spacing:.18em; text-transform:uppercase; color:rgba(255,255,255,.42); overflow-wrap:anywhere; }
+.fg .idc.light .idc-org { color:#9ca3af; }
+.fg .idc .idc-badge { flex:0 0 auto; padding:4px 10px; border-radius:999px; border:1px solid transparent; font-size:9.5px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; white-space:nowrap; }
+.fg .idc .idc-id { display:flex; align-items:center; gap:14px; min-width:0; }
+.fg .idc .idc-photo { position:relative; width:76px; height:76px; border-radius:22px; flex:0 0 auto; background:linear-gradient(45deg,#2E68FF,#00E5C0); padding:2px; overflow:hidden; }
+.fg .idc .idc-photo .inn, .fg .idc .idc-photo img { width:100%; height:100%; border-radius:20px; display:flex; align-items:center; justify-content:center; object-fit:cover; }
+.fg .idc.dark .idc-photo .inn { background:#0A0B10; color:#fff; }
+.fg .idc.light .idc-photo .inn { background:#f3f4f7; color:var(--ink); }
+.fg .idc .idc-photo .inn { font-size:24px; font-weight:800; letter-spacing:-.02em; }
+.fg .idc .idc-who { min-width:0; }
+.fg .idc .idc-who b { display:block; font-size:19px; font-weight:800; letter-spacing:-.02em; line-height:1.15; overflow-wrap:anywhere; }
+.fg .idc .idc-who em { font-style:normal; display:block; margin-top:5px; font-size:12.5px; font-weight:600; color:rgba(255,255,255,.5); }
+.fg .idc.light .idc-who em { color:var(--gray500); }
+.fg .idc .idc-pill { display:inline-flex; padding:3px 10px; border-radius:999px; background:rgba(46,104,255,.12); color:#2554d8; font-size:11px; font-weight:800; }
+.fg .idc .idc-note { display:inline-flex; align-items:center; gap:7px; padding:6px 12px; border-radius:11px; font-size:12px; font-weight:700; width:fit-content; }
+.fg .idc .idc-note.ok { background:rgba(0,229,192,.12); color:var(--teal); }
+.fg .idc .idc-facts { margin-top:auto; display:flex; gap:22px; flex-wrap:wrap; }
+.fg .idc .idc-facts .f { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.fg .idc .idc-facts em { font-style:normal; font-size:9.5px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:rgba(255,255,255,.38); }
+.fg .idc.light .idc-facts em { color:#9ca3af; }
+.fg .idc .idc-facts b { font-size:13px; font-weight:700; }
+.fg .idc .idc-facts .f.ok b { color:var(--teal); }
+.fg .idc.light .idc-facts .f.ok b { color:var(--teal-d); }
+.fg .idc .idc-facts .f.warn b { color:#F0A431; }
+.fg .idc.light .idc-facts .f.warn b { color:#b45309; }
+.fg .idc .idc-facts .f.bad b { color:#FF3366; }
+.fg .idc.light .idc-facts .f.bad b { color:#e0264f; }
+.fg .idc .idc-facts .f.mute b { color:rgba(255,255,255,.45); }
+.fg .idc.light .idc-facts .f.mute b { color:#9ca3af; }
+.fg .idc .idc-tel { color:inherit; text-decoration:none; border-bottom:1px solid currentColor; }
+@media (max-width:480px){ .fg .idc { aspect-ratio:auto; min-height:220px; } .fg .idc .idc-facts { margin-top:16px; } }
+
+/* ---- credential cards (.credgrid / .cred) ---- */
+.fg .credgrid { margin-top:18px; display:grid; grid-template-columns:repeat(auto-fill, minmax(230px,1fr)); gap:14px; }
+.fg .cred { position:relative; background:#fff; border:1px solid #f0f0f2; border-radius:16px; padding:16px; font-variant-numeric:tabular-nums; }
+.fg .cred-top { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+.fg .cred-top b { font-size:13.5px; font-weight:800; letter-spacing:-.01em; overflow-wrap:anywhere; }
+.fg .cred-badge { flex:0 0 auto; padding:3px 9px; border-radius:8px; font-size:10.5px; font-weight:800; letter-spacing:.06em; }
+.fg .cred-no { margin-top:9px; font-size:13px; font-weight:700; color:var(--gray700); }
+.fg .cred-no.none { color:#c1c6d0; font-weight:600; }
+.fg .cred-foot { margin-top:14px; display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.fg .cred-exp { font-size:11.5px; font-weight:600; color:var(--gray400); }
+.fg .lstat { flex:0 0 auto; font-size:10.5px; font-weight:700; padding:4px 9px; border-radius:7px; }
+.fg .lstat.ok { background:rgba(0,229,192,.12); color:#00A389; }
+.fg .lstat.warn { background:rgba(240,164,49,.16); color:#b45309; }
+.fg .lstat.bad { background:rgba(255,51,102,.12); color:#e0264f; }
+.fg .lstat.mute { background:#f3f4f6; color:#9ca3af; }
+.fg .cred-del { position:absolute; top:8px; right:8px; width:26px; height:26px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#aeb4c0; background:#f6f7f9; opacity:0; transition:all .2s; }
+.fg .cred:hover .cred-del, .fg .cred-del:focus-visible { opacity:1; }
+.fg .cred-del:hover { background:rgba(255,51,102,.1); color:#e0264f; }
+.fg .cred-del:disabled { opacity:.5; cursor:default; }
+/* a hover-revealed control is an unreachable control on a phone, and this
+   screen is used on one — on a touch pointer the × is simply always there */
+@media (hover:none), (pointer:coarse) { .fg .cred-del { opacity:1; } }
+
+/* ---- field-level validation ---- */
+.fg .inp.err { border-color:rgba(255,51,102,.55); background:rgba(255,51,102,.04); }
+.fg .inp.err:focus { border-color:#e0264f; box-shadow:0 0 0 4px rgba(255,51,102,.13); }
+.fg .ferr { font-size:11.5px; font-weight:700; color:#e0264f; }
+
+/* ---- read-mode fact rows (values that don't belong on the plastic) ---- */
+.fg .ro-rows { display:flex; flex-direction:column; }
+.fg .ro-row { display:flex; align-items:baseline; gap:16px; padding:11px 2px; border-bottom:1px solid #f4f5f7; }
+.fg .ro-row:last-child { border-bottom:none; }
+.fg .ro-row em { font-style:normal; flex:0 0 190px; font-size:12px; font-weight:800; letter-spacing:.02em; color:var(--gray700); }
+.fg .ro-row b { flex:1; min-width:0; font-size:14px; font-weight:600; color:var(--ink); overflow-wrap:anywhere; }
+.fg .ro-row .num { font-variant-numeric:tabular-nums; }
+.fg .ro-none { font-style:italic; font-weight:500; color:#bcc2cd; }
+.fg .ro-state.ok { color:var(--teal-d); font-weight:700; }
+.fg .ro-note { margin:0; font-size:14px; font-weight:500; line-height:1.6; color:var(--gray700); white-space:pre-wrap; }
+.fg .card2 > .idc + .ro-rows { margin-top:20px; }
+@media (max-width:560px){ .fg .ro-row { flex-direction:column; gap:3px; } .fg .ro-row em { flex:none; } }
+
+/* qualifications, as the list of tickets it is */
+.fg .qual-list { display:flex; flex-wrap:wrap; gap:8px; }
+.fg .qual { padding:7px 13px; border-radius:11px; background:#f6f7f9; border:1px solid #f0f0f2; font-size:13px; font-weight:700; color:var(--gray700); }
+
+/* work rights: the no-visa answer, in edit mode */
+.fg .wr-nov { display:flex; align-items:center; gap:12px; padding:14px 16px; border-radius:14px; background:rgba(0,229,192,.07); border:1px solid rgba(0,229,192,.28); color:var(--teal-d); }
+.fg .wr-nov b { display:block; font-size:13.5px; font-weight:800; }
+.fg .wr-nov em { font-style:normal; display:block; margin-top:2px; font-size:12px; font-weight:500; color:var(--gray500); }
+
+/* ---- My pay ---- */
+.fg .mypay { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px,1fr)); gap:12px; font-variant-numeric:tabular-nums; }
+.fg .mpt { padding:16px; border-radius:16px; background:#fafbfc; border:1px solid #f0f0f2; }
+.fg .mpt.teal { background:rgba(0,229,192,.07); border-color:rgba(0,229,192,.26); }
+.fg .mpt em { font-style:normal; display:block; font-size:10px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--gray400); }
+.fg .mpt b { display:block; margin-top:8px; font-size:24px; font-weight:800; letter-spacing:-.03em; color:var(--ink); }
+.fg .mpt span { display:block; margin-top:3px; font-size:12px; font-weight:600; color:var(--gray500); }
+.fg .mypay-chips { display:flex; flex-wrap:wrap; gap:9px; margin-top:14px; font-variant-numeric:tabular-nums; }
+.fg .mypay-foot { margin:16px 0 0; font-size:12.5px; font-weight:600; color:var(--gray400); }
+
+/* ---- date entry (components/profile/fields.tsx :: DateField) ----
+   Every date is picked. A native date input carries its own metrics and its
+   own calendar button, so it needs a little help to sit flush in a row of
+   .inp text boxes: the indicator gets the same muted treatment as the select
+   chevron, and the field keeps the .inp height rather than the UA's. */
+.fg .inp.date { height:46px; padding-right:12px; cursor:pointer; font-variant-numeric:tabular-nums; }
+.fg .inp.date::-webkit-calendar-picker-indicator { opacity:.45; cursor:pointer; transition:opacity .2s; }
+.fg .inp.date:hover::-webkit-calendar-picker-indicator { opacity:.85; }
+/* iOS shrink-wraps a date input to its content and left-aligns the text */
+.fg .inp.date::-webkit-date-and-time-value { text-align:left; }
+.fg .licexp { display:flex; align-items:center; gap:10px; flex:1; min-width:0; }
+.fg .licexp > span { flex:0 0 auto; font-size:12px; font-weight:800; color:var(--gray700); }
+@media (max-width:560px){ .fg .licexp { width:100%; } }

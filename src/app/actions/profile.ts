@@ -90,7 +90,11 @@ export async function loadMyProfile(): Promise<StaffProfile> {
   return created as unknown as StaffProfile;
 }
 
-export type SaveResult = { ok: true } | { ok: false; error: string };
+/* `fields` carries the `invalid` array buildPatch already computed, so the
+   card can ring the input it choked on instead of only printing a sentence
+   above itself. Additive and optional — a failure with nothing field-specific
+   to say omits it, and every existing caller ignores it. */
+export type SaveResult = { ok: true } | { ok: false; error: string; fields?: string[] };
 
 /** Save one card of your own profile. */
 export async function saveMyProfileSection(
@@ -107,7 +111,7 @@ export async function saveMyProfileSection(
   const { patch, invalid } = buildPatch(section, Object.entries(fields ?? {}));
 
   if (invalid.length) {
-    return { ok: false, error: "Check the date format — use dd/mm/yyyy." };
+    return { ok: false, error: "Check the date format — use dd/mm/yyyy.", fields: invalid };
   }
   if (Object.keys(patch).length === 0) {
     return { ok: true };

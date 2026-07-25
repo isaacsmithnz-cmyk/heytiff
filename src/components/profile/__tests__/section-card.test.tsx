@@ -1,0 +1,286 @@
+import { fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { CAPABILITIES, resolve } from "@/lib/permissions";
+import { ProfileScreen } from "../profile-screen";
+import type { PermissionsCtx, SaveResult } from "../types";
+import { TODAY, header, jordan, okActions } from "./fixtures/staff";
+
+/* The per-card edit cycle — and the second production bug this rewrite kills.
+
+   The old handler captured the card's DOM node, awaited the action, then wrote
+   the error onto that node. A rejected save still revalidated nothing, but ANY
+   re-render swapped the subtree out from under it: the error landed on a
+   detached node and everything typed went with it. The draft lives in React
+   state now, so a failure touches only the message. */
+
+const rejects = (res: SaveResult) => ({
+  ...okActions(),
+  onSave: jest.fn().mockResolvedValue(res),
+});
+
+function setup(actions: ReturnType<typeof okActions>) {
+  const props = {
+    mode: "self" as const,
+    header,
+    profile: jordan,
+    licences: [],
+    vehicle: null,
+    today: TODAY,
+    org: "Smith Air",
+    actions,
+  };
+  const view = render(<ProfileScreen {...props} />);
+  return { ...view, props };
+}
+
+const editButtons = () => screen.getAllByRole("button", { name: /^Edit$/ });
+
+/** Dates are picked, not typed — a picker emits one ISO change, not keystrokes. */
+const pick = (input: HTMLElement, iso: string) =>
+  fireEvent.change(input, { target: { value: iso } });
+
+describe("a rejected save", () => {
+  it("keeps what was typed, marks the field, and stays in edit mode", async () => {
+    const user = userEvent.setup();
+    const actions = rejects({
+      ok: false,
+      error: "Check the date format — use dd/mm/yyyy.",
+      fields: ["birthday"],
+    });
+    setup(actions);
+
+    await user.click(editButtons()[0]);
+    const birthday = screen.getByLabelText("Birthday");
+    // a real date the server happens to refuse — pre-validation passes it
+    pick(birthday, "1990-01-01");
+    await user.click(screen.getByRole("button", { name: /^Save$/ }));
+
+    expect(await screen.findByText("Check the date format — use dd/mm/yyyy.")).toBeInTheDocument();
+    // what was entered is still there…
+    expect(screen.getByLabelText("Birthday")).toHaveValue("1990-01-01");
+    // …the field is marked…
+    expect(screen.getByLabelText("Birthday")).toHaveAttribute("aria-invalid", "true");
+    // …and the card never went back to read mode
+    expect(screen.getByRole("button", { name: /^Save$/ })).toBeInTheDocument();
+  });
+
+  it("survives a re-render mid-edit with the same props", async () => {
+    const user = userEvent.setup();
+    const actions = okActions();
+    const { rerender, props } = setup(actions);
+
+    await user.click(editButtons()[0]);
+    const phone = screen.getByDisplayValue("0400 000 000");
+    await user.clear(phone);
+    await user.type(phone, "0499 999 999");
+
+    // any parent re-render — a revalidate landing from a sibling card, a
+    // router refresh, anything. Nothing syncs props into the draft.
+    rerender(<ProfileScreen {...props} />);
+
+    expect(screen.getByDisplayValue("0499 999 999")).toBeInTheDocument();
+  });
+});
+
+describe("the edit cycle", () => {
+  it("unlocks only the card that was clicked", async () => {
+    const user = userEvent.setup();
+    const { container } = setup(okActions());
+    const cards = () => [...container.querySelectorAll<HTMLElement>(".card2")];
+
+    await user.click(screen.getByRole("button", { name: /Compliance/ }));
+    // Compliance holds a live card (add/remove, never locked) and the
+    // qualifications card, which has the usual edit cycle
+    expect(cards()).toHaveLength(2);
+    expect(editButtons()).toHaveLength(1);
+
+    // before: the edit-cycle card is locked, the live card never is
+    const live = cards().find((c) => c.hasAttribute("data-live"))!;
+    expect(live).not.toHaveClass("readonly");
+    expect(cards().filter((c) => c.classList.contains("readonly"))).toHaveLength(1);
+
+    await user.click(editButtons()[0]);
+
+    // after: nothing is locked, because the only locked card was this one
+    expect(cards().filter((c) => c.classList.contains("readonly"))).toHaveLength(0);
+    expect(screen.getAllByRole("button", { name: /^Save$/ })).toHaveLength(1);
+  });
+
+  it("gives a static card no edit affordance at all", async () => {
+    const user = userEvent.setup();
+    setup(okActions());
+
+    await user.click(screen.getByRole("button", { name: /Training/ }));
+    expect(screen.queryByRole("button", { name: /^Edit$/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Save$/ })).not.toBeInTheDocument();
+  });
+
+  it("Cancel restores the values from props and drops the error", async () => {
+    const user = userEvent.setup();
+    const actions = rejects({ ok: false, error: "Nope.", fields: ["phone"] });
+    setup(actions);
+
+    await user.click(editButtons()[0]);
+    const phone = screen.getByDisplayValue("0400 000 000");
+    await user.clear(phone);
+    await user.type(phone, "0000");
+    await user.click(screen.getByRole("button", { name: /^Save$/ }));
+    expect(await screen.findByText("Nope.")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^Cancel$/ }));
+
+    expect(screen.queryByText("Nope.")).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue("0000")).not.toBeInTheDocument();
+    // back to read mode, showing the stored value
+    expect(screen.getByText("0400 000 000")).toBeInTheDocument();
+
+    // and re-opening starts from props again, not from the abandoned draft
+    await user.click(editButtons()[0]);
+    expect(screen.getByDisplayValue("0400 000 000")).toBeInTheDocument();
+  });
+
+  it("submits only its own card's fields", async () => {
+    const user = userEvent.setup();
+    const actions = okActions();
+    setup(actions);
+
+    await user.click(screen.getByRole("button", { name: /Emergency contact/ }));
+    await user.click(editButtons()[0]);
+    await user.click(screen.getByRole("button", { name: /^Save$/ }));
+
+    const [section, fields] = actions.onSave.mock.calls[0];
+    expect(section).toBe("emergency");
+    expect(Object.keys(fields).sort()).toEqual([
+      "emergency_alt_phone",
+      "emergency_name",
+      "emergency_phone",
+      "emergency_relationship",
+    ]);
+    // nothing from the Personal card rides along
+    expect(fields).not.toHaveProperty("first_name");
+  });
+});
+
+/* Pre-validation runs the same builder the action runs, and only calls the
+   action if it comes back clean.
+
+   Note what is NOT tested here any more: a malformed date. Every date on this
+   card is a calendar picker, so "31/02/1990" is no longer something a person
+   can enter — the format class of error is designed out rather than caught.
+   What remains reachable is the free-text numbers on the Payroll card, which
+   is what this exercises. The date rules themselves are still pinned, in
+   lib/staff/__tests__/pre-validate.test.ts. */
+describe("pre-validation", () => {
+  const adminCtx: PermissionsCtx = {
+    role: "staff",
+    caps: resolve("staff"),
+    settable: new Set(CAPABILITIES),
+    canChangeRole: true,
+    editable: true,
+  };
+
+  function adminSetup(actions: ReturnType<typeof okActions>) {
+    render(
+      <ProfileScreen
+        mode="admin"
+        header={header}
+        profile={jordan}
+        licences={[]}
+        vehicle={null}
+        today={TODAY}
+        org="Smith Air"
+        adminExtras={{ payroll: { hourly_wage: 45 }, permissions: adminCtx }}
+        actions={actions}
+      />
+    );
+  }
+
+  it("never calls the action for a number it can already tell is wrong", async () => {
+    const user = userEvent.setup();
+    const actions = okActions();
+    adminSetup(actions);
+
+    await user.click(screen.getByRole("button", { name: /Payroll/ }));
+    await user.click(screen.getByRole("button", { name: /^Edit$/ }));
+    const wage = screen.getByLabelText(/Hourly wage/);
+    await user.clear(wage);
+    await user.type(wage, "45o"); // a typo'd letter, not a number
+
+    await user.click(screen.getByRole("button", { name: /^Save$/ }));
+
+    expect(
+      await screen.findByText("Check the numbers — they should be plain figures.")
+    ).toBeInTheDocument();
+    expect(actions.onSave).not.toHaveBeenCalled();
+    expect(wage).toHaveAttribute("aria-invalid", "true");
+    // and it kept what was typed, so the fix is one character
+    expect(wage).toHaveValue("45o");
+  });
+
+  it("clears the mark once it's fixed and the save goes through", async () => {
+    const user = userEvent.setup();
+    const actions = okActions();
+    adminSetup(actions);
+
+    await user.click(screen.getByRole("button", { name: /Payroll/ }));
+    await user.click(screen.getByRole("button", { name: /^Edit$/ }));
+    const wage = screen.getByLabelText(/Hourly wage/);
+    await user.clear(wage);
+    await user.type(wage, "45o");
+    await user.click(screen.getByRole("button", { name: /^Save$/ }));
+    await screen.findByText("Check the numbers — they should be plain figures.");
+
+    await user.clear(wage);
+    await user.type(wage, "45");
+    await user.click(screen.getByRole("button", { name: /^Save$/ }));
+
+    expect(actions.onSave).toHaveBeenCalledWith(
+      "payroll",
+      expect.objectContaining({ hourly_wage: "45" })
+    );
+  });
+});
+
+describe("dates are picked, never typed", () => {
+  it("offers a calendar for every date the card edits", async () => {
+    const user = userEvent.setup();
+    setup(okActions());
+
+    await user.click(editButtons()[0]);
+    for (const label of ["Birthday", "Start date"]) {
+      expect(screen.getByLabelText(label)).toHaveAttribute("type", "date");
+    }
+
+    await user.click(screen.getByRole("button", { name: /Work rights/ }));
+    await user.click(editButtons()[0]);
+    for (const label of ["Visa expiry", /VEVO last checked/]) {
+      expect(screen.getByLabelText(label)).toHaveAttribute("type", "date");
+    }
+  });
+
+  it("submits the ISO the picker produced, and shows dd/mm/yyyy once saved", async () => {
+    const user = userEvent.setup();
+    const actions = okActions();
+    const { rerender, props } = setup(actions);
+
+    await user.click(editButtons()[0]);
+    pick(screen.getByLabelText("Start date"), "2027-06-30");
+    await user.click(screen.getByRole("button", { name: /^Save$/ }));
+
+    expect(actions.onSave).toHaveBeenCalledWith(
+      "personal",
+      expect.objectContaining({ start_date: "2027-06-30" })
+    );
+
+    rerender(<ProfileScreen {...props} profile={{ ...jordan, start_date: "2027-06-30" }} />);
+    // entry is ISO; reading a date back is still how an Australian writes one
+    expect(screen.getByText("30/06/2027")).toBeInTheDocument();
+  });
+
+  it("seeds the picker from the stored date, not from the displayed one", async () => {
+    const user = userEvent.setup();
+    setup(okActions());
+    await user.click(editButtons()[0]);
+    expect(screen.getByLabelText("Birthday")).toHaveValue("1990-12-25");
+  });
+});

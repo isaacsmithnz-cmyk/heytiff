@@ -182,7 +182,11 @@ describe("section + capability gating", () => {
       cost_service: "30",
       cost_admin: "10",
     });
-    expect(res).toEqual({ ok: false, error: "The cost split has to add up to 100%." });
+    expect(res).toEqual({
+      ok: false,
+      error: "The cost split has to add up to 100%.",
+      fields: ["cost_split"],
+    });
     expect(staffUpdate).not.toHaveBeenCalled();
   });
 });

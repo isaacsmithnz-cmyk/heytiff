@@ -1,9 +1,9 @@
 import { notFound, redirect } from "next/navigation";
 import { auth0 } from "@/lib/auth0";
-import { profileHtml, type PermissionsCtx } from "@/components/shell/profile";
+import { ProfileScreen } from "@/components/profile/profile-screen";
+import type { PermissionsCtx } from "@/components/profile/types";
 import { assignedVehicleFor } from "@/lib/fleet/query";
-import { ProfileBehaviors } from "@/components/shell/profile-behaviors";
-import { can, getCapabilities, getOwnership } from "@/lib/permissions-server";
+import { can, getCapabilities, getOrgName, getOwnership } from "@/lib/permissions-server";
 import {
   CAPABILITIES,
   canChangeRoleOf,
@@ -22,12 +22,17 @@ import { todayInAu } from "@/lib/au-dates";
    Which sections render is decided HERE, from the viewer's capabilities, and
    the matching server action re-checks the same rules — the card never shows
    something the action would refuse, and never hides something by rendering
-   it disabled when it could simply be omitted. */
+   it disabled when it could simply be omitted.
+
+   Note what is NOT here: My pay. Someone else's rates are the Payroll card's
+   business, and that is gated on `financials`. */
 
 export default async function StaffProfilePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ staff: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   if (!(await can("team"))) redirect("/dashboard");
 
@@ -35,10 +40,12 @@ export default async function StaffProfilePage({
   const orgId = session?.orgId as string | undefined;
   if (!orgId) redirect("/dashboard");
 
-  const [{ staff: staffId }, caps, ownership] = await Promise.all([
+  const [{ staff: staffId }, caps, ownership, query, orgName] = await Promise.all([
     params,
     getCapabilities(),
     getOwnership(),
+    searchParams,
+    getOrgName(),
   ]);
 
   const canPay = caps.has("financials");
@@ -87,25 +94,30 @@ export default async function StaffProfilePage({
           : "Only an owner, or someone granted Permissions, can change access.",
   };
 
+  const sec = query.sec;
+
   return (
-    <ProfileBehaviors
-      html={profileHtml(row, {
-        vehicle: assignedVehicle,
-        mode: "admin",
-        profile: profile as unknown as StaffProfile,
-        licences,
-        today: todayInAu(),
-        sections: {
-          // omitted entirely without `financials` — not rendered-then-hidden
-          ...(canPay ? { payroll: profile } : {}),
-          permissions: permissionsCtx,
-          // notes are written ABOUT someone; you don't read your own
-          ...(isSelf ? {} : { notes: profile as { notes?: string | null } }),
-        },
-      })}
-      onSave={saveStaffSection.bind(null, staffId)}
-      onAddLicence={addStaffLicence.bind(null, staffId)}
-      onRemoveLicence={removeStaffLicence.bind(null, staffId)}
+    <ProfileScreen
+      mode="admin"
+      header={row}
+      profile={profile as unknown as StaffProfile}
+      licences={licences}
+      vehicle={assignedVehicle}
+      today={todayInAu()}
+      org={orgName}
+      initialSec={typeof sec === "string" ? sec : undefined}
+      adminExtras={{
+        // omitted entirely without `financials` — not rendered-then-hidden
+        ...(canPay ? { payroll: profile } : {}),
+        permissions: permissionsCtx,
+        // notes are written ABOUT someone; you don't read your own
+        ...(isSelf ? {} : { notes: profile as { notes?: string | null } }),
+      }}
+      actions={{
+        onSave: saveStaffSection.bind(null, staffId),
+        onAddLicence: addStaffLicence.bind(null, staffId),
+        onRemoveLicence: removeStaffLicence.bind(null, staffId),
+      }}
     />
   );
 }

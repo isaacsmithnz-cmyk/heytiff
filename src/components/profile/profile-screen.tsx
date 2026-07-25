@@ -70,6 +70,7 @@ export function ProfileScreen({
   adminExtras,
   myPay,
   initialSec,
+  addressLookup = false,
   actions,
 }: {
   mode: ProfileMode;
@@ -87,6 +88,10 @@ export function ProfileScreen({
   myPay?: MyPay | null;
   /** from the page's own searchParams, so deep links open the right card */
   initialSec?: string;
+  /** Boolean(GOOGLE_MAPS_API_KEY), computed on the server. Threaded rather
+      than read here because the KEY ITSELF must never reach a client bundle —
+      only the yes/no does. */
+  addressLookup?: boolean;
   actions: ProfileActions;
 }) {
   const extras = mode === "admin" ? (adminExtras ?? {}) : {};
@@ -170,6 +175,7 @@ export function ProfileScreen({
                   mode={mode}
                   org={org}
                   initials={header.initials}
+                  addressLookup={addressLookup}
                   onSave={actions.onSave}
                 />
               )}

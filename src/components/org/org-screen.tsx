@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Icon } from "@/components/shell/icon";
+import { AddressField } from "@/components/address/address-field";
 import { IdCard } from "@/components/cards/id-card";
 import { CredentialCard } from "@/components/cards/credential-card";
 import { SectionCard } from "@/components/profile/section-card";
@@ -73,6 +74,7 @@ export function OrgScreen({
   credentials,
   logoUrl,
   today,
+  addressLookup = false,
   actions,
 }: {
   org: OrgSettings;
@@ -81,6 +83,8 @@ export function OrgScreen({
   logoUrl: string | null;
   /** AU calendar date, so expiries agree with the dashboard chips */
   today: string;
+  /** server-computed Boolean(GOOGLE_MAPS_API_KEY) — the key never comes with it */
+  addressLookup?: boolean;
   actions: OrgActions;
 }) {
   return (
@@ -104,7 +108,7 @@ export function OrgScreen({
 
           <div className="prof" style={{ maxWidth: 860 }}>
             <IdentitySection org={org} logoUrl={logoUrl} actions={actions} />
-            <ContactSection org={org} actions={actions} />
+            <ContactSection org={org} addressLookup={addressLookup} actions={actions} />
             <CredentialsSection credentials={credentials} today={today} actions={actions} />
           </div>
         </div>
@@ -254,7 +258,15 @@ function IdentitySection({
   );
 }
 
-function ContactSection({ org, actions }: { org: OrgSettings; actions: OrgActions }) {
+function ContactSection({
+  org,
+  addressLookup,
+  actions,
+}: {
+  org: OrgSettings;
+  addressLookup: boolean;
+  actions: OrgActions;
+}) {
   const values = contactValues(org);
   const place = [values.suburb, values.state, values.postcode].filter(Boolean).join(" ");
 
@@ -281,7 +293,7 @@ function ContactSection({ org, actions }: { org: OrgSettings; actions: OrgAction
       values={values}
       onSave={(fields) => actions.onSave("contact", fields)}
       read={read}
-      edit={({ draft, set }) => (
+      edit={({ draft, set, setMany }) => (
         <>
           <div className="frow c2">
             <Field label="Email">
@@ -303,14 +315,32 @@ function ContactSection({ org, actions }: { org: OrgSettings; actions: OrgAction
               />
             </Field>
           </div>
-          {/* address autocomplete lands here (PR 11) */}
+          {/* Pick the address once and the three boxes below fill themselves.
+              The STREET line is what stays here — AddressField's onChange puts
+              the whole formatted address in first, and onResolve immediately
+              narrows it to the street, because suburb / state / postcode have
+              their own fields and would otherwise be printed twice. If Google
+              found no street line (a suburb-level match), the formatted line is
+              better than an empty box.
+
+              setMany, not four sets: one draft update, so a re-render can't
+              land between the fields and leave half an address on screen. */}
           <div className="frow">
             <Field label="Street address">
-              <TextInput
+              <AddressField
                 name="address"
                 placeholder="e.g. 12 Trade Street"
                 value={draft.address}
+                enabled={addressLookup}
                 onChange={(v) => set("address", v)}
+                onResolve={(parts, formatted) =>
+                  setMany({
+                    address: parts.address || formatted,
+                    suburb: parts.suburb,
+                    state: parts.state,
+                    postcode: parts.postcode,
+                  })
+                }
               />
             </Field>
           </div>

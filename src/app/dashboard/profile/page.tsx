@@ -85,6 +85,9 @@ export default async function MyProfilePage({
       org={orgName}
       myPay={myPay}
       initialSec={typeof sec === "string" ? sec : undefined}
+      // Whether address lookup is CONFIGURED, never the key: this is a server
+      // component, so the boolean is all that crosses into the client tree.
+      addressLookup={Boolean(process.env.GOOGLE_MAPS_API_KEY)}
       actions={{
         onSave: saveMyProfileSection,
         onAddLicence: addMyLicence,

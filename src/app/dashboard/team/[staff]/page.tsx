@@ -106,6 +106,8 @@ export default async function StaffProfilePage({
       today={todayInAu()}
       org={orgName}
       initialSec={typeof sec === "string" ? sec : undefined}
+      // The configured/not-configured bit only — the key stays on the server.
+      addressLookup={Boolean(process.env.GOOGLE_MAPS_API_KEY)}
       adminExtras={{
         // omitted entirely without `financials` — not rendered-then-hidden
         ...(canPay ? { payroll: profile } : {}),

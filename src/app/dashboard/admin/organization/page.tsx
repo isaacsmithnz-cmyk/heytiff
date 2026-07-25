@@ -60,6 +60,9 @@ export default async function OrganizationPage() {
       credentials={credentials}
       logoUrl={logoUrl}
       today={todayInAu()}
+      // Configured or not — the boolean crosses to the client, the key never
+      // does (no NEXT_PUBLIC_ prefix, so Next cannot inline it either).
+      addressLookup={Boolean(process.env.GOOGLE_MAPS_API_KEY)}
       actions={{
         onSave: saveOrgSection,
         onAddCredential: addOrgCredential,

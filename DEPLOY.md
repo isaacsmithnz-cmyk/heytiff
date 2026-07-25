@@ -31,8 +31,8 @@ Scroll down and **Save Changes**.
 
 ## 3. Vercel — environment variables
 
-Project → **Settings → Environment Variables**. Add all 9 (copy the values from your
-local `.env.local`), scope = **Production** (and Preview if you want preview builds):
+Project → **Settings → Environment Variables**. Add each of these (copy the values from
+your local `.env.local`), scope = **Production** (and Preview if you want preview builds):
 
 | Variable | Notes |
 |---|---|
@@ -46,6 +46,7 @@ local `.env.local`), scope = **Production** (and Preview if you want preview bui
 | `SUPABASE_SERVICE_ROLE_KEY` | same as local |
 | `SUPABASE_JWT_SECRET` | same as local |
 | `HQ_EMAILS` | comma-separated allowlist of staff logins for the hidden `/hq` portal (see `docs/hq-portal.md`). **Unset ⇒ `/hq` 404s for everyone** (fail-closed). |
+| `GOOGLE_MAPS_API_KEY` | Google Places key behind the address autocomplete on the staff and Organisation address fields. **Optional — unset, those fields are plain text inputs and nothing else changes.** Server-side only: it is read in the `/api/address` proxy and must never be given a `NEXT_PUBLIC_` prefix, which would ship it to every browser. |
 
 ---
 

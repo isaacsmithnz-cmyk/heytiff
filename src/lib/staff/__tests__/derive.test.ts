@@ -101,7 +101,7 @@ describe("deriveCompliance", () => {
   it("warns inside the 30-day window", () => {
     const c = deriveCompliance([lic("ARC licence", "2026-08-02")], CLEAR, NOW);
     expect(c.state).toBe("warn");
-    expect(c.label).toBe("ARC licence expires 14d");
+    expect(c.label).toBe("ARC licence expires in 2 weeks");
     expect(c.expiresDays).toBe(14);
   });
 
@@ -128,7 +128,7 @@ describe("deriveCompliance", () => {
       CLEAR,
       NOW
     );
-    expect(c.label).toBe("White Card expires 8d");
+    expect(c.label).toBe("White Card expires in 8 days");
     expect(c.expiresDays).toBe(8);
   });
 

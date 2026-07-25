@@ -10,6 +10,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { Icon } from "@/components/shell/icon";
+import { agoLabel } from "@/lib/format/duration";
 import {
   createDesign,
   newId,
@@ -110,7 +111,7 @@ function timeAgo(iso: string): string {
   if (s < 60) return "just now";
   if (s < 3600) return `${Math.floor(s / 60)}m ago`;
   if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return `${Math.floor(s / 86400)}d ago`;
+  return agoLabel(Math.floor(s / 86400));
 }
 
 /* menu Export — the .heytiff-design.json download; round-trips through the

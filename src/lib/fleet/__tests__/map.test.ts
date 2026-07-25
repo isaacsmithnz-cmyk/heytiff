@@ -34,7 +34,7 @@ describe("dates in, day-counts out", () => {
   });
 
   it("an unset expiry reads as 'not soon', never as expired", () => {
-    // the trap: null -> 0 days would render "Rego expired 0d ago" on every
+    // the trap: null -> 0 days would render "Rego expires today" on every
     // vehicle whose paperwork simply hasn't been entered yet
     const v = toVehicle(row({ rego_expiry: null, insurance_expiry: null }), TODAY);
     expect(v.regoDays).toBe(365);
@@ -45,13 +45,13 @@ describe("dates in, day-counts out", () => {
   it("a past expiry goes negative so the chip reads as expired", () => {
     const v = toVehicle(row({ rego_expiry: "2026-07-01" }), TODAY);
     expect(v.regoDays).toBe(-21);
-    expect(vehicleChips(v, 0)).toContainEqual({ label: "Rego expired 21d ago", state: "bad" });
+    expect(vehicleChips(v, 0)).toContainEqual({ label: "Rego expired 3 weeks ago", state: "bad" });
   });
 
   it("chips land exactly on the 30-day warning boundary", () => {
     const at30 = toVehicle(row({ rego_expiry: dateFromDays(30, TODAY) }), TODAY);
     const at31 = toVehicle(row({ rego_expiry: dateFromDays(31, TODAY) }), TODAY);
-    expect(vehicleChips(at30, 0)).toContainEqual({ label: "Rego 30d", state: "warn" });
+    expect(vehicleChips(at30, 0)).toContainEqual({ label: "Rego expires in 4 weeks", state: "warn" });
     expect(vehicleChips(at31, 0).some((c) => c.label.startsWith("Rego"))).toBe(false);
   });
 

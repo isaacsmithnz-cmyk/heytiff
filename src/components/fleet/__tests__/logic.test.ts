@@ -79,9 +79,9 @@ describe("vehicleChips", () => {
   });
 
   it("warns inside expiry windows, flags expiries and off-road as bad", () => {
-    expect(vehicleChips(vehicle({ regoDays: 21 }), 0)).toEqual([{ label: "Rego 21d", state: "warn" }]);
+    expect(vehicleChips(vehicle({ regoDays: 21 }), 0)).toEqual([{ label: "Rego expires in 3 weeks", state: "warn" }]);
     expect(vehicleChips(vehicle({ regoDays: -3 }), 0)).toEqual([
-      { label: "Rego expired 3d ago", state: "bad" },
+      { label: "Rego expired 3 days ago", state: "bad" },
     ]);
     const off = vehicleChips(vehicle({ status: "offroad" }), 0);
     expect(off).toEqual([{ label: "Off road", state: "bad" }]);
@@ -102,7 +102,7 @@ describe("vehicleFacts", () => {
   it("returns the four shared facts with severity states", () => {
     const facts = vehicleFacts(vehicle({ regoDays: 21, insuranceDays: -1 }));
     expect(facts.map((f) => f.key)).toEqual(["odo", "service", "rego", "insurance"]);
-    expect(facts.find((f) => f.key === "rego")).toMatchObject({ state: "warn", text: "renews in 21d" });
+    expect(facts.find((f) => f.key === "rego")).toMatchObject({ state: "warn", text: "renews in 3 weeks" });
     expect(facts.find((f) => f.key === "insurance")).toMatchObject({ state: "bad", text: "expired" });
   });
 });

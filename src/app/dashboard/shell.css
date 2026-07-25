@@ -1872,3 +1872,9 @@ select.fl-i { cursor:pointer; }
 
 /* invite modal — UNSCOPED: it portals to <body>, outside .fg (see .fl-ov) */
 .fl-err { background:rgba(255,51,102,.07); border:1px solid rgba(255,51,102,.22); border-radius:12px; padding:10px 14px; margin-bottom:14px; font-size:12.5px; font-weight:600; color:#e0264f; }
+
+/* ---- adaptive durations (lib/format/duration.ts) ----
+   The number does the work; the unit only has to be legible. Muting it keeps a
+   fact tile scannable at a glance without the label growing louder as the
+   wording gets longer ("6 weeks" is wider than "45d" — this is the rent). */
+.fg .dur-u { margin-left:3px; font-size:.86em; font-weight:500; color:#9ca3af; }

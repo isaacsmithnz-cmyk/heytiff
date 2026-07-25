@@ -1,5 +1,5 @@
-import { parseAuDate } from "@/lib/au-dates";
-import { daysUntil } from "@/components/fleet/logic";
+import { daysUntil, parseAuDate } from "@/lib/au-dates";
+import { expiresIn } from "@/lib/format/duration";
 import { EXPIRY_WARN_DAYS } from "./derive";
 
 /* Pure rules for a staff licence — validation of what goes IN, and the status
@@ -57,12 +57,17 @@ export function buildLicenceRow(input: LicenceInput): { row: LicenceRow } | { er
 export type LicenceStatus = { label: string; tone: "ok" | "warn" | "bad" | "mute" };
 
 /* The little status pill on a licence card. Same 30-day warning window the
-   dashboard's action chips use, so a licence that reads "Expires 14d" here is
-   exactly the one that raises a chip there. */
+   dashboard's action chips use, so a licence that reads "Expires in 2 weeks"
+   here is exactly the one that raises a chip there.
+
+   The expired pill stays the bare word "Expired": on the card the expiry date
+   itself is right there beside it, so counting the days back adds length
+   without adding information. Everywhere the date ISN'T shown — chips, the
+   compliance label — the full "expired 4 weeks ago" clause is used instead. */
 export function licenceStatus(expiry: string | null, today: string): LicenceStatus {
   if (!expiry) return { label: "No expiry", tone: "mute" };
   const days = daysUntil(expiry, today);
   if (days < 0) return { label: "Expired", tone: "bad" };
-  if (days <= EXPIRY_WARN_DAYS) return { label: `Expires ${days}d`, tone: "warn" };
+  if (days <= EXPIRY_WARN_DAYS) return { label: expiresIn(days), tone: "warn" };
   return { label: "Valid", tone: "ok" };
 }

@@ -1,6 +1,8 @@
 /* Values the Team directory and the profile header show but never store —
    derived from the stored card so they can't drift out of sync. */
 
+import { daysUntil as daysBetween } from "@/lib/au-dates";
+import { expiryClause } from "@/lib/format/duration";
 import type { ComplianceState, StaffLicence } from "./types";
 
 /** Whole-ish years of service, one decimal. "—" when there's no start date. */
@@ -30,13 +32,18 @@ export function startedLabel(startIso: string | null | undefined): string {
   return d.toLocaleDateString("en-AU", { month: "short", year: "numeric" });
 }
 
-/** Whole days from today to an ISO date. Negative = already past. */
+/* Whole days from today to an ISO date. Negative = already past.
+
+   The Date-and-nullable twin of lib/au-dates' `daysUntil`, which does the
+   actual counting — this one only exists because `deriveCompliance` is handed a
+   `now` rather than a calendar day, and because a card with no expiry recorded
+   has to be distinguishable from one expiring today. Both ends resolve to a UTC
+   calendar day so the two agree to the day. */
 export function daysUntil(iso: string | null | undefined, now = new Date()): number | null {
-  if (!iso) return null;
-  const d = new Date(String(iso).slice(0, 10));
-  if (Number.isNaN(d.getTime())) return null;
-  const startOfToday = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-  return Math.round((d.getTime() - startOfToday) / 86_400_000);
+  const day = String(iso ?? "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return null;
+  if (Number.isNaN(now.getTime())) return null;
+  return daysBetween(day, now.toISOString().slice(0, 10));
 }
 
 /** A licence within this many days reads as "expiring", not "fine". */
@@ -78,7 +85,7 @@ export function deriveCompliance(
   }
   if (worst && worst.days <= EXPIRY_WARN_DAYS) {
     return {
-      label: `${worst.lic.typeName} expires ${worst.days}d`,
+      label: `${worst.lic.typeName} ${expiryClause(worst.days)}`,
       state: "warn",
       expiresDays: worst.days,
     };

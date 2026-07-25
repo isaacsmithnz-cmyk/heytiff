@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { expiresIn } from "@/lib/format/duration";
 import { deriveCompliance, initialsFrom, startedLabel, yearsSince } from "./derive";
 import { firstNameOf, fullNameOf } from "./name";
 import type { PendingInviteRow, StaffLicence, StaffRow } from "./types";
@@ -300,11 +301,7 @@ export async function listPendingInvites(
       email: r.email as string,
       role: r.role === "admin" ? "Admin" : "Staff",
       state: live ? ("live" as const) : ("expired" as const),
-      note: live
-        ? days === 0
-          ? "Expires today"
-          : `Expires in ${days} day${days === 1 ? "" : "s"}`
-        : `Expired ${-days} day${days === -1 ? "" : "s"} ago`,
+      note: expiresIn(days),
       token: withLinks ? (r.token as string) : null,
       expiresAt,
     };

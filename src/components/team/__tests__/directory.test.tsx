@@ -53,7 +53,7 @@ const STAFF: StaffRow[] = [
     id: "a1",
     name: "Jordan Mills",
     role: "Lead Installer",
-    compliance: { label: "ARC licence expires 14d", state: "warn", expiresDays: 14 },
+    compliance: { label: "ARC licence expires in 2 weeks", state: "warn", expiresDays: 14 },
   }),
   staffRow({
     id: "b2",
@@ -111,7 +111,7 @@ describe("TeamDirectory", () => {
 
   it("shows the three-state compliance chips", () => {
     setup();
-    expect(screen.getByText("ARC licence expires 14d")).toBeInTheDocument();
+    expect(screen.getByText("ARC licence expires in 2 weeks")).toBeInTheDocument();
     expect(screen.getByText("White Card expired")).toBeInTheDocument();
     expect(screen.getAllByText("Compliant")).toHaveLength(4);
   });

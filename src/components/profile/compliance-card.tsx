@@ -149,7 +149,7 @@ export function ComplianceCard({
             what it is for. */}
         <label className="licexp">
           <span>Expiry</span>
-          <DateField name="lic-expiry" value={expiry} onChange={setExpiry} />
+          <DateField name="lic-expiry" value={expiry} onChange={setExpiry} today={today} />
         </label>
         <button
           className="pbtn primary"

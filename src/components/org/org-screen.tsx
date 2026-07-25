@@ -452,6 +452,7 @@ function CredentialsSection({
           onSave={save}
           onDelete={editing ? remove : undefined}
           onClose={() => setOpen(null)}
+          today={today}
         />
       )}
     </div>

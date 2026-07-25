@@ -121,6 +121,7 @@ export function DateField({
   invalid,
   max,
   min,
+  today,
 }: {
   name: string;
   /** yyyy-mm-dd, or "" */
@@ -129,6 +130,10 @@ export function DateField({
   invalid?: boolean;
   max?: string;
   min?: string;
+  /** the server's AU day — anchors the popover's initial month and its
+      "Today" action; omitted, the picker falls back to the browser clock,
+      which can sit a day behind the yard near midnight */
+  today?: string;
 }) {
   return (
     <DatePicker
@@ -142,6 +147,7 @@ export function DateField({
       min={min}
       max={max}
       invalid={invalid}
+      today={today}
       clearable
     />
   );

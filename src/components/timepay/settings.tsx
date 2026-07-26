@@ -49,6 +49,7 @@ export function TimePaySettings({
   period,
   canPay,
   holidaySection,
+  xeroSection,
   onClose,
   onSave,
 }: {
@@ -59,6 +60,10 @@ export function TimePaySettings({
   canPay: boolean;
   /** admin+ public-holiday manager, or null when the viewer isn't one */
   holidaySection?: React.ReactNode;
+  /** staff↔Xero payroll matching, or null when Xero isn't connected. Rendered
+      only with `canPay`: it decides whose pay attaches to which payroll record
+      and reports drift in pay-adjacent fields. */
+  xeroSection?: React.ReactNode;
   onClose: () => void;
   onSave: (s: Settings) => void;
 }) {
@@ -511,6 +516,10 @@ export function TimePaySettings({
               {holidaySection ? menuSection("Public holidays", holidaySection) : null}
               {canPay && (
                 <>
+              {/* Matching is not part of the settings DRAFT — its actions apply
+                  immediately, like the holidays section above. A link is a fact
+                  about two systems, not a preference you might cancel out of. */}
+              {xeroSection ? menuSection("Xero payroll", xeroSection) : null}
               {menuSection(
                 "Pay cycle",
                 <>

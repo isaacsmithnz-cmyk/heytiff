@@ -15,6 +15,7 @@ import { RC } from "./theme";
 import { money, rate0 } from "./format";
 import { QuestionStack, RcIcon, WsEyebrow, WsHelpNote, WsSlider, WsToggle, NumInput, type StackQuestion } from "./ui";
 import { BusinessDetail, StaffDetail, VehiclesDetail, type StepBodyProps } from "./detail";
+import { XeroCostsPanel } from "./xero-costs";
 
 function StepHead({ eyebrow, title, mode, onMode, desc }: {
   eyebrow: string; title: string; mode?: string; onMode?: (v: string) => void; desc?: string;
@@ -258,8 +259,9 @@ export function StaffStep({ s, patch, calc, showToggle, revealAll }: StepBodyPro
 }
 
 // ── Step 2 · Business costs ─────────────────────────────────────────────
-export function BusinessStep({ s, patch, calc, showToggle, revealAll }: StepBodyProps) {
+export function BusinessStep({ s, patch, calc, showToggle, revealAll, xeroConnected }: StepBodyProps) {
   const sb = s.simpleBusiness;
+  const onXero = s.costsSource === "xero";
   const entered = (sb.months || []).some(m => m > 0);
   const questions: StackQuestion[] = [
     {
@@ -285,10 +287,40 @@ export function BusinessStep({ s, patch, calc, showToggle, revealAll }: StepBody
   ];
   return (
     <>
-      <StepHead eyebrow={`Step 2 of 5 · ${s.mode.business}`} title="Business costs"
-        mode={showToggle ? s.mode.business : undefined}
-        onMode={showToggle ? (v => patch({ mode: { ...s.mode, business: v as EntryMode } })) : undefined} />
-      {s.mode.business === "Detailed" ? <BusinessDetail s={s} patch={patch} calc={calc} /> : (
+      <StepHead eyebrow={`Step 2 of 5 · ${onXero ? "From Xero" : s.mode.business}`} title="Business costs"
+        // The Simple/Detailed toggle is about how you TYPE costs in, so it has
+        // nothing to say while Xero is the source.
+        mode={showToggle && !onXero ? s.mode.business : undefined}
+        onMode={showToggle && !onXero ? (v => patch({ mode: { ...s.mode, business: v as EntryMode } })) : undefined} />
+
+      {/* The source switch. Only offered when a grant exists — otherwise it is
+          a control that can only disappoint. Flipping it never touches either
+          side's figures, so it is safe to try. */}
+      {xeroConnected && (
+        <div className="rcx-src">
+          <button className={`rcx-srcb${!onXero ? " on" : ""}`} onClick={() => patch({ costsSource: "manual" })}>
+            Enter them myself
+          </button>
+          <button
+            className={`rcx-srcb${onXero ? " on" : ""}`}
+            onClick={() => patch({ costsSource: "xero" })}
+          >
+            Use figures from Xero
+          </button>
+        </div>
+      )}
+
+      {onXero ? (
+        <Body>
+          <XeroCostsPanel
+            s={s}
+            patch={patch}
+            onFetch={async (choice) =>
+              (await import("@/app/actions/rate-calc")).fetchXeroBusinessCosts(choice)
+            }
+          />
+        </Body>
+      ) : s.mode.business === "Detailed" ? <BusinessDetail s={s} patch={patch} calc={calc} /> : (
       <Body>
         <WsHelpNote id="business-simple" style={{ marginBottom: 16 }}>Don&apos;t include wages or vehicle costs here — those live in their own steps, so nothing is double-counted.{showToggle && <> Switch to <b>Detailed</b> to itemise costs and choose whether each loads onto install, service, or both.</>}</WsHelpNote>
         <QuestionStack questions={questions} revealAll={revealAll} />

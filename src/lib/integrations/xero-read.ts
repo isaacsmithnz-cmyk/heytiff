@@ -30,6 +30,7 @@ import {
   type XeroEmployee,
   type XeroPayCalendar,
 } from "./xero-shape";
+import { mapProfitAndLoss, type ProfitAndLoss } from "./xero-pl";
 
 /** Every read answers with this: the caller gets data, or a sentence it can
     show, and never has to catch anything. */
@@ -123,6 +124,51 @@ export async function listPayCalendars(orgId: string): Promise<ReadResult<XeroPa
   return read(orgId, async (xero, tenantId) => {
     const res = await xero.payrollAUApi.getPayrollCalendars(tenantId);
     return shapeCalendars(res.body?.payrollCalendars);
+  });
+}
+
+/** The profit & loss for one window, already mapped to cost lines.
+
+    Mapping happens here rather than in the caller so the generated report
+    model — a tree of sections, cells and attributes — never leaves this
+    module. `standardLayout: true` asks Xero for the report as its own UI shows
+    it, which is the layout `mapProfitAndLoss` understands. */
+export async function getProfitAndLoss(
+  orgId: string,
+  from: string,
+  to: string
+): Promise<ReadResult<ProfitAndLoss>> {
+  return read(orgId, async (xero, tenantId) => {
+    const res = await xero.accountingApi.getReportProfitAndLoss(
+      tenantId,
+      from,
+      to,
+      undefined, // periods — one window, not a comparison
+      undefined, // timeframe
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      true // standardLayout
+    );
+    return mapProfitAndLoss(res.body);
+  });
+}
+
+/** The organisation's own financial year end, so the default period is theirs
+    rather than an assumed Australian July–June. Null when Xero doesn't say. */
+export async function getFinancialYearEnd(
+  orgId: string
+): Promise<ReadResult<{ day: number | null; month: number | null; name: string | null }>> {
+  return read(orgId, async (xero, tenantId) => {
+    const res = await xero.accountingApi.getOrganisations(tenantId);
+    const org = res.body?.organisations?.[0];
+    const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+    return {
+      day: num(org?.financialYearEndDay),
+      month: num(org?.financialYearEndMonth),
+      name: typeof org?.name === "string" ? org.name : null,
+    };
   });
 }
 

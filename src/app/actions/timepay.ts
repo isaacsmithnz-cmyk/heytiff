@@ -5,16 +5,21 @@ import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { can } from "@/lib/permissions-server";
 import { staffProfileIdFor } from "@/lib/fleet/query";
+import { todayInAu } from "@/lib/au-dates";
 import {
   dateOfDay,
   isIsoDate,
   periodConfig,
+  periodDays,
   periodLength,
   periodStartFor,
+  todayIndex,
   type PeriodConfig,
 } from "@/lib/timepay/period";
-import { getPaySettings } from "@/lib/timepay/query";
-import type { DayEntry, Settings } from "@/components/timepay/logic";
+import { getMyWeek, getPaySettings } from "@/lib/timepay/query";
+import { presumeFor, presumptionCtx } from "@/lib/timepay/presume";
+import { validateBlock } from "@/lib/timepay/availability";
+import { parseClock, type DayEntry, type Settings } from "@/components/timepay/logic";
 
 /* Time & Pay mutations.
 
@@ -122,26 +127,79 @@ export async function saveDay(
     return { ok: true };
   }
 
-  if (!(entry.h >= 0 && entry.h <= 24)) return { ok: false, error: "Hours must be between 0 and 24." };
-  if (entry.t === "work" && (!entry.in.trim() || !entry.out.trim()))
-    return { ok: false, error: "A worked day needs a start and finish time." };
+  if (entry.t !== "off") {
+    if (!(entry.h >= 0 && entry.h <= 24))
+      return { ok: false, error: "Hours must be between 0 and 24." };
+    if (entry.t === "work" && (!entry.in.trim() || !entry.out.trim()))
+      return { ok: false, error: "A worked day needs a start and finish time." };
+  }
 
   const { error } = await supabaseAdmin.from("time_entries").upsert(
-    {
-      org_id: ctx.orgId,
-      staff_profile_id: ctx.staffId,
-      work_date: workDate,
-      kind: entry.t,
-      start_time: entry.t === "work" ? entry.in : null,
-      end_time: entry.t === "work" ? entry.out : null,
-      hours: entry.h,
-      updated_at: new Date().toISOString(),
-    },
+    rowFor(ctx.orgId, ctx.staffId, workDate, entry),
     { onConflict: "org_id,staff_profile_id,work_date" },
   );
   if (error) return { ok: false, error: "Couldn't save that day." };
   refresh();
   return { ok: true };
+}
+
+/** One day, as the table stores it. Shared by the single-day save and the
+    materialisation below, so a day written by hand and the identical day
+    written by submitting can't take different shapes. */
+function rowFor(orgId: string, staffId: string, workDate: string, entry: DayEntry) {
+  return {
+    org_id: orgId,
+    staff_profile_id: staffId,
+    work_date: workDate,
+    kind: entry.t,
+    start_time: entry.t === "work" ? entry.in : null,
+    end_time: entry.t === "work" ? entry.out : null,
+    // `off` is a statement, not an amount — it carries no hours by construction
+    hours: entry.t === "work" || entry.t === "leave" || entry.t === "sick" || entry.t === "ph" ? entry.h : 0,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+/* Submitting is what makes the presumption permanent.
+
+   Up to this point an ordinary Tuesday is DERIVED — no row exists, and the
+   screen recomputes it every load so a late holiday or a corrected leave
+   booking still lands. That is right for a week still being lived in and
+   wrong the moment it goes for approval: an approved sheet has to be a record
+   of what was agreed, not a calculation that keeps moving. If the org changed
+   its normal finish time in August, a June sheet must not quietly restate
+   itself.
+
+   So on submit, every day that was presumed rather than entered is written
+   down as it stood. Days the person actually entered are already rows and are
+   left exactly alone. */
+async function materialise(
+  orgId: string,
+  staffId: string,
+  periodStart: string,
+  /* the config `guardPeriod` already derived — passed in rather than rebuilt,
+     so the boundary this writes rows against is provably the same one the
+     caller validated the period start with */
+  cfg: PeriodConfig,
+): Promise<void> {
+  const { settings } = await getPaySettings(orgId);
+  const today = todayInAu();
+  const me = await getMyWeek(orgId, staffId, periodStart, cfg);
+  if (!me) return;
+
+  const state = me.state ?? null;
+  const p = await presumptionCtx(orgId, periodStart, cfg, today, [{ id: staffId, state }]);
+  const ctxWeek = { week: periodDays(periodStart, cfg), today: todayIndex(periodStart, today, cfg) };
+  const { days, sources } = presumeFor(me, state, settings, ctxWeek, p);
+
+  const rows = days
+    .map((entry, i) => ({ entry, i }))
+    // "entered" is already a row; "expected" and "none" are days with nothing
+    // on them, and writing a row for those would invent an entry nobody made
+    .filter(({ i }) => sources[i] === "presumed" || sources[i] === "holiday" || sources[i] === "leave")
+    .map(({ entry, i }) => rowFor(orgId, staffId, dateOfDay(periodStart, i), entry));
+
+  if (rows.length) await supabaseAdmin.from("time_entries").upsert(rows, { onConflict: "org_id,staff_profile_id,work_date" });
 }
 
 export async function submitWeek(periodStart: string): Promise<TimepayResult> {
@@ -152,6 +210,8 @@ export async function submitWeek(periodStart: string): Promise<TimepayResult> {
 
   const status = await statusOf(ctx.orgId, ctx.staffId, periodStart);
   if (!editable(status)) return { ok: false, error: "This week has already been sent." };
+
+  await materialise(ctx.orgId, ctx.staffId, periodStart, period.cfg);
 
   const { error } = await supabaseAdmin.from("timesheets").upsert(
     {
@@ -234,6 +294,53 @@ export async function sendBackWeek(
   });
 }
 
+/* ---------------- unavailability (casuals) ---------------- */
+
+/* OWN tier, like your own hours and for a stronger reason: this is a person
+   telling the business when they can't work. There is no capability to hold
+   and nothing to approve — see lib/timepay/availability.ts for why it isn't a
+   request. You may only ever write your own rows. */
+
+export async function markUnavailable(
+  from: string,
+  to: string,
+  note?: string,
+): Promise<TimepayResult> {
+  const ctx = await context();
+  if (!ctx?.staffId) return { ok: false, error: "No staff record for this account." };
+
+  const check = validateBlock(from, to, todayInAu());
+  if (!check.ok) return { ok: false, error: check.error };
+
+  const { error } = await supabaseAdmin.from("staff_unavailability").insert({
+    org_id: ctx.orgId,
+    staff_profile_id: ctx.staffId,
+    from_date: from,
+    to_date: to,
+    note: note?.trim().slice(0, 200) || null,
+  });
+  if (error) return { ok: false, error: "Couldn't save that." };
+  refresh();
+  return { ok: true };
+}
+
+export async function clearUnavailable(id: string): Promise<TimepayResult> {
+  const ctx = await context();
+  if (!ctx?.staffId) return { ok: false, error: "No staff record for this account." };
+
+  // scoped to YOUR row: an id alone must never be enough to clear someone
+  // else's block off the roster
+  const { error } = await supabaseAdmin
+    .from("staff_unavailability")
+    .delete()
+    .eq("org_id", ctx.orgId)
+    .eq("staff_profile_id", ctx.staffId)
+    .eq("id", id);
+  if (error) return { ok: false, error: "Couldn't remove that." };
+  refresh();
+  return { ok: true };
+}
+
 /* ---------------- pay settings (owner-tier: it defines how pay is computed) ---------------- */
 
 export async function savePaySettings(settings: Settings): Promise<TimepayResult> {
@@ -255,6 +362,9 @@ export async function savePaySettings(settings: Settings): Promise<TimepayResult
     dbl_after: settings.dblAfter,
     break_minutes: settings.breakMinutes,
     break_paid: settings.breakPaid,
+    default_start: settings.defaultStart,
+    default_end: settings.defaultEnd,
+    work_days: settings.workDays,
     submit_day: settings.submitDay,
     submit_time: settings.submitTime,
     lock: settings.lock,
@@ -263,6 +373,52 @@ export async function savePaySettings(settings: Settings): Promise<TimepayResult
     updated_at: new Date().toISOString(),
   });
   if (error) return { ok: false, error: "Couldn't save pay settings." };
+  refresh();
+  return { ok: true };
+}
+
+/* ---------------- your own normal hours ---------------- */
+
+/** Change the hours your week is presumed to be.
+
+    OWN tier, deliberately: the org names a default, but the times you start
+    and finish are a fact about your job, not a pay decision — an early start
+    doesn't change a rate, it changes which hours get presumed onto YOUR
+    timesheet. Requiring `financials` for it would mean every tradesperson on
+    a different start had to ask the owner.
+
+    Passing null for both clears the override and puts you back on the org's
+    hours. Both times must be readable: half an override would presume your
+    start against the workspace's finish. */
+export async function saveMyHours(
+  start: string | null,
+  end: string | null,
+  /** which days you normally work (Mon 0 … Sun 6). Undefined leaves the
+      pattern alone; null clears it back to the workspace's. */
+  workDays?: number[] | null,
+): Promise<TimepayResult> {
+  const ctx = await context();
+  if (!ctx?.staffId) return { ok: false, error: "No staff record for this account." };
+
+  const clearing = !start && !end;
+  if (!clearing && (parseClock(start ?? "") == null || parseClock(end ?? "") == null))
+    return { ok: false, error: "Pick a start and a finish." };
+  if (Array.isArray(workDays) && workDays.some((d) => !Number.isInteger(d) || d < 0 || d > 6))
+    return { ok: false, error: "That isn't a day of the week." };
+
+  const { error } = await supabaseAdmin
+    .from("staff_profiles")
+    .update({
+      default_start: clearing ? null : start,
+      default_end: clearing ? null : end,
+      ...(workDays === undefined
+        ? {}
+        : { work_days: workDays === null ? null : Array.from(new Set(workDays)).sort() }),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("org_id", ctx.orgId)
+    .eq("id", ctx.staffId);
+  if (error) return { ok: false, error: "Couldn't save your normal hours." };
   refresh();
   return { ok: true };
 }

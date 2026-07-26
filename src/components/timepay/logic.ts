@@ -5,9 +5,10 @@
    Deliberate deviations from the prototype, found while verifying its logic:
    - "Sent back" is rendered from status (the prototype patched the DOM and
      lost the tag on re-render despite persisting the action).
-   - `dayClass` marks "under" days on weekdays only, matching `derive` (the
-     prototype coloured a short Saturday yellow when its penalty rule was off
-     but never flagged it for review).
+   - `dayClass` marks "under" days on EXPECTED days only, matching `derive`
+     (the prototype coloured a short Saturday yellow when its penalty rule was
+     off but never flagged it for review). "Expected" was "is it a weekday"
+     until working patterns arrived; see WeekCtx.
    Known limitation carried over: the `ph` / `night` penalty rules are part of
    the settings but can't apply yet — day entries have no worked-public-holiday
    or night-shift representation.
@@ -18,9 +19,16 @@
    tuples — day 5 of a fortnight is the second Saturday, and day 7 is a
    Monday. Getting this positionally wrong pays weekend rates on a Tuesday. */
 
+import type { EmploymentClass } from "@/lib/staff/employment";
+
 export type DayEntry =
   | { t: "work"; in: string; out: string; h: number }
   | { t: "leave" | "sick" | "ph"; h: number }
+  /** A weekday you deliberately did NOT work, and that isn't leave. Stored, so
+      it survives the normal-day presumption below — without it, "I wasn't on
+      site Tuesday" would be re-filled as a normal day every time the page
+      loaded, and the only way to say otherwise would be to book leave. */
+  | { t: "off" }
   | { t: "empty" };
 
 export type RateRule = { on: boolean; rate: 1.5 | 2; up: number | null };
@@ -45,6 +53,17 @@ export type Settings = {
   /** Paid breaks are on the clock: nothing is deducted, and a person can't
       shorten one per day because it makes no difference to their hours. */
   breakPaid: boolean;
+  /** The workspace's normal start and finish. Every Mon–Fri is presumed to be
+      these hours unless something says otherwise — see `presumeDays`. A person
+      may override them for themselves; the org value is the fallback, never a
+      floor. */
+  defaultStart: string;
+  defaultEnd: string;
+  /** Which days of the week are normal working days here (Mon 0 … Sun 6).
+      A person may keep their own — a part-timer on Mon/Tue/Thu is the reason
+      this exists, because without it their Wednesday is presumed worked every
+      week of their life. */
+  workDays: number[];
   submitDay: string;
   submitTime: string;
   lock: boolean;
@@ -67,11 +86,30 @@ export type StaffWeek = {
   role: string;
   rate: number | null;
   days: DayEntry[];
+  /** whose public-holiday calendar applies to them — needed to presume their
+      days off correctly when an org spans more than one state */
+  state?: string | null;
+  /** what kind of employee they are, already classified. Decides whether their
+      week is filled in for them at all — a casual's never is. */
+  employment?: EmploymentClass;
 };
 
 /* ['MON', 29, 'Jun'] — weekday label, day number, month */
 export type WeekDay = [string, number, string];
-export type WeekCtx = { week: WeekDay[]; today: number };
+
+/* Reading a week needs two different questions answered about a day, and they
+   were the same question for as long as everyone worked Monday to Friday:
+
+     IS IT A WEEKEND?  a calendar fact, and the one that sets PAY RATES.
+                       Saturday pays Saturday rates whoever you are.
+     WAS THIS PERSON EXPECTED?  a roster fact, and the one that decides what
+                       gets presumed and what counts as a missing day.
+
+   `isWeekend` answers the first and must stay calendar-based. `workDays`
+   answers the second, per person: Mon–Fri for most, three days for a
+   part-timer, and EMPTY for a casual — who is never expected, so nothing is
+   presumed onto their week and no day of it can be "missing". */
+export type WeekCtx = { week: WeekDay[]; today: number; workDays?: number[] };
 
 export type Split = { n: number; o15: number; o2: number };
 
@@ -86,6 +124,8 @@ export type Derived = {
   entries: number;
   weighted: number;
   under: number;
+  /** weekdays deliberately marked "not worked" — always a review item */
+  off: number;
   missing: number;
   status: "review" | "ready";
   bullets: string[];
@@ -95,7 +135,7 @@ export type Derived = {
 };
 
 export type StaffStatus = "review" | "ready" | "approved" | "sent";
-export type DayClass = "std" | "over" | "under" | "leave" | "sick" | "ph" | "empty" | "miss";
+export type DayClass = "std" | "over" | "under" | "leave" | "sick" | "ph" | "empty" | "miss" | "off";
 
 export const DEFAULT_SETTINGS: Settings = {
   cycle: "Weekly",
@@ -114,6 +154,12 @@ export const DEFAULT_SETTINGS: Settings = {
   dblAfter: 12,
   breakMinutes: 0,
   breakPaid: true,
+  /* 7:00 – 3:00 is exactly the 8h standard day, so a workspace that never
+     touches this setting has every presumed day land on `std` rather than
+     tripping the overtime rule by half an hour, every day, forever. */
+  defaultStart: "7:00 AM",
+  defaultEnd: "3:00 PM",
+  workDays: [0, 1, 2, 3, 4], // Mon–Fri
   submitDay: "Sun",
   submitTime: "3:00 PM",
   lock: true,
@@ -262,6 +308,23 @@ export const dowOf = (w: WeekDay | undefined): number => (w ? DOW.indexOf(w[0]) 
 
 export const isWeekend = (dow: number): boolean => dow >= 5;
 
+export const DEFAULT_WORK_DAYS = [0, 1, 2, 3, 4];
+
+/** Was this person expected at work on this day of the week? Defaults to
+    Mon–Fri when a context doesn't carry a roster, so every existing caller
+    reads exactly as it did. */
+export const expectsWork = (ctx: WeekCtx, dow: number): boolean =>
+  (ctx.workDays ?? DEFAULT_WORK_DAYS).includes(dow);
+
+/** "Mon, Tue, Thu" — a working pattern in the order the week runs. */
+export const workDaysLabel = (days: number[]): string => {
+  const names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const on = names.filter((_, i) => days.includes(i));
+  if (on.length === 0) return "No set days";
+  if (on.length === 7) return "Every day";
+  return on.join(", ");
+};
+
 /* Split one worked day's hours into rate buckets using the workspace rules.
    `dow` is the DAY OF WEEK (Mon 0 … Sun 6), not a position in the period —
    use dowOf(ctx.week[i]) to get it. */
@@ -298,6 +361,7 @@ export function derive(staff: StaffWeek, s: Settings, ctx: WeekCtx): Derived {
     worked = 0,
     entries = 0,
     under = 0,
+    off = 0,
     missing = 0;
   const bullets: string[] = [];
   const dlab = (i: number) => dayLabel(ctx.week[i]);
@@ -348,7 +412,11 @@ export function derive(staff: StaffWeek, s: Settings, ctx: WeekCtx): Derived {
               fmt(sp.o15 + sp.o2) +
               "h over standard)"
           );
-        if (d.h < s.standard) {
+        /* Short only against a day you were EXPECTED to work. A casual's
+           four-hour Wednesday isn't short of anything — they were rostered for
+           four hours — and neither is a part-timer's day off that they picked
+           up anyway. */
+        if (expectsWork(ctx, dow) && d.h < s.standard) {
           under++;
           bullets.push(dlab(i) + " — under day: " + fmt(d.h) + "h of " + fmt(s.standard) + "h");
         }
@@ -364,7 +432,15 @@ export function derive(staff: StaffWeek, s: Settings, ctx: WeekCtx): Derived {
     } else if (d.t === "ph") {
       ph += d.h;
       entries++;
-    } else if (d.t === "empty" && !isWeekend(dow) && i <= ctx.today) {
+    } else if (d.t === "off") {
+      /* A deliberate "not worked" is an entry — the person answered — but it
+         is never a normal workday, so it goes to the approver either way. */
+      entries++;
+      if (expectsWork(ctx, dow)) {
+        off++;
+        bullets.push(dlab(i) + " — not worked, and not booked as leave");
+      }
+    } else if (d.t === "empty" && expectsWork(ctx, dow) && i <= ctx.today) {
       missing++;
       bullets.push(dlab(i) + " — no entry logged");
     }
@@ -387,10 +463,12 @@ export function derive(staff: StaffWeek, s: Settings, ctx: WeekCtx): Derived {
   }
 
   const weighted = normal + ot * 1.5 + ot2 * 2 + sick + leave + ph;
-  const status = ot || ot2 || under || missing || sick || leave ? "review" : "ready";
+  const status = ot || ot2 || under || off || missing || sick || leave ? "review" : "ready";
   const issueTitle = missing
     ? "Missing entries to chase"
-    : ot2 && ot
+    : off
+      ? "Days not worked to check"
+      : ot2 && ot
       ? "Overtime & double time to confirm"
       : ot2
         ? "Double time to confirm"
@@ -417,6 +495,7 @@ export function derive(staff: StaffWeek, s: Settings, ctx: WeekCtx): Derived {
     entries,
     weighted,
     under,
+    off,
     missing,
     status,
     bullets,
@@ -452,23 +531,150 @@ export function weekGroups(days: DayEntry[]): WeekGroup[] {
     if (!groups[w]) groups[w] = { label: `Week ${w + 1}`, start: i, days: [], workedHours: 0 };
     const entry = days[i];
     groups[w].days.push({ entry, index: i });
-    if (entry.t !== "empty") groups[w].workedHours += entry.h;
+    if (entry.t !== "empty" && entry.t !== "off") groups[w].workedHours += entry.h;
   }
   return groups;
+}
+
+/* ---------------- the normal-day presumption ----------------
+
+   A timesheet's default answer is "I worked my normal hours". You open a day
+   only when it was DIFFERENT — and a day that was different for a reason the
+   business already knows about (a public holiday, approved leave, a booked
+   sick day) isn't yours to fill in either: it arrives already in that state.
+
+   So nothing here asks a person to confirm an ordinary week. `presumeDays`
+   takes what is actually STORED and fills the gaps:
+
+     stored entry       → kept, always. An entry beats every presumption.
+     casual             → nothing, ever. Their week is entered by hand.
+     not an expected day → nothing. Added by hand, never presumed.
+     public holiday     → a full day off, named from the org's calendar.
+     approved leave     → annual leave or sick, from the leave module.
+     expected, over     → worked, at that person's normal start and finish.
+     expected, not over → nothing yet. Today isn't marked until today ends.
+
+   Holidays outrank leave: a public holiday inside a booked week is a day the
+   business is closed, not a day of entitlement spent — the same call
+   `rangeBreakdown` already makes when it costs a leave request.
+
+   This runs on BOTH sides — your screen and the approver's — because a
+   presumption only one of you can see is a disagreement waiting to be paid
+   out. It is derived, not written: a live period recomputes every load, and
+   `submitWeek` is what turns the presumption into rows. */
+
+export type NormalHours = { start: string; end: string };
+
+/** Where a day's content came from. `entered` is a real row; everything else
+    is this module filling in for a person who shouldn't have to. */
+export type DaySource = "entered" | "holiday" | "leave" | "presumed" | "expected" | "none";
+
+/** A person's normal hours: their own if they've set them, the workspace's
+    otherwise. An override is only honoured when BOTH ends are readable —
+    half an override would silently pay a day at the org's finish time. */
+export function normalHours(s: Settings, own?: Partial<NormalHours> | null): NormalHours {
+  const start = own?.start?.trim();
+  const end = own?.end?.trim();
+  if (start && end && parseClock(start) != null && parseClock(end) != null) return { start, end };
+  return { start: s.defaultStart, end: s.defaultEnd };
+}
+
+export type PresumeInput = {
+  /** ISO date per day index, so nothing here has to redo period maths */
+  dates: string[];
+  /** date → holiday name, this org's calendar for this person's state */
+  holidays: Map<string, string>;
+  /** date → an absence already booked and approved elsewhere. Unpaid leave
+      arrives as `off`: it is a day not worked, and it must never be presumed
+      into paid hours. */
+  absences: Map<string, { t: "leave" | "sick"; h: number } | { t: "off" }>;
+  /** that person's normal hours, already resolved */
+  hours: NormalHours;
+  /** the last index whose day is OVER. −1 when the period hasn't started. */
+  through: number;
+  /** false for a CASUAL: nothing is ever filled in for them, not a normal day
+      and not a public holiday. They work when they're rostered, so their week
+      is theirs to enter and an empty day of it means nothing happened — not
+      that something is missing. */
+  presume: boolean;
+};
+
+export type PresumedWeek = { days: DayEntry[]; sources: DaySource[] };
+
+export function presumeDays(
+  stored: DayEntry[],
+  ctx: WeekCtx,
+  s: Settings,
+  input: PresumeInput,
+): PresumedWeek {
+  const days: DayEntry[] = [];
+  const sources: DaySource[] = [];
+  /* A presumed day is the same clock every time, so the break deduction and
+     rounding are computed once rather than per day. */
+  const presumedHours = derivedDayHours(input.hours.start, input.hours.end, s);
+
+  stored.forEach((entry, i) => {
+    const date = input.dates[i] ?? "";
+    const dow = dowOf(ctx.week[i]);
+
+    if (entry.t !== "empty") {
+      days.push(entry);
+      sources.push("entered");
+      return;
+    }
+
+    /* Not an expected day → nothing is presumed onto it, by anything. That is
+       a weekend for most people, a Wednesday for a part-timer on Mon/Tue/Thu,
+       and EVERY day for a casual. A public holiday falling on a day you were
+       never going to work closes nothing, and a fortnight of annual leave
+       covers its Saturdays only in the sense that nobody was going to be
+       there — pay neither. A day you DID work has a stored entry and never
+       reaches here. */
+    if (!input.presume || !expectsWork(ctx, dow)) {
+      days.push({ t: "empty" });
+      sources.push("none");
+      return;
+    }
+
+    if (input.holidays.get(date) !== undefined) {
+      days.push({ t: "ph", h: s.standard });
+      sources.push("holiday");
+      return;
+    }
+
+    const absence = input.absences.get(date);
+    if (absence) {
+      days.push(absence.t === "off" ? { t: "off" } : { t: absence.t, h: absence.h });
+      sources.push("leave");
+      return;
+    }
+
+    if (i <= input.through && presumedHours != null) {
+      days.push({ t: "work", in: input.hours.start, out: input.hours.end, h: presumedHours });
+      sources.push("presumed");
+      return;
+    }
+
+    days.push({ t: "empty" });
+    sources.push("expected");
+  });
+
+  return { days, sources };
 }
 
 /* Day → colour class, driven by the same split rules as pay. */
 export function dayClass(d: DayEntry, i: number, s: Settings, ctx: WeekCtx): DayClass {
   const dow = dowOf(ctx.week[i]);
-  const weekday = !isWeekend(dow);
-  if (d.t === "empty") return weekday && i <= ctx.today ? "miss" : "empty";
+  const expected = expectsWork(ctx, dow);
+  if (d.t === "off") return "off";
+  if (d.t === "empty") return expected && i <= ctx.today ? "miss" : "empty";
   if (d.t === "leave") return "leave";
   if (d.t === "sick") return "sick";
   if (d.t === "ph") return "ph";
   const sp = splitDay(d.h, dow, s);
   if (sp.o15 || sp.o2) return "over";
-  /* under days apply to weekdays only, matching derive's review flag */
-  return weekday && d.h < s.standard ? "under" : "std";
+  /* short days apply to EXPECTED days only, matching derive's review flag */
+  return expected && d.h < s.standard ? "under" : "std";
 }
 
 export const initials = (n: string): string =>

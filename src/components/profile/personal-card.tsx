@@ -9,8 +9,11 @@ import { preValidate } from "@/lib/staff/pre-validate";
 import { SectionCard } from "./section-card";
 import { DateField, Field, FactRow, Seg, SelectInput, TextInput } from "./fields";
 import type { ProfileMode, SaveSection } from "./types";
+import { EMPLOYMENT_TYPES } from "@/lib/staff/employment";
 
-const EMPLOYMENT = ["Full-time", "Part-time", "Casual", "Apprentice", "Subcontractor"] as const;
+/* the one list, shared with the Rate Calculator and Time & Pay — a label
+   added here has to classify there too */
+const EMPLOYMENT = EMPLOYMENT_TYPES;
 
 /** The EDIT values. Dates are ISO here because the pickers speak ISO; read
     mode formats them as dd/mm/yyyy for itself, straight off the profile. */

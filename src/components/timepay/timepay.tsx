@@ -105,6 +105,9 @@ function PerDay({ s, d, ctx }: { s: StaffWeek; d: Derived; ctx: WeekCtx }) {
           <span className="hh">—</span>
         </div>
       );
+    /* A day marked "not worked" is the one entry with no hours to state — it
+       is a person saying they weren't there, and it reaches this screen
+       precisely so the approver sees it rather than reading a blank. */
     const label =
       day.t === "work"
         ? `${day.in} – ${day.out}`
@@ -112,14 +115,16 @@ function PerDay({ s, d, ctx }: { s: StaffWeek; d: Derived; ctx: WeekCtx }) {
           ? "Annual leave"
           : day.t === "sick"
             ? "Sick leave"
-            : "Public holiday";
+            : day.t === "off"
+              ? "Not worked"
+              : "Public holiday";
     return (
-      <div className="drow" key={i}>
+      <div className={`drow${day.t === "off" ? " off" : ""}`} key={i}>
         <span className="wd">{w[0]}</span>
         <span className="dt">{w[1]} {w[2]}</span>
         <span className="sh">{label}</span>
         <span></span>
-        <span className="hh">{fmt(day.h)}h</span>
+        <span className="hh">{day.t === "off" ? "—" : `${fmt(day.h)}h`}</span>
       </div>
     );
   };

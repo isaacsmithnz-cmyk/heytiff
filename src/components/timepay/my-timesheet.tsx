@@ -3,17 +3,34 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
-import { saveDay, submitWeek, type TimepayResult } from "@/app/actions/timepay";
+import { TimeWheel } from "@/components/ui/time-wheel";
+import { DateField } from "@/components/ui/date-field";
+import {
+  clearUnavailable,
+  markUnavailable,
+  saveDay,
+  saveMyHours,
+  submitWeek,
+  type TimepayResult,
+} from "@/app/actions/timepay";
 import type { SheetState } from "@/lib/timepay/query";
+import type { EmploymentClass } from "@/lib/staff/employment";
+import {
+  blockLabel,
+  upcoming,
+  validateBlock,
+  type Unavailability,
+} from "@/lib/timepay/availability";
 import { dateOfDay } from "@/lib/timepay/period";
 import { UpcomingHolidays } from "./upcoming-holidays";
 import type { PayPeriod } from "./timepay";
 import {
   type DayClass,
   type DayEntry,
+  type DaySource,
+  type NormalHours,
   type Settings,
   type WeekCtx,
-  type WeekDay,
   type StaffWeek,
   breakLine,
   dayClass,
@@ -23,28 +40,40 @@ import {
   dowOf,
   fmtH,
   fmtHval,
-  isWeekend,
+  expectsWork,
   ruleSummary,
   seedBreakMinutes,
   splitDay,
   submitNote,
+  workDaysLabel,
   weekGroups,
 } from "./logic";
 
 /* My timesheet — everyone, always. The hours-ENTRY surface.
 
-   Rebuilt on the original staff-facing design's mechanics: a week strip of day
-   chips over a stack of day rows, one row expanding in place into its editor,
-   and a rail that says what the period is worth. The skin is the current app
-   language — white cards, Jakarta, ink/teal — not the prototype's blue.
+   TWO RULES SHAPE THIS SCREEN, and both are about not making a person do work
+   the software could do or could refuse to get wrong.
 
-   THE FIX THIS SCREEN EXISTS FOR: hours are DERIVED from the times, never
-   typed. The old editor had a start, a finish AND an hours box, so a day could
-   be saved with both times filled and 0.00 hours — a row that looks logged and
-   pays nothing. There is now no hours input on a worked day at all: the times
-   are the entry, `derivedDayHours` turns them into hours, and Save is refused
-   outright when the times can't be read. Zero is no longer reachable by
-   accident.
+   1. A NORMAL WEEK TAKES NO INPUT. Monday to Friday is presumed worked at your
+      normal hours once the day is over; a public holiday, approved leave or a
+      booked sick day arrives already in that state from the calendar and the
+      leave module. You open a day only when it was DIFFERENT. The weekend is
+      the mirror image: nothing is presumed onto it, and it stays greyed until
+      you add it. `presumeDays` in logic.ts is the rule and the server applies
+      it before this screen ever sees the week — so what is drawn here is what
+      submits, and the approver's screen is drawing the same thing.
+
+   2. A TIME CANNOT BE TYPED. It is scrolled. Free-text start and finish boxes
+      were the last place on this screen where a person could produce something
+      the software then had to reject, and there is no software left that asks
+      you to type a clock time. `TimeWheel` emits only real times, so the
+      "we can't read that" state is gone rather than handled.
+
+   The week is ONE STRIP OF DAY CARDS and nothing else. It used to be a strip
+   AND a vertical list of the same seven days, which meant every day was drawn
+   twice and the editor opened in the copy rather than the thing you clicked.
+   Now the strip is the control: a card is a tab, the selected one joins the
+   panel below it, and the panel shows that day alone.
 
    The payroll line beside it is the REAL engine — `splitDay`, the same
    function the approver's screen and the pay run use — so what you're told
@@ -52,16 +81,16 @@ import {
 
    NO MONEY LIVES HERE. Not a rate, not a gross, not a dollar sign. The wage
    isn't hidden at render time — `getMyWeek` doesn't select the column, so the
-   payload has nothing to print. Multipliers and hours only. Your rate belongs
-   on My profile → My Pay, which asks for it in its own query and can say
-   something useful about it. */
+   payload has nothing to print. Multipliers and hours only. */
 
-const KINDS: { t: DayEntry["t"]; label: string }[] = [
+/* What you can say a day was. Leave, sick and public holidays are NOT here:
+   they are booked in the leave module or set on the org's calendar, and they
+   arrive on this screen already marked. A timesheet that could also declare
+   annual leave would be a second place to record the same day — the exact
+   double-entry this screen is meant to end. */
+const KINDS: { t: "work" | "off"; label: string }[] = [
   { t: "work", label: "Worked" },
-  { t: "leave", label: "Annual leave" },
-  { t: "sick", label: "Sick" },
-  { t: "ph", label: "Public holiday" },
-  { t: "empty", label: "Nothing" },
+  { t: "off", label: "Didn't work" },
 ];
 
 /* One word per day class, in the same palette the approver reads. `under` is
@@ -76,11 +105,24 @@ const PILL: Record<DayClass, string> = {
   sick: "Sick",
   ph: "Public holiday",
   miss: "Missing",
+  off: "Not worked",
   empty: "No entry",
 };
 
+/* Why a day says what it says. A presumed day must never read as though the
+   person logged it — they didn't, and if it's wrong they need to know it was
+   filled in for them before they submit it. */
+const SOURCE_NOTE: Record<DaySource, string> = {
+  entered: "You logged this day.",
+  holiday: "Public holiday — the business is closed. Nothing to do.",
+  leave: "Booked leave — this came from your leave, not from here.",
+  presumed: "Your normal day. Nobody had to enter it — change it only if it was different.",
+  expected: "Not yet. This day is marked as worked once the day is over.",
+  none: "Weekends aren't counted unless you add them.",
+};
+
 const STATUS_COPY: Record<SheetState["status"], { label: string; tone: string; sub: string }> = {
-  draft: { label: "Draft", tone: "warn", sub: "Not sent yet — fill in your days and submit." },
+  draft: { label: "Draft", tone: "warn", sub: "Your normal week is already filled in — change anything that was different, then submit." },
   submitted: { label: "Submitted", tone: "ok", sub: "With your manager. You'll be told if anything needs a look." },
   approved: { label: "Approved", tone: "ok", sub: "Signed off. This week is closed." },
   sent_back: { label: "Sent back", tone: "bad", sub: "Your manager has a question — answer it and submit again." },
@@ -89,6 +131,19 @@ const STATUS_COPY: Record<SheetState["status"], { label: string; tone: string; s
 const MONTHS_FULL = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
+];
+
+/* The legend, in the order a week is read: the ordinary day first, the ones
+   that need a look after it. */
+const LEGEND: [DayClass, string][] = [
+  ["std", "Normal"],
+  ["over", "Overtime"],
+  ["under", "Short"],
+  ["leave", "Leave"],
+  ["sick", "Sick"],
+  ["ph", "Public holiday"],
+  ["off", "Not worked"],
+  ["empty", "Nothing"],
 ];
 
 const BREAK_STEP = 5;
@@ -106,153 +161,169 @@ function payrollChip(h: number, dow: number, s: Settings): { parts: string[]; to
   return { parts, total: sp.n + sp.o15 * 1.5 + sp.o2 * 2 };
 }
 
-/** The summary a collapsed row shows on its right. */
+/** The one-line summary a day card shows under its date. */
 function daySummary(d: DayEntry): string {
-  if (d.t === "empty") return "";
-  if (d.t === "work") return `${d.in} – ${d.out} · ${fmtH(d.h)}h`;
+  if (d.t === "empty") return "—";
+  if (d.t === "off") return "Off";
+  if (d.t === "work") return `${fmtH(d.h)}h`;
   return `${fmtH(d.h)}h`;
 }
 
 /* ---------------- the one editor ---------------- */
 
-/* It opens inside its own row, in normal flow — a day is a small edit and
-   shouldn't take over the screen. Keyed by day index by the caller, so
-   switching days re-seeds the fields. */
+/* It opens in a single panel below the strip — the day you clicked, and only
+   that day. Keyed by day index by the caller, so switching tabs re-seeds the
+   fields from the new day. */
 function DayEditor({
   index,
   entry,
+  source,
   ctx,
   settings,
+  normal,
   holidayName,
   busy,
   onSave,
-  onCancel,
 }: {
   index: number;
   entry: DayEntry;
+  source: DaySource;
   ctx: WeekCtx;
   settings: Settings;
+  /** the hours a presumed day is filled in with — the wheels' starting point */
+  normal: NormalHours;
   /** set when this day is a public holiday — named, so you know why */
   holidayName?: string;
   busy: boolean;
   onSave: (i: number, e: DayEntry) => void;
-  onCancel: () => void;
 }) {
-  const [kind, setKind] = useState<DayEntry["t"]>(entry.t);
-  const [start, setStart] = useState(entry.t === "work" ? entry.in : "7:00 AM");
-  const [end, setEnd] = useState(entry.t === "work" ? entry.out : "3:30 PM");
-  // absence kinds still take hours directly — there are no times to derive
-  // from. A fresh one is seeded with the org's standard day.
-  const [hours, setHours] = useState(entry.t === "empty" || entry.t === "work" ? "" : String(entry.h));
+  const w = ctx.week[index];
+  /* Not "is it a weekend" — "were you expected". A casual is never expected,
+     so no day of theirs is short of anything and every day is one they added
+     rather than one that was there. */
+  const expected = expectsWork(ctx, dowOf(w));
+  /* Leave and holidays are not editable here — they belong to the leave module
+     and the org calendar. Showing a Save button on them would offer to
+     overwrite the booking that put them there. */
+  const locked = entry.t === "leave" || entry.t === "sick" || entry.t === "ph";
+
+  const [kind, setKind] = useState<"work" | "off">(entry.t === "off" ? "off" : "work");
+  const [start, setStart] = useState(entry.t === "work" ? entry.in : normal.start);
+  const [end, setEnd] = useState(entry.t === "work" ? entry.out : normal.end);
   const [breakMin, setBreakMin] = useState(() => seedBreakMinutes(entry, settings));
 
   const hasBreak = settings.breakMinutes > 0;
   const adjustable = hasBreak && !settings.breakPaid;
-  const derived = kind === "work" ? derivedDayHours(start, end, settings, breakMin) : null;
-  const unreadable = kind === "work" && derived == null;
+  /* The wheels can only produce real times, so this is never null in practice.
+     It stays nullable because `derivedDayHours` is shared with rows already in
+     the database, which were typed. */
+  const derived = derivedDayHours(start, end, settings, breakMin) ?? 0;
+  const chip = payrollChip(kind === "work" ? derived : 0, dowOf(w), settings);
+  const short = kind === "work" && expected && derived < settings.standard;
 
-  const typed = Number(hours);
-  const payHours = kind === "work" ? (derived ?? 0) : Number.isFinite(typed) ? typed : 0;
-  const chip = payrollChip(payHours, dowOf(ctx.week[index]), settings);
+  const commit = () =>
+    onSave(index, kind === "off" ? { t: "off" } : { t: "work", in: start, out: end, h: derived });
 
-  const pickKind = (t: DayEntry["t"]) => {
-    setKind(t);
-    // an absence with no hours yet means a standard day off, not a zero one
-    if (t !== "work" && t !== "empty" && !Number(hours)) setHours(String(settings.standard));
-  };
-
-  const commit = () => {
-    if (unreadable) return;
-    onSave(
-      index,
-      kind === "empty"
-        ? { t: "empty" }
-        : kind === "work"
-          ? { t: "work", in: start, out: end, h: derived ?? 0 }
-          : { t: kind, h: Number.isFinite(typed) ? typed : 0 },
+  if (locked) {
+    return (
+      <div className="mts2-edit">
+        <div className="mts2-elock">
+          <Icon name={entry.t === "ph" ? "calendar" : "check"} size={16} />
+          <span>
+            <b>
+              {entry.t === "ph"
+                ? (holidayName ?? "Public holiday")
+                : entry.t === "sick"
+                  ? "Sick leave"
+                  : "Annual leave"}
+              {" — "}
+              {fmtH(entry.h)}h
+            </b>
+            <em>{SOURCE_NOTE[source]}</em>
+          </span>
+        </div>
+        <div className="mts2-pay">
+          <span className="mts2-payl">Payroll</span>
+          <span className="mts2-paych">
+            {fmtH(entry.h)}h ×1.0 = <b>{fmtH(entry.h)}h</b>
+          </span>
+        </div>
+      </div>
     );
-  };
+  }
 
   return (
     <div className="mts2-edit">
-      {holidayName && (
-        <div className="mts2-ehol">
-          <Icon name="calendar" size={11} />
-          {holidayName}
-        </div>
-      )}
-      <div className="mts2-form">
-        <label className="mts-f">
-          <span>Day</span>
-          <select value={kind} onChange={(e) => pickKind(e.target.value as DayEntry["t"])}>
-            {KINDS.map((k) => (
-              <option key={k.t} value={k.t}>
-                {k.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        {kind === "work" && (
-          <>
-            <label className="mts-f">
-              <span>Start</span>
-              <input value={start} onChange={(e) => setStart(e.target.value)} placeholder="7:00 AM" />
-            </label>
-            <label className="mts-f">
-              <span>Finish</span>
-              <input value={end} onChange={(e) => setEnd(e.target.value)} placeholder="3:30 PM" />
-            </label>
-          </>
-        )}
-        {kind !== "empty" && kind !== "work" && (
-          <label className="mts-f">
-            <span>Hours</span>
-            <input
-              type="number"
-              value={hours}
-              onChange={(e) => setHours(e.target.value)}
-              placeholder="e.g. 8"
-            />
-          </label>
-        )}
+      <div className={`mts2-esrc ${source}`}>
+        <Icon name={source === "presumed" ? "check" : "clock"} size={12} />
+        {SOURCE_NOTE[source]}
       </div>
 
-      {/* the break, only when this workspace has one. Paid breaks are on the
-          clock: nothing to deduct, so nothing to adjust. */}
-      {kind === "work" && hasBreak && (
-        <div className="mts2-brk">
-          <span className="mts2-brkl">{breakLine(settings, breakMin)}</span>
-          {adjustable && (
-            <span className="mts2-brkstep">
-              <button
-                aria-label="Shorter break"
-                onClick={() => setBreakMin((m) => Math.max(0, m - BREAK_STEP))}
-              >
-                −
-              </button>
-              <b>{breakMin}</b>
-              <button
-                aria-label="Longer break"
-                onClick={() => setBreakMin((m) => Math.min(BREAK_MAX, m + BREAK_STEP))}
-              >
-                +
-              </button>
-            </span>
-          )}
-        </div>
-      )}
+      <div className="mts2-kinds" role="group" aria-label="What this day was">
+        {KINDS.map((k) => (
+          <button
+            key={k.t}
+            type="button"
+            className={`mts2-kind${kind === k.t ? " on" : ""}`}
+            aria-pressed={kind === k.t}
+            onClick={() => setKind(k.t)}
+          >
+            {k.label}
+          </button>
+        ))}
+      </div>
 
-      {/* what the times mean, live. No hours box: this IS the hours field. */}
+      {/* the times, scrolled. There is no text input on this screen. */}
       {kind === "work" && (
-        <div className={`mts2-derv${unreadable ? " bad" : ""}`}>
-          <Icon name="clock" size={13} />
-          {unreadable ? (
-            <span>Enter a start and finish we can read — like 7:00 AM and 3:30 PM.</span>
-          ) : (
+        <>
+          <div className="mts2-wheels">
+            <TimeWheel label="Start" value={start} onChange={setStart} disabled={busy} />
+            <TimeWheel label="Finish" value={end} onChange={setEnd} disabled={busy} />
+          </div>
+
+          {/* the break, only when this workspace has one. Paid breaks are on
+              the clock: nothing to deduct, so nothing to adjust. */}
+          {hasBreak && (
+            <div className="mts2-brk">
+              <span className="mts2-brkl">{breakLine(settings, breakMin)}</span>
+              {adjustable && (
+                <span className="mts2-brkstep">
+                  <button
+                    aria-label="Shorter break"
+                    onClick={() => setBreakMin((m) => Math.max(0, m - BREAK_STEP))}
+                  >
+                    −
+                  </button>
+                  <b>{breakMin}</b>
+                  <button
+                    aria-label="Longer break"
+                    onClick={() => setBreakMin((m) => Math.min(BREAK_MAX, m + BREAK_STEP))}
+                  >
+                    +
+                  </button>
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* what the times mean, live. No hours box: this IS the hours field. */}
+          <div className={`mts2-derv${short ? " short" : ""}`}>
+            <Icon name="clock" size={13} />
             <span>
               {start} – {end} · <b>{fmtH(derived)}h</b>
+              {short && ` · short of your ${fmtHval(settings.standard)} day — your manager will see it`}
             </span>
-          )}
+          </div>
+        </>
+      )}
+
+      {kind === "off" && (
+        <div className="mts2-derv off">
+          <Icon name="clock" size={13} />
+          <span>
+            No hours for this day. If it was leave or sick, book it in <b>My leave</b> instead so it
+            pays.
+          </span>
         </div>
       )}
 
@@ -265,18 +336,252 @@ function DayEditor({
       </div>
 
       <div className="mts2-eacts">
-        <button className="mts2-btn primary" disabled={busy || unreadable} onClick={commit}>
+        <button className="mts2-btn primary" disabled={busy} onClick={commit}>
           <Icon name="check" size={14} />
           Save day
         </button>
-        <button className="mts2-btn" onClick={onCancel}>
-          Cancel
-        </button>
-        <button className="mts2-btn" disabled={busy} onClick={() => onSave(index, { t: "empty" })}>
-          Clear day
-        </button>
+        {source === "entered" && (
+          <button
+            className="mts2-btn"
+            disabled={busy}
+            onClick={() => onSave(index, { t: "empty" })}
+            title={expected ? "Go back to your normal day" : "Take this day off the timesheet"}
+          >
+            {expected ? "Back to normal" : "Remove day"}
+          </button>
+        )}
       </div>
     </div>
+  );
+}
+
+/* ---------------- my normal hours ---------------- */
+
+/* The personal end of the setting the org owns. The workspace names a normal
+   start and finish; this is where a person whose day genuinely differs says
+   so, without needing the pay settings — and therefore without needing
+   `financials`. */
+const DOW_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
+const DOW_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+function NormalHoursCard({
+  normal,
+  own,
+  workDays,
+  ownDays,
+  settings,
+  busy,
+  onSave,
+}: {
+  normal: NormalHours;
+  own: boolean;
+  workDays: number[];
+  ownDays: boolean;
+  settings: Settings;
+  busy: boolean;
+  onSave: (start: string | null, end: string | null, days?: number[] | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [start, setStart] = useState(normal.start);
+  const [end, setEnd] = useState(normal.end);
+  const [days, setDays] = useState<number[]>(workDays);
+
+  const mine = own || ownDays;
+  const toggle = (d: number) =>
+    setDays((cur) => (cur.includes(d) ? cur.filter((x) => x !== d) : [...cur, d].sort()));
+
+  return (
+    <section className="mts2-card">
+      <div className="mts2-ch">
+        <span>My normal week</span>
+      </div>
+      <div className="mts2-nh">
+        <b>
+          {normal.start} – {normal.end}
+        </b>
+        <em>{workDaysLabel(workDays)}</em>
+        <em>
+          {mine
+            ? "Yours. These are the days that get filled in for you."
+            : `The workspace default (${settings.defaultStart} – ${settings.defaultEnd}, ${workDaysLabel(settings.workDays)}).`}
+        </em>
+      </div>
+      {open ? (
+        <>
+          <div className="mts2-wheels tight">
+            <TimeWheel label="Start" value={start} onChange={setStart} disabled={busy} />
+            <TimeWheel label="Finish" value={end} onChange={setEnd} disabled={busy} />
+          </div>
+          {/* WHICH DAYS, not just which hours. Without this a part-timer on
+              Mon/Tue/Thu has a full Wednesday presumed onto them every week of
+              their working life, and their only recourse is to open it and say
+              "didn't work" — 52 times a year. */}
+          <div className="mts2-dow" role="group" aria-label="Days I normally work">
+            {DOW_LABELS.map((l, i) => (
+              <button
+                key={i}
+                type="button"
+                className={`mts2-dowb${days.includes(i) ? " on" : ""}`}
+                aria-label={DOW_NAMES[i]}
+                aria-pressed={days.includes(i)}
+                disabled={busy}
+                onClick={() => toggle(i)}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
+          <div className="mts2-eacts">
+            <button
+              className="mts2-btn primary"
+              disabled={busy}
+              onClick={() => {
+                onSave(start, end, days);
+                setOpen(false);
+              }}
+            >
+              <Icon name="check" size={14} />
+              Save
+            </button>
+            <button className="mts2-btn" onClick={() => setOpen(false)}>
+              Cancel
+            </button>
+            {mine && (
+              <button
+                className="mts2-btn"
+                disabled={busy}
+                onClick={() => {
+                  onSave(null, null, null);
+                  setOpen(false);
+                }}
+              >
+                Use the default
+              </button>
+            )}
+          </div>
+        </>
+      ) : (
+        <button className="mts2-hlink" onClick={() => setOpen(true)}>
+          Change my normal week
+          <Icon name="chevR" size={13} />
+        </button>
+      )}
+    </section>
+  );
+}
+
+/* ---------------- unavailability (casuals) ---------------- */
+
+/* A casual saying when they can't work. It is a DECLARATION, not a request —
+   there is no approve step, because a casual has no entitlement to spend and
+   an approval would imply the answer could be no. See
+   lib/timepay/availability.ts.
+
+   It lives on this screen rather than in My leave because a casual has no
+   leave: this is the only place they have to say anything about their time,
+   and it is where they already are when they think of it. */
+function AvailabilityCard({
+  blocks,
+  todayISO,
+  busy,
+  onMark,
+  onClear,
+}: {
+  blocks: Unavailability[];
+  todayISO: string;
+  busy: boolean;
+  onMark: (from: string, to: string, note: string) => void;
+  onClear: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [from, setFrom] = useState<string | null>(null);
+  const [to, setTo] = useState<string | null>(null);
+  const [note, setNote] = useState("");
+
+  const live = upcoming(blocks, todayISO);
+  const check = from && to ? validateBlock(from, to, todayISO) : null;
+  const problem = check && !check.ok ? check.error : null;
+
+  return (
+    <section className="mts2-card">
+      <div className="mts2-ch">
+        <span>When I can&rsquo;t work</span>
+      </div>
+      {live.length === 0 ? (
+        <div className="mts2-none">Nothing marked. You&rsquo;re available.</div>
+      ) : (
+        <div className="mts2-ulist">
+          {live.map((b) => (
+            <div className="mts2-u" key={b.id}>
+              <span>
+                <b>{blockLabel(b)}</b>
+                {b.note && <em>{b.note}</em>}
+              </span>
+              <button
+                className="mts2-ux"
+                aria-label={`Remove ${blockLabel(b)}`}
+                disabled={busy}
+                onClick={() => onClear(b.id)}
+              >
+                <Icon name="x" size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {open ? (
+        <>
+          <div className="mts2-udates">
+            <label className="mts-f">
+              <span>From</span>
+              <DateField value={from} min={todayISO} onChange={setFrom} />
+            </label>
+            <label className="mts-f">
+              <span>To</span>
+              <DateField value={to} min={from ?? todayISO} onChange={setTo} />
+            </label>
+          </div>
+          <label className="mts-f mts2-unote">
+            <span>Why (optional)</span>
+            <input
+              value={note}
+              maxLength={200}
+              placeholder="e.g. away, second job"
+              onChange={(e) => setNote(e.target.value)}
+            />
+          </label>
+          {problem && <div className="mts2-uerr">{problem}</div>}
+          <div className="mts2-eacts">
+            <button
+              className="mts2-btn primary"
+              disabled={busy || !from || !to || !!problem}
+              onClick={() => {
+                if (from && to) onMark(from, to, note);
+                setOpen(false);
+                setFrom(null);
+                setTo(null);
+                setNote("");
+              }}
+            >
+              <Icon name="check" size={14} />
+              Mark unavailable
+            </button>
+            <button className="mts2-btn" onClick={() => setOpen(false)}>
+              Cancel
+            </button>
+          </div>
+        </>
+      ) : (
+        <button className="mts2-hlink" onClick={() => setOpen(true)}>
+          Mark days I can&rsquo;t work
+          <Icon name="chevR" size={13} />
+        </button>
+      )}
+      <p className="mts2-unote-p">
+        Nobody approves this — it just tells whoever does the roster not to put you on.
+      </p>
+    </section>
   );
 }
 
@@ -284,6 +589,13 @@ function DayEditor({
 
 export function MyTimesheet({
   me,
+  sources,
+  normal,
+  ownNormal,
+  workDays,
+  ownWorkDays,
+  employment,
+  unavailable,
   week,
   today,
   todayISO,
@@ -296,6 +608,20 @@ export function MyTimesheet({
   state,
 }: {
   me: StaffWeek;
+  /** where each day's content came from — see logic.ts `presumeDays` */
+  sources: DaySource[];
+  /** this person's normal hours, org default or their own override */
+  normal: NormalHours;
+  /** true when the hours above are theirs rather than the workspace's */
+  ownNormal: boolean;
+  /** the days this person is expected — EMPTY for a casual. Everything that
+      reads the week must use it: it decides what's presumed, what's missing
+      and what counts as a short day. */
+  workDays: number[];
+  ownWorkDays: boolean;
+  employment: EmploymentClass;
+  /** a casual's unavailability blocks; empty for everyone else */
+  unavailable: Unavailability[];
   week: WeekCtx["week"];
   today: number;
   todayISO: string;
@@ -313,14 +639,17 @@ export function MyTimesheet({
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [selected, setSelected] = useState<number | null>(null);
-  /* weekend days you asked for. A Saturday with nothing on it isn't a row —
-     it's an offer ("+ Add Saturday"), because most weeks it stays empty and a
-     blank row every week is five weeks of noise a year. */
-  const [revealed, setRevealed] = useState<number[]>([]);
+  /* Which tab is open. It starts on today — the day a person opening their
+     timesheet is nearly always here about — rather than on nothing. */
+  const [selected, setSelected] = useState<number>(() => Math.max(0, today));
   const [allHolidays, setAllHolidays] = useState(false);
 
-  const ctx: WeekCtx = { week, today };
+  /* The roster travels with the week. `derive` and `dayClass` both ask "was
+     this person expected today?" to decide missing days and short days, and
+     answering that with a bare Mon–Fri would show a casual a week of missing
+     days the server had just, correctly, declined to fill in. */
+  const ctx: WeekCtx = { week, today, workDays };
+  const casual = employment === "casual";
   const d = derive(me, settings, ctx);
   const groups = weekGroups(me.days);
   const multiWeek = groups.length > 1; // fortnight / month read as week-rows
@@ -330,7 +659,7 @@ export function MyTimesheet({
   const locked = sent || !period.live;
   const status = STATUS_COPY[sheet.status];
 
-  // in-period holidays name themselves in the editor; the rail lists the month
+  // in-period holidays name themselves in the panel; the rail lists the month
   const holidayByDate = useMemo(() => new Map(holidays.map((h) => [h.date, h.name])), [holidays]);
 
   /* Which month the rail's holiday module is about: the one the middle of the
@@ -345,10 +674,8 @@ export function MyTimesheet({
     setError(null);
     start(async () => {
       const res = await action();
-      if (res.ok) {
-        setSelected(null);
-        router.refresh();
-      } else setError(res.error);
+      if (res.ok) router.refresh();
+      else setError(res.error);
     });
   };
 
@@ -356,20 +683,6 @@ export function MyTimesheet({
     const target = periods[i];
     if (target) router.push(`/dashboard/my-timesheet?period=${target.start}`);
   };
-
-  /* One selection, shared by the chip strip and the rows: clicking either one
-     opens the same day, and opening a second closes the first. */
-  const openDay = (i: number) => {
-    if (locked) return;
-    setRevealed((r) => (r.includes(i) ? r : [...r, i]));
-    setSelected((cur) => (cur === i ? null : i));
-  };
-
-  /** A day earns a row when it's a weekday, when something is logged on it, or
-      when you asked for it. Everything else is an offer at the foot of the
-      week. */
-  const hasRow = (entry: DayEntry, i: number) =>
-    !isWeekend(dowOf(week[i])) || entry.t !== "empty" || revealed.includes(i);
 
   const cycleTitle =
     settings.cycle === "Fortnightly" ? "My fortnight" : settings.cycle === "Monthly" ? "My month" : "My week";
@@ -384,7 +697,11 @@ export function MyTimesheet({
   ];
 
   const rules = [
-    `Normal ${fmtHval(settings.standard)} day`,
+    /* A casual has no normal week, so stating one would be a lie about how
+       their timesheet behaves — theirs says what it actually is instead. */
+    casual ? "Casual · every day entered by hand" : `Normal ${normal.start} – ${normal.end}`,
+    casual ? null : workDaysLabel(workDays),
+    `Standard ${fmtHval(settings.standard)} day`,
     `OT after ${fmtHval(settings.otAfter)}/${settings.otUnit}`,
     settings.breakMinutes > 0
       ? `${settings.breakMinutes} min break · ${settings.breakPaid ? "paid" : "unpaid"}`
@@ -454,7 +771,7 @@ export function MyTimesheet({
               )}
 
               {groups.map((g) => {
-                const offers = g.days.filter(({ entry, index }) => !hasRow(entry, index));
+                const holdsSelection = g.days.some(({ index }) => index === selected);
                 return (
                   <div className="mts2-wk" key={g.start}>
                     {multiWeek && (
@@ -464,113 +781,91 @@ export function MyTimesheet({
                       </div>
                     )}
 
-                    {/* the strip: seven days at a glance, a dot where
-                        something is logged */}
-                    <div className="mts2-chips">
+                    {/* THE WEEK. One row of cards, and the only view of the
+                        days — clicking one opens it in the panel below, the
+                        way a browser tab opens its page. */}
+                    <div className="mts2-tabs" role="tablist" aria-label={g.label}>
                       {g.days.map(({ entry, index }) => {
                         const w = week[index];
-                        const cls = [
-                          "mts2-chip",
-                          entry.t !== "empty" ? "done" : "",
-                          isWeekend(dowOf(w)) ? "wknd" : "",
-                          index === today ? "today" : "",
-                          selected === index ? "sel" : "",
-                        ]
-                          .filter(Boolean)
-                          .join(" ");
-                        const inner = (
-                          <>
-                            <span className="cw">{w[0]}</span>
-                            <span className="cd">{w[1]}</span>
-                            <span className="cdot"></span>
-                          </>
-                        );
-                        return locked ? (
-                          <div className={cls} key={index}>
-                            {inner}
-                          </div>
-                        ) : (
+                        const cls = dayClass(entry, index, settings, ctx);
+                        const on = selected === index;
+                        const src = sources[index] ?? "entered";
+                        return (
                           <button
                             type="button"
-                            className={cls}
+                            role="tab"
                             key={index}
-                            aria-label={`${w[0]} ${w[1]}`}
-                            aria-pressed={selected === index}
-                            onClick={() => openDay(index)}
+                            className={`mts2-tab ${cls}${on ? " on" : ""}${
+                              expectsWork(ctx, dowOf(w)) ? "" : " offroster"
+                            }${index === today ? " today" : ""}${src === "expected" ? " ahead" : ""}`}
+                            aria-selected={on}
+                            aria-label={`${dayLabel(w)} — ${PILL[cls]}`}
+                            onClick={() => setSelected(index)}
                           >
-                            {inner}
+                            <span className="cw">{w[0]}</span>
+                            <span className="cd">{w[1]}</span>
+                            <span className="cs">{daySummary(entry)}</span>
+                            <span className="cbar"></span>
                           </button>
                         );
                       })}
                     </div>
 
-                    <div className="mts2-rows">
-                      {g.days.map(({ entry, index }) => {
-                        if (!hasRow(entry, index)) return null;
-                        const w: WeekDay = week[index];
-                        const cls = dayClass(entry, index, settings, ctx);
-                        const open = selected === index;
-                        const summary = daySummary(entry);
-                        return (
-                          <div
-                            className={`mts2-row ${cls}${open ? " open" : ""}${entry.t !== "empty" ? " has" : ""}`}
-                            key={index}
-                          >
-                            <button
-                              type="button"
-                              className="mts2-rh"
-                              aria-label={dayLabel(w)}
-                              aria-expanded={open}
-                              disabled={locked}
-                              onClick={() => openDay(index)}
-                            >
-                              <span className="mts2-rd">
-                                <b>{w[0]}</b>
-                                <em>
-                                  {w[1]} {w[2]}
-                                </em>
-                              </span>
-                              <span className={`mts2-pill ${cls}`}>{PILL[cls]}</span>
-                              <span className="mts2-sum">{summary}</span>
-                              <span className="mts2-chev">
-                                <Icon name="chevD" size={16} />
-                              </span>
-                            </button>
-                            {open && !locked && (
-                              <DayEditor
-                                key={index}
-                                index={index}
-                                entry={me.days[index]}
-                                ctx={ctx}
-                                settings={settings}
-                                holidayName={holidayByDate.get(dateOfDay(periodStart, index))}
-                                busy={pending}
-                                onSave={(idx, e) => run(() => saveDay(periodStart, idx, e))}
-                                onCancel={() => setSelected(null)}
-                              />
-                            )}
+                    {/* the panel the tabs open onto — one day, never seven */}
+                    {holdsSelection && (
+                      <div className="mts2-panel" role="tabpanel">
+                        <div className="mts2-phead">
+                          <span className="mts2-pd">{dayLabel(week[selected])}</span>
+                          <span className={`mts2-pill ${dayClass(me.days[selected], selected, settings, ctx)}`}>
+                            {PILL[dayClass(me.days[selected], selected, settings, ctx)]}
+                          </span>
+                          {holidayByDate.get(dateOfDay(periodStart, selected)) && (
+                            <span className="mts2-ehol">
+                              <Icon name="calendar" size={11} />
+                              {holidayByDate.get(dateOfDay(periodStart, selected))}
+                            </span>
+                          )}
+                        </div>
+                        {locked ? (
+                          <div className="mts2-elock">
+                            <Icon name="check" size={16} />
+                            <span>
+                              <b>{daySummary(me.days[selected])}</b>
+                              <em>
+                                {sent
+                                  ? "This week has been sent — it can't be changed here."
+                                  : "This period is closed."}
+                              </em>
+                            </span>
                           </div>
-                        );
-                      })}
-                    </div>
-
-                    {!locked && offers.length > 0 && (
-                      <div className="mts2-offers">
-                        {offers.map(({ index }) => (
-                          <button
-                            className="mts2-offer"
-                            key={index}
-                            onClick={() => openDay(index)}
-                          >
-                            <Icon name="plus" size={13} />
-                            Add {dowOf(week[index]) === 5 ? "Saturday" : "Sunday"}
-                          </button>
-                        ))}
+                        ) : (
+                          <DayEditor
+                            key={selected}
+                            index={selected}
+                            entry={me.days[selected]}
+                            source={sources[selected] ?? "entered"}
+                            ctx={ctx}
+                            settings={settings}
+                            normal={normal}
+                            holidayName={holidayByDate.get(dateOfDay(periodStart, selected))}
+                            busy={pending}
+                            onSave={(idx, e) => run(() => saveDay(periodStart, idx, e))}
+                          />
+                        )}
                       </div>
                     )}
                   </div>
                 );
               })}
+
+              <div className="mts2-legend">
+                {LEGEND.map(([cls, label]) => (
+                  <span className="mts2-lg" key={cls}>
+                    <i className={cls}></i>
+                    {label}
+                  </span>
+                ))}
+              </div>
             </div>
 
             <aside className="mts2-rail">
@@ -601,7 +896,13 @@ export function MyTimesheet({
                       </span>
                     ))}
                 </div>
-                <div className="mts2-sub">{locked && !sent ? "This period is closed." : status.sub}</div>
+                <div className="mts2-sub">
+                  {locked && !sent
+                    ? "This period is closed."
+                    : casual && sheet.status === "draft"
+                      ? "Add the days you worked, then submit. Nothing is filled in for you."
+                      : status.sub}
+                </div>
                 {!locked && (
                   <button
                     className="bbtn ink mts2-submit"
@@ -613,6 +914,28 @@ export function MyTimesheet({
                   </button>
                 )}
               </section>
+
+              {/* A casual has no normal week to state — that is the whole
+                  difference. What they have instead is days they can't work. */}
+              {casual ? (
+                <AvailabilityCard
+                  blocks={unavailable}
+                  todayISO={todayISO}
+                  busy={pending}
+                  onMark={(f, t, n) => run(() => markUnavailable(f, t, n))}
+                  onClear={(id) => run(() => clearUnavailable(id))}
+                />
+              ) : (
+                <NormalHoursCard
+                  normal={normal}
+                  own={ownNormal}
+                  workDays={workDays}
+                  ownDays={ownWorkDays}
+                  settings={settings}
+                  busy={pending}
+                  onSave={(s, e, days) => run(() => saveMyHours(s, e, days))}
+                />
+              )}
 
               <section className="mts2-card">
                 <div className="mts2-ch">

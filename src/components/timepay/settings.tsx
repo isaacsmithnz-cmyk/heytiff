@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
 import { DateField } from "@/components/ui/date-field";
+import { TimeWheel } from "@/components/ui/time-wheel";
 import { type RateRule, type Settings, fmtHval, ruleSummary } from "./logic";
 import type { PayPeriod } from "./timepay";
 
@@ -232,6 +233,54 @@ export function TimePaySettings({
       </div>
       <p className="ms-p">
         Deducted from worked hours when unpaid. Staff can adjust a day&rsquo;s break when logging it.
+      </p>
+    </>
+  );
+
+  /* Normal hours. This is the setting the whole timesheet leans on: every
+     Mon–Fri is presumed worked at these times once the day is over, so a
+     workspace that sets them once has staff who never enter an ordinary day
+     again. Scrolled, not typed — the same wheel the timesheet uses, because
+     the one thing that must not happen is an unreadable default seeding every
+     person's every week. A staff member whose own day differs overrides it
+     from their own timesheet; this is the fallback, not a ceiling. */
+  const normalHoursControls = (
+    <>
+      <div className="wz-wheels">
+        <TimeWheel
+          label="Normal start"
+          value={draft.defaultStart}
+          onChange={(defaultStart) => patch({ defaultStart })}
+        />
+        <TimeWheel
+          label="Normal finish"
+          value={draft.defaultEnd}
+          onChange={(defaultEnd) => patch({ defaultEnd })}
+        />
+      </div>
+      <div className="wz-dow" role="group" aria-label="Normal working days">
+        {["M", "T", "W", "T", "F", "S", "S"].map((l, i) => (
+          <button
+            key={i}
+            className={`wz-dowb${draft.workDays.includes(i) ? " on" : ""}`}
+            aria-label={DAYS[i]}
+            aria-pressed={draft.workDays.includes(i)}
+            onClick={() =>
+              patch({
+                workDays: draft.workDays.includes(i)
+                  ? draft.workDays.filter((d) => d !== i)
+                  : [...draft.workDays, i].sort(),
+              })
+            }
+          >
+            {l}
+          </button>
+        ))}
+      </div>
+      <p className="ms-p">
+        These days are filled in with these hours automatically. Anyone whose week is different —
+        a part-timer, an early start — can set their own from their timesheet. Casuals are never
+        filled in: every day of theirs is entered by hand.
       </p>
     </>
   );
@@ -486,6 +535,7 @@ export function TimePaySettings({
                 </div>
               )}
               {menuSection("Standard working day", stepper("standard"))}
+              {menuSection("Normal hours & days", normalHoursControls)}
               {menuSection("Breaks", breakControls)}
               {menuSection(
                 "Overtime after",

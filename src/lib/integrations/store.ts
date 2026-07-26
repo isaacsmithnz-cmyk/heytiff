@@ -156,8 +156,13 @@ export async function disconnectXero(orgId: string): Promise<{ revoked: boolean 
 }
 
 /** Flag a grant as broken so the screen prompts a reconnect. The message is
-    ours; a provider's own error text never reaches this column. */
-async function markNeedsReauth(orgId: string, error: string): Promise<void> {
+    ours; a provider's own error text never reaches this column.
+
+    Exported for the read layer (xero-read.ts): a grant can die BETWEEN this
+    module handing out a token and that token being used — someone revoking the
+    app from Xero's own Connected Apps screen — and a 401 over there is the same
+    verdict as a refused refresh over here. */
+export async function markNeedsReauth(orgId: string, error: string): Promise<void> {
   await supabaseAdmin
     .from(TABLE)
     .update({ status: "needs_reauth", last_error: error, updated_at: new Date().toISOString() })

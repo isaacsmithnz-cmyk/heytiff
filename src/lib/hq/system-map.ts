@@ -477,9 +477,9 @@ export const NODES: MapNode[] = [
     name: "Connected apps",
     kind: "store",
     group: "Supabase",
-    blurb: "integration_connections — one OAuth grant per (org, app).",
+    blurb: "integration_connections · integration_links — the grant, and who is who across it.",
     detail:
-      "Access and refresh tokens are stored AES-256-GCM sealed, never in plaintext, so the service-role key alone doesn't unlock a connected accounting system. Deny-all RLS like every table here; every read goes through an owner gate.",
+      "Access and refresh tokens are stored AES-256-GCM sealed, never in plaintext, so the service-role key alone doesn't unlock a connected accounting system. integration_links holds the staff↔Xero-employee correspondence — scoped to a tenant, with unique indexes both ways so one remote record can never be claimed by two people. Deny-all RLS like every table here.",
   },
   {
     id: "db-universal",
@@ -587,7 +587,8 @@ export const EDGES: MapEdge[] = [
   { from: "org", to: "db-accounts", label: "trading profile, logo ref + credential rows" },
   { from: "org", to: "gmaps", label: "address autocomplete (server-key proxy)" },
   { from: "integrations", to: "db-integrations", label: "stores the sealed OAuth grant" },
-  { from: "integrations", to: "xero", label: "consent, code exchange, token refresh" },
+  { from: "integrations", to: "xero", label: "consent, code exchange, token refresh, payroll reads" },
+  { from: "timepay", to: "db-integrations", label: "staff↔Xero employee links", status: "planned" },
   /* The three reasons the grant exists. Dashed until each one actually reads
      through it — flip to live as the syncs land. */
   { from: "timepay", to: "xero", label: "payroll employees, calendars & timesheets", status: "planned" },

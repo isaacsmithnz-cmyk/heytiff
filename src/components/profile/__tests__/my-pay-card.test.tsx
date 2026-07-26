@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import type { MyPay } from "@/lib/staff/my-pay";
 import { MyPayCard } from "../my-pay-card";
 
@@ -18,15 +18,15 @@ const pay = (over: Partial<MyPay> = {}): MyPay => ({
 describe("derivations", () => {
   it("shows the base rate and both penalty rates in dollars", () => {
     render(<MyPayCard pay={pay()} />);
-    expect(screen.getByText("$45.00")).toBeInTheDocument();
-    expect(screen.getByText("$67.50")).toBeInTheDocument(); // x1.5
-    expect(screen.getByText("$90.00")).toBeInTheDocument(); // x2
+    expect(screen.getByText("$45.00 / hour")).toBeInTheDocument();
+    expect(screen.getByText("$67.50 / hour")).toBeInTheDocument(); // x1.5
+    expect(screen.getByText("$90.00 / hour")).toBeInTheDocument(); // x2
   });
 
   it("holds two decimals on a rate that isn't round", () => {
     render(<MyPayCard pay={pay({ rate: 38.5 })} />);
-    expect(screen.getByText("$38.50")).toBeInTheDocument();
-    expect(screen.getByText("$57.75")).toBeInTheDocument();
+    expect(screen.getByText("$38.50 / hour")).toBeInTheDocument();
+    expect(screen.getByText("$57.75 / hour")).toBeInTheDocument();
   });
 
   it("says where the super figure came from", () => {
@@ -38,17 +38,27 @@ describe("derivations", () => {
     expect(screen.getByText("your override")).toBeInTheDocument();
   });
 
-  it("shows weekend chips only for rules the org has switched on", () => {
-    const { rerender } = render(<MyPayCard pay={pay()} />);
-    expect(screen.queryByText(/Saturday/)).not.toBeInTheDocument();
+  it("shows the weekend panel only for rules the org has switched on", () => {
+    // ×1.5 is also overtime's multiplier, so scope to the panel under test
+    const weekend = (c: HTMLElement) =>
+      [...c.querySelectorAll<HTMLElement>(".pdlcard")].find(
+        (p) => p.querySelector(".pdlh")?.textContent === "Weekend"
+      );
+
+    const { container, rerender } = render(<MyPayCard pay={pay()} />);
+    // no panel at all: "—" would imply a penalty rate exists and is unset
+    expect(weekend(container)).toBeUndefined();
 
     rerender(<MyPayCard pay={pay({ weekend: { sat: 1.5, sun: 2 } })} />);
-    expect(screen.getByText(/Saturday ×1.5 · \$67.50\/h/)).toBeInTheDocument();
-    expect(screen.getByText(/Sunday ×2 · \$90.00\/h/)).toBeInTheDocument();
+    const panel = weekend(container)!;
+    expect(within(panel).getByText("Saturday")).toBeInTheDocument();
+    expect(within(panel).getByText("$67.50 / hour")).toBeInTheDocument();
+    expect(within(panel).getByText("×1.5")).toBeInTheDocument();
+    expect(within(panel).getByText("Sunday")).toBeInTheDocument();
 
     rerender(<MyPayCard pay={pay({ weekend: { sat: null, sun: 2 } })} />);
-    expect(screen.queryByText(/Saturday/)).not.toBeInTheDocument();
-    expect(screen.getByText(/Sunday/)).toBeInTheDocument();
+    expect(within(weekend(container)!).queryByText("Saturday")).not.toBeInTheDocument();
+    expect(within(weekend(container)!).getByText("Sunday")).toBeInTheDocument();
   });
 });
 

@@ -54,8 +54,16 @@ function setup(
   return { ...view, actions };
 }
 
+/* The sections are a tablist now, so they answer to the `tab` role rather than
+   to a class — but the label check is the same one: an omitted section has no
+   tab at all, it is not a disabled one. */
 const navLabels = () =>
-  screen.getAllByRole("button").filter((b) => b.classList.contains("pn")).map((b) => b.textContent);
+  screen
+    .queryAllByRole("tab")
+    // a section still missing a field carries an amber dot, and the dot's
+    // screen-reader text rides along in textContent — that's what ATTENTION
+    // covers below, so drop it here
+    .map((b) => (b.textContent ?? "").replace(" — details missing", ""));
 
 describe("self mode — My profile", () => {
   it("omits the admin-only sections entirely, nav included", () => {
@@ -143,24 +151,24 @@ describe("admin mode — Team", () => {
 describe("opening section", () => {
   it("opens Personal by default", () => {
     setup();
-    expect(screen.getByRole("button", { name: /Emergency contact/ })).not.toHaveClass("on");
-    expect(screen.getByRole("button", { name: /Personal details/ })).toHaveClass("on");
+    expect(screen.getByRole("tab", { name: /Emergency contact/ })).not.toHaveClass("on");
+    expect(screen.getByRole("tab", { name: /Personal details/ })).toHaveClass("on");
   });
 
   it("opens the section named by ?sec=", () => {
     setup({ initialSec: "workrights" });
-    expect(screen.getByRole("button", { name: /Work rights/ })).toHaveClass("on");
+    expect(screen.getByRole("tab", { name: /Work rights/ })).toHaveClass("on");
   });
 
   it("ignores a ?sec= the viewer isn't allowed", () => {
     // a staff member can't be deep-linked into someone's payroll
     setup({ initialSec: "payroll" });
-    expect(screen.getByRole("button", { name: /Personal details/ })).toHaveClass("on");
+    expect(screen.getByRole("tab", { name: /Personal details/ })).toHaveClass("on");
   });
 
   it("ignores a ?sec= that isn't a section at all", () => {
     setup({ initialSec: "../etc/passwd" });
-    expect(screen.getByRole("button", { name: /Personal details/ })).toHaveClass("on");
+    expect(screen.getByRole("tab", { name: /Personal details/ })).toHaveClass("on");
   });
 });
 
@@ -178,7 +186,7 @@ describe("a save does not move you — the bug this rewrite exists to kill", () 
     const actions = okActions();
     const { rerender } = setup({ actions });
 
-    await user.click(screen.getByRole("button", { name: /Emergency contact/ }));
+    await user.click(screen.getByRole("tab", { name: /Emergency contact/ }));
     await user.click(screen.getByRole("button", { name: /^Edit$/ }));
     const name = screen.getByDisplayValue("Sarah Mills");
     await user.clear(name);
@@ -205,8 +213,8 @@ describe("a save does not move you — the bug this rewrite exists to kill", () 
       />
     );
 
-    expect(screen.getByRole("button", { name: /Emergency contact/ })).toHaveClass("on");
-    expect(screen.getByRole("button", { name: /Personal details/ })).not.toHaveClass("on");
+    expect(screen.getByRole("tab", { name: /Emergency contact/ })).toHaveClass("on");
+    expect(screen.getByRole("tab", { name: /Personal details/ })).not.toHaveClass("on");
     // and the card it saved is locked again, showing the new value
     expect(screen.getByText("Sam Mills")).toBeInTheDocument();
     expect(screen.queryByDisplayValue("Sam Mills")).not.toBeInTheDocument();

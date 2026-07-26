@@ -5,6 +5,7 @@ import { displayName, fmtKm, modelLabel, serviceKmLeft, vehicleChips } from "@/c
 import { Plate } from "@/components/fleet/plate";
 import { daysDuration } from "@/lib/format/duration";
 import { StaticCard } from "./section-card";
+import { Detail, DetailPanel, DetailPanels } from "./detail";
 import type { AssignedVehicle } from "./types";
 
 /* Assigned vehicle — a straight port of the old markup.
@@ -55,20 +56,10 @@ function Assigned({ av }: { av: AssignedVehicle }) {
   const lastFuel = av.lastFuel;
 
   return (
-    <div className="pveh">
-      <div className="pvh">
-        <span className="pvi">
-          <Icon name="truck" size={20} />
-        </span>
-        <span>
-          <b>
-            {displayName(v)} · {modelLabel(v)}
-          </b>
-          <em>
-            <Plate plate={v.plate} state={v.plateState} size="sm" />
-          </em>
-        </span>
-      </div>
+    <>
+      {/* The chips stay above the panels, and stay chips: "Rego expired" is a
+          STATE that wants to be seen before anything else on the card, not a
+          value sitting patiently in a row. */}
       <div className="pvchips">
         {chips.length === 0 ? (
           <span className="dchip ok">
@@ -84,24 +75,45 @@ function Assigned({ av }: { av: AssignedVehicle }) {
           ))
         )}
       </div>
-      <div className="pvfacts">
-        <span>
-          <em>Odometer</em>
-          <b>{fmtKm(v.odometer)} km</b>
-        </span>
-        <span>
-          <em>Next service</em>
-          <b>{left < 0 ? `${fmtKm(-left)} km overdue` : `in ${fmtKm(left)} km`}</b>
-        </span>
-        <span>
-          <em>Rego</em>
-          <b>{v.regoDays < 0 ? "expired" : <InDuration days={v.regoDays} />}</b>
-        </span>
-        <span>
-          <em>Last fuel</em>
-          <b>{lastFuel ? `${lastFuel.litres} L · ${lastFuel.when}` : "—"}</b>
-        </span>
-      </div>
-    </div>
+
+      <DetailPanels>
+        <DetailPanel title="Vehicle">
+          <Detail label="Name" value={displayName(v)} />
+          {/* the plate renders as itself — it's a value, not a layout. Labelled
+              "Plate", because the Status panel below has a "Rego expiry" and two
+              rows called "Rego" on one card is a coin toss for the reader. */}
+          <Detail label="Plate" value={<Plate plate={v.plate} state={v.plateState} size="sm" />} />
+          <Detail label="Make & model" value={modelLabel(v)} />
+        </DetailPanel>
+
+        <DetailPanel title="Status">
+          <Detail label="Odometer" value={`${fmtKm(v.odometer)} km`} />
+          <Detail
+            label="Next service"
+            value={
+              left < 0 ? (
+                <span className="ro-state bad">{fmtKm(-left)} km overdue</span>
+              ) : (
+                `in ${fmtKm(left)} km`
+              )
+            }
+          />
+          <Detail
+            label="Rego expiry"
+            value={
+              v.regoDays < 0 ? (
+                <span className="ro-state bad">Expired</span>
+              ) : (
+                <InDuration days={v.regoDays} />
+              )
+            }
+          />
+          <Detail
+            label="Last fuel"
+            value={lastFuel ? `${lastFuel.litres} L · ${lastFuel.when}` : ""}
+          />
+        </DetailPanel>
+      </DetailPanels>
+    </>
   );
 }

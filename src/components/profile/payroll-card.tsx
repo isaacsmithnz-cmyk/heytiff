@@ -4,7 +4,8 @@ import { Icon } from "@/components/shell/icon";
 import { rebalance, splitFrom } from "@/lib/staff/cost-split";
 import { preValidate } from "@/lib/staff/pre-validate";
 import { SectionCard } from "./section-card";
-import { Field, FactRow, InfoTip, MoneyInput, PctInput, SelectInput, TextInput } from "./fields";
+import { Field, InfoTip, MoneyInput, PctInput, SelectInput, TextInput } from "./fields";
+import { Detail, DetailPanel, DetailPanels } from "./detail";
 import type { PayFields, SaveSection } from "./types";
 import { EMPLOYMENT_TYPES } from "@/lib/staff/employment";
 
@@ -61,53 +62,66 @@ export function PayrollCard({ pay, onSave }: { pay: PayFields | null; onSave: Sa
       values={values}
       onSave={(fields) => onSave("payroll", fields)}
       validate={(fields) => preValidate("admin", "payroll", fields)}
-      read={
-        <>
-          <div className="ro-rows">
-            <FactRow
+      read={({ edit }) => (
+        <DetailPanels>
+          <DetailPanel title="Pay">
+            <Detail
               label="Hourly wage"
-              value={values.hourly_wage ? <span className="num">${values.hourly_wage}</span> : ""}
+              value={values.hourly_wage ? `$${values.hourly_wage}` : ""}
+              onAdd={edit}
+              addLabel="Set"
             />
-            <FactRow label="Employment type" value={values.employment_type} />
-            <FactRow
-              label="Contracted hours / week"
-              value={values.contracted_hours ? <span className="num">{values.contracted_hours}</span> : ""}
+            <Detail label="Employment type" value={values.employment_type} onAdd={edit} addLabel="Select" />
+            <Detail
+              label="Hours / week"
+              value={values.contracted_hours}
+              onAdd={edit}
+              addLabel="Set"
             />
-            <FactRow
-              label="Default utilisation"
-              value={values.utilisation ? <span className="num">{values.utilisation}%</span> : ""}
+            <Detail
+              label="Utilisation"
+              value={values.utilisation ? `${values.utilisation}%` : ""}
+              onAdd={edit}
+              addLabel="Set"
             />
-            <FactRow
-              label="Super override"
-              value={values.super_override ? <span className="num">{values.super_override}%</span> : ""}
+          </DetailPanel>
+
+          <DetailPanel title="Overrides">
+            <Detail
+              label="Super"
+              value={values.super_override ? `${values.super_override}%` : ""}
+              onAdd={edit}
+              addLabel="Set"
+              sub={values.super_override ? undefined : "Using the org default"}
             />
-            <FactRow
-              label="Workers-comp override"
-              value={
-                values.workers_comp_override ? (
-                  <span className="num">{values.workers_comp_override}%</span>
-                ) : (
-                  ""
-                )
-              }
+            <Detail
+              label="Workers comp"
+              value={values.workers_comp_override ? `${values.workers_comp_override}%` : ""}
+              onAdd={edit}
+              addLabel="Set"
+              sub={values.workers_comp_override ? undefined : "Using the org default"}
             />
-          </div>
-          <div className="csgrid" style={{ marginTop: 18 }}>
-            <div className="costsplit">
-              {SPLIT_META.map((m, i) => (
-                <div key={m.label} className="csrow">
-                  <span className="csdot" style={{ background: m.color }} />
-                  <span className="cslbl">{m.label}</span>
-                  <div className="cspct">
-                    <span className="csval">{readSplit[i]}%</span>
+          </DetailPanel>
+
+          {/* a chart, not a fact list — hence the plain panel */}
+          <DetailPanel title="Cost split" wide plain>
+            <div className="csgrid">
+              <div className="costsplit">
+                {SPLIT_META.map((m, i) => (
+                  <div key={m.label} className="csrow">
+                    <span className="csdot" style={{ background: m.color }} />
+                    <span className="cslbl">{m.label}</span>
+                    <div className="cspct">
+                      <span className="csval">{readSplit[i]}%</span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
+              <Donut values={readSplit} />
             </div>
-            <Donut values={readSplit} />
-          </div>
-        </>
-      }
+          </DetailPanel>
+        </DetailPanels>
+      )}
       edit={({ draft, set, setMany, invalid }) => {
         const vals = SPLIT_KEYS.map((k) => Number(draft[k]) || 0);
         const drag = (idx: number, v: number) => {

@@ -30,8 +30,7 @@ function setup(addressLookup = false) {
     <PersonalCard
       profile={{ ...jordan, address: null }}
       mode="self"
-      org="Smith Air"
-      initials="JM"
+      email="jordan@heytiff.co"
       addressLookup={addressLookup}
       onSave={onSave}
     />

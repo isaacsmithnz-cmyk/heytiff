@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Icon } from "@/components/shell/icon";
-import { CredentialCard } from "@/components/cards/credential-card";
+import { LicenceCard } from "@/components/cards/licence-card";
 import { buildLicenceRow, licenceStatus } from "@/lib/staff/licence";
 import { formatAuDate } from "@/lib/staff/profile";
 import type { StaffLicence } from "@/lib/staff/types";
@@ -31,11 +31,14 @@ const CUSTOM = "__custom";
 export function ComplianceCard({
   licences,
   today,
+  org,
   onAdd,
   onRemove,
 }: {
   licences: StaffLicence[];
   today: string;
+  /** the org's trading name — the issuer line on each licence card */
+  org?: string | null;
   onAdd: (input: LicenceInput) => Promise<SaveResult>;
   onRemove: (licenceId: string) => Promise<SaveResult>;
 }) {
@@ -165,14 +168,15 @@ export function ComplianceCard({
       {error && <div className="carderr">{error}</div>}
 
       {licences.length > 0 ? (
-        <div className="credgrid">
+        <div className="liccards">
           {licences.map((l) => (
-            <CredentialCard
+            <LicenceCard
               key={l.id}
               typeName={l.typeName}
               licenceNumber={l.licenceNumber}
               expiry={l.expiryDate ? formatAuDate(l.expiryDate) : null}
               status={licenceStatus(l.expiryDate, today)}
+              org={org}
               removing={removingId === l.id}
               onRemove={() => remove(l.id)}
             />

@@ -3,6 +3,7 @@
 import { Icon } from "@/components/shell/icon";
 import { preValidate } from "@/lib/staff/pre-validate";
 import { SectionCard, StaticCard } from "./section-card";
+import { Detail, DetailPanel, DetailPanels } from "./detail";
 import { Field, TextArea } from "./fields";
 import type { SaveSection } from "./types";
 
@@ -26,18 +27,20 @@ export function NotesCard({
         values={values}
         onSave={(fields) => onSave("notes", fields)}
         validate={(fields) => preValidate("admin", "notes", fields)}
-        read={
+        read={({ edit }) =>
           values.notes ? (
-            <p className="ro-note">{values.notes}</p>
+            <DetailPanels>
+              {/* prose, so a plain panel body rather than the label/value <dl> */}
+              <DetailPanel title="Internal notes" wide plain>
+                <p className="ro-note">{values.notes}</p>
+              </DetailPanel>
+            </DetailPanels>
           ) : (
-            <div className="ro-rows">
-              <div className="ro-row">
-                <em>Notes</em>
-                <b>
-                  <span className="ro-none">Nothing recorded</span>
-                </b>
-              </div>
-            </div>
+            <DetailPanels>
+              <DetailPanel title="Internal notes">
+                <Detail label="Notes" value="" onAdd={edit} addLabel="Write" />
+              </DetailPanel>
+            </DetailPanels>
           )
         }
         edit={({ draft, set }) => (

@@ -3,6 +3,7 @@
 import { Icon } from "@/components/shell/icon";
 import type { MyPay } from "@/lib/staff/my-pay";
 import { StaticCard } from "./section-card";
+import { Detail, DetailPanel, DetailPanels } from "./detail";
 
 /* My pay — the rates that apply to YOU.
 
@@ -43,62 +44,49 @@ export function MyPayCard({ pay }: { pay: MyPay }) {
           </em>
         </div>
       ) : (
-        <>
-          <div className="mypay">
-            <Tile label="Base rate" value={money(pay.rate)} unit="per hour" accent="teal" />
-            <Tile
+        <DetailPanels>
+          <DetailPanel title="Rates">
+            <Detail label="Base rate" value={`${money(pay.rate)} / hour`} />
+            <Detail
               label="Overtime"
-              value={money(pay.rate * pay.otMultiplier)}
-              unit={`×${pay.otMultiplier} per hour`}
+              value={`${money(pay.rate * pay.otMultiplier)} / hour`}
+              sub={`×${pay.otMultiplier}`}
             />
-            <Tile
+            <Detail
               label="Double time"
-              value={money(pay.rate * pay.dblMultiplier)}
-              unit={`×${pay.dblMultiplier} per hour`}
+              value={`${money(pay.rate * pay.dblMultiplier)} / hour`}
+              sub={`×${pay.dblMultiplier}`}
             />
-            <Tile
-              label="Super"
-              value={`${pay.superPct}%`}
-              unit={SUPER_COPY[pay.superSource]}
-            />
-          </div>
+          </DetailPanel>
+
+          <DetailPanel title="Super">
+            <Detail label="Rate" value={`${pay.superPct}%`} sub={SUPER_COPY[pay.superSource]} />
+          </DetailPanel>
+
+          {/* only when the org actually loads weekends — a panel of "—" would
+              imply a penalty rate exists and is unset, which is a different
+              thing from there being none */}
           {(pay.weekend.sat !== null || pay.weekend.sun !== null) && (
-            <div className="mypay-chips">
+            <DetailPanel title="Weekend" wide split>
               {pay.weekend.sat !== null && (
-                <span className="dchip2 ok">
-                  Saturday ×{pay.weekend.sat} · {money(pay.rate * pay.weekend.sat)}/h
-                </span>
+                <Detail
+                  label="Saturday"
+                  value={`${money(pay.rate * pay.weekend.sat)} / hour`}
+                  sub={`×${pay.weekend.sat}`}
+                />
               )}
               {pay.weekend.sun !== null && (
-                <span className="dchip2 ok">
-                  Sunday ×{pay.weekend.sun} · {money(pay.rate * pay.weekend.sun)}/h
-                </span>
+                <Detail
+                  label="Sunday"
+                  value={`${money(pay.rate * pay.weekend.sun)} / hour`}
+                  sub={`×${pay.weekend.sun}`}
+                />
               )}
-            </div>
+            </DetailPanel>
           )}
-        </>
+        </DetailPanels>
       )}
       <p className="mypay-foot">Set by your admin — talk to them if something looks off.</p>
     </StaticCard>
-  );
-}
-
-function Tile({
-  label,
-  value,
-  unit,
-  accent,
-}: {
-  label: string;
-  value: string;
-  unit: string;
-  accent?: "teal";
-}) {
-  return (
-    <div className={accent ? `mpt ${accent}` : "mpt"}>
-      <em>{label}</em>
-      <b>{value}</b>
-      <span>{unit}</span>
-    </div>
   );
 }

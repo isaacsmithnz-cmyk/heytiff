@@ -93,24 +93,24 @@ export const auth0 = new Auth0Client({
       if (pendingInvite?.[0]) return session;
     }
 
-    // First login with no invite — create the org and owner membership
-    const { data: org, error } = await supabaseAdmin
-      .from("organizations")
-      .insert({ name: session.user.email ?? userId })
-      .select("id")
-      .single();
+    // First login with no invite — create the org and owner membership.
+    // organizations.primary_owner_user_id is NOT NULL and its composite FK onto
+    // memberships is DEFERRABLE INITIALLY DEFERRED: the org row and the owner
+    // membership can only land together, in one transaction, with the owner
+    // named at insert time. Two sequential inserts can never satisfy that, so
+    // the pair is written by one RPC (docs/migrations/create_org_for_owner.sql).
+    const { data: orgId, error } = await supabaseAdmin.rpc("create_org_for_owner", {
+      p_user_id: userId,
+      p_name: session.user.email ?? userId,
+    });
 
-    if (error || !org) {
+    if (error || !orgId) {
       console.error("Failed to create organisation:", error);
       return session;
     }
 
-    await supabaseAdmin
-      .from("memberships")
-      .insert({ user_id: userId, org_id: org.id, role: "owner" });
+    await ensureStaffCard(orgId, userId, session);
 
-    await ensureStaffCard(org.id, userId, session);
-
-    return { ...session, orgId: org.id, orgRole: "owner" };
+    return { ...session, orgId, orgRole: "owner" };
   },
 });

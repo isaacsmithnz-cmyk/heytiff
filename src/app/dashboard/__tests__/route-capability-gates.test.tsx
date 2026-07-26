@@ -2,17 +2,23 @@
    pages — a revoked member typing the URL lands back on /dashboard, exactly
    as if they'd tried the nav entry that is no longer there.
 
-   Also pins the ONE deliberate exception: the studio Data Library stays open
-   to any signed-in member (see that page's header comment) — if the decision
-   ever changes, this test is the tripwire, not a silent drift. */
+   The studio Data Library is the one that isn't capability-gated: it is
+   admin+, role-intrinsic like the Admin section (Isaac, 2026-07-26). Its
+   tests live here too, because "which door does this URL check?" is the
+   question this file exists to answer. */
 
 let allowed = false;
-const can = jest.fn(async (_capability: string) => allowed);
+let role: string | null = "staff";
+const can = jest.fn<Promise<boolean>, [capability: string]>(async () => allowed);
+const getDbRole = jest.fn(async () => role);
 const redirect = jest.fn((to: string): never => {
   throw new Error(`REDIRECT:${to}`);
 });
 
-jest.mock("@/lib/permissions-server", () => ({ can: (c: string) => can(c) }));
+jest.mock("@/lib/permissions-server", () => ({
+  can: (c: string) => can(c),
+  getDbRole: () => getDbRole(),
+}));
 jest.mock("next/navigation", () => ({ redirect: (to: string) => redirect(to) }));
 
 /* the leaves' bodies are client components with suites of their own — the
@@ -45,6 +51,7 @@ const LEAVES: [string, () => Promise<unknown>, string][] = [
 beforeEach(() => {
   can.mockClear();
   redirect.mockClear();
+  role = "staff";
 });
 
 describe("revoked → straight back to /dashboard", () => {
@@ -63,11 +70,22 @@ describe("held → the page renders", () => {
   });
 });
 
-describe("the deliberate exception", () => {
-  it("the Data Library renders for a member with nothing granted — pinned on purpose", async () => {
-    allowed = false;
+describe("the Data Library is admin+, by role and not by capability", () => {
+  it.each(["admin", "owner"])("renders for %s", async (r) => {
+    role = r;
     expect(await DataLibraryPage()).toBeTruthy();
-    expect(can).not.toHaveBeenCalled();
     expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it("turns staff away even holding every capability there is", async () => {
+    // the point of role-intrinsic: no grant buys a way in
+    role = "staff";
+    allowed = true;
+    await expect(DataLibraryPage()).rejects.toThrow("REDIRECT:/dashboard");
+  });
+
+  it("fails closed when there's no membership to read a role from", async () => {
+    role = null;
+    await expect(DataLibraryPage()).rejects.toThrow("REDIRECT:/dashboard");
   });
 });

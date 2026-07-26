@@ -10,8 +10,8 @@ import type { DataPack } from "@/lib/studio/packs/schema";
    returns the resolved, validated pack for a brand so the split module can
    propose pairs and price materials. Gated on `studio` like every server
    function the studio calls (reachable by direct POST). The Data Library
-   PAGE stays open to any signed-in member by design — that read renders
-   server-side and never comes through here. */
+   page reads the same packs but is admin+ and renders them server-side, so
+   its gate is its own — nothing comes through here. */
 
 export async function loadStudioPack(
   brand: string

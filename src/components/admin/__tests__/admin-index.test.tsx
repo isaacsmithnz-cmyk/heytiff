@@ -66,12 +66,28 @@ describe("AdminIndex", () => {
   it("never links a planned row", () => {
     render(<AdminIndex isOwner canFinancials />);
 
-    // two live rows for an owner; everything else is a tagged placeholder
+    // three live rows for an owner; everything else is a tagged placeholder
     expect(linkHrefs()).toEqual([
       "/dashboard/admin/organization",
+      "/dashboard/admin/integrations",
       "/dashboard/admin/rate-calculator",
     ]);
     expect(screen.getAllByText("Planned")).toHaveLength(7);
+  });
+
+  /* Integrations is owner-INTRINSIC, not `financials`: one Xero grant reaches
+     wages, bills and the P&L at once, which is a bigger decision than the
+     calculator it feeds. An admin with financials must not see the door. */
+  it("keeps integrations owner-only, even with financials", () => {
+    const { unmount } = render(<AdminIndex isOwner canFinancials />);
+    expect(screen.getByText("Integrations").closest("a")).toHaveAttribute(
+      "href",
+      "/dashboard/admin/integrations",
+    );
+    unmount();
+
+    render(<AdminIndex isOwner={false} canFinancials />);
+    expect(screen.queryByText("Integrations")).not.toBeInTheDocument();
   });
 
   it("says so plainly when an admin has neither gated item", () => {

@@ -2368,6 +2368,78 @@ select.fl-i { cursor:pointer; }
 .fg .adm-empty b { display:block; font-size:16px; font-weight:700; color:var(--gray500); }
 .fg .adm-empty em { display:block; max-width:420px; margin:6px auto 0; font-style:normal; font-size:13px; font-weight:500; color:var(--gray400); line-height:1.5; }
 
+/* ---- Integrations (components/integrations/) ----
+   Additive: the index IS the admin index (.adm-card / .adm-row / .adm-ic), so
+   only the state pill is new there. The Xero screen reuses .card2 / .c2h /
+   .pbtn wholesale; what's below is the handful of blocks a connection screen
+   needs and nothing else has — a back link above a title, a facts strip, the
+   scope list, and a destructive button. */
+.fg .int-back { display:inline-flex; align-items:center; gap:5px; font-size:12.5px; font-weight:700; color:var(--gray500); text-decoration:none; transition:color .15s, transform .15s; }
+.fg .int-back:hover { color:var(--ink); transform:translateX(-2px); }
+.fg .int-lede { max-width:620px; margin:0 0 26px; font-size:14px; font-weight:500; line-height:1.6; color:var(--gray500); }
+.fg .int-foot { margin:14px 2px 0; font-size:12.5px; font-weight:600; color:var(--gray400); }
+
+/* The row's state, said in a word. Semantic colour, never the page accent —
+   ok #00A389 / warn amber / off grey (see the design-system note). */
+.fg .int-pill { flex:0 0 auto; display:inline-flex; align-items:center; gap:7px; max-width:210px; padding:5px 11px; border-radius:999px; font-size:11.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fg .int-dot { width:7px; height:7px; border-radius:50%; flex:0 0 auto; }
+.fg .int-pill.on { background:rgba(0,163,137,.1); color:#00A389; }
+.fg .int-pill.on .int-dot { background:#00A389; }
+.fg .int-pill.warn { background:rgba(240,164,49,.14); color:#a56a05; }
+.fg .int-pill.warn .int-dot { background:#F0A431; }
+.fg .int-pill.off { background:#f4f5f7; color:var(--gray500); }
+.fg .int-pill.off .int-dot { background:var(--gray400); }
+@media (max-width:560px){ .fg .int-pill { display:none; } }
+
+/* Outcome of a round trip that just finished — the OAuth redirect's one line. */
+.fg .int-note { padding:12px 15px; margin-bottom:18px; border-radius:14px; font-size:13.5px; font-weight:600; line-height:1.45; }
+.fg .int-note.ok { background:rgba(0,163,137,.09); color:#00806c; }
+.fg .int-note.bad { background:rgba(255,51,102,.08); color:#e0264f; }
+
+.fg .int-facts { display:flex; flex-wrap:wrap; gap:12px 34px; margin:0 0 20px; }
+.fg .int-facts dt { font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--gray400); }
+.fg .int-facts dd { margin:4px 0 0; font-size:14px; font-weight:700; color:var(--ink); }
+
+/* Why the button isn't there. A missing env var is an instruction, not an
+   error, so it reads as one. */
+.fg .int-blocked { padding:14px 16px; margin-bottom:18px; border-radius:14px; border:1.5px dashed #e6e8ee; background:#fafbfc; }
+.fg .int-blocked b { display:block; font-size:13.5px; font-weight:800; color:var(--gray700); }
+.fg .int-blocked p { margin:5px 0 0; font-size:12.5px; font-weight:500; line-height:1.55; color:var(--gray500); }
+.fg .int-blocked ul { margin:8px 0 0; padding-left:18px; }
+.fg .int-blocked li { font-size:12.5px; font-weight:500; line-height:1.6; color:var(--gray500); }
+.fg .int-blocked code, .fg .int-scopes code { padding:1px 6px; border-radius:6px; background:#eef0f4; font-family:var(--mono); font-size:.92em; font-weight:700; color:var(--gray700); }
+
+.fg .int-act { display:flex; flex-wrap:wrap; gap:10px; }
+/* Connect is an <a> (an API route — see the note in xero-screen.tsx), and
+   .pbtn was only ever worn by <button>, so it never had to say this. */
+.fg a.pbtn { text-decoration:none; }
+.fg .int-hint { margin:12px 2px 0; font-size:12.5px; font-weight:500; line-height:1.55; color:var(--gray500); }
+/* Disconnect's second click. The only destructive button in the section, so
+   the variant lives with it rather than in the shared .pbtn block. */
+.fg .pbtn.danger { background:#e0264f; color:#fff; box-shadow:0 8px 18px -8px rgba(224,38,79,.6); }
+.fg .pbtn.danger:hover:not(:disabled) { background:#c81f44; }
+.fg .pbtn:disabled { opacity:.55; cursor:default; }
+
+.fg .int-tenants { display:flex; flex-direction:column; gap:8px; margin-bottom:18px; }
+.fg .int-tenant { display:flex; align-items:center; gap:11px; padding:12px 14px; border-radius:13px; border:1px solid #eef0f4; background:#fafbfc; font-size:14px; font-weight:700; cursor:pointer; transition:border-color .15s, background .15s; }
+.fg .int-tenant:hover { border-color:#dfe3ea; background:#fff; }
+.fg .int-tenant input { accent-color:var(--teal-d); width:16px; height:16px; }
+
+.fg .int-uses { display:flex; flex-direction:column; gap:16px; }
+.fg .int-use b { font-size:14px; font-weight:800; letter-spacing:-0.01em; }
+.fg .int-use p { margin:4px 0 0; font-size:13px; font-weight:500; line-height:1.6; color:var(--gray500); }
+
+/* One row per scope: the literal string Xero will show, the area it serves,
+   and the sentence. A scope the stored grant predates is marked, because that
+   is the whole reason to render the list against a connection at all. */
+.fg .int-scopes { list-style:none; margin:0; padding:0; }
+.fg .int-scopes li { padding:13px 0; border-top:1px solid #f5f6f8; }
+.fg .int-scopes li:first-child { border-top:0; padding-top:0; }
+.fg .int-scopes li p { margin:5px 0 0; font-size:12.5px; font-weight:500; line-height:1.55; color:var(--gray500); }
+.fg .int-scopehead { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+.fg .int-tag { padding:3px 9px; border-radius:999px; background:#f4f5f7; font-size:10.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--gray500); }
+.fg .int-tag.warn { background:rgba(240,164,49,.16); color:#a56a05; }
+
 /* ---- Organisation screen (components/org/) ----
    Additive: the company profile reuses .card2 / .idc / .cred wholesale, and
    only these six things are new — a clickable credential card, the add tile,

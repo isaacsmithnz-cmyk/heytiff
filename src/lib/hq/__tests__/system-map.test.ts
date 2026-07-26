@@ -43,7 +43,7 @@ describe("system map registry", () => {
 
   it("helpers agree with the raw edge list", () => {
     expect(drawsFrom("rate").map((e) => e.to).sort()).toEqual(
-      ["db-rate", "db-staff", "eng-rate", "timepay"].sort()
+      ["db-rate", "db-staff", "eng-rate", "timepay", "xero"].sort()
     );
     expect(feeds("eng-loads").map((e) => e.from).sort()).toEqual(
       ["eng-sim", "studio", "tb-heat"].sort()

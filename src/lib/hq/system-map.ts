@@ -233,6 +233,34 @@ export const NODES: MapNode[] = [
     href: "/dashboard/admin/organization",
     paths: ["src/components/org", "src/app/actions/org.ts", "src/app/actions/org-credentials.ts"],
   },
+  {
+    /* No screen yet — it was deferred out of the operations build to the
+       documents/storage track, and it is the third thing the Xero grant is
+       for. On the map as a planned node so the edges that will feed it have
+       somewhere honest to land. */
+    id: "expenses",
+    name: "Expenses",
+    kind: "feature",
+    group: "Business tools",
+    blurb: "Receipts and spend, reconciled against the books.",
+    status: "planned",
+  },
+  {
+    id: "integrations",
+    name: "Integrations",
+    kind: "feature",
+    group: "Business tools",
+    blurb: "Connected apps — the Xero OAuth grant this workspace holds.",
+    detail:
+      "Owner-only, and owner-INTRINSIC rather than a capability: one grant reaches wages, bills and the P&L at once. Tokens are AES-256-GCM sealed with INTEGRATIONS_TOKEN_KEY before they hit the table, so the service-role key alone can't spend the grant. Read-only scopes today — Time & Pay, expenses and the Rate Calculator each read through it as they land.",
+    href: "/dashboard/admin/integrations",
+    paths: [
+      "src/lib/integrations",
+      "src/components/integrations",
+      "src/app/api/integrations",
+      "src/app/actions/integrations.ts",
+    ],
+  },
 
   /* — people & AI — */
   {
@@ -445,6 +473,15 @@ export const NODES: MapNode[] = [
     blurb: "Schema-versioned Studio design documents, one row per design.",
   },
   {
+    id: "db-integrations",
+    name: "Connected apps",
+    kind: "store",
+    group: "Supabase",
+    blurb: "integration_connections — one OAuth grant per (org, app).",
+    detail:
+      "Access and refresh tokens are stored AES-256-GCM sealed, never in plaintext, so the service-role key alone doesn't unlock a connected accounting system. Deny-all RLS like every table here; every read goes through an owner gate.",
+  },
+  {
     id: "db-universal",
     name: "Universal table",
     kind: "store",
@@ -482,6 +519,15 @@ export const NODES: MapNode[] = [
     kind: "external",
     group: "External services",
     blurb: "Vehicle valuations and receipt reading for the fleet, server-side.",
+  },
+  {
+    id: "xero",
+    name: "Xero",
+    kind: "external",
+    group: "External services",
+    blurb: "The business's accounting & payroll, over OAuth 2.0.",
+    detail:
+      "Connected once per org by the owner. Read-only scopes: payroll employees, settings and timesheets; bills, contacts, reports and accounting settings. Nothing here writes to Xero.",
   },
   {
     id: "gmaps",
@@ -540,6 +586,14 @@ export const EDGES: MapEdge[] = [
   { from: "fleet", to: "anthropic", label: "Tiff values the van + reads receipts" },
   { from: "org", to: "db-accounts", label: "trading profile, logo ref + credential rows" },
   { from: "org", to: "gmaps", label: "address autocomplete (server-key proxy)" },
+  { from: "integrations", to: "db-integrations", label: "stores the sealed OAuth grant" },
+  { from: "integrations", to: "xero", label: "consent, code exchange, token refresh" },
+  /* The three reasons the grant exists. Dashed until each one actually reads
+     through it — flip to live as the syncs land. */
+  { from: "timepay", to: "xero", label: "payroll employees, calendars & timesheets", status: "planned" },
+  { from: "rate", to: "xero", label: "profit & loss totals behind business costs", status: "planned" },
+  { from: "expenses", to: "xero", label: "bills & spend-money behind expenses", status: "planned" },
+  { from: "expenses", to: "db-docs", label: "receipt scans in the documents bucket", status: "planned" },
 
   /* people */
   { from: "team", to: "db-accounts", label: "invites written; accepting creates membership" },

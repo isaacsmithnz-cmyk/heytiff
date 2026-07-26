@@ -1,0 +1,219 @@
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { XeroScreen } from "../xero-screen";
+import { toView, type ConnectionRow } from "@/lib/integrations/connection";
+import { XERO_SCOPES, XERO_SCOPE_LIST } from "@/lib/integrations/providers";
+
+const disconnect = jest.fn();
+const setTenant = jest.fn();
+const refresh = jest.fn();
+
+jest.mock("@/app/actions/integrations", () => ({
+  disconnectXeroAction: (...args: unknown[]) => disconnect(...args),
+  setXeroTenantAction: (...args: unknown[]) => setTenant(...args),
+}));
+jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), refresh }) }));
+
+const row = (over: Partial<ConnectionRow> = {}): ConnectionRow => ({
+  id: "c1",
+  org_id: "org1",
+  provider: "xero",
+  status: "connected",
+  tenant_id: "t1",
+  tenant_name: "Acme Air Pty Ltd",
+  tenants: [{ tenantId: "t1", tenantName: "Acme Air Pty Ltd" }],
+  scopes: XERO_SCOPE_LIST.join(" "),
+  access_token_enc: "v1.a.b.c",
+  refresh_token_enc: "v1.d.e.f",
+  expires_at: null,
+  connected_by_user_id: "auth0|isaac",
+  connected_at: "2026-07-20T03:00:00.000Z",
+  updated_at: null,
+  last_error: null,
+  ...over,
+});
+
+const ready = { configured: true, sealed: true, notice: null } as const;
+
+beforeEach(() => {
+  disconnect.mockReset().mockResolvedValue({ ok: true });
+  setTenant.mockReset().mockResolvedValue({ ok: true });
+  refresh.mockReset();
+});
+
+describe("XeroScreen — before connecting", () => {
+  it("offers Connect, and points it at the OAuth route", () => {
+    render(<XeroScreen connection={null} {...ready} />);
+
+    const connect = screen.getByText("Connect to Xero").closest("a");
+    expect(connect).toHaveAttribute("href", "/api/integrations/xero/connect");
+    expect(screen.getByText("Not connected")).toBeInTheDocument();
+    expect(screen.queryByText("Disconnect")).not.toBeInTheDocument();
+  });
+
+  /* The ask has to be visible BEFORE the button is pressed, not after — that
+     is the entire argument for rendering the scope list from the same array
+     the consent URL is built from. */
+  it("shows every scope it will ask for, with its reason", () => {
+    render(<XeroScreen connection={null} {...ready} />);
+
+    for (const s of XERO_SCOPES) {
+      expect(screen.getByText(s.scope)).toBeInTheDocument();
+      expect(screen.getByText(s.why)).toBeInTheDocument();
+    }
+  });
+
+  it("names the three areas Xero will feed", () => {
+    render(<XeroScreen connection={null} {...ready} />);
+
+    for (const area of ["Time & Pay", "Expenses", "Rate Calculator"]) {
+      expect(screen.getAllByText(area).length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe("XeroScreen — deployment isn't set up", () => {
+  /* A customer supplies NO Xero credentials — one HeyTiff-owned app serves every
+     workspace — so this state must read as "ours to finish", never as a job the
+     owner has been handed. (The env-var detail below is dev-only; NODE_ENV is
+     "test" here, which is why these tests can still see it.) */
+  it("tells the owner there's nothing for them to do", () => {
+    render(<XeroScreen connection={null} configured={false} sealed={false} notice={null} />);
+
+    expect(screen.getByText(/Nothing for you to set up/)).toBeInTheDocument();
+    expect(screen.queryByText(/you need to|supply|enter your Xero/i)).not.toBeInTheDocument();
+  });
+
+  it("hides Connect and says which piece is missing", () => {
+    render(<XeroScreen connection={null} configured={false} sealed notice={null} />);
+
+    expect(screen.queryByText("Connect to Xero")).not.toBeInTheDocument();
+    expect(screen.getByText("XERO_CLIENT_ID")).toBeInTheDocument();
+    expect(screen.queryByText("INTEGRATIONS_TOKEN_KEY")).not.toBeInTheDocument();
+  });
+
+  it("refuses to connect without a token key, and says why", () => {
+    render(<XeroScreen connection={null} configured sealed={false} notice={null} />);
+
+    expect(screen.queryByText("Connect to Xero")).not.toBeInTheDocument();
+    expect(screen.getByText("INTEGRATIONS_TOKEN_KEY")).toBeInTheDocument();
+  });
+});
+
+describe("XeroScreen — connected", () => {
+  it("names the linked organisation and who connected it", () => {
+    render(<XeroScreen connection={toView(row(), "Isaac Smith")} {...ready} />);
+
+    expect(screen.getByText("Acme Air Pty Ltd")).toBeInTheDocument();
+    expect(screen.getByText("Isaac Smith")).toBeInTheDocument();
+    expect(screen.getByText("Reconnect")).toBeInTheDocument();
+  });
+
+  it("makes disconnect take two clicks", async () => {
+    const user = userEvent.setup();
+    render(<XeroScreen connection={toView(row())} {...ready} />);
+
+    await user.click(screen.getByText("Disconnect"));
+    expect(disconnect).not.toHaveBeenCalled();
+
+    await user.click(screen.getByText("Yes, disconnect"));
+    await waitFor(() => expect(disconnect).toHaveBeenCalledTimes(1));
+    expect(refresh).toHaveBeenCalled();
+  });
+
+  it("lets you back out of disconnecting", async () => {
+    const user = userEvent.setup();
+    render(<XeroScreen connection={toView(row())} {...ready} />);
+
+    await user.click(screen.getByText("Disconnect"));
+    await user.click(screen.getByText("Keep it"));
+
+    expect(disconnect).not.toHaveBeenCalled();
+    expect(screen.getByText("Disconnect")).toBeInTheDocument();
+  });
+
+  it("surfaces a refused disconnect rather than claiming success", async () => {
+    disconnect.mockResolvedValue({ ok: false, error: "Only an owner can change connected apps." });
+    const user = userEvent.setup();
+    render(<XeroScreen connection={toView(row())} {...ready} />);
+
+    await user.click(screen.getByText("Disconnect"));
+    await user.click(screen.getByText("Yes, disconnect"));
+
+    expect(
+      await screen.findByText("Only an owner can change connected apps."),
+    ).toBeInTheDocument();
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("marks the scopes an older grant predates", () => {
+    render(<XeroScreen connection={toView(row({ scopes: "openid offline_access" }))} {...ready} />);
+    expect(screen.getAllByText("Not granted yet").length).toBeGreaterThan(0);
+  });
+
+  it("shows the grant's own error when it needs reconnecting", () => {
+    render(
+      <XeroScreen
+        connection={toView(row({ status: "needs_reauth", last_error: "Xero declined to renew." }))}
+        {...ready}
+      />,
+    );
+    expect(screen.getByText("Xero declined to renew.")).toBeInTheDocument();
+  });
+});
+
+describe("XeroScreen — more than one Xero organisation", () => {
+  const many = row({
+    tenants: [
+      { tenantId: "t1", tenantName: "Acme Air Pty Ltd" },
+      { tenantId: "t2", tenantName: "Acme Plumbing Pty Ltd" },
+    ],
+  });
+
+  it("stays out of the way when the grant covers only one", () => {
+    render(<XeroScreen connection={toView(row())} {...ready} />);
+    expect(screen.queryByText("Xero organisation")).not.toBeInTheDocument();
+  });
+
+  it("offers a picker, and only saves a different choice", async () => {
+    const user = userEvent.setup();
+    render(<XeroScreen connection={toView(many)} {...ready} />);
+
+    // the current one is already selected, so the button has nothing to do
+    expect(screen.getByText("Use this organisation")).toBeDisabled();
+
+    await user.click(screen.getByLabelText("Acme Plumbing Pty Ltd"));
+    await user.click(screen.getByText("Use this organisation"));
+
+    await waitFor(() => expect(setTenant).toHaveBeenCalledWith("t2"));
+    expect(refresh).toHaveBeenCalled();
+  });
+});
+
+describe("XeroScreen — the redirect's outcome", () => {
+  it("says so when a connection just succeeded", () => {
+    render(
+      <XeroScreen
+        connection={toView(row())}
+        configured
+        sealed
+        notice={{ kind: "ok", text: "Xero is connected." }}
+      />,
+    );
+    expect(screen.getByText("Xero is connected.")).toBeInTheDocument();
+  });
+
+  it("says so when it didn't", () => {
+    render(
+      <XeroScreen
+        connection={null}
+        configured
+        sealed
+        notice={{ kind: "error", text: "You cancelled the Xero connection, so nothing changed." }}
+      />,
+    );
+    expect(
+      screen.getByText("You cancelled the Xero connection, so nothing changed."),
+    ).toBeInTheDocument();
+  });
+});

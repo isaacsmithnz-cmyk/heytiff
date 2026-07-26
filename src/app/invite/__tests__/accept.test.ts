@@ -29,10 +29,17 @@ let staffInsertFails = false;
    this way; the accept route uses .single() instead, so the two never collide. */
 let listRows: Record<string, Row[]> = {};
 
+/* Every .eq() with its arguments — the invitations row is stored lowercased,
+   so WHAT a read filters on is part of what these tests have to see. */
+const eqCalls: { table: string; col: string; val: unknown }[] = [];
+
 const table = (name: string) => {
   const chain: Record<string, unknown> = {};
   const self = () => chain;
-  chain.eq = self;
+  chain.eq = (col: string, val: unknown) => {
+    eqCalls.push({ table: name, col, val });
+    return chain;
+  };
   chain.is = self;
   chain.gt = self;
   chain.limit = self;
@@ -125,6 +132,7 @@ const staffInserts = () => calls.filter((c) => c.table === "staff_profiles" && c
 
 beforeEach(() => {
   calls.length = 0;
+  eqCalls.length = 0;
   updateSessionSpy.mockClear();
   inviteRow = validInvite();
   existingStaffCard = null;
@@ -204,6 +212,16 @@ describe("the guards still hold", () => {
     expect(staffInserts()).toHaveLength(0);
   });
 
+  it("accepts when only the letter-case differs — Auth0 relays the IdP's casing", async () => {
+    // the row is stored lowercased (createInvite normalises on write); Google
+    // and Microsoft connections hand back whatever casing the account holds
+    sessionValue = { user: { sub: USER, email: "NewHire@Example.com", name: "Sam Rivers" } };
+    const res = await GET(req());
+    expect(calls.filter((c) => c.table === "memberships" && c.op === "upsert")).toHaveLength(1);
+    expect(staffInserts()).toHaveLength(1);
+    expect(res.headers.get("location")).toBe("https://app.test/dashboard");
+  });
+
   it("refuses an already-accepted invite", async () => {
     inviteRow = validInvite({ accepted_at: new Date().toISOString() });
     const res = await GET(req());
@@ -243,5 +261,21 @@ describe("why the hook cannot be relied on here", () => {
 
     expect(out.orgId).toBeUndefined();
     expect(staffInserts()).toHaveLength(0);
+  });
+
+  it("looks the pending invite up in lowercase, whatever case Auth0 sends", async () => {
+    /* The other half of the case bug: a MixedCase login whose invite the check
+       missed fell through to org creation — the invitee became owner of a
+       phantom org and the accept route then refused them. The mock returns
+       rows regardless of filters, so the recorded .eq() value IS the test. */
+    const hook = capturedOptions.beforeSessionSaved as (
+      s: Record<string, unknown>,
+    ) => Promise<Record<string, unknown>>;
+
+    listRows = { memberships: [], invitations: [{ id: "inv-1" }] };
+    const out = await hook({ user: { sub: USER, email: "NewHire@Example.COM" } });
+
+    expect(eqCalls).toContainEqual({ table: "invitations", col: "email", val: EMAIL });
+    expect(out.orgId).toBeUndefined();
   });
 });

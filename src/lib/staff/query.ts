@@ -80,8 +80,12 @@ export async function listLicences(orgId: string, staffProfileId: string): Promi
   return (await licencesByStaff(orgId, [staffProfileId])).get(staffProfileId) ?? [];
 }
 
-/** Emails live on `profiles` (written at login), keyed by Auth0 sub. */
-async function emailsByUser(userIds: string[]): Promise<Map<string, string>> {
+/** Emails live on `profiles` (written at login), keyed by Auth0 sub.
+
+    Exported for the Xero linking screen, which matches staff to payroll
+    employees by address first — one resolver, rather than a second join that
+    could disagree with this one about whose email is whose. */
+export async function emailsByUser(userIds: string[]): Promise<Map<string, string>> {
   const out = new Map<string, string>();
   if (userIds.length === 0) return out;
   const { data } = await supabaseAdmin

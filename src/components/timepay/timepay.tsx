@@ -26,6 +26,7 @@ import {
 } from "@/app/actions/timepay";
 import type { SheetState } from "@/lib/timepay/query";
 import { TimepayNav } from "./timepay-nav";
+import { XeroPayroll } from "./xero-payroll";
 
 /** One entry in the period switcher. `start` is the ISO Monday it begins. */
 export type PayPeriod = { start: string; range: string; year: string; live: boolean; note: string };
@@ -356,6 +357,7 @@ export function TimePay({
   canApprove,
   financials,
   holidayData,
+  xeroConnected,
 }: {
   staff: StaffWeek[];
   week: WeekCtx["week"];
@@ -370,6 +372,10 @@ export function TimePay({
   financials: boolean;
   /** admin+ only — presence unlocks the holidays section in the gear */
   holidayData: HolidayManagerData | null;
+  /** Whether this workspace has a live Xero grant. A boolean only: the
+      connection's details are owner business, and this screen just needs to
+      know whether the matching section has anything to show. */
+  xeroConnected?: boolean;
 }) {
   const router = useRouter();
   const ctx: WeekCtx = useMemo(() => ({ week, today }), [week, today]);
@@ -568,6 +574,26 @@ export function TimePay({
                     holidays={holidayData.holidays}
                     orgState={holidayData.orgState}
                     today={holidayData.today}
+                  />
+                ) : null
+              }
+              xeroSection={
+                xeroConnected ? (
+                  /* The actions are imported lazily, inside the section, so
+                     the Auth0 + Supabase runtime behind them never enters this
+                     screen's bundle — the same reason the rate calculator
+                     dynamic-imports its own save action. */
+                  <XeroPayroll
+                    load={async () => (await import("@/app/actions/xero-links")).getLinkingData()}
+                    onLink={async (id, remote, how) =>
+                      (await import("@/app/actions/xero-links")).linkEmployee(id, remote, how)
+                    }
+                    onUnlink={async (id) =>
+                      (await import("@/app/actions/xero-links")).unlinkEmployee(id)
+                    }
+                    onAdoptEmployment={async (id, value) =>
+                      (await import("@/app/actions/xero-links")).adoptEmploymentType(id, value)
+                    }
                   />
                 ) : null
               }

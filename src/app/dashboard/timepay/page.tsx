@@ -4,6 +4,8 @@ import { hasMinRole } from "@/lib/roles";
 import { TimePay } from "@/components/timepay/timepay";
 import { loadTimepay } from "@/lib/timepay/page-data";
 import { loadHolidayManager } from "@/lib/timepay/leave-page";
+import { auth0 } from "@/lib/auth0";
+import { getConnectionView } from "@/lib/integrations/store";
 
 /* Capability-gated: this is the EVERYONE view. Your own timesheet lives at
    /dashboard/my-timesheet and is never gated.
@@ -33,11 +35,20 @@ export default async function TimePayPage({
     getDbRole(),
   ]);
   const canHolidays = hasMinRole(role, "admin");
-  const [data, holidayData] = await Promise.all([
+  const [data, holidayData, session] = await Promise.all([
     loadTimepay({ pay }, period),
     canHolidays ? loadHolidayManager() : Promise.resolve(null),
+    auth0.getSession(),
   ]);
   if (!data) redirect("/dashboard");
+
+  /* Only whether a grant EXISTS crosses to the client. The connection itself is
+     owner business — this screen needs to know one thing: whether the matching
+     section has anything to show. Asked only when the viewer holds `financials`,
+     since that is the only case where the section renders at all. */
+  const orgId = session?.orgId as string | undefined;
+  const xeroConnected =
+    pay && orgId ? (await getConnectionView(orgId, "xero"))?.status === "connected" : false;
 
   return (
     <TimePay
@@ -52,6 +63,7 @@ export default async function TimePayPage({
       canApprove={approvals}
       financials={pay}
       holidayData={holidayData}
+      xeroConnected={xeroConnected}
     />
   );
 }

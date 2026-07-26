@@ -2666,3 +2666,49 @@ select.fl-i { cursor:pointer; }
    mouse must not be able to highlight two different rows at once. */
 .fg .adr-opt:hover, .fg .adr-opt.on { background:#fafbfc; }
 .fg .adr-opt.on { box-shadow:inset 0 0 0 1px rgba(0,163,137,.35); color:var(--teal-d); }
+
+/* ---- My expenses (components/expenses/my-expenses.tsx) ----
+   Receipt-first: the primary action is a camera, because a claim almost always
+   starts as a photo in someone's hand at the end of a job. The form arrives
+   pre-filled and every field stays editable — Tiff does the typing, the person
+   does the deciding. */
+.fg .xc-err { padding:12px 15px; margin-bottom:18px; border-radius:14px; background:rgba(255,51,102,.08); color:#e0264f; font-size:13.5px; font-weight:600; line-height:1.45; }
+
+.fg .xc-start { display:flex; flex-wrap:wrap; align-items:center; gap:16px; padding:22px; margin-bottom:22px; border-radius:24px; border:1.5px dashed #e0dcf0; background:linear-gradient(180deg,rgba(138,43,226,.04),#fff); }
+.fg .xc-ic { flex:0 0 auto; width:48px; height:48px; border-radius:15px; display:flex; align-items:center; justify-content:center; background:rgba(138,43,226,.11); color:var(--violet); }
+.fg .xc-startk { flex:1 1 240px; min-width:0; }
+.fg .xc-startk b { display:block; font-size:16px; font-weight:800; letter-spacing:-0.01em; }
+.fg .xc-startk em { display:block; font-style:normal; font-size:13px; font-weight:500; color:var(--gray500); margin-top:3px; line-height:1.5; }
+.fg .xc-startb { display:flex; flex-wrap:wrap; gap:9px; flex:0 0 auto; }
+
+.fg .xc-prev { display:block; max-height:220px; max-width:100%; border-radius:14px; border:1px solid #eef0f4; margin-bottom:18px; object-fit:contain; background:#fafbfc; }
+
+.fg .xc-form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin-bottom:20px; }
+.fg .xc-f { display:flex; flex-direction:column; gap:6px; grid-column:span 2; }
+.fg .xc-f.sm { grid-column:span 1; }
+.fg .xc-f > span { font-size:11px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:var(--gray400); }
+.fg .xc-f select, .fg .xc-f input[type=date] { height:46px; padding:0 12px; border-radius:13px; border:1px solid #e5e7eb; background:#fff; font:inherit; font-size:14px; font-weight:600; color:var(--ink); }
+.fg .xc-act { display:flex; flex-wrap:wrap; gap:10px; }
+@media (max-width:560px){ .fg .xc-f.sm { grid-column:span 2; } }
+
+.fg .xc-list { display:flex; flex-direction:column; gap:10px; margin-top:22px; }
+.fg .xc-row { display:flex; flex-wrap:wrap; align-items:flex-start; gap:14px; padding:15px 18px; border-radius:18px; background:#fff; border:1px solid #f0f0f2; box-shadow:0 8px 30px rgba(0,0,0,.03); }
+/* a decided claim steps back — it is history, not something to act on */
+.fg .xc-row.reimbursed, .fg .xc-row.cancelled, .fg .xc-row.declined { background:#fafbfc; box-shadow:none; }
+.fg .xc-main { flex:1 1 220px; min-width:0; }
+.fg .xc-main b { display:block; font-size:14.5px; font-weight:800; letter-spacing:-0.01em; }
+.fg .xc-main em { display:block; font-style:normal; font-size:12.5px; font-weight:600; color:var(--gray500); margin-top:3px; }
+.fg .xc-note { margin:8px 0 0; padding:8px 11px; border-radius:10px; background:#f4f5f7; font-size:12.5px; font-weight:600; color:var(--gray700); line-height:1.5; }
+.fg .xc-amt { flex:0 0 auto; text-align:right; font-size:17px; font-weight:800; letter-spacing:-0.01em; font-variant-numeric:tabular-nums; }
+.fg .xc-amt span { display:block; font-size:11px; font-weight:600; color:var(--gray400); margin-top:2px; letter-spacing:0; }
+.fg .xc-side { flex:0 0 auto; display:flex; flex-direction:column; align-items:flex-end; gap:7px; }
+.fg .xc-pill { padding:5px 11px; border-radius:999px; font-size:11px; font-weight:800; white-space:nowrap; background:#f4f5f7; color:var(--gray500); }
+/* semantic state, never the page accent */
+.fg .xc-pill.pending { background:rgba(240,164,49,.15); color:#a56a05; }
+.fg .xc-pill.approved { background:rgba(46,104,255,.1); color:#2E68FF; }
+.fg .xc-pill.reimbursed { background:rgba(0,163,137,.1); color:#00A389; }
+.fg .xc-pill.declined { background:rgba(255,51,102,.09); color:#e0264f; }
+.fg .xc-rec { font-size:11.5px; font-weight:700; color:var(--teal-d); text-decoration:none; border-bottom:1px solid rgba(0,163,137,.35); }
+.fg .xc-cancel { font-size:11.5px; font-weight:700; color:var(--gray500); }
+.fg .xc-cancel:hover:not(:disabled) { color:#e0264f; }
+.fg .xc-cancel:disabled { opacity:.5; cursor:default; }

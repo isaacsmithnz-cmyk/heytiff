@@ -98,14 +98,15 @@ describe("capability gating", () => {
       "mytimesheet",
       "myleave",
       "myvehicle",
+      "myexpenses",
     ]);
     expect(groups.every((g) => g.items.length > 0)).toBe(true);
   });
 
-  it("Personal is ungated — every viewer keeps their own timesheet and vehicle", () => {
+  it("Personal is ungated — every viewer keeps their own timesheet, vehicle and expenses", () => {
     for (const role of ["staff", "admin", "owner"] as const) {
       expect(navGroupsFor(viewer(role)).find((g) => g.label === "Personal")?.items.map((i) => i.key))
-        .toEqual(["mytimesheet", "myleave", "myvehicle"]);
+        .toEqual(["mytimesheet", "myleave", "myvehicle", "myexpenses"]);
     }
     // revoking the team-wide screens doesn't touch your own
     expect(keys({ caps: resolve("owner", { assets_all: false, timepay_all: false }), role: "owner" }))

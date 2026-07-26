@@ -6,6 +6,7 @@ import { buildOrgRows } from "@/lib/hq/overview";
 import { KpiGrid, type Kpi } from "@/components/hq/kpi-grid";
 import { OrgTable } from "@/components/hq/org-table";
 import { SystemCard, type EnvFlag } from "@/components/hq/system-card";
+import { capacityNote, xeroCapacity } from "@/lib/integrations/capacity";
 
 /* HQ overview — platform-wide KPIs and the org-first table. Read at request
    time (service-role queries + live pack read) so counts are always current. */
@@ -61,6 +62,7 @@ export default async function HqOverviewPage() {
     designCount,
     pendingInvites,
     catalog,
+    xeroConnections,
     orgsRes,
     membershipsRes,
     designsRes,
@@ -94,6 +96,14 @@ export default async function HqOverviewPage() {
         .gt("expires_at", nowIso)
     ),
     catalogSummary(),
+    // One row per connected Xero organisation — which is exactly the number
+    // Xero counts against the app's tier limit.
+    countOf(() =>
+      supabaseAdmin
+        .from("integration_connections")
+        .select("*", { count: "exact", head: true })
+        .eq("provider", "xero")
+    ),
     supabaseAdmin.from("organizations").select("id, name, created_at"),
     supabaseAdmin.from("memberships").select("org_id, user_id"),
     supabaseAdmin.from("studio_designs").select("org_id, updated_at"),
@@ -135,6 +145,13 @@ export default async function HqOverviewPage() {
     { label: "Total users", value: userCount },
     { label: "Studio designs", value: designCount },
     { label: "Pending invites", value: pendingInvites },
+    {
+      /* Xero gives no warning as the tier's connection ceiling approaches —
+         customer number six just fails to connect. This is the lead time. */
+      label: "Xero connections",
+      value: xeroConnections,
+      sub: <>{capacityNote(xeroCapacity(xeroConnections))}</>,
+    },
     {
       label: "Catalog units",
       value: catalog.units,

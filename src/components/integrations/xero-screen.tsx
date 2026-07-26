@@ -26,8 +26,18 @@ import { disconnectXeroAction, setXeroTenantAction } from "@/app/actions/integra
 
 const START = "/api/integrations/xero/connect";
 
+/* What the grant can actually SEE, resolved server-side on page load.
+
+   This is deliberately not a count we could compute from our own tables: it is
+   the answer to a real call to Xero, so a connection that looks healthy but
+   can't read anything says so here rather than at the first sync. `null` means
+   the read wasn't attempted (not connected, or Xero isn't set up). */
+export type XeroReach = { ok: true; employees: number } | { ok: false; error: string };
+
 export type XeroScreenProps = {
   connection: ConnectionView | null;
+  /** Result of one live read; null when there was nothing to read through. */
+  reach?: XeroReach | null;
   /** XERO_CLIENT_ID / SECRET / APP_BASE_URL are all present on this deployment. */
   configured: boolean;
   /** INTEGRATIONS_TOKEN_KEY is present — without it we refuse to store tokens. */
@@ -36,7 +46,7 @@ export type XeroScreenProps = {
   notice: { kind: "ok" | "error"; text: string } | null;
 };
 
-export function XeroScreen({ connection, configured, sealed, notice }: XeroScreenProps) {
+export function XeroScreen({ connection, configured, sealed, notice, reach }: XeroScreenProps) {
   const provider = providerById("xero")!;
   const router = useRouter();
   const [busy, start] = useTransition();
@@ -149,7 +159,31 @@ export function XeroScreen({ connection, configured, sealed, notice }: XeroScree
                     {connection.scopes.length === 1 ? "" : "s"}
                   </dd>
                 </div>
+                {/* Proof the grant READS, not just that it exists. A connection
+                    can be stored, unexpired and useless — revoked from Xero's
+                    own Connected Apps screen — and this is where that shows,
+                    rather than at the first sync somebody depends on. */}
+                {reach && (
+                  <div>
+                    <dt>Payroll</dt>
+                    <dd>
+                      {reach.ok
+                        ? `${reach.employees} employee${reach.employees === 1 ? "" : "s"} visible`
+                        : "Couldn't read"}
+                    </dd>
+                  </div>
+                )}
               </dl>
+            )}
+
+            {connection && reach?.ok && reach.employees > 0 && (
+              <p className="int-hint" style={{ marginTop: 0, marginBottom: 18 }}>
+                Match them to the people in this workspace in{" "}
+                <Link href="/dashboard/timepay" className="ro-link">
+                  Time &amp; Pay settings
+                </Link>
+                .
+              </p>
             )}
 
             {!ready && (

@@ -162,6 +162,49 @@ describe("XeroScreen — connected", () => {
   });
 });
 
+/* A stored connection can be unexpired and still useless — revoked from Xero's
+   own Connected Apps screen. The reach line is the difference between "we have
+   a row" and "the grant actually reads", and it must not overstate either way. */
+describe("XeroScreen — what the grant can actually see", () => {
+  it("reports what the live read found", () => {
+    render(<XeroScreen connection={toView(row())} configured sealed notice={null} reach={{ ok: true, employees: 9 }} />);
+    expect(screen.getByText("9 employees visible")).toBeInTheDocument();
+  });
+
+  it("says so plainly when the read failed, rather than showing zero", () => {
+    render(
+      <XeroScreen
+        connection={toView(row())}
+        configured
+        sealed
+        notice={null}
+        reach={{ ok: false, error: "The Xero connection needs reconnecting." }}
+      />,
+    );
+    expect(screen.getByText("Couldn't read")).toBeInTheDocument();
+    expect(screen.queryByText(/0 employees/)).not.toBeInTheDocument();
+  });
+
+  it("points at where the matching happens once there are people to match", () => {
+    render(<XeroScreen connection={toView(row())} configured sealed notice={null} reach={{ ok: true, employees: 9 }} />);
+    expect(screen.getByText("Time & Pay settings").closest("a")).toHaveAttribute(
+      "href",
+      "/dashboard/timepay",
+    );
+  });
+
+  it("offers no such pointer when the payroll is empty", () => {
+    render(<XeroScreen connection={toView(row())} configured sealed notice={null} reach={{ ok: true, employees: 0 }} />);
+    expect(screen.getByText("0 employees visible")).toBeInTheDocument();
+    expect(screen.queryByText("Time & Pay settings")).not.toBeInTheDocument();
+  });
+
+  it("shows nothing at all when there was no grant to read through", () => {
+    render(<XeroScreen connection={null} configured sealed notice={null} reach={null} />);
+    expect(screen.queryByText("Payroll")).not.toBeInTheDocument();
+  });
+});
+
 describe("XeroScreen — more than one Xero organisation", () => {
   const many = row({
     tenants: [

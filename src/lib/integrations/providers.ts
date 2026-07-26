@@ -80,7 +80,27 @@ export function providerById(id: string): Provider | undefined {
    for write access before the write exists is asking for permission we cannot
    justify. When the timesheet push lands it takes `payroll.timesheets` (the
    read/write form) and Xero re-prompts for consent — one Reconnect, which the
-   screen already offers, and `missingScopes()` is what notices. */
+   screen already offers, and `missingScopes()` is what notices.
+
+   GRANULAR SCOPES, NOT BROAD ONES. Xero split the wide accounting scopes into
+   narrow ones, and since March 2026 every new Web app is assigned granular
+   scopes only — asking for a deprecated broad name gets the whole consent
+   request refused with `invalid_scope` before the user sees anything. Two were
+   wrong here on the first attempt and this is what they became:
+
+     accounting.transactions.read → accounting.invoices.read
+                                    + accounting.banktransactions.read
+     accounting.reports.read      → accounting.reports.profitandloss.read
+
+   That is a straight improvement, not a workaround: the old pair carried every
+   transaction type and every report in the org, where these name the four
+   things expenses and the Rate Calculator actually read.
+
+   Verified against developer.xero.com/documentation/guides/oauth2/scopes —
+   check it before adding a scope rather than going from memory. Note that
+   Receipts and ExpenseClaims lived under the deprecated accounting.transactions
+   and appear under NO granular scope; if expenses ends up needing them, that
+   question has to be answered from the docs, not assumed. */
 
 export type XeroScope = {
   scope: string;
@@ -126,9 +146,14 @@ export const XERO_SCOPES: XeroScope[] = [
     why: "Reads timesheets already in Xero, so approved hours aren't entered twice.",
   },
   {
-    scope: "accounting.transactions.read",
+    scope: "accounting.invoices.read",
     area: "Expenses",
-    why: "Reads bills and spend-money lines that become expenses here.",
+    why: "Reads bills, so a supplier invoice can meet the receipt scanned here.",
+  },
+  {
+    scope: "accounting.banktransactions.read",
+    area: "Expenses",
+    why: "Reads spend-money lines — the costs paid straight from the bank rather than billed.",
   },
   {
     scope: "accounting.contacts.read",
@@ -136,9 +161,9 @@ export const XERO_SCOPES: XeroScope[] = [
     why: "Reads supplier names, so an expense line says who it was paid to.",
   },
   {
-    scope: "accounting.reports.read",
+    scope: "accounting.reports.profitandloss.read",
     area: "Rate Calculator",
-    why: "Reads profit & loss totals, so business costs come from the books rather than memory.",
+    why: "Reads the profit & loss — and only that report — so business costs come from the books rather than memory.",
   },
   {
     scope: "accounting.settings.read",

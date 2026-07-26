@@ -44,7 +44,7 @@ describe("toView", () => {
 
   it("flags the scopes an older grant predates", () => {
     const view = toView(row({ scopes: "openid offline_access" }));
-    expect(view.missing).toContain("accounting.reports.read");
+    expect(view.missing).toContain("accounting.reports.profitandloss.read");
     expect(view.missing).not.toContain("openid");
   });
 

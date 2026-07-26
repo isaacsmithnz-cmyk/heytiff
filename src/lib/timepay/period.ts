@@ -20,6 +20,14 @@ import type { Settings } from "@/components/timepay/logic";
 /** The slice of settings that decides period shape. */
 export type PeriodConfig = Pick<Settings, "cycle" | "weekStart" | "fortnightAnchor" | "monthStartDay">;
 
+/** That slice, cut from a full Settings. */
+export const periodConfig = (s: Settings): PeriodConfig => ({
+  cycle: s.cycle,
+  weekStart: s.weekStart,
+  fortnightAnchor: s.fortnightAnchor,
+  monthStartDay: s.monthStartDay,
+});
+
 const DAY_NAMES = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"] as const;
 const WEEKDAY_ABBR = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -45,6 +53,15 @@ export function mondayIndex(iso: string): number {
 function weekStartIndex(weekStart: string): number {
   const i = WEEKDAY_ABBR.indexOf(weekStart.slice(0, 3) as (typeof WEEKDAY_ABBR)[number]);
   return i < 0 ? 0 : i;
+}
+
+/** A real calendar date in YYYY-MM-DD shape. Everything else in this file
+    assumes its input is one; callers holding a string from the network check
+    here first, because an Invalid Date makes addDays throw. */
+export function isIsoDate(iso: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false;
+  const t = utc(iso);
+  return Number.isFinite(t) && new Date(t).toISOString().slice(0, 10) === iso;
 }
 
 export function addDays(iso: string, n: number): string {

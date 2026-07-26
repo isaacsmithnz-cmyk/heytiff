@@ -5,7 +5,14 @@ import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { can } from "@/lib/permissions-server";
 import { staffProfileIdFor } from "@/lib/fleet/query";
-import { dateOfDay, periodLength } from "@/lib/timepay/period";
+import {
+  dateOfDay,
+  isIsoDate,
+  periodConfig,
+  periodLength,
+  periodStartFor,
+  type PeriodConfig,
+} from "@/lib/timepay/period";
 import { getPaySettings } from "@/lib/timepay/query";
 import type { DayEntry, Settings } from "@/components/timepay/logic";
 
@@ -57,6 +64,24 @@ function editable(status: string): boolean {
   return status === "draft" || status === "sent_back";
 }
 
+/* The client NAMES a period; only the server decides where periods begin. A
+   forged mid-week "period start" would carry days that belong to someone
+   else's real period, while its own timesheets row doesn't exist — so its
+   status reads as a fresh draft and every lock above silently passes. Every
+   action that receives a period start re-derives the boundary and refuses any
+   date the org's pay cycle wouldn't produce. */
+async function guardPeriod(
+  orgId: string,
+  periodStart: string,
+): Promise<{ ok: true; cfg: PeriodConfig } | { ok: false; error: string }> {
+  if (!isIsoDate(periodStart)) return { ok: false, error: "That pay period isn't a real date." };
+  const { settings } = await getPaySettings(orgId);
+  const cfg = periodConfig(settings);
+  if (periodStartFor(periodStart, cfg) !== periodStart)
+    return { ok: false, error: "That date doesn't start a pay period for this organisation." };
+  return { ok: true, cfg };
+}
+
 /* ---------------- your own sheet ---------------- */
 
 export async function saveDay(
@@ -66,19 +91,17 @@ export async function saveDay(
 ): Promise<TimepayResult> {
   const ctx = await context();
   if (!ctx?.staffId) return { ok: false, error: "No staff record for this account." };
+  const period = await guardPeriod(ctx.orgId, periodStart);
+  if (!period.ok) return period;
   // the period is 7, 14 or a calendar month long depending on the pay cycle,
   // so the bound is not "6" — a fortnightly day 9 is perfectly valid
-  const { settings } = await getPaySettings(ctx.orgId);
-  const cfg = {
-    cycle: settings.cycle,
-    weekStart: settings.weekStart,
-    fortnightAnchor: settings.fortnightAnchor,
-    monthStartDay: settings.monthStartDay,
-  };
-  if (dayIndex < 0 || dayIndex >= periodLength(periodStart, cfg))
+  if (!Number.isInteger(dayIndex) || dayIndex < 0 || dayIndex >= periodLength(periodStart, period.cfg))
     return { ok: false, error: "That day isn't in this pay period." };
 
-  const status = await statusOf(ctx.orgId, ctx.staffId, periodStart);
+  const workDate = dateOfDay(periodStart, dayIndex);
+  // the lock is read off the WORK DATE's own period — equal to periodStart
+  // after the guards above, but the day being written is what must be open
+  const status = await statusOf(ctx.orgId, ctx.staffId, periodStartFor(workDate, period.cfg));
   if (!editable(status))
     return {
       ok: false,
@@ -87,8 +110,6 @@ export async function saveDay(
           ? "This week has been approved and can't be changed."
           : "This week is with your manager — ask them to send it back to edit it.",
     };
-
-  const workDate = dateOfDay(periodStart, dayIndex);
 
   if (entry.t === "empty") {
     await supabaseAdmin
@@ -126,6 +147,8 @@ export async function saveDay(
 export async function submitWeek(periodStart: string): Promise<TimepayResult> {
   const ctx = await context();
   if (!ctx?.staffId) return { ok: false, error: "No staff record for this account." };
+  const period = await guardPeriod(ctx.orgId, periodStart);
+  if (!period.ok) return period;
 
   const status = await statusOf(ctx.orgId, ctx.staffId, periodStart);
   if (!editable(status)) return { ok: false, error: "This week has already been sent." };
@@ -163,6 +186,8 @@ async function review(
   // the whole point of approval — you don't sign off your own hours
   if (ctx.staffId && ctx.staffId === staffProfileId)
     return { ok: false, error: "You can't review your own timesheet." };
+  const period = await guardPeriod(ctx.orgId, periodStart);
+  if (!period.ok) return period;
 
   const { data: target } = await supabaseAdmin
     .from("staff_profiles")

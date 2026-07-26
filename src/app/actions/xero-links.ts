@@ -7,7 +7,18 @@ import { displayNameOf } from "@/lib/staff/name";
 import { emailsByUser } from "@/lib/staff/query";
 import { EMPLOYMENT_TYPES } from "@/lib/staff/employment";
 import { getConnectionView } from "@/lib/integrations/store";
-import { listPayCalendars, listPayrollEmployees } from "@/lib/integrations/xero-read";
+import {
+  getOrdinaryPayLine,
+  listEarningsRates,
+  listPayCalendars,
+  listPayrollEmployees,
+} from "@/lib/integrations/xero-read";
+import {
+  isPlausibleHourly,
+  resolveXeroPay,
+  wageDrift,
+  type WageDrift,
+} from "@/lib/integrations/wage";
 import {
   countLinksElsewhere,
   linkPayrollEmployee,
@@ -218,6 +229,121 @@ export async function unlinkEmployee(staffProfileId: string): Promise<LinkAction
   if (!result.ok) return result;
 
   refresh();
+  return { ok: true };
+}
+
+/* ── pay rates ────────────────────────────────────────────────────────────
+
+   ON DEMAND, AND ITS OWN ACTION, for two separate reasons.
+
+   COST: reading a pay rate is one Xero call PER PERSON, where every other read
+   here is one per organisation. Xero allows 60 a minute per tenant and 1,000 a
+   day on the starter tier. Doing this on every open of the settings modal
+   would spend somebody's quota on a screen they came to for break rules, so it
+   runs only when asked, for LINKED staff only, and the screen says how many
+   calls it will make first.
+
+   MONEY: keeping it out of getLinkingData means the default payload for this
+   screen contains no wages at all. The capability gate is the guarantee; not
+   sending the data unless it was asked for is the belt. */
+
+export type WagePayRow = {
+  staffProfileId: string;
+  /** null when this workspace has no wage recorded for them. */
+  here: number | null;
+  drift: WageDrift;
+};
+
+export type PayRatesResult =
+  | { ok: true; rows: WagePayRow[] }
+  | { ok: false; error: string };
+
+export async function checkPayRates(): Promise<PayRatesResult> {
+  const { orgId } = await requireOrg("financials");
+
+  const connection = await getConnectionView(orgId, "xero");
+  if (!connection?.tenantId) return { ok: false, error: "Xero isn't connected." };
+
+  const links = await listPayrollLinks(orgId, connection.tenantId);
+  if (links.length === 0) return { ok: true, rows: [] };
+
+  /* THE ONE PLACE IN THIS MODULE THAT READS A WAGE. Scoped to the org and to
+     the people who are actually linked, behind the `financials` gate above. */
+  const { data } = await supabaseAdmin
+    .from("staff_profiles")
+    .select("id, hourly_wage")
+    .eq("org_id", orgId)
+    .in("id", links.map((l) => l.staffProfileId));
+
+  const wageHere = new Map<string, number | null>();
+  for (const r of (data ?? []) as Record<string, unknown>[]) {
+    const raw = r.hourly_wage;
+    wageHere.set(String(r.id), typeof raw === "number" ? raw : raw ? Number(raw) : null);
+  }
+
+  // One call for the whole org, before any per-person call — it resolves the
+  // USEEARNINGSRATE case, where the rate lives on the org, not the employee.
+  const rates = await listEarningsRates(orgId);
+  const earningsRates = rates.ok ? rates.data : [];
+
+  const rows: WagePayRow[] = [];
+  for (const link of links) {
+    const line = await getOrdinaryPayLine(orgId, link.remoteId);
+    // One person's read failing shouldn't lose everybody else's answer.
+    const pay = line.ok ? resolveXeroPay(line.data, earningsRates) : ({ kind: "unknown" } as const);
+    const here = wageHere.get(link.staffProfileId) ?? null;
+    rows.push({ staffProfileId: link.staffProfileId, here, drift: wageDrift(here, pay) });
+  }
+
+  return { ok: true, rows };
+}
+
+/** Take Xero's hourly rate as this workspace's wage.
+
+    Writes `staff_profiles.hourly_wage` — the same column, under the same
+    `financials` capability, that the staff card's payroll section already
+    writes. The rate is re-derived from Xero here rather than trusted from the
+    client: the browser is telling us WHICH person to update, not what they
+    earn. */
+export async function adoptWage(staffProfileId: string): Promise<LinkActionResult> {
+  const { orgId } = await requireOrg("financials");
+
+  const connection = await getConnectionView(orgId, "xero");
+  if (!connection?.tenantId) return { ok: false, error: "Xero isn't connected." };
+
+  const links = await listPayrollLinks(orgId, connection.tenantId);
+  const link = links.find((l) => l.staffProfileId === staffProfileId);
+  if (!link) return { ok: false, error: "They aren't matched to a Xero employee." };
+
+  const [line, rates] = await Promise.all([
+    getOrdinaryPayLine(orgId, link.remoteId),
+    listEarningsRates(orgId),
+  ]);
+  if (!line.ok) return { ok: false, error: line.error };
+
+  const pay = resolveXeroPay(line.data, rates.ok ? rates.data : []);
+  if (pay.kind !== "hourly") {
+    // The salary case lands here, and stays a refusal: converting a salary to
+    // an hourly rate needs an hours-per-year assumption the Rate Calculator
+    // already makes differently (working_weeks, 46 not 52).
+    return { ok: false, error: "Xero doesn't have an hourly rate for them." };
+  }
+  if (!isPlausibleHourly(pay.rate)) {
+    return { ok: false, error: "That rate doesn't look right — set it on their staff card instead." };
+  }
+
+  const { error } = await supabaseAdmin
+    .from("staff_profiles")
+    .update({ hourly_wage: pay.rate })
+    .eq("org_id", orgId)
+    .eq("id", staffProfileId);
+
+  if (error) return { ok: false, error: "Couldn't save that." };
+
+  refresh();
+  // Every charge-out rate is derived from this column.
+  revalidatePath("/dashboard/team");
+  revalidatePath("/dashboard/admin/rate-calculator");
   return { ok: true };
 }
 

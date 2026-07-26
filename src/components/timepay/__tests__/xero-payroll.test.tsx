@@ -33,6 +33,9 @@ const props = (data: LinkingData) => ({
   onLink: jest.fn().mockResolvedValue({ ok: true }),
   onUnlink: jest.fn().mockResolvedValue({ ok: true }),
   onAdoptEmployment: jest.fn().mockResolvedValue({ ok: true }),
+  // pay rates are their own explicit fetch — never part of the initial load
+  onCheckPay: jest.fn().mockResolvedValue({ ok: true, rows: [] }),
+  onAdoptWage: jest.fn().mockResolvedValue({ ok: true }),
 });
 
 beforeEach(() => refresh.mockReset());
@@ -214,5 +217,122 @@ describe("XeroPayroll", () => {
     );
     expect(await screen.findByText("In Xero, not here")).toBeInTheDocument();
     expect(screen.getByText("New Starter")).toBeInTheDocument();
+  });
+});
+
+/* Wages are the sharpest edge in this integration: `hourly_wage` is the column
+   every charge-out rate derives from, and HeyTiff owns it. Xero's figure is
+   shown beside ours with a button — and only where there is genuinely an
+   hourly rate to adopt. */
+describe("XeroPayroll — wage drift", () => {
+  const linkedRow = {
+    staffProfileId: "s1",
+    name: "Dan Smith",
+    employmentType: "Full-time",
+    state: { kind: "linked" as const, employee: emp({ employeeId: "x1", name: "Dan Smith" }), matchedBy: "manual" as const },
+    employment: null,
+  };
+
+  const withLinked = { ...base, rows: [linkedRow] };
+
+  /* Reading a rate is one Xero call PER PERSON, so it is never part of the
+     initial load — and the button says what it will spend. */
+  it("asks for pay rates rather than fetching them on open", async () => {
+    const p = props(withLinked);
+    render(<XeroPayroll {...p} />);
+
+    expect(await screen.findByText("Check pay rates")).toBeInTheDocument();
+    expect(screen.getByText(/1 lookup\./)).toBeInTheDocument();
+    expect(p.onCheckPay).not.toHaveBeenCalled();
+  });
+
+  it("offers no pay check at all when nobody is linked", async () => {
+    render(<XeroPayroll {...props(base)} />);
+    await screen.findByText(/matched to/);
+    expect(screen.queryByText("Check pay rates")).not.toBeInTheDocument();
+  });
+
+  it("shows the difference and adopts on confirmation", async () => {
+    const user = userEvent.setup();
+    const p = props(withLinked);
+    p.onCheckPay.mockResolvedValue({
+      ok: true,
+      rows: [{ staffProfileId: "s1", here: 58, drift: { kind: "differs", here: 58, xero: 61.5, delta: 3.5 } }],
+    });
+    render(<XeroPayroll {...p} />);
+
+    await user.click(await screen.findByText("Check pay rates"));
+
+    expect(await screen.findByText(/\$61\.50/)).toBeInTheDocument();
+    await user.click(screen.getByText("Use Xero's"));
+    await waitFor(() => expect(p.onAdoptWage).toHaveBeenCalledWith("s1"));
+  });
+
+  it("says so quietly when the two already agree", async () => {
+    const user = userEvent.setup();
+    const p = props(withLinked);
+    p.onCheckPay.mockResolvedValue({
+      ok: true,
+      rows: [{ staffProfileId: "s1", here: 58, drift: { kind: "match", rate: 58 } }],
+    });
+    render(<XeroPayroll {...p} />);
+
+    await user.click(await screen.findByText("Check pay rates"));
+
+    expect(await screen.findByText(/Wage agrees with Xero/)).toBeInTheDocument();
+    expect(screen.queryByText("Use Xero's")).not.toBeInTheDocument();
+  });
+
+  /* THE ONE THAT MUST NOT GET A BUTTON. Converting a salary to an hourly rate
+     needs an hours-per-year assumption the Rate Calculator already makes
+     differently — so this is reported and left to a person. */
+  it("reports a salary and offers no way to adopt it", async () => {
+    const user = userEvent.setup();
+    const p = props(withLinked);
+    p.onCheckPay.mockResolvedValue({
+      ok: true,
+      rows: [
+        { staffProfileId: "s1", here: 58, drift: { kind: "salary", annual: 95000, hoursPerWeek: 38, here: 58 } },
+      ],
+    });
+    render(<XeroPayroll {...p} />);
+
+    await user.click(await screen.findByText("Check pay rates"));
+
+    expect(await screen.findByText(/salary of/)).toBeInTheDocument();
+    expect(screen.getByText(/yours to decide/)).toBeInTheDocument();
+    expect(screen.queryByText("Use Xero's")).not.toBeInTheDocument();
+  });
+
+  it("explains a rate it couldn't compare, without a button", async () => {
+    const user = userEvent.setup();
+    const p = props(withLinked);
+    p.onCheckPay.mockResolvedValue({
+      ok: true,
+      rows: [
+        {
+          staffProfileId: "s1",
+          here: 58,
+          drift: { kind: "none", note: 'Xero pays them on "Overtime x1.5", which isn\'t an hourly rate.' },
+        },
+      ],
+    });
+    render(<XeroPayroll {...p} />);
+
+    await user.click(await screen.findByText("Check pay rates"));
+
+    expect(await screen.findByText(/Overtime x1.5/)).toBeInTheDocument();
+    expect(screen.queryByText("Use Xero's")).not.toBeInTheDocument();
+  });
+
+  it("surfaces a refused pay read rather than showing nothing", async () => {
+    const user = userEvent.setup();
+    const p = props(withLinked);
+    p.onCheckPay.mockResolvedValue({ ok: false, error: "The Xero connection needs reconnecting." });
+    render(<XeroPayroll {...p} />);
+
+    await user.click(await screen.findByText("Check pay rates"));
+
+    expect(await screen.findByText("The Xero connection needs reconnecting.")).toBeInTheDocument();
   });
 });

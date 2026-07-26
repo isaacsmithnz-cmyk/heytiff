@@ -11,6 +11,8 @@
    Nothing here throws. A record we can't identify is dropped rather than
    half-built — a row in the picker that can't be linked is worse than no row. */
 
+import type { EarningsRate, OrdinaryLine } from "./wage";
+
 /** A Xero payroll employee, as the linking screen sees them. */
 export type XeroEmployee = {
   employeeId: string;
@@ -82,6 +84,74 @@ export function shapeEmployees(raw: unknown): XeroEmployee[] {
   for (const e of raw) {
     const shaped = shapeEmployee(e);
     if (shaped) out.push(shaped);
+  }
+  return out;
+}
+
+/* ── pay, for the wage-drift comparison ──
+
+   Shaped here like everything else, because the detail response is the widest
+   payload in this integration: bank accounts, super memberships, opening
+   balances, leave. Exactly ONE line of it is wanted. */
+
+/** The ordinary-hours line off an employee's pay template, or null when there
+    isn't one. `ordinaryEarningsRateID` on the employee is what identifies it —
+    a template can carry overtime and allowance lines too, and paying attention
+    to the wrong one would compare an overtime rate to a base wage. */
+export function shapeOrdinaryLine(raw: unknown): OrdinaryLine | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+
+  const ordinaryId = str(r.ordinaryEarningsRateID);
+  const template = r.payTemplate as Record<string, unknown> | undefined;
+  const lines = Array.isArray(template?.earningsLines) ? template.earningsLines : [];
+  if (lines.length === 0) return null;
+
+  const pick = (l: unknown): Record<string, unknown> | null =>
+    l && typeof l === "object" ? (l as Record<string, unknown>) : null;
+
+  /* Prefer the line the employee NAMES as ordinary. Falling back to the only
+     line when there is exactly one keeps a single-line template working — but
+     never guess among several, because picking the wrong one silently compares
+     an overtime rate to a base wage. */
+  let line = lines.map(pick).find((l) => l && str(l.earningsRateID) === ordinaryId) ?? null;
+  if (!line && lines.length === 1) line = pick(lines[0]);
+  if (!line) return null;
+
+  const n = (v: unknown): number | null =>
+    typeof v === "number" && Number.isFinite(v) ? v : null;
+
+  return {
+    earningsRateID: str(line.earningsRateID),
+    calculationType: orNull(line.calculationType),
+    ratePerUnit: n(line.ratePerUnit),
+    annualSalary: n(line.annualSalary),
+    numberOfUnitsPerWeek: n(line.numberOfUnitsPerWeek),
+  };
+}
+
+/** The organisation's earnings rates — needed only to resolve the
+    USEEARNINGSRATE case, and fetched once for the whole org rather than per
+    person. */
+export function shapeEarningsRates(raw: unknown): EarningsRate[] {
+  if (!Array.isArray(raw)) return [];
+  const out: EarningsRate[] = [];
+  for (const e of raw) {
+    if (!e || typeof e !== "object") continue;
+    const r = e as Record<string, unknown>;
+    const earningsRateID = str(r.earningsRateID);
+    if (!earningsRateID) continue;
+    // ratePerUnit is typed as a STRING on the org-level rate (it is a number on
+    // the employee's line) — parsed here so callers never have to care.
+    const raw2 = r.ratePerUnit;
+    const parsed =
+      typeof raw2 === "number" ? raw2 : typeof raw2 === "string" ? Number(raw2) : Number.NaN;
+    out.push({
+      earningsRateID,
+      name: str(r.name) || earningsRateID,
+      rateType: orNull(r.rateType)?.toUpperCase() ?? null,
+      ratePerUnit: Number.isFinite(parsed) ? parsed : null,
+    });
   }
   return out;
 }

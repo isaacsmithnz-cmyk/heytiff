@@ -3,19 +3,28 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
-import { approveLeave, declineLeave, type LeaveResult } from "@/app/actions/leave";
+import {
+  approveLeave,
+  declineLeave,
+  setLeaveBalance,
+  type LeaveResult,
+} from "@/app/actions/leave";
 import {
   LEAVE_LABEL,
+  SOURCE_LABEL,
+  type BalanceKind,
   type CalendarDay,
   type LeaveKind,
   type LeaveRequest,
 } from "@/lib/timepay/leave";
+import type { TeamBalanceCell, TeamBalanceRow } from "@/lib/timepay/balances";
 import { fmt, initials, nameHue } from "./logic";
 import { TimepayNav } from "./timepay-nav";
 
 /* Team leave — the `timepay_all` Leave tab. Pending requests to decide (with
-   `approvals`), and a calendar of who's off when. No dollars: leave is hours.
-   Without `approvals` this is read-only — you can see the roster, not decide it. */
+   `approvals`), a calendar of who's off when, and everyone's entitlements
+   (set with `team`). No dollars: leave is hours. Without the capability each
+   section is read-only — you can see the roster, not decide or set it. */
 
 function fmtRange(startISO: string, endISO: string): string {
   const d = (iso: string) =>
@@ -90,14 +99,105 @@ function PendingCard({
   );
 }
 
+/* One person's entitlements. The chip says what the request form would offer
+   them ("26h of 38h"); editing replaces the ENTITLEMENT, and the app keeps
+   netting live bookings off it — never write "available" back as the balance. */
+function BalanceRow({
+  row,
+  canManage,
+  busy,
+  onSet,
+}: {
+  row: TeamBalanceRow;
+  canManage: boolean;
+  busy: boolean;
+  onSet: (staffId: string, kind: BalanceKind, hours: number, done: () => void) => void;
+}) {
+  const [editing, setEditing] = useState<BalanceKind | null>(null);
+  const [hours, setHours] = useState("");
+
+  const openEditor = (kind: BalanceKind, cell: TeamBalanceCell) => {
+    setEditing(kind);
+    setHours(cell ? String(cell.balanceHours) : "");
+  };
+
+  const chip = (kind: BalanceKind, cell: TeamBalanceCell) => (
+    <span
+      className={`dchip2 ${cell ? (cell.available > 0 ? "ok" : "warn") : "mute"}`}
+      title={cell ? `As at ${cell.asAt} · ${SOURCE_LABEL[cell.source]}` : undefined}
+    >
+      {LEAVE_LABEL[kind]} ·{" "}
+      {cell ? `${fmt(cell.available)}h of ${fmt(cell.balanceHours)}h` : "not set"}
+    </span>
+  );
+
+  const valid = hours.trim() !== "" && Number(hours) >= 0;
+  return (
+    <div className="lv-pend">
+      <span className="fl-dav" style={{ background: `hsl(${nameHue(row.name)} 64% 42%)` }}>
+        {initials(row.name)}
+      </span>
+      <div className="lv-pmain">
+        <b>{row.name}</b>
+        <em>
+          {chip("annual", row.annual)}
+          {chip("personal", row.personal)}
+        </em>
+        {editing && (
+          <div className="lv-decline">
+            <input
+              type="number"
+              min={0}
+              step={0.5}
+              placeholder={`${LEAVE_LABEL[editing]} entitlement, in hours`}
+              value={hours}
+              onChange={(e) => setHours(e.target.value)}
+            />
+            <button
+              className="fl-btn primary"
+              disabled={busy || !valid}
+              onClick={() => onSet(row.staffId, editing, Number(hours), () => setEditing(null))}
+            >
+              Save
+            </button>
+            <button className="fl-btn ghost" onClick={() => setEditing(null)}>
+              Cancel
+            </button>
+          </div>
+        )}
+      </div>
+      {canManage && !editing && (
+        <div className="lv-pacts">
+          <button className="cedit" disabled={busy} onClick={() => openEditor("annual", row.annual)}>
+            <Icon name="edit" size={13} />
+            Annual
+          </button>
+          <button
+            className="cedit"
+            disabled={busy}
+            onClick={() => openEditor("personal", row.personal)}
+          >
+            <Icon name="edit" size={13} />
+            Personal
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function TeamLeave({
   pending,
   calendar,
+  balances,
   canApprove,
+  canManage,
 }: {
   pending: LeaveRequest[];
   calendar: CalendarDay[];
+  balances: TeamBalanceRow[];
   canApprove: boolean;
+  canManage: boolean;
 }) {
   const router = useRouter();
   const [busy, start] = useTransition();
@@ -144,6 +244,31 @@ export function TeamLeave({
                     busy={busy}
                     onApprove={(id) => run(() => approveLeave(id))}
                     onDecline={(id, reason) => run(() => declineLeave(id, reason))}
+                  />
+                ))
+              )}
+
+              <div className="lv-ch">Leave balances</div>
+              {balances.length === 0 ? (
+                <div className="fl-hempty">No active staff yet.</div>
+              ) : (
+                balances.map((row) => (
+                  <BalanceRow
+                    key={row.staffId}
+                    row={row}
+                    canManage={canManage}
+                    busy={busy}
+                    onSet={(staffId, kind, hrs, done) =>
+                      run(async () => {
+                        const res = await setLeaveBalance({
+                          staffProfileId: staffId,
+                          kind,
+                          balanceHours: hrs,
+                        });
+                        if (res.ok) done();
+                        return res;
+                      })
+                    }
                   />
                 ))
               )}

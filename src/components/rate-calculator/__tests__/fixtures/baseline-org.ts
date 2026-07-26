@@ -221,6 +221,10 @@ export function buildBaselineState(): RateCalcState {
     simpleBusiness: { months: [4060, 3950, 4170] },
     simpleVehicle: { months: [3400, 3300, 3500] },
     mode: { staff: "Simple", business: "Simple", vehicles: "Simple" },
+    // the baseline org types its own costs in — Xero is a separate case, and
+    // the fixture stays the "no integration" one every other test assumes
+    costsSource: "manual",
+    xeroCosts: null,
     noVehicles: false,
     riskAccepted: true,   // the demo simulates a returning user with a
     profitAccepted: true, // completed setup — defaults already accepted

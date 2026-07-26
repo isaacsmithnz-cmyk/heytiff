@@ -192,3 +192,57 @@
   .rca-pulse { animation:rcaWaitPulse 1.6s ease-in-out infinite; }
   @keyframes rcaWaitPulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 }
+
+/* ── Business costs from Xero (xero-costs.tsx) ──────────────────────────
+   The third way to answer the Business step, beside Simple and Detailed.
+   Amounts are read-only because they are Xero's; the allocation chip stays
+   live because how a cost splits between install and service is a judgement
+   about the business, not something a chart of accounts knows. */
+
+/* The source switch. A segmented pair rather than a toggle: both options are
+   real places to get numbers from, and neither is the "off" state. */
+.rcx-src { display:inline-flex; gap:4px; padding:4px; margin-top:14px; border-radius:12px; background:#f4f5f7; }
+.rcx-srcb { padding:7px 13px; border-radius:9px; font-size:12.5px; font-weight:700; color:#6b7280; transition:background .16s, color .16s; }
+.rcx-srcb.on { background:#fff; color:#0A0B10; box-shadow:0 1px 3px rgba(10,12,20,.1); }
+
+.rcx { display:flex; flex-direction:column; }
+.rcx-head { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:12px; }
+.rcx-per { display:inline-flex; gap:4px; padding:3px; border-radius:11px; background:#f4f5f7; }
+.rcx-pbtn { padding:6px 11px; border-radius:8px; font-size:12px; font-weight:700; color:#6b7280; }
+.rcx-pbtn.on { background:#fff; color:#0A0B10; box-shadow:0 1px 3px rgba(10,12,20,.1); }
+.rcx-pbtn:disabled { opacity:.5; cursor:default; }
+.rcx-go { margin-left:auto; height:36px; padding:0 15px; border-radius:11px; background:#0A0B10; color:#fff; font-size:12.5px; font-weight:700; transition:background .16s; }
+.rcx-go:hover:not(:disabled) { background:#00E5C0; color:#0A0B10; }
+.rcx-go:disabled { opacity:.55; cursor:default; }
+
+.rcx-note { font-size:12.5px; font-weight:600; color:#6b7280; line-height:1.6; margin:0 0 14px; }
+.rcx-note b { color:#0A0B10; }
+.rcx-err { font-size:12.5px; font-weight:700; color:#e0264f; margin:0 0 12px; }
+
+.rcx-lines { border:1px solid #eef0f4; border-radius:14px; overflow:hidden; }
+.rcx-line { display:grid; grid-template-columns:minmax(0,1fr) auto 110px 30px; align-items:center; gap:10px; padding:9px 14px; border-bottom:1px solid #f3f4f7; }
+.rcx-line:last-child { border-bottom:none; }
+.rcx-nm { font-size:13.5px; font-weight:600; color:#0A0B10; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.rcx-alloc { font-size:11.5px; font-weight:700; padding:5px 12px; border-radius:100px; text-transform:capitalize; }
+.rcx-amt { text-align:right; font-size:13.5px; font-weight:700; color:#0A0B10; font-variant-numeric:tabular-nums; }
+.rcx-amt.muted { color:#9ca3af; font-weight:600; }
+.rcx-x { width:26px; height:26px; border-radius:8px; font-size:12px; color:#9ca3af; justify-self:end; transition:background .15s, color .15s; }
+.rcx-x:hover { background:#f4f5f7; color:#e0264f; }
+
+.rcx-total { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-top:12px; padding:13px 16px; border-radius:14px; background:rgba(46,104,255,.07); }
+
+/* Left out, and reversible. The whole point is that the double-count guard is
+   visible: a guess the user can't see is one they can't correct. */
+.rcx-ex { margin-top:16px; padding:14px; border-radius:14px; border:1.5px dashed #e6e8ee; background:#fafbfc; }
+.rcx-ex > b { display:block; font-size:12.5px; font-weight:800; color:#374151; }
+.rcx-ex > em { display:block; font-style:normal; font-size:11.5px; font-weight:600; color:#9ca3af; margin:3px 0 10px; line-height:1.5; }
+.rcx-exrow { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1.2fr) 100px auto; align-items:center; gap:10px; padding:7px 0; border-top:1px solid #eef0f4; }
+.rcx-why { font-size:11.5px; font-weight:600; color:#9ca3af; }
+.rcx-add { padding:5px 11px; border-radius:9px; background:#fff; border:1px solid #e2e5ea; font-size:11.5px; font-weight:700; color:#374151; transition:background .15s; }
+.rcx-add:hover { background:#f4f5f7; }
+
+@media (max-width:640px){
+  .rcx-line { grid-template-columns:minmax(0,1fr) auto; grid-template-areas:"nm alloc" "amt x"; }
+  .rcx-exrow { grid-template-columns:minmax(0,1fr) auto; }
+  .rcx-why { grid-column:1 / -1; }
+}

@@ -2,6 +2,11 @@
 
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { requireOrg } from "@/lib/permissions-server";
+import { todayInAu } from "@/lib/au-dates";
+import { getConnectionView } from "@/lib/integrations/store";
+import { getFinancialYearEnd, getProfitAndLoss } from "@/lib/integrations/xero-read";
+import { periodFor, type PeriodChoice } from "@/lib/integrations/xero-pl";
+import type { XeroCostSnapshot } from "@/components/rate-calculator/state";
 
 /* Rate Calculator persistence — server side. Follows the studio-action
    pattern: authenticate the Auth0 session, then read/write via the service
@@ -56,4 +61,61 @@ export async function saveRateCalcState(state: unknown): Promise<void> {
       { onConflict: "org_id" },
     );
   if (error) throw new Error(error.message);
+}
+
+/* ── business costs from a connected Xero organisation ─────────────────────
+
+   Same `financials` gate as everything else here — this reads the company's
+   profit & loss, which is the most sensitive thing the calculator touches.
+
+   The result is handed back for the CLIENT to patch into state and save
+   through the normal path, rather than written here. That keeps one writer for
+   the state blob (saveRateCalcState) instead of two racing each other, and it
+   means a fetch the user then cancels out of leaves nothing behind. */
+
+export type XeroCostsResult =
+  | { ok: true; snapshot: XeroCostSnapshot }
+  | { ok: false; error: string };
+
+export async function fetchXeroBusinessCosts(choice: PeriodChoice): Promise<XeroCostsResult> {
+  const { orgId } = await requireOrg("financials");
+
+  const connection = await getConnectionView(orgId, "xero");
+  if (!connection || connection.status !== "connected") {
+    return { ok: false, error: "Xero isn't connected." };
+  }
+
+  /* The year end comes from Xero rather than being assumed: a business on a
+     non-June year end would otherwise get the wrong twelve months, silently.
+     A failure here is not fatal — periodFor falls back to 30 June, which is
+     right for almost every Australian business. */
+  const fy = await getFinancialYearEnd(orgId);
+  const period = periodFor(
+    choice,
+    todayInAu(),
+    fy.ok ? fy.data.day : null,
+    fy.ok ? fy.data.month : null
+  );
+
+  const report = await getProfitAndLoss(orgId, period.from, period.to);
+  if (!report.ok) return { ok: false, error: report.error };
+
+  if (report.data.lines.length === 0 && report.data.excluded.length === 0) {
+    return {
+      ok: false,
+      error: `No expenses found in Xero for ${period.label}. Try the other period.`,
+    };
+  }
+
+  return {
+    ok: true,
+    snapshot: {
+      fetchedAt: new Date().toISOString(),
+      period,
+      tenantName: connection.tenantName ?? "Xero",
+      lines: report.data.lines,
+      excluded: report.data.excluded,
+      sections: report.data.sections,
+    },
+  };
 }

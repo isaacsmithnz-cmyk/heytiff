@@ -242,12 +242,13 @@ function RatesIntro({ s, patch, onDone }: {
 type SaveState = "idle" | "saving" | "saved" | "local";
 
 // ── Calculator app (remounted per data mode) ────────────────────────────
-function CalculatorApp({ initial, hasData, showOnboarding, onPersist, saveState }: {
+function CalculatorApp({ initial, hasData, showOnboarding, onPersist, saveState, xeroConnected }: {
   initial: RateCalcState;
   hasData: boolean;
   showOnboarding: boolean;
   onPersist: ((next: RateCalcState) => void) | null;
   saveState: SaveState;
+  xeroConnected?: boolean;
 }) {
   // Returning users with a complete setup land on Results (the review moment);
   // first-run / incomplete data lands on Step 1. Example mode simulates a
@@ -426,7 +427,7 @@ function CalculatorApp({ initial, hasData, showOnboarding, onPersist, saveState 
           <>
             <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
               <div className="rca-view" key={step} style={{ flex: 1, padding: "18px 10px 6px 2px", overflowY: "auto", overflowX: "hidden" }}>
-                <StepBody s={s} patch={patch} calc={calc} showToggle={toggleGates[step] ?? false} revealAll={hasData} />
+                <StepBody s={s} patch={patch} calc={calc} showToggle={toggleGates[step] ?? false} revealAll={hasData} xeroConnected={xeroConnected} />
               </div>
               <div style={{ flexShrink: 0, padding: "14px 10px 0 2px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <button className="rca-btn ghost" disabled={step === 0} onClick={() => setStep(Math.max(0, step - 1))}>← Back</button>
@@ -443,12 +444,15 @@ function CalculatorApp({ initial, hasData, showOnboarding, onPersist, saveState 
 }
 
 // ── Root: persistence + example-data mode ───────────────────────────────
-export function RateCalculator({ initialState, initialUpdatedAt, roster = [] }: {
+export function RateCalculator({ initialState, initialUpdatedAt, roster = [], xeroConnected = false }: {
   initialState: unknown;
   initialUpdatedAt?: string | null;
   /** Staff come from the roster (staff_profiles) now — the calculator reads
       them, never stores them. Wages are managed in Team. */
   roster?: StaffMember[];
+  /** Whether a Xero grant exists, so the Business step can offer its figures
+      as a source. A boolean only — the connection is owner business. */
+  xeroConnected?: boolean;
 }) {
   void initialUpdatedAt; // reserved for buffer-vs-server reconciliation
   const hasServerState = initialState != null;
@@ -527,6 +531,7 @@ export function RateCalculator({ initialState, initialUpdatedAt, roster = [] }: 
       showOnboarding={!hasData}
       onPersist={persist}
       saveState={saveState}
+      xeroConnected={xeroConnected}
     />
   );
 }

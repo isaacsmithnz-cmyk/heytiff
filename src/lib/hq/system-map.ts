@@ -242,8 +242,16 @@ export const NODES: MapNode[] = [
     name: "Expenses",
     kind: "feature",
     group: "Business tools",
-    blurb: "Receipts and spend, reconciled against the books.",
-    status: "planned",
+    blurb: "Staff reimbursement claims — scan a receipt, get your money back.",
+    detail:
+      "Money a person spent from their own pocket, NOT the business's own bills (those reach the Rate Calculator from Xero as overheads). Submitting is intrinsic; deciding needs `approvals` and never on your own claim; recording that it was PAID needs `financials`, because approving a spend and moving money are different acts. Receipts live in the documents bucket and can't be deleted out from under a live claim.",
+    href: "/dashboard/my-expenses",
+    paths: [
+      "src/lib/expenses",
+      "src/components/expenses",
+      "src/app/actions/expenses.ts",
+      "src/app/actions/expense-ai.ts",
+    ],
   },
   {
     id: "integrations",
@@ -437,7 +445,7 @@ export const NODES: MapNode[] = [
     name: "Time, pay & leave",
     kind: "store",
     group: "Supabase",
-    blurb: "time_entries · timesheets · pay_settings · leave_requests · leave_balances · public_holidays",
+    blurb: "time_entries · timesheets · pay_settings · leave_requests · leave_balances · public_holidays · expense_claims",
   },
   {
     id: "db-fleet",
@@ -593,8 +601,13 @@ export const EDGES: MapEdge[] = [
      through it — flip to live as the syncs land. */
   { from: "timepay", to: "xero", label: "payroll employees, calendars & timesheets", status: "planned" },
   { from: "rate", to: "xero", label: "profit & loss totals behind business costs", status: "planned" },
-  { from: "expenses", to: "xero", label: "bills & spend-money behind expenses", status: "planned" },
-  { from: "expenses", to: "db-docs", label: "receipt scans in the documents bucket", status: "planned" },
+  { from: "expenses", to: "db-timepay", label: "claims, decisions & reimbursements" },
+  { from: "expenses", to: "db-docs", label: "receipts in the documents bucket, signed per render" },
+  { from: "expenses", to: "db-staff", label: "who claimed it — names only, never wages" },
+  { from: "expenses", to: "anthropic", label: "Tiff reads the receipt into a draft claim" },
+  // Pushing a reimbursement into Xero is a WRITE, so it waits on the KMS
+  // migration (issue #167) along with every other write scope.
+  { from: "expenses", to: "xero", label: "push reimbursements to payroll or bills", status: "planned" },
 
   /* people */
   { from: "team", to: "db-accounts", label: "invites written; accepting creates membership" },

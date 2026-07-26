@@ -27,6 +27,10 @@ import {
 import type { SheetState } from "@/lib/timepay/query";
 import { TimepayNav } from "./timepay-nav";
 import { XeroPayroll } from "./xero-payroll";
+import Link from "next/link";
+
+/** Whole dollars — a stat tile is a glance, and cents on it are noise. */
+const money0 = (n: number) => `$${Math.round(n).toLocaleString("en-AU")}`;
 
 /** One entry in the period switcher. `start` is the ISO Monday it begins. */
 export type PayPeriod = { start: string; range: string; year: string; live: boolean; note: string };
@@ -358,6 +362,7 @@ export function TimePay({
   financials,
   holidayData,
   xeroConnected,
+  expenses = { owed: 0, pending: 0 },
 }: {
   staff: StaffWeek[];
   week: WeekCtx["week"];
@@ -376,6 +381,9 @@ export function TimePay({
       connection's details are owner business, and this screen just needs to
       know whether the matching section has anything to show. */
   xeroConnected?: boolean;
+  /** What's outstanding on expense claims. Resolved server-side and only when
+      the viewer holds `financials` — the tile that shows it is money. */
+  expenses?: { owed: number; pending: number };
 }) {
   const router = useRouter();
   const ctx: WeekCtx = useMemo(() => ({ week, today }), [week, today]);
@@ -491,16 +499,24 @@ export function TimePay({
             </div>
             {/* Money, so it rides with `financials` like every other dollar
                 on this screen — an hours-only view shows no figure at all,
-                not a $0 placeholder. Expenses themselves are still unbuilt. */}
+                not a $0 placeholder.
+
+                REAL NOW, and it means one precise thing: what the business
+                still owes its people. Pending plus approved-but-unpaid;
+                already-reimbursed and declined claims are not owed. The
+                sub-line counts only what nobody has decided yet, because that
+                is the part that needs a person. */}
             {financials && (
-              <div className="stat exp">
+              <Link href="/dashboard/timepay/expenses" className="stat exp">
                 <span className="si"><Icon name="receipt" size={18} /></span>
                 <div className="stk">
-                  <div className="sv">$0</div>
+                  <div className="sv">{money0(expenses.owed)}</div>
                   <div className="sl">Expenses</div>
-                  <div className="ss">To review</div>
+                  <div className="ss">
+                    {expenses.pending > 0 ? `${expenses.pending} to review` : "Nothing to review"}
+                  </div>
                 </div>
-              </div>
+              </Link>
             )}
           </div>
 

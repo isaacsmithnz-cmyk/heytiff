@@ -2,9 +2,10 @@
 
    Three tiers, and this file pins all three:
 
-     intrinsic     a licence scan, work-rights evidence, your own photo — they
-                   are about YOU, so anybody signed in may upload them
-     management    everything else, `team` — a notice attachment, a receipt
+     intrinsic     a licence scan, work-rights evidence, your own photo — and
+                   your own RECEIPT. They are about YOU, so anybody signed in
+                   may upload them.
+     management    everything else, `team` — a notice attachment
      owner-only    org_logo, and only org_logo: it is the company's face, on the
                    sidebar of everyone who signs in, and a delegated admin
                    manages people rather than the company's identity
@@ -96,11 +97,20 @@ describe("every other kind is unchanged", () => {
     }
   });
 
+  /* A receipt used to fall through to `team`, which would have locked every
+     staff member out of the expense claim they are the entire point of.
+     Spending your own money on the job and wanting it back is not a
+     privilege. */
+  it("lets any signed-in member upload their own receipt", async () => {
+    dbRole = "staff";
+    capTeam = false;
+    expect((await beginUpload({ kind: "receipt", ...png })).ok).toBe(true);
+  });
+
   it("keeps everything else on `team`", async () => {
     dbRole = "admin";
     capTeam = true;
     expect((await beginUpload({ kind: "notice_attachment", ...png })).ok).toBe(true);
-    expect((await beginUpload({ kind: "receipt", ...png })).ok).toBe(true);
 
     capTeam = false;
     dbRole = "staff";

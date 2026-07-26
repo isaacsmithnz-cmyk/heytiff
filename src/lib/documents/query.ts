@@ -9,7 +9,9 @@ import { asDocumentKind, isImage, type DocumentKind } from "./files";
 export const DOCUMENTS_BUCKET = "documents";
 
 /** How long a rendered link lives. One page view, comfortably. */
-const SIGNED_URL_SECONDS = 3600;
+/** Exported for lib/expenses, which signs a page of receipts in one round trip
+    and must expire them on the same clock as every other private file. */
+export const SIGNED_URL_SECONDS = 3600;
 
 export type StoredDocument = {
   id: string;

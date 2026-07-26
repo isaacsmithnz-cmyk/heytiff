@@ -1,0 +1,184 @@
+import {
+  buildClaim,
+  canTransition,
+  isCancellable,
+  isOpen,
+  MAX_CLAIM,
+  owedTotal,
+  pendingCount,
+  type ExpenseStatus,
+} from "../claim";
+
+const TODAY = "2026-07-26";
+
+const input = (over: Partial<Parameters<typeof buildClaim>[0]> = {}) => ({
+  expenseDate: "2026-07-20",
+  description: "Copper fittings",
+  category: "materials",
+  amount: 84.5,
+  ...over,
+});
+
+describe("buildClaim", () => {
+  it("builds a clean row", () => {
+    const out = buildClaim(input({ gstAmount: 7.68, supplier: "Reece" }), TODAY);
+    expect(out).toEqual({
+      row: {
+        expense_date: "2026-07-20",
+        description: "Copper fittings",
+        category: "materials",
+        amount: 84.5,
+        gst_amount: 7.68,
+        supplier: "Reece",
+      },
+    });
+  });
+
+  it("rounds money to cents rather than storing float noise", () => {
+    const out = buildClaim(input({ amount: 10.1 + 20.2 }), TODAY);
+    expect("row" in out && out.row.amount).toBe(30.3);
+  });
+
+  it("insists on a description and a category", () => {
+    expect(buildClaim(input({ description: "   " }), TODAY)).toEqual({
+      error: "Say what the expense was for.",
+    });
+    expect(buildClaim(input({ category: "beer" }), TODAY)).toEqual({ error: "Pick a category." });
+  });
+
+  it("insists on a real amount", () => {
+    expect(buildClaim(input({ amount: 0 }), TODAY)).toMatchObject({ error: expect.any(String) });
+    expect(buildClaim(input({ amount: -5 }), TODAY)).toMatchObject({ error: expect.any(String) });
+    expect(buildClaim(input({ amount: Number.NaN }), TODAY)).toMatchObject({ error: expect.any(String) });
+  });
+
+  /* Not a spending policy — a guard against a missing decimal point reaching
+     an approver as though it were real. */
+  it("refuses an amount larger than a claim can plausibly be", () => {
+    expect(buildClaim(input({ amount: MAX_CLAIM + 1 }), TODAY)).toMatchObject({
+      error: expect.stringContaining("check the amount"),
+    });
+  });
+
+  it("refuses a future date and a mistyped year", () => {
+    expect(buildClaim(input({ expenseDate: "2026-07-27" }), TODAY)).toEqual({
+      error: "That date is in the future.",
+    });
+    expect(buildClaim(input({ expenseDate: "2019-07-20" }), TODAY)).toEqual({
+      error: "That receipt is too old to claim.",
+    });
+    expect(buildClaim(input({ expenseDate: "not a date" }), TODAY)).toMatchObject({
+      error: expect.any(String),
+    });
+  });
+
+  it("accepts today itself", () => {
+    expect(buildClaim(input({ expenseDate: TODAY }), TODAY)).toHaveProperty("row");
+  });
+
+  /* GST above the total is arithmetically impossible and always a scan
+     mis-read. Storing it would put a wrong figure on a BAS later. */
+  it("refuses GST larger than the total", () => {
+    expect(buildClaim(input({ amount: 50, gstAmount: 60 }), TODAY)).toEqual({
+      error: "GST can't be more than the total.",
+    });
+  });
+
+  it("treats no GST as null rather than zero", () => {
+    // plenty of small receipts show no GST line, and guessing one-eleventh
+    // would be inventing a tax figure
+    expect(buildClaim(input({ gstAmount: 0 }), TODAY)).toMatchObject({ row: { gst_amount: null } });
+    expect(buildClaim(input({ gstAmount: null }), TODAY)).toMatchObject({ row: { gst_amount: null } });
+    expect(buildClaim(input(), TODAY)).toMatchObject({ row: { gst_amount: null } });
+  });
+
+  it("trims and caps free text", () => {
+    const out = buildClaim(input({ description: `  ${"x".repeat(300)}  `, supplier: "  Reece  " }), TODAY);
+    expect(out).toMatchObject({ error: expect.stringContaining("under 200 characters") });
+
+    const ok = buildClaim(input({ supplier: "  Reece  " }), TODAY);
+    expect("row" in ok && ok.row.supplier).toBe("Reece");
+  });
+
+  it("turns a blank supplier into null", () => {
+    expect(buildClaim(input({ supplier: "   " }), TODAY)).toMatchObject({ row: { supplier: null } });
+  });
+});
+
+describe("canTransition", () => {
+  it("lets a pending claim be decided or withdrawn", () => {
+    expect(canTransition("pending", "approved")).toBe(true);
+    expect(canTransition("pending", "declined")).toBe(true);
+    expect(canTransition("pending", "cancelled")).toBe(true);
+  });
+
+  it("lets an approved claim be paid", () => {
+    expect(canTransition("approved", "reimbursed")).toBe(true);
+  });
+
+  /* Paying twice is real money leaving the business twice. */
+  it("refuses to pay a claim that is already paid", () => {
+    expect(canTransition("reimbursed", "reimbursed")).toBe(false);
+  });
+
+  it("refuses to pay a claim nobody approved", () => {
+    expect(canTransition("pending", "reimbursed")).toBe(false);
+    expect(canTransition("declined", "reimbursed")).toBe(false);
+  });
+
+  it("never revives a decided claim", () => {
+    for (const from of ["declined", "cancelled", "reimbursed"] as ExpenseStatus[]) {
+      for (const to of ["approved", "pending", "declined"] as ExpenseStatus[]) {
+        expect(canTransition(from, to)).toBe(false);
+      }
+    }
+  });
+
+  /* Withdrawing something already signed off is a conversation, not a button. */
+  it("won't let an approved claim be cancelled", () => {
+    expect(canTransition("approved", "cancelled")).toBe(false);
+  });
+});
+
+describe("isCancellable / isOpen", () => {
+  it("only lets the claimant withdraw before anyone decides", () => {
+    expect(isCancellable("pending")).toBe(true);
+    for (const s of ["approved", "declined", "reimbursed", "cancelled"] as ExpenseStatus[]) {
+      expect(isCancellable(s)).toBe(false);
+    }
+  });
+
+  it("counts a claim as open until it is paid or refused", () => {
+    expect(isOpen("pending")).toBe(true);
+    expect(isOpen("approved")).toBe(true);
+    for (const s of ["declined", "reimbursed", "cancelled"] as ExpenseStatus[]) {
+      expect(isOpen(s)).toBe(false);
+    }
+  });
+});
+
+describe("owedTotal", () => {
+  const claims = [
+    { status: "pending" as const, amount: 84.5 },
+    { status: "approved" as const, amount: 120.25 },
+    { status: "reimbursed" as const, amount: 500 },
+    { status: "declined" as const, amount: 90 },
+    { status: "cancelled" as const, amount: 12 },
+  ];
+
+  /* The Time & Pay tile shows this, so it has to mean something precise:
+     money the business still owes its people. Already-paid and refused claims
+     are not owed. */
+  it("is what's still owed — pending plus approved, nothing else", () => {
+    expect(owedTotal(claims)).toBe(204.75);
+  });
+
+  it("is zero with nothing outstanding", () => {
+    expect(owedTotal([])).toBe(0);
+    expect(owedTotal([{ status: "reimbursed", amount: 500 }])).toBe(0);
+  });
+
+  it("counts only what someone is still waiting on a decision for", () => {
+    expect(pendingCount(claims)).toBe(1);
+  });
+});

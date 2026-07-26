@@ -6,8 +6,11 @@ import { preValidate } from "@/lib/staff/pre-validate";
 import { SectionCard } from "./section-card";
 import { Field, FactRow, InfoTip, MoneyInput, PctInput, SelectInput, TextInput } from "./fields";
 import type { PayFields, SaveSection } from "./types";
+import { EMPLOYMENT_TYPES } from "@/lib/staff/employment";
 
-const EMPLOYMENT = ["Full-time", "Part-time", "Casual", "Apprentice", "Subcontractor"] as const;
+/* the one list, shared with the Rate Calculator and Time & Pay — a label
+   added here has to classify there too */
+const EMPLOYMENT = EMPLOYMENT_TYPES;
 
 const SPLIT_KEYS = ["cost_install", "cost_service", "cost_admin"] as const;
 const SPLIT_META = [

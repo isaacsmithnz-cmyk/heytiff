@@ -2,26 +2,49 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MyTimesheet } from "../my-timesheet";
 import type { PayPeriod } from "../timepay";
-import { DEFAULT_SETTINGS, type DayEntry, type Settings, type StaffWeek, type WeekDay } from "../logic";
+import {
+  DEFAULT_SETTINGS,
+  type DayEntry,
+  type DaySource,
+  type Settings,
+  type StaffWeek,
+  type WeekDay,
+} from "../logic";
 import type { SheetState } from "@/lib/timepay/query";
 
 const saveDay = jest.fn(async () => ({ ok: true as const }));
+const saveMyHours = jest.fn(async () => ({ ok: true as const }));
 const submitWeek = jest.fn(async () => ({ ok: true as const }));
+const markUnavailable = jest.fn(async () => ({ ok: true as const }));
+const clearUnavailable = jest.fn(async () => ({ ok: true as const }));
 const push = jest.fn();
 const refresh = jest.fn();
 
 jest.mock("@/app/actions/timepay", () => ({
   saveDay: (...a: unknown[]) => saveDay(...(a as [])),
+  saveMyHours: (...a: unknown[]) => saveMyHours(...(a as [])),
   submitWeek: (...a: unknown[]) => submitWeek(...(a as [])),
+  markUnavailable: (...a: unknown[]) => markUnavailable(...(a as [])),
+  clearUnavailable: (...a: unknown[]) => clearUnavailable(...(a as [])),
 }));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push, refresh }) }));
 
-/* My timesheet — the original staff design's mechanics in the current theme.
+/* My timesheet — one strip of day tabs, and a clock you scroll.
 
-   The load-bearing assertion in this file is that a worked day HAS NO HOURS
-   INPUT. Hours are what the times mean, and the screen derives them: that is
-   the whole reason for the rebuild, because the old two-fields-plus-a-number
-   editor could save a day with both times set and 0.00 hours.
+   THE THREE LOAD-BEARING ASSERTIONS in this file:
+
+   1. THE DAYS ARE DRAWN ONCE. There is a row of day tabs and nothing else —
+      no second vertical list of the same seven days. Clicking a tab opens
+      that day, and only that day, in the panel below.
+
+   2. NO TIME CAN BE TYPED. There is no text input on this screen at all. A
+      start and a finish are chosen from wheels of real times, so the old
+      "we can't read that" state has no way to occur.
+
+   3. AN ORDINARY WEEK NEEDS NO INPUT. The days arrive already presumed —
+      normal hours on a past weekday, a public holiday or booked leave where
+      the business already knows better — and the screen says which is which
+      rather than pretending the person logged it.
 
    The standing money check is here too: not a rate, not a gross, not a dollar
    sign — multipliers and hours only. */
@@ -49,14 +72,31 @@ const w8 = W("7:00 AM", "3:00 PM", 8);
 const w11 = W("7:00 AM", "6:00 PM", 11);
 const EM: DayEntry = { t: "empty" };
 
+/* The week as the SERVER hands it over: already presumed. Mon and Tue are
+   ordinary days nobody entered, Wed is a real 11-hour day the person logged,
+   Thu came from the leave module, Fri hasn't happened yet, and the weekend is
+   untouched. `sources` is what makes those four different things legible. */
+const DAYS: DayEntry[] = [w8, w8, w11, { t: "sick", h: 8 }, EM, EM, EM];
+const SOURCES: DaySource[] = [
+  "presumed",
+  "presumed",
+  "entered",
+  "leave",
+  "expected",
+  "none",
+  "none",
+];
+
 /* No rate — the query stopped selecting one. */
 const ME: StaffWeek = {
   id: "me",
   name: "Isaac Smith",
   role: "Installer",
   rate: null,
-  days: [w8, w8, w11, { t: "sick", h: 8 }, EM, EM, EM],
+  days: DAYS,
 };
+
+const NORMAL = { start: "7:00 AM", end: "3:00 PM" };
 
 const SHEET = (over: Partial<SheetState> = {}): SheetState => ({
   status: "draft",
@@ -76,6 +116,13 @@ function renderSheet(over: Partial<React.ComponentProps<typeof MyTimesheet>> = {
   return render(
     <MyTimesheet
       me={ME}
+      sources={SOURCES}
+      normal={NORMAL}
+      ownNormal={false}
+      workDays={[0, 1, 2, 3, 4]}
+      ownWorkDays={false}
+      employment="permanent"
+      unavailable={[]}
       week={WEEK}
       today={4}
       todayISO="2026-07-03"
@@ -91,14 +138,37 @@ function renderSheet(over: Partial<React.ComponentProps<typeof MyTimesheet>> = {
   );
 }
 
-/** The day-chip strip's button for a day ("MON 29"). */
-const chip = (name: string) => screen.getByRole("button", { name });
-/** The day row's header button ("Mon 29 Jun"). */
-const row = (name: string) => screen.getByRole("button", { name });
+/** A day tab, by the label it announces ("Mon 29 Jun — Normal"). */
+const tab = (name: RegExp) => screen.getByRole("tab", { name });
+/** The open day, as its own scope — the rail has wheels of its own. */
+const panel = () => screen.getByRole("tabpanel");
+/** Pick a value on a wheel inside the given scope (the day panel by default). */
+const spin = async (
+  user: ReturnType<typeof userEvent.setup>,
+  wheel: "Start" | "Finish",
+  column: "Hour" | "Minute" | "AM/PM",
+  option: string,
+  scope: HTMLElement = panel(),
+) => {
+  const group = within(scope).getByRole("group", { name: wheel });
+  const list = within(group).getByRole("listbox", { name: column });
+  await user.click(within(list).getByRole("option", { name: option }));
+};
 
 beforeEach(() => {
-  [saveDay, submitWeek, push, refresh].forEach((m) => m.mockClear());
+  [saveDay, saveMyHours, submitWeek, markUnavailable, clearUnavailable, push, refresh].forEach(
+    (m) => m.mockClear(),
+  );
 });
+
+/* A casual's week as the server hands it over: NOTHING presumed, and an empty
+   working pattern, which is what stops any of it reading as missing. */
+const CASUAL = {
+  employment: "casual" as const,
+  workDays: [] as number[],
+  me: { ...ME, days: [w8, EM, EM, EM, EM, EM, EM] as DayEntry[] },
+  sources: ["entered", "none", "none", "none", "none", "none", "none"] as DaySource[],
+};
 
 describe("the period header", () => {
   it("keeps the period nav, the LIVE pill and the status chip", () => {
@@ -128,118 +198,156 @@ describe("the period header", () => {
   });
 });
 
-describe("the day-chip strip", () => {
-  it("is seven days, with a completion dot only where something is logged", () => {
+describe("the week is ONE strip of day tabs", () => {
+  it("draws each day exactly once — there is no second list underneath", () => {
     const { container } = renderSheet();
-    const chips = container.querySelectorAll(".mts2-chip");
-    expect(chips).toHaveLength(7);
-    // Mon, Tue, Wed worked + Thu sick = four days with an entry
-    expect(container.querySelectorAll(".mts2-chip.done")).toHaveLength(4);
-    // and the empty Friday is not one of them
-    expect(chips[4].className).not.toContain("done");
+    expect(container.querySelectorAll(".mts2-tab")).toHaveLength(7);
+    // the vertical row stack this screen used to also render is gone
+    expect(container.querySelectorAll(".mts2-row")).toHaveLength(0);
+    expect(container.querySelectorAll(".mts2-rows")).toHaveLength(0);
   });
 
-  it("rings today with ink and marks the weekend as quieter", () => {
+  it("colours every tab by the state of its day", () => {
     const { container } = renderSheet();
-    const chips = container.querySelectorAll(".mts2-chip");
-    expect(chips[4].className).toContain("today");
-    expect(chips[5].className).toContain("wknd");
-    expect(chips[6].className).toContain("wknd");
-    expect(chips[0].className).not.toContain("wknd");
+    const tabs = [...container.querySelectorAll(".mts2-tab")].map((t) => t.className);
+    expect(tabs[0]).toContain("std"); // presumed normal day
+    expect(tabs[2]).toContain("over"); // the 11-hour Wednesday
+    expect(tabs[3]).toContain("sick"); // booked leave
+    expect(tabs[5]).toContain("offroster"); // Saturday, nobody's normal day
+    expect(tabs[6]).toContain("offroster");
+    expect(tabs[0]).not.toContain("offroster");
   });
 
-  it("clicking a chip expands that day's row — the same selection as the row", async () => {
+  it("marks today, and dims a day that hasn't happened yet", () => {
+    const { container } = renderSheet();
+    const tabs = [...container.querySelectorAll(".mts2-tab")].map((t) => t.className);
+    expect(tabs[4]).toContain("today");
+    expect(tabs[4]).toContain("ahead"); // today isn't marked worked until it's over
+    expect(tabs[0]).not.toContain("ahead");
+  });
+
+  it("opens on today, so the day you came here about is already showing", () => {
+    const { container } = renderSheet();
+    expect(container.querySelectorAll(".mts2-tab.on")).toHaveLength(1);
+    expect((container.querySelectorAll(".mts2-tab")[4] as HTMLElement).className).toContain("on");
+    expect(screen.getByRole("tabpanel")).toBeInTheDocument();
+  });
+
+  it("clicking a tab switches the panel to that day — one panel, always", async () => {
     const user = userEvent.setup();
     const { container } = renderSheet();
-    expect(container.querySelector(".mts2-edit")).toBeNull();
+    await user.click(tab(/Mon 29 Jun/));
+    expect(container.querySelectorAll(".mts2-panel")).toHaveLength(1);
+    expect(container.querySelectorAll(".mts2-tab.on")).toHaveLength(1);
+    expect(screen.getByText("Mon 29 Jun")).toBeInTheDocument();
 
-    await user.click(chip("MON 29"));
-    expect(container.querySelectorAll(".mts2-edit")).toHaveLength(1);
-    expect(container.querySelectorAll(".mts2-row.open")).toHaveLength(1);
-    expect(screen.getByLabelText("Start")).toHaveValue("7:00 AM");
-  });
-});
-
-describe("the day rows", () => {
-  it("is one row per weekday, and no weekend rows until you ask", () => {
-    const { container } = renderSheet();
-    // Mon–Fri only: the empty Saturday and Sunday are offers, not rows
-    expect(container.querySelectorAll(".mts2-row")).toHaveLength(5);
-    expect(screen.queryByRole("button", { name: "Sat 4 Jul" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Add Saturday" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Add Sunday" })).toBeInTheDocument();
+    await user.click(tab(/Wed 1 Jul/));
+    expect(container.querySelectorAll(".mts2-panel")).toHaveLength(1);
+    expect(screen.getByText("Wed 1 Jul")).toBeInTheDocument();
+    expect(screen.queryByText("Mon 29 Jun")).toBeNull();
   });
 
-  it("a worked weekend day is a row already — the offer is only for empty ones", () => {
-    const { container } = renderSheet({
-      me: { ...ME, days: [w8, w8, w11, { t: "sick", h: 8 }, EM, w8, EM] },
-    });
-    expect(container.querySelectorAll(".mts2-row")).toHaveLength(6);
-    expect(screen.getByRole("button", { name: "Sat 4 Jul" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Add Saturday" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Add Sunday" })).toBeInTheDocument();
-  });
-
-  it("Add Saturday materialises the row, already open", async () => {
-    const user = userEvent.setup();
-    const { container } = renderSheet();
-    await user.click(screen.getByRole("button", { name: "Add Saturday" }));
-    expect(container.querySelectorAll(".mts2-row")).toHaveLength(6);
-    expect(screen.getByRole("button", { name: "Sat 4 Jul" })).toBeInTheDocument();
-    expect(container.querySelectorAll(".mts2-edit")).toHaveLength(1);
-  });
-
-  it("names the kind and summarises the day on the right", () => {
-    const { container } = renderSheet();
-    const rows = container.querySelectorAll(".mts2-row");
-    expect(within(rows[0] as HTMLElement).getByText("Normal")).toBeInTheDocument();
-    expect(within(rows[0] as HTMLElement).getByText("7:00 AM – 3:00 PM · 8h")).toBeInTheDocument();
-    expect(within(rows[2] as HTMLElement).getByText("Overtime day")).toBeInTheDocument();
-    expect(within(rows[3] as HTMLElement).getByText("Sick")).toBeInTheDocument();
-    // Friday is a past weekday with nothing on it — the one pill that's a to-do
-    expect(within(rows[4] as HTMLElement).getByText("Missing")).toBeInTheDocument();
-    expect((rows[0] as HTMLElement).className).toContain("has");
-    expect((rows[4] as HTMLElement).className).not.toContain("has");
-  });
-
-  it("opening a second row closes the first", async () => {
-    const user = userEvent.setup();
-    const { container } = renderSheet();
-    await user.click(row("Mon 29 Jun"));
-    await user.click(row("Wed 1 Jul"));
-    expect(container.querySelectorAll(".mts2-edit")).toHaveLength(1);
-    expect(screen.getByLabelText("Finish")).toHaveValue("6:00 PM");
-  });
-});
-
-describe("hours are derived, never typed", () => {
-  it("a worked day has no hours input at all — the times are the entry", async () => {
+  it("a weekend is clickable straight from the strip — no separate offer", async () => {
     const user = userEvent.setup();
     renderSheet();
-    await user.click(row("Mon 29 Jun"));
-    expect(screen.getByLabelText("Start")).toBeInTheDocument();
-    expect(screen.getByLabelText("Finish")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add Saturday" })).toBeNull();
+    await user.click(tab(/Sat 4 Jul/));
+    expect(screen.getByText("Sat 4 Jul")).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Start" })).toBeInTheDocument();
+  });
+
+  it("legends the colours, so a week's shape can be read without opening it", () => {
+    const { container } = renderSheet();
+    const legend = container.querySelector(".mts2-legend") as HTMLElement;
+    ["Normal", "Overtime", "Short", "Leave", "Sick", "Public holiday", "Not worked"].forEach((l) =>
+      expect(within(legend).getByText(l)).toBeInTheDocument(),
+    );
+  });
+});
+
+describe("a normal week takes no input", () => {
+  it("says a presumed day was filled in, not logged", async () => {
+    const user = userEvent.setup();
+    const { container } = renderSheet();
+    await user.click(tab(/Mon 29 Jun/));
+    expect(container.querySelector(".mts2-esrc")?.textContent).toContain("Your normal day");
+    // and it is already showing the normal hours, ready to submit untouched
+    expect(container.querySelector(".mts2-derv")?.textContent).toContain("7:00 AM – 3:00 PM");
+    expect(container.querySelector(".mts2-derv")?.textContent).toContain("8h");
+  });
+
+  it("a day still ahead of itself says it isn't marked yet", async () => {
+    const user = userEvent.setup();
+    const { container } = renderSheet();
+    await user.click(tab(/Fri 3 Jul/));
+    expect(container.querySelector(".mts2-esrc")?.textContent).toContain(
+      "marked as worked once the day is over",
+    );
+  });
+
+  it("booked leave is READ ONLY here — it belongs to the leave module", async () => {
+    const user = userEvent.setup();
+    renderSheet();
+    await user.click(tab(/Thu 2 Jul/));
+    expect(screen.getByText("Sick leave — 8h")).toBeInTheDocument();
+    expect(screen.getByText(/came from your leave/)).toBeInTheDocument();
+    // nothing to edit, and nothing to save over the booking
+    expect(screen.queryByText("Save day")).toBeNull();
+    expect(screen.queryByRole("group", { name: "Start" })).toBeNull();
+  });
+
+  it("a public holiday is read only too, and names itself", async () => {
+    const user = userEvent.setup();
+    renderSheet({
+      me: { ...ME, days: [w8, w8, { t: "ph", h: 8 }, { t: "sick", h: 8 }, EM, EM, EM] },
+      sources: ["presumed", "presumed", "holiday", "leave", "expected", "none", "none"],
+      holidays: [{ date: "2026-07-01", name: "Territory Day" }],
+    });
+    await user.click(tab(/Wed 1 Jul/));
+    expect(screen.getAllByText("Territory Day").length).toBeGreaterThan(0);
+    expect(screen.getByText(/business is closed/)).toBeInTheDocument();
+    expect(screen.queryByText("Save day")).toBeNull();
+  });
+
+  it("cannot declare leave from the timesheet — that would be a second place to book it", async () => {
+    const user = userEvent.setup();
+    renderSheet();
+    await user.click(tab(/Mon 29 Jun/));
+    // scoped to the open day: the legend names every state, but the EDITOR
+    // offers only the two a person is entitled to assert
+    const p = panel();
+    expect(within(p).queryByText("Annual leave")).toBeNull();
+    expect(within(p).queryByText("Public holiday")).toBeNull();
+    expect(within(p).getByText("Worked")).toBeInTheDocument();
+    expect(within(p).getByText("Didn't work")).toBeInTheDocument();
+  });
+});
+
+describe("a time is scrolled, never typed", () => {
+  it("has no text input anywhere on the screen", async () => {
+    const user = userEvent.setup();
+    const { container } = renderSheet();
+    await user.click(tab(/Mon 29 Jun/));
+    expect(container.querySelectorAll("input")).toHaveLength(0);
+    expect(container.querySelectorAll("textarea")).toHaveLength(0);
+    // and no hours box either — hours are still what the times mean
     expect(screen.queryByLabelText("Hours")).toBeNull();
   });
 
-  it("shows what the times mean, live, as you retype them", async () => {
+  it("offers only real times, and re-derives the hours as you spin", async () => {
     const user = userEvent.setup();
     const { container } = renderSheet();
-    await user.click(row("Mon 29 Jun"));
-    expect(container.querySelector(".mts2-derv")?.textContent).toContain("7:00 AM – 3:00 PM");
-    expect(container.querySelector(".mts2-derv")?.textContent).toContain("8h");
-
-    await user.clear(screen.getByLabelText("Finish"));
-    await user.type(screen.getByLabelText("Finish"), "5:30 PM");
-    expect(container.querySelector(".mts2-derv")?.textContent).toContain("10.5h");
+    await user.click(tab(/Mon 29 Jun/));
+    await spin(user, "Finish", "Hour", "4");
+    expect(container.querySelector(".mts2-derv")?.textContent).toContain("4:00 PM");
+    expect(container.querySelector(".mts2-derv")?.textContent).toContain("9h");
   });
 
   it("sends the DERIVED hours in the same {t,in,out,h} payload", async () => {
     const user = userEvent.setup();
     renderSheet();
-    await user.click(row("Mon 29 Jun"));
-    await user.clear(screen.getByLabelText("Finish"));
-    await user.type(screen.getByLabelText("Finish"), "4:00 PM");
+    await user.click(tab(/Mon 29 Jun/));
+    await spin(user, "Finish", "Hour", "4");
     await user.click(screen.getByText("Save day"));
     expect(saveDay).toHaveBeenCalledWith("2026-06-29", 0, {
       t: "work",
@@ -249,50 +357,202 @@ describe("hours are derived, never typed", () => {
     });
   });
 
-  it("refuses to save times it can't read, rather than writing a zero", async () => {
-    const user = userEvent.setup();
-    const { container } = renderSheet();
-    await user.click(row("Mon 29 Jun"));
-    await user.clear(screen.getByLabelText("Finish"));
-    await user.type(screen.getByLabelText("Finish"), "half four");
-    expect(container.querySelector(".mts2-derv")?.className).toContain("bad");
-    expect(screen.getByText("Save day").closest("button")).toBeDisabled();
-    await user.click(screen.getByText("Save day"));
-    expect(saveDay).not.toHaveBeenCalled();
-  });
-
-  it("Clear day writes the empty entry — the action that deletes the row", async () => {
+  it("Save is never disabled, because a wheel can't produce a bad time", async () => {
     const user = userEvent.setup();
     renderSheet();
-    await user.click(row("Wed 1 Jul"));
-    await user.click(screen.getByText("Clear day"));
+    await user.click(tab(/Mon 29 Jun/));
+    await spin(user, "Finish", "Minute", "45");
+    await spin(user, "Start", "AM/PM", "PM");
+    expect(screen.getByText("Save day").closest("button")).not.toBeDisabled();
+  });
+
+  it("minutes move in fives — the granularity a timesheet is actually kept to", async () => {
+    const user = userEvent.setup();
+    renderSheet();
+    await user.click(tab(/Mon 29 Jun/));
+    const group = screen.getByRole("group", { name: "Start" });
+    const minutes = within(group).getByRole("listbox", { name: "Minute" });
+    const options = within(minutes).getAllByRole("option");
+    expect(options).toHaveLength(12);
+    expect(options.map((o) => o.textContent)).toContain("35");
+    expect(options.map((o) => o.textContent)).not.toContain("37");
+  });
+});
+
+describe("a day that was different", () => {
+  it("a short day saves its real hours and warns it will be looked at", async () => {
+    const user = userEvent.setup();
+    const { container } = renderSheet();
+    await user.click(tab(/Mon 29 Jun/));
+    await spin(user, "Finish", "Hour", "11");
+    await spin(user, "Finish", "AM/PM", "AM");
+    expect(container.querySelector(".mts2-derv")?.className).toContain("short");
+    expect(container.querySelector(".mts2-derv")?.textContent).toContain("4h");
+    await user.click(screen.getByText("Save day"));
+    expect(saveDay).toHaveBeenCalledWith("2026-06-29", 0, {
+      t: "work",
+      in: "7:00 AM",
+      out: "11:00 AM",
+      h: 4,
+    });
+  });
+
+  it("'Didn't work' saves a day off, and points at leave for a paid one", async () => {
+    const user = userEvent.setup();
+    renderSheet();
+    await user.click(tab(/Mon 29 Jun/));
+    await user.click(screen.getByText("Didn't work"));
+    expect(screen.getByText(/book it in/)).toBeInTheDocument();
+    await user.click(screen.getByText("Save day"));
+    expect(saveDay).toHaveBeenCalledWith("2026-06-29", 0, { t: "off" });
+  });
+
+  it("an entered day can go back to normal, which clears the row", async () => {
+    const user = userEvent.setup();
+    renderSheet();
+    await user.click(tab(/Wed 1 Jul/));
+    await user.click(screen.getByText("Back to normal"));
     expect(saveDay).toHaveBeenCalledWith("2026-06-29", 2, { t: "empty" });
   });
 
-  it("Cancel closes the editor and writes nothing", async () => {
-    const user = userEvent.setup();
-    const { container } = renderSheet();
-    await user.click(row("Mon 29 Jun"));
-    await user.click(screen.getByText("Cancel"));
-    expect(container.querySelector(".mts2-edit")).toBeNull();
-    expect(saveDay).not.toHaveBeenCalled();
-  });
-
-  it("an absence still takes hours directly, seeded with the standard day", async () => {
+  it("a presumed day has nothing to clear — it was never a row", async () => {
     const user = userEvent.setup();
     renderSheet();
-    await user.click(row("Fri 3 Jul"));
-    await user.selectOptions(screen.getByLabelText("Day"), "leave");
-    expect(screen.getByLabelText("Hours")).toHaveValue(8);
-    await user.click(screen.getByText("Save day"));
-    expect(saveDay).toHaveBeenCalledWith("2026-06-29", 4, { t: "leave", h: 8 });
+    await user.click(tab(/Mon 29 Jun/));
+    expect(screen.queryByText("Back to normal")).toBeNull();
+  });
+});
+
+/* Employment type decides whether a person has a normal week at all. The class
+   comes from staff_profiles.employment_type through the shared classifier —
+   this screen never string-matches a label. */
+describe("a casual", () => {
+  it("gets no day filled in, and none of them read as missing", () => {
+    const { container } = renderSheet(CASUAL);
+    const tabs = [...container.querySelectorAll(".mts2-tab")].map((t) => t.className);
+    // Tue–Fri are past weekdays with nothing on them. For a permanent that is
+    // four "Missing" days; for a casual it is four days they weren't rostered.
+    expect(tabs.filter((c) => c.includes("miss"))).toHaveLength(0);
+    expect(tabs[1]).toContain("offroster");
+    expect(tabs[4]).toContain("offroster");
+    // the day they DID work is still theirs
+    expect(tabs[0]).toContain("std");
   });
 
-  it("names the public holiday on a day that is one", async () => {
+  it("says its week is entered by hand, not filled in", () => {
+    const { container } = renderSheet(CASUAL);
+    expect(screen.getByText(/Nothing is filled in for you/)).toBeInTheDocument();
+    expect(container.querySelector(".mts2-rules")?.textContent).toContain(
+      "every day entered by hand",
+    );
+  });
+
+  it("is never told a short day is short — they were rostered for what they did", async () => {
     const user = userEvent.setup();
-    const { container } = renderSheet({ holidays: [{ date: "2026-07-01", name: "Territory Day" }] });
-    await user.click(row("Wed 1 Jul"));
-    expect(container.querySelector(".mts2-ehol")?.textContent).toContain("Territory Day");
+    const { container } = renderSheet(CASUAL);
+    await user.click(tab(/Tue 30 Jun/));
+    await spin(user, "Finish", "Hour", "11");
+    await spin(user, "Finish", "AM/PM", "AM");
+    expect(container.querySelector(".mts2-derv")?.className).not.toContain("short");
+  });
+
+  it("has no normal week to set, and marks when it can't work instead", () => {
+    renderSheet(CASUAL);
+    expect(screen.queryByText("My normal week")).toBeNull();
+    expect(screen.getByText("When I can’t work")).toBeInTheDocument();
+    expect(screen.getByText("Nothing marked. You’re available.")).toBeInTheDocument();
+  });
+
+  it("marking a block is a declaration — it says outright that nobody approves it", async () => {
+    const user = userEvent.setup();
+    renderSheet(CASUAL);
+    expect(screen.getByText(/Nobody approves this/)).toBeInTheDocument();
+    await user.click(screen.getByText("Mark days I can’t work"));
+    expect(screen.getByText("Mark unavailable")).toBeInTheDocument();
+    /* It SAYS nobody approves it, and it offers no approval machinery to match:
+       nothing to submit for review, no request to withdraw, no status to sit
+       in. A declaration that shipped with an approve step would be a request
+       wearing different words. */
+    const card = screen.getByText("When I can’t work").closest(".mts2-card") as HTMLElement;
+    const buttons = within(card).getAllByRole("button").map((b) => b.textContent ?? "");
+    expect(buttons.some((t) => /submit|request|withdraw|approve/i.test(t))).toBe(false);
+    expect(within(card).queryByText(/pending|awaiting/i)).toBeNull();
+  });
+
+  it("lists a block it already has, and can take it back down", async () => {
+    const user = userEvent.setup();
+    renderSheet({
+      ...CASUAL,
+      unavailable: [{ id: "b1", staffId: "me", from: "2026-07-20", to: "2026-07-24", note: "away" }],
+    });
+    expect(screen.getByText("20 – 24 Jul")).toBeInTheDocument();
+    expect(screen.getByText("away")).toBeInTheDocument();
+    await user.click(screen.getByLabelText("Remove 20 – 24 Jul"));
+    expect(clearUnavailable).toHaveBeenCalledWith("b1");
+  });
+
+  it("drops a block that has run out — it says nothing about availability now", () => {
+    renderSheet({
+      ...CASUAL,
+      unavailable: [{ id: "old", staffId: "me", from: "2026-06-01", to: "2026-06-02" }],
+    });
+    expect(screen.getByText("Nothing marked. You’re available.")).toBeInTheDocument();
+  });
+});
+
+describe("a part-timer", () => {
+  it("has their non-working weekday greyed, not presumed and not missing", () => {
+    const { container } = renderSheet({
+      workDays: [0, 1, 3], // Mon, Tue, Thu
+      me: { ...ME, days: [w8, w8, EM, w8, EM, EM, EM] },
+      sources: ["presumed", "presumed", "none", "presumed", "none", "none", "none"],
+    });
+    const tabs = [...container.querySelectorAll(".mts2-tab")].map((t) => t.className);
+    expect(tabs[2]).toContain("offroster"); // Wednesday
+    expect(tabs[2]).not.toContain("miss");
+    expect(tabs[0]).not.toContain("offroster");
+  });
+});
+
+describe("my normal hours", () => {
+  it("shows the workspace default \u2014 hours AND days \u2014 and says whose it is", () => {
+    renderSheet();
+    expect(screen.getByText("My normal week")).toBeInTheDocument();
+    expect(screen.getByText("7:00 AM \u2013 3:00 PM")).toBeInTheDocument();
+    expect(screen.getByText("Mon, Tue, Wed, Thu, Fri")).toBeInTheDocument();
+    expect(screen.getByText(/workspace default/)).toBeInTheDocument();
+  });
+
+  it("sets which DAYS are normal, so a part-timer isn\u2019t presumed onto their day off", async () => {
+    const user = userEvent.setup();
+    renderSheet();
+    await user.click(screen.getByText("Change my normal week"));
+    const card = screen.getByText("My normal week").closest(".mts2-card") as HTMLElement;
+    await user.click(within(card).getByLabelText("Wednesday"));
+    await user.click(within(card).getByLabelText("Friday"));
+    await user.click(within(card).getByText("Save"));
+    expect(saveMyHours).toHaveBeenCalledWith("7:00 AM", "3:00 PM", [0, 1, 3]);
+  });
+
+  it("a person sets their own with the same wheels, no typing", async () => {
+    const user = userEvent.setup();
+    const { container } = renderSheet();
+    await user.click(screen.getByText("Change my normal week"));
+    const card = screen.getByText("My normal week").closest(".mts2-card") as HTMLElement;
+    await spin(user, "Start", "Hour", "6", card);
+    await spin(user, "Start", "Minute", "30", card);
+    expect(container.querySelectorAll("input")).toHaveLength(0);
+    await user.click(within(card).getByText("Save"));
+    expect(saveMyHours).toHaveBeenCalledWith("6:30 AM", "3:00 PM", [0, 1, 2, 3, 4]);
+  });
+
+  it("an override can be handed back to the org's hours", async () => {
+    const user = userEvent.setup();
+    renderSheet({ ownNormal: true, normal: { start: "6:30 AM", end: "2:30 PM" } });
+    expect(screen.getByText(/Yours\./)).toBeInTheDocument();
+    await user.click(screen.getByText("Change my normal week"));
+    await user.click(screen.getByText("Use the default"));
+    expect(saveMyHours).toHaveBeenCalledWith(null, null, null);
   });
 });
 
@@ -300,28 +560,19 @@ describe("the break", () => {
   it("says nothing when the workspace hasn't configured one", async () => {
     const user = userEvent.setup();
     renderSheet();
-    await user.click(row("Mon 29 Jun"));
+    await user.click(tab(/Mon 29 Jun/));
     expect(screen.queryByText(/^Break:/)).toBeNull();
     expect(screen.queryByLabelText("Shorter break")).toBeNull();
   });
 
-  /** A fresh Friday, logged 7:00 AM – 3:00 PM. */
-  async function logFriday(user: ReturnType<typeof userEvent.setup>) {
-    await user.click(row("Fri 3 Jul"));
-    await user.selectOptions(screen.getByLabelText("Day"), "work");
-    await user.clear(screen.getByLabelText("Finish"));
-    await user.type(screen.getByLabelText("Finish"), "3:00 PM");
-  }
-
-  it("an unpaid break comes off the span of a new day", async () => {
+  it("an unpaid break comes off the span", async () => {
     const user = userEvent.setup();
     const { container } = renderSheet({ settings: withBreak(30, false) });
-    await logFriday(user);
+    await user.click(tab(/Sat 4 Jul/));
     expect(screen.getByText("Break: 30 min · unpaid")).toBeInTheDocument();
     expect(container.querySelector(".mts2-derv")?.textContent).toContain("7.5h");
-
     await user.click(screen.getByText("Save day"));
-    expect(saveDay).toHaveBeenCalledWith("2026-06-29", 4, {
+    expect(saveDay).toHaveBeenCalledWith("2026-06-29", 5, {
       t: "work",
       in: "7:00 AM",
       out: "3:00 PM",
@@ -332,27 +583,21 @@ describe("the break", () => {
   it("a day can deviate from the standard break", async () => {
     const user = userEvent.setup();
     const { container } = renderSheet({ settings: withBreak(30, false) });
-    await logFriday(user);
+    await user.click(tab(/Sat 4 Jul/));
     await user.click(screen.getByLabelText("Shorter break"));
     await user.click(screen.getByLabelText("Shorter break"));
     expect(screen.getByText("Break: 20 min · unpaid")).toBeInTheDocument();
     expect(container.querySelector(".mts2-derv")?.textContent).toContain("7.67h");
-    await user.click(screen.getByText("Save day"));
-    expect(saveDay).toHaveBeenCalledWith("2026-06-29", 4, {
-      t: "work",
-      in: "7:00 AM",
-      out: "3:00 PM",
-      h: 7.67,
-    });
   });
 
   it("reopening a saved day shows the break it was saved with, not the org's", async () => {
     const user = userEvent.setup();
     const { container } = renderSheet({
       settings: withBreak(30, false),
-      me: { ...ME, days: [W("7:00 AM", "3:00 PM", 7.25), w8, w11, { t: "sick", h: 8 }, EM, EM, EM] },
+      me: { ...ME, days: [W("7:00 AM", "3:00 PM", 7.25), ...DAYS.slice(1)] },
+      sources: ["entered", ...SOURCES.slice(1)] as DaySource[],
     });
-    await user.click(row("Mon 29 Jun"));
+    await user.click(tab(/Mon 29 Jun/));
     // 8h of span stored as 7.25 means 45 minutes were taken, whatever the
     // org's standard is — a per-day break has no column, so it is read back
     // out of the entry rather than guessed
@@ -360,30 +605,13 @@ describe("the break", () => {
     expect(container.querySelector(".mts2-derv")?.textContent).toContain("7.25h");
   });
 
-  it("does not retroactively shorten days logged before the break existed", async () => {
-    const user = userEvent.setup();
-    const { container } = renderSheet({ settings: withBreak(30, false) });
-    // Monday's 8h were saved as the full span; turning a break on later must
-    // not silently rewrite them
-    await user.click(row("Mon 29 Jun"));
-    expect(screen.getByText("Break: 0 min · unpaid")).toBeInTheDocument();
-    expect(container.querySelector(".mts2-derv")?.textContent).toContain("8h");
-  });
-
   it("a PAID break deducts nothing and offers no per-day control", async () => {
     const user = userEvent.setup();
     const { container } = renderSheet({ settings: withBreak(30, true) });
-    await user.click(row("Mon 29 Jun"));
+    await user.click(tab(/Mon 29 Jun/));
     expect(screen.getByText("Break: 30 min · paid")).toBeInTheDocument();
     expect(screen.queryByLabelText("Shorter break")).toBeNull();
     expect(container.querySelector(".mts2-derv")?.textContent).toContain("8h");
-    await user.click(screen.getByText("Save day"));
-    expect(saveDay).toHaveBeenCalledWith("2026-06-29", 0, {
-      t: "work",
-      in: "7:00 AM",
-      out: "3:00 PM",
-      h: 8,
-    });
   });
 });
 
@@ -391,14 +619,14 @@ describe("the payroll line", () => {
   it("states a plain day as hours × one", async () => {
     const user = userEvent.setup();
     const { container } = renderSheet();
-    await user.click(row("Mon 29 Jun"));
+    await user.click(tab(/Mon 29 Jun/));
     expect(container.querySelector(".mts2-paych")?.textContent).toBe("8h ×1.0 = 8h");
   });
 
   it("splits an overtime day the way the pay run does — never a dollar", async () => {
     const user = userEvent.setup();
     const { container } = renderSheet();
-    await user.click(row("Wed 1 Jul"));
+    await user.click(tab(/Wed 1 Jul/));
     // 11h on a Wednesday: 8 at 1×, 3 at 1.5× → 12.5 payroll hours
     expect(container.querySelector(".mts2-paych")?.textContent).toBe("8h ×1.0 + 3h ×1.5 = 12.5h");
     expect(container.querySelector(".mts2-paych")?.textContent).not.toContain("$");
@@ -428,10 +656,11 @@ describe("the rail", () => {
     expect(screen.getByText("My fortnight")).toBeInTheDocument();
   });
 
-  it("footnotes the rules that produced those numbers", () => {
+  it("footnotes the rules that produced those numbers, normal hours first", () => {
     const { container } = renderSheet({ settings: withBreak(30, false) });
     const rules = container.querySelector(".mts2-rules")?.textContent ?? "";
-    expect(rules).toContain("Normal 8h day");
+    expect(rules).toContain("Normal 7:00 AM – 3:00 PM");
+    expect(rules).toContain("Standard 8h day");
     expect(rules).toContain("OT after 8h/day");
     expect(rules).toContain("30 min break · unpaid");
     expect(rules).toContain("auto-submits Sun 3:00 PM");
@@ -475,16 +704,15 @@ describe("when the week is closed to you", () => {
     ["submitted", { sheet: SHEET({ status: "submitted" }) }],
     ["approved", { sheet: SHEET({ status: "approved" }) }],
     ["historical", { periodIndex: 1 }],
-  ])("%s: nothing opens and nothing can be added", async (_label, over) => {
+  ])("%s: it reads, it doesn't edit", async (_label, over) => {
     const { container } = renderSheet(over as Partial<React.ComponentProps<typeof MyTimesheet>>);
     expect(container.querySelector(".tpr")?.className).toContain("locked");
-    expect(container.querySelectorAll("button.mts2-chip")).toHaveLength(0);
-    expect(container.querySelector(".mts2-edit")).toBeNull();
-    expect(screen.queryByRole("button", { name: "Add Saturday" })).toBeNull();
+    expect(container.querySelectorAll("input")).toHaveLength(0);
+    expect(screen.queryByText("Save day")).toBeNull();
     expect(screen.queryByText("Submit week")).toBeNull();
-    // and the days are still readable
-    expect(container.querySelectorAll(".mts2-chip")).toHaveLength(7);
-    expect(container.querySelectorAll(".mts2-row").length).toBeGreaterThan(0);
+    // the days are still all there, and still switchable
+    expect(container.querySelectorAll(".mts2-tab")).toHaveLength(7);
+    expect(container.querySelector(".mts2-elock")).not.toBeNull();
   });
 });
 
@@ -505,7 +733,10 @@ describe("submitting", () => {
   });
 
   it("an empty week has nothing to send", () => {
-    renderSheet({ me: { ...ME, days: [EM, EM, EM, EM, EM, EM, EM] } });
+    renderSheet({
+      me: { ...ME, days: [EM, EM, EM, EM, EM, EM, EM] },
+      sources: ["expected", "expected", "expected", "expected", "expected", "none", "none"],
+    });
     expect(screen.getByText("Submit week").closest("button")).toBeDisabled();
   });
 });

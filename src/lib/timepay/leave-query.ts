@@ -8,6 +8,7 @@ import type {
   LeaveRequest,
   LeaveStatus,
 } from "./leave";
+import type { Unavailability } from "./availability";
 
 /* Leave queries. Org-scoped throughout, like the rest of lib/timepay.
 
@@ -97,6 +98,57 @@ export async function pendingRequests(orgId: string): Promise<LeaveRequest[]> {
     staffNames(orgId),
   ]);
   return ((data ?? []) as Record<string, unknown>[]).map((r) => toRequest(r, name));
+}
+
+/* ---- unavailability (casuals) ---- */
+
+const UNAVAIL_COLUMNS = "id, staff_profile_id, from_date, to_date, note";
+
+function toBlock(r: Record<string, unknown>, name?: (id: string) => string | undefined): Unavailability {
+  const staffId = String(r.staff_profile_id);
+  return {
+    id: String(r.id),
+    staffId,
+    staffName: name?.(staffId),
+    from: String(r.from_date).slice(0, 10),
+    to: String(r.to_date).slice(0, 10),
+    note: typeof r.note === "string" && r.note ? r.note : undefined,
+  };
+}
+
+/** Your own unavailability, soonest first. Tolerant of the table not existing
+    yet: an unmigrated workspace simply has nobody marked unavailable. */
+export async function myUnavailability(
+  orgId: string,
+  staffProfileId: string,
+): Promise<Unavailability[]> {
+  const { data, error } = await supabaseAdmin
+    .from("staff_unavailability")
+    .select(UNAVAIL_COLUMNS)
+    .eq("org_id", orgId)
+    .eq("staff_profile_id", staffProfileId)
+    .order("from_date");
+  if (error) return [];
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => toBlock(r));
+}
+
+/** Everyone's unavailability overlapping a span — for whoever rosters. */
+export async function unavailabilityInSpan(
+  orgId: string,
+  spanStart: string,
+  spanEnd: string,
+): Promise<Unavailability[]> {
+  const [{ data, error }, name] = await Promise.all([
+    supabaseAdmin
+      .from("staff_unavailability")
+      .select(UNAVAIL_COLUMNS)
+      .eq("org_id", orgId)
+      .lte("from_date", spanEnd)
+      .gte("to_date", spanStart),
+    staffNames(orgId),
+  ]);
+  if (error) return [];
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => toBlock(r, name));
 }
 
 /** Approved leave overlapping a date span, for the team calendar. */

@@ -2042,40 +2042,79 @@ select.fl-i { cursor:pointer; }
 .fg .mts2-main { min-width:0; }
 .fg .mts2-wk { margin-bottom:26px; }
 
-/* ---- the day-chip strip ---- */
-.fg .mts2-chips { display:flex; gap:8px; margin-bottom:12px; }
-.fg .mts2-chip { position:relative; flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:center; gap:3px; padding:9px 4px 8px; border-radius:14px; background:#fff; border:1px solid #f0f0f2; box-shadow:0 1px 2px rgba(10,12,20,.03); transition:transform .16s, border-color .16s, box-shadow .16s; }
-.fg .mts2-chip .cw { font-size:9px; font-weight:800; letter-spacing:.07em; color:var(--gray400); }
-.fg .mts2-chip .cd { font-size:16px; font-weight:800; line-height:1; color:var(--ink); }
-.fg .mts2-chip .cdot { width:6px; height:6px; border-radius:50%; background:transparent; }
-.fg .mts2-chip.done .cdot { background:var(--teal-d); }
-/* a weekend nobody worked is background, not a to-do */
-.fg .mts2-chip.wknd { background:#fafbfc; }
-.fg .mts2-chip.wknd .cd, .fg .mts2-chip.wknd .cw { opacity:.5; }
-.fg .mts2-chip.wknd.done .cd, .fg .mts2-chip.wknd.done .cw { opacity:1; }
-/* TODAY is an ink ring (when); SELECTED is a teal ring (what you're editing) */
-.fg .mts2-chip.today { box-shadow:0 0 0 2px var(--ink); border-color:transparent; }
-.fg .mts2-chip.sel { box-shadow:0 0 0 2px var(--teal-d); border-color:transparent; }
-.fg .mts2-chip.today.sel { box-shadow:0 0 0 2px var(--ink), 0 0 0 4px var(--teal-d); }
-.fg button.mts2-chip:hover { transform:translateY(-2px); border-color:rgba(0,229,192,.55); }
-.fg button.mts2-chip:focus-visible { outline:none; box-shadow:0 0 0 2px var(--teal-d); }
+/* ---- the week: day tabs ----
 
-/* ---- day rows ---- */
-.fg .mts2-rows { display:flex; flex-direction:column; gap:8px; }
-.fg .mts2-row { position:relative; background:#fff; border:1px solid #f0f0f2; border-radius:16px; overflow:hidden; box-shadow:0 1px 2px rgba(10,12,20,.03); transition:box-shadow .18s, border-color .18s; }
-/* a logged day wears a quiet teal accent — a marker, not the old solid tile */
-.fg .mts2-row.has::before { content:""; position:absolute; left:0; top:10px; bottom:10px; width:3px; border-radius:0 3px 3px 0; background:var(--teal-d); }
-.fg .mts2-row.open { border-color:rgba(0,163,137,.3); box-shadow:0 14px 30px -24px rgba(10,12,20,.5); }
-.fg .mts2-rh { display:flex; align-items:center; gap:12px; width:100%; padding:13px 15px; text-align:left; }
-.fg .mts2-rh:disabled { cursor:default; }
-.fg .mts2-rh:focus-visible { outline:2px solid var(--teal-d); outline-offset:-2px; }
-.fg .mts2-rd { display:flex; flex-direction:column; gap:1px; flex:0 0 76px; }
-.fg .mts2-rd b { font-size:11px; font-weight:800; letter-spacing:.06em; color:var(--gray400); }
-.fg .mts2-rd em { font-style:normal; font-size:14px; font-weight:800; letter-spacing:-.01em; color:var(--ink); }
-.fg .mts2-sum { margin-left:auto; font-size:12.5px; font-weight:700; color:var(--gray700); white-space:nowrap; font-variant-numeric:tabular-nums; }
-.fg .mts2-chev { display:flex; color:var(--gray400); transition:transform .2s; }
-.fg .mts2-row.open .mts2-chev { transform:rotate(180deg); }
-.fg .mts2-rh:disabled .mts2-chev { opacity:0; }
+   ONE view of the days. There used to be a chip strip AND a vertical row per
+   day, which drew every day twice and put the editor in the copy rather than
+   in the thing you clicked. The strip is now the control: a card is a tab, the
+   selected tab loses its bottom edge and merges into the panel under it, and
+   the panel shows that day alone.
+
+   The colour is the day's STATE, from `dayClass` — the same classes the pill
+   and the approver's screen read, so a week's shape is legible without opening
+   anything. `--dc` carries it, set once per state and used by the top bar, the
+   tint and the selected ring, so a new state is one line rather than four. */
+.fg .mts2-tabs { display:flex; gap:6px; align-items:stretch; }
+.fg .mts2-tab { --dc:#d8dbe1; --dt:rgba(216,219,225,.14); position:relative; flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:center; gap:3px; padding:11px 4px 12px; border-radius:14px 14px 0 0; background:#fff; border:1px solid #eceef1; border-bottom-color:transparent; box-shadow:0 1px 2px rgba(10,12,20,.03); transition:background .16s, transform .16s, box-shadow .16s; }
+.fg .mts2-tab .cbar { position:absolute; left:10px; right:10px; top:0; height:3px; border-radius:0 0 3px 3px; background:var(--dc); }
+.fg .mts2-tab .cw { font-size:9px; font-weight:800; letter-spacing:.07em; color:var(--gray400); }
+.fg .mts2-tab .cd { font-size:17px; font-weight:800; line-height:1; color:var(--ink); }
+.fg .mts2-tab .cs { font-size:10.5px; font-weight:700; color:var(--gray500); font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+/* The tint is composited OVER WHITE, not laid on as a translucent background.
+   A translucent fill shows whatever is behind the card, and these cards sit on
+   the dark shell frame as often as on the light page — which turned the
+   selected day near-black. A gradient of the same colour onto an opaque white
+   background-color gives the intended tint wherever the strip lands. */
+.fg .mts2-tab:hover { background-image:linear-gradient(var(--dt),var(--dt)); transform:translateY(-1px); }
+.fg .mts2-tab:focus-visible { outline:none; box-shadow:0 0 0 2px var(--teal-d); }
+
+/* the day's state, one declaration each */
+.fg .mts2-tab.std { --dc:var(--teal-d); --dt:rgba(0,229,192,.1); }
+.fg .mts2-tab.over { --dc:#f0a431; --dt:rgba(240,164,49,.12); }
+.fg .mts2-tab.under { --dc:#e0b400; --dt:rgba(255,221,87,.18); }
+.fg .mts2-tab.leave { --dc:#2e68ff; --dt:rgba(46,104,255,.09); }
+.fg .mts2-tab.sick { --dc:#e0264f; --dt:rgba(255,51,102,.08); }
+.fg .mts2-tab.ph { --dc:#8a2be2; --dt:rgba(138,43,226,.09); }
+.fg .mts2-tab.miss { --dc:#e0264f; --dt:rgba(255,51,102,.08); }
+.fg .mts2-tab.off { --dc:var(--gray400); --dt:rgba(120,126,140,.1); }
+.fg .mts2-tab.empty { --dc:#e3e5ea; --dt:rgba(227,229,234,.3); }
+
+/* A day you weren't rostered on and didn't work is background, not a to-do —
+   a weekend for most people, a Wednesday for a part-timer, EVERY empty day for
+   a casual. A day still ahead of itself is dimmed the same way; neither is
+   anything to act on yet. */
+.fg .mts2-tab.offroster.empty, .fg .mts2-tab.ahead { background:#fafbfc; }
+.fg .mts2-tab.offroster.empty .cd, .fg .mts2-tab.offroster.empty .cw, .fg .mts2-tab.offroster.empty .cs,
+.fg .mts2-tab.ahead .cd, .fg .mts2-tab.ahead .cw, .fg .mts2-tab.ahead .cs { opacity:.45; }
+/* TODAY is named by its weekday going ink, not by a ring the selected tab
+   also uses — two rings on one card is a puzzle, not a signal */
+.fg .mts2-tab.today .cw { color:var(--ink); }
+.fg .mts2-tab.today .cw::after { content:" ·"; color:var(--teal-d); }
+
+/* THE SELECTED TAB joins the panel: tinted, lifted, and open at the bottom */
+.fg .mts2-tab.on { background-color:#fff; background-image:linear-gradient(var(--dt),var(--dt)); border-color:#e6e8ec; border-bottom-color:transparent; transform:none; box-shadow:0 -2px 10px -6px rgba(10,12,20,.3); z-index:2; }
+/* the bridge that removes the seam between the open tab and its panel */
+.fg .mts2-tab.on::after { content:""; position:absolute; left:0; right:0; bottom:-2px; height:4px; background-color:#fff; background-image:linear-gradient(var(--dt),var(--dt)); }
+.fg .mts2-tab.on .cd, .fg .mts2-tab.on .cw, .fg .mts2-tab.on .cs { opacity:1; }
+.fg .mts2-tab.on .cbar { height:4px; }
+
+/* the panel the tabs open onto */
+.fg .mts2-panel { background:#fff; border:1px solid #e6e8ec; border-radius:0 0 18px 18px; margin-top:-1px; box-shadow:0 1px 2px rgba(10,12,20,.03), 0 20px 40px -34px rgba(10,12,20,.5); animation:tprUp .2s ease backwards; }
+.fg .mts2-phead { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:14px 15px 0; }
+.fg .mts2-pd { font-size:15px; font-weight:800; letter-spacing:-.02em; color:var(--ink); }
+
+/* ---- the legend ---- */
+.fg .mts2-legend { display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:16px; }
+.fg .mts2-lg { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:var(--gray500); }
+.fg .mts2-lg i { width:9px; height:9px; border-radius:3px; }
+.fg .mts2-lg i.std { background:var(--teal-d); }
+.fg .mts2-lg i.over { background:#f0a431; }
+.fg .mts2-lg i.under { background:#e0b400; }
+.fg .mts2-lg i.leave { background:#2e68ff; }
+.fg .mts2-lg i.sick { background:#e0264f; }
+.fg .mts2-lg i.ph { background:#8a2be2; }
+.fg .mts2-lg i.off { background:var(--gray400); }
+.fg .mts2-lg i.empty { background:#e3e5ea; }
 
 /* the kind pill — the `.tpr` day palette, restated as a tinted pill */
 .fg .mts2-pill { display:inline-flex; align-items:center; height:24px; padding:0 10px; border-radius:999px; font-size:11px; font-weight:800; letter-spacing:-.01em; white-space:nowrap; }
@@ -2086,17 +2125,31 @@ select.fl-i { cursor:pointer; }
 .fg .mts2-pill.sick { background:rgba(255,51,102,.12); color:#e0264f; }
 .fg .mts2-pill.ph { background:rgba(138,43,226,.12); color:var(--violet-d,#7322c4); }
 .fg .mts2-pill.miss { background:rgba(255,51,102,.1); color:#e0264f; box-shadow:inset 0 0 0 1px rgba(255,51,102,.45); }
+.fg .mts2-pill.off { background:#eceef1; color:var(--gray700); }
 .fg .mts2-pill.empty { background:#f1f2f5; color:var(--gray500); }
 
-/* ---- weekend offers ---- */
-.fg .mts2-offers { display:flex; gap:8px; margin-top:10px; }
-.fg .mts2-offer { display:inline-flex; align-items:center; gap:6px; flex:1 1 0; justify-content:center; height:40px; border-radius:14px; border:1.5px dashed #dfe1e7; color:var(--gray500); font-size:12.5px; font-weight:700; transition:all .18s; }
-.fg .mts2-offer:hover { border-color:var(--teal-d); color:var(--teal-d); background:rgba(0,229,192,.05); }
+/* ---- the day panel's editor ---- */
+.fg .mts2-edit { padding:2px 15px 16px; }
+.fg .mts2-ehol { display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:8px; background:rgba(138,43,226,.1); color:#7322c4; font-size:11px; font-weight:800; }
 
-/* ---- the inline editor ---- */
-.fg .mts2-edit { padding:2px 15px 15px; border-top:1px solid #f0f0f2; animation:tprUp .2s ease backwards; }
-.fg .mts2-ehol { display:inline-flex; align-items:center; gap:5px; margin:12px 0 0; padding:3px 9px; border-radius:8px; background:rgba(0,163,137,.12); color:var(--teal-d); font-size:11px; font-weight:800; }
-.fg .mts2-form { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; padding-top:14px; }
+/* why this day says what it says. A day filled in FOR you must never read as
+   one you logged — if it's wrong, you need to know before you submit it. */
+.fg .mts2-esrc { display:flex; align-items:center; gap:7px; margin-top:12px; font-size:11.5px; font-weight:700; color:var(--gray500); }
+.fg .mts2-esrc svg { color:var(--gray400); flex:none; }
+.fg .mts2-esrc.presumed { color:var(--teal-d); }
+.fg .mts2-esrc.presumed svg { color:var(--teal-d); }
+
+/* a day owned by another module — read it here, change it where it was booked */
+.fg .mts2-elock { display:flex; align-items:flex-start; gap:10px; margin-top:13px; padding:13px 14px; border-radius:13px; background:#f7f8fa; }
+.fg .mts2-elock svg { color:var(--gray500); margin-top:1px; flex:none; }
+.fg .mts2-elock b { display:block; font-size:13.5px; font-weight:800; color:var(--ink); }
+.fg .mts2-elock em { display:block; margin-top:2px; font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
+
+/* worked / didn't work — the only choice a person makes on a day */
+.fg .mts2-kinds { display:inline-flex; gap:3px; margin-top:12px; padding:3px; border-radius:12px; background:#f4f5f7; }
+.fg .mts2-kind { height:31px; padding:0 14px; border-radius:9px; font-size:12.5px; font-weight:800; color:var(--gray500); transition:all .16s; }
+.fg .mts2-kind:hover { color:var(--ink); }
+.fg .mts2-kind.on { background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(10,12,20,.1); }
 .fg .mts2-brk { display:flex; align-items:center; gap:10px; margin-top:13px; }
 .fg .mts2-brkl { font-size:12.5px; font-weight:700; color:var(--gray700); }
 .fg .mts2-brkstep { display:inline-flex; align-items:center; gap:2px; border:1px solid #ececf0; border-radius:11px; padding:2px; }
@@ -2109,6 +2162,48 @@ select.fl-i { cursor:pointer; }
 .fg .mts2-derv svg { color:var(--teal-d); }
 .fg .mts2-derv.bad { background:rgba(255,51,102,.07); color:#e0264f; }
 .fg .mts2-derv.bad svg { color:#e0264f; }
+/* a short day is not an error — it's a real day that the approver will look
+   at, so it's amber-flavoured rather than red */
+.fg .mts2-derv.short { background:rgba(255,221,87,.2); color:#6b5300; }
+.fg .mts2-derv.short svg { color:#a08000; }
+.fg .mts2-derv.off { background:#f4f5f7; color:var(--gray700); }
+.fg .mts2-derv.off svg { color:var(--gray500); }
+.fg .mts2-derv b { font-weight:800; }
+
+/* ---- the time wheels ---- */
+/* Capped, not stretched: a three-column wheel spread across a wide panel puts
+   the hour and the meridiem a hand's width apart, which is a worse control
+   than a compact one. */
+.fg .mts2-wheels { display:flex; flex-wrap:wrap; gap:12px; margin-top:14px; }
+.fg .mts2-wheels .tw { flex:0 1 240px; max-width:280px; }
+.fg .mts2-wheels.tight { margin-top:12px; gap:10px; }
+.fg .mts2-wheels.tight .tw { flex:1 1 140px; }
+.fg .mts2-nh { margin-top:10px; }
+.fg .mts2-nh b { display:block; font-size:17px; font-weight:800; letter-spacing:-.02em; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .mts2-nh em { display:block; margin-top:3px; font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray500); }
+.fg .mts2-nh em:first-of-type { color:var(--gray700); font-weight:700; }
+
+/* ---- which days are normal ----
+   A row of seven, because a working pattern is read as a shape: "Mon Tue Thu"
+   is a glance, a list of checkboxes is a paragraph. */
+.fg .mts2-dow, .fg .tpr .wz-dow { display:flex; gap:5px; margin-top:12px; }
+.fg .mts2-dowb, .fg .tpr .wz-dowb { flex:1 1 0; height:34px; border-radius:10px; border:1px solid #ececf0; background:#fff; font-size:12px; font-weight:800; color:var(--gray400); transition:all .16s; }
+.fg .mts2-dowb:hover, .fg .tpr .wz-dowb:hover { border-color:rgba(0,229,192,.6); color:var(--gray700); }
+.fg .mts2-dowb.on, .fg .tpr .wz-dowb.on { background:var(--ink); border-color:var(--ink); color:#fff; }
+.fg .mts2-dowb:disabled { opacity:.45; pointer-events:none; }
+
+/* ---- when I can't work (casuals) ---- */
+.fg .mts2-ulist { display:flex; flex-direction:column; gap:7px; margin-top:11px; }
+.fg .mts2-u { display:flex; align-items:center; gap:9px; padding:9px 11px; border-radius:12px; background:#f7f8fa; }
+.fg .mts2-u b { display:block; font-size:13px; font-weight:800; color:var(--ink); }
+.fg .mts2-u em { display:block; margin-top:1px; font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray500); }
+.fg .mts2-ux { margin-left:auto; display:flex; width:26px; height:26px; align-items:center; justify-content:center; border-radius:8px; color:var(--gray400); flex:none; }
+.fg .mts2-ux:hover { background:rgba(255,51,102,.1); color:#e0264f; }
+.fg .mts2-udates { display:flex; gap:10px; margin-top:12px; }
+.fg .mts2-udates .mts-f { flex:1 1 0; min-width:0; }
+.fg .mts2-unote { margin-top:10px; }
+.fg .mts2-uerr { margin-top:10px; padding:8px 11px; border-radius:11px; background:rgba(255,51,102,.08); color:#e0264f; font-size:12px; font-weight:700; }
+.fg .mts2-unote-p { margin:12px 0 0; font-size:11px; font-weight:600; line-height:1.5; color:var(--gray400); }
 .fg .mts2-pay { display:flex; align-items:center; gap:10px; margin-top:9px; padding:0 2px; }
 .fg .mts2-payl { font-size:10.5px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--gray400); }
 .fg .mts2-paych { font-size:12.5px; font-weight:700; color:var(--gray700); font-variant-numeric:tabular-nums; }
@@ -2147,6 +2242,40 @@ select.fl-i { cursor:pointer; }
 .fg .mts2-hlink:hover { text-decoration:underline; }
 .fg .mts2-card .mts-hols { margin-top:12px; }
 .fg .mts2-rules { margin:0; padding:0 4px; font-size:11.5px; font-weight:600; line-height:1.6; color:var(--gray400); }
+
+/* ===== The time wheel — a clock you scroll, never one you type =====
+
+   Three columns of real times. There is no text input anywhere in Time & Pay
+   any more, which is the point: a value that can only be CHOSEN can't be
+   unreadable, so the "we can't read that time" state stopped being something
+   the software has to handle.
+
+   Every cell is a button, so this works by scroll, by click, by tab and by
+   screen reader. The centre line is a marker, not a hit target — clicking the
+   option is what selects it, and pointer-events:none keeps the marker out of
+   the way of the thing underneath it. */
+.fg .tw { border:1px solid #eceef1; border-radius:14px; background:#fff; padding:10px 11px 11px; }
+.fg .tw-head { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+.fg .tw-title { font-size:10.5px; font-weight:800; letter-spacing:.07em; text-transform:uppercase; color:var(--gray400); }
+.fg .tw-val { font-size:14px; font-weight:800; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .tw-cols { display:flex; gap:6px; margin-top:9px; position:relative; }
+/* The centre line the chosen option sits on. Measured from the BOTTOM, not
+   from 50%: the column is a label of uncertain height stacked on a scroll box
+   of exactly 132px, so half the COLUMN is not half the SCROLL. 132/2 − 34/2 =
+   49 puts it dead on the row the wheel snaps to. */
+.fg .tw-cols::before { content:""; position:absolute; left:0; right:0; bottom:49px; height:34px; border-radius:10px; background:rgba(0,229,192,.09); pointer-events:none; }
+.fg .tw-col { flex:1 1 0; min-width:0; }
+.fg .tw-lab { display:block; font-size:9px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--gray400); text-align:center; margin-bottom:3px; }
+.fg .tw-scroll { height:132px; overflow-y:auto; scroll-snap-type:y proximity; padding:49px 0; scrollbar-width:none; }
+.fg .tw-scroll::-webkit-scrollbar { width:0; }
+.fg .tw-opt { display:block; width:100%; height:34px; border-radius:10px; scroll-snap-align:center; font-size:14px; font-weight:700; color:var(--gray400); font-variant-numeric:tabular-nums; transition:color .14s, background .14s; }
+.fg .tw-opt:hover { background:#f4f5f7; color:var(--gray700); }
+.fg .tw-opt.on { color:var(--ink); font-weight:800; font-size:15px; }
+.fg .tw-opt:focus-visible { outline:2px solid var(--teal-d); outline-offset:-2px; }
+.fg .tw-opt:disabled { pointer-events:none; opacity:.5; }
+/* the wizard's own wheels sit side by side under a menu heading */
+.fg .tpr .wz-wheels { display:flex; flex-wrap:wrap; gap:10px; }
+.fg .tpr .wz-wheels .tw { flex:1 1 150px; }
 /* ---- date picker (components/ui/date-field.tsx + month-grid.tsx) ----
    Every date field in the app is this: a button showing dd/mm/yyyy that opens
    our own calendar. No `<input type="date">` anywhere — its rendering and its

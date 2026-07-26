@@ -9,11 +9,18 @@ let staffExists = true;
 let caps = new Set<string>(["approvals", "financials"]);
 let myStaffId: string | null = "me";
 
+const update = jest.fn();
+
+/* A chainable query stub. Every filter/ordering method returns the builder, so
+   a query can grow new clauses without this mock needing to learn them — which
+   it had to twice already. Only the methods that END a chain, or that we
+   assert on, are real. */
 const table = (name: string) => {
   const c: Record<string, unknown> = {};
-  const self = () => c;
-  c.eq = self;
-  c.select = self;
+  /* Returns the PROXY, not the bare object — a chain that falls through to an
+     unhandled method has to keep falling through on the next one too. */
+  let proxy: Record<string, unknown>;
+  const self = () => proxy;
   c.maybeSingle = async () => {
     if (name === "timesheets") return { data: sheetStatus ? { status: sheetStatus } : null };
     return { data: staffExists ? { id: "target" } : null };
@@ -22,12 +29,23 @@ const table = (name: string) => {
     upsert(name, row);
     return Promise.resolve({ error: null });
   };
+  c.update = (row: unknown) => {
+    update(name, row);
+    return proxy;
+  };
   c.delete = () => {
     del(name);
-    return c;
+    return proxy;
   };
-  c.then = (res: (v: { error: null }) => unknown) => Promise.resolve({ error: null }).then(res);
-  return c;
+  // a resolved chain reads as "no rows, no error" — the presumption then has
+  // nothing stored to keep and fills the week itself, which is the case worth
+  // testing here
+  c.then = (res: (v: { error: null; data: never[] }) => unknown) =>
+    Promise.resolve({ error: null, data: [] }).then(res);
+  proxy = new Proxy(c, {
+    get: (t, k: string) => (k in t ? t[k] : self),
+  });
+  return proxy;
 };
 
 jest.mock("@/lib/supabase-server", () => ({ supabaseAdmin: { from: (n: string) => table(n) } }));
@@ -38,13 +56,20 @@ jest.mock("@/lib/permissions-server", () => ({ can: jest.fn(async (c: string) =>
 jest.mock("@/lib/fleet/query", () => ({ staffProfileIdFor: jest.fn(async () => myStaffId) }));
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
 
-import { approveWeek, saveDay, savePaySettings, sendBackWeek, submitWeek } from "../timepay";
+import {
+  approveWeek,
+  saveDay,
+  saveMyHours,
+  savePaySettings,
+  sendBackWeek,
+  submitWeek,
+} from "../timepay";
 import { DEFAULT_SETTINGS } from "@/components/timepay/logic";
 
 const MONDAY = "2026-06-29";
 
 beforeEach(() => {
-  [upsert, del].forEach((m) => m.mockClear());
+  [upsert, del, update].forEach((m) => m.mockClear());
   sheetStatus = "draft";
   staffExists = true;
   caps = new Set(["approvals", "financials"]);
@@ -99,6 +124,80 @@ describe("entering your own hours", () => {
       "timesheets",
       expect.objectContaining({ status: "submitted", review_note: null, reviewed_by: null }),
     );
+  });
+
+  it("saves a day nobody worked, and it carries no hours", async () => {
+    const res = await saveDay(MONDAY, 1, { t: "off" });
+    expect(res).toEqual({ ok: true });
+    expect(upsert).toHaveBeenCalledWith(
+      "time_entries",
+      expect.objectContaining({ work_date: "2026-06-30", kind: "off", hours: 0 }),
+    );
+  });
+});
+
+/* Submitting is what turns the presumption into a record.
+
+   Up to here a normal Tuesday is derived and no row exists for it. That is
+   right for a live week and wrong for one that has gone for approval: if the
+   org changed its normal finish time in August, a June sheet must not restate
+   itself. So submit writes the presumed days down as they stood. */
+describe("submitting writes the week down", () => {
+  it("materialises the presumed weekdays before it sends the sheet", async () => {
+    await submitWeek(MONDAY);
+    const entryWrite = upsert.mock.calls.find(
+      ([t, rows]) => t === "time_entries" && Array.isArray(rows),
+    );
+    expect(entryWrite).toBeDefined();
+    const rows = entryWrite![1] as Record<string, unknown>[];
+    // Mon–Fri of a period long past: five ordinary days, no weekend
+    expect(rows).toHaveLength(5);
+    expect(rows[0]).toMatchObject({
+      work_date: "2026-06-29",
+      kind: "work",
+      start_time: "7:00 AM",
+      end_time: "3:00 PM",
+      hours: 8,
+    });
+    expect(rows.map((r) => r.work_date)).not.toContain("2026-07-04"); // Saturday
+  });
+
+  it("writes the entries first, so a sheet is never sent ahead of its days", async () => {
+    await submitWeek(MONDAY);
+    const order = upsert.mock.calls.map(([t]) => t);
+    expect(order.indexOf("time_entries")).toBeLessThan(order.indexOf("timesheets"));
+  });
+
+  it("writes nothing at all when the week is already closed", async () => {
+    sheetStatus = "approved";
+    expect((await submitWeek(MONDAY)).ok).toBe(false);
+    expect(upsert).not.toHaveBeenCalled();
+  });
+});
+
+describe("your own normal hours", () => {
+  it("needs no capability — an early start is not a pay decision", async () => {
+    caps = new Set();
+    const res = await saveMyHours("6:30 AM", "2:30 PM");
+    expect(res).toEqual({ ok: true });
+    expect(update).toHaveBeenCalledWith(
+      "staff_profiles",
+      expect.objectContaining({ default_start: "6:30 AM", default_end: "2:30 PM" }),
+    );
+  });
+
+  it("clears back to the workspace's hours", async () => {
+    await saveMyHours(null, null);
+    expect(update).toHaveBeenCalledWith(
+      "staff_profiles",
+      expect.objectContaining({ default_start: null, default_end: null }),
+    );
+  });
+
+  it("refuses half an override — it would presume against the org's other end", async () => {
+    expect((await saveMyHours("6:30 AM", null)).ok).toBe(false);
+    expect((await saveMyHours("half six", "2:30 PM")).ok).toBe(false);
+    expect(update).not.toHaveBeenCalled();
   });
 });
 

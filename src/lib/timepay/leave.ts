@@ -130,6 +130,44 @@ export function suggestedHours(
   return Math.round(businessDays(startISO, endISO, holidays) * standard * 100) / 100;
 }
 
+/** How approved leave lands on the timesheet, day by day.
+
+    A request carries TOTAL hours across a span, so a day's worth is the total
+    divided by the working days it covers — which makes a one-day 4-hour
+    request a 4-hour day and a two-week block a run of standard days, with no
+    special case for either. Public holidays inside the span are excluded from
+    the divisor and get no row of their own, for the same reason the request
+    form excludes them: they aren't days of entitlement being spent.
+
+    UNPAID leave comes back as `off`. It is a day not worked, and it must never
+    reach the timesheet as paid hours — but it still has to reach the approver
+    as something that wasn't a normal workday.
+
+    Lives here rather than beside the queries that feed it because it is pure,
+    it is the arithmetic that decides what an absence pays, and both of those
+    make it something to test directly. */
+export function absenceMap(
+  requests: LeaveRequest[],
+  holidays: Map<string, string>,
+): Map<string, { t: "leave" | "sick"; h: number } | { t: "off" }> {
+  const out = new Map<string, { t: "leave" | "sick"; h: number } | { t: "off" }>();
+  const holidaySet = new Set(holidays.keys());
+
+  for (const r of requests) {
+    if (r.status !== "approved") continue;
+    const spread = businessDays(r.startDate, r.endDate, holidaySet);
+    const perDay = spread > 0 ? Math.round((r.hours / spread) * 100) / 100 : 0;
+    for (const date of leaveDates(r)) {
+      if (holidaySet.has(date)) continue;
+      out.set(
+        date,
+        r.kind === "unpaid" ? { t: "off" } : { t: r.kind === "personal" ? "sick" : "leave", h: perDay },
+      );
+    }
+  }
+  return out;
+}
+
 /** Every calendar day a request covers (inclusive) — for the team calendar. */
 export function leaveDates(r: { startDate: string; endDate: string }): string[] {
   const out: string[] = [];

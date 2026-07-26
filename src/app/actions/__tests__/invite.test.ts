@@ -8,6 +8,8 @@ type Call = { table: string; op: string; payload?: Record<string, unknown>; filt
 const calls: Call[] = [];
 /** what a select on `invitations` finds — null = no such row for this org */
 let inviteRow: { id: string; accepted_at: string | null } | null = { id: "inv-1", accepted_at: null };
+/** what createInvite's duplicate check finds — [] = no open invite for the address yet */
+let openInvites: Record<string, unknown>[] = [];
 
 let role: string | null = "owner";
 let caps: Set<Capability> = new Set(CAPABILITIES);
@@ -26,6 +28,7 @@ const table = (name: string) => {
     return chain();
   };
   c.select = () => chain();
+  c.limit = () => chain();
   c.insert = (row: Record<string, unknown>) => {
     call.op = "insert";
     call.payload = row;
@@ -45,8 +48,16 @@ const table = (name: string) => {
   };
   c.maybeSingle = () =>
     Promise.resolve({ data: inviteRow, error: inviteRow ? null : { message: "no rows" } });
-  // awaiting the chain itself (delete/update) resolves like a write
-  c.then = (res: (v: { error: null }) => unknown) => Promise.resolve({ error: null }).then(res);
+  /* Awaiting the chain resolves it: a still-`select` chain is a LIST read
+     (the duplicate check), recorded so its filters can be asserted; anything
+     else (delete/update, already recorded) resolves like a write. */
+  c.then = (res: (v: { data?: unknown; error: null }) => unknown) => {
+    if (call.op === "select") {
+      calls.push(call);
+      return Promise.resolve({ data: name === "invitations" ? openInvites : [], error: null }).then(res);
+    }
+    return Promise.resolve({ error: null }).then(res);
+  };
   return c;
 };
 
@@ -71,6 +82,7 @@ const payloadOf = (c: Call): Record<string, string> => (c.payload ?? {}) as Reco
 beforeEach(() => {
   calls.length = 0;
   inviteRow = { id: "inv-1", accepted_at: null };
+  openInvites = [];
   role = "owner";
   caps = new Set(CAPABILITIES);
   session = { orgId: "org-1", user: { sub: "auth0|boss" } };
@@ -118,6 +130,27 @@ describe("createInvite — who may invite, and at what role", () => {
 
     expect((await createInvite({ email: "  New@Heytiff.co ", role: "staff" })).ok).toBe(true);
     expect(payloadOf(writes("insert")[0])).toMatchObject({ email: "new@heytiff.co" });
+  });
+
+  it("refuses a second open invite for the same address", async () => {
+    openInvites = [{ id: "inv-existing" }];
+    const res = await createInvite({ email: "New@Heytiff.co", role: "staff" });
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toMatch(/pending invite/i);
+    expect(writes("insert")).toHaveLength(0);
+  });
+
+  it("scopes the duplicate check to the org and the normalised address", async () => {
+    // lowercased on the read as well as the write, or Re-inviting `New@…`
+    // would sail straight past the open invite for `new@…`
+    await createInvite({ email: "  New@Heytiff.co ", role: "staff" });
+    const check = calls.find((c) => c.table === "invitations" && c.op === "select");
+    expect(check?.filters).toMatchObject({
+      org_id: "org-1",
+      email: "new@heytiff.co",
+      accepted_at: null,
+    });
+    expect(writes("insert")).toHaveLength(1);
   });
 
   it("stamps the org, the inviter and a window of its own", async () => {

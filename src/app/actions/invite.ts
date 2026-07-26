@@ -75,6 +75,24 @@ export async function createInvite(input: { email: string; role: string }): Prom
     return { ok: false, error: "You can't invite someone at that role." };
   }
 
+  /* One open invite per address. The Pending tab already shows this person —
+     expired or not — with Renew and Copy link right there, so a second row
+     would only double them up. A partial unique index backs this against
+     races (docs/migrations/invitations_one_open_per_email.sql). */
+  const { data: existing } = await supabaseAdmin
+    .from("invitations")
+    .select("id")
+    .eq("org_id", ctx.orgId)
+    .eq("email", email)
+    .is("accepted_at", null)
+    .limit(1);
+  if (existing?.[0]) {
+    return {
+      ok: false,
+      error: "That address already has a pending invite — renew it from the Pending tab instead.",
+    };
+  }
+
   const { error } = await supabaseAdmin.from("invitations").insert({
     org_id: ctx.orgId,
     email,

@@ -1,23 +1,17 @@
 "use server";
 
 import { randomUUID } from "crypto";
-import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { requireOrg } from "@/lib/permissions-server";
 import { shareExpiresAt, isShareExpired, shareDaysLeft } from "@/lib/studio/share";
 
 /* Design Studio — the customer live link. One token per design, riding the
    studio_designs row itself (share_token unique, nullable): create rotates a
    fresh UUID, revoke nulls it, and /live/[token] serves whatever the row
-   holds RIGHT NOW — the link is live, not a snapshot. Org-scoped like every
-   studio action; the public read lives in the /live route, not here. */
-
-async function requireOrg(): Promise<{ orgId: string; userId: string }> {
-  const session = await auth0.getSession();
-  if (!session) throw new Error("Not authenticated");
-  const orgId = session.orgId as string | undefined;
-  if (!orgId) throw new Error("No active organization");
-  return { orgId, userId: session.user.sub as string };
-}
+   holds RIGHT NOW — the link is live, not a snapshot. Org-scoped AND
+   `studio`-gated like every studio action — creating one mints a PUBLIC
+   unauthenticated URL, so this file least of all can rely on the page gate.
+   The public read lives in the /live route, not here. */
 
 export interface ShareLink {
   url: string;
@@ -43,7 +37,7 @@ const linkFor = (token: string): string =>
 
 /** create (or rotate) the design's live link */
 export async function createShareLink(designId: string): Promise<ShareLink> {
-  const { orgId } = await requireOrg();
+  const { orgId } = await requireOrg("studio");
   const token = randomUUID();
   const createdAt = new Date().toISOString();
   const { error, data } = await supabaseAdmin
@@ -61,7 +55,7 @@ export async function createShareLink(designId: string): Promise<ShareLink> {
 export async function getShareLink(
   designId: string
 ): Promise<ShareLink | null> {
-  const { orgId } = await requireOrg();
+  const { orgId } = await requireOrg("studio");
   const { data, error } = await supabaseAdmin
     .from("studio_designs")
     .select("share_token, share_created_at")
@@ -76,7 +70,7 @@ export async function getShareLink(
 }
 
 export async function revokeShareLink(designId: string): Promise<void> {
-  const { orgId } = await requireOrg();
+  const { orgId } = await requireOrg("studio");
   const { error } = await supabaseAdmin
     .from("studio_designs")
     .update({ share_token: null, share_created_at: null })

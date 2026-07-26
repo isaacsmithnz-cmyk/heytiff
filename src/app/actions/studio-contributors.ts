@@ -1,13 +1,14 @@
 "use server";
 
-import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { requireOrg } from "@/lib/permissions-server";
 
-/* Who has worked on a design. Every save records the saver; the Summary
-   sheet lists them. Same invite-action pattern as the rest of studio
-   persistence: authenticate the session, then read/write through the service
-   role with an explicit org scope, because Server Functions are reachable by
-   direct POST and must re-check for themselves. */
+/* Who has worked on a design. Every save records the saver (via
+   lib/studio/contributions-server — deliberately not an action); the Summary
+   sheet lists them here. Same invite-action pattern as the rest of studio
+   persistence: authenticate the session AND the `studio` capability, then
+   read through the service role with an explicit org scope, because Server
+   Functions are reachable by direct POST and must re-check for themselves. */
 
 export type DesignContributor = {
   userId: string;
@@ -18,37 +19,10 @@ export type DesignContributor = {
   lastAt: string;
 };
 
-async function requireOrg(): Promise<{ orgId: string; userId: string }> {
-  const session = await auth0.getSession();
-  if (!session) throw new Error("Not authenticated");
-  const orgId = session.orgId as string | undefined;
-  if (!orgId) throw new Error("No active organization");
-  return { orgId, userId: session.user.sub as string };
-}
-
-/** Record that the current user just worked on this design. Called on save.
-    first_at survives — only last_at moves — so the list keeps its order. */
-export async function recordContribution(
-  orgId: string,
-  designId: string,
-  userId: string
-): Promise<void> {
-  const now = new Date().toISOString();
-  const { error } = await supabaseAdmin
-    .from("studio_design_contributors")
-    .upsert(
-      { org_id: orgId, design_id: designId, user_id: userId, first_at: now, last_at: now },
-      { onConflict: "org_id,design_id,user_id", ignoreDuplicates: false }
-    );
-  // A contribution is a footnote, never the point of the save — see the
-  // caller, which deliberately swallows this.
-  if (error) throw new Error(error.message);
-}
-
 export async function listDesignContributors(
   designId: string
 ): Promise<DesignContributor[]> {
-  const { orgId } = await requireOrg();
+  const { orgId } = await requireOrg("studio");
   const { data, error } = await supabaseAdmin
     .from("studio_design_contributors")
     .select("user_id, first_at, last_at")

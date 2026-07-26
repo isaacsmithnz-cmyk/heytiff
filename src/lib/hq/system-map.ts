@@ -72,10 +72,34 @@ export const NODES: MapNode[] = [
     group: "Customer dashboard",
     blurb: "The animated v3 shell every customer page lives in — nav, org switcher, screens.",
     detail:
-      "Org-scoped: switching org re-reads the membership and reloads the workspace. Every page under /dashboard renders inside it.",
+      "Org-scoped: switching org re-reads the membership and reloads the workspace. Every page under /dashboard renders inside it. The nav itself is capability-driven, so flipping a permission reshapes it on the next request.",
     href: "/dashboard",
     paths: ["src/components/shell", "src/app/dashboard/layout.tsx"],
   },
+  {
+    id: "home",
+    name: "Dashboard home",
+    kind: "feature",
+    group: "Customer dashboard",
+    blurb: "Action chips, hero band, tasks, notice digest, roster today and payroll state.",
+    detail:
+      "Everything on it is derived per request — licence/work-rights/rego/insurance/service expiries become worst-first chips, scoped by capability (own things intrinsic, people on `team`, fleet on `assets_all`, money on `financials`). Nothing here has its own storage except tasks.",
+    href: "/dashboard",
+    paths: ["src/lib/dashboard", "src/components/dashboard"],
+  },
+  {
+    id: "notices",
+    name: "Noticeboard",
+    kind: "feature",
+    group: "Customer dashboard",
+    blurb: "Notice/chat: kinds + expiry, polls, events + RSVP, reactions, comments with mentions.",
+    detail:
+      "Reading is passive — opening the board marks notices read. Acknowledgements are versioned (notices.revision vs notice_reads.revision), so a reworded notice's read-count dips and recovers as people re-read.",
+    href: "/dashboard/notices",
+    paths: ["src/app/dashboard/notices", "src/components/dashboard/notices-board.tsx"],
+  },
+
+  /* — design studio — */
   {
     id: "studio",
     name: "Design Studio",
@@ -97,37 +121,60 @@ export const NODES: MapNode[] = [
       "Stage-12 layer on top of the Studio canvas, behind the studio.sim flag. Runs the sim engine against the current design document.",
     paths: ["src/components/studio/sim-overlay.tsx", "src/lib/studio/sim.ts"],
   },
+  {
+    id: "live",
+    name: "Live share",
+    kind: "surface",
+    group: "Design Studio",
+    blurb: "Public read-only design page behind an unguessable share token.",
+    detail:
+      "The one unauthenticated surface: /live/[token] resolves a share token to a single design and renders it read-only, including its plan raster from storage.",
+    paths: ["src/app/live", "src/app/actions/studio-share.ts"],
+  },
 
-  /* — toolbox (building on its own branch, not yet merged) — */
+  /* — toolbox — */
   {
     id: "tb-heat",
     name: "Heat Load",
     kind: "feature",
     group: "Toolbox",
-    status: "building",
     blurb: "Quick room heat-load calculator — same engine as the Studio.",
     detail:
-      "Being built on the toolbox branch. Reuses the Studio loads engine verbatim, so a number here always matches the Studio for the same room.",
+      "Reuses the Studio loads engine verbatim, so a number here always matches the Studio for the same room.",
+    href: "/dashboard/toolbox/heat-load",
+    paths: ["src/app/dashboard/toolbox/heat-load"],
   },
   {
     id: "tb-press",
     name: "Running Pressures",
     kind: "feature",
     group: "Toolbox",
-    status: "building",
     blurb: "Expected gauge pressures by ambient, plus pressure fault-finding.",
     detail:
-      "Estimate view predicts both sides from refrigerant, duty and ambient temperature; Troubleshoot view takes measured pressures and returns the likely cause with a checklist — diagnosis here is pressure-driven. Self-contained: published PT data, no pack data, no backend.",
+      "Estimate view predicts both sides from refrigerant, duty and ambient temperature; Troubleshoot view takes measured pressures and returns the likely cause with a checklist. Self-contained: published PT data, no pack data, no backend. A deeper ambient-estimate/diagnose rebuild is in flight.",
+    href: "/dashboard/toolbox/running-pressures",
+    paths: ["src/app/dashboard/toolbox/running-pressures", "src/lib/toolbox/refrigerant.ts"],
   },
   {
     id: "tb-fault",
     name: "Fault Finder",
     kind: "feature",
     group: "Toolbox",
-    status: "building",
-    blurb: "Guided symptom-based troubleshooting flows.",
+    blurb: "Guided one-question-at-a-time troubleshooting across 15 symptoms.",
     detail:
-      "Symptom-first triage (no cooling, icing, water, noise, trips) — the general counterpart to Running Pressures' pressure-driven diagnosis; the two may merge later. Deliberately pack-free: fault codes stay out of the universal table, so the flows are hand-authored and fully standalone.",
+      "Symptom-first triage (no cooling, icing, water, noise, trips, multi/VRF, three-phase, zoning…) as guided decision trees. Deliberately pack-free: fault codes stay out of the universal table, so the flows are hand-authored and fully standalone.",
+    href: "/dashboard/toolbox/troubleshooting",
+    paths: ["src/app/dashboard/toolbox/troubleshooting", "src/lib/toolbox/guided.ts"],
+  },
+  {
+    id: "tb-outdoor",
+    name: "Outdoor Unit Placement",
+    kind: "feature",
+    group: "Toolbox",
+    blurb: "Placement rules and airflow-clearance guidance for outdoor units.",
+    detail: "Hand-authored lesson content — no pack data, no backend, fully standalone.",
+    href: "/dashboard/toolbox/outdoor-unit",
+    paths: ["src/app/dashboard/toolbox/outdoor-unit", "src/lib/toolbox/outdoor-unit.ts"],
   },
 
   /* — business tools — */
@@ -138,7 +185,7 @@ export const NODES: MapNode[] = [
     group: "Business tools",
     blurb: "Cost build-up → true charge-out rates, with insights and EOFY view.",
     detail:
-      "Admin-gated onboarding-style calculator. State persists per org so owners can revisit and tune. FY2026-27 tax constants live in the engine and need a yearly refresh.",
+      "Admin-gated onboarding-style calculator. State persists per org so owners can revisit and tune — but wages come from the Team roster read-only and are never persisted in calculator state. FY2026-27 tax constants live in the engine and need a yearly refresh.",
     href: "/dashboard/admin/rate-calculator",
     paths: ["src/components/rate-calculator", "src/app/actions/rate-calc.ts"],
   },
@@ -147,11 +194,44 @@ export const NODES: MapNode[] = [
     name: "Time & Pay",
     kind: "feature",
     group: "Business tools",
-    blurb: "Timesheets, approvals and pay runs for the crew.",
+    blurb: "Timesheets, approvals and pay settings for the crew — on real tables.",
     detail:
-      "Approvals and pay settings currently persist in localStorage as a stand-in backend; real tables are the obvious next step — and the planned feed into the Rate Calculator.",
+      "Hours are entered per day on My timesheet and reviewed on the team screen; submissions and approvals flip timesheets rows; the period model (weekly / fortnight / month, weekend + OT rules) lives in pay_settings. Wage columns are financials-gated at the query boundary, so they're absent from the payload without the capability.",
     href: "/dashboard/timepay",
-    paths: ["src/components/timepay"],
+    paths: ["src/components/timepay", "src/lib/timepay", "src/app/actions/timepay.ts"],
+  },
+  {
+    id: "leave",
+    name: "Leave",
+    kind: "feature",
+    group: "Business tools",
+    blurb: "Requests, approvals, balances and the team leave calendar.",
+    detail:
+      "Balances are externally owned — the app never mutates one on approval, it counts bookings against it. Review needs the approvals capability and refuses your own request. No dollars anywhere on leave screens.",
+    href: "/dashboard/my-leave",
+    paths: ["src/lib/timepay/leave.ts", "src/app/actions/leave.ts"],
+  },
+  {
+    id: "fleet",
+    name: "Fleet & vehicles",
+    kind: "feature",
+    group: "Business tools",
+    blurb: "Vehicle register, logs and assignment, plus every staffer's own-vehicle screen.",
+    detail:
+      "Register writes need assets_all; logging fuel/service on a vehicle you drive is intrinsic. Dates are stored, day-counts derived on the AU day. Tiff's valuation and receipt scan call the Claude API server-side.",
+    href: "/dashboard/assets",
+    paths: ["src/lib/fleet", "src/components/fleet", "src/app/actions/fleet.ts", "src/app/actions/fleet-ai.ts"],
+  },
+  {
+    id: "org",
+    name: "Organisation settings",
+    kind: "feature",
+    group: "Business tools",
+    blurb: "Trading profile, logo, and org credentials — licence & insurance rows.",
+    detail:
+      "Owner-gated. Credentials moved from flat org columns to org_credentials rows; the dashboard's org-insurance chip reads those rows.",
+    href: "/dashboard/admin/organization",
+    paths: ["src/components/org", "src/app/actions/org.ts", "src/app/actions/org-credentials.ts"],
   },
 
   /* — people & AI — */
@@ -160,11 +240,22 @@ export const NODES: MapNode[] = [
     name: "Team directory",
     kind: "feature",
     group: "People & AI",
-    blurb: "Staff profiles, roles and the invite flow.",
+    blurb: "Staff directory, admin staff cards, roles and the invite flow.",
     detail:
-      "The directory reads real staff_profiles; invites write the invitations table and accepting creates a membership.",
+      "The directory reads real staff_profiles; invites write the invitations table and accepting creates a membership + staff card. Admin edits go through their own allowlist (ADMIN_SECTIONS), separate from self-edit.",
     href: "/dashboard/team",
-    paths: ["src/components/team", "src/app/actions/invite.ts"],
+    paths: ["src/components/team", "src/app/actions/invite.ts", "src/app/actions/staff.ts"],
+  },
+  {
+    id: "profile",
+    name: "My profile",
+    kind: "feature",
+    group: "People & AI",
+    blurb: "The staff card you edit yourself — personal, emergency, work rights, licences, My Pay.",
+    detail:
+      "Per-card section saves through SELF_EDITABLE_SECTIONS (never merged with the admin allowlist). Licences persist as staff_licences rows with expiry tracking; My Pay shows your own base/×1.5/×2/super read-only.",
+    href: "/dashboard/profile",
+    paths: ["src/components/profile", "src/app/actions/profile.ts", "src/lib/staff"],
   },
   {
     id: "tiff",
@@ -173,7 +264,7 @@ export const NODES: MapNode[] = [
     group: "People & AI",
     blurb: "The assistant + its four-category knowledge library.",
     detail:
-      "Install procedures, fault codes, specs and SOPs drive the sidebar. The library is empty until real uploads land (Documents/storage track).",
+      "Install procedures, fault codes, specs and SOPs drive the sidebar. The documents/storage track is live now, but the knowledge screen isn't wired to it yet — the library still renders empty.",
     href: "/dashboard/tiff",
     paths: ["src/components/tiff"],
   },
@@ -270,11 +361,28 @@ export const NODES: MapNode[] = [
   },
   {
     id: "eng-auth",
-    name: "Auth & roles",
+    name: "Auth & capabilities",
     kind: "engine",
     group: "Shared engines",
-    blurb: "Auth0 sessions, owner/admin/staff hierarchy, HQ allowlist guards.",
-    paths: ["src/lib/auth0.ts", "src/lib/roles.ts", "src/lib/hq/guard.ts"],
+    blurb: "Auth0 sessions + the 10-capability permission model, read fresh every request.",
+    detail:
+      "Role is a default, not a verdict: enforcement is can(capability), read from memberships per request so a toggle applies with no re-login. Login also keeps the profiles row current and ensures a staff card exists. HQ has its own email allowlist on top.",
+    paths: [
+      "src/lib/auth0.ts",
+      "src/lib/permissions.ts",
+      "src/lib/permissions-server.ts",
+      "src/lib/hq/guard.ts",
+    ],
+  },
+  {
+    id: "eng-holiday",
+    name: "Holiday engine",
+    kind: "engine",
+    group: "Shared engines",
+    blurb: "Statutory public-holiday rules for all 8 states + lazy insert-only sync.",
+    detail:
+      "Weekend rule per holiday, gazetted one-offs never extrapolated. Loaders call ensure-on-read, which tops each org's calendar up ~24 months ahead; removals are suppressed tombstones, never deletes.",
+    paths: ["src/lib/timepay/holiday-rules.ts", "src/lib/timepay/holiday-sync.ts"],
   },
 
   /* — data & services — */
@@ -283,8 +391,51 @@ export const NODES: MapNode[] = [
     name: "Accounts & orgs",
     kind: "store",
     group: "Supabase",
-    blurb: "organizations · profiles · memberships · invitations",
-    detail: "The identity spine: who exists, which org they belong to, what role they hold, who's been invited.",
+    blurb: "organizations · profiles · memberships · invitations · org_credentials",
+    detail:
+      "The identity spine: who exists, which org they belong to, what role and permissions they hold, who's been invited — plus the org's own credential rows.",
+  },
+  {
+    id: "db-staff",
+    name: "People",
+    kind: "store",
+    group: "Supabase",
+    blurb: "staff_profiles · staff_licences · permission_audit",
+    detail:
+      "The staff card is the single home for personal data; licences are rows with expiry dates; every permission change writes an audit row.",
+  },
+  {
+    id: "db-timepay",
+    name: "Time, pay & leave",
+    kind: "store",
+    group: "Supabase",
+    blurb: "time_entries · timesheets · pay_settings · leave_requests · leave_balances · public_holidays",
+  },
+  {
+    id: "db-fleet",
+    name: "Fleet",
+    kind: "store",
+    group: "Supabase",
+    blurb: "vehicles · vehicle_logs",
+    detail:
+      "Composite FKs carry org_id, so a vehicle can't be assigned to another org's staff nor a log point at another org's vehicle.",
+  },
+  {
+    id: "db-board",
+    name: "Tasks & notices",
+    kind: "store",
+    group: "Supabase",
+    blurb: "tasks · notices · notice_reads · comments · reactions · polls · RSVPs",
+  },
+  {
+    id: "db-docs",
+    name: "Documents & storage",
+    kind: "store",
+    group: "Supabase",
+    blurb: "documents table + private buckets (documents, studio-plans), signed-URL only.",
+    detail:
+      "One org-scoped documents table over one private bucket, with server-side size and MIME enforcement; the studio-plans bucket holds plan rasters. Nothing is ever publicly readable.",
+    paths: ["src/lib/documents"],
   },
   {
     id: "db-designs",
@@ -325,6 +476,22 @@ export const NODES: MapNode[] = [
     group: "External services",
     blurb: "Login, sessions and the org-role claim.",
   },
+  {
+    id: "anthropic",
+    name: "Claude API",
+    kind: "external",
+    group: "External services",
+    blurb: "Vehicle valuations and receipt reading for the fleet, server-side.",
+  },
+  {
+    id: "gmaps",
+    name: "Google Places",
+    kind: "external",
+    group: "External services",
+    blurb: "Address autocomplete through the authed server-key proxy route.",
+    detail:
+      "The API key lives server-side only and is read in exactly one place, after the auth gate. Without the key every address field falls back to a plain input.",
+  },
 ];
 
 export const EDGES: MapEdge[] = [
@@ -332,14 +499,27 @@ export const EDGES: MapEdge[] = [
   { from: "shell", to: "eng-auth", label: "session + org role gate every page" },
   { from: "eng-auth", to: "auth0", label: "login, session cookie, org-role claim" },
   { from: "eng-auth", to: "db-accounts", label: "memberships resolve orgs & roles" },
+  { from: "eng-auth", to: "db-staff", label: "login ensures a staff card exists" },
+
+  /* dashboard home */
+  { from: "home", to: "db-board", label: "tasks + notices + read receipts" },
+  { from: "home", to: "db-staff", label: "licence & work-rights expiry chips" },
+  { from: "home", to: "db-fleet", label: "rego / insurance / service chips" },
+  { from: "home", to: "db-timepay", label: "roster today + payroll state" },
+  { from: "home", to: "db-accounts", label: "org-insurance chip from credential rows" },
+  { from: "notices", to: "db-board", label: "posts, polls, RSVPs, reactions, comments" },
+  { from: "notices", to: "db-docs", label: "attachments upload via signed URLs" },
 
   /* studio family */
   { from: "studio", to: "eng-loads", label: "room-by-room design heat loads" },
   { from: "studio", to: "eng-packs", label: "unit catalog, capacities, readiness" },
   { from: "studio", to: "db-designs", label: "autosaves the design document" },
+  { from: "studio", to: "db-docs", label: "plan rasters in the studio-plans bucket" },
   { from: "sim", to: "eng-sim", label: "playback of the open design" },
   { from: "eng-sim", to: "eng-packs", label: "unit specs shape ramp behaviour" },
   { from: "eng-sim", to: "eng-loads", label: "room areas & loads drive the model" },
+  { from: "live", to: "db-designs", label: "share token resolves one design, read-only" },
+  { from: "live", to: "db-docs", label: "plan raster for the shared page" },
 
   /* toolbox */
   { from: "tb-heat", to: "eng-loads", label: "same loads engine, verbatim" },
@@ -347,10 +527,26 @@ export const EDGES: MapEdge[] = [
   /* business tools */
   { from: "rate", to: "eng-rate", label: "cost build-up → charge-out rates" },
   { from: "rate", to: "db-rate", label: "saves calculator state per org" },
+  { from: "rate", to: "db-staff", label: "roster wages & employment types, read-only" },
   { from: "rate", to: "timepay", label: "pull real wages & hours into rate inputs", status: "planned" },
+  { from: "timepay", to: "db-timepay", label: "days, sheets, approvals, pay settings" },
+  { from: "timepay", to: "db-staff", label: "wages & names (financials-gated columns)" },
+  { from: "timepay", to: "eng-holiday", label: "ensure-on-read keeps holidays current" },
+  { from: "leave", to: "db-timepay", label: "requests + balances, booked against holidays" },
+  { from: "leave", to: "eng-holiday", label: "business-day maths skips gazetted days" },
+  { from: "eng-holiday", to: "db-timepay", label: "tops up public_holidays ~24 months ahead" },
+  { from: "fleet", to: "db-fleet", label: "register, logs, assignment" },
+  { from: "fleet", to: "db-staff", label: "assignments & log names resolve to staff rows" },
+  { from: "fleet", to: "anthropic", label: "Tiff values the van + reads receipts" },
+  { from: "org", to: "db-accounts", label: "trading profile, logo ref + credential rows" },
+  { from: "org", to: "gmaps", label: "address autocomplete (server-key proxy)" },
 
-  /* people & AI */
+  /* people */
   { from: "team", to: "db-accounts", label: "invites written; accepting creates membership" },
+  { from: "team", to: "db-staff", label: "directory & admin cards read the people spine" },
+  { from: "profile", to: "db-staff", label: "per-card section saves; licences as rows" },
+  { from: "profile", to: "db-rate", label: "My Pay's super % read from calculator state" },
+  { from: "profile", to: "gmaps", label: "address autocomplete (server-key proxy)" },
 
   /* HQ portal */
   { from: "hq-overview", to: "eng-auth", label: "HQ_EMAILS allowlist guards all of /hq" },

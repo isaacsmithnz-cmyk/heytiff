@@ -1,6 +1,6 @@
 "use server";
 
-import { auth0 } from "@/lib/auth0";
+import { requireOrg } from "@/lib/permissions-server";
 import { installedPacks, latestInstalledPack } from "@/lib/studio/packs/server";
 import { loadPackWithOverrides } from "@/lib/studio/packs/overrides-server";
 import type { DataPack } from "@/lib/studio/packs/schema";
@@ -8,14 +8,15 @@ import type { DataPack } from "@/lib/studio/packs/schema";
 /* Design Studio — data packs for the client (Stage 4).
    The studio is a client component; packs live on the server's disk. This
    returns the resolved, validated pack for a brand so the split module can
-   propose pairs and price materials. Session-checked like every server
-   function (reachable by direct POST). */
+   propose pairs and price materials. Gated on `studio` like every server
+   function the studio calls (reachable by direct POST). The Data Library
+   page reads the same packs but is admin+ and renders them server-side, so
+   its gate is its own — nothing comes through here. */
 
 export async function loadStudioPack(
   brand: string
 ): Promise<{ pack: DataPack; version: string } | null> {
-  const session = await auth0.getSession();
-  if (!session) throw new Error("Not authenticated");
+  await requireOrg("studio");
 
   const latest = await latestInstalledPack(brand);
   if (!latest) return null;
@@ -28,8 +29,7 @@ export async function loadStudioPack(
 export async function listStudioPackBrands(): Promise<
   { brand: string; version: string; name: string }[]
 > {
-  const session = await auth0.getSession();
-  if (!session) throw new Error("Not authenticated");
+  await requireOrg("studio");
   const refs = await installedPacks();
   return refs.map((r) => ({ brand: r.brand, version: r.version, name: r.meta.name }));
 }

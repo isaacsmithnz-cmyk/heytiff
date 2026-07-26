@@ -114,3 +114,20 @@ export async function can(capability: Capability): Promise<boolean> {
 export async function getDbRole(): Promise<Role | null> {
   return (await getMembership()).role;
 }
+
+/** The server actions' shared front door. Server Functions are reachable by
+    direct POST, so every action re-checks the session for itself — this is
+    that check, plus the feature gate when a capability is named. Leave the
+    capability off only where being a signed-in member IS the permission
+    (your own staff card); a feature's actions must name the same capability
+    that gates the feature's route. */
+export async function requireOrg(
+  capability?: Capability
+): Promise<{ orgId: string; userId: string }> {
+  const session = await auth0.getSession();
+  if (!session) throw new Error("Not authenticated");
+  const orgId = session.orgId as string | undefined;
+  if (!orgId) throw new Error("No active organization");
+  if (capability && !(await can(capability))) throw new Error("Insufficient permissions");
+  return { orgId, userId: session.user.sub as string };
+}

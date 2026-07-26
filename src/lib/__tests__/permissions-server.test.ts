@@ -179,3 +179,40 @@ describe("can()", () => {
     expect(spies.select.mock.calls.length).toBeGreaterThanOrEqual(1);
   });
 });
+
+describe("requireOrg() — the server actions' shared front door", () => {
+  it("rejects with no session", async () => {
+    const { requireOrg } = await load(null, null);
+    await expect(requireOrg()).rejects.toThrow("Not authenticated");
+  });
+
+  it("rejects a session with no active org", async () => {
+    const { requireOrg } = await load({ user: { sub: "auth0|u1" } }, null);
+    await expect(requireOrg()).rejects.toThrow("No active organization");
+  });
+
+  it("returns identity + org when no capability is named", async () => {
+    // even with no membership row — session-only actions (your own staff
+    // card) key off being signed in, not off a capability
+    const { requireOrg } = await load(session(), null);
+    expect(await requireOrg()).toEqual({ orgId: "org-1", userId: "auth0|u1" });
+  });
+
+  it("a named capability lets a role-default holder through", async () => {
+    const { requireOrg } = await load(session(), { role: "staff", permissions: {} });
+    expect(await requireOrg("studio")).toEqual({ orgId: "org-1", userId: "auth0|u1" });
+  });
+
+  it("a stored revoke shuts the same door", async () => {
+    const { requireOrg } = await load(session(), {
+      role: "staff",
+      permissions: { studio: false },
+    });
+    await expect(requireOrg("studio")).rejects.toThrow("Insufficient permissions");
+  });
+
+  it("the capability check fails closed on a database error", async () => {
+    const { requireOrg } = await load(session("owner"), null, "connection refused");
+    await expect(requireOrg("studio")).rejects.toThrow("Insufficient permissions");
+  });
+});

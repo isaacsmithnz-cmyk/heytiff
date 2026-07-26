@@ -1,4 +1,5 @@
 import { auth0 } from "@/lib/auth0";
+import { auHourNow, fmtAuWeekdayDateLong, todayInAu } from "@/lib/au-dates";
 import { DashboardHome } from "@/components/dashboard/home";
 import { loadDashboard } from "@/lib/dashboard/page-data";
 import { getViewerName } from "@/lib/staff/query";
@@ -22,18 +23,16 @@ export default async function DashboardHomePage() {
   const firstName =
     orgId && userId ? (await getViewerName(orgId, userId, fallback)).first : fallback;
 
-  const now = new Date();
-  const date = now.toLocaleDateString("en-AU", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
+  // The greeting reads the YARD's clock, not the server's: this renders on
+  // UTC Vercel, where every AU morning is still yesterday evening — raw
+  // new Date() showed the wrong date and said "Good evening" at 9am Sydney.
+  const date = fmtAuWeekdayDateLong(todayInAu());
 
   const data = await loadDashboard();
 
   return (
     <DashboardHome
-      greeting={greetingFor(now.getHours())}
+      greeting={greetingFor(auHourNow())}
       firstName={firstName}
       date={date}
       data={data}

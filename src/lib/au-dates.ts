@@ -143,6 +143,36 @@ export function fmtAuWeekdayDate(iso: string | null | undefined): string {
     .replace(",", "");
 }
 
+/* "Friday 25 December" — the long-form day line. Same UTC pinning as the short
+   variants; nothing to strip, because en-AU's long pattern writes no comma.
+   Shared by the dashboard greeting's date line and the events board, so a day
+   spelt out in full reads identically everywhere. */
+export function fmtAuWeekdayDateLong(iso: string | null | undefined): string {
+  const day = String(iso ?? "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return "";
+  return new Intl.DateTimeFormat("en-AU", {
+    timeZone: "UTC",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(new Date(`${day}T00:00:00Z`));
+}
+
+/* The hour on the AU clock right now, 0-23 — for greetings, never arithmetic.
+   getHours() on a UTC server says "Good evening" at 9am in the yard; this
+   reads the same anchor as todayInAu, so the greeting and the date line it
+   sits over can't disagree. */
+export function auHourNow(now: Date = new Date()): number {
+  const part = new Intl.DateTimeFormat("en-AU", {
+    timeZone: AU_ANCHOR_TZ,
+    hour: "numeric",
+    hourCycle: "h23",
+  })
+    .formatToParts(now)
+    .find((p) => p.type === "hour");
+  return Number(part?.value ?? 0);
+}
+
 /* A stored date as an <input type="date"> value.
 
    The column is a `date`, but a driver may hand it back as a full timestamp,

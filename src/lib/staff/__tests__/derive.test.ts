@@ -88,6 +88,14 @@ describe("daysUntil", () => {
     expect(daysUntil(null, NOW)).toBeNull();
     expect(daysUntil("nope", NOW)).toBeNull();
   });
+
+  it("resolves 'today' on the AU clock, not the UTC one", () => {
+    // 15:00 UTC on the 19th is already the 20th in Sydney: a licence expiring
+    // on the 20th expires TODAY. The old toISOString() derivation said 1 —
+    // "expires tomorrow" in the Team directory while the dashboard chip,
+    // anchored on todayInAu, said "expires today" all morning.
+    expect(daysUntil("2026-07-20", new Date("2026-07-19T15:00:00Z"))).toBe(0);
+  });
 });
 
 describe("deriveCompliance", () => {

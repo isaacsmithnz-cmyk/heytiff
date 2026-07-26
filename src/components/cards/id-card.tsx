@@ -33,6 +33,7 @@ export function IdCard({
   name,
   sub,
   facts,
+  action,
   children,
 }: {
   variant?: "dark" | "light";
@@ -45,16 +46,20 @@ export function IdCard({
   name: ReactNode;
   sub?: ReactNode;
   facts?: IdCardFact[];
+  /** a control in the card's bottom-right corner — the licence wall's remove × */
+  action?: ReactNode;
   children?: ReactNode;
 }) {
   const accent = badge?.color ?? "#00E5C0";
+  const hasFace = Boolean(photoUrl || initials);
   return (
-    <div className={`idc ${variant}`}>
+    <div className={`idc ${variant}${hasFace ? "" : " faceless"}`}>
       <span className="idc-sheen" aria-hidden="true" />
       <span className="idc-mesh" aria-hidden="true">
         <i className="m1" />
         <i className="m2" />
       </span>
+      {action ? <div className="idc-action">{action}</div> : null}
       <div className="idc-in">
         <div className="idc-top">
           <span className="idc-org">{org || "HeyTiff"}</span>
@@ -69,14 +74,20 @@ export function IdCard({
         </div>
 
         <div className="idc-id">
-          <span className="idc-photo">
-            {photoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={photoUrl} alt="" />
-            ) : (
-              <span className="inn">{initials || "—"}</span>
-            )}
-          </span>
+          {/* A card with no face. Passing neither a photo nor initials means the
+              card is not ABOUT a person — a licence carries its own details, and
+              a wall of them would otherwise repeat one face four times. Every
+              other caller passes one or the other, so they are unaffected. */}
+          {hasFace && (
+            <span className="idc-photo">
+              {photoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={photoUrl} alt="" />
+              ) : (
+                <span className="inn">{initials}</span>
+              )}
+            </span>
+          )}
           <span className="idc-who">
             <b>{name}</b>
             {sub ? <em>{sub}</em> : null}

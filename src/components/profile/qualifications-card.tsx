@@ -3,6 +3,7 @@
 import type { StaffProfile } from "@/lib/staff/profile";
 import { preValidate } from "@/lib/staff/pre-validate";
 import { SectionCard } from "./section-card";
+import { Detail, DetailPanel, DetailPanels } from "./detail";
 import { Field, TextArea } from "./fields";
 import type { ProfileMode, SaveSection } from "./types";
 
@@ -36,24 +37,26 @@ export function QualificationsCard({
       values={values}
       onSave={(fields) => onSave("licences", fields)}
       validate={(fields) => preValidate(mode, "licences", fields)}
-      read={
+      read={({ edit }) =>
         lines.length > 0 ? (
-          <div className="qual-list">
-            {lines.map((l, i) => (
-              <span key={i} className="qual">
-                {l}
-              </span>
-            ))}
-          </div>
+          <DetailPanels>
+            {/* a list of chips, not label/value pairs — plain panel body */}
+            <DetailPanel title="Tickets & courses" wide plain>
+              <div className="qual-list">
+                {lines.map((l, i) => (
+                  <span key={i} className="qual">
+                    {l}
+                  </span>
+                ))}
+              </div>
+            </DetailPanel>
+          </DetailPanels>
         ) : (
-          <div className="ro-rows">
-            <div className="ro-row">
-              <em>Qualifications</em>
-              <b>
-                <span className="ro-none">None listed</span>
-              </b>
-            </div>
-          </div>
+          <DetailPanels>
+            <DetailPanel title="Tickets & courses">
+              <Detail label="Qualifications" value="" onAdd={edit} addLabel="List" />
+            </DetailPanel>
+          </DetailPanels>
         )
       }
       edit={({ draft, set }) => (

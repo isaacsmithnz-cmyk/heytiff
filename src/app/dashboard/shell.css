@@ -808,52 +808,179 @@
 .fg .pbtn.primary { background:var(--ink); color:#fff; box-shadow:0 8px 18px -6px rgba(0,0,0,.3); }
 .fg .pbtn.primary:hover { background:var(--teal); color:var(--ink); }
 
-/* header card */
-.fg .phead { position:relative; overflow:hidden; border-radius:28px; background:var(--ink2); color:#fff; padding:30px 34px; margin-bottom:24px; box-shadow:0 20px 50px -20px rgba(0,0,0,.4); }
-.fg .phead .mesh { position:absolute; inset:0; pointer-events:none; opacity:.45; mix-blend-mode:screen; }
-.fg .phead .mesh i { position:absolute; border-radius:50%; filter:blur(120px); }
-.fg .phead .mesh .m1 { top:-60%; left:-10%; width:50%; height:170%; background:var(--teal); opacity:.18; }
-.fg .phead .mesh .m2 { bottom:-60%; right:-5%; width:45%; height:170%; background:var(--blue); opacity:.16; }
-.fg .phead .inner { position:relative; z-index:2; display:flex; align-items:center; gap:24px; flex-wrap:wrap; }
+/* ONE CARD — identity rail | section tabs over the panel.
+
+   This replaced a full-width dark hero above a column of icon nav rows. The
+   hero's facts now live in the rail, which is why the Personal card no longer
+   carries a plastic staff card: the two were the same information side by
+   side. Going horizontal with the sections costs nothing (there are never more
+   than ten) and hands the panel the card's whole width, which is what lets the
+   read view sit two panels across. */
+.fg .pcard { display:grid; grid-template-columns:320px minmax(0,1fr); background:#fff; border:1px solid #f0f0f2; border-radius:28px; overflow:hidden; box-shadow:0 1px 2px rgba(0,0,0,.04), 0 20px 50px -24px rgba(0,0,0,.26); }
+@media (max-width:920px){ .fg .pcard{grid-template-columns:1fr} }
+
+/* identity rail */
+.fg .prail { position:relative; overflow:hidden; background:var(--ink2); color:#fff; }
+.fg .prail .mesh { position:absolute; inset:0; pointer-events:none; opacity:.5; mix-blend-mode:screen; }
+.fg .prail .mesh i { position:absolute; border-radius:50%; filter:blur(110px); }
+.fg .prail .mesh .m1 { top:-30%; left:-45%; width:135%; height:80%; background:var(--teal); opacity:.18; }
+.fg .prail .mesh .m2 { bottom:-30%; right:-45%; width:135%; height:80%; background:var(--blue); opacity:.16; }
+.fg .prail-in { position:relative; z-index:2; padding:30px 26px 32px; display:grid; gap:18px; align-content:start; }
 .fg .pphoto { position:relative; width:96px; height:96px; border-radius:26px; flex:0 0 auto; background:linear-gradient(45deg,#2E68FF,#00E5C0); padding:2px; }
-.fg .pphoto .inn { width:100%; height:100%; border-radius:24px; background:#0A0B10; display:flex; align-items:center; justify-content:center; font-size:30px; font-weight:800; color:#fff; }
+.fg .pphoto .inn { width:100%; height:100%; border-radius:24px; background:#0A0B10; display:flex; align-items:center; justify-content:center; font-size:30px; font-weight:800; color:#fff; object-fit:cover; }
 .fg .pphoto .cam { position:absolute; right:-6px; bottom:-6px; width:30px; height:30px; border-radius:50%; background:#fff; color:var(--ink); display:flex; align-items:center; justify-content:center; box-shadow:0 6px 14px rgba(0,0,0,.3); cursor:pointer; }
-/* PER-CARD EDIT: header avatar isn't a card, so its camera badge has no edit
+/* PER-CARD EDIT: the rail avatar isn't a card, so its camera badge has no edit
    mode — hide it. */
 .fg .prof .pphoto .cam { display:none; }
-.fg .pid { flex:1; min-width:240px; }
-.fg .pid h1 { font-size:30px; font-weight:800; letter-spacing:-0.03em; margin:0; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-.fg .pid h1 em { font-style:normal; font-size:16px; font-weight:600; color:rgba(255,255,255,.5); }
-.fg .pid .sub { display:flex; align-items:center; gap:14px; margin-top:10px; flex-wrap:wrap; font-size:13px; color:rgba(255,255,255,.55); font-weight:500; }
-.fg .pid .sub span { display:inline-flex; align-items:center; gap:6px; }
+.fg .prail .pphoto { width:84px; height:84px; border-radius:23px; justify-self:start; }
+.fg .prail .pphoto .inn { border-radius:21px; font-size:27px; }
+.fg .pid { min-width:0; }
+.fg .pid h1 { font-size:26px; font-weight:800; letter-spacing:-0.03em; margin:0; overflow-wrap:anywhere; }
+.fg .pid h1 em { font-style:normal; font-size:15px; font-weight:600; color:rgba(255,255,255,.5); margin-left:9px; }
+.fg .pid .sub { display:flex; align-items:center; gap:9px; margin-top:7px; flex-wrap:wrap; font-size:13.5px; color:rgba(255,255,255,.55); font-weight:600; }
+.fg .pid .sub span { display:inline-flex; align-items:center; gap:9px; }
 .fg .pid .sub .dot { width:4px; height:4px; border-radius:50%; background:rgba(255,255,255,.3); }
-.fg .badge { display:inline-flex; align-items:center; gap:7px; padding:5px 12px; border-radius:999px; font-size:12px; font-weight:700; font-family:var(--mono); letter-spacing:.02em; }
+.fg .badge { display:inline-flex; align-items:center; gap:7px; padding:5px 12px; border-radius:999px; font-size:12px; font-weight:700; letter-spacing:.02em; width:fit-content; }
 .fg .badge.active { background:rgba(0,229,192,.14); color:var(--teal); border:1px solid rgba(0,229,192,.3); }
 .fg .badge.active .d { width:7px; height:7px; border-radius:50%; background:var(--teal); box-shadow:0 0 8px var(--teal); }
-.fg .pquick { display:flex; gap:10px; }
-.fg .pquick .q { text-align:center; padding:12px 18px; border-radius:16px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); }
-.fg .pquick .q b { display:block; font-size:19px; font-weight:800; font-family:var(--mono); }
-.fg .pquick .q em { font-style:normal; font-size:10.5px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:rgba(255,255,255,.4); margin-top:4px; }
+.fg .badge.off { background:rgba(255,255,255,.05); color:rgba(255,255,255,.6); border:1px solid rgba(255,255,255,.13); }
+.fg .badge.off .d { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,.35); }
 
-/* layout: section nav + panel */
-.fg .pgrid { display:grid; grid-template-columns:248px 1fr; gap:24px; align-items:start; }
-@media (max-width:920px){ .fg .pgrid{grid-template-columns:1fr} }
-.fg .pnav { position:sticky; top:20px; display:flex; flex-direction:column; gap:4px; background:#fff; border:1px solid #f0f0f2; border-radius:22px; padding:12px; box-shadow:0 8px 30px rgba(0,0,0,.03); }
-@media (max-width:920px){ .fg .pnav{position:static; flex-direction:row; overflow-x:auto; } }
-.fg .pnav .pn { display:flex; align-items:center; gap:12px; padding:11px 13px; border-radius:14px; font-size:14px; font-weight:700; color:var(--gray500); white-space:nowrap; transition:all .2s; text-align:left; }
-.fg .pnav .pn .pi { width:32px; height:32px; border-radius:10px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:#f3f4f7; color:#aeb4c0; transition:all .2s; }
-.fg .pnav .pn:hover { background:#f9fafb; color:var(--ink); }
-.fg .pnav .pn.on { background:rgba(0,229,192,.08); color:var(--ink); }
-.fg .pnav .pn.on .pi { background:var(--teal); color:var(--ink); }
-.fg .pnav .pn .lock { margin-left:auto; color:#c7ccd6; }
-.fg .pnav .pn.adminrow.on .lock { color:var(--teal-d); }
-.fg .pnav .ndiv { height:1px; background:#f0f0f2; margin:8px 6px; }
-.fg .pnav .ngl { font-size:9.5px; font-weight:800; letter-spacing:.18em; text-transform:uppercase; color:#c7ccd6; padding:8px 13px 4px; }
+/* the derived facts — nothing here is editable, which is why the rail carries
+   no Edit button: editing is per-card, on the card that owns the field */
+.fg .pfacts { display:grid; margin:2px 0 0; }
+.fg .pfact { display:flex; align-items:baseline; justify-content:space-between; gap:14px; padding:11px 0; border-top:1px solid rgba(255,255,255,.08); }
+.fg .pfact dt { font-size:13px; font-weight:600; color:rgba(255,255,255,.5); }
+.fg .pfact dd { margin:0; font-size:13.5px; font-weight:700; color:#fff; text-align:right; overflow-wrap:anywhere; }
+.fg .pfact dd.muted { color:rgba(255,255,255,.38); font-weight:600; }
+
+/* section tabs */
+.fg .pmain { min-width:0; display:flex; flex-direction:column; }
+/* wraps rather than scrolls: the card is width-capped, so ten labels never fit
+   on one line — a scroller would hide the admin sections behind a gesture with
+   no affordance */
+.fg .pftabs { display:flex; flex-wrap:wrap; align-items:center; gap:0 2px; padding:6px 22px 0; border-bottom:1px solid #f0f0f2; }
+.fg .pftab { position:relative; display:inline-flex; align-items:center; gap:9px; padding:13px 13px; font-size:14px; font-weight:600; color:var(--gray500); white-space:nowrap; transition:color .2s; }
+.fg .pftab:hover { color:var(--ink); }
+.fg .pftab.on { color:var(--ink); font-weight:700; }
+.fg .pftab.on::after { content:""; position:absolute; left:13px; right:13px; bottom:2px; height:2.5px; border-radius:3px; background:var(--teal); }
+.fg .pftab .lock { display:flex; color:#c7ccd6; }
+.fg .pftab.adminrow.on .lock { color:var(--teal-d); }
+/* amber, never the page accent: this is "needs attention", not "selected" */
+.fg .pftab .attn { width:6px; height:6px; border-radius:50%; flex:0 0 auto; background:#F0A431; box-shadow:0 0 0 3px rgba(240,164,49,.18); }
+/* a line break, not a rule: it drops the admin group onto its own row so the
+   "Admin only" label sits with the tabs it is labelling */
+.fg .pftabbreak { flex:0 0 100%; height:0; }
+.fg .pftabgl { font-size:9.5px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:#c7ccd6; white-space:nowrap; padding-left:13px; }
+
+/* what's still missing — the ring, the count and the checklist all read
+   lib/staff/completeness, so they cannot disagree with the tabs' dots */
+.fg .ptodo { margin:22px 24px 0; border:1px solid rgba(0,229,192,.3); background:linear-gradient(180deg,rgba(0,229,192,.08),rgba(0,229,192,.03)); border-radius:18px; padding:18px 20px; display:grid; gap:14px; }
+.fg .ptodo-top { display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+.fg .pring { flex:0 0 auto; color:rgba(0,163,137,.2); }
+.fg .pring .v { stroke:var(--teal-d); transition:stroke-dasharray .6s cubic-bezier(.22,1,.36,1); }
+.fg .ptodo-k { flex:1; min-width:170px; }
+.fg .ptodo-k b { display:block; font-size:16px; font-weight:800; letter-spacing:-0.01em; color:var(--ink); }
+.fg .ptodo-k em { font-style:normal; display:block; margin-top:3px; font-size:12.5px; font-weight:600; color:var(--gray500); }
+.fg .ptodo .pbtn { flex:0 0 auto; }
+.fg .pcheck { display:grid; grid-template-columns:repeat(auto-fit,minmax(215px,1fr)); column-gap:26px; list-style:none; margin:0; padding:0; }
+.fg .pci { display:flex; align-items:center; gap:10px; width:100%; padding:9px 0; font-size:13.5px; font-weight:600; color:var(--gray700); text-align:left; border-top:1px solid rgba(0,163,137,.16); transition:color .2s; }
+.fg .pci:hover { color:var(--ink); }
+.fg .pci .tk { width:17px; height:17px; border-radius:50%; flex:0 0 auto; background:#fff; border:1.5px dashed #b9c4c9; transition:all .2s; }
+.fg .pci:hover .tk { border-style:solid; border-color:var(--teal-d); }
+.fg .pci .req { font-weight:700; color:#e0264f; }
 
 /* panel */
-.fg .ppanel { min-width:0; }
+.fg .ppanel { min-width:0; padding:22px 24px 26px; }
 .fg .psec { display:none; }
 .fg .psec.on { display:block; animation:fgUp .4s cubic-bezier(.22,1,.36,1) backwards; }
+.fg .psec:focus { outline:none; }
+
+/* grouped read view: label/value pairs, and a blank that is a BUTTON */
+/* align-items:start — panels size to their content. Stretched, a one-row panel
+   beside a four-row one (Right to work next to Visa) is mostly void. */
+.fg .pdlgrid { display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start; }
+.fg .pdlcard { border:1px solid #f0f0f2; border-radius:16px; padding:16px 18px 18px; min-width:0; }
+.fg .pdlcard.wide { grid-column:1/-1; }
+.fg .pdlh { font-size:10.5px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:var(--gray400); }
+.fg .pdl, .fg .pdlbody { margin:13px 0 0; display:grid; gap:10px; }
+.fg .pdl.split { grid-template-columns:1fr 1fr; column-gap:36px; }
+.fg .pdrow { display:grid; grid-template-columns:112px minmax(0,1fr); gap:14px; align-items:baseline; min-width:0; }
+.fg .pdrow dt { font-size:12.5px; font-weight:600; color:var(--gray500); }
+.fg .pdrow dd { margin:0; min-width:0; }
+.fg .pdv { font-size:16px; font-weight:600; letter-spacing:-0.01em; color:var(--ink); overflow-wrap:anywhere; }
+.fg .pdv.sm { font-size:14.5px; }
+.fg .pdsub { display:block; margin-top:2px; font-size:11.5px; font-weight:600; color:var(--gray400); }
+.fg .pdnone { font-size:14px; font-style:italic; font-weight:500; color:#bcc2cd; }
+.fg .padd { display:inline-flex; align-items:center; gap:7px; font-size:14px; font-weight:600; font-style:italic; color:var(--gray500); transition:color .2s; }
+.fg .padd span { display:grid; place-items:center; width:18px; height:18px; border-radius:6px; flex:0 0 auto; border:1px dashed #b6bcc7; font-style:normal; font-size:13px; line-height:1; transition:all .2s; }
+.fg .padd:hover { color:var(--teal-d); }
+.fg .padd:hover span { border-color:var(--teal); color:var(--teal-d); }
+
+/* the licence wall — CR80 cards, not the 230px info tiles .credgrid lays out
+   (that grid still serves the company credentials on the Organisation screen).
+   .idc is capped at 460px for the one-card cases; in here a card fills its
+   track. */
+/* min(300px,100%), not a bare 300px: on a narrow phone the track would stay
+   300 wide and the card would hang off the side of the panel */
+.fg .liccards { margin-top:18px; display:grid; grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr)); gap:16px; }
+.fg .liccards .idc { max-width:none; }
+/* A faceless card has no photo holding the middle, so the type name would sit
+   under the issuer with a void beneath it. Centring the block splits that space
+   above and below, which reads as a licence rather than as a rendering bug —
+   and the slightly shallower ratio takes the edge off it. */
+.fg .idc.faceless { aspect-ratio:856/500; }
+.fg .idc.faceless .idc-id { margin-block:auto; }
+.fg .idc.faceless .idc-who b { font-size:21px; letter-spacing:-.02em; }
+.fg .idc-action { position:absolute; top:10px; right:10px; z-index:3; }
+.fg .idc-del { width:28px; height:28px; border-radius:9px; display:flex; align-items:center; justify-content:center; color:#aeb4c0; background:rgba(255,255,255,.85); border:1px solid #ecedf1; opacity:0; transition:all .2s; }
+.fg .idc:hover .idc-del, .fg .idc-del:focus-visible { opacity:1; }
+.fg .idc-del:hover { background:rgba(255,51,102,.1); color:#e0264f; border-color:rgba(255,51,102,.25); }
+.fg .idc-del:disabled { opacity:.5; cursor:default; }
+/* the badge would sit under the × — shift it clear when there is one */
+.fg .idc-action ~ .idc-in .idc-badge { margin-right:34px; }
+@media (hover:none), (pointer:coarse) { .fg .idc-del { opacity:1; } }
+
+/* inside the one card the section cards are flat — a card in a card reads as
+   a mistake, so they keep only their hairline and their radius */
+.fg .pcard .card2 { border-radius:18px; box-shadow:none; padding:20px 22px; margin-bottom:16px; }
+.fg .pcard .card2:last-child { margin-bottom:0; }
+.fg .pcard .card2 .c2h { margin-bottom:18px; }
+
+/* Stacked, the rail is a HEADER, not a column: left as a 320px-wide block it
+   ran a full phone screen tall and you scrolled past the whole identity to
+   reach the first field. Photo and name go side by side, the rest spans. */
+@media (max-width:920px){
+  .fg .prail-in { padding:22px 20px 24px; grid-template-columns:auto minmax(0,1fr); gap:14px 16px; align-items:center; }
+  .fg .prail .pphoto { width:64px; height:64px; border-radius:18px; }
+  .fg .prail .pphoto .inn { border-radius:16px; font-size:21px; }
+  .fg .prail .pid h1 { font-size:22px; }
+  .fg .prail .badge, .fg .prail .pfacts { grid-column:1/-1; }
+  .fg .prail .pfacts { grid-template-columns:1fr 1fr; column-gap:22px; margin-top:0; }
+  .fg .pftabs { padding:4px 14px 0; }
+  .fg .pftab { padding:11px 10px; }
+  .fg .pftab.on::after { left:10px; right:10px; }
+  .fg .pftabgl { padding-left:10px; }
+  .fg .ptodo { margin:18px 14px 0; }
+  .fg .ppanel { padding:18px 14px 20px; }
+  .fg .pcard .card2 { padding:18px 16px; }
+}
+@media (max-width:760px){
+  .fg .pdlgrid, .fg .pdl.split { grid-template-columns:1fr; }
+}
+@media (max-width:560px){
+  /* two facts to a line squeezes "Unassigned" into a mid-word break */
+  .fg .prail .pfacts { grid-template-columns:1fr; }
+  .fg .prail .pid h1 { font-size:20px; }
+  .fg .prail .pid .sub { font-size:12.5px; gap:7px; }
+}
+@media (max-width:520px){
+  .fg .pdrow { grid-template-columns:1fr; gap:2px; }
+  .fg .ptodo-top .pbtn { width:100%; justify-content:center; }
+}
+
+/* for screen readers only — the tabs' "details missing", the + Add's field */
+.fg .sr-only { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }
 .fg .card2 { background:#fff; border:1px solid #f0f0f2; border-radius:24px; box-shadow:0 8px 30px rgba(0,0,0,.03); padding:26px; margin-bottom:20px; }
 .fg .card2 .c2h { display:flex; align-items:center; gap:12px; margin-bottom:22px; }
 .fg .card2 .c2h .ci { width:38px; height:38px; border-radius:12px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:rgba(0,229,192,.1); color:var(--teal-d); }
@@ -974,14 +1101,6 @@
 .fg .licdel:hover { background:rgba(255,51,102,.1); color:#e0264f; }
 
 /* licence cards */
-.fg .lics:not(:empty) { margin-top:18px; }
-.fg .lic { border:1px solid #f0f0f2; border-radius:18px; padding:18px; background:#fff; }
-.fg .lic + .lic { margin-top:14px; }
-.fg .lic .lh { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
-.fg .lic .lh .li { width:38px; height:38px; border-radius:11px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; }
-.fg .lic .lh b { font-size:14.5px; font-weight:800; }
-.fg .lic .lh em { font-style:normal; display:block; font-size:11.5px; color:var(--gray400); margin-top:1px; font-weight:500; }
-.fg .lic .lh .lstat { margin-left:auto; font-family:var(--mono); font-size:10.5px; font-weight:700; padding:4px 9px; border-radius:7px; background:#f3f4f6; color:var(--gray400); }
 
 /* cost split */
 .fg .permroles { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
@@ -1616,16 +1735,7 @@
 .fg .fl-ch em { font-style:normal; display:block; font-size:12.5px; font-weight:500; color:#9ca3af; margin-top:2px; }
 
 /* profile — assigned-vehicle card */
-.fg .pveh { display:flex; flex-direction:column; gap:14px; }
-.fg .pvh { display:flex; align-items:center; gap:13px; }
-.fg .pvi { width:44px; height:44px; border-radius:13px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:rgba(255,138,0,.12); color:#d97706; }
-.fg .pvh b { display:block; font-size:15px; font-weight:800; color:var(--ink); }
-.fg .pvh em { font-style:normal; display:block; font-size:12px; font-weight:600; color:#9ca3af; margin-top:5px; }
 .fg .pvchips { display:flex; flex-wrap:wrap; gap:8px; }
-.fg .pvfacts { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
-.fg .pvfacts span { background:#fafbfc; border:1px solid #f0f0f2; border-radius:12px; padding:10px 13px; }
-.fg .pvfacts em { font-style:normal; display:block; font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:#9ca3af; }
-.fg .pvfacts b { display:block; font-size:13px; font-weight:800; color:var(--ink); margin-top:3px; }
 
 /* ---- fleet modals & log rows — UNSCOPED: modals portal to <body> (like
    .fg-cmd) and .fl-log/.dchip2 render both in-shell and inside the portal ---- */
@@ -1984,7 +2094,13 @@ select.fl-i { cursor:pointer; }
 .fg .ro-row b { flex:1; min-width:0; font-size:14px; font-weight:600; color:var(--ink); overflow-wrap:anywhere; }
 .fg .ro-row .num { font-variant-numeric:tabular-nums; }
 .fg .ro-none { font-style:italic; font-weight:500; color:#bcc2cd; }
-.fg .ro-state.ok { color:var(--teal-d); font-weight:700; }
+.fg .ro-state { display:inline-flex; align-items:center; gap:6px; font-weight:700; }
+.fg .ro-state.ok { color:var(--teal-d); }
+.fg .ro-state.warn { color:#b45309; }
+.fg .ro-state.bad { color:#e0264f; }
+.fg .ro-state.mute { color:var(--gray400); font-weight:600; }
+/* the role dot outside its picker — .permrole .prdot doesn't reach read mode */
+.fg .ro-state .prdot { width:9px; height:9px; border-radius:50%; flex:0 0 auto; }
 .fg .ro-note { margin:0; font-size:14px; font-weight:500; line-height:1.6; color:var(--gray700); white-space:pre-wrap; }
 .fg .card2 > .idc + .ro-rows { margin-top:20px; }
 @media (max-width:560px){ .fg .ro-row { flex-direction:column; gap:3px; } .fg .ro-row em { flex:none; } }
@@ -1999,13 +2115,6 @@ select.fl-i { cursor:pointer; }
 .fg .wr-nov em { font-style:normal; display:block; margin-top:2px; font-size:12px; font-weight:500; color:var(--gray500); }
 
 /* ---- My pay ---- */
-.fg .mypay { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px,1fr)); gap:12px; font-variant-numeric:tabular-nums; }
-.fg .mpt { padding:16px; border-radius:16px; background:#fafbfc; border:1px solid #f0f0f2; }
-.fg .mpt.teal { background:rgba(0,229,192,.07); border-color:rgba(0,229,192,.26); }
-.fg .mpt em { font-style:normal; display:block; font-size:10px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--gray400); }
-.fg .mpt b { display:block; margin-top:8px; font-size:24px; font-weight:800; letter-spacing:-.03em; color:var(--ink); }
-.fg .mpt span { display:block; margin-top:3px; font-size:12px; font-weight:600; color:var(--gray500); }
-.fg .mypay-chips { display:flex; flex-wrap:wrap; gap:9px; margin-top:14px; font-variant-numeric:tabular-nums; }
 .fg .mypay-foot { margin:16px 0 0; font-size:12.5px; font-weight:600; color:var(--gray400); }
 
 /* ---- date entry (components/profile/fields.tsx :: DateField) ----

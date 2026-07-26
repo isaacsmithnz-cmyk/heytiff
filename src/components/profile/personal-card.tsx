@@ -1,13 +1,12 @@
 "use client";
 
-import { Icon } from "@/components/shell/icon";
-import { IdCard } from "@/components/cards/id-card";
 import { AddressField } from "@/components/address/address-field";
 import { type StaffProfile } from "@/lib/staff/profile";
 import { dateInputValue, formatAuDate } from "@/lib/au-dates";
 import { preValidate } from "@/lib/staff/pre-validate";
 import { SectionCard } from "./section-card";
-import { DateField, Field, FactRow, Seg, SelectInput, TextInput } from "./fields";
+import { Detail, DetailPanel, DetailPanels } from "./detail";
+import { DateField, Field, Seg, SelectInput, TextInput } from "./fields";
 import type { ProfileMode, SaveSection } from "./types";
 import { EMPLOYMENT_TYPES } from "@/lib/staff/employment";
 
@@ -37,65 +36,58 @@ export function personalValues(p: StaffProfile | null, mode: ProfileMode): Recor
 export function PersonalCard({
   profile,
   mode,
-  org,
-  initials,
+  email,
   addressLookup = false,
   today,
+  startEditing,
   onSave,
 }: {
   profile: StaffProfile | null;
   mode: ProfileMode;
-  org: string | null;
-  initials: string;
+  /** the sign-in address. Shown, never edited: it is the Auth0 identity, not
+      a column this card's allowlist can reach. */
+  email?: string;
   /** server-computed Boolean(GOOGLE_MAPS_API_KEY). False leaves Address the
       plain text box it has always been — the field never depends on it. */
   addressLookup?: boolean;
   /** the server's AU day, for the date pickers */
   today?: string;
+  startEditing?: boolean;
   onSave: SaveSection;
 }) {
   const values = personalValues(profile, mode);
-  const fullName = [values.first_name, values.last_name].filter(Boolean).join(" ");
-  const jobTitle = profile?.job_title ?? "";
-  const blank = !fullName && !values.phone && !values.address && !values.birthday;
   // read mode is dd/mm/yyyy — how an Australian reads a date. Only ENTRY is ISO,
   // because that is what a calendar picker speaks.
   const born = formatAuDate(profile?.birthday);
   const started = formatAuDate(profile?.start_date);
 
-  const sub = [jobTitle, values.employment_type].filter(Boolean).join(" · ");
+  /* Three groups rather than one long list — you come to this card looking for
+     ONE of "who are they", "how do I reach them" or "how are they employed",
+     and grouping means you stop reading as soon as you've found it.
 
-  const read = blank ? (
-    <div className="ro-empty">
-      <span className="ei">
-        <Icon name="user" size={20} />
-      </span>
-      <b>No details yet</b>
-      <em>
-        Add your details and this becomes your staff card — name, role and the
-        basics your team can actually use.
-      </em>
-    </div>
-  ) : (
-    <>
-      <IdCard
-        variant="dark"
-        org={org}
-        badge={{ label: "STAFF", color: "#00E5C0" }}
-        photoUrl={profile?.photo_url ?? null}
-        initials={initials}
-        name={fullName || "—"}
-        sub={sub || "Staff member"}
-        facts={[
-          { em: "Started", b: started || "—" },
-          { em: "Phone", b: values.phone || "—" },
-          { em: "Date of birth", b: born || "—" },
-        ]}
-      />
-      <div className="ro-rows">
-        <FactRow label="Preferred name" value={values.preferred_name} />
-        <FactRow label="Address" value={values.address} />
-        <FactRow
+     There is no empty state any more. A blank card renders the same three
+     panels with an "+ Add" in every value slot, which is strictly more useful
+     than a paragraph explaining that it's blank: each button opens this card's
+     form with the field it names. */
+  const read = ({ edit }: { edit: () => void }) => (
+    <DetailPanels>
+      <DetailPanel title="Identity">
+        <Detail label="First name" value={values.first_name} onAdd={edit} />
+        <Detail label="Last name" value={values.last_name} onAdd={edit} />
+        <Detail label="Preferred name" value={values.preferred_name} onAdd={edit} />
+        <Detail label="Date of birth" value={born} onAdd={edit} addLabel="Set" />
+      </DetailPanel>
+
+      <DetailPanel title="Contact">
+        {/* no onAdd: you change this by changing how you sign in */}
+        <Detail label="Email" value={email} small />
+        <Detail label="Mobile" value={values.phone} onAdd={edit} />
+        <Detail label="Address" value={values.address} onAdd={edit} small />
+      </DetailPanel>
+
+      <DetailPanel title="Employment" wide split>
+        <Detail label="Start date" value={started} onAdd={edit} addLabel="Set" />
+        <Detail
           label="Status"
           value={
             <span className={values.status === "Active" ? "ro-state ok" : "ro-state"}>
@@ -103,8 +95,17 @@ export function PersonalCard({
             </span>
           }
         />
-      </div>
-    </>
+        <Detail
+          label="Type"
+          value={values.employment_type}
+          onAdd={edit}
+          addLabel="Select"
+        />
+        {mode === "admin" && (
+          <Detail label="Job title" value={values.job_title} onAdd={edit} />
+        )}
+      </DetailPanel>
+    </DetailPanels>
   );
 
   return (
@@ -113,6 +114,7 @@ export function PersonalCard({
       title="Personal details"
       sub="Identity, contact & employment basics"
       values={values}
+      startEditing={startEditing}
       onSave={(fields) => onSave("personal", fields)}
       validate={(fields) => preValidate(mode, "personal", fields)}
       read={read}

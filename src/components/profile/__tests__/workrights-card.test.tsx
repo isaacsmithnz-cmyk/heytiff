@@ -25,7 +25,6 @@ function setup(profile = blankProfile) {
     <WorkRightsCard
       profile={profile}
       mode="self"
-      org="Smith Air"
       today={TODAY}
       onSave={actions.onSave}
     />
@@ -127,32 +126,38 @@ describe("choosing a no-visa status", () => {
 });
 
 describe("the read view", () => {
-  it("states the answer for a citizen, with no visa facts at all", () => {
+  it("states the answer for a citizen, with no visa panel at all", () => {
     setup({ ...blankProfile, work_rights_status: "Australian citizen" });
-    expect(screen.getByText("No visa required — full working rights")).toBeInTheDocument();
+    expect(screen.getByText("Australian citizen")).toBeInTheDocument();
+    expect(screen.getByText(/No — full working rights/)).toBeInTheDocument();
+    // the whole panel is unmounted, not dimmed — same rule the edit form applies
+    expect(screen.queryByText("Visa")).not.toBeInTheDocument();
     expect(screen.queryByText("Expiry")).not.toBeInTheDocument();
     expect(screen.queryByText("VEVO checked")).not.toBeInTheDocument();
   });
 
-  it("leads with the visa type, and tints an expiry that is close", () => {
+  it("shows the visa panel for a visa holder, and tints an expiry that is close", () => {
     const { container } = render(
-      <WorkRightsCard
-        profile={onVisa}
-        mode="self"
-        org="Smith Air"
-        today={TODAY}
-        onSave={jest.fn()}
-      />
+      <WorkRightsCard profile={onVisa} mode="self" today={TODAY} onSave={jest.fn()} />
     );
+    expect(screen.getByText("Visa")).toBeInTheDocument();
     expect(screen.getByText("482 TSS")).toBeInTheDocument();
-    expect(screen.getByText("07/08/2026")).toBeInTheDocument();
+    expect(screen.getByText(/07\/08\/2026/)).toBeInTheDocument();
     // 14 days out — the same 30-day window the dashboard chip uses
-    expect(container.querySelector(".idc-facts .f.warn")).not.toBeNull();
+    expect(container.querySelector(".ro-state.warn")).not.toBeNull();
   });
 
-  it("says nothing is recorded rather than inventing a status", () => {
+  it("asks for the status rather than inventing one", async () => {
+    const user = userEvent.setup();
     setup();
-    expect(screen.getByText("Work rights not recorded")).toBeInTheDocument();
+    // nothing recorded reads as an offer, not a dash: the button opens this
+    // card's own form with the field it names
+    expect(screen.queryByText("Australian citizen")).not.toBeInTheDocument();
+    // and ONLY the status is asked for — the visa fields follow from it
+    expect(screen.queryByRole("button", { name: /Visa type/ })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Select Status/ }));
+    expect(screen.getByLabelText(/Work rights status/)).toBeInTheDocument();
   });
 });
 

@@ -527,7 +527,7 @@ export const NODES: MapNode[] = [
     group: "External services",
     blurb: "The business's accounting & payroll, over OAuth 2.0.",
     detail:
-      "Connected once per org by the owner. Read-only scopes: payroll employees, settings and timesheets; bills, contacts, reports and accounting settings. Nothing here writes to Xero.",
+      "Connected once per org by the owner. Read-only GRANULAR scopes (broad ones are refused outright for any Web app created since March 2026): payroll employees, settings and timesheets; invoices, bank transactions, contacts, the P&L report and accounting settings. Nothing here writes to Xero.",
   },
   {
     id: "gmaps",

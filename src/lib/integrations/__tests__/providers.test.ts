@@ -51,6 +51,28 @@ describe("XERO_SCOPES", () => {
     expect(writes).toEqual([]);
   });
 
+  /* The first live attempt died at Xero's consent screen with `invalid_scope`,
+     because two broad accounting scopes were asked for and every Web app
+     created since March 2026 is granular-only. Xero refuses the WHOLE request,
+     so one stale name takes the entire integration down before the user sees a
+     consent screen at all — pin the deprecated ones out. */
+  it("asks for no scope Xero has deprecated in favour of a granular one", () => {
+    const deprecated = [
+      "accounting.transactions",
+      "accounting.transactions.read",
+      "accounting.reports.read",
+    ];
+    for (const d of deprecated) expect(XERO_SCOPE_LIST).not.toContain(d);
+  });
+
+  it("names the granular scopes that replaced them", () => {
+    // bills + spend money, where accounting.transactions.read used to be
+    expect(XERO_SCOPE_LIST).toContain("accounting.invoices.read");
+    expect(XERO_SCOPE_LIST).toContain("accounting.banktransactions.read");
+    // just the P&L, where accounting.reports.read used to be every report
+    expect(XERO_SCOPE_LIST).toContain("accounting.reports.profitandloss.read");
+  });
+
   it("covers all three areas", () => {
     const areas = new Set(XERO_SCOPES.map((s) => s.area).filter(Boolean));
     expect(areas).toEqual(new Set(["Time & Pay", "Expenses", "Rate Calculator"]));
@@ -68,8 +90,9 @@ describe("missingScopes", () => {
   });
 
   it("names what an older grant predates", () => {
-    const granted = XERO_SCOPE_LIST.filter((s) => s !== "accounting.reports.read").join(" ");
-    expect(missingScopes(granted)).toEqual(["accounting.reports.read"]);
+    const dropped = "accounting.reports.profitandloss.read";
+    const granted = XERO_SCOPE_LIST.filter((s) => s !== dropped).join(" ");
+    expect(missingScopes(granted)).toEqual([dropped]);
   });
 
   it("treats no grant as missing everything", () => {

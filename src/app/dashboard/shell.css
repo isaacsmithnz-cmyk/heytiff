@@ -2712,3 +2712,35 @@ select.fl-i { cursor:pointer; }
 .fg .xc-cancel { font-size:11.5px; font-weight:700; color:var(--gray500); }
 .fg .xc-cancel:hover:not(:disabled) { color:#e0264f; }
 .fg .xc-cancel:disabled { opacity:.5; cursor:default; }
+
+/* ---- Expense review (components/timepay/team-expenses.tsx) ----
+   Reuses My expenses' rows wholesale — the same claim seen from the other
+   side — and adds only the summary strip, the decide controls, and the inline
+   decline reason. */
+.fg .xr-sum { display:flex; flex-wrap:wrap; gap:12px; margin-bottom:20px; }
+.fg .xr-sum > div { flex:1 1 180px; padding:15px 18px; border-radius:18px; background:#fff; border:1px solid #f0f0f2; box-shadow:0 8px 30px rgba(0,0,0,.03); }
+.fg .xr-k { display:block; font-size:11px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:var(--gray400); }
+.fg .xr-sum b { display:block; margin-top:5px; font-size:26px; font-weight:800; letter-spacing:-0.02em; font-variant-numeric:tabular-nums; }
+
+.fg .xr-acts { display:flex; gap:7px; }
+.fg .xr-btn { height:32px; padding:0 12px; border-radius:10px; font-size:12px; font-weight:700; background:#fff; border:1px solid #e2e5ea; color:var(--gray700); white-space:nowrap; transition:background .15s, border-color .15s; }
+.fg .xr-btn:hover:not(:disabled) { background:#f4f5f7; }
+.fg .xr-btn.go { background:var(--ink); border-color:var(--ink); color:#fff; }
+.fg .xr-btn.go:hover:not(:disabled) { background:var(--teal); border-color:var(--teal); color:var(--ink); }
+.fg .xr-btn.bad { background:#e0264f; border-color:#e0264f; color:#fff; }
+.fg .xr-btn.bad:hover:not(:disabled) { background:#c81f44; }
+.fg .xr-btn:disabled { opacity:.5; cursor:default; }
+
+/* The reason sits inline under the claim it belongs to — asking for it in a
+   modal would separate the sentence from the thing it is about. */
+.fg .xr-decline { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:11px; padding-top:11px; border-top:1px solid #eef0f4; }
+.fg .xr-decline .inp { flex:1 1 200px; height:38px; }
+
+/* A claim with no receipt is a judgement call, and the approver should know
+   that's what they're making. */
+.fg .xr-noreceipt { font-size:11.5px; font-weight:700; color:#a56a05; }
+.fg .xr-foot { display:flex; align-items:center; gap:7px; margin-top:18px; font-size:12.5px; font-weight:600; color:var(--gray400); }
+
+/* The stat tile is a link now that expenses are real. */
+.fg a.stat { text-decoration:none; color:inherit; transition:transform .16s, box-shadow .16s; }
+.fg a.stat:hover { transform:translateY(-1px); box-shadow:0 10px 26px -14px rgba(10,12,20,.25); }

@@ -6,6 +6,8 @@ import { loadTimepay } from "@/lib/timepay/page-data";
 import { loadHolidayManager } from "@/lib/timepay/leave-page";
 import { auth0 } from "@/lib/auth0";
 import { getConnectionView } from "@/lib/integrations/store";
+import { teamClaims } from "@/lib/expenses/query";
+import { owedTotal, pendingCount } from "@/lib/expenses/claim";
 
 /* Capability-gated: this is the EVERYONE view. Your own timesheet lives at
    /dashboard/my-timesheet and is never gated.
@@ -50,6 +52,12 @@ export default async function TimePayPage({
   const xeroConnected =
     pay && orgId ? (await getConnectionView(orgId, "xero"))?.status === "connected" : false;
 
+  /* Only asked for behind `financials`, because the tile that shows it is
+     money — an hours-only view of this screen carries no dollar figures at
+     all, so there is nothing to compute. */
+  const claims = pay && orgId ? await teamClaims(orgId) : [];
+  const expenses = { owed: owedTotal(claims), pending: pendingCount(claims) };
+
   return (
     <TimePay
       staff={data.staff}
@@ -64,6 +72,7 @@ export default async function TimePayPage({
       financials={pay}
       holidayData={holidayData}
       xeroConnected={xeroConnected}
+      expenses={expenses}
     />
   );
 }

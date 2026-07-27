@@ -94,7 +94,7 @@ describe("the edit cycle", () => {
     const { container } = setup(okActions());
     const cards = () => [...container.querySelectorAll<HTMLElement>(".card2")];
 
-    await user.click(screen.getByRole("button", { name: /Compliance/ }));
+    await user.click(screen.getByRole("tab", { name: /Compliance/ }));
     // Compliance holds a live card (add/remove, never locked) and the
     // qualifications card, which has the usual edit cycle
     expect(cards()).toHaveLength(2);
@@ -116,7 +116,7 @@ describe("the edit cycle", () => {
     const user = userEvent.setup();
     setup(okActions());
 
-    await user.click(screen.getByRole("button", { name: /Training/ }));
+    await user.click(screen.getByRole("tab", { name: /Training/ }));
     expect(screen.queryByRole("button", { name: /^Edit$/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Save$/ })).not.toBeInTheDocument();
   });
@@ -150,7 +150,7 @@ describe("the edit cycle", () => {
     const actions = okActions();
     setup(actions);
 
-    await user.click(screen.getByRole("button", { name: /Emergency contact/ }));
+    await user.click(screen.getByRole("tab", { name: /Emergency contact/ }));
     await user.click(editButtons()[0]);
     await user.click(screen.getByRole("button", { name: /^Save$/ }));
 
@@ -206,7 +206,7 @@ describe("pre-validation", () => {
     const actions = okActions();
     adminSetup(actions);
 
-    await user.click(screen.getByRole("button", { name: /Payroll/ }));
+    await user.click(screen.getByRole("tab", { name: /Payroll/ }));
     await user.click(screen.getByRole("button", { name: /^Edit$/ }));
     const wage = screen.getByLabelText(/Hourly wage/);
     await user.clear(wage);
@@ -228,7 +228,7 @@ describe("pre-validation", () => {
     const actions = okActions();
     adminSetup(actions);
 
-    await user.click(screen.getByRole("button", { name: /Payroll/ }));
+    await user.click(screen.getByRole("tab", { name: /Payroll/ }));
     await user.click(screen.getByRole("button", { name: /^Edit$/ }));
     const wage = screen.getByLabelText(/Hourly wage/);
     await user.clear(wage);
@@ -259,7 +259,7 @@ describe("dates are picked, never typed", () => {
       expect(field).toHaveAttribute("aria-haspopup", "dialog");
     }
 
-    await user.click(screen.getByRole("button", { name: /Work rights/ }));
+    await user.click(screen.getByRole("tab", { name: /Work rights/ }));
     await user.click(editButtons()[0]);
     for (const label of ["Visa expiry", /VEVO last checked/]) {
       expect(screen.getByLabelText(label)).toHaveAttribute("aria-haspopup", "dialog");

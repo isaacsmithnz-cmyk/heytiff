@@ -40,6 +40,11 @@ export type CardEditContext = {
   saving: boolean;
 };
 
+/** What the read view is handed. `edit` is the same call the header's Edit
+    button makes, so an inline "+ Add" beside a blank value opens the very form
+    that fills it — see detail.tsx. */
+export type CardReadContext = { edit: () => void };
+
 export function SectionCard({
   icon,
   iconStyle,
@@ -56,6 +61,10 @@ export function SectionCard({
   editable = true,
   /** extra class on the card, e.g. `data-live` styling hooks */
   className,
+  /** Open in edit mode on mount. The screen sets this when you answer "Fill in
+      missing details", and remounts the section so it takes — see the psec key
+      in profile-screen. State, not an effect: the card is already fresh. */
+  startEditing = false,
 }: {
   icon: string;
   iconStyle?: CSSProperties;
@@ -64,7 +73,7 @@ export function SectionCard({
   pill?: ReactNode;
   /** the read-mode values, straight from props — also the draft's seed */
   values: Record<string, string>;
-  read: ReactNode;
+  read: ReactNode | ((ctx: CardReadContext) => ReactNode);
   edit: (ctx: CardEditContext) => ReactNode;
   /** already bound to its section by the caller */
   onSave?: (fields: Record<string, string>) => Promise<SaveResult>;
@@ -75,8 +84,11 @@ export function SectionCard({
   transform?: (draft: Record<string, string>) => Record<string, string>;
   editable?: boolean;
   className?: string;
+  startEditing?: boolean;
 }) {
-  const [draft, setDraft] = useState<Record<string, string> | null>(null);
+  const [draft, setDraft] = useState<Record<string, string> | null>(() =>
+    startEditing && editable ? { ...values } : null
+  );
   const { saving, error, fieldErrors, submit, clear } = useSectionSave(onSave, validate);
 
   const editing = draft !== null;
@@ -148,7 +160,7 @@ export function SectionCard({
         )}
       </div>
 
-      {editing ? edit(ctx) : read}
+      {editing ? edit(ctx) : typeof read === "function" ? read({ edit: startEdit }) : read}
 
       {editing && error && <div className="carderr">{error}</div>}
     </div>

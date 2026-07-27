@@ -1,12 +1,12 @@
 "use client";
 
 import { Icon } from "@/components/shell/icon";
-import { IdCard } from "@/components/cards/id-card";
 import { type StaffProfile } from "@/lib/staff/profile";
 import { dateInputValue, formatAuDate } from "@/lib/au-dates";
 import { licenceStatus } from "@/lib/staff/licence";
 import { preValidate } from "@/lib/staff/pre-validate";
 import { SectionCard } from "./section-card";
+import { Detail, DetailPanel, DetailPanels } from "./detail";
 import { DateField, Field, InfoTip, SelectInput, TextInput } from "./fields";
 import type { ProfileMode, SaveSection } from "./types";
 
@@ -49,14 +49,14 @@ export function workRightsValues(p: StaffProfile | null): Record<string, string>
 export function WorkRightsCard({
   profile,
   mode,
-  org,
   today,
+  startEditing,
   onSave,
 }: {
   profile: StaffProfile | null;
   mode: ProfileMode;
-  org: string | null;
   today: string;
+  startEditing?: boolean;
   onSave: SaveSection;
 }) {
   const values = workRightsValues(profile);
@@ -67,47 +67,65 @@ export function WorkRightsCard({
   const visaExpiry = formatAuDate(profile?.visa_expiry);
   const vevoChecked = formatAuDate(profile?.vevo_checked_at);
 
-  const read = !status ? (
-    <div className="ro-empty">
-      <span className="ei">
-        <Icon name="passport" size={20} />
-      </span>
-      <b>Work rights not recorded</b>
-      <em>
-        Every employer has to hold evidence of the right to work. Set the status
-        and, if there is a visa, its expiry — it warns before it lapses.
-      </em>
-    </div>
-  ) : (
-    <IdCard
-      variant="dark"
-      org={org}
-      badge={{ label: "WORK RIGHTS", color: "#00E5C0" }}
-      initials={noVisa ? "AU" : "VISA"}
-      name={noVisa ? status : values.visa_type || "Visa"}
-      sub={noVisa ? "Unrestricted right to work in Australia" : status}
-      facts={
-        noVisa
-          ? undefined
-          : [
-              {
-                em: "Expiry",
-                b: visaExpiry || "—",
-                tone: visaExpiry ? expiryStatus.tone : "mute",
-              },
-              { em: "Hours cap", b: values.hours_condition || "None recorded" },
-              { em: "VEVO checked", b: vevoChecked || "Never" },
-            ]
-      }
-    >
-      {noVisa && (
-        <div className="idc-note ok">
-          <Icon name="check" size={13} />
-          No visa required — full working rights
-        </div>
-      )}
-    </IdCard>
-  );
+  /* Nothing recorded: every employer has to hold evidence of the right to
+     work, so the blank card asks for the status where the answer goes rather
+     than explaining itself. Once there is one, it becomes the card.
+
+     ONLY the status is offered. The visa fields follow from it — a citizen has
+     none, and the edit form unmounts them for exactly that reason — so listing
+     them here would invite an answer to a question that may not apply. */
+  const read = ({ edit }: { edit: () => void }) =>
+    !status ? (
+      <DetailPanels>
+        <DetailPanel title="Right to work" wide>
+          <Detail label="Status" value="" onAdd={edit} addLabel="Select" />
+        </DetailPanel>
+      </DetailPanels>
+    ) : (
+      <DetailPanels>
+        <DetailPanel title="Right to work" wide={noVisa}>
+          <Detail label="Status" value={status} />
+          {noVisa && (
+            <Detail
+              label="Visa required"
+              value={
+                <span className="ro-state ok">
+                  <Icon name="check" size={13} />
+                  No — full working rights
+                </span>
+              }
+            />
+          )}
+        </DetailPanel>
+
+        {/* The visa panel is UNMOUNTED for a citizen or permanent resident, not
+            dimmed — the same rule the edit form applies, and the reason saving a
+            no-visa status blanks those columns. A card that shows "Visa expiry —"
+            for someone who has never held one is answering a question nobody
+            asked. */}
+        {!noVisa && (
+          <DetailPanel title="Visa">
+            <Detail label="Type" value={values.visa_type} onAdd={edit} />
+            <Detail
+              label="Expiry"
+              value={
+                visaExpiry ? (
+                  <span className={`ro-state ${expiryStatus.tone}`}>
+                    {visaExpiry} · {expiryStatus.label}
+                  </span>
+                ) : (
+                  ""
+                )
+              }
+              onAdd={edit}
+              addLabel="Set"
+            />
+            <Detail label="Hours cap" value={values.hours_condition} onAdd={edit} />
+            <Detail label="VEVO checked" value={vevoChecked} onAdd={edit} addLabel="Set" />
+          </DetailPanel>
+        )}
+      </DetailPanels>
+    );
 
   return (
     <SectionCard
@@ -115,6 +133,7 @@ export function WorkRightsCard({
       title="Work rights"
       sub="Australian working-rights / visa status"
       values={values}
+      startEditing={startEditing}
       onSave={(fields) => onSave("workrights", fields)}
       validate={(fields) => preValidate(mode, "workrights", fields)}
       transform={workRightsPayload}

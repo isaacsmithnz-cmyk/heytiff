@@ -174,6 +174,36 @@
 
 .fg .wrap { padding:40px; max-width:1500px; margin:0 auto; padding-bottom:96px; }
 
+/* ---------------- route loading skeleton ----------------
+   The fallback under /dashboard/loading.tsx. Shapes only — it holds the space
+   a screen is about to occupy so the click has somewhere to land. The sweep is
+   slow and low-contrast on purpose: a fast shimmer reads as an error state,
+   and this is often on screen for a second or two.
+   Honours prefers-reduced-motion (a full-page pulsing block is exactly what
+   that setting exists to stop). */
+@keyframes pkSweep { from{background-position:200% 0;} to{background-position:-200% 0;} }
+.fg .pk-sr { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+.fg .pk-b { display:block; border-radius:8px;
+  background:linear-gradient(100deg, rgba(10,12,20,.05) 30%, rgba(10,12,20,.09) 50%, rgba(10,12,20,.05) 70%);
+  background-size:200% 100%; animation:pkSweep 1.6s ease-in-out infinite; }
+.fg .pk-head { margin-bottom:34px; }
+.fg .pk-eyebrow { width:118px; height:11px; border-radius:6px; margin-bottom:16px; }
+.fg .pk-title { width:min(340px, 60%); height:34px; border-radius:12px; margin-bottom:14px; }
+.fg .pk-sub { width:min(220px, 40%); height:13px; }
+.fg .pk-tiles { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:20px; margin-bottom:32px; }
+.fg .pk-tile { background:#fff; border-radius:24px; padding:24px; box-shadow:0 8px 24px -14px rgba(10,12,20,.25); }
+.fg .pk-tk { width:64px; height:10px; border-radius:5px; margin-bottom:16px; }
+.fg .pk-tv { width:88px; height:26px; border-radius:9px; }
+.fg .pk-card { background:#fff; border-radius:28px; padding:12px 26px; box-shadow:0 8px 24px -14px rgba(10,12,20,.25); }
+.fg .pk-row { display:flex; align-items:center; gap:18px; padding:20px 0; border-bottom:1px solid rgba(10,12,20,.05); }
+.fg .pk-row:last-child { border-bottom:none; }
+.fg .pk-dot { width:38px; height:38px; border-radius:50%; flex:0 0 auto; }
+.fg .pk-l1 { flex:0 1 220px; height:13px; }
+.fg .pk-l2 { flex:0 1 120px; height:13px; }
+@media (prefers-reduced-motion:reduce) {
+  .fg .pk-b { animation:none; background:rgba(10,12,20,.06); }
+}
+
 /* ---------------- HERO (home) ---------------- */
 .fg .hero { position:relative; border-radius:40px; overflow:hidden; background:var(--ink2); color:#fff; padding:48px; box-shadow:0 20px 60px -15px rgba(0,0,0,.4); margin-bottom:40px; }
 .fg .hero .mesh { position:absolute; inset:0; pointer-events:none; opacity:.7; mix-blend-mode:screen; }
@@ -808,52 +838,179 @@
 .fg .pbtn.primary { background:var(--ink); color:#fff; box-shadow:0 8px 18px -6px rgba(0,0,0,.3); }
 .fg .pbtn.primary:hover { background:var(--teal); color:var(--ink); }
 
-/* header card */
-.fg .phead { position:relative; overflow:hidden; border-radius:28px; background:var(--ink2); color:#fff; padding:30px 34px; margin-bottom:24px; box-shadow:0 20px 50px -20px rgba(0,0,0,.4); }
-.fg .phead .mesh { position:absolute; inset:0; pointer-events:none; opacity:.45; mix-blend-mode:screen; }
-.fg .phead .mesh i { position:absolute; border-radius:50%; filter:blur(120px); }
-.fg .phead .mesh .m1 { top:-60%; left:-10%; width:50%; height:170%; background:var(--teal); opacity:.18; }
-.fg .phead .mesh .m2 { bottom:-60%; right:-5%; width:45%; height:170%; background:var(--blue); opacity:.16; }
-.fg .phead .inner { position:relative; z-index:2; display:flex; align-items:center; gap:24px; flex-wrap:wrap; }
+/* ONE CARD — identity rail | section tabs over the panel.
+
+   This replaced a full-width dark hero above a column of icon nav rows. The
+   hero's facts now live in the rail, which is why the Personal card no longer
+   carries a plastic staff card: the two were the same information side by
+   side. Going horizontal with the sections costs nothing (there are never more
+   than ten) and hands the panel the card's whole width, which is what lets the
+   read view sit two panels across. */
+.fg .pcard { display:grid; grid-template-columns:320px minmax(0,1fr); background:#fff; border:1px solid #f0f0f2; border-radius:28px; overflow:hidden; box-shadow:0 1px 2px rgba(0,0,0,.04), 0 20px 50px -24px rgba(0,0,0,.26); }
+@media (max-width:920px){ .fg .pcard{grid-template-columns:1fr} }
+
+/* identity rail */
+.fg .prail { position:relative; overflow:hidden; background:var(--ink2); color:#fff; }
+.fg .prail .mesh { position:absolute; inset:0; pointer-events:none; opacity:.5; mix-blend-mode:screen; }
+.fg .prail .mesh i { position:absolute; border-radius:50%; filter:blur(110px); }
+.fg .prail .mesh .m1 { top:-30%; left:-45%; width:135%; height:80%; background:var(--teal); opacity:.18; }
+.fg .prail .mesh .m2 { bottom:-30%; right:-45%; width:135%; height:80%; background:var(--blue); opacity:.16; }
+.fg .prail-in { position:relative; z-index:2; padding:30px 26px 32px; display:grid; gap:18px; align-content:start; }
 .fg .pphoto { position:relative; width:96px; height:96px; border-radius:26px; flex:0 0 auto; background:linear-gradient(45deg,#2E68FF,#00E5C0); padding:2px; }
-.fg .pphoto .inn { width:100%; height:100%; border-radius:24px; background:#0A0B10; display:flex; align-items:center; justify-content:center; font-size:30px; font-weight:800; color:#fff; }
+.fg .pphoto .inn { width:100%; height:100%; border-radius:24px; background:#0A0B10; display:flex; align-items:center; justify-content:center; font-size:30px; font-weight:800; color:#fff; object-fit:cover; }
 .fg .pphoto .cam { position:absolute; right:-6px; bottom:-6px; width:30px; height:30px; border-radius:50%; background:#fff; color:var(--ink); display:flex; align-items:center; justify-content:center; box-shadow:0 6px 14px rgba(0,0,0,.3); cursor:pointer; }
-/* PER-CARD EDIT: header avatar isn't a card, so its camera badge has no edit
+/* PER-CARD EDIT: the rail avatar isn't a card, so its camera badge has no edit
    mode — hide it. */
 .fg .prof .pphoto .cam { display:none; }
-.fg .pid { flex:1; min-width:240px; }
-.fg .pid h1 { font-size:30px; font-weight:800; letter-spacing:-0.03em; margin:0; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-.fg .pid h1 em { font-style:normal; font-size:16px; font-weight:600; color:rgba(255,255,255,.5); }
-.fg .pid .sub { display:flex; align-items:center; gap:14px; margin-top:10px; flex-wrap:wrap; font-size:13px; color:rgba(255,255,255,.55); font-weight:500; }
-.fg .pid .sub span { display:inline-flex; align-items:center; gap:6px; }
+.fg .prail .pphoto { width:84px; height:84px; border-radius:23px; justify-self:start; }
+.fg .prail .pphoto .inn { border-radius:21px; font-size:27px; }
+.fg .pid { min-width:0; }
+.fg .pid h1 { font-size:26px; font-weight:800; letter-spacing:-0.03em; margin:0; overflow-wrap:anywhere; }
+.fg .pid h1 em { font-style:normal; font-size:15px; font-weight:600; color:rgba(255,255,255,.5); margin-left:9px; }
+.fg .pid .sub { display:flex; align-items:center; gap:9px; margin-top:7px; flex-wrap:wrap; font-size:13.5px; color:rgba(255,255,255,.55); font-weight:600; }
+.fg .pid .sub span { display:inline-flex; align-items:center; gap:9px; }
 .fg .pid .sub .dot { width:4px; height:4px; border-radius:50%; background:rgba(255,255,255,.3); }
-.fg .badge { display:inline-flex; align-items:center; gap:7px; padding:5px 12px; border-radius:999px; font-size:12px; font-weight:700; font-family:var(--mono); letter-spacing:.02em; }
+.fg .badge { display:inline-flex; align-items:center; gap:7px; padding:5px 12px; border-radius:999px; font-size:12px; font-weight:700; letter-spacing:.02em; width:fit-content; }
 .fg .badge.active { background:rgba(0,229,192,.14); color:var(--teal); border:1px solid rgba(0,229,192,.3); }
 .fg .badge.active .d { width:7px; height:7px; border-radius:50%; background:var(--teal); box-shadow:0 0 8px var(--teal); }
-.fg .pquick { display:flex; gap:10px; }
-.fg .pquick .q { text-align:center; padding:12px 18px; border-radius:16px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); }
-.fg .pquick .q b { display:block; font-size:19px; font-weight:800; font-family:var(--mono); }
-.fg .pquick .q em { font-style:normal; font-size:10.5px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:rgba(255,255,255,.4); margin-top:4px; }
+.fg .badge.off { background:rgba(255,255,255,.05); color:rgba(255,255,255,.6); border:1px solid rgba(255,255,255,.13); }
+.fg .badge.off .d { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,.35); }
 
-/* layout: section nav + panel */
-.fg .pgrid { display:grid; grid-template-columns:248px 1fr; gap:24px; align-items:start; }
-@media (max-width:920px){ .fg .pgrid{grid-template-columns:1fr} }
-.fg .pnav { position:sticky; top:20px; display:flex; flex-direction:column; gap:4px; background:#fff; border:1px solid #f0f0f2; border-radius:22px; padding:12px; box-shadow:0 8px 30px rgba(0,0,0,.03); }
-@media (max-width:920px){ .fg .pnav{position:static; flex-direction:row; overflow-x:auto; } }
-.fg .pnav .pn { display:flex; align-items:center; gap:12px; padding:11px 13px; border-radius:14px; font-size:14px; font-weight:700; color:var(--gray500); white-space:nowrap; transition:all .2s; text-align:left; }
-.fg .pnav .pn .pi { width:32px; height:32px; border-radius:10px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:#f3f4f7; color:#aeb4c0; transition:all .2s; }
-.fg .pnav .pn:hover { background:#f9fafb; color:var(--ink); }
-.fg .pnav .pn.on { background:rgba(0,229,192,.08); color:var(--ink); }
-.fg .pnav .pn.on .pi { background:var(--teal); color:var(--ink); }
-.fg .pnav .pn .lock { margin-left:auto; color:#c7ccd6; }
-.fg .pnav .pn.adminrow.on .lock { color:var(--teal-d); }
-.fg .pnav .ndiv { height:1px; background:#f0f0f2; margin:8px 6px; }
-.fg .pnav .ngl { font-size:9.5px; font-weight:800; letter-spacing:.18em; text-transform:uppercase; color:#c7ccd6; padding:8px 13px 4px; }
+/* the derived facts — nothing here is editable, which is why the rail carries
+   no Edit button: editing is per-card, on the card that owns the field */
+.fg .pfacts { display:grid; margin:2px 0 0; }
+.fg .pfact { display:flex; align-items:baseline; justify-content:space-between; gap:14px; padding:11px 0; border-top:1px solid rgba(255,255,255,.08); }
+.fg .pfact dt { font-size:13px; font-weight:600; color:rgba(255,255,255,.5); }
+.fg .pfact dd { margin:0; font-size:13.5px; font-weight:700; color:#fff; text-align:right; overflow-wrap:anywhere; }
+.fg .pfact dd.muted { color:rgba(255,255,255,.38); font-weight:600; }
+
+/* section tabs */
+.fg .pmain { min-width:0; display:flex; flex-direction:column; }
+/* wraps rather than scrolls: the card is width-capped, so ten labels never fit
+   on one line — a scroller would hide the admin sections behind a gesture with
+   no affordance */
+.fg .pftabs { display:flex; flex-wrap:wrap; align-items:center; gap:0 2px; padding:6px 22px 0; border-bottom:1px solid #f0f0f2; }
+.fg .pftab { position:relative; display:inline-flex; align-items:center; gap:9px; padding:13px 13px; font-size:14px; font-weight:600; color:var(--gray500); white-space:nowrap; transition:color .2s; }
+.fg .pftab:hover { color:var(--ink); }
+.fg .pftab.on { color:var(--ink); font-weight:700; }
+.fg .pftab.on::after { content:""; position:absolute; left:13px; right:13px; bottom:2px; height:2.5px; border-radius:3px; background:var(--teal); }
+.fg .pftab .lock { display:flex; color:#c7ccd6; }
+.fg .pftab.adminrow.on .lock { color:var(--teal-d); }
+/* amber, never the page accent: this is "needs attention", not "selected" */
+.fg .pftab .attn { width:6px; height:6px; border-radius:50%; flex:0 0 auto; background:#F0A431; box-shadow:0 0 0 3px rgba(240,164,49,.18); }
+/* a line break, not a rule: it drops the admin group onto its own row so the
+   "Admin only" label sits with the tabs it is labelling */
+.fg .pftabbreak { flex:0 0 100%; height:0; }
+.fg .pftabgl { font-size:9.5px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:#c7ccd6; white-space:nowrap; padding-left:13px; }
+
+/* what's still missing — the ring, the count and the checklist all read
+   lib/staff/completeness, so they cannot disagree with the tabs' dots */
+.fg .ptodo { margin:22px 24px 0; border:1px solid rgba(0,229,192,.3); background:linear-gradient(180deg,rgba(0,229,192,.08),rgba(0,229,192,.03)); border-radius:18px; padding:18px 20px; display:grid; gap:14px; }
+.fg .ptodo-top { display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+.fg .pring { flex:0 0 auto; color:rgba(0,163,137,.2); }
+.fg .pring .v { stroke:var(--teal-d); transition:stroke-dasharray .6s cubic-bezier(.22,1,.36,1); }
+.fg .ptodo-k { flex:1; min-width:170px; }
+.fg .ptodo-k b { display:block; font-size:16px; font-weight:800; letter-spacing:-0.01em; color:var(--ink); }
+.fg .ptodo-k em { font-style:normal; display:block; margin-top:3px; font-size:12.5px; font-weight:600; color:var(--gray500); }
+.fg .ptodo .pbtn { flex:0 0 auto; }
+.fg .pcheck { display:grid; grid-template-columns:repeat(auto-fit,minmax(215px,1fr)); column-gap:26px; list-style:none; margin:0; padding:0; }
+.fg .pci { display:flex; align-items:center; gap:10px; width:100%; padding:9px 0; font-size:13.5px; font-weight:600; color:var(--gray700); text-align:left; border-top:1px solid rgba(0,163,137,.16); transition:color .2s; }
+.fg .pci:hover { color:var(--ink); }
+.fg .pci .tk { width:17px; height:17px; border-radius:50%; flex:0 0 auto; background:#fff; border:1.5px dashed #b9c4c9; transition:all .2s; }
+.fg .pci:hover .tk { border-style:solid; border-color:var(--teal-d); }
+.fg .pci .req { font-weight:700; color:#e0264f; }
 
 /* panel */
-.fg .ppanel { min-width:0; }
+.fg .ppanel { min-width:0; padding:22px 24px 26px; }
 .fg .psec { display:none; }
 .fg .psec.on { display:block; animation:fgUp .4s cubic-bezier(.22,1,.36,1) backwards; }
+.fg .psec:focus { outline:none; }
+
+/* grouped read view: label/value pairs, and a blank that is a BUTTON */
+/* align-items:start — panels size to their content. Stretched, a one-row panel
+   beside a four-row one (Right to work next to Visa) is mostly void. */
+.fg .pdlgrid { display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start; }
+.fg .pdlcard { border:1px solid #f0f0f2; border-radius:16px; padding:16px 18px 18px; min-width:0; }
+.fg .pdlcard.wide { grid-column:1/-1; }
+.fg .pdlh { font-size:10.5px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:var(--gray400); }
+.fg .pdl, .fg .pdlbody { margin:13px 0 0; display:grid; gap:10px; }
+.fg .pdl.split { grid-template-columns:1fr 1fr; column-gap:36px; }
+.fg .pdrow { display:grid; grid-template-columns:112px minmax(0,1fr); gap:14px; align-items:baseline; min-width:0; }
+.fg .pdrow dt { font-size:12.5px; font-weight:600; color:var(--gray500); }
+.fg .pdrow dd { margin:0; min-width:0; }
+.fg .pdv { font-size:16px; font-weight:600; letter-spacing:-0.01em; color:var(--ink); overflow-wrap:anywhere; }
+.fg .pdv.sm { font-size:14.5px; }
+.fg .pdsub { display:block; margin-top:2px; font-size:11.5px; font-weight:600; color:var(--gray400); }
+.fg .pdnone { font-size:14px; font-style:italic; font-weight:500; color:#bcc2cd; }
+.fg .padd { display:inline-flex; align-items:center; gap:7px; font-size:14px; font-weight:600; font-style:italic; color:var(--gray500); transition:color .2s; }
+.fg .padd span { display:grid; place-items:center; width:18px; height:18px; border-radius:6px; flex:0 0 auto; border:1px dashed #b6bcc7; font-style:normal; font-size:13px; line-height:1; transition:all .2s; }
+.fg .padd:hover { color:var(--teal-d); }
+.fg .padd:hover span { border-color:var(--teal); color:var(--teal-d); }
+
+/* the licence wall — CR80 cards, not the 230px info tiles .credgrid lays out
+   (that grid still serves the company credentials on the Organisation screen).
+   .idc is capped at 460px for the one-card cases; in here a card fills its
+   track. */
+/* min(300px,100%), not a bare 300px: on a narrow phone the track would stay
+   300 wide and the card would hang off the side of the panel */
+.fg .liccards { margin-top:18px; display:grid; grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr)); gap:16px; }
+.fg .liccards .idc { max-width:none; }
+/* A faceless card has no photo holding the middle, so the type name would sit
+   under the issuer with a void beneath it. Centring the block splits that space
+   above and below, which reads as a licence rather than as a rendering bug —
+   and the slightly shallower ratio takes the edge off it. */
+.fg .idc.faceless { aspect-ratio:856/500; }
+.fg .idc.faceless .idc-id { margin-block:auto; }
+.fg .idc.faceless .idc-who b { font-size:21px; letter-spacing:-.02em; }
+.fg .idc-action { position:absolute; top:10px; right:10px; z-index:3; }
+.fg .idc-del { width:28px; height:28px; border-radius:9px; display:flex; align-items:center; justify-content:center; color:#aeb4c0; background:rgba(255,255,255,.85); border:1px solid #ecedf1; opacity:0; transition:all .2s; }
+.fg .idc:hover .idc-del, .fg .idc-del:focus-visible { opacity:1; }
+.fg .idc-del:hover { background:rgba(255,51,102,.1); color:#e0264f; border-color:rgba(255,51,102,.25); }
+.fg .idc-del:disabled { opacity:.5; cursor:default; }
+/* the badge would sit under the × — shift it clear when there is one */
+.fg .idc-action ~ .idc-in .idc-badge { margin-right:34px; }
+@media (hover:none), (pointer:coarse) { .fg .idc-del { opacity:1; } }
+
+/* inside the one card the section cards are flat — a card in a card reads as
+   a mistake, so they keep only their hairline and their radius */
+.fg .pcard .card2 { border-radius:18px; box-shadow:none; padding:20px 22px; margin-bottom:16px; }
+.fg .pcard .card2:last-child { margin-bottom:0; }
+.fg .pcard .card2 .c2h { margin-bottom:18px; }
+
+/* Stacked, the rail is a HEADER, not a column: left as a 320px-wide block it
+   ran a full phone screen tall and you scrolled past the whole identity to
+   reach the first field. Photo and name go side by side, the rest spans. */
+@media (max-width:920px){
+  .fg .prail-in { padding:22px 20px 24px; grid-template-columns:auto minmax(0,1fr); gap:14px 16px; align-items:center; }
+  .fg .prail .pphoto { width:64px; height:64px; border-radius:18px; }
+  .fg .prail .pphoto .inn { border-radius:16px; font-size:21px; }
+  .fg .prail .pid h1 { font-size:22px; }
+  .fg .prail .badge, .fg .prail .pfacts { grid-column:1/-1; }
+  .fg .prail .pfacts { grid-template-columns:1fr 1fr; column-gap:22px; margin-top:0; }
+  .fg .pftabs { padding:4px 14px 0; }
+  .fg .pftab { padding:11px 10px; }
+  .fg .pftab.on::after { left:10px; right:10px; }
+  .fg .pftabgl { padding-left:10px; }
+  .fg .ptodo { margin:18px 14px 0; }
+  .fg .ppanel { padding:18px 14px 20px; }
+  .fg .pcard .card2 { padding:18px 16px; }
+}
+@media (max-width:760px){
+  .fg .pdlgrid, .fg .pdl.split { grid-template-columns:1fr; }
+}
+@media (max-width:560px){
+  /* two facts to a line squeezes "Unassigned" into a mid-word break */
+  .fg .prail .pfacts { grid-template-columns:1fr; }
+  .fg .prail .pid h1 { font-size:20px; }
+  .fg .prail .pid .sub { font-size:12.5px; gap:7px; }
+}
+@media (max-width:520px){
+  .fg .pdrow { grid-template-columns:1fr; gap:2px; }
+  .fg .ptodo-top .pbtn { width:100%; justify-content:center; }
+}
+
+/* for screen readers only — the tabs' "details missing", the + Add's field */
+.fg .sr-only { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }
 .fg .card2 { background:#fff; border:1px solid #f0f0f2; border-radius:24px; box-shadow:0 8px 30px rgba(0,0,0,.03); padding:26px; margin-bottom:20px; }
 .fg .card2 .c2h { display:flex; align-items:center; gap:12px; margin-bottom:22px; }
 .fg .card2 .c2h .ci { width:38px; height:38px; border-radius:12px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:rgba(0,229,192,.1); color:var(--teal-d); }
@@ -974,14 +1131,6 @@
 .fg .licdel:hover { background:rgba(255,51,102,.1); color:#e0264f; }
 
 /* licence cards */
-.fg .lics:not(:empty) { margin-top:18px; }
-.fg .lic { border:1px solid #f0f0f2; border-radius:18px; padding:18px; background:#fff; }
-.fg .lic + .lic { margin-top:14px; }
-.fg .lic .lh { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
-.fg .lic .lh .li { width:38px; height:38px; border-radius:11px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; }
-.fg .lic .lh b { font-size:14.5px; font-weight:800; }
-.fg .lic .lh em { font-style:normal; display:block; font-size:11.5px; color:var(--gray400); margin-top:1px; font-weight:500; }
-.fg .lic .lh .lstat { margin-left:auto; font-family:var(--mono); font-size:10.5px; font-weight:700; padding:4px 9px; border-radius:7px; background:#f3f4f6; color:var(--gray400); }
 
 /* cost split */
 .fg .permroles { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
@@ -1461,6 +1610,72 @@
 .fg .tpr .wz-menu .ms:first-child { border-top:none; }
 .fg .tpr .wz-menu .ms-l { font-size:11.5px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--gray400); margin-bottom:11px; }
 .fg .tpr .wz-menu .ms-p { font-size:13px; font-weight:600; color:var(--gray500); line-height:1.55; margin:0 0 12px; text-wrap:pretty; }
+
+/* folding sections (public holidays, Xero payroll) — a row you press, sitting
+   below the pay settings rather than on top of them. Titled in sentence case,
+   not the uppercase .ms-l key, because these are things you OPEN, not labels
+   over a control. */
+.fg .tpr .wz-menu .ms-fold { padding:0; }
+.fg .tpr .wz-menu .ms-foldh { display:flex; align-items:center; justify-content:space-between; gap:16px; width:100%; padding:18px 0; text-align:left; }
+.fg .tpr .wz-menu .ms-foldl { display:block; font-size:14.5px; font-weight:700; color:var(--gray700); }
+.fg .tpr .wz-menu .ms-foldl em { display:block; font-style:normal; font-size:12.5px; font-weight:600; color:var(--gray400); margin-top:3px; text-wrap:pretty; }
+.fg .tpr .wz-menu .ms-foldh svg { flex:0 0 auto; color:var(--gray400); transition:transform .22s cubic-bezier(.22,1,.36,1); }
+.fg .tpr .wz-menu .ms-fold.on .ms-foldh svg { transform:rotate(90deg); }
+.fg .tpr .wz-menu .ms-fold.on .ms-foldl { color:var(--ink); }
+.fg .tpr .wz-menu .ms-foldb { padding-bottom:18px; }
+
+/* ---- Xero payroll matching (components/timepay/xero-payroll.tsx) ----
+   A row per person inside the settings menu section. Two lines and the
+   controls: who they are, what we believe about them, and the one button that
+   changes it. Drift sits UNDER the row on its own line rather than competing
+   with the match state — it is a second, separate question about the same
+   person, and squeezing it inline made both unreadable. */
+.fg .tpr .xp-note { font-size:12.5px; font-weight:600; color:var(--gray500); line-height:1.55; margin:0 0 12px; }
+.fg .tpr .xp-note.bad { color:#e0264f; }
+.fg .tpr .xp-note b { color:var(--ink); }
+/* Advisory, not error: pay_settings is the record, and a business legitimately
+   running Xero on another calendar is not a fault to correct. Amber says
+   "check this", where red would say "you did something wrong". */
+.fg .tpr .xp-advisory { display:flex; align-items:flex-start; gap:8px; padding:10px 12px; margin:0 0 12px; border-radius:11px; background:rgba(240,164,49,.12); color:#8a5a05; font-size:12.5px; font-weight:600; line-height:1.5; }
+.fg .tpr .xp-advisory .i { flex:0 0 auto; margin-top:1px; }
+
+.fg .tpr .xp-rows { display:flex; flex-direction:column; gap:8px; }
+.fg .tpr .xp-row { display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:11px 13px; border-radius:13px; border:1px solid #eef0f4; background:#fafbfc; }
+.fg .tpr .xp-who { flex:1 1 180px; min-width:0; }
+.fg .tpr .xp-who b { display:block; font-size:13.5px; font-weight:800; letter-spacing:-0.01em; }
+.fg .tpr .xp-who em { display:block; font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); margin-top:2px; }
+.fg .tpr .xp-act { display:flex; align-items:center; gap:7px; flex:0 0 auto; }
+.fg .tpr .xp-pick { display:flex; align-items:center; gap:7px; }
+.fg .tpr .xp-pick select { height:34px; max-width:180px; padding:0 8px; border-radius:10px; border:1px solid #e2e5ea; background:#fff; font-size:12.5px; font-weight:600; }
+.fg .tpr .xp-btn { height:34px; padding:0 12px; border-radius:10px; font-size:12.5px; font-weight:700; background:#fff; border:1px solid #e2e5ea; color:var(--gray700); transition:background .15s, border-color .15s; }
+.fg .tpr .xp-btn:hover:not(:disabled) { background:#f4f5f7; }
+.fg .tpr .xp-btn.go { background:var(--ink); border-color:var(--ink); color:#fff; }
+.fg .tpr .xp-btn.go:hover:not(:disabled) { background:var(--teal); border-color:var(--teal); color:var(--ink); }
+.fg .tpr .xp-btn:disabled { opacity:.5; cursor:default; }
+.fg .tpr .xp-drift { flex:1 1 100%; display:flex; flex-wrap:wrap; align-items:center; gap:9px; padding-top:9px; margin-top:2px; border-top:1px solid #eef0f4; font-size:12px; font-weight:600; color:var(--gray500); line-height:1.5; }
+.fg .tpr .xp-drift b { color:var(--ink); }
+
+/* Pay rates are asked for, not fetched — one Xero call PER PERSON, where
+   everything else on this screen is one for the whole organisation. The strip
+   says what it will spend before it spends it. */
+.fg .tpr .xp-pay { display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:10px 13px; margin:0 0 12px; border-radius:12px; background:#f4f5f7; font-size:12.5px; font-weight:600; color:var(--gray500); }
+.fg .tpr .xp-pay span { flex:1 1 200px; }
+.fg .tpr .xp-pay .xp-btn { flex:0 0 auto; }
+/* agreement is quiet — a match needs no action, so it must not look like one */
+.fg .tpr .xp-drift.ok { color:#00806c; }
+.fg .tpr .xp-drift i { font-style:normal; color:var(--gray400); }
+
+/* The weekly sweep's one line on Time & Pay. Amber advisory, not red: Xero
+   changed and nobody has looked yet — a fact to act on, not a fault. */
+.fg .tp-drift { display:flex; align-items:center; gap:9px; padding:11px 15px; margin-bottom:18px; border-radius:14px; background:rgba(240,164,49,.12); color:#8a5a05; font-size:13px; font-weight:600; line-height:1.5; }
+.fg .tp-drift .i { flex:0 0 auto; }
+
+.fg .tpr .xp-extra { margin-top:16px; padding:13px; border-radius:13px; border:1.5px dashed #e6e8ee; background:#fafbfc; }
+.fg .tpr .xp-extra b { display:block; font-size:12.5px; font-weight:800; color:var(--gray700); }
+.fg .tpr .xp-extra em { display:block; font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray400); margin-top:3px; line-height:1.5; }
+.fg .tpr .xp-extra ul { margin:9px 0 0; padding-left:17px; }
+.fg .tpr .xp-extra li { font-size:12.5px; font-weight:700; color:var(--ink); line-height:1.7; }
+.fg .tpr .xp-extra li span { font-weight:600; color:var(--gray400); }
 .fg .tpr .wz-menu .wz-step { justify-content:flex-start; gap:14px; padding:4px 0; }
 .fg .tpr .wz-menu .wz-sbtn { width:44px; height:44px; border-radius:13px; font-size:20px; }
 .fg .tpr .wz-menu .wz-val { min-width:88px; font-size:27px; }
@@ -1616,16 +1831,7 @@
 .fg .fl-ch em { font-style:normal; display:block; font-size:12.5px; font-weight:500; color:#9ca3af; margin-top:2px; }
 
 /* profile — assigned-vehicle card */
-.fg .pveh { display:flex; flex-direction:column; gap:14px; }
-.fg .pvh { display:flex; align-items:center; gap:13px; }
-.fg .pvi { width:44px; height:44px; border-radius:13px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:rgba(255,138,0,.12); color:#d97706; }
-.fg .pvh b { display:block; font-size:15px; font-weight:800; color:var(--ink); }
-.fg .pvh em { font-style:normal; display:block; font-size:12px; font-weight:600; color:#9ca3af; margin-top:5px; }
 .fg .pvchips { display:flex; flex-wrap:wrap; gap:8px; }
-.fg .pvfacts { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
-.fg .pvfacts span { background:#fafbfc; border:1px solid #f0f0f2; border-radius:12px; padding:10px 13px; }
-.fg .pvfacts em { font-style:normal; display:block; font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:#9ca3af; }
-.fg .pvfacts b { display:block; font-size:13px; font-weight:800; color:var(--ink); margin-top:3px; }
 
 /* ---- fleet modals & log rows — UNSCOPED: modals portal to <body> (like
    .fg-cmd) and .fl-log/.dchip2 render both in-shell and inside the portal ---- */
@@ -1673,6 +1879,15 @@ select.fl-i { cursor:pointer; }
 .dchip2.ok { background:rgba(0,229,192,.1); color:#00A389; }
 .dchip2.warn { background:rgba(240,164,49,.13); color:#b45309; }
 .dchip2.bad { background:rgba(255,51,102,.1); color:#e0264f; }
+/* unpaid leave — KIND_TONE has named this since the leave screen shipped, but
+   the rule was never written, so an unpaid chip rendered bare */
+.dchip2.mute { background:#f1f2f5; color:#6b7280; }
+/* A CASUAL WHO CAN'T BE ROSTERED, not somebody on leave. Deliberately the
+   quietest chip on the screen and outlined rather than filled: it sits in the
+   same list as approved leave and must not read as an arrangement anybody
+   agreed to. */
+.dchip2.unavail { background:#fff; color:#6b7280; box-shadow:inset 0 0 0 1px rgba(10,11,16,.14); }
+.dchip2.unavail em { font-style:normal; font-size:10px; font-weight:700; color:#9ca3af; letter-spacing:.02em; }
 .fl-facts { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px; }
 .fl-fact { background:#fafbfc; border:1px solid #f0f0f2; border-radius:14px; padding:12px 14px; min-width:0; }
 .fl-fact em { font-style:normal; display:block; font-size:10.5px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:#9ca3af; }
@@ -1816,6 +2031,7 @@ select.fl-i { cursor:pointer; }
 .fg .lv-decline input { flex:1; height:34px; padding:0 11px; border-radius:9px; border:1px solid rgba(10,11,16,.14); font-family:var(--font); font-size:12.5px; }
 .fg .lv-caldate { min-width:120px; font-size:13px; font-weight:700; color:var(--ink); }
 .fg .lv-calnames { display:flex; flex-wrap:wrap; gap:5px; }
+.fg .lv-callegend { margin:0; padding:12px 16px; font-size:11px; font-weight:600; line-height:1.55; color:var(--gray400); }
 @media (max-width:820px){ .fg .lv-cols { grid-template-columns:1fr; } }
 
 /* ---- public holidays: upcoming panel + admin manager ---- */
@@ -1984,7 +2200,13 @@ select.fl-i { cursor:pointer; }
 .fg .ro-row b { flex:1; min-width:0; font-size:14px; font-weight:600; color:var(--ink); overflow-wrap:anywhere; }
 .fg .ro-row .num { font-variant-numeric:tabular-nums; }
 .fg .ro-none { font-style:italic; font-weight:500; color:#bcc2cd; }
-.fg .ro-state.ok { color:var(--teal-d); font-weight:700; }
+.fg .ro-state { display:inline-flex; align-items:center; gap:6px; font-weight:700; }
+.fg .ro-state.ok { color:var(--teal-d); }
+.fg .ro-state.warn { color:#b45309; }
+.fg .ro-state.bad { color:#e0264f; }
+.fg .ro-state.mute { color:var(--gray400); font-weight:600; }
+/* the role dot outside its picker — .permrole .prdot doesn't reach read mode */
+.fg .ro-state .prdot { width:9px; height:9px; border-radius:50%; flex:0 0 auto; }
 .fg .ro-note { margin:0; font-size:14px; font-weight:500; line-height:1.6; color:var(--gray700); white-space:pre-wrap; }
 .fg .card2 > .idc + .ro-rows { margin-top:20px; }
 @media (max-width:560px){ .fg .ro-row { flex-direction:column; gap:3px; } .fg .ro-row em { flex:none; } }
@@ -1999,13 +2221,6 @@ select.fl-i { cursor:pointer; }
 .fg .wr-nov em { font-style:normal; display:block; margin-top:2px; font-size:12px; font-weight:500; color:var(--gray500); }
 
 /* ---- My pay ---- */
-.fg .mypay { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px,1fr)); gap:12px; font-variant-numeric:tabular-nums; }
-.fg .mpt { padding:16px; border-radius:16px; background:#fafbfc; border:1px solid #f0f0f2; }
-.fg .mpt.teal { background:rgba(0,229,192,.07); border-color:rgba(0,229,192,.26); }
-.fg .mpt em { font-style:normal; display:block; font-size:10px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--gray400); }
-.fg .mpt b { display:block; margin-top:8px; font-size:24px; font-weight:800; letter-spacing:-.03em; color:var(--ink); }
-.fg .mpt span { display:block; margin-top:3px; font-size:12px; font-weight:600; color:var(--gray500); }
-.fg .mypay-chips { display:flex; flex-wrap:wrap; gap:9px; margin-top:14px; font-variant-numeric:tabular-nums; }
 .fg .mypay-foot { margin:16px 0 0; font-size:12.5px; font-weight:600; color:var(--gray400); }
 
 /* ---- date entry (components/profile/fields.tsx :: DateField) ----
@@ -2042,40 +2257,79 @@ select.fl-i { cursor:pointer; }
 .fg .mts2-main { min-width:0; }
 .fg .mts2-wk { margin-bottom:26px; }
 
-/* ---- the day-chip strip ---- */
-.fg .mts2-chips { display:flex; gap:8px; margin-bottom:12px; }
-.fg .mts2-chip { position:relative; flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:center; gap:3px; padding:9px 4px 8px; border-radius:14px; background:#fff; border:1px solid #f0f0f2; box-shadow:0 1px 2px rgba(10,12,20,.03); transition:transform .16s, border-color .16s, box-shadow .16s; }
-.fg .mts2-chip .cw { font-size:9px; font-weight:800; letter-spacing:.07em; color:var(--gray400); }
-.fg .mts2-chip .cd { font-size:16px; font-weight:800; line-height:1; color:var(--ink); }
-.fg .mts2-chip .cdot { width:6px; height:6px; border-radius:50%; background:transparent; }
-.fg .mts2-chip.done .cdot { background:var(--teal-d); }
-/* a weekend nobody worked is background, not a to-do */
-.fg .mts2-chip.wknd { background:#fafbfc; }
-.fg .mts2-chip.wknd .cd, .fg .mts2-chip.wknd .cw { opacity:.5; }
-.fg .mts2-chip.wknd.done .cd, .fg .mts2-chip.wknd.done .cw { opacity:1; }
-/* TODAY is an ink ring (when); SELECTED is a teal ring (what you're editing) */
-.fg .mts2-chip.today { box-shadow:0 0 0 2px var(--ink); border-color:transparent; }
-.fg .mts2-chip.sel { box-shadow:0 0 0 2px var(--teal-d); border-color:transparent; }
-.fg .mts2-chip.today.sel { box-shadow:0 0 0 2px var(--ink), 0 0 0 4px var(--teal-d); }
-.fg button.mts2-chip:hover { transform:translateY(-2px); border-color:rgba(0,229,192,.55); }
-.fg button.mts2-chip:focus-visible { outline:none; box-shadow:0 0 0 2px var(--teal-d); }
+/* ---- the week: day tabs ----
 
-/* ---- day rows ---- */
-.fg .mts2-rows { display:flex; flex-direction:column; gap:8px; }
-.fg .mts2-row { position:relative; background:#fff; border:1px solid #f0f0f2; border-radius:16px; overflow:hidden; box-shadow:0 1px 2px rgba(10,12,20,.03); transition:box-shadow .18s, border-color .18s; }
-/* a logged day wears a quiet teal accent — a marker, not the old solid tile */
-.fg .mts2-row.has::before { content:""; position:absolute; left:0; top:10px; bottom:10px; width:3px; border-radius:0 3px 3px 0; background:var(--teal-d); }
-.fg .mts2-row.open { border-color:rgba(0,163,137,.3); box-shadow:0 14px 30px -24px rgba(10,12,20,.5); }
-.fg .mts2-rh { display:flex; align-items:center; gap:12px; width:100%; padding:13px 15px; text-align:left; }
-.fg .mts2-rh:disabled { cursor:default; }
-.fg .mts2-rh:focus-visible { outline:2px solid var(--teal-d); outline-offset:-2px; }
-.fg .mts2-rd { display:flex; flex-direction:column; gap:1px; flex:0 0 76px; }
-.fg .mts2-rd b { font-size:11px; font-weight:800; letter-spacing:.06em; color:var(--gray400); }
-.fg .mts2-rd em { font-style:normal; font-size:14px; font-weight:800; letter-spacing:-.01em; color:var(--ink); }
-.fg .mts2-sum { margin-left:auto; font-size:12.5px; font-weight:700; color:var(--gray700); white-space:nowrap; font-variant-numeric:tabular-nums; }
-.fg .mts2-chev { display:flex; color:var(--gray400); transition:transform .2s; }
-.fg .mts2-row.open .mts2-chev { transform:rotate(180deg); }
-.fg .mts2-rh:disabled .mts2-chev { opacity:0; }
+   ONE view of the days. There used to be a chip strip AND a vertical row per
+   day, which drew every day twice and put the editor in the copy rather than
+   in the thing you clicked. The strip is now the control: a card is a tab, the
+   selected tab loses its bottom edge and merges into the panel under it, and
+   the panel shows that day alone.
+
+   The colour is the day's STATE, from `dayClass` — the same classes the pill
+   and the approver's screen read, so a week's shape is legible without opening
+   anything. `--dc` carries it, set once per state and used by the top bar, the
+   tint and the selected ring, so a new state is one line rather than four. */
+.fg .mts2-tabs { display:flex; gap:6px; align-items:stretch; }
+.fg .mts2-tab { --dc:#d8dbe1; --dt:rgba(216,219,225,.14); position:relative; flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:center; gap:3px; padding:11px 4px 12px; border-radius:14px 14px 0 0; background:#fff; border:1px solid #eceef1; border-bottom-color:transparent; box-shadow:0 1px 2px rgba(10,12,20,.03); transition:background .16s, transform .16s, box-shadow .16s; }
+.fg .mts2-tab .cbar { position:absolute; left:10px; right:10px; top:0; height:3px; border-radius:0 0 3px 3px; background:var(--dc); }
+.fg .mts2-tab .cw { font-size:9px; font-weight:800; letter-spacing:.07em; color:var(--gray400); }
+.fg .mts2-tab .cd { font-size:17px; font-weight:800; line-height:1; color:var(--ink); }
+.fg .mts2-tab .cs { font-size:10.5px; font-weight:700; color:var(--gray500); font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+/* The tint is composited OVER WHITE, not laid on as a translucent background.
+   A translucent fill shows whatever is behind the card, and these cards sit on
+   the dark shell frame as often as on the light page — which turned the
+   selected day near-black. A gradient of the same colour onto an opaque white
+   background-color gives the intended tint wherever the strip lands. */
+.fg .mts2-tab:hover { background-image:linear-gradient(var(--dt),var(--dt)); transform:translateY(-1px); }
+.fg .mts2-tab:focus-visible { outline:none; box-shadow:0 0 0 2px var(--teal-d); }
+
+/* the day's state, one declaration each */
+.fg .mts2-tab.std { --dc:var(--teal-d); --dt:rgba(0,229,192,.1); }
+.fg .mts2-tab.over { --dc:#f0a431; --dt:rgba(240,164,49,.12); }
+.fg .mts2-tab.under { --dc:#e0b400; --dt:rgba(255,221,87,.18); }
+.fg .mts2-tab.leave { --dc:#2e68ff; --dt:rgba(46,104,255,.09); }
+.fg .mts2-tab.sick { --dc:#e0264f; --dt:rgba(255,51,102,.08); }
+.fg .mts2-tab.ph { --dc:#8a2be2; --dt:rgba(138,43,226,.09); }
+.fg .mts2-tab.miss { --dc:#e0264f; --dt:rgba(255,51,102,.08); }
+.fg .mts2-tab.off { --dc:var(--gray400); --dt:rgba(120,126,140,.1); }
+.fg .mts2-tab.empty { --dc:#e3e5ea; --dt:rgba(227,229,234,.3); }
+
+/* A day you weren't rostered on and didn't work is background, not a to-do —
+   a weekend for most people, a Wednesday for a part-timer, EVERY empty day for
+   a casual. A day still ahead of itself is dimmed the same way; neither is
+   anything to act on yet. */
+.fg .mts2-tab.offroster.empty, .fg .mts2-tab.ahead { background:#fafbfc; }
+.fg .mts2-tab.offroster.empty .cd, .fg .mts2-tab.offroster.empty .cw, .fg .mts2-tab.offroster.empty .cs,
+.fg .mts2-tab.ahead .cd, .fg .mts2-tab.ahead .cw, .fg .mts2-tab.ahead .cs { opacity:.45; }
+/* TODAY is named by its weekday going ink, not by a ring the selected tab
+   also uses — two rings on one card is a puzzle, not a signal */
+.fg .mts2-tab.today .cw { color:var(--ink); }
+.fg .mts2-tab.today .cw::after { content:" ·"; color:var(--teal-d); }
+
+/* THE SELECTED TAB joins the panel: tinted, lifted, and open at the bottom */
+.fg .mts2-tab.on { background-color:#fff; background-image:linear-gradient(var(--dt),var(--dt)); border-color:#e6e8ec; border-bottom-color:transparent; transform:none; box-shadow:0 -2px 10px -6px rgba(10,12,20,.3); z-index:2; }
+/* the bridge that removes the seam between the open tab and its panel */
+.fg .mts2-tab.on::after { content:""; position:absolute; left:0; right:0; bottom:-2px; height:4px; background-color:#fff; background-image:linear-gradient(var(--dt),var(--dt)); }
+.fg .mts2-tab.on .cd, .fg .mts2-tab.on .cw, .fg .mts2-tab.on .cs { opacity:1; }
+.fg .mts2-tab.on .cbar { height:4px; }
+
+/* the panel the tabs open onto */
+.fg .mts2-panel { background:#fff; border:1px solid #e6e8ec; border-radius:0 0 18px 18px; margin-top:-1px; box-shadow:0 1px 2px rgba(10,12,20,.03), 0 20px 40px -34px rgba(10,12,20,.5); animation:tprUp .2s ease backwards; }
+.fg .mts2-phead { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:14px 15px 0; }
+.fg .mts2-pd { font-size:15px; font-weight:800; letter-spacing:-.02em; color:var(--ink); }
+
+/* ---- the legend ---- */
+.fg .mts2-legend { display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:16px; }
+.fg .mts2-lg { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:var(--gray500); }
+.fg .mts2-lg i { width:9px; height:9px; border-radius:3px; }
+.fg .mts2-lg i.std { background:var(--teal-d); }
+.fg .mts2-lg i.over { background:#f0a431; }
+.fg .mts2-lg i.under { background:#e0b400; }
+.fg .mts2-lg i.leave { background:#2e68ff; }
+.fg .mts2-lg i.sick { background:#e0264f; }
+.fg .mts2-lg i.ph { background:#8a2be2; }
+.fg .mts2-lg i.off { background:var(--gray400); }
+.fg .mts2-lg i.empty { background:#e3e5ea; }
 
 /* the kind pill — the `.tpr` day palette, restated as a tinted pill */
 .fg .mts2-pill { display:inline-flex; align-items:center; height:24px; padding:0 10px; border-radius:999px; font-size:11px; font-weight:800; letter-spacing:-.01em; white-space:nowrap; }
@@ -2086,17 +2340,31 @@ select.fl-i { cursor:pointer; }
 .fg .mts2-pill.sick { background:rgba(255,51,102,.12); color:#e0264f; }
 .fg .mts2-pill.ph { background:rgba(138,43,226,.12); color:var(--violet-d,#7322c4); }
 .fg .mts2-pill.miss { background:rgba(255,51,102,.1); color:#e0264f; box-shadow:inset 0 0 0 1px rgba(255,51,102,.45); }
+.fg .mts2-pill.off { background:#eceef1; color:var(--gray700); }
 .fg .mts2-pill.empty { background:#f1f2f5; color:var(--gray500); }
 
-/* ---- weekend offers ---- */
-.fg .mts2-offers { display:flex; gap:8px; margin-top:10px; }
-.fg .mts2-offer { display:inline-flex; align-items:center; gap:6px; flex:1 1 0; justify-content:center; height:40px; border-radius:14px; border:1.5px dashed #dfe1e7; color:var(--gray500); font-size:12.5px; font-weight:700; transition:all .18s; }
-.fg .mts2-offer:hover { border-color:var(--teal-d); color:var(--teal-d); background:rgba(0,229,192,.05); }
+/* ---- the day panel's editor ---- */
+.fg .mts2-edit { padding:2px 15px 16px; }
+.fg .mts2-ehol { display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:8px; background:rgba(138,43,226,.1); color:#7322c4; font-size:11px; font-weight:800; }
 
-/* ---- the inline editor ---- */
-.fg .mts2-edit { padding:2px 15px 15px; border-top:1px solid #f0f0f2; animation:tprUp .2s ease backwards; }
-.fg .mts2-ehol { display:inline-flex; align-items:center; gap:5px; margin:12px 0 0; padding:3px 9px; border-radius:8px; background:rgba(0,163,137,.12); color:var(--teal-d); font-size:11px; font-weight:800; }
-.fg .mts2-form { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; padding-top:14px; }
+/* why this day says what it says. A day filled in FOR you must never read as
+   one you logged — if it's wrong, you need to know before you submit it. */
+.fg .mts2-esrc { display:flex; align-items:center; gap:7px; margin-top:12px; font-size:11.5px; font-weight:700; color:var(--gray500); }
+.fg .mts2-esrc svg { color:var(--gray400); flex:none; }
+.fg .mts2-esrc.presumed { color:var(--teal-d); }
+.fg .mts2-esrc.presumed svg { color:var(--teal-d); }
+
+/* a day owned by another module — read it here, change it where it was booked */
+.fg .mts2-elock { display:flex; align-items:flex-start; gap:10px; margin-top:13px; padding:13px 14px; border-radius:13px; background:#f7f8fa; }
+.fg .mts2-elock svg { color:var(--gray500); margin-top:1px; flex:none; }
+.fg .mts2-elock b { display:block; font-size:13.5px; font-weight:800; color:var(--ink); }
+.fg .mts2-elock em { display:block; margin-top:2px; font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
+
+/* worked / didn't work — the only choice a person makes on a day */
+.fg .mts2-kinds { display:inline-flex; gap:3px; margin-top:12px; padding:3px; border-radius:12px; background:#f4f5f7; }
+.fg .mts2-kind { height:31px; padding:0 14px; border-radius:9px; font-size:12.5px; font-weight:800; color:var(--gray500); transition:all .16s; }
+.fg .mts2-kind:hover { color:var(--ink); }
+.fg .mts2-kind.on { background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(10,12,20,.1); }
 .fg .mts2-brk { display:flex; align-items:center; gap:10px; margin-top:13px; }
 .fg .mts2-brkl { font-size:12.5px; font-weight:700; color:var(--gray700); }
 .fg .mts2-brkstep { display:inline-flex; align-items:center; gap:2px; border:1px solid #ececf0; border-radius:11px; padding:2px; }
@@ -2109,6 +2377,48 @@ select.fl-i { cursor:pointer; }
 .fg .mts2-derv svg { color:var(--teal-d); }
 .fg .mts2-derv.bad { background:rgba(255,51,102,.07); color:#e0264f; }
 .fg .mts2-derv.bad svg { color:#e0264f; }
+/* a short day is not an error — it's a real day that the approver will look
+   at, so it's amber-flavoured rather than red */
+.fg .mts2-derv.short { background:rgba(255,221,87,.2); color:#6b5300; }
+.fg .mts2-derv.short svg { color:#a08000; }
+.fg .mts2-derv.off { background:#f4f5f7; color:var(--gray700); }
+.fg .mts2-derv.off svg { color:var(--gray500); }
+.fg .mts2-derv b { font-weight:800; }
+
+/* ---- the time wheels ---- */
+/* Capped, not stretched: a three-column wheel spread across a wide panel puts
+   the hour and the meridiem a hand's width apart, which is a worse control
+   than a compact one. */
+.fg .mts2-wheels { display:flex; flex-wrap:wrap; gap:12px; margin-top:14px; }
+.fg .mts2-wheels .tw { flex:0 1 240px; max-width:280px; }
+.fg .mts2-wheels.tight { margin-top:12px; gap:10px; }
+.fg .mts2-wheels.tight .tw { flex:1 1 140px; }
+.fg .mts2-nh { margin-top:10px; }
+.fg .mts2-nh b { display:block; font-size:17px; font-weight:800; letter-spacing:-.02em; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .mts2-nh em { display:block; margin-top:3px; font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray500); }
+.fg .mts2-nh em:first-of-type { color:var(--gray700); font-weight:700; }
+
+/* ---- which days are normal ----
+   A row of seven, because a working pattern is read as a shape: "Mon Tue Thu"
+   is a glance, a list of checkboxes is a paragraph. */
+.fg .mts2-dow, .fg .tpr .wz-dow { display:flex; gap:5px; margin-top:12px; }
+.fg .mts2-dowb, .fg .tpr .wz-dowb { flex:1 1 0; height:34px; border-radius:10px; border:1px solid #ececf0; background:#fff; font-size:12px; font-weight:800; color:var(--gray400); transition:all .16s; }
+.fg .mts2-dowb:hover, .fg .tpr .wz-dowb:hover { border-color:rgba(0,229,192,.6); color:var(--gray700); }
+.fg .mts2-dowb.on, .fg .tpr .wz-dowb.on { background:var(--ink); border-color:var(--ink); color:#fff; }
+.fg .mts2-dowb:disabled { opacity:.45; pointer-events:none; }
+
+/* ---- when I can't work (casuals) ---- */
+.fg .mts2-ulist { display:flex; flex-direction:column; gap:7px; margin-top:11px; }
+.fg .mts2-u { display:flex; align-items:center; gap:9px; padding:9px 11px; border-radius:12px; background:#f7f8fa; }
+.fg .mts2-u b { display:block; font-size:13px; font-weight:800; color:var(--ink); }
+.fg .mts2-u em { display:block; margin-top:1px; font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray500); }
+.fg .mts2-ux { margin-left:auto; display:flex; width:26px; height:26px; align-items:center; justify-content:center; border-radius:8px; color:var(--gray400); flex:none; }
+.fg .mts2-ux:hover { background:rgba(255,51,102,.1); color:#e0264f; }
+.fg .mts2-udates { display:flex; gap:10px; margin-top:12px; }
+.fg .mts2-udates .mts-f { flex:1 1 0; min-width:0; }
+.fg .mts2-unote { margin-top:10px; }
+.fg .mts2-uerr { margin-top:10px; padding:8px 11px; border-radius:11px; background:rgba(255,51,102,.08); color:#e0264f; font-size:12px; font-weight:700; }
+.fg .mts2-unote-p { margin:12px 0 0; font-size:11px; font-weight:600; line-height:1.5; color:var(--gray400); }
 .fg .mts2-pay { display:flex; align-items:center; gap:10px; margin-top:9px; padding:0 2px; }
 .fg .mts2-payl { font-size:10.5px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--gray400); }
 .fg .mts2-paych { font-size:12.5px; font-weight:700; color:var(--gray700); font-variant-numeric:tabular-nums; }
@@ -2147,6 +2457,40 @@ select.fl-i { cursor:pointer; }
 .fg .mts2-hlink:hover { text-decoration:underline; }
 .fg .mts2-card .mts-hols { margin-top:12px; }
 .fg .mts2-rules { margin:0; padding:0 4px; font-size:11.5px; font-weight:600; line-height:1.6; color:var(--gray400); }
+
+/* ===== The time wheel — a clock you scroll, never one you type =====
+
+   Three columns of real times. There is no text input anywhere in Time & Pay
+   any more, which is the point: a value that can only be CHOSEN can't be
+   unreadable, so the "we can't read that time" state stopped being something
+   the software has to handle.
+
+   Every cell is a button, so this works by scroll, by click, by tab and by
+   screen reader. The centre line is a marker, not a hit target — clicking the
+   option is what selects it, and pointer-events:none keeps the marker out of
+   the way of the thing underneath it. */
+.fg .tw { border:1px solid #eceef1; border-radius:14px; background:#fff; padding:10px 11px 11px; }
+.fg .tw-head { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+.fg .tw-title { font-size:10.5px; font-weight:800; letter-spacing:.07em; text-transform:uppercase; color:var(--gray400); }
+.fg .tw-val { font-size:14px; font-weight:800; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .tw-cols { display:flex; gap:6px; margin-top:9px; position:relative; }
+/* The centre line the chosen option sits on. Measured from the BOTTOM, not
+   from 50%: the column is a label of uncertain height stacked on a scroll box
+   of exactly 132px, so half the COLUMN is not half the SCROLL. 132/2 − 34/2 =
+   49 puts it dead on the row the wheel snaps to. */
+.fg .tw-cols::before { content:""; position:absolute; left:0; right:0; bottom:49px; height:34px; border-radius:10px; background:rgba(0,229,192,.09); pointer-events:none; }
+.fg .tw-col { flex:1 1 0; min-width:0; }
+.fg .tw-lab { display:block; font-size:9px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--gray400); text-align:center; margin-bottom:3px; }
+.fg .tw-scroll { height:132px; overflow-y:auto; scroll-snap-type:y proximity; padding:49px 0; scrollbar-width:none; }
+.fg .tw-scroll::-webkit-scrollbar { width:0; }
+.fg .tw-opt { display:block; width:100%; height:34px; border-radius:10px; scroll-snap-align:center; font-size:14px; font-weight:700; color:var(--gray400); font-variant-numeric:tabular-nums; transition:color .14s, background .14s; }
+.fg .tw-opt:hover { background:#f4f5f7; color:var(--gray700); }
+.fg .tw-opt.on { color:var(--ink); font-weight:800; font-size:15px; }
+.fg .tw-opt:focus-visible { outline:2px solid var(--teal-d); outline-offset:-2px; }
+.fg .tw-opt:disabled { pointer-events:none; opacity:.5; }
+/* the wizard's own wheels sit side by side under a menu heading */
+.fg .tpr .wz-wheels { display:flex; flex-wrap:wrap; gap:10px; }
+.fg .tpr .wz-wheels .tw { flex:1 1 150px; }
 /* ---- date picker (components/ui/date-field.tsx + month-grid.tsx) ----
    Every date field in the app is this: a button showing dd/mm/yyyy that opens
    our own calendar. No `<input type="date">` anywhere — its rendering and its
@@ -2239,6 +2583,78 @@ select.fl-i { cursor:pointer; }
 .fg .adm-empty b { display:block; font-size:16px; font-weight:700; color:var(--gray500); }
 .fg .adm-empty em { display:block; max-width:420px; margin:6px auto 0; font-style:normal; font-size:13px; font-weight:500; color:var(--gray400); line-height:1.5; }
 
+/* ---- Integrations (components/integrations/) ----
+   Additive: the index IS the admin index (.adm-card / .adm-row / .adm-ic), so
+   only the state pill is new there. The Xero screen reuses .card2 / .c2h /
+   .pbtn wholesale; what's below is the handful of blocks a connection screen
+   needs and nothing else has — a back link above a title, a facts strip, the
+   scope list, and a destructive button. */
+.fg .int-back { display:inline-flex; align-items:center; gap:5px; font-size:12.5px; font-weight:700; color:var(--gray500); text-decoration:none; transition:color .15s, transform .15s; }
+.fg .int-back:hover { color:var(--ink); transform:translateX(-2px); }
+.fg .int-lede { max-width:620px; margin:0 0 26px; font-size:14px; font-weight:500; line-height:1.6; color:var(--gray500); }
+.fg .int-foot { margin:14px 2px 0; font-size:12.5px; font-weight:600; color:var(--gray400); }
+
+/* The row's state, said in a word. Semantic colour, never the page accent —
+   ok #00A389 / warn amber / off grey (see the design-system note). */
+.fg .int-pill { flex:0 0 auto; display:inline-flex; align-items:center; gap:7px; max-width:210px; padding:5px 11px; border-radius:999px; font-size:11.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fg .int-dot { width:7px; height:7px; border-radius:50%; flex:0 0 auto; }
+.fg .int-pill.on { background:rgba(0,163,137,.1); color:#00A389; }
+.fg .int-pill.on .int-dot { background:#00A389; }
+.fg .int-pill.warn { background:rgba(240,164,49,.14); color:#a56a05; }
+.fg .int-pill.warn .int-dot { background:#F0A431; }
+.fg .int-pill.off { background:#f4f5f7; color:var(--gray500); }
+.fg .int-pill.off .int-dot { background:var(--gray400); }
+@media (max-width:560px){ .fg .int-pill { display:none; } }
+
+/* Outcome of a round trip that just finished — the OAuth redirect's one line. */
+.fg .int-note { padding:12px 15px; margin-bottom:18px; border-radius:14px; font-size:13.5px; font-weight:600; line-height:1.45; }
+.fg .int-note.ok { background:rgba(0,163,137,.09); color:#00806c; }
+.fg .int-note.bad { background:rgba(255,51,102,.08); color:#e0264f; }
+
+.fg .int-facts { display:flex; flex-wrap:wrap; gap:12px 34px; margin:0 0 20px; }
+.fg .int-facts dt { font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--gray400); }
+.fg .int-facts dd { margin:4px 0 0; font-size:14px; font-weight:700; color:var(--ink); }
+
+/* Why the button isn't there. A missing env var is an instruction, not an
+   error, so it reads as one. */
+.fg .int-blocked { padding:14px 16px; margin-bottom:18px; border-radius:14px; border:1.5px dashed #e6e8ee; background:#fafbfc; }
+.fg .int-blocked b { display:block; font-size:13.5px; font-weight:800; color:var(--gray700); }
+.fg .int-blocked p { margin:5px 0 0; font-size:12.5px; font-weight:500; line-height:1.55; color:var(--gray500); }
+.fg .int-blocked ul { margin:8px 0 0; padding-left:18px; }
+.fg .int-blocked li { font-size:12.5px; font-weight:500; line-height:1.6; color:var(--gray500); }
+.fg .int-blocked code, .fg .int-scopes code { padding:1px 6px; border-radius:6px; background:#eef0f4; font-family:var(--mono); font-size:.92em; font-weight:700; color:var(--gray700); }
+
+.fg .int-act { display:flex; flex-wrap:wrap; gap:10px; }
+/* Connect is an <a> (an API route — see the note in xero-screen.tsx), and
+   .pbtn was only ever worn by <button>, so it never had to say this. */
+.fg a.pbtn { text-decoration:none; }
+.fg .int-hint { margin:12px 2px 0; font-size:12.5px; font-weight:500; line-height:1.55; color:var(--gray500); }
+/* Disconnect's second click. The only destructive button in the section, so
+   the variant lives with it rather than in the shared .pbtn block. */
+.fg .pbtn.danger { background:#e0264f; color:#fff; box-shadow:0 8px 18px -8px rgba(224,38,79,.6); }
+.fg .pbtn.danger:hover:not(:disabled) { background:#c81f44; }
+.fg .pbtn:disabled { opacity:.55; cursor:default; }
+
+.fg .int-tenants { display:flex; flex-direction:column; gap:8px; margin-bottom:18px; }
+.fg .int-tenant { display:flex; align-items:center; gap:11px; padding:12px 14px; border-radius:13px; border:1px solid #eef0f4; background:#fafbfc; font-size:14px; font-weight:700; cursor:pointer; transition:border-color .15s, background .15s; }
+.fg .int-tenant:hover { border-color:#dfe3ea; background:#fff; }
+.fg .int-tenant input { accent-color:var(--teal-d); width:16px; height:16px; }
+
+.fg .int-uses { display:flex; flex-direction:column; gap:16px; }
+.fg .int-use b { font-size:14px; font-weight:800; letter-spacing:-0.01em; }
+.fg .int-use p { margin:4px 0 0; font-size:13px; font-weight:500; line-height:1.6; color:var(--gray500); }
+
+/* One row per scope: the literal string Xero will show, the area it serves,
+   and the sentence. A scope the stored grant predates is marked, because that
+   is the whole reason to render the list against a connection at all. */
+.fg .int-scopes { list-style:none; margin:0; padding:0; }
+.fg .int-scopes li { padding:13px 0; border-top:1px solid #f5f6f8; }
+.fg .int-scopes li:first-child { border-top:0; padding-top:0; }
+.fg .int-scopes li p { margin:5px 0 0; font-size:12.5px; font-weight:500; line-height:1.55; color:var(--gray500); }
+.fg .int-scopehead { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+.fg .int-tag { padding:3px 9px; border-radius:999px; background:#f4f5f7; font-size:10.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--gray500); }
+.fg .int-tag.warn { background:rgba(240,164,49,.16); color:#a56a05; }
+
 /* ---- Organisation screen (components/org/) ----
    Additive: the company profile reuses .card2 / .idc / .cred wholesale, and
    only these six things are new — a clickable credential card, the add tile,
@@ -2318,3 +2734,81 @@ select.fl-i { cursor:pointer; }
    mouse must not be able to highlight two different rows at once. */
 .fg .adr-opt:hover, .fg .adr-opt.on { background:#fafbfc; }
 .fg .adr-opt.on { box-shadow:inset 0 0 0 1px rgba(0,163,137,.35); color:var(--teal-d); }
+
+/* ---- My expenses (components/expenses/my-expenses.tsx) ----
+   Receipt-first: the primary action is a camera, because a claim almost always
+   starts as a photo in someone's hand at the end of a job. The form arrives
+   pre-filled and every field stays editable — Tiff does the typing, the person
+   does the deciding. */
+.fg .xc-err { padding:12px 15px; margin-bottom:18px; border-radius:14px; background:rgba(255,51,102,.08); color:#e0264f; font-size:13.5px; font-weight:600; line-height:1.45; }
+
+.fg .xc-start { display:flex; flex-wrap:wrap; align-items:center; gap:16px; padding:22px; margin-bottom:22px; border-radius:24px; border:1.5px dashed #e0dcf0; background:linear-gradient(180deg,rgba(138,43,226,.04),#fff); }
+.fg .xc-ic { flex:0 0 auto; width:48px; height:48px; border-radius:15px; display:flex; align-items:center; justify-content:center; background:rgba(138,43,226,.11); color:var(--violet); }
+.fg .xc-startk { flex:1 1 240px; min-width:0; }
+.fg .xc-startk b { display:block; font-size:16px; font-weight:800; letter-spacing:-0.01em; }
+.fg .xc-startk em { display:block; font-style:normal; font-size:13px; font-weight:500; color:var(--gray500); margin-top:3px; line-height:1.5; }
+.fg .xc-startb { display:flex; flex-wrap:wrap; gap:9px; flex:0 0 auto; }
+
+.fg .xc-prev { display:block; max-height:220px; max-width:100%; border-radius:14px; border:1px solid #eef0f4; margin-bottom:18px; object-fit:contain; background:#fafbfc; }
+
+.fg .xc-form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin-bottom:20px; }
+.fg .xc-f { display:flex; flex-direction:column; gap:6px; grid-column:span 2; }
+.fg .xc-f.sm { grid-column:span 1; }
+.fg .xc-f > span { font-size:11px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:var(--gray400); }
+.fg .xc-f select, .fg .xc-f input[type=date] { height:46px; padding:0 12px; border-radius:13px; border:1px solid #e5e7eb; background:#fff; font:inherit; font-size:14px; font-weight:600; color:var(--ink); }
+.fg .xc-act { display:flex; flex-wrap:wrap; gap:10px; }
+@media (max-width:560px){ .fg .xc-f.sm { grid-column:span 2; } }
+
+.fg .xc-list { display:flex; flex-direction:column; gap:10px; margin-top:22px; }
+.fg .xc-row { display:flex; flex-wrap:wrap; align-items:flex-start; gap:14px; padding:15px 18px; border-radius:18px; background:#fff; border:1px solid #f0f0f2; box-shadow:0 8px 30px rgba(0,0,0,.03); }
+/* a decided claim steps back — it is history, not something to act on */
+.fg .xc-row.reimbursed, .fg .xc-row.cancelled, .fg .xc-row.declined { background:#fafbfc; box-shadow:none; }
+.fg .xc-main { flex:1 1 220px; min-width:0; }
+.fg .xc-main b { display:block; font-size:14.5px; font-weight:800; letter-spacing:-0.01em; }
+.fg .xc-main em { display:block; font-style:normal; font-size:12.5px; font-weight:600; color:var(--gray500); margin-top:3px; }
+.fg .xc-note { margin:8px 0 0; padding:8px 11px; border-radius:10px; background:#f4f5f7; font-size:12.5px; font-weight:600; color:var(--gray700); line-height:1.5; }
+.fg .xc-amt { flex:0 0 auto; text-align:right; font-size:17px; font-weight:800; letter-spacing:-0.01em; font-variant-numeric:tabular-nums; }
+.fg .xc-amt span { display:block; font-size:11px; font-weight:600; color:var(--gray400); margin-top:2px; letter-spacing:0; }
+.fg .xc-side { flex:0 0 auto; display:flex; flex-direction:column; align-items:flex-end; gap:7px; }
+.fg .xc-pill { padding:5px 11px; border-radius:999px; font-size:11px; font-weight:800; white-space:nowrap; background:#f4f5f7; color:var(--gray500); }
+/* semantic state, never the page accent */
+.fg .xc-pill.pending { background:rgba(240,164,49,.15); color:#a56a05; }
+.fg .xc-pill.approved { background:rgba(46,104,255,.1); color:#2E68FF; }
+.fg .xc-pill.reimbursed { background:rgba(0,163,137,.1); color:#00A389; }
+.fg .xc-pill.declined { background:rgba(255,51,102,.09); color:#e0264f; }
+.fg .xc-rec { font-size:11.5px; font-weight:700; color:var(--teal-d); text-decoration:none; border-bottom:1px solid rgba(0,163,137,.35); }
+.fg .xc-cancel { font-size:11.5px; font-weight:700; color:var(--gray500); }
+.fg .xc-cancel:hover:not(:disabled) { color:#e0264f; }
+.fg .xc-cancel:disabled { opacity:.5; cursor:default; }
+
+/* ---- Expense review (components/timepay/team-expenses.tsx) ----
+   Reuses My expenses' rows wholesale — the same claim seen from the other
+   side — and adds only the summary strip, the decide controls, and the inline
+   decline reason. */
+.fg .xr-sum { display:flex; flex-wrap:wrap; gap:12px; margin-bottom:20px; }
+.fg .xr-sum > div { flex:1 1 180px; padding:15px 18px; border-radius:18px; background:#fff; border:1px solid #f0f0f2; box-shadow:0 8px 30px rgba(0,0,0,.03); }
+.fg .xr-k { display:block; font-size:11px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:var(--gray400); }
+.fg .xr-sum b { display:block; margin-top:5px; font-size:26px; font-weight:800; letter-spacing:-0.02em; font-variant-numeric:tabular-nums; }
+
+.fg .xr-acts { display:flex; gap:7px; }
+.fg .xr-btn { height:32px; padding:0 12px; border-radius:10px; font-size:12px; font-weight:700; background:#fff; border:1px solid #e2e5ea; color:var(--gray700); white-space:nowrap; transition:background .15s, border-color .15s; }
+.fg .xr-btn:hover:not(:disabled) { background:#f4f5f7; }
+.fg .xr-btn.go { background:var(--ink); border-color:var(--ink); color:#fff; }
+.fg .xr-btn.go:hover:not(:disabled) { background:var(--teal); border-color:var(--teal); color:var(--ink); }
+.fg .xr-btn.bad { background:#e0264f; border-color:#e0264f; color:#fff; }
+.fg .xr-btn.bad:hover:not(:disabled) { background:#c81f44; }
+.fg .xr-btn:disabled { opacity:.5; cursor:default; }
+
+/* The reason sits inline under the claim it belongs to — asking for it in a
+   modal would separate the sentence from the thing it is about. */
+.fg .xr-decline { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:11px; padding-top:11px; border-top:1px solid #eef0f4; }
+.fg .xr-decline .inp { flex:1 1 200px; height:38px; }
+
+/* A claim with no receipt is a judgement call, and the approver should know
+   that's what they're making. */
+.fg .xr-noreceipt { font-size:11.5px; font-weight:700; color:#a56a05; }
+.fg .xr-foot { display:flex; align-items:center; gap:7px; margin-top:18px; font-size:12.5px; font-weight:600; color:var(--gray400); }
+
+/* The stat tile is a link now that expenses are real. */
+.fg a.stat { text-decoration:none; color:inherit; transition:transform .16s, box-shadow .16s; }
+.fg a.stat:hover { transform:translateY(-1px); box-shadow:0 10px 26px -14px rgba(10,12,20,.25); }

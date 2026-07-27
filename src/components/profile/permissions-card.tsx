@@ -4,6 +4,7 @@ import { Icon } from "@/components/shell/icon";
 import type { Capability } from "@/lib/permissions";
 import type { Role } from "@/lib/roles-shared";
 import { SectionCard, StaticCard } from "./section-card";
+import { Detail, DetailPanel, DetailPanels } from "./detail";
 import type { PermissionsCtx, SaveSection } from "./types";
 
 const ROLES: [Role, string, string, string][] = [
@@ -59,17 +60,61 @@ export function PermissionsCard({ ctx, onSave }: { ctx: PermissionsCtx; onSave: 
     </div>
   ) : null;
 
-  const body = (
-    draft: Record<string, string>,
-    editing: boolean,
-    set?: (k: string, v: string) => void
-  ) => (
+  /* READ MODE IS FACTS, EDIT MODE IS CONTROLS. This card used to show its
+     locked state as a row of dead toggles — switches you cannot flick, which
+     read as broken rather than as read-only. Read mode now answers the two
+     questions plainly: what role, and what can they reach. */
+  const role = ROLES.find((r) => r[0] === values.org_role);
+  const readBody = (
+    <>
+      {note}
+      <DetailPanels>
+        <DetailPanel title="Role">
+          <Detail
+            label="Role"
+            value={
+              role ? (
+                <span className="ro-state">
+                  <span className="prdot" style={{ background: role[3] }} />
+                  {role[1]}
+                </span>
+              ) : (
+                ""
+              )
+            }
+            sub={role?.[2]}
+          />
+        </DetailPanel>
+
+        <DetailPanel title="Access" wide split>
+          {ACCESS.map(([cap, label]) => {
+            const on = values[`cap_${cap}`] === "on";
+            return (
+              <Detail
+                key={cap}
+                label={label}
+                value={
+                  <span className={on ? "ro-state ok" : "ro-state mute"}>{on ? "On" : "Off"}</span>
+                }
+                sub={ctx.settable.has(cap) ? undefined : "owner-granted"}
+              />
+            );
+          })}
+        </DetailPanel>
+      </DetailPanels>
+    </>
+  );
+
+  /* Edit mode only — read mode is `readBody` above. Every role is offered here
+     (you are choosing) and every toggle is live unless the capability is one
+     this viewer may not set. */
+  const body = (draft: Record<string, string>, set: (k: string, v: string) => void) => (
     <>
       {note}
       <div className="field" style={{ marginBottom: 20 }}>
         <label>Role</label>
         <div className="permroles">
-          {ROLES.filter((r) => editing || r[0] === draft.org_role).map((r) => {
+          {ROLES.map((r) => {
             const on = r[0] === draft.org_role;
             const locked = !ctx.canChangeRole;
             return (
@@ -79,8 +124,8 @@ export function PermissionsCard({ ctx, onSave }: { ctx: PermissionsCtx; onSave: 
                   name="org_role"
                   value={r[0]}
                   checked={on}
-                  disabled={locked || !editing}
-                  onChange={() => set?.("org_role", r[0])}
+                  disabled={locked}
+                  onChange={() => set("org_role", r[0])}
                 />
                 <span className="prdot" style={{ background: r[3] }} />
                 <span className="prk">
@@ -108,7 +153,6 @@ export function PermissionsCard({ ctx, onSave }: { ctx: PermissionsCtx; onSave: 
             // owner-tier rows render locked for a delegated manager, matching
             // what canSetCapability will actually accept
             const locked = !ctx.settable.has(cap);
-            const interactive = editing && !locked;
             return (
               <div key={cap} className={`togrow${locked ? " locked" : ""}`}>
                 <div className="tk">
@@ -124,8 +168,8 @@ export function PermissionsCard({ ctx, onSave }: { ctx: PermissionsCtx; onSave: 
                   role="switch"
                   aria-checked={on}
                   aria-label={label}
-                  disabled={!interactive}
-                  onClick={() => interactive && set?.(`cap_${cap}`, on ? "off" : "on")}
+                  disabled={locked}
+                  onClick={() => !locked && set(`cap_${cap}`, on ? "off" : "on")}
                 />
               </div>
             );
@@ -144,7 +188,7 @@ export function PermissionsCard({ ctx, onSave }: { ctx: PermissionsCtx; onSave: 
         sub="Role & what this person can access"
         pill={pill}
       >
-        {body(values, false)}
+        {readBody}
       </StaticCard>
     );
   }
@@ -158,8 +202,8 @@ export function PermissionsCard({ ctx, onSave }: { ctx: PermissionsCtx; onSave: 
       pill={pill}
       values={values}
       onSave={(fields) => onSave("permissions", fields)}
-      read={body(values, false)}
-      edit={({ draft, set }) => body(draft, true, set)}
+      read={readBody}
+      edit={({ draft, set }) => body(draft, set)}
     />
   );
 }

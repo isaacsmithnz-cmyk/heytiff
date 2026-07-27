@@ -19,6 +19,9 @@ export interface StepBodyProps {
   showToggle?: boolean;
   /** Returning-user render — question stacks skip staging. */
   revealAll?: boolean;
+  /** Whether this workspace has a live Xero grant. Only a boolean reaches the
+      calculator: the connection itself is owner business. */
+  xeroConnected?: boolean;
 }
 
 const DBody = ({ children }: { children: React.ReactNode }) => (

@@ -32,18 +32,28 @@ export default async function DashboardLayout({
   const email = session.user.email ?? "";
   const orgId = session.orgId as string | undefined;
   const userId = session.user.sub as string | undefined;
+  const fallbackName = (session.user.name as string) || email.split("@")[0] || "User";
 
-  // The staff record owns the name — the Auth0 session has no name claim here,
-  // so trusting it showed people their own email address in the topbar.
-  const viewer =
+  /* The name read and the membership read are INDEPENDENT — one asks
+     staff_profiles who this is, the other asks memberships what they may do —
+     so they go out together. They used to be awaited one after the other, and
+     this layout blocks the whole screen on a hard load: two serial trips to a
+     database in another region is most of a second before anything renders.
+     getOwnership/getCapabilities share one request-cached membership query, so
+     the pair below is a single round trip, not two.
+
+     The staff record owns the name: the Auth0 session has no name claim here,
+     and trusting it showed people their own email address in the topbar. */
+  const [viewer, ownership, caps] = await Promise.all([
     orgId && userId
-      ? await getViewerName(orgId, userId, (session.user.name as string) || email.split("@")[0] || "User")
-      : { full: (session.user.name as string) || email.split("@")[0] || "User", first: "there" };
+      ? getViewerName(orgId, userId, fallbackName)
+      : Promise.resolve({ full: fallbackName, first: "there" }),
+    // Fresh from the DB, not the session-cached orgRole: a role change (or an
+    // ownership transfer) must show on the next request, not the next login.
+    getOwnership(),
+    getCapabilities(),
+  ]);
   const displayName = viewer.full;
-
-  // Fresh from the DB, not the session-cached orgRole: a role change (or an
-  // ownership transfer) must show on the next request, not the next login.
-  const [ownership, caps] = await Promise.all([getOwnership(), getCapabilities()]);
   const orgRole = ownership.role ?? "";
 
   const user: ShellUser = {
@@ -56,14 +66,17 @@ export default async function DashboardLayout({
     caps: [...caps],
   };
 
-  // The lockup under the logo: the trading name, and the business's own logo
-  // when it has uploaded one. The ref rides the membership query that already
-  // ran; the link is signed here because the bucket is private and a stored URL
-  // would be one that stops working.
+  /* The lockup under the logo: the trading name, and the business's own logo
+     when it has uploaded one. Both ride the membership query that already ran,
+     so neither costs a trip; the link is signed here because the bucket is
+     private and a stored URL would be one that stops working. Signing is the
+     only real await left, and it is skipped entirely when there is no logo
+     (signOne returns null on a null ref). */
   const [orgName, logoRef] = await Promise.all([getOrgName(), getOrgLogoRef()]);
+  const orgLogoUrl = await signOne(logoRef);
 
   return (
-    <AppShell user={user} orgName={orgName} orgLogoUrl={await signOne(logoRef)}>
+    <AppShell user={user} orgName={orgName} orgLogoUrl={orgLogoUrl}>
       {children}
     </AppShell>
   );

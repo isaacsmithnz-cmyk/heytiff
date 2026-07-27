@@ -58,7 +58,13 @@ async function context(): Promise<Ctx | null> {
    (actions/org.ts). A delegated admin manages people, not the company's
    identity. Refusing it here means the bytes never even get a slot. */
 async function mayUpload(kind: DocumentKind): Promise<boolean> {
-  if (kind === "licence" || kind === "work_rights" || kind === "staff_photo") return true;
+  // Intrinsic: your own licence, your own work-rights evidence, your own face
+  // — and your own receipt. Spending your own money on the job and wanting it
+  // back is not a privilege, so `receipt` belongs in this list; falling
+  // through to `can("team")` would have locked every staff member out of the
+  // expense claim they are the whole point of.
+  if (kind === "licence" || kind === "work_rights" || kind === "staff_photo" || kind === "receipt")
+    return true;
   if (kind === "org_logo") return hasMinRole(await getDbRole(), "owner");
   return can("team");
 }
@@ -158,7 +164,7 @@ export async function deleteDocument(documentId: string): Promise<DocResult> {
 
   const { data } = await supabaseAdmin
     .from("documents")
-    .select("uploaded_by, storage_ref")
+    .select("uploaded_by, storage_ref, expense_claim_id")
     .eq("org_id", ctx.orgId)
     .eq("id", documentId)
     .maybeSingle();
@@ -166,6 +172,24 @@ export async function deleteDocument(documentId: string): Promise<DocResult> {
 
   const mine = ctx.staffId && ctx.staffId === data.uploaded_by;
   if (!mine && !(await can("team"))) return { ok: false, error: "That file isn't yours." };
+
+  /* A receipt attached to a live claim is EVIDENCE, and nobody deletes it —
+     not the claimant, not a `team` holder. Approving a reimbursement means
+     someone vouched for a document; letting that document disappear afterwards
+     would leave an approved payment with nothing behind it. Cancelled and
+     declined claims release their receipts, since nothing was paid on them. */
+  if (data.expense_claim_id) {
+    const { data: claim } = await supabaseAdmin
+      .from("expense_claims")
+      .select("status")
+      .eq("org_id", ctx.orgId)
+      .eq("id", data.expense_claim_id)
+      .maybeSingle();
+    const status = claim?.status;
+    if (status === "pending" || status === "approved" || status === "reimbursed") {
+      return { ok: false, error: "That receipt belongs to an expense claim and can't be removed." };
+    }
+  }
 
   const ref = String(data.storage_ref);
   if (!refIsOrgs(ref, ctx.orgId))

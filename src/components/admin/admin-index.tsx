@@ -59,6 +59,18 @@ export const SECTIONS: AdminGroup[] = [
         show: owner,
       },
       {
+        /* Owner, not `financials`: connecting the accounting system hands over
+           one grant that reaches wages, bills and the P&L at once, which is a
+           bigger decision than the calculator it feeds. Owner-intrinsic like
+           organisation settings — the route and both OAuth handlers agree. */
+        title: "Integrations",
+        sub: "Connect Xero & other apps to this workspace",
+        icon: "plug",
+        accent: "#13B5EA",
+        href: "/dashboard/admin/integrations",
+        show: owner,
+      },
+      {
         title: "Compliance",
         sub: "Incidents, corrective actions & QA",
         icon: "shield",

@@ -12,6 +12,7 @@ jest.mock("@/app/actions/holidays", () => ({
   addHoliday: (...a: unknown[]) => addHoliday(...(a as [])),
   removeHoliday: (...a: unknown[]) => removeHoliday(...(a as [])),
   restoreHoliday: (...a: unknown[]) => restoreHoliday(...(a as [])),
+  getHolidayManagerData: jest.fn(),
 }));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), refresh }) }));
 
@@ -41,8 +42,20 @@ const hol = (over: Partial<Holiday> = {}): Holiday => ({
   ...over,
 });
 
-function renderSection(over: Partial<React.ComponentProps<typeof HolidaySection>> = {}) {
-  return render(<HolidaySection holidays={[]} orgState="WA" today={TODAY} {...over} />);
+/* The section fetches its own calendar on mount now (it used to be handed one
+   by the page), so every case injects a `load` and waits for the first paint
+   before asserting. The shape of what it renders is unchanged. */
+async function renderSection(
+  over: Partial<{ holidays: Holiday[]; orgState: string | null; today: string }> = {},
+) {
+  const result = render(
+    <HolidaySection
+      load={async () => ({ holidays: [], orgState: "WA", today: TODAY, ...over })}
+    />,
+  );
+  // the "Reading your holiday calendar…" placeholder is gone once data lands
+  await screen.findByLabelText("Holiday name");
+  return result;
 }
 
 beforeEach(() => {
@@ -51,21 +64,21 @@ beforeEach(() => {
   addHoliday.mockClear();
 });
 
-it("says nothing when the state has no proclamation-dependent days", () => {
-  renderSection({ orgState: "QLD" });
+it("says nothing when the state has no proclamation-dependent days", async () => {
+  await renderSection({ orgState: "QLD" });
   expect(screen.queryByText("Worth confirming")).not.toBeInTheDocument();
 });
 
-it("asks nothing when there is no state to ask about", () => {
+it("asks nothing when there is no state to ask about", async () => {
   provisional.mockReturnValue([KINGS]);
-  renderSection({ orgState: null });
+  await renderSection({ orgState: null });
   expect(screen.queryByText("Worth confirming")).not.toBeInTheDocument();
   expect(provisional).not.toHaveBeenCalled();
 });
 
-it("suggests this year and next, with the timing hint", () => {
+it("suggests this year and next, with the timing hint", async () => {
   provisional.mockReturnValue([KINGS]);
-  renderSection();
+  await renderSection();
 
   expect(screen.getByText("Worth confirming")).toBeInTheDocument();
   expect(provisional).toHaveBeenCalledWith("WA", 2026);
@@ -77,9 +90,9 @@ it("suggests this year and next, with the timing hint", () => {
   expect(screen.getAllByText(/proclaimed each year/)).toHaveLength(2);
 });
 
-it("drops one already on the calendar for that year — including a removed one", () => {
+it("drops one already on the calendar for that year — including a removed one", async () => {
   provisional.mockReturnValue([KINGS]);
-  renderSection({
+  await renderSection({
     holidays: [
       hol({ id: "kb26", date: "2026-09-28", name: "King's Birthday", source: "manual" }),
       hol({ id: "kb27", date: "2027-09-27", name: "King's Birthday", suppressed: true }),
@@ -88,9 +101,9 @@ it("drops one already on the calendar for that year — including a removed one"
   expect(screen.queryByText("Worth confirming")).not.toBeInTheDocument();
 });
 
-it("keeps suggesting when the same name exists only under another state", () => {
+it("keeps suggesting when the same name exists only under another state", async () => {
   provisional.mockReturnValue([KINGS]);
-  renderSection({
+  await renderSection({
     holidays: [hol({ id: "nsw-kb", state: "NSW", date: "2026-06-08", name: "King's Birthday" })],
   });
   expect(screen.getAllByText("King's Birthday")).toHaveLength(3); // the calendar row + two suggestions
@@ -99,7 +112,7 @@ it("keeps suggesting when the same name exists only under another state", () => 
 it("Add prefills the form's state and name, and leaves the date to the admin", async () => {
   const user = userEvent.setup();
   provisional.mockImplementation((_s: string, y: number) => (y === 2027 ? [KINGS] : []));
-  renderSection({ orgState: "WA" });
+  await renderSection({ orgState: "WA" });
 
   const row = screen.getByText("2027").closest(".hol-sugrow") as HTMLElement;
   await user.click(within(row).getByRole("button", { name: /add/i }));
@@ -118,7 +131,7 @@ it("Add prefills the form's state and name, and leaves the date to the admin", a
 it("still writes through the normal add path once the gazetted date is picked", async () => {
   const user = userEvent.setup();
   provisional.mockReturnValue([KINGS]);
-  renderSection();
+  await renderSection();
 
   await user.click(screen.getAllByRole("button", { name: /^add$/i })[0]);
   await user.click(screen.getByLabelText("Date"));
@@ -140,7 +153,7 @@ it("still writes through the normal add path once the gazetted date is picked", 
    for backfilling last year's calendar. */
 it("locks the picker out of the years before this one", async () => {
   const user = userEvent.setup();
-  renderSection();
+  await renderSection();
 
   await user.click(screen.getByLabelText("Date"));
   await user.click(screen.getByRole("button", { name: "Previous month" })); // June 2026

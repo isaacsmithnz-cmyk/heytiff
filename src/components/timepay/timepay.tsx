@@ -16,7 +16,6 @@ import {
 import { Avatar, DayLegend, MiniTile, Tile } from "./tiles";
 import { TimePaySettings } from "./settings";
 import { HolidaySection } from "./holiday-section";
-import type { HolidayManagerData } from "@/lib/timepay/leave-page";
 import { useRouter } from "next/navigation";
 import {
   approveWeek,
@@ -26,6 +25,11 @@ import {
 } from "@/app/actions/timepay";
 import type { SheetState } from "@/lib/timepay/query";
 import { TimepayNav } from "./timepay-nav";
+import { XeroPayroll } from "./xero-payroll";
+import Link from "next/link";
+
+/** Whole dollars — a stat tile is a glance, and cents on it are noise. */
+const money0 = (n: number) => `$${Math.round(n).toLocaleString("en-AU")}`;
 
 /** One entry in the period switcher. `start` is the ISO Monday it begins. */
 export type PayPeriod = { start: string; range: string; year: string; live: boolean; note: string };
@@ -105,6 +109,9 @@ function PerDay({ s, d, ctx }: { s: StaffWeek; d: Derived; ctx: WeekCtx }) {
           <span className="hh">—</span>
         </div>
       );
+    /* A day marked "not worked" is the one entry with no hours to state — it
+       is a person saying they weren't there, and it reaches this screen
+       precisely so the approver sees it rather than reading a blank. */
     const label =
       day.t === "work"
         ? `${day.in} – ${day.out}`
@@ -112,14 +119,16 @@ function PerDay({ s, d, ctx }: { s: StaffWeek; d: Derived; ctx: WeekCtx }) {
           ? "Annual leave"
           : day.t === "sick"
             ? "Sick leave"
-            : "Public holiday";
+            : day.t === "off"
+              ? "Not worked"
+              : "Public holiday";
     return (
-      <div className="drow" key={i}>
+      <div className={`drow${day.t === "off" ? " off" : ""}`} key={i}>
         <span className="wd">{w[0]}</span>
         <span className="dt">{w[1]} {w[2]}</span>
         <span className="sh">{label}</span>
         <span></span>
-        <span className="hh">{fmt(day.h)}h</span>
+        <span className="hh">{day.t === "off" ? "—" : `${fmt(day.h)}h`}</span>
       </div>
     );
   };
@@ -350,7 +359,10 @@ export function TimePay({
   sheets,
   canApprove,
   financials,
-  holidayData,
+  canHolidays,
+  xeroConnected,
+  wageDrift = null,
+  expenses = { owed: 0, pending: 0 },
 }: {
   staff: StaffWeek[];
   week: WeekCtx["week"];
@@ -363,8 +375,20 @@ export function TimePay({
   sheets: Record<string, SheetState>;
   canApprove: boolean;
   financials: boolean;
-  /** admin+ only — presence unlocks the holidays section in the gear */
-  holidayData: HolidayManagerData | null;
+  /** admin+ — unlocks the holidays row in the gear. A boolean, not the
+      calendar: the section fetches its own rows when the row is opened. */
+  canHolidays: boolean;
+  /** Whether this workspace has a live Xero grant. A boolean only: the
+      connection's details are owner business, and this screen just needs to
+      know whether the matching section has anything to show. */
+  xeroConnected?: boolean;
+  /** One line when the weekly sweep found wages disagreeing with Xero, else
+      null. A COUNT-derived sentence — the rates themselves stay behind the
+      gated Check pay rates read in the settings gear. */
+  wageDrift?: string | null;
+  /** What's outstanding on expense claims. Resolved server-side and only when
+      the viewer holds `financials` — the tile that shows it is money. */
+  expenses?: { owed: number; pending: number };
 }) {
   const router = useRouter();
   const ctx: WeekCtx = useMemo(() => ({ week, today }), [week, today]);
@@ -443,7 +467,7 @@ export function TimePay({
               <div className="autosub">{note}</div>
             </div>
             <div className="racts">
-              {(financials || holidayData) && (
+              {(financials || canHolidays) && (
                 <button className="bbtn sq" aria-label="Settings" onClick={() => setSettingsOpen(true)}>
                   <Icon name="settings" size={17} />
                 </button>
@@ -480,16 +504,24 @@ export function TimePay({
             </div>
             {/* Money, so it rides with `financials` like every other dollar
                 on this screen — an hours-only view shows no figure at all,
-                not a $0 placeholder. Expenses themselves are still unbuilt. */}
+                not a $0 placeholder.
+
+                REAL NOW, and it means one precise thing: what the business
+                still owes its people. Pending plus approved-but-unpaid;
+                already-reimbursed and declined claims are not owed. The
+                sub-line counts only what nobody has decided yet, because that
+                is the part that needs a person. */}
             {financials && (
-              <div className="stat exp">
+              <Link href="/dashboard/timepay/expenses" className="stat exp">
                 <span className="si"><Icon name="receipt" size={18} /></span>
                 <div className="stk">
-                  <div className="sv">$0</div>
+                  <div className="sv">{money0(expenses.owed)}</div>
                   <div className="sl">Expenses</div>
-                  <div className="ss">To review</div>
+                  <div className="ss">
+                    {expenses.pending > 0 ? `${expenses.pending} to review` : "Nothing to review"}
+                  </div>
                 </div>
-              </div>
+              </Link>
             )}
           </div>
 
@@ -551,18 +583,46 @@ export function TimePay({
             </div>
           )}
 
+          {/* Advisory, not an error: Xero changed and nobody has looked yet.
+              The fix is two taps away in the gear, so the line points there
+              rather than trying to be actionable itself. */}
+          {wageDrift && (
+            <div className="tp-drift">
+              <Icon name="info" size={15} />
+              <span>{wageDrift} Open settings → Xero payroll to compare.</span>
+            </div>
+          )}
+
           {settingsOpen && (
             <TimePaySettings
               settings={settings}
               firstRun={!configured}
               period={period}
               canPay={financials}
-              holidaySection={
-                holidayData ? (
-                  <HolidaySection
-                    holidays={holidayData.holidays}
-                    orgState={holidayData.orgState}
-                    today={holidayData.today}
+              holidaySection={canHolidays ? <HolidaySection /> : null}
+              xeroSection={
+                xeroConnected ? (
+                  /* The actions are imported lazily, inside the section, so
+                     the Auth0 + Supabase runtime behind them never enters this
+                     screen's bundle — the same reason the rate calculator
+                     dynamic-imports its own save action. */
+                  <XeroPayroll
+                    load={async () => (await import("@/app/actions/xero-links")).getLinkingData()}
+                    onLink={async (id, remote, how) =>
+                      (await import("@/app/actions/xero-links")).linkEmployee(id, remote, how)
+                    }
+                    onUnlink={async (id) =>
+                      (await import("@/app/actions/xero-links")).unlinkEmployee(id)
+                    }
+                    onAdoptEmployment={async (id, value) =>
+                      (await import("@/app/actions/xero-links")).adoptEmploymentType(id, value)
+                    }
+                    onCheckPay={async () =>
+                      (await import("@/app/actions/xero-links")).checkPayRates()
+                    }
+                    onAdoptWage={async (id) =>
+                      (await import("@/app/actions/xero-links")).adoptWage(id)
+                    }
                   />
                 ) : null
               }

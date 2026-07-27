@@ -1,4 +1,4 @@
-import { daysUntil } from "@/lib/au-dates";
+import { daysUntil, fmtAuWeekdayDateLong } from "@/lib/au-dates";
 import { daysDuration } from "@/lib/format/duration";
 import { tallyPoll, type PollResult } from "./polls";
 
@@ -87,12 +87,7 @@ export type EventWhen = {
 export function eventWhen(date: string, time: string | null, today: string): EventWhen {
   const days = daysUntil(date, today);
   return {
-    day: new Intl.DateTimeFormat("en-AU", {
-      timeZone: "UTC",
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-    }).format(new Date(`${date}T00:00:00Z`)),
+    day: fmtAuWeekdayDateLong(date),
     time: fmtTime(time),
     /* Today and Tomorrow keep their capitals — they're the whole phrase here,
        not a quantity. Anything else borrows the shared adaptive wording, so a

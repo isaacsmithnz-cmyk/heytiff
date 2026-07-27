@@ -1,10 +1,10 @@
 "use client";
 
-import { Icon } from "@/components/shell/icon";
 import { IdCard } from "@/components/cards/id-card";
 import type { StaffProfile } from "@/lib/staff/profile";
 import { preValidate } from "@/lib/staff/pre-validate";
 import { SectionCard } from "./section-card";
+import { Detail, DetailPanel, DetailPanels } from "./detail";
 import { Field, SelectInput, TextInput } from "./fields";
 import type { ProfileMode, SaveSection } from "./types";
 
@@ -26,11 +26,13 @@ export function EmergencyCard({
   profile,
   mode,
   org,
+  startEditing,
   onSave,
 }: {
   profile: StaffProfile | null;
   mode: ProfileMode;
   org: string | null;
+  startEditing?: boolean;
   onSave: SaveSection;
 }) {
   const values = emergencyValues(profile);
@@ -45,37 +47,39 @@ export function EmergencyCard({
       "—"
     );
 
-  const read = blank ? (
-    <div className="ro-empty">
-      <span className="ei">
-        <Icon name="phone" size={20} />
-      </span>
-      <b>No emergency contact yet</b>
-      <em>
-        One name and one number. It is the first thing anyone looks for if
-        something happens on site.
-      </em>
-    </div>
-  ) : (
-    <IdCard
-      variant="light"
-      org={org}
-      badge={{ label: "ICE", color: "#2E68FF" }}
-      initials={initialsOf(values.emergency_name)}
-      name={values.emergency_name || "—"}
-      sub={
-        values.emergency_relationship ? (
-          <span className="idc-pill">{values.emergency_relationship}</span>
-        ) : (
-          "Emergency contact"
-        )
-      }
-      facts={[
-        { em: "Phone", b: tel(values.emergency_phone) },
-        { em: "Alt phone", b: tel(values.emergency_alt_phone) },
-      ]}
-    />
-  );
+  /* Nothing recorded: ask for it where the answer goes, rather than explaining
+     the blank. One name and one number is the whole ask — it is the first
+     thing anyone looks for if something happens on site. */
+  const read = ({ edit }: { edit: () => void }) =>
+    blank ? (
+      <DetailPanels>
+        <DetailPanel title="In case of emergency" wide split>
+          <Detail label="Contact name" value="" onAdd={edit} />
+          <Detail label="Contact phone" value="" onAdd={edit} />
+          <Detail label="Relationship" value="" onAdd={edit} addLabel="Select" />
+          <Detail label="Alternate phone" value="" onAdd={edit} />
+        </DetailPanel>
+      </DetailPanels>
+    ) : (
+      <IdCard
+        variant="light"
+        org={org}
+        badge={{ label: "ICE", color: "#2E68FF" }}
+        initials={initialsOf(values.emergency_name)}
+        name={values.emergency_name || "—"}
+        sub={
+          values.emergency_relationship ? (
+            <span className="idc-pill">{values.emergency_relationship}</span>
+          ) : (
+            "Emergency contact"
+          )
+        }
+        facts={[
+          { em: "Phone", b: tel(values.emergency_phone) },
+          { em: "Alt phone", b: tel(values.emergency_alt_phone) },
+        ]}
+      />
+    );
 
   return (
     <SectionCard
@@ -83,6 +87,7 @@ export function EmergencyCard({
       title="Emergency contact"
       sub="Who we call if something happens on site"
       values={values}
+      startEditing={startEditing}
       onSave={(fields) => onSave("emergency", fields)}
       validate={(fields) => preValidate(mode, "emergency", fields)}
       read={read}

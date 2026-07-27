@@ -57,6 +57,27 @@ export interface ModeState {
   vehicles: EntryMode;
 }
 
+export type CostsSource = "manual" | "xero";
+
+/** A pull from a connected Xero organisation's profit & loss, frozen. */
+export interface XeroCostSnapshot {
+  /** ISO timestamp of the pull — the screen shows it, because a figure from
+      three months ago should not look like today's. */
+  fetchedAt: string;
+  period: { from: string; to: string; label: string };
+  tenantName: string;
+  /** The overhead lines. `allocated_to` is editable here — how a cost splits
+      between install and service is a judgement about the business, not
+      something a chart of accounts knows. */
+  lines: BusinessCost[];
+  /** Lines deliberately left out (wages, super, vehicles — the calculator has
+      those already) with the reason, so the double-count guard is visible and
+      reversible rather than a silent filter. */
+  excluded: { name: string; amount: number; reason: string }[];
+  /** Which P&L sections were read — the mapper showing its working. */
+  sections: string[];
+}
+
 export interface RateCalcState {
   businessName: string;
   staff: StaffMember[];
@@ -74,6 +95,20 @@ export interface RateCalcState {
   simpleBusiness: SimpleBusinessData;
   simpleVehicle: SimpleVehicleData;
   mode: ModeState;
+  /** Where business costs come from. "manual" is the Simple/Detailed entry
+      this calculator has always had; "xero" reads them off a connected
+      organisation's profit & loss.
+
+      The two are kept SEPARATE rather than one overwriting the other, so
+      switching either way is non-destructive: `businessCosts` stays exactly as
+      the user left it while Xero is the source, and is still there when they
+      switch back. */
+  costsSource: CostsSource;
+  /** The last figures pulled from Xero, kept as a snapshot rather than a live
+      read. Two reasons: the engine must keep producing rates when Xero is
+      unreachable or disconnected, and a rate the business has quoted from
+      shouldn't change under them because someone recoded an account. */
+  xeroCosts: XeroCostSnapshot | null;
   /** Set when the user explicitly confirms they run no vehicles — the Vehicles
       step no longer auto-completes on an empty fleet, so this records the
       deliberate "no fleet" choice that lets the step count as done. */
@@ -149,10 +184,55 @@ export function emptyState(): RateCalcState {
     simpleBusiness: { months: [0, 0, 0] },
     simpleVehicle: { months: [0, 0, 0] },
     mode: { staff: "Simple", business: "Simple", vehicles: "Simple" },
+    costsSource: "manual",
+    xeroCosts: null,
     noVehicles: false,
     riskAccepted: false,
     profitAccepted: false,
   };
+}
+
+/** Cost lines a stored snapshot claims, defensively — it round-trips through
+    jsonb, and a row written by an older shape must degrade to "no snapshot"
+    rather than reaching the engine as junk. */
+function hydrateSnapshot(raw: unknown): XeroCostSnapshot | null {
+  if (!raw || typeof raw !== "object") return null;
+  const s = raw as Partial<XeroCostSnapshot>;
+  if (!Array.isArray(s.lines)) return null;
+  const lines = s.lines
+    .filter((l): l is BusinessCost => !!l && typeof l === "object" && typeof l.name === "string")
+    .map(l => ({
+      name: l.name,
+      amount: typeof l.amount === "number" && Number.isFinite(l.amount) ? l.amount : 0,
+      allocated_to: l.allocated_to || "shared",
+    }));
+  const p = s.period;
+  return {
+    fetchedAt: typeof s.fetchedAt === "string" ? s.fetchedAt : "",
+    period: {
+      from: typeof p?.from === "string" ? p.from : "",
+      to: typeof p?.to === "string" ? p.to : "",
+      label: typeof p?.label === "string" ? p.label : "",
+    },
+    tenantName: typeof s.tenantName === "string" ? s.tenantName : "",
+    lines,
+    excluded: Array.isArray(s.excluded) ? s.excluded.filter(e => !!e && typeof e === "object") : [],
+    sections: Array.isArray(s.sections) ? s.sections.filter(x => typeof x === "string") : [],
+  };
+}
+
+/** The cost-source pair, resolved together because they constrain each other.
+
+    A stored `"xero"` with no readable snapshot is normalised back to
+    `"manual"` — otherwise the engine would run on an empty cost pool and
+    quietly produce a rate with no overheads in it, which looks like a working
+    answer and isn't. */
+function hydrateCostsSource(
+  D: Partial<RateCalcState>
+): Pick<RateCalcState, "costsSource" | "xeroCosts"> {
+  const xeroCosts = hydrateSnapshot(D.xeroCosts);
+  const wanted = D.costsSource === "xero" ? "xero" : "manual";
+  return { costsSource: wanted === "xero" && xeroCosts ? "xero" : "manual", xeroCosts };
 }
 
 /**
@@ -184,6 +264,9 @@ export function hydrateState(raw: unknown): RateCalcState {
     simpleBusiness: { ...base.simpleBusiness, ...(D.simpleBusiness ?? {}) },
     simpleVehicle: { ...base.simpleVehicle, ...(D.simpleVehicle ?? {}) },
     mode: { ...base.mode, ...(D.mode ?? {}) },
+    /* Both keys MUST be named here: hydrateState is a whitelist merge, and a
+       key it doesn't mention is dropped on the next save round-trip. */
+    ...hydrateCostsSource(D),
     noVehicles: D.noVehicles === true,
     riskAccepted: D.riskAccepted === true,
     profitAccepted: D.profitAccepted === true,
@@ -229,18 +312,32 @@ export function allStepsDone(steps: StepStatusMap): boolean {
 
 // ─── Engine glue ────────────────────────────────────────────────────────
 
+/** Which cost lines the engine actually runs on.
+
+    Xero as the source bypasses the Simple/Detailed fork entirely — those are
+    two ways of TYPING costs in, and this is a third source altogether. The
+    manual list is left untouched underneath, which is what makes switching
+    back non-destructive. */
+export function activeBusinessCosts(s: RateCalcState): BusinessCost[] {
+  return s.costsSource === "xero" && s.xeroCosts ? s.xeroCosts.lines : s.businessCosts;
+}
+
 export function buildEngineData(s: RateCalcState): EngineData {
+  const onXero = s.costsSource === "xero" && !!s.xeroCosts;
   return {
     staff: s.staff,
     timesheets: s.timesheets,
     vehicles: s.vehicles,
-    businessCosts: s.businessCosts,
+    businessCosts: activeBusinessCosts(s),
     risk: s.risk,
     profit: s.profit,
     multipliers: s.multipliers,
     settings: s.settings,
     ...(s.mode.staff === "Simple" ? { simpleLabourData: s.simpleLabour } : {}),
-    ...(s.mode.business === "Simple" ? { simpleBusinessData: s.simpleBusiness } : {}),
+    /* Never both: simpleBusinessData makes the engine use a 3-month average
+       instead of the itemised list, which would throw away the Xero figures it
+       was just handed. */
+    ...(!onXero && s.mode.business === "Simple" ? { simpleBusinessData: s.simpleBusiness } : {}),
     ...(s.mode.vehicles === "Simple" ? { simpleVehicleData: s.simpleVehicle } : {}),
   };
 }
@@ -266,9 +363,13 @@ export function runEngine(s: RateCalcState): EngineRun {
   // Guard a stepStatus false-positive: the engine marks Business "complete"
   // whenever the overhead pool is non-empty — which admin labour alone can
   // cause. Only count it complete once the user actually entered overheads.
-  const bizTouched = s.mode.business === "Simple"
-    ? (s.simpleBusiness.months || []).some(m => m > 0)
-    : (s.businessCosts || []).some(c => (c.amount || 0) > 0);
+  // Whichever pool is ACTIVE is what counts as entered — pulling real figures
+  // from Xero is as much a completed step as typing them in.
+  const bizTouched = s.costsSource === "xero" && s.xeroCosts
+    ? s.xeroCosts.lines.some(c => (c.amount || 0) > 0)
+    : s.mode.business === "Simple"
+      ? (s.simpleBusiness.months || []).some(m => m > 0)
+      : (s.businessCosts || []).some(c => (c.amount || 0) > 0);
   if (!bizTouched && steps.business.completion === "complete") {
     steps.business = { ...steps.business, completion: "not_started" };
   }

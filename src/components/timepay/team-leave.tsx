@@ -274,23 +274,52 @@ export function TeamLeave({
               )}
             </div>
 
+            {/* The roster's own question: who can't I put on. Booked leave and
+                a casual's unavailability both answer it, so they share a list —
+                but they are not the same claim, so they don't share a chip.
+                Leave is an arrangement somebody approved; an unavailability is
+                a casual telling you a fact. */}
             <div className="lv-col">
-              <div className="lv-ch">Who&rsquo;s off</div>
+              <div className="lv-ch">Who can&rsquo;t work</div>
               {upcoming.length === 0 ? (
-                <div className="fl-hempty">No approved leave in the next few weeks.</div>
+                <div className="fl-hempty">
+                  Nobody&rsquo;s away and nobody has blocked out days in the next few weeks.
+                </div>
               ) : (
-                upcoming.map((day) => (
-                  <div className="lv-calday" key={day.date}>
-                    <span className="lv-caldate">{fmtRange(day.date, day.date)}</span>
-                    <div className="lv-calnames">
-                      {day.entries.map((e, i) => (
-                        <span key={i} className={`dchip2 ${KIND_TONE[e.kind]}`}>
-                          {e.staffName}
-                        </span>
-                      ))}
+                <>
+                  {upcoming.map((day) => (
+                    <div className="lv-calday" key={day.date}>
+                      <span className="lv-caldate">{fmtRange(day.date, day.date)}</span>
+                      <div className="lv-calnames">
+                        {day.entries.map((e, i) =>
+                          e.source === "unavailable" ? (
+                            <span
+                              key={i}
+                              className="dchip2 unavail"
+                              title={
+                                e.note
+                                  ? `Unavailable — ${e.note}`
+                                  : "Unavailable — not booked leave, nothing to approve"
+                              }
+                            >
+                              {e.staffName}
+                              <em>can&rsquo;t work</em>
+                            </span>
+                          ) : (
+                            <span key={i} className={`dchip2 ${KIND_TONE[e.kind ?? "annual"]}`}>
+                              {e.staffName}
+                            </span>
+                          ),
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))
+                  ))}
+                  <p className="lv-callegend">
+                    Names in grey have marked themselves unavailable — that&rsquo;s a casual telling
+                    you when they can&rsquo;t be rostered, not leave, and there&rsquo;s nothing to
+                    approve.
+                  </p>
+                </>
               )}
             </div>
           </div>

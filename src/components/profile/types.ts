@@ -80,6 +80,12 @@ export type PermissionsCtx = {
     rendering them disabled. Mirrors the old renderer's `sections` exactly. */
 export type AdminExtras = {
   payroll?: PayFields | null;
+  /** What this person's ROSTER comes to in a week — their normal day times the
+      days they're expected, from Time & Pay. Sits beside the typed
+      `contracted_hours` on the Payroll card so the two can be seen to agree,
+      or seen not to. Null for a casual (nothing is presumed for them) and when
+      the org's times can't be read. See logic.ts::rosteredWeekHours. */
+  rosteredWeek?: number | null;
   permissions?: PermissionsCtx;
   notes?: { notes?: string | null } | null;
 };

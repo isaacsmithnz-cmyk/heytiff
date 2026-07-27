@@ -13,6 +13,7 @@ import {
   fmtH,
   initials,
   parseClock,
+  rosteredWeekHours,
   ruleSummary,
   seedBreakMinutes,
   spanHours,
@@ -472,5 +473,57 @@ describe("fmtH", () => {
     expect(fmtH(7.67)).toBe("7.67");
     expect(fmt(7.67)).toBe("7.7");
     expect(fmtH(null)).toBe("—");
+  });
+});
+
+/* The rostered week: what Time & Pay actually presumes onto somebody, stated
+   in the same unit as the `contracted_hours` figure typed on the Payroll card.
+   The two are separate on purpose — one costs jobs, one fills timesheets — so
+   this only has to be RIGHT, never reconciling. */
+describe("rosteredWeekHours", () => {
+  const at = (over: Partial<Settings> = {}): Settings => ({ ...DEFAULT_SETTINGS, ...over });
+
+  it("prices the org's own default week: 7-3, Mon-Fri, is 40h", () => {
+    expect(rosteredWeekHours(at(), {})).toBe(40);
+  });
+
+  it("honours a person's own hours over the org's", () => {
+    expect(rosteredWeekHours(at(), { hours: { start: "8:00 AM", end: "4:30 PM" } })).toBe(42.5);
+  });
+
+  it("counts the days THEY work, not the days the org does", () => {
+    // a part-timer on Mon/Tue/Thu — 3 x 8h, not 5
+    expect(rosteredWeekHours(at(), { workDays: [0, 1, 3] })).toBe(24);
+  });
+
+  it("an empty roster is a real answer, not a missing one", () => {
+    expect(rosteredWeekHours(at(), { workDays: [] })).toBe(0);
+  });
+
+  /* The break is a pay setting and it comes off worked hours when unpaid, so
+     a week that ignored it would overstate every roster in the workspace by
+     the length of five lunches. */
+  it("deducts an unpaid break from every rostered day", () => {
+    expect(rosteredWeekHours(at({ breakMinutes: 30, breakPaid: false }), {})).toBe(37.5);
+    expect(rosteredWeekHours(at({ breakMinutes: 30, breakPaid: true }), {})).toBe(40);
+  });
+
+  it("refuses to state a week for people who have none", () => {
+    // nothing is ever presumed for a casual, and a subbie has no timesheet;
+    // a figure here would be a claim about hours nobody agreed to
+    expect(rosteredWeekHours(at(), {}, "casual")).toBeNull();
+    expect(rosteredWeekHours(at(), {}, "subbie")).toBeNull();
+    expect(rosteredWeekHours(at(), {}, null)).toBe(40); // unset classifies permanent
+  });
+
+  it("returns null rather than a zero when the times can't be read", () => {
+    expect(rosteredWeekHours(at({ defaultStart: "sometime", defaultEnd: "later" }), {})).toBeNull();
+  });
+
+  /* Half an override would silently price a day at the org's finish time --
+     the same rule normalHours enforces, checked here because this is the
+     number an owner reads off the card. */
+  it("ignores a half-written override and falls back to the org", () => {
+    expect(rosteredWeekHours(at(), { hours: { start: "6:00 AM" } })).toBe(40);
   });
 });

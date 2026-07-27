@@ -1,4 +1,4 @@
-import { auDayOf, daysUntil, fmtAuDayMonth, fmtAuWeekdayDayMonth, fmtAuWeekdayDate, todayInAu, parseAuDate, formatAuDate } from "../au-dates";
+import { auDayOf, auHourNow, daysUntil, fmtAuDayMonth, fmtAuWeekdayDayMonth, fmtAuWeekdayDate, fmtAuWeekdayDateLong, todayInAu, parseAuDate, formatAuDate } from "../au-dates";
 
 /* The date helpers everything else anchors on. `todayInAu` answers "what day is
    it now" and `auDayOf` answers "what day was that" — they have to agree, or a
@@ -107,5 +107,33 @@ describe("fmtAuWeekdayDayMonth / fmtAuWeekdayDate", () => {
   it("returns empty for junk", () => {
     expect(fmtAuWeekdayDayMonth("not-a-date")).toBe("");
     expect(fmtAuWeekdayDate(null)).toBe("");
+  });
+});
+
+describe("fmtAuWeekdayDateLong", () => {
+  it("spells the day out in full — en-AU's long pattern has no comma to strip", () => {
+    expect(fmtAuWeekdayDateLong("2026-12-25")).toBe("Friday 25 December");
+  });
+
+  it("returns empty for junk", () => {
+    expect(fmtAuWeekdayDateLong("not-a-date")).toBe("");
+    expect(fmtAuWeekdayDateLong(null)).toBe("");
+  });
+});
+
+describe("auHourNow — the greeting's clock", () => {
+  it("reads the AU hour, not the server's (AEST, UTC+10)", () => {
+    // 01:30 UTC is 11:30 in Sydney — a UTC getHours() would say 1
+    expect(auHourNow(new Date("2026-07-26T01:30:00Z"))).toBe(11);
+  });
+
+  it("handles daylight saving (AEDT, UTC+11) across the date line", () => {
+    // 20:00 UTC on the 9th is 07:00 on the 10th in Sydney
+    expect(auHourNow(new Date("2026-01-09T20:00:00Z"))).toBe(7);
+  });
+
+  it("midnight reads as hour 0, never 24", () => {
+    // 14:00 UTC = 00:00 AEST — hourCycle h23 keeps it at 0
+    expect(auHourNow(new Date("2026-07-25T14:00:00Z"))).toBe(0);
   });
 });

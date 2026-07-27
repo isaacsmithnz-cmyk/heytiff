@@ -1,7 +1,7 @@
 /* Values the Team directory and the profile header show but never store —
    derived from the stored card so they can't drift out of sync. */
 
-import { daysUntil as daysBetween } from "@/lib/au-dates";
+import { daysUntil as daysBetween, todayInAu } from "@/lib/au-dates";
 import { expiryClause } from "@/lib/format/duration";
 import type { ComplianceState, StaffLicence } from "./types";
 
@@ -24,12 +24,15 @@ export function initialsFrom(name: string | null | undefined, email?: string | n
   return source.slice(0, 2).toUpperCase();
 }
 
-/** "Mar 2021" from an ISO date — the profile header's Started line. */
+/** "Mar 2021" from an ISO date — the profile header's Started line. The bare
+    date parses as midnight UTC, so it must be read back in UTC too: with the
+    server's own zone, any negative-offset host renders a 1st-of-month start
+    as the previous month. */
 export function startedLabel(startIso: string | null | undefined): string {
   if (!startIso) return "—";
   const d = new Date(String(startIso).slice(0, 10));
   if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("en-AU", { month: "short", year: "numeric" });
+  return d.toLocaleDateString("en-AU", { month: "short", year: "numeric", timeZone: "UTC" });
 }
 
 /* Whole days from today to an ISO date. Negative = already past.
@@ -37,13 +40,16 @@ export function startedLabel(startIso: string | null | undefined): string {
    The Date-and-nullable twin of lib/au-dates' `daysUntil`, which does the
    actual counting — this one only exists because `deriveCompliance` is handed a
    `now` rather than a calendar day, and because a card with no expiry recorded
-   has to be distinguishable from one expiring today. Both ends resolve to a UTC
-   calendar day so the two agree to the day. */
+   has to be distinguishable from one expiring today. The moment resolves to the
+   AU calendar day — the same anchor every other day-count uses. It used to
+   resolve via toISOString(), i.e. the UTC day, which is one behind AU until
+   UTC midnight — so for the whole working morning the Team directory said
+   "expires tomorrow" while the dashboard chip said "expires today". */
 export function daysUntil(iso: string | null | undefined, now = new Date()): number | null {
   const day = String(iso ?? "").slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return null;
   if (Number.isNaN(now.getTime())) return null;
-  return daysBetween(day, now.toISOString().slice(0, 10));
+  return daysBetween(day, todayInAu(now));
 }
 
 /** A licence within this many days reads as "expiring", not "fine". */

@@ -21,6 +21,11 @@ jest.mock("@/app/actions/holidays", () => ({
   addHoliday: jest.fn(async () => ({ ok: true })),
   removeHoliday: jest.fn(async () => ({ ok: true })),
   restoreHoliday: jest.fn(async () => ({ ok: true })),
+  getHolidayManagerData: jest.fn(async () => ({
+    holidays: [],
+    orgState: "NSW",
+    today: "2026-07-25",
+  })),
 }));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push, refresh }) }));
 
@@ -76,7 +81,7 @@ function renderTimePay(over: Partial<React.ComponentProps<typeof TimePay>> = {})
       sheets={{}}
       canApprove
       financials
-      holidayData={null}
+      canHolidays={false}
       {...over}
     />,
   );
@@ -168,7 +173,7 @@ describe("capability gating on the screen", () => {
     const user = userEvent.setup();
     renderTimePay({
       financials: false,
-      holidayData: { holidays: [], orgState: "NSW", today: "2026-07-25" },
+      canHolidays: true,
     });
     await user.click(screen.getByLabelText("Settings"));
     expect(screen.getByText("Public holidays")).toBeInTheDocument();
@@ -181,9 +186,7 @@ describe("capability gating on the screen", () => {
 
   it("with both `financials` and admin, the gear carries holidays AND pay controls", async () => {
     const user = userEvent.setup();
-    renderTimePay({
-      holidayData: { holidays: [], orgState: "NSW", today: "2026-07-25" },
-    });
+    renderTimePay({ canHolidays: true });
     await user.click(screen.getByLabelText("Settings"));
     // "Public holidays" appears as the manager section and as the rate rule
     expect(screen.getAllByText("Public holidays").length).toBeGreaterThanOrEqual(2);

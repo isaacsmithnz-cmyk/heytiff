@@ -16,37 +16,18 @@
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
-/* The roster's vocabulary is the one that wins (staff_profiles.employment_type:
-   Full-time · Part-time · Casual · Apprentice · Subcontractor). The engine
-   never string-matches it directly — it classifies through the boundary below,
-   so a hyphen, a space or a new label can't silently misclassify someone. The
-   old union kept "Full Time"/"Part Time" (spaces); those still classify
-   correctly, which is what keeps the existing fixtures green. */
-export type EmploymentType =
-  | "Full-time"
-  | "Part-time"
-  | "Casual"
-  | "Apprentice"
-  | "Subcontractor";
-
-/** How pay burden actually differs. Everything the engine needs to know about
-    an employment type collapses to one of these three. */
-export type EmploymentClass = "subbie" | "casual" | "permanent";
-
-/** Map any employment label to its pay class, tolerant of spelling. Normalises
-    case and every kind of separator, so "Full Time", "full-time" and "Full
-    time" all land the same place.
-      subbie    — invoices for work; no super, no workers comp, no leave
-      casual    — paid weeks worked only; loading is in the wage, no leave loading
-      permanent — full/part-time AND APPRENTICES: 52 paid weeks, super + leave
-    Apprentices are employees, so they are permanent — the one label people
-    most expect to be "special" but which the burden model treats as ordinary. */
-export function classifyEmployment(raw?: string | null): EmploymentClass {
-  const v = (raw ?? "").toLowerCase().replace(/[\s._-]+/g, "");
-  if (v === "subcontractor" || v === "subcontract" || v === "contractor") return "subbie";
-  if (v === "casual") return "casual";
-  return "permanent"; // full-time, part-time, apprentice, or unspecified
-}
+/* The roster's vocabulary is the one that wins, and it now lives in
+   `lib/staff/employment.ts` — Time & Pay needs the same classification to
+   decide whose week gets filled in for them, and two modules matching on
+   "casual" independently is how one screen ends up presuming a week the other
+   calls manual. Re-exported here so every existing import of the engine keeps
+   working; the engine still never string-matches a label directly. */
+export {
+  classifyEmployment,
+  type EmploymentClass,
+  type EmploymentType,
+} from "@/lib/staff/employment";
+import { classifyEmployment, type EmploymentType } from "@/lib/staff/employment";
 
 export interface StaffMember {
   id: number | string;

@@ -209,4 +209,71 @@ describe("team calendar", () => {
     const days = calendarDays(requests, "2026-08-01", "2026-08-31");
     expect(days.map((d) => d.date)).toEqual(["2026-08-01", "2026-08-02", "2026-08-03"]);
   });
+
+  /* A casual's unavailability shares this calendar because the ROSTER'S
+     question is the same for both — who can't I put on. It must never share
+     leave's identity, though: nobody approved it and no entitlement was spent,
+     so a screen that showed it as leave would imply an arrangement that
+     doesn't exist. */
+  describe("and casual unavailability", () => {
+    const block = (over: Partial<{ staffId: string; staffName: string; from: string; to: string; note: string }> = {}) => ({
+      staffId: "c1",
+      staffName: "Dee",
+      from: "2026-08-05",
+      to: "2026-08-05",
+      ...over,
+    });
+
+    it("puts blocked days on the same calendar, marked as their own source", () => {
+      const days = calendarDays([], "2026-08-01", "2026-08-31", [block()]);
+      expect(days.map((d) => d.date)).toEqual(["2026-08-05"]);
+      expect(days[0].entries).toEqual([
+        { staffId: "c1", staffName: "Dee", source: "unavailable", note: undefined },
+      ]);
+    });
+
+    it("never carries a leave kind — there is no entitlement behind it", () => {
+      const days = calendarDays([], "2026-08-01", "2026-08-31", [block()]);
+      expect(days[0].entries[0].kind).toBeUndefined();
+    });
+
+    it("marks approved leave as leave, so the two stay tellable apart", () => {
+      const days = calendarDays(
+        [req({ staffId: "s1", staffName: "Ana", startDate: "2026-08-05", endDate: "2026-08-05", status: "approved" })],
+        "2026-08-01",
+        "2026-08-31",
+        [block()],
+      );
+      expect(days[0].entries.map((e) => [e.staffName, e.source])).toEqual([
+        ["Ana", "leave"],
+        ["Dee", "unavailable"],
+      ]);
+    });
+
+    it("spreads a multi-day block across every day it covers", () => {
+      const days = calendarDays([], "2026-08-01", "2026-08-31", [
+        block({ from: "2026-08-05", to: "2026-08-07" }),
+      ]);
+      expect(days.map((d) => d.date)).toEqual(["2026-08-05", "2026-08-06", "2026-08-07"]);
+    });
+
+    it("clips a block to the visible span like everything else", () => {
+      const days = calendarDays([], "2026-08-01", "2026-08-31", [
+        block({ from: "2026-07-28", to: "2026-08-02" }),
+      ]);
+      expect(days.map((d) => d.date)).toEqual(["2026-08-01", "2026-08-02"]);
+    });
+
+    it("carries the reason when one was given", () => {
+      const days = calendarDays([], "2026-08-01", "2026-08-31", [block({ note: "second job" })]);
+      expect(days[0].entries[0].note).toBe("second job");
+    });
+
+    it("changes nothing when no blocks are passed", () => {
+      const requests = [req({ staffName: "Ana", startDate: "2026-08-03", endDate: "2026-08-03", status: "approved" })];
+      expect(calendarDays(requests, "2026-08-01", "2026-08-31")).toEqual(
+        calendarDays(requests, "2026-08-01", "2026-08-31", []),
+      );
+    });
+  });
 });

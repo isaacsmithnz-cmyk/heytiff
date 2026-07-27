@@ -31,24 +31,32 @@ function setup(licences: StaffLicence[] = LICENCES) {
   return { ...view, onAdd, onRemove };
 }
 
-describe("the credential grid", () => {
-  it("renders each licence with its badge, number and status", () => {
+describe("the licence wall", () => {
+  it("renders each licence as a card with its stamp, number and status", () => {
     const { container } = setup();
     // "ARC licence" is also an <option> in the add form — this is the card
-    const card = container.querySelector(".credgrid .cred")!;
+    const card = container.querySelector(".liccards .idc")!;
     expect(card).toHaveTextContent("ARC licence");
-    expect(screen.getByText("ARC")).toBeInTheDocument();
-    expect(screen.getByText("No. AU123")).toBeInTheDocument();
-    expect(screen.getByText("Expires 07/08/2026")).toBeInTheDocument();
+    expect(within(card as HTMLElement).getByText("ARC")).toBeInTheDocument();
+    expect(within(card as HTMLElement).getByText("AU123")).toBeInTheDocument();
+    expect(within(card as HTMLElement).getByText("07/08/2026")).toBeInTheDocument();
     // 14 days out, same window and the same wording as the dashboard chip
-    expect(screen.getByText("Expires in 2 weeks")).toBeInTheDocument();
+    expect(within(card as HTMLElement).getByText("Expires in 2 weeks")).toBeInTheDocument();
+  });
+
+  it("carries the licence's own details and no holder — the rail already said who", () => {
+    const { container } = setup();
+    const card = container.querySelector(".liccards .idc")!;
+    // no photo block: a wall of these would otherwise repeat one face
+    expect(card).toHaveClass("faceless");
+    expect(card.querySelector(".idc-photo")).toBeNull();
   });
 
   it("says so plainly when a licence carries no number or expiry", () => {
-    setup();
-    expect(screen.getByText("No. —")).toBeInTheDocument();
-    expect(screen.getByText("No expiry date")).toBeInTheDocument();
-    expect(screen.getByText("No expiry")).toBeInTheDocument();
+    const { container } = setup();
+    const cards = [...container.querySelectorAll(".liccards .idc")];
+    const bare = cards.find((c) => c.textContent?.includes("No expiry"))!;
+    expect(within(bare as HTMLElement).getAllByText("—")).toHaveLength(2);
   });
 
   it("shows the empty state when there are none", () => {

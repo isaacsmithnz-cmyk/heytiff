@@ -130,6 +130,44 @@ export function suggestedHours(
   return Math.round(businessDays(startISO, endISO, holidays) * standard * 100) / 100;
 }
 
+/** How approved leave lands on the timesheet, day by day.
+
+    A request carries TOTAL hours across a span, so a day's worth is the total
+    divided by the working days it covers — which makes a one-day 4-hour
+    request a 4-hour day and a two-week block a run of standard days, with no
+    special case for either. Public holidays inside the span are excluded from
+    the divisor and get no row of their own, for the same reason the request
+    form excludes them: they aren't days of entitlement being spent.
+
+    UNPAID leave comes back as `off`. It is a day not worked, and it must never
+    reach the timesheet as paid hours — but it still has to reach the approver
+    as something that wasn't a normal workday.
+
+    Lives here rather than beside the queries that feed it because it is pure,
+    it is the arithmetic that decides what an absence pays, and both of those
+    make it something to test directly. */
+export function absenceMap(
+  requests: LeaveRequest[],
+  holidays: Map<string, string>,
+): Map<string, { t: "leave" | "sick"; h: number } | { t: "off" }> {
+  const out = new Map<string, { t: "leave" | "sick"; h: number } | { t: "off" }>();
+  const holidaySet = new Set(holidays.keys());
+
+  for (const r of requests) {
+    if (r.status !== "approved") continue;
+    const spread = businessDays(r.startDate, r.endDate, holidaySet);
+    const perDay = spread > 0 ? Math.round((r.hours / spread) * 100) / 100 : 0;
+    for (const date of leaveDates(r)) {
+      if (holidaySet.has(date)) continue;
+      out.set(
+        date,
+        r.kind === "unpaid" ? { t: "off" } : { t: r.kind === "personal" ? "sick" : "leave", h: perDay },
+      );
+    }
+  }
+  return out;
+}
+
 /** Every calendar day a request covers (inclusive) — for the team calendar. */
 export function leaveDates(r: { startDate: string; endDate: string }): string[] {
   const out: string[] = [];
@@ -183,26 +221,72 @@ export function upcomingHolidays<T extends { date: string }>(list: T[], todayISO
 
 /* ---- calendar ---- */
 
-export type CalendarDay = { date: string; entries: { staffId: string; staffName: string; kind: LeaveKind }[] };
+/* WHO CAN'T WORK ON A GIVEN DAY — and the two reasons are not the same thing.
 
-/** Approved leave grouped by date across the given span (inclusive). Requests
-    that only partly overlap the span contribute just their in-span days. */
+   `leave` is an entitlement somebody spent and a manager agreed to. It has a
+   status, a balance behind it and an approver.
+
+   `unavailable` is a casual saying they can't be rostered. Nobody approved it
+   and nothing was spent — see lib/timepay/availability.ts for why it isn't a
+   request. Treating it as leave on this screen would tell whoever rosters that
+   somebody is "off", implying an arrangement that doesn't exist.
+
+   They share one calendar because the ROSTER'S question is the same for both:
+   who can I not put on. They stay distinguishable in the entry because the
+   MANAGER'S question isn't — one of these is a conversation, the other is
+   just a fact. */
+export type CalendarSource = "leave" | "unavailable";
+
+export type CalendarEntry = {
+  staffId: string;
+  staffName: string;
+  source: CalendarSource;
+  /** present on leave only — an unavailability has no kind to speak of */
+  kind?: LeaveKind;
+  /** present on unavailability only, when the person gave a reason */
+  note?: string;
+};
+
+export type CalendarDay = { date: string; entries: CalendarEntry[] };
+
+/** Approved leave and casual unavailability, grouped by date across the given
+    span (inclusive). Anything that only partly overlaps the span contributes
+    just its in-span days.
+
+    Entries sort leave first within a day: a booked absence is the one the
+    roster has to plan around, an unavailability is the one it has to avoid. */
 export function calendarDays(
   requests: LeaveRequest[],
   spanStart: string,
   spanEnd: string,
+  unavailable: { staffId: string; staffName?: string; from: string; to: string; note?: string }[] = [],
 ): CalendarDay[] {
-  const byDate = new Map<string, CalendarDay["entries"]>();
+  const byDate = new Map<string, CalendarEntry[]>();
+  const add = (d: string, e: CalendarEntry) => {
+    if (d < spanStart || d > spanEnd) return;
+    byDate.set(d, [...(byDate.get(d) ?? []), e]);
+  };
+
   for (const r of requests) {
     if (r.status !== "approved") continue;
-    for (const d of leaveDates(r)) {
-      if (d < spanStart || d > spanEnd) continue;
-      const list = byDate.get(d) ?? [];
-      list.push({ staffId: r.staffId, staffName: r.staffName ?? "", kind: r.kind });
-      byDate.set(d, list);
-    }
+    for (const d of leaveDates(r))
+      add(d, { staffId: r.staffId, staffName: r.staffName ?? "", source: "leave", kind: r.kind });
   }
+
+  for (const b of unavailable) {
+    for (const d of leaveDates({ startDate: b.from, endDate: b.to }))
+      add(d, {
+        staffId: b.staffId,
+        staffName: b.staffName ?? "",
+        source: "unavailable",
+        note: b.note,
+      });
+  }
+
   return [...byDate.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, entries]) => ({ date, entries }));
+    .map(([date, entries]) => ({
+      date,
+      entries: [...entries].sort((a, b) => (a.source === b.source ? 0 : a.source === "leave" ? -1 : 1)),
+    }));
 }

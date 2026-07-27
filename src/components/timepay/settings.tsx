@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
 import { DateField } from "@/components/ui/date-field";
+import { TimeWheel } from "@/components/ui/time-wheel";
 import { type RateRule, type Settings, fmtHval, ruleSummary } from "./logic";
 import type { PayPeriod } from "./timepay";
 
@@ -48,6 +49,7 @@ export function TimePaySettings({
   period,
   canPay,
   holidaySection,
+  xeroSection,
   onClose,
   onSave,
 }: {
@@ -58,6 +60,10 @@ export function TimePaySettings({
   canPay: boolean;
   /** admin+ public-holiday manager, or null when the viewer isn't one */
   holidaySection?: React.ReactNode;
+  /** staff↔Xero payroll matching, or null when Xero isn't connected. Rendered
+      only with `canPay`: it decides whose pay attaches to which payroll record
+      and reports drift in pay-adjacent fields. */
+  xeroSection?: React.ReactNode;
   onClose: () => void;
   onSave: (s: Settings) => void;
 }) {
@@ -66,6 +72,11 @@ export function TimePaySettings({
   const [mode, setMode] = useState<"wizard" | "menu">(firstRun && canPay ? "wizard" : "menu");
   const [step, setStep] = useState(0);
   const [exporting, setExporting] = useState(false);
+  /* At most one of the two folding sections is open, so the menu can't grow
+     into two long lists at once — and the one you opened stays where you can
+     see it. Nothing is open on arrival: pay settings are what this modal is
+     for. */
+  const [openSection, setOpenSection] = useState<"holidays" | "xero" | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
   const patch = (p: Partial<Settings>) => setDraft((d) => ({ ...d, ...p }));
@@ -236,6 +247,54 @@ export function TimePaySettings({
     </>
   );
 
+  /* Normal hours. This is the setting the whole timesheet leans on: every
+     Mon–Fri is presumed worked at these times once the day is over, so a
+     workspace that sets them once has staff who never enter an ordinary day
+     again. Scrolled, not typed — the same wheel the timesheet uses, because
+     the one thing that must not happen is an unreadable default seeding every
+     person's every week. A staff member whose own day differs overrides it
+     from their own timesheet; this is the fallback, not a ceiling. */
+  const normalHoursControls = (
+    <>
+      <div className="wz-wheels">
+        <TimeWheel
+          label="Normal start"
+          value={draft.defaultStart}
+          onChange={(defaultStart) => patch({ defaultStart })}
+        />
+        <TimeWheel
+          label="Normal finish"
+          value={draft.defaultEnd}
+          onChange={(defaultEnd) => patch({ defaultEnd })}
+        />
+      </div>
+      <div className="wz-dow" role="group" aria-label="Normal working days">
+        {["M", "T", "W", "T", "F", "S", "S"].map((l, i) => (
+          <button
+            key={i}
+            className={`wz-dowb${draft.workDays.includes(i) ? " on" : ""}`}
+            aria-label={DAYS[i]}
+            aria-pressed={draft.workDays.includes(i)}
+            onClick={() =>
+              patch({
+                workDays: draft.workDays.includes(i)
+                  ? draft.workDays.filter((d) => d !== i)
+                  : [...draft.workDays, i].sort(),
+              })
+            }
+          >
+            {l}
+          </button>
+        ))}
+      </div>
+      <p className="ms-p">
+        These days are filled in with these hours automatically. Anyone whose week is different —
+        a part-timer, an early start — can set their own from their timesheet. Casuals are never
+        filled in: every day of theirs is entered by hand.
+      </p>
+    </>
+  );
+
   const submitPicker = (
     <div className="wz-subgrid">
       <div>
@@ -384,6 +443,38 @@ export function TimePaySettings({
     </div>
   );
 
+  /* A section you have to ask for. Public holidays and Xero payroll are both
+     full tools in their own right — a year of dated rows, a payroll roster —
+     and both used to render open, above every pay setting, so opening the gear
+     to change a break landed you in a calendar. They are also the two sections
+     that COST something to show (each fetches when it mounts), so keeping them
+     shut keeps them free. Mounted only while open, which is what makes the
+     lazy fetch inside each one meaningful. */
+  const disclosure = (
+    key: "holidays" | "xero",
+    label: string,
+    hint: string,
+    body: React.ReactNode,
+  ) => {
+    const on = openSection === key;
+    return (
+      <div className={`ms ms-fold${on ? " on" : ""}`} key={key}>
+        <button
+          className="ms-foldh"
+          aria-expanded={on}
+          onClick={() => setOpenSection(on ? null : key)}
+        >
+          <span className="ms-foldl">
+            {label}
+            <em>{hint}</em>
+          </span>
+          <Icon name="chevR" size={15} />
+        </button>
+        {on && <div className="ms-foldb">{body}</div>}
+      </div>
+    );
+  };
+
   const cur = steps[step];
 
   /* Portalled to <body>: the shell keeps will-change on .page.in, which would
@@ -459,7 +550,11 @@ export function TimePaySettings({
               </button>
             </div>
             <div className="wz-body wz-menu">
-              {holidaySection ? menuSection("Public holidays", holidaySection) : null}
+              {/* Pay settings FIRST. This modal is named "Pay settings" and is
+                  reached by a gear on a timesheet screen; a workspace changing
+                  its break policy should land on the controls, not scroll a
+                  year of public holidays to reach them. The two big tools go
+                  below, folded — see `disclosure`. */}
               {canPay && (
                 <>
               {menuSection(
@@ -486,6 +581,7 @@ export function TimePaySettings({
                 </div>
               )}
               {menuSection("Standard working day", stepper("standard"))}
+              {menuSection("Normal hours & days", normalHoursControls)}
               {menuSection("Breaks", breakControls)}
               {menuSection(
                 "Overtime after",
@@ -544,6 +640,27 @@ export function TimePaySettings({
               )}
                 </>
               )}
+
+              {/* The two tools, folded and last. Neither is a preference —
+                  both apply immediately, so neither joins the settings DRAFT:
+                  a public holiday and a payroll link are facts about the
+                  world, not choices you might Cancel out of. */}
+              {holidaySection
+                ? disclosure(
+                    "holidays",
+                    "Public holidays",
+                    "Fills in for your state — add a one-off, or remove a day you work",
+                    holidaySection,
+                  )
+                : null}
+              {canPay && xeroSection
+                ? disclosure(
+                    "xero",
+                    "Xero payroll",
+                    "Match your people to their payroll records",
+                    xeroSection,
+                  )
+                : null}
             </div>
             <div className="wz-foot menu">
               {canPay && (

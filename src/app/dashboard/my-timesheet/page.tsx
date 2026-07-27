@@ -27,9 +27,36 @@ export default async function MyTimesheetPage({
     );
   }
 
+  /* A subcontractor has no timesheet, and says so plainly rather than showing
+     an empty week that looks like something to fill in. */
+  if ("subcontractor" in data) {
+    return (
+      <div className="page in">
+        <div className="wrap">
+          <div className="stg">
+            <div className="emptybox">
+              <b>Subcontractors don&rsquo;t keep a timesheet here</b>
+              <em>
+                You invoice for your work rather than being paid through the pay run, so there are
+                no hours to submit. Send your invoice the way you normally do.
+              </em>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <MyTimesheet
       me={data.me}
+      sources={data.sources}
+      normal={data.normal}
+      ownNormal={data.ownNormal}
+      workDays={data.workDays}
+      ownWorkDays={data.ownWorkDays}
+      employment={data.employment}
+      unavailable={data.unavailable}
       week={data.week}
       today={data.today}
       todayISO={data.todayISO}

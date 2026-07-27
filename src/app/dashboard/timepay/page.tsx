@@ -3,7 +3,11 @@ import { can, getDbRole } from "@/lib/permissions-server";
 import { hasMinRole } from "@/lib/roles";
 import { TimePay } from "@/components/timepay/timepay";
 import { loadTimepay } from "@/lib/timepay/page-data";
-import { loadHolidayManager } from "@/lib/timepay/leave-page";
+import { auth0 } from "@/lib/auth0";
+import { getConnectionView } from "@/lib/integrations/store";
+import { driftNote } from "@/lib/integrations/drift";
+import { teamClaims } from "@/lib/expenses/query";
+import { owedTotal, pendingCount } from "@/lib/expenses/claim";
 
 /* Capability-gated: this is the EVERYONE view. Your own timesheet lives at
    /dashboard/my-timesheet and is never gated.
@@ -32,12 +36,30 @@ export default async function TimePayPage({
     can("approvals"),
     getDbRole(),
   ]);
+  /* A boolean, not the calendar. The holiday manager is a year of rows plus a
+     statutory top-up that can write, and it is only ever looked at inside the
+     settings gear — so the section fetches it for itself when it is opened.
+     This screen only has to know whether to offer the row at all. */
   const canHolidays = hasMinRole(role, "admin");
-  const [data, holidayData] = await Promise.all([
-    loadTimepay({ pay }, period),
-    canHolidays ? loadHolidayManager() : Promise.resolve(null),
-  ]);
+  const [data, session] = await Promise.all([loadTimepay({ pay }, period), auth0.getSession()]);
   if (!data) redirect("/dashboard");
+
+  /* Only whether a grant EXISTS crosses to the client. The connection itself is
+     owner business — this screen needs to know one thing: whether the matching
+     section has anything to show. Asked only when the viewer holds `financials`,
+     since that is the only case where the section renders at all. */
+  const orgId = session?.orgId as string | undefined;
+  const connection = pay && orgId ? await getConnectionView(orgId, "xero") : null;
+  const xeroConnected = connection?.status === "connected";
+  /* What the last sweep found — a COUNT, never the rates. The figures behind
+     it still need the gated Check pay rates read. */
+  const wageDrift = xeroConnected ? driftNote({ count: connection?.driftCount ?? null, checkedAt: connection?.driftCheckedAt ?? null }) : null;
+
+  /* Only asked for behind `financials`, because the tile that shows it is
+     money — an hours-only view of this screen carries no dollar figures at
+     all, so there is nothing to compute. */
+  const claims = pay && orgId ? await teamClaims(orgId) : [];
+  const expenses = { owed: owedTotal(claims), pending: pendingCount(claims) };
 
   return (
     <TimePay
@@ -51,7 +73,10 @@ export default async function TimePayPage({
       sheets={data.sheets}
       canApprove={approvals}
       financials={pay}
-      holidayData={holidayData}
+      canHolidays={canHolidays}
+      xeroConnected={xeroConnected}
+      wageDrift={wageDrift}
+      expenses={expenses}
     />
   );
 }

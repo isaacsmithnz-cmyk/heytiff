@@ -15,7 +15,13 @@ import {
   type Tenant,
 } from "./connection";
 import { open, seal, tokenKey } from "./secrets";
-import { refreshTokens, revokeRefreshToken, xeroConfig, type XeroTokens } from "./xero";
+import {
+  refreshTokens,
+  revokeRefreshToken,
+  xeroConfig,
+  type XeroConfig,
+  type XeroTokens,
+} from "./xero";
 
 const TABLE = "integration_connections";
 
@@ -82,10 +88,19 @@ export async function saveXeroConnection(input: {
   // the absolute form, so this stays right if the SDK ever normalises.
   const expiresAt = expiryFromTokenSet({ expires_in: input.tokens.expiresIn ?? undefined }, now);
 
-  // tenants[0] is Xero's most-recently-active organisation (the SDK sorts by
-  // updatedDateUtc). It is a DEFAULT, not a decision — when there is more than
-  // one, the screen shows a picker and setXeroTenant() moves it.
-  const active = input.tenants[0];
+  /* Reconnecting must not silently move the books. tenants[0] is Xero's
+     most-recently-active organisation — a fine DEFAULT for a first connect,
+     but on a reconnect this workspace already chose a tenant, and every
+     staff↔employee link is scoped to it. If the chosen tenant is still in the
+     grant it stays active; only when it's gone does the default apply — and
+     then the drift flag resets with it, because a count computed against one
+     tenant's payroll means nothing over another's. */
+  const prior = await readRow(input.orgId, "xero");
+  const kept = prior?.tenant_id
+    ? input.tenants.find((t) => t?.tenantId === prior.tenant_id)
+    : undefined;
+  const active = kept ?? input.tenants[0];
+  const tenantChanged = !!prior && prior.tenant_id !== active.tenantId;
 
   const { error } = await supabaseAdmin.from(TABLE).upsert(
     {
@@ -94,6 +109,7 @@ export async function saveXeroConnection(input: {
       status: "connected",
       tenant_id: active.tenantId,
       tenant_name: active.tenantName,
+      ...(tenantChanged ? { drift_count: null, drift_checked_at: null } : {}),
       tenants: input.tenants,
       scopes: input.tokens.scope,
       access_token_enc: seal(input.tokens.accessToken, key),
@@ -179,6 +195,15 @@ export async function markNeedsReauth(orgId: string, error: string): Promise<voi
 
 export type XeroAccess = { accessToken: string; tenantId: string };
 
+/* One in-flight refresh per org, per server instance. Two concurrent reads
+   both finding the access token spent would both redeem the SAME refresh
+   token — Xero rotates it on every use, so the loser's write used to clobber
+   the winner's newer pair (adoptWage fans out exactly this shape: two reads
+   in one Promise.all). A serverless instance can't see its siblings, so this
+   map is the common-case guard and the conditional write in refreshAndStore
+   is the cross-instance backstop. */
+const inflightRefresh = new Map<string, Promise<XeroAccess | null>>();
+
 /** A usable Xero access token for this org, refreshing first if the stored one
     is spent. THE ENTRY POINT for everything that will later read Xero — Time &
     Pay, expenses, the Rate Calculator — so the refresh-and-rotate dance lives
@@ -190,11 +215,17 @@ export async function xeroAccess(orgId: string, now: number = Date.now()): Promi
   const row = await readRow(orgId, "xero");
   if (!row || !row.tenant_id) return null;
 
+  /* A grant already marked broken is not retried. The refresh token Xero
+     refused doesn't get better with repetition — retrying used to cost an
+     upstream round trip on EVERY read, forever, until someone reconnected.
+     Reconnect is the recovery path, and the screen already says so. */
+  if (row.status === "needs_reauth") return null;
+
   const key = tokenKey();
   const cfg = xeroConfig();
   if (!key || !cfg) return null;
 
-  if (row.status === "connected" && accessTokenUsable(row.expires_at, now)) {
+  if (accessTokenUsable(row.expires_at, now)) {
     const access = open(row.access_token_enc, key);
     if (access) return { accessToken: access, tenantId: row.tenant_id };
     // Sealed with a key we no longer hold — a refresh can't help, and the only
@@ -203,6 +234,24 @@ export async function xeroAccess(orgId: string, now: number = Date.now()): Promi
     return null;
   }
 
+  const inflight = inflightRefresh.get(orgId);
+  if (inflight) return inflight;
+
+  const flight = refreshAndStore(orgId, row, row.tenant_id, key, cfg, now).finally(() =>
+    inflightRefresh.delete(orgId)
+  );
+  inflightRefresh.set(orgId, flight);
+  return flight;
+}
+
+async function refreshAndStore(
+  orgId: string,
+  row: ConnectionRow,
+  tenantId: string,
+  key: NonNullable<ReturnType<typeof tokenKey>>,
+  cfg: XeroConfig,
+  now: number
+): Promise<XeroAccess | null> {
   const refresh = open(row.refresh_token_enc, key);
   if (!refresh) {
     await markNeedsReauth(orgId, "Stored credentials couldn't be read. Reconnect Xero.");
@@ -215,8 +264,13 @@ export async function xeroAccess(orgId: string, now: number = Date.now()): Promi
     return null;
   }
 
-  // Xero rotates the refresh token on every use: this write is not a cache
-  // update, it is the only copy of the next one.
+  /* Xero rotates the refresh token on every use: this write is not a cache
+     update, it is the only copy of the next one. The extra `.eq` on the OLD
+     sealed refresh token is the cross-instance rotation guard: if a sibling
+     instance redeemed and stored first, this (older) pair must not clobber
+     its newer one — the update simply doesn't match, and the row keeps the
+     winner's tokens. Our own access token is fresh-issued either way, so the
+     caller still gets a working one. */
   await supabaseAdmin
     .from(TABLE)
     .update({
@@ -229,7 +283,8 @@ export async function xeroAccess(orgId: string, now: number = Date.now()): Promi
       updated_at: new Date(now).toISOString(),
     })
     .eq("org_id", orgId)
-    .eq("provider", "xero");
+    .eq("provider", "xero")
+    .eq("refresh_token_enc", row.refresh_token_enc);
 
-  return { accessToken: fresh.accessToken, tenantId: row.tenant_id };
+  return { accessToken: fresh.accessToken, tenantId };
 }

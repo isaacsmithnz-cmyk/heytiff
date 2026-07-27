@@ -64,6 +64,7 @@ const hourly = (rate: number): Line => ({
 });
 
 beforeEach(() => {
+  jest.clearAllMocks();
   updates.length = 0;
   storedCount = null;
   wageRows = [
@@ -127,5 +128,20 @@ describe("clearDrift forgets count and cursor together", () => {
   it("writes both nulls — a cursor without a count would fake an 'unchanged' next sweep", async () => {
     await clearDrift("org-1");
     expect(driftWrites()[0].patch).toEqual({ drift_count: null, drift_checked_at: null });
+  });
+});
+
+describe("archived staff leave the comparison", () => {
+  /* Their link survives (a restore brings the match back), but their wage
+     pays nothing, their drift would be an unresolvable nag, and each one
+     cost a Xero call per sweep. */
+  it("spends no call on them and reports no drift for them", async () => {
+    wageRows = [{ id: "s1", hourly_wage: 58 }]; // s2 is archived — not returned
+    const out = await compareWages("org-1", "t-1");
+    expect(out!.byStaff.has("s2")).toBe(false);
+    expect(out!.byStaff.get("s1")!.kind).toBe("match");
+    const { getOrdinaryPayLine } = jest.requireMock("../xero-read");
+    expect(getOrdinaryPayLine).toHaveBeenCalledTimes(1);
+    expect(getOrdinaryPayLine).toHaveBeenCalledWith("org-1", "x1");
   });
 });

@@ -199,6 +199,31 @@ export function XeroPayroll({
         ))}
       </div>
 
+      {data.archived.length > 0 && (
+        <div className="xp-extra">
+          <b>Matched, but archived here</b>
+          <em>
+            Their match is kept in case they come back, but it holds a Xero employee claimed and
+            it can only be unmatched from this list. They&apos;re left out of pay-rate checks.
+          </em>
+          {data.archived.map((a) => (
+            <div className="xp-row" key={a.staffProfileId}>
+              <span>
+                {a.name}
+                {a.remoteLabel ? <span> ↔ {a.remoteLabel}</span> : null}
+              </span>
+              <button
+                className="xp-btn"
+                disabled={busy}
+                onClick={() => run(() => onUnlink(a.staffProfileId))}
+              >
+                Unmatch
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {data.unaccounted.length > 0 && (
         <div className="xp-extra">
           <b>In Xero, not here</b>

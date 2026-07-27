@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { auth0 } from "@/lib/auth0";
 import { hasMinRole } from "@/lib/roles";
 import { getDbRole } from "@/lib/permissions-server";
-import { xeroConfig, exchangeCallback } from "@/lib/integrations/xero";
+import { xeroConfig, exchangeCallback, revokeRefreshToken } from "@/lib/integrations/xero";
 import { saveXeroConnection } from "@/lib/integrations/store";
 import {
   decodeState,
@@ -80,7 +80,13 @@ export async function GET(request: NextRequest) {
     tokens: result.tokens,
     tenants: result.tenants,
   });
-  if (!saved.ok) return leave(request, "?error=save");
+  if (!saved.ok) {
+    /* The exchange succeeded but the row didn't land — without this, Xero
+       would hold a live authorisation that nothing here can use, revoke or
+       even see. Best-effort: the user is retrying either way. */
+    await revokeRefreshToken(cfg, result.tokens.refreshToken, result.tokens.accessToken);
+    return leave(request, "?error=save");
+  }
 
   return leave(request, "?connected=1");
 }

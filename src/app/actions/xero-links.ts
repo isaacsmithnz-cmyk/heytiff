@@ -65,9 +65,19 @@ export type LinkingData = {
   /** Links recorded against a DIFFERENT Xero organisation — so a tenant switch
       reads as "parked", not "lost". */
   elsewhere: number;
+  /** Links whose person has been ARCHIVED here. The roster above is
+      Active-only, so without this list these links were invisible and could
+      never be unmatched — while still holding their Xero employee claimed. */
+  archived: ArchivedLink[];
   /** Set when Xero couldn't be read; the section shows this instead of an
       empty roster, which would look like nobody is on payroll. */
   error: string | null;
+};
+
+export type ArchivedLink = {
+  staffProfileId: string;
+  name: string;
+  remoteLabel: string | null;
 };
 
 const EMPTY: LinkingData = {
@@ -77,6 +87,7 @@ const EMPTY: LinkingData = {
   unaccounted: [],
   calendar: null,
   elsewhere: 0,
+  archived: [],
   error: null,
 };
 
@@ -139,6 +150,19 @@ export async function getLinkingData(): Promise<LinkingData> {
   if (!employeesRead.ok) return { ...base, elsewhere, error: employeesRead.error };
 
   const employees = employeesRead.data;
+
+  /* Links whose person isn't on the Active roster. They deliberately survive
+     archival (like they survive disconnect) so a restore brings the match
+     back — but they must stay VISIBLE and unmatchable, or they'd silently
+     hold a Xero employee claimed forever. The comparison layer already
+     excludes them from sweeps and counts. ALL links still go to the row
+     builder: an archived person's employee stays claimed, so it can't be
+     suggested to somebody else while the match exists. */
+  const rosterIds = new Set(staff.map((s) => s.staffProfileId));
+  const orphaned = links.filter((l) => !rosterIds.has(l.staffProfileId));
+  const archived = orphaned.length ? await archivedNames(orgId, orphaned) : [];
+  const heldByArchived = new Set(orphaned.map((o) => o.remoteId));
+
   const rows = buildLinkingRows(staff, employees, links);
 
   /* Calendars are only worth a call once something is actually linked — the
@@ -155,10 +179,44 @@ export async function getLinkingData(): Promise<LinkingData> {
   return {
     ...base,
     rows,
-    unaccounted: unaccountedEmployees(rows, employees),
+    // an employee held by an archived person's link is accounted for — offering
+    // them in the picker would only earn a "already linked" refusal from the
+    // unique index
+    unaccounted: unaccountedEmployees(rows, employees).filter(
+      (e) => !heldByArchived.has(e.employeeId)
+    ),
     calendar,
     elsewhere,
+    archived,
   };
+}
+
+/** Names for archived-but-linked people — any status, exactly these ids. */
+async function archivedNames(
+  orgId: string,
+  orphaned: { staffProfileId: string; remoteLabel: string | null }[]
+): Promise<ArchivedLink[]> {
+  const { data } = await supabaseAdmin
+    .from("staff_profiles")
+    .select("id, first_name, last_name, full_name, preferred_name")
+    .eq("org_id", orgId)
+    .in("id", orphaned.map((o) => o.staffProfileId));
+  const nameById = new Map(
+    ((data ?? []) as Record<string, unknown>[]).map((r) => [
+      String(r.id),
+      displayNameOf({
+        first_name: (r.first_name as string | null) ?? null,
+        last_name: (r.last_name as string | null) ?? null,
+        full_name: (r.full_name as string | null) ?? null,
+        preferred_name: (r.preferred_name as string | null) ?? null,
+      }),
+    ])
+  );
+  return orphaned.map((o) => ({
+    staffProfileId: o.staffProfileId,
+    name: nameById.get(o.staffProfileId) ?? "An archived staff member",
+    remoteLabel: o.remoteLabel,
+  }));
 }
 
 export type LinkActionResult = { ok: true } | { ok: false; error: string };
@@ -193,13 +251,18 @@ export async function linkEmployee(
     listPayrollEmployees(orgId),
     supabaseAdmin
       .from("staff_profiles")
-      .select("id")
+      .select("id, status")
       .eq("org_id", orgId)
       .eq("id", staffProfileId)
       .maybeSingle(),
   ]);
 
   if (!staffCheck.data) return { ok: false, error: "That person isn't in this workspace." };
+  /* The linking screen lists Active staff only, so an Inactive id here is a
+     crafted call — and a link on an archived person is exactly the
+     invisible, sweep-costing state the archived list below exists to drain. */
+  if (staffCheck.data.status !== "Active")
+    return { ok: false, error: "They're archived here — restore them in Team before matching." };
   if (!employees.ok) return { ok: false, error: employees.error };
 
   const employee = employees.data.find((e) => e.employeeId === remoteId);

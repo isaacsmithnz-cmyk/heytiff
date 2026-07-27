@@ -38,20 +38,27 @@ export async function compareWages(
   orgId: string,
   tenantId: string
 ): Promise<{ drifts: WageDrift[]; byStaff: Map<string, WageDrift>; calls: number } | null> {
-  const links = await listPayrollLinks(orgId, tenantId);
-  if (links.length === 0) return { drifts: [], byStaff: new Map(), calls: 0 };
+  const allLinks = await listPayrollLinks(orgId, tenantId);
+  if (allLinks.length === 0) return { drifts: [], byStaff: new Map(), calls: 0 };
 
   const { data } = await supabaseAdmin
     .from("staff_profiles")
     .select("id, hourly_wage")
     .eq("org_id", orgId)
-    .in("id", links.map((l) => l.staffProfileId));
+    // archived staff keep their link (reconnect-friendly) but leave the
+    // comparison: their wage pays nothing, their drift would be an
+    // unresolvable nag, and each one cost a Xero call per sweep
+    .eq("status", "Active")
+    .in("id", allLinks.map((l) => l.staffProfileId));
 
   const wageHere = new Map<string, number | null>();
   for (const r of (data ?? []) as Record<string, unknown>[]) {
     const raw = r.hourly_wage;
     wageHere.set(String(r.id), typeof raw === "number" ? raw : raw ? Number(raw) : null);
   }
+
+  // only links whose person is still on the active roster are compared
+  const links = allLinks.filter((l) => wageHere.has(l.staffProfileId));
 
   // One call for the whole org — it resolves the inherited-rate case.
   const rates = await listEarningsRates(orgId);

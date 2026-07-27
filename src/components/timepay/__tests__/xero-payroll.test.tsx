@@ -25,6 +25,7 @@ const base: LinkingData = {
   unaccounted: [],
   calendar: null,
   elsewhere: 0,
+  archived: [],
   error: null,
 };
 
@@ -388,5 +389,26 @@ describe("XeroPayroll — wage drift", () => {
     expect(await screen.findByText(/Couldn.t read their pay from Xero/)).toBeInTheDocument();
     expect(screen.getByText(/1 couldn.t be read, so the drift flag wasn.t trusted/)).toBeInTheDocument();
     expect(screen.queryByText("Use Xero's")).not.toBeInTheDocument();
+  });
+});
+
+describe("archived-but-matched people", () => {
+  /* The roster above is Active-only, so without this list an archived
+     person's link was invisible and could never be unmatched — while still
+     holding their Xero employee claimed. */
+  it("lists them with an Unmatch that actually unmatches", async () => {
+    const user = userEvent.setup();
+    const p = props({
+      ...base,
+      connected: true,
+      tenantName: "HeyTiff",
+      archived: [{ staffProfileId: "s9", name: "Dee Parker", remoteLabel: "Dee Parker (Xero)" }],
+    });
+    render(<XeroPayroll {...p} />);
+
+    expect(await screen.findByText("Matched, but archived here")).toBeInTheDocument();
+    expect(screen.getByText("Dee Parker")).toBeInTheDocument();
+    await user.click(screen.getByText("Unmatch"));
+    await waitFor(() => expect(p.onUnlink).toHaveBeenCalledWith("s9"));
   });
 });

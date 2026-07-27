@@ -48,10 +48,11 @@ describe("resolveXeroPay", () => {
     });
   });
 
-  /* THE ONE THAT MUST NOT BE CONVERTED. Turning a salary into an hourly figure
-     needs an hours-per-year assumption, and the Rate Calculator already makes
-     one deliberately different from 52 weeks (working_weeks, 46). */
-  it("reports a salary as a salary and never as an hourly rate", () => {
+  /* THE DIVISOR IS 52, NOT working_weeks. A salary pays every week of the
+     year — Xero cuts each pay as annual ÷ 52 — so the hourly rate behind it is
+     fully determined, and the Rate Calculator's 46 billable weeks is a pricing
+     concept with no business here. (User correction, 2026-07-27.) */
+  it("converts a salary the way payroll does: ÷ 52, ÷ weekly hours", () => {
     const salaried = line({
       calculationType: "ANNUALSALARY",
       ratePerUnit: null,
@@ -59,9 +60,26 @@ describe("resolveXeroPay", () => {
       numberOfUnitsPerWeek: 38,
     });
     expect(resolveXeroPay(salaried, [])).toEqual({
-      kind: "salary",
+      kind: "hourly",
+      rate: 48.08, // 95000 / 52 / 38, to the cent
+      source: "salary",
       annual: 95_000,
       hoursPerWeek: 38,
+    });
+  });
+
+  it("leaves a salary unconverted only when Xero states no weekly hours", () => {
+    const noHours = line({
+      calculationType: "ANNUALSALARY",
+      ratePerUnit: null,
+      annualSalary: 95_000,
+      numberOfUnitsPerWeek: null,
+    });
+    // no denominator — there is no honest hourly figure to offer
+    expect(resolveXeroPay(noHours, [])).toEqual({
+      kind: "salary",
+      annual: 95_000,
+      hoursPerWeek: null,
     });
   });
 
@@ -131,8 +149,26 @@ describe("wageDrift", () => {
     expect(wageDrift(0, hourly(58))).toMatchObject({ kind: "differs", here: null });
   });
 
-  it("passes a salary through with no number to adopt", () => {
-    const drift = wageDrift(58, { kind: "salary", annual: 95_000, hoursPerWeek: 38 });
+  it("compares a salary-derived rate like any other, carrying its working", () => {
+    const drift = wageDrift(58, {
+      kind: "hourly",
+      rate: 48.08,
+      source: "salary",
+      annual: 95_000,
+      hoursPerWeek: 38,
+    });
+    expect(drift).toEqual({
+      kind: "differs",
+      here: 58,
+      xero: 48.08,
+      delta: -9.92,
+      basis: { annual: 95_000, hoursPerWeek: 38 },
+    });
+    expect(isAdoptable(drift)).toBe(true);
+  });
+
+  it("passes a no-hours salary through with no number to adopt", () => {
+    const drift = wageDrift(58, { kind: "salary", annual: 95_000, hoursPerWeek: null });
     expect(drift).toMatchObject({ kind: "salary", annual: 95_000, here: 58 });
     expect(isAdoptable(drift)).toBe(false);
   });

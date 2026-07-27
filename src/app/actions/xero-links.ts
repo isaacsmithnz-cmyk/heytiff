@@ -323,9 +323,10 @@ export async function adoptWage(staffProfileId: string): Promise<LinkActionResul
 
   const pay = resolveXeroPay(line.data, rates.ok ? rates.data : []);
   if (pay.kind !== "hourly") {
-    // The salary case lands here, and stays a refusal: converting a salary to
-    // an hourly rate needs an hours-per-year assumption the Rate Calculator
-    // already makes differently (working_weeks, 46 not 52).
+    /* A salary WITH stated weekly hours arrives as kind "hourly" (annual ÷ 52
+       ÷ hours — the same arithmetic Xero pays from) and adopts normally. What
+       lands here is a salary with no stated hours (no denominator), a
+       multiplier, or nothing readable — cases with no honest number to write. */
     return { ok: false, error: "Xero doesn't have an hourly rate for them." };
   }
   if (!isPlausibleHourly(pay.rate)) {

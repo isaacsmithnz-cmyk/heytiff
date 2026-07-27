@@ -1,4 +1,3 @@
-import { todayInAu } from "@/lib/au-dates";
 import { timepayContext } from "./page-data";
 import { getPaySettings } from "./query";
 import {
@@ -9,6 +8,7 @@ import {
   myRequests,
   pendingRequests,
   stateFor,
+  unavailabilityInSpan,
   type Holiday,
 } from "./leave-query";
 import { addDays } from "./period";
@@ -90,9 +90,13 @@ export async function loadTeamLeave(): Promise<TeamLeaveData | null> {
   // the calendar shows a rolling window: a week back for context, a quarter on
   const spanStart = addDays(ctx.today, -7);
   const spanEnd = addDays(ctx.today, 90);
-  const [pending, approved] = await Promise.all([
+  const [pending, approved, unavailable] = await Promise.all([
     pendingRequests(ctx.orgId),
     approvedInSpan(ctx.orgId, spanStart, spanEnd),
+    /* Casuals blocking out days they can't work. Same window as the leave
+       calendar, because the roster asks one question — who can't I put on —
+       and would otherwise have to ask it in two places. */
+    unavailabilityInSpan(ctx.orgId, spanStart, spanEnd),
   ]);
   // the org's own state drives the holiday overlay on the shared calendar
   const orgState = await stateFor(ctx.orgId, "");
@@ -102,7 +106,7 @@ export async function loadTeamLeave(): Promise<TeamLeaveData | null> {
   return {
     today: ctx.today,
     pending,
-    calendar: calendarDays(approved, spanStart, spanEnd),
+    calendar: calendarDays(approved, spanStart, spanEnd, unavailable),
     spanStart,
     spanEnd,
     holidays,

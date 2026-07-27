@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { todayInAu } from "@/lib/au-dates";
 import { displayNameOf } from "@/lib/staff/name";
@@ -155,13 +156,22 @@ export async function assignedVehicleFor(
 }
 
 /** The signed-in user's staff record id — what `assignedTo` and log
-    attribution are keyed on now that Fleet is off demo ids. */
-export async function staffProfileIdFor(orgId: string, userId: string): Promise<string | null> {
-  const { data } = await supabaseAdmin
-    .from("staff_profiles")
-    .select("id")
-    .eq("org_id", orgId)
-    .eq("user_id", userId)
-    .maybeSingle();
-  return (data?.id as string) ?? null;
-}
+    attribution are keyed on now that Fleet is off demo ids.
+
+    React-cached per request, like getMembership() in permissions-server. This
+    is the most-asked question in the app: nearly every loader and every server
+    action opens by resolving "who am I here", and a single page render used to
+    ask it several times over — /dashboard/timepay asked twice before it read a
+    single timesheet. One org+user pair is one round trip to Singapore, and the
+    answer cannot change mid-request. */
+export const staffProfileIdFor = cache(
+  async (orgId: string, userId: string): Promise<string | null> => {
+    const { data } = await supabaseAdmin
+      .from("staff_profiles")
+      .select("id")
+      .eq("org_id", orgId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    return (data?.id as string) ?? null;
+  }
+);

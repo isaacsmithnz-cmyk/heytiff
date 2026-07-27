@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { auth0 } from "@/lib/auth0";
 import { todayInAu } from "@/lib/au-dates";
 import { staffProfileIdFor } from "@/lib/fleet/query";
@@ -35,13 +36,17 @@ import { presumeFor, presumptionCtx } from "./presume";
 
 export type Ctx = { orgId: string; staffId: string | null; today: string };
 
-export async function timepayContext(): Promise<Ctx | null> {
+/* React-cached: several loaders can run in one render (the team screen loads
+   the timesheet data and the holiday manager), and each of them opens with
+   this. Uncached, that was a repeated session decrypt plus a repeated
+   staff-id lookup before either loader read anything of its own. */
+export const timepayContext = cache(async (): Promise<Ctx | null> => {
   const session = await auth0.getSession();
   const orgId = session?.orgId as string | undefined;
   const userId = session?.user?.sub as string | undefined;
   if (!orgId || !userId) return null;
   return { orgId, staffId: await staffProfileIdFor(orgId, userId), today: todayInAu() };
-}
+});
 
 /** Resolve ?period=YYYY-MM-DD against this org's configuration, defaulting to
     the current period and refusing anything that isn't one we offer. */

@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { displayNameOf } from "@/lib/staff/name";
 import { classifyEmployment } from "@/lib/staff/employment";
@@ -49,9 +50,15 @@ export const EMPTY_SHEET: SheetState = {
 
 /* ---- settings ---- */
 
-export async function getPaySettings(
+/* React-cached per request. Every Time & Pay surface opens by reading the
+   settings — the cycle decides how long a period is and therefore which
+   entries belong to it, so it is the first await in loadTimepay,
+   loadMyTimesheet, loadMyLeave and loadTeamLeave alike. A screen that loads
+   two of those (the team screen and its leave tab share a render) asked twice
+   for a row that cannot change mid-request. */
+export const getPaySettings = cache(async (
   orgId: string,
-): Promise<{ settings: Settings; configured: boolean }> {
+): Promise<{ settings: Settings; configured: boolean }> => {
   const { data } = await supabaseAdmin
     .from("pay_settings")
     .select("*")
@@ -94,7 +101,7 @@ export async function getPaySettings(
       exportDetail: data.export_detail ?? DEFAULT_SETTINGS.exportDetail,
     },
   };
-}
+});
 
 /* ---- personal normal hours ---- */
 

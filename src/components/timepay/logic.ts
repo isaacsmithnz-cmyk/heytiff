@@ -579,6 +579,34 @@ export function normalHours(s: Settings, own?: Partial<NormalHours> | null): Nor
   return { start: s.defaultStart, end: s.defaultEnd };
 }
 
+/** What a person's ROSTER comes to in a week: their normal day, priced the way
+    a worked day is priced, times the days they're expected.
+
+    This exists because the app holds two separate answers to "how many hours a
+    week does this person do", and until now neither mentioned the other.
+    `staff_profiles.contracted_hours` is a number an owner types on the Payroll
+    card; it feeds costing (the Rate Calculator's charge-out maths) and NOTHING
+    reads it for pay. The roster — normal start, normal finish, working days,
+    the org break — is what the timesheet actually presumes onto every week.
+    They can disagree by hours without a word said, which is how a card can
+    read "38" while every week it fills in comes to 40.
+
+    Null for a casual: nothing is presumed for them, so there is no rostered
+    week to state and a figure here would be a claim about hours nobody has
+    agreed to. Null too when the times are unreadable — see derivedDayHours. */
+export function rosteredWeekHours(
+  s: Settings,
+  own: { hours?: Partial<NormalHours> | null; workDays?: number[] | null },
+  employment: "permanent" | "casual" | "subbie" | null = "permanent",
+): number | null {
+  if (employment === "casual" || employment === "subbie") return null;
+  const { start, end } = normalHours(s, own.hours);
+  const perDay = derivedDayHours(start, end, s);
+  if (perDay == null) return null;
+  const days = own.workDays ?? s.workDays;
+  return Math.round(perDay * days.length * 100) / 100;
+}
+
 export type PresumeInput = {
   /** ISO date per day index, so nothing here has to redo period maths */
   dates: string[];

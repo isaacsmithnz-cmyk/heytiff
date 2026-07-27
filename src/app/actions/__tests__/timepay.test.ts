@@ -118,28 +118,60 @@ describe("entering your own hours", () => {
     expect(upsert).not.toHaveBeenCalled();
   });
 
-  it("refuses a worked day with no times, and impossible hours", async () => {
+  it("refuses a worked day with no times", async () => {
     expect((await saveDay(MONDAY, 0, { t: "work", in: "", out: "", h: 8 })).ok).toBe(false);
-    expect((await saveDay(MONDAY, 0, { t: "leave", h: 30 })).ok).toBe(false);
     expect(upsert).not.toHaveBeenCalled();
   });
 
+  /* The UI offers only "worked" and "didn't work" — leave, sick and public
+     holidays arrive from the leave module and the org calendar. The action is
+     the control, not the screen: a crafted call must not be able to write a
+     paid absence with no request, no balance drawdown and no approver. */
+  it("refuses leave, sick and public-holiday kinds outright", async () => {
+    for (const t of ["leave", "sick", "ph"] as const) {
+      const res = await saveDay(MONDAY, 0, { t, h: 8 });
+      expect(res.ok).toBe(false);
+    }
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
+  /* HOURS ARE DERIVED, NEVER TYPED — the server proves the stored hours fit
+     between the typed clocks. The bound is the span (a shorter day is a
+     longer break, which is legitimate); more hours than the clocks allow is
+     forged pay. */
+  it("refuses hours the clocks can't contain, and unreadable clocks", async () => {
+    expect((await saveDay(MONDAY, 0, { t: "work", in: "7:00 AM", out: "3:30 PM", h: 24 })).ok).toBe(false);
+    expect((await saveDay(MONDAY, 0, { t: "work", in: "x", out: "y", h: 8 })).ok).toBe(false);
+    expect((await saveDay(MONDAY, 0, { t: "work", in: "7:00 AM", out: "3:30 PM", h: Number.NaN })).ok).toBe(false);
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
+  it("keeps a day whose shorter hours are a longer break", async () => {
+    // 7:00–3:30 is an 8.5h span; 7.5h stored = a one-hour break that day
+    const res = await saveDay(MONDAY, 2, { t: "work", in: "7:00 AM", out: "3:30 PM", h: 7.5 });
+    expect(res).toEqual({ ok: true });
+    expect(upsert).toHaveBeenCalledWith(
+      "time_entries",
+      expect.objectContaining({ kind: "work", hours: 7.5 }),
+    );
+  });
+
   it("refuses a day index outside the week", async () => {
-    expect((await saveDay(MONDAY, 7, { t: "leave", h: 8 })).ok).toBe(false);
-    expect((await saveDay(MONDAY, -1, { t: "leave", h: 8 })).ok).toBe(false);
+    expect((await saveDay(MONDAY, 7, { t: "off" })).ok).toBe(false);
+    expect((await saveDay(MONDAY, -1, { t: "off" })).ok).toBe(false);
   });
 
   it("locks the week once it's submitted, and again once approved", async () => {
     sheetStatus = "submitted";
-    expect((await saveDay(MONDAY, 0, { t: "leave", h: 8 })).ok).toBe(false);
+    expect((await saveDay(MONDAY, 0, { t: "off" })).ok).toBe(false);
     sheetStatus = "approved";
-    expect((await saveDay(MONDAY, 0, { t: "leave", h: 8 })).ok).toBe(false);
+    expect((await saveDay(MONDAY, 0, { t: "off" })).ok).toBe(false);
     expect(upsert).not.toHaveBeenCalled();
   });
 
   it("reopens it when a manager sends it back", async () => {
     sheetStatus = "sent_back";
-    expect((await saveDay(MONDAY, 0, { t: "leave", h: 8 })).ok).toBe(true);
+    expect((await saveDay(MONDAY, 0, { t: "work", in: "7:00 AM", out: "3:00 PM", h: 8 })).ok).toBe(true);
   });
 
   it("clears the old question when the week is submitted again", async () => {
@@ -238,7 +270,7 @@ describe("the period boundary belongs to the server", () => {
   it("refuses a period start the pay cycle would never produce", async () => {
     // A Wednesday. Its own sheet has no row, so before the guard it read as a
     // fresh editable draft — for saving, clearing, submitting and reviewing.
-    expect((await saveDay("2026-07-01", 0, { t: "leave", h: 8 })).ok).toBe(false);
+    expect((await saveDay("2026-07-01", 0, { t: "off" })).ok).toBe(false);
     expect((await saveDay("2026-07-01", 0, { t: "empty" })).ok).toBe(false);
     expect((await submitWeek("2026-07-01")).ok).toBe(false);
     expect((await approveWeek("target", "2026-07-01")).ok).toBe(false);
@@ -256,20 +288,20 @@ describe("the period boundary belongs to the server", () => {
     expect(res.ok).toBe(false);
     expect((await submitWeek("2026-06-25")).ok).toBe(false);
     // and the straight-on write to the approved week stays refused too
-    expect((await saveDay("2026-06-22", 0, { t: "leave", h: 8 })).ok).toBe(false);
+    expect((await saveDay("2026-06-22", 0, { t: "off" })).ok).toBe(false);
     expect(upsert).not.toHaveBeenCalled();
   });
 
   it("answers a garbage date with an error instead of throwing", async () => {
     for (const bad of ["never", "", "2026-02-31", "2026-6-2", "29/06/2026"]) {
-      expect((await saveDay(bad, 0, { t: "leave", h: 8 })).ok).toBe(false);
+      expect((await saveDay(bad, 0, { t: "off" })).ok).toBe(false);
       expect((await submitWeek(bad)).ok).toBe(false);
     }
     expect(upsert).not.toHaveBeenCalled();
   });
 
   it("refuses a fractional day index — it would land between grid columns", async () => {
-    expect((await saveDay(MONDAY, 1.5, { t: "leave", h: 8 })).ok).toBe(false);
+    expect((await saveDay(MONDAY, 1.5, { t: "off" })).ok).toBe(false);
     expect(upsert).not.toHaveBeenCalled();
   });
 });

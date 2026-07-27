@@ -20,7 +20,7 @@ import { getMyWeek, getPaySettings } from "@/lib/timepay/query";
 import { stateFor } from "@/lib/timepay/leave-query";
 import { presumeFor, presumptionCtx } from "@/lib/timepay/presume";
 import { validateBlock } from "@/lib/timepay/availability";
-import { parseClock, type DayEntry, type Settings } from "@/components/timepay/logic";
+import { parseClock, spanHours, type DayEntry, type Settings } from "@/components/timepay/logic";
 
 /* Time & Pay mutations.
 
@@ -117,6 +117,22 @@ export async function saveDay(
           : "This week is with your manager — ask them to send it back to edit it.",
     };
 
+  /* The screen offers exactly two statements — "worked" and "didn't work".
+     Leave, sick and public holidays arrive on the sheet from the leave module
+     and the org calendar, already marked; accepting them here would be a
+     second way to record the same day, with no request, no balance drawdown
+     and no approver. The UI not offering them is convenience — this refusal
+     is the control. (`materialise` writes those kinds through rowFor from the
+     presumption, which is the one legitimate author.) */
+  if (entry.t === "leave" || entry.t === "sick" || entry.t === "ph")
+    return {
+      ok: false,
+      error:
+        entry.t === "ph"
+          ? "Public holidays come from the organisation's calendar, not the timesheet."
+          : "Leave and sick days are booked in My leave, not typed onto the timesheet.",
+    };
+
   if (entry.t === "empty") {
     await supabaseAdmin
       .from("time_entries")
@@ -128,11 +144,20 @@ export async function saveDay(
     return { ok: true };
   }
 
-  if (entry.t !== "off") {
-    if (!(entry.h >= 0 && entry.h <= 24))
-      return { ok: false, error: "Hours must be between 0 and 24." };
-    if (entry.t === "work" && (!entry.in.trim() || !entry.out.trim()))
+  if (entry.t === "work") {
+    if (!entry.in.trim() || !entry.out.trim())
       return { ok: false, error: "A worked day needs a start and finish time." };
+    /* HOURS ARE DERIVED, NEVER TYPED — and the server proves it against the
+       clocks rather than trusting the client's arithmetic. The bound is the
+       span, not equality with span-minus-org-break, because a day's own break
+       lives only as span − hours (seedBreakMinutes recovers it from exactly
+       that). What can no longer happen is a 9-to-5 row carrying 24 paid
+       hours, or times no clock can read. */
+    const span = spanHours(entry.in, entry.out);
+    if (span === null)
+      return { ok: false, error: "Those times couldn't be read as clock times." };
+    if (!(Number.isFinite(entry.h) && entry.h >= 0 && entry.h <= span))
+      return { ok: false, error: "Hours don't fit between those times." };
   }
 
   const { error } = await supabaseAdmin.from("time_entries").upsert(

@@ -6,6 +6,7 @@ import { loadTimepay } from "@/lib/timepay/page-data";
 import { loadHolidayManager } from "@/lib/timepay/leave-page";
 import { auth0 } from "@/lib/auth0";
 import { getConnectionView } from "@/lib/integrations/store";
+import { driftNote } from "@/lib/integrations/drift";
 import { teamClaims } from "@/lib/expenses/query";
 import { owedTotal, pendingCount } from "@/lib/expenses/claim";
 
@@ -49,8 +50,11 @@ export default async function TimePayPage({
      section has anything to show. Asked only when the viewer holds `financials`,
      since that is the only case where the section renders at all. */
   const orgId = session?.orgId as string | undefined;
-  const xeroConnected =
-    pay && orgId ? (await getConnectionView(orgId, "xero"))?.status === "connected" : false;
+  const connection = pay && orgId ? await getConnectionView(orgId, "xero") : null;
+  const xeroConnected = connection?.status === "connected";
+  /* What the last sweep found — a COUNT, never the rates. The figures behind
+     it still need the gated Check pay rates read. */
+  const wageDrift = xeroConnected ? driftNote({ count: connection?.driftCount ?? null, checkedAt: connection?.driftCheckedAt ?? null }) : null;
 
   /* Only asked for behind `financials`, because the tile that shows it is
      money — an hours-only view of this screen carries no dollar figures at
@@ -72,6 +76,7 @@ export default async function TimePayPage({
       financials={pay}
       holidayData={holidayData}
       xeroConnected={xeroConnected}
+      wageDrift={wageDrift}
       expenses={expenses}
     />
   );

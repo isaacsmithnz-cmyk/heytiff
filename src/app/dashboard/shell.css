@@ -1622,6 +1622,11 @@
 .fg .tpr .xp-drift.ok { color:#00806c; }
 .fg .tpr .xp-drift i { font-style:normal; color:var(--gray400); }
 
+/* The weekly sweep's one line on Time & Pay. Amber advisory, not red: Xero
+   changed and nobody has looked yet — a fact to act on, not a fault. */
+.fg .tp-drift { display:flex; align-items:center; gap:9px; padding:11px 15px; margin-bottom:18px; border-radius:14px; background:rgba(240,164,49,.12); color:#8a5a05; font-size:13px; font-weight:600; line-height:1.5; }
+.fg .tp-drift .i { flex:0 0 auto; }
+
 .fg .tpr .xp-extra { margin-top:16px; padding:13px; border-radius:13px; border:1.5px dashed #e6e8ee; background:#fafbfc; }
 .fg .tpr .xp-extra b { display:block; font-size:12.5px; font-weight:800; color:var(--gray700); }
 .fg .tpr .xp-extra em { display:block; font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray400); margin-top:3px; line-height:1.5; }

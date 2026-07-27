@@ -30,6 +30,8 @@ export type ConnectionRow = {
   connected_at: string | null;
   updated_at: string | null;
   last_error: string | null;
+  drift_count?: number | null;
+  drift_checked_at?: string | null;
 };
 
 /** What crosses to the browser. No tokens, ever. */
@@ -47,6 +49,11 @@ export type ConnectionView = {
   connectedAt: string | null;
   connectedByName: string | null;
   lastError: string | null;
+  /* What the last scheduled sweep found. A COUNT and a timestamp — never the
+     rates themselves, which is why this view can stay ungated while the
+     figures behind it need `financials`. */
+  driftCount: number | null;
+  driftCheckedAt: string | null;
 };
 
 export function isConnectionStatus(v: unknown): v is ConnectionStatus {
@@ -84,6 +91,8 @@ export function toView(row: ConnectionRow, connectedByName: string | null = null
     connectedAt: row.connected_at,
     connectedByName,
     lastError: row.last_error,
+    driftCount: typeof row.drift_count === "number" ? row.drift_count : null,
+    driftCheckedAt: row.drift_checked_at ?? null,
   };
 }
 

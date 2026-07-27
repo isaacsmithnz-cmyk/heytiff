@@ -42,8 +42,9 @@ describe("system map registry", () => {
   });
 
   it("helpers agree with the raw edge list", () => {
+    // the calculator reaches Xero through the read layer, never directly
     expect(drawsFrom("rate").map((e) => e.to).sort()).toEqual(
-      ["db-rate", "db-staff", "eng-rate", "timepay", "xero"].sort()
+      ["db-rate", "db-staff", "eng-rate", "eng-xero-read", "timepay"].sort()
     );
     expect(feeds("eng-loads").map((e) => e.from).sort()).toEqual(
       ["eng-sim", "studio", "tb-heat"].sort()

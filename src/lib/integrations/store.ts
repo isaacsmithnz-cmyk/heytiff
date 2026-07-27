@@ -22,7 +22,7 @@ const TABLE = "integration_connections";
 const COLUMNS =
   "id, org_id, provider, status, tenant_id, tenant_name, tenants, scopes, " +
   "access_token_enc, refresh_token_enc, expires_at, connected_by_user_id, " +
-  "connected_at, updated_at, last_error";
+  "connected_at, updated_at, last_error, drift_count, drift_checked_at";
 
 async function readRow(orgId: string, provider: string): Promise<ConnectionRow | null> {
   const { data } = await supabaseAdmin

@@ -13,6 +13,8 @@ import {
   listPayCalendars,
   listPayrollEmployees,
 } from "@/lib/integrations/xero-read";
+import { countDrifting } from "@/lib/integrations/drift";
+import { compareWages, recordDrift } from "@/lib/integrations/drift-sweep";
 import {
   isPlausibleHourly,
   resolveXeroPay,
@@ -295,6 +297,11 @@ export async function checkPayRates(): Promise<PayRatesResult> {
     rows.push({ staffProfileId: link.staffProfileId, here, drift: wageDrift(here, pay) });
   }
 
+  /* This just computed exactly what the weekly sweep computes, so leave the
+     flag accurate rather than letting the schedule catch up days later — and
+     so the count on Time & Pay can never contradict the rows on this screen. */
+  await recordDrift(orgId, countDrifting(rows.map((r) => r.drift)));
+
   return { ok: true, rows };
 }
 
@@ -340,6 +347,12 @@ export async function adoptWage(staffProfileId: string): Promise<LinkActionResul
     .eq("id", staffProfileId);
 
   if (error) return { ok: false, error: "Couldn't save that." };
+
+  /* Adopting removes a drift, so the stored count is now one too high. Left
+     alone it would keep nagging about a difference the person just resolved —
+     the fastest way to teach someone to ignore a flag. */
+  const after = await compareWages(orgId, connection.tenantId);
+  if (after) await recordDrift(orgId, countDrifting(after.drifts));
 
   refresh();
   // Every charge-out rate is derived from this column.

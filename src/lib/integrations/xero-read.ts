@@ -103,12 +103,19 @@ async function read<T>(
 
     Terminated employees are INCLUDED: someone who left is still the right
     answer for "who was this link pointing at?", and the linking screen wants to
-    say "no longer in Xero" rather than have the row vanish. */
-export async function listPayrollEmployees(orgId: string): Promise<ReadResult<XeroEmployee[]>> {
+    say "no longer in Xero" rather than have the row vanish.
+
+    `since` becomes Xero's `If-Modified-Since`, which is what makes the
+    scheduled drift sweep affordable: a quiet week answers with an empty list
+    for ONE call, instead of one call per employee to learn nothing. */
+export async function listPayrollEmployees(
+  orgId: string,
+  since?: Date
+): Promise<ReadResult<XeroEmployee[]>> {
   return read(orgId, async (xero, tenantId) => {
     const all: XeroEmployee[] = [];
     for (let page = 1; page <= MAX_PAGES; page++) {
-      const res = await xero.payrollAUApi.getEmployees(tenantId, undefined, undefined, undefined, page);
+      const res = await xero.payrollAUApi.getEmployees(tenantId, since, undefined, undefined, page);
       const batch = shapeEmployees(res.body?.employees);
       all.push(...batch);
       // A short page is the last page. Shaping can drop rows, so the raw length

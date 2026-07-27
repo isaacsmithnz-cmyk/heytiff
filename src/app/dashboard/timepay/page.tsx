@@ -80,6 +80,7 @@ export default async function TimePayPage({
       staff={data.staff}
       week={data.week}
       today={data.today}
+      through={data.through}
       periods={data.periods}
       periodIndex={data.periodIndex}
       settings={data.settings}

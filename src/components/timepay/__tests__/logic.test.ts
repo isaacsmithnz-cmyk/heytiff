@@ -144,11 +144,34 @@ describe("derive — demo staff on default settings", () => {
 });
 
 describe("derive — rules and edge cases", () => {
-  it("counts missing entries only on weekdays up to today", () => {
+  it("counts missing entries only on weekdays that are OVER", () => {
     const d = derive(staff([w8, EM, EM, w8, EM, EM, EM]), S(), ctx);
-    expect(d.missing).toBe(3); // Tue, Wed, Fri (today = Fri); weekend empties don't count
+    // Tue and Wed. NOT Friday — Friday is today, and today is not over: at
+    // 6am there is nothing to have put in yet. Weekend empties never count.
+    expect(d.missing).toBe(2);
     expect(d.status).toBe("review");
     expect(d.issueTitle).toBe("Missing entries to chase");
+  });
+
+  /* THE BUG THIS REPLACES: `missing` used `i <= today` while the presumption
+     filled days in only once they were over. The two disagreed by exactly one
+     day, so at 6:45am on Tuesday the screen said "Tue — no entry logged" and
+     put the day up to be chased, for a day the person hadn't worked yet. */
+  it("does not chase TODAY, and does chase it once the day is over", () => {
+    const days = [w8, EM, EM, w8, EM, EM, EM];
+    const live = derive(staff(days), S(), { ...ctx, through: 3 }); // Fri is today
+    const done = derive(staff(days), S(), { ...ctx, through: 4 }); // Fri has ended
+    expect(live.missing).toBe(2);
+    expect(done.missing).toBe(3);
+    expect(live.bullets.some((b) => b.includes("Fri"))).toBe(false);
+    expect(done.bullets.some((b) => b.includes("Fri"))).toBe(true);
+  });
+
+  it("a closed period has every day over, so nothing escapes the count", () => {
+    // a historical period passes through = last index; today's clamp doesn't
+    // get to excuse the final day
+    const d = derive(staff([w8, EM, EM, w8, EM, EM, EM]), S(), { ...ctx, through: 6 });
+    expect(d.missing).toBe(3); // Tue, Wed, Fri
   });
 
   it("weekly overtime mode moves the week's excess to 1.5x", () => {
@@ -213,10 +236,15 @@ describe("dayClass", () => {
     expect(dayClass({ t: "ph", h: 8 }, 0, S(), ctx)).toBe("ph");
   });
 
-  it("marks empty weekdays up to today as missing, later ones as empty", () => {
-    expect(dayClass(EM, 4, S(), ctx)).toBe("miss");
-    expect(dayClass(EM, 5, S(), ctx)).toBe("empty");
-    expect(dayClass(EM, 6, S(), ctx)).toBe("empty");
+  it("marks an empty weekday missing only once it is OVER", () => {
+    // index 4 is Friday, and Friday is today — not over, so not missing
+    expect(dayClass(EM, 4, S(), ctx)).toBe("empty");
+    expect(dayClass(EM, 4, S(), { ...ctx, through: 4 })).toBe("miss");
+    // earlier weekdays are over and do count
+    expect(dayClass(EM, 1, S(), ctx)).toBe("miss");
+    // the weekend is never missing whatever the date
+    expect(dayClass(EM, 5, S(), { ...ctx, through: 6 })).toBe("empty");
+    expect(dayClass(EM, 6, S(), { ...ctx, through: 6 })).toBe("empty");
   });
 
   it("keeps a short Saturday neutral when its rule is off (matches derive)", () => {

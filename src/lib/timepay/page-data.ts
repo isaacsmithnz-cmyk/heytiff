@@ -126,7 +126,14 @@ export async function loadMyTimesheet(requested?: string) {
      approver signed off. Sent-back weeks are live again by definition. */
   const sheet = sheets.get(ctx.staffId) ?? EMPTY_SHEET;
   const frozen = sheet.status === "submitted" || sheet.status === "approved";
-  const presumed = presumeFor(me, state, settings, { week: weekDays, today }, p, { frozen });
+  const presumed = presumeFor(
+    me,
+    state,
+    settings,
+    { week: weekDays, today, through: p.through },
+    p,
+    { frozen },
+  );
 
   /* A casual's own unavailability. Loaded here rather than on demand because
      the rail shows it beside the week it applies to, and a casual opening
@@ -148,6 +155,10 @@ export async function loadMyTimesheet(requested?: string) {
         pattern or it will colour days "missing" that it declined to fill. */
     workDays: presumed.workDays,
     ownWorkDays: p.ownWorkDays.has(ctx.staffId),
+    /** the last index whose day is OVER. The screen reads missing days from
+        this, not from `today` — at 6am on Tuesday there is nothing to put in
+        yet, so Tuesday isn't missing until Tuesday ends. */
+    through: p.through,
     /** what kind of employee they are, for the copy that differs */
     employment: me.employment ?? "permanent",
     /** a casual's unavailability blocks; empty for everyone else */
@@ -217,13 +228,22 @@ export async function loadTimepay(opts: { pay: boolean }, requested?: string) {
     staff: staff.map((s) => {
       const st = sheets.get(s.id);
       const frozen = st?.status === "submitted" || st?.status === "approved";
-      const r = presumeFor(s, s.state ?? orgState, settings, { week: weekDays, today }, p, { frozen });
+      const r = presumeFor(
+        s,
+        s.state ?? orgState,
+        settings,
+        { week: weekDays, today, through: p.through },
+        p,
+        { frozen },
+      );
       return { ...s, days: r.days, workDays: r.workDays };
     }),
     settings,
     configured,
     week: weekDays,
     today,
+    // the approver reads missing days off the same "is it over" line
+    through: p.through,
     periods,
     periodIndex: index,
     sheets: Object.fromEntries(sheets) as Record<string, SheetState>,

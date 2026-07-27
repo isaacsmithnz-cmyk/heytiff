@@ -59,6 +59,7 @@ export default async function MyTimesheetPage({
       unavailable={data.unavailable}
       week={data.week}
       today={data.today}
+      through={data.through}
       todayISO={data.todayISO}
       periodStart={data.periodStart}
       periods={data.periods}

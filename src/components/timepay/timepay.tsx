@@ -362,6 +362,7 @@ export function TimePay({
   financials,
   holidayData,
   xeroConnected,
+  wageDrift = null,
   expenses = { owed: 0, pending: 0 },
 }: {
   staff: StaffWeek[];
@@ -381,6 +382,10 @@ export function TimePay({
       connection's details are owner business, and this screen just needs to
       know whether the matching section has anything to show. */
   xeroConnected?: boolean;
+  /** One line when the weekly sweep found wages disagreeing with Xero, else
+      null. A COUNT-derived sentence — the rates themselves stay behind the
+      gated Check pay rates read in the settings gear. */
+  wageDrift?: string | null;
   /** What's outstanding on expense claims. Resolved server-side and only when
       the viewer holds `financials` — the tile that shows it is money. */
   expenses?: { owed: number; pending: number };
@@ -575,6 +580,16 @@ export function TimePay({
               {approved.map((r) => (
                 <CompactRow key={r.s.id} row={r} settings={settings} ctx={ctx} onApprove={approve} canApprove={canApprove} />
               ))}
+            </div>
+          )}
+
+          {/* Advisory, not an error: Xero changed and nobody has looked yet.
+              The fix is two taps away in the gear, so the line points there
+              rather than trying to be actionable itself. */}
+          {wageDrift && (
+            <div className="tp-drift">
+              <Icon name="info" size={15} />
+              <span>{wageDrift} Open settings → Xero payroll to compare.</span>
             </div>
           )}
 

@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "//": "Wage-drift sweep. Xero has no payroll webhook, so a pay rise entered there is invisible until something looks. Monday 6am UTC ~= Monday afternoon AU, before the week's timesheets matter. Weekly because a wage change is a rare event and the flag is advisory — a rate that moved on Tuesday being noticed on the following Monday is fine, where a nightly job would spend quota to say 'nothing' six extra times.",
+      "path": "/api/cron/xero-drift",
+      "schedule": "0 6 * * 1"
+    }
+  ]
+}

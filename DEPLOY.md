@@ -50,6 +50,7 @@ your local `.env.local`), scope = **Production** (and Preview if you want previe
 | `XERO_CLIENT_ID` | See **Xero** below. Optional — unset, Admin → Integrations renders but says connecting isn't available. |
 | `XERO_CLIENT_SECRET` | Same. Server-side only, never `NEXT_PUBLIC_`. |
 | `INTEGRATIONS_TOKEN_KEY` | 32-byte key that seals OAuth tokens before they reach the database. Required to connect anything — without it the Connect button is switched off rather than storing tokens in plaintext. |
+| `CRON_SECRET` | Guards the scheduled routes (`/api/cron/*`). **Vercel sets and sends this itself** once a `crons` entry exists in `vercel.json` — you only need to add it manually if you want to trigger a sweep by hand. **Unset ⇒ every cron request is refused** (fail-closed): the routes run with no session and service-role access, so the secret is the only gate. |
 
 ---
 
@@ -88,6 +89,26 @@ the feature isn't switched on yet — it never asks them for credentials.
 Scopes are read-only and are listed, with the reason for each, on that screen —
 `src/lib/integrations/providers.ts` is the single source both it and the consent
 URL read from.
+
+### The weekly drift sweep
+
+`vercel.json` schedules `/api/cron/xero-drift` for **Monday 06:00 UTC**. Xero
+publishes no payroll webhook, so nothing tells HeyTiff when a pay rate changes
+over there — this is what notices. It:
+
+- asks Xero **what changed since last time** (`If-Modified-Since`), so a quiet
+  week costs **one API call per workspace**, not one per employee;
+- recomputes every linked person's wage only when something actually moved;
+- stores **a count and a timestamp** — never the rates, which stay behind the
+  `financials`-gated *Check pay rates* read;
+- surfaces one advisory line on Time & Pay when wages disagree.
+
+It writes nothing to Xero and changes no wage. Adopting a rate is still a human
+tap. A side effect worth knowing: the weekly call keeps the refresh token from
+ever hitting Xero's 60-day idle expiry.
+
+Nothing to configure — Vercel manages `CRON_SECRET` itself. Apply
+`docs/migrations/integration_drift.sql` before merging.
 
 ---
 

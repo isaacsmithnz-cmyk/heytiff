@@ -62,6 +62,8 @@ export function XeroPayroll({
      payload — see the cost/money note on checkPayRates. */
   const [pay, setPay] = useState<Map<string, WagePayRow> | null>(null);
   const [checking, setChecking] = useState(false);
+  /** how many linked people the last check couldn't read from Xero */
+  const [unread, setUnread] = useState(0);
 
   const refresh = () => {
     setLoading(true);
@@ -124,8 +126,13 @@ export function XeroPayroll({
     setError(null);
     onCheckPay()
       .then((res) => {
-        if (res.ok) setPay(new Map(res.rows.map((r) => [r.staffProfileId, r])));
-        else setError(res.error);
+        if (res.ok) {
+          setPay(new Map(res.rows.map((r) => [r.staffProfileId, r])));
+          setUnread(res.unreadable);
+          // the action updated the stored flag — the banner behind this modal
+          // shows it, so pull the fresh server render through
+          router.refresh();
+        } else setError(res.error);
       })
       .catch(() => setError("Couldn't read pay rates from Xero."))
       .finally(() => setChecking(false));
@@ -147,7 +154,11 @@ export function XeroPayroll({
       {linked.length > 0 && (
         <div className="xp-pay">
           {pay ? (
-            <span>Pay rates read from Xero. HeyTiff still owns the wage — nothing was changed.</span>
+            <span>
+              Pay rates read from Xero. HeyTiff still owns the wage — nothing was changed.
+              {unread > 0 &&
+                ` ${unread} couldn't be read, so the drift flag wasn't trusted — re-check when Xero answers.`}
+            </span>
           ) : (
             <span>
               Compare wages against Xero? {linked.length} lookup{linked.length === 1 ? "" : "s"}.
@@ -371,6 +382,16 @@ function WageRow({
           weekly hours{drift.here !== null ? <>; here they&apos;re <b>{money(drift.here)}</b>/hr</> : ""}.
           Set the hours in Xero and re-check to compare.
         </span>
+      </div>
+    );
+  }
+
+  /* The read failed — which is a different sentence from "Xero has nothing
+     comparable". This row didn't make it into any stored count. */
+  if (drift.kind === "unreadable") {
+    return (
+      <div className="xp-drift">
+        <span>Couldn&apos;t read their pay from Xero — try re-checking in a moment.</span>
       </div>
     );
   }

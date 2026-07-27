@@ -13,12 +13,11 @@ import {
   listPayCalendars,
   listPayrollEmployees,
 } from "@/lib/integrations/xero-read";
-import { countDrifting } from "@/lib/integrations/drift";
-import { compareWages, recordDrift } from "@/lib/integrations/drift-sweep";
+import { countDrifting, countUnreadable } from "@/lib/integrations/drift";
+import { clearDrift, compareWages, recordDrift } from "@/lib/integrations/drift-sweep";
 import {
   isPlausibleHourly,
   resolveXeroPay,
-  wageDrift,
   type WageDrift,
 } from "@/lib/integrations/wage";
 import {
@@ -230,6 +229,11 @@ export async function unlinkEmployee(staffProfileId: string): Promise<LinkAction
   const result = await unlinkPayrollEmployee(orgId, connection.tenantId, staffProfileId);
   if (!result.ok) return result;
 
+  /* The stored drift count may have included this person. The rates aren't
+     kept (count only, deliberately), so it can't be decremented — it is
+     forgotten, and the next check or Monday sweep recomputes from scratch. */
+  await clearDrift(orgId);
+
   refresh();
   return { ok: true };
 }
@@ -251,13 +255,11 @@ export async function unlinkEmployee(staffProfileId: string): Promise<LinkAction
 
 export type WagePayRow = {
   staffProfileId: string;
-  /** null when this workspace has no wage recorded for them. */
-  here: number | null;
   drift: WageDrift;
 };
 
 export type PayRatesResult =
-  | { ok: true; rows: WagePayRow[] }
+  | { ok: true; rows: WagePayRow[]; unreadable: number }
   | { ok: false; error: string };
 
 export async function checkPayRates(): Promise<PayRatesResult> {
@@ -266,43 +268,29 @@ export async function checkPayRates(): Promise<PayRatesResult> {
   const connection = await getConnectionView(orgId, "xero");
   if (!connection?.tenantId) return { ok: false, error: "Xero isn't connected." };
 
-  const links = await listPayrollLinks(orgId, connection.tenantId);
-  if (links.length === 0) return { ok: true, rows: [] };
+  /* The ONE comparison implementation — the same `compareWages` the weekly
+     sweep runs. This action used to re-implement it line for line, which is
+     exactly the two-paths-eventually-disagree failure the module header warns
+     about. The wage read inside it is reached only behind the `financials`
+     gate above (or the cron's shared secret). */
+  const compared = await compareWages(orgId, connection.tenantId);
+  if (!compared) return { ok: false, error: "Couldn't read pay rates." };
 
-  /* THE ONE PLACE IN THIS MODULE THAT READS A WAGE. Scoped to the org and to
-     the people who are actually linked, behind the `financials` gate above. */
-  const { data } = await supabaseAdmin
-    .from("staff_profiles")
-    .select("id, hourly_wage")
-    .eq("org_id", orgId)
-    .in("id", links.map((l) => l.staffProfileId));
+  const rows: WagePayRow[] = [...compared.byStaff].map(([staffProfileId, drift]) => ({
+    staffProfileId,
+    drift,
+  }));
+  const unreadable = countUnreadable(compared.drifts);
 
-  const wageHere = new Map<string, number | null>();
-  for (const r of (data ?? []) as Record<string, unknown>[]) {
-    const raw = r.hourly_wage;
-    wageHere.set(String(r.id), typeof raw === "number" ? raw : raw ? Number(raw) : null);
-  }
+  /* Leave the stored flag accurate — but only when every read answered. A
+     count computed over failed rows would be missing them, and a deflated
+     count reads as "all good". On a partial read the honest flag is none. */
+  if (unreadable === 0) await recordDrift(orgId, countDrifting(compared.drifts));
+  else await clearDrift(orgId);
+  // the Time & Pay banner behind this modal shows the flag — keep it current
+  revalidatePath("/dashboard/timepay");
 
-  // One call for the whole org, before any per-person call — it resolves the
-  // USEEARNINGSRATE case, where the rate lives on the org, not the employee.
-  const rates = await listEarningsRates(orgId);
-  const earningsRates = rates.ok ? rates.data : [];
-
-  const rows: WagePayRow[] = [];
-  for (const link of links) {
-    const line = await getOrdinaryPayLine(orgId, link.remoteId);
-    // One person's read failing shouldn't lose everybody else's answer.
-    const pay = line.ok ? resolveXeroPay(line.data, earningsRates) : ({ kind: "unknown" } as const);
-    const here = wageHere.get(link.staffProfileId) ?? null;
-    rows.push({ staffProfileId: link.staffProfileId, here, drift: wageDrift(here, pay) });
-  }
-
-  /* This just computed exactly what the weekly sweep computes, so leave the
-     flag accurate rather than letting the schedule catch up days later — and
-     so the count on Time & Pay can never contradict the rows on this screen. */
-  await recordDrift(orgId, countDrifting(rows.map((r) => r.drift)));
-
-  return { ok: true, rows };
+  return { ok: true, rows, unreadable };
 }
 
 /** Take Xero's hourly rate as this workspace's wage.
@@ -350,9 +338,13 @@ export async function adoptWage(staffProfileId: string): Promise<LinkActionResul
 
   /* Adopting removes a drift, so the stored count is now one too high. Left
      alone it would keep nagging about a difference the person just resolved —
-     the fastest way to teach someone to ignore a flag. */
+     the fastest way to teach someone to ignore a flag. Same partial-read rule
+     as everywhere: a recompute with failures records nothing (clears instead),
+     because a count missing the failed rows would deflate. */
   const after = await compareWages(orgId, connection.tenantId);
-  if (after) await recordDrift(orgId, countDrifting(after.drifts));
+  if (after && countUnreadable(after.drifts) === 0)
+    await recordDrift(orgId, countDrifting(after.drifts));
+  else await clearDrift(orgId);
 
   refresh();
   // Every charge-out rate is derived from this column.

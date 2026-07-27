@@ -164,7 +164,14 @@ export type WageDrift =
   /** A salary with no stated weekly hours — no denominator, nothing to adopt. */
   | { kind: "salary"; annual: number; hoursPerWeek: null; here: number | null }
   /** Nothing comparable to say. */
-  | { kind: "none"; note: string | null };
+  | { kind: "none"; note: string | null }
+  /** The read itself failed — Xero wasn't asked or didn't answer. Produced by
+      the comparison layer, never by `wageDrift`: "we couldn't look" must stay
+      distinguishable from "we looked and there's nothing to compare", because
+      only the second may lower the drift count. The audit found a transient
+      Xero failure across linked staff writing drift_count = 0 and taking the
+      warning down. */
+  | { kind: "unreadable" };
 
 /** Cents. Two rates that differ by less than this are the same rate that has
     been rounded differently somewhere, not a disagreement worth a prompt. */

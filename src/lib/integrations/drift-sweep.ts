@@ -17,13 +17,18 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { listPayrollLinks } from "./links";
 import { getOrdinaryPayLine, listEarningsRates, listPayrollEmployees } from "./xero-read";
 import { resolveXeroPay, wageDrift, type WageDrift } from "./wage";
-import { countDrifting, needsRecompute, planSweep } from "./drift";
+import { countDrifting, countUnreadable, needsRecompute, planSweep } from "./drift";
 
 export type SweepResult =
   /** Xero says nothing moved — the cheap outcome, and the usual one. */
   | { kind: "unchanged"; calls: number }
   /** Recomputed; `count` is how many wages now differ. */
   | { kind: "checked"; count: number; calls: number }
+  /** Recomputed, but some reads failed. The stored flag was deliberately NOT
+      updated — a count missing the failed rows would read as fewer drifts,
+      and a transient outage across everyone linked would write zero and take
+      the warning down. The old count and cursor stand; next run retries. */
+  | { kind: "partial"; count: number; unreadable: number; calls: number }
   /** Nothing to sweep: not connected, no links, or the grant is broken. */
   | { kind: "skipped"; reason: string };
 
@@ -58,14 +63,39 @@ export async function compareWages(
   for (const link of links) {
     const line = await getOrdinaryPayLine(orgId, link.remoteId);
     calls += 1;
-    // One person's read failing must not lose everybody else's answer.
-    const pay = line.ok ? resolveXeroPay(line.data, earningsRates) : ({ kind: "unknown" } as const);
-    const drift = wageDrift(wageHere.get(link.staffProfileId) ?? null, pay);
+    /* One person's read failing must not lose everybody else's answer — but it
+       must stay a FAILURE, not become "nothing comparable". The two used to
+       collapse together, which silently dropped failed rows out of the count.
+       An inherited-rate employee whose org-rates read failed is the same case
+       wearing a different call: without the rates list, "couldn't be found"
+       would blame Xero's data for our fetch. */
+    const drift: WageDrift = !line.ok
+      ? { kind: "unreadable" }
+      : !rates.ok && (line.data?.calculationType ?? "").toUpperCase() === "USEEARNINGSRATE"
+        ? { kind: "unreadable" }
+        : wageDrift(wageHere.get(link.staffProfileId) ?? null, resolveXeroPay(line.data, earningsRates));
     byStaff.set(link.staffProfileId, drift);
     drifts.push(drift);
   }
 
   return { drifts, byStaff, calls };
+}
+
+/** Forget what the last sweep found — count AND cursor.
+
+    Called when this workspace changes something the count was computed FROM: a
+    linked person's wage edited on their card, a link removed, the active
+    tenant switched. The stored rates aren't here to recompute against (a count
+    is all we keep, deliberately), so the honest move is silence until the next
+    look — the Monday sweep runs a full recompute (null cursor ⇒ full), or
+    "Check pay rates" answers immediately. A week of silence beats a week of a
+    banner asserting a difference that may no longer exist. */
+export async function clearDrift(orgId: string): Promise<void> {
+  await supabaseAdmin
+    .from("integration_connections")
+    .update({ drift_count: null, drift_checked_at: null })
+    .eq("org_id", orgId)
+    .eq("provider", "xero");
 }
 
 /** Record what a sweep found. Count only — see the migration's note on why the
@@ -109,8 +139,17 @@ export async function sweepOrg(
   if (!compared) return { kind: "skipped", reason: "Couldn't read pay rates." };
 
   const count = countDrifting(compared.drifts);
+  const unreadable = countUnreadable(compared.drifts);
+  const calls = compared.calls + (plan.kind === "since" ? 1 : 0);
+
+  /* A partial read records nothing: the rows that failed aren't in `count`,
+     and writing it would advance the cursor past reads that never happened.
+     Leaving the old flag and timestamp means next week's window still covers
+     this one, so the retry is automatic. */
+  if (unreadable > 0) return { kind: "partial", count, unreadable, calls };
+
   await recordDrift(orgId, count, now);
-  return { kind: "checked", count, calls: compared.calls + (plan.kind === "since" ? 1 : 0) };
+  return { kind: "checked", count, calls };
 }
 
 /** The count we last stored — kept when a sweep confirms nothing moved, since

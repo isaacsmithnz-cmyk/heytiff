@@ -1,4 +1,4 @@
-import { countDrifting, driftNote, MAX_AGE_HOURS, needsRecompute, planSweep } from "../drift";
+import { countDrifting, countUnreadable, driftNote, MAX_AGE_HOURS, needsRecompute, planSweep } from "../drift";
 import { authorised, bearerToken, secretMatches } from "../cron-auth";
 import type { WageDrift } from "../wage";
 
@@ -111,5 +111,28 @@ describe("cron auth", () => {
   it("authorises a well-formed header carrying the right secret", () => {
     expect(authorised("Bearer s3cret", "s3cret")).toBe(true);
     expect(authorised("s3cret", "s3cret")).toBe(false); // no Bearer prefix
+  });
+});
+
+describe("countUnreadable", () => {
+  it("counts only the reads that failed", () => {
+    const drifts: WageDrift[] = [
+      { kind: "match", rate: 58 },
+      { kind: "unreadable" },
+      { kind: "none", note: null },
+      { kind: "unreadable" },
+    ];
+    expect(countUnreadable(drifts)).toBe(2);
+    // and a failed read is never a drift
+    expect(countDrifting(drifts)).toBe(0);
+  });
+});
+
+describe("driftNote says when it last looked", () => {
+  /* A count with no age reads as live truth, and this one can be a week old. */
+  it("carries the last-looked date when there is one", () => {
+    expect(driftNote({ count: 2, checkedAt: "2026-07-27T06:00:00Z" })).toBe(
+      "2 people's pay rates differ from Xero (last looked 27 July).",
+    );
   });
 });

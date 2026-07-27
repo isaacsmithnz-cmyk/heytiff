@@ -1,5 +1,5 @@
 import { timepayContext } from "./page-data";
-import { getPaySettings } from "./query";
+import { getPaySettings, shiftDefaultsFor } from "./query";
 import {
   approvedInSpan,
   holidaysInSpan,
@@ -33,6 +33,9 @@ export type MyLeaveData = {
   balances: BalanceView[];
   requests: LeaveRequest[];
   holidays: { date: string; name: string }[]; // upcoming, for the request helper + list
+  /** the requester's own working pattern (Mon=0) — the request form suggests
+      hours over THESE days, the same days the timesheet will actually pay */
+  workDays: number[];
 };
 
 export async function loadMyLeave(): Promise<MyLeaveData | null> {
@@ -40,14 +43,16 @@ export async function loadMyLeave(): Promise<MyLeaveData | null> {
   if (!ctx?.staffId) return null;
 
   const horizon = addDays(ctx.today, 365); // a full year — leave is planned that far out
-  const [{ settings }, balances, requests, state] = await Promise.all([
+  const [{ settings }, balances, requests, state, defaults] = await Promise.all([
     getPaySettings(ctx.orgId),
     myBalances(ctx.orgId, ctx.staffId),
     myRequests(ctx.orgId, ctx.staffId),
     stateFor(ctx.orgId, ctx.staffId),
+    shiftDefaultsFor(ctx.orgId, [ctx.staffId]),
   ]);
   await ensureHolidays(ctx.orgId, state, ctx.today);
   const holidays = await holidaysInSpan(ctx.orgId, state, ctx.today, horizon);
+  const ownDays = defaults.workDays.get(ctx.staffId);
 
   return {
     today: ctx.today,
@@ -55,6 +60,9 @@ export async function loadMyLeave(): Promise<MyLeaveData | null> {
     balances: balances.map((b) => balanceView(b, requests)),
     requests,
     holidays,
+    // their own pattern, else the org's — never an empty set, because a form
+    // that suggests 0h for every span has stopped suggesting anything
+    workDays: ownDays?.length ? ownDays : settings.workDays,
   };
 }
 

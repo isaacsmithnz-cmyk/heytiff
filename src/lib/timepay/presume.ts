@@ -113,6 +113,12 @@ export function presumeFor(
   settings: Settings,
   ctx: WeekCtx,
   p: PresumptionCtx,
+  /* `frozen` — this person's sheet has gone for review. A submitted or
+     approved week is a RECORD: only stored rows render, and nothing keeps
+     being derived underneath it. Without this, a week submitted on Wednesday
+     grew presumed Thursday and Friday hours after approval — on both screens,
+     with no rows behind them. */
+  opts: { frozen?: boolean } = {},
 ): {
   days: StaffWeek["days"];
   sources: DaySource[];
@@ -126,15 +132,22 @@ export function presumeFor(
   const holidays = p.holidaysByState.get(state) ?? new Map<string, string>();
   const hours = normalHours(settings, p.ownHours.get(staff.id));
   const { workDays, presume } = patternFor(staff, settings, p);
+  const live = presume && !opts.frozen;
   const rostered: WeekCtx = { ...ctx, workDays };
-  const absences = absenceMap(p.leaveByStaff.get(staff.id) ?? [], holidays);
+  // the spread follows the person's own roster — divisor and applier agree
+  // (a casual has no pattern; their leave never lands, so the default is moot)
+  const absences = absenceMap(
+    p.leaveByStaff.get(staff.id) ?? [],
+    holidays,
+    workDays.length ? workDays : undefined,
+  );
   const { days, sources } = presumeDays(staff.days, rostered, settings, {
     dates: p.dates,
     holidays,
     absences,
     hours,
     through: p.through,
-    presume,
+    presume: live,
   });
-  return { days, sources, hours, workDays, presume, absences };
+  return { days, sources, hours, workDays, presume: live, absences };
 }

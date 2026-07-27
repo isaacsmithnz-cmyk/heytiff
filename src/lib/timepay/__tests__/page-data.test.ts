@@ -38,8 +38,11 @@ jest.mock("../query", () => {
       { id: "me", state: null, employment: "permanent", days: [] },
       // an interstate worker's own state must survive the fallback untouched
       { id: "them", state: "QLD", employment: "permanent", days: [] },
+      // a subcontractor has no timesheet — must never reach the review screen
+      { id: "sub", state: null, employment: "subbie", days: [] },
     ]),
-    sheetStates: jest.fn(async () => new Map()),
+    // "me" has already submitted — their week is frozen on every screen
+    sheetStates: jest.fn(async () => new Map([["me", { status: "submitted" }]])),
     getMyWeek: jest.fn(),
   };
 });
@@ -79,5 +82,21 @@ describe("loadTimepay resolves every person's holiday state staff → org", () =
     // and each person is presumed against that same resolved state
     const presumedStates = presumeFor.mock.calls.map((c) => c[1]);
     expect(presumedStates).toEqual(["NSW", "QLD"]);
+  });
+
+  it("freezes a submitted sheet, keeps the rest live, and drops subcontractors", async () => {
+    const out = await loadTimepay({ pay: false });
+
+    // a subbie has no timesheet — not presumed, not listed, not "delinquent"
+    const staffArg = presumptionCtx.mock.calls[0][4] as { id: string }[];
+    expect(staffArg.map((s) => s.id)).toEqual(["me", "them"]);
+    expect((out!.staff as { id: string }[]).map((s) => s.id)).toEqual(["me", "them"]);
+
+    // the submitted week is a record — stored rows only; the other stays live
+    const frozenByStaff = new Map(
+      presumeFor.mock.calls.map((c) => [(c[0] as { id: string }).id, (c[5] as { frozen?: boolean })?.frozen]),
+    );
+    expect(frozenByStaff.get("me")).toBe(true);
+    expect(frozenByStaff.get("them")).toBe(false);
   });
 });

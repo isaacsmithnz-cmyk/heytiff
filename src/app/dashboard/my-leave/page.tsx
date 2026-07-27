@@ -28,6 +28,7 @@ export default async function MyLeavePage() {
       balances={data.balances}
       requests={data.requests}
       holidays={data.holidays}
+      workDays={data.workDays}
     />
   );
 }

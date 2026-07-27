@@ -1831,6 +1831,15 @@ select.fl-i { cursor:pointer; }
 .dchip2.ok { background:rgba(0,229,192,.1); color:#00A389; }
 .dchip2.warn { background:rgba(240,164,49,.13); color:#b45309; }
 .dchip2.bad { background:rgba(255,51,102,.1); color:#e0264f; }
+/* unpaid leave — KIND_TONE has named this since the leave screen shipped, but
+   the rule was never written, so an unpaid chip rendered bare */
+.dchip2.mute { background:#f1f2f5; color:#6b7280; }
+/* A CASUAL WHO CAN'T BE ROSTERED, not somebody on leave. Deliberately the
+   quietest chip on the screen and outlined rather than filled: it sits in the
+   same list as approved leave and must not read as an arrangement anybody
+   agreed to. */
+.dchip2.unavail { background:#fff; color:#6b7280; box-shadow:inset 0 0 0 1px rgba(10,11,16,.14); }
+.dchip2.unavail em { font-style:normal; font-size:10px; font-weight:700; color:#9ca3af; letter-spacing:.02em; }
 .fl-facts { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px; }
 .fl-fact { background:#fafbfc; border:1px solid #f0f0f2; border-radius:14px; padding:12px 14px; min-width:0; }
 .fl-fact em { font-style:normal; display:block; font-size:10.5px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:#9ca3af; }
@@ -1974,6 +1983,7 @@ select.fl-i { cursor:pointer; }
 .fg .lv-decline input { flex:1; height:34px; padding:0 11px; border-radius:9px; border:1px solid rgba(10,11,16,.14); font-family:var(--font); font-size:12.5px; }
 .fg .lv-caldate { min-width:120px; font-size:13px; font-weight:700; color:var(--ink); }
 .fg .lv-calnames { display:flex; flex-wrap:wrap; gap:5px; }
+.fg .lv-callegend { margin:0; padding:12px 16px; font-size:11px; font-weight:600; line-height:1.55; color:var(--gray400); }
 @media (max-width:820px){ .fg .lv-cols { grid-template-columns:1fr; } }
 
 /* ---- public holidays: upcoming panel + admin manager ---- */

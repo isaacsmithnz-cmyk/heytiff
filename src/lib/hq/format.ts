@@ -1,20 +1,27 @@
-/* Display formatting for HQ (pure, timezone-pinned to NZ so it's deterministic
-   on the server and in tests). Numbers/dates only — no business logic. */
+/* Display formatting for HQ (pure, timezone-pinned so it's deterministic on
+   the server and in tests). Numbers/dates only — no business logic.
 
-const dateFmt = new Intl.DateTimeFormat("en-NZ", {
+   Pinned to the same AU anchor as lib/au-dates: HQ's change log groups edits
+   by day, and that day has to be the day every customer-facing screen would
+   call it. It was Pacific/Auckland for a while — 2-3h ahead — which filed a
+   late-evening AU edit under tomorrow. */
+
+const HQ_TZ = "Australia/Sydney";
+
+const dateFmt = new Intl.DateTimeFormat("en-AU", {
   day: "numeric",
   month: "short",
   year: "numeric",
-  timeZone: "Pacific/Auckland",
+  timeZone: HQ_TZ,
 });
 
-const dateTimeFmt = new Intl.DateTimeFormat("en-NZ", {
+const dateTimeFmt = new Intl.DateTimeFormat("en-AU", {
   day: "numeric",
   month: "short",
   hour: "2-digit",
   minute: "2-digit",
   hour12: false,
-  timeZone: "Pacific/Auckland",
+  timeZone: HQ_TZ,
 });
 
 export function formatDate(iso: string | null | undefined): string {

@@ -3,7 +3,13 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
-import type { LinkingData, LinkActionResult } from "@/app/actions/xero-links";
+import type {
+  LinkingData,
+  LinkActionResult,
+  PayRatesResult,
+  WagePayRow,
+} from "@/app/actions/xero-links";
+import type { WageDrift } from "@/lib/integrations/wage";
 import type { LinkingRow } from "@/lib/integrations/linking";
 import type { XeroEmployee } from "@/lib/integrations/xero-shape";
 
@@ -31,14 +37,31 @@ export type XeroPayrollProps = {
   onLink: (staffProfileId: string, remoteId: string, matchedBy: "auto" | "manual") => Promise<LinkActionResult>;
   onUnlink: (staffProfileId: string) => Promise<LinkActionResult>;
   onAdoptEmployment: (staffProfileId: string, value: string) => Promise<LinkActionResult>;
+  /** Pay rates are a separate, explicit fetch — see the note above the button. */
+  onCheckPay: () => Promise<PayRatesResult>;
+  onAdoptWage: (staffProfileId: string) => Promise<LinkActionResult>;
 };
 
-export function XeroPayroll({ load, onLink, onUnlink, onAdoptEmployment }: XeroPayrollProps) {
+const money = (n: number) =>
+  `$${n.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+export function XeroPayroll({
+  load,
+  onLink,
+  onUnlink,
+  onAdoptEmployment,
+  onCheckPay,
+  onAdoptWage,
+}: XeroPayrollProps) {
   const router = useRouter();
   const [data, setData] = useState<LinkingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  /* Null until somebody asks. Wages are never part of the section's initial
+     payload — see the cost/money note on checkPayRates. */
+  const [pay, setPay] = useState<Map<string, WagePayRow> | null>(null);
+  const [checking, setChecking] = useState(false);
 
   const refresh = () => {
     setLoading(true);
@@ -96,6 +119,18 @@ export function XeroPayroll({ load, onLink, onUnlink, onAdoptEmployment }: XeroP
 
   const linked = data.rows.filter((r) => r.state.kind === "linked" || r.state.kind === "linked_left");
 
+  const checkPay = () => {
+    setChecking(true);
+    setError(null);
+    onCheckPay()
+      .then((res) => {
+        if (res.ok) setPay(new Map(res.rows.map((r) => [r.staffProfileId, r])));
+        else setError(res.error);
+      })
+      .catch(() => setError("Couldn't read pay rates from Xero."))
+      .finally(() => setChecking(false));
+  };
+
   return (
     <div className="xp">
       {error && <p className="xp-note bad">{error}</p>}
@@ -105,6 +140,24 @@ export function XeroPayroll({ load, onLink, onUnlink, onAdoptEmployment }: XeroP
         <b>{data.tenantName ?? "Xero"}</b>. Nothing is changed in Xero — matching only tells
         HeyTiff who is who.
       </p>
+
+      {/* Pay rates cost one Xero call PER PERSON, so they are asked for
+          explicitly and the button says what it will spend. Everything else on
+          this screen is one call for the whole organisation. */}
+      {linked.length > 0 && (
+        <div className="xp-pay">
+          {pay ? (
+            <span>Pay rates read from Xero. HeyTiff still owns the wage — nothing was changed.</span>
+          ) : (
+            <span>
+              Compare wages against Xero? {linked.length} lookup{linked.length === 1 ? "" : "s"}.
+            </span>
+          )}
+          <button className="xp-btn" disabled={checking || busy} onClick={checkPay}>
+            {checking ? "Reading…" : pay ? "Re-check" : "Check pay rates"}
+          </button>
+        </div>
+      )}
 
       {data.calendar?.note && (
         <p className="xp-advisory">
@@ -126,9 +179,11 @@ export function XeroPayroll({ load, onLink, onUnlink, onAdoptEmployment }: XeroP
             row={row}
             busy={busy}
             employees={data.unaccounted}
+            wage={pay?.get(row.staffProfileId) ?? null}
             onLink={(remoteId, how) => run(() => onLink(row.staffProfileId, remoteId, how))}
             onUnlink={() => run(() => onUnlink(row.staffProfileId))}
             onAdopt={(value) => run(() => onAdoptEmployment(row.staffProfileId, value))}
+            onAdoptWage={() => run(() => onAdoptWage(row.staffProfileId))}
           />
         ))}
       </div>
@@ -158,17 +213,22 @@ function StaffRow({
   row,
   employees,
   busy,
+  wage,
   onLink,
   onUnlink,
   onAdopt,
+  onAdoptWage,
 }: {
   row: LinkingRow;
   /** Employees still free to link to — never one somebody else already has. */
   employees: XeroEmployee[];
   busy: boolean;
+  /** Null until pay rates have been asked for. */
+  wage: WagePayRow | null;
   onLink: (remoteId: string, matchedBy: "auto" | "manual") => void;
   onUnlink: () => void;
   onAdopt: (value: string) => void;
+  onAdoptWage: () => void;
 }) {
   const [picking, setPicking] = useState(false);
   const [pick, setPick] = useState("");
@@ -243,8 +303,83 @@ function StaffRow({
           <span>{row.employment.note}</span>
         </div>
       )}
+
+      {/* Wage drift, once someone has asked for it. HeyTiff owns the wage, so
+          Xero's figure is shown beside ours with an adopt button — and only
+          where there is genuinely an hourly rate to adopt. */}
+      {wage && <WageRow drift={wage.drift} busy={busy} onAdopt={onAdoptWage} />}
     </div>
   );
+}
+
+function WageRow({
+  drift,
+  busy,
+  onAdopt,
+}: {
+  drift: WageDrift;
+  busy: boolean;
+  onAdopt: () => void;
+}) {
+  if (drift.kind === "match") {
+    return (
+      <div className="xp-drift ok">
+        <span>
+          Wage agrees with Xero — <b>{money(drift.rate)}</b>/hr.
+        </span>
+      </div>
+    );
+  }
+
+  if (drift.kind === "differs") {
+    return (
+      <div className="xp-drift">
+        <span>
+          {drift.here === null ? (
+            <>
+              No wage recorded here; Xero pays them <b>{money(drift.xero)}</b>/hr.
+            </>
+          ) : (
+            <>
+              Xero pays them <b>{money(drift.xero)}</b>/hr, here they&apos;re{" "}
+              <b>{money(drift.here)}</b>/hr{" "}
+              <i>({drift.delta > 0 ? "+" : ""}
+              {money(drift.delta)})</i>.
+            </>
+          )}
+        </span>
+        <button className="xp-btn go" disabled={busy} onClick={onAdopt}>
+          Use Xero&apos;s
+        </button>
+      </div>
+    );
+  }
+
+  /* A salary is real information and is shown — but it is NOT an hourly rate,
+     and turning it into one needs an hours-per-year assumption the Rate
+     Calculator already makes differently (working_weeks, 46 not 52). So there
+     is no button: a person decides what it means for their business. */
+  if (drift.kind === "salary") {
+    return (
+      <div className="xp-drift">
+        <span>
+          Xero has them on a salary of <b>{money(drift.annual)}</b>/yr
+          {drift.hoursPerWeek ? ` (${drift.hoursPerWeek}h/week)` : ""}
+          {drift.here !== null ? <>, here they&apos;re <b>{money(drift.here)}</b>/hr</> : ""}. An
+          hourly rate for it is yours to decide.
+        </span>
+      </div>
+    );
+  }
+
+  if (drift.note) {
+    return (
+      <div className="xp-drift">
+        <span>{drift.note}</span>
+      </div>
+    );
+  }
+  return null;
 }
 
 /** What a row's state says, in one line. Exported for the tests, which assert

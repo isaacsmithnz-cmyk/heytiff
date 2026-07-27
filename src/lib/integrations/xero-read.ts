@@ -26,11 +26,14 @@ import { xeroConfig } from "./xero";
 import { markNeedsReauth, xeroAccess, type XeroAccess } from "./store";
 import {
   shapeCalendars,
+  shapeEarningsRates,
   shapeEmployees,
+  shapeOrdinaryLine,
   type XeroEmployee,
   type XeroPayCalendar,
 } from "./xero-shape";
 import { mapProfitAndLoss, type ProfitAndLoss } from "./xero-pl";
+import type { EarningsRate, OrdinaryLine } from "./wage";
 
 /** Every read answers with this: the caller gets data, or a sentence it can
     show, and never has to catch anything. */
@@ -169,6 +172,34 @@ export async function getFinancialYearEnd(
       month: num(org?.financialYearEndMonth),
       name: typeof org?.name === "string" ? org.name : null,
     };
+  });
+}
+
+/** One employee's ordinary-hours pay line.
+
+    THE EXPENSIVE READ: one call PER PERSON, where everything else here is one
+    call per organisation. Xero allows 60 calls a minute per tenant and 1,000 a
+    day on the starter tier, so this is never called across a whole roster on
+    page load — it runs only when somebody asks for pay rates, for LINKED staff
+    only, and the screen says how many calls that will be first. */
+export async function getOrdinaryPayLine(
+  orgId: string,
+  employeeId: string
+): Promise<ReadResult<OrdinaryLine | null>> {
+  return read(orgId, async (xero, tenantId) => {
+    const res = await xero.payrollAUApi.getEmployee(tenantId, employeeId);
+    // The single-employee endpoint still answers with the plural wrapper.
+    return shapeOrdinaryLine(res.body?.employees?.[0]);
+  });
+}
+
+/** The organisation's earnings rates. One call for everyone — it resolves the
+    USEEARNINGSRATE case, where the rate lives on the org rather than the
+    person. */
+export async function listEarningsRates(orgId: string): Promise<ReadResult<EarningsRate[]>> {
+  return read(orgId, async (xero, tenantId) => {
+    const res = await xero.payrollAUApi.getPayItems(tenantId);
+    return shapeEarningsRates(res.body?.payItems?.earningsRates);
   });
 }
 

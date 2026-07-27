@@ -14,6 +14,8 @@ let myStaffId: string | null = "me";
    locked-sheet query returns. Only ever fill this with submitted/approved
    rows — the filter itself lives in real SQL, not in this stub. */
 let sheetRows: { period_start: string; status: string }[] = [];
+/** the existing leave_balances row the sync guard reads; null = none yet */
+let balanceRow: { source: string } | null = null;
 
 const table = (name: string) => {
   const c: Record<string, unknown> = {};
@@ -23,6 +25,7 @@ const table = (name: string) => {
   c.in = self;
   c.maybeSingle = async () => {
     if (name === "leave_requests") return { data: requestRow };
+    if (name === "leave_balances") return { data: balanceRow };
     return { data: staffExists ? { id: "target" } : null };
   };
   c.insert = (row: unknown) => {
@@ -79,6 +82,7 @@ beforeEach(() => {
   requests = [];
   overlaps = [];
   sheetRows = [];
+  balanceRow = null;
 });
 
 describe("requesting leave", () => {
@@ -253,6 +257,21 @@ describe("balances", () => {
       "leave_balances",
       expect.objectContaining({ kind: "annual", balance_hours: 152, source: "manual", synced_at: null }),
     );
+  });
+
+  /* The comment always promised a sync's row is left alone; the audit found
+     the upsert stamping source='manual' over whatever was there. */
+  it("refuses to trample a synced balance", async () => {
+    balanceRow = { source: "xero" };
+    const res = await setLeaveBalance({ staffProfileId: "target", kind: "annual", balanceHours: 100 });
+    expect(res.ok).toBe(false);
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
+  it("overwrites a manual balance freely — that's whose it is", async () => {
+    balanceRow = { source: "manual" };
+    const res = await setLeaveBalance({ staffProfileId: "target", kind: "annual", balanceHours: 100 });
+    expect(res.ok).toBe(true);
   });
 
   it("refuses a negative balance and a non-balance kind", async () => {

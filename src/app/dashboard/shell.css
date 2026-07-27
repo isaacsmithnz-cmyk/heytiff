@@ -2812,3 +2812,21 @@ select.fl-i { cursor:pointer; }
 /* The stat tile is a link now that expenses are real. */
 .fg a.stat { text-decoration:none; color:inherit; transition:transform .16s, box-shadow .16s; }
 .fg a.stat:hover { transform:translateY(-1px); box-shadow:0 10px 26px -14px rgba(10,12,20,.25); }
+
+/* ---------------- shell chrome skeletons ----------------
+   The sidebar/topbar placeholders that Cache Components prerenders into the
+   static shell. On the dark chrome, so they are light-on-dark rather than the
+   page's dark-on-light `.pk-*` blocks. */
+.fg .sk-dark { display:block; border-radius:6px; background:rgba(255,255,255,.07);
+  animation:pkSweep 1.6s ease-in-out infinite;
+  background-image:linear-gradient(100deg, rgba(255,255,255,.05) 30%, rgba(255,255,255,.11) 50%, rgba(255,255,255,.05) 70%);
+  background-size:200% 100%; }
+.fg .sk-navlbl { width:74px; height:8px; }
+.fg .sk-navicon { width:16px; height:16px; border-radius:5px; }
+.fg .sk-navtext { width:88px; height:10px; }
+.fg .sk-name { width:96px; height:11px; margin-bottom:6px; }
+.fg .sk-role { width:52px; height:9px; }
+.fg .topbar .searchbtn[aria-hidden="true"],
+.fg .topbar .tbr[aria-hidden="true"] .bell,
+.fg .topbar .tbr[aria-hidden="true"] .me-trigger { cursor:default; }
+@media (prefers-reduced-motion:reduce) { .fg .sk-dark { animation:none; } }

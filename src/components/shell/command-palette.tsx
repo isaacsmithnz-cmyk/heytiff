@@ -2,22 +2,23 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useCommandPalette } from "./command-palette-context";
 import { Icon } from "./icon";
 import { navFor } from "./nav";
 import type { Role } from "@/lib/roles-shared";
 import type { Capability } from "@/lib/permissions";
 
 export function CommandPalette({
-  open,
-  onClose,
   role,
   caps,
 }: {
-  open: boolean;
-  onClose: () => void;
   role: Role | null;
   caps: readonly Capability[];
 }) {
+  /* open/close live in context rather than props — this is a SERVER slot (it
+     needs the viewer's capabilities to build the entry list), so it cannot
+     receive client state or a callback from the frame around it. */
+  const { isOpen: open, close: onClose } = useCommandPalette();
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");

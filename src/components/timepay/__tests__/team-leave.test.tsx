@@ -43,7 +43,7 @@ const unavailEntry = (staffName: string, note?: string) => ({
 
 function renderTeam(over: Partial<React.ComponentProps<typeof TeamLeave>> = {}) {
   return render(
-    <TeamLeave pending={[] as LeaveRequest[]} calendar={[]} canApprove {...over} />,
+    <TeamLeave pending={[] as LeaveRequest[]} calendar={[]} balances={[]} canApprove canManage={false} {...over} />,
   );
 }
 

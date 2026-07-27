@@ -9,8 +9,22 @@ import { loadTeamLeave } from "@/lib/timepay/leave-page";
 export default async function TeamLeavePage() {
   if (!(await can("timepay_all"))) redirect("/dashboard/my-leave");
 
-  const [data, approvals] = await Promise.all([loadTeamLeave(), can("approvals")]);
+  // Balances are an HR figure (hours, never dollars): setting one needs `team`,
+  // same as the action re-checks for itself.
+  const [data, approvals, team] = await Promise.all([
+    loadTeamLeave(),
+    can("approvals"),
+    can("team"),
+  ]);
   if (!data) redirect("/dashboard");
 
-  return <TeamLeave pending={data.pending} calendar={data.calendar} canApprove={approvals} />;
+  return (
+    <TeamLeave
+      pending={data.pending}
+      calendar={data.calendar}
+      balances={data.balances}
+      canApprove={approvals}
+      canManage={team}
+    />
+  );
 }

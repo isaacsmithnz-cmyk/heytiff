@@ -13,6 +13,9 @@ import {
 } from "./leave-query";
 import { addDays } from "./period";
 import { ensureHolidays } from "./holiday-sync";
+import { listFleetStaff } from "@/lib/fleet/query";
+import { teamBalanceRows, type TeamBalanceRow } from "./balances";
+import { orgBalances, orgLiveRequests } from "./balances-query";
 import {
   balanceView,
   calendarDays,
@@ -81,6 +84,7 @@ export type TeamLeaveData = {
   spanStart: string;
   spanEnd: string;
   holidays: { date: string; name: string }[];
+  balances: TeamBalanceRow[];
 };
 
 export async function loadTeamLeave(): Promise<TeamLeaveData | null> {
@@ -90,13 +94,17 @@ export async function loadTeamLeave(): Promise<TeamLeaveData | null> {
   // the calendar shows a rolling window: a week back for context, a quarter on
   const spanStart = addDays(ctx.today, -7);
   const spanEnd = addDays(ctx.today, 90);
-  const [pending, approved, unavailable] = await Promise.all([
+  const [pending, approved, unavailable, staff, allBalances, liveRequests] = await Promise.all([
     pendingRequests(ctx.orgId),
     approvedInSpan(ctx.orgId, spanStart, spanEnd),
     /* Casuals blocking out days they can't work. Same window as the leave
        calendar, because the roster asks one question — who can't I put on —
        and would otherwise have to ask it in two places. */
     unavailabilityInSpan(ctx.orgId, spanStart, spanEnd),
+    // the same minimum-identity roster the fleet picker reads — names, nothing HR
+    listFleetStaff(ctx.orgId),
+    orgBalances(ctx.orgId),
+    orgLiveRequests(ctx.orgId),
   ]);
   // the org's own state drives the holiday overlay on the shared calendar
   const orgState = await stateFor(ctx.orgId, "");
@@ -110,5 +118,10 @@ export async function loadTeamLeave(): Promise<TeamLeaveData | null> {
     spanStart,
     spanEnd,
     holidays,
+    balances: teamBalanceRows(
+      staff.filter((s) => s.status === "Active"),
+      allBalances,
+      liveRequests,
+    ),
   };
 }

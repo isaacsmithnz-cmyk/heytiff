@@ -100,7 +100,7 @@ export async function buildConsentUrl(cfg: XeroConfig, state: string): Promise<s
 }
 
 export type ExchangeResult =
-  | { ok: true; tokens: XeroTokens; tenants: Tenant[]; userName: string | null }
+  | { ok: true; tokens: XeroTokens; tenants: Tenant[] }
   | { ok: false; error: string };
 
 /** Swap the callback URL's `code` for a token set, then ask Xero which
@@ -145,7 +145,10 @@ export async function exchangeCallback(
     return { ok: false, error: "That Xero login has no organisation we can connect to." };
   }
 
-  return { ok: true, tokens, tenants, userName: readUserName(set) };
+  /* No name is read off the id_token: "connected by" resolves from the
+     HeyTiff staff card instead, which is why `profile`/`email` are no longer
+     consented — the claims were computed here and thrown away for two PRs. */
+  return { ok: true, tokens, tenants };
 }
 
 /** Trade the stored refresh token for a fresh pair. Xero ROTATES the refresh
@@ -206,15 +209,3 @@ function readTenants(raw: unknown): Tenant[] {
   return out;
 }
 
-/** The Xero user's name, off the id_token, for "connected by …". Read without
-    verifying: the SDK already verified the id_token's signature during
-    `apiCallback`, and this is a display string either way. */
-function readUserName(set: TokenSet): string | null {
-  try {
-    const claims = set.claims() as Record<string, unknown>;
-    const name = claims.name ?? claims.preferred_username ?? claims.email;
-    return typeof name === "string" && name.trim() ? name.trim() : null;
-  } catch {
-    return null;
-  }
-}

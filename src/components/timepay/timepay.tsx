@@ -39,7 +39,7 @@ export type PayPeriod = { start: string; range: string; year: string; live: bool
    Approved); approvals/send-backs and pay settings persist in localStorage
    until a backend exists (matching the prototype's ht_tp_* keys). */
 
-type Row = { s: StaffWeek; d: Derived; status: StaffStatus };
+type Row = { s: StaffWeek; d: Derived; status: StaffStatus; ctx: WeekCtx };
 
 /** DB status -> the four states this screen renders. A submitted sheet still
     shows as review/ready on its merits; only a decision overrides that. */
@@ -207,10 +207,8 @@ function ReviewCard({
                 <Icon name="check" size={15} sw={2.6} />
                 Approve
               </button>
-              <button className="cedit">
-                <Icon name="edit" size={14} />
-                Edit
-              </button>
+              {/* no Edit button: an approver questions a week with Send back —
+                  editing someone else's hours is not an action that exists */}
               <button className="cedit sendback" onClick={() => setSending(true)}>
                 <Icon name="send" size={14} />
                 Send back
@@ -338,10 +336,6 @@ function CompactRow({
             <Icon name="check" size={14} sw={2.6} />
             Approve
           </button>
-          <button className="cedit crowedit">
-            <Icon name="edit" size={13} />
-            Edit
-          </button>
         </>
       )}
     </div>
@@ -413,8 +407,12 @@ export function TimePay({
   const rows: Row[] = useMemo(
     () =>
       staff.map((s) => {
-        const d = derive(s, settings, ctx);
-        return { s, d, status: rowStatus(sheets[s.id], d.status) };
+        /* Each person is derived — and their tiles coloured — through their
+           OWN roster. The loader computed workDays per person precisely so a
+           casual's blank Tuesday reads as blank, not "missing". */
+        const rowCtx: WeekCtx = s.workDays ? { ...ctx, workDays: s.workDays } : ctx;
+        const d = derive(s, settings, rowCtx);
+        return { s, d, status: rowStatus(sheets[s.id], d.status), ctx: rowCtx };
       }),
     [staff, settings, ctx, sheets]
   );
@@ -535,7 +533,7 @@ export function TimePay({
                 <span className="ln"></span>
               </div>
               {review.map((r) => (
-                <ReviewCard key={r.s.id} row={r} settings={settings} ctx={ctx} onApprove={approve} onSendBack={sendBack} canApprove={canApprove} />
+                <ReviewCard key={r.s.id} row={r} settings={settings} ctx={r.ctx} onApprove={approve} onSendBack={sendBack} canApprove={canApprove} />
               ))}
             </div>
           )}
@@ -566,7 +564,7 @@ export function TimePay({
                 </button>
               </div>
               {ready.map((r) => (
-                <CompactRow key={r.s.id} row={r} settings={settings} ctx={ctx} onApprove={approve} canApprove={canApprove} />
+                <CompactRow key={r.s.id} row={r} settings={settings} ctx={r.ctx} onApprove={approve} canApprove={canApprove} />
               ))}
             </div>
           )}
@@ -578,7 +576,7 @@ export function TimePay({
                 <span className="ln"></span>
               </div>
               {approved.map((r) => (
-                <CompactRow key={r.s.id} row={r} settings={settings} ctx={ctx} onApprove={approve} canApprove={canApprove} />
+                <CompactRow key={r.s.id} row={r} settings={settings} ctx={r.ctx} onApprove={approve} canApprove={canApprove} />
               ))}
             </div>
           )}

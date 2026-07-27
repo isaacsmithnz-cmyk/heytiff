@@ -10,7 +10,7 @@ import {
   type WeekDay,
 } from "@/components/timepay/logic";
 import { classifyEmployment, presumesDays } from "@/lib/staff/employment";
-import { absenceMap, type LeaveRequest } from "@/lib/timepay/leave";
+import { absenceMap, suggestedHours, type LeaveRequest } from "@/lib/timepay/leave";
 
 /* The normal-day presumption — what a week says when nobody has said anything.
 
@@ -323,3 +323,72 @@ describe("whose hours a day is presumed at", () => {
 });
 
 const DEFAULT_HOURS = { start: "7:00 AM", end: "3:00 PM" };
+
+
+describe("leave spreads over the person's own roster", () => {
+  /* The audit's part-timer finding: the divisor was calendar Mon–Fri while
+     the applier was the personal pattern, so a Mon/Tue/Thu part-timer taking
+     a week spent five days of balance and was paid three. One roster answers
+     both questions now. */
+  it("a Mon/Tue/Thu part-timer's week divides by three and lands on three days", () => {
+    const map = absenceMap(
+      [req({ startDate: "2026-06-29", endDate: "2026-07-03", hours: 24 })],
+      new Map(),
+      [0, 1, 3], // Mon, Tue, Thu
+    );
+    expect(map.get("2026-06-29")).toEqual({ t: "leave", h: 8, id: "r1" }); // Mon
+    expect(map.get("2026-06-30")).toEqual({ t: "leave", h: 8, id: "r1" }); // Tue
+    expect(map.get("2026-07-02")).toEqual({ t: "leave", h: 8, id: "r1" }); // Thu
+    expect(map.has("2026-07-01")).toBe(false); // Wed — not their day
+    expect(map.has("2026-07-03")).toBe(false); // Fri — not their day
+  });
+
+  it("a rostered Saturday is a leave day, not a skipped weekend", () => {
+    const map = absenceMap(
+      [req({ startDate: "2026-06-29", endDate: "2026-07-04", hours: 48 })],
+      new Map(),
+      [0, 1, 2, 3, 4, 5], // Mon–Sat roster
+    );
+    expect(map.get("2026-07-04")).toEqual({ t: "leave", h: 8, id: "r1" }); // Sat
+    expect(map.has("2026-07-05")).toBe(false); // Sun stays off
+  });
+
+  it("suggested hours count the same roster the spread will pay", () => {
+    // Mon–Fri span for the Mon/Tue/Thu part-timer: 3 days, not 5
+    expect(suggestedHours("2026-06-29", "2026-07-03", 8, new Set(), [0, 1, 3])).toBe(24);
+  });
+});
+
+describe("a frozen sheet is a record", () => {
+  /* presume:false is what a submitted/approved sheet runs with (presumeFor
+     derives it from the sheet status). It must keep stored rows and derive
+     NOTHING — not presumed days, not holidays, not booked leave. Before this
+     the presumption ran on every load regardless, and a week submitted on
+     Wednesday grew Thursday and Friday hours after approval. */
+  it("keeps stored rows and derives nothing at all", () => {
+    const stored: DayEntry[] = [
+      { t: "work", in: "7:00 AM", out: "3:00 PM", h: 8 },
+      ...EMPTY_WEEK.slice(1),
+    ];
+    const { days, sources } = run(stored, {
+      presume: false,
+      holidays: new Map([["2026-07-01", "Territory Day"]]),
+      absences: new Map([["2026-07-02", { t: "leave" as const, h: 8, id: "r1" }]]),
+    });
+    expect(days[0]).toEqual({ t: "work", in: "7:00 AM", out: "3:00 PM", h: 8 });
+    expect(sources[0]).toBe("entered");
+    // Tue would presume, Wed is a holiday, Thu is booked leave — none land
+    expect(days.slice(1).every((d) => d.t === "empty")).toBe(true);
+  });
+});
+
+describe("a public holiday pays the person's own day", () => {
+  it("uses their normal-hours derivation, not the org standard", () => {
+    // their own day is 7:00–12:00 — five hours, not the standard eight
+    const { days } = run(EMPTY_WEEK, {
+      holidays: new Map([["2026-06-29", "Bank Holiday"]]),
+      hours: { start: "7:00 AM", end: "12:00 PM" },
+    });
+    expect(days[0]).toEqual({ t: "ph", h: 5 });
+  });
+});

@@ -64,18 +64,30 @@ export function isBalanceKind(k: LeaveKind): k is BalanceKind {
 
 /* ---- date maths ---- */
 
-const isWeekendISO = (iso: string): boolean => {
-  const dow = new Date(`${iso}T00:00:00Z`).getUTCDay(); // 0 Sun … 6 Sat
-  return dow === 0 || dow === 6;
-};
+/** Mon=0 … Sun=6, the same convention as the timesheet's work-day pattern. */
+const dowISO = (iso: string): number => (new Date(`${iso}T00:00:00Z`).getUTCDay() + 6) % 7;
 
-/** Working days in an inclusive range: weekdays that aren't public holidays. */
-export function businessDays(startISO: string, endISO: string, holidays: Set<string> = new Set()): number {
+/** The default roster when nobody has said otherwise. */
+export const MON_FRI = [0, 1, 2, 3, 4];
+
+/** Is this date on the person's roster? The audit's part-timer finding lived
+    here: every spread assumed Mon–Fri while the timesheet applied the real
+    pattern, so a Mon/Tue/Thu part-timer spent five days of balance and was
+    paid three. Divisor and applier now share one question. */
+const onRoster = (iso: string, workDays: number[]): boolean => workDays.includes(dowISO(iso));
+
+/** Working days in an inclusive range: rostered days that aren't holidays. */
+export function businessDays(
+  startISO: string,
+  endISO: string,
+  holidays: Set<string> = new Set(),
+  workDays: number[] = MON_FRI,
+): number {
   if (endISO < startISO) return 0;
   let n = 0;
   for (let i = 0; i <= daysBetween(startISO, endISO); i++) {
     const d = addDays(startISO, i);
-    if (!isWeekendISO(d) && !holidays.has(d)) n++;
+    if (onRoster(d, workDays) && !holidays.has(d)) n++;
   }
   return n;
 }
@@ -104,12 +116,15 @@ export function rangeBreakdown(
   startISO: string,
   endISO: string,
   holidays: Map<string, string> = new Map(),
+  workDays: number[] = MON_FRI,
 ): RangeBreakdown {
   const out: RangeBreakdown = { working: 0, weekends: 0, holidays: [] };
   if (!startISO || !endISO || endISO < startISO) return out;
   for (let i = 0; i <= daysBetween(startISO, endISO); i++) {
     const d = addDays(startISO, i);
-    if (isWeekendISO(d)) out.weekends++;
+    // an off-roster day counts in the "weekends" bucket whatever its name —
+    // for the default Mon–Fri pattern that is literally the weekend
+    if (!onRoster(d, workDays)) out.weekends++;
     else {
       const name = holidays.get(d);
       if (name === undefined) out.working++;
@@ -119,15 +134,16 @@ export function rangeBreakdown(
   return out;
 }
 
-/** Suggested hours for a leave span — working days × the standard day. The
+/** Suggested hours for a leave span — rostered days × the standard day. The
     requester can override for a part-day; this is only the sensible default. */
 export function suggestedHours(
   startISO: string,
   endISO: string,
   standard: number,
   holidays: Set<string> = new Set(),
+  workDays: number[] = MON_FRI,
 ): number {
-  return Math.round(businessDays(startISO, endISO, holidays) * standard * 100) / 100;
+  return Math.round(businessDays(startISO, endISO, holidays, workDays) * standard * 100) / 100;
 }
 
 /** How approved leave lands on the timesheet, day by day.
@@ -149,16 +165,20 @@ export function suggestedHours(
 export function absenceMap(
   requests: LeaveRequest[],
   holidays: Map<string, string>,
+  workDays: number[] = MON_FRI,
 ): Map<string, AbsenceDay> {
   const out = new Map<string, AbsenceDay>();
   const holidaySet = new Set(holidays.keys());
 
   for (const r of requests) {
     if (r.status !== "approved") continue;
-    const spread = businessDays(r.startDate, r.endDate, holidaySet);
+    /* Divisor and applier use the SAME roster: the hours divide over the days
+       that will actually be stamped, so what the balance paid for and what
+       the timesheet pays out are the same number of days. */
+    const spread = businessDays(r.startDate, r.endDate, holidaySet, workDays);
     const perDay = spread > 0 ? Math.round((r.hours / spread) * 100) / 100 : 0;
     for (const date of leaveDates(r)) {
-      if (holidaySet.has(date)) continue;
+      if (holidaySet.has(date) || !workDays.includes(dowISO(date))) continue;
       out.set(
         date,
         r.kind === "unpaid"

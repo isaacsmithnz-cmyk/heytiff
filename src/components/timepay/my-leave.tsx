@@ -65,12 +65,17 @@ export function MyLeave({
   balances,
   requests,
   holidays,
+  workDays,
 }: {
   today: string;
   standard: number;
   balances: BalanceView[];
   requests: LeaveRequest[];
   holidays: { date: string; name: string }[];
+  /** the requester's own roster (Mon=0) — suggestions count these days, the
+      same days the timesheet will pay, so a part-timer's week isn't quoted
+      as five days of entitlement */
+  workDays?: number[];
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -95,12 +100,12 @@ export function MyLeave({
   );
   const holidaySet = useMemo(() => new Set(holidayMap.keys()), [holidayMap]);
   const suggested = useMemo(
-    () => suggestedHours(startDate, endDate, standard, holidaySet),
-    [startDate, endDate, standard, holidaySet],
+    () => suggestedHours(startDate, endDate, standard, holidaySet, workDays),
+    [startDate, endDate, standard, holidaySet, workDays],
   );
   const breakdown = useMemo(
-    () => rangeBreakdown(startDate, endDate, holidayMap),
-    [startDate, endDate, holidayMap],
+    () => rangeBreakdown(startDate, endDate, holidayMap, workDays),
+    [startDate, endDate, holidayMap, workDays],
   );
 
   /* Clicking the grid and typing in the fields are the same edit: both write

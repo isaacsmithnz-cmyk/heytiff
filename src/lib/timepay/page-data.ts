@@ -121,7 +121,12 @@ export async function loadMyTimesheet(requested?: string) {
   const weekDays = periodDays(start, cfg);
   const today = todayIndex(start, ctx.today, cfg);
   const p = await presumptionCtx(ctx.orgId, start, cfg, ctx.today, [{ id: ctx.staffId, state }]);
-  const presumed = presumeFor(me, state, settings, { week: weekDays, today }, p);
+  /* A week that has gone for review is a record — stored rows only. Anything
+     still being derived under an approved sheet would move the totals the
+     approver signed off. Sent-back weeks are live again by definition. */
+  const sheet = sheets.get(ctx.staffId) ?? EMPTY_SHEET;
+  const frozen = sheet.status === "submitted" || sheet.status === "approved";
+  const presumed = presumeFor(me, state, settings, { week: weekDays, today }, p, { frozen });
 
   /* A casual's own unavailability. Loaded here rather than on demand because
      the rail shows it beside the week it applies to, and a casual opening
@@ -157,7 +162,7 @@ export async function loadMyTimesheet(requested?: string) {
     // the same list of periods rather than two ideas of "last fortnight"
     periods,
     periodIndex: index,
-    sheet: sheets.get(ctx.staffId) ?? EMPTY_SHEET,
+    sheet,
     holidays,
     // whose calendar these holidays are — the rail names it ("All NSW public
     // holidays") so nobody reads another state's roster as their own
@@ -178,7 +183,7 @@ export async function loadTimepay(opts: { pay: boolean }, requested?: string) {
   const { settings, configured } = paySettings;
   const cfg = periodConfig(settings);
   const { start, periods, index } = resolvePeriod(ctx.today, cfg, requested);
-  const [staff, sheets, orgState] = await Promise.all([
+  const [allStaff, sheets, orgState] = await Promise.all([
     listStaffWeeks(ctx.orgId, start, { pay: opts.pay, cfg }),
     sheetStates(ctx.orgId, start),
     // the org's state backs anyone without their own — the SAME fallback My
@@ -186,6 +191,10 @@ export async function loadTimepay(opts: { pay: boolean }, requested?: string) {
     stateFor(ctx.orgId, ""),
   ]);
   await ensureHolidays(ctx.orgId, orgState, ctx.today);
+  /* A subcontractor has no timesheet at all (their own route says so and
+     loads nothing) — listing them here made them permanently "delinquent" on
+     a screen about sheets they can't have. */
+  const staff = allStaff.filter((s) => s.employment !== "subbie");
 
   /* The approver sees the same presumed week the person does. Without this the
      review screen would read every untouched-but-ordinary day as a missing
@@ -202,9 +211,13 @@ export async function loadTimepay(opts: { pay: boolean }, requested?: string) {
 
   return {
     /* Each person is presumed AND read through their own roster: the approver
-       sees a casual's blank Tuesday as blank, not as a missing day to chase. */
+       sees a casual's blank Tuesday as blank, not as a missing day to chase.
+       A submitted or approved sheet is frozen — stored rows only, exactly
+       what the person's own screen shows. */
     staff: staff.map((s) => {
-      const r = presumeFor(s, s.state ?? orgState, settings, { week: weekDays, today }, p);
+      const st = sheets.get(s.id);
+      const frozen = st?.status === "submitted" || st?.status === "approved";
+      const r = presumeFor(s, s.state ?? orgState, settings, { week: weekDays, today }, p, { frozen });
       return { ...s, days: r.days, workDays: r.workDays };
     }),
     settings,

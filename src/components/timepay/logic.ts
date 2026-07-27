@@ -92,6 +92,10 @@ export type StaffWeek = {
   /** what kind of employee they are, already classified. Decides whether their
       week is filled in for them at all — a casual's never is. */
   employment?: EmploymentClass;
+  /** the days they're expected (Mon=0), resolved by the loader. The review
+      screen must derive each person through their OWN pattern — a shared
+      Mon–Fri ctx showed every casual five "missing" days a week. */
+  workDays?: number[];
 };
 
 /* ['MON', 29, 'Jun'] — weekday label, day number, month */
@@ -667,7 +671,9 @@ export function presumeDays(
     }
 
     if (input.holidays.get(date) !== undefined) {
-      days.push({ t: "ph", h: s.standard });
+      // a public holiday pays this person's ordinary day, not the org's
+      // standard — someone on 7.6h normal hours gets 7.6, not a free 8
+      days.push({ t: "ph", h: presumedHours ?? s.standard });
       sources.push("holiday");
       return;
     }

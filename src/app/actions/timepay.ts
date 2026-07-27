@@ -172,7 +172,16 @@ export async function saveDay(
 /** One day, as the table stores it. Shared by the single-day save and the
     materialisation below, so a day written by hand and the identical day
     written by submitting can't take different shapes. */
-function rowFor(orgId: string, staffId: string, workDate: string, entry: DayEntry) {
+function rowFor(
+  orgId: string,
+  staffId: string,
+  workDate: string,
+  entry: DayEntry,
+  /* the approved request a leave/sick/off day came from. Provenance, so a
+     materialised absence and the booking that paid for it stay findable from
+     each other; hand-entered days carry null. */
+  leaveRequestId: string | null = null,
+) {
   return {
     org_id: orgId,
     staff_profile_id: staffId,
@@ -182,6 +191,7 @@ function rowFor(orgId: string, staffId: string, workDate: string, entry: DayEntr
     end_time: entry.t === "work" ? entry.out : null,
     // `off` is a statement, not an amount — it carries no hours by construction
     hours: entry.t === "work" || entry.t === "leave" || entry.t === "sick" || entry.t === "ph" ? entry.h : 0,
+    leave_request_id: leaveRequestId,
     updated_at: new Date().toISOString(),
   };
 }
@@ -219,14 +229,19 @@ async function materialise(
   const state = me.state ?? (await stateFor(orgId, ""));
   const p = await presumptionCtx(orgId, periodStart, cfg, today, [{ id: staffId, state }]);
   const ctxWeek = { week: periodDays(periodStart, cfg), today: todayIndex(periodStart, today, cfg) };
-  const { days, sources } = presumeFor(me, state, settings, ctxWeek, p);
+  const { days, sources, absences } = presumeFor(me, state, settings, ctxWeek, p);
 
   const rows = days
     .map((entry, i) => ({ entry, i }))
     // "entered" is already a row; "expected" and "none" are days with nothing
     // on them, and writing a row for those would invent an entry nobody made
     .filter(({ i }) => sources[i] === "presumed" || sources[i] === "holiday" || sources[i] === "leave")
-    .map(({ entry, i }) => rowFor(orgId, staffId, dateOfDay(periodStart, i), entry));
+    .map(({ entry, i }) => {
+      const date = dateOfDay(periodStart, i);
+      // a leave-sourced day is stamped with the request that paid it
+      const from = sources[i] === "leave" ? (absences.get(date)?.id ?? null) : null;
+      return rowFor(orgId, staffId, date, entry, from);
+    });
 
   if (rows.length) await supabaseAdmin.from("time_entries").upsert(rows, { onConflict: "org_id,staff_profile_id,work_date" });
 }

@@ -146,7 +146,7 @@ describe("days the business already knows about", () => {
 
   it("marks approved leave from the leave module", () => {
     const { days, sources } = run(EMPTY_WEEK, {
-      absences: new Map([["2026-06-30", { t: "leave" as const, h: 8 }]]),
+      absences: new Map([["2026-06-30", { t: "leave" as const, h: 8, id: "r1" }]]),
     });
     expect(days[1]).toEqual({ t: "leave", h: 8 });
     expect(sources[1]).toBe("leave");
@@ -173,13 +173,13 @@ describe("days the business already knows about", () => {
 describe("turning leave requests into days", () => {
   it("spreads a request's total hours across the working days it covers", () => {
     const map = absenceMap([req({ startDate: "2026-06-29", endDate: "2026-07-03", hours: 40 })], new Map());
-    expect(map.get("2026-06-29")).toEqual({ t: "leave", h: 8 });
-    expect(map.get("2026-07-03")).toEqual({ t: "leave", h: 8 });
+    expect(map.get("2026-06-29")).toEqual({ t: "leave", h: 8, id: "r1" });
+    expect(map.get("2026-07-03")).toEqual({ t: "leave", h: 8, id: "r1" });
   });
 
   it("a part day is a part day — a 4-hour single-day request stays 4 hours", () => {
     const map = absenceMap([req({ hours: 4 })], new Map());
-    expect(map.get("2026-06-30")).toEqual({ t: "leave", h: 4 });
+    expect(map.get("2026-06-30")).toEqual({ t: "leave", h: 4, id: "r1" });
   });
 
   it("a public holiday inside the span is not a day of entitlement spent", () => {
@@ -189,18 +189,18 @@ describe("turning leave requests into days", () => {
       holidays,
     );
     // four working days, not five — and the holiday itself gets no leave row
-    expect(map.get("2026-06-29")).toEqual({ t: "leave", h: 8 });
+    expect(map.get("2026-06-29")).toEqual({ t: "leave", h: 8, id: "r1" });
     expect(map.has("2026-07-01")).toBe(false);
   });
 
   it("personal leave is a sick day", () => {
     const map = absenceMap([req({ kind: "personal" })], new Map());
-    expect(map.get("2026-06-30")).toEqual({ t: "sick", h: 8 });
+    expect(map.get("2026-06-30")).toEqual({ t: "sick", h: 8, id: "r1" });
   });
 
   it("UNPAID leave is a day off, never paid hours", () => {
     const map = absenceMap([req({ kind: "unpaid" })], new Map());
-    expect(map.get("2026-06-30")).toEqual({ t: "off" });
+    expect(map.get("2026-06-30")).toEqual({ t: "off", id: "r1" });
   });
 
   it("ignores a request that isn't approved yet", () => {

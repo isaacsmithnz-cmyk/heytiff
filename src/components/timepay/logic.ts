@@ -615,7 +615,9 @@ export type PresumeInput = {
   /** date → an absence already booked and approved elsewhere. Unpaid leave
       arrives as `off`: it is a day not worked, and it must never be presumed
       into paid hours. */
-  absences: Map<string, { t: "leave" | "sick"; h: number } | { t: "off" }>;
+  /** date → the absence that covers it; `id` is the leave request it came
+      from (provenance for materialised rows — never stored on the DayEntry) */
+  absences: Map<string, { t: "leave" | "sick"; h: number; id: string } | { t: "off"; id: string }>;
   /** that person's normal hours, already resolved */
   hours: NormalHours;
   /** the last index whose day is OVER. −1 when the period hasn't started. */

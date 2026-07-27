@@ -48,6 +48,21 @@ export const timepayContext = cache(async (): Promise<Ctx | null> => {
   return { orgId, staffId: await staffProfileIdFor(orgId, userId), today: todayInAu() };
 });
 
+/** WHICH org, without the trip that answers WHO. Both live on the session, but
+    `timepayContext` also resolves the staff id — a real query — and everything
+    org-scoped was queueing behind it for no reason. Reading the session is
+    local (a cookie decrypt), so this costs nothing and lets an org-scoped read
+    go out alongside the staff-id lookup instead of after it.
+
+    That matters more than it looks: the functions ran in `iad1` (Washington
+    DC) against a Singapore database until vercel.json pinned them to `sin1`,
+    and even co-located, DEPTH of the await chain — not the number of queries —
+    is what a page waits for. */
+export const orgIdOf = cache(async (): Promise<string | null> => {
+  const session = await auth0.getSession();
+  return (session?.orgId as string | undefined) ?? null;
+});
+
 /** Resolve ?period=YYYY-MM-DD against this org's configuration, defaulting to
     the current period and refusing anything that isn't one we offer. */
 export function resolvePeriod(
@@ -69,10 +84,13 @@ export function resolvePeriod(
 }
 
 export async function loadMyTimesheet(requested?: string) {
-  const ctx = await timepayContext();
+  // same reason as loadTimepay: settings are org-scoped, so they don't wait
+  // on the staff-id lookup
+  const orgId = await orgIdOf();
+  if (!orgId) return null;
+  const [ctx, { settings }] = await Promise.all([timepayContext(), getPaySettings(orgId)]);
   if (!ctx?.staffId) return null;
 
-  const { settings } = await getPaySettings(ctx.orgId);
   const cfg = periodConfig(settings);
   const { start, periods, index } = resolvePeriod(ctx.today, cfg, requested);
   const state = await stateFor(ctx.orgId, ctx.staffId);
@@ -148,10 +166,16 @@ export async function loadMyTimesheet(requested?: string) {
 }
 
 export async function loadTimepay(opts: { pay: boolean }, requested?: string) {
-  const ctx = await timepayContext();
+  /* The settings read only needs the ORG, which is on the session — so it goes
+     out beside the context rather than behind it. Settings still decide the
+     period, and everything after them still waits; this only stops the first
+     two trips from being taken one at a time. */
+  const orgId = await orgIdOf();
+  if (!orgId) return null;
+  const [ctx, paySettings] = await Promise.all([timepayContext(), getPaySettings(orgId)]);
   if (!ctx) return null;
 
-  const { settings, configured } = await getPaySettings(ctx.orgId);
+  const { settings, configured } = paySettings;
   const cfg = periodConfig(settings);
   const { start, periods, index } = resolvePeriod(ctx.today, cfg, requested);
   const [staff, sheets] = await Promise.all([

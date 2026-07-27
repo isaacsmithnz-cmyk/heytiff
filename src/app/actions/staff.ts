@@ -15,6 +15,7 @@ import {
 } from "@/lib/permissions";
 import { buildAdminPatch, capabilityFor, isAdminSection } from "@/lib/staff/admin-sections";
 import { withDerivedFullName } from "@/lib/staff/name";
+import { clearDrift } from "@/lib/integrations/drift-sweep";
 import { buildLicenceRow, type LicenceInput } from "@/lib/staff/licence";
 import type { Role } from "@/lib/roles-shared";
 
@@ -152,6 +153,27 @@ export async function saveStaffSection(
     .eq("org_id", ctx.orgId)
     .eq("id", staffId);
   if (error) return { ok: false, error: error.message };
+
+  /* Editing a Xero-linked person's wage invalidates the stored drift count —
+     it was computed against the old wage, and the rates it compared aren't
+     kept (a count is all we store, deliberately), so it can't be corrected in
+     place. It is forgotten; the next Check pay rates or Monday sweep
+     recomputes. A few days of silence beats a banner asserting a difference
+     the admin may have just resolved. */
+  if (section === "payroll" && "hourly_wage" in patch) {
+    const { data: linked } = await supabaseAdmin
+      .from("integration_links")
+      .select("id")
+      .eq("org_id", ctx.orgId)
+      .eq("provider", "xero")
+      .eq("kind", "payroll_employee")
+      .eq("staff_profile_id", staffId)
+      .limit(1);
+    if (linked?.length) {
+      await clearDrift(ctx.orgId);
+      revalidatePath("/dashboard/timepay");
+    }
+  }
 
   revalidatePath(`/dashboard/team/${staffId}`);
   revalidatePath("/dashboard/team");

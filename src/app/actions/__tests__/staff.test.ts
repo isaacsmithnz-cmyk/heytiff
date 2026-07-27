@@ -18,6 +18,8 @@ const auditInsert = jest.fn();
 
 let target: TargetRow | null = { user_id: "auth0|target" };
 let member: MemberRow = { role: "staff", permissions: {} };
+/** rows the integration_links lookup returns — non-empty means "Xero-linked" */
+let linkedRows: { id: string }[] = [];
 let actor = {
   userId: "auth0|owner",
   role: "owner" as Role | null,
@@ -61,6 +63,15 @@ jest.mock("@/lib/supabase-server", () => ({
       if (table === "permission_audit") {
         return { insert: (rows: unknown) => { auditInsert(rows); return Promise.resolve({ error: null }); } };
       }
+      if (table === "integration_links") {
+        // the wage-edit path asks whether this person is Xero-linked
+        const c: Record<string, unknown> = {};
+        const self = () => c;
+        c.select = self;
+        c.eq = self;
+        c.limit = () => Promise.resolve({ error: null, data: linkedRows });
+        return c;
+      }
       throw new Error(`unexpected table ${table}`);
     },
   },
@@ -82,6 +93,11 @@ jest.mock("@/lib/permissions-server", () => ({
 }));
 
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
+// the drift flag is forgotten when a linked wage changes — spied, not run
+const clearDrift = jest.fn(async () => {});
+jest.mock("@/lib/integrations/drift-sweep", () => ({
+  clearDrift: (...a: unknown[]) => clearDrift(...(a as [])),
+}));
 
 import { saveStaffSection } from "../staff";
 
@@ -89,6 +105,8 @@ beforeEach(() => {
   staffUpdate.mockClear();
   membershipUpdate.mockClear();
   auditInsert.mockClear();
+  clearDrift.mockClear();
+  linkedRows = [];
   target = { user_id: "auth0|target", first_name: "Jordan", last_name: "Mills" };
   member = { role: "staff", permissions: {} };
   actor = {
@@ -305,5 +323,30 @@ describe("permissions — capability toggles", () => {
     expect(res).toEqual({ ok: true });
     expect(membershipUpdate).not.toHaveBeenCalled();
     expect(auditInsert).not.toHaveBeenCalled();
+  });
+});
+
+describe("editing a Xero-linked wage forgets the drift flag", () => {
+  /* The stored count was computed against the old wage, and the rates it
+     compared aren't kept — so on a linked person's wage edit the flag is
+     forgotten, not corrected. An unlinked person's wage is nobody's drift. */
+  it("clears the flag when the person is linked", async () => {
+    linkedRows = [{ id: "link-1" }];
+    const res = await saveStaffSection("s1", "payroll", { hourly_wage: "83" });
+    expect(res.ok).toBe(true);
+    expect(clearDrift).toHaveBeenCalledWith("org-1");
+  });
+
+  it("leaves it alone when they aren't linked", async () => {
+    const res = await saveStaffSection("s1", "payroll", { hourly_wage: "83" });
+    expect(res.ok).toBe(true);
+    expect(clearDrift).not.toHaveBeenCalled();
+  });
+
+  it("a payroll edit that doesn't touch the wage doesn't ask", async () => {
+    linkedRows = [{ id: "link-1" }];
+    const res = await saveStaffSection("s1", "payroll", { contracted_hours: "38" });
+    expect(res.ok).toBe(true);
+    expect(clearDrift).not.toHaveBeenCalled();
   });
 });

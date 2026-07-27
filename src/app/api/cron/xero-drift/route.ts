@@ -47,6 +47,7 @@ export async function GET(request: Request) {
   let unchanged = 0;
   let checked = 0;
   let drifting = 0;
+  let partial = 0;
   let skipped = 0;
   let calls = 0;
 
@@ -63,6 +64,10 @@ export async function GET(request: Request) {
         checked += 1;
         drifting += result.count > 0 ? 1 : 0;
         calls += result.calls;
+      } else if (result.kind === "partial") {
+        // some reads failed — the stored flag was left alone; retried next run
+        partial += 1;
+        calls += result.calls;
       } else {
         skipped += 1;
       }
@@ -78,6 +83,7 @@ export async function GET(request: Request) {
     unchanged,
     checked,
     withDrift: drifting,
+    partial,
     skipped,
     xeroCalls: calls,
     // Named so a capped run is visible rather than looking like a full one.

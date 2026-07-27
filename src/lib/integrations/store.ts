@@ -127,6 +127,13 @@ export async function setXeroTenant(orgId: string, tenantId: string): Promise<Sa
     .update({
       tenant_id: match.tenantId,
       tenant_name: match.tenantName,
+      /* The drift flag was computed against the OLD tenant's payroll, and the
+         timestamp doubles as the If-Modified-Since cursor — carried across, it
+         would show the old tenant's count over the new tenant's links AND let
+         the first sweep of the new tenant answer "unchanged" without ever
+         having looked at it. Both start over. */
+      drift_count: null,
+      drift_checked_at: null,
       updated_at: new Date().toISOString(),
     })
     .eq("org_id", orgId)

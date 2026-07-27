@@ -257,6 +257,7 @@ describe("XeroPayroll — wage drift", () => {
     const p = props(withLinked);
     p.onCheckPay.mockResolvedValue({
       ok: true,
+      unreadable: 0,
       rows: [{ staffProfileId: "s1", here: 58, drift: { kind: "differs", here: 58, xero: 61.5, delta: 3.5 } }],
     });
     render(<XeroPayroll {...p} />);
@@ -273,6 +274,7 @@ describe("XeroPayroll — wage drift", () => {
     const p = props(withLinked);
     p.onCheckPay.mockResolvedValue({
       ok: true,
+      unreadable: 0,
       rows: [{ staffProfileId: "s1", here: 58, drift: { kind: "match", rate: 58 } }],
     });
     render(<XeroPayroll {...p} />);
@@ -291,6 +293,7 @@ describe("XeroPayroll — wage drift", () => {
     const p = props(withLinked);
     p.onCheckPay.mockResolvedValue({
       ok: true,
+      unreadable: 0,
       rows: [
         {
           staffProfileId: "s1",
@@ -321,6 +324,7 @@ describe("XeroPayroll — wage drift", () => {
     const p = props(withLinked);
     p.onCheckPay.mockResolvedValue({
       ok: true,
+      unreadable: 0,
       rows: [
         { staffProfileId: "s1", here: 58, drift: { kind: "salary", annual: 95000, hoursPerWeek: null, here: 58 } },
       ],
@@ -338,6 +342,7 @@ describe("XeroPayroll — wage drift", () => {
     const p = props(withLinked);
     p.onCheckPay.mockResolvedValue({
       ok: true,
+      unreadable: 0,
       rows: [
         {
           staffProfileId: "s1",
@@ -363,5 +368,25 @@ describe("XeroPayroll — wage drift", () => {
     await user.click(await screen.findByText("Check pay rates"));
 
     expect(await screen.findByText("The Xero connection needs reconnecting.")).toBeInTheDocument();
+  });
+
+  /* "We couldn't look" and "we looked and there's nothing to compare" must
+     read differently — only the second may lower the drift count, and the
+     first needs the person told to try again. */
+  it("says a failed read failed, and that the flag wasn't trusted", async () => {
+    const user = userEvent.setup();
+    const p = props(withLinked);
+    p.onCheckPay.mockResolvedValue({
+      ok: true,
+      unreadable: 1,
+      rows: [{ staffProfileId: "s1", drift: { kind: "unreadable" } }],
+    });
+    render(<XeroPayroll {...p} />);
+
+    await user.click(await screen.findByText("Check pay rates"));
+
+    expect(await screen.findByText(/Couldn.t read their pay from Xero/)).toBeInTheDocument();
+    expect(screen.getByText(/1 couldn.t be read, so the drift flag wasn.t trusted/)).toBeInTheDocument();
+    expect(screen.queryByText("Use Xero's")).not.toBeInTheDocument();
   });
 });

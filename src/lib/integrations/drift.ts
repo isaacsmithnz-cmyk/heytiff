@@ -22,6 +22,7 @@
    the exact failure the flag exists to prevent. So the window decides WHETHER
    to look, and looking always means looking at everyone linked. */
 
+import { fmtAuDayMonth } from "@/lib/au-dates";
 import type { WageDrift } from "./wage";
 
 /** How long a sweep result is trusted before it is worth looking again, even
@@ -64,6 +65,13 @@ export function countDrifting(drifts: WageDrift[]): number {
   return drifts.filter((d) => d.kind === "differs").length;
 }
 
+/** How many comparisons never happened. A run with any of these must not
+    record a count: the failed rows would silently fall out of it, and a
+    deflated count reads as "all good". */
+export function countUnreadable(drifts: WageDrift[]): number {
+  return drifts.filter((d) => d.kind === "unreadable").length;
+}
+
 export type DriftFlag = {
   /** Null when this workspace has never been swept. */
   count: number | null;
@@ -73,10 +81,15 @@ export type DriftFlag = {
 /** The one line the Time & Pay screen shows, or null for silence.
 
     Silence is the common case and is deliberate: a workspace whose wages agree
-    should see nothing at all, so that seeing something means something. */
+    should see nothing at all, so that seeing something means something. The
+    line carries WHEN we last looked — a count with no age reads as live truth,
+    and this one can be a week old. */
 export function driftNote(flag: DriftFlag): string | null {
   if (flag.count === null || flag.count <= 0) return null;
-  return flag.count === 1
-    ? "One person's pay rate differs from Xero."
-    : `${flag.count} people's pay rates differ from Xero.`;
+  const base =
+    flag.count === 1
+      ? "One person's pay rate differs from Xero"
+      : `${flag.count} people's pay rates differ from Xero`;
+  const looked = flag.checkedAt ? ` (last looked ${fmtAuDayMonth(flag.checkedAt)})` : "";
+  return `${base}${looked}.`;
 }

@@ -23,6 +23,13 @@ import { sweepableOrgs, sweepOrg } from "@/lib/integrations/drift-sweep";
    or spend an afternoon of somebody's rate limit; the oldest-checked
    workspaces go first, so a capped run still makes progress. */
 
+/* SCHEDULE: Monday 06:00 UTC — Monday afternoon in AU, before the week's
+   timesheets matter. It lives in vercel.json, which Vercel validates against a
+   strict schema that rejects unknown keys (including the "//" comment idiom),
+   so the reasoning lives here instead. Weekly, not nightly: a wage change is a
+   rare event and this flag is advisory, so six extra "nothing happened" calls a
+   week would be quota spent to learn nothing. */
+
 /** Workspaces per run. Comfortably above the Xero starter tier's 5-connection
     ceiling, and low enough that one invocation stays well inside a serverless
     timeout even when several orgs need a full recompute. */

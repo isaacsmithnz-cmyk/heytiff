@@ -420,6 +420,35 @@ export const NODES: MapNode[] = [
       "Weekend rule per holiday, gazetted one-offs never extrapolated. Loaders call ensure-on-read, which tops each org's calendar up ~24 months ahead; removals are suppressed tombstones, never deletes.",
     paths: ["src/lib/timepay/holiday-rules.ts", "src/lib/timepay/holiday-sync.ts"],
   },
+  {
+    id: "eng-xero-read",
+    name: "Xero read layer",
+    kind: "engine",
+    group: "Shared engines",
+    blurb: "Every read from a connected Xero organisation, shaped at the boundary.",
+    detail:
+      "One fresh SDK client per call (a XeroClient carries its token on the instance). Nothing upstream is forwarded verbatim — failures collapse to our own sentence, and a 401 marks the grant needs_reauth. Responses are shaped before they leave, so a generated Employee model carrying a date of birth and bank accounts never reaches a screen. Reads are user-initiated apart from the weekly drift sweep.",
+    paths: [
+      "src/lib/integrations/xero-read.ts",
+      "src/lib/integrations/xero-shape.ts",
+      "src/lib/integrations/xero-pl.ts",
+    ],
+  },
+  {
+    id: "eng-wage-drift",
+    name: "Wage drift sweep",
+    kind: "engine",
+    group: "Shared engines",
+    blurb: "Weekly cron that notices a pay rate changing in Xero — because Xero won't tell us.",
+    detail:
+      "Xero publishes no payroll webhook, so nothing announces a wage change. The sweep asks If-Modified-Since and stops when nothing moved, so a quiet week costs ONE call per organisation; a change triggers a full recompute of everyone linked, because a drift nobody adopted wouldn't reappear in a later window. Stores a COUNT and a timestamp, never the rates — those stay behind the financials-gated live read. Runs as nobody behind CRON_SECRET, which fails closed when unset. Also resolves what Xero pays: a rate on the template, a rate inherited from the org, or a salary ÷ 52 ÷ weekly hours.",
+    paths: [
+      "src/lib/integrations/drift.ts",
+      "src/lib/integrations/drift-sweep.ts",
+      "src/lib/integrations/wage.ts",
+      "src/app/api/cron/xero-drift/route.ts",
+    ],
+  },
 
   /* — data & services — */
   {
@@ -595,12 +624,23 @@ export const EDGES: MapEdge[] = [
   { from: "org", to: "db-accounts", label: "trading profile, logo ref + credential rows" },
   { from: "org", to: "gmaps", label: "address autocomplete (server-key proxy)" },
   { from: "integrations", to: "db-integrations", label: "stores the sealed OAuth grant" },
-  { from: "integrations", to: "xero", label: "consent, code exchange, token refresh, payroll reads" },
-  { from: "timepay", to: "db-integrations", label: "staff↔Xero employee links", status: "planned" },
+  { from: "integrations", to: "xero", label: "consent, code exchange, token refresh, revoke" },
+  { from: "integrations", to: "eng-xero-read", label: "proves the grant reads — employee count" },
+  /* Time & Pay owns the staff↔Xero matching screen: it writes the links and
+     reads through them. Live since the linking PR. */
+  { from: "timepay", to: "db-integrations", label: "staff↔Xero employee links, tenant-scoped" },
   /* The three reasons the grant exists. Dashed until each one actually reads
      through it — flip to live as the syncs land. */
-  { from: "timepay", to: "xero", label: "payroll employees, calendars & timesheets", status: "planned" },
-  { from: "rate", to: "xero", label: "profit & loss totals behind business costs", status: "planned" },
+  /* Both live now — the labels name what is ACTUALLY read, not what the
+     scopes would allow. Xero timesheets are granted but nothing reads them
+     yet, so they are deliberately not claimed here. */
+  { from: "timepay", to: "eng-xero-read", label: "payroll employees, pay calendars & rates" },
+  { from: "timepay", to: "eng-wage-drift", label: "the weekly drift count, and the live compare" },
+  { from: "rate", to: "eng-xero-read", label: "profit & loss → business costs, on demand" },
+  { from: "eng-xero-read", to: "xero", label: "every read; shaped, and never forwarded verbatim" },
+  { from: "eng-wage-drift", to: "eng-xero-read", label: "If-Modified-Since gate, then per-employee rates" },
+  { from: "eng-wage-drift", to: "db-integrations", label: "stores the count + the polling cursor" },
+  { from: "eng-wage-drift", to: "db-staff", label: "compares against hourly_wage (financials only)" },
   { from: "expenses", to: "db-timepay", label: "claims, decisions & reimbursements" },
   { from: "expenses", to: "db-docs", label: "receipts in the documents bucket, signed per render" },
   { from: "expenses", to: "db-staff", label: "who claimed it — names only, never wages" },

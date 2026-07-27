@@ -41,24 +41,38 @@ export default async function TimePayPage({
      settings gear — so the section fetches it for itself when it is opened.
      This screen only has to know whether to offer the row at all. */
   const canHolidays = hasMinRole(role, "admin");
-  const [data, session] = await Promise.all([loadTimepay({ pay }, period), auth0.getSession()]);
+
+  /* All three of these are org-scoped and independent of each other, so they
+     go out together. They used to run one after the next — the timesheets,
+     THEN the Xero grant, THEN the expense claims — three waits stacked end to
+     end for three answers that never needed to be in any order. See DEPLOY.md
+     on the region pin for why a stacked wait was so expensive here.
+
+     `xeroConnected`: only whether a grant EXISTS crosses to the client. The
+     connection itself is owner business; this screen needs to know one thing,
+     whether the matching section has anything to show. Both it and the claims
+     are asked only behind `financials` — the tile that shows the claims is
+     money, and an hours-only view of this screen carries no dollar figures at
+     all, so there is nothing to compute. */
+  const orgId = (await auth0.getSession())?.orgId as string | undefined;
+  const askPay = pay && orgId;
+  const [data, connection, claims] = await Promise.all([
+    loadTimepay({ pay }, period),
+    askPay ? getConnectionView(orgId, "xero") : Promise.resolve(null),
+    askPay ? teamClaims(orgId) : Promise.resolve([]),
+  ]);
   if (!data) redirect("/dashboard");
 
-  /* Only whether a grant EXISTS crosses to the client. The connection itself is
-     owner business — this screen needs to know one thing: whether the matching
-     section has anything to show. Asked only when the viewer holds `financials`,
-     since that is the only case where the section renders at all. */
-  const orgId = session?.orgId as string | undefined;
-  const connection = pay && orgId ? await getConnectionView(orgId, "xero") : null;
   const xeroConnected = connection?.status === "connected";
   /* What the last sweep found — a COUNT, never the rates. The figures behind
-     it still need the gated Check pay rates read. */
-  const wageDrift = xeroConnected ? driftNote({ count: connection?.driftCount ?? null, checkedAt: connection?.driftCheckedAt ?? null }) : null;
-
-  /* Only asked for behind `financials`, because the tile that shows it is
-     money — an hours-only view of this screen carries no dollar figures at
-     all, so there is nothing to compute. */
-  const claims = pay && orgId ? await teamClaims(orgId) : [];
+     it still need the gated Check pay rates read. Derived from the connection
+     the block above already fetched, so it costs nothing. */
+  const wageDrift = xeroConnected
+    ? driftNote({
+        count: connection?.driftCount ?? null,
+        checkedAt: connection?.driftCheckedAt ?? null,
+      })
+    : null;
   const expenses = { owed: owedTotal(claims), pending: pendingCount(claims) };
 
   return (

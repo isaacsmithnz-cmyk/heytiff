@@ -130,3 +130,43 @@ the `APP_BASE_URL` env var (step 3) to match, then redeploy.
 - **Preview deployments** (per-branch URLs) won't pass Auth0 login unless you also add
   their URLs to Auth0. Production is what matters for now.
 - Supabase needs no change — it's already cloud-hosted and the keys are environment-based.
+
+---
+
+## Why `vercel.json` pins the region to `sin1`
+
+Every screen in this app is server-rendered per request and reads Supabase
+several times before it can paint. **What a page waits for is the depth of its
+await chain × the distance to the database** — so the functions are pinned to
+the same city as the database.
+
+Before pinning, the response header read `x-vercel-id: syd1::iad1::…`. That is
+two different regions: the **edge** that took the request was Sydney, but the
+**function that ran the page was `iad1` — Washington DC.** Vercel's default
+function region is US East, and nothing had ever overridden it. So an
+Australian user's request crossed the Pacific to Virginia, and every Supabase
+query it then made crossed *back* to Singapore and returned.
+
+| | Before | After |
+|---|---|---|
+| Supabase | `ap-southeast-1` (Singapore) | unchanged |
+| Vercel function | `iad1` (Washington DC) | **`sin1` (Singapore)** |
+| User → function | ~200ms | ~90ms |
+| Function → each query | ~230ms | ~2ms |
+
+**Both sides improve** — this is not the usual latency trade-off, because the
+old region was far from the users *and* far from the data. A page whose await
+chain is four deep was spending roughly a second on distance alone.
+
+Static assets are unaffected either way: they come off Vercel's global edge
+CDN, not the function region.
+
+**If the business ever moves off Singapore Supabase, change this too.** Pinning
+compute to a region the database is not in is worse than not pinning at all —
+that is exactly the state this replaced. The genuinely best end state is both
+in Sydney (`ap-southeast-2` + `syd1`), which needs a Supabase project
+migration: not attempted, and worth far less than this change was.
+
+**To check it is still in effect:** any dynamic route's response header should
+read `x-vercel-id: <edge>::sin1::…`. If the middle segment is missing or says
+something else, the pin is not applying.

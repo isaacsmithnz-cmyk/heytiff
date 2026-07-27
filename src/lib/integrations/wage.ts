@@ -15,16 +15,18 @@
      USEEARNINGSRATE    the employee inherits the rate from the ORGANISATION's
                         earnings rate — so the number isn't on the employee at
                         all and has to be looked up.
-     ANNUALSALARY       they're on a salary. THIS IS NOT AN HOURLY RATE, and it
-                        is deliberately never converted into one — see below.
+     ANNUALSALARY       they're on a salary — converted to hourly the one way
+                        payroll actually does it: ÷ 52, ÷ hours per week.
 
-   WHY A SALARY IS REPORTED AND NEVER CONVERTED. Turning $95,000/yr into an
-   hourly figure needs an hours-per-year assumption, and the Rate Calculator
-   already has a considered one that is NOT 52×38: it uses `working_weeks`,
-   defaulted to 46, precisely because a paid year is not a worked year. Any
-   conversion done here would either contradict that model or silently
-   duplicate it. So the salary is shown as a salary, no adopt button is
-   offered, and a human decides what hourly figure it means for their business. */
+   THE SALARY DIVISOR IS 52, NOT working_weeks. These are different domains and
+   conflating them was a real bug in this module's first version. The Rate
+   Calculator's `working_weeks` (46) is a CHARGE-OUT concept — how many weeks
+   of the year are billable when spreading costs into a price. It is a pricing
+   tool, not a payroll engine. Payroll pays every week of the year: Xero takes
+   the annual salary and divides by 52 to cut each pay, so the true hourly PAY
+   rate behind a $95,000 salary at 38h/week is 95000 ÷ 52 ÷ 38 — the same
+   number Xero itself is paying from. When the template doesn't say the weekly
+   hours, there is no denominator and the salary is reported unconverted. */
 
 /** An earnings rate as defined on the ORGANISATION (Xero's pay items). */
 export type EarningsRate = {
@@ -48,15 +50,33 @@ export type OrdinaryLine = {
 
 /** What Xero pays them, resolved as far as it honestly can be. */
 export type XeroPay =
-  /** A comparable hourly rate. */
-  | { kind: "hourly"; rate: number; source: "template" | "earnings-rate" }
-  /** A salary. Real, but not an hourly rate — reported, never converted. */
-  | { kind: "salary"; annual: number; hoursPerWeek: number | null }
+  /** A comparable hourly rate. A salary-derived one carries its provenance so
+      the screen can show the working (annual ÷ 52 ÷ hours). */
+  | {
+      kind: "hourly";
+      rate: number;
+      source: "template" | "earnings-rate" | "salary";
+      annual?: number;
+      hoursPerWeek?: number;
+    }
+  /** A salary whose weekly hours Xero doesn't state — no denominator, so no
+      honest hourly figure. Reported unconverted. */
+  | { kind: "salary"; annual: number; hoursPerWeek: null }
   /** Xero has a pay template but nothing hourly in it (a multiplier or a
       fixed amount), or the rate it points at doesn't exist. */
   | { kind: "not-hourly"; note: string }
   /** No pay template, or no ordinary line on it. */
   | { kind: "unknown" };
+
+/** Weeks in a pay year. Payroll's constant, not the Rate Calculator's
+    `working_weeks` — a salary pays every week, worked or not. */
+export const PAY_WEEKS = 52;
+
+/** annual ÷ 52 ÷ hours-per-week, to the cent — the same arithmetic Xero uses
+    to cut each pay from the salary. */
+export function salaryToHourly(annual: number, hoursPerWeek: number): number {
+  return Math.round((annual / PAY_WEEKS / hoursPerWeek) * 100) / 100;
+}
 
 const num = (v: unknown): number | null => {
   if (typeof v === "number") return Number.isFinite(v) && v > 0 ? v : null;
@@ -82,8 +102,19 @@ export function resolveXeroPay(
   if (calc === "ANNUALSALARY") {
     const annual = num(line.annualSalary);
     if (!annual) return { kind: "unknown" };
-    // hoursPerWeek is carried for DISPLAY only — it is never used to divide.
-    return { kind: "salary", annual, hoursPerWeek: num(line.numberOfUnitsPerWeek) };
+    const hoursPerWeek = num(line.numberOfUnitsPerWeek);
+    // With the weekly hours known, the hourly rate is fully determined — it is
+    // what Xero itself pays from. Without them there's no denominator.
+    if (hoursPerWeek) {
+      return {
+        kind: "hourly",
+        rate: salaryToHourly(annual, hoursPerWeek),
+        source: "salary",
+        annual,
+        hoursPerWeek,
+      };
+    }
+    return { kind: "salary", annual, hoursPerWeek: null };
   }
 
   if (calc === "ENTEREARNINGSRATE") {
@@ -120,13 +151,18 @@ export function resolveXeroPay(
 
 /* ── drift ── */
 
+/** How the screen shows a salary-derived rate's working. */
+export type SalaryBasis = { annual: number; hoursPerWeek: number };
+
 export type WageDrift =
   /** Both sides agree, within rounding. */
-  | { kind: "match"; rate: number }
-  /** Both are hourly and they differ — the case with an adopt button. */
-  | { kind: "differs"; here: number | null; xero: number; delta: number }
-  /** Xero has a salary. Real information, no adopt. */
-  | { kind: "salary"; annual: number; hoursPerWeek: number | null; here: number | null }
+  | { kind: "match"; rate: number; basis?: SalaryBasis }
+  /** Both are hourly and they differ — the case with an adopt button. A
+      salary-derived rate carries its basis so the row can show the ÷52 working
+      instead of presenting a computed number as if Xero typed it. */
+  | { kind: "differs"; here: number | null; xero: number; delta: number; basis?: SalaryBasis }
+  /** A salary with no stated weekly hours — no denominator, nothing to adopt. */
+  | { kind: "salary"; annual: number; hoursPerWeek: null; here: number | null }
   /** Nothing comparable to say. */
   | { kind: "none"; note: string | null };
 
@@ -137,17 +173,21 @@ const TOLERANCE = 0.005;
 export function wageDrift(here: number | null, xero: XeroPay): WageDrift {
   switch (xero.kind) {
     case "hourly": {
+      const basis =
+        xero.source === "salary" && xero.annual && xero.hoursPerWeek
+          ? { annual: xero.annual, hoursPerWeek: xero.hoursPerWeek }
+          : undefined;
       if (here === null || !(here > 0)) {
         // No wage recorded here at all — Xero's is strictly new information,
         // and it is the case where adopting is most obviously right.
-        return { kind: "differs", here: null, xero: xero.rate, delta: xero.rate };
+        return { kind: "differs", here: null, xero: xero.rate, delta: xero.rate, basis };
       }
       const delta = Math.round((xero.rate - here) * 100) / 100;
-      if (Math.abs(xero.rate - here) < TOLERANCE) return { kind: "match", rate: here };
-      return { kind: "differs", here, xero: xero.rate, delta };
+      if (Math.abs(xero.rate - here) < TOLERANCE) return { kind: "match", rate: here, basis };
+      return { kind: "differs", here, xero: xero.rate, delta, basis };
     }
     case "salary":
-      return { kind: "salary", annual: xero.annual, hoursPerWeek: xero.hoursPerWeek, here };
+      return { kind: "salary", annual: xero.annual, hoursPerWeek: null, here };
     case "not-hourly":
       return { kind: "none", note: xero.note };
     case "unknown":

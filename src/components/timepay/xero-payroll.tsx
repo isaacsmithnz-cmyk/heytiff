@@ -332,16 +332,22 @@ function WageRow({
   }
 
   if (drift.kind === "differs") {
+    /* A salary-derived rate shows its working — annual ÷ 52 ÷ hours, which is
+       payroll's own arithmetic (a salary pays every week of the year), so the
+       number reads as derived rather than as something Xero typed. */
+    const basis = drift.basis
+      ? ` (their ${money(drift.basis.annual)}/yr over 52 weeks at ${drift.basis.hoursPerWeek}h)`
+      : "";
     return (
       <div className="xp-drift">
         <span>
           {drift.here === null ? (
             <>
-              No wage recorded here; Xero pays them <b>{money(drift.xero)}</b>/hr.
+              No wage recorded here; Xero pays them <b>{money(drift.xero)}</b>/hr{basis}.
             </>
           ) : (
             <>
-              Xero pays them <b>{money(drift.xero)}</b>/hr, here they&apos;re{" "}
+              Xero pays them <b>{money(drift.xero)}</b>/hr{basis}, here they&apos;re{" "}
               <b>{money(drift.here)}</b>/hr{" "}
               <i>({drift.delta > 0 ? "+" : ""}
               {money(drift.delta)})</i>.
@@ -355,18 +361,15 @@ function WageRow({
     );
   }
 
-  /* A salary is real information and is shown — but it is NOT an hourly rate,
-     and turning it into one needs an hours-per-year assumption the Rate
-     Calculator already makes differently (working_weeks, 46 not 52). So there
-     is no button: a person decides what it means for their business. */
+  /* Only the salary Xero states NO weekly hours for lands here — without them
+     there's no denominator, so there is no honest hourly figure to offer. */
   if (drift.kind === "salary") {
     return (
       <div className="xp-drift">
         <span>
-          Xero has them on a salary of <b>{money(drift.annual)}</b>/yr
-          {drift.hoursPerWeek ? ` (${drift.hoursPerWeek}h/week)` : ""}
-          {drift.here !== null ? <>, here they&apos;re <b>{money(drift.here)}</b>/hr</> : ""}. An
-          hourly rate for it is yours to decide.
+          Xero has them on a salary of <b>{money(drift.annual)}</b>/yr but doesn&apos;t say their
+          weekly hours{drift.here !== null ? <>; here they&apos;re <b>{money(drift.here)}</b>/hr</> : ""}.
+          Set the hours in Xero and re-check to compare.
         </span>
       </div>
     );

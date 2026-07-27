@@ -283,24 +283,53 @@ describe("XeroPayroll — wage drift", () => {
     expect(screen.queryByText("Use Xero's")).not.toBeInTheDocument();
   });
 
-  /* THE ONE THAT MUST NOT GET A BUTTON. Converting a salary to an hourly rate
-     needs an hours-per-year assumption the Rate Calculator already makes
-     differently — so this is reported and left to a person. */
-  it("reports a salary and offers no way to adopt it", async () => {
+  /* A salary WITH stated hours converts the way payroll does — ÷52, ÷hours —
+     and the row shows that working so the number reads as derived. (The Rate
+     Calculator's 46 working weeks is a pricing concept; payroll pays 52.) */
+  it("shows a salary-derived rate with its ÷52 working, and adopts", async () => {
     const user = userEvent.setup();
     const p = props(withLinked);
     p.onCheckPay.mockResolvedValue({
       ok: true,
       rows: [
-        { staffProfileId: "s1", here: 58, drift: { kind: "salary", annual: 95000, hoursPerWeek: 38, here: 58 } },
+        {
+          staffProfileId: "s1",
+          here: 58,
+          drift: {
+            kind: "differs",
+            here: 58,
+            xero: 48.08,
+            delta: -9.92,
+            basis: { annual: 95000, hoursPerWeek: 38 },
+          },
+        },
       ],
     });
     render(<XeroPayroll {...p} />);
 
     await user.click(await screen.findByText("Check pay rates"));
 
-    expect(await screen.findByText(/salary of/)).toBeInTheDocument();
-    expect(screen.getByText(/yours to decide/)).toBeInTheDocument();
+    expect(await screen.findByText(/over 52 weeks at 38h/)).toBeInTheDocument();
+    await user.click(screen.getByText("Use Xero's"));
+    await waitFor(() => expect(p.onAdoptWage).toHaveBeenCalledWith("s1"));
+  });
+
+  /* Only a salary with NO stated weekly hours stays unconverted — there is no
+     denominator, so no honest hourly figure to offer. */
+  it("reports a no-hours salary and offers no way to adopt it", async () => {
+    const user = userEvent.setup();
+    const p = props(withLinked);
+    p.onCheckPay.mockResolvedValue({
+      ok: true,
+      rows: [
+        { staffProfileId: "s1", here: 58, drift: { kind: "salary", annual: 95000, hoursPerWeek: null, here: 58 } },
+      ],
+    });
+    render(<XeroPayroll {...p} />);
+
+    await user.click(await screen.findByText("Check pay rates"));
+
+    expect(await screen.findByText(/doesn't say their weekly hours/)).toBeInTheDocument();
     expect(screen.queryByText("Use Xero's")).not.toBeInTheDocument();
   });
 

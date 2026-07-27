@@ -7,6 +7,7 @@
 
 import { buildSectionPatch, type SectionConfig } from "../section-patch";
 import type { Capability } from "../permissions";
+import { AU_STATES } from "../org/settings";
 
 /* Each section names the capability that unlocks it. `permissions` is absent
    here because it doesn't write staff_profiles columns at all — it writes
@@ -27,6 +28,9 @@ export const ADMIN_SECTIONS = {
       "employment_type",
       "job_title",
       "status",
+      // which state's public holidays apply to their timesheet; empty = the
+      // organisation's own state (the presumption resolves staff → org)
+      "state",
     ],
   },
   emergency: {
@@ -89,7 +93,9 @@ const ADMIN_PATCH_CONFIG: SectionConfig = {
     Object.entries(ADMIN_SECTIONS).map(([k, v]) => [k, v.columns])
   ),
   dateColumns: new Set(["birthday", "start_date", "visa_expiry", "vevo_checked_at"]),
-  enums: { status: ["Active", "Inactive"] },
+  enums: { status: ["Active", "Inactive"], state: AU_STATES },
+  // state is nullable: clearing it means "use the organisation's state"
+  nullableEnums: new Set(["state"]),
 };
 
 /** Columns stored as numbers — the form sends text. */

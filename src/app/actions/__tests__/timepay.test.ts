@@ -12,6 +12,9 @@ let sheetStatusByPeriod: Record<string, string | null> = {};
 let staffExists = true;
 let caps = new Set<string>(["approvals", "financials"]);
 let myStaffId: string | null = "me";
+/* Which state each public_holidays query filtered on — the materialise test
+   asserts the org fallback reached the calendar read. */
+const holidayStateAsks: unknown[] = [];
 
 const update = jest.fn();
 
@@ -31,6 +34,7 @@ const table = (name: string) => {
      WHICH period a status was asked for, not just that one was. */
   c.eq = (col: string, v: unknown) => {
     filters[col] = v;
+    if (name === "public_holidays" && col === "state") holidayStateAsks.push(v);
     return proxy;
   };
   c.maybeSingle = async () => {
@@ -40,6 +44,8 @@ const table = (name: string) => {
       return { data: status ? { status } : null };
     }
     if (name === "pay_settings") return { data: null }; // DEFAULT_SETTINGS: Weekly, weeks start Monday
+    // the org's home state — what a stateless staff card falls back to
+    if (name === "organizations") return { data: { state: "NSW" } };
     return { data: staffExists ? { id: "target" } : null };
   };
   c.upsert = (row: unknown) => {
@@ -92,6 +98,7 @@ beforeEach(() => {
   staffExists = true;
   caps = new Set(["approvals", "financials"]);
   myStaffId = "me";
+  holidayStateAsks.length = 0;
 });
 
 describe("entering your own hours", () => {
@@ -178,6 +185,14 @@ describe("submitting writes the week down", () => {
       hours: 8,
     });
     expect(rows.map((r) => r.work_date)).not.toContain("2026-07-04"); // Saturday
+  });
+
+  it("resolves the holiday calendar through the org when the card has no state", async () => {
+    /* The staff row this mock returns carries no `state`. Materialise must
+       fall back to the organisation's state — pretending there are no
+       holidays would write a public holiday down as a worked day. */
+    await submitWeek(MONDAY);
+    expect(holidayStateAsks).toContain("NSW");
   });
 
   it("writes the entries first, so a sheet is never sent ahead of its days", async () => {

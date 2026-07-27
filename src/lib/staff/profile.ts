@@ -23,6 +23,10 @@ export type StaffProfile = {
   employment_type: string | null;
   job_title: string | null;
   status: "Active" | "Inactive";
+  /* Which state's public-holiday calendar applies to their timesheet. Null
+     means the organisation's own state — the common case. Every holiday
+     consumer resolves through the same staff→org fallback (stateFor). */
+  state: string | null;
   photo_url: string | null;
 
   emergency_name: string | null;

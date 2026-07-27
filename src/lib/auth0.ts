@@ -28,6 +28,15 @@ export async function ensureStaffCard(
       (session.user.name as string | undefined) ??
       session.user.email?.split("@")[0] ??
       null;
+    /* Seed the holiday state from the org so every calendar consumer — the
+       presumption, the approver's screen, submit-time materialisation —
+       resolves the same public holidays from this person's first day. An
+       admin can point interstate crew at their own state on the staff card. */
+    const { data: org } = await supabaseAdmin
+      .from("organizations")
+      .select("state")
+      .eq("id", orgId)
+      .maybeSingle();
     await supabaseAdmin.from("staff_profiles").insert({
       org_id: orgId,
       user_id: userId,
@@ -36,6 +45,7 @@ export async function ensureStaffCard(
       ...splitName(seedName),
       full_name: seedName,
       photo_url: (session.user.picture as string | undefined) ?? null,
+      state: (org?.state as string | undefined) ?? null,
     });
   } catch (e) {
     console.error("Failed to ensure staff card:", e);

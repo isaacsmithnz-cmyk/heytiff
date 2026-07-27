@@ -19,6 +19,7 @@ export const blankProfile: StaffProfile = {
   employment_type: null,
   job_title: null,
   status: "Active",
+  state: null,
   photo_url: null,
   emergency_name: null,
   emergency_phone: null,

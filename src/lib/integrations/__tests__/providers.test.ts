@@ -20,9 +20,9 @@ describe("PROVIDERS", () => {
     expect(providerById("nope")).toBeUndefined();
   });
 
-  it("names the three things Xero is here to power", () => {
+  it("promises only what is actually wired — Expenses joins when its read exists", () => {
     const areas = providerById("xero")!.uses.map((u) => u.area);
-    expect(areas).toEqual(["Time & Pay", "Expenses", "Rate Calculator"]);
+    expect(areas).toEqual(["Time & Pay", "Rate Calculator"]);
   });
 });
 
@@ -65,17 +65,45 @@ describe("XERO_SCOPES", () => {
     for (const d of deprecated) expect(XERO_SCOPE_LIST).not.toContain(d);
   });
 
-  it("names the granular scopes that replaced them", () => {
-    // bills + spend money, where accounting.transactions.read used to be
-    expect(XERO_SCOPE_LIST).toContain("accounting.invoices.read");
-    expect(XERO_SCOPE_LIST).toContain("accounting.banktransactions.read");
-    // just the P&L, where accounting.reports.read used to be every report
+  it("uses the granular P&L scope, not every report", () => {
     expect(XERO_SCOPE_LIST).toContain("accounting.reports.profitandloss.read");
   });
 
-  it("covers all three areas", () => {
+  /* The audit found six scopes consented for features that didn't exist: the
+     name behind profile/email was computed and discarded, and nothing read
+     timesheets, bills, bank lines or contacts. A scope joins the list WITH
+     its feature — adding one later costs a single "Reconnect to finish". Pin
+     the trimmed six OUT so they can't creep back ahead of their reads. */
+  it("asks for no scope whose read hasn't been built", () => {
+    const unbuilt = [
+      "profile",
+      "email",
+      "payroll.timesheets.read",
+      "accounting.invoices.read",
+      "accounting.banktransactions.read",
+      "accounting.contacts.read",
+    ];
+    for (const u of unbuilt) expect(XERO_SCOPE_LIST).not.toContain(u);
+  });
+
+  it("covers exactly the two live areas", () => {
     const areas = new Set(XERO_SCOPES.map((s) => s.area).filter(Boolean));
-    expect(areas).toEqual(new Set(["Time & Pay", "Expenses", "Rate Calculator"]));
+    expect(areas).toEqual(new Set(["Time & Pay", "Rate Calculator"]));
+  });
+
+  /* An existing grant carries MORE than the trimmed list. missingScopes must
+     read that as complete — a trim must never trigger a reconnect prompt. */
+  it("a pre-trim grant with the old twelve still reads as complete", () => {
+    const oldTwelve = [
+      ...XERO_SCOPE_LIST,
+      "profile",
+      "email",
+      "payroll.timesheets.read",
+      "accounting.invoices.read",
+      "accounting.banktransactions.read",
+      "accounting.contacts.read",
+    ].join(" ");
+    expect(missingScopes(oldTwelve)).toEqual([]);
   });
 });
 

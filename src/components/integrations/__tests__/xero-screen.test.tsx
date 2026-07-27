@@ -63,12 +63,13 @@ describe("XeroScreen — before connecting", () => {
     }
   });
 
-  it("names the three areas Xero will feed", () => {
+  it("names only the areas Xero actually feeds — Expenses joins with its read", () => {
     render(<XeroScreen connection={null} {...ready} />);
 
-    for (const area of ["Time & Pay", "Expenses", "Rate Calculator"]) {
+    for (const area of ["Time & Pay", "Rate Calculator"]) {
       expect(screen.getAllByText(area).length).toBeGreaterThan(0);
     }
+    expect(screen.queryByText("Expenses")).not.toBeInTheDocument();
   });
 });
 

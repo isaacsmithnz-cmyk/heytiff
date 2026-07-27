@@ -50,12 +50,7 @@ export const PROVIDERS: Provider[] = [
       {
         area: "Time & Pay",
         detail:
-          "Match staff here to their Xero payroll employees, read the pay calendar the business actually runs on, and see hours that already exist in Xero so nobody enters a week twice.",
-      },
-      {
-        area: "Expenses",
-        detail:
-          "Bills and spend-money lines, with the supplier on them, so a receipt scanned here can meet the transaction it belongs to.",
+          "Match staff here to their Xero payroll employees, read the pay calendar the business actually runs on, and notice when a pay rate changes in Xero.",
       },
       {
         area: "Rate Calculator",
@@ -100,7 +95,21 @@ export function providerById(id: string): Provider | undefined {
    check it before adding a scope rather than going from memory. Note that
    Receipts and ExpenseClaims lived under the deprecated accounting.transactions
    and appear under NO granular scope; if expenses ends up needing them, that
-   question has to be answered from the docs, not assumed. */
+   question has to be answered from the docs, not assumed.
+
+   ONLY WHAT IS READ. The audit found six scopes consented for nothing: the
+   name behind `profile`/`email` was computed and thrown away, and the
+   timesheet and expenses reads they promised were never built. A consent
+   screen that asks for reads no code performs is over-asking on trust — so a
+   scope joins this list WITH its feature, not ahead of it. Adding one later
+   costs a single "Reconnect to finish" (missingScopes notices, the screen
+   already offers it). The trimmed six, for when their features land:
+
+     payroll.timesheets.read          reading hours already in Xero
+     accounting.invoices.read         bills, for expense matching
+     accounting.banktransactions.read spend-money lines, same
+     accounting.contacts.read         supplier names, same
+     profile + email                  only if something shows the Xero user */
 
 export type XeroScope = {
   scope: string;
@@ -116,16 +125,6 @@ export const XERO_SCOPES: XeroScope[] = [
     why: "Identifies the Xero user who authorised the connection.",
   },
   {
-    scope: "profile",
-    area: null,
-    why: "Their name, so this screen can say who connected it.",
-  },
-  {
-    scope: "email",
-    area: null,
-    why: "Their email, for the same reason.",
-  },
-  {
     scope: "offline_access",
     area: null,
     why: "Keeps the connection alive in the background, so nobody has to sign in to Xero again every half hour.",
@@ -139,26 +138,6 @@ export const XERO_SCOPES: XeroScope[] = [
     scope: "payroll.settings.read",
     area: "Time & Pay",
     why: "Reads pay calendars and earnings rates — the pay period Xero actually runs on.",
-  },
-  {
-    scope: "payroll.timesheets.read",
-    area: "Time & Pay",
-    why: "Reads timesheets already in Xero, so approved hours aren't entered twice.",
-  },
-  {
-    scope: "accounting.invoices.read",
-    area: "Expenses",
-    why: "Reads bills, so a supplier invoice can meet the receipt scanned here.",
-  },
-  {
-    scope: "accounting.banktransactions.read",
-    area: "Expenses",
-    why: "Reads spend-money lines — the costs paid straight from the bank rather than billed.",
-  },
-  {
-    scope: "accounting.contacts.read",
-    area: "Expenses",
-    why: "Reads supplier names, so an expense line says who it was paid to.",
   },
   {
     scope: "accounting.reports.profitandloss.read",

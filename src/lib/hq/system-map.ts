@@ -564,7 +564,7 @@ export const NODES: MapNode[] = [
     group: "External services",
     blurb: "The business's accounting & payroll, over OAuth 2.0.",
     detail:
-      "Connected once per org by the owner. Read-only GRANULAR scopes (broad ones are refused outright for any Web app created since March 2026): payroll employees, settings and timesheets; invoices, bank transactions, contacts, the P&L report and accounting settings. Nothing here writes to Xero.",
+      "Connected once per org by the owner. Read-only GRANULAR scopes (broad ones are refused outright for any Web app created since March 2026), and only for reads that exist: payroll employees and settings, the P&L report and accounting settings. A scope joins the consent WITH its feature — the expenses and timesheet reads ask for theirs when they land. Nothing here writes to Xero.",
   },
   {
     id: "gmaps",
@@ -631,9 +631,8 @@ export const EDGES: MapEdge[] = [
   { from: "timepay", to: "db-integrations", label: "staff↔Xero employee links, tenant-scoped" },
   /* The three reasons the grant exists. Dashed until each one actually reads
      through it — flip to live as the syncs land. */
-  /* Both live now — the labels name what is ACTUALLY read, not what the
-     scopes would allow. Xero timesheets are granted but nothing reads them
-     yet, so they are deliberately not claimed here. */
+  /* Both live now — the labels name what is ACTUALLY read, and since the
+     scope trim the consent asks for nothing more than these reads. */
   { from: "timepay", to: "eng-xero-read", label: "payroll employees, pay calendars & rates" },
   { from: "timepay", to: "eng-wage-drift", label: "the weekly drift count, and the live compare" },
   { from: "rate", to: "eng-xero-read", label: "profit & loss → business costs, on demand" },

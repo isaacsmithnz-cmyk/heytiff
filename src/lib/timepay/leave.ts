@@ -149,8 +149,8 @@ export function suggestedHours(
 export function absenceMap(
   requests: LeaveRequest[],
   holidays: Map<string, string>,
-): Map<string, { t: "leave" | "sick"; h: number } | { t: "off" }> {
-  const out = new Map<string, { t: "leave" | "sick"; h: number } | { t: "off" }>();
+): Map<string, AbsenceDay> {
+  const out = new Map<string, AbsenceDay>();
   const holidaySet = new Set(holidays.keys());
 
   for (const r of requests) {
@@ -161,12 +161,22 @@ export function absenceMap(
       if (holidaySet.has(date)) continue;
       out.set(
         date,
-        r.kind === "unpaid" ? { t: "off" } : { t: r.kind === "personal" ? "sick" : "leave", h: perDay },
+        r.kind === "unpaid"
+          ? { t: "off", id: r.id }
+          : { t: r.kind === "personal" ? "sick" : "leave", h: perDay, id: r.id },
       );
     }
   }
   return out;
 }
+
+/** One day of an approved absence. `id` names the request it came from, so a
+    materialised row can carry provenance — the audit's finding was that a
+    leave day in `time_entries` and the request that paid for it had no link
+    at all, which made every later disagreement unfindable. */
+export type AbsenceDay =
+  | { t: "leave" | "sick"; h: number; id: string }
+  | { t: "off"; id: string };
 
 /** Every calendar day a request covers (inclusive) — for the team calendar. */
 export function leaveDates(r: { startDate: string; endDate: string }): string[] {

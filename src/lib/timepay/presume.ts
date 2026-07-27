@@ -8,7 +8,7 @@ import {
   type StaffWeek,
   type WeekCtx,
 } from "@/components/timepay/logic";
-import { absenceMap, type LeaveRequest } from "./leave";
+import { absenceMap, type AbsenceDay, type LeaveRequest } from "./leave";
 import { approvedInSpan, holidaysInSpan } from "./leave-query";
 import { shiftDefaultsFor } from "./query";
 import { dateOfDay, periodEnd, periodLength, type PeriodConfig } from "./period";
@@ -119,18 +119,22 @@ export function presumeFor(
   hours: NormalHours;
   workDays: number[];
   presume: boolean;
+  /** the absence map the presumption applied — date → covering request, so
+      materialise can stamp each leave row with the request that paid it */
+  absences: Map<string, AbsenceDay>;
 } {
   const holidays = p.holidaysByState.get(state) ?? new Map<string, string>();
   const hours = normalHours(settings, p.ownHours.get(staff.id));
   const { workDays, presume } = patternFor(staff, settings, p);
   const rostered: WeekCtx = { ...ctx, workDays };
+  const absences = absenceMap(p.leaveByStaff.get(staff.id) ?? [], holidays);
   const { days, sources } = presumeDays(staff.days, rostered, settings, {
     dates: p.dates,
     holidays,
-    absences: absenceMap(p.leaveByStaff.get(staff.id) ?? [], holidays),
+    absences,
     hours,
     through: p.through,
     presume,
   });
-  return { days, sources, hours, workDays, presume };
+  return { days, sources, hours, workDays, presume, absences };
 }

@@ -5,7 +5,10 @@ import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { can } from "@/lib/permissions-server";
 import { staffProfileIdFor } from "@/lib/fleet/query";
-import { balancesFor } from "@/lib/timepay/leave-query";
+import { todayInAu } from "@/lib/au-dates";
+import { balancesFor, overlappingRequests } from "@/lib/timepay/leave-query";
+import { getPaySettings } from "@/lib/timepay/query";
+import { dateOfDay, periodConfig, periodLength, periodStartFor } from "@/lib/timepay/period";
 import { isBalanceKind, shortfall, type BalanceKind, type LeaveKind } from "@/lib/timepay/leave";
 
 /* Leave mutations.
@@ -38,6 +41,38 @@ async function context(): Promise<Ctx | null> {
 function refresh() {
   revalidatePath("/dashboard/my-leave");
   revalidatePath("/dashboard/timepay");
+  // the timesheet derives leave days on read — a decision here changes it too
+  revalidatePath("/dashboard/my-timesheet");
+}
+
+/** Pay periods in the span whose sheet has already gone for review. A leave
+    decision that lands inside a submitted or approved week would change what
+    those frozen rows should have said — so the sheet has to come back first.
+    Returns the period starts that are locked; empty means nothing stands in
+    the way. */
+async function lockedSheets(
+  orgId: string,
+  staffProfileId: string,
+  startISO: string,
+  endISO: string,
+): Promise<string[]> {
+  const { settings } = await getPaySettings(orgId);
+  const cfg = periodConfig(settings);
+  const starts: string[] = [];
+  // walk period by period across the span (a request is capped at 366 days)
+  for (let s = periodStartFor(startISO, cfg); s <= endISO; s = dateOfDay(s, periodLength(s, cfg)))
+    starts.push(s);
+  if (!starts.length) return [];
+  const { data } = await supabaseAdmin
+    .from("timesheets")
+    .select("period_start, status")
+    .eq("org_id", orgId)
+    .eq("staff_profile_id", staffProfileId)
+    .in("period_start", starts)
+    .in("status", ["submitted", "approved"]);
+  return ((data ?? []) as Record<string, unknown>[]).map((r) =>
+    String(r.period_start).slice(0, 10),
+  );
 }
 
 const ONE_DAY = 86_400_000;
@@ -65,6 +100,16 @@ export async function requestLeave(input: {
   if (!validSpan(startDate, endDate)) return { ok: false, error: "Check the leave dates." };
   const hours = Math.round(Number(input.hours) * 100) / 100;
   if (!(hours > 0)) return { ok: false, error: "Leave has to be more than zero hours." };
+
+  /* One live booking per day. Overlapping requests would each draw the
+     balance while only one could land on the timesheet — and which one won
+     was down to row order. */
+  const clash = await overlappingRequests(ctx.orgId, ctx.staffId, startDate, endDate);
+  if (clash.length)
+    return {
+      ok: false,
+      error: "Those dates overlap leave you've already got in — cancel or change that request first.",
+    };
 
   // re-check the balance server-side — the form only offered what it could see
   const { balances, requests } = await balancesFor(ctx.orgId, ctx.staffId);
@@ -98,7 +143,7 @@ export async function cancelLeave(requestId: string): Promise<LeaveResult> {
 
   const { data } = await supabaseAdmin
     .from("leave_requests")
-    .select("status")
+    .select("status, start_date, end_date")
     .eq("org_id", ctx.orgId)
     .eq("id", requestId)
     .eq("staff_profile_id", ctx.staffId) // only ever your own
@@ -106,6 +151,25 @@ export async function cancelLeave(requestId: string): Promise<LeaveResult> {
   if (!data) return { ok: false, error: "That request isn't yours or no longer exists." };
   if (data.status !== "pending" && data.status !== "approved")
     return { ok: false, error: "That request can't be cancelled." };
+
+  /* An approved booking is a record other things already lean on. Once it has
+     started it stays as history — and once a sheet covering it has gone for
+     review, cancelling would credit the balance back while the frozen sheet
+     keeps paying the days. A pending request leans on nothing and can always
+     be withdrawn. */
+  if (data.status === "approved") {
+    const start = String(data.start_date).slice(0, 10);
+    const end = String(data.end_date).slice(0, 10);
+    if (start <= todayInAu())
+      return { ok: false, error: "Leave that has already started stays as history." };
+    const locked = await lockedSheets(ctx.orgId, ctx.staffId, start, end);
+    if (locked.length)
+      return {
+        ok: false,
+        error:
+          "That leave is already on a timesheet that's gone for review — ask your manager to send the sheet back, then cancel.",
+      };
+  }
 
   const { error } = await supabaseAdmin
     .from("leave_requests")
@@ -131,7 +195,7 @@ async function decide(
 
   const { data } = await supabaseAdmin
     .from("leave_requests")
-    .select("staff_profile_id, status")
+    .select("staff_profile_id, status, start_date, end_date")
     .eq("org_id", ctx.orgId)
     .eq("id", requestId)
     .maybeSingle();
@@ -140,6 +204,35 @@ async function decide(
     return { ok: false, error: "You can't review your own leave." };
   if (data.status !== "pending")
     return { ok: false, error: "That request has already been decided." };
+
+  /* Approving is what puts days on a timesheet, so approving is where the
+     collisions are refused. Declining changes nothing downstream and stays
+     always possible. */
+  if (status === "approved") {
+    const staffId = String(data.staff_profile_id);
+    const start = String(data.start_date).slice(0, 10);
+    const end = String(data.end_date).slice(0, 10);
+
+    // one approved booking per day — a second would double-draw the balance
+    // while only one of them could ever land on the sheet
+    const clash = (await overlappingRequests(ctx.orgId, staffId, start, end, requestId)).filter(
+      (r) => r.status === "approved",
+    );
+    if (clash.length)
+      return { ok: false, error: "That overlaps leave already approved for them." };
+
+    /* A submitted or approved sheet already froze those days — most likely as
+       presumed work. Approving on top would draw the balance while the sheet
+       keeps paying the days as worked: the audit's double-pay. The sheet
+       comes back first, so the leave lands on it honestly. */
+    const locked = await lockedSheets(ctx.orgId, staffId, start, end);
+    if (locked.length)
+      return {
+        ok: false,
+        error:
+          "Their timesheet covering those dates has already gone for review — send it back first, then approve.",
+      };
+  }
 
   const { error } = await supabaseAdmin
     .from("leave_requests")

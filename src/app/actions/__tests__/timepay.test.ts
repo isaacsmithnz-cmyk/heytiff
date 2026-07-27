@@ -15,6 +15,9 @@ let myStaffId: string | null = "me";
 /* Which state each public_holidays query filtered on — the materialise test
    asserts the org fallback reached the calendar read. */
 const holidayStateAsks: unknown[] = [];
+/* Approved leave rows (raw DB shape) the presumption will find — for the
+   provenance test: a materialised leave day must carry its request's id. */
+let leaveRows: Record<string, unknown>[] = [];
 
 const update = jest.fn();
 
@@ -62,9 +65,9 @@ const table = (name: string) => {
   };
   // a resolved chain reads as "no rows, no error" — the presumption then has
   // nothing stored to keep and fills the week itself, which is the case worth
-  // testing here
-  c.then = (res: (v: { error: null; data: never[] }) => unknown) =>
-    Promise.resolve({ error: null, data: [] }).then(res);
+  // testing here. Leave is the exception: tests may plant approved bookings.
+  c.then = (res: (v: { error: null; data: unknown[] }) => unknown) =>
+    Promise.resolve({ error: null, data: name === "leave_requests" ? leaveRows : [] }).then(res);
   proxy = new Proxy(c, {
     get: (t, k: string) => (k in t ? t[k] : self),
   });
@@ -99,6 +102,7 @@ beforeEach(() => {
   caps = new Set(["approvals", "financials"]);
   myStaffId = "me";
   holidayStateAsks.length = 0;
+  leaveRows = [];
 });
 
 describe("entering your own hours", () => {
@@ -217,6 +221,34 @@ describe("submitting writes the week down", () => {
       hours: 8,
     });
     expect(rows.map((r) => r.work_date)).not.toContain("2026-07-04"); // Saturday
+  });
+
+  it("stamps a materialised leave day with the booking that paid it", async () => {
+    leaveRows = [
+      {
+        id: "lr-1",
+        staff_profile_id: "me",
+        kind: "annual",
+        start_date: "2026-07-01",
+        end_date: "2026-07-01",
+        hours: 8,
+        note: null,
+        status: "approved",
+        review_note: null,
+        reviewed_by: null,
+      },
+    ];
+    await submitWeek(MONDAY);
+    const entryWrite = upsert.mock.calls.find(
+      ([t, rows]) => t === "time_entries" && Array.isArray(rows),
+    );
+    const rows = entryWrite![1] as Record<string, unknown>[];
+    const wednesday = rows.find((r) => r.work_date === "2026-07-01");
+    // the booked day went down as leave, carrying its provenance
+    expect(wednesday).toMatchObject({ kind: "leave", hours: 8, leave_request_id: "lr-1" });
+    // an ordinary presumed day carries none
+    const monday = rows.find((r) => r.work_date === "2026-06-29");
+    expect(monday).toMatchObject({ kind: "work", leave_request_id: null });
   });
 
   it("resolves the holiday calendar through the org when the card has no state", async () => {

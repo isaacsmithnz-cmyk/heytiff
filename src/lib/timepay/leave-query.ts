@@ -151,6 +151,35 @@ export async function unavailabilityInSpan(
   return ((data ?? []) as Record<string, unknown>[]).map((r) => toBlock(r, name));
 }
 
+/** One person's live (pending or approved) requests intersecting a span — the
+    overlap guard at request and approve time. Two live bookings covering the
+    same day would each draw the balance while only one could ever land on the
+    timesheet. `excludeId` lets an approval skip the request being decided. */
+export async function overlappingRequests(
+  orgId: string,
+  staffProfileId: string,
+  spanStart: string,
+  spanEnd: string,
+  excludeId?: string,
+): Promise<{ id: string; status: string; startDate: string; endDate: string }[]> {
+  let q = supabaseAdmin
+    .from("leave_requests")
+    .select("id, status, start_date, end_date")
+    .eq("org_id", orgId)
+    .eq("staff_profile_id", staffProfileId)
+    .in("status", ["pending", "approved"])
+    .lte("start_date", spanEnd)
+    .gte("end_date", spanStart);
+  if (excludeId) q = q.neq("id", excludeId);
+  const { data } = await q;
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    id: String(r.id),
+    status: String(r.status),
+    startDate: String(r.start_date).slice(0, 10),
+    endDate: String(r.end_date).slice(0, 10),
+  }));
+}
+
 /** Approved leave overlapping a date span, for the team calendar. */
 export async function approvedInSpan(
   orgId: string,

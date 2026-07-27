@@ -154,10 +154,14 @@ export async function loadTimepay(opts: { pay: boolean }, requested?: string) {
   const { settings, configured } = await getPaySettings(ctx.orgId);
   const cfg = periodConfig(settings);
   const { start, periods, index } = resolvePeriod(ctx.today, cfg, requested);
-  const [staff, sheets] = await Promise.all([
+  const [staff, sheets, orgState] = await Promise.all([
     listStaffWeeks(ctx.orgId, start, { pay: opts.pay, cfg }),
     sheetStates(ctx.orgId, start),
+    // the org's state backs anyone without their own — the SAME fallback My
+    // timesheet resolves through, or the two screens read different calendars
+    stateFor(ctx.orgId, ""),
   ]);
+  await ensureHolidays(ctx.orgId, orgState, ctx.today);
 
   /* The approver sees the same presumed week the person does. Without this the
      review screen would read every untouched-but-ordinary day as a missing
@@ -169,14 +173,14 @@ export async function loadTimepay(opts: { pay: boolean }, requested?: string) {
     start,
     cfg,
     ctx.today,
-    staff.map((s) => ({ id: s.id, state: s.state ?? null })),
+    staff.map((s) => ({ id: s.id, state: s.state ?? orgState })),
   );
 
   return {
     /* Each person is presumed AND read through their own roster: the approver
        sees a casual's blank Tuesday as blank, not as a missing day to chase. */
     staff: staff.map((s) => {
-      const r = presumeFor(s, s.state ?? null, settings, { week: weekDays, today }, p);
+      const r = presumeFor(s, s.state ?? orgState, settings, { week: weekDays, today }, p);
       return { ...s, days: r.days, workDays: r.workDays };
     }),
     settings,

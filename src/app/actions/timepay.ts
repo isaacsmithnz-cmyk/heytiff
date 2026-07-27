@@ -17,6 +17,7 @@ import {
   type PeriodConfig,
 } from "@/lib/timepay/period";
 import { getMyWeek, getPaySettings } from "@/lib/timepay/query";
+import { stateFor } from "@/lib/timepay/leave-query";
 import { presumeFor, presumptionCtx } from "@/lib/timepay/presume";
 import { validateBlock } from "@/lib/timepay/availability";
 import { parseClock, type DayEntry, type Settings } from "@/components/timepay/logic";
@@ -187,7 +188,10 @@ async function materialise(
   const me = await getMyWeek(orgId, staffId, periodStart, cfg);
   if (!me) return;
 
-  const state = me.state ?? null;
+  /* The same staff→org fallback every screen resolves through. Writing rows
+     with a null state here while the person's own screen showed the org's
+     holidays would freeze a public holiday as a worked day. */
+  const state = me.state ?? (await stateFor(orgId, ""));
   const p = await presumptionCtx(orgId, periodStart, cfg, today, [{ id: staffId, state }]);
   const ctxWeek = { week: periodDays(periodStart, cfg), today: todayIndex(periodStart, today, cfg) };
   const { days, sources } = presumeFor(me, state, settings, ctxWeek, p);

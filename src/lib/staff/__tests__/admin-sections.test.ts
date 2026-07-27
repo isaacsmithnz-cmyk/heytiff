@@ -141,3 +141,28 @@ describe("buildAdminPatch — cost split", () => {
     expect(patch).not.toHaveProperty("cost_split");
   });
 });
+
+describe("buildAdminPatch — holiday state", () => {
+  /* The state column guards which public-holiday calendar pays a person, so
+     only a real AU state may land — and clearing it must write NULL, which is
+     how "same as the organisation" is spelled. */
+  it("accepts a real state", () => {
+    const { patch } = buildAdminPatch("personal", [["state", "NSW"]]);
+    expect(patch.state).toBe("NSW");
+  });
+
+  it("drops junk rather than risking the CHECK constraint", () => {
+    const { patch } = buildAdminPatch("personal", [["state", "Narnia"]]);
+    expect(patch).not.toHaveProperty("state");
+  });
+
+  it("clears to null — back to the organisation's calendar", () => {
+    const { patch } = buildAdminPatch("personal", [["state", ""]]);
+    expect(patch.state).toBeNull();
+  });
+
+  it("is not reachable from the self-editable sections", () => {
+    const selfCols = Object.values(SELF_EDITABLE_SECTIONS).flat() as string[];
+    expect(selfCols).not.toContain("state");
+  });
+});

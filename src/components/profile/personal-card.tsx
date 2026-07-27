@@ -9,6 +9,7 @@ import { Detail, DetailPanel, DetailPanels } from "./detail";
 import { DateField, Field, Seg, SelectInput, TextInput } from "./fields";
 import type { ProfileMode, SaveSection } from "./types";
 import { EMPLOYMENT_TYPES } from "@/lib/staff/employment";
+import { AU_STATES } from "@/lib/org/settings";
 
 /* the one list, shared with the Rate Calculator and Time & Pay — a label
    added here has to classify there too */
@@ -28,9 +29,12 @@ export function personalValues(p: StaffProfile | null, mode: ProfileMode): Recor
     employment_type: p?.employment_type ?? "",
     status: p?.status ?? "Active",
   };
-  // job_title is in ADMIN_SECTIONS but not in SELF_EDITABLE_SECTIONS: your role
-  // is something the business sets, not something you type about yourself.
-  return mode === "admin" ? { ...base, job_title: p?.job_title ?? "" } : base;
+  // job_title and state are in ADMIN_SECTIONS but not SELF_EDITABLE_SECTIONS:
+  // your role — and which state's holiday calendar pays you — are things the
+  // business sets, not things you type about yourself.
+  return mode === "admin"
+    ? { ...base, job_title: p?.job_title ?? "", state: p?.state ?? "" }
+    : base;
 }
 
 export function PersonalCard({
@@ -103,6 +107,14 @@ export function PersonalCard({
         />
         {mode === "admin" && (
           <Detail label="Job title" value={values.job_title} onAdd={edit} />
+        )}
+        {mode === "admin" && (
+          <Detail
+            label="Holiday state"
+            value={values.state || "Same as organisation"}
+            onAdd={edit}
+            addLabel="Set"
+          />
         )}
       </DetailPanel>
     </DetailPanels>
@@ -223,7 +235,18 @@ export function PersonalCard({
                   onChange={(v) => set("job_title", v)}
                 />
               </Field>
-              <div />
+              <Field
+                label="Holiday state"
+                help="Which state's public holidays their timesheet follows"
+              >
+                <SelectInput
+                  name="state"
+                  placeholder="Same as organisation"
+                  options={AU_STATES}
+                  value={draft.state ?? ""}
+                  onChange={(v) => set("state", v)}
+                />
+              </Field>
             </div>
           )}
         </>

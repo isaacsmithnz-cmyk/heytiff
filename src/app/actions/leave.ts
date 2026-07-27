@@ -286,6 +286,23 @@ export async function setLeaveBalance(input: {
 
   const asAt = input.asAt && /^\d{4}-\d{2}-\d{2}$/.test(input.asAt) ? input.asAt : undefined;
 
+  /* A synced balance belongs to the sync. The comment above always promised
+     "this path leaves those alone" — the audit found the upsert unconditionally
+     stamping source='manual' over whatever was there, which would have made
+     the first accounting sync fight a hand edit for the same row. */
+  const { data: existing } = await supabaseAdmin
+    .from("leave_balances")
+    .select("source")
+    .eq("org_id", ctx.orgId)
+    .eq("staff_profile_id", input.staffProfileId)
+    .eq("kind", input.kind)
+    .maybeSingle();
+  if (existing && existing.source !== "manual")
+    return {
+      ok: false,
+      error: "That balance is synced from your accounting system — change it there instead.",
+    };
+
   const { error } = await supabaseAdmin.from("leave_balances").upsert(
     {
       org_id: ctx.orgId,

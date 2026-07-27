@@ -15,17 +15,9 @@ import type { XeroCostSnapshot } from "@/components/rate-calculator/state";
    because the whole rate model is wage-derived and the gate must hold in
    both directions (a member without it could otherwise read every wage).
 
-   Table (created via Supabase migration `create_rate_calc_state`):
-     create table if not exists public.rate_calc_state (
-       org_id text primary key,
-       state jsonb not null,
-       schema_version integer not null default 1,
-       updated_by text,
-       updated_at timestamptz not null default now()
-     );
-     alter table public.rate_calc_state enable row level security;
-     -- no policies: service-role access only, same posture as studio_designs
-*/
+   Table: docs/migrations/rate_calc_state.sql — org_id is a real uuid with an
+   FK onto organizations (both corrected 2026-07-28; the DDL used to live only
+   in this comment, org_id was text, and deleting an org orphaned the blob). */
 
 
 /* Cheap structural guard — full hydration/tolerance lives client-side in

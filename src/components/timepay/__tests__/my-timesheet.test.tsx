@@ -125,6 +125,8 @@ function renderSheet(over: Partial<React.ComponentProps<typeof MyTimesheet>> = {
       unavailable={[]}
       week={WEEK}
       today={4}
+      /* Mon–Thu are over; Friday IS today and is not */
+      through={3}
       todayISO="2026-07-03"
       periodStart="2026-06-29"
       periods={PERIODS}
@@ -224,6 +226,26 @@ describe("the week is ONE strip of day tabs", () => {
     expect(tabs[4]).toContain("today");
     expect(tabs[4]).toContain("ahead"); // today isn't marked worked until it's over
     expect(tabs[0]).not.toContain("ahead");
+  });
+
+  /* Reported from the live screen at ~6:45am: today's card read "Missing" and
+     the rail chased it — for a day that hadn't started. The presumption had
+     always declined to fill today in ("marked as worked once the day is
+     over"); the missing check used `i <= today` and so disagreed by exactly
+     one day. Both now read `through`. */
+  it("never calls TODAY missing — the day hasn't happened yet", () => {
+    const { container } = renderSheet();
+    const todayTab = container.querySelectorAll(".mts2-tab")[4] as HTMLElement;
+    expect(todayTab.className).toContain("today");
+    expect(todayTab.className).not.toContain("miss");
+    expect(todayTab.textContent).not.toContain("Missing");
+    expect(container.textContent).not.toContain("no entry logged");
+  });
+
+  it("does call it missing once the day is over", () => {
+    const { container } = renderSheet({ through: 4 });
+    const fri = container.querySelectorAll(".mts2-tab")[4] as HTMLElement;
+    expect(fri.className).toContain("miss");
   });
 
   it("opens on today, so the day you came here about is already showing", () => {

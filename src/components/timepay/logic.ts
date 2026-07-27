@@ -113,7 +113,15 @@ export type WeekDay = [string, number, string];
    answers the second, per person: Mon–Fri for most, three days for a
    part-timer, and EMPTY for a casual — who is never expected, so nothing is
    presumed onto their week and no day of it can be "missing". */
-export type WeekCtx = { week: WeekDay[]; today: number; workDays?: number[] };
+export type WeekCtx = {
+  week: WeekDay[];
+  today: number;
+  workDays?: number[];
+  /** The last index whose day is OVER — the same number the presumption uses.
+      Absent means "derive it from `today`", which is only right for a live
+      period; a closed one must pass it explicitly (every day of it is over). */
+  through?: number;
+};
 
 export type Split = { n: number; o15: number; o2: number };
 
@@ -320,6 +328,20 @@ export const DEFAULT_WORK_DAYS = [0, 1, 2, 3, 4];
 export const expectsWork = (ctx: WeekCtx, dow: number): boolean =>
   (ctx.workDays ?? DEFAULT_WORK_DAYS).includes(dow);
 
+/** Is this day OVER? Not "has it started" — over.
+
+    TODAY IS NOT OVER, and that is the whole point of this function. The
+    presumption already knew: it fills a weekday in only once the day has
+    ended, because at 6am on Tuesday there is nothing to put in yet. The
+    missing-entry check used `i <= today` and so disagreed by exactly one day —
+    it chased people at breakfast for a day they were about to work.
+
+    Both questions now read the same number. `through` comes from the dates
+    (`dates.filter(d => d < todayISO).length - 1`), so a closed period has all
+    of its days over and a period that hasn't started has none. */
+export const isOver = (ctx: WeekCtx, i: number): boolean =>
+  i <= (ctx.through ?? ctx.today - 1);
+
 /** "Mon, Tue, Thu" — a working pattern in the order the week runs. */
 export const workDaysLabel = (days: number[]): string => {
   const names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -444,7 +466,7 @@ export function derive(staff: StaffWeek, s: Settings, ctx: WeekCtx): Derived {
         off++;
         bullets.push(dlab(i) + " — not worked, and not booked as leave");
       }
-    } else if (d.t === "empty" && expectsWork(ctx, dow) && i <= ctx.today) {
+    } else if (d.t === "empty" && expectsWork(ctx, dow) && isOver(ctx, i)) {
       missing++;
       bullets.push(dlab(i) + " — no entry logged");
     }
@@ -703,7 +725,7 @@ export function dayClass(d: DayEntry, i: number, s: Settings, ctx: WeekCtx): Day
   const dow = dowOf(ctx.week[i]);
   const expected = expectsWork(ctx, dow);
   if (d.t === "off") return "off";
-  if (d.t === "empty") return expected && i <= ctx.today ? "miss" : "empty";
+  if (d.t === "empty") return expected && isOver(ctx, i) ? "miss" : "empty";
   if (d.t === "leave") return "leave";
   if (d.t === "sick") return "sick";
   if (d.t === "ph") return "ph";

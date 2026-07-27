@@ -346,6 +346,7 @@ export function TimePay({
   staff,
   week,
   today,
+  through,
   periods,
   periodIndex,
   settings,
@@ -360,6 +361,8 @@ export function TimePay({
 }: {
   staff: StaffWeek[];
   week: WeekCtx["week"];
+  /** last index whose day is OVER — nobody is chased for a day still running */
+  through: number;
   today: number;
   periods: PayPeriod[];
   periodIndex: number;
@@ -385,7 +388,7 @@ export function TimePay({
   expenses?: { owed: number; pending: number };
 }) {
   const router = useRouter();
-  const ctx: WeekCtx = useMemo(() => ({ week, today }), [week, today]);
+  const ctx: WeekCtx = useMemo(() => ({ week, today, through }), [week, today, through]);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);

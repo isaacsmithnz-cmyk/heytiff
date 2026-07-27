@@ -74,6 +74,7 @@ function renderTimePay(over: Partial<React.ComponentProps<typeof TimePay>> = {})
       staff={[OVERTIME, CLEAN]}
       week={WEEK}
       today={6}
+      through={6}
       periods={PERIODS}
       periodIndex={0}
       settings={DEFAULT_SETTINGS}

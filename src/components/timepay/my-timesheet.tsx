@@ -598,6 +598,7 @@ export function MyTimesheet({
   unavailable,
   week,
   today,
+  through,
   todayISO,
   periodStart,
   periods,
@@ -624,6 +625,8 @@ export function MyTimesheet({
   unavailable: Unavailability[];
   week: WeekCtx["week"];
   today: number;
+  /** last index whose day is OVER — today isn't, so today can't be "missing" */
+  through: number;
   todayISO: string;
   periodStart: string;
   /** the same period switcher the admin screen uses, newest first */
@@ -648,7 +651,7 @@ export function MyTimesheet({
      this person expected today?" to decide missing days and short days, and
      answering that with a bare Mon–Fri would show a casual a week of missing
      days the server had just, correctly, declined to fill in. */
-  const ctx: WeekCtx = { week, today, workDays };
+  const ctx: WeekCtx = { week, today, through, workDays };
   const casual = employment === "casual";
   const d = derive(me, settings, ctx);
   const groups = weekGroups(me.days);

@@ -13,6 +13,9 @@ import {
   type Capability,
 } from "@/lib/permissions";
 import { getStaff, permissionsOf } from "@/lib/staff/query";
+import { getPaySettings, shiftDefaultsFor } from "@/lib/timepay/query";
+import { rosteredWeekHours } from "@/components/timepay/logic";
+import { classifyEmployment } from "@/lib/staff/employment";
 import { addStaffLicence, removeStaffLicence, saveStaffSection } from "@/app/actions/staff";
 import type { StaffProfile } from "@/lib/staff/profile";
 import { todayInAu } from "@/lib/au-dates";
@@ -68,6 +71,25 @@ export default async function StaffProfilePage({
   // derived from the register, never stored on the staff record
   const assignedVehicle = await assignedVehicleFor(orgId, staffId);
 
+  /* Only for a viewer who can see the Payroll card, since that is the only
+     place it is shown — and it exists to keep the typed `contracted_hours`
+     honest about the week Time & Pay actually fills in. Both reads are
+     request-cached, so on a screen that already asked for either this is free.
+     See logic.ts::rosteredWeekHours for why the two numbers are separate. */
+  const rosteredWeek = canPay
+    ? await (async () => {
+        const [{ settings }, defaults] = await Promise.all([
+          getPaySettings(orgId),
+          shiftDefaultsFor(orgId, [staffId]),
+        ]);
+        return rosteredWeekHours(
+          settings,
+          { hours: defaults.hours.get(staffId), workDays: defaults.workDays.get(staffId) },
+          classifyEmployment(profile.employment_type as string | null | undefined)
+        );
+      })()
+    : null;
+
   const permissionsCtx: PermissionsCtx = {
     role: row.orgRole,
     caps: resolve(row.orgRole, targetOverrides),
@@ -110,7 +132,7 @@ export default async function StaffProfilePage({
       addressLookup={Boolean(process.env.GOOGLE_MAPS_API_KEY)}
       adminExtras={{
         // omitted entirely without `financials` — not rendered-then-hidden
-        ...(canPay ? { payroll: profile } : {}),
+        ...(canPay ? { payroll: profile, rosteredWeek } : {}),
         permissions: permissionsCtx,
         // notes are written ABOUT someone; you don't read your own
         ...(isSelf ? {} : { notes: profile as { notes?: string | null } }),

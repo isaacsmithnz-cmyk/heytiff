@@ -72,6 +72,11 @@ export function TimePaySettings({
   const [mode, setMode] = useState<"wizard" | "menu">(firstRun && canPay ? "wizard" : "menu");
   const [step, setStep] = useState(0);
   const [exporting, setExporting] = useState(false);
+  /* At most one of the two folding sections is open, so the menu can't grow
+     into two long lists at once — and the one you opened stays where you can
+     see it. Nothing is open on arrival: pay settings are what this modal is
+     for. */
+  const [openSection, setOpenSection] = useState<"holidays" | "xero" | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
   const patch = (p: Partial<Settings>) => setDraft((d) => ({ ...d, ...p }));
@@ -438,6 +443,38 @@ export function TimePaySettings({
     </div>
   );
 
+  /* A section you have to ask for. Public holidays and Xero payroll are both
+     full tools in their own right — a year of dated rows, a payroll roster —
+     and both used to render open, above every pay setting, so opening the gear
+     to change a break landed you in a calendar. They are also the two sections
+     that COST something to show (each fetches when it mounts), so keeping them
+     shut keeps them free. Mounted only while open, which is what makes the
+     lazy fetch inside each one meaningful. */
+  const disclosure = (
+    key: "holidays" | "xero",
+    label: string,
+    hint: string,
+    body: React.ReactNode,
+  ) => {
+    const on = openSection === key;
+    return (
+      <div className={`ms ms-fold${on ? " on" : ""}`} key={key}>
+        <button
+          className="ms-foldh"
+          aria-expanded={on}
+          onClick={() => setOpenSection(on ? null : key)}
+        >
+          <span className="ms-foldl">
+            {label}
+            <em>{hint}</em>
+          </span>
+          <Icon name="chevR" size={15} />
+        </button>
+        {on && <div className="ms-foldb">{body}</div>}
+      </div>
+    );
+  };
+
   const cur = steps[step];
 
   /* Portalled to <body>: the shell keeps will-change on .page.in, which would
@@ -513,13 +550,13 @@ export function TimePaySettings({
               </button>
             </div>
             <div className="wz-body wz-menu">
-              {holidaySection ? menuSection("Public holidays", holidaySection) : null}
+              {/* Pay settings FIRST. This modal is named "Pay settings" and is
+                  reached by a gear on a timesheet screen; a workspace changing
+                  its break policy should land on the controls, not scroll a
+                  year of public holidays to reach them. The two big tools go
+                  below, folded — see `disclosure`. */}
               {canPay && (
                 <>
-              {/* Matching is not part of the settings DRAFT — its actions apply
-                  immediately, like the holidays section above. A link is a fact
-                  about two systems, not a preference you might cancel out of. */}
-              {xeroSection ? menuSection("Xero payroll", xeroSection) : null}
               {menuSection(
                 "Pay cycle",
                 <>
@@ -603,6 +640,27 @@ export function TimePaySettings({
               )}
                 </>
               )}
+
+              {/* The two tools, folded and last. Neither is a preference —
+                  both apply immediately, so neither joins the settings DRAFT:
+                  a public holiday and a payroll link are facts about the
+                  world, not choices you might Cancel out of. */}
+              {holidaySection
+                ? disclosure(
+                    "holidays",
+                    "Public holidays",
+                    "Fills in for your state — add a one-off, or remove a day you work",
+                    holidaySection,
+                  )
+                : null}
+              {canPay && xeroSection
+                ? disclosure(
+                    "xero",
+                    "Xero payroll",
+                    "Match your people to their payroll records",
+                    xeroSection,
+                  )
+                : null}
             </div>
             <div className="wz-foot menu">
               {canPay && (

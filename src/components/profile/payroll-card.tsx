@@ -22,6 +22,10 @@ const SPLIT_META = [
 
 const num = (v: number | null | undefined) => (v === null || v === undefined ? "" : String(v));
 
+/** "40h" · "37.5h" — trailing zeros dropped, because 38.00 reads as a
+    precision this figure doesn't have. */
+const fmtHours = (h: number) => `${Math.round(h * 100) / 100}h`;
+
 export function payrollValues(p: PayFields | null): Record<string, string> {
   const [install, service, admin] = splitFrom(p?.cost_split);
   return {
@@ -43,9 +47,36 @@ export function payrollValues(p: PayFields | null): Record<string, string> {
    cost_split is one jsonb column but three sliders. Each carries its own field
    name and the action reassembles them; the percentages must total 100, which
    `rebalance` guarantees as you drag and buildAdminPatch re-checks on save. */
-export function PayrollCard({ pay, onSave }: { pay: PayFields | null; onSave: SaveSection }) {
+export function PayrollCard({
+  pay,
+  rosteredWeek = null,
+  onSave,
+}: {
+  pay: PayFields | null;
+  /** What Time & Pay actually presumes onto this person's week, or null when
+      there is no rostered week to state. */
+  rosteredWeek?: number | null;
+  onSave: SaveSection;
+}) {
   const values = payrollValues(pay);
   const readSplit = SPLIT_KEYS.map((k) => Number(values[k]) || 0);
+
+  /* Hours / week has a twin, and they used to be strangers. This field is a
+     COSTING input — it prices a charge-out rate and nothing reads it for pay —
+     while the timesheet fills every week in from the roster in Time & Pay. A
+     card reading 38 beside a roster that presumes 40 is not an error either
+     module can detect on its own, so the card states both and names the gap.
+     Neither figure is corrected automatically: which one is wrong is a
+     question about this business, not about this code. */
+  const typedHours = Number(values.contracted_hours);
+  const hoursNote =
+    rosteredWeek == null
+      ? undefined
+      : !values.contracted_hours || !Number.isFinite(typedHours)
+        ? `Time & Pay rosters ${fmtHours(rosteredWeek)} a week`
+        : Math.abs(typedHours - rosteredWeek) < 0.01
+          ? `Matches the ${fmtHours(rosteredWeek)} week rostered in Time & Pay`
+          : `Time & Pay rosters ${fmtHours(rosteredWeek)} a week — this figure only costs jobs`;
 
   return (
     <SectionCard
@@ -75,6 +106,7 @@ export function PayrollCard({ pay, onSave }: { pay: PayFields | null; onSave: Sa
             <Detail
               label="Hours / week"
               value={values.contracted_hours}
+              sub={hoursNote}
               onAdd={edit}
               addLabel="Set"
             />

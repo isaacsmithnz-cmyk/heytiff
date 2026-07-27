@@ -3,7 +3,6 @@ import { can, getDbRole } from "@/lib/permissions-server";
 import { hasMinRole } from "@/lib/roles";
 import { TimePay } from "@/components/timepay/timepay";
 import { loadTimepay } from "@/lib/timepay/page-data";
-import { loadHolidayManager } from "@/lib/timepay/leave-page";
 import { auth0 } from "@/lib/auth0";
 import { getConnectionView } from "@/lib/integrations/store";
 import { driftNote } from "@/lib/integrations/drift";
@@ -37,12 +36,12 @@ export default async function TimePayPage({
     can("approvals"),
     getDbRole(),
   ]);
+  /* A boolean, not the calendar. The holiday manager is a year of rows plus a
+     statutory top-up that can write, and it is only ever looked at inside the
+     settings gear — so the section fetches it for itself when it is opened.
+     This screen only has to know whether to offer the row at all. */
   const canHolidays = hasMinRole(role, "admin");
-  const [data, holidayData, session] = await Promise.all([
-    loadTimepay({ pay }, period),
-    canHolidays ? loadHolidayManager() : Promise.resolve(null),
-    auth0.getSession(),
-  ]);
+  const [data, session] = await Promise.all([loadTimepay({ pay }, period), auth0.getSession()]);
   if (!data) redirect("/dashboard");
 
   /* Only whether a grant EXISTS crosses to the client. The connection itself is
@@ -74,7 +73,7 @@ export default async function TimePayPage({
       sheets={data.sheets}
       canApprove={approvals}
       financials={pay}
-      holidayData={holidayData}
+      canHolidays={canHolidays}
       xeroConnected={xeroConnected}
       wageDrift={wageDrift}
       expenses={expenses}

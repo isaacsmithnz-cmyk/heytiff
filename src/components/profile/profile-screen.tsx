@@ -250,7 +250,11 @@ export function ProfileScreen({
                 {active === "training" && <TrainingCard />}
                 {active === "mypay" && myPay && <MyPayCard pay={myPay} />}
                 {active === "payroll" && showPayroll && (
-                  <PayrollCard pay={extras.payroll ?? null} onSave={actions.onSave} />
+                  <PayrollCard
+                    pay={extras.payroll ?? null}
+                    rosteredWeek={extras.rosteredWeek ?? null}
+                    onSave={actions.onSave}
+                  />
                 )}
                 {active === "permissions" && extras.permissions && (
                   <PermissionsCard ctx={extras.permissions} onSave={actions.onSave} />

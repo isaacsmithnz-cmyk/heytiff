@@ -5,6 +5,7 @@ import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { getDbRole } from "@/lib/permissions-server";
 import { hasMinRole } from "@/lib/roles";
+import { loadHolidayManager, type HolidayManagerData } from "@/lib/timepay/leave-page";
 
 /* Public-holiday management.
 
@@ -38,6 +39,19 @@ function revalidateHolidayScreens() {
   revalidatePath("/dashboard/timepay");
   revalidatePath("/dashboard/my-timesheet");
   revalidatePath("/dashboard/my-leave");
+}
+
+/** The calendar itself, fetched when the settings gear's holidays row is
+    OPENED rather than with the Time & Pay page.
+
+    It used to ride along with every render of /dashboard/timepay: a year of
+    rows plus a statutory top-up that can WRITE, loaded for everyone with
+    admin+ on a screen about timesheets, on the chance they might open the gear
+    and scroll down to it. Same gate as every other action in this file, and
+    the same admin-only answer. */
+export async function getHolidayManagerData(): Promise<HolidayManagerData | null> {
+  if (!(await adminContext())) return null;
+  return loadHolidayManager();
 }
 
 export async function addHoliday(input: {

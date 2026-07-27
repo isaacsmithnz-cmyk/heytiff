@@ -1,22 +1,24 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { DateField } from "@/components/ui/date-field";
 import { fmtAuWeekdayDate } from "@/lib/au-dates";
 import {
   addHoliday,
+  getHolidayManagerData,
   removeHoliday,
   restoreHoliday,
   type HolidayResult,
 } from "@/app/actions/holidays";
 import { provisionalHolidays } from "@/lib/timepay/holiday-rules";
+import type { HolidayManagerData } from "@/lib/timepay/leave-page";
 import type { Holiday } from "@/lib/timepay/leave-query";
 
-/* The public-holiday manager, embeddable — it lives inside the Time & Pay
-   settings modal (admin+ section) and, until that fully replaces it, the old
-   admin page wraps it too.
+/* The public-holiday manager. It lives in one place: a folding admin+ section
+   at the bottom of the Time & Pay settings gear. (The old admin page that also
+   wrapped it is gone.)
 
    The calendar mostly maintains itself (holiday-sync tops it up from the
    statutory rules), so this is the exceptions surface: add a proclaimed
@@ -28,27 +30,58 @@ import type { Holiday } from "@/lib/timepay/leave-query";
    but whose DATE nobody can compute (WA's proclaimed King's Birthday, the
    Friday before the AFL Grand Final). The rules module never auto-writes those,
    so the admin gets a quiet nudge with the usual timing, prefills the form from
-   it, and types the date off the gazette — which lands it as a manual row. */
+   it, and types the date off the gazette — which lands it as a manual row.
+
+   THE CALENDAR LOADS ON FIRST MOUNT, not with the Time & Pay page — the same
+   pattern as the Xero section beside it, and this section is only mounted once
+   its menu row is opened. A year of holiday rows plus a statutory top-up that
+   can WRITE were being fetched on every visit to a screen about timesheets. */
 
 const STATES = ["NSW", "VIC", "QLD", "SA", "WA", "TAS", "NT", "ACT"] as const;
 
 export function HolidaySection({
-  holidays,
-  orgState,
-  today,
+  load = getHolidayManagerData,
 }: {
-  holidays: Holiday[];
-  orgState: string | null;
-  today: string;
+  /** Injectable for tests; production uses the admin-gated server action. */
+  load?: () => Promise<HolidayManagerData | null>;
 }) {
   const router = useRouter();
   const [busy, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<HolidayManagerData | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const [state, setState] = useState<string>(orgState ?? "NSW");
+  /* NULL until the admin picks one, rather than seeded from the org and then
+     re-seeded on every re-fetch: the form re-reads its own calendar after each
+     add, and a seeding effect would drag the picker back off the state they
+     were working in mid-entry. Null simply means "still the org's". */
+  const [picked, setPicked] = useState<string | null>(null);
   const [date, setDate] = useState("");
   const [name, setName] = useState("");
   const dateRef = useRef<HTMLButtonElement>(null);
+
+  const fetchData = useCallback(
+    (live: { current: boolean } = { current: true }) =>
+      load()
+        .then((d) => {
+          if (live.current) setData(d);
+        })
+        .catch(() => {
+          if (live.current) setError("Couldn't load the holiday calendar.");
+        })
+        .finally(() => {
+          if (live.current) setLoading(false);
+        }),
+    [load],
+  );
+
+  useEffect(() => {
+    const live = { current: true };
+    fetchData(live);
+    return () => {
+      live.current = false;
+    };
+  }, [fetchData]);
 
   const run = (action: () => Promise<HolidayResult>, onOk?: () => void) => {
     setError(null);
@@ -56,11 +89,21 @@ export function HolidaySection({
       const res = await action();
       if (res.ok) {
         onOk?.();
+        /* Both, in this order. The list is client-held now, so router.refresh()
+           alone would leave the day just added off the very screen it was added
+           from; the refresh is still owed, because the timesheets behind this
+           modal presume against this calendar. */
+        await fetchData();
         router.refresh();
       } else setError(res.error);
     });
   };
 
+  if (loading) return <p className="xp-note">Reading your holiday calendar…</p>;
+  if (!data) return <p className="xp-note">{error ?? "Couldn't load the holiday calendar."}</p>;
+
+  const { holidays, orgState, today } = data;
+  const state = picked ?? orgState ?? "NSW";
   const active = holidays.filter((h) => !h.suppressed);
   const removed = holidays.filter((h) => h.suppressed);
 
@@ -97,7 +140,10 @@ export function HolidaySection({
         <div className="lv-frow">
           <label className="mts-f">
             <span>State</span>
-            <select value={state} onChange={(e) => setState(e.target.value)}>
+            <select
+              value={state}
+              onChange={(e) => setPicked(e.target.value)}
+            >
               {STATES.map((s) => (
                 <option key={s} value={s}>
                   {s}
@@ -157,7 +203,7 @@ export function HolidaySection({
                 className="hol-sugadd"
                 title="Prefill the form — you supply the gazetted date"
                 onClick={() => {
-                  setState(s.state);
+                  setPicked(s.state);
                   setName(s.name);
                   setDate("");
                   dateRef.current?.focus();

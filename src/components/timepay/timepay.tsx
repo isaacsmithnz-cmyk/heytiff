@@ -16,7 +16,6 @@ import {
 import { Avatar, DayLegend, MiniTile, Tile } from "./tiles";
 import { TimePaySettings } from "./settings";
 import { HolidaySection } from "./holiday-section";
-import type { HolidayManagerData } from "@/lib/timepay/leave-page";
 import { useRouter } from "next/navigation";
 import {
   approveWeek,
@@ -360,7 +359,7 @@ export function TimePay({
   sheets,
   canApprove,
   financials,
-  holidayData,
+  canHolidays,
   xeroConnected,
   wageDrift = null,
   expenses = { owed: 0, pending: 0 },
@@ -376,8 +375,9 @@ export function TimePay({
   sheets: Record<string, SheetState>;
   canApprove: boolean;
   financials: boolean;
-  /** admin+ only — presence unlocks the holidays section in the gear */
-  holidayData: HolidayManagerData | null;
+  /** admin+ — unlocks the holidays row in the gear. A boolean, not the
+      calendar: the section fetches its own rows when the row is opened. */
+  canHolidays: boolean;
   /** Whether this workspace has a live Xero grant. A boolean only: the
       connection's details are owner business, and this screen just needs to
       know whether the matching section has anything to show. */
@@ -467,7 +467,7 @@ export function TimePay({
               <div className="autosub">{note}</div>
             </div>
             <div className="racts">
-              {(financials || holidayData) && (
+              {(financials || canHolidays) && (
                 <button className="bbtn sq" aria-label="Settings" onClick={() => setSettingsOpen(true)}>
                   <Icon name="settings" size={17} />
                 </button>
@@ -599,15 +599,7 @@ export function TimePay({
               firstRun={!configured}
               period={period}
               canPay={financials}
-              holidaySection={
-                holidayData ? (
-                  <HolidaySection
-                    holidays={holidayData.holidays}
-                    orgState={holidayData.orgState}
-                    today={holidayData.today}
-                  />
-                ) : null
-              }
+              holidaySection={canHolidays ? <HolidaySection /> : null}
               xeroSection={
                 xeroConnected ? (
                   /* The actions are imported lazily, inside the section, so

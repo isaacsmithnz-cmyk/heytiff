@@ -5,14 +5,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "./icon";
 import type { ShellUser } from "./sidebar";
+import { useCommandPalette } from "./command-palette-context";
 
-export function Topbar({
-  user,
-  onOpenCommand,
-}: {
-  user: ShellUser;
-  onOpenCommand: () => void;
-}) {
+export function Topbar({ user }: { user: ShellUser }) {
+  /* The opener comes from context, not a prop: this component is rendered as a
+     SERVER slot (it needs the viewer's name and role), and a server slot can't
+     be handed a client callback. */
+  const { open: onOpenCommand } = useCommandPalette();
   const meRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
 

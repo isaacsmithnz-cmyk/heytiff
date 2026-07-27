@@ -1,82 +1,46 @@
-import { redirect } from "next/navigation";
-import { auth0 } from "@/lib/auth0";
+import { Suspense } from "react";
 import { AppShell } from "@/components/shell/app-shell";
-import type { ShellUser } from "@/components/shell/sidebar";
-import type { Role } from "@/lib/roles-shared";
-import { getCapabilities, getOrgLogoRef, getOrgName, getOwnership } from "@/lib/permissions-server";
-import { signOne } from "@/lib/documents/query";
-import { getViewerName } from "@/lib/staff/query";
-import { ownerLabel } from "@/lib/permissions";
+import { ShellPalette, ShellSidebar, ShellTopbar } from "@/components/shell/shell-chrome";
+import { SidebarSkeleton, TopbarSkeleton } from "@/components/shell/shell-skeletons";
 import "./shell.css";
 
-const ROLE_LABEL: Record<string, string> = {
-  owner: "Owner", // overridden to "Co-owner" for owners who aren't the master
-  admin: "Admin",
-  staff: "Staff",
-};
+/* SYNCHRONOUS ON PURPOSE — do not add an `await` to this function.
 
-function initialsFrom(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-  return name.slice(0, 2).toUpperCase();
-}
+   It used to await the session, the staff name and the membership before it
+   returned anything, which made the layout the thing every screen in the app
+   waited on: nothing painted, not even the black frame, until all of it came
+   back. Under Cache Components that is also a hard build error ("uncached data
+   was accessed outside of <Suspense>"), because a layout that blocks cannot be
+   prerendered and neither can anything beneath it.
 
-export default async function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const session = await auth0.getSession();
-  if (!session) redirect("/auth/login");
+   So the three parts that need a session are slots, each behind its own
+   boundary. The frame prerenders; the chrome streams into it.
 
-  const email = session.user.email ?? "";
-  const orgId = session.orgId as string | undefined;
-  const userId = session.user.sub as string | undefined;
-  const fallbackName = (session.user.name as string) || email.split("@")[0] || "User";
-
-  /* The name read and the membership read are INDEPENDENT — one asks
-     staff_profiles who this is, the other asks memberships what they may do —
-     so they go out together. They used to be awaited one after the other, and
-     this layout blocks the whole screen on a hard load: two serial trips to a
-     database in another region is most of a second before anything renders.
-     getOwnership/getCapabilities share one request-cached membership query, so
-     the pair below is a single round trip, not two.
-
-     The staff record owns the name: the Auth0 session has no name claim here,
-     and trusting it showed people their own email address in the topbar. */
-  const [viewer, ownership, caps] = await Promise.all([
-    orgId && userId
-      ? getViewerName(orgId, userId, fallbackName)
-      : Promise.resolve({ full: fallbackName, first: "there" }),
-    // Fresh from the DB, not the session-cached orgRole: a role change (or an
-    // ownership transfer) must show on the next request, not the next login.
-    getOwnership(),
-    getCapabilities(),
-  ]);
-  const displayName = viewer.full;
-  const orgRole = ownership.role ?? "";
-
-  const user: ShellUser = {
-    name: displayName,
-    roleLabel: ownerLabel(ownership) ?? ROLE_LABEL[orgRole] ?? "Member",
-    initials: initialsFrom(displayName || email || "U"),
-    role: (orgRole as Role) || null,
-    // resolved per request, so a granted capability shows its nav entry on the
-    // very next navigation — no re-login
-    caps: [...caps],
-  };
-
-  /* The lockup under the logo: the trading name, and the business's own logo
-     when it has uploaded one. Both ride the membership query that already ran,
-     so neither costs a trip; the link is signed here because the bucket is
-     private and a stored URL would be one that stops working. Signing is the
-     only real await left, and it is skipped entirely when there is no logo
-     (signOne returns null on a null ref). */
-  const [orgName, logoRef] = await Promise.all([getOrgName(), getOrgLogoRef()]);
-  const orgLogoUrl = await signOne(logoRef);
-
+   The auth gate is NOT lost by this. `src/proxy.ts` redirects any
+   unauthenticated request to /dashboard/* before it reaches this file, so an
+   anonymous visitor never renders the layout at all — and every page and
+   server action re-checks capabilities for itself regardless. */
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
-    <AppShell user={user} orgName={orgName} orgLogoUrl={orgLogoUrl}>
+    <AppShell
+      sidebar={
+        <Suspense fallback={<SidebarSkeleton />}>
+          <ShellSidebar />
+        </Suspense>
+      }
+      topbar={
+        <Suspense fallback={<TopbarSkeleton />}>
+          <ShellTopbar />
+        </Suspense>
+      }
+      /* No fallback: a palette that doesn't yet know your capabilities should
+         be absent, not something you can open and find empty. */
+      palette={
+        <Suspense fallback={null}>
+          <ShellPalette />
+        </Suspense>
+      }
+    >
       {children}
     </AppShell>
   );

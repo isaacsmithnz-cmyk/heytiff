@@ -1,43 +1,34 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { usePathname } from "next/navigation";
-import { Sidebar, type ShellUser } from "./sidebar";
-import { Topbar } from "./topbar";
-import { CommandPalette } from "./command-palette";
+import { CommandPaletteProvider } from "./command-palette-context";
+
+/* The app frame — and NOTHING in it knows who you are.
+
+   The black frame, the grid, the aurora and the page outlet all render without
+   a session, which is exactly what lets Cache Components prerender them into a
+   static shell served straight off the CDN. The three pieces that DO need a
+   name and a capability set arrive as SLOTS, each already wrapped in its own
+   <Suspense> by the layout, and stream in behind their skeletons.
+
+   Before this, the layout awaited all of it up front and the frame itself was
+   the thing every screen waited on. */
 
 export function AppShell({
-  user,
-  orgName = null,
-  orgLogoUrl = null,
+  sidebar,
+  topbar,
+  palette,
   children,
 }: {
-  user: ShellUser;
-  /** trading name → sidebar "HeyTiff × …"; null hides the line */
-  orgName?: string | null;
-  /** signed logo link, minted per render; null falls back to the × glyph */
-  orgLogoUrl?: string | null;
+  /** Server slots, each pre-wrapped in <Suspense> by the layout. */
+  sidebar: React.ReactNode;
+  topbar: React.ReactNode;
+  palette: React.ReactNode;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const [cmdOpen, setCmdOpen] = useState(false);
 
-  const openCmd = useCallback(() => setCmdOpen(true), []);
-  const closeCmd = useCallback(() => setCmdOpen(false), []);
-
-  // ⌘K / Ctrl+K toggles the command palette
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setCmdOpen((o) => !o);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-  // spotlight follow for any .spot card (matches the original global handler)
   const onMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
     const card = target.closest<HTMLElement>(".spot");
@@ -64,6 +55,7 @@ export function AppShell({
   }, []);
 
   return (
+    <CommandPaletteProvider>
     <div className="fg" onMouseMove={onMouseMove} onClick={onClick}>
       <div className="gridbg" />
       {/* frame-level ambient fx: aurora blobs + rising orbs roam the whole black
@@ -77,15 +69,16 @@ export function AppShell({
         <i />
         <i />
       </div>
-      <Sidebar role={user.role} caps={user.caps} orgName={orgName} orgLogoUrl={orgLogoUrl} />
+      {sidebar}
       <div className="main">
-        <Topbar user={user} onOpenCommand={openCmd} />
+        {topbar}
         {/* key by pathname so each screen remounts (and its entrance animation replays) on navigation */}
         <main className="outlet" key={pathname}>
           {children}
         </main>
       </div>
-      <CommandPalette open={cmdOpen} onClose={closeCmd} role={user.role} caps={user.caps} />
+      {palette}
     </div>
+    </CommandPaletteProvider>
   );
 }

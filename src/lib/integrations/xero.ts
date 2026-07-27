@@ -134,9 +134,14 @@ export async function exchangeCallback(
     // screen shows, and the full form costs one accounting call per org.
     tenants = readTenants(await xero.updateTenants(false));
   } catch {
+    /* The exchange already minted tokens; failing here without revoking would
+       leave a live authorisation on Xero's side that nothing we hold can ever
+       use or clean up. Best-effort — the user retries either way. */
+    await revokeRefreshToken(cfg, tokens.refreshToken, tokens.accessToken);
     return { ok: false, error: "Connected, but Xero wouldn't say which organisation. Try again." };
   }
   if (tenants.length === 0) {
+    await revokeRefreshToken(cfg, tokens.refreshToken, tokens.accessToken);
     return { ok: false, error: "That Xero login has no organisation we can connect to." };
   }
 

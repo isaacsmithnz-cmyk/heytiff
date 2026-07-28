@@ -56,6 +56,25 @@ describe("system map registry", () => {
     expect(nodeById("nope")).toBeUndefined();
   });
 
+  it("the Smart Notes engine reaches exactly what it's allowed to touch", () => {
+    // Two vendors and four stores — and the tasks table is the EXISTING one,
+    // which is the whole reason a dictated task arrives assigned and notified.
+    expect(drawsFrom("eng-voice-notes").map((e) => e.to).sort()).toEqual(
+      ["anthropic", "db-board", "db-staff", "db-workboard", "elevenlabs"].sort()
+    );
+  });
+
+  it("the board's own store stands alone — no integration in its neighbourhood", () => {
+    // Standalone-first is the load-bearing claim: a typed job number has to
+    // work with nothing connected. If a future edge wires db-workboard to a
+    // vendor or a mirror, that claim quietly stops being true.
+    const reachable = [...neighbourhood("db-workboard")].filter((id) => id !== "db-workboard");
+    expect(reachable.sort()).toEqual(["eng-voice-notes", "workboard"].sort());
+    for (const id of reachable) {
+      expect(nodeById(id)?.kind).not.toBe("external");
+    }
+  });
+
   it("every node lands in a render column", () => {
     for (const n of NODES) {
       expect(layerOf(n)).toBeGreaterThanOrEqual(0);

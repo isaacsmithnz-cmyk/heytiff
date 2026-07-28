@@ -19,7 +19,12 @@ jest.mock("@/lib/permissions-server", () => ({
   can: (c: string) => can(c),
   getDbRole: () => getDbRole(),
 }));
-jest.mock("next/navigation", () => ({ redirect: (to: string) => redirect(to) }));
+jest.mock("next/navigation", () => ({
+  redirect: (to: string) => redirect(to),
+  notFound: (): never => {
+    throw new Error("NOT_FOUND");
+  },
+}));
 
 /* the leaves' bodies are client components with suites of their own — the
    gate is what's under test, so they render to nothing here */
@@ -36,6 +41,20 @@ jest.mock("@/components/workboard/overview-screen", () => ({ OverviewScreen: () 
 jest.mock("@/lib/workboard/page-data", () => ({
   loadWorkboardPage: jest.fn(async () => ({ manage: false, connection: "none" })),
 }));
+jest.mock("@/components/workboard/projects-screen", () => ({ ProjectsScreen: () => null }));
+jest.mock("@/components/workboard/project-detail-screen", () => ({
+  ProjectDetailScreen: () => null,
+}));
+jest.mock("@/lib/workboard/projects-query", () => ({
+  listProjects: jest.fn(async () => []),
+  getProjectDetail: jest.fn(async () => ({ id: "p-1", jobs: [], checklist: [], equipment: [] })),
+}));
+jest.mock("@/lib/integrations/store", () => ({
+  getConnectionView: jest.fn(async () => null),
+}));
+jest.mock("@/lib/auth0", () => ({
+  auth0: { getSession: jest.fn(async () => ({ user: { sub: "auth0|me" }, orgId: "org-1" })) },
+}));
 
 import HeatLoadPage from "../toolbox/heat-load/page";
 import OutdoorUnitPage from "../toolbox/outdoor-unit/page";
@@ -44,6 +63,8 @@ import TroubleshootingPage from "../toolbox/troubleshooting/page";
 import KnowledgeBasePage from "../tiff/knowledge/page";
 import DataLibraryPage from "../studio/data-library/page";
 import WorkboardPage from "../workboard/page";
+import WorkboardProjectsPage from "../workboard/projects/page";
+import WorkboardProjectPage from "../workboard/projects/[id]/page";
 
 const LEAVES: [string, () => Promise<unknown>, string][] = [
   ["toolbox/heat-load", HeatLoadPage, "toolbox"],
@@ -52,6 +73,7 @@ const LEAVES: [string, () => Promise<unknown>, string][] = [
   ["toolbox/troubleshooting", TroubleshootingPage, "toolbox"],
   ["tiff/knowledge", KnowledgeBasePage, "tiff"],
   ["workboard", WorkboardPage, "workboard"],
+  ["workboard/projects", WorkboardProjectsPage, "workboard"],
 ];
 
 beforeEach(() => {
@@ -72,6 +94,22 @@ describe("held → the page renders", () => {
   it.each(LEAVES)("%s", async (_route, Page) => {
     allowed = true;
     expect(await Page()).toBeTruthy();
+    expect(redirect).not.toHaveBeenCalled();
+  });
+});
+
+describe("workboard/projects/[id] — the dynamic leaf checks the same door", () => {
+  const props = { params: Promise.resolve({ id: "p-1" }) };
+
+  it("revoked → straight back to /dashboard", async () => {
+    allowed = false;
+    await expect(WorkboardProjectPage(props)).rejects.toThrow("REDIRECT:/dashboard");
+    expect(can).toHaveBeenCalledWith("workboard");
+  });
+
+  it("held → the page renders", async () => {
+    allowed = true;
+    expect(await WorkboardProjectPage(props)).toBeTruthy();
     expect(redirect).not.toHaveBeenCalled();
   });
 });

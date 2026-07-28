@@ -12,6 +12,7 @@ import { can } from "@/lib/permissions-server";
 import { getConnectionView } from "@/lib/integrations/store";
 import { kickSm8SyncIfStale, listSm8SyncStatus } from "@/lib/integrations/sm8-sync";
 import { todayInZone, plusDays } from "./dates";
+import { listProjectStrip, type ProjectStripItem } from "./projects-query";
 import {
   countJobsByStatus,
   getSm8Timezone,
@@ -30,6 +31,7 @@ export type WorkboardData = {
   today: string;
   counts: WorkboardCounts | null;
   upcoming: UpcomingBooking[];
+  projects: ProjectStripItem[];
   synced: { finishedAt: string | null; running: boolean } | null;
 };
 
@@ -44,16 +46,27 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
     view === null ? "none" : view.status === "connected" ? "connected" : "attention";
 
   if (connection !== "connected") {
+    // Standalone-first: projects are native rows and load regardless.
     const today = todayInZone(null);
-    return { manage, connection, timezone: null, today, counts: null, upcoming: [], synced: null };
+    return {
+      manage,
+      connection,
+      timezone: null,
+      today,
+      counts: null,
+      upcoming: [],
+      projects: await listProjectStrip(orgId),
+      synced: null,
+    };
   }
 
   const timezone = await getSm8Timezone(orgId);
   const today = todayInZone(timezone);
 
-  const [counts, upcoming, sync] = await Promise.all([
+  const [counts, upcoming, projects, sync] = await Promise.all([
     countJobsByStatus(orgId, `${plusDays(today, -14)} 00:00:00`),
     listUpcomingBookings(orgId, today, plusDays(today, 7)),
+    listProjectStrip(orgId),
     listSm8SyncStatus(orgId),
   ]);
 
@@ -69,6 +82,7 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
     today,
     counts,
     upcoming,
+    projects,
     synced: sync.lastRun
       ? { finishedAt: sync.lastRun.finishedAt, running: sync.lastRun.running }
       : { finishedAt: null, running: false },

@@ -23,6 +23,15 @@ export const STATE_TTL_SECONDS = 600;
     nothing else. */
 export const STATE_COOKIE_PATH = "/api/integrations/xero";
 
+/** The same two values for any provider, derived instead of duplicated. The
+    Xero constants above predate this and keep their callers; they agree with
+    `stateCookieFor("xero")` by construction, and the test pins that. Each
+    provider gets its OWN cookie name — two consent flows in two tabs must not
+    share a state slot — and a path scoped to its own route pair. */
+export function stateCookieFor(provider: string): { name: string; path: string } {
+  return { name: `${provider}_oauth_state`, path: `/api/integrations/${provider}` };
+}
+
 export type StateCookie = { state: string; orgId: string };
 
 export function encodeState(value: StateCookie): string {

@@ -9,7 +9,7 @@
    the screen — an integrations page that says "connect Xero" without saying
    what for is asking for a grant on trust. */
 
-export type ProviderId = "xero";
+export type ProviderId = "xero" | "servicem8";
 
 export type ProviderStatus = "live" | "planned";
 
@@ -33,10 +33,11 @@ export type Provider = {
   uses: ProviderUse[];
 };
 
-/* Xero's own blue. It is used the way every other accent here is — as a ~10%
-   chip tint behind an in-house stroke glyph — not as a reproduction of their
-   mark. */
+/* Each provider's own blue. Used the way every other accent here is — as a
+   ~10% chip tint behind an in-house stroke glyph — not as a reproduction of
+   their marks. */
 const XERO_BLUE = "#13B5EA";
+const SM8_BLUE = "#00A8E0";
 
 export const PROVIDERS: Provider[] = [
   {
@@ -56,6 +57,26 @@ export const PROVIDERS: Provider[] = [
         area: "Rate Calculator",
         detail:
           "Real overhead totals from the profit & loss, instead of the business costs being typed in from memory once a year.",
+      },
+    ],
+  },
+  {
+    id: "servicem8",
+    name: "ServiceM8",
+    blurb: "Jobs, clients & schedules — where the day's work already lives",
+    icon: "servicem8",
+    accent: SM8_BLUE,
+    status: "live",
+    uses: [
+      {
+        area: "Workboard",
+        detail:
+          "Projects and maintenance link straight to real jobs — job numbers, clients, addresses, booked times — instead of anyone retyping them.",
+      },
+      {
+        area: "Maintenance radar",
+        detail:
+          "Upcoming and overdue services show against the client and site ServiceM8 already knows, and a linked job completing marks the visit done here.",
       },
     ],
   },
@@ -160,4 +181,100 @@ export const XERO_SCOPE_LIST: string[] = XERO_SCOPES.map((s) => s.scope);
 export function missingScopes(granted: string | null | undefined): string[] {
   const have = new Set((granted ?? "").split(/\s+/).filter(Boolean));
   return XERO_SCOPE_LIST.filter((s) => !have.has(s));
+}
+
+/* ── ServiceM8 scopes ──────────────────────────────────────────────────────
+
+   Same charter as Xero, same shape: every scope with the sentence a business
+   owner would accept, rendered verbatim on the screen the consent URL is built
+   from. READ-ONLY, DELIBERATELY — ServiceM8's scopes are granular read_* /
+   manage_* / create_* / publish_* families, and nothing here takes a writing
+   one. Two worth naming:
+
+     manage_badges   the ONLY scope over job badges is a write scope, so badges
+                     stay out entirely — Workboard readiness tags are
+                     HeyTiff-owned anyway
+     read_job_payments and the other read_* money/message scopes exist and are
+                     NOT asked for: a scope joins this list WITH its feature,
+                     not ahead of it (the Xero audit lesson)
+
+   Verified against developer.servicem8.com/docs/authentication on 2026-07-28 —
+   check the doc before adding a scope rather than going from memory. */
+
+/** One scope with its public justification — the same shape for every
+    provider. `XeroScope` above predates this alias and stays for its callers. */
+export type ScopeEntry = XeroScope;
+
+export const SM8_SCOPES: ScopeEntry[] = [
+  {
+    scope: "vendor",
+    area: null,
+    why: "Identifies the ServiceM8 account that's connected — its name and timezone — so this screen can say whose jobs these are, and due dates can follow that account's clock.",
+  },
+  {
+    scope: "read_jobs",
+    area: "Workboard",
+    why: "Reads jobs — numbers, status, addresses — so projects and maintenance here link to the real thing.",
+  },
+  {
+    scope: "read_customers",
+    area: "Workboard",
+    why: "Reads clients and their sites, so work on the board shows who and where it's for.",
+  },
+  {
+    scope: "read_customer_contacts",
+    area: "Workboard",
+    why: "Reads client contact people, for who to ring about access and bookings.",
+  },
+  {
+    scope: "read_job_contacts",
+    area: "Workboard",
+    why: "Reads the contacts attached to each job, for the same reason.",
+  },
+  {
+    scope: "read_schedule",
+    area: "Workboard",
+    why: "Reads booked times, so the board can say when a job is actually scheduled — and that a visit's time is truly confirmed.",
+  },
+  {
+    scope: "read_job_checklists",
+    area: "Workboard",
+    why: "Reads job checklists, so progress ticked off in ServiceM8 counts here too.",
+  },
+  {
+    scope: "read_job_categories",
+    area: "Workboard",
+    why: "Reads job categories, so jobs display with the type the business gave them.",
+  },
+  {
+    scope: "read_job_queues",
+    area: "Workboard",
+    why: "Reads job queues, so a job's place in the workflow shows here.",
+  },
+  {
+    scope: "read_staff",
+    area: "Workboard",
+    why: "Reads staff names, so a scheduled job can say who's going. Names only — nothing here reads staff locations.",
+  },
+];
+
+/** What we ask ServiceM8 for, space-separated in the consent URL. */
+export const SM8_SCOPE_LIST: string[] = SM8_SCOPES.map((s) => s.scope);
+
+export function sm8MissingScopes(granted: string | null | undefined): string[] {
+  const have = new Set((granted ?? "").split(/\s+/).filter(Boolean));
+  return SM8_SCOPE_LIST.filter((s) => !have.has(s));
+}
+
+/** The per-provider form, for code that holds a connection row and needs the
+    row's own yardstick — a ServiceM8 grant judged against Xero's list would
+    read as permanently incomplete. Unknown providers miss nothing rather than
+    everything, for the same degrade-don't-crash reason parseTenants has. */
+export function missingScopesFor(
+  provider: string,
+  granted: string | null | undefined
+): string[] {
+  if (provider === "xero") return missingScopes(granted);
+  if (provider === "servicem8") return sm8MissingScopes(granted);
+  return [];
 }

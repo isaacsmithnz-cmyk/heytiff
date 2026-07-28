@@ -6,7 +6,7 @@
    hands a raw row to a component, so a client bundle can't accidentally carry
    an access token even if someone spreads the object into a prop later. */
 
-import { missingScopes } from "./providers";
+import { missingScopesFor } from "./providers";
 
 export type ConnectionStatus = "connected" | "needs_reauth";
 
@@ -87,7 +87,9 @@ export function toView(row: ConnectionRow, connectedByName: string | null = null
     tenantName: row.tenant_name,
     tenants: parseTenants(row.tenants),
     scopes: (row.scopes ?? "").split(/\s+/).filter(Boolean),
-    missing: missingScopes(row.scopes),
+    // Judged against the ROW's provider — a ServiceM8 grant measured with
+    // Xero's list would prompt "reconnect to finish" forever.
+    missing: missingScopesFor(row.provider, row.scopes),
     connectedAt: row.connected_at,
     connectedByName,
     lastError: row.last_error,

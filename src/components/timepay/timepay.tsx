@@ -192,7 +192,7 @@ function ReviewCard({
         <Avatar name={s.name} />
         <div className="who">
           <div className="nm">{s.name}</div>
-          <div className="rl">{s.role}</div>
+          <div className="rl">{s.role}{s.payBasis === "salary" ? " · Salaried" : ""}</div>
         </div>
         <div className="sp"></div>
         <div className="cacts">
@@ -314,7 +314,7 @@ function CompactRow({
       <Avatar name={s.name} />
       <div className="who">
         <div className="nm">{s.name}</div>
-        <div className="rl">{s.role}</div>
+        <div className="rl">{s.role}{s.payBasis === "salary" ? " · Salaried" : ""}</div>
       </div>
       <div className="mini">
         {s.days.map((day, i) => (

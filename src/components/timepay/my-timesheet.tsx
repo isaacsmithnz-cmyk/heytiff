@@ -595,6 +595,7 @@ export function MyTimesheet({
   workDays,
   ownWorkDays,
   employment,
+  salaried = false,
   unavailable,
   week,
   today,
@@ -621,6 +622,11 @@ export function MyTimesheet({
   workDays: number[];
   ownWorkDays: boolean;
   employment: EmploymentClass;
+  /** their week pays itself — the screen goes exception-only. The record
+      keeps writing underneath (presumption + submit unchanged), because an
+      annualised salary still wants hours behind it and the future payroll
+      export needs a period. */
+  salaried?: boolean;
   /** a casual's unavailability blocks; empty for everyone else */
   unavailable: Unavailability[];
   week: WeekCtx["week"];
@@ -658,8 +664,13 @@ export function MyTimesheet({
   const multiWeek = groups.length > 1; // fortnight / month read as week-rows
   const period = periods[periodIndex];
   const sent = sheet.status === "submitted" || sheet.status === "approved";
+  /* A salaried week is read-only at REST: same pay whatever the days say, so
+     there is nothing to ask. "Add overtime" opens the editors for the one
+     exception worth recording — otMode is the tick, not a different screen. */
+  const [otMode, setOtMode] = useState(false);
+  const salariedRest = salaried && !otMode;
   // a closed period is history: you can read it, you can't rewrite it
-  const locked = sent || !period.live;
+  const locked = sent || !period.live || salariedRest;
   const status = STATUS_COPY[sheet.status];
 
   // in-period holidays name themselves in the panel; the rail lists the month
@@ -837,7 +848,9 @@ export function MyTimesheet({
                               <em>
                                 {sent
                                   ? "This week has been sent — it can't be changed here."
-                                  : "This period is closed."}
+                                  : !period.live
+                                    ? "This period is closed."
+                                    : "Salaried — the day pays itself. Add overtime if this one ran long."}
                               </em>
                             </span>
                           </div>
@@ -900,13 +913,28 @@ export function MyTimesheet({
                     ))}
                 </div>
                 <div className="mts2-sub">
-                  {locked && !sent
+                  {!period.live && !sent
                     ? "This period is closed."
-                    : casual && sheet.status === "draft"
-                      ? "Add the days you worked, then submit. Nothing is filled in for you."
-                      : status.sub}
+                    : salariedRest && !sent
+                      ? "Salaried — your pay is the same every week, so there's nothing to fill in. Leave and public holidays arrive from where they're booked."
+                      : casual && sheet.status === "draft"
+                        ? "Add the days you worked, then submit. Nothing is filled in for you."
+                        : status.sub}
                 </div>
-                {!locked && (
+                {salaried && !sent && period.live && (
+                  <button className="bbtn mts2-submit" disabled={pending} onClick={() => setOtMode((v) => !v)}>
+                    <Icon name={otMode ? "check" : "clock"} size={14} />
+                    {otMode ? "Done adding overtime" : "Add overtime"}
+                  </button>
+                )}
+                {otMode && !sent && period.live && (
+                  <div className="mts2-sub">
+                    Pick the day it happened and extend its times.
+                    {settings.salariedOtPaid === false &&
+                      " It's recorded with your week — your salary already covers additional hours."}
+                  </div>
+                )}
+                {!sent && period.live && (
                   <button
                     className="bbtn ink mts2-submit"
                     disabled={pending || d.entries === 0}

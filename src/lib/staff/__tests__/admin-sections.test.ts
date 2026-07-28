@@ -166,3 +166,13 @@ describe("buildAdminPatch — holiday state", () => {
     expect(selfCols).not.toContain("state");
   });
 });
+
+describe("buildAdminPatch — pay basis", () => {
+  it("accepts only the two bases, on the payroll section", () => {
+    expect(buildAdminPatch("payroll", [["pay_basis", "salary"]]).patch.pay_basis).toBe("salary");
+    expect(buildAdminPatch("payroll", [["pay_basis", "hourly"]]).patch.pay_basis).toBe("hourly");
+    expect(buildAdminPatch("payroll", [["pay_basis", "weekly"]]).patch).not.toHaveProperty("pay_basis");
+    // not an identity fact — the personal section must not reach it
+    expect(buildAdminPatch("personal", [["pay_basis", "salary"]]).patch).not.toHaveProperty("pay_basis");
+  });
+});

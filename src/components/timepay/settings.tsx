@@ -616,6 +616,25 @@ export function TimePaySettings({
               )}
               {menuSection("Superannuation guarantee", superStepper())}
               {menuSection(
+                "Salaried overtime",
+                /* Recorded either way — this only decides whether it pays.
+                   Absorbed = "reasonable additional hours" inside the salary. */
+                <div className="wz-pills sm">
+                  <button
+                    className={`wz-pill${(draft.salariedOtPaid ?? true) ? " on" : ""}`}
+                    onClick={() => patch({ salariedOtPaid: true })}
+                  >
+                    Pays at the rules
+                  </button>
+                  <button
+                    className={`wz-pill${(draft.salariedOtPaid ?? true) ? "" : " on"}`}
+                    onClick={() => patch({ salariedOtPaid: false })}
+                  >
+                    Absorbed in salary
+                  </button>
+                </div>
+              )}
+              {menuSection(
                 "Auto-submit",
                 <>
                   {submitPicker}

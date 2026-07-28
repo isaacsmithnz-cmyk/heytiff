@@ -30,6 +30,7 @@ export function payrollValues(p: PayFields | null): Record<string, string> {
   const [install, service, admin] = splitFrom(p?.cost_split);
   return {
     hourly_wage: num(p?.hourly_wage),
+    pay_basis: p?.pay_basis === "salary" ? "salary" : "hourly",
     employment_type: p?.employment_type ?? "",
     contracted_hours: num(p?.contracted_hours),
     utilisation: num(p?.utilisation),
@@ -99,6 +100,12 @@ export function PayrollCard({
             <Detail
               label="Hourly wage"
               value={values.hourly_wage ? `$${values.hourly_wage}` : ""}
+              onAdd={edit}
+              addLabel="Set"
+            />
+            <Detail
+              label="Pay basis"
+              value={values.pay_basis === "salary" ? "Salaried" : "Hourly"}
               onAdd={edit}
               addLabel="Set"
             />

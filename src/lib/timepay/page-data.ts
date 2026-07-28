@@ -161,6 +161,9 @@ export async function loadMyTimesheet(requested?: string) {
     through: p.through,
     /** what kind of employee they are, for the copy that differs */
     employment: me.employment ?? "permanent",
+    /** a salaried permanent's week pays itself — the screen goes
+        exception-only while the record keeps writing underneath */
+    salaried: (me.employment ?? "permanent") === "permanent" && me.payBasis === "salary",
     /** a casual's unavailability blocks; empty for everyone else */
     unavailable,
     settings,

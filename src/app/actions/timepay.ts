@@ -414,6 +414,7 @@ export async function savePaySettings(settings: Settings): Promise<TimepayResult
     lock: settings.lock,
     export_detail: settings.exportDetail,
     super_pct: settings.superPct ?? null,
+    salaried_ot_paid: settings.salariedOtPaid ?? true,
     configured: true,
     updated_at: new Date().toISOString(),
   });

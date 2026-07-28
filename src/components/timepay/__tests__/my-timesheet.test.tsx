@@ -762,3 +762,38 @@ describe("submitting", () => {
     expect(screen.getByText("Submit week").closest("button")).toBeDisabled();
   });
 });
+
+describe("a salaried week pays itself", () => {
+  /* Same pay whatever the days say, so the screen goes exception-only: days
+     read-only at rest, one "Add overtime" tick for the day that ran long.
+     The record keeps writing underneath — presumption and submit unchanged. */
+  it("locks the days, says why, and still offers Submit", async () => {
+    const user = userEvent.setup();
+    renderSheet({ salaried: true });
+    await user.click(tab(/Mon 29/));
+    expect(screen.getByText(/Salaried — the day pays itself/)).toBeInTheDocument();
+    expect(screen.getByText(/nothing to fill in/)).toBeInTheDocument();
+    expect(screen.getByText("Submit week")).toBeInTheDocument();
+  });
+
+  it("Add overtime opens the editors; Done closes them again", async () => {
+    const user = userEvent.setup();
+    renderSheet({ salaried: true });
+    await user.click(tab(/Mon 29/));
+    expect(screen.queryByText("Save day")).not.toBeInTheDocument();
+
+    await user.click(screen.getByText("Add overtime"));
+    await user.click(tab(/Mon 29/));
+    expect(screen.getByText(/Pick the day it happened/)).toBeInTheDocument();
+
+    await user.click(screen.getByText("Done adding overtime"));
+    expect(screen.getByText(/Salaried — the day pays itself/)).toBeInTheDocument();
+  });
+
+  it("says when overtime is absorbed rather than paid", async () => {
+    const user = userEvent.setup();
+    renderSheet({ salaried: true, settings: { ...DEFAULT_SETTINGS, salariedOtPaid: false } });
+    await user.click(screen.getByText("Add overtime"));
+    expect(screen.getByText(/your salary already covers additional hours/)).toBeInTheDocument();
+  });
+});

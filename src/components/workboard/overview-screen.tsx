@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
+import type { RadarItem } from "@/lib/workboard/maintenance-query";
 import type { WorkboardData } from "@/lib/workboard/page-data";
 
 /* The Workboard Overview — the shared "what's on" surface.
@@ -30,6 +31,52 @@ function timeLabel(naive: string): string {
   const ampm = h < 12 ? "am" : "pm";
   const hour12 = h % 12 === 0 ? 12 : h % 12;
   return `${hour12}:${mins}${ampm}`;
+}
+
+const BUCKETS: [RadarItem["bucket"], string][] = [
+  ["overdue", "Overdue"],
+  ["due_soon", "Due soon"],
+  ["upcoming", "Coming up"],
+];
+
+function RadarGroups({ radar, today }: { radar: RadarItem[]; today: string }) {
+  return (
+    <>
+      {BUCKETS.map(([bucket, title]) => {
+        const items = radar.filter((r) => r.bucket === bucket);
+        if (items.length === 0) return null;
+        return (
+          <div className="wb-day" key={bucket}>
+            <div className="wb-dayhead">{title}</div>
+            {items.map((r) => (
+              <Link
+                href={`/dashboard/workboard/maintenance/${r.agreementId}`}
+                className={"wb-row" + (bucket === "overdue" ? " wb-pulse" : "")}
+                key={r.visitId}
+                style={{ textDecoration: "none", color: "inherit" }}
+              >
+                <span className={"wb-chip" + (bucket === "overdue" ? " bad" : bucket === "due_soon" ? "" : " on")}>
+                  {r.dueDate === today ? "Today" : fmtAuWeekdayDayMonth(r.dueDate)}
+                </span>
+                <span className="wb-who">
+                  <b>{r.label}</b>
+                  <em> · {r.clientName}</em>
+                  {r.siteLabel && <em> · {r.siteLabel}</em>}
+                </span>
+                {r.jobNumber && <span className="wb-chip">#{r.jobNumber}</span>}
+                <span
+                  className={"wb-chip" + (r.ready === r.readyTotal ? " on" : bucket !== "upcoming" ? " bad" : "")}
+                  title="Access · time · parts · customer"
+                >
+                  {r.ready}/{r.readyTotal} ready
+                </span>
+              </Link>
+            ))}
+          </div>
+        );
+      })}
+    </>
+  );
 }
 
 function agoLabel(iso: string | null): string {
@@ -230,17 +277,31 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
               )}
             </div>
 
-            {/* Honest breadcrumb: the maintenance radar is the next PR. */}
+            {/* the maintenance radar — the reason the wall screen exists */}
             <div className="card2">
               <div className="c2h">
                 <span className="ci">
                   <Icon name="rotate" size={19} />
                 </span>
                 <div>
-                  <b>Maintenance</b>
-                  <em>The recurring-service radar — overdue, due soon, upcoming — lands here next.</em>
+                  <b>Maintenance radar</b>
+                  <em>Overdue first — those breathe red until someone deals with them.</em>
                 </div>
+                <Link
+                  href="/dashboard/workboard/maintenance"
+                  className="pbtn ghost"
+                  style={{ marginLeft: "auto" }}
+                >
+                  All agreements
+                </Link>
               </div>
+              {data.radar.length === 0 ? (
+                <p className="int-hint">
+                  Nothing on the radar{data.manage ? " — set up an agreement under All agreements" : ""}.
+                </p>
+              ) : (
+                <RadarGroups radar={data.radar} today={data.today} />
+              )}
             </div>
 
             {connected && data.synced && (

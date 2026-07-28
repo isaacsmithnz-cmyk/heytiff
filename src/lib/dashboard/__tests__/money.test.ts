@@ -37,8 +37,16 @@ describe("payRunItem", () => {
     expect(item?.detail).toBe("15–28 Jul · 1 awaiting approval");
   });
 
-  it("treats the end date itself as closed", () => {
+  /* The final day of a period is still a working day: people are mid-shift
+     and haven't submitted, so nothing is outstanding yet. The run becomes due
+     the morning after. */
+  it("stays open ON the end date — that day is still being worked", () => {
     const item = payRunItem({ ...base, today: "2026-07-14", submitted: 0, approved: 1 });
-    expect(item?.state).toBe("warn");
+    expect(item).toMatchObject({ label: "Timesheets this period", state: "ok" });
+  });
+
+  it("turns due the day after the period ends", () => {
+    const item = payRunItem({ ...base, today: "2026-07-15", submitted: 0, approved: 1 });
+    expect(item).toMatchObject({ label: "Pay run due", state: "warn" });
   });
 });

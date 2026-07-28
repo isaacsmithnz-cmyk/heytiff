@@ -47,7 +47,13 @@ export function payRunItem(input: {
   // Nothing submitted or approved yet — no payroll prompt worth making.
   if (submitted === 0 && approved === 0) return null;
 
-  const closed = today >= periodEnd;
+  /* `periodEnd` is the period's LAST DAY, inclusive — so the run is due once
+     that day is BEHIND us, not while it is still being worked. On the final
+     day people are legitimately mid-shift and haven't submitted; calling the
+     pay run due then warns about staff who aren't late yet. (Same off-by-one
+     the timesheet had: "is today the last day" is not "the last day is
+     over".) */
+  const closed = today > periodEnd;
   const parts: string[] = [];
   if (approved > 0) parts.push(`${approved} ready to pay`);
   if (submitted > 0) parts.push(`${submitted} awaiting approval`);

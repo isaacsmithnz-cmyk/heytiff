@@ -17,6 +17,7 @@ const base: WorkboardData = {
   today: "2026-07-28",
   counts: null,
   upcoming: [],
+  projects: [],
   synced: null,
 };
 
@@ -82,5 +83,23 @@ describe("connected", () => {
   it("says when the connection itself needs attention", () => {
     render(<OverviewScreen data={{ ...connected, connection: "attention", counts: null }} />);
     expect(screen.getByText(/needs attention/)).toBeInTheDocument();
+  });
+
+  it("shows projects in flight — standalone rows, no integration required", () => {
+    render(
+      <OverviewScreen
+        data={{
+          ...base,
+          projects: [
+            { id: "p-1", name: "Smith St change-over", clientName: "Smith", stage: "Rough-in", percent: 40 },
+          ],
+        }}
+      />
+    );
+    expect(screen.getByText("Smith St change-over").closest("a")).toHaveAttribute(
+      "href",
+      "/dashboard/workboard/projects/p-1"
+    );
+    expect(screen.getByText("Rough-in")).toBeInTheDocument();
   });
 });

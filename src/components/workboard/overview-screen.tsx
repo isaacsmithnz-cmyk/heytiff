@@ -185,19 +185,60 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
               </div>
             )}
 
-            {/* Honest breadcrumb, not a roadmap: these are in this build's
-                approved plan, landing as the next two PRs. */}
+            {/* projects in flight */}
             <div className="card2">
               <div className="c2h">
                 <span className="ci">
                   <Icon name="layers" size={19} />
                 </span>
                 <div>
-                  <b>Projects & maintenance</b>
-                  <em>
-                    Project tracking (stages, checklists, handover) and the recurring-maintenance
-                    radar land here next.
-                  </em>
+                  <b>Projects in flight</b>
+                  <em>Stage and checklist progress, straight off each project.</em>
+                </div>
+                <Link
+                  href="/dashboard/workboard/projects"
+                  className="pbtn ghost"
+                  style={{ marginLeft: "auto" }}
+                >
+                  All projects
+                </Link>
+              </div>
+              {data.projects.length === 0 ? (
+                <p className="int-hint">
+                  Nothing on the go{data.manage ? " — start one under All projects" : ""}.
+                </p>
+              ) : (
+                <div className="wb-strip">
+                  {data.projects.map((p) => (
+                    <Link
+                      href={`/dashboard/workboard/projects/${p.id}`}
+                      className="wb-row"
+                      key={p.id}
+                      style={{ textDecoration: "none", color: "inherit" }}
+                    >
+                      <span className="wb-who">
+                        <b>{p.name}</b>
+                        {p.clientName && <em> · {p.clientName}</em>}
+                      </span>
+                      <span className="wb-chip on">{p.stage}</span>
+                      <div className="wb-bar">
+                        <span style={{ width: `${p.percent}%` }} />
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Honest breadcrumb: the maintenance radar is the next PR. */}
+            <div className="card2">
+              <div className="c2h">
+                <span className="ci">
+                  <Icon name="rotate" size={19} />
+                </span>
+                <div>
+                  <b>Maintenance</b>
+                  <em>The recurring-service radar — overdue, due soon, upcoming — lands here next.</em>
                 </div>
               </div>
             </div>

@@ -22,6 +22,7 @@ import {
 } from "./connection";
 import { open, seal, tokenKey } from "./secrets";
 import { refreshSm8Tokens, sm8Config, type Sm8Tokens, type Sm8Vendor } from "./sm8";
+import { SM8_WIPE_TABLES } from "./sm8-sync-plan";
 
 const TABLE = "integration_connections";
 const PROVIDER = "servicem8";
@@ -102,9 +103,19 @@ export async function saveSm8Connection(input: {
 /** End the grant locally. ServiceM8 documents no revocation endpoint, so
     there is nothing upstream to call — the sealed tokens are deleted here and
     the screen tells the owner how to finish the job on ServiceM8's side
-    (remove the HeyTiff add-on in their account). PR 2 extends this to wipe
-    the sm8_* mirror tables: cached client books don't outlive the grant. */
+    (remove the HeyTiff add-on in their account).
+
+    THE MIRRORS GO TOO. They are a disposable cache of somebody's entire
+    client book, and holding that after the owner revoked the grant is
+    liability with no upside — a reconnect rebuilds them in minutes. Overlay
+    rows (projects, agreements) survive on their own cached labels; the
+    connection row goes LAST so a wipe interrupted mid-way still reads as
+    connected-with-holes, which the next sync repairs, rather than
+    disconnected-with-leftovers, which nothing would ever clean. */
 export async function disconnectSm8(orgId: string): Promise<void> {
+  for (const table of SM8_WIPE_TABLES) {
+    await supabaseAdmin.from(table).delete().eq("org_id", orgId);
+  }
   await supabaseAdmin.from(TABLE).delete().eq("org_id", orgId).eq("provider", PROVIDER);
 }
 

@@ -7,7 +7,8 @@ import { Icon } from "@/components/shell/icon";
 import { auDayOf, fmtAuWeekdayDate } from "@/lib/au-dates";
 import { providerById, SM8_SCOPES } from "@/lib/integrations/providers";
 import type { ConnectionView } from "@/lib/integrations/connection";
-import { disconnectServiceM8Action } from "@/app/actions/integrations";
+import type { Sm8SyncStatusView } from "@/lib/integrations/sm8-sync";
+import { disconnectServiceM8Action, syncServiceM8NowAction } from "@/app/actions/integrations";
 
 /* The ServiceM8 connection screen — xero-screen's sibling, same two refusals
    to be vague (WHAT IT IS FOR, WHAT IT CAN SEE), same two-step disconnect.
@@ -30,6 +31,8 @@ export type Servicem8ScreenProps = {
   connection: ConnectionView | null;
   /** Result of one live read; null when there was nothing to read through. */
   reach?: Sm8Reach | null;
+  /** Per-object mirror progress; null until connected. */
+  sync?: Sm8SyncStatusView | null;
   /** SM8_CLIENT_ID / SECRET / APP_BASE_URL are all present on this deployment. */
   configured: boolean;
   /** INTEGRATIONS_TOKEN_KEY is present — without it we refuse to store tokens. */
@@ -38,12 +41,28 @@ export type Servicem8ScreenProps = {
   notice: { kind: "ok" | "error"; text: string } | null;
 };
 
+/** "just now" / "4 min ago" / "3 hours ago" — the board's staleness language,
+    deliberately vague past a day because a mirror that old is the story, not
+    the minutes. */
+function agoLabel(iso: string | null): string {
+  if (!iso) return "never";
+  const ms = Date.now() - Date.parse(iso);
+  if (Number.isNaN(ms) || ms < 0) return "just now";
+  const mins = Math.floor(ms / 60_000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins} min ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  return "over a day ago";
+}
+
 export function Servicem8Screen({
   connection,
   configured,
   sealed,
   notice,
   reach,
+  sync,
 }: Servicem8ScreenProps) {
   const provider = providerById("servicem8")!;
   const router = useRouter();
@@ -68,6 +87,16 @@ export function Servicem8Screen({
         if (res.note) setNote(res.note);
         router.refresh();
       } else setError(res.error);
+    });
+  };
+
+  const syncNow = () => {
+    setError(null);
+    setNote(null);
+    start(async () => {
+      const res = await syncServiceM8NowAction();
+      if (res.ok) router.refresh();
+      else setError(res.error);
     });
   };
 
@@ -231,6 +260,52 @@ export function Servicem8Screen({
               </p>
             )}
           </div>
+
+          {/* ── the mirror, object by object ── */}
+          {connected && sync && (
+            <div className="card2">
+              <div className="c2h">
+                <span className="ci">
+                  <Icon name="sync" size={19} />
+                </span>
+                <div style={{ minWidth: 0 }}>
+                  <b>What&apos;s been read across</b>
+                  <em>
+                    {sync.lastRun?.running
+                      ? "Syncing now…"
+                      : sync.lastRun?.finishedAt
+                        ? `Last synced ${agoLabel(sync.lastRun.finishedAt)}${
+                            sync.lastRun.note ? ` — ${sync.lastRun.note}` : ""
+                          }`
+                        : "Waiting for the first sync."}
+                  </em>
+                </div>
+              </div>
+              <ul className="int-scopes">
+                {sync.objects.map((o) => (
+                  <li key={o.object}>
+                    <div className="int-scopehead">
+                      <code>{o.label}</code>
+                      {o.lastError ? (
+                        <span className="int-tag warn">{o.lastError}</span>
+                      ) : o.backfillDone ? (
+                        <span className="int-tag">
+                          {o.rowsPulled} row{o.rowsPulled === 1 ? "" : "s"}
+                        </span>
+                      ) : (
+                        <span className="int-tag warn">First sync queued</span>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <div className="int-act">
+                <button className="pbtn ghost" onClick={syncNow} disabled={busy}>
+                  {busy ? "Syncing…" : "Sync now"}
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* ── what it powers ── */}
           <div className="card2">

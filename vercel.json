@@ -5,6 +5,10 @@
     {
       "path": "/api/cron/xero-drift",
       "schedule": "0 6 * * 1"
+    },
+    {
+      "path": "/api/cron/sm8-sync",
+      "schedule": "0 * * * *"
     }
   ]
 }

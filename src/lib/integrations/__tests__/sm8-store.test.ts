@@ -8,11 +8,11 @@ type Row = Record<string, unknown>;
 let row: Row | null = null;
 const updates: { patch: Record<string, unknown>; filters: Record<string, unknown> }[] = [];
 const upserts: Record<string, unknown>[] = [];
-const deletes: Record<string, unknown>[] = [];
+const deletes: { table: string; filters: Record<string, unknown> }[] = [];
 
 jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: {
-    from: () => {
+    from: (table: string) => {
       const filters: Record<string, unknown> = {};
       const c: Record<string, unknown> = {};
       const self = () => c;
@@ -40,10 +40,10 @@ jest.mock("@/lib/supabase-server", () => ({
         return Promise.resolve({ error: null });
       };
       c.delete = () => {
-        const d: Record<string, unknown> = { ...filters };
+        const d = { table, filters: { ...filters } as Record<string, unknown> };
         const chain: Record<string, unknown> = {};
         chain.eq = (col: string, v: unknown) => {
-          d[col] = v;
+          d.filters[col] = v;
           return chain;
         };
         chain.then = (res: (v: { error: null }) => unknown) => {
@@ -71,6 +71,7 @@ jest.mock("../secrets", () => ({
 }));
 
 import { disconnectSm8, saveSm8Connection, sm8Access } from "../sm8-store";
+import { SM8_WIPE_TABLES } from "../sm8-sync-plan";
 
 const NOW = Date.parse("2026-07-28T00:00:00Z");
 
@@ -171,7 +172,7 @@ describe("saving a grant", () => {
       orgId: "org-1",
       userId: "auth0|me",
       tokens,
-      vendor: { uuid: "v-9", name: "Acme Air", email: null, timezoneName: "Australia/Brisbane" },
+      vendor: { uuid: "v-9", name: "Acme Air", email: null, timezoneName: "Australia/Brisbane", currency: "AUD" },
       now: NOW,
     });
     expect(upserts[0]).toMatchObject({
@@ -207,8 +208,18 @@ describe("saving a grant", () => {
 });
 
 describe("disconnect", () => {
-  it("deletes exactly this org's ServiceM8 row", async () => {
+  it("wipes every mirror for this org, then the connection row last", async () => {
     await disconnectSm8("org-1");
-    expect(deletes[0]).toMatchObject({ org_id: "org-1", provider: "servicem8" });
+
+    // every wipe is org-scoped — nothing here can touch another workspace
+    for (const d of deletes) expect(d.filters.org_id).toBe("org-1");
+
+    const wiped = deletes.map((d) => d.table);
+    expect(wiped).toEqual([...SM8_WIPE_TABLES, "integration_connections"]);
+
+    // the connection row goes LAST: an interrupted wipe reads as
+    // connected-with-holes (self-repairing), never disconnected-with-leftovers
+    const final = deletes[deletes.length - 1];
+    expect(final.filters).toMatchObject({ org_id: "org-1", provider: "servicem8" });
   });
 });

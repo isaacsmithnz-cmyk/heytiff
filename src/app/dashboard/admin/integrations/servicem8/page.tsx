@@ -5,6 +5,7 @@ import { getDbRole } from "@/lib/permissions-server";
 import { Servicem8Screen, type Sm8Reach } from "@/components/integrations/servicem8-screen";
 import { getConnectionView } from "@/lib/integrations/store";
 import { readSm8Vendor } from "@/lib/integrations/sm8-read";
+import { kickSm8SyncIfStale, listSm8SyncStatus, type Sm8SyncStatusView } from "@/lib/integrations/sm8-sync";
 import { tokenKey } from "@/lib/integrations/secrets";
 import { sm8Config } from "@/lib/integrations/sm8";
 import { sm8ConnectMessage } from "@/lib/integrations/outcome";
@@ -34,11 +35,17 @@ export default async function Servicem8IntegrationPage({
      health check: revoked-from-ServiceM8 shows up here as needs_reauth on the
      next render, not at the first sync somebody depends on. */
   let reach: Sm8Reach | null = null;
+  let sync: Sm8SyncStatusView | null = null;
   if (connection && connection.status === "connected") {
-    const vendor = await readSm8Vendor(orgId);
+    const [vendor, status] = await Promise.all([readSm8Vendor(orgId), listSm8SyncStatus(orgId)]);
     reach = vendor.ok
       ? { ok: true, account: { name: vendor.data.name, timezoneName: vendor.data.timezoneName } }
       : { ok: false, error: vendor.error };
+    sync = status;
+    // Opening this screen counts as looking — top the mirrors up behind the
+    // response when they're stale. Closes over the orgId read above; no
+    // request APIs inside (Server Component after() rule).
+    await kickSm8SyncIfStale(orgId);
   }
 
   const notice = errorText
@@ -54,6 +61,7 @@ export default async function Servicem8IntegrationPage({
       sealed={tokenKey() !== null}
       notice={notice}
       reach={reach}
+      sync={sync}
     />
   );
 }

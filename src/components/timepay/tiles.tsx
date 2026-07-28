@@ -6,6 +6,8 @@ import {
   type Settings,
   type WeekCtx,
   dayClass,
+  dowOf,
+  isWeekendRate,
   fmt,
   initials,
   nameHue,
@@ -95,6 +97,10 @@ export function MiniTile({
   ctx: WeekCtx;
 }) {
   const cls = dayClass(d, i, settings, ctx);
+  /* A worked weekend is `over` because every hour of it is at a premium, not
+     because the day ran long — so it says WEEKEND, matching the pill the
+     person sees on their own sheet. */
+  const weekendRate = isWeekendRate(d, dowOf(ctx.week[i]), settings);
   const label =
     cls === "empty" ? "No entry"
     : cls === "miss" ? "Missing entry"
@@ -103,7 +109,9 @@ export function MiniTile({
     : cls === "ph" ? "Public holiday"
     : fmt((d as { h: number }).h) +
       "h" +
-      (cls === "std" ? " · standard" : cls === "over" ? " · overtime" : " · under standard");
+      (weekendRate
+        ? " · weekend rates"
+        : cls === "std" ? " · standard" : cls === "over" ? " · overtime" : " · under standard");
   return (
     <span
       className={`mt ${cls}${i === ctx.today ? " today" : ""}`}

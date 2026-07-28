@@ -112,32 +112,33 @@ const withBreak = (minutes: number, paid: boolean): Settings => ({
   breakPaid: paid,
 });
 
+/* One place the props are declared, so a test that needs to RE-render with a
+   changed day (the server answering a save) can reuse the same baseline. */
+const BASE_PROPS: React.ComponentProps<typeof MyTimesheet> = {
+  me: ME,
+  sources: SOURCES,
+  normal: NORMAL,
+  ownNormal: false,
+  workDays: [0, 1, 2, 3, 4],
+  ownWorkDays: false,
+  employment: "permanent",
+  unavailable: [],
+  week: WEEK,
+  today: 4,
+  /* Mon–Thu are over; Friday IS today and is not */
+  through: 3,
+  todayISO: "2026-07-03",
+  periodStart: "2026-06-29",
+  periods: PERIODS,
+  periodIndex: 0,
+  settings: DEFAULT_SETTINGS,
+  sheet: SHEET(),
+  holidays: [],
+  state: "NSW",
+};
+
 function renderSheet(over: Partial<React.ComponentProps<typeof MyTimesheet>> = {}) {
-  return render(
-    <MyTimesheet
-      me={ME}
-      sources={SOURCES}
-      normal={NORMAL}
-      ownNormal={false}
-      workDays={[0, 1, 2, 3, 4]}
-      ownWorkDays={false}
-      employment="permanent"
-      unavailable={[]}
-      week={WEEK}
-      today={4}
-      /* Mon–Thu are over; Friday IS today and is not */
-      through={3}
-      todayISO="2026-07-03"
-      periodStart="2026-06-29"
-      periods={PERIODS}
-      periodIndex={0}
-      settings={DEFAULT_SETTINGS}
-      sheet={SHEET()}
-      holidays={[]}
-      state="NSW"
-      {...over}
-    />,
-  );
+  return render(<MyTimesheet {...BASE_PROPS} {...over} />);
 }
 
 /** A day tab, by the label it announces ("Mon 29 Jun — Normal"). */
@@ -435,6 +436,38 @@ describe("a day that was different", () => {
     await user.click(tab(/Wed 1 Jul/));
     await user.click(screen.getByText("Back to normal"));
     expect(saveDay).toHaveBeenCalledWith("2026-06-29", 2, { t: "empty" });
+  });
+
+  /* FOUND BY FILLING A WEEK IN ON THE REAL SCREEN. The editor seeds kind/start
+     /finish into local state on mount and was keyed by the day INDEX alone, so
+     a save that changed the day underneath it left the editor showing the old
+     answer: the card returned to "Normal · 8h" while the panel still read
+     "Didn't work · 0h". Pressing Save from there wrote the `off` straight back
+     and undid the correction without saying a word. */
+  it("re-reads the day after a save instead of keeping what it mounted with", async () => {
+    const user = userEvent.setup();
+    const off: DayEntry = { t: "off" };
+    const { rerender } = renderSheet({
+      me: { ...ME, days: [off, ...DAYS.slice(1)] },
+      sources: ["entered", ...SOURCES.slice(1)] as DaySource[],
+    });
+    await user.click(tab(/Mon 29 Jun/));
+    expect(screen.getByText("Didn't work").className).toContain("on");
+
+    // the server sends the day back as an ordinary presumed day
+    rerender(
+      <MyTimesheet
+        {...(BASE_PROPS as React.ComponentProps<typeof MyTimesheet>)}
+        me={{ ...ME, days: [w8, ...DAYS.slice(1)] }}
+        sources={["presumed", ...SOURCES.slice(1)] as DaySource[]}
+      />,
+    );
+
+    // the panel must follow the day, not its own stale state
+    expect(screen.getByText("Worked").className).toContain("on");
+    expect(screen.getByText("Didn't work").className).not.toContain("on");
+    expect(screen.getByRole("group", { name: "Start" })).toBeInTheDocument();
+    expect(screen.queryByText(/book it in/)).toBeNull();
   });
 
   it("a presumed day has nothing to clear — it was never a row", async () => {

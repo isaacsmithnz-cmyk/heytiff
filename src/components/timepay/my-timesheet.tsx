@@ -166,6 +166,15 @@ function payrollChip(
   return { parts, total: sp.n + sp.o15 * 1.5 + sp.o2 * 2 };
 }
 
+/** A day's stored content as one string — the editor's remount key. Anything
+    that changes what was saved has to change this, or the open editor keeps
+    showing the version it mounted with. */
+function entryKey(d: DayEntry): string {
+  if (d.t === "work") return `work:${d.in}:${d.out}:${d.h}`;
+  if (d.t === "empty" || d.t === "off") return d.t;
+  return `${d.t}:${d.h}`;
+}
+
 /** The one-line summary a day card shows under its date. */
 function daySummary(d: DayEntry): string {
   if (d.t === "empty") return "—";
@@ -366,10 +375,16 @@ function DayEditor({
         </span>
       </div>
 
-      <div className="mts2-eacts">
+      {/* SAVING SAYS SO. A day is a server round trip — measured at ~2.4s on a
+          dev machine, and prod talks to a database in another country — and
+          the only sign it was happening used to be the button going faintly
+          disabled. So you press Save, the card doesn't move, and you conclude
+          it didn't work; the honest reading of "nothing happened" is that the
+          screen said nothing for two and a half seconds. */}
+      <div className={`mts2-eacts${busy ? " busy" : ""}`} aria-busy={busy}>
         <button className="mts2-btn primary" disabled={busy} onClick={commit}>
-          <Icon name="check" size={14} />
-          Save day
+          <Icon name={busy ? "clock" : "check"} size={14} />
+          {busy ? "Saving…" : "Save day"}
         </button>
         {source === "entered" && (
           <button
@@ -889,7 +904,20 @@ export function MyTimesheet({
                           </div>
                         ) : (
                           <DayEditor
-                            key={selected}
+                            /* KEYED ON THE DAY'S CONTENT, not just its index.
+                               The editor seeds `kind`, `start` and `end` into
+                               local state when it mounts, so keying on the
+                               index alone left that state behind whenever a
+                               save changed the day underneath it: press
+                               "Back to normal" on a day marked Not worked and
+                               the card correctly returned to Normal 8h while
+                               the open editor still read "Didn't work", 0h.
+                               Pressing Save again from there would write the
+                               `off` back — silently undoing the correction
+                               that had just been made. Remounting on the
+                               stored day means the editor always shows what
+                               was actually saved. */
+                            key={`${selected}:${entryKey(me.days[selected])}`}
                             index={selected}
                             entry={me.days[selected]}
                             source={sources[selected] ?? "entered"}

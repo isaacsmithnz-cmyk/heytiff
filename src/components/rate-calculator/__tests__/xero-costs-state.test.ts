@@ -4,6 +4,9 @@ import {
   emptyState,
   hydrateState,
   runEngine,
+  snapshotAgeMonths,
+  snapshotTotal,
+  sourceSwitchVisible,
   type RateCalcState,
   type XeroCostSnapshot,
 } from "../state";
@@ -156,5 +159,43 @@ describe("the Business step counts as done on real Xero figures", () => {
       xeroCosts: snapshot([line("Empty account", 0)]),
     });
     expect(runEngine(s).steps.business.completion).toBe("not_started");
+  });
+});
+
+describe("sourceSwitchVisible — the way back to manual", () => {
+  /* The audit's A8: the switch rendered only while CONNECTED, the panel
+     rendered whenever the SOURCE was xero — so a dead grant trapped the
+     calculator on a frozen snapshot with the exit hidden. */
+  it("shows whenever there is a choice: a grant to use, or a snapshot to leave", () => {
+    expect(sourceSwitchVisible(true, "manual")).toBe(true);
+    expect(sourceSwitchVisible(true, "xero")).toBe(true);
+    expect(sourceSwitchVisible(false, "xero")).toBe(true); // the trap, fixed
+    expect(sourceSwitchVisible(false, "manual")).toBe(false); // nothing to offer
+  });
+});
+
+describe("snapshot arithmetic", () => {
+  it("totals only the included lines — one number for panel, seed and EOFY", () => {
+    const snap = {
+      fetchedAt: "2026-01-01T00:00:00Z",
+      period: { from: "2025-07-01", to: "2026-06-30", label: "FY 2025–26" },
+      tenantName: "HeyTiff",
+      lines: [
+        { name: "Rent", amount: 24000, allocated_to: "both" },
+        { name: "Software", amount: 6000, allocated_to: "both" },
+      ],
+      excluded: [{ name: "Wages", amount: 400000, reason: "wages" }],
+      sections: ["Operating Expenses"],
+    } as never;
+    expect(snapshotTotal(snap)).toBe(30000);
+    expect(snapshotTotal(null)).toBe(0);
+  });
+
+  it("ages in whole 30-day months, and answers null for garbage", () => {
+    const now = Date.parse("2026-07-28T00:00:00Z");
+    expect(snapshotAgeMonths("2026-07-01T00:00:00Z", now)).toBe(0);
+    expect(snapshotAgeMonths("2026-01-28T00:00:00Z", now)).toBe(6);
+    expect(snapshotAgeMonths("not a date", now)).toBeNull();
+    expect(snapshotAgeMonths(undefined, now)).toBeNull();
   });
 });

@@ -6,7 +6,7 @@ import { money } from "./format";
 import { WsEyebrow } from "./ui";
 import { chipColor } from "./detail";
 import type { BusinessCost } from "./engine";
-import type { RateCalcState, XeroCostSnapshot } from "./state";
+import { snapshotAgeMonths, snapshotTotal, type RateCalcState, type XeroCostSnapshot } from "./state";
 import type { PeriodChoice } from "@/lib/integrations/xero-pl";
 
 /* Business costs, read from a connected Xero organisation.
@@ -118,7 +118,13 @@ export function XeroCostsPanel({ s, patch, onFetch }: XeroCostsPanelProps) {
     });
   };
 
-  const total = (snap?.lines ?? []).reduce((sum, l) => sum + (l.amount || 0), 0);
+  const total = snapshotTotal(snap);
+  /* A figure from two financial years ago prices today's rates exactly like
+     one pulled this morning — unless somebody says so. Same threshold as the
+     calculator's own review reminder, so "old" means one thing here. */
+  const ageMonths = snapshotAgeMonths(snap?.fetchedAt, Date.now());
+  const staleAfter = s.settings.review_reminder_months ?? 6;
+  const stale = ageMonths !== null && ageMonths >= staleAfter;
 
   return (
     <div className="rcx">
@@ -161,6 +167,12 @@ export function XeroCostsPanel({ s, patch, onFetch }: XeroCostsPanelProps) {
             {snap.fetchedAt ? new Date(snap.fetchedAt).toLocaleDateString("en-AU") : "recently"}.
             {snap.sections.length > 0 && <> Source: {snap.sections.join(", ")}.</>}
           </p>
+          {stale && (
+            <p className="rcx-err">
+              This snapshot is more than {staleAfter} month{staleAfter === 1 ? "" : "s"} old — the
+              P&amp;L has moved since. Refresh it before quoting from these rates.
+            </p>
+          )}
 
           <div className="rcx-lines">
             {snap.lines.map((l, i) => (

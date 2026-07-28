@@ -618,6 +618,9 @@ export function TimePay({
                     onAdoptEmployment={async (id, value) =>
                       (await import("@/app/actions/xero-links")).adoptEmploymentType(id, value)
                     }
+                    onAdoptBasis={async (id, value) =>
+                      (await import("@/app/actions/xero-links")).adoptPayBasis(id, value)
+                    }
                     onCheckPay={async () =>
                       (await import("@/app/actions/xero-links")).checkPayRates()
                     }

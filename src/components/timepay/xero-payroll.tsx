@@ -10,7 +10,7 @@ import type {
   WagePayRow,
 } from "@/app/actions/xero-links";
 import type { WageDrift } from "@/lib/integrations/wage";
-import type { LinkingRow } from "@/lib/integrations/linking";
+import { payBasisDrift, type LinkingRow } from "@/lib/integrations/linking";
 import type { XeroEmployee } from "@/lib/integrations/xero-shape";
 
 /* Matching this workspace's people to Xero's payroll employees.
@@ -37,6 +37,9 @@ export type XeroPayrollProps = {
   onLink: (staffProfileId: string, remoteId: string, matchedBy: "auto" | "manual") => Promise<LinkActionResult>;
   onUnlink: (staffProfileId: string) => Promise<LinkActionResult>;
   onAdoptEmployment: (staffProfileId: string, value: string) => Promise<LinkActionResult>;
+  /** Xero's pay template knows who is salaried — the suggestion it feeds is
+      adopted the same way: explicitly, per person. */
+  onAdoptBasis: (staffProfileId: string, value: string) => Promise<LinkActionResult>;
   /** Pay rates are a separate, explicit fetch — see the note above the button. */
   onCheckPay: () => Promise<PayRatesResult>;
   onAdoptWage: (staffProfileId: string) => Promise<LinkActionResult>;
@@ -50,6 +53,7 @@ export function XeroPayroll({
   onLink,
   onUnlink,
   onAdoptEmployment,
+  onAdoptBasis,
   onCheckPay,
   onAdoptWage,
 }: XeroPayrollProps) {
@@ -194,6 +198,7 @@ export function XeroPayroll({
             onLink={(remoteId, how) => run(() => onLink(row.staffProfileId, remoteId, how))}
             onUnlink={() => run(() => onUnlink(row.staffProfileId))}
             onAdopt={(value) => run(() => onAdoptEmployment(row.staffProfileId, value))}
+            onAdoptBasis={() => run(() => onAdoptBasis(row.staffProfileId, "salary"))}
             onAdoptWage={() => run(() => onAdoptWage(row.staffProfileId))}
           />
         ))}
@@ -253,6 +258,7 @@ function StaffRow({
   onLink,
   onUnlink,
   onAdopt,
+  onAdoptBasis,
   onAdoptWage,
 }: {
   row: LinkingRow;
@@ -264,6 +270,7 @@ function StaffRow({
   onLink: (remoteId: string, matchedBy: "auto" | "manual") => void;
   onUnlink: () => void;
   onAdopt: (value: string) => void;
+  onAdoptBasis: () => void;
   onAdoptWage: () => void;
 }) {
   const [picking, setPicking] = useState(false);
@@ -344,6 +351,32 @@ function StaffRow({
           Xero's figure is shown beside ours with an adopt button — and only
           where there is genuinely an hourly rate to adopt. */}
       {wage && <WageRow drift={wage.drift} busy={busy} onAdopt={onAdoptWage} />}
+
+      {/* The pay BASIS, read off the same pay template the wage came from —
+          only knowable once rates have been checked. Suggestion, never a
+          write: this column decides what their own timesheet asks them for
+          every week. */}
+      {(() => {
+        const basis = payBasisDrift(row.payBasis, wage?.drift ?? null);
+        if (!basis) return null;
+        if (basis.kind === "contradiction")
+          return (
+            <div className="xp-drift">
+              <span>{basis.note}</span>
+            </div>
+          );
+        return (
+          <div className="xp-drift">
+            <span>
+              Xero pays them a salary; here they&apos;re on an <b>hourly</b> basis, so their
+              timesheet asks for every day.
+            </span>
+            <button className="xp-btn go" disabled={busy} onClick={onAdoptBasis}>
+              Mark salaried
+            </button>
+          </div>
+        );
+      })()}
     </div>
   );
 }

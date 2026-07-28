@@ -26,7 +26,7 @@ const claim = (o: Partial<TeamClaim> & { id: string; status: TeamClaim["status"]
   supplier: "Reece",
   reviewNote: null,
   createdAt: "2026-07-20T00:00:00Z",
-  receiptUrl: "https://example.test/receipt.jpg",
+  receipts: [{ url: "https://example.test/receipt.jpg", image: true }],
   ...o,
 });
 
@@ -129,7 +129,7 @@ describe("TeamExpenses — what it says", () => {
      that's what they're making — silence would read as "receipt fine". */
   it("says out loud when a claim has no receipt", () => {
     render(
-      <TeamExpenses claims={[claim({ id: "c1", status: "pending", receiptUrl: null })]} canApprove canPay />
+      <TeamExpenses claims={[claim({ id: "c1", status: "pending", receipts: [] })]} canApprove canPay />
     );
     expect(screen.getByText("No receipt")).toBeInTheDocument();
   });

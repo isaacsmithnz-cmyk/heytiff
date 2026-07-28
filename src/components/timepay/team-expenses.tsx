@@ -171,10 +171,14 @@ export function TeamExpenses({
 
                   <div className="xc-side">
                     <span className={`xc-pill ${c.status}`}>{STATUS_LABEL[c.status]}</span>
-                    {c.receiptUrl ? (
-                      <a className="xc-rec" href={c.receiptUrl} target="_blank" rel="noopener noreferrer">
-                        Receipt
-                      </a>
+                    {(c.receipts ?? []).length > 0 ? (
+                      (c.receipts ?? []).map((r, i) =>
+                        r.url ? (
+                          <a key={i} className="xc-rec" href={r.url} target="_blank" rel="noopener noreferrer">
+                            {i === 0 ? "Receipt" : `Receipt ${i + 1}`}
+                          </a>
+                        ) : null,
+                      )
                     ) : (
                       /* Worth saying out loud rather than leaving blank: a
                          claim with no receipt is a judgement call, and the
@@ -210,6 +214,18 @@ export function TeamExpenses({
             <p className="xr-foot">
               <Icon name="info" size={14} />
               You can see these, but approving them needs the approvals permission.
+            </p>
+          )}
+
+          {/* The audit's finding: "Mark paid" flips a status and nothing else,
+              and nowhere said so — an owner could reasonably believe the money
+              moved. Until the planned Xero push lands, the hand-off is manual
+              and the screen owns up to it. */}
+          {canPay && (
+            <p className="xr-foot">
+              <Icon name="info" size={14} />
+              Mark paid records the decision here — paying the money and entering it in Xero stays
+              manual for now.
             </p>
           )}
         </div>

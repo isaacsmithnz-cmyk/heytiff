@@ -1,6 +1,7 @@
 import type { Capability } from "@/lib/permissions";
 import type { Vehicle, VehicleWithFacts } from "@/components/fleet/logic";
 import {
+  expensesChip,
   licenceChip,
   orgInsuranceChip,
   sortChips,
@@ -44,6 +45,9 @@ export type ChipSources = {
   /** The whole register. */
   fleet: Vehicle[];
   org: { insurer: string | null; insuranceExpiry: string | null };
+  /** Expense claims waiting on a decision — 0 when the viewer can't decide
+      them (the loader only counts for `approvals` holders). */
+  pendingClaims: number;
 };
 
 const push = (arr: ActionChip[], chip: ActionChip | null) => {
@@ -70,6 +74,11 @@ export function assembleChips(src: ChipSources, caps: ReadonlySet<Capability>): 
       team.push(...workRightsChips({ staffId: s.staffId, ...s.workRights }, ctx));
     }
     push(team, orgInsuranceChip(src.org, { href: "/dashboard/admin/organization", today: src.today }));
+  }
+  // A claim queue belongs to whoever can decide it, which is `approvals`,
+  // not `team` — same rule as the review screen itself.
+  if (caps.has("approvals")) {
+    push(team, expensesChip(src.pendingClaims));
   }
   if (caps.has("assets_all")) {
     for (const v of src.fleet) {

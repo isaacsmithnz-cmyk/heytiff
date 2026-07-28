@@ -9,6 +9,7 @@ import { periodEnd, periodLabel, periodStartFor } from "@/lib/timepay/period";
 import { approvedInSpan, holidaysInSpan, stateFor } from "@/lib/timepay/leave-query";
 import { assembleChips, type DashboardChips } from "./assemble";
 import { listStaffCompliance, orgInsurance, type StaffCompliance } from "./query";
+import { pendingClaimsCount } from "@/lib/expenses/query";
 import { rosterToday, type RosterToday } from "./roster";
 import { payRunItem, tallySheets, type MoneyItem } from "./money";
 import {
@@ -196,14 +197,16 @@ async function loadChips(
 
   // Team data is only READ when the capability is held — it never reaches here
   // otherwise, so the scoping is enforced at the query, not just in assembly.
-  const [teamPeople, org, fleet] = await Promise.all([
+  const [teamPeople, org, fleet, pendingClaims] = await Promise.all([
     caps.has("team") ? listStaffCompliance(orgId) : Promise.resolve([] as StaffCompliance[]),
     caps.has("team") ? orgInsurance(orgId) : Promise.resolve({ insurer: null, insuranceExpiry: null }),
     caps.has("assets_all") ? listVehicles(orgId).then((r) => r.vehicles) : Promise.resolve([] as Vehicle[]),
+    // a head count, not the full claims read — the chip needs one integer
+    caps.has("approvals") ? pendingClaimsCount(orgId) : Promise.resolve(0),
   ]);
 
   return assembleChips(
-    { today, viewerStaffId, self: selfList[0] ?? null, selfVehicle, teamPeople, fleet, org },
+    { today, viewerStaffId, self: selfList[0] ?? null, selfVehicle, teamPeople, fleet, org, pendingClaims },
     caps,
   );
 }

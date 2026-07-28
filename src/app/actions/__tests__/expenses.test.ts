@@ -9,6 +9,10 @@ const update = jest.fn();
 let claimRow: Record<string, unknown> | null = { status: "pending", staff_profile_id: "someone-else" };
 let caps = new Set<string>(["approvals", "financials"]);
 let myStaffId: string | null = "me";
+/** candidate receipt documents the adoption select finds */
+let documentRows: { id: string; expense_claim_id: string | null }[] = [];
+/** the caller's declined/cancelled claims the freeing lookup finds */
+let deadClaimRows: { id: string }[] = [];
 
 const table = (name: string) => {
   const c: Record<string, unknown> = {};
@@ -28,7 +32,11 @@ const table = (name: string) => {
     update(name, row);
     return c;
   };
-  c.then = (res: (v: { error: null }) => unknown) => Promise.resolve({ error: null }).then(res);
+  c.then = (res: (v: { error: null; data: unknown[] }) => unknown) =>
+    Promise.resolve({
+      error: null,
+      data: name === "documents" ? documentRows : name === "expense_claims" ? deadClaimRows : [],
+    }).then(res);
   return c;
 };
 
@@ -65,6 +73,8 @@ beforeEach(() => {
   claimRow = { status: "pending", staff_profile_id: "someone-else" };
   caps = new Set(["approvals", "financials"]);
   myStaffId = "me";
+  documentRows = [{ id: "doc-1", expense_claim_id: null }];
+  deadClaimRows = [];
 });
 
 describe("submitClaim", () => {
@@ -93,6 +103,24 @@ describe("submitClaim", () => {
   it("adopts the receipts it was given", async () => {
     await submitClaim({ ...goodClaim, documentIds: ["doc-1"] });
     expect(update).toHaveBeenCalledWith("documents", { expense_claim_id: "new-claim" });
+  });
+
+  /* The audit: a declined claim stranded its receipt forever — the photo was
+     bound to the dead claim, so fixing a typo meant re-photographing the
+     docket. The evidence follows the live attempt; a LIVE claim's receipt
+     stays exactly where it is. */
+  it("frees a receipt from the caller's own dead claim", async () => {
+    documentRows = [{ id: "doc-1", expense_claim_id: "old-declined" }];
+    deadClaimRows = [{ id: "old-declined" }];
+    await submitClaim({ ...goodClaim, documentIds: ["doc-1"] });
+    expect(update).toHaveBeenCalledWith("documents", { expense_claim_id: "new-claim" });
+  });
+
+  it("never steals a receipt from a live claim", async () => {
+    documentRows = [{ id: "doc-1", expense_claim_id: "still-pending" }];
+    deadClaimRows = []; // that claim is not declined/cancelled
+    await submitClaim({ ...goodClaim, documentIds: ["doc-1"] });
+    expect(update).not.toHaveBeenCalledWith("documents", expect.anything());
   });
 
   it("doesn't touch documents when there's no receipt", async () => {

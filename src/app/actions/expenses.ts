@@ -67,19 +67,53 @@ export async function submitClaim(
 
   /* Adopt the receipts, the way notices claim their attachments. Every clause
      matters: only this org's documents, only ones THIS person uploaded, only
-     receipts, only ones no other claim has already taken, and only ones whose
-     upload actually finished. */
+     receipts, and only ones whose upload actually finished.
+
+     A receipt already on a LIVE claim stays there. But the audit found a
+     declined claim stranding its receipt forever — the photo was bound to the
+     dead claim, so fixing a typo meant re-photographing the docket. A receipt
+     whose claim is declined or cancelled (and yours) may move to the new
+     claim: the dead claim keeps its history row, the evidence follows the
+     live attempt. */
   const ids = (input.documentIds ?? []).slice(0, MAX_RECEIPTS);
   if (ids.length > 0) {
-    await supabaseAdmin
+    const { data: docs } = await supabaseAdmin
       .from("documents")
-      .update({ expense_claim_id: data.id })
+      .select("id, expense_claim_id")
       .eq("org_id", ctx.orgId)
       .eq("uploaded_by", ctx.staffId)
       .eq("kind", "receipt")
-      .is("expense_claim_id", null)
       .not("uploaded_at", "is", null)
       .in("id", ids);
+
+    const candidates = (docs ?? []) as { id: string; expense_claim_id: string | null }[];
+    const claimed = [...new Set(candidates.map((d) => d.expense_claim_id).filter(Boolean))] as string[];
+
+    // which of those claims are dead — checked against THIS person's rows only
+    const releasable = new Set<string>();
+    if (claimed.length > 0) {
+      const { data: deadClaims } = await supabaseAdmin
+        .from("expense_claims")
+        .select("id")
+        .eq("org_id", ctx.orgId)
+        .eq("staff_profile_id", ctx.staffId)
+        .in("status", ["declined", "cancelled"])
+        .in("id", claimed);
+      for (const c of (deadClaims ?? []) as { id: string }[]) releasable.add(c.id);
+    }
+
+    const adoptable = candidates
+      .filter((d) => d.expense_claim_id === null || releasable.has(d.expense_claim_id))
+      .map((d) => d.id);
+
+    if (adoptable.length > 0) {
+      await supabaseAdmin
+        .from("documents")
+        .update({ expense_claim_id: data.id })
+        .eq("org_id", ctx.orgId)
+        .eq("uploaded_by", ctx.staffId)
+        .in("id", adoptable);
+    }
   }
 
   refresh();

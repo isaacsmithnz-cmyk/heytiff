@@ -2,6 +2,7 @@ import {
   GROUP_ICON,
   chipGroup,
   chipSummary,
+  expensesChip,
   heroAction,
   summaryLine,
   insuranceChip,
@@ -300,5 +301,20 @@ describe("sortChips", () => {
     const copy = [...input];
     sortChips(input);
     expect(input).toEqual(copy);
+  });
+});
+
+describe("expensesChip", () => {
+  /* Money in limbo is an action. One chip for the queue — the decision
+     surface is the expenses screen, and ten chips say less than "10 waiting". */
+  it("is silent at zero and counts plainly above it", () => {
+    expect(expensesChip(0)).toBeNull();
+    expect(expensesChip(1)).toMatchObject({
+      kind: "expenses",
+      state: "warn",
+      label: "1 expense claim waiting on a decision",
+      href: "/dashboard/timepay/expenses",
+    });
+    expect(expensesChip(3)!.label).toBe("3 expense claims waiting on a decision");
   });
 });

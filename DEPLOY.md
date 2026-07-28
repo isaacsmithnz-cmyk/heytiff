@@ -49,6 +49,8 @@ your local `.env.local`), scope = **Production** (and Preview if you want previe
 | `GOOGLE_MAPS_API_KEY` | Google Places key behind the address autocomplete on the staff and Organisation address fields. **Optional — unset, those fields are plain text inputs and nothing else changes.** Server-side only: it is read in the `/api/address` proxy and must never be given a `NEXT_PUBLIC_` prefix, which would ship it to every browser. |
 | `XERO_CLIENT_ID` | See **Xero** below. Optional — unset, Admin → Integrations renders but says connecting isn't available. |
 | `XERO_CLIENT_SECRET` | Same. Server-side only, never `NEXT_PUBLIC_`. |
+| `SM8_CLIENT_ID` | See **ServiceM8** below. ServiceM8 calls it the **App ID**. Optional — unset, the ServiceM8 screen renders but says connecting isn't available. |
+| `SM8_CLIENT_SECRET` | Same — ServiceM8's **App Secret**. Server-side only, never `NEXT_PUBLIC_`. |
 | `INTEGRATIONS_TOKEN_KEY` | 32-byte key that seals OAuth tokens before they reach the database. Required to connect anything — without it the Connect button is switched off rather than storing tokens in plaintext. |
 | `CRON_SECRET` | Guards the scheduled routes (`/api/cron/*`). **Vercel sets and sends this itself** once a `crons` entry exists in `vercel.json` — you only need to add it manually if you want to trigger a sweep by hand. **Unset ⇒ every cron request is refused** (fail-closed): the routes run with no session and service-role access, so the secret is the only gate. |
 
@@ -109,6 +111,72 @@ ever hitting Xero's 60-day idle expiry.
 
 Nothing to configure — Vercel manages `CRON_SECRET` itself. Apply
 `docs/migrations/integration_drift.sql` before merging.
+
+---
+
+## 3c. ServiceM8 (optional — Admin → Integrations, and the Workboard)
+
+**ONE ServiceM8 add-on serves every HeyTiff customer**, exactly like Xero: these
+credentials are the platform's, set once here, and a customer only ever presses
+**Connect to ServiceM8** and approves in their own account.
+
+Until this section is done, the ServiceM8 screen says the feature isn't switched
+on yet, and the **Workboard still works** — projects and maintenance are typed in
+by hand and a connection only enriches them.
+
+1. **Sign up as a developer.** In ServiceM8, open the main menu → the account
+   section → **Developer**. (This is a one-off registration on the HeyTiff-owned
+   ServiceM8 account — not on a customer's.)
+2. **Developer → Add Item** to create the add-on. Type: a **Public Integration**
+   — the OAuth 2.0 kind that reaches the REST API. Not a Private Integration
+   (that's an API key for a single company) and not an Add-on SDK item (those
+   put buttons inside ServiceM8's own UI).
+3. **Return URL** — set it in the add-on's **Store Connect** settings. ServiceM8
+   requires the redirect it is handed at consent time to be **the same host** as
+   this value, and the code builds that redirect from `APP_BASE_URL`:
+
+   | Where | Value |
+   |---|---|
+   | Production | `https://heytiff.vercel.app/api/integrations/servicem8/callback` |
+   | Local dev | `http://localhost:3000/api/integrations/servicem8/callback` |
+
+   Only the **host** has to match, so a Return URL of `https://heytiff.vercel.app`
+   is enough for production.
+4. Saving the add-on issues an **App ID** and **App Secret** on its Store Connect
+   page → `SM8_CLIENT_ID` / `SM8_CLIENT_SECRET` in Vercel (and `.env.local`).
+   The secret is a password: never commit it, never prefix it `NEXT_PUBLIC_`.
+5. `INTEGRATIONS_TOKEN_KEY` is **shared with Xero** — if step 3b is done, there is
+   nothing to do here. It seals ServiceM8's tokens the same way.
+6. Apply `docs/migrations/sm8_mirror.sql` (and, for the Workboard itself,
+   `workboard_projects.sql` + `workboard_maintenance.sql`).
+7. Sign in as an **owner** → **Admin → Integrations → ServiceM8 → Connect to
+   ServiceM8**.
+
+The ten scopes are read-only and listed, with the reason for each, on that screen;
+`src/lib/integrations/providers.ts` is the single source both it and the consent
+URL read from. Badges are deliberately absent — ServiceM8's only badge scope is a
+write scope, and a jest test pins it out.
+
+**No store submission is needed to use your own add-on.** The Add-on Store review
+applies to listing it publicly; connecting your own ServiceM8 account to your own
+add-on does not require approval.
+
+**Disconnecting is only half a revocation.** ServiceM8 publishes no token-revoke
+endpoint, so Disconnect deletes HeyTiff's sealed tokens (and wipes the mirror);
+finishing the job means removing the add-on inside ServiceM8 itself. The screen
+says so at the point of use.
+
+### The daily mirror top-up
+
+`vercel.json` schedules `/api/cron/sm8-sync` for **20:00 UTC daily** — 6am on the
+east-coast AU clock, so the board is true before anyone starts.
+
+It is **daily, not hourly, because this project is on Vercel's Hobby tier**, which
+fails the deployment outright for any cron that would run more than once a day
+(`0 * * * *` is named in their docs as an example that does). That costs nothing:
+freshness is the page-load kick — opening the Workboard tops the mirrors up behind
+the response — and this run only covers the hours nobody is looking. On Pro, one
+line in `vercel.json` and one in the route header make it hourly.
 
 ---
 

@@ -235,6 +235,33 @@ function hydrateCostsSource(
   return { costsSource: wanted === "xero" && xeroCosts ? "xero" : "manual", xeroCosts };
 }
 
+/* ── snapshot arithmetic the screens share ── */
+
+/** Whether Step 2 shows the manual/Xero source switch.
+
+    The audit's trap: the switch used to render only while CONNECTED, but the
+    Xero panel renders whenever the SOURCE is "xero" — so a disconnect left
+    the calculator pricing from a frozen snapshot with the way back to manual
+    hidden. The switch must show whenever there is a choice to make: a grant
+    to switch onto, or a snapshot to walk away from. */
+export function sourceSwitchVisible(connected: boolean, source: CostsSource): boolean {
+  return connected || source === "xero";
+}
+
+/** The snapshot's included overheads total — one implementation, because the
+    panel's total, the Simple seed and the EOFY seed must be the same number. */
+export function snapshotTotal(snap: XeroCostSnapshot | null): number {
+  return (snap?.lines ?? []).reduce((a, l) => a + l.amount, 0);
+}
+
+/** Whole months since the snapshot was pulled; null when it can't say. */
+export function snapshotAgeMonths(fetchedAt: string | undefined, now: number): number | null {
+  if (!fetchedAt) return null;
+  const at = Date.parse(fetchedAt);
+  if (Number.isNaN(at)) return null;
+  return Math.max(0, Math.floor((now - at) / 2_592_000_000)); // 30-day months
+}
+
 /**
  * Merge a persisted (or unknown/legacy) row into a full state. Tolerates
  * missing fields, drops the legacy stored `reviewState.daysSince` (now

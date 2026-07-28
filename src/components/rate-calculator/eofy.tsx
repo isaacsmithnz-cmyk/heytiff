@@ -4,7 +4,7 @@
 
 import React from "react";
 import { DEFAULT_WORKING_WEEKS, PAYROLL_TAX, classifyEmployment, type CalcResult } from "./engine";
-import type { RateCalcState, EofyData } from "./state";
+import { snapshotTotal, type RateCalcState, type EofyData } from "./state";
 import { RC } from "./theme";
 import { money, rate0 } from "./format";
 import { InsightCard, WsEyebrow } from "./ui";
@@ -157,6 +157,18 @@ export function EofyPanel({ s, patch, calc }: {
           <EofyMoneyInput label="Staff costs" sub="Wages, leave, super, workcover" value={eofy.staff_costs} onChange={v => update("staff_costs", v)} />
           <EofyMoneyInput label="Vehicle costs" sub="Running costs + depreciation" value={eofy.vehicle_costs} onChange={v => update("vehicle_costs", v)} />
           <EofyMoneyInput label="Business overheads" sub="Admin, occupancy, remaining depn" value={eofy.business_overheads} onChange={v => update("business_overheads", v)} />
+          {/* The one EOFY figure the Xero snapshot already holds. A one-way
+              seed the admin presses — the audit found this whole panel asking
+              for hand-typed copies of numbers the P&L pull had. */}
+          {!eofy.business_overheads && s.xeroCosts && (
+            <button
+              className="rcx-add"
+              style={{ margin: "2px 0 8px" }}
+              onClick={() => update("business_overheads", Math.round(snapshotTotal(s.xeroCosts)))}
+            >
+              Use the Xero snapshot ({s.xeroCosts.period.label}) — {money(Math.round(snapshotTotal(s.xeroCosts)))}
+            </button>
+          )}
           <EofyMoneyInput label="Operating profit" sub="Not net profit — exclude dividends, interest" value={eofy.operating_profit} onChange={v => update("operating_profit", v)} />
           <WsEyebrow style={{ margin: "16px 0 4px" }}>Average rates charged last year</WsEyebrow>
           <EofyMoneyInput label="Install rate" sub="Typical $/hr on installs" value={eofy.last_install_rate || 0} suffix="/hr" onChange={v => update("last_install_rate", v || null)} />

@@ -10,7 +10,7 @@
 
 import React from "react";
 import type { RiskSettings, Multipliers } from "./engine";
-import { fleetCosted, type EntryMode } from "./state";
+import { fleetCosted, snapshotTotal, sourceSwitchVisible, type EntryMode } from "./state";
 import { RC } from "./theme";
 import { money, rate0 } from "./format";
 import { QuestionStack, RcIcon, WsEyebrow, WsHelpNote, WsSlider, WsToggle, NumInput, type StackQuestion } from "./ui";
@@ -272,6 +272,21 @@ export function BusinessStep({ s, patch, calc, showToggle, revealAll, xeroConnec
       body: (
         <>
           <MonthInputs months={sb.months} onChange={m => patch({ simpleBusiness: { ...sb, months: m } })} />
+          {/* One-way seed: the Xero snapshot already knows the overheads these
+              three boxes ask for. A suggestion the admin presses, never a
+              silent write — pricing keeps owning its inputs. */}
+          {!entered && s.xeroCosts && (
+            <button
+              className="rcx-add"
+              style={{ marginTop: 10 }}
+              onClick={() => {
+                const monthly = Math.round(snapshotTotal(s.xeroCosts) / 12);
+                patch({ simpleBusiness: { ...sb, months: [monthly, monthly, monthly] } });
+              }}
+            >
+              Seed from the Xero snapshot — about {money(Math.round(snapshotTotal(s.xeroCosts) / 12))} a month
+            </button>
+          )}
           {entered && (
             <div style={{ background: RC.installSoft, borderRadius: 14, padding: "13px 18px", marginTop: 14, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div>
@@ -293,10 +308,11 @@ export function BusinessStep({ s, patch, calc, showToggle, revealAll, xeroConnec
         mode={showToggle && !onXero ? s.mode.business : undefined}
         onMode={showToggle && !onXero ? (v => patch({ mode: { ...s.mode, business: v as EntryMode } })) : undefined} />
 
-      {/* The source switch. Only offered when a grant exists — otherwise it is
-          a control that can only disappoint. Flipping it never touches either
-          side's figures, so it is safe to try. */}
-      {xeroConnected && (
+      {/* The source switch. Shown whenever there is a choice to make: a grant
+          to switch onto, or a snapshot to walk away from. Hiding it while the
+          source was "xero" and the grant was dead trapped the calculator on a
+          frozen snapshot with no way back to manual — the audit's A8. */}
+      {sourceSwitchVisible(!!xeroConnected, s.costsSource) && (
         <div className="rcx-src">
           <button className={`rcx-srcb${!onXero ? " on" : ""}`} onClick={() => patch({ costsSource: "manual" })}>
             Enter them myself
@@ -304,10 +320,19 @@ export function BusinessStep({ s, patch, calc, showToggle, revealAll, xeroConnec
           <button
             className={`rcx-srcb${onXero ? " on" : ""}`}
             onClick={() => patch({ costsSource: "xero" })}
+            disabled={!xeroConnected}
+            title={xeroConnected ? undefined : "Xero isn't connected"}
           >
             Use figures from Xero
           </button>
         </div>
+      )}
+      {onXero && !xeroConnected && (
+        <p className="rcx-err">
+          Xero is disconnected, so these figures are a frozen snapshot and Refresh can&apos;t run.
+          Switch to &ldquo;Enter them myself&rdquo; to take over, or reconnect Xero in Admin →
+          Integrations.
+        </p>
       )}
 
       {onXero ? (

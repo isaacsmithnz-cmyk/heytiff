@@ -32,6 +32,10 @@ jest.mock("@/components/tiff/knowledge", () => ({ KnowledgeBase: () => null }));
 jest.mock("@/components/studio/data-library", () => ({ DataLibrary: () => null }));
 jest.mock("@/lib/studio/packs/server", () => ({ installedPacks: jest.fn(async () => []) }));
 jest.mock("@/lib/studio/packs/overrides-server", () => ({ loadPackWithOverrides: jest.fn() }));
+jest.mock("@/components/workboard/overview-screen", () => ({ OverviewScreen: () => null }));
+jest.mock("@/lib/workboard/page-data", () => ({
+  loadWorkboardPage: jest.fn(async () => ({ manage: false, connection: "none" })),
+}));
 
 import HeatLoadPage from "../toolbox/heat-load/page";
 import OutdoorUnitPage from "../toolbox/outdoor-unit/page";
@@ -39,6 +43,7 @@ import RunningPressuresPage from "../toolbox/running-pressures/page";
 import TroubleshootingPage from "../toolbox/troubleshooting/page";
 import KnowledgeBasePage from "../tiff/knowledge/page";
 import DataLibraryPage from "../studio/data-library/page";
+import WorkboardPage from "../workboard/page";
 
 const LEAVES: [string, () => Promise<unknown>, string][] = [
   ["toolbox/heat-load", HeatLoadPage, "toolbox"],
@@ -46,6 +51,7 @@ const LEAVES: [string, () => Promise<unknown>, string][] = [
   ["toolbox/running-pressures", RunningPressuresPage, "toolbox"],
   ["toolbox/troubleshooting", TroubleshootingPage, "toolbox"],
   ["tiff/knowledge", KnowledgeBasePage, "tiff"],
+  ["workboard", WorkboardPage, "workboard"],
 ];
 
 beforeEach(() => {

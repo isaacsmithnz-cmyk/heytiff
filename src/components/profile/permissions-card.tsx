@@ -20,6 +20,8 @@ const ACCESS: [Capability, string, string][] = [
   ["toolbox", "Toolbox", "Calculators & references"],
   ["studio", "Design Studio", "Create & edit VRF designs"],
   ["tiff", "Tiff AI", "Assistant & knowledge base"],
+  ["workboard", "Workboard", "See the projects & maintenance board"],
+  ["workboard_manage", "Workboard — manage", "Create & edit projects, agreements & visits"],
   ["team", "Team directory", "View & manage other staff records"],
   ["timepay_all", "Time & Pay — everyone's", "All timesheets, leave & expenses"],
   ["approvals", "Approvals", "Approve hours, leave & expenses"],

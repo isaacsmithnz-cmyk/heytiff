@@ -55,6 +55,10 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: "Operations",
     items: [
+      // First in the group on purpose: the board is the shared "what's on"
+      // surface, and unlike the rest of Operations it defaults to EVERYONE
+      // (capability `workboard` is in the staff defaults).
+      { key: "workboard", label: "Workboard", icon: "activity", href: "/dashboard/workboard", hint: "Projects & maintenance board", accent: "#00A8E0", capability: "workboard" },
       { key: "people", label: "Team", icon: "users", href: "/dashboard/team", hint: "People & their day", accent: "#00A389", capability: "team" },
       { key: "timepay", label: "Time & Pay", icon: "clock", href: "/dashboard/timepay", hint: "Timesheets, leave & expenses", accent: "#2E68FF", capability: "timepay_all" },
       { key: "assets", label: "Assets", icon: "truck", href: "/dashboard/assets", hint: "Fleet & equipment", accent: "#FF8A00", capability: "assets_all" },

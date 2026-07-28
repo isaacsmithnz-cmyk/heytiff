@@ -17,6 +17,8 @@ export const CAPABILITIES = [
   "toolbox", // calculators & references
   "studio", // Design Studio
   "tiff", // Tiff AI assistant & knowledge base
+  "workboard", // see the projects & maintenance board (techs live here)
+  "workboard_manage", // create/edit projects, agreements, visits & readiness
   "team", // view/manage other staff records
   "timepay_all", // everyone's timesheets (own timesheet is intrinsic, not gated)
   "approvals", // approve hours, leave & expenses (acts within timepay_all's surface)
@@ -39,9 +41,14 @@ export function isCapability(v: unknown): v is Capability {
   return typeof v === "string" && (CAPABILITIES as readonly string[]).includes(v);
 }
 
-const STAFF_DEFAULTS: readonly Capability[] = ["toolbox", "studio", "tiff"];
+// workboard is a staff default: the board is FOR the people on the tools —
+// seeing what's booked, what's overdue and what to bring is their day.
+// Managing it (workboard_manage) follows the timepay_all/approvals precedent:
+// admin by default, grantable to a senior tech via the overrides grid.
+const STAFF_DEFAULTS: readonly Capability[] = ["toolbox", "studio", "tiff", "workboard"];
 const ADMIN_DEFAULTS: readonly Capability[] = [
   ...STAFF_DEFAULTS,
+  "workboard_manage",
   "team",
   "timepay_all",
   "approvals",

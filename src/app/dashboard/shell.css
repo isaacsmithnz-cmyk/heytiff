@@ -2880,3 +2880,58 @@ select.fl-i { cursor:pointer; }
 .fg .topbar .tbr[aria-hidden="true"] .bell,
 .fg .topbar .tbr[aria-hidden="true"] .me-trigger { cursor:default; }
 @media (prefers-reduced-motion:reduce) { .fg .sk-dark { animation:none; } }
+
+/* ── Workboard (.wb-*) ─────────────────────────────────────────────────────
+   The projects & maintenance board. Two lives, one markup: the normal page,
+   and DISPLAY MODE — the same .wb-board element fullscreened for a wall
+   screen, flipped dark with wall-readable type via :fullscreen below. The
+   overdue pulse is a slow breathe on the semantic danger colour (#e0264f),
+   deliberately nothing like a strobe. */
+
+.wb-board { display:flex; flex-direction:column; gap:16px; }
+
+.wb-stats { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px; }
+.wb-stat { background:#fff; border:1px solid rgba(5,5,5,.08); border-radius:16px; padding:18px 20px; }
+.wb-stat b { display:block; font-size:34px; font-weight:800; letter-spacing:-0.03em; line-height:1; }
+.wb-stat em { display:block; font-style:normal; color:var(--gray500); font-size:12.5px; font-weight:600; margin-top:6px; }
+
+.wb-day { padding:6px 0 2px; }
+.wb-dayhead { font-size:11.5px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; color:var(--gray500); margin:10px 0 6px; }
+.wb-row { display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:10px; }
+.wb-row:hover { background:rgba(5,5,5,.03); }
+.wb-time { font-weight:800; font-size:13px; min-width:64px; }
+.wb-who { flex:1; min-width:0; font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.wb-who em { font-style:normal; color:var(--gray500); }
+.wb-tech { font-size:12.5px; color:var(--gray700); font-weight:600; }
+.wb-chip { font-size:11px; font-weight:700; padding:3px 8px; border-radius:999px; background:rgba(5,5,5,.06); color:var(--gray700); white-space:nowrap; }
+.wb-chip.on { background:rgba(0,163,137,.12); color:#00A389; }
+.wb-chip.bad { background:rgba(224,38,79,.12); color:#e0264f; }
+.wb-stamp { font-size:12px; color:var(--gray500); margin:2px 4px 0; }
+
+/* the overdue breathe — used by the maintenance radar */
+@keyframes wbPulse {
+  0%, 100% { box-shadow:0 0 0 0 rgba(224,38,79,.35); }
+  50% { box-shadow:0 0 0 6px rgba(224,38,79,0); }
+}
+.wb-pulse { animation:wbPulse 2.4s ease-in-out infinite; border:1px solid rgba(224,38,79,.5); }
+@media (prefers-reduced-motion:reduce) { .wb-pulse { animation:none; } }
+
+/* display mode: the board itself is the fullscreen element */
+.wb-board:fullscreen { background:var(--ink); padding:44px 56px; overflow:auto; gap:22px; }
+.wb-board:fullscreen .wb-stat { background:rgba(255,255,255,.05); border-color:rgba(255,255,255,.1); }
+.wb-board:fullscreen .wb-stat b { color:#fff; font-size:56px; }
+.wb-board:fullscreen .wb-stat em { color:rgba(255,255,255,.55); font-size:14px; }
+.wb-board:fullscreen .card2 { background:rgba(255,255,255,.04); border-color:rgba(255,255,255,.09); }
+.wb-board:fullscreen .card2 b { color:#fff; }
+.wb-board:fullscreen .card2 em, .wb-board:fullscreen .int-hint { color:rgba(255,255,255,.55); }
+.wb-board:fullscreen .wb-dayhead { color:rgba(255,255,255,.45); }
+.wb-board:fullscreen .wb-row { color:#fff; }
+.wb-board:fullscreen .wb-row:hover { background:rgba(255,255,255,.05); }
+.wb-board:fullscreen .wb-time { color:#00E5C0; font-size:16px; min-width:76px; }
+.wb-board:fullscreen .wb-who { font-size:16.5px; }
+.wb-board:fullscreen .wb-who em { color:rgba(255,255,255,.5); }
+.wb-board:fullscreen .wb-tech { color:rgba(255,255,255,.65); font-size:14px; }
+.wb-board:fullscreen .wb-chip { background:rgba(255,255,255,.1); color:rgba(255,255,255,.8); font-size:12.5px; }
+.wb-board:fullscreen .wb-chip.on { background:rgba(0,229,192,.16); color:#00E5C0; }
+.wb-board:fullscreen .wb-chip.bad { background:rgba(224,38,79,.22); color:#ff5c82; }
+.wb-board:fullscreen .wb-stamp { color:rgba(255,255,255,.4); }

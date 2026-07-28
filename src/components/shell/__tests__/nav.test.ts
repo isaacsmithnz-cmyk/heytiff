@@ -28,6 +28,7 @@ describe("nav config", () => {
   it("groups the operations section as designed", () => {
     const ops = NAV_GROUPS.find((g) => g.label === "Operations");
     expect(ops?.items.map((i) => i.key)).toEqual([
+      "workboard",
       "people",
       "timepay",
       "assets",
@@ -46,6 +47,11 @@ describe("capability gating", () => {
     expect(keys(viewer("staff"))).not.toContain("people");
     expect(keys(viewer("staff"))).not.toContain("timepay");
     expect(keys(viewer("admin"))).toEqual(expect.arrayContaining(["people", "timepay"]));
+  });
+
+  it("shows the Workboard to staff — it's their board, by default", () => {
+    expect(keys(viewer("staff"))).toContain("workboard");
+    expect(keys(viewer(null))).not.toContain("workboard");
   });
 
   it("hides Admin from staff only — the section is role-intrinsic", () => {
@@ -91,9 +97,13 @@ describe("capability gating", () => {
   });
 
   it("keeps groups but drops those emptied by filtering", () => {
+    // Staff now hold exactly one Operations entry — the Workboard — so the
+    // group stays, carrying just that.
     const groups = navGroupsFor(viewer("staff"));
-    // staff hold nothing in Operations, so the whole group goes; Personal stays
-    expect(groups.map((g) => g.label)).toEqual(["Workspace", "Personal"]);
+    expect(groups.map((g) => g.label)).toEqual(["Workspace", "Personal", "Operations"]);
+    expect(groups.find((g) => g.label === "Operations")?.items.map((i) => i.key)).toEqual([
+      "workboard",
+    ]);
     expect(groups.find((g) => g.label === "Personal")?.items.map((i) => i.key)).toEqual([
       "mytimesheet",
       "myleave",
@@ -101,6 +111,10 @@ describe("capability gating", () => {
       "myexpenses",
     ]);
     expect(groups.every((g) => g.items.length > 0)).toBe(true);
+
+    // …and revoking that one entry is what empties the group and drops it.
+    const revoked = navGroupsFor({ caps: resolve("staff", { workboard: false }), role: "staff" });
+    expect(revoked.map((g) => g.label)).toEqual(["Workspace", "Personal"]);
   });
 
   it("Personal is ungated — every viewer keeps their own timesheet, vehicle and expenses", () => {
@@ -115,7 +129,7 @@ describe("capability gating", () => {
 
   it("owner sees the full rail", () => {
     expect(navGroupsFor(viewer("owner")).find((g) => g.label === "Operations")?.items.map((i) => i.key))
-      .toEqual(["people", "timepay", "assets", "admin"]);
+      .toEqual(["workboard", "people", "timepay", "assets", "admin"]);
   });
 
   it("every capability named in the nav is a real capability", () => {

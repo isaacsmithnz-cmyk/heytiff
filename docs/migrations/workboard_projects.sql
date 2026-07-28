@@ -53,17 +53,21 @@ create table if not exists public.projects (
                     check (status in ('active', 'on_hold', 'done', 'archived')),
 
   -- Optional link to a Design Studio design; survives the design's deletion
-  -- as a null, never blocks it.
-  design_id       uuid,
+  -- as a null, never blocks it. TEXT, not uuid: studio_designs.id is text
+  -- (the client mints design ids), and a composite FK's types must match its
+  -- referent exactly.
+  design_id       text,
   notes           text,
 
   created_by_user_id text,
   created_at      timestamptz not null default now(),
   updated_at      timestamptz,
 
+  -- SET NULL names its COLUMN: a composite FK's plain `set null` would null
+  -- org_id too (NOT NULL → the design delete itself would fail). PG15+.
   constraint projects_design_fkey
     foreign key (design_id, org_id)
-    references public.studio_designs(id, org_id) on delete set null
+    references public.studio_designs(id, org_id) on delete set null (design_id)
 );
 
 create unique index if not exists projects_id_org_uniq
@@ -121,9 +125,11 @@ create table if not exists public.project_checklist_items (
   constraint project_checklist_project_fkey
     foreign key (project_id, org_id)
     references public.projects(id, org_id) on delete cascade,
+  -- Column-specific SET NULL again: offboarding someone must clear the
+  -- provenance, not fail on org_id's NOT NULL.
   constraint project_checklist_staff_fkey
     foreign key (done_by, org_id)
-    references public.staff_profiles(id, org_id) on delete set null
+    references public.staff_profiles(id, org_id) on delete set null (done_by)
 );
 
 create index if not exists project_checklist_org_project_idx

@@ -242,13 +242,15 @@ function RatesIntro({ s, patch, onDone }: {
 type SaveState = "idle" | "saving" | "saved" | "local";
 
 // ── Calculator app (remounted per data mode) ────────────────────────────
-function CalculatorApp({ initial, hasData, showOnboarding, onPersist, saveState, xeroConnected }: {
+function CalculatorApp({ initial, hasData, showOnboarding, onPersist, saveState, xeroConnected, superOwned = false }: {
   initial: RateCalcState;
   hasData: boolean;
   showOnboarding: boolean;
   onPersist: ((next: RateCalcState) => void) | null;
   saveState: SaveState;
   xeroConnected?: boolean;
+  /** pay_settings holds a super rate — the panel shows it read-only. */
+  superOwned?: boolean;
 }) {
   // Returning users with a complete setup land on Results (the review moment);
   // first-run / incomplete data lands on Step 1. Example mode simulates a
@@ -361,7 +363,7 @@ function CalculatorApp({ initial, hasData, showOnboarding, onPersist, saveState,
     <div className="rca">
       {showHelp && <HelpModal onClose={onHelpClose} />}
       {showRatesIntro && <RatesIntro s={s} patch={patch} onDone={() => setShowRatesIntro(false)} />}
-      {showSettings && <SettingsPanel st={s} patch={patch} onClose={() => setShowSettings(false)} />}
+      {showSettings && <SettingsPanel st={s} patch={patch} onClose={() => setShowSettings(false)} superOwned={superOwned} />}
 
       {/* workspace header — mirrors the Design Studio topbar: accent chip, 23px title,
           600-weight sub, transparent on the well */}
@@ -444,7 +446,7 @@ function CalculatorApp({ initial, hasData, showOnboarding, onPersist, saveState,
 }
 
 // ── Root: persistence + example-data mode ───────────────────────────────
-export function RateCalculator({ initialState, initialUpdatedAt, roster = [], xeroConnected = false }: {
+export function RateCalculator({ initialState, initialUpdatedAt, roster = [], xeroConnected = false, orgSuperPct = null }: {
   initialState: unknown;
   initialUpdatedAt?: string | null;
   /** Staff come from the roster (staff_profiles) now — the calculator reads
@@ -453,6 +455,11 @@ export function RateCalculator({ initialState, initialUpdatedAt, roster = [], xe
   /** Whether a Xero grant exists, so the Business step can offer its figures
       as a source. A boolean only — the connection is owner business. */
   xeroConnected?: boolean;
+  /** The org's super rate from pay_settings — its owner since the audit
+      moved it home. Non-null overrides whatever the stored blob carries, so
+      a pricing session can never run on a super figure Time & Pay doesn't
+      hold; null (never set) leaves the calculator's own default editable. */
+  orgSuperPct?: number | null;
 }) {
   void initialUpdatedAt; // reserved for buffer-vs-server reconciliation
   const hasServerState = initialState != null;
@@ -518,9 +525,14 @@ export function RateCalculator({ initialState, initialUpdatedAt, roster = [], xe
 
   // Staff always come from the roster, whatever the stored/buffered row held —
   // it's the source of truth for wages now, and it's read-only in the tool.
+  // Same rule for the super rate: pay_settings owns it, so a non-null server
+  // value overrides the blob's copy on every load.
+  const merged = hasServerState ? hydrateState(initialState) : (restored ?? emptyState());
   const initial = {
-    ...(hasServerState ? hydrateState(initialState) : (restored ?? emptyState())),
+    ...merged,
     staff: roster,
+    settings:
+      orgSuperPct != null ? { ...merged.settings, super_pct: orgSuperPct } : merged.settings,
   };
   const hasData = hasServerState || restored != null;
   return (
@@ -532,6 +544,7 @@ export function RateCalculator({ initialState, initialUpdatedAt, roster = [], xe
       onPersist={persist}
       saveState={saveState}
       xeroConnected={xeroConnected}
+      superOwned={orgSuperPct != null}
     />
   );
 }

@@ -68,6 +68,12 @@ export type Settings = {
   submitTime: string;
   lock: boolean;
   exportDetail: boolean;
+  /** The org's superannuation guarantee %. Owned HERE (Time & Pay settings),
+      read by My Pay and the Rate Calculator — it used to live in the
+      calculator's own blob, which made a pricing edit change what every
+      staff member saw as their super. Null = never set; consumers fall back
+      to the statutory default rather than storing a guess. */
+  superPct?: number | null;
 };
 
 /* A person's week.
@@ -176,6 +182,7 @@ export const DEFAULT_SETTINGS: Settings = {
   submitTime: "3:00 PM",
   lock: true,
   exportDetail: false,
+  superPct: null,
 };
 
 export const fmt = (h: number | null | undefined): string =>

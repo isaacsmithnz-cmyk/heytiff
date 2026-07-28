@@ -39,7 +39,7 @@ import { newId } from "@/lib/studio/document";
 import type { DataPack, IndoorUnit } from "@/lib/studio/packs/schema";
 import { polylineLength, unitsToMeters } from "@/lib/studio/geometry";
 import { sizingCapacityKw, type SizingBasis } from "@/lib/studio/loads";
-import { roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
+import { roomAreaM2, roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
 import { roomsServedBy, roomCoverage, systemPairKw } from "@/lib/studio/coverage";
 import type { PairProposal } from "@/lib/studio/split";
 import { formFactorLabel } from "@/lib/studio/unit-specs";
@@ -138,6 +138,82 @@ function Glyph({ name, size = 16 }: { name: keyof typeof GLYPHS | ComponentIcon;
   );
 }
 
+/* Drawing a room is shape-first, and the shape choice now lives ON the button
+   you pressed to ask for it. It used to appear as a pill pinned to the top of
+   the CANVAS — several hundred px from the cockpit button that raised it, on
+   the far side of the screen from where you were looking — so pressing "Add
+   room" read as doing nothing at all. A marching-ants ring was added to make
+   that pill louder, which treated a LOCATION problem as a salience one. */
+export type RoomDraw = {
+  /** the picker is up (raised by Add room / Draw a room) */
+  open: boolean;
+  /** which shape is armed, if any */
+  shape: "rect" | "poly" | null;
+  /** raise the picker */
+  start: () => void;
+  /** arm a shape — null cancels back to the select tool */
+  pick: (shape: "rect" | "poly" | null) => void;
+};
+
+/** "Add room" that becomes the shape choice in place: ▢ · ⬡ · ✕. Same
+    control, same spot — so the click visibly did something. */
+function RoomDrawControl({
+  draw,
+  variant,
+}: {
+  draw: RoomDraw;
+  /** the roster's dashed row, or the empty state's solid ink button */
+  variant: "row" | "ink";
+}) {
+  const first = useRef<HTMLButtonElement | null>(null);
+  /* keyboard users land in the choice they just asked for, rather than being
+     left on a button that has turned into something else */
+  useEffect(() => {
+    if (draw.open) first.current?.focus();
+  }, [draw.open]);
+
+  const base = variant === "ink" ? "ds-ck-inkbtn" : "ds-ck-rowadd";
+  if (!draw.open) {
+    return (
+      <button className={base} onClick={draw.start}>
+        <Glyph name="edit" size={variant === "ink" ? 16 : 14} />
+        {variant === "ink" ? "Draw a room" : "Add room"}
+      </button>
+    );
+  }
+  return (
+    <div className={`${base} picking`} role="toolbar" aria-label="Room shape">
+      <button
+        ref={first}
+        className={`ds-ck-shape${draw.shape === "rect" ? " on" : ""}`}
+        onClick={() => draw.pick("rect")}
+        aria-pressed={draw.shape === "rect"}
+        aria-label="Rectangle room"
+        title="Rectangle room (R)"
+      >
+        <Glyph name="square" size={16} />
+      </button>
+      <button
+        className={`ds-ck-shape${draw.shape === "poly" ? " on" : ""}`}
+        onClick={() => draw.pick("poly")}
+        aria-pressed={draw.shape === "poly"}
+        aria-label="Polygon room"
+        title="Polygon room (G)"
+      >
+        <Glyph name="hexagon" size={16} />
+      </button>
+      <button
+        className="ds-ck-shape x"
+        onClick={() => draw.pick(null)}
+        aria-label="Cancel drawing a room"
+        title="Cancel (Esc)"
+      >
+        <Glyph name="x" size={13} />
+      </button>
+    </div>
+  );
+}
+
 /* ─────────────────────────── root ─────────────────────────── */
 
 export function SystemCockpit({
@@ -151,7 +227,8 @@ export function SystemCockpit({
   onSelect,
   onEditRoom,
   onArmPlace,
-  onDrawRoom,
+  roomDraw,
+  onFloor,
   floor,
   onAddVariant,
   onSwitchVariant,
@@ -167,7 +244,8 @@ export function SystemCockpit({
   onSelect: (id: string | null) => void;
   onEditRoom: (id: string) => void;
   onArmPlace: (p: PlacingUnit | null) => void;
-  onDrawRoom: () => void;
+  roomDraw: RoomDraw;
+  onFloor?: (floorId: string) => void;
   floor: Floor;
   /** design variations — branched/switched from the system dropdown */
   onAddVariant: () => void;
@@ -317,7 +395,8 @@ export function SystemCockpit({
           onMutate={onMutate}
           onEditRoom={onEditRoom}
           onArmPlace={onArmPlace}
-          onDrawRoom={onDrawRoom}
+          roomDraw={roomDraw}
+          onFloor={onFloor}
           systemSelector={systemSelector}
           onChangeType={() => {
             setAdding(false);
@@ -548,7 +627,8 @@ function ActiveCockpit({
   onMutate,
   onEditRoom,
   onArmPlace,
-  onDrawRoom,
+  roomDraw,
+  onFloor,
   onChangeType,
   systemSelector,
 }: {
@@ -562,7 +642,8 @@ function ActiveCockpit({
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   onEditRoom: (id: string) => void;
   onArmPlace: (p: PlacingUnit | null) => void;
-  onDrawRoom: () => void;
+  roomDraw: RoomDraw;
+  onFloor?: (floorId: string) => void;
   onChangeType: () => void;
   systemSelector?: React.ReactNode;
 }) {
@@ -692,7 +773,8 @@ function ActiveCockpit({
             onMutate={onMutate}
             onEditRoom={onEditRoom}
             onArmPlace={onArmPlace}
-            onDrawRoom={onDrawRoom}
+            roomDraw={roomDraw}
+            onFloor={onFloor}
           />
           <ComponentsView
             doc={doc}
@@ -1621,7 +1703,8 @@ function RoomsView({
   onMutate,
   onEditRoom,
   onArmPlace,
-  onDrawRoom,
+  roomDraw,
+  onFloor,
 }: {
   doc: DesignDocument;
   pack: DataPack | null;
@@ -1638,9 +1721,15 @@ function RoomsView({
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   onEditRoom: (id: string) => void;
   onArmPlace: (p: PlacingUnit | null) => void;
-  onDrawRoom: () => void;
+  roomDraw: RoomDraw;
+  /** take the canvas to a floor — selecting a room on another storey should
+      show you that storey, not leave you looking at a plan it isn't on */
+  onFloor?: (floorId: string) => void;
 }) {
   const [adopting, setAdopting] = useState(false);
+  /* which floor groups are folded away. View state, like the layer toggles —
+     it never reaches the document. */
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
 
   const servedIds = new Set(rooms.map((r) => r.id));
   const adoptable = doc.objects.filter(
@@ -1695,10 +1784,7 @@ function RoomsView({
           {ducted || perRoom ? "system" : "split"}.
         </div>
         <div className="ds-ck-emptyactions">
-          <button className="ds-ck-inkbtn" onClick={onDrawRoom}>
-            <Glyph name="edit" size={16} />
-            Draw a room
-          </button>
+          <RoomDrawControl draw={roomDraw} variant="ink" />
           {adoptable.length > 0 &&
             (adopting ? (
               <div className="ds-ck-adopt">
@@ -1723,11 +1809,26 @@ function RoomsView({
     );
   }
 
-  return (
-    <>
-      <div className="ds-ck-roster">
-        {rooms.map((r, i) => {
-          const cov = roomCoverage(doc, pack, r, basis);
+  /* ── the roster, grouped by storey ──────────────────────────────────
+     A flat list interleaves ground-floor and first-floor rooms with nothing
+     to tell them apart. Group by floor, ordered the way the building stacks
+     (top storey first, like a section), each group collapsible and carrying
+     its own count so a folded floor still says it isn't empty.
+
+     Numbering stays CONTINUOUS across the system: the number identifies the
+     room, and restarting it per floor would renumber a room because a
+     different storey gained one. */
+  const groups = doc.floors
+    .map((f) => ({ floor: f, rooms: rooms.filter((r) => r.floorId === f.id) }))
+    .filter((g) => g.rooms.length > 0 || g.floor.id === floor.id)
+    .reverse();
+  /* one storey in the whole design: the header would be a wrapper around
+     everything, saying nothing. Only stack a job that HAS a stack. */
+  const grouped = doc.floors.length > 1;
+  const numberOf = new Map(rooms.map((r, i) => [r.id, i + 1]));
+
+  const roomRow = (r: RoomObj) => {
+    const cov = roomCoverage(doc, pack, r, basis);
           // done = covered · none = nothing placed/pending · pending = in progress
           const dot =
             cov.status === "covered"
@@ -1735,13 +1836,17 @@ function RoomsView({
               : cov.coveredKw === 0 && cov.pendingKw === 0
                 ? "none"
                 : "pending";
-          const on = r.id === highlightRoomId;
-          const roomName = String(r.props.name ?? "Room");
-          return (
+    const on = r.id === highlightRoomId;
+    const roomName = String(r.props.name ?? "Room");
+    return (
             <div key={r.id} className="ds-ck-rrow-wrap">
               <button
                 className={`ds-ck-rrow${on ? " on" : ""}`}
-                onClick={() => onSelect(r.id)}
+                onClick={() => {
+                  // follow the room to its own storey before selecting it
+                  if (r.floorId !== floor.id) onFloor?.(r.floorId);
+                  onSelect(r.id);
+                }}
                 title={
                   cov.status === "covered"
                     ? "Load covered"
@@ -1750,9 +1855,16 @@ function RoomsView({
                       : "Calibrate the floor to compute the load"
                 }
               >
-                <span className="ds-ck-rnum">{i + 1}</span>
+                <span className="ds-ck-rnum">{numberOf.get(r.id)}</span>
                 <span className={`ds-ck-rdot ${dot}`} />
                 <span className="ds-ck-rnm">{roomName}</span>
+                {/* the room's heat load, on the row instead of buried in the
+                    tooltip above — it's the number you scan the list for.
+                    Nothing at all when there's no scale yet: "— kW" says
+                    less than the grey status dot already does. */}
+                {cov.loadKw != null && cov.loadKw > 0 && (
+                  <span className="ds-ck-rload">{cov.loadKw.toFixed(1)} kW</span>
+                )}
                 {/* spill rooms carry the ⤢ badge and no sizing expectations
                     (ducted spec §9b–9c; the share slot arrives at Step 3) */}
                 {ducted && isSpillRoom(r) && (
@@ -1774,13 +1886,49 @@ function RoomsView({
                 <Glyph name="configure" size={14} />
               </button>
             </div>
-          );
-        })}
-        {/* same shape-first path as the empty state's Draw a room */}
-        <button className="ds-ck-rowadd" onClick={onDrawRoom}>
-          <Glyph name="edit" size={14} />
-          Add room
-        </button>
+    );
+  };
+
+  return (
+    <>
+      <div className="ds-ck-roster">
+        {!grouped && rooms.map(roomRow)}
+        {grouped &&
+          groups.map((g) => {
+            const isActive = g.floor.id === floor.id;
+            // the storey you're drawing on is never folded away — the Add
+            // room control lives in it, and a room would land out of sight
+            const shut = collapsed.has(g.floor.id) && !isActive;
+            return (
+              <div key={g.floor.id} className="ds-ck-fgrp">
+                <button
+                  className={`ds-ck-fhead${shut ? " shut" : ""}${isActive ? " on" : ""}`}
+                  onClick={() =>
+                    setCollapsed((c) => {
+                      const next = new Set(c);
+                      if (next.has(g.floor.id)) next.delete(g.floor.id);
+                      else next.add(g.floor.id);
+                      return next;
+                    })
+                  }
+                  aria-expanded={!shut}
+                  title={shut ? `Show ${g.floor.name}` : `Hide ${g.floor.name}`}
+                >
+                  <Glyph name="chev" size={12} />
+                  <span className="fn">{g.floor.name}</span>
+                  {/* the count is why a folded floor still tells you something */}
+                  <span className="fc">
+                    {g.rooms.length === 1 ? "1 room" : `${g.rooms.length} rooms`}
+                  </span>
+                </button>
+                {!shut && g.rooms.map(roomRow)}
+                {/* Add room belongs to the storey it will draw on, so it sits
+                    under that floor's last room and moves when you change page */}
+                {!shut && isActive && <RoomDrawControl draw={roomDraw} variant="row" />}
+              </div>
+            );
+          })}
+        {!grouped && <RoomDrawControl draw={roomDraw} variant="row" />}
         {adoptable.length > 0 && !adopting && (
           <button className="ds-ck-rowadd" onClick={() => setAdopting(true)}>
             <Glyph name="plus" size={14} />
@@ -1873,6 +2021,7 @@ function RoomInspectCard({
   onRelease: (roomId: string) => void;
 }) {
   const cov = roomCoverage(doc, pack, room, basis);
+  const areaM2 = roomAreaM2(doc, room);
   const covered = cov.status === "covered";
   const shared = room.systemId !== system.id;
   const dot = covered ? "ok" : cov.status === "under" ? "under" : "none";
@@ -1896,6 +2045,20 @@ function RoomInspectCard({
         <span className={`ds-ck-cdot ${dot}`} />
         <div className="ds-ck-itxt">
           <div className="ds-ck-iname">{String(room.props.name ?? "Room")}</div>
+          {/* how big it is and what it needs — the two facts you open a room
+              for. Covered/short isn't repeated: the badge to the right of
+              this already says it. With no scale there are no numbers to
+              give, so name the fix instead of printing "— · —". */}
+          <div className="ds-ck-ifacts">
+            {areaM2 == null && cov.loadKw == null
+              ? "Calibrate the floor to size this room"
+              : [
+                  areaM2 == null ? null : `${areaM2.toFixed(1)} m²`,
+                  cov.loadKw == null ? null : `${cov.loadKw.toFixed(1)} kW required`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+          </div>
         </div>
         {shared && (
           <span className="ds-ck-ishared">
@@ -1987,8 +2150,22 @@ export function UnitsSub({
   const loadKw = roomLoadKw(doc, room);
 
   const mine = doc.objects.filter((o) => o.systemId === system.id && o.type === "unit");
-  const placedIdu = mine.find((o) => o.props.role === "idu") ?? null;
-  const placedOdu = mine.find((o) => o.props.role === "odu") ?? null;
+  const sysIdu = mine.find((o) => o.props.role === "idu") ?? null;
+  /* A split is ONE pair serving ONE room — but a system can SERVE several
+     rooms (a drop into a foreign room adopts it; "Serve an existing room"
+     does the same). The pair belongs to the room its indoor unit is
+     attributed to; every other served room gets a read-only note instead of
+     the same unit again. Without this the one placed unit showed up on
+     whichever room you clicked, as though it had migrated there — and could
+     be recalled, or its pair re-chosen, from a room that doesn't own it.
+
+     A unit dropped OUTSIDE any room carries no attribution: it stays visible
+     on every served card rather than vanishing from the panel entirely,
+     since there's no owning room to send you to. */
+  const ownerRoomId = String(sysIdu?.props.roomId ?? system.settings.roomId ?? "") || null;
+  const owns = ownerRoomId == null || ownerRoomId === room.id;
+  const placedIdu = owns ? sysIdu : null;
+  const placedOdu = owns ? (mine.find((o) => o.props.role === "odu") ?? null) : null;
   const iduModel = String(placedIdu?.props.model ?? system.settings.pairIdu ?? "");
   const oduModel = String(placedOdu?.props.model ?? system.settings.pairOdu ?? "");
   const iduSpec = pack?.indoor_units.find((u) => u.model === iduModel) ?? null;
@@ -2040,6 +2217,34 @@ export function UnitsSub({
   };
 
   const pipeSizes = pairRow ? `Ø${pairRow.pipe_liquid_mm} / ${pairRow.pipe_gas_mm}` : "";
+
+  /* served by this split, but the pair lives in another room: say so and stop.
+     Read-only on purpose — Recall and the pair picker both act on the SYSTEM,
+     so offering them here would let you undo another room's work from a card
+     that only looks like it owns the unit. */
+  if (!owns) {
+    const owner = doc.objects.find((o) => o.id === ownerRoomId);
+    const ownerName = String(owner?.props.name ?? "another room");
+    return (
+      <div className="ds-ck-sub units">
+        <div className="ds-ck-subh">
+          <span className="ds-ck-st">
+            <Glyph name="unitsq" size={14} />
+            Units
+          </span>
+        </div>
+        <div className="ds-ck-uempty" data-testid="units-elsewhere">
+          <div className="ue-ic">
+            <Glyph name="idu" size={20} />
+          </div>
+          <div>
+            <div className="ue-t">Served by {system.name}</div>
+            <div className="ue-s">Its indoor unit is in {ownerName} — change it there.</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="ds-ck-sub units">
@@ -2193,17 +2398,25 @@ function UnitRow({
           <small> kW</small>
         </div>
       )}
-      {placed && onRecall && (
-        <button
-          className="ds-ck-recall"
-          onClick={onRecall}
-          title="Recall — take this unit back off the plan"
-          aria-label={`Recall ${label} unit`}
-        >
-          <Glyph name="rotate" size={12} />
-          Recall
-        </button>
-      )}
+      {/* The action column is ALWAYS here, even empty. Recall used to be
+          absolutely positioned at `right: 10px` — the same spot the kW figure
+          claims with `margin-left: auto` — so hovering the card dropped the
+          button straight on top of the capacity. Reserving the slot means
+          nothing overlaps and nothing shifts on hover; the button reveals
+          into space that was already its own. Icon-only: the word cost ~46px
+          of a 284px rail for a control that has a tooltip and a label. */}
+      <div className="ds-ck-uact">
+        {placed && onRecall && (
+          <button
+            className="ds-ck-recall"
+            onClick={onRecall}
+            title="Recall — take this unit back off the plan"
+            aria-label={`Recall ${label} unit`}
+          >
+            <Glyph name="rotate" size={14} />
+          </button>
+        )}
+      </div>
     </div>
   );
 }

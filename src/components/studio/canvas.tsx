@@ -14,6 +14,7 @@ import { orientationFromWalls } from "@/lib/studio/loads";
 import { roomAtPoint } from "@/lib/studio/coverage";
 import { isAirCapable } from "@/lib/studio/modules";
 import { attachOf } from "@/lib/studio/graph";
+import { anchorFloating, dodgeSlot, type Size } from "@/lib/studio/anchor";
 import {
   deleteRoomWithContents,
   moveEndpointTo,
@@ -79,6 +80,7 @@ export type CanvasTool =
   | "room-rect"
   | "room-poly"
   | "calibrate"
+  | "measure" // throwaway tape measure — drag to read a distance, nothing is saved
   | "set-north" // place/rotate the true-north arrow
   | "crop" // trim a plan sheet's visible region
   | "erase"
@@ -383,8 +385,22 @@ function defaultViewport(
   return { zoom, x: -w / (2 * zoom), y: -h / (2 * zoom) };
 }
 
+/** How far the pointer may travel and still count as a click, not a drag.
+    Every click-to-place tool starts as a `tap-pan`: move past this and the
+    gesture becomes a pan (so you can bring the far end of a wall into view
+    mid-calibration); release inside it and the placement commits. */
+const TAP_SLOP_PX = 4;
+
 type Drag =
   | { kind: "pan"; startScreen: Point; origVp: Viewport }
+  /** undecided: a click-to-place gesture that hasn't moved far enough to be
+      a pan yet. `commit` is the placement it will run on release. */
+  | {
+      kind: "tap-pan";
+      startScreen: Point;
+      origVp: Viewport;
+      commit: () => void;
+    }
   | { kind: "move"; id: string; startWorld: Point; orig: Point[]; memberIds: ReadonlySet<string> }
   | { kind: "vertex"; id: string; index: number; orig: Point[] }
   | { kind: "rect"; start: Point }
@@ -393,7 +409,10 @@ type Drag =
   | { kind: "crop"; sheetId: string; start: Point }
   | { kind: "north-move"; startWorld: Point; orig: { x: number; y: number } }
   | { kind: "north-rotate"; center: { x: number; y: number } }
-  | { kind: "unit-rotate"; id: string; center: Point };
+  | { kind: "unit-rotate"; id: string; center: Point }
+  /** the tape measure: a reading, not an object — it lives only for the
+      length of the drag and is never written to the document */
+  | { kind: "tape"; from: Point };
 
 /** Re-derive every non-locked room's orientation from the new north bearing
     (DUCTR autoDetectOrientations). Manual per-room overrides (orientationLocked)
@@ -531,6 +550,28 @@ export function StudioCanvas({
   const [adjust, setAdjust] = useState<{ id: string; isNew: boolean } | null>(null);
   const [calib, setCalib] = useState<{ a?: Point; b?: Point }>({});
   const [calibMeters, setCalibMeters] = useState("");
+  /* the calibration card's MEASURED size — its width is fixed by CSS but its
+     height is content, and guessing it is what let the card hang off the
+     bottom edge. The fallback is only ever used for the first paint (and in
+     jsdom, which has no layout). */
+  const [calibCard, setCalibCard] = useState<Size>({ w: 226, h: 148 });
+  const measureCalibCard = useCallback((el: HTMLDivElement | null) => {
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    if (r.width && r.height) setCalibCard({ w: r.width, h: r.height });
+  }, []);
+  /* the live tape-measure reading. Deliberately component state and nothing
+     else: it never reaches onMutate, so it makes no object, no undo entry and
+     no mark on the drawing — let go and it's gone. */
+  const [tape, setTape] = useState<{ a: Point; b: Point } | null>(null);
+  /* the wall-marking / room-sizing panel's measured size, for the same reason
+     — it picks the top or bottom slot depending on where the room sits */
+  const [roomPanel, setRoomPanel] = useState<Size>({ w: 360, h: 176 });
+  const measureRoomPanel = useCallback((el: HTMLDivElement | null) => {
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    if (r.width && r.height) setRoomPanel({ w: r.width, h: r.height });
+  }, []);
   const spaceDown = useRef(false);
 
   /* the canvas is scoped to the ACTIVE system — switching systems re-scopes
@@ -1208,6 +1249,7 @@ export function StudioCanvas({
         setCalibMeters("");
         setDraftPipe([]);
         pipeStartAttach.current = null;
+        setTape(null);
         // discard an in-progress wall-marking (a fresh draft makes no room)
         setWallSelect(null);
       }
@@ -1697,6 +1739,19 @@ export function StudioCanvas({
     const w = toWorld(e);
     const pan = () =>
       setDrag({ kind: "pan", startScreen: { x: e.clientX, y: e.clientY }, origVp: vp });
+    /* A click-to-place tool no longer commits on pointer-DOWN. It parks the
+       placement here and waits: drag past the slop and the gesture pans
+       instead (see TAP_SLOP_PX), release in place and `commit` runs. Without
+       this the only way to move the plan mid-calibration was middle-drag or
+       hold-Space — and Space is swallowed the moment focus is in the
+       measurement field. */
+    const tap = (commit: () => void) =>
+      setDrag({
+        kind: "tap-pan",
+        startScreen: { x: e.clientX, y: e.clientY },
+        origVp: vp,
+        commit,
+      });
 
     try {
       (e.target as Element).setPointerCapture?.(e.pointerId);
@@ -1712,18 +1767,19 @@ export function StudioCanvas({
 
     // wall-marking captures clicks: toggle the nearest edge as external
     if (wallSelect) {
-      const pts = wallSelect.points;
-      const tol = 20 / vp.zoom;
-      let hit = -1;
-      let hitD = tol;
-      for (let i = 0; i < pts.length; i++) {
-        const d = distToSegment(w, pts[i], pts[(i + 1) % pts.length]);
-        if (d <= hitD) {
-          hit = i;
-          hitD = d;
+      tap(() => {
+        const pts = wallSelect.points;
+        const tol = 20 / vp.zoom;
+        let hit = -1;
+        let hitD = tol;
+        for (let i = 0; i < pts.length; i++) {
+          const d = distToSegment(w, pts[i], pts[(i + 1) % pts.length]);
+          if (d <= hitD) {
+            hit = i;
+            hitD = d;
+          }
         }
-      }
-      if (hit >= 0) {
+        if (hit < 0) return;
         setWallSelect((ws) => {
           if (!ws) return ws;
           const sel = new Set(ws.selected);
@@ -1731,7 +1787,7 @@ export function StudioCanvas({
           else sel.add(hit);
           return { ...ws, selected: sel };
         });
-      }
+      });
       return;
     }
 
@@ -1806,50 +1862,55 @@ export function StudioCanvas({
         break;
       }
       case "place": {
-        addUnit(w);
+        tap(() => addUnit(w));
         break;
       }
       case "component": {
         // Step 2 ships the plenum: land on the glowing AHU end
-        const end = nearestPlenumEnd(w);
-        if (end) addPlenum(end);
+        tap(() => {
+          const end = nearestPlenumEnd(w);
+          if (end) addPlenum(end);
+        });
         break;
       }
       case "pipe": {
-        const anchor = nearestAnchor(w);
-        // free first vertex; later vertices ortho-snap to the previous point so
-        // runs stay horizontal/vertical (anchors always win).
-        const prev = draftPipe[draftPipe.length - 1];
-        const p = anchor ? anchor.at : prev ? orthoSnap(prev, w) : w;
-        if (draftPipe.length === 0) {
-          pipeStartAttach.current = anchor
-            ? { kind: anchor.kind, id: anchor.id }
-            : null;
-          setDraftPipe([p]);
-        } else if (anchor) {
-          // landing on an anchor completes the run — the magnetic connection
-          commitPipe([...draftPipe, p], { kind: anchor.kind, id: anchor.id });
-        } else {
-          setDraftPipe((pts) => [...pts, p]);
-        }
+        tap(() => {
+          const anchor = nearestAnchor(w);
+          // free first vertex; later vertices ortho-snap to the previous point
+          // so runs stay horizontal/vertical (anchors always win).
+          const prev = draftPipe[draftPipe.length - 1];
+          const p = anchor ? anchor.at : prev ? orthoSnap(prev, w) : w;
+          if (draftPipe.length === 0) {
+            pipeStartAttach.current = anchor
+              ? { kind: anchor.kind, id: anchor.id }
+              : null;
+            setDraftPipe([p]);
+          } else if (anchor) {
+            // landing on an anchor completes the run — the magnetic connection
+            commitPipe([...draftPipe, p], { kind: anchor.kind, id: anchor.id });
+          } else {
+            setDraftPipe((pts) => [...pts, p]);
+          }
+        });
         break;
       }
       case "riser": {
-        addRiser(w);
+        tap(() => addRiser(w));
         break;
       }
       case "room-poly": {
-        const p = w;
-        if (draftPoly.length >= 3) {
-          const firstScreen = worldToScreen(draftPoly[0], vp);
-          const hereScreen = worldToScreen(w, vp);
-          if (dist(firstScreen, hereScreen) <= CLOSE_SNAP_PX) {
-            beginRoomAdjust(draftPoly, "poly");
-            setDraftPoly([]);
-            return;
+        tap(() => {
+          if (draftPoly.length >= 3) {
+            const firstScreen = worldToScreen(draftPoly[0], vp);
+            const hereScreen = worldToScreen(w, vp);
+            if (dist(firstScreen, hereScreen) <= CLOSE_SNAP_PX) {
+              beginRoomAdjust(draftPoly, "poly");
+              setDraftPoly([]);
+              return;
+            }
           }
-        }
-        setDraftPoly((pts) => [...pts, p]);
+          setDraftPoly((pts) => [...pts, w]);
+        });
         break;
       }
       case "room-rect":
@@ -1857,21 +1918,24 @@ export function StudioCanvas({
         setDraftRect({ a: w, b: w });
         break;
       case "calibrate": {
-        if (!calib.a) setCalib({ a: w });
-        else if (!calib.b) setCalib({ a: calib.a, b: w });
+        tap(() =>
+          setCalib((c) => (!c.a ? { a: w } : !c.b ? { a: c.a, b: w } : c))
+        );
         break;
       }
       case "set-north": {
         // drop the arrow at the click; keep any existing rotation
-        const deg = floor.northDeg ?? 0;
-        onMutate((d) => ({
-          ...d,
-          floors: d.floors.map((f) =>
-            f.id === floor.id ? { ...f, northPos: { x: w.x, y: w.y }, northDeg: deg } : f
-          ),
-          objects: redetectOrientations(d.objects, floor.id, deg),
-        }));
-        onToolDone();
+        tap(() => {
+          const deg = floor.northDeg ?? 0;
+          onMutate((d) => ({
+            ...d,
+            floors: d.floors.map((f) =>
+              f.id === floor.id ? { ...f, northPos: { x: w.x, y: w.y }, northDeg: deg } : f
+            ),
+            objects: redetectOrientations(d.objects, floor.id, deg),
+          }));
+          onToolDone();
+        });
         break;
       }
       case "crop": {
@@ -1890,7 +1954,14 @@ export function StudioCanvas({
         break;
       }
       case "erase": {
-        eraseAt(w);
+        tap(() => eraseAt(w));
+        break;
+      }
+      /* the ONE tool where a left-drag must not pan: the drag IS the
+         measurement. Panning while measuring stays on middle-drag / Space. */
+      case "measure": {
+        setDrag({ kind: "tape", from: w });
+        setTape({ a: w, b: w });
         break;
       }
       case "arrange": {
@@ -1931,6 +2002,22 @@ export function StudioCanvas({
         const dy = (e.clientY - drag.startScreen.y) / vp.zoom;
         if (dx || dy) userFramed.current = true;
         setVp({ ...vp, x: drag.origVp.x - dx, y: drag.origVp.y - dy });
+        break;
+      }
+      /* the gesture is still undecided — the moment it travels past the slop
+         it stops being a placement and becomes a pan, and the parked commit
+         is dropped with it */
+      case "tap-pan": {
+        const dxs = e.clientX - drag.startScreen.x;
+        const dys = e.clientY - drag.startScreen.y;
+        if (Math.abs(dxs) <= TAP_SLOP_PX && Math.abs(dys) <= TAP_SLOP_PX) break;
+        userFramed.current = true;
+        setDrag({ kind: "pan", startScreen: drag.startScreen, origVp: drag.origVp });
+        setVp({
+          ...vp,
+          x: drag.origVp.x - dxs / vp.zoom,
+          y: drag.origVp.y - dys / vp.zoom,
+        });
         break;
       }
       case "move": {
@@ -2009,11 +2096,28 @@ export function StudioCanvas({
         setLiveRotate({ id: drag.id, deg });
         break;
       }
+      case "tape": {
+        // Shift holds the tape square to the plan, like the pipe tool
+        setTape({ a: drag.from, b: e.shiftKey ? orthoSnap(drag.from, w) : w });
+        break;
+      }
     }
   };
 
   const onPointerUp = () => {
     if (!drag) return;
+    // released without travelling: the gesture was a click after all
+    if (drag.kind === "tap-pan") {
+      drag.commit();
+      setDrag(null);
+      return;
+    }
+    // letting go of the tape clears it — the reading was the whole point
+    if (drag.kind === "tape") {
+      setTape(null);
+      setDrag(null);
+      return;
+    }
     if (drag.kind === "sheet" && liveSheet) {
       const { id, x, y } = liveSheet;
       if (x !== drag.orig.x || y !== drag.orig.y) {
@@ -2102,7 +2206,13 @@ export function StudioCanvas({
             objects: reconcileAttachedRuns(
               d.objects.map((o) => {
                 if (o.id !== id) return o;
-                const next = { ...o, geometry: { kind: "point" as const, at } };
+                /* spread the geometry rather than rebuilding it: a point also
+                   carries `rotation`, and replacing the object dropped it —
+                   so moving a unit you had turned snapped it back to 0°. Only
+                   point geometry starts this drag (see the `point` drag kind),
+                   so anything else is left alone. */
+                if (o.geometry.kind !== "point") return o;
+                const next = { ...o, geometry: { ...o.geometry, at } };
                 if (restamp) {
                   const props = { ...next.props };
                   if (room) props.roomId = room.id;
@@ -2282,6 +2392,26 @@ export function StudioCanvas({
   const activeColour = sysColour.get(activeSystemId ?? "") ?? "#888";
   const calibScreenB = calib.b ? worldToScreen(calib.b, vp) : null;
 
+  /* Which end of the canvas the room panel should take. The bottom slot is
+     home, but it's also where the room's bottom wall usually sits — and you
+     can't click a wall through a panel. Whichever slot covers less of the
+     room wins. */
+  const panelSlot = (pts: Point[]) => {
+    const s = pts.map((p) => worldToScreen(p, vp));
+    const xs = s.map((p) => p.x);
+    const ys = s.map((p) => p.y);
+    return dodgeSlot({
+      rect: {
+        x0: Math.min(...xs),
+        y0: Math.min(...ys),
+        x1: Math.max(...xs),
+        y1: Math.max(...ys),
+      },
+      panel: roomPanel,
+      box: size,
+    });
+  };
+
   /* graph-paper DOTS, drawn in SCREEN space so they stay a constant size while
      zooming (like the original builder). Major dots on the grid, finer sub-dots
      at grid/5; the tile is offset to anchor to the world origin. */
@@ -2322,10 +2452,28 @@ export function StudioCanvas({
     tool === "calibrate" && !(calib.a && calib.b)
       ? {
           icon: "ruler",
+          /* the pan is named here because it is the whole reason the two
+             points can be picked accurately — you can bring the far end of
+             the wall into view without dropping the first point */
           text: calib.a
-            ? "Click the second point of the known dimension"
-            : "Select two points a known distance apart",
+            ? "Click the second point of the known dimension · drag to pan"
+            : "Select two points a known distance apart · drag to pan",
         }
+      : tool === "measure"
+        ? { icon: "ruler", text: "Drag across anything to measure it — nothing is saved" }
+      /* the room tools say their piece HERE now that the shape pill has moved
+         into the cockpit — this and the crosshair are the canvas's whole half
+         of the conversation, so Esc has to be named */
+      : tool === "room-rect"
+        ? { icon: "square", text: "Drag a rectangle over the room · Esc to cancel" }
+      : tool === "room-poly"
+        ? {
+            icon: "hexagon",
+            text:
+              draftPoly.length >= 3
+                ? "Click the first point to close the room · Esc to cancel"
+                : "Click each corner of the room · Esc to cancel",
+          }
       : tool === "set-north"
         ? floor.northPos
           ? { icon: "rotate", text: "Drag the N to rotate · drag the centre to move" }
@@ -3133,6 +3281,33 @@ export function StudioCanvas({
               {calib.b && <circle cx={calib.b.x} cy={calib.b.y} r={5 / zoom} />}
             </g>
           )}
+
+          {/* tape measure — a reading in flight. Dashed and its own colour so
+              it can't be mistaken for a pipe run or a calibration line, and
+              gone the moment the pointer comes up. */}
+          {tape && mm && (
+            <g className="ds-tape" data-testid="tape-measure">
+              <line x1={tape.a.x} y1={tape.a.y} x2={tape.b.x} y2={tape.b.y} />
+              {[tape.a, tape.b].map((p, i) => (
+                <line
+                  key={i}
+                  className="ds-tape-end"
+                  x1={p.x}
+                  y1={p.y - 6 / zoom}
+                  x2={p.x}
+                  y2={p.y + 6 / zoom}
+                />
+              ))}
+              <text
+                className="ds-tape-len"
+                x={(tape.a.x + tape.b.x) / 2}
+                y={(tape.a.y + tape.b.y) / 2 - 8 / labelZoom}
+                fontSize={12 / labelZoom}
+              >
+                {formatMeters(unitsToMeters(dist(tape.a, tape.b), mm))}
+              </text>
+            </g>
+          )}
         </g>
 
         {/* metre axis labels along the top edge — SCREEN space, constant size */}
@@ -3150,14 +3325,22 @@ export function StudioCanvas({
       {/* simulation overlay — the ADR-001 reserved <canvas>, above the scene */}
       {sim && <SimOverlay runtime={sim} vp={vp} size={size} />}
 
-      {/* calibration prompt (absolute within the canvas, never position:fixed) */}
+      {/* calibration prompt (absolute within the canvas, never position:fixed).
+          Placement is measured, flips side near an edge and clamps inside the
+          canvas — the card used to be positioned from two hard-coded numbers
+          and got sliced off at the bottom. Reserves the tool-hint strip at the
+          top and the readout HUD at the bottom. */}
       {calib.a && calib.b && calibScreenB && (
         <div
           className="ds-calib-card"
-          style={{
-            left: Math.min(calibScreenB.x + 14, size.w - 240),
-            top: Math.min(calibScreenB.y + 14, size.h - 130),
-          }}
+          ref={measureCalibCard}
+          style={anchorFloating({
+            anchor: calibScreenB,
+            panel: calibCard,
+            box: size,
+            reserveTop: 46,
+            reserveBottom: 40,
+          })}
         >
           <div className="ds-calib-t">Real distance between the two points</div>
           <div className="ds-calib-row">
@@ -3188,12 +3371,20 @@ export function StudioCanvas({
         </div>
       )}
 
-      {/* wall-marking panel — bottom-centre, never position:fixed */}
+      {/* wall-marking panel — bottom-centre by default, top when the room's
+          bottom edge is under that slot; never position:fixed */}
       {wallSelect &&
         (() => {
           const n = wallSelect.selected.size;
           return (
-            <div className="ds-wallsel-panel" role="dialog" aria-label="Mark external walls">
+            <div
+              className={`ds-wallsel-panel${
+                panelSlot(wallSelect.points) === "top" ? " top" : ""
+              }`}
+              ref={measureRoomPanel}
+              role="dialog"
+              aria-label="Mark external walls"
+            >
               <div className="ds-wallsel-title">Mark external walls</div>
               <div className="ds-wallsel-hint">
                 Click each wall exposed to outside. Leave internal / party walls
@@ -3224,7 +3415,12 @@ export function StudioCanvas({
           const pts = roomPoints(room);
           const areaU = polygonArea(pts);
           return (
-            <div className="ds-wallsel-panel" role="dialog" aria-label="Size the room">
+            <div
+              className={`ds-wallsel-panel${panelSlot(pts) === "top" ? " top" : ""}`}
+              ref={measureRoomPanel}
+              role="dialog"
+              aria-label="Size the room"
+            >
               <div className="ds-wallsel-title">
                 {adjust.isNew ? "Size the room" : "Edit the room"}
               </div>

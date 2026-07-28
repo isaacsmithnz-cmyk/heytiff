@@ -137,7 +137,7 @@ function renderCockpit(
       onSelect={opts.onSelect ?? (() => {})}
       onEditRoom={() => {}}
       onArmPlace={() => {}}
-      onDrawRoom={() => {}}
+      roomDraw={{ open: false, shape: null, start: () => {}, pick: () => {} }}
       floor={floor}
       onAddVariant={() => {}}
       onSwitchVariant={() => {}}

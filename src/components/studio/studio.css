@@ -1996,8 +1996,13 @@
   text-anchor: middle;
   pointer-events: none;
 }
+/* The area sits UNDER the room name over the customer's own linework, so its
+   hierarchy is carried by size and weight — not by lightness. A mid-grey read
+   fine against white paper and disappeared against a drawing (crossing service
+   lines through "73.9 m²"); the halo below only fills the gaps BETWEEN glyphs,
+   so a faint fill stays faint no matter how good the halo is. */
 .dstudio .ds-room .ds-room-area {
-  fill: var(--gray500);
+  fill: var(--ink2);
   font-weight: 600;
 }
 .dstudio .ds-vertex {
@@ -2051,6 +2056,13 @@
 .dstudio .ds-wallsel-edge.on .ds-wallsel-dot {
   fill: #10b981;
   stroke: #047857;
+}
+/* ...and the top slot, taken when the room's own edges sit under the bottom
+   one. Marking a wall you can't see because the panel is over it was the
+   single most common way to get stuck in this step. */
+.dstudio .ds-wallsel-panel.top {
+  top: 22px;
+  bottom: auto;
 }
 .dstudio .ds-wallsel-panel {
   position: absolute;
@@ -2119,6 +2131,27 @@
   stroke-width: 2;
   stroke-dasharray: 5 4;
   vector-effect: non-scaling-stroke;
+}
+
+/* Tape measure — a reading in flight, never an object on the drawing. Teal
+   (the studio's "you are doing something" colour) rather than the blue the
+   calibration line uses, so a quick check can't be mistaken for setting the
+   scale; the end ticks are what you aim with. */
+.dstudio .ds-tape line {
+  stroke: var(--teal-d);
+  stroke-width: 1.6;
+  stroke-dasharray: 6 4;
+  vector-effect: non-scaling-stroke;
+}
+.dstudio .ds-tape .ds-tape-end {
+  stroke-dasharray: none;
+  stroke-width: 2.4;
+}
+.dstudio .ds-tape-len {
+  fill: var(--teal-d);
+  font-family: var(--font);
+  font-weight: 800;
+  text-anchor: middle;
 }
 
 /* floating calibration card — absolute inside the canvas, never fixed */
@@ -2342,7 +2375,6 @@
    One treatment in one place — surface, edge, shadow, and the inverted
    ink ramp every child reads through. Anything new that floats over the
    canvas joins this list rather than restating it. */
-.dstudio .ds-roomhud,
 .dstudio .ds-zoomctl,
 .dstudio .ds-tool-hint,
 .dstudio .ds-legend,
@@ -2359,103 +2391,10 @@
   --gray400: rgba(255, 255, 255, 0.46);
 }
 /* hover/inset fills read off the surface, not off a light palette */
-.dstudio .ds-roomhud-b:hover,
-.dstudio .ds-roomhud-x:hover,
 .dstudio .ds-zoomctl button:hover,
 .dstudio .ds-legend-h button:hover {
   background: rgba(255, 255, 255, 0.1);
   color: var(--ink);
-}
-
-/* Room-shape pill. The marching-ants ring says "this is a choice, make
-   it" — it runs only until you commit to a shape (.armed drops it). */
-.dstudio .ds-roomhud {
-  position: absolute;
-  left: 50%;
-  top: 14px;
-  transform: translateX(-50%);
-  z-index: 15;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  border-radius: 999px;
-  padding: 5px 6px 5px 14px;
-}
-/* the marching ring — a separate layer so the dash animation can't drag the
-   pill's own paint, and so it sits OUTSIDE the border without changing size */
-.dstudio .ds-roomhud::after {
-  content: "";
-  position: absolute;
-  inset: -5px;
-  border-radius: 999px;
-  pointer-events: none;
-  /* a dashed ring drawn as a masked gradient: `border: dashed` can't animate
-     its dashes, but a repeating gradient can march by background-position */
-  padding: 1.5px;
-  background: repeating-linear-gradient(
-    90deg,
-    var(--teal) 0 7px,
-    transparent 7px 14px
-  );
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  background-size: 14px 100%;
-  animation: ds-roomhud-march 0.55s linear infinite;
-  opacity: 0.9;
-}
-/* once a shape is armed the pill has done its job — the ring stops so it
-   isn't competing with the cursor you're now drawing with */
-.dstudio .ds-roomhud.armed::after {
-  animation: none;
-  opacity: 0.4;
-}
-@keyframes ds-roomhud-march {
-  to { background-position: 14px 0; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .dstudio .ds-roomhud::after { animation: none; }
-}
-.dstudio .ds-roomhud-t {
-  font-size: 11.5px;
-  font-weight: 800;
-  /* full ink — it's the instruction, not a caption */
-  color: var(--ink);
-  white-space: nowrap;
-  margin-right: 4px;
-}
-.dstudio .ds-roomhud-b {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 999px;
-  color: var(--gray500);
-  cursor: pointer;
-  transition: all 0.18s;
-}
-.dstudio .ds-roomhud-b.on {
-  background: var(--teal);
-  /* teal is a bright accent — it needs dark ink on it, not the pill's white */
-  color: #0b0d13;
-  box-shadow: 0 0 14px rgba(0, 229, 192, 0.45);
-}
-.dstudio .ds-roomhud-x {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  margin-left: 2px;
-  border-radius: 999px;
-  color: var(--gray400);
-  cursor: pointer;
 }
 
 /* in-progress step guidance — top-centre pill */
@@ -6087,7 +6026,11 @@
   border: 1px solid var(--ds-border);
   background: var(--ds-card2);
   border-radius: 13px;
-  padding: 10px 12px;
+  /* the right inset RESERVES the hover Configure button's slot. It can't live
+     inside the row (the row is itself a button), so instead the row's content
+     stops short of it — otherwise the load figure would sit under Configure
+     the moment you hovered, the same collision Recall had on the unit card. */
+  padding: 10px 44px 10px 12px;
   cursor: pointer;
   font-family: var(--font);
   transition: transform 0.14s cubic-bezier(0.34, 1.35, 0.5, 1), box-shadow 0.14s ease,
@@ -6132,6 +6075,17 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* The room's heat load. Fixed width, so the NAME is what gives way when the
+   row runs out of space (it already ellipsises); tabular figures so the
+   column doesn't jitter as you read down the list. */
+.dstudio .ds-ck-rload {
+  flex: none;
+  font: 700 11.5px var(--font);
+  font-variant-numeric: tabular-nums;
+  color: var(--gray500);
+  white-space: nowrap;
+}
+.dstudio .ds-ck-rrow.on .ds-ck-rload { color: var(--ds-teal-ink); }
 /* serve an existing room — a dashed roster row */
 .dstudio .ds-ck-rowadd {
   display: flex;
@@ -6149,6 +6103,104 @@
 }
 .dstudio .ds-ck-rowadd:hover { border-color: var(--teal-d); color: var(--teal-d); }
 .dstudio .ds-ck-rowadd svg { width: 14px; height: 14px; }
+
+/* ── storey groups in the roster ──────────────────────────────────────
+   A flat list interleaves the storeys with nothing to separate them. Each
+   floor gets a header carrying its room count, and folds away — the count is
+   what keeps a folded floor informative. Top storey first, like a section. */
+.dstudio .ds-ck-fgrp {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.dstudio .ds-ck-fgrp + .ds-ck-fgrp { margin-top: 4px; }
+.dstudio .ds-ck-fhead {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 3px 2px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--font);
+  text-align: left;
+}
+.dstudio .ds-ck-fhead svg {
+  width: 12px;
+  height: 12px;
+  color: var(--gray400);
+  transform: rotate(90deg);
+  transition: transform 0.14s;
+}
+.dstudio .ds-ck-fhead.shut svg { transform: rotate(0deg); }
+.dstudio .ds-ck-fhead .fn {
+  flex: 1;
+  min-width: 0;
+  font: 800 8.5px var(--font);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--gray500);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* the storey you're drawing on — the one the Add room control sits in */
+.dstudio .ds-ck-fhead.on .fn { color: var(--ds-teal-ink); }
+.dstudio .ds-ck-fhead .fc {
+  flex: none;
+  font: 700 10.5px var(--font);
+  font-variant-numeric: tabular-nums;
+  color: var(--gray400);
+}
+.dstudio .ds-ck-fhead:hover .fn { color: var(--ink2); }
+
+/* ── the shape choice, in the button's own place ──────────────────────
+   Pressing "Add room" turns THAT control into ▢ · ⬡ · ✕ rather than raising
+   a pill on the far side of the screen. Keeping the outer box identical
+   (same class, same height, same radius) is the whole trick: it reads as the
+   control changing, not as a new thing appearing somewhere else. */
+.dstudio .ds-ck-rowadd.picking,
+.dstudio .ds-ck-inkbtn.picking {
+  gap: 8px;
+  padding: 0;
+  cursor: default;
+}
+.dstudio .ds-ck-rowadd.picking { border-style: solid; border-color: var(--teal-d); }
+.dstudio .ds-ck-shape {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.14s, color 0.14s, border-color 0.14s;
+}
+.dstudio .ds-ck-shape:hover { background: rgba(10, 12, 20, 0.06); }
+.dstudio .ds-ck-inkbtn.picking .ds-ck-shape:hover { background: rgba(255, 255, 255, 0.12); }
+.dstudio .ds-ck-shape.on {
+  background: var(--teal-d);
+  color: #fff;
+}
+.dstudio .ds-ck-inkbtn.picking .ds-ck-shape.on { background: var(--teal); color: #0b0d13; }
+.dstudio .ds-ck-shape.on svg { color: currentColor; }
+.dstudio .ds-ck-shape.x { width: 28px; height: 28px; }
+.dstudio .ds-ck-shape svg { width: 16px; height: 16px; }
+/* the morph itself — short enough to read as one control changing */
+@media (prefers-reduced-motion: no-preference) {
+  .dstudio .ds-ck-rowadd.picking,
+  .dstudio .ds-ck-inkbtn.picking {
+    animation: ds-shape-in 0.14s ease-out;
+  }
+}
+@keyframes ds-shape-in {
+  from { opacity: 0.4; }
+  to { opacity: 1; }
+}
 
 /* ── inspect sub-tab switcher (Configure · Units · Pipework) ── */
 .dstudio .ds-ck-subtabs {
@@ -6221,6 +6273,13 @@
 .dstudio .ds-ck-cdot.none { background: var(--gray400); }
 .dstudio .ds-ck-itxt { flex: 1; min-width: 0; }
 .dstudio .ds-ck-iname { font: 800 15px var(--font); color: var(--ink2); letter-spacing: -0.01em; }
+/* area · required load, right under the name */
+.dstudio .ds-ck-ifacts {
+  margin-top: 2px;
+  font: 600 11.5px var(--font);
+  font-variant-numeric: tabular-nums;
+  color: var(--gray500);
+}
 .dstudio .ds-ck-ibadge {
   display: inline-flex;
   align-items: center;
@@ -6412,27 +6471,32 @@
   white-space: nowrap;
 }
 .dstudio .ds-ck-ukw small { font-size: 10px; font-weight: 500; color: var(--gray400); }
+/* The card's action column — reserved whether or not it holds anything, so
+   the kW figure and the Recall button can never claim the same coordinates.
+   Recall used to be `position: absolute; right: 10px` and landed on top of
+   `.ds-ck-ukw`, which is pinned to that same edge by `margin-left: auto`. */
+.dstudio .ds-ck-uact {
+  flex: none;
+  width: 28px;
+  height: 28px;
+}
 /* recall reveals on hover/focus; stays in the a11y tree (opacity, not display) */
 .dstudio .ds-ck-recall {
-  position: absolute;
-  top: 50%;
-  right: 10px;
-  transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 5px 10px;
-  border-radius: 999px;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
   border: 1px solid var(--ds-border-s);
   background: #fff;
   color: var(--ds-teal-ink);
-  font: 700 10.5px var(--font);
   cursor: pointer;
   opacity: 0;
   box-shadow: var(--ds-sh-sm);
   transition: opacity 0.12s;
 }
-.dstudio .ds-ck-recall svg { width: 12px; height: 12px; }
+.dstudio .ds-ck-recall svg { width: 14px; height: 14px; }
 .dstudio .ds-ck-unit:hover .ds-ck-recall,
 .dstudio .ds-ck-unit:focus-within .ds-ck-recall { opacity: 1; }
 .dstudio .ds-ck-recall:hover { border-color: var(--teal-d); color: var(--teal-d); }
@@ -7047,7 +7111,12 @@
 .dstudio .ds-unit-model,
 .dstudio .ds-plenum-label,
 .dstudio .ds-spigot-dia,
-.dstudio .ds-spigot-label {
+.dstudio .ds-spigot-label,
+.dstudio .ds-tape-len,
+/* the room name + area were the ONLY plan labels left off this rule — the
+   most important text on the drawing was the one bit of it with no halo */
+.dstudio .ds-room-name,
+.dstudio .ds-room-area {
   paint-order: stroke;
   stroke: #fff;
   stroke-width: 3px;

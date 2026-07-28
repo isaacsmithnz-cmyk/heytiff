@@ -57,7 +57,7 @@ function renderPanel(onMutate: (fn: (d: DesignDocument) => DesignDocument) => vo
       onSelect={() => {}}
       onEditRoom={() => {}}
       onArmPlace={() => {}}
-      onDrawRoom={() => {}}
+      roomDraw={{ open: false, shape: null, start: () => {}, pick: () => {} }}
       floor={floor}
       onAddVariant={() => {}}
       onSwitchVariant={() => {}}
@@ -109,7 +109,7 @@ describe("SystemCockpit — close a system", () => {
         onSelect={() => {}}
         onEditRoom={() => {}}
         onArmPlace={() => {}}
-        onDrawRoom={() => {}}
+        roomDraw={{ open: false, shape: null, start: () => {}, pick: () => {} }}
         floor={floor}
         onAddVariant={() => {}}
         onSwitchVariant={() => {}}

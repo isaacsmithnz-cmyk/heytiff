@@ -56,6 +56,7 @@ export default async function MyTimesheetPage({
       workDays={data.workDays}
       ownWorkDays={data.ownWorkDays}
       employment={data.employment}
+      salaried={data.salaried}
       unavailable={data.unavailable}
       week={data.week}
       today={data.today}

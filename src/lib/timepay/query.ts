@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { displayNameOf } from "@/lib/staff/name";
-import { classifyEmployment } from "@/lib/staff/employment";
+import { classifyEmployment, payBasisOf } from "@/lib/staff/employment";
 import {
   DEFAULT_SETTINGS,
   type DayEntry,
@@ -30,7 +30,7 @@ import { dateOfDay, periodEnd, periodLength, type PeriodConfig } from "./period"
 const RATE_COLUMN = "hourly_wage";
 
 const STAFF_COLUMNS =
-  "id, first_name, last_name, full_name, preferred_name, job_title, status, state, employment_type";
+  "id, first_name, last_name, full_name, preferred_name, job_title, status, state, employment_type, pay_basis";
 
 export type TimesheetStatus = "draft" | "submitted" | "approved" | "sent_back";
 
@@ -102,6 +102,8 @@ export const getPaySettings = cache(async (
       // null = never set; My Pay and the Rate Calculator fall back to the
       // statutory default themselves rather than this row storing a guess
       superPct: data.super_pct == null ? null : Number(data.super_pct),
+      // salaried overtime pays unless the org says it's absorbed
+      salariedOtPaid: data.salaried_ot_paid ?? DEFAULT_SETTINGS.salariedOtPaid,
     },
   };
 });
@@ -245,6 +247,7 @@ export async function listStaffWeeks(
     rate: opts.pay && r[RATE_COLUMN] != null ? Number(r[RATE_COLUMN]) : null,
     state: (r.state as string) ?? null,
     employment: classifyEmployment(r.employment_type as string | null),
+    payBasis: payBasisOf(r.pay_basis as string | null),
     days: toDays(entries.get(String(r.id)) ?? [], periodStart, opts.cfg),
   }));
 }
@@ -280,6 +283,7 @@ export async function getMyWeek(
     rate: null,
     state: (r.state as string) ?? null,
     employment: classifyEmployment(r.employment_type as string | null),
+    payBasis: payBasisOf(r.pay_basis as string | null),
     days: toDays(entries.get(staffProfileId) ?? [], periodStart, cfg),
   };
 }

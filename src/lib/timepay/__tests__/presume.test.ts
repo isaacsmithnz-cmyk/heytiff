@@ -392,3 +392,39 @@ describe("a public holiday pays the person's own day", () => {
     expect(days[0]).toEqual({ t: "ph", h: 5 });
   });
 });
+
+describe("salaried pay respects the org's overtime rule", () => {
+  const week = (h: number): DayEntry[] => [
+    { t: "work", in: "7:00 AM", out: "3:00 PM", h: 8 },
+    { t: "work", in: "7:00 AM", out: "7:00 PM", h }, // the long Tuesday
+    ...EMPTY_WEEK.slice(2),
+  ];
+  const staff = (payBasis?: "hourly" | "salary") => ({
+    id: "s1",
+    name: "",
+    role: "",
+    rate: 50,
+    days: week(12),
+    employment: "permanent" as const,
+    payBasis,
+  });
+
+  it("paid: an extended day earns its premiums, salaried or not", () => {
+    const paid = derive(staff("salary"), DEFAULT_SETTINGS, CTX);
+    const hourly = derive(staff("hourly"), DEFAULT_SETTINGS, CTX);
+    expect(paid.gross).toBe(hourly.gross);
+    expect(paid.ot).toBeGreaterThan(0);
+  });
+
+  it("absorbed: the hours are recorded, the money isn't", () => {
+    const s = { ...DEFAULT_SETTINGS, salariedOtPaid: false };
+    const d = derive(staff("salary"), s, CTX);
+    // buckets still show the long day — the record survives
+    expect(d.ot + d.ot2).toBeGreaterThan(0);
+    // but gross is base + absences only: 8h Mon + 8h base Tue at 1×
+    expect(d.gross).toBe((d.normal + d.sick + d.leave + d.ph) * 50);
+    // an hourly person under the same org setting is untouched
+    const hourly = derive(staff("hourly"), s, CTX);
+    expect(hourly.gross).toBeGreaterThan(d.gross!);
+  });
+});

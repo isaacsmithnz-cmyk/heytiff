@@ -63,3 +63,22 @@ export function classifyEmployment(raw?: string | null): EmploymentClass {
 export function presumesDays(cls: EmploymentClass): boolean {
   return cls === "permanent";
 }
+
+/* ── pay basis ── */
+
+/** How pay is COMPUTED — orthogonal to employment type, because a part-timer
+    can be salaried. A salaried person's week pays the same whatever the sheet
+    says (annual ÷ 52, the same arithmetic the Xero drift work uses), so their
+    timesheet becomes a record with an overtime exception, not an input. */
+export type PayBasis = "hourly" | "salary";
+
+export const PAY_BASES: readonly PayBasis[] = ["hourly", "salary"];
+
+export function isPayBasis(v: unknown): v is PayBasis {
+  return v === "hourly" || v === "salary";
+}
+
+/** Null/unknown reads as hourly — exactly what the column default says. */
+export function payBasisOf(raw: string | null | undefined): PayBasis {
+  return raw === "salary" ? "salary" : "hourly";
+}

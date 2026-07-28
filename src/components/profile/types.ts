@@ -55,6 +55,7 @@ export type ProfileHeader = {
 /** Pay fields — only ever passed when the viewer holds `financials`. */
 export type PayFields = {
   hourly_wage?: number | null;
+  pay_basis?: string | null;
   contracted_hours?: number | null;
   utilisation?: number | null;
   super_override?: number | null;

@@ -60,6 +60,8 @@ export const ADMIN_SECTIONS = {
     capability: "financials" as Capability,
     columns: [
       "hourly_wage",
+      // how their pay is computed — salaried weeks pay themselves
+      "pay_basis",
       "contracted_hours",
       "utilisation",
       "super_override",
@@ -93,7 +95,7 @@ const ADMIN_PATCH_CONFIG: SectionConfig = {
     Object.entries(ADMIN_SECTIONS).map(([k, v]) => [k, v.columns])
   ),
   dateColumns: new Set(["birthday", "start_date", "visa_expiry", "vevo_checked_at"]),
-  enums: { status: ["Active", "Inactive"], state: AU_STATES },
+  enums: { status: ["Active", "Inactive"], state: AU_STATES, pay_basis: ["hourly", "salary"] },
   // state is nullable: clearing it means "use the organisation's state"
   nullableEnums: new Set(["state"]),
 };

@@ -74,6 +74,11 @@ export type Settings = {
       staff member saw as their super. Null = never set; consumers fall back
       to the statutory default rather than storing a guess. */
   superPct?: number | null;
+  /** Whether a salaried person's overtime block PAYS (at the weekend/OT
+      rules, on their salary-derived hourly) or is absorbed — "reasonable
+      additional hours" inside the salary. The block is RECORDED either way;
+      this only decides whether it moves money. */
+  salariedOtPaid?: boolean;
 };
 
 /* A person's week.
@@ -102,6 +107,10 @@ export type StaffWeek = {
       screen must derive each person through their OWN pattern — a shared
       Mon–Fri ctx showed every casual five "missing" days a week. */
   workDays?: number[];
+  /** how their pay is computed. A salaried week pays the same whatever the
+      sheet says; recorded hours stay hours, and overtime pays (or doesn't)
+      per the org's salariedOtPaid rule. */
+  payBasis?: "hourly" | "salary";
 };
 
 /* ['MON', 29, 'Jun'] — weekday label, day number, month */
@@ -183,6 +192,7 @@ export const DEFAULT_SETTINGS: Settings = {
   lock: true,
   exportDetail: false,
   superPct: null,
+  salariedOtPaid: true,
 };
 
 export const fmt = (h: number | null | undefined): string =>
@@ -533,14 +543,33 @@ export function derive(staff: StaffWeek, s: Settings, ctx: WeekCtx): Derived {
     status,
     bullets,
     issueTitle,
-    gross:
-      staff.rate == null
-        ? null
-        : normal * staff.rate +
-          ot * staff.rate * 1.5 +
-          ot2 * staff.rate * 2 +
-          (sick + leave + ph) * staff.rate,
+    gross: grossFor(staff, s, { normal, ot, ot2, sick, leave, ph }),
   };
+}
+
+/** The week's money, respecting the pay basis.
+
+    Hourly: every bucket at its multiplier — unchanged. Salaried with paid
+    overtime: identical arithmetic, because the salaried rate IS annual ÷ 52 ÷
+    weekly hours (the drift work's own conversion), so a full presumed week
+    lands on the constant weekly figure and an extended day adds its premium.
+    Salaried with ABSORBED overtime: the extra hours are inside the salary —
+    recorded on the sheet, excluded from the money. Base hours (the `normal`
+    bucket) and paid absences still pay; the ot/ot2 buckets don't. */
+function grossFor(
+  staff: StaffWeek,
+  s: Settings,
+  b: { normal: number; ot: number; ot2: number; sick: number; leave: number; ph: number },
+): number | null {
+  if (staff.rate == null) return null;
+  const absorbed = staff.payBasis === "salary" && s.salariedOtPaid === false;
+  if (absorbed) return (b.normal + b.sick + b.leave + b.ph) * staff.rate;
+  return (
+    b.normal * staff.rate +
+    b.ot * staff.rate * 1.5 +
+    b.ot2 * staff.rate * 2 +
+    (b.sick + b.leave + b.ph) * staff.rate
+  );
 }
 
 /* A period splits into calendar weeks for display: a fortnight reads as two

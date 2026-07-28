@@ -7,14 +7,10 @@
    especially the two-Lukes case, because assigning real work to the wrong
    person is the one failure this feature must not have. */
 
-/* The SDK is stubbed because jsdom has no TextEncoder and the SDK reaches for
-   one at import time. Nothing below calls it: every rule under test is a pure
-   function, which is exactly why they were written as pure functions. */
-jest.mock("@anthropic-ai/sdk", () => ({
-  __esModule: true,
-  default: class {},
-}));
-
+/* The real module is imported, SDK and all — jest.setup.ts polyfills the
+   TextEncoder the SDK reaches for at import time. Nothing below makes a call:
+   every rule under test is a pure function, which is exactly why they were
+   written as pure functions. */
 import {
   isEmptyProposal,
   resolveAssignee,

@@ -2978,6 +2978,15 @@ select.fl-i { cursor:pointer; }
 .wb-strip { display:flex; flex-direction:column; gap:2px; }
 .wb-strip .wb-bar { width:120px; flex:none; }
 
+/* smart notes — the review card */
+.wb-review { border-top:1px solid rgba(5,5,5,.07); margin-top:12px; padding-top:12px; }
+.wb-review .wb-notetext { background:rgba(5,5,5,.03); border-radius:12px; padding:12px 14px; margin:0 0 10px; }
+.wb-ask { background:rgba(0,168,224,.07); border:1px solid rgba(0,168,224,.25); border-radius:12px; padding:12px 14px; margin-bottom:12px; }
+.wb-ask > b { display:block; font-size:13.5px; margin-bottom:8px; }
+.wb-chip.warn { background:rgba(255,138,0,.14); color:#B26A00; }
+.wb-review .wb-row { gap:8px; }
+.wb-review .wb-select { max-width:170px; }
+
 /* visits */
 .wb-visit { border:1px solid rgba(5,5,5,.07); border-radius:14px; padding:6px 8px; margin-bottom:10px; }
 .wb-visit.wb-pulse { border-color:rgba(224,38,79,.5); }

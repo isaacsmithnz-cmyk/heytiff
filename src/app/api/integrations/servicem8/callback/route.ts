@@ -1,9 +1,10 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { after, NextResponse, type NextRequest } from "next/server";
 import { auth0 } from "@/lib/auth0";
 import { hasMinRole } from "@/lib/roles";
 import { getDbRole } from "@/lib/permissions-server";
 import { exchangeSm8Code, fetchSm8Vendor, sm8Config } from "@/lib/integrations/sm8";
 import { saveSm8Connection } from "@/lib/integrations/sm8-store";
+import { runSm8Sync } from "@/lib/integrations/sm8-sync";
 import { decodeState, stateCookieFor, stateMatches } from "@/lib/integrations/oauth-state";
 
 /* Step two: ServiceM8 sends the browser back here with a code. Swap it for
@@ -90,6 +91,13 @@ export async function GET(request: NextRequest) {
        screen's error copy points at. */
     return leave(request, "?error=save");
   }
+
+  /* First backfill slice, scheduled AFTER the redirect lands — a floating
+     promise would be frozen the moment this response returns on Vercel;
+     after() rides the invocation's waitUntil instead. Bounded by the
+     engine's page budget; the screen's per-object progress shows the rest
+     arriving across subsequent kicks. */
+  after(() => runSm8Sync(orgId, "connect").catch(() => {}));
 
   return leave(request, "?connected=1");
 }

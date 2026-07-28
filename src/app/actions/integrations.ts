@@ -6,6 +6,7 @@ import { hasMinRole } from "@/lib/roles";
 import { getDbRole } from "@/lib/permissions-server";
 import { disconnectXero, setXeroTenant } from "@/lib/integrations/store";
 import { disconnectSm8 } from "@/lib/integrations/sm8-store";
+import { runSm8Sync } from "@/lib/integrations/sm8-sync";
 
 /* The two things you can do to an existing connection from the screen.
 
@@ -67,6 +68,20 @@ export async function disconnectServiceM8Action(): Promise<IntegrationResult> {
     ok: true,
     note: "Disconnected here. To fully revoke access, also remove HeyTiff from your ServiceM8 account's add-ons.",
   };
+}
+
+/** Run one sync slice now, in the foreground — the button's whole point is
+    watching the counts move, so this awaits rather than after()s. The
+    engine's lease makes a press during a running sync a polite "already
+    running" rather than a second walker. */
+export async function syncServiceM8NowAction(): Promise<IntegrationResult> {
+  const ctx = await ownerOrgId();
+  if ("error" in ctx) return { ok: false, error: ctx.error };
+
+  const outcome = await runSm8Sync(ctx.orgId, "manual");
+  revalidate();
+  if (!outcome.ran) return { ok: false, error: outcome.note };
+  return { ok: true, note: outcome.note };
 }
 
 export async function setXeroTenantAction(tenantId: string): Promise<IntegrationResult> {

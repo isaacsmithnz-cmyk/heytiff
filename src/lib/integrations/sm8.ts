@@ -164,6 +164,7 @@ export type Sm8Vendor = {
   /** IANA zone, e.g. Australia/Brisbane — the clock every ServiceM8 timestamp
       in this account is written against. */
   timezoneName: string | null;
+  currency: string | null;
 };
 
 export type Sm8VendorResult =
@@ -196,6 +197,7 @@ export async function fetchSm8Vendor(accessToken: string): Promise<Sm8VendorResu
         email: typeof r.email === "string" && r.email ? r.email : null,
         timezoneName:
           typeof r.timezone_name === "string" && r.timezone_name ? r.timezone_name : null,
+        currency: typeof r.currency === "string" && r.currency ? r.currency : null,
       },
     };
   } catch {

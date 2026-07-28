@@ -270,6 +270,41 @@ describe("the week is ONE strip of day tabs", () => {
     expect(screen.queryByText("Mon 29 Jun")).toBeNull();
   });
 
+  /* A worked Saturday runs every hour through the weekend rule, so `dayClass`
+     calls it `over` — correct about the pay, wrong about the word. A four-hour
+     Saturday was labelled "Overtime day", which describes a long day when it
+     was a short one. The premium is for the day of the week. */
+  it("calls a worked weekend WEEKEND RATES, not overtime, however short it was", () => {
+    const sat: DayEntry = { t: "work", in: "8:00 AM", out: "12:00 PM", h: 4 };
+    renderSheet({
+      me: { ...ME, days: [...DAYS.slice(0, 5), sat, EM] },
+      sources: [...SOURCES.slice(0, 5), "entered", "none"] as DaySource[],
+    });
+    expect(screen.getByRole("tab", { name: /Sat 4 Jul — Weekend rates/ })).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: /Sat 4 Jul — Overtime/ })).toBeNull();
+  });
+
+  it("still calls a long WEEKDAY overtime — the word only changes on a weekend", () => {
+    renderSheet();
+    // Wednesday is the stored 11-hour day
+    expect(screen.getByRole("tab", { name: /Wed 1 Jul — Overtime day/ })).toBeInTheDocument();
+  });
+
+  it("leaves a weekend alone when the workspace pays it at standard rates", () => {
+    const sat: DayEntry = { t: "work", in: "7:00 AM", out: "3:00 PM", h: 8 };
+    const noSat: Settings = {
+      ...DEFAULT_SETTINGS,
+      rules: { ...DEFAULT_SETTINGS.rules, sat: { ...DEFAULT_SETTINGS.rules.sat, on: false } },
+    };
+    renderSheet({
+      settings: noSat,
+      me: { ...ME, days: [...DAYS.slice(0, 5), sat, EM] },
+      sources: [...SOURCES.slice(0, 5), "entered", "none"] as DaySource[],
+    });
+    // no weekend premium applied, so it is simply a normal day
+    expect(screen.getByRole("tab", { name: /Sat 4 Jul — Normal/ })).toBeInTheDocument();
+  });
+
   it("a weekend is clickable straight from the strip — no separate offer", async () => {
     const user = userEvent.setup();
     renderSheet();

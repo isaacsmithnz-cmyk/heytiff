@@ -41,6 +41,7 @@ import {
   fmtH,
   fmtHval,
   expectsWork,
+  isWeekendRate,
   ruleSummary,
   seedBreakMinutes,
   splitDay,
@@ -108,6 +109,14 @@ const PILL: Record<DayClass, string> = {
   off: "Not worked",
   empty: "No entry",
 };
+
+/** What to CALL a day. Same colour, different word on a weekend: every hour of
+    a worked Saturday is at a premium, so `dayClass` says `over` — but calling
+    a four-hour Saturday an "Overtime day" describes a long day when it was a
+    short one. The premium is for the day of the week, so the label says so. */
+function pillLabel(entry: DayEntry, cls: DayClass, dow: number, s: Settings): string {
+  return isWeekendRate(entry, dow, s) ? "Weekend rates" : PILL[cls];
+}
 
 /* Why a day says what it says. A presumed day must never read as though the
    person logged it — they didn't, and if it's wrong they need to know it was
@@ -861,7 +870,7 @@ export function MyTimesheet({
                               expectsWork(ctx, dowOf(w)) ? "" : " offroster"
                             }${index === today ? " today" : ""}${src === "expected" ? " ahead" : ""}`}
                             aria-selected={on}
-                            aria-label={`${dayLabel(w)} — ${PILL[cls]}`}
+                            aria-label={`${dayLabel(w)} — ${pillLabel(entry, cls, dowOf(w), settings)}`}
                             onClick={() => setSelected(index)}
                           >
                             <span className="cw">{w[0]}</span>
@@ -879,7 +888,12 @@ export function MyTimesheet({
                         <div className="mts2-phead">
                           <span className="mts2-pd">{dayLabel(week[selected])}</span>
                           <span className={`mts2-pill ${dayClass(me.days[selected], selected, settings, ctx)}`}>
-                            {PILL[dayClass(me.days[selected], selected, settings, ctx)]}
+                            {pillLabel(
+                              me.days[selected],
+                              dayClass(me.days[selected], selected, settings, ctx),
+                              dowOf(week[selected]),
+                              settings,
+                            )}
                           </span>
                           {holidayByDate.get(dateOfDay(periodStart, selected)) && (
                             <span className="mts2-ehol">

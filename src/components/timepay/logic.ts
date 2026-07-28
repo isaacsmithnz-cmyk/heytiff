@@ -850,6 +850,22 @@ export function presumeDays(
   return { days, sources };
 }
 
+/** Is this day's premium coming from the WEEKEND rule rather than from length?
+
+    A worked Saturday goes through `splitDay`'s weekend branch, so every hour
+    of it lands at 1.5× or 2× and `dayClass` calls it `over`. That is right
+    about the PAY and wrong about the WORD: a four-hour Saturday was labelled
+    "Overtime day", which reads as a long day when it was a short one. The
+    premium is for the day of the week, not the hours.
+
+    Only true when the weekend rule is actually on — a workspace that pays
+    Saturdays at standard rates has ordinary days there, and `splitDay` falls
+    through to the weekday path. */
+export function isWeekendRate(d: DayEntry, dow: number, s: Settings): boolean {
+  if (d.t !== "work" || !isWeekend(dow)) return false;
+  return dow === 5 ? s.rules.sat.on : s.rules.sun.on;
+}
+
 /* Day → colour class, driven by the same split rules as pay. */
 export function dayClass(d: DayEntry, i: number, s: Settings, ctx: WeekCtx): DayClass {
   const dow = dowOf(ctx.week[i]);

@@ -92,9 +92,11 @@ create table if not exists public.agreement_equipment (
   constraint agreement_equipment_agreement_fkey
     foreign key (agreement_id, org_id)
     references public.maintenance_agreements(id, org_id) on delete cascade,
+  -- Column-specific SET NULL: deleting the install project must clear the
+  -- back-reference, not fail on org_id's NOT NULL.
   constraint agreement_equipment_project_fkey
     foreign key (install_project_id, org_id)
-    references public.projects(id, org_id) on delete set null
+    references public.projects(id, org_id) on delete set null (install_project_id)
 );
 
 create index if not exists agreement_equipment_org_agreement_idx

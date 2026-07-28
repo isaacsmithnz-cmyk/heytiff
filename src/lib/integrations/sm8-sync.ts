@@ -353,6 +353,65 @@ export async function listSm8SyncStatus(orgId: string): Promise<Sm8SyncStatusVie
   };
 }
 
+/* ── who the nightly backstop sweeps ── */
+
+/** How many connected workspaces one query considers before ordering them.
+    Far above any real customer count; it exists so this can never become an
+    unbounded read. */
+const CANDIDATE_CAP = 500;
+
+/** Connected workspaces, LEAST-RECENTLY-SWEPT FIRST, capped.
+
+    WHY THE ORDER IS THE POINT: the cron's cap bounds one run, and the run is
+    DAILY (Vercel's Hobby tier refuses anything more frequent). An unordered
+    `.limit(n)` therefore hands back the same arbitrary n workspaces every
+    night, and workspace n+1 never gets a backstop at all. Oldest-first turns
+    the cap into a ROTATION: a workspace can wait its turn, but it cannot be
+    skipped forever.
+
+    WHY THIS ISN'T ONE QUERY, unlike Xero's sweepableOrgs: Xero's cursor
+    (`drift_checked_at`) lives on integration_connections, so it can order in
+    the database. Ours lives in sm8_sync_runs, and a workspace that has NEVER
+    synced has no row there — exactly the workspace that most needs picking.
+    Selecting from sm8_sync_runs would hide it, so the connections are the
+    spine and the run times are merged on.
+
+    Never-swept sorts first by construction: a missing timestamp becomes "",
+    which precedes every ISO string. Ties break on org id so a run is
+    deterministic rather than dependent on row order. */
+export async function sweepableSm8Orgs(limit: number): Promise<string[]> {
+  const { data: conns } = await supabaseAdmin
+    .from("integration_connections")
+    .select("org_id")
+    .eq("provider", "servicem8")
+    .eq("status", "connected")
+    .limit(CANDIDATE_CAP);
+
+  const orgIds = ((conns ?? []) as { org_id: string }[]).map((r) => r.org_id);
+  if (orgIds.length === 0) return [];
+
+  const { data: runs } = await supabaseAdmin
+    .from("sm8_sync_runs")
+    .select("org_id, last_finished_at")
+    .in("org_id", orgIds);
+
+  const finishedAt = new Map(
+    ((runs ?? []) as { org_id: string; last_finished_at: string | null }[]).map((r) => [
+      r.org_id,
+      r.last_finished_at ?? "",
+    ])
+  );
+
+  return [...orgIds]
+    .sort((a, b) => {
+      const av = finishedAt.get(a) ?? "";
+      const bv = finishedAt.get(b) ?? "";
+      if (av !== bv) return av < bv ? -1 : 1;
+      return a < b ? -1 : a > b ? 1 : 0;
+    })
+    .slice(0, limit);
+}
+
 /* ── the page-load kick — the PRIMARY freshness path ── */
 
 const STALE_AFTER_MS = 10 * 60_000;

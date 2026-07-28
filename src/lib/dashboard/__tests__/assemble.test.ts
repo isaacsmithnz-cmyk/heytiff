@@ -46,6 +46,7 @@ const FULL: ChipSources = {
   teamPeople: [person("me", "Me Myself"), person("s2", "Jordan Mills"), person("s3", "Sam Lee")],
   fleet: [vehicle("mine", "me"), vehicle("v2", "s2"), vehicle("v3", null)],
   org: { insurer: "CGU", insuranceExpiry: "2026-07-05" },
+  pendingClaims: 2,
 };
 
 describe("assembleChips — self section (intrinsic)", () => {
@@ -107,5 +108,21 @@ describe("assembleChips — no staff record", () => {
     expect(self).toEqual([]);
     // teamPeople still all appear (none is the viewer, since viewer has no id)
     expect(team.some((c) => c.subject === "Me Myself")).toBe(true);
+  });
+});
+
+describe("assembleChips — the expenses queue rides on `approvals`", () => {
+  /* A claim queue belongs to whoever can decide it — not to `team`, which is
+     people-compliance, and not to everyone. */
+  it("shows the queue to a decider", () => {
+    const { team } = assembleChips(FULL, caps("approvals"));
+    expect(team.some((c) => c.kind === "expenses")).toBe(true);
+  });
+
+  it("stays silent for team without approvals, and at a zero count", () => {
+    const { team } = assembleChips(FULL, caps("team"));
+    expect(team.some((c) => c.kind === "expenses")).toBe(false);
+    const { team: none } = assembleChips({ ...FULL, pendingClaims: 0 }, caps("approvals"));
+    expect(none.some((c) => c.kind === "expenses")).toBe(false);
   });
 });

@@ -61,8 +61,8 @@ export type Claim = {
   reviewNote: string | null;
   createdAt: string;
   /** Signed URL for the attached receipt, minted per render. */
-  receiptUrl?: string | null;
-  receiptIsImage?: boolean;
+  /** Every finished receipt on the claim, signed for this render. */
+  receipts?: { url: string | null; image: boolean }[];
 };
 
 /* ── what a claim may become ──────────────────────────────────────────────

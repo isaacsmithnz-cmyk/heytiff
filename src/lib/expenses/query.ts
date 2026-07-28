@@ -45,7 +45,12 @@ function toClaim(row: Record<string, unknown>): Claim | null {
   };
 }
 
-/** Sign every claim's receipt in one round trip. */
+/** Sign every claim's receipts in one round trip.
+
+    ALL of them: a claim can carry up to MAX_RECEIPTS, and the audit found
+    this map keyed by claim id — duplicate keys silently overwrote, so an
+    approver judging a three-receipt claim saw one receipt and no hint the
+    others existed. */
 async function attachReceipts(orgId: string, claims: Claim[]): Promise<Claim[]> {
   if (claims.length === 0) return claims;
 
@@ -65,20 +70,31 @@ async function attachReceipts(orgId: string, claims: Claim[]): Promise<Claim[]> 
     .createSignedUrls(refs, SIGNED_URL_SECONDS);
 
   const urlByRef = new Map((signed ?? []).map((s) => [s.path ?? "", s.signedUrl]));
-  const byClaim = new Map(
-    rows.map((r) => [
-      String(r.expense_claim_id),
-      {
-        url: urlByRef.get(String(r.storage_ref)) ?? null,
-        image: isImage(String(r.mime_type ?? "")),
-      },
-    ])
-  );
+  const byClaim = new Map<string, { url: string | null; image: boolean }[]>();
+  for (const r of rows) {
+    const claimId = String(r.expense_claim_id);
+    const list = byClaim.get(claimId) ?? [];
+    list.push({
+      url: urlByRef.get(String(r.storage_ref)) ?? null,
+      image: isImage(String(r.mime_type ?? "")),
+    });
+    byClaim.set(claimId, list);
+  }
 
-  return claims.map((c) => {
-    const receipt = byClaim.get(c.id);
-    return { ...c, receiptUrl: receipt?.url ?? null, receiptIsImage: receipt?.image ?? false };
-  });
+  return claims.map((c) => ({ ...c, receipts: byClaim.get(c.id) ?? [] }));
+}
+
+/** How many claims are waiting on a decision — the dashboard chip's number.
+    A head count, deliberately: the full teamClaims read signs every receipt
+    in the org to compute two integers, which is exactly what the audit told
+    us not to do for a tile. */
+export async function pendingClaimsCount(orgId: string): Promise<number> {
+  const { count } = await supabaseAdmin
+    .from("expense_claims")
+    .select("id", { count: "exact", head: true })
+    .eq("org_id", orgId)
+    .eq("status", "pending");
+  return count ?? 0;
 }
 
 /** One person's own claims, newest first. Intrinsic — no capability. */

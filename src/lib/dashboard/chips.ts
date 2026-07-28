@@ -36,7 +36,8 @@ export type ChipKind =
   | "rego"
   | "insurance"
   | "service"
-  | "org-insurance";
+  | "org-insurance"
+  | "expenses";
 
 /** Only actionable states surface as chips; a compliant thing produces none. */
 export type ActionState = Exclude<ChipState, "ok">; // "bad" | "warn"
@@ -73,6 +74,7 @@ const GROUP_OF: Record<ChipKind, ChipGroup> = {
   insurance: "Fleet",
   service: "Fleet",
   "org-insurance": "Business",
+  expenses: "Business",
 };
 
 export const GROUP_ICON: Record<ChipGroup, string> = {
@@ -278,6 +280,29 @@ export function orgInsuranceChip(
     subject: org.insurer?.trim() || "Public liability insurance",
     href: ctx.href,
     urgency: urgency(state, days),
+  };
+}
+
+/** Expense claims waiting on a decision.
+
+    Money in limbo is an action, not a fact — the audit found pending claims
+    living only on a tile two screens deep, invisible from the dashboard's
+    action rail. One chip for the queue, not one per claim: the decision
+    surface is the expenses screen, and ten chips would say less than "10
+    waiting" does. Always `warn` — a queue ages, it never "expires". */
+export function expensesChip(pendingCount: number): ActionChip | null {
+  if (pendingCount <= 0) return null;
+  return {
+    key: "expenses-pending",
+    kind: "expenses",
+    state: "warn",
+    label:
+      pendingCount === 1
+        ? "1 expense claim waiting on a decision"
+        : `${pendingCount} expense claims waiting on a decision`,
+    subject: "Expenses",
+    href: "/dashboard/timepay/expenses",
+    urgency: urgency("warn", 0),
   };
 }
 

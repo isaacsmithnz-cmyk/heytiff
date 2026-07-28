@@ -307,10 +307,12 @@ export function MyExpenses({ claims, today }: { claims: Claim[]; today: string }
                   </div>
                   <div className="xc-side">
                     <span className={`xc-pill ${c.status}`}>{STATUS_LABEL[c.status]}</span>
-                    {c.receiptUrl && (
-                      <a className="xc-rec" href={c.receiptUrl} target="_blank" rel="noopener noreferrer">
-                        Receipt
-                      </a>
+                    {(c.receipts ?? []).map((r, i) =>
+                      r.url ? (
+                        <a key={i} className="xc-rec" href={r.url} target="_blank" rel="noopener noreferrer">
+                          {i === 0 ? "Receipt" : `Receipt ${i + 1}`}
+                        </a>
+                      ) : null,
                     )}
                     {isCancellable(c.status) && (
                       <button className="xc-cancel" disabled={busy} onClick={() => run(() => cancelClaim(c.id))}>

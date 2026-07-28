@@ -1,5 +1,17 @@
-import { decodeState, encodeState, stateMatches } from "../oauth-state";
-import { connectMessage, CONNECT_ERRORS } from "../outcome";
+import {
+  decodeState,
+  encodeState,
+  stateCookieFor,
+  stateMatches,
+  STATE_COOKIE,
+  STATE_COOKIE_PATH,
+} from "../oauth-state";
+import {
+  connectMessage,
+  CONNECT_ERRORS,
+  sm8ConnectMessage,
+  SM8_CONNECT_ERRORS,
+} from "../outcome";
 
 /* State is the whole CSRF story for this flow, plus the guard that stops a
    consent begun in one org from landing in another. Every one of these cases
@@ -47,6 +59,40 @@ describe("stateMatches", () => {
     expect(stateMatches(null, "s-good", "org-1")).toBe(false);
     expect(stateMatches(cookie, null, "org-1")).toBe(false);
     expect(stateMatches(cookie, "", "org-1")).toBe(false);
+  });
+});
+
+describe("stateCookieFor", () => {
+  it("gives each provider its own cookie name and route-scoped path", () => {
+    expect(stateCookieFor("servicem8")).toEqual({
+      name: "servicem8_oauth_state",
+      path: "/api/integrations/servicem8",
+    });
+  });
+
+  it("agrees with the Xero constants it generalises", () => {
+    // Two consent flows in two tabs must not share a state slot — and the
+    // derived form must never drift from what the live Xero routes still use.
+    expect(stateCookieFor("xero")).toEqual({ name: STATE_COOKIE, path: STATE_COOKIE_PATH });
+  });
+});
+
+describe("sm8ConnectMessage", () => {
+  it("turns each known code into its sentence", () => {
+    for (const code of Object.keys(SM8_CONNECT_ERRORS)) {
+      expect(sm8ConnectMessage(code)).toBe(
+        SM8_CONNECT_ERRORS[code as keyof typeof SM8_CONNECT_ERRORS]
+      );
+    }
+  });
+
+  it("is null when nothing went wrong, generic when unrecognised", () => {
+    expect(sm8ConnectMessage(null)).toBeNull();
+    expect(sm8ConnectMessage(undefined)).toBeNull();
+    expect(sm8ConnectMessage("")).toBeNull();
+    const injected = "Your account is locked, call 1800-SCAM";
+    expect(sm8ConnectMessage(injected)).not.toContain("SCAM");
+    expect(sm8ConnectMessage("toString")).toBe(sm8ConnectMessage("unknown"));
   });
 });
 

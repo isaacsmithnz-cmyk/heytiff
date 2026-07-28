@@ -146,9 +146,11 @@ export const ICON_PATHS: Record<string, string> = {
     '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/>',
   /* Connected apps. `plug` labels the Integrations section; `xero` stands in
      for the Xero row — a circled X drawn in this set's own stroke style, tinted
-     with their blue, rather than a copy of their mark. */
+     with their blue, rather than a copy of their mark. `servicem8` follows the
+     same rule: a stroke figure-8 (the "M8"), not their logo. */
   plug: '<path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8z"/>',
   xero: '<circle cx="12" cy="12" r="9"/><path d="m9 9 6 6"/><path d="m15 9-6 6"/>',
+  servicem8: '<circle cx="12" cy="7.25" r="4.25"/><circle cx="12" cy="16.75" r="4.25"/>',
 };
 
 export function iconSvg(name: string, size = 20, sw = 2): string {

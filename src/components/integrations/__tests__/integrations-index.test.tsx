@@ -43,21 +43,27 @@ describe("statusLabel", () => {
 });
 
 describe("IntegrationsIndex", () => {
-  it("lists Xero and links into its screen", () => {
+  it("lists every provider and links each into its screen", () => {
     render(<IntegrationsIndex connections={{}} />);
 
     expect(screen.getByText("Xero").closest("a")).toHaveAttribute(
       "href",
       "/dashboard/admin/integrations/xero",
     );
-    expect(screen.getByText("Not connected")).toBeInTheDocument();
+    expect(screen.getByText("ServiceM8").closest("a")).toHaveAttribute(
+      "href",
+      "/dashboard/admin/integrations/servicem8",
+    );
+    // One "Not connected" pill per provider row — the count IS the assertion.
+    expect(screen.getAllByText("Not connected")).toHaveLength(2);
   });
 
-  it("names the connected Xero organisation on the row", () => {
+  it("names the connected Xero organisation on its row only", () => {
     render(<IntegrationsIndex connections={{ xero: toView(row()) }} />);
 
     expect(screen.getByText("Acme Air Pty Ltd")).toBeInTheDocument();
-    expect(screen.queryByText("Not connected")).not.toBeInTheDocument();
+    // ServiceM8's row still reads as unconnected — states don't bleed across.
+    expect(screen.getAllByText("Not connected")).toHaveLength(1);
   });
 
   it("offers a way back to Admin", () => {

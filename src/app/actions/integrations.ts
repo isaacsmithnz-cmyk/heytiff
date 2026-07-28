@@ -5,6 +5,7 @@ import { auth0 } from "@/lib/auth0";
 import { hasMinRole } from "@/lib/roles";
 import { getDbRole } from "@/lib/permissions-server";
 import { disconnectXero, setXeroTenant } from "@/lib/integrations/store";
+import { disconnectSm8 } from "@/lib/integrations/sm8-store";
 
 /* The two things you can do to an existing connection from the screen.
 
@@ -30,6 +31,7 @@ async function ownerOrgId(): Promise<{ orgId: string } | { error: string }> {
 function revalidate() {
   revalidatePath("/dashboard/admin/integrations");
   revalidatePath("/dashboard/admin/integrations/xero");
+  revalidatePath("/dashboard/admin/integrations/servicem8");
 }
 
 export async function disconnectXeroAction(): Promise<IntegrationResult> {
@@ -48,6 +50,22 @@ export async function disconnectXeroAction(): Promise<IntegrationResult> {
     note: revoked
       ? undefined
       : "Disconnected here, but Xero didn't confirm the authorisation was revoked. Check Connected Apps in your Xero account.",
+  };
+}
+
+export async function disconnectServiceM8Action(): Promise<IntegrationResult> {
+  const ctx = await ownerOrgId();
+  if ("error" in ctx) return { ok: false, error: ctx.error };
+
+  await disconnectSm8(ctx.orgId);
+  revalidate();
+
+  /* ServiceM8 documents no revocation endpoint, so unlike Xero there is no
+     upstream call to attempt: our sealed tokens are gone, and finishing the
+     job on their side is a one-off the owner does in ServiceM8 itself. */
+  return {
+    ok: true,
+    note: "Disconnected here. To fully revoke access, also remove HeyTiff from your ServiceM8 account's add-ons.",
   };
 }
 

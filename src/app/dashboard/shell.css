@@ -2313,16 +2313,30 @@ select.fl-i { cursor:pointer; }
 
 /* The day's state, one declaration each.
 
-   OVERTIME IS AMBER AND SHORT IS ROSE — deliberately not the amber/yellow pair
-   they started as. Orange and yellow are neighbours on the wheel and at 3px of
-   bar they read as each other, which is the one distinction on this strip that
-   has to survive a glance: a day you worked too long and a day you worked too
-   little are opposite problems. Amber stays because it is the established
-   overtime colour across the whole admin screen; short moved. Blue and violet
-   were tried and collide with leave and public holiday respectively. */
+   OVERTIME IS AMBER AND SHORT IS PINK — deliberately not the amber/yellow
+   pair they started as. Orange and yellow are neighbours on the wheel and at
+   3px of bar they read as each other, which is the one distinction on this
+   strip that has to survive a glance: a day you worked too long and a day you
+   worked too little are opposite problems.
+
+   Amber stays, because it is the overtime colour across the whole admin
+   screen — stat tiles, badges, pay bars. Short is the one that moved, and it
+   took four tries: this palette is CROWDED, and every obvious slot is spoken
+   for. Rejected, with reasons, so nobody re-litigates them:
+     yellow/gold   the original problem — reads as amber
+     sky blue      collides with leave
+     violet/plum   collides with public holiday
+     rose #db2777  too near sick's crimson — tried, rejected on sight
+     fuchsia       drifts into public-holiday violet
+     olive         fights the green of a normal day
+     slate/navy    reads as disabled, and off/empty are already grey
+   Pink works where rose didn't because it separates from crimson by
+   LIGHTNESS, not hue: #f472b6 beside #e0264f reads pink-vs-red at a glance,
+   where a deep rose beside it read as two reds. The pill keeps a dark ink
+   (#9d174d) so the label stays legible on the pale tint. */
 .fg .mts2-tab.std { --dc:var(--teal-d); --dt:rgba(34,197,94,.1); }
 .fg .mts2-tab.over { --dc:#f0a431; --dt:rgba(240,164,49,.12); }
-.fg .mts2-tab.under { --dc:#db2777; --dt:rgba(219,39,119,.09); }
+.fg .mts2-tab.under { --dc:#f472b6; --dt:rgba(244,114,182,.1); }
 .fg .mts2-tab.leave { --dc:#2e68ff; --dt:rgba(46,104,255,.09); }
 .fg .mts2-tab.sick { --dc:#e0264f; --dt:rgba(255,51,102,.08); }
 .fg .mts2-tab.ph { --dc:#8a2be2; --dt:rgba(138,43,226,.09); }
@@ -2360,7 +2374,7 @@ select.fl-i { cursor:pointer; }
 .fg .mts2-lg i { width:9px; height:9px; border-radius:3px; }
 .fg .mts2-lg i.std { background:var(--teal-d); }
 .fg .mts2-lg i.over { background:#f0a431; }
-.fg .mts2-lg i.under { background:#db2777; }
+.fg .mts2-lg i.under { background:#f472b6; }
 .fg .mts2-lg i.leave { background:#2e68ff; }
 .fg .mts2-lg i.sick { background:#e0264f; }
 .fg .mts2-lg i.ph { background:#8a2be2; }
@@ -2371,7 +2385,7 @@ select.fl-i { cursor:pointer; }
 .fg .mts2-pill { display:inline-flex; align-items:center; height:24px; padding:0 10px; border-radius:999px; font-size:11px; font-weight:800; letter-spacing:-.01em; white-space:nowrap; }
 .fg .mts2-pill.std { background:rgba(34,197,94,.16); color:#04564a; }
 .fg .mts2-pill.over { background:rgba(240,164,49,.18); color:var(--amber-d,#b45309); }
-.fg .mts2-pill.under { background:rgba(219,39,119,.12); color:#9d174d; }
+.fg .mts2-pill.under { background:rgba(244,114,182,.16); color:#9d174d; }
 .fg .mts2-pill.leave { background:rgba(46,104,255,.12); color:#1d4ed8; }
 .fg .mts2-pill.sick { background:rgba(255,51,102,.12); color:#e0264f; }
 .fg .mts2-pill.ph { background:rgba(138,43,226,.12); color:var(--violet-d,#7322c4); }
@@ -2415,7 +2429,7 @@ select.fl-i { cursor:pointer; }
 .fg .mts2-derv.bad svg { color:#e0264f; }
 /* a short day is not an error — it's a real day that the approver will look
    at, so it's amber-flavoured rather than red */
-.fg .mts2-derv.short { background:rgba(219,39,119,.08); color:#9d174d; }
+.fg .mts2-derv.short { background:rgba(244,114,182,.12); color:#9d174d; }
 .fg .mts2-derv.short svg { color:#db2777; }
 .fg .mts2-derv.off { background:#f4f5f7; color:var(--gray700); }
 .fg .mts2-derv.off svg { color:var(--gray500); }

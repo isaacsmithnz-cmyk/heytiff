@@ -139,8 +139,10 @@ function ExplainerSection() {
   );
 }
 
-export function SettingsPanel({ st: committed, patch: commit, onClose }: {
+export function SettingsPanel({ st: committed, patch: commit, onClose, superOwned = false }: {
   st: RateCalcState; patch: (p: Partial<RateCalcState>) => void; onClose: () => void;
+  /** pay_settings owns the super rate — the field here goes read-only. */
+  superOwned?: boolean;
 }) {
   // Edits live in a local draft until "Save settings" — Cancel (and the ✕, and
   // clicking the scrim) throws the draft away. Nothing reaches the real state
@@ -189,8 +191,16 @@ export function SettingsPanel({ st: committed, patch: commit, onClose }: {
               {states.map(x => <button key={x} onClick={() => setState(x)} style={{ fontSize: 11.5, fontWeight: 700, padding: "5px 8px", borderRadius: 7, border: "none", cursor: "pointer", fontFamily: RC.body, background: g.state === x ? "#fff" : "transparent", color: g.state === x ? RC.ink : RC.label, boxShadow: g.state === x ? "0 3px 8px -3px rgba(10,12,20,0.28)" : "none", transition: "all .2s" }}>{x}</button>)}
             </div>
           </Field>
-          <Field label="Superannuation" hint="Paid on top of wages">
-            <Stepper value={g.super_pct ?? 12} step={0.5} suffix="%" onChange={v => set("super_pct", v)} />
+          {/* pay_settings owns this figure since the audit — a pricing edit
+              here used to change what every My Pay card showed as super. */}
+          <Field label="Superannuation" hint={superOwned ? "Set in Time & Pay settings — one owner, everywhere" : "Paid on top of wages"}>
+            {superOwned ? (
+              <span style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 15, color: RC.ink, padding: "6px 10px" }}>
+                {g.super_pct ?? 12}%
+              </span>
+            ) : (
+              <Stepper value={g.super_pct ?? 12} step={0.5} suffix="%" onChange={v => set("super_pct", v)} />
+            )}
           </Field>
           <Field label="Workers comp" hint="As a % of wages">
             <Stepper value={g.workers_comp_pct ?? 2} step={0.5} suffix="%" onChange={v => set("workers_comp_pct", v)} />

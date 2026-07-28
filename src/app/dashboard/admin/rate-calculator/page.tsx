@@ -5,6 +5,7 @@ import { loadRateCalcState } from "@/app/actions/rate-calc";
 import { rosterForRateCalc } from "@/lib/staff/rate-roster";
 import { RateCalculator } from "@/components/rate-calculator/rate-calculator";
 import { getConnectionView } from "@/lib/integrations/store";
+import { getPaySettings } from "@/lib/timepay/query";
 
 // Gated by `financials`, not by role: charge-out is built from wages. Owner
 // has it by default; an admin only if the owner grants it in Team.
@@ -17,12 +18,14 @@ export default async function RateCalculatorPage() {
   const orgId = session.orgId as string | undefined;
   // Staff are read from the roster now — the tool never writes wages. The same
   // `financials` gate on this page protects the wage columns the query selects.
-  const [row, roster, connection] = await Promise.all([
+  const [row, roster, connection, pay] = await Promise.all([
     loadRateCalcState(),
     orgId ? rosterForRateCalc(orgId) : Promise.resolve([]),
     // Only whether a grant exists — the Business step offers Xero as a source
     // of overheads, and needs nothing else about the connection to do that.
     orgId ? getConnectionView(orgId, "xero") : Promise.resolve(null),
+    // pay_settings owns the super rate now; the calculator reads it
+    orgId ? getPaySettings(orgId) : Promise.resolve(null),
   ]);
 
   return (
@@ -31,6 +34,7 @@ export default async function RateCalculatorPage() {
       initialUpdatedAt={row?.updatedAt ?? null}
       roster={roster}
       xeroConnected={connection?.status === "connected"}
+      orgSuperPct={pay?.settings.superPct ?? null}
     />
   );
 }

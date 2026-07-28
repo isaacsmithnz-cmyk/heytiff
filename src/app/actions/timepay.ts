@@ -413,6 +413,7 @@ export async function savePaySettings(settings: Settings): Promise<TimepayResult
     submit_time: settings.submitTime,
     lock: settings.lock,
     export_detail: settings.exportDetail,
+    super_pct: settings.superPct ?? null,
     configured: true,
     updated_at: new Date().toISOString(),
   });

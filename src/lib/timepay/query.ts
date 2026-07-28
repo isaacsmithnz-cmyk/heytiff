@@ -99,6 +99,9 @@ export const getPaySettings = cache(async (
       submitTime: (data.submit_time as string) ?? DEFAULT_SETTINGS.submitTime,
       lock: data.lock ?? DEFAULT_SETTINGS.lock,
       exportDetail: data.export_detail ?? DEFAULT_SETTINGS.exportDetail,
+      // null = never set; My Pay and the Rate Calculator fall back to the
+      // statutory default themselves rather than this row storing a guess
+      superPct: data.super_pct == null ? null : Number(data.super_pct),
     },
   };
 });

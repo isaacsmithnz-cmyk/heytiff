@@ -103,6 +103,22 @@ export function TimePaySettings({
     </div>
   );
 
+  /* The org's super guarantee %. Owned here — My Pay shows it to every staff
+     member and the Rate Calculator prices from it, so this is the ONE place
+     it is set. Displayed as the statutory default until the org names one. */
+  const superStepper = () => {
+    const shown = draft.superPct ?? 12;
+    const stepSuper = (dir: 1 | -1) =>
+      patch({ superPct: Math.min(25, Math.max(0, Math.round((shown + 0.25 * dir) * 100) / 100)) });
+    return (
+      <div className="wz-step">
+        <button className="wz-sbtn" aria-label="Decrease" onClick={() => stepSuper(-1)}>−</button>
+        <span className="wz-val">{shown}%{draft.superPct == null ? " · default" : ""}</span>
+        <button className="wz-sbtn" aria-label="Increase" onClick={() => stepSuper(1)}>+</button>
+      </div>
+    );
+  };
+
   /* Where the chosen cycle actually begins. A fortnight has no natural start,
      so the owner names one; a month can run from any day. Shown inline with
      the cycle choice, since it's meaningless for a weekly cycle. */
@@ -598,6 +614,7 @@ export function TimePaySettings({
                   {stepper("dblAfter")}
                 </>
               )}
+              {menuSection("Superannuation guarantee", superStepper())}
               {menuSection(
                 "Auto-submit",
                 <>

@@ -1,10 +1,9 @@
 /* getMyPay — YOUR pay, and the two boundaries that keep it yours.
 
    The important assertions here are about the QUERIES, not the arithmetic:
-   which row the wage came from, and that the org's super default is pulled out
-   of rate_calc_state as a single scalar rather than by dragging the whole
-   `state` blob — which holds every staff member's modelled wage — into this
-   request. */
+   which row the wage came from, and that the org's super rate comes from
+   pay_settings — its home since the audit — with rate_calc_state (a pricing
+   blob that once doubled as the super record) never touched at all. */
 
 type Row = Record<string, unknown> | null;
 
@@ -12,8 +11,7 @@ const selects: { table: string; columns: string }[] = [];
 const filters: { table: string; column: string; value: unknown }[] = [];
 
 let staffRow: Row = { hourly_wage: 45, super_override: null };
-let rateCalcRow: Row = { super_pct: 11.5 };
-let paySettingsRow: Row = null;
+let paySettingsRow: Row = { super_pct: 11.5 };
 
 function chain(table: string, result: Row) {
   const node: Record<string, unknown> = {
@@ -34,7 +32,6 @@ jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: {
     from: (table: string) => {
       if (table === "staff_profiles") return chain(table, staffRow);
-      if (table === "rate_calc_state") return chain(table, rateCalcRow);
       return chain(table, paySettingsRow);
     },
   },
@@ -46,8 +43,7 @@ beforeEach(() => {
   selects.length = 0;
   filters.length = 0;
   staffRow = { hourly_wage: 45, super_override: null };
-  rateCalcRow = { super_pct: 11.5 };
-  paySettingsRow = null;
+  paySettingsRow = { super_pct: 11.5 };
 });
 
 const selectFor = (table: string) => selects.find((s) => s.table === table)!.columns;
@@ -67,22 +63,10 @@ describe("the money boundary", () => {
     expect(selectFor("staff_profiles")).toBe("hourly_wage, super_override");
   });
 
-  it("pulls ONE scalar out of rate_calc_state, never the whole state blob", async () => {
+  it("never touches rate_calc_state — the pricing blob is not the super record", async () => {
     await getMyPay("org1", "auth0|me");
-    const columns = selectFor("rate_calc_state");
-    expect(columns).toContain("state->settings->super_pct");
-    // `state` on its own would carry every staff member's modelled wage
-    expect(columns).not.toBe("state");
-    expect(columns).not.toMatch(/(^|,)\s*state\s*(,|$)/);
-  });
-
-  it("scopes the org default to the caller's org", async () => {
-    await getMyPay("org1", "auth0|me");
-    expect(filters).toContainEqual({
-      table: "rate_calc_state",
-      column: "org_id",
-      value: "org1",
-    });
+    expect(selects.find((s) => s.table === "rate_calc_state")).toBeUndefined();
+    expect(filters.find((f) => f.table === "rate_calc_state")).toBeUndefined();
   });
 });
 
@@ -99,13 +83,13 @@ describe("super resolution", () => {
   });
 
   it("falls back to the statutory default when the org never set one", async () => {
-    rateCalcRow = null;
+    paySettingsRow = null;
     const pay = await getMyPay("org1", "auth0|me");
     expect(pay).toMatchObject({ superPct: DEFAULT_SUPER_PCT, superSource: "default" });
   });
 
-  it("ignores a blob whose settings have no super_pct", async () => {
-    rateCalcRow = {};
+  it("treats a settings row with no super column as unset", async () => {
+    paySettingsRow = { cycle: "Weekly" };
     const pay = await getMyPay("org1", "auth0|me");
     expect(pay).toMatchObject({ superPct: DEFAULT_SUPER_PCT, superSource: "default" });
   });

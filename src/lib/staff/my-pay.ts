@@ -12,11 +12,11 @@ import { getPaySettings } from "@/lib/timepay/query";
       capability, and there is no argument to this function that could fetch
       one.
 
-   2. The org's default super rate lives inside rate_calc_state.state, a blob
-      that also holds EVERY staff member's modelled wage. So this selects the
-      single scalar out of it in the database — `state->settings->super_pct` —
-      and never `state`. Pulling the whole column to read one number would put
-      the entire payroll in this request's memory to render a percentage. */
+   2. The org's default super rate is pay_settings.super_pct — Time & Pay
+      settings owns it. It USED to be read out of the Rate Calculator's state
+      blob, which meant a pricing edit changed what every staff member saw as
+      their super; the audit moved it home, and this module deliberately no
+      longer touches rate_calc_state at all. */
 
 export type MyPay = {
   /** hourly_wage, or null when an admin hasn't set one yet */
@@ -30,22 +30,16 @@ export type MyPay = {
   weekend: { sat: number | null; sun: number | null };
 };
 
-/** Super rate used when the org has never opened the Rate Calculator. */
+/** Super rate used when the org has never set one. */
 export const DEFAULT_SUPER_PCT = 12;
 
 export async function getMyPay(orgId: string, userId: string): Promise<MyPay> {
-  const [mine, org, pay] = await Promise.all([
+  const [mine, pay] = await Promise.all([
     supabaseAdmin
       .from("staff_profiles")
       .select("hourly_wage, super_override")
       .eq("org_id", orgId)
       .eq("user_id", userId)
-      .maybeSingle(),
-    supabaseAdmin
-      .from("rate_calc_state")
-      // one scalar out of the blob — see the note above
-      .select("super_pct:state->settings->super_pct")
-      .eq("org_id", orgId)
       .maybeSingle(),
     getPaySettings(orgId),
   ]);
@@ -57,17 +51,17 @@ export async function getMyPay(orgId: string, userId: string): Promise<MyPay> {
   const rate = rawRate == null ? null : Number(rawRate);
   const override = rawOverride == null ? null : Number(rawOverride);
 
-  const orgPct = Number((org.data as Record<string, unknown> | null)?.super_pct);
-  const hasOrgPct = Number.isFinite(orgPct);
+  const raw = pay.settings.superPct;
+  const orgPct = typeof raw === "number" && Number.isFinite(raw) ? raw : null;
 
   const superPct =
     override !== null && Number.isFinite(override)
       ? override
-      : hasOrgPct
+      : orgPct !== null
         ? orgPct
         : DEFAULT_SUPER_PCT;
   const superSource: MyPay["superSource"] =
-    override !== null && Number.isFinite(override) ? "override" : hasOrgPct ? "org" : "default";
+    override !== null && Number.isFinite(override) ? "override" : orgPct !== null ? "org" : "default";
 
   const rules = pay.settings.rules;
   return {

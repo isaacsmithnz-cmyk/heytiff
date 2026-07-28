@@ -17,9 +17,12 @@ import {
 import { VEHICLE_PICKER_FIELDS, VEHICLE_SENSITIVE_FIELDS } from "../projections";
 
 describe("role defaults", () => {
-  it("staff: shared tools only — nothing operational, no money", () => {
+  it("staff: shared tools + the board — nothing operational, no money", () => {
     const caps = resolve("staff");
-    expect([...caps].sort()).toEqual(["studio", "tiff", "toolbox"]);
+    // workboard is deliberately a staff default: the board is FOR the people
+    // on the tools. Managing it is not.
+    expect([...caps].sort()).toEqual(["studio", "tiff", "toolbox", "workboard"]);
+    expect(caps.has("workboard_manage")).toBe(false);
   });
 
   it("admin: everything operational, no money", () => {
@@ -28,7 +31,15 @@ describe("role defaults", () => {
     expect(caps.has("timepay_all")).toBe(true);
     expect(caps.has("approvals")).toBe(true);
     expect(caps.has("assets_all")).toBe(true);
+    expect(caps.has("workboard_manage")).toBe(true);
     expect(caps.has("financials")).toBe(false);
+  });
+
+  it("workboard_manage is grantable to a senior tech — surgical, not a promotion", () => {
+    const caps = resolve("staff", { workboard_manage: true });
+    expect(caps.has("workboard_manage")).toBe(true);
+    expect(caps.has("team")).toBe(false);
+    expect(caps.has("timepay_all")).toBe(false);
   });
 
   it("owner: everything", () => {

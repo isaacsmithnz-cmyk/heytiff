@@ -258,9 +258,9 @@ export const NODES: MapNode[] = [
     name: "Integrations",
     kind: "feature",
     group: "Business tools",
-    blurb: "Connected apps — the Xero OAuth grant this workspace holds.",
+    blurb: "Connected apps — the Xero and ServiceM8 OAuth grants this workspace holds.",
     detail:
-      "Owner-only, and owner-INTRINSIC rather than a capability: one grant reaches wages, bills and the P&L at once. Tokens are AES-256-GCM sealed with INTEGRATIONS_TOKEN_KEY before they hit the table, so the service-role key alone can't spend the grant. Read-only scopes today — Time & Pay, expenses and the Rate Calculator each read through it as they land.",
+      "Owner-only, and owner-INTRINSIC rather than a capability: one grant reaches wages, bills and the P&L (Xero) or the whole client book and schedule (ServiceM8) at once. Tokens are AES-256-GCM sealed with INTEGRATIONS_TOKEN_KEY before they hit the table, so the service-role key alone can't spend a grant. Read-only scopes on both — ServiceM8's writing scope families are banned by shape in the pinned tests.",
     href: "/dashboard/admin/integrations",
     paths: [
       "src/lib/integrations",
@@ -268,6 +268,18 @@ export const NODES: MapNode[] = [
       "src/app/api/integrations",
       "src/app/actions/integrations.ts",
     ],
+  },
+  {
+    id: "workboard",
+    name: "Workboard",
+    kind: "feature",
+    group: "Business tools",
+    blurb: "The projects & maintenance board — what's on, what's booked, what's overdue.",
+    detail:
+      "Staff-default by design (capability `workboard`): the board is FOR the people on the tools. Managing it is a second grantable capability (`workboard_manage`, admin default). Standalone-first: everything works on typed job numbers and client names; a ServiceM8 connection enriches rows via the mirrors and never owns them. Display mode fullscreens the board for a wall screen.",
+    href: "/dashboard/workboard",
+    status: "building",
+    paths: ["src/app/dashboard/workboard", "src/lib/workboard", "src/components/workboard"],
   },
 
   /* — people & AI — */
@@ -449,6 +461,21 @@ export const NODES: MapNode[] = [
       "src/app/api/cron/xero-drift/route.ts",
     ],
   },
+  {
+    id: "eng-sm8-sync",
+    name: "ServiceM8 sync engine",
+    kind: "engine",
+    group: "Shared engines",
+    blurb: "Pulls each ServiceM8 object's changes into the sm8_* mirrors, resumably, under a lease.",
+    detail:
+      "Cursors are max-edit_date strings that advance only on COMPLETED walks; the gt-only filter forces a one-second overlap that idempotent upserts absorb. Every run is bounded twice (a page budget per invocation, a self-imposed daily call budget per org) and serialised by a conditional-write lease, because cron, Sync-now and the page-load kick land on different instances. Freshness is the page-load after() kick first, the hourly cron second. The shaping layer is the privacy boundary: no money, no badges, staff names only.",
+    paths: [
+      "src/lib/integrations/sm8-sync.ts",
+      "src/lib/integrations/sm8-sync-plan.ts",
+      "src/lib/integrations/sm8-read.ts",
+      "src/app/api/cron/sm8-sync/route.ts",
+    ],
+  },
 
   /* — data & services — */
   {
@@ -519,6 +546,15 @@ export const NODES: MapNode[] = [
       "Access and refresh tokens are stored AES-256-GCM sealed, never in plaintext, so the service-role key alone doesn't unlock a connected accounting system. integration_links holds the staff↔Xero-employee correspondence — scoped to a tenant, with unique indexes both ways so one remote record can never be claimed by two people. Deny-all RLS like every table here.",
   },
   {
+    id: "db-sm8",
+    name: "ServiceM8 mirror",
+    kind: "store",
+    group: "Supabase",
+    blurb: "sm8_jobs · sm8_companies · schedule, checklists, contacts — a disposable local copy.",
+    detail:
+      "Every ServiceM8-native column is TEXT (their timestamps are naive local strings with a '0000-00-00' null sentinel — timestamptz would shift schedules and reject the sentinel). Nothing FKs into a mirror, overlays never depend on one existing, and disconnect wipes the lot: a client book has no business outliving its grant. Deny-all RLS like every table here.",
+  },
+  {
     id: "db-universal",
     name: "Universal table",
     kind: "store",
@@ -565,6 +601,15 @@ export const NODES: MapNode[] = [
     blurb: "The business's accounting & payroll, over OAuth 2.0.",
     detail:
       "Connected once per org by the owner. Read-only GRANULAR scopes (broad ones are refused outright for any Web app created since March 2026), and only for reads that exist: payroll employees and settings, the P&L report and accounting settings. A scope joins the consent WITH its feature — the expenses and timesheet reads ask for theirs when they land. Nothing here writes to Xero.",
+  },
+  {
+    id: "servicem8",
+    name: "ServiceM8",
+    kind: "external",
+    group: "External services",
+    blurb: "The business's job management — jobs, clients, schedules — over OAuth 2.0.",
+    detail:
+      "Connected once per org by the owner. Ten read-only scopes, pinned by test with the writing families (manage_*, create_*, publish_*) banned by shape — badges stay out entirely because their only scope writes. The refresh token rotates on every refresh, so the store's single-flight + conditional-write guard is load-bearing. No revocation endpoint exists: disconnect deletes our sealed tokens and tells the owner to remove the add-on in ServiceM8 itself.",
   },
   {
     id: "gmaps",
@@ -640,6 +685,14 @@ export const EDGES: MapEdge[] = [
   { from: "eng-wage-drift", to: "eng-xero-read", label: "If-Modified-Since gate, then per-employee rates" },
   { from: "eng-wage-drift", to: "db-integrations", label: "stores the count + the polling cursor" },
   { from: "eng-wage-drift", to: "db-staff", label: "compares against hourly_wage (financials only)" },
+
+  /* workboard + servicem8 family */
+  { from: "integrations", to: "servicem8", label: "consent, code exchange, rotating token refresh" },
+  { from: "workboard", to: "db-sm8", label: "jobs, schedules & clients read from the mirror" },
+  { from: "workboard", to: "eng-sm8-sync", label: "staleness kick — top up behind the response" },
+  { from: "eng-sm8-sync", to: "servicem8", label: "paged object reads, under both call budgets" },
+  { from: "eng-sm8-sync", to: "db-sm8", label: "upserts mirrors; cursors move on completed walks only" },
+  { from: "eng-sm8-sync", to: "db-integrations", label: "spends the sealed grant via sm8Access()" },
   { from: "expenses", to: "db-timepay", label: "claims, decisions & reimbursements" },
   { from: "expenses", to: "db-docs", label: "receipts in the documents bucket, signed per render" },
   { from: "expenses", to: "db-staff", label: "who claimed it — names only, never wages" },

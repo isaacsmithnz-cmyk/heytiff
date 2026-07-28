@@ -18,6 +18,7 @@ const base: WorkboardData = {
   counts: null,
   upcoming: [],
   projects: [],
+  radar: [],
   synced: null,
 };
 
@@ -83,6 +84,35 @@ describe("connected", () => {
   it("says when the connection itself needs attention", () => {
     render(<OverviewScreen data={{ ...connected, connection: "attention", counts: null }} />);
     expect(screen.getByText(/needs attention/)).toBeInTheDocument();
+  });
+
+  it("groups the radar hardest-first, and overdue rows breathe", () => {
+    const radar = (bucket: "overdue" | "due_soon" | "upcoming", i: number) => ({
+      visitId: `v-${bucket}-${i}`,
+      agreementId: "a-1",
+      label: "Warehouse quarterly",
+      clientName: "Acme",
+      siteLabel: null,
+      dueDate: "2026-07-20",
+      bucket,
+      status: "upcoming",
+      ready: 2,
+      readyTotal: 4,
+      jobNumber: null,
+      bookedStart: null,
+    });
+    render(
+      <OverviewScreen
+        data={{ ...base, radar: [radar("upcoming", 1), radar("overdue", 2), radar("due_soon", 3)] }}
+      />
+    );
+    expect(screen.getByText("Overdue")).toBeInTheDocument();
+    expect(screen.getByText("Due soon")).toBeInTheDocument();
+    expect(screen.getByText("Coming up")).toBeInTheDocument();
+    // the overdue row carries the breathe class — the wall screen's whole brief
+    const overdueRow = screen.getAllByText("Warehouse quarterly")[0].closest("a");
+    expect(overdueRow?.className).toContain("wb-pulse");
+    expect(screen.getAllByText("2/4 ready")).toHaveLength(3);
   });
 
   it("shows projects in flight — standalone rows, no integration required", () => {

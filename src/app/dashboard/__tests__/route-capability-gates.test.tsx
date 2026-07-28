@@ -49,6 +49,21 @@ jest.mock("@/lib/workboard/projects-query", () => ({
   listProjects: jest.fn(async () => []),
   getProjectDetail: jest.fn(async () => ({ id: "p-1", jobs: [], checklist: [], equipment: [] })),
 }));
+jest.mock("@/components/workboard/maintenance-screen", () => ({ MaintenanceScreen: () => null }));
+jest.mock("@/components/workboard/agreement-detail-screen", () => ({
+  AgreementDetailScreen: () => null,
+}));
+jest.mock("@/lib/workboard/maintenance-query", () => ({
+  listAgreements: jest.fn(async () => []),
+  getAgreementDetail: jest.fn(async () => ({ id: "a-1", equipment: [], open: [], history: [] })),
+}));
+jest.mock("@/lib/workboard/visit-ensure", () => ({
+  ensureVisits: jest.fn(async () => {}),
+  autoCompleteVisitsFromMirror: jest.fn(async () => 0),
+}));
+jest.mock("@/lib/workboard/query", () => ({
+  getSm8Timezone: jest.fn(async () => null),
+}));
 jest.mock("@/lib/integrations/store", () => ({
   getConnectionView: jest.fn(async () => null),
 }));
@@ -65,6 +80,8 @@ import DataLibraryPage from "../studio/data-library/page";
 import WorkboardPage from "../workboard/page";
 import WorkboardProjectsPage from "../workboard/projects/page";
 import WorkboardProjectPage from "../workboard/projects/[id]/page";
+import WorkboardMaintenancePage from "../workboard/maintenance/page";
+import WorkboardAgreementPage from "../workboard/maintenance/[id]/page";
 
 const LEAVES: [string, () => Promise<unknown>, string][] = [
   ["toolbox/heat-load", HeatLoadPage, "toolbox"],
@@ -74,6 +91,7 @@ const LEAVES: [string, () => Promise<unknown>, string][] = [
   ["tiff/knowledge", KnowledgeBasePage, "tiff"],
   ["workboard", WorkboardPage, "workboard"],
   ["workboard/projects", WorkboardProjectsPage, "workboard"],
+  ["workboard/maintenance", WorkboardMaintenancePage, "workboard"],
 ];
 
 beforeEach(() => {
@@ -98,18 +116,22 @@ describe("held → the page renders", () => {
   });
 });
 
-describe("workboard/projects/[id] — the dynamic leaf checks the same door", () => {
-  const props = { params: Promise.resolve({ id: "p-1" }) };
+describe("the dynamic leaves check the same door", () => {
+  const DYNAMIC: [string, (p: { params: Promise<{ id: string }> }) => Promise<unknown>][] = [
+    ["workboard/projects/[id]", WorkboardProjectPage],
+    ["workboard/maintenance/[id]", WorkboardAgreementPage],
+  ];
+  const props = { params: Promise.resolve({ id: "x-1" }) };
 
-  it("revoked → straight back to /dashboard", async () => {
+  it.each(DYNAMIC)("%s — revoked → straight back to /dashboard", async (_route, Page) => {
     allowed = false;
-    await expect(WorkboardProjectPage(props)).rejects.toThrow("REDIRECT:/dashboard");
+    await expect(Page(props)).rejects.toThrow("REDIRECT:/dashboard");
     expect(can).toHaveBeenCalledWith("workboard");
   });
 
-  it("held → the page renders", async () => {
+  it.each(DYNAMIC)("%s — held → the page renders", async (_route, Page) => {
     allowed = true;
-    expect(await WorkboardProjectPage(props)).toBeTruthy();
+    expect(await Page(props)).toBeTruthy();
     expect(redirect).not.toHaveBeenCalled();
   });
 });

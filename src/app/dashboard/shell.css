@@ -2973,3 +2973,11 @@ select.fl-i { cursor:pointer; }
 /* the Overview strip */
 .wb-strip { display:flex; flex-direction:column; gap:2px; }
 .wb-strip .wb-bar { width:120px; flex:none; }
+
+/* visits */
+.wb-visit { border:1px solid rgba(5,5,5,.07); border-radius:14px; padding:6px 8px; margin-bottom:10px; }
+.wb-visit.wb-pulse { border-color:rgba(224,38,79,.5); }
+.wb-chip:disabled { cursor:default; opacity:.7; }
+button.wb-chip { cursor:pointer; border:none; font:inherit; font-size:11px; font-weight:700; }
+button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
+.wb-board:fullscreen .wb-visit { border-color:rgba(255,255,255,.09); }

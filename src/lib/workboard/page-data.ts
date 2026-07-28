@@ -7,12 +7,15 @@
    without assets_all. `manage` rides along so the screens can offer what the
    server will actually allow. */
 
+import { after } from "next/server";
 import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
 import { getConnectionView } from "@/lib/integrations/store";
 import { kickSm8SyncIfStale, listSm8SyncStatus } from "@/lib/integrations/sm8-sync";
 import { todayInZone, plusDays } from "./dates";
 import { listProjectStrip, type ProjectStripItem } from "./projects-query";
+import { listRadar, type RadarItem } from "./maintenance-query";
+import { autoCompleteVisitsFromMirror, ensureVisits } from "./visit-ensure";
 import {
   countJobsByStatus,
   getSm8Timezone,
@@ -32,6 +35,7 @@ export type WorkboardData = {
   counts: WorkboardCounts | null;
   upcoming: UpcomingBooking[];
   projects: ProjectStripItem[];
+  radar: RadarItem[];
   synced: { finishedAt: string | null; running: boolean } | null;
 };
 
@@ -46,8 +50,15 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
     view === null ? "none" : view.status === "connected" ? "connected" : "attention";
 
   if (connection !== "connected") {
-    // Standalone-first: projects are native rows and load regardless.
+    // Standalone-first: projects and the maintenance radar are native rows
+    // and load regardless. The visit horizon still tops itself up — behind
+    // the response, so the board never waits on generation.
     const today = todayInZone(null);
+    after(() => ensureVisits(orgId, { today }).catch(() => {}));
+    const [projects, radar] = await Promise.all([
+      listProjectStrip(orgId),
+      listRadar(orgId, today),
+    ]);
     return {
       manage,
       connection,
@@ -55,7 +66,8 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
       today,
       counts: null,
       upcoming: [],
-      projects: await listProjectStrip(orgId),
+      projects,
+      radar,
       synced: null,
     };
   }
@@ -63,10 +75,20 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
   const timezone = await getSm8Timezone(orgId);
   const today = todayInZone(timezone);
 
-  const [counts, upcoming, projects, sync] = await Promise.all([
+  // Behind the response: top the visit horizon up, then let a linked job
+  // that completed in ServiceM8 mark its visit done. Both bounded, both
+  // idempotent — the board reads what's there NOW and is right next paint.
+  after(() =>
+    ensureVisits(orgId, { today })
+      .then(() => autoCompleteVisitsFromMirror(orgId))
+      .catch(() => {})
+  );
+
+  const [counts, upcoming, projects, radar, sync] = await Promise.all([
     countJobsByStatus(orgId, `${plusDays(today, -14)} 00:00:00`),
     listUpcomingBookings(orgId, today, plusDays(today, 7)),
     listProjectStrip(orgId),
+    listRadar(orgId, today),
     listSm8SyncStatus(orgId),
   ]);
 
@@ -83,6 +105,7 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
     counts,
     upcoming,
     projects,
+    radar,
     synced: sync.lastRun
       ? { finishedAt: sync.lastRun.finishedAt, running: sync.lastRun.running }
       : { finishedAt: null, running: false },

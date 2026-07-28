@@ -5,8 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { WbModal } from "./wb-modal";
+import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { PROJECT_STAGES, checklistProgress } from "@/lib/workboard/stages";
 import type { JobSearchHit, ProjectDetail } from "@/lib/workboard/projects-query";
+import type { IssueRow, ProjectEntry } from "@/lib/workboard/notes-query";
+import { NoteCapture } from "./note-capture";
 import {
   addChecklistItem,
   addEquipment,
@@ -55,10 +58,16 @@ export function ProjectDetailScreen({
   project,
   manage,
   sm8Connected,
+  entries,
+  issues,
+  voiceEnabled,
 }: {
   project: ProjectDetail;
   manage: boolean;
   sm8Connected: boolean;
+  entries: ProjectEntry[];
+  issues: IssueRow[];
+  voiceEnabled: boolean;
 }) {
   const router = useRouter();
   const [busy, start] = useTransition();
@@ -334,6 +343,83 @@ export function ProjectDetailScreen({
               ))
             )}
           </div>
+
+          {/* ── notes in, and what they left behind ── */}
+          <NoteCapture target={{ kind: "project", id: project.id }} voiceEnabled={voiceEnabled} />
+
+          {entries.filter((e) => e.kind === "progress").length > 0 && (
+            <div className="card2">
+              <div className="c2h">
+                <span className="ci">
+                  <Icon name="activity" size={19} />
+                </span>
+                <div>
+                  <b>Site journal</b>
+                  <em>What was done and found, dated as it happened.</em>
+                </div>
+              </div>
+              {entries
+                .filter((e) => e.kind === "progress")
+                .map((e) => (
+                  <div className="wb-row" key={e.id}>
+                    <span className="wb-time">{fmtAuWeekdayDayMonth(e.entryDate)}</span>
+                    <span className="wb-who">{e.body}</span>
+                  </div>
+                ))}
+            </div>
+          )}
+
+          {entries.filter((e) => e.kind === "commissioning").length > 0 && (
+            <div className="card2">
+              <div className="c2h">
+                <span className="ci">
+                  <Icon name="gauge" size={19} />
+                </span>
+                <div>
+                  <b>Commissioning</b>
+                  <em>Readings and settings, as they were recorded on site.</em>
+                </div>
+              </div>
+              {entries
+                .filter((e) => e.kind === "commissioning")
+                .map((e) => (
+                  <div className="wb-row" key={e.id}>
+                    <span className="wb-time">{fmtAuWeekdayDayMonth(e.entryDate)}</span>
+                    <span className="wb-who">{e.body}</span>
+                  </div>
+                ))}
+            </div>
+          )}
+
+          {issues.length > 0 && (
+            <div className="card2">
+              <div className="c2h">
+                <span className="ci">
+                  <Icon name="alert" size={19} />
+                </span>
+                <div>
+                  <b>Recurring issues</b>
+                  <em>Logged more than once — the count is the point.</em>
+                </div>
+              </div>
+              {issues.map((i) => (
+                <div className={"wb-row" + (i.occurrences > 1 ? " wb-pulse" : "")} key={i.id}>
+                  <span className={"wb-chip" + (i.occurrences > 1 ? " bad" : "")}>
+                    ×{i.occurrences}
+                  </span>
+                  <span className="wb-who">
+                    <b>{i.summary}</b>
+                    {i.equipmentRef && <em> · {i.equipmentRef}</em>}
+                  </span>
+                  <span className="wb-tech">
+                    {i.occurrences > 1
+                      ? `${fmtAuWeekdayDayMonth(i.firstSeen)} → ${fmtAuWeekdayDayMonth(i.lastSeen)}`
+                      : fmtAuWeekdayDayMonth(i.lastSeen)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* ── design ── */}
           <DesignCard

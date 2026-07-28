@@ -142,7 +142,9 @@ export async function loadMyTimesheet(requested?: string) {
   const unavailable = casual ? await myUnavailability(ctx.orgId, ctx.staffId) : [];
 
   return {
-    me: { ...me, days: presumed.days },
+    // holidayDays rides on the person: the pay rules read it to price a
+    // holiday somebody actually worked
+    me: { ...me, days: presumed.days, holidayDays: presumed.holidayDays },
     /** what each day's content came from — a real entry, or something filled
         in for you. The screen says so rather than pretending you logged it. */
     sources: presumed.sources,
@@ -239,7 +241,7 @@ export async function loadTimepay(opts: { pay: boolean }, requested?: string) {
         p,
         { frozen },
       );
-      return { ...s, days: r.days, workDays: r.workDays };
+      return { ...s, days: r.days, workDays: r.workDays, holidayDays: r.holidayDays };
     }),
     settings,
     configured,

@@ -151,8 +151,13 @@ const BREAK_MAX = 120;
 
 /** What a day is worth in payroll hours, split by multiplier — read off the
     real engine so this line and the pay run can never disagree. */
-function payrollChip(h: number, dow: number, s: Settings): { parts: string[]; total: number } {
-  const sp = splitDay(h, dow, s);
+function payrollChip(
+  h: number,
+  dow: number,
+  s: Settings,
+  day: { publicHoliday?: boolean; in?: string; out?: string } = {},
+): { parts: string[]; total: number } {
+  const sp = splitDay(h, dow, s, day);
   const parts: string[] = [];
   if (sp.n) parts.push(`${fmtH(sp.n)}h ×1.0`);
   if (sp.o15) parts.push(`${fmtH(sp.o15)}h ×1.5`);
@@ -202,10 +207,18 @@ function DayEditor({
      so no day of theirs is short of anything and every day is one they added
      rather than one that was there. */
   const expected = expectsWork(ctx, dowOf(w));
-  /* Leave and holidays are not editable here — they belong to the leave module
-     and the org calendar. Showing a Save button on them would offer to
-     overwrite the booking that put them there. */
-  const locked = entry.t === "leave" || entry.t === "sick" || entry.t === "ph";
+  /* Leave is not editable here — it belongs to the leave module, and a Save
+     button on it would offer to overwrite the booking that put it there.
+
+     A PUBLIC HOLIDAY is different: the calendar says the day was a holiday,
+     but only the person knows whether they WORKED it — and if they did, it is
+     the best-paid day in the period and nothing else can report it. So the
+     holiday stays read-only until they say otherwise, and saying so writes an
+     ordinary worked day (the holiday rate comes from the date, not the
+     entry). */
+  const [workedHoliday, setWorkedHoliday] = useState(false);
+  const locked =
+    entry.t === "leave" || entry.t === "sick" || (entry.t === "ph" && !workedHoliday);
 
   const [kind, setKind] = useState<"work" | "off">(entry.t === "off" ? "off" : "work");
   const [start, setStart] = useState(entry.t === "work" ? entry.in : normal.start);
@@ -218,7 +231,15 @@ function DayEditor({
      It stays nullable because `derivedDayHours` is shared with rows already in
      the database, which were typed. */
   const derived = derivedDayHours(start, end, settings, breakMin) ?? 0;
-  const chip = payrollChip(kind === "work" ? derived : 0, dowOf(w), settings);
+  /* The preview prices the day the pay run will price: same engine, same
+     holiday flag, same clocks — so a night shift or a worked holiday shows
+     its real multipliers before the person saves it. */
+  const onHoliday = (ctx.holidays ?? []).includes(index);
+  const chip = payrollChip(kind === "work" ? derived : 0, dowOf(w), settings, {
+    publicHoliday: onHoliday,
+    in: start,
+    out: end,
+  });
   const short = kind === "work" && expected && derived < settings.standard;
 
   const commit = () =>
@@ -248,6 +269,16 @@ function DayEditor({
             {fmtH(entry.h)}h ×1.0 = <b>{fmtH(entry.h)}h</b>
           </span>
         </div>
+        {entry.t === "ph" && (
+          <button
+            type="button"
+            className="mts2-ph-worked"
+            disabled={busy}
+            onClick={() => setWorkedHoliday(true)}
+          >
+            I worked this public holiday
+          </button>
+        )}
       </div>
     );
   }
@@ -657,7 +688,7 @@ export function MyTimesheet({
      this person expected today?" to decide missing days and short days, and
      answering that with a bare Mon–Fri would show a casual a week of missing
      days the server had just, correctly, declined to fill in. */
-  const ctx: WeekCtx = { week, today, through, workDays };
+  const ctx: WeekCtx = { week, today, through, workDays, holidays: me.holidayDays };
   const casual = employment === "casual";
   const d = derive(me, settings, ctx);
   const groups = weekGroups(me.days);
@@ -722,6 +753,8 @@ export function MyTimesheet({
       : null,
     settings.rules.sat.on ? `Sat ${ruleSummary(settings.rules.sat)}` : null,
     settings.rules.sun.on ? `Sun ${ruleSummary(settings.rules.sun)}` : null,
+    settings.rules.ph.on ? `Public holidays ${ruleSummary(settings.rules.ph)}` : null,
+    settings.rules.night.on ? `Night 10 PM – 6 AM ${ruleSummary(settings.rules.night)}` : null,
     submitNote(settings).replace(/^Open · /, ""),
   ].filter(Boolean);
 

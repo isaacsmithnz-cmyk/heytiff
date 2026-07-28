@@ -111,6 +111,9 @@ export type StaffWeek = {
       sheet says; recorded hours stay hours, and overtime pays (or doesn't)
       per the org's salariedOtPaid rule. */
   payBasis?: "hourly" | "salary";
+  /** THEIR public holidays in this period, by day index — resolved through
+      their own state, so an interstate worker is paid their own calendar. */
+  holidayDays?: number[];
 };
 
 /* ['MON', 29, 'Jun'] — weekday label, day number, month */
@@ -136,6 +139,13 @@ export type WeekCtx = {
       Absent means "derive it from `today`", which is only right for a live
       period; a closed one must pass it explicitly (every day of it is over). */
   through?: number;
+  /** Which of this period's days are gazetted public holidays, by index.
+
+      A public holiday is a fact about the DATE, not about the entry: a person
+      who works one enters an ordinary worked day, and the holiday rate has to
+      come from the calendar. Resolved per person by the loader, because an
+      interstate worker's calendar is their own. */
+  holidays?: readonly number[];
 };
 
 export type Split = { n: number; o15: number; o2: number };
@@ -176,7 +186,12 @@ export const DEFAULT_SETTINGS: Settings = {
     sat: { on: true, rate: 1.5, up: 2 },
     sun: { on: true, rate: 2, up: null },
     ph: { on: true, rate: 2, up: null },
-    night: { on: true, rate: 2, up: null },
+    /* OFF by default, unlike the other three. A night penalty that starts at
+       10 PM also ends at 6 AM, and a trade that starts at 5:30 would pay half
+       an hour of double time every single day without anyone choosing it.
+       Defaulting a rule ON is only safe when the ordinary day doesn't touch
+       it — and an early start is the ordinary day here. */
+    night: { on: false, rate: 2, up: null },
   },
   dblAfter: 12,
   breakMinutes: 0,
@@ -368,30 +383,83 @@ export const workDaysLabel = (days: number[]): string => {
   return on.join(", ");
 };
 
+/* The night window: 10 PM to 6 AM, the span the settings screen has always
+   named beside the night rule. */
+export const NIGHT_FROM_MIN = 22 * 60;
+export const NIGHT_TO_MIN = 6 * 60;
+
+/** How much of a worked span falls inside the night window.
+
+    A shift is at most a day long but may cross midnight — 6 PM to 2 AM is
+    four ordinary hours and four night ones — so the overlap is measured on an
+    extended timeline where a finish at or before the start gains 24h, exactly
+    like `spanHours`. Capped at the day's PAID hours, because an unpaid break
+    inside the window isn't night work. */
+export function nightHours(start: string, end: string, paid: number): number {
+  const a = parseClock(start);
+  const b0 = parseClock(end);
+  if (a == null || b0 == null) return 0;
+  const b = b0 <= a ? b0 + 1440 : b0;
+  /* The night windows a single shift can touch: this morning's tail, tonight,
+     and tomorrow morning's tail for a shift that started late. */
+  const windows: [number, number][] = [
+    [0, NIGHT_TO_MIN],
+    [NIGHT_FROM_MIN, 1440 + NIGHT_TO_MIN],
+    [1440 + NIGHT_FROM_MIN, 2880 + NIGHT_TO_MIN],
+  ];
+  let mins = 0;
+  for (const [ws, we] of windows) mins += Math.max(0, Math.min(b, we) - Math.max(a, ws));
+  return Math.min(Math.round((mins / 60) * 100) / 100, paid);
+}
+
 /* Split one worked day's hours into rate buckets using the workspace rules.
    `dow` is the DAY OF WEEK (Mon 0 … Sun 6), not a position in the period —
-   use dowOf(ctx.week[i]) to get it. */
-export function splitDay(h: number, dow: number, s: Settings): Split {
-  const wknd = (k: "sat" | "sun"): Split | null => {
-    const rl = s.rules[k];
-    if (!rl.on) return null;
-    if (rl.rate === 2) return { n: 0, o15: 0, o2: h };
-    const a = Math.min(h, rl.up || 0);
-    return { n: 0, o15: a, o2: h - a };
+   use dowOf(ctx.week[i]) to get it.
+
+   THE ORDER IS THE POLICY, and it is "the day's own rate, then the clock":
+
+     PUBLIC HOLIDAY   outranks everything. It is the most specific fact about
+                      the day, and a gazetted holiday that lands on a Saturday
+                      pays holiday rates, not Saturday ones.
+     WEEKEND          the whole day, as it always has.
+     NIGHT            a PORTION, not a day rate — the hours inside the window
+                      pay the night rule and the REST goes through the
+                      ordinary overtime ladder. Removing them from the total
+                      first is what stops the same hour being paid twice.
+
+   PENALTIES NEVER STACK. A whole-day rule has already taken the day by the
+   time night is considered, so a Sunday night shift pays Sunday rates for all
+   of it rather than Sunday-plus-night for part. That is the conservative
+   reading, it is what awards generally mean by "the higher rate applies", and
+   it is the one a person can check in their head. */
+export function splitDay(
+  h: number,
+  dow: number,
+  s: Settings,
+  /** What else is true about this day — the date's holiday status, and the
+      clocks the night window is measured against. */
+  day: { publicHoliday?: boolean; in?: string; out?: string } = {},
+): Split {
+  const whole = (rl: RateRule, hours: number): Split => {
+    if (rl.rate === 2) return { n: 0, o15: 0, o2: hours };
+    const a = Math.min(hours, rl.up || 0);
+    return { n: 0, o15: a, o2: hours - a };
   };
-  if (dow === 5) {
-    const r = wknd("sat");
-    if (r) return r;
-  }
-  if (dow === 6) {
-    const r = wknd("sun");
-    if (r) return r;
-  }
-  const o2 = Math.max(0, h - s.dblAfter);
-  const rest = h - o2;
-  const n = s.otUnit === "day" ? Math.min(rest, s.otAfter) : rest;
-  const o15 = rest - n;
-  return { n, o15, o2 };
+
+  if (day.publicHoliday && s.rules.ph.on) return whole(s.rules.ph, h);
+  if (dow === 5 && s.rules.sat.on) return whole(s.rules.sat, h);
+  if (dow === 6 && s.rules.sun.on) return whole(s.rules.sun, h);
+
+  const night =
+    s.rules.night.on && day.in && day.out ? nightHours(day.in, day.out, h) : 0;
+  const atNight = night > 0 ? whole(s.rules.night, night) : { n: 0, o15: 0, o2: 0 };
+
+  const rest = Math.round((h - night) * 100) / 100;
+  const o2 = Math.max(0, rest - s.dblAfter);
+  const ladder = rest - o2;
+  const n = s.otUnit === "day" ? Math.min(ladder, s.otAfter) : ladder;
+  const o15 = ladder - n;
+  return { n, o15: o15 + atNight.o15, o2: o2 + atNight.o2 };
 }
 
 export function derive(staff: StaffWeek, s: Settings, ctx: WeekCtx): Derived {
@@ -418,14 +486,28 @@ export function derive(staff: StaffWeek, s: Settings, ctx: WeekCtx): Derived {
   staff.days.forEach((d, i) => {
     const dow = dowOf(ctx.week[i]);
     if (d.t === "work") {
-      const sp = splitDay(d.h, dow, s);
+      /* A worked public holiday is an ordinary `work` entry on a holiday
+         DATE — the calendar says which, not the entry. */
+      const onHoliday = (ctx.holidays ?? []).includes(i);
+      const sp = splitDay(d.h, dow, s, { publicHoliday: onHoliday, in: d.in, out: d.out });
       normal += sp.n;
       weekNormal[bucketOf(i)] = (weekNormal[bucketOf(i)] ?? 0) + sp.n;
       ot += sp.o15;
       ot2 += sp.o2;
       worked += d.h;
       entries++;
-      if (isWeekend(dow)) {
+      /* Working a public holiday always reaches the approver: it is unusual
+         by definition, and it is the most expensive day in the period. */
+      if (onHoliday) {
+        bullets.push(
+          dlab(i) +
+            " — worked the public holiday (" +
+            fmt(d.h) +
+            "h" +
+            (s.rules.ph.on ? " at public-holiday rates" : ", at ordinary rates — the holiday rule is off") +
+            ")",
+        );
+      } else if (isWeekend(dow)) {
         const dayName = dow === 5 ? "Saturday" : "Sunday";
         if (sp.o15 || sp.o2)
           bullets.push(
@@ -442,7 +524,19 @@ export function derive(staff: StaffWeek, s: Settings, ctx: WeekCtx): Derived {
                   : " (@1.5×)")
           );
       } else {
-        if (sp.o15 || sp.o2)
+        /* Night hours are a slice of an ordinary day, so they get their own
+           line — the over-standard bullet below would otherwise report them
+           as overtime, which is a different thing and a different reason. */
+        const night = s.rules.night.on ? nightHours(d.in, d.out, d.h) : 0;
+        if (night > 0)
+          bullets.push(
+            dlab(i) + " — " + fmt(night) + "h of night work (10 PM – 6 AM) at night rates",
+          );
+        /* Only the LADDER's overtime is "over standard". The night slice is
+           already in o15/o2 and already has its own line — counting it here
+           too would report the same hours twice, under the wrong reason. */
+        const overStandard = Math.round((sp.o15 + sp.o2 - night) * 100) / 100;
+        if (overStandard > 0)
           bullets.push(
             dlab(i) +
               " — worked " +
@@ -452,7 +546,7 @@ export function derive(staff: StaffWeek, s: Settings, ctx: WeekCtx): Derived {
               " (" +
               fmt(d.h) +
               "h, " +
-              fmt(sp.o15 + sp.o2) +
+              fmt(overStandard) +
               "h over standard)"
           );
         /* Short only against a day you were EXPECTED to work. A casual's
@@ -765,7 +859,11 @@ export function dayClass(d: DayEntry, i: number, s: Settings, ctx: WeekCtx): Day
   if (d.t === "leave") return "leave";
   if (d.t === "sick") return "sick";
   if (d.t === "ph") return "ph";
-  const sp = splitDay(d.h, dow, s);
+  // a WORKED holiday still reads as a holiday — the pill is what tells you a
+  // day was unusual, and a public holiday is the most unusual day there is
+  if ((ctx.holidays ?? []).includes(i)) return "ph";
+  // only a worked day carries clocks for the night window to measure
+  const sp = splitDay(d.h, dow, s, d.t === "work" ? { in: d.in, out: d.out } : {});
   if (sp.o15 || sp.o2) return "over";
   /* short days apply to EXPECTED days only, matching derive's review flag */
   return expected && d.h < s.standard ? "under" : "std";

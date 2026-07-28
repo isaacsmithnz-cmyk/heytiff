@@ -128,6 +128,10 @@ export function presumeFor(
   /** the absence map the presumption applied — date → covering request, so
       materialise can stamp each leave row with the request that paid it */
   absences: Map<string, AbsenceDay>;
+  /** which of this period's days are public holidays for THIS person, by
+      index — the pay rules need it, because a holiday somebody worked is an
+      ordinary worked day sitting on a holiday date */
+  holidayDays: number[];
 } {
   const holidays = p.holidaysByState.get(state) ?? new Map<string, string>();
   const hours = normalHours(settings, p.ownHours.get(staff.id));
@@ -149,5 +153,9 @@ export function presumeFor(
     through: p.through,
     presume: live,
   });
-  return { days, sources, hours, workDays, presume: live, absences };
+  const holidayDays = p.dates.reduce<number[]>((out, date, i) => {
+    if (holidays.has(date)) out.push(i);
+    return out;
+  }, []);
+  return { days, sources, hours, workDays, presume: live, absences, holidayDays };
 }

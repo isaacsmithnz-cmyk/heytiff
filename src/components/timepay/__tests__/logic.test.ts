@@ -12,6 +12,7 @@ import {
   fmt,
   fmtH,
   initials,
+  nightHours,
   parseClock,
   rosteredWeekHours,
   ruleSummary,
@@ -553,5 +554,133 @@ describe("rosteredWeekHours", () => {
      number an owner reads off the card. */
   it("ignores a half-written override and falls back to the org", () => {
     expect(rosteredWeekHours(at(), { hours: { start: "6:00 AM" } })).toBe(40);
+  });
+});
+
+/* The two penalty rules that were configurable for months and never paid a
+   cent (audit #203). Both are money, so every case here is a dollar. */
+
+describe("nightHours — the 10 PM – 6 AM window", () => {
+  it("finds the night slice of a shift that crosses midnight", () => {
+    // 6 PM – 2 AM: four ordinary hours, then four inside the window
+    expect(nightHours("6:00 PM", "2:00 AM", 8)).toBe(4);
+  });
+
+  it("counts an early start against this morning's tail", () => {
+    // 4 AM – 12 PM: two hours before 6 AM
+    expect(nightHours("4:00 AM", "12:00 PM", 8)).toBe(2);
+  });
+
+  it("is zero for an ordinary day, and whole for a full night", () => {
+    expect(nightHours("7:00 AM", "3:00 PM", 8)).toBe(0);
+    expect(nightHours("10:00 PM", "6:00 AM", 8)).toBe(8);
+  });
+
+  it("never exceeds the day's PAID hours — an unpaid break isn't night work", () => {
+    // 10 PM – 6 AM is 8h of window, but only 7.5h were paid
+    expect(nightHours("10:00 PM", "6:00 AM", 7.5)).toBe(7.5);
+  });
+
+  it("answers zero rather than throwing on unreadable clocks", () => {
+    expect(nightHours("x", "y", 8)).toBe(0);
+  });
+});
+
+describe("splitDay — public holidays and night work", () => {
+  const on = (over: Partial<Settings>): Settings => ({ ...DEFAULT_SETTINGS, ...over });
+  /* Night ships OFF — an early start is the ordinary day in a trade, and a
+     rule that pays 2× before 6 AM has to be chosen. These cases choose it. */
+  const NIGHT_ON: Settings = on({
+    rules: { ...DEFAULT_SETTINGS.rules, night: { on: true, rate: 2, up: null } },
+  });
+
+  it("pays a worked public holiday at holiday rates, outranking the weekend", () => {
+    // default ph rule is 2× all day; the day is a SATURDAY, which pays 1.5/2
+    const s = DEFAULT_SETTINGS;
+    const sat = splitDay(8, 5, s, { publicHoliday: true, in: "7:00 AM", out: "3:00 PM" });
+    expect(sat).toEqual({ n: 0, o15: 0, o2: 8 });
+    // and a Tuesday holiday is the same — the date decides, not the weekday
+    expect(splitDay(8, 1, s, { publicHoliday: true })).toEqual({ n: 0, o15: 0, o2: 8 });
+  });
+
+  it("leaves a holiday at ordinary rates when the rule is off", () => {
+    const s = on({ rules: { ...DEFAULT_SETTINGS.rules, ph: { on: false, rate: 2, up: null } } });
+    expect(splitDay(8, 1, s, { publicHoliday: true })).toEqual({ n: 8, o15: 0, o2: 0 });
+  });
+
+  it("pays the night SLICE at night rates and the rest through the ladder", () => {
+    // 6 PM – 2 AM, 8h paid: 4h ordinary + 4h night at 2×
+    const sp = splitDay(8, 1, NIGHT_ON, { in: "6:00 PM", out: "2:00 AM" });
+    expect(sp).toEqual({ n: 4, o15: 0, o2: 4 });
+    // every hour is accounted for exactly once
+    expect(sp.n + sp.o15 + sp.o2).toBe(8);
+  });
+
+  it("does not stack night onto a whole-day rule", () => {
+    // a Sunday night shift is all Sunday, not Sunday-plus-night for part
+    const sp = splitDay(8, 6, NIGHT_ON, { in: "6:00 PM", out: "2:00 AM" });
+    expect(sp).toEqual({ n: 0, o15: 0, o2: 8 });
+  });
+
+  it("keeps the overtime ladder on the hours that aren't night", () => {
+    /* 4 PM – 4 AM, 12h paid: 6h night (10 PM–4 AM), 6h through the ladder.
+       otAfter is 8, so the 6h remainder is all ordinary. */
+    const sp = splitDay(12, 1, NIGHT_ON, { in: "4:00 PM", out: "4:00 AM" });
+    expect(sp).toEqual({ n: 6, o15: 0, o2: 6 });
+    expect(sp.n + sp.o15 + sp.o2).toBe(12);
+  });
+
+  it("is unchanged for an ordinary day, with the rule on", () => {
+    expect(splitDay(8, 1, NIGHT_ON, { in: "7:00 AM", out: "3:00 PM" }))
+      .toEqual(splitDay(8, 1, NIGHT_ON));
+  });
+
+  /* The rule ships off, and off means off — a 5:30 start is not night work
+     until somebody says it is. This is the case the opt-in migration exists
+     to protect. */
+  it("pays an early start ordinarily until the rule is chosen", () => {
+    expect(splitDay(8, 1, DEFAULT_SETTINGS, { in: "5:30 AM", out: "2:00 PM" }))
+      .toEqual({ n: 8, o15: 0, o2: 0 });
+    expect(splitDay(8, 1, NIGHT_ON, { in: "5:30 AM", out: "2:00 PM" }))
+      .toEqual({ n: 7.5, o15: 0, o2: 0.5 });
+  });
+});
+
+describe("derive — a worked holiday reaches the approver", () => {
+  const week: WeekDay[] = [
+    ["MON", 29, "Jun"], ["TUE", 30, "Jun"], ["WED", 1, "Jul"],
+    ["THU", 2, "Jul"], ["FRI", 3, "Jul"], ["SAT", 4, "Jul"], ["SUN", 5, "Jul"],
+  ];
+  const empty = Array.from({ length: 7 }, () => ({ t: "empty" }) as DayEntry);
+  const staff = (days: DayEntry[]): StaffWeek => ({
+    id: "s1", name: "", role: "", rate: 50, days,
+  });
+
+  it("prices the holiday at 2× and says so", () => {
+    const days = [{ t: "work" as const, in: "7:00 AM", out: "3:00 PM", h: 8 }, ...empty.slice(1)];
+    const d = derive(staff(days), DEFAULT_SETTINGS, { week, today: 6, through: 6, holidays: [0] });
+    expect(d.ot2).toBe(8);
+    expect(d.normal).toBe(0);
+    expect(d.gross).toBe(8 * 50 * 2);
+    expect(d.bullets.some((b) => /worked the public holiday/.test(b))).toBe(true);
+  });
+
+  it("a holiday NOT worked still pays its standard day at 1×", () => {
+    const days = [{ t: "ph" as const, h: 8 }, ...empty.slice(1)];
+    const d = derive(staff(days), DEFAULT_SETTINGS, { week, today: 6, through: 6, holidays: [0] });
+    expect(d.ph).toBe(8);
+    expect(d.gross).toBe(8 * 50);
+  });
+
+  it("reports night hours as night, not as overtime", () => {
+    const days = [{ t: "work" as const, in: "6:00 PM", out: "2:00 AM", h: 8 }, ...empty.slice(1)];
+    const nightOn: Settings = {
+      ...DEFAULT_SETTINGS,
+      rules: { ...DEFAULT_SETTINGS.rules, night: { on: true, rate: 2, up: null } },
+    };
+    const d = derive(staff(days), nightOn, { week, today: 6, through: 6 });
+    expect(d.bullets.some((b) => /4h of night work/.test(b))).toBe(true);
+    // the day is 8h — nothing is "over standard" here
+    expect(d.bullets.some((b) => /over standard/.test(b))).toBe(false);
   });
 });

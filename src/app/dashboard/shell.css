@@ -2409,6 +2409,10 @@ select.fl-i { cursor:pointer; }
 .fg .mts2-elock svg { color:var(--gray500); margin-top:1px; flex:none; }
 .fg .mts2-elock b { display:block; font-size:13.5px; font-weight:800; color:var(--ink); }
 .fg .mts2-elock em { display:block; margin-top:2px; font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
+/* the one way out of a read-only holiday: only the person knows they worked it */
+.fg .mts2-ph-worked { margin-top:10px; height:34px; padding:0 14px; border:1px solid #ececf0; border-radius:11px; background:#fff; font-size:12.5px; font-weight:800; color:var(--gray700); transition:all .16s; }
+.fg .mts2-ph-worked:hover:not(:disabled) { border-color:var(--gray300); color:var(--ink); }
+.fg .mts2-ph-worked:disabled { opacity:.5; cursor:default; }
 
 /* worked / didn't work — the only choice a person makes on a day */
 .fg .mts2-kinds { display:inline-flex; gap:3px; margin-top:12px; padding:3px; border-radius:12px; background:#f4f5f7; }

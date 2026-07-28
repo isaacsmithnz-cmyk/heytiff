@@ -25,11 +25,19 @@ import { runSm8Sync } from "@/lib/integrations/sm8-sync";
    DAILY_CALL_BUDGET per org per day) bound the loud ones. The engine's lease
    makes an overlap with a user-triggered sync a no-op, not a double-spend. */
 
-/* SCHEDULE: hourly, on the hour ("0 * * * *"). It lives in vercel.json, which
-   Vercel validates against a strict schema that rejects unknown keys
+/* SCHEDULE: daily at 20:00 UTC ("0 20 * * *") — 6am on the east-coast AU
+   clock, so the board is true before anyone starts. It lives in vercel.json,
+   which Vercel validates against a strict schema that rejects unknown keys
    (including the "//" comment idiom), so the reasoning lives here instead.
-   Hourly, not more: the board's own kick covers the minutes that matter, and
-   24 quiet calls per object per day is quota spent on an empty answer. */
+
+   DAILY BECAUSE THE PLAN SAYS SO, LITERALLY: Vercel's Hobby tier refuses any
+   cron that would run more than once a day — "0 * * * *" fails the DEPLOYMENT
+   outright, which is how this was found. That costs this route nothing,
+   because it was never the freshness path: opening the Workboard tops the
+   mirrors up behind the response (kickSm8SyncIfStale), and this run exists
+   for the hours nobody is looking. Hobby also only promises the hour, not the
+   minute (±59 min), which a backstop can afford. On Pro, one line here and
+   one in vercel.json make it hourly again. */
 
 /** Workspaces per run. Each org's slice is bounded by the engine's page
     budget, so the cap is about staying inside one serverless window even if

@@ -8,7 +8,7 @@
     },
     {
       "path": "/api/cron/sm8-sync",
-      "schedule": "0 * * * *"
+      "schedule": "0 20 * * *"
     }
   ]
 }

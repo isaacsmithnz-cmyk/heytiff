@@ -13,10 +13,11 @@
    would be the exact "two systems fighting" this design exists to prevent —
    the fight just wouldn't be visible until payroll was wrong. */
 
-import { classifyEmployment, type EmploymentType } from "@/lib/staff/employment";
+import { classifyEmployment, type EmploymentType, type PayBasis } from "@/lib/staff/employment";
 import type { XeroEmployee, XeroPayCalendar } from "./xero-shape";
 import type { IntegrationLink } from "./links";
 import { suggestMatches, type StaffCandidate } from "./match";
+import type { WageDrift } from "./wage";
 
 /** One person's employment facts, as the linking screen needs them. Wages are
     deliberately absent: this payload crosses to a client component, and a
@@ -26,6 +27,8 @@ export type LinkingStaff = StaffCandidate & {
   name: string;
   /** The raw label from staff_profiles — nullable, and null for most rows. */
   employmentType: string | null;
+  /** How HeyTiff computes their pay — hourly unless someone said otherwise. */
+  payBasis: PayBasis;
 };
 
 export type LinkState =
@@ -65,9 +68,54 @@ export type LinkingRow = {
   staffProfileId: string;
   name: string;
   employmentType: string | null;
+  payBasis: PayBasis;
   state: LinkState;
   employment: EmploymentDrift;
 };
+
+/* ── pay basis ──
+
+   Xero already knows who is on a salary: an ANNUALSALARY pay template is
+   exactly that statement, and `resolveXeroPay` has resolved it by the time a
+   wage drift exists. So the suggestion is free — and it is only ever a
+   suggestion, the same doctrine as employment type: HeyTiff owns pay_basis,
+   because it decides what a person's own timesheet asks them for. */
+export type BasisDrift =
+  /** Xero pays them a salary; here they're marked hourly. */
+  | { kind: "suggest_salary" }
+  /** Here they're salaried, but Xero pays an hourly rate off a template — a
+      real contradiction, and neither side is obviously the wrong one. */
+  | { kind: "contradiction"; note: string }
+  | null;
+
+/** What Xero's pay shape says about the basis, if anything.
+
+    Reads the WAGE drift rather than the employee list, because the employee
+    list can't tell salary from hourly — only the pay template can, and that
+    is the per-person read behind "Check pay rates". */
+export function payBasisDrift(here: PayBasis, drift: WageDrift | null): BasisDrift {
+  if (!drift) return null;
+
+  // Xero states a salary: either converted (basis carries the working) or
+  // unconvertible for want of stated weekly hours.
+  const xeroSalary =
+    drift.kind === "salary" ||
+    ((drift.kind === "differs" || drift.kind === "match") && drift.basis !== undefined);
+
+  if (xeroSalary && here !== "salary") return { kind: "suggest_salary" };
+
+  // An hourly rate on the template, with no salary behind it.
+  const xeroHourly =
+    (drift.kind === "differs" || drift.kind === "match") && drift.basis === undefined;
+
+  if (xeroHourly && here === "salary") {
+    return {
+      kind: "contradiction",
+      note: "Xero pays them an hourly rate, but they're marked salaried here.",
+    };
+  }
+  return null;
+}
 
 /* ── employment drift ── */
 
@@ -146,6 +194,7 @@ export function buildLinkingRows(
       staffProfileId: s.staffProfileId,
       name: s.name,
       employmentType: s.employmentType,
+      payBasis: s.payBasis,
       state,
       // Drift is only meaningful against a CONFIRMED link. Reading it off a
       // suggestion would put a "change their employment type" prompt next to a

@@ -34,6 +34,7 @@ const props = (data: LinkingData) => ({
   onLink: jest.fn().mockResolvedValue({ ok: true }),
   onUnlink: jest.fn().mockResolvedValue({ ok: true }),
   onAdoptEmployment: jest.fn().mockResolvedValue({ ok: true }),
+  onAdoptBasis: jest.fn().mockResolvedValue({ ok: true }),
   // pay rates are their own explicit fetch — never part of the initial load
   onCheckPay: jest.fn().mockResolvedValue({ ok: true, rows: [] }),
   onAdoptWage: jest.fn().mockResolvedValue({ ok: true }),
@@ -83,6 +84,7 @@ describe("XeroPayroll", () => {
           staffProfileId: "s1",
           name: "Dan Smith",
           employmentType: null,
+    payBasis: "hourly" as const,
           state: { kind: "suggested", employee: emp({ employeeId: "x1", name: "Dan Smith" }), reason: "email" },
           employment: null,
         },
@@ -106,6 +108,7 @@ describe("XeroPayroll", () => {
               staffProfileId: "s1",
               name: "Dan Smith",
               employmentType: null,
+    payBasis: "hourly" as const,
               state: { kind: "ambiguous" },
               employment: null,
             },
@@ -129,6 +132,7 @@ describe("XeroPayroll", () => {
           staffProfileId: "s1",
           name: "Dan Smith",
           employmentType: null,
+    payBasis: "hourly" as const,
           state: { kind: "suggested", employee: emp({ employeeId: "x1", name: "Dan Smith" }), reason: "name" },
           employment: null,
         },
@@ -153,6 +157,7 @@ describe("XeroPayroll", () => {
           staffProfileId: "s1",
           name: "Dan Smith",
           employmentType: "Full-time",
+    payBasis: "hourly" as const,
           state: { kind: "linked", employee: emp({ employeeId: "x1", name: "Dan Smith" }), matchedBy: "manual" },
           employment: { kind: "suggest_subbie", suggested: "Subcontractor" },
         },
@@ -177,6 +182,7 @@ describe("XeroPayroll", () => {
               staffProfileId: "s1",
               name: "Dan Smith",
               employmentType: "Subcontractor",
+    payBasis: "hourly" as const,
               state: { kind: "linked", employee: emp({ employeeId: "x1", name: "Dan Smith" }), matchedBy: "manual" },
               employment: { kind: "contradiction", note: "Xero pays them as an employee, but they're a subcontractor here." },
             },
@@ -230,6 +236,7 @@ describe("XeroPayroll — wage drift", () => {
     staffProfileId: "s1",
     name: "Dan Smith",
     employmentType: "Full-time",
+    payBasis: "hourly" as const,
     state: { kind: "linked" as const, employee: emp({ employeeId: "x1", name: "Dan Smith" }), matchedBy: "manual" as const },
     employment: null,
   };
@@ -410,5 +417,74 @@ describe("archived-but-matched people", () => {
     expect(screen.getByText("Dee Parker")).toBeInTheDocument();
     await user.click(screen.getByText("Unmatch"));
     await waitFor(() => expect(p.onUnlink).toHaveBeenCalledWith("s9"));
+  });
+});
+
+describe("the pay basis Xero already knows", () => {
+  /* Only knowable from the pay template, so it appears WITH the wage check —
+     and it is a suggestion, because this column decides what a person's own
+     timesheet asks them for every week. */
+  const linkedRow = {
+    ...base,
+    connected: true,
+    tenantName: "HeyTiff",
+    rows: [
+      {
+        staffProfileId: "s1",
+        name: "Jordan Mills",
+        employmentType: "Full-time",
+        payBasis: "hourly" as const,
+        state: { kind: "linked" as const, employee: emp({ employeeId: "x1", name: "Jordan Mills" }), matchedBy: "manual" as const },
+        employment: null,
+      },
+    ],
+  };
+
+  it("offers Mark salaried once Xero's salary is read, and adopts on click", async () => {
+    const user = userEvent.setup();
+    const p = props(linkedRow);
+    p.onCheckPay.mockResolvedValue({
+      ok: true,
+      unreadable: 0,
+      rows: [
+        {
+          staffProfileId: "s1",
+          drift: {
+            kind: "differs",
+            here: 50,
+            xero: 48.08,
+            delta: -1.92,
+            basis: { annual: 95000, hoursPerWeek: 38 },
+          },
+        },
+      ],
+    });
+    render(<XeroPayroll {...p} />);
+
+    // nothing before the rates are read — the employee list can't tell
+    expect(screen.queryByText("Mark salaried")).not.toBeInTheDocument();
+
+    await user.click(await screen.findByText("Check pay rates"));
+    expect(await screen.findByText(/Xero pays them a salary/)).toBeInTheDocument();
+    await user.click(screen.getByText("Mark salaried"));
+    await waitFor(() => expect(p.onAdoptBasis).toHaveBeenCalledWith("s1", "salary"));
+  });
+
+  it("shows the reverse as a contradiction with no button", async () => {
+    const user = userEvent.setup();
+    const p = props({
+      ...linkedRow,
+      rows: [{ ...linkedRow.rows[0], payBasis: "salary" as const }],
+    });
+    p.onCheckPay.mockResolvedValue({
+      ok: true,
+      unreadable: 0,
+      rows: [{ staffProfileId: "s1", drift: { kind: "match", rate: 50 } }],
+    });
+    render(<XeroPayroll {...p} />);
+
+    await user.click(await screen.findByText("Check pay rates"));
+    expect(await screen.findByText(/marked salaried here/)).toBeInTheDocument();
+    expect(screen.queryByText("Mark salaried")).not.toBeInTheDocument();
   });
 });

@@ -3,6 +3,7 @@ import {
   calendarAdvisory,
   cycleOfCalendar,
   employmentDrift,
+  payBasisDrift,
   unaccountedEmployees,
   type LinkingStaff,
 } from "../linking";
@@ -26,6 +27,7 @@ const person = (over: Partial<LinkingStaff> & { staffProfileId: string; name: st
   fullName: over.name,
   email: null,
   employmentType: null,
+  payBasis: "hourly",
   ...over,
 });
 
@@ -239,5 +241,40 @@ describe("unaccountedEmployees", () => {
   it("excludes someone currently being suggested — they're already on screen", () => {
     const rows = buildLinkingRows([person({ staffProfileId: "s1", name: "Jo Blogs" })], employees, []);
     expect(unaccountedEmployees(rows, employees).map((e) => e.employeeId)).toEqual(["x1"]);
+  });
+});
+
+describe("payBasisDrift — Xero's pay template knows who is salaried", () => {
+  /* The suggestion reads the WAGE drift, not the employee list: the list
+     can't tell salary from hourly, only the pay template can. */
+  const salaryBasis = { annual: 95_000, hoursPerWeek: 38 };
+
+  it("suggests salary when Xero pays one and here they're hourly", () => {
+    expect(payBasisDrift("hourly", { kind: "salary", annual: 95_000, hoursPerWeek: null, here: 50 }))
+      .toEqual({ kind: "suggest_salary" });
+    // a converted salary carries its working — same statement, different shape
+    expect(payBasisDrift("hourly", { kind: "match", rate: 48.08, basis: salaryBasis }))
+      .toEqual({ kind: "suggest_salary" });
+    expect(payBasisDrift("hourly", { kind: "differs", here: 50, xero: 48.08, delta: -1.92, basis: salaryBasis }))
+      .toEqual({ kind: "suggest_salary" });
+  });
+
+  it("says nothing when the two already agree", () => {
+    expect(payBasisDrift("salary", { kind: "match", rate: 48.08, basis: salaryBasis })).toBeNull();
+    expect(payBasisDrift("hourly", { kind: "match", rate: 50 })).toBeNull();
+  });
+
+  it("contradicts when here is salaried but Xero pays an hourly template rate", () => {
+    const d = payBasisDrift("salary", { kind: "match", rate: 50 });
+    expect(d?.kind).toBe("contradiction");
+    // a contradiction gets no button — neither side is obviously wrong
+    expect(d).not.toHaveProperty("suggested");
+  });
+
+  it("stays silent with nothing to read", () => {
+    expect(payBasisDrift("hourly", null)).toBeNull();
+    expect(payBasisDrift("salary", { kind: "none", note: null })).toBeNull();
+    // a failed read is not evidence of anything
+    expect(payBasisDrift("hourly", { kind: "unreadable" })).toBeNull();
   });
 });

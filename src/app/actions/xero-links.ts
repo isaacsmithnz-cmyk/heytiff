@@ -5,7 +5,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { requireOrg } from "@/lib/permissions-server";
 import { displayNameOf } from "@/lib/staff/name";
 import { emailsByUser } from "@/lib/staff/query";
-import { EMPLOYMENT_TYPES } from "@/lib/staff/employment";
+import { EMPLOYMENT_TYPES, isPayBasis, payBasisOf } from "@/lib/staff/employment";
 import { getConnectionView } from "@/lib/integrations/store";
 import {
   getOrdinaryPayLine,
@@ -100,7 +100,7 @@ const EMPTY: LinkingData = {
 async function linkingStaff(orgId: string): Promise<LinkingStaff[]> {
   const { data } = await supabaseAdmin
     .from("staff_profiles")
-    .select("id, user_id, first_name, last_name, full_name, preferred_name, employment_type")
+    .select("id, user_id, first_name, last_name, full_name, preferred_name, employment_type, pay_basis")
     .eq("org_id", orgId)
     .eq("status", "Active");
 
@@ -127,6 +127,7 @@ async function linkingStaff(orgId: string): Promise<LinkingStaff[]> {
         preferred_name: (r.preferred_name as string | null) ?? null,
       }),
       employmentType: (r.employment_type as string | null) ?? null,
+      payBasis: payBasisOf(r.pay_basis as string | null),
     };
   });
 }
@@ -425,6 +426,35 @@ export async function adoptWage(staffProfileId: string): Promise<LinkActionResul
     validated against the roster's own vocabulary, never passed through from
     Xero: their labels are theirs, and `classifyEmployment` must keep seeing
     strings it recognises. */
+/** Take Xero's word for the pay BASIS — the second (and last) adopt on this
+    screen, and the same doctrine as employment type: HeyTiff owns the column,
+    Xero's pay template is evidence, and a person presses the button.
+
+    It matters more than it looks: pay_basis decides what someone's own
+    timesheet asks them for every week, so it is never written from a sweep. */
+export async function adoptPayBasis(
+  staffProfileId: string,
+  value: string
+): Promise<LinkActionResult> {
+  const { orgId } = await requireOrg("financials");
+
+  if (!isPayBasis(value)) return { ok: false, error: "That isn't a pay basis." };
+
+  const { error } = await supabaseAdmin
+    .from("staff_profiles")
+    .update({ pay_basis: value })
+    .eq("org_id", orgId)
+    .eq("id", staffProfileId);
+
+  if (error) return { ok: false, error: "Couldn't save that." };
+
+  refresh();
+  // their own timesheet changes shape on this column
+  revalidatePath("/dashboard/team");
+  revalidatePath("/dashboard/my-timesheet");
+  return { ok: true };
+}
+
 export async function adoptEmploymentType(
   staffProfileId: string,
   value: string

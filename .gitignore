@@ -28,6 +28,16 @@
 /data/books/*
 !/data/books/README.md
 
+# voice bake-off — the harness is committed, the evidence never is. Recordings
+# are real voices on real sites; the case files and the vocabulary carry client
+# names and street addresses (see bakeoff/README.md).
+/bakeoff/audio/*
+!/bakeoff/audio/README.md
+/bakeoff/cases/*
+!/bakeoff/cases/README.md
+/bakeoff/results/
+/bakeoff/vocab.json
+
 # misc
 .DS_Store
 *.pem

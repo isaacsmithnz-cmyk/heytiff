@@ -1,8 +1,7 @@
 import { authorised } from "@/lib/integrations/cron-auth";
-import { supabaseAdmin } from "@/lib/supabase-server";
-import { runSm8Sync } from "@/lib/integrations/sm8-sync";
+import { runSm8Sync, sweepableSm8Orgs } from "@/lib/integrations/sm8-sync";
 
-/* The hourly ServiceM8 mirror top-up — the BACKSTOP, not the primary path.
+/* The nightly ServiceM8 mirror top-up — the BACKSTOP, not the primary path.
 
    Freshness normally comes from the page-load kick: opening the Workboard or
    the ServiceM8 screen schedules a sync slice via after() when the mirrors
@@ -41,7 +40,12 @@ import { runSm8Sync } from "@/lib/integrations/sm8-sync";
 
 /** Workspaces per run. Each org's slice is bounded by the engine's page
     budget, so the cap is about staying inside one serverless window even if
-    every org has a loud hour. */
+    every org has a loud day.
+
+    THE CAP IS A ROTATION, NOT A CUT-OFF: sweepableSm8Orgs orders
+    least-recently-swept first, so the eleventh workspace is picked up on a
+    later night rather than never. That ordering is load-bearing now the run
+    is daily — see the note on that function. */
 const ORG_CAP = 10;
 
 export const maxDuration = 300;
@@ -53,16 +57,10 @@ export async function GET(request: Request) {
     return Response.json({ error: "Not authorised." }, { status: 401 });
   }
 
-  /* Connected orgs only — needs_reauth rows are skipped here because the
-     engine would refuse them anyway, and each refusal costs a lease dance. */
-  const { data } = await supabaseAdmin
-    .from("integration_connections")
-    .select("org_id")
-    .eq("provider", "servicem8")
-    .eq("status", "connected")
-    .limit(ORG_CAP);
-
-  const orgs = ((data ?? []) as { org_id: string }[]).map((r) => r.org_id);
+  /* Connected orgs only, longest-waiting first — needs_reauth rows are
+     skipped because the engine would refuse them anyway, and each refusal
+     costs a lease dance. */
+  const orgs = await sweepableSm8Orgs(ORG_CAP);
 
   let ran = 0;
   let busy = 0;

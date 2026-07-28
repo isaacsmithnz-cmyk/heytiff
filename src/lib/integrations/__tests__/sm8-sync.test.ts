@@ -11,6 +11,10 @@ const updates: { table: string; patch: Row }[] = [];
 let claimResult: Row[] = [{ calls_today: 0, calls_day: null }];
 let stateRows: Row[] = [];
 let runsRow: Row | null = null;
+/* for sweepableSm8Orgs: the connected workspaces, and what each one's last
+   finished run looks like */
+let connRows: Row[] = [];
+let runRows: Row[] = [];
 
 jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: {
@@ -37,9 +41,20 @@ jest.mock("@/lib/supabase-server", () => ({
       chain.select = () => {
         const sub: Record<string, unknown> = {};
         sub.eq = () => sub;
+        sub.in = () => sub;
+        sub.limit = () => sub;
         sub.maybeSingle = async () => ({ data: runsRow });
-        sub.then = (res: (v: { data: Row[] }) => unknown) =>
-          Promise.resolve({ data: table === "sm8_sync_state" ? stateRows : [] }).then(res);
+        sub.then = (res: (v: { data: Row[] }) => unknown) => {
+          const data =
+            table === "sm8_sync_state"
+              ? stateRows
+              : table === "integration_connections"
+                ? connRows
+                : table === "sm8_sync_runs"
+                  ? runRows
+                  : [];
+          return Promise.resolve({ data }).then(res);
+        };
         return sub;
       };
       chain.delete = () => {
@@ -74,7 +89,7 @@ jest.mock("../sm8-read", () => ({
   fetchSm8Page: (...a: unknown[]) => fetchSm8Page(...(a as [])),
 }));
 
-import { kickSm8SyncIfStale, runSm8Sync } from "../sm8-sync";
+import { kickSm8SyncIfStale, runSm8Sync, sweepableSm8Orgs } from "../sm8-sync";
 import { PAGE_BUDGET, SM8_OBJECTS } from "../sm8-sync-plan";
 
 const NOW = Date.parse("2026-07-28T01:00:00Z");
@@ -88,6 +103,8 @@ beforeEach(() => {
   claimResult = [{ calls_today: 0, calls_day: null }];
   stateRows = [];
   runsRow = null;
+  connRows = [];
+  runRows = [];
   afterFn.mockClear();
   sm8Access.mockReset().mockResolvedValue({ accessToken: "tok" });
   markSm8NeedsReauth.mockReset();
@@ -243,6 +260,70 @@ describe("failure kinds end exactly as much as they should", () => {
     expect(markSm8NeedsReauth).toHaveBeenCalledTimes(1);
     expect(out.note).toContain("reconnecting");
     expect(fetchSm8Page).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("sweepableSm8Orgs — the nightly cap must rotate, not cut off", () => {
+  it("puts the longest-waiting workspace first", async () => {
+    connRows = [{ org_id: "a" }, { org_id: "b" }, { org_id: "c" }];
+    runRows = [
+      { org_id: "a", last_finished_at: "2026-07-28T03:00:00.000Z" },
+      { org_id: "b", last_finished_at: "2026-07-26T03:00:00.000Z" },
+      { org_id: "c", last_finished_at: "2026-07-27T03:00:00.000Z" },
+    ];
+    expect(await sweepableSm8Orgs(10)).toEqual(["b", "c", "a"]);
+  });
+
+  it("a workspace that has NEVER synced goes first — it has waited longest", async () => {
+    // the exact org an unordered .limit() is most likely to strand: it has no
+    // sm8_sync_runs row at all, so selecting FROM that table would hide it
+    connRows = [{ org_id: "synced" }, { org_id: "never" }];
+    runRows = [{ org_id: "synced", last_finished_at: "2026-07-28T03:00:00.000Z" }];
+    expect(await sweepableSm8Orgs(10)).toEqual(["never", "synced"]);
+  });
+
+  it("treats a null last_finished_at as never swept", async () => {
+    connRows = [{ org_id: "a" }, { org_id: "b" }];
+    runRows = [
+      { org_id: "a", last_finished_at: "2026-07-28T03:00:00.000Z" },
+      { org_id: "b", last_finished_at: null }, // claimed a lease, never finished
+    ];
+    expect(await sweepableSm8Orgs(10)).toEqual(["b", "a"]);
+  });
+
+  it("the cap takes the neediest, and tomorrow's run reaches the rest", async () => {
+    connRows = ["a", "b", "c", "d"].map((org_id) => ({ org_id }));
+    runRows = [
+      { org_id: "a", last_finished_at: "2026-07-28T03:00:00.000Z" },
+      { org_id: "b", last_finished_at: "2026-07-25T03:00:00.000Z" },
+      { org_id: "c", last_finished_at: "2026-07-26T03:00:00.000Z" },
+      { org_id: "d", last_finished_at: "2026-07-27T03:00:00.000Z" },
+    ];
+    const tonight = await sweepableSm8Orgs(2);
+    expect(tonight).toEqual(["b", "c"]);
+
+    // once tonight's two have run, the other two are the longest-waiting
+    runRows = [
+      { org_id: "a", last_finished_at: "2026-07-28T03:00:00.000Z" },
+      { org_id: "b", last_finished_at: "2026-07-29T03:00:00.000Z" },
+      { org_id: "c", last_finished_at: "2026-07-29T03:00:00.000Z" },
+      { org_id: "d", last_finished_at: "2026-07-27T03:00:00.000Z" },
+    ];
+    expect(await sweepableSm8Orgs(2)).toEqual(["d", "a"]);
+  });
+
+  it("is deterministic when timestamps tie", async () => {
+    connRows = [{ org_id: "b" }, { org_id: "a" }];
+    runRows = [
+      { org_id: "a", last_finished_at: "2026-07-28T03:00:00.000Z" },
+      { org_id: "b", last_finished_at: "2026-07-28T03:00:00.000Z" },
+    ];
+    expect(await sweepableSm8Orgs(10)).toEqual(["a", "b"]);
+  });
+
+  it("no connected workspaces spends no second query", async () => {
+    connRows = [];
+    expect(await sweepableSm8Orgs(10)).toEqual([]);
   });
 });
 

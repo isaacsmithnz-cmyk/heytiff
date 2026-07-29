@@ -117,6 +117,13 @@ function renderCanvas(opts: {
 }
 
 const pt = (x: number, y: number) => ({ clientX: x, clientY: y, button: 0, pointerId: 1 });
+/* Click-to-place tools commit on pointer-UP, not down: a press that travels
+   pans the plan instead (canvas TAP_SLOP_PX), which is what lets you move the
+   drawing mid-placement. So a click in a test has to be the whole gesture. */
+const clickAt = (svg: Element, x: number, y: number) => {
+  fireEvent.pointerDown(svg, pt(x, y));
+  fireEvent.pointerUp(svg, pt(x, y));
+};
 
 /** first point of a polygon's points attribute */
 function firstPoint(el: Element): { x: number; y: number } {
@@ -144,7 +151,7 @@ describe("plenum placement (component tool)", () => {
     expect(svg.querySelector(".ds-plenum-face.ready")).not.toBeNull();
     expect(svg.querySelector(".ds-plenum-ghost")).not.toBeNull();
 
-    fireEvent.pointerDown(svg, pt(400, 320));
+    clickAt(svg, 400, 320);
     const pl = next!.objects.find((o) => o.type === "plenum")!;
     expect(pl.props).toMatchObject({
       stream: "supply",
@@ -168,7 +175,7 @@ describe("plenum placement (component tool)", () => {
       onMutate: (fn) => (next = fn(doc)),
     });
     fireEvent.pointerMove(svg, pt(400, 280)); // the −y face
-    fireEvent.pointerDown(svg, pt(400, 280));
+    clickAt(svg, 400, 280);
     const pl = next!.objects.find((o) => o.type === "plenum")!;
     expect(pl.props).toMatchObject({ stream: "supply", end: "supply" });
     // first placement decided: the unit flipped so −y IS the supply face
@@ -185,7 +192,7 @@ describe("plenum placement (component tool)", () => {
     });
     // determined: exactly ONE candidate (the opposite face)
     expect(svg.querySelectorAll(".ds-plenum-face")).toHaveLength(1);
-    fireEvent.pointerDown(svg, pt(400, 320)); // the supply face — occupied
+    clickAt(svg, 400, 320); // the supply face — occupied
     expect(onMutate).not.toHaveBeenCalled();
   });
 
@@ -198,7 +205,7 @@ describe("plenum placement (component tool)", () => {
       onMutate,
     });
     expect(svg.querySelectorAll(".ds-plenum-face")).toHaveLength(0);
-    fireEvent.pointerDown(svg, pt(439, 300));
+    clickAt(svg, 439, 300);
     expect(onMutate).not.toHaveBeenCalled();
   });
 });
@@ -388,7 +395,7 @@ describe("built-in return (pack flag)", () => {
       onMutate,
     });
     expect(svg.querySelectorAll(".ds-plenum-dropzone")).toHaveLength(0); // no zone
-    fireEvent.pointerDown(svg, pt(361, 300));
+    clickAt(svg, 361, 300);
     expect(onMutate).not.toHaveBeenCalled();
   });
 });
@@ -435,7 +442,7 @@ describe("factory spigots on the unit (pack opening)", () => {
       onMutate,
     });
     expect(svg.querySelectorAll(".ds-plenum-dropzone")).toHaveLength(0);
-    fireEvent.pointerDown(svg, pt(361, 300));
+    clickAt(svg, 361, 300);
     expect(onMutate).not.toHaveBeenCalled();
   });
 
@@ -450,7 +457,7 @@ describe("factory spigots on the unit (pack opening)", () => {
       onMutate,
     });
     expect(svg.querySelectorAll(".ds-plenum-dropzone").length).toBeGreaterThan(0);
-    fireEvent.pointerDown(svg, pt(400, 320));
+    clickAt(svg, 400, 320);
     expect(onMutate).toHaveBeenCalled();
   });
 
@@ -495,7 +502,7 @@ describe("AHU lifecycle carries plenums", () => {
       />
     );
     const svg = container.querySelector("svg")!;
-    fireEvent.pointerDown(svg, pt(400, 300)); // the unit body
+    clickAt(svg, 400, 300); // the unit body
     expect(next!.objects).toHaveLength(0);
   });
 });

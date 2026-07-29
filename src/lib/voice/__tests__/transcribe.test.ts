@@ -12,6 +12,7 @@ import {
   KEYTERM_LIMIT,
   prepareKeyterms,
   TRADE_KEYTERMS,
+  transcribeAudio,
 } from "../transcribe";
 
 describe("prepareKeyterms", () => {
@@ -68,5 +69,67 @@ describe("isTranscriptionConfigured", () => {
     expect(isTranscriptionConfigured()).toBe(false);
     process.env.ELEVENLABS_API_KEY = "k";
     expect(isTranscriptionConfigured()).toBe(true);
+  });
+});
+
+describe("an upstream refusal", () => {
+  /* The first live failure (2026-07-29) was undiagnosable: the adapter threw
+     the status away, so a rejected key looked exactly like a malformed
+     request. "Never forward a vendor's words" is a rule about the RESPONSE —
+     the log is ours, and the status IS the diagnosis. */
+  const realFetch = global.fetch;
+  let logged: string[];
+
+  beforeEach(() => {
+    logged = [];
+    jest.spyOn(console, "error").mockImplementation((m: unknown) => void logged.push(String(m)));
+    process.env.ELEVENLABS_API_KEY = "test-key";
+  });
+  afterEach(() => {
+    global.fetch = realFetch;
+    jest.restoreAllMocks();
+    delete process.env.ELEVENLABS_API_KEY;
+  });
+
+  /* A plain stub, not `new Response(...)` — this jsdom has no Response global,
+     and the adapter only ever reads these four things off a refusal. */
+  const respond = (status: number, body: string) => {
+    global.fetch = jest.fn(async () => ({
+      ok: false,
+      status,
+      statusText: status === 401 ? "Unauthorized" : "Error",
+      text: async () => body,
+    })) as unknown as typeof fetch;
+  };
+
+  it("records the status and the vendor's body in the SERVER log", async () => {
+    respond(401, '{"detail":"invalid_api_key"}');
+    await transcribeAudio(new Blob(["x"]), {});
+    expect(logged.join()).toContain("401");
+    expect(logged.join()).toContain("invalid_api_key");
+  });
+
+  it("but the caller's sentence stays ours — no status, no vendor text", async () => {
+    respond(403, '{"detail":"missing scope speech_to_text"}');
+    const res = await transcribeAudio(new Blob(["x"]), {});
+    expect(res.ok).toBe(false);
+    if (!res.ok) {
+      expect(res.error).toBe("That recording couldn't be transcribed. Try again, or type it.");
+      expect(res.error).not.toMatch(/403|scope|detail/i);
+    }
+  });
+
+  it("an unreadable body still logs the status rather than throwing", async () => {
+    global.fetch = jest.fn(async () => ({
+      ok: false,
+      status: 429,
+      statusText: "Too Many Requests",
+      text: async () => {
+        throw new Error("stream broken");
+      },
+    })) as unknown as typeof fetch;
+    const res = await transcribeAudio(new Blob(["x"]), {});
+    expect(res.ok).toBe(false);
+    expect(logged.join()).toContain("429");
   });
 });

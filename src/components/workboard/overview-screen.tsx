@@ -177,7 +177,12 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
                     <span className="wb-who">{f.message}</span>
                     <button
                       className="pbtn ghost"
-                      onClick={() => start(async () => void (await clearFlag(f.id), router.refresh()))}
+                      onClick={() =>
+                        start(async () => {
+                          await clearFlag(f.id);
+                          router.refresh();
+                        })
+                      }
                       disabled={busy}
                     >
                       Clear

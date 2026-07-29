@@ -6,14 +6,17 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { can } from "@/lib/permissions-server";
 import { staffIdFor } from "@/lib/workboard/projects-query";
 import {
+  clean,
+  isSeverity,
   readNote,
   type NoteProposal,
   type NoteStaff,
   type Severity,
-  SEVERITIES,
 } from "@/lib/workboard/note-brain";
 import { todayInZone } from "@/lib/workboard/dates";
 import { getSm8Timezone } from "@/lib/workboard/query";
+import { fullNameOf } from "@/lib/staff/name";
+import { NAME_COLUMNS } from "@/lib/dashboard/tasks-query";
 
 /* Smart Notes — capture, route, review, apply.
 
@@ -66,20 +69,26 @@ function refresh(target?: NoteTarget) {
   }
 }
 
-const trim = (v: unknown, max: number): string =>
-  typeof v === "string" ? v.trim().slice(0, max) : "";
+/* The shaper's own trimmer — same rule on the browser's payload as on the
+   model's, which is the point of importing it rather than restating it. */
+const trim = clean;
 
 /** The people a note may assign work to — first names are how it will say
-    them, so the full name is what the matcher needs. */
+    them, so the full name is what the matcher needs.
+
+    Resolved through `fullNameOf`, not by reading `full_name` directly:
+    first/last are the source of truth and `full_name` is a DERIVED column, so
+    a row whose derived copy is blank or stale would otherwise be dropped here
+    and that person could never be given work by voice. */
 async function assignableStaff(orgId: string): Promise<NoteStaff[]> {
   const { data } = await supabaseAdmin
     .from("staff_profiles")
-    .select("id, full_name")
+    .select(NAME_COLUMNS)
     .eq("org_id", orgId)
     .limit(200);
-  return ((data ?? []) as { id: string; full_name: string | null }[])
-    .filter((s) => (s.full_name ?? "").trim())
-    .map((s) => ({ id: s.id, fullName: (s.full_name ?? "").trim() }));
+  return ((data ?? []) as Record<string, unknown>[])
+    .map((s) => ({ id: String(s.id), fullName: fullNameOf(s) }))
+    .filter((s) => s.fullName);
 }
 
 /** Resolve a note's target inside the caller's org. An id from a browser
@@ -136,12 +145,17 @@ export async function routeNote(input: {
   if (error || !data) return { ok: false, error: "Couldn't save that note." };
   const noteId = (data as { id: string }).id;
 
-  const staff = await assignableStaff(ctx.orgId);
-  const label = await targetLabel(ctx.orgId, target);
+  /* Three independent reads against a remote database, so they go together
+     rather than one after another — the person is watching a spinner. */
+  const [staff, label, tz] = await Promise.all([
+    assignableStaff(ctx.orgId),
+    targetLabel(ctx.orgId, target),
+    getSm8Timezone(ctx.orgId),
+  ]);
   const read = await readNote(transcript, {
     staff,
     targetLabel: label ?? undefined,
-    todayISO: todayInZone(await getSm8Timezone(ctx.orgId)),
+    todayISO: todayInZone(tz),
   });
 
   if (!read.ok) {
@@ -204,14 +218,14 @@ export async function answerClarify(noteId: string, answer: string): Promise<Rou
   const question = proposal?.clarify?.question;
   if (!question) return { ok: false, error: "There's no question waiting on that note." };
 
-  const staff = await assignableStaff(ctx.orgId);
+  const [staff, label, tz] = await Promise.all([
+    assignableStaff(ctx.orgId),
+    targetLabel(ctx.orgId, { kind: note.target_kind, id: note.target_id }),
+    getSm8Timezone(ctx.orgId),
+  ]);
   const read = await readNote(
     note.transcript,
-    {
-      staff,
-      targetLabel: (await targetLabel(ctx.orgId, { kind: note.target_kind, id: note.target_id })) ?? undefined,
-      todayISO: todayInZone(await getSm8Timezone(ctx.orgId)),
-    },
+    { staff, targetLabel: label ?? undefined, todayISO: todayInZone(tz) },
     { question, answer: reply }
   );
   if (!read.ok) return { ok: false, error: read.error };
@@ -277,69 +291,65 @@ export async function applyNote(noteId: string, confirmed: ConfirmedNote): Promi
   const applied: Record<string, unknown> = {};
   const counts: string[] = [];
 
+  /** Record one group's ids and its line of the "Saved — …" summary. Six
+      groups wrote these same three lines by hand; the plural is the only part
+      that ever differs. */
+  const record = (key: string, ids: string[], one: string, many = `${one}s`) => {
+    if (!ids.length) return;
+    applied[key] = ids;
+    counts.push(`${ids.length} ${ids.length === 1 ? one : many}`);
+  };
+
   /* tasks — through the EXISTING tasks table, so assignment and the
      dashboard's own notifications come free. An assignee must be a real
      member of this org; anything else is refused rather than silently
-     dropped, because an unassigned task is a task nobody does. */
-  const taskIds: string[] = [];
-  for (const t of confirmed.tasks ?? []) {
-    const title = trim(t.title, 200);
-    if (!title || !t.assigneeId) continue;
+     dropped, because an unassigned task is a task nobody does.
 
-    const { data: person } = await supabaseAdmin
+     The org check is ONE query for all assignees rather than one each: this
+     runs at the end of a flow the person is waiting on, and a four-task note
+     was eight sequential round trips to a remote database. */
+  const wanted = (confirmed.tasks ?? []).filter((t) => trim(t.title, 200) && t.assigneeId);
+  if (wanted.length) {
+    const { data: people } = await supabaseAdmin
       .from("staff_profiles")
       .select("id")
       .eq("org_id", ctx.orgId)
-      .eq("id", t.assigneeId)
-      .maybeSingle();
-    if (!person) continue;
+      .in("id", [...new Set(wanted.map((t) => t.assigneeId as string))]);
+    const real = new Set(((people ?? []) as { id: string }[]).map((p) => p.id));
 
-    const due = typeof t.dueDate === "string" && ISO_DATE.test(t.dueDate) ? t.dueDate : null;
-    const { data, error } = await supabaseAdmin
-      .from("tasks")
-      .insert({
+    const rows = wanted
+      .filter((t) => real.has(t.assigneeId as string))
+      .map((t) => ({
         org_id: ctx.orgId,
-        title,
+        title: trim(t.title, 200),
         detail: trim(t.detail, 1000) || null,
         assigned_to: t.assigneeId,
         created_by: ctx.staffId,
-        due_date: due,
+        due_date: typeof t.dueDate === "string" && ISO_DATE.test(t.dueDate) ? t.dueDate : null,
         status: "open",
-      })
-      .select("id")
-      .single();
-    if (!error && data) taskIds.push((data as { id: string }).id);
-  }
-  if (taskIds.length) {
-    applied.taskIds = taskIds;
-    counts.push(`${taskIds.length} task${taskIds.length === 1 ? "" : "s"}`);
+      }));
+
+    if (rows.length) {
+      const { data } = await supabaseAdmin.from("tasks").insert(rows).select("id");
+      record("taskIds", ((data ?? []) as { id: string }[]).map((r) => r.id), "task");
+    }
   }
 
   /* flags — what pulses on the board until someone deals with it */
-  const flagIds: string[] = [];
-  for (const f of confirmed.flags ?? []) {
-    const message = trim(f.message, 200);
-    if (!message) continue;
-    const severity: Severity = (SEVERITIES as readonly string[]).includes(f.severity)
-      ? (f.severity as Severity)
-      : "warn";
-    const { data, error } = await supabaseAdmin
-      .from("workboard_flags")
-      .insert({
-        org_id: ctx.orgId,
-        target_kind: target.kind,
-        target_id: target.id ?? null,
-        message,
-        severity,
-        note_id: noteId,
-      })
-      .select("id")
-      .single();
-    if (!error && data) flagIds.push((data as { id: string }).id);
-  }
-  if (flagIds.length) {
-    applied.flagIds = flagIds;
-    counts.push(`${flagIds.length} flag${flagIds.length === 1 ? "" : "s"}`);
+  const flagRows = (confirmed.flags ?? [])
+    .map((f) => ({ message: trim(f.message, 200), severity: f.severity }))
+    .filter((f) => f.message)
+    .map((f) => ({
+      org_id: ctx.orgId,
+      target_kind: target.kind,
+      target_id: target.id ?? null,
+      message: f.message,
+      severity: isSeverity(f.severity) ? f.severity : ("warn" satisfies Severity),
+      note_id: noteId,
+    }));
+  if (flagRows.length) {
+    const { data } = await supabaseAdmin.from("workboard_flags").insert(flagRows).select("id");
+    record("flagIds", ((data ?? []) as { id: string }[]).map((r) => r.id), "flag");
   }
 
   /* progress + commissioning — dated lines on a project */
@@ -363,107 +373,124 @@ export async function applyNote(noteId: string, confirmed: ConfirmedNote): Promi
           }))
         )
         .select("id");
-      const ids = ((data ?? []) as { id: string }[]).map((r) => r.id);
-      if (ids.length) {
-        applied.entryIds = ids;
-        counts.push(`${ids.length} entr${ids.length === 1 ? "y" : "ies"}`);
-      }
+      record("entryIds", ((data ?? []) as { id: string }[]).map((r) => r.id), "entry", "entries");
     }
   }
 
   /* issues — the "this keeps happening" memory. A repeat of something
      already logged bumps the existing row rather than making a second one,
-     because two rows is exactly how a pattern stops being visible. */
-  const issueIds: string[] = [];
-  const today = todayInZone(await getSm8Timezone(ctx.orgId));
-  for (const i of confirmed.issueEntries ?? []) {
-    const summary = trim(i.summary, 1000);
-    if (!summary) continue;
-    const equipmentRef = trim(i.equipmentRef, 200) || null;
+     because two rows is exactly how a pattern stops being visible.
 
-    const { data: existing } = await supabaseAdmin
+     One lookup covers every summary at once, and the timezone read only
+     happens when there is actually an issue to date — it was being paid on
+     every apply for the common case of none. */
+  const issues = (confirmed.issueEntries ?? [])
+    .map((i) => ({ summary: trim(i.summary, 1000), equipmentRef: trim(i.equipmentRef, 200) || null }))
+    .filter((i) => i.summary);
+
+  if (issues.length) {
+    const today = todayInZone(await getSm8Timezone(ctx.orgId));
+    const { data: priors } = await supabaseAdmin
       .from("workboard_issues")
-      .select("id, occurrences")
+      .select("id, summary, occurrences")
       .eq("org_id", ctx.orgId)
       .eq("target_kind", target.kind)
-      .eq("summary", summary)
       .eq("resolved", false)
-      .maybeSingle();
+      .in("summary", issues.map((i) => i.summary));
 
-    const prior = existing as { id: string; occurrences: number } | null;
-    if (prior) {
-      await supabaseAdmin
+    const seen = new Map(
+      ((priors ?? []) as { id: string; summary: string; occurrences: number }[]).map((p) => [
+        p.summary,
+        p,
+      ])
+    );
+
+    const fresh = issues.filter((i) => !seen.has(i.summary));
+    const bumps = issues.filter((i) => seen.has(i.summary));
+    const issueIds = bumps.map((i) => seen.get(i.summary)!.id);
+
+    await Promise.all(
+      bumps.map((i) => {
+        const prior = seen.get(i.summary)!;
+        return supabaseAdmin
+          .from("workboard_issues")
+          .update({ occurrences: prior.occurrences + 1, last_seen: today })
+          .eq("org_id", ctx.orgId)
+          .eq("id", prior.id);
+      })
+    );
+
+    if (fresh.length) {
+      const { data } = await supabaseAdmin
         .from("workboard_issues")
-        .update({ occurrences: prior.occurrences + 1, last_seen: today })
-        .eq("org_id", ctx.orgId)
-        .eq("id", prior.id);
-      issueIds.push(prior.id);
-    } else {
-      const { data, error } = await supabaseAdmin
-        .from("workboard_issues")
-        .insert({
-          org_id: ctx.orgId,
-          target_kind: target.kind,
-          target_id: target.id ?? null,
-          equipment_ref: equipmentRef,
-          summary,
-          first_seen: today,
-          last_seen: today,
-        })
-        .select("id")
-        .single();
-      if (!error && data) issueIds.push((data as { id: string }).id);
+        .insert(
+          fresh.map((i) => ({
+            org_id: ctx.orgId,
+            target_kind: target.kind,
+            target_id: target.id ?? null,
+            equipment_ref: i.equipmentRef,
+            summary: i.summary,
+            first_seen: today,
+            last_seen: today,
+          }))
+        )
+        .select("id");
+      issueIds.push(...((data ?? []) as { id: string }[]).map((r) => r.id));
     }
-  }
-  if (issueIds.length) {
-    applied.issueIds = issueIds;
-    counts.push(`${issueIds.length} issue${issueIds.length === 1 ? "" : "s"}`);
+    record("issueIds", issueIds, "issue");
   }
 
   /* bring-items — onto the agreement's bring list where there is one, so the
      next visit's prep sheet already has them */
   const bring = (confirmed.bringItems ?? []).map((b) => trim(b, 200)).filter(Boolean);
-  if (bring.length && (target.kind === "agreement" || target.kind === "visit") && target.id) {
-    const agreementId =
-      target.kind === "agreement" ? target.id : await agreementOfVisit(ctx.orgId, target.id);
-    if (agreementId) {
+  if (bring.length && target.id) {
+    let saved = false;
+
+    if (target.kind === "agreement" || target.kind === "visit") {
+      const agreementId =
+        target.kind === "agreement" ? target.id : await agreementOfVisit(ctx.orgId, target.id);
+      if (agreementId) {
+        const { data } = await supabaseAdmin
+          .from("maintenance_agreements")
+          .select("bring_list")
+          .eq("org_id", ctx.orgId)
+          .eq("id", agreementId)
+          .maybeSingle();
+        const current = (data as { bring_list: string | null } | null)?.bring_list ?? "";
+        const merged = [current.trim(), ...bring].filter(Boolean).join(" · ").slice(0, 2000);
+        await supabaseAdmin
+          .from("maintenance_agreements")
+          .update({ bring_list: merged, updated_at: new Date().toISOString() })
+          .eq("org_id", ctx.orgId)
+          .eq("id", agreementId);
+        saved = true;
+      }
+    } else if (target.kind === "project") {
       const { data } = await supabaseAdmin
-        .from("maintenance_agreements")
-        .select("bring_list")
+        .from("project_checklist_items")
+        .select("sort")
         .eq("org_id", ctx.orgId)
-        .eq("id", agreementId)
+        .eq("project_id", target.id)
+        .order("sort", { ascending: false })
+        .limit(1)
         .maybeSingle();
-      const current = (data as { bring_list: string | null } | null)?.bring_list ?? "";
-      const merged = [current.trim(), ...bring].filter(Boolean).join(" · ").slice(0, 2000);
-      await supabaseAdmin
-        .from("maintenance_agreements")
-        .update({ bring_list: merged, updated_at: new Date().toISOString() })
-        .eq("org_id", ctx.orgId)
-        .eq("id", agreementId);
-      applied.bringItems = bring;
-      counts.push(`${bring.length} bring-item${bring.length === 1 ? "" : "s"}`);
+      const base = ((data as { sort: number } | null)?.sort ?? -1) + 1;
+      await supabaseAdmin.from("project_checklist_items").insert(
+        bring.map((label, i) => ({
+          org_id: ctx.orgId,
+          project_id: target.id,
+          section: "Bring next visit",
+          label,
+          sort: base + i,
+        }))
+      );
+      saved = true;
     }
-  } else if (bring.length && target.kind === "project" && target.id) {
-    const { data } = await supabaseAdmin
-      .from("project_checklist_items")
-      .select("sort")
-      .eq("org_id", ctx.orgId)
-      .eq("project_id", target.id)
-      .order("sort", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    const base = ((data as { sort: number } | null)?.sort ?? -1) + 1;
-    await supabaseAdmin.from("project_checklist_items").insert(
-      bring.map((label, i) => ({
-        org_id: ctx.orgId,
-        project_id: target.id,
-        section: "Bring next visit",
-        label,
-        sort: base + i,
-      }))
-    );
-    applied.bringItems = bring;
-    counts.push(`${bring.length} bring-item${bring.length === 1 ? "" : "s"}`);
+
+    // `applied` records ids everywhere else; bring-items have none of their
+    // own — they become text on somebody else's row — so the words are what
+    // gets recorded.
+    if (saved) record("bringItems", bring, "bring-item");
   }
 
   await supabaseAdmin

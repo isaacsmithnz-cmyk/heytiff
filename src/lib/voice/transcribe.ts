@@ -106,6 +106,26 @@ export function prepareKeyterms(raw: readonly string[]): string[] {
   return out;
 }
 
+/* WHY THIS EXISTS: the sentence the person reads must never carry a vendor's
+   words, but that is a rule about the RESPONSE, not about our own logs. The
+   first build of this file conflated the two and discarded the status code
+   entirely, so the first live failure — a rejected key on 2026-07-29 — could
+   not be told apart from a malformed request without a redeploy. The status is
+   the whole diagnosis: 401 bad key, 403 the key is scoped too tightly, 422 our
+   request shape, 429 out of credit.
+
+   The body is read defensively and truncated: it is a vendor's error text, so
+   it goes to the server log and nowhere near a page. */
+async function logUpstreamFailure(res: Response): Promise<void> {
+  let detail = "";
+  try {
+    detail = (await res.text()).slice(0, 500);
+  } catch {
+    detail = "<unreadable body>";
+  }
+  console.error(`[transcribe] ElevenLabs ${res.status} ${res.statusText}: ${detail}`);
+}
+
 export type TranscriptionResult =
   | { ok: true; text: string; languageCode: string | null }
   | { ok: false; error: string };
@@ -143,7 +163,10 @@ export async function transcribeAudio(
       body: form,
       signal: AbortSignal.timeout(HTTP_TIMEOUT_MS),
     });
-    if (!res.ok) return { ok: false, error: FAILED };
+    if (!res.ok) {
+      await logUpstreamFailure(res);
+      return { ok: false, error: FAILED };
+    }
 
     const body: unknown = await res.json();
     if (!body || typeof body !== "object") return { ok: false, error: FAILED };
@@ -157,7 +180,11 @@ export async function transcribeAudio(
       text,
       languageCode: typeof r.language_code === "string" ? r.language_code : null,
     };
-  } catch {
+  } catch (err) {
+    // The same blindness as a discarded status, one level out: a timeout, a
+    // DNS failure and a TypeError all reach the person as one sentence, and
+    // without this line they reach us as one too.
+    console.error(`[transcribe] request failed: ${err instanceof Error ? err.message : String(err)}`);
     return { ok: false, error: FAILED };
   }
 }

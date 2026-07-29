@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { SEVERITIES, type NoteProposal, type NoteStaff } from "@/lib/workboard/note-brain";
@@ -98,6 +98,7 @@ export function NoteCapture({
 
   const [recording, setRecording] = useState(false);
   const [listening, setListening] = useState(false);
+  const [level, setLevel] = useState(0);
   const recorder = useRef<MediaRecorder | null>(null);
 
   const reset = () => {
@@ -124,17 +125,70 @@ export function NoteCapture({
 
   /* ── voice ── */
 
+  /* A pulsing button proves the app THINKS it is recording. It does not prove
+     the microphone can hear you — a muted input, the wrong device or a denied
+     OS permission all look identical to it, and you only find out after the
+     note is gone. So the meter is driven by the actual samples: if the bars
+     don't move when you talk, nothing is being captured, and that is worth
+     knowing at second one rather than at the end. */
+  const meter = useRef<{ ctx: AudioContext; raf: number } | null>(null);
+
+  const stopMeter = () => {
+    if (!meter.current) return;
+    cancelAnimationFrame(meter.current.raf);
+    void meter.current.ctx.close().catch(() => {});
+    meter.current = null;
+    setLevel(0);
+  };
+
+  const startMeter = (stream: MediaStream) => {
+    // Older Safari only exposes the prefixed constructor; no meter is a fine
+    // outcome, a broken recorder is not — so this never throws upward.
+    const Ctor =
+      window.AudioContext ??
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctor) return;
+    try {
+      const ctx = new Ctor();
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+      ctx.createMediaStreamSource(stream).connect(analyser);
+      const samples = new Uint8Array(analyser.frequencyBinCount);
+
+      const tick = () => {
+        analyser.getByteTimeDomainData(samples);
+        let sum = 0;
+        for (const s of samples) {
+          const centred = (s - 128) / 128;
+          sum += centred * centred;
+        }
+        // RMS is small for speech; the gain lifts a normal voice to most of
+        // the bar without letting a loud site peg it permanently.
+        setLevel(Math.min(1, Math.sqrt(sum / samples.length) * 4));
+        if (meter.current) meter.current.raf = requestAnimationFrame(tick);
+      };
+
+      meter.current = { ctx, raf: requestAnimationFrame(tick) };
+    } catch {
+      /* no meter; recording continues */
+    }
+  };
+
+  useEffect(() => stopMeter, []);
+
   const startRecording = async () => {
     setError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const rec = new MediaRecorder(stream);
+      startMeter(stream);
       const chunks: BlobPart[] = [];
       rec.ondataavailable = (e) => {
         if (e.data.size > 0) chunks.push(e.data);
       };
       rec.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
+        stopMeter();
         setRecording(false);
         const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
         if (blob.size === 0) return;
@@ -243,10 +297,22 @@ export function NoteCapture({
           <div className="int-act">
             {voiceEnabled &&
               (recording ? (
-                <button className="pbtn danger wb-pulse" onClick={stopRecording}>
-                  <Icon name="square" size={15} />
-                  Stop &amp; read
-                </button>
+                <>
+                  <button className="pbtn danger" onClick={stopRecording}>
+                    <Icon name="square" size={15} />
+                    Stop &amp; read
+                  </button>
+                  <span className="wb-lvl" role="status" aria-label="Listening">
+                    {[0, 1, 2, 3, 4].map((i) => (
+                      <i
+                        key={i}
+                        /* the centre bars lead, so a normal voice reads as a
+                           shape rather than five identical blocks */
+                        style={{ transform: `scaleY(${0.18 + level * (i === 2 ? 1 : i % 2 ? 0.8 : 0.5)})` }}
+                      />
+                    ))}
+                  </span>
+                </>
               ) : (
                 <button className="pbtn ghost" onClick={startRecording} disabled={busy || listening}>
                   <Icon name="volume" size={15} />

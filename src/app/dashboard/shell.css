@@ -2978,6 +2978,15 @@ select.fl-i { cursor:pointer; }
 .wb-strip { display:flex; flex-direction:column; gap:2px; }
 .wb-strip .wb-bar { width:120px; flex:none; }
 
+/* smart notes — the live input meter. Driven by real samples, so bars that
+   don't move mean nothing is being captured. No transition on the bars: this
+   has to read as instant response to a voice, and easing would smooth exactly
+   the signal it exists to show. Reduced motion keeps it — it is feedback about
+   hardware, not decoration — but rests it at a visible height. */
+.wb-lvl { display:inline-flex; align-items:center; gap:3px; height:22px; padding-left:4px; }
+.wb-lvl i { display:block; width:3px; height:22px; border-radius:2px; background:#e0264f; transform-origin:center; transform:scaleY(.18); }
+@media (prefers-reduced-motion:reduce) { .wb-lvl i { transform:scaleY(.5) !important; } }
+
 /* smart notes — the review card */
 .wb-review { border-top:1px solid rgba(5,5,5,.07); margin-top:12px; padding-top:12px; }
 .wb-review .wb-notetext { background:rgba(5,5,5,.03); border-radius:12px; padding:12px 14px; margin:0 0 10px; }

@@ -330,7 +330,10 @@ describe("deleting a unit leaves an honest open end", () => {
     const doc = mkDoc([unit("idu", { x: 0, y: 0 }, "idu"), unit("odu", { x: 200, y: 100 }, "odu"), lRun()]);
     let next: DesignDocument | undefined;
     const { svg } = renderCanvas({ doc, tool: "erase", onMutate: (fn) => (next = fn(doc)) });
+    /* the eraser fires on pointer-UP now: a press that travels pans the plan
+       instead, so the whole gesture has to be sent */
     fireEvent.pointerDown(svg, pt(sx(200), sy(100)));
+    fireEvent.pointerUp(svg, pt(sx(200), sy(100)));
 
     const r = next!.objects.find((o) => o.id === "r1")!;
     expect(r.props.endAttach).toBeUndefined();

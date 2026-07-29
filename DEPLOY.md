@@ -51,6 +51,8 @@ your local `.env.local`), scope = **Production** (and Preview if you want previe
 | `XERO_CLIENT_SECRET` | Same. Server-side only, never `NEXT_PUBLIC_`. |
 | `SM8_CLIENT_ID` | See **ServiceM8** below. ServiceM8 calls it the **App ID**. Optional — unset, the ServiceM8 screen renders but says connecting isn't available. |
 | `SM8_CLIENT_SECRET` | Same — ServiceM8's **App Secret**. Server-side only, never `NEXT_PUBLIC_`. |
+| `ANTHROPIC_API_KEY` | Claude, server-side: fleet valuations, receipt reading, and the Smart Notes brain. Optional — unset, those features say so instead of failing. Never `NEXT_PUBLIC_`. |
+| `ELEVENLABS_API_KEY` | See **Smart Notes** below. Optional — unset, **notes still work**: the mic simply isn't offered and the paste box does everything. Never `NEXT_PUBLIC_`. |
 | `INTEGRATIONS_TOKEN_KEY` | 32-byte key that seals OAuth tokens before they reach the database. Required to connect anything — without it the Connect button is switched off rather than storing tokens in plaintext. |
 | `CRON_SECRET` | Guards the scheduled routes (`/api/cron/*`). **Vercel sets and sends this itself** once a `crons` entry exists in `vercel.json` — you only need to add it manually if you want to trigger a sweep by hand. **Unset ⇒ every cron request is refused** (fail-closed): the routes run with no session and service-role access, so the secret is the only gate. |
 
@@ -124,13 +126,27 @@ Until this section is done, the ServiceM8 screen says the feature isn't switched
 on yet, and the **Workboard still works** — projects and maintenance are typed in
 by hand and a connection only enriches them.
 
-1. **Sign up as a developer.** In ServiceM8, open the main menu → the account
-   section → **Developer**. (This is a one-off registration on the HeyTiff-owned
-   ServiceM8 account — not on a customer's.)
-2. **Developer → Add Item** to create the add-on. Type: a **Public Integration**
-   — the OAuth 2.0 kind that reaches the REST API. Not a Private Integration
-   (that's an API key for a single company) and not an Add-on SDK item (those
-   put buttons inside ServiceM8's own UI).
+1. **Register a Developer account first — this is a separate form on
+   servicem8.com, NOT a section inside the app**:
+   <https://www.servicem8.com/developer-registration>. You accept their
+   Developer Agreement here. **Until this is done there is no Developer menu to
+   find**, which is exactly how this step gets missed — the menu appears only
+   once ServiceM8 has created the developer account. Their add-on-types doc is
+   the authority: sign up for a Developer account, *then* create a Store Item
+   in the Developer menu. Whether it is instant or reviewed is undocumented, so
+   watch for their email before assuming something is broken.
+
+   **Observed 2026-07-29: it is NOT self-serve.** You submit the form and
+   ServiceM8 emails you back — so budget for a wait rather than expecting the
+   Developer menu to appear on a refresh.
+
+   Do this on the **HeyTiff-owned ServiceM8 account** — not a customer's. That
+   account owns the add-on permanently, and every customer connects *to it*.
+2. **Developer menu → Add Item** to create the add-on (ServiceM8's docs call it
+   a "Store Item"). Type: a **Public Integration** — the OAuth 2.0 kind that
+   reaches the REST API. Not a Private Integration (that's an API key for a
+   single company) and not an Add-on SDK item (those put buttons inside
+   ServiceM8's own UI).
 3. **Return URL** — set it in the add-on's **Store Connect** settings. ServiceM8
    requires the redirect it is handed at consent time to be **the same host** as
    this value, and the code builds that redirect from `APP_BASE_URL`:
@@ -177,6 +193,42 @@ fails the deployment outright for any cron that would run more than once a day
 freshness is the page-load kick — opening the Workboard tops the mirrors up behind
 the response — and this run only covers the hours nobody is looking. On Pro, one
 line in `vercel.json` and one in the route header make it hourly.
+
+---
+
+## 3d. Smart Notes voice (optional — the mic on the Workboard)
+
+**Unset, nothing breaks.** The mic button isn't rendered, the paste box is still
+there, and a typed note goes through the identical brain → review card → apply
+path. This key buys dictation, not the feature.
+
+1. Create an ElevenLabs account, then an API key at
+   <https://elevenlabs.io/app/settings/api-keys>.
+2. **Restrict the key** — their keys support scope restriction, a credit quota
+   and IP allowlisting. Limit it to **speech-to-text** and set a **credit
+   quota**. A transcription key that can also synthesise voices is a bigger
+   blast radius than this feature needs, and the quota is what turns a runaway
+   loop into a failed request instead of a bill.
+3. `ELEVENLABS_API_KEY` in Vercel (and `.env.local`). Server-side only — a
+   `NEXT_PUBLIC_` prefix would hand the key to every browser. **Redeploy**: env
+   vars only reach a running deployment through a new build.
+4. `ANTHROPIC_API_KEY` must also be set, or the mic records and transcribes and
+   then has nothing to route with.
+
+The adapter is `src/lib/voice/transcribe.ts`: `POST /v1/speech-to-text`,
+`xi-api-key` header, `model_id=scribe_v2`. Keyterms are built per request from
+the roster and client book — "tell Luke" only becomes a task for Luke if the
+transcriber heard Luke. ElevenLabs allows **1000 keyterms of 50 chars** in batch
+mode; **we cap at 60 deliberately**, because past 100 they bill a 20-second
+minimum per request and site notes are often shorter than that.
+
+Audio is transcribed and **dropped** — only the transcript is stored. It is the
+evidence for what was applied; the recording is a voice in someone's house.
+
+**One vendor, no runtime failover.** The adapter exists so the vendor can be
+swapped, not so a second one can be kept warm. When transcription fails the UI
+keeps the recording client-side, offers a retry, and falls through to the paste
+box.
 
 ---
 

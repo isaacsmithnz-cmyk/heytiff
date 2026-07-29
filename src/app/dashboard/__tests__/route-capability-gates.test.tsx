@@ -64,6 +64,12 @@ jest.mock("@/lib/workboard/visit-ensure", () => ({
 jest.mock("@/lib/workboard/query", () => ({
   getSm8Timezone: jest.fn(async () => null),
 }));
+jest.mock("@/lib/workboard/notes-query", () => ({
+  listProjectEntries: jest.fn(async () => []),
+  listIssues: jest.fn(async () => []),
+  listFlags: jest.fn(async () => []),
+}));
+jest.mock("@/lib/voice/transcribe", () => ({ isTranscriptionConfigured: () => false }));
 jest.mock("@/lib/integrations/store", () => ({
   getConnectionView: jest.fn(async () => null),
 }));

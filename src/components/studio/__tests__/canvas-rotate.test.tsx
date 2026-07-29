@@ -110,6 +110,24 @@ describe("rotating a simple unit", () => {
     expect(on.svg.querySelector(".ds-rot-knob")).not.toBeNull();
   });
 
+  /* the commit used to REBUILD the geometry object ({kind, at}), which
+     silently dropped `rotation` — so every drag un-turned the unit you had
+     just turned. Moving must carry the rotation across. */
+  it("keeps the rotation when the unit is dragged somewhere else", () => {
+    let doc = mkDoc([unit("idu", "idu", 90)]);
+    const { svg } = renderCanvas(doc, "idu", (fn) => (doc = fn(doc)));
+
+    // grab the unit at world origin (screen centre) and drop it to the right,
+    // clear of the rotate knob that sits above the footprint
+    fireEvent.pointerDown(svg, { button: 0, clientX: 400, clientY: 300 });
+    fireEvent.pointerMove(svg, { clientX: 520, clientY: 300 });
+    fireEvent.pointerUp(svg, { clientX: 520, clientY: 300 });
+
+    const moved = doc.objects.find((o) => o.id === "idu")!;
+    expect((moved.geometry as { at: { x: number } }).at.x).not.toBe(0);
+    expect(rotationOf(doc, "idu")).toBe(90);
+  });
+
   it("renders the glyph turned when the unit carries a rotation", () => {
     const turned = (svg: Element) =>
       [...svg.querySelectorAll("g.ds-unit g[transform]")].some((g) =>

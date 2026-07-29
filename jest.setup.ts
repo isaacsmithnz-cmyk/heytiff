@@ -22,6 +22,17 @@ if (typeof window !== 'undefined' && !window.URL.createObjectURL) {
   window.URL.revokeObjectURL = () => {}
 }
 
+// jsdom lacks TextEncoder/TextDecoder, which Node has had globally for years.
+// The Anthropic SDK reaches for one at IMPORT time, so any suite that touches
+// a module importing it dies on `TextEncoder is not defined` before a single
+// test runs — even when the test never calls the API. Borrow Node's.
+if (typeof globalThis.TextEncoder === 'undefined') {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { TextEncoder, TextDecoder } = require('node:util')
+  globalThis.TextEncoder = TextEncoder
+  globalThis.TextDecoder = TextDecoder
+}
+
 // jsdom lacks ResizeObserver; the cockpit's sliding seg-window observes its
 // active pane to keep the animated height in sync with content.
 if (typeof window !== 'undefined' && !('ResizeObserver' in window)) {

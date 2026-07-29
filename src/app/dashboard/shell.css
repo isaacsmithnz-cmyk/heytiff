@@ -2980,6 +2980,24 @@ select.fl-i { cursor:pointer; }
 .wb-strip { display:flex; flex-direction:column; gap:2px; }
 .wb-strip .wb-bar { width:120px; flex:none; }
 
+/* smart notes — the live input meter. Driven by real samples, so bars that
+   don't move mean nothing is being captured. No transition on the bars: this
+   has to read as instant response to a voice, and easing would smooth exactly
+   the signal it exists to show. Reduced motion keeps it — it is feedback about
+   hardware, not decoration — but rests it at a visible height. */
+.wb-lvl { --lvl:0; display:inline-flex; align-items:center; gap:3px; height:22px; padding-left:4px; }
+.wb-lvl i { display:block; width:3px; height:22px; border-radius:2px; background:#e0264f; transform-origin:center; transform:scaleY(calc(.18 + var(--lvl) * var(--g, 1))); }
+@media (prefers-reduced-motion:reduce) { .wb-lvl i { transform:scaleY(.5); } }
+
+/* smart notes — the review card */
+.wb-review { border-top:1px solid rgba(5,5,5,.07); margin-top:12px; padding-top:12px; }
+.wb-review .wb-notetext { background:rgba(5,5,5,.03); border-radius:12px; padding:12px 14px; margin:0 0 10px; }
+.wb-ask { background:rgba(0,168,224,.07); border:1px solid rgba(0,168,224,.25); border-radius:12px; padding:12px 14px; margin-bottom:12px; }
+.wb-ask > b { display:block; font-size:13.5px; margin-bottom:8px; }
+.wb-chip.warn { background:rgba(255,138,0,.14); color:#B26A00; }
+.wb-review .wb-row { gap:8px; }
+.wb-review .wb-select { max-width:170px; }
+
 /* visits */
 .wb-visit { border:1px solid rgba(5,5,5,.07); border-radius:14px; padding:6px 8px; margin-bottom:10px; }
 .wb-visit.wb-pulse { border-color:rgba(224,38,79,.5); }

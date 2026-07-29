@@ -2,6 +2,8 @@ import { notFound, redirect } from "next/navigation";
 import { can } from "@/lib/permissions-server";
 import { auth0 } from "@/lib/auth0";
 import { getProjectDetail } from "@/lib/workboard/projects-query";
+import { listIssues, listProjectEntries } from "@/lib/workboard/notes-query";
+import { isTranscriptionConfigured } from "@/lib/voice/transcribe";
 import { getConnectionView } from "@/lib/integrations/store";
 import { ProjectDetailScreen } from "@/components/workboard/project-detail-screen";
 
@@ -22,10 +24,12 @@ export default async function WorkboardProjectPage({
   if (!orgId) redirect("/dashboard");
 
   const { id } = await params;
-  const [project, manage, connection] = await Promise.all([
+  const [project, manage, connection, entries, issues] = await Promise.all([
     getProjectDetail(orgId, id),
     can("workboard_manage"),
     getConnectionView(orgId, "servicem8"),
+    listProjectEntries(orgId, id),
+    listIssues(orgId, "project", id),
   ]);
   if (!project) notFound();
 
@@ -34,6 +38,9 @@ export default async function WorkboardProjectPage({
       project={project}
       manage={manage}
       sm8Connected={connection?.status === "connected"}
+      entries={entries}
+      issues={issues}
+      voiceEnabled={isTranscriptionConfigured()}
     />
   );
 }

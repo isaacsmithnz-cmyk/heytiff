@@ -40,6 +40,12 @@ const MAX_TOKENS = 16_000;
 export const SEVERITIES = ["info", "warn", "urgent"] as const;
 export type Severity = (typeof SEVERITIES)[number];
 
+/** The house guard convention (cf. `isProjectStage`, `isReadinessKey`): the
+    list and the test that narrows to it live together, so adding a severity is
+    one edit rather than three. */
+export const isSeverity = (v: unknown): v is Severity =>
+  (SEVERITIES as readonly unknown[]).includes(v);
+
 export type ProposedTask = {
   title: string;
   detail: string;
@@ -242,7 +248,11 @@ export function resolveAssignee(hint: string, staff: readonly NoteStaff[]): Assi
 const TITLE_MAX = 200;
 const BODY_MAX = 1000;
 
-const clean = (v: unknown, max: number): string =>
+/** Trim to a length, and treat anything that isn't a string as absent. Both
+    ends of this feature need it — the shaper on the model's output, the action
+    on the browser's — and it must behave identically on both, so it is one
+    exported function rather than two identical private ones. */
+export const clean = (v: unknown, max: number): string =>
   typeof v === "string" ? v.trim().slice(0, max) : "";
 
 const cleanList = (v: unknown, max: number): string[] =>
@@ -302,7 +312,7 @@ export function shapeProposal(raw: unknown, ctx: NoteContext): NoteProposal {
       message,
       // Unknown severity degrades to `warn`: visible, but never escalated to
       // urgent by a value we don't recognise.
-      severity: (SEVERITIES as readonly unknown[]).includes(sev) ? (sev as Severity) : "warn",
+      severity: isSeverity(sev) ? sev : "warn",
     });
   }
 
@@ -348,10 +358,15 @@ export function isEmptyProposal(p: NoteProposal): boolean {
 const NO_KEY = "Note routing isn't switched on yet — the note was saved as written.";
 const FAILED = "That note couldn't be read just now — it was saved as written.";
 
+/* The same four-branch ladder as fleet-ai.ts and expense-ai.ts, worded for
+   notes. The APIError branch matters: without it every 4xx and 5xx that isn't
+   auth or rate-limit lands on the generic sentence, which is the one that
+   tells you least. */
 function reasonFor(err: unknown): string {
   if (err instanceof Anthropic.AuthenticationError) return NO_KEY;
   if (err instanceof Anthropic.RateLimitError) return "Too busy right now — the note was saved as written.";
   if (err instanceof Anthropic.APIConnectionError) return "Couldn't reach the note reader — it was saved as written.";
+  if (err instanceof Anthropic.APIError) return "The note reader errored — it was saved as written.";
   return FAILED;
 }
 

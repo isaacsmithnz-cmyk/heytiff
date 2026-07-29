@@ -276,9 +276,8 @@ export const NODES: MapNode[] = [
     group: "Business tools",
     blurb: "The projects & maintenance board — what's on, what's booked, what's overdue.",
     detail:
-      "Staff-default by design (capability `workboard`): the board is FOR the people on the tools. Managing it is a second grantable capability (`workboard_manage`, admin default). Standalone-first: everything works on typed job numbers and client names; a ServiceM8 connection enriches rows via the mirrors and never owns them. Display mode fullscreens the board for a wall screen.",
+      "Staff-default by design (capability `workboard`): the board is FOR the people on the tools. Managing it is a second grantable capability (`workboard_manage`, admin default). Standalone-first: everything works on typed job numbers and client names; a ServiceM8 connection enriches rows via the mirrors and never owns them. Display mode fullscreens the board for a wall screen. Notes are dictated, not typed twice — the Smart Notes engine routes them into tasks, records and questions.",
     href: "/dashboard/workboard",
-    status: "building",
     paths: ["src/app/dashboard/workboard", "src/lib/workboard", "src/components/workboard"],
   },
 
@@ -476,6 +475,21 @@ export const NODES: MapNode[] = [
       "src/app/api/cron/sm8-sync/route.ts",
     ],
   },
+  {
+    id: "eng-voice-notes",
+    name: "Smart Notes engine",
+    kind: "engine",
+    group: "Shared engines",
+    blurb: "Turns a spoken site note into tasks, records and questions — never into a notepad entry.",
+    detail:
+      "Three lanes out of one dictation: ACTION (a task through the existing tasks table, bring-items, a flag that pulses on the board), DATA (progress bullets, commissioning readings, the recurring-issue log) and ASK — when it can't tell, it asks on the review card instead of guessing. Review-before-save is the safety model: the apply takes what the human CONFIRMED, never the model's proposal, so a misheard word costs a tick rather than work assigned to the wrong person. Two lines nothing crosses: an assignee is re-proved against this org server-side because a Server Function is reachable by direct POST, and a repeat fault BUMPS the issue it matches rather than logging a second row — two rows is how a pattern stops being visible. Audio takes a route handler, not an action (actions cap bodies at 1MB); the recording is transcribed and dropped, the transcript kept as the evidence for what was applied.",
+    paths: [
+      "src/lib/voice/transcribe.ts",
+      "src/lib/workboard/note-brain.ts",
+      "src/app/api/workboard/transcribe/route.ts",
+      "src/app/actions/workboard-notes.ts",
+    ],
+  },
 
   /* — data & services — */
   {
@@ -546,6 +560,16 @@ export const NODES: MapNode[] = [
       "Access and refresh tokens are stored AES-256-GCM sealed, never in plaintext, so the service-role key alone doesn't unlock a connected accounting system. integration_links holds the staff↔Xero-employee correspondence — scoped to a tenant, with unique indexes both ways so one remote record can never be claimed by two people. Deny-all RLS like every table here.",
   },
   {
+    id: "db-workboard",
+    name: "Workboard",
+    kind: "store",
+    group: "Supabase",
+    blurb:
+      "projects · checklists · equipment · maintenance_agreements · visits · notes · flags · the issue log.",
+    detail:
+      "The board's own truth, and the reason it works with nothing connected. A remote reference is a provider-shaped pair (provider + remote_id, null = typed by hand) sitting NEXT TO the human fields — job number, client, address — so a row never depends on a mirror existing and a future CRM could adopt the same shape. Overdue is derived at read from the vendor's timezone, never stored, because a stored status goes stale overnight. Composite FKs carry org_id; the set-null ones name their column, or clearing a design would null the org_id beside it and the delete would fail.",
+  },
+  {
     id: "db-sm8",
     name: "ServiceM8 mirror",
     kind: "store",
@@ -591,7 +615,18 @@ export const NODES: MapNode[] = [
     name: "Claude API",
     kind: "external",
     group: "External services",
-    blurb: "Vehicle valuations and receipt reading for the fleet, server-side.",
+    blurb: "Vehicle valuations, receipt reading and note routing — all server-side.",
+    detail:
+      "Every call is validated on the way back: a JSON schema fixes the SHAPE, and our own pure code fixes the SEMANTICS — that a name is a real person, that a severity is one we render. A refusal is a content outcome, not an error, and is handled before anything reads the response. The key never leaves the server.",
+  },
+  {
+    id: "elevenlabs",
+    name: "ElevenLabs Scribe",
+    kind: "external",
+    group: "External services",
+    blurb: "Speech to text for dictated site notes.",
+    detail:
+      "Chosen on accuracy, not price — at this volume the whole bill is a few dollars a month, so cost isn't a selection input. What decided it was keyterm capacity: the roster, the client book, street names and model strings all go in per request, because \"tell Luke\" only becomes a task for Luke if the transcriber heard Luke. Speech is transcribed in whatever language it was spoken and never translated here — that's the brain's job. ONE vendor, no runtime failover: the adapter exists so the vendor can be SWAPPED, and a failed transcription falls through to the paste box, which always works.",
   },
   {
     id: "xero",
@@ -688,8 +723,17 @@ export const EDGES: MapEdge[] = [
 
   /* workboard + servicem8 family */
   { from: "integrations", to: "servicem8", label: "consent, code exchange, rotating token refresh" },
+  /* The board's own tables come FIRST on purpose: ServiceM8 enriches rows, it
+     never owns them, and every edge below it is optional. */
+  { from: "workboard", to: "db-workboard", label: "projects, agreements, visits & the issue log" },
   { from: "workboard", to: "db-sm8", label: "jobs, schedules & clients read from the mirror" },
   { from: "workboard", to: "eng-sm8-sync", label: "staleness kick — top up behind the response" },
+  { from: "workboard", to: "eng-voice-notes", label: "a dictated note, routed before anyone saves it" },
+  { from: "eng-voice-notes", to: "elevenlabs", label: "audio out, transcript back; the recording is dropped" },
+  { from: "eng-voice-notes", to: "anthropic", label: "transcript + job context → a proposal in three lanes" },
+  { from: "eng-voice-notes", to: "db-workboard", label: "writes ONLY what the review card confirmed" },
+  { from: "eng-voice-notes", to: "db-board", label: "tasks land in the existing tasks table, assigned" },
+  { from: "eng-voice-notes", to: "db-staff", label: "first names as keyterms, and to prove an assignee" },
   { from: "eng-sm8-sync", to: "servicem8", label: "paged object reads, under both call budgets" },
   { from: "eng-sm8-sync", to: "db-sm8", label: "upserts mirrors; cursors move on completed walks only" },
   { from: "eng-sm8-sync", to: "db-integrations", label: "spends the sealed grant via sm8Access()" },

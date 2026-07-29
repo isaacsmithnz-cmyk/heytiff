@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
@@ -21,6 +21,8 @@ import {
 import type { RadarItem } from "@/lib/workboard/maintenance-query";
 import type { ProjectStripItem } from "@/lib/workboard/projects-query";
 import type { WorkboardData } from "@/lib/workboard/page-data";
+import { NoteCapture } from "./note-capture";
+import { clearFlag } from "@/app/actions/workboard-notes";
 
 /* The Workboard — a command centre, not a menu.
 
@@ -335,6 +337,7 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
   const [display, setDisplay] = useState(false);
   const [tab, setTab] = useState<TabKey>("maintenance");
   const [filter, setFilter] = useState<Filter>("all");
+  const [busy, start] = useTransition();
 
   // Fullscreen state follows the browser, not our button — Esc must work.
   useEffect(() => {
@@ -437,6 +440,11 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
             </div>
           </div>
 
+          {/* Outside the board element on purpose: Display mode is a wall
+              screen nobody is typing at, and a fullscreened textarea would
+              just be dead space. */}
+          {!display && <NoteCapture target={{ kind: "none" }} voiceEnabled={data.voiceEnabled} />}
+
           <div className="wb-board" ref={boardRef}>
             {data.connection === "attention" && (
               <div className="int-note bad">
@@ -456,6 +464,55 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
             )}
 
             <Vitals tiles={vitals.tiles} filter={filter} onFilter={setFilter} />
+
+            {/* Straight under the vitals and shared by BOTH tabs: a flag someone
+                spoke into their phone is neither maintenance nor projects, it's
+                a person telling you something is wrong. The numbers orient you
+                first, then this says what the crew actually called out.
+
+                Deliberately NOT folded into the Urgent count — that number has
+                a definition in vitals.ts and mixing a human's severity word
+                into it would make it mean two things at once. */}
+            {data.flags.length > 0 && (
+              <div className="card2">
+                <div className="c2h">
+                  <span className="ci">
+                    <Icon name="alert" size={19} />
+                  </span>
+                  <div>
+                    <b>Raised from notes</b>
+                    <em>These stay up until somebody clears them.</em>
+                  </div>
+                </div>
+                {data.flags.map((f) => (
+                  <div
+                    className={"wb-row" + (f.severity === "urgent" ? " wb-pulse" : "")}
+                    key={f.id}
+                  >
+                    <span
+                      className={
+                        "wb-chip" + (f.severity === "urgent" ? " bad" : f.severity === "info" ? "" : " warn")
+                      }
+                    >
+                      {f.severity}
+                    </span>
+                    <span className="wb-who">{f.message}</span>
+                    <button
+                      className="pbtn ghost"
+                      onClick={() =>
+                        start(async () => {
+                          await clearFlag(f.id);
+                          router.refresh();
+                        })
+                      }
+                      disabled={busy}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {tab === "maintenance" ? (
               <>

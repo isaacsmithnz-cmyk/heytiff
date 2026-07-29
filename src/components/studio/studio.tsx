@@ -1131,9 +1131,12 @@ function Editor({
         e: "erase",
         p: "pipe",
         i: "riser",
+        k: "measure",
       };
       const next = toolKeys[e.key.toLowerCase()];
       if (!next) return;
+      // the tape can only speak in metres — no scale, nothing to say
+      if (next === "measure" && activeFloor?.scaleMmPerUnit == null) return;
       // room/pipe/riser draw all belong to a system — type-first: none without one
       if (
         (next === "room-rect" ||
@@ -1147,7 +1150,16 @@ function Editor({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [step, undo, redo, effectiveSystemId, airGate.ok, armComponent, changeTool]);
+  }, [
+    step,
+    undo,
+    redo,
+    effectiveSystemId,
+    airGate.ok,
+    armComponent,
+    changeTool,
+    activeFloor?.scaleMmPerUnit,
+  ]);
 
   return (
     <div className={`ds-editor${step === 1 && activeFloor ? " two-col" : ""}`}>
@@ -1285,7 +1297,6 @@ function Editor({
             pack={pack}
             activeSystemId={effectiveSystemId}
             revealTools={toolsRevealed}
-            roomPicker={roomPicker}
             placing={placing}
             onPlaced={onPlaced}
             onRoomCreated={(id) => {
@@ -1345,7 +1356,16 @@ function Editor({
             onSelect={setSelectedId}
             onEditRoom={setEditingRoomId}
             onArmPlace={armPlace}
-            onDrawRoom={() => setRoomPicker(true)}
+            roomDraw={{
+              open: roomPicker,
+              shape:
+                tool === "room-rect" ? "rect" : tool === "room-poly" ? "poly" : null,
+              start: () => setRoomPicker(true),
+              // null cancels: changeTool("select") folds the picker away too
+              pick: (s) =>
+                changeTool(s === "rect" ? "room-rect" : s === "poly" ? "room-poly" : "select"),
+            }}
+            onFloor={setPickedFloorId}
             floor={activeFloor}
             onAddVariant={onAddVariant}
             onSwitchVariant={onSwitchVariant}
@@ -1795,6 +1815,7 @@ function CanvasControls({
           }${
             calibOpen ||
             tool === "calibrate" ||
+            tool === "measure" ||
             tool === "set-north" ||
             tool === "crop" ||
             tool === "arrange"
@@ -1851,6 +1872,27 @@ function CanvasControls({
               <span className={`v${floor.northPos ? "" : " unset"}`}>
                 {floor.northPos ? `${Math.round(floor.northDeg ?? 0)}°` : "Not set"}
               </span>
+            </button>
+            {/* A quick check on anything the drawing doesn't dimension. It's
+                a READING, not a setting — it makes no mark and saves nothing —
+                but it belongs with the measuring tools, and it can't say
+                anything until the scale is set. */}
+            <button
+              className={`ds-calib-item${tool === "measure" ? " on" : ""}`}
+              disabled={floor.scaleMmPerUnit == null}
+              title={
+                floor.scaleMmPerUnit == null
+                  ? "Tape measure — calibrate the scale first"
+                  : "Tape measure (K) — drag to read a distance"
+              }
+              onClick={() => {
+                onTool("measure");
+                setCalibOpen(false);
+              }}
+            >
+              <Icon name="ruler" size={13} />
+              <span className="k">Tape measure</span>
+              <span className="v unset">{floor.scaleMmPerUnit == null ? "Needs scale" : "K"}</span>
             </button>
             {/* plan-prep tools relocated out of the drawing rail */}
             <div className="ds-view-sep" />
@@ -1969,7 +2011,6 @@ function DesignPanel({
   pack,
   activeSystemId,
   revealTools,
-  roomPicker,
   placing,
   onPlaced,
   onRoomCreated,
@@ -2009,7 +2050,6 @@ function DesignPanel({
   /** reveal the drawing tool-rail — latched true once a system first exists */
   revealTools: boolean;
   /** the room-shape pill is up (raised by "Draw a room" / "Add room") */
-  roomPicker: boolean;
   placing: PlacingUnit | null;
   onPlaced: () => void;
   onRoomCreated: (id: string) => void;
@@ -2197,48 +2237,12 @@ function DesignPanel({
             Fit
           </button>
         </div>
-        {/* room shape pill — the rectangle/polygon choice, raised by "Draw a
-            room". It stays up while you draw so you can switch shape, and
-            folds away the moment a room lands. Dark, with a marching ring
-            until a shape is armed: it floats over the white plan, where the
-            light HUD treatment made it vanish into the paper. */}
-        {roomPicker && (
-          <div
-            className={`ds-roomhud${
-              tool === "room-rect" || tool === "room-poly" ? " armed" : ""
-            }`}
-            role="toolbar"
-            aria-label="Room shape"
-          >
-            <span className="ds-roomhud-t">Draw a room</span>
-            <button
-              className={`ds-roomhud-b${tool === "room-rect" ? " on" : ""}`}
-              onClick={() => onTool("room-rect")}
-              title="Rectangle room (R)"
-              aria-label="Rectangle room"
-              aria-pressed={tool === "room-rect"}
-            >
-              <Icon name="square" size={16} />
-            </button>
-            <button
-              className={`ds-roomhud-b${tool === "room-poly" ? " on" : ""}`}
-              onClick={() => onTool("room-poly")}
-              title="Polygon room (G)"
-              aria-label="Polygon room"
-              aria-pressed={tool === "room-poly"}
-            >
-              <Icon name="hexagon" size={16} />
-            </button>
-            <button
-              className="ds-roomhud-x"
-              onClick={() => onTool("select")}
-              title="Cancel"
-              aria-label="Cancel drawing a room"
-            >
-              <Icon name="x" size={13} />
-            </button>
-          </div>
-        )}
+        {/* The room-shape pill used to live here, pinned to the top of the
+            canvas. It has moved ONTO the cockpit's Add room / Draw a room
+            button (RoomDrawControl): the choice now appears where the click
+            landed instead of on the far side of the screen, which is what
+            made pressing the button look like it did nothing. What the canvas
+            still says is the tool hint and the crosshair cursor. */}
         {/* options HUD — floating pill strip, top-centre over the canvas,
             while a tool with options is armed (Step 2: the plenum variant) */}
         {tool === "component" && airComp?.kind === "plenum" && (

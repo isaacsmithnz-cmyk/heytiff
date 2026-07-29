@@ -6,6 +6,9 @@ const inserts: { table: string; payload: unknown }[] = [];
 const updates: { table: string; patch: Record<string, unknown> }[] = [];
 
 let rows: Record<string, Record<string, unknown> | null> = {};
+/* Reads that come back as a SET rather than a row — the bulk `.in(…)` lookups
+   that replaced the per-item queries. `rows` still serves `.maybeSingle()`. */
+let lists: Record<string, Record<string, unknown>[]> = {};
 
 jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: {
@@ -14,9 +17,13 @@ jest.mock("@/lib/supabase-server", () => ({
       const self = () => chain;
       chain.select = self;
       chain.eq = self;
+      chain.in = self;
       chain.order = self;
       chain.limit = self;
       chain.maybeSingle = async () => ({ data: rows[table] ?? null });
+      // awaiting the builder itself (no .maybeSingle) yields the set
+      chain.then = (res: (v: { data: unknown[] }) => unknown) =>
+        Promise.resolve({ data: lists[table] ?? [] }).then(res);
       chain.insert = (payload: unknown) => {
         inserts.push({ table, payload });
         const after: Record<string, unknown> = {
@@ -66,6 +73,14 @@ import { applyNote, clearFlag, dismissNote } from "../workboard-notes";
 
 const NOTE = { id: "n-1", transcript: "…", status: "pending", target_kind: "project", target_id: "p-1", proposal: {} };
 
+/* Every row written to a table, whether the action batched them into one
+   insert or sent them one at a time — the assertions below are about WHAT was
+   written, and shouldn't break when the write is made cheaper. */
+const rowsFor = (table: string): Record<string, unknown>[] =>
+  inserts
+    .filter((i) => i.table === table)
+    .flatMap((i) => (Array.isArray(i.payload) ? i.payload : [i.payload]) as Record<string, unknown>[]);
+
 const confirmed = (over: Record<string, unknown> = {}) => ({
   tasks: [],
   bringItems: [],
@@ -80,6 +95,7 @@ beforeEach(() => {
   inserts.length = 0;
   updates.length = 0;
   rows = { workboard_notes: NOTE };
+  lists = {};
   caps = new Set(["workboard"]);
 });
 
@@ -92,7 +108,7 @@ describe("the gate", () => {
 
   it("ticking is the WORKBOARD tier — managing isn't required to apply your own note", async () => {
     caps = new Set(["workboard"]);
-    rows.staff_profiles = { id: "s-luke" };
+    lists.staff_profiles = [{ id: "s-luke" }];
     const res = await applyNote(
       "n-1",
       confirmed({ tasks: [{ title: "Order grilles", detail: "", assigneeId: "s-luke", dueDate: null }] })
@@ -110,7 +126,7 @@ describe("the gate", () => {
 
 describe("tasks", () => {
   it("creates through the existing tasks table so assignment comes free", async () => {
-    rows.staff_profiles = { id: "s-luke" };
+    lists.staff_profiles = [{ id: "s-luke" }];
     await applyNote(
       "n-1",
       confirmed({
@@ -119,7 +135,7 @@ describe("tasks", () => {
         ],
       })
     );
-    const task = inserts.find((i) => i.table === "tasks")!.payload as Record<string, unknown>;
+    const task = rowsFor("tasks")[0];
     expect(task).toMatchObject({
       org_id: "org-1",
       title: "Order the grilles",
@@ -131,7 +147,7 @@ describe("tasks", () => {
   });
 
   it("refuses an assignee who isn't in this org", async () => {
-    rows.staff_profiles = null; // the scoped lookup finds nobody
+    lists.staff_profiles = []; // the scoped lookup finds nobody
     await applyNote(
       "n-1",
       confirmed({ tasks: [{ title: "Order grilles", detail: "", assigneeId: "s-elsewhere", dueDate: null }] })
@@ -148,13 +164,12 @@ describe("tasks", () => {
   });
 
   it("ignores a junk due date instead of failing the whole apply", async () => {
-    rows.staff_profiles = { id: "s-luke" };
+    lists.staff_profiles = [{ id: "s-luke" }];
     await applyNote(
       "n-1",
       confirmed({ tasks: [{ title: "T", detail: "", assigneeId: "s-luke", dueDate: "next tuesday" }] })
     );
-    const task = inserts.find((i) => i.table === "tasks")!.payload as Record<string, unknown>;
-    expect(task.due_date).toBeNull();
+    expect(rowsFor("tasks")[0].due_date).toBeNull();
   });
 });
 
@@ -169,22 +184,19 @@ describe("flags", () => {
         ],
       })
     );
-    const sev = inserts
-      .filter((i) => i.table === "workboard_flags")
-      .map((i) => (i.payload as Record<string, unknown>).severity);
-    expect(sev).toEqual(["urgent", "warn"]);
+    expect(rowsFor("workboard_flags").map((r) => r.severity)).toEqual(["urgent", "warn"]);
   });
 
   it("traces every flag back to the note that raised it", async () => {
     await applyNote("n-1", confirmed({ flags: [{ message: "x", severity: "warn" }] }));
-    expect((inserts[0].payload as Record<string, unknown>).note_id).toBe("n-1");
+    expect(rowsFor("workboard_flags")[0].note_id).toBe("n-1");
   });
 });
 
 describe("issues — the recurring-fault memory", () => {
   it("bumps an existing issue instead of logging a second row", async () => {
     // two rows is exactly how a pattern stops being visible
-    rows.workboard_issues = { id: "i-1", occurrences: 2 };
+    lists.workboard_issues = [{ id: "i-1", summary: "Tripped again", occurrences: 2 }];
     await applyNote("n-1", confirmed({ issueEntries: [{ summary: "Tripped again", equipmentRef: "" }] }));
     expect(inserts.some((i) => i.table === "workboard_issues")).toBe(false);
     const bump = updates.find((u) => u.table === "workboard_issues")!;
@@ -193,10 +205,9 @@ describe("issues — the recurring-fault memory", () => {
   });
 
   it("logs a first sighting as a new row", async () => {
-    rows.workboard_issues = null;
+    lists.workboard_issues = [];
     await applyNote("n-1", confirmed({ issueEntries: [{ summary: "New fault", equipmentRef: "Unit 3" }] }));
-    const row = inserts.find((i) => i.table === "workboard_issues")!.payload as Record<string, unknown>;
-    expect(row).toMatchObject({ summary: "New fault", equipment_ref: "Unit 3" });
+    expect(rowsFor("workboard_issues")[0]).toMatchObject({ summary: "New fault", equipment_ref: "Unit 3" });
   });
 });
 
@@ -206,16 +217,17 @@ describe("entries and bring-items", () => {
       "n-1",
       confirmed({ progressBullets: ["Rough-in done"], commissioningEntries: ["Superheat 6K"] })
     );
-    const rowsIn = inserts.find((i) => i.table === "project_entries")!.payload as Record<string, unknown>[];
+    const rowsIn = rowsFor("project_entries");
     expect(rowsIn.map((r) => r.kind)).toEqual(["progress", "commissioning"]);
     expect(rowsIn.every((r) => r.note_id === "n-1")).toBe(true);
   });
 
   it("a project's bring-items become checklist items in their own section", async () => {
     await applyNote("n-1", confirmed({ bringItems: ["2 × 595 filters"] }));
-    const items = inserts.find((i) => i.table === "project_checklist_items")!
-      .payload as Record<string, unknown>[];
-    expect(items[0]).toMatchObject({ section: "Bring next visit", label: "2 × 595 filters" });
+    expect(rowsFor("project_checklist_items")[0]).toMatchObject({
+      section: "Bring next visit",
+      label: "2 × 595 filters",
+    });
   });
 
   it("an agreement's bring-items append to its existing list rather than replacing it", async () => {
@@ -229,7 +241,7 @@ describe("entries and bring-items", () => {
 
 describe("the note's own record", () => {
   it("records what the confirmation actually created", async () => {
-    rows.staff_profiles = { id: "s-luke" };
+    lists.staff_profiles = [{ id: "s-luke" }];
     const res = await applyNote(
       "n-1",
       confirmed({
@@ -242,7 +254,10 @@ describe("the note's own record", () => {
 
     const noteUpdate = updates.find((u) => u.table === "workboard_notes")!;
     expect(noteUpdate.patch.status).toBe("applied");
-    expect(noteUpdate.patch.applied).toMatchObject({ taskIds: ["tasks-new"], flagIds: ["workboard_flags-new"] });
+    expect(noteUpdate.patch.applied).toMatchObject({
+      taskIds: ["tasks-0"],
+      flagIds: ["workboard_flags-0"],
+    });
   });
 
   it("dismissing keeps the words and writes nothing else", async () => {

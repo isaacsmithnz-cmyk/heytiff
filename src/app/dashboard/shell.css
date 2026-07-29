@@ -2983,9 +2983,9 @@ select.fl-i { cursor:pointer; }
    has to read as instant response to a voice, and easing would smooth exactly
    the signal it exists to show. Reduced motion keeps it — it is feedback about
    hardware, not decoration — but rests it at a visible height. */
-.wb-lvl { display:inline-flex; align-items:center; gap:3px; height:22px; padding-left:4px; }
-.wb-lvl i { display:block; width:3px; height:22px; border-radius:2px; background:#e0264f; transform-origin:center; transform:scaleY(.18); }
-@media (prefers-reduced-motion:reduce) { .wb-lvl i { transform:scaleY(.5) !important; } }
+.wb-lvl { --lvl:0; display:inline-flex; align-items:center; gap:3px; height:22px; padding-left:4px; }
+.wb-lvl i { display:block; width:3px; height:22px; border-radius:2px; background:#e0264f; transform-origin:center; transform:scaleY(calc(.18 + var(--lvl) * var(--g, 1))); }
+@media (prefers-reduced-motion:reduce) { .wb-lvl i { transform:scaleY(.5); } }
 
 /* smart notes — the review card */
 .wb-review { border-top:1px solid rgba(5,5,5,.07); margin-top:12px; padding-top:12px; }

@@ -71,13 +71,12 @@ function toConfirmed(d: Draft): ConfirmedNote {
   };
 }
 
+/* Every bucket of a ConfirmedNote is an array, so "nothing is ticked" is just
+   "they are all empty" — spelling out the six by name meant six builds of the
+   whole payload per call, and a seventh bucket would have been silently
+   uncounted until someone remembered to add a seventh line. */
 const nothingTicked = (d: Draft): boolean =>
-  toConfirmed(d).tasks.length === 0 &&
-  toConfirmed(d).bringItems.length === 0 &&
-  toConfirmed(d).flags.length === 0 &&
-  toConfirmed(d).progressBullets.length === 0 &&
-  toConfirmed(d).commissioningEntries.length === 0 &&
-  toConfirmed(d).issueEntries.length === 0;
+  Object.values(toConfirmed(d)).every((bucket) => bucket.length === 0);
 
 export function NoteCapture({
   target,
@@ -98,8 +97,8 @@ export function NoteCapture({
 
   const [recording, setRecording] = useState(false);
   const [listening, setListening] = useState(false);
-  const [level, setLevel] = useState(0);
   const recorder = useRef<MediaRecorder | null>(null);
+  const bars = useRef<HTMLSpanElement | null>(null);
 
   const reset = () => {
     setNote(null);
@@ -134,11 +133,11 @@ export function NoteCapture({
   const meter = useRef<{ ctx: AudioContext; raf: number } | null>(null);
 
   const stopMeter = () => {
+    bars.current?.style.setProperty("--lvl", "0");
     if (!meter.current) return;
     cancelAnimationFrame(meter.current.raf);
     void meter.current.ctx.close().catch(() => {});
     meter.current = null;
-    setLevel(0);
   };
 
   const startMeter = (stream: MediaStream) => {
@@ -164,7 +163,13 @@ export function NoteCapture({
         }
         // RMS is small for speech; the gain lifts a normal voice to most of
         // the bar without letting a loud site peg it permanently.
-        setLevel(Math.min(1, Math.sqrt(sum / samples.length) * 4));
+        const level = Math.min(1, Math.sqrt(sum / samples.length) * 4);
+        // Written straight to the DOM as a custom property, NOT to state: this
+        // runs every animation frame, and the value is a fresh float each time,
+        // so React would never bail out — a two-minute note would re-render the
+        // whole card some seven thousand times. The bars size themselves off
+        // var(--lvl), so the loop never crosses into React at all.
+        bars.current?.style.setProperty("--lvl", level.toFixed(3));
         if (meter.current) meter.current.raf = requestAnimationFrame(tick);
       };
 
@@ -174,7 +179,21 @@ export function NoteCapture({
     }
   };
 
-  useEffect(() => stopMeter, []);
+  /* Unmounting mid-recording has to release the microphone. The stream is
+     stopped in rec.onstop, which only fires if somebody presses Stop — so
+     navigating away while recording (the card sits on the overview AND every
+     project page, so this is an ordinary path) would otherwise leave the mic
+     live, the OS indicator on, and an encoder buffering a clip nothing can
+     ever stop. */
+  useEffect(
+    () => () => {
+      stopMeter();
+      const rec = recorder.current;
+      if (rec?.state === "recording") rec.stop();
+      else rec?.stream.getTracks().forEach((t) => t.stop());
+    },
+    []
+  );
 
   const startRecording = async () => {
     setError(null);
@@ -248,11 +267,14 @@ export function NoteCapture({
     });
   };
 
-  const sendAnswer = () => {
+  /* Defaults to the free-text box; the option chips pass their own word. One
+     round-trip, one success path — the chips used to carry a second copy that
+     had already drifted, leaving the chosen option sitting in the box. */
+  const sendAnswer = (reply: string = answer) => {
     if (!note) return;
     setError(null);
     start(async () => {
-      const res = await answerClarify(note.id, answer);
+      const res = await answerClarify(note.id, reply);
       if (!res.ok) {
         setError(res.error);
         return;
@@ -302,14 +324,12 @@ export function NoteCapture({
                     <Icon name="square" size={15} />
                     Stop &amp; read
                   </button>
-                  <span className="wb-lvl" role="status" aria-label="Listening">
-                    {[0, 1, 2, 3, 4].map((i) => (
-                      <i
-                        key={i}
-                        /* the centre bars lead, so a normal voice reads as a
-                           shape rather than five identical blocks */
-                        style={{ transform: `scaleY(${0.18 + level * (i === 2 ? 1 : i % 2 ? 0.8 : 0.5)})` }}
-                      />
+                  <span className="wb-lvl" role="status" aria-label="Listening" ref={bars}>
+                    {/* --lvl is written by the animation frame; --g is each
+                        bar's share of it, so the centre leads and a voice
+                        reads as a shape rather than five identical blocks */}
+                    {[0.5, 0.8, 1, 0.8, 0.5].map((g, i) => (
+                      <i key={i} style={{ "--g": g } as React.CSSProperties} />
                     ))}
                   </span>
                 </>
@@ -339,20 +359,7 @@ export function NoteCapture({
               <b>{note.proposal.clarify.question}</b>
               <div className="int-act">
                 {note.proposal.clarify.options.map((o) => (
-                  <button
-                    key={o}
-                    className="wb-chip"
-                    disabled={busy}
-                    onClick={() => {
-                      setAnswer(o);
-                      start(async () => {
-                        const res = await answerClarify(note.id, o);
-                        if (!res.ok) return setError(res.error);
-                        setNote({ id: res.noteId, proposal: res.proposal, staff: res.staff });
-                        setDraft(toDraft(res.proposal));
-                      });
-                    }}
-                  >
+                  <button key={o} className="wb-chip" disabled={busy} onClick={() => sendAnswer(o)}>
                     {o}
                   </button>
                 ))}
@@ -364,7 +371,13 @@ export function NoteCapture({
                   onChange={(e) => setAnswer(e.target.value)}
                   placeholder="…or answer in your own words"
                 />
-                <button className="pbtn ghost" onClick={sendAnswer} disabled={busy || !answer.trim()}>
+                {/* wrapped, not passed by reference: a bare handler would hand
+                    the click event in as the answer */}
+                <button
+                  className="pbtn ghost"
+                  onClick={() => sendAnswer()}
+                  disabled={busy || !answer.trim()}
+                >
                   Answer
                 </button>
               </div>

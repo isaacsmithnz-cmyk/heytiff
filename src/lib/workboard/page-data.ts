@@ -13,6 +13,9 @@ import { can } from "@/lib/permissions-server";
 import { getConnectionView } from "@/lib/integrations/store";
 import { kickSm8SyncIfStale, listSm8SyncStatus } from "@/lib/integrations/sm8-sync";
 import { todayInZone, plusDays } from "./dates";
+// THROWAWAY — delete this import, the demoFill() helper below and its two
+// call sites when ServiceM8 goes in. See demo.ts.
+import { demoAllowedFor, demoProjects, demoRadar } from "./demo";
 import { listProjectStrip, type ProjectStripItem } from "./projects-query";
 import { listRadar, type RadarItem } from "./maintenance-query";
 import { autoCompleteVisitsFromMirror, ensureVisits } from "./visit-ensure";
@@ -27,6 +30,9 @@ import {
 export type WorkboardConnection = "none" | "connected" | "attention";
 
 export type WorkboardData = {
+  /** THROWAWAY — true when the board is showing the demo fixture because the
+      org has nothing real yet. Delete alongside demo.ts. */
+  demo: boolean;
   manage: boolean;
   connection: WorkboardConnection;
   /** The account's IANA zone once known — the clock the board buckets on. */
@@ -38,6 +44,25 @@ export type WorkboardData = {
   radar: RadarItem[];
   synced: { finishedAt: string | null; running: boolean } | null;
 };
+
+/* THROWAWAY — the ONE place the demo fixture enters the app.
+
+   Two conditions, both required. The org must be on the demo ALLOW-LIST (see
+   demo.ts — an empty board describes every new customer's first morning, and
+   they must never meet invented jobs), and it must have neither a project nor
+   a visit. All-or-nothing on the second: a real board is never half-invented,
+   and the moment anyone creates their first agreement the demo disappears on
+   the next paint without a setting to find or a row to delete. */
+function demoFill(
+  orgId: string,
+  today: string,
+  projects: ProjectStripItem[],
+  radar: RadarItem[]
+): { demo: boolean; projects: ProjectStripItem[]; radar: RadarItem[] } {
+  if (!demoAllowedFor(orgId)) return { demo: false, projects, radar };
+  if (projects.length > 0 || radar.length > 0) return { demo: false, projects, radar };
+  return { demo: true, projects: demoProjects(today), radar: demoRadar(today) };
+}
 
 export async function loadWorkboardPage(): Promise<WorkboardData | null> {
   const session = await auth0.getSession();
@@ -59,15 +84,17 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
       listProjectStrip(orgId),
       listRadar(orgId, today),
     ]);
+    const filled = demoFill(orgId, today, projects, radar);
     return {
+      demo: filled.demo,
       manage,
       connection,
       timezone: null,
       today,
       counts: null,
       upcoming: [],
-      projects,
-      radar,
+      projects: filled.projects,
+      radar: filled.radar,
       synced: null,
     };
   }
@@ -97,15 +124,18 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
   // the after() callback touches request APIs (Server Component rule).
   await kickSm8SyncIfStale(orgId);
 
+  const filled = demoFill(orgId, today, projects, radar);
+
   return {
+    demo: filled.demo,
     manage,
     connection,
     timezone,
     today,
     counts,
     upcoming,
-    projects,
-    radar,
+    projects: filled.projects,
+    radar: filled.radar,
     synced: sync.lastRun
       ? { finishedAt: sync.lastRun.finishedAt, running: sync.lastRun.running }
       : { finishedAt: null, running: false },

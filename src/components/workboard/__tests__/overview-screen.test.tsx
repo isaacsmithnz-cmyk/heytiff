@@ -1,20 +1,31 @@
-/* The Overview's two lives: standalone (no integration — the board says so
-   and keeps working) and connected (stats + the week's run sheet, rendered
-   from mirror strings without any Date() reinterpretation). */
+/* The Workboard's several lives: standalone (no integration — the board says
+   so and keeps working), connected (counts + the week's run sheet, rendered
+   from mirror strings without any Date() reinterpretation), and DEMO (the
+   throwaway fixture, which must be unmistakable and must never link).
 
-import { render, screen } from "@testing-library/react";
+   The behaviour these lock down is the command-centre brief: the numbers up
+   top are the filter, the two tabs are one control, and nothing that says
+   "urgent" is allowed to be decoration. */
+
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { OverviewScreen } from "../overview-screen";
+import type { RadarItem } from "@/lib/workboard/maintenance-query";
+import type { ProjectStripItem } from "@/lib/workboard/projects-query";
 import type { WorkboardData } from "@/lib/workboard/page-data";
 
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: jest.fn() }),
 }));
 
+const TODAY = "2026-07-28";
+
 const base: WorkboardData = {
+  demo: false,
   manage: false,
   connection: "none",
   timezone: null,
-  today: "2026-07-28",
+  today: TODAY,
   counts: null,
   upcoming: [],
   projects: [],
@@ -22,19 +33,266 @@ const base: WorkboardData = {
   synced: null,
 };
 
+function visit(over: Partial<RadarItem> & { visitId: string }): RadarItem {
+  return {
+    agreementId: "a-1",
+    label: "Warehouse quarterly",
+    clientName: "Acme",
+    siteLabel: null,
+    dueDate: "2026-08-04",
+    bucket: "upcoming",
+    status: "upcoming",
+    ready: 4,
+    readyTotal: 4,
+    readiness: {
+      access_confirmed: true,
+      time_confirmed: true,
+      parts_ready: true,
+      customer_notified: true,
+    },
+    jobNumber: null,
+    bookedStart: null,
+    ...over,
+  };
+}
+
+function project(over: Partial<ProjectStripItem> & { id: string }): ProjectStripItem {
+  return {
+    name: "Smith St change-over",
+    clientName: "Smith",
+    siteLabel: null,
+    stage: "Rough-in",
+    status: "active",
+    percent: 40,
+    done: 6,
+    total: 15,
+    updatedAt: `${TODAY}T01:00:00Z`,
+    ...over,
+  };
+}
+
+const toProjects = () => userEvent.click(screen.getByRole("button", { name: "Projects" }));
+
+/* The load rail and the list below it deliberately share vocabulary — a week
+   column and a group heading both say "Overdue", a funnel column and a card
+   chip both say "Rough-in" — so assertions about the LIST scope themselves to
+   its card rather than searching the whole board. */
+const card = (heading: string) =>
+  within(screen.getByText(heading).closest(".card2") as HTMLElement);
+
 describe("standalone", () => {
   it("says it runs without an integration, and only routes managers to connect", () => {
     render(<OverviewScreen data={base} />);
-    expect(screen.getByText("Running standalone")).toBeInTheDocument();
-    expect(screen.queryByText(/Admin → Integrations/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Running standalone/)).toBeInTheDocument();
+    expect(screen.queryByText(/Connect ServiceM8/)).not.toBeInTheDocument();
   });
 
   it("offers the connect path to someone who can act on it", () => {
     render(<OverviewScreen data={{ ...base, manage: true }} />);
-    expect(screen.getByText(/Admin → Integrations/).closest("a")).toHaveAttribute(
+    expect(screen.getByText(/Connect ServiceM8/).closest("a")).toHaveAttribute(
       "href",
       "/dashboard/admin/integrations/servicem8"
     );
+  });
+
+  it("offers Display mode for the wall screen", () => {
+    render(<OverviewScreen data={base} />);
+    expect(screen.getByRole("button", { name: /Display mode/ })).toBeInTheDocument();
+  });
+});
+
+describe("the switcher", () => {
+  it("opens on Maintenance and swaps the whole board for Projects", async () => {
+    render(<OverviewScreen data={{ ...base, radar: [visit({ visitId: "v1" })], projects: [project({ id: "p1" })] }} />);
+
+    expect(screen.getByText("Services on the radar")).toBeInTheDocument();
+    expect(screen.queryByText("Live projects")).not.toBeInTheDocument();
+
+    await toProjects();
+
+    expect(screen.getByText("Live projects")).toBeInTheDocument();
+    expect(screen.queryByText("Services on the radar")).not.toBeInTheDocument();
+    expect(screen.getByText("Smith St change-over")).toBeInTheDocument();
+  });
+
+  it("drives the sliding thumb by index rather than swapping a background", async () => {
+    render(<OverviewScreen data={base} />);
+    const seg = screen.getByRole("navigation", { name: "Board" });
+    expect(seg).toHaveAttribute("data-active", "0");
+    await toProjects();
+    expect(seg).toHaveAttribute("data-active", "1");
+  });
+});
+
+describe("the vitals", () => {
+  const overdue = visit({ visitId: "late", dueDate: "2026-07-19", bucket: "overdue" });
+  const bare = visit({
+    visitId: "bare",
+    dueDate: "2026-08-01",
+    bucket: "due_soon",
+    ready: 1,
+    readyTotal: 4,
+    readiness: {
+      access_confirmed: true,
+      time_confirmed: false,
+      parts_ready: false,
+      customer_notified: false,
+    },
+  });
+
+  it("counts urgent and attention off the radar, and says why", () => {
+    render(<OverviewScreen data={{ ...base, radar: [overdue, bare, visit({ visitId: "fine" })] }} />);
+    const urgent = screen.getByRole("button", { name: /Urgent/ });
+    expect(within(urgent).getByText("1")).toBeInTheDocument();
+    expect(within(urgent).getByText("Oldest is 9 days over")).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("button", { name: /Needs attention/ })).getByText("1 of 4 checks ticked")
+    ).toBeInTheDocument();
+  });
+
+  it("is a filter, not a readout — pressing Urgent hides everything else", async () => {
+    render(<OverviewScreen data={{ ...base, radar: [overdue, bare] }} />);
+    expect(card("Services").getByText("Due soon")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /Urgent/ }));
+
+    expect(screen.getByRole("button", { name: /Urgent/ })).toHaveAttribute("aria-pressed", "true");
+    expect(card("Services").getByText("Overdue")).toBeInTheDocument();
+    expect(card("Services").queryByText("Due soon")).not.toBeInTheDocument();
+  });
+
+  it("says the good outcome out loud when a filter comes up empty", async () => {
+    render(<OverviewScreen data={{ ...base, radar: [visit({ visitId: "fine" })] }} />);
+    await userEvent.click(screen.getByRole("button", { name: /Urgent/ }));
+    expect(screen.getByText(/Nothing urgent/)).toBeInTheDocument();
+  });
+
+  it("drops a filter when you change tabs, rather than hiding rows silently", async () => {
+    render(
+      <OverviewScreen
+        data={{ ...base, radar: [overdue], projects: [project({ id: "p1" })] }}
+      />
+    );
+    await userEvent.click(screen.getByRole("button", { name: /Urgent/ }));
+    await toProjects();
+    // p1 moved yesterday and is not urgent — it must still be on screen.
+    expect(screen.getByRole("button", { name: /Live projects/ })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+    expect(screen.getByText("Smith St change-over")).toBeInTheDocument();
+  });
+});
+
+describe("the maintenance list", () => {
+  it("groups hardest-first, breathes on overdue, and names what's missing", () => {
+    const radar = (bucket: RadarItem["bucket"], i: number) =>
+      visit({
+        visitId: `v-${bucket}-${i}`,
+        bucket,
+        dueDate: bucket === "overdue" ? "2026-07-20" : "2026-08-04",
+        ready: 2,
+        readyTotal: 4,
+        readiness: {
+          access_confirmed: true,
+          time_confirmed: true,
+          parts_ready: false,
+          customer_notified: false,
+        },
+      });
+    render(
+      <OverviewScreen
+        data={{ ...base, radar: [radar("upcoming", 1), radar("overdue", 2), radar("due_soon", 3)] }}
+      />
+    );
+    const services = card("Services");
+    expect(services.getByText("Overdue")).toBeInTheDocument();
+    expect(services.getByText("Due soon")).toBeInTheDocument();
+    expect(services.getByText("Coming up")).toBeInTheDocument();
+
+    // the overdue row carries the breathe class — the wall screen's whole brief
+    const overdueRow = screen.getAllByText("Warehouse quarterly")[0].closest("a");
+    expect(overdueRow?.className).toContain("wb-pulse");
+
+    // pips name the gap rather than reporting a fraction nobody can act on
+    expect(screen.getAllByText("Parts · Customer told")).toHaveLength(3);
+  });
+
+  it("says Ready when all four checks are ticked", () => {
+    render(<OverviewScreen data={{ ...base, radar: [visit({ visitId: "v1" })] }} />);
+    expect(screen.getByText("Ready")).toBeInTheDocument();
+  });
+});
+
+describe("the projects list", () => {
+  it("links each card and shows its checklist and stage", async () => {
+    render(<OverviewScreen data={{ ...base, projects: [project({ id: "p-1" })] }} />);
+    await toProjects();
+    expect(screen.getByText("Smith St change-over").closest("a")).toHaveAttribute(
+      "href",
+      "/dashboard/workboard/projects/p-1"
+    );
+    expect(card("Projects in flight").getByText("Rough-in")).toBeInTheDocument();
+    expect(screen.getByText(/6\/15 ticked/)).toBeInTheDocument();
+  });
+
+  it("flags a stalled project with its reason, not a bare colour", async () => {
+    render(
+      <OverviewScreen
+        data={{ ...base, projects: [project({ id: "p-1", updatedAt: "2026-07-17T01:00:00Z" })] }}
+      />
+    );
+    await toProjects();
+    expect(screen.getByText("No movement for 11 days")).toBeInTheDocument();
+  });
+
+  it("carries an on-hold project instead of hiding it", async () => {
+    render(<OverviewScreen data={{ ...base, projects: [project({ id: "p-1", status: "on_hold" })] }} />);
+    await toProjects();
+    expect(screen.getByText("On hold")).toBeInTheDocument();
+    expect(within(screen.getByRole("button", { name: /Urgent/ })).getByText("1")).toBeInTheDocument();
+  });
+});
+
+describe("demo mode", () => {
+  const demo: WorkboardData = {
+    ...base,
+    demo: true,
+    radar: [visit({ visitId: "v1" })],
+    projects: [project({ id: "p1" })],
+  };
+
+  it("says loudly that the data is not real", () => {
+    render(<OverviewScreen data={demo} />);
+    expect(screen.getByText("Example data.")).toBeInTheDocument();
+    expect(screen.getByText(/nothing here is saved/)).toBeInTheDocument();
+  });
+
+  it("refuses to link a demo row to a detail page that doesn't exist", async () => {
+    render(<OverviewScreen data={demo} />);
+    expect(screen.getByText("Warehouse quarterly").closest("a")).toBeNull();
+    await toProjects();
+    expect(screen.getByText("Smith St change-over").closest("a")).toBeNull();
+  });
+
+  it("marks every row, because Display mode scrolls the banner out of sight", async () => {
+    render(<OverviewScreen data={demo} />);
+    expect(screen.getAllByText("Demo").length).toBeGreaterThan(0);
+    await toProjects();
+    expect(screen.getAllByText("Demo").length).toBeGreaterThan(0);
+  });
+
+  it("hides the All-agreements and All-projects doors, which lead to empty lists", async () => {
+    render(<OverviewScreen data={demo} />);
+    expect(screen.queryByText("All agreements")).not.toBeInTheDocument();
+    await toProjects();
+    expect(screen.queryByText("All projects")).not.toBeInTheDocument();
+  });
+
+  it("stays out of the way once there is real data", () => {
+    render(<OverviewScreen data={{ ...demo, demo: false }} />);
+    expect(screen.queryByText("Example data.")).not.toBeInTheDocument();
+    expect(screen.getByText("Warehouse quarterly").closest("a")).not.toBeNull();
   });
 });
 
@@ -59,9 +317,9 @@ describe("connected", () => {
     synced: { finishedAt: new Date(Date.now() - 3 * 60_000).toISOString(), running: false },
   };
 
-  it("renders the stats and the run sheet from mirror strings", () => {
+  it("renders the counts and the run sheet from mirror strings", () => {
     render(<OverviewScreen data={connected} />);
-    expect(screen.getByText("Open quotes")).toBeInTheDocument();
+    expect(screen.getByText(/work\s*orders/)).toBeInTheDocument();
     expect(screen.getByText("11")).toBeInTheDocument();
     // 07:30 wall-clock renders as 7:30am — string maths, no Date()
     expect(screen.getByText("7:30am")).toBeInTheDocument();
@@ -70,66 +328,21 @@ describe("connected", () => {
     expect(screen.getByText("Luke Nguyen")).toBeInTheDocument();
   });
 
+  it("keeps the run sheet on both tabs — it's the crew's week, not a category", async () => {
+    render(<OverviewScreen data={connected} />);
+    expect(screen.getByText("Booked in — next 7 days")).toBeInTheDocument();
+    await toProjects();
+    expect(screen.getByText("Booked in — next 7 days")).toBeInTheDocument();
+  });
+
   it("stamps the mirror's age and the account's clock", () => {
     render(<OverviewScreen data={connected} />);
     expect(screen.getByText(/Mirror synced 3 min ago/)).toBeInTheDocument();
     expect(screen.getByText(/Australia\/Brisbane/)).toBeInTheDocument();
   });
 
-  it("offers Display mode for the wall screen", () => {
-    render(<OverviewScreen data={connected} />);
-    expect(screen.getByRole("button", { name: /Display mode/ })).toBeInTheDocument();
-  });
-
   it("says when the connection itself needs attention", () => {
     render(<OverviewScreen data={{ ...connected, connection: "attention", counts: null }} />);
     expect(screen.getByText(/needs attention/)).toBeInTheDocument();
-  });
-
-  it("groups the radar hardest-first, and overdue rows breathe", () => {
-    const radar = (bucket: "overdue" | "due_soon" | "upcoming", i: number) => ({
-      visitId: `v-${bucket}-${i}`,
-      agreementId: "a-1",
-      label: "Warehouse quarterly",
-      clientName: "Acme",
-      siteLabel: null,
-      dueDate: "2026-07-20",
-      bucket,
-      status: "upcoming",
-      ready: 2,
-      readyTotal: 4,
-      jobNumber: null,
-      bookedStart: null,
-    });
-    render(
-      <OverviewScreen
-        data={{ ...base, radar: [radar("upcoming", 1), radar("overdue", 2), radar("due_soon", 3)] }}
-      />
-    );
-    expect(screen.getByText("Overdue")).toBeInTheDocument();
-    expect(screen.getByText("Due soon")).toBeInTheDocument();
-    expect(screen.getByText("Coming up")).toBeInTheDocument();
-    // the overdue row carries the breathe class — the wall screen's whole brief
-    const overdueRow = screen.getAllByText("Warehouse quarterly")[0].closest("a");
-    expect(overdueRow?.className).toContain("wb-pulse");
-    expect(screen.getAllByText("2/4 ready")).toHaveLength(3);
-  });
-
-  it("shows projects in flight — standalone rows, no integration required", () => {
-    render(
-      <OverviewScreen
-        data={{
-          ...base,
-          projects: [
-            { id: "p-1", name: "Smith St change-over", clientName: "Smith", stage: "Rough-in", percent: 40 },
-          ],
-        }}
-      />
-    );
-    expect(screen.getByText("Smith St change-over").closest("a")).toHaveAttribute(
-      "href",
-      "/dashboard/workboard/projects/p-1"
-    );
-    expect(screen.getByText("Rough-in")).toBeInTheDocument();
   });
 });

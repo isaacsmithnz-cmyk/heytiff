@@ -2945,7 +2945,9 @@ select.fl-i { cursor:pointer; }
 .wb-proj { display:flex; flex-direction:column; gap:8px; text-decoration:none; color:inherit; cursor:pointer; }
 .wb-proj:hover { border-color:rgba(0,168,224,.45); }
 .wb-projhead { display:flex; align-items:center; gap:8px; }
-.wb-projhead b { font-size:15.5px; font-weight:800; letter-spacing:-0.01em; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+/* Two lines, not an ellipsis: a job name is how someone FINDS the card, and
+   "Harbour View Rd — ducted chang…" is exactly the half that doesn't help. */
+.wb-projhead b { font-size:15.5px; font-weight:800; letter-spacing:-0.01em; min-width:0; line-height:1.25; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
 .wb-projsub { font-style:normal; color:var(--gray500); font-size:12.5px; }
 .wb-projmeta { display:flex; flex-wrap:wrap; gap:6px; }
 .wb-bar { height:6px; border-radius:999px; background:rgba(5,5,5,.07); overflow:hidden; }
@@ -2985,3 +2987,150 @@ select.fl-i { cursor:pointer; }
 button.wb-chip { cursor:pointer; border:none; font:inherit; font-size:11px; font-weight:700; }
 button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb-board:fullscreen .wb-visit { border-color:rgba(255,255,255,.09); }
+
+/* ── Workboard command centre ──────────────────────────────────────────────
+   The 6am layer: the switcher, the three vitals, the load rail, the readiness
+   pips and the stage rail. Everything here is built to survive DISPLAY MODE,
+   so each block has its dark twin at the bottom of this file — a half-styled
+   tile on a wall screen is worse than no tile.
+
+   Three tones, used consistently and nowhere else: danger #e0264f, warn
+   #FF8A00, ok #00A389. They are STATE, never the page accent — the accent
+   stays the #00A8E0 → #00E5C0 gradient the bars and thumbs already use. */
+
+.wb-headtools { display:flex; align-items:center; gap:10px; flex:0 0 auto; }
+
+/* switcher — one thumb that SLIDES between the two tabs, the studio idiom
+   (.ds-steps). A background that hops reads as two buttons; a thumb that
+   travels reads as one control with two positions. */
+.wb-seg { position:relative; flex:0 0 auto; display:flex; gap:3px; background:#e4e6ec; border:1px solid rgba(10,12,20,.05); border-radius:15px; padding:4px; }
+/* sized off the track so it stays exact at any width: two equal tabs share
+   (100% − 2×4px padding − 3px gap) */
+.wb-seg-thumb { position:absolute; top:4px; bottom:4px; left:4px; width:calc((100% - 11px) / 2); border-radius:11px; background:#fff; box-shadow:0 3px 8px -3px rgba(10,12,20,.28); transition:transform .42s cubic-bezier(.4,0,.2,1); }
+.wb-seg[data-active="1"] .wb-seg-thumb { transform:translateX(calc(100% + 3px)); }
+.wb-segb { position:relative; z-index:1; border-radius:11px; padding:8px 16px; font-size:12.5px; font-weight:700; color:var(--gray500); cursor:pointer; background:none; border:0; font-family:inherit;
+  /* the thumb carries the movement; the label's colour snaps, because
+     crossfading it passes through a mid-grey unreadable against the pill */
+  transition:none; }
+.wb-segb:hover { color:var(--ink); }
+.wb-segb.on { color:var(--ink); }
+@media (prefers-reduced-motion:reduce) { .wb-seg-thumb { transition:none; } }
+
+/* the three numbers — and they FILTER, because a number you can't act on is
+   decoration. Pressed state is the ring, not a colour swap, so the tone keeps
+   meaning the same thing whether or not it's the active filter. */
+.wb-vitals { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px; }
+.wb-vital { position:relative; display:block; text-align:left; background:#fff; border:1px solid rgba(5,5,5,.08); border-radius:18px; padding:18px 20px; cursor:pointer; font-family:inherit; transition:border-color .2s, box-shadow .2s, transform .2s; }
+.wb-vital:hover { transform:translateY(-1px); box-shadow:0 8px 20px -14px rgba(10,12,20,.5); }
+.wb-vital b { display:block; font-size:40px; font-weight:800; letter-spacing:-.03em; line-height:1; color:var(--ink); }
+.wb-vital span { display:block; font-size:13px; font-weight:700; color:var(--gray700); margin-top:8px; }
+.wb-vital em { display:block; font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); margin-top:3px; }
+/* A tile that means trouble is COLOURED, not just captioned — across a
+   workshop you read the block of colour long before you read the 40px number,
+   and a red tile beside two white ones is the whole point of the row. */
+.wb-vital.urgent { background:rgba(224,38,79,.06); border-color:rgba(224,38,79,.3); }
+.wb-vital.urgent b { color:#e0264f; }
+.wb-vital.attention { background:rgba(255,138,0,.07); border-color:rgba(255,138,0,.32); }
+.wb-vital.attention b { color:#B45309; }
+/* pressed = "this is what you're looking at". Kept neutral on the calm tile
+   so the default state doesn't shout louder than an actual problem. */
+.wb-vital.on { border-color:rgba(5,5,5,.3); box-shadow:0 0 0 3px rgba(5,5,5,.07); }
+.wb-vital.urgent.on { border-color:rgba(224,38,79,.6); box-shadow:0 0 0 3px rgba(224,38,79,.16); }
+.wb-vital.attention.on { border-color:rgba(255,138,0,.65); box-shadow:0 0 0 3px rgba(255,138,0,.18); }
+
+/* demo banner — loud enough that nobody mistakes the fixture for their data,
+   quiet enough to live above the board every day until SM8 lands */
+.wb-demo { display:flex; align-items:flex-start; gap:10px; padding:12px 16px; border-radius:14px; background:rgba(255,138,0,.09); border:1px solid rgba(255,138,0,.28); color:#7c3d00; font-size:13px; line-height:1.5; }
+.wb-demo b { font-weight:800; }
+.wb-demo svg { flex:none; margin-top:1px; }
+
+/* the load rail — calendar weeks on the maintenance side, pipeline stages on
+   the projects side. Same shape because it answers the same question: where
+   does the work pile up. Dots stack from the BASE so the humps read as a
+   histogram at a glance rather than a list you have to count. */
+.wb-rail { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); gap:6px; align-items:end; padding:4px 0 2px; overflow-x:auto; }
+.wb-railcol { display:flex; flex-direction:column; align-items:center; gap:6px; min-width:60px; padding:8px 4px 10px; border-radius:12px; }
+.wb-railcol:hover { background:rgba(5,5,5,.03); }
+.wb-railcol.over { background:rgba(224,38,79,.06); }
+.wb-railcol.urgent { background:rgba(224,38,79,.06); }
+.wb-railcol.attention { background:rgba(255,138,0,.08); }
+/* Stacks sit ON a baseline rule, so one dot reads as a short bar rather than
+   a dot floating in space — the difference between a chart and a scatter. */
+.wb-railstack { display:flex; flex-direction:column-reverse; align-items:center; justify-content:flex-start; gap:3px; min-height:62px; padding-bottom:6px; border-bottom:1px solid rgba(5,5,5,.09); width:100%; }
+.wb-raildot { width:26px; height:11px; border-radius:4px; background:rgba(0,163,137,.85); }
+.wb-raildot.attention { background:#FF8A00; }
+.wb-raildot.overdue { background:#e0264f; }
+.wb-railmore { font-size:10.5px; font-weight:800; color:var(--gray500); }
+.wb-railcol b { font-size:15px; font-weight:800; line-height:1; min-height:15px; }
+.wb-railcol em { font-style:normal; font-size:10.5px; font-weight:700; color:var(--gray500); text-align:center; line-height:1.25; }
+.wb-railcol i { font-style:normal; font-size:10px; color:var(--gray400); }
+
+/* readiness — four pips in a FIXED order (access · time · parts · customer),
+   so the third pip always means parts, with the missing ones named beside
+   them. "3/4 ready" is a fact; "Parts · Customer told" is this afternoon. */
+.wb-pips { display:inline-flex; align-items:center; gap:8px; flex:none; }
+.wb-pips i { width:8px; height:8px; border-radius:3px; background:rgba(5,5,5,.14); }
+.wb-pips i.on { background:#00A389; }
+.wb-pips i + i { margin-left:-4px; }
+.wb-pipnote { font-size:11px; font-weight:700; color:var(--gray500); margin-left:4px; white-space:nowrap; }
+
+/* the pipeline, compressed onto a card */
+.wb-stagerail { display:flex; align-items:center; gap:4px; height:8px; }
+.wb-sdot { flex:1; height:4px; border-radius:999px; background:rgba(5,5,5,.09); }
+.wb-sdot.past { background:rgba(0,163,137,.55); }
+/* the current stage is TALLER, not just a different colour — it has to be
+   findable in a grid of cards without reading any of them */
+.wb-sdot.now { height:8px; background:linear-gradient(90deg,#00A8E0,#00E5C0); }
+
+.wb-chip.warn { background:rgba(255,138,0,.14); color:#B45309; }
+.wb-chip.ghost { background:transparent; border:1px dashed rgba(5,5,5,.2); color:var(--gray400); }
+.wb-dayhead i { font-style:normal; color:var(--gray400); margin-left:4px; }
+.wb-runcounts { margin-left:auto; font-size:12px; font-weight:600; color:var(--gray500); white-space:nowrap; }
+.wb-runcounts i { font-style:normal; font-weight:800; color:var(--gray700); }
+
+/* a flagged project card carries its colour on the edge, not the fill —
+   the card stays readable and the rail of cards still scans as one grid */
+.wb-proj.urgent { border-color:rgba(224,38,79,.6); box-shadow:inset 3px 0 0 #e0264f; }
+.wb-proj.attention { border-color:rgba(255,138,0,.6); box-shadow:inset 3px 0 0 #FF8A00; }
+
+@media (max-width:900px) {
+  .wb-vitals { grid-template-columns:1fr; }
+  .wb-headtools { flex-wrap:wrap; }
+  .wb-pipnote { display:none; }
+}
+
+/* ── DISPLAY MODE ── the same board, dark, read from across a workshop */
+.wb-board:fullscreen .wb-vitals { gap:18px; }
+.wb-board:fullscreen .wb-vital { background:rgba(255,255,255,.05); border-color:rgba(255,255,255,.1); }
+.wb-board:fullscreen .wb-vital.urgent { background:rgba(224,38,79,.16); border-color:rgba(224,38,79,.45); }
+.wb-board:fullscreen .wb-vital.attention { background:rgba(255,138,0,.14); border-color:rgba(255,138,0,.4); }
+.wb-board:fullscreen .wb-vital.on { border-color:rgba(255,255,255,.4); box-shadow:0 0 0 3px rgba(255,255,255,.12); }
+.wb-board:fullscreen .wb-vital b { color:#fff; font-size:64px; }
+.wb-board:fullscreen .wb-vital span { color:rgba(255,255,255,.8); font-size:16px; }
+.wb-board:fullscreen .wb-vital em { color:rgba(255,255,255,.5); font-size:13.5px; }
+.wb-board:fullscreen .wb-vital.urgent b { color:#ff5c82; }
+.wb-board:fullscreen .wb-vital.attention b { color:#FFB454; }
+.wb-board:fullscreen .wb-demo { background:rgba(255,138,0,.12); border-color:rgba(255,138,0,.35); color:#FFCE8A; }
+.wb-board:fullscreen .wb-railcol:hover { background:rgba(255,255,255,.05); }
+.wb-board:fullscreen .wb-railcol.over, .wb-board:fullscreen .wb-railcol.urgent { background:rgba(224,38,79,.14); }
+.wb-board:fullscreen .wb-railcol.attention { background:rgba(255,138,0,.14); }
+.wb-board:fullscreen .wb-railstack { min-height:96px; border-bottom-color:rgba(255,255,255,.16); }
+.wb-board:fullscreen .wb-raildot { width:38px; height:15px; }
+.wb-board:fullscreen .wb-raildot.overdue { background:#ff5c82; }
+.wb-board:fullscreen .wb-railcol b { color:#fff; font-size:19px; }
+.wb-board:fullscreen .wb-railcol em { color:rgba(255,255,255,.55); font-size:12.5px; }
+.wb-board:fullscreen .wb-railmore { color:rgba(255,255,255,.5); }
+.wb-board:fullscreen .wb-pips i { background:rgba(255,255,255,.18); }
+.wb-board:fullscreen .wb-pips i.on { background:#00E5C0; }
+.wb-board:fullscreen .wb-pipnote { color:rgba(255,255,255,.6); font-size:13px; }
+.wb-board:fullscreen .wb-sdot { background:rgba(255,255,255,.14); }
+.wb-board:fullscreen .wb-sdot.past { background:rgba(0,229,192,.5); }
+.wb-board:fullscreen .wb-chip.warn { background:rgba(255,138,0,.22); color:#FFB454; }
+/* background too, not just the border — the base :fullscreen .wb-chip fill
+   would otherwise turn the outline chip back into a solid one */
+.wb-board:fullscreen .wb-chip.ghost { background:transparent; border-color:rgba(255,255,255,.25); color:rgba(255,255,255,.45); }
+.wb-board:fullscreen .wb-dayhead i { color:rgba(255,255,255,.35); }
+.wb-board:fullscreen .wb-runcounts { color:rgba(255,255,255,.55); font-size:14px; }
+.wb-board:fullscreen .wb-runcounts i { color:#fff; }
+.wb-board:fullscreen .wb-projsub { color:rgba(255,255,255,.55); }
+.wb-board:fullscreen .wb-projhead b { color:#fff; }

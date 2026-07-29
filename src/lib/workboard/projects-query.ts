@@ -529,20 +529,43 @@ export type ProjectStripItem = {
   id: string;
   name: string;
   clientName: string | null;
+  siteLabel: string | null;
   stage: string;
+  /** 'active' or 'on_hold' — the board carries both (see below). */
+  status: string;
   percent: number;
+  /** Checklist counts as well as the percentage: "9/14 ticked" is what a
+      foreman reads, the bar is what they glance at. */
+  done: number;
+  total: number;
+  /** Last time anyone touched this project. The board's staleness flags are
+      computed from it — see vitals.ts. */
+  updatedAt: string | null;
 };
 
 export async function listProjectStrip(orgId: string, limit = 8): Promise<ProjectStripItem[]> {
   const { data } = await supabaseAdmin
     .from("projects")
-    .select("id, name, client_name, stage")
-    .eq("org_id", orgId)
-    .eq("status", "active")
+    .select("id, name, client_name, site_label, stage, status, updated_at, created_at")
+    // ON HOLD IS NOT HIDDEN. A held project is the single thing on this board
+    // most likely to need a decision, so the strip carries active AND on_hold
+    // and lets the flags do the talking; only finished and archived work drops
+    // off. (This read used to be .eq('status','active') — that is exactly how
+    // a stalled job goes quiet.)
+    .in("status", ["active", "on_hold"])
     .order("updated_at", { ascending: false, nullsFirst: false })
     .limit(limit);
 
-  type Row = { id: string; name: string; client_name: string | null; stage: string };
+  type Row = {
+    id: string;
+    name: string;
+    client_name: string | null;
+    site_label: string | null;
+    stage: string;
+    status: string;
+    updated_at: string | null;
+    created_at: string;
+  };
   const rows = (data ?? []) as Row[];
   if (rows.length === 0) return [];
 
@@ -556,11 +579,21 @@ export async function listProjectStrip(orgId: string, limit = 8): Promise<Projec
     (by.get(r.project_id) ?? by.set(r.project_id, []).get(r.project_id)!).push(r);
   }
 
-  return rows.map((r) => ({
-    id: r.id,
-    name: r.name,
-    clientName: r.client_name,
-    stage: r.stage,
-    percent: checklistProgress(by.get(r.id) ?? []).percent,
-  }));
+  return rows.map((r) => {
+    const progress = checklistProgress(by.get(r.id) ?? []);
+    return {
+      id: r.id,
+      name: r.name,
+      clientName: r.client_name,
+      siteLabel: r.site_label,
+      stage: r.stage,
+      status: r.status,
+      percent: progress.percent,
+      done: progress.done,
+      total: progress.total,
+      // A project nobody has edited since creation has never moved, so its
+      // creation date IS its last movement — null would read as "fresh".
+      updatedAt: r.updated_at ?? r.created_at,
+    };
+  });
 }

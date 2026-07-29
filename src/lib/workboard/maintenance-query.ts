@@ -340,6 +340,10 @@ export type RadarItem = {
   status: string;
   ready: number;
   readyTotal: number;
+  /** WHICH checks are ticked, not just how many. The board draws a pip per
+      check and names the missing ones — "3/4 ready" tells a foreman there's a
+      problem, "parts not ready" tells them what to do about it. */
+  readiness: Record<ReadinessKey, boolean>;
   jobNumber: string | null;
   bookedStart: string | null;
 };
@@ -397,6 +401,7 @@ export async function listRadar(orgId: string, today: string): Promise<RadarItem
     // paused/ended agreements keep their rows but stay off the radar
     if (!a || a.status !== "active") continue;
     const counts = readinessCount(v.readiness);
+    const readiness = readReadiness(v.readiness);
     out.push({
       visitId: v.id,
       agreementId: v.agreement_id,
@@ -408,6 +413,7 @@ export async function listRadar(orgId: string, today: string): Promise<RadarItem
       status: v.status,
       ready: counts.ready,
       readyTotal: counts.total,
+      readiness,
       jobNumber: v.job_number,
       bookedStart: v.booked_start_cached,
     });

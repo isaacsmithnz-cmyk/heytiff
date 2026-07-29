@@ -119,6 +119,21 @@ describe("an upstream refusal", () => {
     }
   });
 
+  it("sends keyterms as REPEATED form fields, never one JSON blob", async () => {
+    /* Proven against the live API 2026-07-29: a JSON-stringified array is
+       parsed as ONE keyword — brackets and all — so a real list blows the
+       50-char per-keyword limit and the whole request 400s. This was the
+       first live failure after the key was fixed. */
+    let sent: FormData | null = null;
+    global.fetch = jest.fn(async (_url: unknown, init?: { body?: unknown }) => {
+      sent = init?.body as FormData;
+      return { ok: true, json: async () => ({ text: "hi" }) };
+    }) as unknown as typeof fetch;
+
+    await transcribeAudio(new Blob(["x"]), { keyterms: ["Luke", "grilles"] });
+    expect(sent!.getAll("keyterms")).toEqual(["Luke", "grilles"]);
+  });
+
   it("an unreadable body still logs the status rather than throwing", async () => {
     global.fetch = jest.fn(async () => ({
       ok: false,

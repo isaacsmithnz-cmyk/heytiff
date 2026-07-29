@@ -151,10 +151,12 @@ export async function transcribeAudio(
   form.append("file", audio, "note.webm");
   form.append("model_id", MODEL_ID);
 
-  const keyterms = prepareKeyterms(opts.keyterms ?? []);
-  // Sent as a JSON array — the documented type is an array of strings, and
-  // multipart carries it as one encoded field.
-  if (keyterms.length > 0) form.append("keyterms", JSON.stringify(keyterms));
+  // One form field PER TERM, never a JSON-stringified array. The docs say
+  // only "array of strings"; the live API (proven 2026-07-29, A/B against
+  // production) parses a JSON blob as ONE keyword — brackets, quotes and all —
+  // so a real list blows the 50-char per-keyword limit and the whole request
+  // 400s. Repeated fields is how multipart spells an array.
+  for (const term of prepareKeyterms(opts.keyterms ?? [])) form.append("keyterms", term);
 
   try {
     const res = await fetch(ENDPOINT, {

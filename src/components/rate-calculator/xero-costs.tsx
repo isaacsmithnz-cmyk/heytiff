@@ -6,7 +6,15 @@ import { money } from "./format";
 import { WsEyebrow } from "./ui";
 import { chipColor } from "./detail";
 import type { BusinessCost } from "./engine";
-import { snapshotAgeMonths, snapshotTotal, type RateCalcState, type XeroCostSnapshot } from "./state";
+import {
+  fleetCosted,
+  snapshotAgeMonths,
+  snapshotFactor,
+  snapshotTotal,
+  snapshotVehicleTotal,
+  type RateCalcState,
+  type XeroCostSnapshot,
+} from "./state";
 import type { PeriodChoice } from "@/lib/integrations/xero-pl";
 
 /* Business costs, read from a connected Xero organisation.
@@ -39,7 +47,20 @@ const REASON_LABEL: Record<string, string> = {
   wages: "already counted from your staff",
   super: "already derived from wages",
   vehicle: "already counted in Vehicles",
+  tax: "a share of profit, not a cost to recover",
   user: "you removed it",
+};
+
+/* Why a KEPT line is worth a second look. Each one is a judgement only the
+   person who set up the chart of accounts can make, so the panel asks rather
+   than deciding. */
+const NOTE_LABEL: Record<string, string> = {
+  depreciation:
+    "may already be in Vehicles — that step charges the write-down on each vehicle too",
+  subcontract: "job cost rather than overhead — allocate it, or take it out",
+  entertainment: "check this isn't personal spend",
+  "staff-cost": "paid to staff — check it isn't already in their wage on the roster",
+  insurance: "if the fleet's cover is in here, Vehicles may be charging it too",
 };
 
 export type XeroCostsPanelProps = {
@@ -118,7 +139,35 @@ export function XeroCostsPanel({ s, patch, onFetch }: XeroCostsPanelProps) {
     });
   };
 
+  /** Put every vehicle line back in the pool at once — the escape hatch for
+      the case where the exclusion was right in principle and wrong in fact. */
+  const includeVehicles = () => {
+    if (!snap) return;
+    const back = snap.excluded.filter(e => e.reason === "vehicle");
+    patch({
+      xeroCosts: {
+        ...snap,
+        lines: [...snap.lines, ...back.map(e => ({ name: e.name, amount: e.amount, allocated_to: "shared" as const }))],
+        excluded: snap.excluded.filter(e => e.reason !== "vehicle"),
+      },
+    });
+  };
+
   const total = snapshotTotal(snap);
+  const factor = snapshotFactor(snap);
+  const raw = (snap?.lines ?? []).reduce((a, l) => a + l.amount, 0);
+  /* A window the books only partly cover. Reported in months rather than as a
+     yes/no because "5 of 12" is the number that makes someone check. */
+  const months = snap?.monthsCovered ?? null;
+  const partial = months !== null && months > 0 && months < 12;
+
+  /* THE MONEY THAT FALLS BETWEEN TWO STEPS. Vehicle lines are held out because
+     the Vehicles step is meant to have them — but nothing was checking whether
+     it does. With an empty fleet, or "no vehicles" ticked against a P&L that
+     plainly shows fuel, this is spend that ends up in no pool at all and
+     quietly under-prices the rate. */
+  const vehicleHeld = snapshotVehicleTotal(snap);
+  const vehicleLost = vehicleHeld > 0 && !fleetCosted(s);
   /* A figure from two financial years ago prices today's rates exactly like
      one pulled this morning — unless somebody says so. Same threshold as the
      calculator's own review reminder, so "old" means one thing here. */
@@ -174,6 +223,43 @@ export function XeroCostsPanel({ s, patch, onFetch }: XeroCostsPanelProps) {
             </p>
           )}
 
+          {partial && (
+            <div className="rcx-part">
+              <b>
+                Your books cover {months} of these 12 months
+              </b>
+              {/* One string rather than interleaved JSX: these sentences carry
+                  the two figures side by side, and a space lost to JSX
+                  whitespace collapsing would run them together. */}
+              <em>
+                {snap.annualise
+                  ? `${money(raw)} over ${months} month${months === 1 ? "" : "s"}, scaled to ${money(total)} for a year. ` +
+                    "That assumes the months you have are typical — if they aren't, or if you're " +
+                    "still ramping up, take the scaling off and the rate will price on what actually happened."
+                  : `Pricing on ${money(raw)} as though it were a full year of overheads. It isn't — ` +
+                    `it's ${months} month${months === 1 ? "" : "s"} — so your rate is carrying less ` +
+                    "overhead than the business really has."}
+              </em>
+              <button className="rcx-add" onClick={() => patch({ xeroCosts: { ...snap, annualise: !snap.annualise } })}>
+                {snap.annualise ? "Use the unscaled figures" : `Scale up to a year (× ${factor.toFixed(1)})`}
+              </button>
+            </div>
+          )}
+
+          {vehicleLost && (
+            <div className="rcx-part">
+              <b>{money(vehicleHeld)} of vehicle cost isn&apos;t being counted anywhere</b>
+              <em>
+                It was held back because the Vehicles step is meant to have it, but that step has
+                no running costs in it. Either put those figures into Vehicles, or bring these
+                lines into your overheads here — right now they&apos;re in neither.
+              </em>
+              <button className="rcx-add" onClick={includeVehicles}>
+                Add {money(vehicleHeld)} to overheads
+              </button>
+            </div>
+          )}
+
           <div className="rcx-lines">
             {snap.lines.map((l, i) => (
               <div className="rcx-line" key={`${l.name}-${i}`}>
@@ -203,6 +289,23 @@ export function XeroCostsPanel({ s, patch, onFetch }: XeroCostsPanelProps) {
             </span>
           </div>
 
+          {/* Kept, but worth a look. Separate from "Left out" on purpose: these
+              lines ARE in the pool and priced, and the flag is a question about
+              where they belong, not a claim that they don't count. */}
+          {snap.notes.length > 0 && (
+            <div className="rcx-ex">
+              <b>Worth checking</b>
+              <em>These are in your overheads. Have a look at whether they should be.</em>
+              {snap.notes.map((n, i) => (
+                <div className="rcx-exrow" key={`${n.name}-${i}`}>
+                  <span className="rcx-nm">{n.name}</span>
+                  <span className="rcx-why">{NOTE_LABEL[n.note] ?? n.note}</span>
+                  <span className="rcx-amt muted">{money(n.amount)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
           {snap.excluded.length > 0 && (
             <div className="rcx-ex">
               <b>Left out</b>
@@ -218,6 +321,35 @@ export function XeroCostsPanel({ s, patch, onFetch }: XeroCostsPanelProps) {
                 </div>
               ))}
             </div>
+          )}
+
+          {/* Accounts that exist in Xero and had nothing in this window.
+
+              A P&L only reports accounts with transactions, so an account the
+              import would handle WRONGLY is invisible until the period it
+              finally has a balance — `Income Tax Expense` sat nil through an
+              entire audit that way. Collapsed, because on a normal chart this
+              is a dozen quiet rows and nobody needs it open. */}
+          {snap.dormant.length > 0 && (
+            <details className="rcx-ex rcx-dorm">
+              <summary>
+                <b>{snap.dormant.length} account{snap.dormant.length === 1 ? "" : "s"} with nothing in this period</b>
+              </summary>
+              <em>
+                They&apos;re in your chart of accounts but had no transactions, so they aren&apos;t
+                priced. Here&apos;s what would happen to each if it did.
+              </em>
+              {snap.dormant.map((d, i) => (
+                <div className="rcx-exrow" key={`${d.name}-${i}`}>
+                  <span className="rcx-nm">{d.name}</span>
+                  <span className="rcx-why">
+                    {d.verdict === "overhead"
+                      ? "would be added to overheads"
+                      : REASON_LABEL[d.verdict] ?? NOTE_LABEL[d.verdict] ?? d.verdict}
+                  </span>
+                </div>
+              ))}
+            </details>
           )}
         </>
       )}

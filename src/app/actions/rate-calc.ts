@@ -4,8 +4,8 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { requireOrg } from "@/lib/permissions-server";
 import { todayInAu } from "@/lib/au-dates";
 import { getConnectionView } from "@/lib/integrations/store";
-import { getFinancialYearEnd, getProfitAndLoss } from "@/lib/integrations/xero-read";
-import { periodFor, type PeriodChoice } from "@/lib/integrations/xero-pl";
+import { getFinancialYearEnd, getProfitAndLoss, listAccounts } from "@/lib/integrations/xero-read";
+import { dormantAccounts, periodFor, type PeriodChoice } from "@/lib/integrations/xero-pl";
 import type { XeroCostSnapshot } from "@/components/rate-calculator/state";
 
 /* Rate Calculator persistence — server side. Follows the studio-action
@@ -89,7 +89,7 @@ export async function fetchXeroBusinessCosts(choice: PeriodChoice): Promise<Xero
     fy.ok ? fy.data.month : null
   );
 
-  const report = await getProfitAndLoss(orgId, period.from, period.to);
+  const report = await getProfitAndLoss(orgId, period);
   if (!report.ok) return { ok: false, error: report.error };
 
   if (report.data.lines.length === 0 && report.data.excluded.length === 0) {
@@ -99,6 +99,16 @@ export async function fetchXeroBusinessCosts(choice: PeriodChoice): Promise<Xero
     };
   }
 
+  /* The chart of accounts, so the panel can name what the report DIDN'T say. A
+     P&L omits accounts with no transactions, so an account that would be
+     imported wrongly stays invisible until the period it finally has a balance.
+
+     Best-effort on purpose: this is a review aid layered over figures that are
+     already correct, and nobody should lose their cost import because one extra
+     read failed. */
+  const accounts = await listAccounts(orgId);
+  const dormant = accounts.ok ? dormantAccounts(accounts.data, report.data) : [];
+
   return {
     ok: true,
     snapshot: {
@@ -107,7 +117,16 @@ export async function fetchXeroBusinessCosts(choice: PeriodChoice): Promise<Xero
       tenantName: connection.tenantName ?? "Xero",
       lines: report.data.lines,
       excluded: report.data.excluded,
+      notes: report.data.notes,
       sections: report.data.sections,
+      dormant,
+      monthsCovered: report.data.monthsCovered,
+      /* Scaling a part-year up to a year is ON by default, and deliberately.
+         An unscaled five-month total is flatly wrong as an annual overhead;
+         scaled it is an honest estimate. The panel says so in words and the
+         user can switch it off — but the wrong-by-default version would have
+         been the one nobody noticed. */
+      annualise: true,
     },
   };
 }

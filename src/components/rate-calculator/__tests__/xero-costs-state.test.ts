@@ -6,6 +6,7 @@ import {
   runEngine,
   snapshotAgeMonths,
   snapshotTotal,
+  snapshotVehicleTotal,
   sourceSwitchVisible,
   type RateCalcState,
   type XeroCostSnapshot,
@@ -28,13 +29,18 @@ const line = (name: string, amount: number, allocated_to = "shared"): BusinessCo
   allocated_to,
 });
 
-const snapshot = (lines: BusinessCost[]): XeroCostSnapshot => ({
+const snapshot = (lines: BusinessCost[], over: Partial<XeroCostSnapshot> = {}): XeroCostSnapshot => ({
   fetchedAt: "2026-07-26T00:00:00.000Z",
   period: { from: "2025-07-01", to: "2026-06-30", label: "FY 2025–26" },
   tenantName: "Acme Air",
   lines,
   excluded: [{ name: "Wages", amount: 220000, reason: "wages" }],
+  notes: [],
   sections: ["Less Operating Expenses"],
+  dormant: [],
+  monthsCovered: 12,
+  annualise: true,
+  ...over,
 });
 
 const withXero = (over: Partial<RateCalcState> = {}): RateCalcState => ({
@@ -189,6 +195,58 @@ describe("snapshot arithmetic", () => {
     } as never;
     expect(snapshotTotal(snap)).toBe(30000);
     expect(snapshotTotal(null)).toBe(0);
+  });
+
+  it("scales a known part-year up to a year, everywhere at once", () => {
+    const half = snapshot([line("Rent", 12000)], { monthsCovered: 6 });
+    // the panel's total, the Simple seed and the EOFY seed all read this
+    expect(snapshotTotal(half)).toBe(24000);
+    // and so does the pool the engine actually prices from
+    expect(activeBusinessCosts(withXero({ xeroCosts: half }))).toEqual([line("Rent", 24000)]);
+  });
+
+  it("leaves the figures alone when the user turns scaling off", () => {
+    const half = snapshot([line("Rent", 12000)], { monthsCovered: 6, annualise: false });
+    expect(snapshotTotal(half)).toBe(12000);
+    expect(activeBusinessCosts(withXero({ xeroCosts: half }))).toEqual([line("Rent", 12000)]);
+  });
+
+  /* A snapshot written before coverage existed says nothing about how many
+     months it covers. Guessing "12" would be luck; guessing anything else
+     would silently reprice every rate on the next load. */
+  it("never scales a window whose coverage is unknown", () => {
+    const legacy = snapshot([line("Rent", 12000)], { monthsCovered: null });
+    expect(snapshotTotal(legacy)).toBe(12000);
+    const rehydrated = hydrateState(
+      JSON.parse(JSON.stringify(withXero({ xeroCosts: snapshot([line("Rent", 12000)]) })))
+    );
+    // a row saved without the key at all
+    const stripped = JSON.parse(JSON.stringify(rehydrated)) as Record<string, never>;
+    delete (stripped.xeroCosts as unknown as Record<string, unknown>).monthsCovered;
+    expect(hydrateState(stripped).xeroCosts?.monthsCovered).toBeNull();
+    expect(snapshotTotal(hydrateState(stripped).xeroCosts)).toBe(12000);
+  });
+
+  it("keeps coverage and the scaling choice across a save round-trip", () => {
+    const s = withXero({ xeroCosts: snapshot([line("Rent", 12000)], { monthsCovered: 5, annualise: false }) });
+    const after = hydrateState(JSON.parse(JSON.stringify(s)));
+    expect(after.xeroCosts?.monthsCovered).toBe(5);
+    expect(after.xeroCosts?.annualise).toBe(false);
+  });
+
+  /* The money that used to fall between two steps: held out of overheads
+     because Vehicles "has it", when Vehicles had nothing in it. */
+  it("reports what the P&L says the fleet cost, annualised with everything else", () => {
+    const snap = snapshot([line("Rent", 12000)], {
+      monthsCovered: 6,
+      excluded: [
+        { name: "Motor Vehicle Expenses", amount: 3000, reason: "vehicle" },
+        { name: "Fuel", amount: 1500, reason: "vehicle" },
+        { name: "Wages", amount: 90000, reason: "wages" },
+      ],
+    });
+    expect(snapshotVehicleTotal(snap)).toBe(9000); // (3000 + 1500) × 2
+    expect(snapshotVehicleTotal(null)).toBe(0);
   });
 
   it("ages in whole 30-day months, and answers null for garbage", () => {

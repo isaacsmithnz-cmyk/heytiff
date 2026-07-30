@@ -25,6 +25,7 @@ import {
   type TimesheetEntry,
   type VehicleRecord,
 } from "./engine";
+import { annualFactor } from "@/lib/integrations/xero-pl";
 
 // ─── State shape ────────────────────────────────────────────────────────
 
@@ -74,8 +75,25 @@ export interface XeroCostSnapshot {
       those already) with the reason, so the double-count guard is visible and
       reversible rather than a silent filter. */
   excluded: { name: string; amount: number; reason: string }[];
+  /** Kept lines worth a second look — depreciation that may already be in the
+      Vehicles step, subcontract labour that is job cost rather than overhead.
+      Flagged rather than dropped: they're real money either way. */
+  notes: { name: string; amount: number; note: string }[];
   /** Which P&L sections were read — the mapper showing its working. */
   sections: string[];
+  /** Active operating-expense accounts the report never mentioned, because they
+      had no transactions in the window. Named so a wrong verdict on an account
+      can be caught BEFORE the quarter it finally has a balance — which is how
+      `Income Tax Expense` stayed invisible through a whole audit. */
+  dormant: { name: string; code: string | null; verdict: string }[];
+  /** Months of the window with actual activity, or null when it couldn't be
+      established. Below 12 the window is a PART year, and reading its total as
+      an annual figure under-states overheads — see `annualise`. */
+  monthsCovered: number | null;
+  /** Whether a part-year window is scaled up to a year. Stored rather than
+      derived so the user's answer to "is this five months typical?" survives a
+      reload — but never applied silently; the panel shows both figures. */
+  annualise: boolean;
 }
 
 export interface RateCalcState {
@@ -207,6 +225,7 @@ function hydrateSnapshot(raw: unknown): XeroCostSnapshot | null {
       allocated_to: l.allocated_to || "shared",
     }));
   const p = s.period;
+  const months = s.monthsCovered;
   return {
     fetchedAt: typeof s.fetchedAt === "string" ? s.fetchedAt : "",
     period: {
@@ -217,7 +236,13 @@ function hydrateSnapshot(raw: unknown): XeroCostSnapshot | null {
     tenantName: typeof s.tenantName === "string" ? s.tenantName : "",
     lines,
     excluded: Array.isArray(s.excluded) ? s.excluded.filter(e => !!e && typeof e === "object") : [],
+    notes: Array.isArray(s.notes) ? s.notes.filter(n => !!n && typeof n === "object") : [],
     sections: Array.isArray(s.sections) ? s.sections.filter(x => typeof x === "string") : [],
+    dormant: Array.isArray(s.dormant) ? s.dormant.filter(d => !!d && typeof d === "object") : [],
+    /* A row written before coverage existed says nothing about how many months
+       it covers, and "null" is exactly that — unknown, so nothing is scaled. */
+    monthsCovered: typeof months === "number" && Number.isFinite(months) ? months : null,
+    annualise: s.annualise !== false,
   };
 }
 
@@ -248,10 +273,32 @@ export function sourceSwitchVisible(connected: boolean, source: CostsSource): bo
   return connected || source === "xero";
 }
 
-/** The snapshot's included overheads total — one implementation, because the
-    panel's total, the Simple seed and the EOFY seed must be the same number. */
+/** What a snapshot's raw figures are multiplied by to reach a year.
+
+    1 unless the window is a KNOWN part-year and the user has left scaling on.
+    One implementation, because the pool the engine prices from, the total on
+    the panel, the Simple seed and the EOFY seed must never disagree. */
+export function snapshotFactor(snap: XeroCostSnapshot | null): number {
+  if (!snap || !snap.annualise) return 1;
+  return annualFactor(snap.monthsCovered);
+}
+
+/** The snapshot's included overheads, as a year. */
 export function snapshotTotal(snap: XeroCostSnapshot | null): number {
-  return (snap?.lines ?? []).reduce((a, l) => a + l.amount, 0);
+  const f = snapshotFactor(snap);
+  return (snap?.lines ?? []).reduce((a, l) => a + l.amount, 0) * f;
+}
+
+/** What the P&L says the fleet cost, as a year — the lines held out of the
+    pool because the Vehicles step is meant to have them.
+
+    Exported so the Vehicles step can offer them as a seed instead of the money
+    simply vanishing between two steps that each assume the other has it. */
+export function snapshotVehicleTotal(snap: XeroCostSnapshot | null): number {
+  const f = snapshotFactor(snap);
+  return (snap?.excluded ?? [])
+    .filter(e => e.reason === "vehicle")
+    .reduce((a, e) => a + e.amount, 0) * f;
 }
 
 /** Whole months since the snapshot was pulled; null when it can't say. */
@@ -346,7 +393,14 @@ export function allStepsDone(steps: StepStatusMap): boolean {
     manual list is left untouched underneath, which is what makes switching
     back non-destructive. */
 export function activeBusinessCosts(s: RateCalcState): BusinessCost[] {
-  return s.costsSource === "xero" && s.xeroCosts ? s.xeroCosts.lines : s.businessCosts;
+  if (!(s.costsSource === "xero" && s.xeroCosts)) return s.businessCosts;
+  /* The engine wants a year. Scaling happens HERE rather than being baked into
+     the stored line, so the panel can keep showing what Xero actually said
+     beside what the rate is priced on — a figure the user can't reconcile
+     against their own P&L is a figure they won't trust. */
+  const f = snapshotFactor(s.xeroCosts);
+  const lines = s.xeroCosts.lines;
+  return f === 1 ? lines : lines.map(l => ({ ...l, amount: l.amount * f }));
 }
 
 export function buildEngineData(s: RateCalcState): EngineData {

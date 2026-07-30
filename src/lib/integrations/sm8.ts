@@ -182,13 +182,33 @@ export async function fetchSm8Vendor(accessToken: string): Promise<Sm8VendorResu
       signal: AbortSignal.timeout(HTTP_TIMEOUT_MS),
     });
     if (res.status === 401) return { ok: false, unauthorized: true };
-    if (!res.ok) return { ok: false, unauthorized: false };
+    if (!res.ok) {
+      /* The status is the diagnosis, and it used to be discarded — see the
+         note on logSm8Failure in sm8-read.ts. Body truncated, server log
+         only: an upstream error text can name the client id. */
+      let detail = "";
+      try {
+        detail = (await res.text()).slice(0, 500);
+      } catch {
+        detail = "<unreadable body>";
+      }
+      console.error(`[sm8] GET vendor.json ${res.status} ${res.statusText}: ${detail}`);
+      return { ok: false, unauthorized: false };
+    }
     const body: unknown = await res.json();
     const row = Array.isArray(body) ? body[0] : null;
-    if (!row || typeof row !== "object") return { ok: false, unauthorized: false };
+    if (!row || typeof row !== "object") {
+      console.error(
+        `[sm8] GET vendor.json 200 but no usable row: ${JSON.stringify(body).slice(0, 300)}`
+      );
+      return { ok: false, unauthorized: false };
+    }
     const r = row as Record<string, unknown>;
     const uuid = typeof r.uuid === "string" ? r.uuid : "";
-    if (!uuid) return { ok: false, unauthorized: false };
+    if (!uuid) {
+      console.error(`[sm8] GET vendor.json 200 but the row carries no uuid`);
+      return { ok: false, unauthorized: false };
+    }
     return {
       ok: true,
       vendor: {
@@ -200,7 +220,10 @@ export async function fetchSm8Vendor(accessToken: string): Promise<Sm8VendorResu
         currency: typeof r.currency === "string" && r.currency ? r.currency : null,
       },
     };
-  } catch {
+  } catch (err) {
+    console.error(
+      `[sm8] GET vendor.json request failed: ${err instanceof Error ? err.message : String(err)}`
+    );
     return { ok: false, unauthorized: false };
   }
 }

@@ -195,15 +195,7 @@ const BUCKETS: [RadarItem["bucket"], string][] = [
   ["upcoming", "Coming up"],
 ];
 
-function RadarGroups({
-  radar,
-  today,
-  demo,
-}: {
-  radar: RadarItem[];
-  today: string;
-  demo: boolean;
-}) {
+function RadarGroups({ radar, today }: { radar: RadarItem[]; today: string }) {
   return (
     <>
       {BUCKETS.map(([bucket, title]) => {
@@ -238,16 +230,9 @@ function RadarGroups({
                   </span>
                   {r.jobNumber && <span className="wb-chip">#{r.jobNumber}</span>}
                   <ReadyPips item={r} />
-                  {demo && <span className="wb-chip ghost">Demo</span>}
                 </>
               );
-              // A demo row has no agreement to open, so it isn't a link. The
-              // fixture must never hand anyone a 404.
-              return demo ? (
-                <div className={cls} key={r.visitId}>
-                  {inner}
-                </div>
-              ) : (
+              return (
                 <Link
                   href={`/dashboard/workboard/maintenance/${r.agreementId}`}
                   className={cls}
@@ -267,15 +252,7 @@ function RadarGroups({
 
 /* ═════════════ projects ═════════════ */
 
-function ProjectCard({
-  project,
-  today,
-  demo,
-}: {
-  project: ProjectStripItem;
-  today: string;
-  demo: boolean;
-}) {
+function ProjectCard({ project, today }: { project: ProjectStripItem; today: string }) {
   const flag = projectFlag(project, today);
   const stageIndex = PROJECT_STAGES.indexOf(project.stage as (typeof PROJECT_STAGES)[number]);
   const quiet = staleDays(project, today);
@@ -284,7 +261,6 @@ function ProjectCard({
     <>
       <div className="wb-projhead">
         <b>{project.name}</b>
-        {demo && <span className="wb-chip ghost">Demo</span>}
       </div>
       <em className="wb-projsub">
         {[project.clientName, project.siteLabel].filter(Boolean).join(" · ") || "—"}
@@ -320,9 +296,7 @@ function ProjectCard({
   );
 
   const cls = "card2 wb-proj" + (flag.tone ? ` ${flag.tone}` : "");
-  return demo ? (
-    <div className={cls}>{inner}</div>
-  ) : (
+  return (
     <Link href={`/dashboard/workboard/projects/${project.id}`} className={cls}>
       {inner}
     </Link>
@@ -365,7 +339,6 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
   };
 
   const connected = data.connection === "connected";
-  const demo = data.demo;
 
   const mv = useMemo(() => maintenanceVitals(data.radar, data.today), [data.radar, data.today]);
   const pv = useMemo(() => projectVitals(data.projects, data.today), [data.projects, data.today]);
@@ -452,17 +425,6 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
               </div>
             )}
 
-            {demo && (
-              <div className="wb-demo">
-                <Icon name="alert" size={16} />
-                <span>
-                  <b>Example data.</b> Three agreements and three projects, so the board can be
-                  judged full rather than empty. It disappears the moment you add a real one or
-                  connect ServiceM8 — nothing here is saved.
-                </span>
-              </div>
-            )}
-
             <Vitals tiles={vitals.tiles} filter={filter} onFilter={setFilter} />
 
             {/* Straight under the vitals and shared by BOTH tabs: a flag someone
@@ -538,15 +500,13 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
                       <b>Services</b>
                       <em>Overdue first — those breathe red until someone deals with them.</em>
                     </div>
-                    {!demo && (
-                      <Link
-                        href="/dashboard/workboard/maintenance"
-                        className="pbtn ghost"
-                        style={{ marginLeft: "auto" }}
-                      >
-                        All agreements
-                      </Link>
-                    )}
+                    <Link
+                      href="/dashboard/workboard/maintenance"
+                      className="pbtn ghost"
+                      style={{ marginLeft: "auto" }}
+                    >
+                      All agreements
+                    </Link>
                   </div>
                   {shownRadar.length === 0 ? (
                     <p className="int-hint">
@@ -555,7 +515,7 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
                         : emptyForFilter}
                     </p>
                   ) : (
-                    <RadarGroups radar={shownRadar} today={data.today} demo={demo} />
+                    <RadarGroups radar={shownRadar} today={data.today} />
                   )}
                 </div>
               </>
@@ -583,15 +543,13 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
                       <b>Projects in flight</b>
                       <em>Stage, checklist and how long since anyone touched it.</em>
                     </div>
-                    {!demo && (
-                      <Link
-                        href="/dashboard/workboard/projects"
-                        className="pbtn ghost"
-                        style={{ marginLeft: "auto" }}
-                      >
-                        All projects
-                      </Link>
-                    )}
+                    <Link
+                      href="/dashboard/workboard/projects"
+                      className="pbtn ghost"
+                      style={{ marginLeft: "auto" }}
+                    >
+                      All projects
+                    </Link>
                   </div>
                   {shownProjects.length === 0 ? (
                     <p className="int-hint">
@@ -602,7 +560,7 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
                   ) : (
                     <div className="wb-projgrid">
                       {shownProjects.map((p) => (
-                        <ProjectCard key={p.id} project={p} today={data.today} demo={demo} />
+                        <ProjectCard key={p.id} project={p} today={data.today} />
                       ))}
                     </div>
                   )}

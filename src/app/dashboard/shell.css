@@ -3056,12 +3056,6 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb-vital.urgent.on { border-color:rgba(224,38,79,.6); box-shadow:0 0 0 3px rgba(224,38,79,.16); }
 .wb-vital.attention.on { border-color:rgba(255,138,0,.65); box-shadow:0 0 0 3px rgba(255,138,0,.18); }
 
-/* demo banner — loud enough that nobody mistakes the fixture for their data,
-   quiet enough to live above the board every day until SM8 lands */
-.wb-demo { display:flex; align-items:flex-start; gap:10px; padding:12px 16px; border-radius:14px; background:rgba(255,138,0,.09); border:1px solid rgba(255,138,0,.28); color:#7c3d00; font-size:13px; line-height:1.5; }
-.wb-demo b { font-weight:800; }
-.wb-demo svg { flex:none; margin-top:1px; }
-
 /* the load rail — calendar weeks on the maintenance side, pipeline stages on
    the projects side. Same shape because it answers the same question: where
    does the work pile up. Dots stack from the BASE so the humps read as a
@@ -3128,7 +3122,6 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb-board:fullscreen .wb-vital em { color:rgba(255,255,255,.5); font-size:13.5px; }
 .wb-board:fullscreen .wb-vital.urgent b { color:#ff5c82; }
 .wb-board:fullscreen .wb-vital.attention b { color:#FFB454; }
-.wb-board:fullscreen .wb-demo { background:rgba(255,138,0,.12); border-color:rgba(255,138,0,.35); color:#FFCE8A; }
 .wb-board:fullscreen .wb-railcol:hover { background:rgba(255,255,255,.05); }
 .wb-board:fullscreen .wb-railcol.over, .wb-board:fullscreen .wb-railcol.urgent { background:rgba(224,38,79,.14); }
 .wb-board:fullscreen .wb-railcol.attention { background:rgba(255,138,0,.14); }

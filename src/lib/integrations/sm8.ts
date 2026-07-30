@@ -169,7 +169,7 @@ export type Sm8Vendor = {
 
 export type Sm8VendorResult =
   | { ok: true; vendor: Sm8Vendor }
-  | { ok: false; unauthorized: boolean };
+  | { ok: false; unauthorized: boolean; paymentRequired?: boolean };
 
 /** Read the account identity with a bare access token. `unauthorized` is the
     one failure worth distinguishing: a 401 means the GRANT is dead (revoked
@@ -182,6 +182,13 @@ export async function fetchSm8Vendor(accessToken: string): Promise<Sm8VendorResu
       signal: AbortSignal.timeout(HTTP_TIMEOUT_MS),
     });
     if (res.status === 401) return { ok: false, unauthorized: true };
+    /* 402 = the ServiceM8 account isn't in good standing (an expired trial
+       answers with it too). Distinguished because no amount of retrying or
+       reconnecting clears it — only the account holder can. */
+    if (res.status === 402) {
+      console.error("[sm8] GET vendor.json 402: account not in good standing");
+      return { ok: false, unauthorized: false, paymentRequired: true };
+    }
     if (!res.ok) {
       /* The status is the diagnosis, and it used to be discarded — see the
          note on logSm8Failure in sm8-read.ts. Body truncated, server log

@@ -261,6 +261,38 @@ describe("failure kinds end exactly as much as they should", () => {
     expect(out.note).toContain("reconnecting");
     expect(fetchSm8Page).toHaveBeenCalledTimes(1);
   });
+
+  /* 2026-07-30, the first live connection: an expired ServiceM8 trial answers
+     402 to every endpoint, and with no branch for it the board said "couldn't
+     be reached" — a network fault — while the sync retried a state only the
+     account holder can clear. */
+  it("a 402 ends the run on the account read, before spending a page call", async () => {
+    fetchSm8Vendor.mockResolvedValue({ ok: false, unauthorized: false, paymentRequired: true });
+
+    const out = await runSm8Sync("org-1", "manual", NOW);
+    expect(out.note).toMatch(/trial has ended or an invoice is outstanding/);
+    // the nine objects would each be told the same thing
+    expect(fetchSm8Page).not.toHaveBeenCalled();
+    expect(lastRunsUpdate().patch).toMatchObject({ last_ok: false, calls_today: 1 });
+  });
+
+  it("a 402 never marks the grant needs_reauth — reconnecting can't pay a bill", async () => {
+    fetchSm8Vendor.mockResolvedValue({ ok: false, unauthorized: false, paymentRequired: true });
+    await runSm8Sync("org-1", "manual", NOW);
+    expect(markSm8NeedsReauth).not.toHaveBeenCalled();
+  });
+
+  it("a 402 mid-walk stops the run too, on that object's own error", async () => {
+    fetchSm8Page.mockImplementation(async (_tok: string, endpoint: string) =>
+      endpoint === "staff.json" ? { ok: false, failure: "payment_required" } : emptyPage
+    );
+
+    const out = await runSm8Sync("org-1", "manual", NOW);
+    expect(out.complete).toBe(false);
+    expect(stateUpsertFor("staff")!.last_error).toMatch(/Choose a plan in ServiceM8/);
+    expect(fetchSm8Page).toHaveBeenCalledTimes(1);
+    expect(markSm8NeedsReauth).not.toHaveBeenCalled();
+  });
 });
 
 describe("sweepableSm8Orgs — the nightly cap must rotate, not cut off", () => {

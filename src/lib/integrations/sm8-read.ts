@@ -15,6 +15,7 @@
 
 import { fetchSm8Vendor, SM8_API_BASE, sm8Config, type Sm8Vendor } from "./sm8";
 import { markSm8NeedsReauth, sm8Access } from "./sm8-store";
+import { SM8_BILLING } from "./sm8-sync-plan";
 import type { ReadResult } from "./xero-read";
 
 const HTTP_TIMEOUT_MS = 10_000;
@@ -40,6 +41,10 @@ export async function readSm8Vendor(orgId: string): Promise<ReadResult<Sm8Vendor
     await markSm8NeedsReauth(orgId, "ServiceM8 no longer accepts this connection. Reconnect ServiceM8.");
     return { ok: false, error: REAUTH };
   }
+  /* Deliberately NOT needs_reauth: the grant is fine, and telling someone to
+     reconnect a healthy connection sends them round a loop that cannot fix a
+     billing state. */
+  if (result.paymentRequired) return { ok: false, error: SM8_BILLING };
   return { ok: false, error: UNAVAILABLE };
 }
 
@@ -70,16 +75,22 @@ async function logSm8Failure(what: string, res: Response, note?: string): Promis
 
 /* ── the sync engine's page reader ── */
 
-export type Sm8PageFailure = "unauthorized" | "forbidden" | "rate_limited" | "unavailable";
+export type Sm8PageFailure =
+  | "unauthorized"
+  | "forbidden"
+  | "payment_required"
+  | "rate_limited"
+  | "unavailable";
 
 export type Sm8Page =
   | { ok: true; rows: Record<string, unknown>[]; nextCursor: string | null }
   | { ok: false; failure: Sm8PageFailure };
 
 /** One page of one object: up to 1000 rows plus the x-next-cursor header
-    that names the next page (absent = walk complete). The four failure kinds
-    are the four different DECISIONS the engine makes — dead grant, missing
-    scope, back off, try later — so they come back as data, not sentences. */
+    that names the next page (absent = walk complete). The five failure kinds
+    are the five different DECISIONS the engine makes — dead grant, missing
+    scope, the account can't be billed, back off, try later — so they come back
+    as data, not sentences. */
 export async function fetchSm8Page(
   accessToken: string,
   endpoint: string,
@@ -96,6 +107,7 @@ export async function fetchSm8Page(
     });
     if (res.status === 401) return { ok: false, failure: "unauthorized" };
     if (res.status === 403) return { ok: false, failure: "forbidden" };
+    if (res.status === 402) return { ok: false, failure: "payment_required" };
     if (res.status === 429) return { ok: false, failure: "rate_limited" };
     if (!res.ok) {
       await logSm8Failure(`GET ${endpoint}`, res);

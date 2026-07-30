@@ -32,10 +32,22 @@ const jsonResponse = (body: unknown, init: { status?: number; nextCursor?: strin
   return {
     ok: status >= 200 && status < 300,
     status,
+    statusText: status === 200 ? "OK" : "Error",
     headers: { get: (k: string) => (k === "x-next-cursor" ? init.nextCursor ?? null : null) },
     json: async () => body,
+    // The failure logger reads the body as text; a served error is a string.
+    text: async () => (typeof body === "string" ? body : JSON.stringify(body)),
   };
 };
+
+/* Logging is a side effect on every failure path, so it is silenced by
+   default — the tests that care assert on it explicitly. */
+beforeEach(() => {
+  jest.spyOn(console, "error").mockImplementation(() => {});
+});
+afterEach(() => {
+  jest.restoreAllMocks();
+});
 
 describe("fetchSm8Page", () => {
   it("asks the documented shape: cursor always, $filter only when given", async () => {
@@ -105,5 +117,55 @@ describe("fetchSm8Page", () => {
       ok: false,
       failure: "unavailable",
     });
+  });
+});
+
+/* The first live connection (2026-07-30) reported "couldn't be reached" for
+   every object and there was nothing to diagnose it with: the status had been
+   thrown away, so a 404, a 500 and a 200-that-isn't-an-array were one
+   outcome. Same hole #223 closed in the voice adapter. The RETURN stays coarse
+   — four decisions, no upstream words — and the SERVER LOG carries the truth. */
+describe("what an unavailable failure tells the server", () => {
+  let logged: string[];
+
+  beforeEach(() => {
+    logged = [];
+    jest.spyOn(console, "error").mockImplementation((m: unknown) => void logged.push(String(m)));
+  });
+
+  it("records the endpoint, the status and the served body", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse("No route matched", { status: 404 }));
+    await fetchSm8Page("t", "job.json", { cursor: "-1", filter: null });
+    expect(logged.join()).toContain("job.json");
+    expect(logged.join()).toContain("404");
+    expect(logged.join()).toContain("No route matched");
+  });
+
+  it("names a 200 whose body is not an array as exactly that", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "object body" }));
+    await fetchSm8Page("t", "staff.json", { cursor: "-1", filter: null });
+    expect(logged.join()).toMatch(/not a JSON array/i);
+  });
+
+  it("distinguishes never reaching the host from being served an error", async () => {
+    fetchMock.mockRejectedValueOnce(new Error("ENOTFOUND"));
+    await fetchSm8Page("t", "job.json", { cursor: "-1", filter: null });
+    expect(logged.join()).toContain("request failed");
+    expect(logged.join()).toContain("ENOTFOUND");
+  });
+
+  it("logs nothing on the paths the engine already words for itself", async () => {
+    // 401/403/429 are decisions, not mysteries — the screen says what to do.
+    for (const status of [401, 403, 429]) {
+      fetchMock.mockResolvedValueOnce(jsonResponse("nope", { status }));
+      await fetchSm8Page("t", "job.json", { cursor: "-1", filter: null });
+    }
+    expect(logged).toHaveLength(0);
+  });
+
+  it("never puts the access token in the log", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse("boom", { status: 500 }));
+    await fetchSm8Page("super-secret-token", "job.json", { cursor: "-1", filter: null });
+    expect(logged.join()).not.toContain("super-secret-token");
   });
 });

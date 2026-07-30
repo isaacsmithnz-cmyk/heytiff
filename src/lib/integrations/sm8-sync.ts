@@ -36,6 +36,7 @@ import {
   filterFor,
   maxEditDate,
   PAGE_BUDGET,
+  SM8_BILLING,
   SM8_OBJECTS,
   type MirrorRow,
 } from "./sm8-sync-plan";
@@ -137,6 +138,13 @@ export async function runSm8Sync(
     await release(false, note);
     return { ran: true, note, pagesUsed: 0, rowsPulled: 0, complete: false };
   }
+  /* A billing block answers every endpoint the same way, and this call already
+     proved it — walking the nine objects would spend nine calls to be told so
+     nine more times. The grant is untouched: it isn't what's wrong. */
+  if (!vendorResult.ok && vendorResult.paymentRequired) {
+    await release(false, SM8_BILLING);
+    return { ran: true, note: SM8_BILLING, pagesUsed: 0, rowsPulled: 0, complete: false };
+  }
   if (vendorResult.ok) {
     const v = vendorResult.vendor;
     await supabaseAdmin.from("sm8_vendor").upsert(
@@ -204,6 +212,13 @@ export async function runSm8Sync(
           // Scope drift is per-object news, not a dead run: record which
           // grant would fix it and keep walking the others.
           objectError = `Reconnect ServiceM8 to grant ${spec.scope}.`;
+        } else if (page.failure === "payment_required") {
+          /* Every object shares the account, so every one of them would answer
+             402 as well: spending the calls to learn it nine more times helps
+             nobody, and the fix isn't ours to make. Ends the run WITHOUT
+             touching the grant — reconnecting cannot settle an invoice. */
+          objectError = SM8_BILLING;
+          stopNote = objectError;
         } else if (page.failure === "rate_limited") {
           objectError = "ServiceM8's rate limit was hit — resuming next sync.";
           stopNote = objectError;

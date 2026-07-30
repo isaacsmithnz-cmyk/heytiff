@@ -90,10 +90,13 @@ describe("fetchSm8Page", () => {
     expect(page).toEqual({ ok: true, rows: [{ uuid: "a" }], nextCursor: null });
   });
 
-  it("classifies the four failures the engine decides differently on", async () => {
+  it("classifies the five failures the engine decides differently on", async () => {
     for (const [status, failure] of [
       [401, "unauthorized"],
       [403, "forbidden"],
+      // Documented as "your ServiceM8 account is not in good standing" — an
+      // expired trial answers with it, and it is nobody's bug to retry.
+      [402, "payment_required"],
       [429, "rate_limited"],
       [500, "unavailable"],
     ] as const) {
@@ -155,8 +158,8 @@ describe("what an unavailable failure tells the server", () => {
   });
 
   it("logs nothing on the paths the engine already words for itself", async () => {
-    // 401/403/429 are decisions, not mysteries — the screen says what to do.
-    for (const status of [401, 403, 429]) {
+    // 401/402/403/429 are decisions, not mysteries — the screen says what to do.
+    for (const status of [401, 402, 403, 429]) {
       fetchMock.mockResolvedValueOnce(jsonResponse("nope", { status }));
       await fetchSm8Page("t", "job.json", { cursor: "-1", filter: null });
     }

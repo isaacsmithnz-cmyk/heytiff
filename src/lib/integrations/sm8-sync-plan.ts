@@ -299,6 +299,20 @@ export function maxEditDate(rows: MirrorRow[], seed: string | null): string | nu
   return max;
 }
 
+/* ── the one sentence a failure kind carries ── */
+
+/** ServiceM8's 402, worded. Documented as "Your ServiceM8 account is not in
+    good standing" — an EXPIRED TRIAL answers with it too, which is how the
+    first live connection here (2026-07-30) spent a morning reading as a
+    network fault while the real fix was choosing a plan.
+
+    It lives in the pure module, not beside the other sentences in sm8-read,
+    because the ENGINE says it: sm8-read is the module the engine's tests
+    replace wholesale for I/O, and a sentence imported from a mock is an
+    undefined that quietly falls through to "paused". */
+export const SM8_BILLING =
+  "ServiceM8 isn't accepting requests for this account — its trial has ended or an invoice is outstanding. Choose a plan in ServiceM8, then sync.";
+
 /* ── run budgets ── */
 
 /** Pages (≤1000 rows each) one run may spend before handing back. Keeps a

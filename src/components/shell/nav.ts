@@ -32,7 +32,12 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: "Workspace",
     items: [
-      { key: "home", label: "Dashboard", icon: "dashboard", href: "/dashboard", hint: "Workspace landing", accent: "#00E5C0" },
+      { key: "home", label: "Home", icon: "dashboard", href: "/dashboard", hint: "Your day at a glance", accent: "#00E5C0" },
+      // Second on purpose, right under Home: Home is YOUR day, the Workboard
+      // is the BUSINESS's — the two questions anyone opens the app to ask.
+      // It lives in Workspace rather than Operations because unlike the rest
+      // of that group it defaults to EVERYONE (`workboard` is a staff default).
+      { key: "workboard", label: "Workboard", icon: "activity", href: "/dashboard/workboard", hint: "Maintenance & projects command centre", accent: "#00A8E0", capability: "workboard" },
       { key: "toolbox", label: "Toolbox", icon: "wrench", href: "/dashboard/toolbox", hint: "Calculators & references", accent: "#8A2BE2", capability: "toolbox" },
       { key: "ductr", label: "Design Studio", icon: "wind", href: "/dashboard/studio", hint: "VRF design canvas", accent: "#FF8A00", capability: "studio" },
       { key: "tiff", label: "Tiff AI", icon: "sparkles", href: "/dashboard/tiff", hint: "Assistant & knowledge base", accent: "#2E68FF", dot: true, capability: "tiff" },
@@ -55,10 +60,6 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: "Operations",
     items: [
-      // First in the group on purpose: the board is the shared "what's on"
-      // surface, and unlike the rest of Operations it defaults to EVERYONE
-      // (capability `workboard` is in the staff defaults).
-      { key: "workboard", label: "Workboard", icon: "activity", href: "/dashboard/workboard", hint: "Projects & maintenance board", accent: "#00A8E0", capability: "workboard" },
       { key: "people", label: "Team", icon: "users", href: "/dashboard/team", hint: "People & their day", accent: "#00A389", capability: "team" },
       { key: "timepay", label: "Time & Pay", icon: "clock", href: "/dashboard/timepay", hint: "Timesheets, leave & expenses", accent: "#2E68FF", capability: "timepay_all" },
       { key: "assets", label: "Assets", icon: "truck", href: "/dashboard/assets", hint: "Fleet & equipment", accent: "#FF8A00", capability: "assets_all" },

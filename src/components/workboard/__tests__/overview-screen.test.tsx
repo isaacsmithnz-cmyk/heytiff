@@ -169,15 +169,49 @@ describe("connected", () => {
         data={{
           ...base,
           projects: [
-            { id: "p-1", name: "Smith St change-over", clientName: "Smith", stage: "Rough-in", percent: 40 },
+            {
+              id: "p-1",
+              name: "Smith St change-over",
+              clientName: "Smith",
+              stage: "Rough-in",
+              status: "active",
+              percent: 40,
+            },
           ],
         }}
       />
     );
+    expect(screen.queryByText("On hold")).not.toBeInTheDocument();
     expect(screen.getByText("Smith St change-over").closest("a")).toHaveAttribute(
       "href",
       "/dashboard/workboard/projects/p-1"
     );
     expect(screen.getByText("Rough-in")).toBeInTheDocument();
+  });
+
+  it("carries a HELD project instead of hiding it, and says that it's held", () => {
+    /* The strip used to filter to status='active'. A held project is the one
+       most likely to need a decision, so hiding it is how a stalled job goes
+       quiet on the very screen meant to surface it — but an unlabelled row
+       reads as work in progress, so the chip is part of the fix, not polish. */
+    render(
+      <OverviewScreen
+        data={{
+          ...base,
+          projects: [
+            {
+              id: "p-1",
+              name: "Belmont Café — split replacement",
+              clientName: "Belmont",
+              stage: "Approved",
+              status: "on_hold",
+              percent: 24,
+            },
+          ],
+        }}
+      />
+    );
+    expect(screen.getByText("Belmont Café — split replacement")).toBeInTheDocument();
+    expect(screen.getByText("On hold")).toBeInTheDocument();
   });
 });

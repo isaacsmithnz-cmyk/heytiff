@@ -530,19 +530,32 @@ export type ProjectStripItem = {
   name: string;
   clientName: string | null;
   stage: string;
+  /** 'active' or 'on_hold' — the strip carries both, see below. */
+  status: string;
   percent: number;
 };
 
 export async function listProjectStrip(orgId: string, limit = 8): Promise<ProjectStripItem[]> {
   const { data } = await supabaseAdmin
     .from("projects")
-    .select("id, name, client_name, stage")
+    .select("id, name, client_name, stage, status")
     .eq("org_id", orgId)
-    .eq("status", "active")
+    // ON HOLD IS NOT HIDDEN. A held project is the thing on this board most
+    // likely to need a decision, so the strip carries active AND on_hold and
+    // labels the difference; only finished and archived work drops off. This
+    // read used to be .eq('status','active') — that is exactly how a stalled
+    // job goes quiet, and it goes quiet on the one screen meant to surface it.
+    .in("status", ["active", "on_hold"])
     .order("updated_at", { ascending: false, nullsFirst: false })
     .limit(limit);
 
-  type Row = { id: string; name: string; client_name: string | null; stage: string };
+  type Row = {
+    id: string;
+    name: string;
+    client_name: string | null;
+    stage: string;
+    status: string;
+  };
   const rows = (data ?? []) as Row[];
   if (rows.length === 0) return [];
 
@@ -561,6 +574,7 @@ export async function listProjectStrip(orgId: string, limit = 8): Promise<Projec
     name: r.name,
     clientName: r.client_name,
     stage: r.stage,
+    status: r.status,
     percent: checklistProgress(by.get(r.id) ?? []).percent,
   }));
 }

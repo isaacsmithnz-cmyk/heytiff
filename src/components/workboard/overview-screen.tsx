@@ -316,6 +316,11 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
                         <b>{p.name}</b>
                         {p.clientName && <em> · {p.clientName}</em>}
                       </span>
+                      {/* A held project is carried by the strip rather than
+                          hidden, so it has to SAY it's held — an unlabelled
+                          row reads as work in progress, which is the opposite
+                          of the truth and worse than not showing it at all. */}
+                      {p.status === "on_hold" && <span className="wb-chip bad">On hold</span>}
                       <span className="wb-chip on">{p.stage}</span>
                       <div className="wb-bar">
                         <span style={{ width: `${p.percent}%` }} />

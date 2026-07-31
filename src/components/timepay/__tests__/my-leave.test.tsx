@@ -1,6 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MyLeave } from "../my-leave";
+import { MyLeave, balanceBars } from "../my-leave";
 import type { BalanceView, LeaveRequest } from "@/lib/timepay/leave";
 
 /* Booking leave is choosing a shape on a calendar.
@@ -232,5 +232,94 @@ describe("submitting", () => {
     expect(requestLeave).toHaveBeenCalledWith(
       expect.objectContaining({ startDate: "2026-07-22", endDate: "2026-07-22", hours: 4 }),
     );
+  });
+});
+
+/* ---- the 2026-07-31 redesign: colour, and buttons that say what they do ---- */
+
+const REQ: LeaveRequest = {
+  id: "r1",
+  staffId: "s1",
+  kind: "annual",
+  startDate: "2026-08-10",
+  endDate: "2026-08-12",
+  hours: 22.8,
+  status: "approved",
+};
+
+describe("balanceBars", () => {
+  it("splits the track into what's left and what's booked", () => {
+    expect(balanceBars(100, 75, 25)).toEqual({ avail: 75, booked: 25 });
+  });
+
+  it("survives an entitlement of zero rather than dividing by it", () => {
+    // an unset balance is 0h — the bar must be empty, not NaN% wide
+    expect(balanceBars(0, 0, 0)).toEqual({ avail: 0, booked: 0 });
+  });
+
+  it("clamps an over-booked balance instead of overflowing the track", () => {
+    // booked more than you had: available goes negative, booked past 100%
+    expect(balanceBars(100, -20, 120)).toEqual({ avail: 0, booked: 100 });
+  });
+});
+
+describe("Request leave sits on the card it adds to", () => {
+  it("is in the requests card header, not floating in the page header", () => {
+    const { container } = setup();
+    const head = container.querySelector(".lv-ch.act")!;
+    expect(within(head as HTMLElement).getByRole("button", { name: /Request leave/ })).toBeTruthy();
+    // and nothing action-shaped is left stranded in the page heading
+    expect(container.querySelector(".v2head button")).toBeNull();
+  });
+
+  it("turns into Close once the form is open, so one control owns the panel", async () => {
+    const { user, openForm } = setup();
+    await openForm();
+    expect(screen.getByRole("button", { name: "Close" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Request leave/ })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.getByRole("button", { name: /Request leave/ })).toBeTruthy();
+  });
+});
+
+describe("cancelling a request", () => {
+  it("arms before it fires — one press asks, the next goes through", async () => {
+    const { user, container } = setup({ requests: [REQ] });
+    const btn = () => container.querySelector<HTMLElement>(".lv-cancel")!;
+
+    await user.click(btn());
+    expect(cancelLeave).not.toHaveBeenCalled();
+    expect(btn().className).toContain("arm");
+    expect(btn().textContent).toContain("Confirm");
+
+    await user.click(btn());
+    expect(cancelLeave).toHaveBeenCalledWith("r1");
+  });
+
+  it("names the request it would cancel, for anyone not seeing the row", () => {
+    setup({ requests: [REQ] });
+    // the label names the kind AND the dates — "Cancel" alone tells a screen
+    // reader nothing about which of several rows it is sitting on
+    expect(
+      screen.getByRole("button", { name: /^Cancel Annual leave on 10 Aug.+12 Aug$/ }),
+    ).toBeTruthy();
+  });
+});
+
+describe("leave kinds carry colour without stealing a status hue", () => {
+  it("marks the tile and the row with the kind, not the status", () => {
+    const { container } = setup({ requests: [REQ] });
+    expect(container.querySelector(".lv-baltile.lv-annual")).not.toBeNull();
+    expect(container.querySelector(".lv-req.lv-annual")).not.toBeNull();
+  });
+
+  it("keeps the status chip as the row's only state signal", () => {
+    // the kind is a left bar, the status is the pill — if the kind ever took
+    // teal/amber/red the two would collide on one row
+    const { container } = setup({ requests: [REQ] });
+    const row = container.querySelector(".lv-req")!;
+    expect(row.querySelector(".dchip.ok")?.textContent).toBe("Approved");
+    expect(row.querySelectorAll(".dchip")).toHaveLength(1);
   });
 });

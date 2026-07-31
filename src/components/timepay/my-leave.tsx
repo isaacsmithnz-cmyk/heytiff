@@ -35,6 +35,31 @@ const STATUS_COPY: Record<LeaveStatus, { label: string; tone: string }> = {
 
 const KINDS: LeaveKind[] = ["annual", "personal", "unpaid"];
 
+/* A kind is identity, so it carries a hue the status palette doesn't own —
+   see the .lv-annual/.lv-personal/.lv-unpaid block in shell.css for why teal,
+   amber and red are off limits here. The class sets --lvk; the tile rail, the
+   icon chip, the balance bar and the request row's category bar all read it. */
+const KIND_CLASS: Record<LeaveKind, string> = {
+  annual: "lv-annual",
+  personal: "lv-personal",
+  unpaid: "lv-unpaid",
+};
+
+const KIND_ICON: Record<LeaveKind, string> = {
+  annual: "compass",
+  personal: "user",
+  unpaid: "minus",
+};
+
+/** Where a balance sits on its own entitlement, as bar widths. Guards the
+    empty entitlement (no divide by zero) and an over-booked one, where
+    `available` goes negative and the booked run simply fills the track. */
+export function balanceBars(total: number, available: number, booked: number) {
+  if (!(total > 0)) return { avail: 0, booked: 0 };
+  const clamp = (n: number) => Math.max(0, Math.min(100, (n / total) * 100));
+  return { avail: clamp(available), booked: clamp(booked) };
+}
+
 function fmtRange(startISO: string, endISO: string): string {
   return startISO === endISO
     ? fmtAuDayMonth(startISO)
@@ -82,6 +107,9 @@ export function MyLeave({
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  /* One request armed for cancellation at a time — same shape the team
+     directory uses for revoking an invite. Arming a second forgets the first. */
+  const [armed, setArmed] = useState<string | null>(null);
 
   const [kind, setKind] = useState<LeaveKind>("annual");
   const [startDate, setStartDate] = useState(today);
@@ -165,16 +193,16 @@ export function MyLeave({
     <div className="page in">
       <div className="wrap">
         <div className="stg">
+          {/* The heading is just a heading now. "Request leave" used to float
+              here in the top-right corner, a whole page away from the list it
+              adds to — so it moved into that card's header, where the thing it
+              creates is already on screen. */}
           <div className="v2head" style={{ marginBottom: 24, alignItems: "center" }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <h1 style={{ fontSize: 44, fontWeight: 800, letterSpacing: "-0.03em", margin: 0 }}>
                 My leave
               </h1>
             </div>
-            <button className="fl-btn primary" onClick={() => setOpen((v) => !v)} disabled={pending}>
-              <Icon name="plus" size={14} />
-              Request leave
-            </button>
           </div>
           <MyTimeNav active="leave" />
 
@@ -187,23 +215,38 @@ export function MyLeave({
                 request unpaid leave.
               </div>
             ) : (
-              balances.map((b) => (
-                <div className="lv-baltile" key={b.kind}>
-                  <em>{LEAVE_LABEL[b.kind]}</em>
-                  <b>
-                    {fmt(b.available)}
-                    <span>h available</span>
-                  </b>
-                  <span className="lv-balsub">
-                    {fmt(b.balanceHours)}h balance
-                    {b.booked > 0 ? ` · ${fmt(b.booked)}h booked` : ""}
-                  </span>
-                  <span className={`lv-src${b.source === "manual" ? "" : " synced"}`}>
-                    {b.source !== "manual" && <Icon name="check" size={11} />}
-                    {SOURCE_LABEL[b.source]}
-                  </span>
-                </div>
-              ))
+              balances.map((b) => {
+                const bar = balanceBars(b.balanceHours, b.available, b.booked);
+                return (
+                  <div className={`lv-baltile ${KIND_CLASS[b.kind]}`} key={b.kind}>
+                    <div className="lv-baltop">
+                      <span className="lv-balic">
+                        <Icon name={KIND_ICON[b.kind]} size={14} />
+                      </span>
+                      <em>{LEAVE_LABEL[b.kind]}</em>
+                    </div>
+                    <b>
+                      {fmt(b.available)}
+                      <span>h available</span>
+                    </b>
+                    {/* Decoration only — every number it draws is written out
+                        in the line underneath, so a screen reader gains
+                        nothing from the bar but a stack of percentages. */}
+                    <div className="lv-balbar" aria-hidden="true">
+                      <i style={{ width: `${bar.avail}%` }} />
+                      {b.booked > 0 && <i className="bk" style={{ width: `${bar.booked}%` }} />}
+                    </div>
+                    <span className="lv-balsub">
+                      {fmt(b.balanceHours)}h balance
+                      {b.booked > 0 ? ` · ${fmt(b.booked)}h booked` : ""}
+                    </span>
+                    <span className={`lv-src${b.source === "manual" ? "" : " synced"}`}>
+                      {b.source !== "manual" && <Icon name="check" size={11} />}
+                      {SOURCE_LABEL[b.source]}
+                    </span>
+                  </div>
+                );
+              })
             )}
           </div>
 
@@ -305,12 +348,29 @@ export function MyLeave({
 
           <div className="lv-cols">
             <div className="lv-col">
-              <div className="lv-ch">Your requests</div>
+              <div className="lv-ch act">
+                Your requests
+                <button
+                  className={`fl-btn tiny${open ? "" : " primary"}`}
+                  onClick={() => setOpen((v) => !v)}
+                  disabled={pending}
+                  aria-expanded={open}
+                >
+                  {open ? (
+                    "Close"
+                  ) : (
+                    <>
+                      <Icon name="plus" size={13} />
+                      Request leave
+                    </>
+                  )}
+                </button>
+              </div>
               {upcoming.length === 0 ? (
                 <div className="fl-hempty">Nothing booked. Request leave and it shows here.</div>
               ) : (
                 upcoming.map((r) => (
-                  <div className="lv-req" key={r.id}>
+                  <div className={`lv-req ${KIND_CLASS[r.kind]}`} key={r.id}>
                     <div className="lv-reqmain">
                       <b>{LEAVE_LABEL[r.kind]}</b>
                       <em>
@@ -319,13 +379,24 @@ export function MyLeave({
                       {r.status === "declined" && r.reviewNote && <span className="lv-declined">{r.reviewNote}</span>}
                     </div>
                     <span className={`dchip ${STATUS_COPY[r.status].tone}`}>{STATUS_COPY[r.status].label}</span>
+                    {/* Arms before it fires: the first press asks, the second
+                        goes through. Cancelling an approved booking gives back
+                        days someone already planned around. */}
                     <button
-                      className="lv-cancel"
-                      onClick={() => run(() => cancelLeave(r.id))}
+                      className={`lv-cancel${armed === r.id ? " arm" : ""}`}
+                      onClick={() => {
+                        if (armed !== r.id) return setArmed(r.id);
+                        run(() => cancelLeave(r.id), () => setArmed(null));
+                      }}
                       disabled={pending}
-                      title="Cancel this request"
+                      aria-label={
+                        armed === r.id
+                          ? `Confirm cancelling ${LEAVE_LABEL[r.kind]} on ${fmtRange(r.startDate, r.endDate)}`
+                          : `Cancel ${LEAVE_LABEL[r.kind]} on ${fmtRange(r.startDate, r.endDate)}`
+                      }
                     >
-                      <Icon name="x" size={14} />
+                      <Icon name="x" size={13} />
+                      {armed === r.id ? "Confirm" : "Cancel"}
                     </button>
                   </div>
                 ))
@@ -333,7 +404,7 @@ export function MyLeave({
               {history.length > 0 && (
                 <div className="lv-hist">
                   {history.map((r) => (
-                    <div className="lv-req muted" key={r.id}>
+                    <div className={`lv-req muted ${KIND_CLASS[r.kind]}`} key={r.id}>
                       <div className="lv-reqmain">
                         <b>{LEAVE_LABEL[r.kind]}</b>
                         <em>

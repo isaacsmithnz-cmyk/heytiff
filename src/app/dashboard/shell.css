@@ -1895,13 +1895,31 @@ select.fl-i { cursor:pointer; }
 .fl-btn { display:inline-flex; align-items:center; gap:7px; height:42px; padding:0 18px; border-radius:12px; font-size:13.5px; font-weight:700; transition:all .2s; }
 .fl-btn.ghost { background:#fff; border:1px solid #e5e7eb; color:#374151; box-shadow:0 1px 2px rgba(0,0,0,.04); }
 .fl-btn.ghost:hover { background:#f9fafb; }
-.fl-btn.primary { background:#050505; color:#fff; box-shadow:0 8px 18px -6px rgba(0,0,0,.3); }
-.fl-btn.primary:hover { background:#00E5C0; color:#050505; }
+/* The primary action wears the brand teal, not ink.
+
+   It always did on hover — black resting, teal revealed — which had the app
+   showing its accent only to a mouse, and reading as a flat black pill to
+   everyone else. Teal-on-ink is already how this shell paints "this is the
+   live one": the active sidebar icon (.ni.on .nicon), the profile button on
+   hover, the ask bar's send. Resting there just stops the button being the
+   one place that hides it. Hover now deepens to teal-d rather than swapping
+   the pair, so the press has somewhere to go.
+
+   Literal hex, not var(--teal): .fl-btn is deliberately unscoped so it can
+   render inside modals portalled to body, where .fg's tokens don't reach. */
+.fl-btn.primary { background:#00E5C0; color:#050505; box-shadow:0 8px 18px -6px rgba(0,163,137,.45); }
+.fl-btn.primary:hover { background:#00A389; color:#fff; }
 .fl-btn:disabled { opacity:.4; pointer-events:none; }
 .fl-btn.danger { background:rgba(255,51,102,.07); border:1px solid rgba(255,51,102,.22); color:#e0264f; }
 .fl-btn.danger.arm { background:#e0264f; border-color:#e0264f; color:#fff; }
 .fl-btn.tiny { height:28px; padding:0 11px; font-size:12px; border-radius:9px; background:#fff; border:1px solid #e5e7eb; color:#374151; }
 .fl-btn.tiny:hover { background:#f9fafb; }
+/* .fl-btn.tiny is declared after .fl-btn.primary and repaints the background,
+   so a tiny primary would come out white — the same ordering trap the .invbtns
+   danger rule further down documents. Restated here rather than reordered,
+   because .tiny's whole job is to overwrite the resting fill. */
+.fl-btn.tiny.primary { background:#00E5C0; border-color:transparent; color:#050505; box-shadow:0 6px 14px -6px rgba(0,163,137,.5); }
+.fl-btn.tiny.primary:hover { background:#00A389; color:#fff; }
 .fl-chips { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
 .dchip2 { display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; padding:5px 11px; border-radius:999px; width:fit-content; }
 .dchip2.ok { background:rgba(0,229,192,.1); color:#00A389; }
@@ -2026,11 +2044,34 @@ select.fl-i { cursor:pointer; }
 .fg .tp-tab { display:inline-flex; align-items:center; gap:7px; height:36px; padding:0 16px; border-radius:10px; font-size:13.5px; font-weight:700; color:var(--gray500); transition:all .16s; }
 .fg .tp-tab:hover { color:var(--ink); }
 .fg .tp-tab.on { background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(10,11,16,.09); }
-.fg .lv-bal { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin-bottom:20px; }
-.fg .lv-baltile { padding:15px 17px; border-radius:16px; background:#fff; border:1px solid rgba(10,11,16,.08); }
+/* ---- My leave: kind identity ----------------------------------------------
+   A leave KIND is identity, never state, so it takes a hue the severity
+   palette doesn't own. If annual leave wore teal, an "Annual leave" rail and
+   an "Approved" chip would sit on the same request row in the same colour
+   meaning two different things — the exact confusion the state rule exists to
+   prevent. Teal, amber and red stay reserved for pending / approved /
+   declined; kinds get blue, violet and slate.
+
+   Each kind sets --lvk once and every part of the tile and row reads it, so a
+   kind is recoloured in one place rather than five. */
+.fg .lv-annual   { --lvk:#2E68FF; --lvk-bg:rgba(46,104,255,.10); }
+.fg .lv-personal { --lvk:#8A2BE2; --lvk-bg:rgba(138,43,226,.10); }
+.fg .lv-unpaid   { --lvk:#64748b; --lvk-bg:rgba(100,116,139,.12); }
+
+.fg .lv-bal { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin-bottom:20px; }
+.fg .lv-baltile { position:relative; padding:15px 17px 16px; border-radius:16px; background:#fff; border:1px solid rgba(10,11,16,.08); overflow:hidden; }
+.fg .lv-baltile::before { content:''; position:absolute; top:0; bottom:0; left:0; width:3px; background:var(--lvk); }
+.fg .lv-baltop { display:flex; align-items:center; gap:9px; }
+.fg .lv-balic { display:flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:9px; background:var(--lvk-bg); color:var(--lvk); flex:0 0 auto; }
 .fg .lv-baltile em { display:block; font-style:normal; font-size:12px; font-weight:700; color:var(--gray400); text-transform:uppercase; letter-spacing:.03em; }
-.fg .lv-baltile b { display:flex; align-items:baseline; gap:6px; font-size:28px; font-weight:800; color:var(--ink); margin:5px 0 2px; letter-spacing:-.02em; }
+.fg .lv-baltile b { display:flex; align-items:baseline; gap:6px; font-size:28px; font-weight:800; color:var(--ink); margin:11px 0 0; letter-spacing:-.02em; }
 .fg .lv-baltile b span { font-size:12.5px; font-weight:700; color:var(--gray500); }
+/* What's left, drawn rather than only counted. The track is the whole
+   entitlement; the solid run is what you can still book and the faded run
+   beside it is what you already have booked but haven't taken. */
+.fg .lv-balbar { display:flex; height:6px; border-radius:999px; background:#eef0f3; overflow:hidden; margin:10px 0 9px; }
+.fg .lv-balbar i { display:block; background:var(--lvk); transition:width .4s cubic-bezier(.22,1,.36,1); }
+.fg .lv-balbar i.bk { background:var(--lvk); opacity:.3; }
 .fg .lv-balsub { font-size:12px; font-weight:600; color:var(--gray500); }
 .fg .lv-src { display:flex; align-items:center; gap:5px; margin-top:8px; font-size:11px; font-weight:700; color:var(--gray400); }
 .fg .lv-src.synced { color:var(--teal-d); }
@@ -2045,14 +2086,28 @@ select.fl-i { cursor:pointer; }
 .fg .lv-cols { display:grid; grid-template-columns:1.4fr 1fr; gap:20px; align-items:start; }
 .fg .lv-col { border:1px solid rgba(10,11,16,.08); border-radius:16px; overflow:hidden; }
 .fg .lv-ch { padding:13px 16px; font-size:12.5px; font-weight:800; color:var(--gray700); text-transform:uppercase; letter-spacing:.04em; background:#fafbfc; border-bottom:1px solid rgba(10,11,16,.06); }
+/* The variant that carries its own action. Kept a modifier rather than folded
+   into .lv-ch, because the holidays column and the admin holiday-year headers
+   reuse the plain bar and have nothing to put on the right. The button's own
+   height sets the bar, so it doesn't grow taller than its neighbour. */
+.fg .lv-ch.act { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:9px 10px 9px 16px; }
 .fg .lv-req, .fg .lv-hol, .fg .lv-pend, .fg .lv-calday { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid rgba(10,11,16,.05); }
+/* Inset left bar = CATEGORY in this design system (never pass/fail), which is
+   exactly what a leave kind is. It gives the list its colour without spending
+   a chip, so the row's only pill stays the status. */
+.fg .lv-req { padding-left:19px; box-shadow:inset 3px 0 0 var(--lvk); }
 .fg .lv-pend { align-items:flex-start; }
 .fg .lv-req.muted { opacity:.6; }
 .fg .lv-reqmain, .fg .lv-pmain { flex:1; min-width:0; }
 .fg .lv-reqmain b, .fg .lv-pmain b { display:block; font-size:13.5px; font-weight:800; color:var(--ink); }
 .fg .lv-reqmain em, .fg .lv-pmain em { display:flex; align-items:center; gap:8px; font-style:normal; font-size:12.5px; font-weight:600; color:var(--gray500); margin-top:3px; }
-.fg .lv-cancel { width:30px; height:30px; border-radius:9px; display:flex; align-items:center; justify-content:center; color:var(--gray400); border:1px solid rgba(10,11,16,.1); background:#fff; }
-.fg .lv-cancel:hover { color:var(--red-d,#e0264f); border-color:rgba(224,38,79,.35); }
+/* Was a bare 30px × with a title attribute — unlabelled, and one click from
+   throwing away an approved booking. Now it says what it does and arms first:
+   press once to ask, again to confirm, anywhere else to forget it. `.arm`
+   borrows the filled-red confirm state .fl-btn.danger.arm already uses. */
+.fg .lv-cancel { display:inline-flex; align-items:center; gap:5px; height:28px; padding:0 10px; border-radius:9px; font-size:12px; font-weight:700; color:var(--gray500); border:1px solid rgba(10,11,16,.1); background:#fff; white-space:nowrap; transition:all .16s; }
+.fg .lv-cancel:hover { color:#e0264f; border-color:rgba(224,38,79,.35); background:rgba(255,51,102,.05); }
+.fg .lv-cancel.arm { background:#e0264f; border-color:#e0264f; color:#fff; }
 .fg .lv-hist { border-top:2px solid #eef0f3; }
 .fg .lv-pacts { display:flex; gap:8px; }
 .fg .lv-decline { display:flex; gap:8px; margin-top:9px; }

@@ -28,6 +28,7 @@ jest.mock("@/lib/supabase-server", () => ({
         const sub: Record<string, unknown> = {};
         sub.eq = () => sub;
         sub.or = () => sub;
+        sub.is = () => sub;
         sub.select = () => {
           updates.push({ table, patch });
           return Promise.resolve({ data: table === "sm8_sync_runs" ? claimResult : [] });
@@ -74,9 +75,14 @@ jest.mock("next/server", () => ({ after: (cb: () => unknown) => afterFn(cb) }));
 
 const sm8Access = jest.fn();
 const markSm8NeedsReauth = jest.fn();
+/* The token paths are stubbed, but the naming repair is the REAL one: it
+   touches no tokens, and a spy here would only prove the sync calls something
+   — the point of the test below is that the connection row actually gets
+   written. */
 jest.mock("../sm8-store", () => ({
   sm8Access: (...a: unknown[]) => sm8Access(...(a as [])),
   markSm8NeedsReauth: (...a: unknown[]) => markSm8NeedsReauth(...(a as [])),
+  nameSm8ConnectionIfNameless: jest.requireActual("../sm8-store").nameSm8ConnectionIfNameless,
 }));
 
 const fetchSm8Vendor = jest.fn();
@@ -225,6 +231,32 @@ describe("a clean walk", () => {
       calls_today: 1 + SM8_OBJECTS.length,
       calls_day: TODAY,
     });
+  });
+});
+
+describe("the vendor read repairs a nameless connect", () => {
+  /* A connect whose vendor read failed (a 402-blocked account, say) is stored
+     deliberately nameless. saveSm8Connection's comment promises the next sync
+     names it — before this, only the sm8_vendor mirror was written and the
+     connection row stayed NULL forever. */
+  const connectionWrite = () => updates.find((u) => u.table === "integration_connections");
+
+  it("a successful vendor read names the connection row, not just the mirror", async () => {
+    await runSm8Sync("org-1", "manual", NOW);
+
+    expect(upserts.find((u) => u.table === "sm8_vendor")).toBeDefined();
+    expect(connectionWrite()!.patch).toMatchObject({
+      tenant_id: "v-1",
+      tenant_name: "Acme Air",
+    });
+  });
+
+  it("a vendor read that failed leaves the connection row alone", async () => {
+    // nothing was learned, so there is nothing to write — and a bad read must
+    // never blank a name the row already has
+    fetchSm8Vendor.mockResolvedValue({ ok: false, unauthorized: false });
+    await runSm8Sync("org-1", "manual", NOW);
+    expect(connectionWrite()).toBeUndefined();
   });
 });
 

@@ -28,7 +28,7 @@
 import { after } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { fetchSm8Vendor } from "./sm8";
-import { markSm8NeedsReauth, sm8Access } from "./sm8-store";
+import { markSm8NeedsReauth, nameSm8ConnectionIfNameless, sm8Access } from "./sm8-store";
 import { fetchSm8Page } from "./sm8-read";
 import {
   chunk,
@@ -151,6 +151,13 @@ export async function runSm8Sync(
       },
       { onConflict: "org_id" }
     );
+    /* A grant whose connect-time vendor read failed was stored nameless on
+       purpose (saveSm8Connection). This read is the one that can fix it, so
+       it does — the mirror is the queryable home for the account, but the
+       connection row is what the screens' status line reads, and what any
+       later tenant_name reader would find empty forever. No-ops on a row that
+       already has a name. */
+    await nameSm8ConnectionIfNameless(orgId, v, now);
   }
 
   const { data: stateRows } = await supabaseAdmin

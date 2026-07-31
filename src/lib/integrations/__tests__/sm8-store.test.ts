@@ -6,7 +6,14 @@
 type Row = Record<string, unknown>;
 
 let row: Row | null = null;
-const updates: { patch: Record<string, unknown>; filters: Record<string, unknown> }[] = [];
+/* `is` is kept apart from `filters` on purpose: `.is(col, null)` and
+   `.eq(col, null)` are not the same query, and the naming repair's guard is
+   the whole point of that write. */
+const updates: {
+  patch: Record<string, unknown>;
+  filters: Record<string, unknown>;
+  is: Record<string, unknown>;
+}[] = [];
 const upserts: Record<string, unknown>[] = [];
 const deletes: { table: string; filters: Record<string, unknown> }[] = [];
 
@@ -23,10 +30,14 @@ jest.mock("@/lib/supabase-server", () => ({
       };
       c.maybeSingle = async () => ({ data: row });
       c.update = (patch: Record<string, unknown>) => {
-        const u = { patch, filters };
+        const u = { patch, filters, is: {} as Record<string, unknown> };
         const chain: Record<string, unknown> = {};
         chain.eq = (col: string, v: unknown) => {
           u.filters = { ...u.filters, [col]: v };
+          return chain;
+        };
+        chain.is = (col: string, v: unknown) => {
+          u.is[col] = v;
           return chain;
         };
         chain.then = (res: (v: { error: null }) => unknown) => {
@@ -70,7 +81,12 @@ jest.mock("../secrets", () => ({
   open: (v: string) => (typeof v === "string" && v.startsWith("sealed:") ? v.slice(7) : null),
 }));
 
-import { disconnectSm8, saveSm8Connection, sm8Access } from "../sm8-store";
+import {
+  disconnectSm8,
+  nameSm8ConnectionIfNameless,
+  saveSm8Connection,
+  sm8Access,
+} from "../sm8-store";
 import { SM8_WIPE_TABLES } from "../sm8-sync-plan";
 
 const NOW = Date.parse("2026-07-28T00:00:00Z");
@@ -204,6 +220,44 @@ describe("saving a grant", () => {
       tenant_name: null,
       tenants: [],
     });
+  });
+});
+
+describe("naming a grant that connected nameless", () => {
+  const vendor = {
+    uuid: "v-9",
+    name: "Your Company Name",
+    email: null,
+    timezoneName: "Australia/Brisbane",
+    currency: "AUD",
+  };
+
+  it("fills the same three slots connect would have, org- and provider-scoped", async () => {
+    await nameSm8ConnectionIfNameless("org-1", vendor, NOW);
+
+    const write = updates[0];
+    expect(write.patch).toMatchObject({ tenant_id: "v-9", tenant_name: "Your Company Name" });
+    expect(write.patch.tenants).toEqual([
+      { tenantId: "v-9", tenantName: "Your Company Name", timezoneName: "Australia/Brisbane" },
+    ]);
+    expect(write.filters).toMatchObject({ org_id: "org-1", provider: "servicem8" });
+  });
+
+  it("only lands while the row is STILL nameless", async () => {
+    await nameSm8ConnectionIfNameless("org-1", vendor, NOW);
+    /* The guard, not a nicety: a sync that read the vendor before a reconnect
+       must not stamp its stale account over the one the reconnect stored. */
+    expect(updates[0].is).toEqual({ tenant_id: null });
+  });
+
+  it("touches nothing else — tokens, status and the grant's own dates aren't its business", async () => {
+    await nameSm8ConnectionIfNameless("org-1", vendor, NOW);
+    expect(Object.keys(updates[0].patch).sort()).toEqual([
+      "tenant_id",
+      "tenant_name",
+      "tenants",
+      "updated_at",
+    ]);
   });
 });
 

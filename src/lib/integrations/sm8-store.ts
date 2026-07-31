@@ -51,7 +51,9 @@ const NO_KEY =
     reconnecting REPLACES the grant. `vendor` is the account identity read
     with the fresh token — nullable, because a grant whose vendor read failed
     still reads jobs, and stranding it un-storable (with no revoke endpoint to
-    clean up) would be worse than a nameless row the next sync names. */
+    clean up) would be worse than a nameless row the next sync names — see
+    nameSm8ConnectionIfNameless, which is the half of that promise the sync
+    engine calls. */
 export async function saveSm8Connection(input: {
   orgId: string;
   userId: string;
@@ -98,6 +100,40 @@ export async function saveSm8Connection(input: {
 
   if (error) return { ok: false, error: "Couldn't save the connection." };
   return { ok: true };
+}
+
+/** Fill in the identity of a grant that connected without one — the other
+    half of saveSm8Connection's nullable `vendor`. The sync engine reads the
+    account row on every run anyway (timezone_name); when that read succeeds
+    and the connection is still nameless, this is what keeps the promise.
+
+    CONDITIONAL ON STILL BEING NAMELESS, and that is the whole design: an
+    unguarded write would let a slow sync that started before a reconnect
+    stamp a stale account over the fresh one the reconnect just stored. This
+    repairs an ABSENT name, never a present one — a named row costs the round
+    trip and matches no rows. tenant_id is the flag because connect writes all
+    three slots together or none.
+
+    Tokens stay in this module: the caller hands in an already-read vendor and
+    gets nothing back. */
+export async function nameSm8ConnectionIfNameless(
+  orgId: string,
+  vendor: Sm8Vendor,
+  now: number = Date.now()
+): Promise<void> {
+  await supabaseAdmin
+    .from(TABLE)
+    .update({
+      tenant_id: vendor.uuid,
+      tenant_name: vendor.name,
+      tenants: [
+        { tenantId: vendor.uuid, tenantName: vendor.name, timezoneName: vendor.timezoneName },
+      ],
+      updated_at: new Date(now).toISOString(),
+    })
+    .eq("org_id", orgId)
+    .eq("provider", PROVIDER)
+    .is("tenant_id", null);
 }
 
 /** End the grant locally. ServiceM8 documents no revocation endpoint, so

@@ -25,14 +25,24 @@ import { XeroClient } from "xero-node";
 import { xeroConfig } from "./xero";
 import { markNeedsReauth, xeroAccess, type XeroAccess } from "./store";
 import {
+  shapeAccounts,
   shapeCalendars,
   shapeEarningsRates,
   shapeEmployees,
   shapeOrdinaryLine,
+  type XeroAccount,
   type XeroEmployee,
   type XeroPayCalendar,
 } from "./xero-shape";
-import { mapProfitAndLoss, type ProfitAndLoss } from "./xero-pl";
+import {
+  coverageFrom,
+  finalMonthOf,
+  mapProfitAndLoss,
+  MONTHLY_PERIODS,
+  type Coverage,
+  type Period,
+  type ProfitAndLoss,
+} from "./xero-pl";
 import type { EarningsRate, OrdinaryLine } from "./wage";
 
 /** Every read answers with this: the caller gets data, or a sentence it can
@@ -137,31 +147,84 @@ export async function listPayCalendars(orgId: string): Promise<ReadResult<XeroPa
   });
 }
 
-/** The profit & loss for one window, already mapped to cost lines.
+/** The profit & loss for one window, already mapped to cost lines, plus how
+    much of that window the books actually cover.
 
     Mapping happens here rather than in the caller so the generated report
     model — a tree of sections, cells and attributes — never leaves this
     module. `standardLayout: true` asks Xero for the report as its own UI shows
-    it, which is the layout `mapProfitAndLoss` understands. */
+    it, which is the layout `mapProfitAndLoss` understands.
+
+    TWO CALLS, AND WHICH ONE IS AUTHORITATIVE. The first is the single window,
+    unchanged, and every AMOUNT comes from it — it is the one whose output has
+    been reconciled line-by-line against a real Xero P&L. The second asks for
+    the same window as twelve monthly columns and is used for ONE thing:
+    counting the months that have activity, so a five-month-old business isn't
+    handed a five-month total labelled as a year. If the two don't add up to the
+    same number, the monthly one is discarded and coverage is reported as
+    unknown. The amounts can never regress on the strength of it.
+
+    The second call is skipped entirely when the first found nothing — there is
+    no coverage to measure in an empty window, and no reason to spend the quota.
+
+    Xero allows 60 calls/minute/tenant; this whole function is one press of a
+    button, so two is affordable where a poller would not be. */
 export async function getProfitAndLoss(
   orgId: string,
-  from: string,
-  to: string
-): Promise<ReadResult<ProfitAndLoss>> {
+  period: Period
+): Promise<ReadResult<ProfitAndLoss & Coverage>> {
   return read(orgId, async (xero, tenantId) => {
-    const res = await xero.accountingApi.getReportProfitAndLoss(
-      tenantId,
-      from,
-      to,
-      undefined, // periods — one window, not a comparison
-      undefined, // timeframe
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      true // standardLayout
-    );
-    return mapProfitAndLoss(res.body);
+    const pl = async (from: string, to: string, periods?: number) => {
+      const res = await xero.accountingApi.getReportProfitAndLoss(
+        tenantId,
+        from,
+        to,
+        periods, // prior periods to return alongside this window
+        periods === undefined ? undefined : "MONTH", // timeframe of those periods
+        undefined, // trackingCategoryID
+        undefined, // trackingCategoryID2
+        undefined, // trackingOptionID
+        undefined, // trackingOptionID2
+        true // standardLayout
+      );
+      return mapProfitAndLoss(res.body);
+    };
+
+    const whole = await pl(period.from, period.to);
+    const windowTotal =
+      whole.lines.reduce((a, l) => a + l.amount, 0) +
+      whole.excluded.reduce((a, l) => a + l.amount, 0);
+    if (windowTotal === 0) return { ...whole, monthsCovered: null, columns: 0 };
+
+    /* A failure here must not fail the import: coverage is an improvement on
+       the amounts, never a precondition for them. */
+    try {
+      const last = finalMonthOf(period);
+      const monthly = await pl(last.from, last.to, MONTHLY_PERIODS);
+      return { ...whole, ...coverageFrom(monthly, windowTotal) };
+    } catch {
+      return { ...whole, monthsCovered: null, columns: 0 };
+    }
+  });
+}
+
+/** The organisation's chart of accounts.
+
+    WHY THIS EXISTS. A profit & loss only reports accounts that had a
+    transaction. An account that exists and sat idle for the window is invisible
+    in the report — so the import can't warn about it, and nobody reviewing the
+    import can miss what they can't see. That is exactly how `Income Tax
+    Expense` went unnoticed: typed `EXPENSE`, it renders under Operating
+    Expenses and would be imported as an overhead, but it was nil in every
+    period we looked at.
+
+    One call, no paging — Xero returns the whole chart at once, and a trade
+    business has tens of accounts, not thousands. Costs the `accounting.settings
+    .read` scope, which the grant already carries. */
+export async function listAccounts(orgId: string): Promise<ReadResult<XeroAccount[]>> {
+  return read(orgId, async (xero, tenantId) => {
+    const res = await xero.accountingApi.getAccounts(tenantId);
+    return shapeAccounts(res.body?.accounts);
   });
 }
 

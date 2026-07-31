@@ -1,4 +1,4 @@
-import { shapeCalendars, shapeEmployee, shapeEmployees } from "../xero-shape";
+import { shapeAccounts, shapeCalendars, shapeEmployee, shapeEmployees } from "../xero-shape";
 
 /* Shaping is the boundary: everything Xero sends that we don't name here can
    never reach a screen. These tests pin both halves of that — what we keep, and
@@ -108,5 +108,53 @@ describe("shapeCalendars", () => {
 
   it("drops a calendar with no id", () => {
     expect(shapeCalendars([{ name: "Nameless" }])).toEqual([]);
+  });
+});
+
+/* Real rows from the Demo Company (AU) chart of accounts, in the shape the API
+   returns them (type/status as enum codes, not the CSV's display names). */
+describe("shapeAccounts", () => {
+  const CHART = [
+    { code: "090", name: "Business Bank Account", type: "BANK", status: "ACTIVE" },
+    { code: "200", name: "Sales", type: "REVENUE", status: "ACTIVE" },
+    { code: "300", name: "Purchases", type: "DIRECTCOSTS", status: "ACTIVE" },
+    { code: "310", name: "Cost of Goods Sold", type: "DIRECTCOSTS", status: "ACTIVE" },
+    { code: "400", name: "Advertising", type: "EXPENSE", status: "ACTIVE" },
+    { code: "416", name: "Depreciation", type: "DEPRECIATN", status: "ACTIVE" },
+    { code: "505", name: "Income Tax Expense", type: "EXPENSE", status: "ACTIVE" },
+    { code: "710", name: "Office Equipment", type: "FIXED", status: "ACTIVE" },
+    { code: "820", name: "GST", type: "CURRLIAB", status: "ACTIVE" },
+    { code: "999", name: "Old Marketing Account", type: "EXPENSE", status: "ARCHIVED" },
+  ];
+
+  /* The whole point of the read: which accounts could ever reach the cost pool.
+     DIRECTCOSTS must NOT — it renders under Cost of Sales, and nothing in
+     "Purchases" or "Cost of Goods Sold" marks them out by name. */
+  it("marks exactly the accounts that render as operating expenses", () => {
+    const ops = shapeAccounts(CHART).filter(a => a.operatingExpense).map(a => a.name);
+    expect(ops).toEqual([
+      "Advertising",
+      "Depreciation",
+      "Income Tax Expense",
+      "Old Marketing Account",
+    ]);
+  });
+
+  it("knows an archived account can't explain a gap in a report", () => {
+    const byName = Object.fromEntries(shapeAccounts(CHART).map(a => [a.name, a.active]));
+    expect(byName["Advertising"]).toBe(true);
+    expect(byName["Old Marketing Account"]).toBe(false);
+  });
+
+  it("keeps a type it has never seen rather than flattening it", () => {
+    const [a] = shapeAccounts([{ name: "Bank Revaluations", type: "BANKREVALUATION" }]);
+    expect(a.type).toBe("BANKREVALUATION");
+    expect(a.operatingExpense).toBe(false);
+  });
+
+  it("drops what it can't name, and survives junk", () => {
+    expect(shapeAccounts([{ code: "500", type: "EXPENSE" }])).toEqual([]);
+    expect(shapeAccounts(null)).toEqual([]);
+    expect(shapeAccounts([null, "nope", 7])).toEqual([]);
   });
 });

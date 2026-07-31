@@ -10,7 +10,7 @@
 
 import React from "react";
 import type { RiskSettings, Multipliers } from "./engine";
-import { fleetCosted, snapshotTotal, sourceSwitchVisible, type EntryMode } from "./state";
+import { fleetCosted, snapshotTotal, snapshotVehicleTotal, sourceSwitchVisible, type EntryMode } from "./state";
 import { RC } from "./theme";
 import { money, rate0 } from "./format";
 import { QuestionStack, RcIcon, WsEyebrow, WsHelpNote, WsSlider, WsToggle, NumInput, type StackQuestion } from "./ui";
@@ -408,6 +408,26 @@ export function VehiclesStep({ s, patch, calc, showToggle, revealAll }: StepBody
     body: (
       <>
         <MonthInputs months={sv.months} onChange={m => patch({ simpleVehicle: { ...sv, months: m } })} />
+        {/* The Xero pull holds vehicle lines out of the overhead pool because
+            THIS step is meant to have them. Offering them here is what closes
+            that loop — otherwise the money sits in a "left out" list on another
+            step and lands in no pool at all. A fleet TOTAL is all a P&L can
+            give: one Motor Vehicle Expenses account can't be split per ute.
+            And it reads LOW — vehicle depreciation, insurance and finance
+            usually sit in their own accounts — so it seeds, never overwrites. */}
+        {!hasCosts && snapshotVehicleTotal(s.xeroCosts) > 0 && (
+          <button
+            className="rcx-add"
+            style={{ marginTop: 10 }}
+            onClick={() => {
+              const monthly = Math.round(snapshotVehicleTotal(s.xeroCosts) / 12);
+              patch({ simpleVehicle: { ...sv, months: [monthly, monthly, monthly] } });
+            }}
+            title="From the vehicle lines on your Xero P&L — check it against fuel, servicing, insurance and rego"
+          >
+            Seed from Xero — about {money(Math.round(snapshotVehicleTotal(s.xeroCosts) / 12))} a month
+          </button>
+        )}
         {hasCosts && (
           <div style={{ background: RC.serviceSoft, borderRadius: 14, padding: "13px 18px", marginTop: 14, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div>

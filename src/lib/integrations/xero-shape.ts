@@ -180,3 +180,62 @@ export function shapeCalendars(raw: unknown): XeroPayCalendar[] {
   }
   return out;
 }
+
+/** An account off the organisation's chart of accounts.
+
+    Deliberately thin. The generated model carries bank account numbers, tax
+    types and system-account markers; what any screen here needs is what the
+    account is called, what Xero calls its type, and whether it is still in
+    use. */
+export type XeroAccount = {
+  /** The user's own code — "449", "SALES". Absent on some system accounts. */
+  code: string | null;
+  name: string;
+  /** Xero's type code verbatim: EXPENSE, OVERHEADS, DIRECTCOSTS, DEPRECIATN…
+      Kept as a string rather than an enum so a type we've never seen survives
+      instead of being flattened to null. */
+  type: string;
+  /** ARCHIVED and DELETED accounts can't take new transactions, so they can
+      never explain a gap in a report. */
+  active: boolean;
+  /** Whether this account's type puts it in the P&L's operating-expense
+      section — which is to say, whether the Rate Calculator's import would
+      ever see it. See `OPERATING_EXPENSE_TYPES`. */
+  operatingExpense: boolean;
+};
+
+/* The account types Xero renders under Operating Expenses.
+
+   DIRECTCOSTS is the one that must stay OUT: it renders under Cost of Sales,
+   which is materials consumed on jobs, priced separately. In the Demo Company
+   chart, `Purchases` and `Cost of Goods Sold` are both DIRECTCOSTS — nothing in
+   their NAMES marks them out, so the type is what keeps them from being spread
+   across every billable hour as overhead. */
+const OPERATING_EXPENSE_TYPES = new Set(["EXPENSE", "OVERHEADS", "DEPRECIATN"]);
+
+const ARCHIVED = "ARCHIVED";
+const DELETED = "DELETED";
+
+/** The chart of accounts → our shapes, junk dropped. An account with no name
+    can't be shown or matched against a report row, so it's dropped rather than
+    rendered as a blank line. */
+export function shapeAccounts(raw: unknown): XeroAccount[] {
+  if (!Array.isArray(raw)) return [];
+  const out: XeroAccount[] = [];
+  for (const a of raw) {
+    if (!a || typeof a !== "object") continue;
+    const r = a as Record<string, unknown>;
+    const name = str(r.name);
+    if (!name) continue;
+    const status = str(r.status).toUpperCase();
+    const type = str(r.type).toUpperCase();
+    out.push({
+      code: orNull(r.code),
+      name,
+      type,
+      active: status !== ARCHIVED && status !== DELETED,
+      operatingExpense: OPERATING_EXPENSE_TYPES.has(type),
+    });
+  }
+  return out;
+}

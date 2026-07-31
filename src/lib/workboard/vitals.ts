@@ -3,8 +3,7 @@
    The Workboard's top row is three numbers a foreman acts on before their
    first coffee, so the rules behind them cannot live scattered through JSX
    where they drift apart and nobody can say why a row went red. They live
-   here, they are ordinary functions over the existing query types, and they
-   are the same rules whether the rows came from Supabase or the demo fixture.
+   here, and they are ordinary functions over the existing query types.
 
    NO I/O AND NO CLOCK: `today` is handed in, already resolved on the
    ACCOUNT's timezone by dates.ts. A module that reads new Date() would bucket

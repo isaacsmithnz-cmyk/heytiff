@@ -30,7 +30,6 @@ jest.mock("@/app/actions/workboard-notes", () => ({ clearFlag: jest.fn() }));
 const TODAY = "2026-07-28";
 
 const base: WorkboardData = {
-  demo: false,
   manage: false,
   connection: "none",
   timezone: null,
@@ -262,48 +261,6 @@ describe("the projects list", () => {
     await toProjects();
     expect(screen.getByText("On hold")).toBeInTheDocument();
     expect(within(screen.getByRole("button", { name: /Urgent/ })).getByText("1")).toBeInTheDocument();
-  });
-});
-
-describe("demo mode", () => {
-  const demo: WorkboardData = {
-    ...base,
-    demo: true,
-    radar: [visit({ visitId: "v1" })],
-    projects: [project({ id: "p1" })],
-  };
-
-  it("says loudly that the data is not real", () => {
-    render(<OverviewScreen data={demo} />);
-    expect(screen.getByText("Example data.")).toBeInTheDocument();
-    expect(screen.getByText(/nothing here is saved/)).toBeInTheDocument();
-  });
-
-  it("refuses to link a demo row to a detail page that doesn't exist", async () => {
-    render(<OverviewScreen data={demo} />);
-    expect(screen.getByText("Warehouse quarterly").closest("a")).toBeNull();
-    await toProjects();
-    expect(screen.getByText("Smith St change-over").closest("a")).toBeNull();
-  });
-
-  it("marks every row, because Display mode scrolls the banner out of sight", async () => {
-    render(<OverviewScreen data={demo} />);
-    expect(screen.getAllByText("Demo").length).toBeGreaterThan(0);
-    await toProjects();
-    expect(screen.getAllByText("Demo").length).toBeGreaterThan(0);
-  });
-
-  it("hides the All-agreements and All-projects doors, which lead to empty lists", async () => {
-    render(<OverviewScreen data={demo} />);
-    expect(screen.queryByText("All agreements")).not.toBeInTheDocument();
-    await toProjects();
-    expect(screen.queryByText("All projects")).not.toBeInTheDocument();
-  });
-
-  it("stays out of the way once there is real data", () => {
-    render(<OverviewScreen data={{ ...demo, demo: false }} />);
-    expect(screen.queryByText("Example data.")).not.toBeInTheDocument();
-    expect(screen.getByText("Warehouse quarterly").closest("a")).not.toBeNull();
   });
 });
 

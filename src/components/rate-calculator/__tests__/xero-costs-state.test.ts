@@ -11,6 +11,9 @@ import {
   snapshotAgeMonths,
   snapshotTotal,
   fleetCosted,
+  fleetOnXero,
+  mergeSnapshot,
+  periodChoiceOf,
   snapshotVehicleTotal,
   sourceSwitchVisible,
   type RateCalcState,
@@ -453,5 +456,149 @@ describe("keeping the fleet and the books on the same source", () => {
     expect(fleetSourceMixed(withSnap({ costsSource: "xero", vehicleSource: "manual" }))).toBe(true);
     expect(fleetSourceMixed(withSnap({ costsSource: "xero", vehicleSource: "xero" }))).toBe(false);
     expect(fleetSourceMixed(withSnap({ costsSource: "manual", vehicleSource: "manual" }))).toBe(false);
+  });
+});
+
+/* ── the audit's holes, pinned ───────────────────────────────────────────
+
+   Three ways the first cut of this feature could still lie: a nil Xero fleet
+   falling back to stale typed figures, a refresh resetting human judgements,
+   and a convenience default overriding an explicit "no vehicles". */
+
+describe("a Xero fleet that reads nil is still the answer", () => {
+  /* Every vehicle line Included back into overheads — the user's deliberate
+     "price it all as overhead" state. The engine must treat that as fleet
+     zero, NOT as an absence that lets older typed figures back in. */
+  const allIncluded = (over: Partial<RateCalcState> = {}): RateCalcState => ({
+    ...emptyState(),
+    costsSource: "xero",
+    vehicleSource: "xero",
+    xeroCosts: fleetSnap({
+      lines: [line("Rent", 24000), line("Insurance", 6000), line("Motor Vehicle Expenses", 9000)],
+      excluded: [{ name: "Wages", amount: 220000, reason: "wages" }],
+    }),
+    ...over,
+  });
+
+  it("suppresses stale month boxes instead of falling back to them", () => {
+    const s = allIncluded({ simpleVehicle: { months: [750, 750, 750] } });
+    expect(buildEngineData(s).simpleVehicleData).toEqual({ months: [], annual: 0 });
+    const c = runEngine(s).calc;
+    expect(c.instVehicle + c.svcVehicle + c.adminVehicle).toBe(0);
+  });
+
+  it("suppresses the per-vehicle editor's typed fuel too", () => {
+    const s = allIncluded({
+      mode: { staff: "Simple", business: "Simple", vehicles: "Detailed" },
+      vehicles: [ute()],
+    });
+    const c = runEngine(s).calc;
+    expect(c.instVehicle + c.svcVehicle + c.adminVehicle).toBe(0);
+  });
+
+  /* The conservation law, at the moment the LAST vehicle line moves: fleet
+     $9,000 → fleet nil + overheads +$9,000, with stale typed figures present
+     on both sides trying to sneak in. */
+  it("conserves the cost base when the last vehicle line is included", () => {
+    const stale = { simpleVehicle: { months: [400, 400, 400] }, vehicles: [ute()] };
+    const held = { ...emptyState(), costsSource: "xero" as const, vehicleSource: "xero" as const, xeroCosts: fleetSnap(), ...stale };
+    const includedAll = allIncluded(stale);
+    expect(costBase(includedAll)).toBeCloseTo(costBase(held), 6);
+  });
+
+  it("counts the step as answered — the money is in overheads, on purpose", () => {
+    expect(runEngine(allIncluded()).steps.vehicles.completion).toBe("complete");
+  });
+});
+
+describe("an explicit 'no vehicles' outranks the Xero conveniences", () => {
+  it("is never auto-taken onto Xero by the source switch", () => {
+    const s = { ...emptyState(), xeroCosts: fleetSnap(), noVehicles: true };
+    expect(costsToXeroPatch(s)).toEqual({ costsSource: "xero" });
+  });
+
+  /* A legacy or hand-patched row CAN say both. The predicate is what keeps
+     "no vehicles" true everywhere at once — engine, completion, panels. */
+  it("silences a vehicleSource the row shouldn't have", () => {
+    const s: RateCalcState = {
+      ...emptyState(),
+      costsSource: "xero",
+      vehicleSource: "xero",
+      noVehicles: true,
+      xeroCosts: fleetSnap(),
+    };
+    expect(fleetOnXero(s)).toBe(false);
+    const run = runEngine(s);
+    expect(run.calc.instVehicle + run.calc.svcVehicle + run.calc.adminVehicle).toBe(0);
+    // and it is noVehicles doing the answering, not the dead source
+    expect(run.steps.vehicles.completion).toBe("complete");
+  });
+});
+
+describe("mergeSnapshot — a refresh keeps every human judgement", () => {
+  /* prev: the user re-allocated Rent, pulled Motor Vehicle Expenses back into
+     the pool, threw out Advertising and Insurance, and turned scaling off. */
+  const prev = snapshot(
+    [line("Rent", 24000, "install"), line("Motor Vehicle Expenses", 9000, "service")],
+    {
+      excluded: [
+        { name: "Advertising", amount: 1000, reason: "user" },
+        { name: "Insurance", amount: 5000, reason: "user" },
+        { name: "Wages", amount: 220000, reason: "wages" },
+      ],
+      annualise: false,
+    }
+  );
+  /* fresh: every amount moved, and the mapper — knowing nothing of the user —
+     re-imports what they removed and re-excludes what they put back. */
+  const fresh = snapshot(
+    [line("Rent", 26000), line("Advertising", 1200), line("Insurance", 6000)],
+    {
+      excluded: [
+        { name: "Motor Vehicle Expenses", amount: 9500, reason: "vehicle" },
+        { name: "Wages", amount: 230000, reason: "wages" },
+      ],
+      notes: [{ name: "Insurance", amount: 6000, note: "insurance" }],
+      monthsCovered: 6,
+    }
+  );
+  const out = mergeSnapshot(prev, fresh);
+
+  it("keeps allocations by name; amounts are the fresh pull's", () => {
+    expect(out.lines).toContainEqual(line("Rent", 26000, "install"));
+  });
+
+  it("keeps a user re-exclusion out, at the fresh amount", () => {
+    expect(out.excluded).toContainEqual({ name: "Advertising", amount: 1200, reason: "user" });
+    expect(out.lines.map(l => l.name)).not.toContain("Advertising");
+  });
+
+  it("keeps a user inclusion in — the patterns don't get a second vote", () => {
+    expect(out.lines).toContainEqual(line("Motor Vehicle Expenses", 9500, "service"));
+  });
+
+  it("keeps the mapper's own exclusions and the fresh coverage", () => {
+    expect(out.excluded).toContainEqual({ name: "Wages", amount: 230000, reason: "wages" });
+    expect(out.monthsCovered).toBe(6);
+  });
+
+  it("keeps the annualise answer — 'is this typical?' is theirs, not per-pull", () => {
+    expect(out.annualise).toBe(false);
+  });
+
+  it("drops a note whose line didn't stay in the pool", () => {
+    expect(out.notes).toEqual([]);
+  });
+
+  it("is the fresh pull untouched when there was nothing before", () => {
+    expect(mergeSnapshot(null, fresh)).toBe(fresh);
+  });
+});
+
+describe("periodChoiceOf", () => {
+  it("reads the window back off the snapshot, defaulting to last-fy", () => {
+    expect(periodChoiceOf(snapshot([], { period: { from: "", to: "", label: "Last 12 months" } }))).toBe("trailing-12");
+    expect(periodChoiceOf(snapshot([]))).toBe("last-fy");
+    expect(periodChoiceOf(null)).toBe("last-fy");
   });
 });

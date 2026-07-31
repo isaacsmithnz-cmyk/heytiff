@@ -25,7 +25,7 @@ import {
   type TimesheetEntry,
   type VehicleRecord,
 } from "./engine";
-import { annualFactor } from "@/lib/integrations/xero-pl";
+import { annualFactor, type PeriodChoice } from "@/lib/integrations/xero-pl";
 
 // ─── State shape ────────────────────────────────────────────────────────
 
@@ -324,6 +324,63 @@ export function snapshotVehicleTotal(snap: XeroCostSnapshot | null): number {
     .reduce((a, e) => a + e.amount, 0) * f;
 }
 
+/** Which period button produced a snapshot — read back off the stored label so
+    a refresh (from either panel) re-asks Xero for the SAME window. Without
+    this, refreshing the fleet could silently swap a trailing-12 snapshot for
+    last-FY, changing the Business figures from a different step. */
+export function periodChoiceOf(snap: XeroCostSnapshot | null): PeriodChoice {
+  return snap?.period.label === "Last 12 months" ? "trailing-12" : "last-fy";
+}
+
+/** Fold a fresh pull over an existing snapshot, keeping every judgement the
+    user has made about it. A refresh is new AMOUNTS — everything a person
+    decided must come through intact:
+
+      - allocation chips, by line name
+      - re-exclusions ("you removed it") — the fresh pull re-imports the line;
+        it goes straight back out as theirs
+      - inclusions — a line they pulled back from `excluded` (vehicle, wages…)
+        stays in the pool rather than being re-excluded by our patterns
+      - `annualise` — "this part year is/isn't typical" is their answer, not
+        a per-pull default
+
+    Amounts, coverage, notes and dormant accounts are always the fresh pull's:
+    those are Xero's side of the bargain. Notes are then filtered to lines that
+    actually ended up in the pool — a "worth checking" flag on a line the user
+    has excluded would be asking them to check money that isn't being counted.
+
+    Both panels MUST refresh through this. The fleet panel replacing the shared
+    snapshot wholesale is how one step's refresh silently reset another step's
+    judgements. */
+export function mergeSnapshot(prev: XeroCostSnapshot | null, fresh: XeroCostSnapshot): XeroCostSnapshot {
+  if (!prev) return fresh;
+
+  const alloc = new Map(prev.lines.map(l => [l.name, l.allocated_to]));
+  const userExcluded = new Set(prev.excluded.filter(e => e.reason === "user").map(e => e.name));
+  const userIncluded = new Set(prev.lines.map(l => l.name));
+
+  const lines: BusinessCost[] = [];
+  const excluded: XeroCostSnapshot["excluded"] = [];
+
+  for (const l of fresh.lines) {
+    if (userExcluded.has(l.name)) excluded.push({ name: l.name, amount: l.amount, reason: "user" });
+    else lines.push({ ...l, allocated_to: alloc.get(l.name) ?? l.allocated_to });
+  }
+  for (const e of fresh.excluded) {
+    if (userIncluded.has(e.name)) lines.push({ name: e.name, amount: e.amount, allocated_to: alloc.get(e.name) ?? "shared" });
+    else excluded.push(e);
+  }
+
+  const kept = new Set(lines.map(l => l.name));
+  return {
+    ...fresh,
+    lines,
+    excluded,
+    notes: fresh.notes.filter(n => kept.has(n.name)),
+    annualise: prev.annualise,
+  };
+}
+
 /** Whole months since the snapshot was pulled; null when it can't say. */
 export function snapshotAgeMonths(fetchedAt: string | undefined, now: number): number | null {
   if (!fetchedAt) return null;
@@ -370,6 +427,18 @@ export function hydrateState(raw: unknown): RateCalcState {
   };
 }
 
+/** Whether the fleet is genuinely reading from Xero: source set, snapshot
+    present, and not overruled by an explicit "no vehicles".
+
+    ONE predicate because four places must agree — the engine input, the step's
+    completion, the fleet total, and which body the Vehicles step renders. The
+    `noVehicles` clause is what keeps that answer supreme: without it a legacy
+    or hand-patched row could say "no vehicles" on screen while the engine
+    quietly charged a Xero fleet. */
+export function fleetOnXero(s: RateCalcState): boolean {
+  return s.vehicleSource === "xero" && !!s.xeroCosts && !s.noVehicles;
+}
+
 /** The fleet's annual running cost when Xero is its source, else null.
 
     Xero as the source bypasses the Simple/Detailed fork the same way it does
@@ -377,7 +446,7 @@ export function hydrateState(raw: unknown): RateCalcState {
     is a third source. The typed figures are left untouched underneath, so
     switching back is non-destructive. */
 export function activeFleetAnnual(s: RateCalcState): number | null {
-  if (s.vehicleSource !== "xero" || !s.xeroCosts) return null;
+  if (!fleetOnXero(s)) return null;
   const annual = snapshotVehicleTotal(s.xeroCosts);
   return annual > 0 ? annual : null;
 }
@@ -395,7 +464,11 @@ export function activeFleetAnnual(s: RateCalcState): number | null {
     and warned about instead. Silently overriding entered figures to close a
     trap would be its own trap. */
 export function costsToXeroPatch(s: RateCalcState): Partial<RateCalcState> {
-  const takeFleetToo = !fleetCosted(s) && snapshotVehicleTotal(s.xeroCosts) > 0;
+  /* `noVehicles` is an explicit answer and outranks a convenience default —
+     auto-taking the fleet would charge one the user said doesn't exist. Their
+     vehicle lines instead surface on the Business panel's "isn't counted
+     anywhere" warning, where putting the money in overheads is one press. */
+  const takeFleetToo = !s.noVehicles && !fleetCosted(s) && snapshotVehicleTotal(s.xeroCosts) > 0;
   return takeFleetToo
     ? { costsSource: "xero", vehicleSource: "xero" }
     : { costsSource: "xero" };
@@ -500,7 +573,7 @@ export function activeVehicles(s: RateCalcState): VehicleRecord[] {
 
 export function buildEngineData(s: RateCalcState): EngineData {
   const onXero = s.costsSource === "xero" && !!s.xeroCosts;
-  const fleetAnnual = activeFleetAnnual(s);
+  const onXeroFleet = fleetOnXero(s);
   return {
     staff: s.staff,
     timesheets: s.timesheets,
@@ -520,9 +593,17 @@ export function buildEngineData(s: RateCalcState): EngineData {
        for the per-vehicle editor to do with it, and letting Detailed silently
        out-rank it would leave someone on Xero looking at a fleet cost the rate
        wasn't using. `annual` carries it as a year rather than a month average,
-       because a Xero window isn't three months. */
-    ...(fleetAnnual !== null
-      ? { simpleVehicleData: { months: [], annual: fleetAnnual } }
+       because a Xero window isn't three months.
+
+       Gated on the SOURCE, not on the total being positive. A Xero fleet that
+       reads nil — every vehicle line Included back into overheads, or books
+       with no vehicle account — is an ANSWER, and it must still suppress the
+       typed figures underneath: falling back to them would sum stale fuel on
+       top of a pool that now holds the vehicle lines, while the panel says the
+       money is already counted. `annual: 0` does that — fleetAnnualFrom reads
+       it as "no fleet cost" and the per-vehicle loop never runs. */
+    ...(onXeroFleet
+      ? { simpleVehicleData: { months: [], annual: snapshotVehicleTotal(s.xeroCosts) } }
       : s.mode.vehicles === "Simple"
         ? { simpleVehicleData: s.simpleVehicle }
         : {}),
@@ -563,12 +644,16 @@ export function runEngine(s: RateCalcState): EngineRun {
 
   // Vehicles no longer auto-complete on an empty fleet. The engine marks the
   // step "complete" whenever there are no vehicle records; downgrade that to
-  // "not_started" until the user either enters running costs or explicitly
-  // confirms they run no vehicles (s.noVehicles).
+  // "not_started" until the user either enters running costs, explicitly
+  // confirms they run no vehicles (s.noVehicles), or puts the fleet on Xero.
+  // Xero-at-nil is deliberately "answered": the panel is saying the vehicle
+  // money is in overheads (or the books have none), which is an answer in the
+  // same sense noVehicles is — not an absence of one.
   const hasFleet = fleetCosted(s);
-  if (!hasFleet && !s.noVehicles && steps.vehicles.completion === "complete") {
+  const answered = s.noVehicles || fleetOnXero(s);
+  if (!hasFleet && !answered && steps.vehicles.completion === "complete") {
     steps.vehicles = { ...steps.vehicles, completion: "not_started" };
-  } else if (!hasFleet && s.noVehicles) {
+  } else if (!hasFleet && answered) {
     steps.vehicles = { ...steps.vehicles, completion: "complete" };
   }
 

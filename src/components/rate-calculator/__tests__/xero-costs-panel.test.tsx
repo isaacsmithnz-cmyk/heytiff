@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { XeroCostsPanel } from "../xero-costs";
+import { XeroFleetPanel } from "../xero-fleet";
 import { emptyState, type RateCalcState, type XeroCostSnapshot } from "../state";
 
 /* The three things this panel now has to SAY, because each one is a number
@@ -118,5 +119,62 @@ describe("kept lines worth a second look", () => {
     expect(screen.getByText(/may already be in Vehicles/i)).toBeInTheDocument();
     // still priced: 12,000 + 8,000
     expect(screen.getByText("$20,000")).toBeInTheDocument();
+  });
+});
+
+/* The fleet follows the FIRST pull; a refresh never re-decides it. The first
+   pull is where vehicle lines first leave the overhead pool, so taking the
+   fleet then prevents the mixed state — but re-running that default on every
+   refresh would override "Enter them myself" each time the button is pressed. */
+describe("the fleet follows the first pull, not every refresh", () => {
+  const withVehicles = snap({
+    excluded: [{ name: "Motor Vehicle Expenses", amount: 3000, reason: "vehicle" }],
+  });
+
+  it("takes the fleet along on the first pull", async () => {
+    const patch = jest.fn();
+    const s: RateCalcState = { ...emptyState(), xeroCosts: null };
+    render(<XeroCostsPanel s={s} patch={patch} onFetch={async () => ({ ok: true, snapshot: withVehicles })} />);
+    await userEvent.click(screen.getByRole("button", { name: /pull from xero/i }));
+    expect(patch).toHaveBeenCalledWith(
+      expect.objectContaining({ costsSource: "xero", vehicleSource: "xero" })
+    );
+  });
+
+  it("leaves a deliberately-manual fleet alone on refresh", async () => {
+    const patch = jest.fn();
+    const s: RateCalcState = { ...emptyState(), costsSource: "xero", vehicleSource: "manual", xeroCosts: withVehicles };
+    render(<XeroCostsPanel s={s} patch={patch} onFetch={async () => ({ ok: true, snapshot: withVehicles })} />);
+    await userEvent.click(screen.getByRole("button", { name: /^refresh$/i }));
+    const arg = patch.mock.calls[0][0];
+    expect(arg.costsSource).toBe("xero");
+    expect(arg).not.toHaveProperty("vehicleSource");
+  });
+});
+
+/* The fleet panel writes the SAME snapshot the Business step reads, so its
+   refresh must re-ask for the same window and keep the judgements made on
+   the other panel. */
+describe("XeroFleetPanel refresh", () => {
+  it("re-asks for the snapshot's own window and keeps allocations", async () => {
+    const patch = jest.fn();
+    const prev = snap({
+      period: { from: "2025-07-01", to: "2026-06-30", label: "Last 12 months" },
+      lines: [{ name: "Rent", amount: 12000, allocated_to: "install" }],
+      excluded: [{ name: "Fuel", amount: 2000, reason: "vehicle" }],
+    });
+    const fresh = snap({
+      lines: [{ name: "Rent", amount: 13000, allocated_to: "shared" }],
+      excluded: [{ name: "Fuel", amount: 2100, reason: "vehicle" }],
+    });
+    const onFetch = jest.fn(async () => ({ ok: true as const, snapshot: fresh }));
+    const s: RateCalcState = { ...emptyState(), vehicleSource: "xero", xeroCosts: prev };
+    render(<XeroFleetPanel s={s} patch={patch} onFetch={onFetch} />);
+    await userEvent.click(screen.getByRole("button", { name: /^refresh$/i }));
+
+    expect(onFetch).toHaveBeenCalledWith("trailing-12");
+    const merged = patch.mock.calls[0][0].xeroCosts;
+    // the Business panel's re-allocation survives a refresh pressed HERE
+    expect(merged.lines).toEqual([{ name: "Rent", amount: 13000, allocated_to: "install" }]);
   });
 });

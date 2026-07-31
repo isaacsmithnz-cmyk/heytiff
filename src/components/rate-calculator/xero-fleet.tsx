@@ -4,7 +4,7 @@ import { useState } from "react";
 import { RC } from "./theme";
 import { money } from "./format";
 import { WsEyebrow } from "./ui";
-import { snapshotVehicleTotal, type RateCalcState, type XeroCostSnapshot } from "./state";
+import { mergeSnapshot, periodChoiceOf, snapshotVehicleTotal, type RateCalcState, type XeroCostSnapshot } from "./state";
 import type { PeriodChoice } from "@/lib/integrations/xero-pl";
 
 /* The fleet's running cost, read from the same Xero snapshot the Business step
@@ -43,8 +43,12 @@ export function XeroFleetPanel({ s, patch, onFetch }: XeroFleetPanelProps) {
     setBusy(true);
     setError(null);
     try {
-      const res = await onFetch("last-fy");
-      if (res.ok) patch({ xeroCosts: res.snapshot, vehicleSource: "xero" });
+      /* Same window the snapshot already covers, and the shared merge — this
+         panel writes the SAME snapshot the Business step reads, so a refresh
+         here must neither swap the period under that step nor reset the
+         judgements (allocations, exclusions, annualise) made on it. */
+      const res = await onFetch(periodChoiceOf(snap));
+      if (res.ok) patch({ xeroCosts: mergeSnapshot(snap, res.snapshot), vehicleSource: "xero" });
       else setError(res.error);
     } catch {
       setError("Couldn't reach Xero. Try again.");

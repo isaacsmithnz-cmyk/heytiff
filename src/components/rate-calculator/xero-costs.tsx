@@ -13,6 +13,8 @@ import {
   snapshotTotal,
   snapshotVehicleTotal,
   costsToXeroPatch,
+  mergeSnapshot,
+  periodChoiceOf,
   type RateCalcState,
   type XeroCostSnapshot,
 } from "./state";
@@ -73,7 +75,9 @@ export type XeroCostsPanelProps = {
 
 export function XeroCostsPanel({ s, patch, onFetch }: XeroCostsPanelProps) {
   const snap = s.xeroCosts;
-  const [choice, setChoice] = useState<PeriodChoice>("last-fy");
+  // Starts on the window the snapshot was pulled for, so Refresh means
+  // "same question again" rather than silently reverting to last-FY.
+  const [choice, setChoice] = useState<PeriodChoice>(periodChoiceOf(snap));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -83,21 +87,19 @@ export function XeroCostsPanel({ s, patch, onFetch }: XeroCostsPanelProps) {
     try {
       const res = await onFetch(choice);
       if (res.ok) {
-        /* Re-apply the allocations the user already chose, by line name: a
-           refresh is new AMOUNTS, not a reset of their judgement about which
-           side of the business each cost belongs to. */
-        const previous = new Map((snap?.lines ?? []).map(l => [l.name, l.allocated_to]));
-        const xeroCosts = {
-          ...res.snapshot,
-          lines: res.snapshot.lines.map(l => ({
-            ...l,
-            allocated_to: previous.get(l.name) ?? l.allocated_to,
-          })),
-        };
-        /* The fleet comes too, unless it has been costed by hand — the pull is
-           the moment the mixed state would otherwise be created, since this is
-           where vehicle lines first leave the overhead pool. */
-        patch({ xeroCosts, ...costsToXeroPatch({ ...s, xeroCosts }) });
+        /* A refresh is new AMOUNTS; every judgement made about the old ones —
+           allocations, re-exclusions, inclusions, the annualise answer —
+           survives via the shared merge. */
+        const xeroCosts = mergeSnapshot(snap, res.snapshot);
+        /* The fleet comes along on the FIRST pull only — that is the moment
+           vehicle lines first leave the overhead pool and the mixed state
+           would otherwise be born. On a refresh the fleet source is wherever
+           the user last put it; re-running the convenience default here would
+           override "Enter them myself" every time this button was pressed. */
+        patch({
+          xeroCosts,
+          ...(snap ? { costsSource: "xero" as const } : costsToXeroPatch({ ...s, xeroCosts })),
+        });
       } else setError(res.error);
     } catch {
       setError("Couldn't reach Xero. Try again.");

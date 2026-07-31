@@ -10,7 +10,7 @@
 
 import React from "react";
 import type { RiskSettings, Multipliers } from "./engine";
-import { costsToXeroPatch, fleetCosted, fleetSourceMixed, snapshotTotal, sourceSwitchVisible, type EntryMode } from "./state";
+import { costsToXeroPatch, fleetCosted, fleetOnXero, fleetSourceMixed, snapshotTotal, sourceSwitchVisible, type EntryMode } from "./state";
 import { RC } from "./theme";
 import { money, rate0 } from "./format";
 import { QuestionStack, RcIcon, WsEyebrow, WsHelpNote, WsSlider, WsToggle, NumInput, type StackQuestion } from "./ui";
@@ -361,7 +361,10 @@ export function VehiclesStep({ s, patch, calc, showToggle, revealAll, xeroConnec
   const sv = s.simpleVehicle;
   const fleetTotal = calc.instVehicle + calc.svcVehicle + calc.adminVehicle;
   const hasCosts = fleetCosted(s);
-  const onXeroFleet = s.vehicleSource === "xero";
+  /* fleetOnXero, not the raw source: an explicit "no vehicles" must win the
+     render, or a legacy row could show the Xero panel with the source switch
+     hidden (it hides under noVehicles) and no way back to the q1 card. */
+  const onXeroFleet = fleetOnXero(s);
   // Local "yes we run vehicles" choice; derived yes once costs exist, so a
   // returning user with a costed fleet sees the whole stack answered.
   const [saidYes, setSaidYes] = React.useState(hasCosts);

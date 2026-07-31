@@ -1,8 +1,14 @@
 import { MyTimesheet } from "@/components/timepay/my-timesheet";
+import { MyTimeNav } from "@/components/timepay/my-time-nav";
 import { loadMyTimesheet } from "@/lib/timepay/page-data";
 
 /* Ungated: your own timesheet is intrinsic, like your own vehicle.
-   `timepay_all` gates everyone else's, never this. */
+   `timepay_all` gates everyone else's, never this.
+
+   The tabs ride on the empty states too, and that is not decoration. This
+   route is the only rail entry the pair has now, so a subcontractor — who
+   never gets past the "no timesheet here" branch — would otherwise have no
+   way to reach their leave but ⌘K. */
 
 export default async function MyTimesheetPage({
   searchParams,
@@ -17,6 +23,7 @@ export default async function MyTimesheetPage({
       <div className="page in">
         <div className="wrap">
           <div className="stg">
+            <MyTimeNav active="timesheet" />
             <div className="emptybox">
               <b>No staff record yet</b>
               <em>Your timesheet appears once your card exists in Team.</em>
@@ -34,6 +41,7 @@ export default async function MyTimesheetPage({
       <div className="page in">
         <div className="wrap">
           <div className="stg">
+            <MyTimeNav active="timesheet" />
             <div className="emptybox">
               <b>Subcontractors don&rsquo;t keep a timesheet here</b>
               <em>

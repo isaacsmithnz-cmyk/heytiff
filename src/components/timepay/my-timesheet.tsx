@@ -23,6 +23,7 @@ import {
 } from "@/lib/timepay/availability";
 import { dateOfDay } from "@/lib/timepay/period";
 import { UpcomingHolidays } from "./upcoming-holidays";
+import { MyTimeNav } from "./my-time-nav";
 import type { PayPeriod } from "./timepay";
 import {
   type DayClass,
@@ -826,6 +827,7 @@ export function MyTimesheet({
               </span>
             </div>
           </div>
+          <MyTimeNav active="timesheet" />
 
           {error && <div className="tp-err">{error}</div>}
 

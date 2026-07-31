@@ -1,14 +1,43 @@
-import { NAV, NAV_GROUPS, isActive, navFor, navGroupsFor, type NavItem, type NavViewer } from "../nav";
+import {
+  NAV,
+  NAV_GROUPS,
+  NAV_ROWS,
+  isActive,
+  navFor,
+  navGroupsFor,
+  type NavItem,
+  type NavViewer,
+} from "../nav";
 import { CAPABILITIES, resolve } from "@/lib/permissions";
 import type { Role } from "@/lib/roles-shared";
 
 const byKey = (key: string) => NAV.find((n) => n.key === key) as NavItem;
 
 describe("nav config", () => {
-  it("flattens groups into NAV", () => {
+  it("flattens groups into NAV_ROWS — one row per entry", () => {
     const flatFromGroups = NAV_GROUPS.flatMap((g) => g.items);
-    expect(NAV).toHaveLength(flatFromGroups.length);
-    expect(NAV.map((n) => n.key)).toEqual(flatFromGroups.map((n) => n.key));
+    expect(NAV_ROWS).toHaveLength(flatFromGroups.length);
+    expect(NAV_ROWS.map((n) => n.key)).toEqual(flatFromGroups.map((n) => n.key));
+  });
+
+  it("NAV additionally carries the tabbed faces, each right after its parent", () => {
+    // The rail draws rows; ⌘K searches everything, folded-in faces included.
+    expect(NAV.map((n) => n.key)).toEqual(
+      NAV_ROWS.flatMap((n) => [n.key, ...(n.subItems ?? []).map((s) => s.key)])
+    );
+    expect(NAV.map((n) => n.key)).toContain("myleave");
+    expect(NAV_ROWS.map((n) => n.key)).not.toContain("myleave");
+  });
+
+  it("gives no tabbed face a capability of its own", () => {
+    // A face is offered exactly when its parent is — anything needing its own
+    // gate is an entry, not a face. The type forbids it; this says why.
+    for (const n of NAV_ROWS) {
+      for (const s of n.subItems ?? []) {
+        expect(s).not.toHaveProperty("capability");
+        expect(s).not.toHaveProperty("minRole");
+      }
+    }
   });
 
   it("has unique keys and hrefs under /dashboard", () => {
@@ -105,7 +134,6 @@ describe("capability gating", () => {
     expect(groups.map((g) => g.label)).toEqual(["Workspace", "Personal"]);
     expect(groups.find((g) => g.label === "Personal")?.items.map((i) => i.key)).toEqual([
       "mytimesheet",
-      "myleave",
       "myvehicle",
       "myexpenses",
     ]);
@@ -137,7 +165,9 @@ describe("capability gating", () => {
   it("Personal is ungated — every viewer keeps their own timesheet, vehicle and expenses", () => {
     for (const role of ["staff", "admin", "owner"] as const) {
       expect(navGroupsFor(viewer(role)).find((g) => g.label === "Personal")?.items.map((i) => i.key))
-        .toEqual(["mytimesheet", "myleave", "myvehicle", "myexpenses"]);
+        .toEqual(["mytimesheet", "myvehicle", "myexpenses"]);
+      // …and leave stays reachable from ⌘K, riding on the timesheet entry
+      expect(navFor(viewer(role)).map((n) => n.key)).toContain("myleave");
     }
     // revoking the team-wide screens doesn't touch your own
     expect(keys({ caps: resolve("owner", { assets_all: false, timepay_all: false }), role: "owner" }))
@@ -169,5 +199,22 @@ describe("isActive", () => {
     expect(isActive(team, "/dashboard/team/jordan-mills")).toBe(true);
     expect(isActive(team, "/dashboard")).toBe(false);
     expect(isActive(team, "/dashboard/timepay")).toBe(false);
+  });
+
+  it("keeps an entry lit on its tabbed faces — the row is the section", () => {
+    // Without this the rail would go dark the moment you hit the Leave tab,
+    // reading as "you have navigated out of Timesheet" when you have not.
+    const sheet = byKey("mytimesheet");
+    expect(isActive(sheet, "/dashboard/my-timesheet")).toBe(true);
+    expect(isActive(sheet, "/dashboard/my-leave")).toBe(true);
+    expect(isActive(sheet, "/dashboard/my-expenses")).toBe(false);
+    expect(isActive(sheet, "/dashboard/timepay/leave")).toBe(false);
+  });
+
+  it("does not let a face bleed onto a neighbouring entry", () => {
+    // /dashboard/my-leave must not also light Vehicle or Expenses.
+    for (const key of ["myvehicle", "myexpenses"]) {
+      expect(isActive(byKey(key), "/dashboard/my-leave")).toBe(false);
+    }
   });
 });

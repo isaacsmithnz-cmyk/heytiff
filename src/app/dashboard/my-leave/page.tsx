@@ -1,4 +1,5 @@
 import { MyLeave } from "@/components/timepay/my-leave";
+import { MyTimeNav } from "@/components/timepay/my-time-nav";
 import { loadMyLeave } from "@/lib/timepay/leave-page";
 
 /* Ungated: your own leave is intrinsic, like your timesheet and vehicle. */
@@ -11,6 +12,7 @@ export default async function MyLeavePage() {
       <div className="page in">
         <div className="wrap">
           <div className="stg">
+            <MyTimeNav active="leave" />
             <div className="emptybox">
               <b>No staff record yet</b>
               <em>Your leave appears once your card exists in Team.</em>

@@ -27,13 +27,15 @@ describe("nav config", () => {
 
   it("groups the operations section as designed", () => {
     const ops = NAV_GROUPS.find((g) => g.label === "Operations");
-    expect(ops?.items.map((i) => i.key)).toEqual([
-      "workboard",
-      "people",
-      "timepay",
-      "assets",
-      "admin",
-    ]);
+    expect(ops?.items.map((i) => i.key)).toEqual(["people", "timepay", "assets", "admin"]);
+  });
+
+  it("opens Workspace with Home then the Workboard", () => {
+    // The two questions anyone opens the app to ask, in order: what's on for
+    // ME, and what's on for the BUSINESS. Everything else is a tool.
+    const ws = NAV_GROUPS.find((g) => g.label === "Workspace");
+    expect(ws?.items.map((i) => i.key)).toEqual(["home", "workboard", "toolbox", "ductr", "tiff"]);
+    expect(ws?.items[0].label).toBe("Home");
   });
 });
 
@@ -97,13 +99,10 @@ describe("capability gating", () => {
   });
 
   it("keeps groups but drops those emptied by filtering", () => {
-    // Staff now hold exactly one Operations entry — the Workboard — so the
-    // group stays, carrying just that.
+    // Staff hold nothing in Operations any more — the Workboard moved up to
+    // Workspace — so the whole group falls away for them.
     const groups = navGroupsFor(viewer("staff"));
-    expect(groups.map((g) => g.label)).toEqual(["Workspace", "Personal", "Operations"]);
-    expect(groups.find((g) => g.label === "Operations")?.items.map((i) => i.key)).toEqual([
-      "workboard",
-    ]);
+    expect(groups.map((g) => g.label)).toEqual(["Workspace", "Personal"]);
     expect(groups.find((g) => g.label === "Personal")?.items.map((i) => i.key)).toEqual([
       "mytimesheet",
       "myleave",
@@ -112,9 +111,27 @@ describe("capability gating", () => {
     ]);
     expect(groups.every((g) => g.items.length > 0)).toBe(true);
 
-    // …and revoking that one entry is what empties the group and drops it.
-    const revoked = navGroupsFor({ caps: resolve("staff", { workboard: false }), role: "staff" });
-    expect(revoked.map((g) => g.label)).toEqual(["Workspace", "Personal"]);
+    // …and an admin, who does hold Operations entries, keeps the group.
+    expect(navGroupsFor(viewer("admin")).map((g) => g.label)).toEqual([
+      "Workspace",
+      "Personal",
+      "Operations",
+    ]);
+  });
+
+  it("puts the Workboard second in Workspace, right under Home", () => {
+    // Home is your day, the Workboard is the business's — the pair sits at
+    // the top of the rail, and revoking the capability leaves Home alone.
+    const workspace = (v: NavViewer) =>
+      navGroupsFor(v).find((g) => g.label === "Workspace")?.items.map((i) => i.key);
+    expect(workspace(viewer("staff"))?.slice(0, 2)).toEqual(["home", "workboard"]);
+    expect(workspace(viewer("owner"))?.slice(0, 2)).toEqual(["home", "workboard"]);
+    expect(workspace({ caps: resolve("staff", { workboard: false }), role: "staff" })).toEqual([
+      "home",
+      "toolbox",
+      "ductr",
+      "tiff",
+    ]);
   });
 
   it("Personal is ungated — every viewer keeps their own timesheet, vehicle and expenses", () => {
@@ -129,7 +146,7 @@ describe("capability gating", () => {
 
   it("owner sees the full rail", () => {
     expect(navGroupsFor(viewer("owner")).find((g) => g.label === "Operations")?.items.map((i) => i.key))
-      .toEqual(["workboard", "people", "timepay", "assets", "admin"]);
+      .toEqual(["people", "timepay", "assets", "admin"]);
   });
 
   it("every capability named in the nav is a real capability", () => {

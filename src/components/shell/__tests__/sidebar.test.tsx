@@ -86,7 +86,7 @@ describe("Sidebar — role-gated nav", () => {
 
   it("owners get the full rail", () => {
     render(as("owner", "Smith Air"));
-    for (const label of ["Dashboard", "Toolbox", "Design Studio", "Tiff AI", "Team", "Time & Pay", "Assets", "Admin", "Vehicle"]) {
+    for (const label of ["Home", "Workboard", "Toolbox", "Design Studio", "Tiff AI", "Team", "Time & Pay", "Assets", "Admin", "Vehicle"]) {
       expect(screen.getByText(label)).toBeTruthy();
     }
   });

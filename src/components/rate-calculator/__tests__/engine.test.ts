@@ -6,7 +6,7 @@
  * the same inputs. They pass EXPLICIT settings so they stay valid as the
  * demo defaults / FY tax table move each year.
  */
-import { calculate, classifyEmployment, healthStatus, stepStatus, type EngineData } from "../engine";
+import { calculate, classifyEmployment, fleetAnnualFrom, healthStatus, stepStatus, type EngineData } from "../engine";
 import { BASELINE_DATA, BASELINE_RISK, BASELINE_PROFIT, BASELINE_MULTIPLIERS } from "./fixtures/baseline-org";
 
 // Settings frozen to the values the ground-truth run used — independent of
@@ -393,5 +393,33 @@ describe("calculate — guards and empties", () => {
     const calc = calculate(detailedData);
     expect(healthStatus(calc, { install: 90, service: 90 }).status).toBe("High Risk");
     expect(healthStatus(calc, { install: 150, service: 155 }).status).toBe("Healthy");
+  });
+});
+
+/* `annual` exists because a Xero window is not three months. The precedence
+   has to be explicit: a stored month-box figure and a Xero pull can both be
+   present at once (switching source is deliberately non-destructive), and
+   whichever the engine silently preferred would be the one nobody checked. */
+describe("fleetAnnualFrom", () => {
+  it("prefers a figure that is already a year", () => {
+    expect(fleetAnnualFrom({ months: [750, 750, 750], annual: 12000 })).toBe(12000);
+  });
+
+  it("falls back to the month boxes, averaging only the ones filled in", () => {
+    expect(fleetAnnualFrom({ months: [750, 750, 750] })).toBe(9000);
+    // one month entered is a year's estimate, not a third of one
+    expect(fleetAnnualFrom({ months: [750, 0, 0] })).toBe(9000);
+  });
+
+  it("is null when the fleet was never costed, so the caller can tell", () => {
+    expect(fleetAnnualFrom({ months: [] })).toBeNull();
+    expect(fleetAnnualFrom({ months: [0, 0, 0] })).toBeNull();
+  });
+
+  /* A zero or junk `annual` must not out-rank real month boxes — it would
+     price the fleet at nothing while the figures sat right there. */
+  it("ignores an unusable annual rather than trusting it", () => {
+    expect(fleetAnnualFrom({ months: [750, 750, 750], annual: 0 })).toBe(9000);
+    expect(fleetAnnualFrom({ months: [750, 750, 750], annual: Number.NaN })).toBe(9000);
   });
 });

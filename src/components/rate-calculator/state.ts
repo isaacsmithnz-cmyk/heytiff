@@ -122,6 +122,18 @@ export interface RateCalcState {
       the user left it while Xero is the source, and is still there when they
       switch back. */
   costsSource: CostsSource;
+  /** Where the FLEET's running cost comes from. Separate from `costsSource`
+      because the two steps are answered separately and one can be on Xero
+      while the other is typed in — but they read the SAME snapshot, so
+      switching this never costs another call.
+
+      The invariant both sides depend on: a vehicle line is in the fleet total
+      or in the overhead pool, never both and never neither. It holds by
+      construction rather than by arithmetic — `snapshotVehicleTotal` sums the
+      lines Xero's mapper held OUT of the pool, so the moment someone presses
+      Include on the Business panel the line leaves that set and the fleet
+      total drops by exactly what overheads gained. */
+  vehicleSource: CostsSource;
   /** The last figures pulled from Xero, kept as a snapshot rather than a live
       read. Two reasons: the engine must keep producing rates when Xero is
       unreachable or disconnected, and a rate the business has quoted from
@@ -203,6 +215,7 @@ export function emptyState(): RateCalcState {
     simpleVehicle: { months: [0, 0, 0] },
     mode: { staff: "Simple", business: "Simple", vehicles: "Simple" },
     costsSource: "manual",
+    vehicleSource: "manual",
     xeroCosts: null,
     noVehicles: false,
     riskAccepted: false,
@@ -254,10 +267,20 @@ function hydrateSnapshot(raw: unknown): XeroCostSnapshot | null {
     answer and isn't. */
 function hydrateCostsSource(
   D: Partial<RateCalcState>
-): Pick<RateCalcState, "costsSource" | "xeroCosts"> {
+): Pick<RateCalcState, "costsSource" | "xeroCosts" | "vehicleSource"> {
   const xeroCosts = hydrateSnapshot(D.xeroCosts);
   const wanted = D.costsSource === "xero" ? "xero" : "manual";
-  return { costsSource: wanted === "xero" && xeroCosts ? "xero" : "manual", xeroCosts };
+  /* Same normalisation for the fleet, and for the same reason: "xero" with
+     nothing to read would price the fleet at zero and look like a finished
+     step. Note it survives a snapshot whose vehicle lines are all included
+     back into overheads — that is a legitimate state worth showing (fleet
+     nil, everything in the pool), not a broken one. */
+  const vWanted = D.vehicleSource === "xero" ? "xero" : "manual";
+  return {
+    costsSource: wanted === "xero" && xeroCosts ? "xero" : "manual",
+    vehicleSource: vWanted === "xero" && xeroCosts ? "xero" : "manual",
+    xeroCosts,
+  };
 }
 
 /* ── snapshot arithmetic the screens share ── */
@@ -338,8 +361,8 @@ export function hydrateState(raw: unknown): RateCalcState {
     simpleBusiness: { ...base.simpleBusiness, ...(D.simpleBusiness ?? {}) },
     simpleVehicle: { ...base.simpleVehicle, ...(D.simpleVehicle ?? {}) },
     mode: { ...base.mode, ...(D.mode ?? {}) },
-    /* Both keys MUST be named here: hydrateState is a whitelist merge, and a
-       key it doesn't mention is dropped on the next save round-trip. */
+    /* All THREE keys must be named here: hydrateState is a whitelist merge,
+       and a key it doesn't mention is dropped on the next save round-trip. */
     ...hydrateCostsSource(D),
     noVehicles: D.noVehicles === true,
     riskAccepted: D.riskAccepted === true,
@@ -347,8 +370,26 @@ export function hydrateState(raw: unknown): RateCalcState {
   };
 }
 
-/** Whether the fleet has real running-cost input (either mode). */
+/** The fleet's annual running cost when Xero is its source, else null.
+
+    Xero as the source bypasses the Simple/Detailed fork the same way it does
+    for business costs — those are two ways of TYPING a fleet cost in, and this
+    is a third source. The typed figures are left untouched underneath, so
+    switching back is non-destructive. */
+export function activeFleetAnnual(s: RateCalcState): number | null {
+  if (s.vehicleSource !== "xero" || !s.xeroCosts) return null;
+  const annual = snapshotVehicleTotal(s.xeroCosts);
+  return annual > 0 ? annual : null;
+}
+
+/** Whether the fleet has real running-cost input, by whichever route.
+
+    Drives the Vehicles step's completion, so Xero has to count: pulling real
+    figures is as much a finished step as typing them in. Without this a
+    Xero-sourced fleet would read "not started" forever and the rail would
+    never say the calculator was ready. */
 export function fleetCosted(s: RateCalcState): boolean {
+  if (activeFleetAnnual(s) !== null) return true;
   return s.mode.vehicles === "Simple"
     ? (s.simpleVehicle.months || []).some(m => m > 0)
     : s.vehicles.some(v => (v.simpleTotal ?? 0) > 0 || (v.costs?.fuel_per_week ?? 0) > 0);
@@ -405,6 +446,7 @@ export function activeBusinessCosts(s: RateCalcState): BusinessCost[] {
 
 export function buildEngineData(s: RateCalcState): EngineData {
   const onXero = s.costsSource === "xero" && !!s.xeroCosts;
+  const fleetAnnual = activeFleetAnnual(s);
   return {
     staff: s.staff,
     timesheets: s.timesheets,
@@ -419,7 +461,17 @@ export function buildEngineData(s: RateCalcState): EngineData {
        instead of the itemised list, which would throw away the Xero figures it
        was just handed. */
     ...(!onXero && s.mode.business === "Simple" ? { simpleBusinessData: s.simpleBusiness } : {}),
-    ...(s.mode.vehicles === "Simple" ? { simpleVehicleData: s.simpleVehicle } : {}),
+    /* The fleet, in precedence order. Xero wins over both typed modes and does
+       so in EITHER mode — a P&L reports one fleet number, so there is nothing
+       for the per-vehicle editor to do with it, and letting Detailed silently
+       out-rank it would leave someone on Xero looking at a fleet cost the rate
+       wasn't using. `annual` carries it as a year rather than a month average,
+       because a Xero window isn't three months. */
+    ...(fleetAnnual !== null
+      ? { simpleVehicleData: { months: [], annual: fleetAnnual } }
+      : s.mode.vehicles === "Simple"
+        ? { simpleVehicleData: s.simpleVehicle }
+        : {}),
   };
 }
 

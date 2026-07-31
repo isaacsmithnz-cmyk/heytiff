@@ -1,11 +1,13 @@
 import {
   activeBusinessCosts,
+  activeFleetAnnual,
   buildEngineData,
   emptyState,
   hydrateState,
   runEngine,
   snapshotAgeMonths,
   snapshotTotal,
+  fleetCosted,
   snapshotVehicleTotal,
   sourceSwitchVisible,
   type RateCalcState,
@@ -255,5 +257,108 @@ describe("snapshot arithmetic", () => {
     expect(snapshotAgeMonths("2026-01-28T00:00:00Z", now)).toBe(6);
     expect(snapshotAgeMonths("not a date", now)).toBeNull();
     expect(snapshotAgeMonths(undefined, now)).toBeNull();
+  });
+});
+
+/* ── the fleet, sourced from Xero ────────────────────────────────────────
+
+   The rule these pin: a vehicle dollar is in the FLEET total or in the
+   OVERHEAD pool, never both and never neither. It is worth testing at the
+   engine's own totals rather than at the helpers, because "counted twice" and
+   "counted nowhere" both look perfectly healthy one function at a time. */
+
+const fleetSnap = (over: Partial<XeroCostSnapshot> = {}) =>
+  snapshot([line("Rent", 24000), line("Insurance", 6000)], {
+    excluded: [
+      { name: "Motor Vehicle Expenses", amount: 9000, reason: "vehicle" },
+      { name: "Wages", amount: 220000, reason: "wages" },
+    ],
+    ...over,
+  });
+
+/** Everything the rate has to recover, however it is bucketed. */
+const costBase = (s: RateCalcState) => {
+  const c = runEngine(s).calc;
+  return c.instLab + c.svcLab + c.adminLab
+    + c.instVehicle + c.svcVehicle + c.adminVehicle
+    + c.enteredBiz;
+};
+
+describe("fleet costs from Xero", () => {
+  const onFleet = (over: Partial<RateCalcState> = {}): RateCalcState => ({
+    ...emptyState(),
+    xeroCosts: fleetSnap(),
+    costsSource: "xero",
+    vehicleSource: "xero",
+    ...over,
+  });
+
+  it("carries the vehicle lines into the fleet, and only those", () => {
+    expect(activeFleetAnnual(onFleet())).toBe(9000);
+    // wages are held for Staff, not handed to the fleet
+    expect(activeBusinessCosts(onFleet()).map(l => l.name)).toEqual(["Rent", "Insurance"]);
+  });
+
+  it("is null unless Xero is actually the fleet's source", () => {
+    expect(activeFleetAnnual(onFleet({ vehicleSource: "manual" }))).toBeNull();
+    expect(activeFleetAnnual(emptyState())).toBeNull();
+  });
+
+  /* THE INVARIANT. Pressing Include on the Business panel moves a vehicle line
+     into the overhead pool; the fleet must give up exactly what overheads
+     gained, and the total to recover must not move by a cent. */
+  it("hands the money over intact when a vehicle line is included in overheads", () => {
+    const held = onFleet();
+    const included = onFleet({
+      xeroCosts: fleetSnap({
+        lines: [line("Rent", 24000), line("Insurance", 6000), line("Motor Vehicle Expenses", 9000)],
+        excluded: [{ name: "Wages", amount: 220000, reason: "wages" }],
+      }),
+    });
+
+    expect(activeFleetAnnual(held)).toBe(9000);
+    expect(activeFleetAnnual(included)).toBeNull(); // nothing left in the fleet
+    expect(snapshotTotal(included.xeroCosts) - snapshotTotal(held.xeroCosts)).toBe(9000);
+    // and the thing that actually matters
+    expect(costBase(included)).toBeCloseTo(costBase(held), 6);
+  });
+
+  /* The bug that started this: held out of overheads for a step that never
+     claimed it. Whichever step owns the dollar, the rate must recover it. */
+  it("never loses the money between the two steps", () => {
+    const typedIn = {
+      ...emptyState(),
+      xeroCosts: fleetSnap(),
+      costsSource: "xero" as const,
+      vehicleSource: "manual" as const,
+      // the same 9,000 a year, typed into the three month boxes
+      simpleVehicle: { months: [750, 750, 750] },
+    };
+    expect(costBase(onFleet())).toBeCloseTo(costBase(typedIn), 6);
+  });
+
+  it("scales a part-year fleet the same way it scales overheads", () => {
+    const half = onFleet({ xeroCosts: fleetSnap({ monthsCovered: 6 }) });
+    expect(activeFleetAnnual(half)).toBe(18000); // 9,000 over six months
+    expect(activeFleetAnnual(onFleet({ xeroCosts: fleetSnap({ monthsCovered: 6, annualise: false }) }))).toBe(9000);
+  });
+
+  /* Xero outranks BOTH typed modes. Letting Detailed quietly win would leave
+     someone on Xero reading a fleet cost the rate wasn't using. */
+  it("wins over the per-vehicle editor, not just the simple boxes", () => {
+    const detailed = onFleet({ mode: { staff: "Simple", business: "Simple", vehicles: "Detailed" } });
+    expect(buildEngineData(detailed).simpleVehicleData).toEqual({ months: [], annual: 9000 });
+  });
+
+  /* Without this the step reads "not started" forever and the rail never says
+     the calculator is ready — pulling real figures IS finishing the step. */
+  it("counts as a completed step", () => {
+    expect(fleetCosted(onFleet())).toBe(true);
+    expect(fleetCosted(onFleet({ vehicleSource: "manual" }))).toBe(false);
+  });
+
+  it("survives a round trip, and falls back to manual with no snapshot", () => {
+    expect(hydrateState(JSON.parse(JSON.stringify(onFleet()))).vehicleSource).toBe("xero");
+    expect(hydrateState({ vehicleSource: "xero" }).vehicleSource).toBe("manual");
   });
 });

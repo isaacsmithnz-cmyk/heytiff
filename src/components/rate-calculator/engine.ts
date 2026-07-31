@@ -126,6 +126,28 @@ export interface SimpleBusinessData {
 
 export interface SimpleVehicleData {
   months: number[];
+  /** A fleet figure that is ALREADY a year, bypassing the three-month boxes.
+
+      Xero reports a window, not three months, so annualising it through
+      `months` would mean writing a twelfth into each box and multiplying back
+      — arithmetic that happens to work and reads like a trick. Set this
+      instead and it wins. */
+  annual?: number;
+}
+
+/** The fleet's annual running cost from whichever way it was given, or null
+    when it wasn't given at all.
+
+    One implementation because two places in `calculate` need it and they must
+    never disagree — the early simple-labour return had its own copy of the
+    month arithmetic, which is exactly how two paths drift. */
+export function fleetAnnualFrom(sv: SimpleVehicleData): number | null {
+  if (typeof sv.annual === "number" && Number.isFinite(sv.annual) && sv.annual > 0) {
+    return sv.annual;
+  }
+  const months = (sv.months || []).filter(m => m > 0);
+  if (months.length === 0) return null;
+  return (months.reduce((a, b) => a + b, 0) / months.length) * 12;
 }
 
 export interface EngineData {
@@ -465,9 +487,8 @@ export function calculate(data: EngineData): CalcResult {
       let instVehicle2 = 0, svcVehicle2 = 0, adminVehicle2 = 0;
       const vehicleBreakdown2: VehicleBreakdown[] = [];
       if (data.simpleVehicleData) {
-        const svMo = (data.simpleVehicleData.months || []).filter(m => m > 0);
-        if (svMo.length > 0) {
-          const fleetAnn = (svMo.reduce((a, b) => a + b, 0) / svMo.length) * 12;
+        const fleetAnn = fleetAnnualFrom(data.simpleVehicleData);
+        if (fleetAnn !== null) {
           if (vehicles.length > 0) {
             let iSum = 0, sSum = 0, aSum = 0;
             vehicles.forEach(v => {
@@ -628,10 +649,8 @@ export function calculate(data: EngineData): CalcResult {
   if (data.simpleVehicleData) {
     // Simple fleet mode — one total for all vehicles combined.
     // Split across install/service using the fleet's aggregate driver allocations.
-    const sv = data.simpleVehicleData;
-    const validMo = (sv.months || []).filter(m => m > 0);
-    if (validMo.length > 0) {
-      const fleetAnnual = (validMo.reduce((a, b) => a + b, 0) / validMo.length) * 12;
+    const fleetAnnual = fleetAnnualFrom(data.simpleVehicleData);
+    if (fleetAnnual !== null) {
       if (vehicles.length > 0) {
         // Derive install/service/admin split from all drivers' allocations combined
         let iSum = 0, sSum = 0, aSum = 0;

@@ -7,6 +7,7 @@ import { DateField } from "@/components/ui/date-field";
 import { MonthGrid, monthOf } from "@/components/ui/month-grid";
 import { fmtAuDayMonth } from "@/lib/au-dates";
 import { UpcomingHolidays } from "./upcoming-holidays";
+import { MyTimeNav } from "./my-time-nav";
 import { cancelLeave, requestLeave, type LeaveResult } from "@/app/actions/leave";
 import {
   LEAVE_LABEL,
@@ -175,6 +176,7 @@ export function MyLeave({
               Request leave
             </button>
           </div>
+          <MyTimeNav active="leave" />
 
           {error && <div className="tp-err">{error}</div>}
 

@@ -382,6 +382,31 @@ export function activeFleetAnnual(s: RateCalcState): number | null {
   return annual > 0 ? annual : null;
 }
 
+/** The patch for putting business costs on Xero — which drags the fleet along
+    unless the fleet has been costed by hand.
+
+    THE STATE WORTH DESIGNING AGAINST is business-on-Xero with vehicles-on-
+    manual, because both failure modes live there at once: the P&L's vehicle
+    lines have left the overhead pool with nothing claiming them, and the
+    per-vehicle editor is inviting insurance and depreciation that business
+    costs already carry. Xero for both, and neither can happen.
+
+    It defers to real work: a fleet somebody has already costed is left alone
+    and warned about instead. Silently overriding entered figures to close a
+    trap would be its own trap. */
+export function costsToXeroPatch(s: RateCalcState): Partial<RateCalcState> {
+  const takeFleetToo = !fleetCosted(s) && snapshotVehicleTotal(s.xeroCosts) > 0;
+  return takeFleetToo
+    ? { costsSource: "xero", vehicleSource: "xero" }
+    : { costsSource: "xero" };
+}
+
+/** Business costs on Xero while the fleet is typed in — the one combination
+    where a dollar can be doubled and another dropped in the same breath. */
+export function fleetSourceMixed(s: RateCalcState): boolean {
+  return s.costsSource === "xero" && !!s.xeroCosts && s.vehicleSource !== "xero";
+}
+
 /** Whether the fleet has real running-cost input, by whichever route.
 
     Drives the Vehicles step's completion, so Xero has to count: pulling real
@@ -444,13 +469,42 @@ export function activeBusinessCosts(s: RateCalcState): BusinessCost[] {
   return f === 1 ? lines : lines.map(l => ({ ...l, amount: l.amount * f }));
 }
 
+/* Per-vehicle fields a Xero P&L has ALREADY paid for through business costs.
+
+   `insurance` is the org's `Insurance` account; the replacement/resale pair is
+   its `Depreciation`. Neither has the word "vehicle" in it, so neither leaves
+   the overhead pool — which is correct, and which means typing the ute's share
+   in here again charges it twice.
+
+   `cycle_years` is deliberately NOT in this list: it still divides fit-out,
+   which nothing else covers. `fuel_per_week`, `rego`, `servicing` and `tolls`
+   are not either — those DID leave the pool as vehicle lines, so the per-vehicle
+   editor is the only place they exist. */
+export const XERO_COVERED_VEHICLE_FIELDS = ["insurance", "replacement_value", "resale_value"] as const;
+
+/** The fleet as the ENGINE should see it.
+
+    A greyed-out input fixes nothing on its own: a figure typed before Xero was
+    connected is still sitting in state and would still be summed. The double
+    count has to be closed on the way INTO the engine, and non-destructively —
+    the typed values stay exactly where the user left them, so turning Xero off
+    hands them straight back. */
+export function activeVehicles(s: RateCalcState): VehicleRecord[] {
+  if (!(s.costsSource === "xero" && s.xeroCosts)) return s.vehicles;
+  return s.vehicles.map(v => {
+    const costs = { ...v.costs };
+    for (const k of XERO_COVERED_VEHICLE_FIELDS) costs[k] = 0;
+    return { ...v, costs };
+  });
+}
+
 export function buildEngineData(s: RateCalcState): EngineData {
   const onXero = s.costsSource === "xero" && !!s.xeroCosts;
   const fleetAnnual = activeFleetAnnual(s);
   return {
     staff: s.staff,
     timesheets: s.timesheets,
-    vehicles: s.vehicles,
+    vehicles: activeVehicles(s),
     businessCosts: activeBusinessCosts(s),
     risk: s.risk,
     profit: s.profit,

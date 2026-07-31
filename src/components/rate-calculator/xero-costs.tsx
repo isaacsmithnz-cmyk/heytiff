@@ -12,6 +12,7 @@ import {
   snapshotFactor,
   snapshotTotal,
   snapshotVehicleTotal,
+  costsToXeroPatch,
   type RateCalcState,
   type XeroCostSnapshot,
 } from "./state";
@@ -86,16 +87,17 @@ export function XeroCostsPanel({ s, patch, onFetch }: XeroCostsPanelProps) {
            refresh is new AMOUNTS, not a reset of their judgement about which
            side of the business each cost belongs to. */
         const previous = new Map((snap?.lines ?? []).map(l => [l.name, l.allocated_to]));
-        patch({
-          xeroCosts: {
-            ...res.snapshot,
-            lines: res.snapshot.lines.map(l => ({
-              ...l,
-              allocated_to: previous.get(l.name) ?? l.allocated_to,
-            })),
-          },
-          costsSource: "xero",
-        });
+        const xeroCosts = {
+          ...res.snapshot,
+          lines: res.snapshot.lines.map(l => ({
+            ...l,
+            allocated_to: previous.get(l.name) ?? l.allocated_to,
+          })),
+        };
+        /* The fleet comes too, unless it has been costed by hand — the pull is
+           the moment the mixed state would otherwise be created, since this is
+           where vehicle lines first leave the overhead pool. */
+        patch({ xeroCosts, ...costsToXeroPatch({ ...s, xeroCosts }) });
       } else setError(res.error);
     } catch {
       setError("Couldn't reach Xero. Try again.");

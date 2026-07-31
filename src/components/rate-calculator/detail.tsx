@@ -6,7 +6,7 @@
 import Link from "next/link";
 import React from "react";
 import type { CalcResult, VehicleCosts } from "./engine";
-import { SUGGESTED_BUSINESS_COSTS, suggestedBusinessCosts, type RateCalcState } from "./state";
+import { SUGGESTED_BUSINESS_COSTS, suggestedBusinessCosts, XERO_COVERED_VEHICLE_FIELDS, type RateCalcState } from "./state";
 import { RC } from "./theme";
 import { money, normUtil } from "./format";
 import { NumInput, RcIcon, WsEyebrow, WsHelpNote } from "./ui";
@@ -205,9 +205,33 @@ export function VehiclesDetail({ s, patch, calc }: StepBodyProps) {
   ];
   const setCost = (vi: number, k: keyof VehicleCosts, v: number) =>
     patch({ vehicles: s.vehicles.map((x, j) => j === vi ? { ...x, costs: { ...x.costs, [k]: v } } : x) });
+
+  /* Business costs off a P&L already carry the org's Insurance and Depreciation
+     accounts, ute included — neither has "vehicle" in the name, so neither
+     leaves the overhead pool. Asking for them again per vehicle is how the same
+     dollar gets charged twice, so those fields go read-only and say why.
+
+     The engine ignores them regardless (`activeVehicles`), which is what
+     actually closes the double count — a figure typed before Xero was connected
+     is still in state. This is the part that stops it being a mystery. */
+  const covered = s.costsSource === "xero" && !!s.xeroCosts;
+  const isCovered = (k: keyof VehicleCosts) =>
+    covered && (XERO_COVERED_VEHICLE_FIELDS as readonly string[]).includes(k);
+
   return (
     <DBody>
       <WsHelpNote id="vehicles-detailed" style={{ marginBottom: 16 }}>Annual cost = (replacement − resale) ÷ cycle + fuel × 52 + insurance + rego + servicing + tolls + fit-out ÷ cycle. Each vehicle&apos;s cost follows its driver&apos;s install/service mix.</WsHelpNote>
+      {covered && (
+        <div className="rcx-part" style={{ marginBottom: 16 }}>
+          <b>Insurance and depreciation come from Xero</b>
+          <em>
+            Your <b>Insurance</b> and <b>Depreciation</b> accounts are already in your business
+            costs — utes included — so those three fields are switched off here. Entering them
+            again would charge the same money twice. Fuel, rego, servicing and tolls DID come out
+            of your business costs, so they still belong to each vehicle.
+          </em>
+        </div>
+      )}
       <WsEyebrow style={{ marginBottom: 11 }}>Fleet · {s.vehicles.length} vehicles · costed individually</WsEyebrow>
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         {s.vehicles.map((v, vi) => {
@@ -234,12 +258,22 @@ export function VehiclesDetail({ s, patch, calc }: StepBodyProps) {
                 </div>
               )}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)" }}>
-                {fields.map(([k, label, hint], fi) => (
-                  <div key={k} style={{ padding: "11px 18px", borderBottom: fi < 6 ? `1px solid ${RC.line}` : "none", borderRight: fi % 3 < 2 ? `1px solid ${RC.line}` : "none" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, color: RC.label, fontWeight: 600, marginBottom: 6 }}>{label}{hint && <Hint text={hint} up={k === "fitout"} />}</div>
-                    <NumInput value={costs[k] || 0} size={14} prefix={k === "cycle_years" ? "" : "$"} onChange={n => setCost(vi, k, n)} />
-                  </div>
-                ))}
+                {fields.map(([k, label, hint], fi) => {
+                  const off = isCovered(k);
+                  return (
+                    <div key={k} style={{ padding: "11px 18px", borderBottom: fi < 6 ? `1px solid ${RC.line}` : "none", borderRight: fi % 3 < 2 ? `1px solid ${RC.line}` : "none", background: off ? RC.card2 : undefined }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, color: RC.label, fontWeight: 600, marginBottom: 6 }}>{label}{hint && !off && <Hint text={hint} up={k === "fitout"} />}</div>
+                      {off ? (
+                        /* The value the user typed is NOT shown struck through or
+                           zeroed — it is still theirs and comes straight back if
+                           they leave Xero. What's shown is where the money is. */
+                        <div style={{ fontSize: 12, color: RC.faint, fontWeight: 600, lineHeight: "30px" }}>In business costs</div>
+                      ) : (
+                        <NumInput value={costs[k] || 0} size={14} prefix={k === "cycle_years" ? "" : "$"} onChange={n => setCost(vi, k, n)} />
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           );

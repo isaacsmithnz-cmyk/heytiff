@@ -10,7 +10,7 @@
 
 import React from "react";
 import type { RiskSettings, Multipliers } from "./engine";
-import { fleetCosted, snapshotTotal, sourceSwitchVisible, type EntryMode } from "./state";
+import { costsToXeroPatch, fleetCosted, fleetSourceMixed, snapshotTotal, sourceSwitchVisible, type EntryMode } from "./state";
 import { RC } from "./theme";
 import { money, rate0 } from "./format";
 import { QuestionStack, RcIcon, WsEyebrow, WsHelpNote, WsSlider, WsToggle, NumInput, type StackQuestion } from "./ui";
@@ -320,7 +320,7 @@ export function BusinessStep({ s, patch, calc, showToggle, revealAll, xeroConnec
           </button>
           <button
             className={`rcx-srcb${onXero ? " on" : ""}`}
-            onClick={() => patch({ costsSource: "xero" })}
+            onClick={() => patch(costsToXeroPatch(s))}
             disabled={!xeroConnected}
             title={xeroConnected ? undefined : "Xero isn't connected"}
           >
@@ -472,6 +472,25 @@ export function VehiclesStep({ s, patch, calc, showToggle, revealAll, xeroConnec
           Xero is disconnected, so this is a frozen snapshot and Refresh can&apos;t run. Switch to
           &ldquo;Enter them myself&rdquo; to take over, or reconnect Xero in Admin → Integrations.
         </p>
+      )}
+
+      {/* The one combination where a dollar can be doubled and another dropped
+          in the same breath. Reached only by deliberately switching off Xero
+          here after the pull put the fleet on it, so it names both halves
+          rather than nagging. */}
+      {!s.noVehicles && fleetSourceMixed(s) && (
+        <div className="rcx-part" style={{ marginTop: 14 }}>
+          <b>Your business costs come from Xero but your fleet doesn&apos;t</b>
+          <em>
+            Two things to watch. Xero&apos;s vehicle lines have been taken out of your business
+            costs, so unless you enter them below they&apos;re in no pool at all. And your{" "}
+            <b>Insurance</b> and <b>Depreciation</b> accounts stay in business costs — don&apos;t
+            enter those here as well.
+          </em>
+          <button className="rcx-add" onClick={() => patch({ vehicleSource: "xero" })}>
+            Use Xero for the fleet too
+          </button>
+        </div>
       )}
 
       {onXeroFleet ? (

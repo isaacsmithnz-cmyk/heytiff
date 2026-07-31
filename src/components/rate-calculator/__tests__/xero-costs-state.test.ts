@@ -1,6 +1,9 @@
 import {
   activeBusinessCosts,
   activeFleetAnnual,
+  activeVehicles,
+  costsToXeroPatch,
+  fleetSourceMixed,
   buildEngineData,
   emptyState,
   hydrateState,
@@ -13,7 +16,7 @@ import {
   type RateCalcState,
   type XeroCostSnapshot,
 } from "../state";
-import type { BusinessCost } from "../engine";
+import type { BusinessCost, VehicleRecord } from "../engine";
 
 /* The two properties that would fail silently:
 
@@ -360,5 +363,95 @@ describe("fleet costs from Xero", () => {
   it("survives a round trip, and falls back to manual with no snapshot", () => {
     expect(hydrateState(JSON.parse(JSON.stringify(onFleet()))).vehicleSource).toBe("xero");
     expect(hydrateState({ vehicleSource: "xero" }).vehicleSource).toBe("manual");
+  });
+});
+
+/* ── the mixed state, and the double count it used to allow ──────────────
+
+   Business costs on Xero with the fleet typed in is the one combination where
+   a dollar can be doubled and another dropped in the same breath: the P&L's
+   vehicle lines have left the overhead pool with nothing claiming them, while
+   the per-vehicle editor still asks for insurance and depreciation the pool is
+   already carrying. */
+
+const ute = (over: Partial<VehicleRecord["costs"]> = {}): VehicleRecord => ({
+  vehicle_id: "v1",
+  vehicle_name: "Hilux",
+  allocation: "Install",
+  costs: { fuel_per_week: 100, rego: 900, servicing: 1200, ...over },
+});
+
+describe("what Xero already covers, the vehicle editor must not re-charge", () => {
+  const base = (over: Partial<RateCalcState> = {}): RateCalcState => ({
+    ...emptyState(),
+    xeroCosts: fleetSnap(),
+    costsSource: "xero",
+    vehicleSource: "manual",
+    mode: { staff: "Simple", business: "Simple", vehicles: "Detailed" },
+    vehicles: [ute()],
+    ...over,
+  });
+
+  /* The whole point: the P&L's Insurance and Depreciation accounts stay in the
+     overhead pool, so a figure typed here is the SAME money a second time. */
+  it("zeroes only the fields the P&L already pays for", () => {
+    const s = base({ vehicles: [ute({ insurance: 2000, replacement_value: 60000, resale_value: 20000, cycle_years: 5 })] });
+    const c = activeVehicles(s)[0].costs!;
+    expect(c.insurance).toBe(0);
+    expect(c.replacement_value).toBe(0);
+    expect(c.resale_value).toBe(0);
+    // these DID leave the pool as vehicle lines, so they're the editor's job
+    expect(c.fuel_per_week).toBe(100);
+    expect(c.rego).toBe(900);
+    expect(c.servicing).toBe(1200);
+    // still needed — it divides fit-out, which nothing else covers
+    expect(c.cycle_years).toBe(5);
+  });
+
+  /* A greyed input is cosmetic on its own. What proves the fix is that a
+     figure typed BEFORE Xero was connected stops reaching the engine. */
+  it("stops a pre-existing figure from being charged twice", () => {
+    const clean = base();
+    const typedBefore = base({ vehicles: [ute({ insurance: 2000 })] });
+    expect(costBase(typedBefore)).toBeCloseTo(costBase(clean), 6);
+  });
+
+  it("leaves the typed figures in state, so leaving Xero hands them back", () => {
+    const s = base({ vehicles: [ute({ insurance: 2000 })] });
+    expect(s.vehicles[0].costs!.insurance).toBe(2000);
+    expect(activeVehicles({ ...s, costsSource: "manual" })[0].costs!.insurance).toBe(2000);
+  });
+});
+
+describe("keeping the fleet and the books on the same source", () => {
+  const withSnap = (over: Partial<RateCalcState> = {}): RateCalcState => ({
+    ...emptyState(),
+    xeroCosts: fleetSnap(),
+    ...over,
+  });
+
+  it("takes the fleet onto Xero too, so the mixed state isn't the default", () => {
+    expect(costsToXeroPatch(withSnap())).toEqual({ costsSource: "xero", vehicleSource: "xero" });
+  });
+
+  /* Deferring to real work: silently overriding figures somebody entered, to
+     close a trap, would be its own trap. */
+  it("leaves a hand-costed fleet alone", () => {
+    const costed = withSnap({ simpleVehicle: { months: [750, 750, 750] } });
+    expect(costsToXeroPatch(costed)).toEqual({ costsSource: "xero" });
+    expect(fleetSourceMixed({ ...costed, ...costsToXeroPatch(costed) })).toBe(true);
+  });
+
+  it("has nothing to take when the P&L shows no vehicle lines", () => {
+    const noVehicleLines = withSnap({
+      xeroCosts: fleetSnap({ excluded: [{ name: "Wages", amount: 220000, reason: "wages" }] }),
+    });
+    expect(costsToXeroPatch(noVehicleLines)).toEqual({ costsSource: "xero" });
+  });
+
+  it("only calls it mixed when the books are actually on Xero", () => {
+    expect(fleetSourceMixed(withSnap({ costsSource: "xero", vehicleSource: "manual" }))).toBe(true);
+    expect(fleetSourceMixed(withSnap({ costsSource: "xero", vehicleSource: "xero" }))).toBe(false);
+    expect(fleetSourceMixed(withSnap({ costsSource: "manual", vehicleSource: "manual" }))).toBe(false);
   });
 });

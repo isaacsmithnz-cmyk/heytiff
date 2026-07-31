@@ -393,13 +393,13 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
             </div>
             <div className="wb-headtools">
               {/* data-active drives the sliding thumb, the studio idiom */}
-              <nav className="wb-seg" aria-label="Board" data-active={TABS.findIndex((t) => t.key === tab)}>
-                <span className="wb-seg-thumb" aria-hidden="true" />
+              <nav className="segsw" aria-label="Board" data-active={TABS.findIndex((t) => t.key === tab)}>
+                <span className="segsw-thumb" aria-hidden="true" />
                 {TABS.map((t) => (
                   <button
                     key={t.key}
                     type="button"
-                    className={"wb-segb" + (tab === t.key ? " on" : "")}
+                    className={"segsw-b" + (tab === t.key ? " on" : "")}
                     onClick={() => showTab(t.key)}
                   >
                     {t.label}

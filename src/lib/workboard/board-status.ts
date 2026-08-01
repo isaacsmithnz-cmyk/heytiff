@@ -131,6 +131,18 @@ export function dayTone(tones: VisitTone[], daysToDay: number): DayTone {
   return "open";
 }
 
+/* ── display windows ── */
+
+/** How far ahead the Upcoming tab displays open visits. The loader brings
+    every open row (the 13-month horizon caps generation at ~13 per
+    agreement); trimming the long tail is a display decision made here so
+    client and server agree on it. */
+export const BOARD_AHEAD_DAYS = 120;
+
+/** How much history Completed shows — eight weeks, matching the old board's
+    look-back so nothing shipping today loses reach. */
+export const BOARD_DONE_DAYS = 56;
+
 /* ── "N to confirm" (B8) ── */
 
 /** Gaps two weeks out are normal and must not shout: the header counts

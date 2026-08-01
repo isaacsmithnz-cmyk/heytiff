@@ -16,6 +16,7 @@ import { todayInZone, plusDays } from "./dates";
 import { listProjectStrip, type ProjectStripItem } from "./projects-query";
 import { listRadar, type RadarItem } from "./maintenance-query";
 import { listFlags, type BoardFlag } from "./notes-query";
+import { loadMaintenanceBoard, type MaintenanceBoardData } from "./board-query";
 import { isTranscriptionConfigured } from "@/lib/voice/transcribe";
 import { autoCompleteVisitsFromMirror, ensureVisits } from "./visit-ensure";
 import {
@@ -40,6 +41,8 @@ export type WorkboardData = {
   radar: RadarItem[];
   /** Raised by notes, pulsing until somebody clears them. */
   flags: BoardFlag[];
+  /** The redesigned maintenance board's whole dataset. */
+  board: MaintenanceBoardData;
   /** ELEVENLABS_API_KEY is set — the mic is offered as well as the textarea. */
   voiceEnabled: boolean;
   synced: { finishedAt: string | null; running: boolean } | null;
@@ -61,10 +64,11 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
     // the response, so the board never waits on generation.
     const today = todayInZone(null);
     after(() => ensureVisits(orgId, { today }).catch(() => {}));
-    const [projects, radar, flags] = await Promise.all([
+    const [projects, radar, flags, board] = await Promise.all([
       listProjectStrip(orgId),
       listRadar(orgId, today),
       listFlags(orgId),
+      loadMaintenanceBoard(orgId, today),
     ]);
     return {
       manage,
@@ -76,6 +80,7 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
       projects,
       radar,
       flags,
+      board,
       voiceEnabled: isTranscriptionConfigured(),
       synced: null,
     };
@@ -93,12 +98,13 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
       .catch(() => {})
   );
 
-  const [counts, upcoming, projects, radar, flags, sync] = await Promise.all([
+  const [counts, upcoming, projects, radar, flags, board, sync] = await Promise.all([
     countJobsByStatus(orgId, `${plusDays(today, -14)} 00:00:00`),
     listUpcomingBookings(orgId, today, plusDays(today, 7)),
     listProjectStrip(orgId),
     listRadar(orgId, today),
     listFlags(orgId),
+    loadMaintenanceBoard(orgId, today),
     listSm8SyncStatus(orgId),
   ]);
 
@@ -117,6 +123,7 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
     projects,
     radar,
     flags,
+    board,
     voiceEnabled: isTranscriptionConfigured(),
     synced: sync.lastRun
       ? { finishedAt: sync.lastRun.finishedAt, running: sync.lastRun.running }

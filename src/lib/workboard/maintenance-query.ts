@@ -104,8 +104,15 @@ export type VisitView = {
   provider: string | null;
   remoteId: string | null;
   bookedStart: string | null;
+  /** HeyTiff-owned placement — the day this visit is planned to run.
+      Distinct from bookedStart, which caches the linked SM8 job's diary. */
+  bookedDate: string | null;
   completedAt: string | null;
   completedSource: string | null;
+  /** Close-out facts (K1/L3): what it ACTUALLY took, and the technician's
+      word on what happened. Never conflated with the booking estimate. */
+  actualHours: number | null;
+  completionNote: string | null;
   notes: string | null;
   /** The linked job's mirrored status, when there is one. */
   mirrorStatus: string | null;
@@ -193,7 +200,8 @@ export async function getAgreementDetail(
       .from("maintenance_visits")
       .select(
         "id, due_date, status, readiness, job_number, provider, remote_id, " +
-          "booked_start_cached, completed_at, completed_source, notes"
+          "booked_start_cached, booked_date, completed_at, completed_source, " +
+          "actual_hours, completion_note, notes"
       )
       .eq("org_id", orgId)
       .eq("agreement_id", agreementId)
@@ -209,8 +217,11 @@ export async function getAgreementDetail(
     provider: string | null;
     remote_id: string | null;
     booked_start_cached: string | null;
+    booked_date: string | null;
     completed_at: string | null;
     completed_source: string | null;
+    actual_hours: number | null;
+    completion_note: string | null;
     notes: string | null;
   };
   // The concatenated select string defeats supabase-js's literal-type parser,
@@ -248,8 +259,11 @@ export async function getAgreementDetail(
       provider: v.provider,
       remoteId: v.remote_id,
       bookedStart: v.booked_start_cached,
+      bookedDate: v.booked_date,
       completedAt: v.completed_at,
       completedSource: v.completed_source,
+      actualHours: v.actual_hours,
+      completionNote: v.completion_note,
       notes: v.notes,
       mirrorStatus: m?.status ?? null,
       warn: !!m && open && (m.status === "Unsuccessful" || m.active === 0),

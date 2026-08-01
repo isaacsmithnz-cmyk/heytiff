@@ -61,18 +61,20 @@ export async function ensureVisits(
   }
 }
 
-/** Cadence changed: redraw the future, respecting everything touched. */
+/** Cadence changed: redraw the future, respecting everything touched —
+    including the join-table touches (an assigned technician or a packed
+    ladder is a human act, so that visit survives regeneration). */
 export async function pruneAndRegenerate(orgId: string, agreementId: string): Promise<void> {
   const today = todayInZone(await getSm8Timezone(orgId));
 
   const { data } = await supabaseAdmin
     .from("maintenance_visits")
-    .select("id, due_date, status, remote_id, job_number, readiness, notes")
+    .select("id, due_date, status, remote_id, job_number, readiness, notes, booked_date")
     .eq("org_id", orgId)
     .eq("agreement_id", agreementId)
     .gt("due_date", today);
 
-  const pristine = ((data ?? []) as {
+  type FutureRow = {
     id: string;
     due_date: string;
     status: string;
@@ -80,7 +82,31 @@ export async function pruneAndRegenerate(orgId: string, agreementId: string): Pr
     job_number: string | null;
     readiness: unknown;
     notes: string | null;
-  }[]).filter((v) =>
+    booked_date: string | null;
+  };
+  const future = (data ?? []) as FutureRow[];
+
+  const withTech = new Set<string>();
+  const withPacked = new Set<string>();
+  if (future.length > 0) {
+    const ids = future.map((v) => v.id);
+    const [{ data: techRows }, { data: packedRows }] = await Promise.all([
+      supabaseAdmin
+        .from("maintenance_visit_techs")
+        .select("visit_id")
+        .eq("org_id", orgId)
+        .in("visit_id", ids),
+      supabaseAdmin
+        .from("maintenance_visit_packed")
+        .select("visit_id")
+        .eq("org_id", orgId)
+        .in("visit_id", ids),
+    ]);
+    for (const r of (techRows ?? []) as { visit_id: string }[]) withTech.add(r.visit_id);
+    for (const r of (packedRows ?? []) as { visit_id: string }[]) withPacked.add(r.visit_id);
+  }
+
+  const pristine = future.filter((v) =>
     isPristineFuture(
       {
         status: v.status,
@@ -89,6 +115,9 @@ export async function pruneAndRegenerate(orgId: string, agreementId: string): Pr
         readiness: v.readiness,
         notes: v.notes,
         dueDate: v.due_date,
+        bookedDate: v.booked_date,
+        techCount: withTech.has(v.id) ? 1 : 0,
+        packedCount: withPacked.has(v.id) ? 1 : 0,
       },
       today
     )

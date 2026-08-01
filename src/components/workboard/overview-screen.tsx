@@ -4,24 +4,20 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
-import { daysUntil, fmtAuDayMonth, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
+import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { PROJECT_STAGES } from "@/lib/workboard/stages";
-import { READINESS_KEYS, type ReadinessKey } from "@/lib/workboard/visit-schedule";
 import {
-  maintenanceVitals,
   projectFlag,
   projectVitals,
-  radarLoad,
   stageFunnel,
   staleDays,
-  weekBuckets,
-  type LoadBucket,
   type Vital,
 } from "@/lib/workboard/vitals";
-import type { RadarItem } from "@/lib/workboard/maintenance-query";
 import type { ProjectStripItem } from "@/lib/workboard/projects-query";
 import type { WorkboardData } from "@/lib/workboard/page-data";
 import { NoteCapture } from "./note-capture";
+import { MaintenanceBoard } from "./board/maintenance-board";
+import { MaintenanceWall } from "./board/wall";
 import { clearFlag } from "@/app/actions/workboard-notes";
 
 /* The Workboard — a command centre, not a menu.
@@ -150,106 +146,6 @@ function LoadRail({ columns, empty }: { columns: RailColumn[]; empty: string }) 
   );
 }
 
-function weeksToColumns(buckets: LoadBucket[]): RailColumn[] {
-  return buckets.map((b) => ({
-    key: b.key,
-    // Named weeks keep their names; the rest are dated by their Monday.
-    label: b.label || `w/c ${fmtAuDayMonth(b.key)}`,
-    tone: b.key === "overdue" ? "over" : undefined,
-    dots: b.items.map((i) => i.state),
-  }));
-}
-
-/* ═════════════ maintenance ═════════════ */
-
-const READINESS_LABEL: Record<ReadinessKey, string> = {
-  access_confirmed: "Access",
-  time_confirmed: "Time",
-  parts_ready: "Parts",
-  customer_notified: "Customer told",
-};
-
-/** Four pips — one per check, in a fixed order so the third pip always means
-    parts. Naming what's missing is the difference between "3/4 ready" (a
-    fact) and "parts not ready" (a job for this afternoon). */
-function ReadyPips({ item }: { item: RadarItem }) {
-  const missing = READINESS_KEYS.filter((k) => !item.readiness[k]).map((k) => READINESS_LABEL[k]);
-  return (
-    <span
-      className="wb-pips"
-      title={missing.length === 0 ? "Ready to go" : `Still to do: ${missing.join(" · ")}`}
-    >
-      {READINESS_KEYS.map((k) => (
-        <i key={k} className={item.readiness[k] ? "on" : ""} aria-hidden="true" />
-      ))}
-      <span className="wb-pipnote">
-        {missing.length === 0 ? "Ready" : missing.join(" · ")}
-      </span>
-    </span>
-  );
-}
-
-const BUCKETS: [RadarItem["bucket"], string][] = [
-  ["overdue", "Overdue"],
-  ["due_soon", "Due soon"],
-  ["upcoming", "Coming up"],
-];
-
-function RadarGroups({ radar, today }: { radar: RadarItem[]; today: string }) {
-  return (
-    <>
-      {BUCKETS.map(([bucket, title]) => {
-        const items = radar.filter((r) => r.bucket === bucket);
-        if (items.length === 0) return null;
-        return (
-          <div className="wb-day" key={bucket}>
-            <div className="wb-dayhead">
-              {title} <i>{items.length}</i>
-            </div>
-            {items.map((r) => {
-              const cls = "wb-row" + (bucket === "overdue" ? " wb-pulse" : "");
-              // An overdue row's date is the least useful thing about it. HOW
-              // LATE is the number that gets it dealt with, so that's the chip.
-              const late = -daysUntil(r.dueDate, today);
-              const inner = (
-                <>
-                  <span
-                    className={"wb-chip" + (bucket === "overdue" ? " bad" : bucket === "due_soon" ? " warn" : " on")}
-                    title={fmtAuWeekdayDayMonth(r.dueDate)}
-                  >
-                    {bucket === "overdue"
-                      ? `${late} ${late === 1 ? "day" : "days"} over`
-                      : r.dueDate === today
-                        ? "Today"
-                        : fmtAuWeekdayDayMonth(r.dueDate)}
-                  </span>
-                  <span className="wb-who">
-                    <b>{r.label}</b>
-                    <em> · {r.clientName}</em>
-                    {r.siteLabel && <em> · {r.siteLabel}</em>}
-                  </span>
-                  {r.jobNumber && <span className="wb-chip">#{r.jobNumber}</span>}
-                  <ReadyPips item={r} />
-                </>
-              );
-              return (
-                <Link
-                  href={`/dashboard/workboard/maintenance/${r.agreementId}`}
-                  className={cls}
-                  key={r.visitId}
-                  style={{ textDecoration: "none", color: "inherit" }}
-                >
-                  {inner}
-                </Link>
-              );
-            })}
-          </div>
-        );
-      })}
-    </>
-  );
-}
-
 /* ═════════════ projects ═════════════ */
 
 function ProjectCard({ project, today }: { project: ProjectStripItem; today: string }) {
@@ -312,6 +208,8 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
   const [tab, setTab] = useState<TabKey>("maintenance");
   const [filter, setFilter] = useState<Filter>("all");
   const [busy, start] = useTransition();
+  /** What the capture pill attaches to — a visit while its sheet is open. */
+  const [capture, setCapture] = useState<{ visitId: string; label: string } | null>(null);
 
   // Fullscreen state follows the browser, not our button — Esc must work.
   useEffect(() => {
@@ -340,12 +238,7 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
 
   const connected = data.connection === "connected";
 
-  const mv = useMemo(() => maintenanceVitals(data.radar, data.today), [data.radar, data.today]);
   const pv = useMemo(() => projectVitals(data.projects, data.today), [data.projects, data.today]);
-  const weeks = useMemo(
-    () => weeksToColumns(weekBuckets(radarLoad(data.radar), data.today)),
-    [data.radar, data.today]
-  );
   const funnel = useMemo(
     () =>
       stageFunnel(data.projects, PROJECT_STAGES, data.today).map((c) => ({
@@ -360,8 +253,6 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
     [data.projects, data.today]
   );
 
-  const vitals = tab === "maintenance" ? mv : pv;
-  const shownRadar = filter === "urgent" ? mv.urgent : filter === "attention" ? mv.attention : mv.all;
   const shownProjects =
     filter === "urgent" ? pv.urgent : filter === "attention" ? pv.attention : pv.all;
   const emptyForFilter =
@@ -392,6 +283,14 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
               </p>
             </div>
             <div className="wb-headtools">
+              {/* The capture pill docks by the page header on every screen
+                  (D15) — outside the board element, so Display mode never
+                  fullscreens a control nobody at the TV can press. */}
+              <NoteCapture
+                target={capture ? { kind: "visit", id: capture.visitId } : { kind: "none" }}
+                targetLabel={capture?.label}
+                voiceEnabled={data.voiceEnabled}
+              />
               {/* data-active drives the sliding thumb, the studio idiom */}
               <nav className="segsw" aria-label="Board" data-active={TABS.findIndex((t) => t.key === tab)}>
                 <span className="segsw-thumb" aria-hidden="true" />
@@ -413,29 +312,23 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
             </div>
           </div>
 
-          {/* Outside the board element on purpose: Display mode is a wall
-              screen nobody is typing at, and a fullscreened textarea would
-              just be dead space. */}
-          {!display && <NoteCapture target={{ kind: "none" }} voiceEnabled={data.voiceEnabled} />}
-
           <div className="wb-board" ref={boardRef}>
-            {data.connection === "attention" && (
+            {/* Projects side only: the maintenance board carries the same
+                news as its own header chip (D8). */}
+            {tab === "projects" && data.connection === "attention" && (
               <div className="int-note bad">
                 The ServiceM8 connection needs attention — job data on this board may be stale.
               </div>
             )}
 
-            <Vitals tiles={vitals.tiles} filter={filter} onFilter={setFilter} />
+            {tab === "projects" && (
+              <Vitals tiles={pv.tiles} filter={filter} onFilter={setFilter} />
+            )}
 
-            {/* Straight under the vitals and shared by BOTH tabs: a flag someone
-                spoke into their phone is neither maintenance nor projects, it's
-                a person telling you something is wrong. The numbers orient you
-                first, then this says what the crew actually called out.
-
-                Deliberately NOT folded into the Urgent count — that number has
-                a definition in vitals.ts and mixing a human's severity word
-                into it would make it mean two things at once. */}
-            {data.flags.length > 0 && (
+            {/* Projects side only now: on the maintenance board a flag IS an
+                urgent row (the L1 ruleset) with its Clear right there, and
+                showing it twice would break the board's one rule. */}
+            {tab === "projects" && data.flags.length > 0 && (
               <div className="card2">
                 <div className="c2h">
                   <span className="ci">
@@ -477,48 +370,30 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
             )}
 
             {tab === "maintenance" ? (
-              <>
-                <div className="card2">
-                  <div className="c2h">
-                    <span className="ci">
-                      <Icon name="activity" size={19} />
-                    </span>
-                    <div>
-                      <b>The next eight weeks</b>
-                      <em>Where the services pile up — and where there&apos;s room.</em>
-                    </div>
-                  </div>
-                  <LoadRail columns={weeks} empty="Nothing scheduled in the next two months." />
-                </div>
-
-                <div className="card2">
-                  <div className="c2h">
-                    <span className="ci">
-                      <Icon name="rotate" size={19} />
-                    </span>
-                    <div>
-                      <b>Services</b>
-                      <em>Overdue first — those breathe red until someone deals with them.</em>
-                    </div>
-                    <Link
-                      href="/dashboard/workboard/maintenance"
-                      className="pbtn ghost"
-                      style={{ marginLeft: "auto" }}
-                    >
-                      All agreements
-                    </Link>
-                  </div>
-                  {shownRadar.length === 0 ? (
-                    <p className="int-hint">
-                      {filter === "all"
-                        ? `Nothing on the radar${data.manage ? " — set up an agreement under All agreements" : ""}.`
-                        : emptyForFilter}
-                    </p>
-                  ) : (
-                    <RadarGroups radar={shownRadar} today={data.today} />
-                  )}
-                </div>
-              </>
+              display ? (
+                /* The wall composition (A10): Urgent + four weeks, LIGHT,
+                   zero interactivity — not "fullscreen the current tab". */
+                <MaintenanceWall data={data.board} flags={data.flags} today={data.today} />
+              ) : (
+                <MaintenanceBoard
+                  data={data.board}
+                  flags={data.flags}
+                  today={data.today}
+                  manage={data.manage}
+                  connected={connected}
+                  aiEnabled={data.aiEnabled}
+                  sm8={
+                    data.connection === "none"
+                      ? null
+                      : {
+                          attention: data.connection === "attention",
+                          syncedAt: data.synced?.finishedAt ?? null,
+                          running: data.synced?.running ?? false,
+                        }
+                  }
+                  onCaptureTarget={setCapture}
+                />
+              )
             ) : (
               <>
                 <div className="card2">

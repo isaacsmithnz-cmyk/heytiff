@@ -1,16 +1,13 @@
 /* The Workboard's several lives: standalone (no integration — the board says
    so and keeps working), connected (counts + the week's run sheet, rendered
-   from mirror strings without any Date() reinterpretation), and DEMO (the
-   throwaway fixture, which must be unmistakable and must never link).
-
-   The behaviour these lock down is the command-centre brief: the numbers up
-   top are the filter, the two tabs are one control, and nothing that says
-   "urgent" is allowed to be decoration. */
+   from mirror strings without any Date() reinterpretation), and the two
+   sides of the switcher — the redesigned maintenance BOARD (its own suite
+   lives in board/__tests__) and the projects side, which keeps the vitals
+   filter, the flags card and the pipeline. */
 
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { OverviewScreen } from "../overview-screen";
-import type { RadarItem } from "@/lib/workboard/maintenance-query";
 import type { ProjectStripItem } from "@/lib/workboard/projects-query";
 import type { WorkboardData } from "@/lib/workboard/page-data";
 
@@ -19,10 +16,18 @@ jest.mock("next/navigation", () => ({
 }));
 
 /* The capture box is its own component with its own suite; the server actions
-   behind it can't be imported into jsdom. */
+   behind it can't be imported into jsdom. Same for the maintenance board —
+   here we only pin that the switcher mounts it with the right dataset. */
 jest.mock("../note-capture", () => ({
   NoteCapture: ({ voiceEnabled }: { voiceEnabled: boolean }) => (
     <div data-testid="capture">{voiceEnabled ? "voice on" : "typing only"}</div>
+  ),
+}));
+jest.mock("../board/maintenance-board", () => ({
+  MaintenanceBoard: ({ manage, connected }: { manage: boolean; connected: boolean }) => (
+    <div data-testid="mboard">
+      board · manage:{String(manage)} · connected:{String(connected)}
+    </div>
   ),
 }));
 jest.mock("@/app/actions/workboard-notes", () => ({ clearFlag: jest.fn() }));
@@ -39,32 +44,11 @@ const base: WorkboardData = {
   projects: [],
   radar: [],
   flags: [],
+  board: { visits: [], agreements: [], staff: [], tagPool: [], categories: [], tasks: [] },
   voiceEnabled: false,
+  aiEnabled: false,
   synced: null,
 };
-
-function visit(over: Partial<RadarItem> & { visitId: string }): RadarItem {
-  return {
-    agreementId: "a-1",
-    label: "Warehouse quarterly",
-    clientName: "Acme",
-    siteLabel: null,
-    dueDate: "2026-08-04",
-    bucket: "upcoming",
-    status: "upcoming",
-    ready: 4,
-    readyTotal: 4,
-    readiness: {
-      access_confirmed: true,
-      time_confirmed: true,
-      parts_ready: true,
-      customer_notified: true,
-    },
-    jobNumber: null,
-    bookedStart: null,
-    ...over,
-  };
-}
 
 function project(over: Partial<ProjectStripItem> & { id: string }): ProjectStripItem {
   return {
@@ -83,10 +67,6 @@ function project(over: Partial<ProjectStripItem> & { id: string }): ProjectStrip
 
 const toProjects = () => userEvent.click(screen.getByRole("button", { name: "Projects" }));
 
-/* The load rail and the list below it deliberately share vocabulary — a week
-   column and a group heading both say "Overdue", a funnel column and a card
-   chip both say "Rough-in" — so assertions about the LIST scope themselves to
-   its card rather than searching the whole board. */
 const card = (heading: string) =>
   within(screen.getByText(heading).closest(".card2") as HTMLElement);
 
@@ -104,25 +84,26 @@ describe("standalone", () => {
       "/dashboard/admin/integrations/servicem8"
     );
   });
-
-  it("offers Display mode for the wall screen", () => {
-    render(<OverviewScreen data={base} />);
-    expect(screen.getByRole("button", { name: /Display mode/ })).toBeInTheDocument();
-  });
 });
 
 describe("the switcher", () => {
-  it("opens on Maintenance and swaps the whole board for Projects", async () => {
-    render(<OverviewScreen data={{ ...base, radar: [visit({ visitId: "v1" })], projects: [project({ id: "p1" })] }} />);
+  it("opens on Maintenance — the redesigned board — and swaps whole for Projects", async () => {
+    render(<OverviewScreen data={{ ...base, projects: [project({ id: "p1" })] }} />);
 
-    expect(screen.getByText("Services on the radar")).toBeInTheDocument();
+    expect(screen.getByTestId("mboard")).toBeInTheDocument();
     expect(screen.queryByText("Live projects")).not.toBeInTheDocument();
 
     await toProjects();
 
     expect(screen.getByText("Live projects")).toBeInTheDocument();
-    expect(screen.queryByText("Services on the radar")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("mboard")).not.toBeInTheDocument();
     expect(screen.getByText("Smith St change-over")).toBeInTheDocument();
+  });
+
+  it("hands the board its permissions and connection truthfully", () => {
+    render(<OverviewScreen data={{ ...base, manage: true, connection: "connected" }} />);
+    expect(screen.getByTestId("mboard")).toHaveTextContent("manage:true");
+    expect(screen.getByTestId("mboard")).toHaveTextContent("connected:true");
   });
 
   it("drives the sliding thumb by index rather than swapping a background", async () => {
@@ -132,105 +113,30 @@ describe("the switcher", () => {
     await toProjects();
     expect(seg).toHaveAttribute("data-active", "1");
   });
+
+  it("offers Display mode on both sides — the maintenance wall landed with step 5", async () => {
+    render(<OverviewScreen data={base} />);
+    expect(screen.getByRole("button", { name: /Display mode/ })).toBeInTheDocument();
+    await toProjects();
+    expect(screen.getByRole("button", { name: /Display mode/ })).toBeInTheDocument();
+  });
 });
 
-describe("the vitals", () => {
-  const overdue = visit({ visitId: "late", dueDate: "2026-07-19", bucket: "overdue" });
-  const bare = visit({
-    visitId: "bare",
-    dueDate: "2026-08-01",
-    bucket: "due_soon",
-    ready: 1,
-    readyTotal: 4,
-    readiness: {
-      access_confirmed: true,
-      time_confirmed: false,
-      parts_ready: false,
-      customer_notified: false,
-    },
-  });
-
-  it("counts urgent and attention off the radar, and says why", () => {
-    render(<OverviewScreen data={{ ...base, radar: [overdue, bare, visit({ visitId: "fine" })] }} />);
-    const urgent = screen.getByRole("button", { name: /Urgent/ });
-    expect(within(urgent).getByText("1")).toBeInTheDocument();
-    expect(within(urgent).getByText("Oldest is 9 days over")).toBeInTheDocument();
+describe("the projects vitals", () => {
+  it("live only on the projects side — the maintenance board carries its own signal", async () => {
+    render(<OverviewScreen data={{ ...base, projects: [project({ id: "p1", status: "on_hold" })] }} />);
+    expect(screen.queryByRole("button", { name: /Urgent/ })).not.toBeInTheDocument();
+    await toProjects();
     expect(
-      within(screen.getByRole("button", { name: /Needs attention/ })).getByText("1 of 4 checks ticked")
+      within(screen.getByRole("button", { name: /Urgent/ })).getByText("1")
     ).toBeInTheDocument();
   });
 
-  it("is a filter, not a readout — pressing Urgent hides everything else", async () => {
-    render(<OverviewScreen data={{ ...base, radar: [overdue, bare] }} />);
-    expect(card("Services").getByText("Due soon")).toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole("button", { name: /Urgent/ }));
-
-    expect(screen.getByRole("button", { name: /Urgent/ })).toHaveAttribute("aria-pressed", "true");
-    expect(card("Services").getByText("Overdue")).toBeInTheDocument();
-    expect(card("Services").queryByText("Due soon")).not.toBeInTheDocument();
-  });
-
-  it("says the good outcome out loud when a filter comes up empty", async () => {
-    render(<OverviewScreen data={{ ...base, radar: [visit({ visitId: "fine" })] }} />);
+  it("filter and the good-outcome empty state still work", async () => {
+    render(<OverviewScreen data={{ ...base, projects: [project({ id: "p1" })] }} />);
+    await toProjects();
     await userEvent.click(screen.getByRole("button", { name: /Urgent/ }));
     expect(screen.getByText(/Nothing urgent/)).toBeInTheDocument();
-  });
-
-  it("drops a filter when you change tabs, rather than hiding rows silently", async () => {
-    render(
-      <OverviewScreen
-        data={{ ...base, radar: [overdue], projects: [project({ id: "p1" })] }}
-      />
-    );
-    await userEvent.click(screen.getByRole("button", { name: /Urgent/ }));
-    await toProjects();
-    // p1 moved yesterday and is not urgent — it must still be on screen.
-    expect(screen.getByRole("button", { name: /Live projects/ })).toHaveAttribute(
-      "aria-pressed",
-      "true"
-    );
-    expect(screen.getByText("Smith St change-over")).toBeInTheDocument();
-  });
-});
-
-describe("the maintenance list", () => {
-  it("groups hardest-first, breathes on overdue, and names what's missing", () => {
-    const radar = (bucket: RadarItem["bucket"], i: number) =>
-      visit({
-        visitId: `v-${bucket}-${i}`,
-        bucket,
-        dueDate: bucket === "overdue" ? "2026-07-20" : "2026-08-04",
-        ready: 2,
-        readyTotal: 4,
-        readiness: {
-          access_confirmed: true,
-          time_confirmed: true,
-          parts_ready: false,
-          customer_notified: false,
-        },
-      });
-    render(
-      <OverviewScreen
-        data={{ ...base, radar: [radar("upcoming", 1), radar("overdue", 2), radar("due_soon", 3)] }}
-      />
-    );
-    const services = card("Services");
-    expect(services.getByText("Overdue")).toBeInTheDocument();
-    expect(services.getByText("Due soon")).toBeInTheDocument();
-    expect(services.getByText("Coming up")).toBeInTheDocument();
-
-    // the overdue row carries the breathe class — the wall screen's whole brief
-    const overdueRow = screen.getAllByText("Warehouse quarterly")[0].closest("a");
-    expect(overdueRow?.className).toContain("wb-pulse");
-
-    // pips name the gap rather than reporting a fraction nobody can act on
-    expect(screen.getAllByText("Parts · Customer told")).toHaveLength(3);
-  });
-
-  it("says Ready when all four checks are ticked", () => {
-    render(<OverviewScreen data={{ ...base, radar: [visit({ visitId: "v1" })] }} />);
-    expect(screen.getByText("Ready")).toBeInTheDocument();
   });
 });
 
@@ -260,7 +166,6 @@ describe("the projects list", () => {
     render(<OverviewScreen data={{ ...base, projects: [project({ id: "p-1", status: "on_hold" })] }} />);
     await toProjects();
     expect(screen.getByText("On hold")).toBeInTheDocument();
-    expect(within(screen.getByRole("button", { name: /Urgent/ })).getByText("1")).toBeInTheDocument();
   });
 });
 
@@ -309,15 +214,19 @@ describe("connected", () => {
     expect(screen.getByText(/Australia\/Brisbane/)).toBeInTheDocument();
   });
 
-  it("says when the connection itself needs attention", () => {
+  it("says when the connection itself needs attention — on the projects side; the board's own chip carries it for maintenance", async () => {
     render(<OverviewScreen data={{ ...connected, connection: "attention", counts: null }} />);
+    // maintenance side: the mocked board owns the news (its sm8 chip)
+    expect(screen.queryByText(/needs attention — job data/)).not.toBeInTheDocument();
+    await toProjects();
     expect(screen.getByText(/needs attention/)).toBeInTheDocument();
   });
 });
 
-/* Smart Notes lives on this screen too — the capture box above the board and
-   the flags people spoke into it. The command-centre rebuild must not have
-   quietly dropped either; that regression is exactly what these pin. */
+/* Smart Notes still lives on this screen — the capture box above the board.
+   The flags card is now the PROJECTS side's surface only: on the maintenance
+   board a flag is an urgent row with its Clear right there (the L1 ruleset),
+   and rendering it twice would break the board's one rule. */
 describe("smart notes", () => {
   const flag = (severity: "urgent" | "warn" | "info", message: string) => ({
     id: `f-${severity}`,
@@ -341,38 +250,25 @@ describe("smart notes", () => {
     expect(screen.getByTestId("capture")).toBeInTheDocument();
   });
 
-  it("pulses urgent flags and offers to clear them", () => {
-    render(
-      <OverviewScreen
-        data={{
-          ...base,
-          flags: [flag("urgent", "No roof access booked"), flag("info", "Gate code changed")],
-        }}
-      />
-    );
+  it("shows the flags card on the projects side only — the maintenance board owns them as urgent rows", async () => {
+    render(<OverviewScreen data={{ ...base, flags: [flag("urgent", "No roof access booked")] }} />);
+    expect(screen.queryByText("Raised from notes")).not.toBeInTheDocument();
+    await toProjects();
     expect(screen.getByText("Raised from notes")).toBeInTheDocument();
-    // only the urgent one breathes — that's the signal, and it's wasted if
-    // everything pulses
+    // only the urgent one breathes — that's the signal
     expect(screen.getByText("No roof access booked").closest("div")?.className).toContain("wb-pulse");
-    expect(screen.getByText("Gate code changed").closest("div")?.className).not.toContain("wb-pulse");
-    expect(screen.getAllByRole("button", { name: "Clear" })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "Clear" })).toHaveLength(1);
   });
 
-  it("hides the flags card entirely when there's nothing raised", () => {
+  it("hides the flags card entirely when there's nothing raised", async () => {
     render(<OverviewScreen data={base} />);
+    await toProjects();
     expect(screen.queryByText("Raised from notes")).not.toBeInTheDocument();
   });
 
-  it("shows the flags on BOTH tabs — a spoken flag is neither maintenance nor projects", async () => {
+  it("leaves the projects Urgent vital alone — a human's severity word is not the rule", async () => {
     render(<OverviewScreen data={{ ...base, flags: [flag("urgent", "No roof access booked")] }} />);
-    expect(screen.getByText("No roof access booked")).toBeInTheDocument();
     await toProjects();
-    expect(screen.getByText("No roof access booked")).toBeInTheDocument();
-  });
-
-  it("leaves the Urgent vital alone — a human's severity word is not the rule", () => {
-    render(<OverviewScreen data={{ ...base, flags: [flag("urgent", "No roof access booked")] }} />);
-    // vitals.ts defines Urgent as overdue visits; the radar here is empty.
     expect(within(screen.getByRole("button", { name: /Urgent/ })).getByText("0")).toBeInTheDocument();
   });
 });

@@ -413,6 +413,9 @@ export type JobSearchHit = {
   jobNumber: string | null;
   status: string | null;
   clientName: string | null;
+  /** The mirrored client record behind the name — provenance for an
+      agreement born from this job (D7). */
+  companyId: string | null;
   suburb: string | null;
   /** Names of projects already holding this job — the cross-project warning. */
   linkedTo: string[];
@@ -518,6 +521,7 @@ export async function searchMirrorJobs(
     jobNumber: h.generated_job_id,
     status: h.status,
     clientName: h.company_uuid ? nameByCompany.get(h.company_uuid) ?? null : null,
+    companyId: h.company_uuid,
     suburb: h.geo_city,
     linkedTo: linkedTo.get(h.uuid) ?? [],
   }));

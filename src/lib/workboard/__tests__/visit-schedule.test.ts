@@ -9,6 +9,7 @@ import {
   dueDatesFor,
   isPristineFuture,
   isReadinessKey,
+  migrateLegacyReadiness,
   READINESS_KEYS,
   readinessCount,
   readReadiness,
@@ -93,6 +94,20 @@ describe("isPristineFuture — the only thing regeneration may delete", () => {
     expect(isPristineFuture({ ...clean, readiness: { access_confirmed: true } }, today)).toBe(false);
   });
 
+  it("the new touch signals count as touches: placement, a tech, a packed item", () => {
+    expect(isPristineFuture({ ...clean, bookedDate: "2026-09-15" }, today)).toBe(false);
+    expect(isPristineFuture({ ...clean, techCount: 1 }, today)).toBe(false);
+    expect(isPristineFuture({ ...clean, packedCount: 1 }, today)).toBe(false);
+  });
+
+  it("a LEGACY tick still counts as a touch — old confirmations are not clutter", () => {
+    expect(isPristineFuture({ ...clean, readiness: { parts_ready: true } }, today)).toBe(false);
+    expect(isPristineFuture({ ...clean, readiness: { customer_notified: true } }, today)).toBe(false);
+    expect(isPristineFuture({ ...clean, readiness: { time_confirmed: true } }, today)).toBe(false);
+    // …but a junk value under a legacy key is not a tick
+    expect(isPristineFuture({ ...clean, readiness: { parts_ready: "yes" } }, today)).toBe(true);
+  });
+
   it("the past is history, not clutter — never pruned", () => {
     expect(isPristineFuture({ ...clean, dueDate: "2026-07-01" }, today)).toBe(false);
     expect(isPristineFuture({ ...clean, dueDate: today }, today)).toBe(false);
@@ -110,30 +125,81 @@ describe("buckets", () => {
   });
 });
 
-describe("readiness", () => {
+describe("readiness — the two stored gates (D1)", () => {
   it("reads by whitelist — junk keys and junk values are ignored", () => {
     const r = readReadiness({
       access_confirmed: true,
-      parts_ready: "yes", // not boolean true → not ready
-      __proto__: { time_confirmed: true },
+      equipment_ready: "yes", // not boolean true → not ready
+      __proto__: { equipment_ready: true },
       free_lunch: true,
     });
     expect(r.access_confirmed).toBe(true);
-    expect(r.parts_ready).toBe(false);
-    expect(r.time_confirmed).toBe(false);
+    expect(r.equipment_ready).toBe(false);
     expect(Object.keys(r).sort()).toEqual([...READINESS_KEYS].sort());
   });
 
-  it("counts ready out of the fixed four", () => {
-    expect(readinessCount({ access_confirmed: true, time_confirmed: true })).toEqual({
-      ready: 2,
-      total: 4,
-    });
-    expect(readinessCount(null)).toEqual({ ready: 0, total: 4 });
+  it("legacy keys are invisible to the new read — the migration is the bridge", () => {
+    const r = readReadiness({ parts_ready: true, customer_notified: true, time_confirmed: true });
+    expect(r.equipment_ready).toBe(false);
+    expect(r.access_confirmed).toBe(false);
   });
 
-  it("isReadinessKey is the whitelist, not a shape", () => {
+  it("counts ready out of the fixed two", () => {
+    expect(readinessCount({ access_confirmed: true })).toEqual({ ready: 1, total: 2 });
+    expect(readinessCount(null)).toEqual({ ready: 0, total: 2 });
+  });
+
+  it("isReadinessKey is the whitelist, not a shape — retired keys are out", () => {
     expect(isReadinessKey("access_confirmed")).toBe(true);
+    expect(isReadinessKey("equipment_ready")).toBe(true);
+    expect(isReadinessKey("parts_ready")).toBe(false);
+    expect(isReadinessKey("time_confirmed")).toBe(false);
+    expect(isReadinessKey("customer_notified")).toBe(false);
     expect(isReadinessKey("vibes_confirmed")).toBe(false);
+  });
+});
+
+describe("migrateLegacyReadiness — the D1 mapping, mirrored from the SQL", () => {
+  it("parts becomes equipment; access OR customer-told becomes access", () => {
+    expect(migrateLegacyReadiness({ parts_ready: true })).toEqual({
+      equipment_ready: true,
+      access_confirmed: false,
+    });
+    expect(migrateLegacyReadiness({ customer_notified: true })).toEqual({
+      equipment_ready: false,
+      access_confirmed: true,
+    });
+    expect(migrateLegacyReadiness({ access_confirmed: true })).toEqual({
+      equipment_ready: false,
+      access_confirmed: true,
+    });
+  });
+
+  it("OR, not AND — half-done work is not un-confirmed", () => {
+    expect(
+      migrateLegacyReadiness({ access_confirmed: true, customer_notified: false })
+    ).toEqual({ equipment_ready: false, access_confirmed: true });
+  });
+
+  it("time_confirmed maps to NOTHING — placement carries it now", () => {
+    expect(migrateLegacyReadiness({ time_confirmed: true })).toEqual({
+      equipment_ready: false,
+      access_confirmed: false,
+    });
+  });
+
+  it("already-migrated keys pass through; junk values never count", () => {
+    expect(migrateLegacyReadiness({ equipment_ready: true })).toEqual({
+      equipment_ready: true,
+      access_confirmed: false,
+    });
+    expect(migrateLegacyReadiness({ parts_ready: "yes", customer_notified: 1 })).toEqual({
+      equipment_ready: false,
+      access_confirmed: false,
+    });
+    expect(migrateLegacyReadiness(null)).toEqual({
+      equipment_ready: false,
+      access_confirmed: false,
+    });
   });
 });

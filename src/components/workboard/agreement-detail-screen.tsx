@@ -27,11 +27,12 @@ import {
    chips live. Overdue visits breathe red (.wb-pulse); a linked job that went
    sideways in ServiceM8 gets a warning chip and a human decides. */
 
+/* The two STORED gates (D1). Crew derives from technician assignment and
+   arrives with the redesigned sheet; placement carries what time_confirmed
+   used to. */
 const READINESS_LABEL: Record<ReadinessKey, string> = {
+  equipment_ready: "Equipment",
   access_confirmed: "Access",
-  time_confirmed: "Time",
-  parts_ready: "Parts",
-  customer_notified: "Customer told",
 };
 
 const cadenceLabel = (months: number) =>

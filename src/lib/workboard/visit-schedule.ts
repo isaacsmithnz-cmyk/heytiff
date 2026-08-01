@@ -9,14 +9,24 @@
    Dates only, no times, no zones: a due date is a calendar promise, and the
    zone question lives entirely in "what is today" (todayInZone). */
 
-export const READINESS_KEYS = [
+/* The two STORED gates (decision D1, 2026-08-01). Crew is derived from the
+   visit's technician assignment and is never a key here; time_confirmed
+   folded into placement (booked_date) — placing a visit on a day IS the
+   time confirmation. */
+export const READINESS_KEYS = ["equipment_ready", "access_confirmed"] as const;
+
+export type ReadinessKey = (typeof READINESS_KEYS)[number];
+
+/* The retired four-key model. Old rows may still carry these until their
+   next tick rebuilds the jsonb from the new whitelist; the pristine check
+   below honours them so nobody's half-done confirmations mark a visit
+   untouched. */
+export const LEGACY_READINESS_KEYS = [
   "access_confirmed",
   "time_confirmed",
   "parts_ready",
   "customer_notified",
 ] as const;
-
-export type ReadinessKey = (typeof READINESS_KEYS)[number];
 
 export function isReadinessKey(v: unknown): v is ReadinessKey {
   return typeof v === "string" && (READINESS_KEYS as readonly string[]).includes(v);
@@ -26,9 +36,7 @@ export function isReadinessKey(v: unknown): v is ReadinessKey {
     non-boolean values are ignored, never interpreted (the resolve() idiom). */
 export function readReadiness(raw: unknown): Record<ReadinessKey, boolean> {
   const out = {} as Record<ReadinessKey, boolean>;
-  const obj = raw && typeof raw === "object" && !Array.isArray(raw)
-    ? (raw as Record<string, unknown>)
-    : {};
+  const obj = rawObject(raw);
   for (const key of READINESS_KEYS) {
     out[key] = Object.hasOwn(obj, key) && obj[key] === true;
   }
@@ -38,6 +46,25 @@ export function readReadiness(raw: unknown): Record<ReadinessKey, boolean> {
 export function readinessCount(raw: unknown): { ready: number; total: number } {
   const r = readReadiness(raw);
   return { ready: READINESS_KEYS.filter((k) => r[k]).length, total: READINESS_KEYS.length };
+}
+
+function rawObject(raw: unknown): Record<string, unknown> {
+  return raw && typeof raw === "object" && !Array.isArray(raw)
+    ? (raw as Record<string, unknown>)
+    : {};
+}
+
+/** The D1 mapping, as a pure function (the SQL migration is its mirror):
+    parts_ready → equipment_ready; access OR customer_notified → access
+    (OR, not AND — nobody's half-done work gets un-confirmed); time_confirmed
+    → nothing, placement carries it now. Already-migrated keys pass through. */
+export function migrateLegacyReadiness(raw: unknown): Record<ReadinessKey, boolean> {
+  const obj = rawObject(raw);
+  const on = (k: string) => Object.hasOwn(obj, k) && obj[k] === true;
+  return {
+    equipment_ready: on("equipment_ready") || on("parts_ready"),
+    access_confirmed: on("access_confirmed") || on("customer_notified"),
+  };
 }
 
 /* ── date maths (UTC-pinned, calendar-safe) ── */
@@ -108,18 +135,31 @@ export type PristineCheck = {
   readiness: unknown;
   notes: string | null;
   dueDate: string;
+  /** Placement is a human act — a placed visit is not clutter. */
+  bookedDate?: string | null;
+  /** Assignment and packing live in join tables; callers count them. */
+  techCount?: number;
+  packedCount?: number;
 };
 
 /** May regeneration delete this future visit? Only if NOBODY touched it:
-    still upcoming, no job typed or linked, readiness never ticked, no notes,
-    and not already in the past (a missed visit is history, not clutter). */
+    still upcoming, never placed on a day, no job typed or linked, no gate
+    ticked under EITHER readiness model, nobody assigned, nothing packed,
+    no notes, and not already in the past (a missed visit is history, not
+    clutter). */
 export function isPristineFuture(v: PristineCheck, todayISO: string): boolean {
   if (v.dueDate <= todayISO) return false;
   if (v.status !== "upcoming") return false;
   if (v.remoteId || v.jobNumber) return false;
+  if (v.bookedDate) return false;
+  if ((v.techCount ?? 0) > 0 || (v.packedCount ?? 0) > 0) return false;
   if (v.notes && v.notes.trim()) return false;
-  const r = readReadiness(v.readiness);
-  return READINESS_KEYS.every((k) => !r[k]);
+  const obj = rawObject(v.readiness);
+  const touched = new Set<string>([...READINESS_KEYS, ...LEGACY_READINESS_KEYS]);
+  for (const key of touched) {
+    if (Object.hasOwn(obj, key) && obj[key] === true) return false;
+  }
+  return true;
 }
 
 /* ── buckets ── */

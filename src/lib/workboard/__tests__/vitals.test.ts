@@ -27,13 +27,11 @@ function visit(over: Partial<RadarItem> & { visitId: string; dueDate: string }):
     siteLabel: null,
     bucket: over.dueDate < TODAY ? "overdue" : "upcoming",
     status: "upcoming",
-    ready: 4,
-    readyTotal: 4,
+    ready: 2,
+    readyTotal: 2,
     readiness: {
+      equipment_ready: true,
       access_confirmed: true,
-      time_confirmed: true,
-      parts_ready: true,
-      customer_notified: true,
     },
     jobNumber: null,
     bookedStart: null,
@@ -80,12 +78,12 @@ describe("maintenanceVitals", () => {
   });
 
   it("flags a near visit only when prep is actually missing", () => {
-    const prepped = visit({ visitId: "ready", dueDate: "2026-07-30", ready: 4, readyTotal: 4 });
-    const bare = visit({ visitId: "bare", dueDate: "2026-07-30", ready: 1, readyTotal: 4 });
+    const prepped = visit({ visitId: "ready", dueDate: "2026-07-30", ready: 2, readyTotal: 2 });
+    const bare = visit({ visitId: "bare", dueDate: "2026-07-30", ready: 1, readyTotal: 2 });
     const v = maintenanceVitals([prepped, bare], TODAY);
     // Due tomorrow and fully prepped is not a problem — it's a job.
     expect(v.attention.map((r) => r.visitId)).toEqual(["bare"]);
-    expect(v.tiles[1].caption).toBe("1 of 4 checks ticked");
+    expect(v.tiles[1].caption).toBe("1 of 2 checks ticked");
   });
 
   it("holds the attention window at exactly 14 days", () => {
@@ -93,13 +91,13 @@ describe("maintenanceVitals", () => {
       visitId: "in",
       dueDate: "2026-08-12", // +14
       ready: 0,
-      readyTotal: 4,
+      readyTotal: 2,
     });
     const outside = visit({
       visitId: "out",
       dueDate: "2026-08-13", // +15
       ready: 0,
-      readyTotal: 4,
+      readyTotal: 2,
     });
     expect(ATTENTION_WINDOW_DAYS).toBe(14);
     const v = maintenanceVitals([inside, outside], TODAY);
@@ -220,9 +218,9 @@ describe("weekBuckets", () => {
 describe("radarLoad", () => {
   it("colours by breach first, then by prep", () => {
     const states = radarLoad([
-      visit({ visitId: "v1", dueDate: "2026-07-20", bucket: "overdue", ready: 4 }),
-      visit({ visitId: "v2", dueDate: "2026-08-05", ready: 2, readyTotal: 4 }),
-      visit({ visitId: "v3", dueDate: "2026-08-06", ready: 4, readyTotal: 4 }),
+      visit({ visitId: "v1", dueDate: "2026-07-20", bucket: "overdue", ready: 2 }),
+      visit({ visitId: "v2", dueDate: "2026-08-05", ready: 1, readyTotal: 2 }),
+      visit({ visitId: "v3", dueDate: "2026-08-06", ready: 2, readyTotal: 2 }),
     ]).map((i) => i.state);
     expect(states).toEqual(["overdue", "attention", "ready"]);
   });

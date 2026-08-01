@@ -8,6 +8,8 @@ import { isReadinessKey, readReadiness, READINESS_KEYS } from "@/lib/workboard/v
 import { ensureVisits, pruneAndRegenerate } from "@/lib/workboard/visit-ensure";
 import { getSm8Timezone } from "@/lib/workboard/query";
 import { todayInZone } from "@/lib/workboard/dates";
+import { staffIdFor } from "@/lib/workboard/projects-query";
+import { nextCategoryAccent, tagToneFor } from "@/lib/workboard/tags";
 
 /* Maintenance mutations — same two tiers as projects, same reasons:
 
@@ -59,9 +61,28 @@ const isoDate = (v: unknown): string | null => {
   return Number.isNaN(Date.parse(`${v}T00:00:00Z`)) ? null : v;
 };
 
+/* Whole months only, 1..24 — sub-monthly cadences were deliberately CUT
+   (decision D3, 2026-08-01): HVAC maintenance reality is monthly-and-up,
+   and interval_days arrives only when a real agreement needs it. */
 const intervalOf = (v: unknown): number | null => {
   const n = typeof v === "number" ? Math.trunc(v) : NaN;
   return Number.isFinite(n) && n >= 1 && n <= 24 ? n : null;
+};
+
+/** How many technicians the service usually takes — capacity info for the
+    crew chip ("1 of 2"), never the gate itself (one assigned tech ticks
+    Crew). The design's select runs 1–6. */
+const techsNeededOf = (v: unknown): number | null => {
+  const n = typeof v === "number" ? Math.trunc(v) : NaN;
+  return Number.isFinite(n) && n >= 1 && n <= 6 ? n : null;
+};
+
+/** Hours as spoken on a job: 0.5 to 24, half-steps respected by rounding to
+    one decimal. */
+const hoursOf = (v: unknown): number | null => {
+  const n = typeof v === "number" ? v : NaN;
+  if (!Number.isFinite(n) || n <= 0 || n > 24) return null;
+  return Math.round(n * 10) / 10;
 };
 
 async function agreementIn(orgId: string, id: string): Promise<{ id: string } | null> {
@@ -87,6 +108,16 @@ async function visitIn(
   return (data as { id: string; agreement_id: string; readiness: unknown; status: string } | null) ?? null;
 }
 
+async function categoryIn(orgId: string, id: string): Promise<{ id: string } | null> {
+  const { data } = await supabaseAdmin
+    .from("agreement_categories")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("id", id)
+    .maybeSingle();
+  return (data as { id: string } | null) ?? null;
+}
+
 /* ---------------- agreements (workboard_manage) ---------------- */
 
 export type NewAgreement = {
@@ -101,6 +132,11 @@ export type NewAgreement = {
   accessNotes?: string;
   bringList?: string;
   siteRequirements?: string;
+  /** L2's fix — collected AND rendered from now on. */
+  billingContact?: string;
+  techsNeeded?: number;
+  hoursEstimate?: number;
+  categoryId?: string | null;
 };
 
 export async function createAgreement(input: NewAgreement): Promise<MaintenanceResult> {
@@ -116,6 +152,20 @@ export async function createAgreement(input: NewAgreement): Promise<MaintenanceR
   if (!clientName) return { ok: false, error: "Say who the client is — typed is fine." };
   if (!intervalMonths) return { ok: false, error: "Pick how often the service runs." };
   if (!anchorDate) return { ok: false, error: "Pick the first service date." };
+  if (input.techsNeeded !== undefined && techsNeededOf(input.techsNeeded) === null) {
+    return { ok: false, error: "Technicians needed runs 1 to 6." };
+  }
+  if (input.hoursEstimate !== undefined && hoursOf(input.hoursEstimate) === null) {
+    return { ok: false, error: "Estimated hours need to be a real number of hours." };
+  }
+
+  let categoryId: string | null = null;
+  if (input.categoryId) {
+    if (!(await categoryIn(ctx.orgId, input.categoryId))) {
+      return { ok: false, error: "That category isn't in this workspace." };
+    }
+    categoryId = input.categoryId;
+  }
 
   const { data, error } = await supabaseAdmin
     .from("maintenance_agreements")
@@ -132,6 +182,10 @@ export async function createAgreement(input: NewAgreement): Promise<MaintenanceR
       access_notes: trim(input.accessNotes, 2000),
       bring_list: trim(input.bringList, 2000),
       site_requirements: trim(input.siteRequirements, 2000),
+      billing_contact: trim(input.billingContact, 200),
+      techs_needed: techsNeededOf(input.techsNeeded) ?? 1,
+      hours_estimate: hoursOf(input.hoursEstimate),
+      category_id: categoryId,
       created_by_user_id: ctx.userId,
     })
     .select("id")
@@ -157,6 +211,9 @@ export type AgreementPatch = {
   bringList?: string | null;
   siteRequirements?: string | null;
   notes?: string | null;
+  billingContact?: string | null;
+  techsNeeded?: number;
+  hoursEstimate?: number | null;
 };
 
 export async function updateAgreementMeta(
@@ -187,6 +244,20 @@ export async function updateAgreementMeta(
   if (patch.siteRequirements !== undefined)
     row.site_requirements = trim(patch.siteRequirements, 2000);
   if (patch.notes !== undefined) row.notes = trim(patch.notes, 4000);
+  if (patch.billingContact !== undefined) row.billing_contact = trim(patch.billingContact, 200);
+  if (patch.techsNeeded !== undefined) {
+    const n = techsNeededOf(patch.techsNeeded);
+    if (n === null) return { ok: false, error: "Technicians needed runs 1 to 6." };
+    row.techs_needed = n;
+  }
+  if (patch.hoursEstimate !== undefined) {
+    if (patch.hoursEstimate === null) row.hours_estimate = null;
+    else {
+      const h = hoursOf(patch.hoursEstimate);
+      if (h === null) return { ok: false, error: "Estimated hours need to be a real number of hours." };
+      row.hours_estimate = h;
+    }
+  }
 
   const { error } = await supabaseAdmin
     .from("maintenance_agreements")
@@ -482,5 +553,398 @@ export async function setVisitNotes(visitId: string, text: string): Promise<Main
     .eq("id", visitId);
   if (error) return { ok: false, error: "Couldn't save the note." };
   refresh(visit.agreement_id);
+  return { ok: true };
+}
+
+/* ---------------- close-out (K1 — the loop finally closes) ---------------- */
+
+/** The completion path the design never built: date it ran, the hours it
+    ACTUALLY took (the Completed screen shows actuals, never the booking
+    estimate — L3), and the technician's note. Generation then tops the
+    horizon back up, so the next visit exists the moment this one is history.
+    Manual completion is the standalone guarantee; a linked ServiceM8 job
+    completing feeds the same fields via the mirror tail. */
+export async function completeVisit(
+  visitId: string,
+  input: { ranOn?: string; actualHours?: number | null; note?: string } = {}
+): Promise<MaintenanceResult> {
+  const ctx = await context();
+  if (!ctx) return NOT_SIGNED_IN;
+  if (!(await can("workboard_manage"))) return NO_MANAGE;
+
+  const visit = await visitIn(ctx.orgId, visitId);
+  if (!visit) return { ok: false, error: "That visit is no longer here." };
+  if (visit.status !== "upcoming" && visit.status !== "booked") {
+    return { ok: false, error: "That visit is already closed." };
+  }
+
+  const today = todayInZone(await getSm8Timezone(ctx.orgId));
+  const ranOn = input.ranOn === undefined ? today : isoDate(input.ranOn);
+  if (!ranOn) return { ok: false, error: "Pick the day the visit ran." };
+  if (ranOn > today) return { ok: false, error: "A visit can't be completed in the future." };
+
+  let actualHours: number | null = null;
+  if (input.actualHours !== undefined && input.actualHours !== null) {
+    actualHours = hoursOf(input.actualHours);
+    if (actualHours === null) {
+      return { ok: false, error: "Hours on site need to be a real number of hours." };
+    }
+  }
+
+  const { error } = await supabaseAdmin
+    .from("maintenance_visits")
+    .update({
+      status: "done",
+      completed_at: ranOn,
+      completed_source: "manual",
+      actual_hours: actualHours,
+      completion_note: trim(input.note, 2000),
+    })
+    .eq("org_id", ctx.orgId)
+    .eq("id", visitId)
+    // Same guard as the mirror tail: if someone else closed it first, this
+    // write must not overrule them.
+    .in("status", ["upcoming", "booked"]);
+  if (error) return { ok: false, error: "Couldn't complete the visit." };
+
+  await ensureVisits(ctx.orgId, { agreementId: visit.agreement_id });
+  refresh(visit.agreement_id);
+  return { ok: true };
+}
+
+/* ---------------- placement (time_confirmed's successor, D1) ---------------- */
+
+/** Put the visit on a day. Placement IS the time confirmation — there is no
+    separate tick. Weekends are allowed on purpose (B9's deliberate-booking
+    half); the UI offers the Monday roll, the server records the choice. */
+export async function placeVisit(visitId: string, dateISO: string): Promise<MaintenanceResult> {
+  const ctx = await context();
+  if (!ctx) return NOT_SIGNED_IN;
+  if (!(await can("workboard_manage"))) return NO_MANAGE;
+
+  const bookedDate = isoDate(dateISO);
+  if (!bookedDate) return { ok: false, error: "Pick a real day." };
+
+  const visit = await visitIn(ctx.orgId, visitId);
+  if (!visit) return { ok: false, error: "That visit is no longer here." };
+  if (visit.status === "done" || visit.status === "skipped") {
+    return { ok: false, error: "That visit is already closed." };
+  }
+
+  const { error } = await supabaseAdmin
+    .from("maintenance_visits")
+    .update({
+      booked_date: bookedDate,
+      ...(visit.status === "upcoming" ? { status: "booked" } : {}),
+    })
+    .eq("org_id", ctx.orgId)
+    .eq("id", visitId);
+  if (error) return { ok: false, error: "Couldn't place the visit." };
+  refresh(visit.agreement_id);
+  return { ok: true };
+}
+
+/** Take it back off the day. A visit that only had a placement returns to
+    'upcoming'; one still linked to a job keeps its 'booked' status — the
+    job's diary is its own truth. */
+export async function clearVisitPlacement(visitId: string): Promise<MaintenanceResult> {
+  const ctx = await context();
+  if (!ctx) return NOT_SIGNED_IN;
+  if (!(await can("workboard_manage"))) return NO_MANAGE;
+
+  const { data } = await supabaseAdmin
+    .from("maintenance_visits")
+    .select("id, agreement_id, status, remote_id, job_number")
+    .eq("org_id", ctx.orgId)
+    .eq("id", visitId)
+    .maybeSingle();
+  const visit = data as {
+    id: string;
+    agreement_id: string;
+    status: string;
+    remote_id: string | null;
+    job_number: string | null;
+  } | null;
+  if (!visit) return { ok: false, error: "That visit is no longer here." };
+  if (visit.status === "done" || visit.status === "skipped") {
+    return { ok: false, error: "That visit is already closed." };
+  }
+
+  const stillLinked = !!(visit.remote_id || visit.job_number);
+  const { error } = await supabaseAdmin
+    .from("maintenance_visits")
+    .update({
+      booked_date: null,
+      ...(visit.status === "booked" && !stillLinked ? { status: "upcoming" } : {}),
+    })
+    .eq("org_id", ctx.orgId)
+    .eq("id", visitId);
+  if (error) return { ok: false, error: "Couldn't clear the placement." };
+  refresh(visit.agreement_id);
+  return { ok: true };
+}
+
+/* ---------------- technicians (D2 — the Crew gate's substance) ---------------- */
+
+/** Assign a technician. NEVER called by a gate tick (A12: the prototype's
+    Crew tick silently invented an assignment) — Crew derives from these rows
+    and is satisfied by one assigned tech. */
+export async function assignVisitTech(
+  visitId: string,
+  staffProfileId: string
+): Promise<MaintenanceResult> {
+  const ctx = await context();
+  if (!ctx) return NOT_SIGNED_IN;
+  if (!(await can("workboard_manage"))) return NO_MANAGE;
+
+  const visit = await visitIn(ctx.orgId, visitId);
+  if (!visit) return { ok: false, error: "That visit is no longer here." };
+  if (visit.status === "done" || visit.status === "skipped") {
+    return { ok: false, error: "That visit is already closed." };
+  }
+
+  const { data: staff } = await supabaseAdmin
+    .from("staff_profiles")
+    .select("id")
+    .eq("org_id", ctx.orgId)
+    .eq("id", staffProfileId)
+    .maybeSingle();
+  if (!staff) return { ok: false, error: "That person isn't on this workspace's team." };
+
+  const { error } = await supabaseAdmin.from("maintenance_visit_techs").upsert(
+    { org_id: ctx.orgId, visit_id: visitId, staff_profile_id: staffProfileId },
+    { onConflict: "visit_id,staff_profile_id", ignoreDuplicates: true }
+  );
+  if (error) return { ok: false, error: "Couldn't assign the technician." };
+  refresh(visit.agreement_id);
+  return { ok: true };
+}
+
+export async function unassignVisitTech(
+  visitId: string,
+  staffProfileId: string
+): Promise<MaintenanceResult> {
+  const ctx = await context();
+  if (!ctx) return NOT_SIGNED_IN;
+  if (!(await can("workboard_manage"))) return NO_MANAGE;
+
+  const visit = await visitIn(ctx.orgId, visitId);
+  if (!visit) return { ok: false, error: "That visit is no longer here." };
+
+  await supabaseAdmin
+    .from("maintenance_visit_techs")
+    .delete()
+    .eq("org_id", ctx.orgId)
+    .eq("visit_id", visitId)
+    .eq("staff_profile_id", staffProfileId);
+  refresh(visit.agreement_id);
+  return { ok: true };
+}
+
+/* ---------------- packing list (D5 — owned by the agreement, ticked per visit) ---------------- */
+
+export async function addPackingItem(
+  agreementId: string,
+  label: string
+): Promise<MaintenanceResult> {
+  const ctx = await context();
+  if (!ctx) return NOT_SIGNED_IN;
+  if (!(await can("workboard_manage"))) return NO_MANAGE;
+  if (!(await agreementIn(ctx.orgId, agreementId))) return GONE;
+
+  const clean = trim(label, 200);
+  if (!clean) return { ok: false, error: "Say what needs to go on the van." };
+
+  const { data, error } = await supabaseAdmin
+    .from("agreement_packing_items")
+    .insert({ org_id: ctx.orgId, agreement_id: agreementId, label: clean })
+    .select("id")
+    .single();
+  if (error || !data) return { ok: false, error: "Couldn't add it to the packing list." };
+  refresh(agreementId);
+  return { ok: true, id: (data as { id: string }).id };
+}
+
+export async function removePackingItem(itemId: string): Promise<MaintenanceResult> {
+  const ctx = await context();
+  if (!ctx) return NOT_SIGNED_IN;
+  if (!(await can("workboard_manage"))) return NO_MANAGE;
+
+  const { data } = await supabaseAdmin
+    .from("agreement_packing_items")
+    .select("id, agreement_id")
+    .eq("org_id", ctx.orgId)
+    .eq("id", itemId)
+    .maybeSingle();
+  const row = data as { id: string; agreement_id: string } | null;
+  if (!row) return GONE;
+
+  await supabaseAdmin
+    .from("agreement_packing_items")
+    .delete()
+    .eq("org_id", ctx.orgId)
+    .eq("id", itemId);
+  refresh(row.agreement_id);
+  return { ok: true };
+}
+
+/** The van-loading tick — the TICK tier, like readiness: whoever packed the
+    ladder ticks the ladder. Presence of the row IS the packed state. */
+export async function setVisitPacked(
+  visitId: string,
+  itemId: string,
+  packed: boolean
+): Promise<MaintenanceResult> {
+  const ctx = await context();
+  if (!ctx) return NOT_SIGNED_IN;
+  if (!(await can("workboard"))) return NO_VIEW;
+
+  const visit = await visitIn(ctx.orgId, visitId);
+  if (!visit) return { ok: false, error: "That visit is no longer here." };
+
+  const { data: item } = await supabaseAdmin
+    .from("agreement_packing_items")
+    .select("id, agreement_id")
+    .eq("org_id", ctx.orgId)
+    .eq("id", itemId)
+    .maybeSingle();
+  const itemRow = item as { id: string; agreement_id: string } | null;
+  if (!itemRow || itemRow.agreement_id !== visit.agreement_id) {
+    return { ok: false, error: "That item isn't on this agreement's packing list." };
+  }
+
+  if (packed) {
+    const staffId = await staffIdFor(ctx.orgId, ctx.userId);
+    const { error } = await supabaseAdmin.from("maintenance_visit_packed").upsert(
+      { org_id: ctx.orgId, visit_id: visitId, item_id: itemId, packed_by: staffId },
+      { onConflict: "visit_id,item_id", ignoreDuplicates: true }
+    );
+    if (error) return { ok: false, error: "Couldn't tick it off." };
+  } else {
+    await supabaseAdmin
+      .from("maintenance_visit_packed")
+      .delete()
+      .eq("org_id", ctx.orgId)
+      .eq("visit_id", visitId)
+      .eq("item_id", itemId);
+  }
+  refresh(visit.agreement_id);
+  return { ok: true };
+}
+
+/* ---------------- categories + tags (D10) ---------------- */
+
+/** A category is born with its accent and keeps it (B2's rule applied to
+    categories). Creating one NEVER moves agreements into it — B17's silent
+    re-home is not a thing this board does. */
+export async function createCategory(name: string): Promise<MaintenanceResult> {
+  const ctx = await context();
+  if (!ctx) return NOT_SIGNED_IN;
+  if (!(await can("workboard_manage"))) return NO_MANAGE;
+
+  const clean = trim(name, 80);
+  if (!clean) return { ok: false, error: "A category needs a name." };
+
+  const { count } = await supabaseAdmin
+    .from("agreement_categories")
+    .select("id", { count: "exact", head: true })
+    .eq("org_id", ctx.orgId);
+
+  const { data, error } = await supabaseAdmin
+    .from("agreement_categories")
+    .insert({ org_id: ctx.orgId, name: clean, accent: nextCategoryAccent(count ?? 0) })
+    .select("id")
+    .single();
+  if (error || !data) {
+    return { ok: false, error: "Couldn't create the category — is the name already taken?" };
+  }
+  refresh();
+  return { ok: true, id: (data as { id: string }).id };
+}
+
+export async function setAgreementCategory(
+  agreementId: string,
+  categoryId: string | null
+): Promise<MaintenanceResult> {
+  const ctx = await context();
+  if (!ctx) return NOT_SIGNED_IN;
+  if (!(await can("workboard_manage"))) return NO_MANAGE;
+  if (!(await agreementIn(ctx.orgId, agreementId))) return GONE;
+
+  if (categoryId && !(await categoryIn(ctx.orgId, categoryId))) {
+    return { ok: false, error: "That category isn't in this workspace." };
+  }
+
+  const { error } = await supabaseAdmin
+    .from("maintenance_agreements")
+    .update({ category_id: categoryId, updated_at: new Date().toISOString() })
+    .eq("org_id", ctx.orgId)
+    .eq("id", agreementId);
+  if (error) return { ok: false, error: "Couldn't move the agreement." };
+  refresh(agreementId);
+  return { ok: true };
+}
+
+/** A tag's colour is decided here, once, and stored — nothing downstream
+    ever recomputes it, so adding tag #7 can't repaint tags #1–6 (B2). */
+export async function createTag(name: string): Promise<MaintenanceResult> {
+  const ctx = await context();
+  if (!ctx) return NOT_SIGNED_IN;
+  if (!(await can("workboard_manage"))) return NO_MANAGE;
+
+  const clean = trim(name, 60);
+  if (!clean) return { ok: false, error: "A tag needs a name." };
+
+  const { data, error } = await supabaseAdmin
+    .from("agreement_tags")
+    .insert({ org_id: ctx.orgId, name: clean, color: tagToneFor(clean) })
+    .select("id")
+    .single();
+  if (error || !data) {
+    return { ok: false, error: "Couldn't create the tag — is the name already taken?" };
+  }
+  refresh();
+  return { ok: true, id: (data as { id: string }).id };
+}
+
+export async function tagAgreement(agreementId: string, tagId: string): Promise<MaintenanceResult> {
+  const ctx = await context();
+  if (!ctx) return NOT_SIGNED_IN;
+  if (!(await can("workboard_manage"))) return NO_MANAGE;
+  if (!(await agreementIn(ctx.orgId, agreementId))) return GONE;
+
+  const { data: tag } = await supabaseAdmin
+    .from("agreement_tags")
+    .select("id")
+    .eq("org_id", ctx.orgId)
+    .eq("id", tagId)
+    .maybeSingle();
+  if (!tag) return { ok: false, error: "That tag isn't in this workspace." };
+
+  const { error } = await supabaseAdmin.from("agreement_tag_links").upsert(
+    { org_id: ctx.orgId, agreement_id: agreementId, tag_id: tagId },
+    { onConflict: "agreement_id,tag_id", ignoreDuplicates: true }
+  );
+  if (error) return { ok: false, error: "Couldn't add the tag." };
+  refresh(agreementId);
+  return { ok: true };
+}
+
+export async function untagAgreement(
+  agreementId: string,
+  tagId: string
+): Promise<MaintenanceResult> {
+  const ctx = await context();
+  if (!ctx) return NOT_SIGNED_IN;
+  if (!(await can("workboard_manage"))) return NO_MANAGE;
+  if (!(await agreementIn(ctx.orgId, agreementId))) return GONE;
+
+  await supabaseAdmin
+    .from("agreement_tag_links")
+    .delete()
+    .eq("org_id", ctx.orgId)
+    .eq("agreement_id", agreementId)
+    .eq("tag_id", tagId);
+  refresh(agreementId);
   return { ok: true };
 }

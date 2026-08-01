@@ -163,15 +163,13 @@ function weeksToColumns(buckets: LoadBucket[]): RailColumn[] {
 /* ═════════════ maintenance ═════════════ */
 
 const READINESS_LABEL: Record<ReadinessKey, string> = {
+  equipment_ready: "Equipment",
   access_confirmed: "Access",
-  time_confirmed: "Time",
-  parts_ready: "Parts",
-  customer_notified: "Customer told",
 };
 
-/** Four pips — one per check, in a fixed order so the third pip always means
-    parts. Naming what's missing is the difference between "3/4 ready" (a
-    fact) and "parts not ready" (a job for this afternoon). */
+/** One pip per stored gate, in a fixed order so the first pip always means
+    equipment. Naming what's missing is the difference between "1/2 ready"
+    (a fact) and "equipment not ready" (a job for this afternoon). */
 function ReadyPips({ item }: { item: RadarItem }) {
   const missing = READINESS_KEYS.filter((k) => !item.readiness[k]).map((k) => READINESS_LABEL[k]);
   return (

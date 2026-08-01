@@ -52,13 +52,11 @@ function visit(over: Partial<RadarItem> & { visitId: string }): RadarItem {
     dueDate: "2026-08-04",
     bucket: "upcoming",
     status: "upcoming",
-    ready: 4,
-    readyTotal: 4,
+    ready: 2,
+    readyTotal: 2,
     readiness: {
+      equipment_ready: true,
       access_confirmed: true,
-      time_confirmed: true,
-      parts_ready: true,
-      customer_notified: true,
     },
     jobNumber: null,
     bookedStart: null,
@@ -141,12 +139,10 @@ describe("the vitals", () => {
     dueDate: "2026-08-01",
     bucket: "due_soon",
     ready: 1,
-    readyTotal: 4,
+    readyTotal: 2,
     readiness: {
+      equipment_ready: false,
       access_confirmed: true,
-      time_confirmed: false,
-      parts_ready: false,
-      customer_notified: false,
     },
   });
 
@@ -156,7 +152,7 @@ describe("the vitals", () => {
     expect(within(urgent).getByText("1")).toBeInTheDocument();
     expect(within(urgent).getByText("Oldest is 9 days over")).toBeInTheDocument();
     expect(
-      within(screen.getByRole("button", { name: /Needs attention/ })).getByText("1 of 4 checks ticked")
+      within(screen.getByRole("button", { name: /Needs attention/ })).getByText("1 of 2 checks ticked")
     ).toBeInTheDocument();
   });
 
@@ -201,13 +197,11 @@ describe("the maintenance list", () => {
         visitId: `v-${bucket}-${i}`,
         bucket,
         dueDate: bucket === "overdue" ? "2026-07-20" : "2026-08-04",
-        ready: 2,
-        readyTotal: 4,
+        ready: 1,
+        readyTotal: 2,
         readiness: {
+          equipment_ready: false,
           access_confirmed: true,
-          time_confirmed: true,
-          parts_ready: false,
-          customer_notified: false,
         },
       });
     render(
@@ -225,10 +219,10 @@ describe("the maintenance list", () => {
     expect(overdueRow?.className).toContain("wb-pulse");
 
     // pips name the gap rather than reporting a fraction nobody can act on
-    expect(screen.getAllByText("Parts · Customer told")).toHaveLength(3);
+    expect(screen.getAllByText("Equipment")).toHaveLength(3);
   });
 
-  it("says Ready when all four checks are ticked", () => {
+  it("says Ready when both stored gates are ticked", () => {
     render(<OverviewScreen data={{ ...base, radar: [visit({ visitId: "v1" })] }} />);
     expect(screen.getByText("Ready")).toBeInTheDocument();
   });

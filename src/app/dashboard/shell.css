@@ -16,7 +16,16 @@
 }
 .fg ::selection { background:rgba(0,229,192,.3); }
 .fg svg.i { display:block; flex:0 0 auto; }
-.fg button { font:inherit; color:inherit; background:none; border:none; cursor:pointer; }
+/* The button reset — with one carve-out. `.fg button` is specificity (0,1,1)
+   and so outranks EVERY single-class rule, which meant a plain
+   `.wb2-pillmic { background:#e0264f }` silently rendered transparent and the
+   board's buttons quietly lost their fills and type sizes. The wb2 namespace
+   therefore opts out here and gets the identical reset back below at ZERO
+   specificity, so its own rules win. Matched on the class attribute rather
+   than scoped under `.fg` because the sheets and modals portal to <body>,
+   outside .fg entirely. */
+.fg button:not([class*="wb2-"]) { font:inherit; color:inherit; background:none; border:none; cursor:pointer; }
+:where(button[class*="wb2-"]) { font:inherit; color:inherit; background:none; border:none; cursor:pointer; }
 .fg input { font:inherit; }
 .fg .mono { font-family:var(--mono); }
 .fg .no-sb::-webkit-scrollbar { display:none; }
@@ -3056,6 +3065,50 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 
 .wb-headtools { display:flex; align-items:center; gap:10px; flex:0 0 auto; }
 
+/* ── the board's own page header (the handoff's) ──────────────────────────
+   Title left, the side switcher DEAD CENTRE, tools right — a three-column
+   grid so the switcher stays centred on the page no matter how long the
+   title or the tools get. No lede line: the switcher says what you're
+   looking at, and the tabs say it again. */
+.wb2-head { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:20px; padding:2px 0 16px; }
+.wb2-head h1 { font-size:38px; font-weight:800; letter-spacing:-.035em; line-height:1; margin:0; }
+.wb2-headtools { justify-self:end; display:flex; align-items:center; gap:10px; }
+
+/* The switcher: one fill that SLIDES between the two sides and takes that
+   side's IDENTITY colour with it — maintenance green, projects cyan. This
+   is the one place colour means "which half of the business", not state;
+   the count badge beside it keeps the status law's tones. */
+.wb2-seg { position:relative; justify-self:center; display:flex; gap:3px; padding:4px; border-radius:15px;
+  background:#eceff4; border:1px solid rgba(10,12,20,.05); flex:none; }
+.wb2-segsl { position:absolute; top:4px; bottom:4px; left:0; border-radius:12px; background:#fff;
+  box-shadow:0 3px 10px -4px rgba(10,12,20,.4);
+  transition:transform .42s cubic-bezier(.22,1,.36,1), width .42s cubic-bezier(.22,1,.36,1),
+    background .3s cubic-bezier(.4,0,.2,1), box-shadow .3s cubic-bezier(.4,0,.2,1); }
+.wb2-seg[data-on="maintenance"] .wb2-segsl { background:#00806b; box-shadow:0 6px 16px -7px rgba(0,128,107,.85); }
+.wb2-seg[data-on="projects"] .wb2-segsl { background:#0089b8; box-shadow:0 6px 16px -7px rgba(0,137,184,.85); }
+.wb2-segb { position:relative; z-index:1; display:inline-flex; align-items:center; gap:9px; height:46px; padding:0 18px;
+  border:0; background:none; border-radius:12px; font:inherit; font-size:13.5px; font-weight:700; color:var(--gray500);
+  cursor:pointer; transition:color .2s; }
+.wb2-segb:hover { color:var(--ink); }
+.wb2-segb.on, .wb2-segb.on:hover { color:#fff; }
+.wb2-segb:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
+.wb2-segb i { min-width:22px; height:22px; padding:0 6px; border-radius:8px; display:grid; place-items:center;
+  font-size:11px; font-weight:800; font-style:normal; font-variant-numeric:tabular-nums;
+  transition:background .2s, color .2s; }
+.wb2-segb i.dan { background:rgba(224,38,79,.12); color:#b31038; }
+.wb2-segb i.wrn { background:rgba(255,138,0,.16); color:#B45309; }
+.wb2-segb i.clr { background:rgba(0,163,137,.12); color:#00806b; }
+/* on the filled side the badge sits on colour — one translucent well, so a
+   count never fights the fill it lives on */
+.wb2-segb.on i { background:rgba(0,0,0,.24) !important; color:#fff !important; }
+
+@media (max-width:900px) {
+  .wb2-head { grid-template-columns:1fr; justify-items:start; gap:12px; }
+  .wb2-seg, .wb2-headtools { justify-self:stretch; }
+  .wb2-seg { width:100%; }
+  .wb2-segb { flex:1; justify-content:center; }
+}
+
 /* switcher — one thumb that SLIDES between the tabs, the studio idiom
    (.ds-steps). A background that hops reads as two buttons; a thumb that
    travels reads as one control with two positions.
@@ -3194,6 +3247,10 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 
 /* ── the view tabs — joined to the card ── */
 .wb2-vtabs { display:flex; align-items:flex-end; gap:0; margin-bottom:-1px; position:relative; z-index:3; padding-top:2px; }
+/* the capture pill rides at the row's right end, sitting slightly proud of
+   the tab baseline so it reads as a tool, not a sixth tab */
+.wb2-vtcap { margin-left:auto; display:flex; align-items:center; gap:9px; padding-bottom:7px; flex:none; }
+.wb2-sm8 + .wb2-vtcap { margin-left:12px; }
 .wb2-vt { position:relative; z-index:1; height:44px; padding:0 21px; border:0; background:transparent; border-radius:12px 12px 0 0;
   font:inherit; font-size:13px; font-weight:700; color:var(--gray500); cursor:pointer; display:inline-flex; align-items:center; gap:8px;
   transition:background .18s, color .18s; }
@@ -3625,16 +3682,31 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible { outli
 
 .wb-board:fullscreen { background:#F0F2F5; padding:40px 52px; overflow:auto; }
 
-/* the pill — near-zero idle footprint, docked by the page header */
-.wb2-pill { display:inline-flex; align-items:center; gap:8px; }
-.wb2-pillbtn { display:inline-flex; align-items:center; gap:8px; height:42px; padding:0 16px; border-radius:999px;
-  border:1px solid rgba(5,5,5,.12); background:#fff; font:inherit; font-size:13px; font-weight:700; color:var(--gray700);
-  cursor:pointer; transition:border-color .2s, transform .2s cubic-bezier(.22,1,.36,1), box-shadow .2s; }
-.wb2-pillbtn:hover { border-color:rgba(5,5,5,.28); transform:translateY(-1px); box-shadow:0 6px 14px -10px rgba(10,12,20,.6); }
-.wb2-pillmic { width:42px; height:42px; border-radius:999px; border:1px solid rgba(5,5,5,.12); background:#fff;
-  color:#0089b8; display:grid; place-items:center; cursor:pointer; transition:border-color .2s, background .2s; }
-.wb2-pillmic:hover { border-color:rgba(0,137,184,.5); background:rgba(0,168,224,.07); }
-.wb2-pillbtn:focus-visible, .wb2-pillmic:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
+/* the pill — near-zero idle footprint, docked at the tab row's right end.
+   ONE object: a white capsule holding the typing half, with the mic as a
+   filled red disc at its end. Red because recording is the one destructive-
+   feeling act on the board (it's listening), and the disc is what your eye
+   finds when you're holding a torch in the other hand. */
+.wb2-pill { display:inline-flex; align-items:center; gap:8px; height:52px; padding:5px 5px 5px 8px; border-radius:999px;
+  background:#fff; border:1px solid rgba(5,5,5,.08); color:var(--ink);
+  box-shadow:0 8px 20px -12px rgba(10,12,20,.5);
+  transition:transform .2s cubic-bezier(.22,1,.36,1), border-color .2s; }
+.wb2-pill:hover { transform:translateY(-2px); border-color:rgba(5,5,5,.2); }
+.wb2-pillbtn { display:inline-flex; align-items:center; gap:9px; height:100%; padding:0 14px; border:0; background:none;
+  border-radius:999px 10px 10px 999px; font:inherit; font-size:13.5px; font-weight:700; color:var(--gray700);
+  cursor:pointer; transition:background .18s cubic-bezier(.4,0,.2,1), color .18s; }
+.wb2-pillbtn:hover { background:rgba(5,5,5,.04); color:var(--ink); }
+.wb2-pillbtn svg { opacity:.6; }
+.wb2-pillmic { width:42px; height:42px; border-radius:50%; border:0; background:#e0264f; color:#fff;
+  display:grid; place-items:center; flex:none; cursor:pointer;
+  box-shadow:0 6px 16px -8px rgba(224,38,79,.8);
+  transition:transform .2s cubic-bezier(.22,1,.36,1), background .25s cubic-bezier(.4,0,.2,1); }
+.wb2-pillmic:hover { transform:scale(1.07); background:#c8203f; }
+.wb2-pillbtn:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
+.wb2-pillmic:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(224,38,79,.35); }
+@media (prefers-reduced-motion:reduce) {
+  .wb2-pill:hover, .wb2-pillmic:hover { transform:none; }
+}
 
 /* the overlay — a dim (never a blur) with the ribbon card riding high */
 .wb2-capdim { position:fixed; inset:0; z-index:110; background:rgba(10,11,16,.45); animation:wb2Fade .3s both; }

@@ -58,10 +58,10 @@ describe("the pill", () => {
   it("typing is first-class; the mic half only exists when voice does", () => {
     const { rerender } = render(<NoteCapture target={{ kind: "none" }} voiceEnabled={false} />);
     expect(screen.getByRole("button", { name: /Add note/ })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Dictate a note" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Record a note" })).not.toBeInTheDocument();
 
     rerender(<NoteCapture target={{ kind: "none" }} voiceEnabled />);
-    expect(screen.getByRole("button", { name: "Dictate a note" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Record a note" })).toBeInTheDocument();
   });
 
   it("opens the overlay saying General note when nothing is in front of you", async () => {

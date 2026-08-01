@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { useRouter } from "next/navigation";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
@@ -20,6 +20,7 @@ import { DayModal } from "./day-modal";
 import { AgreementSheet } from "./agreement-sheet";
 import { NewAgreementModal } from "./new-agreement-modal";
 import { ToastHost, useBoardToasts } from "./toasts";
+import { Sm8Chip, type Sm8Health } from "./sm8-chip";
 
 /* The redesigned maintenance board — five tabs on ONE persistent card.
 
@@ -48,16 +49,6 @@ const TAB_LABEL: Record<BoardTab, string> = {
   agreements: "Service agreements",
 };
 
-function syncedAgo(iso: string | null): string {
-  if (!iso) return "not yet";
-  const mins = Math.floor((Date.now() - Date.parse(iso)) / 60_000);
-  if (Number.isNaN(mins) || mins < 1) return "just now";
-  if (mins < 60) return `${mins} min ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
-  return "over a day ago";
-}
-
 export function MaintenanceBoard({
   data,
   flags,
@@ -68,6 +59,7 @@ export function MaintenanceBoard({
   sm8,
   onCaptureTarget,
   calOthers,
+  tools,
 }: {
   data: MaintenanceBoardData;
   flags: BoardFlag[];
@@ -77,13 +69,17 @@ export function MaintenanceBoard({
   /** ANTHROPIC key present — the create flow offers Tiff's job read. */
   aiEnabled?: boolean;
   /** The mirror-health surface that survives from the old board (D8/D4). */
-  sm8?: { attention: boolean; syncedAt: string | null; running: boolean } | null;
+  sm8?: Sm8Health | null;
   /** The capture pill's attachment (D15): with a visit sheet open, notes
       spoken land against THAT visit — the page owns the pill, the board
       tells it what's in front of the person. */
   onCaptureTarget?: (t: { visitId: string; label: string } | null) => void;
   /** The projects board's trips, for the calendar's merged view (P3). */
   calOthers?: CalVisit[];
+  /** The page-owned capture pill, docked at the tab row's right end — the
+      handoff's spot. Absent in Display mode by construction (the wall
+      composition never renders this row). */
+  tools?: ReactNode;
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<BoardTab>("urgent");
@@ -235,15 +231,6 @@ export function MaintenanceBoard({
     })();
   };
 
-  const badge = (t: BoardTab): { n: number; tone: "" | "dan" | "warn" } | null => {
-    if (t === "urgent") {
-      if (urgent.length === 0) return null;
-      return { n: urgent.length, tone: urgent.some((r) => r.severity === "danger") ? "dan" : "warn" };
-    }
-    if (t === "upcoming" && confirmSummary.gaps > 0) return { n: confirmSummary.gaps, tone: "warn" };
-    return null;
-  };
-
   return (
     <div className="wb2">
       <div className="wb2-vtabs" ref={rowRef} role="tablist" aria-label="Maintenance board">
@@ -254,36 +241,21 @@ export function MaintenanceBoard({
             aria-hidden="true"
           />
         )}
-        {TAB_KEYS.map((t) => {
-          const b = badge(t);
-          return (
-            <button
-              key={t}
-              type="button"
-              role="tab"
-              data-vt={t}
-              aria-selected={tab === t}
-              className={"wb2-vt" + (tab === t ? " on" : "")}
-              onClick={() => showTab(t)}
-            >
-              {TAB_LABEL[t]}
-              {/* severity keeps its colour even on the active tab (E6) */}
-              {b && <i className={"wb2-vtn" + (b.tone ? ` ${b.tone}` : "")}>{b.n}</i>}
-            </button>
-          );
-        })}
-        {/* the mirror-health chip that survives from the old board (D8):
-            absent when standalone, quiet when fresh, loud when the
-            connection itself needs attention */}
-        {sm8 && (
-          <span className={"wb2-sm8" + (sm8.attention ? " dan" : "")}>
-            {sm8.attention
-              ? "ServiceM8 needs attention"
-              : sm8.running
-                ? "ServiceM8 syncing…"
-                : `ServiceM8 synced ${syncedAgo(sm8.syncedAt)}`}
-          </span>
-        )}
+        {TAB_KEYS.map((t) => (
+          <button
+            key={t}
+            type="button"
+            role="tab"
+            data-vt={t}
+            aria-selected={tab === t}
+            className={"wb2-vt" + (tab === t ? " on" : "")}
+            onClick={() => showTab(t)}
+          >
+            {TAB_LABEL[t]}
+          </button>
+        ))}
+        <Sm8Chip sm8={sm8} />
+        {tools && <div className="wb2-vtcap">{tools}</div>}
       </div>
 
       <div className="wb2-card">

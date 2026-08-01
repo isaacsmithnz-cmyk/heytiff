@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { projectUrgentRows } from "@/lib/workboard/project-rules";
 import type { ProjectsBoardData } from "@/lib/workboard/projects-board-query";
@@ -13,6 +13,7 @@ import { CalendarTab } from "./calendar-tab";
 import { ProjectTripSheet } from "./project-trip-sheet";
 import { ProjectDayModal } from "./project-day-modal";
 import { ToastHost, useBoardToasts } from "./toasts";
+import { Sm8Chip, type Sm8Health } from "./sm8-chip";
 
 /* The redesigned projects board — four tabs on ONE persistent card, the
    maintenance board's twin (never its fork): same surface rule (E7 — tab
@@ -38,6 +39,8 @@ export function ProjectsBoard({
   connected,
   calOthers,
   onCaptureTarget,
+  tools,
+  sm8,
 }: {
   data: ProjectsBoardData;
   /** Already routed by the page: only flags targeting projects or their trips. */
@@ -49,6 +52,10 @@ export function ProjectsBoard({
   calOthers?: CalVisit[];
   /** The capture pill's attachment (D15) — a trip while its sheet is open. */
   onCaptureTarget?: (t: { visitId: string; label: string } | null) => void;
+  /** The page-owned capture pill, docked at the tab row's right end. */
+  tools?: ReactNode;
+  /** Mirror health — the same chip the maintenance row carries (D8). */
+  sm8?: Sm8Health | null;
 }) {
   const [tab, setTab] = useState<ProjectsTab>("urgent");
   const [sheet, setSheet] = useState<{ visitId: string; closeOut: boolean } | null>(null);
@@ -155,23 +162,6 @@ export function ProjectsBoard({
     return later[0] ? { id: later[0].id, label: later[0].label } : null;
   };
 
-  const badge = (t: ProjectsTab): { n: number; tone: "" | "dan" | "warn" } | null => {
-    if (t === "urgent") {
-      if (urgent.length === 0) return null;
-      return {
-        n: urgent.length,
-        tone: urgent.some((r) => r.severity === "danger") ? "dan" : "warn",
-      };
-    }
-    if (t === "completed") {
-      const ready = data.projects.filter(
-        (p) => (p.status === "active" || p.status === "blocked") && p.stage === "Complete"
-      ).length;
-      if (ready > 0) return { n: ready, tone: "warn" };
-    }
-    return null;
-  };
-
   return (
     <div className="wb2">
       <div className="wb2-vtabs" ref={rowRef} role="tablist" aria-label="Projects board">
@@ -182,23 +172,21 @@ export function ProjectsBoard({
             aria-hidden="true"
           />
         )}
-        {TAB_KEYS.map((t) => {
-          const b = badge(t);
-          return (
-            <button
-              key={t}
-              type="button"
-              role="tab"
-              data-vt={t}
-              aria-selected={tab === t}
-              className={"wb2-vt" + (tab === t ? " on" : "")}
-              onClick={() => showTab(t)}
-            >
-              {TAB_LABEL[t]}
-              {b && <i className={"wb2-vtn" + (b.tone ? ` ${b.tone}` : "")}>{b.n}</i>}
-            </button>
-          );
-        })}
+        {TAB_KEYS.map((t) => (
+          <button
+            key={t}
+            type="button"
+            role="tab"
+            data-vt={t}
+            aria-selected={tab === t}
+            className={"wb2-vt" + (tab === t ? " on" : "")}
+            onClick={() => showTab(t)}
+          >
+            {TAB_LABEL[t]}
+          </button>
+        ))}
+        <Sm8Chip sm8={sm8} />
+        {tools && <div className="wb2-vtcap">{tools}</div>}
       </div>
 
       <div className="wb2-card">

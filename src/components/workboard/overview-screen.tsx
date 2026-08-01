@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
-import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
+import { urgentRows } from "@/lib/workboard/urgent-rules";
+import { projectUrgentRows } from "@/lib/workboard/project-rules";
 import type { WorkboardData } from "@/lib/workboard/page-data";
 import { NoteCapture } from "./note-capture";
 import { MaintenanceBoard } from "./board/maintenance-board";
@@ -19,7 +20,14 @@ import { calOfMaintenance, calOfProject } from "./board/derive";
    be, and how heavy is the run ahead. Everything on this screen serves one of
    those; anything that served none of them was cut.
 
-   Both sides of the switcher are now the SAME architecture — one persistent
+   THE SHELL IS THE HANDOFF'S: title left, the side switcher dead centre with
+   each side's needs-you-today count on it, Display mode right, and nothing
+   else on the page but the board card — the schedule lives in the Calendar
+   tab, not in a second card below. The switcher's active side carries the
+   side's own colour (maintenance green, projects cyan), which is identity,
+   not state — row tones still come only from the status law.
+
+   Both sides of the switcher are the SAME architecture — one persistent
    card, tabs that swap information rather than surface, every colour derived
    from the one status law. Maintenance runs five tabs, projects four; flags
    route to the board whose work they point at, so nothing appears twice.
@@ -33,41 +41,19 @@ import { calOfMaintenance, calOfProject } from "./board/derive";
 
 const REFRESH_MS = 60_000;
 
-const TABS = [
-  { key: "maintenance", label: "Maintenance" },
+/* Projects first, maintenance second — the handoff's order. The board still
+   OPENS on maintenance, the side that carries the daily noise. */
+const SIDES = [
   { key: "projects", label: "Projects" },
+  { key: "maintenance", label: "Maintenance" },
 ] as const;
-type TabKey = (typeof TABS)[number]["key"];
-
-/** "7:30am" from a naive 'YYYY-MM-DD HH:MM:SS' mirror string — string maths,
-    no Date(), because the value is already the account's wall clock. */
-function timeLabel(naive: string): string {
-  const hhmm = naive.slice(11, 16);
-  const h = parseInt(hhmm.slice(0, 2), 10);
-  if (Number.isNaN(h)) return "";
-  const mins = hhmm.slice(3, 5);
-  const ampm = h < 12 ? "am" : "pm";
-  const hour12 = h % 12 === 0 ? 12 : h % 12;
-  return `${hour12}:${mins}${ampm}`;
-}
-
-function agoLabel(iso: string | null): string {
-  if (!iso) return "not yet";
-  const mins = Math.floor((Date.now() - Date.parse(iso)) / 60_000);
-  if (Number.isNaN(mins) || mins < 1) return "just now";
-  if (mins < 60) return `${mins} min ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
-  return "over a day ago";
-}
-
-/* ═════════════ the board ═════════════ */
+type SideKey = (typeof SIDES)[number]["key"];
 
 export function OverviewScreen({ data }: { data: WorkboardData }) {
   const router = useRouter();
   const boardRef = useRef<HTMLDivElement>(null);
   const [display, setDisplay] = useState(false);
-  const [tab, setTab] = useState<TabKey>("maintenance");
+  const [tab, setTab] = useState<SideKey>("maintenance");
   /** What the capture pill attaches to — a visit while its sheet is open. */
   const [capture, setCapture] = useState<{ visitId: string; label: string } | null>(null);
 
@@ -112,6 +98,112 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
     };
   }, [data.flags, projectVisitIds]);
 
+  /* Each side's count on the switcher = that side's Urgent queue, derived by
+     the SAME rules the tab uses — the number you'd see if you switched. */
+  const maintUrgent = useMemo(() => {
+    const open = data.board.visits.filter(
+      (v) => v.status === "upcoming" || v.status === "booked"
+    );
+    return urgentRows({
+      today: data.today,
+      visits: open.map((v) => ({
+        visitId: v.id,
+        agreementId: v.agreementId,
+        label: v.label,
+        clientName: v.clientName,
+        siteLabel: v.siteLabel,
+        status: v.status,
+        dueDate: v.dueDate,
+        bookedDate: v.bookedDate,
+        readiness: v.readiness,
+        techCount: v.techs.length,
+        mirrorStatus: v.mirrorStatus,
+      })),
+      flags: maintFlags.map((f) => ({
+        flagId: f.id,
+        message: f.message,
+        severity: f.severity === "urgent" ? "danger" : "warn",
+        createdAt: f.createdAt,
+        targetKind: f.targetKind ?? "none",
+        targetId: f.targetId ?? null,
+      })),
+      tasks: data.board.tasks.map((t) => ({
+        taskId: t.id,
+        title: t.title,
+        dueDate: t.dueDate,
+        assigneeName: t.assigneeName,
+      })),
+    });
+  }, [data.board.visits, data.board.tasks, data.today, maintFlags]);
+
+  const projUrgent = useMemo(() => {
+    const open = data.projectsBoard.visits.filter(
+      (v) => v.status === "upcoming" || v.status === "booked"
+    );
+    return projectUrgentRows({
+      today: data.today,
+      projects: data.projectsBoard.projects.map((p) => ({
+        id: p.id,
+        name: p.name,
+        clientName: p.clientName,
+        siteLabel: p.siteLabel,
+        status: p.status,
+        stage: p.stage,
+        blockedReason: p.blockedReason,
+        blockedOn: p.blockedOn,
+        blockedAt: p.blockedAt,
+        promisedFinish: p.promisedFinish,
+        updatedAt: p.updatedAt,
+        hoursBudget: p.hoursBudget,
+        hoursLogged: p.hoursLogged,
+      })),
+      visits: open.map((v) => ({
+        visitId: v.id,
+        projectId: v.projectId,
+        projectName: v.projectName,
+        clientName: v.clientName,
+        siteLabel: v.siteLabel,
+        label: v.label,
+        status: v.status,
+        dueDate: v.dueDate,
+        bookedDate: v.bookedDate,
+        readiness: v.readiness,
+        techCount: v.techs.length,
+      })),
+      flags: projectFlags.map((f) => ({
+        flagId: f.id,
+        message: f.message,
+        severity: f.severity === "urgent" ? "danger" : "warn",
+        createdAt: f.createdAt,
+      })),
+    });
+  }, [data.projectsBoard.visits, data.projectsBoard.projects, data.today, projectFlags]);
+
+  const sideBadge = (rows: { severity: string }[]) => ({
+    n: rows.length,
+    tone: rows.some((r) => r.severity === "danger") ? "dan" : rows.length ? "wrn" : "clr",
+  });
+  const badges: Record<SideKey, { n: number; tone: string }> = {
+    maintenance: sideBadge(maintUrgent),
+    projects: sideBadge(projUrgent),
+  };
+
+  /* ── the switcher's sliding fill — measured, because the sides differ in
+     width; the fill colour is the side's identity (green / cyan) ── */
+  const segRef = useRef<HTMLElement>(null);
+  const [segThumb, setSegThumb] = useState<{ x: number; w: number } | null>(null);
+  useLayoutEffect(() => {
+    const measure = () => {
+      const seg = segRef.current;
+      const on = seg?.querySelector<HTMLButtonElement>(`[data-side="${tab}"]`);
+      if (!seg || !on) return;
+      setSegThumb({ x: on.offsetLeft, w: on.offsetWidth });
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [tab, badges.maintenance.n, badges.projects.n]);
+
   /* Each side's calendar can fold the other side in (P3). */
   const calMaint = useMemo(() => data.board.visits.map(calOfMaintenance), [data.board.visits]);
   const calProj = useMemo(
@@ -119,57 +211,77 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
     [data.projectsBoard.visits]
   );
 
-  /* Group the bookings by day once — the run sheet reads as a day plan. */
-  const byDay = new Map<string, typeof data.upcoming>();
-  for (const b of data.upcoming) {
-    const day = b.start.slice(0, 10);
-    const list = byDay.get(day) ?? [];
-    list.push(b);
-    byDay.set(day, list);
-  }
+  /* ONE pill, owned by the page, rendered inside whichever board is up —
+     at the tab row's right end, where the handoff docks it (D15). Display
+     mode never gets it: nobody at the wall TV can dictate into it. */
+  const pill = display ? undefined : (
+    <NoteCapture
+      target={capture ? { kind: "visit", id: capture.visitId } : { kind: "none" }}
+      targetLabel={capture?.label}
+      voiceEnabled={data.voiceEnabled}
+    />
+  );
+
+  /* Mirror health rides in BOTH tab rows (D8) — it's a fact about the data
+     on screen, not about maintenance. Absent when standalone. The account's
+     clock hangs off it as a title rather than taking a line of its own. */
+  const sm8 =
+    data.connection === "none"
+      ? null
+      : {
+          attention: data.connection === "attention",
+          syncedAt: data.synced?.finishedAt ?? null,
+          running: data.synced?.running ?? false,
+          timezone: data.timezone,
+        };
 
   return (
     <div className="page in">
       <div className="wrap">
         <div className="stg">
-          <div className="v2head" style={{ marginBottom: 14 }}>
-            <div>
-              <h1 style={{ fontSize: 44, fontWeight: 800, letterSpacing: "-0.03em", margin: 0 }}>
-                Workboard
-              </h1>
-              <p className="int-lede" style={{ margin: "6px 0 0" }}>
-                What&apos;s late, what&apos;s coming, and how heavy the run ahead is.
-              </p>
-            </div>
-            <div className="wb-headtools">
-              {/* The capture pill docks by the page header on every screen
-                  (D15) — outside the board element, so Display mode never
-                  fullscreens a control nobody at the TV can press. */}
-              <NoteCapture
-                target={capture ? { kind: "visit", id: capture.visitId } : { kind: "none" }}
-                targetLabel={capture?.label}
-                voiceEnabled={data.voiceEnabled}
-              />
-              {/* data-active drives the sliding thumb, the studio idiom */}
-              <nav className="segsw" aria-label="Board" data-active={TABS.findIndex((t) => t.key === tab)}>
-                <span className="segsw-thumb" aria-hidden="true" />
-                {TABS.map((t) => (
+          <header className="wb2-head">
+            <h1>Workboard</h1>
+            <nav
+              className="wb2-seg"
+              role="tablist"
+              aria-label="Which work"
+              data-on={tab}
+              ref={segRef}
+            >
+              {segThumb && (
+                <span
+                  className="wb2-segsl"
+                  style={{ transform: `translateX(${segThumb.x}px)`, width: segThumb.w }}
+                  aria-hidden="true"
+                />
+              )}
+              {SIDES.map((s) => {
+                const b = badges[s.key];
+                return (
                   <button
-                    key={t.key}
+                    key={s.key}
                     type="button"
-                    className={"segsw-b" + (tab === t.key ? " on" : "")}
-                    onClick={() => setTab(t.key)}
+                    role="tab"
+                    aria-selected={tab === s.key}
+                    data-side={s.key}
+                    className={"wb2-segb" + (tab === s.key ? " on" : "")}
+                    onClick={() => setTab(s.key)}
                   >
-                    {t.label}
+                    {s.label}
+                    <i className={b.tone} title={`${b.n} need you today`}>
+                      {b.n}
+                    </i>
                   </button>
-                ))}
-              </nav>
+                );
+              })}
+            </nav>
+            <div className="wb2-headtools">
               <button className="pbtn ghost" onClick={toDisplay} title="Fullscreen for a wall screen">
                 <Icon name="maximize" size={16} />
                 Display mode
               </button>
             </div>
-          </div>
+          </header>
 
           <div className="wb-board" ref={boardRef}>
             {tab === "maintenance" ? (
@@ -186,82 +298,23 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
                   connected={connected}
                   aiEnabled={data.aiEnabled}
                   calOthers={calProj}
-                  sm8={
-                    data.connection === "none"
-                      ? null
-                      : {
-                          attention: data.connection === "attention",
-                          syncedAt: data.synced?.finishedAt ?? null,
-                          running: data.synced?.running ?? false,
-                        }
-                  }
+                  sm8={sm8}
                   onCaptureTarget={setCapture}
+                  tools={pill}
                 />
               )
             ) : (
-              <>
-                {data.connection === "attention" && (
-                  <div className="int-note bad">
-                    The ServiceM8 connection needs attention — job data on this board may be stale.
-                  </div>
-                )}
-                <ProjectsBoard
-                  data={data.projectsBoard}
-                  flags={projectFlags}
-                  today={data.today}
-                  manage={data.manage}
-                  connected={connected}
-                  calOthers={calMaint}
-                  onCaptureTarget={setCapture}
-                />
-              </>
-            )}
-
-            {/* Shared by both tabs: the crew's actual week, straight from the
-                schedule. Only exists with an integration. */}
-            {connected && (
-              <div className="card2 wb-run">
-                <div className="c2h">
-                  <span className="ci">
-                    <Icon name="calendar" size={19} />
-                  </span>
-                  <div>
-                    <b>Booked in — next 7 days</b>
-                    <em>Straight from the ServiceM8 schedule.</em>
-                  </div>
-                  {data.counts && (
-                    <span className="wb-runcounts">
-                      <i>{data.counts.quotes}</i> quotes · <i>{data.counts.workOrders}</i> work
-                      orders · <i>{data.counts.completedFortnight}</i> done in 14 days
-                    </span>
-                  )}
-                </div>
-                {data.upcoming.length === 0 ? (
-                  <p className="int-hint">Nothing scheduled in the next week.</p>
-                ) : (
-                  [...byDay.entries()].map(([day, list]) => (
-                    <div className="wb-day" key={day}>
-                      <div className="wb-dayhead">{fmtAuWeekdayDayMonth(day)}</div>
-                      {list.map((b) => (
-                        <div className="wb-row" key={b.id}>
-                          <span className="wb-time">{timeLabel(b.start)}</span>
-                          {b.jobNumber && <span className="wb-chip">#{b.jobNumber}</span>}
-                          <span className="wb-who">
-                            <b>{b.clientName ?? "—"}</b>
-                            {b.suburb && <em> · {b.suburb}</em>}
-                          </span>
-                          <span className="wb-tech">{b.staffName ?? ""}</span>
-                          {b.jobStatus && (
-                            <span className={"wb-chip " + (b.jobStatus === "Work Order" ? "on" : "")}>
-                              {b.jobStatus}
-                            </span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ))
-                )}
-              </div>
+              <ProjectsBoard
+                data={data.projectsBoard}
+                flags={projectFlags}
+                today={data.today}
+                manage={data.manage}
+                connected={connected}
+                calOthers={calMaint}
+                sm8={sm8}
+                onCaptureTarget={setCapture}
+                tools={pill}
+              />
             )}
 
             {/* One line, not a card: standalone is a fact about the board, not
@@ -279,15 +332,6 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
                     to fill it with live jobs, clients and bookings.
                   </>
                 )}
-              </p>
-            )}
-
-            {connected && data.synced && (
-              <p className="wb-stamp">
-                {data.synced.running
-                  ? "Syncing with ServiceM8 now…"
-                  : `Mirror synced ${agoLabel(data.synced.finishedAt)}`}
-                {data.timezone ? ` · ${data.timezone}` : ""}
               </p>
             )}
           </div>

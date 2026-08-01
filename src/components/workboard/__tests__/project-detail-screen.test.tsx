@@ -66,11 +66,43 @@ const pact = {
   setProjectBlocked: jest.fn(async () => ({ ok: true })),
   clearProjectBlocked: jest.fn(async () => ({ ok: true })),
   createProjectVisit: jest.fn(async () => ({ ok: true })),
+  setProjectBudget: jest.fn(async () => ({ ok: true })),
+  setProjectHoursBudget: jest.fn(async () => ({ ok: true })),
+  setProjectPromise: jest.fn(async () => ({ ok: true })),
+  setProjectDefectsEnd: jest.fn(async () => ({ ok: true })),
+  addScopeItem: jest.fn(async () => ({ ok: true })),
+  removeScopeItem: jest.fn(async () => ({ ok: true })),
+  addVariation: jest.fn(async () => ({ ok: true })),
+  decideVariation: jest.fn(async () => ({ ok: true })),
+  removeVariation: jest.fn(async () => ({ ok: true })),
+  addClaim: jest.fn(async () => ({ ok: true })),
+  setClaimPaid: jest.fn(async () => ({ ok: true })),
+  removeClaim: jest.fn(async () => ({ ok: true })),
+  addMilestone: jest.fn(async () => ({ ok: true })),
+  removeMilestone: jest.fn(async () => ({ ok: true })),
+  spawnAgreementFromProject: jest.fn(async () => ({ ok: true, id: "a-new" })),
+  addProjectEntry: jest.fn(async () => ({ ok: true })),
 };
 jest.mock("@/app/actions/workboard-projects", () => ({
   setProjectBlocked: (...a: unknown[]) => pact.setProjectBlocked(...(a as [])),
   clearProjectBlocked: (...a: unknown[]) => pact.clearProjectBlocked(...(a as [])),
   createProjectVisit: (...a: unknown[]) => pact.createProjectVisit(...(a as [])),
+  setProjectBudget: (...a: unknown[]) => pact.setProjectBudget(...(a as [])),
+  setProjectHoursBudget: (...a: unknown[]) => pact.setProjectHoursBudget(...(a as [])),
+  setProjectPromise: (...a: unknown[]) => pact.setProjectPromise(...(a as [])),
+  setProjectDefectsEnd: (...a: unknown[]) => pact.setProjectDefectsEnd(...(a as [])),
+  addScopeItem: (...a: unknown[]) => pact.addScopeItem(...(a as [])),
+  removeScopeItem: (...a: unknown[]) => pact.removeScopeItem(...(a as [])),
+  addVariation: (...a: unknown[]) => pact.addVariation(...(a as [])),
+  decideVariation: (...a: unknown[]) => pact.decideVariation(...(a as [])),
+  removeVariation: (...a: unknown[]) => pact.removeVariation(...(a as [])),
+  addClaim: (...a: unknown[]) => pact.addClaim(...(a as [])),
+  setClaimPaid: (...a: unknown[]) => pact.setClaimPaid(...(a as [])),
+  removeClaim: (...a: unknown[]) => pact.removeClaim(...(a as [])),
+  addMilestone: (...a: unknown[]) => pact.addMilestone(...(a as [])),
+  removeMilestone: (...a: unknown[]) => pact.removeMilestone(...(a as [])),
+  spawnAgreementFromProject: (...a: unknown[]) => pact.spawnAgreementFromProject(...(a as [])),
+  addProjectEntry: (...a: unknown[]) => pact.addProjectEntry(...(a as [])),
 }));
 
 const TODAY = "2026-07-30";
@@ -115,6 +147,8 @@ function detail(over: Partial<ProjectDetail> = {}): ProjectDetail {
     defectsEnd: null,
     designId: null,
     designName: null,
+    agreementId: null,
+    agreementLabel: null,
     notes: null,
     createdAt: "2026-07-01T00:00:00Z",
     updatedAt: "2026-07-29T00:00:00Z",
@@ -293,5 +327,148 @@ describe("trips", () => {
       [trip({ id: "v-9", status: "done", completedAt: "2026-07-28", actualHours: 52 })]
     );
     expect(screen.getByText(/52 of 48 h used — over the labour budget\./)).toBeInTheDocument();
+  });
+});
+
+describe("money (the two axes, never mixed)", () => {
+  const withMoney = detail({
+    budgetCents: 5_000_000,
+    budgetSource: "manual",
+    variations: [
+      {
+        id: "var-1",
+        title: "Extra return-air grille",
+        detail: null,
+        amountCents: 400_000,
+        status: "approved",
+        decidedBy: "Sarah Bowden",
+        decidedAt: "2026-07-20T00:00:00Z",
+        createdAt: "2026-07-19T00:00:00Z",
+      },
+    ],
+    claims: [
+      {
+        id: "cl-1",
+        label: "Deposit",
+        amountCents: 1_000_000,
+        claimedOn: "2026-07-10",
+        status: "paid",
+        paidOn: "2026-07-14",
+        source: "manual",
+        remoteRef: null,
+        variationId: null,
+      },
+    ],
+  });
+
+  it("says the claimed line off the REVISED total, with collection kept apart", () => {
+    mount(withMoney);
+    expect(screen.getByText("Claimed $10,000 of $54,000 — $44,000 to go")).toBeInTheDocument();
+    expect(screen.getByText("$10,000 paid")).toBeInTheDocument();
+  });
+
+  it("flips a claim's collection status without touching the claimed line", async () => {
+    mount(withMoney);
+    await userEvent.click(screen.getByRole("button", { name: "Paid" }));
+    expect(pact.setClaimPaid).toHaveBeenCalledWith("cl-1", false);
+  });
+
+  it("adds a claim through the modal", async () => {
+    mount(withMoney);
+    await userEvent.click(screen.getByRole("button", { name: /Add a claim/ }));
+    await userEvent.type(screen.getByPlaceholderText(/Deposit · Rough-in claim/), "Rough-in claim");
+    await userEvent.type(screen.getByPlaceholderText("10,000"), "15,000");
+    await userEvent.click(screen.getByRole("button", { name: "Add the claim" }));
+    expect(pact.addClaim).toHaveBeenCalledWith("p-1", {
+      label: "Rough-in claim",
+      amountCents: 1_500_000,
+      variationId: null,
+    });
+  });
+
+  it("an approved unclaimed variation offers Claim it, prefilled", async () => {
+    mount(withMoney);
+    await userEvent.click(screen.getByRole("button", { name: "Claim it" }));
+    expect(pact.addClaim).toHaveBeenCalledWith("p-1", {
+      label: "Variation — Extra return-air grille",
+      amountCents: 400_000,
+      variationId: "var-1",
+    });
+  });
+});
+
+describe("variations record who made the call", () => {
+  it("approving demands a name before it fires", async () => {
+    mount(
+      detail({
+        variations: [
+          {
+            id: "var-9",
+            title: "Zone the media room",
+            detail: null,
+            amountCents: 250_000,
+            status: "pending",
+            decidedBy: null,
+            decidedAt: null,
+            createdAt: "2026-07-28T00:00:00Z",
+          },
+        ],
+      })
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Approve…" }));
+    const approve = screen.getByRole("button", { name: "Approve it" });
+    expect(approve).toBeDisabled();
+    await userEvent.type(screen.getByPlaceholderText(/Sarah Bowden/), "Sarah Bowden");
+    await userEvent.click(approve);
+    expect(pact.decideVariation).toHaveBeenCalledWith("var-9", "approved", "Sarah Bowden");
+  });
+});
+
+describe("the flywheel", () => {
+  it("offers itself at Handover and spawns the agreement with cadence + first service", async () => {
+    mount(detail({ stage: "Handover" }));
+    await userEvent.click(screen.getByRole("button", { name: "Set up the agreement" }));
+    const day = screen
+      .getAllByDisplayValue("")
+      .find((el) => (el as HTMLInputElement).type === "date")!;
+    await userEvent.type(day, "2027-02-01");
+    await userEvent.click(screen.getByRole("button", { name: "Create the agreement" }));
+    expect(pact.spawnAgreementFromProject).toHaveBeenCalledWith("p-1", {
+      intervalMonths: 6,
+      anchorDate: "2027-02-01",
+    });
+  });
+
+  it("stays quiet mid-build, and once spawned it shows the link instead", () => {
+    const { unmount } = mount(detail({ stage: "Rough-in" }));
+    expect(screen.queryByText(/Set up the agreement/)).not.toBeInTheDocument();
+    unmount();
+
+    mount(detail({ stage: "Handover", agreementId: "a-1", agreementLabel: "Bowden St ducted" }));
+    expect(screen.queryByRole("button", { name: "Set up the agreement" })).not.toBeInTheDocument();
+    expect(screen.getByText(/on the maintenance board/)).toBeInTheDocument();
+  });
+});
+
+describe("journals", () => {
+  it("a typed commissioning reading lands in the same table the voice brain writes", async () => {
+    mount(detail());
+    await userEvent.type(
+      screen.getByPlaceholderText(/Suction 8\.2 bar/),
+      "Suction 8.2 bar, superheat 6.1 K{Enter}"
+    );
+    expect(pact.addProjectEntry).toHaveBeenCalledWith(
+      "p-1",
+      "commissioning",
+      "Suction 8.2 bar, superheat 6.1 K"
+    );
+  });
+
+  it("links the handover sheet from the commissioning card", () => {
+    mount(detail());
+    expect(screen.getByRole("link", { name: /Handover sheet/ })).toHaveAttribute(
+      "href",
+      "/handover/p-1"
+    );
   });
 });

@@ -7,6 +7,7 @@ import { can } from "@/lib/permissions-server";
 import { getSm8Timezone } from "@/lib/workboard/query";
 import { todayInZone } from "@/lib/workboard/dates";
 import { staffIdFor } from "@/lib/workboard/projects-query";
+import { createAgreement } from "./workboard-maintenance";
 
 /* Projects-side mutations for the redesigned board — the new tables from the
    foundations migration (blocked state, money target, variations, claims,
@@ -875,6 +876,121 @@ export async function setVisitBringPacked(
 
   const visit = await projectVisitIn(ctx.orgId, row.visit_id);
   if (visit) refresh(visit.project_id);
+  return { ok: true };
+}
+
+/* ---------------- the flywheel (handover → maintenance agreement) ---------------- */
+
+/** The commercial point of installing: at handover, one press turns the
+    project's own record into the maintenance agreement — client, site and
+    every piece of equipment with its serials carry over, and the project
+    remembers the agreement so the prompt retires. */
+export async function spawnAgreementFromProject(
+  projectId: string,
+  input: { intervalMonths: number; anchorDate: string }
+): Promise<ProjectsResult> {
+  const ctx = await context();
+  if (!ctx) return NOT_SIGNED_IN;
+  if (!(await can("workboard_manage"))) return NO_MANAGE;
+
+  const { data } = await supabaseAdmin
+    .from("projects")
+    .select("id, name, client_name, client_remote_id, site_label, site_address, agreement_id")
+    .eq("org_id", ctx.orgId)
+    .eq("id", projectId)
+    .maybeSingle();
+  const p = data as {
+    id: string;
+    name: string;
+    client_name: string | null;
+    client_remote_id: string | null;
+    site_label: string | null;
+    site_address: string | null;
+    agreement_id: string | null;
+  } | null;
+  if (!p) return GONE;
+  if (p.agreement_id) {
+    return { ok: false, error: "This project already has its maintenance agreement." };
+  }
+
+  const made = await createAgreement({
+    label: p.name,
+    clientName: p.client_name ?? p.name,
+    siteLabel: p.site_label ?? undefined,
+    siteAddress: p.site_address ?? undefined,
+    intervalMonths: input.intervalMonths,
+    anchorDate: input.anchorDate,
+    weInstalled: true,
+    clientRemoteId: p.client_remote_id ?? undefined,
+  });
+  if (!made.ok || !made.id) return made;
+
+  const { data: equipRows } = await supabaseAdmin
+    .from("project_equipment")
+    .select("description, model, serial, location_note")
+    .eq("org_id", ctx.orgId)
+    .eq("project_id", projectId)
+    .order("created_at", { ascending: true });
+  const equipment = (equipRows ?? []) as {
+    description: string;
+    model: string | null;
+    serial: string | null;
+    location_note: string | null;
+  }[];
+  if (equipment.length > 0) {
+    await supabaseAdmin.from("agreement_equipment").insert(
+      equipment.map((e) => ({
+        org_id: ctx.orgId,
+        agreement_id: made.id,
+        description: e.description,
+        model: e.model,
+        serial: e.serial,
+        location: e.location_note,
+      }))
+    );
+  }
+
+  await supabaseAdmin
+    .from("projects")
+    .update({ agreement_id: made.id, updated_at: new Date().toISOString() })
+    .eq("org_id", ctx.orgId)
+    .eq("id", projectId);
+  refresh(projectId);
+  return { ok: true, id: made.id };
+}
+
+/* ---------------- the journal (tick tier — site facts) ---------------- */
+
+/** A dated line in the project's story — progress or a commissioning
+    reading. The voice brain writes these too; typing one is the same act. */
+export async function addProjectEntry(
+  projectId: string,
+  kind: string,
+  body: string
+): Promise<ProjectsResult> {
+  const ctx = await context();
+  if (!ctx) return NOT_SIGNED_IN;
+  if (!(await can("workboard"))) return NO_VIEW;
+  if (kind !== "progress" && kind !== "commissioning") {
+    return { ok: false, error: "That isn't a journal this project keeps." };
+  }
+  if (!(await projectIn(ctx.orgId, projectId))) return GONE;
+
+  const text = trim(body, 2000);
+  if (!text) return { ok: false, error: "Write the entry first." };
+
+  const staffId = await staffIdFor(ctx.orgId, ctx.userId);
+  const { error } = await supabaseAdmin.from("project_entries").insert({
+    org_id: ctx.orgId,
+    project_id: projectId,
+    kind,
+    body: text,
+    entry_date: todayInZone(await getSm8Timezone(ctx.orgId)),
+    created_by: staffId,
+  });
+  if (error) return { ok: false, error: "Couldn't save the entry." };
+  await touchProject(ctx.orgId, projectId);
+  refresh(projectId);
   return { ok: true };
 }
 

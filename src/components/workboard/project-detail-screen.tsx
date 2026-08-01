@@ -44,10 +44,18 @@ import {
   updateProjectMeta,
 } from "@/app/actions/workboard";
 import {
+  addProjectEntry,
   clearProjectBlocked,
   createProjectVisit,
   setProjectBlocked,
 } from "@/app/actions/workboard-projects";
+import {
+  DatesCard,
+  FlywheelCard,
+  MoneyCard,
+  ScopeCard,
+  VariationsCard,
+} from "./project-money-cards";
 
 /* One project, stacked cards — the whole start-to-finish story on one page,
    now in the redesigned board's language: the stage is manual but
@@ -191,6 +199,12 @@ export function ProjectDetailScreen({
 
           <StageCard />
           <TripsCard />
+
+          <FlywheelCard project={project} manage={manage} busy={busy} run={run} />
+          <MoneyCard project={project} manage={manage} busy={busy} run={run} />
+          <ScopeCard project={project} manage={manage} busy={busy} run={run} />
+          <VariationsCard project={project} manage={manage} busy={busy} run={run} />
+          <DatesCard project={project} today={today} manage={manage} busy={busy} run={run} />
 
           {/* ── checklist ── */}
           <div className="card2">
@@ -360,49 +374,33 @@ export function ProjectDetailScreen({
             )}
           </div>
 
-          {entries.filter((e) => e.kind === "progress").length > 0 && (
-            <div className="card2">
-              <div className="c2h">
-                <span className="ci">
-                  <Icon name="activity" size={19} />
-                </span>
-                <div>
-                  <b>Site journal</b>
-                  <em>What was done and found, dated as it happened.</em>
-                </div>
-              </div>
-              {entries
-                .filter((e) => e.kind === "progress")
-                .map((e) => (
-                  <div className="wb-row" key={e.id}>
-                    <span className="wb-time">{fmtAuWeekdayDayMonth(e.entryDate)}</span>
-                    <span className="wb-who">{e.body}</span>
-                  </div>
-                ))}
-            </div>
-          )}
+          <JournalCard
+            kind="progress"
+            icon="activity"
+            title="Site journal"
+            sub="What was done and found, dated as it happened — spoken or typed."
+            placeholder="Rough-in done in the roof, two penetrations to seal Monday…"
+          />
 
-          {entries.filter((e) => e.kind === "commissioning").length > 0 && (
-            <div className="card2">
-              <div className="c2h">
-                <span className="ci">
-                  <Icon name="gauge" size={19} />
-                </span>
-                <div>
-                  <b>Commissioning</b>
-                  <em>Readings and settings, as they were recorded on site.</em>
-                </div>
-              </div>
-              {entries
-                .filter((e) => e.kind === "commissioning")
-                .map((e) => (
-                  <div className="wb-row" key={e.id}>
-                    <span className="wb-time">{fmtAuWeekdayDayMonth(e.entryDate)}</span>
-                    <span className="wb-who">{e.body}</span>
-                  </div>
-                ))}
-            </div>
-          )}
+          <JournalCard
+            kind="commissioning"
+            icon="gauge"
+            title="Commissioning"
+            sub="Readings and settings, as recorded on site — the handover sheet reads these."
+            placeholder="Suction 8.2 bar · superheat 6.1 K · all zones balanced…"
+            headerExtra={
+              <a
+                className="pbtn ghost"
+                style={{ marginLeft: "auto" }}
+                href={`/handover/${project.id}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <Icon name="file" size={15} />
+                Handover sheet
+              </a>
+            }
+          />
 
           {issues.length > 0 && (
             <div className="card2">
@@ -686,6 +684,70 @@ export function ProjectDetailScreen({
             </button>
           </div>
         )}
+      </div>
+    );
+  }
+
+  /* ── the two journals — one table behind them, told apart by kind ── */
+
+  function JournalCard({
+    kind,
+    icon,
+    title,
+    sub,
+    placeholder,
+    headerExtra,
+  }: {
+    kind: "progress" | "commissioning";
+    icon: string;
+    title: string;
+    sub: string;
+    placeholder: string;
+    headerExtra?: React.ReactNode;
+  }) {
+    const [text, setText] = useState("");
+    const rows = entries.filter((e) => e.kind === kind);
+
+    const addEntry = () => {
+      const body = text.trim();
+      if (!body) return;
+      setText("");
+      run(() => addProjectEntry(project.id, kind, body));
+    };
+
+    return (
+      <div className="card2">
+        <div className="c2h">
+          <span className="ci">
+            <Icon name={icon} size={19} />
+          </span>
+          <div>
+            <b>{title}</b>
+            <em>{sub}</em>
+          </div>
+          {headerExtra}
+        </div>
+        {rows.map((e) => (
+          <div className="wb-row" key={e.id}>
+            <span className="wb-time">{fmtAuWeekdayDayMonth(e.entryDate)}</span>
+            <span className="wb-who">{e.body}</span>
+          </div>
+        ))}
+        {rows.length === 0 && <p className="int-hint">Nothing recorded yet.</p>}
+        <div className="wb2-dayrow">
+          <input
+            className="wb2-fi"
+            placeholder={placeholder}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") addEntry();
+            }}
+          />
+          <button className="pbtn ghost" disabled={busy || !text.trim()} onClick={addEntry}>
+            Add
+          </button>
+        </div>
       </div>
     );
   }

@@ -196,6 +196,9 @@ export type ProjectDetail = {
   defectsEnd: string | null;
   designId: string | null;
   designName: string | null;
+  /** The maintenance agreement this project spawned at handover, if any. */
+  agreementId: string | null;
+  agreementLabel: string | null;
   notes: string | null;
   createdAt: string;
   /** Never null — creation counts as movement. */
@@ -220,7 +223,7 @@ export async function getProjectDetail(
     .select(
       "id, name, client_name, site_label, site_address, stage, status, design_id, notes, " +
         "blocked_reason, blocked_on, blocked_at, budget_cents, budget_source, hours_budget, " +
-        "promised_finish, defects_end, created_at, updated_at"
+        "promised_finish, defects_end, agreement_id, created_at, updated_at"
     )
     .eq("org_id", orgId)
     .eq("id", projectId)
@@ -244,11 +247,23 @@ export async function getProjectDetail(
     hours_budget: number | null;
     promised_finish: string | null;
     defects_end: string | null;
+    agreement_id: string | null;
     created_at: string;
     updated_at: string | null;
   };
   const p = data as ProjectRow | null;
   if (!p) return null;
+
+  let agreementLabel: string | null = null;
+  if (p.agreement_id) {
+    const { data: ag } = await supabaseAdmin
+      .from("maintenance_agreements")
+      .select("label")
+      .eq("org_id", orgId)
+      .eq("id", p.agreement_id)
+      .maybeSingle();
+    agreementLabel = (ag as { label: string } | null)?.label ?? null;
+  }
 
   const [
     { data: itemRows },
@@ -346,6 +361,8 @@ export async function getProjectDetail(
     defectsEnd: p.defects_end,
     designId: p.design_id,
     designName,
+    agreementId: p.agreement_id,
+    agreementLabel,
     notes: p.notes,
     createdAt: p.created_at,
     updatedAt: p.updated_at ?? p.created_at,

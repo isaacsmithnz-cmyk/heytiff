@@ -3740,3 +3740,17 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible { outli
 .wb2-triprow.add .wb2-fl { display:flex; flex-direction:column; gap:4px; font-size:10.5px; font-weight:800;
   letter-spacing:.08em; text-transform:uppercase; color:var(--gray500); }
 @media (max-width:900px) { .wb2-triprow { grid-template-columns:1fr; gap:8px; } }
+
+/* the money, scope and dates cards on the project page */
+.wb2-moneyrow { display:grid; grid-template-columns:minmax(0,1fr) auto auto auto; gap:12px; align-items:center;
+  padding:11px 4px; border-bottom:1px solid rgba(5,5,5,.06); }
+.wb2-moneyrow:last-child { border-bottom:0; }
+.wb2-moneyrow.head { background:rgba(5,5,5,.025); border-radius:12px; padding:12px 12px; margin-bottom:4px; border-bottom:0; }
+.wb2-moneyrow .wb2-plmoney b { font-size:14px; }
+.wb2-moneystrip { display:flex; gap:8px; align-items:center; margin:6px 0 8px; }
+.wb2-scope { display:grid; grid-template-columns:1fr 1fr; gap:0 26px; }
+.wb2-scopecol { min-width:0; }
+.wb2-scopemark { width:20px; height:20px; border-radius:7px; display:inline-grid; place-items:center; flex:none;
+  background:rgba(0,163,137,.12); color:#00806b; }
+.wb2-scopemark.out { background:rgba(224,38,79,.1); color:#b31038; }
+@media (max-width:800px) { .wb2-scope { grid-template-columns:1fr; } .wb2-moneyrow { grid-template-columns:minmax(0,1fr) auto; } }

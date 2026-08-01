@@ -44,8 +44,9 @@ const base: WorkboardData = {
   projects: [],
   radar: [],
   flags: [],
-  board: { visits: [], agreements: [], staff: [], tagPool: [], tasks: [] },
+  board: { visits: [], agreements: [], staff: [], tagPool: [], categories: [], tasks: [] },
   voiceEnabled: false,
+  aiEnabled: false,
   synced: null,
 };
 

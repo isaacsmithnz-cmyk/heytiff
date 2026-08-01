@@ -115,6 +115,7 @@ import {
   linkVisitJob,
   placeVisit,
   setAgreementCategory,
+  setVisitInvoiced,
   setVisitPacked,
   setVisitReadiness,
   setVisitStatus,
@@ -529,5 +530,55 @@ describe("categories and tags — identity decided at creation (D10, B2)", () =>
     const res = await setAgreementCategory("a-1", null);
     expect(res.ok).toBe(true);
     expect(updates[0].patch).toMatchObject({ category_id: null });
+  });
+});
+
+describe("setVisitInvoiced — only work that RAN can be billed", () => {
+  it("stamps and clears the one flag, on done visits only", async () => {
+    rows.maintenance_visits = { id: "v-1", agreement_id: "a-1", status: "done", readiness: {} };
+    const res = await setVisitInvoiced("v-1", true);
+    expect(res.ok).toBe(true);
+    expect(typeof updates[0].patch.invoiced_at).toBe("string");
+
+    updates.length = 0;
+    await setVisitInvoiced("v-1", false);
+    expect(updates[0].patch).toEqual({ invoiced_at: null });
+  });
+
+  it("refuses open visits and the workboard tier", async () => {
+    rows.maintenance_visits = { id: "v-1", agreement_id: "a-1", status: "booked", readiness: {} };
+    expect((await setVisitInvoiced("v-1", true)).ok).toBe(false);
+
+    rows.maintenance_visits = { id: "v-1", agreement_id: "a-1", status: "done", readiness: {} };
+    caps = new Set(["workboard"]);
+    expect((await setVisitInvoiced("v-1", true)).ok).toBe(false);
+    expect(updates).toHaveLength(0);
+  });
+});
+
+describe("createAgreement — ServiceM8 provenance (D7)", () => {
+  const input = {
+    label: "Warehouse quarterly",
+    clientName: "Acme",
+    intervalMonths: 3,
+    anchorDate: "2026-08-01",
+  };
+
+  it("stores the mirrored client only after re-resolving it in the org", async () => {
+    rows.sm8_companies = { uuid: "co-9" };
+    await createAgreement({ ...input, clientRemoteId: "co-9" });
+    expect(inserts[0].payload).toMatchObject({
+      client_provider: "servicem8",
+      client_remote_id: "co-9",
+    });
+  });
+
+  it("a foreign company id degrades to plain provenance — never a block, never a lie", async () => {
+    rows.sm8_companies = null;
+    await createAgreement({ ...input, clientRemoteId: "co-stranger" });
+    expect(inserts[0].payload).toMatchObject({
+      client_provider: null,
+      client_remote_id: null,
+    });
   });
 });

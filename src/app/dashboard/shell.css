@@ -3641,3 +3641,31 @@ span.wb2-ck { cursor:default; }
 .wb2-toast .wb2-toastx { color:rgba(255,255,255,.55); font-size:15px; padding:0 8px; }
 .wb2-toast .wb2-toastx:hover { color:#fff; }
 @media (prefers-reduced-motion:reduce) { .wb2-daymodal, .wb2-toast { animation:none !important; } }
+
+/* ── wb2 step 4: agreement sheet forms, create modal, invoice folds ── */
+.wb2-formgrid { display:grid; grid-template-columns:1fr 1fr; gap:12px 14px; }
+.wb2-formgrid .wide { grid-column:1/-1; }
+.wb2-formgrid.eq { grid-template-columns:1.4fr 1fr 1fr 1fr auto; align-items:center; margin-top:10px; }
+.wb2-fl .wb2-fi, .wb2-fl .wb2-sel, .wb2-fl .wb2-notes { width:100%; letter-spacing:normal; text-transform:none; font-size:13px; }
+.wb2-fl .wb2-notes { margin-bottom:0; }
+.wb2-flcheck { display:flex; align-items:center; gap:9px; font-size:12.5px; font-weight:700; color:var(--gray700); align-self:end; padding:9px 0; cursor:pointer; }
+.wb2-flcheck input { width:16px; height:16px; accent-color:#0089b8; }
+.wb2-eqlist { display:grid; gap:7px; }
+.wb2-eqrow { display:flex; align-items:center; gap:10px; padding:9px 11px; border:1px solid var(--wb2-line, rgba(5,5,5,.08)); border-radius:11px; }
+.wb2-eqrow .wb2-trt { flex:1; min-width:0; }
+.wb2-agbook { margin-left:auto; display:flex; align-items:center; gap:7px; text-transform:none; letter-spacing:0; }
+.wb2-agbook .wb2-fi { height:32px; padding:0 9px; font-size:12px; }
+.wb2-dnact { display:flex; flex-direction:column; align-items:flex-end; gap:7px; justify-self:end; }
+.wb2-newmodal { width:min(760px, calc(100vw - 32px)); }
+.wb2-newmodal .wb2-dmbody { gap:14px; }
+button.wb2-lpr.as-btn, button.wb2-agr.as-btn { font:inherit; text-align:left; background:none; border:0; width:100%; cursor:pointer; color:inherit; }
+button.wb2-agr.as-btn { border-bottom:1px solid var(--wb2-line2, rgba(5,5,5,.06)); }
+button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible { outline:none; box-shadow:inset 0 0 0 3px rgba(0,168,224,.3); border-radius:11px; }
+.pbtn.ghost.danger { color:#b31038; border-color:rgba(224,38,79,.4); }
+.pbtn.ghost.danger:hover { background:rgba(224,38,79,.07); }
+@media (max-width: 1100px) {
+  .wb2-formgrid { grid-template-columns:1fr; }
+  .wb2-formgrid.eq { grid-template-columns:1fr 1fr; }
+  .wb2-agbook { margin-left:0; flex-wrap:wrap; }
+  .wb2-dnact { align-items:flex-start; justify-self:start; flex-direction:row; }
+}

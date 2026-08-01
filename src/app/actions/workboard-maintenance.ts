@@ -137,6 +137,9 @@ export type NewAgreement = {
   techsNeeded?: number;
   hoursEstimate?: number;
   categoryId?: string | null;
+  /** Provenance when born from a ServiceM8 job (D7) — the mirror stays
+      read-only; this just remembers which client record seeded it. */
+  clientRemoteId?: string;
 };
 
 export async function createAgreement(input: NewAgreement): Promise<MaintenanceResult> {
@@ -167,6 +170,22 @@ export async function createAgreement(input: NewAgreement): Promise<MaintenanceR
     categoryId = input.categoryId;
   }
 
+  // A mirror id names a CHOICE; this decides whether it's a real one.
+  let clientProvider: string | null = null;
+  let clientRemoteId: string | null = null;
+  if (input.clientRemoteId) {
+    const { data: company } = await supabaseAdmin
+      .from("sm8_companies")
+      .select("uuid")
+      .eq("org_id", ctx.orgId)
+      .eq("uuid", input.clientRemoteId)
+      .maybeSingle();
+    if (company) {
+      clientProvider = "servicem8";
+      clientRemoteId = input.clientRemoteId;
+    }
+  }
+
   const { data, error } = await supabaseAdmin
     .from("maintenance_agreements")
     .insert({
@@ -186,6 +205,8 @@ export async function createAgreement(input: NewAgreement): Promise<MaintenanceR
       techs_needed: techsNeededOf(input.techsNeeded) ?? 1,
       hours_estimate: hoursOf(input.hoursEstimate),
       category_id: categoryId,
+      client_provider: clientProvider,
+      client_remote_id: clientRemoteId,
       created_by_user_id: ctx.userId,
     })
     .select("id")
@@ -608,6 +629,32 @@ export async function completeVisit(
   if (error) return { ok: false, error: "Couldn't complete the visit." };
 
   await ensureVisits(ctx.orgId, { agreementId: visit.agreement_id });
+  refresh(visit.agreement_id);
+  return { ok: true };
+}
+
+/** The Completed screen's whole job is invoicing (L3) — one flag, one
+    owner (L7). Only a visit that actually RAN can be invoiced. */
+export async function setVisitInvoiced(
+  visitId: string,
+  invoiced: boolean
+): Promise<MaintenanceResult> {
+  const ctx = await context();
+  if (!ctx) return NOT_SIGNED_IN;
+  if (!(await can("workboard_manage"))) return NO_MANAGE;
+
+  const visit = await visitIn(ctx.orgId, visitId);
+  if (!visit) return { ok: false, error: "That visit is no longer here." };
+  if (visit.status !== "done") {
+    return { ok: false, error: "Only a completed visit can be invoiced." };
+  }
+
+  const { error } = await supabaseAdmin
+    .from("maintenance_visits")
+    .update({ invoiced_at: invoiced ? new Date().toISOString() : null })
+    .eq("org_id", ctx.orgId)
+    .eq("id", visitId);
+  if (error) return { ok: false, error: "Couldn't update the invoice flag." };
   refresh(visit.agreement_id);
   return { ok: true };
 }

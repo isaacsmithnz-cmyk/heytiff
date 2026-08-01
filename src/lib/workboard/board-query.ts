@@ -53,6 +53,7 @@ export type BoardVisit = {
   completedSource: string | null;
   actualHours: number | null;
   completionNote: string | null;
+  invoicedAt: string | null;
 };
 
 export type BoardTask = {
@@ -62,14 +63,38 @@ export type BoardTask = {
   assigneeName: string | null;
 };
 
-export type BoardAgreementSummary = {
+export type BoardEquipment = {
+  id: string;
+  description: string;
+  model: string | null;
+  serial: string | null;
+  location: string | null;
+};
+
+/** The whole agreement, as the agreement sheet edits it (A6/D4: nothing the
+    shipped detail page could do may regress). */
+export type BoardAgreement = {
   id: string;
   label: string;
   clientName: string;
   siteLabel: string | null;
+  siteAddress: string | null;
   intervalMonths: number;
+  anchorDate: string;
+  contractEnd: string | null;
+  status: string;
+  weInstalled: boolean;
+  accessNotes: string | null;
+  bringList: string | null;
+  siteRequirements: string | null;
+  notes: string | null;
+  billingContact: string | null;
+  techsNeeded: number;
+  hoursEstimate: number | null;
   category: BoardCategory | null;
   tags: BoardTag[];
+  packing: BoardPackItem[];
+  equipment: BoardEquipment[];
   /** Soonest OPEN due date — honest even past the display window. */
   nextDue: string | null;
   overdueCount: number;
@@ -77,11 +102,16 @@ export type BoardAgreementSummary = {
 
 export type MaintenanceBoardData = {
   visits: BoardVisit[];
-  agreements: BoardAgreementSummary[];
+  /** Active AND paused (a paused agreement must be resumable); ended stays
+      out. Visits load for ACTIVE agreements only — pausing takes the rows
+      off every radar without deleting anything. */
+  agreements: BoardAgreement[];
   /** Everyone assignable — minimum identity, names only. */
   staff: BoardTech[];
   /** The org's tag pool, for the sheet's suggestions. */
   tagPool: BoardTag[];
+  /** Every category, even empty ones — the pickers offer them all. */
+  categories: BoardCategory[];
   /** Delegated open tasks with a due date — the urgent rules read these. */
   tasks: BoardTask[];
 };
@@ -91,10 +121,19 @@ type AgreementRow = {
   label: string;
   client_name: string;
   site_label: string | null;
+  site_address: string | null;
   interval_months: number;
+  anchor_date: string;
+  contract_end: string | null;
+  status: string;
+  we_installed: boolean;
+  access_notes: string | null;
+  bring_list: string | null;
+  site_requirements: string | null;
+  notes: string | null;
+  billing_contact: string | null;
   techs_needed: number;
   hours_estimate: number | null;
-  access_notes: string | null;
   category_id: string | null;
 };
 
@@ -114,6 +153,7 @@ type VisitRow = {
   completed_source: string | null;
   actual_hours: number | null;
   completion_note: string | null;
+  invoiced_at: string | null;
 };
 
 export async function loadMaintenanceBoard(
@@ -123,24 +163,42 @@ export async function loadMaintenanceBoard(
   const { data: agreementRows } = await supabaseAdmin
     .from("maintenance_agreements")
     .select(
-      "id, label, client_name, site_label, interval_months, techs_needed, " +
-        "hours_estimate, access_notes, category_id"
+      "id, label, client_name, site_label, site_address, interval_months, " +
+        "anchor_date, contract_end, status, we_installed, access_notes, " +
+        "bring_list, site_requirements, notes, billing_contact, techs_needed, " +
+        "hours_estimate, category_id"
     )
     .eq("org_id", orgId)
-    .eq("status", "active");
+    .in("status", ["active", "paused"]);
   const agreements = (agreementRows ?? []) as unknown as AgreementRow[];
+  const activeIds = agreements.filter((a) => a.status === "active").map((a) => a.id);
 
   if (agreements.length === 0) {
     const staff = await staffOptions(orgId);
-    return { visits: [], agreements: [], staff, tagPool: [], tasks: await openTasks(orgId, staff) };
+    const { data: catRows } = await supabaseAdmin
+      .from("agreement_categories")
+      .select("id, name, accent")
+      .eq("org_id", orgId);
+    const categories = ((catRows ?? []) as BoardCategory[]).sort((a, b) =>
+      a.name.localeCompare(b.name)
+    );
+    return {
+      visits: [],
+      agreements: [],
+      staff,
+      tagPool: [],
+      categories,
+      tasks: await openTasks(orgId, staff),
+    };
   }
 
   const agreementIds = agreements.map((a) => a.id);
   const VISIT_COLUMNS =
     "id, agreement_id, due_date, booked_date, status, readiness, job_number, " +
     "provider, remote_id, booked_start_cached, notes, completed_at, " +
-    "completed_source, actual_hours, completion_note";
+    "completed_source, actual_hours, completion_note, invoiced_at";
 
+  const noRows = Promise.resolve({ data: [] as never[] });
   const [
     { data: openRows },
     { data: doneRows },
@@ -148,23 +206,28 @@ export async function loadMaintenanceBoard(
     { data: tagRows },
     { data: linkRows },
     { data: packRows },
+    { data: equipmentRows },
     staff,
   ] = await Promise.all([
-    supabaseAdmin
-      .from("maintenance_visits")
-      .select(VISIT_COLUMNS)
-      .eq("org_id", orgId)
-      .in("agreement_id", agreementIds)
-      .in("status", ["upcoming", "booked"])
-      .order("due_date", { ascending: true }),
-    supabaseAdmin
-      .from("maintenance_visits")
-      .select(VISIT_COLUMNS)
-      .eq("org_id", orgId)
-      .in("agreement_id", agreementIds)
-      .in("status", ["done", "skipped"])
-      .gte("completed_at", plusDays(today, -BOARD_DONE_DAYS))
-      .order("completed_at", { ascending: false }),
+    activeIds.length
+      ? supabaseAdmin
+          .from("maintenance_visits")
+          .select(VISIT_COLUMNS)
+          .eq("org_id", orgId)
+          .in("agreement_id", activeIds)
+          .in("status", ["upcoming", "booked"])
+          .order("due_date", { ascending: true })
+      : noRows,
+    activeIds.length
+      ? supabaseAdmin
+          .from("maintenance_visits")
+          .select(VISIT_COLUMNS)
+          .eq("org_id", orgId)
+          .in("agreement_id", activeIds)
+          .in("status", ["done", "skipped"])
+          .gte("completed_at", plusDays(today, -BOARD_DONE_DAYS))
+          .order("completed_at", { ascending: false })
+      : noRows,
     supabaseAdmin.from("agreement_categories").select("id, name, accent").eq("org_id", orgId),
     supabaseAdmin.from("agreement_tags").select("id, name, color").eq("org_id", orgId),
     supabaseAdmin
@@ -178,6 +241,12 @@ export async function loadMaintenanceBoard(
       .eq("org_id", orgId)
       .in("agreement_id", agreementIds)
       .order("position", { ascending: true })
+      .order("created_at", { ascending: true }),
+    supabaseAdmin
+      .from("agreement_equipment")
+      .select("id, agreement_id, description, model, serial, location")
+      .eq("org_id", orgId)
+      .in("agreement_id", agreementIds)
       .order("created_at", { ascending: true }),
     staffOptions(orgId),
   ]);
@@ -296,6 +365,7 @@ export async function loadMaintenanceBoard(
       completedSource: v.completed_source,
       actualHours: v.actual_hours,
       completionNote: v.completion_note,
+      invoicedAt: v.invoiced_at,
     });
   }
 
@@ -307,21 +377,48 @@ export async function loadMaintenanceBoard(
     if (!seen || v.dueDate < seen) nextDueBy.set(v.agreementId, v.dueDate);
     if (v.dueDate < today) overdueBy.set(v.agreementId, (overdueBy.get(v.agreementId) ?? 0) + 1);
   }
-  const summaries: BoardAgreementSummary[] = agreements
+  const equipmentBy = new Map<string, BoardEquipment[]>();
+  for (const e of (equipmentRows ?? []) as (BoardEquipment & { agreement_id: string })[]) {
+    const list = equipmentBy.get(e.agreement_id) ?? [];
+    list.push({ id: e.id, description: e.description, model: e.model, serial: e.serial, location: e.location });
+    equipmentBy.set(e.agreement_id, list);
+  }
+  const summaries: BoardAgreement[] = agreements
     .map((a) => ({
       id: a.id,
       label: a.label,
       clientName: a.client_name,
       siteLabel: a.site_label,
+      siteAddress: a.site_address,
       intervalMonths: a.interval_months,
+      anchorDate: a.anchor_date,
+      contractEnd: a.contract_end,
+      status: a.status,
+      weInstalled: a.we_installed,
+      accessNotes: a.access_notes,
+      bringList: a.bring_list,
+      siteRequirements: a.site_requirements,
+      notes: a.notes,
+      billingContact: a.billing_contact,
+      techsNeeded: a.techs_needed,
+      hoursEstimate: a.hours_estimate,
       category: a.category_id ? categories.get(a.category_id) ?? null : null,
       tags: tagsBy.get(a.id) ?? [],
+      packing: packingBy.get(a.id) ?? [],
+      equipment: equipmentBy.get(a.id) ?? [],
       nextDue: nextDueBy.get(a.id) ?? null,
       overdueCount: overdueBy.get(a.id) ?? 0,
     }))
     .sort((x, y) => x.label.localeCompare(y.label));
 
-  return { visits: out, agreements: summaries, staff, tagPool, tasks: await openTasks(orgId, staff) };
+  return {
+    visits: out,
+    agreements: summaries,
+    staff,
+    tagPool,
+    categories: [...categories.values()].sort((a, b) => a.name.localeCompare(b.name)),
+    tasks: await openTasks(orgId, staff),
+  };
 }
 
 async function staffOptions(orgId: string): Promise<BoardTech[]> {

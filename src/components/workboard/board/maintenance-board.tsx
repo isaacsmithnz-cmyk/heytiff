@@ -2,8 +2,11 @@
 
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
+import { useRouter } from "next/navigation";
+import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { urgentRows } from "@/lib/workboard/urgent-rules";
 import { toConfirmCount } from "@/lib/workboard/board-status";
+import { clearVisitPlacement, placeVisit } from "@/app/actions/workboard-maintenance";
 import type { MaintenanceBoardData } from "@/lib/workboard/board-query";
 import type { BoardFlag } from "@/lib/workboard/notes-query";
 import { gatesOf, toneOf } from "./derive";
@@ -14,6 +17,8 @@ import { CompletedTab } from "./completed-tab";
 import { AgreementsTab } from "./agreements-tab";
 import { VisitSheet } from "./visit-sheet";
 import { DayModal } from "./day-modal";
+import { AgreementSheet } from "./agreement-sheet";
+import { NewAgreementModal } from "./new-agreement-modal";
 import { ToastHost, useBoardToasts } from "./toasts";
 
 /* The redesigned maintenance board — five tabs on ONE persistent card.
@@ -59,6 +64,7 @@ export function MaintenanceBoard({
   today,
   manage,
   connected,
+  aiEnabled = false,
   sm8,
 }: {
   data: MaintenanceBoardData;
@@ -66,12 +72,17 @@ export function MaintenanceBoard({
   today: string;
   manage: boolean;
   connected: boolean;
+  /** ANTHROPIC key present — the create flow offers Tiff's job read. */
+  aiEnabled?: boolean;
   /** The mirror-health surface that survives from the old board (D8/D4). */
   sm8?: { attention: boolean; syncedAt: string | null; running: boolean } | null;
 }) {
+  const router = useRouter();
   const [tab, setTab] = useState<BoardTab>("urgent");
   const [sheet, setSheet] = useState<{ visitId: string; closeOut: boolean } | null>(null);
   const [dayISO, setDayISO] = useState<string | null>(null);
+  const [agreementId, setAgreementId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const { toasts, toast, dismiss } = useBoardToasts();
 
   const openVisits = useMemo(
@@ -165,6 +176,44 @@ export function MaintenanceBoard({
 
   const sheetVisit = sheet ? data.visits.find((v) => v.id === sheet.visitId) ?? null : null;
   const openSheet = (visitId: string, closeOut = false) => setSheet({ visitId, closeOut });
+  const sheetAgreement = agreementId
+    ? data.agreements.find((a) => a.id === agreementId) ?? null
+    : null;
+
+  /** K8's lost feature: the whole category's NEXT visits onto one day, one
+      pass — with one undo restoring every visit to wherever it was. */
+  const bookCategory = (ids: string[], day: string, categoryName: string) => {
+    const targets = ids
+      .map((id) => {
+        const open = data.visits
+          .filter(
+            (v) =>
+              v.agreementId === id && (v.status === "upcoming" || v.status === "booked")
+          )
+          .sort((a, b) => (a.dueDate < b.dueDate ? -1 : 1));
+        return open[0] ?? null;
+      })
+      .filter((v): v is NonNullable<typeof v> => v !== null && v.bookedDate !== day);
+    if (targets.length === 0) {
+      toast(`${categoryName}: nothing open to book`);
+      return;
+    }
+    const restore = targets.map((v) => ({ id: v.id, from: v.bookedDate }));
+    (async () => {
+      for (const v of targets) await placeVisit(v.id, day);
+      toast(
+        `${categoryName}: ${targets.length} ${targets.length === 1 ? "visit" : "visits"} placed on ${fmtAuWeekdayDayMonth(day)}`,
+        async () => {
+          for (const r of restore) {
+            if (r.from) await placeVisit(r.id, r.from);
+            else await clearVisitPlacement(r.id);
+          }
+          router.refresh();
+        }
+      );
+      router.refresh();
+    })();
+  };
 
   const badge = (t: BoardTab): { n: number; tone: "" | "dan" | "warn" } | null => {
     if (t === "urgent") {
@@ -241,9 +290,24 @@ export function MaintenanceBoard({
             <CalendarTab visits={data.visits} today={today} onDay={(iso) => setDayISO(iso)} />
           )}
           {tab === "completed" && (
-            <CompletedTab visits={data.visits} count={doneCount} onOpen={(id) => openSheet(id)} />
+            <CompletedTab
+              visits={data.visits}
+              count={doneCount}
+              manage={manage}
+              onOpen={(id) => openSheet(id)}
+              onToast={toast}
+            />
           )}
-          {tab === "agreements" && <AgreementsTab agreements={data.agreements} today={today} />}
+          {tab === "agreements" && (
+            <AgreementsTab
+              agreements={data.agreements}
+              today={today}
+              manage={manage}
+              onOpen={(id) => setAgreementId(id)}
+              onNew={() => setCreating(true)}
+              onBookCategory={bookCategory}
+            />
+          )}
         </div>
       </div>
 
@@ -261,6 +325,31 @@ export function MaintenanceBoard({
           }}
           onToast={toast}
           onClose={() => setDayISO(null)}
+        />
+      )}
+
+      {sheetAgreement && (
+        <AgreementSheet
+          key={sheetAgreement.id}
+          agreement={sheetAgreement}
+          categories={data.categories}
+          tagPool={data.tagPool}
+          today={today}
+          manage={manage}
+          onToast={toast}
+          onClose={() => setAgreementId(null)}
+        />
+      )}
+
+      {creating && (
+        <NewAgreementModal
+          connected={connected}
+          voiceless={!aiEnabled}
+          agreements={data.agreements}
+          categories={data.categories}
+          onOpenAgreement={(id) => setAgreementId(id)}
+          onToast={toast}
+          onClose={() => setCreating(false)}
         />
       )}
 

@@ -34,6 +34,15 @@ const act = {
   createTag: jest.fn(async () => ({ ok: true, id: "t-new" })),
   tagAgreement: jest.fn(async () => ({ ok: true })),
   untagAgreement: jest.fn(async () => ({ ok: true })),
+  setVisitInvoiced: jest.fn(async () => ({ ok: true })),
+  updateAgreementMeta: jest.fn(async () => ({ ok: true })),
+  updateAgreementSchedule: jest.fn(async () => ({ ok: true })),
+  setAgreementStatus: jest.fn(async () => ({ ok: true })),
+  setAgreementCategory: jest.fn(async () => ({ ok: true })),
+  createCategory: jest.fn(async () => ({ ok: true, id: "cat-new" })),
+  addAgreementEquipment: jest.fn(async () => ({ ok: true })),
+  removeAgreementEquipment: jest.fn(async () => ({ ok: true })),
+  createAgreement: jest.fn(async () => ({ ok: true, id: "a-new" })),
 };
 jest.mock("@/app/actions/workboard-maintenance", () => ({
   setVisitReadiness: (...a: unknown[]) => act.setVisitReadiness(...(a as [])),
@@ -50,6 +59,24 @@ jest.mock("@/app/actions/workboard-maintenance", () => ({
   createTag: (...a: unknown[]) => act.createTag(...(a as [])),
   tagAgreement: (...a: unknown[]) => act.tagAgreement(...(a as [])),
   untagAgreement: (...a: unknown[]) => act.untagAgreement(...(a as [])),
+  setVisitInvoiced: (...a: unknown[]) => act.setVisitInvoiced(...(a as [])),
+  updateAgreementMeta: (...a: unknown[]) => act.updateAgreementMeta(...(a as [])),
+  updateAgreementSchedule: (...a: unknown[]) => act.updateAgreementSchedule(...(a as [])),
+  setAgreementStatus: (...a: unknown[]) => act.setAgreementStatus(...(a as [])),
+  setAgreementCategory: (...a: unknown[]) => act.setAgreementCategory(...(a as [])),
+  createCategory: (...a: unknown[]) => act.createCategory(...(a as [])),
+  addAgreementEquipment: (...a: unknown[]) => act.addAgreementEquipment(...(a as [])),
+  removeAgreementEquipment: (...a: unknown[]) => act.removeAgreementEquipment(...(a as [])),
+  createAgreement: (...a: unknown[]) => act.createAgreement(...(a as [])),
+}));
+
+const searchJobs = jest.fn(async () => [] as unknown[]);
+jest.mock("@/app/actions/workboard", () => ({
+  searchJobs: (...a: unknown[]) => searchJobs(...(a as [])),
+}));
+const analyseSm8JobForAgreement = jest.fn(async () => ({ ok: false, reason: "no-key" }));
+jest.mock("@/app/actions/workboard-ai", () => ({
+  analyseSm8JobForAgreement: (...a: unknown[]) => analyseSm8JobForAgreement(...(a as [])),
 }));
 
 const clearFlag = jest.fn(async () => ({ ok: true }));
@@ -97,6 +124,38 @@ function visit(over: Partial<BoardVisit> & { id: string }): BoardVisit {
     completedSource: null,
     actualHours: null,
     completionNote: null,
+    invoicedAt: null,
+    ...over,
+  };
+}
+
+function agreementFix(
+  over: Partial<MaintenanceBoardData["agreements"][number]> = {}
+): MaintenanceBoardData["agreements"][number] {
+  return {
+    id: "a-1",
+    label: "Rooftop package units",
+    clientName: "Halston Freight",
+    siteLabel: "DC 2",
+    siteAddress: null,
+    intervalMonths: 3,
+    anchorDate: "2026-08-04",
+    contractEnd: null,
+    status: "active",
+    weInstalled: false,
+    accessNotes: null,
+    bringList: null,
+    siteRequirements: null,
+    notes: null,
+    billingContact: null,
+    techsNeeded: 1,
+    hoursEstimate: 3,
+    category: null,
+    tags: [],
+    packing: [],
+    equipment: [],
+    nextDue: "2026-08-04",
+    overdueCount: 0,
     ...over,
   };
 }
@@ -110,6 +169,7 @@ function data(over: Partial<MaintenanceBoardData> = {}): MaintenanceBoardData {
       { id: "s-2", name: "Luke Mercer" },
     ],
     tagPool: [],
+    categories: [],
     tasks: [],
     ...over,
   };
@@ -414,17 +474,11 @@ describe("Agreements — named clients, honest dates (B22/B10)", () => {
     mount(
       data({
         agreements: [
-          {
-            id: "a-1",
-            label: "Rooftop package units",
-            clientName: "Halston Freight",
-            siteLabel: "DC 2",
-            intervalMonths: 3,
-            category: null,
+          agreementFix({
             tags: [{ id: "t-1", name: "Our install", color: "violet" }],
             nextDue: "2026-07-20",
             overdueCount: 1,
-          },
+          }),
         ],
       })
     );
@@ -661,5 +715,203 @@ describe("the mirror-health chip (D8)", () => {
       />
     );
     expect(screen.getByText("ServiceM8 needs attention")).toBeInTheDocument();
+  });
+});
+
+describe("Completed folds — the money waiting leads (step 4)", () => {
+  const doneVisit = (id: string, over: Partial<BoardVisit> = {}) =>
+    visit({
+      id,
+      status: "done",
+      dueDate: "2026-07-20",
+      completedAt: "2026-07-20",
+      actualHours: 2,
+      ...over,
+    });
+
+  it("folds To invoice above Invoiced, and marking carries its own undo (G9)", async () => {
+    mount(
+      data({
+        visits: [
+          doneVisit("v-open-bill"),
+          doneVisit("v-billed", { invoicedAt: "2026-07-25T00:00:00Z", clientName: "Billed Pty" }),
+        ],
+      })
+    );
+    await toTab(/Completed/);
+    const heads = screen.getAllByText(/^(To invoice|Invoiced)/).map((h) => h.textContent);
+    expect(heads[0]).toContain("To invoice");
+    expect(screen.getByText("1 to invoice")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Mark invoiced" }));
+    expect(act.setVisitInvoiced).toHaveBeenCalledWith("v-open-bill", true);
+    const toast = screen.getByText("Invoiced — Halston Freight").closest(".wb2-toast")!;
+    await userEvent.click(within(toast as HTMLElement).getByRole("button", { name: "Undo" }));
+    expect(act.setVisitInvoiced).toHaveBeenLastCalledWith("v-open-bill", false);
+  });
+
+  it("un-invoicing exists for the fat-finger, without a toast maze", async () => {
+    mount(data({ visits: [doneVisit("v-billed", { invoicedAt: "2026-07-25T00:00:00Z" })] }));
+    await toTab(/Completed/);
+    await userEvent.click(screen.getByRole("button", { name: "Un-invoice" }));
+    expect(act.setVisitInvoiced).toHaveBeenCalledWith("v-billed", false);
+  });
+});
+
+describe("the agreement sheet (A6/D4)", () => {
+  const openAgreement = async (agr = agreementFix(), extra: Partial<MaintenanceBoardData> = {}) => {
+    mount(data({ agreements: [agr], ...extra }));
+    await toTab(/Service agreements/);
+    await userEvent.click(
+      screen.getByRole("button", { name: `Open ${agr.clientName} — ${agr.label}` })
+    );
+    return within(screen.getByRole("dialog"));
+  };
+
+  it("rows open the sheet; edited meta saves as one patch", async () => {
+    const sheet = await openAgreement();
+    const billing = sheet.getByLabelText("Billing contact");
+    await userEvent.type(billing, "accounts@halston.com");
+    await userEvent.click(sheet.getByRole("button", { name: "Save" }));
+    expect(act.updateAgreementMeta).toHaveBeenCalledWith(
+      "a-1",
+      expect.objectContaining({ billingContact: "accounts@halston.com" })
+    );
+  });
+
+  it("the cadence saves through its own action and says the redraw rule", async () => {
+    const sheet = await openAgreement();
+    await userEvent.selectOptions(sheet.getByLabelText("How often"), "6");
+    expect(sheet.getByText(/redraws only the visits nobody has touched/)).toBeInTheDocument();
+    await userEvent.click(sheet.getByRole("button", { name: "Save the cadence" }));
+    expect(act.updateAgreementSchedule).toHaveBeenCalledWith(
+      "a-1",
+      expect.objectContaining({ intervalMonths: 6, anchorDate: "2026-08-04" })
+    );
+  });
+
+  it("pause resumes and ending demands a second press", async () => {
+    const sheet = await openAgreement();
+    await userEvent.click(sheet.getByRole("button", { name: "Pause" }));
+    expect(act.setAgreementStatus).toHaveBeenCalledWith("a-1", "paused");
+
+    await userEvent.click(sheet.getByRole("button", { name: /End the agreement/ }));
+    expect(act.setAgreementStatus).not.toHaveBeenCalledWith("a-1", "ended");
+    await userEvent.click(sheet.getByRole("button", { name: /End it — I'm sure/ }));
+    expect(act.setAgreementStatus).toHaveBeenCalledWith("a-1", "ended");
+  });
+
+  it("equipment register adds structured units, never strings (D5)", async () => {
+    const sheet = await openAgreement(
+      agreementFix({
+        equipment: [{ id: "e-1", description: "Rooftop package #1", model: "PKV-500", serial: "S123", location: "Roof" }],
+      })
+    );
+    expect(sheet.getByText(/Model PKV-500 · Serial S123 · Roof/)).toBeInTheDocument();
+
+    await userEvent.type(sheet.getByPlaceholderText(/Unit \(e\.g\./), "Rooftop package #2");
+    await userEvent.type(sheet.getByPlaceholderText("Serial"), "S124");
+    await userEvent.click(sheet.getByRole("button", { name: "Add unit" }));
+    expect(act.addAgreementEquipment).toHaveBeenCalledWith(
+      "a-1",
+      expect.objectContaining({ description: "Rooftop package #2", serial: "S124" })
+    );
+  });
+
+  it("a paused agreement wears its chip on the ledger and offers Resume", async () => {
+    const sheet = await openAgreement(agreementFix({ status: "paused", nextDue: null }));
+    expect(sheet.getByText("Paused")).toBeInTheDocument();
+    await userEvent.click(sheet.getByRole("button", { name: "Resume the agreement" }));
+    expect(act.setAgreementStatus).toHaveBeenCalledWith("a-1", "active");
+  });
+});
+
+describe("the create flow (D7/K3/K4)", () => {
+  const openModal = async (extra: Partial<MaintenanceBoardData> = {}) => {
+    mount(data(extra));
+    await toTab(/Service agreements/);
+    await userEvent.click(screen.getByRole("button", { name: /New agreement/ }));
+    return within(screen.getByRole("dialog"));
+  };
+
+  it("creates from the manual form; the packing suggestions never block it", async () => {
+    const modal = await openModal();
+    await userEvent.type(modal.getByLabelText("Service label"), "Cool room");
+    await userEvent.type(modal.getByLabelText("Client"), "Grange Microbrewery");
+    await userEvent.type(modal.getByLabelText("First service due"), "2026-08-12");
+    await userEvent.click(modal.getByRole("button", { name: /Create the agreement/ }));
+    expect(act.createAgreement).toHaveBeenCalledWith(
+      expect.objectContaining({
+        label: "Cool room",
+        clientName: "Grange Microbrewery",
+        anchorDate: "2026-08-12",
+        intervalMonths: 3,
+      })
+    );
+  });
+
+  it("a weekend first-due says so and offers the Monday, keeping stays allowed (K4/B9)", async () => {
+    const modal = await openModal();
+    await userEvent.type(modal.getByLabelText("First service due"), "2026-08-01");
+    expect(modal.getByText(/is a Saturday — every visit will fall due on a weekend/)).toBeInTheDocument();
+    await userEvent.click(modal.getByRole("button", { name: /Anchor on Mon 3 Aug instead/ }));
+    expect((modal.getByLabelText("First service due") as HTMLInputElement).value).toBe("2026-08-03");
+  });
+
+  it("the duplicate guard fires on the client's name and needs a deliberate override", async () => {
+    const modal = await openModal({ agreements: [agreementFix()] });
+    await userEvent.type(modal.getByLabelText("Service label"), "Second system");
+    await userEvent.type(modal.getByLabelText("Client"), "halston freight");
+    await userEvent.type(modal.getByLabelText("First service due"), "2026-08-12");
+
+    expect(modal.getByText(/already has an agreement here/)).toBeInTheDocument();
+    expect(modal.getByRole("button", { name: /Create the agreement/ })).toBeDisabled();
+
+    await userEvent.click(modal.getByLabelText(/genuinely a separate agreement/));
+    await userEvent.click(modal.getByRole("button", { name: /Create the agreement/ }));
+    expect(act.createAgreement).toHaveBeenCalled();
+  });
+
+  it("standalone hides the ServiceM8 leg entirely — the board never looks broken without it", async () => {
+    const modal = await openModal();
+    expect(modal.queryByRole("tab", { name: /From a ServiceM8 job/ })).not.toBeInTheDocument();
+  });
+});
+
+describe("book the whole category on one day (K8's lost feature)", () => {
+  it("places each agreement's next open visit, one undo restores them all", async () => {
+    mount(
+      data({
+        agreements: [
+          agreementFix({
+            id: "a-1",
+            category: { id: "cat-1", name: "Retail sites", accent: "violet" },
+          }),
+          agreementFix({
+            id: "a-2",
+            label: "Split fleet",
+            clientName: "Meridian Data",
+            category: { id: "cat-1", name: "Retail sites", accent: "violet" },
+          }),
+        ],
+        visits: [
+          visit({ id: "v-1", agreementId: "a-1", dueDate: "2026-08-04" }),
+          visit({ id: "v-2", agreementId: "a-2", dueDate: "2026-08-06", bookedDate: "2026-08-06", status: "booked" }),
+        ],
+      })
+    );
+    await toTab(/Service agreements/);
+    await userEvent.click(screen.getByRole("button", { name: "Book the category on one day" }));
+    await userEvent.type(screen.getByLabelText("Day for Retail sites"), "2026-08-10");
+    await userEvent.click(screen.getByRole("button", { name: "Book them" }));
+
+    expect(act.placeVisit).toHaveBeenCalledWith("v-1", "2026-08-10");
+    expect(act.placeVisit).toHaveBeenCalledWith("v-2", "2026-08-10");
+
+    const toast = screen.getByText(/Retail sites: 2 visits placed on Mon 10 Aug/).closest(".wb2-toast")!;
+    await userEvent.click(within(toast as HTMLElement).getByRole("button", { name: "Undo" }));
+    // v-1 had no day: cleared. v-2 goes back to the day it came from.
+    expect(act.clearVisitPlacement).toHaveBeenCalledWith("v-1");
+    expect(act.placeVisit).toHaveBeenLastCalledWith("v-2", "2026-08-06");
   });
 });

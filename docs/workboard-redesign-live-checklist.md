@@ -123,9 +123,56 @@ gates and packing still tickable, but no place/complete/skip/tags/add-item
       tabs; break the connection (or wait for attention state) → chip goes red
       "needs attention"; standalone workspace → no chip at all.
 
-## Stage 4 — Completed, Agreements + create flow (pending)
+## Stage 4 — Completed folds, agreement sheet, create flow (this commit)
 
-_Added when the step lands._
+**Completed — the invoicing pass:**
+
+- [ ] Done visits fold into **To invoice** (leading, warn chip counts them) and
+      **Invoiced** below. Mark one invoiced → it moves folds on refresh, toast
+      Undo brings it back. Un-invoice exists on the other side.
+- [ ] `invoiced_at` lands in Supabase when marked; null when unmarked.
+
+**The agreement sheet (rows on the Agreements tab now open it):**
+
+- [ ] Meta edits (label, client, site, billing contact, techs, hours, access
+      notes, requirements, notes, we-installed) save as one patch; check one
+      field in Supabase.
+- [ ] Cadence change warns about the redraw, saves, and only UNTOUCHED future
+      visits move (tick a gate on one future visit first, then change cadence —
+      that visit must survive where it was; pristine ones redraw).
+- [ ] Pause → agreement row chips "Paused", its visits leave Upcoming/Urgent/
+      Calendar entirely; Resume brings the horizon back. End needs the second
+      press, then the agreement leaves the board (rows stay in Supabase).
+- [ ] Category dropdown moves it; "New category…" creates + assigns without
+      touching any other agreement (B17). Accent colour on the group header
+      band stays stable as categories are added.
+- [ ] Tags and packing list edit here too; equipment register adds a unit with
+      model/serial/location and removes one.
+
+**The create flow (New agreement on the Agreements tab):**
+
+- [ ] Manual create: visits generate immediately; NO fabricated "last done"
+      anywhere (K3) — the story starts at the first due date.
+- [ ] Weekend first-due warns and offers the Monday anchor; keeping the
+      weekend is allowed (K4/B9).
+- [ ] Duplicate guard: type a client that already has an agreement →
+      the existing ones list with "Open it instead"; Create disables until
+      the deliberate-override tick (the Halston-twice failure, dead).
+- [ ] Standalone: no ServiceM8 tab at all. Connected: search by job number or
+      client name hits the mirror; picking prefils client + suburb.
+- [ ] **With ANTHROPIC key set:** "Let Tiff read the job" fills label/cadence/
+      hours/techs/access + packing suggestions — every field stays editable,
+      nothing writes until Create (the form is the review). Without the key
+      the button doesn't render and prefill stays direct.
+- [ ] Create from SM8 stores client provenance (`client_provider`,
+      `client_remote_id` on the agreement row).
+
+**Book the category (the K8 lost feature):**
+
+- [ ] A category header (not Uncategorised) offers "Book the category on one
+      day" → pick a day → each agreement's NEXT open visit lands on it; ONE
+      toast, one Undo restoring every visit to where it was (or off the board
+      if it was unplaced).
 
 ## Stage 5 — capture pill + display mode (pending)
 

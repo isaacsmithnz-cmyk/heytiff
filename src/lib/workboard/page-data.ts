@@ -45,6 +45,8 @@ export type WorkboardData = {
   board: MaintenanceBoardData;
   /** ELEVENLABS_API_KEY is set — the mic is offered as well as the textarea. */
   voiceEnabled: boolean;
+  /** ANTHROPIC_API_KEY is set — Tiff's analyse-a-job offer renders. */
+  aiEnabled: boolean;
   synced: { finishedAt: string | null; running: boolean } | null;
 };
 
@@ -82,6 +84,7 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
       flags,
       board,
       voiceEnabled: isTranscriptionConfigured(),
+      aiEnabled: !!process.env.ANTHROPIC_API_KEY,
       synced: null,
     };
   }
@@ -125,6 +128,7 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
     flags,
     board,
     voiceEnabled: isTranscriptionConfigured(),
+    aiEnabled: !!process.env.ANTHROPIC_API_KEY,
     synced: sync.lastRun
       ? { finishedAt: sync.lastRun.finishedAt, running: sync.lastRun.running }
       : { finishedAt: null, running: false },

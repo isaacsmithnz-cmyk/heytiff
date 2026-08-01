@@ -376,6 +376,7 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
                 today={data.today}
                 manage={data.manage}
                 connected={connected}
+                aiEnabled={data.aiEnabled}
                 sm8={
                   data.connection === "none"
                     ? null

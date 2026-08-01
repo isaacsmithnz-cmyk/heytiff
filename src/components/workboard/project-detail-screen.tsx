@@ -45,10 +45,15 @@ import {
 } from "@/app/actions/workboard";
 import {
   addProjectEntry,
+  attachDocumentToProject,
   clearProjectBlocked,
   createProjectVisit,
   setProjectBlocked,
 } from "@/app/actions/workboard-projects";
+import { readEquipmentPhoto } from "@/app/actions/workboard-ai";
+import { deleteDocument } from "@/app/actions/documents";
+import { uploadFile } from "@/lib/documents/upload-client";
+import { fmtBytes } from "@/lib/documents/files";
 import {
   DatesCard,
   FlywheelCard,
@@ -374,6 +379,8 @@ export function ProjectDetailScreen({
             )}
           </div>
 
+          <DocumentsCard />
+
           <JournalCard
             kind="progress"
             icon="activity"
@@ -464,9 +471,19 @@ export function ProjectDetailScreen({
       {addingEquip && (
         <AddEquipmentModal
           onClose={() => setAddingEquip(false)}
-          onAdd={(input) => {
+          onAdd={(input, photo) => {
             setAddingEquip(false);
-            run(() => addEquipment(project.id, input));
+            run(async () => {
+              const res = await addEquipment(project.id, input);
+              if (!res.ok) return res;
+              if (photo) {
+                // the nameplate photo is site evidence — it lands with the
+                // project's files through the same slot flow as any upload
+                const up = await uploadFile(photo, "project_file");
+                if (up.ok) await attachDocumentToProject(up.file.documentId, project.id);
+              }
+              return res;
+            });
           }}
         />
       )}
@@ -683,6 +700,93 @@ export function ProjectDetailScreen({
               Move to {advice.next}
             </button>
           </div>
+        )}
+      </div>
+    );
+  }
+
+  /* ── documents & photos — the shared storage system, pointed here ── */
+
+  function DocumentsCard() {
+    const [uploading, setUploading] = useState(false);
+    const [uploadErr, setUploadErr] = useState<string | null>(null);
+
+    const upload = async (file: File) => {
+      setUploading(true);
+      setUploadErr(null);
+      try {
+        const up = await uploadFile(file, "project_file");
+        if (!up.ok) {
+          setUploadErr(up.error);
+          return;
+        }
+        const attached = await attachDocumentToProject(up.file.documentId, project.id);
+        if (!attached.ok) setUploadErr(attached.error);
+        router.refresh();
+      } finally {
+        setUploading(false);
+      }
+    };
+
+    return (
+      <div className="card2">
+        <div className="c2h">
+          <span className="ci">
+            <Icon name="folder" size={19} />
+          </span>
+          <div>
+            <b>Documents &amp; photos</b>
+            <em>Before-cover-up shots, the sparky&apos;s CoC, anything worth keeping with the job.</em>
+          </div>
+          <label className="pbtn ghost" style={{ marginLeft: "auto", cursor: "pointer" }}>
+            <Icon name="upload" size={15} />
+            {uploading ? "Uploading…" : "Upload"}
+            <input
+              type="file"
+              accept="image/*,application/pdf"
+              style={{ display: "none" }}
+              disabled={uploading}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = "";
+                if (f) void upload(f);
+              }}
+            />
+          </label>
+        </div>
+        {uploadErr && <p className="int-note bad">{uploadErr}</p>}
+        {project.documents.length === 0 ? (
+          <p className="int-hint">
+            Nothing here yet — a photo before the ceiling closes is the one you&apos;ll want later.
+          </p>
+        ) : (
+          project.documents.map((d) => (
+            <div className="wb-row" key={d.id}>
+              <span className="wb-chip">
+                {d.mimeType.startsWith("image/") ? "photo" : "file"}
+              </span>
+              <span className="wb-who">
+                <b>{d.fileName}</b>
+                <em>
+                  {" "}
+                  · {fmtBytes(d.sizeBytes)} · {agoLabel(d.uploadedAt.slice(0, 10), today)}
+                </em>
+              </span>
+              {d.url && (
+                <a className="pbtn ghost" href={d.url} target="_blank" rel="noreferrer">
+                  Open
+                </a>
+              )}
+              <button
+                className="fl-x"
+                aria-label={`Remove ${d.fileName}`}
+                disabled={busy || uploading}
+                onClick={() => run(() => deleteDocument(d.id))}
+              >
+                <Icon name="x" size={13} />
+              </button>
+            </div>
+          ))
         )}
       </div>
     );
@@ -1414,26 +1518,99 @@ function AttachJobModal({
   );
 }
 
+/** Reads a File into the base64 body Claude's image blocks want. */
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const s = String(reader.result ?? "");
+      resolve(s.slice(s.indexOf(",") + 1));
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
 function AddEquipmentModal({
   onClose,
   onAdd,
 }: {
   onClose: () => void;
-  onAdd: (input: {
-    description: string;
-    model?: string;
-    serial?: string;
-    locationNote?: string;
-    notes?: string;
-  }) => void;
+  onAdd: (
+    input: {
+      description: string;
+      model?: string;
+      serial?: string;
+      locationNote?: string;
+      notes?: string;
+    },
+    photo: File | null
+  ) => void;
 }) {
   const [description, setDescription] = useState("");
   const [model, setModel] = useState("");
   const [serial, setSerial] = useState("");
   const [locationNote, setLocationNote] = useState("");
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [keepPhoto, setKeepPhoto] = useState(true);
+  const [scanning, setScanning] = useState(false);
+  const [scanNote, setScanNote] = useState<string | null>(null);
+
+  const scan = async (file: File) => {
+    setPhoto(file);
+    setScanNote(null);
+    if (!file.type.startsWith("image/")) return;
+    setScanning(true);
+    try {
+      const res = await readEquipmentPhoto(await fileToBase64(file), file.type);
+      if (res.ok) {
+        // A DRAFT, never a decision: prefill only what's empty, and say so.
+        if (res.read.description && !description) setDescription(res.read.description);
+        if (res.read.model && !model) setModel(res.read.model);
+        if (res.read.serial && !serial) setSerial(res.read.serial);
+        setScanNote(
+          res.read.model || res.read.serial
+            ? "Read from the nameplate — check it against the plate before saving."
+            : "Couldn't make out a model or serial — type them from the plate."
+        );
+      } else {
+        setScanNote(
+          res.reason === "no-key"
+            ? "Photo kept — reading nameplates needs Tiff, which isn't set up."
+            : res.reason
+        );
+      }
+    } finally {
+      setScanning(false);
+    }
+  };
 
   return (
     <WbModal title="Add equipment" sub="What's on site, and where" onClose={onClose}>
+      <label className="fl-f span" style={{ marginBottom: 10 }}>
+        <span>Photo of the unit or its nameplate</span>
+        <input
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) void scan(f);
+          }}
+        />
+      </label>
+      {scanning && <p className="int-hint">Reading the nameplate…</p>}
+      {scanNote && <p className="int-hint">{scanNote}</p>}
+      {photo && (
+        <label className="wb2-carry" style={{ marginBottom: 10 }}>
+          <input
+            type="checkbox"
+            checked={keepPhoto}
+            onChange={(e) => setKeepPhoto(e.target.checked)}
+          />
+          Keep the photo with the project&apos;s files
+        </label>
+      )}
       <div className="fl-grid">
         <label className="fl-f span">
           <span>
@@ -1469,8 +1646,10 @@ function AddEquipmentModal({
         </button>
         <button
           className="pbtn primary"
-          disabled={!description.trim()}
-          onClick={() => onAdd({ description, model, serial, locationNote })}
+          disabled={!description.trim() || scanning}
+          onClick={() =>
+            onAdd({ description, model, serial, locationNote }, keepPhoto ? photo : null)
+          }
         >
           Add equipment
         </button>

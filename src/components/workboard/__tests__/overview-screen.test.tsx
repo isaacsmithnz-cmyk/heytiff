@@ -71,8 +71,6 @@ const base: WorkboardData = {
   today: TODAY,
   counts: null,
   upcoming: [],
-  projects: [],
-  radar: [],
   flags: [],
   board: { visits: [], agreements: [], staff: [], tagPool: [], categories: [], tasks: [] },
   projectsBoard: { projects: [], visits: [], staff: [] },

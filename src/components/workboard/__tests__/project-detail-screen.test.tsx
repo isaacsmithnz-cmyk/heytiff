@@ -28,6 +28,19 @@ jest.mock("../board/project-trip-sheet", () => ({
     </div>
   ),
 }));
+jest.mock("@/app/actions/workboard-ai", () => ({
+  readEquipmentPhoto: jest.fn(async () => ({ ok: false, reason: "no-key" })),
+}));
+const deleteDocument = jest.fn(async () => ({ ok: true }));
+jest.mock("@/app/actions/documents", () => ({
+  deleteDocument: (...a: unknown[]) => deleteDocument(...(a as [])),
+}));
+jest.mock("@/lib/documents/upload-client", () => ({
+  uploadFile: jest.fn(async () => ({
+    ok: true,
+    file: { documentId: "d-new", fileName: "x.jpg", mimeType: "image/jpeg", sizeBytes: 1, previewUrl: null },
+  })),
+}));
 
 const act = {
   setProjectStage: jest.fn(async () => ({ ok: true })),
@@ -82,6 +95,7 @@ const pact = {
   removeMilestone: jest.fn(async () => ({ ok: true })),
   spawnAgreementFromProject: jest.fn(async () => ({ ok: true, id: "a-new" })),
   addProjectEntry: jest.fn(async () => ({ ok: true })),
+  attachDocumentToProject: jest.fn(async () => ({ ok: true })),
 };
 jest.mock("@/app/actions/workboard-projects", () => ({
   setProjectBlocked: (...a: unknown[]) => pact.setProjectBlocked(...(a as [])),
@@ -103,6 +117,7 @@ jest.mock("@/app/actions/workboard-projects", () => ({
   removeMilestone: (...a: unknown[]) => pact.removeMilestone(...(a as [])),
   spawnAgreementFromProject: (...a: unknown[]) => pact.spawnAgreementFromProject(...(a as [])),
   addProjectEntry: (...a: unknown[]) => pact.addProjectEntry(...(a as [])),
+  attachDocumentToProject: (...a: unknown[]) => pact.attachDocumentToProject(...(a as [])),
 }));
 
 const TODAY = "2026-07-30";
@@ -159,6 +174,7 @@ function detail(over: Partial<ProjectDetail> = {}): ProjectDetail {
     variations: [],
     claims: [],
     milestones: [],
+    documents: [],
     hoursLogged: 0,
     ...over,
   };
@@ -447,6 +463,32 @@ describe("the flywheel", () => {
     mount(detail({ stage: "Handover", agreementId: "a-1", agreementLabel: "Bowden St ducted" }));
     expect(screen.queryByRole("button", { name: "Set up the agreement" })).not.toBeInTheDocument();
     expect(screen.getByText(/on the maintenance board/)).toBeInTheDocument();
+  });
+});
+
+describe("documents & photos", () => {
+  it("lists the project's files with a signed Open link, and deletes in place", async () => {
+    mount(
+      detail({
+        documents: [
+          {
+            id: "d-1",
+            fileName: "before-cover-up.jpg",
+            mimeType: "image/jpeg",
+            sizeBytes: 2_400_000,
+            uploadedAt: "2026-07-28T02:00:00Z",
+            url: "https://signed.example/x",
+          },
+        ],
+      })
+    );
+    expect(screen.getByText("before-cover-up.jpg")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute(
+      "href",
+      "https://signed.example/x"
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Remove before-cover-up.jpg" }));
+    expect(deleteDocument).toHaveBeenCalledWith("d-1");
   });
 });
 

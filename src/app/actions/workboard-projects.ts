@@ -959,6 +959,42 @@ export async function spawnAgreementFromProject(
   return { ok: true, id: made.id };
 }
 
+/* ---------------- documents & photos (tick tier — site evidence) ---------------- */
+
+/** Point an uploaded file at this project. The bytes went straight to
+    storage through the shared slot flow; this is the last step, and it only
+    accepts a LANDED project_file in this org — never someone else's row. */
+export async function attachDocumentToProject(
+  documentId: string,
+  projectId: string
+): Promise<ProjectsResult> {
+  const ctx = await context();
+  if (!ctx) return NOT_SIGNED_IN;
+  if (!(await can("workboard"))) return NO_VIEW;
+  if (!(await projectIn(ctx.orgId, projectId))) return GONE;
+
+  const { data } = await supabaseAdmin
+    .from("documents")
+    .select("id, kind, uploaded_at")
+    .eq("org_id", ctx.orgId)
+    .eq("id", documentId)
+    .maybeSingle();
+  const doc = data as { id: string; kind: string; uploaded_at: string | null } | null;
+  if (!doc || doc.kind !== "project_file" || !doc.uploaded_at) {
+    return { ok: false, error: "That upload didn't land." };
+  }
+
+  const { error } = await supabaseAdmin
+    .from("documents")
+    .update({ project_id: projectId })
+    .eq("org_id", ctx.orgId)
+    .eq("id", documentId);
+  if (error) return { ok: false, error: "Couldn't attach the file." };
+  await touchProject(ctx.orgId, projectId);
+  refresh(projectId);
+  return { ok: true };
+}
+
 /* ---------------- the journal (tick tier — site facts) ---------------- */
 
 /** A dated line in the project's story — progress or a commissioning

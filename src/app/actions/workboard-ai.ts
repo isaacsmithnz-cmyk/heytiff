@@ -18,6 +18,108 @@ function offline(): string | null {
   return process.env.ANTHROPIC_API_KEY ? null : "no-key";
 }
 
+/* ── the equipment photo (projects step 5) ──
+
+   The nameplate on an installed unit carries everything the register wants
+   — brand, model, serial — in the worst photographable spot on the job.
+   Same validated-call pattern as the receipt readers: schema out, every
+   field re-checked in TypeScript, and THE OUTPUT IS A DRAFT — it prefills
+   the add-equipment form and a person corrects it before anything saves. */
+
+export type EquipmentRead = {
+  description: string | null;
+  model: string | null;
+  serial: string | null;
+};
+
+export type ReadEquipmentResult = { ok: true; read: EquipmentRead } | { ok: false; reason: string };
+
+const EQUIPMENT_SCHEMA = {
+  type: "object",
+  properties: {
+    description: { anyOf: [{ type: "string" }, { type: "null" }] },
+    model: { anyOf: [{ type: "string" }, { type: "null" }] },
+    serial: { anyOf: [{ type: "string" }, { type: "null" }] },
+  },
+  required: ["description", "model", "serial"],
+  additionalProperties: false,
+} as const;
+
+const PHOTO_MEDIA = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
+type PhotoMedia = (typeof PHOTO_MEDIA)[number];
+
+export async function readEquipmentPhoto(
+  imageBase64: string,
+  mediaType: string
+): Promise<ReadEquipmentResult> {
+  if (!(await can("workboard"))) {
+    return { ok: false, reason: "You don't have access to the Workboard." };
+  }
+  if (offline()) return { ok: false, reason: "no-key" };
+  if (!PHOTO_MEDIA.includes(mediaType as PhotoMedia)) {
+    return { ok: false, reason: "Unsupported image type." };
+  }
+  if (!imageBase64 || imageBase64.length > 14_000_000) {
+    return { ok: false, reason: "That photo is too large to read." };
+  }
+
+  try {
+    const client = new Anthropic();
+    const response = await client.messages.create({
+      model: MODEL,
+      max_tokens: 16000,
+      output_config: {
+        effort: "low",
+        format: { type: "json_schema", schema: EQUIPMENT_SCHEMA },
+      },
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "image",
+              source: { type: "base64", media_type: mediaType as PhotoMedia, data: imageBase64 },
+            },
+            {
+              type: "text",
+              text:
+                "This is a photo of HVAC equipment or its nameplate/rating label, taken by an " +
+                "installer recording what went onto a job. Extract:\n" +
+                "- description: what the unit IS, short and plain — brand and type, e.g. " +
+                "\"Mitsubishi Electric ducted indoor unit\" or \"Daikin 7.1kW outdoor unit\"\n" +
+                "- model: the model number exactly as printed (e.g. \"PEAD-M100JAA\")\n" +
+                "- serial: the serial number exactly as printed\n" +
+                "Read only what is clearly printed. Model and serial numbers must be " +
+                "character-for-character — never reconstruct a partial one. Use null for " +
+                "anything not clearly readable.",
+            },
+          ],
+        },
+      ],
+    });
+
+    if (response.stop_reason === "refusal") {
+      return { ok: false, reason: "Tiff declined to read this image." };
+    }
+
+    const text = response.content.find((b) => b.type === "text")?.text ?? "";
+    const parsed = JSON.parse(text) as Record<string, unknown>;
+    const str = (v: unknown, max: number): string | null =>
+      typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null;
+
+    return {
+      ok: true,
+      read: {
+        description: str(parsed.description, 160),
+        model: str(parsed.model, 80),
+        serial: str(parsed.serial, 80),
+      },
+    };
+  } catch (err) {
+    return { ok: false, reason: reasonFor(err) };
+  }
+}
+
 function reasonFor(err: unknown): string {
   if (err instanceof Anthropic.AuthenticationError) return "Tiff is offline — API key rejected.";
   if (err instanceof Anthropic.RateLimitError) return "Tiff is busy — try again in a minute.";

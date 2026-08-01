@@ -7,7 +7,10 @@ import {
   DEFAULT_CHECKLIST,
   isProjectStage,
   isProjectStatus,
+  nextStage,
   PROJECT_STAGES,
+  SECTION_STAGES,
+  stageAdvice,
 } from "../stages";
 
 describe("the stage pipeline", () => {
@@ -29,7 +32,67 @@ describe("the stage pipeline", () => {
     expect(isProjectStage("rough-in")).toBe(false); // case matters — it's a pin
     expect(isProjectStage("Defects")).toBe(false);
     expect(isProjectStatus("on_hold")).toBe(true);
+    expect(isProjectStatus("blocked")).toBe(true); // first-class (P4)
     expect(isProjectStatus("paused")).toBe(false);
+  });
+});
+
+describe("stage advance — manual, checklist-aware (P5)", () => {
+  /** The seed, part-ticked: a helper so each case reads as a story. */
+  const items = (doneSections: string[], extra: { section: string; done: boolean }[] = []) =>
+    DEFAULT_CHECKLIST.map((i) => ({
+      section: i.section,
+      done: doneSections.includes(i.section),
+    })).concat(extra);
+
+  it("every mapped section's stages exist and cover the working pipeline", () => {
+    for (const m of SECTION_STAGES) {
+      for (const s of m.stages) expect(isProjectStage(s)).toBe(true);
+      expect(DEFAULT_CHECKLIST.some((i) => i.section === m.section)).toBe(true);
+    }
+  });
+
+  it("a completed section nudges out of its LAST stage only", () => {
+    const ready = items(["Approval & prep"]);
+    expect(stageAdvice("Pre-install", ready).nudge).toBe(true);
+    // Quote and Approved share the section but a full section says nothing there
+    expect(stageAdvice("Quote", ready).nudge).toBe(false);
+    expect(stageAdvice("Approved", ready).nudge).toBe(false);
+    // Rough-in has no section voice of its own — Fit-off closes "On the tools"
+    expect(stageAdvice("Rough-in", items(["On the tools"])).nudge).toBe(false);
+    expect(stageAdvice("Fit-off", items(["On the tools"])).nudge).toBe(true);
+  });
+
+  it("an incomplete section never nudges, and its counts are honest", () => {
+    const advice = stageAdvice("Pre-install", items([]));
+    expect(advice.nudge).toBe(false);
+    expect(advice.gateSection).toBe("Approval & prep");
+    expect(advice.sectionDone).toBe(0);
+    expect(advice.sectionTotal).toBe(4);
+  });
+
+  it("leftBehind counts unticked items in every section owed by this stage", () => {
+    // Leaving Fit-off owes Approval & prep (4) AND On the tools (4).
+    expect(stageAdvice("Fit-off", items([])).leftBehind).toBe(8);
+    expect(stageAdvice("Fit-off", items(["Approval & prep"])).leftBehind).toBe(4);
+    // Leaving Rough-in owes only Approval & prep — the tools aren't done mid-stretch.
+    expect(stageAdvice("Rough-in", items([])).leftBehind).toBe(4);
+  });
+
+  it("custom sections someone added never gate anything", () => {
+    const withCustom = items(["Approval & prep"], [{ section: "Client extras", done: false }]);
+    const advice = stageAdvice("Pre-install", withCustom);
+    expect(advice.nudge).toBe(true);
+    expect(advice.leftBehind).toBe(0);
+  });
+
+  it("Complete is terminal; unknown stages advise nothing", () => {
+    expect(nextStage("Complete")).toBeNull();
+    expect(nextStage("Handover")).toBe("Complete");
+    const advice = stageAdvice("Complete", items([]));
+    expect(advice.next).toBeNull();
+    expect(advice.nudge).toBe(false);
+    expect(stageAdvice("Nonsense", items([])).leftBehind).toBe(0);
   });
 });
 

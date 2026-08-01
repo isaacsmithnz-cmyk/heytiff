@@ -43,7 +43,7 @@ async function context(): Promise<Ctx | null> {
   return { orgId, userId };
 }
 
-function refresh(agreementId?: string) {
+function refresh(agreementId?: string | null) {
   revalidatePath("/dashboard/workboard");
   revalidatePath("/dashboard/workboard/maintenance");
   if (agreementId) revalidatePath(`/dashboard/workboard/maintenance/${agreementId}`);
@@ -95,17 +95,34 @@ async function agreementIn(orgId: string, id: string): Promise<{ id: string } | 
   return (data as { id: string } | null) ?? null;
 }
 
+/** A visit belongs to an agreement OR a project (one parent, checked in the
+    schema) — every shared action here works on both, so agreement_id is
+    nullable and the agreement-only tails guard on it. */
 async function visitIn(
   orgId: string,
   id: string
-): Promise<{ id: string; agreement_id: string; readiness: unknown; status: string } | null> {
+): Promise<{
+  id: string;
+  agreement_id: string | null;
+  project_id: string | null;
+  readiness: unknown;
+  status: string;
+} | null> {
   const { data } = await supabaseAdmin
     .from("maintenance_visits")
-    .select("id, agreement_id, readiness, status")
+    .select("id, agreement_id, project_id, readiness, status")
     .eq("org_id", orgId)
     .eq("id", id)
     .maybeSingle();
-  return (data as { id: string; agreement_id: string; readiness: unknown; status: string } | null) ?? null;
+  return (
+    (data as {
+      id: string;
+      agreement_id: string | null;
+      project_id: string | null;
+      readiness: unknown;
+      status: string;
+    } | null) ?? null
+  );
 }
 
 async function categoryIn(orgId: string, id: string): Promise<{ id: string } | null> {
@@ -628,7 +645,9 @@ export async function completeVisit(
     .in("status", ["upcoming", "booked"]);
   if (error) return { ok: false, error: "Couldn't complete the visit." };
 
-  await ensureVisits(ctx.orgId, { agreementId: visit.agreement_id });
+  // Generation is an agreement thing — project trips are hand-made, so
+  // closing one must not top any horizon up.
+  if (visit.agreement_id) await ensureVisits(ctx.orgId, { agreementId: visit.agreement_id });
   refresh(visit.agreement_id);
   return { ok: true };
 }
@@ -707,7 +726,7 @@ export async function clearVisitPlacement(visitId: string): Promise<MaintenanceR
     .maybeSingle();
   const visit = data as {
     id: string;
-    agreement_id: string;
+    agreement_id: string | null;
     status: string;
     remote_id: string | null;
     job_number: string | null;

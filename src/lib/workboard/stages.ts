@@ -30,7 +30,10 @@ export function isProjectStage(v: unknown): v is ProjectStage {
   return typeof v === "string" && (PROJECT_STAGES as readonly string[]).includes(v);
 }
 
-export const PROJECT_STATUSES = ["active", "on_hold", "done", "archived"] as const;
+/* Blocked is first-class (decision P4, 2026-08-01): a job that WANTS to move
+   but can't is different news from one deliberately parked. Blocking requires
+   a reason and who it's waiting on; on_hold stays quiet. */
+export const PROJECT_STATUSES = ["active", "blocked", "on_hold", "done", "archived"] as const;
 export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
 
 export function isProjectStatus(v: unknown): v is ProjectStatus {
@@ -69,4 +72,83 @@ export function checklistProgress(items: readonly { done: boolean }[]): {
   const total = items.length;
   const done = items.filter((i) => i.done).length;
   return { done, total, percent: total === 0 ? 0 : Math.round((done / total) * 100) };
+}
+
+/* ── stage advance: manual, checklist-aware (decision P5) ──
+
+   A PERSON moves the stage; ticks are facts, never levers. The checklist
+   informs the move two ways: a NUDGE when the section that maps to the
+   current stretch of the pipeline is fully ticked, and a WARN (never a
+   block) when advancing would leave items behind. Custom sections someone
+   added to a project's checklist never gate anything — only the seeded four
+   speak for the pipeline. */
+
+/** Which stages each seeded section speaks for, in pipeline order. The LAST
+    stage in each list is the one a completed section nudges out of —
+    "Approval & prep all ticked" says leave Pre-install, not leave Quote. */
+export const SECTION_STAGES: readonly { section: string; stages: readonly ProjectStage[] }[] = [
+  { section: "Approval & prep", stages: ["Quote", "Approved", "Pre-install"] },
+  { section: "On the tools", stages: ["Rough-in", "Fit-off"] },
+  { section: "Commissioning", stages: ["Commission"] },
+  { section: "Handover", stages: ["Handover"] },
+];
+
+export function stageIndex(stage: string): number {
+  return (PROJECT_STAGES as readonly string[]).indexOf(stage);
+}
+
+export function nextStage(stage: string): ProjectStage | null {
+  const i = stageIndex(stage);
+  if (i < 0 || i >= PROJECT_STAGES.length - 1) return null;
+  return PROJECT_STAGES[i + 1];
+}
+
+export type StageAdvice = {
+  next: ProjectStage | null;
+  /** The section whose completion signals this stage is finished — null for
+      stages with no checklist voice (Quote, Approved, Rough-in, Complete). */
+  gateSection: string | null;
+  sectionDone: number;
+  sectionTotal: number;
+  /** Section exists, has items, and every one is ticked — offer the move. */
+  nudge: boolean;
+  /** Items still unticked in every section at or before this stage — the
+      honest count behind "advance anyway?". */
+  leftBehind: number;
+};
+
+export function stageAdvice(
+  stage: string,
+  items: readonly { section: string; done: boolean }[]
+): StageAdvice {
+  const next = nextStage(stage);
+
+  let gateSection: string | null = null;
+  for (const m of SECTION_STAGES) {
+    if (m.stages[m.stages.length - 1] === stage) gateSection = m.section;
+  }
+
+  const inSection = gateSection ? items.filter((i) => i.section === gateSection) : [];
+  const sectionDone = inSection.filter((i) => i.done).length;
+  const sectionTotal = inSection.length;
+
+  // Sections that should be finished before LEAVING this stage: every mapped
+  // section whose final stage sits at or before the current one.
+  const here = stageIndex(stage);
+  const owed = new Set(
+    SECTION_STAGES.filter((m) => {
+      const last = m.stages[m.stages.length - 1];
+      return here >= 0 && stageIndex(last) <= here;
+    }).map((m) => m.section)
+  );
+  const leftBehind = items.filter((i) => owed.has(i.section) && !i.done).length;
+
+  return {
+    next,
+    gateSection,
+    sectionDone,
+    sectionTotal,
+    nudge: next !== null && sectionTotal > 0 && sectionDone === sectionTotal,
+    leftBehind,
+  };
 }

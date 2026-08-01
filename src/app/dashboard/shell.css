@@ -2978,25 +2978,6 @@ select.fl-i { cursor:pointer; }
 .wb-pulse { animation:wbPulse 2.4s ease-in-out infinite; border:1px solid rgba(224,38,79,.5); }
 @media (prefers-reduced-motion:reduce) { .wb-pulse { animation:none; } }
 
-/* display mode: the board itself is the fullscreen element */
-.wb-board:fullscreen { background:var(--ink); padding:44px 56px; overflow:auto; gap:22px; }
-.wb-board:fullscreen .wb-stat { background:rgba(255,255,255,.05); border-color:rgba(255,255,255,.1); }
-.wb-board:fullscreen .wb-stat b { color:#fff; font-size:56px; }
-.wb-board:fullscreen .wb-stat em { color:rgba(255,255,255,.55); font-size:14px; }
-.wb-board:fullscreen .card2 { background:rgba(255,255,255,.04); border-color:rgba(255,255,255,.09); }
-.wb-board:fullscreen .card2 b { color:#fff; }
-.wb-board:fullscreen .card2 em, .wb-board:fullscreen .int-hint { color:rgba(255,255,255,.55); }
-.wb-board:fullscreen .wb-dayhead { color:rgba(255,255,255,.45); }
-.wb-board:fullscreen .wb-row { color:#fff; }
-.wb-board:fullscreen .wb-row:hover { background:rgba(255,255,255,.05); }
-.wb-board:fullscreen .wb-time { color:#00E5C0; font-size:16px; min-width:76px; }
-.wb-board:fullscreen .wb-who { font-size:16.5px; }
-.wb-board:fullscreen .wb-who em { color:rgba(255,255,255,.5); }
-.wb-board:fullscreen .wb-tech { color:rgba(255,255,255,.65); font-size:14px; }
-.wb-board:fullscreen .wb-chip { background:rgba(255,255,255,.1); color:rgba(255,255,255,.8); font-size:12.5px; }
-.wb-board:fullscreen .wb-chip.on { background:rgba(0,229,192,.16); color:#00E5C0; }
-.wb-board:fullscreen .wb-chip.bad { background:rgba(224,38,79,.22); color:#ff5c82; }
-.wb-board:fullscreen .wb-stamp { color:rgba(255,255,255,.4); }
 
 /* projects */
 .wb-projgrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:14px; }
@@ -3062,7 +3043,6 @@ select.fl-i { cursor:pointer; }
 .wb-chip:disabled { cursor:default; opacity:.7; }
 button.wb-chip { cursor:pointer; border:none; font:inherit; font-size:11px; font-weight:700; }
 button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
-.wb-board:fullscreen .wb-visit { border-color:rgba(255,255,255,.09); }
 
 /* ── Workboard command centre ──────────────────────────────────────────────
    The 6am layer: the switcher, the three vitals, the load rail, the readiness
@@ -3187,40 +3167,8 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
   .wb-pipnote { display:none; }
 }
 
-/* ── DISPLAY MODE ── the same board, dark, read from across a workshop */
-.wb-board:fullscreen .wb-vitals { gap:18px; }
-.wb-board:fullscreen .wb-vital { background:rgba(255,255,255,.05); border-color:rgba(255,255,255,.1); }
-.wb-board:fullscreen .wb-vital.urgent { background:rgba(224,38,79,.16); border-color:rgba(224,38,79,.45); }
-.wb-board:fullscreen .wb-vital.attention { background:rgba(255,138,0,.14); border-color:rgba(255,138,0,.4); }
-.wb-board:fullscreen .wb-vital.on { border-color:rgba(255,255,255,.4); box-shadow:0 0 0 3px rgba(255,255,255,.12); }
-.wb-board:fullscreen .wb-vital b { color:#fff; font-size:64px; }
-.wb-board:fullscreen .wb-vital span { color:rgba(255,255,255,.8); font-size:16px; }
-.wb-board:fullscreen .wb-vital em { color:rgba(255,255,255,.5); font-size:13.5px; }
-.wb-board:fullscreen .wb-vital.urgent b { color:#ff5c82; }
-.wb-board:fullscreen .wb-vital.attention b { color:#FFB454; }
-.wb-board:fullscreen .wb-railcol:hover { background:rgba(255,255,255,.05); }
-.wb-board:fullscreen .wb-railcol.over, .wb-board:fullscreen .wb-railcol.urgent { background:rgba(224,38,79,.14); }
-.wb-board:fullscreen .wb-railcol.attention { background:rgba(255,138,0,.14); }
-.wb-board:fullscreen .wb-railstack { min-height:96px; border-bottom-color:rgba(255,255,255,.16); }
-.wb-board:fullscreen .wb-raildot { width:38px; height:15px; }
-.wb-board:fullscreen .wb-raildot.overdue { background:#ff5c82; }
-.wb-board:fullscreen .wb-railcol b { color:#fff; font-size:19px; }
-.wb-board:fullscreen .wb-railcol em { color:rgba(255,255,255,.55); font-size:12.5px; }
-.wb-board:fullscreen .wb-railmore { color:rgba(255,255,255,.5); }
-.wb-board:fullscreen .wb-pips i { background:rgba(255,255,255,.18); }
-.wb-board:fullscreen .wb-pips i.on { background:#00E5C0; }
-.wb-board:fullscreen .wb-pipnote { color:rgba(255,255,255,.6); font-size:13px; }
-.wb-board:fullscreen .wb-sdot { background:rgba(255,255,255,.14); }
-.wb-board:fullscreen .wb-sdot.past { background:rgba(0,229,192,.5); }
-.wb-board:fullscreen .wb-chip.warn { background:rgba(255,138,0,.22); color:#FFB454; }
 /* background too, not just the border — the base :fullscreen .wb-chip fill
    would otherwise turn the outline chip back into a solid one */
-.wb-board:fullscreen .wb-chip.ghost { background:transparent; border-color:rgba(255,255,255,.25); color:rgba(255,255,255,.45); }
-.wb-board:fullscreen .wb-dayhead i { color:rgba(255,255,255,.35); }
-.wb-board:fullscreen .wb-runcounts { color:rgba(255,255,255,.55); font-size:14px; }
-.wb-board:fullscreen .wb-runcounts i { color:#fff; }
-.wb-board:fullscreen .wb-projsub { color:rgba(255,255,255,.55); }
-.wb-board:fullscreen .wb-projhead b { color:#fff; }
 
 /* ── wb2 — the redesigned maintenance board ────────────────────────────────
    The five-tab command centre (audit E7/K9): Chrome-style tabs joined to ONE
@@ -3669,3 +3617,62 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible { outli
   .wb2-agbook { margin-left:0; flex-wrap:wrap; }
   .wb2-dnact { align-items:flex-start; justify-self:start; flex-direction:row; }
 }
+
+/* ── wb2 step 5: the capture pill + overlay, and the LIGHT wall ──
+   Display mode is the workshop TV: the SAME light theme as the board
+   (decided 2026-08-01 — the old dark flip is gone and stays gone), scaled
+   to be read from across a room, zero interactivity. */
+
+.wb-board:fullscreen { background:#F0F2F5; padding:40px 52px; overflow:auto; }
+
+/* the pill — near-zero idle footprint, docked by the page header */
+.wb2-pill { display:inline-flex; align-items:center; gap:8px; }
+.wb2-pillbtn { display:inline-flex; align-items:center; gap:8px; height:42px; padding:0 16px; border-radius:999px;
+  border:1px solid rgba(5,5,5,.12); background:#fff; font:inherit; font-size:13px; font-weight:700; color:var(--gray700);
+  cursor:pointer; transition:border-color .2s, transform .2s cubic-bezier(.22,1,.36,1), box-shadow .2s; }
+.wb2-pillbtn:hover { border-color:rgba(5,5,5,.28); transform:translateY(-1px); box-shadow:0 6px 14px -10px rgba(10,12,20,.6); }
+.wb2-pillmic { width:42px; height:42px; border-radius:999px; border:1px solid rgba(5,5,5,.12); background:#fff;
+  color:#0089b8; display:grid; place-items:center; cursor:pointer; transition:border-color .2s, background .2s; }
+.wb2-pillmic:hover { border-color:rgba(0,137,184,.5); background:rgba(0,168,224,.07); }
+.wb2-pillbtn:focus-visible, .wb2-pillmic:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
+
+/* the overlay — a dim (never a blur) with the ribbon card riding high */
+.wb2-capdim { position:fixed; inset:0; z-index:110; background:rgba(10,11,16,.45); animation:wb2Fade .3s both; }
+.wb2-capcard { position:fixed; top:9vh; left:50%; transform:translateX(-50%); z-index:111;
+  width:min(680px, calc(100vw - 32px)); max-height:80vh; overflow-y:auto; overscroll-behavior:contain;
+  background:#fff; border:1px solid rgba(5,5,5,.08); border-radius:20px;
+  box-shadow:0 30px 80px -30px rgba(10,12,20,.6); padding:16px 18px 18px;
+  animation:wb2CardIn .32s cubic-bezier(.22,1,.36,1) both; }
+.wb2-capribbon { display:flex; align-items:center; gap:10px; padding-bottom:12px; margin-bottom:12px;
+  border-bottom:1px solid rgba(5,5,5,.06); color:var(--gray700); }
+.wb2-capribbon b { font-size:14.5px; font-weight:800; color:var(--ink); }
+.wb2-capribbon .wb2-chip { margin-left:auto; }
+.wb2-capribbon .wb2-ico { margin-left:0; flex:none; }
+.wb2-capclock { font-variant-numeric:tabular-nums; font-size:12.5px; font-weight:800; color:var(--gray700); }
+.wb2-recdot { width:10px; height:10px; border-radius:50%; background:#e0264f; flex:none; animation:fgPulse 1.6s ease-in-out infinite; }
+.wb2-capact { display:flex; align-items:center; justify-content:flex-end; gap:9px; margin-top:12px; flex-wrap:wrap; }
+.wb2-caprec { display:flex; flex-direction:column; align-items:center; gap:10px; padding:14px 0 2px; }
+.wb2-caprec .wb-lvl { height:34px; }
+.wb2-caprec .wb-lvl i { height:34px; width:4px; }
+.wb2-capcard .wb2-sherr { margin:0 0 10px; }
+.wb2-capcard .wb2-notes { margin-bottom:0; }
+
+/* the wall */
+.wb2-wall { display:flex; flex-direction:column; gap:22px; }
+.wb2-wallhd { display:flex; align-items:baseline; gap:14px; }
+.wb2-wallhd b { font-size:34px; font-weight:800; letter-spacing:-.03em; }
+.wb2-wallhd em { font-style:normal; font-size:17px; font-weight:700; color:var(--gray500); }
+.wb2-wallcols { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.15fr); gap:22px; align-items:start; }
+.wb2-wallq, .wb2-wallcal { background:#fff; border:1px solid rgba(5,5,5,.08); border-radius:24px; padding:20px 22px; }
+.wb2-wallq h2, .wb2-wallcal h2 { font-size:15px; font-weight:800; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--gray500); margin:0 0 14px; }
+.wb2-wallrow { display:flex; flex-direction:column; gap:6px; padding:13px 15px; border-radius:14px; margin-bottom:9px;
+  border:1px solid rgba(255,138,0,.3); background:rgba(255,138,0,.05); }
+.wb2-wallrow[data-sev="dan"] { border-color:rgba(224,38,79,.3); background:rgba(224,38,79,.05); }
+.wb2-wallrow b { font-size:18px; font-weight:800; letter-spacing:-.015em; }
+.wb2-wallrow .wb2-chip { align-self:flex-start; font-size:12.5px; }
+.wb2-wallcalm { font-size:15px; font-weight:600; color:var(--gray500); }
+.wb2-wallgrid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:7px; }
+.wb2-wallgrid .wb2-mcc { min-height:72px; pointer-events:none; }
+.wb2-wallgrid .wb2-mcn { font-size:11.5px; }
+@media (max-width:1100px) { .wb2-wallcols { grid-template-columns:1fr; } }

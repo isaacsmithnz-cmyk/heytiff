@@ -107,6 +107,11 @@ export function agoLabel(iso: string, today: string): string {
   return `${Math.ceil(n / 30.4)} months ago`;
 }
 
+export function isWeekendClass(iso: string): string {
+  const dow = new Date(`${iso}T12:00:00Z`).getUTCDay();
+  return dow === 0 || dow === 6 ? " we" : "";
+}
+
 export function initialsOf(name: string): string {
   return name
     .split(" ")

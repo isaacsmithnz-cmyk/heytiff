@@ -17,6 +17,7 @@ import type { ProjectStripItem } from "@/lib/workboard/projects-query";
 import type { WorkboardData } from "@/lib/workboard/page-data";
 import { NoteCapture } from "./note-capture";
 import { MaintenanceBoard } from "./board/maintenance-board";
+import { MaintenanceWall } from "./board/wall";
 import { clearFlag } from "@/app/actions/workboard-notes";
 
 /* The Workboard — a command centre, not a menu.
@@ -207,6 +208,8 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
   const [tab, setTab] = useState<TabKey>("maintenance");
   const [filter, setFilter] = useState<Filter>("all");
   const [busy, start] = useTransition();
+  /** What the capture pill attaches to — a visit while its sheet is open. */
+  const [capture, setCapture] = useState<{ visitId: string; label: string } | null>(null);
 
   // Fullscreen state follows the browser, not our button — Esc must work.
   useEffect(() => {
@@ -280,6 +283,14 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
               </p>
             </div>
             <div className="wb-headtools">
+              {/* The capture pill docks by the page header on every screen
+                  (D15) — outside the board element, so Display mode never
+                  fullscreens a control nobody at the TV can press. */}
+              <NoteCapture
+                target={capture ? { kind: "visit", id: capture.visitId } : { kind: "none" }}
+                targetLabel={capture?.label}
+                voiceEnabled={data.voiceEnabled}
+              />
               {/* data-active drives the sliding thumb, the studio idiom */}
               <nav className="segsw" aria-label="Board" data-active={TABS.findIndex((t) => t.key === tab)}>
                 <span className="segsw-thumb" aria-hidden="true" />
@@ -294,23 +305,12 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
                   </button>
                 ))}
               </nav>
-              {/* Display mode returns for the maintenance side in build step 5
-                  as its own wall composition (Urgent + four-week calendar,
-                  LIGHT theme) — until then the button only offers the projects
-                  board it can still honestly show. */}
-              {tab === "projects" && (
-                <button className="pbtn ghost" onClick={toDisplay} title="Fullscreen for a wall screen">
-                  <Icon name="maximize" size={16} />
-                  Display mode
-                </button>
-              )}
+              <button className="pbtn ghost" onClick={toDisplay} title="Fullscreen for a wall screen">
+                <Icon name="maximize" size={16} />
+                Display mode
+              </button>
             </div>
           </div>
-
-          {/* Outside the board element on purpose: Display mode is a wall
-              screen nobody is typing at, and a fullscreened textarea would
-              just be dead space. */}
-          {!display && <NoteCapture target={{ kind: "none" }} voiceEnabled={data.voiceEnabled} />}
 
           <div className="wb-board" ref={boardRef}>
             {/* Projects side only: the maintenance board carries the same
@@ -370,23 +370,30 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
             )}
 
             {tab === "maintenance" ? (
-              <MaintenanceBoard
-                data={data.board}
-                flags={data.flags}
-                today={data.today}
-                manage={data.manage}
-                connected={connected}
-                aiEnabled={data.aiEnabled}
-                sm8={
-                  data.connection === "none"
-                    ? null
-                    : {
-                        attention: data.connection === "attention",
-                        syncedAt: data.synced?.finishedAt ?? null,
-                        running: data.synced?.running ?? false,
-                      }
-                }
-              />
+              display ? (
+                /* The wall composition (A10): Urgent + four weeks, LIGHT,
+                   zero interactivity — not "fullscreen the current tab". */
+                <MaintenanceWall data={data.board} flags={data.flags} today={data.today} />
+              ) : (
+                <MaintenanceBoard
+                  data={data.board}
+                  flags={data.flags}
+                  today={data.today}
+                  manage={data.manage}
+                  connected={connected}
+                  aiEnabled={data.aiEnabled}
+                  sm8={
+                    data.connection === "none"
+                      ? null
+                      : {
+                          attention: data.connection === "attention",
+                          syncedAt: data.synced?.finishedAt ?? null,
+                          running: data.synced?.running ?? false,
+                        }
+                  }
+                  onCaptureTarget={setCapture}
+                />
+              )
             ) : (
               <>
                 <div className="card2">

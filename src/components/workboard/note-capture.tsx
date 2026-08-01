@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { SEVERITIES, type NoteProposal, type NoteStaff } from "@/lib/workboard/note-brain";
@@ -13,17 +14,20 @@ import {
   type NoteTarget,
 } from "@/app/actions/workboard-notes";
 
-/* Say it, then check it.
+/* Say it, then check it — now worn as the PILL (D15, decided 2026-08-01).
 
-   The whole safety model of Smart Notes lives in this component: the server
-   never applies what the model produced, it applies what came back from
-   THIS card. Every row is editable and every row can be dropped, so a
-   misheard word costs a tick rather than a task assigned to the wrong
-   person. Nothing is written until "Save these".
+   The ENGINE is the shipped one and does not move: the server never applies
+   what the model produced, it applies what came back from THIS card; every
+   row is editable and droppable; typing is first-class and the mic is an
+   enhancement — no microphone, no problem. What changed is the clothes:
+   idle is a near-zero pill docked by the page header ("Add note" is the
+   text half, never an icon alone), pressing it dims the board under an
+   overlay ribbon that names its TARGET out loud ("Against: …" or "General
+   note"), and the editable review renders inside that same overlay.
 
-   Voice is an enhancement on typing, not a replacement: the textarea is
-   always there, and the mic simply fills it in. If transcription is off, or
-   the browser won't give us a microphone, the feature still works. */
+   Nothing from the prototype's wb-voice.js is ported — its word-by-word
+   transcript was scripted demo code. This engine transcribes when you stop,
+   and the overlay says exactly that. */
 
 type Draft = {
   tasks: { on: boolean; title: string; detail: string; assigneeId: string | null; dueDate: string; hint: string }[];
@@ -72,22 +76,25 @@ function toConfirmed(d: Draft): ConfirmedNote {
 }
 
 /* Every bucket of a ConfirmedNote is an array, so "nothing is ticked" is just
-   "they are all empty" — spelling out the six by name meant six builds of the
-   whole payload per call, and a seventh bucket would have been silently
-   uncounted until someone remembered to add a seventh line. */
+   "they are all empty". */
 const nothingTicked = (d: Draft): boolean =>
   Object.values(toConfirmed(d)).every((bucket) => bucket.length === 0);
 
 export function NoteCapture({
   target,
+  targetLabel,
   voiceEnabled,
 }: {
   target: NoteTarget;
+  /** What the ribbon says the note lands against — "Meridian Data · Server
+      room CRACs" with a sheet open, absent = "General note". */
+  targetLabel?: string;
   /** ELEVENLABS_API_KEY is set on this deployment. */
   voiceEnabled: boolean;
 }) {
   const router = useRouter();
   const [busy, start] = useTransition();
+  const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<{ id: string; proposal: NoteProposal; staff: NoteStaff[] } | null>(null);
@@ -97,8 +104,11 @@ export function NoteCapture({
 
   const [recording, setRecording] = useState(false);
   const [listening, setListening] = useState(false);
+  const [seconds, setSeconds] = useState(0);
   const recorder = useRef<MediaRecorder | null>(null);
+  const discard = useRef(false);
   const bars = useRef<HTMLSpanElement | null>(null);
+  const textRef = useRef<HTMLTextAreaElement | null>(null);
 
   const reset = () => {
     setNote(null);
@@ -106,6 +116,30 @@ export function NoteCapture({
     setAnswer("");
     setText("");
   };
+
+  const close = () => {
+    if (recorder.current?.state === "recording") {
+      discard.current = true;
+      recorder.current.stop();
+    }
+    reset();
+    setError(null);
+    setOpen(false);
+  };
+
+  // the pill's little "saved" confirmation fades on its own
+  useEffect(() => {
+    if (!done) return;
+    const t = setTimeout(() => setDone(null), 4000);
+    return () => clearTimeout(t);
+  }, [done]);
+
+  // the recording clock — zeroed where recording STARTS, ticked here
+  useEffect(() => {
+    if (!recording) return;
+    const t = setInterval(() => setSeconds((s) => s + 1), 1000);
+    return () => clearInterval(t);
+  }, [recording]);
 
   const read = (source: "text" | "voice", transcript: string) => {
     setError(null);
@@ -122,14 +156,8 @@ export function NoteCapture({
     });
   };
 
-  /* ── voice ── */
+  /* ── voice (the engine — real-sample meter, unmount releases the mic) ── */
 
-  /* A pulsing button proves the app THINKS it is recording. It does not prove
-     the microphone can hear you — a muted input, the wrong device or a denied
-     OS permission all look identical to it, and you only find out after the
-     note is gone. So the meter is driven by the actual samples: if the bars
-     don't move when you talk, nothing is being captured, and that is worth
-     knowing at second one rather than at the end. */
   const meter = useRef<{ ctx: AudioContext; raf: number } | null>(null);
 
   const stopMeter = () => {
@@ -141,8 +169,6 @@ export function NoteCapture({
   };
 
   const startMeter = (stream: MediaStream) => {
-    // Older Safari only exposes the prefixed constructor; no meter is a fine
-    // outcome, a broken recorder is not — so this never throws upward.
     const Ctor =
       window.AudioContext ??
       (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -161,14 +187,8 @@ export function NoteCapture({
           const centred = (s - 128) / 128;
           sum += centred * centred;
         }
-        // RMS is small for speech; the gain lifts a normal voice to most of
-        // the bar without letting a loud site peg it permanently.
         const level = Math.min(1, Math.sqrt(sum / samples.length) * 4);
-        // Written straight to the DOM as a custom property, NOT to state: this
-        // runs every animation frame, and the value is a fresh float each time,
-        // so React would never bail out — a two-minute note would re-render the
-        // whole card some seven thousand times. The bars size themselves off
-        // var(--lvl), so the loop never crosses into React at all.
+        // straight to the DOM, never through React — this runs every frame
         bars.current?.style.setProperty("--lvl", level.toFixed(3));
         if (meter.current) meter.current.raf = requestAnimationFrame(tick);
       };
@@ -179,18 +199,14 @@ export function NoteCapture({
     }
   };
 
-  /* Unmounting mid-recording has to release the microphone. The stream is
-     stopped in rec.onstop, which only fires if somebody presses Stop — so
-     navigating away while recording (the card sits on the overview AND every
-     project page, so this is an ordinary path) would otherwise leave the mic
-     live, the OS indicator on, and an encoder buffering a clip nothing can
-     ever stop. */
   useEffect(
     () => () => {
       stopMeter();
       const rec = recorder.current;
-      if (rec?.state === "recording") rec.stop();
-      else rec?.stream.getTracks().forEach((t) => t.stop());
+      if (rec?.state === "recording") {
+        discard.current = true;
+        rec.stop();
+      } else rec?.stream.getTracks().forEach((t) => t.stop());
     },
     []
   );
@@ -200,6 +216,7 @@ export function NoteCapture({
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const rec = new MediaRecorder(stream);
+      discard.current = false;
       startMeter(stream);
       const chunks: BlobPart[] = [];
       rec.ondataavailable = (e) => {
@@ -209,6 +226,7 @@ export function NoteCapture({
         stream.getTracks().forEach((t) => t.stop());
         stopMeter();
         setRecording(false);
+        if (discard.current) return;
         const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
         if (blob.size === 0) return;
 
@@ -232,15 +250,17 @@ export function NoteCapture({
       };
       recorder.current = rec;
       rec.start();
+      setSeconds(0);
       setRecording(true);
     } catch {
+      // graceful no-mic floor: the overlay stays open in typing mode
       setError("No microphone available — type the note instead.");
     }
   };
 
   const stopRecording = () => recorder.current?.stop();
 
-  /* ── the review card ── */
+  /* ── the review (the engine's contract, unchanged) ── */
 
   const confirm = () => {
     if (!note || !draft) return;
@@ -253,6 +273,7 @@ export function NoteCapture({
       }
       setDone(res.summary);
       reset();
+      setOpen(false);
       router.refresh();
     });
   };
@@ -263,13 +284,11 @@ export function NoteCapture({
       const res = await dismissNote(note.id);
       if (res.ok) setDone(res.summary);
       reset();
+      setOpen(false);
       router.refresh();
     });
   };
 
-  /* Defaults to the free-text box; the option chips pass their own word. One
-     round-trip, one success path — the chips used to carry a second copy that
-     had already drifted, leaving the chosen option sitting in the box. */
   const sendAnswer = (reply: string = answer) => {
     if (!note) return;
     setError(null);
@@ -287,211 +306,284 @@ export function NoteCapture({
 
   const patch = (fn: (d: Draft) => Draft) => setDraft((d) => (d ? fn({ ...d }) : d));
 
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  useEffect(() => {
+    if (open && !recording && !note) textRef.current?.focus();
+  }, [open, recording, note]);
+
+  const clock = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+
   return (
-    <div className="card2">
-      <div className="c2h">
-        <span className="ci">
-          <Icon name="note" size={19} />
-        </span>
-        <div>
-          <b>Add a note</b>
-          <em>
-            {voiceEnabled
-              ? "Say it or type it — it gets sorted into tasks, notes and flags before anything is saved."
-              : "Type it — it gets sorted into tasks, notes and flags before anything is saved."}
-          </em>
-        </div>
+    <>
+      {/* the pill — near-zero idle footprint, typing always first-class */}
+      <div className="wb2-pill">
+        <button
+          type="button"
+          className="wb2-pillbtn"
+          onClick={() => {
+            setOpen(true);
+          }}
+        >
+          <Icon name="note" size={15} />
+          Add note
+        </button>
+        {voiceEnabled && (
+          <button
+            type="button"
+            className="wb2-pillmic"
+            title="Dictate a note"
+            aria-label="Dictate a note"
+            onClick={() => {
+              setOpen(true);
+              void startRecording();
+            }}
+          >
+            <Icon name="volume" size={15} />
+          </button>
+        )}
+        {done && <span className="wb2-chip ok">{done}</span>}
       </div>
 
-      {error && <div className="int-note bad">{error}</div>}
-      {done && <div className="int-note ok">{done}</div>}
+      {open &&
+        createPortal(
+          <>
+            <div className="wb2-capdim" onClick={close} />
+            <div className="wb2-capcard" role="dialog" aria-modal="true" aria-label="Add a note">
+              <div className="wb2-capribbon">
+                {recording ? (
+                  <span className="wb2-recdot" aria-hidden="true" />
+                ) : (
+                  <Icon name="note" size={16} />
+                )}
+                <b>
+                  {recording
+                    ? "Recording"
+                    : listening
+                      ? "Reading it back"
+                      : note
+                        ? "Check it before it saves"
+                        : "Add a note"}
+                </b>
+                {/* the attachment, visible to the speaker (D15) */}
+                <span className={"wb2-chip" + (targetLabel ? " blue" : "")}>
+                  {targetLabel ? `Against: ${targetLabel}` : "General note"}
+                </span>
+                {recording && <span className="wb2-capclock">{clock}</span>}
+                <button className="wb2-ico" onClick={close} title="Discard" aria-label="Discard">
+                  <Icon name="x" size={14} />
+                </button>
+              </div>
 
-      {!note && (
-        <>
-          <textarea
-            className="wb-notes"
-            rows={3}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Tell Luke he needs to order the grilles, and the middle rooftop unit tripped again…"
-            disabled={busy || recording || listening}
-          />
-          <div className="int-act">
-            {voiceEnabled &&
-              (recording ? (
+              {error && <p className="wb2-sherr">{error}</p>}
+
+              {!note && !recording && !listening && (
                 <>
-                  <button className="pbtn danger" onClick={stopRecording}>
-                    <Icon name="square" size={15} />
-                    Stop &amp; read
-                  </button>
+                  <textarea
+                    ref={textRef}
+                    className="wb2-notes"
+                    rows={3}
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    placeholder="Tell Luke he needs to order the grilles, and the middle rooftop unit tripped again…"
+                    disabled={busy}
+                  />
+                  <div className="wb2-capact">
+                    <button className="pbtn ghost" onClick={close} disabled={busy}>
+                      Discard
+                    </button>
+                    {voiceEnabled && (
+                      <button className="pbtn ghost" onClick={() => void startRecording()} disabled={busy}>
+                        <Icon name="volume" size={15} />
+                        Dictate
+                      </button>
+                    )}
+                    <button
+                      className="pbtn"
+                      onClick={() => read("text", text)}
+                      disabled={busy || !text.trim()}
+                    >
+                      {busy ? "Reading…" : "Sort this out"}
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {recording && (
+                <div className="wb2-caprec">
                   <span className="wb-lvl" role="status" aria-label="Listening" ref={bars}>
-                    {/* --lvl is written by the animation frame; --g is each
-                        bar's share of it, so the centre leads and a voice
-                        reads as a shape rather than five identical blocks */}
                     {[0.5, 0.8, 1, 0.8, 0.5].map((g, i) => (
                       <i key={i} style={{ "--g": g } as React.CSSProperties} />
                     ))}
                   </span>
-                </>
-              ) : (
-                <button className="pbtn ghost" onClick={startRecording} disabled={busy || listening}>
-                  <Icon name="volume" size={15} />
-                  {listening ? "Reading…" : "Dictate"}
-                </button>
-              ))}
-            <button
-              className="pbtn primary"
-              onClick={() => read("text", text)}
-              disabled={busy || recording || listening || !text.trim()}
-            >
-              {busy ? "Reading…" : "Sort this out"}
-            </button>
-          </div>
-        </>
-      )}
-
-      {note && draft && (
-        <div className="wb-review">
-          <p className="wb-notetext">{note.proposal.plainNote || text}</p>
-
-          {note.proposal.clarify && (
-            <div className="wb-ask">
-              <b>{note.proposal.clarify.question}</b>
-              <div className="int-act">
-                {note.proposal.clarify.options.map((o) => (
-                  <button key={o} className="wb-chip" disabled={busy} onClick={() => sendAnswer(o)}>
-                    {o}
-                  </button>
-                ))}
-              </div>
-              <div className="wb-row">
-                <input
-                  className="wb-inline"
-                  value={answer}
-                  onChange={(e) => setAnswer(e.target.value)}
-                  placeholder="…or answer in your own words"
-                />
-                {/* wrapped, not passed by reference: a bare handler would hand
-                    the click event in as the answer */}
-                <button
-                  className="pbtn ghost"
-                  onClick={() => sendAnswer()}
-                  disabled={busy || !answer.trim()}
-                >
-                  Answer
-                </button>
-              </div>
-            </div>
-          )}
-
-          {draft.tasks.length > 0 && (
-            <div className="wb-day">
-              <div className="wb-dayhead">Tasks</div>
-              {draft.tasks.map((t, i) => (
-                <div className="wb-row" key={i}>
-                  <button
-                    className={"wb-tick" + (t.on ? " done" : "")}
-                    onClick={() => patch((d) => ((d.tasks[i].on = !d.tasks[i].on), d))}
-                    aria-label={t.on ? "Skip this task" : "Include this task"}
-                  >
-                    <Icon name="check" size={13} />
-                  </button>
-                  <input
-                    className="wb-inline"
-                    value={t.title}
-                    onChange={(e) => patch((d) => ((d.tasks[i].title = e.target.value), d))}
-                  />
-                  <select
-                    className="wb-select"
-                    value={t.assigneeId ?? ""}
-                    onChange={(e) =>
-                      patch((d) => ((d.tasks[i].assigneeId = e.target.value || null), d))
-                    }
-                  >
-                    <option value="">
-                      {t.hint ? `${t.hint} — who?` : "Assign to…"}
-                    </option>
-                    {note.staff.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.fullName}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    className="wb-select"
-                    type="date"
-                    value={t.dueDate}
-                    onChange={(e) => patch((d) => ((d.tasks[i].dueDate = e.target.value), d))}
-                  />
+                  <p className="wb2-hint">
+                    If the bars don&apos;t move when you talk, nothing is being heard. Words are read
+                    back when you stop.
+                  </p>
+                  <div className="wb2-capact">
+                    <button className="pbtn ghost" onClick={close}>
+                      Discard
+                    </button>
+                    <button className="pbtn" onClick={stopRecording}>
+                      <Icon name="square" size={15} />
+                      Stop &amp; read
+                    </button>
+                  </div>
                 </div>
-              ))}
-              {draft.tasks.some((t) => t.on && !t.assigneeId) && (
-                <p className="int-hint">A task needs a person before it can be saved.</p>
+              )}
+
+              {listening && <p className="wb2-hint">Reading it back…</p>}
+
+              {note && draft && (
+                <div className="wb-review" style={{ borderTop: 0, marginTop: 0, paddingTop: 0 }}>
+                  <p className="wb-notetext">{note.proposal.plainNote || text}</p>
+
+                  {note.proposal.clarify && (
+                    <div className="wb-ask">
+                      <b>{note.proposal.clarify.question}</b>
+                      <div className="int-act">
+                        {note.proposal.clarify.options.map((o) => (
+                          <button key={o} className="wb-chip" disabled={busy} onClick={() => sendAnswer(o)}>
+                            {o}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="wb-row">
+                        <input
+                          className="wb-inline"
+                          value={answer}
+                          onChange={(e) => setAnswer(e.target.value)}
+                          placeholder="…or answer in your own words"
+                        />
+                        <button
+                          className="pbtn ghost"
+                          onClick={() => sendAnswer()}
+                          disabled={busy || !answer.trim()}
+                        >
+                          Answer
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {draft.tasks.length > 0 && (
+                    <div className="wb-day">
+                      <div className="wb-dayhead">Tasks</div>
+                      {draft.tasks.map((t, i) => (
+                        <div className="wb-row" key={i}>
+                          <button
+                            className={"wb-tick" + (t.on ? " done" : "")}
+                            onClick={() => patch((d) => ((d.tasks[i].on = !d.tasks[i].on), d))}
+                            aria-label={t.on ? "Skip this task" : "Include this task"}
+                          >
+                            <Icon name="check" size={13} />
+                          </button>
+                          <input
+                            className="wb-inline"
+                            value={t.title}
+                            onChange={(e) => patch((d) => ((d.tasks[i].title = e.target.value), d))}
+                          />
+                          <select
+                            className="wb-select"
+                            value={t.assigneeId ?? ""}
+                            onChange={(e) =>
+                              patch((d) => ((d.tasks[i].assigneeId = e.target.value || null), d))
+                            }
+                          >
+                            <option value="">{t.hint ? `${t.hint} — who?` : "Assign to…"}</option>
+                            {note.staff.map((s) => (
+                              <option key={s.id} value={s.id}>
+                                {s.fullName}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            className="wb-select"
+                            type="date"
+                            value={t.dueDate}
+                            onChange={(e) => patch((d) => ((d.tasks[i].dueDate = e.target.value), d))}
+                          />
+                        </div>
+                      ))}
+                      {draft.tasks.some((t) => t.on && !t.assigneeId) && (
+                        <p className="int-hint">A task needs a person before it can be saved.</p>
+                      )}
+                    </div>
+                  )}
+
+                  <SimpleRows
+                    title="Flags for the board"
+                    rows={draft.flags.map((f) => ({ on: f.on, text: f.message }))}
+                    onToggle={(i) => patch((d) => ((d.flags[i].on = !d.flags[i].on), d))}
+                    onEdit={(i, v) => patch((d) => ((d.flags[i].message = v), d))}
+                    trailing={(i) => (
+                      <select
+                        className="wb-select"
+                        value={draft.flags[i].severity}
+                        onChange={(e) => patch((d) => ((d.flags[i].severity = e.target.value), d))}
+                      >
+                        {SEVERITIES.map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  />
+
+                  <SimpleRows
+                    title="Bring next visit"
+                    rows={draft.bringItems.map((b) => ({ on: b.on, text: b.text }))}
+                    onToggle={(i) => patch((d) => ((d.bringItems[i].on = !d.bringItems[i].on), d))}
+                    onEdit={(i, v) => patch((d) => ((d.bringItems[i].text = v), d))}
+                  />
+
+                  <SimpleRows
+                    title="Progress"
+                    rows={draft.progressBullets.map((b) => ({ on: b.on, text: b.text }))}
+                    onToggle={(i) => patch((d) => ((d.progressBullets[i].on = !d.progressBullets[i].on), d))}
+                    onEdit={(i, v) => patch((d) => ((d.progressBullets[i].text = v), d))}
+                  />
+
+                  <SimpleRows
+                    title="Commissioning"
+                    rows={draft.commissioningEntries.map((e) => ({ on: e.on, text: e.text }))}
+                    onToggle={(i) =>
+                      patch((d) => ((d.commissioningEntries[i].on = !d.commissioningEntries[i].on), d))
+                    }
+                    onEdit={(i, v) => patch((d) => ((d.commissioningEntries[i].text = v), d))}
+                  />
+
+                  <SimpleRows
+                    title="Issues"
+                    rows={draft.issueEntries.map((e) => ({ on: e.on, text: e.summary }))}
+                    onToggle={(i) => patch((d) => ((d.issueEntries[i].on = !d.issueEntries[i].on), d))}
+                    onEdit={(i, v) => patch((d) => ((d.issueEntries[i].summary = v), d))}
+                  />
+
+                  <div className="wb2-capact">
+                    <button className="pbtn ghost" onClick={keepAsNote} disabled={busy}>
+                      Just keep the note
+                    </button>
+                    <button className="pbtn" onClick={confirm} disabled={busy || nothingTicked(draft)}>
+                      {busy ? "Saving…" : "Save these"}
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
-          )}
-
-          <SimpleRows
-            title="Flags for the board"
-            rows={draft.flags.map((f) => ({ on: f.on, text: f.message }))}
-            onToggle={(i) => patch((d) => ((d.flags[i].on = !d.flags[i].on), d))}
-            onEdit={(i, v) => patch((d) => ((d.flags[i].message = v), d))}
-            trailing={(i) => (
-              <select
-                className="wb-select"
-                value={draft.flags[i].severity}
-                onChange={(e) => patch((d) => ((d.flags[i].severity = e.target.value), d))}
-              >
-                {SEVERITIES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            )}
-          />
-
-          <SimpleRows
-            title="Bring next visit"
-            rows={draft.bringItems.map((b) => ({ on: b.on, text: b.text }))}
-            onToggle={(i) => patch((d) => ((d.bringItems[i].on = !d.bringItems[i].on), d))}
-            onEdit={(i, v) => patch((d) => ((d.bringItems[i].text = v), d))}
-          />
-
-          <SimpleRows
-            title="Progress"
-            rows={draft.progressBullets.map((b) => ({ on: b.on, text: b.text }))}
-            onToggle={(i) => patch((d) => ((d.progressBullets[i].on = !d.progressBullets[i].on), d))}
-            onEdit={(i, v) => patch((d) => ((d.progressBullets[i].text = v), d))}
-          />
-
-          <SimpleRows
-            title="Commissioning"
-            rows={draft.commissioningEntries.map((e) => ({ on: e.on, text: e.text }))}
-            onToggle={(i) =>
-              patch((d) => ((d.commissioningEntries[i].on = !d.commissioningEntries[i].on), d))
-            }
-            onEdit={(i, v) => patch((d) => ((d.commissioningEntries[i].text = v), d))}
-          />
-
-          <SimpleRows
-            title="Issues"
-            rows={draft.issueEntries.map((e) => ({ on: e.on, text: e.summary }))}
-            onToggle={(i) => patch((d) => ((d.issueEntries[i].on = !d.issueEntries[i].on), d))}
-            onEdit={(i, v) => patch((d) => ((d.issueEntries[i].summary = v), d))}
-          />
-
-          <div className="fl-foot">
-            <button className="pbtn ghost" onClick={keepAsNote} disabled={busy}>
-              Just keep the note
-            </button>
-            <button className="pbtn primary" onClick={confirm} disabled={busy || nothingTicked(draft)}>
-              {busy ? "Saving…" : "Save these"}
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
+          </>,
+          document.body
+        )}
+    </>
   );
 }
 

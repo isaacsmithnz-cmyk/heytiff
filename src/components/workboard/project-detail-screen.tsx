@@ -113,8 +113,16 @@ export function ProjectDetailScreen({
                   .join(" · ") || "No client details yet"}
               </p>
             </div>
-            {manage && (
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              {/* the one capture pill, docked by the header like every other
+                  screen (D15) — notes here land on THIS project, and taking
+                  a note is never a manage-tier act */}
+              <NoteCapture
+                target={{ kind: "project", id: project.id }}
+                targetLabel={project.name}
+                voiceEnabled={voiceEnabled}
+              />
+              {manage && (
                 <select
                   className="wb-select"
                   value={project.status}
@@ -127,12 +135,14 @@ export function ProjectDetailScreen({
                     </option>
                   ))}
                 </select>
+              )}
+              {manage && (
                 <button className="pbtn ghost" onClick={() => setEditingMeta(true)}>
                   <Icon name="edit" size={15} />
                   Edit
                 </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           {error && <div className="int-note bad">{error}</div>}
@@ -343,9 +353,6 @@ export function ProjectDetailScreen({
               ))
             )}
           </div>
-
-          {/* ── notes in, and what they left behind ── */}
-          <NoteCapture target={{ kind: "project", id: project.id }} voiceEnabled={voiceEnabled} />
 
           {entries.filter((e) => e.kind === "progress").length > 0 && (
             <div className="card2">

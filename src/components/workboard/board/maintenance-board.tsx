@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { useRouter } from "next/navigation";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
@@ -66,6 +66,7 @@ export function MaintenanceBoard({
   connected,
   aiEnabled = false,
   sm8,
+  onCaptureTarget,
 }: {
   data: MaintenanceBoardData;
   flags: BoardFlag[];
@@ -76,6 +77,10 @@ export function MaintenanceBoard({
   aiEnabled?: boolean;
   /** The mirror-health surface that survives from the old board (D8/D4). */
   sm8?: { attention: boolean; syncedAt: string | null; running: boolean } | null;
+  /** The capture pill's attachment (D15): with a visit sheet open, notes
+      spoken land against THAT visit — the page owns the pill, the board
+      tells it what's in front of the person. */
+  onCaptureTarget?: (t: { visitId: string; label: string } | null) => void;
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<BoardTab>("urgent");
@@ -176,6 +181,18 @@ export function MaintenanceBoard({
 
   const sheetVisit = sheet ? data.visits.find((v) => v.id === sheet.visitId) ?? null : null;
   const openSheet = (visitId: string, closeOut = false) => setSheet({ visitId, closeOut });
+
+  // Tell the page what the pill should attach to — and always hand back
+  // "nothing" when the sheet closes or the board unmounts.
+  const sheetVisitId = sheetVisit?.id ?? null;
+  const sheetVisitLabel = sheetVisit ? `${sheetVisit.clientName} · ${sheetVisit.label}` : null;
+  useEffect(() => {
+    if (!onCaptureTarget) return;
+    onCaptureTarget(
+      sheetVisitId && sheetVisitLabel ? { visitId: sheetVisitId, label: sheetVisitLabel } : null
+    );
+    return () => onCaptureTarget(null);
+  }, [sheetVisitId, sheetVisitLabel, onCaptureTarget]);
   const sheetAgreement = agreementId
     ? data.agreements.find((a) => a.id === agreementId) ?? null
     : null;

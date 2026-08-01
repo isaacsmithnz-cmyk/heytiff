@@ -174,9 +174,49 @@ gates and packing still tickable, but no place/complete/skip/tags/add-item
       toast, one Undo restoring every visit to where it was (or off the board
       if it was unplaced).
 
-## Stage 5 — capture pill + display mode (pending)
+## Stage 5 — the capture pill + the light wall (this commit)
 
-_Added when the step lands._
+**The pill (one capture UI, everywhere — D15):**
+
+- [ ] Workboard header carries the pill: "Add note" text half + round mic half
+      (mic absent when ELEVENLABS key is unset — typing carries it). The old
+      capture card is GONE from the overview and project pages.
+- [ ] Project detail page: same pill, docked in the header row, visible to
+      staff-tier too (taking a note is never manage-gated).
+- [ ] Press "Add note" → the board dims (a dim, not a blur), the ribbon card
+      opens with **"General note"** in the chip, textarea focused. Esc
+      discards.
+- [ ] Open a visit's sheet first, then the pill → chip reads
+      **"Against: {client} · {service}"**; save a note and confirm in Supabase
+      that `workboard_notes.target_kind='visit'` with the right id.
+- [ ] Mic path: press the mic half → recording state with the live red dot,
+      the timer counting, and the REAL sample bars (talk — they must move;
+      mute the mic — they must not). "Stop & read" transcribes then shows the
+      review. Discard mid-recording releases the mic (OS indicator off).
+- [ ] Deny mic permission → kind error, typing still works (the floor).
+- [ ] The review inside the overlay is the full engine: editable rows, drop
+      ticks, clarify question with chips, task assignee select, "Just keep
+      the note", "Save these" disabled when everything's dropped.
+- [ ] After save: overlay closes, the pill wears the summary chip for a few
+      seconds, the effects land (flag on Urgent, task in the queue).
+
+**Display mode (A10 — the wall):**
+
+- [ ] Display mode button lives on BOTH sides again. On maintenance it
+      fullscreens the WALL: "Needs you today" queue + "The next four weeks",
+      **LIGHT theme** — there must be NO dark flip anywhere, including the
+      projects side's fullscreen (the old dark CSS is deleted).
+- [ ] The wall has zero interactivity — nothing is pressable on it.
+- [ ] Leave it fullscreen past the minute mark — it refreshes itself (change
+      a gate from your phone; the wall repaints within a minute).
+- [ ] Esc leaves fullscreen and the normal board is exactly as you left it.
+
+### Post-walk cleanup worth queueing (not bugs)
+
+- The legacy routes `/dashboard/workboard/maintenance` (+ `[id]`) still exist
+  as fallback surfaces; once the sheet has proven itself live, retire them.
+- `agreement-detail-screen.tsx`, `maintenance-screen.tsx` and the old radar
+  pieces (`vitals.ts` maintenance halves) become dead once those routes go.
 
 ---
 

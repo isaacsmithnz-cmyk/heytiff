@@ -114,9 +114,9 @@ describe("the switcher", () => {
     expect(seg).toHaveAttribute("data-active", "1");
   });
 
-  it("keeps Display mode a projects-side offer until step 5's wall composition", async () => {
+  it("offers Display mode on both sides — the maintenance wall landed with step 5", async () => {
     render(<OverviewScreen data={base} />);
-    expect(screen.queryByRole("button", { name: /Display mode/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Display mode/ })).toBeInTheDocument();
     await toProjects();
     expect(screen.getByRole("button", { name: /Display mode/ })).toBeInTheDocument();
   });

@@ -5,32 +5,50 @@ import { Icon } from "@/components/shell/icon";
 import { addMonthsClamped } from "@/lib/workboard/visit-schedule";
 import { isWeekendISO, mondayOf } from "@/lib/workboard/board-status";
 import { plusDays } from "@/lib/workboard/dates";
-import type { BoardVisit } from "@/lib/workboard/board-query";
-import { calendarToneFor, placedDayOf, toneOf } from "./derive";
+import { calendarToneForCal, placedDayOfCal, toneOfCal, type CalVisit } from "./derive";
 
 /* Calendar — the month, read from the same status law as every other tab.
    A cell's colour derives from the visits SITTING on that day (placement
    first, linked diary second), so it can never disagree with the rows
-   (K2's cure applied to the month). First cut this step: the grid and its
-   legend; the live day modal and place-on-this-day arrive with step 3. */
+   (K2's cure applied to the month).
+
+   Calendars stay PER-SIDE with a merged view on tap (decision P3, Isaac's
+   words: "per side, but maybe add a 3rd view that is merged"): the toggle
+   folds the OTHER board's day-load in, its dots wearing a hollow ring so
+   whose work it is stays legible. Opening a day always opens THIS side's
+   day modal — placing happens on the board that owns the work. */
 
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export function CalendarTab({
+  side,
   visits,
+  others,
+  sideWord,
+  otherWord,
   today,
   onDay,
 }: {
-  visits: BoardVisit[];
+  /** Which board owns this calendar — the other side's dots wear the ring. */
+  side: "maintenance" | "projects";
+  /** This board's visits, already in the calendar shape. */
+  visits: CalVisit[];
+  /** The other board's visits — rendered only in the merged view. */
+  others: CalVisit[];
+  /** "Maintenance" / "Projects" — the toggle's words. */
+  sideWord: string;
+  otherWord: string;
   today: string;
   onDay: (dayISO: string) => void;
 }) {
   const [monthStart, setMonthStart] = useState(() => `${today.slice(0, 7)}-01`);
+  const [merged, setMerged] = useState(false);
 
   const { cells, monthLabel } = useMemo(() => {
-    const byDay = new Map<string, BoardVisit[]>();
-    for (const v of visits) {
-      const day = placedDayOf(v);
+    const byDay = new Map<string, CalVisit[]>();
+    const all = merged ? [...visits, ...others] : visits;
+    for (const v of all) {
+      const day = placedDayOfCal(v);
       if (!day) continue;
       const list = byDay.get(day) ?? [];
       list.push(v);
@@ -49,14 +67,14 @@ export function CalendarTab({
       timeZone: "UTC",
     });
     return { cells: out.map((c) => ({ ...c, dayVisits: byDay.get(c.iso) ?? [] })), monthLabel: label };
-  }, [visits, monthStart]);
+  }, [visits, others, merged, monthStart]);
 
   const unplaced = useMemo(
     () =>
       visits.filter(
         (v) =>
           (v.status === "upcoming" || v.status === "booked") &&
-          !placedDayOf(v) &&
+          !placedDayOfCal(v) &&
           v.dueDate < today
       ),
     [visits, today]
@@ -71,6 +89,24 @@ export function CalendarTab({
         <div>
           <b>{monthLabel}</b>
           <em>Colour says how ready each day is. Green is the goal, red is the queue.</em>
+        </div>
+        <div className="wb2-filters" role="group" aria-label="Calendar scope">
+          <button
+            type="button"
+            className={"wb2-filter" + (!merged ? " on" : "")}
+            aria-pressed={!merged}
+            onClick={() => setMerged(false)}
+          >
+            {sideWord}
+          </button>
+          <button
+            type="button"
+            className={"wb2-filter" + (merged ? " on" : "")}
+            aria-pressed={merged}
+            onClick={() => setMerged(true)}
+          >
+            Everything
+          </button>
         </div>
         <span className="wb2-mcnav">
           <button
@@ -103,6 +139,11 @@ export function CalendarTab({
         <span>
           <i style={{ background: "rgba(5,5,5,.25)" }} /> Done and closed
         </span>
+        {merged && (
+          <span>
+            <i className="wb2-mckey-oth" /> From the {otherWord} board
+          </span>
+        )}
       </div>
 
       <div className="wb2-mcdow" aria-hidden="true">
@@ -112,7 +153,7 @@ export function CalendarTab({
       </div>
       <div className="wb2-mc">
         {cells.map((c) => {
-          const tone = calendarToneFor(c.dayVisits, c.iso, today);
+          const tone = calendarToneForCal(c.dayVisits, c.iso, today);
           return (
             <button
               key={c.iso}
@@ -134,7 +175,12 @@ export function CalendarTab({
               {c.dayVisits.length > 0 && (
                 <span className="wb2-mcdots">
                   {c.dayVisits.slice(0, 4).map((v) => (
-                    <i key={v.id} data-tone={toneOf(v, today)} title={`${v.clientName} — ${v.label}`} />
+                    <i
+                      key={v.id}
+                      data-tone={toneOfCal(v, today)}
+                      data-oth={v.side !== side ? "" : undefined}
+                      title={`${v.name} — ${v.label}`}
+                    />
                   ))}
                   {c.dayVisits.length > 4 && <b>+{c.dayVisits.length - 4}</b>}
                 </span>
@@ -147,7 +193,7 @@ export function CalendarTab({
       {unplaced.length > 0 && (
         <p className="wb2-mcloose">
           {`${unplaced.length} overdue ${
-            unplaced.length === 1 ? "service isn't" : "services aren't"
+            unplaced.length === 1 ? "job isn't" : "jobs aren't"
           } on a day yet — giving one a day books it in, it doesn't make it on time. Open a day to place them.`}
         </p>
       )}

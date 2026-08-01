@@ -15,6 +15,7 @@ import {
   type VisitTone,
 } from "@/lib/workboard/board-status";
 import type { BoardVisit } from "@/lib/workboard/board-query";
+import type { ProjectBoardVisit } from "@/lib/workboard/projects-board-query";
 
 export function gatesOf(v: BoardVisit): GateState {
   return gateStateOf(v.readiness, v.techs.length);
@@ -61,6 +62,113 @@ export function calendarToneFor(visits: BoardVisit[], dayISO: string, today: str
     visits.map((v) => toneOf(v, today)),
     daysBetween(today, dayISO)
   );
+}
+
+/* ── the calendar's shared shape (decision P3) ──
+
+   Calendars stay per-side but both can flip to "Everything", so the grid
+   reads ONE slim shape either side can produce. Same status law underneath —
+   a merged Thursday can never disagree with either board's own view. */
+
+export type CalVisit = {
+  id: string;
+  side: "maintenance" | "projects";
+  /** Client for maintenance, project name for projects — the tooltip line. */
+  name: string;
+  label: string;
+  status: string;
+  dueDate: string;
+  bookedDate: string | null;
+  bookedStart: string | null;
+  readiness: BoardVisit["readiness"];
+  techCount: number;
+  mirrorStatus: string | null;
+};
+
+export function calOfMaintenance(v: BoardVisit): CalVisit {
+  return {
+    id: v.id,
+    side: "maintenance",
+    name: v.clientName,
+    label: v.label,
+    status: v.status,
+    dueDate: v.dueDate,
+    bookedDate: v.bookedDate,
+    bookedStart: v.bookedStart,
+    readiness: v.readiness,
+    techCount: v.techs.length,
+    mirrorStatus: v.mirrorStatus,
+  };
+}
+
+export function calOfProject(v: ProjectBoardVisit): CalVisit {
+  return {
+    id: v.id,
+    side: "projects",
+    name: v.projectName,
+    label: v.label,
+    status: v.status,
+    dueDate: v.dueDate,
+    bookedDate: v.bookedDate,
+    bookedStart: v.bookedStart,
+    readiness: v.readiness,
+    techCount: v.techs.length,
+    mirrorStatus: v.mirrorStatus,
+  };
+}
+
+export function toneOfCal(c: CalVisit, today: string): VisitTone {
+  return visitTone(
+    {
+      status: c.status,
+      dueDate: c.dueDate,
+      gates: gateStateOf(c.readiness, c.techCount),
+      mirrorStatus: c.mirrorStatus,
+    },
+    today
+  );
+}
+
+export function placedDayOfCal(c: CalVisit): string | null {
+  if (c.bookedDate) return c.bookedDate;
+  if (c.bookedStart) return c.bookedStart.slice(0, 10);
+  return null;
+}
+
+export function calendarToneForCal(visits: CalVisit[], dayISO: string, today: string): DayTone {
+  return dayTone(
+    visits.map((c) => toneOfCal(c, today)),
+    daysBetween(today, dayISO)
+  );
+}
+
+/* ── project-side derivations (same law, other shape) ── */
+
+export function projectGatesOf(v: ProjectBoardVisit): GateState {
+  return gateStateOf(v.readiness, v.techs.length);
+}
+
+export function projectToneOf(v: ProjectBoardVisit, today: string): VisitTone {
+  return visitTone(
+    {
+      status: v.status,
+      dueDate: v.dueDate,
+      gates: projectGatesOf(v),
+      mirrorStatus: v.mirrorStatus,
+    },
+    today
+  );
+}
+
+export function projectMissingOf(v: ProjectBoardVisit): GateName[] {
+  return missingGates(projectGatesOf(v));
+}
+
+/** The day a trip actually sits on — placement wins, then the linked diary. */
+export function projectPlacedDayOf(v: ProjectBoardVisit): string | null {
+  if (v.bookedDate) return v.bookedDate;
+  if (v.bookedStart) return v.bookedStart.slice(0, 10);
+  return null;
 }
 
 /* ── words ── */

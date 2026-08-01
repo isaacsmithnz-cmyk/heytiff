@@ -3676,3 +3676,51 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible { outli
 .wb2-wallgrid .wb2-mcc { min-height:72px; pointer-events:none; }
 .wb2-wallgrid .wb2-mcn { font-size:11.5px; }
 @media (max-width:1100px) { .wb2-wallcols { grid-template-columns:1fr; } }
+
+/* ── wb2 projects: the pipeline list, money chips, merged calendar ──
+   The projects board rides the same namespace — same card, same tabs, same
+   status colours. Only what the data honestly adds gets new clothes: the
+   stage rail on a row, the claimed-of-total figures, and the hollow ring a
+   dot wears when the merged calendar shows the OTHER board's work. */
+.wb2-plrow { display:grid; grid-template-columns:minmax(0,1.2fr) 108px minmax(0,.8fr) minmax(0,.8fr) minmax(0,1fr); gap:14px;
+  align-items:center; padding:12px 20px; border-bottom:1px solid var(--wb2-line2); position:relative; color:inherit; text-decoration:none;
+  transition:background .18s, transform .18s cubic-bezier(.22,1,.36,1), box-shadow .2s; }
+.wb2-wkgrp:last-child .wb2-plrow:last-child { border-bottom:0; }
+.wb2-plrow:hover { background:#fff; transform:scale(1.006); box-shadow:0 4px 18px -10px rgba(10,12,20,.35); z-index:1; }
+.wb2-plrow:focus-visible { outline:none; box-shadow:inset 0 0 0 3px rgba(0,168,224,.3); }
+.wb2-plrow:before { content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:transparent; }
+.wb2-plrow[data-sev="dan"]:before { background:var(--wb2-dan); }
+.wb2-plrow[data-sev="warn"]:before { background:var(--wb2-warn); }
+.wb2-plstage { display:flex; align-items:center; gap:4px; }
+.wb2-plstage i { width:9px; height:9px; border-radius:50%; background:rgba(5,5,5,.12); flex:none; }
+.wb2-plstage i.past { background:rgba(0,163,137,.55); }
+.wb2-plstage i.now { background:var(--wb2-cy); box-shadow:0 0 0 3px rgba(0,127,168,.18); }
+.wb2-plprog { display:flex; flex-direction:column; gap:4px; min-width:0; }
+.wb2-plprog em { font-style:normal; font-size:10.5px; font-weight:700; color:var(--gray500); }
+.wb2-bar { display:block; height:7px; border-radius:99px; background:rgba(5,5,5,.08); overflow:hidden; }
+.wb2-bar i { display:block; height:100%; border-radius:99px; background:var(--wb2-cy); transition:width .3s cubic-bezier(.22,1,.36,1); }
+.wb2-plmoney { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.wb2-plmoney b { font-size:12.5px; font-weight:800; letter-spacing:-.01em; font-variant-numeric:tabular-nums;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wb2-plmoney em { font-style:normal; font-size:10.5px; font-weight:700; color:var(--gray500); }
+.wb2-plchips { display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+
+/* merged calendar: the other board's dots wear a hollow ring, never a fill */
+.wb2-mcdots i[data-oth] { background:transparent; border:2px solid rgba(5,5,5,.3); width:10px; height:10px; }
+.wb2-mcdots i[data-oth][data-tone="go"] { border-color:var(--wb2-ok); }
+.wb2-mcdots i[data-oth][data-tone="soon"] { border-color:var(--wb2-warn); }
+.wb2-mcdots i[data-oth][data-tone="flash"], .wb2-mcdots i[data-oth][data-tone="over"] { border-color:var(--wb2-dan); }
+.wb2-mcdots i[data-oth][data-tone="done"] { border-color:rgba(5,5,5,.25); }
+.wb2-mckey-oth { width:9px; height:9px; border-radius:50%; background:transparent; border:2px solid rgba(5,5,5,.35); }
+
+/* the trip sheet's carry-forward choice + danger notes */
+.wb2-carry { display:flex; align-items:center; gap:9px; font-size:12.5px; font-weight:700; color:var(--gray700);
+  padding:9px 12px; border:1px solid var(--wb2-line); border-radius:12px; background:rgba(5,5,5,.02); cursor:pointer; }
+.wb2-carry input { accent-color:var(--wb2-cy); width:15px; height:15px; }
+.wb2-hint.dan { color:var(--wb2-dan-t); }
+.wb2 .pbtn.ghost.dan, .wb2-sheet .pbtn.ghost.dan { color:var(--wb2-dan-t); border-color:rgba(224,38,79,.4); }
+
+@media (max-width:980px) {
+  .wb2-plrow { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+  .wb2-plstage { display:none; }
+}

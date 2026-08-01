@@ -12,19 +12,13 @@ import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
 import { getConnectionView } from "@/lib/integrations/store";
 import { kickSm8SyncIfStale, listSm8SyncStatus } from "@/lib/integrations/sm8-sync";
-import { todayInZone, plusDays } from "./dates";
+import { todayInZone } from "./dates";
 import { listFlags, type BoardFlag } from "./notes-query";
 import { loadMaintenanceBoard, type MaintenanceBoardData } from "./board-query";
 import { loadProjectsBoard, type ProjectsBoardData } from "./projects-board-query";
 import { isTranscriptionConfigured } from "@/lib/voice/transcribe";
 import { autoCompleteVisitsFromMirror, ensureVisits } from "./visit-ensure";
-import {
-  countJobsByStatus,
-  getSm8Timezone,
-  listUpcomingBookings,
-  type UpcomingBooking,
-  type WorkboardCounts,
-} from "./query";
+import { getSm8Timezone } from "./query";
 
 export type WorkboardConnection = "none" | "connected" | "attention";
 
@@ -34,8 +28,6 @@ export type WorkboardData = {
   /** The account's IANA zone once known — the clock the board buckets on. */
   timezone: string | null;
   today: string;
-  counts: WorkboardCounts | null;
-  upcoming: UpcomingBooking[];
   /** Raised by notes, pulsing until somebody clears them. */
   flags: BoardFlag[];
   /** The redesigned maintenance board's whole dataset. */
@@ -75,8 +67,6 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
       connection,
       timezone: null,
       today,
-      counts: null,
-      upcoming: [],
       flags,
       board,
       projectsBoard,
@@ -98,9 +88,7 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
       .catch(() => {})
   );
 
-  const [counts, upcoming, flags, board, projectsBoard, sync] = await Promise.all([
-    countJobsByStatus(orgId, `${plusDays(today, -14)} 00:00:00`),
-    listUpcomingBookings(orgId, today, plusDays(today, 7)),
+  const [flags, board, projectsBoard, sync] = await Promise.all([
     listFlags(orgId),
     loadMaintenanceBoard(orgId, today),
     loadProjectsBoard(orgId, today),
@@ -117,8 +105,6 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
     connection,
     timezone,
     today,
-    counts,
-    upcoming,
     flags,
     board,
     projectsBoard,

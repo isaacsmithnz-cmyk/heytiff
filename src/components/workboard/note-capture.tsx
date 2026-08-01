@@ -333,21 +333,21 @@ export function NoteCapture({
             setOpen(true);
           }}
         >
-          <Icon name="note" size={15} />
+          <Icon name="keyboard" size={15} />
           Add note
         </button>
         {voiceEnabled && (
           <button
             type="button"
             className="wb2-pillmic"
-            title="Dictate a note"
-            aria-label="Dictate a note"
+            title="Push to talk"
+            aria-label="Record a note"
             onClick={() => {
               setOpen(true);
               void startRecording();
             }}
           >
-            <Icon name="volume" size={15} />
+            <Icon name="mic" size={18} />
           </button>
         )}
         {done && <span className="wb2-chip ok">{done}</span>}

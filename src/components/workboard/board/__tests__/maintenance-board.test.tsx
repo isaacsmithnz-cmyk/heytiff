@@ -198,7 +198,7 @@ beforeEach(() => {
 });
 
 describe("the tab row", () => {
-  it("runs in the order of the day (C5) with severity-coloured badges (E6)", () => {
+  it("runs in the order of the day (C5), labels only", () => {
     mount(data({ visits: [visit({ id: "v-over", dueDate: "2026-07-20" })] }));
     const tabs = screen.getAllByRole("tab").map((t) => t.textContent);
     expect(tabs[0]).toContain("Urgent");
@@ -206,9 +206,11 @@ describe("the tab row", () => {
     expect(tabs[2]).toContain("Calendar");
     expect(tabs[3]).toContain("Completed");
     expect(tabs[4]).toContain("Service agreements");
-    // one overdue visit → a danger-toned count on Urgent
+    /* The count lives on the page's side switcher, where it's visible from
+       BOTH sides — a tab can't tell you about the half you're not on, and
+       two places to read the same number is one place too many. */
     const urgentTab = screen.getByRole("tab", { name: /Urgent/ });
-    expect(within(urgentTab).getByText("1").className).toContain("dan");
+    expect(within(urgentTab).queryByText("1")).not.toBeInTheDocument();
   });
 });
 

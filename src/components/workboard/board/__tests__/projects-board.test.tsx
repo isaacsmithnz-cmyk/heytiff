@@ -184,7 +184,7 @@ describe("the shell", () => {
     ]);
   });
 
-  it("badges Urgent with the derived count and worst tone", () => {
+  it("leaves the count to the page's side switcher, not the tab", () => {
     mount(
       data({
         projects: [
@@ -193,7 +193,7 @@ describe("the shell", () => {
       })
     );
     const tab = screen.getByRole("tab", { name: /Urgent/ });
-    expect(within(tab).getByText("1")).toBeInTheDocument();
+    expect(within(tab).queryByText("1")).not.toBeInTheDocument();
   });
 });
 

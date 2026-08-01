@@ -155,6 +155,8 @@ function agreementFix(
     packing: [],
     equipment: [],
     nextDue: "2026-08-04",
+    thenDue: "2026-11-04",
+    lastDone: "2026-05-04",
     overdueCount: 0,
     ...over,
   };
@@ -422,8 +424,38 @@ describe("Urgent — derived rows, resolvable in place", () => {
     );
     await userEvent.click(screen.getByRole("button", { name: "Clear" }));
     expect(clearFlag).toHaveBeenCalledWith("f-1");
-    await userEvent.click(screen.getByRole("button", { name: "Done" }));
+    await userEvent.click(screen.getByRole("button", { name: "Mark done — Order filters" }));
     expect(completeTask).toHaveBeenCalledWith("t-1");
+  });
+
+  it("splits the queue into Overdue and Deal with it today, with tasks in their own lane", () => {
+    render(
+      <MaintenanceBoard
+        data={data({
+          visits: [visit({ id: "v-late", dueDate: "2026-07-21" })],
+          tasks: [
+            { id: "t-1", title: "Order filters", dueDate: "2026-07-29", assigneeName: "Dane Poulos" },
+          ],
+        })}
+        flags={[]}
+        today={TODAY}
+        manage
+        connected={false}
+      />
+    );
+    expect(screen.getByText("Overdue")).toBeInTheDocument();
+    expect(screen.getByText("Your tasks")).toBeInTheDocument();
+    // both sides populated → the two-column grid
+    expect(document.querySelector(".wb2-urbody.twocol")).not.toBeNull();
+    // the task sits in the lane, not in the work queue
+    expect(document.querySelector(".wb2-urside .wb2-tk")).not.toBeNull();
+  });
+
+  it("collapses to one column when only the work side has anything", () => {
+    mount(data({ visits: [visit({ id: "v-late", dueDate: "2026-07-21" })] }));
+    expect(screen.getByText("Overdue")).toBeInTheDocument();
+    expect(screen.queryByText("Your tasks")).not.toBeInTheDocument();
+    expect(document.querySelector(".wb2-urbody.twocol")).toBeNull();
   });
 
   it("says the good outcome when nothing fires", () => {
@@ -469,6 +501,49 @@ describe("Completed — actuals, never estimates (L3/B12)", () => {
     expect(screen.queryByText(/h on site/)).not.toBeInTheDocument();
     expect(screen.getByText("Done on time")).toBeInTheDocument();
   });
+
+  /* A close-out note nobody can attribute is a note nobody can follow up —
+     but we only NAME someone when there's exactly one person to name. */
+  describe("the note signs itself", () => {
+    const done = (over: Record<string, unknown>) =>
+      data({
+        visits: [
+          visit({
+            id: "v-n",
+            status: "done",
+            dueDate: "2026-07-20",
+            completedAt: "2026-07-20",
+            completionNote: "Bearing replaced.",
+            ...over,
+          }),
+        ],
+      });
+
+    it("names the single technician who was there", async () => {
+      mount(done({ techs: [{ id: "s-1", name: "Dane Poulos" }] }));
+      await toTab(/Completed/);
+      expect(screen.getByText("Dane Poulos, on the job sheet")).toBeInTheDocument();
+    });
+
+    it("names nobody when two were on it — we don't know which of them wrote it", async () => {
+      mount(
+        done({
+          techs: [
+            { id: "s-1", name: "Dane Poulos" },
+            { id: "s-2", name: "Luke Mercer" },
+          ],
+        })
+      );
+      await toTab(/Completed/);
+      expect(screen.getByText("the technician, on the job sheet")).toBeInTheDocument();
+    });
+
+    it("credits ServiceM8 when the mirror closed it", async () => {
+      mount(done({ completedSource: "servicem8", techs: [{ id: "s-1", name: "Dane Poulos" }] }));
+      await toTab(/Completed/);
+      expect(screen.getByText("from the ServiceM8 job")).toBeInTheDocument();
+    });
+  });
 });
 
 describe("Agreements — named clients, honest dates (B22/B10)", () => {
@@ -490,10 +565,68 @@ describe("Agreements — named clients, honest dates (B22/B10)", () => {
     expect(screen.getByText("Our install").className).toContain("t-violet");
     expect(screen.getByText("Uncategorised")).toBeInTheDocument();
   });
+
+  /* The ledger's three dates: what a cadence actually looks like. */
+  it("reads last done, next due and the one after it", async () => {
+    mount(
+      data({
+        agreements: [
+          agreementFix({ lastDone: "2026-05-04", nextDue: "2026-08-04", thenDue: "2026-11-04" }),
+        ],
+      })
+    );
+    await toTab(/Service agreements/);
+    expect(screen.getByText("Mon 4 May")).toBeInTheDocument();
+    expect(screen.getByText("3 months ago")).toBeInTheDocument();
+    expect(screen.getByText("Tue 4 Aug")).toBeInTheDocument();
+    expect(screen.getByText("Wed 4 Nov")).toBeInTheDocument();
+  });
+
+  it("says so plainly when an agreement has never been serviced", async () => {
+    mount(data({ agreements: [agreementFix({ lastDone: null })] }));
+    await toTab(/Service agreements/);
+    expect(screen.getByText("Not yet serviced")).toBeInTheDocument();
+  });
+
+  it("summarises each group with its count, its soonest date and what's late", async () => {
+    mount(
+      data({
+        agreements: [
+          agreementFix({ id: "a-1", nextDue: "2026-07-20", overdueCount: 1 }),
+          agreementFix({ id: "a-2", clientName: "Meridian", nextDue: "2026-09-01" }),
+        ],
+      })
+    );
+    await toTab(/Service agreements/);
+    expect(
+      screen.getByText("2 agreements · oldest overdue Mon 20 July · 1 overdue")
+    ).toBeInTheDocument();
+  });
+
+  it("searches client, service, site and tag — and says when nothing matches", async () => {
+    mount(
+      data({
+        agreements: [
+          agreementFix({ id: "a-1", clientName: "Halston Freight" }),
+          agreementFix({ id: "a-2", clientName: "Meridian Data", label: "Server room CRACs" }),
+        ],
+      })
+    );
+    await toTab(/Service agreements/);
+    const box = screen.getByRole("searchbox", { name: "Search agreements" });
+
+    await userEvent.type(box, "crac");
+    expect(screen.getByText("Meridian Data")).toBeInTheDocument();
+    expect(screen.queryByText("Halston Freight")).not.toBeInTheDocument();
+
+    await userEvent.clear(box);
+    await userEvent.type(box, "zzz");
+    expect(screen.getByText(/Nothing matches/)).toBeInTheDocument();
+  });
 });
 
 describe("Calendar — first cut", () => {
-  it("shows the month, the legend, and counts unplaced overdue work honestly", async () => {
+  it("shows four weeks from this Monday, the legend, and counts unplaced overdue work honestly", async () => {
     mount(
       data({
         visits: [
@@ -503,9 +636,49 @@ describe("Calendar — first cut", () => {
       })
     );
     await toTab(/Calendar/);
-    expect(screen.getByText("July 2026")).toBeInTheDocument();
+    // TODAY is Thu 30 Jul → the window opens on Mon 27 Jul and runs 28 days.
+    // "July" not "Jul" is deliberate — en-AU writes June/July/Sept out (au-dates).
+    expect(screen.getByText("27 July – 23 Aug")).toBeInTheDocument();
+    expect(document.querySelectorAll(".wb2-mcc")).toHaveLength(28);
     expect(screen.getByText("Ready to run")).toBeInTheDocument();
     expect(screen.getByText(/1 overdue job isn't on a day yet/)).toBeInTheDocument();
+  });
+
+  it("summarises the window, and rolls a week at a time without losing today", async () => {
+    mount(
+      data({
+        visits: [
+          visit({ id: "v-placed", bookedDate: "2026-08-05", status: "booked", dueDate: "2026-08-05" }),
+        ],
+      })
+    );
+    await toTab(/Calendar/);
+    expect(screen.getByText("1 service")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "A week later" }));
+    expect(screen.getByText("3 Aug – 30 Aug")).toBeInTheDocument();
+    // stepping away offers the way back
+    await userEvent.click(screen.getByRole("button", { name: "Today" }));
+    expect(screen.getByText("27 July – 23 Aug")).toBeInTheDocument();
+  });
+
+  it("marks a past day whose work all closed with a tick instead of dots", async () => {
+    mount(
+      data({
+        visits: [
+          visit({
+            id: "v-done",
+            status: "done",
+            bookedDate: "2026-07-28",
+            dueDate: "2026-07-28",
+            completedAt: "2026-07-28",
+          }),
+        ],
+      })
+    );
+    await toTab(/Calendar/);
+    expect(document.querySelector(".wb2-mcdone")).not.toBeNull();
+    expect(document.querySelector(".wb2-mcdots")).toBeNull();
   });
 });
 
@@ -585,7 +758,7 @@ describe("Urgent quick actions — each row fixes ITS fact (A1/A4)", () => {
       />
     );
     await userEvent.click(screen.getByRole("button", { name: "Clear" }));
-    await userEvent.click(screen.getByRole("button", { name: "Done" }));
+    await userEvent.click(screen.getByRole("button", { name: "Mark done — Order filters" }));
 
     // both toasts up at once — the single-slot stomp is dead
     const undos = screen.getAllByRole("button", { name: "Undo" });

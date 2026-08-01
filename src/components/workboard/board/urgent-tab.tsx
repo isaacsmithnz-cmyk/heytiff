@@ -12,12 +12,17 @@ import {
 } from "@/app/actions/workboard-maintenance";
 import type { BoardTech } from "@/lib/workboard/board-query";
 import type { UrgentRow } from "@/lib/workboard/urgent-rules";
+import { TaskRow, UrgentBody } from "./urgent-layout";
 
 /* Urgent — the derived queue, now with the actions the fixtures always
    promised (A1/A4). Each row's quick action fixes ITS fact — confirm the
    lead gate, assign the tech, clear the flag, complete the task — and the
    row leaves because the fact changed, never because someone hid it. Every
    action raises its own toast carrying its own inverse (B23).
+
+   Layout lives in urgent-layout: work splits into Overdue and Deal with it
+   today, personal tasks take the right-hand lane. Filtering narrows what
+   feeds those groups, so a filter that empties one simply drops it.
 
    The old vitals return here as FILTERS (D8): a number you can't press is
    decoration, so each count narrows the queue to its kind. */
@@ -116,11 +121,34 @@ export function UrgentTab({
           </em>
         </div>
       ) : (
-        <div className="wb2-urlist">
-          {shown.map((r) => (
-            <Row key={r.key} r={r} />
-          ))}
-        </div>
+        <UrgentBody
+          overdue={shown
+            .filter((r) => r.reason === "overdue")
+            .map((r) => <Row key={r.key} r={r} />)}
+          soon={shown
+            .filter((r) => r.reason !== "overdue" && r.reason !== "task")
+            .map((r) => <Row key={r.key} r={r} />)}
+          tasks={shown
+            .filter((r) => r.reason === "task")
+            .map((r) => (
+              <TaskRow
+                key={r.key}
+                title={r.label ?? r.headline}
+                who={r.also[0] ?? null}
+                due={r.headline}
+                tone={r.daysOver && r.daysOver > 0 ? "dan" : "warn"}
+                busy={busy}
+                onDone={() => {
+                  const id = r.taskId!;
+                  run(
+                    () => completeTask(id),
+                    `Done — ${r.label}`,
+                    undoable(() => reopenTask(id))
+                  );
+                }}
+              />
+            ))}
+        />
       )}
     </>
   );
@@ -157,15 +185,9 @@ export function UrgentTab({
               </span>
             ))}
           </div>
-          <b>
-            {r.reason === "flag" || r.reason === "task"
-              ? r.label ?? r.headline
-              : `${r.clientName} — ${r.label}`}
-          </b>
+          <b>{r.reason === "flag" ? r.label ?? r.headline : `${r.clientName} — ${r.label}`}</b>
           {r.reason === "flag" ? (
             <em>Raised from a note — stays up until somebody clears it.</em>
-          ) : r.reason === "task" ? (
-            <em>{r.also.length ? `For ${r.also[0]}` : "A task from the board"}</em>
           ) : (
             <em>
               {r.siteLabel ? `${r.siteLabel} · ` : ""}
@@ -201,26 +223,6 @@ export function UrgentTab({
           }}
         >
           Clear
-        </button>
-      );
-    }
-
-    if (r.reason === "task") {
-      return (
-        <button
-          className="pbtn ghost"
-          disabled={busy}
-          onClick={(e) => {
-            stop(e);
-            const id = r.taskId!;
-            run(
-              () => completeTask(id),
-              `Done — ${r.label}`,
-              undoable(() => reopenTask(id))
-            );
-          }}
-        >
-          Done
         </button>
       );
     }

@@ -16,6 +16,17 @@ import { hoursLabel } from "./derive";
    that's the money waiting — and every Mark-invoiced carries its own undo
    (G9's ambiguous per-row Undo is dead; toasts are per-action now). */
 
+/* Where a close-out note came from. A note with no name against it is a note
+   nobody can follow up, so the line always says something — but it only
+   NAMES someone when exactly one person was on the visit. Two techs and we
+   don't know which of them wrote it, and guessing puts words in a real
+   person's mouth. */
+function noteSource(v: BoardVisit): string {
+  if (v.completedSource === "servicem8") return "from the ServiceM8 job";
+  const who = v.techs.length === 1 ? v.techs[0].name : null;
+  return `${who ?? "the technician"}, on the job sheet`;
+}
+
 export function CompletedTab({
   visits,
   count,
@@ -134,7 +145,10 @@ export function CompletedTab({
             ))}
         </span>
         {v.completionNote ? (
-          <p className="wb2-dnnote">{v.completionNote}</p>
+          <p className="wb2-dnnote">
+            {v.completionNote}
+            <span>{noteSource(v)}</span>
+          </p>
         ) : (
           <p className="wb2-dnnote none">No close-out note.</p>
         )}

@@ -556,3 +556,28 @@ export async function clearFlag(flagId: string): Promise<ApplyResult> {
   refresh();
   return { ok: true, summary: "Cleared." };
 }
+
+/** The clear's own undo (B23: every action carries ITS inverse — a queue
+    where Undo can hit the wrong thing teaches people not to trust Undo).
+    Same tier as clearing: whoever swept it can put it back. */
+export async function restoreFlag(flagId: string): Promise<ApplyResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: NOT_SIGNED_IN };
+  if (!(await can("workboard"))) return { ok: false, error: NO_ACCESS };
+
+  const { data } = await supabaseAdmin
+    .from("workboard_flags")
+    .select("id")
+    .eq("org_id", ctx.orgId)
+    .eq("id", flagId)
+    .maybeSingle();
+  if (!data) return { ok: false, error: "That flag is no longer here." };
+
+  await supabaseAdmin
+    .from("workboard_flags")
+    .update({ active: true, cleared_by: null, cleared_at: null })
+    .eq("org_id", ctx.orgId)
+    .eq("id", flagId);
+  refresh();
+  return { ok: true, summary: "Back up." };
+}

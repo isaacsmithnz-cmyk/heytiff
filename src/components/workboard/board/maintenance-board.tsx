@@ -13,6 +13,8 @@ import { CalendarTab } from "./calendar-tab";
 import { CompletedTab } from "./completed-tab";
 import { AgreementsTab } from "./agreements-tab";
 import { VisitSheet } from "./visit-sheet";
+import { DayModal } from "./day-modal";
+import { ToastHost, useBoardToasts } from "./toasts";
 
 /* The redesigned maintenance board — five tabs on ONE persistent card.
 
@@ -41,21 +43,36 @@ const TAB_LABEL: Record<BoardTab, string> = {
   agreements: "Service agreements",
 };
 
+function syncedAgo(iso: string | null): string {
+  if (!iso) return "not yet";
+  const mins = Math.floor((Date.now() - Date.parse(iso)) / 60_000);
+  if (Number.isNaN(mins) || mins < 1) return "just now";
+  if (mins < 60) return `${mins} min ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  return "over a day ago";
+}
+
 export function MaintenanceBoard({
   data,
   flags,
   today,
   manage,
   connected,
+  sm8,
 }: {
   data: MaintenanceBoardData;
   flags: BoardFlag[];
   today: string;
   manage: boolean;
   connected: boolean;
+  /** The mirror-health surface that survives from the old board (D8/D4). */
+  sm8?: { attention: boolean; syncedAt: string | null; running: boolean } | null;
 }) {
   const [tab, setTab] = useState<BoardTab>("urgent");
-  const [sheetId, setSheetId] = useState<string | null>(null);
+  const [sheet, setSheet] = useState<{ visitId: string; closeOut: boolean } | null>(null);
+  const [dayISO, setDayISO] = useState<string | null>(null);
+  const { toasts, toast, dismiss } = useBoardToasts();
 
   const openVisits = useMemo(
     () => data.visits.filter((v) => v.status === "upcoming" || v.status === "booked"),
@@ -146,7 +163,8 @@ export function MaintenanceBoard({
     }
   };
 
-  const sheetVisit = sheetId ? data.visits.find((v) => v.id === sheetId) ?? null : null;
+  const sheetVisit = sheet ? data.visits.find((v) => v.id === sheet.visitId) ?? null : null;
+  const openSheet = (visitId: string, closeOut = false) => setSheet({ visitId, closeOut });
 
   const badge = (t: BoardTab): { n: number; tone: "" | "dan" | "warn" } | null => {
     if (t === "urgent") {
@@ -185,28 +203,66 @@ export function MaintenanceBoard({
             </button>
           );
         })}
+        {/* the mirror-health chip that survives from the old board (D8):
+            absent when standalone, quiet when fresh, loud when the
+            connection itself needs attention */}
+        {sm8 && (
+          <span className={"wb2-sm8" + (sm8.attention ? " dan" : "")}>
+            {sm8.attention
+              ? "ServiceM8 needs attention"
+              : sm8.running
+                ? "ServiceM8 syncing…"
+                : `ServiceM8 synced ${syncedAgo(sm8.syncedAt)}`}
+          </span>
+        )}
       </div>
 
       <div className="wb2-card">
         <div key={`${tab}-${fallbackSwap}`} className={fallbackSwap ? "wb2-swap" : undefined}>
           {tab === "urgent" && (
-            <UrgentTab rows={urgent} onOpenVisit={(id) => setSheetId(id)} manage={manage} />
+            <UrgentTab
+              rows={urgent}
+              staff={data.staff}
+              manage={manage}
+              onOpenVisit={(id) => openSheet(id)}
+              onCloseOut={(id) => openSheet(id, true)}
+              onToast={toast}
+            />
           )}
           {tab === "upcoming" && (
             <UpcomingTab
               visits={openVisits}
               today={today}
               confirm={confirmSummary}
-              onOpen={(id) => setSheetId(id)}
+              onOpen={(id) => openSheet(id)}
             />
           )}
-          {tab === "calendar" && <CalendarTab visits={data.visits} today={today} />}
+          {tab === "calendar" && (
+            <CalendarTab visits={data.visits} today={today} onDay={(iso) => setDayISO(iso)} />
+          )}
           {tab === "completed" && (
-            <CompletedTab visits={data.visits} count={doneCount} onOpen={(id) => setSheetId(id)} />
+            <CompletedTab visits={data.visits} count={doneCount} onOpen={(id) => openSheet(id)} />
           )}
           {tab === "agreements" && <AgreementsTab agreements={data.agreements} today={today} />}
         </div>
       </div>
+
+      {dayISO && (
+        <DayModal
+          key={dayISO}
+          dayISO={dayISO}
+          visits={data.visits}
+          today={today}
+          staff={data.staff}
+          manage={manage}
+          onOpenVisit={(id) => {
+            setDayISO(null);
+            openSheet(id);
+          }}
+          onToast={toast}
+          onClose={() => setDayISO(null)}
+        />
+      )}
 
       {sheetVisit && (
         <VisitSheet
@@ -220,9 +276,13 @@ export function MaintenanceBoard({
           tagPool={data.tagPool}
           manage={manage}
           connected={connected}
-          onClose={() => setSheetId(null)}
+          startClosing={sheet?.closeOut ?? false}
+          onToast={toast}
+          onClose={() => setSheet(null)}
         />
       )}
+
+      <ToastHost toasts={toasts} onDismiss={dismiss} />
     </div>
   );
 }

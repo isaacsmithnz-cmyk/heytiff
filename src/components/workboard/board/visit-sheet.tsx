@@ -60,6 +60,8 @@ export function VisitSheet({
   tagPool,
   manage,
   connected,
+  startClosing = false,
+  onToast,
   onClose,
 }: {
   visit: BoardVisit;
@@ -69,6 +71,9 @@ export function VisitSheet({
   tagPool: BoardTag[];
   manage: boolean;
   connected: boolean;
+  /** Arriving from an Urgent "Close it out" opens straight onto the form. */
+  startClosing?: boolean;
+  onToast: (message: string, undo?: () => void | Promise<void>) => void;
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -78,7 +83,7 @@ export function VisitSheet({
   const [pendingDay, setPendingDay] = useState<string>("");
   const [addingTag, setAddingTag] = useState(false);
   const [tagText, setTagText] = useState("");
-  const [closing, setClosing] = useState(false);
+  const [closing, setClosing] = useState(startClosing);
   const [ranOn, setRanOn] = useState(today);
   const [hoursText, setHoursText] = useState(
     visit.hoursEstimate !== null ? String(visit.hoursEstimate) : ""
@@ -101,13 +106,26 @@ export function VisitSheet({
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const run = (fn: () => Promise<MaintenanceResult>) => {
+  /** Actions whose effect stays visible in the sheet run silently; ones
+      whose subject LEAVES a list (placed, completed, skipped) raise a toast
+      carrying their own inverse (B23). */
+  const run = (
+    fn: () => Promise<MaintenanceResult>,
+    toastMsg?: string,
+    undo?: () => void | Promise<void>
+  ) => {
     setErr(null);
     start(async () => {
       const res = await fn();
       if (!res.ok) setErr(res.error);
+      else if (toastMsg) onToast(toastMsg, undo);
       router.refresh();
     });
+  };
+
+  const undoable = (fn: () => Promise<MaintenanceResult>) => async () => {
+    await fn();
+    router.refresh();
   };
 
   const gates = gatesOf(visit);
@@ -134,6 +152,15 @@ export function VisitSheet({
     if (tone === "go") return <span className="wb2-chip ok">Ready to run</span>;
     return <span className={"wb2-chip" + (tone === "flash" ? " dan" : tone === "soon" ? " warn" : "")}>{rel.t}</span>;
   })();
+
+  const place = (day: string) => {
+    const from = visit.bookedDate;
+    run(
+      () => placeVisit(visit.id, day),
+      `${from ? "Moved to" : "Placed on"} ${fmtAuWeekdayDayMonth(day)} — ${visit.clientName}`,
+      undoable(() => (from ? placeVisit(visit.id, from) : clearVisitPlacement(visit.id)))
+    );
+  };
 
   const addTag = (raw: string) => {
     const name = raw.trim();
@@ -432,7 +459,7 @@ export function VisitSheet({
                     onClick={() => {
                       const day = rollToBusinessDay(pendingDay);
                       setPendingDay("");
-                      run(() => placeVisit(visit.id, day));
+                      place(day);
                     }}
                   >
                     Roll to {fmtAuWeekdayDayMonth(rollToBusinessDay(pendingDay))}
@@ -443,7 +470,7 @@ export function VisitSheet({
                     onClick={() => {
                       const day = pendingDay;
                       setPendingDay("");
-                      run(() => placeVisit(visit.id, day));
+                      place(day);
                     }}
                   >
                     Keep the {new Date(`${pendingDay}T12:00:00Z`).getUTCDay() === 6 ? "Saturday" : "Sunday"}
@@ -456,7 +483,7 @@ export function VisitSheet({
                   onClick={() => {
                     const day = pendingDay;
                     setPendingDay("");
-                    run(() => placeVisit(visit.id, day));
+                    place(day);
                   }}
                 >
                   {visit.bookedDate ? "Move it" : "Place it"}
@@ -645,12 +672,15 @@ export function VisitSheet({
                     className="pbtn"
                     disabled={busy}
                     onClick={() =>
-                      run(() =>
-                        completeVisit(visit.id, {
-                          ranOn,
-                          actualHours: hoursText.trim() === "" ? null : Number(hoursText),
-                          note: closeNote,
-                        })
+                      run(
+                        () =>
+                          completeVisit(visit.id, {
+                            ranOn,
+                            actualHours: hoursText.trim() === "" ? null : Number(hoursText),
+                            note: closeNote,
+                          }),
+                        `Completed — ${visit.clientName}`,
+                        undoable(() => setVisitStatus(visit.id, "upcoming"))
                       )
                     }
                   >
@@ -670,7 +700,13 @@ export function VisitSheet({
                 <button
                   className="pbtn ghost"
                   disabled={busy}
-                  onClick={() => run(() => setVisitStatus(visit.id, "skipped"))}
+                  onClick={() =>
+                    run(
+                      () => setVisitStatus(visit.id, "skipped"),
+                      `Skipped — ${visit.clientName}`,
+                      undoable(() => setVisitStatus(visit.id, "upcoming"))
+                    )
+                  }
                 >
                   Skip this one
                 </button>

@@ -74,6 +74,8 @@ export type UrgentRow = {
   /** Secondary reasons riding along (A2) — gate names, never invented text. */
   also: string[];
   action: UrgentAction;
+  /** The gate that names a gap row — the one the row's quick action fixes. */
+  leadGate?: GateName;
   visitId?: string;
   agreementId?: string;
   flagId?: string;
@@ -153,6 +155,7 @@ export function urgentRows(input: {
       headline: GATE_HEADLINE[lead],
       also: missing.slice(1).map(gateChip),
       action: lead === "crew" ? "assign_tech" : "confirm_gates",
+      leadGate: lead,
     });
   }
 

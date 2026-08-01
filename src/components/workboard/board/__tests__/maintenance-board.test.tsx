@@ -53,12 +53,16 @@ jest.mock("@/app/actions/workboard-maintenance", () => ({
 }));
 
 const clearFlag = jest.fn(async () => ({ ok: true }));
+const restoreFlag = jest.fn(async () => ({ ok: true }));
 jest.mock("@/app/actions/workboard-notes", () => ({
   clearFlag: (...a: unknown[]) => clearFlag(...(a as [])),
+  restoreFlag: (...a: unknown[]) => restoreFlag(...(a as [])),
 }));
 const completeTask = jest.fn(async () => ({ ok: true }));
+const reopenTask = jest.fn(async () => ({ ok: true }));
 jest.mock("@/app/actions/dashboard", () => ({
   completeTask: (...a: unknown[]) => completeTask(...(a as [])),
+  reopenTask: (...a: unknown[]) => reopenTask(...(a as [])),
 }));
 
 const TODAY = "2026-07-30"; // Thursday
@@ -111,7 +115,10 @@ function data(over: Partial<MaintenanceBoardData> = {}): MaintenanceBoardData {
   };
 }
 
-function mount(d: MaintenanceBoardData, opts: { manage?: boolean } = {}) {
+function mount(
+  d: MaintenanceBoardData,
+  opts: { manage?: boolean; sm8?: { attention: boolean; syncedAt: string | null; running: boolean } | null } = {}
+) {
   return render(
     <MaintenanceBoard
       data={d}
@@ -119,6 +126,7 @@ function mount(d: MaintenanceBoardData, opts: { manage?: boolean } = {}) {
       today={TODAY}
       manage={opts.manage ?? true}
       connected={false}
+      sm8={opts.sm8 ?? null}
     />
   );
 }
@@ -442,5 +450,216 @@ describe("Calendar — first cut", () => {
     expect(screen.getByText("July 2026")).toBeInTheDocument();
     expect(screen.getByText("Ready to run")).toBeInTheDocument();
     expect(screen.getByText(/1 overdue service isn't on a day yet/)).toBeInTheDocument();
+  });
+});
+
+describe("Urgent quick actions — each row fixes ITS fact (A1/A4)", () => {
+  it("confirming the lead gate raises a toast whose Undo unticks exactly that gate (B23)", async () => {
+    mount(
+      data({
+        visits: [
+          visit({
+            id: "v-1",
+            dueDate: "2026-08-02",
+            readiness: { equipment_ready: false, access_confirmed: true },
+            techs: [{ id: "s-1", name: "Dane Poulos" }],
+          }),
+        ],
+      })
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Confirm equipment" }));
+    expect(act.setVisitReadiness).toHaveBeenCalledWith("v-1", "equipment_ready", true);
+
+    const toast = screen.getByText("Equipment confirmed — Halston Freight").closest(".wb2-toast")!;
+    await userEvent.click(within(toast as HTMLElement).getByRole("button", { name: "Undo" }));
+    expect(act.setVisitReadiness).toHaveBeenLastCalledWith("v-1", "equipment_ready", false);
+  });
+
+  it("a crew gap assigns straight off the row, with its own undo", async () => {
+    mount(
+      data({
+        visits: [
+          visit({
+            id: "v-1",
+            dueDate: "2026-08-02",
+            readiness: { equipment_ready: true, access_confirmed: true },
+          }),
+        ],
+      })
+    );
+    await userEvent.selectOptions(
+      screen.getByLabelText("Assign a technician — Halston Freight"),
+      "s-2"
+    );
+    expect(act.assignVisitTech).toHaveBeenCalledWith("v-1", "s-2");
+    const toast = screen.getByText("Luke Mercer assigned — Halston Freight").closest(".wb2-toast")!;
+    await userEvent.click(within(toast as HTMLElement).getByRole("button", { name: "Undo" }));
+    expect(act.unassignVisitTech).toHaveBeenCalledWith("v-1", "s-2");
+  });
+
+  it("an overdue PLACED visit offers Close it out and lands on the open form", async () => {
+    mount(
+      data({
+        visits: [visit({ id: "v-1", dueDate: "2026-07-25", bookedDate: "2026-07-28", status: "booked" })],
+      })
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Close it out" }));
+    const sheet = within(screen.getByRole("dialog"));
+    expect(sheet.getByRole("button", { name: "Mark it complete" })).toBeInTheDocument();
+  });
+
+  it("flag Clear and task Done carry their own inverses — two toasts, two undos, no crosstalk (B23)", async () => {
+    render(
+      <MaintenanceBoard
+        data={data({ tasks: [{ id: "t-1", title: "Order filters", dueDate: "2026-07-29", assigneeName: null }] })}
+        flags={[
+          {
+            id: "f-1",
+            message: "No roof access booked",
+            severity: "urgent",
+            targetKind: "none",
+            targetId: null,
+            createdAt: "2026-07-30T00:00:00.000Z",
+          },
+        ]}
+        today={TODAY}
+        manage
+        connected={false}
+        sm8={null}
+      />
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Clear" }));
+    await userEvent.click(screen.getByRole("button", { name: "Done" }));
+
+    // both toasts up at once — the single-slot stomp is dead
+    const undos = screen.getAllByRole("button", { name: "Undo" });
+    expect(undos).toHaveLength(2);
+
+    await userEvent.click(
+      within(screen.getByText("Flag cleared").closest(".wb2-toast") as HTMLElement).getByRole(
+        "button",
+        { name: "Undo" }
+      )
+    );
+    expect(restoreFlag).toHaveBeenCalledWith("f-1");
+
+    await userEvent.click(
+      within(screen.getByText("Done — Order filters").closest(".wb2-toast") as HTMLElement).getByRole(
+        "button",
+        { name: "Undo" }
+      )
+    );
+    expect(reopenTask).toHaveBeenCalledWith("t-1");
+  });
+
+  it("the vitals live on as filters (D8): pressing one narrows the queue to its kind", async () => {
+    mount(
+      data({
+        visits: [
+          visit({ id: "v-late", dueDate: "2026-07-21", clientName: "Grange Microbrewery" }),
+          visit({ id: "v-gap", dueDate: "2026-08-02", clientName: "Meridian Data" }),
+        ],
+      })
+    );
+    expect(screen.getByText("Grange Microbrewery — Rooftop package units")).toBeInTheDocument();
+    expect(screen.getByText("Meridian Data — Rooftop package units")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /1 overdue/ }));
+    expect(screen.getByText("Grange Microbrewery — Rooftop package units")).toBeInTheDocument();
+    expect(screen.queryByText("Meridian Data — Rooftop package units")).not.toBeInTheDocument();
+
+    // pressing it again is the way back to everything
+    await userEvent.click(screen.getByRole("button", { name: /1 overdue/ }));
+    expect(screen.getByText("Meridian Data — Rooftop package units")).toBeInTheDocument();
+  });
+});
+
+describe("the day modal — the list behind a day's colour, live (A3/A5/K8)", () => {
+  const openDay = async (visits: BoardVisit[], dayISO: string) => {
+    mount(data({ visits }));
+    await toTab(/Calendar/);
+    // the target day may sit outside July's grid — page forward if needed
+    if (!screen.queryByLabelText(`Open ${dayISO}`)) {
+      await userEvent.click(screen.getByRole("button", { name: "Next month" }));
+    }
+    await userEvent.click(screen.getByLabelText(`Open ${dayISO}`));
+    return within(screen.getByRole("dialog"));
+  };
+
+  it("shows the day's services and ticks gates live, with undo (A3)", async () => {
+    const modal = await openDay(
+      [visit({ id: "v-1", bookedDate: "2026-08-05", status: "booked", dueDate: "2026-08-05" })],
+      "2026-08-05"
+    );
+    expect(modal.getByText("Halston Freight")).toBeInTheDocument();
+    expect(modal.getByText("3 to confirm")).toBeInTheDocument();
+
+    await userEvent.click(modal.getByTitle(/Equipment ready — not confirmed/));
+    expect(act.setVisitReadiness).toHaveBeenCalledWith("v-1", "equipment_ready", true);
+    expect(screen.getByText("Equipment confirmed — Halston Freight")).toBeInTheDocument();
+  });
+
+  it("places an unplaced visit onto the day — undo takes it back OFF the day", async () => {
+    const modal = await openDay([visit({ id: "v-loose", dueDate: "2026-07-21" })], "2026-08-05");
+    await userEvent.click(modal.getByRole("button", { name: "Place a service on this day" }));
+    await userEvent.click(modal.getByRole("button", { name: "Place here" }));
+    expect(act.placeVisit).toHaveBeenCalledWith("v-loose", "2026-08-05");
+
+    const toast = screen.getByText(/placed on Wed 5 Aug/).closest(".wb2-toast")!;
+    await userEvent.click(within(toast as HTMLElement).getByRole("button", { name: "Undo" }));
+    expect(act.clearVisitPlacement).toHaveBeenCalledWith("v-loose");
+  });
+
+  it("moving a booked visit here reschedules it (A5) — undo restores the day it came from", async () => {
+    const modal = await openDay(
+      [visit({ id: "v-booked", dueDate: "2026-08-04", bookedDate: "2026-08-04", status: "booked" })],
+      "2026-08-06"
+    );
+    await userEvent.click(modal.getByRole("button", { name: "Place a service on this day" }));
+    expect(modal.getByText(/moving one reschedules it/)).toBeInTheDocument();
+    await userEvent.click(modal.getByRole("button", { name: "Move it here" }));
+    expect(act.placeVisit).toHaveBeenCalledWith("v-booked", "2026-08-06");
+
+    const toast = screen.getByText(/moved to Thu 6 Aug/).closest(".wb2-toast")!;
+    await userEvent.click(within(toast as HTMLElement).getByRole("button", { name: "Undo" }));
+    expect(act.placeVisit).toHaveBeenLastCalledWith("v-booked", "2026-08-04");
+  });
+
+  it("an empty day owns up and offers the candidates straight away", async () => {
+    const modal = await openDay([visit({ id: "v-loose", dueDate: "2026-08-20" })], "2026-08-05");
+    expect(modal.getByText("Nothing placed on this day")).toBeInTheDocument();
+    expect(modal.getByText("Not placed yet")).toBeInTheDocument();
+    expect(modal.getByRole("button", { name: "Place here" })).toBeInTheDocument();
+  });
+});
+
+describe("the mirror-health chip (D8)", () => {
+  it("absent standalone, quiet when fresh, loud on attention", () => {
+    const { rerender } = mount(data(), { sm8: null });
+    expect(screen.queryByText(/ServiceM8/)).not.toBeInTheDocument();
+
+    rerender(
+      <MaintenanceBoard
+        data={data()}
+        flags={[]}
+        today={TODAY}
+        manage
+        connected
+        sm8={{ attention: false, syncedAt: new Date(Date.now() - 3 * 60_000).toISOString(), running: false }}
+      />
+    );
+    expect(screen.getByText("ServiceM8 synced 3 min ago")).toBeInTheDocument();
+
+    rerender(
+      <MaintenanceBoard
+        data={data()}
+        flags={[]}
+        today={TODAY}
+        manage
+        connected={false}
+        sm8={{ attention: true, syncedAt: null, running: false }}
+      />
+    );
+    expect(screen.getByText("ServiceM8 needs attention")).toBeInTheDocument();
   });
 });

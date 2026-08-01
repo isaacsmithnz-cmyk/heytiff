@@ -213,8 +213,11 @@ describe("connected", () => {
     expect(screen.getByText(/Australia\/Brisbane/)).toBeInTheDocument();
   });
 
-  it("says when the connection itself needs attention", () => {
+  it("says when the connection itself needs attention — on the projects side; the board's own chip carries it for maintenance", async () => {
     render(<OverviewScreen data={{ ...connected, connection: "attention", counts: null }} />);
+    // maintenance side: the mocked board owns the news (its sm8 chip)
+    expect(screen.queryByText(/needs attention — job data/)).not.toBeInTheDocument();
+    await toProjects();
     expect(screen.getByText(/needs attention/)).toBeInTheDocument();
   });
 });

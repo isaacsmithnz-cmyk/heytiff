@@ -3559,3 +3559,85 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
   ::view-transition-group(wbcard), ::view-transition-old(wbcard), ::view-transition-new(wbcard),
   ::view-transition-old(wbtabs), ::view-transition-new(wbtabs) { animation:none !important; }
 }
+
+/* ── wb2 step 3: filters, day modal, toasts, mirror chip ── */
+
+/* the old vitals, reborn as filters on the queue (D8) */
+.wb2-filters { display:flex; align-items:center; gap:7px; flex-wrap:wrap; margin-left:auto; }
+.wb2-filter { display:inline-flex; align-items:center; gap:7px; height:32px; padding:0 12px; border-radius:10px;
+  border:1px solid rgba(5,5,5,.1); background:#fff; font:inherit; font-size:12px; font-weight:700; color:var(--gray700);
+  cursor:pointer; transition:border-color .18s, background .18s, box-shadow .18s; }
+.wb2-filter b { font-size:13px; font-weight:800; font-variant-numeric:tabular-nums; }
+.wb2-filter.dan b { color:var(--wb2-dan-t, #b31038); }
+.wb2-filter.warn b { color:var(--wb2-warn-t, #B45309); }
+.wb2-filter:hover { border-color:rgba(5,5,5,.25); }
+.wb2-filter.on { border-color:rgba(0,168,224,.5); background:rgba(0,168,224,.07); box-shadow:0 0 0 2px rgba(0,168,224,.12); color:var(--ink); }
+.wb2-filter:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
+
+/* the mirror-health chip beside the tabs (D8) */
+.wb2-sm8 { margin-left:auto; align-self:center; font-size:11.5px; font-weight:700; color:var(--gray500);
+  padding:5px 10px; border-radius:9px; background:rgba(5,5,5,.045); white-space:nowrap; }
+.wb2-sm8.dan { background:rgba(224,38,79,.1); color:var(--wb2-dan-t, #b31038); }
+
+/* the day modal — the list behind a day's colour */
+.wb2-daymodal { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:101;
+  width:min(600px, calc(100vw - 32px)); max-height:min(78vh, 760px); display:flex; flex-direction:column;
+  background:#fff; border:1px solid rgba(5,5,5,.08); border-radius:20px; box-shadow:0 30px 80px -30px rgba(10,12,20,.55);
+  overflow:hidden; animation:wb2CardIn .32s cubic-bezier(.22,1,.36,1) both;
+  --wb2-eq:#7A5AF8; --wb2-acc:#00A8E0; --wb2-crew:#64748B; --wb2-dan:#e0264f; --wb2-dan-t:#b31038;
+  --wb2-warn:#FF8A00; --wb2-warn-t:#B45309; --wb2-ok:#00A389; --wb2-line:rgba(5,5,5,.08); --wb2-line2:rgba(5,5,5,.06); }
+.wb2-dmhd { padding:14px 18px 16px; border-bottom:1px solid var(--wb2-line2); flex:none; }
+.wb2-dmhd[data-tone="go"], .wb2-dmhd[data-tone="done"] { background:linear-gradient(160deg, rgba(0,163,137,.08), rgba(0,163,137,0) 70%); }
+.wb2-dmhd[data-tone="soon"] { background:linear-gradient(160deg, rgba(255,138,0,.09), rgba(255,138,0,0) 70%); }
+.wb2-dmhd[data-tone="flash"], .wb2-dmhd[data-tone="over"] { background:linear-gradient(160deg, rgba(224,38,79,.08), rgba(224,38,79,0) 70%); }
+.wb2-dmtop { display:flex; align-items:center; justify-content:space-between; }
+.wb2-dmhd h2 { font-size:23px; font-weight:800; letter-spacing:-.03em; line-height:1.15; margin:5px 0 0; }
+.wb2-dmchips { display:flex; align-items:center; gap:7px; flex-wrap:wrap; margin-top:10px; }
+.wb2-dmbody { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:12px; display:flex; flex-direction:column; gap:9px; }
+.wb2-dmgrp { display:flex; flex-direction:column; gap:6px; border-top:1px solid var(--wb2-line2); margin-top:6px; padding-top:10px; }
+.wb2-dmgrp .wb2-sect { padding:2px 6px; }
+.wb2-dmft { display:flex; align-items:center; gap:10px; padding:12px 16px; border-top:1px solid var(--wb2-line2); flex:none; background:#fff; }
+.wb2-lpr { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:11px; align-items:center; padding:8px 6px; border-radius:11px; transition:background .18s; }
+.wb2-lpr:hover { background:rgba(5,5,5,.022); }
+.wb2-lpr .wb2-trt b { font-size:13px; }
+
+/* day cards inside the modal */
+.wb2-dc { position:relative; border:1px solid rgba(5,5,5,.08); border-radius:14px; padding:11px 13px 11px 15px;
+  display:flex; flex-direction:column; gap:7px; overflow:hidden; background:#fff; text-align:left; transition:background .25s, border-color .2s; }
+.wb2-dc:before { content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--lead, var(--wb2-ok)); }
+.wb2-dc[data-tone="go"], .wb2-dc[data-tone="done"] { background:rgba(0,163,137,.055); border-color:rgba(0,163,137,.3); }
+.wb2-dc[data-tone="soon"] { background:rgba(255,138,0,.07); border-color:rgba(255,138,0,.36); }
+.wb2-dc[data-tone="soon"]:before { background:var(--wb2-warn); }
+.wb2-dc[data-tone="flash"], .wb2-dc[data-tone="over"] { background:rgba(224,38,79,.05); border-color:rgba(224,38,79,.32); }
+.wb2-dc[data-tone="flash"]:before, .wb2-dc[data-tone="over"]:before { background:var(--wb2-dan); }
+.wb2-dc[data-tone="quote"] { border-style:dashed; }
+.wb2-dc[data-tone="quote"]:before { display:none; }
+.wb2-dc.mini:before { background:transparent; }
+.wb2-dc:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
+.wb2-dch { display:flex; align-items:center; gap:8px; }
+.wb2-dch b { font-size:14.5px; font-weight:800; letter-spacing:-.015em; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wb2-dch em { margin-left:auto; font-style:normal; font-size:11.5px; font-weight:700; color:var(--gray500); }
+.wb2-dcs { font-size:12px; color:var(--gray500); font-weight:600; text-wrap:pretty; }
+.wb2-dcck { display:grid; grid-template-columns:1fr 1fr; gap:5px; }
+.wb2-dcck[data-cols="1"] { grid-template-columns:1fr; }
+.wb2-dcck[data-cols="3"] { grid-template-columns:repeat(3,1fr); }
+.wb2-ck { display:flex; align-items:center; gap:7px; padding:7px 9px; border-radius:10px;
+  border:1px solid color-mix(in oklab, var(--as) 32%, #fff); background:color-mix(in oklab, var(--as) 7%, #fff);
+  font:inherit; font-size:11.5px; font-weight:700; color:var(--gray700); text-align:left; cursor:pointer;
+  transition:border-color .2s, background .2s; }
+.wb2-ck i { width:9px; height:9px; border-radius:3px; background:var(--as); flex:none; }
+.wb2-ck:hover { border-color:color-mix(in oklab, var(--as) 62%, #fff); background:color-mix(in oklab, var(--as) 13%, #fff); }
+span.wb2-ck { cursor:default; }
+.wb2-dcck .wb2-sel { padding:6px 8px; font-size:11.5px; }
+
+/* toasts — one slot PER ACTION (B23), stacked, each with its own undo */
+.wb2-toasts { position:fixed; left:50%; bottom:26px; transform:translateX(-50%); z-index:130;
+  display:flex; flex-direction:column-reverse; gap:8px; align-items:center; pointer-events:none; }
+.wb2-toast { display:flex; align-items:center; gap:12px; padding:11px 10px 11px 16px; border-radius:13px;
+  background:#0A0B10; color:#fff; font-size:13px; font-weight:600; box-shadow:0 14px 40px -14px rgba(10,12,20,.7);
+  pointer-events:auto; animation:wb2CardIn .32s cubic-bezier(.22,1,.36,1) both; max-width:min(520px, calc(100vw - 40px)); }
+.wb2-toast button { font:inherit; font-weight:800; color:#5ad7ff; background:none; border:0; cursor:pointer; padding:2px 6px; border-radius:7px; }
+.wb2-toast button:hover { background:rgba(255,255,255,.08); }
+.wb2-toast .wb2-toastx { color:rgba(255,255,255,.55); font-size:15px; padding:0 8px; }
+.wb2-toast .wb2-toastx:hover { color:#fff; }
+@media (prefers-reduced-motion:reduce) { .wb2-daymodal, .wb2-toast { animation:none !important; } }

@@ -313,7 +313,9 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
           {!display && <NoteCapture target={{ kind: "none" }} voiceEnabled={data.voiceEnabled} />}
 
           <div className="wb-board" ref={boardRef}>
-            {data.connection === "attention" && (
+            {/* Projects side only: the maintenance board carries the same
+                news as its own header chip (D8). */}
+            {tab === "projects" && data.connection === "attention" && (
               <div className="int-note bad">
                 The ServiceM8 connection needs attention — job data on this board may be stale.
               </div>
@@ -374,6 +376,15 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
                 today={data.today}
                 manage={data.manage}
                 connected={connected}
+                sm8={
+                  data.connection === "none"
+                    ? null
+                    : {
+                        attention: data.connection === "attention",
+                        syncedAt: data.synced?.finishedAt ?? null,
+                        running: data.synced?.running ?? false,
+                      }
+                }
               />
             ) : (
               <>

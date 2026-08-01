@@ -16,7 +16,15 @@ import { calendarToneFor, placedDayOf, toneOf } from "./derive";
 
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-export function CalendarTab({ visits, today }: { visits: BoardVisit[]; today: string }) {
+export function CalendarTab({
+  visits,
+  today,
+  onDay,
+}: {
+  visits: BoardVisit[];
+  today: string;
+  onDay: (dayISO: string) => void;
+}) {
   const [monthStart, setMonthStart] = useState(() => `${today.slice(0, 7)}-01`);
 
   const { cells, monthLabel } = useMemo(() => {
@@ -106,8 +114,9 @@ export function CalendarTab({ visits, today }: { visits: BoardVisit[]; today: st
         {cells.map((c) => {
           const tone = calendarToneFor(c.dayVisits, c.iso, today);
           return (
-            <div
+            <button
               key={c.iso}
+              type="button"
               className={
                 "wb2-mcc" +
                 (c.inMonth ? "" : " out") +
@@ -115,6 +124,8 @@ export function CalendarTab({ visits, today }: { visits: BoardVisit[]; today: st
                 (c.iso === today ? " today" : "")
               }
               data-tone={tone}
+              aria-label={`Open ${c.iso}`}
+              onClick={() => onDay(c.iso)}
             >
               <span className="wb2-mcn">
                 {parseInt(c.iso.slice(8, 10), 10)}
@@ -128,7 +139,7 @@ export function CalendarTab({ visits, today }: { visits: BoardVisit[]; today: st
                   {c.dayVisits.length > 4 && <b>+{c.dayVisits.length - 4}</b>}
                 </span>
               )}
-            </div>
+            </button>
           );
         })}
       </div>
@@ -137,7 +148,7 @@ export function CalendarTab({ visits, today }: { visits: BoardVisit[]; today: st
         <p className="wb2-mcloose">
           {`${unplaced.length} overdue ${
             unplaced.length === 1 ? "service isn't" : "services aren't"
-          } on a day yet — giving one a day books it in, it doesn't make it on time. They're waiting on the Urgent tab.`}
+          } on a day yet — giving one a day books it in, it doesn't make it on time. Open a day to place them.`}
         </p>
       )}
     </>

@@ -12,11 +12,17 @@ import {
 } from "@/app/actions/workboard-maintenance";
 import type { BoardTech } from "@/lib/workboard/board-query";
 import type { ProjectUrgentRow } from "@/lib/workboard/project-rules";
+import { UrgentBody } from "./urgent-layout";
 
 /* Urgent, projects side — the same law as the maintenance queue: every row
    is derived, every quick action fixes the row's own fact, and the row
    leaves because the fact changed. Project-state rows (blocked, promise,
-   burn, stale) open the project — their remedy is a decision, not a tick. */
+   burn, stale) open the project — their remedy is a decision, not a tick.
+
+   Same two groups as maintenance (late trips, then what's stuck) and the
+   same layout component. No task lane: tasks belong to a person and the
+   maintenance queue already carries the org's, so showing them twice would
+   break the one rule this board has — nothing appears on both sides. */
 
 type UrgentFilter = "all" | "trips" | "projects" | "flags";
 
@@ -114,11 +120,14 @@ export function ProjectUrgentTab({
           </em>
         </div>
       ) : (
-        <div className="wb2-urlist">
-          {shown.map((r) => (
-            <Row key={r.key} r={r} />
-          ))}
-        </div>
+        <UrgentBody
+          overdue={shown
+            .filter((r) => r.reason === "visit_overdue")
+            .map((r) => <Row key={r.key} r={r} />)}
+          soon={shown
+            .filter((r) => r.reason !== "visit_overdue")
+            .map((r) => <Row key={r.key} r={r} />)}
+        />
       )}
     </>
   );

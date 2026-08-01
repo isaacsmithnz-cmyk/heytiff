@@ -3359,18 +3359,54 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-ckq.on { background:rgba(0,163,137,.08); border-color:rgba(0,163,137,.32); }
 
 /* ── urgent rows ── */
+/* The queue's two columns. Tasks ride the right lane behind a hair rule;
+   with only one side populated the grid collapses rather than reserving
+   empty space, and under 1100px it always stacks — a 400px-wide task lane
+   is worse than one below the work. */
+.wb2-urbody { padding:12px 16px 16px; }
+.wb2-urbody.twocol { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); align-items:start; gap:10px 22px; }
+.wb2-urqueue { display:flex; flex-direction:column; gap:10px; min-width:0; }
+.wb2-urgrp { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.wb2-urside { position:relative; padding-left:22px; }
+.wb2-urside:before { content:""; position:absolute; left:0; top:4px; bottom:4px; width:1px; background:var(--wb2-line2); }
+.wb2-sect { font-size:10.5px; font-weight:800; letter-spacing:.17em; text-transform:uppercase; color:var(--gray400);
+  padding:6px 2px 3px; }
+@media (max-width:1100px) {
+  .wb2-urbody.twocol { grid-template-columns:minmax(0,1fr); }
+  .wb2-urside { padding-left:0; padding-top:6px; }
+  .wb2-urside:before { left:2px; right:2px; top:0; bottom:auto; width:auto; height:1px; }
+}
+
+/* Tasks: the tick leads, because ticking is the whole interaction. */
+.wb2-tasks { display:flex; flex-direction:column; }
+.wb2-tk { display:flex; align-items:center; gap:11px; padding:9px 10px; border-radius:12px; transition:background .18s; }
+.wb2-tk:hover { background:rgba(5,5,5,.022); }
+.wb2-tkb { width:22px; height:22px; flex:none; border-radius:50%; border:1.5px solid rgba(5,5,5,.22); background:#fff;
+  color:transparent; display:grid; place-items:center; cursor:pointer; transition:border-color .18s, background .18s, color .18s; }
+.wb2-tkb:hover:not(:disabled) { border-color:var(--wb2-ok); background:rgba(0,163,137,.1); color:#00806b; }
+.wb2-tkb:disabled { opacity:.5; cursor:default; }
+.wb2-tkb:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
+.wb2-tkt { flex:1; min-width:0; }
+.wb2-tkt b { display:block; font-size:13px; font-weight:700; letter-spacing:-.005em; line-height:1.35; text-wrap:pretty; }
+.wb2-tkt em { display:block; font-style:normal; font-size:11.5px; color:var(--gray500); font-weight:600; margin-top:2px; }
+.wb2-tk .wb2-chip { flex:none; }
+
 .wb2-urlist { display:flex; flex-direction:column; gap:9px; padding:14px 16px 16px; }
-.wb2-ur { display:flex; align-items:center; gap:12px; border:1px solid var(--wb2-line); border-radius:14px; padding:11px 13px 11px 15px;
-  position:relative; overflow:hidden; transition:background .2s, border-color .2s, transform .18s cubic-bezier(.22,1,.36,1); }
-.wb2-ur:before { content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--wb2-warn); }
+/* A row is a LINE, not a card: the severity bar carries the state and the
+   group heading carries the grouping, so a box around each one only adds
+   edges to count. Boxed, a five-row queue read as five separate things to
+   deal with instead of one list to work down. */
+.wb2-ur { display:flex; align-items:center; gap:12px; border-radius:13px; padding:11px 12px 11px 14px;
+  position:relative; transition:background .18s cubic-bezier(.4,0,.2,1); }
+.wb2-ur:before { content:""; position:absolute; left:0; top:9px; bottom:9px; width:3px; border-radius:99px;
+  background:var(--wb2-warn); }
 .wb2-ur[data-sev="dan"]:before { background:var(--wb2-dan); }
-.wb2-ur[data-sev="dan"] { background:rgba(224,38,79,.04); border-color:rgba(224,38,79,.28); }
-.wb2-ur[data-sev="warn"] { background:rgba(255,138,0,.05); border-color:rgba(255,138,0,.3); }
-.wb2-ur.can-open:hover { transform:scale(1.004); border-color:rgba(5,5,5,.25); }
+.wb2-ur:hover { background:rgba(5,5,5,.022); }
 .wb2-ur:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
-.wb2-urt { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
-.wb2-urt b { font-size:14px; font-weight:800; letter-spacing:-.01em; }
-.wb2-urt em { font-style:normal; font-size:11.5px; color:var(--gray500); font-weight:600; }
+.wb2-urt { flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
+.wb2-urt b { font-size:13.5px; font-weight:800; letter-spacing:-.01em; line-height:1.3; text-wrap:pretty; }
+.wb2-urt em { font-style:normal; font-size:12px; color:var(--gray500); font-weight:500;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .wb2-urwhy { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
 .wb2-ur .pbtn { flex:none; }
 
@@ -3386,17 +3422,28 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-mc { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:6px; padding:4px 16px 16px; }
 .wb2-mcc { position:relative; min-height:84px; border:1px solid var(--wb2-line2); border-radius:12px; padding:7px 8px;
   background:#fff; display:flex; flex-direction:column; gap:6px; }
-.wb2-mcc.out { opacity:.42; }
+.wb2-mcc.past { opacity:.6; }
 .wb2-mcc.we { background:rgba(5,5,5,.022); }
 .wb2-mcc.today { border-color:rgba(0,168,224,.55); box-shadow:0 0 0 2px rgba(0,168,224,.14); }
-.wb2-mcc[data-tone="go"] { background:rgba(0,163,137,.06); border-color:rgba(0,163,137,.3); }
-.wb2-mcc[data-tone="soon"] { background:rgba(255,138,0,.07); border-color:rgba(255,138,0,.36); }
-.wb2-mcc[data-tone="flash"], .wb2-mcc[data-tone="over"] { background:rgba(224,38,79,.05); border-color:rgba(224,38,79,.32); }
-.wb2-mcc[data-tone="done"] { background:rgba(5,5,5,.03); }
+/* A day's colour has to carry across the room — this is the wall-screen
+   view as well as the desk one. Tints sit at the strength the handoff set;
+   anything fainter and a red Monday and a green Monday look alike at 2 m. */
+.wb2-mcc[data-tone="go"] { background:rgba(0,163,137,.14); border-color:rgba(0,163,137,.4); }
+.wb2-mcc[data-tone="soon"] { background:rgba(255,138,0,.16); border-color:rgba(255,138,0,.5); }
+.wb2-mcc[data-tone="flash"] { background:rgba(224,38,79,.1); border-color:rgba(224,38,79,.42); }
+.wb2-mcc[data-tone="over"] { background:rgba(224,38,79,.16); border-color:rgba(224,38,79,.52); }
+.wb2-mcc[data-tone="done"] { background:rgba(5,5,5,.045); border-color:rgba(5,5,5,.09); }
+.wb2-mcc[data-tone="done"] .wb2-mcn { color:var(--gray400); }
+.wb2-mcc:hover { border-color:rgba(5,5,5,.2); transform:translateY(-1px); }
+.wb2-mcc { transition:border-color .2s, background .25s, transform .18s cubic-bezier(.22,1,.36,1); }
+/* a settled day says so once, quietly */
+.wb2-mcdone { margin-top:auto; display:grid; place-items:center; padding:4px 0 2px; color:#00806b; opacity:.75; }
+.wb2-mcsum { display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
 .wb2-mcc[data-tone="flash"] { animation:wb2Flash 2.4s ease-in-out infinite; }
 @keyframes wb2Flash { 0%,100% { box-shadow:0 0 0 0 rgba(224,38,79,.22); } 50% { box-shadow:0 0 0 5px rgba(224,38,79,0); } }
 .wb2-mcn { display:flex; align-items:center; gap:6px; font-size:12px; font-weight:800; color:var(--gray700); font-variant-numeric:tabular-nums; }
 .wb2-mcn em { font-style:normal; font-size:9px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:#0089b8; }
+.wb2-mcc:not(.today) .wb2-mcn em { color:var(--gray500); }
 .wb2-mcdots { display:flex; align-items:center; gap:4px; flex-wrap:wrap; }
 .wb2-mcdots i { width:9px; height:9px; border-radius:50%; background:rgba(5,5,5,.25); }
 .wb2-mcdots i[data-tone="go"] { background:var(--wb2-ok); }
@@ -3406,18 +3453,28 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-mcdots b { font-size:9.5px; font-weight:800; color:var(--gray500); }
 .wb2-mcloose { padding:0 20px 16px; font-size:12.5px; color:var(--gray500); font-weight:600; margin:0; }
 
-/* ── completed ── */
-.wb2-dnlist { display:flex; flex-direction:column; }
-.wb2-dn { display:grid; grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr) auto; gap:6px 14px; align-items:center;
-  padding:13px 20px; border-bottom:1px solid var(--wb2-line2); transition:background .18s; }
-.wb2-dn:last-child { border-bottom:0; }
-.wb2-dn:hover { background:rgba(5,5,5,.018); }
-.wb2-dn:focus-visible { outline:none; box-shadow:inset 0 0 0 3px rgba(0,168,224,.3); }
+/* ── completed ──
+   The opposite call to the urgent queue, and for the opposite reason: a
+   finished visit IS a discrete object — a job that ran, its hours, its note,
+   its invoice state — and you deal with it one at a time. So these ARE
+   cards, on a tinted bed, each holding its own close-out note. */
+.wb2-dnlist { display:flex; flex-direction:column; gap:10px; padding:4px 16px 16px; }
+.wb2-dn { display:grid; grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr) auto; gap:8px 14px;
+  align-items:center; padding:13px 15px; border:1px solid var(--wb2-line); border-radius:15px; background:#fff;
+  transition:border-color .18s, box-shadow .18s, transform .18s cubic-bezier(.22,1,.36,1); }
+.wb2-dn.can-open:hover { border-color:rgba(5,5,5,.2); transform:translateY(-1px);
+  box-shadow:0 10px 22px -18px rgba(10,12,20,.7); }
+.wb2-dn:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
 .wb2-dnt b { display:block; font-size:14px; font-weight:800; letter-spacing:-.01em; }
 .wb2-dnt em, .wb2-dnw em, .wb2-dnh em { display:block; font-style:normal; font-size:11.5px; color:var(--gray500); font-weight:600; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .wb2-dnw b, .wb2-dnh b { font-size:12.5px; font-weight:800; }
-.wb2-dnnote { grid-column:1/-1; margin:2px 0 0; font-size:12.5px; font-weight:500; color:var(--gray700); }
-.wb2-dnnote.none { color:#9ca3af; }
+/* The note sits in its own well and SIGNS ITSELF — a close-out note whose
+   author you can't see is one nobody can follow up on. */
+.wb2-dnnote { grid-column:1/-1; margin:2px 0 0; padding:8px 11px; border-radius:11px; background:rgba(5,5,5,.03);
+  font-size:12.5px; font-weight:500; color:var(--gray700); line-height:1.55; text-wrap:pretty; }
+.wb2-dnnote span { display:block; margin-top:5px; font-size:10.5px; font-weight:800; letter-spacing:.04em;
+  text-transform:uppercase; color:var(--gray400); }
+.wb2-dnnote.none { padding:0; background:none; color:#9ca3af; }
 
 /* ── agreements ── */
 .wb2-agrp { padding-bottom:8px; }
@@ -3429,7 +3486,22 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-agrp[data-accent="pink"] .wb2-aghd i { background:#C4419B; }
 .wb2-agrp[data-accent="slate"] .wb2-aghd i { background:#64748B; }
 .wb2-aghd em { font-style:normal; font-size:11px; font-weight:600; letter-spacing:0; text-transform:none; color:#9ca3af; }
-.wb2-agr { display:grid; grid-template-columns:minmax(0,1.3fr) 110px minmax(0,1fr) minmax(0,1fr); gap:14px; align-items:center;
+/* Six columns: who and what, how often, when it last ran, when it's next,
+   what follows, and how it's labelled. Last-done and Then are what turn a
+   cadence word into an actual rhythm. */
+.wb2-agcols { display:grid; grid-template-columns:minmax(0,1.3fr) 96px minmax(0,.9fr) minmax(0,1fr) minmax(0,.7fr) minmax(0,.9fr);
+  gap:14px; padding:2px 20px 6px; font-size:10px; font-weight:800; letter-spacing:.12em; text-transform:uppercase;
+  color:#9ca3af; }
+.wb2-agcols span:last-child { text-align:right; }
+.wb2-agsearch { display:flex; align-items:center; gap:8px; height:36px; padding:0 12px; border-radius:999px;
+  border:1px solid var(--wb2-line); background:#fff; color:var(--gray500); flex:0 1 300px; min-width:200px; margin-left:auto; }
+.wb2-agsearch:focus-within { border-color:rgba(0,168,224,.5); box-shadow:0 0 0 3px rgba(0,168,224,.14); }
+.wb2-agsearch input { flex:1; min-width:0; border:0; background:none; font:inherit; font-size:12.5px; font-weight:600;
+  color:var(--ink); outline:none; }
+.wb2-agsearch input::placeholder { color:#9ca3af; font-weight:500; }
+.wb2-trd.quiet b { color:var(--gray500); font-weight:700; }
+.wb2-trd b.dan { color:var(--wb2-dan-t, #b31038); }
+.wb2-agr { display:grid; grid-template-columns:minmax(0,1.3fr) 96px minmax(0,.9fr) minmax(0,1fr) minmax(0,.7fr) minmax(0,.9fr); gap:14px; align-items:center;
   padding:11px 20px; border-bottom:1px solid var(--wb2-line2); text-decoration:none; color:inherit; transition:background .18s; }
 .wb2-agr:hover { background:rgba(5,5,5,.018); }
 .wb2-agrp:last-child .wb2-agr:last-child { border-bottom:0; }

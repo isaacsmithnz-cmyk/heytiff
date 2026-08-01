@@ -2,15 +2,21 @@
 
 import { useMemo, useState } from "react";
 import { Icon } from "@/components/shell/icon";
-import { addMonthsClamped } from "@/lib/workboard/visit-schedule";
+import { fmtAuDayMonth } from "@/lib/au-dates";
 import { isWeekendISO, mondayOf } from "@/lib/workboard/board-status";
 import { plusDays } from "@/lib/workboard/dates";
 import { calendarToneForCal, placedDayOfCal, toneOfCal, type CalVisit } from "./derive";
 
-/* Calendar — the month, read from the same status law as every other tab.
-   A cell's colour derives from the visits SITTING on that day (placement
-   first, linked diary second), so it can never disagree with the rows
-   (K2's cure applied to the month).
+/* Calendar — a ROLLING FOUR WEEKS, read from the same status law as every
+   other tab. A cell's colour derives from the visits SITTING on that day
+   (placement first, linked diary second), so it can never disagree with the
+   rows (K2's cure applied to the window).
+
+   Four weeks from the Monday you are in, not a calendar month: a month view
+   spends its first and last rows on days that have already gone or belong to
+   next month, so the week you actually care about sits mid-grid and the run
+   ahead runs off the bottom. Rolling forward keeps "now" in the top row and
+   always shows the same amount of future. The arrows step a week at a time.
 
    Calendars stay PER-SIDE with a merged view on tap (decision P3, Isaac's
    words: "per side, but maybe add a 3rd view that is merged"): the toggle
@@ -19,6 +25,16 @@ import { calendarToneForCal, placedDayOfCal, toneOfCal, type CalVisit } from "./
    day modal — placing happens on the board that owns the work. */
 
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+/** Four weeks — the run you can actually plan for. */
+const WINDOW_DAYS = 28;
+
+/** "Aug" — marks where a month turns inside a window that ignores months. */
+function monthWord(iso: string): string {
+  return new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-AU", {
+    month: "short",
+    timeZone: "UTC",
+  });
+}
 
 export function CalendarTab({
   side,
@@ -41,10 +57,11 @@ export function CalendarTab({
   today: string;
   onDay: (dayISO: string) => void;
 }) {
-  const [monthStart, setMonthStart] = useState(() => `${today.slice(0, 7)}-01`);
+  /** Weeks away from the Monday of the current week. 0 is "now". */
+  const [weekShift, setWeekShift] = useState(0);
   const [merged, setMerged] = useState(false);
 
-  const { cells, monthLabel } = useMemo(() => {
+  const { cells, rangeLabel, services, toConfirm } = useMemo(() => {
     const byDay = new Map<string, CalVisit[]>();
     const all = merged ? [...visits, ...others] : visits;
     for (const v of all) {
@@ -55,19 +72,24 @@ export function CalendarTab({
       byDay.set(day, list);
     }
 
-    const first = mondayOf(monthStart);
-    const out: { iso: string; inMonth: boolean }[] = [];
-    for (let i = 0; i < 42; i += 1) {
+    const first = plusDays(mondayOf(today), weekShift * 7);
+    const out = [];
+    for (let i = 0; i < WINDOW_DAYS; i += 1) {
       const iso = plusDays(first, i);
-      out.push({ iso, inMonth: iso.slice(0, 7) === monthStart.slice(0, 7) });
+      out.push({ iso, dayVisits: byDay.get(iso) ?? [] });
     }
-    const label = new Date(`${monthStart}T12:00:00Z`).toLocaleDateString("en-AU", {
-      month: "long",
-      year: "numeric",
-      timeZone: "UTC",
-    });
-    return { cells: out.map((c) => ({ ...c, dayVisits: byDay.get(c.iso) ?? [] })), monthLabel: label };
-  }, [visits, others, merged, monthStart]);
+    const inWindow = out.flatMap((c) => c.dayVisits);
+    return {
+      cells: out,
+      rangeLabel: `${fmtAuDayMonth(first)} – ${fmtAuDayMonth(plusDays(first, WINDOW_DAYS - 1))}`,
+      services: inWindow.length,
+      // what the window is still waiting on — the number you'd act on
+      toConfirm: inWindow.filter((v) => {
+        const t = toneOfCal(v, today);
+        return t === "soon" || t === "flash" || t === "over";
+      }).length,
+    };
+  }, [visits, others, merged, today, weekShift]);
 
   const unplaced = useMemo(
     () =>
@@ -87,9 +109,15 @@ export function CalendarTab({
           <Icon name="calendar" size={19} />
         </span>
         <div>
-          <b>{monthLabel}</b>
+          <b>{rangeLabel}</b>
           <em>Colour says how ready each day is. Green is the goal, red is the queue.</em>
         </div>
+        <span className="wb2-mcsum">
+          <span className="wb2-chip">
+            {services} {services === 1 ? "service" : "services"}
+          </span>
+          {toConfirm > 0 && <span className="wb2-chip warn">{toConfirm} to confirm</span>}
+        </span>
         <div className="wb2-filters" role="group" aria-label="Calendar scope">
           <button
             type="button"
@@ -111,15 +139,20 @@ export function CalendarTab({
         <span className="wb2-mcnav">
           <button
             className="pbtn ghost"
-            aria-label="Previous month"
-            onClick={() => setMonthStart((m) => addMonthsClamped(m, -1))}
+            aria-label="A week earlier"
+            onClick={() => setWeekShift((w) => w - 1)}
           >
             <Icon name="chevL" size={15} />
           </button>
+          {weekShift !== 0 && (
+            <button className="pbtn ghost" onClick={() => setWeekShift(0)}>
+              Today
+            </button>
+          )}
           <button
             className="pbtn ghost"
-            aria-label="Next month"
-            onClick={() => setMonthStart((m) => addMonthsClamped(m, 1))}
+            aria-label="A week later"
+            onClick={() => setWeekShift((w) => w + 1)}
           >
             <Icon name="chevR" size={15} />
           </button>
@@ -154,13 +187,19 @@ export function CalendarTab({
       <div className="wb2-mc">
         {cells.map((c) => {
           const tone = calendarToneForCal(c.dayVisits, c.iso, today);
+          /* A past day whose work all closed says so with a tick instead of
+             dots: it's settled, and dots invite a second read of a day you
+             can do nothing about. A past day still holding open work keeps
+             its dots — that's exactly the day you need to see. */
+          const settled =
+            c.iso < today && c.dayVisits.length > 0 && c.dayVisits.every((v) => v.status === "done");
           return (
             <button
               key={c.iso}
               type="button"
               className={
                 "wb2-mcc" +
-                (c.inMonth ? "" : " out") +
+                (c.iso < today ? " past" : "") +
                 (isWeekendISO(c.iso) ? " we" : "") +
                 (c.iso === today ? " today" : "")
               }
@@ -170,20 +209,28 @@ export function CalendarTab({
             >
               <span className="wb2-mcn">
                 {parseInt(c.iso.slice(8, 10), 10)}
-                {c.iso === today && <em>Today</em>}
+                {(c.iso === today || c.iso.slice(8, 10) === "01") && (
+                  <em>{c.iso === today ? "Today" : monthWord(c.iso)}</em>
+                )}
               </span>
-              {c.dayVisits.length > 0 && (
-                <span className="wb2-mcdots">
-                  {c.dayVisits.slice(0, 4).map((v) => (
-                    <i
-                      key={v.id}
-                      data-tone={toneOfCal(v, today)}
-                      data-oth={v.side !== side ? "" : undefined}
-                      title={`${v.name} — ${v.label}`}
-                    />
-                  ))}
-                  {c.dayVisits.length > 4 && <b>+{c.dayVisits.length - 4}</b>}
+              {settled ? (
+                <span className="wb2-mcdone" aria-label="All closed">
+                  <Icon name="check" size={13} />
                 </span>
+              ) : (
+                c.dayVisits.length > 0 && (
+                  <span className="wb2-mcdots">
+                    {c.dayVisits.slice(0, 4).map((v) => (
+                      <i
+                        key={v.id}
+                        data-tone={toneOfCal(v, today)}
+                        data-oth={v.side !== side ? "" : undefined}
+                        title={`${v.name} — ${v.label}`}
+                      />
+                    ))}
+                    {c.dayVisits.length > 4 && <b>+{c.dayVisits.length - 4}</b>}
+                  </span>
+                )
               )}
             </button>
           );

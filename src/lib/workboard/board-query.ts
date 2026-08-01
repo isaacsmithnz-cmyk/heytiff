@@ -97,6 +97,14 @@ export type BoardAgreement = {
   equipment: BoardEquipment[];
   /** Soonest OPEN due date — honest even past the display window. */
   nextDue: string | null;
+  /** The one AFTER nextDue — the ledger's "then" column, so a cadence reads
+      as a rhythm rather than a single date. Open visits load uncapped, so
+      this is exact. */
+  thenDue: string | null;
+  /** When this agreement was last serviced. Sourced from its own query, not
+      the board's 56-day done window — "last done" is a fact about the
+      agreement and an annual service's answer is always outside that window. */
+  lastDone: string | null;
   overdueCount: number;
 };
 
@@ -193,6 +201,10 @@ export async function loadMaintenanceBoard(
   }
 
   const agreementIds = agreements.map((a) => a.id);
+  /** How far back the last-done scan reads. Generous for a real book (a
+      hundred agreements servicing monthly is ~1,200 rows a year) and a hard
+      stop rather than an unbounded history read. */
+  const LAST_DONE_SCAN = 4000;
   const VISIT_COLUMNS =
     "id, agreement_id, due_date, booked_date, status, readiness, job_number, " +
     "provider, remote_id, booked_start_cached, notes, completed_at, " +
@@ -207,6 +219,7 @@ export async function loadMaintenanceBoard(
     { data: linkRows },
     { data: packRows },
     { data: equipmentRows },
+    { data: lastDoneRows },
     staff,
   ] = await Promise.all([
     activeIds.length
@@ -248,6 +261,23 @@ export async function loadMaintenanceBoard(
       .eq("org_id", orgId)
       .in("agreement_id", agreementIds)
       .order("created_at", { ascending: true }),
+    /* "Last done" per agreement — two columns, newest first, and the first
+       row seen per agreement wins. Deliberately NOT the board's 56-day done
+       window: an annual service's last visit is always older than that, and
+       a ledger column that goes blank for the slowest cadences is worse than
+       no column. Bounded at LAST_DONE_SCAN rows; the ledger says so when the
+       scan runs out rather than pretending nothing was ever done. */
+    agreementIds.length
+      ? supabaseAdmin
+          .from("maintenance_visits")
+          .select("agreement_id, completed_at")
+          .eq("org_id", orgId)
+          .in("agreement_id", agreementIds)
+          .eq("status", "done")
+          .not("completed_at", "is", null)
+          .order("completed_at", { ascending: false })
+          .limit(LAST_DONE_SCAN)
+      : noRows,
     staffOptions(orgId),
   ]);
 
@@ -369,13 +399,28 @@ export async function loadMaintenanceBoard(
     });
   }
 
+  /* next / then: the two soonest open due dates per agreement. Open visits
+     load uncapped and already sorted by due date, so first-seen wins. */
   const nextDueBy = new Map<string, string>();
+  const thenDueBy = new Map<string, string>();
   const overdueBy = new Map<string, number>();
   for (const v of out) {
     if (v.status !== "upcoming" && v.status !== "booked") continue;
     const seen = nextDueBy.get(v.agreementId);
-    if (!seen || v.dueDate < seen) nextDueBy.set(v.agreementId, v.dueDate);
+    if (!seen || v.dueDate < seen) {
+      if (seen) thenDueBy.set(v.agreementId, seen);
+      nextDueBy.set(v.agreementId, v.dueDate);
+    } else {
+      const second = thenDueBy.get(v.agreementId);
+      if (!second || v.dueDate < second) thenDueBy.set(v.agreementId, v.dueDate);
+    }
     if (v.dueDate < today) overdueBy.set(v.agreementId, (overdueBy.get(v.agreementId) ?? 0) + 1);
+  }
+
+  const lastDoneBy = new Map<string, string>();
+  for (const r of (lastDoneRows ?? []) as { agreement_id: string; completed_at: string }[]) {
+    // rows arrive newest-first, so the first sighting is the latest
+    if (!lastDoneBy.has(r.agreement_id)) lastDoneBy.set(r.agreement_id, r.completed_at);
   }
   const equipmentBy = new Map<string, BoardEquipment[]>();
   for (const e of (equipmentRows ?? []) as (BoardEquipment & { agreement_id: string })[]) {
@@ -407,6 +452,8 @@ export async function loadMaintenanceBoard(
       packing: packingBy.get(a.id) ?? [],
       equipment: equipmentBy.get(a.id) ?? [],
       nextDue: nextDueBy.get(a.id) ?? null,
+      thenDue: thenDueBy.get(a.id) ?? null,
+      lastDone: lastDoneBy.get(a.id) ?? null,
       overdueCount: overdueBy.get(a.id) ?? 0,
     }))
     .sort((x, y) => x.label.localeCompare(y.label));

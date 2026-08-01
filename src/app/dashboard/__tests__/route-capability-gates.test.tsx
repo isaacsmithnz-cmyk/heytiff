@@ -49,6 +49,9 @@ jest.mock("@/lib/workboard/projects-query", () => ({
   listProjects: jest.fn(async () => []),
   getProjectDetail: jest.fn(async () => ({ id: "p-1", jobs: [], checklist: [], equipment: [] })),
 }));
+jest.mock("@/lib/workboard/projects-board-query", () => ({
+  loadProjectsBoard: jest.fn(async () => ({ projects: [], visits: [], staff: [] })),
+}));
 jest.mock("@/components/workboard/maintenance-screen", () => ({ MaintenanceScreen: () => null }));
 jest.mock("@/components/workboard/agreement-detail-screen", () => ({
   AgreementDetailScreen: () => null,

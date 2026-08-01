@@ -7,6 +7,7 @@ import {
   DEFAULT_CHECKLIST,
   isProjectStage,
   isProjectStatus,
+  leftBehindFor,
   nextStage,
   PROJECT_STAGES,
   SECTION_STAGES,
@@ -84,6 +85,14 @@ describe("stage advance — manual, checklist-aware (P5)", () => {
     const advice = stageAdvice("Pre-install", withCustom);
     expect(advice.nudge).toBe(true);
     expect(advice.leftBehind).toBe(0);
+  });
+
+  it("leftBehindFor counts what a JUMP would leave behind — the target owes its history", () => {
+    expect(leftBehindFor("Quote", items([]))).toBe(0);
+    expect(leftBehindFor("Fit-off", items([]))).toBe(4); // Approval & prep only
+    expect(leftBehindFor("Complete", items([]))).toBe(15); // the whole seed
+    expect(leftBehindFor("Complete", items(["Approval & prep", "On the tools", "Commissioning", "Handover"]))).toBe(0);
+    expect(leftBehindFor("Nonsense", items([]))).toBe(0);
   });
 
   it("Complete is terminal; unknown stages advise nothing", () => {

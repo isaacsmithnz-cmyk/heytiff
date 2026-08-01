@@ -2,15 +2,22 @@ import { notFound, redirect } from "next/navigation";
 import { can } from "@/lib/permissions-server";
 import { auth0 } from "@/lib/auth0";
 import { getProjectDetail } from "@/lib/workboard/projects-query";
+import { loadProjectsBoard } from "@/lib/workboard/projects-board-query";
 import { listIssues, listProjectEntries } from "@/lib/workboard/notes-query";
 import { isTranscriptionConfigured } from "@/lib/voice/transcribe";
 import { getConnectionView } from "@/lib/integrations/store";
+import { getSm8Timezone } from "@/lib/workboard/query";
+import { todayInZone } from "@/lib/workboard/dates";
 import { ProjectDetailScreen } from "@/components/workboard/project-detail-screen";
 
-/* One project, whole story: stage, checklist, equipment, linked jobs (with
-   the mirror's garnish when connected), design link. The id names a CHOICE —
-   the loader re-resolves it inside the caller's org, so a foreign id is a
-   404, not a leak. */
+/* One project, whole story: stage, trips, checklist, money, equipment,
+   linked jobs (with the mirror's garnish when connected), design link. The
+   id names a CHOICE — the loader re-resolves it inside the caller's org, so
+   a foreign id is a 404, not a leak.
+
+   Trips come from the SAME loader the board reads (loadProjectsBoard), so
+   this page and the board can never tell different stories about a trip —
+   K2's rule, applied to the route. */
 
 export default async function WorkboardProjectPage({
   params,
@@ -24,8 +31,10 @@ export default async function WorkboardProjectPage({
   if (!orgId) redirect("/dashboard");
 
   const { id } = await params;
-  const [project, manage, connection, entries, issues] = await Promise.all([
+  const today = todayInZone(await getSm8Timezone(orgId));
+  const [project, board, manage, connection, entries, issues] = await Promise.all([
     getProjectDetail(orgId, id),
+    loadProjectsBoard(orgId, today),
     can("workboard_manage"),
     getConnectionView(orgId, "servicem8"),
     listProjectEntries(orgId, id),
@@ -36,6 +45,9 @@ export default async function WorkboardProjectPage({
   return (
     <ProjectDetailScreen
       project={project}
+      trips={board.visits.filter((v) => v.projectId === id)}
+      staff={board.staff}
+      today={today}
       manage={manage}
       sm8Connected={connection?.status === "connected"}
       entries={entries}

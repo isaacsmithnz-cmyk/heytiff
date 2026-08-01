@@ -117,6 +117,24 @@ export type StageAdvice = {
   leftBehind: number;
 };
 
+/** Unticked items in every section that should be finished before BEING at
+    `target` — sections whose final stage sits before it. This is the honest
+    count behind "advance anyway?", and it works for jumps: Quote → Fit-off
+    owes everything Rough-in owed plus its own. */
+export function leftBehindFor(
+  target: string,
+  items: readonly { section: string; done: boolean }[]
+): number {
+  const at = stageIndex(target);
+  if (at < 0) return 0;
+  const owed = new Set(
+    SECTION_STAGES.filter((m) => stageIndex(m.stages[m.stages.length - 1]) < at).map(
+      (m) => m.section
+    )
+  );
+  return items.filter((i) => owed.has(i.section) && !i.done).length;
+}
+
 export function stageAdvice(
   stage: string,
   items: readonly { section: string; done: boolean }[]
@@ -132,23 +150,15 @@ export function stageAdvice(
   const sectionDone = inSection.filter((i) => i.done).length;
   const sectionTotal = inSection.length;
 
-  // Sections that should be finished before LEAVING this stage: every mapped
-  // section whose final stage sits at or before the current one.
-  const here = stageIndex(stage);
-  const owed = new Set(
-    SECTION_STAGES.filter((m) => {
-      const last = m.stages[m.stages.length - 1];
-      return here >= 0 && stageIndex(last) <= here;
-    }).map((m) => m.section)
-  );
-  const leftBehind = items.filter((i) => owed.has(i.section) && !i.done).length;
-
   return {
     next,
     gateSection,
     sectionDone,
     sectionTotal,
     nudge: next !== null && sectionTotal > 0 && sectionDone === sectionTotal,
-    leftBehind,
+    // What should be finished before LEAVING this stage = what the next
+    // stage is owed. Complete has no next; nothing is "left behind" by
+    // standing still at the end.
+    leftBehind: next ? leftBehindFor(next, items) : 0,
   };
 }

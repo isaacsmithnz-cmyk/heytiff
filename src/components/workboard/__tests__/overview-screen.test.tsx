@@ -1,36 +1,66 @@
 /* The Workboard's several lives: standalone (no integration — the board says
    so and keeps working), connected (counts + the week's run sheet, rendered
    from mirror strings without any Date() reinterpretation), and the two
-   sides of the switcher — the redesigned maintenance BOARD (its own suite
-   lives in board/__tests__) and the projects side, which keeps the vitals
-   filter, the flags card and the pipeline. */
+   sides of the switcher — now BOTH the redesigned board architecture (each
+   side's suite lives in board/__tests__; here we pin what the page owns:
+   the switcher, the capture pill, the run sheet, and the flag ROUTING that
+   keeps a flag on exactly one board). */
 
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { OverviewScreen } from "../overview-screen";
-import type { ProjectStripItem } from "@/lib/workboard/projects-query";
 import type { WorkboardData } from "@/lib/workboard/page-data";
+import type { ProjectBoardVisit } from "@/lib/workboard/projects-board-query";
+import type { BoardFlag } from "@/lib/workboard/notes-query";
 
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: jest.fn() }),
 }));
 
 /* The capture box is its own component with its own suite; the server actions
-   behind it can't be imported into jsdom. Same for the maintenance board —
-   here we only pin that the switcher mounts it with the right dataset. */
+   behind it can't be imported into jsdom. Same for both boards — here we only
+   pin that the switcher mounts each with the right dataset and flags. */
 jest.mock("../note-capture", () => ({
   NoteCapture: ({ voiceEnabled }: { voiceEnabled: boolean }) => (
     <div data-testid="capture">{voiceEnabled ? "voice on" : "typing only"}</div>
   ),
 }));
 jest.mock("../board/maintenance-board", () => ({
-  MaintenanceBoard: ({ manage, connected }: { manage: boolean; connected: boolean }) => (
+  MaintenanceBoard: ({
+    manage,
+    connected,
+    flags,
+    calOthers,
+  }: {
+    manage: boolean;
+    connected: boolean;
+    flags: unknown[];
+    calOthers?: unknown[];
+  }) => (
     <div data-testid="mboard">
-      board · manage:{String(manage)} · connected:{String(connected)}
+      board · manage:{String(manage)} · connected:{String(connected)} · flags:{flags.length} ·
+      others:{calOthers?.length ?? 0}
     </div>
   ),
 }));
-jest.mock("@/app/actions/workboard-notes", () => ({ clearFlag: jest.fn() }));
+jest.mock("../board/projects-board", () => ({
+  ProjectsBoard: ({
+    manage,
+    connected,
+    flags,
+    calOthers,
+  }: {
+    manage: boolean;
+    connected: boolean;
+    flags: unknown[];
+    calOthers?: unknown[];
+  }) => (
+    <div data-testid="pboard">
+      projects · manage:{String(manage)} · connected:{String(connected)} · flags:{flags.length} ·
+      others:{calOthers?.length ?? 0}
+    </div>
+  ),
+}));
 
 const TODAY = "2026-07-28";
 
@@ -41,34 +71,52 @@ const base: WorkboardData = {
   today: TODAY,
   counts: null,
   upcoming: [],
-  projects: [],
-  radar: [],
   flags: [],
   board: { visits: [], agreements: [], staff: [], tagPool: [], categories: [], tasks: [] },
+  projectsBoard: { projects: [], visits: [], staff: [] },
   voiceEnabled: false,
   aiEnabled: false,
   synced: null,
 };
 
-function project(over: Partial<ProjectStripItem> & { id: string }): ProjectStripItem {
-  return {
-    name: "Smith St change-over",
-    clientName: "Smith",
-    siteLabel: null,
-    stage: "Rough-in",
-    status: "active",
-    percent: 40,
-    done: 6,
-    total: 15,
-    updatedAt: `${TODAY}T01:00:00Z`,
-    ...over,
-  };
-}
+const tripStub = (id: string): ProjectBoardVisit => ({
+  id,
+  projectId: "p-1",
+  projectName: "Smith St change-over",
+  clientName: "Smith",
+  siteLabel: null,
+  label: "Rough-in",
+  dueDate: "2026-08-04",
+  bookedDate: null,
+  status: "upcoming",
+  readiness: { equipment_ready: false, access_confirmed: false },
+  techs: [],
+  bringList: [],
+  jobNumber: null,
+  provider: null,
+  remoteId: null,
+  bookedStart: null,
+  mirrorStatus: null,
+  mirrorNextStart: null,
+  warn: false,
+  notes: null,
+  completedAt: null,
+  completedSource: null,
+  actualHours: null,
+  completionNote: null,
+  invoicedAt: null,
+});
+
+const flag = (over: Partial<BoardFlag> & { id: string }): BoardFlag => ({
+  message: "No roof access booked",
+  severity: "urgent",
+  targetKind: "none",
+  targetId: null,
+  createdAt: "2026-07-28T00:00:00.000Z",
+  ...over,
+});
 
 const toProjects = () => userEvent.click(screen.getByRole("button", { name: "Projects" }));
-
-const card = (heading: string) =>
-  within(screen.getByText(heading).closest(".card2") as HTMLElement);
 
 describe("standalone", () => {
   it("says it runs without an integration, and only routes managers to connect", () => {
@@ -87,23 +135,37 @@ describe("standalone", () => {
 });
 
 describe("the switcher", () => {
-  it("opens on Maintenance — the redesigned board — and swaps whole for Projects", async () => {
-    render(<OverviewScreen data={{ ...base, projects: [project({ id: "p1" })] }} />);
+  it("opens on Maintenance and swaps whole boards", async () => {
+    render(<OverviewScreen data={base} />);
 
     expect(screen.getByTestId("mboard")).toBeInTheDocument();
-    expect(screen.queryByText("Live projects")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("pboard")).not.toBeInTheDocument();
 
     await toProjects();
 
-    expect(screen.getByText("Live projects")).toBeInTheDocument();
+    expect(screen.getByTestId("pboard")).toBeInTheDocument();
     expect(screen.queryByTestId("mboard")).not.toBeInTheDocument();
-    expect(screen.getByText("Smith St change-over")).toBeInTheDocument();
   });
 
-  it("hands the board its permissions and connection truthfully", () => {
+  it("hands both boards their permissions and connection truthfully", async () => {
     render(<OverviewScreen data={{ ...base, manage: true, connection: "connected" }} />);
     expect(screen.getByTestId("mboard")).toHaveTextContent("manage:true");
     expect(screen.getByTestId("mboard")).toHaveTextContent("connected:true");
+    await toProjects();
+    expect(screen.getByTestId("pboard")).toHaveTextContent("manage:true");
+    expect(screen.getByTestId("pboard")).toHaveTextContent("connected:true");
+  });
+
+  it("hands each board the OTHER side's visits for the merged calendar (P3)", async () => {
+    const data: WorkboardData = {
+      ...base,
+      projectsBoard: { ...base.projectsBoard, visits: [tripStub("pv-1"), tripStub("pv-2")] },
+    };
+    render(<OverviewScreen data={data} />);
+    expect(screen.getByTestId("mboard")).toHaveTextContent("others:2");
+    await toProjects();
+    // maintenance board holds no visits in this fixture
+    expect(screen.getByTestId("pboard")).toHaveTextContent("others:0");
   });
 
   it("drives the sliding thumb by index rather than swapping a background", async () => {
@@ -114,7 +176,7 @@ describe("the switcher", () => {
     expect(seg).toHaveAttribute("data-active", "1");
   });
 
-  it("offers Display mode on both sides — the maintenance wall landed with step 5", async () => {
+  it("offers Display mode on both sides", async () => {
     render(<OverviewScreen data={base} />);
     expect(screen.getByRole("button", { name: /Display mode/ })).toBeInTheDocument();
     await toProjects();
@@ -122,50 +184,37 @@ describe("the switcher", () => {
   });
 });
 
-describe("the projects vitals", () => {
-  it("live only on the projects side — the maintenance board carries its own signal", async () => {
-    render(<OverviewScreen data={{ ...base, projects: [project({ id: "p1", status: "on_hold" })] }} />);
-    expect(screen.queryByRole("button", { name: /Urgent/ })).not.toBeInTheDocument();
+/* The one rule: a flag appears on exactly ONE board. Project flags and flags
+   on a project's trips go to the projects queue; everything else stays with
+   maintenance. */
+describe("flag routing", () => {
+  it("routes project-targeted flags to the projects board only", async () => {
+    const data: WorkboardData = {
+      ...base,
+      flags: [
+        flag({ id: "f-1", targetKind: "project", targetId: "p-1" }),
+        flag({ id: "f-2", targetKind: "none" }),
+      ],
+    };
+    render(<OverviewScreen data={data} />);
+    expect(screen.getByTestId("mboard")).toHaveTextContent("flags:1");
     await toProjects();
-    expect(
-      within(screen.getByRole("button", { name: /Urgent/ })).getByText("1")
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("pboard")).toHaveTextContent("flags:1");
   });
 
-  it("filter and the good-outcome empty state still work", async () => {
-    render(<OverviewScreen data={{ ...base, projects: [project({ id: "p1" })] }} />);
+  it("routes a flag on a project's trip to the projects board", async () => {
+    const data: WorkboardData = {
+      ...base,
+      projectsBoard: { ...base.projectsBoard, visits: [tripStub("pv-9")] },
+      flags: [
+        flag({ id: "f-1", targetKind: "visit", targetId: "pv-9" }),
+        flag({ id: "f-2", targetKind: "visit", targetId: "mv-1" }), // a maintenance visit
+      ],
+    };
+    render(<OverviewScreen data={data} />);
+    expect(screen.getByTestId("mboard")).toHaveTextContent("flags:1");
     await toProjects();
-    await userEvent.click(screen.getByRole("button", { name: /Urgent/ }));
-    expect(screen.getByText(/Nothing urgent/)).toBeInTheDocument();
-  });
-});
-
-describe("the projects list", () => {
-  it("links each card and shows its checklist and stage", async () => {
-    render(<OverviewScreen data={{ ...base, projects: [project({ id: "p-1" })] }} />);
-    await toProjects();
-    expect(screen.getByText("Smith St change-over").closest("a")).toHaveAttribute(
-      "href",
-      "/dashboard/workboard/projects/p-1"
-    );
-    expect(card("Projects in flight").getByText("Rough-in")).toBeInTheDocument();
-    expect(screen.getByText(/6\/15 ticked/)).toBeInTheDocument();
-  });
-
-  it("flags a stalled project with its reason, not a bare colour", async () => {
-    render(
-      <OverviewScreen
-        data={{ ...base, projects: [project({ id: "p-1", updatedAt: "2026-07-17T01:00:00Z" })] }}
-      />
-    );
-    await toProjects();
-    expect(screen.getByText("No movement for 11 days")).toBeInTheDocument();
-  });
-
-  it("carries an on-hold project instead of hiding it", async () => {
-    render(<OverviewScreen data={{ ...base, projects: [project({ id: "p-1", status: "on_hold" })] }} />);
-    await toProjects();
-    expect(screen.getByText("On hold")).toBeInTheDocument();
+    expect(screen.getByTestId("pboard")).toHaveTextContent("flags:1");
   });
 });
 
@@ -223,20 +272,7 @@ describe("connected", () => {
   });
 });
 
-/* Smart Notes still lives on this screen — the capture box above the board.
-   The flags card is now the PROJECTS side's surface only: on the maintenance
-   board a flag is an urgent row with its Clear right there (the L1 ruleset),
-   and rendering it twice would break the board's one rule. */
 describe("smart notes", () => {
-  const flag = (severity: "urgent" | "warn" | "info", message: string) => ({
-    id: `f-${severity}`,
-    message,
-    severity,
-    targetKind: "none" as const,
-    targetId: null,
-    createdAt: "2026-07-28T00:00:00.000Z",
-  });
-
   it("offers the capture box, and says whether the mic is available", () => {
     const { rerender } = render(<OverviewScreen data={base} />);
     expect(screen.getByTestId("capture")).toHaveTextContent("typing only");
@@ -248,27 +284,5 @@ describe("smart notes", () => {
     const { container } = render(<OverviewScreen data={base} />);
     expect(container.querySelector(".wb-board [data-testid='capture']")).toBeNull();
     expect(screen.getByTestId("capture")).toBeInTheDocument();
-  });
-
-  it("shows the flags card on the projects side only — the maintenance board owns them as urgent rows", async () => {
-    render(<OverviewScreen data={{ ...base, flags: [flag("urgent", "No roof access booked")] }} />);
-    expect(screen.queryByText("Raised from notes")).not.toBeInTheDocument();
-    await toProjects();
-    expect(screen.getByText("Raised from notes")).toBeInTheDocument();
-    // only the urgent one breathes — that's the signal
-    expect(screen.getByText("No roof access booked").closest("div")?.className).toContain("wb-pulse");
-    expect(screen.getAllByRole("button", { name: "Clear" })).toHaveLength(1);
-  });
-
-  it("hides the flags card entirely when there's nothing raised", async () => {
-    render(<OverviewScreen data={base} />);
-    await toProjects();
-    expect(screen.queryByText("Raised from notes")).not.toBeInTheDocument();
-  });
-
-  it("leaves the projects Urgent vital alone — a human's severity word is not the rule", async () => {
-    render(<OverviewScreen data={{ ...base, flags: [flag("urgent", "No roof access booked")] }} />);
-    await toProjects();
-    expect(within(screen.getByRole("button", { name: /Urgent/ })).getByText("0")).toBeInTheDocument();
   });
 });

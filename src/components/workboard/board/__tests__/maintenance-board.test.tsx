@@ -503,7 +503,7 @@ describe("Calendar — first cut", () => {
     await toTab(/Calendar/);
     expect(screen.getByText("July 2026")).toBeInTheDocument();
     expect(screen.getByText("Ready to run")).toBeInTheDocument();
-    expect(screen.getByText(/1 overdue service isn't on a day yet/)).toBeInTheDocument();
+    expect(screen.getByText(/1 overdue job isn't on a day yet/)).toBeInTheDocument();
   });
 });
 

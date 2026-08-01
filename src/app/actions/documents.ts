@@ -66,6 +66,9 @@ async function mayUpload(kind: DocumentKind): Promise<boolean> {
   if (kind === "licence" || kind === "work_rights" || kind === "staff_photo" || kind === "receipt")
     return true;
   if (kind === "org_logo") return hasMinRole(await getDbRole(), "owner");
+  // Site photos and job paperwork come from whoever is ON the job — the
+  // board's tick tier, same doctrine as the checklists they sit beside.
+  if (kind === "project_file") return can("workboard");
   return can("team");
 }
 

@@ -13,10 +13,9 @@ import { can } from "@/lib/permissions-server";
 import { getConnectionView } from "@/lib/integrations/store";
 import { kickSm8SyncIfStale, listSm8SyncStatus } from "@/lib/integrations/sm8-sync";
 import { todayInZone, plusDays } from "./dates";
-import { listProjectStrip, type ProjectStripItem } from "./projects-query";
-import { listRadar, type RadarItem } from "./maintenance-query";
 import { listFlags, type BoardFlag } from "./notes-query";
 import { loadMaintenanceBoard, type MaintenanceBoardData } from "./board-query";
+import { loadProjectsBoard, type ProjectsBoardData } from "./projects-board-query";
 import { isTranscriptionConfigured } from "@/lib/voice/transcribe";
 import { autoCompleteVisitsFromMirror, ensureVisits } from "./visit-ensure";
 import {
@@ -37,12 +36,12 @@ export type WorkboardData = {
   today: string;
   counts: WorkboardCounts | null;
   upcoming: UpcomingBooking[];
-  projects: ProjectStripItem[];
-  radar: RadarItem[];
   /** Raised by notes, pulsing until somebody clears them. */
   flags: BoardFlag[];
   /** The redesigned maintenance board's whole dataset. */
   board: MaintenanceBoardData;
+  /** The redesigned projects board's whole dataset. */
+  projectsBoard: ProjectsBoardData;
   /** ELEVENLABS_API_KEY is set — the mic is offered as well as the textarea. */
   voiceEnabled: boolean;
   /** ANTHROPIC_API_KEY is set — Tiff's analyse-a-job offer renders. */
@@ -66,11 +65,10 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
     // the response, so the board never waits on generation.
     const today = todayInZone(null);
     after(() => ensureVisits(orgId, { today }).catch(() => {}));
-    const [projects, radar, flags, board] = await Promise.all([
-      listProjectStrip(orgId),
-      listRadar(orgId, today),
+    const [flags, board, projectsBoard] = await Promise.all([
       listFlags(orgId),
       loadMaintenanceBoard(orgId, today),
+      loadProjectsBoard(orgId, today),
     ]);
     return {
       manage,
@@ -79,10 +77,9 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
       today,
       counts: null,
       upcoming: [],
-      projects,
-      radar,
       flags,
       board,
+      projectsBoard,
       voiceEnabled: isTranscriptionConfigured(),
       aiEnabled: !!process.env.ANTHROPIC_API_KEY,
       synced: null,
@@ -101,13 +98,12 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
       .catch(() => {})
   );
 
-  const [counts, upcoming, projects, radar, flags, board, sync] = await Promise.all([
+  const [counts, upcoming, flags, board, projectsBoard, sync] = await Promise.all([
     countJobsByStatus(orgId, `${plusDays(today, -14)} 00:00:00`),
     listUpcomingBookings(orgId, today, plusDays(today, 7)),
-    listProjectStrip(orgId),
-    listRadar(orgId, today),
     listFlags(orgId),
     loadMaintenanceBoard(orgId, today),
+    loadProjectsBoard(orgId, today),
     listSm8SyncStatus(orgId),
   ]);
 
@@ -123,10 +119,9 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
     today,
     counts,
     upcoming,
-    projects,
-    radar,
     flags,
     board,
+    projectsBoard,
     voiceEnabled: isTranscriptionConfigured(),
     aiEnabled: !!process.env.ANTHROPIC_API_KEY,
     synced: sync.lastRun

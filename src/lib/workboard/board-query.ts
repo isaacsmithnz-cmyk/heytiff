@@ -421,7 +421,8 @@ export async function loadMaintenanceBoard(
   };
 }
 
-async function staffOptions(orgId: string): Promise<BoardTech[]> {
+/** Everyone assignable, names only — shared with the projects board. */
+export async function staffOptions(orgId: string): Promise<BoardTech[]> {
   const { data } = await supabaseAdmin
     .from("staff_profiles")
     .select(NAME_COLUMNS)

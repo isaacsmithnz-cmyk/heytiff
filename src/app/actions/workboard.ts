@@ -178,11 +178,23 @@ export async function setProjectStatus(
   if (!ctx) return NOT_SIGNED_IN;
   if (!(await can("workboard_manage"))) return NO_MANAGE;
   if (!isProjectStatus(status)) return { ok: false, error: "That isn't a status this board knows." };
+  // Blocked is not a status you slip into — it demands a reason and who it's
+  // waiting on, which is setProjectBlocked's whole job (P4).
+  if (status === "blocked") {
+    return { ok: false, error: "Blocking needs a reason — use the block control." };
+  }
   if (!(await projectIn(ctx.orgId, projectId))) return GONE;
 
   const { error } = await supabaseAdmin
     .from("projects")
-    .update({ status, updated_at: new Date().toISOString() })
+    .update({
+      status,
+      // Leaving blocked by any door clears the block's story with it.
+      blocked_reason: null,
+      blocked_on: null,
+      blocked_at: null,
+      updated_at: new Date().toISOString(),
+    })
     .eq("org_id", ctx.orgId)
     .eq("id", projectId);
   if (error) return { ok: false, error: "Couldn't change the status." };

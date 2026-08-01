@@ -18,6 +18,7 @@ export type DocumentKind =
   | "work_rights"
   | "org_logo"
   | "staff_photo"
+  | "project_file"
   | "other";
 
 export const DOCUMENT_KINDS: readonly DocumentKind[] = [
@@ -27,6 +28,7 @@ export const DOCUMENT_KINDS: readonly DocumentKind[] = [
   "work_rights",
   "org_logo",
   "staff_photo",
+  "project_file",
   "other",
 ];
 

@@ -228,3 +228,95 @@ gates and packing still tickable, but no place/complete/skip/tags/add-item
   agreement sheet + create flow land.
 - The note-capture card above the board is the shipped one until stage 5's
   pill replaces it.
+
+---
+
+# Projects side (PR #236) — the five-step overhaul's second half
+
+Same house rules. Seed: create 2–3 projects (Workboard → Projects tab →
+Pipeline → "New project" — the All-projects page holds the create form).
+Useful spread: one at Pre-install with its checklist part-ticked, one at
+Fit-off with a budget + a couple of claims, one blocked. Give each a trip
+or two (project page → Trips → "Add a trip"), one overdue (target date in
+the past), one placed on a real day.
+
+## Stage P1 — foundations (commit `7522b23`)
+
+Data-level only:
+
+- [ ] Supabase: `project_scope_items`, `project_variations`, `project_claims`,
+      `project_milestones`, `project_visit_items` exist; `maintenance_visits`
+      has `project_id` + `label`, and `projects` has the blocked/budget/hours/
+      promised/defects columns.
+- [ ] Creating a trip writes a `maintenance_visits` row with `project_id` set
+      and `agreement_id` null — and the MAINTENANCE board doesn't show it.
+
+## Stage P2 — the four-tab board (commit `21ca988`)
+
+- [ ] Workboard → Projects: the funnel/strip/vitals are gone; four tabs
+      (Urgent / Pipeline / Completed / Calendar) on the persistent card, same
+      motion as maintenance (card never re-enters, content swaps vertically).
+- [ ] Urgent: a blocked project shows danger with "Open the project"; an
+      overdue trip offers Book it in / Close it out; a gate gap confirms in
+      place and the row leaves; assign-select fills Crew.
+- [ ] Pipeline: stage groups in order, trouble first inside each; money chip
+      says "claimed of total"; blocked/on-hold chips read right; row click
+      opens the project page.
+- [ ] Completed: a project at stage Complete but active sits in "ready to
+      close"; Mark it done moves it below with its money verdict chip; undo
+      in the toast restores it.
+- [ ] Calendar: per-side by default; "Everything" folds the maintenance dots
+      in wearing hollow rings; a day click opens the TRIPS day modal (place /
+      move with undo); the maintenance calendar's "Everything" shows project
+      dots the same way.
+- [ ] Trip sheet (from any row): gates tick, crew assigns, day places with
+      the weekend choice, bring list adds/ticks/removes, SM8 link takes a
+      typed number, close-out records hours + carries unpacked items to the
+      next trip, delete takes two presses.
+- [ ] Flags: a note flagged against a project (or its trip) appears on the
+      PROJECTS urgent queue only; a general flag stays with maintenance.
+
+## Stage P3 — the project page (commit `d664317`)
+
+- [ ] Header: Block… demands reason AND who; the banner tells the story and
+      Unblock clears it; Hold/Resume/Mark done (only at Complete) behave.
+- [ ] Stage: advancing past unticked items warns with the honest count and
+      needs the second press; backward asks nothing; completing a section
+      (e.g. all of Approval & prep at Pre-install) shows the nudge and one
+      press moves it.
+- [ ] Trips card: same rows as the board (open + ran), opens the same sheet,
+      labour-burn line under it when an hours budget is set.
+
+## Stage P4 — money, scope, dates, handover, flywheel (commit `11bc567`)
+
+- [ ] Money: set a $50k total, add a $10k claim → "Claimed $10,000 of
+      $50,000 — $40,000 to go". Approve a $4k variation (it asks who made
+      the call) → the line's total becomes $54,000 and the claimed does NOT
+      move. Mark the claim paid → the paid strip changes, the claimed line
+      doesn't. "Claim it" on the approved variation raises its prefilled row.
+- [ ] Scope: inclusions/exclusions add + remove, two columns.
+- [ ] Dates: promised finish counts down (set one 5 days out → warn chip;
+      past → danger + the board's urgent row); defects end creates ONE open
+      task on the dashboard and moving the date moves the task; a milestone
+      inside 7 days wears "this week".
+- [ ] Commissioning: type a reading → it lands dated; /handover/1234 opens
+      the printable sheet outside the app shell with equipment/serials,
+      commissioning record, scope, handover ticks and sign-off lines; Print
+      gives a clean A4.
+- [ ] Flywheel: at Handover, "Set up the agreement" takes cadence + first
+      service → the agreement exists on the maintenance board with the
+      project's equipment/serials copied; the project card now LINKS to it
+      and the prompt is gone.
+
+## Stage P5 — photo-scan, documents, cleanup (this commit)
+
+- [ ] Equipment → Add: photo of a nameplate prefills description/model/
+      serial as a DRAFT (or says Tiff is offline when no key); "keep the
+      photo" lands it in Documents & photos.
+- [ ] Documents & photos: upload a photo + a PDF; both list with size/age;
+      Open serves the signed URL; remove works; the handover sheet still
+      renders after uploads.
+- [ ] Capture pill: on the project page a note lands against the project;
+      on the board with a trip sheet open it lands against that trip.
+- [ ] The old projects funnel/strip never flashes anywhere; nothing on the
+      maintenance side moved.

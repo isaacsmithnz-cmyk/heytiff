@@ -11,6 +11,7 @@
    NO SESSION HERE — callers establish the right to ask and hand in orgId. */
 
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { signOne } from "@/lib/documents/query";
 import { checklistProgress } from "./stages";
 import { getSm8Timezone } from "./query";
 import { todayInZone } from "./dates";
@@ -143,6 +144,51 @@ export type LinkedJob = {
   mirror: LinkedJobMirror | null;
 };
 
+export type ScopeItem = {
+  id: string;
+  kind: "inclusion" | "exclusion";
+  label: string;
+};
+
+export type VariationRow = {
+  id: string;
+  title: string;
+  detail: string | null;
+  amountCents: number;
+  status: "pending" | "approved" | "declined";
+  decidedBy: string | null;
+  decidedAt: string | null;
+  createdAt: string;
+};
+
+export type ClaimRow = {
+  id: string;
+  label: string;
+  amountCents: number;
+  claimedOn: string;
+  status: "awaiting" | "paid";
+  paidOn: string | null;
+  source: string;
+  remoteRef: string | null;
+  variationId: string | null;
+};
+
+export type MilestoneRow = {
+  id: string;
+  label: string;
+  onDate: string;
+};
+
+export type ProjectDocument = {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  uploadedAt: string;
+  /** A signed read URL, an hour's worth — minted fresh on every load. */
+  url: string | null;
+};
+
 export type ProjectDetail = {
   id: string;
   name: string;
@@ -151,12 +197,33 @@ export type ProjectDetail = {
   siteAddress: string | null;
   stage: string;
   status: string;
+  blockedReason: string | null;
+  blockedOn: string | null;
+  blockedAt: string | null;
+  budgetCents: number | null;
+  budgetSource: string | null;
+  hoursBudget: number | null;
+  promisedFinish: string | null;
+  defectsEnd: string | null;
   designId: string | null;
   designName: string | null;
+  /** The maintenance agreement this project spawned at handover, if any. */
+  agreementId: string | null;
+  agreementLabel: string | null;
   notes: string | null;
+  createdAt: string;
+  /** Never null — creation counts as movement. */
+  updatedAt: string;
   checklist: ChecklistItem[];
   equipment: EquipmentItem[];
   jobs: LinkedJob[];
+  scope: ScopeItem[];
+  variations: VariationRow[];
+  claims: ClaimRow[];
+  milestones: MilestoneRow[];
+  documents: ProjectDocument[];
+  /** Sum of actual_hours across this project's DONE trips. */
+  hoursLogged: number;
 };
 
 export async function getProjectDetail(
@@ -166,7 +233,9 @@ export async function getProjectDetail(
   const { data } = await supabaseAdmin
     .from("projects")
     .select(
-      "id, name, client_name, site_label, site_address, stage, status, design_id, notes"
+      "id, name, client_name, site_label, site_address, stage, status, design_id, notes, " +
+        "blocked_reason, blocked_on, blocked_at, budget_cents, budget_source, hours_budget, " +
+        "promised_finish, defects_end, agreement_id, created_at, updated_at"
     )
     .eq("org_id", orgId)
     .eq("id", projectId)
@@ -182,32 +251,122 @@ export async function getProjectDetail(
     status: string;
     design_id: string | null;
     notes: string | null;
+    blocked_reason: string | null;
+    blocked_on: string | null;
+    blocked_at: string | null;
+    budget_cents: number | null;
+    budget_source: string | null;
+    hours_budget: number | null;
+    promised_finish: string | null;
+    defects_end: string | null;
+    agreement_id: string | null;
+    created_at: string;
+    updated_at: string | null;
   };
   const p = data as ProjectRow | null;
   if (!p) return null;
 
-  const [{ data: itemRows }, { data: equipRows }, { data: jobRows }, designName] =
-    await Promise.all([
-      supabaseAdmin
-        .from("project_checklist_items")
-        .select("id, section, label, done, done_at, sort")
-        .eq("org_id", orgId)
-        .eq("project_id", projectId)
-        .order("sort", { ascending: true }),
-      supabaseAdmin
-        .from("project_equipment")
-        .select("id, description, model, serial, location_note, manual_left, notes")
-        .eq("org_id", orgId)
-        .eq("project_id", projectId)
-        .order("created_at", { ascending: true }),
-      supabaseAdmin
-        .from("project_jobs")
-        .select("id, job_number, role, provider, remote_id")
-        .eq("org_id", orgId)
-        .eq("project_id", projectId)
-        .order("added_at", { ascending: true }),
-      p.design_id ? designNameFor(orgId, p.design_id) : Promise.resolve(null),
-    ]);
+  let agreementLabel: string | null = null;
+  if (p.agreement_id) {
+    const { data: ag } = await supabaseAdmin
+      .from("maintenance_agreements")
+      .select("label")
+      .eq("org_id", orgId)
+      .eq("id", p.agreement_id)
+      .maybeSingle();
+    agreementLabel = (ag as { label: string } | null)?.label ?? null;
+  }
+
+  const [
+    { data: itemRows },
+    { data: equipRows },
+    { data: jobRows },
+    { data: scopeRows },
+    { data: variationRows },
+    { data: claimRows },
+    { data: milestoneRows },
+    { data: hourRows },
+    { data: docRows },
+    designName,
+  ] = await Promise.all([
+    supabaseAdmin
+      .from("project_checklist_items")
+      .select("id, section, label, done, done_at, sort")
+      .eq("org_id", orgId)
+      .eq("project_id", projectId)
+      .order("sort", { ascending: true }),
+    supabaseAdmin
+      .from("project_equipment")
+      .select("id, description, model, serial, location_note, manual_left, notes")
+      .eq("org_id", orgId)
+      .eq("project_id", projectId)
+      .order("created_at", { ascending: true }),
+    supabaseAdmin
+      .from("project_jobs")
+      .select("id, job_number, role, provider, remote_id")
+      .eq("org_id", orgId)
+      .eq("project_id", projectId)
+      .order("added_at", { ascending: true }),
+    supabaseAdmin
+      .from("project_scope_items")
+      .select("id, kind, label")
+      .eq("org_id", orgId)
+      .eq("project_id", projectId)
+      .order("kind", { ascending: true })
+      .order("position", { ascending: true }),
+    supabaseAdmin
+      .from("project_variations")
+      .select("id, title, detail, amount_cents, status, decided_by, decided_at, created_at")
+      .eq("org_id", orgId)
+      .eq("project_id", projectId)
+      .order("created_at", { ascending: true }),
+    supabaseAdmin
+      .from("project_claims")
+      .select("id, label, amount_cents, claimed_on, status, paid_on, source, remote_ref, variation_id")
+      .eq("org_id", orgId)
+      .eq("project_id", projectId)
+      .order("claimed_on", { ascending: true })
+      .order("created_at", { ascending: true }),
+    supabaseAdmin
+      .from("project_milestones")
+      .select("id, label, on_date")
+      .eq("org_id", orgId)
+      .eq("project_id", projectId)
+      .order("on_date", { ascending: true }),
+    supabaseAdmin
+      .from("maintenance_visits")
+      .select("actual_hours")
+      .eq("org_id", orgId)
+      .eq("project_id", projectId)
+      .eq("status", "done")
+      .not("actual_hours", "is", null),
+    supabaseAdmin
+      .from("documents")
+      .select("id, file_name, mime_type, size_bytes, storage_ref, uploaded_at")
+      .eq("org_id", orgId)
+      .eq("project_id", projectId)
+      .not("uploaded_at", "is", null)
+      .order("uploaded_at", { ascending: false }),
+    p.design_id ? designNameFor(orgId, p.design_id) : Promise.resolve(null),
+  ]);
+
+  const documents: ProjectDocument[] = await Promise.all(
+    ((docRows ?? []) as {
+      id: string;
+      file_name: string;
+      mime_type: string;
+      size_bytes: number;
+      storage_ref: string;
+      uploaded_at: string;
+    }[]).map(async (d) => ({
+      id: d.id,
+      fileName: d.file_name,
+      mimeType: d.mime_type,
+      sizeBytes: d.size_bytes,
+      uploadedAt: d.uploaded_at,
+      url: await signOne(d.storage_ref),
+    }))
+  );
 
   type JobRow = {
     id: string;
@@ -230,9 +389,77 @@ export async function getProjectDetail(
     siteAddress: p.site_address,
     stage: p.stage,
     status: p.status,
+    blockedReason: p.blocked_reason,
+    blockedOn: p.blocked_on,
+    blockedAt: p.blocked_at,
+    budgetCents: p.budget_cents,
+    budgetSource: p.budget_source,
+    hoursBudget: p.hours_budget,
+    promisedFinish: p.promised_finish,
+    defectsEnd: p.defects_end,
     designId: p.design_id,
     designName,
+    agreementId: p.agreement_id,
+    agreementLabel,
     notes: p.notes,
+    createdAt: p.created_at,
+    updatedAt: p.updated_at ?? p.created_at,
+    scope: ((scopeRows ?? []) as { id: string; kind: string; label: string }[]).map((s) => ({
+      id: s.id,
+      kind: s.kind as "inclusion" | "exclusion",
+      label: s.label,
+    })),
+    variations: ((variationRows ?? []) as {
+      id: string;
+      title: string;
+      detail: string | null;
+      amount_cents: number;
+      status: string;
+      decided_by: string | null;
+      decided_at: string | null;
+      created_at: string;
+    }[]).map((v) => ({
+      id: v.id,
+      title: v.title,
+      detail: v.detail,
+      amountCents: v.amount_cents,
+      status: v.status as VariationRow["status"],
+      decidedBy: v.decided_by,
+      decidedAt: v.decided_at,
+      createdAt: v.created_at,
+    })),
+    claims: ((claimRows ?? []) as {
+      id: string;
+      label: string;
+      amount_cents: number;
+      claimed_on: string;
+      status: string;
+      paid_on: string | null;
+      source: string;
+      remote_ref: string | null;
+      variation_id: string | null;
+    }[]).map((c) => ({
+      id: c.id,
+      label: c.label,
+      amountCents: c.amount_cents,
+      claimedOn: c.claimed_on,
+      status: c.status as ClaimRow["status"],
+      paidOn: c.paid_on,
+      source: c.source,
+      remoteRef: c.remote_ref,
+      variationId: c.variation_id,
+    })),
+    milestones: ((milestoneRows ?? []) as { id: string; label: string; on_date: string }[]).map(
+      (m) => ({ id: m.id, label: m.label, onDate: m.on_date })
+    ),
+    documents,
+    hoursLogged:
+      Math.round(
+        ((hourRows ?? []) as { actual_hours: number }[]).reduce(
+          (t, r) => t + r.actual_hours,
+          0
+        ) * 10
+      ) / 10,
     checklist: ((itemRows ?? []) as {
       id: string;
       section: string;
@@ -525,79 +752,4 @@ export async function searchMirrorJobs(
     suburb: h.geo_city,
     linkedTo: linkedTo.get(h.uuid) ?? [],
   }));
-}
-
-/* ── the Overview strip ── */
-
-export type ProjectStripItem = {
-  id: string;
-  name: string;
-  clientName: string | null;
-  siteLabel: string | null;
-  stage: string;
-  /** 'active' or 'on_hold' — the board carries both (see below). */
-  status: string;
-  percent: number;
-  /** Checklist counts as well as the percentage: "9/14 ticked" is what a
-      foreman reads, the bar is what they glance at. */
-  done: number;
-  total: number;
-  /** Last time anyone touched this project. The board's staleness flags are
-      computed from it — see vitals.ts. */
-  updatedAt: string | null;
-};
-
-export async function listProjectStrip(orgId: string, limit = 8): Promise<ProjectStripItem[]> {
-  const { data } = await supabaseAdmin
-    .from("projects")
-    .select("id, name, client_name, site_label, stage, status, updated_at, created_at")
-    // ON HOLD IS NOT HIDDEN. A held project is the single thing on this board
-    // most likely to need a decision, so the strip carries active AND on_hold
-    // and lets the flags do the talking; only finished and archived work drops
-    // off. (This read used to be .eq('status','active') — that is exactly how
-    // a stalled job goes quiet.)
-    .in("status", ["active", "on_hold"])
-    .order("updated_at", { ascending: false, nullsFirst: false })
-    .limit(limit);
-
-  type Row = {
-    id: string;
-    name: string;
-    client_name: string | null;
-    site_label: string | null;
-    stage: string;
-    status: string;
-    updated_at: string | null;
-    created_at: string;
-  };
-  const rows = (data ?? []) as Row[];
-  if (rows.length === 0) return [];
-
-  const { data: itemRows } = await supabaseAdmin
-    .from("project_checklist_items")
-    .select("project_id, done")
-    .eq("org_id", orgId)
-    .in("project_id", rows.map((r) => r.id));
-  const by = new Map<string, { done: boolean }[]>();
-  for (const r of (itemRows ?? []) as { project_id: string; done: boolean }[]) {
-    (by.get(r.project_id) ?? by.set(r.project_id, []).get(r.project_id)!).push(r);
-  }
-
-  return rows.map((r) => {
-    const progress = checklistProgress(by.get(r.id) ?? []);
-    return {
-      id: r.id,
-      name: r.name,
-      clientName: r.client_name,
-      siteLabel: r.site_label,
-      stage: r.stage,
-      status: r.status,
-      percent: progress.percent,
-      done: progress.done,
-      total: progress.total,
-      // A project nobody has edited since creation has never moved, so its
-      // creation date IS its last movement — null would read as "fresh".
-      updatedAt: r.updated_at ?? r.created_at,
-    };
-  });
 }

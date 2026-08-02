@@ -117,6 +117,8 @@ export type ProjectUrgentRow = {
   clientName?: string | null;
   siteLabel?: string | null;
   dueDate?: string | null;
+  /** The day the trip is actually booked to run, when one is chosen. */
+  bookedDate?: string | null;
   daysOver?: number;
 };
 
@@ -256,6 +258,7 @@ export function projectUrgentRows(input: {
       clientName: v.clientName,
       siteLabel: v.siteLabel,
       dueDate: v.dueDate,
+      bookedDate: v.bookedDate,
     };
 
     if (v.dueDate < today) {

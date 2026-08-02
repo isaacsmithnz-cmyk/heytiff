@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
+import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { clearFlag, restoreFlag } from "@/app/actions/workboard-notes";
 import { completeTask, reopenTask } from "@/app/actions/dashboard";
 import {
@@ -28,6 +29,16 @@ import { TaskRow, UrgentBody } from "./urgent-layout";
    decoration, so each count narrows the queue to its kind. */
 
 type UrgentFilter = "all" | "overdue" | "gaps" | "flags" | "tasks";
+
+/** The date the row turns on, said the way the design says it: what the visit
+    was promised for, or the day it is actually booked to run. */
+function dueWords(r: UrgentRow): string | null {
+  if (r.bookedDate) return `booked ${fmtAuWeekdayDayMonth(r.bookedDate)}`;
+  if (!r.dueDate) return null;
+  return r.reason === "overdue"
+    ? `was due ${fmtAuWeekdayDayMonth(r.dueDate)}`
+    : `due ${fmtAuWeekdayDayMonth(r.dueDate)}`;
+}
 
 const FILTER_OF: Record<UrgentRow["reason"], Exclude<UrgentFilter, "all">> = {
   overdue: "overdue",
@@ -189,14 +200,12 @@ export function UrgentTab({
           {r.reason === "flag" ? (
             <em>Raised from a note — stays up until somebody clears it.</em>
           ) : (
-            <em>
-              {r.siteLabel ? `${r.siteLabel} · ` : ""}
-              {r.reason === "overdue"
-                ? r.action === "close_out"
-                  ? "placed — did it run?"
-                  : "book it in to get it moving"
-                : "the row clears itself once it's confirmed"}
-            </em>
+            /* Facts, not instructions. This line used to end with "book it in
+               to get it moving" — a sentence telling you to press the button
+               sitting six pixels to its right. The design spends the space on
+               the DATE instead, which is the thing you can't work out from
+               anywhere else on the row. */
+            <em>{[r.siteLabel, dueWords(r)].filter(Boolean).join(" · ")}</em>
           )}
         </div>
         <RowAction r={r} />

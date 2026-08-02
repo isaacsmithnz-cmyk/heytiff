@@ -403,6 +403,25 @@ describe("Urgent — derived rows, resolvable in place", () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
+  /* The subtitle spends its space on the DATE, not on a sentence telling you
+     to press the button sitting next to it. */
+  it("says when the visit was due, not what to do about it", async () => {
+    mount(data({ visits: [visit({ id: "v-late", dueDate: "2026-07-21" })] }));
+    expect(screen.getByText(/was due Tue 21 July/)).toBeInTheDocument();
+    expect(screen.queryByText(/book it in to get it moving/)).not.toBeInTheDocument();
+  });
+
+  it("a placed visit says the day it is booked for instead", async () => {
+    mount(
+      data({
+        visits: [
+          visit({ id: "v-late", dueDate: "2026-07-21", bookedDate: "2026-08-04", status: "booked" }),
+        ],
+      })
+    );
+    expect(screen.getByText(/booked Tue 4 Aug/)).toBeInTheDocument();
+  });
+
   it("flags clear and tasks complete right on the row", async () => {
     render(
       <MaintenanceBoard

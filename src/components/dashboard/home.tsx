@@ -2,15 +2,15 @@ import { Icon } from "@/components/shell/icon";
 import { heroHtml } from "@/components/shell/screens";
 import { TasksSection } from "./tasks-section";
 import { NoticesCard } from "./notices-card";
-import { heroAction, sortChips } from "@/lib/dashboard/chips";
-import { allClear, heroStats } from "@/lib/dashboard/hero-stats";
+import { sortChips } from "@/lib/dashboard/chips";
+import { heroStats } from "@/lib/dashboard/hero-stats";
 import { currentUnreadCount } from "@/lib/dashboard/notices";
 import type { DashboardData } from "@/lib/dashboard/page-data";
 
 /* The dashboard home — a set of summaries, each a door into the screen that
    owns it, rather than a page trying to be every screen at once:
 
-     · the hero band names the worst action-required item, linking to the board
+     · the hero's four counters — urgent, tasks, needs attention, notifications
      · the noticeboard card carries unread + recent titles, linking to the board
      · Who's about today — approved leave and public holidays. `team` only, so
        the loader returns null otherwise and the whole card is absent.
@@ -41,21 +41,14 @@ export function DashboardHome({
     viewerStaffId,
     today,
   } = data;
-  // worst-first across both sections, so the band can name the top item
-  const allChips = sortChips([...chips.self, ...chips.team]);
-  // the hero's right-hand column — the same chip list, split by state, so the
-  // urgent and needs-attention counters can never disagree with the band
+  /* The hero's right-hand column. Both sections' chips, worst-first, split by
+     state into the urgent and needs-attention counters — one list, so the two
+     can never double-count an expiry or drop one between them. */
   const stats = heroStats({
-    chips: allChips,
+    chips: sortChips([...chips.self, ...chips.team]),
     openTasks: tasks.mine.length,
     unreadNotices: currentUnreadCount(notices, today),
   });
-  /* The band names the worst outstanding item. With nothing outstanding
-     anywhere it would only say "All clear" — which the right-hand column has
-     already said, in the same hero, two inches away. One of them goes. */
-  const action = allClear(stats)
-    ? undefined
-    : heroAction(allChips, "/dashboard/action-required");
 
   return (
     <div className="page in">
@@ -67,7 +60,6 @@ export function DashboardHome({
                 greeting,
                 firstName,
                 date,
-                action,
                 stats,
               }),
             }}

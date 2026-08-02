@@ -3,7 +3,6 @@ import {
   chipGroup,
   chipSummary,
   expensesChip,
-  heroAction,
   summaryLine,
   insuranceChip,
   licenceChip,
@@ -185,34 +184,6 @@ describe("chipSummary / summaryLine", () => {
     expect(summaryLine({ total: 3, bad: 1, warn: 2 })).toBe("1 overdue · 2 due soon");
     expect(summaryLine({ total: 2, bad: 2, warn: 0 })).toBe("2 overdue");
     expect(summaryLine({ total: 1, bad: 0, warn: 1 })).toBe("1 due soon");
-  });
-});
-
-describe("heroAction", () => {
-  const chip = (over: Partial<ActionChip>): ActionChip => ({
-    key: "k", kind: "rego", state: "warn", label: "Rego expires in 10 days",
-    subject: "EVD72G", href: "h", urgency: 0, ...over,
-  });
-
-  it("reassures, rather than showing a zero, when nothing is due", () => {
-    expect(heroAction([], "/x")).toEqual({
-      state: "ok", title: "All clear", sub: "Nothing due in the next 30 days", href: "/x",
-    });
-  });
-
-  it("names the worst item instead of only counting — a count moves the question along", () => {
-    const a = heroAction([chip({ state: "bad", label: "Rego expired 2 weeks ago", subject: "FRU397" })], "/x");
-    expect(a).toMatchObject({ state: "bad", title: "1 thing needs your attention" });
-    expect(a.sub).toBe("Rego expired 2 weeks ago · FRU397");
-  });
-
-  it("counts the rest and takes its state from the worst (head of a sorted list)", () => {
-    const a = heroAction(
-      [chip({ state: "bad", label: "Rego expired 2 weeks ago", subject: "FRU397" }), chip({}), chip({})],
-      "/x",
-    );
-    expect(a).toMatchObject({ state: "bad", title: "3 things need your attention" });
-    expect(a.sub).toBe("Rego expired 2 weeks ago · FRU397 · +2 more");
   });
 });
 

@@ -251,33 +251,22 @@
 .fg .dash-ph { display:flex; align-items:center; gap:10px; padding:14px 16px; border-radius:16px; background:rgba(46,104,255,.06); border:1px solid rgba(46,104,255,.16); color:#1f4bd8; font-weight:700; font-size:13.5px; margin-bottom:12px; }
 .fg .dash-mini { font-size:13px; font-weight:500; color:var(--gray400); padding:4px 2px; }
 
-/* ---- the hero's action band ----
-   Spans the hero beneath the greeting and links into the full board. A single
-   `.hstat` tile floated right read as an afterthought (that styling was built
-   for a ROW of stats); a band fills its space and has room to NAME the worst
-   item rather than only counting it. Single backdrop-filter, no -webkit twin —
-   pairing them ships only the prefixed one and the blur dies. */
-.fg .hact { position:relative; z-index:10; display:inline-flex; align-items:center; gap:14px; margin-top:8px; padding:15px 18px; border-radius:18px; text-decoration:none; color:inherit; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.12); backdrop-filter:blur(8px); transition:background .25s, border-color .25s, transform .25s; width:fit-content; max-width:100%; }
-.fg a.hact:hover { background:rgba(255,255,255,.09); border-color:rgba(255,255,255,.22); }
-.fg .hact .ha-ic { width:38px; height:38px; border-radius:12px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; }
-.fg .hact.bad .ha-ic { background:rgba(255,51,102,.18); color:#FF6B8A; }
-.fg .hact.warn .ha-ic { background:rgba(240,164,49,.18); color:#F0A431; }
-.fg .hact.ok .ha-ic { background:rgba(0,229,192,.14); color:var(--teal); }
-.fg .hact .ha-main { min-width:0; flex:1; display:flex; flex-direction:column; gap:3px; }
-.fg .hact .ha-title { font-size:15px; font-weight:800; letter-spacing:-0.01em; color:#fff; }
-.fg .hact .ha-sub { font-style:normal; font-size:13px; font-weight:500; color:rgba(255,255,255,.55); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.fg .hact .ha-chev { color:rgba(255,255,255,.45); flex:0 0 auto; display:flex; }
-.fg a.hact:hover .ha-chev { color:rgba(255,255,255,.8); }
-/* The band now lives INSIDE the left column (the right one is the counters),
-   so it owns the gap under the lede instead of the lede owning it. */
-.fg .hlead > .lede:not(:last-child) { margin-bottom:26px; }
-.fg .hlead > .hact { margin-top:0; }
+/* The `.hact` action band lived here — a full-width bar under the greeting
+   naming the worst outstanding item. The counters opposite it were saying the
+   same thing in less space, so the band is gone and its CSS with it. Deleting
+   it rather than leaving it unused is the point: the v3 `.hstat` block that
+   sat dead in this file for months went on to shadow the counters at equal
+   specificity, which is a bug you only find by looking at the screen. */
+
+/* The lede is the left column's last line now, so it drops its 40px tail;
+   nothing follows it inside the hero. */
+.fg .hlead > .lede:last-child { margin-bottom:0; }
 
 /* ---- the hero's counters ----
    The hero's right-hand column: urgent · tasks · needs attention ·
-   notifications, 2x2, each linking to the screen that owns it. Same glass as
-   the action band so the two read as one surface, and one backdrop-filter with
-   no -webkit twin (pairing them ships only the prefixed one and the blur dies).
+   notifications, 2x2, each linking to the screen that owns it. One
+   backdrop-filter, no -webkit twin — pairing them ships only the prefixed one
+   and the blur dies.
 
    `.zero` is the point of the whole thing: an empty counter goes quiet rather
    than sitting there lit up saying nothing, so a clear day looks clear. */

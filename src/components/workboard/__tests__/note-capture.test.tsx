@@ -20,11 +20,13 @@ jest.mock("next/navigation", () => ({
 const routeNote = jest.fn();
 const applyNote = jest.fn();
 const dismissNote = jest.fn();
+const keepNoteOnJob = jest.fn();
 const answerClarify = jest.fn();
 jest.mock("@/app/actions/workboard-notes", () => ({
   routeNote: (...a: unknown[]) => routeNote(...(a as [])),
   applyNote: (...a: unknown[]) => applyNote(...(a as [])),
   dismissNote: (...a: unknown[]) => dismissNote(...(a as [])),
+  keepNoteOnJob: (...a: unknown[]) => keepNoteOnJob(...(a as [])),
   answerClarify: (...a: unknown[]) => answerClarify(...(a as [])),
 }));
 
@@ -52,6 +54,7 @@ beforeEach(() => {
   });
   applyNote.mockResolvedValue({ ok: true, summary: "1 flag raised." });
   dismissNote.mockResolvedValue({ ok: true, summary: "Kept as a note." });
+  keepNoteOnJob.mockResolvedValue({ ok: true, summary: "Kept on the job's notes." });
 });
 
 describe("the pill", () => {
@@ -164,10 +167,15 @@ describe("the engine, through the new clothes", () => {
     expect(answerClarify).toHaveBeenCalledWith("n-1", "Dane Poulos");
   });
 
-  it("Just keep the note keeps it", async () => {
+  /* "Just keep the note" used to file the row at `dismissed`, where nothing
+     in the app ever reads it — Isaac: "where the hell would the note go?"
+     With a job named, the words go ON that job's notes, which the sheet
+     shows. The button says which of the two it's about to do. */
+  it("puts the words on the job's notes when the note is against one", async () => {
     const overlay = await openAndSort();
-    await userEvent.click(overlay.getByRole("button", { name: "Just keep the note" }));
-    expect(dismissNote).toHaveBeenCalledWith("n-1");
+    await userEvent.click(overlay.getByRole("button", { name: "Put it on the job's notes" }));
+    expect(keepNoteOnJob).toHaveBeenCalledWith("n-1", undefined);
+    expect(dismissNote).not.toHaveBeenCalled();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
@@ -213,6 +221,7 @@ describe("nothing is thrown away quietly", () => {
           assigneeId: null,
           assigneeHint: "Luke",
           dueHint: "before Monday's visit (3 August)",
+          dueDate: "2026-08-03",
         },
         {
           title: "Hire scissor lift for Kingsford Medical Centre",
@@ -220,6 +229,7 @@ describe("nothing is thrown away quietly", () => {
           assigneeId: null,
           assigneeHint: "",
           dueHint: "",
+          dueDate: "",
         },
       ],
       bringItems: ["2 x 20x20x2 filters", "Scissor lift (hired) for outdoor unit access"],
@@ -301,9 +311,40 @@ describe("nothing is thrown away quietly", () => {
     );
   });
 
-  it("keeps what was SAID about when, even though the phrase isn't a date", async () => {
+  /* Isaac told it "Dane's supposed to pick them up tomorrow" and the date box
+     stayed empty. When the note names a day that can be worked out, the box
+     carries it — and when it names one that can't ("before the next visit"),
+     the words are shown instead of thrown away. */
+  it("fills the date in when the note named a day it could work out", async () => {
     const overlay = await openIt();
-    expect(overlay.getByText(/said: before Monday's visit \(3 August\)/)).toBeInTheDocument();
+    expect(overlay.getByLabelText(/Due date — Organise filters/)).toHaveValue("2026-08-03");
+  });
+
+  it("shows what was SAID when the phrase resolves to no date at all", async () => {
+    routeNote.mockResolvedValue({
+      ok: true,
+      noteId: "n-1",
+      proposal: proposal({
+        tasks: [
+          {
+            title: "Chase the part",
+            detail: "",
+            assigneeId: null,
+            assigneeHint: "",
+            dueHint: "before the next visit",
+            dueDate: "",
+          },
+        ],
+      }),
+      staff: [{ id: "s-1", fullName: "Dane Poulos" }],
+    });
+    render(<NoteCapture target={{ kind: "none" }} voiceEnabled={false} />);
+    await userEvent.click(screen.getByRole("button", { name: /Add note/ }));
+    const overlay = within(screen.getByRole("dialog"));
+    await userEvent.type(overlay.getByPlaceholderText(/Tell Luke/), "chase the part");
+    await userEvent.click(overlay.getByRole("button", { name: "Sort this out" }));
+    expect(overlay.getByText(/said: before the next visit/)).toBeInTheDocument();
+    expect(overlay.getByLabelText(/Due date — Chase the part/)).toHaveValue("");
   });
 
   /* Isaac: "It should also confirm the job number or the job card that you

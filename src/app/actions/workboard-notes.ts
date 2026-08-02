@@ -610,6 +610,82 @@ export async function dismissNote(noteId: string): Promise<ApplyResult> {
   return { ok: true, summary: "Kept as a note." };
 }
 
+/* "Just keep the note" has to keep it SOMEWHERE YOU'D FIND IT.
+
+   Isaac, 2026-08-02: "if you don't pick a job you can still just keep the
+   note, but where the hell would the note go? That doesn't make sense." He's
+   right — `dismissNote` files the row at status `dismissed` and NOTHING in
+   the app reads workboard_notes, so the words went into a drawer nobody
+   opens. Same shape of black hole as the one #253 closed on the apply side.
+
+   So keeping a note against a job now writes it onto that job's own notes,
+   where the next person to open the sheet reads it. Appended, never replacing
+   — a visit's notes belong to whoever wrote them first.
+
+   Kept SEPARATE from dismissNote on purpose: dismiss is also the abandon path
+   (Esc, ×, walking away), and abandoning a note must never write anything. */
+export async function keepNoteOnJob(
+  noteId: string,
+  retarget?: NoteTarget
+): Promise<ApplyResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: NOT_SIGNED_IN };
+  if (!(await can("workboard"))) return { ok: false, error: NO_ACCESS };
+
+  const note = await noteIn(ctx.orgId, noteId);
+  if (!note) return { ok: false, error: GONE };
+
+  let target: NoteTarget = { kind: note.target_kind, id: note.target_id };
+  if (retarget && retarget.kind !== "none" && retarget.id) {
+    const resolved = await resolveTarget(ctx.orgId, retarget);
+    if (!resolved || resolved.kind === "none") {
+      return { ok: false, error: "That job isn't on this workspace's board any more." };
+    }
+    target = resolved;
+  }
+  if (target.kind === "none" || !target.id) {
+    return {
+      ok: false,
+      error: "Say which job this belongs to and the words go on its notes.",
+    };
+  }
+
+  const table =
+    target.kind === "project"
+      ? "projects"
+      : target.kind === "visit"
+        ? "maintenance_visits"
+        : "maintenance_agreements";
+
+  const { data } = await supabaseAdmin
+    .from(table)
+    .select("notes")
+    .eq("org_id", ctx.orgId)
+    .eq("id", target.id)
+    .maybeSingle();
+  const current = ((data as { notes: string | null } | null)?.notes ?? "").trim();
+  const merged = [current, trim(note.transcript, 2000)].filter(Boolean).join("\n\n").slice(0, 8000);
+
+  await supabaseAdmin
+    .from(table)
+    .update({ notes: merged, updated_at: new Date().toISOString() })
+    .eq("org_id", ctx.orgId)
+    .eq("id", target.id);
+
+  await supabaseAdmin
+    .from("workboard_notes")
+    .update({
+      status: "dismissed",
+      target_kind: target.kind,
+      target_id: target.id,
+    })
+    .eq("org_id", ctx.orgId)
+    .eq("id", noteId);
+
+  refresh(target);
+  return { ok: true, summary: "Kept on the job's notes." };
+}
+
 /** Stop a flag pulsing. Whoever dealt with it can clear it. */
 export async function clearFlag(flagId: string): Promise<ApplyResult> {
   const ctx = await context();

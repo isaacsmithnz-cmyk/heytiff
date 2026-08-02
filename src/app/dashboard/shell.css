@@ -3260,12 +3260,31 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
   --wb2-cy:#007fa8; --wb2-cy2:#0089b8; }
 
 /* the board's primary buttons wear the section accent, ghosts stay house */
-.wb2 .pbtn:not(.ghost), .wb2-sheet .pbtn:not(.ghost) {
+/* `.wb2-capcard` belongs in this list and was missing from it, so the capture
+   overlay's primary buttons — "Sort this out", "Save these" — had no fill at
+   all: dark text on white, indistinguishable from a label. Which is why a
+   DISABLED "Save these" read as nothing happening rather than as off. */
+.wb2 .pbtn:not(.ghost), .wb2-sheet .pbtn:not(.ghost), .wb2-capcard .pbtn:not(.ghost) {
   background:var(--wb2-cy, #007fa8); border:1px solid var(--wb2-cy, #007fa8); color:#fff;
   box-shadow:0 6px 16px -10px rgba(0,127,168,.9); }
-.wb2 .pbtn:not(.ghost):hover, .wb2-sheet .pbtn:not(.ghost):hover { background:#0089b8; border-color:#0089b8; }
-.wb2 .pbtn.ghost, .wb2-sheet .pbtn.ghost { height:34px; padding:0 12px; font-size:12.5px; }
-.wb2 .pbtn:not(.ghost), .wb2-sheet .pbtn:not(.ghost) { height:38px; padding:0 15px; font-size:12.5px; border-radius:12px; }
+.wb2 .pbtn:not(.ghost):hover:not(:disabled),
+.wb2-sheet .pbtn:not(.ghost):hover:not(:disabled),
+.wb2-capcard .pbtn:not(.ghost):hover:not(:disabled) { background:#0089b8; border-color:#0089b8; }
+.wb2 .pbtn.ghost, .wb2-sheet .pbtn.ghost, .wb2-capcard .pbtn.ghost { height:34px; padding:0 12px; font-size:12.5px; }
+.wb2 .pbtn:not(.ghost), .wb2-sheet .pbtn:not(.ghost), .wb2-capcard .pbtn:not(.ghost) {
+  height:38px; padding:0 15px; font-size:12.5px; border-radius:12px; }
+
+/* OFF has to LOOK off. A 55% fade of a coloured button still reads as a
+   button you can press, and the only other signal was a hover that quietly
+   didn't happen — "it just doesn't react when you put your mouse over it"
+   (Isaac). So a disabled button loses its colour entirely, keeps its shape,
+   and says so with the cursor. Wins over the fills above by specificity. */
+.wb2 .pbtn:disabled, .wb2-sheet .pbtn:disabled, .wb2-capcard .pbtn:disabled,
+.wb2-daymodal .pbtn:disabled {
+  background:#eef0f4; border-color:#e3e6ec; color:#a2a9b8; box-shadow:none;
+  cursor:not-allowed; opacity:1; }
+.wb2 .pbtn.ghost:disabled, .wb2-sheet .pbtn.ghost:disabled, .wb2-capcard .pbtn.ghost:disabled,
+.wb2-daymodal .pbtn.ghost:disabled { background:#f7f8fa; color:#a2a9b8; }
 
 /* ── the view tabs — joined to the card ── */
 .wb2-vtabs { display:flex; align-items:flex-end; gap:0; margin-bottom:-1px; position:relative; z-index:3; padding-top:2px; }
@@ -3344,6 +3363,13 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-empty b { font-size:13.5px; color:var(--ink); }
 .wb2-empty em { font-style:normal; font-size:12.5px; font-weight:500; text-wrap:pretty; }
 .can-open { cursor:pointer; }
+/* A div that SAYS role="button" has to feel like one. Real <button>s get
+   cursor:pointer from the reset at the top of this file; a div doesn't, so
+   the Upcoming job rows handed you the I-beam of the text they're made of —
+   "when you hover over a job card, it comes up with a glyph instead of a hand
+   symbol" (Isaac). Written against the role rather than the one class, so the
+   next row built this way can't reintroduce it. */
+.wb2 [role="button"], .wb2-sheet [role="button"], .wb2-daymodal [role="button"] { cursor:pointer; }
 
 /* ── the triage list (Upcoming) ── */
 .wb2-trhd { display:grid; grid-template-columns:minmax(0,1fr) 72px 128px 150px 200px; gap:14px; align-items:end; padding:9px 20px;
@@ -3649,8 +3675,8 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-capcard .pbtn:active:not(:disabled) { transform:translateY(1px); }
 .wb2-sheet .pbtn:focus-visible, .wb2-daymodal .pbtn:focus-visible, .wb2-capcard .pbtn:focus-visible {
   outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
-.wb2-sheet .pbtn:disabled, .wb2-daymodal .pbtn:disabled, .wb2-capcard .pbtn:disabled {
-  opacity:.55; cursor:default; }
+/* the shared look for a disabled button lives with the fills it overrides —
+   see `.wb2 .pbtn:disabled` up in the accent block */
 /* the destructive ghost (`Skip this one`'s neighbour, `Really delete it`) */
 .wb2-sheet .pbtn.ghost.dan:hover:not(:disabled),
 .wb2-daymodal .pbtn.ghost.dan:hover:not(:disabled) {

@@ -69,7 +69,7 @@ jest.mock("@/lib/workboard/note-brain", () => ({
   readNote: jest.fn(),
 }));
 
-import { applyNote, clearFlag, dismissNote } from "../workboard-notes";
+import { applyNote, clearFlag, dismissNote, keepNoteOnJob } from "../workboard-notes";
 
 const NOTE = { id: "n-1", transcript: "…", status: "pending", target_kind: "project", target_id: "p-1", proposal: {} };
 
@@ -322,5 +322,56 @@ describe("clearFlag", () => {
     rows.workboard_flags = null;
     expect((await clearFlag("f-elsewhere")).ok).toBe(false);
     expect(updates).toHaveLength(0);
+  });
+});
+
+/* "Just keep the note" has to keep it somewhere you'd FIND it. Filing the row
+   at `dismissed` put the words in a drawer nobody opens — nothing in the app
+   reads workboard_notes — which is what made Isaac ask where the note was
+   even going. */
+describe("keeping a note on the job", () => {
+  it("appends the words to the job's own notes, never replacing what's there", async () => {
+    rows.workboard_notes = { ...NOTE, transcript: "Gate code is 4821 after hours." };
+    rows.projects = { notes: "Ask for Marco at the dock." };
+    const res = await keepNoteOnJob("n-1");
+    expect(res.ok).toBe(true);
+    expect(updates.find((u) => u.table === "projects")!.patch.notes).toBe(
+      "Ask for Marco at the dock.\n\nGate code is 4821 after hours."
+    );
+    // and the note itself is settled, not left pending forever
+    expect(
+      updates.some((u) => u.table === "workboard_notes" && u.patch.status === "dismissed")
+    ).toBe(true);
+  });
+
+  it("takes the review card's job when the note was dictated against nothing", async () => {
+    rows.workboard_notes = { ...NOTE, target_kind: "none", target_id: null, transcript: "Bring the long ladder." };
+    rows.maintenance_agreements = { id: "a-1", notes: null };
+    const res = await keepNoteOnJob("n-1", { kind: "agreement", id: "a-1" });
+    expect(res.ok).toBe(true);
+    expect(updates.find((u) => u.table === "maintenance_agreements")!.patch.notes).toBe(
+      "Bring the long ladder."
+    );
+    expect(
+      updates.some(
+        (u) => u.table === "workboard_notes" && u.patch.target_kind === "agreement" && u.patch.target_id === "a-1"
+      )
+    ).toBe(true);
+  });
+
+  it("says so rather than pretending, when there's no job to keep it on", async () => {
+    rows.workboard_notes = { ...NOTE, target_kind: "none", target_id: null };
+    const res = await keepNoteOnJob("n-1");
+    expect(res.ok).toBe(false);
+    expect(res.ok === false && res.error).toMatch(/which job/);
+    expect(updates).toHaveLength(0);
+  });
+
+  /* Abandoning a note — Esc, the ×, walking away — must never write anything.
+     That path is dismissNote, and it stays a status change and nothing else. */
+  it("abandoning is still a status change and nothing else", async () => {
+    rows.workboard_notes = { ...NOTE, transcript: "half a sentence" };
+    await dismissNote("n-1");
+    expect(updates.every((u) => u.table === "workboard_notes")).toBe(true);
   });
 });

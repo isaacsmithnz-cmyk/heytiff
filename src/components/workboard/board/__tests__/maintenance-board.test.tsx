@@ -854,6 +854,22 @@ describe("the day modal — the list behind a day's colour, live (A3/A5/K8)", ()
     expect(act.placeVisit).toHaveBeenLastCalledWith("v-booked", "2026-08-04");
   });
 
+  /* Every agreement carries 13 months of generated visits, so an unscoped
+     candidate list offered next year's work for placing on next Tuesday. */
+  it("only offers visits due within four weeks of the day, and says what it held back", async () => {
+    const modal = await openDay(
+      [
+        visit({ id: "v-near", dueDate: "2026-08-10" }),
+        visit({ id: "v-far", dueDate: "2027-01-20", clientName: "Next Year Pty" }),
+      ],
+      "2026-08-05"
+    );
+    await userEvent.click(modal.getByRole("button", { name: "Place a service on this day" }));
+    expect(modal.getByText("Not placed yet")).toBeInTheDocument();
+    expect(modal.queryByText("Next Year Pty")).not.toBeInTheDocument();
+    expect(modal.getByText(/1 more visit isn't due within four weeks/)).toBeInTheDocument();
+  });
+
   it("an empty day owns up and offers the candidates straight away", async () => {
     const modal = await openDay([visit({ id: "v-loose", dueDate: "2026-08-20" })], "2026-08-05");
     expect(modal.getByText("Nothing placed on this day")).toBeInTheDocument();

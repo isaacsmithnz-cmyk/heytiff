@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { daysBetween } from "@/lib/workboard/board-status";
+import { plusDays } from "@/lib/workboard/dates";
 import {
   assignVisitTech,
   clearVisitPlacement,
@@ -25,6 +26,11 @@ import {
   TONE_RANK,
   toneOf,
 } from "./derive";
+
+/** How far beyond a day a visit can still be offered for placing on it. Four
+    weeks — the same window the Calendar tab shows, so what you can place
+    matches what you can see. */
+const PLACEABLE_AHEAD_DAYS = 28;
 
 /* The day modal — the list behind a day's colour, now LIVE (A3's fix): the
    gate chips on each card are the real ticks, assignment is a real select
@@ -80,22 +86,31 @@ export function DayModal({
     [visits, dayISO, today]
   );
 
-  /** Candidates for this day: every OPEN visit sitting elsewhere — the
-      unplaced first (most overdue leading), then booked-another-day rows,
-      which moving here reschedules. */
+  /** Candidates for this day: OPEN visits sitting elsewhere — the unplaced
+      first (most overdue leading), then booked-another-day rows, which
+      moving here reschedules.
+
+      SCOPED TO WHAT THIS DAY COULD PLAUSIBLY TAKE. Every agreement carries
+      13 months of generated visits, so "every unplaced visit" meant a
+      six-clients book offered ~30 rows here, most of them due next year —
+      you'd be invited to put a September 2027 service on next Tuesday. A
+      visit belongs in this list when it's already due, or comes due inside
+      the four weeks after the day you're looking at; anything further out
+      isn't work you're scheduling, it's a typo waiting to happen. */
   const candidates = useMemo(() => {
+    const horizon = plusDays(dayISO, PLACEABLE_AHEAD_DAYS);
     const open = visits.filter(
       (v) =>
         (v.status === "upcoming" || v.status === "booked") &&
         placedDayOf(v) !== dayISO
     );
-    const unplaced = open
-      .filter((v) => !placedDayOf(v))
-      .sort((a, b) => (a.dueDate < b.dueDate ? -1 : 1));
+    const all = open.filter((v) => !placedDayOf(v)).sort((a, b) => (a.dueDate < b.dueDate ? -1 : 1));
+    const unplaced = all.filter((v) => v.dueDate <= horizon);
     const elsewhere = open
       .filter((v) => !!placedDayOf(v))
       .sort((a, b) => (placedDayOf(a)! < placedDayOf(b)! ? -1 : 1));
-    return { unplaced, elsewhere };
+    // never silently truncate: say what the window is holding back
+    return { unplaced, elsewhere, hiddenAhead: all.length - unplaced.length };
   }, [visits, dayISO]);
 
   const n = daysBetween(today, dayISO);
@@ -213,6 +228,14 @@ export function DayModal({
                     <span className="wb2-sect">Not placed yet</span>
                     {candidates.unplaced.map(candidateRow)}
                   </>
+                )}
+                {candidates.hiddenAhead > 0 && (
+                  <p className="wb2-hint">
+                    {candidates.hiddenAhead === 1
+                      ? "1 more visit isn't due"
+                      : `${candidates.hiddenAhead} more visits aren't due`}{" "}
+                    within four weeks of this day — place those from their own week.
+                  </p>
                 )}
                 {candidates.elsewhere.length > 0 && (
                   <>

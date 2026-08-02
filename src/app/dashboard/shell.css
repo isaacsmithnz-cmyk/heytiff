@@ -3528,7 +3528,7 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 /* Six columns: who and what, how often, when it last ran, when it's next,
    what follows, and how it's labelled. Last-done and Then are what turn a
    cadence word into an actual rhythm. */
-.wb2-agcols { display:grid; grid-template-columns:minmax(0,1.3fr) 96px minmax(0,.9fr) minmax(0,1fr) minmax(0,.7fr) minmax(0,.9fr);
+.wb2-agcols { display:grid; grid-template-columns:8px minmax(0,1.3fr) 96px minmax(0,.9fr) minmax(0,1fr) minmax(0,.7fr) minmax(0,.9fr);
   gap:14px; padding:2px 20px 6px; font-size:10px; font-weight:800; letter-spacing:.12em; text-transform:uppercase;
   color:#9ca3af; }
 .wb2-agcols span:last-child { text-align:right; }
@@ -3539,8 +3539,11 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
   color:var(--ink); outline:none; }
 .wb2-agsearch input::placeholder { color:#9ca3af; font-weight:500; }
 .wb2-trd.quiet b { color:var(--gray500); font-weight:700; }
+/* hours first on the booked line — the load, then who is carrying it */
+.wb2-trhrs { font-weight:800; color:var(--gray700); }
+.wb2-trhrs:after { content:"·"; margin:0 5px; color:#c9ced6; font-weight:700; }
 .wb2-trd b.dan { color:var(--wb2-dan-t, #b31038); }
-.wb2-agr { display:grid; grid-template-columns:minmax(0,1.3fr) 96px minmax(0,.9fr) minmax(0,1fr) minmax(0,.7fr) minmax(0,.9fr); gap:14px; align-items:center;
+.wb2-agr { display:grid; grid-template-columns:8px minmax(0,1.3fr) 96px minmax(0,.9fr) minmax(0,1fr) minmax(0,.7fr) minmax(0,.9fr); gap:14px; align-items:center;
   padding:11px 20px; border-bottom:1px solid var(--wb2-line2); text-decoration:none; color:inherit; transition:background .18s; }
 .wb2-agr:hover { background:rgba(5,5,5,.018); }
 .wb2-agrp:last-child .wb2-agr:last-child { border-bottom:0; }
@@ -3953,3 +3956,11 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible { outli
   background:rgba(0,163,137,.12); color:#00806b; }
 .wb2-scopemark.out { background:rgba(224,38,79,.1); color:#b31038; }
 @media (max-width:800px) { .wb2-scope { grid-template-columns:1fr; } .wb2-moneyrow { grid-template-columns:minmax(0,1fr) auto; } }
+
+/* the relative age beside the completion date — "yesterday", "6 days ago" */
+.wb2-dnw b i { font-style:normal; font-weight:600; font-size:11.5px; color:var(--gray500); margin-left:6px; }
+
+/* the ledger's per-row state dot, as the design leads each row */
+.wb2-agdot { width:8px; height:8px; border-radius:50%; flex:none; background:var(--wb2-ok); align-self:center; }
+.wb2-agdot.dan { background:var(--wb2-dan); }
+.wb2-agdot.off { background:rgba(5,5,5,.22); }

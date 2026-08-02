@@ -14,6 +14,7 @@ import {
   cadenceLabel,
   GATE_FULL,
   GATE_LABEL,
+  hoursLabel,
   initialsOf,
   missingOf,
   placedDayOf,
@@ -174,7 +175,13 @@ function Row({
         {placed ? (
           <>
             <b>{fmtAuWeekdayDayMonth(placed)}</b>
+            {/* Hours lead the second line: a booked day is a day you are
+                filling, and how long it takes is what decides whether
+                anything else fits beside it. Who is on it follows. */}
             <em>
+              {v.hoursEstimate !== null && (
+                <span className="wb2-trhrs">{hoursLabel(v.hoursEstimate)}</span>
+              )}
               {tech ? (
                 <>
                   <span className="wb2-av" title={tech.name}>

@@ -8,10 +8,14 @@ import type { BoardAgreement } from "@/lib/workboard/board-query";
 import { cadenceLabel, untilLabel } from "./derive";
 
 /* Service agreements — the ledger, grouped by category. Every row names its
-   client (B22), an overdue "next" is called overdue (B10), rows open the
-   agreement SHEET (A6 — no more hopping to a separate page), and the
-   category header carries the prototype's lost feature (K8): book the whole
-   category's next visits onto one day, one pass.
+   client (B22), an overdue "next" is called overdue (B10), and rows open the
+   agreement SHEET (A6 — no more hopping to a separate page).
+
+   "Book the category on one day" USED to live on the group header. It came
+   from the audit (K8) as a feature the prototype had wired but never
+   rendered, and I argued for it on that basis. Isaac's read — booking a
+   whole category onto a single day isn't how the work actually goes — beats
+   an inference from an orphaned handler, so it's gone.
 
    A ledger row answers three questions, so it carries three dates: when it
    was LAST done, when it's NEXT due, and what comes after that. Two of those
@@ -56,17 +60,13 @@ export function AgreementsTab({
   manage,
   onOpen,
   onNew,
-  onBookCategory,
 }: {
   agreements: BoardAgreement[];
   today: string;
   manage: boolean;
   onOpen: (agreementId: string) => void;
   onNew: () => void;
-  onBookCategory: (agreementIds: string[], dayISO: string, categoryName: string) => void;
 }) {
-  const [bookingFor, setBookingFor] = useState<string | null>(null);
-  const [bookDay, setBookDay] = useState("");
   const [q, setQ] = useState("");
 
   const matching = useMemo(() => {
@@ -150,47 +150,9 @@ export function AgreementsTab({
               <i aria-hidden="true" />
               {g.name}
               <em>{groupLine(g.list, today)}</em>
-              {/* K8's lost feature, rendered where it pays off: quote,
-                  schedule and run a portfolio in one pass */}
-              {manage && g.key !== "" && g.list.some((a) => a.status === "active") && (
-                <span className="wb2-agbook">
-                  {bookingFor === g.key ? (
-                    <>
-                      <input
-                        type="date"
-                        className="wb2-fi"
-                        aria-label={`Day for ${g.name}`}
-                        value={bookDay}
-                        onChange={(e) => setBookDay(e.target.value)}
-                      />
-                      <button
-                        className="pbtn ghost"
-                        disabled={!bookDay}
-                        onClick={() => {
-                          setBookingFor(null);
-                          onBookCategory(
-                            g.list.filter((a) => a.status === "active").map((a) => a.id),
-                            bookDay,
-                            g.name
-                          );
-                          setBookDay("");
-                        }}
-                      >
-                        Book them
-                      </button>
-                      <button className="pbtn ghost" onClick={() => setBookingFor(null)}>
-                        Never mind
-                      </button>
-                    </>
-                  ) : (
-                    <button className="pbtn ghost" onClick={() => setBookingFor(g.key)}>
-                      Book the category on one day
-                    </button>
-                  )}
-                </span>
-              )}
             </div>
             <div className="wb2-agcols" aria-hidden="true">
+              <span />
               <span>Client and service</span>
               <span>Frequency</span>
               <span>Last done</span>
@@ -207,6 +169,7 @@ export function AgreementsTab({
                   onClick={() => onOpen(a.id)}
                   aria-label={`Open ${a.clientName} — ${a.label}`}
                 >
+                  <i className={"wb2-agdot" + (a.overdueCount > 0 ? " dan" : a.status === "paused" ? " off" : "")} aria-hidden="true" />
                   <div className="wb2-trt">
                     <b>{a.clientName}</b>
                     <em>

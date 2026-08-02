@@ -1088,43 +1088,9 @@ describe("the create flow (D7/K3/K4)", () => {
   });
 });
 
-describe("book the whole category on one day (K8's lost feature)", () => {
-  it("places each agreement's next open visit, one undo restores them all", async () => {
-    mount(
-      data({
-        agreements: [
-          agreementFix({
-            id: "a-1",
-            category: { id: "cat-1", name: "Retail sites", accent: "violet" },
-          }),
-          agreementFix({
-            id: "a-2",
-            label: "Split fleet",
-            clientName: "Meridian Data",
-            category: { id: "cat-1", name: "Retail sites", accent: "violet" },
-          }),
-        ],
-        visits: [
-          visit({ id: "v-1", agreementId: "a-1", dueDate: "2026-08-04" }),
-          visit({ id: "v-2", agreementId: "a-2", dueDate: "2026-08-06", bookedDate: "2026-08-06", status: "booked" }),
-        ],
-      })
-    );
-    await toTab(/Service agreements/);
-    await userEvent.click(screen.getByRole("button", { name: "Book the category on one day" }));
-    await userEvent.type(screen.getByLabelText("Day for Retail sites"), "2026-08-10");
-    await userEvent.click(screen.getByRole("button", { name: "Book them" }));
-
-    expect(act.placeVisit).toHaveBeenCalledWith("v-1", "2026-08-10");
-    expect(act.placeVisit).toHaveBeenCalledWith("v-2", "2026-08-10");
-
-    const toast = screen.getByText(/Retail sites: 2 visits placed on Mon 10 Aug/).closest(".wb2-toast")!;
-    await userEvent.click(within(toast as HTMLElement).getByRole("button", { name: "Undo" }));
-    // v-1 had no day: cleared. v-2 goes back to the day it came from.
-    expect(act.clearVisitPlacement).toHaveBeenCalledWith("v-1");
-    expect(act.placeVisit).toHaveBeenLastCalledWith("v-2", "2026-08-06");
-  });
-});
+/* "Book the category on one day" was removed — Isaac's read is that booking a
+   whole category onto one day isn't how the work goes, which beats the audit's
+   inference from an orphaned prototype handler. Its suite went with it. */
 
 describe("the wall (A10 — light, big, untouchable)", () => {
   // Rendered directly: jsdom can't fullscreen, and the wall doesn't care —

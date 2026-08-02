@@ -3752,8 +3752,66 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
   background:rgba(5,5,5,.03); margin:0; white-space:pre-wrap; }
 .wb2-shft { display:flex; align-items:center; gap:9px; padding:18px 22px; margin-top:auto; position:sticky; bottom:0;
   background:#fff; border-top:1px solid var(--wb2-line2); flex-wrap:wrap; }
-.wb2-closeout { display:grid; gap:10px; width:100%; }
+/* ── close it out ──
+   A raised card inside the footer band, with everything above it pushed back
+   (`.wb2-sheet.closingout`). Closing a job out is a one-thing-at-a-time act
+   and the form used to sit flush against the gates and tags it has nothing to
+   do with. The recession is a light blur plus a fade rather than a scrim,
+   because you still want to SEE which visit you're closing — and pointer
+   events go with it, so nothing blurred is also clickable. The × on the card
+   brings it all straight back. */
+.wb2-sheet.closingout > .wb2-shsect,
+.wb2-sheet.closingout > .wb2-shhd { filter:blur(1.6px); opacity:.42; pointer-events:none;
+  transition:opacity .28s cubic-bezier(.4,0,.2,1), filter .28s cubic-bezier(.4,0,.2,1); }
+.wb2-sheet > .wb2-shsect, .wb2-sheet > .wb2-shhd { transition:opacity .28s cubic-bezier(.4,0,.2,1), filter .28s cubic-bezier(.4,0,.2,1); }
+.wb2-sheet.closingout > .wb2-shft { background:linear-gradient(180deg, rgba(0,127,168,.05), rgba(0,127,168,.02)); }
+
+.wb2-closeout { display:grid; gap:11px; width:100%; padding:15px 17px; border-radius:16px;
+  background:#fff; border:1px solid rgba(0,127,168,.28); box-shadow:0 18px 40px -26px rgba(10,12,20,.6); }
+.wb2-closeout .wb2-shsh { margin-bottom:0; }
+.wb2-closeout .wb2-shsh .wb2-ico { margin-left:auto; }
 .wb2-corow { display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap; }
+/* the day it ran STATES itself — the picker is the exception, not the ask */
+.wb2-coday { display:flex; flex-direction:column; gap:5px; flex:1; min-width:150px; }
+.wb2-coday b { font-size:15px; font-weight:800; letter-spacing:-.015em; }
+.wb2-colink { align-self:flex-start; padding:0; border:0; background:none; font:inherit; font-size:11.5px;
+  font-weight:700; color:#007fa8; cursor:pointer; text-decoration:underline; text-underline-offset:2px;
+  text-decoration-color:rgba(0,127,168,.35); transition:color .18s, text-decoration-color .18s; }
+.wb2-colink:hover { color:#0089b8; text-decoration-color:#0089b8; }
+.wb2-colink:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); border-radius:5px; }
+/* the one button that matters sits where a confirm sits — on the right */
+.wb2-coact { display:flex; justify-content:flex-end; }
+.wb2-noteact { display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
+
+/* ── dictation ──
+   A mic on every box you'd type a paragraph into (Isaac, 2026-08-02). It
+   rides UNDER the textarea rather than floating inside it: an icon overlaying
+   a text field is a thing you discover, and this has to be a thing you see.
+   While recording the bar becomes the recorder — stop, live level, clock,
+   discard — so the textarea never has to pretend to show live words it
+   doesn't have. */
+.wb2-dict { display:grid; gap:7px; }
+.wb2-dict .wb2-notes { margin-bottom:0; }
+.wb2-dictbar { display:flex; align-items:center; gap:9px; min-height:28px; }
+.wb2-dictmic { display:inline-flex; align-items:center; gap:7px; height:28px; padding:0 11px; border-radius:999px;
+  border:1px solid rgba(5,5,5,.12); background:#fff; font:inherit; font-size:11.5px; font-weight:700;
+  color:var(--gray700); cursor:pointer; transition:background .2s, border-color .2s, color .2s; }
+.wb2-dictmic:hover:not(:disabled) { background:rgba(224,38,79,.06); border-color:rgba(224,38,79,.45); color:#b31038; }
+.wb2-dictmic:disabled { opacity:.5; cursor:default; }
+.wb2-dictmic:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(224,38,79,.28); }
+.wb2-dictmic.on { width:28px; padding:0; justify-content:center; background:#e0264f; border-color:#e0264f; color:#fff; }
+.wb2-dictmic.on:hover { background:#c8203f; border-color:#c8203f; color:#fff; }
+.wb2-dictbar .wb-lvl { height:18px; }
+.wb2-dictbar .wb-lvl i { height:18px; width:3px; }
+.wb2-dictx { width:24px; height:24px; margin-left:auto; border-radius:7px; border:0; background:none; color:#9ca3af;
+  display:grid; place-items:center; cursor:pointer; transition:background .16s, color .16s; }
+.wb2-dictx:hover { background:rgba(5,5,5,.06); color:var(--ink); }
+.wb2-dicthint, .wb2-dicterr { font-size:11.5px; font-weight:700; margin:0; }
+.wb2-dicthint { color:var(--gray500); }
+.wb2-dicterr { color:var(--wb2-dan-t, #b31038); }
+@media (prefers-reduced-motion:reduce) {
+  .wb2-sheet.closingout > .wb2-shsect, .wb2-sheet.closingout > .wb2-shhd { transition:none; }
+}
 
 /* ── responsive ── */
 @media (max-width: 1100px) {

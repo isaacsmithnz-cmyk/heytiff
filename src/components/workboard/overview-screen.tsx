@@ -8,6 +8,7 @@ import { urgentRows } from "@/lib/workboard/urgent-rules";
 import { projectUrgentRows } from "@/lib/workboard/project-rules";
 import type { WorkboardData } from "@/lib/workboard/page-data";
 import { NoteCapture } from "./note-capture";
+import { NoteBrainProvider } from "./note-brain-context";
 import { MaintenanceBoard } from "./board/maintenance-board";
 import { ProjectsBoard } from "./board/projects-board";
 
@@ -253,7 +254,10 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
           timezone: data.timezone,
         };
 
+  /* The provider wraps the whole page so any field inside either board can
+     reach the note brain and know whether this deployment can hear you. */
   return (
+    <NoteBrainProvider voiceEnabled={data.voiceEnabled}>
     <div className="page in">
       <div className="wrap">
         <div className="stg">
@@ -363,5 +367,6 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
         </div>
       </div>
     </div>
+    </NoteBrainProvider>
   );
 }

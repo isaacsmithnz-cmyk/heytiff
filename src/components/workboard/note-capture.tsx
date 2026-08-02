@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
+import { LevelBars, clockOf, useDictation } from "./dictation";
+import { useNoteBrain } from "./note-brain-context";
 import { SEVERITIES, type NoteProposal, type NoteStaff } from "@/lib/workboard/note-brain";
 import {
   answerClarify,
@@ -102,12 +104,6 @@ export function NoteCapture({
   const [answer, setAnswer] = useState("");
   const [done, setDone] = useState<string | null>(null);
 
-  const [recording, setRecording] = useState(false);
-  const [listening, setListening] = useState(false);
-  const [seconds, setSeconds] = useState(0);
-  const recorder = useRef<MediaRecorder | null>(null);
-  const discard = useRef(false);
-  const bars = useRef<HTMLSpanElement | null>(null);
   const textRef = useRef<HTMLTextAreaElement | null>(null);
 
   const reset = () => {
@@ -117,11 +113,37 @@ export function NoteCapture({
     setText("");
   };
 
+  const read = useCallback(
+    (source: "text" | "voice", transcript: string) => {
+      setError(null);
+      setDone(null);
+      start(async () => {
+        const res = await routeNote({ transcript, target, source });
+        if (!res.ok) {
+          setError(res.error);
+          router.refresh(); // the note itself was still saved
+          return;
+        }
+        setNote({ id: res.noteId, proposal: res.proposal, staff: res.staff });
+        setDraft(toDraft(res.proposal));
+      });
+    },
+    [target, router, start]
+  );
+
+  /* The engine now lives in ./dictation, because it was never specific to
+     this component — every box you'd type a paragraph into wants it. */
+  const dict = useDictation({
+    onTranscript: (transcript) => {
+      setText(transcript);
+      read("voice", transcript);
+    },
+    onError: setError,
+  });
+  const { recording, transcribing: listening } = dict;
+
   const close = () => {
-    if (recorder.current?.state === "recording") {
-      discard.current = true;
-      recorder.current.stop();
-    }
+    dict.cancel();
     /* Walking away from a parsed note means the same thing "Keep as note"
        means: keep the words, apply none of it. Without this the row sits at
        status "pending" forever — nothing in the app reads pending notes, so
@@ -140,131 +162,22 @@ export function NoteCapture({
     return () => clearTimeout(t);
   }, [done]);
 
-  // the recording clock — zeroed where recording STARTS, ticked here
-  useEffect(() => {
-    if (!recording) return;
-    const t = setInterval(() => setSeconds((s) => s + 1), 1000);
-    return () => clearInterval(t);
-  }, [recording]);
-
-  const read = (source: "text" | "voice", transcript: string) => {
-    setError(null);
-    setDone(null);
-    start(async () => {
-      const res = await routeNote({ transcript, target, source });
-      if (!res.ok) {
-        setError(res.error);
-        router.refresh(); // the note itself was still saved
-        return;
-      }
-      setNote({ id: res.noteId, proposal: res.proposal, staff: res.staff });
-      setDraft(toDraft(res.proposal));
-    });
-  };
-
-  /* ── voice (the engine — real-sample meter, unmount releases the mic) ── */
-
-  const meter = useRef<{ ctx: AudioContext; raf: number } | null>(null);
-
-  const stopMeter = () => {
-    bars.current?.style.setProperty("--lvl", "0");
-    if (!meter.current) return;
-    cancelAnimationFrame(meter.current.raf);
-    void meter.current.ctx.close().catch(() => {});
-    meter.current = null;
-  };
-
-  const startMeter = (stream: MediaStream) => {
-    const Ctor =
-      window.AudioContext ??
-      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctor) return;
-    try {
-      const ctx = new Ctor();
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 256;
-      ctx.createMediaStreamSource(stream).connect(analyser);
-      const samples = new Uint8Array(analyser.frequencyBinCount);
-
-      const tick = () => {
-        analyser.getByteTimeDomainData(samples);
-        let sum = 0;
-        for (const s of samples) {
-          const centred = (s - 128) / 128;
-          sum += centred * centred;
-        }
-        const level = Math.min(1, Math.sqrt(sum / samples.length) * 4);
-        // straight to the DOM, never through React — this runs every frame
-        bars.current?.style.setProperty("--lvl", level.toFixed(3));
-        if (meter.current) meter.current.raf = requestAnimationFrame(tick);
-      };
-
-      meter.current = { ctx, raf: requestAnimationFrame(tick) };
-    } catch {
-      /* no meter; recording continues */
-    }
-  };
-
-  useEffect(
-    () => () => {
-      stopMeter();
-      const rec = recorder.current;
-      if (rec?.state === "recording") {
-        discard.current = true;
-        rec.stop();
-      } else rec?.stream.getTracks().forEach((t) => t.stop());
+  /* Any field on the board can hand its text to the brain — the pill is just
+     the one that also OWNS it. Registered here so a "Notes for the visit" box
+     doesn't need its own copy of the engine or its own review card. */
+  const { register } = useNoteBrain();
+  const handOff = useCallback(
+    (incoming: string) => {
+      setOpen(true);
+      setText(incoming);
+      read("text", incoming);
     },
-    []
+    [read]
   );
-
-  const startRecording = async () => {
-    setError(null);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const rec = new MediaRecorder(stream);
-      discard.current = false;
-      startMeter(stream);
-      const chunks: BlobPart[] = [];
-      rec.ondataavailable = (e) => {
-        if (e.data.size > 0) chunks.push(e.data);
-      };
-      rec.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
-        stopMeter();
-        setRecording(false);
-        if (discard.current) return;
-        const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
-        if (blob.size === 0) return;
-
-        setListening(true);
-        try {
-          const form = new FormData();
-          form.append("audio", blob, "note.webm");
-          const res = await fetch("/api/workboard/transcribe", { method: "POST", body: form });
-          const body = (await res.json()) as { text?: string; error?: string };
-          if (!res.ok || !body.text) {
-            setError(body.error ?? "That recording couldn't be read. Type it instead.");
-            return;
-          }
-          setText(body.text);
-          read("voice", body.text);
-        } catch {
-          setError("That recording couldn't be sent. Type it instead.");
-        } finally {
-          setListening(false);
-        }
-      };
-      recorder.current = rec;
-      rec.start();
-      setSeconds(0);
-      setRecording(true);
-    } catch {
-      // graceful no-mic floor: the overlay stays open in typing mode
-      setError("No microphone available — type the note instead.");
-    }
-  };
-
-  const stopRecording = () => recorder.current?.stop();
+  useEffect(() => {
+    register(handOff);
+    return () => register(null);
+  }, [register, handOff]);
 
   /* ── the review (the engine's contract, unchanged) ── */
 
@@ -326,7 +239,7 @@ export function NoteCapture({
     if (open && !recording && !note) textRef.current?.focus();
   }, [open, recording, note]);
 
-  const clock = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+  const clock = clockOf(dict.seconds);
 
   return (
     <>
@@ -350,7 +263,7 @@ export function NoteCapture({
             aria-label="Record a note"
             onClick={() => {
               setOpen(true);
-              void startRecording();
+              dict.start();
             }}
           >
             <Icon name="mic" size={18} />
@@ -407,7 +320,7 @@ export function NoteCapture({
                       Discard
                     </button>
                     {voiceEnabled && (
-                      <button className="pbtn ghost" onClick={() => void startRecording()} disabled={busy}>
+                      <button className="pbtn ghost" onClick={dict.start} disabled={busy}>
                         <Icon name="volume" size={15} />
                         Dictate
                       </button>
@@ -425,11 +338,7 @@ export function NoteCapture({
 
               {recording && (
                 <div className="wb2-caprec">
-                  <span className="wb-lvl" role="status" aria-label="Listening" ref={bars}>
-                    {[0.5, 0.8, 1, 0.8, 0.5].map((g, i) => (
-                      <i key={i} style={{ "--g": g } as React.CSSProperties} />
-                    ))}
-                  </span>
+                  <LevelBars innerRef={dict.barsRef} />
                   <p className="wb2-hint">
                     If the bars don&apos;t move when you talk, nothing is being heard. Words are read
                     back when you stop.
@@ -438,7 +347,7 @@ export function NoteCapture({
                     <button className="pbtn ghost" onClick={close}>
                       Discard
                     </button>
-                    <button className="pbtn" onClick={stopRecording}>
+                    <button className="pbtn" onClick={dict.stop}>
                       <Icon name="square" size={15} />
                       Stop &amp; read
                     </button>

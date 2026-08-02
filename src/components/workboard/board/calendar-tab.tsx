@@ -109,7 +109,30 @@ export function CalendarTab({
           <Icon name="calendar" size={19} />
         </span>
         <div>
-          <b>{rangeLabel}</b>
+          {/* The arrows belong TO the label — a control that changes a value
+              sits with the value, not across the room from it. */}
+          <div className="wb2-mchead">
+            <button
+              className="wb2-mcarrow"
+              aria-label="A week earlier"
+              onClick={() => setWeekShift((w) => w - 1)}
+            >
+              <Icon name="chevL" size={15} />
+            </button>
+            <b>{rangeLabel}</b>
+            <button
+              className="wb2-mcarrow"
+              aria-label="A week later"
+              onClick={() => setWeekShift((w) => w + 1)}
+            >
+              <Icon name="chevR" size={15} />
+            </button>
+            {weekShift !== 0 && (
+              <button className="wb2-mcnow" onClick={() => setWeekShift(0)}>
+                Today
+              </button>
+            )}
+          </div>
           <em>Colour says how ready each day is. Green is the goal, red is the queue.</em>
         </div>
         <span className="wb2-mcsum">
@@ -136,27 +159,6 @@ export function CalendarTab({
             Everything
           </button>
         </div>
-        <span className="wb2-mcnav">
-          <button
-            className="pbtn ghost"
-            aria-label="A week earlier"
-            onClick={() => setWeekShift((w) => w - 1)}
-          >
-            <Icon name="chevL" size={15} />
-          </button>
-          {weekShift !== 0 && (
-            <button className="pbtn ghost" onClick={() => setWeekShift(0)}>
-              Today
-            </button>
-          )}
-          <button
-            className="pbtn ghost"
-            aria-label="A week later"
-            onClick={() => setWeekShift((w) => w + 1)}
-          >
-            <Icon name="chevR" size={15} />
-          </button>
-        </span>
       </div>
 
       <div className="wb2-mckey">
@@ -201,21 +203,26 @@ export function CalendarTab({
                 "wb2-mcc" +
                 (c.iso < today ? " past" : "") +
                 (isWeekendISO(c.iso) ? " we" : "") +
+                (c.iso.slice(8, 10) === "01" ? " mstart" : "") +
                 (c.iso === today ? " today" : "")
               }
               data-tone={tone}
               aria-label={`Open ${c.iso}`}
               onClick={() => onDay(c.iso)}
             >
+              {/* Month on EVERY date, not just the 1st. A rolling window
+                  crosses months mid-row, and "3" alone doesn't say whether
+                  you're looking at this month or next. */}
               <span className="wb2-mcn">
-                {parseInt(c.iso.slice(8, 10), 10)}
-                {(c.iso === today || c.iso.slice(8, 10) === "01") && (
-                  <em>{c.iso === today ? "Today" : monthWord(c.iso)}</em>
-                )}
+                <b>{parseInt(c.iso.slice(8, 10), 10)}</b>
+                <em>{monthWord(c.iso)}</em>
+                {c.iso === today && <i>Today</i>}
               </span>
               {settled ? (
                 <span className="wb2-mcdone" aria-label="All closed">
-                  <Icon name="check" size={13} />
+                  <span>
+                    <Icon name="check" size={13} />
+                  </span>
                 </span>
               ) : (
                 c.dayVisits.length > 0 && (

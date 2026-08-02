@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
+import { DictateBox } from "./dictation";
 import { WbModal } from "./wb-modal";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import {
@@ -450,6 +451,7 @@ export function ProjectDetailScreen({
 
           {/* ── notes ── */}
           <NotesCard
+            voiceEnabled={voiceEnabled}
             notes={project.notes}
             manage={manage}
             busy={busy}
@@ -1348,11 +1350,14 @@ function NotesCard({
   notes,
   manage,
   busy,
+  voiceEnabled,
   onSave,
 }: {
   notes: string | null;
   manage: boolean;
   busy: boolean;
+  /** ELEVENLABS_API_KEY is set on this deployment. */
+  voiceEnabled: boolean;
   onSave: (text: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -1384,10 +1389,11 @@ function NotesCard({
       </div>
       {editing ? (
         <>
-          <textarea
-            className="wb-notes"
+          <DictateBox
+            label="project notes"
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={setText}
+            voiceEnabled={voiceEnabled}
             rows={5}
           />
           <div className="fl-foot">

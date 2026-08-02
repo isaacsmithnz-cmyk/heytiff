@@ -12,6 +12,8 @@ import {
 } from "@/lib/workboard/board-status";
 import type { VisitTone } from "@/lib/workboard/board-status";
 import type { BoardTag, BoardTech, BoardVisit } from "@/lib/workboard/board-query";
+import { DictateBox } from "../dictation";
+import { useNoteBrain } from "../note-brain-context";
 import {
   assignVisitTech,
   clearVisitPlacement,
@@ -77,6 +79,7 @@ export function VisitSheet({
   onClose: () => void;
 }) {
   const router = useRouter();
+  const { voiceEnabled, send: sendToBrain } = useNoteBrain();
   const [busy, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
   const [openGate, setOpenGate] = useState<0 | 1 | 2 | null>(null);
@@ -84,7 +87,20 @@ export function VisitSheet({
   const [addingTag, setAddingTag] = useState(false);
   const [tagText, setTagText] = useState("");
   const [closing, setClosing] = useState(startClosing);
-  const [ranOn, setRanOn] = useState(today);
+  /* THE DAY IT RAN IS THE DAY IT WAS BOOKED. It used to default to today,
+     which is only right if you close a job out the same afternoon — close
+     Tuesday's visit on Thursday and it quietly recorded Thursday. Isaac,
+     2026-08-02: "I don't understand the day it ran. I'm closing it out.
+     Surely that's just the day that you were booked in to do it." So the
+     booked day IS the answer and the form states it rather than asking; the
+     input only appears if you say it's wrong. Clamped to today because a
+     visit booked for next week can be closed out early, and it cannot have
+     run in the future. */
+  const [ranOn, setRanOn] = useState(() => {
+    const booked = visit.bookedDate ?? (visit.bookedStart ? visit.bookedStart.slice(0, 10) : null);
+    return booked && booked <= today ? booked : today;
+  });
+  const [ranOnOpen, setRanOnOpen] = useState(false);
   const [hoursText, setHoursText] = useState(
     visit.hoursEstimate !== null ? String(visit.hoursEstimate) : ""
   );
@@ -225,7 +241,15 @@ export function VisitSheet({
   return createPortal(
     <>
       <div className="wb2-scrim" onClick={onClose} />
-      <aside className="wb2-sheet" role="dialog" aria-modal="true" aria-label={`${visit.clientName} — ${visit.label}`}>
+      {/* `closingout` recedes everything above the footer — Isaac asked for
+          "a bit more separation between the close it out card and the
+          remainder of the card". Closing out is a one-thing-at-a-time act. */}
+      <aside
+        className={"wb2-sheet" + (closing ? " closingout" : "")}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${visit.clientName} — ${visit.label}`}
+      >
         <div className="wb2-shtop">
           <span className="wb2-chip blue">Service visit</span>
           {toneChip}
@@ -575,22 +599,42 @@ export function VisitSheet({
           </div>
           {manage ? (
             <>
-              <textarea
-                className="wb2-notes"
+              <DictateBox
+                label="notes for this visit"
+                value={notesText}
+                onChange={setNotesText}
+                voiceEnabled={voiceEnabled}
                 rows={3}
                 placeholder="Gate codes, who to ask for, what to watch out for…"
-                value={notesText}
-                onChange={(e) => setNotesText(e.target.value)}
               />
-              {notesText !== (visit.notes ?? "") && (
-                <button
-                  className="pbtn"
-                  disabled={busy}
-                  onClick={() => run(() => setVisitNotes(visit.id, notesText))}
-                >
-                  Save the note
-                </button>
-              )}
+              {/* Two different things you might mean by "note", said plainly.
+                  SAVE keeps it on the visit for whoever turns up. SORT IT OUT
+                  hands the same words to the note brain, which is what the
+                  pill does — a box labelled "notes" that couldn't raise the
+                  task it describes was the gap Isaac called out. The pill's
+                  target already follows this sheet, so it lands here. */}
+              <div className="wb2-noteact">
+                {notesText !== (visit.notes ?? "") && (
+                  <button
+                    className="pbtn"
+                    disabled={busy}
+                    onClick={() => run(() => setVisitNotes(visit.id, notesText))}
+                  >
+                    Save the note
+                  </button>
+                )}
+                {sendToBrain && notesText.trim() !== "" && (
+                  <button
+                    className="pbtn ghost"
+                    disabled={busy}
+                    title="Pull the tasks, flags and questions out of this"
+                    onClick={() => sendToBrain(notesText)}
+                  >
+                    <Icon name="sparkles" size={15} />
+                    Sort this out
+                  </button>
+                )}
+              </div>
             </>
           ) : visit.notes ? (
             <p className="wb2-notetext">{visit.notes}</p>
@@ -634,18 +678,40 @@ export function VisitSheet({
               <div className="wb2-closeout">
                 <div className="wb2-shsh">
                   <span className="wb2-sect">Close it out</span>
+                  {/* "Not yet" was a button competing with the one that
+                      matters. Backing out of a card is an × on the card. */}
+                  <button
+                    className="wb2-ico"
+                    disabled={busy}
+                    onClick={() => setClosing(false)}
+                    title="Not yet"
+                    aria-label="Not yet — leave it open"
+                  >
+                    <Icon name="x" size={14} />
+                  </button>
                 </div>
                 <div className="wb2-corow">
-                  <label className="wb2-fl">
-                    Day it ran
-                    <input
-                      type="date"
-                      className="wb2-fi"
-                      max={today}
-                      value={ranOn}
-                      onChange={(e) => setRanOn(e.target.value)}
-                    />
-                  </label>
+                  <div className="wb2-coday">
+                    <span className="wb2-sect">Day it ran</span>
+                    {ranOnOpen ? (
+                      <input
+                        type="date"
+                        className="wb2-fi"
+                        aria-label="Day it ran"
+                        max={today}
+                        autoFocus
+                        value={ranOn}
+                        onChange={(e) => setRanOn(e.target.value)}
+                      />
+                    ) : (
+                      <>
+                        <b>{fmtAuWeekdayDayMonth(ranOn)}</b>
+                        <button className="wb2-colink" onClick={() => setRanOnOpen(true)}>
+                          {ranOn === bookedDay ? "the day it was booked · pick another" : "pick another"}
+                        </button>
+                      </>
+                    )}
+                  </div>
                   <label className="wb2-fl">
                     Hours on site
                     <input
@@ -660,14 +726,15 @@ export function VisitSheet({
                     />
                   </label>
                 </div>
-                <textarea
-                  className="wb2-notes"
+                <DictateBox
+                  label="what happened on site"
+                  value={closeNote}
+                  onChange={setCloseNote}
+                  voiceEnabled={voiceEnabled}
                   rows={2}
                   placeholder="What happened on site — the Completed screen reads this."
-                  value={closeNote}
-                  onChange={(e) => setCloseNote(e.target.value)}
                 />
-                <div className="wb2-corow">
+                <div className="wb2-coact">
                   <button
                     className="pbtn"
                     disabled={busy}
@@ -684,10 +751,8 @@ export function VisitSheet({
                       )
                     }
                   >
+                    <Icon name="check" size={15} />
                     Mark it complete
-                  </button>
-                  <button className="pbtn ghost" disabled={busy} onClick={() => setClosing(false)}>
-                    Not yet
                   </button>
                 </div>
               </div>

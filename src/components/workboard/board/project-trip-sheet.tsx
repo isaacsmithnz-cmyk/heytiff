@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
+import { DictateBox } from "../dictation";
+import { useNoteBrain } from "../note-brain-context";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import {
   isWeekendISO,
@@ -79,12 +81,20 @@ export function ProjectTripSheet({
   onClose: () => void;
 }) {
   const router = useRouter();
+  const { voiceEnabled, send: sendToBrain } = useNoteBrain();
   const [busy, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
   const [openGate, setOpenGate] = useState<0 | 1 | 2 | null>(null);
   const [pendingDay, setPendingDay] = useState("");
   const [closing, setClosing] = useState(startClosing);
-  const [ranOn, setRanOn] = useState(today);
+  /* Same law as the visit sheet: the day it ran is the day it was BOOKED,
+     clamped to today. Defaulting to today silently recorded the day you got
+     round to the paperwork. */
+  const [ranOn, setRanOn] = useState(() => {
+    const booked = visit.bookedDate ?? (visit.bookedStart ? visit.bookedStart.slice(0, 10) : null);
+    return booked && booked <= today ? booked : today;
+  });
+  const [ranOnOpen, setRanOnOpen] = useState(false);
   const [hoursText, setHoursText] = useState("");
   const [closeNote, setCloseNote] = useState("");
   const [carry, setCarry] = useState(true);
@@ -234,7 +244,7 @@ export function ProjectTripSheet({
     <>
       <div className="wb2-scrim" onClick={onClose} />
       <aside
-        className="wb2-sheet"
+        className={"wb2-sheet" + (closing ? " closingout" : "")}
         role="dialog"
         aria-modal="true"
         aria-label={`${visit.projectName} — ${visit.label}`}
@@ -633,18 +643,38 @@ export function ProjectTripSheet({
           <div className="wb2-shsh">
             <span className="wb2-sect">Notes for the trip</span>
           </div>
-          <textarea
-            className="wb2-notes"
+          <DictateBox
+            label="notes for this trip"
+            value={notesText}
+            onChange={setNotesText}
+            voiceEnabled={voiceEnabled}
             rows={3}
             placeholder="Gate codes, who to ask for, what to watch out for…"
-            value={notesText}
-            onChange={(e) => setNotesText(e.target.value)}
           />
-          {notesText !== (visit.notes ?? "") && manage && (
-            <button className="pbtn" disabled={busy} onClick={() => run(() => setVisitNotes(visit.id, notesText))}>
-              Save the note
-            </button>
-          )}
+          {/* Save keeps it on the trip; Sort this out hands the same words to
+              the note brain, which is what the pill does. */}
+          <div className="wb2-noteact">
+            {notesText !== (visit.notes ?? "") && manage && (
+              <button
+                className="pbtn"
+                disabled={busy}
+                onClick={() => run(() => setVisitNotes(visit.id, notesText))}
+              >
+                Save the note
+              </button>
+            )}
+            {manage && sendToBrain && notesText.trim() !== "" && (
+              <button
+                className="pbtn ghost"
+                disabled={busy}
+                title="Pull the tasks, flags and questions out of this"
+                onClick={() => sendToBrain(notesText)}
+              >
+                <Icon name="sparkles" size={15} />
+                Sort this out
+              </button>
+            )}
+          </div>
         </div>
 
         {visit.status === "done" && (
@@ -686,18 +716,38 @@ export function ProjectTripSheet({
               <div className="wb2-closeout">
                 <div className="wb2-shsh">
                   <span className="wb2-sect">Close it out</span>
+                  <button
+                    className="wb2-ico"
+                    disabled={busy}
+                    onClick={() => setClosing(false)}
+                    title="Not yet"
+                    aria-label="Not yet — leave it open"
+                  >
+                    <Icon name="x" size={14} />
+                  </button>
                 </div>
                 <div className="wb2-corow">
-                  <label className="wb2-fl">
-                    Day it ran
-                    <input
-                      type="date"
-                      className="wb2-fi"
-                      max={today}
-                      value={ranOn}
-                      onChange={(e) => setRanOn(e.target.value)}
-                    />
-                  </label>
+                  <div className="wb2-coday">
+                    <span className="wb2-sect">Day it ran</span>
+                    {ranOnOpen ? (
+                      <input
+                        type="date"
+                        className="wb2-fi"
+                        aria-label="Day it ran"
+                        max={today}
+                        autoFocus
+                        value={ranOn}
+                        onChange={(e) => setRanOn(e.target.value)}
+                      />
+                    ) : (
+                      <>
+                        <b>{fmtAuWeekdayDayMonth(ranOn)}</b>
+                        <button className="wb2-colink" onClick={() => setRanOnOpen(true)}>
+                          {ranOn === bookedDay ? "the day it was booked · pick another" : "pick another"}
+                        </button>
+                      </>
+                    )}
+                  </div>
                   <label className="wb2-fl">
                     Hours on site
                     <input
@@ -712,12 +762,13 @@ export function ProjectTripSheet({
                     />
                   </label>
                 </div>
-                <textarea
-                  className="wb2-notes"
+                <DictateBox
+                  label="what happened on site"
+                  value={closeNote}
+                  onChange={setCloseNote}
+                  voiceEnabled={voiceEnabled}
                   rows={2}
                   placeholder="What happened on site — the project's story reads this."
-                  value={closeNote}
-                  onChange={(e) => setCloseNote(e.target.value)}
                 />
                 {nextTrip && unpacked.length > 0 && (
                   <label className="wb2-carry">
@@ -730,12 +781,10 @@ export function ProjectTripSheet({
                     {unpacked.length === 1 ? "item" : "items"} to “{nextTrip.label}”
                   </label>
                 )}
-                <div className="wb2-corow">
+                <div className="wb2-coact">
                   <button className="pbtn" disabled={busy} onClick={complete}>
+                    <Icon name="check" size={15} />
                     Mark the trip complete
-                  </button>
-                  <button className="pbtn ghost" disabled={busy} onClick={() => setClosing(false)}>
-                    Not yet
                   </button>
                 </div>
               </div>

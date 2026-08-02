@@ -4,6 +4,8 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
+import { DictateBox } from "../dictation";
+import { useNoteBrain } from "../note-brain-context";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import type { BoardAgreement, BoardTag, BoardCategory } from "@/lib/workboard/board-query";
 import {
@@ -59,6 +61,7 @@ export function AgreementSheet({
   onClose: () => void;
 }) {
   const router = useRouter();
+  const { voiceEnabled } = useNoteBrain();
   const [busy, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -335,15 +338,15 @@ export function AgreementSheet({
               </label>
               <label className="wb2-fl wide">
                 Access notes
-                <textarea className="wb2-notes" rows={2} value={accessNotes} onChange={(e) => setAccessNotes(e.target.value)} placeholder="keys, roof access, who to ask for…" />
+                <DictateBox label="access notes" value={accessNotes} onChange={setAccessNotes} voiceEnabled={voiceEnabled} rows={2} placeholder="keys, roof access, who to ask for…" />
               </label>
               <label className="wb2-fl wide">
                 Site requirements
-                <textarea className="wb2-notes" rows={2} value={siteRequirements} onChange={(e) => setSiteRequirements(e.target.value)} placeholder="inductions, white card, PPE…" />
+                <DictateBox label="site requirements" value={siteRequirements} onChange={setSiteRequirements} voiceEnabled={voiceEnabled} rows={2} placeholder="inductions, white card, PPE…" />
               </label>
               <label className="wb2-fl wide">
                 Agreement notes
-                <textarea className="wb2-notes" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+                <DictateBox label="agreement notes" value={notes} onChange={setNotes} voiceEnabled={voiceEnabled} rows={2} />
               </label>
             </div>
           ) : (

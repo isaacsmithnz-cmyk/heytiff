@@ -366,6 +366,60 @@ describe("the visit sheet — the editing heart", () => {
     });
   });
 
+  /* THE DAY IT RAN IS THE DAY IT WAS BOOKED. It defaulted to today, which is
+     only right if you close a job out the same afternoon — Isaac's point was
+     that if you booked it in for Monday, Monday is the answer and the form
+     shouldn't be asking. */
+  it("close-out states the BOOKED day as the day it ran, not today", async () => {
+    const sheet = await open(
+      visit({ id: "v-1", status: "booked", bookedDate: "2026-07-29", dueDate: "2026-07-29" })
+    );
+    await userEvent.click(sheet.getByRole("button", { name: /Mark visit complete/ }));
+    /* The close-out STATES the day rather than asking for it, and says where
+       the day came from — which is the whole point: no picker to fill in, and
+       no doubt about what it's about to record. */
+    expect(sheet.getByRole("button", { name: /the day it was booked/ })).toBeInTheDocument();
+    expect(sheet.queryByLabelText("Day it ran")).not.toBeInTheDocument();
+    await userEvent.click(sheet.getByRole("button", { name: "Mark it complete" }));
+    expect(act.completeVisit).toHaveBeenCalledWith(
+      "v-1",
+      expect.objectContaining({ ranOn: "2026-07-29" })
+    );
+  });
+
+  it("won't record a visit as having run in the future — a day booked ahead clamps to today", async () => {
+    const sheet = await open(
+      visit({ id: "v-1", status: "booked", bookedDate: "2026-08-20", dueDate: "2026-08-20" })
+    );
+    await userEvent.click(sheet.getByRole("button", { name: /Mark visit complete/ }));
+    await userEvent.click(sheet.getByRole("button", { name: "Mark it complete" }));
+    expect(act.completeVisit).toHaveBeenCalledWith("v-1", expect.objectContaining({ ranOn: TODAY }));
+  });
+
+  it("lets you say it ran on a different day", async () => {
+    const sheet = await open(
+      visit({ id: "v-1", status: "booked", bookedDate: "2026-07-29", dueDate: "2026-07-29" })
+    );
+    await userEvent.click(sheet.getByRole("button", { name: /Mark visit complete/ }));
+    await userEvent.click(sheet.getByRole("button", { name: /pick another/ }));
+    const day = sheet.getByLabelText("Day it ran");
+    await userEvent.clear(day);
+    await userEvent.type(day, "2026-07-30");
+    await userEvent.click(sheet.getByRole("button", { name: "Mark it complete" }));
+    expect(act.completeVisit).toHaveBeenCalledWith("v-1", expect.objectContaining({ ranOn: "2026-07-30" }));
+  });
+
+  /* "Not yet" was a second button competing with the one that matters.
+     Backing out of a card is an × on the card. */
+  it("backs out of the close-out with the card's ×, not a rival button", async () => {
+    const sheet = await open(visit({ id: "v-1" }));
+    await userEvent.click(sheet.getByRole("button", { name: /Mark visit complete/ }));
+    expect(sheet.queryByRole("button", { name: "Not yet" })).not.toBeInTheDocument();
+    await userEvent.click(sheet.getByRole("button", { name: /Not yet — leave it open/ }));
+    expect(sheet.getByRole("button", { name: /Mark visit complete/ })).toBeInTheDocument();
+    expect(act.completeVisit).not.toHaveBeenCalled();
+  });
+
   it("tags wear their stored colour and new ones route through create-then-attach (B2)", async () => {
     const sheet = await open(
       visit({ id: "v-1", tags: [{ id: "t-1", name: "Our install", color: "violet" }] }),

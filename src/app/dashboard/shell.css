@@ -3492,6 +3492,10 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 /* the day the month turns leads with a darker number — the row reads as a
    sequence, and the boundary is where you look twice */
 .wb2-mcc.mstart .wb2-mcn b { color:var(--ink); }
+/* Each dot CARRIES its job's name and service, hidden here and unhidden when
+   display mode gives the cell room for them (`i > *` below). One markup, two
+   densities — the alternative was a second calendar, and two calendars drift. */
+.wb2-mcdots i > * { display:none; }
 .wb2-mcdots { margin-top:auto; display:flex; align-items:center; justify-content:center; gap:5px; flex-wrap:wrap;
   padding:8px 2px 4px; }
 .wb2-mcdots i { width:11px; height:11px; border-radius:50%; background:rgba(5,5,5,.25); flex:none; }
@@ -3499,7 +3503,7 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-mcdots i[data-tone="soon"] { background:var(--wb2-warn); }
 .wb2-mcdots i[data-tone="flash"], .wb2-mcdots i[data-tone="over"] { background:var(--wb2-dan); }
 .wb2-mcdots i[data-tone="done"] { background:rgba(5,5,5,.22); }
-.wb2-mcdots b { font-size:9.5px; font-weight:800; color:var(--gray500); }
+.wb2-mcdots > b { font-size:9.5px; font-weight:800; color:var(--gray500); }
 .wb2-mcloose { padding:0 20px 16px; font-size:12.5px; color:var(--gray500); font-weight:600; margin:0; }
 
 /* ── completed ──
@@ -3598,14 +3602,82 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
   color:var(--ink);
 }
 
-/* ── the sheet — docked right, entering in the app's vertical language ── */
+/* THE SAME BUG AS THE RAMP ABOVE, one layer up: `.fg .pbtn` can't match
+   inside a portal either, so every button in a sheet or a modal was missing
+   the family it belongs to. A GHOST lost its white fill, its border, its
+   shadow and its hover outright — "Skip this one" was bare text you had to
+   guess was a button. A PRIMARY kept its fill (the wb2 accent rules below
+   name .wb2-sheet directly) but lost `transition`, so its hover snapped
+   instead of easing and read as nothing happening; it also lost inline-flex,
+   which is why "Mark visit complete" sat flush against its tick.
+
+   So the family is restated here for the portal roots. Keep this list in
+   step with the ramp list above — same roots, same reason. Sizes are NOT
+   restated: the wb2 accent block sets those at higher specificity and must
+   keep winning. */
+.wb2-sheet .pbtn, .wb2-daymodal .pbtn, .wb2-capcard .pbtn {
+  display:inline-flex; align-items:center; gap:8px; height:42px; padding:0 18px; border-radius:13px;
+  font-size:13.5px; font-weight:700; transition:background .25s, border-color .25s, color .25s, box-shadow .25s, transform .18s; }
+.wb2-sheet .pbtn.ghost, .wb2-daymodal .pbtn.ghost, .wb2-capcard .pbtn.ghost {
+  background:#fff; border:1px solid #e5e7eb; color:var(--gray700); box-shadow:0 1px 2px rgba(0,0,0,.04); }
+.wb2-sheet .pbtn.ghost:hover:not(:disabled),
+.wb2-daymodal .pbtn.ghost:hover:not(:disabled),
+.wb2-capcard .pbtn.ghost:hover:not(:disabled) { background:#f3f4f6; border-color:#d1d5db; color:var(--ink); }
+.wb2-sheet .pbtn:not(.ghost):hover:not(:disabled),
+.wb2-daymodal .pbtn:not(.ghost):hover:not(:disabled),
+.wb2-capcard .pbtn:not(.ghost):hover:not(:disabled) { box-shadow:0 9px 20px -10px rgba(0,127,168,.95); }
+/* pressing has to answer too — a button that only changes on hover feels
+   dead the moment the pointer stops moving */
+.wb2-sheet .pbtn:active:not(:disabled),
+.wb2-daymodal .pbtn:active:not(:disabled),
+.wb2-capcard .pbtn:active:not(:disabled) { transform:translateY(1px); }
+.wb2-sheet .pbtn:focus-visible, .wb2-daymodal .pbtn:focus-visible, .wb2-capcard .pbtn:focus-visible {
+  outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
+.wb2-sheet .pbtn:disabled, .wb2-daymodal .pbtn:disabled, .wb2-capcard .pbtn:disabled {
+  opacity:.55; cursor:default; }
+/* the destructive ghost (`Skip this one`'s neighbour, `Really delete it`) */
+.wb2-sheet .pbtn.ghost.dan:hover:not(:disabled),
+.wb2-daymodal .pbtn.ghost.dan:hover:not(:disabled) {
+  background:rgba(224,38,79,.07); border-color:rgba(224,38,79,.55); color:var(--wb2-dan-t, #b31038); }
+@media (prefers-reduced-motion:reduce) {
+  .wb2-sheet .pbtn:active, .wb2-daymodal .pbtn:active, .wb2-capcard .pbtn:active { transform:none; }
+}
+
+/* ── the sheet — a CENTRED MODAL, two sections to a row ──
+   It docked to the right edge at 560px, which made a visit a COLUMN: gates,
+   packing, day, tags, notes and the close-out all stacked single file, so the
+   thing you opened the sheet to do was usually below the fold. Worse on the
+   big screen display mode is for, where the scrolling happened beside 1300px
+   of unused board. Centred at 1040px the sections pair up two to a row and a
+   whole visit fits without scrolling.
+
+   Centred with `inset:0 + margin:auto`, NOT a translate — deliberately. The
+   entry keyframe ends at `transform:none`, and a translate-centred modal
+   loses its centring the instant that keyframe finishes; that is exactly the
+   bug PR #249 fixed elsewhere. Margin centring and the keyframe can't collide.
+
+   Sections became bordered PANELS in the same move: a bottom rule under each
+   is how you divide a column, and it goes ragged the moment two columns of
+   unequal height sit side by side. `align-items:start` with them — stretched,
+   a two-button panel beside a fifteen-field one becomes a large empty box. */
 .wb2-scrim { position:fixed; inset:0; z-index:100; background:rgba(10,11,16,.42); animation:wb2Fade .3s both; }
 @keyframes wb2Fade { from { opacity:0; } to { opacity:1; } }
-.wb2-sheet { position:fixed; top:0; right:0; bottom:0; z-index:101; width:min(560px,100%); display:flex; flex-direction:column;
-  overflow-y:auto; overscroll-behavior:contain; background:#fff; border-left:1px solid var(--wb2-line, rgba(5,5,5,.08));
-  box-shadow:-30px 0 60px -30px rgba(10,12,20,.5); padding-bottom:26px; animation:wb2SheetIn .32s cubic-bezier(.22,1,.36,1) both;
+.wb2-sheet { position:fixed; inset:0; margin:auto; z-index:101;
+  width:min(1040px, calc(100vw - 40px)); height:max-content; max-height:calc(100vh - 40px);
+  display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); align-content:start; align-items:start;
+  gap:13px; padding:0 20px 20px;
+  overflow-y:auto; overscroll-behavior:contain; background:#fff; border:1px solid var(--wb2-line, rgba(5,5,5,.08));
+  border-radius:22px; box-shadow:0 40px 90px -40px rgba(10,12,20,.6);
+  animation:wb2SheetIn .32s cubic-bezier(.22,1,.36,1) both;
   --wb2-eq:#7A5AF8; --wb2-acc:#00A8E0; --wb2-crew:#64748B; --wb2-line:rgba(5,5,5,.08); --wb2-line2:rgba(5,5,5,.06);
   --wb2-dan:#e0264f; --wb2-dan-t:#b31038; --wb2-warn:#FF8A00; --wb2-warn-t:#B45309; --wb2-ok:#00A389; }
+/* identity at the top and actions at the bottom run the full width; only the
+   sections pair up. The negative margins put the bands back on the edges the
+   grid's padding pulled them off. */
+.wb2-sheet > .wb2-shtop, .wb2-sheet > .wb2-shhd, .wb2-sheet > .wb2-sherr, .wb2-sheet > .wb2-shft {
+  grid-column:1 / -1; margin-left:-20px; margin-right:-20px; }
+.wb2-sheet > .wb2-shft { margin-bottom:-20px; bottom:-20px; }
+.wb2-sheet > .wb2-sherr { margin-left:0; margin-right:0; }
 @keyframes wb2SheetIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
 .wb2-shtop { display:flex; align-items:center; gap:8px; padding:16px 20px 0; flex-wrap:wrap; }
 .wb2-shtop .wb2-ico { margin-left:auto; }
@@ -3622,7 +3694,7 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-facts em { font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray500); }
 .wb2-sherr { margin:12px 22px 0; padding:10px 13px; border-radius:11px; background:rgba(224,38,79,.07);
   border:1px solid rgba(224,38,79,.25); color:var(--wb2-dan-t, #b31038); font-size:12.5px; font-weight:600; }
-.wb2-shsect { padding:18px 22px; border-bottom:1px solid var(--wb2-line2); }
+.wb2-shsect { padding:15px 17px; border:1px solid var(--wb2-line2); border-radius:16px; }
 .wb2-shsh { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
 .wb2-shsh .wb2-chip, .wb2-shsh .pbtn { margin-left:auto; }
 .wb2-shsh.sub { margin:2px 0 8px; }
@@ -3697,6 +3769,8 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
   .wb2-vtabs { overflow-x:auto; padding-bottom:2px; }
   .wb2-vt { flex:none; }
   .wb2-facts { grid-template-columns:1fr; }
+  /* narrow enough that two columns of sections stop being a favour */
+  .wb2-sheet { grid-template-columns:minmax(0,1fr); }
 }
 @media (prefers-reduced-motion: reduce) {
   .wb2-vslide, .wb2-sheet, .wb2-scrim, .wb2-swap { animation:none !important; transition:none !important; }
@@ -3835,7 +3909,32 @@ html[data-wb-display] .fg .gridbg,
 html[data-wb-display] .fg .framefx { display:none; }
 html[data-wb-display] .fg .main { padding:0; }
 html[data-wb-display] .fg .outlet { border-radius:0; }
-html[data-wb-display] .fg .wrap { max-width:1900px; padding:30px 44px 72px; }
+
+/* THE HEIGHT IS THE POINT. Taking the frame away bought width the board
+   barely needed — a 1500px cap on a 1920px screen was already most of it.
+   What was being thrown away was the bottom two thirds of the screen: the
+   card sized itself to its content and left ~600px of grey under it. So the
+   whole column goes full-height and the card fills what's left after the
+   header, which is what finally makes the calendar worth walking up to.
+   `min-height:0` at every level or the flex children refuse to shrink. */
+html[data-wb-display] .fg .page { height:100%; display:flex; flex-direction:column; }
+/* `width:100%` and the killed auto margins are load-bearing: `.wrap` carries
+   `margin:0 auto`, and an auto CROSS-axis margin on a flex item cancels the
+   default stretch — the wrap would quietly shrink to fit-content and sit in
+   the middle of the screen, capped by nothing but its own contents. */
+html[data-wb-display] .fg .wrap { max-width:none; width:100%; margin:0; padding:26px 40px 30px;
+  flex:1; min-height:0; display:flex; flex-direction:column; }
+html[data-wb-display] .fg .stg,
+html[data-wb-display] .fg .wb-board,
+html[data-wb-display] .fg .wb2 { flex:1; min-height:0; display:flex; flex-direction:column; }
+html[data-wb-display] .fg .wb2-card,
+html[data-wb-display] .fg .wb2-panel { flex:1; min-height:0; display:flex; flex-direction:column; overflow:auto; }
+/* the tab row and the board's own header bands hold their size; only the
+   tab BODY takes the slack */
+html[data-wb-display] .fg .wb2-vtabs,
+html[data-wb-display] .fg .wb2-chd,
+html[data-wb-display] .fg .wb2-mckey,
+html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 
 /* the pill — near-zero idle footprint, docked at the tab row's right end.
    ONE object: a white capsule holding the typing half, with the mic as a
@@ -3889,6 +3988,37 @@ html[data-wb-display] .fg .wrap { max-width:1900px; padding:30px 44px 72px; }
    MIRROR the page, not replace it, because the tab switcher has to stay
    usable. Its rules and its component went with it; don't rebuild them from
    the audit's A10 without asking, that directive was superseded. */
+
+/* ── the calendar, given the whole screen ──
+   The grid takes every pixel the card has left and splits it into four equal
+   rows, so a cell goes from 104px to ~190px. That much room changes what a
+   day should SAY: four coloured dots is the right answer when a cell is the
+   size of a stamp and the wrong one when it's the size of a card. So the
+   dots grow into named rows — same markup, same four-item cap, same "+N",
+   just the labels unhidden (see .wb2-mcdots, where they sit hidden by
+   default). You can now read the run of the month from across the office
+   instead of hovering each day for its tooltip. */
+html[data-wb-display] .wb2-mc { flex:1; min-height:0; grid-auto-rows:minmax(0,1fr); align-content:stretch; gap:8px; }
+html[data-wb-display] .wb2-mcc { min-height:0; padding:10px 11px; border-radius:14px; }
+html[data-wb-display] .wb2-mcn b { font-size:15px; }
+html[data-wb-display] .wb2-mcn em { font-size:10.5px; }
+html[data-wb-display] .wb2-mcdots { margin-top:9px; flex-direction:column; align-items:stretch; justify-content:flex-start;
+  gap:4px; flex-wrap:nowrap; min-height:0; overflow:hidden; }
+/* `font-style:normal` because the dot IS an <i> — the labels inside it
+   inherit italics from the element that used to be nothing but a circle. */
+html[data-wb-display] .wb2-mcdots i { width:auto; height:auto; flex:none; display:block; min-width:0; font-style:normal;
+  padding:5px 9px; border-radius:9px; border-left:3px solid rgba(5,5,5,.28); background:rgba(5,5,5,.045); }
+html[data-wb-display] .wb2-mcdots i > * { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+html[data-wb-display] .wb2-mcdots i > b { font-size:12.5px; font-weight:800; letter-spacing:-.012em; color:var(--ink); }
+html[data-wb-display] .wb2-mcdots i > em { font-style:normal; font-size:11px; font-weight:600; color:var(--gray500); }
+html[data-wb-display] .wb2-mcdots i[data-tone="go"] { background:rgba(0,163,137,.1); border-left-color:var(--wb2-ok); }
+html[data-wb-display] .wb2-mcdots i[data-tone="soon"] { background:rgba(255,138,0,.12); border-left-color:var(--wb2-warn); }
+html[data-wb-display] .wb2-mcdots i[data-tone="flash"],
+html[data-wb-display] .wb2-mcdots i[data-tone="over"] { background:rgba(224,38,79,.1); border-left-color:var(--wb2-dan); }
+html[data-wb-display] .wb2-mcdots i[data-tone="done"] { background:rgba(5,5,5,.045); border-left-color:rgba(5,5,5,.25); }
+html[data-wb-display] .wb2-mcdots > b { align-self:flex-start; font-size:11px; }
+/* the settled-day tick scales with the cell rather than floating in it */
+html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 
 /* ── wb2 projects: the pipeline list, money chips, merged calendar ──
    The projects board rides the same namespace — same card, same tabs, same

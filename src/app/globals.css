@@ -25,8 +25,13 @@
   --color-surface-line: #f0f0f2; /* card / hairline borders */
 }
 
-/* Light/dark page chrome (kept overridable per color scheme) */
+/* Page chrome. HeyTiff is a LIGHT design — the only dark surfaces are ones
+   that paint themselves (the app shell's chrome, the hero). There is no dark
+   theme and `color-scheme: light` says so out loud, which also keeps native
+   controls — date pickers, selects, scrollbars — rendering for a light UI
+   instead of being flipped to dark by the browser on top of white cards. */
 :root {
+  color-scheme: light;
   --background: #ffffff;
   --foreground: var(--color-ink);
 }
@@ -38,12 +43,13 @@
   --font-mono: var(--font-jakarta); /* no mono face anywhere — Jakarta only */
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* The starter's dark override lived here and was never adopted: nothing in
+   the app reads --background/--foreground except `body` below. What it DID
+   do was break every surface that portals to <body> — the visit sheet, the
+   day modal, the agreement sheet, the toasts, the capture overlay. Those sit
+   outside `.fg`, so on a dark-mode browser they inherited #ededed text onto
+   their own white cards: 1.17:1, invisible. Deleted rather than patched
+   around, because the design has no dark half to switch to. */
 
 body {
   background: var(--background);

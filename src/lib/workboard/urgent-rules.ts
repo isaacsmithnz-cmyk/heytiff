@@ -84,6 +84,9 @@ export type UrgentRow = {
   clientName?: string;
   siteLabel?: string | null;
   dueDate?: string | null;
+  /** The day it is actually booked to run, when one has been chosen — the
+      row says that instead of the due date, because it is the newer fact. */
+  bookedDate?: string | null;
   daysOver?: number;
 };
 
@@ -124,6 +127,7 @@ export function urgentRows(input: {
       clientName: v.clientName,
       siteLabel: v.siteLabel,
       dueDate: v.dueDate,
+      bookedDate: v.bookedDate,
     };
 
     if (v.dueDate < today) {

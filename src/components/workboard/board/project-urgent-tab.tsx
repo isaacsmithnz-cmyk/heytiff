@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
+import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { clearFlag, restoreFlag } from "@/app/actions/workboard-notes";
 import {
   assignVisitTech,
@@ -25,6 +26,15 @@ import { UrgentBody } from "./urgent-layout";
    break the one rule this board has — nothing appears on both sides. */
 
 type UrgentFilter = "all" | "trips" | "projects" | "flags";
+
+/** The date a trip turns on — booked day if one is chosen, else the due date. */
+function dueWords(r: ProjectUrgentRow): string | null {
+  if (r.bookedDate) return `booked ${fmtAuWeekdayDayMonth(r.bookedDate)}`;
+  if (!r.dueDate) return null;
+  return r.reason === "visit_overdue"
+    ? `was due ${fmtAuWeekdayDayMonth(r.dueDate)}`
+    : `due ${fmtAuWeekdayDayMonth(r.dueDate)}`;
+}
 
 const FILTER_OF: Record<ProjectUrgentRow["reason"], Exclude<UrgentFilter, "all">> = {
   visit_overdue: "trips",
@@ -168,14 +178,8 @@ export function ProjectUrgentTab({
           {r.reason === "flag" ? (
             <em>Raised from a note — stays up until somebody clears it.</em>
           ) : r.visitId ? (
-            <em>
-              {r.siteLabel ? `${r.siteLabel} · ` : ""}
-              {r.reason === "visit_overdue"
-                ? r.action === "close_out"
-                  ? "placed — did it run?"
-                  : "book it in to get it moving"
-                : "the row clears itself once it's confirmed"}
-            </em>
+            /* Facts, not instructions — see the note in urgent-tab. */
+            <em>{[r.siteLabel, dueWords(r)].filter(Boolean).join(" · ")}</em>
           ) : (
             <em>
               {r.clientName ? `${r.clientName} · ` : ""}

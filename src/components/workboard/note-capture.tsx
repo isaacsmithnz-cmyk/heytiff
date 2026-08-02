@@ -122,6 +122,12 @@ export function NoteCapture({
       discard.current = true;
       recorder.current.stop();
     }
+    /* Walking away from a parsed note means the same thing "Keep as note"
+       means: keep the words, apply none of it. Without this the row sits at
+       status "pending" forever — nothing in the app reads pending notes, so
+       it is a proposal waiting on a review that can never happen. Fire and
+       forget: the overlay closes now, the status catches up. */
+    if (note) void dismissNote(note.id);
     reset();
     setError(null);
     setOpen(false);

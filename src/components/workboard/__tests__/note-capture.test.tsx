@@ -168,4 +168,24 @@ describe("the engine, through the new clothes", () => {
     expect(dismissNote).toHaveBeenCalledWith("n-1");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
+
+  /* Abandoning a parsed note has to settle it too. Left alone the row sits
+     at "pending" forever, and nothing in the app reads pending notes — a
+     proposal waiting on a review that can never happen. */
+  it("walking away from a parsed note dismisses it rather than stranding it", async () => {
+    const overlay = await openAndSort();
+    await userEvent.click(overlay.getByRole("button", { name: "Discard" }));
+    expect(dismissNote).toHaveBeenCalledWith("n-1");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("closing before anything is parsed has nothing to dismiss", async () => {
+    render(<NoteCapture target={{ kind: "none" }} voiceEnabled={false} />);
+    await userEvent.click(screen.getByRole("button", { name: /Add note/ }));
+    // the ribbon's × — the only Discard present before a proposal exists
+    await userEvent.click(
+      within(screen.getByRole("dialog")).getAllByRole("button", { name: "Discard" })[0]
+    );
+    expect(dismissNote).not.toHaveBeenCalled();
+  });
 });

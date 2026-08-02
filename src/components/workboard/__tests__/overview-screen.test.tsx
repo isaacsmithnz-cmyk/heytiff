@@ -29,7 +29,6 @@ type BoardStub = {
   manage: boolean;
   connected: boolean;
   flags: unknown[];
-  calOthers?: unknown[];
   tools?: React.ReactNode;
   sm8?: { attention: boolean } | null;
 };
@@ -38,7 +37,7 @@ type BoardStub = {
 const stubBody = (testid: string, p: BoardStub) => (
   <div data-testid={testid}>
     board · manage:{String(p.manage)} · connected:{String(p.connected)} · flags:{p.flags.length} ·
-    others:{p.calOthers?.length ?? 0} · sm8:
+    sm8:
     {p.sm8 ? (p.sm8.attention ? "attention" : "ok") : "none"}
     {p.tools}
   </div>
@@ -188,20 +187,6 @@ describe("the switcher", () => {
     expect(screen.getByTestId("pboard")).toHaveTextContent("connected:true");
   });
 
-  it("hands each board the OTHER side's visits for the merged calendar (P3)", async () => {
-    const data: WorkboardData = {
-      ...base,
-      projectsBoard: {
-        ...base.projectsBoard,
-        visits: [tripStub({ id: "pv-1" }), tripStub({ id: "pv-2" })],
-      },
-    };
-    render(<OverviewScreen data={data} />);
-    expect(screen.getByTestId("mboard")).toHaveTextContent("others:2");
-    await toProjects();
-    // maintenance board holds no visits in this fixture
-    expect(screen.getByTestId("pboard")).toHaveTextContent("others:0");
-  });
 
   it("offers Display mode on both sides", async () => {
     render(<OverviewScreen data={base} />);

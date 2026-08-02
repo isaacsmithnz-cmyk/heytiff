@@ -9,7 +9,7 @@ import { toConfirmCount } from "@/lib/workboard/board-status";
 import { clearVisitPlacement, placeVisit } from "@/app/actions/workboard-maintenance";
 import type { MaintenanceBoardData } from "@/lib/workboard/board-query";
 import type { BoardFlag } from "@/lib/workboard/notes-query";
-import { calOfMaintenance, gatesOf, toneOf, type CalVisit } from "./derive";
+import { calOfMaintenance, gatesOf, toneOf } from "./derive";
 import { UpcomingTab } from "./upcoming-tab";
 import { UrgentTab } from "./urgent-tab";
 import { CalendarTab } from "./calendar-tab";
@@ -58,7 +58,6 @@ export function MaintenanceBoard({
   aiEnabled = false,
   sm8,
   onCaptureTarget,
-  calOthers,
   tools,
 }: {
   data: MaintenanceBoardData;
@@ -74,8 +73,6 @@ export function MaintenanceBoard({
       spoken land against THAT visit — the page owns the pill, the board
       tells it what's in front of the person. */
   onCaptureTarget?: (t: { visitId: string; label: string } | null) => void;
-  /** The projects board's trips, for the calendar's merged view (P3). */
-  calOthers?: CalVisit[];
   /** The page-owned capture pill, docked at the tab row's right end — the
       handoff's spot. Absent in Display mode by construction (the wall
       composition never renders this row). */
@@ -245,11 +242,7 @@ export function MaintenanceBoard({
           )}
           {tab === "calendar" && (
             <CalendarTab
-              side="maintenance"
               visits={data.visits.map(calOfMaintenance)}
-              others={calOthers ?? []}
-              sideWord="Maintenance"
-              otherWord="projects"
               today={today}
               onDay={(iso) => setDayISO(iso)}
             />

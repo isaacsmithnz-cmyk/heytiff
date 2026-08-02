@@ -11,7 +11,6 @@ import { NoteCapture } from "./note-capture";
 import { MaintenanceBoard } from "./board/maintenance-board";
 import { ProjectsBoard } from "./board/projects-board";
 import { MaintenanceWall } from "./board/wall";
-import { calOfMaintenance, calOfProject } from "./board/derive";
 
 /* The Workboard — a command centre, not a menu.
 
@@ -204,13 +203,6 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
     return () => window.removeEventListener("resize", measure);
   }, [tab, badges.maintenance.n, badges.projects.n]);
 
-  /* Each side's calendar can fold the other side in (P3). */
-  const calMaint = useMemo(() => data.board.visits.map(calOfMaintenance), [data.board.visits]);
-  const calProj = useMemo(
-    () => data.projectsBoard.visits.map(calOfProject),
-    [data.projectsBoard.visits]
-  );
-
   /* ONE pill, owned by the page, rendered inside whichever board is up —
      at the tab row's right end, where the handoff docks it (D15). Display
      mode never gets it: nobody at the wall TV can dictate into it. */
@@ -297,7 +289,6 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
                   manage={data.manage}
                   connected={connected}
                   aiEnabled={data.aiEnabled}
-                  calOthers={calProj}
                   sm8={sm8}
                   onCaptureTarget={setCapture}
                   tools={pill}
@@ -310,7 +301,6 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
                 today={data.today}
                 manage={data.manage}
                 connected={connected}
-                calOthers={calMaint}
                 sm8={sm8}
                 onCaptureTarget={setCapture}
                 tools={pill}

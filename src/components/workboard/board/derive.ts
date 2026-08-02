@@ -72,7 +72,6 @@ export function calendarToneFor(visits: BoardVisit[], dayISO: string, today: str
 
 export type CalVisit = {
   id: string;
-  side: "maintenance" | "projects";
   /** Client for maintenance, project name for projects — the tooltip line. */
   name: string;
   label: string;
@@ -88,7 +87,6 @@ export type CalVisit = {
 export function calOfMaintenance(v: BoardVisit): CalVisit {
   return {
     id: v.id,
-    side: "maintenance",
     name: v.clientName,
     label: v.label,
     status: v.status,
@@ -104,7 +102,6 @@ export function calOfMaintenance(v: BoardVisit): CalVisit {
 export function calOfProject(v: ProjectBoardVisit): CalVisit {
   return {
     id: v.id,
-    side: "projects",
     name: v.projectName,
     label: v.label,
     status: v.status,

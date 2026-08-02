@@ -276,7 +276,7 @@ export const NODES: MapNode[] = [
     group: "Business tools",
     blurb: "The projects & maintenance board — what's on, what's booked, what's overdue.",
     detail:
-      "Staff-default by design (capability `workboard`): the board is FOR the people on the tools. Managing it is a second grantable capability (`workboard_manage`, admin default). Standalone-first: everything works on typed job numbers and client names; a ServiceM8 connection enriches rows via the mirrors and never owns them. Display mode fullscreens the board for a wall screen. Notes are dictated, not typed twice — the Smart Notes engine routes them into tasks, records and questions.",
+      "Staff-default by design (capability `workboard`): the board is FOR the people on the tools. Managing it is a second grantable capability (`workboard_manage`, admin default). Standalone-first: everything works on typed job numbers and client names; a ServiceM8 connection enriches rows via the mirrors and never owns them. Display mode fills the screen with the same board minus the app frame, for a big monitor or a wall. Notes are dictated, not typed twice — the Smart Notes engine routes them into tasks, records and questions.",
     href: "/dashboard/workboard",
     paths: ["src/app/dashboard/workboard", "src/lib/workboard", "src/components/workboard"],
   },

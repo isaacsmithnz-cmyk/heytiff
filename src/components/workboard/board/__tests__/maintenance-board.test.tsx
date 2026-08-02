@@ -1092,36 +1092,7 @@ describe("the create flow (D7/K3/K4)", () => {
    whole category onto one day isn't how the work goes, which beats the audit's
    inference from an orphaned prototype handler. Its suite went with it. */
 
-describe("the wall (A10 — light, big, untouchable)", () => {
-  // Rendered directly: jsdom can't fullscreen, and the wall doesn't care —
-  // it's a composition, not a mode.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { MaintenanceWall } = require("../wall") as typeof import("../wall");
-
-  it("draws the urgent queue and four weeks with ZERO interactivity", () => {
-    render(
-      <MaintenanceWall
-        data={data({
-          visits: [
-            visit({ id: "v-late", dueDate: "2026-07-21" }),
-            visit({ id: "v-placed", bookedDate: "2026-08-05", status: "booked", dueDate: "2026-08-05" }),
-          ],
-        })}
-        flags={[]}
-        today={TODAY}
-      />
-    );
-    expect(screen.getByText("Needs you today")).toBeInTheDocument();
-    expect(screen.getByText("9 days over")).toBeInTheDocument();
-    expect(screen.getByText("The next four weeks")).toBeInTheDocument();
-    // nothing on the wall is pressable
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
-    // 28 cells, Monday-anchored
-    expect(document.querySelectorAll(".wb2-wallgrid .wb2-mcc")).toHaveLength(28);
-  });
-
-  it("says the calm thing when the queue is empty", () => {
-    render(<MaintenanceWall data={data()} flags={[]} today={TODAY} />);
-    expect(screen.getByText(/Nothing needs you right now/)).toBeInTheDocument();
-  });
-});
+/* The separate wall composition (A10) was deleted 2026-08-02 — display mode
+   mirrors the page instead of replacing it, so there is no second board to
+   test. What the mode itself does lives in overview-screen's suite, because
+   it is a fact about the PAGE (the frame it hides), not about this card. */

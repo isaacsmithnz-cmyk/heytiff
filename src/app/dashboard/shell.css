@@ -2959,10 +2959,11 @@ select.fl-i { cursor:pointer; }
 
 /* ── Workboard (.wb-*) ─────────────────────────────────────────────────────
    The projects & maintenance board. Two lives, one markup: the normal page,
-   and DISPLAY MODE — the same .wb-board element fullscreened for a wall
-   screen, flipped dark with wall-readable type via :fullscreen below. The
-   overdue pulse is a slow breathe on the semantic danger colour (#e0264f),
-   deliberately nothing like a strobe. */
+   and DISPLAY MODE — the identical page with the app frame taken away (see
+   `html[data-wb-display]` in the wb2 block). No dark flip and no separate
+   composition: both were tried and both came out. The overdue pulse is a slow
+   breathe on the semantic danger colour (#e0264f), deliberately nothing like
+   a strobe. */
 
 .wb-board { display:flex; flex-direction:column; gap:16px; }
 
@@ -3814,12 +3815,27 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible { outli
   .wb2-dnact { align-items:flex-start; justify-self:start; flex-direction:row; }
 }
 
-/* ── wb2 step 5: the capture pill + overlay, and the LIGHT wall ──
-   Display mode is the workshop TV: the SAME light theme as the board
-   (decided 2026-08-01 — the old dark flip is gone and stays gone), scaled
-   to be read from across a room, zero interactivity. */
+/* ── wb2 step 5: the capture pill + overlay, and DISPLAY MODE ──
+   Display mode is the SAME light board (decided 2026-08-01 — the old dark
+   flip is gone and stays gone), and as of 2026-08-02 the same PAGE: it
+   mirrors what you were just looking at and takes the app frame away, so a
+   big monitor is somewhere you work rather than something you watch. The
+   whole definition is subtractive — sidebar, topbar, the well's inset and
+   radius, the frame's ambient fx — plus one addition: the width cap comes
+   off, because dropping a 224px sidebar buys nothing while `.wrap` is still
+   capped at 1500px. Everything inside the card is untouched, which is what
+   "mirrors the main page" has to mean if the tabs are to stay live.
 
-.wb-board:fullscreen { background:#F0F2F5; padding:40px 52px; overflow:auto; }
+   Keyed off an attribute on <html> because the FULLSCREEN ELEMENT IS THE
+   DOCUMENT: fullscreening the board itself would hide every sheet, modal and
+   toast, all of which portal to <body> (see the portal rules below). */
+html[data-wb-display] .fg .side,
+html[data-wb-display] .fg .topbar,
+html[data-wb-display] .fg .gridbg,
+html[data-wb-display] .fg .framefx { display:none; }
+html[data-wb-display] .fg .main { padding:0; }
+html[data-wb-display] .fg .outlet { border-radius:0; }
+html[data-wb-display] .fg .wrap { max-width:1900px; padding:30px 44px 72px; }
 
 /* the pill — near-zero idle footprint, docked at the tab row's right end.
    ONE object: a white capsule holding the typing half, with the mic as a
@@ -3868,25 +3884,11 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible { outli
 .wb2-capcard .wb2-sherr { margin:0 0 10px; }
 .wb2-capcard .wb2-notes { margin-bottom:0; }
 
-/* the wall */
-.wb2-wall { display:flex; flex-direction:column; gap:22px; }
-.wb2-wallhd { display:flex; align-items:baseline; gap:14px; }
-.wb2-wallhd b { font-size:34px; font-weight:800; letter-spacing:-.03em; }
-.wb2-wallhd em { font-style:normal; font-size:17px; font-weight:700; color:var(--gray500); }
-.wb2-wallcols { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.15fr); gap:22px; align-items:start; }
-.wb2-wallq, .wb2-wallcal { background:#fff; border:1px solid rgba(5,5,5,.08); border-radius:24px; padding:20px 22px; }
-.wb2-wallq h2, .wb2-wallcal h2 { font-size:15px; font-weight:800; letter-spacing:.14em; text-transform:uppercase;
-  color:var(--gray500); margin:0 0 14px; }
-.wb2-wallrow { display:flex; flex-direction:column; gap:6px; padding:13px 15px; border-radius:14px; margin-bottom:9px;
-  border:1px solid rgba(255,138,0,.3); background:rgba(255,138,0,.05); }
-.wb2-wallrow[data-sev="dan"] { border-color:rgba(224,38,79,.3); background:rgba(224,38,79,.05); }
-.wb2-wallrow b { font-size:18px; font-weight:800; letter-spacing:-.015em; }
-.wb2-wallrow .wb2-chip { align-self:flex-start; font-size:12.5px; }
-.wb2-wallcalm { font-size:15px; font-weight:600; color:var(--gray500); }
-.wb2-wallgrid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:7px; }
-.wb2-wallgrid .wb2-mcc { min-height:72px; pointer-events:none; }
-.wb2-wallgrid .wb2-mcn { font-size:11.5px; }
-@media (max-width:1100px) { .wb2-wallcols { grid-template-columns:1fr; } }
+/* The separate WALL composition (Urgent + four weeks, zero interactivity)
+   that used to live here is gone — 2026-08-02, Isaac: display mode has to
+   MIRROR the page, not replace it, because the tab switcher has to stay
+   usable. Its rules and its component went with it; don't rebuild them from
+   the audit's A10 without asking, that directive was superseded. */
 
 /* ── wb2 projects: the pipeline list, money chips, merged calendar ──
    The projects board rides the same namespace — same card, same tabs, same

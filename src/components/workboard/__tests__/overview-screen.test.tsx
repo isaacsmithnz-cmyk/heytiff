@@ -4,7 +4,7 @@
    its per-side counts, the capture pill's ownership, mirror health reaching
    both rows, and the flag ROUTING that keeps a flag on exactly one board. */
 
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { OverviewScreen } from "../overview-screen";
 import type { WorkboardData } from "@/lib/workboard/page-data";
@@ -192,6 +192,53 @@ describe("the switcher", () => {
     render(<OverviewScreen data={base} />);
     expect(screen.getByRole("button", { name: /Display mode/ })).toBeInTheDocument();
     await toProjects();
+    expect(screen.getByRole("button", { name: /Display mode/ })).toBeInTheDocument();
+  });
+});
+
+/* Display mode MIRRORS the page — 2026-08-02, Isaac. It used to swap the
+   maintenance side for a separate untouchable wall composition; now it takes
+   the app frame away and leaves everything else exactly where it was, because
+   the point of a big screen is working off it. jsdom has no Fullscreen API,
+   which is fine and deliberate: a missing API still hides the shell. */
+describe("display mode", () => {
+  const enter = async () => {
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: /Display mode/ }));
+    return user;
+  };
+
+  afterEach(() => document.documentElement.removeAttribute("data-wb-display"));
+
+  it("hides the app shell by marking the root, and un-marks it on the way out", async () => {
+    render(<OverviewScreen data={base} />);
+    const user = await enter();
+    expect(document.documentElement).toHaveAttribute("data-wb-display", "on");
+    await user.click(screen.getByRole("button", { name: /Close display mode/ }));
+    expect(document.documentElement).not.toHaveAttribute("data-wb-display");
+  });
+
+  it("keeps the side switcher live — you can still change boards from inside it", async () => {
+    render(<OverviewScreen data={base} />);
+    const user = await enter();
+    await user.click(screen.getByRole("tab", { name: /Projects/ }));
+    expect(screen.getByTestId("pboard")).toBeInTheDocument();
+    // and the mode survived the switch
+    expect(document.documentElement).toHaveAttribute("data-wb-display", "on");
+    expect(screen.getByRole("button", { name: /Close display mode/ })).toBeInTheDocument();
+  });
+
+  it("keeps the capture pill — the mode is for working, not watching", async () => {
+    render(<OverviewScreen data={base} />);
+    await enter();
+    expect(screen.getByTestId("capture")).toBeInTheDocument();
+  });
+
+  it("leaves display mode when the browser leaves fullscreen (Esc)", async () => {
+    render(<OverviewScreen data={base} />);
+    await enter();
+    act(() => void document.dispatchEvent(new Event("fullscreenchange")));
+    expect(document.documentElement).not.toHaveAttribute("data-wb-display");
     expect(screen.getByRole("button", { name: /Display mode/ })).toBeInTheDocument();
   });
 });

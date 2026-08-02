@@ -110,6 +110,23 @@ export function matchJob(transcript: string, candidates: JobCandidate[]): JobMat
   return { bestId: tied.length === 1 ? hits[0].c.id : null, ranked, ambiguous: tied.length > 1 };
 }
 
+/* Searching the roster is a different job from MATCHING it. Matching reads a
+   whole spoken sentence and has to ignore the noise in it; searching reads
+   what someone is deliberately typing to find a job, so it takes them
+   literally — every word must appear somewhere on the card, generic or not.
+   "medical centre" is a perfectly good thing to type and a useless thing to
+   infer. */
+export function searchJobs(query: string, candidates: JobCandidate[]): JobCandidate[] {
+  const words = normalise(query).split(" ").filter(Boolean);
+  if (words.length === 0) return candidates;
+  return candidates.filter((c) => {
+    const hay = normalise(
+      [c.clientName, c.label, c.siteLabel ?? "", c.jobNumber ?? ""].join(" ")
+    );
+    return words.every((w) => hay.includes(w));
+  });
+}
+
 /** How a candidate says who it is, for the line you confirm. */
 export function describeJob(c: JobCandidate): string {
   const bits = [`${c.clientName} — ${c.label}`];

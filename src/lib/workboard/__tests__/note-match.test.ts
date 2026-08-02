@@ -103,3 +103,33 @@ describe("how a job card says who it is", () => {
     expect(describeJob(MERIDIAN)).toContain("the agreement, no job raised yet");
   });
 });
+
+/* Searching is not matching. Matching reads a whole spoken sentence and has
+   to ignore the noise in it; searching reads what someone is deliberately
+   typing to find a job, so it takes them literally. */
+describe("searching the roster by hand", () => {
+  const { searchJobs } = require("../note-match") as typeof import("../note-match");
+
+  it("takes generic words literally — they're useless to infer, fine to type", () => {
+    expect(searchJobs("medical", ROSTER).map((c) => c.id)).toEqual(["v-king"]);
+    expect(searchJobs("logistics", ROSTER).map((c) => c.id)).toEqual(["v-ardex"]);
+  });
+
+  it("finds a job by its number", () => {
+    expect(searchJobs("1042", ROSTER).map((c) => c.id)).toEqual(["v-king"]);
+  });
+
+  it("finds by site and by service, not just by client", () => {
+    expect(searchJobs("consult wing", ROSTER).map((c) => c.id)).toEqual(["v-king"]);
+    expect(searchJobs("rooftop", ROSTER).map((c) => c.id)).toEqual(["v-ardex"]);
+  });
+
+  it("every word has to land — two words narrow, they don't widen", () => {
+    expect(searchJobs("kingsford rooftop", ROSTER)).toHaveLength(0);
+    expect(searchJobs("kingsford ducted", ROSTER).map((c) => c.id)).toEqual(["v-king"]);
+  });
+
+  it("an empty search is not a filter", () => {
+    expect(searchJobs("   ", ROSTER)).toHaveLength(3);
+  });
+});

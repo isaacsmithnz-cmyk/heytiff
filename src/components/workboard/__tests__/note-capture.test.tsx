@@ -278,10 +278,11 @@ describe("nothing is thrown away quietly", () => {
         jobNumber: null,
       },
     ]);
-    const selects = overlay.getAllByRole("combobox");
-    // the first is the ribbon's "Against"; the task assignees follow
-    await userEvent.selectOptions(selects[0], "agreement:a-king");
-    for (const s of overlay.getAllByRole("combobox").slice(1)) {
+    await userEvent.click(overlay.getByRole("button", { name: /Pick a job|Change/ }));
+    await userEvent.click(
+      overlay.getByRole("option", { name: /Kingsford Medical Centre — Ducted units/ })
+    );
+    for (const s of overlay.getAllByRole("combobox")) {
       await userEvent.selectOptions(s, "s-1");
     }
     const save = overlay.getByRole("button", { name: "Save these" });
@@ -328,16 +329,12 @@ describe("nothing is thrown away quietly", () => {
         jobNumber: "1001",
       },
     ]);
-    // said twice on purpose: once in the picker's own option, once in the
-    // confirmation line under it
     expect(overlay.getByText(/Sounds like/)).toBeInTheDocument();
     expect(
-      overlay.getAllByText(
-        /Kingsford Medical Centre — Ducted units — quarterly · Consult wing · job #1042/
-      ).length
-    ).toBeGreaterThanOrEqual(1);
-    // and the picker is already sitting on it, so Save attaches there
-    expect(overlay.getByLabelText("Which job this note is against")).toHaveValue("visit:v-king");
+      overlay.getByText("Kingsford Medical Centre — Ducted units — quarterly · Consult wing · job #1042")
+    ).toBeInTheDocument();
+    // it's already ON it — the button offers to CHANGE it, not to choose one
+    expect(overlay.getByRole("button", { name: "Change" })).toBeInTheDocument();
   });
 
   it("saves against the job it confirmed, without anyone touching the picker", async () => {
@@ -351,7 +348,7 @@ describe("nothing is thrown away quietly", () => {
         jobNumber: "1042",
       },
     ]);
-    for (const sel of overlay.getAllByRole("combobox").slice(1)) {
+    for (const sel of overlay.getAllByRole("combobox")) {
       await userEvent.selectOptions(sel, "s-1");
     }
     await userEvent.click(overlay.getByRole("button", { name: "Save these" }));
@@ -372,8 +369,9 @@ describe("nothing is thrown away quietly", () => {
         jobNumber: "1042",
       },
     ]);
-    await userEvent.selectOptions(overlay.getByLabelText("Which job this note is against"), "");
-    expect(overlay.getByLabelText("Which job this note is against")).toHaveValue("");
+    await userEvent.click(overlay.getByRole("button", { name: "Change" }));
+    await userEvent.click(overlay.getByRole("option", { name: /General note/ }));
+    expect(overlay.getByText(/isn't against a job yet/)).toBeInTheDocument();
     // and the bring-list stop comes back, because there is nowhere to put it
     expect(overlay.getByText(/bring-list needs a job to sit on/)).toBeInTheDocument();
   });
@@ -389,7 +387,89 @@ describe("nothing is thrown away quietly", () => {
     });
     const overlay = await openIt([twin("v-a", "Consult wing"), twin("v-b", "Plant room")]);
     expect(overlay.getByText(/More than one job matches/)).toBeInTheDocument();
-    expect(overlay.getByLabelText("Which job this note is against")).toHaveValue("");
+    expect(overlay.getByRole("button", { name: "Pick a job" })).toBeInTheDocument();
+  });
+
+  /* Isaac: "instead of saying change it above, I'll hit the wrong one. Just
+     have a clickable change, which will open up a drop down search for jobs."
+     A select is a list you navigate past the answer; this is one you narrow
+     onto it. */
+  describe("the job search", () => {
+    const roster = [
+      {
+        kind: "visit" as const,
+        id: "v-king",
+        clientName: "Kingsford Medical Centre",
+        label: "Ducted units — quarterly",
+        siteLabel: "Consult wing",
+        jobNumber: "1042",
+      },
+      {
+        kind: "visit" as const,
+        id: "v-ardex",
+        clientName: "Ardex Logistics",
+        label: "Rooftop package units",
+        siteLabel: "Bay 4",
+        jobNumber: "1001",
+      },
+      {
+        kind: "agreement" as const,
+        id: "a-mer",
+        clientName: "Meridian Data",
+        label: "Server room CRACs",
+        siteLabel: null,
+        jobNumber: null,
+      },
+    ];
+
+    it("narrows the board to what you type, by number as readily as by name", async () => {
+      const overlay = await openIt(roster);
+      await userEvent.click(overlay.getByRole("button", { name: "Change" }));
+      await userEvent.type(overlay.getByLabelText("Search jobs"), "1001");
+      // scoped to the job list: the assignee <select>s carry options too
+      const jobs = within(overlay.getByRole("listbox", { name: "Jobs" }));
+      const shown = jobs.getAllByRole("option").map((o) => o.textContent);
+      // General note always survives; only Ardex matches the number
+      expect(shown).toHaveLength(2);
+      expect(shown[1]).toContain("Ardex Logistics");
+    });
+
+    it("says so when nothing matches, rather than showing an empty box", async () => {
+      const overlay = await openIt(roster);
+      await userEvent.click(overlay.getByRole("button", { name: "Change" }));
+      await userEvent.type(overlay.getByLabelText("Search jobs"), "belmont");
+      expect(overlay.getByText(/Nothing on the board matches/)).toBeInTheDocument();
+    });
+
+    it("picking one closes the search and moves the confirmation onto it", async () => {
+      const overlay = await openIt(roster);
+      await userEvent.click(overlay.getByRole("button", { name: "Change" }));
+      await userEvent.click(overlay.getByRole("option", { name: /Ardex Logistics/ }));
+      expect(overlay.queryByLabelText("Search jobs")).not.toBeInTheDocument();
+      expect(overlay.getByText(/Going on/)).toBeInTheDocument();
+      expect(overlay.getByText(/Ardex Logistics — Rooftop package units · Bay 4 · job #1001/)).toBeInTheDocument();
+    });
+
+    /* Escape belongs to the innermost thing that's open. Discarding a whole
+       reviewed note because you meant to shut a dropdown would be its own bug. */
+    it("Escape closes the search, not the note", async () => {
+      const overlay = await openIt(roster);
+      await userEvent.click(overlay.getByRole("button", { name: "Change" }));
+      await userEvent.keyboard("{Escape}");
+      expect(overlay.queryByLabelText("Search jobs")).not.toBeInTheDocument();
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+      expect(dismissNote).not.toHaveBeenCalled();
+      // and a second Escape now closes the note, as it always did
+      await userEvent.keyboard("{Escape}");
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+
+    it("General note is always reachable — belonging to nothing is a real answer", async () => {
+      const overlay = await openIt(roster);
+      await userEvent.click(overlay.getByRole("button", { name: "Change" }));
+      await userEvent.type(overlay.getByLabelText("Search jobs"), "zzzz");
+      expect(overlay.getByRole("option", { name: /General note/ })).toBeInTheDocument();
+    });
   });
 
   it("offers no picker at all on a board with nothing to attach to", async () => {

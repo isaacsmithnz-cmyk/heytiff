@@ -7,7 +7,7 @@ import { Icon } from "@/components/shell/icon";
 import { LevelBars, clockOf, useDictation } from "./dictation";
 import { useNoteBrain } from "./note-brain-context";
 import { SEVERITIES, type NoteProposal, type NoteStaff } from "@/lib/workboard/note-brain";
-import { describeJob, matchJob, type JobCandidate } from "@/lib/workboard/note-match";
+import { describeJob, matchJob, searchJobs, type JobCandidate } from "@/lib/workboard/note-match";
 import {
   answerClarify,
   applyNote,
@@ -155,6 +155,7 @@ export function NoteCapture({
   const [done, setDone] = useState<string | null>(null);
   /** Chosen on the review card when the note itself is general. */
   const [attachTo, setAttachTo] = useState<string>("");
+  const [picking, setPicking] = useState(false);
 
   const textRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -165,6 +166,7 @@ export function NoteCapture({
     setText("");
     setAttachTo("");
     setTouched(false);
+    setPicking(false);
   };
 
   const read = useCallback(
@@ -313,12 +315,19 @@ export function NoteCapture({
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
+      if (e.key !== "Escape") return;
+      /* The picker gets the Escape first. Discarding a whole reviewed note
+         because you meant to shut a dropdown would be its own bug. */
+      if (picking) {
+        setPicking(false);
+        return;
+      }
+      close();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, picking]);
 
   useEffect(() => {
     if (open && !recording && !note) textRef.current?.focus();
@@ -383,28 +392,10 @@ export function NoteCapture({
                     client out loud and had no way to point at them. */}
                 {targetLabel ? (
                   <span className="wb2-chip blue">Against: {targetLabel}</span>
-                ) : note && attachOptions.length > 0 ? (
-                  <label className="wb2-capattach">
-                    <span className="wb2-sect">Against</span>
-                    <select
-                      className="wb2-sel"
-                      aria-label="Which job this note is against"
-                      value={picked}
-                      onChange={(e) => {
-                        setTouched(true);
-                        setAttachTo(e.target.value);
-                      }}
-                    >
-                      <option value="">General note — nothing in particular</option>
-                      {guess.ranked.map((o) => (
-                        <option key={`${o.kind}:${o.id}`} value={`${o.kind}:${o.id}`}>
-                          {describeJob(o)}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
                 ) : (
-                  <span className="wb2-chip">General note</span>
+                  <span className="wb2-chip">
+                    {chosenOption ? chosenOption.clientName : "General note"}
+                  </span>
                 )}
                 {recording && <span className="wb2-capclock">{clock}</span>}
                 <button className="wb2-ico" onClick={close} title="Discard" aria-label="Discard">
@@ -418,24 +409,45 @@ export function NoteCapture({
                   client's name; this says which job card that is and what its
                   job number is, so agreeing is a glance rather than a search. */}
               {note && !targetLabel && attachOptions.length > 0 && (
-                <p className={"wb2-capjob" + (chosenOption ? " on" : "")}>
+                <div className={"wb2-capjob" + (chosenOption ? " on" : "")}>
                   <Icon name={chosenOption ? "check" : "alert"} size={14} />
-                  {chosenOption ? (
-                    <span>
-                      {touched ? "Going on" : "Sounds like"} <b>{describeJob(chosenOption)}</b>
-                      {!touched && " — change it above if that's the wrong one."}
-                    </span>
-                  ) : guess.ambiguous ? (
-                    <span>
-                      More than one job matches what you said — pick the right one above.
-                    </span>
-                  ) : (
-                    <span>
-                      This isn&apos;t against a job yet. Pick one above if it belongs to a
-                      particular job card.
-                    </span>
-                  )}
-                </p>
+                  <span>
+                    {chosenOption ? (
+                      <>
+                        {touched ? "Going on " : "Sounds like "}
+                        <b>{describeJob(chosenOption)}</b>
+                      </>
+                    ) : guess.ambiguous ? (
+                      "More than one job matches what you said."
+                    ) : (
+                      "This isn't against a job yet."
+                    )}
+                  </span>
+                  {/* The picker lives HERE, on the thing it changes. A select
+                      you have to scroll past the right answer in is a way to
+                      hit the wrong one (Isaac, 2026-08-02). */}
+                  <button
+                    type="button"
+                    className="wb2-capchange"
+                    onClick={() => setPicking((p) => !p)}
+                    aria-expanded={picking}
+                  >
+                    {chosenOption ? "Change" : "Pick a job"}
+                  </button>
+                </div>
+              )}
+
+              {picking && (
+                <JobPicker
+                  options={guess.ranked}
+                  chosenId={chosen?.id ?? null}
+                  onPick={(value) => {
+                    setTouched(true);
+                    setAttachTo(value);
+                    setPicking(false);
+                  }}
+                  onClose={() => setPicking(false)}
+                />
               )}
 
               {!note && !recording && !listening && (
@@ -685,6 +697,76 @@ function SimpleRows({
           {trailing?.(i)}
         </div>
       ))}
+    </div>
+  );
+}
+
+/* Search the board's jobs, rather than scroll past them.
+
+   Isaac's objection to the dropdown was exact: "instead of saying change it
+   above, I'll hit the wrong one." A select is a list you navigate; this is a
+   list you narrow. It opens on the matched order (best guess first), takes
+   any word off the card — client, service, site or job number — and every
+   row says its number so picking is a read, not a gamble. */
+function JobPicker({
+  options,
+  chosenId,
+  onPick,
+  onClose,
+}: {
+  options: JobCandidate[];
+  chosenId: string | null;
+  onPick: (value: string) => void;
+  onClose: () => void;
+}) {
+  const [q, setQ] = useState("");
+  const found = searchJobs(q, options);
+
+  return (
+    <div className="wb2-jobpick">
+      <div className="wb2-jobsearch">
+        <Icon name="search" size={14} />
+        <input
+          autoFocus
+          className="wb2-jobq"
+          type="search"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search jobs — client, service, site or job number"
+          aria-label="Search jobs"
+        />
+        <button className="wb2-ico" onClick={onClose} title="Close" aria-label="Close the job search">
+          <Icon name="x" size={13} />
+        </button>
+      </div>
+      <div className="wb2-joblist" role="listbox" aria-label="Jobs">
+        {/* Always reachable: a note that turns out to belong to nothing in
+            particular is a real answer, not a dead end. */}
+        <button
+          type="button"
+          role="option"
+          aria-selected={!chosenId}
+          className={"wb2-jobopt" + (!chosenId ? " on" : "")}
+          onClick={() => onPick("")}
+        >
+          General note — nothing in particular
+        </button>
+        {found.map((o) => (
+          <button
+            type="button"
+            role="option"
+            key={`${o.kind}:${o.id}`}
+            aria-selected={o.id === chosenId}
+            className={"wb2-jobopt" + (o.id === chosenId ? " on" : "")}
+            onClick={() => onPick(`${o.kind}:${o.id}`)}
+          >
+            {describeJob(o)}
+          </button>
+        ))}
+        {found.length === 0 && (
+          <p className="wb2-hint">Nothing on the board matches &ldquo;{q.trim()}&rdquo;.</p>
+        )}
+      </div>
     </div>
   );
 }

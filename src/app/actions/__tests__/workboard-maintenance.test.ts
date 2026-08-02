@@ -455,6 +455,28 @@ describe("packing — the agreement owns the list, the visit owns the ticks (D5)
     expect(inserts).toHaveLength(0);
   });
 
+  /* A new item goes on the END. The column defaults to 0, so an insert that
+     omits position piles every added item onto the same rung as the first
+     one and sorts it into the MIDDLE of the list. */
+  it("appends after the last item rather than defaulting to position 0", async () => {
+    rows.maintenance_agreements = { id: "a-1" };
+    rows.agreement_packing_items = { id: "item-9", agreement_id: "a-1", position: 4 };
+    const res = await addPackingItem("a-1", "Condensate pump spare");
+    expect(res.ok).toBe(true);
+    expect(inserts[0]).toMatchObject({
+      table: "agreement_packing_items",
+      payload: { label: "Condensate pump spare", position: 5 },
+    });
+  });
+
+  it("starts an empty list at position 0", async () => {
+    rows.maintenance_agreements = { id: "a-1" };
+    rows.agreement_packing_items = null;
+    const res = await addPackingItem("a-1", "Roof ladder key");
+    expect(res.ok).toBe(true);
+    expect(inserts[0]).toMatchObject({ payload: { position: 0 } });
+  });
+
   it("ticking is the workboard tier and records who packed it", async () => {
     caps = new Set(["workboard"]);
     const res = await setVisitPacked("v-1", "item-1", true);

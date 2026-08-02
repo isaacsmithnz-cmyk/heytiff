@@ -821,9 +821,23 @@ export async function addPackingItem(
   const clean = trim(label, 200);
   if (!clean) return { ok: false, error: "Say what needs to go on the van." };
 
+  /* Append, don't pile up at 0. The column defaults to 0, so every item added
+     through the UI used to land on the same rung as the first seeded one and
+     sort into the MIDDLE of the list (the read breaks ties on created_at) —
+     you'd add "condensate pump spare" and watch it appear second. */
+  const { data: last } = await supabaseAdmin
+    .from("agreement_packing_items")
+    .select("position")
+    .eq("org_id", ctx.orgId)
+    .eq("agreement_id", agreementId)
+    .order("position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const position = ((last as { position: number } | null)?.position ?? -1) + 1;
+
   const { data, error } = await supabaseAdmin
     .from("agreement_packing_items")
-    .insert({ org_id: ctx.orgId, agreement_id: agreementId, label: clean })
+    .insert({ org_id: ctx.orgId, agreement_id: agreementId, label: clean, position })
     .select("id")
     .single();
   if (error || !data) return { ok: false, error: "Couldn't add it to the packing list." };

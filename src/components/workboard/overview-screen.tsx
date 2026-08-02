@@ -10,7 +10,6 @@ import type { WorkboardData } from "@/lib/workboard/page-data";
 import { NoteCapture } from "./note-capture";
 import { MaintenanceBoard } from "./board/maintenance-board";
 import { ProjectsBoard } from "./board/projects-board";
-import { MaintenanceWall } from "./board/wall";
 
 /* The Workboard — a command centre, not a menu.
 
@@ -31,9 +30,16 @@ import { MaintenanceWall } from "./board/wall";
    from the one status law. Maintenance runs five tabs, projects four; flags
    route to the board whose work they point at, so nothing appears twice.
 
-   Desktop-first, big-screen ready: DISPLAY MODE fullscreens the board element
-   itself and refreshes every minute while it's up. No new route, no token —
-   the person at the TV signed in like anyone else, and closing is Esc.
+   Desktop-first, big-screen ready: DISPLAY MODE is this SAME page with the app
+   frame taken away — sidebar, topbar and the well's inset gone, the width cap
+   off, everything else exactly where it was. The side switcher, the tabs, the
+   sheets and the capture pill all stay live, because this is the screen you
+   WORK off on a big monitor, not a poster of it. It fullscreens the DOCUMENT
+   (not the board element) for two reasons: the shell is what has to disappear,
+   and every sheet/modal/toast portals to <body>, so fullscreening anything
+   deeper would render them invisible. Closes on the header's own button or on
+   Esc; refreshes every minute while it's up. No new route, no token — the
+   person at the TV signed in like anyone else.
 
    Standalone-first: with no ServiceM8 connection the board says exactly that
    and keeps working — the SM8-derived strips are absent, not broken. */
@@ -50,20 +56,36 @@ type SideKey = (typeof SIDES)[number]["key"];
 
 export function OverviewScreen({ data }: { data: WorkboardData }) {
   const router = useRouter();
-  const boardRef = useRef<HTMLDivElement>(null);
   const [display, setDisplay] = useState(false);
   const [tab, setTab] = useState<SideKey>("maintenance");
   /** What the capture pill attaches to — a visit while its sheet is open. */
   const [capture, setCapture] = useState<{ visitId: string; label: string } | null>(null);
 
-  // Fullscreen state follows the browser, not our button — Esc must work.
+  // Leaving fullscreen leaves display mode — Esc is the browser's own exit and
+  // must land you back in the app, not on a chromeless page in a window.
   useEffect(() => {
-    const onChange = () => setDisplay(document.fullscreenElement === boardRef.current);
+    const onChange = () => {
+      if (!document.fullscreenElement) setDisplay(false);
+    };
     document.addEventListener("fullscreenchange", onChange);
     return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
 
-  // A wall screen left alone must not drift stale.
+  /* The shell is hidden by an attribute on <html>, not by unmounting it: the
+     board must not remount when you enter or leave, or an open sheet and every
+     draft in it would go with it. Cleanup runs on navigation away too, so a
+     link out of display mode can't strand you fullscreen with no chrome. */
+  useEffect(() => {
+    if (!display) return;
+    const root = document.documentElement;
+    root.setAttribute("data-wb-display", "on");
+    return () => {
+      root.removeAttribute("data-wb-display");
+      if (document.fullscreenElement) void document.exitFullscreen?.()?.catch(() => {});
+    };
+  }, [display]);
+
+  // A screen left up on a wall must not drift stale.
   useEffect(() => {
     if (!display) return;
     const t = setInterval(() => router.refresh(), REFRESH_MS);
@@ -71,7 +93,11 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
   }, [display, router]);
 
   const toDisplay = () => {
-    boardRef.current?.requestFullscreen?.().catch(() => {});
+    setDisplay(true);
+    /* A REJECTED request backs the mode out — being chromeless in a window is
+       not what was asked for. A MISSING API doesn't: hiding the shell still
+       buys the room, and the close button is right there either way. */
+    void document.documentElement.requestFullscreen?.()?.catch(() => setDisplay(false));
   };
 
   const connected = data.connection === "connected";
@@ -205,8 +231,8 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
 
   /* ONE pill, owned by the page, rendered inside whichever board is up —
      at the tab row's right end, where the handoff docks it (D15). Display
-     mode never gets it: nobody at the wall TV can dictate into it. */
-  const pill = display ? undefined : (
+     mode keeps it: the whole point of the mode is that you can work off it. */
+  const pill = (
     <NoteCapture
       target={capture ? { kind: "visit", id: capture.visitId } : { kind: "none" }}
       targetLabel={capture?.label}
@@ -268,32 +294,41 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
               })}
             </nav>
             <div className="wb2-headtools">
-              <button className="pbtn ghost" onClick={toDisplay} title="Fullscreen for a wall screen">
-                <Icon name="maximize" size={16} />
-                Display mode
-              </button>
+              {display ? (
+                <button
+                  className="pbtn ghost"
+                  onClick={() => setDisplay(false)}
+                  title="Back to the app — Esc does the same"
+                >
+                  <Icon name="x" size={16} />
+                  Close display mode
+                </button>
+              ) : (
+                <button
+                  className="pbtn ghost"
+                  onClick={toDisplay}
+                  title="Fill the screen — same board, no app frame"
+                >
+                  <Icon name="maximize" size={16} />
+                  Display mode
+                </button>
+              )}
             </div>
           </header>
 
-          <div className="wb-board" ref={boardRef}>
+          <div className="wb-board">
             {tab === "maintenance" ? (
-              display ? (
-                /* The wall composition (A10): Urgent + four weeks, LIGHT,
-                   zero interactivity — not "fullscreen the current tab". */
-                <MaintenanceWall data={data.board} flags={maintFlags} today={data.today} />
-              ) : (
-                <MaintenanceBoard
-                  data={data.board}
-                  flags={maintFlags}
-                  today={data.today}
-                  manage={data.manage}
-                  connected={connected}
-                  aiEnabled={data.aiEnabled}
-                  sm8={sm8}
-                  onCaptureTarget={setCapture}
-                  tools={pill}
-                />
-              )
+              <MaintenanceBoard
+                data={data.board}
+                flags={maintFlags}
+                today={data.today}
+                manage={data.manage}
+                connected={connected}
+                aiEnabled={data.aiEnabled}
+                sm8={sm8}
+                onCaptureTarget={setCapture}
+                tools={pill}
+              />
             ) : (
               <ProjectsBoard
                 data={data.projectsBoard}

@@ -200,16 +200,27 @@ gates and packing still tickable, but no place/complete/skip/tags/add-item
 - [ ] After save: overlay closes, the pill wears the summary chip for a few
       seconds, the effects land (flag on Urgent, task in the queue).
 
-**Display mode (A10 — the wall):**
+**Display mode (the big screen):**
 
-- [ ] Display mode button lives on BOTH sides again. On maintenance it
-      fullscreens the WALL: "Needs you today" queue + "The next four weeks",
-      **LIGHT theme** — there must be NO dark flip anywhere, including the
-      projects side's fullscreen (the old dark CSS is deleted).
-- [ ] The wall has zero interactivity — nothing is pressable on it.
-- [ ] Leave it fullscreen past the minute mark — it refreshes itself (change
-      a gate from your phone; the wall repaints within a minute).
-- [ ] Esc leaves fullscreen and the normal board is exactly as you left it.
+The separate "wall" composition is GONE (2026-08-02). Display mode mirrors
+the page you were on and takes the app frame away — it is the screen you WORK
+off, not one you watch.
+
+- [ ] Display mode button lives on BOTH sides and behaves identically on each.
+- [ ] It fills the screen with the SAME board you were looking at: the
+      sidebar, topbar and the well's rounded inset go, nothing else moves.
+      **LIGHT theme** — there must be NO dark flip anywhere.
+- [ ] The side switcher still works from inside it (Maintenance ↔ Projects),
+      and so does every tab.
+- [ ] Everything is still pressable — open a visit sheet, tick a gate, use
+      the capture pill. Sheets and toasts must be VISIBLE (they portal to
+      `<body>`; that's why the fullscreen element is the whole document).
+- [ ] The header's button reads **Close display mode** and returns you to the
+      app with the shell back.
+- [ ] Esc does the same thing as the close button.
+- [ ] Leave it up past the minute mark — it refreshes itself (change a gate
+      from your phone; it repaints within a minute) WITHOUT closing an open
+      sheet or losing a draft.
 
 ### Post-walk cleanup worth queueing (not bugs)
 
@@ -222,8 +233,6 @@ gates and packing still tickable, but no place/complete/skip/tags/add-item
 
 ### Known transitional states (expected, not bugs)
 
-- Display mode is projects-side only until stage 5 (the maintenance wall
-  composition replaces it — light theme, per the decision).
 - The Agreements tab links to the OLD manage/detail pages until stage 4's
   agreement sheet + create flow land.
 - The note-capture card above the board is the shipped one until stage 5's

@@ -74,8 +74,8 @@ export function MaintenanceBoard({
       tells it what's in front of the person. */
   onCaptureTarget?: (t: { visitId: string; label: string } | null) => void;
   /** The page-owned capture pill, docked at the tab row's right end — the
-      handoff's spot. Absent in Display mode by construction (the wall
-      composition never renders this row). */
+      handoff's spot. Present in Display mode too: that mode mirrors this page
+      rather than replacing it, so everything on it stays usable. */
   tools?: ReactNode;
 }) {
   const router = useRouter();

@@ -3908,12 +3908,6 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible { outli
 .wb2-plchips { display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
 
 /* merged calendar: the other board's dots wear a hollow ring, never a fill */
-.wb2-mcdots i[data-oth] { background:transparent; border:2px solid rgba(5,5,5,.3); width:10px; height:10px; }
-.wb2-mcdots i[data-oth][data-tone="go"] { border-color:var(--wb2-ok); }
-.wb2-mcdots i[data-oth][data-tone="soon"] { border-color:var(--wb2-warn); }
-.wb2-mcdots i[data-oth][data-tone="flash"], .wb2-mcdots i[data-oth][data-tone="over"] { border-color:var(--wb2-dan); }
-.wb2-mcdots i[data-oth][data-tone="done"] { border-color:rgba(5,5,5,.25); }
-.wb2-mckey-oth { width:9px; height:9px; border-radius:50%; background:transparent; border:2px solid rgba(5,5,5,.35); }
 
 /* the trip sheet's carry-forward choice + danger notes */
 .wb2-carry { display:flex; align-items:center; gap:9px; font-size:12.5px; font-weight:700; color:var(--gray700);

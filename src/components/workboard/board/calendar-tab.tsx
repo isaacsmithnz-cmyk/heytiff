@@ -18,11 +18,14 @@ import { calendarToneForCal, placedDayOfCal, toneOfCal, type CalVisit } from "./
    ahead runs off the bottom. Rolling forward keeps "now" in the top row and
    always shows the same amount of future. The arrows step a week at a time.
 
-   Calendars stay PER-SIDE with a merged view on tap (decision P3, Isaac's
-   words: "per side, but maybe add a 3rd view that is merged"): the toggle
-   folds the OTHER board's day-load in, its dots wearing a hollow ring so
-   whose work it is stays legible. Opening a day always opens THIS side's
-   day modal — placing happens on the board that owns the work. */
+   ONE SIDE'S WORK ONLY. Decision P3 originally added a merged "Everything"
+   view folding the other board's days in; it came out 2026-08-02 because
+   service and installation are run by different crews, and the only thing
+   telling the two apart on a busy day was a hollow ring at 11px — too
+   subtle to trust for the clash-check that was its whole justification.
+   Better absent than half-legible. If a shared-resource view is wanted
+   later it needs to say WHOSE at a glance: two rows of dots, or a count per
+   side. */
 
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 /** Four weeks — the run you can actually plan for. */
@@ -37,34 +40,21 @@ function monthWord(iso: string): string {
 }
 
 export function CalendarTab({
-  side,
   visits,
-  others,
-  sideWord,
-  otherWord,
   today,
   onDay,
 }: {
-  /** Which board owns this calendar — the other side's dots wear the ring. */
-  side: "maintenance" | "projects";
   /** This board's visits, already in the calendar shape. */
   visits: CalVisit[];
-  /** The other board's visits — rendered only in the merged view. */
-  others: CalVisit[];
-  /** "Maintenance" / "Projects" — the toggle's words. */
-  sideWord: string;
-  otherWord: string;
   today: string;
   onDay: (dayISO: string) => void;
 }) {
   /** Weeks away from the Monday of the current week. 0 is "now". */
   const [weekShift, setWeekShift] = useState(0);
-  const [merged, setMerged] = useState(false);
 
   const { cells, rangeLabel, services, toConfirm } = useMemo(() => {
     const byDay = new Map<string, CalVisit[]>();
-    const all = merged ? [...visits, ...others] : visits;
-    for (const v of all) {
+    for (const v of visits) {
       const day = placedDayOfCal(v);
       if (!day) continue;
       const list = byDay.get(day) ?? [];
@@ -89,7 +79,7 @@ export function CalendarTab({
         return t === "soon" || t === "flash" || t === "over";
       }).length,
     };
-  }, [visits, others, merged, today, weekShift]);
+  }, [visits, today, weekShift]);
 
   const unplaced = useMemo(
     () =>
@@ -141,24 +131,6 @@ export function CalendarTab({
           </span>
           {toConfirm > 0 && <span className="wb2-chip warn">{toConfirm} to confirm</span>}
         </span>
-        <div className="wb2-filters" role="group" aria-label="Calendar scope">
-          <button
-            type="button"
-            className={"wb2-filter" + (!merged ? " on" : "")}
-            aria-pressed={!merged}
-            onClick={() => setMerged(false)}
-          >
-            {sideWord}
-          </button>
-          <button
-            type="button"
-            className={"wb2-filter" + (merged ? " on" : "")}
-            aria-pressed={merged}
-            onClick={() => setMerged(true)}
-          >
-            Everything
-          </button>
-        </div>
       </div>
 
       <div className="wb2-mckey">
@@ -174,11 +146,6 @@ export function CalendarTab({
         <span>
           <i style={{ background: "rgba(5,5,5,.25)" }} /> Done and closed
         </span>
-        {merged && (
-          <span>
-            <i className="wb2-mckey-oth" /> From the {otherWord} board
-          </span>
-        )}
       </div>
 
       <div className="wb2-mcdow" aria-hidden="true">
@@ -231,7 +198,6 @@ export function CalendarTab({
                       <i
                         key={v.id}
                         data-tone={toneOfCal(v, today)}
-                        data-oth={v.side !== side ? "" : undefined}
                         title={`${v.name} — ${v.label}`}
                       />
                     ))}

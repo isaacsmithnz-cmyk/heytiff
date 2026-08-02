@@ -3,9 +3,8 @@
    What these pin, by decision: the settled tab order (Urgent, Pipeline,
    Completed, Calendar); the derived urgent queue with its quick actions
    fixing the row's own fact; the stage-GROUPED pipeline with trouble first
-   and the two-axis money chip; Completed's ready-to-close fold; the merged
-   calendar's hollow-ring dots (P3); and the trip sheet's bring list with
-   the carry-to-next-trip close-out. */
+   and the two-axis money chip; Completed's ready-to-close fold; and the trip
+   sheet's bring list with the carry-to-next-trip close-out. */
 
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -391,36 +390,6 @@ describe("completed", () => {
 });
 
 describe("calendar (P3 — per-side plus the merged view)", () => {
-  it("shows this side's placed trips and folds the other board in on demand", async () => {
-    mount(
-      data({
-        visits: [trip({ id: "v-1", bookedDate: "2026-08-04", status: "booked" })],
-      }),
-      {
-        calOthers: [
-          {
-            id: "mv-1",
-            side: "maintenance",
-            name: "Halston Freight",
-            label: "Rooftop units",
-            status: "booked",
-            dueDate: "2026-08-04",
-            bookedDate: "2026-08-04",
-            bookedStart: null,
-            readiness: { equipment_ready: true, access_confirmed: true },
-            techCount: 1,
-            mirrorStatus: null,
-          },
-        ],
-      }
-    );
-    await toTab("Calendar");
-    expect(document.querySelectorAll(".wb2-mcdots i")).toHaveLength(1);
-    await userEvent.click(screen.getByRole("button", { name: "Everything" }));
-    const dots = document.querySelectorAll(".wb2-mcdots i");
-    expect(dots).toHaveLength(2);
-    expect(document.querySelectorAll(".wb2-mcdots i[data-oth]")).toHaveLength(1);
-  });
 
   it("opening a day opens the projects day modal, and placing fires the shared action", async () => {
     mount(

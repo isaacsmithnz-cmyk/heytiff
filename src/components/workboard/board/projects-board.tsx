@@ -5,7 +5,7 @@ import { flushSync } from "react-dom";
 import { projectUrgentRows } from "@/lib/workboard/project-rules";
 import type { ProjectsBoardData } from "@/lib/workboard/projects-board-query";
 import type { BoardFlag } from "@/lib/workboard/notes-query";
-import { calOfProject, type CalVisit } from "./derive";
+import { calOfProject } from "./derive";
 import { ProjectUrgentTab } from "./project-urgent-tab";
 import { PipelineTab } from "./pipeline-tab";
 import { ProjectCompletedTab } from "./project-completed-tab";
@@ -37,7 +37,6 @@ export function ProjectsBoard({
   today,
   manage,
   connected,
-  calOthers,
   onCaptureTarget,
   tools,
   sm8,
@@ -48,8 +47,6 @@ export function ProjectsBoard({
   today: string;
   manage: boolean;
   connected: boolean;
-  /** The maintenance board's visits, for the calendar's merged view (P3). */
-  calOthers?: CalVisit[];
   /** The capture pill's attachment (D15) — a trip while its sheet is open. */
   onCaptureTarget?: (t: { visitId: string; label: string } | null) => void;
   /** The page-owned capture pill, docked at the tab row's right end. */
@@ -214,11 +211,7 @@ export function ProjectsBoard({
           )}
           {tab === "calendar" && (
             <CalendarTab
-              side="projects"
               visits={data.visits.map(calOfProject)}
-              others={calOthers ?? []}
-              sideWord="Projects"
-              otherWord="maintenance"
               today={today}
               onDay={(iso) => setDayISO(iso)}
             />

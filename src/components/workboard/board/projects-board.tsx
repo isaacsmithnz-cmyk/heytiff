@@ -186,7 +186,7 @@ export function ProjectsBoard({
         {tools && <div className="wb2-vtcap">{tools}</div>}
       </div>
 
-      <div className="wb2-card">
+      <div className="wb2-card" data-firsttab={tab === TAB_KEYS[0] ? "on" : undefined}>
         <div key={`${tab}-${fallbackSwap}`} className={"wb2-panel" + (fallbackSwap ? " wb2-swap" : "")}>
           {tab === "urgent" && (
             <ProjectUrgentTab

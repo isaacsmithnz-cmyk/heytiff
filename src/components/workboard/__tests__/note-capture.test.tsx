@@ -261,20 +261,28 @@ describe("nothing is thrown away quietly", () => {
   it("will not let you save a note whose every row would be dropped", async () => {
     const overlay = await openIt();
     expect(overlay.getByRole("button", { name: "Save these" })).toBeDisabled();
+    expect(overlay.getByText(/Every note goes on a job/)).toBeInTheDocument();
     expect(overlay.getByText(/2 tasks still need a person on them/)).toBeInTheDocument();
-    expect(overlay.getByText(/bring-list needs a job to sit on/)).toBeInTheDocument();
     expect(applyNote).not.toHaveBeenCalled();
   });
 
-  it("unticking what can't be done is a way out, and re-enables Save", async () => {
+  it("unticking clears the per-row stops, though the job is still required", async () => {
     const overlay = await openIt();
     await userEvent.click(overlay.getByLabelText(/Skip Organise filters/));
     await userEvent.click(overlay.getByLabelText(/Skip Hire scissor lift/));
-    await userEvent.click(overlay.getByLabelText(/Skip 2 x 20x20x2 filters/));
-    await userEvent.click(overlay.getByLabelText(/Skip Scissor lift \(hired\)/));
-    // everything unticked is its own stop — there is nothing left to save
-    expect(overlay.getByRole("button", { name: "Save these" })).toBeDisabled();
     expect(overlay.queryByText(/still need a person/)).not.toBeInTheDocument();
+    // everything unticked is its own stop — and so is having no job
+    expect(overlay.getByRole("button", { name: "Save these" })).toBeDisabled();
+  });
+
+  /* Isaac's call, choosing between four ways to give loose notes a home:
+     a note must name a job. "Keep the words only" filed them where nothing
+     reads them, and no wording makes that a destination. */
+  it("won't keep a note on nothing — the words go on a job or they don't go", async () => {
+    const overlay = await openIt();
+    expect(overlay.getByRole("button", { name: /Put it on the job's notes/ })).toBeDisabled();
+    expect(overlay.getByText(/Every note goes on a job/)).toBeInTheDocument();
+    expect(keepNoteOnJob).not.toHaveBeenCalled();
   });
 
   it("assigning the people and saying which job it's against clears every stop", async () => {
@@ -412,9 +420,9 @@ describe("nothing is thrown away quietly", () => {
     ]);
     await userEvent.click(overlay.getByRole("button", { name: "Change" }));
     await userEvent.click(overlay.getByRole("option", { name: /General note/ }));
-    expect(overlay.getByText(/isn't against a job yet/)).toBeInTheDocument();
-    // and the bring-list stop comes back, because there is nowhere to put it
-    expect(overlay.getByText(/bring-list needs a job to sit on/)).toBeInTheDocument();
+    // and the stop comes back: every note goes on a job
+    expect(overlay.getAllByText(/Every note goes on a job/).length).toBeGreaterThan(0);
+    expect(overlay.getByRole("button", { name: "Save these" })).toBeDisabled();
   });
 
   it("won't guess between two jobs for the same client — it asks", async () => {

@@ -108,7 +108,7 @@ export function ProjectUrgentTab({
           <Icon name="zap" size={19} />
         </span>
         <div>
-          <b>Needs you today</b>
+          <b>Needs attention</b>
           <em>Late trips first, then what&apos;s stuck. Rows clear themselves as facts change.</em>
         </div>
         <div className="wb2-filters">
@@ -122,7 +122,7 @@ export function ProjectUrgentTab({
       {shown.length === 0 ? (
         <div className="wb2-empty">
           <Icon name="check" size={20} />
-          <b>{filter === "all" ? "Nothing needs you right now" : "Nothing of that kind right now"}</b>
+          <b>{filter === "all" ? "Nothing needs attention right now" : "Nothing of that kind right now"}</b>
           <em>
             {filter === "all"
               ? "Every project is moving and every trip is on track."

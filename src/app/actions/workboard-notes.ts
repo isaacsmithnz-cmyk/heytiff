@@ -278,7 +278,16 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 /** Turn a confirmed proposal into real rows. Everything is re-validated
     here, because a Server Function is reachable by direct POST and "the card
     only offered valid options" is not a control. */
-export async function applyNote(noteId: string, confirmed: ConfirmedNote): Promise<ApplyResult> {
+export async function applyNote(
+  noteId: string,
+  confirmed: ConfirmedNote,
+  /* Where the review card says it belongs, when the note was dictated with
+     nothing in front of it. A general note's bring-items had nowhere to land
+     and were dropped in silence — see the guard at the end of this function,
+     which now refuses that instead of pretending. Re-validated like any other
+     target: a Server Function is reachable by direct POST. */
+  retarget?: NoteTarget
+): Promise<ApplyResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: NOT_SIGNED_IN };
   if (!(await can("workboard"))) return { ok: false, error: NO_ACCESS };
@@ -287,7 +296,19 @@ export async function applyNote(noteId: string, confirmed: ConfirmedNote): Promi
   if (!note) return { ok: false, error: GONE };
   if (note.status === "applied") return { ok: false, error: "That note was already applied." };
 
-  const target: NoteTarget = { kind: note.target_kind, id: note.target_id };
+  let target: NoteTarget = { kind: note.target_kind, id: note.target_id };
+  if (retarget && retarget.kind !== "none" && retarget.id) {
+    const resolved = await resolveTarget(ctx.orgId, retarget);
+    if (!resolved || resolved.kind === "none") {
+      return { ok: false, error: "That job isn't on this workspace's board any more." };
+    }
+    target = resolved;
+    await supabaseAdmin
+      .from("workboard_notes")
+      .update({ target_kind: target.kind, target_id: target.id ?? null })
+      .eq("org_id", ctx.orgId)
+      .eq("id", noteId);
+  }
   const applied: Record<string, unknown> = {};
   const counts: string[] = [];
 
@@ -305,10 +326,22 @@ export async function applyNote(noteId: string, confirmed: ConfirmedNote): Promi
      member of this org; anything else is refused rather than silently
      dropped, because an unassigned task is a task nobody does.
 
+     "Refused" is now literal. This comment said it before and the code did
+     the opposite — it FILTERED, so a task with no person on it disappeared
+     without a word and the summary counted what was left. That is how two of
+     Isaac's tasks evaporated between the review card and the database.
+
      The org check is ONE query for all assignees rather than one each: this
      runs at the end of a flow the person is waiting on, and a four-task note
      was eight sequential round trips to a remote database. */
-  const wanted = (confirmed.tasks ?? []).filter((t) => trim(t.title, 200) && t.assigneeId);
+  const namedTasks = (confirmed.tasks ?? []).filter((t) => trim(t.title, 200));
+  if (namedTasks.some((t) => !t.assigneeId)) {
+    return {
+      ok: false,
+      error: "A task needs a person on it before it can be saved. Assign it, or untick it.",
+    };
+  }
+  const wanted = namedTasks;
   if (wanted.length) {
     const { data: people } = await supabaseAdmin
       .from("staff_profiles")
@@ -317,8 +350,11 @@ export async function applyNote(noteId: string, confirmed: ConfirmedNote): Promi
       .in("id", [...new Set(wanted.map((t) => t.assigneeId as string))]);
     const real = new Set(((people ?? []) as { id: string }[]).map((p) => p.id));
 
+    if (wanted.some((t) => !real.has(t.assigneeId as string))) {
+      return { ok: false, error: "That person isn't on this workspace any more." };
+    }
+
     const rows = wanted
-      .filter((t) => real.has(t.assigneeId as string))
       .map((t) => ({
         org_id: ctx.orgId,
         title: trim(t.title, 200),
@@ -443,6 +479,7 @@ export async function applyNote(noteId: string, confirmed: ConfirmedNote): Promi
   /* bring-items — onto the agreement's bring list where there is one, so the
      next visit's prep sheet already has them */
   const bring = (confirmed.bringItems ?? []).map((b) => trim(b, 200)).filter(Boolean);
+  let bringSaved = false;
   if (bring.length && target.id) {
     let saved = false;
 
@@ -491,6 +528,45 @@ export async function applyNote(noteId: string, confirmed: ConfirmedNote): Promi
     // own — they become text on somebody else's row — so the words are what
     // gets recorded.
     if (saved) record("bringItems", bring, "bring-item");
+    bringSaved = saved;
+  }
+  /* A bring-list is text on somebody else's row — an agreement's or a
+     project's. With nothing to hang it off it used to be dropped in silence
+     from a note that had already said "Saved". Say it instead. */
+  if (bring.length && !bringSaved) {
+    return {
+      ok: false,
+      error:
+        "A bring-list needs a job to sit on. Say what this note is against, or untick the bring items.",
+    };
+  }
+
+  /* NOTHING SILENTLY VANISHES. Isaac dictated two tasks and two bring-items
+     from the board header, pressed Save, and got "Saved as a note." — while
+     `applied` went to the database as `{}`. Both tasks were dropped because
+     neither had a person on it, and both bring-items were dropped because a
+     general note has no job to hang them off. Every one of those drops was
+     silent, and the summary said the reassuring thing.
+
+     So: if the confirmation asked for work and NONE of it could be done, this
+     refuses. The note keeps its words and stays reviewable rather than being
+     marked applied over an empty object. The card is supposed to stop this
+     ever reaching here — this is the backstop that makes "saved" mean saved. */
+  const asked =
+    (confirmed.tasks?.length ?? 0) +
+    (confirmed.bringItems?.length ?? 0) +
+    (confirmed.flags?.length ?? 0) +
+    (confirmed.progressBullets?.length ?? 0) +
+    (confirmed.commissioningEntries?.length ?? 0) +
+    (confirmed.issueEntries?.length ?? 0);
+  if (asked > 0 && counts.length === 0) {
+    return {
+      ok: false,
+      error:
+        target.kind === "none"
+          ? "None of that could be saved — the tasks need a person on them, and a bring-list needs a job to sit on. Pick what it's against, or untick what you don't want."
+          : "None of that could be saved — a task needs a person on it. Assign it or untick it.",
+    };
   }
 
   await supabaseAdmin

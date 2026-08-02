@@ -230,6 +230,27 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
     return () => window.removeEventListener("resize", measure);
   }, [tab, badges.maintenance.n, badges.projects.n]);
 
+  /* What a GENERAL note can be pinned to on review. Speaking a client's name
+     from the board header is the normal case — "Luke needs to organise some
+     filters for Kingsford Medical Centre" — and the note had no way to point
+     at them, so its bring-list was silently thrown away on save. Agreements
+     first (they carry the bring-list), then projects. */
+  const attachOptions = useMemo(
+    () => [
+      ...data.board.agreements.map((a) => ({
+        kind: "agreement" as const,
+        id: a.id,
+        label: `${a.clientName} — ${a.label}`,
+      })),
+      ...data.projectsBoard.projects.map((p) => ({
+        kind: "project" as const,
+        id: p.id,
+        label: `${p.clientName} — ${p.name}`,
+      })),
+    ],
+    [data.board.agreements, data.projectsBoard.projects]
+  );
+
   /* ONE pill, owned by the page, rendered inside whichever board is up —
      at the tab row's right end, where the handoff docks it (D15). Display
      mode keeps it: the whole point of the mode is that you can work off it. */
@@ -238,6 +259,7 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
       target={capture ? { kind: "visit", id: capture.visitId } : { kind: "none" }}
       targetLabel={capture?.label}
       voiceEnabled={data.voiceEnabled}
+      attachOptions={attachOptions}
     />
   );
 

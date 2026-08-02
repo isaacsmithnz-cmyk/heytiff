@@ -4035,6 +4035,14 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .wb2-capclock { font-variant-numeric:tabular-nums; font-size:12.5px; font-weight:800; color:var(--gray700); }
 .wb2-recdot { width:10px; height:10px; border-radius:50%; background:#e0264f; flex:none; animation:fgPulse 1.6s ease-in-out infinite; }
 .wb2-capact { display:flex; align-items:center; justify-content:flex-end; gap:9px; margin-top:12px; flex-wrap:wrap; }
+/* the ribbon's target, when the note has to be told where it belongs */
+.wb2-capattach { margin-left:auto; display:flex; align-items:center; gap:8px; min-width:0; }
+.wb2-capattach .wb2-sel { max-width:300px; font-size:12.5px; padding:6px 10px; }
+/* a row that CANNOT be saved says so here, and Save stays off until it can */
+.wb2-capstop { display:flex; align-items:flex-start; gap:8px; margin:10px 0 0; padding:9px 12px; border-radius:11px;
+  background:rgba(255,138,0,.09); border:1px solid rgba(255,138,0,.32);
+  font-size:12.5px; font-weight:700; color:var(--wb2-warn-t, #B45309); }
+.wb2-capsaid { font-style:normal; font-size:11px; font-weight:700; color:var(--gray500); white-space:nowrap; }
 .wb2-caprec { display:flex; flex-direction:column; align-items:center; gap:10px; padding:14px 0 2px; }
 .wb2-caprec .wb-lvl { height:34px; }
 .wb2-caprec .wb-lvl i { height:34px; width:4px; }

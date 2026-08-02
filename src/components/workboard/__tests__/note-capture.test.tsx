@@ -128,7 +128,9 @@ describe("the engine, through the new clothes", () => {
       "n-1",
       expect.objectContaining({
         flags: [{ message: "Middle RTU tripping on start", severity: "warn" }],
-      })
+      }),
+      // no re-target: this note already knew what it was against
+      undefined
     );
     // saved → overlay closes, the pill wears the summary for a moment
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -187,5 +189,112 @@ describe("the engine, through the new clothes", () => {
       within(screen.getByRole("dialog")).getAllByRole("button", { name: "Discard" })[0]
     );
     expect(dismissNote).not.toHaveBeenCalled();
+  });
+});
+
+/* THE BLACK HOLE, PINNED SHUT.
+
+   Isaac dictated two tasks and two bring-items from the board header, pressed
+   Save, and the database recorded `applied: {}` — nothing was created and the
+   pill said "Saved as a note." Both tasks were dropped because neither had a
+   person on it; both bring-items were dropped because a general note has no
+   job to hang a bring-list off. Every one of those drops was silent, and the
+   button was enabled because SOMETHING was ticked.
+
+   These are that exact note. */
+describe("nothing is thrown away quietly", () => {
+  const kingsford = () =>
+    proposal({
+      plainNote: "Site visit to Kingsford Medical Centre scheduled for 3 August.",
+      tasks: [
+        {
+          title: "Organise filters for Kingsford Medical Centre",
+          detail: "",
+          assigneeId: null,
+          assigneeHint: "Luke",
+          dueHint: "before Monday's visit (3 August)",
+        },
+        {
+          title: "Hire scissor lift for Kingsford Medical Centre",
+          detail: "",
+          assigneeId: null,
+          assigneeHint: "",
+          dueHint: "",
+        },
+      ],
+      bringItems: ["2 x 20x20x2 filters", "Scissor lift (hired) for outdoor unit access"],
+    });
+
+  const openIt = async (attachOptions: { kind: "agreement"; id: string; label: string }[] = []) => {
+    routeNote.mockResolvedValue({
+      ok: true,
+      noteId: "n-1",
+      proposal: kingsford(),
+      staff: [{ id: "s-1", fullName: "Dane Poulos" }],
+    });
+    render(
+      <NoteCapture target={{ kind: "none" }} voiceEnabled={false} attachOptions={attachOptions} />
+    );
+    await userEvent.click(screen.getByRole("button", { name: /Add note/ }));
+    const overlay = within(screen.getByRole("dialog"));
+    await userEvent.type(overlay.getByPlaceholderText(/Tell Luke/), "Luke needs filters");
+    await userEvent.click(overlay.getByRole("button", { name: "Sort this out" }));
+    return overlay;
+  };
+
+  it("will not let you save a note whose every row would be dropped", async () => {
+    const overlay = await openIt();
+    expect(overlay.getByRole("button", { name: "Save these" })).toBeDisabled();
+    expect(overlay.getByText(/2 tasks still need a person on them/)).toBeInTheDocument();
+    expect(overlay.getByText(/bring-list needs a job to sit on/)).toBeInTheDocument();
+    expect(applyNote).not.toHaveBeenCalled();
+  });
+
+  it("unticking what can't be done is a way out, and re-enables Save", async () => {
+    const overlay = await openIt();
+    await userEvent.click(overlay.getByLabelText(/Skip Organise filters/));
+    await userEvent.click(overlay.getByLabelText(/Skip Hire scissor lift/));
+    await userEvent.click(overlay.getByLabelText(/Skip 2 x 20x20x2 filters/));
+    await userEvent.click(overlay.getByLabelText(/Skip Scissor lift \(hired\)/));
+    // everything unticked is its own stop — there is nothing left to save
+    expect(overlay.getByRole("button", { name: "Save these" })).toBeDisabled();
+    expect(overlay.queryByText(/still need a person/)).not.toBeInTheDocument();
+  });
+
+  it("assigning the people and saying which job it's against clears every stop", async () => {
+    const overlay = await openIt([
+      { kind: "agreement", id: "a-king", label: "Kingsford Medical Centre — Ducted units" },
+    ]);
+    const selects = overlay.getAllByRole("combobox");
+    // the first is the ribbon's "Against"; the task assignees follow
+    await userEvent.selectOptions(selects[0], "agreement:a-king");
+    for (const s of overlay.getAllByRole("combobox").slice(1)) {
+      await userEvent.selectOptions(s, "s-1");
+    }
+    const save = overlay.getByRole("button", { name: "Save these" });
+    expect(save).toBeEnabled();
+    await userEvent.click(save);
+    expect(applyNote).toHaveBeenCalledWith(
+      "n-1",
+      expect.objectContaining({
+        tasks: [
+          expect.objectContaining({ title: "Organise filters for Kingsford Medical Centre" }),
+          expect.objectContaining({ title: "Hire scissor lift for Kingsford Medical Centre" }),
+        ],
+        bringItems: ["2 x 20x20x2 filters", "Scissor lift (hired) for outdoor unit access"],
+      }),
+      { kind: "agreement", id: "a-king" }
+    );
+  });
+
+  it("keeps what was SAID about when, even though the phrase isn't a date", async () => {
+    const overlay = await openIt();
+    expect(overlay.getByText(/said: before Monday's visit \(3 August\)/)).toBeInTheDocument();
+  });
+
+  it("offers no picker at all on a board with nothing to attach to", async () => {
+    const overlay = await openIt([]);
+    expect(overlay.getByText("General note")).toBeInTheDocument();
+    expect(overlay.queryByRole("option", { name: /General note — nothing/ })).not.toBeInTheDocument();
   });
 });

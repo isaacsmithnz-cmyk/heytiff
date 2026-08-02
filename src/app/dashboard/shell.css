@@ -268,6 +268,38 @@
 .fg .hact .ha-sub { font-style:normal; font-size:13px; font-weight:500; color:rgba(255,255,255,.55); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .fg .hact .ha-chev { color:rgba(255,255,255,.45); flex:0 0 auto; display:flex; }
 .fg a.hact:hover .ha-chev { color:rgba(255,255,255,.8); }
+/* The band now lives INSIDE the left column (the right one is the counters),
+   so it owns the gap under the lede instead of the lede owning it. */
+.fg .hlead > .lede:not(:last-child) { margin-bottom:26px; }
+.fg .hlead > .hact { margin-top:0; }
+
+/* ---- the hero's counters ----
+   The hero's right-hand column: urgent · tasks · needs attention ·
+   notifications, 2x2, each linking to the screen that owns it. Same glass as
+   the action band so the two read as one surface, and one backdrop-filter with
+   no -webkit twin (pairing them ships only the prefixed one and the blur dies).
+
+   `.zero` is the point of the whole thing: an empty counter goes quiet rather
+   than sitting there lit up saying nothing, so a clear day looks clear. */
+.fg .hstats { position:relative; z-index:10; flex:0 0 auto; width:min(100%,360px); display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.fg .hstat { display:grid; grid-template-columns:auto minmax(0,1fr); column-gap:12px; row-gap:4px; align-items:center; padding:14px 16px 15px; border-radius:20px; text-decoration:none; color:inherit; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.12); backdrop-filter:blur(8px); transition:background .25s, border-color .25s, transform .25s; }
+.fg a.hstat:hover { background:rgba(255,255,255,.09); border-color:rgba(255,255,255,.22); transform:translateY(-1px); }
+.fg .hstat .hs-ic { width:32px; height:32px; border-radius:11px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; }
+.fg .hstat .hs-n { font-size:26px; font-weight:800; letter-spacing:-0.03em; line-height:1; color:#fff; }
+.fg .hstat .hs-l { grid-column:1/-1; font-style:normal; font-size:11px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,.5); }
+.fg .hstat.bad .hs-ic { background:rgba(255,51,102,.18); color:#FF6B8A; }
+.fg .hstat.warn .hs-ic { background:rgba(240,164,49,.18); color:#F0A431; }
+.fg .hstat.blue .hs-ic { background:rgba(46,104,255,.22); color:#8FB0FF; }
+.fg .hstat.violet .hs-ic { background:rgba(138,43,226,.24); color:#C79BFF; }
+/* after the tones, so an empty tile wins whatever colour it would have worn */
+.fg .hstat.zero .hs-ic { background:rgba(255,255,255,.07); color:rgba(255,255,255,.4); }
+.fg .hstat.zero .hs-n { color:rgba(255,255,255,.45); }
+/* every counter at zero: one statement instead of four zeroes */
+.fg .hstats.clear { grid-template-columns:minmax(0,1fr); }
+.fg .hclear { display:grid; grid-template-columns:auto minmax(0,1fr); column-gap:16px; row-gap:3px; align-items:center; padding:22px 24px; border-radius:20px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.12); backdrop-filter:blur(8px); }
+.fg .hclear .hc-ic { grid-row:1/span 2; width:46px; height:46px; border-radius:15px; display:flex; align-items:center; justify-content:center; background:rgba(0,229,192,.14); color:var(--teal); }
+.fg .hclear .hc-t { font-size:17px; font-weight:800; letter-spacing:-0.02em; color:#fff; }
+.fg .hclear .hc-s { font-style:normal; font-size:13.5px; font-weight:500; color:rgba(255,255,255,.55); }
 
 /* ---- Dashboard columns ----
    The dashboard was a single stack of full-width cards, so on a wide screen
@@ -420,16 +452,11 @@
 .fg .nb-optdrop { flex:0 0 auto; width:30px; height:30px; display:flex; align-items:center; justify-content:center; border:0; border-radius:9px; background:none; cursor:pointer; color:#c3c8d2; transition:background .15s, color .15s; }
 .fg .nb-optdrop:hover { background:#f3f4f7; color:#6b7280; }
 
-.fg .hstats { display:flex; flex-wrap:wrap; gap:20px; }
-.fg .hstat { position:relative; overflow:hidden; display:flex; flex-direction:column; justify-content:center; min-width:200px; padding:24px 28px; border-radius:24px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.1); backdrop-filter:blur(8px); transition:background .3s; }
-.fg .hstat:hover { background:rgba(255,255,255,.06); }
-.fg .hstat .hg { position:absolute; top:0; right:0; width:96px; height:96px; border-radius:50%; background:rgba(255,255,255,.05); filter:blur(30px); }
-.fg .hstat .hl { font-size:11px; font-weight:800; letter-spacing:.2em; text-transform:uppercase; color:rgba(255,255,255,.4); margin-bottom:12px; }
-.fg .hstat .hv { display:flex; align-items:baseline; gap:12px; margin-bottom:4px; }
-.fg .hstat .hv b { font-size:36px; font-weight:800; color:#fff; font-family:var(--mono); line-height:1; }
-.fg .hstat .hv b em { font-style:normal; color:rgba(255,255,255,.4); }
-.fg .hstat .ht { font-size:12px; font-weight:700; color:var(--teal); background:rgba(0,229,192,.1); padding:2px 8px; border-radius:6px; }
-.fg .hstat .hsub { font-size:13px; color:rgba(255,255,255,.4); font-weight:500; }
+/* The v3 row-of-stats `.hstats` / `.hstat` block lived here. It was dead — no
+   screen rendered that markup after the hero became a greeting plus an action
+   band — and it sat AFTER the hero section, so it quietly beat the new hero
+   counters at equal specificity and stacked them in a flex column. Deleted
+   rather than out-specified; the live rules are with the hero, up at ~line 284. */
 
 .fg .ring-bento { position:relative; overflow:hidden; flex:0 0 auto; width:420px; max-width:100%; display:flex; align-items:center; gap:32px; padding:32px; border-radius:32px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08); backdrop-filter:blur(20px); box-shadow:inset 0 1px 1px rgba(255,255,255,.1); }
 .fg .ring-bento .rgw { position:absolute; top:0; right:0; width:128px; height:128px; background:var(--teal); opacity:.1; filter:blur(50px); }

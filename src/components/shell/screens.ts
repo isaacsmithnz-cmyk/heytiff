@@ -24,6 +24,18 @@ export function heroHtml(opts: {
      fills the space it's given and, more usefully, has room to NAME the worst
      item instead of just counting it. */
   action?: { state: "bad" | "warn" | "ok"; title: string; sub: string; href: string };
+  /* The hero's right-hand column: four counters (urgent / tasks / needs
+     attention / notifications), each a door into the screen that owns it.
+     Derived in lib/dashboard/hero-stats. Omitted → the hero is the greeting
+     alone, which is what the static screen still renders. */
+  stats?: readonly {
+    key: string;
+    icon: string;
+    label: string;
+    count: number;
+    href: string;
+    tone: string;
+  }[];
 }) {
   /* Everything below reaches the DOM through dangerouslySetInnerHTML, so every
      value that came from a person MUST be escaped — the same rule profile.ts
@@ -41,6 +53,33 @@ export function heroHtml(opts: {
       "</a>"
     : "";
 
+  /* A tile with nothing in it is deliberately DIM (`.zero`): the four counters
+     are a "does anything need me" glance, so a clear day should read as calm
+     rather than as four lit-up badges all saying nothing.
+
+     And when EVERY counter is zero the tiles go away entirely — four zeroes are
+     still four things to read. The column says it once, in words. */
+  const clear = !!opts.stats?.length && opts.stats.every((s) => s.count === 0);
+  const tiles = clear
+    ? '<div class="hclear">' +
+      `<span class="hc-ic">${I("check", 22)}</span>` +
+      '<b class="hc-t">All clear</b>' +
+      '<em class="hc-s">Nothing needs you right now</em>' +
+      "</div>"
+    : (opts.stats ?? [])
+        .map(
+          (s) =>
+            `<a class="hstat ${esc(s.tone)}${s.count === 0 ? " zero" : ""}" href="${esc(s.href)}">` +
+            `<span class="hs-ic">${I(s.icon, 17)}</span>` +
+            `<b class="hs-n">${s.count}</b>` +
+            `<em class="hs-l">${esc(s.label)}</em>` +
+            "</a>",
+        )
+        .join("");
+  const stats = opts.stats?.length
+    ? `<div class="hstats${clear ? " clear" : ""}">` + tiles + "</div>"
+    : "";
+
   return (
     '<div class="hero"><div class="mesh"><i class="m1"></i><i class="m2"></i><i class="m3"></i></div>' +
     '<div class="hrow"><div class="hlead">' +
@@ -50,8 +89,10 @@ export function heroHtml(opts: {
     "</div>" +
     `<h1>${esc(opts.greeting)},<br><span>${esc(opts.firstName)}.</span></h1>` +
     '<p class="lede">Welcome back. Your workspace is ready.</p>' +
-    "</div></div>" +
     band +
+    "</div>" +
+    stats +
+    "</div>" +
     "</div>"
   );
 }

@@ -3,6 +3,8 @@ import { heroHtml } from "@/components/shell/screens";
 import { TasksSection } from "./tasks-section";
 import { NoticesCard } from "./notices-card";
 import { heroAction, sortChips } from "@/lib/dashboard/chips";
+import { allClear, heroStats } from "@/lib/dashboard/hero-stats";
+import { currentUnreadCount } from "@/lib/dashboard/notices";
 import type { DashboardData } from "@/lib/dashboard/page-data";
 
 /* The dashboard home — a set of summaries, each a door into the screen that
@@ -40,10 +42,20 @@ export function DashboardHome({
     today,
   } = data;
   // worst-first across both sections, so the band can name the top item
-  const action = heroAction(
-    sortChips([...chips.self, ...chips.team]),
-    "/dashboard/action-required",
-  );
+  const allChips = sortChips([...chips.self, ...chips.team]);
+  // the hero's right-hand column — the same chip list, split by state, so the
+  // urgent and needs-attention counters can never disagree with the band
+  const stats = heroStats({
+    chips: allChips,
+    openTasks: tasks.mine.length,
+    unreadNotices: currentUnreadCount(notices, today),
+  });
+  /* The band names the worst outstanding item. With nothing outstanding
+     anywhere it would only say "All clear" — which the right-hand column has
+     already said, in the same hero, two inches away. One of them goes. */
+  const action = allClear(stats)
+    ? undefined
+    : heroAction(allChips, "/dashboard/action-required");
 
   return (
     <div className="page in">
@@ -56,12 +68,14 @@ export function DashboardHome({
                 firstName,
                 date,
                 action,
+                stats,
               }),
             }}
           />
 
           <div className="dash-cols">
-            <div className="dash-col">
+            {/* the hero's Tasks counter scrolls here rather than navigating */}
+            <div className="dash-col" id="dash-tasks">
               <TasksSection
                 today={today}
                 mine={tasks.mine}

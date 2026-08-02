@@ -193,13 +193,17 @@ export function CalendarTab({
                 </span>
               ) : (
                 c.dayVisits.length > 0 && (
+                  /* Each dot carries the job's name and service as hidden
+                     children. Display mode unhides them (the cell is ~190px
+                     tall there, and four dots in a card-sized box says far
+                     less than four names) — one markup, two densities, so the
+                     two readings of a day can never disagree. */
                   <span className="wb2-mcdots">
                     {c.dayVisits.slice(0, 4).map((v) => (
-                      <i
-                        key={v.id}
-                        data-tone={toneOfCal(v, today)}
-                        title={`${v.name} — ${v.label}`}
-                      />
+                      <i key={v.id} data-tone={toneOfCal(v, today)} title={`${v.name} — ${v.label}`}>
+                        <b>{v.name}</b>
+                        <em>{v.label}</em>
+                      </i>
                     ))}
                     {c.dayVisits.length > 4 && <b>+{c.dayVisits.length - 4}</b>}
                   </span>

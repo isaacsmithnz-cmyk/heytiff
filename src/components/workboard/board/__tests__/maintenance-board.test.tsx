@@ -699,6 +699,35 @@ describe("Calendar — first cut", () => {
     expect(document.querySelector(".wb2-mcdone")).not.toBeNull();
     expect(document.querySelector(".wb2-mcdots")).toBeNull();
   });
+
+  /* A dot CARRIES the client and the service it stands for, hidden until
+     display mode gives the cell room to show them. The markup is the same
+     either way on purpose — a second calendar built for the big screen would
+     be free to disagree with this one. */
+  it("gives every dot the name and service it stands for", async () => {
+    mount(
+      data({
+        visits: [
+          visit({
+            id: "v-placed",
+            clientName: "Northgate Retail Group",
+            label: "Split fleet, 4 stores",
+            status: "booked",
+            bookedDate: "2026-08-10",
+            dueDate: "2026-08-10",
+          }),
+        ],
+      })
+    );
+    await toTab(/Calendar/);
+    const dot = document.querySelector(".wb2-mcdots i");
+    expect(dot).not.toBeNull();
+    expect(dot?.querySelector("b")?.textContent).toBe("Northgate Retail Group");
+    expect(dot?.querySelector("em")?.textContent).toBe("Split fleet, 4 stores");
+    // still one dot per visit, still capped at four — the cell didn't grow a
+    // second way of counting
+    expect(document.querySelectorAll(".wb2-mcdots i")).toHaveLength(1);
+  });
 });
 
 describe("Urgent quick actions — each row fixes ITS fact (A1/A4)", () => {

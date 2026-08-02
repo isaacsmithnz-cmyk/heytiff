@@ -330,38 +330,13 @@ export function summaryLine(s: ChipSummary): string {
   return parts.join(" · ");
 }
 
-/* The hero's action band.
-
-   A bare count tells you there's a problem but not what it is, which just moves
-   the question along. Naming the worst item means the hero is useful at a
-   glance and the click is optional — you already know whether it can wait. */
-export type HeroAction = {
-  state: ActionState | "ok";
-  title: string;
-  sub: string;
-  href: string;
-};
-
-export function heroAction(sorted: readonly ActionChip[], href: string): HeroAction {
-  const s = chipSummary(sorted);
-  if (s.total === 0) {
-    return {
-      state: "ok",
-      title: "All clear",
-      sub: "Nothing due in the next 30 days",
-      href,
-    };
-  }
-  // `sorted` is worst-first, so the head is the thing most worth naming
-  const worst = sorted[0];
-  const rest = s.total - 1;
-  return {
-    state: worst.state,
-    title: s.total === 1 ? "1 thing needs your attention" : `${s.total} things need your attention`,
-    sub: `${worst.label} · ${worst.subject}${rest > 0 ? ` · +${rest} more` : ""}`,
-    href,
-  };
-}
+/* `heroAction` lived here — the hero's action band, which named the worst item
+   ("3 things need your attention · Rego expired 4 days ago · Hilux ute"). The
+   hero now carries four counters instead, and the band under the greeting was
+   saying the same thing twice, so it is gone. What it knew that a count does
+   not — WHICH thing is worst — lives on the action-required board, which is
+   where both urgent counters point. `chipSummary` above is the surviving
+   tally, and the counters split it. */
 
 /** Worst-first: bad before warn, then closest-to-now within a bucket. Stable. */
 export function sortChips(chips: readonly ActionChip[]): ActionChip[] {

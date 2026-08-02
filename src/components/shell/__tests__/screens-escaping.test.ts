@@ -1,56 +1,19 @@
 import { heroHtml } from "../screens";
-import { heroAction, licenceChip, sortChips } from "@/lib/dashboard/chips";
 
 /* The hero reaches the DOM through dangerouslySetInnerHTML (home.tsx), so every
    value that came from a person has to be escaped on the way in. It is the last
    screen that needs this guarantee: the staff card and the organisation profile
    made it too, until both became React.
 
-   The action band is the one that matters. `sub` is built from a chip's label
-   and subject, and those are a licence type name, a vehicle's name or plate, a
-   staff member's name or the insurer — all user-entered. A licence is
-   self-service (addMyLicence is intrinsic), and a licence chip surfaces on the
-   dashboard of everyone holding `team`, so an unescaped label would be stored
-   XSS that one person could aim at their managers. */
+   The sharp edge used to be the action band, whose sub-line carried a chip's
+   label and subject — a licence type name, a vehicle's plate, the insurer, all
+   user-entered, and a licence anyone may add to their own card lands on a
+   manager's dashboard. That band is gone; what a person still types into this
+   hero is their own name, and the guarantee has to hold for it too. */
 
 const PAYLOAD = `<img src=x onerror="alert(1)">`;
 
 describe("heroHtml — escaping", () => {
-  it("escapes a licence type name carried into the action band", () => {
-    const chip = licenceChip(
-      { id: "lic-1", typeName: PAYLOAD, expiryDate: "2026-08-01" },
-      { subject: "Isaac Smith", href: "/dashboard/profile", today: "2026-07-25" },
-    );
-    expect(chip).not.toBeNull();
-
-    const html = heroHtml({
-      greeting: "Good morning",
-      firstName: "Isaac",
-      date: "Fri 25 Jul",
-      action: heroAction(sortChips([chip!]), "/dashboard/action-required"),
-    });
-
-    expect(html).not.toContain(PAYLOAD);
-    expect(html).not.toContain("<img");
-    expect(html).toContain("&lt;img");
-  });
-
-  it("escapes the subject — a vehicle name or plate is user-entered too", () => {
-    const html = heroHtml({
-      greeting: "Good morning",
-      firstName: "Isaac",
-      date: "Fri 25 Jul",
-      action: {
-        state: "bad",
-        title: "1 thing needs your attention",
-        sub: `Rego expired 4d ago · ${PAYLOAD}`,
-        href: "/dashboard/action-required",
-      },
-    });
-    expect(html).not.toContain("<img");
-    expect(html).toContain("&lt;img");
-  });
-
   it("escapes the viewer's own name in the greeting", () => {
     const html = heroHtml({
       greeting: "Good morning",
@@ -61,22 +24,27 @@ describe("heroHtml — escaping", () => {
     expect(html).toContain("&lt;script&gt;");
   });
 
+  it("escapes a preferred name that arrives as markup, not text", () => {
+    const html = heroHtml({ greeting: "Good morning", firstName: PAYLOAD, date: "Fri 25 Jul" });
+    expect(html).not.toContain(PAYLOAD);
+    expect(html).not.toContain("<img");
+    expect(html).toContain("&lt;img");
+  });
+
   it("still renders the ordinary case unchanged", () => {
-    const html = heroHtml({
-      greeting: "Good morning",
-      firstName: "Isaac",
-      date: "Fri 25 Jul",
-      action: {
-        state: "ok",
-        title: "All clear",
-        sub: "Nothing due in the next 30 days",
-        href: "/dashboard/action-required",
-      },
-    });
+    const html = heroHtml({ greeting: "Good morning", firstName: "Isaac", date: "Fri 25 Jul" });
     expect(html).toContain("Good morning,");
     expect(html).toContain("<span>Isaac.</span>");
-    expect(html).toContain("All clear");
-    expect(html).toContain('href="/dashboard/action-required"');
+    expect(html).toContain("Welcome back.");
+  });
+
+  /* The band is deleted, not merely unused: an option nobody passes is an
+     option someone re-wires later, and this hero is the one place in the app
+     where a string reaches the DOM unparsed. */
+  it("has no action band left under the greeting", () => {
+    const html = heroHtml({ greeting: "Good morning", firstName: "Isaac", date: "Fri 25 Jul" });
+    expect(html).not.toContain("hact");
+    expect(html).not.toContain("needs your attention");
   });
 });
 

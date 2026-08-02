@@ -17,13 +17,6 @@ export function heroHtml(opts: {
   greeting: string;
   firstName: string;
   date: string;
-  /* The action band, spanning the width of the hero beneath the greeting.
-
-     A lone stat tile floating to the right of a big dark hero read as an
-     afterthought — that styling was built for a ROW of stats, not one. A band
-     fills the space it's given and, more usefully, has room to NAME the worst
-     item instead of just counting it. */
-  action?: { state: "bad" | "warn" | "ok"; title: string; sub: string; href: string };
   /* The hero's right-hand column: four counters (urgent / tasks / needs
      attention / notifications), each a door into the screen that owns it.
      Derived in lib/dashboard/hero-stats. Omitted → the hero is the greeting
@@ -39,19 +32,11 @@ export function heroHtml(opts: {
 }) {
   /* Everything below reaches the DOM through dangerouslySetInnerHTML, so every
      value that came from a person MUST be escaped — the same rule profile.ts
-     and the organisation settings screen already follow. The action band is
-     where it bites: `sub` carries a chip's label and subject, which are a
-     licence type name, a vehicle's name or plate, a staff member's name or the
-     insurer — all typed in by users, and a licence anyone may add to their own
-     card lands on a manager's dashboard. */
-  const a = opts.action;
-  const band = a
-    ? `<a class="hact ${a.state}" href="${esc(a.href)}">` +
-      `<span class="ha-ic">${I(a.state === "ok" ? "check" : "alert", 18)}</span>` +
-      `<span class="ha-main"><b class="ha-title">${esc(a.title)}</b><em class="ha-sub">${esc(a.sub)}</em></span>` +
-      `<span class="ha-chev">${I("arrowR", 18)}</span>` +
-      "</a>"
-    : "";
+     and the organisation settings screen already follow. What's left that a
+     person typed is the viewer's own name; the counters are counts and their
+     labels are ours. The action band used to carry the sharp edge (a chip's
+     label and subject: a licence type, a vehicle's plate, the insurer, all
+     user-entered) and it is gone, but the escaping stays either way. */
 
   /* A tile with nothing in it is deliberately DIM (`.zero`): the four counters
      are a "does anything need me" glance, so a clear day should read as calm
@@ -89,7 +74,6 @@ export function heroHtml(opts: {
     "</div>" +
     `<h1>${esc(opts.greeting)},<br><span>${esc(opts.firstName)}.</span></h1>` +
     '<p class="lede">Welcome back. Your workspace is ready.</p>' +
-    band +
     "</div>" +
     stats +
     "</div>" +

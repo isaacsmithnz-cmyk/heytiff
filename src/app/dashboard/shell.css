@@ -4062,6 +4062,51 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .wb2-capclock { font-variant-numeric:tabular-nums; font-size:12.5px; font-weight:800; color:var(--gray700); }
 .wb2-recdot { width:10px; height:10px; border-radius:50%; background:#e0264f; flex:none; animation:fgPulse 1.6s ease-in-out infinite; }
 .wb2-capact { display:flex; align-items:center; justify-content:flex-end; gap:9px; margin-top:12px; flex-wrap:wrap; }
+/* the ribbon's target, when the note has to be told where it belongs */
+.wb2-capattach { margin-left:auto; display:flex; align-items:center; gap:8px; min-width:0; }
+.wb2-capattach .wb2-sel { max-width:300px; font-size:12.5px; padding:6px 10px; }
+
+/* ── which job — confirm it, or search for the right one ──
+   The control sits ON the line it changes, not above it: "instead of saying
+   change it above, I'll hit the wrong one" (Isaac). And it's a SEARCH, not a
+   select — a select is a list you navigate past the answer, this is one you
+   narrow onto it. */
+.wb2-capchange { margin-left:auto; flex:none; height:26px; padding:0 11px; border-radius:999px;
+  border:1px solid rgba(5,5,5,.14); background:#fff; font:inherit; font-size:11.5px; font-weight:800;
+  color:var(--gray700); cursor:pointer; transition:background .18s, border-color .18s, color .18s; }
+.wb2-capchange:hover { background:rgba(0,168,224,.07); border-color:#0089b8; color:#00607f; }
+.wb2-capchange:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
+.wb2-jobpick { margin-top:8px; border:1px solid var(--wb2-line, rgba(5,5,5,.08)); border-radius:14px;
+  background:#fff; overflow:hidden; box-shadow:0 18px 40px -28px rgba(10,12,20,.55);
+  animation:wb2DropIn .22s cubic-bezier(.22,1,.36,1) both; }
+.wb2-jobsearch { display:flex; align-items:center; gap:9px; padding:9px 11px;
+  border-bottom:1px solid var(--wb2-line2, rgba(5,5,5,.06)); color:var(--gray400); }
+.wb2-jobq { flex:1; min-width:0; border:0; background:none; font:inherit; font-size:13px; font-weight:600;
+  color:var(--ink); }
+.wb2-jobq:focus { outline:none; }
+.wb2-jobq::-webkit-search-cancel-button { -webkit-appearance:none; }
+.wb2-joblist { max-height:230px; overflow-y:auto; overscroll-behavior:contain; padding:5px; }
+.wb2-jobopt { display:block; width:100%; text-align:left; padding:8px 10px; border:0; border-radius:9px;
+  background:none; font:inherit; font-size:12.5px; font-weight:600; color:var(--gray700); cursor:pointer;
+  transition:background .14s, color .14s; }
+.wb2-jobopt:hover { background:rgba(0,168,224,.08); color:var(--ink); }
+.wb2-jobopt.on { background:rgba(0,163,137,.1); color:var(--ink); font-weight:800; }
+.wb2-jobopt:focus-visible { outline:none; box-shadow:0 0 0 2px rgba(0,168,224,.4); }
+.wb2-joblist .wb2-hint { padding:10px; margin:0; }
+@media (prefers-reduced-motion:reduce) { .wb2-jobpick { animation:none; } }
+/* a row that CANNOT be saved says so here, and Save stays off until it can */
+.wb2-capstop { display:flex; align-items:flex-start; gap:8px; margin:10px 0 0; padding:9px 12px; border-radius:11px;
+  background:rgba(255,138,0,.09); border:1px solid rgba(255,138,0,.32);
+  font-size:12.5px; font-weight:700; color:var(--wb2-warn-t, #B45309); }
+.wb2-capsaid { font-style:normal; font-size:11px; font-weight:700; color:var(--gray500); white-space:nowrap; }
+/* WHICH JOB — said back to you with its number, so agreeing is a glance */
+.wb2-capjob { display:flex; align-items:flex-start; gap:8px; margin:10px 0 0; padding:9px 12px; border-radius:11px;
+  background:rgba(5,5,5,.035); border:1px solid var(--wb2-line2, rgba(5,5,5,.06));
+  font-size:12.5px; font-weight:600; color:var(--gray700); }
+.wb2-capjob b { font-weight:800; color:var(--ink); }
+.wb2-capjob svg { flex:none; margin-top:1px; color:var(--gray400); }
+.wb2-capjob.on { background:rgba(0,163,137,.07); border-color:rgba(0,163,137,.3); }
+.wb2-capjob.on svg { color:var(--wb2-ok, #00A389); }
 .wb2-caprec { display:flex; flex-direction:column; align-items:center; gap:10px; padding:14px 0 2px; }
 .wb2-caprec .wb-lvl { height:34px; }
 .wb2-caprec .wb-lvl i { height:34px; width:4px; }

@@ -10,7 +10,7 @@
 
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { NoteCapture } from "../note-capture";
+import { NoteCapture, type NoteAttachOption } from "../note-capture";
 import type { NoteProposal } from "@/lib/workboard/note-brain";
 
 jest.mock("next/navigation", () => ({
@@ -128,7 +128,9 @@ describe("the engine, through the new clothes", () => {
       "n-1",
       expect.objectContaining({
         flags: [{ message: "Middle RTU tripping on start", severity: "warn" }],
-      })
+      }),
+      // no re-target: this note already knew what it was against
+      undefined
     );
     // saved → overlay closes, the pill wears the summary for a moment
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -187,5 +189,292 @@ describe("the engine, through the new clothes", () => {
       within(screen.getByRole("dialog")).getAllByRole("button", { name: "Discard" })[0]
     );
     expect(dismissNote).not.toHaveBeenCalled();
+  });
+});
+
+/* THE BLACK HOLE, PINNED SHUT.
+
+   Isaac dictated two tasks and two bring-items from the board header, pressed
+   Save, and the database recorded `applied: {}` — nothing was created and the
+   pill said "Saved as a note." Both tasks were dropped because neither had a
+   person on it; both bring-items were dropped because a general note has no
+   job to hang a bring-list off. Every one of those drops was silent, and the
+   button was enabled because SOMETHING was ticked.
+
+   These are that exact note. */
+describe("nothing is thrown away quietly", () => {
+  const kingsford = () =>
+    proposal({
+      plainNote: "Site visit to Kingsford Medical Centre scheduled for 3 August.",
+      tasks: [
+        {
+          title: "Organise filters for Kingsford Medical Centre",
+          detail: "",
+          assigneeId: null,
+          assigneeHint: "Luke",
+          dueHint: "before Monday's visit (3 August)",
+        },
+        {
+          title: "Hire scissor lift for Kingsford Medical Centre",
+          detail: "",
+          assigneeId: null,
+          assigneeHint: "",
+          dueHint: "",
+        },
+      ],
+      bringItems: ["2 x 20x20x2 filters", "Scissor lift (hired) for outdoor unit access"],
+    });
+
+  const openIt = async (attachOptions: NoteAttachOption[] = []) => {
+    routeNote.mockResolvedValue({
+      ok: true,
+      noteId: "n-1",
+      proposal: kingsford(),
+      staff: [{ id: "s-1", fullName: "Dane Poulos" }],
+    });
+    render(
+      <NoteCapture target={{ kind: "none" }} voiceEnabled={false} attachOptions={attachOptions} />
+    );
+    await userEvent.click(screen.getByRole("button", { name: /Add note/ }));
+    const overlay = within(screen.getByRole("dialog"));
+    /* The words matter here: the matcher runs on what was actually said, and
+       this is Isaac's note — including "Center", which is not how the
+       agreement spells it. */
+    await userEvent.type(
+      overlay.getByPlaceholderText(/Tell Luke/),
+      "Luke needs to organize some filters for Kingsford Medical Center"
+    );
+    await userEvent.click(overlay.getByRole("button", { name: "Sort this out" }));
+    return overlay;
+  };
+
+  it("will not let you save a note whose every row would be dropped", async () => {
+    const overlay = await openIt();
+    expect(overlay.getByRole("button", { name: "Save these" })).toBeDisabled();
+    expect(overlay.getByText(/2 tasks still need a person on them/)).toBeInTheDocument();
+    expect(overlay.getByText(/bring-list needs a job to sit on/)).toBeInTheDocument();
+    expect(applyNote).not.toHaveBeenCalled();
+  });
+
+  it("unticking what can't be done is a way out, and re-enables Save", async () => {
+    const overlay = await openIt();
+    await userEvent.click(overlay.getByLabelText(/Skip Organise filters/));
+    await userEvent.click(overlay.getByLabelText(/Skip Hire scissor lift/));
+    await userEvent.click(overlay.getByLabelText(/Skip 2 x 20x20x2 filters/));
+    await userEvent.click(overlay.getByLabelText(/Skip Scissor lift \(hired\)/));
+    // everything unticked is its own stop — there is nothing left to save
+    expect(overlay.getByRole("button", { name: "Save these" })).toBeDisabled();
+    expect(overlay.queryByText(/still need a person/)).not.toBeInTheDocument();
+  });
+
+  it("assigning the people and saying which job it's against clears every stop", async () => {
+    const overlay = await openIt([
+      {
+        kind: "agreement",
+        id: "a-king",
+        clientName: "Kingsford Medical Centre",
+        label: "Ducted units — quarterly",
+        siteLabel: null,
+        jobNumber: null,
+      },
+    ]);
+    await userEvent.click(overlay.getByRole("button", { name: /Pick a job|Change/ }));
+    await userEvent.click(
+      overlay.getByRole("option", { name: /Kingsford Medical Centre — Ducted units/ })
+    );
+    for (const s of overlay.getAllByRole("combobox")) {
+      await userEvent.selectOptions(s, "s-1");
+    }
+    const save = overlay.getByRole("button", { name: "Save these" });
+    expect(save).toBeEnabled();
+    await userEvent.click(save);
+    expect(applyNote).toHaveBeenCalledWith(
+      "n-1",
+      expect.objectContaining({
+        tasks: [
+          expect.objectContaining({ title: "Organise filters for Kingsford Medical Centre" }),
+          expect.objectContaining({ title: "Hire scissor lift for Kingsford Medical Centre" }),
+        ],
+        bringItems: ["2 x 20x20x2 filters", "Scissor lift (hired) for outdoor unit access"],
+      }),
+      { kind: "agreement", id: "a-king" }
+    );
+  });
+
+  it("keeps what was SAID about when, even though the phrase isn't a date", async () => {
+    const overlay = await openIt();
+    expect(overlay.getByText(/said: before Monday's visit \(3 August\)/)).toBeInTheDocument();
+  });
+
+  /* Isaac: "It should also confirm the job number or the job card that you
+     are referring to." The note names a client out loud, so the card comes
+     back with the job card it thinks that is — number and all — and the
+     picker is already on it. Agreeing is a glance, not a search. */
+  it("says which job card it thinks you meant, with its job number", async () => {
+    const overlay = await openIt([
+      {
+        kind: "visit",
+        id: "v-king",
+        clientName: "Kingsford Medical Centre",
+        label: "Ducted units — quarterly",
+        siteLabel: "Consult wing",
+        jobNumber: "1042",
+      },
+      {
+        kind: "visit",
+        id: "v-ardex",
+        clientName: "Ardex Logistics",
+        label: "Rooftop package units",
+        siteLabel: "Bay 4",
+        jobNumber: "1001",
+      },
+    ]);
+    expect(overlay.getByText(/Sounds like/)).toBeInTheDocument();
+    expect(
+      overlay.getByText("Kingsford Medical Centre — Ducted units — quarterly · Consult wing · job #1042")
+    ).toBeInTheDocument();
+    // it's already ON it — the button offers to CHANGE it, not to choose one
+    expect(overlay.getByRole("button", { name: "Change" })).toBeInTheDocument();
+  });
+
+  it("saves against the job it confirmed, without anyone touching the picker", async () => {
+    const overlay = await openIt([
+      {
+        kind: "visit",
+        id: "v-king",
+        clientName: "Kingsford Medical Centre",
+        label: "Ducted units",
+        siteLabel: null,
+        jobNumber: "1042",
+      },
+    ]);
+    for (const sel of overlay.getAllByRole("combobox")) {
+      await userEvent.selectOptions(sel, "s-1");
+    }
+    await userEvent.click(overlay.getByRole("button", { name: "Save these" }));
+    expect(applyNote).toHaveBeenCalledWith("n-1", expect.anything(), {
+      kind: "visit",
+      id: "v-king",
+    });
+  });
+
+  it("a guess is a suggestion — setting it back to General note sticks", async () => {
+    const overlay = await openIt([
+      {
+        kind: "visit",
+        id: "v-king",
+        clientName: "Kingsford Medical Centre",
+        label: "Ducted units",
+        siteLabel: null,
+        jobNumber: "1042",
+      },
+    ]);
+    await userEvent.click(overlay.getByRole("button", { name: "Change" }));
+    await userEvent.click(overlay.getByRole("option", { name: /General note/ }));
+    expect(overlay.getByText(/isn't against a job yet/)).toBeInTheDocument();
+    // and the bring-list stop comes back, because there is nowhere to put it
+    expect(overlay.getByText(/bring-list needs a job to sit on/)).toBeInTheDocument();
+  });
+
+  it("won't guess between two jobs for the same client — it asks", async () => {
+    const twin = (id: string, site: string) => ({
+      kind: "visit" as const,
+      id,
+      clientName: "Kingsford Medical Centre",
+      label: "Ducted units",
+      siteLabel: site,
+      jobNumber: null,
+    });
+    const overlay = await openIt([twin("v-a", "Consult wing"), twin("v-b", "Plant room")]);
+    expect(overlay.getByText(/More than one job matches/)).toBeInTheDocument();
+    expect(overlay.getByRole("button", { name: "Pick a job" })).toBeInTheDocument();
+  });
+
+  /* Isaac: "instead of saying change it above, I'll hit the wrong one. Just
+     have a clickable change, which will open up a drop down search for jobs."
+     A select is a list you navigate past the answer; this is one you narrow
+     onto it. */
+  describe("the job search", () => {
+    const roster = [
+      {
+        kind: "visit" as const,
+        id: "v-king",
+        clientName: "Kingsford Medical Centre",
+        label: "Ducted units — quarterly",
+        siteLabel: "Consult wing",
+        jobNumber: "1042",
+      },
+      {
+        kind: "visit" as const,
+        id: "v-ardex",
+        clientName: "Ardex Logistics",
+        label: "Rooftop package units",
+        siteLabel: "Bay 4",
+        jobNumber: "1001",
+      },
+      {
+        kind: "agreement" as const,
+        id: "a-mer",
+        clientName: "Meridian Data",
+        label: "Server room CRACs",
+        siteLabel: null,
+        jobNumber: null,
+      },
+    ];
+
+    it("narrows the board to what you type, by number as readily as by name", async () => {
+      const overlay = await openIt(roster);
+      await userEvent.click(overlay.getByRole("button", { name: "Change" }));
+      await userEvent.type(overlay.getByLabelText("Search jobs"), "1001");
+      // scoped to the job list: the assignee <select>s carry options too
+      const jobs = within(overlay.getByRole("listbox", { name: "Jobs" }));
+      const shown = jobs.getAllByRole("option").map((o) => o.textContent);
+      // General note always survives; only Ardex matches the number
+      expect(shown).toHaveLength(2);
+      expect(shown[1]).toContain("Ardex Logistics");
+    });
+
+    it("says so when nothing matches, rather than showing an empty box", async () => {
+      const overlay = await openIt(roster);
+      await userEvent.click(overlay.getByRole("button", { name: "Change" }));
+      await userEvent.type(overlay.getByLabelText("Search jobs"), "belmont");
+      expect(overlay.getByText(/Nothing on the board matches/)).toBeInTheDocument();
+    });
+
+    it("picking one closes the search and moves the confirmation onto it", async () => {
+      const overlay = await openIt(roster);
+      await userEvent.click(overlay.getByRole("button", { name: "Change" }));
+      await userEvent.click(overlay.getByRole("option", { name: /Ardex Logistics/ }));
+      expect(overlay.queryByLabelText("Search jobs")).not.toBeInTheDocument();
+      expect(overlay.getByText(/Going on/)).toBeInTheDocument();
+      expect(overlay.getByText(/Ardex Logistics — Rooftop package units · Bay 4 · job #1001/)).toBeInTheDocument();
+    });
+
+    /* Escape belongs to the innermost thing that's open. Discarding a whole
+       reviewed note because you meant to shut a dropdown would be its own bug. */
+    it("Escape closes the search, not the note", async () => {
+      const overlay = await openIt(roster);
+      await userEvent.click(overlay.getByRole("button", { name: "Change" }));
+      await userEvent.keyboard("{Escape}");
+      expect(overlay.queryByLabelText("Search jobs")).not.toBeInTheDocument();
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+      expect(dismissNote).not.toHaveBeenCalled();
+      // and a second Escape now closes the note, as it always did
+      await userEvent.keyboard("{Escape}");
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+
+    it("General note is always reachable — belonging to nothing is a real answer", async () => {
+      const overlay = await openIt(roster);
+      await userEvent.click(overlay.getByRole("button", { name: "Change" }));
+      await userEvent.type(overlay.getByLabelText("Search jobs"), "zzzz");
+      expect(overlay.getByRole("option", { name: /General note/ })).toBeInTheDocument();
+    });
+  });
+
+  it("offers no picker at all on a board with nothing to attach to", async () => {
+    const overlay = await openIt([]);
+    expect(overlay.getByText("General note")).toBeInTheDocument();
+    expect(overlay.queryByRole("option", { name: /General note — nothing/ })).not.toBeInTheDocument();
   });
 });

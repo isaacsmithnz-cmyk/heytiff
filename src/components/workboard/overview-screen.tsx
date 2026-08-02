@@ -230,6 +230,64 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
     return () => window.removeEventListener("resize", measure);
   }, [tab, badges.maintenance.n, badges.projects.n]);
 
+  /* THE JOB CARDS a general note can be pinned to on review. Speaking a
+     client's name from the board header is the normal case — "Luke needs to
+     organise some filters for Kingsford Medical Centre" — and the note had no
+     way to point at them, so its bring-list was silently thrown away on save.
+
+     OPEN VISITS AND TRIPS FIRST, because they're the thing that carries a job
+     number, and a job number is what makes "is this the right one?" a glance
+     instead of a guess. Agreements follow for work with no visit raised yet;
+     projects last. An agreement is offered once even if it has three open
+     visits — the visits are the specific answer and the agreement is the
+     fallback, so listing both keeps the general case reachable. */
+  const attachOptions = useMemo(() => {
+    const openOf = (s: string) => s === "upcoming" || s === "booked";
+    return [
+      ...data.board.visits
+        .filter((v) => openOf(v.status))
+        .map((v) => ({
+          kind: "visit" as const,
+          id: v.id,
+          clientName: v.clientName,
+          label: v.label,
+          siteLabel: v.siteLabel,
+          jobNumber: v.jobNumber,
+        })),
+      ...data.projectsBoard.visits
+        .filter((v) => openOf(v.status))
+        .map((v) => ({
+          kind: "visit" as const,
+          id: v.id,
+          clientName: v.clientName ?? v.projectName,
+          label: `${v.projectName} · ${v.label}`,
+          siteLabel: v.siteLabel,
+          jobNumber: v.jobNumber,
+        })),
+      ...data.board.agreements.map((a) => ({
+        kind: "agreement" as const,
+        id: a.id,
+        clientName: a.clientName,
+        label: a.label,
+        siteLabel: a.siteLabel,
+        jobNumber: null,
+      })),
+      ...data.projectsBoard.projects.map((p) => ({
+        kind: "project" as const,
+        id: p.id,
+        clientName: p.clientName ?? p.name,
+        label: p.name,
+        siteLabel: p.siteLabel,
+        jobNumber: null,
+      })),
+    ];
+  }, [
+    data.board.visits,
+    data.board.agreements,
+    data.projectsBoard.visits,
+    data.projectsBoard.projects,
+  ]);
+
   /* ONE pill, owned by the page, rendered inside whichever board is up —
      at the tab row's right end, where the handoff docks it (D15). Display
      mode keeps it: the whole point of the mode is that you can work off it. */
@@ -238,6 +296,7 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
       target={capture ? { kind: "visit", id: capture.visitId } : { kind: "none" }}
       targetLabel={capture?.label}
       voiceEnabled={data.voiceEnabled}
+      attachOptions={attachOptions}
     />
   );
 

@@ -148,19 +148,30 @@ describe("tasks", () => {
 
   it("refuses an assignee who isn't in this org", async () => {
     lists.staff_profiles = []; // the scoped lookup finds nobody
-    await applyNote(
+    const res = await applyNote(
       "n-1",
       confirmed({ tasks: [{ title: "Order grilles", detail: "", assigneeId: "s-elsewhere", dueDate: null }] })
     );
+    expect(res.ok).toBe(false);
     expect(inserts.some((i) => i.table === "tasks")).toBe(false);
   });
 
-  it("drops a task with nobody on it rather than creating one nobody does", async () => {
-    await applyNote(
+  /* This used to FILTER, and the summary counted what was left — which is how
+     two of Isaac's tasks disappeared between the review card and the database
+     while the pill said "Saved as a note." An unassigned task is a task nobody
+     does, and refusing is the only honest answer. */
+  it("REFUSES a task with nobody on it — it does not quietly drop it", async () => {
+    const res = await applyNote(
       "n-1",
       confirmed({ tasks: [{ title: "Order grilles", detail: "", assigneeId: null, dueDate: null }] })
     );
+    expect(res.ok).toBe(false);
+    expect(res.ok === false && res.error).toMatch(/needs a person/);
     expect(inserts.some((i) => i.table === "tasks")).toBe(false);
+    // and the note is NOT marked applied over an empty object
+    expect(updates.some((u) => u.table === "workboard_notes" && u.patch.status === "applied")).toBe(
+      false
+    );
   });
 
   it("ignores a junk due date instead of failing the whole apply", async () => {
@@ -228,6 +239,37 @@ describe("entries and bring-items", () => {
       section: "Bring next visit",
       label: "2 × 595 filters",
     });
+  });
+
+  /* A bring-list is text on somebody else's row. With a general note there is
+     no row, and these used to vanish without a word. */
+  it("REFUSES bring-items on a note with no job to hang them off", async () => {
+    rows.workboard_notes = { ...NOTE, target_kind: "none", target_id: null };
+    const res = await applyNote("n-1", confirmed({ bringItems: ["2 × 595 filters"] }));
+    expect(res.ok).toBe(false);
+    expect(res.ok === false && res.error).toMatch(/needs a job to sit on/);
+    expect(updates.some((u) => u.table === "workboard_notes" && u.patch.status === "applied")).toBe(
+      false
+    );
+  });
+
+  it("takes the review card's re-target, so a general note can be pinned to a job on save", async () => {
+    rows.workboard_notes = { ...NOTE, target_kind: "none", target_id: null };
+    rows.maintenance_agreements = { id: "a-1", bring_list: null };
+    const res = await applyNote("n-1", confirmed({ bringItems: ["2 × 595 filters"] }), {
+      kind: "agreement",
+      id: "a-1",
+    });
+    expect(res.ok).toBe(true);
+    // the note itself remembers where it ended up
+    expect(
+      updates.some(
+        (u) => u.table === "workboard_notes" && u.patch.target_kind === "agreement" && u.patch.target_id === "a-1"
+      )
+    ).toBe(true);
+    expect(updates.find((u) => u.table === "maintenance_agreements")!.patch.bring_list).toBe(
+      "2 × 595 filters"
+    );
   });
 
   it("an agreement's bring-items append to its existing list rather than replacing it", async () => {

@@ -196,41 +196,6 @@ export function MaintenanceBoard({
     ? data.agreements.find((a) => a.id === agreementId) ?? null
     : null;
 
-  /** K8's lost feature: the whole category's NEXT visits onto one day, one
-      pass — with one undo restoring every visit to wherever it was. */
-  const bookCategory = (ids: string[], day: string, categoryName: string) => {
-    const targets = ids
-      .map((id) => {
-        const open = data.visits
-          .filter(
-            (v) =>
-              v.agreementId === id && (v.status === "upcoming" || v.status === "booked")
-          )
-          .sort((a, b) => (a.dueDate < b.dueDate ? -1 : 1));
-        return open[0] ?? null;
-      })
-      .filter((v): v is NonNullable<typeof v> => v !== null && v.bookedDate !== day);
-    if (targets.length === 0) {
-      toast(`${categoryName}: nothing open to book`);
-      return;
-    }
-    const restore = targets.map((v) => ({ id: v.id, from: v.bookedDate }));
-    (async () => {
-      for (const v of targets) await placeVisit(v.id, day);
-      toast(
-        `${categoryName}: ${targets.length} ${targets.length === 1 ? "visit" : "visits"} placed on ${fmtAuWeekdayDayMonth(day)}`,
-        async () => {
-          for (const r of restore) {
-            if (r.from) await placeVisit(r.id, r.from);
-            else await clearVisitPlacement(r.id);
-          }
-          router.refresh();
-        }
-      );
-      router.refresh();
-    })();
-  };
-
   return (
     <div className="wb2">
       <div className="wb2-vtabs" ref={rowRef} role="tablist" aria-label="Maintenance board">
@@ -293,6 +258,7 @@ export function MaintenanceBoard({
             <CompletedTab
               visits={data.visits}
               count={doneCount}
+              today={today}
               manage={manage}
               onOpen={(id) => openSheet(id)}
               onToast={toast}
@@ -305,7 +271,6 @@ export function MaintenanceBoard({
               manage={manage}
               onOpen={(id) => setAgreementId(id)}
               onNew={() => setCreating(true)}
-              onBookCategory={bookCategory}
             />
           )}
         </div>

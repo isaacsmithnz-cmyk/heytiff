@@ -4,7 +4,7 @@ import { useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
-import { BOARD_DONE_DAYS, completionTiming } from "@/lib/workboard/board-status";
+import { BOARD_DONE_DAYS, completionTiming, daysBetween } from "@/lib/workboard/board-status";
 import { setVisitInvoiced } from "@/app/actions/workboard-maintenance";
 import type { BoardVisit } from "@/lib/workboard/board-query";
 import { hoursLabel } from "./derive";
@@ -27,15 +27,27 @@ function noteSource(v: BoardVisit): string {
   return `${who ?? "the technician"}, on the job sheet`;
 }
 
+/** "yesterday" / "6 days ago" — how stale this is, said the way the design
+    says it. Beyond a fortnight the exact date carries it on its own. */
+function agoWords(doneISO: string, today: string): string {
+  const days = daysBetween(doneISO, today);
+  if (days <= 0) return "today";
+  if (days === 1) return "yesterday";
+  if (days < 14) return `${days} days ago`;
+  return "";
+}
+
 export function CompletedTab({
   visits,
   count,
+  today,
   manage,
   onOpen,
   onToast,
 }: {
   visits: BoardVisit[];
   count: number;
+  today: string;
   manage: boolean;
   onOpen: (visitId: string) => void;
   onToast: (message: string, undo?: () => void | Promise<void>) => void;
@@ -92,7 +104,12 @@ export function CompletedTab({
           </em>
         </div>
         <div className="wb2-dnw">
-          <b>{fmtAuWeekdayDayMonth(v.completedAt!)}</b>
+          {/* "Sat 20 June" answers WHEN; "6 days ago" answers how stale the
+              invoice is, which is the question this screen exists for. */}
+          <b>
+            {fmtAuWeekdayDayMonth(v.completedAt!)}
+            <i>{agoWords(v.completedAt!, today)}</i>
+          </b>
           <em>
             {v.techs.length
               ? v.techs.map((t) => t.name).join(", ")

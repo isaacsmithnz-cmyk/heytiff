@@ -10,7 +10,7 @@
 
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { NoteCapture } from "../note-capture";
+import { NoteCapture, type NoteAttachOption } from "../note-capture";
 import type { NoteProposal } from "@/lib/workboard/note-brain";
 
 jest.mock("next/navigation", () => ({
@@ -225,7 +225,7 @@ describe("nothing is thrown away quietly", () => {
       bringItems: ["2 x 20x20x2 filters", "Scissor lift (hired) for outdoor unit access"],
     });
 
-  const openIt = async (attachOptions: { kind: "agreement"; id: string; label: string }[] = []) => {
+  const openIt = async (attachOptions: NoteAttachOption[] = []) => {
     routeNote.mockResolvedValue({
       ok: true,
       noteId: "n-1",
@@ -237,7 +237,13 @@ describe("nothing is thrown away quietly", () => {
     );
     await userEvent.click(screen.getByRole("button", { name: /Add note/ }));
     const overlay = within(screen.getByRole("dialog"));
-    await userEvent.type(overlay.getByPlaceholderText(/Tell Luke/), "Luke needs filters");
+    /* The words matter here: the matcher runs on what was actually said, and
+       this is Isaac's note — including "Center", which is not how the
+       agreement spells it. */
+    await userEvent.type(
+      overlay.getByPlaceholderText(/Tell Luke/),
+      "Luke needs to organize some filters for Kingsford Medical Center"
+    );
     await userEvent.click(overlay.getByRole("button", { name: "Sort this out" }));
     return overlay;
   };
@@ -263,7 +269,14 @@ describe("nothing is thrown away quietly", () => {
 
   it("assigning the people and saying which job it's against clears every stop", async () => {
     const overlay = await openIt([
-      { kind: "agreement", id: "a-king", label: "Kingsford Medical Centre — Ducted units" },
+      {
+        kind: "agreement",
+        id: "a-king",
+        clientName: "Kingsford Medical Centre",
+        label: "Ducted units — quarterly",
+        siteLabel: null,
+        jobNumber: null,
+      },
     ]);
     const selects = overlay.getAllByRole("combobox");
     // the first is the ribbon's "Against"; the task assignees follow
@@ -290,6 +303,93 @@ describe("nothing is thrown away quietly", () => {
   it("keeps what was SAID about when, even though the phrase isn't a date", async () => {
     const overlay = await openIt();
     expect(overlay.getByText(/said: before Monday's visit \(3 August\)/)).toBeInTheDocument();
+  });
+
+  /* Isaac: "It should also confirm the job number or the job card that you
+     are referring to." The note names a client out loud, so the card comes
+     back with the job card it thinks that is — number and all — and the
+     picker is already on it. Agreeing is a glance, not a search. */
+  it("says which job card it thinks you meant, with its job number", async () => {
+    const overlay = await openIt([
+      {
+        kind: "visit",
+        id: "v-king",
+        clientName: "Kingsford Medical Centre",
+        label: "Ducted units — quarterly",
+        siteLabel: "Consult wing",
+        jobNumber: "1042",
+      },
+      {
+        kind: "visit",
+        id: "v-ardex",
+        clientName: "Ardex Logistics",
+        label: "Rooftop package units",
+        siteLabel: "Bay 4",
+        jobNumber: "1001",
+      },
+    ]);
+    // said twice on purpose: once in the picker's own option, once in the
+    // confirmation line under it
+    expect(overlay.getByText(/Sounds like/)).toBeInTheDocument();
+    expect(
+      overlay.getAllByText(
+        /Kingsford Medical Centre — Ducted units — quarterly · Consult wing · job #1042/
+      ).length
+    ).toBeGreaterThanOrEqual(1);
+    // and the picker is already sitting on it, so Save attaches there
+    expect(overlay.getByLabelText("Which job this note is against")).toHaveValue("visit:v-king");
+  });
+
+  it("saves against the job it confirmed, without anyone touching the picker", async () => {
+    const overlay = await openIt([
+      {
+        kind: "visit",
+        id: "v-king",
+        clientName: "Kingsford Medical Centre",
+        label: "Ducted units",
+        siteLabel: null,
+        jobNumber: "1042",
+      },
+    ]);
+    for (const sel of overlay.getAllByRole("combobox").slice(1)) {
+      await userEvent.selectOptions(sel, "s-1");
+    }
+    await userEvent.click(overlay.getByRole("button", { name: "Save these" }));
+    expect(applyNote).toHaveBeenCalledWith("n-1", expect.anything(), {
+      kind: "visit",
+      id: "v-king",
+    });
+  });
+
+  it("a guess is a suggestion — setting it back to General note sticks", async () => {
+    const overlay = await openIt([
+      {
+        kind: "visit",
+        id: "v-king",
+        clientName: "Kingsford Medical Centre",
+        label: "Ducted units",
+        siteLabel: null,
+        jobNumber: "1042",
+      },
+    ]);
+    await userEvent.selectOptions(overlay.getByLabelText("Which job this note is against"), "");
+    expect(overlay.getByLabelText("Which job this note is against")).toHaveValue("");
+    // and the bring-list stop comes back, because there is nowhere to put it
+    expect(overlay.getByText(/bring-list needs a job to sit on/)).toBeInTheDocument();
+  });
+
+  it("won't guess between two jobs for the same client — it asks", async () => {
+    const twin = (id: string, site: string) => ({
+      kind: "visit" as const,
+      id,
+      clientName: "Kingsford Medical Centre",
+      label: "Ducted units",
+      siteLabel: site,
+      jobNumber: null,
+    });
+    const overlay = await openIt([twin("v-a", "Consult wing"), twin("v-b", "Plant room")]);
+    expect(overlay.getByText(/More than one job matches/)).toBeInTheDocument();
+    expect(overlay.getByLabelText("Which job this note is against")).toHaveValue("");
   });
 
   it("offers no picker at all on a board with nothing to attach to", async () => {

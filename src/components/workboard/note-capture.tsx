@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { LevelBars, clockOf, useDictation } from "./dictation";
 import { useNoteBrain } from "./note-brain-context";
 import { SEVERITIES, type NoteProposal, type NoteStaff } from "@/lib/workboard/note-brain";
+import { describeJob, matchJob, type JobCandidate } from "@/lib/workboard/note-match";
 import {
   answerClarify,
   applyNote,
@@ -123,8 +124,8 @@ function blockers(d: Draft, hasTarget: boolean): string[] {
   return out;
 }
 
-/** Something a general note can be pinned to on review. */
-export type NoteAttachOption = { kind: "agreement" | "project"; id: string; label: string };
+/** A job card a general note can be pinned to on review. */
+export type NoteAttachOption = JobCandidate;
 
 export function NoteCapture({
   target,
@@ -138,9 +139,9 @@ export function NoteCapture({
   targetLabel?: string;
   /** ELEVENLABS_API_KEY is set on this deployment. */
   voiceEnabled: boolean;
-  /** The board's own work, offered when a note was dictated against nothing.
-      Speaking a client's name from the board header is the normal case, and
-      the note had no way to say who it meant. */
+  /** The board's own job cards, offered when a note was dictated against
+      nothing. Speaking a client's name from the board header is the normal
+      case, and the note had no way to say who it meant. */
   attachOptions?: NoteAttachOption[];
 }) {
   const router = useRouter();
@@ -163,6 +164,7 @@ export function NoteCapture({
     setAnswer("");
     setText("");
     setAttachTo("");
+    setTouched(false);
   };
 
   const read = useCallback(
@@ -233,14 +235,34 @@ export function NoteCapture({
 
   /* ── the review (the engine's contract, unchanged) ── */
 
-  /* Where this note will land. A note dictated with a sheet open already
-     knows; one dictated from the board header does not, and used to have no
-     way of ever finding out. */
+  /* WHICH JOB DID THE NOTE MEAN? The words name a client out loud, so the
+     card comes back with the job card it thinks that is — number and all —
+     for a person to confirm, rather than making them hunt a dropdown. The
+     matching is plain code (lib/workboard/note-match), never the model:
+     understanding is probabilistic, effect is deterministic, and nothing here
+     happens until Save. */
+  const guess = useMemo(
+    () => matchJob(text || note?.proposal.plainNote || "", attachOptions),
+    [text, note, attachOptions]
+  );
+  /* The guess is a SUGGESTION, so it seeds the picker and stays overridable —
+     `attachTo` wins the moment it's touched, including when it's set back to
+     "General note". */
+  const [touched, setTouched] = useState(false);
+  const picked = touched
+    ? attachTo
+    : guess.bestId
+      ? `${attachOptions.find((o) => o.id === guess.bestId)?.kind}:${guess.bestId}`
+      : "";
+
   const chosen: NoteTarget | null = (() => {
-    if (!attachTo) return null;
-    const [kind, id] = attachTo.split(":");
-    return kind === "agreement" || kind === "project" ? { kind, id } : null;
+    if (!picked) return null;
+    const [kind, id] = picked.split(":");
+    return kind === "agreement" || kind === "project" || kind === "visit"
+      ? { kind: kind as NoteTarget["kind"], id }
+      : null;
   })();
+  const chosenOption = chosen ? attachOptions.find((o) => o.id === chosen.id) ?? null : null;
   const hasTarget = (target.kind !== "none" && !!target.id) || !!chosen;
   const stops = draft ? blockers(draft, hasTarget) : [];
 
@@ -366,13 +388,17 @@ export function NoteCapture({
                     <span className="wb2-sect">Against</span>
                     <select
                       className="wb2-sel"
-                      value={attachTo}
-                      onChange={(e) => setAttachTo(e.target.value)}
+                      aria-label="Which job this note is against"
+                      value={picked}
+                      onChange={(e) => {
+                        setTouched(true);
+                        setAttachTo(e.target.value);
+                      }}
                     >
                       <option value="">General note — nothing in particular</option>
-                      {attachOptions.map((o) => (
+                      {guess.ranked.map((o) => (
                         <option key={`${o.kind}:${o.id}`} value={`${o.kind}:${o.id}`}>
-                          {o.label}
+                          {describeJob(o)}
                         </option>
                       ))}
                     </select>
@@ -387,6 +413,30 @@ export function NoteCapture({
               </div>
 
               {error && <p className="wb2-sherr">{error}</p>}
+
+              {/* CONFIRM THE JOB, don't just offer a list. The note said a
+                  client's name; this says which job card that is and what its
+                  job number is, so agreeing is a glance rather than a search. */}
+              {note && !targetLabel && attachOptions.length > 0 && (
+                <p className={"wb2-capjob" + (chosenOption ? " on" : "")}>
+                  <Icon name={chosenOption ? "check" : "alert"} size={14} />
+                  {chosenOption ? (
+                    <span>
+                      {touched ? "Going on" : "Sounds like"} <b>{describeJob(chosenOption)}</b>
+                      {!touched && " — change it above if that's the wrong one."}
+                    </span>
+                  ) : guess.ambiguous ? (
+                    <span>
+                      More than one job matches what you said — pick the right one above.
+                    </span>
+                  ) : (
+                    <span>
+                      This isn&apos;t against a job yet. Pick one above if it belongs to a
+                      particular job card.
+                    </span>
+                  )}
+                </p>
+              )}
 
               {!note && !recording && !listening && (
                 <>

@@ -4043,6 +4043,14 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
   background:rgba(255,138,0,.09); border:1px solid rgba(255,138,0,.32);
   font-size:12.5px; font-weight:700; color:var(--wb2-warn-t, #B45309); }
 .wb2-capsaid { font-style:normal; font-size:11px; font-weight:700; color:var(--gray500); white-space:nowrap; }
+/* WHICH JOB — said back to you with its number, so agreeing is a glance */
+.wb2-capjob { display:flex; align-items:flex-start; gap:8px; margin:10px 0 0; padding:9px 12px; border-radius:11px;
+  background:rgba(5,5,5,.035); border:1px solid var(--wb2-line2, rgba(5,5,5,.06));
+  font-size:12.5px; font-weight:600; color:var(--gray700); }
+.wb2-capjob b { font-weight:800; color:var(--ink); }
+.wb2-capjob svg { flex:none; margin-top:1px; color:var(--gray400); }
+.wb2-capjob.on { background:rgba(0,163,137,.07); border-color:rgba(0,163,137,.3); }
+.wb2-capjob.on svg { color:var(--wb2-ok, #00A389); }
 .wb2-caprec { display:flex; flex-direction:column; align-items:center; gap:10px; padding:14px 0 2px; }
 .wb2-caprec .wb-lvl { height:34px; }
 .wb2-caprec .wb-lvl i { height:34px; width:4px; }

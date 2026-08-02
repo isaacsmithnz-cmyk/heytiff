@@ -258,15 +258,15 @@
    sat dead in this file for months went on to shadow the counters at equal
    specificity, which is a bug you only find by looking at the screen. */
 
+/* The lede is the left column's last line now, so it drops its 40px tail;
+   nothing follows it inside the hero. */
+.fg .hlead > .lede:last-child { margin-bottom:0; }
+
 /* ---- the hero's counters ----
    The hero's right-hand column: urgent · tasks · needs attention ·
    notifications, 2x2, each linking to the screen that owns it. One
    backdrop-filter, no -webkit twin — pairing them ships only the prefixed one
    and the blur dies.
-
-   The lede is the left column's last line now, so it drops its 40px tail;
-   nothing follows it inside the hero. */
-.fg .hlead > .lede:last-child { margin-bottom:0; }
 
    `.zero` is the point of the whole thing: an empty counter goes quiet rather
    than sitting there lit up saying nothing, so a clear day looks clear. */

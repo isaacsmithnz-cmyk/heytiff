@@ -3292,6 +3292,15 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
   ::view-transition-old(wbtabs), ::view-transition-new(wbtabs) { animation-duration:.16s; }
 }
 @keyframes wb2CardIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+/* A surface that CENTRES ITSELF WITH TRANSFORM cannot borrow wb2CardIn: that
+   keyframe ends on `transform:none`, and with fill-mode `both` the final
+   animated value outranks the rule's own translate permanently — so the modal
+   settles with its top-left corner on the centre point, i.e. half off screen.
+   The centring translate has to be carried through every frame instead. */
+@keyframes wb2ModalIn { from { opacity:0; transform:translate(-50%,calc(-50% + 8px)); }
+                        to   { opacity:1; transform:translate(-50%,-50%); } }
+@keyframes wb2DropIn  { from { opacity:0; transform:translate(-50%,8px); }
+                        to   { opacity:1; transform:translateX(-50%); } }
 @keyframes wb2CardOut { from { opacity:1; transform:none; } to { opacity:0; transform:translateY(-6px); } }
 .wb2-swap { animation:wb2CardIn .32s cubic-bezier(.22,1,.36,1) both; }
 
@@ -3718,7 +3727,7 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-daymodal { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:101;
   width:min(600px, calc(100vw - 32px)); max-height:min(78vh, 760px); display:flex; flex-direction:column;
   background:#fff; border:1px solid rgba(5,5,5,.08); border-radius:20px; box-shadow:0 30px 80px -30px rgba(10,12,20,.55);
-  overflow:hidden; animation:wb2CardIn .32s cubic-bezier(.22,1,.36,1) both;
+  overflow:hidden; animation:wb2ModalIn .32s cubic-bezier(.22,1,.36,1) both;
   --wb2-eq:#7A5AF8; --wb2-acc:#00A8E0; --wb2-crew:#64748B; --wb2-dan:#e0264f; --wb2-dan-t:#b31038;
   --wb2-warn:#FF8A00; --wb2-warn-t:#B45309; --wb2-ok:#00A389; --wb2-line:rgba(5,5,5,.08); --wb2-line2:rgba(5,5,5,.06); }
 .wb2-dmhd { padding:14px 18px 16px; border-bottom:1px solid var(--wb2-line2); flex:none; }
@@ -3844,7 +3853,7 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible { outli
   width:min(680px, calc(100vw - 32px)); max-height:80vh; overflow-y:auto; overscroll-behavior:contain;
   background:#fff; border:1px solid rgba(5,5,5,.08); border-radius:20px;
   box-shadow:0 30px 80px -30px rgba(10,12,20,.6); padding:16px 18px 18px;
-  animation:wb2CardIn .32s cubic-bezier(.22,1,.36,1) both; }
+  animation:wb2DropIn .32s cubic-bezier(.22,1,.36,1) both; }
 .wb2-capribbon { display:flex; align-items:center; gap:10px; padding-bottom:12px; margin-bottom:12px;
   border-bottom:1px solid rgba(5,5,5,.06); color:var(--gray700); }
 .wb2-capribbon b { font-size:14.5px; font-weight:800; color:var(--ink); }

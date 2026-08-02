@@ -43,6 +43,8 @@ export type Severity = (typeof SEVERITIES)[number];
 /** The house guard convention (cf. `isProjectStage`, `isReadinessKey`): the
     list and the test that narrows to it live together, so adding a severity is
     one edit rather than three. */
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
 export const isSeverity = (v: unknown): v is Severity =>
   (SEVERITIES as readonly unknown[]).includes(v);
 
@@ -54,6 +56,14 @@ export type ProposedTask = {
   /** What the note actually said — shown on the card when unresolved. */
   assigneeHint: string;
   dueHint: string;
+  /** The day the hint resolves to, as an ISO date, or "" when the note named
+      no day it could pin down. Isaac, 2026-08-02: told that "Dane's supposed
+      to pick them up tomorrow", the card should have tomorrow's date in the
+      box. This used to say "the person confirming picks the real date" and
+      left it empty — which is a fine principle for "before the next visit"
+      and a silly one for "tomorrow". Still shown in an editable date field:
+      the model proposes, the person confirming sees it and can change it. */
+  dueDate: string;
 };
 
 export type ProposedFlag = { message: string; severity: Severity };
@@ -109,8 +119,9 @@ const NOTE_SCHEMA = {
           detail: str,
           assignee_hint: str,
           due_hint: str,
+          due_date: str,
         },
-        required: ["title", "detail", "assignee_hint", "due_hint"],
+        required: ["title", "detail", "assignee_hint", "due_hint", "due_date"],
         additionalProperties: false,
       },
     },
@@ -204,9 +215,13 @@ function systemPrompt(ctx: NoteContext): string {
     "concrete options. When clarify_needed is true, still fill in whatever",
     "you are confident about; do not blank the rest.",
     "",
-    `Today is ${ctx.todayISO}. Resolve relative days against it, and write`,
-    "`due_hint` in plain words ('Tuesday', 'before the next visit') — the",
-    "person confirming picks the real date.",
+    `Today is ${ctx.todayISO}. Resolve relative days against it.`,
+    "Write `due_hint` in the note's own plain words ('tomorrow', 'before the",
+    "next visit') AND, when those words name a day you can actually work out,",
+    "put it in `due_date` as YYYY-MM-DD. 'Tomorrow', 'Monday' and '3 August'",
+    "all resolve; 'before the next visit' and 'when the part lands' do not —",
+    "leave `due_date` empty for those rather than inventing a day. The person",
+    "confirming sees the date and can change it.",
     ctx.targetLabel ? `\nThis note is about: ${ctx.targetLabel}.` : "",
     ctx.equipment?.length ? `Equipment on site: ${ctx.equipment.join(", ")}.` : "",
   ].join("\n");
@@ -299,6 +314,9 @@ export function shapeProposal(raw: unknown, ctx: NoteContext): NoteProposal {
       assigneeId: match.kind === "one" ? match.id : null,
       assigneeHint,
       dueHint: clean(row.due_hint, TITLE_MAX),
+      /* Validated, not trusted: the model is asked for an ISO date and a
+         malformed one becomes no date rather than a bad one. */
+      dueDate: ISO_DATE.test(String(row.due_date ?? "")) ? String(row.due_date) : "",
     });
   }
 

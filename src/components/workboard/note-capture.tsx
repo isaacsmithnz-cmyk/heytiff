@@ -12,6 +12,7 @@ import {
   answerClarify,
   applyNote,
   dismissNote,
+  keepNoteOnJob,
   routeNote,
   type ConfirmedNote,
   type NoteTarget,
@@ -56,7 +57,10 @@ function toDraft(p: NoteProposal): Draft {
       title: t.title,
       detail: t.detail,
       assigneeId: t.assigneeId,
-      dueDate: "",
+      /* Seeded from the model's resolved day. "Tomorrow" is a date, and
+         making someone read the word and then type the date is asking them
+         to do the easy half of the job the note already did. */
+      dueDate: t.dueDate,
       hint: t.assigneeHint,
       /* What was actually SAID about when — "before Monday's visit (3
          August)". The date box starts empty because that phrase isn't a
@@ -123,6 +127,15 @@ function blockers(d: Draft, hasTarget: boolean): string[] {
   }
   return out;
 }
+
+/* The stored severities are lowercase keys — `info`, `warn`, `urgent` — and
+   showing the key is showing the database to the user. These are what a
+   person picks between. */
+const SEVERITY_LABEL: Record<(typeof SEVERITIES)[number], string> = {
+  info: "Worth seeing",
+  warn: "Needs attention",
+  urgent: "Urgent — someone is blocked",
+};
 
 /** A job card a general note can be pinned to on review. */
 export type NoteAttachOption = JobCandidate;
@@ -284,11 +297,23 @@ export function NoteCapture({
     });
   };
 
+  /* "Just keep the note" now KEEPS IT SOMEWHERE YOU'D FIND IT — on the job's
+     own notes, which the sheet shows. Filing it at status `dismissed` put the
+     words in a drawer nobody opens (nothing reads workboard_notes), which is
+     what made Isaac ask where the note was even going. With no job named
+     there's nowhere to put it, so the button says that instead of offering. */
   const keepAsNote = () => {
     if (!note) return;
+    setError(null);
     start(async () => {
-      const res = await dismissNote(note.id);
-      if (res.ok) setDone(res.summary);
+      const res = hasTarget
+        ? await keepNoteOnJob(note.id, chosen ?? undefined)
+        : await dismissNote(note.id);
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      setDone(res.summary);
       reset();
       setOpen(false);
       router.refresh();
@@ -599,7 +624,7 @@ export function NoteCapture({
                       >
                         {SEVERITIES.map((s) => (
                           <option key={s} value={s}>
-                            {s}
+                            {SEVERITY_LABEL[s]}
                           </option>
                         ))}
                       </select>
@@ -646,8 +671,17 @@ export function NoteCapture({
                   ))}
 
                   <div className="wb2-capact">
-                    <button className="pbtn ghost" onClick={keepAsNote} disabled={busy}>
-                      Just keep the note
+                    <button
+                      className="pbtn ghost"
+                      onClick={keepAsNote}
+                      disabled={busy}
+                      title={
+                        hasTarget
+                          ? "Put the words on the job's notes and apply none of this"
+                          : "Nothing on the board will show it — pick a job to put it on the job's notes"
+                      }
+                    >
+                      {hasTarget ? "Put it on the job's notes" : "Keep the words only"}
                     </button>
                     <button
                       className="pbtn"

@@ -3530,6 +3530,22 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-tagsug { display:flex; flex-wrap:wrap; gap:6px; margin-top:9px; padding-top:9px; border-top:1px solid var(--wb2-line2); }
 .wb2-tags { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
 
+/* ── PORTALLED SURFACES: the type palette, re-established ──────────────────
+   Every one of these mounts on <body> (dashboard modals must portal — see
+   the `.page.in` will-change rule that breaks position:fixed), which puts
+   them OUTSIDE `.fg`. `.fg` is where --ink and the --gray ramp are declared,
+   so inside a portal every `color: var(--gray500)` is an invalid value that
+   silently falls back to INHERITED colour. The greys were never grey in
+   here: they resolved to whatever <body> was, which is the page's ink in
+   light mode and was near-white before the dark override came out.
+
+   So each portal root restates the ramp and pins its own colour. Keep this
+   list in step with the createPortal roots in components/workboard. */
+.wb2-sheet, .wb2-daymodal, .wb2-capcard, .wb2-toasts, .wb2-scrim, .wb2-capdim {
+  --ink:#050505; --gray400:#9ca3af; --gray500:#6b7280; --gray700:#374151;
+  color:var(--ink);
+}
+
 /* ── the sheet — docked right, entering in the app's vertical language ── */
 .wb2-scrim { position:fixed; inset:0; z-index:100; background:rgba(10,11,16,.42); animation:wb2Fade .3s both; }
 @keyframes wb2Fade { from { opacity:0; } to { opacity:1; } }

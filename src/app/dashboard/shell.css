@@ -24,7 +24,12 @@
    specificity, so its own rules win. Matched on the class attribute rather
    than scoped under `.fg` because the sheets and modals portal to <body>,
    outside .fg entirely. */
-.fg button:not([class*="wb2-"]) { font:inherit; color:inherit; background:none; border:none; cursor:pointer; }
+/* `:where()` is load-bearing — it contributes ZERO specificity, so this stays
+   exactly `.fg button` (0,1,1) as it always was. Written as a bare
+   `:not([class*="wb2-"])` it becomes (0,2,1) and starts outranking every
+   `.fg .pbtn`-style rule (0,2,0), which silently strips their font-size and
+   weight back to `inherit` — 16px/400 buttons across the whole dashboard. */
+.fg button:where(:not([class*="wb2-"])) { font:inherit; color:inherit; background:none; border:none; cursor:pointer; }
 :where(button[class*="wb2-"]) { font:inherit; color:inherit; background:none; border:none; cursor:pointer; }
 .fg input { font:inherit; }
 .fg .mono { font-family:var(--mono); }

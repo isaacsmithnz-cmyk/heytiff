@@ -9,7 +9,7 @@ import { ensureVisits, pruneAndRegenerate } from "@/lib/workboard/visit-ensure";
 import { getSm8Timezone } from "@/lib/workboard/query";
 import { todayInZone } from "@/lib/workboard/dates";
 import { staffIdFor } from "@/lib/workboard/projects-query";
-import { nextCategoryAccent, tagToneFor } from "@/lib/workboard/tags";
+import { isTagTone, nextCategoryAccent, tagToneFor } from "@/lib/workboard/tags";
 
 /* Maintenance mutations — same two tiers as projects, same reasons:
 
@@ -966,8 +966,12 @@ export async function setAgreementCategory(
 }
 
 /** A tag's colour is decided here, once, and stored — nothing downstream
-    ever recomputes it, so adding tag #7 can't repaint tags #1–6 (B2). */
-export async function createTag(name: string): Promise<MaintenanceResult> {
+    ever recomputes it, so adding tag #7 can't repaint tags #1–6 (B2).
+    `color` is the person's pick from the palette; the name hash is only the
+    DEFAULT, so a tag nobody chose a colour for still lands somewhere sane.
+    An unrecognised tone falls back to the hash rather than erroring — the
+    palette is a closed set and a bad value means the caller isn't the UI. */
+export async function createTag(name: string, color?: string): Promise<MaintenanceResult> {
   const ctx = await context();
   if (!ctx) return NOT_SIGNED_IN;
   if (!(await can("workboard_manage"))) return NO_MANAGE;
@@ -977,7 +981,11 @@ export async function createTag(name: string): Promise<MaintenanceResult> {
 
   const { data, error } = await supabaseAdmin
     .from("agreement_tags")
-    .insert({ org_id: ctx.orgId, name: clean, color: tagToneFor(clean) })
+    .insert({
+      org_id: ctx.orgId,
+      name: clean,
+      color: isTagTone(color) ? color : tagToneFor(clean),
+    })
     .select("id")
     .single();
   if (error || !data) {

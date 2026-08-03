@@ -7,6 +7,7 @@ import type { BoardVisit } from "@/lib/workboard/board-query";
 import {
   BOARD_AHEAD_DAYS,
   daysBetween,
+  TO_CONFIRM_HORIZON_DAYS,
   weekGroupKey,
   weekGroupRank,
 } from "@/lib/workboard/board-status";
@@ -80,12 +81,17 @@ export function UpcomingTab({
           <b>Maintenance services</b>
           <em>Grouped by week, worst first. Open a row to confirm anything.</em>
         </div>
+        {/* The horizon has to be SAID. "Fortnight confirmed" was two words
+            doing three jobs — which fortnight, confirmed by whom, confirmed
+            of what — and Isaac read it as a typo for a video game. The count
+            already names the window it counted, so the all-clear names the
+            same one. */}
         <span className={"wb2-chip" + (confirm.gaps > 0 ? " warn" : " ok")}>
           {confirm.gaps > 0
             ? `${confirm.gaps} to confirm across ${confirm.services} ${
                 confirm.services === 1 ? "service" : "services"
               }`
-            : "Fortnight confirmed"}
+            : `Next ${TO_CONFIRM_HORIZON_DAYS} days all confirmed`}
         </span>
       </div>
 
@@ -97,10 +103,16 @@ export function UpcomingTab({
         </div>
       ) : (
         <>
+          {/* Frequency and Due are TWO columns, as they are on the agreements
+              ledger. They used to share one, stacked under a single
+              "Frequency · Due" heading — so the heading sat over a pair of
+              values it only half named, and the second value hung under a
+              column of its own with no label. */}
           <div className="wb2-trhd" aria-hidden="true">
             <span>Client and service</span>
             <span>Job</span>
-            <span>Frequency · Due</span>
+            <span>Frequency</span>
+            <span>Due</span>
             <span>Day booked</span>
             <span className="wb2-trhd-ck">
               <em style={{ ["--as" as string]: "var(--wb2-eq)" }}>Equip</em>
@@ -165,12 +177,12 @@ function Row({
         </em>
       </div>
       <span className="wb2-trref">{v.jobNumber ? `#${v.jobNumber}` : "—"}</span>
-      <div className="wb2-trw">
-        <em>{cadenceLabel(v.intervalMonths)}</em>
+      <em className="wb2-trcad">{cadenceLabel(v.intervalMonths)}</em>
+      <span className="wb2-trw">
         <span className={"wb2-chip" + (rel.tone ? ` ${rel.tone === "dan" ? "dan" : "warn"}` : "")}>
           {rel.t}
         </span>
-      </div>
+      </span>
       <div className="wb2-trd">
         {placed ? (
           <>
@@ -203,9 +215,13 @@ function Row({
         {tone === "quote" ? (
           <em className="wb2-trnote">Starts if the quote is won</em>
         ) : missing.length === 0 ? (
-          <span className="wb2-ckall">
+          /* "Ready" beside "Not placed" is a contradiction on one row: the
+             three gates being ticked says the KIT, the ACCESS and the CREW
+             are sorted, not that the job is going to happen. Until it has a
+             day, the honest word is what's left to do. */
+          <span className={"wb2-ckall" + (placed ? "" : " tobook")}>
             <Icon name="check" size={13} />
-            Ready
+            {placed ? "Ready" : "Ready to book"}
           </span>
         ) : (
           (["equipment", "access", "crew"] as const).map((g) => {

@@ -33,6 +33,8 @@ import {
   removePackingItem,
   type MaintenanceResult,
 } from "@/app/actions/workboard-maintenance";
+import { TagStrip } from "./tag-strip";
+import type { TagTone } from "@/lib/workboard/tags";
 import {
   agoLabel,
   cadencePhrase,
@@ -86,8 +88,6 @@ export function VisitSheet({
   const [err, setErr] = useState<string | null>(null);
   const [openGate, setOpenGate] = useState<0 | 1 | 2 | null>(null);
   const [pendingDay, setPendingDay] = useState<string>("");
-  const [addingTag, setAddingTag] = useState(false);
-  const [tagText, setTagText] = useState("");
   const [closing, setClosing] = useState(startClosing);
   /* THE DAY IT RAN IS THE DAY IT WAS BOOKED. It used to default to today,
      which is only right if you close a job out the same afternoon — close
@@ -167,7 +167,6 @@ export function VisitSheet({
     () => staff.filter((s) => !visit.techs.some((t) => t.id === s.id)),
     [staff, visit.techs]
   );
-  const tagSuggestions = tagPool.filter((t) => !visit.tags.some((x) => x.id === t.id));
 
   const toneChip = (() => {
     if (visit.status === "done") return <span className="wb2-chip ok">Completed</span>;
@@ -210,22 +209,12 @@ export function VisitSheet({
     setNoteDraft("");
   };
 
-  const addTag = (raw: string) => {
-    const name = raw.trim();
-    if (!name) {
-      setAddingTag(false);
-      return;
-    }
-    const existing = tagPool.find((t) => t.name.toLowerCase() === name.toLowerCase());
-    setTagText("");
-    setAddingTag(false);
+  const addTag = (name: string, colour: TagTone) =>
     run(async () => {
-      if (existing) return tagAgreement(visit.agreementId, existing.id);
-      const made = await createTag(name);
+      const made = await createTag(name, colour);
       if (!made.ok || !made.id) return made;
       return tagAgreement(visit.agreementId, made.id);
     });
-  };
 
   const gateRow = (
     i: 0 | 1 | 2,
@@ -623,71 +612,16 @@ export function VisitSheet({
             <span className="wb2-sect">Tags</span>
             <span className="wb2-chip">{visit.tags.length || "none"}</span>
           </div>
-          <div className="wb2-tags">
-            {visit.tags.map((t) => (
-              <span className={`wb2-tag on t-${t.color}`} key={t.id}>
-                {t.name}
-                {manage && (
-                  <button
-                    disabled={busy}
-                    title="Remove"
-                    aria-label={`Remove ${t.name}`}
-                    onClick={() => run(() => untagAgreement(visit.agreementId, t.id))}
-                  >
-                    <Icon name="x" size={10} />
-                  </button>
-                )}
-              </span>
-            ))}
-            {manage &&
-              (addingTag ? (
-                <input
-                  className="wb2-tagin"
-                  autoFocus
-                  placeholder="Type or pick a tag"
-                  value={tagText}
-                  onChange={(e) => setTagText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      addTag(tagText);
-                    }
-                    if (e.key === "Escape") {
-                      setAddingTag(false);
-                      setTagText("");
-                    }
-                  }}
-                  onBlur={() => addTag(tagText)}
-                />
-              ) : (
-                <button className="wb2-tag add" disabled={busy} onClick={() => setAddingTag(true)}>
-                  <Icon name="plus" size={11} />
-                  Add tag
-                </button>
-              ))}
-          </div>
-          {manage && addingTag && tagSuggestions.length > 0 && (
-            <div className="wb2-tagsug">
-              {tagSuggestions.map((t) => (
-                <button
-                  key={t.id}
-                  className={`wb2-tag sug t-${t.color}`}
-                  disabled={busy}
-                  // mousedown, not click: the input's blur would unmount this
-                  // button before a click could land on it
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    setAddingTag(false);
-                    setTagText("");
-                    run(() => tagAgreement(visit.agreementId, t.id));
-                  }}
-                >
-                  {t.name}
-                </button>
-              ))}
-            </div>
-          )}
-          <p className="wb2-hint">Tags live on the agreement — every visit of it wears them.</p>
+          <TagStrip
+            tags={visit.tags}
+            pool={tagPool}
+            manage={manage}
+            busy={busy}
+            hint="Tags live on the agreement — every visit of it wears them."
+            onAdd={addTag}
+            onPick={(tagId) => run(() => tagAgreement(visit.agreementId, tagId))}
+            onRemove={(tagId) => run(() => untagAgreement(visit.agreementId, tagId))}
+          />
         </div>
 
         <div className="wb2-shsect">

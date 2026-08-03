@@ -118,7 +118,21 @@ export function CompletedTab({
                 : "closed manually"}
           </em>
         </div>
-        <div className="wb2-dnh">
+        {/* Where the hours came from, said on the row. There is exactly one
+            writer of actual hours — the close-out form's "Hours on site" box
+            — and nothing in the ServiceM8 mirror feeds it, so a visit closed
+            from SM8 has none. Isaac asked the question this answers: "I don't
+            know where you actually put that in." */}
+        <div
+          className="wb2-dnh"
+          title={
+            v.actualHours !== null
+              ? "Typed into Hours on site when this visit was closed out."
+              : v.completedSource === "servicem8"
+                ? "This visit closed from ServiceM8, which doesn't carry hours — close out here to record them."
+                : "Nobody filled in Hours on site at close-out."
+          }
+        >
           {v.actualHours !== null ? (
             <>
               <b>{hoursLabel(v.actualHours)} on site</b>
@@ -131,10 +145,16 @@ export function CompletedTab({
           )}
         </div>
         <span className="wb2-dnact">
-          <span className={"wb2-chip " + (timing.onTime ? "ok" : "dan")}>
+          {/* "13 days late" alone never says late FOR what — the row carries
+              three dates. It's the due date, so the chip names the verb it
+              belongs to and the tooltip names the date it counted from. */}
+          <span
+            className={"wb2-chip " + (timing.onTime ? "ok" : "dan")}
+            title={`Due ${fmtAuWeekdayDayMonth(v.dueDate)} · done ${fmtAuWeekdayDayMonth(v.completedAt!)}`}
+          >
             {timing.onTime
               ? "Done on time"
-              : `${timing.daysLate} ${timing.daysLate === 1 ? "day" : "days"} late`}
+              : `Done ${timing.daysLate} ${timing.daysLate === 1 ? "day" : "days"} after it was due`}
           </span>
           {manage &&
             (v.invoicedAt ? (
@@ -182,8 +202,9 @@ export function CompletedTab({
         <div>
           <b>Completed</b>
           <em>
-            The last {BOARD_DONE_DAYS / 7} weeks, newest first — what ran, what it took, what&apos;s
-            still to bill.
+            {/* Written as one string: split across JSX lines, the space
+                before "weeks" was eaten and it read "the last 8weeks". */}
+            {`The last ${BOARD_DONE_DAYS / 7} weeks, newest first — what ran, what it took, what's still to bill.`}
           </em>
         </div>
         {toInvoice.length > 0 ? (

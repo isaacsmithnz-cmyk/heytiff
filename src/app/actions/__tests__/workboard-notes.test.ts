@@ -241,16 +241,29 @@ describe("entries and bring-items", () => {
     });
   });
 
-  /* A bring-list is text on somebody else's row. With a general note there is
-     no row, and these used to vanish without a word. */
-  it("REFUSES bring-items on a note with no job to hang them off", async () => {
+  /* EVERY note names a job (Isaac, 2026-08-02) — the review card disables
+     both save buttons until one is picked, and this is the server saying the
+     same thing to a direct POST. It's what stops a targetless FLAG being
+     written: such a flag renders a Needs-attention row that names a problem
+     and then opens nothing. */
+  it("REFUSES a note with no job on it at all", async () => {
     rows.workboard_notes = { ...NOTE, target_kind: "none", target_id: null };
     const res = await applyNote("n-1", confirmed({ bringItems: ["2 × 595 filters"] }));
     expect(res.ok).toBe(false);
-    expect(res.ok === false && res.error).toMatch(/needs a job to sit on/);
+    expect(res.ok === false && res.error).toMatch(/Every note goes on a job/);
     expect(updates.some((u) => u.table === "workboard_notes" && u.patch.status === "applied")).toBe(
       false
     );
+  });
+
+  it("REFUSES a targetless note even when it only raises a flag", async () => {
+    rows.workboard_notes = { ...NOTE, target_kind: "none", target_id: null };
+    const res = await applyNote(
+      "n-1",
+      confirmed({ flags: [{ message: "Rooftop unit tripped again", severity: "warn" }] })
+    );
+    expect(res.ok).toBe(false);
+    expect(rowsFor("workboard_flags")).toHaveLength(0);
   });
 
   it("takes the review card's re-target, so a general note can be pinned to a job on save", async () => {

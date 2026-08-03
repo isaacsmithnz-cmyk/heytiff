@@ -40,6 +40,11 @@ export type BoardVisit = {
   readiness: Record<ReadinessKey, boolean>;
   techs: BoardTech[];
   packedIds: string[];
+  /** OUR job number, on every job from the moment it exists (#1001 up).
+      `jobNumber` below is a different animal — ServiceM8's, when there is
+      one. Don't collapse them: one is the name we call the work, the other
+      is a foreign system's receipt. */
+  jobNo: number | null;
   jobNumber: string | null;
   provider: string | null;
   remoteId: string | null;
@@ -152,6 +157,7 @@ type VisitRow = {
   booked_date: string | null;
   status: string;
   readiness: unknown;
+  job_no: number | null;
   job_number: string | null;
   provider: string | null;
   remote_id: string | null;
@@ -206,7 +212,7 @@ export async function loadMaintenanceBoard(
       stop rather than an unbounded history read. */
   const LAST_DONE_SCAN = 4000;
   const VISIT_COLUMNS =
-    "id, agreement_id, due_date, booked_date, status, readiness, job_number, " +
+    "id, agreement_id, due_date, booked_date, status, readiness, job_no, job_number, " +
     "provider, remote_id, booked_start_cached, notes, completed_at, " +
     "completed_source, actual_hours, completion_note, invoiced_at";
 
@@ -384,6 +390,7 @@ export async function loadMaintenanceBoard(
       readiness: readReadiness(v.readiness),
       techs: techsBy.get(v.id) ?? [],
       packedIds: packedBy.get(v.id) ?? [],
+      jobNo: v.job_no,
       jobNumber: v.job_number,
       provider: v.provider,
       remoteId: v.remote_id,

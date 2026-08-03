@@ -45,20 +45,45 @@ export async function ensureVisits(
   if (opts.agreementId) q = q.eq("id", opts.agreementId);
   const { data } = await q;
 
-  for (const a of (data ?? []) as AgreementRow[]) {
-    const due = dueDatesFor({
+  const agreements = (data ?? []) as AgreementRow[];
+  if (agreements.length === 0) return;
+
+  /* Which visits already exist. This used to be left to ON CONFLICT DO
+     NOTHING, which was free — until jobs got NUMBERED. A BEFORE INSERT
+     trigger fires for every row offered, including the ones the conflict
+     clause then throws away, so the old "offer all thirteen, keep the new
+     one" habit burned a dozen job numbers on every page read. Reading the
+     dates first costs one query and makes the insert say only what it
+     means. */
+  const { data: existingRows } = await supabaseAdmin
+    .from("maintenance_visits")
+    .select("agreement_id, due_date")
+    .eq("org_id", orgId)
+    .in("agreement_id", agreements.map((a) => a.id));
+
+  const taken = new Set(
+    ((existingRows ?? []) as { agreement_id: string; due_date: string }[]).map(
+      (r) => `${r.agreement_id}|${r.due_date}`
+    )
+  );
+
+  const fresh = agreements.flatMap((a) =>
+    dueDatesFor({
       anchorISO: a.anchor_date,
       intervalMonths: a.interval_months,
       fromISO: today,
       contractEndISO: a.contract_end,
-    });
-    if (due.length === 0) continue;
+    })
+      .filter((d) => !taken.has(`${a.id}|${d}`))
+      .map((d) => ({ org_id: orgId, agreement_id: a.id, due_date: d }))
+  );
+  if (fresh.length === 0) return;
 
-    await supabaseAdmin.from("maintenance_visits").upsert(
-      due.map((d) => ({ org_id: orgId, agreement_id: a.id, due_date: d })),
-      { onConflict: "agreement_id,due_date", ignoreDuplicates: true }
-    );
-  }
+  // Still an upsert, not an insert: two readers can race between the select
+  // above and here, and the loser must lose quietly rather than 409.
+  await supabaseAdmin
+    .from("maintenance_visits")
+    .upsert(fresh, { onConflict: "agreement_id,due_date", ignoreDuplicates: true });
 }
 
 /** Cadence changed: redraw the future, respecting everything touched —

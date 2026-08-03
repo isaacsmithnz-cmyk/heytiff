@@ -182,6 +182,15 @@ export const GATE_FULL: Record<GateName, string> = {
   crew: "Crew assigned",
 };
 
+/** The same cadence said mid-sentence. `cadenceLabel` is a NAME ("Quarterly")
+    and reads wrong the moment you put it after a verb — "comes round annual".
+    This one is the phrase. */
+export function cadencePhrase(months: number): string {
+  if (months === 1) return "every month";
+  if (months === 12) return "every year";
+  return `every ${months} months`;
+}
+
 export function cadenceLabel(months: number): string {
   if (months === 1) return "Monthly";
   if (months === 2) return "Every 2 months";

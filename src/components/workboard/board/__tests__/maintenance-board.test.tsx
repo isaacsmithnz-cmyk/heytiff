@@ -113,6 +113,7 @@ function visit(over: Partial<BoardVisit> & { id: string }): BoardVisit {
     readiness: { equipment_ready: false, access_confirmed: false },
     techs: [],
     packedIds: [],
+    jobNo: 1001,
     jobNumber: null,
     provider: null,
     remoteId: null,
@@ -290,12 +291,82 @@ describe("the visit sheet — the editing heart", () => {
 
   it("opens with the facts, and the Crew gate has NO tick — assignment only (A12)", async () => {
     const sheet = await open(visit({ id: "v-1" }));
-    expect(sheet.getByRole("heading", { name: /Rooftop package units — Quarterly/ })).toBeInTheDocument();
+    expect(sheet.getByRole("heading", { name: "Rooftop package units" })).toBeInTheDocument();
+    expect(sheet.getByText("#1001")).toBeInTheDocument();
     expect(sheet.getByLabelText(/Equipment ready — not confirmed/)).toBeInTheDocument();
     expect(sheet.getByLabelText(/Access confirmed — not confirmed/)).toBeInTheDocument();
     expect(sheet.queryByLabelText(/Crew assigned — /)).not.toBeInTheDocument();
     // placement is the time confirmation — no fourth tick anywhere (D1)
     expect(sheet.queryByText(/^Time$/)).not.toBeInTheDocument();
+  });
+
+  /* The 2026-08-03 pass over the job card. Isaac's list, one test each:
+     the strip names the job and numbers it; ServiceM8's number is a
+     SEPARATE fact and never the job's own; ONE scheduled section instead of
+     a "Day" tile plus a "Day" card; the estimate says whose it is and can be
+     changed from here; notes are bullets; nothing gets skipped. */
+
+  it("the strip carries the job's number and the name you gave it", async () => {
+    const sheet = await open(visit({ id: "v-1", jobNo: 1043 }));
+    expect(sheet.getByText("#1043")).toBeInTheDocument();
+    expect(sheet.getByRole("heading", { name: "Rooftop package units" })).toBeInTheDocument();
+    // the cadence moved out of the title — it's a scheduling fact
+    expect(sheet.queryByRole("heading", { name: /Quarterly/ })).not.toBeInTheDocument();
+  });
+
+  it("ServiceM8's number rides alongside ours, never instead of it", async () => {
+    const sheet = await open(visit({ id: "v-1", jobNo: 1043, jobNumber: "J1234" }));
+    expect(sheet.getByText("#1043")).toBeInTheDocument();
+    expect(sheet.getByText("SM8 #J1234")).toBeInTheDocument();
+  });
+
+  it("says 'No visit scheduled' once, not a 'Day' tile and a 'Day' card", async () => {
+    const sheet = await open(visit({ id: "v-1", bookedDate: null }));
+    expect(sheet.getByText("No visit scheduled")).toBeInTheDocument();
+    expect(sheet.getByText("Scheduled")).toBeInTheDocument();
+    expect(sheet.queryByText("Day")).not.toBeInTheDocument();
+    expect(sheet.queryByText("No day yet")).not.toBeInTheDocument();
+  });
+
+  it("the scheduled section states the booked day and offers to move it", async () => {
+    const sheet = await open(visit({ id: "v-1", bookedDate: "2026-08-05" }));
+    expect(sheet.getByText("Wed 5 Aug")).toBeInTheDocument();
+    expect(sheet.getByRole("button", { name: "Move it" })).toBeInTheDocument();
+    await userEvent.click(sheet.getByRole("button", { name: "Unschedule it" }));
+    expect(act.clearVisitPlacement).toHaveBeenCalledWith("v-1");
+  });
+
+  it("the estimate says it belongs to the agreement, and changes it there", async () => {
+    const sheet = await open(visit({ id: "v-1", hoursEstimate: 3 }));
+    expect(sheet.getByText("3 h")).toBeInTheDocument();
+    await userEvent.click(sheet.getByRole("button", { name: /every visit of this agreement/ }));
+    const box = sheet.getByLabelText("Hours a visit takes");
+    await userEvent.clear(box);
+    await userEvent.type(box, "4.5");
+    await userEvent.click(sheet.getByRole("button", { name: "Save the estimate" }));
+    expect(act.updateAgreementMeta).toHaveBeenCalledWith("a-1", { hoursEstimate: 4.5 });
+  });
+
+  it("notes are bullets — one per line, added one at a time", async () => {
+    const sheet = await open(visit({ id: "v-1", notes: "Gate code is 4821" }));
+    expect(sheet.getByDisplayValue("Gate code is 4821")).toBeInTheDocument();
+    await userEvent.type(sheet.getByLabelText("a note for this visit"), "Ask for Dave{Enter}");
+    await userEvent.click(sheet.getByRole("button", { name: "Save the notes" }));
+    expect(act.setVisitNotes).toHaveBeenCalledWith("v-1", "Gate code is 4821\nAsk for Dave");
+  });
+
+  it("a bullet can be taken off, and Save only appears once something changed", async () => {
+    const sheet = await open(visit({ id: "v-1", notes: "Gate code is 4821\nAsk for Dave" }));
+    expect(sheet.queryByRole("button", { name: "Save the notes" })).not.toBeInTheDocument();
+    await userEvent.click(sheet.getByRole("button", { name: "Remove note 2" }));
+    await userEvent.click(sheet.getByRole("button", { name: "Save the notes" }));
+    expect(act.setVisitNotes).toHaveBeenCalledWith("v-1", "Gate code is 4821");
+  });
+
+  it("nothing gets skipped — the footer is one button", async () => {
+    const sheet = await open(visit({ id: "v-1" }));
+    expect(sheet.queryByRole("button", { name: "Skip this one" })).not.toBeInTheDocument();
+    expect(sheet.getByRole("button", { name: /Mark visit complete/ })).toBeInTheDocument();
   });
 
   it("ticking a gate calls the whitelist action", async () => {
@@ -333,7 +404,7 @@ describe("the visit sheet — the editing heart", () => {
     const day = sheet.getByLabelText("Pick a day");
 
     await userEvent.type(day, "2026-08-05"); // a Wednesday
-    await userEvent.click(sheet.getByRole("button", { name: "Place it" }));
+    await userEvent.click(sheet.getByRole("button", { name: "Schedule it" }));
     expect(act.placeVisit).toHaveBeenCalledWith("v-1", "2026-08-05");
 
     await userEvent.clear(day);

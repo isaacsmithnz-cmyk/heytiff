@@ -42,6 +42,9 @@ export type ProjectBoardVisit = {
   readiness: Record<ReadinessKey, boolean>;
   techs: BoardTech[];
   bringList: BringItem[];
+  /** OUR job number (#1001 up) — see BoardVisit.jobNo; same counter, same
+      table, so a trip and a service visit can never wear the same one. */
+  jobNo: number | null;
   jobNumber: string | null;
   provider: string | null;
   remoteId: string | null;
@@ -146,6 +149,7 @@ type VisitRow = {
   booked_date: string | null;
   status: string;
   readiness: unknown;
+  job_no: number | null;
   job_number: string | null;
   provider: string | null;
   remote_id: string | null;
@@ -182,7 +186,7 @@ export async function loadProjectsBoard(
   const ids = projects.map((p) => p.id);
   const VISIT_COLUMNS =
     "id, project_id, label, due_date, booked_date, status, readiness, " +
-    "job_number, provider, remote_id, booked_start_cached, notes, " +
+    "job_no, job_number, provider, remote_id, booked_start_cached, notes, " +
     "completed_at, completed_source, actual_hours, completion_note, invoiced_at";
 
   const [
@@ -376,6 +380,7 @@ export async function loadProjectsBoard(
       readiness: readReadiness(v.readiness),
       techs: techsBy.get(v.id) ?? [],
       bringList: itemsBy.get(v.id) ?? [],
+      jobNo: v.job_no,
       jobNumber: v.job_number,
       provider: v.provider,
       remoteId: v.remote_id,

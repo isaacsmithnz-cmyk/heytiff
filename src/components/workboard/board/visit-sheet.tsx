@@ -12,7 +12,8 @@ import {
 } from "@/lib/workboard/board-status";
 import type { VisitTone } from "@/lib/workboard/board-status";
 import type { BoardTag, BoardTech, BoardVisit } from "@/lib/workboard/board-query";
-import { DictateBox } from "../dictation";
+import { fromLines, linesEqual, toLines } from "@/lib/workboard/note-lines";
+import { DictateBox, DictateLine } from "../dictation";
 import { useNoteBrain } from "../note-brain-context";
 import {
   assignVisitTech,
@@ -27,13 +28,14 @@ import {
   tagAgreement,
   unassignVisitTech,
   untagAgreement,
+  updateAgreementMeta,
   addPackingItem,
   removePackingItem,
   type MaintenanceResult,
 } from "@/app/actions/workboard-maintenance";
 import {
   agoLabel,
-  cadenceLabel,
+  cadencePhrase,
   gatesOf,
   hoursLabel,
   initialsOf,
@@ -105,7 +107,14 @@ export function VisitSheet({
     visit.hoursEstimate !== null ? String(visit.hoursEstimate) : ""
   );
   const [closeNote, setCloseNote] = useState("");
-  const [notesText, setNotesText] = useState(visit.notes ?? "");
+  /* Notes are BULLETS now — a line each, in the same text column. The draft
+     is the list; `fromLines` puts it back together at save time. */
+  const [noteLines, setNoteLines] = useState<string[]>(() => toLines(visit.notes));
+  const [noteDraft, setNoteDraft] = useState("");
+  const [hoursOpen, setHoursOpen] = useState(false);
+  const [estText, setEstText] = useState(
+    visit.hoursEstimate !== null ? String(visit.hoursEstimate) : ""
+  );
   const closeRef = useRef<HTMLButtonElement>(null);
 
   // The parent keys this component by visit id, so drafts start clean per
@@ -176,6 +185,29 @@ export function VisitSheet({
       `${from ? "Moved to" : "Placed on"} ${fmtAuWeekdayDayMonth(day)} — ${visit.clientName}`,
       undoable(() => (from ? placeVisit(visit.id, from) : clearVisitPlacement(visit.id)))
     );
+  };
+
+  const cancelEstimate = () => {
+    setEstText(visit.hoursEstimate !== null ? String(visit.hoursEstimate) : "");
+    setHoursOpen(false);
+  };
+
+  const saveEstimate = () => {
+    const raw = estText.trim();
+    setHoursOpen(false);
+    if (raw === (visit.hoursEstimate !== null ? String(visit.hoursEstimate) : "")) return;
+    run(() =>
+      updateAgreementMeta(visit.agreementId, {
+        hoursEstimate: raw === "" ? null : Number(raw),
+      })
+    );
+  };
+
+  const addNoteLine = () => {
+    const line = noteDraft.trim();
+    if (!line) return;
+    setNoteLines([...noteLines, line]);
+    setNoteDraft("");
   };
 
   const addTag = (raw: string) => {
@@ -250,10 +282,34 @@ export function VisitSheet({
         aria-modal="true"
         aria-label={`${visit.clientName} — ${visit.label}`}
       >
+        {/* The strip says WHAT THIS IS in the words you'd use on the phone:
+            the number, then the name you gave the job. It used to lead with
+            a "Service visit" chip and hold the name a band lower, which
+            meant the first line of the job card was the one thing about it
+            that never varies. Chips keep their place beside it. */}
         <div className="wb2-shtop">
-          <span className="wb2-chip blue">Service visit</span>
-          {toneChip}
-          {visit.warn && <span className="wb2-chip dan">Went sideways in ServiceM8</span>}
+          <span className="wb2-shno">{visit.jobNo !== null ? `#${visit.jobNo}` : "—"}</span>
+          <h2 className="wb2-shname">{visit.label}</h2>
+          <span className="wb2-shchips">
+            <span className="wb2-chip blue">Service visit</span>
+            {toneChip}
+            {visit.jobNumber ? (
+              <span className="wb2-chip" title="The job's number in ServiceM8">
+                SM8 #{visit.jobNumber}
+              </span>
+            ) : (
+              /* Only worth saying when there's a ServiceM8 to raise it in.
+                 Standalone, an agreement visit having no SM8 job is the
+                 normal case and not news. */
+              connected &&
+              open && (
+                <span className="wb2-chip" title="Nothing for it in ServiceM8 yet">
+                  No ServiceM8 job
+                </span>
+              )
+            )}
+            {visit.warn && <span className="wb2-chip dan">Went sideways in ServiceM8</span>}
+          </span>
           <button
             ref={closeRef}
             className="wb2-ico"
@@ -266,9 +322,6 @@ export function VisitSheet({
         </div>
 
         <div className="wb2-shhd">
-          <h2>
-            {visit.label} — {cadenceLabel(visit.intervalMonths)}
-          </h2>
           <p>
             {visit.clientName}
             {visit.siteLabel ? ` · ${visit.siteLabel}` : ""}
@@ -279,28 +332,48 @@ export function VisitSheet({
               <b>{fmtAuWeekdayDayMonth(visit.dueDate)}</b>
               <em className={rel.tone === "dan" ? "dan" : undefined}>{rel.t}</em>
             </div>
-            <div>
-              <span className="wb2-sect">Day</span>
-              <b>{bookedDay ? fmtAuWeekdayDayMonth(bookedDay) : "No day yet"}</b>
-              <em className={mismatch?.late ? "dan" : undefined}>
-                {bookedDay
-                  ? mismatch?.late
-                    ? `${mismatch.daysAfterDue} ${mismatch.daysAfterDue === 1 ? "day" : "days"} after it was due`
-                    : visit.bookedDate
-                      ? "placed on the board"
-                      : "from the ServiceM8 diary"
-                  : "placement is the time confirmation"}
-              </em>
-            </div>
+            {/* The estimate lives on the AGREEMENT — it's how long one visit
+                of this service takes, not how long this one will. It used to
+                show here with no way to change it and no clue where it came
+                from, so it read as a number the app invented. Now it says
+                whose it is, and changing it changes it where it lives. */}
             <div>
               <span className="wb2-sect">On site</span>
-              <b>{visit.hoursEstimate !== null ? hoursLabel(visit.hoursEstimate) : "—"}</b>
-              <em>estimated</em>
-            </div>
-            <div>
-              <span className="wb2-sect">Reference</span>
-              <b>{visit.jobNumber ? `#${visit.jobNumber}` : "—"}</b>
-              <em>{visit.remoteId ? "linked ServiceM8 job" : connected ? "no job raised yet" : "agreement visit"}</em>
+              {hoursOpen ? (
+                <div className="wb2-inline">
+                  <input
+                    type="number"
+                    className="wb2-fi"
+                    min={0.5}
+                    max={24}
+                    step={0.5}
+                    autoFocus
+                    aria-label="Hours a visit takes"
+                    value={estText}
+                    onChange={(e) => setEstText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        saveEstimate();
+                      }
+                      if (e.key === "Escape") cancelEstimate();
+                    }}
+                  />
+                  <button className="wb2-addgo" disabled={busy} title="Save it" aria-label="Save the estimate" onClick={saveEstimate}>
+                    <Icon name="check" size={13} />
+                  </button>
+                </div>
+              ) : (
+                <b>{visit.hoursEstimate !== null ? hoursLabel(visit.hoursEstimate) : "Not estimated"}</b>
+              )}
+              {!hoursOpen &&
+                (manage ? (
+                  <button className="wb2-colink" onClick={() => setHoursOpen(true)}>
+                    every visit of this agreement · change
+                  </button>
+                ) : (
+                  <em>every visit of this agreement</em>
+                ))}
             </div>
           </div>
         </div>
@@ -453,73 +526,97 @@ export function VisitSheet({
           </div>
         )}
 
-        {open && !isQuote && manage && (
-          <div className="wb2-shsect">
-            <div className="wb2-shsh">
-              <span className="wb2-sect">Day</span>
-              {visit.bookedDate && (
-                <button
-                  className="pbtn ghost"
-                  disabled={busy}
-                  onClick={() => run(() => clearVisitPlacement(visit.id))}
-                >
-                  Take it off the day
-                </button>
-              )}
-            </div>
-            <div className="wb2-dayrow">
-              <input
-                type="date"
-                className="wb2-fi"
-                aria-label="Pick a day"
-                value={pendingDay}
-                onChange={(e) => setPendingDay(e.target.value)}
-              />
-              {pendingDay && isWeekendISO(pendingDay) ? (
-                <>
+        {/* ONE section for when this job happens. There used to be two: a
+            "Day" tile up in the facts saying the date, and a "Day" card down
+            here to change it — the same fact said twice, in two different
+            vocabularies, and neither of them said "scheduled". Isaac,
+            2026-08-03: "surely we can just have a scheduled section… and just
+            incorporate it all to one." */}
+        <div className="wb2-shsect">
+          <div className="wb2-shsh">
+            <span className="wb2-sect">Scheduled</span>
+            {open && !isQuote && manage && visit.bookedDate && (
+              <button
+                className="pbtn ghost"
+                disabled={busy}
+                onClick={() => run(() => clearVisitPlacement(visit.id))}
+              >
+                Unschedule it
+              </button>
+            )}
+          </div>
+
+          <div className="wb2-sched">
+            <b className={bookedDay ? undefined : "none"}>
+              {bookedDay ? fmtAuWeekdayDayMonth(bookedDay) : "No visit scheduled"}
+            </b>
+            <em className={mismatch?.late ? "dan" : undefined}>
+              {bookedDay
+                ? mismatch?.late
+                  ? `${mismatch.daysAfterDue} ${mismatch.daysAfterDue === 1 ? "day" : "days"} after it was due`
+                  : visit.bookedDate
+                    ? "placed on the board"
+                    : "from the ServiceM8 diary"
+                : `Due ${fmtAuWeekdayDayMonth(visit.dueDate)} — putting it on a day is what confirms the time`}
+            </em>
+          </div>
+
+          {open && !isQuote && manage && (
+            <>
+              <div className="wb2-dayrow">
+                <input
+                  type="date"
+                  className="wb2-fi"
+                  aria-label={bookedDay ? "Move it to another day" : "Pick a day"}
+                  value={pendingDay}
+                  onChange={(e) => setPendingDay(e.target.value)}
+                />
+                {pendingDay && isWeekendISO(pendingDay) ? (
+                  <>
+                    <button
+                      className="pbtn"
+                      disabled={busy}
+                      onClick={() => {
+                        const day = rollToBusinessDay(pendingDay);
+                        setPendingDay("");
+                        place(day);
+                      }}
+                    >
+                      Roll to {fmtAuWeekdayDayMonth(rollToBusinessDay(pendingDay))}
+                    </button>
+                    <button
+                      className="pbtn ghost"
+                      disabled={busy}
+                      onClick={() => {
+                        const day = pendingDay;
+                        setPendingDay("");
+                        place(day);
+                      }}
+                    >
+                      Keep the {new Date(`${pendingDay}T12:00:00Z`).getUTCDay() === 6 ? "Saturday" : "Sunday"}
+                    </button>
+                  </>
+                ) : (
                   <button
                     className="pbtn"
-                    disabled={busy}
-                    onClick={() => {
-                      const day = rollToBusinessDay(pendingDay);
-                      setPendingDay("");
-                      place(day);
-                    }}
-                  >
-                    Roll to {fmtAuWeekdayDayMonth(rollToBusinessDay(pendingDay))}
-                  </button>
-                  <button
-                    className="pbtn ghost"
-                    disabled={busy}
+                    disabled={busy || !pendingDay}
                     onClick={() => {
                       const day = pendingDay;
                       setPendingDay("");
                       place(day);
                     }}
                   >
-                    Keep the {new Date(`${pendingDay}T12:00:00Z`).getUTCDay() === 6 ? "Saturday" : "Sunday"}
+                    {visit.bookedDate ? "Move it" : "Schedule it"}
                   </button>
-                </>
-              ) : (
-                <button
-                  className="pbtn"
-                  disabled={busy || !pendingDay}
-                  onClick={() => {
-                    const day = pendingDay;
-                    setPendingDay("");
-                    place(day);
-                  }}
-                >
-                  {visit.bookedDate ? "Move it" : "Place it"}
-                </button>
-              )}
-            </div>
-            <p className="wb2-hint">
-              Placing a visit on a day IS the time confirmation. Weekends are allowed on purpose —
-              the board just checks you meant it.
-            </p>
-          </div>
-        )}
+                )}
+              </div>
+              <p className="wb2-hint">
+                Comes round {cadencePhrase(visit.intervalMonths)}. Weekends are allowed on purpose —
+                the board just checks you meant it.
+              </p>
+            </>
+          )}
+        </div>
 
         <div className="wb2-shsect">
           <div className="wb2-shsh">
@@ -597,15 +694,53 @@ export function VisitSheet({
           <div className="wb2-shsh">
             <span className="wb2-sect">Notes for the visit</span>
           </div>
+          {/* One note per line, because that's how they're actually said —
+              "gate code is 4821", "ask for Dave", "roof ladder won't reach".
+              A paragraph made you read all three to find one. Storage didn't
+              change: a line IS a bullet, see lib/workboard/note-lines. */}
           {manage ? (
             <>
-              <DictateBox
-                label="notes for this visit"
-                value={notesText}
-                onChange={setNotesText}
+              {noteLines.length > 0 && (
+                <ul className="wb2-blist">
+                  {noteLines.map((line, i) => (
+                    <li key={i}>
+                      <span className="wb2-bdot" aria-hidden="true" />
+                      <input
+                        className="wb2-bin"
+                        value={line}
+                        aria-label={`Note ${i + 1}`}
+                        onChange={(e) => {
+                          const next = [...noteLines];
+                          next[i] = e.target.value;
+                          setNoteLines(next);
+                        }}
+                        onBlur={() => {
+                          if (line.trim() === "") setNoteLines(noteLines.filter((_, j) => j !== i));
+                        }}
+                      />
+                      <button
+                        className="wb2-pkx"
+                        title="Take it off"
+                        aria-label={`Remove note ${i + 1}`}
+                        onClick={() => setNoteLines(noteLines.filter((_, j) => j !== i))}
+                      >
+                        <Icon name="x" size={11} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <DictateLine
+                label="a note for this visit"
+                value={noteDraft}
+                onChange={setNoteDraft}
+                onCommit={addNoteLine}
                 voiceEnabled={voiceEnabled}
-                rows={3}
-                placeholder="Gate codes, who to ask for, what to watch out for…"
+                placeholder={
+                  noteLines.length
+                    ? "Add another…"
+                    : "Gate codes, who to ask for, what to watch out for…"
+                }
               />
               {/* Two different things you might mean by "note", said plainly.
                   SAVE keeps it on the visit for whoever turns up. SORT IT OUT
@@ -614,21 +749,21 @@ export function VisitSheet({
                   task it describes was the gap Isaac called out. The pill's
                   target already follows this sheet, so it lands here. */}
               <div className="wb2-noteact">
-                {notesText !== (visit.notes ?? "") && (
+                {!linesEqual(noteLines, toLines(visit.notes)) && (
                   <button
                     className="pbtn"
                     disabled={busy}
-                    onClick={() => run(() => setVisitNotes(visit.id, notesText))}
+                    onClick={() => run(() => setVisitNotes(visit.id, fromLines(noteLines)))}
                   >
-                    Save the note
+                    Save the notes
                   </button>
                 )}
-                {sendToBrain && notesText.trim() !== "" && (
+                {sendToBrain && (noteLines.length > 0 || noteDraft.trim() !== "") && (
                   <button
                     className="pbtn ghost"
                     disabled={busy}
                     title="Pull the tasks, flags and questions out of this"
-                    onClick={() => sendToBrain(notesText)}
+                    onClick={() => sendToBrain(fromLines([...noteLines, noteDraft]))}
                   >
                     <Icon name="sparkles" size={15} />
                     Sort this out
@@ -636,8 +771,15 @@ export function VisitSheet({
                 )}
               </div>
             </>
-          ) : visit.notes ? (
-            <p className="wb2-notetext">{visit.notes}</p>
+          ) : noteLines.length > 0 ? (
+            <ul className="wb2-blist read">
+              {noteLines.map((line, i) => (
+                <li key={i}>
+                  <span className="wb2-bdot" aria-hidden="true" />
+                  <span>{line}</span>
+                </li>
+              ))}
+            </ul>
           ) : (
             <p className="wb2-hint">No notes on this visit.</p>
           )}
@@ -673,7 +815,7 @@ export function VisitSheet({
         )}
 
         {open && manage && (
-          <div className="wb2-shft">
+          <div className={"wb2-shft" + (closing ? "" : " end")}>
             {closing ? (
               <div className="wb2-closeout">
                 <div className="wb2-shsh">
@@ -757,25 +899,17 @@ export function VisitSheet({
                 </div>
               </div>
             ) : (
-              <>
-                <button className="pbtn" disabled={busy} onClick={() => setClosing(true)}>
-                  <Icon name="check" size={15} />
-                  Mark visit complete
-                </button>
-                <button
-                  className="pbtn ghost"
-                  disabled={busy}
-                  onClick={() =>
-                    run(
-                      () => setVisitStatus(visit.id, "skipped"),
-                      `Skipped — ${visit.clientName}`,
-                      undoable(() => setVisitStatus(visit.id, "upcoming"))
-                    )
-                  }
-                >
-                  Skip this one
-                </button>
-              </>
+              /* One button, on the right, where the close-out card's own
+                 primary already sits. "Skip this one" used to sit beside it
+                 — Isaac, 2026-08-03: "why would we be skipping it?" There
+                 was no answer: a visit that isn't happening today gets moved
+                 to the day it IS happening, and one that's never happening
+                 means the agreement has changed. Skipping was a third thing
+                 that recorded neither. */
+              <button className="pbtn" disabled={busy} onClick={() => setClosing(true)}>
+                <Icon name="check" size={15} />
+                Mark visit complete
+              </button>
             )}
           </div>
         )}

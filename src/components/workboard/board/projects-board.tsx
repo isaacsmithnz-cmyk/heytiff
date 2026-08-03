@@ -164,7 +164,7 @@ export function ProjectsBoard({
       <div className="wb2-vtabs" ref={rowRef} role="tablist" aria-label="Projects board">
         {thumb && (
           <span
-            className={"wb2-vslide" + (tab === TAB_KEYS[0] ? " first" : "")}
+            className="wb2-vslide"
             style={{ transform: `translateX(${thumb.x}px)`, width: thumb.w }}
             aria-hidden="true"
           />
@@ -186,7 +186,7 @@ export function ProjectsBoard({
         {tools && <div className="wb2-vtcap">{tools}</div>}
       </div>
 
-      <div className="wb2-card" data-firsttab={tab === TAB_KEYS[0] ? "on" : undefined}>
+      <div className="wb2-card">
         <div key={`${tab}-${fallbackSwap}`} className={"wb2-panel" + (fallbackSwap ? " wb2-swap" : "")}>
           {tab === "urgent" && (
             <ProjectUrgentTab

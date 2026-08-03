@@ -275,7 +275,7 @@ describe("urgent", () => {
 
   it("the good outcome reads as one", () => {
     mount(data());
-    expect(screen.getByText("Nothing needs you right now")).toBeInTheDocument();
+    expect(screen.getByText("Nothing needs attention right now")).toBeInTheDocument();
   });
 });
 

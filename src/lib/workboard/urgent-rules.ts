@@ -172,6 +172,12 @@ export function urgentRows(input: {
       also: [],
       action: "clear_flag",
       flagId: f.flagId,
+      /* THE FLAG CARRIES ITS JOB. A flag raised from a note said "Raised from
+         a note" and led nowhere — Isaac: "you should be able to click in. It
+         should bring you into that job card where the note was placed." The
+         target was on the input all along and stopped here. */
+      visitId: f.targetKind === "visit" && f.targetId ? f.targetId : undefined,
+      agreementId: f.targetKind === "agreement" && f.targetId ? f.targetId : undefined,
     },
     createdAt: f.createdAt,
   }));

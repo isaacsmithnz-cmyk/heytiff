@@ -114,6 +114,14 @@ const nothingTicked = (d: Draft): boolean =>
    here that CANNOT be done? */
 function blockers(d: Draft, hasTarget: boolean): string[] {
   const out: string[] = [];
+  /* A NOTE MUST NAME A JOB (Isaac, 2026-08-02, choosing between four ways to
+     give loose notes a home). It used to offer "keep the words only", which
+     kept them in a table nothing reads — and no rewording of that button
+     makes a drawer nobody opens into a destination. So the card asks for the
+     job instead. Discard is still there for words you don't want. */
+  if (!hasTarget) {
+    out.push("Every note goes on a job — say which one, or discard it.");
+  }
   const unassigned = d.tasks.filter((t) => t.on && t.title.trim() && !t.assigneeId).length;
   if (unassigned) {
     out.push(
@@ -121,9 +129,6 @@ function blockers(d: Draft, hasTarget: boolean): string[] {
         ? "One task still needs a person on it — assign it, or untick it."
         : `${unassigned} tasks still need a person on them — assign them, or untick them.`
     );
-  }
-  if (!hasTarget && d.bringItems.some((b) => b.on && b.text.trim())) {
-    out.push("A bring-list needs a job to sit on — say what this note is against, or untick them.");
   }
   return out;
 }
@@ -303,12 +308,10 @@ export function NoteCapture({
      what made Isaac ask where the note was even going. With no job named
      there's nowhere to put it, so the button says that instead of offering. */
   const keepAsNote = () => {
-    if (!note) return;
+    if (!note || !hasTarget) return;
     setError(null);
     start(async () => {
-      const res = hasTarget
-        ? await keepNoteOnJob(note.id, chosen ?? undefined)
-        : await dismissNote(note.id);
+      const res = await keepNoteOnJob(note.id, chosen ?? undefined);
       if (!res.ok) {
         setError(res.error);
         return;
@@ -445,7 +448,7 @@ export function NoteCapture({
                     ) : guess.ambiguous ? (
                       "More than one job matches what you said."
                     ) : (
-                      "This isn't against a job yet."
+                      "Every note goes on a job — say which one."
                     )}
                   </span>
                   {/* The picker lives HERE, on the thing it changes. A select
@@ -674,14 +677,10 @@ export function NoteCapture({
                     <button
                       className="pbtn ghost"
                       onClick={keepAsNote}
-                      disabled={busy}
-                      title={
-                        hasTarget
-                          ? "Put the words on the job's notes and apply none of this"
-                          : "Nothing on the board will show it — pick a job to put it on the job's notes"
-                      }
+                      disabled={busy || !hasTarget}
+                      title="Put the words on the job's notes and apply none of this"
                     >
-                      {hasTarget ? "Put it on the job's notes" : "Keep the words only"}
+                      Put it on the job&apos;s notes
                     </button>
                     <button
                       className="pbtn"

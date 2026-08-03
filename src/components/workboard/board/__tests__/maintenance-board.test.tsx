@@ -179,12 +179,13 @@ function data(over: Partial<MaintenanceBoardData> = {}): MaintenanceBoardData {
 
 function mount(
   d: MaintenanceBoardData,
-  opts: { manage?: boolean; sm8?: { attention: boolean; syncedAt: string | null; running: boolean } | null } = {}
+  opts: { manage?: boolean; sm8?: { attention: boolean; syncedAt: string | null; running: boolean } | null } = {},
+  flags: React.ComponentProps<typeof MaintenanceBoard>["flags"] = []
 ) {
   return render(
     <MaintenanceBoard
       data={d}
-      flags={[]}
+      flags={flags}
       today={TODAY}
       manage={opts.manage ?? true}
       connected={false}
@@ -516,7 +517,7 @@ describe("Urgent — derived rows, resolvable in place", () => {
         connected={false}
       />
     );
-    expect(screen.getByText("Overdue")).toBeInTheDocument();
+    expect(document.querySelector(".wb2-urgrp > .wb2-sect")?.textContent).toBe("Overdue");
     expect(screen.getByText("Your tasks")).toBeInTheDocument();
     // both sides populated → the two-column grid
     expect(document.querySelector(".wb2-urbody.twocol")).not.toBeNull();
@@ -526,14 +527,14 @@ describe("Urgent — derived rows, resolvable in place", () => {
 
   it("collapses to one column when only the work side has anything", () => {
     mount(data({ visits: [visit({ id: "v-late", dueDate: "2026-07-21" })] }));
-    expect(screen.getByText("Overdue")).toBeInTheDocument();
+    expect(document.querySelector(".wb2-urgrp > .wb2-sect")?.textContent).toBe("Overdue");
     expect(screen.queryByText("Your tasks")).not.toBeInTheDocument();
     expect(document.querySelector(".wb2-urbody.twocol")).toBeNull();
   });
 
   it("says the good outcome when nothing fires", () => {
     mount(data());
-    expect(screen.getByText("Nothing needs you right now")).toBeInTheDocument();
+    expect(screen.getByText("Nothing needs attention right now")).toBeInTheDocument();
   });
 });
 
@@ -839,6 +840,51 @@ describe("Urgent quick actions — each row fixes ITS fact (A1/A4)", () => {
     expect(sheet.getByRole("button", { name: "Mark it complete" })).toBeInTheDocument();
   });
 
+  /* "It says it was raised from a note, but you should be able to click in.
+     It should bring you into that job card where the note was placed."
+     (Isaac.) The flag's target rode on the input and stopped at the rule
+     builder, so every flag row was a dead end. */
+  it("a flag raised against a visit clicks THROUGH to that visit", async () => {
+    mount(
+      data({ visits: [visit({ id: "v-1" })] }),
+      {},
+      [
+        {
+          id: "f-1",
+          message: "Gate code changed — nobody told the crew",
+          severity: "warn",
+          createdAt: "2026-08-01T02:00:00Z",
+          targetKind: "visit",
+          targetId: "v-1",
+        },
+      ]
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /Open Gate code changed — nobody told the crew/ })
+    );
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(within(screen.getByRole("dialog")).getByText(/Rooftop package units/)).toBeInTheDocument();
+  });
+
+  it("a flag against nothing stays a plain row — it can't pretend to lead somewhere", async () => {
+    mount(
+      data({ visits: [] }),
+      {},
+      [
+        {
+          id: "f-2",
+          message: "Order more coil cleaner",
+          severity: "warn",
+          createdAt: "2026-08-01T02:00:00Z",
+          targetKind: "none",
+          targetId: null,
+        },
+      ]
+    );
+    expect(screen.queryByRole("button", { name: /Open Order more coil cleaner/ })).not.toBeInTheDocument();
+    expect(screen.getByText(/stays up until somebody clears it/)).toBeInTheDocument();
+  });
+
   it("flag Clear and task Done carry their own inverses — two toasts, two undos, no crosstalk (B23)", async () => {
     render(
       <MaintenanceBoard
@@ -895,12 +941,12 @@ describe("Urgent quick actions — each row fixes ITS fact (A1/A4)", () => {
     expect(screen.getByText("Grange Microbrewery — Rooftop package units")).toBeInTheDocument();
     expect(screen.getByText("Meridian Data — Rooftop package units")).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: /1 overdue/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Overdue 1/ }));
     expect(screen.getByText("Grange Microbrewery — Rooftop package units")).toBeInTheDocument();
     expect(screen.queryByText("Meridian Data — Rooftop package units")).not.toBeInTheDocument();
 
     // pressing it again is the way back to everything
-    await userEvent.click(screen.getByRole("button", { name: /1 overdue/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Overdue 1/ }));
     expect(screen.getByText("Meridian Data — Rooftop package units")).toBeInTheDocument();
   });
 });

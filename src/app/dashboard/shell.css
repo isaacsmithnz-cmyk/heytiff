@@ -3304,7 +3304,12 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
   background:rgba(5,5,5,.07); color:var(--gray700); font-size:11px; font-weight:800; font-style:normal; }
 .wb2-vtn.dan { background:rgba(224,38,79,.12); color:var(--wb2-dan-t, #b31038); }
 .wb2-vtn.warn { background:rgba(255,138,0,.16); color:var(--wb2-warn-t, #B45309); }
+/* The thumb IS the card's top edge for the width of the active tab, so it
+   carries the card's border. Without it the white sat inside a border that
+   stopped at the card, and the join read as a step — "it doesn't actually
+   perfectly line up with the rest of the card". */
 .wb2-vslide { position:absolute; left:0; bottom:-1px; height:45px; border-radius:12px 12px 0 0; background:#fff; z-index:0;
+  border:1px solid var(--wb2-line); border-bottom:0;
   box-shadow:0 -10px 22px -18px rgba(10,12,20,.55); transition:transform .34s cubic-bezier(.4,0,.2,1), width .34s cubic-bezier(.4,0,.2,1); }
 .wb2-vslide:before { content:""; position:absolute; left:-12px; bottom:0; width:12px; height:12px;
   background:radial-gradient(circle 12px at 0 0, transparent 11.5px, #fff 12px); }
@@ -3314,8 +3319,12 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-vslide.first:before { display:none; }
 
 /* ── the persistent card ── */
-.wb2-card { background:#fff; border:1px solid var(--wb2-line); border-radius:24px; border-top-left-radius:0;
+/* The top-left corner is square ONLY while the FIRST tab is on, because that
+   is the corner the tab is standing on. It used to be square always, so
+   switching to Upcoming left one corner cut for no reason (Isaac). */
+.wb2-card { background:#fff; border:1px solid var(--wb2-line); border-radius:24px;
   box-shadow:0 8px 30px rgba(0,0,0,.03); overflow:hidden; }
+.wb2-card[data-firsttab="on"] { border-top-left-radius:0; }
 @supports (view-transition-name: none) {
   .wb2-card { view-transition-name:wbcard; }
   .wb2-vtabs { view-transition-name:wbtabs; }
@@ -3882,15 +3891,24 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 /* ── wb2 step 3: filters, day modal, toasts, mirror chip ── */
 
 /* the old vitals, reborn as filters on the queue (D8) */
-.wb2-filters { display:flex; align-items:center; gap:7px; flex-wrap:wrap; margin-left:auto; }
-.wb2-filter { display:inline-flex; align-items:center; gap:7px; height:32px; padding:0 12px; border-radius:10px;
-  border:1px solid rgba(5,5,5,.1); background:#fff; font:inherit; font-size:12px; font-weight:700; color:var(--gray700);
-  cursor:pointer; transition:border-color .18s, background .18s, box-shadow .18s; }
-.wb2-filter b { font-size:13px; font-weight:800; font-variant-numeric:tabular-nums; }
-.wb2-filter.dan b { color:var(--wb2-dan-t, #b31038); }
-.wb2-filter.warn b { color:var(--wb2-warn-t, #B45309); }
-.wb2-filter:hover { border-color:rgba(5,5,5,.25); }
-.wb2-filter.on { border-color:rgba(0,168,224,.5); background:rgba(0,168,224,.07); box-shadow:0 0 0 2px rgba(0,168,224,.12); color:var(--ink); }
+/* ONE segmented control, not five loose pills. Five outlined chips of five
+   different widths, each leading with a bare number in front of a lowercase
+   word — "2 everything" — read as debug output. This is the switcher language
+   the page already speaks: one tray, the active segment lifted onto white,
+   the label first and the count riding behind it as a badge that keeps its
+   severity colour. */
+.wb2-filters { display:inline-flex; align-items:center; gap:2px; margin-left:auto; padding:3px; flex-wrap:wrap;
+  border-radius:12px; background:rgba(5,5,5,.05); border:1px solid rgba(5,5,5,.06); }
+.wb2-filter { display:inline-flex; align-items:center; gap:7px; height:28px; padding:0 11px; border-radius:9px;
+  border:0; background:none; font:inherit; font-size:12px; font-weight:700; color:var(--gray500);
+  cursor:pointer; transition:background .18s, color .18s, box-shadow .18s; }
+.wb2-filter:hover:not(.on) { background:rgba(255,255,255,.75); color:var(--ink); }
+.wb2-filter.on { background:#fff; color:var(--ink); box-shadow:0 1px 2px rgba(10,12,20,.14); }
+.wb2-filter:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
+.wb2-filter b { min-width:18px; height:18px; padding:0 5px; border-radius:6px; display:inline-grid; place-items:center;
+  background:rgba(5,5,5,.08); color:var(--gray700); font-size:10.5px; font-weight:800; font-variant-numeric:tabular-nums; }
+.wb2-filter.dan b { background:rgba(224,38,79,.14); color:var(--wb2-dan-t, #b31038); }
+.wb2-filter.warn b { background:rgba(255,138,0,.18); color:var(--wb2-warn-t, #B45309); }
 .wb2-filter:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
 
 /* the mirror-health chip beside the tabs (D8) */

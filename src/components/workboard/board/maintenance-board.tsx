@@ -220,7 +220,7 @@ export function MaintenanceBoard({
         {tools && <div className="wb2-vtcap">{tools}</div>}
       </div>
 
-      <div className="wb2-card">
+      <div className="wb2-card" data-firsttab={tab === TAB_KEYS[0] ? "on" : undefined}>
         <div key={`${tab}-${fallbackSwap}`} className={"wb2-panel" + (fallbackSwap ? " wb2-swap" : "")}>
           {tab === "urgent" && (
             <UrgentTab
@@ -228,6 +228,7 @@ export function MaintenanceBoard({
               staff={data.staff}
               manage={manage}
               onOpenVisit={(id) => openSheet(id)}
+              onOpenAgreement={(id) => setAgreementId(id)}
               onCloseOut={(id) => openSheet(id, true)}
               onToast={toast}
             />

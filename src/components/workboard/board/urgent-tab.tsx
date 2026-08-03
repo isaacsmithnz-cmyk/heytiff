@@ -53,6 +53,7 @@ export function UrgentTab({
   staff,
   manage,
   onOpenVisit,
+  onOpenAgreement,
   onCloseOut,
   onToast,
 }: {
@@ -60,6 +61,8 @@ export function UrgentTab({
   staff: BoardTech[];
   manage: boolean;
   onOpenVisit: (visitId: string) => void;
+  /** Where a flag raised against an AGREEMENT goes when you click into it. */
+  onOpenAgreement?: (agreementId: string) => void;
   onCloseOut: (visitId: string) => void;
   onToast: (message: string, undo?: () => void | Promise<void>) => void;
 }) {
@@ -97,8 +100,8 @@ export function UrgentTab({
         aria-pressed={filter === key}
         onClick={() => setFilter(filter === key ? "all" : key)}
       >
-        <b>{counts[key]}</b>
         {label}
+        <b>{counts[key]}</b>
       </button>
     );
 
@@ -109,22 +112,25 @@ export function UrgentTab({
           <Icon name="zap" size={19} />
         </span>
         <div>
-          <b>Needs you today</b>
+          {/* NOT "needs you". Display mode puts this board on a wall, and
+              anyone walking past can act on a row — the queue belongs to
+              whoever picks it up (Isaac, 2026-08-02). */}
+          <b>Needs attention</b>
           <em>Overdue first, then before the week turns. Rows clear themselves as facts change.</em>
         </div>
         <div className="wb2-filters">
-          {filterChip("all", "everything", "")}
-          {filterChip("overdue", "overdue", "dan")}
-          {filterChip("gaps", "to confirm", "warn")}
-          {filterChip("flags", "flags", "warn")}
-          {filterChip("tasks", "tasks", "warn")}
+          {filterChip("all", "Everything", "")}
+          {filterChip("overdue", "Overdue", "dan")}
+          {filterChip("gaps", "To confirm", "warn")}
+          {filterChip("flags", "Flags", "warn")}
+          {filterChip("tasks", "Tasks", "warn")}
         </div>
       </div>
 
       {shown.length === 0 ? (
         <div className="wb2-empty">
           <Icon name="check" size={20} />
-          <b>{filter === "all" ? "Nothing needs you right now" : "Nothing of that kind right now"}</b>
+          <b>{filter === "all" ? "Nothing needs attention right now" : "Nothing of that kind right now"}</b>
           <em>
             {filter === "all"
               ? "The month is confirmed as far as it goes."
@@ -165,21 +171,31 @@ export function UrgentTab({
   );
 
   function Row({ r }: { r: UrgentRow }) {
-    const openable = !!r.visitId;
+    /* Every row that KNOWS what it's about opens it — including a flag, which
+       used to say "raised from a note" and then go nowhere. A flag against an
+       agreement opens the agreement; against a visit, the visit sheet. */
+    const open = r.visitId
+      ? () => onOpenVisit(r.visitId!)
+      : r.agreementId && onOpenAgreement
+        ? () => onOpenAgreement(r.agreementId!)
+        : null;
+    const openable = open !== null;
+    const what =
+      r.reason === "flag" ? r.headline : `${r.clientName} — ${r.label}`;
     return (
       <div
         className={"wb2-ur" + (openable ? " can-open" : "")}
         data-sev={r.severity === "danger" ? "dan" : "warn"}
         role={openable ? "button" : undefined}
         tabIndex={openable ? 0 : undefined}
-        aria-label={openable ? `Open ${r.clientName} — ${r.label}` : undefined}
-        onClick={openable ? () => onOpenVisit(r.visitId!) : undefined}
+        aria-label={openable ? `Open ${what}` : undefined}
+        onClick={open ?? undefined}
         onKeyDown={
-          openable
+          open
             ? (e) => {
                 if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
                   e.preventDefault();
-                  onOpenVisit(r.visitId!);
+                  open();
                 }
               }
             : undefined
@@ -198,7 +214,11 @@ export function UrgentTab({
           </div>
           <b>{r.reason === "flag" ? r.label ?? r.headline : `${r.clientName} — ${r.label}`}</b>
           {r.reason === "flag" ? (
-            <em>Raised from a note — stays up until somebody clears it.</em>
+            <em>
+              {r.visitId || r.agreementId
+                ? "Raised from a note — open the job, or clear it."
+                : "Raised from a note — stays up until somebody clears it."}
+            </em>
           ) : (
             /* Facts, not instructions. This line used to end with "book it in
                to get it moving" — a sentence telling you to press the button

@@ -13,6 +13,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MaintenanceBoard } from "../maintenance-board";
 import type { BoardVisit, MaintenanceBoardData } from "@/lib/workboard/board-query";
+import { tagToneFor } from "@/lib/workboard/tags";
 
 const refresh = jest.fn();
 jest.mock("next/navigation", () => ({
@@ -260,7 +261,10 @@ describe("Upcoming (C4/B5/B7/B8)", () => {
     expect(screen.queryByText("Closed Pty")).not.toBeInTheDocument();
   });
 
-  it("counts to-confirm inside 14 days only (B8) and says Ready on a clear row", async () => {
+  /* Three gates ticked is not the same claim as "this job is happening":
+     without a day booked the row used to read "Not placed" and "Ready" side
+     by side, which is a contradiction on one line (Isaac). */
+  it("counts to-confirm inside 14 days only (B8), and only a PLACED clear row says Ready", async () => {
     mount(
       data({
         visits: [
@@ -276,8 +280,32 @@ describe("Upcoming (C4/B5/B7/B8)", () => {
       })
     );
     await toTab(/Upcoming/);
-    expect(screen.getByText("3 to confirm across 1 service")).toBeInTheDocument();
+    /* The chip names the DAY the horizon ends on, not a span: "next 14 days"
+       is a claim the reader can't check against the rows, and Isaac checked
+       it against the rows. TODAY is Thu 30 Jul, the horizon is 14 days, so
+       everything from Fri 14 Aug on is somebody else's week. */
+    expect(screen.getByText("3 to confirm before Fri 14 Aug")).toBeInTheDocument();
+    expect(screen.getByText("Ready to book")).toBeInTheDocument();
+    expect(screen.queryByText("Ready")).not.toBeInTheDocument();
+  });
+
+  it("says plain Ready once the clear row has a day on it", async () => {
+    mount(
+      data({
+        visits: [
+          visit({
+            id: "v-ok",
+            dueDate: "2026-08-03",
+            bookedDate: "2026-08-03",
+            readiness: { ...ready },
+            techs: [{ id: "s-1", name: "Dane Poulos" }],
+          }),
+        ],
+      })
+    );
+    await toTab(/Upcoming/);
     expect(screen.getByText("Ready")).toBeInTheDocument();
+    expect(screen.getByText("Nothing to confirm before Fri 14 Aug")).toBeInTheDocument();
   });
 });
 
@@ -504,8 +532,19 @@ describe("the visit sheet — the editing heart", () => {
     expect(act.tagAgreement).toHaveBeenCalledWith("a-1", "t-2");
 
     await userEvent.click(sheet.getByRole("button", { name: /Add tag/ }));
+    await userEvent.type(sheet.getByPlaceholderText("Type or pick a tag"), "Strata");
+    /* The colour is a CHOICE now, not only a hash of the name — and the
+       swatches only appear for a name that isn't already a tag. */
+    await userEvent.click(sheet.getByRole("button", { name: /^Cyan —/ }));
+    await userEvent.type(sheet.getByPlaceholderText("Type or pick a tag"), "{Enter}");
+    expect(act.createTag).toHaveBeenCalledWith("Strata", "cyan");
+  });
+
+  it("a new tag with no colour picked falls back to the name's own tone", async () => {
+    const sheet = await open(visit({ id: "v-1" }));
+    await userEvent.click(sheet.getByRole("button", { name: /Add tag/ }));
     await userEvent.type(sheet.getByPlaceholderText("Type or pick a tag"), "Strata{Enter}");
-    expect(act.createTag).toHaveBeenCalledWith("Strata");
+    expect(act.createTag).toHaveBeenCalledWith("Strata", tagToneFor("Strata"));
   });
 
   it("without manage: ticking and packing stay, structure is read-only", async () => {
@@ -629,7 +668,7 @@ describe("Completed — actuals, never estimates (L3/B12)", () => {
     await toTab(/Completed/);
     expect(screen.getByText("3 h on site")).toBeInTheDocument();
     expect(screen.getByText("booked 2 h")).toBeInTheDocument();
-    expect(screen.getByText("2 days late")).toBeInTheDocument();
+    expect(screen.getByText("Done 2 days after it was due")).toBeInTheDocument();
     expect(screen.getByText("Belts swapped, filters done.")).toBeInTheDocument();
   });
 
@@ -798,7 +837,7 @@ describe("Calendar — first cut", () => {
       })
     );
     await toTab(/Calendar/);
-    expect(screen.getByText("1 service")).toBeInTheDocument();
+    expect(screen.getByText("1 service booked in")).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "A week later" }));
     expect(screen.getByText("3 Aug – 30 Aug")).toBeInTheDocument();
@@ -935,6 +974,32 @@ describe("Urgent quick actions — each row fixes ITS fact (A1/A4)", () => {
     );
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(within(screen.getByRole("dialog")).getByText(/Rooftop package units/)).toBeInTheDocument();
+  });
+
+  /* The case Isaac hit on the live board: a flag about a client's equipment
+     with no visit raised yet. It belongs to the AGREEMENT, and that is the
+     card it has to open. */
+  it("a flag raised against an agreement opens the agreement sheet", async () => {
+    mount(
+      data({ agreements: [agreementFix({ id: "a-1" })] }),
+      {},
+      [
+        {
+          id: "f-3",
+          message: "Middle rooftop unit has tripped again — repeat trip",
+          severity: "warn",
+          createdAt: "2026-08-01T02:00:00Z",
+          targetKind: "agreement",
+          targetId: "a-1",
+        },
+      ]
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /Open Middle rooftop unit has tripped again/ })
+    );
+    const sheet = within(screen.getByRole("dialog"));
+    expect(sheet.getByText("Service agreement")).toBeInTheDocument();
+    expect(sheet.getByRole("heading", { name: /Rooftop package units/ })).toBeInTheDocument();
   });
 
   it("a flag against nothing stays a plain row — it can't pretend to lead somewhere", async () => {

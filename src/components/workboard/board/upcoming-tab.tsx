@@ -3,10 +3,12 @@
 import { useMemo } from "react";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuDayMonth, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
+import { plusDays } from "@/lib/workboard/dates";
 import type { BoardVisit } from "@/lib/workboard/board-query";
 import {
   BOARD_AHEAD_DAYS,
   daysBetween,
+  TO_CONFIRM_HORIZON_DAYS,
   weekGroupKey,
   weekGroupRank,
 } from "@/lib/workboard/board-status";
@@ -70,6 +72,10 @@ export function UpcomingTab({
       }));
   }, [visits, today]);
 
+  /** The first day past the to-confirm horizon — the chip names it so the
+      claim can be checked against the rows underneath. */
+  const horizonDay = fmtAuWeekdayDayMonth(plusDays(today, TO_CONFIRM_HORIZON_DAYS + 1));
+
   return (
     <>
       <div className="wb2-chd">
@@ -80,12 +86,21 @@ export function UpcomingTab({
           <b>Maintenance services</b>
           <em>Grouped by week, worst first. Open a row to confirm anything.</em>
         </div>
+        {/* NAME THE DAY, not the span. "Fortnight confirmed" was two words
+            doing three jobs; "Next 14 days all confirmed" fixed the wrong
+            half — Isaac: "most of them aren't actually confirmed", and he was
+            reading the LIST, where most rows show empty gates because they
+            are further out than the horizon this chip counts.
+
+            A span the reader has to compute from can't be checked against
+            what's on screen. A DATE can: everything above Mon 17 Aug is
+            clear, everything below it is somebody else's week. Same rule
+            underneath (B8 — gate gaps beyond the horizon are not today's
+            business), said in a way the list can't contradict. */}
         <span className={"wb2-chip" + (confirm.gaps > 0 ? " warn" : " ok")}>
           {confirm.gaps > 0
-            ? `${confirm.gaps} to confirm across ${confirm.services} ${
-                confirm.services === 1 ? "service" : "services"
-              }`
-            : "Fortnight confirmed"}
+            ? `${confirm.gaps} to confirm before ${horizonDay}`
+            : `Nothing to confirm before ${horizonDay}`}
         </span>
       </div>
 
@@ -97,10 +112,16 @@ export function UpcomingTab({
         </div>
       ) : (
         <>
+          {/* Frequency and Due are TWO columns, as they are on the agreements
+              ledger. They used to share one, stacked under a single
+              "Frequency · Due" heading — so the heading sat over a pair of
+              values it only half named, and the second value hung under a
+              column of its own with no label. */}
           <div className="wb2-trhd" aria-hidden="true">
             <span>Client and service</span>
             <span>Job</span>
-            <span>Frequency · Due</span>
+            <span>Frequency</span>
+            <span>Due</span>
             <span>Day booked</span>
             <span className="wb2-trhd-ck">
               <em style={{ ["--as" as string]: "var(--wb2-eq)" }}>Equip</em>
@@ -165,12 +186,12 @@ function Row({
         </em>
       </div>
       <span className="wb2-trref">{v.jobNumber ? `#${v.jobNumber}` : "—"}</span>
-      <div className="wb2-trw">
-        <em>{cadenceLabel(v.intervalMonths)}</em>
+      <em className="wb2-trcad">{cadenceLabel(v.intervalMonths)}</em>
+      <span className="wb2-trw">
         <span className={"wb2-chip" + (rel.tone ? ` ${rel.tone === "dan" ? "dan" : "warn"}` : "")}>
           {rel.t}
         </span>
-      </div>
+      </span>
       <div className="wb2-trd">
         {placed ? (
           <>
@@ -203,9 +224,13 @@ function Row({
         {tone === "quote" ? (
           <em className="wb2-trnote">Starts if the quote is won</em>
         ) : missing.length === 0 ? (
-          <span className="wb2-ckall">
+          /* "Ready" beside "Not placed" is a contradiction on one row: the
+             three gates being ticked says the KIT, the ACCESS and the CREW
+             are sorted, not that the job is going to happen. Until it has a
+             day, the honest word is what's left to do. */
+          <span className={"wb2-ckall" + (placed ? "" : " tobook")}>
             <Icon name="check" size={13} />
-            Ready
+            {placed ? "Ready" : "Ready to book"}
           </span>
         ) : (
           (["equipment", "access", "crew"] as const).map((g) => {

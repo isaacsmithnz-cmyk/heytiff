@@ -309,6 +309,20 @@ export async function applyNote(
       .eq("org_id", ctx.orgId)
       .eq("id", noteId);
   }
+
+  /* A NOTE MUST NAME A JOB (Isaac, 2026-08-02). The review card enforces it
+     by disabling both save buttons, but a Server Function is reachable by
+     direct POST, so it is re-decided here. This is what stops targetless
+     FLAGS being written: a flag with no job renders a row on Needs attention
+     that names a problem and then refuses to open anything — a dead end you
+     can only clear, which is exactly what Isaac hit. */
+  if (target.kind === "none" || !target.id) {
+    return {
+      ok: false,
+      error: "Every note goes on a job — say which one before saving it.",
+    };
+  }
+
   const applied: Record<string, unknown> = {};
   const counts: string[] = [];
 
@@ -559,13 +573,13 @@ export async function applyNote(
     (confirmed.progressBullets?.length ?? 0) +
     (confirmed.commissioningEntries?.length ?? 0) +
     (confirmed.issueEntries?.length ?? 0);
+  /* The "no job" half of this message is gone because the case is: the
+     guard above already refused a targetless note outright, so by here the
+     only thing that can drop everything is a task with nobody on it. */
   if (asked > 0 && counts.length === 0) {
     return {
       ok: false,
-      error:
-        target.kind === "none"
-          ? "None of that could be saved — the tasks need a person on them, and a bring-list needs a job to sit on. Pick what it's against, or untick what you don't want."
-          : "None of that could be saved — a task needs a person on it. Assign it or untick it.",
+      error: "None of that could be saved — a task needs a person on it. Assign it or untick it.",
     };
   }
 

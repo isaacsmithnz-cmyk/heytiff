@@ -24,6 +24,8 @@ import {
   type MaintenanceResult,
 } from "@/app/actions/workboard-maintenance";
 import { cadenceLabel, untilLabel } from "./derive";
+import { TagStrip } from "./tag-strip";
+import type { TagTone } from "@/lib/workboard/tags";
 
 /* The agreement sheet (A6's fix) — everything the shipped detail page could
    do, now one slide-over on the board: meta, schedule (with the redraw
@@ -82,8 +84,6 @@ export function AgreementSheet({
   const [anchor, setAnchor] = useState(a.anchorDate);
   const [contractEnd, setContractEnd] = useState(a.contractEnd ?? "");
   const [ending, setEnding] = useState(false);
-  const [addingTag, setAddingTag] = useState(false);
-  const [tagText, setTagText] = useState("");
   const [newCategory, setNewCategory] = useState(false);
   const [categoryText, setCategoryText] = useState("");
   const [eq, setEq] = useState({ description: "", model: "", serial: "", location: "" });
@@ -156,21 +156,13 @@ export function AgreementSheet({
     );
 
   const rel = a.nextDue ? untilLabel(a.nextDue, today) : null;
-  const tagSuggestions = tagPool.filter((t) => !a.tags.some((x) => x.id === t.id));
 
-  const addTag = (raw: string) => {
-    const name = raw.trim();
-    setAddingTag(false);
-    setTagText("");
-    if (!name) return;
-    const existing = tagPool.find((t) => t.name.toLowerCase() === name.toLowerCase());
+  const addTag = (name: string, colour: TagTone) =>
     run(async () => {
-      if (existing) return tagAgreement(a.id, existing.id);
-      const made = await createTag(name);
+      const made = await createTag(name, colour);
       if (!made.ok || !made.id) return made;
       return tagAgreement(a.id, made.id);
     });
-  };
 
   return createPortal(
     <>
@@ -472,68 +464,15 @@ export function AgreementSheet({
             <span className="wb2-sect">Tags</span>
             <span className="wb2-chip">{a.tags.length || "none"}</span>
           </div>
-          <div className="wb2-tags">
-            {a.tags.map((t) => (
-              <span className={`wb2-tag on t-${t.color}`} key={t.id}>
-                {t.name}
-                {manage && (
-                  <button
-                    disabled={busy}
-                    title="Remove"
-                    aria-label={`Remove ${t.name}`}
-                    onClick={() => run(() => untagAgreement(a.id, t.id))}
-                  >
-                    <Icon name="x" size={10} />
-                  </button>
-                )}
-              </span>
-            ))}
-            {manage &&
-              (addingTag ? (
-                <input
-                  className="wb2-tagin"
-                  autoFocus
-                  placeholder="Type or pick a tag"
-                  value={tagText}
-                  onChange={(e) => setTagText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      addTag(tagText);
-                    }
-                    if (e.key === "Escape") {
-                      setAddingTag(false);
-                      setTagText("");
-                    }
-                  }}
-                  onBlur={() => addTag(tagText)}
-                />
-              ) : (
-                <button className="wb2-tag add" disabled={busy} onClick={() => setAddingTag(true)}>
-                  <Icon name="plus" size={11} />
-                  Add tag
-                </button>
-              ))}
-          </div>
-          {manage && addingTag && tagSuggestions.length > 0 && (
-            <div className="wb2-tagsug">
-              {tagSuggestions.map((t) => (
-                <button
-                  key={t.id}
-                  className={`wb2-tag sug t-${t.color}`}
-                  disabled={busy}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    setAddingTag(false);
-                    setTagText("");
-                    run(() => tagAgreement(a.id, t.id));
-                  }}
-                >
-                  {t.name}
-                </button>
-              ))}
-            </div>
-          )}
+          <TagStrip
+            tags={a.tags}
+            pool={tagPool}
+            manage={manage}
+            busy={busy}
+            onAdd={addTag}
+            onPick={(tagId) => run(() => tagAgreement(a.id, tagId))}
+            onRemove={(tagId) => run(() => untagAgreement(a.id, tagId))}
+          />
         </div>
 
         <div className="wb2-shsect">

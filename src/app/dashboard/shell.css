@@ -3100,8 +3100,14 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
    side's IDENTITY colour with it — maintenance green, projects cyan. This
    is the one place colour means "which half of the business", not state;
    the count badge beside it keeps the status law's tones. */
+/* The track has to READ as a track. At #eceff4 it was two points off the
+   well behind it, so the side you AREN'T on looked like a label floating on
+   the page rather than the other half of a control — "it kinda blends into
+   the gray background a bit too much" (Isaac). Darker track, and the resting
+   side gets its own faint slab so there are visibly two positions even before
+   you look at which one is filled. */
 .wb2-seg { position:relative; justify-self:center; display:flex; gap:3px; padding:4px; border-radius:15px;
-  background:#eceff4; border:1px solid rgba(10,12,20,.05); flex:none; }
+  background:#dee3ec; border:1px solid rgba(10,12,20,.08); flex:none; }
 .wb2-segsl { position:absolute; top:4px; bottom:4px; left:0; border-radius:12px; background:#fff;
   box-shadow:0 3px 10px -4px rgba(10,12,20,.4);
   transition:transform .42s cubic-bezier(.22,1,.36,1), width .42s cubic-bezier(.22,1,.36,1),
@@ -3111,8 +3117,15 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-segb { position:relative; z-index:1; display:inline-flex; align-items:center; gap:9px; height:46px; padding:0 18px;
   border:0; background:none; border-radius:12px; font:inherit; font-size:13.5px; font-weight:700; color:var(--gray500);
   cursor:pointer; transition:color .2s; }
+/* A SOLID slab, not a translucent film — a half-opaque white over a tinted
+   track reads as glass, which is a material this app doesn't use anywhere
+   (Isaac spotted it immediately). One flat colour: lighter than the track,
+   darker than the moving thumb, so the resting side is plainly a seat and
+   plainly not the one you're on. */
+.wb2-segb:not(.on) { background:#e9edf4; color:var(--gray700); }
 .wb2-segb:hover { color:var(--ink); }
-.wb2-segb.on, .wb2-segb.on:hover { color:#fff; }
+.wb2-segb:not(.on):hover { background:#f2f5f9; }
+.wb2-segb.on, .wb2-segb.on:hover { color:#fff; background:none; }
 .wb2-segb:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
 .wb2-segb i { min-width:22px; height:22px; padding:0 6px; border-radius:8px; display:grid; place-items:center;
   font-size:11px; font-weight:800; font-style:normal; font-variant-numeric:tabular-nums;
@@ -3321,9 +3334,21 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 /* ── the persistent card ── */
 /* The top-left corner is square ONLY while the FIRST tab is on, because that
    is the corner the tab is standing on. It used to be square always, so
-   switching to Upcoming left one corner cut for no reason (Isaac). */
+   switching to Upcoming left one corner cut for no reason (Isaac).
+
+   IT OPENS AND CLOSES, it doesn't snap — "you can see it changing from
+   rectangular to a rounded corner" (Isaac again). The DELAY is the whole
+   trick and it is not padding: the card carries `view-transition-name`, so
+   for the length of its transition the real element isn't painted at all —
+   two snapshots are, both taken while the radius still held its old value.
+   Animate it with no delay and the browser simply reveals the finished
+   corner when the snapshots retire, which is the snap he's describing. So
+   the corner waits for the surface to finish morphing and only then travels,
+   in full view. KEEP THIS DELAY EQUAL TO ::view-transition-group(wbcard)'s
+   duration below — they are one number pretending to be two. */
 .wb2-card { background:#fff; border:1px solid var(--wb2-line); border-radius:24px;
-  box-shadow:0 8px 30px rgba(0,0,0,.03); overflow:hidden; }
+  box-shadow:0 8px 30px rgba(0,0,0,.03); overflow:hidden;
+  transition:border-top-left-radius .34s cubic-bezier(.4,0,.2,1) .32s; }
 .wb2-card[data-firsttab="on"] { border-top-left-radius:0; }
 @supports (view-transition-name: none) {
   .wb2-card { view-transition-name:wbcard; }
@@ -3358,7 +3383,12 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-chd > div { min-width:0; }
 .wb2-chd b { display:block; font-size:16px; font-weight:800; letter-spacing:-.01em; }
 .wb2-chd em { display:block; font-style:normal; font-size:12.5px; color:var(--gray500); margin-top:2px; font-weight:500; }
-.wb2-chd .wb2-chip, .wb2-chd .pbtn, .wb2-chd .wb2-mcnav { margin-left:auto; flex:none; }
+/* The status slot is pushed to the far right — DIRECT children only. As a
+   descendant selector this also hit the chips INSIDE .wb2-mcsum, so the
+   calendar's own summary got pushed to the right end of ITSELF while the
+   wrapper stayed parked against the subtitle, leaving "2 services" adrift in
+   the middle of the header with nothing either side of it. */
+.wb2-chd > .wb2-chip, .wb2-chd > .pbtn, .wb2-chd > .wb2-mcnav, .wb2-chd > .wb2-mcsum { margin-left:auto; flex:none; }
 .wb2-sect { font-size:10.5px; font-weight:800; letter-spacing:.17em; text-transform:uppercase; color:#9ca3af; }
 .wb2-hint { font-size:12.5px; color:var(--gray500); font-weight:500; margin:8px 0 0; }
 .wb2-chip { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:800; padding:4px 9px; border-radius:8px;
@@ -3381,7 +3411,11 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2 [role="button"], .wb2-sheet [role="button"], .wb2-daymodal [role="button"] { cursor:pointer; }
 
 /* ── the triage list (Upcoming) ── */
-.wb2-trhd { display:grid; grid-template-columns:minmax(0,1fr) 72px 128px 150px 200px; gap:14px; align-items:end; padding:9px 20px;
+/* Six columns, and Frequency and Due are two of them: they used to share one
+   cell stacked on top of each other under a joint heading, which put "In 2
+   days" under a heading that said "Frequency" and left the row's one
+   two-line cell straddling every single-line cell beside it. */
+.wb2-trhd { display:grid; grid-template-columns:minmax(0,1fr) 72px 104px 118px 150px 200px; gap:14px; align-items:end; padding:9px 20px;
   border-bottom:1px solid var(--wb2-line); font-size:10.5px; font-weight:800; letter-spacing:.13em; text-transform:uppercase; color:#9ca3af; }
 .wb2-trhd-ck { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
 .wb2-trhd-ck em { display:block; font-style:normal; font-size:9px; font-weight:800; letter-spacing:0; color:var(--gray500);
@@ -3391,7 +3425,14 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
   text-transform:uppercase; letter-spacing:.08em; color:var(--gray500); }
 .wb2-wkhd.dan { color:var(--wb2-dan-t); }
 .wb2-wkhd em { font-style:normal; font-size:11px; font-weight:600; letter-spacing:0; text-transform:none; color:#9ca3af; }
-.wb2-trj { display:grid; grid-template-columns:minmax(0,1fr) 72px 128px 150px 200px; gap:14px; align-items:center; padding:12px 20px;
+/* BASELINE, not centre. A row mixes one-line cells with two-line ones, and
+   centring made the one-liners float in the gap BETWEEN the two lines beside
+   them — "Not placed" sat halfway between "Quarterly" and the due chip, which
+   is what reads as crooked. Baseline puts every cell's FIRST line on one
+   line, which is what a person means by aligned. The gate strip opts back out
+   below: it is a control, not a sentence, and three pills whose only content
+   is a dot have no baseline worth aligning to. */
+.wb2-trj { display:grid; grid-template-columns:minmax(0,1fr) 72px 104px 118px 150px 200px; gap:14px; align-items:baseline; padding:12px 20px;
   border-bottom:1px solid var(--wb2-line2); position:relative; transition:background .18s, transform .18s cubic-bezier(.22,1,.36,1), box-shadow .2s; }
 .wb2-wkgrp:last-child .wb2-trj:last-child { border-bottom:0; }
 .wb2-trj:hover { background:#fff; transform:scale(1.006); box-shadow:0 4px 18px -10px rgba(10,12,20,.35); z-index:1; }
@@ -3404,8 +3445,9 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-trt em { display:block; font-style:normal; font-size:12px; color:var(--gray500); font-weight:500; margin-top:2px;
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .wb2-trref { font-size:12px; font-weight:800; color:var(--gray500); letter-spacing:-.01em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-variant-numeric:tabular-nums; }
-.wb2-trw { display:flex; flex-direction:column; align-items:flex-start; gap:4px; min-width:0; }
-.wb2-trw em { font-style:normal; font-size:10.5px; font-weight:800; letter-spacing:.06em; color:var(--gray500); }
+.wb2-trcad { font-style:normal; font-size:10.5px; font-weight:800; letter-spacing:.06em; color:var(--gray500);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wb2-trw { display:block; min-width:0; }
 .wb2-trw .wb2-chip { max-width:100%; overflow:hidden; text-overflow:ellipsis; display:block; }
 .wb2-trd { display:flex; flex-direction:column; gap:2px; min-width:0; }
 .wb2-trd b { font-size:12.5px; font-weight:800; letter-spacing:-.01em; }
@@ -3413,10 +3455,13 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-trd em.dan, .wb2-facts em.dan, .wb2-sched em.dan { color:var(--wb2-dan-t); }
 .wb2-av { width:18px; height:18px; border-radius:6px; background:rgba(5,5,5,.07); color:var(--gray700);
   display:inline-grid; place-items:center; font-size:8.5px; font-weight:800; flex:none; }
-.wb2-trck { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; align-items:center; }
+.wb2-trck { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; align-items:center; align-self:center; }
 .wb2-trnote { grid-column:1/-1; font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray500); }
 .wb2-ckall { grid-column:1/-1; height:30px; border-radius:8px; border:1px solid rgba(0,163,137,.34); background:rgba(0,163,137,.1);
   color:#00806b; display:flex; align-items:center; justify-content:center; gap:7px; font-size:11.5px; font-weight:800; }
+/* Gates ticked but no day yet: still good news, but not the same news, so it
+   doesn't wear the full green a booked-and-ready job wears. */
+.wb2-ckall.tobook { border-color:rgba(0,163,137,.22); background:rgba(0,163,137,.05); color:#3f7a6d; }
 .wb2-ckall svg { color:#fff; background:var(--wb2-ok); border-radius:5px; padding:1px; }
 .wb2-ckq { width:100%; height:30px; border-radius:8px; border:1px solid color-mix(in oklab, var(--as) 34%, #fff);
   background:color-mix(in oklab, var(--as) 8%, #fff); display:grid; place-items:center; }
@@ -3596,7 +3641,9 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-agcols { display:grid; grid-template-columns:8px minmax(0,1.3fr) 96px minmax(0,.9fr) minmax(0,1fr) minmax(0,.7fr) minmax(0,.9fr);
   gap:14px; padding:2px 20px 6px; font-size:10px; font-weight:800; letter-spacing:.12em; text-transform:uppercase;
   color:#9ca3af; }
-.wb2-agcols span:last-child { text-align:right; }
+/* Tags read LEFT, like every other column. Right-aligning the last column
+   ragged the labels against the card edge and put the heading a long way
+   from the first tag under it (Isaac). */
 .wb2-agsearch { display:flex; align-items:center; gap:8px; height:36px; padding:0 12px; border-radius:999px;
   border:1px solid var(--wb2-line); background:#fff; color:var(--gray500); flex:0 1 300px; min-width:200px; margin-left:auto; }
 .wb2-agsearch:focus-within { border-color:rgba(0,168,224,.5); box-shadow:0 0 0 3px rgba(0,168,224,.14); }
@@ -3613,7 +3660,7 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-agr:hover { background:rgba(5,5,5,.018); }
 .wb2-agrp:last-child .wb2-agr:last-child { border-bottom:0; }
 .wb2-agcad { font-style:normal; font-size:10.5px; font-weight:800; letter-spacing:.06em; color:var(--gray500); }
-.wb2-agtags { display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-self:end; }
+.wb2-agtags { display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-self:start; }
 
 /* ── tags — the stored colour, worn everywhere the same (B2) ── */
 .wb2-tag { display:inline-flex; align-items:center; gap:6px; height:26px; padding:0 10px; border-radius:99px;
@@ -3631,6 +3678,22 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-tag.add { color:#007fa8; border:1px dashed rgba(0,137,184,.45); background:none; cursor:pointer; font:inherit; font-size:11.5px; font-weight:700; }
 .wb2-tag.add:hover { background:rgba(0,168,224,.07); border-color:#007fa8; }
 .wb2-tag.sug { cursor:pointer; }
+/* Choosing a NEW tag's colour. Six swatches and a live preview of the tag
+   itself, because the swatch is a solid and the tag is a tint — you can't
+   read one off the other. Only shown for a name that doesn't exist yet. */
+.wb2-tagcol { display:flex; align-items:center; gap:7px; flex-wrap:wrap; margin-top:10px; }
+.wb2-tagcol .wb2-sect { margin-right:2px; }
+.wb2-swatch { width:22px; height:22px; border-radius:8px; padding:0; border:1px solid rgba(5,5,5,.12);
+  cursor:pointer; flex:none; transition:transform .16s, box-shadow .16s; }
+.wb2-swatch:hover { transform:scale(1.09); }
+.wb2-swatch.t-violet { background:#7A5AF8; }
+.wb2-swatch.t-blue { background:#2E68FF; }
+.wb2-swatch.t-cyan { background:#00A8E0; }
+.wb2-swatch.t-pink { background:#C4419B; }
+.wb2-swatch.t-amber { background:#FF8A00; }
+.wb2-swatch.t-slate { background:#64748B; }
+.wb2-swatch.on { box-shadow:0 0 0 2px #fff, 0 0 0 4px rgba(5,5,5,.42); }
+.wb2-swatch:focus-visible { outline:none; box-shadow:0 0 0 2px #fff, 0 0 0 4px rgba(0,168,224,.55); }
 .wb2-tagin { height:28px; padding:0 11px; border:1px solid #00A8E0; border-radius:99px; background:#fff; font:inherit;
   font-size:12px; font-weight:700; color:var(--ink); box-shadow:0 0 0 3px rgba(0,168,224,.13); }
 .wb2-tagin:focus { outline:none; }
@@ -3918,6 +3981,9 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
   .wb2-trhd { display:none; }
   .wb2-trj { grid-template-columns:minmax(0,1fr) auto; row-gap:9px; }
   .wb2-trj .wb2-trref { grid-column:2; justify-self:end; }
+  /* stacked, cadence and its due chip pair up on one line of their own */
+  .wb2-trj .wb2-trcad { grid-column:1; }
+  .wb2-trj .wb2-trw { grid-column:2; justify-self:end; }
   .wb2-trj .wb2-trck { grid-column:1/-1; }
   .wb2-trj .wb2-trd { grid-column:1/-1; flex-direction:row; gap:8px; align-items:baseline; }
   .wb2-dn { grid-template-columns:minmax(0,1fr) auto; }
@@ -3931,7 +3997,10 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
   .wb2-sheet { grid-template-columns:minmax(0,1fr); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .wb2-vslide, .wb2-sheet, .wb2-scrim, .wb2-swap { animation:none !important; transition:none !important; }
+  /* .wb2-card is here for the corner: a delayed radius travel is motion, and
+     the instant corner it replaced was the right answer for anyone who has
+     asked not to be moved. */
+  .wb2-vslide, .wb2-sheet, .wb2-scrim, .wb2-swap, .wb2-card { animation:none !important; transition:none !important; }
   .wb2-mcc[data-tone="flash"] { animation:none; box-shadow:0 0 0 3px rgba(224,38,79,.16); }
   ::view-transition-group(wbcard), ::view-transition-old(wbcard), ::view-transition-new(wbcard),
   ::view-transition-old(wbtabs), ::view-transition-new(wbtabs) { animation:none !important; }

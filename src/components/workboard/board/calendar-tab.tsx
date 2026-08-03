@@ -125,9 +125,13 @@ export function CalendarTab({
           </div>
           <em>Colour says how ready each day is. Green is the goal, red is the queue.</em>
         </div>
+        {/* The status slot, same as every other tab's — and it says what it
+            counted. A bare "2 services" sat mid-header naming neither the
+            window it counted nor the fact that these are the ones with a day
+            on them; the calendar only ever draws placed work. */}
         <span className="wb2-mcsum">
           <span className="wb2-chip">
-            {services} {services === 1 ? "service" : "services"}
+            {services} {services === 1 ? "service" : "services"} booked in
           </span>
           {toConfirm > 0 && <span className="wb2-chip warn">{toConfirm} to confirm</span>}
         </span>

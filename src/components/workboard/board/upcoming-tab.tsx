@@ -223,14 +223,17 @@ function Row({
       <div className="wb2-trck">
         {tone === "quote" ? (
           <em className="wb2-trnote">Starts if the quote is won</em>
-        ) : missing.length === 0 ? (
-          /* "Ready" beside "Not placed" is a contradiction on one row: the
-             three gates being ticked says the KIT, the ACCESS and the CREW
-             are sorted, not that the job is going to happen. Until it has a
-             day, the honest word is what's left to do. */
-          <span className={"wb2-ckall" + (placed ? "" : " tobook")}>
+        ) : missing.length === 0 && placed ? (
+          /* THE GREEN STRIP MEANS READY, and nothing is ready without a day.
+             "Ready to book" was the previous attempt at this and Isaac threw
+             it out: you cannot confirm ACCESS with a customer without giving
+             them a day, so a row whose access is ticked and whose diary is
+             empty is not a softer kind of ready — it's a job in trouble, and
+             the Urgent queue now says so. Unplaced falls through to the gate
+             pills, beside the red "Not placed" this row already carries. */
+          <span className="wb2-ckall">
             <Icon name="check" size={13} />
-            {placed ? "Ready" : "Ready to book"}
+            Ready
           </span>
         ) : (
           (["equipment", "access", "crew"] as const).map((g) => {

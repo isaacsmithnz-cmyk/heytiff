@@ -6,7 +6,12 @@
    told three different stories about the same visit. Rows are derived, so
    they also CLEAR by construction: same input with the fact fixed = no row. */
 
-import { urgentRows, URGENT_GAP_WINDOW_DAYS, type UrgentVisitInput } from "../urgent-rules";
+import {
+  urgentRows,
+  NOT_BOOKED_WINDOW_DAYS,
+  URGENT_GAP_WINDOW_DAYS,
+  type UrgentVisitInput,
+} from "../urgent-rules";
 
 const today = "2026-07-30"; // Thursday
 
@@ -23,6 +28,12 @@ const visit = (over: Partial<UrgentVisitInput> = {}): UrgentVisitInput => ({
   techCount: 0,
   ...over,
 });
+
+/* A gate gap only exists on a visit that HAS a day — without one, "no day
+   booked" is the row and the gates ride along as chips. So gap fixtures book
+   themselves; the not-booked rule gets its own describe below. */
+const booked = (over: Partial<UrgentVisitInput> = {}) =>
+  visit({ bookedDate: over.dueDate ?? "2026-08-04", ...over });
 
 const run = (
   visits: UrgentVisitInput[],
@@ -51,7 +62,7 @@ describe("rule 1 — overdue (K2's regression pinned)", () => {
 
   it("due today is not overdue", () => {
     const rows = run([
-      visit({ dueDate: today, readiness: { equipment_ready: true, access_confirmed: true }, techCount: 1 }),
+      booked({ dueDate: today, readiness: { equipment_ready: true, access_confirmed: true }, techCount: 1 }),
     ]);
     expect(rows).toHaveLength(0);
   });
@@ -64,10 +75,61 @@ describe("rule 1 — overdue (K2's regression pinned)", () => {
   });
 });
 
+/* "If it says that it's due soon and nothing has been booked, that is
+   something that needs to be dealt with urgently" (Isaac, 2026-08-03). This
+   case used to fall through the queue ENTIRELY whenever the three gates
+   happened to be ticked: the visit read "ready", so no gap was reported, and
+   a job with nothing in the diary sat silent until the day it went overdue. */
+describe("rule 2 — nothing in the diary", () => {
+  const allTicked = { equipment_ready: true, access_confirmed: true };
+
+  it("a ready-looking visit with NO DAY is the urgent row it always should have been", () => {
+    const rows = run([
+      visit({ dueDate: "2026-08-03", readiness: allTicked, techCount: 1, bookedDate: null }),
+    ]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      reason: "not_booked",
+      severity: "danger",
+      headline: "No day booked",
+      action: "book",
+      also: [],
+    });
+  });
+
+  it("due today with nothing booked says exactly that", () => {
+    const rows = run([visit({ dueDate: today, readiness: allTicked, techCount: 1, bookedDate: null })]);
+    expect(rows[0].headline).toBe("Due today, nothing booked");
+  });
+
+  it("it REPLACES the gate-gap row — one row per visit, gates ride along as chips", () => {
+    const rows = run([visit({ dueDate: "2026-08-03", bookedDate: null })]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].reason).toBe("not_booked");
+    expect(rows[0].also).toEqual(["Equipment", "Access", "Crew"]);
+  });
+
+  /* Booking reaches further than a gate gap because booking is what the gates
+     are waiting ON — red inside seven days, the board's orange at 8–14. */
+  it("reaches two weeks, and wears the colour law's window", () => {
+    expect(run([visit({ dueDate: "2026-08-06", bookedDate: null })])[0].severity).toBe("danger");
+    expect(run([visit({ dueDate: "2026-08-07", bookedDate: null })])[0].severity).toBe("warn");
+    expect(run([visit({ dueDate: "2026-08-13", bookedDate: null })])).toHaveLength(1);
+    expect(run([visit({ dueDate: "2026-08-14", bookedDate: null })])).toHaveLength(0);
+    expect(NOT_BOOKED_WINDOW_DAYS).toBe(14);
+  });
+
+  it("booking it clears the row, which is the whole point of a derived queue", () => {
+    const loose = visit({ dueDate: "2026-08-03", readiness: allTicked, techCount: 1, bookedDate: null });
+    expect(run([loose])).toHaveLength(1);
+    expect(run([{ ...loose, bookedDate: "2026-08-03", status: "booked" }])).toHaveLength(0);
+  });
+});
+
 describe("rules 2 and 3 — gaps inside the window", () => {
   it("missing gates inside 7 days: the LEAD gate names the row, spine order", () => {
     const rows = run([
-      visit({ dueDate: "2026-08-03", readiness: { equipment_ready: false, access_confirmed: true }, techCount: 1 }),
+      booked({ dueDate: "2026-08-03", readiness: { equipment_ready: false, access_confirmed: true }, techCount: 1 }),
     ]);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
@@ -81,7 +143,7 @@ describe("rules 2 and 3 — gaps inside the window", () => {
 
   it("crew as the lead gap is its own reason with its own action (A12: assignment, never a tick)", () => {
     const rows = run([
-      visit({ dueDate: "2026-08-03", readiness: { equipment_ready: true, access_confirmed: true }, techCount: 0 }),
+      booked({ dueDate: "2026-08-03", readiness: { equipment_ready: true, access_confirmed: true }, techCount: 0 }),
     ]);
     expect(rows[0]).toMatchObject({
       reason: "no_tech",
@@ -91,19 +153,19 @@ describe("rules 2 and 3 — gaps inside the window", () => {
   });
 
   it("secondary gaps ride along in spine order", () => {
-    const rows = run([visit({ dueDate: "2026-08-03" })]);
+    const rows = run([booked({ dueDate: "2026-08-03" })]);
     expect(rows[0].headline).toBe("Equipment not ready");
     expect(rows[0].also).toEqual(["Access", "Crew"]);
   });
 
   it("the window edge: day 7 fires, day 8 stays calm", () => {
-    expect(run([visit({ dueDate: "2026-08-06" })])).toHaveLength(1);
-    expect(run([visit({ dueDate: "2026-08-07" })])).toHaveLength(0);
+    expect(run([booked({ dueDate: "2026-08-06" })])).toHaveLength(1);
+    expect(run([booked({ dueDate: "2026-08-07" })])).toHaveLength(0);
     expect(URGENT_GAP_WINDOW_DAYS).toBe(7);
   });
 
   it("rows clear by construction — fix the fact and the row is gone", () => {
-    const gappy = visit({ dueDate: "2026-08-03" });
+    const gappy = booked({ dueDate: "2026-08-03" });
     expect(run([gappy])).toHaveLength(1);
     const fixed = {
       ...gappy,
@@ -116,7 +178,7 @@ describe("rules 2 and 3 — gaps inside the window", () => {
   it("quotes and closed visits are nobody's urgency", () => {
     expect(run([visit({ dueDate: "2026-07-01", mirrorStatus: "Quote" })])).toHaveLength(0);
     expect(run([visit({ dueDate: "2026-07-01", status: "done" })])).toHaveLength(0);
-    expect(run([visit({ dueDate: "2026-08-03", status: "skipped" })])).toHaveLength(0);
+    expect(run([booked({ dueDate: "2026-08-03", status: "skipped" })])).toHaveLength(0);
   });
 });
 
@@ -171,8 +233,8 @@ describe("ordering — fires first, then deterministic forever", () => {
       [
         visit({ visitId: "v-a", dueDate: "2026-07-25" }), // 5 over
         visit({ visitId: "v-b", dueDate: "2026-07-20" }), // 10 over
-        visit({ visitId: "v-c", dueDate: "2026-08-05" }), // gap
-        visit({ visitId: "v-d", dueDate: "2026-08-01" }), // gap, sooner
+        booked({ visitId: "v-c", dueDate: "2026-08-05" }), // gap
+        booked({ visitId: "v-d", dueDate: "2026-08-01" }), // gap, sooner
       ],
       [
         {

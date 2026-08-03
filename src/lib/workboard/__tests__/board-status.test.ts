@@ -29,11 +29,16 @@ const today = "2026-07-30"; // a Thursday
 const gates = (equipment: boolean, access: boolean, techCount: number): GateState =>
   gateStateOf({ equipment_ready: equipment, access_confirmed: access }, techCount);
 
-const open = (due: string, g: GateState, status = "upcoming") => ({
+/* READY REQUIRES A DAY (Isaac, 2026-08-03), so the fixture books one by
+   default — an unbooked visit is the exception now, not the baseline. */
+const open = (due: string, g: GateState, status = "upcoming", bookedDate: string | null = due) => ({
   status,
   dueDate: due,
   gates: g,
+  bookedDate,
 });
+const unbooked = (due: string, g: GateState, status = "upcoming") =>
+  open(due, g, status, null);
 
 describe("gates", () => {
   it("crew derives from assignment — one tech satisfies it, none doesn't", () => {
@@ -79,6 +84,20 @@ describe("visitTone — one function, all five screens", () => {
   it("ready is ready at any distance (green means state, not proximity)", () => {
     expect(visitTone(open(today, ready), today)).toBe("go");
     expect(visitTone(open("2026-12-24", ready), today)).toBe("go");
+  });
+
+  /* Isaac, 2026-08-03: "unless it has been booked in, it should not be ready."
+     You cannot confirm ACCESS with a customer without giving them a day, so
+     three ticks and an empty diary is a contradiction, not a green row. It
+     falls back to the distance windows like any other unfinished visit. */
+  it("three ticked gates and NO DAY is not ready — it reads by its distance", () => {
+    expect(visitTone(unbooked(today, ready), today)).toBe("flash");
+    expect(visitTone(unbooked("2026-08-10", ready), today)).toBe("soon");
+    expect(visitTone(unbooked("2026-12-24", ready), today)).toBe("asp");
+  });
+
+  it("a booked day alone isn't ready either — the gates still have to be ticked", () => {
+    expect(visitTone(open(today, nothing), today)).toBe("flash");
   });
 
   it("the gap windows: ≤7 flashes, 8–14 warms, beyond is fine to be open", () => {

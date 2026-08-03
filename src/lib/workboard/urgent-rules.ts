@@ -12,6 +12,8 @@
    active flags, open tasks) and pass `today` on the account's clock. */
 
 import {
+  FLASH_WINDOW_DAYS,
+  SOON_WINDOW_DAYS,
   daysBetween,
   gateStateOf,
   missingGates,
@@ -22,6 +24,14 @@ import type { ReadinessKey } from "./visit-schedule";
 /** Gate/crew gaps only become today's business inside this window — beyond
     it they are the Upcoming tab's quiet work (the calm-board rule). */
 export const URGENT_GAP_WINDOW_DAYS = 7;
+
+/** NO DAY BOOKED reaches further than a gate gap does, because booking is
+    what the gates are waiting ON — you can't confirm access with a customer
+    without offering them a day, so an unbooked visit two weeks out is a
+    different kind of problem from an unticked box two weeks out. Inside
+    seven days it's red; 8–14 is the board's orange. Same windows as the
+    colour law, so the queue and the calendar can never disagree. */
+export const NOT_BOOKED_WINDOW_DAYS = SOON_WINDOW_DAYS;
 
 export type UrgentVisitInput = {
   visitId: string;
@@ -55,7 +65,7 @@ export type UrgentTaskInput = {
   assigneeName: string | null;
 };
 
-export type UrgentReason = "overdue" | "gate_gap" | "no_tech" | "flag" | "task";
+export type UrgentReason = "overdue" | "not_booked" | "gate_gap" | "no_tech" | "flag" | "task";
 
 export type UrgentAction =
   | "book"
@@ -147,8 +157,32 @@ export function urgentRows(input: {
       continue;
     }
 
+    const daysOut = daysBetween(today, v.dueDate);
+
+    /* NOTHING IN THE DIARY IS THE URGENT ONE (Isaac, 2026-08-03: "if it says
+       that it's due soon and nothing has been booked, that is something that
+       needs to be dealt with urgently"). This used to fall through the queue
+       entirely whenever the three gates happened to be ticked: the row read
+       "ready", so no gap was reported, and a job with nothing in the diary
+       sat silent until the day it went overdue. It REPLACES the gate-gap row
+       rather than joining it — one row per visit, worst reason wins, and the
+       missing gates ride along as chips. */
+    if (!v.bookedDate) {
+      if (daysOut > NOT_BOOKED_WINDOW_DAYS) continue;
+      gaps.push({
+        ...base,
+        key: `not_booked:${v.visitId}`,
+        reason: "not_booked",
+        severity: daysOut <= FLASH_WINDOW_DAYS ? "danger" : "warn",
+        headline: daysOut === 0 ? "Due today, nothing booked" : "No day booked",
+        also: missing.map(gateChip),
+        action: "book",
+      });
+      continue;
+    }
+
     if (missing.length === 0) continue;
-    if (daysBetween(today, v.dueDate) > URGENT_GAP_WINDOW_DAYS) continue;
+    if (daysOut > URGENT_GAP_WINDOW_DAYS) continue;
 
     const lead = missing[0];
     gaps.push({

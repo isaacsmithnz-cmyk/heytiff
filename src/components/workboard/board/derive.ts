@@ -28,6 +28,7 @@ export function toneOf(v: BoardVisit, today: string): VisitTone {
       dueDate: v.dueDate,
       gates: gatesOf(v),
       mirrorStatus: v.mirrorStatus,
+      bookedDate: placedDayOf(v),
     },
     today
   );
@@ -121,6 +122,7 @@ export function toneOfCal(c: CalVisit, today: string): VisitTone {
       dueDate: c.dueDate,
       gates: gateStateOf(c.readiness, c.techCount),
       mirrorStatus: c.mirrorStatus,
+      bookedDate: placedDayOfCal(c),
     },
     today
   );
@@ -152,6 +154,7 @@ export function projectToneOf(v: ProjectBoardVisit, today: string): VisitTone {
       dueDate: v.dueDate,
       gates: projectGatesOf(v),
       mirrorStatus: v.mirrorStatus,
+      bookedDate: v.bookedDate ?? (v.bookedStart ? v.bookedStart.slice(0, 10) : null),
     },
     today
   );

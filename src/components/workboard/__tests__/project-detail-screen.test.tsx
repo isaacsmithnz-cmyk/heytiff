@@ -193,6 +193,7 @@ function trip(over: Partial<ProjectBoardVisit> & { id: string }): ProjectBoardVi
     readiness: { equipment_ready: false, access_confirmed: false },
     techs: [],
     bringList: [],
+    jobNo: 1001,
     jobNumber: null,
     provider: null,
     remoteId: null,

@@ -275,3 +275,112 @@ export function DictateBox({
     </div>
   );
 }
+
+/* ── the one-liner ──
+   Same engine, same mic, one line instead of a paragraph — for lists you add
+   to an item at a time rather than boxes you write prose into. It exists so
+   the bullet lists don't grow a second, differently-shaped microphone: the
+   markup below is DictateBox's bar verbatim, which is the point. Enter
+   commits, and dictation lands in the field rather than committing itself —
+   you get to read what it heard before it becomes a bullet. */
+
+export function DictateLine({
+  value,
+  onChange,
+  onCommit,
+  voiceEnabled,
+  placeholder,
+  disabled = false,
+  label,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  /** Enter, or the tick. Called with the trimmed line; never with "". */
+  onCommit: () => void;
+  voiceEnabled: boolean;
+  placeholder?: string;
+  disabled?: boolean;
+  label: string;
+}) {
+  const [err, setErr] = useState<string | null>(null);
+  const dict = useDictation({
+    onTranscript: (text) => {
+      setErr(null);
+      onChange(value.trim() ? `${value.trim()} ${text}` : text);
+    },
+    onError: setErr,
+  });
+
+  return (
+    <div className="wb2-dictline">
+      <div className="wb2-addrow">
+        <input
+          className="wb2-fi"
+          placeholder={dict.recording ? "Listening…" : placeholder}
+          value={value}
+          disabled={disabled || dict.recording || dict.transcribing}
+          aria-label={label}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key !== "Enter") return;
+            e.preventDefault();
+            onCommit();
+          }}
+        />
+        <button
+          type="button"
+          className="wb2-addgo"
+          disabled={disabled || value.trim() === ""}
+          title="Add it"
+          aria-label={`Add — ${label}`}
+          onClick={onCommit}
+        >
+          <Icon name="plus" size={14} />
+        </button>
+      </div>
+      {voiceEnabled && (
+        <div className="wb2-dictbar">
+          {dict.recording ? (
+            <>
+              <button
+                type="button"
+                className="wb2-dictmic on"
+                onClick={dict.stop}
+                title="Stop and read it back"
+                aria-label={`Stop dictating — ${label}`}
+              >
+                <Icon name="square" size={13} />
+              </button>
+              <LevelBars innerRef={dict.barsRef} />
+              <span className="wb2-capclock">{clockOf(dict.seconds)}</span>
+              <button
+                type="button"
+                className="wb2-dictx"
+                onClick={dict.cancel}
+                title="Throw it away"
+                aria-label={`Discard the recording — ${label}`}
+              >
+                <Icon name="x" size={12} />
+              </button>
+            </>
+          ) : dict.transcribing ? (
+            <span className="wb2-dicthint">Reading it back…</span>
+          ) : (
+            <button
+              type="button"
+              className="wb2-dictmic"
+              onClick={dict.start}
+              disabled={disabled}
+              title="Say it instead"
+              aria-label={`Dictate — ${label}`}
+            >
+              <Icon name="mic" size={13} />
+              Say it
+            </button>
+          )}
+        </div>
+      )}
+      {err && <p className="wb2-dicterr">{err}</p>}
+    </div>
+  );
+}

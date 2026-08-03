@@ -280,7 +280,11 @@ describe("Upcoming (C4/B5/B7/B8)", () => {
       })
     );
     await toTab(/Upcoming/);
-    expect(screen.getByText("3 to confirm across 1 service")).toBeInTheDocument();
+    /* The chip names the DAY the horizon ends on, not a span: "next 14 days"
+       is a claim the reader can't check against the rows, and Isaac checked
+       it against the rows. TODAY is Thu 30 Jul, the horizon is 14 days, so
+       everything from Fri 14 Aug on is somebody else's week. */
+    expect(screen.getByText("3 to confirm before Fri 14 Aug")).toBeInTheDocument();
     expect(screen.getByText("Ready to book")).toBeInTheDocument();
     expect(screen.queryByText("Ready")).not.toBeInTheDocument();
   });
@@ -301,6 +305,7 @@ describe("Upcoming (C4/B5/B7/B8)", () => {
     );
     await toTab(/Upcoming/);
     expect(screen.getByText("Ready")).toBeInTheDocument();
+    expect(screen.getByText("Nothing to confirm before Fri 14 Aug")).toBeInTheDocument();
   });
 });
 

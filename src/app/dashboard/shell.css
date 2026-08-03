@@ -3117,9 +3117,14 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-segb { position:relative; z-index:1; display:inline-flex; align-items:center; gap:9px; height:46px; padding:0 18px;
   border:0; background:none; border-radius:12px; font:inherit; font-size:13.5px; font-weight:700; color:var(--gray500);
   cursor:pointer; transition:color .2s; }
-.wb2-segb:not(.on) { background:rgba(255,255,255,.42); color:var(--gray700); }
+/* A SOLID slab, not a translucent film — a half-opaque white over a tinted
+   track reads as glass, which is a material this app doesn't use anywhere
+   (Isaac spotted it immediately). One flat colour: lighter than the track,
+   darker than the moving thumb, so the resting side is plainly a seat and
+   plainly not the one you're on. */
+.wb2-segb:not(.on) { background:#e9edf4; color:var(--gray700); }
 .wb2-segb:hover { color:var(--ink); }
-.wb2-segb:not(.on):hover { background:rgba(255,255,255,.7); }
+.wb2-segb:not(.on):hover { background:#f2f5f9; }
 .wb2-segb.on, .wb2-segb.on:hover { color:#fff; background:none; }
 .wb2-segb:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
 .wb2-segb i { min-width:22px; height:22px; padding:0 6px; border-radius:8px; display:grid; place-items:center;
@@ -3329,9 +3334,21 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 /* ── the persistent card ── */
 /* The top-left corner is square ONLY while the FIRST tab is on, because that
    is the corner the tab is standing on. It used to be square always, so
-   switching to Upcoming left one corner cut for no reason (Isaac). */
+   switching to Upcoming left one corner cut for no reason (Isaac).
+
+   IT OPENS AND CLOSES, it doesn't snap — "you can see it changing from
+   rectangular to a rounded corner" (Isaac again). The DELAY is the whole
+   trick and it is not padding: the card carries `view-transition-name`, so
+   for the length of its transition the real element isn't painted at all —
+   two snapshots are, both taken while the radius still held its old value.
+   Animate it with no delay and the browser simply reveals the finished
+   corner when the snapshots retire, which is the snap he's describing. So
+   the corner waits for the surface to finish morphing and only then travels,
+   in full view. KEEP THIS DELAY EQUAL TO ::view-transition-group(wbcard)'s
+   duration below — they are one number pretending to be two. */
 .wb2-card { background:#fff; border:1px solid var(--wb2-line); border-radius:24px;
-  box-shadow:0 8px 30px rgba(0,0,0,.03); overflow:hidden; }
+  box-shadow:0 8px 30px rgba(0,0,0,.03); overflow:hidden;
+  transition:border-top-left-radius .34s cubic-bezier(.4,0,.2,1) .32s; }
 .wb2-card[data-firsttab="on"] { border-top-left-radius:0; }
 @supports (view-transition-name: none) {
   .wb2-card { view-transition-name:wbcard; }
@@ -3980,7 +3997,10 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
   .wb2-sheet { grid-template-columns:minmax(0,1fr); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .wb2-vslide, .wb2-sheet, .wb2-scrim, .wb2-swap { animation:none !important; transition:none !important; }
+  /* .wb2-card is here for the corner: a delayed radius travel is motion, and
+     the instant corner it replaced was the right answer for anyone who has
+     asked not to be moved. */
+  .wb2-vslide, .wb2-sheet, .wb2-scrim, .wb2-swap, .wb2-card { animation:none !important; transition:none !important; }
   .wb2-mcc[data-tone="flash"] { animation:none; box-shadow:0 0 0 3px rgba(224,38,79,.16); }
   ::view-transition-group(wbcard), ::view-transition-old(wbcard), ::view-transition-new(wbcard),
   ::view-transition-old(wbtabs), ::view-transition-new(wbtabs) { animation:none !important; }

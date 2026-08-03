@@ -3106,28 +3106,29 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
    the gray background a bit too much" (Isaac). Darker track, and the resting
    side gets its own faint slab so there are visibly two positions even before
    you look at which one is filled. */
-.wb2-seg { position:relative; justify-self:center; display:flex; gap:3px; padding:4px; border-radius:15px;
-  background:#dee3ec; border:1px solid rgba(10,12,20,.08); flex:none; }
-.wb2-segsl { position:absolute; top:4px; bottom:4px; left:0; border-radius:12px; background:#fff;
+/* ONE tray, ONE thumb. This carried a THIRD grey — a filled seat under the
+   resting side, only just lighter than the track it sat in — which read as
+   an artefact rather than a decision and made the whole block chunky. That
+   seat was scaffolding from the fix before it (the thumb used to be a
+   translucent film and Isaac called it glass); the thumb is a solid colour
+   now, so the seat has no job. Resting side is bare track, moving side is
+   the colour. Same language as the Urgent filter tray. */
+.wb2-seg { position:relative; justify-self:center; display:flex; gap:2px; padding:3px; border-radius:14px;
+  background:#e6eaf1; border:1px solid rgba(10,12,20,.06); flex:none; }
+.wb2-segsl { position:absolute; top:3px; bottom:3px; left:0; border-radius:11px; background:#fff;
   box-shadow:0 3px 10px -4px rgba(10,12,20,.4);
   transition:transform .42s cubic-bezier(.22,1,.36,1), width .42s cubic-bezier(.22,1,.36,1),
     background .3s cubic-bezier(.4,0,.2,1), box-shadow .3s cubic-bezier(.4,0,.2,1); }
 .wb2-seg[data-on="maintenance"] .wb2-segsl { background:#00806b; box-shadow:0 6px 16px -7px rgba(0,128,107,.85); }
 .wb2-seg[data-on="projects"] .wb2-segsl { background:#0089b8; box-shadow:0 6px 16px -7px rgba(0,137,184,.85); }
-.wb2-segb { position:relative; z-index:1; display:inline-flex; align-items:center; gap:9px; height:46px; padding:0 18px;
-  border:0; background:none; border-radius:12px; font:inherit; font-size:13.5px; font-weight:700; color:var(--gray500);
-  cursor:pointer; transition:color .2s; }
-/* A SOLID slab, not a translucent film — a half-opaque white over a tinted
-   track reads as glass, which is a material this app doesn't use anywhere
-   (Isaac spotted it immediately). One flat colour: lighter than the track,
-   darker than the moving thumb, so the resting side is plainly a seat and
-   plainly not the one you're on. */
-.wb2-segb:not(.on) { background:#e9edf4; color:var(--gray700); }
-.wb2-segb:hover { color:var(--ink); }
-.wb2-segb:not(.on):hover { background:#f2f5f9; }
+.wb2-segb { position:relative; z-index:1; display:inline-flex; align-items:center; gap:9px; height:42px; padding:0 17px;
+  border:0; background:none; border-radius:11px; font:inherit; font-size:13.5px; font-weight:700; color:var(--gray700);
+  cursor:pointer; transition:color .2s, background .2s; }
+/* the resting side is TRACK, not a seat — it lifts only under the pointer */
+.wb2-segb:not(.on):hover { background:rgba(255,255,255,.75); color:var(--ink); }
 .wb2-segb.on, .wb2-segb.on:hover { color:#fff; background:none; }
 .wb2-segb:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
-.wb2-segb i { min-width:22px; height:22px; padding:0 6px; border-radius:8px; display:grid; place-items:center;
+.wb2-segb i { min-width:21px; height:21px; padding:0 6px; border-radius:7px; display:grid; place-items:center;
   font-size:11px; font-weight:800; font-style:normal; font-variant-numeric:tabular-nums;
   transition:background .2s, color .2s; }
 .wb2-segb i.dan { background:rgba(224,38,79,.12); color:#b31038; }
@@ -3461,7 +3462,8 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
   color:#00806b; display:flex; align-items:center; justify-content:center; gap:7px; font-size:11.5px; font-weight:800; }
 /* Gates ticked but no day yet: still good news, but not the same news, so it
    doesn't wear the full green a booked-and-ready job wears. */
-.wb2-ckall.tobook { border-color:rgba(0,163,137,.22); background:rgba(0,163,137,.05); color:#3f7a6d; }
+/* the softer "Ready to book" variant is gone — there is no such thing as
+   half-ready. Nothing without a day in the diary wears this strip. */
 .wb2-ckall svg { color:#fff; background:var(--wb2-ok); border-radius:5px; padding:1px; }
 .wb2-ckq { width:100%; height:30px; border-radius:8px; border:1px solid color-mix(in oklab, var(--as) 34%, #fff);
   background:color-mix(in oklab, var(--as) 8%, #fff); display:grid; place-items:center; }

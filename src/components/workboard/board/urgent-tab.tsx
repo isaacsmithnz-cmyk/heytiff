@@ -42,6 +42,9 @@ function dueWords(r: UrgentRow): string | null {
 
 const FILTER_OF: Record<UrgentRow["reason"], Exclude<UrgentFilter, "all">> = {
   overdue: "overdue",
+  // "no day booked" IS the gap it's filtered with — it's what the other gaps
+  // are waiting on, not a separate kind of problem
+  not_booked: "gaps",
   gate_gap: "gaps",
   no_tech: "gaps",
   flag: "flags",

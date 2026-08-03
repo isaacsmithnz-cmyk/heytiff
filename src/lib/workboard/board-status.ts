@@ -91,6 +91,15 @@ export type VisitToneInput = {
   /** The linked ServiceM8 job's mirrored status; 'Quote' renders as a quote,
       not as late work — a quote isn't booked work yet. */
   mirrorStatus?: string | null;
+  /** The day it is booked to run, if it has one.
+
+      READY REQUIRES A DAY (Isaac, 2026-08-03). Three ticked gates used to be
+      enough to paint a visit green, so a job could read "Ready" beside "Not
+      placed" — and worse, could read ready while nothing was in the diary at
+      all. His argument is the one that settles it: you cannot confirm ACCESS
+      with a customer without giving them a day, so a green row with no
+      booking is either wrong about the access or wrong about the green. */
+  bookedDate?: string | null;
 };
 
 /** One function, all five screens. Precedence mirrors the design's legend:
@@ -102,7 +111,7 @@ export function visitTone(v: VisitToneInput, todayISO: string): VisitTone {
   if (v.status === "skipped") return "skipped";
   if (v.mirrorStatus === "Quote") return "quote";
   if (v.dueDate < todayISO) return "over";
-  if (missingGates(v.gates).length === 0) return "go";
+  if (missingGates(v.gates).length === 0 && v.bookedDate) return "go";
   const n = daysBetween(todayISO, v.dueDate);
   if (n <= FLASH_WINDOW_DAYS) return "flash";
   if (n <= SOON_WINDOW_DAYS) return "soon";

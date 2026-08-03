@@ -349,7 +349,7 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
                     onClick={() => setTab(s.key)}
                   >
                     {s.label}
-                    <i className={b.tone} title={`${b.n} need you today`}>
+                    <i className={b.tone} title={`${b.n} ${b.n === 1 ? "needs" : "need"} attention`}>
                       {b.n}
                     </i>
                   </button>

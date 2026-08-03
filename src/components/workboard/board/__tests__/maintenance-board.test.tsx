@@ -226,7 +226,7 @@ describe("Upcoming (C4/B5/B7/B8)", () => {
     mount(
       data({
         visits: [
-          visit({ id: "v-ready", dueDate: "2026-07-31", readiness: { ...ready }, techs: [{ id: "s-1", name: "Dane Poulos" }] }),
+          visit({ id: "v-ready", dueDate: "2026-07-31", bookedDate: "2026-07-31", status: "booked", readiness: { ...ready }, techs: [{ id: "s-1", name: "Dane Poulos" }] }),
           visit({ id: "v-gap", dueDate: "2026-08-01", clientName: "Meridian Data" }),
           visit({ id: "v-late", dueDate: "2026-07-21", clientName: "Grange Microbrewery" }),
           visit({ id: "v-far", dueDate: "2026-08-12", clientName: "Point Cook Medical" }),
@@ -261,9 +261,11 @@ describe("Upcoming (C4/B5/B7/B8)", () => {
     expect(screen.queryByText("Closed Pty")).not.toBeInTheDocument();
   });
 
-  /* Three gates ticked is not the same claim as "this job is happening":
-     without a day booked the row used to read "Not placed" and "Ready" side
-     by side, which is a contradiction on one line (Isaac). */
+  /* Three gates ticked is not the same claim as "this job is happening", and
+     "Ready to book" was the first attempt at saying so. Isaac threw it out:
+     you cannot confirm ACCESS with a customer without giving them a day, so
+     a row with its access ticked and nothing in the diary isn't a softer kind
+     of ready — it's a job in trouble. No strip at all until it has a day. */
   it("counts to-confirm inside 14 days only (B8), and only a PLACED clear row says Ready", async () => {
     mount(
       data({
@@ -285,8 +287,10 @@ describe("Upcoming (C4/B5/B7/B8)", () => {
        it against the rows. TODAY is Thu 30 Jul, the horizon is 14 days, so
        everything from Fri 14 Aug on is somebody else's week. */
     expect(screen.getByText("3 to confirm before Fri 14 Aug")).toBeInTheDocument();
-    expect(screen.getByText("Ready to book")).toBeInTheDocument();
     expect(screen.queryByText("Ready")).not.toBeInTheDocument();
+    expect(screen.queryByText("Ready to book")).not.toBeInTheDocument();
+    // it falls back to the gate pills, beside the red "Not placed" it carries
+    expect(screen.getAllByLabelText("Access").length).toBeGreaterThan(0);
   });
 
   it("says plain Ready once the clear row has a day on it", async () => {
@@ -903,6 +907,8 @@ describe("Urgent quick actions — each row fixes ITS fact (A1/A4)", () => {
           visit({
             id: "v-1",
             dueDate: "2026-08-02",
+            bookedDate: "2026-08-02",
+            status: "booked",
             readiness: { equipment_ready: false, access_confirmed: true },
             techs: [{ id: "s-1", name: "Dane Poulos" }],
           }),
@@ -924,6 +930,8 @@ describe("Urgent quick actions — each row fixes ITS fact (A1/A4)", () => {
           visit({
             id: "v-1",
             dueDate: "2026-08-02",
+            bookedDate: "2026-08-02",
+            status: "booked",
             readiness: { equipment_ready: true, access_confirmed: true },
           }),
         ],

@@ -10,12 +10,13 @@
 
 import React from "react";
 import type { RiskSettings, Multipliers } from "./engine";
-import { fleetCosted, snapshotTotal, snapshotVehicleTotal, sourceSwitchVisible, type EntryMode } from "./state";
+import { costsToXeroPatch, fleetCosted, fleetOnXero, fleetSourceMixed, snapshotTotal, sourceSwitchVisible, type EntryMode } from "./state";
 import { RC } from "./theme";
 import { money, rate0 } from "./format";
 import { QuestionStack, RcIcon, WsEyebrow, WsHelpNote, WsSlider, WsToggle, NumInput, type StackQuestion } from "./ui";
 import { BusinessDetail, StaffDetail, VehiclesDetail, type StepBodyProps } from "./detail";
 import { XeroCostsPanel } from "./xero-costs";
+import { XeroFleetPanel } from "./xero-fleet";
 
 function StepHead({ eyebrow, title, mode, onMode, desc }: {
   eyebrow: string; title: string; mode?: string; onMode?: (v: string) => void; desc?: string;
@@ -319,7 +320,7 @@ export function BusinessStep({ s, patch, calc, showToggle, revealAll, xeroConnec
           </button>
           <button
             className={`rcx-srcb${onXero ? " on" : ""}`}
-            onClick={() => patch({ costsSource: "xero" })}
+            onClick={() => patch(costsToXeroPatch(s))}
             disabled={!xeroConnected}
             title={xeroConnected ? undefined : "Xero isn't connected"}
           >
@@ -356,10 +357,14 @@ export function BusinessStep({ s, patch, calc, showToggle, revealAll, xeroConnec
 }
 
 // ── Step 3 · Vehicles ───────────────────────────────────────────────────
-export function VehiclesStep({ s, patch, calc, showToggle, revealAll }: StepBodyProps) {
+export function VehiclesStep({ s, patch, calc, showToggle, revealAll, xeroConnected }: StepBodyProps) {
   const sv = s.simpleVehicle;
   const fleetTotal = calc.instVehicle + calc.svcVehicle + calc.adminVehicle;
   const hasCosts = fleetCosted(s);
+  /* fleetOnXero, not the raw source: an explicit "no vehicles" must win the
+     render, or a legacy row could show the Xero panel with the source switch
+     hidden (it hides under noVehicles) and no way back to the q1 card. */
+  const onXeroFleet = fleetOnXero(s);
   // Local "yes we run vehicles" choice; derived yes once costs exist, so a
   // returning user with a costed fleet sees the whole stack answered.
   const [saidYes, setSaidYes] = React.useState(hasCosts);
@@ -408,26 +413,6 @@ export function VehiclesStep({ s, patch, calc, showToggle, revealAll }: StepBody
     body: (
       <>
         <MonthInputs months={sv.months} onChange={m => patch({ simpleVehicle: { ...sv, months: m } })} />
-        {/* The Xero pull holds vehicle lines out of the overhead pool because
-            THIS step is meant to have them. Offering them here is what closes
-            that loop — otherwise the money sits in a "left out" list on another
-            step and lands in no pool at all. A fleet TOTAL is all a P&L can
-            give: one Motor Vehicle Expenses account can't be split per ute.
-            And it reads LOW — vehicle depreciation, insurance and finance
-            usually sit in their own accounts — so it seeds, never overwrites. */}
-        {!hasCosts && snapshotVehicleTotal(s.xeroCosts) > 0 && (
-          <button
-            className="rcx-add"
-            style={{ marginTop: 10 }}
-            onClick={() => {
-              const monthly = Math.round(snapshotVehicleTotal(s.xeroCosts) / 12);
-              patch({ simpleVehicle: { ...sv, months: [monthly, monthly, monthly] } });
-            }}
-            title="From the vehicle lines on your Xero P&L — check it against fuel, servicing, insurance and rego"
-          >
-            Seed from Xero — about {money(Math.round(snapshotVehicleTotal(s.xeroCosts) / 12))} a month
-          </button>
-        )}
         {hasCosts && (
           <div style={{ background: RC.serviceSoft, borderRadius: 14, padding: "13px 18px", marginTop: 14, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div>
@@ -459,10 +444,69 @@ export function VehiclesStep({ s, patch, calc, showToggle, revealAll }: StepBody
 
   return (
     <>
-      <StepHead eyebrow={`Step 3 of 5 · ${s.mode.vehicles}`} title="Vehicles"
-        mode={showToggle ? s.mode.vehicles : undefined}
-        onMode={showToggle ? (val => patch({ mode: { ...s.mode, vehicles: val as EntryMode } })) : undefined} />
-      {s.mode.vehicles === "Detailed" ? <VehiclesDetail s={s} patch={patch} calc={calc} /> : (
+      <StepHead eyebrow={`Step 3 of 5 · ${onXeroFleet ? "From Xero" : s.mode.vehicles}`} title="Vehicles"
+        /* The Simple/Detailed toggle is about how you TYPE a fleet cost in, so
+           it has nothing to say while Xero is the source — same rule the
+           Business step follows. */
+        mode={showToggle && !onXeroFleet ? s.mode.vehicles : undefined}
+        onMode={showToggle && !onXeroFleet ? (val => patch({ mode: { ...s.mode, vehicles: val as EntryMode } })) : undefined} />
+
+      {/* Shown whenever there's a choice to make — a grant to switch onto, or a
+          snapshot to walk away from. Hiding it on disconnect would strand the
+          step on a frozen figure with no way back, which is the trap the
+          Business step's source switch was fixed for. */}
+      {!s.noVehicles && sourceSwitchVisible(!!xeroConnected, s.vehicleSource) && (
+        <div className="rcx-src">
+          <button className={`rcx-srcb${!onXeroFleet ? " on" : ""}`} onClick={() => patch({ vehicleSource: "manual" })}>
+            Enter them myself
+          </button>
+          <button
+            className={`rcx-srcb${onXeroFleet ? " on" : ""}`}
+            onClick={() => patch({ vehicleSource: "xero" })}
+            disabled={!xeroConnected && !s.xeroCosts}
+            title={xeroConnected || s.xeroCosts ? undefined : "Xero isn't connected"}
+          >
+            Use figures from Xero
+          </button>
+        </div>
+      )}
+      {onXeroFleet && !xeroConnected && (
+        <p className="rcx-err">
+          Xero is disconnected, so this is a frozen snapshot and Refresh can&apos;t run. Switch to
+          &ldquo;Enter them myself&rdquo; to take over, or reconnect Xero in Admin → Integrations.
+        </p>
+      )}
+
+      {/* The one combination where a dollar can be doubled and another dropped
+          in the same breath. Reached only by deliberately switching off Xero
+          here after the pull put the fleet on it, so it names both halves
+          rather than nagging. */}
+      {!s.noVehicles && fleetSourceMixed(s) && (
+        <div className="rcx-part" style={{ marginTop: 14 }}>
+          <b>Your business costs come from Xero but your fleet doesn&apos;t</b>
+          <em>
+            Two things to watch. Xero&apos;s vehicle lines have been taken out of your business
+            costs, so unless you enter them below they&apos;re in no pool at all. And your{" "}
+            <b>Insurance</b> and <b>Depreciation</b> accounts stay in business costs — don&apos;t
+            enter those here as well.
+          </em>
+          <button className="rcx-add" onClick={() => patch({ vehicleSource: "xero" })}>
+            Use Xero for the fleet too
+          </button>
+        </div>
+      )}
+
+      {onXeroFleet ? (
+        <Body>
+          <XeroFleetPanel
+            s={s}
+            patch={patch}
+            onFetch={async (choice) =>
+              (await import("@/app/actions/rate-calc")).fetchXeroBusinessCosts(choice)
+            }
+          />
+        </Body>
+      ) : s.mode.vehicles === "Detailed" ? <VehiclesDetail s={s} patch={patch} calc={calc} /> : (
       <Body>
         <WsHelpNote id="vehicles-simple" style={{ marginBottom: 16 }}>Vehicle costs load onto the rate for the work each driver does — so the fleet is recovered through your charged hours.{showToggle && <> <b>Detailed</b> mode costs each vehicle individually (replacement cycle, fuel, rego, fit-out).</>}</WsHelpNote>
         <QuestionStack key={questions.length} questions={questions} revealAll={revealAll} />

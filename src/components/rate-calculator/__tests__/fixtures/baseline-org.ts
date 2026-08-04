@@ -224,6 +224,7 @@ export function buildBaselineState(): RateCalcState {
     // the baseline org types its own costs in — Xero is a separate case, and
     // the fixture stays the "no integration" one every other test assumes
     costsSource: "manual",
+    vehicleSource: "manual",
     xeroCosts: null,
     noVehicles: false,
     riskAccepted: true,   // the demo simulates a returning user with a

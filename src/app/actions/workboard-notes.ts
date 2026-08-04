@@ -119,6 +119,10 @@ export async function routeNote(input: {
   transcript: string;
   target: NoteTarget;
   source?: "text" | "voice";
+  /* A measuring override from `?effort=` — deliberately typed `unknown`,
+     because it arrives from a browser and `readNote` is where it gets
+     checked against the list. Unset is the shipped default. */
+  effort?: unknown;
 }): Promise<RouteResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: NOT_SIGNED_IN };
@@ -152,11 +156,12 @@ export async function routeNote(input: {
     targetLabel(ctx.orgId, target),
     getSm8Timezone(ctx.orgId),
   ]);
-  const read = await readNote(transcript, {
-    staff,
-    targetLabel: label ?? undefined,
-    todayISO: todayInZone(tz),
-  });
+  const read = await readNote(
+    transcript,
+    { staff, targetLabel: label ?? undefined, todayISO: todayInZone(tz) },
+    undefined,
+    input.effort
+  );
 
   if (!read.ok) {
     /* The router failed, the note did not. Leave it pending with no proposal

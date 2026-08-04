@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { LevelBars, clockOf, useDictation } from "./dictation";
 import { clearRun, markProposal } from "@/lib/voice/timing";
+import { effortChoice } from "@/lib/dev-overrides";
 import { useNoteBrain } from "./note-brain-context";
 import { SEVERITIES, type NoteProposal, type NoteStaff } from "@/lib/workboard/note-brain";
 import { describeJob, matchJob, searchJobs, type JobCandidate } from "@/lib/workboard/note-match";
@@ -193,7 +194,15 @@ export function NoteCapture({
       setError(null);
       setDone(null);
       start(async () => {
-        const res = await routeNote({ transcript, target, source });
+        /* Read here rather than at render — it differs between server and
+           client, and this runs in a transition off a click.
+
+           Spread rather than passed: unset is the normal case by a very long
+           way, and a payload that carries `effort: null` on every note in
+           production to serve a measuring switch is noise in the wire, the
+           logs and the action's own contract. */
+        const effort = effortChoice();
+        const res = await routeNote({ transcript, target, source, ...(effort ? { effort } : {}) });
         if (!res.ok) {
           setError(res.error);
           clearRun();
@@ -202,7 +211,7 @@ export function NoteCapture({
         }
         /* The end of the wait — the card now has something to check. The
            transport only owns the first half of this number. */
-        markProposal();
+        markProposal(effort);
         setNote({ id: res.noteId, proposal: res.proposal, staff: res.staff });
         setDraft(toDraft(res.proposal));
       });

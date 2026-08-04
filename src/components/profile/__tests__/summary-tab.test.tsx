@@ -134,10 +134,37 @@ describe("the licence wall", () => {
     const wall = panel("Licences & tickets");
     expect(wall.querySelectorAll(".idc")).toHaveLength(2);
     expect(within(wall).getByText("ARC licence")).toBeInTheDocument();
-    // 2026-09-02 against a TODAY of 2026-07-24 — inside the 30-day window? no,
-    // but it is the status the one law produced, not one this panel invented
+    // the status comes from the ONE law in lib/staff/licence, not from
+    // anything this panel worked out for itself
     expect(within(wall).getByText("02/09/2026")).toBeInTheDocument();
     expect(within(wall).getByText("No expiry")).toBeInTheDocument();
+  });
+
+  /* Three of these sit side by side, so the card had to survive being one of a
+     wall. The issuer said the same business name on every card and took the
+     width the facts wanted; the status was a third fact long enough to wrap
+     one card's row and not its neighbours. */
+  it("carries no issuer line — every card would say the same business name", () => {
+    setup({ licences: LICENCES });
+    const wall = panel("Licences & tickets");
+    expect(wall.querySelector(".idc-org")).toBeNull();
+    expect(within(wall).queryByText("Smith Air")).not.toBeInTheDocument();
+  });
+
+  it("puts the status in a pill, leaving two facts that line up across cards", () => {
+    setup({ licences: LICENCES });
+    const wall = panel("Licences & tickets");
+
+    const pills = [...wall.querySelectorAll(".idc-state")].map((p) => p.textContent);
+    expect(pills).toEqual(["Valid", "No expiry"]);
+
+    // every card is left with the same two facts, in the same two columns
+    for (const card of wall.querySelectorAll(".idc")) {
+      expect([...card.querySelectorAll(".idc-facts .f em")].map((e) => e.textContent)).toEqual([
+        "Licence no.",
+        "Expires",
+      ]);
+    }
   });
 
   it("says so plainly when there are none, and points at Compliance", () => {

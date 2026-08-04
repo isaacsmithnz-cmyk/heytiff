@@ -2329,6 +2329,36 @@ select.fl-i { cursor:pointer; }
 .fg .idc .idc-org { font-size:10px; font-weight:800; letter-spacing:.18em; text-transform:uppercase; color:rgba(255,255,255,.42); overflow-wrap:anywhere; }
 .fg .idc.light .idc-org { color:#9ca3af; }
 .fg .idc .idc-badge { flex:0 0 auto; padding:4px 10px; border-radius:999px; border:1px solid transparent; font-size:9.5px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; white-space:nowrap; }
+
+/* ── the credential card ──
+   A licence or a ticket, and the only `.idc` that sits in a WALL of itself.
+   That is what these two rules are for.
+
+   The issuer line is gone (see id-card.tsx `credential`), so `.idc-top` has one
+   child on the left — push the state pill to the far right rather than letting
+   space-between leave it beside the stamp. */
+.fg .idc.cred .idc-top { justify-content:flex-start; }
+.fg .idc.cred .idc-state { margin-left:auto; }
+/* The STATE, not the kind: valid, lapsing, expired. It was a third fact along
+   the bottom and "Expires in 3 weeks" was long enough to wrap that row onto
+   two lines on one card and not its neighbours. As a pill it costs the row
+   nothing and reads first, which is the right order for the one thing on this
+   card that changes by itself. */
+.fg .idc .idc-state { flex:0 0 auto; padding:4px 11px; border-radius:999px; border:1px solid transparent;
+  font-size:10.5px; font-weight:800; letter-spacing:.01em; white-space:nowrap; }
+.fg .idc.light .idc-state.ok { background:rgba(0,229,192,.12); color:var(--teal-d); border-color:rgba(0,163,137,.26); }
+.fg .idc.light .idc-state.warn { background:rgba(240,164,49,.15); color:#b45309; border-color:rgba(240,164,49,.32); }
+.fg .idc.light .idc-state.bad { background:rgba(255,51,102,.1); color:#e0264f; border-color:rgba(255,51,102,.25); }
+.fg .idc.light .idc-state.mute { background:#f3f4f7; color:#9ca3af; border-color:#e9ebef; }
+.fg .idc.dark .idc-state.ok { background:rgba(0,229,192,.14); color:var(--teal); }
+.fg .idc.dark .idc-state.warn { background:rgba(240,164,49,.18); color:#F0A431; }
+.fg .idc.dark .idc-state.bad { background:rgba(255,51,102,.16); color:#FF3366; }
+.fg .idc.dark .idc-state.mute { background:rgba(255,255,255,.07); color:rgba(255,255,255,.5); }
+/* A GRID, not a flex row: three cards side by side is the point of the wall,
+   and with flex each card's second column started wherever its first value
+   happened to end — so "Expires" sat somewhere different on every card. */
+.fg .idc.cred .idc-facts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px 18px; }
+
 .fg .idc .idc-id { display:flex; align-items:center; gap:14px; min-width:0; }
 .fg .idc .idc-photo { position:relative; width:76px; height:76px; border-radius:22px; flex:0 0 auto; background:linear-gradient(45deg,#2E68FF,#00E5C0); padding:2px; overflow:hidden; }
 .fg .idc .idc-photo .inn, .fg .idc .idc-photo img { width:100%; height:100%; border-radius:20px; display:flex; align-items:center; justify-content:center; object-fit:cover; }

@@ -43,7 +43,6 @@ export function SummaryTab({
   licences,
   vehicle,
   today,
-  org,
   orgState,
   mode,
   actions,
@@ -54,8 +53,6 @@ export function SummaryTab({
   licences: StaffLicence[];
   vehicle: AssignedVehicle | null;
   today: string;
-  /** the org's trading name — the issuer line on every licence card */
-  org: string | null;
   /** the org's home state, so an unset holiday state can be RESOLVED rather
       than described. See the Holiday state row. */
   orgState: string | null;
@@ -157,7 +154,6 @@ export function SummaryTab({
                   // reads "No expiry" rather than showing a dash twice
                   expiry={l.expiryDate ? formatAuDate(l.expiryDate) : null}
                   status={licenceStatus(l.expiryDate, today)}
-                  org={org}
                 />
               ))}
             </div>

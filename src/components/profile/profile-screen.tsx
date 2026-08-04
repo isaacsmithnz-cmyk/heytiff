@@ -240,7 +240,6 @@ export function ProfileScreen({
                     licences={licences}
                     vehicle={vehicle}
                     today={today}
-                    org={org}
                     orgState={orgState}
                     mode={mode}
                     actions={actions}
@@ -273,7 +272,6 @@ export function ProfileScreen({
                     <ComplianceCard
                       licences={licences}
                       today={today}
-                      org={org}
                       onAdd={actions.onAddLicence}
                       onRemove={actions.onRemoveLicence}
                     />

@@ -31,14 +31,11 @@ const CUSTOM = "__custom";
 export function ComplianceCard({
   licences,
   today,
-  org,
   onAdd,
   onRemove,
 }: {
   licences: StaffLicence[];
   today: string;
-  /** the org's trading name — the issuer line on each licence card */
-  org?: string | null;
   onAdd: (input: LicenceInput) => Promise<SaveResult>;
   onRemove: (licenceId: string) => Promise<SaveResult>;
 }) {
@@ -172,7 +169,6 @@ export function ComplianceCard({
               licenceNumber={l.licenceNumber}
               expiry={l.expiryDate ? formatAuDate(l.expiryDate) : null}
               status={licenceStatus(l.expiryDate, today)}
-              org={org}
               removing={removingId === l.id}
               onRemove={() => remove(l.id)}
             />

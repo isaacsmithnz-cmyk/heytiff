@@ -1317,6 +1317,17 @@
 
 /* cost split */
 .fg .permroles { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+/* READING, there is one role and nothing to choose, so the picker shows the
+   one card — capped rather than stretched, because a single role card the
+   width of the panel reads as a banner and a third of the width reads as a
+   layout bug. */
+.fg .permroles.one { grid-template-columns:minmax(0,330px); }
+.fg .permroles.one .permrole { cursor:default; }
+/* the tick belongs to a choice; reading, the card IS the answer */
+.fg .permroles.one .permrole .prcheck { display:none; }
+/* a toggle in a value slot has no row card around it any more — it is the
+   value, so it sits where one would */
+.fg .pdrow.live dd > .toggle { margin-top:1px; }
 .fg .permrole { display:flex; align-items:center; gap:12px; padding:13px 15px; border-radius:14px; background:#fafbfc; border:1.5px solid #f0f0f2; cursor:pointer; transition:all .2s; }
 .fg .permrole input { position:absolute; opacity:0; pointer-events:none; }
 .fg .permrole:hover { border-color:#e0e3ea; }

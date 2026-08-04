@@ -33,11 +33,20 @@ const accessRow = (container: HTMLElement, label: string) =>
   )!;
 
 describe("read mode states the facts", () => {
+  /* The role is a CARD, not a row: its control is a three-card picker that
+     needs the full width, so reading shows the one card and editing offers
+     all three. Same object either way — only how many there are changes. */
   it("names the role and what it means", () => {
     const { container } = setup();
-    const role = accessRow(container, "Role");
-    expect(role).toHaveTextContent("Staff");
-    expect(role).toHaveTextContent("Field worker — own data only");
+    const cards = container.querySelectorAll(".permrole");
+    expect(cards).toHaveLength(1);
+    expect(cards[0]).toHaveTextContent("Staff");
+    expect(cards[0]).toHaveTextContent("Field worker — own data only");
+  });
+
+  it("offers nothing to choose from until you ask", () => {
+    const { container } = setup();
+    expect(container.querySelectorAll('input[type="radio"]')).toHaveLength(0);
   });
 
   it("says On for a granted capability and Off for a withheld one", () => {

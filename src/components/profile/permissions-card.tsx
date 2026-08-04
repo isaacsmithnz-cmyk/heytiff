@@ -3,7 +3,7 @@
 import { Icon } from "@/components/shell/icon";
 import type { Capability } from "@/lib/permissions";
 import type { Role } from "@/lib/roles-shared";
-import { SectionCard, StaticCard } from "./section-card";
+import { SectionCard, StaticCard, type SectionBodyContext } from "./section-card";
 import { Detail, DetailPanel, DetailPanels } from "./detail";
 import type { PermissionsCtx, SaveSection } from "./types";
 
@@ -62,43 +62,110 @@ export function PermissionsCard({ ctx, onSave }: { ctx: PermissionsCtx; onSave: 
     </div>
   ) : null;
 
-  /* READ MODE IS FACTS, EDIT MODE IS CONTROLS. This card used to show its
-     locked state as a row of dead toggles — switches you cannot flick, which
-     read as broken rather than as read-only. Read mode now answers the two
-     questions plainly: what role, and what can they reach. */
+  /* READ MODE IS FACTS, EDIT MODE IS CONTROLS — and that distinction is older
+     than the edit-in-place refactor. This card once showed its locked state as
+     a row of dead toggles, switches you cannot flick, which read as broken
+     rather than as read-only. So the access rows still say "On"/"Off" when you
+     are reading and only become switches when you are choosing. A disabled
+     toggle is not a value.
+
+     What the refactor adds is that they are the SAME ROWS either way: one list,
+     one set of labels, and the mode changes what sits in the value slot. See
+     detail.tsx.
+
+     THE ROLE IS THE EXCEPTION, and for the same reason the emergency card is:
+     its control is a three-card picker on a full-width grid, not something
+     that fits a value slot. It gets a plain panel, and the panel goes from
+     showing the one role to offering all three. The card object is identical
+     in both — only how many of them there are changes. */
   const role = ROLES.find((r) => r[0] === values.org_role);
-  const readBody = (
+
+  const sectionBody = ({ editing, draft, set }: SectionBodyContext) => (
     <>
       {note}
       <DetailPanels>
-        <DetailPanel title="Role">
-          <Detail
-            label="Role"
-            value={
-              role ? (
-                <span className="ro-state">
-                  <span className="prdot" style={{ background: role[3] }} />
-                  {role[1]}
-                </span>
-              ) : (
-                ""
-              )
-            }
-            sub={role?.[2]}
-          />
+        <DetailPanel title="Role" wide plain>
+          <div className={editing ? "permroles" : "permroles one"}>
+            {editing
+              ? ROLES.map((r) => {
+                  const on = r[0] === draft.org_role;
+                  // the selector stays VISIBLE when it is locked: hiding it
+                  // would leave an admin unable to see why someone has the
+                  // access they have
+                  const locked = !ctx.canChangeRole;
+                  return (
+                    <label
+                      key={r[0]}
+                      className={`permrole${on ? " on" : ""}${locked ? " locked" : ""}`}
+                    >
+                      <input
+                        type="radio"
+                        name="org_role"
+                        value={r[0]}
+                        checked={on}
+                        disabled={locked}
+                        onChange={() => set("org_role", r[0])}
+                      />
+                      <span className="prdot" style={{ background: r[3] }} />
+                      <span className="prk">
+                        <b>{r[1]}</b>
+                        <em>{r[2]}</em>
+                      </span>
+                      <span className="prcheck">
+                        <Icon name="check" size={14} />
+                      </span>
+                    </label>
+                  );
+                })
+              : role && (
+                  /* a div, not a label with a radio in it — reading, there is
+                     nothing to choose and nothing to click */
+                  <div className="permrole on">
+                    <span className="prdot" style={{ background: role[3] }} />
+                    <span className="prk">
+                      <b>{role[1]}</b>
+                      <em>{role[2]}</em>
+                    </span>
+                  </div>
+                )}
+          </div>
         </DetailPanel>
 
         <DetailPanel title="Access" wide split>
-          {ACCESS.map(([cap, label]) => {
-            const on = values[`cap_${cap}`] === "on";
+          {ACCESS.map(([cap, label, hint]) => {
+            const on = (editing ? draft : values)[`cap_${cap}`] === "on";
+            // owner-tier rows render locked for a delegated manager, matching
+            // what canSetCapability will actually accept
+            const locked = !ctx.settable.has(cap);
             return (
               <Detail
                 key={cap}
                 label={label}
+                editing={editing}
                 value={
                   <span className={on ? "ro-state ok" : "ro-state mute"}>{on ? "On" : "Off"}</span>
                 }
-                sub={ctx.settable.has(cap) ? undefined : "owner-granted"}
+                /* the hint is guidance for CHOOSING, so it rides along only
+                   while you are — twelve two-line rows would double the height
+                   of a panel whose read job is to be scanned */
+                sub={
+                  editing
+                    ? `${hint}${locked ? " · owner-granted" : ""}`
+                    : locked
+                      ? "owner-granted"
+                      : undefined
+                }
+                control={
+                  <button
+                    type="button"
+                    className={`toggle${on ? " on" : ""}`}
+                    role="switch"
+                    aria-checked={on}
+                    aria-label={label}
+                    disabled={locked}
+                    onClick={() => !locked && set(`cap_${cap}`, on ? "off" : "on")}
+                  />
+                }
               />
             );
           })}
@@ -107,79 +174,19 @@ export function PermissionsCard({ ctx, onSave }: { ctx: PermissionsCtx; onSave: 
     </>
   );
 
-  /* Edit mode only — read mode is `readBody` above. Every role is offered here
-     (you are choosing) and every toggle is live unless the capability is one
-     this viewer may not set. */
-  const body = (draft: Record<string, string>, set: (k: string, v: string) => void) => (
-    <>
-      {note}
-      <div className="field" style={{ marginBottom: 20 }}>
-        <label>Role</label>
-        <div className="permroles">
-          {ROLES.map((r) => {
-            const on = r[0] === draft.org_role;
-            const locked = !ctx.canChangeRole;
-            return (
-              <label key={r[0]} className={`permrole${on ? " on" : ""}${locked ? " locked" : ""}`}>
-                <input
-                  type="radio"
-                  name="org_role"
-                  value={r[0]}
-                  checked={on}
-                  disabled={locked}
-                  onChange={() => set("org_role", r[0])}
-                />
-                <span className="prdot" style={{ background: r[3] }} />
-                <span className="prk">
-                  <b>{r[1]}</b>
-                  <em>{r[2]}</em>
-                </span>
-                <span className="prcheck">
-                  <Icon name="check" size={14} />
-                </span>
-              </label>
-            );
-          })}
-        </div>
-      </div>
-      <div className="field">
-        <label>
-          Access{" "}
-          <span className="help" style={{ fontWeight: 500, marginLeft: 4 }}>
-            — fine-tune what the role can reach
-          </span>
-        </label>
-        <div className="accessgrid">
-          {ACCESS.map(([cap, label, hint]) => {
-            const on = draft[`cap_${cap}`] === "on";
-            // owner-tier rows render locked for a delegated manager, matching
-            // what canSetCapability will actually accept
-            const locked = !ctx.settable.has(cap);
-            return (
-              <div key={cap} className={`togrow${locked ? " locked" : ""}`}>
-                <div className="tk">
-                  <b>{label}</b>
-                  <em>
-                    {hint}
-                    {locked ? " · owner-granted" : ""}
-                  </em>
-                </div>
-                <button
-                  type="button"
-                  className={`toggle${on ? " on" : ""}`}
-                  role="switch"
-                  aria-checked={on}
-                  aria-label={label}
-                  disabled={locked}
-                  onClick={() => !locked && set(`cap_${cap}`, on ? "off" : "on")}
-                />
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </>
-  );
+  /* The locked card has no edit cycle at all, so it renders the same body with
+     `editing` nailed shut rather than keeping a second copy of the read view
+     around to drift. */
+  const readOnlyBody = sectionBody({
+    editing: false,
+    edit: () => {},
+    draft: values,
+    set: () => {},
+    setMany: () => {},
+    invalid: () => false,
+    saving: false,
+    errorFor: () => null,
+  });
 
   if (!ctx.editable) {
     return (
@@ -191,7 +198,7 @@ export function PermissionsCard({ ctx, onSave }: { ctx: PermissionsCtx; onSave: 
         sub="Role & what this person can access"
         pill={pill}
       >
-        {readBody}
+        {readOnlyBody}
       </StaticCard>
     );
   }
@@ -206,8 +213,7 @@ export function PermissionsCard({ ctx, onSave }: { ctx: PermissionsCtx; onSave: 
       pill={pill}
       values={values}
       onSave={(fields) => onSave("permissions", fields)}
-      read={readBody}
-      edit={({ draft, set }) => body(draft, set)}
+      body={sectionBody}
     />
   );
 }

@@ -48,15 +48,19 @@ export function markTranscript(transport: Transport): void {
   console.info(`[voice] ${transport} · heard in ${secs(run.heard)}`);
 }
 
-/** The review card has something to show — the end of the wait. */
-export function markProposal(): void {
+/** The review card has something to show — the end of the wait.
+
+    `effort` names the level the routing call ran at, so a line is readable
+    on its own: with several levels measured in one sitting, a bare number
+    can't be matched back to the setting that produced it. */
+export function markProposal(effort?: string | null): void {
   if (!run) return;
   const total = now() - run.stopped;
   const heard = run.heard ?? 0;
   console.info(
-    `[voice] ${run.transport ?? "typed"} · heard ${secs(heard)} · routed ${secs(
-      total - heard
-    )} · TOTAL ${secs(total)}`
+    `[voice] ${run.transport ?? "typed"} · effort ${effort ?? "high"} · heard ${secs(
+      heard
+    )} · routed ${secs(total - heard)} · TOTAL ${secs(total)}`
   );
   run = null;
 }

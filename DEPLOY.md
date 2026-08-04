@@ -264,19 +264,32 @@ wall-clock, not speech**, so an open mic in a quiet room costs money; the socket
 uses the vendor's `vad` commit strategy and `dictation.tsx` closes it the moment
 recording stops.
 
-**Comparing the two without a redeploy.** A build-time flag can't be A/B'd —
-every swap would redeploy production — so `?voice=live` and `?voice=batch`
-beat the flag for the rest of the browser session (sessionStorage; `?voice=`
-with any other value clears it). Each note prints one line to the console:
+**Comparing without a redeploy.** Both settings worth measuring are
+build-time — the transport is this flag, the routing effort is a constant in
+`note-brain.ts` — so `src/lib/dev-overrides.ts` lets a query string beat
+either one for the rest of the browser session (sessionStorage; an
+unrecognised value clears it):
+
+| Query | Effect |
+|---|---|
+| `?voice=live` · `?voice=batch` | Which transport dictation uses |
+| `?effort=low\|medium\|high\|xhigh\|max` | What effort the Opus 5 routing call runs at |
+
+Each note prints one line to the console:
 
 ```
-[voice] live · heard 0.41s · routed 8.12s · TOTAL 8.53s
+[voice] live · effort high · heard 0.41s · routed 8.12s · TOTAL 8.53s
 ```
 
-`heard` is the transport — the only part the flag changes. `routed` is the
-Opus 5 call in `note-brain.ts`. Both are printed because the second is
-usually the larger, and "live is three seconds faster" means very little if
-routing spends eight seconds afterwards either way.
+`heard` is the transport; `routed` is the routing call. Both are printed
+because the second is usually much the larger — measured 2026-08-04 on
+production, live transcription was **0.86s against 7.06s of routing**, so
+"live is three seconds faster" means very little on its own.
+
+The effort override is re-checked server-side in `readNote` against the same
+list, because it reaches the server from a browser and an effort level is a
+cost lever. An unrecognised value falls back to the shipped `high` rather
+than failing the note.
 
 Realtime keyterms are capped tighter than batch — **50 terms of 20 characters**
 against 1000 of 50 — so `prepareKeyterms` takes the limits from its caller, and

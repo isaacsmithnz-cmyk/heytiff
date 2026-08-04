@@ -26,6 +26,7 @@
    are tested without a network call. */
 
 import Anthropic from "@anthropic-ai/sdk";
+import { isEffort, type Effort } from "@/lib/dev-overrides";
 
 /* Opus 5: the routing decision is the whole product. A cheaper model that
    mis-assigns "tell Luke" to the wrong Luke, or reads an urgent flag as a
@@ -34,6 +35,18 @@ import Anthropic from "@anthropic-ai/sdk";
    which is why the budget is generous for such a small output. */
 const MODEL = "claude-opus-5";
 const MAX_TOKENS = 16_000;
+
+/* `high` is both the API default and the shipped setting. It is also, on the
+   2026-08-04 measurements, about 89% of the wait between someone stopping
+   talking and the review card appearing — the transport this file's caller
+   spent a PR optimising is the other 11%.
+
+   That does not make `high` wrong. It makes it the one setting worth
+   MEASURING rather than assuming, which is what the caller's `effort`
+   argument is for: same five sentences at each level, and a comparison of
+   whether the assignees and due dates actually change. Until that runs, this
+   stays where it is. */
+const DEFAULT_EFFORT: Effort = "high";
 
 /* ── what a proposal is ───────────────────────────────────────────────── */
 
@@ -396,7 +409,12 @@ function reasonFor(err: unknown): string {
 export async function readNote(
   transcript: string,
   ctx: NoteContext,
-  answer?: { question: string; answer: string }
+  answer?: { question: string; answer: string },
+  /* A measuring override, re-checked here rather than trusted: it reaches
+     this function from a browser, and an effort level is a cost lever. An
+     unrecognised value is the default, never an error — nobody's note should
+     fail because a query string was mistyped. */
+  effort?: unknown
 ): Promise<NoteBrainResult> {
   if (!process.env.ANTHROPIC_API_KEY) return { ok: false, error: NO_KEY };
   const text = transcript.trim();
@@ -411,10 +429,10 @@ export async function readNote(
     const response = await client.messages.create({
       model: MODEL,
       max_tokens: MAX_TOKENS,
-      // The default; stated because it is a real cost/quality lever here and
-      // a future reader should see it was chosen, not inherited.
+      // Stated because it is a real cost/quality lever here and a future
+      // reader should see it was chosen, not inherited.
       output_config: {
-        effort: "high",
+        effort: isEffort(effort) ? effort : DEFAULT_EFFORT,
         format: { type: "json_schema", schema: NOTE_SCHEMA },
       },
       system: systemPrompt(ctx),

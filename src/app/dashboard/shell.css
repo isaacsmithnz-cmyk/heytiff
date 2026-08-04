@@ -4502,6 +4502,59 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
   font-size:14.5px; line-height:1.5; color:var(--gray800, #1f2937); font-weight:500;
   margin:8px 0 0; text-align:center; max-width:44ch; min-height:2.2em;
 }
+/* ── the router is thinking ──
+   Seven measured seconds with nothing moving is indistinguishable from a
+   hang, so this state exists to move. Top-level selectors, never nested
+   under `.fg`: the capture card is PORTALLED to body, where a `.fg` rule is
+   absent rather than merely outranked.
+
+   The sweep reuses the route skeleton's `pkSweep` at its own 1.6s, and the
+   reasoning there holds here too — a fast shimmer reads as an error state,
+   and this is on screen for several seconds every single time. */
+/* A conic crescent rather than a bordered ring. Compared side by side at
+   actual size against the record dot: a 2px arc on a .14 track is barely
+   separable from its own track at 15px, and a pulsing dot reads as a STATUS
+   — too close to what the red dot two states earlier already means. The
+   crescent is the only one of the four that reads as "working" at a glance
+   and can't be mistaken for "recording".
+   Both mask declarations survive lightningcss (checked — the backdrop-filter
+   prefix trap does not apply to `mask`). */
+@keyframes wb2Spin { to { transform:rotate(360deg); } }
+.wb2-spin {
+  width:16px; height:16px; flex:0 0 auto; border-radius:50%;
+  background:conic-gradient(from 0deg, var(--wb2-ok, #00A389), rgba(0,163,137,0) 70%);
+  -webkit-mask:radial-gradient(circle, transparent 4.5px, #000 5px);
+  mask:radial-gradient(circle, transparent 4.5px, #000 5px);
+  animation:wb2Spin .8s linear infinite;
+}
+.wb2-sorting { display:flex; flex-direction:column; gap:14px; padding:6px 0 2px; }
+/* The transcript, as WORDS — it left the disabled textarea because the next
+   screen asks you to confirm what was made of it, and this is the only quiet
+   moment you get to re-read it. */
+.wb2-sortnote {
+  margin:0; font-size:14.5px; line-height:1.55; font-weight:500;
+  color:var(--gray800, #1f2937);
+}
+.wb2-sortrows { display:flex; flex-direction:column; gap:9px; }
+.wb2-skel {
+  display:block; height:12px; border-radius:6px;
+  background:linear-gradient(100deg, rgba(10,12,20,.05) 30%, rgba(10,12,20,.09) 50%, rgba(10,12,20,.05) 70%);
+  background-size:200% 100%; animation:pkSweep 1.6s ease-in-out infinite;
+}
+/* Uneven on purpose — three identical bars read as a loading BAR, which
+   would be a progress claim. These are the shape of a card, not a measure
+   of how far along it is. */
+.wb2-skel-a { width:72%; height:14px; }
+.wb2-skel-b { width:88%; }
+.wb2-skel-c { width:54%; }
+.wb2-sorting .wb2-hint { margin:0; }
+/* Motion off, signal kept: the crescent freezes rather than vanishing, and
+   the state still says "Sorting it out" in words either way — the animation
+   was always the enhancement, not the message. */
+@media (prefers-reduced-motion:reduce) {
+  .wb2-spin { animation:none; }
+  .wb2-skel { animation:none; background:rgba(10,12,20,.06); }
+}
 .wb2-capcard .wb2-sherr { margin:0 0 10px; }
 .wb2-capcard .wb2-notes { margin-bottom:0; }
 

@@ -234,3 +234,76 @@ describe("the emergency card is the one exception, and says why", () => {
     expect(within(container).getByDisplayValue("Sarah Mills")).toBeInTheDocument();
   });
 });
+
+/* Permissions and Notes were the two sections the first pass left alone,
+   because neither is a list of label/value rows: one is a role picker over a
+   toggle grid, the other is prose. They are converted now, and each keeps one
+   deliberate exception that is worth stating out loud. */
+describe("permissions", () => {
+  /* READ MODE IS FACTS, EDIT MODE IS CONTROLS, and that rule is older than
+     this refactor: the card once showed its locked state as a row of dead
+     toggles, which read as broken rather than as read-only. So the rows are
+     the same rows, but a switch you cannot flick is never the value. */
+  it("says On and Off when reading, and switches only when editing", async () => {
+    const user = userEvent.setup();
+    const { container } = setup("permissions");
+
+    expect(screen.queryByRole("switch")).not.toBeInTheDocument();
+    expect(container.querySelector(".pdrow")).toHaveTextContent("On");
+
+    await startEdit(user);
+    expect(screen.getAllByRole("switch").length).toBeGreaterThan(0);
+  });
+
+  it("keeps the same access rows, in the same order, either way", async () => {
+    const user = userEvent.setup();
+    const { container } = setup("permissions");
+    const before = labels(container);
+
+    await startEdit(user);
+
+    expect(labels(container)).toEqual(before);
+    expect(before).toContain("Financials");
+  });
+
+  /* The role's control is a three-card picker on a full-width grid, which is
+     not something that fits a value slot — so it gets a panel, and the panel
+     goes from showing the one role to offering all three. Same card object. */
+  it("shows the one role, then offers all three", async () => {
+    const user = userEvent.setup();
+    const { container } = setup("permissions");
+    expect(container.querySelectorAll(".permrole")).toHaveLength(1);
+
+    await startEdit(user);
+    expect(container.querySelectorAll(".permrole")).toHaveLength(3);
+  });
+});
+
+describe("notes", () => {
+  it("puts the textarea where the paragraph was", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <ProfileScreen
+        mode="admin"
+        header={header}
+        profile={jordan}
+        licences={[]}
+        vehicle={null}
+        today={TODAY}
+        org="Smith Air"
+        initialSec="notes"
+        adminExtras={{ permissions: ctx, notes: { notes: "On light duties until June" } }}
+        actions={okActions()}
+      />
+    );
+
+    const panelOf = () => container.querySelector(".pdlcard");
+    expect(panelOf()).toHaveTextContent("On light duties until June");
+    expect(container.querySelector("textarea")).not.toBeInTheDocument();
+
+    await startEdit(user);
+
+    // same panel, same place — the prose became the box
+    expect(panelOf()?.querySelector("textarea")).toHaveValue("On light duties until June");
+  });
+});

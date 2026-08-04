@@ -264,6 +264,20 @@ wall-clock, not speech**, so an open mic in a quiet room costs money; the socket
 uses the vendor's `vad` commit strategy and `dictation.tsx` closes it the moment
 recording stops.
 
+**Comparing the two without a redeploy.** A build-time flag can't be A/B'd —
+every swap would redeploy production — so `?voice=live` and `?voice=batch`
+beat the flag for the rest of the browser session (sessionStorage; `?voice=`
+with any other value clears it). Each note prints one line to the console:
+
+```
+[voice] live · heard 0.41s · routed 8.12s · TOTAL 8.53s
+```
+
+`heard` is the transport — the only part the flag changes. `routed` is the
+Opus 5 call in `note-brain.ts`. Both are printed because the second is
+usually the larger, and "live is three seconds faster" means very little if
+routing spends eight seconds afterwards either way.
+
 Realtime keyterms are capped tighter than batch — **50 terms of 20 characters**
 against 1000 of 50 — so `prepareKeyterms` takes the limits from its caller, and
 the token route passes **staff names first**: a misheard name routes a task to

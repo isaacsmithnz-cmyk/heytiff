@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import { startRealtime, type RealtimeHandle } from "@/lib/voice/realtime-stream";
+import { clearRun, markStopped, markTranscript } from "@/lib/voice/timing";
 
 /* Dictation, extracted from the note pill so every box you'd type a paragraph
    into can have it (Isaac, 2026-08-02: "anywhere that you need to enter notes
@@ -36,6 +37,38 @@ import { startRealtime, type RealtimeHandle } from "@/lib/voice/realtime-stream"
 
 /** Inlined at build time — a live transcript is opt-in per deployment. */
 const REALTIME = process.env.NEXT_PUBLIC_VOICE_REALTIME === "1";
+
+const OVERRIDE_KEY = "heytiff.voice.transport";
+
+/* A build-time flag can't be A/B'd: every swap is a redeploy of production,
+   which is no way to find out whether the live path is actually faster. So
+   `?voice=live` / `?voice=batch` beats the flag for the rest of the browser
+   session — enough to measure both against the same note, on the same
+   connection, minutes apart.
+
+   sessionStorage, not localStorage: an override is for an afternoon of
+   measuring, and one that outlives the tab would eventually have someone
+   debugging a transport nobody remembers choosing. `?voice=` with anything
+   else clears it.
+
+   Read in the click handler and never during render — a value that differs
+   between server and client would tear hydration if it reached the markup,
+   and this one deliberately does not. */
+export function transportChoice(): boolean {
+  if (typeof window === "undefined") return REALTIME;
+  try {
+    const asked = new URLSearchParams(window.location.search).get("voice");
+    if (asked === "live" || asked === "batch") sessionStorage.setItem(OVERRIDE_KEY, asked);
+    else if (asked !== null) sessionStorage.removeItem(OVERRIDE_KEY);
+
+    const chosen = sessionStorage.getItem(OVERRIDE_KEY);
+    if (chosen === "live") return true;
+    if (chosen === "batch") return false;
+  } catch {
+    /* private mode, or storage disabled — the flag still decides */
+  }
+  return REALTIME;
+}
 
 type DictationState = {
   recording: boolean;
@@ -148,6 +181,7 @@ export function useDictation({
         cbs.current.onError?.(body.error ?? "That recording couldn't be read. Type it instead.");
         return;
       }
+      markTranscript("batch");
       cbs.current.onTranscript(body.text);
     } catch {
       cbs.current.onError?.("That recording couldn't be sent. Type it instead.");
@@ -200,11 +234,15 @@ export function useDictation({
           live.current = null;
           stopMeter();
           setRecording(false);
+          /* The clock starts the moment they stop talking, because that is
+             the moment they start waiting. */
+          markStopped();
 
           if (discard.current) {
             handle?.cancel();
             stream.getTracks().forEach((t) => t.stop());
             setInterim("");
+            clearRun();
             return;
           }
 
@@ -217,6 +255,7 @@ export function useDictation({
             if (handle) {
               const text = (await handle.stop()).trim();
               if (text) {
+                markTranscript("live");
                 cbs.current.onTranscript(text);
                 return;
               }
@@ -238,7 +277,7 @@ export function useDictation({
         rec.start();
         setSeconds(0);
         setRecording(true);
-        if (REALTIME) void goLive(stream);
+        if (transportChoice()) void goLive(stream);
       } catch {
         // graceful floor: whatever asked for this stays usable by typing
         cbs.current.onError?.("No microphone available — type it instead.");

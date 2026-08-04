@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { LevelBars, clockOf, useDictation } from "./dictation";
+import { clearRun, markProposal } from "@/lib/voice/timing";
 import { useNoteBrain } from "./note-brain-context";
 import { SEVERITIES, type NoteProposal, type NoteStaff } from "@/lib/workboard/note-brain";
 import { describeJob, matchJob, searchJobs, type JobCandidate } from "@/lib/workboard/note-match";
@@ -195,9 +196,13 @@ export function NoteCapture({
         const res = await routeNote({ transcript, target, source });
         if (!res.ok) {
           setError(res.error);
+          clearRun();
           router.refresh(); // the note itself was still saved
           return;
         }
+        /* The end of the wait — the card now has something to check. The
+           transport only owns the first half of this number. */
+        markProposal();
         setNote({ id: res.noteId, proposal: res.proposal, staff: res.staff });
         setDraft(toDraft(res.proposal));
       });

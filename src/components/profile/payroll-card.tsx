@@ -152,6 +152,17 @@ export function PayrollCard({
                     <span className="csdot" style={{ background: m.color }} />
                     <span className="cslbl">{m.label}</span>
                     <div className="cspct">
+                      {/* The SAME object the edit mode makes draggable, filled.
+                          This row used to be a bare percentage sitting at the
+                          end of the 170px the slider occupies — an empty
+                          trough, which reads as a control that failed to
+                          render rather than as a value. */}
+                      <span className="cstrack">
+                        <span
+                          className="csfill"
+                          style={{ width: `${readSplit[i]}%`, background: m.color }}
+                        />
+                      </span>
                       <span className="csval">{readSplit[i]}%</span>
                     </div>
                   </div>

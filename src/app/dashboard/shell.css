@@ -1286,9 +1286,23 @@
 .fg .csrange::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:18px; height:18px; border-radius:50%; background:#fff; border:2px solid var(--ink); box-shadow:0 2px 5px rgba(0,0,0,.18); cursor:grab; }
 .fg .csrange::-moz-range-thumb { width:18px; height:18px; border-radius:50%; background:#fff; border:2px solid var(--ink); box-shadow:0 2px 5px rgba(0,0,0,.18); cursor:grab; }
 .fg .csval { font-family:var(--mono); font-size:13px; font-weight:700; color:var(--ink); width:38px; text-align:right; flex:0 0 auto; }
-.fg .card2.readonly .csrange { display:none; }
-.fg .card2.readonly .csrow .cspct { width:auto; }
-.fg .card2.readonly .csval { width:auto; }
+
+/* THE SPLIT DRAWS ITSELF IN READ MODE TOO.
+   It used to collapse to a bare percentage, on three rules scoped to
+   `.card2.readonly` — a class the section stopped rendering when the tab
+   became its title, so the rules went dead and `.cspct` kept its 170px with
+   nothing in it. Three rows of number floating in an empty trough, which is
+   exactly what a control that failed to render looks like: "the cost split
+   seemed to be hidden until I clicked set" (Isaac).
+
+   Restoring the collapse would have been the small fix and the wrong one. A
+   split is a PROPORTION, and 55/35/10 as three numbers makes you do the
+   arithmetic to see the shape. The track fills instead — the same object in
+   both modes, and in edit mode the thumb simply becomes draggable. */
+.fg .cstrack { position:relative; flex:1; min-width:0; height:6px; border-radius:999px; background:#e6e8ee; }
+/* the fill takes the row's own dot colour, inline — the three shares have to
+   be the same three colours as the donut beside them or the panel is lying */
+.fg .csfill { position:absolute; inset:0 auto 0 0; border-radius:999px; }
 .fg .cspie { position:relative; width:150px; height:150px; margin:0 auto; }
 .fg .cspie svg { width:100%; height:100%; }
 .fg .cspie .csseg { transition:stroke-dasharray .35s ease; }

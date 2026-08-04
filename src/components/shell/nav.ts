@@ -52,7 +52,15 @@ export const NAV_GROUPS: NavGroup[] = [
       { key: "workboard", label: "Workboard", icon: "activity", href: "/dashboard/workboard", hint: "Maintenance & projects command centre", accent: "#00A8E0", capability: "workboard" },
       { key: "toolbox", label: "Toolbox", icon: "wrench", href: "/dashboard/toolbox", hint: "Calculators & references", accent: "#8A2BE2", capability: "toolbox" },
       { key: "ductr", label: "Design Studio", icon: "wind", href: "/dashboard/studio", hint: "VRF design canvas", accent: "#FF8A00", capability: "studio" },
-      { key: "tiff", label: "Tiff AI", icon: "sparkles", href: "/dashboard/tiff", hint: "Assistant & knowledge base", accent: "#2E68FF", dot: true, capability: "tiff" },
+      /* The knowledge base rides along as a tab, like Leave does on Timesheet:
+         it is the same feature seen from the other end — the assistant answers
+         out of the library, and the library is where the answers come from.
+         One rail row, two faces, and ⌘K still lists the library in its own
+         right. Only the FACE is listed here; the row itself is the assistant. */
+      { key: "tiff", label: "Tiff AI", icon: "sparkles", href: "/dashboard/tiff", hint: "Assistant & knowledge base", accent: "#2E68FF", dot: true, capability: "tiff",
+        subItems: [
+          { key: "tiffkb", label: "Knowledge", icon: "library", href: "/dashboard/tiff/knowledge", hint: "Manuals, specs & SOPs Tiff reads", accent: "#2E68FF" },
+        ] },
     ],
   },
   {

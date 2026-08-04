@@ -90,48 +90,10 @@ export function homeHtml(opts: { greeting: string; firstName: string; date: stri
    src/components/toolbox/toolbox-screen.tsx (React: tool links + live search)
    with its tool registry in src/components/toolbox/tools.ts. */
 
-/* ---------------- TIFF AI — hero + icon suggestions + empty threads ---------------- */
-export function tiffHtml() {
-  const S: [string, string, string][] = [
-    ["wrench", "#00E5C0", "rgba(0,229,192,0.1)"],
-    ["zap", "#2E68FF", "rgba(46,104,255,0.1)"],
-    ["alert", "#FF3366", "rgba(255,51,102,0.1)"],
-    ["file", "#8A2BE2", "rgba(138,43,226,0.1)"],
-  ];
-  const cards = S.map(
-    (s) =>
-      '<button class="tsugg"><span class="tsg" style="background:' +
-      s[1] +
-      '"></span>' +
-      '<div class="tsh"><div class="tsi" style="background:' +
-      s[2] +
-      '">' +
-      I(s[0], 18) +
-      "</div></div></button>"
-  ).join("");
-  return (
-    '<div class="tiff"><div class="tmain"><div class="thero"><div class="o1"></div><div class="o2"></div>' +
-    '<div class="trow"><div class="tbot"><div class="tb">' +
-    I("bot", 40, 1.5) +
-    '</div><div class="tst"><i></i></div></div>' +
-    '<div class="tlead"><div class="pill">' +
-    I("fingerprint", 12) +
-    "Tiff AI</div>" +
-    "<h2>What are we building today?</h2></div></div></div>" +
-    '<div class="tsgrid stgp">' +
-    cards +
-    "</div>" +
-    '<div class="tinput"><div class="tib"></div><div class="tin"><div class="tic">' +
-    I("sparkles", 20) +
-    '</div>' +
-    '<input placeholder="Message Tiff AI..."><button class="tsend">' +
-    I("send", 18) +
-    "</button></div></div></div>" +
-    '<div class="tside"><div><div class="tsl"><span>Recent Threads</span></div>' +
-    '<div style="padding:40px 16px;text-align:center"><b style="display:block;font-size:14px;font-weight:700;color:#9ca3af">Nothing to see here</b>' +
-    '<em style="font-style:normal;display:block;font-size:12.5px;color:#d1d5db;margin-top:4px">Your conversations will show up here.</em></div></div></div></div>'
-  );
-}
+/* ---------------- TIFF AI ----------------
+   The Tiff screens are no longer static builders — the assistant lives in
+   src/components/tiff/assistant.tsx and the library in
+   src/components/tiff/knowledge.tsx, both real React reading real rows. */
 
 /* ---------------- ASSETS ----------------
    The Assets screen is no longer a static builder — it lives in

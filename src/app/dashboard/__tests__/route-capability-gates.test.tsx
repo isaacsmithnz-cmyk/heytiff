@@ -34,6 +34,21 @@ jest.mock("@/components/toolbox/outdoor-unit", () => ({ OutdoorUnit: () => null 
 jest.mock("@/components/toolbox/running-pressures", () => ({ RunningPressures: () => null }));
 jest.mock("@/components/toolbox/fault-finder", () => ({ FaultFinder: () => null }));
 jest.mock("@/components/tiff/knowledge", () => ({ KnowledgeBase: () => null }));
+jest.mock("@/lib/tiff/query", () => ({
+  kbDocsForOrg: jest.fn(async () => []),
+  kbUploaderNames: jest.fn(async () => ({})),
+}));
+jest.mock("@/lib/tiff/quota", () => ({
+  kbQuotaFor: jest.fn(async () => ({
+    plan: "standard",
+    month: "2026-08-01",
+    pagesUsed: 0,
+    questionsAsked: 0,
+    pagesAllowed: 2000,
+    pagesRemaining: 2000,
+    resetsOn: "2026-09-01",
+  })),
+}));
 jest.mock("@/components/studio/data-library", () => ({ DataLibrary: () => null }));
 jest.mock("@/lib/studio/packs/server", () => ({ installedPacks: jest.fn(async () => []) }));
 jest.mock("@/lib/studio/packs/overrides-server", () => ({ loadPackWithOverrides: jest.fn() }));
@@ -142,6 +157,50 @@ describe("the dynamic leaves check the same door", () => {
     allowed = true;
     expect(await Page(props)).toBeTruthy();
     expect(redirect).not.toHaveBeenCalled();
+  });
+});
+
+/* The knowledge base has a second question after "may you be here": what may
+   you DO here. Managing is `tiff_manage` and removing is the owner, decided on
+   the server and re-decided by every action — these pin that the page answers
+   both, rather than handing the client a blanket yes. */
+describe("the knowledge base hands the client what this viewer may do", () => {
+  // the page returns the element; its props ARE the answer being handed over
+  const propsOf = async (search?: Record<string, string>) => {
+    const el = (await KnowledgeBasePage(
+      search ? { searchParams: Promise.resolve(search) } : undefined
+    )) as { props: Record<string, unknown> };
+    return el.props;
+  };
+
+  beforeEach(() => {
+    allowed = true;
+  });
+
+  it("asks for tiff_manage separately from tiff", async () => {
+    const props = await propsOf();
+    expect(can).toHaveBeenCalledWith("tiff");
+    expect(can).toHaveBeenCalledWith("tiff_manage");
+    expect(props.canManage).toBe(true);
+  });
+
+  it("holds removal back to the owner, whatever the capability says", async () => {
+    role = "admin";
+    expect((await propsOf()).isOwner).toBe(false);
+    role = "owner";
+    expect((await propsOf()).isOwner).toBe(true);
+  });
+
+  it("opens on the category the URL named, and ignores an invented one", async () => {
+    expect((await propsOf({ cat: "faults" })).initialCategory).toBe("faults");
+    expect((await propsOf({ cat: "nonsense" })).initialCategory).toBeNull();
+    expect((await propsOf()).initialCategory).toBeNull();
+  });
+
+  it("nulls the unlimited tier's page ceiling rather than sending Infinity", async () => {
+    const props = (await propsOf()).quota as Record<string, unknown>;
+    expect(props.pagesAllowed).toBe(2000);
+    expect(props).not.toHaveProperty("pagesRemaining");
   });
 });
 

@@ -13,6 +13,7 @@ import {
   kbStorageRef,
   kbTitle,
 } from "@/lib/tiff/files";
+import { signKbRef } from "@/lib/tiff/query";
 
 /* The knowledge base's writes — upload, describe, retry, remove.
 
@@ -69,6 +70,42 @@ const trim = (v: unknown, max: number): string | null => {
   const s = v.trim().replace(/[\r\n\t]/g, " ");
   return s ? s.slice(0, max) : null;
 };
+
+/* A link to the file itself, minted per click.
+
+   THE ONE ACTION IN THIS FILE GATED `tiff`, NOT `tiff_manage`. Reading the
+   library is the staff tier — that is the whole point of the knowledge base —
+   and opening a document is reading. Nothing here writes.
+
+   Signed on demand rather than at render: the bucket is private, links expire,
+   and a hundred-document library would otherwise mint a hundred URLs nobody
+   clicks on every page load. */
+export async function kbDocUrl(
+  documentId: string
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  let orgId: string;
+  try {
+    ({ orgId } = await requireOrg("tiff"));
+  } catch {
+    return { ok: false, error: "You don't have access to the knowledge base." };
+  }
+
+  const { data } = await supabaseAdmin
+    .from("kb_documents")
+    .select("storage_ref")
+    .eq("org_id", orgId)
+    .eq("id", documentId)
+    .maybeSingle();
+  if (!data) return { ok: false, error: GONE };
+
+  const ref = String(data.storage_ref ?? "");
+  if (!ref || !kbRefIsOrgs(ref, orgId))
+    return { ok: false, error: "That file doesn't belong to this organisation." };
+
+  const url = await signKbRef(ref);
+  if (!url) return { ok: false, error: "That file couldn't be opened." };
+  return { ok: true, url };
+}
 
 /** Ask for somewhere to put a manual. Returns a signed slot, or a reason. */
 export async function beginKbUpload(input: {

@@ -4777,3 +4777,214 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 /* A footer with a destructive action on the left and the commit pair right. */
 .fl-foot.spread { justify-content:space-between; }
 .fl-footright { display:inline-flex; gap:10px; }
+/* ══════════════════ TIFF — KNOWLEDGE BASE (.tk-) ══════════════════════════
+   The library page and its upload drawer. Everything the LIBRARY draws is
+   scoped `.fg .tk-…`: `.fg button` and `.fg input` are (0,1,1) resets, so a
+   bare `.tk-btn { background }` on a <button> renders transparent and a
+   `.tk-fi { font-size }` on an <input> silently inherits. Two classes, always.
+
+   THE DRAWER IS THE OPPOSITE PROBLEM. It portals to <body> (`.page.in`'s
+   will-change traps position:fixed inside the shell), which puts it OUTSIDE
+   `.fg` — where the --ink/--gray ramp is declared and where the font is set.
+   So the sheet and the scrim restate both, and the atoms shared with the page
+   (.tk-btn, .tk-abtn, .tk-dot, .tk-spin) are written once for both roots.
+
+   NO MONOSPACE ANYWHERE, including the kind badge and the page counts —
+   Jakarta carries them, per the brief's first hard constraint. */
+
+/* ── the page head: what's here, and the month's allowance ── */
+.fg .tk-head { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex-wrap:wrap; margin-bottom:26px; }
+.fg .tk-h1 { margin:0; font-size:44px; font-weight:800; letter-spacing:-.03em; line-height:1; color:var(--ink); }
+.fg .tk-sub { margin:10px 0 0; font-size:14.5px; font-weight:600; color:var(--gray500); }
+.fg .tk-quota { display:inline-flex; align-items:center; gap:7px; margin:14px 0 0; padding:6px 13px; border-radius:99px;
+  background:rgba(46,104,255,.07); color:#1d4ed8; font-size:12.5px; font-weight:700; }
+.fg .tk-quota svg { flex:none; }
+
+/* ── buttons: one family, both roots ── */
+.fg .tk-btn, .tk-sheet .tk-btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; height:44px; padding:0 20px;
+  border:1px solid transparent; border-radius:14px; font-family:var(--font-jakarta), sans-serif; font-size:13.5px; font-weight:700;
+  letter-spacing:-.01em; cursor:pointer; white-space:nowrap;
+  transition:background .22s, border-color .22s, color .22s, box-shadow .22s, transform .18s; }
+.fg .tk-btn.primary, .tk-sheet .tk-btn.primary { background:#2E68FF; color:#fff; box-shadow:0 10px 22px -12px rgba(46,104,255,.9); }
+.fg .tk-btn.primary:hover:not(:disabled), .tk-sheet .tk-btn.primary:hover:not(:disabled) { background:#1d4ed8; }
+.fg .tk-btn.ghost, .tk-sheet .tk-btn.ghost { background:#fff; border-color:#e5e7eb; color:var(--gray700); box-shadow:0 1px 2px rgba(0,0,0,.04); }
+.fg .tk-btn.ghost:hover:not(:disabled), .tk-sheet .tk-btn.ghost:hover:not(:disabled) { background:#f3f4f6; border-color:#d1d5db; color:var(--ink); }
+.fg .tk-btn:active:not(:disabled), .tk-sheet .tk-btn:active:not(:disabled) { transform:translateY(1px); }
+.fg .tk-btn:disabled, .tk-sheet .tk-btn:disabled { opacity:.45; pointer-events:none; }
+.fg .tk-btn:focus-visible, .tk-sheet .tk-btn:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(46,104,255,.32); }
+
+/* the small row actions — Retry, Resume, edit, remove */
+.fg .tk-abtn, .tk-sheet .tk-abtn { display:inline-flex; align-items:center; justify-content:center; gap:6px; height:32px; padding:0 12px;
+  border:1px solid #e5e7eb; border-radius:10px; background:#fff; color:var(--gray700);
+  font-family:var(--font-jakarta), sans-serif; font-size:12.5px; font-weight:700; cursor:pointer;
+  transition:background .18s, border-color .18s, color .18s; }
+.fg .tk-abtn:hover:not(:disabled), .tk-sheet .tk-abtn:hover:not(:disabled) { background:#f3f4f6; border-color:#d1d5db; color:var(--ink); }
+.fg .tk-abtn.ico, .tk-sheet .tk-abtn.ico { width:32px; padding:0; }
+.fg .tk-abtn.dan:hover:not(:disabled), .tk-sheet .tk-abtn.dan:hover:not(:disabled) {
+  background:rgba(224,38,79,.07); border-color:rgba(224,38,79,.4); color:#b31038; }
+.fg .tk-abtn:disabled, .tk-sheet .tk-abtn:disabled { opacity:.45; pointer-events:none; }
+.fg .tk-abtn:focus-visible, .tk-sheet .tk-abtn:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(46,104,255,.3); }
+
+/* the category dot, and the one piece of indeterminate motion */
+.fg .tk-dot, .tk-sheet .tk-dot { width:9px; height:9px; border-radius:50%; flex:none; box-shadow:0 1px 2px rgba(0,0,0,.1); }
+.fg .tk-spin, .tk-sheet .tk-spin { width:13px; height:13px; border-radius:50%; flex:none;
+  border:2px solid rgba(46,104,255,.25); border-top-color:#2E68FF; animation:tkSpin .8s linear infinite; }
+@keyframes tkSpin { to { transform:rotate(360deg); } }
+
+/* ── search + category filter ── */
+.fg .tk-tools { display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:22px; }
+.fg .tk-search { position:relative; flex:1 1 280px; max-width:400px; }
+.fg .tk-search svg { position:absolute; left:16px; top:50%; transform:translateY(-50%); color:var(--gray400); transition:color .3s; }
+.fg .tk-search:focus-within svg { color:var(--blue); }
+.fg .tk-search input { width:100%; height:46px; padding:0 16px 0 46px; background:#fff; border:1px solid #e5e7eb; border-radius:16px;
+  font-size:14.5px; font-weight:500; color:var(--ink); outline:none; box-shadow:0 1px 2px rgba(0,0,0,.03);
+  transition:border-color .2s, box-shadow .2s; }
+.fg .tk-search input:focus { border-color:rgba(46,104,255,.5); box-shadow:0 0 0 4px rgba(46,104,255,.15); }
+.fg .tk-chips { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.fg .tk-chip { display:inline-flex; align-items:center; gap:8px; height:38px; padding:0 14px; border:1px solid #e5e7eb; border-radius:99px;
+  background:#fff; color:var(--gray700); font-family:var(--font-jakarta), sans-serif; font-size:13px; font-weight:700; cursor:pointer;
+  transition:background .2s, border-color .2s, color .2s, box-shadow .2s; }
+.fg .tk-chip em { font-style:normal; font-size:11.5px; font-weight:800; color:var(--gray400); }
+.fg .tk-chip:hover { border-color:#d1d5db; background:#fafbfc; }
+.fg .tk-chip.on { border-color:var(--tkc, #050505); color:var(--ink); box-shadow:0 2px 12px -5px rgba(5,5,5,.35); }
+.fg .tk-chip.on em { color:var(--gray700); }
+.fg .tk-chip:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(46,104,255,.3); }
+
+/* ── a shelf: one card per category, coloured at the top ── */
+.fg .tk-list { display:grid; gap:20px; }
+.fg .tk-cat { position:relative; background:#fff; border:1px solid #fff; border-radius:32px; box-shadow:0 8px 30px rgba(0,0,0,.04);
+  transition:box-shadow .5s; }
+.fg .tk-cat:hover { box-shadow:0 18px 44px rgba(0,0,0,.07); }
+.fg .tk-ctop { position:absolute; top:0; left:0; right:0; z-index:10; height:6px; opacity:.85; border-radius:32px 32px 0 0; }
+.fg .tk-cin { position:relative; z-index:10; padding:26px 24px 20px; }
+.fg .tk-chd { display:flex; align-items:center; gap:16px; margin-bottom:14px; }
+.fg .tk-cic { width:48px; height:48px; border-radius:15px; display:grid; place-items:center; flex:none;
+  box-shadow:inset 0 2px 4px rgba(0,0,0,.04); }
+.fg .tk-chd h2 { margin:0; font-size:19px; font-weight:800; letter-spacing:-.02em; line-height:1.2; color:var(--ink); }
+.fg .tk-chd p { margin:4px 0 0; font-size:13px; font-weight:600; color:var(--gray500); }
+
+/* ── a document ── */
+.fg .tk-row { display:flex; align-items:center; gap:14px; padding:13px 14px; border:1px solid transparent; border-radius:18px;
+  transition:background .2s, border-color .2s; }
+.fg .tk-row:hover { background:#fafbfc; border-color:#f0f0f2; }
+.fg .tk-rmain { flex:1 1 auto; min-width:0; }
+.fg .tk-rt { display:inline-flex; align-items:center; gap:7px; max-width:100%; padding:0; border:0; background:none; text-align:left;
+  font-family:var(--font-jakarta), sans-serif; font-size:14.5px; font-weight:700; letter-spacing:-.01em; color:var(--ink);
+  cursor:pointer; transition:color .2s; }
+.fg .tk-rt svg { flex:none; opacity:0; transition:opacity .2s, transform .2s; }
+.fg .tk-row:hover .tk-rt svg { opacity:.45; transform:translate(2px,-2px); }
+.fg .tk-rt:hover { color:var(--blue); }
+.fg .tk-rt:focus-visible { outline:none; color:var(--blue); text-decoration:underline; }
+.fg .tk-rt.flat { cursor:default; color:var(--gray700); }
+.fg .tk-rmeta { display:block; margin-top:4px; font-style:normal; font-size:12.5px; font-weight:600; color:var(--gray400);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fg .tk-rerr { margin:7px 0 0; font-size:12.5px; font-weight:700; color:#b31038; }
+.fg .tk-kind { flex:none; padding:4px 10px; border-radius:8px; background:rgba(5,5,5,.05); color:var(--gray700);
+  font-size:11px; font-weight:800; letter-spacing:.04em; }
+.fg .tk-rstate { flex:0 1 auto; min-width:0; }
+.fg .tk-acts { display:flex; align-items:center; gap:6px; flex:none; }
+
+/* the status pill — the whole reason this screen exists */
+.fg .tk-pill { display:inline-flex; align-items:center; gap:8px; max-width:340px; padding:6px 12px; border-radius:99px;
+  font-size:12px; font-weight:700; line-height:1.35; }
+.fg .tk-pill svg { flex:none; }
+.fg .tk-pill.ok { background:rgba(0,163,137,.09); color:#00806c; }
+.fg .tk-pill.work { background:rgba(46,104,255,.08); color:#1d4ed8; }
+.fg .tk-pill.warn { background:rgba(255,138,0,.1); color:#b45309; }
+.fg .tk-pill.dan { background:rgba(224,38,79,.08); color:#b31038; }
+.fg .tk-prog { display:block; width:60px; height:4px; flex:none; border-radius:99px; background:rgba(46,104,255,.2); overflow:hidden; }
+.fg .tk-prog i { display:block; width:0; height:100%; border-radius:99px; background:#2E68FF; transition:width .4s ease; }
+.fg .tk-prog.ind i { width:42%; animation:tkSlide 1.25s ease-in-out infinite; }
+@keyframes tkSlide { from { transform:translateX(-110%); } to { transform:translateX(250%); } }
+
+/* ── nothing here (yet): the day-1 sell, and the smaller misses ── */
+.fg .tk-empty { padding:56px 40px; text-align:center; background:#fff; border:1px solid #fff; border-radius:36px;
+  box-shadow:0 8px 30px rgba(0,0,0,.04); }
+.fg .tk-empty.small { padding:44px 32px; border-radius:28px; }
+.fg .tk-eic { width:64px; height:64px; margin:0 auto 20px; border-radius:20px; display:grid; place-items:center;
+  background:rgba(46,104,255,.09); color:#2E68FF; }
+.fg .tk-empty h2 { margin:0; font-size:26px; font-weight:800; letter-spacing:-.03em; color:var(--ink); }
+.fg .tk-empty p { margin:12px auto 0; max-width:580px; font-size:14.5px; font-weight:500; line-height:1.65; color:var(--gray500); }
+.fg .tk-empty .tk-btn { margin-top:22px; }
+.fg .tk-egrid { display:grid; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr)); gap:12px; margin:30px 0 4px; text-align:left; }
+.fg .tk-ecard { padding:16px 18px; border:1px solid #f0f0f2; border-radius:18px; background:#fafbfc; }
+.fg .tk-ecard .tk-dot { display:block; margin-bottom:10px; }
+.fg .tk-ecard b { display:block; font-size:14px; font-weight:800; color:var(--ink); }
+.fg .tk-ecard em { display:block; margin-top:3px; font-style:normal; font-size:12.5px; font-weight:600; color:var(--gray400); }
+.fg .tk-ehint { margin-top:22px; font-size:13.5px; font-weight:700; color:var(--gray400); }
+.fg .tk-note { padding:22px; text-align:center; border:1.5px dashed #e6e8ee; border-radius:16px;
+  background:linear-gradient(180deg,#fafbfc,#fff); }
+.fg .tk-note b { display:block; font-size:13.5px; font-weight:800; color:var(--gray700); }
+.fg .tk-note span { display:block; margin-top:5px; font-size:12.5px; font-weight:600; color:var(--gray400); }
+
+/* the confirm line inside the (portalled, unscoped) delete modal */
+.fl-modal .tk-confirm { margin:0; font-size:13.5px; font-weight:600; line-height:1.6; color:#374151; }
+
+/* ── the upload drawer: portalled, so the ramp and the font start again ── */
+.tk-scrim { position:fixed; inset:0; z-index:150; background:rgba(10,11,16,.45); backdrop-filter:blur(5px);
+  animation:tkFade .28s both;
+  --ink:#050505; --gray400:#9ca3af; --gray500:#6b7280; --gray700:#374151; color:var(--ink); }
+@keyframes tkFade { from { opacity:0; } to { opacity:1; } }
+.tk-sheet { position:fixed; top:0; right:0; bottom:0; z-index:151; width:min(560px, 100vw);
+  display:flex; flex-direction:column; background:#fff; border-left:1px solid rgba(5,5,5,.08);
+  box-shadow:-40px 0 90px -40px rgba(10,12,20,.55); overflow-y:auto; overscroll-behavior:contain;
+  animation:tkSheetIn .32s cubic-bezier(.22,1,.36,1) both;
+  font-family:var(--font-jakarta), sans-serif; -webkit-font-smoothing:antialiased;
+  --ink:#050505; --gray400:#9ca3af; --gray500:#6b7280; --gray700:#374151; color:var(--ink); }
+/* docked to the edge, so the keyframe's `transform:none` end state is the
+   resting position — nothing here is centred by a translate */
+@keyframes tkSheetIn { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:none; } }
+.tk-sheet *, .tk-sheet *::before, .tk-sheet *::after { box-sizing:border-box; }
+.tk-sheet button { font:inherit; color:inherit; background:none; border:none; cursor:pointer; }
+.tk-shtop { position:sticky; top:0; z-index:2; display:flex; align-items:flex-start; justify-content:space-between; gap:16px;
+  padding:22px 24px 16px; background:#fff; border-bottom:1px solid #f1f2f4; }
+.tk-shtop h2 { margin:0; font-size:20px; font-weight:800; letter-spacing:-.02em; }
+.tk-shtop p { margin:5px 0 0; font-size:12.5px; font-weight:600; color:var(--gray500); }
+.tk-shx { width:34px; height:34px; flex:none; display:grid; place-items:center; border-radius:11px; background:#f1f2f4;
+  border:1px solid #e6e8ee; color:var(--gray700); transition:background .18s, color .18s; }
+.tk-shx:hover { background:#e6e8ee; color:var(--ink); }
+.tk-drop { margin:20px 24px; padding:30px 20px; display:flex; flex-direction:column; align-items:center; gap:7px; text-align:center;
+  border:1.5px dashed #d9dce4; border-radius:22px; background:linear-gradient(180deg,#fafbfc,#fff);
+  transition:border-color .2s, background .2s; }
+.tk-drop.over { border-color:#2E68FF; background:rgba(46,104,255,.05); }
+.tk-drop svg { color:#2E68FF; }
+.tk-drop b { font-size:14.5px; font-weight:800; color:var(--ink); }
+.tk-drop span { font-size:12.5px; font-weight:600; color:var(--gray400); }
+.tk-drop .tk-btn { margin-top:9px; height:38px; }
+.tk-files { display:flex; flex-direction:column; gap:12px; padding:0 24px 20px; }
+.tk-file { padding:14px 16px; border:1px solid #eceef2; border-radius:18px; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.03); }
+.tk-file.bad { border-color:rgba(224,38,79,.3); background:rgba(224,38,79,.03); }
+.tk-fhd { display:flex; align-items:center; gap:10px; }
+.tk-fhd b { flex:1 1 auto; min-width:0; font-size:13.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tk-fhd em { flex:none; font-style:normal; font-size:11.5px; font-weight:700; color:var(--gray400); }
+.tk-frr { margin:10px 0 0; font-size:12.5px; font-weight:700; color:#b31038; }
+.tk-fform { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px; }
+.tk-ff { display:flex; flex-direction:column; gap:5px; min-width:0; }
+.tk-ff.span { grid-column:1 / -1; }
+.tk-ff > span { font-size:11.5px; font-weight:700; color:var(--gray700); }
+.tk-fi { width:100%; height:38px; padding:0 12px; border:1.5px solid #e5e7eb; border-radius:11px; background:#fff;
+  font-family:var(--font-jakarta), sans-serif; font-size:13px; font-weight:600; color:var(--ink); outline:none;
+  transition:border-color .2s, box-shadow .2s; }
+.tk-fi:focus { border-color:#2E68FF; box-shadow:0 0 0 3px rgba(46,104,255,.15); }
+.tk-fst { display:flex; align-items:center; gap:8px; margin:12px 0 0; font-size:12.5px; font-weight:700; }
+.tk-fst.ok { color:#00806c; }
+.tk-fst.work { color:#1d4ed8; }
+.tk-fst.warn { color:#b45309; }
+.tk-fst.dan { color:#b31038; }
+.tk-shft { position:sticky; bottom:0; margin-top:auto; display:flex; justify-content:flex-end; gap:10px;
+  padding:16px 24px; background:#fff; border-top:1px solid #f1f2f4; }
+
+@media (max-width:980px) {
+  .fg .tk-row { flex-wrap:wrap; }
+  .fg .tk-rmain { flex:1 1 100%; order:-1; }
+  .fg .tk-egrid { grid-template-columns:1fr 1fr; }
+  .tk-fform { grid-template-columns:1fr; }
+}
+
+/* the page's own motion is entrance-only and handled globally; these three are
+   LOOPS, which is the kind reduced motion is actually about */
+@media (prefers-reduced-motion:reduce) {
+  .fg .tk-spin, .tk-sheet .tk-spin { animation:none; }
+  .fg .tk-prog.ind i { width:100%; opacity:.45; animation:none; }
+  .fg .tk-btn:active:not(:disabled), .tk-sheet .tk-btn:active:not(:disabled) { transform:none; }
+}

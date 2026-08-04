@@ -15,6 +15,7 @@ const removed: string[][] = [];
 let rows: Record<string, Record<string, unknown> | null> = {};
 let insertFails = false;
 let slotFails = false;
+let signFails = false;
 
 const createSignedUploadUrl = jest.fn(async (ref: string) =>
   slotFails ? { data: null, error: { message: "no" } } : { data: { token: `tok-${ref}` }, error: null }
@@ -60,6 +61,10 @@ jest.mock("@/lib/supabase-server", () => ({
     storage: {
       from: (bucket: string) => ({
         createSignedUploadUrl: (ref: string) => createSignedUploadUrl(`${bucket}:${ref}`),
+        createSignedUrl: async (ref: string) =>
+          signFails
+            ? { data: null, error: { message: "no" } }
+            : { data: { signedUrl: `https://signed.example/${bucket}/${ref}` }, error: null },
         remove: async (refs: string[]) => {
           removed.push(refs);
           return { error: null };
@@ -86,6 +91,7 @@ import {
   beginKbUpload,
   confirmKbUpload,
   deleteKbDoc,
+  kbDocUrl,
   retryKbDoc,
   updateKbDocMeta,
 } from "../kb";
@@ -102,6 +108,7 @@ beforeEach(() => {
   rows = { kb_documents: { storage_ref: "org/org-1/kb/doc-1.pdf", status: "uploading" } };
   insertFails = false;
   slotFails = false;
+  signFails = false;
   caps = new Set(["tiff_manage"]);
   dbRole = "owner";
   jest.clearAllMocks();
@@ -298,5 +305,52 @@ describe("deleting", () => {
   it("says so when it's already gone", async () => {
     rows.kb_documents = null;
     expect(await deleteKbDoc("doc-1")).toMatchObject({ ok: false });
+  });
+});
+
+/* Opening a document is READING, and reading is the staff tier — this is the
+   one action in the file that names `tiff` rather than `tiff_manage`. The link
+   is minted per click because the bucket is private and links expire. */
+describe("opening a document", () => {
+  beforeEach(() => {
+    // a staff member: the read capability, nothing else
+    caps = new Set(["tiff"]);
+    dbRole = "staff";
+  });
+
+  it("signs a link for anyone who may see the library at all", async () => {
+    expect(await kbDocUrl("doc-1")).toEqual({
+      ok: true,
+      url: "https://signed.example/kb/org/org-1/kb/doc-1.pdf",
+    });
+  });
+
+  it("refuses someone without the tiff capability", async () => {
+    caps = new Set();
+    expect(await kbDocUrl("doc-1")).toMatchObject({ ok: false });
+  });
+
+  it("never signs a reference belonging to another org", async () => {
+    rows.kb_documents = { storage_ref: "org/org-2/kb/doc-1.pdf" };
+    expect(await kbDocUrl("doc-1")).toEqual({
+      ok: false,
+      error: "That file doesn't belong to this organisation.",
+    });
+  });
+
+  it("says so when the row is gone, and when the object is", async () => {
+    rows.kb_documents = null;
+    expect(await kbDocUrl("doc-1")).toMatchObject({ ok: false, error: "That document is no longer here." });
+
+    rows.kb_documents = { storage_ref: "org/org-1/kb/doc-1.pdf" };
+    signFails = true;
+    expect(await kbDocUrl("doc-1")).toMatchObject({ ok: false, error: "That file couldn't be opened." });
+  });
+
+  it("writes nothing — it is a read", async () => {
+    await kbDocUrl("doc-1");
+    expect(updates).toHaveLength(0);
+    expect(inserts).toHaveLength(0);
+    expect(deletes).toHaveLength(0);
   });
 });

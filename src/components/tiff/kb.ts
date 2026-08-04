@@ -36,11 +36,19 @@ export function kbCounts(docs: KbDoc[]): Record<KbCategoryKey, number> {
   return counts;
 }
 
-/** Case-insensitive match on title or source (for the KB page search box). */
-export function filterKbDocs(docs: KbDoc[], query: string): KbDoc[] {
+/* Case-insensitive match on title or source (the KB page's search box).
+
+   Generic over the row, because the library's real rows come from the database
+   (lib/tiff/query.ts) where `source` is nullable — the search is the same
+   search either way, and duplicating it for the second shape is how the two
+   drift apart. */
+export function filterKbDocs<T extends { title: string; source?: string | null }>(
+  docs: T[],
+  query: string
+): T[] {
   const q = query.trim().toLowerCase();
   if (!q) return docs;
   return docs.filter(
-    (d) => d.title.toLowerCase().includes(q) || d.source.toLowerCase().includes(q)
+    (d) => d.title.toLowerCase().includes(q) || (d.source ?? "").toLowerCase().includes(q)
   );
 }

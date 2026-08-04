@@ -5,9 +5,9 @@ import { type StaffProfile } from "@/lib/staff/profile";
 import { dateInputValue, formatAuDate } from "@/lib/au-dates";
 import { licenceStatus } from "@/lib/staff/licence";
 import { preValidate } from "@/lib/staff/pre-validate";
-import { SectionCard } from "./section-card";
+import { SectionCard, type SectionBodyContext } from "./section-card";
 import { Detail, DetailPanel, DetailPanels } from "./detail";
-import { DateField, Field, InfoTip, SelectInput, TextInput } from "./fields";
+import { DateField, SelectInput, TextInput } from "./fields";
 import type { ProfileMode, SaveSection } from "./types";
 
 export const WORK_RIGHTS = [
@@ -61,31 +61,59 @@ export function WorkRightsCard({
 }) {
   const values = workRightsValues(profile);
   const status = values.work_rights_status;
-  const noVisa = isNoVisa(status);
 
   const expiryStatus = licenceStatus(profile?.visa_expiry ?? null, today);
   const visaExpiry = formatAuDate(profile?.visa_expiry);
   const vevoChecked = formatAuDate(profile?.vevo_checked_at);
 
-  /* Nothing recorded: every employer has to hold evidence of the right to
-     work, so the blank card asks for the status where the answer goes rather
-     than explaining itself. Once there is one, it becomes the card.
+  /* ONE LIST, BOTH MODES — see detail.tsx. Status leads, the visa panel
+     follows from it.
 
-     ONLY the status is offered. The visa fields follow from it — a citizen has
-     none, and the edit form unmounts them for exactly that reason — so listing
-     them here would invite an answer to a question that may not apply. */
-  const read = ({ edit }: { edit: () => void }) =>
-    !status ? (
+     THE VISA PANEL IS UNMOUNTED for a citizen or permanent resident, not
+     dimmed, and that rule now holds in BOTH modes off one condition: read mode
+     hides it because a card showing "Visa expiry —" for someone who has never
+     held one answers a question nobody asked, and edit mode hides it because
+     saving a no-visa status blanks those columns. They used to be two separate
+     conditions in two separate renders; a divergence there would have shown a
+     panel the save was about to empty.
+
+     Mid-edit the condition follows the DRAFT, so choosing "Australian citizen"
+     folds the visa panel away as you pick it. The typed values stay in the
+     draft, so flicking the status back doesn't punish a misclick. */
+  const body = ({ editing, draft, set, invalid, edit, errorFor }: SectionBodyContext) => {
+    const liveStatus = editing ? draft.work_rights_status : status;
+    const liveNoVisa = isNoVisa(liveStatus);
+
+    /* The two modes ask a slightly different question of the same condition,
+       and they always did. READING, an unanswered status shows nothing but the
+       status: listing visa fields for a person nobody has classified invites
+       an answer to a question that may not apply. EDITING, an unanswered
+       status still offers them, because the form's job is to be fillable and
+       making you choose a status before you may type a visa number is a gate
+       nobody asked for. Only a positive no-visa choice hides them there. */
+    const showVisa = editing ? !liveNoVisa : Boolean(liveStatus) && !liveNoVisa;
+
+    return (
       <DetailPanels>
-        <DetailPanel title="Right to work" wide>
-          <Detail label="Status" value="" onAdd={edit} addLabel="Select" />
-        </DetailPanel>
-      </DetailPanels>
-    ) : (
-      <DetailPanels>
-        <DetailPanel title="Right to work" wide={noVisa}>
-          <Detail label="Status" value={status} />
-          {noVisa && (
+        <DetailPanel title="Right to work" wide={liveNoVisa || !liveStatus}>
+          <Detail
+            label="Status"
+            req
+            editing={editing}
+            value={status}
+            onAdd={edit}
+            addLabel="Select"
+            control={
+              <SelectInput
+                name="work_rights_status"
+                placeholder="— Select —"
+                options={WORK_RIGHTS}
+                value={draft.work_rights_status}
+                onChange={(v) => set("work_rights_status", v)}
+              />
+            }
+          />
+          {liveNoVisa && (
             <Detail
               label="Visa required"
               value={
@@ -98,16 +126,25 @@ export function WorkRightsCard({
           )}
         </DetailPanel>
 
-        {/* The visa panel is UNMOUNTED for a citizen or permanent resident, not
-            dimmed — the same rule the edit form applies, and the reason saving a
-            no-visa status blanks those columns. A card that shows "Visa expiry —"
-            for someone who has never held one is answering a question nobody
-            asked. */}
-        {!noVisa && (
+        {showVisa && (
           <DetailPanel title="Visa">
-            <Detail label="Type" value={values.visa_type} onAdd={edit} />
+            <Detail
+              label="Type"
+              editing={editing}
+              value={values.visa_type}
+              onAdd={edit}
+              control={
+                <TextInput
+                  name="visa_type"
+                  placeholder="e.g. 482 TSS, 500 Student, 417 WHM"
+                  value={draft.visa_type}
+                  onChange={(v) => set("visa_type", v)}
+                />
+              }
+            />
             <Detail
               label="Expiry"
+              editing={editing}
               value={
                 visaExpiry ? (
                   <span className={`ro-state ${expiryStatus.tone}`}>
@@ -119,13 +156,55 @@ export function WorkRightsCard({
               }
               onAdd={edit}
               addLabel="Set"
+              error={errorFor("visa_expiry", "Pick a real date")}
+              control={
+                <DateField
+                  name="visa_expiry"
+                  value={draft.visa_expiry}
+                  invalid={invalid("visa_expiry")}
+                  onChange={(v) => set("visa_expiry", v)}
+                  today={today}
+                />
+              }
             />
-            <Detail label="Hours cap" value={values.hours_condition} onAdd={edit} />
-            <Detail label="VEVO checked" value={vevoChecked} onAdd={edit} addLabel="Set" />
+            <Detail
+              label="Hours cap"
+              editing={editing}
+              value={values.hours_condition}
+              onAdd={edit}
+              control={
+                <TextInput
+                  name="hours_condition"
+                  placeholder="e.g. unlimited, 48 hrs/fortnight"
+                  value={draft.hours_condition}
+                  onChange={(v) => set("hours_condition", v)}
+                />
+              }
+            />
+            <Detail
+              label="VEVO checked"
+              editing={editing}
+              value={vevoChecked}
+              onAdd={edit}
+              addLabel="Set"
+              error={errorFor("vevo_checked_at", "Pick a real date")}
+              control={
+                /* a check you already did — it can't be in the future */
+                <DateField
+                  name="vevo_checked_at"
+                  value={draft.vevo_checked_at}
+                  max={today}
+                  invalid={invalid("vevo_checked_at")}
+                  onChange={(v) => set("vevo_checked_at", v)}
+                  today={today}
+                />
+              }
+            />
           </DetailPanel>
         )}
       </DetailPanels>
     );
+  };
 
   return (
     <SectionCard
@@ -138,100 +217,7 @@ export function WorkRightsCard({
       onSave={(fields) => onSave("workrights", fields)}
       validate={(fields) => preValidate(mode, "workrights", fields)}
       transform={workRightsPayload}
-      read={read}
-      edit={({ draft, set, invalid }) => {
-        const draftNoVisa = isNoVisa(draft.work_rights_status);
-        return (
-          <>
-            <div className="frow c2">
-              <Field label="Work rights status">
-                <SelectInput
-                  name="work_rights_status"
-                  placeholder="— Select —"
-                  options={WORK_RIGHTS}
-                  value={draft.work_rights_status}
-                  onChange={(v) => set("work_rights_status", v)}
-                />
-              </Field>
-              <div />
-            </div>
-            {draftNoVisa ? (
-              <div className="wr-nov">
-                <Icon name="check" size={15} />
-                <span>
-                  <b>No visa required</b>
-                  <em>Full working rights — nothing expires, nothing to check.</em>
-                </span>
-              </div>
-            ) : (
-              <>
-                <div className="frow c2">
-                  <Field label="Visa type">
-                    <TextInput
-                      name="visa_type"
-                      placeholder="e.g. 482 TSS, 500 Student, 417 WHM"
-                      value={draft.visa_type}
-                      onChange={(v) => set("visa_type", v)}
-                    />
-                  </Field>
-                  <Field
-                    label="Visa expiry"
-                    error={invalid("visa_expiry") ? "Pick a real date" : null}
-                  >
-                    <DateField
-                      name="visa_expiry"
-                      value={draft.visa_expiry}
-                      invalid={invalid("visa_expiry")}
-                      onChange={(v) => set("visa_expiry", v)}
-                      today={today}
-                    />
-                  </Field>
-                </div>
-                <div className="frow c2">
-                  <Field
-                    label={
-                      <>
-                        Hours condition{" "}
-                        <span style={{ color: "#9ca3af", fontWeight: 600 }}>(cap, if any)</span>
-                      </>
-                    }
-                  >
-                    <TextInput
-                      name="hours_condition"
-                      placeholder="e.g. unlimited, 48 hrs/fortnight"
-                      value={draft.hours_condition}
-                      onChange={(v) => set("hours_condition", v)}
-                    />
-                  </Field>
-                  <Field
-                    label={
-                      <>
-                        VEVO last checked
-                        <InfoTip>
-                          VEVO (Visa Entitlement Verification Online) is the Australian
-                          Government service that confirms a person’s visa and working-rights
-                          conditions. Record the date you last checked it.
-                        </InfoTip>
-                      </>
-                    }
-                    error={invalid("vevo_checked_at") ? "Pick a real date" : null}
-                  >
-                    {/* a check you already did — it can't be in the future */}
-                    <DateField
-                      name="vevo_checked_at"
-                      value={draft.vevo_checked_at}
-                      max={today}
-                      invalid={invalid("vevo_checked_at")}
-                      onChange={(v) => set("vevo_checked_at", v)}
-                      today={today}
-                    />
-                  </Field>
-                </div>
-              </>
-            )}
-          </>
-        );
-      }}
+      body={body}
     />
   );
 }

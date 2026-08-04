@@ -1051,6 +1051,62 @@
    licence cards already used the dash; this is the screen agreeing with
    itself. Inside a SECTION the blank stays a button, and keeps its own look. */
 .fg .psec2 .pdnone { font-style:normal; font-size:15px; font-weight:600; color:#c7ccd6; }
+/* ── EDITING IN PLACE ──
+   A section used to declare its read view and its edit view separately, and
+   separate is how they drifted into different screens: grouped panels of tight
+   label/value rows one side, a flat form of 46px boxes the other. Clicking
+   Edit threw away the layout you were reading and moved every label, which is
+   what made "+ Add" feel like a trapdoor and made the form look enormous next
+   to the panel it replaced. ("The input text fields, the font is much bigger
+   than where it comes from" — Isaac. The text was in fact SMALLER, 14px
+   against the value's 16px; what was much bigger was everything around it.)
+
+   One row list declares both now (see detail.tsx), so all the CSS has to do is
+   put the control where the value was, at the value's own size. Nothing here
+   changes a label, a gap or a grid — only what sits inside a `dd`. */
+.fg .pdrow.live dd > .inp,
+.fg .pdrow.live dd > .selwrap > .inp,
+.fg .pdrow.live dd > .inpd {
+  height:34px; padding:0 11px; border-radius:10px; font-size:16px; font-weight:600;
+  letter-spacing:-0.01em; background:#fafbfc; }
+.fg .pdrow.live dd > .inpd { padding:0 11px; }
+.fg .pdrow.live dd .inp:focus, .fg .pdrow.live dd .inpd:focus-visible {
+  border-color:var(--wb2-cy); background:#fff; box-shadow:0 0 0 3px rgba(0,168,224,.14); }
+.fg .pdrow.live dd .inp::placeholder { color:#c7ccd6; font-weight:500; }
+/* the select's chevron follows the shorter box in */
+.fg .pdrow.live dd .selwrap .chev { right:9px; }
+/* rows breathe a little more once they hold controls — 34px boxes at the old
+   10px gap read as a stack rather than as a list */
+.fg .psec-body .pdl { gap:12px; }
+.fg .pdrow.live { align-items:center; }
+/* required is marked on the label, where the eye already is, rather than in a
+   legend under a form that no longer exists */
+.fg .pdrow dt .req { color:var(--wb2-cy); margin-left:3px; font-weight:800; }
+.fg .pderr { display:block; margin-top:4px; font-size:11.5px; font-weight:700; color:#e0264f; }
+/* a segmented control is already the right height; it only needs to stop
+   filling the row */
+.fg .pdrow.live dd > .seg { width:fit-content; }
+
+/* ── a percentage you can SEE ──
+   Utilisation was a number you could only reach by clicking "+ Set" and then
+   typing into a box on a different screen. It is a proportion, and a
+   proportion has a shape. Read fills the track and greys it; edit puts the
+   thumb back. Same object either way — see `Pct` in fields.tsx. */
+.fg .pslider { display:flex; align-items:center; gap:13px; min-width:0; }
+.fg .pslider .track { position:relative; flex:1; min-width:80px; height:6px; border-radius:99px; background:#eceef2; }
+.fg .pslider .fill { position:absolute; inset:0 auto 0 0; border-radius:99px; background:var(--wb2-cy); transition:width .12s; }
+.fg .pslider .num { flex:0 0 auto; font-size:16px; font-weight:700; letter-spacing:-0.01em; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .pslider .num.none { color:#c7ccd6; font-weight:600; }
+/* the range itself is invisible and oversized — it is the hit area, and the
+   thumb below is what you actually see */
+.fg .pslider input[type="range"] { position:absolute; inset:-9px 0; width:100%; height:24px; margin:0; padding:0; opacity:0; cursor:pointer; }
+.fg .pslider .thumb { position:absolute; top:50%; width:16px; height:16px; margin:-8px 0 0 -8px; border-radius:50%;
+  background:#fff; border:2px solid var(--wb2-cy); box-shadow:0 2px 6px -1px rgba(10,12,20,.3); pointer-events:none; transition:left .12s, box-shadow .15s; }
+.fg .pslider input[type="range"]:focus-visible ~ .thumb { box-shadow:0 0 0 4px rgba(0,168,224,.3); }
+/* read mode has no thumb, and says so in the fill — a control you cannot move
+   should not look like one */
+.fg .pslider.readonly .fill { background:#c2c8d2; }
+
 /* `.liccards` already lays CR80 cards out; the panel header supplies the gap */
 .fg .psec2 .liccards { margin-top:13px; }
 

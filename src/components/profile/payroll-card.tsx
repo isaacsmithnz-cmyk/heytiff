@@ -4,7 +4,7 @@ import { Icon } from "@/components/shell/icon";
 import { rebalance, splitFrom } from "@/lib/staff/cost-split";
 import { preValidate } from "@/lib/staff/pre-validate";
 import { SectionCard } from "./section-card";
-import { Field, InfoTip, MoneyInput, PctInput, SelectInput, TextInput } from "./fields";
+import { MoneyInput, Pct, PctInput, Seg, SelectInput, TextInput } from "./fields";
 import { Detail, DetailPanel, DetailPanels } from "./detail";
 import type { PayFields, SaveSection } from "./types";
 import { EMPLOYMENT_TYPES } from "@/lib/staff/employment";
@@ -95,226 +95,185 @@ export function PayrollCard({
       values={values}
       onSave={(fields) => onSave("payroll", fields)}
       validate={(fields) => preValidate("admin", "payroll", fields)}
-      read={({ edit }) => (
-        <DetailPanels>
-          <DetailPanel title="Pay">
-            <Detail
-              label="Hourly wage"
-              value={values.hourly_wage ? `$${values.hourly_wage}` : ""}
-              onAdd={edit}
-              addLabel="Set"
-            />
-            <Detail
-              label="Pay basis"
-              value={values.pay_basis === "salary" ? "Salaried" : "Hourly"}
-              onAdd={edit}
-              addLabel="Set"
-            />
-            <Detail label="Employment type" value={values.employment_type} onAdd={edit} addLabel="Select" />
-            <Detail
-              label="Hours / week"
-              value={values.contracted_hours}
-              sub={hoursNote}
-              onAdd={edit}
-              addLabel="Set"
-            />
-            <Detail
-              label="Utilisation"
-              value={values.utilisation ? `${values.utilisation}%` : ""}
-              onAdd={edit}
-              addLabel="Set"
-            />
-          </DetailPanel>
-
-          <DetailPanel title="Overrides">
-            <Detail
-              label="Super"
-              value={values.super_override ? `${values.super_override}%` : ""}
-              onAdd={edit}
-              addLabel="Set"
-              sub={values.super_override ? undefined : "Using the org default"}
-            />
-            <Detail
-              label="Workers comp"
-              value={values.workers_comp_override ? `${values.workers_comp_override}%` : ""}
-              onAdd={edit}
-              addLabel="Set"
-              sub={values.workers_comp_override ? undefined : "Using the org default"}
-            />
-          </DetailPanel>
-
-          {/* a chart, not a fact list — hence the plain panel */}
-          <DetailPanel title="Cost split" wide plain>
-            <div className="csgrid">
-              <div className="costsplit">
-                {SPLIT_META.map((m, i) => (
-                  <div key={m.label} className="csrow">
-                    <span className="csdot" style={{ background: m.color }} />
-                    <span className="cslbl">{m.label}</span>
-                    <div className="cspct">
-                      {/* The SAME object the edit mode makes draggable, filled.
-                          This row used to be a bare percentage sitting at the
-                          end of the 170px the slider occupies — an empty
-                          trough, which reads as a control that failed to
-                          render rather than as a value. */}
-                      <span className="cstrack">
-                        <span
-                          className="csfill"
-                          style={{ width: `${readSplit[i]}%`, background: m.color }}
-                        />
-                      </span>
-                      <span className="csval">{readSplit[i]}%</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <Donut values={readSplit} />
-            </div>
-          </DetailPanel>
-        </DetailPanels>
-      )}
-      edit={({ draft, set, setMany, invalid }) => {
+      body={({ editing, draft, set, setMany, invalid, edit, errorFor }) => {
         const vals = SPLIT_KEYS.map((k) => Number(draft[k]) || 0);
+        const split = editing ? vals : readSplit;
         const drag = (idx: number, v: number) => {
           const next = rebalance(vals, idx, v);
           setMany(Object.fromEntries(SPLIT_KEYS.map((k, i) => [k, String(next[i])])));
         };
+
         return (
-          <>
-            <div className="frow c2">
-              <Field label="Hourly wage" req error={invalid("hourly_wage") ? "Plain figures only" : null}>
-                <MoneyInput
-                  name="hourly_wage"
-                  placeholder="e.g. 45.00"
-                  value={draft.hourly_wage}
-                  invalid={invalid("hourly_wage")}
-                  onChange={(v) => set("hourly_wage", v)}
-                />
-              </Field>
-              <Field label="Employment type">
-                <SelectInput
-                  name="employment_type"
-                  placeholder="Select employment type"
-                  options={EMPLOYMENT}
-                  value={draft.employment_type}
-                  onChange={(v) => set("employment_type", v)}
-                />
-              </Field>
-            </div>
-            <div className="frow c2">
-              <Field
-                label="Contracted hours / week"
-                error={invalid("contracted_hours") ? "Plain figures only" : null}
-              >
-                <TextInput
-                  name="contracted_hours"
-                  placeholder="e.g. 38"
-                  value={draft.contracted_hours}
-                  invalid={invalid("contracted_hours")}
-                  onChange={(v) => set("contracted_hours", v)}
-                />
-              </Field>
-              <Field
-                label={
-                  <>
-                    Default utilisation
-                    <InfoTip>
-                      The share of paid hours that are billable to jobs (vs. admin, travel or
-                      downtime). Drives the charge-out rate — e.g. 85% means most of their time is
-                      on the tools.
-                    </InfoTip>
-                  </>
+          <DetailPanels>
+            <DetailPanel title="Pay">
+              <Detail
+                label="Hourly wage"
+                req
+                editing={editing}
+                value={values.hourly_wage ? `$${values.hourly_wage}` : ""}
+                onAdd={edit}
+                addLabel="Set"
+                error={errorFor("hourly_wage", "Plain figures only")}
+                control={
+                  <MoneyInput
+                    name="hourly_wage"
+                    placeholder="e.g. 45.00"
+                    value={draft.hourly_wage}
+                    invalid={invalid("hourly_wage")}
+                    onChange={(v) => set("hourly_wage", v)}
+                  />
                 }
-                error={invalid("utilisation") ? "Plain figures only" : null}
-              >
-                <PctInput
-                  name="utilisation"
-                  placeholder="e.g. 85"
-                  value={draft.utilisation}
-                  invalid={invalid("utilisation")}
-                  onChange={(v) => set("utilisation", v)}
-                />
-              </Field>
-            </div>
-            {/* Per-person super / workers-comp — blank means "use the org
-                default" set in the Rate Calculator. These feed the calculator;
-                they are not written there. */}
-            <div className="frow c2">
-              <Field
-                label={
-                  <>
-                    Super override
-                    <InfoTip>
-                      Leave blank to use the organisation’s default super rate. Set a value only if
-                      this person’s super differs.
-                    </InfoTip>
-                  </>
+              />
+              <Detail
+                label="Pay basis"
+                editing={editing}
+                value={values.pay_basis === "salary" ? "Salaried" : "Hourly"}
+                control={
+                  <Seg
+                    value={draft.pay_basis === "salary" ? "Salaried" : "Hourly"}
+                    options={["Hourly", "Salaried"]}
+                    onChange={(v) => set("pay_basis", v === "Salaried" ? "salary" : "hourly")}
+                  />
                 }
-                error={invalid("super_override") ? "Plain figures only" : null}
-              >
-                <PctInput
-                  name="super_override"
-                  placeholder="Default"
-                  value={draft.super_override}
-                  invalid={invalid("super_override")}
-                  onChange={(v) => set("super_override", v)}
-                />
-              </Field>
-              <Field
-                label={
-                  <>
-                    Workers-comp override
-                    <InfoTip>
-                      Leave blank to use the organisation’s default workers-comp rate.
-                    </InfoTip>
-                  </>
+              />
+              <Detail
+                label="Employment type"
+                editing={editing}
+                value={values.employment_type}
+                onAdd={edit}
+                addLabel="Select"
+                control={
+                  <SelectInput
+                    name="employment_type"
+                    placeholder="Select employment type"
+                    options={EMPLOYMENT}
+                    value={draft.employment_type}
+                    onChange={(v) => set("employment_type", v)}
+                  />
                 }
-                error={invalid("workers_comp_override") ? "Plain figures only" : null}
-              >
-                <PctInput
-                  name="workers_comp_override"
-                  placeholder="Default"
-                  value={draft.workers_comp_override}
-                  invalid={invalid("workers_comp_override")}
-                  onChange={(v) => set("workers_comp_override", v)}
-                />
-              </Field>
-            </div>
-            <div className="frow" style={{ marginTop: 18 }}>
-              <div className="field" style={{ gridColumn: "1/-1" }}>
-                <label>
-                  Cost-category split{" "}
-                  <span className="help" style={{ fontWeight: 500, marginLeft: 4 }}>
-                    — how their cost spreads across work types (must total 100%)
-                  </span>
-                </label>
-                <div className="csgrid">
-                  <div className="costsplit">
-                    {SPLIT_META.map((m, i) => (
-                      <div key={m.label} className="csrow">
-                        <span className="csdot" style={{ background: m.color }} />
-                        <span className="cslbl">{m.label}</span>
-                        <div className="cspct">
-                          <input
-                            className="csrange"
-                            name={SPLIT_KEYS[i]}
-                            aria-label={`${m.label} share`}
-                            type="range"
-                            min="0"
-                            max="100"
-                            value={vals[i]}
-                            onChange={(e) => drag(i, Number(e.target.value))}
+              />
+              <Detail
+                label="Hours / week"
+                editing={editing}
+                value={values.contracted_hours}
+                sub={hoursNote}
+                onAdd={edit}
+                addLabel="Set"
+                error={errorFor("contracted_hours", "Plain figures only")}
+                control={
+                  <TextInput
+                    name="contracted_hours"
+                    placeholder="e.g. 38"
+                    value={draft.contracted_hours}
+                    invalid={invalid("contracted_hours")}
+                    onChange={(v) => set("contracted_hours", v)}
+                  />
+                }
+              />
+              {/* THE SLIDER IS THERE IN BOTH MODES. It was a percentage you
+                  could only reach by clicking "+ Set" and then typing into a
+                  box on a different screen — and utilisation is a proportion,
+                  which has a shape that a bare "85%" makes you reconstruct. */}
+              <Detail
+                label="Utilisation"
+                editing={editing}
+                value={<Pct name="utilisation" value={values.utilisation} label="Utilisation" />}
+                error={errorFor("utilisation", "Plain figures only")}
+                control={
+                  <Pct
+                    name="utilisation"
+                    value={draft.utilisation}
+                    label="Utilisation"
+                    editing
+                    onChange={(v) => set("utilisation", v)}
+                  />
+                }
+              />
+            </DetailPanel>
+
+            <DetailPanel title="Overrides">
+              <Detail
+                label="Super"
+                editing={editing}
+                value={values.super_override ? `${values.super_override}%` : ""}
+                onAdd={edit}
+                addLabel="Set"
+                sub={values.super_override ? undefined : "Using the org default"}
+                error={errorFor("super_override", "Plain figures only")}
+                control={
+                  <PctInput
+                    name="super_override"
+                    placeholder="Default"
+                    value={draft.super_override}
+                    invalid={invalid("super_override")}
+                    onChange={(v) => set("super_override", v)}
+                  />
+                }
+              />
+              <Detail
+                label="Workers comp"
+                editing={editing}
+                value={
+                  values.workers_comp_override ? `${values.workers_comp_override}%` : ""
+                }
+                onAdd={edit}
+                addLabel="Set"
+                sub={values.workers_comp_override ? undefined : "Using the org default"}
+                error={errorFor("workers_comp_override", "Plain figures only")}
+                control={
+                  <PctInput
+                    name="workers_comp_override"
+                    placeholder="Default"
+                    value={draft.workers_comp_override}
+                    invalid={invalid("workers_comp_override")}
+                    onChange={(v) => set("workers_comp_override", v)}
+                  />
+                }
+              />
+            </DetailPanel>
+
+            {/* a chart, not a fact list — hence the plain panel. The three
+                tracks fill in both modes; editing only puts the thumbs back. */}
+            <DetailPanel
+              title="Cost split"
+              note={editing ? "must total 100%" : undefined}
+              wide
+              plain
+            >
+              <div className="csgrid">
+                <div className="costsplit">
+                  {SPLIT_META.map((m, i) => (
+                    <div key={m.label} className="csrow">
+                      <span className="csdot" style={{ background: m.color }} />
+                      <span className="cslbl">{m.label}</span>
+                      <div className="cspct">
+                        <span className="cstrack">
+                          <span
+                            className="csfill"
+                            style={{ width: `${split[i]}%`, background: m.color }}
                           />
-                          <span className="csval">{vals[i]}%</span>
-                        </div>
+                          {editing && (
+                            <input
+                              className="csrange"
+                              name={SPLIT_KEYS[i]}
+                              aria-label={`${m.label} share`}
+                              type="range"
+                              min="0"
+                              max="100"
+                              value={vals[i]}
+                              onChange={(e) => drag(i, Number(e.target.value))}
+                            />
+                          )}
+                        </span>
+                        <span className="csval">{split[i]}%</span>
                       </div>
-                    ))}
-                  </div>
-                  <Donut values={vals} />
+                    </div>
+                  ))}
                 </div>
+                <Donut values={split} />
               </div>
-            </div>
-          </>
+            </DetailPanel>
+          </DetailPanels>
         );
       }}
     />

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { isValidElement, type ReactNode } from "react";
 import { Icon } from "@/components/shell/icon";
 
 /* Read mode's vocabulary: grouped panels of label/value pairs, and an empty
@@ -75,10 +75,31 @@ export function DetailPanel({
   );
 }
 
+/* ONE ROW, TWO RENDERINGS — and this is the point of the component.
+
+   A section used to declare its read view and its edit view separately: three
+   grouped panels of label/value rows, and a flat two-column form of 46px
+   boxes. Nothing tied them together, so they drifted until they were different
+   screens, and clicking Edit threw away the layout you were reading. Every
+   label moved. That is what made "+ Add" feel like a trapdoor — the value's
+   own place was not where you edited it — and what made the form look enormous
+   next to the panel it replaced.
+
+   So a row now declares BOTH: `value` is what it reads as, `control` is what
+   it becomes. `editing` picks. The two cannot diverge, because there is one
+   list and one set of labels; and nothing moves when the mode changes, because
+   only the contents of `dd` do. */
 export function Detail({
   label,
   /** the value, or an empty string / null when it isn't recorded */
   value,
+  /** the control this row becomes in edit mode. A row with no `control` stays
+      read-only in both — the sign-in email, a derived figure. */
+  control,
+  editing = false,
+  /** the business is obliged to hold it — marked on the label, where the eye
+      already is, rather than in a legend under the form */
+  req = false,
   /** opens the card's edit form. Omitted, an unset value reads "Not set"
       instead — which is right for a card with nothing to edit. */
   onAdd,
@@ -90,20 +111,54 @@ export function Detail({
       behind it. Not a second value: it never carries information the row would
       be wrong without. */
   sub,
+  /** shown under the control while editing, when the last save rejected it */
+  error,
 }: {
   label: string;
   value?: ReactNode;
+  control?: ReactNode;
+  editing?: boolean;
+  req?: boolean;
   onAdd?: () => void;
   addLabel?: string;
   small?: boolean;
   sub?: ReactNode;
+  error?: string | null;
 }) {
   const empty = value === null || value === undefined || value === "";
+  const live = editing && control;
+
+  /* THE ROW'S LABEL IS THE CONTROL'S LABEL, and this is the bit that is easy
+     to drop on the way in. The old form wrapped every control in `Field`,
+     which tied a real <label> to it by reading the control's own `name` — so
+     clicking a label focused its box and a screen reader announced it. Rows
+     have to do that job now, and they pick the name up the same way rather
+     than making every call site repeat it.
+
+     Only when there IS a name: `Seg` is a group of buttons with no single
+     input to point at, and a <label for> aimed at nothing is worse than no
+     label at all. */
+  const controlName =
+    isValidElement<{ name?: string }>(control) && typeof control.props.name === "string"
+      ? control.props.name
+      : undefined;
+
+  const labelText = (
+    <>
+      {label}
+      {req && live ? <span className="req">*</span> : null}
+    </>
+  );
+
   return (
-    <div className="pdrow">
-      <dt>{label}</dt>
+    <div className={live ? "pdrow live" : "pdrow"}>
+      <dt>
+        {live && controlName ? <label htmlFor={controlName}>{labelText}</label> : labelText}
+      </dt>
       <dd>
-        {!empty ? (
+        {live ? (
+          control
+        ) : !empty ? (
           <span className={small ? "pdv sm" : "pdv"}>{value}</span>
         ) : onAdd ? (
           <button type="button" className="padd" onClick={onAdd}>
@@ -118,6 +173,7 @@ export function Detail({
             blank — "Using the org default" is exactly what an unset override
             means, and it would never render if it only followed a value */}
         {sub ? <span className="pdsub">{sub}</span> : null}
+        {live && error ? <span className="pderr">{error}</span> : null}
       </dd>
     </div>
   );

@@ -335,3 +335,61 @@ export function FactRow({ label, value }: { label: string; value: ReactNode }) {
     </div>
   );
 }
+
+/* A percentage you can SEE.
+
+   Utilisation and the cost split were both numbers you could only reach by
+   clicking "+ Set" and then typing into a box on a different screen — and
+   both are proportions, which have a shape that a bare "85%" makes you
+   reconstruct. Isaac, on the live card: "surely the slider should just be
+   there."
+
+   So it draws itself in both modes. Read fills the track and greys it; edit
+   makes the thumb draggable. The number rides alongside either way, because a
+   track alone cannot tell you it is exactly 85. */
+export function Pct({
+  name,
+  value,
+  onChange,
+  editing = false,
+  label,
+}: {
+  name: string;
+  /** the draft's string — "" when nothing is set */
+  value: string;
+  onChange?: (v: string) => void;
+  editing?: boolean;
+  /** what the range announces to a screen reader, e.g. "Utilisation" */
+  label: string;
+}) {
+  const n = Number(value);
+  const pct = Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : 0;
+  const unset = value === "";
+
+  return (
+    <div className={editing ? "pslider" : "pslider readonly"}>
+      <span className="track">
+        <span className="fill" style={{ width: `${pct}%` }} />
+        {editing && (
+          <>
+            <input
+              type="range"
+              id={name}
+              name={name}
+              min={0}
+              max={100}
+              step={1}
+              value={pct}
+              aria-label={label}
+              onChange={(e) => onChange?.(e.target.value)}
+            />
+            <span className="thumb" style={{ left: `${pct}%` }} />
+          </>
+        )}
+      </span>
+      {/* an unset percentage is a dash, not a confident 0% — the two mean
+          different things to a rate calculation */}
+      <span className={unset ? "num none" : "num"}>{unset ? "—" : `${pct}%`}</span>
+    </div>
+  );
+}

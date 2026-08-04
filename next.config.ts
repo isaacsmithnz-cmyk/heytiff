@@ -26,6 +26,16 @@ const projectRoot = fs.existsSync(modules) ? path.dirname(fs.realpathSync(module
 
 const nextConfig: NextConfig = {
   turbopack: { root: projectRoot },
+  /* pdfjs stays OUT of the server bundle.
+
+     The knowledge base extracts PDF text in Node by importing
+     `pdfjs-dist/legacy/build/pdf.mjs` — native ESM, no `exports` map, which is
+     exactly why the bare subpath resolves at all. Bundling it rewrites that
+     import, and the legacy build's runtime feature detection stops matching
+     what it is actually running in. Listing it here makes the server `require`
+     the real file, which is the path the fixture test proves in a child Node
+     process (src/lib/tiff/__tests__/extract.test.ts). */
+  serverExternalPackages: ["pdfjs-dist"],
   // NEXT_DIST_DIR lets a second dev server (e.g. an agent preview) run
   // alongside the main one — next dev holds an exclusive lock per dist dir.
   distDir: process.env.NEXT_DIST_DIR || ".next",

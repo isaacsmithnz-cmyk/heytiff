@@ -6,6 +6,15 @@ import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
 import { kbDocUrl } from "@/app/actions/kb";
 import { askTiff, type AskSourceItem, type AskTurn } from "@/lib/tiff/ask-client";
+import {
+  cardNote,
+  cardState,
+  reduceViz,
+  IDLE_VIZ,
+  type ResearchViz,
+  type VizEvent,
+} from "@/lib/tiff/research-viz";
+import { ResearchLines } from "./research-lines";
 import { KB_CATEGORIES, type KbCategoryKey } from "./kb";
 
 /* Tiff AI — the assistant, connected.
@@ -31,9 +40,13 @@ import { KB_CATEGORIES, type KbCategoryKey } from "./kb";
    bumped key: messages now carry sources and whether they were researched, and
    v1 rows have neither.
 
-   CLASS HOOKS ARE LOAD-BEARING FOR THE NEXT PHASE. `.tk-stage`, `.tk-composer`
-   and `.tk-rcat[data-cat]` are measured by the SVG line overlay in PR 4 — they
-   are not decorative names. */
+   THE LINES SHOW WHERE IT IS LOOKING, AND THEY ARE NOT DECORATION. The
+   overlay measures `.tk-stage`, `.tk-composer` and the four `.tk-rcat` cards
+   off the live DOM, and every state it draws comes from an event this
+   component already receives: submit, the server's `trace` with its real hit
+   counts and winners, `miss`, the first delta, done. The choreography itself
+   is a pure machine in lib/tiff/research-viz.ts, so it can be proven in a test
+   that cannot see a single coordinate. Nothing here waits to look busier. */
 
 type Msg = {
   role: "user" | "tiff";
@@ -218,6 +231,15 @@ export function TiffAssistant({
   const chatRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
+  /* What the search lines and the four shelves are doing. The refs below are
+     the overlay's measuring points — the stage it draws inside, the composer
+     every line leaves from, and the card each one arrives at. */
+  const [viz, setViz] = useState<ResearchViz>(IDLE_VIZ);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<HTMLFormElement>(null);
+  const cardRefs = useRef(new Map<KbCategoryKey, HTMLElement>());
+  const showViz = (event: VizEvent) => setViz((prev) => reduceViz(prev, event));
+
   const threads = threadState ?? (hydrated ? loadThreads() : []);
   const active = threads.find((t) => t.id === activeId) ?? null;
   const recent = [...threads].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 8);
@@ -289,6 +311,10 @@ export function TiffAssistant({
     abortRef.current = controller;
 
     setFailure(null);
+    /* Only a research question has anywhere to look, so only a research
+       question draws lines. A general one clears whatever the last answer left
+       behind rather than leaving a stale rail under a new conversation. */
+    showViz({ t: researchMode ? "submit" : "reset" });
     setLiveBoth({
       threadId,
       question,
@@ -308,13 +334,26 @@ export function TiffAssistant({
         if (controller.signal.aborted) return;
         switch (event.t) {
           case "trace":
-            /* Where Tiff looked, with real numbers. Nothing renders it yet —
-               it is what drives the line animation in the next phase. */
+            /* Where Tiff looked, with real numbers — the shelves light from
+               these and from nothing else. */
+            showViz({
+              t: "trace",
+              winners: event.winners,
+              hits: {
+                install: event.categories.install?.hits,
+                faults: event.categories.faults?.hits,
+                specs: event.categories.specs?.hits,
+                sops: event.categories.sops?.hits,
+              },
+            });
             break;
           case "miss":
+            showViz({ t: "miss" });
             patchLive((prev) => ({ ...prev, missed: true }));
             break;
           case "delta":
+            // the first word is when the search stops and the answer starts
+            if (!liveRef.current?.text) showViz({ t: "firstDelta" });
             patchLive((prev) => ({ ...prev, text: prev.text + event.text }));
             break;
           case "trunc":
@@ -327,12 +366,16 @@ export function TiffAssistant({
             const state = liveRef.current;
             if (state) commitLive(state);
             setLiveBoth(null);
+            showViz({ t: "done" });
             break;
           }
           case "err": {
             const state = liveRef.current;
             if (state) commitLive(state);
             setLiveBoth(null);
+            // a half-drawn search under a failure message is decoration on
+            // top of bad news
+            showViz({ t: "error" });
             setFailure({ message: event.message, question, research: researchMode, history });
             break;
           }
@@ -394,6 +437,7 @@ export function TiffAssistant({
     abortRef.current?.abort();
     setLiveBoth(null);
     setFailure(null);
+    showViz({ t: "reset" });
     setActiveId(null);
     setInput("");
     inputRef.current?.focus();
@@ -403,6 +447,8 @@ export function TiffAssistant({
     abortRef.current?.abort();
     setLiveBoth(null);
     setFailure(null);
+    // the rail belongs to the question that was asked, not to the screen
+    showViz({ t: "reset" });
     setActiveId(id);
   };
 
@@ -422,7 +468,7 @@ export function TiffAssistant({
 
   return (
     <div className="page in">
-      <div className="tk-stage">
+      <div className="tk-stage" ref={stageRef}>
         <div className="tk-chatcol">
           {active ? (
             <>
@@ -526,6 +572,7 @@ export function TiffAssistant({
 
           <form
             className="tk-composer"
+            ref={composerRef}
             onSubmit={(e) => {
               e.preventDefault();
               send(input);
@@ -569,7 +616,27 @@ export function TiffAssistant({
           </form>
         </div>
 
-        <Rail counts={counts} readyCount={readyCount} canManage={canManage} />
+        <Rail
+          counts={counts}
+          readyCount={readyCount}
+          canManage={canManage}
+          viz={viz}
+          cardRefs={cardRefs}
+        />
+
+        {/* LAST on purpose — it measures the two columns above and their refs
+            re-attach in tree order, so an overlay placed first would measure a
+            rail that had just been unregistered. It paints underneath by
+            z-index, not by DOM order. `measureKey` is the other half: the
+            composer MOVES when the landing screen gives way to a transcript,
+            and no observer fires for a move. */}
+        <ResearchLines
+          stageRef={stageRef}
+          composerRef={composerRef}
+          cardRefs={cardRefs}
+          viz={viz}
+          measureKey={active?.messages.length ?? 0}
+        />
       </div>
 
       {peek && <SourcePeek source={peek} onClose={() => setPeek(null)} />}
@@ -679,10 +746,14 @@ function Rail({
   counts,
   readyCount,
   canManage,
+  viz,
+  cardRefs,
 }: {
   counts: Record<KbCategoryKey, number>;
   readyCount: number;
   canManage: boolean;
+  viz: ResearchViz;
+  cardRefs: React.RefObject<Map<KbCategoryKey, HTMLElement>>;
 }) {
   return (
     <aside className="tk-rail">
@@ -691,36 +762,49 @@ function Rail({
       </div>
 
       <div className="tk-rcats stgp">
-        {KB_CATEGORIES.map((c) => (
-          <Link
-            key={c.key}
-            href={`/dashboard/tiff/knowledge?cat=${c.key}`}
-            className="tk-rcat spot"
-            data-cat={c.key}
-            style={{ "--sc": `${c.color}1f`, "--tkc": c.color } as React.CSSProperties}
-          >
-            <span className="sglow" />
-            <span
-              className="tk-ric"
-              style={{
-                background: `${c.color}15`,
-                border: `1px solid ${c.color}30`,
-                color: c.color,
+        {KB_CATEGORIES.map((c) => {
+          const state = cardState(viz, c.key);
+          /* The microline is the shelf's own live report: its document count
+             at rest, "Searching…" while a line is out to it, and the real
+             number of matches once the trace comes back. Null means the
+             search has nothing to say and the count stands. */
+          const note = cardNote(viz, c.key);
+          return (
+            <Link
+              key={c.key}
+              href={`/dashboard/tiff/knowledge?cat=${c.key}`}
+              className={`tk-rcat spot${state === "idle" ? "" : ` ${state}`}`}
+              data-cat={c.key}
+              ref={(el) => {
+                if (el) cardRefs.current.set(c.key, el);
+                else cardRefs.current.delete(c.key);
               }}
+              style={{ "--sc": `${c.color}1f`, "--tkc": c.color } as React.CSSProperties}
             >
-              <Icon name={c.icon} size={19} />
-            </span>
-            <div className="tk-rtx">
-              <b>{c.label}</b>
-              <em>
-                {counts[c.key] > 0
-                  ? `${counts[c.key].toLocaleString("en-AU")} ${plural(counts[c.key], "document")}`
-                  : "—"}
-              </em>
-            </div>
-            <span className="tk-rbl">{c.blurb}</span>
-          </Link>
-        ))}
+              <span className="sglow" />
+              <span
+                className="tk-ric"
+                style={{
+                  background: `${c.color}15`,
+                  border: `1px solid ${c.color}30`,
+                  color: c.color,
+                }}
+              >
+                <Icon name={c.icon} size={19} />
+              </span>
+              <div className="tk-rtx">
+                <b>{c.label}</b>
+                <em>
+                  {note ??
+                    (counts[c.key] > 0
+                      ? `${counts[c.key].toLocaleString("en-AU")} ${plural(counts[c.key], "document")}`
+                      : "—")}
+                </em>
+              </div>
+              <span className="tk-rbl">{c.blurb}</span>
+            </Link>
+          );
+        })}
       </div>
 
       <div className="tk-lib">

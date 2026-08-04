@@ -756,19 +756,13 @@
 @media (max-width:1080px){ .fg .dread{right:24px} }
 .fg .dread .rd { padding:8px 16px; border-radius:12px; background:rgba(255,255,255,.8); backdrop-filter:blur(16px); border:1px solid #fff; font-size:13px; font-weight:800; font-family:var(--mono); color:var(--gray500); box-shadow:0 8px 30px rgba(0,0,0,.05); }
 
-/* SVG plan animations */
-.fg .plan .pl-line { stroke-dasharray:1; stroke-dashoffset:1; animation:fgDraw .9s ease-in-out forwards; opacity:0; }
-@keyframes fgDraw { from{stroke-dashoffset:1;opacity:0} 10%{opacity:.45} to{stroke-dashoffset:0;opacity:.45} }
-.fg .plan .pl-flow { stroke-dasharray:6 60; opacity:0; animation:fgFlow 2.4s linear infinite; }
-@keyframes fgFlow { 0%{opacity:0;stroke-dashoffset:0} 20%{opacity:1} 80%{opacity:1} 100%{opacity:0;stroke-dashoffset:-132} }
-.fg .plan .pl-room { opacity:0; transform:scale(.96); transform-box:fill-box; transform-origin:center; animation:fgRoom .5s ease-out forwards; }
-@keyframes fgRoom { to{opacity:1;transform:scale(1)} }
-.fg .plan .pl-unit { opacity:0; transform:scale(0); transform-box:fill-box; transform-origin:center; animation:fgUnit .6s cubic-bezier(.34,1.56,.64,1) forwards; }
-@keyframes fgUnit { to{opacity:1;transform:scale(1)} }
-.fg .plan .pl-ring { transform-box:fill-box; transform-origin:center; animation:fgUnitRing 2s ease-out infinite; }
-@keyframes fgUnitRing { 0%{transform:scale(1);opacity:.6} 100%{transform:scale(1.8);opacity:0} }
-.fg .plan .pl-fan { transform-box:fill-box; transform-origin:center; animation:fgFan 3s linear infinite; }
-@keyframes fgFan { to{transform:rotate(360deg)} }
+/* The `.plan .pl-*` SVG animation block that stood here — draw-in, travelling
+   flow dash, room/unit pops, ring and fan — is GONE. Nothing has rendered a
+   `.plan` figure with those class names for a long time, and dead CSS in this
+   file is not free: it has shadowed live components before. The two primitives
+   worth keeping (draw-in via pathLength + dashoffset, and a travelling dash
+   pulse) live on under `.tk-line` at the end of this file, where something
+   actually renders them. */
 
 @media (prefers-reduced-motion: reduce) {
   .fg * { animation-duration:.001s !important; }
@@ -4999,14 +4993,19 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    <body>, outside `.fg`, so its pieces are unscoped and restate their colours
    and their font rather than inheriting a ramp that isn't there. */
 
-.fg .tk-stage { display:grid; grid-template-columns:minmax(0,1fr) 348px; gap:28px; align-items:stretch;
+/* position:relative is load-bearing, not tidiness: it makes the stage the
+   containing block for the `.tk-lines` underlay, whose padding box coincides
+   with the rect every endpoint is measured against. */
+.fg .tk-stage { position:relative; display:grid; grid-template-columns:minmax(0,1fr) 348px; gap:28px; align-items:stretch;
   height:100%; width:100%; max-width:1420px; margin:0 auto; padding:32px; }
 @media (max-width:1100px) {
   /* stacked, and nothing is lost: the rail becomes a footer of the same cards */
   .fg .tk-stage { display:flex; flex-direction:column; height:auto; gap:24px; padding:24px; }
 }
 
-.fg .tk-chatcol { display:flex; flex-direction:column; min-width:0; min-height:0; }
+/* both columns paint above the lines — same arrangement as the system map's
+   columns over its wire layer */
+.fg .tk-chatcol { position:relative; z-index:1; display:flex; flex-direction:column; min-width:0; min-height:0; }
 
 /* ── landing: a returning user resumes instead of being pitched to ── */
 .fg .tk-welcome { flex:0 0 auto; margin-bottom:26px; }
@@ -5084,11 +5083,11 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .tk-src em { flex:none; font-style:normal; font-size:11.5px; font-weight:700; color:var(--gray400); }
 
 /* ── the rail ── */
-.fg .tk-rail { display:flex; flex-direction:column; gap:12px; min-width:0; min-height:0; overflow-y:auto; padding-bottom:4px; }
+.fg .tk-rail { position:relative; z-index:1; display:flex; flex-direction:column; gap:12px; min-width:0; min-height:0; overflow-y:auto; padding-bottom:4px; }
 .fg .tk-rcats { display:flex; flex-direction:column; gap:10px; }
 .fg .tk-rcat { position:relative; display:grid; grid-template-columns:auto minmax(0,1fr); gap:5px 12px; padding:16px;
   border-radius:24px; background:#fff; border:1px solid #f0f0f2; box-shadow:0 4px 20px rgba(0,0,0,.02);
-  text-decoration:none; transition:transform .3s, border-color .3s, box-shadow .3s; }
+  text-decoration:none; transition:transform .3s, border-color .3s, box-shadow .3s, opacity .25s; }
 .fg .tk-rcat:hover { transform:translateY(-2px); border-color:#e5e7eb; box-shadow:0 18px 34px -20px rgba(0,0,0,.28); }
 .fg .tk-ric { display:flex; align-items:center; justify-content:center; flex:none; width:38px; height:38px; border-radius:12px; }
 .fg .tk-rtx { min-width:0; }
@@ -5109,3 +5108,85 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .tk-pkq { margin:0; padding:16px 18px; max-height:44vh; overflow:auto; border-radius:16px; background:#f9fafb;
   border:1px solid #eceef2; border-left:3px solid #2E68FF; font-family:var(--font-jakarta), sans-serif;
   font-size:13.5px; font-weight:500; line-height:1.6; color:#1f2937; white-space:pre-wrap; }
+
+/* ══════════════════ TIFF — THE SEARCH LINES (.tk-lines) ══════════════════
+   The signature move: four lines fan out from the composer to the four
+   shelves while Tiff is looking, then all but the winners go out.
+
+   IT IS AN UNDERLAY. `.tk-lines` is absolute inset-0 inside `.tk-stage`
+   (which is position:relative for exactly this reason) at z-index 0, and both
+   columns sit at z-index 1 above it — the same arrangement the system map
+   uses for its wire layer. pointer-events:none throughout: nothing here is
+   ever clicked, and a full-bleed SVG that ate clicks would swallow the rail.
+
+   TWO PRIMITIVES, RESURRECTED. `.draw` is a `pathLength="1"` line drawing
+   itself in with one dash the length of the whole path; `.pulse` is a second
+   stroke over the first whose short dash travels the line. Both used to live
+   at the top of this file under `.plan .pl-*` names that nothing rendered any
+   more — they were deleted from there in the same change that wrote this.
+
+   THE MOTION IS HONEST. Draw and pulse run only while a question is genuinely
+   outstanding; the moment the trace lands the pulse stops and every line
+   answers to real hit counts. No line waits a beat to look busier.
+
+   COLOUR COMES FROM `--tkc`, set per group in JSX from KB_CATEGORIES — the
+   same variable the cards already carry — so nothing in here names a category
+   and adding a fifth shelf never touches this stylesheet. */
+
+.fg .tk-lines { position:absolute; inset:0; z-index:0; width:100%; height:100%; pointer-events:none; overflow:visible; }
+
+/* #c3cad6 at 1.6 — one step darker than the first cut (#d7dbe3/1.5), which
+   disappeared into the light well on a real screen at 55% draw opacity */
+.fg .tk-line { fill:none; stroke:#c3cad6; stroke-width:1.6; stroke-linecap:round;
+  transition:opacity .3s ease, stroke .3s ease, stroke-width .3s ease; }
+
+/* drawing out to a shelf we have not heard back from */
+.fg .tk-line.draw { opacity:0; stroke-dasharray:1; stroke-dashoffset:1; animation:tkDraw .45s ease-in-out forwards; }
+@keyframes tkDraw { from{stroke-dashoffset:1;opacity:0} 25%{opacity:.55} to{stroke-dashoffset:0;opacity:.55} }
+
+/* and the pulse travelling along it, in the shelf's own colour */
+.fg .tk-line.pulse { stroke:var(--tkc, #2E68FF); stroke-width:2.5; stroke-dasharray:6 60; opacity:0;
+  animation:tkFlow 1.5s linear .25s infinite; }
+@keyframes tkFlow { 0%{opacity:0;stroke-dashoffset:0} 20%{opacity:.85} 80%{opacity:.85} 100%{opacity:0;stroke-dashoffset:-132} }
+
+/* where the answer came from · where it didn't · and gone */
+.fg .tk-line.lit { stroke:var(--tkc, #2E68FF); stroke-width:2; opacity:.9; }
+.fg .tk-line.dim { opacity:.12; }
+.fg .tk-line.fade { opacity:0; transition:opacity .6s ease; }
+
+/* ── and what the same moments do to a shelf ── */
+
+/* searching: a soft sweep in Tiff blue, NOT the category colour — which shelf
+   this is has no bearing on anything until the trace says so */
+.fg .tk-rcat.searching::after { content:""; position:absolute; inset:0; z-index:0; pointer-events:none;
+  background:linear-gradient(100deg, rgba(46,104,255,0) 34%, rgba(46,104,255,.11) 50%, rgba(46,104,255,0) 66%);
+  background-size:260% 100%; background-repeat:no-repeat; animation:tkShim 1.5s ease-in-out infinite; }
+@keyframes tkShim { from{background-position:150% 0} to{background-position:-50% 0} }
+
+/* found something, but not what the answer was built from */
+.fg .tk-rcat.hit { border-color:color-mix(in oklab, var(--tkc, #9ca3af) 26%, #f0f0f2); }
+
+/* where the answer came from: ring and glow in the shelf's colour. Declared
+   after `.tk-rcat:hover` at equal specificity on purpose — hovering the
+   winning card must not take its ring away. */
+.fg .tk-rcat.winner { transform:translateY(-2px); border-color:var(--tkc, #2E68FF);
+  box-shadow:0 0 0 3px color-mix(in oklab, var(--tkc, #2E68FF) 16%, transparent),
+             0 20px 38px -22px color-mix(in oklab, var(--tkc, #2E68FF) 75%, transparent); }
+
+/* searched, nothing there — dimmed but still a way into the library */
+.fg .tk-rcat.dim { opacity:.55; }
+.fg .tk-rcat.dim:hover { opacity:1; }
+
+/* the microline gives up the category colour while it has nothing to report */
+.fg .tk-rcat.searching .tk-rtx em,
+.fg .tk-rcat.dim .tk-rtx em { color:var(--gray400); }
+
+@media (prefers-reduced-motion:reduce) {
+  /* the global `.fg * { animation-duration:.001s }` makes a finite animation
+     instant — and an INFINITE one a strobe. So the loops don't run at all:
+     the pulse isn't drawn and the sweep is dropped, while the line simply
+     arrives already drawn. */
+  .fg .tk-line.pulse { display:none; }
+  .fg .tk-line.draw { opacity:.55; stroke-dasharray:none; stroke-dashoffset:0; animation:none; }
+  .fg .tk-rcat.searching::after { animation:none; opacity:0; }
+}

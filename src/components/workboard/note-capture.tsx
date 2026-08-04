@@ -221,6 +221,16 @@ export function NoteCapture({
   });
   const { recording, transcribing: listening } = dict;
 
+  /* The routing call takes about seven seconds — measured, not guessed — and
+     for all of them the card used to show the person their own words in a
+     greyed-out textarea behind a button that said "Reading…". Nothing moved,
+     so nothing said the difference between working and wedged.
+
+     `sorting` is that gap given a state of its own. It is deliberately NOT
+     the same flag as `busy`: `busy` is also true while a confirmed note is
+     SAVING, and the save has its own place on the review card. */
+  const sorting = busy && !note;
+
   const close = () => {
     dict.cancel();
     /* Walking away from a parsed note means the same thing "Keep as note"
@@ -362,9 +372,13 @@ export function NoteCapture({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, picking]);
 
+  /* `sorting` is in here because the textarea now UNMOUNTS while the router
+     thinks. Without it, a note that fails to route comes back to a box the
+     cursor isn't in — the one moment you're most likely to want to edit and
+     retry. */
   useEffect(() => {
-    if (open && !recording && !note) textRef.current?.focus();
-  }, [open, recording, note]);
+    if (open && !recording && !note && !sorting) textRef.current?.focus();
+  }, [open, recording, note, sorting]);
 
   const clock = clockOf(dict.seconds);
 
@@ -407,6 +421,8 @@ export function NoteCapture({
               <div className="wb2-capribbon">
                 {recording ? (
                   <span className="wb2-recdot" aria-hidden="true" />
+                ) : sorting ? (
+                  <span className="wb2-spin" aria-hidden="true" />
                 ) : (
                   <Icon name="note" size={16} />
                 )}
@@ -417,7 +433,9 @@ export function NoteCapture({
                       ? "Reading it back"
                       : note
                         ? "Check it before it saves"
-                        : "Add a note"}
+                        : sorting
+                          ? "Sorting it out"
+                          : "Add a note"}
                 </b>
                 {/* The attachment, visible to the speaker (D15) — and, once
                     there's something to save and nothing to save it against,
@@ -483,7 +501,36 @@ export function NoteCapture({
                 />
               )}
 
-              {!note && !recording && !listening && (
+              {/* ── while the router is thinking ──
+                  Two jobs, and the second is the one that earns the space:
+                  something has to MOVE, or seven seconds is indistinguishable
+                  from a hang — and the note itself is worth re-reading while
+                  you wait, because the next screen asks you to confirm what
+                  was made of it. So the transcript comes out of the disabled
+                  textarea and is shown as words.
+
+                  The skeleton rows are shapes, not a promise: they hold the
+                  space the review card is about to occupy (the same argument
+                  as the route-loading skeleton). They do NOT count up, name
+                  steps, or claim to know what was found — this file has a
+                  standing rule against interfaces that pretend to be further
+                  along than they are, and a fake three-stage progress bar is
+                  exactly that. */}
+              {sorting && (
+                <div className="wb2-sorting" role="status" aria-live="polite">
+                  <p className="wb2-sortnote">{text}</p>
+                  <div className="wb2-sortrows" aria-hidden="true">
+                    <span className="wb2-skel wb2-skel-a" />
+                    <span className="wb2-skel wb2-skel-b" />
+                    <span className="wb2-skel wb2-skel-c" />
+                  </div>
+                  <p className="wb2-hint">
+                    Working out what this becomes — tasks, flags, or just a note.
+                  </p>
+                </div>
+              )}
+
+              {!note && !recording && !listening && !sorting && (
                 <>
                   <textarea
                     ref={textRef}

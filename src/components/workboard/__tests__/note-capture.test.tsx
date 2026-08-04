@@ -8,7 +8,7 @@
    review card, every row editable, clarify still asks, and "Just keep the
    note" still keeps it. Nothing writes until a person says so. */
 
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NoteCapture, type NoteAttachOption } from "../note-capture";
 import type { NoteProposal } from "@/lib/workboard/note-brain";
@@ -109,6 +109,83 @@ describe("the engine, through the new clothes", () => {
     await userEvent.click(overlay.getByRole("button", { name: "Sort this out" }));
     return overlay;
   };
+
+  /* The routing call takes about seven measured seconds. What the card does
+     for those seconds is a feature, not a gap between two screens — before
+     this it showed the person their own words greyed out behind a button
+     reading "Reading…", which is what a hang looks like too. */
+  describe("while the router is thinking", () => {
+    /* Hold the action open so the in-flight state can be inspected — every
+       other test in this file resolves it before the first assertion, which
+       is exactly why none of them covered this. */
+    let pending: (() => void) | null = null;
+
+    /* Settle it afterwards even when the test didn't. A transition left
+       pending does not die with the component: React keeps it, `isPending`
+       stays true, and the NEXT test in this file opens on a card whose Save
+       button already says "Saving…". Nine of them failed that way before
+       this hook existed. */
+    afterEach(async () => {
+      const release = pending;
+      pending = null;
+      if (release) await act(async () => release());
+    });
+
+    const holdRouting = () => {
+      routeNote.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            pending = () =>
+              resolve({ ok: true, noteId: "n-1", proposal: proposal(), staff: [] });
+          })
+      );
+    };
+
+    const openAndHold = async () => {
+      holdRouting();
+      render(
+        <NoteCapture target={{ kind: "visit", id: "v-1" }} targetLabel="Meridian" voiceEnabled={false} />
+      );
+      await userEvent.click(screen.getByRole("button", { name: /Add note/ }));
+      const overlay = within(screen.getByRole("dialog"));
+      await userEvent.type(overlay.getByPlaceholderText(/Tell Luke/), "Grilles for Smith St");
+      await userEvent.click(overlay.getByRole("button", { name: "Sort this out" }));
+      return { overlay };
+    };
+
+    it("says what it is doing, out loud and in the ribbon", async () => {
+      const { overlay } = await openAndHold();
+      expect(overlay.getByText("Sorting it out")).toBeInTheDocument();
+      // a live region, so it reaches a screen reader rather than only an eye
+      expect(overlay.getByRole("status")).toHaveAttribute("aria-live", "polite");
+    });
+
+    it("shows the note back as words, not trapped in a disabled box", async () => {
+      const { overlay } = await openAndHold();
+      expect(overlay.getByText("Grilles for Smith St")).toBeInTheDocument();
+      expect(overlay.queryByPlaceholderText(/Tell Luke/)).not.toBeInTheDocument();
+    });
+
+    /* The rule this file has always had: never claim to be further along
+       than you are. Shapes are allowed; a percentage, a step count or a
+       named stage would be an invention. */
+    it("makes no claim about progress", async () => {
+      const { overlay } = await openAndHold();
+      expect(overlay.queryByRole("progressbar")).not.toBeInTheDocument();
+      expect(overlay.queryByText(/%/)).not.toBeInTheDocument();
+      expect(overlay.queryByText(/step \d/i)).not.toBeInTheDocument();
+    });
+
+    it("hands over to the review card once the proposal lands", async () => {
+      const { overlay } = await openAndHold();
+      expect(overlay.getByText("Sorting it out")).toBeInTheDocument();
+      const release = pending!;
+      pending = null;
+      await act(async () => release());
+      expect(overlay.queryByText("Sorting it out")).not.toBeInTheDocument();
+      expect(overlay.getByText("Check it before it saves")).toBeInTheDocument();
+    });
+  });
 
   it("routes with the target and renders the editable review in the overlay", async () => {
     const overlay = await openAndSort();

@@ -16,7 +16,8 @@ import {
   vehicleChips,
   vehicleFacts,
 } from "./logic";
-import { LogModal, LogRow } from "./modals";
+import type { LogEdit } from "@/app/actions/fleet";
+import { EditLogModal, LogModal, LogRow } from "./modals";
 import { Plate } from "./plate";
 
 /* "My vehicle" — the Staff lens: just the vehicle assigned to you, with log
@@ -41,6 +42,10 @@ export function MyVehicle({
   logs,
   error,
   onLog,
+  onEditLog,
+  onDeleteLog,
+  today,
+  viewerStaffId,
 }: {
   /** The vehicle assigned to you, or null when you have none. */
   vehicle: VehicleWithFacts | null;
@@ -50,9 +55,20 @@ export function MyVehicle({
   logs: VehicleLog[];
   error: string | null;
   onLog: (log: NewLog) => void;
+  onEditLog: (logId: string, patch: LogEdit) => void;
+  onDeleteLog: (logId: string) => void;
+  /* Correcting your OWN entry needs no capability. This vehicle's history can
+     contain other people's entries (a pool ute somebody else fuelled), so the
+     affordance is per-row, not per-screen. */
+  viewerStaffId: string | null;
+  /** The server's AU calendar date — the ceiling on a receipt date, and never
+      the browser's, which is the day before for most of the working morning. */
+  today: string;
 }) {
   const [logKind, setLogKind] = useState<LogKind | null>(null);
   const [logTarget, setLogTarget] = useState<string | null>(null);
+  const [correcting, setCorrecting] = useState<VehicleLog | null>(null);
+  const mine = (l: VehicleLog) => viewerStaffId !== null && l.staffId === viewerStaffId;
   const closeLog = () => {
     setLogKind(null);
     setLogTarget(null);
@@ -83,6 +99,7 @@ export function MyVehicle({
         {logKind && fallback && (
           <LogModal
             kind={logKind}
+            today={today}
             vehicle={fallback}
             fleetVehicles={pickable}
             onSave={(log) => {
@@ -203,13 +220,37 @@ export function MyVehicle({
         {recent.length === 0 ? (
           <div className="fl-hempty">Nothing logged yet — your fuel, odo and issue reports land here.</div>
         ) : (
-          recent.map((l) => <LogRow key={l.id} log={l} eco={eco[l.id]} />)
+          recent.map((l) => (
+            <LogRow
+              key={l.id}
+              log={l}
+              eco={eco[l.id]}
+              onCorrect={mine(l) ? setCorrecting : undefined}
+            />
+          ))
         )}
       </div>
+
+      {correcting && (
+        <EditLogModal
+          log={correcting}
+          today={today}
+          onSave={(patch) => {
+            onEditLog(correcting.id, patch);
+            setCorrecting(null);
+          }}
+          onDelete={() => {
+            onDeleteLog(correcting.id);
+            setCorrecting(null);
+          }}
+          onClose={() => setCorrecting(null)}
+        />
+      )}
 
       {logKind && (
         <LogModal
           kind={logKind}
+          today={today}
           vehicle={(logTarget && pickable.find((v) => v.id === logTarget)) || vehicle}
           fleetVehicles={pickable}
           onSave={(log) => {

@@ -63,7 +63,17 @@ async function mayUpload(kind: DocumentKind): Promise<boolean> {
   // back is not a privilege, so `receipt` belongs in this list; falling
   // through to `can("team")` would have locked every staff member out of the
   // expense claim they are the whole point of.
-  if (kind === "licence" || kind === "work_rights" || kind === "staff_photo" || kind === "receipt")
+  // `fuel_receipt` joins them for the same reason one step further out:
+  // fuelling the van is the job, and a driver with no `assets_all` still has
+  // to be able to keep the docket. The register is what they can't see; the
+  // paper in their hand is not.
+  if (
+    kind === "licence" ||
+    kind === "work_rights" ||
+    kind === "staff_photo" ||
+    kind === "receipt" ||
+    kind === "fuel_receipt"
+  )
     return true;
   if (kind === "org_logo") return hasMinRole(await getDbRole(), "owner");
   // Site photos and job paperwork come from whoever is ON the job — the
@@ -167,7 +177,7 @@ export async function deleteDocument(documentId: string): Promise<DocResult> {
 
   const { data } = await supabaseAdmin
     .from("documents")
-    .select("uploaded_by, storage_ref, expense_claim_id")
+    .select("uploaded_by, storage_ref, expense_claim_id, vehicle_log_id")
     .eq("org_id", ctx.orgId)
     .eq("id", documentId)
     .maybeSingle();
@@ -192,6 +202,21 @@ export async function deleteDocument(documentId: string): Promise<DocResult> {
     if (status === "pending" || status === "approved" || status === "reimbursed") {
       return { ok: false, error: "That receipt belongs to an expense claim and can't be removed." };
     }
+  }
+
+  /* Same rule, other owner. A fuel docket adopted by a vehicle log is the
+     substantiation behind a figure in the tax export, and the ATO expects it
+     to still be there in five years. There is no "declined" escape hatch as
+     there is for a claim, because a fuel log has no approval to fail.
+
+     WITHDRAWING one is a different act, and it does NOT come through here:
+     removing the fuel entry (actions/fleet.ts deleteLog) takes the figure out
+     of every screen and out of the export, and the receipt stays deliberately
+     attached to the hidden row. That is the point — a deduction that has
+     already gone to an accountant must still be explicable afterwards, and a
+     withdrawn entry with its evidence deleted explains nothing. */
+  if (data.vehicle_log_id) {
+    return { ok: false, error: "That receipt belongs to a fuel entry and can't be removed." };
   }
 
   const ref = String(data.storage_ref);

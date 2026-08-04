@@ -66,11 +66,12 @@ describe("AdminIndex", () => {
   it("never links a planned row", () => {
     render(<AdminIndex isOwner canFinancials />);
 
-    // three live rows for an owner; everything else is a tagged placeholder
+    // four live rows for an owner; everything else is a tagged placeholder
     expect(linkHrefs()).toEqual([
       "/dashboard/admin/organization",
       "/dashboard/admin/integrations",
       "/dashboard/admin/rate-calculator",
+      "/dashboard/admin/tax",
     ]);
     expect(screen.getAllByText("Planned")).toHaveLength(7);
   });

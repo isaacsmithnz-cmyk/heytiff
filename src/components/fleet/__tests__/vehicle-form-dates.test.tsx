@@ -6,6 +6,11 @@ import type { Vehicle } from "../logic";
 jest.mock("@/app/actions/fleet-ai", () => ({
   readFuelReceipt: jest.fn(async () => ({ ok: false, reason: "no-key" })),
 }));
+// storing the docket reaches a server action too — same rule, and mocking it
+// keeps auth0's ESM out of the module graph
+jest.mock("@/lib/documents/upload-client", () => ({
+  uploadFile: jest.fn(async () => ({ ok: false, error: "not in a test" })),
+}));
 
 /* The vehicle form is where the date picker is hardest: this modal portals to
    <body>, outside the `.fg` frame, and closes itself on a document-level

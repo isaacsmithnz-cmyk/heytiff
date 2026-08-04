@@ -10,6 +10,7 @@ import {
   type FleetStaff,
   type FleetTab,
   type LogKind,
+  type VehicleLog,
   displayName,
   filterVehicles,
   fleetAiValue,
@@ -25,7 +26,7 @@ import {
   vehicleChips,
   worstState,
 } from "./logic";
-import { DetailModal, LogModal, VehicleFormModal } from "./modals";
+import { DetailModal, EditLogModal, LogModal, VehicleFormModal } from "./modals";
 import { Plate } from "./plate";
 
 /* Fleet register — the Manager/Owner view: whole fleet, assignment, service
@@ -43,7 +44,8 @@ type ModalState =
   | { t: "add" }
   | { t: "edit"; id: string }
   | { t: "detail"; id: string }
-  | { t: "log"; id: string; kind: LogKind };
+  | { t: "log"; id: string; kind: LogKind }
+  | { t: "fix"; id: string; log: VehicleLog };
 
 export function FleetRegister({
   fleet,
@@ -378,15 +380,32 @@ export function FleetRegister({
           onStatus={(status) => fleet.saveVehicle({ ...openVehicle, status })}
           onLog={(kind) => setModal({ t: "log", id: openVehicle.id, kind })}
           onResolve={fleet.resolveIssue}
+          onCorrect={(log) => setModal({ t: "fix", id: openVehicle.id, log })}
           onRemove={() => {
             fleet.removeVehicle(openVehicle.id);
             setModal({ t: "none" });
           }}
         />
       )}
+      {modal.t === "fix" && openVehicle && (
+        <EditLogModal
+          log={modal.log}
+          today={today}
+          onSave={(patch) => {
+            fleet.editLog(modal.log.id, patch);
+            setModal({ t: "detail", id: openVehicle.id });
+          }}
+          onDelete={() => {
+            fleet.deleteLog(modal.log.id);
+            setModal({ t: "detail", id: openVehicle.id });
+          }}
+          onClose={() => setModal({ t: "detail", id: openVehicle.id })}
+        />
+      )}
       {modal.t === "log" && openVehicle && (
         <LogModal
           kind={modal.kind}
+          today={today}
           vehicle={openVehicle}
           fleetVehicles={vehicles}
           onSave={(log) => {

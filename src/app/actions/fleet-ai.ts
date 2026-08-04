@@ -109,8 +109,21 @@ export async function valueFleet(vehicles: FleetAiVehicle[]): Promise<ValueFleet
 
 /* ---------------- fuel-receipt reading (any signed-in member) ---------------- */
 
+/* A fuel docket is TWO documents at once: a fleet fact (how much fuel went in
+   which van) and a tax record (what was spent, on what GST, with whom). It was
+   only ever read as the first. `gst` and `abn` are what the second needs — the
+   two figures the ATO asks for and the two a photo of a docket already has
+   printed on it. */
 export type ReadReceiptResult =
-  | { ok: true; litres: number | null; cost: number | null; station: string | null; date: string | null }
+  | {
+      ok: true;
+      litres: number | null;
+      cost: number | null;
+      station: string | null;
+      date: string | null;
+      gst: number | null;
+      abn: string | null;
+    }
   | { ok: false; reason: string };
 
 const RECEIPT_SCHEMA = {
@@ -120,10 +133,21 @@ const RECEIPT_SCHEMA = {
     cost: { anyOf: [{ type: "number" }, { type: "null" }] },
     station: { anyOf: [{ type: "string" }, { type: "null" }] },
     date: { anyOf: [{ type: "string" }, { type: "null" }] },
+    gst: { anyOf: [{ type: "number" }, { type: "null" }] },
+    abn: { anyOf: [{ type: "string" }, { type: "null" }] },
   },
-  required: ["litres", "cost", "station", "date"],
+  required: ["litres", "cost", "station", "date", "gst", "abn"],
   additionalProperties: false,
 };
+
+/** An ABN as it will be stored: eleven digits, no spaces. Returns null for
+    anything else rather than half a number — a malformed ABN on a BAS is
+    worse than a blank one, because a blank one looks like what it is. */
+function normaliseAbn(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const digits = raw.replace(/\D/g, "");
+  return digits.length === 11 ? digits : null;
+}
 
 const RECEIPT_MEDIA = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
 type ReceiptMedia = (typeof RECEIPT_MEDIA)[number];
@@ -164,11 +188,19 @@ export async function readFuelReceipt(
             {
               type: "text",
               text:
-                "This is a photo of a fuel receipt/docket from an Australian servo. Extract: " +
-                "litres of fuel purchased, the total cost in dollars (with cents), a short " +
-                "station name (brand + suburb if shown, e.g. \"Shell Coburg\"), and the purchase " +
-                "date as yyyy-mm-dd. Use null for anything not clearly readable. If this is not " +
-                "a fuel receipt at all, return null for every field.",
+                "This is a photo of a fuel receipt/docket from an Australian servo. Extract:\n" +
+                "- litres: litres of fuel purchased\n" +
+                "- cost: the total cost in dollars, GST inclusive, with cents\n" +
+                "- station: a short station name (brand + suburb if shown, e.g. \"Shell Coburg\")\n" +
+                "- date: the purchase date as yyyy-mm-dd\n" +
+                "- gst: the GST amount in dollars, ONLY if the docket prints one. Do not " +
+                "calculate it from the total — if no GST line is shown, return null.\n" +
+                "- abn: the supplier's ABN, digits only, ONLY if one is printed on the docket. " +
+                "It is 11 digits and usually labelled \"ABN\". Do not confuse it with a phone " +
+                "number, store number, receipt or transaction number, or an ACN (9 digits).\n\n" +
+                "Use null for anything not clearly readable — a guessed tax figure is worse " +
+                "than a blank one. If this is not a fuel receipt at all, return null for " +
+                "every field.",
             },
           ],
         },
@@ -183,13 +215,28 @@ export async function readFuelReceipt(
       cost: number | null;
       station: string | null;
       date: string | null;
+      gst: number | null;
+      abn: string | null;
     };
+    const cost = typeof parsed.cost === "number" && parsed.cost > 0 ? parsed.cost : null;
+    /* GST can never exceed the total it came out of, and on a GST-inclusive
+       total it can never exceed one eleventh of it. A figure that fails that
+       is a misread line — the servo's loyalty points, or the litre price —
+       and dropping it is right: null means "check the docket", a wrong number
+       means a wrong BAS. */
+    const gstRead = typeof parsed.gst === "number" && parsed.gst > 0 ? parsed.gst : null;
+    const gst =
+      gstRead !== null && cost !== null && gstRead <= cost / 11 + 0.01
+        ? Math.round(gstRead * 100) / 100
+        : null;
     return {
       ok: true,
       litres: typeof parsed.litres === "number" && parsed.litres > 0 ? parsed.litres : null,
-      cost: typeof parsed.cost === "number" && parsed.cost > 0 ? parsed.cost : null,
+      cost,
       station: typeof parsed.station === "string" && parsed.station.trim() ? parsed.station.trim().slice(0, 60) : null,
       date: typeof parsed.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(parsed.date) ? parsed.date : null,
+      gst,
+      abn: normaliseAbn(parsed.abn),
     };
   } catch (err) {
     return { ok: false, reason: reasonFor(err) };

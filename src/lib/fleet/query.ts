@@ -122,8 +122,13 @@ export async function listLogs(
   const today = todayInAu(now);
   let q = supabaseAdmin
     .from("vehicle_logs")
-    .select("id, vehicle_id, staff_profile_id, kind, logged_on, note, litres, cost, odo, status, source, station")
+    .select(
+      "id, vehicle_id, staff_profile_id, kind, logged_on, note, litres, cost, odo, status, source, station, gst, supplier_abn, edited_at",
+    )
     .eq("org_id", orgId)
+    // a corrected-away entry is gone from every screen; the row survives so a
+    // figure that once reached a tax export can still be accounted for
+    .is("deleted_at", null)
     .order("logged_on", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(opts.limit ?? 500);
@@ -133,7 +138,30 @@ export async function listLogs(
   const staff = await listFleetStaff(orgId);
   const byId = new Map(staff.map((s) => [s.id, s.name]));
   const nameOf = (id: string | null) => (id ? byId.get(id) : undefined) ?? undefined;
-  return ((data ?? []) as unknown as Record<string, unknown>[]).map((r) => toLog(r, today, nameOf));
+  const logs = ((data ?? []) as unknown as Record<string, unknown>[]).map((r) =>
+    toLog(r, today, nameOf),
+  );
+
+  /* Which of these have the docket behind them. Ids only — the URL is not
+     signed here, because the fleet screens show a CHIP, not the photo; the
+     Tax screen is where a receipt gets opened, and it signs its own. */
+  const withReceipt = await logsWithReceipts(
+    orgId,
+    logs.filter((l) => l.kind === "fuel").map((l) => l.id),
+  );
+  return logs.map((l) => (withReceipt.has(l.id) ? { ...l, hasReceipt: true } : l));
+}
+
+/** The subset of these logs that have a stored receipt. */
+async function logsWithReceipts(orgId: string, logIds: string[]): Promise<Set<string>> {
+  if (logIds.length === 0) return new Set();
+  const { data } = await supabaseAdmin
+    .from("documents")
+    .select("vehicle_log_id")
+    .eq("org_id", orgId)
+    .in("vehicle_log_id", logIds)
+    .not("uploaded_at", "is", null);
+  return new Set(((data ?? []) as Record<string, unknown>[]).map((r) => String(r.vehicle_log_id)));
 }
 
 /** The profile card's "Assigned vehicle" section, resolved for one staff

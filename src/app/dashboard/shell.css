@@ -2018,12 +2018,6 @@
 .fg .fl-total { display:flex; align-items:center; justify-content:space-between; padding:13px 24px; border-top:1px solid #f0f0f2; background:#fafbfc; font-size:12.5px; font-weight:600; color:#9ca3af; }
 .fg .fl-total b { color:var(--ink); font-weight:800; }
 
-/* header preview toggle (manager-only, demo affordance) */
-.fg .fl-seg { display:inline-flex; align-items:center; gap:4px; padding:5px; background:#f1f2f4; border:1px solid #e9eaee; border-radius:14px; flex:0 0 auto; }
-.fg .fl-seg em { font-style:normal; font-size:10.5px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:#9ca3af; margin:0 6px 0 9px; }
-.fg .fl-seg button { display:inline-flex; align-items:center; gap:6px; height:32px; padding:0 14px; border-radius:10px; font-size:12.5px; font-weight:700; color:#6b7280; transition:all .2s; }
-.fg .fl-seg button.on { background:#fff; color:var(--ink); box-shadow:0 4px 12px rgba(0,0,0,.08); }
-
 /* my vehicle — staff lens */
 .fg .fl-my { display:flex; flex-direction:column; gap:16px; }
 .fg .fl-hero { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; background:linear-gradient(135deg,#fff 62%,#fff8f0); border:1px solid #f0f0f2; border-radius:24px; box-shadow:0 8px 30px rgba(0,0,0,.03); padding:28px 30px; }
@@ -2197,6 +2191,10 @@ select.fl-i { cursor:pointer; }
 .fl-reading { display:flex; align-items:center; gap:9px; font-size:13.5px; font-weight:700; color:#00A389; }
 .fl-reading .i { animation:flSpinPulse 1.2s ease-in-out infinite; }
 .fl-scanhead { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+/* "Receipt saved" / "saving without it" — unscoped like the rest of this
+   block, because the log modal portals to <body> and never sees `.fg`. */
+.fl-keptline { display:flex; align-items:center; gap:7px; margin:-4px 0 14px; font-size:12.5px; font-weight:700; color:#00A389; }
+.fl-keptline.warn { color:#b45309; }
 
 /* ---- fleet r4: rego picker for borrowed vehicles ---- */
 .fg .fl-offnote { flex-wrap:wrap; }
@@ -4621,3 +4619,97 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .wb2-agdot { width:8px; height:8px; border-radius:50%; flex:none; background:var(--wb2-ok); align-self:center; }
 .wb2-agdot.dan { background:var(--wb2-dan); }
 .wb2-agdot.off { background:rgba(5,5,5,.22); }
+
+/* ---- Tax & EOFY (components/tax/) ----
+   Reuses the admin index's shell wholesale (.adm-stg / .adm-card / .emptybox)
+   — a settings-section screen should not invent a second card. What is new is
+   only what a year of spending needs: a year picker, three headline figures, a
+   category strip, and a row that ends in whether the receipt exists.
+
+   Semantic colour only, never the page accent: ok #00A389, warn amber. The one
+   thing this screen must be able to shout is a MISSING receipt, and it does it
+   in the same amber every other caution in the app uses. */
+.fg .tx-years { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 22px; }
+.fg .tx-year { display:inline-flex; align-items:baseline; gap:6px; padding:8px 14px; border-radius:999px; background:#f4f5f7; border:1px solid transparent; font-size:13px; font-weight:700; color:var(--gray500); text-decoration:none; transition:background .15s, color .15s; }
+.fg .tx-year:hover { background:#ebedf0; color:var(--ink); }
+.fg .tx-year.on { background:var(--ink); color:#fff; }
+.fg .tx-year em { font-style:normal; font-size:10.5px; font-weight:700; opacity:.6; }
+
+.fg .tx-sumrow { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:0 0 16px; }
+.fg .tx-stat { display:flex; flex-direction:column; gap:3px; padding:16px 18px; border-radius:20px; background:#fff; border:1px solid #f0f0f2; box-shadow:0 8px 30px rgba(0,0,0,.03); }
+.fg .tx-statlab { font-size:11px; font-weight:800; letter-spacing:.13em; text-transform:uppercase; color:var(--gray400); }
+.fg .tx-statval { font-size:25px; font-weight:800; letter-spacing:-.02em; color:var(--ink); }
+.fg .tx-statsub { font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); }
+.fg .tx-stat.ok .tx-statval { color:#00A389; }
+.fg .tx-stat.warn { border-color:rgba(240,164,49,.4); background:rgba(240,164,49,.05); }
+.fg .tx-stat.warn .tx-statval, .fg .tx-stat.warn .tx-statsub { color:#a56a05; }
+
+.fg .tx-note { display:flex; align-items:flex-start; gap:8px; margin:0 0 14px; padding:11px 14px; border-radius:14px; background:rgba(240,164,49,.1); font-size:12.5px; font-weight:600; line-height:1.5; color:#a56a05; }
+.fg .tx-note .i { flex:none; margin-top:1px; }
+
+.fg .tx-cats { margin:0 0 30px; }
+.fg .tx-cat { display:flex; align-items:center; gap:12px; padding:12px 20px; border-top:1px solid #f5f6f8; }
+.fg .tx-cat:first-child { border-top:0; }
+.fg .tx-catname { flex:1; min-width:0; font-size:13.5px; font-weight:700; color:var(--ink); }
+.fg .tx-catcount { flex:none; min-width:26px; padding:2px 8px; border-radius:999px; background:#f4f5f7; font-size:11px; font-weight:800; color:var(--gray500); text-align:center; }
+.fg .tx-catgst { flex:none; font-size:11.5px; font-weight:600; color:var(--gray400); }
+.fg .tx-catamt { flex:none; min-width:92px; text-align:right; font-size:14px; font-weight:800; letter-spacing:-.01em; color:var(--ink); }
+
+.fg .tx-listhead { display:flex; align-items:center; gap:14px; margin:0 0 12px; }
+.fg .tx-listhead h2 { flex:1; margin:0; font-size:17px; font-weight:800; letter-spacing:-.02em; color:var(--ink); }
+
+.fg .tx-item { display:flex; align-items:center; gap:13px; padding:14px 20px; border-top:1px solid #f5f6f8; }
+.fg .tx-item:first-child { border-top:0; }
+.fg .tx-ic { flex:none; display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:12px; }
+.fg .tx-ic.fuel { background:rgba(46,104,255,.1); color:#2E68FF; }
+.fg .tx-ic.expense { background:rgba(138,43,226,.1); color:#8A2BE2; }
+.fg .tx-main { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.fg .tx-main b { display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:700; color:var(--ink); }
+.fg .tx-main em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fg .tx-flag { flex:none; padding:2px 7px; border-radius:999px; background:rgba(240,164,49,.14); font-size:10px; font-weight:800; letter-spacing:.02em; color:#a56a05; }
+.fg .tx-amt { flex:none; display:flex; flex-direction:column; align-items:flex-end; gap:2px; }
+.fg .tx-amt b { font-size:14px; font-weight:800; letter-spacing:-.01em; color:var(--ink); }
+.fg .tx-amt em { font-style:normal; font-size:11px; font-weight:600; color:var(--gray400); }
+
+/* The row's verdict. An anchor when there is something to open, a span when
+   there is not — so the amber one is deliberately not clickable. */
+.fg .tx-rcpt { flex:none; display:inline-flex; align-items:center; gap:5px; min-width:96px; padding:6px 11px; border-radius:999px; background:rgba(0,163,137,.1); font-size:11.5px; font-weight:700; color:#00A389; text-decoration:none; transition:background .15s; }
+.fg a.tx-rcpt:hover { background:rgba(0,163,137,.18); }
+.fg .tx-rcpt.none { background:rgba(240,164,49,.12); color:#a56a05; }
+
+@media (max-width:700px){
+  .fg .tx-sumrow { grid-template-columns:1fr; }
+  .fg .tx-catgst { display:none; }
+  .fg .tx-item { flex-wrap:wrap; }
+  .fg .tx-rcpt { min-width:0; }
+}
+
+/* ---- correcting a log entry ----
+   Unscoped, like the rest of the fleet modal block: these render inside the
+   portal, where `.fg` is not an ancestor. */
+/* The per-row affordance. Barely there until the row is hovered — correcting
+   an entry is rare, and a button that announced itself would make every line
+   of a clean history look like it needed attention.
+
+   WRITTEN AS `.fl-log .fl-lfix`, and it has to be. This row renders in two
+   places: inside the detail modal (a portal, no `.fg` above it) and on the
+   My-vehicle page, where `.fg button` (0,1,1) sets `color:inherit`. A lone
+   `.fl-lfix` is (0,1,0) and loses that fight on the page while winning it in
+   the modal — the same class looking right in one place and flat in the other,
+   which is exactly how this trap has bitten before. The descendant selector is
+   (0,2,0) and wins in both. */
+.fl-log .fl-lfix { flex:0 0 auto; display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; margin-left:2px; border-radius:9px; color:#c3c6cc; opacity:0; transition:opacity .15s, background .15s, color .15s; }
+.fl-log:hover .fl-lfix, .fl-log .fl-lfix:focus-visible { opacity:1; }
+.fl-log .fl-lfix:hover { background:#f4f5f7; color:#374151; }
+/* Touch has no hover, so the affordance is simply always visible there. */
+@media (hover:none){ .fl-log .fl-lfix { opacity:1; } }
+
+/* The remove confirmation. Says what happens rather than asking twice. */
+.fl-danger { display:flex; flex-direction:column; gap:8px; padding:18px 20px; border-radius:18px; background:rgba(255,51,102,.05); border:1px solid rgba(255,51,102,.16); }
+.fl-danger b { font-size:15px; font-weight:800; color:#050505; }
+.fl-danger em { font-style:normal; font-size:13px; font-weight:500; line-height:1.55; color:#6b7280; }
+.fl-danger .fl-foot { margin-top:6px; }
+
+/* A footer with a destructive action on the left and the commit pair right. */
+.fl-foot.spread { justify-content:space-between; }
+.fl-footright { display:inline-flex; gap:10px; }

@@ -5,7 +5,9 @@ import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
 import { DateField } from "@/components/ui/date-field";
 import { readFuelReceipt } from "@/app/actions/fleet-ai";
+import { uploadFile } from "@/lib/documents/upload-client";
 import { dateFromDays } from "@/lib/fleet/map";
+import type { LogEdit } from "@/app/actions/fleet";
 import { Plate } from "./plate";
 import {
   STATUS_LABEL,
@@ -348,12 +350,15 @@ type FuelMode = "scan" | "reading" | "confirm" | "manual";
 
 export function LogModal({
   kind,
+  today,
   vehicle,
   fleetVehicles,
   onSave,
   onClose,
 }: {
   kind: LogKind;
+  /** The server's AU calendar date — the ceiling on a receipt date. */
+  today: string;
   /** Identity width on purpose: logging needs a name, a plate and an odometer
       reading, which is exactly what someone without `assets_all` is sent. */
   vehicle: VehicleIdentity;
@@ -369,9 +374,18 @@ export function LogModal({
   const [odo, setOdo] = useState("");
   const [note, setNote] = useState("");
   const [station, setStation] = useState("");
+  const [gst, setGst] = useState("");
+  const [abn, setAbn] = useState("");
+  const [bought, setBought] = useState("");
   const [mode, setMode] = useState<FuelMode>(kind === "fuel" ? "scan" : "manual");
   const [thumb, setThumb] = useState<string | null>(null);
   const [scanTag, setScanTag] = useState<"tiff" | "offline" | null>(null);
+  /* The stored docket. Uploaded while Tiff reads it, so by the time the person
+     has checked the figures the photo is already in the bucket and Save only
+     has to point the log at it. Null means the figures will be saved with
+     nothing behind them — allowed, and said out loud on screen. */
+  const [receiptId, setReceiptId] = useState<string | null>(null);
+  const [receiptWarn, setReceiptWarn] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const copy = LOG_COPY[kind];
@@ -414,19 +428,33 @@ export function LogModal({
     if (!file || !file.type.startsWith("image/")) return;
     setThumb(URL.createObjectURL(file));
     setMode("reading");
+    setReceiptWarn(null);
+
+    /* Two jobs, side by side, because they are independent: KEEPING the docket
+       and READING it. The read is a convenience — the fields are editable
+       either way — but the file is the thing the ATO wants five years from
+       now, so a failed read must not cost the photo, and a failed upload must
+       not cost the reading. Promise.all, not a chain. */
+    const [stored, read] = await Promise.all([
+      uploadFile(file, "fuel_receipt").catch(() => ({ ok: false, error: "upload" }) as const),
+      fileToBase64(file)
+        .then((b64) => readFuelReceipt(b64, file.type))
+        .catch(() => ({ ok: false, reason: "offline" }) as const),
+    ]);
+
+    if (stored.ok) setReceiptId(stored.file.documentId);
+    else setReceiptWarn("Couldn't store the photo — the entry will save without it.");
+
     let filled = false;
-    try {
-      const b64 = await fileToBase64(file);
-      const res = await readFuelReceipt(b64, file.type);
-      if (res.ok) {
-        if (res.litres !== null) setLitres(String(res.litres));
-        if (res.cost !== null) setCost(res.cost.toFixed(2));
-        if (res.station) setStation(res.station);
-        setScanTag("tiff");
-        filled = true;
-      }
-    } catch {
-      /* offline fallback below */
+    if (read.ok) {
+      if (read.litres !== null) setLitres(String(read.litres));
+      if (read.cost !== null) setCost(read.cost.toFixed(2));
+      if (read.station) setStation(read.station);
+      if (read.gst !== null) setGst(read.gst.toFixed(2));
+      if (read.abn) setAbn(read.abn);
+      if (read.date) setBought(read.date);
+      setScanTag("tiff");
+      filled = true;
     }
     if (!filled) {
       const off = readReceiptOffline(file.size);
@@ -443,13 +471,27 @@ export function LogModal({
     setLitres("");
     setCost("");
     setStation("");
+    setGst("");
+    setAbn("");
+    setBought("");
+    /* The old photo is NOT deleted — it is an unadopted document with no log
+       pointing at it, which every read already ignores. Deleting it here would
+       mean a delete round trip on the way to a re-scan, and the thing being
+       thrown away is the one thing worth keeping if the second scan fails. */
+    setReceiptId(null);
+    setReceiptWarn(null);
     setMode("scan");
   };
 
   const odoLow = odo.trim() !== "" && num(odo) < target.odometer;
+  /* The two tax figures get checked HERE as well as on the server, because
+     these are the ones somebody types from a photo they are squinting at.
+     The server still refuses either one — this is the warning, not the gate. */
+  const gstOver = gst.trim() !== "" && cost.trim() !== "" && num(gst) > num(cost) / 11 + 0.01;
+  const abnBad = abn.trim() !== "" && abn.replace(/\D/g, "").length !== 11;
   const ready =
     kind === "fuel"
-      ? litres.trim() !== "" && (mode === "confirm" || mode === "manual")
+      ? litres.trim() !== "" && !gstOver && !abnBad && (mode === "confirm" || mode === "manual")
       : kind === "odo" || kind === "service"
         ? odo.trim() !== ""
         : note.trim() !== "";
@@ -465,6 +507,10 @@ export function LogModal({
       note: note.trim() || undefined,
       station: kind === "fuel" && station.trim() ? station.trim() : undefined,
       source: kind === "fuel" ? (scanTag ? "scan" : "manual") : undefined,
+      gst: kind === "fuel" && gst.trim() ? num(gst) : undefined,
+      abn: kind === "fuel" && abn.trim() ? abn.trim() : undefined,
+      purchasedOn: kind === "fuel" && bought.trim() ? bought.trim() : undefined,
+      receiptDocumentId: kind === "fuel" ? receiptId ?? undefined : undefined,
     });
   };
 
@@ -478,6 +524,33 @@ export function LogModal({
       </Field>
       <Field label="Station">
         <input className="fl-i" placeholder="e.g. Shell Coburg" value={station} onChange={(e) => setStation(e.target.value)} />
+      </Field>
+      {/* The docket's own date, not today's. A fill on Friday that gets logged
+          on Monday belongs to Friday — and in June that is the difference
+          between two financial years. */}
+      <Field label="Date on receipt" hint={bought ? undefined : "Blank means today"}>
+        <DateField
+          size="lg"
+          clearable
+          today={today}
+          max={today}
+          value={bought || null}
+          onChange={(iso) => setBought(iso ?? "")}
+        />
+      </Field>
+      <Field
+        label="GST ($)"
+        hint={gstOver ? "More than an eleventh of the total — check the docket" : "Only if the receipt shows it"}
+        hintTone={gstOver ? "warn" : "muted"}
+      >
+        <input className="fl-i" type="number" placeholder="e.g. 14.40" value={gst} onChange={(e) => setGst(e.target.value)} />
+      </Field>
+      <Field
+        label="Supplier ABN"
+        hint={abnBad ? "An ABN is eleven digits" : undefined}
+        hintTone={abnBad ? "warn" : "muted"}
+      >
+        <input className="fl-i" inputMode="numeric" placeholder="e.g. 51 824 753 556" value={abn} onChange={(e) => setAbn(e.target.value)} />
       </Field>
       <Field
         label="Odometer (km)"
@@ -558,6 +631,15 @@ export function LogModal({
               re-scan
             </button>
           </div>
+          {/* Whether the docket itself was KEPT is a separate fact from whether
+              Tiff could read it, and it is the one that matters at tax time —
+              so it gets said, either way, rather than being assumed. */}
+          <div className={`fl-keptline${receiptId ? "" : " warn"}`}>
+            <Icon name={receiptId ? "check" : "alert"} size={13} />
+            {receiptId
+              ? "Receipt saved — it'll be filed against this financial year"
+              : receiptWarn ?? "This entry will save without the receipt photo."}
+          </div>
           <div className="fl-grid">{vehiclePicker}{fuelFields}</div>
         </>
       )}
@@ -615,6 +697,185 @@ export function LogModal({
   );
 }
 
+/* ---------------- correcting an entry ---------------- */
+
+/* Editing a log, and removing one.
+
+   A SEPARATE MODAL from LogModal, deliberately. That one is a capture flow: it
+   opens on a camera, it has a scan step, and its whole shape is "get the
+   docket into the app". This is the opposite job — the figures already exist
+   and one of them is wrong — so it opens on the fields, filled in, with no
+   camera anywhere near it. Bending the capture modal into doing both would
+   have meant a mode flag threaded through every branch of it.
+
+   THE RECEIPT IS NOT REPLACEABLE HERE. A stored docket is the evidence for
+   this entry; swapping it for a different photo after the fact is not a
+   correction, it is a substitution. Wrong photo means remove the entry and log
+   it again, which leaves both acts on the record. */
+export function EditLogModal({
+  log,
+  today,
+  onSave,
+  onDelete,
+  onClose,
+}: {
+  log: VehicleLog;
+  today: string;
+  onSave: (patch: LogEdit) => void;
+  onDelete: () => void;
+  onClose: () => void;
+}) {
+  const [litres, setLitres] = useState(log.litres != null ? String(log.litres) : "");
+  const [cost, setCost] = useState(log.cost != null ? log.cost.toFixed(2) : "");
+  const [odo, setOdo] = useState(log.odo != null ? String(log.odo) : "");
+  const [note, setNote] = useState(log.note ?? "");
+  const [station, setStation] = useState(log.station ?? "");
+  const [gst, setGst] = useState(log.gst != null ? log.gst.toFixed(2) : "");
+  const [abn, setAbn] = useState(log.abn ?? "");
+  const [bought, setBought] = useState(isoOf(log, today));
+  const [confirming, setConfirming] = useState(false);
+
+  const isFuel = log.kind === "fuel";
+  const gstOver = gst.trim() !== "" && cost.trim() !== "" && num(gst) > num(cost) / 11 + 0.01;
+  const abnBad = abn.trim() !== "" && abn.replace(/\D/g, "").length !== 11;
+  const ready = !gstOver && !abnBad && (isFuel ? litres.trim() !== "" : true);
+
+  const save = () => {
+    if (!ready) return;
+    onSave({
+      note: note.trim(),
+      odo: odo.trim() ? num(odo) : undefined,
+      ...(isFuel
+        ? {
+            litres: litres.trim() ? num(litres) : undefined,
+            cost: cost.trim() ? num(cost) : undefined,
+            station: station.trim(),
+            gst: gst.trim() ? num(gst) : 0,
+            abn: abn.trim(),
+            purchasedOn: bought.trim() || undefined,
+          }
+        : {}),
+    });
+  };
+
+  return (
+    <FleetModal
+      title="Correct this entry"
+      sub={`${LOG_COPY[log.kind].title} · ${log.when}`}
+      onClose={onClose}
+    >
+      {confirming ? (
+        /* The one destructive act in the fleet screens, so it asks — and says
+           what actually happens, because "delete" is not quite what this does
+           and a person about to press it deserves the real answer. */
+        <div className="fl-danger">
+          <b>Remove this entry?</b>
+          <em>
+            It disappears from the history, the vehicle&rsquo;s odometer is recalculated from what
+            is left, and it stops counting towards tax.
+            {log.hasReceipt && " The receipt stays on file."} The entry is kept, hidden, so a
+            figure that has already gone to your accountant can still be accounted for.
+          </em>
+          <div className="fl-foot">
+            <button className="fl-btn ghost" onClick={() => setConfirming(false)}>
+              Keep it
+            </button>
+            <button className="fl-btn danger arm" onClick={onDelete}>
+              <Icon name="x" size={15} />
+              Remove entry
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          {log.hasReceipt && (
+            <div className="fl-keptline">
+              <Icon name="receipt" size={13} />
+              The receipt on this entry stays as it is — to change the photo, remove the entry and
+              log it again.
+            </div>
+          )}
+          <div className="fl-grid">
+            {isFuel && (
+              <>
+                <Field label="Litres" req>
+                  <input className="fl-i" type="number" value={litres} onChange={(e) => setLitres(e.target.value)} />
+                </Field>
+                <Field label="Cost ($)">
+                  <input className="fl-i" type="number" value={cost} onChange={(e) => setCost(e.target.value)} />
+                </Field>
+                <Field label="Station">
+                  <input className="fl-i" value={station} onChange={(e) => setStation(e.target.value)} />
+                </Field>
+                <Field label="Date on receipt">
+                  <DateField
+                    size="lg"
+                    clearable
+                    today={today}
+                    max={today}
+                    value={bought || null}
+                    onChange={(iso) => setBought(iso ?? "")}
+                  />
+                </Field>
+                <Field
+                  label="GST ($)"
+                  hint={gstOver ? "More than an eleventh of the total — check the docket" : "Only if the receipt shows it"}
+                  hintTone={gstOver ? "warn" : "muted"}
+                >
+                  <input className="fl-i" type="number" value={gst} onChange={(e) => setGst(e.target.value)} />
+                </Field>
+                <Field
+                  label="Supplier ABN"
+                  hint={abnBad ? "An ABN is eleven digits" : undefined}
+                  hintTone={abnBad ? "warn" : "muted"}
+                >
+                  <input className="fl-i" inputMode="numeric" value={abn} onChange={(e) => setAbn(e.target.value)} />
+                </Field>
+              </>
+            )}
+            {log.kind !== "issue" && (
+              <Field label="Odometer (km)" span={!isFuel}>
+                <input className="fl-i" type="number" value={odo} onChange={(e) => setOdo(e.target.value)} />
+              </Field>
+            )}
+            <Field label={log.kind === "issue" ? "What's wrong" : "Note"} span>
+              <textarea className="fl-i" value={note} onChange={(e) => setNote(e.target.value)} />
+            </Field>
+          </div>
+
+          <div className="fl-foot spread">
+            <button className="fl-btn danger" onClick={() => setConfirming(true)}>
+              <Icon name="x" size={15} />
+              Remove
+            </button>
+            <span className="fl-footright">
+              <button className="fl-btn ghost" onClick={onClose}>
+                Cancel
+              </button>
+              <button className="fl-btn primary" disabled={!ready} onClick={save}>
+                <Icon name="check" size={15} />
+                Save correction
+              </button>
+            </span>
+          </div>
+        </>
+      )}
+    </FleetModal>
+  );
+}
+
+/* The log's date back as ISO. VehicleLog carries a DISPLAY date ("Wed 15 Jul")
+   plus how many days ago it was, which is all every other screen needed — and
+   `ago` is exact, so the date is recoverable without widening the projection.
+
+   Anchored on the SERVER's `today`, never on Date.now(): the browser clock is
+   the previous day for most of an Australian working morning, and this value
+   goes back as the date a purchase happened. */
+function isoOf(log: VehicleLog, today: string): string {
+  const t = Date.parse(`${today}T00:00:00Z`) - log.ago * 86_400_000;
+  return new Date(t).toISOString().slice(0, 10);
+}
+
 /* ---------------- vehicle detail + history ---------------- */
 
 export function LogRow({
@@ -622,12 +883,16 @@ export function LogRow({
   manager,
   eco,
   onResolve,
+  onCorrect,
 }: {
   log: VehicleLog;
   manager?: boolean;
   /** L/100km for this fill, when derivable. */
   eco?: number;
   onResolve?: (id: string) => void;
+  /* Present only when this viewer may correct THIS row — the caller works out
+     "mine, or I hold the register" once, rather than every row asking. */
+  onCorrect?: (log: VehicleLog) => void;
 }) {
   const icon = LOG_COPY[log.kind].icon;
   const title =
@@ -638,7 +903,9 @@ export function LogRow({
         : log.kind === "service"
           ? `Service — ${log.note ?? "completed"}`
           : `Issue — ${log.note ?? "reported"}`;
-  const meta = [log.when, log.staffName, log.station].filter(Boolean).join(" · ");
+  const meta = [log.when, log.staffName, log.station, log.edited ? "edited" : null]
+    .filter(Boolean)
+    .join(" · ");
   return (
     <div className={`fl-log${log.kind === "issue" && log.status === "open" ? " open" : ""}`}>
       <span className={`fl-li ${log.kind}`}>
@@ -662,9 +929,25 @@ export function LogRow({
         </span>
       ) : (
         <span className="fl-lr">
+          {/* The docket is kept, so the history says so — this row is what
+              somebody looks at when the question is "do we have the receipt
+              for that fill", months before the Tax screen is opened. */}
+          {log.kind === "fuel" && log.hasReceipt && (
+            <span className="dchip2 ok" title="Receipt stored for tax">
+              <Icon name="receipt" size={12} />
+              Receipt
+            </span>
+          )}
           {typeof eco === "number" && <span className="dchip2 ok">{eco} L/100km</span>}
           {typeof log.odo === "number" && <span className="fl-lo">{fmtKm(log.odo)} km</span>}
         </span>
+      )}
+      {/* Deliberately quiet: correcting an entry is rare, and a button that
+          shouted would make every row look like a problem. */}
+      {onCorrect && (
+        <button className="fl-lfix" onClick={() => onCorrect(log)} aria-label="Correct this entry">
+          <Icon name="edit" size={13} />
+        </button>
       )}
     </div>
   );
@@ -686,6 +969,7 @@ export function DetailModal({
   onLog,
   onResolve,
   onRemove,
+  onCorrect,
 }: {
   vehicle: Vehicle;
   chips: StatusChip[];
@@ -702,6 +986,9 @@ export function DetailModal({
   onLog: (kind: LogKind) => void;
   onResolve: (logId: string) => void;
   onRemove: () => void;
+  /* Every row is correctable here: reaching this modal at all means holding
+     `assets_all`, which is the tier that fixes anyone's entry. */
+  onCorrect?: (log: VehicleLog) => void;
 }) {
   const [confirmRemove, setConfirmRemove] = useState(false);
   const driver = staff.find((s) => s.id === vehicle.assignedTo);
@@ -857,7 +1144,16 @@ export function DetailModal({
         {logs.length === 0 ? (
           <div className="fl-hempty">No activity yet — fuel, odometer and issue logs land here.</div>
         ) : (
-          logs.map((l) => <LogRow key={l.id} log={l} manager={manager} eco={eco[l.id]} onResolve={onResolve} />)
+          logs.map((l) => (
+            <LogRow
+              key={l.id}
+              log={l}
+              manager={manager}
+              eco={eco[l.id]}
+              onResolve={onResolve}
+              onCorrect={onCorrect}
+            />
+          ))
         )}
       </div>
     </FleetModal>

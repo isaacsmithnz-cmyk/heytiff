@@ -5,6 +5,6 @@ import { loadFleetPage } from "@/lib/fleet/page-data";
    `assets_all` gates the register, never this. */
 
 export default async function MyVehiclePage() {
-  const { own } = await loadFleetPage({ withRegister: false });
-  return <MyVehicleScreen own={own} />;
+  const { own, today, viewerStaffId } = await loadFleetPage({ withRegister: false });
+  return <MyVehicleScreen own={own} today={today} viewerStaffId={viewerStaffId} />;
 }

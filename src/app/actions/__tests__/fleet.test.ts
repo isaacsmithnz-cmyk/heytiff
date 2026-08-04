@@ -9,21 +9,45 @@ const select = jest.fn();
 
 let vehicleRow: Record<string, unknown> | null = null;
 let staffRow: Record<string, unknown> | null = { id: "staff-1" };
+/* The row editLog/deleteLog fetch before deciding anything. Whose it is
+   decides whether the caller may touch it, so tests move it around. */
+let logRow: Record<string, unknown> | null = null;
+/* What the surviving-logs read returns, for the odometer resync. */
+let survivingLogs: Record<string, unknown>[] = [];
 
 const table = (name: string) => {
   const chain: Record<string, unknown> = { _table: name };
   const self = () => chain;
   chain.eq = self;
+  // adoptReceipt filters on "not uploaded_at is null" and "vehicle_log_id is
+  // null" — both are pass-throughs here; what the test cares about is the
+  // update that reaches `documents`, not the shape of the filter.
+  chain.not = self;
+  chain.is = self;
   chain.select = (cols: string) => {
     select(name, cols);
     return chain;
   };
+  /* An insert now reads its id back, so maybeSingle has to answer as the
+     inserted row once one has been made on this chain. */
+  let inserted = false;
   chain.maybeSingle = async () => ({
-    data: name === "vehicles" ? vehicleRow : staffRow,
+    data: inserted
+      ? { id: "log-1" }
+      : name === "vehicles"
+        ? vehicleRow
+        : name === "vehicle_logs"
+          ? logRow
+          : staffRow,
   });
+  /* A select that is awaited rather than narrowed to one row — the surviving
+     logs the odometer is recomputed from. */
+  chain.then = (res: (v: { data: unknown; error: null }) => unknown) =>
+    Promise.resolve({ data: name === "vehicle_logs" ? survivingLogs : [], error: null }).then(res);
   chain.insert = (row: unknown) => {
     insert(name, row);
-    return Promise.resolve({ error: null });
+    inserted = true;
+    return chain;
   };
   chain.update = (row: unknown) => {
     update(name, row);
@@ -33,7 +57,6 @@ const table = (name: string) => {
     del(name);
     return chain;
   };
-  chain.then = (res: (v: { error: null }) => unknown) => Promise.resolve({ error: null }).then(res);
   return chain;
 };
 
@@ -48,7 +71,7 @@ jest.mock("@/lib/permissions-server", () => ({
 }));
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
 
-import { addLog, assignVehicle, removeVehicle, resolveIssue } from "../fleet";
+import { addLog, assignVehicle, deleteLog, editLog, removeVehicle, resolveIssue } from "../fleet";
 
 const VEHICLE = { id: "v-1", status: "active", odometer: 84120, last_service_odo: 80000, assigned_to: null };
 
@@ -57,6 +80,8 @@ beforeEach(() => {
   caps = new Set(["assets_all"]);
   vehicleRow = { ...VEHICLE };
   staffRow = { id: "staff-1" };
+  logRow = null;
+  survivingLogs = [];
 });
 
 describe("register actions need assets_all", () => {
@@ -126,5 +151,155 @@ describe("logging is intrinsic", () => {
   it("refuses a sold vehicle outright", async () => {
     vehicleRow = { ...VEHICLE, status: "sold" };
     expect((await addLog({ vehicleId: "v-1", kind: "issue", note: "x" })).ok).toBe(false);
+  });
+});
+
+/* The tax half of a fuel log. The server re-decides these exactly as it
+   re-decides the odometer: the modal's warnings are a courtesy, and a direct
+   POST gets the same answer. */
+describe("fuel logs carry their tax record", () => {
+  it("writes the GST and the ABN off the docket", async () => {
+    const res = await addLog({
+      vehicleId: "v-1",
+      kind: "fuel",
+      litres: 62.4,
+      cost: 158.4,
+      gst: 14.4,
+      abn: "51 824 753 556",
+    });
+    expect(res).toEqual({ ok: true });
+    expect(insert.mock.calls[0][1]).toMatchObject({ gst: 14.4, supplier_abn: "51824753556" });
+  });
+
+  it("dates the row from the docket, not from today", async () => {
+    await addLog({ vehicleId: "v-1", kind: "fuel", litres: 50, cost: 100, purchasedOn: "2026-07-31" });
+    expect(insert.mock.calls[0][1]).toMatchObject({ logged_on: "2026-07-31" });
+  });
+
+  it("refuses a GST bigger than an eleventh, and writes nothing", async () => {
+    const res = await addLog({ vehicleId: "v-1", kind: "fuel", litres: 50, cost: 158.4, gst: 40 });
+    expect(res.ok).toBe(false);
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it("refuses a future docket date, and writes nothing", async () => {
+    const res = await addLog({ vehicleId: "v-1", kind: "fuel", litres: 50, cost: 100, purchasedOn: "2099-01-01" });
+    expect(res.ok).toBe(false);
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it("binds the uploaded docket to the log it belongs to", async () => {
+    await addLog({
+      vehicleId: "v-1",
+      kind: "fuel",
+      litres: 62.4,
+      cost: 158.4,
+      receiptDocumentId: "doc-77",
+    });
+    expect(update).toHaveBeenCalledWith("documents", { vehicle_log_id: "log-1" });
+  });
+
+  it("never carries tax columns onto a log that isn't fuel", async () => {
+    // a stale field on a reused form must not put a supplier on an odo reading
+    await addLog({ vehicleId: "v-1", kind: "odo", odo: 84800, gst: 9, abn: "51824753556" });
+    expect(insert.mock.calls[0][1]).toMatchObject({ gst: null, supplier_abn: null });
+  });
+});
+
+/* Correcting an entry. The rules that matter are who may do it, that the tax
+   figures are re-decided rather than trusted, and that the vehicle is put back
+   where the SURVIVING logs say it is. */
+describe("editing and removing a log", () => {
+  const FUEL_LOG = {
+    id: "log-1",
+    vehicle_id: "v-1",
+    kind: "fuel",
+    staff_profile_id: "staff-1",
+    cost: 158.4,
+    deleted_at: null,
+  };
+
+  it("lets you correct your own entry without any capability", async () => {
+    caps = new Set();
+    logRow = { ...FUEL_LOG };
+    const res = await editLog("log-1", { litres: 60 });
+    expect(res).toEqual({ ok: true });
+    expect(update.mock.calls[0][1]).toMatchObject({ litres: 60, edited_by: "staff-1" });
+  });
+
+  it("refuses someone else's entry unless you hold assets_all", async () => {
+    caps = new Set();
+    logRow = { ...FUEL_LOG, staff_profile_id: "staff-9" };
+    expect((await editLog("log-1", { litres: 60 })).ok).toBe(false);
+    expect((await deleteLog("log-1")).ok).toBe(false);
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("lets the register fix anyone's entry", async () => {
+    caps = new Set(["assets_all"]);
+    logRow = { ...FUEL_LOG, staff_profile_id: "staff-9" };
+    expect((await editLog("log-1", { litres: 60 })).ok).toBe(true);
+  });
+
+  it("re-runs the GST rule against the EDITED cost, not the stored one", async () => {
+    // 14.40 was fine against $158.40; it is not fine once the total drops to $40
+    logRow = { ...FUEL_LOG };
+    const res = await editLog("log-1", { cost: 40, gst: 14.4 });
+    expect(res.ok).toBe(false);
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("refuses a future receipt date on an edit too", async () => {
+    logRow = { ...FUEL_LOG };
+    expect((await editLog("log-1", { purchasedOn: "2099-01-01" })).ok).toBe(false);
+  });
+
+  it("allows an odometer correction DOWNWARD — the main reason anyone edits one", async () => {
+    /* The add-time guardrail refuses readings below the vehicle's current one,
+       and the vehicle's current one may have come from this very log. Applying
+       it here would make a fat-fingered 848000 permanently uncorrectable. */
+    logRow = { ...FUEL_LOG, kind: "odo" };
+    vehicleRow = { ...VEHICLE, odometer: 848000 };
+    const res = await editLog("log-1", { odo: 84800 });
+    expect(res).toEqual({ ok: true });
+  });
+
+  it("still refuses a negative reading", async () => {
+    logRow = { ...FUEL_LOG, kind: "odo" };
+    expect((await editLog("log-1", { odo: -5 })).ok).toBe(false);
+  });
+
+  it("hides a removed entry rather than destroying it", async () => {
+    logRow = { ...FUEL_LOG };
+    const res = await deleteLog("log-1");
+    expect(res).toEqual({ ok: true });
+    expect(del).not.toHaveBeenCalled();
+    expect(update.mock.calls[0][1]).toMatchObject({ deleted_by: "staff-1" });
+    expect(update.mock.calls[0][1]).toHaveProperty("deleted_at");
+  });
+
+  it("winds the odometer back to the highest surviving reading", async () => {
+    logRow = { ...FUEL_LOG };
+    vehicleRow = { ...VEHICLE, odometer: 90000 };
+    survivingLogs = [{ kind: "fuel", odo: 84800 }, { kind: "fuel", odo: 84120 }];
+    await deleteLog("log-1");
+    expect(update).toHaveBeenCalledWith("vehicles", expect.objectContaining({ odometer: 84800 }));
+  });
+
+  it("leaves the odometer alone when no reading survives", async () => {
+    // the number a vehicle was added with exists nowhere else, so it cannot be
+    // recovered — and reading high is the safe direction
+    logRow = { ...FUEL_LOG };
+    vehicleRow = { ...VEHICLE, odometer: 90000 };
+    survivingLogs = [];
+    await deleteLog("log-1");
+    const vehicleUpdates = update.mock.calls.filter((c) => c[0] === "vehicles");
+    expect(vehicleUpdates).toHaveLength(0);
+  });
+
+  it("refuses an entry that is already gone", async () => {
+    logRow = { ...FUEL_LOG, deleted_at: "2026-08-01T00:00:00Z" };
+    expect((await editLog("log-1", { litres: 60 })).ok).toBe(false);
+    expect((await deleteLog("log-1")).ok).toBe(false);
   });
 });

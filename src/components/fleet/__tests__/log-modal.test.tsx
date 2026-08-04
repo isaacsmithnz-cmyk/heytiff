@@ -7,6 +7,11 @@ import type { NewLog, Vehicle } from "../logic";
 jest.mock("@/app/actions/fleet-ai", () => ({
   readFuelReceipt: jest.fn(async () => ({ ok: false, reason: "no-key" })),
 }));
+// storing the docket reaches a server action too — same rule, and mocking it
+// keeps auth0's ESM out of the module graph
+jest.mock("@/lib/documents/upload-client", () => ({
+  uploadFile: jest.fn(async () => ({ ok: false, error: "not in a test" })),
+}));
 
 const vehicle = (over: Partial<Vehicle> = {}): Vehicle => ({
   id: "vrf-04",
@@ -39,6 +44,7 @@ function setup(kind: "fuel" | "odo" = "odo", opts: { withFleet?: boolean } = { w
   render(
     <LogModal
       kind={kind}
+      today="2026-08-04"
       vehicle={mine}
       fleetVehicles={opts.withFleet ? fleetVehicles : undefined}
       onSave={onSave}

@@ -11,9 +11,17 @@
    floor-plan storage already makes — instead of trusting whatever id came in
    with the request. */
 
+/* `receipt` and `fuel_receipt` are deliberately TWO kinds, not one with a
+   flag. A docket is adopted by exactly one owner — an expense claim or a
+   vehicle log — and the kind is what stops the wrong one claiming it. Merged,
+   a fuel docket could be attached to a reimbursement claim and the same
+   $158.40 would land in the tax export twice, once as fuel and once as a
+   staff expense. Two kinds makes that a type error instead of a discrepancy
+   somebody finds in June. */
 export type DocumentKind =
   | "notice_attachment"
   | "receipt"
+  | "fuel_receipt"
   | "licence"
   | "work_rights"
   | "org_logo"
@@ -24,6 +32,7 @@ export type DocumentKind =
 export const DOCUMENT_KINDS: readonly DocumentKind[] = [
   "notice_attachment",
   "receipt",
+  "fuel_receipt",
   "licence",
   "work_rights",
   "org_logo",

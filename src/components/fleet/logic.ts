@@ -69,6 +69,17 @@ export type NewLog = {
   odo?: number;
   source?: "scan" | "manual";
   station?: string;
+  /* ---- the tax half of a fuel log ---- */
+  /** GST as printed on the docket. Absent means the docket didn't show one —
+      never a calculated eleventh. */
+  gst?: number;
+  /** Supplier ABN, eleven digits, no spaces. */
+  abn?: string;
+  /** The date on the docket. Absent = bought today, which is the common case;
+      the server decides either way and refuses anything implausible. */
+  purchasedOn?: string;
+  /** The stored receipt photo, already uploaded, waiting to be adopted. */
+  receiptDocumentId?: string;
 };
 
 export type VehicleLog = {
@@ -86,6 +97,15 @@ export type VehicleLog = {
   status?: "open" | "resolved"; // issues only
   source?: "scan" | "manual"; // fuel logs: receipt-scanned vs typed
   station?: string; // fuel logs: where the fill happened
+  gst?: number; // fuel logs: GST as printed on the docket
+  abn?: string; // fuel logs: supplier ABN, eleven digits
+  /** True when the docket photo is stored against this log — the difference
+      between a figure somebody typed and one you can produce at audit. */
+  hasReceipt?: boolean;
+  /** True once somebody has corrected this entry. Said on the row rather than
+      hidden: a figure that has been changed is a different kind of fact from
+      one nobody has touched. */
+  edited?: boolean;
 };
 
 export const STATUS_LABEL: Record<VehicleStatus, string> = {
@@ -253,6 +273,39 @@ export function odoEffect(
   if (log.kind === "service")
     return { odometer: Math.max(v.odometer, log.odo), lastServiceOdo: log.odo };
   return log.odo > v.odometer ? { odometer: log.odo } : null;
+}
+
+/* What the vehicle's odometer should be once a log has been edited or removed.
+
+   RECOMPUTED, never reversed. Undoing a delta ("this log added 680 km, take
+   them back") needs the odometer to have been touched by nothing else since,
+   which is not true the moment two people log a fill on the same day. The
+   surviving readings are the whole truth, and the guardrail guarantees the
+   answer: a reading below the current odometer is refused at save time, so the
+   highest surviving reading is always where the vehicle actually is.
+
+   WHEN NOTHING SURVIVES the value is left alone, because it cannot be
+   recovered — a vehicle is added with an odometer already on it, and that
+   number exists nowhere else. Left alone it reads high, which is the safe
+   direction: the guardrail only ever refuses readings that are too LOW.
+
+   The service cycle is left alone for the same reason and a sharper one: it is
+   a field on the vehicle that a manager sets directly, and logs only push it
+   forward. Wiping it because the last service log was deleted would throw away
+   something nobody asked to delete. */
+export function odoRecompute(
+  logs: readonly { kind: LogKind; odo?: number }[],
+  current: { odometer: number; lastServiceOdo: number },
+): { odometer: number; lastServiceOdo: number } {
+  const readings = logs.map((l) => l.odo).filter((o): o is number => typeof o === "number");
+  const services = logs
+    .filter((l) => l.kind === "service")
+    .map((l) => l.odo)
+    .filter((o): o is number => typeof o === "number");
+  return {
+    odometer: readings.length > 0 ? Math.max(...readings) : current.odometer,
+    lastServiceOdo: services.length > 0 ? Math.max(...services) : current.lastServiceOdo,
+  };
 }
 
 export function logsFor(logs: VehicleLog[], vehicleId: string): VehicleLog[] {

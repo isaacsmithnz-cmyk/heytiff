@@ -18,11 +18,21 @@ import {
    The capability decides which QUERIES run, so the extra columns are never
    read, let alone serialised into the page. */
 
-export type FleetPageData = { own: OwnFleet; register?: Register; today: string };
+export type FleetPageData = {
+  own: OwnFleet;
+  register?: Register;
+  today: string;
+  /* Who is looking. Correcting your OWN entry needs no capability, so the
+     screens have to be able to tell which rows are yours — and the answer is
+     the server's staff-profile id, not anything the browser could assert.
+     It is only ever compared, never displayed. */
+  viewerStaffId: string | null;
+};
 
 const EMPTY: FleetPageData = {
   own: { vehicle: null, pickable: [], logs: [] },
   today: todayInAu(),
+  viewerStaffId: null,
 };
 
 export async function loadFleetPage(opts: { withRegister: boolean }): Promise<FleetPageData> {
@@ -43,12 +53,13 @@ export async function loadFleetPage(opts: { withRegister: boolean }): Promise<Fl
   };
   const today = todayInAu();
 
-  if (!opts.withRegister || !(await can("assets_all"))) return { own, today };
+  if (!opts.withRegister || !(await can("assets_all")))
+    return { own, today, viewerStaffId: staffId };
 
   const [{ vehicles, aiValues }, logs, staff] = await Promise.all([
     listVehicles(orgId),
     listLogs(orgId),
     listFleetStaff(orgId),
   ]);
-  return { own, register: { vehicles, logs, aiValues, staff }, today };
+  return { own, register: { vehicles, logs, aiValues, staff }, today, viewerStaffId: staffId };
 }

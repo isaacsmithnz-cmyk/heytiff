@@ -34,11 +34,22 @@ describe("system map registry", () => {
   it("standalone pieces are exactly the ones we mean to be standalone", () => {
     // Going connected ↔ standalone should be a conscious decision: update this
     // list together with the edge change. The three hand-authored toolbox
-    // tools are deliberately pack-free and backend-free; `tiff` stays here
-    // until the knowledge screen is wired to the live documents track.
+    // tools are deliberately pack-free and backend-free. `tiff` LEFT this list
+    // when the knowledge base landed — it has its own store and two vendors.
     expect(standaloneIds().sort()).toEqual(
-      ["hq-map", "tb-fault", "tb-outdoor", "tb-press", "tiff"].sort()
+      ["hq-map", "tb-fault", "tb-outdoor", "tb-press"].sort()
     );
+  });
+
+  it("Tiff reaches its own store and the two services that read for it", () => {
+    // The store is FIRST and is the point: an answer Tiff can't trace to a
+    // chunk in kb_chunks isn't a knowledge-base answer. The embeddings vendor
+    // is optional at runtime (no key ⇒ keyword-only) but the edge is real.
+    expect(drawsFrom("tiff").map((e) => e.to).sort()).toEqual(
+      ["anthropic", "db-kb", "voyage"].sort()
+    );
+    // and nothing else writes into the library's tables
+    expect(feeds("db-kb").map((e) => e.from)).toEqual(["tiff"]);
   });
 
   it("helpers agree with the raw edge list", () => {

@@ -11,7 +11,8 @@ import { KnowledgeBase, type KbLibraryDoc, type KbQuotaView } from "../knowledge
    mocked here so a row's pill is the row's, not a network race's. */
 
 const refresh = jest.fn();
-jest.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
+const push = jest.fn();
+jest.mock("next/navigation", () => ({ useRouter: () => ({ refresh, push }) }));
 
 const kbDocUrl = jest.fn();
 const retryKbDoc = jest.fn();
@@ -149,7 +150,7 @@ describe("opening the document", () => {
     kbDocUrl.mockResolvedValue({ ok: true, url: "https://signed.example/manual.pdf" });
 
     render(<KnowledgeBase docs={[doc()]} />);
-    await userEvent.click(screen.getByRole("button", { name: /City Multi fault codes/ }));
+    await userEvent.click(screen.getByRole("button", { name: "City Multi fault codes" }));
 
     await waitFor(() => expect(tab.location.href).toBe("https://signed.example/manual.pdf"));
     expect(kbDocUrl).toHaveBeenCalledWith("d-1");
@@ -162,7 +163,7 @@ describe("opening the document", () => {
     kbDocUrl.mockResolvedValue({ ok: false, error: "That document is no longer here." });
 
     render(<KnowledgeBase docs={[doc()]} />);
-    await userEvent.click(screen.getByRole("button", { name: /City Multi fault codes/ }));
+    await userEvent.click(screen.getByRole("button", { name: "City Multi fault codes" }));
 
     expect(await screen.findByText("That document is no longer here.")).toBeInTheDocument();
     expect(tab.close).toHaveBeenCalled();
@@ -189,6 +190,51 @@ describe("the month's page allowance", () => {
   it("is a manager's line — staff are not billed and are not told", () => {
     render(<KnowledgeBase docs={[doc()]} quota={quota()} />);
     expect(screen.queryByText(/pages this month/)).not.toBeInTheDocument();
+  });
+});
+
+/* ── "Ask Tiff about this document" (brief §4D) ──────────────────────────── */
+
+describe("asking Tiff about a row", () => {
+  const ASK_KEY = "heytiff.tiff.ask.v1";
+
+  beforeEach(() => sessionStorage.clear());
+
+  /* Reading the library and asking about it are the same permission —
+     `tiff_manage` is about CHANGING the library, not using it. */
+  it("is offered to staff, not only to the people who can upload", () => {
+    render(<KnowledgeBase docs={[doc()]} />);
+    expect(
+      screen.getByRole("button", { name: "Ask Tiff about City Multi fault codes" })
+    ).toBeInTheDocument();
+  });
+
+  it("leaves the document as the opening of a sentence and goes to Tiff", async () => {
+    render(<KnowledgeBase docs={[doc()]} canManage />);
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Ask Tiff about City Multi fault codes" })
+    );
+
+    expect(sessionStorage.getItem(ASK_KEY)).toBe("In “City Multi fault codes”, ");
+    expect(push).toHaveBeenCalledWith("/dashboard/tiff");
+  });
+
+  /* Tiff can't be asked about pages it hasn't read. An affordance that leads
+     to a shrug is worse than no affordance. */
+  it("stays off a document Tiff hasn't finished reading", () => {
+    render(
+      <KnowledgeBase
+        docs={[
+          doc({ status: "processing", nextPage: 40 }),
+          doc({ id: "d-2", title: "PUZ install manual", status: "failed", error: "Couldn't be read" }),
+          doc({ id: "d-3", title: "Warranty SOP", status: "paused" }),
+        ]}
+        canManage
+      />
+    );
+
+    expect(screen.queryByRole("button", { name: /^Ask Tiff about/ })).not.toBeInTheDocument();
   });
 });
 

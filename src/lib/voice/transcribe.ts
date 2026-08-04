@@ -88,20 +88,30 @@ export function isTranscriptionConfigured(): boolean {
 
 /** Clean a keyterm list to what the vendor documents it will accept: drop the
     unusable, de-duplicate case-insensitively, and cap the length. Exported
-    because the rules are worth testing without a network call. */
-export function prepareKeyterms(raw: readonly string[]): string[] {
+    because the rules are worth testing without a network call.
+
+    `limits` exists because the two transports do NOT accept the same list —
+    the realtime socket takes 50 terms of 20 characters where the batch
+    endpoint takes far more of 50. One cleaner, the caller states its ceiling;
+    omitting it keeps the batch numbers, so every existing call is unchanged. */
+export function prepareKeyterms(
+  raw: readonly string[],
+  limits: { maxChars?: number; maxTerms?: number } = {}
+): string[] {
+  const maxChars = limits.maxChars ?? KEYTERM_MAX_CHARS;
+  const maxTerms = limits.maxTerms ?? KEYTERM_LIMIT;
   const out: string[] = [];
   const seen = new Set<string>();
   for (const term of raw) {
     const t = typeof term === "string" ? term.trim() : "";
-    if (!t || t.length >= KEYTERM_MAX_CHARS) continue;
+    if (!t || t.length >= maxChars) continue;
     if (t.split(/\s+/).length > KEYTERM_MAX_WORDS) continue;
     if (KEYTERM_BANNED.test(t)) continue;
     const key = t.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
     out.push(t);
-    if (out.length >= KEYTERM_LIMIT) break;
+    if (out.length >= maxTerms) break;
   }
   return out;
 }
@@ -126,13 +136,56 @@ async function logUpstreamFailure(res: Response): Promise<void> {
   console.error(`[transcribe] ElevenLabs ${res.status} ${res.statusText}: ${detail}`);
 }
 
-export type TranscriptionResult =
-  | { ok: true; text: string; languageCode: string | null }
-  | { ok: false; error: string };
-
+/** The only sentences either transport is allowed to hand to a person. */
 const UNAVAILABLE = "Voice notes aren't switched on yet — type it instead.";
 const FAILED = "That recording couldn't be transcribed. Try again, or type it.";
 const EMPTY = "Nothing was said in that recording.";
+
+/* ── the live transport's key ──
+
+   A browser cannot hold `ELEVENLABS_API_KEY`, and the socket has to be
+   opened BY the browser: Vercel Hobby functions can't hold a WebSocket
+   open, so proxying the audio through us isn't a thing we get to choose.
+   The vendor's answer is a single-use token — 15 minutes, consumed on use,
+   no account access — minted here where the real key already lives.
+
+   This is still the one vendor adapter. The token is the same key by
+   another name, so it comes from the same file as the key. */
+export type TokenResult = { ok: true; token: string } | { ok: false; error: string };
+
+const TOKEN_ENDPOINT = "https://api.elevenlabs.io/v1/single-use-token/realtime_scribe";
+const TOKEN_TIMEOUT_MS = 10_000;
+
+export async function mintRealtimeToken(): Promise<TokenResult> {
+  const apiKey = process.env.ELEVENLABS_API_KEY;
+  if (!apiKey) return { ok: false, error: UNAVAILABLE };
+
+  try {
+    const res = await fetch(TOKEN_ENDPOINT, {
+      method: "POST",
+      headers: { "xi-api-key": apiKey },
+      signal: AbortSignal.timeout(TOKEN_TIMEOUT_MS),
+    });
+    if (!res.ok) {
+      await logUpstreamFailure(res);
+      return { ok: false, error: FAILED };
+    }
+    const body: unknown = await res.json();
+    const token =
+      body && typeof body === "object" && typeof (body as Record<string, unknown>).token === "string"
+        ? ((body as Record<string, unknown>).token as string)
+        : "";
+    if (!token) return { ok: false, error: FAILED };
+    return { ok: true, token };
+  } catch (err) {
+    console.error(`[transcribe] token request failed: ${err instanceof Error ? err.message : String(err)}`);
+    return { ok: false, error: FAILED };
+  }
+}
+
+export type TranscriptionResult =
+  | { ok: true; text: string; languageCode: string | null }
+  | { ok: false; error: string };
 
 /** Transcribe one recording. `keyterms` biases the model toward words it
     would otherwise mishear — pass staff first names plus TRADE_KEYTERMS.

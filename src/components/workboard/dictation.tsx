@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/shell/icon";
+import { startRealtime, type RealtimeHandle } from "@/lib/voice/realtime-stream";
+import { clearRun, markStopped, markTranscript } from "@/lib/voice/timing";
 
 /* Dictation, extracted from the note pill so every box you'd type a paragraph
    into can have it (Isaac, 2026-08-02: "anywhere that you need to enter notes
@@ -11,20 +13,72 @@ import { Icon } from "@/components/shell/icon";
    ROUTING a note into tasks and flags, and dictation is just how you get
    words in. They're separate concerns and now they're separate code.
 
-   The engine itself is unchanged and stays honest about what it does: it
-   records, and it transcribes WHEN YOU STOP. Nothing streams word by word —
-   the prototype's live transcript was scripted demo code, and a box that
-   pretends to hear you in real time is a promise this can't keep. The level
-   meter is real samples, so if the bars don't move, nothing is being heard.
+   TWO TRANSPORTS, ONE HOOK. By default this records and transcribes WHEN
+   YOU STOP — the shipped behaviour, unchanged. Built with
+   NEXT_PUBLIC_VOICE_REALTIME=1 it also opens a socket to Scribe v2 Realtime
+   and words appear as they're said (same dev-flag mechanism as
+   NEXT_PUBLIC_STUDIO_SIM: inlined at build time, so flipping it is a
+   redeploy). The flag chooses a transport, never a feature — every caller's
+   props are the same either way, which is the point of putting the choice
+   here rather than in six components.
+
+   THE RECORDER RUNS IN BOTH MODES, and that is the safety model, not an
+   oversight. The live path can fail at the token, the handshake, the
+   worklet, a vendor error, a dropped socket or an empty transcript; in
+   every one of those cases the MediaRecorder has been running the whole
+   time, so the audio uploads the old way and the person never finds out.
+   A live transcript is a nicety. The words are not.
+
+   The level meter is real samples, so if the bars don't move, nothing is
+   being heard.
 
    The mic is always an ENHANCEMENT. No key, no permission, no MediaRecorder —
    the box is still a plain textarea you can type into. */
+
+/** Inlined at build time — a live transcript is opt-in per deployment. */
+const REALTIME = process.env.NEXT_PUBLIC_VOICE_REALTIME === "1";
+
+const OVERRIDE_KEY = "heytiff.voice.transport";
+
+/* A build-time flag can't be A/B'd: every swap is a redeploy of production,
+   which is no way to find out whether the live path is actually faster. So
+   `?voice=live` / `?voice=batch` beats the flag for the rest of the browser
+   session — enough to measure both against the same note, on the same
+   connection, minutes apart.
+
+   sessionStorage, not localStorage: an override is for an afternoon of
+   measuring, and one that outlives the tab would eventually have someone
+   debugging a transport nobody remembers choosing. `?voice=` with anything
+   else clears it.
+
+   Read in the click handler and never during render — a value that differs
+   between server and client would tear hydration if it reached the markup,
+   and this one deliberately does not. */
+export function transportChoice(): boolean {
+  if (typeof window === "undefined") return REALTIME;
+  try {
+    const asked = new URLSearchParams(window.location.search).get("voice");
+    if (asked === "live" || asked === "batch") sessionStorage.setItem(OVERRIDE_KEY, asked);
+    else if (asked !== null) sessionStorage.removeItem(OVERRIDE_KEY);
+
+    const chosen = sessionStorage.getItem(OVERRIDE_KEY);
+    if (chosen === "live") return true;
+    if (chosen === "batch") return false;
+  } catch {
+    /* private mode, or storage disabled — the flag still decides */
+  }
+  return REALTIME;
+}
 
 type DictationState = {
   recording: boolean;
   /** Sending the audio off and waiting for words back. */
   transcribing: boolean;
   seconds: number;
+  /** Words heard SO FAR, while they're still being said. Always "" on the
+      batch transport — a caller that shows it simply shows nothing until
+      the live path is switched on. */
+  interim: string;
   /** Bind to the level-meter element; the meter writes to it every frame. */
   barsRef: React.RefObject<HTMLSpanElement | null>;
   start: () => void;
@@ -43,10 +97,12 @@ export function useDictation({
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [seconds, setSeconds] = useState(0);
+  const [interim, setInterim] = useState("");
   const recorder = useRef<MediaRecorder | null>(null);
   const discard = useRef(false);
   const barsRef = useRef<HTMLSpanElement | null>(null);
   const meter = useRef<{ ctx: AudioContext; raf: number } | null>(null);
+  const live = useRef<RealtimeHandle | null>(null);
 
   /* The callbacks live in a ref so the recorder's own handlers always see the
      current ones without the effect below re-running and dropping the mic. */
@@ -103,6 +159,8 @@ export function useDictation({
   useEffect(
     () => () => {
       stopMeter();
+      live.current?.cancel();
+      live.current = null;
       const rec = recorder.current;
       if (rec?.state === "recording") {
         discard.current = true;
@@ -112,46 +170,122 @@ export function useDictation({
     []
   );
 
+  /** The batch transport, unchanged — and now also the live one's floor. */
+  const upload = async (blob: Blob) => {
+    try {
+      const form = new FormData();
+      form.append("audio", blob, "note.webm");
+      const res = await fetch("/api/workboard/transcribe", { method: "POST", body: form });
+      const body = (await res.json()) as { text?: string; error?: string };
+      if (!res.ok || !body.text) {
+        /* A run that never reaches a proposal has to be dropped, or the
+           NEXT note — quite possibly a typed one — prints its `routed`
+           measured from a stop that happened minutes ago. */
+        clearRun();
+        cbs.current.onError?.(body.error ?? "That recording couldn't be read. Type it instead.");
+        return;
+      }
+      markTranscript("batch");
+      cbs.current.onTranscript(body.text);
+    } catch {
+      clearRun();
+      cbs.current.onError?.("That recording couldn't be sent. Type it instead.");
+    }
+  };
+
+  /* Try to bring the socket up alongside the recorder. Deliberately NOT
+     awaited by `start`: the mic is already recording by the time this runs,
+     so a slow token or a refused handshake costs a live transcript and
+     nothing else. Every failure here is silent by design — there is nothing
+     to tell the person, because nothing they asked for has been lost. */
+  const goLive = async (stream: MediaStream) => {
+    try {
+      const res = await fetch("/api/workboard/transcribe/token", { method: "POST" });
+      if (!res.ok) return;
+      const { token, keyterms } = (await res.json()) as { token?: string; keyterms?: string[] };
+      if (!token) return;
+      const handle = await startRealtime({
+        stream,
+        token,
+        keyterms: keyterms ?? [],
+        onText: setInterim,
+      });
+      /* Stopped or discarded while the handshake was in flight — the socket
+         is now nobody's, so close it rather than leak a paid stream. */
+      if (recorder.current?.state !== "recording") {
+        handle.cancel();
+        return;
+      }
+      live.current = handle;
+    } catch (err) {
+      console.error(`[dictation] live transport unavailable: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
   const start = () => {
     void (async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         const rec = new MediaRecorder(stream);
         discard.current = false;
+        setInterim("");
         startMeter(stream);
         const chunks: BlobPart[] = [];
         rec.ondataavailable = (e) => {
           if (e.data.size > 0) chunks.push(e.data);
         };
         rec.onstop = async () => {
-          stream.getTracks().forEach((t) => t.stop());
+          const handle = live.current;
+          live.current = null;
           stopMeter();
           setRecording(false);
-          if (discard.current) return;
-          const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
-          if (blob.size === 0) return;
+          /* The clock starts the moment they stop talking, because that is
+             the moment they start waiting. */
+          markStopped();
+
+          if (discard.current) {
+            handle?.cancel();
+            stream.getTracks().forEach((t) => t.stop());
+            setInterim("");
+            clearRun();
+            return;
+          }
 
           setTranscribing(true);
           try {
-            const form = new FormData();
-            form.append("audio", blob, "note.webm");
-            const res = await fetch("/api/workboard/transcribe", { method: "POST", body: form });
-            const body = (await res.json()) as { text?: string; error?: string };
-            if (!res.ok || !body.text) {
-              cbs.current.onError?.(body.error ?? "That recording couldn't be read. Type it instead.");
+            /* The live transcript first, because it is already finished.
+               `stop()` only flushes the last utterance — it does not wait
+               for the whole recording to be processed, which is the entire
+               difference between this path and the one below it. */
+            if (handle) {
+              const text = (await handle.stop()).trim();
+              if (text) {
+                markTranscript("live");
+                cbs.current.onTranscript(text);
+                return;
+              }
+              /* Socket produced nothing. The clip is still in `chunks`. */
+            }
+
+            const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
+            if (blob.size === 0) {
+              clearRun();
               return;
             }
-            cbs.current.onTranscript(body.text);
-          } catch {
-            cbs.current.onError?.("That recording couldn't be sent. Type it instead.");
+            await upload(blob);
           } finally {
+            /* The tracks are held until here so the live path can flush the
+               last sentence off a stream that is still open. */
+            stream.getTracks().forEach((t) => t.stop());
             setTranscribing(false);
+            setInterim("");
           }
         };
         recorder.current = rec;
         rec.start();
         setSeconds(0);
         setRecording(true);
+        if (transportChoice()) void goLive(stream);
       } catch {
         // graceful floor: whatever asked for this stays usable by typing
         cbs.current.onError?.("No microphone available — type it instead.");
@@ -167,7 +301,7 @@ export function useDictation({
     recorder.current.stop();
   };
 
-  return { recording, transcribing, seconds, barsRef, start, stop, cancel };
+  return { recording, transcribing, seconds, interim, barsRef, start, stop, cancel };
 }
 
 /** The five-bar real-sample meter — bind `ref` to a dictation's `barsRef`. */
@@ -184,10 +318,22 @@ export function LevelBars({ innerRef }: { innerRef: React.RefObject<HTMLSpanElem
 export const clockOf = (seconds: number) =>
   `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 
+/** Dictation APPENDS to what's already typed. One function because the live
+    transport needs the same join to preview the sentence in the box as the
+    committed transcript needs to land it — if they drifted apart, the words
+    would visibly jump when you stopped talking. */
+export const appendSpoken = (typed: string, spoken: string): string =>
+  typed.trim() ? `${typed.trim()} ${spoken}` : spoken;
+
 /* ── the field ──
    A textarea with a mic in its corner. Dictation APPENDS rather than
    replaces: you say a bit, type a correction, say the rest — replacing would
-   make the second press silently eat the first. */
+   make the second press silently eat the first.
+
+   On the live transport the words show up in the field as they're said,
+   which is the whole reason it exists — but they are NOT committed to
+   `value` until you stop, because a partial transcript is revisable and the
+   caller's state should only ever hold text the model has finished with. */
 
 export function DictateBox({
   value,
@@ -214,7 +360,7 @@ export function DictateBox({
   const dict = useDictation({
     onTranscript: (text) => {
       setErr(null);
-      onChange(value.trim() ? `${value.trim()} ${text}` : text);
+      onChange(appendSpoken(value, text));
     },
     onError: setErr,
   });
@@ -225,7 +371,7 @@ export function DictateBox({
         className="wb2-notes"
         rows={rows}
         placeholder={dict.recording ? "Listening…" : placeholder}
-        value={value}
+        value={dict.interim ? appendSpoken(value, dict.interim) : value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled || dict.recording || dict.transcribing}
       />
@@ -310,7 +456,7 @@ export function DictateLine({
   const dict = useDictation({
     onTranscript: (text) => {
       setErr(null);
-      onChange(value.trim() ? `${value.trim()} ${text}` : text);
+      onChange(appendSpoken(value, text));
     },
     onError: setErr,
   });
@@ -321,7 +467,7 @@ export function DictateLine({
         <input
           className="wb2-fi"
           placeholder={dict.recording ? "Listening…" : placeholder}
-          value={value}
+          value={dict.interim ? appendSpoken(value, dict.interim) : value}
           disabled={disabled || dict.recording || dict.transcribing}
           aria-label={label}
           onChange={(e) => onChange(e.target.value)}

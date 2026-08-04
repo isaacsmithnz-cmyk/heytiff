@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { LevelBars, clockOf, useDictation } from "./dictation";
+import { clearRun, markProposal } from "@/lib/voice/timing";
 import { useNoteBrain } from "./note-brain-context";
 import { SEVERITIES, type NoteProposal, type NoteStaff } from "@/lib/workboard/note-brain";
 import { describeJob, matchJob, searchJobs, type JobCandidate } from "@/lib/workboard/note-match";
@@ -195,9 +196,13 @@ export function NoteCapture({
         const res = await routeNote({ transcript, target, source });
         if (!res.ok) {
           setError(res.error);
+          clearRun();
           router.refresh(); // the note itself was still saved
           return;
         }
+        /* The end of the wait — the card now has something to check. The
+           transport only owns the first half of this number. */
+        markProposal();
         setNote({ id: res.noteId, proposal: res.proposal, staff: res.staff });
         setDraft(toDraft(res.proposal));
       });
@@ -513,10 +518,22 @@ export function NoteCapture({
               {recording && (
                 <div className="wb2-caprec">
                   <LevelBars innerRef={dict.barsRef} />
-                  <p className="wb2-hint">
-                    If the bars don&apos;t move when you talk, nothing is being heard. Words are read
-                    back when you stop.
-                  </p>
+                  {/* The card must never claim to be hearing you when it
+                      isn't. On the batch transport there is nothing to show
+                      until you stop, and the hint says exactly that — the
+                      prototype's fake word-by-word transcript is still not
+                      coming back. The live transport earns the other line by
+                      actually having words. */}
+                  {dict.interim ? (
+                    <p className="wb2-livetext" aria-live="polite">
+                      {dict.interim}
+                    </p>
+                  ) : (
+                    <p className="wb2-hint">
+                      If the bars don&apos;t move when you talk, nothing is being heard. Words are
+                      read back when you stop.
+                    </p>
+                  )}
                   <div className="wb2-capact">
                     <button className="pbtn ghost" onClick={close}>
                       Discard

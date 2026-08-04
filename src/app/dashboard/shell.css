@@ -4405,6 +4405,14 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .wb2-caprec { display:flex; flex-direction:column; align-items:center; gap:10px; padding:14px 0 2px; }
 .wb2-caprec .wb-lvl { height:34px; }
 .wb2-caprec .wb-lvl i { height:34px; width:4px; }
+/* The live transcript, and it must read as WORDS, not as a status line —
+   it is what the person is checking while they talk. Top-level, never
+   nested under .fg: this card is portalled to body, where a .fg rule is
+   absent rather than merely outranked. */
+.wb2-livetext {
+  font-size:14.5px; line-height:1.5; color:var(--gray800, #1f2937); font-weight:500;
+  margin:8px 0 0; text-align:center; max-width:44ch; min-height:2.2em;
+}
 .wb2-capcard .wb2-sherr { margin:0 0 10px; }
 .wb2-capcard .wb2-notes { margin-bottom:0; }
 

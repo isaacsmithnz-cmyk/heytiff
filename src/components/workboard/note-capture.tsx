@@ -513,10 +513,22 @@ export function NoteCapture({
               {recording && (
                 <div className="wb2-caprec">
                   <LevelBars innerRef={dict.barsRef} />
-                  <p className="wb2-hint">
-                    If the bars don&apos;t move when you talk, nothing is being heard. Words are read
-                    back when you stop.
-                  </p>
+                  {/* The card must never claim to be hearing you when it
+                      isn't. On the batch transport there is nothing to show
+                      until you stop, and the hint says exactly that — the
+                      prototype's fake word-by-word transcript is still not
+                      coming back. The live transport earns the other line by
+                      actually having words. */}
+                  {dict.interim ? (
+                    <p className="wb2-livetext" aria-live="polite">
+                      {dict.interim}
+                    </p>
+                  ) : (
+                    <p className="wb2-hint">
+                      If the bars don&apos;t move when you talk, nothing is being heard. Words are
+                      read back when you stop.
+                    </p>
+                  )}
                   <div className="wb2-capact">
                     <button className="pbtn ghost" onClick={close}>
                       Discard

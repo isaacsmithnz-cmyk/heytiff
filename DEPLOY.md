@@ -53,6 +53,7 @@ your local `.env.local`), scope = **Production** (and Preview if you want previe
 | `SM8_CLIENT_SECRET` | Same — ServiceM8's **App Secret**. Server-side only, never `NEXT_PUBLIC_`. |
 | `ANTHROPIC_API_KEY` | Claude, server-side: fleet valuations, receipt reading, and the Smart Notes brain. Optional — unset, those features say so instead of failing. Never `NEXT_PUBLIC_`. |
 | `ELEVENLABS_API_KEY` | See **Smart Notes** below. Optional — unset, **notes still work**: the mic simply isn't offered and the paste box does everything. Never `NEXT_PUBLIC_`. |
+| `NEXT_PUBLIC_VOICE_REALTIME` | `1` streams dictation live instead of transcribing on stop. Optional, off by default, build-time. Holds no secret — see **Live transcription** below. |
 | `INTEGRATIONS_TOKEN_KEY` | 32-byte key that seals OAuth tokens before they reach the database. Required to connect anything — without it the Connect button is switched off rather than storing tokens in plaintext. |
 | `CRON_SECRET` | Guards the scheduled routes (`/api/cron/*`). **Vercel sets and sends this itself** once a `crons` entry exists in `vercel.json` — you only need to add it manually if you want to trigger a sweep by hand. **Unset ⇒ every cron request is refused** (fail-closed): the routes run with no session and service-role access, so the secret is the only gate. |
 
@@ -229,6 +230,44 @@ evidence for what was applied; the recording is a voice in someone's house.
 swapped, not so a second one can be kept warm. When transcription fails the UI
 keeps the recording client-side, offers a retry, and falls through to the paste
 box.
+
+### Live transcription — `NEXT_PUBLIC_VOICE_REALTIME` (off by default)
+
+Set it to `1` and dictation streams to **Scribe v2 Realtime** instead of
+uploading when you stop: words appear in the box as they're said, and stopping
+costs a flush rather than a whole upload-and-transcribe round trip. Unset — or
+any value but `1` — is the batch path above, unchanged.
+
+`NEXT_PUBLIC_` because it is read in the browser to pick a transport, and it is
+a **build-time** value: flipping it means a redeploy, same as
+`NEXT_PUBLIC_STUDIO_SIM`. It carries no secret. `ELEVENLABS_API_KEY` is still
+what decides whether a mic is offered at all; this only changes how the audio
+travels.
+
+**The browser opens the socket, not us** — Vercel Hobby functions can't hold a
+WebSocket for the length of a sentence. `POST /api/workboard/transcribe/token`
+(gated on `workboard`, like the audio route) mints a vendor **single-use token**
+— 15 minutes, consumed on use — and returns it with the org's keyterms. The real
+key never leaves the server.
+
+**The recorder keeps running in both modes.** Token refused, handshake failed,
+socket dropped, vendor error, empty transcript — every one of them falls back to
+uploading the clip the old way, and the person sees a normal transcription. That
+is what makes the flag safe to leave on.
+
+Costs differ and it is worth knowing which meter you're on: batch bills
+**$0.22/hr of audio**, realtime **$0.39/hr**, keyterms **+$0.05/hr** — but
+elevenlabs.io/pricing also describes STT as **330 credits/minute** against the
+plan's credit pool, which is roughly 16× the hourly rate. Check the workspace's
+own usage page before assuming which applies. Realtime also bills **socket
+wall-clock, not speech**, so an open mic in a quiet room costs money; the socket
+uses the vendor's `vad` commit strategy and `dictation.tsx` closes it the moment
+recording stops.
+
+Realtime keyterms are capped tighter than batch — **50 terms of 20 characters**
+against 1000 of 50 — so `prepareKeyterms` takes the limits from its caller, and
+the token route passes **staff names first**: a misheard name routes a task to
+nobody.
 
 ---
 

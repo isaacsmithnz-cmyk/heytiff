@@ -3301,7 +3301,25 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-daymodal .pbtn.ghost:disabled { background:#f7f8fa; color:#a2a9b8; }
 
 /* ── the view tabs — joined to the card ── */
-.wb2-vtabs { display:flex; align-items:flex-end; gap:0; margin-bottom:-1px; position:relative; z-index:3; padding-top:2px; }
+/* PADDING-LEFT IS LOAD-BEARING, and it is what finally settled the top-left
+   corner. The card's corner used to go square while the first tab stood on
+   it and round again when you left, because a tab sitting at x=0 would
+   otherwise overhang the card's 24px curve. That state change could not be
+   made to look right: the card carries `view-transition-name`, so it is not
+   painted while the tabs swap — animate the corner with no delay and the two
+   snapshots ghost through each other ("you can see it changing"), delay it
+   past the swap and it arrives late ("there's a delay ... instead of it being
+   a very clean transition"). Both are Isaac, a day apart.
+
+   So the first tab starts PAST the corner instead: 24px of card radius plus
+   the 12px flare every tab wears on each side. Now no tab ever stands on the
+   corner, the card is round at all four corners always, and there is no state
+   to animate — the whole class of bug is gone rather than smoothed. It also
+   fixed the shear he saw: the first tab used to carry a 24px sweep on its
+   left and a 12px corner on its right, which reads lopsided. Every tab is
+   symmetric now. */
+.wb2-vtabs { display:flex; align-items:flex-end; gap:0; margin-bottom:-1px; position:relative; z-index:3;
+  padding-top:2px; padding-left:36px; }
 /* the capture pill rides at the row's right end, sitting slightly proud of
    the tab baseline so it reads as a tool, not a sixth tab */
 .wb2-vtcap { margin-left:auto; display:flex; align-items:center; gap:9px; padding-bottom:7px; flex:none; }
@@ -3329,28 +3347,13 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
   background:radial-gradient(circle 12px at 0 0, transparent 11.5px, #fff 12px); }
 .wb2-vslide:after { content:""; position:absolute; right:-12px; bottom:0; width:12px; height:12px;
   background:radial-gradient(circle 12px at 100% 0, transparent 11.5px, #fff 12px); }
-.wb2-vslide.first { border-top-left-radius:24px; }
-.wb2-vslide.first:before { display:none; }
 
 /* ── the persistent card ── */
-/* The top-left corner is square ONLY while the FIRST tab is on, because that
-   is the corner the tab is standing on. It used to be square always, so
-   switching to Upcoming left one corner cut for no reason (Isaac).
-
-   IT OPENS AND CLOSES, it doesn't snap — "you can see it changing from
-   rectangular to a rounded corner" (Isaac again). The DELAY is the whole
-   trick and it is not padding: the card carries `view-transition-name`, so
-   for the length of its transition the real element isn't painted at all —
-   two snapshots are, both taken while the radius still held its old value.
-   Animate it with no delay and the browser simply reveals the finished
-   corner when the snapshots retire, which is the snap he's describing. So
-   the corner waits for the surface to finish morphing and only then travels,
-   in full view. KEEP THIS DELAY EQUAL TO ::view-transition-group(wbcard)'s
-   duration below — they are one number pretending to be two. */
+/* Four equal corners, always. Nothing about this card changes when you
+   switch tabs any more — see the padding-left note on .wb2-vtabs for why
+   that is the point and not an oversight. */
 .wb2-card { background:#fff; border:1px solid var(--wb2-line); border-radius:24px;
-  box-shadow:0 8px 30px rgba(0,0,0,.03); overflow:hidden;
-  transition:border-top-left-radius .34s cubic-bezier(.4,0,.2,1) .32s; }
-.wb2-card[data-firsttab="on"] { border-top-left-radius:0; }
+  box-shadow:0 8px 30px rgba(0,0,0,.03); overflow:hidden; }
 @supports (view-transition-name: none) {
   .wb2-card { view-transition-name:wbcard; }
   .wb2-vtabs { view-transition-name:wbtabs; }
@@ -3999,10 +4002,7 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
   .wb2-sheet { grid-template-columns:minmax(0,1fr); }
 }
 @media (prefers-reduced-motion: reduce) {
-  /* .wb2-card is here for the corner: a delayed radius travel is motion, and
-     the instant corner it replaced was the right answer for anyone who has
-     asked not to be moved. */
-  .wb2-vslide, .wb2-sheet, .wb2-scrim, .wb2-swap, .wb2-card { animation:none !important; transition:none !important; }
+  .wb2-vslide, .wb2-sheet, .wb2-scrim, .wb2-swap { animation:none !important; transition:none !important; }
   .wb2-mcc[data-tone="flash"] { animation:none; box-shadow:0 0 0 3px rgba(224,38,79,.16); }
   ::view-transition-group(wbcard), ::view-transition-old(wbcard), ::view-transition-new(wbcard),
   ::view-transition-old(wbtabs), ::view-transition-new(wbtabs) { animation:none !important; }

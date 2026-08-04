@@ -43,6 +43,7 @@ export function PersonalCard({
   email,
   addressLookup = false,
   today,
+  orgState = null,
   startEditing,
   onSave,
 }: {
@@ -56,6 +57,8 @@ export function PersonalCard({
   addressLookup?: boolean;
   /** the server's AU day, for the date pickers */
   today?: string;
+  /** the org's home state — see the Holiday state row in the read view */
+  orgState?: string | null;
   startEditing?: boolean;
   onSave: SaveSection;
 }) {
@@ -109,9 +112,17 @@ export function PersonalCard({
           <Detail label="Job title" value={values.job_title} onAdd={edit} />
         )}
         {mode === "admin" && (
+          /* RESOLVED, not described. This read "Same as organisation", which is
+             a sentence about a setting rather than an answer to "which public
+             holidays does this person get paid for". The org's own state is the
+             answer; the qualifier only says where it came from, so inherited
+             and overridden can be told apart. Same row on Summary, same rule.
+             With no org state set there is nothing to inherit, so the row falls
+             back to the blank's "+ Set" rather than inventing one. */
           <Detail
             label="Holiday state"
-            value={values.state || "Same as organisation"}
+            value={values.state || orgState || ""}
+            sub={!values.state && orgState ? "Organisation default" : undefined}
             onAdd={edit}
             addLabel="Set"
           />
@@ -122,6 +133,7 @@ export function PersonalCard({
 
   return (
     <SectionCard
+      variant="section"
       icon="user"
       title="Personal details"
       sub="Identity, contact & employment basics"

@@ -31,14 +31,11 @@ const CUSTOM = "__custom";
 export function ComplianceCard({
   licences,
   today,
-  org,
   onAdd,
   onRemove,
 }: {
   licences: StaffLicence[];
   today: string;
-  /** the org's trading name — the issuer line on each licence card */
-  org?: string | null;
   onAdd: (input: LicenceInput) => Promise<SaveResult>;
   onRemove: (licenceId: string) => Promise<SaveResult>;
 }) {
@@ -90,18 +87,14 @@ export function ComplianceCard({
   };
 
   return (
-    <div className="card2" data-live>
-      <div className="c2h">
-        <span className="ci">
-          <Icon name="shield" size={18} />
-        </span>
-        <span>
-          <b>Compliance</b>
-          <em>
-            Licences &amp; tickets — each one tracks its number and expiry, and warns on your
-            dashboard before it lapses
-          </em>
-        </span>
+    <div className="psec-body" data-live>
+      {/* The tab says "Compliance"; this says what the tab is for. See
+          section-card for why the framed header went. */}
+      <div className="psechd">
+        <em>
+          Licences &amp; tickets — each one tracks its number and expiry, and warns on your
+          dashboard before it lapses
+        </em>
       </div>
 
       <div className="licadd">
@@ -176,7 +169,6 @@ export function ComplianceCard({
               licenceNumber={l.licenceNumber}
               expiry={l.expiryDate ? formatAuDate(l.expiryDate) : null}
               status={licenceStatus(l.expiryDate, today)}
-              org={org}
               removing={removingId === l.id}
               onRemove={() => remove(l.id)}
             />

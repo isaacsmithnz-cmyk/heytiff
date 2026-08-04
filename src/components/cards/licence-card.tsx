@@ -14,7 +14,17 @@ import { IdCard } from "./id-card";
    NO FACE, DELIBERATELY. A real licence carries the holder's photo, but a staff
    card shows three or four at once and repeating one face four times reads as a
    rendering bug rather than as a wallet. The card carries the licence's own
-   details, and whose licence it is has already been answered by the rail.
+   details, and whose licence it is has already been answered by the block above
+   the wall.
+
+   NO ISSUER LINE EITHER, and the status is a PILL rather than a third fact.
+   Both changed for the same reason: three of these sit side by side on Summary
+   now, and the card had to survive that. The business name was the same three
+   identical rows of small caps on every card, distinguishing nothing and taking
+   the width the facts wanted; and "Expires in 3 weeks" as a fact was long
+   enough to push one card's row onto two lines while its neighbours stayed on
+   one, so a wall of them never lined up. The status moves into the corner the
+   issuer gave up, wearing its colour, and the two facts left sit on a grid.
 
    Presentational. The status is worked out by licenceStatus() and handed in, so
    this card and the dashboard's expiry chip can never disagree about what is
@@ -25,8 +35,6 @@ export function LicenceCard({
   /** already formatted dd/mm/yyyy, or null for one with no expiry */
   expiry,
   status,
-  /** the org's trading name — the issuer line, as on every card here */
-  org,
   onRemove,
   removing,
 }: {
@@ -34,7 +42,6 @@ export function LicenceCard({
   licenceNumber: string | null;
   expiry: string | null;
   status: LicenceStatus;
-  org?: string | null;
   onRemove?: () => void;
   removing?: boolean;
 }) {
@@ -42,13 +49,15 @@ export function LicenceCard({
   return (
     <IdCard
       variant="light"
-      org={org}
+      credential
       badge={{ label: stamp.code, color: stamp.color }}
+      state={{ label: status.label, tone: status.tone }}
       name={typeName}
+      /* the date stays untinted — the pill above is carrying the colour, and
+         two things going amber for one fact is one too many */
       facts={[
         { em: "Licence no.", b: licenceNumber || "—" },
-        { em: "Expires", b: expiry || "—", tone: status.tone },
-        { em: "Status", b: status.label, tone: status.tone },
+        { em: "Expires", b: expiry || "—" },
       ]}
       action={
         onRemove && (

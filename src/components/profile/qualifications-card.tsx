@@ -31,6 +31,9 @@ export function QualificationsCard({
 
   return (
     <SectionCard
+      // Left as the default framed card ON PURPOSE: this is the SECOND section
+      // on the Compliance tab, so it genuinely has a name of its own to say —
+      // the tab's title is already spoken for by the licence wall above it.
       icon="grad"
       title="Other qualifications"
       sub="Free-text list of tickets & courses"

@@ -1,56 +1,79 @@
 "use client";
 
+import { useLayoutEffect, useRef, useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import type { SectionKey } from "./types";
 
 export type NavItem = { key: SectionKey; label: string; admin?: boolean };
 
-/* The section strip across the top of the card.
+/* The section tabs — the maintenance board's row, on the staff card.
 
-   It was a column of icon rows down the left. Horizontal buys the panel the
-   card's whole width, which is what makes a two-up read view fit.
+   It reuses `.wb2-vtabs / .wb2-vt / .wb2-vslide` rather than growing a second
+   copy of them, which means it inherits the two things that row got right: the
+   thumb that IS the card's top edge for the width of the active tab, and the
+   36px offset that keeps the first tab off the card's corner so all four
+   corners stay round through a switch. Fixing either one twice was the
+   alternative.
 
-   IT WRAPS, IT DOES NOT SCROLL. `.prof` caps the card at 1320px, so the strip
-   has ~920px however wide the monitor is — ten labels never fit on one line on
-   any screen. A scroller would therefore hide Payroll and Notes from every
-   admin, permanently, behind a gesture with no affordance. Wrapping shows the
-   lot. The labels carry no icons for the same reason: it is 24px a tab spent
-   on decoration next to a word that already says it.
+   IT DOES NOT WRAP ANY MORE. The old strip wrapped onto three lines and put
+   "Admin only" above the locked group, because that group landed on its own
+   row anyway. One row of nine needs neither: the divider `.wb2-vt` already
+   draws between any two inactive tabs separates them, and the lock on each
+   says what it is. See the padding note in shell.css for why nine fit at all.
 
-   The amber dot is the tab's half of the completeness model: a section shows
-   one when it is holding a field the checklist above is still asking for, so
-   the strip and the ring can never disagree. Admin-only sections keep their
-   divider and their lock; they are omitted entirely, never disabled, so a tab
-   appearing here means the viewer may open it. */
+   The amber dot became a COUNT. A tab that owns missing fields says how many —
+   "Personal 3" is the same sentence the deleted checklist spelled out in three
+   rows, and it is the only thing left pointing at which section is short. */
 export function ProfileTabs({
   items,
   active,
   attention,
   onGo,
+  children,
 }: {
   items: NavItem[];
   active: SectionKey;
-  /** sections holding a missing field */
-  attention: ReadonlySet<string>;
+  /** section → how many of its fields the checklist is still asking for */
+  attention: ReadonlyMap<string, number>;
   onGo: (key: SectionKey) => void;
+  /** docked at the row's right end, as the board docks its capture pill */
+  children?: React.ReactNode;
 }) {
-  const mains = items.filter((n) => !n.admin);
-  const admins = items.filter((n) => n.admin);
+  const rowRef = useRef<HTMLDivElement>(null);
+  const [thumb, setThumb] = useState<{ x: number; w: number } | null>(null);
+
+  /* The thumb is measured, not computed: label widths depend on the font, and
+     the font arrives after first paint. Re-measuring on resize covers the
+     scrolling case below the fit width too. */
+  useLayoutEffect(() => {
+    const measure = () => {
+      const row = rowRef.current;
+      const on = row?.querySelector<HTMLButtonElement>(`[data-psec="${active}"]`);
+      if (!row || !on) return;
+      setThumb({ x: on.offsetLeft, w: on.offsetWidth });
+      // below the fit width the row scrolls; a tab you just chose from a
+      // keyboard walk must not stay off the end of it. Feature-checked: jsdom
+      // has no scrollIntoView, and this is a nicety, not the navigation.
+      on.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [active, items.length]);
 
   return (
-    <div className="pftabs" role="tablist" aria-label="Profile sections">
-      {mains.map((n) => (
-        <Tab key={n.key} item={n} active={active} attention={attention} onGo={onGo} />
-      ))}
-      {admins.length > 0 && (
-        <>
-          <span className="pftabbreak" aria-hidden="true" />
-          <span className="pftabgl">Admin only</span>
-          {admins.map((n) => (
-            <Tab key={n.key} item={n} active={active} attention={attention} onGo={onGo} />
-          ))}
-        </>
+    <div className="wb2-vtabs" ref={rowRef} role="tablist" aria-label="Profile sections">
+      {thumb && (
+        <span
+          className="wb2-vslide"
+          style={{ transform: `translateX(${thumb.x}px)`, width: thumb.w }}
+          aria-hidden="true"
+        />
       )}
+      {items.map((n) => (
+        <Tab key={n.key} item={n} active={active} count={attention.get(n.key) ?? 0} onGo={onGo} />
+      ))}
+      {children && <div className="wb2-vtcap">{children}</div>}
     </div>
   );
 }
@@ -58,16 +81,15 @@ export function ProfileTabs({
 function Tab({
   item,
   active,
-  attention,
+  count,
   onGo,
 }: {
   item: NavItem;
   active: SectionKey;
-  attention: ReadonlySet<string>;
+  count: number;
   onGo: (key: SectionKey) => void;
 }) {
   const on = item.key === active;
-  const flagged = attention.has(item.key);
   return (
     <button
       type="button"
@@ -78,10 +100,10 @@ function Tab({
       // only the selected tab is in the tab order; the arrow keys move between
       // them, which is what a tablist is supposed to do
       tabIndex={on ? 0 : -1}
-      className={`pftab${item.admin ? " adminrow" : ""}${on ? " on" : ""}`}
+      className={"wb2-vt" + (on ? " on" : "")}
       data-psec={item.key}
       onClick={() => onGo(item.key)}
-      onKeyDown={(e) => moveFocus(e)}
+      onKeyDown={moveFocus}
     >
       {item.label}
       {item.admin && (
@@ -89,10 +111,15 @@ function Tab({
           <Icon name="lock" size={13} />
         </span>
       )}
-      {flagged && (
+      {count > 0 && (
         <>
-          <i className="attn" aria-hidden="true" />
-          <span className="sr-only"> — details missing</span>
+          <i className="wb2-vtn warn" aria-hidden="true">
+            {count}
+          </i>
+          <span className="sr-only">
+            {" "}
+            — {count} detail{count === 1 ? "" : "s"} missing
+          </span>
         </>
       )}
     </button>
@@ -103,7 +130,7 @@ function Tab({
 function moveFocus(e: React.KeyboardEvent<HTMLButtonElement>) {
   const keys = ["ArrowLeft", "ArrowRight", "Home", "End"];
   if (!keys.includes(e.key)) return;
-  const strip = e.currentTarget.closest(".pftabs");
+  const strip = e.currentTarget.closest(".wb2-vtabs");
   if (!strip) return;
   const tabs = [...strip.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
   const i = tabs.indexOf(e.currentTarget);

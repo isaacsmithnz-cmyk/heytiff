@@ -77,7 +77,7 @@ describe("with no key configured", () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /^Save$/ }));
+    await user.click(screen.getByRole("button", { name: /^Save\b/ }));
     expect(onSave).toHaveBeenCalledWith(
       "personal",
       expect.objectContaining({ address: "Lot 4 Sawmill Track, Yackandandah VIC 3749" })
@@ -106,7 +106,7 @@ describe("with the lookup on", () => {
 
     await waitFor(() => expect(address()).toHaveValue(FORMATTED));
 
-    await user.click(screen.getByRole("button", { name: /^Save$/ }));
+    await user.click(screen.getByRole("button", { name: /^Save\b/ }));
     expect(onSave).toHaveBeenCalledWith(
       "personal",
       expect.objectContaining({ address: FORMATTED })
@@ -118,7 +118,7 @@ describe("with the lookup on", () => {
     const { onSave } = setup(true);
 
     await edit(user);
-    await user.click(screen.getByRole("button", { name: /^Save$/ }));
+    await user.click(screen.getByRole("button", { name: /^Save\b/ }));
 
     const [section, fields] = onSave.mock.calls[0];
     expect(section).toBe("personal");
@@ -144,7 +144,7 @@ describe("with the lookup on", () => {
     // the dropdown is open, offering something else entirely — and ignored
     await screen.findByRole("listbox");
     await user.type(address(), " Track, Nowhere");
-    await user.click(screen.getByRole("button", { name: /^Save$/ }));
+    await user.click(screen.getByRole("button", { name: /^Save\b/ }));
 
     expect(onSave).toHaveBeenCalledWith(
       "personal",

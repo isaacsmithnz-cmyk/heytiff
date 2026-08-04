@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { Icon } from "@/components/shell/icon";
 
 /* Read mode's vocabulary: grouped panels of label/value pairs, and an empty
    value that is a BUTTON rather than a dash.
@@ -31,17 +32,40 @@ export function DetailPanel({
       rather than the <dl>, because prose and charts are not definition-list
       children and putting them in one is invalid markup, not just untidy. */
   plain = false,
+  /** Summary only: open the tab this panel is the overview of. The panel's
+      heading is that tab's name, so the jump belongs in the heading with it —
+      and it is what lets a read-only tab still be the way you drive the card.
+      Omitted, the heading is a heading, which is what every panel inside a
+      section is. */
+  onOpen,
+  /** a quiet qualifier beside the heading — where facts came from when the
+      panel isn't a tab, e.g. the vehicle's "from Fleet" */
+  note,
   children,
 }: {
   title: string;
   wide?: boolean;
   split?: boolean;
   plain?: boolean;
+  onOpen?: () => void;
+  note?: string;
   children: ReactNode;
 }) {
   return (
     <div className={`pdlcard${wide ? " wide" : ""}`}>
-      <div className="pdlh">{title}</div>
+      <div className={`pdlh${onOpen ? " jump" : ""}`}>
+        <span>
+          {title}
+          {note ? <span className="pdlh-q">{note}</span> : null}
+        </span>
+        {onOpen && (
+          <button type="button" className="jumpb" onClick={onOpen}>
+            Open
+            <span className="sr-only"> {title}</span>
+            <Icon name="chevR" size={12} />
+          </button>
+        )}
+      </div>
       {plain ? (
         <div className="pdlbody">{children}</div>
       ) : (

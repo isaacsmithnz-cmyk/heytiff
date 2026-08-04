@@ -71,4 +71,6 @@ export const okActions = () => ({
   onSave: jest.fn().mockResolvedValue({ ok: true }),
   onAddLicence: jest.fn().mockResolvedValue({ ok: true }),
   onRemoveLicence: jest.fn().mockResolvedValue({ ok: true }),
+  onSetPhoto: jest.fn().mockResolvedValue({ ok: true }),
+  onClearPhoto: jest.fn().mockResolvedValue({ ok: true }),
 });

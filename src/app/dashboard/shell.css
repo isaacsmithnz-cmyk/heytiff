@@ -868,93 +868,172 @@
 .fg .pbtn.primary { background:var(--ink); color:#fff; box-shadow:0 8px 18px -6px rgba(0,0,0,.3); }
 .fg .pbtn.primary:hover { background:var(--teal); color:var(--ink); }
 
-/* ONE CARD — identity rail | section tabs over the panel.
+/* ── THE STAFF CARD — the maintenance board's surface, holding a person ──
+   It was a dark identity rail beside a wrapping strip of section tabs, and
+   before that a full-width dark hero. It now speaks the board's language: an
+   identity block inside the card, ONE row of tabs joined to ONE persistent
+   white card, and a thumb that IS the card's top edge for the width of the
+   active tab.
 
-   This replaced a full-width dark hero above a column of icon nav rows. The
-   hero's facts now live in the rail, which is why the Personal card no longer
-   carries a plastic staff card: the two were the same information side by
-   side. Going horizontal with the sections costs nothing (there are never more
-   than ten) and hands the panel the card's whole width, which is what lets the
-   read view sit two panels across. */
-.fg .pcard { display:grid; grid-template-columns:320px minmax(0,1fr); background:#fff; border:1px solid #f0f0f2; border-radius:28px; overflow:hidden; box-shadow:0 1px 2px rgba(0,0,0,.04), 0 20px 50px -24px rgba(0,0,0,.26); }
-@media (max-width:920px){ .fg .pcard{grid-template-columns:1fr} }
+   IT BORROWS `.wb2-vtabs / .wb2-vt / .wb2-vslide / .wb2-card` VERBATIM rather
+   than growing a second copy of them — including the 36px first-tab offset
+   that keeps all four corners round through a switch, and the view transition
+   that swaps the information while the surface stays. Fixing either one twice
+   was the alternative.
 
-/* identity rail */
-.fg .prail { position:relative; overflow:hidden; background:var(--ink2); color:#fff; }
-.fg .prail .mesh { position:absolute; inset:0; pointer-events:none; opacity:.5; mix-blend-mode:screen; }
-.fg .prail .mesh i { position:absolute; border-radius:50%; filter:blur(110px); }
-.fg .prail .mesh .m1 { top:-30%; left:-45%; width:135%; height:80%; background:var(--teal); opacity:.18; }
-.fg .prail .mesh .m2 { bottom:-30%; right:-45%; width:135%; height:80%; background:var(--blue); opacity:.16; }
-.fg .prail-in { position:relative; z-index:2; padding:30px 26px 32px; display:grid; gap:18px; align-content:start; }
-.fg .pphoto { position:relative; width:96px; height:96px; border-radius:26px; flex:0 0 auto; background:linear-gradient(45deg,#2E68FF,#00E5C0); padding:2px; }
-.fg .pphoto .inn { width:100%; height:100%; border-radius:24px; background:#0A0B10; display:flex; align-items:center; justify-content:center; font-size:30px; font-weight:800; color:#fff; object-fit:cover; }
-.fg .pphoto .cam { position:absolute; right:-6px; bottom:-6px; width:30px; height:30px; border-radius:50%; background:#fff; color:var(--ink); display:flex; align-items:center; justify-content:center; box-shadow:0 6px 14px rgba(0,0,0,.3); cursor:pointer; }
-/* PER-CARD EDIT: the rail avatar isn't a card, so its camera badge has no edit
-   mode — hide it. */
-.fg .prof .pphoto .cam { display:none; }
-.fg .prail .pphoto { width:84px; height:84px; border-radius:23px; justify-self:start; }
-.fg .prail .pphoto .inn { border-radius:21px; font-size:27px; }
-.fg .pid { min-width:0; }
-.fg .pid h1 { font-size:26px; font-weight:800; letter-spacing:-0.03em; margin:0; overflow-wrap:anywhere; }
-.fg .pid h1 em { font-style:normal; font-size:15px; font-weight:600; color:rgba(255,255,255,.5); margin-left:9px; }
-.fg .pid .sub { display:flex; align-items:center; gap:9px; margin-top:7px; flex-wrap:wrap; font-size:13.5px; color:rgba(255,255,255,.55); font-weight:600; }
-.fg .pid .sub span { display:inline-flex; align-items:center; gap:9px; }
-.fg .pid .sub .dot { width:4px; height:4px; border-radius:50%; background:rgba(255,255,255,.3); }
-.fg .badge { display:inline-flex; align-items:center; gap:7px; padding:5px 12px; border-radius:999px; font-size:12px; font-weight:700; letter-spacing:.02em; width:fit-content; }
-.fg .badge.active { background:rgba(0,229,192,.14); color:var(--teal); border:1px solid rgba(0,229,192,.3); }
-.fg .badge.active .d { width:7px; height:7px; border-radius:50%; background:var(--teal); box-shadow:0 0 8px var(--teal); }
-.fg .badge.off { background:rgba(255,255,255,.05); color:rgba(255,255,255,.6); border:1px solid rgba(255,255,255,.13); }
-.fg .badge.off .d { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,.35); }
+   What it does NOT borrow is `.wb2`'s own button restyles: those are the
+   board's cyan AND its 38px sizing, and this card keeps the profile's 42px.
+   So only the tokens are declared here, and the fill is restated below. */
+.fg .pcard2, .fg .pbar { --wb2-line:rgba(5,5,5,.08); --wb2-line2:rgba(5,5,5,.06);
+  --wb2-cy:#007fa8; --wb2-cy2:#0089b8; }
 
-/* the derived facts — nothing here is editable, which is why the rail carries
-   no Edit button: editing is per-card, on the card that owns the field */
-.fg .pfacts { display:grid; margin:2px 0 0; }
-.fg .pfact { display:flex; align-items:baseline; justify-content:space-between; gap:14px; padding:11px 0; border-top:1px solid rgba(255,255,255,.08); }
-.fg .pfact dt { font-size:13px; font-weight:600; color:rgba(255,255,255,.5); }
-.fg .pfact dd { margin:0; font-size:13.5px; font-weight:700; color:#fff; text-align:right; overflow-wrap:anywhere; }
-.fg .pfact dd.muted { color:rgba(255,255,255,.38); font-weight:600; }
+/* The primary button wears the board's cyan here too. It is the SAME surface
+   as maintenance and projects, so a black button on it would read as a
+   different screen. Green stays green — `Active` is a STATE, and a state is
+   never the page accent (see the design rule in feedback_design_system). */
+.fg .pcard2 .pbtn.primary, .fg .pbar .pbtn.primary {
+  background:var(--wb2-cy); border:1px solid var(--wb2-cy); color:#fff;
+  box-shadow:0 8px 18px -8px rgba(0,127,168,.75); }
+.fg .pcard2 .pbtn.primary:hover:not(:disabled), .fg .pbar .pbtn.primary:hover:not(:disabled) {
+  background:var(--wb2-cy2); border-color:var(--wb2-cy2); color:#fff; }
 
-/* section tabs */
-.fg .pmain { min-width:0; display:flex; flex-direction:column; }
-/* wraps rather than scrolls: the card is width-capped, so ten labels never fit
-   on one line — a scroller would hide the admin sections behind a gesture with
-   no affordance */
-.fg .pftabs { display:flex; flex-wrap:wrap; align-items:center; gap:0 2px; padding:6px 22px 0; border-bottom:1px solid #f0f0f2; }
-.fg .pftab { position:relative; display:inline-flex; align-items:center; gap:9px; padding:13px 13px; font-size:14px; font-weight:600; color:var(--gray500); white-space:nowrap; transition:color .2s; }
-.fg .pftab:hover { color:var(--ink); }
-.fg .pftab.on { color:var(--ink); font-weight:700; }
-.fg .pftab.on::after { content:""; position:absolute; left:13px; right:13px; bottom:2px; height:2.5px; border-radius:3px; background:var(--teal); }
-.fg .pftab .lock { display:flex; color:#c7ccd6; }
-.fg .pftab.adminrow.on .lock { color:var(--teal-d); }
-/* amber, never the page accent: this is "needs attention", not "selected" */
-.fg .pftab .attn { width:6px; height:6px; border-radius:50%; flex:0 0 auto; background:#F0A431; box-shadow:0 0 0 3px rgba(240,164,49,.18); }
-/* a line break, not a rule: it drops the admin group onto its own row so the
-   "Admin only" label sits with the tabs it is labelling */
-.fg .pftabbreak { flex:0 0 100%; height:0; }
-.fg .pftabgl { font-size:9.5px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:#c7ccd6; white-space:nowrap; padding-left:13px; }
+/* ── the completion strip, in the breadcrumb row ──
+   It was a full-width banner inside the card carrying a ring, a headline, a
+   button and a seven-item checklist — the biggest object on Summary for the
+   smallest amount of information on it. One line here instead, which also puts
+   it on screen from EVERY tab rather than only the first. The checklist is
+   gone, not moved: each item named a field the panels already show as a dash,
+   and the tab counts say which section owns it. */
+.fg .pdone { display:flex; align-items:center; gap:13px; flex:0 0 auto; }
+.fg .pdone .pring { flex:0 0 auto; color:rgba(0,127,168,.16); }
+.fg .pdone .pring .v { stroke:var(--wb2-cy); transition:stroke-dasharray .6s cubic-bezier(.22,1,.36,1); }
+.fg .pdone-k b { display:block; font-size:13.5px; font-weight:800; letter-spacing:-0.01em; color:var(--ink); }
+.fg .pdone-k em { display:block; margin-top:1px; font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray500); }
+.fg .pdone .pbtn { height:36px; padding:0 14px; font-size:12.5px; border-radius:11px; }
 
-/* what's still missing — the ring, the count and the checklist all read
-   lib/staff/completeness, so they cannot disagree with the tabs' dots */
-.fg .ptodo { margin:22px 24px 0; border:1px solid rgba(0,229,192,.3); background:linear-gradient(180deg,rgba(0,229,192,.08),rgba(0,229,192,.03)); border-radius:18px; padding:18px 20px; display:grid; gap:14px; }
-.fg .ptodo-top { display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
-.fg .pring { flex:0 0 auto; color:rgba(0,163,137,.2); }
-.fg .pring .v { stroke:var(--teal-d); transition:stroke-dasharray .6s cubic-bezier(.22,1,.36,1); }
-.fg .ptodo-k { flex:1; min-width:170px; }
-.fg .ptodo-k b { display:block; font-size:16px; font-weight:800; letter-spacing:-0.01em; color:var(--ink); }
-.fg .ptodo-k em { font-style:normal; display:block; margin-top:3px; font-size:12.5px; font-weight:600; color:var(--gray500); }
-.fg .ptodo .pbtn { flex:0 0 auto; }
-.fg .pcheck { display:grid; grid-template-columns:repeat(auto-fit,minmax(215px,1fr)); column-gap:26px; list-style:none; margin:0; padding:0; }
-.fg .pci { display:flex; align-items:center; gap:10px; width:100%; padding:9px 0; font-size:13.5px; font-weight:600; color:var(--gray700); text-align:left; border-top:1px solid rgba(0,163,137,.16); transition:color .2s; }
-.fg .pci:hover { color:var(--ink); }
-.fg .pci .tk { width:17px; height:17px; border-radius:50%; flex:0 0 auto; background:#fff; border:1.5px dashed #b9c4c9; transition:all .2s; }
-.fg .pci:hover .tk { border-style:solid; border-color:var(--teal-d); }
-.fg .pci .req { font-weight:700; color:#e0264f; }
+/* ── the tabs ──
+   21px a side is the board's number, and the board has FIVE tabs. This card
+   has nine, and at 21px the row measures 1201px against the 1120px a 1440
+   laptop actually gives it — the admin sections would sit behind a scroll on
+   the most common screen in the business. 18px, plus "Personal" and
+   "Emergency" rather than the full labels (each section's own head spells its
+   name out), brings it to 1049 and fits one row from 1440 up. */
+.fg .pcard2 .wb2-vt { padding:0 18px; }
+/* the lock is the only thing saying an admin section is not the person's own
+   to see. The "Admin only" group label went with the wrapping: one row has no
+   group to label, and the divider `.wb2-vt` already draws does the separating */
+.fg .wb2-vt .lock { display:flex; color:#c7ccd6; }
+.fg .wb2-vt.on .lock { color:var(--wb2-cy); }
+/* the completeness model's half of the tab: a COUNT, in the board's warn
+   colour — never the page accent, which means "selected" here */
+.fg .pcard2 .wb2-vtn.warn { background:rgba(240,164,49,.16); color:#b45309; }
 
-/* panel */
-.fg .ppanel { min-width:0; padding:22px 24px 26px; }
-.fg .psec { display:none; }
-.fg .psec.on { display:block; animation:fgUp .4s cubic-bezier(.22,1,.36,1) backwards; }
-.fg .psec:focus { outline:none; }
+/* ── the panel ── */
+.fg .ppanel2 { min-width:0; padding:22px 24px 26px; }
+.fg .psec2 { animation:fgUp .4s cubic-bezier(.22,1,.36,1) backwards; }
+.fg .psec2:focus { outline:none; }
+
+/* ── who this is — Summary's first block ──
+   Above the tabs this was a page header carrying a person, next to a card that
+   opened with its own headline: two headers stacked. Inside the card it opens
+   Summary, which is where "who is this" belongs. */
+.fg .pident { display:flex; align-items:center; gap:20px; flex-wrap:wrap;
+  padding-bottom:20px; margin-bottom:20px; border-bottom:1px solid var(--wb2-line2); }
+/* The avatar tile, and the camera badge that finally makes it settable.
+
+   SELF-CONTAINED ON PURPOSE. `.pphoto` and `.badge` used to be shared base
+   rules serving the dark rail, the old hero and this; the rail and the hero
+   are gone and the staff card is the only caller left, so the whole thing is
+   declared here rather than as an override of a base nothing else reads. It
+   is also LIGHT now: the dark inner face was drawn for a dark rail, and on a
+   light card it was the one black square on the screen. The gradient stays as
+   the ring — the only brand mark on the block. */
+.fg .pident .pphoto { position:relative; width:68px; height:68px; border-radius:20px; flex:0 0 auto;
+  background:linear-gradient(140deg,var(--teal),var(--blue)); padding:2px; }
+.fg .pident .pphoto .inn { width:100%; height:100%; border-radius:18px; display:flex;
+  align-items:center; justify-content:center; background:#fff; color:var(--ink);
+  font-size:22px; font-weight:800; object-fit:cover; }
+
+/* THE PHOTO HAS A HOME NOW. There was a camera badge on this tile from the
+   first build of the screen and the profile always hid it, because there was
+   nowhere for the bytes to go. It is wired to the same three-step signed
+   upload the org logo uses. The remove sits opposite and only exists once
+   there IS a photo — a tile showing initials has nothing to remove. */
+.fg .pident .pphoto .cam { position:absolute; right:-5px; bottom:-5px; width:27px; height:27px;
+  border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer;
+  background:#fff; color:var(--gray700); border:1px solid #e6e8ee;
+  box-shadow:0 4px 12px -4px rgba(10,12,20,.28); transition:all .2s; }
+.fg .pident .pphoto .cam:hover:not(:disabled) { color:var(--wb2-cy); border-color:rgba(0,127,168,.4); transform:translateY(-1px); }
+.fg .pident .pphoto .cam:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.35); }
+.fg .pident .pphoto .camdel { position:absolute; right:-6px; top:-6px; width:22px; height:22px;
+  border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer;
+  background:#fff; color:#aeb4c0; border:1px solid #ecedf1;
+  box-shadow:0 4px 12px -6px rgba(10,12,20,.3); transition:all .2s; }
+.fg .pident .pphoto .camdel:hover:not(:disabled) { background:rgba(255,51,102,.1); color:#e0264f; border-color:rgba(255,51,102,.25); }
+.fg .pident .pphoto.busy { opacity:.6; pointer-events:none; }
+/* the picker itself is never seen — the badge is its label */
+.fg .pident .pphoto input[type="file"] { display:none; }
+.fg .carderr.photoerr { flex:1 1 100%; margin-top:0; }
+
+.fg .phid { min-width:0; flex:1 1 260px; }
+.fg .phid h1 { font-size:30px; font-weight:800; letter-spacing:-0.03em; margin:0; line-height:1.05; overflow-wrap:anywhere; }
+.fg .phid h1 em { font-style:normal; font-size:16px; font-weight:600; color:var(--gray400); margin-left:10px; }
+.fg .phid .sub { display:flex; align-items:center; gap:10px; margin-top:8px; flex-wrap:wrap;
+  font-size:14px; font-weight:600; color:var(--gray500); }
+/* the status pill, also declared in full: it was drawn for the dark rail, and
+   on a light card it needs light ink rather than a translucent fill */
+.fg .pident .badge { display:inline-flex; align-items:center; gap:7px; padding:5px 12px;
+  border-radius:999px; font-size:12px; font-weight:700; letter-spacing:.02em; width:fit-content; }
+.fg .pident .badge .d { width:7px; height:7px; border-radius:50%; }
+.fg .pident .badge.active { background:rgba(0,229,192,.12); color:var(--teal-d); border:1px solid rgba(0,163,137,.26); }
+.fg .pident .badge.active .d { background:var(--teal-d); }
+.fg .pident .badge.off { background:#f3f4f7; color:var(--gray500); border:1px solid #e6e8ee; }
+.fg .pident .badge.off .d { background:#b6bcc7; }
+
+/* the derived facts, as a quiet strip rather than a column of rows. The
+   licence count used to be among them, until the licence wall two panels down
+   started saying it better. */
+.fg .pfstrip { display:flex; align-items:center; gap:0; flex-wrap:wrap; flex:0 0 auto; margin:0; }
+.fg .pfs { padding:0 20px; border-left:1px solid #e2e5ea; }
+.fg .pfs:first-child { border-left:0; padding-left:0; }
+.fg .pfs dt { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--gray400); }
+.fg .pfs dd { margin:4px 0 0; font-size:15px; font-weight:700; letter-spacing:-0.01em; color:var(--ink); }
+.fg .pfs dd.muted { color:#b6bcc7; font-weight:600; }
+
+/* ── a section, with the card chrome taken off ──
+   Each section used to render as a `.card2` with an icon, a title and a
+   subtitle — inside a panel whose TAB already said "Personal", inside the
+   card. Three frames and two copies of the name for one group of fields. The
+   tab is the title; this is what a section still owes you. */
+.fg .psechd { display:flex; align-items:center; justify-content:space-between; gap:16px;
+  flex-wrap:wrap; padding-bottom:16px; margin-bottom:18px; border-bottom:1px solid var(--wb2-line2); }
+.fg .psechd em { font-style:normal; font-size:13.5px; font-weight:600; color:var(--gray500); }
+.fg .psechd .acts { display:flex; align-items:center; gap:9px; flex:0 0 auto; }
+.fg .psec-body.saving { opacity:.7; pointer-events:none; }
+/* a tab holding TWO sections keeps a frame on the second one — see the
+   `variant="card"` note in section-card */
+.fg .pcard2 .card2 { border-radius:18px; box-shadow:none; padding:20px 22px; margin-top:16px; margin-bottom:0; }
+.fg .pcard2 .card2 .c2h { margin-bottom:18px; }
+
+/* ── Summary's panels ──
+   One per tab, named the same, with the heading carrying the jump: the panel
+   IS the tab's overview, so opening it belongs with its name. */
+.fg .psec2 .pdl { gap:9px; }
+.fg .pdlcard .pdlh.jump { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.fg .pdlh .jumpb { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700;
+  letter-spacing:.04em; text-transform:none; color:var(--gray400); transition:color .2s; }
+.fg .pdlh .jumpb:hover { color:var(--wb2-cy); }
+/* where a panel's facts come from, when the panel isn't a tab */
+.fg .pdlh-q { margin-left:8px; font-weight:600; letter-spacing:.02em; text-transform:none; color:#c7ccd6; }
+/* An empty value on Summary is a DASH, not the words "Not set". Nothing there
+   is editable, so a blank has no button behind it and nothing to say beyond
+   "nothing" — and eight "Not set"s down one column read as an error state
+   rather than as a card someone hasn't finished. The facts strip and the
+   licence cards already used the dash; this is the screen agreeing with
+   itself. Inside a SECTION the blank stays a button, and keeps its own look. */
+.fg .psec2 .pdnone { font-style:normal; font-size:15px; font-weight:600; color:#c7ccd6; }
+/* `.liccards` already lays CR80 cards out; the panel header supplies the gap */
+.fg .psec2 .liccards { margin-top:13px; }
 
 /* grouped read view: label/value pairs, and a blank that is a BUTTON */
 /* align-items:start — panels size to their content. Stretched, a one-row panel
@@ -1001,42 +1080,41 @@
 .fg .idc-action ~ .idc-in .idc-badge { margin-right:34px; }
 @media (hover:none), (pointer:coarse) { .fg .idc-del { opacity:1; } }
 
-/* inside the one card the section cards are flat — a card in a card reads as
-   a mistake, so they keep only their hairline and their radius */
-.fg .pcard .card2 { border-radius:18px; box-shadow:none; padding:20px 22px; margin-bottom:16px; }
-.fg .pcard .card2:last-child { margin-bottom:0; }
-.fg .pcard .card2 .c2h { margin-bottom:18px; }
-
-/* Stacked, the rail is a HEADER, not a column: left as a 320px-wide block it
-   ran a full phone screen tall and you scrolled past the whole identity to
-   reach the first field. Photo and name go side by side, the rest spans. */
+/* ONE ROW OF TABS IS THE POINT of this layout, and nine labels stop fitting
+   before the card does. Below the width they fit, the strip scrolls — and the
+   thumb's measure scrolls the active tab into view with it, so a keyboard walk
+   can't leave you looking at a tab you didn't choose. Losing a tab off the end
+   is survivable here in a way it was not for the old wrapping strip: Summary
+   links to every section it lists, so the strip is never the only way in. */
+@media (max-width:1400px){
+  .fg .pcard2 .wb2-vtabs { overflow-x:auto; scrollbar-width:none; padding-left:24px; }
+  .fg .pcard2 .wb2-vtabs::-webkit-scrollbar { display:none; }
+  .fg .pcard2 .wb2-vt { flex:none; }
+}
 @media (max-width:920px){
-  .fg .prail-in { padding:22px 20px 24px; grid-template-columns:auto minmax(0,1fr); gap:14px 16px; align-items:center; }
-  .fg .prail .pphoto { width:64px; height:64px; border-radius:18px; }
-  .fg .prail .pphoto .inn { border-radius:16px; font-size:21px; }
-  .fg .prail .pid h1 { font-size:22px; }
-  .fg .prail .badge, .fg .prail .pfacts { grid-column:1/-1; }
-  .fg .prail .pfacts { grid-template-columns:1fr 1fr; column-gap:22px; margin-top:0; }
-  .fg .pftabs { padding:4px 14px 0; }
-  .fg .pftab { padding:11px 10px; }
-  .fg .pftab.on::after { left:10px; right:10px; }
-  .fg .pftabgl { padding-left:10px; }
-  .fg .ptodo { margin:18px 14px 0; }
-  .fg .ppanel { padding:18px 14px 20px; }
-  .fg .pcard .card2 { padding:18px 16px; }
+  .fg .pbar { align-items:flex-start; }
+  .fg .pident { gap:14px; }
+  .fg .phid h1 { font-size:26px; }
+  .fg .pfstrip { flex:1 1 100%; }
+  .fg .ppanel2 { padding:18px 14px 20px; }
+  .fg .pcard2 .card2 { padding:18px 16px; }
 }
 @media (max-width:760px){
   .fg .pdlgrid, .fg .pdl.split { grid-template-columns:1fr; }
 }
 @media (max-width:560px){
-  /* two facts to a line squeezes "Unassigned" into a mid-word break */
-  .fg .prail .pfacts { grid-template-columns:1fr; }
-  .fg .prail .pid h1 { font-size:20px; }
-  .fg .prail .pid .sub { font-size:12.5px; gap:7px; }
+  .fg .phid h1 { font-size:22px; }
+  .fg .phid .sub { font-size:12.5px; gap:7px; }
+  /* three facts to a line squeezes "Unassigned" into a mid-word break */
+  .fg .pfstrip { display:grid; grid-template-columns:1fr; }
+  .fg .pfs { padding:0; border-left:0; }
 }
 @media (max-width:520px){
   .fg .pdrow { grid-template-columns:1fr; gap:2px; }
-  .fg .ptodo-top .pbtn { width:100%; justify-content:center; }
+  .fg .pdone { flex-wrap:wrap; }
+  .fg .pdone .pbtn { width:100%; justify-content:center; }
+  .fg .psechd .acts { flex:1 1 100%; }
+  .fg .psechd .acts .pbtn { flex:1; justify-content:center; }
 }
 
 /* for screen readers only — the tabs' "details missing", the + Add's field */
@@ -2251,6 +2329,36 @@ select.fl-i { cursor:pointer; }
 .fg .idc .idc-org { font-size:10px; font-weight:800; letter-spacing:.18em; text-transform:uppercase; color:rgba(255,255,255,.42); overflow-wrap:anywhere; }
 .fg .idc.light .idc-org { color:#9ca3af; }
 .fg .idc .idc-badge { flex:0 0 auto; padding:4px 10px; border-radius:999px; border:1px solid transparent; font-size:9.5px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; white-space:nowrap; }
+
+/* ── the credential card ──
+   A licence or a ticket, and the only `.idc` that sits in a WALL of itself.
+   That is what these two rules are for.
+
+   The issuer line is gone (see id-card.tsx `credential`), so `.idc-top` has one
+   child on the left — push the state pill to the far right rather than letting
+   space-between leave it beside the stamp. */
+.fg .idc.cred .idc-top { justify-content:flex-start; }
+.fg .idc.cred .idc-state { margin-left:auto; }
+/* The STATE, not the kind: valid, lapsing, expired. It was a third fact along
+   the bottom and "Expires in 3 weeks" was long enough to wrap that row onto
+   two lines on one card and not its neighbours. As a pill it costs the row
+   nothing and reads first, which is the right order for the one thing on this
+   card that changes by itself. */
+.fg .idc .idc-state { flex:0 0 auto; padding:4px 11px; border-radius:999px; border:1px solid transparent;
+  font-size:10.5px; font-weight:800; letter-spacing:.01em; white-space:nowrap; }
+.fg .idc.light .idc-state.ok { background:rgba(0,229,192,.12); color:var(--teal-d); border-color:rgba(0,163,137,.26); }
+.fg .idc.light .idc-state.warn { background:rgba(240,164,49,.15); color:#b45309; border-color:rgba(240,164,49,.32); }
+.fg .idc.light .idc-state.bad { background:rgba(255,51,102,.1); color:#e0264f; border-color:rgba(255,51,102,.25); }
+.fg .idc.light .idc-state.mute { background:#f3f4f7; color:#9ca3af; border-color:#e9ebef; }
+.fg .idc.dark .idc-state.ok { background:rgba(0,229,192,.14); color:var(--teal); }
+.fg .idc.dark .idc-state.warn { background:rgba(240,164,49,.18); color:#F0A431; }
+.fg .idc.dark .idc-state.bad { background:rgba(255,51,102,.16); color:#FF3366; }
+.fg .idc.dark .idc-state.mute { background:rgba(255,255,255,.07); color:rgba(255,255,255,.5); }
+/* A GRID, not a flex row: three cards side by side is the point of the wall,
+   and with flex each card's second column started wherever its first value
+   happened to end — so "Expires" sat somewhere different on every card. */
+.fg .idc.cred .idc-facts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px 18px; }
+
 .fg .idc .idc-id { display:flex; align-items:center; gap:14px; min-width:0; }
 .fg .idc .idc-photo { position:relative; width:76px; height:76px; border-radius:22px; flex:0 0 auto; background:linear-gradient(45deg,#2E68FF,#00E5C0); padding:2px; overflow:hidden; }
 .fg .idc .idc-photo .inn, .fg .idc .idc-photo img { width:100%; height:100%; border-radius:20px; display:flex; align-items:center; justify-content:center; object-fit:cover; }

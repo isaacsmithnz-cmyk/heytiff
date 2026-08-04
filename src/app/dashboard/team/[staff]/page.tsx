@@ -3,7 +3,13 @@ import { auth0 } from "@/lib/auth0";
 import { ProfileScreen } from "@/components/profile/profile-screen";
 import type { PermissionsCtx } from "@/components/profile/types";
 import { assignedVehicleFor } from "@/lib/fleet/query";
-import { can, getCapabilities, getOrgName, getOwnership } from "@/lib/permissions-server";
+import {
+  can,
+  getCapabilities,
+  getOrgName,
+  getOrgState,
+  getOwnership,
+} from "@/lib/permissions-server";
 import {
   CAPABILITIES,
   canChangeRoleOf,
@@ -13,10 +19,17 @@ import {
   type Capability,
 } from "@/lib/permissions";
 import { getStaff, permissionsOf } from "@/lib/staff/query";
+import { signPhotoUrl } from "@/lib/staff/photo";
 import { getPaySettings, shiftDefaultsFor } from "@/lib/timepay/query";
 import { rosteredWeekHours } from "@/components/timepay/logic";
 import { classifyEmployment } from "@/lib/staff/employment";
-import { addStaffLicence, removeStaffLicence, saveStaffSection } from "@/app/actions/staff";
+import {
+  addStaffLicence,
+  clearStaffPhoto,
+  removeStaffLicence,
+  saveStaffSection,
+  setStaffPhoto,
+} from "@/app/actions/staff";
 import type { StaffProfile } from "@/lib/staff/profile";
 import { todayInAu } from "@/lib/au-dates";
 
@@ -43,12 +56,14 @@ export default async function StaffProfilePage({
   const orgId = session?.orgId as string | undefined;
   if (!orgId) redirect("/dashboard");
 
-  const [{ staff: staffId }, caps, ownership, query, orgName] = await Promise.all([
+  const [{ staff: staffId }, caps, ownership, query, orgName, orgState] = await Promise.all([
     params,
     getCapabilities(),
     getOwnership(),
     searchParams,
     getOrgName(),
+    // both ride the one cached membership read — no extra round trip
+    getOrgState(),
   ]);
 
   const canPay = caps.has("financials");
@@ -70,6 +85,9 @@ export default async function StaffProfilePage({
   const targetOverrides = row.userId ? await permissionsOf(orgId, row.userId) : null;
   // derived from the register, never stored on the staff record
   const assignedVehicle = await assignedVehicleFor(orgId, staffId);
+  // StaffRow carries no photo — the column is on the profile, and the link
+  // into a private bucket is minted per render
+  const photoUrl = await signPhotoUrl(profile.photo_url as string | null | undefined);
 
   /* Only for a viewer who can see the Payroll card, since that is the only
      place it is shown — and it exists to keep the typed `contracted_hours`
@@ -121,12 +139,13 @@ export default async function StaffProfilePage({
   return (
     <ProfileScreen
       mode="admin"
-      header={row}
+      header={{ ...row, photoUrl }}
       profile={profile as unknown as StaffProfile}
       licences={licences}
       vehicle={assignedVehicle}
       today={todayInAu()}
       org={orgName}
+      orgState={orgState}
       initialSec={typeof sec === "string" ? sec : undefined}
       // The configured/not-configured bit only — the key stays on the server.
       addressLookup={Boolean(process.env.GOOGLE_MAPS_API_KEY)}
@@ -141,6 +160,8 @@ export default async function StaffProfilePage({
         onSave: saveStaffSection.bind(null, staffId),
         onAddLicence: addStaffLicence.bind(null, staffId),
         onRemoveLicence: removeStaffLicence.bind(null, staffId),
+        onSetPhoto: setStaffPhoto.bind(null, staffId),
+        onClearPhoto: clearStaffPhoto.bind(null, staffId),
       }}
     />
   );

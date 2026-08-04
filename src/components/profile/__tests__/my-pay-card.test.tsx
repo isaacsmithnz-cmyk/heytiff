@@ -69,10 +69,14 @@ describe("empty and read-only", () => {
     expect(screen.queryByText(/\$0\.00/)).not.toBeInTheDocument();
   });
 
+  /* The framed `.card2` went when the tab became the section's title, so what
+     "read-only" looks like is now the absence of the buttons rather than a
+     `data-static` attribute on a frame. Assert the thing that matters: there
+     is no way into an edit cycle from here. */
   it("has no edit cycle — these are set by an admin", () => {
-    const { container } = render(<MyPayCard pay={pay()} />);
+    render(<MyPayCard pay={pay()} />);
     expect(screen.queryByRole("button", { name: /Edit/ })).not.toBeInTheDocument();
-    expect(container.querySelector(".card2")).toHaveAttribute("data-static");
+    expect(screen.queryByRole("button", { name: /^Save\b/ })).not.toBeInTheDocument();
     expect(screen.getByText("Set by your admin — talk to them if something looks off.")).toBeInTheDocument();
   });
 });

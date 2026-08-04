@@ -6,14 +6,18 @@ import type { StaffProfile } from "./profile";
    agree, so all three read THIS rather than each counting for themselves.
 
    ONLY FIELDS THE SCREEN CAN ACTUALLY SET GET IN. A checklist item with no
-   control behind it is a list that never empties — which is why photo_url is
-   absent (there is no uploader on this screen yet) and why preferred_name is
-   absent too (most people have no nickname, so counting it would cap an honest
+   control behind it is a list that never empties — which is why preferred_name
+   is absent (most people have no nickname, so counting it would cap an honest
    card below 100% forever). Add a field here the day the control exists, not
-   before. */
+   before.
+
+   photo_url joined on that rule, not despite it: the camera badge on the
+   identity block is the control, so the field became answerable and went in
+   the same change. It counts against `summary` because that is the tab the
+   badge lives on — the only entry whose section is not a form. */
 
 /** The sections that own a completeness field. A subset of SectionKey. */
-export type CompletenessSection = "personal" | "emergency" | "workrights";
+export type CompletenessSection = "summary" | "personal" | "emergency" | "workrights";
 
 export type ProfileFieldSpec = {
   /** the StaffProfile column */
@@ -42,6 +46,7 @@ export const PROFILE_FIELDS: readonly ProfileFieldSpec[] = [
   { key: "phone", label: "Mobile number", section: "personal", required: false },
   { key: "emergency_name", label: "Emergency contact", section: "emergency", required: false },
   { key: "emergency_phone", label: "Emergency phone", section: "emergency", required: false },
+  { key: "photo_url", label: "Profile photo", section: "summary", required: false },
 ];
 
 export type Completeness = {
@@ -52,8 +57,13 @@ export type Completeness = {
   missing: readonly ProfileFieldSpec[];
   /** how many of `missing` the business is obliged to hold */
   requiredMissing: number;
-  /** sections holding at least one missing field — the tabs' amber dots */
+  /** sections holding at least one missing field */
   sectionsMissing: ReadonlySet<CompletenessSection>;
+  /** section → how many of its fields are missing — the tabs' count badges.
+      A COUNT, not a flag: the checklist that used to spell the fields out is
+      gone, so this badge is now the only thing saying which tab is short and
+      by how much. */
+  sectionCounts: ReadonlyMap<CompletenessSection, number>;
   complete: boolean;
 };
 
@@ -69,6 +79,9 @@ export function profileCompleteness(profile: StaffProfile | null): Completeness 
   const total = PROFILE_FIELDS.length;
   const filled = total - missing.length;
 
+  const sectionCounts = new Map<CompletenessSection, number>();
+  for (const f of missing) sectionCounts.set(f.section, (sectionCounts.get(f.section) ?? 0) + 1);
+
   return {
     filled,
     total,
@@ -78,6 +91,7 @@ export function profileCompleteness(profile: StaffProfile | null): Completeness 
     missing,
     requiredMissing: missing.filter((f) => f.required).length,
     sectionsMissing: new Set(missing.map((f) => f.section)),
+    sectionCounts,
     complete: missing.length === 0,
   };
 }

@@ -24,6 +24,10 @@ type Membership = {
   orgName: string | null;
   /** organizations.logo_url — a STORAGE REF, signed by the caller that renders it */
   orgLogoRef: string | null;
+  /** organizations.state — the org's home state, and so the public-holiday
+      calendar anyone without their own override is paid against. Rides the
+      query that was already being made. */
+  orgState: string | null;
 };
 
 const EMPTY: Membership = {
@@ -35,6 +39,7 @@ const EMPTY: Membership = {
   primaryOwnerUserId: " none",
   orgName: null,
   orgLogoRef: null,
+  orgState: null,
 };
 
 const getMembership = cache(async (): Promise<Membership> => {
@@ -52,7 +57,7 @@ const getMembership = cache(async (): Promise<Membership> => {
       .maybeSingle(),
     supabaseAdmin
       .from("organizations")
-      .select("primary_owner_user_id, trading_name, logo_url")
+      .select("primary_owner_user_id, trading_name, logo_url, state")
       .eq("id", orgId)
       .maybeSingle(),
   ]);
@@ -67,6 +72,7 @@ const getMembership = cache(async (): Promise<Membership> => {
       (org.data?.primary_owner_user_id as string | undefined) ?? EMPTY.primaryOwnerUserId,
     orgName: (org.data?.trading_name as string | undefined) ?? null,
     orgLogoRef: (org.data?.logo_url as string | undefined) ?? null,
+    orgState: (org.data?.state as string | undefined) ?? null,
   };
 });
 
@@ -83,6 +89,14 @@ export async function getOrgName(): Promise<string | null> {
     private bucket has to be minted per render. */
 export async function getOrgLogoRef(): Promise<string | null> {
   return (await getMembership()).orgLogoRef;
+}
+
+/** The org's home state. The staff card resolves an unset holiday state
+    against it, so a card can answer "which state's public holidays?" with a
+    state rather than with a sentence about a setting. Null until the owner
+    sets one — the caller then shows nothing rather than guessing. */
+export async function getOrgState(): Promise<string | null> {
+  return (await getMembership()).orgState;
 }
 
 /** Role + identity + who the org's master owner is — for ownership checks. */

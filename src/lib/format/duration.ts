@@ -155,7 +155,6 @@ export function dueIn(days: number): string {
 }
 
 /* There used to be an HTML-string twin here (durationHtml/inHtml) for the
-   injected-HTML profile. That screen is React now and renders the same
-   number-heavy/unit-muted treatment as JSX (see vehicle-card.tsx), so the
-   string builders went with their last caller. The `.dur-u` class stays —
-   it's the JSX's styling. */
+   injected-HTML profile. That screen is React now, so the string builders went
+   with their last caller. The `.dur-u` class stays — it's the JSX's styling,
+   still used wherever a duration is rendered number-heavy/unit-muted. */

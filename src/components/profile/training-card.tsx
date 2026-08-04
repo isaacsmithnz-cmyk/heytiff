@@ -6,7 +6,12 @@ import { StaticCard } from "./section-card";
 /** Training pathways — read-only until Training exists in Admin. */
 export function TrainingCard() {
   return (
-    <StaticCard icon="grad" title="Training progress" sub="Pathways & sign-offs · read-only">
+    <StaticCard
+      variant="section"
+      icon="grad"
+      title="Training"
+      sub="Pathways &amp; sign-offs · read-only"
+    >
       <div className="ro-empty">
         <span className="ei">
           <Icon name="grad" size={20} />

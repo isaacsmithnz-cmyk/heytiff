@@ -11,6 +11,7 @@ import {
 } from "@/lib/staff/profile";
 import { splitName, withDerivedFullName } from "@/lib/staff/name";
 import { buildLicenceRow, type LicenceInput } from "@/lib/staff/licence";
+import { resolvePhotoDocument } from "@/lib/staff/photo";
 
 /* My profile persistence — your own staff card.
 
@@ -127,6 +128,47 @@ export async function saveMyProfileSection(
     .eq("user_id", userId);
 
   if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/dashboard/profile");
+  revalidatePath("/dashboard/team");
+  return { ok: true };
+}
+
+/* Your own photo. The twin of setStaffPhoto, and deliberately not routed
+   through saveMyProfileSection: photo_url is NOT in the self section allowlist
+   and must not be, or a forged post could point your card at any string it
+   liked. The document is re-checked instead — see lib/staff/photo. */
+
+export async function setMyPhoto(documentId: string): Promise<SaveResult> {
+  const { orgId, userId } = await requireOrg();
+
+  const doc = await resolvePhotoDocument(orgId, documentId);
+  if (!doc.ok) return doc;
+
+  // the row may not exist yet on a card nobody has saved
+  await loadMyProfile();
+
+  const { error } = await supabaseAdmin
+    .from("staff_profiles")
+    .update({ photo_url: doc.ref, updated_at: new Date().toISOString() })
+    .eq("org_id", orgId)
+    .eq("user_id", userId);
+  if (error) return { ok: false, error: "Couldn't save that photo." };
+
+  revalidatePath("/dashboard/profile");
+  revalidatePath("/dashboard/team");
+  return { ok: true };
+}
+
+export async function clearMyPhoto(): Promise<SaveResult> {
+  const { orgId, userId } = await requireOrg();
+
+  const { error } = await supabaseAdmin
+    .from("staff_profiles")
+    .update({ photo_url: null, updated_at: new Date().toISOString() })
+    .eq("org_id", orgId)
+    .eq("user_id", userId);
+  if (error) return { ok: false, error: "Couldn't remove that photo." };
 
   revalidatePath("/dashboard/profile");
   revalidatePath("/dashboard/team");

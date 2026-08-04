@@ -17,17 +17,26 @@ export type IdCardBadge = {
   color?: string;
 };
 
+export type IdCardTone = "ok" | "warn" | "bad" | "mute";
+
 export type IdCardFact = {
   em: string;
   b: ReactNode;
   /** semantic tint for a fact that is a state, e.g. an expiry */
-  tone?: "ok" | "warn" | "bad" | "mute";
+  tone?: IdCardTone;
 };
+
+/** A pill in the card's top-right corner saying what STATE the thing is in —
+    valid, about to lapse, expired. Distinct from `badge`, which says what KIND
+    of thing it is and never changes. */
+export type IdCardState = { label: string; tone: IdCardTone };
 
 export function IdCard({
   variant = "dark",
   org,
   badge,
+  state,
+  credential = false,
   photoUrl,
   initials,
   name,
@@ -40,6 +49,21 @@ export function IdCard({
   /** the org's trading name — the issuer line, top left */
   org?: string | null;
   badge?: IdCardBadge;
+  state?: IdCardState;
+  /* A CREDENTIAL — a licence or a ticket — rather than a card identifying
+     someone or something.
+
+     It drops the issuer line: a wall of these all carry the same business
+     name, so the line is three identical rows of small caps saying nothing
+     that distinguishes one card from the next, and it was eating the width
+     the facts needed. The corner it frees is where the state pill goes.
+
+     It also lays the facts on a GRID instead of a flex row. Three of these
+     side by side is the point of the wall, and with flex each card's second
+     column started wherever its first value happened to end — so "Expires"
+     sat in a different place on every card, and a long status pushed one card's
+     row onto two lines while its neighbours stayed on one. */
+  credential?: boolean;
   /** future staff_photo; initials stand in until there is one */
   photoUrl?: string | null;
   initials?: string;
@@ -53,7 +77,7 @@ export function IdCard({
   const accent = badge?.color ?? "#00E5C0";
   const hasFace = Boolean(photoUrl || initials);
   return (
-    <div className={`idc ${variant}${hasFace ? "" : " faceless"}`}>
+    <div className={`idc ${variant}${hasFace ? "" : " faceless"}${credential ? " cred" : ""}`}>
       <span className="idc-sheen" aria-hidden="true" />
       <span className="idc-mesh" aria-hidden="true">
         <i className="m1" />
@@ -62,7 +86,7 @@ export function IdCard({
       {action ? <div className="idc-action">{action}</div> : null}
       <div className="idc-in">
         <div className="idc-top">
-          <span className="idc-org">{org || "HeyTiff"}</span>
+          {!credential && <span className="idc-org">{org || "HeyTiff"}</span>}
           {badge && (
             <span
               className="idc-badge"
@@ -71,6 +95,8 @@ export function IdCard({
               {badge.label}
             </span>
           )}
+          {/* right of the stamp, in the corner the issuer line gave up */}
+          {state && <span className={`idc-state ${state.tone}`}>{state.label}</span>}
         </div>
 
         <div className="idc-id">

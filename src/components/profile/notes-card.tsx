@@ -21,6 +21,7 @@ export function NotesCard({
   return (
     <>
       <SectionCard
+        variant="section"
         icon="note"
         title="Notes"
         sub="Internal — visible to managers & admin"
@@ -58,6 +59,7 @@ export function NotesCard({
         )}
       />
       <StaticCard
+        variant="section"
         icon="alert"
         iconStyle={{ background: "rgba(240,164,49,.14)", color: "#d98a00" }}
         title="Flags"

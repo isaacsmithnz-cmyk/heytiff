@@ -4,16 +4,19 @@ import { ProfileScreen } from "@/components/profile/profile-screen";
 import type { ProfileHeader } from "@/components/profile/types";
 import {
   addMyLicence,
+  clearMyPhoto,
   loadMyProfile,
   removeMyLicence,
   saveMyProfileSection,
+  setMyPhoto,
 } from "@/app/actions/profile";
 import { initialsFrom, startedLabel, yearsSince } from "@/lib/staff/derive";
 import { fullNameOf } from "@/lib/staff/name";
 import { assignedVehicleFor } from "@/lib/fleet/query";
 import { listLicences } from "@/lib/staff/query";
 import { getMyPay } from "@/lib/staff/my-pay";
-import { getOrgName } from "@/lib/permissions-server";
+import { getOrgName, getOrgState } from "@/lib/permissions-server";
+import { signPhotoUrl } from "@/lib/staff/photo";
 import { todayInAu } from "@/lib/au-dates";
 
 /* My profile — your own staff card, and the values that fill in Team.
@@ -38,13 +41,17 @@ export default async function MyProfilePage({
   const profile = await loadMyProfile();
   const orgId = session.orgId as string | undefined;
   const userId = session.user.sub as string;
-  const [assignedVehicle, licences, myPay, orgName, params] = await Promise.all([
-    orgId ? assignedVehicleFor(orgId, profile.id) : Promise.resolve(null),
-    orgId ? listLicences(orgId, profile.id) : Promise.resolve([]),
-    orgId ? getMyPay(orgId, userId) : Promise.resolve(null),
-    getOrgName(),
-    searchParams,
-  ]);
+  const [assignedVehicle, licences, myPay, orgName, orgState, photoUrl, params] =
+    await Promise.all([
+      orgId ? assignedVehicleFor(orgId, profile.id) : Promise.resolve(null),
+      orgId ? listLicences(orgId, profile.id) : Promise.resolve([]),
+      orgId ? getMyPay(orgId, userId) : Promise.resolve(null),
+      getOrgName(),
+      getOrgState(),
+      // a link into a private bucket is minted per render, never stored
+      signPhotoUrl(profile.photo_url),
+      searchParams,
+    ]);
 
   const email = session.user.email ?? "";
   const displayName =
@@ -67,6 +74,7 @@ export default async function MyProfilePage({
     years: yearsSince(profile.start_date),
     licenceCount: licences.length,
     status: profile.status,
+    photoUrl,
   };
 
   // read here, not with useSearchParams: the screen only needs the OPENING
@@ -83,6 +91,7 @@ export default async function MyProfilePage({
       vehicle={assignedVehicle}
       today={todayInAu()}
       org={orgName}
+      orgState={orgState}
       myPay={myPay}
       initialSec={typeof sec === "string" ? sec : undefined}
       // Whether address lookup is CONFIGURED, never the key: this is a server
@@ -92,6 +101,8 @@ export default async function MyProfilePage({
         onSave: saveMyProfileSection,
         onAddLicence: addMyLicence,
         onRemoveLicence: removeMyLicence,
+        onSetPhoto: setMyPhoto,
+        onClearPhoto: clearMyPhoto,
       }}
     />
   );

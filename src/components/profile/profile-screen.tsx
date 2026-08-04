@@ -1,27 +1,27 @@
 "use client";
 
 import { useState } from "react";
+import { flushSync } from "react-dom";
 import Link from "next/link";
 import type { StaffProfile } from "@/lib/staff/profile";
 import type { StaffLicence } from "@/lib/staff/types";
 import type { MyPay } from "@/lib/staff/my-pay";
 import { profileCompleteness, type CompletenessSection } from "@/lib/staff/completeness";
-import { CompletenessBanner } from "./completeness-banner";
-import { ProfileRail } from "./profile-rail";
+import { CompletionStrip } from "./completion-strip";
 import { ProfileTabs, type NavItem } from "./profile-tabs";
+import { SummaryTab } from "./summary-tab";
 import { PersonalCard } from "./personal-card";
 import { EmergencyCard } from "./emergency-card";
 import { ComplianceCard } from "./compliance-card";
 import { QualificationsCard } from "./qualifications-card";
 import { WorkRightsCard } from "./workrights-card";
-import { VehicleCard } from "./vehicle-card";
 import { TrainingCard } from "./training-card";
 import { PayrollCard } from "./payroll-card";
 import { PermissionsCard } from "./permissions-card";
 import { NotesCard } from "./notes-card";
 import { MyPayCard } from "./my-pay-card";
 import {
-  isSectionKey,
+  sectionFromParam,
   type AdminExtras,
   type AssignedVehicle,
   type ProfileActions,
@@ -30,8 +30,14 @@ import {
   type SectionKey,
 } from "./types";
 
-/* The staff card — one client component over real props, replacing an HTML
-   string plus a delegated-event script.
+/* The staff card — the maintenance board's surface, holding a person.
+
+   WHAT THIS SCREEN IS NOW. A breadcrumb with the completion strip at its end,
+   one row of tabs, and ONE persistent white card. Summary leads and reads;
+   every tab after it is a section you fill in. It borrows `.wb2-vtabs` /
+   `.wb2-card` from the board rather than growing a second copy — including the
+   view transition below, so switching tabs swaps the information while the
+   surface stays put.
 
    WHAT MOVED, AND WHY IT MATTERS
 
@@ -49,30 +55,28 @@ import {
    rendered-then-hidden: adminExtras keys that the page didn't pass produce no
    nav entry and no section. That mirrors the server allowlists exactly.
 
-   THE LAYOUT (redesign). One card holds the lot: a dark rail on the left
-   carrying the derived identity — photo, name, role, status, tenure, licence
-   count, assigned vehicle — and, to its right, the section tabs over the
-   panel. What the rail shows, no card repeats: the plastic staff card that
-   used to head Personal was a second copy of it, so Personal now opens
-   straight onto the fields.
+   THE IDENTITY IS INSIDE THE CARD, on Summary, not above the tabs — it was a
+   page header carrying a person next to a card that opened with its own
+   headline, which read as two headers stacked. See identity-block.
 
-   Above the panel sits what is still missing, from lib/staff/completeness —
-   the same model that puts an amber dot on a tab. Answering it moves you to
-   the owning section AND opens that card's form, which is what `editing`
-   below is for: it rides in the panel's key, so the section remounts and the
-   card starts in edit mode from state rather than an effect. */
+   `editing` is unchanged: it rides in the panel's key, so answering "fill in
+   missing details" remounts the section and the card starts in edit mode from
+   state rather than an effect. */
 
 const NAV_ITEMS: NavItem[] = [
-  { key: "personal", label: "Personal details" },
-  { key: "emergency", label: "Emergency contact" },
+  { key: "summary", label: "Summary" },
+  // "Personal" and "Emergency", not "Personal details" and "Emergency
+  // contact": nine tabs at full length overflow one row on a 1440 laptop, and
+  // each section's own head spells its name out. See shell.css.
+  { key: "personal", label: "Personal" },
+  { key: "emergency", label: "Emergency" },
   { key: "licences", label: "Compliance" },
   { key: "workrights", label: "Work rights" },
-  { key: "vehicle", label: "Assigned vehicle" },
   { key: "training", label: "Training" },
   { key: "mypay", label: "My pay" },
   { key: "payroll", label: "Payroll", admin: true },
   { key: "permissions", label: "Permissions", admin: true },
-  { key: "notes", label: "Notes & flags", admin: true },
+  { key: "notes", label: "Notes", admin: true },
 ];
 
 export function ProfileScreen({
@@ -83,6 +87,7 @@ export function ProfileScreen({
   vehicle,
   today,
   org,
+  orgState = null,
   adminExtras,
   myPay,
   initialSec,
@@ -98,6 +103,10 @@ export function ProfileScreen({
   today: string;
   /** the org's trading name — the issuer line on every plastic card */
   org: string | null;
+  /** the org's home state. Summary resolves an unset holiday state against it
+      rather than printing "Same as organisation" — an answer, not a sentence
+      about a setting. */
+  orgState?: string | null;
   /** admin mode only; a key that is absent is not rendered at all */
   adminExtras?: AdminExtras;
   /** self mode only — never read through a financials-gated path */
@@ -125,35 +134,56 @@ export function ProfileScreen({
   });
 
   const [active, setActive] = useState<SectionKey>(() => {
-    const wanted = isSectionKey(initialSec) ? initialSec : null;
-    return wanted && available.some((n) => n.key === wanted) ? wanted : "personal";
+    const wanted = sectionFromParam(initialSec);
+    return wanted && available.some((n) => n.key === wanted) ? wanted : "summary";
   });
 
-  /* Bumped whenever the checklist asks a card to open its form. It rides in
-     the panel's key, so the section remounts and SectionCard can seed its
-     draft from state — no effect, and asking twice for the SAME section still
-     works because the nonce moved. 0 means "nobody asked". */
+  /* Bumped whenever the strip asks a section to open its form. It rides in the
+     panel's key, so the section remounts and SectionCard can seed its draft
+     from state — no effect, and asking twice for the SAME section still works
+     because the nonce moved. 0 means "nobody asked". */
   const [editing, setEditing] = useState<{ section: SectionKey; nonce: number } | null>(null);
 
+  /* The board's switch: the information swaps, the surface stays. `.wb2-card`
+     carries `view-transition-name: wbcard`, so the box morphs while the
+     outgoing panel drifts up and the incoming rises. No View Transitions
+     support and the panel simply re-keys with the same vertical entrance. */
+  const [fallbackSwap, setFallbackSwap] = useState(0);
+
   const go = (key: SectionKey, withEdit = false) => {
-    setActive(key);
-    setEditing(withEdit ? { section: key, nonce: (editing?.nonce ?? 0) + 1 } : null);
+    const apply = () => {
+      setActive(key);
+      setEditing(withEdit ? { section: key, nonce: (editing?.nonce ?? 0) + 1 } : null);
+    };
+
+    const doc = document as Document & { startViewTransition?: (cb: () => void) => void };
+    if (key !== active && typeof doc.startViewTransition === "function") {
+      doc.startViewTransition(() => flushSync(apply));
+    } else {
+      apply();
+      if (key !== active) setFallbackSwap((n) => n + 1);
+    }
+
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
       url.searchParams.set("sec", key);
-      // replaceState, not router.push: this is which card you're looking at,
-      // not a navigation — a push would re-run the server render and re-mount
-      // the very cards this screen exists to keep still.
+      // replaceState, not router.push: this is which section you're looking
+      // at, not a navigation — a push would re-run the server render and
+      // re-mount the very cards this screen exists to keep still.
       window.history.replaceState(null, "", url.toString());
     }
     document.querySelector(".outlet")?.scrollTo({ top: 0 });
   };
 
-  /* The checklist only ever names a section that has a field in it, and those
-     three are always available — but route through `available` anyway so a
-     future gate can't strand the button on a tab that isn't there. */
+  /* The strip only ever names a section that has a field in it. `summary` is
+     among them now (the photo lives there), and it is always available — but
+     route through `available` anyway so a future gate can't strand the button
+     on a tab that isn't there. */
   const fix = (section: CompletenessSection) => {
-    if (available.some((n) => n.key === section)) go(section, true);
+    if (!available.some((n) => n.key === section)) return;
+    // Summary has no form to open — the camera badge is the control, and it is
+    // already on screen the moment you arrive.
+    go(section, section !== "summary");
   };
 
   const completeness = profileCompleteness(profile);
@@ -177,40 +207,53 @@ export function ProfileScreen({
               </>
             )}
           </div>
+
+          <CompletionStrip completeness={completeness} onFix={fix} />
         </div>
 
-        <div className="pcard">
-          <ProfileRail header={header} org={org} vehicle={vehicle} />
+        <div className="pcard2">
+          <ProfileTabs
+            items={available}
+            active={active}
+            attention={completeness.sectionCounts}
+            onGo={go}
+          />
 
-          <div className="pmain">
-            <ProfileTabs
-              items={available}
-              active={active}
-              attention={completeness.sectionsMissing}
-              onGo={go}
-            />
-
-            <CompletenessBanner completeness={completeness} onFix={fix} />
-
-            <div className="ppanel">
+          <div className="wb2-card">
+            <div className="ppanel2">
               {/* keyed on the section so the panel's entrance animation replays
-                  — and on the edit nonce, so "fill this in" remounts the card
-                  into edit mode */}
+                  — and on the edit nonce, so "fill this in" remounts the
+                  section into edit mode */}
               <section
-                key={`${active}#${startEditing}`}
+                key={`${active}#${startEditing}#${fallbackSwap}`}
                 id={`psec-${active}`}
                 role="tabpanel"
                 aria-labelledby={`pftab-${active}`}
                 tabIndex={-1}
-                className="psec on"
+                className="psec2"
                 data-sec={active}
               >
+                {active === "summary" && (
+                  <SummaryTab
+                    header={header}
+                    profile={profile}
+                    licences={licences}
+                    vehicle={vehicle}
+                    today={today}
+                    org={org}
+                    orgState={orgState}
+                    mode={mode}
+                    actions={actions}
+                    onGo={go}
+                  />
+                )}
                 {active === "personal" && (
                   <PersonalCard
                     profile={profile}
                     mode={mode}
                     addressLookup={addressLookup}
                     today={today}
+                    orgState={orgState}
                     email={header.email}
                     startEditing={startEditing > 0}
                     onSave={actions.onSave}
@@ -246,7 +289,6 @@ export function ProfileScreen({
                     onSave={actions.onSave}
                   />
                 )}
-                {active === "vehicle" && <VehicleCard assigned={vehicle} />}
                 {active === "training" && <TrainingCard />}
                 {active === "mypay" && myPay && <MyPayCard pay={myPay} />}
                 {active === "payroll" && showPayroll && (

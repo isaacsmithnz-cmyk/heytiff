@@ -33,7 +33,7 @@ function setup(profile = blankProfile) {
 }
 
 const edit = () => screen.getByRole("button", { name: /^Edit$/ });
-const save = () => screen.getByRole("button", { name: /^Save$/ });
+const save = () => screen.getByRole("button", { name: /^Save\b/ });
 
 describe("choosing a no-visa status", () => {
   it("takes the visa inputs out of the DOM, not merely out of focus", async () => {

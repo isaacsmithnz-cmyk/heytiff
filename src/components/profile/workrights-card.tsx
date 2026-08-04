@@ -129,6 +129,7 @@ export function WorkRightsCard({
 
   return (
     <SectionCard
+      variant="section"
       icon="passport"
       title="Work rights"
       sub="Australian working-rights / visa status"

@@ -83,6 +83,7 @@ export function EmergencyCard({
 
   return (
     <SectionCard
+      variant="section"
       icon="phone"
       title="Emergency contact"
       sub="Who we call if something happens on site"

@@ -92,7 +92,7 @@ describe("edit mode offers the controls", () => {
     const { onSave } = setup();
     await user.click(screen.getByRole("button", { name: /^Edit$/ }));
     await user.click(screen.getByRole("switch", { name: "Toolbox" }));
-    await user.click(screen.getByRole("button", { name: /^Save$/ }));
+    await user.click(screen.getByRole("button", { name: /^Save\b/ }));
 
     expect(onSave).toHaveBeenCalledWith(
       "permissions",

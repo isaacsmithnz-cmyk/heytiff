@@ -90,18 +90,14 @@ export function ComplianceCard({
   };
 
   return (
-    <div className="card2" data-live>
-      <div className="c2h">
-        <span className="ci">
-          <Icon name="shield" size={18} />
-        </span>
-        <span>
-          <b>Compliance</b>
-          <em>
-            Licences &amp; tickets — each one tracks its number and expiry, and warns on your
-            dashboard before it lapses
-          </em>
-        </span>
+    <div className="psec-body" data-live>
+      {/* The tab says "Compliance"; this says what the tab is for. See
+          section-card for why the framed header went. */}
+      <div className="psechd">
+        <em>
+          Licences &amp; tickets — each one tracks its number and expiry, and warns on your
+          dashboard before it lapses
+        </em>
       </div>
 
       <div className="licadd">

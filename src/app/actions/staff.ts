@@ -17,6 +17,7 @@ import { buildAdminPatch, capabilityFor, isAdminSection } from "@/lib/staff/admi
 import { withDerivedFullName } from "@/lib/staff/name";
 import { clearDrift } from "@/lib/integrations/drift-sweep";
 import { buildLicenceRow, type LicenceInput } from "@/lib/staff/licence";
+import { resolvePhotoDocument } from "@/lib/staff/photo";
 import type { Role } from "@/lib/roles-shared";
 
 /* Editing SOMEONE ELSE'S card, from Team.
@@ -216,6 +217,59 @@ export async function removeStaffLicence(staffId: string, licenceId: string): Pr
     .eq("staff_profile_id", staffId)
     .eq("id", licenceId);
   if (error) return { ok: false, error: "Couldn't remove that licence." };
+
+  revalidatePath(`/dashboard/team/${staffId}`);
+  revalidatePath("/dashboard/team");
+  return { ok: true };
+}
+
+/* The staff photo. Not part of any section save: picking a file writes it
+   immediately, because the avatar you are looking at IS the confirmation. The
+   card's open draft is untouched by the revalidate that follows — the draft is
+   the mode (see profile/section-card), so whatever else was being typed stays
+   where it was.
+
+   Gated on `team` like every other write here, and `staff_photo` uploads are
+   already allowed to any member by beginUpload — so the control that matters
+   is targetIn() below, which resolves the person inside the caller's org. */
+
+export async function setStaffPhoto(staffId: string, documentId: string): Promise<SaveResult> {
+  const ctx = await context();
+  if (!ctx) throw new Error("Not authenticated");
+  if (!ctx.caps.has("team")) return { ok: false, error: "You don't have access to staff records." };
+  if (!(await targetIn(ctx, staffId))) return { ok: false, error: "That staff member doesn't exist." };
+
+  const doc = await resolvePhotoDocument(ctx.orgId, documentId);
+  if (!doc.ok) return doc;
+
+  const { error } = await supabaseAdmin
+    .from("staff_profiles")
+    .update({ photo_url: doc.ref, updated_at: new Date().toISOString() })
+    .eq("org_id", ctx.orgId)
+    .eq("id", staffId);
+  if (error) return { ok: false, error: "Couldn't save that photo." };
+
+  revalidatePath(`/dashboard/team/${staffId}`);
+  revalidatePath("/dashboard/team");
+  return { ok: true };
+}
+
+/** Take the photo off the card. The column is cleared and the file is left:
+    a document nothing points at is invisible everywhere, and deleting the
+    object here would take it out from under any other card that was pointed
+    at the same upload. */
+export async function clearStaffPhoto(staffId: string): Promise<SaveResult> {
+  const ctx = await context();
+  if (!ctx) throw new Error("Not authenticated");
+  if (!ctx.caps.has("team")) return { ok: false, error: "You don't have access to staff records." };
+  if (!(await targetIn(ctx, staffId))) return { ok: false, error: "That staff member doesn't exist." };
+
+  const { error } = await supabaseAdmin
+    .from("staff_profiles")
+    .update({ photo_url: null, updated_at: new Date().toISOString() })
+    .eq("org_id", ctx.orgId)
+    .eq("id", staffId);
+  if (error) return { ok: false, error: "Couldn't remove that photo." };
 
   revalidatePath(`/dashboard/team/${staffId}`);
   revalidatePath("/dashboard/team");

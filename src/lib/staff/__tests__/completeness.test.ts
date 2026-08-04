@@ -5,7 +5,7 @@ import {
   profileCompleteness,
 } from "../completeness";
 
-/* The ring, the checklist and the tab dots all read this one model, so what it
+/* The ring and the tabs' count badges both read this one model, so what it
    counts is the whole contract. */
 
 const blank: StaffProfile = {
@@ -51,15 +51,25 @@ const full: StaffProfile = {
   emergency_name: "Sarah Mills",
   emergency_phone: "0411 111 111",
   work_rights_status: "Australian citizen",
+  photo_url: "org/o1/staff_photo/doc-1.jpg",
 };
 
 describe("what counts", () => {
   it("only tracks fields the profile screen can actually set", () => {
     // an item with no control behind it is a checklist that never empties
     const keys = PROFILE_FIELDS.map((f) => f.key);
-    expect(keys).not.toContain("photo_url");
     expect(keys).not.toContain("preferred_name");
     expect(keys).not.toContain("full_name");
+  });
+
+  /* photo_url is the rule working, not an exception to it: it was excluded for
+     exactly as long as there was no uploader, and joined the day the camera
+     badge on the identity block became the control. */
+  it("counts the photo now that the identity block can set one", () => {
+    const spec = PROFILE_FIELDS.find((f) => f.key === "photo_url");
+    expect(spec?.required).toBe(false);
+    // Summary — the tab the badge lives on, and the only entry not a form
+    expect(spec?.section).toBe("summary");
   });
 
   it("counts an empty card as 0% with everything missing", () => {
@@ -113,17 +123,33 @@ describe("sections needing attention", () => {
     const c = profileCompleteness({ ...full, first_name: null, address: null });
     expect([...c.sectionsMissing]).toEqual(["personal"]);
   });
+
+  /* The tab badge is a COUNT now, and it is the only thing left saying which
+     section is short — the checklist that used to spell the fields out is
+     gone. A flag where a number belongs would under-report by two here. */
+  it("counts how many of a section's fields are missing, not just that some are", () => {
+    const c = profileCompleteness({ ...full, first_name: null, address: null, birthday: null });
+    expect(c.sectionCounts.get("personal")).toBe(3);
+    expect(c.sectionCounts.get("emergency")).toBeUndefined();
+  });
+
+  it("keeps the counts agreeing with the sections", () => {
+    const c = profileCompleteness({ ...full, address: null, emergency_phone: null });
+    expect(new Set(c.sectionCounts.keys())).toEqual(new Set(c.sectionsMissing));
+    const summed = [...c.sectionCounts.values()].reduce((a, b) => a + b, 0);
+    expect(summed).toBe(c.missing.length);
+  });
 });
 
 describe("the line under the ring", () => {
   it("counts the fields and calls out the required ones", () => {
     const c = profileCompleteness({ ...full, phone: null, birthday: null });
-    expect(completenessSummary(c)).toBe("2 of 10 fields missing · 1 required");
+    expect(completenessSummary(c)).toBe("2 of 11 fields missing · 1 required");
   });
 
   it("drops the required clause when none of the missing ones are", () => {
     const c = profileCompleteness({ ...full, phone: null });
-    expect(completenessSummary(c)).toBe("1 of 10 fields missing");
+    expect(completenessSummary(c)).toBe("1 of 11 fields missing");
   });
 
   it("says so plainly when there is nothing left", () => {

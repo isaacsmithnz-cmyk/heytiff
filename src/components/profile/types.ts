@@ -30,6 +30,9 @@ export type ProfileActions = {
   onSave: SaveSection;
   onAddLicence: (input: LicenceInput) => Promise<SaveResult>;
   onRemoveLicence: (licenceId: string) => Promise<SaveResult>;
+  /** points the card at an already-uploaded staff_photo document */
+  onSetPhoto: (documentId: string) => Promise<SaveResult>;
+  onClearPhoto: () => Promise<SaveResult>;
 };
 
 /** "self" = My profile (own staff card). "admin" = Team viewing someone else. */
@@ -98,12 +101,18 @@ export type AssignedVehicle = {
   lastFuel: { litres?: number; when: string } | null;
 };
 
+/* Summary leads, and everything after it is a section you FILL IN. That is the
+   whole tab list, in order.
+
+   `vehicle` is not here any more: the assignment is derived from Fleet and
+   there was nothing on that tab to edit, so it reads on Summary instead. Old
+   `?sec=vehicle` links still work — see LEGACY_SECTIONS. */
 export const SECTION_KEYS = [
+  "summary",
   "personal",
   "emergency",
   "licences",
   "workrights",
-  "vehicle",
   "training",
   "mypay",
   "payroll",
@@ -113,6 +122,21 @@ export const SECTION_KEYS = [
 
 export type SectionKey = (typeof SECTION_KEYS)[number];
 
+/** Retired keys, and where a link carrying one should land. A bookmark that
+    still says `?sec=vehicle` opens Summary, which is where that card's facts
+    went — rather than silently falling back to the first tab as an unknown
+    value would. */
+const LEGACY_SECTIONS: Readonly<Record<string, SectionKey>> = {
+  vehicle: "summary",
+};
+
 export function isSectionKey(v: unknown): v is SectionKey {
   return typeof v === "string" && (SECTION_KEYS as readonly string[]).includes(v);
+}
+
+/** The tab a `?sec=` value should open, or null when it names nothing. */
+export function sectionFromParam(v: unknown): SectionKey | null {
+  if (isSectionKey(v)) return v;
+  if (typeof v === "string" && v in LEGACY_SECTIONS) return LEGACY_SECTIONS[v];
+  return null;
 }

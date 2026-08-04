@@ -204,12 +204,17 @@ export async function deleteDocument(documentId: string): Promise<DocResult> {
     }
   }
 
-  /* Same rule, other owner. A fuel docket that has been adopted by a vehicle
-     log is the substantiation behind a figure in the tax export, and the ATO
-     expects it to still be there in five years. There is no "declined" escape
-     hatch here because a fuel log has no approval to fail — once it is
-     attached it is a record, so nobody deletes it. Deleting the LOG is the
-     way to withdraw the claim; the file goes with it. */
+  /* Same rule, other owner. A fuel docket adopted by a vehicle log is the
+     substantiation behind a figure in the tax export, and the ATO expects it
+     to still be there in five years. There is no "declined" escape hatch as
+     there is for a claim, because a fuel log has no approval to fail.
+
+     WITHDRAWING one is a different act, and it does NOT come through here:
+     removing the fuel entry (actions/fleet.ts deleteLog) takes the figure out
+     of every screen and out of the export, and the receipt stays deliberately
+     attached to the hidden row. That is the point — a deduction that has
+     already gone to an accountant must still be explicable afterwards, and a
+     withdrawn entry with its evidence deleted explains nothing. */
   if (data.vehicle_log_id) {
     return { ok: false, error: "That receipt belongs to a fuel entry and can't be removed." };
   }

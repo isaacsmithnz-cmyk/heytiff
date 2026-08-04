@@ -84,6 +84,9 @@ async function fuelItems(orgId: string, start: string, end: string): Promise<Sou
     .select("id, vehicle_id, staff_profile_id, logged_on, litres, cost, gst, supplier_abn, station")
     .eq("org_id", orgId)
     .eq("kind", "fuel")
+    // a deleted entry is not a deduction — the row is kept for audit, not for
+    // the export it was withdrawn from
+    .is("deleted_at", null)
     .gte("logged_on", start)
     .lte("logged_on", end)
     // A fill with no cost on it is a fleet fact, not a purchase — it has

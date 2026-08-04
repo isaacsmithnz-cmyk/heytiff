@@ -8,7 +8,15 @@ import { MyVehicle } from "./my-vehicle";
    Same component and same narrow payload as the Assets tab; what's different
    is that it needs no capability and never mentions a register. */
 
-export function MyVehicleScreen({ own, today }: { own: OwnFleet; today: string }) {
+export function MyVehicleScreen({
+  own,
+  today,
+  viewerStaffId,
+}: {
+  own: OwnFleet;
+  today: string;
+  viewerStaffId: string | null;
+}) {
   const actions = useFleetActions();
   return (
     <div className="page in">
@@ -27,6 +35,9 @@ export function MyVehicleScreen({ own, today }: { own: OwnFleet; today: string }
             logs={own.logs}
             error={actions.error}
             onLog={actions.addLog}
+            onEditLog={actions.editLog}
+            onDeleteLog={actions.deleteLog}
+            viewerStaffId={viewerStaffId}
             today={today}
           />
         </div>

@@ -1929,12 +1929,6 @@
 .fg .fl-total { display:flex; align-items:center; justify-content:space-between; padding:13px 24px; border-top:1px solid #f0f0f2; background:#fafbfc; font-size:12.5px; font-weight:600; color:#9ca3af; }
 .fg .fl-total b { color:var(--ink); font-weight:800; }
 
-/* header preview toggle (manager-only, demo affordance) */
-.fg .fl-seg { display:inline-flex; align-items:center; gap:4px; padding:5px; background:#f1f2f4; border:1px solid #e9eaee; border-radius:14px; flex:0 0 auto; }
-.fg .fl-seg em { font-style:normal; font-size:10.5px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:#9ca3af; margin:0 6px 0 9px; }
-.fg .fl-seg button { display:inline-flex; align-items:center; gap:6px; height:32px; padding:0 14px; border-radius:10px; font-size:12.5px; font-weight:700; color:#6b7280; transition:all .2s; }
-.fg .fl-seg button.on { background:#fff; color:var(--ink); box-shadow:0 4px 12px rgba(0,0,0,.08); }
-
 /* my vehicle — staff lens */
 .fg .fl-my { display:flex; flex-direction:column; gap:16px; }
 .fg .fl-hero { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; background:linear-gradient(135deg,#fff 62%,#fff8f0); border:1px solid #f0f0f2; border-radius:24px; box-shadow:0 8px 30px rgba(0,0,0,.03); padding:28px 30px; }
@@ -4592,3 +4586,33 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   .fg .tx-item { flex-wrap:wrap; }
   .fg .tx-rcpt { min-width:0; }
 }
+
+/* ---- correcting a log entry ----
+   Unscoped, like the rest of the fleet modal block: these render inside the
+   portal, where `.fg` is not an ancestor. */
+/* The per-row affordance. Barely there until the row is hovered — correcting
+   an entry is rare, and a button that announced itself would make every line
+   of a clean history look like it needed attention.
+
+   WRITTEN AS `.fl-log .fl-lfix`, and it has to be. This row renders in two
+   places: inside the detail modal (a portal, no `.fg` above it) and on the
+   My-vehicle page, where `.fg button` (0,1,1) sets `color:inherit`. A lone
+   `.fl-lfix` is (0,1,0) and loses that fight on the page while winning it in
+   the modal — the same class looking right in one place and flat in the other,
+   which is exactly how this trap has bitten before. The descendant selector is
+   (0,2,0) and wins in both. */
+.fl-log .fl-lfix { flex:0 0 auto; display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; margin-left:2px; border-radius:9px; color:#c3c6cc; opacity:0; transition:opacity .15s, background .15s, color .15s; }
+.fl-log:hover .fl-lfix, .fl-log .fl-lfix:focus-visible { opacity:1; }
+.fl-log .fl-lfix:hover { background:#f4f5f7; color:#374151; }
+/* Touch has no hover, so the affordance is simply always visible there. */
+@media (hover:none){ .fl-log .fl-lfix { opacity:1; } }
+
+/* The remove confirmation. Says what happens rather than asking twice. */
+.fl-danger { display:flex; flex-direction:column; gap:8px; padding:18px 20px; border-radius:18px; background:rgba(255,51,102,.05); border:1px solid rgba(255,51,102,.16); }
+.fl-danger b { font-size:15px; font-weight:800; color:#050505; }
+.fl-danger em { font-style:normal; font-size:13px; font-weight:500; line-height:1.55; color:#6b7280; }
+.fl-danger .fl-foot { margin-top:6px; }
+
+/* A footer with a destructive action on the left and the commit pair right. */
+.fl-foot.spread { justify-content:space-between; }
+.fl-footright { display:inline-flex; gap:10px; }

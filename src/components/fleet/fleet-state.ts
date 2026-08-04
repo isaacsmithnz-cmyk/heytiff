@@ -5,11 +5,14 @@ import { useRouter } from "next/navigation";
 import {
   addLog as addLogAction,
   assignVehicle as assignVehicleAction,
+  deleteLog as deleteLogAction,
+  editLog as editLogAction,
   removeVehicle as removeVehicleAction,
   resolveIssue as resolveIssueAction,
   saveValuations as saveValuationsAction,
   saveVehicle as saveVehicleAction,
 } from "@/app/actions/fleet";
+import type { LogEdit } from "@/app/actions/fleet";
 import type { AiValuation, NewLog, Vehicle, VehicleLog } from "./logic";
 
 /* Fleet state. The localStorage overlay (ht_fleet_v1) is gone — server data
@@ -31,6 +34,8 @@ export type FleetActions = {
   removeVehicle: (id: string) => void;
   assignVehicle: (id: string, staffId: string | null) => void;
   addLog: (log: NewLog) => void;
+  editLog: (logId: string, patch: LogEdit) => void;
+  deleteLog: (logId: string) => void;
   resolveIssue: (logId: string) => void;
   setValuations: (vals: Record<string, AiValuation>) => void;
 };
@@ -73,6 +78,11 @@ export function useFleetActions(): FleetActions {
       [run],
     ),
     addLog: useCallback((log: NewLog) => run(() => addLogAction(log)), [run]),
+    editLog: useCallback(
+      (logId: string, patch: LogEdit) => run(() => editLogAction(logId, patch)),
+      [run],
+    ),
+    deleteLog: useCallback((logId: string) => run(() => deleteLogAction(logId)), [run]),
     resolveIssue: useCallback((logId: string) => run(() => resolveIssueAction(logId)), [run]),
     setValuations: useCallback(
       (vals: Record<string, AiValuation>) => run(() => saveValuationsAction(vals)),

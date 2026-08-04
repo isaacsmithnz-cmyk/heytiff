@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import { useFleetActions } from "./fleet-state";
 import type {
@@ -22,8 +21,13 @@ import { FleetRegister } from "./register";
    register incl. valuations; everyone else gets only their own vehicle. The
    two lenses take DIFFERENT props, not the same props filtered — `register`
    is simply absent from a staff member's payload, so there is nothing for a
-   render bug to leak. Managers also get a Staff preview toggle so the staff
-   lens can be reviewed without switching accounts. */
+   render bug to leak.
+
+   The lens follows the PAYLOAD and nothing else. There was a manager-only
+   "Preview: Manager / Staff" toggle here, from the days when this screen was a
+   design shell with no routes behind it; /dashboard/my-vehicle is a real page
+   now, so a manager who wants the staff view opens it. A control that made the
+   page lie about who you are earned its keep once and stopped. */
 
 export type OwnFleet = {
   vehicle: VehicleWithFacts | null;
@@ -42,15 +46,16 @@ export function AssetsScreen({
   own,
   register,
   today,
+  viewerStaffId,
 }: {
   own: OwnFleet;
   /** Present only for holders of `assets_all`. */
   register?: Register;
   today: string;
+  viewerStaffId: string | null;
 }) {
   const actions = useFleetActions();
-  const [preview, setPreview] = useState<"manager" | "staff">("manager");
-  const staffLens = !register || preview === "staff";
+  const staffLens = !register;
 
   return (
     <div className="page in">
@@ -62,19 +67,6 @@ export function AssetsScreen({
                 Assets
               </h1>
             </div>
-            {register && (
-              <div className="fl-seg" title="Preview how this page looks for each role">
-                <em>Preview</em>
-                <button className={preview === "manager" ? "on" : ""} onClick={() => setPreview("manager")}>
-                  <Icon name="shield" size={13} />
-                  Manager
-                </button>
-                <button className={preview === "staff" ? "on" : ""} onClick={() => setPreview("staff")}>
-                  <Icon name="users" size={13} />
-                  Staff
-                </button>
-              </div>
-            )}
           </div>
 
           <div className="ptabs">
@@ -94,6 +86,9 @@ export function AssetsScreen({
                   logs={own.logs}
                   error={actions.error}
                   onLog={actions.addLog}
+                  onEditLog={actions.editLog}
+                  onDeleteLog={actions.deleteLog}
+                  viewerStaffId={viewerStaffId}
                   today={today}
                 />
               ) : (

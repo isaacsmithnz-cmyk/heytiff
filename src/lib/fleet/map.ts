@@ -131,6 +131,7 @@ export function toLog(
     station: typeof r.station === "string" && r.station ? r.station : undefined,
     gst: optNum(r.gst),
     abn: typeof r.supplier_abn === "string" && r.supplier_abn ? r.supplier_abn : undefined,
+    edited: r.edited_at ? true : undefined,
   };
 }
 

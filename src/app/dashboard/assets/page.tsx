@@ -8,7 +8,7 @@ import { loadFleetPage } from "@/lib/fleet/page-data";
    without the capability is sent there rather than to a lens-shaped Assets. */
 
 export default async function AssetsPage() {
-  const { own, register, today } = await loadFleetPage({ withRegister: true });
+  const { own, register, today, viewerStaffId } = await loadFleetPage({ withRegister: true });
   if (!register) redirect("/dashboard/my-vehicle");
-  return <AssetsScreen own={own} register={register} today={today} />;
+  return <AssetsScreen own={own} register={register} today={today} viewerStaffId={viewerStaffId} />;
 }

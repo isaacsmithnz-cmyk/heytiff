@@ -7,6 +7,7 @@ import { DateField } from "@/components/ui/date-field";
 import { readFuelReceipt } from "@/app/actions/fleet-ai";
 import { uploadFile } from "@/lib/documents/upload-client";
 import { dateFromDays } from "@/lib/fleet/map";
+import type { LogEdit } from "@/app/actions/fleet";
 import { Plate } from "./plate";
 import {
   STATUS_LABEL,
@@ -696,6 +697,185 @@ export function LogModal({
   );
 }
 
+/* ---------------- correcting an entry ---------------- */
+
+/* Editing a log, and removing one.
+
+   A SEPARATE MODAL from LogModal, deliberately. That one is a capture flow: it
+   opens on a camera, it has a scan step, and its whole shape is "get the
+   docket into the app". This is the opposite job — the figures already exist
+   and one of them is wrong — so it opens on the fields, filled in, with no
+   camera anywhere near it. Bending the capture modal into doing both would
+   have meant a mode flag threaded through every branch of it.
+
+   THE RECEIPT IS NOT REPLACEABLE HERE. A stored docket is the evidence for
+   this entry; swapping it for a different photo after the fact is not a
+   correction, it is a substitution. Wrong photo means remove the entry and log
+   it again, which leaves both acts on the record. */
+export function EditLogModal({
+  log,
+  today,
+  onSave,
+  onDelete,
+  onClose,
+}: {
+  log: VehicleLog;
+  today: string;
+  onSave: (patch: LogEdit) => void;
+  onDelete: () => void;
+  onClose: () => void;
+}) {
+  const [litres, setLitres] = useState(log.litres != null ? String(log.litres) : "");
+  const [cost, setCost] = useState(log.cost != null ? log.cost.toFixed(2) : "");
+  const [odo, setOdo] = useState(log.odo != null ? String(log.odo) : "");
+  const [note, setNote] = useState(log.note ?? "");
+  const [station, setStation] = useState(log.station ?? "");
+  const [gst, setGst] = useState(log.gst != null ? log.gst.toFixed(2) : "");
+  const [abn, setAbn] = useState(log.abn ?? "");
+  const [bought, setBought] = useState(isoOf(log, today));
+  const [confirming, setConfirming] = useState(false);
+
+  const isFuel = log.kind === "fuel";
+  const gstOver = gst.trim() !== "" && cost.trim() !== "" && num(gst) > num(cost) / 11 + 0.01;
+  const abnBad = abn.trim() !== "" && abn.replace(/\D/g, "").length !== 11;
+  const ready = !gstOver && !abnBad && (isFuel ? litres.trim() !== "" : true);
+
+  const save = () => {
+    if (!ready) return;
+    onSave({
+      note: note.trim(),
+      odo: odo.trim() ? num(odo) : undefined,
+      ...(isFuel
+        ? {
+            litres: litres.trim() ? num(litres) : undefined,
+            cost: cost.trim() ? num(cost) : undefined,
+            station: station.trim(),
+            gst: gst.trim() ? num(gst) : 0,
+            abn: abn.trim(),
+            purchasedOn: bought.trim() || undefined,
+          }
+        : {}),
+    });
+  };
+
+  return (
+    <FleetModal
+      title="Correct this entry"
+      sub={`${LOG_COPY[log.kind].title} · ${log.when}`}
+      onClose={onClose}
+    >
+      {confirming ? (
+        /* The one destructive act in the fleet screens, so it asks — and says
+           what actually happens, because "delete" is not quite what this does
+           and a person about to press it deserves the real answer. */
+        <div className="fl-danger">
+          <b>Remove this entry?</b>
+          <em>
+            It disappears from the history, the vehicle&rsquo;s odometer is recalculated from what
+            is left, and it stops counting towards tax.
+            {log.hasReceipt && " The receipt stays on file."} The entry is kept, hidden, so a
+            figure that has already gone to your accountant can still be accounted for.
+          </em>
+          <div className="fl-foot">
+            <button className="fl-btn ghost" onClick={() => setConfirming(false)}>
+              Keep it
+            </button>
+            <button className="fl-btn danger arm" onClick={onDelete}>
+              <Icon name="x" size={15} />
+              Remove entry
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          {log.hasReceipt && (
+            <div className="fl-keptline">
+              <Icon name="receipt" size={13} />
+              The receipt on this entry stays as it is — to change the photo, remove the entry and
+              log it again.
+            </div>
+          )}
+          <div className="fl-grid">
+            {isFuel && (
+              <>
+                <Field label="Litres" req>
+                  <input className="fl-i" type="number" value={litres} onChange={(e) => setLitres(e.target.value)} />
+                </Field>
+                <Field label="Cost ($)">
+                  <input className="fl-i" type="number" value={cost} onChange={(e) => setCost(e.target.value)} />
+                </Field>
+                <Field label="Station">
+                  <input className="fl-i" value={station} onChange={(e) => setStation(e.target.value)} />
+                </Field>
+                <Field label="Date on receipt">
+                  <DateField
+                    size="lg"
+                    clearable
+                    today={today}
+                    max={today}
+                    value={bought || null}
+                    onChange={(iso) => setBought(iso ?? "")}
+                  />
+                </Field>
+                <Field
+                  label="GST ($)"
+                  hint={gstOver ? "More than an eleventh of the total — check the docket" : "Only if the receipt shows it"}
+                  hintTone={gstOver ? "warn" : "muted"}
+                >
+                  <input className="fl-i" type="number" value={gst} onChange={(e) => setGst(e.target.value)} />
+                </Field>
+                <Field
+                  label="Supplier ABN"
+                  hint={abnBad ? "An ABN is eleven digits" : undefined}
+                  hintTone={abnBad ? "warn" : "muted"}
+                >
+                  <input className="fl-i" inputMode="numeric" value={abn} onChange={(e) => setAbn(e.target.value)} />
+                </Field>
+              </>
+            )}
+            {log.kind !== "issue" && (
+              <Field label="Odometer (km)" span={!isFuel}>
+                <input className="fl-i" type="number" value={odo} onChange={(e) => setOdo(e.target.value)} />
+              </Field>
+            )}
+            <Field label={log.kind === "issue" ? "What's wrong" : "Note"} span>
+              <textarea className="fl-i" value={note} onChange={(e) => setNote(e.target.value)} />
+            </Field>
+          </div>
+
+          <div className="fl-foot spread">
+            <button className="fl-btn danger" onClick={() => setConfirming(true)}>
+              <Icon name="x" size={15} />
+              Remove
+            </button>
+            <span className="fl-footright">
+              <button className="fl-btn ghost" onClick={onClose}>
+                Cancel
+              </button>
+              <button className="fl-btn primary" disabled={!ready} onClick={save}>
+                <Icon name="check" size={15} />
+                Save correction
+              </button>
+            </span>
+          </div>
+        </>
+      )}
+    </FleetModal>
+  );
+}
+
+/* The log's date back as ISO. VehicleLog carries a DISPLAY date ("Wed 15 Jul")
+   plus how many days ago it was, which is all every other screen needed — and
+   `ago` is exact, so the date is recoverable without widening the projection.
+
+   Anchored on the SERVER's `today`, never on Date.now(): the browser clock is
+   the previous day for most of an Australian working morning, and this value
+   goes back as the date a purchase happened. */
+function isoOf(log: VehicleLog, today: string): string {
+  const t = Date.parse(`${today}T00:00:00Z`) - log.ago * 86_400_000;
+  return new Date(t).toISOString().slice(0, 10);
+}
+
 /* ---------------- vehicle detail + history ---------------- */
 
 export function LogRow({
@@ -703,12 +883,16 @@ export function LogRow({
   manager,
   eco,
   onResolve,
+  onCorrect,
 }: {
   log: VehicleLog;
   manager?: boolean;
   /** L/100km for this fill, when derivable. */
   eco?: number;
   onResolve?: (id: string) => void;
+  /* Present only when this viewer may correct THIS row — the caller works out
+     "mine, or I hold the register" once, rather than every row asking. */
+  onCorrect?: (log: VehicleLog) => void;
 }) {
   const icon = LOG_COPY[log.kind].icon;
   const title =
@@ -719,7 +903,9 @@ export function LogRow({
         : log.kind === "service"
           ? `Service — ${log.note ?? "completed"}`
           : `Issue — ${log.note ?? "reported"}`;
-  const meta = [log.when, log.staffName, log.station].filter(Boolean).join(" · ");
+  const meta = [log.when, log.staffName, log.station, log.edited ? "edited" : null]
+    .filter(Boolean)
+    .join(" · ");
   return (
     <div className={`fl-log${log.kind === "issue" && log.status === "open" ? " open" : ""}`}>
       <span className={`fl-li ${log.kind}`}>
@@ -756,6 +942,13 @@ export function LogRow({
           {typeof log.odo === "number" && <span className="fl-lo">{fmtKm(log.odo)} km</span>}
         </span>
       )}
+      {/* Deliberately quiet: correcting an entry is rare, and a button that
+          shouted would make every row look like a problem. */}
+      {onCorrect && (
+        <button className="fl-lfix" onClick={() => onCorrect(log)} aria-label="Correct this entry">
+          <Icon name="edit" size={13} />
+        </button>
+      )}
     </div>
   );
 }
@@ -776,6 +969,7 @@ export function DetailModal({
   onLog,
   onResolve,
   onRemove,
+  onCorrect,
 }: {
   vehicle: Vehicle;
   chips: StatusChip[];
@@ -792,6 +986,9 @@ export function DetailModal({
   onLog: (kind: LogKind) => void;
   onResolve: (logId: string) => void;
   onRemove: () => void;
+  /* Every row is correctable here: reaching this modal at all means holding
+     `assets_all`, which is the tier that fixes anyone's entry. */
+  onCorrect?: (log: VehicleLog) => void;
 }) {
   const [confirmRemove, setConfirmRemove] = useState(false);
   const driver = staff.find((s) => s.id === vehicle.assignedTo);
@@ -947,7 +1144,16 @@ export function DetailModal({
         {logs.length === 0 ? (
           <div className="fl-hempty">No activity yet — fuel, odometer and issue logs land here.</div>
         ) : (
-          logs.map((l) => <LogRow key={l.id} log={l} manager={manager} eco={eco[l.id]} onResolve={onResolve} />)
+          logs.map((l) => (
+            <LogRow
+              key={l.id}
+              log={l}
+              manager={manager}
+              eco={eco[l.id]}
+              onResolve={onResolve}
+              onCorrect={onCorrect}
+            />
+          ))
         )}
       </div>
     </FleetModal>

@@ -8,7 +8,14 @@ import { todayInAu } from "@/lib/au-dates";
 import { staffProfileIdFor } from "@/lib/fleet/query";
 import { vehicleRow } from "@/lib/fleet/map";
 import { fuelTaxColumns } from "@/lib/fleet/receipt";
-import { odoEffect, odoRejection, type AiValuation, type NewLog, type Vehicle } from "@/components/fleet/logic";
+import {
+  odoEffect,
+  odoRecompute,
+  odoRejection,
+  type AiValuation,
+  type NewLog,
+  type Vehicle,
+} from "@/components/fleet/logic";
 
 /* Fleet mutations.
 
@@ -247,6 +254,169 @@ async function adoptReceipt(ctx: Ctx, logId: string, documentId: string): Promis
     .eq("kind", "fuel_receipt")
     .not("uploaded_at", "is", null)
     .is("vehicle_log_id", null);
+}
+
+/* ---------------- correcting an entry ---------------- */
+
+/* WHO MAY FIX A LOG: whoever wrote it, or anyone holding `assets_all`.
+
+   The first half is the same doctrine as cancelling your own expense claim —
+   correcting your own mistake is not a privilege. The second is the register
+   tier that already closes other people's issue reports, and it is what makes
+   a wrong entry from someone who has left the company fixable at all.
+
+   It is checked HERE and nowhere else that matters: the row is fetched by id
+   AND org, and the decision is made on the row that came back, never on
+   anything the caller sent. */
+async function logYouMayTouch(ctx: Ctx, logId: string) {
+  const { data } = await supabaseAdmin
+    .from("vehicle_logs")
+    .select("id, vehicle_id, kind, staff_profile_id, cost, deleted_at")
+    .eq("org_id", ctx.orgId)
+    .eq("id", logId)
+    .maybeSingle();
+  if (!data) return null;
+  // already gone: not an error worth a different message, but not editable
+  if (data.deleted_at) return null;
+  const mine = ctx.staffId !== null && data.staff_profile_id === ctx.staffId;
+  if (!mine && !(await can("assets_all"))) return null;
+  return data;
+}
+
+/* Put the vehicle back where its surviving logs say it is.
+
+   Runs after every edit and every delete, and reads the logs fresh rather than
+   reasoning about what just changed — the log that moved is not necessarily
+   the one holding the high-water mark, and two drivers logging the same van on
+   the same day makes any delta arithmetic wrong. */
+async function resyncVehicle(ctx: Ctx, vehicleId: string): Promise<void> {
+  const v = await vehicleIn(ctx.orgId, vehicleId);
+  if (!v) return;
+
+  const { data } = await supabaseAdmin
+    .from("vehicle_logs")
+    .select("kind, odo")
+    .eq("org_id", ctx.orgId)
+    .eq("vehicle_id", vehicleId)
+    .is("deleted_at", null);
+
+  const logs = ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    kind: String(r.kind) as NewLog["kind"],
+    odo: r.odo === null || r.odo === undefined ? undefined : Number(r.odo),
+  }));
+
+  const next = odoRecompute(logs, {
+    odometer: v.odometer as number,
+    lastServiceOdo: v.last_service_odo as number,
+  });
+  if (next.odometer === v.odometer && next.lastServiceOdo === v.last_service_odo) return;
+
+  await supabaseAdmin
+    .from("vehicles")
+    .update({ odometer: next.odometer, last_service_odo: next.lastServiceOdo })
+    .eq("org_id", ctx.orgId)
+    .eq("id", vehicleId);
+}
+
+export type LogEdit = {
+  note?: string;
+  litres?: number;
+  cost?: number;
+  odo?: number;
+  station?: string;
+  gst?: number;
+  abn?: string;
+  purchasedOn?: string;
+};
+
+/** Correct an entry in place. Same rules the original save was held to. */
+export async function editLog(logId: string, patch: LogEdit): Promise<FleetResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "Not signed in." };
+
+  const row = await logYouMayTouch(ctx, logId);
+  if (!row) return { ok: false, error: "That entry can't be edited." };
+
+  const kind = String(row.kind) as NewLog["kind"];
+
+  /* The tax rules run again, in full. An edit is where a wrong GST is most
+     likely to arrive — somebody squinting at a photo they have already
+     mistyped once — so this is the last place it can be caught, and the
+     figures are re-checked against the EDITED cost, not the stored one. */
+  const cost = patch.cost ?? (row.cost === null ? undefined : Number(row.cost));
+  const tax =
+    kind === "fuel"
+      ? fuelTaxColumns(
+          { cost, gst: patch.gst, abn: patch.abn, purchasedOn: patch.purchasedOn },
+          todayInAu(),
+        )
+      : null;
+  if (tax && !tax.ok) return { ok: false, error: tax.error };
+
+  /* The odometer guardrail can NOT be re-run against the vehicle here: the
+     vehicle's current reading may well have come from this very log, so
+     comparing against it would refuse every correction downward — which is the
+     main reason anybody edits a reading in the first place. A negative or
+     absurd number is still refused; the vehicle is resynced from the surviving
+     logs immediately afterwards, which is what keeps the register honest. */
+  if (patch.odo !== undefined && (!Number.isFinite(patch.odo) || patch.odo < 0)) {
+    return { ok: false, error: "An odometer reading can't be negative." };
+  }
+
+  const update: Record<string, unknown> = {
+    edited_at: new Date().toISOString(),
+    edited_by: ctx.staffId,
+  };
+  if (patch.note !== undefined) update.note = patch.note || null;
+  if (patch.odo !== undefined) update.odo = patch.odo;
+  if (kind === "fuel") {
+    if (patch.litres !== undefined) update.litres = patch.litres;
+    if (patch.cost !== undefined) update.cost = patch.cost;
+    if (patch.station !== undefined) update.station = patch.station || null;
+    if (tax?.ok) {
+      update.gst = tax.columns.gst;
+      update.supplier_abn = tax.columns.supplier_abn;
+      if (patch.purchasedOn !== undefined) update.logged_on = tax.columns.logged_on;
+    }
+  }
+
+  const { error } = await supabaseAdmin
+    .from("vehicle_logs")
+    .update(update)
+    .eq("org_id", ctx.orgId)
+    .eq("id", logId);
+  if (error) return { ok: false, error: "Couldn't save that correction." };
+
+  await resyncVehicle(ctx, String(row.vehicle_id));
+  refresh();
+  return { ok: true };
+}
+
+/* Remove an entry — softly.
+
+   These rows back a tax return. A deduction that went to an accountant in an
+   export in July must not be able to vanish in September with nothing to say
+   it ever existed, so the row stays and every read stops returning it. Its
+   receipt stays attached too: the document is evidence about a correction as
+   much as about a purchase, and a bucket object with no row pointing at it is
+   the one shape this track has always refused. */
+export async function deleteLog(logId: string): Promise<FleetResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "Not signed in." };
+
+  const row = await logYouMayTouch(ctx, logId);
+  if (!row) return { ok: false, error: "That entry can't be removed." };
+
+  const { error } = await supabaseAdmin
+    .from("vehicle_logs")
+    .update({ deleted_at: new Date().toISOString(), deleted_by: ctx.staffId })
+    .eq("org_id", ctx.orgId)
+    .eq("id", logId);
+  if (error) return { ok: false, error: "Couldn't remove that entry." };
+
+  await resyncVehicle(ctx, String(row.vehicle_id));
+  refresh();
+  return { ok: true };
 }
 
 /** Closing an issue is a register action — a driver reports, a manager clears. */

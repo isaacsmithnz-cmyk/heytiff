@@ -65,14 +65,14 @@ describe("a rejected save", () => {
     await openPersonal(user);
     await user.click(editButtons()[0]);
     // a real date the server happens to refuse — pre-validation passes it
-    await pick(user, "Birthday", "Monday 3 December 1990");
+    await pick(user, "Date of birth", "Monday 3 December 1990");
     await user.click(screen.getByRole("button", { name: /^Save\b/ }));
 
     expect(await screen.findByText("Check the date format — use dd/mm/yyyy.")).toBeInTheDocument();
     // what was entered is still there…
-    expect(screen.getByLabelText("Birthday")).toHaveTextContent("03/12/1990");
+    expect(screen.getByLabelText("Date of birth")).toHaveTextContent("03/12/1990");
     // …the field is marked…
-    expect(screen.getByLabelText("Birthday")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("Date of birth")).toHaveAttribute("aria-invalid", "true");
     // …and the card never went back to read mode
     expect(screen.getByRole("button", { name: /^Save\b/ })).toBeInTheDocument();
   });
@@ -266,7 +266,7 @@ describe("dates are picked, never typed", () => {
 
     await openPersonal(user);
     await user.click(editButtons()[0]);
-    for (const label of ["Birthday", "Start date"]) {
+    for (const label of ["Date of birth", "Start date"]) {
       const field = screen.getByLabelText(label);
       expect(field.tagName).toBe("BUTTON");
       expect(field).toHaveAttribute("aria-haspopup", "dialog");
@@ -274,7 +274,7 @@ describe("dates are picked, never typed", () => {
 
     await user.click(screen.getByRole("tab", { name: /Work rights/ }));
     await user.click(editButtons()[0]);
-    for (const label of ["Visa expiry", /VEVO last checked/]) {
+    for (const label of ["Expiry", /VEVO checked/]) {
       expect(screen.getByLabelText(label)).toHaveAttribute("aria-haspopup", "dialog");
     }
     // the format argument is designed out: there is no date input left to lose it in
@@ -307,10 +307,10 @@ describe("dates are picked, never typed", () => {
     setup(okActions());
     await openPersonal(user);
     await user.click(editButtons()[0]);
-    expect(screen.getByLabelText("Birthday")).toHaveTextContent("25/12/1990");
+    expect(screen.getByLabelText("Date of birth")).toHaveTextContent("25/12/1990");
 
     // and it opens ON that date's month rather than on today
-    await user.click(screen.getByLabelText("Birthday"));
+    await user.click(screen.getByLabelText("Date of birth"));
     expect(within(screen.getByRole("dialog")).getByText("December 1990")).toBeInTheDocument();
   });
 });

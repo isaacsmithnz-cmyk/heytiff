@@ -44,15 +44,17 @@ describe("choosing a no-visa status", () => {
     expect(screen.getByDisplayValue("482 TSS")).toBeInTheDocument();
 
     await user.selectOptions(
-      screen.getByRole("combobox", { name: /Work rights status/i }),
+      screen.getByRole("combobox", { name: /^Status/i }),
       "Australian citizen"
     );
 
     expect(screen.queryByDisplayValue("482 TSS")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Visa expiry")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/VEVO last checked/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Expiry")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/VEVO checked/)).not.toBeInTheDocument();
     expect(screen.queryByDisplayValue("unlimited")).not.toBeInTheDocument();
-    expect(screen.getByText("No visa required")).toBeInTheDocument();
+    // the edit-only "No visa required" banner is gone: both modes now say it
+    // as a row, so there is one presentation of the fact instead of two
+    expect(screen.getByText("No — full working rights")).toBeInTheDocument();
   });
 
   it("nulls the visa columns on save rather than leaving stale ones", async () => {
@@ -61,7 +63,7 @@ describe("choosing a no-visa status", () => {
 
     await user.click(edit());
     await user.selectOptions(
-      screen.getByRole("combobox", { name: /Work rights status/i }),
+      screen.getByRole("combobox", { name: /^Status/i }),
       "Permanent resident"
     );
     await user.click(save());
@@ -80,20 +82,20 @@ describe("choosing a no-visa status", () => {
     setup(onVisa);
 
     await user.click(edit());
-    const combo = screen.getByRole("combobox", { name: /Work rights status/i });
+    const combo = screen.getByRole("combobox", { name: /^Status/i });
     await user.selectOptions(combo, "Australian citizen");
     await user.selectOptions(combo, "Conditional working rights (visa)");
 
     // the draft kept them, so a misclick costs nothing
     expect(screen.getByDisplayValue("482 TSS")).toBeInTheDocument();
-    expect(screen.getByLabelText("Visa expiry")).toHaveTextContent("07/08/2026");
+    expect(screen.getByLabelText("Expiry")).toHaveTextContent("07/08/2026");
   });
 
   it("asks for both of its dates with a calendar, never a text box", async () => {
     const user = userEvent.setup();
     setup(onVisa);
     await user.click(edit());
-    for (const label of ["Visa expiry", /VEVO last checked/]) {
+    for (const label of ["Expiry", /VEVO checked/]) {
       const field = screen.getByLabelText(label);
       expect(field.tagName).toBe("BUTTON");
       expect(field).toHaveAttribute("aria-haspopup", "dialog");
@@ -101,7 +103,7 @@ describe("choosing a no-visa status", () => {
 
     // a check you already did can't be in the future: it opens on the month it
     // holds (June 2026), and the days past TODAY aren't there to be clicked
-    await user.click(screen.getByLabelText(/VEVO last checked/));
+    await user.click(screen.getByLabelText(/VEVO checked/));
     const pop = () => within(screen.getByRole("dialog"));
     await user.click(pop().getByRole("button", { name: "Next month" }));
     expect(pop().getByRole("button", { name: "Friday 24 July 2026" })).toBeEnabled(); // TODAY
@@ -113,7 +115,7 @@ describe("choosing a no-visa status", () => {
     const actions = setup(onVisa);
     await user.click(edit());
     // the expiry opens on its own month — August 2026
-    await user.click(screen.getByLabelText("Visa expiry"));
+    await user.click(screen.getByLabelText("Expiry"));
     await user.click(
       within(screen.getByRole("dialog")).getByRole("button", { name: "Monday 31 August 2026" })
     );
@@ -154,10 +156,10 @@ describe("the read view", () => {
     // card's own form with the field it names
     expect(screen.queryByText("Australian citizen")).not.toBeInTheDocument();
     // and ONLY the status is asked for — the visa fields follow from it
-    expect(screen.queryByRole("button", { name: /Visa type/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Add Type/ })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /Select Status/ }));
-    expect(screen.getByLabelText(/Work rights status/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Status/)).toBeInTheDocument();
   });
 });
 

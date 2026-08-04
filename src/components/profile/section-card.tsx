@@ -53,6 +53,15 @@ export type CardEditContext = {
     that fills it — see detail.tsx. */
 export type CardReadContext = { edit: () => void };
 
+/** What a `body` gets: the edit context, plus which mode it is in and the way
+    into the other one. One render, both modes — see the note on `body`. */
+export type SectionBodyContext = CardEditContext & {
+  editing: boolean;
+  edit: () => void;
+  /** the field names the last save rejected, as a message per row */
+  errorFor: (key: string, message: string) => string | null;
+};
+
 export type SectionVariant = "section" | "card";
 
 export function SectionCard({
@@ -64,6 +73,7 @@ export function SectionCard({
   values,
   read,
   edit,
+  body,
   onSave,
   validate,
   transform,
@@ -84,8 +94,21 @@ export function SectionCard({
   pill?: ReactNode;
   /** the read-mode values, straight from props — also the draft's seed */
   values: Record<string, string>;
-  read: ReactNode | ((ctx: CardReadContext) => ReactNode);
-  edit: (ctx: CardEditContext) => ReactNode;
+  read?: ReactNode | ((ctx: CardReadContext) => ReactNode);
+  edit?: (ctx: CardEditContext) => ReactNode;
+  /** ONE RENDER FOR BOTH MODES, and the reason it exists.
+
+      `read` and `edit` are separate render props, and separate is how the two
+      views drifted into different screens: three grouped panels one side, a
+      flat form of 46px boxes the other. Nothing held them to the same labels
+      or the same order, so clicking Edit threw away the layout you were
+      reading and every row moved.
+
+      A `body` is handed `editing` and declares the panels once, with each row
+      naming its value AND its control (see Detail). The two literally cannot
+      diverge, and switching modes changes the contents of a `dd` rather than
+      the page. Wins over read/edit when both are supplied. */
+  body?: (ctx: SectionBodyContext) => ReactNode;
   /** already bound to its section by the caller */
   onSave?: (fields: Record<string, string>) => Promise<SaveResult>;
   validate?: (fields: Record<string, string>) => PreValidation | null;
@@ -134,7 +157,20 @@ export function SectionCard({
     saving,
   };
 
-  const body = editing ? edit(ctx) : typeof read === "function" ? read({ edit: startEdit }) : read;
+  const rendered = body
+    ? body({
+        ...ctx,
+        editing,
+        edit: startEdit,
+        // a message only while the field is actually marked, so a row can pass
+        // its own wording without repeating the `invalid()` check
+        errorFor: (key, message) => (fieldErrors.includes(key) ? message : null),
+      })
+    : editing
+      ? edit?.(ctx)
+      : typeof read === "function"
+        ? read({ edit: startEdit })
+        : read;
 
   /* The section's own head: what it is for, and the buttons. The edit cycle is
      the same one the card header ran — only the frame around it changed, and
@@ -174,7 +210,7 @@ export function SectionCard({
           )}
         </div>
 
-        {body}
+        {rendered}
 
         {editing && error && <div className="carderr">{error}</div>}
       </div>
@@ -224,7 +260,7 @@ export function SectionCard({
         )}
       </div>
 
-      {body}
+      {rendered}
 
       {editing && error && <div className="carderr">{error}</div>}
     </div>

@@ -178,7 +178,9 @@ describe("a blank value", () => {
     await user.click(screen.getByRole("button", { name: /Add Mobile/ }));
 
     expect(isEditing()).toBe(true);
-    expect(screen.getByLabelText(/Phone/)).toHaveValue("");
+    // one row, one name: the form said "Phone" while the row above it said
+    // "Mobile" — now they are the same field and the same word
+    expect(screen.getByLabelText(/Mobile/)).toHaveValue("");
   });
 
   /* Summary is read-only, so the same blank reads as a dash there. A button in

@@ -970,7 +970,26 @@
   background:#fff; color:#aeb4c0; border:1px solid #ecedf1;
   box-shadow:0 4px 12px -6px rgba(10,12,20,.3); transition:all .2s; }
 .fg .pident .pphoto .camdel:hover:not(:disabled) { background:rgba(255,51,102,.1); color:#e0264f; border-color:rgba(255,51,102,.25); }
+/* ON HOVER, NOT ALWAYS. Two controls parked permanently on a 68px tile read as
+   damage to the photo rather than as things you can press — the × especially,
+   which looks like the image failed to load. The tile is the affordance; the
+   buttons arrive when you go for it.
+
+   Same rule the licence wall's remove × already follows, including its escape
+   hatch: a touch screen has no hover, so there they stay put. `focus-within`
+   is not optional either — a button faded to opacity 0 is still tabbable, and
+   without it a keyboard user would be focused on something invisible. */
+.fg .pident .pphoto .cam,
+.fg .pident .pphoto .camdel { opacity:0; }
+.fg .pident .pphoto:hover .cam, .fg .pident .pphoto:hover .camdel,
+.fg .pident .pphoto:focus-within .cam, .fg .pident .pphoto:focus-within .camdel { opacity:1; }
+@media (hover:none), (pointer:coarse) {
+  .fg .pident .pphoto .cam, .fg .pident .pphoto .camdel { opacity:1; }
+}
 .fg .pident .pphoto.busy { opacity:.6; pointer-events:none; }
+/* mid-upload the controls stay up — the tile is dimmed and not hoverable, and
+   a badge that vanished the moment you used it reads as a crash */
+.fg .pident .pphoto.busy .cam, .fg .pident .pphoto.busy .camdel { opacity:1; }
 /* the picker itself is never seen — the badge is its label */
 .fg .pident .pphoto input[type="file"] { display:none; }
 .fg .carderr.photoerr { flex:1 1 100%; margin-top:0; }
@@ -1032,6 +1051,62 @@
    licence cards already used the dash; this is the screen agreeing with
    itself. Inside a SECTION the blank stays a button, and keeps its own look. */
 .fg .psec2 .pdnone { font-style:normal; font-size:15px; font-weight:600; color:#c7ccd6; }
+/* ── EDITING IN PLACE ──
+   A section used to declare its read view and its edit view separately, and
+   separate is how they drifted into different screens: grouped panels of tight
+   label/value rows one side, a flat form of 46px boxes the other. Clicking
+   Edit threw away the layout you were reading and moved every label, which is
+   what made "+ Add" feel like a trapdoor and made the form look enormous next
+   to the panel it replaced. ("The input text fields, the font is much bigger
+   than where it comes from" — Isaac. The text was in fact SMALLER, 14px
+   against the value's 16px; what was much bigger was everything around it.)
+
+   One row list declares both now (see detail.tsx), so all the CSS has to do is
+   put the control where the value was, at the value's own size. Nothing here
+   changes a label, a gap or a grid — only what sits inside a `dd`. */
+.fg .pdrow.live dd > .inp,
+.fg .pdrow.live dd > .selwrap > .inp,
+.fg .pdrow.live dd > .inpd {
+  height:34px; padding:0 11px; border-radius:10px; font-size:16px; font-weight:600;
+  letter-spacing:-0.01em; background:#fafbfc; }
+.fg .pdrow.live dd > .inpd { padding:0 11px; }
+.fg .pdrow.live dd .inp:focus, .fg .pdrow.live dd .inpd:focus-visible {
+  border-color:var(--wb2-cy); background:#fff; box-shadow:0 0 0 3px rgba(0,168,224,.14); }
+.fg .pdrow.live dd .inp::placeholder { color:#c7ccd6; font-weight:500; }
+/* the select's chevron follows the shorter box in */
+.fg .pdrow.live dd .selwrap .chev { right:9px; }
+/* rows breathe a little more once they hold controls — 34px boxes at the old
+   10px gap read as a stack rather than as a list */
+.fg .psec-body .pdl { gap:12px; }
+.fg .pdrow.live { align-items:center; }
+/* required is marked on the label, where the eye already is, rather than in a
+   legend under a form that no longer exists */
+.fg .pdrow dt .req { color:var(--wb2-cy); margin-left:3px; font-weight:800; }
+.fg .pderr { display:block; margin-top:4px; font-size:11.5px; font-weight:700; color:#e0264f; }
+/* a segmented control is already the right height; it only needs to stop
+   filling the row */
+.fg .pdrow.live dd > .seg { width:fit-content; }
+
+/* ── a percentage you can SEE ──
+   Utilisation was a number you could only reach by clicking "+ Set" and then
+   typing into a box on a different screen. It is a proportion, and a
+   proportion has a shape. Read fills the track and greys it; edit puts the
+   thumb back. Same object either way — see `Pct` in fields.tsx. */
+.fg .pslider { display:flex; align-items:center; gap:13px; min-width:0; }
+.fg .pslider .track { position:relative; flex:1; min-width:80px; height:6px; border-radius:99px; background:#eceef2; }
+.fg .pslider .fill { position:absolute; inset:0 auto 0 0; border-radius:99px; background:var(--wb2-cy); transition:width .12s; }
+.fg .pslider .num { flex:0 0 auto; font-size:16px; font-weight:700; letter-spacing:-0.01em; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .pslider .num.none { color:#c7ccd6; font-weight:600; }
+/* the range itself is invisible and oversized — it is the hit area, and the
+   thumb below is what you actually see */
+.fg .pslider input[type="range"] { position:absolute; inset:-9px 0; width:100%; height:24px; margin:0; padding:0; opacity:0; cursor:pointer; }
+.fg .pslider .thumb { position:absolute; top:50%; width:16px; height:16px; margin:-8px 0 0 -8px; border-radius:50%;
+  background:#fff; border:2px solid var(--wb2-cy); box-shadow:0 2px 6px -1px rgba(10,12,20,.3); pointer-events:none; transition:left .12s, box-shadow .15s; }
+.fg .pslider input[type="range"]:focus-visible ~ .thumb { box-shadow:0 0 0 4px rgba(0,168,224,.3); }
+/* read mode has no thumb, and says so in the fill — a control you cannot move
+   should not look like one */
+.fg .pslider.readonly .fill { background:#c2c8d2; }
+
 /* `.liccards` already lays CR80 cards out; the panel header supplies the gap */
 .fg .psec2 .liccards { margin-top:13px; }
 
@@ -1267,9 +1342,23 @@
 .fg .csrange::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:18px; height:18px; border-radius:50%; background:#fff; border:2px solid var(--ink); box-shadow:0 2px 5px rgba(0,0,0,.18); cursor:grab; }
 .fg .csrange::-moz-range-thumb { width:18px; height:18px; border-radius:50%; background:#fff; border:2px solid var(--ink); box-shadow:0 2px 5px rgba(0,0,0,.18); cursor:grab; }
 .fg .csval { font-family:var(--mono); font-size:13px; font-weight:700; color:var(--ink); width:38px; text-align:right; flex:0 0 auto; }
-.fg .card2.readonly .csrange { display:none; }
-.fg .card2.readonly .csrow .cspct { width:auto; }
-.fg .card2.readonly .csval { width:auto; }
+
+/* THE SPLIT DRAWS ITSELF IN READ MODE TOO.
+   It used to collapse to a bare percentage, on three rules scoped to
+   `.card2.readonly` — a class the section stopped rendering when the tab
+   became its title, so the rules went dead and `.cspct` kept its 170px with
+   nothing in it. Three rows of number floating in an empty trough, which is
+   exactly what a control that failed to render looks like: "the cost split
+   seemed to be hidden until I clicked set" (Isaac).
+
+   Restoring the collapse would have been the small fix and the wrong one. A
+   split is a PROPORTION, and 55/35/10 as three numbers makes you do the
+   arithmetic to see the shape. The track fills instead — the same object in
+   both modes, and in edit mode the thumb simply becomes draggable. */
+.fg .cstrack { position:relative; flex:1; min-width:0; height:6px; border-radius:999px; background:#e6e8ee; }
+/* the fill takes the row's own dot colour, inline — the three shares have to
+   be the same three colours as the donut beside them or the panel is lying */
+.fg .csfill { position:absolute; inset:0 auto 0 0; border-radius:999px; }
 .fg .cspie { position:relative; width:150px; height:150px; margin:0 auto; }
 .fg .cspie svg { width:100%; height:100%; }
 .fg .cspie .csseg { transition:stroke-dasharray .35s ease; }

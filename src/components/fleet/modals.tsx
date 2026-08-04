@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
 import { DateField } from "@/components/ui/date-field";
 import { readFuelReceipt } from "@/app/actions/fleet-ai";
+import { uploadFile } from "@/lib/documents/upload-client";
 import { dateFromDays } from "@/lib/fleet/map";
 import { Plate } from "./plate";
 import {
@@ -348,12 +349,15 @@ type FuelMode = "scan" | "reading" | "confirm" | "manual";
 
 export function LogModal({
   kind,
+  today,
   vehicle,
   fleetVehicles,
   onSave,
   onClose,
 }: {
   kind: LogKind;
+  /** The server's AU calendar date — the ceiling on a receipt date. */
+  today: string;
   /** Identity width on purpose: logging needs a name, a plate and an odometer
       reading, which is exactly what someone without `assets_all` is sent. */
   vehicle: VehicleIdentity;
@@ -369,9 +373,18 @@ export function LogModal({
   const [odo, setOdo] = useState("");
   const [note, setNote] = useState("");
   const [station, setStation] = useState("");
+  const [gst, setGst] = useState("");
+  const [abn, setAbn] = useState("");
+  const [bought, setBought] = useState("");
   const [mode, setMode] = useState<FuelMode>(kind === "fuel" ? "scan" : "manual");
   const [thumb, setThumb] = useState<string | null>(null);
   const [scanTag, setScanTag] = useState<"tiff" | "offline" | null>(null);
+  /* The stored docket. Uploaded while Tiff reads it, so by the time the person
+     has checked the figures the photo is already in the bucket and Save only
+     has to point the log at it. Null means the figures will be saved with
+     nothing behind them — allowed, and said out loud on screen. */
+  const [receiptId, setReceiptId] = useState<string | null>(null);
+  const [receiptWarn, setReceiptWarn] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const copy = LOG_COPY[kind];
@@ -414,19 +427,33 @@ export function LogModal({
     if (!file || !file.type.startsWith("image/")) return;
     setThumb(URL.createObjectURL(file));
     setMode("reading");
+    setReceiptWarn(null);
+
+    /* Two jobs, side by side, because they are independent: KEEPING the docket
+       and READING it. The read is a convenience — the fields are editable
+       either way — but the file is the thing the ATO wants five years from
+       now, so a failed read must not cost the photo, and a failed upload must
+       not cost the reading. Promise.all, not a chain. */
+    const [stored, read] = await Promise.all([
+      uploadFile(file, "fuel_receipt").catch(() => ({ ok: false, error: "upload" }) as const),
+      fileToBase64(file)
+        .then((b64) => readFuelReceipt(b64, file.type))
+        .catch(() => ({ ok: false, reason: "offline" }) as const),
+    ]);
+
+    if (stored.ok) setReceiptId(stored.file.documentId);
+    else setReceiptWarn("Couldn't store the photo — the entry will save without it.");
+
     let filled = false;
-    try {
-      const b64 = await fileToBase64(file);
-      const res = await readFuelReceipt(b64, file.type);
-      if (res.ok) {
-        if (res.litres !== null) setLitres(String(res.litres));
-        if (res.cost !== null) setCost(res.cost.toFixed(2));
-        if (res.station) setStation(res.station);
-        setScanTag("tiff");
-        filled = true;
-      }
-    } catch {
-      /* offline fallback below */
+    if (read.ok) {
+      if (read.litres !== null) setLitres(String(read.litres));
+      if (read.cost !== null) setCost(read.cost.toFixed(2));
+      if (read.station) setStation(read.station);
+      if (read.gst !== null) setGst(read.gst.toFixed(2));
+      if (read.abn) setAbn(read.abn);
+      if (read.date) setBought(read.date);
+      setScanTag("tiff");
+      filled = true;
     }
     if (!filled) {
       const off = readReceiptOffline(file.size);
@@ -443,13 +470,27 @@ export function LogModal({
     setLitres("");
     setCost("");
     setStation("");
+    setGst("");
+    setAbn("");
+    setBought("");
+    /* The old photo is NOT deleted — it is an unadopted document with no log
+       pointing at it, which every read already ignores. Deleting it here would
+       mean a delete round trip on the way to a re-scan, and the thing being
+       thrown away is the one thing worth keeping if the second scan fails. */
+    setReceiptId(null);
+    setReceiptWarn(null);
     setMode("scan");
   };
 
   const odoLow = odo.trim() !== "" && num(odo) < target.odometer;
+  /* The two tax figures get checked HERE as well as on the server, because
+     these are the ones somebody types from a photo they are squinting at.
+     The server still refuses either one — this is the warning, not the gate. */
+  const gstOver = gst.trim() !== "" && cost.trim() !== "" && num(gst) > num(cost) / 11 + 0.01;
+  const abnBad = abn.trim() !== "" && abn.replace(/\D/g, "").length !== 11;
   const ready =
     kind === "fuel"
-      ? litres.trim() !== "" && (mode === "confirm" || mode === "manual")
+      ? litres.trim() !== "" && !gstOver && !abnBad && (mode === "confirm" || mode === "manual")
       : kind === "odo" || kind === "service"
         ? odo.trim() !== ""
         : note.trim() !== "";
@@ -465,6 +506,10 @@ export function LogModal({
       note: note.trim() || undefined,
       station: kind === "fuel" && station.trim() ? station.trim() : undefined,
       source: kind === "fuel" ? (scanTag ? "scan" : "manual") : undefined,
+      gst: kind === "fuel" && gst.trim() ? num(gst) : undefined,
+      abn: kind === "fuel" && abn.trim() ? abn.trim() : undefined,
+      purchasedOn: kind === "fuel" && bought.trim() ? bought.trim() : undefined,
+      receiptDocumentId: kind === "fuel" ? receiptId ?? undefined : undefined,
     });
   };
 
@@ -478,6 +523,33 @@ export function LogModal({
       </Field>
       <Field label="Station">
         <input className="fl-i" placeholder="e.g. Shell Coburg" value={station} onChange={(e) => setStation(e.target.value)} />
+      </Field>
+      {/* The docket's own date, not today's. A fill on Friday that gets logged
+          on Monday belongs to Friday — and in June that is the difference
+          between two financial years. */}
+      <Field label="Date on receipt" hint={bought ? undefined : "Blank means today"}>
+        <DateField
+          size="lg"
+          clearable
+          today={today}
+          max={today}
+          value={bought || null}
+          onChange={(iso) => setBought(iso ?? "")}
+        />
+      </Field>
+      <Field
+        label="GST ($)"
+        hint={gstOver ? "More than an eleventh of the total — check the docket" : "Only if the receipt shows it"}
+        hintTone={gstOver ? "warn" : "muted"}
+      >
+        <input className="fl-i" type="number" placeholder="e.g. 14.40" value={gst} onChange={(e) => setGst(e.target.value)} />
+      </Field>
+      <Field
+        label="Supplier ABN"
+        hint={abnBad ? "An ABN is eleven digits" : undefined}
+        hintTone={abnBad ? "warn" : "muted"}
+      >
+        <input className="fl-i" inputMode="numeric" placeholder="e.g. 51 824 753 556" value={abn} onChange={(e) => setAbn(e.target.value)} />
       </Field>
       <Field
         label="Odometer (km)"
@@ -557,6 +629,15 @@ export function LogModal({
             <button className="fl-modeline inline" onClick={rescan}>
               re-scan
             </button>
+          </div>
+          {/* Whether the docket itself was KEPT is a separate fact from whether
+              Tiff could read it, and it is the one that matters at tax time —
+              so it gets said, either way, rather than being assumed. */}
+          <div className={`fl-keptline${receiptId ? "" : " warn"}`}>
+            <Icon name={receiptId ? "check" : "alert"} size={13} />
+            {receiptId
+              ? "Receipt saved — it'll be filed against this financial year"
+              : receiptWarn ?? "This entry will save without the receipt photo."}
           </div>
           <div className="fl-grid">{vehiclePicker}{fuelFields}</div>
         </>
@@ -662,6 +743,15 @@ export function LogRow({
         </span>
       ) : (
         <span className="fl-lr">
+          {/* The docket is kept, so the history says so — this row is what
+              somebody looks at when the question is "do we have the receipt
+              for that fill", months before the Tax screen is opened. */}
+          {log.kind === "fuel" && log.hasReceipt && (
+            <span className="dchip2 ok" title="Receipt stored for tax">
+              <Icon name="receipt" size={12} />
+              Receipt
+            </span>
+          )}
           {typeof eco === "number" && <span className="dchip2 ok">{eco} L/100km</span>}
           {typeof log.odo === "number" && <span className="fl-lo">{fmtKm(log.odo)} km</span>}
         </span>

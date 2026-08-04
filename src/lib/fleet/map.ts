@@ -129,6 +129,8 @@ export function toLog(
     status: r.status === "open" || r.status === "resolved" ? r.status : undefined,
     source: r.source === "scan" || r.source === "manual" ? r.source : undefined,
     station: typeof r.station === "string" && r.station ? r.station : undefined,
+    gst: optNum(r.gst),
+    abn: typeof r.supplier_abn === "string" && r.supplier_abn ? r.supplier_abn : undefined,
   };
 }
 

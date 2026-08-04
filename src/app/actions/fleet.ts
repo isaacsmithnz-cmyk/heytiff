@@ -7,6 +7,7 @@ import { can } from "@/lib/permissions-server";
 import { todayInAu } from "@/lib/au-dates";
 import { staffProfileIdFor } from "@/lib/fleet/query";
 import { vehicleRow } from "@/lib/fleet/map";
+import { fuelTaxColumns } from "@/lib/fleet/receipt";
 import { odoEffect, odoRejection, type AiValuation, type NewLog, type Vehicle } from "@/components/fleet/logic";
 
 /* Fleet mutations.
@@ -166,21 +167,45 @@ export async function addLog(log: NewLog): Promise<FleetResult> {
   const rejection = odoRejection(v.odometer as number, log.odo);
   if (rejection) return { ok: false, error: rejection };
 
-  const { error } = await supabaseAdmin.from("vehicle_logs").insert({
-    org_id: ctx.orgId,
-    vehicle_id: log.vehicleId,
-    staff_profile_id: ctx.staffId,
-    kind: log.kind,
-    logged_on: todayInAu(),
-    note: log.note ?? null,
-    litres: log.litres ?? null,
-    cost: log.cost ?? null,
-    odo: log.odo ?? null,
-    status: log.kind === "issue" ? "open" : null,
-    source: log.kind === "fuel" ? log.source ?? "manual" : null,
-    station: log.station ?? null,
-  });
-  if (error) return { ok: false, error: "Couldn't save that entry." };
+  /* The tax columns only exist on a fuel log — an odometer reading has no
+     supplier and a reported fault has no GST. Anything sent alongside another
+     kind is dropped here rather than refused: it can only be a stale field on
+     a reused form, and it changes nothing that gets exported. */
+  const today = todayInAu();
+  const tax =
+    log.kind === "fuel"
+      ? fuelTaxColumns(
+          { cost: log.cost, gst: log.gst, abn: log.abn, purchasedOn: log.purchasedOn },
+          today,
+        )
+      : ({ ok: true, columns: { gst: null, supplier_abn: null, logged_on: today } } as const);
+  if (!tax.ok) return { ok: false, error: tax.error };
+
+  const { data: created, error } = await supabaseAdmin
+    .from("vehicle_logs")
+    .insert({
+      org_id: ctx.orgId,
+      vehicle_id: log.vehicleId,
+      staff_profile_id: ctx.staffId,
+      kind: log.kind,
+      logged_on: tax.columns.logged_on,
+      note: log.note ?? null,
+      litres: log.litres ?? null,
+      cost: log.cost ?? null,
+      odo: log.odo ?? null,
+      status: log.kind === "issue" ? "open" : null,
+      source: log.kind === "fuel" ? log.source ?? "manual" : null,
+      station: log.station ?? null,
+      gst: tax.columns.gst,
+      supplier_abn: tax.columns.supplier_abn,
+    })
+    .select("id")
+    .maybeSingle();
+  if (error || !created) return { ok: false, error: "Couldn't save that entry." };
+
+  if (log.kind === "fuel" && log.receiptDocumentId) {
+    await adoptReceipt(ctx, String(created.id), log.receiptDocumentId);
+  }
 
   const effect = odoEffect(
     { odometer: v.odometer as number, lastServiceOdo: v.last_service_odo as number },
@@ -198,6 +223,30 @@ export async function addLog(log: NewLog): Promise<FleetResult> {
   }
   refresh();
   return { ok: true };
+}
+
+/* Bind the uploaded docket to the log it belongs to — the same adopt-on-save
+   move expense claims make, and every clause in the filter is load-bearing:
+   this org, this person's own upload, the fuel-receipt kind (never an expense
+   claim's receipt, which would double-count in the tax export), an upload that
+   actually finished, and one not already spoken for.
+
+   A failure here is deliberately SILENT. The fuel entry is saved and correct;
+   telling the driver "couldn't attach the photo" after the fact would invite
+   them to log the fill a second time, which is worse than a figure without its
+   document. The Tax screen shows exactly which lines have a receipt, so a
+   missing one is visible where it matters. */
+async function adoptReceipt(ctx: Ctx, logId: string, documentId: string): Promise<void> {
+  if (!ctx.staffId) return;
+  await supabaseAdmin
+    .from("documents")
+    .update({ vehicle_log_id: logId })
+    .eq("org_id", ctx.orgId)
+    .eq("id", documentId)
+    .eq("uploaded_by", ctx.staffId)
+    .eq("kind", "fuel_receipt")
+    .not("uploaded_at", "is", null)
+    .is("vehicle_log_id", null);
 }
 
 /** Closing an issue is a register action — a driver reports, a manager clears. */

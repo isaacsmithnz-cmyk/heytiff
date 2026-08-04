@@ -111,6 +111,17 @@ export const SECTIONS: AdminGroup[] = [
         href: "/dashboard/admin/rate-calculator",
         show: (v) => v.canFinancials,
       },
+      {
+        /* `financials`, alongside the calculator: this is the business's
+           money, and the same grant is what lets an owner hand a bookkeeper
+           the export without handing over the workspace. */
+        title: "Tax & EOFY",
+        sub: "Receipts & spend by financial year",
+        icon: "receipt",
+        accent: "#00A389",
+        href: "/dashboard/admin/tax",
+        show: (v) => v.canFinancials,
+      },
     ],
   },
   {

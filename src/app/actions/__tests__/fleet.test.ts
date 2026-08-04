@@ -14,16 +14,25 @@ const table = (name: string) => {
   const chain: Record<string, unknown> = { _table: name };
   const self = () => chain;
   chain.eq = self;
+  // adoptReceipt filters on "not uploaded_at is null" and "vehicle_log_id is
+  // null" — both are pass-throughs here; what the test cares about is the
+  // update that reaches `documents`, not the shape of the filter.
+  chain.not = self;
+  chain.is = self;
   chain.select = (cols: string) => {
     select(name, cols);
     return chain;
   };
+  /* An insert now reads its id back, so maybeSingle has to answer as the
+     inserted row once one has been made on this chain. */
+  let inserted = false;
   chain.maybeSingle = async () => ({
-    data: name === "vehicles" ? vehicleRow : staffRow,
+    data: inserted ? { id: "log-1" } : name === "vehicles" ? vehicleRow : staffRow,
   });
   chain.insert = (row: unknown) => {
     insert(name, row);
-    return Promise.resolve({ error: null });
+    inserted = true;
+    return chain;
   };
   chain.update = (row: unknown) => {
     update(name, row);
@@ -126,5 +135,57 @@ describe("logging is intrinsic", () => {
   it("refuses a sold vehicle outright", async () => {
     vehicleRow = { ...VEHICLE, status: "sold" };
     expect((await addLog({ vehicleId: "v-1", kind: "issue", note: "x" })).ok).toBe(false);
+  });
+});
+
+/* The tax half of a fuel log. The server re-decides these exactly as it
+   re-decides the odometer: the modal's warnings are a courtesy, and a direct
+   POST gets the same answer. */
+describe("fuel logs carry their tax record", () => {
+  it("writes the GST and the ABN off the docket", async () => {
+    const res = await addLog({
+      vehicleId: "v-1",
+      kind: "fuel",
+      litres: 62.4,
+      cost: 158.4,
+      gst: 14.4,
+      abn: "51 824 753 556",
+    });
+    expect(res).toEqual({ ok: true });
+    expect(insert.mock.calls[0][1]).toMatchObject({ gst: 14.4, supplier_abn: "51824753556" });
+  });
+
+  it("dates the row from the docket, not from today", async () => {
+    await addLog({ vehicleId: "v-1", kind: "fuel", litres: 50, cost: 100, purchasedOn: "2026-07-31" });
+    expect(insert.mock.calls[0][1]).toMatchObject({ logged_on: "2026-07-31" });
+  });
+
+  it("refuses a GST bigger than an eleventh, and writes nothing", async () => {
+    const res = await addLog({ vehicleId: "v-1", kind: "fuel", litres: 50, cost: 158.4, gst: 40 });
+    expect(res.ok).toBe(false);
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it("refuses a future docket date, and writes nothing", async () => {
+    const res = await addLog({ vehicleId: "v-1", kind: "fuel", litres: 50, cost: 100, purchasedOn: "2099-01-01" });
+    expect(res.ok).toBe(false);
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it("binds the uploaded docket to the log it belongs to", async () => {
+    await addLog({
+      vehicleId: "v-1",
+      kind: "fuel",
+      litres: 62.4,
+      cost: 158.4,
+      receiptDocumentId: "doc-77",
+    });
+    expect(update).toHaveBeenCalledWith("documents", { vehicle_log_id: "log-1" });
+  });
+
+  it("never carries tax columns onto a log that isn't fuel", async () => {
+    // a stale field on a reused form must not put a supplier on an odo reading
+    await addLog({ vehicleId: "v-1", kind: "odo", odo: 84800, gst: 9, abn: "51824753556" });
+    expect(insert.mock.calls[0][1]).toMatchObject({ gst: null, supplier_abn: null });
   });
 });

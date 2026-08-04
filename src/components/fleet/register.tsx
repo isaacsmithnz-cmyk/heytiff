@@ -387,6 +387,7 @@ export function FleetRegister({
       {modal.t === "log" && openVehicle && (
         <LogModal
           kind={modal.kind}
+          today={today}
           vehicle={openVehicle}
           fleetVehicles={vehicles}
           onSave={(log) => {

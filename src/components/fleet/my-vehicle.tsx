@@ -41,6 +41,7 @@ export function MyVehicle({
   logs,
   error,
   onLog,
+  today,
 }: {
   /** The vehicle assigned to you, or null when you have none. */
   vehicle: VehicleWithFacts | null;
@@ -50,6 +51,9 @@ export function MyVehicle({
   logs: VehicleLog[];
   error: string | null;
   onLog: (log: NewLog) => void;
+  /** The server's AU calendar date — the ceiling on a receipt date, and never
+      the browser's, which is the day before for most of the working morning. */
+  today: string;
 }) {
   const [logKind, setLogKind] = useState<LogKind | null>(null);
   const [logTarget, setLogTarget] = useState<string | null>(null);
@@ -83,6 +87,7 @@ export function MyVehicle({
         {logKind && fallback && (
           <LogModal
             kind={logKind}
+            today={today}
             vehicle={fallback}
             fleetVehicles={pickable}
             onSave={(log) => {
@@ -210,6 +215,7 @@ export function MyVehicle({
       {logKind && (
         <LogModal
           kind={logKind}
+          today={today}
           vehicle={(logTarget && pickable.find((v) => v.id === logTarget)) || vehicle}
           fleetVehicles={pickable}
           onSave={(log) => {

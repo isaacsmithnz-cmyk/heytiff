@@ -94,6 +94,7 @@ export function AssetsScreen({
                   logs={own.logs}
                   error={actions.error}
                   onLog={actions.addLog}
+                  today={today}
                 />
               ) : (
                 <FleetRegister

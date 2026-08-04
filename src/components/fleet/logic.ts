@@ -69,6 +69,17 @@ export type NewLog = {
   odo?: number;
   source?: "scan" | "manual";
   station?: string;
+  /* ---- the tax half of a fuel log ---- */
+  /** GST as printed on the docket. Absent means the docket didn't show one —
+      never a calculated eleventh. */
+  gst?: number;
+  /** Supplier ABN, eleven digits, no spaces. */
+  abn?: string;
+  /** The date on the docket. Absent = bought today, which is the common case;
+      the server decides either way and refuses anything implausible. */
+  purchasedOn?: string;
+  /** The stored receipt photo, already uploaded, waiting to be adopted. */
+  receiptDocumentId?: string;
 };
 
 export type VehicleLog = {
@@ -86,6 +97,11 @@ export type VehicleLog = {
   status?: "open" | "resolved"; // issues only
   source?: "scan" | "manual"; // fuel logs: receipt-scanned vs typed
   station?: string; // fuel logs: where the fill happened
+  gst?: number; // fuel logs: GST as printed on the docket
+  abn?: string; // fuel logs: supplier ABN, eleven digits
+  /** True when the docket photo is stored against this log — the difference
+      between a figure somebody typed and one you can produce at audit. */
+  hasReceipt?: boolean;
 };
 
 export const STATUS_LABEL: Record<VehicleStatus, string> = {

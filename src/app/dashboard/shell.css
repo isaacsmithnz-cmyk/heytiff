@@ -2108,6 +2108,10 @@ select.fl-i { cursor:pointer; }
 .fl-reading { display:flex; align-items:center; gap:9px; font-size:13.5px; font-weight:700; color:#00A389; }
 .fl-reading .i { animation:flSpinPulse 1.2s ease-in-out infinite; }
 .fl-scanhead { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+/* "Receipt saved" / "saving without it" — unscoped like the rest of this
+   block, because the log modal portals to <body> and never sees `.fg`. */
+.fl-keptline { display:flex; align-items:center; gap:7px; margin:-4px 0 14px; font-size:12.5px; font-weight:700; color:#00A389; }
+.fl-keptline.warn { color:#b45309; }
 
 /* ---- fleet r4: rego picker for borrowed vehicles ---- */
 .fg .fl-offnote { flex-wrap:wrap; }
@@ -4524,3 +4528,67 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .wb2-agdot { width:8px; height:8px; border-radius:50%; flex:none; background:var(--wb2-ok); align-self:center; }
 .wb2-agdot.dan { background:var(--wb2-dan); }
 .wb2-agdot.off { background:rgba(5,5,5,.22); }
+
+/* ---- Tax & EOFY (components/tax/) ----
+   Reuses the admin index's shell wholesale (.adm-stg / .adm-card / .emptybox)
+   — a settings-section screen should not invent a second card. What is new is
+   only what a year of spending needs: a year picker, three headline figures, a
+   category strip, and a row that ends in whether the receipt exists.
+
+   Semantic colour only, never the page accent: ok #00A389, warn amber. The one
+   thing this screen must be able to shout is a MISSING receipt, and it does it
+   in the same amber every other caution in the app uses. */
+.fg .tx-years { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 22px; }
+.fg .tx-year { display:inline-flex; align-items:baseline; gap:6px; padding:8px 14px; border-radius:999px; background:#f4f5f7; border:1px solid transparent; font-size:13px; font-weight:700; color:var(--gray500); text-decoration:none; transition:background .15s, color .15s; }
+.fg .tx-year:hover { background:#ebedf0; color:var(--ink); }
+.fg .tx-year.on { background:var(--ink); color:#fff; }
+.fg .tx-year em { font-style:normal; font-size:10.5px; font-weight:700; opacity:.6; }
+
+.fg .tx-sumrow { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:0 0 16px; }
+.fg .tx-stat { display:flex; flex-direction:column; gap:3px; padding:16px 18px; border-radius:20px; background:#fff; border:1px solid #f0f0f2; box-shadow:0 8px 30px rgba(0,0,0,.03); }
+.fg .tx-statlab { font-size:11px; font-weight:800; letter-spacing:.13em; text-transform:uppercase; color:var(--gray400); }
+.fg .tx-statval { font-size:25px; font-weight:800; letter-spacing:-.02em; color:var(--ink); }
+.fg .tx-statsub { font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); }
+.fg .tx-stat.ok .tx-statval { color:#00A389; }
+.fg .tx-stat.warn { border-color:rgba(240,164,49,.4); background:rgba(240,164,49,.05); }
+.fg .tx-stat.warn .tx-statval, .fg .tx-stat.warn .tx-statsub { color:#a56a05; }
+
+.fg .tx-note { display:flex; align-items:flex-start; gap:8px; margin:0 0 14px; padding:11px 14px; border-radius:14px; background:rgba(240,164,49,.1); font-size:12.5px; font-weight:600; line-height:1.5; color:#a56a05; }
+.fg .tx-note .i { flex:none; margin-top:1px; }
+
+.fg .tx-cats { margin:0 0 30px; }
+.fg .tx-cat { display:flex; align-items:center; gap:12px; padding:12px 20px; border-top:1px solid #f5f6f8; }
+.fg .tx-cat:first-child { border-top:0; }
+.fg .tx-catname { flex:1; min-width:0; font-size:13.5px; font-weight:700; color:var(--ink); }
+.fg .tx-catcount { flex:none; min-width:26px; padding:2px 8px; border-radius:999px; background:#f4f5f7; font-size:11px; font-weight:800; color:var(--gray500); text-align:center; }
+.fg .tx-catgst { flex:none; font-size:11.5px; font-weight:600; color:var(--gray400); }
+.fg .tx-catamt { flex:none; min-width:92px; text-align:right; font-size:14px; font-weight:800; letter-spacing:-.01em; color:var(--ink); }
+
+.fg .tx-listhead { display:flex; align-items:center; gap:14px; margin:0 0 12px; }
+.fg .tx-listhead h2 { flex:1; margin:0; font-size:17px; font-weight:800; letter-spacing:-.02em; color:var(--ink); }
+
+.fg .tx-item { display:flex; align-items:center; gap:13px; padding:14px 20px; border-top:1px solid #f5f6f8; }
+.fg .tx-item:first-child { border-top:0; }
+.fg .tx-ic { flex:none; display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:12px; }
+.fg .tx-ic.fuel { background:rgba(46,104,255,.1); color:#2E68FF; }
+.fg .tx-ic.expense { background:rgba(138,43,226,.1); color:#8A2BE2; }
+.fg .tx-main { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.fg .tx-main b { display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:700; color:var(--ink); }
+.fg .tx-main em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fg .tx-flag { flex:none; padding:2px 7px; border-radius:999px; background:rgba(240,164,49,.14); font-size:10px; font-weight:800; letter-spacing:.02em; color:#a56a05; }
+.fg .tx-amt { flex:none; display:flex; flex-direction:column; align-items:flex-end; gap:2px; }
+.fg .tx-amt b { font-size:14px; font-weight:800; letter-spacing:-.01em; color:var(--ink); }
+.fg .tx-amt em { font-style:normal; font-size:11px; font-weight:600; color:var(--gray400); }
+
+/* The row's verdict. An anchor when there is something to open, a span when
+   there is not — so the amber one is deliberately not clickable. */
+.fg .tx-rcpt { flex:none; display:inline-flex; align-items:center; gap:5px; min-width:96px; padding:6px 11px; border-radius:999px; background:rgba(0,163,137,.1); font-size:11.5px; font-weight:700; color:#00A389; text-decoration:none; transition:background .15s; }
+.fg a.tx-rcpt:hover { background:rgba(0,163,137,.18); }
+.fg .tx-rcpt.none { background:rgba(240,164,49,.12); color:#a56a05; }
+
+@media (max-width:700px){
+  .fg .tx-sumrow { grid-template-columns:1fr; }
+  .fg .tx-catgst { display:none; }
+  .fg .tx-item { flex-wrap:wrap; }
+  .fg .tx-rcpt { min-width:0; }
+}

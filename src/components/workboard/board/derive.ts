@@ -242,3 +242,9 @@ export function initialsOf(name: string): string {
 export function hoursLabel(n: number): string {
   return `${Math.round(n * 10) / 10} h`;
 }
+
+/** The crew estimate said in people, not in a bare digit — "2" in a tile
+    labelled "Estimated crew size" reads as an id as easily as a count. */
+export function crewLabel(n: number): string {
+  return `${n} ${n === 1 ? "technician" : "technicians"}`;
+}

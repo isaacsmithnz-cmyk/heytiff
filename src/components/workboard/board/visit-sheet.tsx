@@ -38,6 +38,7 @@ import type { TagTone } from "@/lib/workboard/tags";
 import {
   agoLabel,
   cadencePhrase,
+  crewLabel,
   gatesOf,
   hoursLabel,
   initialsOf,
@@ -107,11 +108,20 @@ export function VisitSheet({
     visit.hoursEstimate !== null ? String(visit.hoursEstimate) : ""
   );
   const [closeNote, setCloseNote] = useState("");
-  /* Notes are BULLETS now — a line each, in the same text column. The draft
-     is the list; `fromLines` puts it back together at save time. */
-  const [noteLines, setNoteLines] = useState<string[]>(() => toLines(visit.notes));
+  /* Notes are BULLETS — a line each, in the same text column. Once there ARE
+     notes the section READS: full wrapped lines you can take in at a glance.
+     Editing them is a mode you ask for, and adding one more is its own button
+     that opens the mic-and-add row from the note pill. Isaac, 2026-08-04: "I
+     can't read the full thing… it should come up as read only once it has been
+     put in the first time, and then you can edit the whole notes section if
+     you want to." The draft list only exists while editing; `fromLines` puts
+     it back together at save time. */
+  const [noteLines, setNoteLines] = useState<string[]>([]);
   const [noteDraft, setNoteDraft] = useState("");
+  const [notesEditing, setNotesEditing] = useState(false);
+  const [adding, setAdding] = useState(false);
   const [hoursOpen, setHoursOpen] = useState(false);
+  const [crewOpen, setCrewOpen] = useState(false);
   const [estText, setEstText] = useState(
     visit.hoursEstimate !== null ? String(visit.hoursEstimate) : ""
   );
@@ -155,6 +165,8 @@ export function VisitSheet({
 
   const gates = gatesOf(visit);
   const missing = missingOf(visit);
+  /** What's actually stored, which is what the read view shows. */
+  const savedNotes = useMemo(() => toLines(visit.notes), [visit.notes]);
   const open = visit.status === "upcoming" || visit.status === "booked";
   const isQuote = tone === "quote";
   const rel = untilLabel(visit.dueDate, today);
@@ -202,11 +214,56 @@ export function VisitSheet({
     );
   };
 
-  const addNoteLine = () => {
+  const saveCrew = (n: number) => {
+    setCrewOpen(false);
+    if (n === visit.techsNeeded) return;
+    run(() => updateAgreementMeta(visit.agreementId, { techsNeeded: n }));
+  };
+
+  /** Notes save through here rather than `run` so the section only leaves the
+      mode it's in once the write actually landed — a failed save that had
+      already thrown the editor away would take the words with it. */
+  const saveNotes = (next: string[], after?: () => void) => {
+    setErr(null);
+    start(async () => {
+      const res = await setVisitNotes(visit.id, fromLines(next));
+      if (!res.ok) {
+        setErr(res.error);
+        return;
+      }
+      after?.();
+      router.refresh();
+    });
+  };
+
+  /* One control, two honest meanings. Adding a note to a list you're only
+     READING commits it there and then — nothing is half-entered and there's
+     no Save to forget. Adding one while you're editing the whole section
+     joins the draft, and leaves with everything else on Save. */
+  const commitDraft = () => {
     const line = noteDraft.trim();
     if (!line) return;
-    setNoteLines([...noteLines, line]);
+    if (notesEditing) {
+      setNoteLines([...noteLines, line]);
+      setNoteDraft("");
+      return;
+    }
+    saveNotes([...savedNotes, line], () => {
+      setNoteDraft("");
+      setAdding(true);
+    });
+  };
+
+  const startEditingNotes = () => {
+    setNoteLines(savedNotes);
     setNoteDraft("");
+    setAdding(false);
+    setNotesEditing(true);
+  };
+
+  const cancelEditingNotes = () => {
+    setNoteDraft("");
+    setNotesEditing(false);
   };
 
   const addTag = (name: string, colour: TagTone) =>
@@ -321,13 +378,17 @@ export function VisitSheet({
               <b>{fmtAuWeekdayDayMonth(visit.dueDate)}</b>
               <em className={rel.tone === "dan" ? "dan" : undefined}>{rel.t}</em>
             </div>
-            {/* The estimate lives on the AGREEMENT — it's how long one visit
-                of this service takes, not how long this one will. It used to
-                show here with no way to change it and no clue where it came
-                from, so it read as a number the app invented. Now it says
-                whose it is, and changing it changes it where it lives. */}
+            {/* The two estimates live on the AGREEMENT — how long one visit of
+                this service takes and how many people it takes, both answered
+                when the agreement was written. They used to show as one tile
+                called "On site", which named neither: it read as a fact about
+                THIS visit rather than the service. Isaac, 2026-08-04: "it says
+                on site as well, we need to change that to estimated service
+                time, and we'll also have estimated crew size — two fields you
+                enter when creating the service agreement." Changing either one
+                changes it where it lives, for every visit. */}
             <div>
-              <span className="wb2-sect">On site</span>
+              <span className="wb2-sect">Estimated service time</span>
               {hoursOpen ? (
                 <div className="wb2-inline">
                   <input
@@ -357,7 +418,49 @@ export function VisitSheet({
               )}
               {!hoursOpen &&
                 (manage ? (
-                  <button className="wb2-colink" onClick={() => setHoursOpen(true)}>
+                  <button
+                    className="wb2-colink"
+                    aria-label="Change the estimated service time"
+                    onClick={() => setHoursOpen(true)}
+                  >
+                    every visit of this agreement · change
+                  </button>
+                ) : (
+                  <em>every visit of this agreement</em>
+                ))}
+            </div>
+            <div>
+              <span className="wb2-sect">Estimated crew size</span>
+              {crewOpen ? (
+                <div className="wb2-inline">
+                  <select
+                    className="wb2-sel"
+                    autoFocus
+                    disabled={busy}
+                    aria-label="Technicians a visit takes"
+                    value={visit.techsNeeded}
+                    onChange={(e) => saveCrew(Number(e.target.value))}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") setCrewOpen(false);
+                    }}
+                  >
+                    {[1, 2, 3, 4, 5, 6].map((n) => (
+                      <option key={n} value={n}>
+                        {crewLabel(n)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <b>{crewLabel(visit.techsNeeded)}</b>
+              )}
+              {!crewOpen &&
+                (manage ? (
+                  <button
+                    className="wb2-colink"
+                    aria-label="Change the estimated crew size"
+                    onClick={() => setCrewOpen(true)}
+                  >
                     every visit of this agreement · change
                   </button>
                 ) : (
@@ -505,8 +608,8 @@ export function VisitSheet({
                   )}
                   {visit.techsNeeded > 1 && (
                     <p className="wb2-hint">
-                      This service usually takes {visit.techsNeeded} — one assigned still opens the
-                      gate, the count is information.
+                      The agreement estimates {crewLabel(visit.techsNeeded)} — one assigned still
+                      opens the gate, the count is information.
                     </p>
                   )}
                 </div>
@@ -631,26 +734,29 @@ export function VisitSheet({
           {/* One note per line, because that's how they're actually said —
               "gate code is 4821", "ask for Dave", "roof ladder won't reach".
               A paragraph made you read all three to find one. Storage didn't
-              change: a line IS a bullet, see lib/workboard/note-lines. */}
-          {manage ? (
+              change: a line IS a bullet, see lib/workboard/note-lines.
+
+              READING is the resting state. The rows used to be single-line
+              inputs that clipped anything longer than the column, so a note
+              you couldn't finish reading was a note you'd typed. Now the
+              stored lines wrap in full, and the two things you might want —
+              one more note, or a go at the lot — are two buttons. */}
+          {manage && notesEditing ? (
             <>
               {noteLines.length > 0 && (
                 <ul className="wb2-blist">
                   {noteLines.map((line, i) => (
                     <li key={i}>
                       <span className="wb2-bdot" aria-hidden="true" />
-                      <input
-                        className="wb2-bin"
+                      <NoteRow
                         value={line}
-                        aria-label={`Note ${i + 1}`}
-                        onChange={(e) => {
-                          const next = [...noteLines];
-                          next[i] = e.target.value;
-                          setNoteLines(next);
+                        index={i}
+                        onChange={(next) => {
+                          const rows = [...noteLines];
+                          rows[i] = next;
+                          setNoteLines(rows);
                         }}
-                        onBlur={() => {
-                          if (line.trim() === "") setNoteLines(noteLines.filter((_, j) => j !== i));
-                        }}
+                        onBlank={() => setNoteLines(noteLines.filter((_, j) => j !== i))}
                       />
                       <button
                         className="wb2-pkx"
@@ -668,7 +774,7 @@ export function VisitSheet({
                 label="a note for this visit"
                 value={noteDraft}
                 onChange={setNoteDraft}
-                onCommit={addNoteLine}
+                onCommit={commitDraft}
                 voiceEnabled={voiceEnabled}
                 placeholder={
                   noteLines.length
@@ -676,46 +782,98 @@ export function VisitSheet({
                     : "Gate codes, who to ask for, what to watch out for…"
                 }
               />
-              {/* Two different things you might mean by "note", said plainly.
-                  SAVE keeps it on the visit for whoever turns up. SORT IT OUT
-                  hands the same words to the note brain, which is what the
-                  pill does — a box labelled "notes" that couldn't raise the
-                  task it describes was the gap Isaac called out. The pill's
-                  target already follows this sheet, so it lands here. */}
               <div className="wb2-noteact">
-                {!linesEqual(noteLines, toLines(visit.notes)) && (
-                  <button
-                    className="pbtn"
-                    disabled={busy}
-                    onClick={() => run(() => setVisitNotes(visit.id, fromLines(noteLines)))}
-                  >
-                    Save the notes
-                  </button>
-                )}
-                {sendToBrain && (noteLines.length > 0 || noteDraft.trim() !== "") && (
-                  <button
-                    className="pbtn ghost"
-                    disabled={busy}
-                    title="Pull the tasks, flags and questions out of this"
-                    onClick={() => sendToBrain(fromLines([...noteLines, noteDraft]))}
-                  >
-                    <Icon name="sparkles" size={15} />
-                    Sort this out
-                  </button>
-                )}
+                <button
+                  className="pbtn"
+                  disabled={busy || linesEqual(noteLines, savedNotes)}
+                  onClick={() => saveNotes(noteLines, () => setNotesEditing(false))}
+                >
+                  Save the notes
+                </button>
+                <button className="pbtn ghost" disabled={busy} onClick={cancelEditingNotes}>
+                  Cancel
+                </button>
               </div>
             </>
-          ) : noteLines.length > 0 ? (
-            <ul className="wb2-blist read">
-              {noteLines.map((line, i) => (
-                <li key={i}>
-                  <span className="wb2-bdot" aria-hidden="true" />
-                  <span>{line}</span>
-                </li>
-              ))}
-            </ul>
           ) : (
-            <p className="wb2-hint">No notes on this visit.</p>
+            <>
+              {savedNotes.length > 0 ? (
+                <ul className="wb2-blist read">
+                  {savedNotes.map((line, i) => (
+                    <li key={i}>
+                      <span className="wb2-bdot" aria-hidden="true" />
+                      <span>{line}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                !manage && <p className="wb2-hint">No notes on this visit.</p>
+              )}
+              {manage && (
+                <>
+                  {/* Nothing written yet? Then there's nothing to read and the
+                      row you'd type into is the whole section. Once the first
+                      note is down, adding another is a button away. */}
+                  {(adding || savedNotes.length === 0) && (
+                    <DictateLine
+                      label="a note for this visit"
+                      value={noteDraft}
+                      onChange={setNoteDraft}
+                      onCommit={commitDraft}
+                      voiceEnabled={voiceEnabled}
+                      disabled={busy}
+                      placeholder={
+                        savedNotes.length
+                          ? "Add another…"
+                          : "Gate codes, who to ask for, what to watch out for…"
+                      }
+                    />
+                  )}
+                  {/* SORT IT OUT hands the same words to the note brain, which
+                      is what the pill does — a box labelled "notes" that
+                      couldn't raise the task it describes was the gap Isaac
+                      called out. The pill's target already follows this sheet,
+                      so it lands here. */}
+                  <div className="wb2-noteact">
+                    {savedNotes.length > 0 &&
+                      (adding ? (
+                        <button
+                          className="pbtn ghost"
+                          disabled={busy}
+                          onClick={() => {
+                            setAdding(false);
+                            setNoteDraft("");
+                          }}
+                        >
+                          Done adding
+                        </button>
+                      ) : (
+                        <button className="pbtn" disabled={busy} onClick={() => setAdding(true)}>
+                          <Icon name="plus" size={15} />
+                          Add note
+                        </button>
+                      ))}
+                    {savedNotes.length > 0 && (
+                      <button className="pbtn ghost" disabled={busy} onClick={startEditingNotes}>
+                        <Icon name="edit" size={15} />
+                        Edit notes
+                      </button>
+                    )}
+                    {sendToBrain && (savedNotes.length > 0 || noteDraft.trim() !== "") && (
+                      <button
+                        className="pbtn ghost"
+                        disabled={busy}
+                        title="Pull the tasks, flags and questions out of this"
+                        onClick={() => sendToBrain(fromLines([...savedNotes, noteDraft]))}
+                      >
+                        <Icon name="sparkles" size={15} />
+                        Sort this out
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+            </>
           )}
         </div>
 
@@ -850,6 +1008,50 @@ export function VisitSheet({
       </aside>
     </>,
     document.body
+  );
+}
+
+/* An editable bullet that shows the WHOLE note. It was an <input>, which
+   clips at the column edge — the note you couldn't read was one you'd already
+   written. A textarea that sizes itself to its content reads like the bullet
+   it's editing, and Enter still commits rather than opening a second line:
+   one line is one note, which is the whole point of the list. */
+function NoteRow({
+  value,
+  index,
+  onChange,
+  onBlank,
+}: {
+  value: string;
+  index: number;
+  onChange: (next: string) => void;
+  /** Emptying a bullet takes it off the list, same as the ×. */
+  onBlank: () => void;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
+
+  return (
+    <textarea
+      ref={ref}
+      className="wb2-bin"
+      rows={1}
+      value={value}
+      aria-label={`Note ${index + 1}`}
+      onChange={(e) => onChange(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") e.preventDefault();
+      }}
+      onBlur={() => {
+        if (value.trim() === "") onBlank();
+      }}
+    />
   );
 }
 

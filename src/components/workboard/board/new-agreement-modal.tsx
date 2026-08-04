@@ -13,6 +13,7 @@ import { analyseSm8JobForAgreement, type AgreementProposal } from "@/app/actions
 import { addPackingItem, createAgreement, createCategory } from "@/app/actions/workboard-maintenance";
 import type { JobSearchHit } from "@/lib/workboard/projects-query";
 import type { BoardAgreement, BoardCategory } from "@/lib/workboard/board-query";
+import { crewLabel } from "./derive";
 
 /* New agreement (D7): read a ServiceM8 job, or type it yourself.
 
@@ -312,16 +313,19 @@ export function NewAgreementModal({
               First service due
               <input type="date" className="wb2-fi" value={anchor} onChange={(e) => setAnchor(e.target.value)} />
             </label>
+            {/* The two estimates the job card shows by these names — how long
+                one visit takes and how many people it takes. They're written
+                here, once, and every visit of the agreement inherits them. */}
             <label className="wb2-fl">
-              Hours on site
-              <input type="number" min={0.5} max={24} step={0.5} className="wb2-fi" value={hoursText} onChange={(e) => setHoursText(e.target.value)} />
+              Estimated service time
+              <input type="number" min={0.5} max={24} step={0.5} className="wb2-fi" value={hoursText} onChange={(e) => setHoursText(e.target.value)} placeholder="hours on site" />
             </label>
             <label className="wb2-fl">
-              Technicians needed
+              Estimated crew size
               <select className="wb2-sel" value={techsNeeded} onChange={(e) => setTechsNeeded(Number(e.target.value))}>
                 {[1, 2, 3, 4, 5, 6].map((n) => (
                   <option key={n} value={n}>
-                    {n}
+                    {crewLabel(n)}
                   </option>
                 ))}
               </select>

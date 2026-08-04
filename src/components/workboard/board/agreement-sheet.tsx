@@ -23,7 +23,7 @@ import {
   updateAgreementSchedule,
   type MaintenanceResult,
 } from "@/app/actions/workboard-maintenance";
-import { cadenceLabel, untilLabel } from "./derive";
+import { cadenceLabel, crewLabel, untilLabel } from "./derive";
 import { TagStrip } from "./tag-strip";
 import type { TagTone } from "@/lib/workboard/tags";
 
@@ -303,17 +303,17 @@ export function AgreementSheet({
                 <input className="wb2-fi" value={billingContact} onChange={(e) => setBillingContact(e.target.value)} placeholder="who the invoice goes to" />
               </label>
               <label className="wb2-fl">
-                Technicians needed
+                Estimated crew size
                 <select className="wb2-sel" value={techsNeeded} onChange={(e) => setTechsNeeded(Number(e.target.value))}>
                   {[1, 2, 3, 4, 5, 6].map((n) => (
                     <option key={n} value={n}>
-                      {n}
+                      {crewLabel(n)}
                     </option>
                   ))}
                 </select>
               </label>
               <label className="wb2-fl">
-                Hours on site (estimate)
+                Estimated service time
                 <input
                   type="number"
                   min={0.5}

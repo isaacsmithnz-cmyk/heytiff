@@ -278,11 +278,15 @@ export function DictateBox({
 
 /* ── the one-liner ──
    Same engine, same mic, one line instead of a paragraph — for lists you add
-   to an item at a time rather than boxes you write prose into. It exists so
-   the bullet lists don't grow a second, differently-shaped microphone: the
-   markup below is DictateBox's bar verbatim, which is the point. Enter
-   commits, and dictation lands in the field rather than committing itself —
-   you get to read what it heard before it becomes a bullet. */
+   to an item at a time rather than boxes you write prose into. Enter commits,
+   and dictation lands in the field rather than committing itself — you get to
+   read what it heard before it becomes a bullet.
+
+   The mic rides ON THE ROW (Isaac, 2026-08-04: "put the microphone onto the
+   same line as the text"). Under the field it read as a second control for a
+   second purpose; beside it, saying a note and typing one are plainly the two
+   ways to fill the same box. Recording takes the row over — stop, live level,
+   clock, discard — because while it's listening there is nothing to add. */
 
 export function DictateLine({
   value,
@@ -327,59 +331,57 @@ export function DictateLine({
             onCommit();
           }}
         />
-        <button
-          type="button"
-          className="wb2-addgo"
-          disabled={disabled || value.trim() === ""}
-          title="Add it"
-          aria-label={`Add — ${label}`}
-          onClick={onCommit}
-        >
-          <Icon name="plus" size={14} />
-        </button>
-      </div>
-      {voiceEnabled && (
-        <div className="wb2-dictbar">
-          {dict.recording ? (
-            <>
-              <button
-                type="button"
-                className="wb2-dictmic on"
-                onClick={dict.stop}
-                title="Stop and read it back"
-                aria-label={`Stop dictating — ${label}`}
-              >
-                <Icon name="square" size={13} />
-              </button>
-              <LevelBars innerRef={dict.barsRef} />
-              <span className="wb2-capclock">{clockOf(dict.seconds)}</span>
-              <button
-                type="button"
-                className="wb2-dictx"
-                onClick={dict.cancel}
-                title="Throw it away"
-                aria-label={`Discard the recording — ${label}`}
-              >
-                <Icon name="x" size={12} />
-              </button>
-            </>
-          ) : dict.transcribing ? (
-            <span className="wb2-dicthint">Reading it back…</span>
-          ) : (
+        {voiceEnabled && dict.recording ? (
+          <>
+            <LevelBars innerRef={dict.barsRef} />
+            <span className="wb2-capclock">{clockOf(dict.seconds)}</span>
             <button
               type="button"
-              className="wb2-dictmic"
-              onClick={dict.start}
-              disabled={disabled}
-              title="Say it instead"
-              aria-label={`Dictate — ${label}`}
+              className="wb2-micgo on"
+              onClick={dict.stop}
+              title="Stop and read it back"
+              aria-label={`Stop dictating — ${label}`}
             >
-              <Icon name="mic" size={13} />
-              Say it
+              <Icon name="square" size={12} />
             </button>
-          )}
-        </div>
-      )}
+            <button
+              type="button"
+              className="wb2-dictx"
+              onClick={dict.cancel}
+              title="Throw it away"
+              aria-label={`Discard the recording — ${label}`}
+            >
+              <Icon name="x" size={12} />
+            </button>
+          </>
+        ) : (
+          <>
+            {voiceEnabled && (
+              <button
+                type="button"
+                className="wb2-micgo"
+                onClick={dict.start}
+                disabled={disabled || dict.transcribing}
+                title="Say it instead"
+                aria-label={`Dictate — ${label}`}
+              >
+                <Icon name="mic" size={14} />
+              </button>
+            )}
+            <button
+              type="button"
+              className="wb2-addgo"
+              disabled={disabled || dict.transcribing || value.trim() === ""}
+              title="Add it"
+              aria-label={`Add — ${label}`}
+              onClick={onCommit}
+            >
+              <Icon name="plus" size={14} />
+            </button>
+          </>
+        )}
+      </div>
+      {dict.transcribing && <p className="wb2-dicthint">Reading it back…</p>}
       {err && <p className="wb2-dicterr">{err}</p>}
     </div>
   );

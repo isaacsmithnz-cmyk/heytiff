@@ -370,8 +370,9 @@ describe("the visit sheet — the editing heart", () => {
 
   it("the estimate says it belongs to the agreement, and changes it there", async () => {
     const sheet = await open(visit({ id: "v-1", hoursEstimate: 3 }));
+    expect(sheet.getByText("Estimated service time")).toBeInTheDocument();
     expect(sheet.getByText("3 h")).toBeInTheDocument();
-    await userEvent.click(sheet.getByRole("button", { name: /every visit of this agreement/ }));
+    await userEvent.click(sheet.getByRole("button", { name: "Change the estimated service time" }));
     const box = sheet.getByLabelText("Hours a visit takes");
     await userEvent.clear(box);
     await userEvent.type(box, "4.5");
@@ -379,17 +380,44 @@ describe("the visit sheet — the editing heart", () => {
     expect(act.updateAgreementMeta).toHaveBeenCalledWith("a-1", { hoursEstimate: 4.5 });
   });
 
-  it("notes are bullets — one per line, added one at a time", async () => {
+  it("crew size is the agreement's second estimate, changed the same way", async () => {
+    const sheet = await open(visit({ id: "v-1", techsNeeded: 1 }));
+    expect(sheet.getByText("Estimated crew size")).toBeInTheDocument();
+    expect(sheet.getByText("1 technician")).toBeInTheDocument();
+    // the tile the two estimates replaced named neither of them
+    expect(sheet.queryByText("On site")).not.toBeInTheDocument();
+    await userEvent.click(sheet.getByRole("button", { name: "Change the estimated crew size" }));
+    await userEvent.selectOptions(sheet.getByLabelText("Technicians a visit takes"), "2");
+    expect(act.updateAgreementMeta).toHaveBeenCalledWith("a-1", { techsNeeded: 2 });
+  });
+
+  it("notes read once they're written — no edit boxes until you ask", async () => {
     const sheet = await open(visit({ id: "v-1", notes: "Gate code is 4821" }));
-    expect(sheet.getByDisplayValue("Gate code is 4821")).toBeInTheDocument();
+    expect(sheet.getByText("Gate code is 4821")).toBeInTheDocument();
+    expect(sheet.queryByLabelText("Note 1")).not.toBeInTheDocument();
+    expect(sheet.queryByLabelText("a note for this visit")).not.toBeInTheDocument();
+    await userEvent.click(sheet.getByRole("button", { name: /Edit notes/ }));
+    expect(sheet.getByLabelText("Note 1")).toHaveValue("Gate code is 4821");
+  });
+
+  it("with nothing written, the section IS the add row", async () => {
+    const sheet = await open(visit({ id: "v-1", notes: null }));
     await userEvent.type(sheet.getByLabelText("a note for this visit"), "Ask for Dave{Enter}");
-    await userEvent.click(sheet.getByRole("button", { name: "Save the notes" }));
+    // the first note saves on the spot — there's no draft to lose
+    expect(act.setVisitNotes).toHaveBeenCalledWith("v-1", "Ask for Dave");
+  });
+
+  it("Add note opens the mic-and-add row, and one more note saves itself", async () => {
+    const sheet = await open(visit({ id: "v-1", notes: "Gate code is 4821" }));
+    await userEvent.click(sheet.getByRole("button", { name: /Add note/ }));
+    await userEvent.type(sheet.getByLabelText("a note for this visit"), "Ask for Dave{Enter}");
     expect(act.setVisitNotes).toHaveBeenCalledWith("v-1", "Gate code is 4821\nAsk for Dave");
   });
 
-  it("a bullet can be taken off, and Save only appears once something changed", async () => {
+  it("editing the whole section: a bullet comes off, and Save waits for a change", async () => {
     const sheet = await open(visit({ id: "v-1", notes: "Gate code is 4821\nAsk for Dave" }));
-    expect(sheet.queryByRole("button", { name: "Save the notes" })).not.toBeInTheDocument();
+    await userEvent.click(sheet.getByRole("button", { name: /Edit notes/ }));
+    expect(sheet.getByRole("button", { name: "Save the notes" })).toBeDisabled();
     await userEvent.click(sheet.getByRole("button", { name: "Remove note 2" }));
     await userEvent.click(sheet.getByRole("button", { name: "Save the notes" }));
     expect(act.setVisitNotes).toHaveBeenCalledWith("v-1", "Gate code is 4821");

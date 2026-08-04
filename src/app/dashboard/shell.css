@@ -3813,7 +3813,9 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-shhd { padding:14px 22px 18px; border-bottom:1px solid var(--wb2-line2); }
 .wb2-shhd h2 { font-size:23px; font-weight:800; letter-spacing:-.03em; line-height:1.2; margin:0; text-wrap:pretty; }
 .wb2-shhd p { font-size:13.5px; color:var(--gray500); font-weight:600; margin:6px 0 0; }
-.wb2-facts { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:18px; }
+/* two tiles when it's closed out, three when it's open — the estimates are
+   two facts now (service time, crew size), so the row sizes itself */
+.wb2-facts { display:grid; grid-template-columns:repeat(auto-fit, minmax(142px, 1fr)); gap:14px; margin-top:18px; }
 .wb2-facts > div { display:flex; flex-direction:column; gap:3px; padding:11px 13px; border-radius:13px; background:rgba(5,5,5,.026); }
 .wb2-facts b { font-size:15px; font-weight:800; letter-spacing:-.015em; }
 .wb2-facts em { font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray500); }
@@ -3821,6 +3823,9 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 /* an editor the size of the thing it edits, rather than a form that opens */
 .wb2-inline { display:flex; align-items:center; gap:6px; }
 .wb2-inline .wb2-fi { width:88px; padding:5px 9px; }
+/* the crew picker commits on choice, so it needs no tick beside it — it takes
+   the tile's width rather than a number field's */
+.wb2-inline .wb2-sel { width:100%; min-width:0; padding:5px 9px; }
 /* WHEN the job happens — one statement, the same shape as a fact tile, with
    the picker underneath it. Replaced a fact tile and a card that each told
    half of it. */
@@ -3888,22 +3893,32 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-notetext { font-size:13.5px; font-weight:600; color:var(--gray700); line-height:1.55; padding:13px 15px; border-radius:13px;
   background:rgba(5,5,5,.03); margin:0; white-space:pre-wrap; }
 /* ── notes as bullets ──
-   One note per line, because that's how they're said. The row IS the input:
-   no edit mode, no pencil — you click the words and change them. The × waits
-   for a hover like the packing list's does, so a list of five notes is five
-   notes rather than five notes and five buttons. */
+   One note per line, because that's how they're said. Written notes READ by
+   default and wrap in full — a row that clipped its own text was a note you
+   couldn't finish. Editing is a mode you ask for, and there the row IS the
+   field: a self-sizing textarea, never a one-line input. Rows top-align so a
+   three-line note keeps its dot beside the FIRST line; the × waits for a
+   hover like the packing list's does. */
 .wb2-blist { list-style:none; display:grid; gap:3px; margin:0 0 9px; padding:0; }
-.wb2-blist li { display:flex; align-items:center; gap:8px; }
-.wb2-bdot { flex:none; width:4px; height:4px; margin-left:5px; border-radius:50%; background:rgba(5,5,5,.3); }
+.wb2-blist li { display:flex; align-items:flex-start; gap:8px; }
+.wb2-bdot { flex:none; width:4px; height:4px; margin-left:5px; margin-top:14px; border-radius:50%;
+  background:rgba(5,5,5,.3); }
 .wb2-bin { flex:1; min-width:0; font:inherit; font-size:13px; font-weight:600; color:var(--gray700);
-  background:none; border:1px solid transparent; border-radius:8px; padding:5px 8px; }
+  background:none; border:1px solid transparent; border-radius:8px; padding:5px 8px;
+  line-height:1.55; resize:none; overflow:hidden; }
 .wb2-bin:hover { border-color:rgba(5,5,5,.1); }
 .wb2-bin:focus { outline:none; background:#fff; border-color:#00A8E0; box-shadow:0 0 0 3px rgba(0,168,224,.13); }
+.wb2-blist li > .wb2-pkx { margin-top:6px; }
 .wb2-blist li:hover .wb2-pkx, .wb2-blist .wb2-pkx:focus-visible { opacity:1; }
 .wb2-blist.read li { padding:2px 0; }
+.wb2-blist.read .wb2-bdot { margin-top:10px; }
 .wb2-blist.read li > span:last-child { flex:1; min-width:0; font-size:13.5px; font-weight:600; color:var(--gray700);
   line-height:1.55; text-wrap:pretty; }
-/* the one-line dictation field: same mic, same bar, one row instead of a box */
+/* ── the one-line dictation field ──
+   Field, mic, add — one row. The mic used to sit on a bar UNDERNEATH, which
+   made saying a note look like a different feature from typing one; on the
+   row they're plainly two ways to fill the same box. Recording takes the row:
+   the field greys out and the buttons become level, clock, stop, discard. */
 .wb2-dictline { display:grid; gap:7px; }
 .wb2-addrow { display:flex; align-items:center; gap:7px; }
 .wb2-addrow .wb2-fi { flex:1; min-width:0; }
@@ -3912,6 +3927,23 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-addgo:hover:not(:disabled) { background:#0089b8; }
 .wb2-addgo:disabled { background:rgba(5,5,5,.07); color:#9ca3af; cursor:not-allowed; }
 .wb2-addgo:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
+/* the pill's red mic at row size — same colour, because it's the same act */
+.wb2-micgo { flex:none; width:32px; height:32px; border-radius:9px; border:0; display:grid; place-items:center;
+  background:#e0264f; color:#fff; cursor:pointer; transition:background .18s, transform .18s; }
+.wb2-micgo:hover:not(:disabled) { background:#c8203f; }
+.wb2-micgo:disabled { background:rgba(5,5,5,.07); color:#9ca3af; cursor:not-allowed; }
+.wb2-micgo:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(224,38,79,.35); }
+/* listening: a soft pulse, so a row that's recording never looks like a row
+   that's merely disabled */
+.wb2-micgo.on { animation:wb2micpulse 1.6s ease-in-out infinite; }
+@keyframes wb2micpulse {
+  0%, 100% { box-shadow:0 0 0 0 rgba(224,38,79,.42); }
+  50% { box-shadow:0 0 0 5px rgba(224,38,79,0); }
+}
+@media (prefers-reduced-motion:reduce) { .wb2-micgo.on { animation:none; } }
+.wb2-addrow .wb-lvl { flex:none; height:20px; }
+.wb2-addrow .wb-lvl i { height:20px; }
+.wb2-addrow .wb2-dictx { flex:none; margin-left:0; }
 .wb2-shft { display:flex; align-items:center; gap:9px; padding:18px 22px; margin-top:auto; position:sticky; bottom:0;
   background:#fff; border-top:1px solid var(--wb2-line2); flex-wrap:wrap; }
 /* one button belongs on the right, beside where the close-out card's own
@@ -3994,7 +4026,9 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
   .wb2-mcc { min-height:64px; }
   .wb2-vtabs { overflow-x:auto; padding-bottom:2px; }
   .wb2-vt { flex:none; }
-  .wb2-facts { grid-template-columns:1fr; }
+  /* three facts stacked into three full-width bands pushed everything below
+     them off the first screen — narrow just means a smaller minimum */
+  .wb2-facts { grid-template-columns:repeat(auto-fit, minmax(134px, 1fr)); }
   /* narrow enough that two columns of sections stop being a favour */
   .wb2-sheet { grid-template-columns:minmax(0,1fr); }
 }

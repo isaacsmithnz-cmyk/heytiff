@@ -38,35 +38,34 @@ import { clearRun, markStopped, markTranscript } from "@/lib/voice/timing";
 /** Inlined at build time — a live transcript is opt-in per deployment. */
 const REALTIME = process.env.NEXT_PUBLIC_VOICE_REALTIME === "1";
 
-const OVERRIDE_KEY = "heytiff.voice.transport";
-
 /* A build-time flag can't be A/B'd: every swap is a redeploy of production,
    which is no way to find out whether the live path is actually faster. So
-   `?voice=live` / `?voice=batch` beats the flag for the rest of the browser
-   session — enough to measure both against the same note, on the same
-   connection, minutes apart.
+   `?voice=live` / `?voice=batch` beats the flag — enough to measure both
+   against the same note, on the same connection, minutes apart.
 
-   sessionStorage, not localStorage: an override is for an afternoon of
-   measuring, and one that outlives the tab would eventually have someone
-   debugging a transport nobody remembers choosing. `?voice=` with anything
-   else clears it.
+   IT LIVES IN THE URL AND NOWHERE ELSE, and that is the whole lesson of
+   2026-08-04. The first version stashed the choice in sessionStorage so it
+   would survive navigation, with a comment observing that an override
+   outliving its tab "would eventually have someone debugging a transport
+   nobody remembers choosing". It took about an hour: Isaac measured with
+   `?voice=live`, came back later to a plain URL, recorded a note, got
+   nothing, and reported the feature broken. It wasn't the feature — it was
+   this. Server logs showed the token route being hit with no query string
+   in sight.
+
+   A measuring switch you cannot see in the address bar is a trap, and the
+   convenience it bought (not retyping a query string) was never worth it.
+   No storage, no ghost state: the URL says which transport you are on, or
+   you are on the deployment's default.
 
    Read in the click handler and never during render — a value that differs
    between server and client would tear hydration if it reached the markup,
    and this one deliberately does not. */
 export function transportChoice(): boolean {
   if (typeof window === "undefined") return REALTIME;
-  try {
-    const asked = new URLSearchParams(window.location.search).get("voice");
-    if (asked === "live" || asked === "batch") sessionStorage.setItem(OVERRIDE_KEY, asked);
-    else if (asked !== null) sessionStorage.removeItem(OVERRIDE_KEY);
-
-    const chosen = sessionStorage.getItem(OVERRIDE_KEY);
-    if (chosen === "live") return true;
-    if (chosen === "batch") return false;
-  } catch {
-    /* private mode, or storage disabled — the flag still decides */
-  }
+  const asked = new URLSearchParams(window.location.search).get("voice");
+  if (asked === "live") return true;
+  if (asked === "batch") return false;
   return REALTIME;
 }
 
@@ -264,12 +263,28 @@ export function useDictation({
                 cbs.current.onTranscript(text);
                 return;
               }
-              /* Socket produced nothing. The clip is still in `chunks`. */
+              /* Socket produced nothing. The clip is still in `chunks`, so
+                 the batch path below is the floor — but SAY SO, because this
+                 is the exact silence that made 2026-08-04's failure look
+                 like a broken feature instead of a failing transport. */
+              console.error("[realtime] socket returned no words — falling back to upload");
             }
 
+            /* NOTHING RECORDED IS STILL SOMETHING TO SAY. This branch used
+               to `return` in silence, on the theory that an empty clip meant
+               a stray press with nothing to report. On 2026-08-04 it swallowed
+               a real failure instead: three notes went to the live socket,
+               came back with no words, fell through to here, found an empty
+               blob and vanished — no transcript, no error, nothing to tell
+               the difference between "we heard nothing" and "we are broken".
+
+               The floor is the same as everywhere else in this file: say
+               something, and leave the person a way to get their note in. */
             const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
             if (blob.size === 0) {
               clearRun();
+              console.error("[dictation] recording was empty — nothing to transcribe");
+              cbs.current.onError?.("Nothing was recorded. Try again, or type it.");
               return;
             }
             await upload(blob);

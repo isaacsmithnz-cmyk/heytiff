@@ -178,12 +178,17 @@ export function useDictation({
       const res = await fetch("/api/workboard/transcribe", { method: "POST", body: form });
       const body = (await res.json()) as { text?: string; error?: string };
       if (!res.ok || !body.text) {
+        /* A run that never reaches a proposal has to be dropped, or the
+           NEXT note — quite possibly a typed one — prints its `routed`
+           measured from a stop that happened minutes ago. */
+        clearRun();
         cbs.current.onError?.(body.error ?? "That recording couldn't be read. Type it instead.");
         return;
       }
       markTranscript("batch");
       cbs.current.onTranscript(body.text);
     } catch {
+      clearRun();
       cbs.current.onError?.("That recording couldn't be sent. Type it instead.");
     }
   };
@@ -263,7 +268,10 @@ export function useDictation({
             }
 
             const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
-            if (blob.size === 0) return;
+            if (blob.size === 0) {
+              clearRun();
+              return;
+            }
             await upload(blob);
           } finally {
             /* The tracks are held until here so the live path can flush the

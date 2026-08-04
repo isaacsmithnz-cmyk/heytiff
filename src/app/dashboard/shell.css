@@ -970,7 +970,26 @@
   background:#fff; color:#aeb4c0; border:1px solid #ecedf1;
   box-shadow:0 4px 12px -6px rgba(10,12,20,.3); transition:all .2s; }
 .fg .pident .pphoto .camdel:hover:not(:disabled) { background:rgba(255,51,102,.1); color:#e0264f; border-color:rgba(255,51,102,.25); }
+/* ON HOVER, NOT ALWAYS. Two controls parked permanently on a 68px tile read as
+   damage to the photo rather than as things you can press — the × especially,
+   which looks like the image failed to load. The tile is the affordance; the
+   buttons arrive when you go for it.
+
+   Same rule the licence wall's remove × already follows, including its escape
+   hatch: a touch screen has no hover, so there they stay put. `focus-within`
+   is not optional either — a button faded to opacity 0 is still tabbable, and
+   without it a keyboard user would be focused on something invisible. */
+.fg .pident .pphoto .cam,
+.fg .pident .pphoto .camdel { opacity:0; }
+.fg .pident .pphoto:hover .cam, .fg .pident .pphoto:hover .camdel,
+.fg .pident .pphoto:focus-within .cam, .fg .pident .pphoto:focus-within .camdel { opacity:1; }
+@media (hover:none), (pointer:coarse) {
+  .fg .pident .pphoto .cam, .fg .pident .pphoto .camdel { opacity:1; }
+}
 .fg .pident .pphoto.busy { opacity:.6; pointer-events:none; }
+/* mid-upload the controls stay up — the tile is dimmed and not hoverable, and
+   a badge that vanished the moment you used it reads as a crash */
+.fg .pident .pphoto.busy .cam, .fg .pident .pphoto.busy .camdel { opacity:1; }
 /* the picker itself is never seen — the badge is its label */
 .fg .pident .pphoto input[type="file"] { display:none; }
 .fg .carderr.photoerr { flex:1 1 100%; margin-top:0; }

@@ -1,16 +1,11 @@
-import { KB_CATEGORIES, filterKbDocs, kbCounts, type KbDoc } from "../kb";
+import { KB_CATEGORIES, filterKbDocs } from "../kb";
 import { ICON_PATHS } from "@/components/shell/icon";
 
-// A small local sample — one doc per category. Used to exercise kbCounts and
-// the category config. (There is no demo library any more; real uploads land
-// with the Documents/storage track.)
-const sampleDocs: KbDoc[] = [
-  { id: "s1", category: "install", title: "Ducted install checklist", kind: "PDF", source: "HeyTiff", updated: "May 2026" },
-  { id: "s2", category: "faults", title: "City Multi fault codes", kind: "PDF", source: "Service handbook", updated: "Jun 2026" },
-  { id: "s3", category: "specs", title: "PEAD-M datasheets", kind: "PDF", source: "Mitsubishi", updated: "May 2026" },
-  { id: "s4", category: "sops", title: "Warranty claim process", kind: "Doc", source: "Company SOP", updated: "Jun 2026" },
-  { id: "s5", category: "faults", title: "VRV error index", kind: "PDF", source: "Daikin", updated: "Mar 2026" },
-];
+/* The four categories are product structure — they colour the rail cards, the
+   library sections and the source chips, and the database carries the same
+   CHECK. What's pinned here is that the config is complete and that the
+   library's search box behaves the same on a row with no source as on one
+   with. */
 
 describe("knowledge base config", () => {
   it("has four categories with unique keys and real icons", () => {
@@ -23,34 +18,22 @@ describe("knowledge base config", () => {
     }
   });
 
-  it("every sample doc belongs to a defined category", () => {
-    const keys = new Set(KB_CATEGORIES.map((c) => c.key));
-    for (const d of sampleDocs) expect(keys.has(d.category)).toBe(true);
-  });
-
-  it("kbCounts covers every category and sums to the doc total", () => {
-    const counts = kbCounts(sampleDocs);
-    for (const c of KB_CATEGORIES) {
-      expect(typeof counts[c.key]).toBe("number");
-    }
-    const total = Object.values(counts).reduce((a, b) => a + b, 0);
-    expect(total).toBe(sampleDocs.length);
-    expect(counts.faults).toBe(2);
-  });
-
-  it("kbCounts returns zeros for an empty library", () => {
-    const counts = kbCounts([]);
-    for (const c of KB_CATEGORIES) expect(counts[c.key]).toBe(0);
-  });
-
-  it("filterKbDocs matches title and source, case-insensitively", () => {
-    const docs: KbDoc[] = [
-      { id: "a", category: "faults", title: "Mitsubishi fault codes", kind: "PDF", source: "Service handbook", updated: "Jun 2026" },
-      { id: "b", category: "sops", title: "Warranty claim process", kind: "Doc", source: "Company SOP", updated: "Jun 2026" },
+  it("matches title and source, case-insensitively", () => {
+    const docs = [
+      { title: "Mitsubishi fault codes", source: "Service handbook" },
+      { title: "Warranty claim process", source: "Company SOP" },
     ];
     expect(filterKbDocs(docs, "MITSUBISHI")).toHaveLength(1);
     expect(filterKbDocs(docs, "handbook")).toHaveLength(1);
     expect(filterKbDocs(docs, "")).toHaveLength(2);
     expect(filterKbDocs(docs, "nothing-matches")).toHaveLength(0);
+  });
+
+  /* Real rows come from the database, where `source` is nullable — the same
+     search has to work on both shapes, which is why it is generic. */
+  it("searches a row that has no source without falling over", () => {
+    const docs = [{ title: "Untitled upload", source: null }];
+    expect(filterKbDocs(docs, "untitled")).toHaveLength(1);
+    expect(filterKbDocs(docs, "mitsubishi")).toHaveLength(0);
   });
 });

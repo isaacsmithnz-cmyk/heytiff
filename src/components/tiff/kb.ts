@@ -20,23 +20,13 @@ export const KB_CATEGORIES: KbCategory[] = [
   { key: "sops", label: "Company SOPs", icon: "shield", color: "#8A2BE2", blurb: "How we do things here" },
 ];
 
-export type KbDoc = {
-  id: string;
-  category: KbCategoryKey;
-  title: string;
-  kind: "PDF" | "Doc" | "Sheet";
-  source: string;
-  updated: string;
-};
+/* The preview-era `KbDoc` shape and its `kbCounts` helper are GONE. A document
+   is now a `KbDocRow` from lib/tiff/query.ts — a real row with a status and a
+   page count — and the per-category counts are a database read
+   (`kbCategoryCounts`) rather than a tally of an array the client was handed.
+   The last caller was the staged assistant screen, which no longer exists.
 
-/** Documents per category key (categories with no docs still get a 0). */
-export function kbCounts(docs: KbDoc[]): Record<KbCategoryKey, number> {
-  const counts = { install: 0, faults: 0, specs: 0, sops: 0 } as Record<KbCategoryKey, number>;
-  for (const d of docs) counts[d.category] += 1;
-  return counts;
-}
-
-/* Case-insensitive match on title or source (the KB page's search box).
+   Case-insensitive match on title or source (the library page's search box).
 
    Generic over the row, because the library's real rows come from the database
    (lib/tiff/query.ts) where `source` is nullable — the search is the same

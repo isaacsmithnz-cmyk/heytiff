@@ -34,9 +34,11 @@ jest.mock("@/components/toolbox/outdoor-unit", () => ({ OutdoorUnit: () => null 
 jest.mock("@/components/toolbox/running-pressures", () => ({ RunningPressures: () => null }));
 jest.mock("@/components/toolbox/fault-finder", () => ({ FaultFinder: () => null }));
 jest.mock("@/components/tiff/knowledge", () => ({ KnowledgeBase: () => null }));
+jest.mock("@/components/tiff/assistant", () => ({ TiffAssistant: () => null }));
 jest.mock("@/lib/tiff/query", () => ({
   kbDocsForOrg: jest.fn(async () => []),
   kbUploaderNames: jest.fn(async () => ({})),
+  kbCategoryCounts: jest.fn(async () => ({ install: 3, faults: 2, specs: 0, sops: 0 })),
 }));
 jest.mock("@/lib/tiff/quota", () => ({
   kbQuotaFor: jest.fn(async () => ({
@@ -99,6 +101,7 @@ import HeatLoadPage from "../toolbox/heat-load/page";
 import OutdoorUnitPage from "../toolbox/outdoor-unit/page";
 import RunningPressuresPage from "../toolbox/running-pressures/page";
 import TroubleshootingPage from "../toolbox/troubleshooting/page";
+import TiffPage from "../tiff/page";
 import KnowledgeBasePage from "../tiff/knowledge/page";
 import DataLibraryPage from "../studio/data-library/page";
 import WorkboardPage from "../workboard/page";
@@ -112,6 +115,7 @@ const LEAVES: [string, () => Promise<unknown>, string][] = [
   ["toolbox/outdoor-unit", OutdoorUnitPage, "toolbox"],
   ["toolbox/running-pressures", RunningPressuresPage, "toolbox"],
   ["toolbox/troubleshooting", TroubleshootingPage, "toolbox"],
+  ["tiff", TiffPage, "tiff"],
   ["tiff/knowledge", KnowledgeBasePage, "tiff"],
   ["workboard", WorkboardPage, "workboard"],
   ["workboard/projects", WorkboardProjectsPage, "workboard"],

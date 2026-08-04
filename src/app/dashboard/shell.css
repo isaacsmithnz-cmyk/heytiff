@@ -587,9 +587,11 @@
 
 /* ===== HeyTiff · FIGMA REPLICA — Tiff / Toolbox / Ductr screens ===== */
 
-/* ---------------- TIFF ---------------- */
-.fg .tiff { display:flex; height:100%; background:var(--bg); }
-.fg .tiff .tmain { flex:1; display:flex; flex-direction:column; padding:32px; max-width:1200px; margin:0 auto; width:100%; min-width:0; }
+/* ---------------- TIFF ----------------
+   The assistant's own two-column layout lives with the rest of the knowledge
+   base in the `.tk-` block at the end of this file. What stays here is the
+   furniture the transcript and the composer are built from — hero, suggestion
+   cards, glowing input, bubbles — which the rebuilt screen still uses. */
 .fg .thero { position:relative; border-radius:40px; overflow:hidden; background:var(--ink); color:#fff; padding:48px; box-shadow:0 20px 60px -15px rgba(0,0,0,.4); flex:0 0 auto; margin-bottom:32px; border:1px solid rgba(255,255,255,.05); }
 .fg .thero .o1 { position:absolute; top:-20%; right:-10%; width:60%; height:150%; border-radius:50%; background:var(--teal); filter:blur(120px); opacity:.2; mix-blend-mode:screen; animation:fgBreath 6s ease-in-out infinite; pointer-events:none; }
 .fg .thero .o2 { position:absolute; bottom:-30%; left:10%; width:40%; height:100%; border-radius:50%; background:var(--blue); filter:blur(100px); opacity:.15; mix-blend-mode:screen; pointer-events:none; }
@@ -615,7 +617,9 @@
 .fg .tsugg .tsh { display:flex; align-items:center; gap:12px; margin-bottom:24px; position:relative; z-index:10; }
 .fg .tsugg .tsi { width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; transition:transform .5s; }
 .fg .tsugg:hover .tsi { transform:scale(1.1) rotate(3deg); }
-.fg .tsugg .tsc { font-size:10px; font-weight:800; letter-spacing:.2em; text-transform:uppercase; font-family:var(--mono); }
+/* Jakarta, not var(--mono): no monospace anywhere is the brief's first hard
+   constraint, and the tracking is what was carrying this label's look anyway. */
+.fg .tsugg .tsc { font-size:10px; font-weight:800; letter-spacing:.2em; text-transform:uppercase; }
 .fg .tsugg .tst2 { font-size:16px; font-weight:800; color:var(--ink); margin-bottom:8px; line-height:1.2; position:relative; z-index:10; }
 .fg .tsugg .tsd { font-size:13px; color:var(--gray500); font-weight:500; position:relative; z-index:10; }
 .fg .tinput { margin-top:32px; flex:0 0 auto; position:relative; }
@@ -627,24 +631,15 @@
 .fg .tinput input::placeholder { color:var(--gray400); }
 .fg .tinput .tsend { position:relative; overflow:hidden; width:48px; height:48px; border-radius:16px; background:var(--ink); display:flex; align-items:center; justify-content:center; color:#fff; flex:0 0 auto; box-shadow:0 6px 14px -4px rgba(0,0,0,.3); transition:all .3s; }
 .fg .tinput .tsend:hover { background:var(--teal); color:var(--ink); }
-.fg .tside { width:340px; flex:0 0 auto; background:rgba(255,255,255,.8); backdrop-filter:blur(24px); border-left:1px solid #fff; box-shadow:-20px 0 40px rgba(0,0,0,.02); padding:32px; display:flex; flex-direction:column; gap:40px; overflow-y:auto; }
-@media (max-width:1100px){ .fg .tside{display:none} }
-.fg .tside .tsl { display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; }
-.fg .tside .tsl span { font-size:11px; font-weight:800; letter-spacing:.2em; text-transform:uppercase; color:var(--gray400); }
-.fg .tside .tsl button { font-size:11px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--teal); }
-.fg .kbrow { display:flex; align-items:center; gap:16px; padding:16px; border-radius:24px; border:1px solid transparent; cursor:pointer; transition:all .3s; }
-.fg .kbrow:hover { background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.05); border-color:#f0f0f2; }
-.fg .kbrow .kd { width:10px; height:10px; border-radius:50%; flex:0 0 auto; }
-.fg .kbrow .kl { flex:1; font-size:14px; font-weight:700; color:var(--gray500); transition:color .3s; }
-.fg .kbrow:hover .kl { color:var(--ink); }
-.fg .kbrow .kc { font-size:12px; font-weight:800; font-family:var(--mono); background:#f9fafb; padding:4px 8px; border-radius:8px; }
-.fg .tdiv { height:1px; background:linear-gradient(90deg,transparent,#e5e7eb,transparent); }
+/* The 340px sidebar and its knowledge-base rows are GONE, replaced by the
+   `.tk-rail` at the end of this file — deleted rather than left behind,
+   because unused CSS is what the next person copies. Thread rows survived the
+   move and are styled below. */
 .fg .thread { padding:16px; border-radius:24px; border:1px solid transparent; cursor:pointer; transition:all .3s; }
 .fg .thread:hover { background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.05); border-color:#f0f0f2; }
 .fg .thread .th { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:8px; }
 .fg .thread .th b { font-size:14px; font-weight:700; color:var(--ink); line-height:1.3; transition:color .3s; }
 .fg .thread:hover .th b { color:var(--teal); }
-.fg .thread .pro2 { padding:4px 8px; border-radius:6px; background:rgba(0,229,192,.1); color:var(--teal); font-size:9px; font-weight:800; font-family:var(--mono); flex:0 0 auto; }
 .fg .thread em { font-style:normal; font-size:12px; font-weight:500; color:var(--gray400); }
 
 /* ---------------- TOOLBOX ---------------- */
@@ -1425,10 +1420,7 @@
 /* ===== TIFF AI · stage 1 additions (chat thread + Knowledge Base page) =====
    Additive only — the ported v3 rules above are untouched. */
 
-/* sidebar rows rendered as links/buttons instead of the design's divs */
-.fg a.kbrow { text-decoration:none; }
-.fg .tside .tsl a { font-size:11px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--teal); text-decoration:none; }
-.fg .tside .tsl a:hover, .fg .tside .tsl button:hover { color:var(--teal-d); }
+/* thread rows are buttons, not the design's divs */
 .fg button.thread { display:block; width:100%; text-align:left; }
 .fg .thread.on { background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.05); border-color:#f0f0f2; }
 
@@ -4988,3 +4980,132 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   .fg .tk-prog.ind i { width:100%; opacity:.45; animation:none; }
   .fg .tk-btn:active:not(:disabled), .tk-sheet .tk-btn:active:not(:disabled) { transform:none; }
 }
+
+/* ══════════════════ TIFF — THE ASSISTANT (.tk- layout) ═══════════════════
+   The two-column screen: transcript on the left, the four shelves on the
+   right. The rail is on the RIGHT rather than under the conversation for
+   three reasons — the cards stay visible while the answer grows (bottom cards
+   scroll away mid-answer), an idle card is the way into the library, and the
+   horizontal gap between the composer and the cards is where the search-line
+   overlay is drawn in the next phase.
+
+   `.tk-stage`, `.tk-composer` and `.tk-rcat[data-cat]` are MEASURED by that
+   overlay. They are attachment points, not decoration — renaming one silently
+   breaks the animation's geometry.
+
+   Same two-class rule as the library block above: `.fg button` and `.fg input`
+   are (0,1,1) resets, so every styled control here is reached as `.fg .tk-…`.
+   The peek modal is the exception in the other direction — it portals to
+   <body>, outside `.fg`, so its pieces are unscoped and restate their colours
+   and their font rather than inheriting a ramp that isn't there. */
+
+.fg .tk-stage { display:grid; grid-template-columns:minmax(0,1fr) 348px; gap:28px; align-items:stretch;
+  height:100%; width:100%; max-width:1420px; margin:0 auto; padding:32px; }
+@media (max-width:1100px) {
+  /* stacked, and nothing is lost: the rail becomes a footer of the same cards */
+  .fg .tk-stage { display:flex; flex-direction:column; height:auto; gap:24px; padding:24px; }
+}
+
+.fg .tk-chatcol { display:flex; flex-direction:column; min-width:0; min-height:0; }
+
+/* ── landing: a returning user resumes instead of being pitched to ── */
+.fg .tk-welcome { flex:0 0 auto; margin-bottom:26px; }
+.fg .tk-welcome h2 { margin:0; font-size:34px; font-weight:800; letter-spacing:-.03em; line-height:1.1; color:var(--ink); }
+.fg .tk-welcome p { margin:9px 0 0; max-width:640px; font-size:15px; font-weight:600; line-height:1.5; color:var(--gray500); }
+
+.fg .tk-lbl { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+.fg .tk-lbl span { font-size:11px; font-weight:800; letter-spacing:.2em; text-transform:uppercase; color:var(--gray400); }
+
+.fg .tk-recent { flex:0 0 auto; margin-bottom:26px; }
+.fg .tk-threads { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+@media (max-width:760px) { .fg .tk-threads { grid-template-columns:1fr; } }
+.fg .tk-threads .thread { padding:14px 16px; background:#fff; border-color:#f0f0f2; box-shadow:0 1px 2px rgba(0,0,0,.03); }
+.fg .tk-threads .thread .th { margin-bottom:3px; }
+.fg .tk-threads .thread .th b { display:block; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+/* ── the composer, and the choice it makes explicit ── */
+.fg .tk-composer { flex:0 0 auto; }
+.fg .tk-crow { display:flex; align-items:center; gap:12px; margin-top:14px; padding:0 6px; }
+.fg .tk-res { display:inline-flex; align-items:center; gap:7px; height:34px; padding:0 14px; border-radius:99px;
+  border:1px solid #e5e7eb; background:#fff; color:var(--gray700); font-family:var(--font-jakarta), sans-serif;
+  font-size:12.5px; font-weight:700; letter-spacing:-.01em; cursor:pointer;
+  transition:background .2s, border-color .2s, color .2s, box-shadow .2s; }
+.fg .tk-res:hover:not(:disabled) { background:#f9fafb; border-color:#d1d5db; color:var(--ink); }
+.fg .tk-res.on { background:#2E68FF; border-color:#2E68FF; color:#fff; box-shadow:0 8px 18px -10px rgba(46,104,255,.9); }
+.fg .tk-res.on:hover:not(:disabled) { background:#1d4ed8; border-color:#1d4ed8; color:#fff; }
+.fg .tk-res:disabled { opacity:.45; cursor:not-allowed; }
+.fg .tk-chint { font-size:12.5px; font-weight:600; color:var(--gray400); }
+
+/* ── what hangs off a message ── */
+.fg .tmw { display:flex; flex-direction:column; align-items:flex-start; gap:8px; flex:1 1 auto; min-width:0; }
+.fg .tmsg.user .tmw { align-items:flex-end; }
+.fg .tmsg .tmb p { margin:0 0 10px; }
+.fg .tmsg .tmb p:last-child { margin-bottom:0; }
+.fg .tmsg .tmb ul { margin:0 0 10px; padding-left:19px; display:flex; flex-direction:column; gap:5px; }
+.fg .tmsg .tmb ul:last-child { margin-bottom:0; }
+.fg .tmsg .tmb li { line-height:1.5; }
+
+.fg .tk-miss { display:flex; align-items:flex-start; gap:10px; max-width:100%; padding:12px 14px; border-radius:16px;
+  background:rgba(245,158,11,.09); border:1px solid rgba(245,158,11,.28); color:#92400e; }
+.fg .tk-miss svg { flex:none; margin-top:1px; }
+.fg .tk-miss b { display:block; font-size:13px; font-weight:800; line-height:1.4; }
+.fg .tk-miss em { font-style:normal; display:block; margin-top:3px; font-size:12.5px; font-weight:600; color:#b45309; }
+
+.fg .tk-trunc { margin:0; font-size:12.5px; font-weight:700; color:var(--gray400); }
+
+.fg .tk-fail { display:flex; align-items:center; flex-wrap:wrap; gap:12px; padding:13px 16px; border-radius:20px;
+  border-bottom-left-radius:8px; background:rgba(224,38,79,.05); border:1px solid rgba(224,38,79,.25); }
+.fg .tk-fail > span { font-size:13.5px; font-weight:700; color:#b31038; }
+.fg .tk-retry { display:inline-flex; align-items:center; gap:6px; height:32px; padding:0 13px; border-radius:99px;
+  background:#fff; border:1px solid rgba(224,38,79,.3); color:#b31038; font-family:var(--font-jakarta), sans-serif;
+  font-size:12.5px; font-weight:700; cursor:pointer; transition:background .2s, border-color .2s, color .2s; }
+.fg .tk-retry:hover { background:#b31038; border-color:#b31038; color:#fff; }
+
+/* the offer only a GENERAL answer gets: go and look in the library */
+.fg .tk-offer { display:flex; padding-left:48px; }
+.fg .tk-again { display:inline-flex; align-items:center; gap:7px; height:34px; padding:0 14px; border-radius:99px;
+  background:rgba(46,104,255,.07); border:1px solid rgba(46,104,255,.22); color:#1d4ed8;
+  font-family:var(--font-jakarta), sans-serif; font-size:12.5px; font-weight:700; cursor:pointer;
+  transition:background .2s, border-color .2s, color .2s; }
+.fg .tk-again:hover { background:#2E68FF; border-color:#2E68FF; color:#fff; }
+
+/* ── citations: the trust mechanism, prominent without being noisy ── */
+.fg .tk-srcs { display:flex; flex-wrap:wrap; gap:8px; max-width:100%; }
+.fg .tk-src { display:inline-flex; align-items:center; gap:8px; max-width:100%; height:32px; padding:0 12px 0 6px;
+  border-radius:99px; background:#fff; border:1px solid #eceef2; box-shadow:0 1px 2px rgba(0,0,0,.03);
+  font-family:var(--font-jakarta), sans-serif; cursor:pointer;
+  transition:border-color .2s, box-shadow .2s, transform .18s; }
+.fg .tk-src:hover { border-color:#d1d5db; box-shadow:0 6px 16px -8px rgba(0,0,0,.25); transform:translateY(-1px); }
+.fg .tk-sn { display:flex; align-items:center; justify-content:center; flex:none; width:20px; height:20px;
+  border-radius:50%; background:#f3f4f6; color:var(--gray700); font-size:11px; font-weight:800; }
+.fg .tk-sdot { flex:none; width:7px; height:7px; border-radius:50%; }
+.fg .tk-stl { min-width:0; max-width:220px; font-size:12.5px; font-weight:700; color:var(--ink);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fg .tk-src em { flex:none; font-style:normal; font-size:11.5px; font-weight:700; color:var(--gray400); }
+
+/* ── the rail ── */
+.fg .tk-rail { display:flex; flex-direction:column; gap:12px; min-width:0; min-height:0; overflow-y:auto; padding-bottom:4px; }
+.fg .tk-rcats { display:flex; flex-direction:column; gap:10px; }
+.fg .tk-rcat { position:relative; display:grid; grid-template-columns:auto minmax(0,1fr); gap:5px 12px; padding:16px;
+  border-radius:24px; background:#fff; border:1px solid #f0f0f2; box-shadow:0 4px 20px rgba(0,0,0,.02);
+  text-decoration:none; transition:transform .3s, border-color .3s, box-shadow .3s; }
+.fg .tk-rcat:hover { transform:translateY(-2px); border-color:#e5e7eb; box-shadow:0 18px 34px -20px rgba(0,0,0,.28); }
+.fg .tk-ric { display:flex; align-items:center; justify-content:center; flex:none; width:38px; height:38px; border-radius:12px; }
+.fg .tk-rtx { min-width:0; }
+.fg .tk-rtx b { display:block; font-size:14px; font-weight:800; line-height:1.25; color:var(--ink); }
+.fg .tk-rtx em { display:block; margin-top:2px; font-style:normal; font-size:12px; font-weight:700; color:var(--tkc, var(--gray400)); }
+.fg .tk-rbl { grid-column:1 / -1; font-size:12px; font-weight:600; line-height:1.4; color:var(--gray400); }
+
+.fg .tk-lib { margin-top:2px; padding:16px; border-radius:20px; background:rgba(255,255,255,.72); border:1px solid #f0f0f2; }
+.fg .tk-lib b { display:block; font-size:13px; font-weight:800; line-height:1.35; color:var(--ink); }
+.fg .tk-libl { display:flex; flex-wrap:wrap; gap:14px; margin-top:9px; }
+.fg .tk-libl a { font-size:11px; font-weight:800; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--teal-d); text-decoration:none; transition:color .2s; }
+.fg .tk-libl a:hover { color:var(--ink); }
+
+/* ── the peek panel (portalled to <body>, so unscoped and self-contained) ── */
+.tk-pkdot { display:inline-block; width:8px; height:8px; border-radius:50%; }
+.tk-pklead { margin:0 0 10px; font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:#9ca3af; }
+.tk-pkq { margin:0; padding:16px 18px; max-height:44vh; overflow:auto; border-radius:16px; background:#f9fafb;
+  border:1px solid #eceef2; border-left:3px solid #2E68FF; font-family:var(--font-jakarta), sans-serif;
+  font-size:13.5px; font-weight:500; line-height:1.6; color:#1f2937; white-space:pre-wrap; }

@@ -1,13 +1,28 @@
 import { redirect } from "next/navigation";
+import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
 import { TiffAssistant } from "@/components/tiff/assistant";
+import { kbCategoryCounts } from "@/lib/tiff/query";
 
-// `tiff` is on by default for every role but revocable — gate the route, not
-// just the nav entry.
-//
-// The knowledge base is empty until real uploads land (Documents/storage
-// track); the assistant renders its own empty state from that.
+/* The assistant. `tiff` is on by default for every role but revocable — gate
+   the route, not just the nav entry.
+
+   THE COUNTS ARE READY DOCUMENTS ONLY, which is the same rule the rail's cards
+   need: a half-ingested manual can't be cited yet, so counting it would
+   promise coverage the library doesn't have — and at zero the Research toggle
+   is disabled rather than sending somebody to search an empty shelf.
+
+   `tiff_manage` is asked separately and only decides whether the rail offers
+   "Add documents"; every write re-checks it server-side. */
 export default async function TiffPage() {
   if (!(await can("tiff"))) redirect("/dashboard");
-  return <TiffAssistant docs={[]} />;
+
+  const session = await auth0.getSession();
+  const orgId = session?.orgId as string | undefined;
+  if (!orgId) redirect("/dashboard");
+
+  const [counts, canManage] = await Promise.all([kbCategoryCounts(orgId), can("tiff_manage")]);
+  const readyCount = Object.values(counts).reduce((sum, n) => sum + n, 0);
+
+  return <TiffAssistant counts={counts} readyCount={readyCount} canManage={canManage} />;
 }

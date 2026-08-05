@@ -1405,7 +1405,6 @@
 .fg .tchat { flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:16px; padding:8px 4px 16px; }
 .fg .tmsg { display:flex; align-items:flex-end; gap:12px; max-width:76%; }
 .fg .tmsg.user { align-self:flex-end; }
-.fg .tmsg .tmav { width:36px; height:36px; border-radius:12px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:rgba(0,229,192,.12); border:1px solid rgba(0,229,192,.3); color:var(--teal-d); }
 .fg .tmsg .tmb { padding:14px 18px; border-radius:20px; font-size:14.5px; font-weight:500; line-height:1.55; }
 .fg .tmsg.user .tmb { background:var(--ink); color:#fff; border-bottom-right-radius:8px; box-shadow:0 8px 18px -8px rgba(0,0,0,.35); }
 .fg .tmsg.bot .tmb { background:#fff; border:1px solid #f0f0f2; color:#1f2937; border-bottom-left-radius:8px; box-shadow:0 4px 14px rgba(0,0,0,.04); }
@@ -5128,6 +5127,67 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .tk-again:hover { background:#2E68FF; border-color:#2E68FF; color:#fff; }
 
 /* ── citations: the trust mechanism, prominent without being noisy ── */
+/* ══════════════════ TIFF — THE ANSWER, AS A DOCUMENT ═════════════════════
+   Tiff's turn is not a chat bubble.
+
+   A MESSAGE BUBBLE IS THE WRONG CONTAINER FOR A CITED ANSWER. The bubble
+   capped every answer at 76% of the column and hung a tail off its corner —
+   messenger furniture — while a real reply to a real fault carries a
+   procedure, a resistance table and three citations. Measured on the harness:
+   584px of an 840px column, with the table crushed to 298px and a third of
+   the width empty beside it. So the answer takes the full column as a sheet,
+   and what stays a bubble is the QUESTION, which is short, and whose
+   right-aligned darkness is what makes the turns readable at a glance.
+
+   THE SHEET ARRIVES BEFORE THE WORDS DO. It is the same container while Tiff
+   is thinking, streaming and done — so an answer fills a space that is
+   already there rather than the page jolting when the first token lands. */
+.fg .tmsg.bot { max-width:100%; align-items:flex-start; }
+.fg .tmsg.bot .tmb { width:100%; padding:22px 26px; border-radius:26px;
+  border-bottom-left-radius:26px; box-shadow:0 6px 26px -14px rgba(10,12,20,.28); font-size:15px; }
+.fg .tmsg.bot .tmb p { margin:0 0 12px; }
+.fg .tmsg.user { max-width:min(560px, 78%); }
+
+/* Still writing. The dots answer "has it started"; once words are arriving
+   the question becomes "is that all of it", and a caret answers that without
+   claiming to know how much is left — which a progress bar would. It rides
+   the last paragraph, so it is absent while a table or a list is mid-build
+   rather than floating loose under one. */
+.fg .tmb.streaming > p:last-child::after { content:""; display:inline-block; width:2px; height:1em;
+  margin-left:3px; vertical-align:-2px; background:var(--teal-d); animation:tkCaret 1.05s steps(1) infinite; }
+@keyframes tkCaret { 0%, 50% { opacity:1; } 50.01%, 100% { opacity:0; } }
+@media (prefers-reduced-motion: reduce) { .fg .tmb.streaming > p:last-child::after { animation:none; } }
+
+/* ── a procedure ── */
+.fg .tmb ol.tk-steps { margin:0 0 14px; padding:0; list-style:none; counter-reset:tkstep;
+  display:flex; flex-direction:column; gap:9px; }
+.fg .tmb ol.tk-steps:last-child { margin-bottom:0; }
+.fg .tmb ol.tk-steps li { counter-increment:tkstep; position:relative; padding-left:34px; line-height:1.5; }
+.fg .tmb ol.tk-steps li::before { content:counter(tkstep); position:absolute; left:0; top:-1px;
+  display:flex; align-items:center; justify-content:center; width:23px; height:23px; border-radius:8px;
+  background:#f1f3f7; color:var(--gray700); font-size:11.5px; font-weight:800; }
+
+/* ── data with columns ──
+   `tabular-nums` is load-bearing: a resistance column whose digits do not
+   line up is a column you have to read twice. */
+.fg .tk-tw { margin:0 0 14px; max-width:100%; overflow-x:auto; overscroll-behavior-x:contain;
+  border:1px solid #eef0f4; border-radius:16px; }
+.fg .tk-tw:last-child { margin-bottom:0; }
+.fg .tk-tbl { width:100%; border-collapse:collapse; font-size:13.5px; font-variant-numeric:tabular-nums; }
+.fg .tk-tbl th { padding:10px 14px; text-align:left; white-space:nowrap; background:#fafbfc;
+  border-bottom:1px solid #eef0f4; font-size:10.5px; font-weight:800; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--gray400); }
+.fg .tk-tbl td { padding:10px 14px; border-bottom:1px solid #f4f6f8; font-weight:600; color:#1f2937; }
+.fg .tk-tbl tr:last-child td { border-bottom:none; }
+.fg .tk-tbl tbody tr:hover td { background:#fafbfc; }
+
+/* ── where it came from ──
+   Sources sit INSIDE the sheet, under a rule: a citation belongs to the
+   answer it supports, and floating the chips underneath left them reading as
+   three grey pills belonging to nothing. */
+.fg .tk-srcfoot { margin-top:18px; padding-top:15px; border-top:1px solid #f1f3f7; }
+.fg .tk-srclbl { display:block; margin-bottom:9px; font-size:10.5px; font-weight:800;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--gray400); }
 .fg .tk-srcs { display:flex; flex-wrap:wrap; gap:8px; max-width:100%; }
 .fg .tk-src { display:inline-flex; align-items:center; gap:8px; max-width:100%; height:32px; padding:0 12px 0 6px;
   border-radius:99px; background:#fff; border:1px solid #eceef2; box-shadow:0 1px 2px rgba(0,0,0,.03);
@@ -5137,7 +5197,9 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .tk-sn { display:flex; align-items:center; justify-content:center; flex:none; width:20px; height:20px;
   border-radius:50%; background:#f3f4f6; color:var(--gray700); font-size:11px; font-weight:800; }
 .fg .tk-sdot { flex:none; width:7px; height:7px; border-radius:50%; }
-.fg .tk-stl { min-width:0; max-width:220px; font-size:12.5px; font-weight:700; color:var(--ink);
+/* the sheet is full width now, so a manual's real title fits instead of
+   ending in an ellipsis two words in */
+.fg .tk-stl { min-width:0; max-width:340px; font-size:12.5px; font-weight:700; color:var(--ink);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .fg .tk-src em { flex:none; font-style:normal; font-size:11.5px; font-weight:700; color:var(--gray400); }
 

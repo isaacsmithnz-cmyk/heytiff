@@ -82,6 +82,48 @@ describe("rendering an answer", () => {
     ]);
   });
 
+  it("keeps a numbered procedure ordered, and separate from bullets", () => {
+    expect(
+      answerBlocks("Do this:\n1. isolate\n2) measure TH7\n- unrelated aside")
+    ).toEqual([
+      { kind: "p", text: "Do this:" },
+      { kind: "ol", items: ["isolate", "measure TH7"] },
+      { kind: "ul", items: ["unrelated aside"] },
+    ]);
+  });
+
+  it("reads a pipe table, outer pipes or not", () => {
+    expect(
+      answerBlocks("| Coil | Ω |\n| --- | --- |\n| 0°C | 15.0k |\n25°C | 5.0k")
+    ).toEqual([
+      { kind: "table", head: ["Coil", "Ω"], rows: [["0°C", "15.0k"], ["25°C", "5.0k"]] },
+    ]);
+  });
+
+  it("pads a ragged row rather than dropping the data in it", () => {
+    const [block] = answerBlocks("| a | b | c |\n| --- | --- | --- |\n| 1 | 2 |");
+    expect(block).toEqual({ kind: "table", head: ["a", "b", "c"], rows: [["1", "2", ""]] });
+  });
+
+  /* Mid-stream the header line has arrived and the rule has not, and a
+     sentence containing a pipe is indistinguishable from it. */
+  it("waits for the rule row before it believes a line is a table", () => {
+    expect(answerBlocks("| Coil | Ω |")).toEqual([{ kind: "p", text: "| Coil | Ω |" }]);
+  });
+
+  it("renders a table as a table, with its numbers in columns", async () => {
+    script = (emit) => {
+      emit({ t: "delta", text: "| Coil temp | Resistance |\n| --- | --- |\n| 0°C | 15.0 kΩ |" });
+      emit({ t: "done" });
+    };
+    render(<TiffAssistant readyCount={3} counts={{ install: 3, faults: 0, specs: 0, sops: 0 }} />);
+    await ask("thermistor curve?");
+
+    await waitFor(() => expect(screen.getByRole("table")).toBeInTheDocument());
+    expect(screen.getByRole("columnheader", { name: "Coil temp" })).toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "15.0 kΩ" })).toBeInTheDocument();
+  });
+
   it("renders bullets as a real list, not as characters", async () => {
     script = (emit) => {
       emit({ t: "delta", text: "Check:\n- the thermistor\n- the harness" });

@@ -35,9 +35,18 @@ import {
     ignore this and we handle being ignored. */
 const WANTED_RATE = 16_000;
 
-/** ~250 ms of audio per message. Every render quantum is 128 frames (8 ms at
-    16 kHz) — a message that often would be all framing and no audio. */
-const CHUNK_MS = 250;
+/* ~100 ms of audio per message. This is a FLOOR ON PERCEIVED LAG, not a
+   throughput knob: a word cannot appear on screen sooner than the buffer it
+   is sitting in, so at the original 250 ms every word waited up to a quarter
+   of a second before the network even saw it, on top of the vendor's ~150 ms.
+   Isaac, 2026-08-05, with the live path finally on by default: "seems less
+   accurate and lags compared to previous."
+
+   100 ms costs ten small messages a second (~4 KB of base64 each at 16 kHz
+   mono) instead of four, which is nothing next to feeling immediate. Much
+   below this and the framing starts to outweigh the audio — a render quantum
+   is 128 frames, 8 ms at 16 kHz. */
+const CHUNK_MS = 100;
 
 /** The hard cap on `stop()`. Past this we take what we have; the words are
     worth more than the tail, and a person waiting on a spinner is the thing
@@ -109,8 +118,23 @@ function socketUrl(token: string, format: string, keyterms: readonly string[]): 
      to flush whatever the last gap didn't. */
   url.searchParams.set("commit_strategy", "vad");
   url.searchParams.set("token", token);
-  /* Filler words are noise in a note that becomes a task. */
-  url.searchParams.set("no_verbatim", "true");
+  /* NO `no_verbatim`. It was set to "true" here on the theory that filler
+     words are noise in a note that becomes a task — but the batch path has
+     never sent it, so the two transports were returning DIFFERENT PROSE for
+     the same sentence, and switching the default transport switched what
+     your notes read like. "Removes filler words, false starts and
+     disfluencies" is a rewrite of what you said, and on a site note the
+     difference between a false start and a correction is a judgement this
+     shouldn't be making silently. Both transports now return what was said;
+     if fillers are ever worth stripping, it should be a decision made once,
+     for both, and visibly. */
+  /* Repeated params, `keyterms=a&keyterms=b`. The docs say "array of
+     strings" and show no example, and this is the second time this vendor's
+     array encoding has been guesswork — on the batch endpoint a
+     JSON-stringified array was parsed as ONE 50-character keyword and the
+     whole request 400'd. `session_started` echoes the parsed config back, so
+     the handshake log below reports how many terms actually landed rather
+     than how many were sent. */
   for (const term of keyterms) url.searchParams.append("keyterms", term);
   return url.toString();
 }
@@ -189,12 +213,34 @@ export async function startRealtime({
     void ctx.close().catch(() => {});
   };
 
+  /* WHAT THE SERVER THINKS WE ASKED FOR. `session_started` echoes the parsed
+     config, which is the only way to find out whether the keyterms in the
+     query string became a list or a single mangled string — the docs show no
+     example and this vendor's array encoding has already been wrong once.
+     Sent vs landed, once per session, so a wrong guess is visible instead of
+     quietly costing accuracy on exactly the words that matter most. */
+  const reportHandshake = (m: Record<string, unknown>) => {
+    const cfg = (m.config ?? {}) as Record<string, unknown>;
+    const landed = Array.isArray(cfg.keyterms) ? cfg.keyterms.length : "NOT PARSED";
+    console.info(
+      `[realtime] session up · ${String(cfg.model_id ?? "?")} · ${rate}Hz · ` +
+        `keyterms sent ${keyterms.length}, landed ${landed}`
+    );
+  };
+
   ws.onmessage = (event) => {
     let parsed: unknown;
     try {
       parsed = JSON.parse(typeof event.data === "string" ? event.data : "");
     } catch {
       return;
+    }
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      (parsed as Record<string, unknown>).message_type === "session_started"
+    ) {
+      reportHandshake(parsed as Record<string, unknown>);
     }
     const applied = applyMessage(transcript, parsed);
     if (applied.kind === "error") {

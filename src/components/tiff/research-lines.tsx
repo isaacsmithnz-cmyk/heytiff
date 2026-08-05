@@ -113,10 +113,18 @@ function lanesBetween(
     const ex = r.left - base.left - 10;
     const ey = r.top - base.top + r.height / 2;
     // vertical first tangent, sized to the climb; a card unexpectedly below
-    // the composer still gets the minimum 40px shoulder before diving
-    const c1y = sy - Math.max(40, (sy - ey) * 0.45);
-    // nested approach depths: index 0 is the top shelf and sweeps widest
-    const c2x = ex - (70 + (KB_CATEGORIES.length - 1 - i) * 58);
+    // the composer still gets the minimum shoulder before diving
+    const c1y = sy - Math.max(50, (sy - ey) * 0.55);
+    /* The approach control is CLAMPED so it can never sit left of where the
+       lane started. The gutter between the composer and the rail is one grid
+       gap — about 48px in practice — so an approach measured backwards from
+       the card lands behind the origin, and the curve bulges out to the left
+       before doubling back: four lanes crossing each other in open space
+       instead of four strands running up the gutter. Watched, not reasoned:
+       the leftward swing is obvious on screen and invisible to jsdom. The
+       small per-lane step keeps them from printing exactly on top of one
+       another where they leave. */
+    const c2x = Math.max(ex - 110, sx + 22 + i * 10);
     lanes.push({
       key: cat.key,
       color: cat.color,
@@ -134,6 +142,7 @@ export function ResearchLines({
   composerRef,
   cardRefs,
   viz,
+  idle = false,
   measureKey = 0,
 }: {
   /** The two-column grid the lines are drawn inside — the measuring frame. */
@@ -141,6 +150,9 @@ export function ResearchLines({
   composerRef: ElementRef;
   cardRefs: CardRefs;
   viz: ResearchViz;
+  /** Draw the lanes faintly with nothing happening — the landing's diagram of
+      itself. A live phase always wins, so this only shows at rest. */
+  idle?: boolean;
   /** Bumped by the parent whenever the composer may have moved. */
   measureKey?: number;
 }) {
@@ -192,9 +204,11 @@ export function ResearchLines({
     };
   }, [remeasure, stageRef, composerRef, cardRefs]);
 
-  if (!wide || !overlayVisible(viz)) return null;
+  const live = overlayVisible(viz);
+  if (!wide || (!live && !idle)) return null;
 
-  const pulsing = pulseState(viz) === "pulse";
+  // a phase in flight always outranks the resting diagram
+  const pulsing = live && pulseState(viz) === "pulse";
 
   return (
     <svg className="tk-lines" aria-hidden="true">
@@ -208,7 +222,7 @@ export function ResearchLines({
               stroke-dasharray draws in every line at the same rate however
               far its shelf happens to be */}
           <path
-            className={`tk-line ${lineState(viz, lane.key)}`}
+            className={`tk-line ${live ? lineState(viz, lane.key) : "idle"}`}
             data-cat={lane.key}
             d={lane.d}
             pathLength="1"

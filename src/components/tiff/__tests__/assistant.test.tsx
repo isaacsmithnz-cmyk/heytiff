@@ -387,3 +387,192 @@ describe("the rail", () => {
     expect(screen.queryByRole("link", { name: "Add documents" })).not.toBeInTheDocument();
   });
 });
+
+/* ── the rail during a search ────────────────────────────────────────────── */
+
+/* The lines themselves are jsdom-invisible (every rect is 0×0, and the overlay
+   hides below the stacked breakpoint anyway), and their choreography is proved
+   on its own in lib/tiff/__tests__/research-viz.test.ts. What belongs here is
+   the WIRING: that the rail's state comes from the ask flow's real events, and
+   that every way out of a question takes it away again. */
+
+describe("watching Tiff search", () => {
+  const CARDS: Record<string, RegExp> = {
+    install: /Install procedures/,
+    faults: /Fault code library/,
+    specs: /Manufacturer specs/,
+    sops: /Company SOPs/,
+  };
+
+  const counts = { install: 3, faults: 7, specs: 2, sops: 1 };
+
+  const card = (key: keyof typeof CARDS) => screen.getByRole("link", { name: CARDS[key] });
+
+  /** The state class the machine put on a shelf, or "" for none. */
+  const state = (key: keyof typeof CARDS) =>
+    card(key)
+      .className.split(" ")
+      .filter((c) => c !== "tk-rcat" && c !== "spot")
+      .join(" ");
+
+  const note = (key: keyof typeof CARDS) =>
+    within(card(key)).getByText(/./, { selector: ".tk-rtx em" }).textContent;
+
+  const TRACE: AskEvent = {
+    t: "trace",
+    categories: {
+      install: { hits: 2, topDoc: "Install manual" },
+      faults: { hits: 4, topDoc: "City Multi fault codes" },
+      specs: { hits: 0, topDoc: null },
+      sops: { hits: 0, topDoc: null },
+    },
+    winners: ["faults"],
+    terms: ["P8", "piping temperature"],
+  };
+
+  /** Ask with Research on, and hand back the emitter so the stream can be
+      driven one event at a time. */
+  const research = async () => {
+    let push: (e: AskEvent) => void = () => {};
+    script = (emit) => {
+      push = emit;
+    };
+    render(<TiffAssistant readyCount={13} counts={counts} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: /research/i }));
+    await ask("why P8?");
+    return { push: async (e: AskEvent) => act(async () => push(e)), user };
+  };
+
+  it("sends a line to every shelf the moment the question goes out", async () => {
+    await research();
+
+    for (const key of Object.keys(CARDS) as (keyof typeof CARDS)[]) {
+      expect(state(key)).toBe("searching");
+      expect(note(key)).toBe("Searching…");
+    }
+  });
+
+  it("leaves the rail alone for a general question", async () => {
+    render(<TiffAssistant readyCount={13} counts={counts} />);
+    await ask("why P8?");
+
+    expect(state("faults")).toBe("");
+    expect(note("faults")).toBe("7 documents");
+  });
+
+  it("lights the shelf the answer came from and reports what each one held", async () => {
+    const { push } = await research();
+    await push(TRACE);
+
+    expect(state("faults")).toBe("winner");
+    expect(note("faults")).toBe("4 matches");
+
+    // searched, found something, not what the answer was built from
+    expect(state("install")).toBe("hit");
+    expect(note("install")).toBe("2 matches");
+
+    // searched, empty
+    expect(state("specs")).toBe("dim");
+    expect(note("specs")).toBe("—");
+    expect(state("sops")).toBe("dim");
+  });
+
+  it("holds that while the answer is written", async () => {
+    const { push } = await research();
+    await push(TRACE);
+    await push({ t: "delta", text: "Check the liquid line thermistor." });
+
+    expect(await screen.findByText(/liquid line thermistor/)).toBeInTheDocument();
+    expect(state("faults")).toBe("winner");
+    expect(state("specs")).toBe("dim");
+  });
+
+  it("keeps the winner lit and gives every other shelf its count back", async () => {
+    const { push } = await research();
+    await push(TRACE);
+    await push({ t: "delta", text: "Check the liquid line thermistor." });
+    await push({ t: "done" });
+
+    expect(state("faults")).toBe("winner");
+    expect(note("faults")).toBe("4 matches");
+    expect(state("install")).toBe("");
+    expect(note("install")).toBe("3 documents");
+    expect(state("specs")).toBe("");
+  });
+
+  /* The banner above the answer says the library had nothing. A rail still
+     mid-search underneath it would be arguing with it. */
+  it("puts every shelf back on a miss", async () => {
+    const { push } = await research();
+    await push({ t: "miss" });
+
+    for (const key of Object.keys(CARDS) as (keyof typeof CARDS)[]) {
+      expect(state(key)).toBe("");
+    }
+    expect(note("faults")).toBe("7 documents");
+  });
+
+  it("clears the rail when the answer fails", async () => {
+    const { push } = await research();
+    await push(TRACE);
+    await push({ t: "err", message: "Tiff couldn't answer that just now." });
+
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(state("faults")).toBe("");
+  });
+
+  it("starts the search over for the next question", async () => {
+    const { push } = await research();
+    await push(TRACE);
+    await push({ t: "delta", text: "Check the thermistor." });
+    await push({ t: "done" });
+    expect(state("faults")).toBe("winner");
+
+    await ask("and U4?");
+    expect(state("faults")).toBe("searching");
+    expect(state("specs")).toBe("searching");
+  });
+
+  it("drops it when the conversation is put down", async () => {
+    const { push, user } = await research();
+    await push(TRACE);
+    await push({ t: "done" });
+
+    await user.click(screen.getByRole("button", { name: /New chat/ }));
+    expect(state("faults")).toBe("");
+  });
+
+  /* jsdom has no matchMedia at all, so the overlay stays hidden for every test
+     above — which is what the stacked breakpoint would do anyway. This one
+     hands it a wide screen, because the one thing the overlay's own tests
+     cannot prove is that THIS screen gives it a stage, a composer and four
+     cards to measure between. Coordinates remain 0×0 and unasserted. */
+  it("hands the line overlay every endpoint it needs", async () => {
+    window.matchMedia = ((media: string) =>
+      ({
+        media,
+        matches: true,
+        onchange: null,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        addListener: () => {},
+        removeListener: () => {},
+        dispatchEvent: () => false,
+      }) as unknown as MediaQueryList) as typeof window.matchMedia;
+
+    try {
+      const { push } = await research();
+      const svg = document.querySelector("svg.tk-lines");
+      expect(svg).not.toBeNull();
+      expect(svg!.querySelectorAll("path.tk-line.draw")).toHaveLength(4);
+      expect(svg!.querySelectorAll("path.tk-line.pulse")).toHaveLength(4);
+
+      await push(TRACE);
+      expect(document.querySelectorAll("path.tk-line.lit")).toHaveLength(1);
+      expect(document.querySelector('path.tk-line.lit')).toHaveAttribute("data-cat", "faults");
+    } finally {
+      delete (window as { matchMedia?: unknown }).matchMedia;
+    }
+  });
+});

@@ -2591,7 +2591,13 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    and the approver's screen read, so a week's shape is legible without opening
    anything. `--dc` carries it, set once per state and used by the top bar, the
    tint and the selected ring, so a new state is one line rather than four. */
-.fg .mts2-tabs { display:flex; gap:6px; align-items:stretch; }
+/* A TRACK, not a row of folder tabs. These used to be tabs joined to the panel
+   below — which drew a hairline across the full width under all seven days,
+   and that line is what made the strip read as its own box sitting on the card
+   rather than part of it. The boards' Projects/Maintenance switcher had the
+   answer already: a tinted track, a white pill on the live one, and no join to
+   anything. Nothing here touches the panel now, so there is no seam to hide. */
+.fg .mts2-tabs { display:flex; gap:4px; align-items:stretch; padding:4px; border-radius:17px; background:rgba(5,5,5,.03); border:1px solid rgba(10,12,20,.05); }
 /* THE RESTING DAY IS TINTED, THE OPEN ONE IS WHITE. This strip is itself a
    tabs-on-a-card, and it now lives inside one — so if every day stayed white
    the open day would be the only thing on the screen with nothing to be open
@@ -2599,8 +2605,12 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    Tinting the resting days puts the contrast back where it carries meaning:
    the white one is the day you have open. (The `.on` tint composites over
    white deliberately — see the note below — which is why only the base moved.) */
-.fg .mts2-tab { --dc:#d8dbe1; --dt:rgba(216,219,225,.14); position:relative; flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:center; gap:3px; padding:11px 4px 12px; border-radius:14px 14px 0 0; background:rgba(5,5,5,.04); border:1px solid rgba(10,12,20,.05); border-bottom-color:transparent; transition:background .16s, transform .16s, box-shadow .16s; }
-.fg .mts2-tab .cbar { position:absolute; left:10px; right:10px; top:0; height:3px; border-radius:0 0 3px 3px; background:var(--dc); }
+/* Each day is a seat in that track: no border, no fill of its own, the track
+   showing through. Only the open day is drawn. */
+.fg .mts2-tab { --dc:#d8dbe1; --dt:rgba(216,219,225,.14); position:relative; flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:center; gap:3px; padding:10px 4px 11px; border-radius:13px; background:none; border:0; transition:background .16s, box-shadow .16s; }
+/* the day's colour, inset so it reads inside the seat rather than as an edge
+   of it — at the old top:0 it would now sit on the pill's rounded corner */
+.fg .mts2-tab .cbar { position:absolute; left:12px; right:12px; top:5px; height:3px; border-radius:99px; background:var(--dc); }
 .fg .mts2-tab .cw { font-size:9px; font-weight:800; letter-spacing:.07em; color:var(--gray400); }
 .fg .mts2-tab .cd { font-size:17px; font-weight:800; line-height:1; color:var(--ink); }
 .fg .mts2-tab .cs { font-size:10.5px; font-weight:700; color:var(--gray500); font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
@@ -2609,7 +2619,9 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    the dark shell frame as often as on the light page — which turned the
    selected day near-black. A gradient of the same colour onto an opaque white
    background-color gives the intended tint wherever the strip lands. */
-.fg .mts2-tab:hover { background-image:linear-gradient(var(--dt),var(--dt)); transform:translateY(-1px); }
+/* the resting seat lifts under the pointer, it does not move — a seat that
+   translates out of its own track is the tell that this was once a tab */
+.fg .mts2-tab:not(.on):hover { background:rgba(255,255,255,.7); }
 .fg .mts2-tab:focus-visible { outline:none; box-shadow:0 0 0 2px var(--teal-d); }
 
 /* The day's state, one declaration each.
@@ -2649,10 +2661,9 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    a weekend for most people, a Wednesday for a part-timer, EVERY empty day for
    a casual. A day still ahead of itself is dimmed the same way; neither is
    anything to act on yet. */
-/* deeper than the resting tint, not lighter: these days recede FURTHER. On the
-   old white strip `#fafbfc` did that by being the only grey; against a tinted
-   strip it would have been the brightest thing in the row. */
-.fg .mts2-tab.offroster.empty, .fg .mts2-tab.ahead { background:rgba(5,5,5,.06); }
+/* nothing to draw: an undrawn seat in a tinted track already recedes, and the
+   dimmed labels below carry the rest. A darker fill here would have made the
+   days you can ignore the heaviest things in the strip. */
 .fg .mts2-tab.offroster.empty .cd, .fg .mts2-tab.offroster.empty .cw, .fg .mts2-tab.offroster.empty .cs,
 .fg .mts2-tab.ahead .cd, .fg .mts2-tab.ahead .cw, .fg .mts2-tab.ahead .cs { opacity:.45; }
 /* TODAY is named by its weekday going ink, not by a ring the selected tab
@@ -2660,18 +2671,20 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .mts2-tab.today .cw { color:var(--ink); }
 .fg .mts2-tab.today .cw::after { content:" ·"; color:var(--teal-d); }
 
-/* THE SELECTED TAB joins the panel: tinted, lifted, and open at the bottom */
-.fg .mts2-tab.on { background-color:#fff; background-image:linear-gradient(var(--dt),var(--dt)); border-color:#e6e8ec; border-bottom-color:transparent; transform:none; box-shadow:0 -2px 10px -6px rgba(10,12,20,.3); z-index:2; }
-/* the bridge that removes the seam between the open tab and its panel */
-.fg .mts2-tab.on::after { content:""; position:absolute; left:0; right:0; bottom:-2px; height:4px; background-color:#fff; background-image:linear-gradient(var(--dt),var(--dt)); }
+/* THE OPEN DAY IS THE PILL — the board switcher's thumb, wearing the day's own
+   tint. Still composited over an opaque white rather than laid on as a
+   translucent fill, for the reason in the note above: the strip sits on a
+   white card here and on the dark shell frame elsewhere. */
+.fg .mts2-tab.on { background-color:#fff; background-image:linear-gradient(var(--dt),var(--dt)); box-shadow:0 3px 8px -3px rgba(10,12,20,.28); z-index:2; }
 .fg .mts2-tab.on .cd, .fg .mts2-tab.on .cw, .fg .mts2-tab.on .cs { opacity:1; }
 .fg .mts2-tab.on .cbar { height:4px; }
 
 /* the panel the tabs open onto */
-/* the open day stays white — it is the one surface the strip exists to reveal.
-   The deep drop shadow goes: it was lifting this off a grey page, and on the
-   card there is nothing beneath it to cast onto. */
-.fg .mts2-panel { background:#fff; border:1px solid rgba(10,12,20,.07); border-radius:0 0 18px 18px; margin-top:-1px; animation:tprUp .2s ease backwards; }
+/* DETACHED. It used to be welded to the strip — square top corners, pulled up
+   1px, its top border the line running under all seven days. Now it is its own
+   block below the track, tinted like every other block in the card, with the
+   white pill above it the only thing marking which day it belongs to. */
+.fg .mts2-panel { background:rgba(5,5,5,.03); border-radius:18px; margin-top:10px; animation:tprUp .2s ease backwards; }
 .fg .mts2-phead { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:14px 15px 0; }
 .fg .mts2-pd { font-size:15px; font-weight:800; letter-spacing:-.02em; color:var(--ink); }
 

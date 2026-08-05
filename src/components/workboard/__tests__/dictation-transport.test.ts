@@ -1,21 +1,30 @@
 import { transportChoice } from "../dictation";
 
-/* The A/B switch. It is dev plumbing, but it decides which vendor endpoint
-   a note goes to, and a sticky override nobody remembers setting is exactly
-   the kind of thing that gets mistaken for a broken feature later. */
+/* The transport switch, after it bit.
 
-const KEY = "heytiff.voice.transport";
+   This file used to contain a passing test called "sticks for the rest of
+   the session once the query string is gone", which is a fair description
+   of the bug: `?voice=live` was stashed in sessionStorage, Isaac measured
+   with it once, came back to a plain URL later, and every recording went to
+   a transport nobody had asked for — reported, reasonably, as the feature
+   being broken.
+
+   The test was green the whole time, because it pinned the behaviour rather
+   than asking whether the behaviour was wanted. Half of what follows is the
+   same fact from different angles, and that is deliberate: this is the one
+   property that matters. */
 
 const at = (search: string) => window.history.replaceState({}, "", `/dashboard${search}`);
 
 beforeEach(() => {
   sessionStorage.clear();
+  localStorage.clear();
   at("");
 });
 
 describe("transport override", () => {
   // NEXT_PUBLIC_VOICE_REALTIME is unset under jest, so the flag reads false
-  it("follows the build flag when nothing is asked for", () => {
+  it("follows the build flag when the URL asks for nothing", () => {
     expect(transportChoice()).toBe(false);
   });
 
@@ -24,31 +33,36 @@ describe("transport override", () => {
     expect(transportChoice()).toBe(true);
   });
 
-  it("?voice=batch beats a flag that is on", () => {
+  it("?voice=batch is explicit too", () => {
     at("?voice=batch");
     expect(transportChoice()).toBe(false);
-    expect(sessionStorage.getItem(KEY)).toBe("batch");
   });
 
-  it("sticks for the rest of the session once the query string is gone", () => {
-    at("?voice=live");
-    expect(transportChoice()).toBe(true);
-    at(""); // navigated on within the app
-    expect(transportChoice()).toBe(true);
-  });
-
-  it("clears on any other ?voice= value, so it can't get stuck", () => {
-    at("?voice=live");
-    expect(transportChoice()).toBe(true);
-    at("?voice=off");
+  it("ignores a value that isn't one of the two", () => {
+    at("?voice=turbo");
     expect(transportChoice()).toBe(false);
-    expect(sessionStorage.getItem(KEY)).toBeNull();
+  });
+});
+
+describe("it cannot outlive the URL that set it", () => {
+  it("is gone the moment the query string is", () => {
+    at("?voice=live");
+    expect(transportChoice()).toBe(true);
+    at(""); // navigated on, or came back to a plain URL an hour later
+    expect(transportChoice()).toBe(false);
   });
 
-  it("leaves an unrelated query string alone", () => {
+  it("writes nothing a later page load could read back", () => {
     at("?voice=live");
     transportChoice();
-    at("?tab=notes");
+    expect(sessionStorage.length).toBe(0);
+    expect(localStorage.length).toBe(0);
+  });
+
+  it("is decided per call — an unrelated query string is not an override", () => {
+    at("?voice=live");
     expect(transportChoice()).toBe(true);
+    at("?tab=notes");
+    expect(transportChoice()).toBe(false);
   });
 });

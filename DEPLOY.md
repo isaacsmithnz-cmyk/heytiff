@@ -264,10 +264,32 @@ wall-clock, not speech**, so an open mic in a quiet room costs money; the socket
 uses the vendor's `vad` commit strategy and `dictation.tsx` closes it the moment
 recording stops.
 
+**The live transport is the one to use.** Measured on production 2026-08-04,
+on the FREE plan, four consecutive notes: **0.82 / 0.92 / 0.84 / 0.84 s** to a
+finished transcript, against **2.3–5.2 s** for batch. Words appear while you
+are still speaking. Turn it on with `NEXT_PUBLIC_VOICE_REALTIME=1`.
+
+One recording that day did come back with nothing, and it was briefly written
+up here as the transport being broken. That was an overreaction to a single
+failure — one bad note against four clean ones, and the log evidence behind
+the diagnosis turned out to have been read off the wrong end of a
+newest-first list. What that note DID expose was real and is fixed: an empty
+recording used to return in complete silence, so a one-off hiccup was
+indistinguishable from a broken feature. It now says so and logs.
+
 **Comparing the two without a redeploy.** A build-time flag can't be A/B'd —
 every swap would redeploy production — so `?voice=live` and `?voice=batch`
-beat the flag for the rest of the browser session (sessionStorage; `?voice=`
-with any other value clears it). Each note prints one line to the console:
+beat the flag, but **only for the page load carrying them**. Nothing is
+stored; lose the query string and you are back on the default.
+
+That is deliberate, and it is the other half of the 2026-08-04 failure. The
+override originally lived in sessionStorage so it would survive navigation —
+and an hour later a plain-looking URL was still quietly on the live
+transport, producing nothing, which read as the whole feature being broken.
+**A measuring switch you can't see in the address bar is a trap.** Keep the
+parameter in the URL while you compare.
+
+Each note prints one line to the console:
 
 ```
 [voice] live · heard 0.41s · routed 8.12s · TOTAL 8.53s

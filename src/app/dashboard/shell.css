@@ -590,38 +590,16 @@
 /* ---------------- TIFF ----------------
    The assistant's own two-column layout lives with the rest of the knowledge
    base in the `.tk-` block at the end of this file. What stays here is the
-   furniture the transcript and the composer are built from — hero, suggestion
-   cards, glowing input, bubbles — which the rebuilt screen still uses. */
-.fg .thero { position:relative; border-radius:40px; overflow:hidden; background:var(--ink); color:#fff; padding:48px; box-shadow:0 20px 60px -15px rgba(0,0,0,.4); flex:0 0 auto; margin-bottom:32px; border:1px solid rgba(255,255,255,.05); }
-.fg .thero .o1 { position:absolute; top:-20%; right:-10%; width:60%; height:150%; border-radius:50%; background:var(--teal); filter:blur(120px); opacity:.2; mix-blend-mode:screen; animation:fgBreath 6s ease-in-out infinite; pointer-events:none; }
-.fg .thero .o2 { position:absolute; bottom:-30%; left:10%; width:40%; height:100%; border-radius:50%; background:var(--blue); filter:blur(100px); opacity:.15; mix-blend-mode:screen; pointer-events:none; }
-.fg .trow { position:relative; z-index:10; display:flex; gap:32px; align-items:center; flex-wrap:wrap; }
-.fg .tbot { position:relative; flex:0 0 auto; }
-.fg .tbot .tb { width:96px; height:96px; border-radius:24px; background:linear-gradient(135deg,rgba(0,229,192,.2),transparent); border:1px solid rgba(0,229,192,.4); display:flex; align-items:center; justify-content:center; box-shadow:0 0 40px rgba(0,229,192,.2); backdrop-filter:blur(20px); transition:transform .5s; }
-.fg .tbot:hover .tb { transform:scale(1.05); }
-.fg .tbot .tb svg { color:var(--teal); }
-.fg .tbot .tst { position:absolute; bottom:-8px; right:-8px; width:24px; height:24px; border-radius:50%; background:var(--teal); border:4px solid var(--ink); display:flex; align-items:center; justify-content:center; box-shadow:0 0 15px rgba(0,229,192,.5); }
-.fg .tbot .tst i { width:8px; height:8px; background:#fff; border-radius:50%; animation:fgPing 1.5s cubic-bezier(0,0,.2,1) infinite; }
-@keyframes fgPing { 75%,100%{transform:scale(2);opacity:0} }
-.fg .tlead { flex:1; min-width:280px; }
-.fg .thero h2 { font-size:48px; font-weight:800; line-height:1.1; letter-spacing:-0.03em; margin:0 0 16px; }
-.fg .thero .tl { font-size:18px; color:rgba(255,255,255,.5); max-width:640px; line-height:1.6; font-weight:500; }
-.fg .thero .tl b { color:#fff; }
-.fg .tsgrid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:auto; }
-@media (max-width:1100px){ .fg .tsgrid{grid-template-columns:repeat(2,1fr)} }
-@media (max-width:640px){ .fg .tsgrid{grid-template-columns:1fr} }
-.fg .tsugg { position:relative; overflow:hidden; text-align:left; padding:24px; border-radius:32px; background:#fff; border:1px solid #f0f0f2; box-shadow:0 4px 20px rgba(0,0,0,.02); transition:all .5s; display:flex; flex-direction:column; }
-.fg .tsugg:hover { transform:translateY(-4px); border-color:#e5e7eb; box-shadow:0 20px 40px -15px rgba(0,0,0,.1); }
-.fg .tsugg .tsg { position:absolute; top:0; right:0; width:128px; height:128px; border-radius:50%; filter:blur(40px); opacity:0; transition:opacity .5s; pointer-events:none; }
-.fg .tsugg:hover .tsg { opacity:.2; }
-.fg .tsugg .tsh { display:flex; align-items:center; gap:12px; margin-bottom:24px; position:relative; z-index:10; }
-.fg .tsugg .tsi { width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; transition:transform .5s; }
-.fg .tsugg:hover .tsi { transform:scale(1.1) rotate(3deg); }
-/* Jakarta, not var(--mono): no monospace anywhere is the brief's first hard
-   constraint, and the tracking is what was carrying this label's look anyway. */
-.fg .tsugg .tsc { font-size:10px; font-weight:800; letter-spacing:.2em; text-transform:uppercase; }
-.fg .tsugg .tst2 { font-size:16px; font-weight:800; color:var(--ink); margin-bottom:8px; line-height:1.2; position:relative; z-index:10; }
-.fg .tsugg .tsd { font-size:13px; color:var(--gray500); font-weight:500; position:relative; z-index:10; }
+   furniture the TRANSCRIPT is built from — the glowing composer and the
+   bubbles.
+
+   THE DARK HERO AND THE FOUR SUGGESTION CARDS ARE GONE. They were the v1
+   screen's furniture: a 48px greeting that owned the top third of the page
+   and four cards that repeated the rail sitting next to them. A tool you
+   come to with a question should open with the place to type it, not with an
+   introduction — the search-first landing that replaced them is `.tk-open`
+   and `.tk-starts` in the `.tk-` block. Deleted rather than left behind,
+   because unused CSS is what the next person copies. */
 .fg .tinput { margin-top:32px; flex:0 0 auto; position:relative; }
 .fg .tinput .tib { position:absolute; inset:-4px; border-radius:35px; background:linear-gradient(90deg,var(--teal),var(--blue),var(--violet)); filter:blur(8px); opacity:.2; animation:fgBreath 4s ease-in-out infinite; }
 .fg .tinput .tin { position:relative; display:flex; align-items:center; gap:16px; padding:12px; border-radius:32px; background:#fff; box-shadow:0 25px 50px -12px rgba(0,0,0,.25); border:1px solid #fff; }
@@ -5017,7 +4995,63 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    columns over its wire layer */
 .fg .tk-chatcol { position:relative; z-index:1; display:flex; flex-direction:column; min-width:0; min-height:0; }
 
-/* ── landing: a returning user resumes instead of being pitched to ── */
+/* ══════════════════ TIFF — THE SEARCH-FIRST LANDING ══════════════════════
+   The page opens on the place to type, not on a greeting.
+
+   THE COMPOSER IS THE PAGE. It sits in the upper third with one short line
+   above it, because everything this screen does begins with a question and
+   a tool that opens by introducing itself spends its best real estate on
+   the one thing the reader already knows. The old 48px "What are we
+   building today?" hero and the four suggestion cards under it are deleted,
+   not restyled — the cards in particular repeated the four shelves in the
+   rail two inches to their right.
+
+   ORDER IS CSS, NOT MARKUP. The composer is one form serving both states:
+   last in an open conversation, where new text arrives above it, and second
+   on the landing, under the heading. The DOM keeps the conversation's
+   order and `order` moves it for the landing, so there is one composer with
+   one piece of state rather than two that can disagree.
+
+   WHAT'S LEFT UNDERNEATH IS RESUMPTION, THEN INVITATION: the threads you
+   were in, and only then the kinds of question worth asking. Both are
+   quiet — a starter is a pill you can ignore, not a card competing with
+   the rail. */
+/* Top-aligned with a deep pad rather than `justify-content:center`: centring
+   a flex column clips the TOP of anything taller than the viewport, and this
+   column grows with the thread list. */
+.fg .tk-chatcol.landing { justify-content:flex-start; padding-top:clamp(12px, 13vh, 132px); }
+.fg .tk-chatcol.landing .tk-open { order:1; }
+.fg .tk-chatcol.landing .tk-composer { order:2; }
+.fg .tk-chatcol.landing .tk-recent { order:3; }
+.fg .tk-chatcol.landing .tk-starts { order:4; }
+
+/* Both blocks were written to sit ABOVE the composer, where a bottom margin
+   did the spacing. Reordering puts them under it, so the gap has to move to
+   the top or the section label lands on the Research row. */
+.fg .tk-chatcol.landing .tk-recent { margin:32px 0 0; }
+.fg .tk-chatcol.landing .tk-starts { margin-top:24px; }
+
+.fg .tk-open { flex:0 0 auto; margin-bottom:22px; }
+.fg .tk-open h2 { margin:0; font-size:38px; font-weight:800; letter-spacing:-.035em; line-height:1.05; color:var(--ink); }
+.fg .tk-open p { margin:11px 0 0; max-width:600px; font-size:15px; font-weight:600; line-height:1.55; color:var(--gray500); }
+.fg .tk-open p b { color:var(--ink); font-weight:800; }
+
+/* the input carries the page, so it is bigger here than it is under a
+   transcript, and it loses the top margin that spaces it from one */
+.fg .tk-chatcol.landing .tinput { margin-top:0; }
+.fg .tk-chatcol.landing .tinput input { font-size:17px; padding:19px 0; }
+
+/* ── starters: the kinds of question, as pills ── */
+.fg .tk-starts { flex:0 0 auto; display:flex; flex-wrap:wrap; gap:8px; margin-top:26px; }
+.fg .tk-start { display:inline-flex; align-items:center; gap:9px; height:38px; padding:0 15px; border-radius:999px;
+  background:rgba(255,255,255,.72); border:1px solid #ececf0; box-shadow:0 1px 2px rgba(0,0,0,.03);
+  font-size:13px; font-weight:700; color:var(--gray700); cursor:pointer;
+  transition:background .2s, border-color .2s, color .2s, transform .2s; }
+.fg .tk-start:hover { background:#fff; border-color:#dfe2e8; color:var(--ink); transform:translateY(-1px); }
+.fg .tk-start:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(46,104,255,.3); }
+.fg .tk-start i { width:7px; height:7px; flex:none; border-radius:50%; background:var(--tkc, var(--gray400)); }
+
+/* ── the returning line above the threads ── */
 .fg .tk-welcome { flex:0 0 auto; margin-bottom:26px; }
 .fg .tk-welcome h2 { margin:0; font-size:34px; font-weight:800; letter-spacing:-.03em; line-height:1.1; color:var(--ink); }
 .fg .tk-welcome p { margin:9px 0 0; max-width:640px; font-size:15px; font-weight:600; line-height:1.5; color:var(--gray500); }
@@ -5174,6 +5208,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    disappeared into the light well on a real screen at 55% draw opacity */
 .fg .tk-line { fill:none; stroke:#c3cad6; stroke-width:1.6; stroke-linecap:round;
   transition:opacity .3s ease, stroke .3s ease, stroke-width .3s ease; }
+
+/* at rest on the landing: the page showing what it is about to do. Faint
+   enough to read as structure rather than as something happening. */
+.fg .tk-line.idle { opacity:.3; }
 
 /* drawing out to a shelf we have not heard back from */
 .fg .tk-line.draw { opacity:0; stroke-dasharray:1; stroke-dashoffset:1; animation:tkDraw .45s ease-in-out forwards; }

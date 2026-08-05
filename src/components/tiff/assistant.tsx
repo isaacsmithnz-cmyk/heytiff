@@ -76,11 +76,22 @@ const HISTORY_TURNS = 8;
     to read in the two-column list without wrapping. */
 const TITLE_MAX = 60;
 
-const SUGGESTIONS: { cat: string; icon: string; color: string; tint: string; title: string; desc: string }[] = [
-  { cat: "DIAGNOSTICS", icon: "wrench", color: "#00E5C0", tint: "rgba(0,229,192,0.1)", title: "R32 running pressures at 35°C", desc: "What should I see on gauges?" },
-  { cat: "SYSTEM DESIGN", icon: "zap", color: "#2E68FF", tint: "rgba(46,104,255,0.1)", title: "Size a VRF for a 3-storey office", desc: "18 indoor units, mixed zones" },
-  { cat: "FAULT CODES", icon: "alert", color: "#FF3366", tint: "rgba(255,51,102,0.1)", title: "Mitsubishi U4 error", desc: "Diagnosis and likely fix" },
-  { cat: "COMPANY SOP", icon: "shield", color: "#8A2BE2", tint: "rgba(138,43,226,0.1)", title: "Daikin warranty claim process", desc: "What’s our standard procedure?" },
+/* Starters, as pills rather than cards.
+
+   THE LABEL IS THE QUESTION. A card that said "DIAGNOSTICS · R32 running
+   pressures at 35°C · What should I see on gauges?" spent three lines saying
+   what one line says, and its category eyebrow repeated the shelf sitting in
+   the rail beside it. What survives is the sentence that goes in the box; the
+   dot carries the category, and nothing else has to.
+
+   `research` marks the ones that only make sense against the company's own
+   documents — those turn Research on as they fill the box, and are offered
+   only when the library actually holds something. */
+const SUGGESTIONS: { cat: string; color: string; label: string; research: boolean }[] = [
+  { cat: "DIAGNOSTICS", color: "#00E5C0", label: "R32 running pressures at 35°C", research: false },
+  { cat: "SYSTEM DESIGN", color: "#2E68FF", label: "Size a VRF for a 3-storey office", research: false },
+  { cat: "FAULT CODES", color: "#FF3366", label: "What does fault code U4 mean?", research: true },
+  { cat: "COMPANY SOP", color: "#8A2BE2", label: "What's our warranty claim process?", research: true },
 ];
 
 /* hydration guard: false on the server and during hydration, true after —
@@ -464,8 +475,13 @@ export function TiffAssistant({
     send(question, true);
   };
 
+  /* Fills the box and hands the caret over — never sends. A starter is a way
+     to stop staring at an empty field, and the question that gets asked
+     should still be the reader's own. A library-shaped one arrives with
+     Research already on, since that is the mode it was written for. */
   const pickSuggestion = (s: (typeof SUGGESTIONS)[number]) => {
-    setInput(`${s.title}. ${s.desc}`);
+    setInput(s.label);
+    if (s.research && canResearch) setResearch(true);
     inputRef.current?.focus();
   };
 
@@ -529,7 +545,7 @@ export function TiffAssistant({
   return (
     <div className="page in">
       <div className="tk-stage" ref={stageRef}>
-        <div className="tk-chatcol">
+        <div className={`tk-chatcol${active ? "" : " landing"}`}>
           {active ? (
             <>
               <div className="tchathead">
@@ -712,11 +728,17 @@ export function TiffAssistant({
             z-index, not by DOM order. `measureKey` is the other half: the
             composer MOVES when the landing screen gives way to a transcript,
             and no observer fires for a move. */}
+        {/* `idle` draws the four lanes faintly on the landing, before anything
+            is asked: the mechanism this page is built on — your question goes
+            out to these four shelves — is worth showing rather than
+            explaining, and it costs a stroke nobody has to read. Inside a
+            conversation the overlay stays event-driven. */}
         <ResearchLines
           stageRef={stageRef}
           composerRef={composerRef}
           cardRefs={cardRefs}
           viz={viz}
+          idle={!active && readyCount > 0}
           measureKey={active?.messages.length ?? 0}
         />
       </div>
@@ -885,45 +907,26 @@ function Landing({
 }) {
   return (
     <>
-      {returning ? (
-        /* Somebody who has asked before doesn't need the pitch again — the
-           thing they came back for is the thread they were in. */
-        <div className="tk-welcome">
-          <h2>What are we working on?</h2>
-          <p>
-            {readyCount > 0
-              ? `Ask anything, or turn on Research and I'll answer from the ${readyCount} ${plural(readyCount, "document")} in your library.`
-              : "Ask anything. Add documents to the library and I can answer from those too."}
-          </p>
-        </div>
-      ) : (
-        <div className="thero">
-          <div className="o1"></div>
-          <div className="o2"></div>
-          <div className="trow">
-            <div className="tbot">
-              <div className="tb">
-                <Icon name="bot" size={40} sw={1.5} />
-              </div>
-              <div className="tst">
-                <i></i>
-              </div>
-            </div>
-            <div className="tlead">
-              <div className="pill">
-                <Icon name="fingerprint" size={12} />
-                Tiff AI
-              </div>
-              <h2>What are we building today?</h2>
-              <p className="tl">
-                Ask about system sizing, diagnostics, fault codes or company SOPs. Turn on{" "}
-                <b>Research</b> and I&rsquo;ll answer from your knowledge base and show you the
-                page it came from.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* One line, then the box. The subline is the only place the library's
+          size is stated in words, so it says what Research would actually do
+          rather than advertising a feature. */}
+      <div className="tk-open">
+        <h2>{returning ? "What are we working on?" : "Ask the library"}</h2>
+        <p>
+          {readyCount > 0 ? (
+            <>
+              Diagnostics, sizing, fault codes and company procedure. Turn on <b>Research</b> and
+              I&rsquo;ll answer from the {readyCount.toLocaleString("en-AU")}{" "}
+              {plural(readyCount, "document")} on your shelves, and show you the page it came from.
+            </>
+          ) : (
+            <>
+              Diagnostics, sizing, fault codes and company procedure. Add manuals to the library
+              and I can answer from those too — with the page they came from.
+            </>
+          )}
+        </p>
+      </div>
 
       {returning && recent.length > 0 && (
         <div className="tk-recent">
@@ -969,20 +972,20 @@ function Landing({
         </div>
       )}
 
-      <div className="tsgrid stgp">
-        {SUGGESTIONS.map((s) => (
-          <button key={s.cat} className="tsugg" onClick={() => onSuggest(s)}>
-            <span className="tsg" style={{ background: s.color }}></span>
-            <div className="tsh">
-              <div className="tsi" style={{ background: s.tint, color: s.color }}>
-                <Icon name={s.icon} size={18} />
-              </div>
-              <span className="tsc" style={{ color: s.color }}>
-                {s.cat}
-              </span>
-            </div>
-            <div className="tst2">{s.title}</div>
-            <div className="tsd">{s.desc}</div>
+      {/* A library-shaped starter is hidden while the shelves are empty: it
+          would fill the box with a question this workspace cannot answer yet,
+          which reads as a broken feature rather than an empty one. */}
+      <div className="tk-starts">
+        {SUGGESTIONS.filter((s) => !s.research || readyCount > 0).map((s) => (
+          <button
+            key={s.cat}
+            type="button"
+            className="tk-start"
+            style={{ "--tkc": s.color } as React.CSSProperties}
+            onClick={() => onSuggest(s)}
+          >
+            <i />
+            {s.label}
           </button>
         ))}
       </div>

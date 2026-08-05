@@ -555,7 +555,8 @@ describe("managing a thread", () => {
 
     expect(titles()).toEqual([]);
     expect(screen.queryByText("P8 is a piping temperature fault.")).not.toBeInTheDocument();
-    expect(screen.getByText("What are we building today?")).toBeInTheDocument();
+    // the last thread went with it, so this is a first-run landing again
+    expect(screen.getByRole("heading", { name: "Ask the library" })).toBeInTheDocument();
   });
 
   it("renames the open thread from its own header", async () => {
@@ -605,6 +606,62 @@ describe("the rail", () => {
 
     expect(screen.getByText("Nothing in the library yet")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Add documents" })).not.toBeInTheDocument();
+  });
+});
+
+/* ── the landing ─────────────────────────────────────────────────────────── */
+
+describe("the search-first landing", () => {
+  it("opens on the box, not on an introduction", () => {
+    render(<TiffAssistant readyCount={0} />);
+
+    expect(screen.getByRole("heading", { name: "Ask the library" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Ask Tiff")).toBeInTheDocument();
+    // the v1 hero and its four cards are gone for good
+    expect(screen.queryByText(/What are we building today/)).not.toBeInTheDocument();
+    expect(screen.queryByText("DIAGNOSTICS")).not.toBeInTheDocument();
+  });
+
+  it("says what Research would actually do, in documents", () => {
+    render(<TiffAssistant readyCount={12} />);
+    expect(screen.getByText(/answer from the 12 documents on your shelves/)).toBeInTheDocument();
+  });
+
+  it("withholds library-shaped starters while the shelves are empty", () => {
+    const { unmount } = render(<TiffAssistant readyCount={0} />);
+    expect(screen.getByRole("button", { name: /R32 running pressures/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /fault code U4/ })).not.toBeInTheDocument();
+    unmount();
+
+    render(<TiffAssistant readyCount={3} />);
+    expect(screen.getByRole("button", { name: /fault code U4/ })).toBeInTheDocument();
+  });
+
+  it("a starter fills the box and hands over the caret rather than sending", async () => {
+    const user = userEvent.setup();
+    render(<TiffAssistant readyCount={3} />);
+
+    await user.click(screen.getByRole("button", { name: /fault code U4/ }));
+
+    expect(screen.getByLabelText("Ask Tiff")).toHaveValue("What does fault code U4 mean?");
+    expect(asks).toHaveLength(0);
+    // a library-shaped starter arrives in the mode it was written for
+    expect(screen.getByRole("button", { name: "Research" })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+  });
+
+  it("won't turn Research on for a starter when there is nothing to search", async () => {
+    const user = userEvent.setup();
+    render(<TiffAssistant readyCount={0} />);
+
+    await user.click(screen.getByRole("button", { name: /R32 running pressures/ }));
+
+    expect(screen.getByRole("button", { name: "Research" })).toHaveAttribute(
+      "aria-pressed",
+      "false"
+    );
   });
 });
 

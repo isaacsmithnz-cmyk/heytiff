@@ -1466,6 +1466,15 @@
 .fg .tpr .rhead .eyebrow { display:inline-flex; align-items:center; gap:8px; font-family:var(--font); font-size:11px; font-weight:800; letter-spacing:.2em; text-transform:uppercase; color:var(--teal-d); margin-bottom:14px; }
 .fg .tpr .rhead h1 { font-size:38px; font-weight:800; letter-spacing:-.03em; margin:0; line-height:1; }
 .fg .tpr .wknav { display:flex; align-items:center; gap:12px; margin-top:16px; }
+/* THE CARD THE TABS SIT ON — the board's surface, doing the board's job. The
+   week leads it because the tabs above already said which view you're in, so
+   the first question left is which period. It's the first thing in the card,
+   so it drops the top margin it needs when it follows a title. */
+.fg .tp-card { padding:20px 24px 24px; }
+.fg .tp-card > .wknav:first-child { margin-top:0; }
+/* the week's note and the content below it are separate thoughts — without
+   this they read as one paragraph that happens to contain a day strip */
+.fg .tp-card > .mts2-cols { margin-top:18px; }
 .fg .tpr .wknav .arw { width:42px; height:42px; border-radius:13px; display:flex; align-items:center; justify-content:center; color:var(--gray500); background:#fff; border:1px solid rgba(0,0,0,.07); box-shadow:0 1px 2px rgba(0,0,0,.03); transition:all .2s; }
 .fg .tpr .wknav .arw:hover { color:var(--ink); border-color:rgba(34,197,94,.5); transform:translateY(-1px); }
 .fg .tpr .wknav .range { font-size:20px; font-weight:800; letter-spacing:-.02em; white-space:nowrap; }
@@ -1498,14 +1507,24 @@
 @keyframes tprSpin { to { transform:rotate(360deg); } }
 
 /* ---------- stat strip (compact) ---------- */
-.fg .tpr .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
-.fg .tpr .stat { position:relative; display:flex; align-items:center; gap:14px; background:#fff; border:1px solid rgba(10,12,20,.06); border-radius:16px; padding:15px 18px; box-shadow:0 1px 2px rgba(10,12,20,.04), 0 12px 28px -20px rgba(10,12,20,.2); overflow:hidden; }
+.fg .tpr .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin:18px 0 20px; }
+/* A BLOCK IN A CARD, not a card on a page. These were white tiles lifted off
+   the grey page by a drop shadow — the right treatment until the screen moved
+   onto the board's white card, where a white tile on white is only its own
+   1px border and the lift has nothing to lift off. So they take the tint the
+   board gives every inner block (.wb2-ci, .wb2-dnnote) and drop the shadow:
+   read as recessed INTO the surface rather than floating above it.
+
+   `.review` keeps its red edge and is now the only tile with one, which is
+   the point of it — on the old treatment every tile had a border to compete
+   with, and the one that meant "look at this" had to shout over three. */
+.fg .tpr .stat { position:relative; display:flex; align-items:center; gap:14px; background:rgba(5,5,5,.03); border:1px solid rgba(10,12,20,.05); border-radius:16px; padding:15px 18px; overflow:hidden; }
 .fg .tpr .stat .si { position:static; width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
 .fg .tpr .stat .sv { font-family:var(--font); font-size:26px; font-weight:700; letter-spacing:-.03em; line-height:1; margin:0; }
 .fg .tpr .stat .stk { min-width:0; }
 .fg .tpr .stat .sl { font-size:11px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; margin-top:5px; }
 .fg .tpr .stat .ss { display:none; }
-.fg .tpr .stat.review { border-color:rgba(255,51,102,.26); }
+.fg .tpr .stat.review { background:rgba(255,51,102,.045); border-color:rgba(255,51,102,.26); }
 .fg .tpr .stat .sv { color:var(--ink); } .fg .tpr .stat .sl { color:var(--gray500); }
 .fg .tpr .stat.review .si { background:var(--red); color:#fff; } .fg .tpr .stat.review .sv { color:var(--red-d); }
 .fg .tpr .stat.normal .si { background:var(--teal); color:#053b34; }
@@ -2228,13 +2247,11 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .wz-anchor .fl-i, .fg .wz-anchor .datef { max-width:220px; }
 
 /* ---- Time & Pay: leave (stage 5b) ---- */
-/* the Timesheet/Leave switcher, inheriting .seg — only its place on the page
-   is local, which is all a screen should ever say about a shared control */
-.fg .mytime-segsw { margin:2px 0 20px; }
-.fg .tp-tabs { display:inline-flex; gap:4px; padding:4px; border-radius:13px; background:#f2f4f7; margin:2px 0 20px; }
-.fg .tp-tab { display:inline-flex; align-items:center; gap:7px; height:36px; padding:0 16px; border-radius:10px; font-size:13.5px; font-weight:700; color:var(--gray500); transition:all .16s; }
-.fg .tp-tab:hover { color:var(--ink); }
-.fg .tp-tab.on { background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(10,11,16,.09); }
+/* `.tp-tabs` — the Time & Pay pill group — is gone. Both of its screens, the
+   team's and your own, now wear the board's tab row (`.wb2-vtabs`) on the
+   board's card, which is the whole point: one control, one surface, four
+   screens. Removed rather than parked, as `.segsw` was: an unused block in
+   this file has shadowed a live component at equal specificity before. */
 /* ---- My leave: kind identity ----------------------------------------------
    A leave KIND is identity, never state, so it takes a hue the severity
    palette doesn't own. If annual leave wore teal, an "Annual leave" rail and
@@ -2250,7 +2267,8 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .lv-unpaid   { --lvk:#64748b; --lvk-bg:rgba(100,116,139,.12); }
 
 .fg .lv-bal { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin-bottom:20px; }
-.fg .lv-baltile { position:relative; padding:15px 17px 16px; border-radius:16px; background:#fff; border:1px solid rgba(10,11,16,.08); overflow:hidden; }
+/* blocks in a card, like the rail cards and the team screen's stat tiles */
+.fg .lv-baltile { position:relative; padding:15px 17px 16px; border-radius:16px; background:rgba(5,5,5,.03); border:1px solid rgba(10,12,20,.05); overflow:hidden; }
 .fg .lv-baltile::before { content:''; position:absolute; top:0; bottom:0; left:0; width:3px; background:var(--lvk); }
 .fg .lv-baltop { display:flex; align-items:center; gap:9px; }
 .fg .lv-balic { display:flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:9px; background:var(--lvk-bg); color:var(--lvk); flex:0 0 auto; }
@@ -2268,7 +2286,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .lv-src.synced { color:var(--teal-d); }
 .fg .lv-balempty, .fg .lv-declined, .fg .lv-pnote { font-size:12.5px; font-weight:600; color:var(--gray500); }
 .fg .lv-declined { display:block; color:var(--red-d,#e0264f); margin-top:3px; }
-.fg .lv-form { padding:16px 18px; border-radius:16px; background:#fafbfc; border:1px solid rgba(10,11,16,.08); margin-bottom:22px; }
+.fg .lv-form { padding:16px 18px; border-radius:16px; background:rgba(5,5,5,.03); border:1px solid rgba(10,12,20,.05); margin-bottom:22px; }
 .fg .lv-frow { display:flex; flex-wrap:wrap; gap:12px; }
 .fg .lv-fnote { margin-top:12px; display:flex; }
 .fg .lv-form .mts-f input, .fg .lv-form .mts-f select { height:38px; padding:0 11px; border-radius:11px; border:1px solid rgba(10,11,16,.14); background:#fff; font-family:var(--font); font-size:13.5px; font-weight:600; color:var(--ink); }
@@ -2276,7 +2294,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .lv-fmeta > span { flex:1; font-size:12.5px; font-weight:600; color:var(--gray500); }
 .fg .lv-cols { display:grid; grid-template-columns:1.4fr 1fr; gap:20px; align-items:start; }
 .fg .lv-col { border:1px solid rgba(10,11,16,.08); border-radius:16px; overflow:hidden; }
-.fg .lv-ch { padding:13px 16px; font-size:12.5px; font-weight:800; color:var(--gray700); text-transform:uppercase; letter-spacing:.04em; background:#fafbfc; border-bottom:1px solid rgba(10,11,16,.06); }
+.fg .lv-ch { padding:13px 16px; font-size:12.5px; font-weight:800; color:var(--gray700); text-transform:uppercase; letter-spacing:.04em; background:rgba(5,5,5,.03); border-bottom:1px solid rgba(10,11,16,.06); }
 /* The variant that carries its own action. Kept a modifier rather than folded
    into .lv-ch, because the holidays column and the admin holiday-year headers
    reuse the plain bar and have nothing to put on the right. The button's own
@@ -2573,9 +2591,26 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    and the approver's screen read, so a week's shape is legible without opening
    anything. `--dc` carries it, set once per state and used by the top bar, the
    tint and the selected ring, so a new state is one line rather than four. */
-.fg .mts2-tabs { display:flex; gap:6px; align-items:stretch; }
-.fg .mts2-tab { --dc:#d8dbe1; --dt:rgba(216,219,225,.14); position:relative; flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:center; gap:3px; padding:11px 4px 12px; border-radius:14px 14px 0 0; background:#fff; border:1px solid #eceef1; border-bottom-color:transparent; box-shadow:0 1px 2px rgba(10,12,20,.03); transition:background .16s, transform .16s, box-shadow .16s; }
-.fg .mts2-tab .cbar { position:absolute; left:10px; right:10px; top:0; height:3px; border-radius:0 0 3px 3px; background:var(--dc); }
+/* A TRACK, not a row of folder tabs. These used to be tabs joined to the panel
+   below — which drew a hairline across the full width under all seven days,
+   and that line is what made the strip read as its own box sitting on the card
+   rather than part of it. The boards' Projects/Maintenance switcher had the
+   answer already: a tinted track, a white pill on the live one, and no join to
+   anything. Nothing here touches the panel now, so there is no seam to hide. */
+.fg .mts2-tabs { display:flex; gap:4px; align-items:stretch; padding:4px; border-radius:17px; background:rgba(5,5,5,.03); border:1px solid rgba(10,12,20,.05); }
+/* THE RESTING DAY IS TINTED, THE OPEN ONE IS WHITE. This strip is itself a
+   tabs-on-a-card, and it now lives inside one — so if every day stayed white
+   the open day would be the only thing on the screen with nothing to be open
+   against, and the whole strip would dissolve into the surface behind it.
+   Tinting the resting days puts the contrast back where it carries meaning:
+   the white one is the day you have open. (The `.on` tint composites over
+   white deliberately — see the note below — which is why only the base moved.) */
+/* Each day is a seat in that track: no border, no fill of its own, the track
+   showing through. Only the open day is drawn. */
+.fg .mts2-tab { --dc:#d8dbe1; --dt:rgba(216,219,225,.14); position:relative; flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:center; gap:3px; padding:10px 4px 11px; border-radius:13px; background:none; border:0; transition:background .16s, box-shadow .16s; }
+/* the day's colour, inset so it reads inside the seat rather than as an edge
+   of it — at the old top:0 it would now sit on the pill's rounded corner */
+.fg .mts2-tab .cbar { position:absolute; left:12px; right:12px; top:5px; height:3px; border-radius:99px; background:var(--dc); }
 .fg .mts2-tab .cw { font-size:9px; font-weight:800; letter-spacing:.07em; color:var(--gray400); }
 .fg .mts2-tab .cd { font-size:17px; font-weight:800; line-height:1; color:var(--ink); }
 .fg .mts2-tab .cs { font-size:10.5px; font-weight:700; color:var(--gray500); font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
@@ -2584,7 +2619,9 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    the dark shell frame as often as on the light page — which turned the
    selected day near-black. A gradient of the same colour onto an opaque white
    background-color gives the intended tint wherever the strip lands. */
-.fg .mts2-tab:hover { background-image:linear-gradient(var(--dt),var(--dt)); transform:translateY(-1px); }
+/* the resting seat lifts under the pointer, it does not move — a seat that
+   translates out of its own track is the tell that this was once a tab */
+.fg .mts2-tab:not(.on):hover { background:rgba(255,255,255,.7); }
 .fg .mts2-tab:focus-visible { outline:none; box-shadow:0 0 0 2px var(--teal-d); }
 
 /* The day's state, one declaration each.
@@ -2624,7 +2661,9 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    a weekend for most people, a Wednesday for a part-timer, EVERY empty day for
    a casual. A day still ahead of itself is dimmed the same way; neither is
    anything to act on yet. */
-.fg .mts2-tab.offroster.empty, .fg .mts2-tab.ahead { background:#fafbfc; }
+/* nothing to draw: an undrawn seat in a tinted track already recedes, and the
+   dimmed labels below carry the rest. A darker fill here would have made the
+   days you can ignore the heaviest things in the strip. */
 .fg .mts2-tab.offroster.empty .cd, .fg .mts2-tab.offroster.empty .cw, .fg .mts2-tab.offroster.empty .cs,
 .fg .mts2-tab.ahead .cd, .fg .mts2-tab.ahead .cw, .fg .mts2-tab.ahead .cs { opacity:.45; }
 /* TODAY is named by its weekday going ink, not by a ring the selected tab
@@ -2632,15 +2671,20 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .mts2-tab.today .cw { color:var(--ink); }
 .fg .mts2-tab.today .cw::after { content:" ·"; color:var(--teal-d); }
 
-/* THE SELECTED TAB joins the panel: tinted, lifted, and open at the bottom */
-.fg .mts2-tab.on { background-color:#fff; background-image:linear-gradient(var(--dt),var(--dt)); border-color:#e6e8ec; border-bottom-color:transparent; transform:none; box-shadow:0 -2px 10px -6px rgba(10,12,20,.3); z-index:2; }
-/* the bridge that removes the seam between the open tab and its panel */
-.fg .mts2-tab.on::after { content:""; position:absolute; left:0; right:0; bottom:-2px; height:4px; background-color:#fff; background-image:linear-gradient(var(--dt),var(--dt)); }
+/* THE OPEN DAY IS THE PILL — the board switcher's thumb, wearing the day's own
+   tint. Still composited over an opaque white rather than laid on as a
+   translucent fill, for the reason in the note above: the strip sits on a
+   white card here and on the dark shell frame elsewhere. */
+.fg .mts2-tab.on { background-color:#fff; background-image:linear-gradient(var(--dt),var(--dt)); box-shadow:0 3px 8px -3px rgba(10,12,20,.28); z-index:2; }
 .fg .mts2-tab.on .cd, .fg .mts2-tab.on .cw, .fg .mts2-tab.on .cs { opacity:1; }
 .fg .mts2-tab.on .cbar { height:4px; }
 
 /* the panel the tabs open onto */
-.fg .mts2-panel { background:#fff; border:1px solid #e6e8ec; border-radius:0 0 18px 18px; margin-top:-1px; box-shadow:0 1px 2px rgba(10,12,20,.03), 0 20px 40px -34px rgba(10,12,20,.5); animation:tprUp .2s ease backwards; }
+/* DETACHED. It used to be welded to the strip — square top corners, pulled up
+   1px, its top border the line running under all seven days. Now it is its own
+   block below the track, tinted like every other block in the card, with the
+   white pill above it the only thing marking which day it belongs to. */
+.fg .mts2-panel { background:rgba(5,5,5,.03); border-radius:18px; margin-top:10px; animation:tprUp .2s ease backwards; }
 .fg .mts2-phead { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:14px 15px 0; }
 .fg .mts2-pd { font-size:15px; font-weight:800; letter-spacing:-.02em; color:var(--ink); }
 
@@ -2763,7 +2807,10 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 /* ---- the rail ---- */
 .fg .mts2-rail { display:flex; flex-direction:column; gap:14px; position:sticky; top:0; }
 @media (max-width:960px){ .fg .mts2-rail { position:static; } }
-.fg .mts2-card { background:#fff; border:1px solid #f0f0f2; border-radius:20px; padding:18px; box-shadow:0 1px 2px rgba(10,12,20,.03), 0 18px 36px -30px rgba(10,12,20,.35); }
+/* Rail cards are BLOCKS IN A CARD now — see the .tpr .stat note for the
+   reasoning. White tiles lifted off a grey page; on the board's white card a
+   white tile is its own 1px border and a shadow with nothing to fall on. */
+.fg .mts2-card { background:rgba(5,5,5,.03); border:1px solid rgba(10,12,20,.05); border-radius:20px; padding:18px; }
 .fg .mts2-ch { display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:11px; font-weight:800; letter-spacing:.09em; text-transform:uppercase; color:var(--gray400); }
 .fg .mts2-range { margin-top:6px; font-size:17px; font-weight:800; letter-spacing:-.02em; color:var(--ink); }
 .fg .mts2-range em { font-style:normal; color:var(--gray400); }
@@ -3350,53 +3397,15 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
   .wb2-segb { flex:1; justify-content:center; }
 }
 
-/* switcher — one thumb that SLIDES between the tabs, the studio idiom
-   (.ds-steps). A background that hops reads as two buttons; a thumb that
-   travels reads as one control with two positions.
+/* `.segsw` — the sliding-thumb switcher — lived here and had exactly one user,
+   My time's Timesheet/Leave nav, which now wears `.tp-tabs` like the team
+   screen it belongs to. Deleted rather than left for later: dead CSS in this
+   file has already shadowed a live component at equal specificity once.
 
-   This is the shell's shared segmented control, not one screen's: the
-   Workboard's board switcher and My time's Timesheet/Leave switcher are the
-   same object and must not drift apart. The lineage is .cyc (the pay-cycle
-   toggle, which hops) → .ds-steps (which added the thumb) → here.
-
-   `--segsw-n` is the tab count. The thumb is sized off the track rather than
-   its label, so it stays exact at any width: n equal tabs share
-   (100% − 2×4px padding − (n−1)×3px gap). Set --segsw-n or a 3-tab switcher
-   silently renders a half-width thumb. */
-/* Grid, not flex, and the thumb is the reason. The thumb is sized track/n, so
-   the tabs have to BE track/n — and flex can't do that here: `flex:1` only
-   shares out free space, and a fit-content track has none, so tabs keep their
-   own label widths. `grid-auto-columns:1fr` under fit-content resolves every
-   column to the widest label instead, which is the geometry the thumb assumes. */
-.segsw { --segsw-n:2; position:relative; flex:0 0 auto; display:grid; grid-auto-flow:column; grid-auto-columns:1fr; gap:3px; background:#e4e6ec; border:1px solid rgba(10,12,20,.05); border-radius:15px; padding:4px; width:fit-content; }
-.segsw-thumb { position:absolute; top:4px; bottom:4px; left:4px; width:calc((100% - 8px - (var(--segsw-n) - 1) * 3px) / var(--segsw-n)); border-radius:11px; background:#fff; box-shadow:0 3px 8px -3px rgba(10,12,20,.28); transition:transform .42s cubic-bezier(.4,0,.2,1), opacity .2s ease; }
-.segsw[data-active="1"] .segsw-thumb { transform:translateX(calc(100% + 3px)); }
-.segsw[data-active="2"] .segsw-thumb { transform:translateX(calc(200% + 6px)); }
-/* nothing current — the thumb parks and fades, as it does on studio Plans */
-.segsw[data-active="-1"] .segsw-thumb { opacity:0; }
-/* Centred in its equal column — "Timesheet" and "Leave" differ by 28px, and
-   left-aligned labels in equal columns would leave the shorter one adrift.
-
-   QUALIFIED BY THE TRACK, and it is load-bearing. A bare `.segsw-b` is
-   specificity (0,1,0) and LOSES to the button reset at the top of this file
-   (`.fg button:where(…)`, (0,1,1)) — so `font:inherit` and `color:inherit`
-   won, and both labels rendered at the browser default 16px/400 instead of
-   12.5px/700, with the inactive one at full --ink rather than grey. The tell
-   was the usual one: `.on` and `:hover` are (0,2,0) and looked right while the
-   base rule looked flat. `.segsw .segsw-b` is (0,2,0) and wins outright.
-
-   Qualified by `.segsw` rather than `.fg`, because this is a shared shell
-   primitive and an `.fg`-scoped rule is ABSENT inside a portal — the track is
-   always the button's parent wherever the control is used, so this selector
-   matches everywhere. (The --gray500/--ink it reads still ride the `.fg` ramp;
-   a portal that uses this control has to restate them, as the wb2 roots do.) */
-.segsw .segsw-b { justify-content:center; white-space:nowrap; position:relative; z-index:1; display:inline-flex; align-items:center; gap:7px; border-radius:11px; padding:8px 16px; font-size:12.5px; font-weight:700; color:var(--gray500); cursor:pointer; background:none; border:0; font-family:inherit;
-  /* the thumb carries the movement; the label's colour snaps, because
-     crossfading it passes through a mid-grey unreadable against the pill */
-  transition:none; }
-.segsw .segsw-b:hover { color:var(--ink); }
-.segsw .segsw-b.on { color:var(--ink); }
-@media (prefers-reduced-motion:reduce) { .segsw-thumb { transition:none; } }
+   Its comment claimed it was shared with the Workboard's board switcher. It
+   never was — that is `.wb2-seg`, a separate implementation with a coloured
+   thumb. If a shared segmented control is ever actually wanted, build it from
+   `.wb2-seg` (the one with two real users) rather than reviving this. */
 
 /* the three numbers — and they FILTER, because a number you can't act on is
    decoration. Pressed state is the ring, not a colour swap, so the tone keeps

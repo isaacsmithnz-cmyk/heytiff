@@ -1,28 +1,22 @@
-"use client";
-
-import Link from "next/link";
-import { Icon } from "@/components/shell/icon";
+import { BoardTabs, type BoardTab } from "@/components/shell/board-tabs";
 
 /* The three faces of the team Time & Pay screen: timesheets, leave and
    expenses. Sibling routes rather than in-component tabs, so each is linkable
    and the server decides what each holds. All three sit under `timepay_all`;
    what you can DO inside each is gated separately (`approvals` to decide,
-   `financials` to record a payment). */
+   `financials` to record a payment).
+
+   The control itself is `BoardTabs` — see there for why it is a component and
+   not a class. This file owns only the three routes. */
 
 type Tab = "sheets" | "leave" | "expenses";
 
+const TABS: readonly BoardTab[] = [
+  { key: "sheets", href: "/dashboard/timepay", label: "Timesheets" },
+  { key: "leave", href: "/dashboard/timepay/leave", label: "Leave" },
+  { key: "expenses", href: "/dashboard/timepay/expenses", label: "Expenses" },
+];
+
 export function TimepayNav({ active }: { active: Tab }) {
-  const tab = (key: Tab, href: string, icon: string, label: string) => (
-    <Link href={href} className={`tp-tab${active === key ? " on" : ""}`}>
-      <Icon name={icon} size={15} />
-      {label}
-    </Link>
-  );
-  return (
-    <div className="tp-tabs">
-      {tab("sheets", "/dashboard/timepay", "clock", "Timesheets")}
-      {tab("leave", "/dashboard/timepay/leave", "calendar", "Leave")}
-      {tab("expenses", "/dashboard/timepay/expenses", "receipt", "Expenses")}
-    </div>
-  );
+  return <BoardTabs tabs={TABS} active={active} label="Time and Pay" />;
 }

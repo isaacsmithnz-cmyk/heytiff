@@ -309,11 +309,17 @@ export const NODES: MapNode[] = [
     name: "Tiff AI",
     kind: "feature",
     group: "People & AI",
-    blurb: "The assistant + its four-category knowledge library.",
+    blurb: "The assistant, and the four-category library it answers out of.",
     detail:
-      "Install procedures, fault codes, specs and SOPs drive the sidebar. The documents/storage track is live now, but the knowledge screen isn't wired to it yet — the library still renders empty.",
+      "Two surfaces on one substrate. The library ingests PDFs a batch of pages at a time — extract, chunk, keyword-tag, embed, bookmark, repeat — driven from the open page rather than a queue, so a document that runs out of the month's page allowance parks at its bookmark and resumes there. Asking runs both legs of retrieval (full-text and, once VOYAGE_API_KEY exists, vector) and fuses them, then answers with the chunks as document blocks and native citations, so a source chip is the model's own reference and not a parsed [n]. Reading is `tiff` (staff default); uploading and editing is `tiff_manage`; deleting is the owner. Threads live in the browser, not the database.",
     href: "/dashboard/tiff",
-    paths: ["src/components/tiff"],
+    paths: [
+      "src/app/dashboard/tiff",
+      "src/components/tiff",
+      "src/lib/tiff",
+      "src/app/api/tiff",
+      "src/app/actions/kb.ts",
+    ],
   },
 
   /* — HQ portal — */
@@ -579,6 +585,15 @@ export const NODES: MapNode[] = [
       "Every ServiceM8-native column is TEXT (their timestamps are naive local strings with a '0000-00-00' null sentinel — timestamptz would shift schedules and reject the sentinel). Nothing FKs into a mirror, overlays never depend on one existing, and disconnect wipes the lot: a client book has no business outliving its grant. Deny-all RLS like every table here.",
   },
   {
+    id: "db-kb",
+    name: "Knowledge base",
+    kind: "store",
+    group: "Supabase",
+    blurb: "kb_documents · kb_chunks · kb_usage + the private kb bucket, signed-URL only.",
+    detail:
+      "Its own bucket rather than the documents one: that bucket caps at 10 MB around notice photos, and a manufacturer's install manual is routinely 30. A chunk carries its page range, its keywords and a pgvector embedding that is allowed to be NULL — without an embeddings key the full-text leg carries search alone and a later re-run backfills. The search vector is a generated column, weighted keywords over heading over body, so nothing can insert a row whose index disagrees with its text. kb_usage counts pages and questions per org per Australian month and survives the deletion of the document that spent them. Deny-all RLS like every table here.",
+  },
+  {
     id: "db-universal",
     name: "Universal table",
     kind: "store",
@@ -615,7 +630,8 @@ export const NODES: MapNode[] = [
     name: "Claude API",
     kind: "external",
     group: "External services",
-    blurb: "Vehicle valuations, receipt reading and note routing — all server-side.",
+    blurb:
+      "Vehicle valuations, receipt reading, note routing and every Tiff answer — all server-side.",
     detail:
       "Every call is validated on the way back: a JSON schema fixes the SHAPE, and our own pure code fixes the SEMANTICS — that a name is a real person, that a severity is one we render. A refusal is a content outcome, not an error, and is handled before anything reads the response. The key never leaves the server.",
   },
@@ -627,6 +643,15 @@ export const NODES: MapNode[] = [
     blurb: "Speech to text for dictated site notes.",
     detail:
       "Chosen on accuracy, not price — at this volume the whole bill is a few dollars a month, so cost isn't a selection input. What decided it was keyterm capacity: the roster, the client book, street names and model strings all go in per request, because \"tell Luke\" only becomes a task for Luke if the transcriber heard Luke. Speech is transcribed in whatever language it was spoken and never translated here — that's the brain's job. ONE vendor, no runtime failover: the adapter exists so the vendor can be SWAPPED, and a failed transcription falls through to the paste box, which always works.",
+  },
+  {
+    id: "voyage",
+    name: "Voyage AI",
+    kind: "external",
+    group: "External services",
+    blurb: "Embeddings — the meaning half of knowledge-base search.",
+    detail:
+      "Called over plain REST, not an SDK: one endpoint, one request shape, nothing to keep up to date. A document is embedded with a different input type from a question, because asking with the wrong one measurably costs recall. THE FEATURE DEGRADES RATHER THAN BREAKS — with no key the chunks store a null embedding, keyword search answers on its own, and a re-run fills them in later; \"not configured\" is a success, not an error. Every returned vector is re-seated by the index it carries and measured against the column's dimension before anything is stored, because a vector on the wrong chunk is a citation to the wrong page.",
   },
   {
     id: "xero",
@@ -751,6 +776,11 @@ export const EDGES: MapEdge[] = [
   { from: "profile", to: "db-staff", label: "per-card section saves; licences as rows" },
   { from: "profile", to: "db-rate", label: "My Pay's super % read from calculator state" },
   { from: "profile", to: "gmaps", label: "address autocomplete (server-key proxy)" },
+  /* Tiff's own three. The store comes first because it is the substrate — an
+     answer that can't be traced to a chunk in it isn't a Tiff answer. */
+  { from: "tiff", to: "db-kb", label: "documents, chunks, the page ledger + the kb bucket" },
+  { from: "tiff", to: "anthropic", label: "keyword tags, query prep, and the cited answer" },
+  { from: "tiff", to: "voyage", label: "chunk & question embeddings — skipped without a key" },
 
   /* HQ portal */
   { from: "hq-overview", to: "eng-auth", label: "HQ_EMAILS allowlist guards all of /hq" },

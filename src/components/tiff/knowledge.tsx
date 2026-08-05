@@ -9,6 +9,7 @@ import { KB_CATEGORIES, filterKbDocs, type KbCategoryKey } from "./kb";
 import { UploadDrawer } from "./upload-drawer";
 import { auDayOf, fmtAuDayMonth } from "@/lib/au-dates";
 import { deleteKbDoc, kbDocUrl, retryKbDoc, updateKbDocMeta } from "@/app/actions/kb";
+import { writeAskHandoff } from "@/lib/tiff/ask-handoff";
 import { useKbIngest, type KbIngestProgress } from "@/lib/tiff/use-kb-ingest";
 import type { KbDocRow } from "@/lib/tiff/query";
 import type { KbQuota } from "@/lib/tiff/quota";
@@ -137,6 +138,17 @@ export function KnowledgeBase({
     } else if (typeof window !== "undefined") {
       window.open(res.url, "_blank", "noopener,noreferrer");
     }
+  };
+
+  /* "Ask Tiff about this document" (brief §4D) — a document hands the composer
+     the opening of a sentence and gets out of the way. The prefill travels in
+     session storage rather than the URL because it is the start of somebody's
+     question, and a question doesn't belong in a link or a history entry. It
+     is offered to anyone who can see the row: reading the library and asking
+     about it are the same permission, and `tiff_manage` is about changing it. */
+  const askAbout = (d: KbLibraryDoc) => {
+    writeAskHandoff(d.title);
+    router.push("/dashboard/tiff");
   };
 
   const zero = docs.length === 0;
@@ -288,6 +300,7 @@ export function KnowledgeBase({
                           isOwner={isOwner}
                           error={rowErrors[d.id]}
                           onOpen={() => openDoc(d)}
+                          onAsk={() => askAbout(d)}
                           onEdit={() => setEditing(d)}
                           onDelete={() => setDeleting(d)}
                           onRetry={async () => {
@@ -371,6 +384,7 @@ function DocRow({
   isOwner,
   error,
   onOpen,
+  onAsk,
   onEdit,
   onDelete,
   onRetry,
@@ -382,6 +396,7 @@ function DocRow({
   isOwner: boolean;
   error?: string;
   onOpen: () => void;
+  onAsk: () => void;
   onEdit: () => void;
   onDelete: () => void;
   onRetry: () => Promise<void>;
@@ -412,6 +427,21 @@ function DocRow({
       <div className="tk-rstate">
         <StatusPill doc={doc} state={state} />
       </div>
+
+      {/* only a READY document — Tiff can't be asked about pages it hasn't
+          read yet, and an affordance that leads to a shrug is worse than none */}
+      {ready && (
+        <button
+          type="button"
+          className="tk-ask"
+          aria-label={`Ask Tiff about ${doc.title}`}
+          title="Ask Tiff about this document"
+          onClick={onAsk}
+        >
+          <Icon name="sparkles" size={15} />
+          Ask Tiff
+        </button>
+      )}
 
       {canManage && (
         <div className="tk-acts">

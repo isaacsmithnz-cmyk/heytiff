@@ -46,6 +46,9 @@ export type ResearchViz = {
   phase: VizPhase;
   /** Per-shelf hit counts from the trace. Null until one lands. */
   hits: Record<KbCategory, number> | null;
+  /** The best-ranked document per shelf, from the same trace. Null until one
+      lands, and null per shelf when retrieval didn't name one. */
+  topDocs: Record<KbCategory, string | null> | null;
   /** The shelves the answer is actually built from. Empty until the trace. */
   winners: KbCategory[];
   /** True when the search came back with nothing — the miss owns the story. */
@@ -55,6 +58,7 @@ export type ResearchViz = {
 export const IDLE_VIZ: ResearchViz = Object.freeze({
   phase: "idle",
   hits: null,
+  topDocs: null,
   winners: [],
   missed: false,
 });
@@ -77,8 +81,14 @@ export const NOTHING_NOTE = "—";
 export type VizEvent =
   /** A research question was sent. General-mode questions send `reset`. */
   | { t: "submit" }
-  /** Retrieval reported: where it looked and what it found. */
-  | { t: "trace"; winners: readonly KbCategory[]; hits: Readonly<Partial<Record<KbCategory, number>>> }
+  /** Retrieval reported: where it looked and what it found. `topDocs` is
+      optional — a trace without document titles still reports its counts. */
+  | {
+      t: "trace";
+      winners: readonly KbCategory[];
+      hits: Readonly<Partial<Record<KbCategory, number>>>;
+      topDocs?: Readonly<Partial<Record<KbCategory, string | null>>>;
+    }
   /** Retrieval found nothing anywhere. */
   | { t: "miss" }
   /** The first word of the answer arrived. */
@@ -106,6 +116,29 @@ function normaliseHits(raw: Readonly<Partial<Record<KbCategory, number>>>): Reco
   for (const cat of KB_CATEGORIES) {
     const n = raw?.[cat];
     if (typeof n === "number" && Number.isFinite(n) && n > 0) out[cat] = Math.floor(n);
+  }
+  return out;
+}
+
+/* The best-ranked document per shelf, and only for a shelf that actually held
+   something. A title beside a count of zero would be naming a document the
+   search didn't find, which is worse than saying nothing. */
+function normaliseTopDocs(
+  raw: Readonly<Partial<Record<KbCategory, string | null>>> | undefined,
+  hits: Record<KbCategory, number>
+): Record<KbCategory, string | null> {
+  const out: Record<KbCategory, string | null> = {
+    install: null,
+    faults: null,
+    specs: null,
+    sops: null,
+  };
+  for (const cat of KB_CATEGORIES) {
+    if (hits[cat] <= 0) continue;
+    const title = raw?.[cat];
+    if (typeof title !== "string") continue;
+    const clean = title.replace(/\s+/g, " ").trim();
+    if (clean) out[cat] = clean;
   }
   return out;
 }
@@ -138,7 +171,7 @@ function normaliseWinners(
 export function reduceViz(state: ResearchViz, event: VizEvent): ResearchViz {
   switch (event.t) {
     case "submit":
-      return { phase: "searching", hits: null, winners: [], missed: false };
+      return { phase: "searching", hits: null, topDocs: null, winners: [], missed: false };
 
     case "reset":
     /* An error takes the rail away entirely. A half-drawn search sitting under
@@ -153,6 +186,7 @@ export function reduceViz(state: ResearchViz, event: VizEvent): ResearchViz {
         // a trace that lands after the words started doesn't rewind the phase
         phase: state.phase === "answering" ? "answering" : "traced",
         hits,
+        topDocs: normaliseTopDocs(event.topDocs, hits),
         winners: normaliseWinners(event.winners, hits),
         missed: false,
       };
@@ -161,7 +195,7 @@ export function reduceViz(state: ResearchViz, event: VizEvent): ResearchViz {
     case "miss":
       if (!IN_FLIGHT.has(state.phase)) return state;
       // nothing was found, so nothing is lit: the miss banner is the story
-      return { phase: "settled", hits: null, winners: [], missed: true };
+      return { phase: "settled", hits: null, topDocs: null, winners: [], missed: true };
 
     case "firstDelta":
       if (state.phase !== "traced") return state;
@@ -229,6 +263,26 @@ export function cardState(state: ResearchViz, cat: KbCategory): CardState {
 const matches = (n: number): string =>
   `${n.toLocaleString("en-AU")} ${n === 1 ? "match" : "matches"}`;
 
+/** What separates the count from the document, when there is a document. */
+const NOTE_SEP = " · ";
+
+/** The best-ranked document on a shelf, or null when the trace didn't name
+    one. Only ever consulted for a shelf the answer was actually built from. */
+export function topDocFor(state: ResearchViz, cat: KbCategory): string | null {
+  return state.topDocs?.[cat] ?? null;
+}
+
+/* THE WINNER NAMES ITS DOCUMENT, and only the winner. "4 matches" answers
+   "did you look here"; "4 matches · City Multi fault codes" answers "what did
+   you read", which is the question a citation is about to be checked against —
+   and it is the one card whose answer matters, because it is where the words
+   came from. Putting a title under every hit shelf would turn the rail into a
+   second search-results list nobody asked for. */
+const noteFor = (state: ResearchViz, cat: KbCategory, n: number): string => {
+  const doc = state.winners.includes(cat) ? topDocFor(state, cat) : null;
+  return doc ? `${matches(n)}${NOTE_SEP}${doc}` : matches(n);
+};
+
 /* What replaces the shelf's document count, or null to leave the count alone. */
 export function cardNote(state: ResearchViz, cat: KbCategory): string | null {
   switch (state.phase) {
@@ -239,12 +293,12 @@ export function cardNote(state: ResearchViz, cat: KbCategory): string | null {
     case "traced":
     case "answering": {
       const n = hitsFor(state, cat);
-      return n > 0 ? matches(n) : NOTHING_NOTE;
+      return n > 0 ? noteFor(state, cat, n) : NOTHING_NOTE;
     }
     case "settled": {
       if (!state.winners.includes(cat)) return null;
       const n = hitsFor(state, cat);
-      return n > 0 ? matches(n) : null;
+      return n > 0 ? noteFor(state, cat, n) : null;
     }
   }
 }

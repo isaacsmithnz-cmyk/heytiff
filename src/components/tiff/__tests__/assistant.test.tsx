@@ -28,6 +28,7 @@ const kbDocUrl = jest.fn(async () => ({ ok: true as const, url: "https://signed.
 jest.mock("@/app/actions/kb", () => ({ kbDocUrl: (...a: unknown[]) => kbDocUrl(...(a as [])) }));
 
 const STORE_KEY = "heytiff.tiff.threads.v2";
+const ASK_KEY = "heytiff.tiff.ask.v1";
 
 const src = (over: Partial<AskSourceItem> = {}): AskSourceItem => ({
   n: 1,
@@ -53,6 +54,7 @@ const ask = async (text: string) => {
 beforeEach(() => {
   jest.clearAllMocks();
   localStorage.clear();
+  sessionStorage.clear();
   asks.length = 0;
   script = (emit) => {
     emit({ t: "delta", text: "P8 is a piping temperature fault." });
@@ -365,6 +367,224 @@ describe("threads on this device", () => {
   });
 });
 
+/* ── arriving from a library row ─────────────────────────────────────────── */
+
+describe("asked about a document", () => {
+  const thread = (over: Record<string, unknown> = {}) => ({
+    id: "t-1",
+    title: "R32 pressures",
+    updatedAt: Date.now(),
+    messages: [],
+    ...over,
+  });
+
+  it("opens with the document already in the box and Research on", () => {
+    sessionStorage.setItem(ASK_KEY, "In “City Multi fault codes”, ");
+    render(<TiffAssistant readyCount={3} />);
+
+    const box = screen.getByLabelText("Ask Tiff") as HTMLInputElement;
+    expect(box).toHaveValue("In “City Multi fault codes”, ");
+    expect(box).toHaveFocus();
+    expect(screen.getByRole("button", { name: /research/i })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+    expect(screen.getByText("Digging through the library")).toBeInTheDocument();
+  });
+
+  /* The prefill is scaffolding. Sending it would spend a question nobody
+     asked, on half a sentence. */
+  it("sends nothing on its own", () => {
+    sessionStorage.setItem(ASK_KEY, "In “City Multi fault codes”, ");
+    render(<TiffAssistant readyCount={3} />);
+
+    expect(asks).toHaveLength(0);
+  });
+
+  it("eats the note, so a refresh comes back to an empty box", () => {
+    sessionStorage.setItem(ASK_KEY, "In “City Multi fault codes”, ");
+    const first = render(<TiffAssistant readyCount={3} />);
+    expect(sessionStorage.getItem(ASK_KEY)).toBeNull();
+
+    first.unmount();
+    render(<TiffAssistant readyCount={3} />);
+    expect(screen.getByLabelText("Ask Tiff")).toHaveValue("");
+  });
+
+  /* A document was named, so the library HAS documents — but if the counts
+     say otherwise the toggle stays where it is rather than being forced into
+     a state it is disabled in. */
+  it("leaves the toggle alone when there is nothing ready to search", () => {
+    sessionStorage.setItem(ASK_KEY, "In “City Multi fault codes”, ");
+    render(<TiffAssistant readyCount={0} />);
+
+    const toggle = screen.getByRole("button", { name: /research/i });
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    expect(toggle).toBeDisabled();
+    expect(screen.getByLabelText("Ask Tiff")).toHaveValue("In “City Multi fault codes”, ");
+  });
+
+  it("leaves the composer alone when no document sent anyone here", () => {
+    localStorage.setItem(STORE_KEY, JSON.stringify([thread()]));
+    render(<TiffAssistant readyCount={3} />);
+
+    expect(screen.getByLabelText("Ask Tiff")).toHaveValue("");
+    expect(screen.getByRole("button", { name: /research/i })).toHaveAttribute(
+      "aria-pressed",
+      "false"
+    );
+  });
+});
+
+/* ── renaming and dropping a conversation (brief §4A) ────────────────────── */
+
+describe("managing a thread", () => {
+  const seed = (threads: unknown[]) => localStorage.setItem(STORE_KEY, JSON.stringify(threads));
+
+  const thread = (over: Record<string, unknown> = {}) => ({
+    id: "t-1",
+    title: "R32 pressures",
+    updatedAt: 1_700_000_000_000,
+    messages: [{ role: "user", text: "why P8?", at: 1_700_000_000_000 }],
+    ...over,
+  });
+
+  const titles = () =>
+    (JSON.parse(localStorage.getItem(STORE_KEY) ?? "[]") as { title: string }[]).map(
+      (t) => t.title
+    );
+
+  it("renames a thread from the list and keeps the new name", async () => {
+    seed([thread()]);
+    const user = userEvent.setup();
+    render(<TiffAssistant />);
+
+    await user.click(screen.getByRole("button", { name: /Rename “R32 pressures”/ }));
+    const field = screen.getByLabelText("Chat title");
+    expect(field).toHaveValue("R32 pressures");
+
+    await user.clear(field);
+    await user.type(field, "R32 pressures at 35°C");
+    await user.click(screen.getByRole("button", { name: /Save name/ }));
+
+    expect(titles()).toEqual(["R32 pressures at 35°C"]);
+    expect(screen.getByText("R32 pressures at 35°C")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("commits on Enter, because it is a one-field question", async () => {
+    seed([thread()]);
+    const user = userEvent.setup();
+    render(<TiffAssistant />);
+
+    await user.click(screen.getByRole("button", { name: /Rename “R32 pressures”/ }));
+    await user.clear(screen.getByLabelText("Chat title"));
+    await user.type(screen.getByLabelText("Chat title"), "Warranty steps{Enter}");
+
+    expect(titles()).toEqual(["Warranty steps"]);
+  });
+
+  it("caps the title and refuses an empty one", async () => {
+    seed([thread()]);
+    const user = userEvent.setup();
+    render(<TiffAssistant />);
+
+    await user.click(screen.getByRole("button", { name: /Rename “R32 pressures”/ }));
+    const field = screen.getByLabelText("Chat title");
+    expect(field).toHaveAttribute("maxLength", "60");
+
+    await user.clear(field);
+    expect(screen.getByRole("button", { name: /Save name/ })).toBeDisabled();
+
+    await user.type(field, "z".repeat(70));
+    expect((field as HTMLInputElement).value).toHaveLength(60);
+  });
+
+  it("leaves the thread as it was when the rename is cancelled", async () => {
+    seed([thread()]);
+    const user = userEvent.setup();
+    render(<TiffAssistant />);
+
+    await user.click(screen.getByRole("button", { name: /Rename “R32 pressures”/ }));
+    await user.clear(screen.getByLabelText("Chat title"));
+    await user.type(screen.getByLabelText("Chat title"), "not this");
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(titles()).toEqual(["R32 pressures"]);
+  });
+
+  it("names the thread in the confirm before it removes it", async () => {
+    seed([thread(), thread({ id: "t-2", title: "U4 error", updatedAt: 1 })]);
+    const user = userEvent.setup();
+    render(<TiffAssistant />);
+
+    await user.click(screen.getByRole("button", { name: /Delete “R32 pressures”/ }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText(/Delete “R32 pressures”\?/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/no copy elsewhere and no undo/)).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole("button", { name: /Delete “R32 pressures”/ }));
+
+    expect(titles()).toEqual(["U4 error"]);
+    expect(screen.queryByText("R32 pressures")).not.toBeInTheDocument();
+  });
+
+  it("keeps the thread when the confirm is declined", async () => {
+    seed([thread()]);
+    const user = userEvent.setup();
+    render(<TiffAssistant />);
+
+    await user.click(screen.getByRole("button", { name: /Delete “R32 pressures”/ }));
+    await user.click(screen.getByRole("button", { name: "Keep it" }));
+
+    expect(titles()).toEqual(["R32 pressures"]);
+  });
+
+  /* Deleting the conversation you are reading has to put you somewhere, and
+     the transcript of a thread that no longer exists is not somewhere. */
+  it("returns to the landing when the open thread is the one deleted", async () => {
+    const user = userEvent.setup();
+    render(<TiffAssistant readyCount={2} />);
+    await ask("why P8?");
+    await waitFor(() => expect(stored()[0]?.messages).toHaveLength(2));
+
+    await user.click(screen.getByRole("button", { name: /Delete “why P8\?”/ }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: /^Delete “why P8\?”$/ })
+    );
+
+    expect(titles()).toEqual([]);
+    expect(screen.queryByText("P8 is a piping temperature fault.")).not.toBeInTheDocument();
+    expect(screen.getByText("What are we building today?")).toBeInTheDocument();
+  });
+
+  it("renames the open thread from its own header", async () => {
+    const user = userEvent.setup();
+    render(<TiffAssistant />);
+    await ask("why P8?");
+    await waitFor(() => expect(stored()).toHaveLength(1));
+
+    await user.click(screen.getByRole("button", { name: /Rename “why P8\?”/ }));
+    await user.clear(screen.getByLabelText("Chat title"));
+    await user.type(screen.getByLabelText("Chat title"), "P8 diagnosis{Enter}");
+
+    expect(titles()).toEqual(["P8 diagnosis"]);
+    // the header is showing the new name, and we are still in the thread
+    expect(screen.getByText("P8 diagnosis")).toBeInTheDocument();
+    expect(screen.getByText("P8 is a piping temperature fault.")).toBeInTheDocument();
+  });
+
+  it("opens the thread when the row itself is pressed, not its actions", async () => {
+    seed([thread()]);
+    const user = userEvent.setup();
+    render(<TiffAssistant />);
+
+    // the title itself, not one of the two icons beside it
+    await user.click(screen.getByText("R32 pressures").closest("button") as HTMLElement);
+    expect(screen.getByText("why P8?")).toBeInTheDocument();
+  });
+});
+
 describe("the rail", () => {
   it("shows a live count per shelf and links into the filtered library", () => {
     render(
@@ -465,10 +685,13 @@ describe("watching Tiff search", () => {
     const { push } = await research();
     await push(TRACE);
 
+    // the winner names the document the answer is being built out of — the
+    // one the citation underneath is about to be checked against
     expect(state("faults")).toBe("winner");
-    expect(note("faults")).toBe("4 matches");
+    expect(note("faults")).toBe("4 matches · City Multi fault codes");
 
-    // searched, found something, not what the answer was built from
+    // searched, found something, not what the answer was built from: a count
+    // and no title, or the rail becomes a second results list
     expect(state("install")).toBe("hit");
     expect(note("install")).toBe("2 matches");
 
@@ -495,7 +718,7 @@ describe("watching Tiff search", () => {
     await push({ t: "done" });
 
     expect(state("faults")).toBe("winner");
-    expect(note("faults")).toBe("4 matches");
+    expect(note("faults")).toBe("4 matches · City Multi fault codes");
     expect(state("install")).toBe("");
     expect(note("install")).toBe("3 documents");
     expect(state("specs")).toBe("");

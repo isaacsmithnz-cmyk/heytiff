@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
 import { kbDocUrl } from "@/app/actions/kb";
 import { askTiff, type AskSourceItem, type AskTurn } from "@/lib/tiff/ask-client";
+import { consumeAskHandoff } from "@/lib/tiff/ask-handoff";
 import {
   cardNote,
   cardState,
@@ -70,6 +71,10 @@ const STORE_KEY = "heytiff.tiff.threads.v2";
 
 /** Prior turns sent as context. The route caps this again on its side. */
 const HISTORY_TURNS = 8;
+
+/** A thread title somebody typed. Long enough to describe a job, short enough
+    to read in the two-column list without wrapping. */
+const TITLE_MAX = 60;
 
 const SUGGESTIONS: { cat: string; icon: string; color: string; tint: string; title: string; desc: string }[] = [
   { cat: "DIAGNOSTICS", icon: "wrench", color: "#00E5C0", tint: "rgba(0,229,192,0.1)", title: "R32 running pressures at 35°C", desc: "What should I see on gauges?" },
@@ -202,6 +207,12 @@ export function TiffAssistant({
   const [research, setResearch] = useState(false);
   const [peek, setPeek] = useState<AskSourceItem | null>(null);
 
+  /* The thread being renamed, and the one being removed. Held as the row
+     itself rather than an id so a modal can name the thread even in the frame
+     where it has just left the list. */
+  const [renaming, setRenaming] = useState<Thread | null>(null);
+  const [removing, setRemoving] = useState<Thread | null>(null);
+
   /* The answer being written. Held apart from the thread rather than mutated
      into it, so a delta doesn't rewrite localStorage sixty times a second; it
      is committed once, when the stream ends. */
@@ -253,6 +264,23 @@ export function TiffAssistant({
     const el = chatRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [active?.messages.length, live?.text, streaming]);
+
+  /* Arriving from "Ask Tiff" on a library row: the document left a
+     sentence-opener behind, and this is where it is picked up.
+
+     NOTHING IS SENT. The opener goes in the box, Research goes on because the
+     question is about a document in the library, and the caret sits at the end
+     waiting for the actual question. A prefill that asked itself would be
+     putting words in somebody's mouth and spending a question they never
+     asked. Read-once, so a refresh doesn't hand it over again. */
+  useEffect(() => {
+    const prefill = consumeAskHandoff();
+    if (!prefill) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sessionStorage is client-only; must diverge from the SSR-safe initial render
+    setInput(prefill);
+    if (readyCount > 0) setResearch(true);
+    inputRef.current?.focus();
+  }, [readyCount]);
 
   const persist = useCallback((next: Thread[]) => {
     setThreadState(next);
@@ -335,7 +363,9 @@ export function TiffAssistant({
         switch (event.t) {
           case "trace":
             /* Where Tiff looked, with real numbers — the shelves light from
-               these and from nothing else. */
+               these and from nothing else. The winning shelf also names the
+               document it ranked first, which is the one the citations under
+               the answer are about to be checked against. */
             showViz({
               t: "trace",
               winners: event.winners,
@@ -344,6 +374,12 @@ export function TiffAssistant({
                 faults: event.categories.faults?.hits,
                 specs: event.categories.specs?.hits,
                 sops: event.categories.sops?.hits,
+              },
+              topDocs: {
+                install: event.categories.install?.topDoc,
+                faults: event.categories.faults?.topDoc,
+                specs: event.categories.specs?.topDoc,
+                sops: event.categories.sops?.topDoc,
               },
             });
             break;
@@ -452,6 +488,30 @@ export function TiffAssistant({
     setActiveId(id);
   };
 
+  /* Renaming touches the title and nothing else — `updatedAt` orders the list
+     by when the conversation last MOVED, and retitling it is not a turn. */
+  const renameThread = (id: string, title: string) => {
+    const clean = title.trim().slice(0, TITLE_MAX).trim();
+    if (!clean) return;
+    persist(threads.map((t) => (t.id === id ? { ...t, title: clean } : t)));
+    setRenaming(null);
+  };
+
+  /* Deleting the conversation you are IN puts you back on the landing rather
+     than leaving the transcript of a thread that no longer exists on screen —
+     and takes the stream, the failure and the rail with it. */
+  const deleteThread = (id: string) => {
+    if (activeId === id) {
+      abortRef.current?.abort();
+      setLiveBoth(null);
+      setFailure(null);
+      showViz({ t: "reset" });
+      setActiveId(null);
+    }
+    persist(threads.filter((t) => t.id !== id));
+    setRemoving(null);
+  };
+
   /* The last question asked, for the "search the library for this" offer under
      a general answer. */
   const lastQuestion = [...(active?.messages ?? [])].reverse().find((m) => m.role === "user")?.text ?? "";
@@ -480,6 +540,26 @@ export function TiffAssistant({
                   <b>{active.title}</b>
                   <em>Tiff AI</em>
                 </div>
+                {/* the two things you can do TO a conversation, next to the
+                    one thing you can do instead of it */}
+                <button
+                  type="button"
+                  className="tk-tact"
+                  aria-label={`Rename “${active.title}”`}
+                  title="Rename this chat"
+                  onClick={() => setRenaming(active)}
+                >
+                  <Icon name="edit" size={15} />
+                </button>
+                <button
+                  type="button"
+                  className="tk-tact dan"
+                  aria-label={`Delete “${active.title}”`}
+                  title="Delete this chat"
+                  onClick={() => setRemoving(active)}
+                >
+                  <Icon name="x" size={15} />
+                </button>
                 <button className="pbtn ghost" onClick={newChat}>
                   <Icon name="plus" size={15} />
                   New chat
@@ -566,6 +646,8 @@ export function TiffAssistant({
               recent={recent}
               readyCount={readyCount}
               onOpen={openThread}
+              onRename={setRenaming}
+              onDelete={setRemoving}
               onSuggest={pickSuggestion}
             />
           )}
@@ -640,7 +722,145 @@ export function TiffAssistant({
       </div>
 
       {peek && <SourcePeek source={peek} onClose={() => setPeek(null)} />}
+      {renaming && (
+        <RenameThread
+          thread={renaming}
+          onSave={(title) => renameThread(renaming.id, title)}
+          onClose={() => setRenaming(null)}
+        />
+      )}
+      {removing && (
+        <DeleteThread
+          thread={removing}
+          onConfirm={() => deleteThread(removing.id)}
+          onClose={() => setRemoving(null)}
+        />
+      )}
     </div>
+  );
+}
+
+/* ── what you can do to a conversation (brief §4A) ───────────────────────── */
+
+/* Both portal to <body>: `.page.in`'s will-change traps position:fixed inside
+   the shell. Outside `.fg` they inherit no ramp, so the `.fl-` family they
+   borrow from the fleet modals carries its own colours. */
+
+function RenameThread({
+  thread,
+  onSave,
+  onClose,
+}: {
+  thread: Thread;
+  onSave: (title: string) => void;
+  onClose: () => void;
+}) {
+  const [title, setTitle] = useState(thread.title);
+  const clean = title.trim();
+
+  if (typeof document === "undefined") return null;
+  return createPortal(
+    <div className="fl-ov" onClick={onClose}>
+      <div
+        className="fl-modal tk-sm"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Rename chat"
+      >
+        <div className="fl-mh">
+          <span>
+            <b>Rename this chat</b>
+            <em>What you&rsquo;ll recognise it by in the list</em>
+          </span>
+          <button className="fl-x" aria-label="Close" onClick={onClose}>
+            <Icon name="x" size={16} />
+          </button>
+        </div>
+        {/* a form, so Enter commits — the only key anybody presses in a
+            one-field modal */}
+        <form
+          className="fl-mb"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (clean) onSave(clean);
+          }}
+        >
+          <label className="fl-f">
+            <span>Title</span>
+            <input
+              className="fl-i"
+              value={title}
+              maxLength={TITLE_MAX}
+              autoFocus
+              aria-label="Chat title"
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </label>
+          <div className="fl-foot">
+            <button type="button" className="fl-btn ghost" onClick={onClose}>
+              Cancel
+            </button>
+            <button type="submit" className="fl-btn primary" disabled={!clean}>
+              <Icon name="save" size={15} />
+              Save name
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function DeleteThread({
+  thread,
+  onConfirm,
+  onClose,
+}: {
+  thread: Thread;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  if (typeof document === "undefined") return null;
+  return createPortal(
+    <div className="fl-ov" onClick={onClose}>
+      <div
+        className="fl-modal tk-sm"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Delete chat"
+      >
+        <div className="fl-mh">
+          <span>
+            <b>Delete “{thread.title}”?</b>
+            <em>The conversation, not anything in the library</em>
+          </span>
+          <button className="fl-x" aria-label="Close" onClick={onClose}>
+            <Icon name="x" size={16} />
+          </button>
+        </div>
+        <div className="fl-mb">
+          <p className="tk-confirm">
+            {thread.messages.length > 0 &&
+              `${thread.messages.length} ${plural(thread.messages.length, "message")} ${
+                thread.messages.length === 1 ? "goes" : "go"
+              } with it. `}
+            Threads live on this device only, so there is no copy elsewhere and no undo.
+          </p>
+          <div className="fl-foot">
+            <button className="fl-btn ghost" onClick={onClose}>
+              Keep it
+            </button>
+            <button className="fl-btn danger arm" onClick={onConfirm}>
+              Delete “{thread.title}”
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 }
 
@@ -651,12 +871,16 @@ function Landing({
   recent,
   readyCount,
   onOpen,
+  onRename,
+  onDelete,
   onSuggest,
 }: {
   returning: boolean;
   recent: Thread[];
   readyCount: number;
   onOpen: (id: string) => void;
+  onRename: (t: Thread) => void;
+  onDelete: (t: Thread) => void;
   onSuggest: (s: (typeof SUGGESTIONS)[number]) => void;
 }) {
   return (
@@ -706,14 +930,40 @@ function Landing({
           <div className="tk-lbl">
             <span>Pick up where you left off</span>
           </div>
+          {/* the row is a DIV holding three buttons, not a button holding
+              three: opening, renaming and deleting are three different things
+              to press, and nesting them inside one control is invalid markup
+              that also swallows the two smaller ones from a screen reader */}
           <div className="tk-threads">
             {recent.map((t) => (
-              <button key={t.id} className="thread" onClick={() => onOpen(t.id)}>
-                <div className="th">
-                  <b>{t.title}</b>
-                </div>
-                <em>{ago(t.updatedAt)}</em>
-              </button>
+              <div key={t.id} className="thread tk-thr">
+                <button type="button" className="tk-topen" onClick={() => onOpen(t.id)}>
+                  <div className="th">
+                    <b>{t.title}</b>
+                  </div>
+                  <em>{ago(t.updatedAt)}</em>
+                </button>
+                <span className="tk-tacts">
+                  <button
+                    type="button"
+                    className="tk-tact"
+                    aria-label={`Rename “${t.title}”`}
+                    title="Rename"
+                    onClick={() => onRename(t)}
+                  >
+                    <Icon name="edit" size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    className="tk-tact dan"
+                    aria-label={`Delete “${t.title}”`}
+                    title="Delete"
+                    onClick={() => onDelete(t)}
+                  >
+                    <Icon name="x" size={14} />
+                  </button>
+                </span>
+              </div>
             ))}
           </div>
         </div>

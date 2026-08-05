@@ -12,6 +12,7 @@ import {
   overlayVisible,
   pulseState,
   reduceViz,
+  topDocFor,
   type ResearchViz,
   type VizEvent,
 } from "../research-viz";
@@ -29,8 +30,9 @@ const run = (...events: VizEvent[]): ResearchViz =>
 
 const trace = (
   winners: KbCategory[],
-  hits: Partial<Record<KbCategory, number>>
-): VizEvent => ({ t: "trace", winners, hits });
+  hits: Partial<Record<KbCategory, number>>,
+  topDocs?: Partial<Record<KbCategory, string | null>>
+): VizEvent => ({ t: "trace", winners, hits, topDocs });
 
 /** Every shelf's line class, so a whole moment can be asserted at once. */
 const lines = (s: ResearchViz) =>
@@ -106,7 +108,13 @@ describe("submitting a research question", () => {
 
   it("starts over on a second question, dropping the first one's trace", () => {
     const again = run({ t: "submit" }, trace(["faults"], { faults: 3 }), { t: "submit" });
-    expect(again).toEqual({ phase: "searching", hits: null, winners: [], missed: false });
+    expect(again).toEqual({
+      phase: "searching",
+      hits: null,
+      topDocs: null,
+      winners: [],
+      missed: false,
+    });
   });
 });
 
@@ -192,6 +200,92 @@ describe("when the trace lands", () => {
     });
     expect(alien.winners).toEqual([]);
     expect(alien.hits).toEqual({ install: 0, faults: 0, specs: 0, sops: 0 });
+  });
+});
+
+/* ── the shelf the answer came from names the document ───────────────────── */
+
+describe("the winner's document", () => {
+  const docs = { faults: "City Multi fault codes", install: "PUZ install manual" };
+  const traced = run({ t: "submit" }, trace(["faults"], { faults: 5, install: 2 }, docs));
+
+  it("puts the best-ranked document beside the winner's count", () => {
+    expect(cardNote(traced, "faults")).toBe("5 matches · City Multi fault codes");
+  });
+
+  /* A title under every shelf turns the rail into a second results list. The
+     winner is the one whose document the citation is about to be checked
+     against. */
+  it("leaves a shelf that only had hits saying how many", () => {
+    expect(cardNote(traced, "install")).toBe("2 matches");
+    expect(topDocFor(traced, "install")).toBe("PUZ install manual");
+  });
+
+  it("keeps naming it once the answer has landed", () => {
+    const settled = run(
+      { t: "submit" },
+      trace(["faults"], { faults: 5, install: 2 }, docs),
+      { t: "firstDelta" },
+      { t: "done" }
+    );
+    expect(cardNote(settled, "faults")).toBe("5 matches · City Multi fault codes");
+    expect(cardNote(settled, "install")).toBeNull();
+  });
+
+  it("names one per winning shelf when the answer spans two", () => {
+    const both = run(
+      { t: "submit" },
+      trace(["faults", "specs"], { faults: 4, specs: 2 }, {
+        faults: "City Multi fault codes",
+        specs: "PUZ-ZM datasheet",
+      })
+    );
+    expect(cardNote(both, "faults")).toBe("4 matches · City Multi fault codes");
+    expect(cardNote(both, "specs")).toBe("2 matches · PUZ-ZM datasheet");
+  });
+
+  /* Retrieval hands over what it has. Without a title the count still stands
+     on its own rather than becoming "5 matches · " with nothing after it. */
+  it("says just the count when the trace named no document", () => {
+    expect(cardNote(run({ t: "submit" }, trace(["faults"], { faults: 5 })), "faults")).toBe(
+      "5 matches"
+    );
+    const blank = run({ t: "submit" }, trace(["faults"], { faults: 5 }, { faults: "   " }));
+    expect(cardNote(blank, "faults")).toBe("5 matches");
+    const wrong = run({ t: "submit" }, trace(["faults"], { faults: 5 }, {
+      faults: 12 as unknown as string,
+    }));
+    expect(cardNote(wrong, "faults")).toBe("5 matches");
+  });
+
+  it("flattens a title that arrives with line breaks in it", () => {
+    const messy = run({ t: "submit" }, trace(["sops"], { sops: 1 }, {
+      sops: " Warranty\nclaims  SOP ",
+    }));
+    expect(cardNote(messy, "sops")).toBe("1 match · Warranty claims SOP");
+  });
+
+  /* Naming a document on a shelf the search found nothing in would be naming
+     something it never read. */
+  it("drops a title on a shelf with no hits", () => {
+    const empty = run({ t: "submit" }, trace(["faults"], { faults: 3 }, {
+      specs: "PUZ-ZM datasheet",
+    }));
+    expect(empty.topDocs).toEqual({
+      install: null,
+      faults: null,
+      specs: null,
+      sops: null,
+    });
+    expect(cardNote(empty, "specs")).toBe(NOTHING_NOTE);
+  });
+
+  it("forgets the titles the moment the search is started over or missed", () => {
+    expect(run({ t: "submit" }, trace(["faults"], { faults: 3 }, docs), { t: "submit" }).topDocs)
+      .toBeNull();
+    expect(run({ t: "submit" }, trace(["faults"], { faults: 3 }, docs), { t: "miss" }).topDocs)
+      .toBeNull();
+    expect(IDLE_VIZ.topDocs).toBeNull();
   });
 });
 

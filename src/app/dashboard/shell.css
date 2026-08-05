@@ -4870,6 +4870,16 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .tk-rstate { flex:0 1 auto; min-width:0; }
 .fg .tk-acts { display:flex; align-items:center; gap:6px; flex:none; }
 
+/* "Ask Tiff about this document" — Tiff blue, because it leaves the library
+   for the assistant, and every OTHER row control is grey because it stays */
+.fg .tk-ask { display:inline-flex; align-items:center; gap:7px; height:32px; padding:0 13px; flex:none;
+  border:1px solid rgba(46,104,255,.22); border-radius:99px; background:rgba(46,104,255,.07); color:#1d4ed8;
+  font-family:var(--font-jakarta), sans-serif; font-size:12.5px; font-weight:700; letter-spacing:-.01em;
+  white-space:nowrap; cursor:pointer; transition:background .2s, border-color .2s, color .2s; }
+.fg .tk-ask svg { flex:none; }
+.fg .tk-ask:hover { background:#2E68FF; border-color:#2E68FF; color:#fff; }
+.fg .tk-ask:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(46,104,255,.3); }
+
 /* the status pill — the whole reason this screen exists */
 .fg .tk-pill { display:inline-flex; align-items:center; gap:8px; max-width:340px; padding:6px 12px; border-radius:99px;
   font-size:12px; font-weight:700; line-height:1.35; }
@@ -5022,6 +5032,21 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .tk-threads .thread .th { margin-bottom:3px; }
 .fg .tk-threads .thread .th b { display:block; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
+/* a row is three controls, not one: open it, rename it, delete it */
+.fg .tk-thr { display:flex; align-items:center; gap:8px; }
+.fg .tk-topen { flex:1 1 auto; min-width:0; padding:0; border:0; background:none; text-align:left;
+  font-family:var(--font-jakarta), sans-serif; cursor:pointer; }
+.fg .tk-tacts { display:flex; align-items:center; gap:4px; flex:none; }
+
+/* also the pair in the open chat's header, which is the only place the
+   conversation you are IN can be renamed or dropped */
+.fg .tk-tact { display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; flex:none;
+  border:1px solid transparent; border-radius:10px; background:none; color:var(--gray400); cursor:pointer;
+  transition:background .2s, border-color .2s, color .2s; }
+.fg .tk-tact:hover { background:#f3f4f6; border-color:#e5e7eb; color:var(--ink); }
+.fg .tk-tact.dan:hover { background:rgba(224,38,79,.07); border-color:rgba(224,38,79,.25); color:#b31038; }
+.fg .tk-tact:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(46,104,255,.3); }
+
 /* ── the composer, and the choice it makes explicit ── */
 .fg .tk-composer { flex:0 0 auto; }
 .fg .tk-crow { display:flex; align-items:center; gap:12px; margin-top:14px; padding:0 6px; }
@@ -5092,7 +5117,12 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .tk-ric { display:flex; align-items:center; justify-content:center; flex:none; width:38px; height:38px; border-radius:12px; }
 .fg .tk-rtx { min-width:0; }
 .fg .tk-rtx b { display:block; font-size:14px; font-weight:800; line-height:1.25; color:var(--ink); }
-.fg .tk-rtx em { display:block; margin-top:2px; font-style:normal; font-size:12px; font-weight:700; color:var(--tkc, var(--gray400)); }
+/* the microline carries "4 matches · City Multi fault codes" on the winning
+   shelf, and a manual's title is routinely longer than the card is wide. One
+   line, clipped — the card must not grow when the trace lands, or the whole
+   rail would shift under a search that is still running. */
+.fg .tk-rtx em { display:block; margin-top:2px; font-style:normal; font-size:12px; font-weight:700; color:var(--tkc, var(--gray400));
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .fg .tk-rbl { grid-column:1 / -1; font-size:12px; font-weight:600; line-height:1.4; color:var(--gray400); }
 
 .fg .tk-lib { margin-top:2px; padding:16px; border-radius:20px; background:rgba(255,255,255,.72); border:1px solid #f0f0f2; }
@@ -5102,7 +5132,12 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   color:var(--teal-d); text-decoration:none; transition:color .2s; }
 .fg .tk-libl a:hover { color:var(--ink); }
 
-/* ── the peek panel (portalled to <body>, so unscoped and self-contained) ── */
+/* ── portalled pieces (outside `.fg`, so unscoped and self-contained) ── */
+
+/* rename and delete-thread ask one question each; 560px of dialog around one
+   field reads as a form to fill in rather than a question to answer */
+.fl-modal.tk-sm { width:min(440px, 100%); }
+
 .tk-pkdot { display:inline-block; width:8px; height:8px; border-radius:50%; }
 .tk-pklead { margin:0 0 10px; font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:#9ca3af; }
 .tk-pkq { margin:0; padding:16px 18px; max-height:44vh; overflow:auto; border-radius:16px; background:#f9fafb;

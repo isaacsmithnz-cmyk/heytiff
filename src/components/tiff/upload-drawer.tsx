@@ -76,11 +76,18 @@ export function UploadDrawer({
   const [items, setItems] = useState<Pending[]>([]);
   const [over, setOver] = useState(false);
   const [running, setRunning] = useState(false);
+  /* The Escape listener is bound once; without a ref it would forever read the
+     `running` of the render that bound it, which is always false. */
+  const runningRef = useRef(false);
+  useEffect(() => {
+    runningRef.current = running;
+  }, [running]);
   const picker = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      // an upload in flight lives in THIS component; Escape would unmount it
+      if (e.key === "Escape" && !runningRef.current) onClose();
     };
     document.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
@@ -162,7 +169,16 @@ export function UploadDrawer({
             <h2>Add documents</h2>
             <p>PDFs up to 50 MB. Tiff reads every page it can, then answers from them.</p>
           </div>
-          <button type="button" className="tk-shx" aria-label="Close" onClick={onClose}>
+          <button
+            type="button"
+            className="tk-shx"
+            aria-label="Close"
+            disabled={running}
+            title={running ? "Uploading — this closes when the files have landed" : undefined}
+            onClick={() => {
+              if (!running) onClose();
+            }}
+          >
             <Icon name="x" size={15} />
           </button>
         </header>
@@ -214,8 +230,12 @@ export function UploadDrawer({
         )}
 
         <footer className="tk-shft">
-          <button type="button" className="tk-btn ghost" onClick={onClose}>
-            {running ? "Hide" : "Close"}
+          {/* It used to say "Hide" while running, which promised a drawer you
+              could come back to — but this component IS the upload, so closing
+              it destroyed the progress and left a row nothing could see. It
+              stays shut until the files have landed. */}
+          <button type="button" className="tk-btn ghost" disabled={running} onClick={onClose}>
+            Close
           </button>
           <button
             type="button"

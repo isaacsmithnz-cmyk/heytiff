@@ -138,44 +138,112 @@ const newThreadId = (at: number): string =>
 
 /* ── what an answer is allowed to look like ──────────────────────────────── */
 
-export type AnswerBlock = { kind: "p"; text: string } | { kind: "ul"; items: string[] };
+export type AnswerBlock =
+  | { kind: "p"; text: string }
+  | { kind: "ul"; items: string[] }
+  /** A procedure. Ordered because the order is the instruction. */
+  | { kind: "ol"; items: string[] }
+  /** Pressures, resistances, capacities — the shape trade data actually has. */
+  | { kind: "table"; head: string[]; rows: string[][] };
 
-/* Paragraphs on blank lines, and lines starting "- " as a list. That is the
-   whole grammar, and it matches what the system prompt asks for — a model that
-   sends a markdown table would have it rendered as the literal characters it
-   is, which is the honest failure and not a silent one. */
+const ORDERED = /^(\d{1,2})[.)]\s+(.*)$/;
+const isRule = (cells: string[]) => cells.every((c) => /^:?-{2,}:?$/.test(c.trim()));
+
+/** `| a | b |` → ["a","b"], tolerating the optional outer pipes. */
+function tableCells(line: string): string[] | null {
+  if (!line.includes("|")) return null;
+  const inner = line.replace(/^\s*\|/, "").replace(/\|\s*$/, "");
+  if (!inner.includes("|")) return null;
+  return inner.split("|").map((c) => c.trim());
+}
+
+/* The grammar an answer is allowed to use: paragraphs on blank lines, "- "
+   bullets, "1. " steps, and pipe tables.
+
+   THE LAST TWO ARE HERE BECAUSE THE TRADE NEEDS THEM. A thermistor resistance
+   curve, a running-pressure range by ambient, a commissioning procedure —
+   these are a table and a numbered list, and flattening them into prose is
+   how a number ends up read against the wrong row. The system prompt asks for
+   exactly this grammar and nothing else, so anything richer still arrives as
+   its literal characters: an honest failure rather than a silent one.
+
+   A TABLE IS ONLY A TABLE ONCE ITS RULE ROW ARRIVES. Mid-stream, the header
+   line alone is indistinguishable from a sentence containing a pipe, so it is
+   held as a paragraph until the `|---|` confirms it — which also stops a
+   half-arrived table from flickering into a one-row grid while it streams. */
 export function answerBlocks(text: string): AnswerBlock[] {
   const blocks: AnswerBlock[] = [];
   let para: string[] = [];
-  let items: string[] = [];
+  let bullets: string[] = [];
+  let steps: string[] = [];
 
   const flushPara = () => {
     if (para.length) blocks.push({ kind: "p", text: para.join(" ") });
     para = [];
   };
-  const flushList = () => {
-    if (items.length) blocks.push({ kind: "ul", items });
-    items = [];
+  const flushBullets = () => {
+    if (bullets.length) blocks.push({ kind: "ul", items: bullets });
+    bullets = [];
+  };
+  const flushSteps = () => {
+    if (steps.length) blocks.push({ kind: "ol", items: steps });
+    steps = [];
+  };
+  const flushAll = () => {
+    flushBullets();
+    flushSteps();
+    flushPara();
   };
 
-  for (const raw of String(text ?? "").split("\n")) {
-    const line = raw.trim();
+  const lines = String(text ?? "").split("\n");
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
     if (!line) {
-      flushList();
-      flushPara();
+      flushAll();
       continue;
     }
+
+    const cells = tableCells(line);
+    const next = tableCells((lines[i + 1] ?? "").trim());
+    if (cells && next && isRule(next)) {
+      flushAll();
+      const rows: string[][] = [];
+      let j = i + 2;
+      for (; j < lines.length; j++) {
+        const row = tableCells(lines[j].trim());
+        if (!row || isRule(row)) break;
+        // ragged rows are padded rather than dropped: a missing cell is a gap
+        // in the data, and hiding the row hides that
+        rows.push(Array.from({ length: cells.length }, (_, k) => row[k] ?? ""));
+      }
+      blocks.push({ kind: "table", head: cells, rows });
+      i = j - 1;
+      continue;
+    }
+
+    const step = ORDERED.exec(line);
+    if (step) {
+      flushBullets();
+      flushPara();
+      if (step[2].trim()) steps.push(step[2].trim());
+      continue;
+    }
+
     if (line.startsWith("- ") || line === "-") {
+      flushSteps();
       flushPara();
       const item = line.slice(1).trim();
-      if (item) items.push(item);
+      if (item) bullets.push(item);
       continue;
     }
-    flushList();
+
+    flushBullets();
+    flushSteps();
     para.push(line);
   }
-  flushList();
-  flushPara();
+
+  flushAll();
   return blocks;
 }
 
@@ -183,17 +251,51 @@ function AnswerText({ text }: { text: string }) {
   const blocks = useMemo(() => answerBlocks(text), [text]);
   return (
     <>
-      {blocks.map((b, i) =>
-        b.kind === "ul" ? (
-          <ul key={i}>
-            {b.items.map((item, j) => (
-              <li key={j}>{item}</li>
-            ))}
-          </ul>
-        ) : (
-          <p key={i}>{b.text}</p>
-        )
-      )}
+      {blocks.map((b, i) => {
+        if (b.kind === "ul")
+          return (
+            <ul key={i}>
+              {b.items.map((item, j) => (
+                <li key={j}>{item}</li>
+              ))}
+            </ul>
+          );
+        if (b.kind === "ol")
+          return (
+            <ol key={i} className="tk-steps">
+              {b.items.map((item, j) => (
+                <li key={j}>{item}</li>
+              ))}
+            </ol>
+          );
+        if (b.kind === "table")
+          return (
+            /* The scroller is the table's own, not the answer's: a wide
+               pressure table scrolls sideways inside the sheet instead of
+               widening it and pushing the whole conversation about. */
+            <div className="tk-tw" key={i}>
+              <table className="tk-tbl">
+                <thead>
+                  <tr>
+                    {b.head.map((h, j) => (
+                      <th key={j}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {b.rows.map((row, j) => (
+                    <tr key={j}>
+                      {row.map((cell, k) => (
+                        <td key={k}>{cell}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        return <p key={i}>{b.text}</p>;
+      })}
     </>
   );
 }
@@ -584,56 +686,62 @@ export function TiffAssistant({
 
               <div className="tchat" ref={chatRef}>
                 {active.messages.map((m, i) => (
+                  /* No avatar on Tiff's turn. The answer is a full-width sheet
+                     and the question is a short dark bubble on the right —
+                     which of the two is speaking was never in doubt, and the
+                     glyph sat at the BOTTOM of a long answer (flex-end),
+                     level with the citations it had nothing to do with. */
                   <div key={i} className={`tmsg ${m.role === "user" ? "user" : "bot"}`}>
-                    {m.role === "tiff" && (
-                      <span className="tmav">
-                        <Icon name="bot" size={18} />
-                      </span>
-                    )}
                     <div className="tmw">
                       {m.missed && <MissBanner canManage={canManage} />}
+                      {/* The citations and the truncation note live INSIDE the
+                          sheet. Both are statements about this answer — where
+                          it came from, where it stopped — and underneath it on
+                          the page they read as three grey pills belonging to
+                          nothing in particular. */}
                       <div className="tmb">
                         {m.role === "tiff" ? <AnswerText text={m.text} /> : m.text}
+                        {m.truncated && (
+                          <p className="tk-trunc">
+                            That answer ran to its limit and stops mid-thought — ask for the rest.
+                          </p>
+                        )}
+                        {m.sources && m.sources.length > 0 && (
+                          <SourceChips sources={m.sources} onPeek={setPeek} />
+                        )}
                       </div>
-                      {m.truncated && (
-                        <p className="tk-trunc">
-                          That answer ran to its limit and stops mid-thought — ask for the rest.
-                        </p>
-                      )}
-                      {m.sources && m.sources.length > 0 && (
-                        <SourceChips sources={m.sources} onPeek={setPeek} />
-                      )}
                     </div>
                   </div>
                 ))}
 
                 {live && live.threadId === active.id && (
                   <div className="tmsg bot">
-                    <span className="tmav">
-                      <Icon name="bot" size={18} />
-                    </span>
                     <div className="tmw">
                       {live.missed && <MissBanner canManage={canManage} />}
-                      {live.text ? (
-                        <div className="tmb">
+                      {/* One sheet across thinking and streaming: the container
+                          is already on screen when the first token lands, so
+                          the answer fills a space instead of shoving the
+                          conversation down as it arrives. */}
+                      <div className={`tmb${live.text ? " streaming" : ""}`}>
+                        {live.text ? (
                           <AnswerText text={live.text} />
-                        </div>
-                      ) : (
-                        <div className="tmb ttyping" aria-label="Tiff is thinking">
-                          <i></i>
-                          <i></i>
-                          <i></i>
-                        </div>
-                      )}
+                        ) : (
+                          <span className="ttyping" aria-label="Tiff is thinking">
+                            <i></i>
+                            <i></i>
+                            <i></i>
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
 
                 {failure && (
                   <div className="tmsg bot">
-                    <span className="tmav">
-                      <Icon name="alert" size={18} />
-                    </span>
+                    {/* no avatar here either — and the old one was the TEAL
+                        assistant tile wrapped round an alert glyph, which is
+                        the one colour a failure should not arrive in */}
                     <div className="tmw">
                       <div className="tk-fail" role="alert">
                         <span>{failure.message}</span>
@@ -1109,21 +1217,26 @@ function SourceChips({
   onPeek: (s: AskSourceItem) => void;
 }) {
   return (
-    <div className="tk-srcs">
-      {sources.map((s) => (
-        <button
-          key={s.chunkId}
-          type="button"
-          className="tk-src"
-          onClick={() => onPeek(s)}
-          aria-label={`Source ${s.n}: ${s.title}, ${pagesOf(s)}`}
-        >
-          <span className="tk-sn">{s.n}</span>
-          <span className="tk-sdot" style={{ background: colourOf(s.category) }} />
-          <span className="tk-stl">{s.title}</span>
-          <em>{pagesOf(s)}</em>
-        </button>
-      ))}
+    <div className="tk-srcfoot">
+      <span className="tk-srclbl">
+        {sources.length === 1 ? "Source" : `Sources · ${sources.length}`}
+      </span>
+      <div className="tk-srcs">
+        {sources.map((s) => (
+          <button
+            key={s.chunkId}
+            type="button"
+            className="tk-src"
+            onClick={() => onPeek(s)}
+            aria-label={`Source ${s.n}: ${s.title}, ${pagesOf(s)}`}
+          >
+            <span className="tk-sn">{s.n}</span>
+            <span className="tk-sdot" style={{ background: colourOf(s.category) }} />
+            <span className="tk-stl">{s.title}</span>
+            <em>{pagesOf(s)}</em>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

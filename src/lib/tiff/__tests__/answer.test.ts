@@ -26,8 +26,10 @@ describe("the three instructions", () => {
     expect(prompt).toMatch(/Australian/);
   });
 
-  /* The client renders paragraphs and bullets and nothing else, so anything
-     else arrives as literal characters in front of the reader. */
+  /* The screen renders four things — paragraphs, bullets, numbered steps and
+     pipe tables — and anything else arrives as literal characters in front of
+     the reader. These assertions are the contract between this prompt and
+     `answerBlocks`: loosen one and the other has to move with it. */
   it.each([
     ["general", general],
     ["research", research],
@@ -35,8 +37,19 @@ describe("the three instructions", () => {
   ])("%s forbids the markup the screen can't render", (_label, prompt) => {
     // the prompt is line-wrapped, so a rule can straddle a newline
     expect(prompt).toMatch(/no\s+headings/i);
-    expect(prompt).toMatch(/no\s+tables/i);
     expect(prompt).toMatch(/code\s+fences/i);
+    expect(prompt).toMatch(/no\s+bold\s+or\s+italic/i);
+  });
+
+  it.each([
+    ["general", general],
+    ["research", research],
+    ["miss", miss],
+  ])("%s teaches the table syntax the renderer parses", (_label, prompt) => {
+    // the header row and the rule beneath it are what answerBlocks looks for
+    expect(prompt).toMatch(/\|\s*---\s*\|/);
+    expect(prompt).toMatch(/numbered steps/i);
+    expect(prompt).toMatch(/four columns or fewer/i);
   });
 
   it("research answers ONLY from the excerpts, and cites them", () => {

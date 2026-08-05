@@ -4814,23 +4814,37 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .tk-chip:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(46,104,255,.3); }
 
 /* ── a shelf: one card per category, coloured at the top ── */
-.fg .tk-list { display:grid; gap:20px; }
-.fg .tk-cat { position:relative; background:#fff; border:1px solid #fff; border-radius:32px; box-shadow:0 8px 30px rgba(0,0,0,.04);
-  transition:box-shadow .5s; }
-.fg .tk-cat:hover { box-shadow:0 18px 44px rgba(0,0,0,.07); }
-.fg .tk-ctop { position:absolute; top:0; left:0; right:0; z-index:10; height:6px; opacity:.85; border-radius:32px 32px 0 0; }
-.fg .tk-cin { position:relative; z-index:10; padding:26px 24px 20px; }
-.fg .tk-chd { display:flex; align-items:center; gap:16px; margin-bottom:14px; }
-.fg .tk-cic { width:48px; height:48px; border-radius:15px; display:grid; place-items:center; flex:none;
-  box-shadow:inset 0 2px 4px rgba(0,0,0,.04); }
-.fg .tk-chd h2 { margin:0; font-size:19px; font-weight:800; letter-spacing:-.02em; line-height:1.2; color:var(--ink); }
-.fg .tk-chd p { margin:4px 0 0; font-size:13px; font-weight:600; color:var(--gray500); }
+/* ══════════════════ TIFF — THE LIBRARY, AS AN INDEX ══════════════════════
+   One surface, four groups on it — not four cards.
+
+   THE CHROME WAS OUTWEIGHING THE CONTENT. Each shelf was a full card with a
+   6px colour bar, a 48px icon tile, a heading and a blurb, so six documents
+   cost about 2,500px of page and the fourth shelf's "nothing here yet" got
+   the same furniture as a shelf with work in it. A library is read by
+   scanning it, and it has to survive forty documents as well as six.
+
+   THE COLOUR IS SAID ONCE PER GROUP, not three times. The bar, the tile and
+   the per-row dot were all carrying the same fact. */
+.fg .tk-list { background:#fff; border:1px solid #fff; border-radius:28px;
+  box-shadow:0 8px 30px rgba(0,0,0,.04); overflow:hidden; }
+.fg .tk-cat { position:relative; display:block; }
+.fg .tk-cat + .tk-cat { border-top:1px solid #f2f4f7; }
+.fg .tk-cin { position:relative; z-index:10; padding:16px 18px 14px; }
+.fg .tk-chd { display:flex; align-items:center; gap:12px; margin-bottom:8px; padding:0 4px; }
+.fg .tk-cic { width:30px; height:30px; border-radius:10px; display:grid; place-items:center; flex:none; }
+.fg .tk-chd h2 { margin:0; font-size:14.5px; font-weight:800; letter-spacing:-.01em; line-height:1.2; color:var(--ink); }
+.fg .tk-chd p { margin:2px 0 0; font-size:12px; font-weight:600; color:var(--gray400); }
 
 /* ── a document ── */
 .fg .tk-row { display:flex; align-items:center; gap:14px; padding:13px 14px; border:1px solid transparent; border-radius:18px;
   transition:background .2s, border-color .2s; }
 .fg .tk-row:hover { background:#fafbfc; border-color:#f0f0f2; }
 .fg .tk-rmain { flex:1 1 auto; min-width:0; }
+/* Narrow enough and the row wraps, which drops the status dot onto the
+   second line beside the buttons — a marker for the title, sitting next to
+   something else. The group header above already says which shelf this is,
+   and the pill (or its absence) already says how the document is doing. */
+@media (max-width: 820px) { .fg .tk-row .tk-dot { display:none; } }
 .fg .tk-rt { display:inline-flex; align-items:center; gap:7px; max-width:100%; padding:0; border:0; background:none; text-align:left;
   font-family:var(--font-jakarta), sans-serif; font-size:14.5px; font-weight:700; letter-spacing:-.01em; color:var(--ink);
   cursor:pointer; transition:color .2s; }
@@ -4871,7 +4885,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 @keyframes tkSlide { from { transform:translateX(-110%); } to { transform:translateX(250%); } }
 
 /* ── nothing here (yet): the day-1 sell, and the smaller misses ── */
-.fg .tk-empty { padding:56px 40px; text-align:center; background:#fff; border:1px solid #fff; border-radius:36px;
+.fg .tk-empty { margin:0 auto; max-width:760px; padding:56px 40px; text-align:center; background:#fff; border:1px solid #fff; border-radius:36px;
   box-shadow:0 8px 30px rgba(0,0,0,.04); }
 .fg .tk-empty.small { padding:44px 32px; border-radius:28px; }
 .fg .tk-eic { width:64px; height:64px; margin:0 auto 20px; border-radius:20px; display:grid; place-items:center;
@@ -4885,10 +4899,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .tk-ecard b { display:block; font-size:14px; font-weight:800; color:var(--ink); }
 .fg .tk-ecard em { display:block; margin-top:3px; font-style:normal; font-size:12.5px; font-weight:600; color:var(--gray400); }
 .fg .tk-ehint { margin-top:22px; font-size:13.5px; font-weight:700; color:var(--gray400); }
-.fg .tk-note { padding:22px; text-align:center; border:1.5px dashed #e6e8ee; border-radius:16px;
+.fg .tk-note { padding:10px 14px; text-align:left; border:none; border-radius:12px;
   background:linear-gradient(180deg,#fafbfc,#fff); }
-.fg .tk-note b { display:block; font-size:13.5px; font-weight:800; color:var(--gray700); }
-.fg .tk-note span { display:block; margin-top:5px; font-size:12.5px; font-weight:600; color:var(--gray400); }
+.fg .tk-note b { display:inline; font-size:12.5px; font-weight:700; color:var(--gray500); }
+.fg .tk-note span { display:inline; margin-left:5px; font-size:12.5px; font-weight:600; color:var(--gray400); }
 
 /* the confirm line inside the (portalled, unscoped) delete modal */
 .fl-modal .tk-confirm { margin:0; font-size:13.5px; font-weight:600; line-height:1.6; color:#374151; }

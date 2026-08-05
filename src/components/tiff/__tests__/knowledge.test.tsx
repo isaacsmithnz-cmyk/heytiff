@@ -120,12 +120,23 @@ describe("what a row says about itself", () => {
 
   it("a ready document with scanned pages admits what it couldn't read", () => {
     render(<KnowledgeBase docs={[doc({ scannedPages: 12 })]} canManage />);
-    expect(screen.getByText("Ready · 12 pages unreadable — scanned images")).toBeInTheDocument();
+    expect(screen.getByText("12 pages unreadable — scanned images")).toBeInTheDocument();
   });
 
-  it("a clean ready document just says Ready", () => {
-    render(<KnowledgeBase docs={[doc()]} canManage />);
-    expect(screen.getByText("Ready")).toBeInTheDocument();
+  /* A pill means "this one needs you". Ready is what almost every row is, so
+     labelling it spends the reader's attention on the rows that don't need
+     any — and leaves the stuck one competing with a page of green. */
+  it("a clean ready document wears no pill at all", () => {
+    const { container } = render(<KnowledgeBase docs={[doc()]} canManage />);
+    expect(container.querySelector(".tk-pill")).toBeNull();
+    expect(screen.queryByText("Ready")).not.toBeInTheDocument();
+    // and the row is still plainly usable
+    expect(screen.getByRole("button", { name: /Ask Tiff about/ })).toBeInTheDocument();
+  });
+
+  it("says nothing about a document's kind — they are all PDFs", () => {
+    const { container } = render(<KnowledgeBase docs={[doc()]} canManage />);
+    expect(container.querySelector(".tk-kind")).toBeNull();
   });
 
   it("shows source, edition, when it changed and who added it", () => {

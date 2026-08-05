@@ -33,7 +33,67 @@ export type PdfDoc = {
   destroy(): Promise<void>;
 };
 
+/* pdfjs will not LOAD without DOMMatrix, and the serverless runtime has none.
+
+   The legacy build ends with `const SCALE_MATRIX = new DOMMatrix()` at module
+   scope, so the reference is evaluated the moment the module is imported —
+   this is an import-time crash, not a rendering one. pdfjs's own answer is to
+   borrow the class from `@napi-rs/canvas`, which is an OPTIONAL dependency of
+   pdfjs-dist: npm installs it on a developer's machine, and Vercel does not
+   trace it into the function. That is the whole difference between "opens in
+   one line locally" and "That PDF couldn't be opened" in production — and it
+   is why the fixture test passed while the feature was broken. That test now
+   runs against these globals too.
+
+   THE STUB IS HONEST BECAUSE NOTHING IS DRAWN. Every real use of DOMMatrix in
+   that build sits behind the canvas rendering path — `getTextContent` reads
+   the text layer and never touches one. So the class only has to EXIST, and
+   pretending otherwise (shipping a 40 MB native canvas to a function that
+   reads text) would cost more than it buys. Methods return `this` so that if
+   anything ever does reach for one, it degrades instead of throwing.
+
+   Assigned before the dynamic import, and only when absent: pdfjs checks
+   `globalThis.DOMMatrix` first and skips the canvas lookup entirely, so a
+   machine that HAS the real thing keeps using it. */
+function ensurePdfGlobals() {
+  const g = globalThis as unknown as Record<string, unknown>;
+
+  if (!g.DOMMatrix) {
+    class DOMMatrixStub {
+      a = 1;
+      b = 0;
+      c = 0;
+      d = 1;
+      e = 0;
+      f = 0;
+      constructor(init?: number[] | string) {
+        if (Array.isArray(init) && init.length >= 6) {
+          [this.a, this.b, this.c, this.d, this.e, this.f] = init as number[];
+        }
+      }
+      translate() { return this; }
+      scale() { return this; }
+      invertSelf() { return this; }
+      multiplySelf() { return this; }
+      preMultiplySelf() { return this; }
+      transformPoint(p: unknown) { return p; }
+    }
+    g.DOMMatrix = DOMMatrixStub;
+  }
+
+  if (!g.Path2D) {
+    class Path2DStub {
+      addPath() {}
+      moveTo() {}
+      lineTo() {}
+      closePath() {}
+    }
+    g.Path2D = Path2DStub;
+  }
+}
+
 export async function openPdf(bytes: Uint8Array): Promise<PdfDoc> {
+  ensurePdfGlobals();
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
 
   /* Both options are about the absent DOM: nothing is being drawn, so fonts

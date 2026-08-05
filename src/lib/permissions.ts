@@ -17,6 +17,7 @@ export const CAPABILITIES = [
   "toolbox", // calculators & references
   "studio", // Design Studio
   "tiff", // Tiff AI assistant & knowledge base
+  "tiff_manage", // upload/edit/retry knowledge-base documents (delete is owner-only)
   "workboard", // see the projects & maintenance board (techs live here)
   "workboard_manage", // create/edit projects, agreements, visits & readiness
   "team", // view/manage other staff records
@@ -45,9 +46,13 @@ export function isCapability(v: unknown): v is Capability {
 // seeing what's booked, what's overdue and what to bring is their day.
 // Managing it (workboard_manage) follows the timepay_all/approvals precedent:
 // admin by default, grantable to a senior tech via the overrides grid.
+// tiff_manage mirrors it exactly: everyone READS and asks the knowledge base
+// (that's `tiff`), but what goes INTO the company library is a curation
+// decision — and a wrong manual answers questions wrongly for everyone.
 const STAFF_DEFAULTS: readonly Capability[] = ["toolbox", "studio", "tiff", "workboard"];
 const ADMIN_DEFAULTS: readonly Capability[] = [
   ...STAFF_DEFAULTS,
+  "tiff_manage",
   "workboard_manage",
   "team",
   "timepay_all",

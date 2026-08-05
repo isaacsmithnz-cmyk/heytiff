@@ -23,6 +23,8 @@ describe("role defaults", () => {
     // on the tools. Managing it is not.
     expect([...caps].sort()).toEqual(["studio", "tiff", "toolbox", "workboard"]);
     expect(caps.has("workboard_manage")).toBe(false);
+    // asking Tiff is staff-default; deciding what goes IN the library is not
+    expect(caps.has("tiff_manage")).toBe(false);
   });
 
   it("admin: everything operational, no money", () => {
@@ -32,6 +34,7 @@ describe("role defaults", () => {
     expect(caps.has("approvals")).toBe(true);
     expect(caps.has("assets_all")).toBe(true);
     expect(caps.has("workboard_manage")).toBe(true);
+    expect(caps.has("tiff_manage")).toBe(true);
     expect(caps.has("financials")).toBe(false);
   });
 
@@ -40,6 +43,16 @@ describe("role defaults", () => {
     expect(caps.has("workboard_manage")).toBe(true);
     expect(caps.has("team")).toBe(false);
     expect(caps.has("timepay_all")).toBe(false);
+  });
+
+  /* The same shape as workboard_manage, for the same reason: a senior tech who
+     curates the manuals gets the library without getting the team directory. */
+  it("tiff_manage is grantable the same way, and is not owner-tier", () => {
+    const caps = resolve("staff", { tiff_manage: true });
+    expect(caps.has("tiff_manage")).toBe(true);
+    expect(caps.has("team")).toBe(false);
+    expect(OWNER_TIER.has("tiff_manage")).toBe(false);
+    expect(canSetCapability("admin", "tiff_manage")).toBe(true);
   });
 
   it("owner: everything", () => {

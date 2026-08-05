@@ -31,7 +31,17 @@
    weight back to `inherit` — 16px/400 buttons across the whole dashboard. */
 .fg button:where(:not([class*="wb2-"])) { font:inherit; color:inherit; background:none; border:none; cursor:pointer; }
 :where(button[class*="wb2-"]) { font:inherit; color:inherit; background:none; border:none; cursor:pointer; }
-.fg input { font:inherit; }
+/* THE SAME CARVE-OUT, FOR THE SAME REASON. `.fg input` is (0,1,1) as well, and
+   the fix above was only ever applied to buttons — so a bare
+   `.wb2-fi { font-size:13px }` on an <input> silently rendered at the browser
+   default 16px/400 anywhere the field sat IN-PAGE rather than in a portal (the
+   dictation row and the board's tag strip; the visit sheets escaped only
+   because they portal out of `.fg`). Mirrors lines above exactly: `:where()`
+   keeps the scoped rule at (0,1,1), and the wb2 twin is unscoped so it reaches
+   the portals too. <select> and <textarea> have no such reset — don't add one
+   without checking what it would outrank. */
+.fg input:where(:not([class*="wb2-"])) { font:inherit; }
+:where(input[class*="wb2-"]) { font:inherit; }
 .fg .mono { font-family:var(--mono); }
 .fg .no-sb::-webkit-scrollbar { display:none; }
 .fg .no-sb { scrollbar-width:none; }
@@ -2042,7 +2052,11 @@
 /* Resting state carries a surface and a readable glyph: bare #9ca3af on white is
    ~2.6:1, under the 3:1 minimum for an interactive control, so the close button
    was easy to miss on a card. */
-.fl-x { width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:#4b5563; background:#f1f2f4; border:1px solid #e6e8ee; transition:all .18s; flex:0 0 auto; }
+/* `button.` — always a <button> (13 of them), and as a bare class it lost its
+   grey square, its border and its ink to the reset, leaving a naked ✕ that
+   only grew a background on :hover (0,2,0). Fine in the modals, which portal
+   out of `.fg`; wrong on the workboard detail screens, which don't. */
+button.fl-x { width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:#4b5563; background:#f1f2f4; border:1px solid #e6e8ee; transition:all .18s; flex:0 0 auto; }
 .fl-x:hover { background:#e6e8ee; border-color:#d6d9e0; color:#050505; }
 .fl-mb { padding:18px 26px 26px; }
 .fl-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
@@ -2058,6 +2072,11 @@ select.fl-i { cursor:pointer; }
 .fl-i.slim { height:36px; font-size:12.5px; margin-top:4px; padding:0 10px; border-radius:10px; }
 .fl-foot { display:flex; justify-content:flex-end; gap:10px; margin-top:22px; }
 .fl-btn { display:inline-flex; align-items:center; gap:7px; height:42px; padding:0 18px; border-radius:12px; font-size:13.5px; font-weight:700; transition:all .2s; }
+/* ADDITIVE, not a rename: one `.fl-btn` in the noticeboard is a <label> (a file
+   picker), which the reset never touched and which `button.` would strip. So
+   this restores only the two declarations the reset ate, and leaves the label
+   reading off the rule above. `.tiny` (0,2,0) keeps its own 12px. */
+button.fl-btn { font-size:13.5px; font-weight:700; }
 .fl-btn.ghost { background:#fff; border:1px solid #e5e7eb; color:#374151; box-shadow:0 1px 2px rgba(0,0,0,.04); }
 .fl-btn.ghost:hover { background:#f9fafb; }
 /* The primary action wears the brand teal, not ink.
@@ -3194,25 +3213,37 @@ select.fl-i { cursor:pointer; }
 
 /* stage stepper */
 .wb-stepper { display:flex; flex-wrap:wrap; gap:6px; }
-.wb-step { font-size:12px; font-weight:700; padding:7px 12px; border-radius:999px; border:1px solid rgba(5,5,5,.1); background:#fff; color:var(--gray500); cursor:pointer; }
+button.wb-step { font-size:12px; font-weight:700; padding:7px 12px; border-radius:999px; border:1px solid rgba(5,5,5,.1); background:#fff; color:var(--gray500); cursor:pointer; }
 .wb-step:disabled { cursor:default; }
 .wb-step.past { background:rgba(0,163,137,.1); border-color:transparent; color:#00A389; }
 .wb-step.now { background:var(--ink); border-color:var(--ink); color:#fff; }
 .wb-step.todo:hover:not(:disabled) { border-color:rgba(0,168,224,.5); color:var(--gray700); }
 
 /* ticks, inline adders, small controls */
-.wb-tick { width:24px; height:24px; border-radius:8px; border:1.5px solid rgba(5,5,5,.18); background:#fff; color:transparent; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; flex:none; }
+/* TYPED AS `button.` deliberately — the same (0,1,1) trick `button.wb-chip`
+   uses below, and here it is the difference between an empty checkbox and one
+   that looks ticked. A bare `.wb-tick` is (0,1,0) and loses `color:transparent`
+   to the reset's `color:inherit`, so an UNTICKED box drew its check glyph in
+   full ink, with no border and no white fill; only `.done` (0,2,0) survived.
+   Two states that must never be confusable were telling the same story. */
+button.wb-tick { width:24px; height:24px; border-radius:8px; border:1.5px solid rgba(5,5,5,.18); background:#fff; color:transparent; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; flex:none; }
 .wb-tick.done { background:#00A389; border-color:#00A389; color:#fff; }
 .wb-tick:not(.done):hover { border-color:#00A389; color:rgba(0,163,137,.4); }
-.wb-add { width:20px; height:20px; border-radius:6px; border:1px solid rgba(5,5,5,.12); background:#fff; color:var(--gray500); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; margin-left:8px; vertical-align:middle; }
+button.wb-add { width:20px; height:20px; border-radius:6px; border:1px solid rgba(5,5,5,.12); background:#fff; color:var(--gray500); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; margin-left:8px; vertical-align:middle; }
 .wb-add:hover { color:var(--ink); border-color:rgba(5,5,5,.3); }
-.wb-inline { flex:1; min-width:0; border:1px solid rgba(5,5,5,.12); border-radius:10px; padding:8px 12px; font:inherit; font-size:13px; }
+/* `input.` for the same (0,1,1) reason as `button.wb-tick` — outside the wb2
+   namespace the input reset still wins, and this field is in-page on the
+   project detail screen (note-capture's copies are portalled). */
+input.wb-inline { flex:1; min-width:0; border:1px solid rgba(5,5,5,.12); border-radius:10px; padding:8px 12px; font:inherit; font-size:13px; }
 .wb-inline:focus { outline:none; border-color:#00A8E0; }
 .wb-select { border:1px solid rgba(5,5,5,.12); border-radius:10px; padding:8px 12px; font:inherit; font-size:13px; background:#fff; cursor:pointer; }
 .wb-notes { width:100%; border:1px solid rgba(5,5,5,.12); border-radius:12px; padding:12px 14px; font:inherit; font-size:13.5px; resize:vertical; }
 .wb-notes:focus { outline:none; border-color:#00A8E0; }
 .wb-notetext { font-size:13.5px; color:var(--gray700); white-space:pre-wrap; margin:0; }
-.wb-hit { width:100%; text-align:left; border:1px solid rgba(5,5,5,.08); background:#fff; border-radius:10px; cursor:pointer; margin-top:6px; }
+/* the search result's card. Without the `button.` its border went to
+   `border:none`, which also made `.wb-hit:hover`'s border-COLOR a no-op —
+   the row had no edge to recolour. */
+button.wb-hit { width:100%; text-align:left; border:1px solid rgba(5,5,5,.08); background:#fff; border-radius:10px; cursor:pointer; margin-top:6px; }
 .wb-hit:hover { border-color:rgba(0,168,224,.5); }
 
 /* the Overview strip */
@@ -3241,7 +3272,12 @@ select.fl-i { cursor:pointer; }
 .wb-visit { border:1px solid rgba(5,5,5,.07); border-radius:14px; padding:6px 8px; margin-bottom:10px; }
 .wb-visit.wb-pulse { border-color:rgba(224,38,79,.5); }
 .wb-chip:disabled { cursor:default; opacity:.7; }
-button.wb-chip { cursor:pointer; border:none; font:inherit; font-size:11px; font-weight:700; }
+/* This rule already existed to win the TYPE back, but stopped there — so a
+   plain chip on a button kept its 11px/700 and still lost its grey pill and
+   its ink, while `.on`/`.bad`/`.warn`/`.ghost` (0,2,0) kept theirs. Half a fix
+   reads as a deliberate design ("only status chips are tinted"), which is why
+   it survived a redesign audit. The fill and colour are restated here. */
+button.wb-chip { cursor:pointer; border:none; font:inherit; font-size:11px; font-weight:700; background:rgba(5,5,5,.06); color:var(--gray700); }
 button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 
 /* ── Workboard command centre ──────────────────────────────────────────────
@@ -3339,13 +3375,27 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 /* nothing current — the thumb parks and fades, as it does on studio Plans */
 .segsw[data-active="-1"] .segsw-thumb { opacity:0; }
 /* Centred in its equal column — "Timesheet" and "Leave" differ by 28px, and
-   left-aligned labels in equal columns would leave the shorter one adrift. */
-.segsw-b { justify-content:center; white-space:nowrap; position:relative; z-index:1; display:inline-flex; align-items:center; gap:7px; border-radius:11px; padding:8px 16px; font-size:12.5px; font-weight:700; color:var(--gray500); cursor:pointer; background:none; border:0; font-family:inherit;
+   left-aligned labels in equal columns would leave the shorter one adrift.
+
+   QUALIFIED BY THE TRACK, and it is load-bearing. A bare `.segsw-b` is
+   specificity (0,1,0) and LOSES to the button reset at the top of this file
+   (`.fg button:where(…)`, (0,1,1)) — so `font:inherit` and `color:inherit`
+   won, and both labels rendered at the browser default 16px/400 instead of
+   12.5px/700, with the inactive one at full --ink rather than grey. The tell
+   was the usual one: `.on` and `:hover` are (0,2,0) and looked right while the
+   base rule looked flat. `.segsw .segsw-b` is (0,2,0) and wins outright.
+
+   Qualified by `.segsw` rather than `.fg`, because this is a shared shell
+   primitive and an `.fg`-scoped rule is ABSENT inside a portal — the track is
+   always the button's parent wherever the control is used, so this selector
+   matches everywhere. (The --gray500/--ink it reads still ride the `.fg` ramp;
+   a portal that uses this control has to restate them, as the wb2 roots do.) */
+.segsw .segsw-b { justify-content:center; white-space:nowrap; position:relative; z-index:1; display:inline-flex; align-items:center; gap:7px; border-radius:11px; padding:8px 16px; font-size:12.5px; font-weight:700; color:var(--gray500); cursor:pointer; background:none; border:0; font-family:inherit;
   /* the thumb carries the movement; the label's colour snaps, because
      crossfading it passes through a mid-grey unreadable against the pill */
   transition:none; }
-.segsw-b:hover { color:var(--ink); }
-.segsw-b.on { color:var(--ink); }
+.segsw .segsw-b:hover { color:var(--ink); }
+.segsw .segsw-b.on { color:var(--ink); }
 @media (prefers-reduced-motion:reduce) { .segsw-thumb { transition:none; } }
 
 /* the three numbers — and they FILTER, because a number you can't act on is

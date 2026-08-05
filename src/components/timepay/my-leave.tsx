@@ -192,12 +192,13 @@ export function MyLeave({
   return (
     <div className="page in">
       <div className="wrap">
-        <div className="stg">
+        {/* `wb2` for the board's tokens — see my-timesheet.tsx */}
+        <div className="stg wb2">
           {/* The heading is just a heading now. "Request leave" used to float
               here in the top-right corner, a whole page away from the list it
               adds to — so it moved into that card's header, where the thing it
               creates is already on screen. */}
-          <div className="v2head" style={{ marginBottom: 24, alignItems: "center" }}>
+          <div className="v2head" style={{ marginBottom: 14, alignItems: "center" }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <h1 style={{ fontSize: 44, fontWeight: 800, letterSpacing: "-0.03em", margin: 0 }}>
                 My leave
@@ -206,9 +207,10 @@ export function MyLeave({
           </div>
           <MyTimeNav active="leave" />
 
-          {error && <div className="tp-err">{error}</div>}
+          <div className="wb2-card tp-card">
+            {error && <div className="tp-err">{error}</div>}
 
-          <div className="lv-bal">
+            <div className="lv-bal">
             {balances.length === 0 ? (
               <div className="lv-balempty">
                 No leave balances recorded yet. Your team sets these — until then you can still
@@ -430,6 +432,7 @@ export function MyLeave({
               ) : (
                 <UpcomingHolidays holidays={holidays} today={today} />
               )}
+              </div>
             </div>
           </div>
         </div>

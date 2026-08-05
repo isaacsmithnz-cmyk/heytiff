@@ -1472,6 +1472,9 @@
    so it drops the top margin it needs when it follows a title. */
 .fg .tp-card { padding:20px 24px 24px; }
 .fg .tp-card > .wknav:first-child { margin-top:0; }
+/* the week's note and the content below it are separate thoughts — without
+   this they read as one paragraph that happens to contain a day strip */
+.fg .tp-card > .mts2-cols { margin-top:18px; }
 .fg .tpr .wknav .arw { width:42px; height:42px; border-radius:13px; display:flex; align-items:center; justify-content:center; color:var(--gray500); background:#fff; border:1px solid rgba(0,0,0,.07); box-shadow:0 1px 2px rgba(0,0,0,.03); transition:all .2s; }
 .fg .tpr .wknav .arw:hover { color:var(--ink); border-color:rgba(34,197,94,.5); transform:translateY(-1px); }
 .fg .tpr .wknav .range { font-size:20px; font-weight:800; letter-spacing:-.02em; white-space:nowrap; }
@@ -2244,14 +2247,11 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .wz-anchor .fl-i, .fg .wz-anchor .datef { max-width:220px; }
 
 /* ---- Time & Pay: leave (stage 5b) ---- */
-/* MY time's Timesheet / Leave bar. It was the team screen's too until that
-   screen moved onto the board's card-and-tabs surface (`.wb2-vtabs`), so this
-   now has one user — if the personal screens follow onto the card, this whole
-   block goes with them rather than lingering as the last pill group. */
-.fg .tp-tabs { display:inline-flex; gap:4px; padding:4px; border-radius:13px; background:#f2f4f7; margin:2px 0 20px; }
-.fg .tp-tab { display:inline-flex; align-items:center; gap:7px; height:36px; padding:0 16px; border-radius:10px; font-size:13.5px; font-weight:700; color:var(--gray500); transition:all .16s; }
-.fg .tp-tab:hover { color:var(--ink); }
-.fg .tp-tab.on { background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(10,11,16,.09); }
+/* `.tp-tabs` — the Time & Pay pill group — is gone. Both of its screens, the
+   team's and your own, now wear the board's tab row (`.wb2-vtabs`) on the
+   board's card, which is the whole point: one control, one surface, four
+   screens. Removed rather than parked, as `.segsw` was: an unused block in
+   this file has shadowed a live component at equal specificity before. */
 /* ---- My leave: kind identity ----------------------------------------------
    A leave KIND is identity, never state, so it takes a hue the severity
    palette doesn't own. If annual leave wore teal, an "Annual leave" rail and
@@ -2267,7 +2267,8 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .lv-unpaid   { --lvk:#64748b; --lvk-bg:rgba(100,116,139,.12); }
 
 .fg .lv-bal { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin-bottom:20px; }
-.fg .lv-baltile { position:relative; padding:15px 17px 16px; border-radius:16px; background:#fff; border:1px solid rgba(10,11,16,.08); overflow:hidden; }
+/* blocks in a card, like the rail cards and the team screen's stat tiles */
+.fg .lv-baltile { position:relative; padding:15px 17px 16px; border-radius:16px; background:rgba(5,5,5,.03); border:1px solid rgba(10,12,20,.05); overflow:hidden; }
 .fg .lv-baltile::before { content:''; position:absolute; top:0; bottom:0; left:0; width:3px; background:var(--lvk); }
 .fg .lv-baltop { display:flex; align-items:center; gap:9px; }
 .fg .lv-balic { display:flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:9px; background:var(--lvk-bg); color:var(--lvk); flex:0 0 auto; }
@@ -2285,7 +2286,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .lv-src.synced { color:var(--teal-d); }
 .fg .lv-balempty, .fg .lv-declined, .fg .lv-pnote { font-size:12.5px; font-weight:600; color:var(--gray500); }
 .fg .lv-declined { display:block; color:var(--red-d,#e0264f); margin-top:3px; }
-.fg .lv-form { padding:16px 18px; border-radius:16px; background:#fafbfc; border:1px solid rgba(10,11,16,.08); margin-bottom:22px; }
+.fg .lv-form { padding:16px 18px; border-radius:16px; background:rgba(5,5,5,.03); border:1px solid rgba(10,12,20,.05); margin-bottom:22px; }
 .fg .lv-frow { display:flex; flex-wrap:wrap; gap:12px; }
 .fg .lv-fnote { margin-top:12px; display:flex; }
 .fg .lv-form .mts-f input, .fg .lv-form .mts-f select { height:38px; padding:0 11px; border-radius:11px; border:1px solid rgba(10,11,16,.14); background:#fff; font-family:var(--font); font-size:13.5px; font-weight:600; color:var(--ink); }
@@ -2293,7 +2294,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .lv-fmeta > span { flex:1; font-size:12.5px; font-weight:600; color:var(--gray500); }
 .fg .lv-cols { display:grid; grid-template-columns:1.4fr 1fr; gap:20px; align-items:start; }
 .fg .lv-col { border:1px solid rgba(10,11,16,.08); border-radius:16px; overflow:hidden; }
-.fg .lv-ch { padding:13px 16px; font-size:12.5px; font-weight:800; color:var(--gray700); text-transform:uppercase; letter-spacing:.04em; background:#fafbfc; border-bottom:1px solid rgba(10,11,16,.06); }
+.fg .lv-ch { padding:13px 16px; font-size:12.5px; font-weight:800; color:var(--gray700); text-transform:uppercase; letter-spacing:.04em; background:rgba(5,5,5,.03); border-bottom:1px solid rgba(10,11,16,.06); }
 /* The variant that carries its own action. Kept a modifier rather than folded
    into .lv-ch, because the holidays column and the admin holiday-year headers
    reuse the plain bar and have nothing to put on the right. The button's own
@@ -2591,7 +2592,14 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    anything. `--dc` carries it, set once per state and used by the top bar, the
    tint and the selected ring, so a new state is one line rather than four. */
 .fg .mts2-tabs { display:flex; gap:6px; align-items:stretch; }
-.fg .mts2-tab { --dc:#d8dbe1; --dt:rgba(216,219,225,.14); position:relative; flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:center; gap:3px; padding:11px 4px 12px; border-radius:14px 14px 0 0; background:#fff; border:1px solid #eceef1; border-bottom-color:transparent; box-shadow:0 1px 2px rgba(10,12,20,.03); transition:background .16s, transform .16s, box-shadow .16s; }
+/* THE RESTING DAY IS TINTED, THE OPEN ONE IS WHITE. This strip is itself a
+   tabs-on-a-card, and it now lives inside one — so if every day stayed white
+   the open day would be the only thing on the screen with nothing to be open
+   against, and the whole strip would dissolve into the surface behind it.
+   Tinting the resting days puts the contrast back where it carries meaning:
+   the white one is the day you have open. (The `.on` tint composites over
+   white deliberately — see the note below — which is why only the base moved.) */
+.fg .mts2-tab { --dc:#d8dbe1; --dt:rgba(216,219,225,.14); position:relative; flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:center; gap:3px; padding:11px 4px 12px; border-radius:14px 14px 0 0; background:rgba(5,5,5,.04); border:1px solid rgba(10,12,20,.05); border-bottom-color:transparent; transition:background .16s, transform .16s, box-shadow .16s; }
 .fg .mts2-tab .cbar { position:absolute; left:10px; right:10px; top:0; height:3px; border-radius:0 0 3px 3px; background:var(--dc); }
 .fg .mts2-tab .cw { font-size:9px; font-weight:800; letter-spacing:.07em; color:var(--gray400); }
 .fg .mts2-tab .cd { font-size:17px; font-weight:800; line-height:1; color:var(--ink); }
@@ -2641,7 +2649,10 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    a weekend for most people, a Wednesday for a part-timer, EVERY empty day for
    a casual. A day still ahead of itself is dimmed the same way; neither is
    anything to act on yet. */
-.fg .mts2-tab.offroster.empty, .fg .mts2-tab.ahead { background:#fafbfc; }
+/* deeper than the resting tint, not lighter: these days recede FURTHER. On the
+   old white strip `#fafbfc` did that by being the only grey; against a tinted
+   strip it would have been the brightest thing in the row. */
+.fg .mts2-tab.offroster.empty, .fg .mts2-tab.ahead { background:rgba(5,5,5,.06); }
 .fg .mts2-tab.offroster.empty .cd, .fg .mts2-tab.offroster.empty .cw, .fg .mts2-tab.offroster.empty .cs,
 .fg .mts2-tab.ahead .cd, .fg .mts2-tab.ahead .cw, .fg .mts2-tab.ahead .cs { opacity:.45; }
 /* TODAY is named by its weekday going ink, not by a ring the selected tab
@@ -2657,7 +2668,10 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .mts2-tab.on .cbar { height:4px; }
 
 /* the panel the tabs open onto */
-.fg .mts2-panel { background:#fff; border:1px solid #e6e8ec; border-radius:0 0 18px 18px; margin-top:-1px; box-shadow:0 1px 2px rgba(10,12,20,.03), 0 20px 40px -34px rgba(10,12,20,.5); animation:tprUp .2s ease backwards; }
+/* the open day stays white — it is the one surface the strip exists to reveal.
+   The deep drop shadow goes: it was lifting this off a grey page, and on the
+   card there is nothing beneath it to cast onto. */
+.fg .mts2-panel { background:#fff; border:1px solid rgba(10,12,20,.07); border-radius:0 0 18px 18px; margin-top:-1px; animation:tprUp .2s ease backwards; }
 .fg .mts2-phead { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:14px 15px 0; }
 .fg .mts2-pd { font-size:15px; font-weight:800; letter-spacing:-.02em; color:var(--ink); }
 
@@ -2780,7 +2794,10 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 /* ---- the rail ---- */
 .fg .mts2-rail { display:flex; flex-direction:column; gap:14px; position:sticky; top:0; }
 @media (max-width:960px){ .fg .mts2-rail { position:static; } }
-.fg .mts2-card { background:#fff; border:1px solid #f0f0f2; border-radius:20px; padding:18px; box-shadow:0 1px 2px rgba(10,12,20,.03), 0 18px 36px -30px rgba(10,12,20,.35); }
+/* Rail cards are BLOCKS IN A CARD now — see the .tpr .stat note for the
+   reasoning. White tiles lifted off a grey page; on the board's white card a
+   white tile is its own 1px border and a shadow with nothing to fall on. */
+.fg .mts2-card { background:rgba(5,5,5,.03); border:1px solid rgba(10,12,20,.05); border-radius:20px; padding:18px; }
 .fg .mts2-ch { display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:11px; font-weight:800; letter-spacing:.09em; text-transform:uppercase; color:var(--gray400); }
 .fg .mts2-range { margin-top:6px; font-size:17px; font-weight:800; letter-spacing:-.02em; color:var(--ink); }
 .fg .mts2-range em { font-style:normal; color:var(--gray400); }

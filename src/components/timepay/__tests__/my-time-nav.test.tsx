@@ -29,7 +29,7 @@ describe("MyTimeNav", () => {
 
   it("marks only the active face, and says so to assistive tech", () => {
     const { container, rerender } = render(<MyTimeNav active="timesheet" />);
-    const on = () => [...container.querySelectorAll(".tp-tab.on")].map((b) => b.textContent);
+    const on = () => [...container.querySelectorAll(".wb2-vt.on")].map((b) => b.textContent);
     expect(on()).toEqual(["Timesheet"]);
     expect(screen.getByRole("link", { name: "Timesheet" })).toHaveAttribute(
       "aria-current",
@@ -41,12 +41,14 @@ describe("MyTimeNav", () => {
     expect(screen.getByRole("link", { name: "Timesheet" })).not.toHaveAttribute("aria-current");
   });
 
-  it("wears the team screen's tab bar, not a control of its own", () => {
-    // The whole point of the last change: one Time & Pay tab bar, whether it
-    // is your time or the team's. A local class here means it has drifted.
+  it("wears the board's tab row, not a control of its own", () => {
+    // The whole point: ONE tab row, whether it's your time, the team's or a
+    // board. This screen has had three controls of its own already (.segsw,
+    // then .tp-tabs); a local class here means it has drifted a fourth time.
     const { container } = render(<MyTimeNav active="timesheet" />);
-    expect(container.querySelector(".tp-tabs")).not.toBeNull();
-    expect(container.querySelectorAll(".tp-tab")).toHaveLength(2);
+    expect(container.querySelector(".wb2-vtabs")).not.toBeNull();
+    expect(container.querySelectorAll(".wb2-vt")).toHaveLength(2);
+    expect(container.querySelector(".wb2-vslide")).not.toBeNull();
   });
 
   it("points at the same routes the nav folded together", () => {

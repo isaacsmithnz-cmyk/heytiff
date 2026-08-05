@@ -103,7 +103,7 @@ type Embedded = { ok: boolean; vectors?: number[][] | null; reason?: string };
 const embedTexts = jest.fn(async (): Promise<Embedded> => ({ ok: true, vectors: null }));
 jest.mock("../embeddings", () => ({ embedTexts: () => embedTexts() }));
 
-import { planBatch, processBatch, progressPatch, type DocState } from "../ingest";
+import { planBatch, processBatch, progressPatch, reasonForOpenFailure, type DocState } from "../ingest";
 
 const doc = (over: Partial<DocState> = {}): DocState => ({
   status: "processing",
@@ -360,5 +360,28 @@ describe("the walk", () => {
       error: "That document is gone.",
     });
     expect(inserts).toHaveLength(0);
+  });
+});
+
+/* ── what a failed open tells the person holding the file ────────────────── */
+
+describe("reasonForOpenFailure", () => {
+  const err = (name: string, message = "") => Object.assign(new Error(message), { name });
+
+  it("names a password, because that one is theirs to fix", () => {
+    expect(reasonForOpenFailure(err("PasswordException", "No password given"))).toMatch(
+      /password-protected/
+    );
+  });
+
+  it("names a damaged file rather than blaming the reader", () => {
+    expect(reasonForOpenFailure(err("InvalidPDFException"))).toMatch(/isn't a readable PDF/);
+  });
+
+  it("falls back to the house sentence for anything it can't name", () => {
+    expect(reasonForOpenFailure(err("TypeError", "Promise.withResolvers is not a function"))).toBe(
+      "That PDF couldn't be opened."
+    );
+    expect(reasonForOpenFailure("not an error at all")).toBe("That PDF couldn't be opened.");
   });
 });

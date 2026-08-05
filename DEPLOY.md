@@ -264,12 +264,18 @@ wall-clock, not speech**, so an open mic in a quiet room costs money; the socket
 uses the vendor's `vad` commit strategy and `dictation.tsx` closes it the moment
 recording stops.
 
-> ⚠️ **The live transport does not currently work.** Measured on production
-> 2026-08-04 it produced no words on three consecutive notes and did not fall
-> back, because the recording it fell back to was itself empty. It is off by
-> default and reachable only by explicitly asking for it — treat
-> `?voice=live` as a diagnostic, not a feature, until that is understood.
-> Batch is what ships and what works (~2.3s on the same measurements).
+**The live transport is the one to use.** Measured on production 2026-08-04,
+on the FREE plan, four consecutive notes: **0.82 / 0.92 / 0.84 / 0.84 s** to a
+finished transcript, against **2.3–5.2 s** for batch. Words appear while you
+are still speaking. Turn it on with `NEXT_PUBLIC_VOICE_REALTIME=1`.
+
+One recording that day did come back with nothing, and it was briefly written
+up here as the transport being broken. That was an overreaction to a single
+failure — one bad note against four clean ones, and the log evidence behind
+the diagnosis turned out to have been read off the wrong end of a
+newest-first list. What that note DID expose was real and is fixed: an empty
+recording used to return in complete silence, so a one-off hiccup was
+indistinguishable from a broken feature. It now says so and logs.
 
 **Comparing the two without a redeploy.** A build-time flag can't be A/B'd —
 every swap would redeploy production — so `?voice=live` and `?voice=batch`

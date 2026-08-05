@@ -310,16 +310,37 @@ export async function applyNote(
       .eq("id", noteId);
   }
 
-  /* A NOTE MUST NAME A JOB (Isaac, 2026-08-02). The review card enforces it
-     by disabling both save buttons, but a Server Function is reachable by
-     direct POST, so it is re-decided here. This is what stops targetless
-     FLAGS being written: a flag with no job renders a row on Needs attention
-     that names a problem and then refuses to open anything — a dead end you
-     can only clear, which is exactly what Isaac hit. */
-  if (target.kind === "none" || !target.id) {
+  /* WHICH ROWS ACTUALLY NEED A JOB — the cascade, re-decided server-side.
+
+     This used to refuse EVERY targetless note (Isaac, 2026-08-02: "every note
+     goes on a job"), and that rule was right about the thing it was written
+     for. A flag with no job renders a row on Needs attention that names a
+     problem and then refuses to open anything; a bring-item with no job has
+     no visit to be brought to. Those are dead ends and they stay refused.
+
+     But it was too broad, and the schema says so: `tasks` has NO job column
+     at all — org, title, assignee, due date, status. A task from a note has
+     always stood on its own and always landed on the assignee's dashboard.
+     The only thing insisting otherwise was this guard and the review card's
+     `blockers`, which is why "tell Luke to ring the wholesaler" — a perfectly
+     good task about no job in particular — could not be saved at all.
+
+     So the question is per bucket, not per note (Isaac, 2026-08-05: aim for
+     the job, then a task, and only then My notes). A Server Function is
+     reachable by direct POST, so the review card's version of this is a
+     courtesy and THIS is the enforcement. */
+  const needsJob =
+    (confirmed.bringItems ?? []).some((b) => trim(b, 1000)) ||
+    (confirmed.flags ?? []).some((f) => trim(f.message, 200)) ||
+    (confirmed.progressBullets ?? []).some((b) => trim(b, 1000)) ||
+    (confirmed.commissioningEntries ?? []).some((b) => trim(b, 1000)) ||
+    (confirmed.issueEntries ?? []).some((i) => trim(i.summary, 1000));
+
+  if (needsJob && (target.kind === "none" || !target.id)) {
     return {
       ok: false,
-      error: "Every note goes on a job — say which one before saving it.",
+      error:
+        "Flags, bring-items, progress and issues all hang off a job — say which one, or untick them.",
     };
   }
 
@@ -573,9 +594,13 @@ export async function applyNote(
     (confirmed.progressBullets?.length ?? 0) +
     (confirmed.commissioningEntries?.length ?? 0) +
     (confirmed.issueEntries?.length ?? 0);
-  /* The "no job" half of this message is gone because the case is: the
-     guard above already refused a targetless note outright, so by here the
-     only thing that can drop everything is a task with nobody on it. */
+  /* Everything that needs a job was refused by the per-bucket guard near the
+     top, and a bring-list with nowhere to sit was refused just above. So by
+     the time we are here the only way to drop every row is a task with
+     nobody on it — which the earlier `namedTasks` check also refuses. This
+     is the net under both of them, and it stays because "Saved" writing an
+     empty `applied` object is the specific bug this whole run of guards
+     exists to prevent. */
   if (asked > 0 && counts.length === 0) {
     return {
       ok: false,
@@ -698,6 +723,52 @@ export async function keepNoteOnJob(
 
   refresh(target);
   return { ok: true, summary: "Kept on the job's notes." };
+}
+
+/* THE LAST RUNG. Keep the words for yourself, when no job and no person will
+   take them.
+
+   The cascade Isaac chose on 2026-08-05 aims at a job first and a task
+   second, and only offers this when neither fits — so this is deliberately
+   the hardest destination to reach, not the easiest. It exists because the
+   two rungs above it genuinely don't cover everything ("ring the wholesaler
+   back about pricing" belongs to nobody's job and isn't a task for anyone
+   but you), and because the alternative is `dismissNote`, which files the
+   row where nothing reads it.
+
+   Unlike `keepNoteOnJob` this needs NO `workboard` capability: it writes to
+   the author's own notes, which is the least privileged thing in the app.
+   What it does need is a staff profile, since the row must have an owner —
+   see the same rule in actions/my-notes.ts. */
+export async function keepNoteForMe(noteId: string): Promise<ApplyResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: NOT_SIGNED_IN };
+  if (!ctx.staffId) return { ok: false, error: "Your staff profile isn't set up yet." };
+
+  const note = await noteIn(ctx.orgId, noteId);
+  if (!note) return { ok: false, error: GONE };
+
+  const body = trim(note.transcript, 4000);
+  if (!body) return { ok: false, error: "There are no words to keep." };
+
+  const { error } = await supabaseAdmin.from("staff_notes").insert({
+    org_id: ctx.orgId,
+    staff_id: ctx.staffId,
+    body,
+    source: "routed",
+    source_note_id: noteId,
+  });
+  if (error) return { ok: false, error: "Couldn't keep that note." };
+
+  await supabaseAdmin
+    .from("workboard_notes")
+    .update({ status: "dismissed" })
+    .eq("org_id", ctx.orgId)
+    .eq("id", noteId);
+
+  refresh({ kind: note.target_kind, id: note.target_id });
+  revalidatePath("/dashboard/my-notes");
+  return { ok: true, summary: "Kept in your notes." };
 }
 
 /** Stop a flag pulsing. Whoever dealt with it can clear it. */

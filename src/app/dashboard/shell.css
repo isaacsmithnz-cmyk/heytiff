@@ -5411,3 +5411,139 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   .fg .tk-line.draw { opacity:.55; stroke-dasharray:none; stroke-dashoffset:0; animation:none; }
   .fg .tk-rcat.searching::after { animation:none; opacity:0; }
 }
+
+/* ===================================================================
+   THE NOTE TOKEN — one control, four postures
+   ===================================================================
+   Five separate voice/note controls collapse into this. Everything here
+   wears the BOARD'S OWN tokens (--wb2-cy #007fa8, --wb2-cy2 #0089b8,
+   --wb2-dan #e0264f) rather than the .fg brand teal, so the widget adds no
+   colour to the app. #00A389 is deliberately absent: that is --wb2-ok, a
+   semantic state, and semantic state is never an accent.
+
+   RED MEANS RECORDING AND NOTHING ELSE. The old controls were red AT REST —
+   the pill mic, the add-row mic, the dictate button — which is danger-red on
+   a button that destroys nothing, and this token appears in far more places
+   than they did. So the capsule is cyan until the mic actually opens.
+
+   Every class here is `wb2-` prefixed, which is load-bearing twice over:
+   `.fg button` (0,1,1) carves out `[class*="wb2-"]` and hands the reset back
+   at zero specificity, and the same carve-out exists for `.fg input`. A
+   plain single-class rule on a <button> or <input> outside that namespace
+   silently loses. */
+
+/* ── the capsule ──
+   Keyboard | mic in one object. The mic half is WIDER on purpose: both stay
+   full targets so typing is never a sliver, but the note you speak is what
+   this was built for and the shape should say so without being told. */
+.wb2-tokdock { display:inline-flex; align-items:center; gap:9px; }
+.wb2-tok { display:inline-flex; align-items:stretch; height:42px; border-radius:999px;
+  background:var(--wb2-cy, #007fa8); box-shadow:0 10px 24px -12px rgba(0,127,168,.85);
+  transition:box-shadow .18s ease, transform .18s cubic-bezier(.22,1,.36,1); }
+.wb2-tok:hover { transform:translateY(-1px); box-shadow:0 14px 30px -12px rgba(0,127,168,.95); }
+.wb2-tokhalf { display:inline-flex; align-items:center; justify-content:center; width:42px;
+  border:0; border-radius:999px; background:none; color:#fff; cursor:pointer;
+  transition:background .15s ease; }
+.wb2-tokhalf:hover { background:rgba(0,0,0,.14); }
+.wb2-tokhalf.mic { width:54px; }
+.wb2-tokhalf:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.55); }
+.wb2-tokdiv { width:1px; flex:none; margin:9px 0; background:rgba(255,255,255,.34); }
+/* the only red in the resting UI, and only once the mic is open */
+.wb2-tok.live { background:linear-gradient(90deg, var(--wb2-cy, #007fa8) 44%, var(--wb2-dan, #e0264f) 44%); }
+.wb2-tok.live .wb2-tokhalf.mic { background:var(--wb2-dan, #e0264f); }
+
+/* ── the sheet ──
+   `.wb2-capcard` is also on this element and is doing the real work (button
+   fills, type, disabled states out in the portal). This block ONLY moves it.
+   The animation override is not optional: `wb2DropIn` carries the centring
+   `translateX(-50%)` in both keyframes with `both` fill, so a sheet that
+   inherited it would sit half its own width to the left, permanently. */
+.wb2-capcard.wb2-caps { top:auto; bottom:0; left:0; right:0; transform:none;
+  width:100%; max-width:none; max-height:88vh; border-radius:22px 22px 0 0;
+  padding:8px 18px 22px; animation:wb2SheetUp .3s cubic-bezier(.22,1,.36,1) both; }
+@keyframes wb2SheetUp { from { transform:translateY(14%); opacity:.5; } to { transform:none; opacity:1; } }
+.wb2-grab { display:block; width:38px; height:4px; border-radius:2px; flex:none;
+  background:rgba(5,5,5,.14); margin:2px auto 8px; }
+@media (min-width:760px) {
+  /* On a desk it stops being a thumb surface and becomes a card again —
+     bottom-anchored full width across a 1400px screen is a lot of nothing. */
+  .wb2-capcard.wb2-caps { left:50%; right:auto; bottom:4vh; width:min(680px, calc(100vw - 32px));
+    transform:translateX(-50%); border-radius:20px;
+    animation:wb2SheetUpWide .3s cubic-bezier(.22,1,.36,1) both; }
+  @keyframes wb2SheetUpWide {
+    from { transform:translateX(-50%) translateY(14%); opacity:.5; }
+    to   { transform:translateX(-50%); opacity:1; } }
+  .wb2-grab { display:none; }
+}
+
+/* ── the strip ──
+   Lives in the column with the notes it joins, so the review can grow in
+   place: the whole argument of this posture is that you keep seeing the job. */
+.wb2-strip { display:flex; align-items:center; gap:8px; padding:5px 5px 5px 15px;
+  border:1px solid rgba(5,5,5,.10); border-radius:999px; background:#f7f8fa;
+  transition:border-color .18s ease, background .18s ease; }
+.wb2-strip:focus-within { border-color:var(--wb2-cy, #007fa8); background:#fff; }
+.wb2-strip.live { border-color:var(--wb2-dan, #e0264f); background:#fff; }
+.wb2-stripin { flex:1; min-width:0; border:0; background:none; outline:none; padding:7px 0;
+  font-family:var(--font); font-size:13.5px; font-weight:500; color:var(--ink); }
+.wb2-stripin::placeholder { color:var(--gray400); }
+.wb2-striprnd { flex:none; width:32px; height:32px; border-radius:50%; display:grid; place-items:center;
+  border:1px solid rgba(5,5,5,.10); background:#fff; color:var(--gray500); cursor:pointer;
+  transition:border-color .15s ease, color .15s ease, background .15s ease; }
+.wb2-striprnd:hover:not(:disabled) { border-color:var(--wb2-cy, #007fa8); color:var(--wb2-cy, #007fa8); }
+.wb2-striprnd.go { background:var(--wb2-cy, #007fa8); border-color:var(--wb2-cy, #007fa8); color:#fff; }
+.wb2-striprnd.go:hover:not(:disabled) { background:#0089b8; border-color:#0089b8; }
+.wb2-striprnd:disabled { background:rgba(5,5,5,.05); border-color:rgba(5,5,5,.06); color:#a2a9b8; cursor:not-allowed; }
+.wb2-striprnd:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.35); }
+/* the review, in place — no portal, no dim, nothing covered */
+.wb2-stripopen { border:1px solid var(--wb2-cy, #007fa8); border-radius:14px; background:#fff;
+  box-shadow:0 0 0 3px rgba(0,127,168,.10); padding:13px 14px 15px; }
+
+/* ── the cascade ──
+   Where the note is about to go, as fact rather than as a menu: by the time
+   this shows, what's ticked and what job is named have already decided. */
+.wb2-casc { display:grid; gap:8px; margin-top:12px; padding:12px 13px;
+  border:1px solid rgba(5,5,5,.08); border-radius:12px; background:#f7f8fa; }
+.wb2-cascrow { display:flex; align-items:center; gap:10px; font-size:13px; color:var(--gray400); }
+.wb2-cascrow.on { color:var(--ink); font-weight:600; }
+.wb2-cascrow b { font-weight:800; }
+.wb2-cascn { flex:none; width:20px; height:20px; border-radius:50%; display:grid; place-items:center;
+  font-size:10.5px; font-weight:800; background:rgba(5,5,5,.07); color:var(--gray500); }
+.wb2-cascrow.on .wb2-cascn { background:var(--wb2-cy, #007fa8); color:#fff; }
+
+/* ── the quiet nudge ──
+   A field mic filled the box; the words happen to contain something to do.
+   Dashed, unsaturated and dismissible — the field has already saved, so this
+   is an offer and ignoring it must cost nothing. */
+.wb2-nudge { display:flex; align-items:center; gap:9px; margin-top:8px; padding:8px 10px;
+  border:1px dashed rgba(0,127,168,.45); border-radius:10px; background:rgba(0,127,168,.06);
+  color:var(--gray700); font-size:12.5px; animation:wb2NudgeIn .3s cubic-bezier(.22,1,.36,1) both; }
+.wb2-nudge > svg { color:var(--wb2-cy, #007fa8); flex:none; }
+.wb2-nudgetext { flex:1; min-width:0; }
+@keyframes wb2NudgeIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:none; } }
+@media (prefers-reduced-motion:reduce) {
+  .wb2-nudge, .wb2-capcard.wb2-caps { animation:none; }
+  .wb2-tok, .wb2-tok:hover { transition:none; transform:none; }
+}
+
+/* A smaller primary, for the nudge's inline action. Joins the portal-safe
+   list rather than relying on `.fg`, which does not reach out here. */
+.wb2 .pbtn.sm, .wb2-sheet .pbtn.sm, .wb2-capcard .pbtn.sm, .wb2-stripopen .pbtn.sm,
+.wb2-nudge .pbtn.sm { height:29px; padding:0 11px; font-size:12px; border-radius:9px; }
+
+/* THE TOKEN HAS TO WORK OFF THE BOARD TOO. The fills above are scoped to
+   `.wb2` / `.wb2-sheet` / `.wb2-capcard`, which is fine while a control only
+   ever renders inside the workboard — and this one is meant to end up on
+   every screen. A `.pbtn` in the strip's in-place review or in a nudge on a
+   staff card would otherwise be dark text on white, indistinguishable from a
+   label; that exact bug shipped once on the capture overlay. So these two
+   surfaces carry the fill themselves rather than inheriting an ancestor. */
+.wb2-stripopen .pbtn:not(.ghost), .wb2-nudge .pbtn:not(.ghost) {
+  background:var(--wb2-cy, #007fa8); border:1px solid var(--wb2-cy, #007fa8); color:#fff;
+  font-weight:700; box-shadow:0 6px 16px -10px rgba(0,127,168,.9); }
+.wb2-stripopen .pbtn:not(.ghost):hover:not(:disabled),
+.wb2-nudge .pbtn:not(.ghost):hover:not(:disabled) { background:#0089b8; border-color:#0089b8; }
+.wb2-stripopen .pbtn.ghost, .wb2-nudge .pbtn.ghost {
+  background:#fff; border:1px solid rgba(5,5,5,.12); color:var(--gray700); font-weight:700; }
+.wb2-stripopen .pbtn:disabled, .wb2-nudge .pbtn:disabled {
+  background:#eef0f4; border-color:#e3e6ec; color:#a2a9b8; box-shadow:none; cursor:not-allowed; }

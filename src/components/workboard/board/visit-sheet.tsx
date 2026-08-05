@@ -13,8 +13,7 @@ import {
 import type { VisitTone } from "@/lib/workboard/board-status";
 import type { BoardTag, BoardTech, BoardVisit } from "@/lib/workboard/board-query";
 import { fromLines, linesEqual, toLines } from "@/lib/workboard/note-lines";
-import { DictateBox, DictateLine } from "../dictation";
-import { useNoteBrain } from "../note-brain-context";
+import { NoteToken } from "@/components/notes/note-token";
 import {
   assignVisitTech,
   clearVisitPlacement,
@@ -84,7 +83,6 @@ export function VisitSheet({
   onClose: () => void;
 }) {
   const router = useRouter();
-  const { voiceEnabled, send: sendToBrain } = useNoteBrain();
   const [busy, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
   const [openGate, setOpenGate] = useState<0 | 1 | 2 | null>(null);
@@ -770,12 +768,11 @@ export function VisitSheet({
                   ))}
                 </ul>
               )}
-              <DictateLine
+              <NoteToken as="line"
                 label="a note for this visit"
                 value={noteDraft}
                 onChange={setNoteDraft}
                 onCommit={commitDraft}
-                voiceEnabled={voiceEnabled}
                 placeholder={
                   noteLines.length
                     ? "Add another…"
@@ -815,12 +812,11 @@ export function VisitSheet({
                       row you'd type into is the whole section. Once the first
                       note is down, adding another is a button away. */}
                   {(adding || savedNotes.length === 0) && (
-                    <DictateLine
+                    <NoteToken as="line"
                       label="a note for this visit"
                       value={noteDraft}
                       onChange={setNoteDraft}
                       onCommit={commitDraft}
-                      voiceEnabled={voiceEnabled}
                       disabled={busy}
                       placeholder={
                         savedNotes.length
@@ -829,11 +825,14 @@ export function VisitSheet({
                       }
                     />
                   )}
-                  {/* SORT IT OUT hands the same words to the note brain, which
-                      is what the pill does — a box labelled "notes" that
-                      couldn't raise the task it describes was the gap Isaac
-                      called out. The pill's target already follows this sheet,
-                      so it lands here. */}
+                  {/* "SORT THIS OUT" IS GONE, and its absence is the point.
+                      It existed because the box you typed notes into and the
+                      thing that could turn notes into tasks were different
+                      components, so a button had to carry text between them.
+                      The token does both, and offers the review itself when
+                      the words look like a job for somebody — see the sniff.
+                      A button asking you to decide whether your own sentence
+                      was interesting was always the wrong question. */}
                   <div className="wb2-noteact">
                     {savedNotes.length > 0 &&
                       (adding ? (
@@ -857,17 +856,6 @@ export function VisitSheet({
                       <button className="pbtn ghost" disabled={busy} onClick={startEditingNotes}>
                         <Icon name="edit" size={15} />
                         Edit notes
-                      </button>
-                    )}
-                    {sendToBrain && (savedNotes.length > 0 || noteDraft.trim() !== "") && (
-                      <button
-                        className="pbtn ghost"
-                        disabled={busy}
-                        title="Pull the tasks, flags and questions out of this"
-                        onClick={() => sendToBrain(fromLines([...savedNotes, noteDraft]))}
-                      >
-                        <Icon name="sparkles" size={15} />
-                        Sort this out
                       </button>
                     )}
                   </div>
@@ -960,11 +948,10 @@ export function VisitSheet({
                     />
                   </label>
                 </div>
-                <DictateBox
+                <NoteToken as="field"
                   label="what happened on site"
                   value={closeNote}
                   onChange={setCloseNote}
-                  voiceEnabled={voiceEnabled}
                   rows={2}
                   placeholder="What happened on site — the Completed screen reads this."
                 />

@@ -82,6 +82,12 @@ export const NAV_GROUPS: NavGroup[] = [
       // Ungated like the rest of this group: spending your own money on the
       // job and asking for it back is not a privilege.
       { key: "myexpenses", label: "Expenses", icon: "receipt", href: "/dashboard/my-expenses", hint: "Claim money you've spent", accent: "#8A2BE2" },
+      /* The note cascade's floor, and the whole reason it may be a
+         destination at all: a note that couldn't be filed against a job or
+         handed to somebody as a task lands here, where its author reads it.
+         Ungated like the rest of Personal — writing yourself a note is the
+         least privileged thing in the app. */
+      { key: "mynotes", label: "Notes", icon: "note", href: "/dashboard/my-notes", hint: "Anything that didn't belong to a job", accent: "#007FA8" },
     ],
   },
   {

@@ -152,6 +152,7 @@ describe("capability gating", () => {
       "mytimesheet",
       "myvehicle",
       "myexpenses",
+      "mynotes",
     ]);
     expect(groups.every((g) => g.items.length > 0)).toBe(true);
 
@@ -181,7 +182,7 @@ describe("capability gating", () => {
   it("Personal is ungated — every viewer keeps their own timesheet, vehicle and expenses", () => {
     for (const role of ["staff", "admin", "owner"] as const) {
       expect(navGroupsFor(viewer(role)).find((g) => g.label === "Personal")?.items.map((i) => i.key))
-        .toEqual(["mytimesheet", "myvehicle", "myexpenses"]);
+        .toEqual(["mytimesheet", "myvehicle", "myexpenses", "mynotes"]);
       // …and leave stays reachable from ⌘K, riding on the timesheet entry
       expect(navFor(viewer(role)).map((n) => n.key)).toContain("myleave");
     }

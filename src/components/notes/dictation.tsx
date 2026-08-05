@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Icon } from "@/components/shell/icon";
 import { startRealtime, type RealtimeHandle } from "@/lib/voice/realtime-stream";
 import { clearRun, markStopped, markTranscript } from "@/lib/voice/timing";
 
@@ -12,6 +11,17 @@ import { clearRun, markStopped, markTranscript } from "@/lib/voice/timing";
    in the app that could hear you, which is backwards — the pill's job is
    ROUTING a note into tasks and flags, and dictation is just how you get
    words in. They're separate concerns and now they're separate code.
+
+   THIS FILE IS THE ENGINE AND NOTHING ELSE. It used to also carry two
+   dressed-up fields (`DictateBox`, `DictateLine`); those are now postures of
+   the one token in ./note-token, because five controls that all did some
+   subset of "hear a person and do something with the words" is what this
+   whole track exists to undo. Nothing in here knows what a note IS.
+
+   It also lives under components/notes/ rather than components/workboard/,
+   which is not tidying: the widget is meant to end up on every screen, and
+   leaving the engine inside one feature's folder is how it stayed one
+   feature's engine for two months.
 
    TWO TRANSPORTS, ONE HOOK. By default this records and transcribes WHEN
    YOU STOP — the shipped behaviour, unchanged. Built with
@@ -340,210 +350,3 @@ export const clockOf = (seconds: number) =>
 export const appendSpoken = (typed: string, spoken: string): string =>
   typed.trim() ? `${typed.trim()} ${spoken}` : spoken;
 
-/* ── the field ──
-   A textarea with a mic in its corner. Dictation APPENDS rather than
-   replaces: you say a bit, type a correction, say the rest — replacing would
-   make the second press silently eat the first.
-
-   On the live transport the words show up in the field as they're said,
-   which is the whole reason it exists — but they are NOT committed to
-   `value` until you stop, because a partial transcript is revisable and the
-   caller's state should only ever hold text the model has finished with. */
-
-export function DictateBox({
-  value,
-  onChange,
-  voiceEnabled,
-  placeholder,
-  rows = 3,
-  disabled = false,
-  label,
-  className,
-}: {
-  value: string;
-  onChange: (next: string) => void;
-  /** ELEVENLABS_API_KEY is set on this deployment — no key, no mic offered. */
-  voiceEnabled: boolean;
-  placeholder?: string;
-  rows?: number;
-  disabled?: boolean;
-  /** What the mic's accessible name says it's dictating INTO. */
-  label: string;
-  className?: string;
-}) {
-  const [err, setErr] = useState<string | null>(null);
-  const dict = useDictation({
-    onTranscript: (text) => {
-      setErr(null);
-      onChange(appendSpoken(value, text));
-    },
-    onError: setErr,
-  });
-
-  return (
-    <div className={"wb2-dict" + (className ? ` ${className}` : "")}>
-      <textarea
-        className="wb2-notes"
-        rows={rows}
-        placeholder={dict.recording ? "Listening…" : placeholder}
-        value={dict.interim ? appendSpoken(value, dict.interim) : value}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled || dict.recording || dict.transcribing}
-      />
-      {voiceEnabled && (
-        <div className="wb2-dictbar">
-          {dict.recording ? (
-            <>
-              <button
-                type="button"
-                className="wb2-dictmic on"
-                onClick={dict.stop}
-                title="Stop and read it back"
-                aria-label={`Stop dictating — ${label}`}
-              >
-                <Icon name="square" size={13} />
-              </button>
-              <LevelBars innerRef={dict.barsRef} />
-              <span className="wb2-capclock">{clockOf(dict.seconds)}</span>
-              <button
-                type="button"
-                className="wb2-dictx"
-                onClick={dict.cancel}
-                title="Throw it away"
-                aria-label={`Discard the recording — ${label}`}
-              >
-                <Icon name="x" size={12} />
-              </button>
-            </>
-          ) : dict.transcribing ? (
-            <span className="wb2-dicthint">Reading it back…</span>
-          ) : (
-            <button
-              type="button"
-              className="wb2-dictmic"
-              onClick={dict.start}
-              disabled={disabled}
-              title="Say it instead"
-              aria-label={`Dictate — ${label}`}
-            >
-              <Icon name="mic" size={13} />
-              Say it
-            </button>
-          )}
-        </div>
-      )}
-      {err && <p className="wb2-dicterr">{err}</p>}
-    </div>
-  );
-}
-
-/* ── the one-liner ──
-   Same engine, same mic, one line instead of a paragraph — for lists you add
-   to an item at a time rather than boxes you write prose into. Enter commits,
-   and dictation lands in the field rather than committing itself — you get to
-   read what it heard before it becomes a bullet.
-
-   The mic rides ON THE ROW (Isaac, 2026-08-04: "put the microphone onto the
-   same line as the text"). Under the field it read as a second control for a
-   second purpose; beside it, saying a note and typing one are plainly the two
-   ways to fill the same box. Recording takes the row over — stop, live level,
-   clock, discard — because while it's listening there is nothing to add. */
-
-export function DictateLine({
-  value,
-  onChange,
-  onCommit,
-  voiceEnabled,
-  placeholder,
-  disabled = false,
-  label,
-}: {
-  value: string;
-  onChange: (next: string) => void;
-  /** Enter, or the tick. Called with the trimmed line; never with "". */
-  onCommit: () => void;
-  voiceEnabled: boolean;
-  placeholder?: string;
-  disabled?: boolean;
-  label: string;
-}) {
-  const [err, setErr] = useState<string | null>(null);
-  const dict = useDictation({
-    onTranscript: (text) => {
-      setErr(null);
-      onChange(appendSpoken(value, text));
-    },
-    onError: setErr,
-  });
-
-  return (
-    <div className="wb2-dictline">
-      <div className="wb2-addrow">
-        <input
-          className="wb2-fi"
-          placeholder={dict.recording ? "Listening…" : placeholder}
-          value={dict.interim ? appendSpoken(value, dict.interim) : value}
-          disabled={disabled || dict.recording || dict.transcribing}
-          aria-label={label}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key !== "Enter") return;
-            e.preventDefault();
-            onCommit();
-          }}
-        />
-        {voiceEnabled && dict.recording ? (
-          <>
-            <LevelBars innerRef={dict.barsRef} />
-            <span className="wb2-capclock">{clockOf(dict.seconds)}</span>
-            <button
-              type="button"
-              className="wb2-micgo on"
-              onClick={dict.stop}
-              title="Stop and read it back"
-              aria-label={`Stop dictating — ${label}`}
-            >
-              <Icon name="square" size={12} />
-            </button>
-            <button
-              type="button"
-              className="wb2-dictx"
-              onClick={dict.cancel}
-              title="Throw it away"
-              aria-label={`Discard the recording — ${label}`}
-            >
-              <Icon name="x" size={12} />
-            </button>
-          </>
-        ) : (
-          <>
-            {voiceEnabled && (
-              <button
-                type="button"
-                className="wb2-micgo"
-                onClick={dict.start}
-                disabled={disabled || dict.transcribing}
-                title="Say it instead"
-                aria-label={`Dictate — ${label}`}
-              >
-                <Icon name="mic" size={14} />
-              </button>
-            )}
-            <button
-              type="button"
-              className="wb2-addgo"
-              disabled={disabled || dict.transcribing || value.trim() === ""}
-              title="Add it"
-              aria-label={`Add — ${label}`}
-              onClick={onCommit}
-            >
-              <Icon name="plus" size={14} />
-            </button>
-          </>
-        )}
-      </div>
-      {dict.transcribing && <p className="wb2-dicthint">Reading it back…</p>}
-      {err && <p className="wb2-dicterr">{err}</p>}
-    </div>
-  );
-}

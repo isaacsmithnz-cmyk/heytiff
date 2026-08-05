@@ -4,8 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
-import { DictateBox } from "../dictation";
-import { useNoteBrain } from "../note-brain-context";
+import { NoteToken } from "@/components/notes/note-token";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { isWeekendISO, rollToBusinessDay } from "@/lib/workboard/board-status";
 import { searchJobs } from "@/app/actions/workboard";
@@ -58,7 +57,6 @@ export function NewAgreementModal({
   onClose: () => void;
 }) {
   const router = useRouter();
-  const { voiceEnabled } = useNoteBrain();
   const [busy, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
   const [source, setSource] = useState<"manual" | "sm8">("manual");
@@ -355,7 +353,7 @@ export function NewAgreementModal({
             </label>
             <label className="wb2-fl wide">
               Access notes
-              <DictateBox label="access notes" value={accessNotes} onChange={setAccessNotes} voiceEnabled={voiceEnabled} rows={2} />
+              <NoteToken as="field" label="access notes" value={accessNotes} onChange={setAccessNotes} rows={2} />
             </label>
           </div>
 

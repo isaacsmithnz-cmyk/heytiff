@@ -35,6 +35,23 @@ import Anthropic from "@anthropic-ai/sdk";
 const MODEL = "claude-opus-5";
 const MAX_TOKENS = 16_000;
 
+/* MEASURED, NOT ASSUMED. At `high` — the API default, and what this shipped
+   with — routing took 6.0–9.0 s on production while the transcript it works
+   from took 0.86 s. Nine seconds to sort two sentences into a task and a
+   flag is most of a ten-second wait, and Isaac has now reported it twice.
+
+   `medium` because Anthropic's own guidance for this model is to start at
+   `high` and SWEEP DOWN: low and medium are unusually strong on Opus 5,
+   giving strong quality "at a fraction of the tokens and latency". This is
+   the second rung, not the bottom.
+
+   The file's original argument still stands and is why this isn't `low`:
+   the routing decision IS the product, and a mis-assigned "tell Luke" costs
+   more trust than the tokens save. What changed is that `high` stopped
+   being free. Watch the review card — if assignees or dates start coming
+   back wrong, this is the line to move back. */
+const DEFAULT_EFFORT = "medium" as const;
+
 /* ── what a proposal is ───────────────────────────────────────────────── */
 
 export const SEVERITIES = ["info", "warn", "urgent"] as const;
@@ -411,10 +428,9 @@ export async function readNote(
     const response = await client.messages.create({
       model: MODEL,
       max_tokens: MAX_TOKENS,
-      // The default; stated because it is a real cost/quality lever here and
-      // a future reader should see it was chosen, not inherited.
+      // A real cost/quality/LATENCY lever here — see DEFAULT_EFFORT.
       output_config: {
-        effort: "high",
+        effort: DEFAULT_EFFORT,
         format: { type: "json_schema", schema: NOTE_SCHEMA },
       },
       system: systemPrompt(ctx),

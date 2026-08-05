@@ -3565,8 +3565,21 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
    The centring translate has to be carried through every frame instead. */
 @keyframes wb2ModalIn { from { opacity:0; transform:translate(-50%,calc(-50% + 8px)); }
                         to   { opacity:1; transform:translate(-50%,-50%); } }
+/* `wb2DropIn` CARRIES THE CAPTURE CARD'S CENTRING. `.wb2-capcard` is
+   `position:fixed; left:50%`, so the -50% translate in both keyframes is
+   what holds it centred — drop it and the card sits half a width to the
+   right. That makes this animation UNSAFE for anything not centred that
+   way, because `both` fill mode holds the final frame forever: a
+   normal-flow element borrowing it is parked half its own width to the
+   LEFT, permanently. The job picker did exactly that and rendered off the
+   side of the card with the client name — the one column that tells two
+   jobs apart — clipped out of view. Anything that isn't `left:50%` wants
+   `wb2PickIn` below. */
 @keyframes wb2DropIn  { from { opacity:0; transform:translate(-50%,8px); }
                         to   { opacity:1; transform:translateX(-50%); } }
+/** The same drop, for elements that sit where they already are. */
+@keyframes wb2PickIn  { from { opacity:0; transform:translateY(-6px); }
+                        to   { opacity:1; transform:none; } }
 @keyframes wb2CardOut { from { opacity:1; transform:none; } to { opacity:0; transform:translateY(-6px); } }
 .wb2-swap { animation:wb2CardIn .32s cubic-bezier(.22,1,.36,1) both; }
 
@@ -4457,7 +4470,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .wb2-capchange:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
 .wb2-jobpick { margin-top:8px; border:1px solid var(--wb2-line, rgba(5,5,5,.08)); border-radius:14px;
   background:#fff; overflow:hidden; box-shadow:0 18px 40px -28px rgba(10,12,20,.55);
-  animation:wb2DropIn .22s cubic-bezier(.22,1,.36,1) both; }
+  animation:wb2PickIn .22s cubic-bezier(.22,1,.36,1) both; }
 .wb2-jobsearch { display:flex; align-items:center; gap:9px; padding:9px 11px;
   border-bottom:1px solid var(--wb2-line2, rgba(5,5,5,.06)); color:var(--gray400); }
 .wb2-jobq { flex:1; min-width:0; border:0; background:none; font:inherit; font-size:13px; font-weight:600;

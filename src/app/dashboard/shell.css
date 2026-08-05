@@ -1466,6 +1466,12 @@
 .fg .tpr .rhead .eyebrow { display:inline-flex; align-items:center; gap:8px; font-family:var(--font); font-size:11px; font-weight:800; letter-spacing:.2em; text-transform:uppercase; color:var(--teal-d); margin-bottom:14px; }
 .fg .tpr .rhead h1 { font-size:38px; font-weight:800; letter-spacing:-.03em; margin:0; line-height:1; }
 .fg .tpr .wknav { display:flex; align-items:center; gap:12px; margin-top:16px; }
+/* THE CARD THE TABS SIT ON — the board's surface, doing the board's job. The
+   week leads it because the tabs above already said which view you're in, so
+   the first question left is which period. It's the first thing in the card,
+   so it drops the top margin it needs when it follows a title. */
+.fg .tp-card { padding:20px 24px 24px; }
+.fg .tp-card > .wknav:first-child { margin-top:0; }
 .fg .tpr .wknav .arw { width:42px; height:42px; border-radius:13px; display:flex; align-items:center; justify-content:center; color:var(--gray500); background:#fff; border:1px solid rgba(0,0,0,.07); box-shadow:0 1px 2px rgba(0,0,0,.03); transition:all .2s; }
 .fg .tpr .wknav .arw:hover { color:var(--ink); border-color:rgba(34,197,94,.5); transform:translateY(-1px); }
 .fg .tpr .wknav .range { font-size:20px; font-weight:800; letter-spacing:-.02em; white-space:nowrap; }
@@ -1498,14 +1504,24 @@
 @keyframes tprSpin { to { transform:rotate(360deg); } }
 
 /* ---------- stat strip (compact) ---------- */
-.fg .tpr .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
-.fg .tpr .stat { position:relative; display:flex; align-items:center; gap:14px; background:#fff; border:1px solid rgba(10,12,20,.06); border-radius:16px; padding:15px 18px; box-shadow:0 1px 2px rgba(10,12,20,.04), 0 12px 28px -20px rgba(10,12,20,.2); overflow:hidden; }
+.fg .tpr .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin:18px 0 20px; }
+/* A BLOCK IN A CARD, not a card on a page. These were white tiles lifted off
+   the grey page by a drop shadow — the right treatment until the screen moved
+   onto the board's white card, where a white tile on white is only its own
+   1px border and the lift has nothing to lift off. So they take the tint the
+   board gives every inner block (.wb2-ci, .wb2-dnnote) and drop the shadow:
+   read as recessed INTO the surface rather than floating above it.
+
+   `.review` keeps its red edge and is now the only tile with one, which is
+   the point of it — on the old treatment every tile had a border to compete
+   with, and the one that meant "look at this" had to shout over three. */
+.fg .tpr .stat { position:relative; display:flex; align-items:center; gap:14px; background:rgba(5,5,5,.03); border:1px solid rgba(10,12,20,.05); border-radius:16px; padding:15px 18px; overflow:hidden; }
 .fg .tpr .stat .si { position:static; width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
 .fg .tpr .stat .sv { font-family:var(--font); font-size:26px; font-weight:700; letter-spacing:-.03em; line-height:1; margin:0; }
 .fg .tpr .stat .stk { min-width:0; }
 .fg .tpr .stat .sl { font-size:11px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; margin-top:5px; }
 .fg .tpr .stat .ss { display:none; }
-.fg .tpr .stat.review { border-color:rgba(255,51,102,.26); }
+.fg .tpr .stat.review { background:rgba(255,51,102,.045); border-color:rgba(255,51,102,.26); }
 .fg .tpr .stat .sv { color:var(--ink); } .fg .tpr .stat .sl { color:var(--gray500); }
 .fg .tpr .stat.review .si { background:var(--red); color:#fff; } .fg .tpr .stat.review .sv { color:var(--red-d); }
 .fg .tpr .stat.normal .si { background:var(--teal); color:#053b34; }
@@ -2228,9 +2244,10 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .wz-anchor .fl-i, .fg .wz-anchor .datef { max-width:220px; }
 
 /* ---- Time & Pay: leave (stage 5b) ---- */
-/* the Timesheet/Leave switcher, inheriting .seg — only its place on the page
-   is local, which is all a screen should ever say about a shared control */
-.fg .mytime-segsw { margin:2px 0 20px; }
+/* MY time's Timesheet / Leave bar. It was the team screen's too until that
+   screen moved onto the board's card-and-tabs surface (`.wb2-vtabs`), so this
+   now has one user — if the personal screens follow onto the card, this whole
+   block goes with them rather than lingering as the last pill group. */
 .fg .tp-tabs { display:inline-flex; gap:4px; padding:4px; border-radius:13px; background:#f2f4f7; margin:2px 0 20px; }
 .fg .tp-tab { display:inline-flex; align-items:center; gap:7px; height:36px; padding:0 16px; border-radius:10px; font-size:13.5px; font-weight:700; color:var(--gray500); transition:all .16s; }
 .fg .tp-tab:hover { color:var(--ink); }
@@ -3350,53 +3367,15 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
   .wb2-segb { flex:1; justify-content:center; }
 }
 
-/* switcher — one thumb that SLIDES between the tabs, the studio idiom
-   (.ds-steps). A background that hops reads as two buttons; a thumb that
-   travels reads as one control with two positions.
+/* `.segsw` — the sliding-thumb switcher — lived here and had exactly one user,
+   My time's Timesheet/Leave nav, which now wears `.tp-tabs` like the team
+   screen it belongs to. Deleted rather than left for later: dead CSS in this
+   file has already shadowed a live component at equal specificity once.
 
-   This is the shell's shared segmented control, not one screen's: the
-   Workboard's board switcher and My time's Timesheet/Leave switcher are the
-   same object and must not drift apart. The lineage is .cyc (the pay-cycle
-   toggle, which hops) → .ds-steps (which added the thumb) → here.
-
-   `--segsw-n` is the tab count. The thumb is sized off the track rather than
-   its label, so it stays exact at any width: n equal tabs share
-   (100% − 2×4px padding − (n−1)×3px gap). Set --segsw-n or a 3-tab switcher
-   silently renders a half-width thumb. */
-/* Grid, not flex, and the thumb is the reason. The thumb is sized track/n, so
-   the tabs have to BE track/n — and flex can't do that here: `flex:1` only
-   shares out free space, and a fit-content track has none, so tabs keep their
-   own label widths. `grid-auto-columns:1fr` under fit-content resolves every
-   column to the widest label instead, which is the geometry the thumb assumes. */
-.segsw { --segsw-n:2; position:relative; flex:0 0 auto; display:grid; grid-auto-flow:column; grid-auto-columns:1fr; gap:3px; background:#e4e6ec; border:1px solid rgba(10,12,20,.05); border-radius:15px; padding:4px; width:fit-content; }
-.segsw-thumb { position:absolute; top:4px; bottom:4px; left:4px; width:calc((100% - 8px - (var(--segsw-n) - 1) * 3px) / var(--segsw-n)); border-radius:11px; background:#fff; box-shadow:0 3px 8px -3px rgba(10,12,20,.28); transition:transform .42s cubic-bezier(.4,0,.2,1), opacity .2s ease; }
-.segsw[data-active="1"] .segsw-thumb { transform:translateX(calc(100% + 3px)); }
-.segsw[data-active="2"] .segsw-thumb { transform:translateX(calc(200% + 6px)); }
-/* nothing current — the thumb parks and fades, as it does on studio Plans */
-.segsw[data-active="-1"] .segsw-thumb { opacity:0; }
-/* Centred in its equal column — "Timesheet" and "Leave" differ by 28px, and
-   left-aligned labels in equal columns would leave the shorter one adrift.
-
-   QUALIFIED BY THE TRACK, and it is load-bearing. A bare `.segsw-b` is
-   specificity (0,1,0) and LOSES to the button reset at the top of this file
-   (`.fg button:where(…)`, (0,1,1)) — so `font:inherit` and `color:inherit`
-   won, and both labels rendered at the browser default 16px/400 instead of
-   12.5px/700, with the inactive one at full --ink rather than grey. The tell
-   was the usual one: `.on` and `:hover` are (0,2,0) and looked right while the
-   base rule looked flat. `.segsw .segsw-b` is (0,2,0) and wins outright.
-
-   Qualified by `.segsw` rather than `.fg`, because this is a shared shell
-   primitive and an `.fg`-scoped rule is ABSENT inside a portal — the track is
-   always the button's parent wherever the control is used, so this selector
-   matches everywhere. (The --gray500/--ink it reads still ride the `.fg` ramp;
-   a portal that uses this control has to restate them, as the wb2 roots do.) */
-.segsw .segsw-b { justify-content:center; white-space:nowrap; position:relative; z-index:1; display:inline-flex; align-items:center; gap:7px; border-radius:11px; padding:8px 16px; font-size:12.5px; font-weight:700; color:var(--gray500); cursor:pointer; background:none; border:0; font-family:inherit;
-  /* the thumb carries the movement; the label's colour snaps, because
-     crossfading it passes through a mid-grey unreadable against the pill */
-  transition:none; }
-.segsw .segsw-b:hover { color:var(--ink); }
-.segsw .segsw-b.on { color:var(--ink); }
-@media (prefers-reduced-motion:reduce) { .segsw-thumb { transition:none; } }
+   Its comment claimed it was shared with the Workboard's board switcher. It
+   never was — that is `.wb2-seg`, a separate implementation with a coloured
+   thumb. If a shared segmented control is ever actually wanted, build it from
+   `.wb2-seg` (the one with two real users) rather than reviving this. */
 
 /* the three numbers — and they FILTER, because a number you can't act on is
    decoration. Pressed state is the ring, not a colour swap, so the tone keeps

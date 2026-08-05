@@ -1,6 +1,4 @@
-"use client";
-
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
 
 /* The two faces of your own time: the hours you worked and the days you asked
@@ -8,14 +6,15 @@ import { Icon } from "@/components/shell/icon";
    `requestLeave` revalidates both, the dashboard chips deep-link to either, and
    the timesheet still pushes `?period=` to itself.
 
-   Built on the shell's `.segsw`, the same sliding-thumb switcher the Workboard
-   uses and the Design Studio's Design/Summary stepper started. It replaced a
-   `.tp-tabs` pill group, which hopped a white background between two buttons
-   and read as two controls rather than one with two positions.
+   THE SAME CONTROL THE TEAM SCREEN USES (`.tp-tabs`, see timepay-nav.tsx),
+   minus the Expenses tab you don't have on your own time. It was briefly a
+   `.segsw` sliding-thumb switcher instead, which made your own time the only
+   place in the app wearing that particular control — one switcher on one
+   screen is not a design system, it is an exception to explain. Two tab bars
+   that behave identically are worth more than a nicer one nobody else has.
 
-   Buttons + router.push rather than <Link>: the thumb animates from whichever
-   position it is in, and a full navigation would remount it at the new one
-   with nothing to travel from. The routes stay real URLs either way. */
+   Plain <Link>s now: without a thumb to animate from, there is nothing the
+   router.push dance was buying, and a real link is a real link. */
 
 type Tab = "timesheet" | "leave";
 
@@ -25,25 +24,18 @@ const TABS: { key: Tab; href: string; icon: string; label: string }[] = [
 ];
 
 export function MyTimeNav({ active }: { active: Tab }) {
-  const router = useRouter();
   return (
-    <nav
-      className="segsw mytime-segsw"
-      aria-label="My time"
-      data-active={TABS.findIndex((t) => t.key === active)}
-    >
-      <span className="segsw-thumb" aria-hidden="true" />
+    <nav className="tp-tabs" aria-label="My time">
       {TABS.map((t) => (
-        <button
+        <Link
           key={t.key}
-          type="button"
-          className={`segsw-b${active === t.key ? " on" : ""}`}
+          href={t.href}
+          className={`tp-tab${active === t.key ? " on" : ""}`}
           aria-current={active === t.key ? "page" : undefined}
-          onClick={() => router.push(t.href)}
         >
           <Icon name={t.icon} size={15} />
           {t.label}
-        </button>
+        </Link>
       ))}
     </nav>
   );

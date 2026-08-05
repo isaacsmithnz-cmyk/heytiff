@@ -218,7 +218,8 @@ export function TeamLeave({
   return (
     <div className="page in">
       <div className="wrap">
-        <div className="stg">
+        {/* `wb2` for the board tokens the card's border reads — see timepay.tsx */}
+        <div className="stg wb2">
           <div className="rhead">
             <div>
               <h1>Time &amp; Pay</h1>
@@ -226,9 +227,10 @@ export function TeamLeave({
           </div>
           <TimepayNav active="leave" />
 
-          {error && <div className="tp-err">{error}</div>}
+          <div className="wb2-card tp-card">
+            {error && <div className="tp-err">{error}</div>}
 
-          <div className="lv-cols">
+            <div className="lv-cols">
             <div className="lv-col">
               <div className="lv-ch">
                 Pending requests{pending.length ? ` · ${pending.length}` : ""}
@@ -321,6 +323,7 @@ export function TeamLeave({
                   </p>
                 </>
               )}
+              </div>
             </div>
           </div>
         </div>

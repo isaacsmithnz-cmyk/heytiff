@@ -433,11 +433,31 @@ export function TimePay({
   return (
     <div className="page in">
       <div className="wrap">
-        <div className={`stg tpr${period.live ? "" : " locked"}`}>
+        {/* `wb2` for the board's tokens — the card's line colours are declared
+            there, and a `.wb2-card` outside that root draws no border at all. */}
+        <div className={`stg tpr wb2${period.live ? "" : " locked"}`}>
           <div className="rhead">
             <div>
               <h1>Time &amp; Pay</h1>
-              <div className="wknav">
+            </div>
+            <div className="racts">
+              {(financials || canHolidays) && (
+                <button className="bbtn sq" aria-label="Settings" onClick={() => setSettingsOpen(true)}>
+                  <Icon name="settings" size={17} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* WHICH SCREEN, then WHICH WEEK. The tabs used to sit under the whole
+              header, which put the week — a control that only means anything on
+              this tab — above the thing that chooses the tab. Now the tabs sit
+              on the card that holds the screen, and the week is the first thing
+              inside it: you pick the view, then the period within it. */}
+          <TimepayNav active="sheets" />
+
+          <div className="wb2-card tp-card">
+            <div className="wknav">
                 <button
                   className="arw"
                   aria-label="Previous period"
@@ -465,18 +485,8 @@ export function TimePay({
                   <span className="pstatus hist">Historical</span>
                 )}
               </div>
-              <div className="autosub">{note}</div>
-            </div>
-            <div className="racts">
-              {(financials || canHolidays) && (
-                <button className="bbtn sq" aria-label="Settings" onClick={() => setSettingsOpen(true)}>
-                  <Icon name="settings" size={17} />
-                </button>
-              )}
-            </div>
-          </div>
-          <TimepayNav active="sheets" />
-          {error && <div className="tp-err">{error}</div>}
+            <div className="autosub">{note}</div>
+            {error && <div className="tp-err">{error}</div>}
 
           <div className="stats">
             <div className="stat review">
@@ -587,12 +597,13 @@ export function TimePay({
           {/* Advisory, not an error: Xero changed and nobody has looked yet.
               The fix is two taps away in the gear, so the line points there
               rather than trying to be actionable itself. */}
-          {wageDrift && (
-            <div className="tp-drift">
-              <Icon name="info" size={15} />
-              <span>{wageDrift} Open settings → Xero payroll to compare.</span>
-            </div>
-          )}
+            {wageDrift && (
+              <div className="tp-drift">
+                <Icon name="info" size={15} />
+                <span>{wageDrift} Open settings → Xero payroll to compare.</span>
+              </div>
+            )}
+          </div>
 
           {settingsOpen && (
             <TimePaySettings

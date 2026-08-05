@@ -87,19 +87,23 @@ export function TeamExpenses({
   return (
     <div className="page in">
       <div className="wrap">
-        <div className="stg" style={{ maxWidth: 900 }}>
-          <div className="v2head" style={{ marginBottom: 24, alignItems: "center" }}>
+        {/* `wb2` for the board tokens the card's border reads — see timepay.tsx */}
+        <div className="stg wb2" style={{ maxWidth: 900 }}>
+          <div className="v2head" style={{ marginBottom: 14, alignItems: "center" }}>
             <div>
               <h1 style={{ fontSize: 44, fontWeight: 800, letterSpacing: "-0.03em", margin: 0 }}>
                 Expenses
               </h1>
             </div>
-            <TimepayNav active="expenses" />
           </div>
+          {/* out of the title row and onto its own: these tabs are the card's
+              dividers now, so they have to touch the card, not the heading */}
+          <TimepayNav active="expenses" />
 
-          {error && <div className="xc-err">{error}</div>}
+          <div className="wb2-card tp-card">
+            {error && <div className="xc-err">{error}</div>}
 
-          <div className="xr-sum">
+            <div className="xr-sum">
             <div>
               <span className="xr-k">Waiting on a decision</span>
               <b>{waiting.length}</b>
@@ -227,7 +231,8 @@ export function TeamExpenses({
               Mark paid records the decision here — paying the money and entering it in Xero stays
               manual for now.
             </p>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>

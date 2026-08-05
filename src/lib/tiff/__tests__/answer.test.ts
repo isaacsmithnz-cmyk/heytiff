@@ -41,6 +41,21 @@ describe("the three instructions", () => {
     expect(prompt).toMatch(/no\s+bold\s+or\s+italic/i);
   });
 
+  /* Structure is not thoroughness. The formatting rules below hand the model
+     four ways to lay an answer out, and without this they read as an
+     invitation to use all of them. */
+  it.each([
+    ["general", general],
+    ["research", research],
+    ["miss", miss],
+  ])("%s asks for brevity before it offers any structure", (_label, prompt) => {
+    expect(prompt).toMatch(/BE SHORT/);
+    expect(prompt).toMatch(/one or two sentences/i);
+    expect(prompt).toMatch(/do not restate the question/i);
+    // and it says so BEFORE handing over the four layouts, or the last word wins
+    expect(prompt.indexOf("BE SHORT")).toBeLessThan(prompt.indexOf("FORMATTING"));
+  });
+
   it.each([
     ["general", general],
     ["research", research],

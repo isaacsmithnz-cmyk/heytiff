@@ -29,6 +29,16 @@ describe("nav config", () => {
     expect(NAV_ROWS.map((n) => n.key)).not.toContain("myleave");
   });
 
+  it("folds the knowledge base into Tiff AI rather than giving it a rail row", () => {
+    // one feature seen from both ends: the assistant answers out of the
+    // library. The row stays lit on the library, and ⌘K still finds it.
+    const tiff = byKey("tiff");
+    expect(tiff.subItems?.map((s) => s.href)).toEqual(["/dashboard/tiff/knowledge"]);
+    expect(NAV_ROWS.map((n) => n.key)).not.toContain("tiffkb");
+    expect(NAV.map((n) => n.key)).toContain("tiffkb");
+    expect(isActive(tiff, "/dashboard/tiff/knowledge")).toBe(true);
+  });
+
   it("gives no tabbed face a capability of its own", () => {
     // A face is offered exactly when its parent is — anything needing its own
     // gate is an entry, not a face. The type forbids it; this says why.
@@ -119,7 +129,13 @@ describe("capability gating", () => {
   });
 
   it("leaves genuinely ungated entries alone for everyone", () => {
-    const ungated = NAV.filter((n) => !n.capability && !n.minRole).map((n) => n.key);
+    /* Faces are read off their PARENT, not off themselves: a face never
+       carries a capability (pinned above), so counting NAV directly would
+       call the knowledge base ungated when Tiff AI gates it. */
+    const ungated = NAV_ROWS.filter((n) => !n.capability && !n.minRole).flatMap((n) => [
+      n.key,
+      ...(n.subItems ?? []).map((s) => s.key),
+    ]);
     // your own vehicle is intrinsic, like your own timesheet will be
     expect(ungated).toEqual(expect.arrayContaining(["home", "myvehicle"]));
     for (const role of ["staff", "admin", "owner", null] as const) {

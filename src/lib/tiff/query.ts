@@ -5,6 +5,7 @@
 
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { SIGNED_URL_SECONDS } from "@/lib/documents/query";
+import { displayNameOf } from "@/lib/staff/name";
 import { asKbCategory, KB_BUCKET, KB_CATEGORIES, type KbCategory } from "./files";
 import { auMonthStart } from "./quota";
 
@@ -89,6 +90,25 @@ export async function kbCategoryCounts(orgId: string): Promise<Record<KbCategory
     if (cat) counts[cat] += 1;
   }
   return counts;
+}
+
+/* Who put each document there, by staff-profile id. A separate read rather
+   than a join: `uploaded_by` is nullable (a row can outlive the person's
+   profile) and the library shows a name as a nicety, so it must never be the
+   thing that makes the page fail to load. Names only — this is the same
+   minimum-identity shape listFleetStaff uses. */
+export async function kbUploaderNames(orgId: string): Promise<Record<string, string>> {
+  const { data } = await supabaseAdmin
+    .from("staff_profiles")
+    .select("id, first_name, last_name, full_name, preferred_name")
+    .eq("org_id", orgId);
+
+  const names: Record<string, string> = {};
+  for (const r of (data ?? []) as unknown as Record<string, unknown>[]) {
+    const name = displayNameOf(r, "");
+    if (name) names[String(r.id)] = name;
+  }
+  return names;
 }
 
 export type KbUsageRow = { month: string; pagesProcessed: number; questionsAsked: number };

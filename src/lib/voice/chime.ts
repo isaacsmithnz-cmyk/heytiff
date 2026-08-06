@@ -13,11 +13,17 @@
    recording away gets its own flat, unresolved note.
 
    The intervals are doing the talking:
-     start   D5 → A5, a rising fifth. Open, unfinished, something follows.
-     stop    A5 → D5, the same fifth falling. The phrase closes.
-     discard F#4 alone, low and unresolved. Nothing was completed.
+     start   B4 → F#5, a rising fifth. Open, unfinished, something follows.
+     stop    F#5 → B4, the same fifth falling. The phrase closes.
+     discard E♭4 alone, low and unresolved. Nothing was completed.
 
-   Kept deliberately quiet (peak gain 0.05) and short (~90ms a note). This
+   TRIANGLE, NOT SINE, and a fifth lower than the first version — Isaac
+   sampled both and picked this one. A pure sine in the fifth octave is
+   glassy in a way that reads as an alert; a triangle has just enough
+   harmonic content to sound like an object rather than a test tone, and
+   dropping the register takes the glare off it.
+
+   Kept deliberately quiet (peak gain 0.06) and short (~90ms a note). This
    fires every time anybody presses a microphone anywhere in the app, so the
    bar is "did not notice it was there" rather than "nice sound". */
 
@@ -25,15 +31,20 @@ type Chime = "start" | "stop" | "discard";
 
 /** Hz, in order. One entry is a single note. */
 const SCORE: Record<Chime, number[]> = {
-  start: [587.33, 880.0],
-  stop: [880.0, 587.33],
-  discard: [369.99],
+  start: [493.88, 739.99],
+  stop: [739.99, 493.88],
+  /* Held at the same distance below the pair as before, so it still sits
+     clearly under the phrase rather than sounding like part of it. */
+  discard: [311.13],
 };
+
+/** Softer than a sine at this size — see the note at the top of the file. */
+const WAVE: OscillatorType = "triangle";
 
 const NOTE_SECONDS = 0.09;
 /** Onset-to-onset, so the notes overlap slightly and read as one gesture. */
 const NOTE_GAP = 0.07;
-const PEAK_GAIN = 0.05;
+const PEAK_GAIN = 0.06;
 /** Long enough that the ramp is inaudible, short enough to not soften the
     attack — below about 8ms a sine start is a click. */
 const ATTACK = 0.012;
@@ -76,11 +87,11 @@ export function playChime(kind: Chime): void {
     for (const [i, hz] of SCORE[kind].entries()) {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      osc.type = "sine";
+      osc.type = WAVE;
       osc.frequency.value = hz;
 
       const at = now + i * NOTE_GAP;
-      /* An envelope, not a switch. Gating a sine on and off square is the
+      /* An envelope, not a switch. Gating an oscillator on and off square is the
          click you hear in cheap UI sound. `exponentialRampToValueAtTime`
          cannot reach zero, hence the near-zero floor. */
       gain.gain.setValueAtTime(0.0001, at);

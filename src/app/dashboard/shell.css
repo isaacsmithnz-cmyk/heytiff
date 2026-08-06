@@ -5639,3 +5639,22 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .wb2-kbqhead b { font-size:14.5px; font-weight:800; letter-spacing:-.01em; color:var(--ink); }
 .wb2-kbqbody { margin:0; font-size:13.4px; line-height:1.55; color:var(--gray700); max-width:70ch; }
 .wb2-kbqrow .wb2-noteact { justify-content:flex-start; }
+
+/* ── the answer ──
+   The ask loop streaming into the same sheet every other stage uses. The
+   tool chips are REAL progress — each one is a read that actually happened —
+   which is what earns them the space the sorting skeleton refuses to fake. */
+.wb2-ans { display:grid; gap:11px; }
+.wb2-ansq { margin:0; padding:10px 13px; border-radius:12px; background:#f7f8fa;
+  border:1px solid rgba(5,5,5,.06); font-size:13.2px; font-weight:600; color:var(--gray700); }
+.wb2-anstools { display:flex; flex-wrap:wrap; gap:6px; }
+.wb2-anstool { display:inline-flex; align-items:center; gap:6px; padding:4px 10px;
+  border-radius:999px; border:1px solid rgba(0,127,168,.25); background:rgba(0,127,168,.07);
+  font-size:11.5px; font-weight:700; color:#007fa8; }
+.wb2-anstext { margin:0; font-size:14.5px; line-height:1.65; color:var(--ink);
+  white-space:pre-wrap; overflow-wrap:anywhere; min-height:24px; }
+.wb2-anscursor { display:inline-block; width:2px; height:15px; margin-left:2px;
+  vertical-align:text-bottom; background:var(--wb2-cy, #007fa8);
+  animation:wb2CursorBlink 1s steps(2, start) infinite; }
+@keyframes wb2CursorBlink { to { visibility:hidden; } }
+@media (prefers-reduced-motion:reduce) { .wb2-anscursor { animation:none; } }

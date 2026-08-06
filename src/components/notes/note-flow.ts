@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useDictation } from "./dictation";
+import { askBrain } from "@/lib/brain/ask-client";
+import { looksLikeQuestion } from "@/lib/brain/intent";
 import { clearRun, markProposal } from "@/lib/voice/timing";
 import { matchJob } from "@/lib/workboard/note-match";
 import type { NoteProposal, NoteStaff } from "@/lib/workboard/note-brain";
@@ -26,7 +28,7 @@ import { blockers, toConfirmed, toDraft, targetOf, type Draft } from "./review-c
    carry text from the second to the first. There is nothing posture-specific
    in this file, which is the test of whether the split was real. */
 
-export type Stage = "idle" | "recording" | "transcribing" | "sorting" | "review";
+export type Stage = "idle" | "recording" | "transcribing" | "sorting" | "review" | "answer";
 
 export function useNoteFlow(opts: { debrief?: boolean } = {}) {
   const debrief = opts.debrief === true;
@@ -49,6 +51,16 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
   const [touched, setTouched] = useState(false);
   const [picking, setPicking] = useState(false);
 
+  /* ── the ask path ──
+     Separate state from the note flow on purpose: an answer is not a
+     proposal, and mixing them would let a stray question mutate a review in
+     progress. `askText` grows as the stream does; `askTools` is the honest
+     progress — each entry is a read that actually happened. */
+  const [asking, setAsking] = useState(false);
+  const [askText, setAskText] = useState("");
+  const [askTools, setAskTools] = useState<string[]>([]);
+  const askAbort = useRef<AbortController | null>(null);
+
   const reset = useCallback(() => {
     setNote(null);
     setDraft(null);
@@ -57,7 +69,43 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
     setAttachTo("");
     setTouched(false);
     setPicking(false);
+    askAbort.current?.abort();
+    askAbort.current = null;
+    setAsking(false);
+    setAskText("");
+    setAskTools([]);
   }, []);
+
+  /** Hand a question to the brain and stream the answer into the surface. */
+  const ask = useCallback(
+    (question: string) => {
+      setError(null);
+      setDone(null);
+      setAsking(true);
+      setAskText("");
+      setAskTools([]);
+      const abort = new AbortController();
+      askAbort.current = abort;
+      void askBrain(
+        {
+          question,
+          target: scope.target,
+          targetLabel: scope.targetLabel,
+          signal: abort.signal,
+        },
+        {
+          onDelta: (t) => setAskText((s) => s + t),
+          onTool: (label) => setAskTools((ts) => (ts.includes(label) ? ts : [...ts, label])),
+          onError: (message) => {
+            setError(message);
+            setAsking(false);
+          },
+          onDone: () => setAsking(false),
+        }
+      );
+    },
+    [scope.target, scope.targetLabel]
+  );
 
   /** Hand words to the router. The note row is written before the model runs
       and kept whatever it says — the words someone spoke are the valuable
@@ -84,11 +132,24 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
     [scope.target, router, debrief]
   );
 
-  const dict = useDictation({
-    onTranscript: (transcript) => {
-      setText(transcript);
-      read("voice", transcript);
+  /* WHERE A SUBMIT DECIDES WHAT IT IS. One branch, used by both the typed
+     submit and the voice transcript, so the two ways in can never disagree
+     about what a question looks like. A debrief never asks — it is capture
+     by definition, and "what's left at Meridian" inside a braindump is a
+     note line, not a conversation. The bias in `looksLikeQuestion` runs
+     hard toward note, because a note eaten by the answer path saves
+     nothing, while a question on the review card is one Discard away. */
+  const submit = useCallback(
+    (source: "text" | "voice", words: string) => {
+      setText(words);
+      if (!debrief && looksLikeQuestion(words)) ask(words);
+      else read(source, words);
     },
+    [debrief, ask, read]
+  );
+
+  const dict = useDictation({
+    onTranscript: (transcript) => submit("voice", transcript),
     onError: setError,
   });
 
@@ -102,11 +163,13 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
     ? "recording"
     : dict.transcribing
       ? "transcribing"
-      : note
-        ? "review"
-        : sorting
-          ? "sorting"
-          : "idle";
+      : asking || askText
+        ? "answer"
+        : note
+          ? "review"
+          : sorting
+            ? "sorting"
+            : "idle";
 
   const close = useCallback(() => {
     dict.cancel();
@@ -256,6 +319,19 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
       setPicking(false);
     },
     read,
+    submit,
+    ask,
+    asking,
+    askText,
+    askTools,
+    /** Wipe the answer and go again — "Ask another" without closing. */
+    askAgain: () => {
+      askAbort.current?.abort();
+      setAsking(false);
+      setAskText("");
+      setAskTools([]);
+      setText("");
+    },
     confirm,
     keepOnJob,
     keepForMe,

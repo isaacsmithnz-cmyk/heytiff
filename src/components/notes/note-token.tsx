@@ -89,8 +89,10 @@ function Ribbon({ flow }: { flow: NoteFlow }) {
     <div className="wb2-capribbon">
       {stage === "recording" ? (
         <span className="wb2-recdot" aria-hidden="true" />
-      ) : stage === "sorting" || stage === "transcribing" ? (
+      ) : stage === "sorting" || stage === "transcribing" || (stage === "answer" && flow.asking) ? (
         <span className="wb2-spin" aria-hidden="true" />
+      ) : stage === "answer" ? (
+        <Icon name="sparkles" size={16} />
       ) : (
         <Icon name="note" size={16} />
       )}
@@ -99,13 +101,17 @@ function Ribbon({ flow }: { flow: NoteFlow }) {
           ? "Recording"
           : stage === "transcribing"
             ? "Reading it back"
-            : stage === "review"
-              ? "Check it before it saves"
-              : stage === "sorting"
-                ? "Sorting it out"
-                : flow.debrief
-                  ? "Debrief"
-                  : "Add a note"}
+            : stage === "answer"
+              ? flow.asking
+                ? "Looking it up"
+                : "Answer"
+              : stage === "review"
+                ? "Check it before it saves"
+                : stage === "sorting"
+                  ? "Sorting it out"
+                  : flow.debrief
+                    ? "Debrief"
+                    : "Add a note"}
       </b>
       {flow.debrief ? (
         <span className="wb2-chip">Tasks, knowledge &amp; your notes</span>
@@ -186,6 +192,39 @@ function Body({ flow }: { flow: NoteFlow }) {
 
   if (stage === "transcribing") return <p className="wb2-hint">Reading it back…</p>;
 
+  if (stage === "answer") {
+    return (
+      <div className="wb2-ans">
+        {/* The question, echoed — by the time an answer streams, the box it
+            was typed into is gone, and an answer with no visible question
+            reads like the widget talking to itself. */}
+        <p className="wb2-ansq">{flow.text}</p>
+        {flow.askTools.length > 0 && (
+          <div className="wb2-anstools">
+            {flow.askTools.map((label) => (
+              <span className="wb2-anstool" key={label}>
+                <Icon name="search" size={11} />
+                {label}
+              </span>
+            ))}
+          </div>
+        )}
+        <p className="wb2-anstext" aria-live="polite">
+          {flow.askText}
+          {flow.asking && <span className="wb2-anscursor" aria-hidden="true" />}
+        </p>
+        <div className="wb2-capact">
+          <button className="pbtn ghost" onClick={flow.askAgain} disabled={flow.asking}>
+            Ask another
+          </button>
+          <button className="pbtn" onClick={flow.close}>
+            Done
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (stage === "idle") {
     return (
       <>
@@ -198,7 +237,7 @@ function Body({ flow }: { flow: NoteFlow }) {
           placeholder={
             flow.debrief
               ? "Everything on your mind, in any order — jobs, people, things to chase, things you learned. It gets sorted; nothing is lost."
-              : "Tell Luke he needs to order the grilles, and the middle rooftop unit tripped again…"
+              : "Tell Luke he needs to order the grilles… or ask: what's outstanding here?"
           }
           disabled={flow.busy}
         />
@@ -215,7 +254,7 @@ function Body({ flow }: { flow: NoteFlow }) {
           <button
             className="pbtn"
             aria-label="Sort this out"
-            onClick={() => flow.read("text", flow.text)}
+            onClick={() => flow.submit("text", flow.text)}
             disabled={flow.busy || !flow.text.trim()}
           >
             {flow.busy ? "Reading…" : "Sort this out"}

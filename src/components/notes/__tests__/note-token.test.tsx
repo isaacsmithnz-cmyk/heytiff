@@ -24,6 +24,22 @@ import type { NoteProposal } from "@/lib/workboard/note-brain";
 
 jest.mock("next/navigation", () => ({ useRouter: () => ({ refresh: jest.fn() }) }));
 
+type AskHandlers = {
+  onDelta: (t: string) => void;
+  onTool: (l: string) => void;
+  onError: (m: string) => void;
+  onDone: () => void;
+};
+const askBrain = jest.fn(async (_input: unknown, h: AskHandlers) => {
+  h.onTool("Reading the job's history");
+  h.onDelta("Two open tasks, ");
+  h.onDelta("oldest from Monday.");
+  h.onDone();
+});
+jest.mock("@/lib/brain/ask-client", () => ({
+  askBrain: (i: unknown, h: AskHandlers) => askBrain(i, h),
+}));
+
 const routeNote = jest.fn();
 const applyNote = jest.fn();
 const dismissNote = jest.fn();
@@ -443,5 +459,72 @@ describe("the LEARN lane on the review card", () => {
     await userEvent.click(screen.getByRole("button", { name: "Don't publish Clearing an E6" }));
     expect(screen.getByRole("button", { name: "Save these" })).toBeDisabled();
     expect(applyNote).not.toHaveBeenCalled();
+  });
+});
+
+describe("ask-mode — the same token answers questions", () => {
+  it("a question streams an answer and never routes a note", async () => {
+    mount(<NoteToken as="capsule" label="a note" />, {
+      target: { kind: "visit", id: "v-1" },
+      targetLabel: "Meridian Data",
+    });
+    await userEvent.click(screen.getByLabelText("Type a note"));
+    await userEvent.type(screen.getByRole("textbox"), "what's outstanding here");
+    await userEvent.click(screen.getByRole("button", { name: "Sort this out" }));
+
+    expect(await screen.findByText("Two open tasks, oldest from Monday.")).toBeInTheDocument();
+    /* The honest progress: the chip names a read that actually happened. */
+    expect(screen.getByText("Reading the job's history")).toBeInTheDocument();
+    /* The question stays visible above its answer. */
+    expect(screen.getByText("what's outstanding here")).toBeInTheDocument();
+    expect(routeNote).not.toHaveBeenCalled();
+    /* And the loop was aimed at the job the token was standing on. */
+    expect(askBrain.mock.calls[0][0]).toMatchObject({
+      target: { kind: "visit", id: "v-1" },
+      targetLabel: "Meridian Data",
+    });
+  });
+
+  it("a note is still a note — no question, no ask", async () => {
+    mount(<NoteToken as="capsule" label="a note" />, { target: { kind: "visit", id: "v-1" } });
+    await userEvent.click(screen.getByLabelText("Type a note"));
+    await userEvent.type(screen.getByRole("textbox"), "the middle unit tripped again");
+    await userEvent.click(screen.getByRole("button", { name: "Sort this out" }));
+    await screen.findByText("Check it before it saves");
+    expect(askBrain).not.toHaveBeenCalled();
+  });
+
+  it("a debrief NEVER asks — a braindump is capture by definition", async () => {
+    mount(<NoteToken as="debrief" />);
+    await userEvent.click(screen.getByRole("button", { name: /Debrief/ }));
+    await userEvent.type(screen.getByRole("textbox"), "what's left at Meridian");
+    await userEvent.click(screen.getByRole("button", { name: "Sort this out" }));
+    await screen.findByText("Check it before it saves");
+    expect(askBrain).not.toHaveBeenCalled();
+    expect(routeNote).toHaveBeenCalled();
+  });
+
+  it("an answer error lands as a sentence, not a dead sheet", async () => {
+    askBrain.mockImplementationOnce(async (_i: unknown, h: AskHandlers) => {
+      h.onError("Too busy right now — try again in a minute.");
+    });
+    mount(<NoteToken as="capsule" label="a note" />);
+    await userEvent.click(screen.getByLabelText("Type a note"));
+    await userEvent.type(screen.getByRole("textbox"), "what's open?");
+    await userEvent.click(screen.getByRole("button", { name: "Sort this out" }));
+    expect(
+      await screen.findByText("Too busy right now — try again in a minute.")
+    ).toBeInTheDocument();
+  });
+
+  it("Ask another clears the answer and returns to the box", async () => {
+    mount(<NoteToken as="capsule" label="a note" />);
+    await userEvent.click(screen.getByLabelText("Type a note"));
+    await userEvent.type(screen.getByRole("textbox"), "what's open?");
+    await userEvent.click(screen.getByRole("button", { name: "Sort this out" }));
+    await screen.findByText(/oldest from Monday/);
+    await userEvent.click(screen.getByRole("button", { name: "Ask another" }));
+    expect(screen.getByRole("textbox")).toHaveValue("");
+    expect(screen.queryByText(/oldest from Monday/)).not.toBeInTheDocument();
   });
 });

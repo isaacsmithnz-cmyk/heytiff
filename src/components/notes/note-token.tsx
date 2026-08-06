@@ -206,6 +206,7 @@ function Body({ flow }: { flow: NoteFlow }) {
           )}
           <button
             className="pbtn"
+            aria-label="Sort this out"
             onClick={() => flow.read("text", flow.text)}
             disabled={flow.busy || !flow.text.trim()}
           >
@@ -298,8 +299,14 @@ function Review({ flow }: { flow: NoteFlow }) {
             Keep it in my notes
           </button>
         )}
+        {/* THE ACCESSIBLE NAME DOES NOT MOVE. The visible label still flips to
+            "Saving…", but a button whose NAME changes mid-action is a button a
+            screen reader loses track of exactly when it matters — and it made
+            this one un-findable in tests the instant a transition was still
+            pending, which is the same bug wearing different clothes. */}
         <button
           className="pbtn"
+          aria-label="Save these"
           onClick={flow.confirm}
           disabled={flow.busy || nothingTicked(draft) || flow.stops.length > 0}
         >

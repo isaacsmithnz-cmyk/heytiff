@@ -5410,14 +5410,13 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .tk-rbl { grid-column:1 / -1; font-size:12px; font-weight:600; line-height:1.4; color:var(--gray400); }
 
 /* ── the foot of the rail ──
-   Everything that used to live down here is gone: `.tk-lib` / `.tk-libl` (a
-   bold count over two uppercase links that went to the same URL), and then the
-   `.tk-add` tile that briefly replaced them. Adding a document is the library's
-   job, and this rail's job is to say what the library holds and offer one way
-   in — so the foot is a caption, and the way in is "Open" on the eyebrow.
-   Deleted rather than parked: dead CSS in this file has shadowed a live
-   component at equal specificity before. */
-.fg .tk-libnote { margin:7px 2px 0; font-size:12.5px; font-weight:600; color:var(--gray400); }
+   THERE ISN'T ONE ANY MORE. `.tk-lib` / `.tk-libl` (a bold count over two
+   uppercase links that went to the same URL), then the `.tk-add` tile that
+   briefly replaced them, then `.tk-libnote` and its running total — all
+   deleted. The rail is the categories and the "Open" on its eyebrow; the
+   library states its own size the moment you get there. Deleted rather than
+   parked, because dead CSS in this file has shadowed a live component at
+   equal specificity before. */
 
 /* ── portalled pieces (outside `.fg`, so unscoped and self-contained) ── */
 

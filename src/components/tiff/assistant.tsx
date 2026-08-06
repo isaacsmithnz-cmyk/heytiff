@@ -829,7 +829,7 @@ export function TiffAssistant({
           </form>
         </div>
 
-        <Rail counts={counts} readyCount={readyCount} viz={viz} cardRefs={cardRefs} />
+        <Rail counts={counts} viz={viz} cardRefs={cardRefs} />
 
         {/* LAST on purpose — it measures the two columns above and their refs
             re-attach in tree order, so an overlay placed first would measure a
@@ -1088,12 +1088,10 @@ function Landing({
 
 function Rail({
   counts,
-  readyCount,
   viz,
   cardRefs,
 }: {
   counts: Record<KbCategoryKey, number>;
-  readyCount: number;
   viz: ResearchViz;
   cardRefs: React.RefObject<Map<KbCategoryKey, HTMLElement>>;
 }) {
@@ -1157,22 +1155,15 @@ function Rail({
         })}
       </div>
 
-      {/* TWO LINKS, ONE DESTINATION was the problem down here: "Open library"
-          and "Add documents" were both `/dashboard/tiff/library`, set in small
-          uppercase teal under a bold count, in a card a shade different from
-          the five above it. Whichever you pressed, the same page arrived.
+      {/* NOTHING ELSE. This corner has now lost three things in a row and is
+          better for each: "Open library" and "Add documents", which were the
+          same URL twice; the Add tile that briefly replaced them, because
+          uploading belongs to the library screen; and finally the running
+          total, because the library says that about itself the moment you
+          arrive and the five cards above already carry it per category.
 
-          ADDING IS NOT A THING THIS SCREEN DOES. It is now reached by opening
-          the library, which is where the documents, their state, the page
-          allowance and the Add button already live — this rail says what the
-          library HOLDS and offers one way in. So the foot is a caption and
-          nothing else, the same for everybody: `tiff_manage` no longer changes
-          what is rendered here, because there is no control left to gate. */}
-      <p className="tk-libnote">
-        {readyCount > 0
-          ? `${readyCount.toLocaleString("en-AU")} ${plural(readyCount, "document")} Tiff can read`
-          : "Nothing in the library yet"}
-      </p>
+          What the rail is, is the categories and one way in. `tiff_manage`
+          changes nothing here — there is no control left to gate. */}
     </aside>
   );
 }

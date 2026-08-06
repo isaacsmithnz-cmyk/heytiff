@@ -668,22 +668,25 @@ describe("the rail", () => {
   });
 
   /* The foot of the rail once held "Open library" and "Add documents" pointing
-     at the SAME url. Uploading now belongs to the library screen, so what is
-     left is one way in and a caption saying what is through it. */
-  it("offers one way into the library, and no way to upload from here", () => {
+     at the SAME url, then an Add tile, then a running total. All three are
+     gone: uploading belongs to the library screen, and so does saying how big
+     the library is. What is left is the categories and one way in. */
+  it("offers one way into the library, and nothing else below the cards", () => {
     render(<TiffAssistant readyCount={5} counts={{ install: 5, faults: 0, specs: 0, sops: 0, field: 0 }} canManage />);
 
     expect(screen.getByRole("link", { name: /^Open/ })).toHaveAttribute(
       "href",
       "/dashboard/tiff/library"
     );
-    expect(screen.getByText("5 documents Tiff can read")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Add document/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Add document/i })).not.toBeInTheDocument();
+    // the running total is the library's line, and the cards carry it per category
+    expect(screen.queryByText(/documents? Tiff can read/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Nothing in the library yet")).not.toBeInTheDocument();
   });
 
-  /* `tiff_manage` no longer changes anything on this screen — there is no
-     control down here for it to gate. A manager and a reader see one rail. */
+  /* The rail is the same object for everybody now: `tiff_manage` gated the Add
+     control, and `readyCount` fed the total, and neither is rendered here. */
   it("shows the same rail whether or not you can upload", () => {
     const { unmount } = render(<TiffAssistant readyCount={0} canManage />);
     const managerRail = document.querySelector(".tk-rail")!.textContent;
@@ -691,7 +694,6 @@ describe("the rail", () => {
 
     render(<TiffAssistant readyCount={0} canManage={false} />);
     expect(document.querySelector(".tk-rail")!.textContent).toBe(managerRail);
-    expect(screen.getByText("Nothing in the library yet")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /^Open/ })).toBeInTheDocument();
   });
 });

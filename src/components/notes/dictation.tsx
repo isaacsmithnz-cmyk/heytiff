@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { startRealtime, type RealtimeHandle } from "@/lib/voice/realtime-stream";
+import { playChime } from "@/lib/voice/chime";
 import { clearRun, markStopped, markTranscript } from "@/lib/voice/timing";
 
 /* Dictation, extracted from the note pill so every box you'd type a paragraph
@@ -167,6 +168,7 @@ export function useDictation({
     if (!recording || seconds < MAX_RECORDING_SECONDS) return;
     if (recorder.current?.state !== "recording") return;
     capped.current = true;
+    playChime("stop");
     recorder.current.stop();
   }, [recording, seconds]);
 
@@ -281,6 +283,11 @@ export function useDictation({
     void (async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        /* Only once the microphone is genuinely open — chiming before the
+           prompt is answered would announce a recording that may never
+           start. `{ audio: true }` turns on echo cancellation by default,
+           which is what keeps this note out of the clip that follows. */
+        playChime("start");
         const rec = new MediaRecorder(stream);
         discard.current = false;
         capped.current = false;
@@ -365,10 +372,17 @@ export function useDictation({
     })();
   };
 
-  const stop = () => recorder.current?.stop();
+  const stop = () => {
+    if (recorder.current?.state !== "recording") return;
+    playChime("stop");
+    recorder.current.stop();
+  };
 
   const cancel = () => {
     if (recorder.current?.state !== "recording") return;
+    /* Its own note. Stopping and discarding are both endings, and if they
+       sounded alike you could not tell by ear whether the note was kept. */
+    playChime("discard");
     discard.current = true;
     recorder.current.stop();
   };

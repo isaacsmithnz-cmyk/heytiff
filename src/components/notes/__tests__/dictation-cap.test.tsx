@@ -1,4 +1,7 @@
 import { act, cleanup, render, screen } from "@testing-library/react";
+const mockChime = jest.fn();
+jest.mock("@/lib/voice/chime", () => ({ playChime: (k: string) => mockChime(k) }));
+
 import {
   COUNTDOWN_FROM,
   DictClock,
@@ -56,6 +59,8 @@ function Probe({
   return (
     <div>
       <button onClick={d.start}>start</button>
+      <button onClick={d.stop}>stop</button>
+      <button onClick={d.cancel}>cancel</button>
       <span data-testid="secs">{d.seconds}</span>
       <span data-testid="rec">{String(d.recording)}</span>
     </div>
@@ -83,6 +88,7 @@ beforeEach(() => {
   jest.useFakeTimers();
   FakeRecorder.last = null;
   track.stop.mockClear();
+  mockChime.mockClear();
   (globalThis as unknown as { MediaRecorder: unknown }).MediaRecorder = FakeRecorder;
   Object.defineProperty(navigator, "mediaDevices", {
     configurable: true,
@@ -220,5 +226,70 @@ describe("the clock", () => {
     expect(remainingOf(MAX_RECORDING_SECONDS + 30)).toBe(0);
     render(<DictClock seconds={MAX_RECORDING_SECONDS + 30} />);
     expect(screen.getByText("0s left")).toBeInTheDocument();
+  });
+});
+
+/* THE THREE NOTES, at the three moments. The sound is the only signal that
+   reaches someone who has put the phone in their pocket, so WHICH note plays
+   is load-bearing — and "stopped" versus "threw it away" is the pair that
+   must never blur, because it is the difference between having your note and
+   not having it. */
+describe("the mic's chimes", () => {
+  it("says nothing until the microphone is genuinely open", async () => {
+    render(<Probe onTranscript={jest.fn()} />);
+    screen.getByText("start").click();
+    /* Not yet — getUserMedia has not resolved, and a refused permission must
+       never chime as though a recording had begun. */
+    expect(mockChime).not.toHaveBeenCalled();
+
+    await settle();
+    expect(mockChime).toHaveBeenCalledWith("start");
+  });
+
+  it("plays the closing note when you stop on purpose", async () => {
+    render(<Probe onTranscript={jest.fn()} />);
+    screen.getByText("start").click();
+    await settle();
+    mockChime.mockClear();
+
+    await act(async () => {
+      screen.getByText("stop").click();
+    });
+    expect(mockChime).toHaveBeenCalledWith("stop");
+  });
+
+  /* The pair that must never blur: this is the difference between having your
+     note and not having it, and on a roof with the phone pocketed the sound is
+     the only thing that says which happened. */
+  it("plays a DIFFERENT note when the recording is thrown away", async () => {
+    render(<Probe onTranscript={jest.fn()} />);
+    screen.getByText("start").click();
+    await settle();
+    mockChime.mockClear();
+
+    await act(async () => {
+      screen.getByText("cancel").click();
+    });
+    expect(mockChime).toHaveBeenCalledWith("discard");
+    expect(mockChime).not.toHaveBeenCalledWith("stop");
+  });
+
+  it("plays it for you when the ceiling stops the recording", async () => {
+    render(<Probe onTranscript={jest.fn()} />);
+    screen.getByText("start").click();
+    await settle();
+    mockChime.mockClear();
+
+    await tick(MAX_RECORDING_SECONDS);
+    expect(mockChime).toHaveBeenCalledWith("stop");
+  });
+
+  it("never chimes for a microphone that was not running", async () => {
+    render(<Probe onTranscript={jest.fn()} />);
+    await act(async () => {
+      screen.getByText("stop").click();
+      screen.getByText("cancel").click();
+    });
+    expect(mockChime).not.toHaveBeenCalled();
   });
 });

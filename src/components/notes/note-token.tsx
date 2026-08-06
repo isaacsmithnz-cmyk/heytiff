@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
-import { LevelBars, appendSpoken, clockOf, useDictation } from "./dictation";
+import { DictClock, LevelBars, appendSpoken, useDictation } from "./dictation";
 import { useNoteFlow, type NoteFlow } from "./note-flow";
 import { useNoteScope } from "./note-context";
 import { Cascade, JobPicker, ReviewRows, nothingTicked } from "./review-card";
@@ -120,7 +120,7 @@ function Ribbon({ flow }: { flow: NoteFlow }) {
       ) : (
         <span className="wb2-chip">{chosenJob ? chosenJob.clientName : "General note"}</span>
       )}
-      {stage === "recording" && <span className="wb2-capclock">{clockOf(flow.dict.seconds)}</span>}
+      {stage === "recording" && <DictClock seconds={flow.dict.seconds} />}
       <button className="wb2-ico" onClick={flow.close} title="Discard" aria-label="Discard">
         <Icon name="x" size={14} />
       </button>
@@ -610,7 +610,7 @@ function Strip({
         {mic.voiceEnabled && dict.recording ? (
           <>
             <LevelBars innerRef={dict.barsRef} />
-            <span className="wb2-capclock">{clockOf(dict.seconds)}</span>
+            <DictClock seconds={dict.seconds} />
             <button
               type="button"
               className="wb2-striprnd stop"
@@ -872,7 +872,7 @@ function FieldPosture({
           {mic.voiceEnabled && dict.recording ? (
             <>
               <LevelBars innerRef={dict.barsRef} />
-              <span className="wb2-capclock">{clockOf(dict.seconds)}</span>
+              <DictClock seconds={dict.seconds} />
               <button
                 type="button"
                 className="wb2-micgo on"
@@ -951,7 +951,7 @@ function FieldPosture({
                 <Icon name="square" size={13} />
               </button>
               <LevelBars innerRef={dict.barsRef} />
-              <span className="wb2-capclock">{clockOf(dict.seconds)}</span>
+              <DictClock seconds={dict.seconds} />
               <button
                 type="button"
                 className="wb2-dictx"

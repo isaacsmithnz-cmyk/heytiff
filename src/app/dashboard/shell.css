@@ -634,7 +634,52 @@
 .fg .tinput input { flex:1; min-width:0; background:none; border:none; outline:none; font-size:16px; font-weight:500; color:#1f2937; padding:16px 0; }
 .fg .tinput input::placeholder { color:var(--gray400); }
 .fg .tinput .tsend { position:relative; overflow:hidden; width:48px; height:48px; border-radius:16px; background:var(--ink); display:flex; align-items:center; justify-content:center; color:#fff; flex:0 0 auto; box-shadow:0 6px 14px -4px rgba(0,0,0,.3); transition:all .3s; }
-.fg .tinput .tsend:hover { background:var(--teal); color:var(--ink); }
+.fg .tinput .tsend:hover:not(:disabled) { background:var(--teal); color:var(--ink); }
+.fg .tinput .tsend:disabled { background:rgba(5,5,5,.14); box-shadow:none; cursor:not-allowed; }
+
+/* ── the ask bar's microphone ──
+   Every selector here is `.fg .tinput …` (0,3,0) on purpose. `.fg button` is
+   (0,1,1) and `.fg input` is (0,1,1); a bare `.tmic { background }` on a
+   <button> would silently lose to the reset, which is the trap that has now
+   bitten this stylesheet four times. Nothing in this block portals, so the
+   `.fg` scope is real and there is no `[class*="wb2-"]` carve-out to borrow.
+
+   A BARE MIC IS CORRECT HERE, and it is not a break with the token's
+   never-a-bare-mic rule. That rule exists because a lone microphone standing
+   in a corner advertises one way in and hides typing. This one is sitting on
+   a text field with a caret already blinking in it — the same reason the
+   token's own `field` and `line` postures wear a plain mic too. */
+.fg .tinput .tmic { width:44px; height:44px; border-radius:50%; flex:0 0 auto;
+  display:flex; align-items:center; justify-content:center;
+  border:1px solid #e5e7eb; background:#fff; color:var(--gray500);
+  transition:border-color .2s, color .2s, background .2s; }
+.fg .tinput .tmic:hover:not(:disabled) { border-color:var(--teal-d); color:var(--teal-d); background:#f9fefd; }
+.fg .tinput .tmic:disabled { opacity:.45; cursor:not-allowed; }
+.fg .tinput .tmic:focus-visible, .fg .tinput .tmicx:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,163,137,.35); }
+
+/* Stop wears the send button's shape and position — the control the thumb is
+   already travelling to — but the only red in the resting UI, and only once
+   the mic is actually open. Same rule the token's capsule follows. */
+.fg .tinput .tsend.live { background:#e0264f; box-shadow:0 6px 14px -4px rgba(224,38,79,.45); }
+.fg .tinput .tsend.live:hover { background:#c81f44; color:#fff; }
+.fg .tinput .tmicx { width:32px; height:32px; border-radius:50%; flex:0 0 auto;
+  display:flex; align-items:center; justify-content:center;
+  border:1px solid #e5e7eb; background:#fff; color:var(--gray500); transition:all .2s; }
+.fg .tinput .tmicx:hover { border-color:#e0264f; color:#e0264f; }
+/* The gap is 16px so the row can breathe; the recording cluster is four things
+   and needs to read as one, so it closes up while the mic is open. */
+.fg .tinput .tin.live { gap:10px; }
+.fg .tinput input:disabled { background:none; color:#1f2937; -webkit-text-fill-color:#1f2937; opacity:1; }
+.fg .tvsay { margin:10px 4px 0; font-size:12.5px; font-weight:600; color:var(--gray500); }
+.fg .tvsay.err { color:#e0264f; }
+/* On a phone the clock is the first thing to go: the bars already say it is
+   listening, and a stop button that has been pushed off the row is worse than
+   no timer. */
+@media (max-width:560px) {
+  .fg .tinput .tin { gap:10px; padding:10px; }
+  .fg .tinput .tin.live .wb2-capclock { display:none; }
+  .fg .tinput .tic { display:none; }
+}
 /* The 340px sidebar and its knowledge-base rows are GONE, replaced by the
    `.tk-rail` at the end of this file — deleted rather than left behind,
    because unused CSS is what the next person copies. Thread rows survived the
@@ -4534,7 +4579,12 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .wb2-capribbon b { font-size:14.5px; font-weight:800; color:var(--ink); }
 .wb2-capribbon .wb2-chip { margin-left:auto; }
 .wb2-capribbon .wb2-ico { margin-left:0; flex:none; }
-.wb2-capclock { font-variant-numeric:tabular-nums; font-size:12.5px; font-weight:800; color:var(--gray700); }
+.wb2-capclock { font-variant-numeric:tabular-nums; font-size:12.5px; font-weight:800; color:var(--gray700); white-space:nowrap; }
+/* The last thirty seconds. The recorder stops itself at two minutes and keeps
+   what it heard, so this is a heads-up and not a warning — it earns the red
+   because the clock is the only thing on screen that can give it, but it does
+   not flash, pulse or otherwise ask to be dealt with. */
+.wb2-capclock.closing { color:#e0264f; }
 .wb2-recdot { width:10px; height:10px; border-radius:50%; background:#e0264f; flex:none; animation:fgPulse 1.6s ease-in-out infinite; }
 .wb2-capact { display:flex; align-items:center; justify-content:flex-end; gap:9px; margin-top:12px; flex-wrap:wrap; }
 /* the ribbon's target, when the note has to be told where it belongs */

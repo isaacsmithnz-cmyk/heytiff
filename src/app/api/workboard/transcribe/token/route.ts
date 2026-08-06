@@ -1,6 +1,6 @@
 import { auth0 } from "@/lib/auth0";
-import { can } from "@/lib/permissions-server";
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { canDictate } from "@/lib/voice/can-dictate";
 import { mintRealtimeToken, prepareKeyterms, TRADE_KEYTERMS } from "@/lib/voice/transcribe";
 import { REALTIME_KEYTERM_LIMIT, REALTIME_KEYTERM_MAX_CHARS } from "@/lib/voice/realtime";
 
@@ -17,7 +17,7 @@ import { REALTIME_KEYTERM_LIMIT, REALTIME_KEYTERM_MAX_CHARS } from "@/lib/voice/
    still never leaves the server.
 
    SAME GATE AS THE AUDIO ROUTE, for the same reason: a route handler is
-   reachable directly, so `workboard` is checked here rather than only on
+   reachable directly, so `canDictate` is checked here rather than only on
    the screen that calls it. Minting a token IS spending money, and it is
    the only thing on this route worth abusing.
 
@@ -30,8 +30,8 @@ export async function POST() {
   const session = await auth0.getSession();
   const orgId = session?.orgId as string | undefined;
   if (!session || !orgId) return Response.json({ error: "Not signed in." }, { status: 401 });
-  if (!(await can("workboard"))) {
-    return Response.json({ error: "You don't have access to the Workboard." }, { status: 403 });
+  if (!(await canDictate())) {
+    return Response.json({ error: "You don't have access to dictation." }, { status: 403 });
   }
 
   const result = await mintRealtimeToken();

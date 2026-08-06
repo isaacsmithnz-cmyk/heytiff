@@ -48,6 +48,31 @@ import { clearRun, markStopped, markTranscript } from "@/lib/voice/timing";
 /** Inlined at build time — a live transcript is opt-in per deployment. */
 const REALTIME = process.env.NEXT_PUBLIC_VOICE_REALTIME === "1";
 
+/* HOW LONG YOU GET, AND WHY THERE IS A LIMIT AT ALL.
+
+   There wasn't one until 2026-08-06. Nothing stopped a recording — the clock
+   counted up for as long as the mic was open — and the only cap in the system
+   was 25 MB on the upload route, which is about an hour of speech and whose
+   error message nonetheless told people to "keep it under a couple of
+   minutes". A limit nobody enforced, announced by a message nobody could
+   reach.
+
+   Two minutes is the real one now, and it lives HERE rather than in a posture
+   so that every mic in the app inherits it — the capsule, the strip, the
+   field, the line, the debrief and Tiff's ask bar. A cap that only applied to
+   the screen someone happened to be building would be exactly the kind of
+   fork this file exists to prevent.
+
+   IT STOPS, IT DOES NOT DISCARD. Hitting the ceiling runs the same path as
+   pressing stop, so the two minutes you already said are transcribed and
+   kept. Throwing away a long recording because it ran long is the one
+   outcome nobody would forgive. */
+export const MAX_RECORDING_SECONDS = 120;
+
+/** When the clock stops counting up and starts counting down. Long enough to
+    finish a sentence and press stop yourself. */
+export const COUNTDOWN_FROM = 30;
+
 /* A build-time flag can't be A/B'd: every swap is a redeploy of production,
    which is no way to find out whether the live path is actually faster. So
    `?voice=live` / `?voice=batch` beats the flag — enough to measure both
@@ -123,6 +148,17 @@ export function useDictation({
     const t = setInterval(() => setSeconds((s) => s + 1), 1000);
     return () => clearInterval(t);
   }, [recording]);
+
+  /* The ceiling. Kept out of the tick above on purpose: stopping the recorder
+     from inside a setState updater is a side effect in a place React is
+     allowed to run twice, and the one thing this must never do is fire the
+     stop path more than once. Watching the committed value instead makes it
+     an ordinary effect, and `recorder.current.stop()` after the recorder has
+     already stopped is a no-op anyway. */
+  useEffect(() => {
+    if (!recording || seconds < MAX_RECORDING_SECONDS) return;
+    if (recorder.current?.state === "recording") recorder.current.stop();
+  }, [recording, seconds]);
 
   const stopMeter = () => {
     barsRef.current?.style.setProperty("--lvl", "0");
@@ -342,6 +378,33 @@ export function LevelBars({ innerRef }: { innerRef: React.RefObject<HTMLSpanElem
 
 export const clockOf = (seconds: number) =>
   `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+
+/** Seconds left before the recorder stops itself, floored at zero. */
+export const remainingOf = (seconds: number) =>
+  Math.max(0, MAX_RECORDING_SECONDS - seconds);
+
+/** The recording clock, one component so every posture reads the same.
+
+    It counts UP for most of the recording, because that is the only number
+    worth knowing while you talk, and flips to counting DOWN for the last
+    thirty seconds — the point at which the useful fact stops being how long
+    you have been going and starts being how long you have left. */
+export function DictClock({ seconds }: { seconds: number }) {
+  const left = remainingOf(seconds);
+  const closing = left <= COUNTDOWN_FROM;
+  return (
+    <span
+      className={`wb2-capclock${closing ? " closing" : ""}`}
+      /* The countdown is a state change mid-recording that nobody is looking
+         at the clock to notice, so it is announced once it matters. */
+      role={closing ? "status" : undefined}
+      aria-live={closing ? "polite" : undefined}
+      title={closing ? `${left}s left — it stops on its own at two minutes` : undefined}
+    >
+      {closing ? `${left}s left` : clockOf(seconds)}
+    </span>
+  );
+}
 
 /** Dictation APPENDS to what's already typed. One function because the live
     transport needs the same join to preview the sentence in the box as the

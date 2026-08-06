@@ -3,6 +3,7 @@ import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
 import { TiffAssistant } from "@/components/tiff/assistant";
 import { kbCategoryCounts } from "@/lib/tiff/query";
+import { isTranscriptionConfigured } from "@/lib/voice/transcribe";
 
 /* The assistant. `tiff` is on by default for every role but revocable — gate
    the route, not just the nav entry.
@@ -13,7 +14,12 @@ import { kbCategoryCounts } from "@/lib/tiff/query";
    is disabled rather than sending somebody to search an empty shelf.
 
    `tiff_manage` is asked separately and only decides whether the rail offers
-   "Add documents"; every write re-checks it server-side. */
+   "Add documents"; every write re-checks it server-side.
+
+   `voiceEnabled` is passed rather than read from a NoteScopeProvider: this
+   screen has no note scope and wants none — nothing said to the ask bar is a
+   note, so there is no target, no job list and no sieve to feed. All the
+   assistant needs is whether this deployment can hear at all. */
 export default async function TiffPage() {
   if (!(await can("tiff"))) redirect("/dashboard");
 
@@ -24,5 +30,12 @@ export default async function TiffPage() {
   const [counts, canManage] = await Promise.all([kbCategoryCounts(orgId), can("tiff_manage")]);
   const readyCount = Object.values(counts).reduce((sum, n) => sum + n, 0);
 
-  return <TiffAssistant counts={counts} readyCount={readyCount} canManage={canManage} />;
+  return (
+    <TiffAssistant
+      counts={counts}
+      readyCount={readyCount}
+      canManage={canManage}
+      voiceEnabled={isTranscriptionConfigured()}
+    />
+  );
 }

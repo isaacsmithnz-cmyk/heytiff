@@ -39,10 +39,18 @@ const nextConfig: NextConfig = {
   // NEXT_DIST_DIR lets a second dev server (e.g. an agent preview) run
   // alongside the main one — next dev holds an exclusive lock per dist dir.
   distDir: process.env.NEXT_DIST_DIR || ".next",
-  // the public live link reads pack JSON off disk (packs/server.ts) from a
-  // route Vercel's file tracer has no other reason to bundle data/ into
   outputFileTracingIncludes: {
+    // the public live link reads pack JSON off disk (packs/server.ts) from a
+    // route Vercel's file tracer has no other reason to bundle data/ into
     "/live/[token]": ["./data/packs/**/*"],
+    /* pdfjs reaches for its worker with a DYNAMIC import, which is invisible
+       to static file tracing: `pdf.mjs` gets bundled, `pdf.worker.mjs` does
+       not, and the first document to be read dies on "Setting up fake worker
+       failed". Even in Node — where there is no worker thread and pdfjs runs
+       a "fake worker" on the main one — the module still has to be THERE to
+       be imported. Naming the whole build directory covers the cmaps and
+       standard-font lookups that follow the same dynamic pattern. */
+    "/api/tiff/ingest": ["./node_modules/pdfjs-dist/legacy/build/**/*"],
   },
 };
 

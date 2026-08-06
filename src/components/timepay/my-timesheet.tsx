@@ -798,11 +798,27 @@ export function MyTimesheet({
   return (
     <div className="page in">
       <div className="wrap">
-        <div className={`stg tpr mts2${locked ? " locked" : ""}`}>
+        {/* `wb2` for the board's tokens — the card's border colour is declared
+            there, and a `.wb2-card` outside that root draws no border at all. */}
+        <div className={`stg tpr mts2 wb2${locked ? " locked" : ""}`}>
           <div className="rhead">
             <div>
               <h1>My timesheet</h1>
-              <div className="wknav">
+            </div>
+            <div className="racts">
+              <span className={`dchip ${status.tone}`}>
+                <Icon name={sheet.status === "approved" ? "check" : "clock"} size={12} />
+                {status.label}
+              </span>
+            </div>
+          </div>
+
+          {/* WHICH SCREEN, then WHICH WEEK — the tabs choose the view, the week
+              is the question inside it, so the week lives in the card. */}
+          <MyTimeNav active="timesheet" />
+
+          <div className="wb2-card tp-card">
+            <div className="wknav">
                 <button
                   className="arw"
                   aria-label="Previous period"
@@ -830,20 +846,11 @@ export function MyTimesheet({
                   <span className="pstatus hist">Historical</span>
                 )}
               </div>
-              <div className="autosub">{period.live ? submitNote(settings) : period.note}</div>
-            </div>
-            <div className="racts">
-              <span className={`dchip ${status.tone}`}>
-                <Icon name={sheet.status === "approved" ? "check" : "clock"} size={12} />
-                {status.label}
-              </span>
-            </div>
-          </div>
-          <MyTimeNav active="timesheet" />
+            <div className="autosub">{period.live ? submitNote(settings) : period.note}</div>
 
-          {error && <div className="tp-err">{error}</div>}
+            {error && <div className="tp-err">{error}</div>}
 
-          <div className="mts2-cols">
+            <div className="mts2-cols">
             <div className="mts2-main">
               {sheet.status === "sent_back" && sheet.reviewNote && (
                 <div className="mts-back">
@@ -1085,7 +1092,8 @@ export function MyTimesheet({
               </section>
 
               <p className="mts2-rules">{rules.join(" · ")}</p>
-            </aside>
+              </aside>
+            </div>
           </div>
         </div>
       </div>

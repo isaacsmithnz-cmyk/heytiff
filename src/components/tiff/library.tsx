@@ -248,7 +248,6 @@ export function Library({
                   style={{ "--sc": `${c.color}1f`, "--tkc": c.color } as React.CSSProperties}
                 >
                   <span className="sglow" />
-                  <div className="tk-ctop" style={{ background: c.color }} />
                   <div className="tk-cin">
                     <header className="tk-chd">
                       <div
@@ -259,7 +258,7 @@ export function Library({
                           color: c.color,
                         }}
                       >
-                        <Icon name={c.icon} size={22} />
+                        <Icon name={c.icon} size={16} />
                       </div>
                       <div>
                         <h2>{c.label}</h2>
@@ -276,9 +275,12 @@ export function Library({
                         {counts[c.key] === 0 ? (
                           <>
                             <b>Nothing in this category yet.</b>
+                            {/* The blurb is a description, not a noun phrase —
+                                splicing it in produced "Tiff can't answer how
+                                we do things here questions". */}
                             <span>
                               {canManage
-                                ? `Tiff can't answer ${c.blurb.toLowerCase()} questions until something lands here.`
+                                ? "Tiff can't answer from this category until something lands in it."
                                 : "Ask a manager to add the company's manuals for this category."}
                             </span>
                           </>
@@ -422,8 +424,11 @@ function DocRow({
         {error && <p className="tk-rerr">{error}</p>}
       </div>
 
-      <span className="tk-kind">{doc.kind}</span>
-
+      {/* No kind badge, and no pill on a ready document.
+          Every row in this library is a PDF and most of them are ready, so
+          both were a column of identical labels saying nothing — and they
+          were what the one row that IS stuck had to compete with. A pill now
+          means "this needs you"; a row without one is working. */}
       <div className="tk-rstate">
         <StatusPill doc={doc} state={state} />
       </div>
@@ -522,14 +527,20 @@ function StatusPill({ doc, state }: { doc: KbLibraryDoc; state: RowState }) {
     );
   }
 
-  return (
-    <span className="tk-pill ok">
-      <Icon name="check" size={13} />
-      {doc.scannedPages > 0
-        ? `Ready · ${n(doc.scannedPages)} ${plural(doc.scannedPages, "page")} unreadable — scanned images`
-        : "Ready"}
-    </span>
-  );
+  /* Ready is the state almost every row is in, so saying it earns nothing and
+     costs the one row that needs attention its contrast. What survives is the
+     part of "ready" that ISN'T good news: pages Tiff could not read. A caveat
+     is amber, not green — the document is usable, but not all of it is. */
+  if (doc.scannedPages > 0) {
+    return (
+      <span className="tk-pill warn">
+        <Icon name="alert" size={13} />
+        {`${n(doc.scannedPages)} ${plural(doc.scannedPages, "page")} unreadable — scanned images`}
+      </span>
+    );
+  }
+
+  return null;
 }
 
 /* ── metadata, and removal ───────────────────────────────────────────────── */

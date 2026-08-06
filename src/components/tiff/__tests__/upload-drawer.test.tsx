@@ -186,3 +186,34 @@ describe("the row's own state", () => {
     expect(within(row).getByText("4.0 MB")).toBeInTheDocument();
   });
 });
+
+/* ── an upload in flight owns the drawer ─────────────────────────────────── */
+
+describe("the drawer stays put while files are going up", () => {
+  const onClose = jest.fn();
+
+  const startUpload = async () => {
+    const user = userEvent.setup();
+    // never resolves: the upload is still in flight for the whole test
+    uploadKbFile.mockReturnValue(new Promise(() => {}));
+    render(<UploadDrawer progress={{}} onIngest={jest.fn()} onClose={onClose} />);
+    await drop([pdf("manual.pdf")]);
+    await user.click(screen.getByRole("button", { name: /Upload 1 document/ }));
+    await screen.findByText("Uploading…");
+    return user;
+  };
+
+  it("ignores Escape, which would unmount the upload it is running", async () => {
+    const user = await startUpload();
+    await user.keyboard("{Escape}");
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("disables the close controls rather than letting them lose the progress", async () => {
+    await startUpload();
+    // the footer button and the header ✕ both close, so both have to hold
+    const closers = screen.getAllByRole("button", { name: "Close" });
+    expect(closers).toHaveLength(2);
+    for (const button of closers) expect(button).toBeDisabled();
+  });
+});

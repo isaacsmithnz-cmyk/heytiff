@@ -85,7 +85,7 @@ describe("the day-1 state sells the reason before the button", () => {
     expect(screen.queryByRole("button", { name: /Add documents/ })).not.toBeInTheDocument();
   });
 
-  it("names all four shelves so the reason is concrete", () => {
+  it("names all four categories so the reason is concrete", () => {
     render(<Library docs={[]} quota={quota()} canManage />);
     for (const label of ["Install procedures", "Fault codes", "Manufacturer specs", "Company SOPs"]) {
       expect(screen.getByText(label)).toBeInTheDocument();
@@ -120,12 +120,23 @@ describe("what a row says about itself", () => {
 
   it("a ready document with scanned pages admits what it couldn't read", () => {
     render(<Library docs={[doc({ scannedPages: 12 })]} canManage />);
-    expect(screen.getByText("Ready · 12 pages unreadable — scanned images")).toBeInTheDocument();
+    expect(screen.getByText("12 pages unreadable — scanned images")).toBeInTheDocument();
   });
 
-  it("a clean ready document just says Ready", () => {
-    render(<Library docs={[doc()]} canManage />);
-    expect(screen.getByText("Ready")).toBeInTheDocument();
+  /* A pill means "this one needs you". Ready is what almost every row is, so
+     labelling it spends the reader's attention on the rows that don't need
+     any — and leaves the stuck one competing with a page of green. */
+  it("a clean ready document wears no pill at all", () => {
+    const { container } = render(<Library docs={[doc()]} canManage />);
+    expect(container.querySelector(".tk-pill")).toBeNull();
+    expect(screen.queryByText("Ready")).not.toBeInTheDocument();
+    // and the row is still plainly usable
+    expect(screen.getByRole("button", { name: /Ask Tiff about/ })).toBeInTheDocument();
+  });
+
+  it("says nothing about a document's kind — they are all PDFs", () => {
+    const { container } = render(<Library docs={[doc()]} canManage />);
+    expect(container.querySelector(".tk-kind")).toBeNull();
   });
 
   it("shows source, edition, when it changed and who added it", () => {
@@ -335,7 +346,7 @@ describe("finding a document", () => {
     expect(screen.queryByText("City Multi fault codes")).not.toBeInTheDocument();
   });
 
-  it("an empty shelf beside full ones says what belongs on it", async () => {
+  it("an empty category beside full ones says what belongs in it", async () => {
     render(<Library docs={library} />);
 
     await userEvent.click(screen.getByRole("button", { name: /Manufacturer specs/ }));

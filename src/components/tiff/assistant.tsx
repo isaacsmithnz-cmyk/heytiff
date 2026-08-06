@@ -76,11 +76,22 @@ const HISTORY_TURNS = 8;
     to read in the two-column list without wrapping. */
 const TITLE_MAX = 60;
 
-const SUGGESTIONS: { cat: string; icon: string; color: string; tint: string; title: string; desc: string }[] = [
-  { cat: "DIAGNOSTICS", icon: "wrench", color: "#00E5C0", tint: "rgba(0,229,192,0.1)", title: "R32 running pressures at 35°C", desc: "What should I see on gauges?" },
-  { cat: "SYSTEM DESIGN", icon: "zap", color: "#2E68FF", tint: "rgba(46,104,255,0.1)", title: "Size a VRF for a 3-storey office", desc: "18 indoor units, mixed zones" },
-  { cat: "FAULT CODES", icon: "alert", color: "#FF3366", tint: "rgba(255,51,102,0.1)", title: "Mitsubishi U4 error", desc: "Diagnosis and likely fix" },
-  { cat: "COMPANY SOP", icon: "shield", color: "#8A2BE2", tint: "rgba(138,43,226,0.1)", title: "Daikin warranty claim process", desc: "What’s our standard procedure?" },
+/* Starters, as pills rather than cards.
+
+   THE LABEL IS THE QUESTION. A card that said "DIAGNOSTICS · R32 running
+   pressures at 35°C · What should I see on gauges?" spent three lines saying
+   what one line says, and its category eyebrow repeated the shelf sitting in
+   the rail beside it. What survives is the sentence that goes in the box; the
+   dot carries the category, and nothing else has to.
+
+   `research` marks the ones that only make sense against the company's own
+   documents — those turn Research on as they fill the box, and are offered
+   only when the library actually holds something. */
+const SUGGESTIONS: { cat: string; color: string; label: string; research: boolean }[] = [
+  { cat: "DIAGNOSTICS", color: "#00E5C0", label: "R32 running pressures at 35°C", research: false },
+  { cat: "SYSTEM DESIGN", color: "#2E68FF", label: "Size a VRF for a 3-storey office", research: false },
+  { cat: "FAULT CODES", color: "#FF3366", label: "What does fault code U4 mean?", research: true },
+  { cat: "COMPANY SOP", color: "#8A2BE2", label: "What's our warranty claim process?", research: true },
 ];
 
 /* hydration guard: false on the server and during hydration, true after —
@@ -127,44 +138,112 @@ const newThreadId = (at: number): string =>
 
 /* ── what an answer is allowed to look like ──────────────────────────────── */
 
-export type AnswerBlock = { kind: "p"; text: string } | { kind: "ul"; items: string[] };
+export type AnswerBlock =
+  | { kind: "p"; text: string }
+  | { kind: "ul"; items: string[] }
+  /** A procedure. Ordered because the order is the instruction. */
+  | { kind: "ol"; items: string[] }
+  /** Pressures, resistances, capacities — the shape trade data actually has. */
+  | { kind: "table"; head: string[]; rows: string[][] };
 
-/* Paragraphs on blank lines, and lines starting "- " as a list. That is the
-   whole grammar, and it matches what the system prompt asks for — a model that
-   sends a markdown table would have it rendered as the literal characters it
-   is, which is the honest failure and not a silent one. */
+const ORDERED = /^(\d{1,2})[.)]\s+(.*)$/;
+const isRule = (cells: string[]) => cells.every((c) => /^:?-{2,}:?$/.test(c.trim()));
+
+/** `| a | b |` → ["a","b"], tolerating the optional outer pipes. */
+function tableCells(line: string): string[] | null {
+  if (!line.includes("|")) return null;
+  const inner = line.replace(/^\s*\|/, "").replace(/\|\s*$/, "");
+  if (!inner.includes("|")) return null;
+  return inner.split("|").map((c) => c.trim());
+}
+
+/* The grammar an answer is allowed to use: paragraphs on blank lines, "- "
+   bullets, "1. " steps, and pipe tables.
+
+   THE LAST TWO ARE HERE BECAUSE THE TRADE NEEDS THEM. A thermistor resistance
+   curve, a running-pressure range by ambient, a commissioning procedure —
+   these are a table and a numbered list, and flattening them into prose is
+   how a number ends up read against the wrong row. The system prompt asks for
+   exactly this grammar and nothing else, so anything richer still arrives as
+   its literal characters: an honest failure rather than a silent one.
+
+   A TABLE IS ONLY A TABLE ONCE ITS RULE ROW ARRIVES. Mid-stream, the header
+   line alone is indistinguishable from a sentence containing a pipe, so it is
+   held as a paragraph until the `|---|` confirms it — which also stops a
+   half-arrived table from flickering into a one-row grid while it streams. */
 export function answerBlocks(text: string): AnswerBlock[] {
   const blocks: AnswerBlock[] = [];
   let para: string[] = [];
-  let items: string[] = [];
+  let bullets: string[] = [];
+  let steps: string[] = [];
 
   const flushPara = () => {
     if (para.length) blocks.push({ kind: "p", text: para.join(" ") });
     para = [];
   };
-  const flushList = () => {
-    if (items.length) blocks.push({ kind: "ul", items });
-    items = [];
+  const flushBullets = () => {
+    if (bullets.length) blocks.push({ kind: "ul", items: bullets });
+    bullets = [];
+  };
+  const flushSteps = () => {
+    if (steps.length) blocks.push({ kind: "ol", items: steps });
+    steps = [];
+  };
+  const flushAll = () => {
+    flushBullets();
+    flushSteps();
+    flushPara();
   };
 
-  for (const raw of String(text ?? "").split("\n")) {
-    const line = raw.trim();
+  const lines = String(text ?? "").split("\n");
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
     if (!line) {
-      flushList();
-      flushPara();
+      flushAll();
       continue;
     }
+
+    const cells = tableCells(line);
+    const next = tableCells((lines[i + 1] ?? "").trim());
+    if (cells && next && isRule(next)) {
+      flushAll();
+      const rows: string[][] = [];
+      let j = i + 2;
+      for (; j < lines.length; j++) {
+        const row = tableCells(lines[j].trim());
+        if (!row || isRule(row)) break;
+        // ragged rows are padded rather than dropped: a missing cell is a gap
+        // in the data, and hiding the row hides that
+        rows.push(Array.from({ length: cells.length }, (_, k) => row[k] ?? ""));
+      }
+      blocks.push({ kind: "table", head: cells, rows });
+      i = j - 1;
+      continue;
+    }
+
+    const step = ORDERED.exec(line);
+    if (step) {
+      flushBullets();
+      flushPara();
+      if (step[2].trim()) steps.push(step[2].trim());
+      continue;
+    }
+
     if (line.startsWith("- ") || line === "-") {
+      flushSteps();
       flushPara();
       const item = line.slice(1).trim();
-      if (item) items.push(item);
+      if (item) bullets.push(item);
       continue;
     }
-    flushList();
+
+    flushBullets();
+    flushSteps();
     para.push(line);
   }
-  flushList();
-  flushPara();
+
+  flushAll();
   return blocks;
 }
 
@@ -172,17 +251,51 @@ function AnswerText({ text }: { text: string }) {
   const blocks = useMemo(() => answerBlocks(text), [text]);
   return (
     <>
-      {blocks.map((b, i) =>
-        b.kind === "ul" ? (
-          <ul key={i}>
-            {b.items.map((item, j) => (
-              <li key={j}>{item}</li>
-            ))}
-          </ul>
-        ) : (
-          <p key={i}>{b.text}</p>
-        )
-      )}
+      {blocks.map((b, i) => {
+        if (b.kind === "ul")
+          return (
+            <ul key={i}>
+              {b.items.map((item, j) => (
+                <li key={j}>{item}</li>
+              ))}
+            </ul>
+          );
+        if (b.kind === "ol")
+          return (
+            <ol key={i} className="tk-steps">
+              {b.items.map((item, j) => (
+                <li key={j}>{item}</li>
+              ))}
+            </ol>
+          );
+        if (b.kind === "table")
+          return (
+            /* The scroller is the table's own, not the answer's: a wide
+               pressure table scrolls sideways inside the sheet instead of
+               widening it and pushing the whole conversation about. */
+            <div className="tk-tw" key={i}>
+              <table className="tk-tbl">
+                <thead>
+                  <tr>
+                    {b.head.map((h, j) => (
+                      <th key={j}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {b.rows.map((row, j) => (
+                    <tr key={j}>
+                      {row.map((cell, k) => (
+                        <td key={k}>{cell}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        return <p key={i}>{b.text}</p>;
+      })}
     </>
   );
 }
@@ -464,8 +577,13 @@ export function TiffAssistant({
     send(question, true);
   };
 
+  /* Fills the box and hands the caret over — never sends. A starter is a way
+     to stop staring at an empty field, and the question that gets asked
+     should still be the reader's own. A library-shaped one arrives with
+     Research already on, since that is the mode it was written for. */
   const pickSuggestion = (s: (typeof SUGGESTIONS)[number]) => {
-    setInput(`${s.title}. ${s.desc}`);
+    setInput(s.label);
+    if (s.research && canResearch) setResearch(true);
     inputRef.current?.focus();
   };
 
@@ -529,7 +647,7 @@ export function TiffAssistant({
   return (
     <div className="page in">
       <div className="tk-stage" ref={stageRef}>
-        <div className="tk-chatcol">
+        <div className={`tk-chatcol${active ? "" : " landing"}`}>
           {active ? (
             <>
               <div className="tchathead">
@@ -568,56 +686,62 @@ export function TiffAssistant({
 
               <div className="tchat" ref={chatRef}>
                 {active.messages.map((m, i) => (
+                  /* No avatar on Tiff's turn. The answer is a full-width sheet
+                     and the question is a short dark bubble on the right —
+                     which of the two is speaking was never in doubt, and the
+                     glyph sat at the BOTTOM of a long answer (flex-end),
+                     level with the citations it had nothing to do with. */
                   <div key={i} className={`tmsg ${m.role === "user" ? "user" : "bot"}`}>
-                    {m.role === "tiff" && (
-                      <span className="tmav">
-                        <Icon name="bot" size={18} />
-                      </span>
-                    )}
                     <div className="tmw">
                       {m.missed && <MissBanner canManage={canManage} />}
+                      {/* The citations and the truncation note live INSIDE the
+                          sheet. Both are statements about this answer — where
+                          it came from, where it stopped — and underneath it on
+                          the page they read as three grey pills belonging to
+                          nothing in particular. */}
                       <div className="tmb">
                         {m.role === "tiff" ? <AnswerText text={m.text} /> : m.text}
+                        {m.truncated && (
+                          <p className="tk-trunc">
+                            That answer ran to its limit and stops mid-thought — ask for the rest.
+                          </p>
+                        )}
+                        {m.sources && m.sources.length > 0 && (
+                          <SourceChips sources={m.sources} onPeek={setPeek} />
+                        )}
                       </div>
-                      {m.truncated && (
-                        <p className="tk-trunc">
-                          That answer ran to its limit and stops mid-thought — ask for the rest.
-                        </p>
-                      )}
-                      {m.sources && m.sources.length > 0 && (
-                        <SourceChips sources={m.sources} onPeek={setPeek} />
-                      )}
                     </div>
                   </div>
                 ))}
 
                 {live && live.threadId === active.id && (
                   <div className="tmsg bot">
-                    <span className="tmav">
-                      <Icon name="bot" size={18} />
-                    </span>
                     <div className="tmw">
                       {live.missed && <MissBanner canManage={canManage} />}
-                      {live.text ? (
-                        <div className="tmb">
+                      {/* One sheet across thinking and streaming: the container
+                          is already on screen when the first token lands, so
+                          the answer fills a space instead of shoving the
+                          conversation down as it arrives. */}
+                      <div className={`tmb${live.text ? " streaming" : ""}`}>
+                        {live.text ? (
                           <AnswerText text={live.text} />
-                        </div>
-                      ) : (
-                        <div className="tmb ttyping" aria-label="Tiff is thinking">
-                          <i></i>
-                          <i></i>
-                          <i></i>
-                        </div>
-                      )}
+                        ) : (
+                          <span className="ttyping" aria-label="Tiff is thinking">
+                            <i></i>
+                            <i></i>
+                            <i></i>
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
 
                 {failure && (
                   <div className="tmsg bot">
-                    <span className="tmav">
-                      <Icon name="alert" size={18} />
-                    </span>
+                    {/* no avatar here either — and the old one was the TEAL
+                        assistant tile wrapped round an alert glyph, which is
+                        the one colour a failure should not arrive in */}
                     <div className="tmw">
                       <div className="tk-fail" role="alert">
                         <span>{failure.message}</span>
@@ -712,11 +836,17 @@ export function TiffAssistant({
             z-index, not by DOM order. `measureKey` is the other half: the
             composer MOVES when the landing screen gives way to a transcript,
             and no observer fires for a move. */}
+        {/* `idle` draws the four lanes faintly on the landing, before anything
+            is asked: the mechanism this page is built on — your question goes
+            out to these four shelves — is worth showing rather than
+            explaining, and it costs a stroke nobody has to read. Inside a
+            conversation the overlay stays event-driven. */}
         <ResearchLines
           stageRef={stageRef}
           composerRef={composerRef}
           cardRefs={cardRefs}
           viz={viz}
+          idle={!active && readyCount > 0}
           measureKey={active?.messages.length ?? 0}
         />
       </div>
@@ -885,45 +1015,26 @@ function Landing({
 }) {
   return (
     <>
-      {returning ? (
-        /* Somebody who has asked before doesn't need the pitch again — the
-           thing they came back for is the thread they were in. */
-        <div className="tk-welcome">
-          <h2>What are we working on?</h2>
-          <p>
-            {readyCount > 0
-              ? `Ask anything, or turn on Research and I'll answer from the ${readyCount} ${plural(readyCount, "document")} in your library.`
-              : "Ask anything. Add documents to the library and I can answer from those too."}
-          </p>
-        </div>
-      ) : (
-        <div className="thero">
-          <div className="o1"></div>
-          <div className="o2"></div>
-          <div className="trow">
-            <div className="tbot">
-              <div className="tb">
-                <Icon name="bot" size={40} sw={1.5} />
-              </div>
-              <div className="tst">
-                <i></i>
-              </div>
-            </div>
-            <div className="tlead">
-              <div className="pill">
-                <Icon name="fingerprint" size={12} />
-                Tiff AI
-              </div>
-              <h2>What are we building today?</h2>
-              <p className="tl">
-                Ask about system sizing, diagnostics, fault codes or company SOPs. Turn on{" "}
-                <b>Research</b> and I&rsquo;ll answer from your library and show you the
-                page it came from.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* One line, then the box. The subline is the only place the library's
+          size is stated in words, so it says what Research would actually do
+          rather than advertising a feature. */}
+      <div className="tk-open">
+        <h2>{returning ? "What are we working on?" : "Ask the library"}</h2>
+        <p>
+          {readyCount > 0 ? (
+            <>
+              Diagnostics, sizing, fault codes and company procedure. Turn on <b>Research</b> and
+              I&rsquo;ll answer from the {readyCount.toLocaleString("en-AU")}{" "}
+              {plural(readyCount, "document")} in your library, and show you the page it came from.
+            </>
+          ) : (
+            <>
+              Diagnostics, sizing, fault codes and company procedure. Add manuals to the library
+              and I can answer from those too — with the page they came from.
+            </>
+          )}
+        </p>
+      </div>
 
       {returning && recent.length > 0 && (
         <div className="tk-recent">
@@ -969,20 +1080,20 @@ function Landing({
         </div>
       )}
 
-      <div className="tsgrid stgp">
-        {SUGGESTIONS.map((s) => (
-          <button key={s.cat} className="tsugg" onClick={() => onSuggest(s)}>
-            <span className="tsg" style={{ background: s.color }}></span>
-            <div className="tsh">
-              <div className="tsi" style={{ background: s.tint, color: s.color }}>
-                <Icon name={s.icon} size={18} />
-              </div>
-              <span className="tsc" style={{ color: s.color }}>
-                {s.cat}
-              </span>
-            </div>
-            <div className="tst2">{s.title}</div>
-            <div className="tsd">{s.desc}</div>
+      {/* A library-shaped starter is hidden while the shelves are empty: it
+          would fill the box with a question this workspace cannot answer yet,
+          which reads as a broken feature rather than an empty one. */}
+      <div className="tk-starts">
+        {SUGGESTIONS.filter((s) => !s.research || readyCount > 0).map((s) => (
+          <button
+            key={s.cat}
+            type="button"
+            className="tk-start"
+            style={{ "--tkc": s.color } as React.CSSProperties}
+            onClick={() => onSuggest(s)}
+          >
+            <i />
+            {s.label}
           </button>
         ))}
       </div>
@@ -1106,21 +1217,26 @@ function SourceChips({
   onPeek: (s: AskSourceItem) => void;
 }) {
   return (
-    <div className="tk-srcs">
-      {sources.map((s) => (
-        <button
-          key={s.chunkId}
-          type="button"
-          className="tk-src"
-          onClick={() => onPeek(s)}
-          aria-label={`Source ${s.n}: ${s.title}, ${pagesOf(s)}`}
-        >
-          <span className="tk-sn">{s.n}</span>
-          <span className="tk-sdot" style={{ background: colourOf(s.category) }} />
-          <span className="tk-stl">{s.title}</span>
-          <em>{pagesOf(s)}</em>
-        </button>
-      ))}
+    <div className="tk-srcfoot">
+      <span className="tk-srclbl">
+        {sources.length === 1 ? "Source" : `Sources · ${sources.length}`}
+      </span>
+      <div className="tk-srcs">
+        {sources.map((s) => (
+          <button
+            key={s.chunkId}
+            type="button"
+            className="tk-src"
+            onClick={() => onPeek(s)}
+            aria-label={`Source ${s.n}: ${s.title}, ${pagesOf(s)}`}
+          >
+            <span className="tk-sn">{s.n}</span>
+            <span className="tk-sdot" style={{ background: colourOf(s.category) }} />
+            <span className="tk-stl">{s.title}</span>
+            <em>{pagesOf(s)}</em>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

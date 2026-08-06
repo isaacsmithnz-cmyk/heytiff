@@ -31,7 +31,17 @@
    weight back to `inherit` — 16px/400 buttons across the whole dashboard. */
 .fg button:where(:not([class*="wb2-"])) { font:inherit; color:inherit; background:none; border:none; cursor:pointer; }
 :where(button[class*="wb2-"]) { font:inherit; color:inherit; background:none; border:none; cursor:pointer; }
-.fg input { font:inherit; }
+/* THE SAME CARVE-OUT, FOR THE SAME REASON. `.fg input` is (0,1,1) as well, and
+   the fix above was only ever applied to buttons — so a bare
+   `.wb2-fi { font-size:13px }` on an <input> silently rendered at the browser
+   default 16px/400 anywhere the field sat IN-PAGE rather than in a portal (the
+   dictation row and the board's tag strip; the visit sheets escaped only
+   because they portal out of `.fg`). Mirrors lines above exactly: `:where()`
+   keeps the scoped rule at (0,1,1), and the wb2 twin is unscoped so it reaches
+   the portals too. <select> and <textarea> have no such reset — don't add one
+   without checking what it would outrank. */
+.fg input:where(:not([class*="wb2-"])) { font:inherit; }
+:where(input[class*="wb2-"]) { font:inherit; }
 .fg .mono { font-family:var(--mono); }
 .fg .no-sb::-webkit-scrollbar { display:none; }
 .fg .no-sb { scrollbar-width:none; }
@@ -606,38 +616,16 @@
 /* ---------------- TIFF ----------------
    The assistant's own two-column layout lives with the rest of the knowledge
    base in the `.tk-` block at the end of this file. What stays here is the
-   furniture the transcript and the composer are built from — hero, suggestion
-   cards, glowing input, bubbles — which the rebuilt screen still uses. */
-.fg .thero { position:relative; border-radius:40px; overflow:hidden; background:var(--ink); color:#fff; padding:48px; box-shadow:0 20px 60px -15px rgba(0,0,0,.4); flex:0 0 auto; margin-bottom:32px; border:1px solid rgba(255,255,255,.05); }
-.fg .thero .o1 { position:absolute; top:-20%; right:-10%; width:60%; height:150%; border-radius:50%; background:var(--teal); filter:blur(120px); opacity:.2; mix-blend-mode:screen; animation:fgBreath 6s ease-in-out infinite; pointer-events:none; }
-.fg .thero .o2 { position:absolute; bottom:-30%; left:10%; width:40%; height:100%; border-radius:50%; background:var(--blue); filter:blur(100px); opacity:.15; mix-blend-mode:screen; pointer-events:none; }
-.fg .trow { position:relative; z-index:10; display:flex; gap:32px; align-items:center; flex-wrap:wrap; }
-.fg .tbot { position:relative; flex:0 0 auto; }
-.fg .tbot .tb { width:96px; height:96px; border-radius:24px; background:linear-gradient(135deg,rgba(0,229,192,.2),transparent); border:1px solid rgba(0,229,192,.4); display:flex; align-items:center; justify-content:center; box-shadow:0 0 40px rgba(0,229,192,.2); backdrop-filter:blur(20px); transition:transform .5s; }
-.fg .tbot:hover .tb { transform:scale(1.05); }
-.fg .tbot .tb svg { color:var(--teal); }
-.fg .tbot .tst { position:absolute; bottom:-8px; right:-8px; width:24px; height:24px; border-radius:50%; background:var(--teal); border:4px solid var(--ink); display:flex; align-items:center; justify-content:center; box-shadow:0 0 15px rgba(0,229,192,.5); }
-.fg .tbot .tst i { width:8px; height:8px; background:#fff; border-radius:50%; animation:fgPing 1.5s cubic-bezier(0,0,.2,1) infinite; }
-@keyframes fgPing { 75%,100%{transform:scale(2);opacity:0} }
-.fg .tlead { flex:1; min-width:280px; }
-.fg .thero h2 { font-size:48px; font-weight:800; line-height:1.1; letter-spacing:-0.03em; margin:0 0 16px; }
-.fg .thero .tl { font-size:18px; color:rgba(255,255,255,.5); max-width:640px; line-height:1.6; font-weight:500; }
-.fg .thero .tl b { color:#fff; }
-.fg .tsgrid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:auto; }
-@media (max-width:1100px){ .fg .tsgrid{grid-template-columns:repeat(2,1fr)} }
-@media (max-width:640px){ .fg .tsgrid{grid-template-columns:1fr} }
-.fg .tsugg { position:relative; overflow:hidden; text-align:left; padding:24px; border-radius:32px; background:#fff; border:1px solid #f0f0f2; box-shadow:0 4px 20px rgba(0,0,0,.02); transition:all .5s; display:flex; flex-direction:column; }
-.fg .tsugg:hover { transform:translateY(-4px); border-color:#e5e7eb; box-shadow:0 20px 40px -15px rgba(0,0,0,.1); }
-.fg .tsugg .tsg { position:absolute; top:0; right:0; width:128px; height:128px; border-radius:50%; filter:blur(40px); opacity:0; transition:opacity .5s; pointer-events:none; }
-.fg .tsugg:hover .tsg { opacity:.2; }
-.fg .tsugg .tsh { display:flex; align-items:center; gap:12px; margin-bottom:24px; position:relative; z-index:10; }
-.fg .tsugg .tsi { width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; transition:transform .5s; }
-.fg .tsugg:hover .tsi { transform:scale(1.1) rotate(3deg); }
-/* Jakarta, not var(--mono): no monospace anywhere is the brief's first hard
-   constraint, and the tracking is what was carrying this label's look anyway. */
-.fg .tsugg .tsc { font-size:10px; font-weight:800; letter-spacing:.2em; text-transform:uppercase; }
-.fg .tsugg .tst2 { font-size:16px; font-weight:800; color:var(--ink); margin-bottom:8px; line-height:1.2; position:relative; z-index:10; }
-.fg .tsugg .tsd { font-size:13px; color:var(--gray500); font-weight:500; position:relative; z-index:10; }
+   furniture the TRANSCRIPT is built from — the glowing composer and the
+   bubbles.
+
+   THE DARK HERO AND THE FOUR SUGGESTION CARDS ARE GONE. They were the v1
+   screen's furniture: a 48px greeting that owned the top third of the page
+   and four cards that repeated the rail sitting next to them. A tool you
+   come to with a question should open with the place to type it, not with an
+   introduction — the search-first landing that replaced them is `.tk-open`
+   and `.tk-starts` in the `.tk-` block. Deleted rather than left behind,
+   because unused CSS is what the next person copies. */
 .fg .tinput { margin-top:32px; flex:0 0 auto; position:relative; }
 .fg .tinput .tib { position:absolute; inset:-4px; border-radius:35px; background:linear-gradient(90deg,var(--teal),var(--blue),var(--violet)); filter:blur(8px); opacity:.2; animation:fgBreath 4s ease-in-out infinite; }
 .fg .tinput .tin { position:relative; display:flex; align-items:center; gap:16px; padding:12px; border-radius:32px; background:#fff; box-shadow:0 25px 50px -12px rgba(0,0,0,.25); border:1px solid #fff; }
@@ -1446,7 +1434,6 @@
 .fg .tchat { flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:16px; padding:8px 4px 16px; }
 .fg .tmsg { display:flex; align-items:flex-end; gap:12px; max-width:76%; }
 .fg .tmsg.user { align-self:flex-end; }
-.fg .tmsg .tmav { width:36px; height:36px; border-radius:12px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:rgba(0,229,192,.12); border:1px solid rgba(0,229,192,.3); color:var(--teal-d); }
 .fg .tmsg .tmb { padding:14px 18px; border-radius:20px; font-size:14.5px; font-weight:500; line-height:1.55; }
 .fg .tmsg.user .tmb { background:var(--ink); color:#fff; border-bottom-right-radius:8px; box-shadow:0 8px 18px -8px rgba(0,0,0,.35); }
 .fg .tmsg.bot .tmb { background:#fff; border:1px solid #f0f0f2; color:#1f2937; border-bottom-left-radius:8px; box-shadow:0 4px 14px rgba(0,0,0,.04); }
@@ -1498,6 +1485,15 @@
 .fg .tpr .rhead .eyebrow { display:inline-flex; align-items:center; gap:8px; font-family:var(--font); font-size:11px; font-weight:800; letter-spacing:.2em; text-transform:uppercase; color:var(--teal-d); margin-bottom:14px; }
 .fg .tpr .rhead h1 { font-size:38px; font-weight:800; letter-spacing:-.03em; margin:0; line-height:1; }
 .fg .tpr .wknav { display:flex; align-items:center; gap:12px; margin-top:16px; }
+/* THE CARD THE TABS SIT ON — the board's surface, doing the board's job. The
+   week leads it because the tabs above already said which view you're in, so
+   the first question left is which period. It's the first thing in the card,
+   so it drops the top margin it needs when it follows a title. */
+.fg .tp-card { padding:20px 24px 24px; }
+.fg .tp-card > .wknav:first-child { margin-top:0; }
+/* the week's note and the content below it are separate thoughts — without
+   this they read as one paragraph that happens to contain a day strip */
+.fg .tp-card > .mts2-cols { margin-top:18px; }
 .fg .tpr .wknav .arw { width:42px; height:42px; border-radius:13px; display:flex; align-items:center; justify-content:center; color:var(--gray500); background:#fff; border:1px solid rgba(0,0,0,.07); box-shadow:0 1px 2px rgba(0,0,0,.03); transition:all .2s; }
 .fg .tpr .wknav .arw:hover { color:var(--ink); border-color:rgba(34,197,94,.5); transform:translateY(-1px); }
 .fg .tpr .wknav .range { font-size:20px; font-weight:800; letter-spacing:-.02em; white-space:nowrap; }
@@ -1530,14 +1526,24 @@
 @keyframes tprSpin { to { transform:rotate(360deg); } }
 
 /* ---------- stat strip (compact) ---------- */
-.fg .tpr .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
-.fg .tpr .stat { position:relative; display:flex; align-items:center; gap:14px; background:#fff; border:1px solid rgba(10,12,20,.06); border-radius:16px; padding:15px 18px; box-shadow:0 1px 2px rgba(10,12,20,.04), 0 12px 28px -20px rgba(10,12,20,.2); overflow:hidden; }
+.fg .tpr .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin:18px 0 20px; }
+/* A BLOCK IN A CARD, not a card on a page. These were white tiles lifted off
+   the grey page by a drop shadow — the right treatment until the screen moved
+   onto the board's white card, where a white tile on white is only its own
+   1px border and the lift has nothing to lift off. So they take the tint the
+   board gives every inner block (.wb2-ci, .wb2-dnnote) and drop the shadow:
+   read as recessed INTO the surface rather than floating above it.
+
+   `.review` keeps its red edge and is now the only tile with one, which is
+   the point of it — on the old treatment every tile had a border to compete
+   with, and the one that meant "look at this" had to shout over three. */
+.fg .tpr .stat { position:relative; display:flex; align-items:center; gap:14px; background:rgba(5,5,5,.03); border:1px solid rgba(10,12,20,.05); border-radius:16px; padding:15px 18px; overflow:hidden; }
 .fg .tpr .stat .si { position:static; width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
 .fg .tpr .stat .sv { font-family:var(--font); font-size:26px; font-weight:700; letter-spacing:-.03em; line-height:1; margin:0; }
 .fg .tpr .stat .stk { min-width:0; }
 .fg .tpr .stat .sl { font-size:11px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; margin-top:5px; }
 .fg .tpr .stat .ss { display:none; }
-.fg .tpr .stat.review { border-color:rgba(255,51,102,.26); }
+.fg .tpr .stat.review { background:rgba(255,51,102,.045); border-color:rgba(255,51,102,.26); }
 .fg .tpr .stat .sv { color:var(--ink); } .fg .tpr .stat .sl { color:var(--gray500); }
 .fg .tpr .stat.review .si { background:var(--red); color:#fff; } .fg .tpr .stat.review .sv { color:var(--red-d); }
 .fg .tpr .stat.normal .si { background:var(--teal); color:#053b34; }
@@ -2084,7 +2090,11 @@
 /* Resting state carries a surface and a readable glyph: bare #9ca3af on white is
    ~2.6:1, under the 3:1 minimum for an interactive control, so the close button
    was easy to miss on a card. */
-.fl-x { width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:#4b5563; background:#f1f2f4; border:1px solid #e6e8ee; transition:all .18s; flex:0 0 auto; }
+/* `button.` — always a <button> (13 of them), and as a bare class it lost its
+   grey square, its border and its ink to the reset, leaving a naked ✕ that
+   only grew a background on :hover (0,2,0). Fine in the modals, which portal
+   out of `.fg`; wrong on the workboard detail screens, which don't. */
+button.fl-x { width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:#4b5563; background:#f1f2f4; border:1px solid #e6e8ee; transition:all .18s; flex:0 0 auto; }
 .fl-x:hover { background:#e6e8ee; border-color:#d6d9e0; color:#050505; }
 .fl-mb { padding:18px 26px 26px; }
 .fl-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
@@ -2113,6 +2123,11 @@ select.fl-i { cursor:pointer; }
 .fl-i.slim { height:36px; font-size:12.5px; margin-top:4px; padding:0 10px; border-radius:10px; }
 .fl-foot { display:flex; justify-content:flex-end; gap:10px; margin-top:22px; }
 .fl-btn { display:inline-flex; align-items:center; gap:7px; height:42px; padding:0 18px; border-radius:12px; font-size:13.5px; font-weight:700; transition:all .2s; }
+/* ADDITIVE, not a rename: one `.fl-btn` in the noticeboard is a <label> (a file
+   picker), which the reset never touched and which `button.` would strip. So
+   this restores only the two declarations the reset ate, and leaves the label
+   reading off the rule above. `.tiny` (0,2,0) keeps its own 12px. */
+button.fl-btn { font-size:13.5px; font-weight:700; }
 .fl-btn.ghost { background:#fff; border:1px solid #e5e7eb; color:#374151; box-shadow:0 1px 2px rgba(0,0,0,.04); }
 .fl-btn.ghost:hover { background:#f9fafb; }
 /* The primary action wears the brand teal, not ink.
@@ -2264,13 +2279,11 @@ select.fl-i { cursor:pointer; }
 .fg .wz-anchor .fl-i, .fg .wz-anchor .datef { max-width:220px; }
 
 /* ---- Time & Pay: leave (stage 5b) ---- */
-/* the Timesheet/Leave switcher, inheriting .seg — only its place on the page
-   is local, which is all a screen should ever say about a shared control */
-.fg .mytime-segsw { margin:2px 0 20px; }
-.fg .tp-tabs { display:inline-flex; gap:4px; padding:4px; border-radius:13px; background:#f2f4f7; margin:2px 0 20px; }
-.fg .tp-tab { display:inline-flex; align-items:center; gap:7px; height:36px; padding:0 16px; border-radius:10px; font-size:13.5px; font-weight:700; color:var(--gray500); transition:all .16s; }
-.fg .tp-tab:hover { color:var(--ink); }
-.fg .tp-tab.on { background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(10,11,16,.09); }
+/* `.tp-tabs` — the Time & Pay pill group — is gone. Both of its screens, the
+   team's and your own, now wear the board's tab row (`.wb2-vtabs`) on the
+   board's card, which is the whole point: one control, one surface, four
+   screens. Removed rather than parked, as `.segsw` was: an unused block in
+   this file has shadowed a live component at equal specificity before. */
 /* ---- My leave: kind identity ----------------------------------------------
    A leave KIND is identity, never state, so it takes a hue the severity
    palette doesn't own. If annual leave wore teal, an "Annual leave" rail and
@@ -2286,7 +2299,8 @@ select.fl-i { cursor:pointer; }
 .fg .lv-unpaid   { --lvk:#64748b; --lvk-bg:rgba(100,116,139,.12); }
 
 .fg .lv-bal { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin-bottom:20px; }
-.fg .lv-baltile { position:relative; padding:15px 17px 16px; border-radius:16px; background:#fff; border:1px solid rgba(10,11,16,.08); overflow:hidden; }
+/* blocks in a card, like the rail cards and the team screen's stat tiles */
+.fg .lv-baltile { position:relative; padding:15px 17px 16px; border-radius:16px; background:rgba(5,5,5,.03); border:1px solid rgba(10,12,20,.05); overflow:hidden; }
 .fg .lv-baltile::before { content:''; position:absolute; top:0; bottom:0; left:0; width:3px; background:var(--lvk); }
 .fg .lv-baltop { display:flex; align-items:center; gap:9px; }
 .fg .lv-balic { display:flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:9px; background:var(--lvk-bg); color:var(--lvk); flex:0 0 auto; }
@@ -2304,7 +2318,7 @@ select.fl-i { cursor:pointer; }
 .fg .lv-src.synced { color:var(--teal-d); }
 .fg .lv-balempty, .fg .lv-declined, .fg .lv-pnote { font-size:12.5px; font-weight:600; color:var(--gray500); }
 .fg .lv-declined { display:block; color:var(--red-d,#e0264f); margin-top:3px; }
-.fg .lv-form { padding:16px 18px; border-radius:16px; background:#fafbfc; border:1px solid rgba(10,11,16,.08); margin-bottom:22px; }
+.fg .lv-form { padding:16px 18px; border-radius:16px; background:rgba(5,5,5,.03); border:1px solid rgba(10,12,20,.05); margin-bottom:22px; }
 .fg .lv-frow { display:flex; flex-wrap:wrap; gap:12px; }
 .fg .lv-fnote { margin-top:12px; display:flex; }
 .fg .lv-form .mts-f input, .fg .lv-form .mts-f select { height:38px; padding:0 11px; border-radius:11px; border:1px solid rgba(10,11,16,.14); background:#fff; font-family:var(--font); font-size:13.5px; font-weight:600; color:var(--ink); }
@@ -2312,7 +2326,7 @@ select.fl-i { cursor:pointer; }
 .fg .lv-fmeta > span { flex:1; font-size:12.5px; font-weight:600; color:var(--gray500); }
 .fg .lv-cols { display:grid; grid-template-columns:1.4fr 1fr; gap:20px; align-items:start; }
 .fg .lv-col { border:1px solid rgba(10,11,16,.08); border-radius:16px; overflow:hidden; }
-.fg .lv-ch { padding:13px 16px; font-size:12.5px; font-weight:800; color:var(--gray700); text-transform:uppercase; letter-spacing:.04em; background:#fafbfc; border-bottom:1px solid rgba(10,11,16,.06); }
+.fg .lv-ch { padding:13px 16px; font-size:12.5px; font-weight:800; color:var(--gray700); text-transform:uppercase; letter-spacing:.04em; background:rgba(5,5,5,.03); border-bottom:1px solid rgba(10,11,16,.06); }
 /* The variant that carries its own action. Kept a modifier rather than folded
    into .lv-ch, because the holidays column and the admin holiday-year headers
    reuse the plain bar and have nothing to put on the right. The button's own
@@ -2609,9 +2623,26 @@ select.fl-i { cursor:pointer; }
    and the approver's screen read, so a week's shape is legible without opening
    anything. `--dc` carries it, set once per state and used by the top bar, the
    tint and the selected ring, so a new state is one line rather than four. */
-.fg .mts2-tabs { display:flex; gap:6px; align-items:stretch; }
-.fg .mts2-tab { --dc:#d8dbe1; --dt:rgba(216,219,225,.14); position:relative; flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:center; gap:3px; padding:11px 4px 12px; border-radius:14px 14px 0 0; background:#fff; border:1px solid #eceef1; border-bottom-color:transparent; box-shadow:0 1px 2px rgba(10,12,20,.03); transition:background .16s, transform .16s, box-shadow .16s; }
-.fg .mts2-tab .cbar { position:absolute; left:10px; right:10px; top:0; height:3px; border-radius:0 0 3px 3px; background:var(--dc); }
+/* A TRACK, not a row of folder tabs. These used to be tabs joined to the panel
+   below — which drew a hairline across the full width under all seven days,
+   and that line is what made the strip read as its own box sitting on the card
+   rather than part of it. The boards' Projects/Maintenance switcher had the
+   answer already: a tinted track, a white pill on the live one, and no join to
+   anything. Nothing here touches the panel now, so there is no seam to hide. */
+.fg .mts2-tabs { display:flex; gap:4px; align-items:stretch; padding:4px; border-radius:17px; background:rgba(5,5,5,.03); border:1px solid rgba(10,12,20,.05); }
+/* THE RESTING DAY IS TINTED, THE OPEN ONE IS WHITE. This strip is itself a
+   tabs-on-a-card, and it now lives inside one — so if every day stayed white
+   the open day would be the only thing on the screen with nothing to be open
+   against, and the whole strip would dissolve into the surface behind it.
+   Tinting the resting days puts the contrast back where it carries meaning:
+   the white one is the day you have open. (The `.on` tint composites over
+   white deliberately — see the note below — which is why only the base moved.) */
+/* Each day is a seat in that track: no border, no fill of its own, the track
+   showing through. Only the open day is drawn. */
+.fg .mts2-tab { --dc:#d8dbe1; --dt:rgba(216,219,225,.14); position:relative; flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:center; gap:3px; padding:10px 4px 11px; border-radius:13px; background:none; border:0; transition:background .16s, box-shadow .16s; }
+/* the day's colour, inset so it reads inside the seat rather than as an edge
+   of it — at the old top:0 it would now sit on the pill's rounded corner */
+.fg .mts2-tab .cbar { position:absolute; left:12px; right:12px; top:5px; height:3px; border-radius:99px; background:var(--dc); }
 .fg .mts2-tab .cw { font-size:9px; font-weight:800; letter-spacing:.07em; color:var(--gray400); }
 .fg .mts2-tab .cd { font-size:17px; font-weight:800; line-height:1; color:var(--ink); }
 .fg .mts2-tab .cs { font-size:10.5px; font-weight:700; color:var(--gray500); font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
@@ -2620,7 +2651,9 @@ select.fl-i { cursor:pointer; }
    the dark shell frame as often as on the light page — which turned the
    selected day near-black. A gradient of the same colour onto an opaque white
    background-color gives the intended tint wherever the strip lands. */
-.fg .mts2-tab:hover { background-image:linear-gradient(var(--dt),var(--dt)); transform:translateY(-1px); }
+/* the resting seat lifts under the pointer, it does not move — a seat that
+   translates out of its own track is the tell that this was once a tab */
+.fg .mts2-tab:not(.on):hover { background:rgba(255,255,255,.7); }
 .fg .mts2-tab:focus-visible { outline:none; box-shadow:0 0 0 2px var(--teal-d); }
 
 /* The day's state, one declaration each.
@@ -2660,7 +2693,9 @@ select.fl-i { cursor:pointer; }
    a weekend for most people, a Wednesday for a part-timer, EVERY empty day for
    a casual. A day still ahead of itself is dimmed the same way; neither is
    anything to act on yet. */
-.fg .mts2-tab.offroster.empty, .fg .mts2-tab.ahead { background:#fafbfc; }
+/* nothing to draw: an undrawn seat in a tinted track already recedes, and the
+   dimmed labels below carry the rest. A darker fill here would have made the
+   days you can ignore the heaviest things in the strip. */
 .fg .mts2-tab.offroster.empty .cd, .fg .mts2-tab.offroster.empty .cw, .fg .mts2-tab.offroster.empty .cs,
 .fg .mts2-tab.ahead .cd, .fg .mts2-tab.ahead .cw, .fg .mts2-tab.ahead .cs { opacity:.45; }
 /* TODAY is named by its weekday going ink, not by a ring the selected tab
@@ -2668,15 +2703,20 @@ select.fl-i { cursor:pointer; }
 .fg .mts2-tab.today .cw { color:var(--ink); }
 .fg .mts2-tab.today .cw::after { content:" ·"; color:var(--teal-d); }
 
-/* THE SELECTED TAB joins the panel: tinted, lifted, and open at the bottom */
-.fg .mts2-tab.on { background-color:#fff; background-image:linear-gradient(var(--dt),var(--dt)); border-color:#e6e8ec; border-bottom-color:transparent; transform:none; box-shadow:0 -2px 10px -6px rgba(10,12,20,.3); z-index:2; }
-/* the bridge that removes the seam between the open tab and its panel */
-.fg .mts2-tab.on::after { content:""; position:absolute; left:0; right:0; bottom:-2px; height:4px; background-color:#fff; background-image:linear-gradient(var(--dt),var(--dt)); }
+/* THE OPEN DAY IS THE PILL — the board switcher's thumb, wearing the day's own
+   tint. Still composited over an opaque white rather than laid on as a
+   translucent fill, for the reason in the note above: the strip sits on a
+   white card here and on the dark shell frame elsewhere. */
+.fg .mts2-tab.on { background-color:#fff; background-image:linear-gradient(var(--dt),var(--dt)); box-shadow:0 3px 8px -3px rgba(10,12,20,.28); z-index:2; }
 .fg .mts2-tab.on .cd, .fg .mts2-tab.on .cw, .fg .mts2-tab.on .cs { opacity:1; }
 .fg .mts2-tab.on .cbar { height:4px; }
 
 /* the panel the tabs open onto */
-.fg .mts2-panel { background:#fff; border:1px solid #e6e8ec; border-radius:0 0 18px 18px; margin-top:-1px; box-shadow:0 1px 2px rgba(10,12,20,.03), 0 20px 40px -34px rgba(10,12,20,.5); animation:tprUp .2s ease backwards; }
+/* DETACHED. It used to be welded to the strip — square top corners, pulled up
+   1px, its top border the line running under all seven days. Now it is its own
+   block below the track, tinted like every other block in the card, with the
+   white pill above it the only thing marking which day it belongs to. */
+.fg .mts2-panel { background:rgba(5,5,5,.03); border-radius:18px; margin-top:10px; animation:tprUp .2s ease backwards; }
 .fg .mts2-phead { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:14px 15px 0; }
 .fg .mts2-pd { font-size:15px; font-weight:800; letter-spacing:-.02em; color:var(--ink); }
 
@@ -2799,7 +2839,10 @@ select.fl-i { cursor:pointer; }
 /* ---- the rail ---- */
 .fg .mts2-rail { display:flex; flex-direction:column; gap:14px; position:sticky; top:0; }
 @media (max-width:960px){ .fg .mts2-rail { position:static; } }
-.fg .mts2-card { background:#fff; border:1px solid #f0f0f2; border-radius:20px; padding:18px; box-shadow:0 1px 2px rgba(10,12,20,.03), 0 18px 36px -30px rgba(10,12,20,.35); }
+/* Rail cards are BLOCKS IN A CARD now — see the .tpr .stat note for the
+   reasoning. White tiles lifted off a grey page; on the board's white card a
+   white tile is its own 1px border and a shadow with nothing to fall on. */
+.fg .mts2-card { background:rgba(5,5,5,.03); border:1px solid rgba(10,12,20,.05); border-radius:20px; padding:18px; }
 .fg .mts2-ch { display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:11px; font-weight:800; letter-spacing:.09em; text-transform:uppercase; color:var(--gray400); }
 .fg .mts2-range { margin-top:6px; font-size:17px; font-weight:800; letter-spacing:-.02em; color:var(--ink); }
 .fg .mts2-range em { font-style:normal; color:var(--gray400); }
@@ -3264,25 +3307,37 @@ select.fl-i { cursor:pointer; }
 
 /* stage stepper */
 .wb-stepper { display:flex; flex-wrap:wrap; gap:6px; }
-.wb-step { font-size:12px; font-weight:700; padding:7px 12px; border-radius:999px; border:1px solid rgba(5,5,5,.1); background:#fff; color:var(--gray500); cursor:pointer; }
+button.wb-step { font-size:12px; font-weight:700; padding:7px 12px; border-radius:999px; border:1px solid rgba(5,5,5,.1); background:#fff; color:var(--gray500); cursor:pointer; }
 .wb-step:disabled { cursor:default; }
 .wb-step.past { background:rgba(0,163,137,.1); border-color:transparent; color:#00A389; }
 .wb-step.now { background:var(--ink); border-color:var(--ink); color:#fff; }
 .wb-step.todo:hover:not(:disabled) { border-color:rgba(0,168,224,.5); color:var(--gray700); }
 
 /* ticks, inline adders, small controls */
-.wb-tick { width:24px; height:24px; border-radius:8px; border:1.5px solid rgba(5,5,5,.18); background:#fff; color:transparent; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; flex:none; }
+/* TYPED AS `button.` deliberately — the same (0,1,1) trick `button.wb-chip`
+   uses below, and here it is the difference between an empty checkbox and one
+   that looks ticked. A bare `.wb-tick` is (0,1,0) and loses `color:transparent`
+   to the reset's `color:inherit`, so an UNTICKED box drew its check glyph in
+   full ink, with no border and no white fill; only `.done` (0,2,0) survived.
+   Two states that must never be confusable were telling the same story. */
+button.wb-tick { width:24px; height:24px; border-radius:8px; border:1.5px solid rgba(5,5,5,.18); background:#fff; color:transparent; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; flex:none; }
 .wb-tick.done { background:#00A389; border-color:#00A389; color:#fff; }
 .wb-tick:not(.done):hover { border-color:#00A389; color:rgba(0,163,137,.4); }
-.wb-add { width:20px; height:20px; border-radius:6px; border:1px solid rgba(5,5,5,.12); background:#fff; color:var(--gray500); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; margin-left:8px; vertical-align:middle; }
+button.wb-add { width:20px; height:20px; border-radius:6px; border:1px solid rgba(5,5,5,.12); background:#fff; color:var(--gray500); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; margin-left:8px; vertical-align:middle; }
 .wb-add:hover { color:var(--ink); border-color:rgba(5,5,5,.3); }
-.wb-inline { flex:1; min-width:0; border:1px solid rgba(5,5,5,.12); border-radius:10px; padding:8px 12px; font:inherit; font-size:13px; }
+/* `input.` for the same (0,1,1) reason as `button.wb-tick` — outside the wb2
+   namespace the input reset still wins, and this field is in-page on the
+   project detail screen (note-capture's copies are portalled). */
+input.wb-inline { flex:1; min-width:0; border:1px solid rgba(5,5,5,.12); border-radius:10px; padding:8px 12px; font:inherit; font-size:13px; }
 .wb-inline:focus { outline:none; border-color:#00A8E0; }
 .wb-select { border:1px solid rgba(5,5,5,.12); border-radius:10px; padding:8px 12px; font:inherit; font-size:13px; background:#fff; cursor:pointer; }
 .wb-notes { width:100%; border:1px solid rgba(5,5,5,.12); border-radius:12px; padding:12px 14px; font:inherit; font-size:13.5px; resize:vertical; }
 .wb-notes:focus { outline:none; border-color:#00A8E0; }
 .wb-notetext { font-size:13.5px; color:var(--gray700); white-space:pre-wrap; margin:0; }
-.wb-hit { width:100%; text-align:left; border:1px solid rgba(5,5,5,.08); background:#fff; border-radius:10px; cursor:pointer; margin-top:6px; }
+/* the search result's card. Without the `button.` its border went to
+   `border:none`, which also made `.wb-hit:hover`'s border-COLOR a no-op —
+   the row had no edge to recolour. */
+button.wb-hit { width:100%; text-align:left; border:1px solid rgba(5,5,5,.08); background:#fff; border-radius:10px; cursor:pointer; margin-top:6px; }
 .wb-hit:hover { border-color:rgba(0,168,224,.5); }
 
 /* the Overview strip */
@@ -3311,7 +3366,12 @@ select.fl-i { cursor:pointer; }
 .wb-visit { border:1px solid rgba(5,5,5,.07); border-radius:14px; padding:6px 8px; margin-bottom:10px; }
 .wb-visit.wb-pulse { border-color:rgba(224,38,79,.5); }
 .wb-chip:disabled { cursor:default; opacity:.7; }
-button.wb-chip { cursor:pointer; border:none; font:inherit; font-size:11px; font-weight:700; }
+/* This rule already existed to win the TYPE back, but stopped there — so a
+   plain chip on a button kept its 11px/700 and still lost its grey pill and
+   its ink, while `.on`/`.bad`/`.warn`/`.ghost` (0,2,0) kept theirs. Half a fix
+   reads as a deliberate design ("only status chips are tinted"), which is why
+   it survived a redesign audit. The fill and colour are restated here. */
+button.wb-chip { cursor:pointer; border:none; font:inherit; font-size:11px; font-weight:700; background:rgba(5,5,5,.06); color:var(--gray700); }
 button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 
 /* ── Workboard command centre ──────────────────────────────────────────────
@@ -3384,39 +3444,15 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
   .wb2-segb { flex:1; justify-content:center; }
 }
 
-/* switcher — one thumb that SLIDES between the tabs, the studio idiom
-   (.ds-steps). A background that hops reads as two buttons; a thumb that
-   travels reads as one control with two positions.
+/* `.segsw` — the sliding-thumb switcher — lived here and had exactly one user,
+   My time's Timesheet/Leave nav, which now wears `.tp-tabs` like the team
+   screen it belongs to. Deleted rather than left for later: dead CSS in this
+   file has already shadowed a live component at equal specificity once.
 
-   This is the shell's shared segmented control, not one screen's: the
-   Workboard's board switcher and My time's Timesheet/Leave switcher are the
-   same object and must not drift apart. The lineage is .cyc (the pay-cycle
-   toggle, which hops) → .ds-steps (which added the thumb) → here.
-
-   `--segsw-n` is the tab count. The thumb is sized off the track rather than
-   its label, so it stays exact at any width: n equal tabs share
-   (100% − 2×4px padding − (n−1)×3px gap). Set --segsw-n or a 3-tab switcher
-   silently renders a half-width thumb. */
-/* Grid, not flex, and the thumb is the reason. The thumb is sized track/n, so
-   the tabs have to BE track/n — and flex can't do that here: `flex:1` only
-   shares out free space, and a fit-content track has none, so tabs keep their
-   own label widths. `grid-auto-columns:1fr` under fit-content resolves every
-   column to the widest label instead, which is the geometry the thumb assumes. */
-.segsw { --segsw-n:2; position:relative; flex:0 0 auto; display:grid; grid-auto-flow:column; grid-auto-columns:1fr; gap:3px; background:#e4e6ec; border:1px solid rgba(10,12,20,.05); border-radius:15px; padding:4px; width:fit-content; }
-.segsw-thumb { position:absolute; top:4px; bottom:4px; left:4px; width:calc((100% - 8px - (var(--segsw-n) - 1) * 3px) / var(--segsw-n)); border-radius:11px; background:#fff; box-shadow:0 3px 8px -3px rgba(10,12,20,.28); transition:transform .42s cubic-bezier(.4,0,.2,1), opacity .2s ease; }
-.segsw[data-active="1"] .segsw-thumb { transform:translateX(calc(100% + 3px)); }
-.segsw[data-active="2"] .segsw-thumb { transform:translateX(calc(200% + 6px)); }
-/* nothing current — the thumb parks and fades, as it does on studio Plans */
-.segsw[data-active="-1"] .segsw-thumb { opacity:0; }
-/* Centred in its equal column — "Timesheet" and "Leave" differ by 28px, and
-   left-aligned labels in equal columns would leave the shorter one adrift. */
-.segsw-b { justify-content:center; white-space:nowrap; position:relative; z-index:1; display:inline-flex; align-items:center; gap:7px; border-radius:11px; padding:8px 16px; font-size:12.5px; font-weight:700; color:var(--gray500); cursor:pointer; background:none; border:0; font-family:inherit;
-  /* the thumb carries the movement; the label's colour snaps, because
-     crossfading it passes through a mid-grey unreadable against the pill */
-  transition:none; }
-.segsw-b:hover { color:var(--ink); }
-.segsw-b.on { color:var(--ink); }
-@media (prefers-reduced-motion:reduce) { .segsw-thumb { transition:none; } }
+   Its comment claimed it was shared with the Workboard's board switcher. It
+   never was — that is `.wb2-seg`, a separate implementation with a coloured
+   thumb. If a shared segmented control is ever actually wanted, build it from
+   `.wb2-seg` (the one with two real users) rather than reviving this. */
 
 /* the three numbers — and they FILTER, because a number you can't act on is
    decoration. Pressed state is the ring, not a colour swap, so the tone keeps
@@ -3612,8 +3648,21 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
    The centring translate has to be carried through every frame instead. */
 @keyframes wb2ModalIn { from { opacity:0; transform:translate(-50%,calc(-50% + 8px)); }
                         to   { opacity:1; transform:translate(-50%,-50%); } }
+/* `wb2DropIn` CARRIES THE CAPTURE CARD'S CENTRING. `.wb2-capcard` is
+   `position:fixed; left:50%`, so the -50% translate in both keyframes is
+   what holds it centred — drop it and the card sits half a width to the
+   right. That makes this animation UNSAFE for anything not centred that
+   way, because `both` fill mode holds the final frame forever: a
+   normal-flow element borrowing it is parked half its own width to the
+   LEFT, permanently. The job picker did exactly that and rendered off the
+   side of the card with the client name — the one column that tells two
+   jobs apart — clipped out of view. Anything that isn't `left:50%` wants
+   `wb2PickIn` below. */
 @keyframes wb2DropIn  { from { opacity:0; transform:translate(-50%,8px); }
                         to   { opacity:1; transform:translateX(-50%); } }
+/** The same drop, for elements that sit where they already are. */
+@keyframes wb2PickIn  { from { opacity:0; transform:translateY(-6px); }
+                        to   { opacity:1; transform:none; } }
 @keyframes wb2CardOut { from { opacity:1; transform:none; } to { opacity:0; transform:translateY(-6px); } }
 .wb2-swap { animation:wb2CardIn .32s cubic-bezier(.22,1,.36,1) both; }
 
@@ -4504,7 +4553,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .wb2-capchange:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
 .wb2-jobpick { margin-top:8px; border:1px solid var(--wb2-line, rgba(5,5,5,.08)); border-radius:14px;
   background:#fff; overflow:hidden; box-shadow:0 18px 40px -28px rgba(10,12,20,.55);
-  animation:wb2DropIn .22s cubic-bezier(.22,1,.36,1) both; }
+  animation:wb2PickIn .22s cubic-bezier(.22,1,.36,1) both; }
 .wb2-jobsearch { display:flex; align-items:center; gap:9px; padding:9px 11px;
   border-bottom:1px solid var(--wb2-line2, rgba(5,5,5,.06)); color:var(--gray400); }
 .wb2-jobq { flex:1; min-width:0; border:0; background:none; font:inherit; font-size:13px; font-weight:600;
@@ -4884,23 +4933,37 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .tk-chip:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(46,104,255,.3); }
 
 /* ── a shelf: one card per category, coloured at the top ── */
-.fg .tk-list { display:grid; gap:20px; }
-.fg .tk-cat { position:relative; background:#fff; border:1px solid #fff; border-radius:32px; box-shadow:0 8px 30px rgba(0,0,0,.04);
-  transition:box-shadow .5s; }
-.fg .tk-cat:hover { box-shadow:0 18px 44px rgba(0,0,0,.07); }
-.fg .tk-ctop { position:absolute; top:0; left:0; right:0; z-index:10; height:6px; opacity:.85; border-radius:32px 32px 0 0; }
-.fg .tk-cin { position:relative; z-index:10; padding:26px 24px 20px; }
-.fg .tk-chd { display:flex; align-items:center; gap:16px; margin-bottom:14px; }
-.fg .tk-cic { width:48px; height:48px; border-radius:15px; display:grid; place-items:center; flex:none;
-  box-shadow:inset 0 2px 4px rgba(0,0,0,.04); }
-.fg .tk-chd h2 { margin:0; font-size:19px; font-weight:800; letter-spacing:-.02em; line-height:1.2; color:var(--ink); }
-.fg .tk-chd p { margin:4px 0 0; font-size:13px; font-weight:600; color:var(--gray500); }
+/* ══════════════════ TIFF — THE LIBRARY, AS AN INDEX ══════════════════════
+   One surface, four groups on it — not four cards.
+
+   THE CHROME WAS OUTWEIGHING THE CONTENT. Each shelf was a full card with a
+   6px colour bar, a 48px icon tile, a heading and a blurb, so six documents
+   cost about 2,500px of page and the fourth shelf's "nothing here yet" got
+   the same furniture as a shelf with work in it. A library is read by
+   scanning it, and it has to survive forty documents as well as six.
+
+   THE COLOUR IS SAID ONCE PER GROUP, not three times. The bar, the tile and
+   the per-row dot were all carrying the same fact. */
+.fg .tk-list { background:#fff; border:1px solid #fff; border-radius:28px;
+  box-shadow:0 8px 30px rgba(0,0,0,.04); overflow:hidden; }
+.fg .tk-cat { position:relative; display:block; }
+.fg .tk-cat + .tk-cat { border-top:1px solid #f2f4f7; }
+.fg .tk-cin { position:relative; z-index:10; padding:16px 18px 14px; }
+.fg .tk-chd { display:flex; align-items:center; gap:12px; margin-bottom:8px; padding:0 4px; }
+.fg .tk-cic { width:30px; height:30px; border-radius:10px; display:grid; place-items:center; flex:none; }
+.fg .tk-chd h2 { margin:0; font-size:14.5px; font-weight:800; letter-spacing:-.01em; line-height:1.2; color:var(--ink); }
+.fg .tk-chd p { margin:2px 0 0; font-size:12px; font-weight:600; color:var(--gray400); }
 
 /* ── a document ── */
 .fg .tk-row { display:flex; align-items:center; gap:14px; padding:13px 14px; border:1px solid transparent; border-radius:18px;
   transition:background .2s, border-color .2s; }
 .fg .tk-row:hover { background:#fafbfc; border-color:#f0f0f2; }
 .fg .tk-rmain { flex:1 1 auto; min-width:0; }
+/* Narrow enough and the row wraps, which drops the status dot onto the
+   second line beside the buttons — a marker for the title, sitting next to
+   something else. The group header above already says which shelf this is,
+   and the pill (or its absence) already says how the document is doing. */
+@media (max-width: 820px) { .fg .tk-row .tk-dot { display:none; } }
 .fg .tk-rt { display:inline-flex; align-items:center; gap:7px; max-width:100%; padding:0; border:0; background:none; text-align:left;
   font-family:var(--font-jakarta), sans-serif; font-size:14.5px; font-weight:700; letter-spacing:-.01em; color:var(--ink);
   cursor:pointer; transition:color .2s; }
@@ -4941,7 +5004,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 @keyframes tkSlide { from { transform:translateX(-110%); } to { transform:translateX(250%); } }
 
 /* ── nothing here (yet): the day-1 sell, and the smaller misses ── */
-.fg .tk-empty { padding:56px 40px; text-align:center; background:#fff; border:1px solid #fff; border-radius:36px;
+.fg .tk-empty { margin:0 auto; max-width:760px; padding:56px 40px; text-align:center; background:#fff; border:1px solid #fff; border-radius:36px;
   box-shadow:0 8px 30px rgba(0,0,0,.04); }
 .fg .tk-empty.small { padding:44px 32px; border-radius:28px; }
 .fg .tk-eic { width:64px; height:64px; margin:0 auto 20px; border-radius:20px; display:grid; place-items:center;
@@ -4955,10 +5018,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .tk-ecard b { display:block; font-size:14px; font-weight:800; color:var(--ink); }
 .fg .tk-ecard em { display:block; margin-top:3px; font-style:normal; font-size:12.5px; font-weight:600; color:var(--gray400); }
 .fg .tk-ehint { margin-top:22px; font-size:13.5px; font-weight:700; color:var(--gray400); }
-.fg .tk-note { padding:22px; text-align:center; border:1.5px dashed #e6e8ee; border-radius:16px;
+.fg .tk-note { padding:10px 14px; text-align:left; border:none; border-radius:12px;
   background:linear-gradient(180deg,#fafbfc,#fff); }
-.fg .tk-note b { display:block; font-size:13.5px; font-weight:800; color:var(--gray700); }
-.fg .tk-note span { display:block; margin-top:5px; font-size:12.5px; font-weight:600; color:var(--gray400); }
+.fg .tk-note b { display:inline; font-size:12.5px; font-weight:700; color:var(--gray500); }
+.fg .tk-note span { display:inline; margin-left:5px; font-size:12.5px; font-weight:600; color:var(--gray400); }
 
 /* the confirm line inside the (portalled, unscoped) delete modal */
 .fl-modal .tk-confirm { margin:0; font-size:13.5px; font-weight:600; line-height:1.6; color:#374151; }
@@ -5064,7 +5127,63 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    columns over its wire layer */
 .fg .tk-chatcol { position:relative; z-index:1; display:flex; flex-direction:column; min-width:0; min-height:0; }
 
-/* ── landing: a returning user resumes instead of being pitched to ── */
+/* ══════════════════ TIFF — THE SEARCH-FIRST LANDING ══════════════════════
+   The page opens on the place to type, not on a greeting.
+
+   THE COMPOSER IS THE PAGE. It sits in the upper third with one short line
+   above it, because everything this screen does begins with a question and
+   a tool that opens by introducing itself spends its best real estate on
+   the one thing the reader already knows. The old 48px "What are we
+   building today?" hero and the four suggestion cards under it are deleted,
+   not restyled — the cards in particular repeated the four shelves in the
+   rail two inches to their right.
+
+   ORDER IS CSS, NOT MARKUP. The composer is one form serving both states:
+   last in an open conversation, where new text arrives above it, and second
+   on the landing, under the heading. The DOM keeps the conversation's
+   order and `order` moves it for the landing, so there is one composer with
+   one piece of state rather than two that can disagree.
+
+   WHAT'S LEFT UNDERNEATH IS RESUMPTION, THEN INVITATION: the threads you
+   were in, and only then the kinds of question worth asking. Both are
+   quiet — a starter is a pill you can ignore, not a card competing with
+   the rail. */
+/* Top-aligned with a deep pad rather than `justify-content:center`: centring
+   a flex column clips the TOP of anything taller than the viewport, and this
+   column grows with the thread list. */
+.fg .tk-chatcol.landing { justify-content:flex-start; padding-top:clamp(12px, 13vh, 132px); }
+.fg .tk-chatcol.landing .tk-open { order:1; }
+.fg .tk-chatcol.landing .tk-composer { order:2; }
+.fg .tk-chatcol.landing .tk-recent { order:3; }
+.fg .tk-chatcol.landing .tk-starts { order:4; }
+
+/* Both blocks were written to sit ABOVE the composer, where a bottom margin
+   did the spacing. Reordering puts them under it, so the gap has to move to
+   the top or the section label lands on the Research row. */
+.fg .tk-chatcol.landing .tk-recent { margin:32px 0 0; }
+.fg .tk-chatcol.landing .tk-starts { margin-top:24px; }
+
+.fg .tk-open { flex:0 0 auto; margin-bottom:22px; }
+.fg .tk-open h2 { margin:0; font-size:38px; font-weight:800; letter-spacing:-.035em; line-height:1.05; color:var(--ink); }
+.fg .tk-open p { margin:11px 0 0; max-width:600px; font-size:15px; font-weight:600; line-height:1.55; color:var(--gray500); }
+.fg .tk-open p b { color:var(--ink); font-weight:800; }
+
+/* the input carries the page, so it is bigger here than it is under a
+   transcript, and it loses the top margin that spaces it from one */
+.fg .tk-chatcol.landing .tinput { margin-top:0; }
+.fg .tk-chatcol.landing .tinput input { font-size:17px; padding:19px 0; }
+
+/* ── starters: the kinds of question, as pills ── */
+.fg .tk-starts { flex:0 0 auto; display:flex; flex-wrap:wrap; gap:8px; margin-top:26px; }
+.fg .tk-start { display:inline-flex; align-items:center; gap:9px; height:38px; padding:0 15px; border-radius:999px;
+  background:rgba(255,255,255,.72); border:1px solid #ececf0; box-shadow:0 1px 2px rgba(0,0,0,.03);
+  font-size:13px; font-weight:700; color:var(--gray700); cursor:pointer;
+  transition:background .2s, border-color .2s, color .2s, transform .2s; }
+.fg .tk-start:hover { background:#fff; border-color:#dfe2e8; color:var(--ink); transform:translateY(-1px); }
+.fg .tk-start:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(46,104,255,.3); }
+.fg .tk-start i { width:7px; height:7px; flex:none; border-radius:50%; background:var(--tkc, var(--gray400)); }
+
+/* ── the returning line above the threads ── */
 .fg .tk-welcome { flex:0 0 auto; margin-bottom:26px; }
 .fg .tk-welcome h2 { margin:0; font-size:34px; font-weight:800; letter-spacing:-.03em; line-height:1.1; color:var(--ink); }
 .fg .tk-welcome p { margin:9px 0 0; max-width:640px; font-size:15px; font-weight:600; line-height:1.5; color:var(--gray500); }
@@ -5141,6 +5260,67 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .tk-again:hover { background:#2E68FF; border-color:#2E68FF; color:#fff; }
 
 /* ── citations: the trust mechanism, prominent without being noisy ── */
+/* ══════════════════ TIFF — THE ANSWER, AS A DOCUMENT ═════════════════════
+   Tiff's turn is not a chat bubble.
+
+   A MESSAGE BUBBLE IS THE WRONG CONTAINER FOR A CITED ANSWER. The bubble
+   capped every answer at 76% of the column and hung a tail off its corner —
+   messenger furniture — while a real reply to a real fault carries a
+   procedure, a resistance table and three citations. Measured on the harness:
+   584px of an 840px column, with the table crushed to 298px and a third of
+   the width empty beside it. So the answer takes the full column as a sheet,
+   and what stays a bubble is the QUESTION, which is short, and whose
+   right-aligned darkness is what makes the turns readable at a glance.
+
+   THE SHEET ARRIVES BEFORE THE WORDS DO. It is the same container while Tiff
+   is thinking, streaming and done — so an answer fills a space that is
+   already there rather than the page jolting when the first token lands. */
+.fg .tmsg.bot { max-width:100%; align-items:flex-start; }
+.fg .tmsg.bot .tmb { width:100%; padding:22px 26px; border-radius:26px;
+  border-bottom-left-radius:26px; box-shadow:0 6px 26px -14px rgba(10,12,20,.28); font-size:15px; }
+.fg .tmsg.bot .tmb p { margin:0 0 12px; }
+.fg .tmsg.user { max-width:min(560px, 78%); }
+
+/* Still writing. The dots answer "has it started"; once words are arriving
+   the question becomes "is that all of it", and a caret answers that without
+   claiming to know how much is left — which a progress bar would. It rides
+   the last paragraph, so it is absent while a table or a list is mid-build
+   rather than floating loose under one. */
+.fg .tmb.streaming > p:last-child::after { content:""; display:inline-block; width:2px; height:1em;
+  margin-left:3px; vertical-align:-2px; background:var(--teal-d); animation:tkCaret 1.05s steps(1) infinite; }
+@keyframes tkCaret { 0%, 50% { opacity:1; } 50.01%, 100% { opacity:0; } }
+@media (prefers-reduced-motion: reduce) { .fg .tmb.streaming > p:last-child::after { animation:none; } }
+
+/* ── a procedure ── */
+.fg .tmb ol.tk-steps { margin:0 0 14px; padding:0; list-style:none; counter-reset:tkstep;
+  display:flex; flex-direction:column; gap:9px; }
+.fg .tmb ol.tk-steps:last-child { margin-bottom:0; }
+.fg .tmb ol.tk-steps li { counter-increment:tkstep; position:relative; padding-left:34px; line-height:1.5; }
+.fg .tmb ol.tk-steps li::before { content:counter(tkstep); position:absolute; left:0; top:-1px;
+  display:flex; align-items:center; justify-content:center; width:23px; height:23px; border-radius:8px;
+  background:#f1f3f7; color:var(--gray700); font-size:11.5px; font-weight:800; }
+
+/* ── data with columns ──
+   `tabular-nums` is load-bearing: a resistance column whose digits do not
+   line up is a column you have to read twice. */
+.fg .tk-tw { margin:0 0 14px; max-width:100%; overflow-x:auto; overscroll-behavior-x:contain;
+  border:1px solid #eef0f4; border-radius:16px; }
+.fg .tk-tw:last-child { margin-bottom:0; }
+.fg .tk-tbl { width:100%; border-collapse:collapse; font-size:13.5px; font-variant-numeric:tabular-nums; }
+.fg .tk-tbl th { padding:10px 14px; text-align:left; white-space:nowrap; background:#fafbfc;
+  border-bottom:1px solid #eef0f4; font-size:10.5px; font-weight:800; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--gray400); }
+.fg .tk-tbl td { padding:10px 14px; border-bottom:1px solid #f4f6f8; font-weight:600; color:#1f2937; }
+.fg .tk-tbl tr:last-child td { border-bottom:none; }
+.fg .tk-tbl tbody tr:hover td { background:#fafbfc; }
+
+/* ── where it came from ──
+   Sources sit INSIDE the sheet, under a rule: a citation belongs to the
+   answer it supports, and floating the chips underneath left them reading as
+   three grey pills belonging to nothing. */
+.fg .tk-srcfoot { margin-top:18px; padding-top:15px; border-top:1px solid #f1f3f7; }
+.fg .tk-srclbl { display:block; margin-bottom:9px; font-size:10.5px; font-weight:800;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--gray400); }
 .fg .tk-srcs { display:flex; flex-wrap:wrap; gap:8px; max-width:100%; }
 .fg .tk-src { display:inline-flex; align-items:center; gap:8px; max-width:100%; height:32px; padding:0 12px 0 6px;
   border-radius:99px; background:#fff; border:1px solid #eceef2; box-shadow:0 1px 2px rgba(0,0,0,.03);
@@ -5150,7 +5330,9 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .tk-sn { display:flex; align-items:center; justify-content:center; flex:none; width:20px; height:20px;
   border-radius:50%; background:#f3f4f6; color:var(--gray700); font-size:11px; font-weight:800; }
 .fg .tk-sdot { flex:none; width:7px; height:7px; border-radius:50%; }
-.fg .tk-stl { min-width:0; max-width:220px; font-size:12.5px; font-weight:700; color:var(--ink);
+/* the sheet is full width now, so a manual's real title fits instead of
+   ending in an ellipsis two words in */
+.fg .tk-stl { min-width:0; max-width:340px; font-size:12.5px; font-weight:700; color:var(--ink);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .fg .tk-src em { flex:none; font-style:normal; font-size:11.5px; font-weight:700; color:var(--gray400); }
 
@@ -5221,6 +5403,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    disappeared into the light well on a real screen at 55% draw opacity */
 .fg .tk-line { fill:none; stroke:#c3cad6; stroke-width:1.6; stroke-linecap:round;
   transition:opacity .3s ease, stroke .3s ease, stroke-width .3s ease; }
+
+/* at rest on the landing: the page showing what it is about to do. Faint
+   enough to read as structure rather than as something happening. */
+.fg .tk-line.idle { opacity:.3; }
 
 /* drawing out to a shelf we have not heard back from */
 .fg .tk-line.draw { opacity:0; stroke-dasharray:1; stroke-dashoffset:1; animation:tkDraw .45s ease-in-out forwards; }

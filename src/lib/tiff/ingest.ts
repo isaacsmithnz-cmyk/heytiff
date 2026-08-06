@@ -25,6 +25,38 @@ import { embedTexts } from "./embeddings";
 import { tagChunks } from "./keywords";
 import { addKbUsage, kbQuotaFor } from "./quota";
 
+/* The reason, kept where it can be read.
+
+   THE SENTENCE ON THE SCREEN IS NOT THE SENTENCE IN THE LOG. A person gets
+   "That PDF couldn't be opened."; the log gets whatever pdfjs actually threw,
+   with the document it was reading. The first version of this file discarded
+   the exception entirely, which cost a live afternoon: a manual that opens in
+   one line locally failed in production and there was nothing anywhere saying
+   why. Same split as lib/voice/transcribe.ts — the rule is about the RESPONSE,
+   never about our own logs. */
+function logIngestFailure(documentId: string, stage: string, err: unknown) {
+  const detail =
+    err instanceof Error ? `${err.name}: ${err.message}` : String(err ?? "unknown");
+  console.error(`[kb-ingest] ${stage} failed for ${documentId} — ${detail}`);
+}
+
+/* What to put on the row when a PDF won't open.
+
+   pdfjs names its own failures, and three of them are things the person
+   holding the file can actually act on — a password, a corrupt download, a
+   file that isn't a PDF at all. Those get said. Anything else stays the
+   house sentence, because a stack trace on a library row helps nobody. */
+export function reasonForOpenFailure(err: unknown): string {
+  const name = err instanceof Error ? err.name : "";
+  const message = err instanceof Error ? err.message : "";
+  if (name === "PasswordException" || /password/i.test(message))
+    return "That PDF is password-protected — remove the password and upload it again.";
+  if (name === "InvalidPDFException" || /invalid pdf/i.test(message))
+    return "That file isn't a readable PDF — it may have been damaged in transit.";
+  if (name === "MissingPDFException") return "That file couldn't be read.";
+  return "That PDF couldn't be opened.";
+}
+
 export type IngestStatus = "processing" | "paused" | "ready" | "failed";
 
 export type IngestProgress = {
@@ -192,13 +224,17 @@ export async function processBatch(documentId: string, orgId: string): Promise<I
     return fail(documentId, orgId, doc, "That file doesn't belong to this organisation.");
 
   const file = await supabaseAdmin.storage.from(KB_BUCKET).download(doc.storageRef!);
-  if (file.error || !file.data) return fail(documentId, orgId, doc, "That file couldn't be read.");
+  if (file.error || !file.data) {
+    logIngestFailure(documentId, "download", file.error);
+    return fail(documentId, orgId, doc, "That file couldn't be read.");
+  }
 
   let pdf: Awaited<ReturnType<typeof openPdf>>;
   try {
     pdf = await openPdf(new Uint8Array(await file.data.arrayBuffer()));
-  } catch {
-    return fail(documentId, orgId, doc, "That PDF couldn't be opened.");
+  } catch (err) {
+    logIngestFailure(documentId, "openPdf", err);
+    return fail(documentId, orgId, doc, reasonForOpenFailure(err));
   }
 
   try {
@@ -280,7 +316,8 @@ export async function processBatch(documentId: string, orgId: string): Promise<I
       pageCount: pdf.numPages,
       chunkCount: Number(patch.chunk_count),
     };
-  } catch {
+  } catch (err) {
+    logIngestFailure(documentId, "readPages", err);
     return fail(documentId, orgId, doc, "Those pages couldn't be read.");
   } finally {
     await pdf.destroy().catch(() => {});

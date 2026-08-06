@@ -21,19 +21,22 @@ import { KB_CATEGORIES, type KbCategoryKey } from "./kb";
 /* Tiff AI — the assistant, connected.
 
    TWO COLUMNS, AND THE RIGHT ONE IS THE POINT. The transcript sits beside the
-   four category cards rather than under them: the cards stay on screen while
-   the answer grows (bottom cards scroll away mid-answer), they double as the
-   way into the library when nothing is being asked, and the horizontal gap
-   between composer and cards is where the next phase draws the search lines.
-   Under 1100px they stack and nothing is lost.
+   category cards rather than under them: the cards stay on screen while the
+   answer grows (bottom cards scroll away mid-answer), they double as the way
+   into the library when nothing is being asked, and the horizontal gap between
+   composer and cards is where the search lines are drawn. Under 1100px they
+   stack and nothing is lost.
 
-   RESEARCH IS A CHOICE, NOT A MODE. Off, Tiff answers from general knowledge
-   and says so. On, it answers only from the company's own documents and cites
-   the page. The toggle says which one you are about to get BEFORE you press
-   send, and every answer carries the same distinction afterwards — a
-   researched answer has chips under it, a general one has an offer to go and
-   look. With no ready documents the toggle is disabled and says why, because a
-   Research button that finds nothing teaches you not to trust the feature.
+   WHERE THE ANSWER COMES FROM IS A CHOICE, AND IT LOOKS LIKE ONE. "Answer
+   from" offers two options under the box — your library, or general knowledge
+   — with the live one lit. General knowledge answers from what Tiff already
+   knows and says so; your library answers only from the company's own
+   documents and cites the page. You can see which one you are about to get
+   BEFORE you press send, and every answer carries the same distinction
+   afterwards: a researched answer has chips under it, a general one has an
+   offer to go and look. With no ready documents the library option is disabled
+   and says why, because an option that finds nothing teaches you not to trust
+   the feature.
 
    THE ANSWER ARRIVES AS IT IS WRITTEN. `askTiff` reads the NDJSON stream and
    this component appends deltas to one live message, which is committed to the
@@ -42,7 +45,7 @@ import { KB_CATEGORIES, type KbCategoryKey } from "./kb";
    v1 rows have neither.
 
    THE LINES SHOW WHERE IT IS LOOKING, AND THEY ARE NOT DECORATION. The
-   overlay measures `.tk-stage`, `.tk-composer` and the four `.tk-rcat` cards
+   overlay measures `.tk-stage`, `.tk-composer` and the `.tk-rcat` cards
    off the live DOM, and every state it draws comes from an event this
    component already receives: submit, the server's `trace` with its real hit
    counts and winners, `miss`, the first delta, done. The choreography itself
@@ -76,23 +79,13 @@ const HISTORY_TURNS = 8;
     to read in the two-column list without wrapping. */
 const TITLE_MAX = 60;
 
-/* Starters, as pills rather than cards.
-
-   THE LABEL IS THE QUESTION. A card that said "DIAGNOSTICS · R32 running
-   pressures at 35°C · What should I see on gauges?" spent three lines saying
-   what one line says, and its category eyebrow repeated the shelf sitting in
-   the rail beside it. What survives is the sentence that goes in the box; the
-   dot carries the category, and nothing else has to.
-
-   `research` marks the ones that only make sense against the company's own
-   documents — those turn Research on as they fill the box, and are offered
-   only when the library actually holds something. */
-const SUGGESTIONS: { cat: string; color: string; label: string; research: boolean }[] = [
-  { cat: "DIAGNOSTICS", color: "#00E5C0", label: "R32 running pressures at 35°C", research: false },
-  { cat: "SYSTEM DESIGN", color: "#2E68FF", label: "Size a VRF for a 3-storey office", research: false },
-  { cat: "FAULT CODES", color: "#FF3366", label: "What does fault code U4 mean?", research: true },
-  { cat: "COMPANY SOP", color: "#8A2BE2", label: "What's our warranty claim process?", research: true },
-];
+/* THE QUICK-START PILLS ARE GONE, not restyled. Four canned questions — "R32
+   running pressures at 35°C", "Size a VRF for a 3-storey office" — sat under
+   the box on every visit and were, at best, a demo of what a question looks
+   like to somebody who already asks them for a living. They cost a row of the
+   landing, they taught nothing after the first read, and two of the four were
+   about a category this workspace might hold nothing in. The box and its
+   placeholder are the invitation. */
 
 /* hydration guard: false on the server and during hydration, true after —
    lets us read localStorage without a server/client markup mismatch */
@@ -355,7 +348,7 @@ export function TiffAssistant({
   const chatRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  /* What the search lines and the four shelves are doing. The refs below are
+  /* What the search lines and the category cards are doing. The refs below are
      the overlay's measuring points — the stage it draws inside, the composer
      every line leaves from, and the card each one arrives at. */
   const [viz, setViz] = useState<ResearchViz>(IDLE_VIZ);
@@ -475,25 +468,25 @@ export function TiffAssistant({
         if (controller.signal.aborted) return;
         switch (event.t) {
           case "trace":
-            /* Where Tiff looked, with real numbers — the shelves light from
-               these and from nothing else. The winning shelf also names the
+            /* Where Tiff looked, with real numbers — the cards light from
+               these and from nothing else. The winning card also names the
                document it ranked first, which is the one the citations under
-               the answer are about to be checked against. */
+               the answer are about to be checked against.
+
+               Mapped over the category list rather than named one by one: the
+               hand-written version listed four while the rail rendered five,
+               so Field notes could win the search and still sit dark with "—"
+               under it. Everything else on both sides of this already knew
+               about the fifth. */
             showViz({
               t: "trace",
               winners: event.winners,
-              hits: {
-                install: event.categories.install?.hits,
-                faults: event.categories.faults?.hits,
-                specs: event.categories.specs?.hits,
-                sops: event.categories.sops?.hits,
-              },
-              topDocs: {
-                install: event.categories.install?.topDoc,
-                faults: event.categories.faults?.topDoc,
-                specs: event.categories.specs?.topDoc,
-                sops: event.categories.sops?.topDoc,
-              },
+              hits: Object.fromEntries(
+                KB_CATEGORIES.map((c) => [c.key, event.categories[c.key]?.hits])
+              ),
+              topDocs: Object.fromEntries(
+                KB_CATEGORIES.map((c) => [c.key, event.categories[c.key]?.topDoc])
+              ),
             });
             break;
           case "miss":
@@ -575,16 +568,6 @@ export function TiffAssistant({
   const researchThis = (question: string) => {
     setResearch(true);
     send(question, true);
-  };
-
-  /* Fills the box and hands the caret over — never sends. A starter is a way
-     to stop staring at an empty field, and the question that gets asked
-     should still be the reader's own. A library-shaped one arrives with
-     Research already on, since that is the mode it was written for. */
-  const pickSuggestion = (s: (typeof SUGGESTIONS)[number]) => {
-    setInput(s.label);
-    if (s.research && canResearch) setResearch(true);
-    inputRef.current?.focus();
   };
 
   const newChat = () => {
@@ -772,7 +755,6 @@ export function TiffAssistant({
               onOpen={openThread}
               onRename={setRenaming}
               onDelete={setRemoving}
-              onSuggest={pickSuggestion}
             />
           )}
 
@@ -803,32 +785,51 @@ export function TiffAssistant({
               </div>
             </div>
 
+            {/* A CHOICE HAS TO LOOK LIKE TWO THINGS. This was one pill saying
+                "Research" beside grey text saying "General knowledge", and
+                nothing on screen said which of the two words was the state and
+                which was the button — pressing Research made the sentence
+                beside it change, so both read as labels for the same control.
+                Two options with the live one lit says what you can do and what
+                you are about to get, in the same glance. */}
             <div className="tk-crow">
-              <button
-                type="button"
-                className={`tk-res${research ? " on" : ""}`}
-                aria-pressed={research}
-                disabled={!canResearch}
-                title={canResearch ? undefined : "Upload documents to the library first"}
-                onClick={() => setResearch((r) => !r)}
-              >
-                <Icon name="search" size={15} />
-                Research
-              </button>
+              <span className="tk-clbl" id="tk-modelbl">
+                Answer from
+              </span>
+              <div className="tk-mode" role="group" aria-labelledby="tk-modelbl">
+                <button
+                  type="button"
+                  className={`tk-modeb${research ? " on" : ""}`}
+                  aria-pressed={research}
+                  disabled={!canResearch}
+                  title={canResearch ? undefined : "Add documents to the library first"}
+                  onClick={() => setResearch(true)}
+                >
+                  <Icon name="library" size={15} />
+                  Your library
+                </button>
+                <button
+                  type="button"
+                  className={`tk-modeb${research ? "" : " on"}`}
+                  aria-pressed={!research}
+                  onClick={() => setResearch(false)}
+                >
+                  <Icon name="bot" size={15} />
+                  General knowledge
+                </button>
+              </div>
               <span className="tk-chint">
-                {research ? "Digging through the library" : "General knowledge"}
+                {!canResearch
+                  ? "Add documents and Tiff can answer from those too"
+                  : research
+                    ? "Your documents only, with the page it came from"
+                    : "What Tiff already knows — nothing is looked up"}
               </span>
             </div>
           </form>
         </div>
 
-        <Rail
-          counts={counts}
-          readyCount={readyCount}
-          canManage={canManage}
-          viz={viz}
-          cardRefs={cardRefs}
-        />
+        <Rail counts={counts} viz={viz} cardRefs={cardRefs} />
 
         {/* LAST on purpose — it measures the two columns above and their refs
             re-attach in tree order, so an overlay placed first would measure a
@@ -838,7 +839,7 @@ export function TiffAssistant({
             and no observer fires for a move. */}
         {/* `idle` draws the four lanes faintly on the landing, before anything
             is asked: the mechanism this page is built on — your question goes
-            out to these four shelves — is worth showing rather than
+            out to these categories — is worth showing rather than
             explaining, and it costs a stroke nobody has to read. Inside a
             conversation the overlay stays event-driven. */}
         <ResearchLines
@@ -1003,7 +1004,6 @@ function Landing({
   onOpen,
   onRename,
   onDelete,
-  onSuggest,
 }: {
   returning: boolean;
   recent: Thread[];
@@ -1011,26 +1011,26 @@ function Landing({
   onOpen: (id: string) => void;
   onRename: (t: Thread) => void;
   onDelete: (t: Thread) => void;
-  onSuggest: (s: (typeof SUGGESTIONS)[number]) => void;
 }) {
   return (
     <>
-      {/* One line, then the box. The subline is the only place the library's
-          size is stated in words, so it says what Research would actually do
-          rather than advertising a feature. */}
+      {/* One line, then the box. The subline names the switch under the box by
+          the words printed ON it — it used to say "turn on Research", which
+          was the one control on this screen nobody could find. */}
       <div className="tk-open">
         <h2>{returning ? "What are we working on?" : "Ask the library"}</h2>
         <p>
           {readyCount > 0 ? (
             <>
-              Diagnostics, sizing, fault codes and company procedure. Turn on <b>Research</b> and
-              I&rsquo;ll answer from the {readyCount.toLocaleString("en-AU")}{" "}
-              {plural(readyCount, "document")} in your library, and show you the page it came from.
+              Installs, servicing, specs and how we do things here. Ask{" "}
+              <b>your library</b> and I&rsquo;ll answer from the{" "}
+              {readyCount.toLocaleString("en-AU")} {plural(readyCount, "document")} in it, and show
+              you the page it came from.
             </>
           ) : (
             <>
-              Diagnostics, sizing, fault codes and company procedure. Add manuals to the library
-              and I can answer from those too — with the page they came from.
+              Installs, servicing, specs and how we do things here. Add manuals to the library and
+              I can answer from those too — with the page they came from.
             </>
           )}
         </p>
@@ -1080,46 +1080,33 @@ function Landing({
         </div>
       )}
 
-      {/* A library-shaped starter is hidden while the shelves are empty: it
-          would fill the box with a question this workspace cannot answer yet,
-          which reads as a broken feature rather than an empty one. */}
-      <div className="tk-starts">
-        {SUGGESTIONS.filter((s) => !s.research || readyCount > 0).map((s) => (
-          <button
-            key={s.cat}
-            type="button"
-            className="tk-start"
-            style={{ "--tkc": s.color } as React.CSSProperties}
-            onClick={() => onSuggest(s)}
-          >
-            <i />
-            {s.label}
-          </button>
-        ))}
-      </div>
     </>
   );
 }
 
-/* ── the rail: four shelves, and the way into the library ────────────────── */
+/* ── the rail: the categories, and the way into the library ─────────────── */
 
 function Rail({
   counts,
-  readyCount,
-  canManage,
   viz,
   cardRefs,
 }: {
   counts: Record<KbCategoryKey, number>;
-  readyCount: number;
-  canManage: boolean;
   viz: ResearchViz;
   cardRefs: React.RefObject<Map<KbCategoryKey, HTMLElement>>;
 }) {
   return (
     <aside className="tk-rail">
+      {/* The eyebrow row was built with space-between and then given nothing to
+          put on the right. "Open" goes there, which is where a section's own
+          link belongs and is one of the two things the block at the foot used
+          to do. */}
       <div className="tk-lbl">
         <span>Library</span>
+        <Link className="tk-lbla" href="/dashboard/tiff/library">
+          Open
+          <Icon name="chevR" size={13} />
+        </Link>
       </div>
 
       <div className="tk-rcats stgp">
@@ -1168,17 +1155,15 @@ function Rail({
         })}
       </div>
 
-      <div className="tk-lib">
-        <b>
-          {readyCount > 0
-            ? `${readyCount.toLocaleString("en-AU")} ${plural(readyCount, "document")} Tiff can read`
-            : "Nothing in the library yet"}
-        </b>
-        <div className="tk-libl">
-          <Link href="/dashboard/tiff/library">Open library</Link>
-          {canManage && <Link href="/dashboard/tiff/library">Add documents</Link>}
-        </div>
-      </div>
+      {/* NOTHING ELSE. This corner has now lost three things in a row and is
+          better for each: "Open library" and "Add documents", which were the
+          same URL twice; the Add tile that briefly replaced them, because
+          uploading belongs to the library screen; and finally the running
+          total, because the library says that about itself the moment you
+          arrive and the five cards above already carry it per category.
+
+          What the rail is, is the categories and one way in. `tiff_manage`
+          changes nothing here — there is no control left to gate. */}
     </aside>
   );
 }

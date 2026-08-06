@@ -51,6 +51,12 @@ const ask = async (text: string) => {
   await user.click(screen.getByLabelText("Send"));
 };
 
+/* The two halves of "Answer from". Reached by their own names rather than by a
+   shared /research/i, because that is the point of the control: neither option
+   is "the toggle", and the one you press is the one you get. */
+const libraryMode = () => screen.getByRole("button", { name: "Your library" });
+const generalMode = () => screen.getByRole("button", { name: "General knowledge" });
+
 beforeEach(() => {
   jest.clearAllMocks();
   localStorage.clear();
@@ -181,29 +187,53 @@ describe("asking in general mode", () => {
 
 /* ── research: a choice, made visible before and after ───────────────────── */
 
-describe("the research toggle", () => {
-  it("is disabled with an explanation when the library is empty", () => {
-    render(<TiffAssistant readyCount={0} />);
-    const toggle = screen.getByRole("button", { name: /research/i });
+describe("where the answer comes from", () => {
+  it("starts on general knowledge, with that option lit and the other one not", () => {
+    render(<TiffAssistant readyCount={4} counts={{ install: 4, faults: 0, specs: 0, sops: 0, field: 0 }} />);
 
-    expect(toggle).toBeDisabled();
-    expect(toggle).toHaveAttribute("title", "Upload documents to the library first");
-    expect(screen.getByText("General knowledge")).toBeInTheDocument();
+    expect(generalMode()).toHaveAttribute("aria-pressed", "true");
+    expect(libraryMode()).toHaveAttribute("aria-pressed", "false");
   });
 
-  it("flips the hint and the pressed state, and asks the library", async () => {
+  it("disables the library option with an explanation when the library is empty", () => {
+    render(<TiffAssistant readyCount={0} />);
+
+    expect(libraryMode()).toBeDisabled();
+    expect(libraryMode()).toHaveAttribute("title", "Add documents to the library first");
+    /* and the hint says what to do about it rather than repeating the label of
+       the option that is still pressable */
+    expect(screen.getByText("Add documents and Tiff can answer from those too")).toBeInTheDocument();
+  });
+
+  it("flips the hint and both pressed states, and asks the library", async () => {
     const user = userEvent.setup();
     render(<TiffAssistant readyCount={4} counts={{ install: 4, faults: 0, specs: 0, sops: 0, field: 0 }} />);
 
-    const toggle = screen.getByRole("button", { name: /research/i });
-    expect(toggle).toHaveAttribute("aria-pressed", "false");
-
-    await user.click(toggle);
-    expect(toggle).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByText("Digging through the library")).toBeInTheDocument();
+    await user.click(libraryMode());
+    expect(libraryMode()).toHaveAttribute("aria-pressed", "true");
+    expect(generalMode()).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByText("Your documents only, with the page it came from")).toBeInTheDocument();
 
     await ask("why P8?");
     expect(asks[0]).toMatchObject({ research: true });
+  });
+
+  /* The old control was one button that flipped; pressing the lit half of this
+     one must not turn it back off, or a segmented control becomes a toggle
+     wearing two labels. */
+  it("goes back to general knowledge only when general knowledge is pressed", async () => {
+    const user = userEvent.setup();
+    render(<TiffAssistant readyCount={4} counts={{ install: 4, faults: 0, specs: 0, sops: 0, field: 0 }} />);
+
+    await user.click(libraryMode());
+    await user.click(libraryMode());
+    expect(libraryMode()).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(generalMode());
+    expect(generalMode()).toHaveAttribute("aria-pressed", "true");
+
+    await ask("why P8?");
+    expect(asks[0]).toMatchObject({ research: false });
   });
 });
 
@@ -220,7 +250,7 @@ describe("sources", () => {
     researched(sources);
     render(<TiffAssistant readyCount={2} counts={{ install: 0, faults: 2, specs: 0, sops: 0, field: 0 }} />);
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: /research/i }));
+    await user.click(libraryMode());
     await ask("why P8?");
     return user;
   };
@@ -238,7 +268,7 @@ describe("sources", () => {
 
     const peek = screen.getByRole("dialog");
     expect(within(peek).getByText(/abnormal piping temperature/)).toBeInTheDocument();
-    expect(within(peek).getByText(/Fault codes/)).toBeInTheDocument();
+    expect(within(peek).getByText(/Service documents/)).toBeInTheDocument();
   });
 
   /* Opening at the page is the point of a citation — a link to page one of a
@@ -276,7 +306,7 @@ describe("the honest miss", () => {
 
     render(<TiffAssistant readyCount={2} canManage />);
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: /research/i }));
+    await user.click(libraryMode());
     await ask("why P8?");
 
     expect(
@@ -294,7 +324,7 @@ describe("the honest miss", () => {
 
     render(<TiffAssistant readyCount={2} canManage={false} />);
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: /research/i }));
+    await user.click(libraryMode());
     await ask("why P8?");
 
     expect(await screen.findByText(/Ask a manager to add the manual/)).toBeInTheDocument();
@@ -420,18 +450,15 @@ describe("asked about a document", () => {
     ...over,
   });
 
-  it("opens with the document already in the box and Research on", () => {
+  it("opens with the document already in the box, answering from the library", () => {
     sessionStorage.setItem(ASK_KEY, "In “City Multi fault codes”, ");
     render(<TiffAssistant readyCount={3} />);
 
     const box = screen.getByLabelText("Ask Tiff") as HTMLInputElement;
     expect(box).toHaveValue("In “City Multi fault codes”, ");
     expect(box).toHaveFocus();
-    expect(screen.getByRole("button", { name: /research/i })).toHaveAttribute(
-      "aria-pressed",
-      "true"
-    );
-    expect(screen.getByText("Digging through the library")).toBeInTheDocument();
+    expect(libraryMode()).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("Your documents only, with the page it came from")).toBeInTheDocument();
   });
 
   /* The prefill is scaffolding. Sending it would spend a question nobody
@@ -460,7 +487,7 @@ describe("asked about a document", () => {
     sessionStorage.setItem(ASK_KEY, "In “City Multi fault codes”, ");
     render(<TiffAssistant readyCount={0} />);
 
-    const toggle = screen.getByRole("button", { name: /research/i });
+    const toggle = libraryMode();
     expect(toggle).toHaveAttribute("aria-pressed", "false");
     expect(toggle).toBeDisabled();
     expect(screen.getByLabelText("Ask Tiff")).toHaveValue("In “City Multi fault codes”, ");
@@ -471,7 +498,7 @@ describe("asked about a document", () => {
     render(<TiffAssistant readyCount={3} />);
 
     expect(screen.getByLabelText("Ask Tiff")).toHaveValue("");
-    expect(screen.getByRole("button", { name: /research/i })).toHaveAttribute(
+    expect(libraryMode()).toHaveAttribute(
       "aria-pressed",
       "false"
     );
@@ -629,25 +656,45 @@ describe("managing a thread", () => {
 });
 
 describe("the rail", () => {
-  it("shows a live count per shelf and links into the filtered library", () => {
+  it("shows a live count per category and links into the filtered library", () => {
     render(
       <TiffAssistant readyCount={5} counts={{ install: 3, faults: 2, specs: 0, sops: 0, field: 0 }} canManage />
     );
 
-    const card = screen.getByRole("link", { name: /Install procedures/ });
+    const card = screen.getByRole("link", { name: /Installation documents/ });
     expect(card).toHaveAttribute("href", "/dashboard/tiff/library?cat=install");
     expect(within(card).getByText("3 documents")).toBeInTheDocument();
     expect(within(screen.getByRole("link", { name: /Manufacturer specs/ })).getByText("—")).toBeInTheDocument();
-
-    expect(screen.getByText("5 documents Tiff can read")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Add documents" })).toBeInTheDocument();
   });
 
-  it("keeps the upload offer away from someone who can't upload", () => {
-    render(<TiffAssistant readyCount={0} canManage={false} />);
+  /* The foot of the rail once held "Open library" and "Add documents" pointing
+     at the SAME url, then an Add tile, then a running total. All three are
+     gone: uploading belongs to the library screen, and so does saying how big
+     the library is. What is left is the categories and one way in. */
+  it("offers one way into the library, and nothing else below the cards", () => {
+    render(<TiffAssistant readyCount={5} counts={{ install: 5, faults: 0, specs: 0, sops: 0, field: 0 }} canManage />);
 
-    expect(screen.getByText("Nothing in the library yet")).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Add documents" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Open/ })).toHaveAttribute(
+      "href",
+      "/dashboard/tiff/library"
+    );
+    expect(screen.queryByRole("link", { name: /Add document/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Add document/i })).not.toBeInTheDocument();
+    // the running total is the library's line, and the cards carry it per category
+    expect(screen.queryByText(/documents? Tiff can read/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Nothing in the library yet")).not.toBeInTheDocument();
+  });
+
+  /* The rail is the same object for everybody now: `tiff_manage` gated the Add
+     control, and `readyCount` fed the total, and neither is rendered here. */
+  it("shows the same rail whether or not you can upload", () => {
+    const { unmount } = render(<TiffAssistant readyCount={0} canManage />);
+    const managerRail = document.querySelector(".tk-rail")!.textContent;
+    unmount();
+
+    render(<TiffAssistant readyCount={0} canManage={false} />);
+    expect(document.querySelector(".tk-rail")!.textContent).toBe(managerRail);
+    expect(screen.getByRole("link", { name: /^Open/ })).toBeInTheDocument();
   });
 });
 
@@ -664,46 +711,23 @@ describe("the search-first landing", () => {
     expect(screen.queryByText("DIAGNOSTICS")).not.toBeInTheDocument();
   });
 
-  it("says what Research would actually do, in documents", () => {
+  it("says how many documents it would be answering from, and names the switch", () => {
     render(<TiffAssistant readyCount={12} />);
-    expect(screen.getByText(/answer from the 12 documents in your library/)).toBeInTheDocument();
+
+    expect(screen.getByText(/answer from the 12 documents in it/)).toBeInTheDocument();
+    // the words the subline points at are the words printed on the control
+    expect(screen.getByText("your library")).toBeInTheDocument();
   });
 
-  it("withholds library-shaped starters while the shelves are empty", () => {
-    const { unmount } = render(<TiffAssistant readyCount={0} />);
-    expect(screen.getByRole("button", { name: /R32 running pressures/ })).toBeInTheDocument();
+  /* The four canned questions are gone. They were the same four on every visit,
+     and two of them named a category this workspace might hold nothing in. */
+  it("offers no canned questions under the box", () => {
+    render(<TiffAssistant readyCount={3} />);
+
+    expect(screen.queryByRole("button", { name: /R32 running pressures/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /fault code U4/ })).not.toBeInTheDocument();
-    unmount();
-
-    render(<TiffAssistant readyCount={3} />);
-    expect(screen.getByRole("button", { name: /fault code U4/ })).toBeInTheDocument();
-  });
-
-  it("a starter fills the box and hands over the caret rather than sending", async () => {
-    const user = userEvent.setup();
-    render(<TiffAssistant readyCount={3} />);
-
-    await user.click(screen.getByRole("button", { name: /fault code U4/ }));
-
-    expect(screen.getByLabelText("Ask Tiff")).toHaveValue("What does fault code U4 mean?");
-    expect(asks).toHaveLength(0);
-    // a library-shaped starter arrives in the mode it was written for
-    expect(screen.getByRole("button", { name: "Research" })).toHaveAttribute(
-      "aria-pressed",
-      "true"
-    );
-  });
-
-  it("won't turn Research on for a starter when there is nothing to search", async () => {
-    const user = userEvent.setup();
-    render(<TiffAssistant readyCount={0} />);
-
-    await user.click(screen.getByRole("button", { name: /R32 running pressures/ }));
-
-    expect(screen.getByRole("button", { name: "Research" })).toHaveAttribute(
-      "aria-pressed",
-      "false"
-    );
+    expect(screen.queryByRole("button", { name: /VRF/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /warranty claim/i })).not.toBeInTheDocument();
   });
 });
 
@@ -717,10 +741,11 @@ describe("the search-first landing", () => {
 
 describe("watching Tiff search", () => {
   const CARDS: Record<string, RegExp> = {
-    install: /Install procedures/,
-    faults: /Fault codes/,
+    install: /Installation documents/,
+    faults: /Service documents/,
     specs: /Manufacturer specs/,
     sops: /Company SOPs/,
+    field: /Field notes/,
   };
 
   const counts = { install: 3, faults: 7, specs: 2, sops: 1, field: 0 };
@@ -759,7 +784,7 @@ describe("watching Tiff search", () => {
     };
     render(<TiffAssistant readyCount={13} counts={counts} />);
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: /research/i }));
+    await user.click(libraryMode());
     await ask("why P8?");
     return { push: async (e: AskEvent) => act(async () => push(e)), user };
   };
@@ -799,6 +824,27 @@ describe("watching Tiff search", () => {
     expect(state("specs")).toBe("dim");
     expect(note("specs")).toBe("—");
     expect(state("sops")).toBe("dim");
+  });
+
+  /* The trace was forwarded card by card from a hand-written list of four, so
+     the fifth card sat at "Searching…" forever and could never win — even
+     though the server, the reducer and the rail all knew about it. */
+  it("reports the field-note category like every other one", async () => {
+    const { push } = await research();
+    await push({
+      ...TRACE,
+      categories: {
+        install: { hits: 0, topDoc: null },
+        faults: { hits: 0, topDoc: null },
+        specs: { hits: 0, topDoc: null },
+        sops: { hits: 0, topDoc: null },
+        field: { hits: 3, topDoc: "Roof access at Westfield" },
+      },
+      winners: ["field"],
+    } as AskEvent);
+
+    expect(state("field")).toBe("winner");
+    expect(note("field")).toBe("3 matches · Roof access at Westfield");
   });
 
   it("holds that while the answer is written", async () => {

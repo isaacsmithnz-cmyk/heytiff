@@ -17,10 +17,16 @@ export type KbCategory = {
    internals still use for the four cards and which is fine there. Two words for
    one concept on the same screen is how a vocabulary comes apart, and this one
    had four before it was pulled back to `library` + `category`. */
+/* THE LABEL NAMES THE DOCUMENT, NOT THE TOPIC. "Install procedures" and "Fault
+   codes" described what you'd ask about; what you actually FILE is a manual.
+   Somebody holding a service manual that happens to contain a fault-code table
+   had two cards it could go in and no rule for choosing. "Installation
+   documents" and "Service documents" each have exactly one answer, and the
+   blurb carries the topics that used to be in the name. */
 export const KB_CATEGORIES: KbCategory[] = [
-  { key: "install", label: "Install procedures", icon: "wrench", color: "#00E5C0", blurb: "Step-by-step installs & commissioning" },
-  // not "Fault code library" — a library inside the library
-  { key: "faults", label: "Fault codes", icon: "alert", color: "#2E68FF", blurb: "Error codes & diagnosis by brand" },
+  { key: "install", label: "Installation documents", icon: "wrench", color: "#00E5C0", blurb: "Installation & commissioning manuals" },
+  // the gauge, not the warning triangle: this card is servicing, not an alarm
+  { key: "faults", label: "Service documents", icon: "gauge", color: "#2E68FF", blurb: "Service manuals, fault codes & diagnosis" },
   { key: "specs", label: "Manufacturer specs", icon: "file", color: "#f59e0b", blurb: "Datasheets, capacities & connections" },
   { key: "sops", label: "Company SOPs", icon: "shield", color: "#8A2BE2", blurb: "How we do things here" },
   /* Written by the crew from the note widget, never uploaded — which is the

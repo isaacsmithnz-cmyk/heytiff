@@ -115,16 +115,24 @@ function lanesBetween(
     // vertical first tangent, sized to the climb; a card unexpectedly below
     // the composer still gets the minimum shoulder before diving
     const c1y = sy - Math.max(50, (sy - ey) * 0.55);
-    /* The approach control is CLAMPED so it can never sit left of where the
-       lane started. The gutter between the composer and the rail is one grid
-       gap — about 48px in practice — so an approach measured backwards from
-       the card lands behind the origin, and the curve bulges out to the left
-       before doubling back: four lanes crossing each other in open space
-       instead of four strands running up the gutter. Watched, not reasoned:
-       the leftward swing is obvious on screen and invisible to jsdom. The
-       small per-lane step keeps them from printing exactly on top of one
-       another where they leave. */
-    const c2x = Math.max(ex - 110, sx + 22 + i * 10);
+    /* The approach control, measured back from the card so each lane arrives
+       travelling horizontally into its own row.
+
+       A FRACTION OF THE GUTTER, NOT A FIXED DEPTH. This was `max(ex - 110, …)`
+       — a constant reach, clamped so it could never land left of where the
+       lane started and bow the curve backwards. The clamp fired on every lane
+       at every width, because the gutter was one 28px grid gap and 110px of
+       reach never fitted in it; every lane therefore got the same fallback and
+       the five collapsed into one strand. Widening the gutter alone would not
+       have fixed that — the constant would still have overshot below ~1400px.
+
+       Measuring the corridor and taking a share of it per lane is inherently
+       in-bounds (the deepest share is 0.79, so c2x > sx always, no clamp) and
+       it opens the same fan at every width: the gutter is ~72px at the narrow
+       end and ~160px at full width, and the lanes fan in proportion rather
+       than bunching at one and sprawling at the other. */
+    const gutter = ex - sx;
+    const c2x = ex - gutter * (0.35 + i * 0.11);
     lanes.push({
       key: cat.key,
       color: cat.color,

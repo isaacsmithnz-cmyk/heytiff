@@ -12,6 +12,7 @@
    every rule under test is a pure function, which is exactly why they were
    written as pure functions. */
 import {
+  historyBlock,
   isEmptyProposal,
   resolveAssignee,
   shapeProposal,
@@ -326,5 +327,50 @@ describe("shapeProposal — debrief coercion", () => {
     expect(p.tasks).toHaveLength(1);
     expect(p.kbEntries).toHaveLength(1);
     expect(p.noteLines).toEqual([]);
+  });
+});
+
+describe("historyBlock — the router's memory, rendered", () => {
+  it("says nothing when there is nothing known", () => {
+    expect(historyBlock(ctx)).toBe("");
+    expect(historyBlock({ ...ctx, history: { issues: [], flags: [], recentNotes: [] } })).toBe("");
+  });
+
+  it("recites recorded issues with their counts, and the echo rule", () => {
+    const block = historyBlock({
+      ...ctx,
+      history: {
+        issues: [{ summary: "Middle rooftop unit tripping", occurrences: 3, lastSeen: "2026-08-02" }],
+        flags: [],
+        recentNotes: [],
+      },
+    });
+    expect(block).toContain('"Middle rooftop unit tripping" — 3 times, last 2026-08-02');
+    /* The load-bearing sentence: applyNote dedupes by EXACT summary match,
+       so the model must be told to reuse the recorded wording. */
+    expect(block).toContain("EXACTLY as recorded");
+  });
+
+  it("names active flags and forbids repeating them", () => {
+    const block = historyBlock({
+      ...ctx,
+      history: { issues: [], flags: ["No roof access"], recentNotes: [] },
+    });
+    expect(block).toContain('"No roof access"');
+    expect(block).toContain("Do not raise a flag that repeats");
+  });
+
+  it("caps every list — a long history must not eat the prompt", () => {
+    const many = Array.from({ length: 30 }, (_, i) => ({
+      summary: `Issue ${i}`,
+      occurrences: 1,
+      lastSeen: "2026-08-01",
+    }));
+    const block = historyBlock({
+      ...ctx,
+      history: { issues: many, flags: [], recentNotes: [] },
+    });
+    expect(block).toContain("Issue 9");
+    expect(block).not.toContain("Issue 10");
   });
 });

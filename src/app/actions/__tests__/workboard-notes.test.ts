@@ -246,14 +246,36 @@ describe("entries and bring-items", () => {
      same thing to a direct POST. It's what stops a targetless FLAG being
      written: such a flag renders a Needs-attention row that names a problem
      and then opens nothing. */
-  it("REFUSES a note with no job on it at all", async () => {
+  /* THE RULE IS PER BUCKET NOW, NOT PER NOTE (2026-08-05). It used to refuse
+     every targetless note outright, which was right about the things that are
+     text on somebody else's row and wrong about tasks — `tasks` has no job
+     column at all, so "tell Luke to ring the wholesaler" was being refused
+     for naming no job it never needed. */
+  it("REFUSES a bring-list with no job to sit on", async () => {
     rows.workboard_notes = { ...NOTE, target_kind: "none", target_id: null };
     const res = await applyNote("n-1", confirmed({ bringItems: ["2 × 595 filters"] }));
     expect(res.ok).toBe(false);
-    expect(res.ok === false && res.error).toMatch(/Every note goes on a job/);
+    expect(res.ok === false && res.error).toMatch(/hang off a job/);
     expect(updates.some((u) => u.table === "workboard_notes" && u.patch.status === "applied")).toBe(
       false
     );
+  });
+
+  it("ACCEPTS a targetless note that is only tasks — a task stands on its own", async () => {
+    rows.workboard_notes = { ...NOTE, target_kind: "none", target_id: null };
+    lists.staff_profiles = [{ id: "s-luke" }]; // the scoped org lookup finds them
+    const res = await applyNote(
+      "n-1",
+      confirmed({
+        tasks: [
+          { title: "Ring the wholesaler back", detail: "", assigneeId: "s-luke", dueDate: null },
+        ],
+      })
+    );
+    expect(res.ok).toBe(true);
+    expect(rowsFor("tasks")).toHaveLength(1);
+    /* And it really is jobless — no target column was invented for it. */
+    expect(rowsFor("tasks")[0]).not.toHaveProperty("target_id");
   });
 
   it("REFUSES a targetless note even when it only raises a flag", async () => {

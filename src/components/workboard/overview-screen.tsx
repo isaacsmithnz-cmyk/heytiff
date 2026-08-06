@@ -7,8 +7,8 @@ import { Icon } from "@/components/shell/icon";
 import { urgentRows } from "@/lib/workboard/urgent-rules";
 import { projectUrgentRows } from "@/lib/workboard/project-rules";
 import type { WorkboardData } from "@/lib/workboard/page-data";
-import { NoteCapture } from "./note-capture";
-import { NoteBrainProvider } from "./note-brain-context";
+import { NoteToken } from "@/components/notes/note-token";
+import { NoteScopeProvider } from "@/components/notes/note-context";
 import { MaintenanceBoard } from "./board/maintenance-board";
 import { ProjectsBoard } from "./board/projects-board";
 
@@ -288,17 +288,34 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
     data.projectsBoard.projects,
   ]);
 
-  /* ONE pill, owned by the page, rendered inside whichever board is up —
+  /* WHO THE NOTE MIGHT NAME. The field mics' sieve decides whether a
+     dictated sentence is worth an Opus call, and a named person is its
+     strongest single signal — but it can't recognise one without a roster.
+
+     Taken off the CREWS ON THE BOARD rather than the whole org, because
+     there is no org-wide roster in this payload and adding a query for one
+     would be paying on every board load for a heuristic. It's also the right
+     set: the people scheduled this week are the people a note says "tell
+     ___" about. A miss costs one signal, never an error. */
+  const staffFirstNames = useMemo(() => {
+    const names = new Set<string>();
+    for (const v of [...data.board.visits, ...data.projectsBoard.visits]) {
+      for (const t of v.techs ?? []) {
+        const first = t.name.trim().split(/\s+/)[0];
+        if (first.length >= 2) names.add(first);
+      }
+    }
+    return [...names];
+  }, [data.board.visits, data.projectsBoard.visits]);
+
+  /* ONE token, owned by the page, rendered inside whichever board is up —
      at the tab row's right end, where the handoff docks it (D15). Display
-     mode keeps it: the whole point of the mode is that you can work off it. */
-  const pill = (
-    <NoteCapture
-      target={capture ? { kind: "visit", id: capture.visitId } : { kind: "none" }}
-      targetLabel={capture?.label}
-      voiceEnabled={data.voiceEnabled}
-      attachOptions={attachOptions}
-    />
-  );
+     mode keeps it: the whole point of the mode is that you can work off it.
+
+     It takes no target and no job list any more. Both come from the scope
+     below, which is what lets a sheet opening over the board re-aim the same
+     token at the visit it just opened without anything being passed down. */
+  const pill = <NoteToken as="capsule" label="a note" />;
 
   /* Mirror health rides in BOTH tab rows (D8) — it's a fact about the data
      on screen, not about maintenance. Absent when standalone. The account's
@@ -313,10 +330,19 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
           timezone: data.timezone,
         };
 
-  /* The provider wraps the whole page so any field inside either board can
-     reach the note brain and know whether this deployment can hear you. */
+  /* The scope wraps the whole page, so every posture inside either board
+     knows where it's standing without a single prop being threaded. The
+     token's target follows whichever sheet is open (see `useNoteScopeTarget`)
+     and falls back to the board itself, which is the "universal note taker"
+     half of the widget. */
   return (
-    <NoteBrainProvider voiceEnabled={data.voiceEnabled}>
+    <NoteScopeProvider
+      voiceEnabled={data.voiceEnabled}
+      target={capture ? { kind: "visit", id: capture.visitId } : { kind: "none" }}
+      targetLabel={capture?.label}
+      jobs={attachOptions}
+      staffFirstNames={staffFirstNames}
+    >
     <div className="page in">
       <div className="wrap">
         <div className="stg">
@@ -426,6 +452,6 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
         </div>
       </div>
     </div>
-    </NoteBrainProvider>
+    </NoteScopeProvider>
   );
 }

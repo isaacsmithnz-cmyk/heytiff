@@ -1,0 +1,206 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { Icon } from "@/components/shell/icon";
+import { NoteToken } from "./note-token";
+import { addMyNote, archiveMyNote, deleteMyNote, editMyNote } from "@/app/actions/my-notes";
+import type { MyNote } from "@/lib/notes/my-notes-query";
+import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
+
+/* MY NOTES — the reader that makes the cascade's floor a destination.
+
+   This screen is the entire justification for the `staff_notes` table. A note
+   that couldn't be filed against a job or handed to somebody as a task has to
+   land somewhere a person actually opens, or it is `workboard_notes` again:
+   written faithfully, read by nothing, and quietly worthless. If this page
+   ever goes, the table should go with it.
+
+   It also dogfoods the token. The add row here is the same `strip` posture
+   the job card uses — commit is instant, and the sniff offers the review only
+   when the words look like a job for somebody. */
+
+export function MyNotesBoard({
+  notes,
+  archived,
+}: {
+  notes: MyNote[];
+  archived: MyNote[];
+}) {
+  const [busy, start] = useTransition();
+  const [draft, setDraft] = useState("");
+  const [editing, setEditing] = useState<string | null>(null);
+  const [text, setText] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [showArchive, setShowArchive] = useState(false);
+
+  const run = (fn: () => Promise<{ ok: boolean; error?: string }>) =>
+    start(async () => {
+      setError(null);
+      const res = await fn();
+      if (!res.ok) setError(res.error ?? "That didn't work.");
+    });
+
+  const commit = () => {
+    const body = draft.trim();
+    if (!body) return;
+    setDraft("");
+    run(() => addMyNote({ body, source: "text" }));
+  };
+
+  const saveEdit = (id: string) => {
+    const next = text.trim();
+    if (!next) return;
+    setEditing(null);
+    run(() => editMyNote(id, next));
+  };
+
+  return (
+    <div className="page in">
+      <div className="wrap">
+        <div className="stg">
+          <header className="wb2-head">
+            <h1>Notes</h1>
+            <p className="int-lede" style={{ margin: "6px 0 0" }}>
+              Anything that didn&apos;t belong to a job. Only you can see these.
+            </p>
+          </header>
+
+          {error && <div className="int-note bad">{error}</div>}
+
+          <div className="card2" style={{ padding: "16px 18px 18px" }}>
+            <NoteToken
+              as="strip"
+              label="a note"
+              value={draft}
+              onChange={setDraft}
+              onCommit={commit}
+              disabled={busy}
+              placeholder="Ring the wholesaler back about the coil pricing…"
+            />
+
+            {notes.length === 0 ? (
+              <div className="ro-empty" style={{ marginTop: 18 }}>
+                <span className="ei">
+                  <Icon name="note" size={20} />
+                </span>
+                <b>Nothing here yet</b>
+                <em>
+                  Notes you take that don&apos;t belong to a job — or that nobody else needed to
+                  action — end up on this page.
+                </em>
+              </div>
+            ) : (
+              <ul className="wb2-blist read" style={{ marginTop: 16 }}>
+                {notes.map((n) => (
+                  <li key={n.id} style={{ alignItems: "flex-start" }}>
+                    <span className="wb2-bdot" aria-hidden="true" />
+                    {editing === n.id ? (
+                      <span style={{ flex: 1, display: "grid", gap: 8 }}>
+                        <textarea
+                          className="wb2-notes"
+                          rows={3}
+                          value={text}
+                          autoFocus
+                          aria-label="Edit note"
+                          onChange={(e) => setText(e.target.value)}
+                        />
+                        <span style={{ display: "flex", gap: 7 }}>
+                          <button className="pbtn sm" disabled={busy} onClick={() => saveEdit(n.id)}>
+                            Save
+                          </button>
+                          <button
+                            className="pbtn ghost sm"
+                            disabled={busy}
+                            onClick={() => setEditing(null)}
+                          >
+                            Cancel
+                          </button>
+                        </span>
+                      </span>
+                    ) : (
+                      <>
+                        <span style={{ flex: 1, minWidth: 0 }}>
+                          <span style={{ display: "block" }}>{n.body}</span>
+                          <em className="wb2-capsaid" style={{ display: "block", marginTop: 3 }}>
+                            {fmtAuWeekdayDayMonth(n.createdAt.slice(0, 10))}
+                            {n.source === "routed" && " · came off a note you sorted"}
+                            {n.source === "voice" && " · dictated"}
+                          </em>
+                        </span>
+                        <button
+                          className="wb2-ico"
+                          title="Edit"
+                          aria-label={`Edit note: ${n.body.slice(0, 40)}`}
+                          disabled={busy}
+                          onClick={() => {
+                            setEditing(n.id);
+                            setText(n.body);
+                          }}
+                        >
+                          <Icon name="edit" size={13} />
+                        </button>
+                        {/* Put away, not delete. Deleting is offered from the
+                            archive only, so nothing is destroyed in one click
+                            from the list you read every day. */}
+                        <button
+                          className="wb2-ico"
+                          title="Put it away"
+                          aria-label={`Put away note: ${n.body.slice(0, 40)}`}
+                          disabled={busy}
+                          onClick={() => run(() => archiveMyNote(n.id))}
+                        >
+                          <Icon name="check" size={13} />
+                        </button>
+                      </>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {archived.length > 0 && (
+            <div className="card2" style={{ padding: "14px 18px 16px", marginTop: 14 }}>
+              <button
+                className="nb-archtoggle"
+                aria-expanded={showArchive}
+                onClick={() => setShowArchive((v) => !v)}
+              >
+                <Icon name={showArchive ? "chevD" : "chevR"} size={13} />
+                Put away ({archived.length})
+              </button>
+              {showArchive && (
+                <ul className="wb2-blist read">
+                  {archived.map((n) => (
+                    <li key={n.id} style={{ alignItems: "flex-start", opacity: 0.72 }}>
+                      <span className="wb2-bdot" aria-hidden="true" />
+                      <span style={{ flex: 1, minWidth: 0 }}>{n.body}</span>
+                      <button
+                        className="wb2-ico"
+                        title="Bring it back"
+                        aria-label={`Bring back note: ${n.body.slice(0, 40)}`}
+                        disabled={busy}
+                        onClick={() => run(() => archiveMyNote(n.id, false))}
+                      >
+                        <Icon name="rotate" size={13} />
+                      </button>
+                      <button
+                        className="wb2-ico"
+                        title="Delete for good"
+                        aria-label={`Delete note: ${n.body.slice(0, 40)}`}
+                        disabled={busy}
+                        onClick={() => run(() => deleteMyNote(n.id))}
+                      >
+                        <Icon name="eraser" size={13} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

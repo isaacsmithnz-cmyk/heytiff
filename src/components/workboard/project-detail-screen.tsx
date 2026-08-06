@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
-import { DictateBox } from "./dictation";
+import { NoteToken } from "@/components/notes/note-token";
 import { WbModal } from "./wb-modal";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import {
@@ -18,7 +18,7 @@ import type { JobSearchHit, ProjectDetail } from "@/lib/workboard/projects-query
 import type { IssueRow, ProjectEntry } from "@/lib/workboard/notes-query";
 import type { ProjectBoardVisit } from "@/lib/workboard/projects-board-query";
 import type { BoardTech } from "@/lib/workboard/board-query";
-import { NoteCapture } from "./note-capture";
+import { NoteScopeProvider } from "@/components/notes/note-context";
 import { ProjectTripSheet } from "./board/project-trip-sheet";
 import { ToastHost, useBoardToasts } from "./board/toasts";
 import {
@@ -134,7 +134,20 @@ export function ProjectDetailScreen({
     return later[0] ? { id: later[0].id, label: later[0].label } : null;
   };
 
+  /* This page IS a job, so the scope names it once and every posture below
+     inherits it — the capsule by the header, the notes field further down,
+     and the trip sheet's own boxes. Nothing passes a project id to a note
+     control any more. */
   return (
+    <NoteScopeProvider
+      voiceEnabled={voiceEnabled}
+      target={{ kind: "project", id: project.id }}
+      targetLabel={project.name}
+      /* The real roster, not a derivation — this screen already has one, and
+         it's what lets a dictated "Dane needs to chase the switchboard" reach
+         the review instead of quietly staying a string in a box. */
+      staffFirstNames={staff.map((s) => s.name.trim().split(/\s+/)[0]).filter((n) => n.length >= 2)}
+    >
     <div className="page in">
       <div className="wrap">
         <div className="stg">
@@ -157,11 +170,7 @@ export function ProjectDetailScreen({
               {/* the one capture pill, docked by the header like every other
                   screen (D15) — notes here land on THIS project, and taking
                   a note is never a manage-tier act */}
-              <NoteCapture
-                target={{ kind: "project", id: project.id }}
-                targetLabel={project.name}
-                voiceEnabled={voiceEnabled}
-              />
+              <NoteToken as="capsule" label="a note" />
               {manage && <StatusCluster />}
               {manage && (
                 <button className="pbtn ghost" onClick={() => setEditingMeta(true)}>
@@ -451,7 +460,6 @@ export function ProjectDetailScreen({
 
           {/* ── notes ── */}
           <NotesCard
-            voiceEnabled={voiceEnabled}
             notes={project.notes}
             manage={manage}
             busy={busy}
@@ -526,6 +534,7 @@ export function ProjectDetailScreen({
 
       <ToastHost toasts={toasts} onDismiss={dismiss} />
     </div>
+    </NoteScopeProvider>
   );
 
   /* ── header status controls ── */
@@ -1350,14 +1359,11 @@ function NotesCard({
   notes,
   manage,
   busy,
-  voiceEnabled,
   onSave,
 }: {
   notes: string | null;
   manage: boolean;
   busy: boolean;
-  /** ELEVENLABS_API_KEY is set on this deployment. */
-  voiceEnabled: boolean;
   onSave: (text: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -1389,11 +1395,10 @@ function NotesCard({
       </div>
       {editing ? (
         <>
-          <DictateBox
+          <NoteToken as="field"
             label="project notes"
             value={text}
             onChange={setText}
-            voiceEnabled={voiceEnabled}
             rows={5}
           />
           <div className="fl-foot">

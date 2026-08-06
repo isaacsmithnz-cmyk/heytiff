@@ -18,8 +18,8 @@ jest.mock("next/navigation", () => ({
   useRouter: () => ({ refresh }),
 }));
 
-jest.mock("../note-capture", () => ({
-  NoteCapture: () => <div data-testid="capture" />,
+jest.mock("@/components/notes/note-token", () => ({
+  NoteToken: ({ as }: { as?: string }) => <div data-testid="capture" data-as={as} />,
 }));
 jest.mock("../board/project-trip-sheet", () => ({
   ProjectTripSheet: ({ visit }: { visit: { label: string } }) => (

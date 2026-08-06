@@ -16,13 +16,21 @@ jest.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: jest.fn() }),
 }));
 
-/* The capture box is its own component with its own suite; the server actions
+/* The token is its own component with its own suite; the server actions
    behind it can't be imported into jsdom. Same for both boards — here we only
-   pin that the switcher mounts each with the right dataset, flags and tools. */
-jest.mock("../note-capture", () => ({
-  NoteCapture: ({ voiceEnabled }: { voiceEnabled: boolean }) => (
-    <div data-testid="capture">{voiceEnabled ? "voice on" : "typing only"}</div>
-  ),
+   pin that the switcher mounts each with the right dataset, flags and tools.
+
+   The stub reads `voiceEnabled` OFF THE REAL SCOPE rather than off a prop,
+   because that is now how it travels. Which makes this a better test than the
+   one it replaces: the prop version could pass while the provider was wired
+   to nothing, and this one can't. */
+jest.mock("@/components/notes/note-token", () => ({
+  NoteToken: () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { useNoteScope } = require("@/components/notes/note-context");
+    const { voiceEnabled } = useNoteScope();
+    return <div data-testid="capture">{voiceEnabled ? "voice on" : "typing only"}</div>;
+  },
 }));
 
 type BoardStub = {

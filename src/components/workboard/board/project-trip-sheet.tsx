@@ -5,8 +5,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
-import { DictateBox } from "../dictation";
-import { useNoteBrain } from "../note-brain-context";
+import { NoteToken } from "@/components/notes/note-token";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import {
   isWeekendISO,
@@ -81,7 +80,6 @@ export function ProjectTripSheet({
   onClose: () => void;
 }) {
   const router = useRouter();
-  const { voiceEnabled, send: sendToBrain } = useNoteBrain();
   const [busy, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
   const [openGate, setOpenGate] = useState<0 | 1 | 2 | null>(null);
@@ -643,11 +641,10 @@ export function ProjectTripSheet({
           <div className="wb2-shsh">
             <span className="wb2-sect">Notes for the trip</span>
           </div>
-          <DictateBox
+          <NoteToken as="field"
             label="notes for this trip"
             value={notesText}
             onChange={setNotesText}
-            voiceEnabled={voiceEnabled}
             rows={3}
             placeholder="Gate codes, who to ask for, what to watch out for…"
           />
@@ -663,17 +660,10 @@ export function ProjectTripSheet({
                 Save the note
               </button>
             )}
-            {manage && sendToBrain && notesText.trim() !== "" && (
-              <button
-                className="pbtn ghost"
-                disabled={busy}
-                title="Pull the tasks, flags and questions out of this"
-                onClick={() => sendToBrain(notesText)}
-              >
-                <Icon name="sparkles" size={15} />
-                Sort this out
-              </button>
-            )}
+            {/* The "Sort this out" bridge is gone here for the same reason it
+                went from the visit sheet: the field itself now offers the
+                review when the words look actionable, so nobody has to be
+                asked whether their own note was worth reading. */}
           </div>
         </div>
 
@@ -762,11 +752,10 @@ export function ProjectTripSheet({
                     />
                   </label>
                 </div>
-                <DictateBox
+                <NoteToken as="field"
                   label="what happened on site"
                   value={closeNote}
                   onChange={setCloseNote}
-                  voiceEnabled={voiceEnabled}
                   rows={2}
                   placeholder="What happened on site — the project's story reads this."
                 />

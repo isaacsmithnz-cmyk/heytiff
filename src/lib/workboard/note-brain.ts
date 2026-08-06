@@ -119,6 +119,16 @@ export type NoteContext = {
   targetLabel?: string;
   /** Equipment already known at this site, for grounding "the middle one". */
   equipment?: string[];
+  /** What the org already knows about this job — the router's MEMORY
+      (2026-08-06, the brain tool layer). Before this, the model met every
+      note as a stranger: "tripped again" carried no again, and a repeat
+      issue came back worded slightly differently so the occurrence counter
+      never bumped. Fetched by the caller through lib/brain/tools. */
+  history?: {
+    issues: { summary: string; occurrences: number; lastSeen: string }[];
+    flags: string[];
+    recentNotes: string[];
+  };
   /** The day the note was dictated, so "Tuesday" resolves to a real date. */
   todayISO: string;
   /** Debrief mode: one long transcript, many unrelated things, before the
@@ -223,6 +233,47 @@ const NOTE_SCHEMA = {
 } as const;
 
 /* ── the instruction ──────────────────────────────────────────────────── */
+
+/** The "what's already known" block — pure and exported so the tests can pin
+    its exact wording without a network call.
+
+    THE ISSUE WORDING RULE IS THE LOAD-BEARING PART. applyNote dedupes issues
+    by EXACT summary match (`in("summary", ...)`) — a repeat worded "RTU-2
+    tripping again" against a recorded "Middle rooftop unit tripping" makes a
+    second row, and two rows is exactly how a pattern stops being visible.
+    Telling the model the recorded wording, and to reuse it verbatim for
+    repeats, is what makes the occurrence counter actually count. */
+export function historyBlock(ctx: NoteContext): string {
+  const h = ctx.history;
+  const lines: string[] = [];
+
+  if (h?.issues.length) {
+    lines.push("Issues already on record for this job:");
+    for (const i of h.issues.slice(0, 10)) {
+      lines.push(
+        `- "${i.summary}" — ${i.occurrences} ${i.occurrences === 1 ? "time" : "times"}, last ${i.lastSeen}`
+      );
+    }
+    lines.push(
+      "If the note describes one of these happening again, write the",
+      "issue_entry summary EXACTLY as recorded above — matching wording is",
+      "how the log counts a repeat instead of splitting it in two."
+    );
+  }
+  if (h?.flags.length) {
+    lines.push(
+      "",
+      `Flags already active on the board: ${h.flags.slice(0, 8).map((f) => `"${f}"`).join(", ")}.`,
+      "Do not raise a flag that repeats one of these."
+    );
+  }
+  if (h?.recentNotes.length) {
+    lines.push("", "Recent notes on this job, newest first:");
+    for (const n of h.recentNotes.slice(0, 5)) lines.push(`- ${n}`);
+  }
+
+  return lines.length ? `\nWhat the workspace already knows:\n${lines.join("\n")}` : "";
+}
 
 function systemPrompt(ctx: NoteContext): string {
   const names = ctx.staff.map((s) => s.fullName).join(", ") || "nobody on record";
@@ -332,6 +383,7 @@ function systemPrompt(ctx: NoteContext): string {
     "confirming sees the date and can change it.",
     ctx.targetLabel ? `\nThis note is about: ${ctx.targetLabel}.` : "",
     ctx.equipment?.length ? `Equipment on site: ${ctx.equipment.join(", ")}.` : "",
+    historyBlock(ctx),
   ].join("\n");
 }
 

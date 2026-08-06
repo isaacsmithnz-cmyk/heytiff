@@ -19,6 +19,7 @@ import { fullNameOf } from "@/lib/staff/name";
 import { NAME_COLUMNS } from "@/lib/dashboard/tasks-query";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { publishFieldNote } from "@/lib/tiff/field-notes";
+import { jobHistory } from "@/lib/brain/tools";
 
 /* Smart Notes — capture, route, review, apply.
 
@@ -150,18 +151,32 @@ export async function routeNote(input: {
   if (error || !data) return { ok: false, error: "Couldn't save that note." };
   const noteId = (data as { id: string }).id;
 
-  /* Three independent reads against a remote database, so they go together
-     rather than one after another — the person is watching a spinner. */
-  const [staff, label, tz] = await Promise.all([
+  /* Four independent reads against a remote database, so they go together
+     rather than one after another — the person is watching a spinner. The
+     history read is the router's MEMORY: what this job's issues are already
+     called, what's flagged, what was said last visit. Before it, "tripped
+     again" reached the model with no again. */
+  const [staff, label, tz, history] = await Promise.all([
     assignableStaff(ctx.orgId),
     targetLabel(ctx.orgId, target),
     getSm8Timezone(ctx.orgId),
+    jobHistory(ctx.orgId, target),
   ]);
   const read = await readNote(transcript, {
     staff,
     targetLabel: label ?? undefined,
     todayISO: todayInZone(tz),
     debrief: input.debrief === true,
+    equipment: history.equipment.length ? history.equipment : undefined,
+    history: {
+      issues: history.issues.map((i) => ({
+        summary: i.summary,
+        occurrences: i.occurrences,
+        lastSeen: i.lastSeen,
+      })),
+      flags: history.flags.map((f) => f.message),
+      recentNotes: history.recentNotes,
+    },
   });
 
   if (!read.ok) {
@@ -227,10 +242,13 @@ export async function answerClarify(noteId: string, answer: string): Promise<Rou
   const question = proposal?.clarify?.question;
   if (!question) return { ok: false, error: "There's no question waiting on that note." };
 
-  const [staff, label, tz] = await Promise.all([
+  const [staff, label, tz, history] = await Promise.all([
     assignableStaff(ctx.orgId),
     targetLabel(ctx.orgId, { kind: note.target_kind, id: note.target_id }),
     getSm8Timezone(ctx.orgId),
+    /* Same memory as the first pass — an answer to "which Luke?" must not
+       cost the model everything it knew about the job. */
+    jobHistory(ctx.orgId, { kind: note.target_kind, id: note.target_id }),
   ]);
   const read = await readNote(
     note.transcript,
@@ -238,6 +256,16 @@ export async function answerClarify(noteId: string, answer: string): Promise<Rou
       staff,
       targetLabel: label ?? undefined,
       todayISO: todayInZone(tz),
+      equipment: history.equipment.length ? history.equipment : undefined,
+      history: {
+        issues: history.issues.map((i) => ({
+          summary: i.summary,
+          occurrences: i.occurrences,
+          lastSeen: i.lastSeen,
+        })),
+        flags: history.flags.map((f) => f.message),
+        recentNotes: history.recentNotes,
+      },
       /* The mode has to survive the clarify round-trip, or answering "which
          Luke?" would re-route the whole debrief as a site note and scatter
          its leftovers into buckets the card no longer shows. routeNote

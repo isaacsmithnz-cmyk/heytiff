@@ -69,7 +69,9 @@ jest.mock("@/lib/workboard/note-brain", () => ({
   readNote: jest.fn(),
 }));
 
-import { applyNote, clearFlag, dismissNote, keepNoteOnJob } from "../workboard-notes";
+import { applyNote, clearFlag, dismissNote, keepNoteOnJob, routeNote } from "../workboard-notes";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { readNote } = jest.requireMock("@/lib/workboard/note-brain") as { readNote: jest.Mock };
 
 const NOTE = { id: "n-1", transcript: "…", status: "pending", target_kind: "project", target_id: "p-1", proposal: {} };
 
@@ -408,5 +410,64 @@ describe("keeping a note on the job", () => {
     rows.workboard_notes = { ...NOTE, transcript: "half a sentence" };
     await dismissNote("n-1");
     expect(updates.every((u) => u.table === "workboard_notes")).toBe(true);
+  });
+});
+
+describe("the router is grounded — the brain tool layer", () => {
+  const PROPOSAL = {
+    tasks: [],
+    bringItems: [],
+    flags: [],
+    progressBullets: [],
+    commissioningEntries: [],
+    issueEntries: [],
+    kbEntries: [],
+    noteLines: [],
+    plainNote: "noted",
+    clarify: null,
+  };
+
+  it("hands the brain what the job already knows, worded as recorded", async () => {
+    readNote.mockClear();
+    rows.maintenance_visits = { id: "v-1", notes: "gate 4417" };
+    lists.workboard_issues = [
+      {
+        id: "i-1",
+        summary: "Middle rooftop unit tripping",
+        equipment_ref: null,
+        occurrences: 3,
+        first_seen: "2026-07-01",
+        last_seen: "2026-08-02",
+      },
+    ];
+    lists.workboard_flags = [{ message: "Roof access broken", severity: "warn" }];
+    lists.workboard_notes = [{ transcript: "last visit swapped the belts" }];
+    readNote.mockResolvedValue({ ok: true, proposal: PROPOSAL });
+
+    const res = await routeNote({
+      transcript: "the middle unit tripped again",
+      target: { kind: "visit", id: "v-1" },
+    });
+    expect(res.ok).toBe(true);
+
+    const ctx = readNote.mock.calls[0][1];
+    /* The exact recorded wording travels — that is what lets the prompt tell
+       the model to echo it, which is what makes applyNote's dedupe bump the
+       occurrence counter instead of splitting the issue in two. */
+    expect(ctx.history.issues).toEqual([
+      { summary: "Middle rooftop unit tripping", occurrences: 3, lastSeen: "2026-08-02" },
+    ]);
+    expect(ctx.history.flags).toEqual(["Roof access broken"]);
+    expect(ctx.history.recentNotes).toEqual(["last visit swapped the belts"]);
+  });
+
+  it("a targetless note routes with an empty memory, not a crash", async () => {
+    readNote.mockClear();
+    readNote.mockResolvedValue({ ok: true, proposal: PROPOSAL });
+    const res = await routeNote({ transcript: "ring the wholesaler", target: { kind: "none" } });
+    expect(res.ok).toBe(true);
+    const ctx = readNote.mock.calls[0][1];
+    expect(ctx.history).toEqual({ issues: [], flags: [], recentNotes: [] });
+    expect(ctx.equipment).toBeUndefined();
   });
 });

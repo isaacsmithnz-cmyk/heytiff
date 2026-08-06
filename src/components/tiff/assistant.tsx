@@ -390,9 +390,14 @@ export function TiffAssistant({
      is the opposite and the shape the file asks for — one engine, and the
      clothes belong to the composer it sits in. */
   const [voiceErr, setVoiceErr] = useState<string | null>(null);
+  /** The last recording stopped at the two-minute ceiling. Appending is
+      already the right answer for a question, so nothing changes about where
+      the words go — this only earns a line saying why the mic let go. */
+  const [ranOut, setRanOut] = useState(false);
   const dict = useDictation({
-    onTranscript: (spoken) => {
+    onTranscript: (spoken, { capped }) => {
       setVoiceErr(null);
+      setRanOut(capped);
       setInput((typed) => appendSpoken(typed, spoken));
     },
     onError: setVoiceErr,
@@ -894,6 +899,11 @@ export function TiffAssistant({
             </div>
 
             {dict.transcribing && <p className="tvsay">Reading it back…</p>}
+            {ranOut && !listening && (
+              <p className="tvsay" role="status">
+                Two minutes — that&apos;s the limit for one recording. Press the mic to carry on.
+              </p>
+            )}
             {voiceErr && (
               <p className="tvsay err" role="alert">
                 {voiceErr}

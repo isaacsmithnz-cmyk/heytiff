@@ -38,7 +38,10 @@ jest.mock("@/app/actions/kb", () => ({
    `appendSpoken` stay real — `appendSpoken` in particular IS the behaviour
    under test here, and a test that reimplements the join can't fail when the
    join changes. */
-type Cbs = { onTranscript: (text: string) => void; onError?: (message: string) => void };
+type Cbs = {
+  onTranscript: (text: string, info: { capped: boolean }) => void;
+  onError?: (message: string) => void;
+};
 const mockCbs: { current: Cbs | null } = { current: null };
 const mockCtl: {
   setRecording?: (v: boolean) => void;
@@ -80,12 +83,12 @@ jest.mock("@/components/notes/dictation", () => {
    still true, because the real hook clears it in a `finally` AFTER the
    callback. Getting this backwards in a test hides the disabled-input focus
    bug the component works around. */
-const landTranscript = (text: string) =>
+const landTranscript = (text: string, capped = false) =>
   act(() => {
     mockCtl.setRecording?.(false);
     mockCtl.setInterim?.("");
     mockCtl.setTranscribing?.(true);
-    mockCbs.current?.onTranscript(text);
+    mockCbs.current?.onTranscript(text, { capped });
     mockCtl.setTranscribing?.(false);
   });
 
@@ -211,5 +214,26 @@ describe("dictating a question", () => {
     await user.type(box(), "typed instead");
     await user.click(screen.getByLabelText("Send"));
     expect(asks[0]?.question).toBe("typed instead");
+  });
+});
+
+describe("running out of time", () => {
+  it("keeps the words, says why it stopped, and lets you carry straight on", async () => {
+    const user = userEvent.setup();
+    render(<TiffAssistant voiceEnabled />);
+
+    await speak(user);
+    landTranscript("what is the minimum clearance", true);
+    expect(box()).toHaveValue("what is the minimum clearance");
+    expect(screen.getByRole("status")).toHaveTextContent("Two minutes");
+
+    /* The mic is live again immediately — this is a pause, not a failure. */
+    await speak(user);
+    landTranscript("above an FTXM71?", false);
+    expect(box()).toHaveValue("what is the minimum clearance above an FTXM71?");
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+
+    await user.click(screen.getByLabelText("Send"));
+    expect(asks[0]?.question).toBe("what is the minimum clearance above an FTXM71?");
   });
 });

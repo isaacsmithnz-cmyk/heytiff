@@ -125,7 +125,12 @@ export function useDictation({
   onTranscript,
   onError,
 }: {
-  onTranscript: (text: string) => void;
+  /* `capped` is the difference between "I am finished" and "the clock ran
+     out", and a caller that routes on a transcript MUST tell them apart —
+     see note-flow, where getting it wrong files half a note. Callers that
+     simply append (the field mics, Tiff's ask bar) can ignore it: appending
+     is already the right answer for both. */
+  onTranscript: (text: string, info: { capped: boolean }) => void;
   onError?: (message: string) => void;
 }): DictationState {
   const [recording, setRecording] = useState(false);
@@ -134,6 +139,9 @@ export function useDictation({
   const [interim, setInterim] = useState("");
   const recorder = useRef<MediaRecorder | null>(null);
   const discard = useRef(false);
+  /* Set by the ceiling effect, cleared by every fresh `start`. Read when
+     the words are handed over, which is always after the stop it caused. */
+  const capped = useRef(false);
   const barsRef = useRef<HTMLSpanElement | null>(null);
   const meter = useRef<{ ctx: AudioContext; raf: number } | null>(null);
   const live = useRef<RealtimeHandle | null>(null);
@@ -157,7 +165,9 @@ export function useDictation({
      already stopped is a no-op anyway. */
   useEffect(() => {
     if (!recording || seconds < MAX_RECORDING_SECONDS) return;
-    if (recorder.current?.state === "recording") recorder.current.stop();
+    if (recorder.current?.state !== "recording") return;
+    capped.current = true;
+    recorder.current.stop();
   }, [recording, seconds]);
 
   const stopMeter = () => {
@@ -231,7 +241,7 @@ export function useDictation({
         return;
       }
       markTranscript("batch");
-      cbs.current.onTranscript(body.text);
+      cbs.current.onTranscript(body.text, { capped: capped.current });
     } catch {
       clearRun();
       cbs.current.onError?.("That recording couldn't be sent. Type it instead.");
@@ -273,6 +283,7 @@ export function useDictation({
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         const rec = new MediaRecorder(stream);
         discard.current = false;
+        capped.current = false;
         setInterim("");
         startMeter(stream);
         const chunks: BlobPart[] = [];
@@ -306,7 +317,7 @@ export function useDictation({
               const text = (await handle.stop()).trim();
               if (text) {
                 markTranscript("live");
-                cbs.current.onTranscript(text);
+                cbs.current.onTranscript(text, { capped: capped.current });
                 return;
               }
               /* Socket produced nothing. The clip is still in `chunks`, so

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useDictation } from "./dictation";
+import { appendSpoken, useDictation } from "./dictation";
 import { askBrain } from "@/lib/brain/ask-client";
 import { looksLikeQuestion } from "@/lib/brain/intent";
 import { clearRun, markProposal } from "@/lib/voice/timing";
@@ -50,6 +50,9 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
   const [attachTo, setAttachTo] = useState("");
   const [touched, setTouched] = useState(false);
   const [picking, setPicking] = useState(false);
+  /** The last recording stopped at the CEILING rather than because anyone
+      decided it had. See the note above `useDictation` below. */
+  const [ranOut, setRanOut] = useState(false);
 
   /* ── the ask path ──
      Separate state from the note flow on purpose: an answer is not a
@@ -63,6 +66,7 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
 
   const reset = useCallback(() => {
     setNote(null);
+    setRanOut(false);
     setDraft(null);
     setAnswer("");
     setText("");
@@ -148,8 +152,38 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
     [debrief, ask, read]
   );
 
+  /* THE CEILING IS NOT A DECISION.
+
+     Every other stop on this flow means "I have finished saying it", so the
+     transcript goes straight to routing. The two-minute cap looks identical
+     to the engine and means the opposite: the person was mid-sentence and
+     the clock ran out. Routing there would file half a note and drop them on
+     a review card for a thought they had not finished — worst of all on the
+     debrief, which is a whole day's braindump and the single most likely
+     recording to run long.
+
+     So a capped transcript is KEPT AND HELD: appended to the box, nothing
+     routed, mic ready. Press it again and carry on; the words accumulate
+     until you stop because you actually meant to. */
   const dict = useDictation({
-    onTranscript: (transcript) => submit("voice", transcript),
+    onTranscript: (transcript, { capped }) => {
+      /* THE WHOLE THING, NOT THE LAST LEG. A note spoken across three
+         recordings is one note, and the first version of this routed only
+         the final transcript — throwing away the two minutes it had just
+         carefully held. Joining here rather than inside `submit` keeps the
+         typed path (which passes `text` in already) exactly as it was.
+
+         `text` is current: the callbacks are re-stashed every render, so
+         each leg sees what the one before it appended. */
+      const whole = appendSpoken(text, transcript);
+      if (capped) {
+        setText(whole);
+        setRanOut(true);
+        return;
+      }
+      setRanOut(false);
+      submit("voice", whole);
+    },
     onError: setError,
   });
 
@@ -294,6 +328,9 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
     setOpen,
     text,
     setText,
+    /** The last recording stopped at the ceiling — say so, and invite more. */
+    ranOut,
+    setRanOut,
     error,
     setError,
     note,

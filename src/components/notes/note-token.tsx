@@ -241,6 +241,15 @@ function Body({ flow }: { flow: NoteFlow }) {
           }
           disabled={flow.busy}
         />
+        {/* The ceiling, explained where it happened. Nothing was lost and
+            nothing was filed — this is a pause, so it says what to do next
+            rather than apologising. */}
+        {flow.ranOut && (
+          <p className="wb2-hint" role="status">
+            Two minutes — that&apos;s the limit for one recording. It&apos;s all in the box; press
+            the mic to carry on where you left off.
+          </p>
+        )}
         <div className="wb2-capact">
           <button className="pbtn ghost" onClick={flow.close} disabled={flow.busy}>
             Discard
@@ -248,7 +257,7 @@ function Body({ flow }: { flow: NoteFlow }) {
           {flow.scope.voiceEnabled && (
             <button className="pbtn ghost" onClick={flow.dict.start} disabled={flow.busy}>
               <Icon name="mic" size={15} />
-              Say it instead
+              {flow.ranOut ? "Keep going" : "Say it instead"}
             </button>
           )}
           <button

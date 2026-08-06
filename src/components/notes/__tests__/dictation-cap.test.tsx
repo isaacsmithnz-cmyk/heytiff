@@ -47,7 +47,11 @@ class FakeRecorder {
 const track = { stop: jest.fn() };
 const fakeStream = { getTracks: () => [track] } as unknown as MediaStream;
 
-function Probe({ onTranscript }: { onTranscript: (t: string) => void }) {
+function Probe({
+  onTranscript,
+}: {
+  onTranscript: (t: string, info: { capped: boolean }) => void;
+}) {
   const d = useDictation({ onTranscript });
   return (
     <div>
@@ -132,7 +136,56 @@ describe("the recorder stops itself", () => {
     });
 
     expect(global.fetch).toHaveBeenCalledWith("/api/workboard/transcribe", expect.anything());
-    expect(onTranscript).toHaveBeenCalledWith("compressor is noisy on start-up");
+    expect(onTranscript).toHaveBeenCalledWith("compressor is noisy on start-up", {
+      capped: true,
+    });
+  });
+
+  /* The flag that lets a caller tell "I have finished" from "the clock ran
+     out". note-flow ROUTES on the first and holds on the second, so a stale
+     `capped` would file half a note — or, the other way, silently swallow a
+     finished one. */
+  it("says the ceiling caused it, and stops saying so on the next recording", async () => {
+    const onTranscript = jest.fn();
+    render(<Probe onTranscript={onTranscript} />);
+
+    screen.getByText("start").click();
+    await settle();
+    await tick(MAX_RECORDING_SECONDS);
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(onTranscript.mock.calls[0]?.[1]).toEqual({ capped: true });
+
+    // pressed again, and this time stopped on purpose well inside the limit
+    screen.getByText("start").click();
+    await settle();
+    await tick(5);
+    await act(async () => {
+      FakeRecorder.last?.stop();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(onTranscript.mock.calls[1]?.[1]).toEqual({ capped: false });
+  });
+
+  it("gives a fresh two minutes when the mic is pressed again", async () => {
+    render(<Probe onTranscript={jest.fn()} />);
+    screen.getByText("start").click();
+    await settle();
+    await tick(MAX_RECORDING_SECONDS);
+
+    const first = FakeRecorder.last;
+    screen.getByText("start").click();
+    await settle();
+    expect(screen.getByTestId("secs")).toHaveTextContent("0");
+
+    await tick(MAX_RECORDING_SECONDS - 1);
+    expect(FakeRecorder.last).not.toBe(first);
+    expect(FakeRecorder.last?.stopCalls).toBe(0);
   });
 
   it("only fires the stop path once, however long the clock is left running", async () => {

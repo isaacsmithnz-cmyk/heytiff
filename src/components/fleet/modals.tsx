@@ -10,6 +10,9 @@ import { dateFromDays } from "@/lib/fleet/map";
 import type { LogEdit } from "@/app/actions/fleet";
 import { Plate } from "./plate";
 import {
+  FUEL_PAYERS,
+  FUEL_PAYER_LABEL,
+  type FuelPayer,
   STATUS_LABEL,
   type AiValuation,
   type LogKind,
@@ -373,6 +376,9 @@ export function LogModal({
   const [cost, setCost] = useState("");
   const [odo, setOdo] = useState("");
   const [note, setNote] = useState("");
+  /* Company card is the default because it is the common case AND the one that
+     raises nothing extra — the path with a consequence has to be chosen. */
+  const [paidWith, setPaidWith] = useState<FuelPayer>("company");
   const [station, setStation] = useState("");
   const [gst, setGst] = useState("");
   const [abn, setAbn] = useState("");
@@ -489,9 +495,12 @@ export function LogModal({
      The server still refuses either one — this is the warning, not the gate. */
   const gstOver = gst.trim() !== "" && cost.trim() !== "" && num(gst) > num(cost) / 11 + 0.01;
   const abnBad = abn.trim() !== "" && abn.replace(/\D/g, "").length !== 11;
+  /* A tank on a personal card cannot be reimbursed without an amount, and the
+     server refuses it — say so here rather than letting them press Save. */
+  const owingNoCost = paidWith === "own" && cost.trim() === "";
   const ready =
     kind === "fuel"
-      ? litres.trim() !== "" && !gstOver && !abnBad && (mode === "confirm" || mode === "manual")
+      ? litres.trim() !== "" && !gstOver && !abnBad && !owingNoCost && (mode === "confirm" || mode === "manual")
       : kind === "odo" || kind === "service"
         ? odo.trim() !== ""
         : note.trim() !== "";
@@ -511,15 +520,41 @@ export function LogModal({
       abn: kind === "fuel" && abn.trim() ? abn.trim() : undefined,
       purchasedOn: kind === "fuel" && bought.trim() ? bought.trim() : undefined,
       receiptDocumentId: kind === "fuel" ? receiptId ?? undefined : undefined,
+      paidWith: kind === "fuel" ? paidWith : undefined,
     });
   };
 
   const fuelFields = (
     <>
+      {/* FIRST, because it decides what this log produces beyond itself: a
+          company card stops at the vehicle log, a personal one also raises a
+          reimbursement. Two buttons rather than a select — there are two
+          answers and the consequence of each is worth spelling out. */}
+      <Field label="Paid with" req>
+        <div className="fl-pay">
+          {FUEL_PAYERS.map((p) => (
+            <button
+              key={p}
+              type="button"
+              className={"fl-payb" + (paidWith === p ? " on" : "")}
+              aria-pressed={paidWith === p}
+              onClick={() => setPaidWith(p)}
+            >
+              <b>{FUEL_PAYER_LABEL[p]}</b>
+              <em>{p === "company" ? "Logged against the vehicle" : "Also claimed back to you"}</em>
+            </button>
+          ))}
+        </div>
+      </Field>
       <Field label="Litres" req>
         <input className="fl-i" type="number" placeholder="e.g. 62.4" value={litres} onChange={(e) => setLitres(e.target.value)} />
       </Field>
-      <Field label="Cost ($)">
+      <Field
+        label="Cost ($)"
+        req={paidWith === "own"}
+        hint={owingNoCost ? "Needed — this is what gets reimbursed" : undefined}
+        hintTone={owingNoCost ? "warn" : "muted"}
+      >
         <input className="fl-i" type="number" placeholder="e.g. 158.40" value={cost} onChange={(e) => setCost(e.target.value)} />
       </Field>
       <Field label="Station">
@@ -738,6 +773,9 @@ export function EditLogModal({
   const isFuel = log.kind === "fuel";
   const gstOver = gst.trim() !== "" && cost.trim() !== "" && num(gst) > num(cost) / 11 + 0.01;
   const abnBad = abn.trim() !== "" && abn.replace(/\D/g, "").length !== 11;
+  /* Who paid is NOT editable here. The claim raised at logging time is a real
+     row somebody is waiting on; flipping the payer afterwards would have to
+     raise or withdraw a reimbursement, which is a conversation, not a field. */
   const ready = !gstOver && !abnBad && (isFuel ? litres.trim() !== "" : true);
 
   const save = () => {

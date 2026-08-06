@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
 import { currentUnreadCount, partitionNotices } from "@/lib/dashboard/notices";
 import type { BoardNotice } from "@/lib/dashboard/board";
@@ -23,10 +24,12 @@ export function NoticesCard({ notices, today }: { notices: BoardNotice[]; today:
   const mentions = active.reduce((n, x) => n + x.mentionsMe, 0);
 
   return (
-    <a className="card2 dash-card-link" href="/dashboard/notices">
+    <Link className="card2 dash-card-link" href="/dashboard/notices">
       <div className="c2h">
         <div className="ci">
-          <Icon name="bell" size={19} />
+          {/* `note`, matching the rail row and the hero tile — `bell` now
+              belongs to the topbar's action-required count */}
+          <Icon name="note" size={19} />
         </div>
         <div>
           <b>Noticeboard</b>
@@ -72,6 +75,6 @@ export function NoticesCard({ notices, today }: { notices: BoardNotice[]; today:
           )}
         </>
       )}
-    </a>
+    </Link>
   );
 }

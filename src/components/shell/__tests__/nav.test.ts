@@ -29,14 +29,58 @@ describe("nav config", () => {
     expect(NAV_ROWS.map((n) => n.key)).not.toContain("myleave");
   });
 
-  it("folds the knowledge base into Tiff AI rather than giving it a rail row", () => {
+  it("leaves no dashboard screen without a door", () => {
+    /* THE ORPHAN GUARD. The audit found two daily surfaces reachable from
+       nowhere in the shell: the noticeboard (one card on Home) and the
+       action-required board (two hero counters). Neither was in the rail and
+       neither was in ⌘K, so typing "notices" or "action" returned "no results"
+       for screens that very much existed.
+
+       Listed by hand rather than crawled off the filesystem: some routes are
+       genuinely details of another screen (a staff card, a project, an
+       agreement) and should NOT own a nav entry. This is the set that has to,
+       and a new top-level screen is meant to fail here until someone decides
+       which it is. */
+    const mustBeFindable = [
+      "/dashboard",
+      "/dashboard/action-required",
+      "/dashboard/notices",
+      "/dashboard/workboard",
+      "/dashboard/toolbox",
+      "/dashboard/studio",
+      "/dashboard/tiff",
+      "/dashboard/tiff/library",
+      "/dashboard/my-timesheet",
+      "/dashboard/my-leave",
+      "/dashboard/my-vehicle",
+      "/dashboard/my-expenses",
+      "/dashboard/team",
+      "/dashboard/timepay",
+      "/dashboard/assets",
+      "/dashboard/admin",
+    ];
+    const known = new Set(NAV.map((n) => n.href));
+    expect(mustBeFindable.filter((h) => !known.has(h))).toEqual([]);
+  });
+
+  it("gives the noticeboard a row of its own and Action required a face of Home", () => {
+    // a row, because it is a daily read; a face, because the hero counters
+    // above it are the summary of the very same list
+    expect(NAV_ROWS.map((n) => n.key)).toContain("notices");
+    expect(byKey("home").subItems?.map((s) => s.href)).toEqual(["/dashboard/action-required"]);
+    expect(NAV_ROWS.map((n) => n.key)).not.toContain("actionreq");
+    // …and Home stays lit while you are reading it
+    expect(isActive(byKey("home"), "/dashboard/action-required")).toBe(true);
+  });
+
+  it("folds the library into Tiff AI rather than giving it a rail row", () => {
     // one feature seen from both ends: the assistant answers out of the
     // library. The row stays lit on the library, and ⌘K still finds it.
     const tiff = byKey("tiff");
-    expect(tiff.subItems?.map((s) => s.href)).toEqual(["/dashboard/tiff/knowledge"]);
+    expect(tiff.subItems?.map((s) => s.href)).toEqual(["/dashboard/tiff/library"]);
     expect(NAV_ROWS.map((n) => n.key)).not.toContain("tiffkb");
     expect(NAV.map((n) => n.key)).toContain("tiffkb");
-    expect(isActive(tiff, "/dashboard/tiff/knowledge")).toBe(true);
+    expect(isActive(tiff, "/dashboard/tiff/library")).toBe(true);
   });
 
   it("gives no tabbed face a capability of its own", () => {
@@ -73,7 +117,16 @@ describe("nav config", () => {
     // The two questions anyone opens the app to ask, in order: what's on for
     // ME, and what's on for the BUSINESS. Everything else is a tool.
     const ws = NAV_GROUPS.find((g) => g.label === "Workspace");
-    expect(ws?.items.map((i) => i.key)).toEqual(["home", "workboard", "toolbox", "ductr", "tiff"]);
+    // Home (your day) → Workboard (the business's) → Noticeboard (the team's),
+    // then the tools you go and use.
+    expect(ws?.items.map((i) => i.key)).toEqual([
+      "home",
+      "workboard",
+      "notices",
+      "toolbox",
+      "ductr",
+      "tiff",
+    ]);
     expect(ws?.items[0].label).toBe("Home");
   });
 });
@@ -172,6 +225,8 @@ describe("capability gating", () => {
     expect(workspace(viewer("owner"))?.slice(0, 2)).toEqual(["home", "workboard"]);
     expect(workspace({ caps: resolve("staff", { workboard: false }), role: "staff" })).toEqual([
       "home",
+      // the noticeboard is ungated, so revoking the workboard never hides it
+      "notices",
       "toolbox",
       "ductr",
       "tiff",

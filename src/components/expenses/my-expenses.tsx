@@ -9,6 +9,8 @@ import {
   CATEGORY_LABEL,
   EXPENSE_CATEGORIES,
   isCancellable,
+  RECEIPT_ACCEPT,
+  RECEIPT_PDF_TYPE,
   STATUS_LABEL,
   type Claim,
   type ExpenseCategory,
@@ -30,9 +32,23 @@ import { readExpenseReceipt } from "@/app/actions/expense-ai";
    nothing is lost.
 
    THE FILE UPLOADS ON SUBMIT, not on scan. A scan the person abandons should
-   leave nothing behind in the bucket. */
+   leave nothing behind in the bucket.
+
+   THE RECEIPT CAN BE ATTACHED AT ANY POINT, which it could not before: the
+   file input lived only on the start screen, so anyone who chose "Enter it
+   myself" was silently committed to a claim with no evidence on it — and the
+   approver, who is being asked for money, had nothing to look at. The form
+   carries its own attach row now.
+
+   ATTACHING FROM THE FORM DOES NOT RE-SCAN. By that point the person has
+   typed something; reading the file would overwrite their own figures with
+   Tiff's, which is the one direction this screen must never move in. Scanning
+   is what the start screen is for. */
 
 const money = (n: number) => `$${n.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+/** A PDF has no thumbnail, so the strip names it instead of showing it. */
+const isPdf = (f: File) => f.type === RECEIPT_PDF_TYPE;
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -71,19 +87,37 @@ export function MyExpenses({ claims, today }: { claims: Claim[]; today: string }
   const [preview, setPreview] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  /* Object URLs are held until they're replaced or the claim is cleared —
+     without this the browser keeps every abandoned preview alive for the life
+     of the page. `attach` is the only place a preview is minted. */
+  const attach = (picked: File | null) => {
+    setPreview((old) => {
+      if (old) URL.revokeObjectURL(old);
+      return picked && !isPdf(picked) ? URL.createObjectURL(picked) : null;
+    });
+    setFile(picked);
+    if (!picked && fileRef.current) fileRef.current.value = "";
+  };
+
   const reset = () => {
     setDraft(null);
-    setFile(null);
-    setPreview(null);
+    attach(null);
     setError(null);
-    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  /* Attaching from INSIDE the form — no scan. See the header: by then the
+     person has typed something, and reading the file would overwrite their
+     figures with Tiff's. */
+  const onAttachOnly = (picked: File | undefined) => {
+    if (!picked) return;
+    setError(null);
+    attach(picked);
   };
 
   const onPick = async (picked: File | undefined) => {
     if (!picked) return;
     setError(null);
-    setFile(picked);
-    setPreview(URL.createObjectURL(picked));
+    attach(picked);
     setScanning(true);
     try {
       const b64 = await fileToBase64(picked);
@@ -101,7 +135,7 @@ export function MyExpenses({ claims, today }: { claims: Claim[]; today: string }
         });
       } else {
         // A scan that couldn't read still leaves them with the receipt and a
-        // form — the photo is attached either way.
+        // form — the file stays attached either way.
         setDraft(base);
         if (res.reason !== "no-key") setError("Couldn't read that receipt — fill it in below.");
       }
@@ -187,13 +221,6 @@ export function MyExpenses({ claims, today }: { claims: Claim[]; today: string }
                   Enter it myself
                 </button>
               </div>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
-                hidden
-                onChange={(e) => onPick(e.target.files?.[0])}
-              />
             </div>
           ) : (
             <div className="card2">
@@ -207,10 +234,47 @@ export function MyExpenses({ claims, today }: { claims: Claim[]; today: string }
                 </div>
               </div>
 
-              {preview && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img className="xc-prev" src={preview} alt="The receipt you're claiming" />
-              )}
+              {/* THE RECEIPT, and the way to change it. There was no control
+                  here at all — the picker lived on the start screen and
+                  unmounted the moment a draft existed, so "Enter it myself"
+                  meant no receipt, ever. */}
+              <div className="xc-att">
+                {file ? (
+                  <>
+                    {preview ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img className="xc-prev" src={preview} alt="The receipt you're claiming" />
+                    ) : (
+                      // a PDF has nothing to show — name it instead
+                      <span className="xc-pdf">
+                        <Icon name="file" size={18} />
+                        {file.name}
+                      </span>
+                    )}
+                    <div className="xc-attb">
+                      <button className="pbtn ghost" onClick={() => fileRef.current?.click()} disabled={busy}>
+                        Replace
+                      </button>
+                      <button className="pbtn ghost" onClick={() => attach(null)} disabled={busy}>
+                        Remove
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <span className="xc-attk">
+                      <b>No receipt attached</b>
+                      <em>A claim with the docket on it is the one that gets approved without a conversation.</em>
+                    </span>
+                    <div className="xc-attb">
+                      <button className="pbtn" onClick={() => fileRef.current?.click()} disabled={busy}>
+                        <Icon name="upload" size={15} />
+                        Attach a receipt
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
 
               <div className="xc-form">
                 <label className="xc-f">
@@ -284,6 +348,21 @@ export function MyExpenses({ claims, today }: { claims: Claim[]; today: string }
             </div>
           )}
 
+          {/* ONE picker, mounted for the life of the screen. On the start
+              screen a file is scanned into a draft; once a draft exists it is
+              attached and nothing is overwritten. */}
+          <input
+            ref={fileRef}
+            type="file"
+            accept={RECEIPT_ACCEPT}
+            hidden
+            onChange={(e) => {
+              const picked = e.target.files?.[0];
+              if (draft) onAttachOnly(picked);
+              else void onPick(picked);
+            }}
+          />
+
           <div className="xc-list">
             {claims.length === 0 ? (
               <div className="adm-empty">
@@ -299,6 +378,16 @@ export function MyExpenses({ claims, today }: { claims: Claim[]; today: string }
                       {fmtAuWeekdayDate(c.expenseDate)}
                       {c.supplier ? ` · ${c.supplier}` : ""} · {CATEGORY_LABEL[c.category]}
                     </em>
+                    {/* WHERE THIS CAME FROM. A claim raised by "Log fuel · my
+                        own money" is one the person never filled in, so the
+                        row has to say so or it reads as a mystery. */}
+                    {c.fuelLog && (
+                      <p className="xc-from">
+                        <Icon name="fuel" size={13} />
+                        Raised from your fuel log
+                        {c.fuelLog.vehicle ? ` · ${c.fuelLog.vehicle}` : ""}
+                      </p>
+                    )}
                     {c.reviewNote && <p className="xc-note">{c.reviewNote}</p>}
                   </div>
                   <div className="xc-amt">

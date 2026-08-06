@@ -17,7 +17,7 @@ import { isExpenseCategory, isExpenseStatus, type Claim } from "./claim";
 
 const COLUMNS =
   "id, staff_profile_id, expense_date, description, category, amount, gst_amount, " +
-  "supplier, status, review_note, created_at";
+  "supplier, status, review_note, created_at, vehicle_log_id";
 
 /** A claim plus who made it — the review queue needs the name, the person's
     own list already knows. */
@@ -42,7 +42,54 @@ function toClaim(row: Record<string, unknown>): Claim | null {
     status,
     reviewNote: (row.review_note as string | null) ?? null,
     createdAt: String(row.created_at ?? ""),
+    /* The id only. `attachFuelSource` fills in the vehicle, because naming it
+       costs a join and most claim sets contain no fuel-log claims at all. */
+    fuelLog: row.vehicle_log_id ? { vehicleLogId: String(row.vehicle_log_id), vehicle: null } : null,
   };
+}
+
+/* Name the vehicle behind any claim that came from a fuel log.
+
+   Two round trips, and only when at least one claim has a log — the common
+   case is none, and then this costs nothing. Kept separate from `toClaim` for
+   the same reason `attachReceipts` is: the pure row-shaping stays synchronous
+   and testable, and the I/O is one deliberate step you can see. */
+async function attachFuelSource<T extends Claim>(orgId: string, claims: T[]): Promise<T[]> {
+  const logIds = claims.map((c) => c.fuelLog?.vehicleLogId).filter((v): v is string => !!v);
+  if (logIds.length === 0) return claims;
+
+  const { data: logs } = await supabaseAdmin
+    .from("vehicle_logs")
+    .select("id, vehicle_id")
+    .eq("org_id", orgId)
+    .in("id", logIds);
+
+  const vehicleByLog = new Map(
+    ((logs ?? []) as Record<string, unknown>[]).map((r) => [String(r.id), String(r.vehicle_id ?? "")]),
+  );
+  const vehicleIds = [...new Set([...vehicleByLog.values()].filter(Boolean))];
+  if (vehicleIds.length === 0) return claims;
+
+  const { data: vehicles } = await supabaseAdmin
+    .from("vehicles")
+    .select("id, name, plate")
+    .eq("org_id", orgId)
+    .in("id", vehicleIds);
+
+  /* The same fallback the fleet register uses — plenty of vehicles are only
+     ever known by their plate, and a blank label would be worse than none. */
+  const labelById = new Map(
+    ((vehicles ?? []) as Record<string, unknown>[]).map((r) => [
+      String(r.id),
+      String(r.name ?? "").trim() || String(r.plate ?? "").trim() || null,
+    ]),
+  );
+
+  return claims.map((c) =>
+    c.fuelLog
+      ? { ...c, fuelLog: { ...c.fuelLog, vehicle: labelById.get(vehicleByLog.get(c.fuelLog.vehicleLogId) ?? "") ?? null } }
+      : c,
+  );
 }
 
 /** Sign every claim's receipts in one round trip.
@@ -97,6 +144,38 @@ export async function pendingClaimsCount(orgId: string): Promise<number> {
   return count ?? 0;
 }
 
+/** YOUR claims that came back declined, newest decision first — the dashboard's
+    "you were told nothing" chip.
+
+    Four columns and no receipt signing, unlike `myClaims`: this runs on every
+    dashboard render to decide whether a chip exists, and signing a bucket URL
+    for a receipt nobody is about to look at is exactly the tile-shaped waste
+    `pendingClaimsCount` was written to avoid. `since` is an ISO date — the
+    caller owns the window (see CLAIM_NUDGE_DAYS), so the SQL and the chip rule
+    can't drift into disagreeing about what "recent" means. */
+export async function ownDeclinedClaims(
+  orgId: string,
+  staffProfileId: string,
+  since: string,
+): Promise<{ id: string; description: string; amount: number; decidedOn: string | null }[]> {
+  const { data } = await supabaseAdmin
+    .from("expense_claims")
+    .select("id, description, amount, reviewed_at")
+    .eq("org_id", orgId)
+    .eq("staff_profile_id", staffProfileId)
+    .eq("status", "declined")
+    .gte("reviewed_at", since)
+    .order("reviewed_at", { ascending: false })
+    .limit(20);
+
+  return ((data ?? []) as unknown as Record<string, unknown>[]).map((r) => ({
+    id: String(r.id),
+    description: String(r.description ?? ""),
+    amount: Number(r.amount ?? 0),
+    decidedOn: (r.reviewed_at as string | null) ?? null,
+  }));
+}
+
 /** One person's own claims, newest first. Intrinsic — no capability. */
 export async function myClaims(orgId: string, staffProfileId: string): Promise<Claim[]> {
   const { data } = await supabaseAdmin
@@ -111,7 +190,7 @@ export async function myClaims(orgId: string, staffProfileId: string): Promise<C
   const claims = ((data ?? []) as unknown as Record<string, unknown>[])
     .map(toClaim)
     .filter((c): c is Claim => c !== null);
-  return attachReceipts(orgId, claims);
+  return attachFuelSource(orgId, await attachReceipts(orgId, claims));
 }
 
 /** Everyone's claims, for the review queue. The CALLER holds the capability —
@@ -129,7 +208,7 @@ export async function teamClaims(orgId: string): Promise<TeamClaim[]> {
     .map(toClaim)
     .filter((c): c is Claim => c !== null);
 
-  const withReceipts = await attachReceipts(orgId, claims);
+  const withReceipts = await attachFuelSource(orgId, await attachReceipts(orgId, claims));
   const names = await namesFor(orgId, [...new Set(withReceipts.map((c) => c.staffProfileId))]);
 
   return withReceipts.map((c) => ({ ...c, staffName: names.get(c.staffProfileId) ?? "Unknown" }));

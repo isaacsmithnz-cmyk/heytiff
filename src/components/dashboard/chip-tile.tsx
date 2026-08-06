@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
 import { GROUP_ICON, chipGroup, type ActionChip } from "@/lib/dashboard/chips";
 
@@ -13,7 +14,7 @@ import { GROUP_ICON, chipGroup, type ActionChip } from "@/lib/dashboard/chips";
 export function ChipTile({ chip }: { chip: ActionChip }) {
   const group = chipGroup(chip.kind);
   return (
-    <a className={`dash-tile ${chip.state}`} href={chip.href}>
+    <Link className={`dash-tile ${chip.state}`} href={chip.href}>
       <span className="dt-ic">
         <Icon name={GROUP_ICON[group]} size={16} />
       </span>
@@ -26,6 +27,6 @@ export function ChipTile({ chip }: { chip: ActionChip }) {
       <span className="dt-chev">
         <Icon name="arrowR" size={16} />
       </span>
-    </a>
+    </Link>
   );
 }

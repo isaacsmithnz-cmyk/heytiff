@@ -10,16 +10,17 @@ import { CATEGORY_LABEL } from "@/lib/expenses/claim";
 
 export type TaxSource = "fuel" | "expense";
 
+/* Same members as EXPENSE_CATEGORIES, listed in the order an accountant reads
+   them rather than the order the claim form offers them — fuel leads because
+   it is the one with two sources behind it. */
 export const TAX_CATEGORIES = ["fuel", "materials", "tools", "travel", "meals", "other"] as const;
 export type TaxCategory = (typeof TAX_CATEGORIES)[number];
 
-/* Fuel is the only category this track adds; the rest are the expense-claim
-   categories, spread from their own module so the two screens can never drift
-   into calling the same thing by two names. */
-export const TAX_CATEGORY_LABEL: Record<TaxCategory, string> = {
-  fuel: "Fuel",
-  ...CATEGORY_LABEL,
-};
+/* The labels come wholesale from the expense-claim module so the two screens
+   can never drift into calling the same thing by two names. `fuel` used to be
+   added here because only vehicle logs produced it; an expense claim can be
+   fuel now (a tank bought on a personal card), so it arrives with the rest. */
+export const TAX_CATEGORY_LABEL: Record<TaxCategory, string> = { ...CATEGORY_LABEL };
 
 export type TaxItem = {
   id: string;

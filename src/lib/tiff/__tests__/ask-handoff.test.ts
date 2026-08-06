@@ -1,9 +1,12 @@
 import {
   ASK_HANDOFF_KEY,
+  CODE_CAP,
   TITLE_CAP,
   askPrefill,
   consumeAskHandoff,
+  faultCodePrefill,
   writeAskHandoff,
+  writeAskText,
 } from "../ask-handoff";
 
 /* The note a library row leaves for the composer.
@@ -42,6 +45,53 @@ describe("the opener", () => {
   it("has nothing to say about a document with no title", () => {
     expect(askPrefill("   ")).toBe("");
     expect(askPrefill(undefined as unknown as string)).toBe("");
+  });
+});
+
+/* The Fault Finder's version of the same note. A diagnosis that lands on a
+   code is the one place these trees can't answer, so the code travels here
+   instead of the walk ending at "read the service manual". */
+describe("the opener a fault code leaves", () => {
+  it("asks the question the tech was about to ask, in their words", () => {
+    expect(faultCodePrefill("E5")).toBe(
+      "The unit is showing “E5”. What does that fault code mean, and what causes it? "
+    );
+  });
+
+  it("carries a blink pattern as naturally as a code", () => {
+    expect(faultCodePrefill("3 flashes then a pause")).toContain("“3 flashes then a pause”");
+  });
+
+  it("keeps the trailing space — the brand and model go on the end", () => {
+    expect(faultCodePrefill("E5").endsWith("? ")).toBe(true);
+  });
+
+  it("says the words that route the search at the far end", () => {
+    expect(faultCodePrefill("U0")).toContain("fault code");
+  });
+
+  it("flattens and trims what was typed", () => {
+    expect(faultCodePrefill("  E5\ton a\n 12kW  ducted ")).toContain("“E5 on a 12kW ducted”");
+  });
+
+  it("caps a description that has stopped being a code", () => {
+    const long = "flashing ".repeat(20).trim();
+    const prefill = faultCodePrefill(long);
+    expect(prefill).toContain("…”");
+    expect(prefill.length).toBeLessThan(long.length + 60);
+    expect(faultCodePrefill("x".repeat(CODE_CAP))).toContain(`“${"x".repeat(CODE_CAP)}”`);
+  });
+
+  it("has nothing to ask when nothing was typed", () => {
+    expect(faultCodePrefill("   ")).toBe("");
+    expect(writeAskText(faultCodePrefill(""))).toBe(false);
+    expect(sessionStorage.getItem(ASK_HANDOFF_KEY)).toBeNull();
+  });
+
+  it("lands in the same box the library rows use, and is read once", () => {
+    expect(writeAskText(faultCodePrefill("E5"))).toBe(true);
+    expect(consumeAskHandoff()).toContain("“E5”");
+    expect(consumeAskHandoff()).toBeNull();
   });
 });
 

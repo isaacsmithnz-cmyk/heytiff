@@ -11,20 +11,23 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
-import { BADGE_COLORS, TOOL_CATEGORIES, toolMatches, type Tool, type ToolCategory } from "./tools";
+import { BADGE_COLORS, TOOL_CATEGORIES, toolBadge, toolMatches, type Tool, type ToolCategory } from "./tools";
 import "./toolbox.css";
 
-function ToolRow({ tool }: { tool: Tool }) {
-  const badge = tool.badge ? BADGE_COLORS[tool.badge] : null;
+function ToolRow({ tool, today }: { tool: Tool; today: string }) {
+  /* Derived, never stored: "New" ages out of its own accord (see toolBadge),
+     so no row can wear one indefinitely the way all four used to. */
+  const name = toolBadge(tool, today);
+  const badge = name ? BADGE_COLORS[name] : null;
   return (
     <Link href={tool.href} className="tbx2-row">
       <span className="nm">
         <b>{tool.name}</b>
         <em>{tool.desc}</em>
       </span>
-      {badge && tool.badge && (
+      {badge && name && (
         <span className="bg" style={{ background: badge[0], color: badge[1] }}>
-          {tool.badge}
+          {name}
         </span>
       )}
       <span className="ch">
@@ -34,7 +37,7 @@ function ToolRow({ tool }: { tool: Tool }) {
   );
 }
 
-function CategoryCard({ cat, query }: { cat: ToolCategory; query: string }) {
+function CategoryCard({ cat, query, today }: { cat: ToolCategory; query: string; today: string }) {
   const visible = cat.tools.filter((t) => toolMatches(t, query));
   const searching = query.trim().length > 0;
   /* while searching, drop cards with nothing to show */
@@ -65,7 +68,7 @@ function CategoryCard({ cat, query }: { cat: ToolCategory; query: string }) {
       {visible.length > 0 ? (
         <div className="tbx2-rows">
           {visible.map((t) => (
-            <ToolRow key={t.href} tool={t} />
+            <ToolRow key={t.href} tool={t} today={today} />
           ))}
         </div>
       ) : (
@@ -75,7 +78,10 @@ function CategoryCard({ cat, query }: { cat: ToolCategory; query: string }) {
   );
 }
 
-export function ToolboxScreen() {
+/* `today` arrives from the server page rather than `new Date()` here: this
+   renders on a phone in a van that may be set to anything, and the badge has to
+   age out on the yard's calendar, not the handset's. */
+export function ToolboxScreen({ today }: { today: string }) {
   const [query, setQuery] = useState("");
   const anyMatch = TOOL_CATEGORIES.some(
     (c) => c.tools.some((t) => toolMatches(t, query)) || !query.trim()
@@ -101,7 +107,7 @@ export function ToolboxScreen() {
         {anyMatch ? (
           <div className="tbx2-grid stgp">
             {TOOL_CATEGORIES.map((c) => (
-              <CategoryCard key={c.key} cat={c} query={query} />
+              <CategoryCard key={c.key} cat={c} query={query} today={today} />
             ))}
           </div>
         ) : (

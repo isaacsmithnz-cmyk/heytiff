@@ -1,6 +1,6 @@
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { KnowledgeBase, type KbLibraryDoc, type KbQuotaView } from "../knowledge";
+import { Library, type KbLibraryDoc, type KbQuotaView } from "../library";
 
 /* The library screen.
 
@@ -69,7 +69,7 @@ afterEach(cleanup);
 
 describe("the day-1 state sells the reason before the button", () => {
   it("tells a manager what the library is for, and offers the upload", () => {
-    render(<KnowledgeBase docs={[]} quota={quota()} canManage />);
+    render(<Library docs={[]} quota={quota()} canManage />);
 
     expect(screen.getByText(/Tiff can only answer from what/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Add documents/ })).toBeInTheDocument();
@@ -78,16 +78,16 @@ describe("the day-1 state sells the reason before the button", () => {
   });
 
   it("tells staff who to ask, and offers them nothing to press", () => {
-    render(<KnowledgeBase docs={[]} quota={quota()} />);
+    render(<Library docs={[]} quota={quota()} />);
 
     expect(screen.getByText(/Tiff can only answer from what/)).toBeInTheDocument();
     expect(screen.getByText(/Ask a manager to add/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Add documents/ })).not.toBeInTheDocument();
   });
 
-  it("names all four shelves so the reason is concrete", () => {
-    render(<KnowledgeBase docs={[]} quota={quota()} canManage />);
-    for (const label of ["Install procedures", "Fault code library", "Manufacturer specs", "Company SOPs"]) {
+  it("names all four categories so the reason is concrete", () => {
+    render(<Library docs={[]} quota={quota()} canManage />);
+    for (const label of ["Install procedures", "Fault codes", "Manufacturer specs", "Company SOPs"]) {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
   });
@@ -95,31 +95,31 @@ describe("the day-1 state sells the reason before the button", () => {
 
 describe("what a row says about itself", () => {
   it("a document being read shows how far through it is", () => {
-    render(<KnowledgeBase docs={[doc({ status: "processing", nextPage: 41, pageCount: 220 })]} canManage />);
+    render(<Library docs={[doc({ status: "processing", nextPage: 41, pageCount: 220 })]} canManage />);
     expect(screen.getByText("Reading… 40 of 220 pages")).toBeInTheDocument();
   });
 
   it("a document not yet opened reads honestly rather than as 0 of 0", () => {
-    render(<KnowledgeBase docs={[doc({ status: "processing", nextPage: 1, pageCount: null })]} canManage />);
+    render(<Library docs={[doc({ status: "processing", nextPage: 1, pageCount: null })]} canManage />);
     expect(screen.getByText("Reading…")).toBeInTheDocument();
   });
 
   it("a document out of pages says when it comes back, and offers Resume", () => {
-    render(<KnowledgeBase docs={[doc({ status: "paused", nextPage: 81 })]} quota={quota()} canManage />);
+    render(<Library docs={[doc({ status: "paused", nextPage: 81 })]} quota={quota()} canManage />);
 
     expect(screen.getByText("Out of pages — resumes 1 Sept")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Resume" })).toBeInTheDocument();
   });
 
   it("a failed document carries its reason and a Retry", () => {
-    render(<KnowledgeBase docs={[doc({ status: "failed", error: "That PDF couldn't be opened." })]} canManage />);
+    render(<Library docs={[doc({ status: "failed", error: "That PDF couldn't be opened." })]} canManage />);
 
     expect(screen.getByText("That PDF couldn't be opened.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
   });
 
   it("a ready document with scanned pages admits what it couldn't read", () => {
-    render(<KnowledgeBase docs={[doc({ scannedPages: 12 })]} canManage />);
+    render(<Library docs={[doc({ scannedPages: 12 })]} canManage />);
     expect(screen.getByText("12 pages unreadable — scanned images")).toBeInTheDocument();
   });
 
@@ -127,7 +127,7 @@ describe("what a row says about itself", () => {
      labelling it spends the reader's attention on the rows that don't need
      any — and leaves the stuck one competing with a page of green. */
   it("a clean ready document wears no pill at all", () => {
-    const { container } = render(<KnowledgeBase docs={[doc()]} canManage />);
+    const { container } = render(<Library docs={[doc()]} canManage />);
     expect(container.querySelector(".tk-pill")).toBeNull();
     expect(screen.queryByText("Ready")).not.toBeInTheDocument();
     // and the row is still plainly usable
@@ -135,19 +135,19 @@ describe("what a row says about itself", () => {
   });
 
   it("says nothing about a document's kind — they are all PDFs", () => {
-    const { container } = render(<KnowledgeBase docs={[doc()]} canManage />);
+    const { container } = render(<Library docs={[doc()]} canManage />);
     expect(container.querySelector(".tk-kind")).toBeNull();
   });
 
   it("shows source, edition, when it changed and who added it", () => {
-    render(<KnowledgeBase docs={[doc()]} />);
+    render(<Library docs={[doc()]} />);
     expect(
       screen.getByText("Mitsubishi Electric · 2026 revision B · Updated 1 Aug · Added by Dane Poulos")
     ).toBeInTheDocument();
   });
 
   it("staff never see Retry or Resume — the loop is not theirs to drive", () => {
-    render(<KnowledgeBase docs={[doc({ status: "failed", error: "That file couldn't be read." })]} />);
+    render(<Library docs={[doc({ status: "failed", error: "That file couldn't be read." })]} />);
 
     expect(screen.getByText("That file couldn't be read.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
@@ -160,7 +160,7 @@ describe("opening the document", () => {
     const open = jest.spyOn(window, "open").mockReturnValue(tab as unknown as Window);
     kbDocUrl.mockResolvedValue({ ok: true, url: "https://signed.example/manual.pdf" });
 
-    render(<KnowledgeBase docs={[doc()]} />);
+    render(<Library docs={[doc()]} />);
     await userEvent.click(screen.getByRole("button", { name: "City Multi fault codes" }));
 
     await waitFor(() => expect(tab.location.href).toBe("https://signed.example/manual.pdf"));
@@ -173,7 +173,7 @@ describe("opening the document", () => {
     const open = jest.spyOn(window, "open").mockReturnValue(tab as unknown as Window);
     kbDocUrl.mockResolvedValue({ ok: false, error: "That document is no longer here." });
 
-    render(<KnowledgeBase docs={[doc()]} />);
+    render(<Library docs={[doc()]} />);
     await userEvent.click(screen.getByRole("button", { name: "City Multi fault codes" }));
 
     expect(await screen.findByText("That document is no longer here.")).toBeInTheDocument();
@@ -182,24 +182,24 @@ describe("opening the document", () => {
   });
 
   it("a document still being read is not a link to press", () => {
-    render(<KnowledgeBase docs={[doc({ status: "processing", nextPage: 21 })]} />);
+    render(<Library docs={[doc({ status: "processing", nextPage: 21 })]} />);
     expect(screen.queryByRole("button", { name: /City Multi fault codes/ })).not.toBeInTheDocument();
   });
 });
 
 describe("the month's page allowance", () => {
   it("shows the count and the reset date to a manager", () => {
-    render(<KnowledgeBase docs={[doc()]} quota={quota()} canManage />);
+    render(<Library docs={[doc()]} quota={quota()} canManage />);
     expect(screen.getByText("1,240 of 2,000 pages this month · resets 1 Sept")).toBeInTheDocument();
   });
 
   it("says Unlimited pages rather than a number on the unlimited tier", () => {
-    render(<KnowledgeBase docs={[doc()]} quota={quota({ plan: "unlimited", pagesAllowed: null })} canManage />);
+    render(<Library docs={[doc()]} quota={quota({ plan: "unlimited", pagesAllowed: null })} canManage />);
     expect(screen.getByText("Unlimited pages")).toBeInTheDocument();
   });
 
   it("is a manager's line — staff are not billed and are not told", () => {
-    render(<KnowledgeBase docs={[doc()]} quota={quota()} />);
+    render(<Library docs={[doc()]} quota={quota()} />);
     expect(screen.queryByText(/pages this month/)).not.toBeInTheDocument();
   });
 });
@@ -214,14 +214,14 @@ describe("asking Tiff about a row", () => {
   /* Reading the library and asking about it are the same permission —
      `tiff_manage` is about CHANGING the library, not using it. */
   it("is offered to staff, not only to the people who can upload", () => {
-    render(<KnowledgeBase docs={[doc()]} />);
+    render(<Library docs={[doc()]} />);
     expect(
       screen.getByRole("button", { name: "Ask Tiff about City Multi fault codes" })
     ).toBeInTheDocument();
   });
 
   it("leaves the document as the opening of a sentence and goes to Tiff", async () => {
-    render(<KnowledgeBase docs={[doc()]} canManage />);
+    render(<Library docs={[doc()]} canManage />);
 
     await userEvent.click(
       screen.getByRole("button", { name: "Ask Tiff about City Multi fault codes" })
@@ -235,7 +235,7 @@ describe("asking Tiff about a row", () => {
      to a shrug is worse than no affordance. */
   it("stays off a document Tiff hasn't finished reading", () => {
     render(
-      <KnowledgeBase
+      <Library
         docs={[
           doc({ status: "processing", nextPage: 40 }),
           doc({ id: "d-2", title: "PUZ install manual", status: "failed", error: "Couldn't be read" }),
@@ -251,14 +251,14 @@ describe("asking Tiff about a row", () => {
 
 describe("who may do what", () => {
   it("a manager gets edit but not remove", () => {
-    render(<KnowledgeBase docs={[doc()]} canManage />);
+    render(<Library docs={[doc()]} canManage />);
 
     expect(screen.getByRole("button", { name: "Edit City Multi fault codes" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Remove City Multi fault codes" })).not.toBeInTheDocument();
   });
 
   it("only the owner gets remove, and the confirm names the document", async () => {
-    render(<KnowledgeBase docs={[doc()]} canManage isOwner />);
+    render(<Library docs={[doc()]} canManage isOwner />);
 
     await userEvent.click(screen.getByRole("button", { name: "Remove City Multi fault codes" }));
 
@@ -269,7 +269,7 @@ describe("who may do what", () => {
 
   it("confirming the removal is what calls the action, not opening the dialog", async () => {
     deleteKbDoc.mockResolvedValue({ ok: true });
-    render(<KnowledgeBase docs={[doc()]} canManage isOwner />);
+    render(<Library docs={[doc()]} canManage isOwner />);
 
     await userEvent.click(screen.getByRole("button", { name: "Remove City Multi fault codes" }));
     expect(deleteKbDoc).not.toHaveBeenCalled();
@@ -281,13 +281,13 @@ describe("who may do what", () => {
   });
 
   it("staff get no row actions at all — absent, not disabled", () => {
-    const { container } = render(<KnowledgeBase docs={[doc()]} />);
+    const { container } = render(<Library docs={[doc()]} />);
     expect(container.querySelector(".tk-acts")).toBeNull();
   });
 
   it("edits go through updateKbDocMeta and refresh the page", async () => {
     updateKbDocMeta.mockResolvedValue({ ok: true });
-    render(<KnowledgeBase docs={[doc()]} canManage />);
+    render(<Library docs={[doc()]} canManage />);
 
     await userEvent.click(screen.getByRole("button", { name: "Edit City Multi fault codes" }));
     await userEvent.click(screen.getByRole("button", { name: /Save details/ }));
@@ -305,7 +305,7 @@ describe("who may do what", () => {
 
   it("a Retry restarts the server row and rejoins the reading queue", async () => {
     retryKbDoc.mockResolvedValue({ ok: true });
-    render(<KnowledgeBase docs={[doc({ status: "failed", error: "Those pages couldn't be read." })]} canManage />);
+    render(<Library docs={[doc({ status: "failed", error: "Those pages couldn't be read." })]} canManage />);
 
     await userEvent.click(screen.getByRole("button", { name: "Retry" }));
 
@@ -322,7 +322,7 @@ describe("finding a document", () => {
   ];
 
   it("filters on the title and the source", async () => {
-    render(<KnowledgeBase docs={library} />);
+    render(<Library docs={library} />);
 
     await userEvent.type(screen.getByLabelText("Search documents"), "PUZ");
     expect(screen.getByText("PUZ-ZM250 installation manual")).toBeInTheDocument();
@@ -330,7 +330,7 @@ describe("finding a document", () => {
   });
 
   it("says so when nothing matches, and offers the way back", async () => {
-    render(<KnowledgeBase docs={library} />);
+    render(<Library docs={library} />);
 
     await userEvent.type(screen.getByLabelText("Search documents"), "zzzz");
 
@@ -340,26 +340,26 @@ describe("finding a document", () => {
   });
 
   it("opens on the category the URL asked for", () => {
-    render(<KnowledgeBase docs={library} initialCategory="install" />);
+    render(<Library docs={library} initialCategory="install" />);
 
     expect(screen.getByText("PUZ-ZM250 installation manual")).toBeInTheDocument();
     expect(screen.queryByText("City Multi fault codes")).not.toBeInTheDocument();
   });
 
-  it("an empty shelf beside full ones says what belongs on it", async () => {
-    render(<KnowledgeBase docs={library} />);
+  it("an empty category beside full ones says what belongs in it", async () => {
+    render(<Library docs={library} />);
 
     await userEvent.click(screen.getByRole("button", { name: /Manufacturer specs/ }));
 
-    expect(screen.getByText("Nothing on this shelf yet.")).toBeInTheDocument();
+    expect(screen.getByText("Nothing in this category yet.")).toBeInTheDocument();
     expect(screen.getByText(/Ask a manager to add/)).toBeInTheDocument();
   });
 
   it("counts every category on its chip, zeros included", () => {
-    render(<KnowledgeBase docs={library} />);
+    render(<Library docs={library} />);
 
     const chips = screen.getByRole("button", { name: /Manufacturer specs/ });
     expect(chips.textContent).toContain("0");
-    expect(screen.getByRole("button", { name: /Fault code library/ }).textContent).toContain("1");
+    expect(screen.getByRole("button", { name: /Fault codes/ }).textContent).toContain("1");
   });
 });

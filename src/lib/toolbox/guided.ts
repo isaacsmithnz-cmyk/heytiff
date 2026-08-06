@@ -13,8 +13,13 @@
 
    Content is generic split / ducted / multi / VRF field knowledge. NO
    manufacturer fault-code tables: codes vary per brand and model, and
-   universal-table data only enters HeyTiff through uploaded documents, so the
-   error-code branch sends you to that unit's service manual instead. */
+   universal-table data only enters HeyTiff through uploaded documents.
+
+   THAT IS WHY `library` EXISTS. Refusing to invent a code table is right;
+   ending the walk at "read the service manual" was not, because the manuals
+   are in the workspace's own library and the tech is standing there holding
+   the code. The outcomes that land on a code carry the flag, and the tool
+   hands the code to Tiff rather than to the glovebox. */
 
 export type SymptomKey =
   | "cooling"
@@ -86,6 +91,11 @@ export interface Outcome {
   escalate?: boolean;
   /** hand-off to another Toolbox tool */
   tool?: { label: string; href: string };
+  /** This diagnosis ends on a code, and a code is the one thing these trees
+      cannot answer (see the header). Marks the outcomes that offer to take the
+      code straight to the library instead of stopping at "read the manual" —
+      the manuals are in there, and the tech is already holding the code. */
+  library?: true;
 }
 
 /* ───────────────────────────── symptoms ───────────────────────────── */
@@ -1335,12 +1345,13 @@ export const OUTCOMES: Outcome[] = [
       "Runs of a minute or two with a code mean a protection device is stopping it — high pressure, low pressure, current or temperature — rather than the room being satisfied.",
     actions: [
       "Record the exact code or blink pattern and photograph it",
-      "Look it up in that unit's service manual — codes are brand-specific",
+      "Codes are brand-specific — read it against this unit's own manual",
       "Clean the condenser and check the fan first; high head causes many of these",
       "Read pressures under load to see which limit it's hitting",
     ],
     tool: PRESSURES,
     escalate: true,
+    library: true,
   },
   {
     id: "protection-silent",
@@ -1589,7 +1600,7 @@ export const OUTCOMES: Outcome[] = [
       "Photograph the controller or the indoor unit's LEDs",
       "Note which LEDs, how many flashes, and the pause length",
       "Record the model and serial from the data plate while you're there",
-      "Then come back to this step",
+      "Then press Back and carry on with the code in hand",
     ],
   },
   {
@@ -1599,12 +1610,13 @@ export const OUTCOMES: Outcome[] = [
     explain:
       "It survived a power cycle and returns under load, so it's a live fault rather than a one-off glitch. What it means is specific to this brand and model.",
     actions: [
-      "Look the code up in that unit's service manual — codes are brand-specific",
-      "Call the manufacturer's technical line with model, serial and code",
-      "Don't keep power-cycling it; you'll only lose the evidence",
+      "Codes are brand-specific — read it against this unit's own manual",
       "Check the obvious physical causes for that family of code first",
+      "Don't keep power-cycling it; you'll only lose the evidence",
+      "If the manual doesn't cover it, call the manufacturer's technical line with model, serial and code",
     ],
     escalate: true,
+    library: true,
   },
   {
     id: "code-transient",
@@ -1614,10 +1626,12 @@ export const OUTCOMES: Outcome[] = [
       "It hasn't come back, so it was likely a transient — a supply dip, a one-off protection trip, or a sensor glitch. Worth noting rather than forgetting.",
     actions: [
       "Record the code and the date in the job notes",
+      "Look up what it was warning about — a cleared code still names the circuit",
       "Check the obvious physical causes anyway — filters, condenser, clearance",
       "Tell the customer to note the pattern if it returns",
       "A repeating 'transient' is a real fault building up",
     ],
+    library: true,
   },
 
   /* multi / VRF */

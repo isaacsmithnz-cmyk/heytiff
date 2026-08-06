@@ -1,8 +1,11 @@
 import {
+  CLAIM_NUDGE_DAYS,
   GROUP_ICON,
   chipGroup,
   chipSummary,
+  declinedClaimChip,
   expensesChip,
+  timesheetChip,
   summaryLine,
   insuranceChip,
   licenceChip,
@@ -200,8 +203,28 @@ describe("chipGroup", () => {
     expect(chipGroup("org-insurance")).toBe("Business");
   });
 
+  it("files money and hours under Pay", () => {
+    // the approver's queue moved here with them: "10 claims waiting" and "your
+    // claim was declined" are the same screen's work and were in two groups
+    expect(chipGroup("timesheet")).toBe("Pay");
+    expect(chipGroup("claim")).toBe("Pay");
+    expect(chipGroup("expenses")).toBe("Pay");
+  });
+
   it("gives every kind a group and every group a real icon", () => {
-    const kinds: ChipKind[] = ["licence", "work-rights", "rego", "insurance", "service", "org-insurance"];
+    /* Exhaustive by construction: a new ChipKind that nobody files fails to
+       compile here rather than rendering with a blank tag and no glyph. */
+    const kinds: ChipKind[] = [
+      "licence",
+      "work-rights",
+      "rego",
+      "insurance",
+      "service",
+      "org-insurance",
+      "expenses",
+      "timesheet",
+      "claim",
+    ];
     for (const k of kinds) {
       const g = chipGroup(k);
       expect(g).toBeTruthy();
@@ -287,5 +310,88 @@ describe("expensesChip", () => {
       href: "/dashboard/timepay/expenses",
     });
     expect(expensesChip(3)!.label).toBe("3 expense claims waiting on a decision");
+  });
+});
+
+/* ── the two answers you are owed by a person ──────────────────────────────
+
+   Both of these existed nowhere in the app before: a timesheet came back with
+   a question and a claim was declined, and the only way to find out was to
+   open the screen and look. */
+
+describe("timesheetChip", () => {
+  const sheet = { status: "sent_back", periodStart: "2026-07-13", periodLabel: "13 – 19 Jul" };
+
+  it("says nothing until an approver has actually asked something", () => {
+    expect(timesheetChip(null)).toBeNull();
+    for (const status of ["draft", "submitted", "approved"]) {
+      expect(timesheetChip({ ...sheet, status })).toBeNull();
+    }
+  });
+
+  it("is always bad, names the period, and opens THAT period", () => {
+    // never `warn`: either you have been asked a question or you haven't —
+    // there is no getting-close for this one
+    expect(timesheetChip(sheet)).toMatchObject({
+      kind: "timesheet",
+      state: "bad",
+      label: "Timesheet sent back with a question",
+      subject: "13 – 19 Jul",
+      href: "/dashboard/my-timesheet?period=2026-07-13",
+    });
+  });
+
+  it("survives the period rolling over", () => {
+    /* The hole this closes: a question asked on the second-last day of a
+       period is still unanswered the next morning. Keyed off the sheet's own
+       period, so a chip for a period that is no longer current still points
+       at the right one. */
+    const old = timesheetChip({ ...sheet, periodStart: "2026-06-01", periodLabel: "1 – 7 Jun" });
+    expect(old!.href).toBe("/dashboard/my-timesheet?period=2026-06-01");
+  });
+});
+
+describe("declinedClaimChip", () => {
+  const claim = { id: "c1", description: "Copper fittings", amount: 214.5, decidedOn: "2026-07-17T04:00:00Z" };
+  const ctx = { today: TODAY }; // 2026-07-19
+
+  it("names the receipt and the money, and opens your claims", () => {
+    // the description is what tells you WHICH receipt — a queue count couldn't
+    expect(declinedClaimChip(claim, ctx)).toMatchObject({
+      kind: "claim",
+      state: "bad",
+      label: "Expense claim declined",
+      subject: "Copper fittings · $214.50",
+      href: "/dashboard/my-expenses",
+    });
+  });
+
+  it("drops the cents when there are none", () => {
+    expect(declinedClaimChip({ ...claim, amount: 340 }, ctx)!.subject).toBe("Copper fittings · $340");
+  });
+
+  it("stops nudging once the news is old", () => {
+    /* Unlike a sent-back timesheet there is no state left to change — a
+       declined claim stays declined forever — so without a window this chip
+       would never clear and would teach people to read past the whole board. */
+    const onTheEdge = { ...claim, decidedOn: "2026-07-05T00:00:00Z" }; // 14 days
+    const pastIt = { ...claim, decidedOn: "2026-07-04T00:00:00Z" }; // 15
+    expect(CLAIM_NUDGE_DAYS).toBe(14);
+    expect(declinedClaimChip(onTheEdge, ctx)).not.toBeNull();
+    expect(declinedClaimChip(pastIt, ctx)).toBeNull();
+  });
+
+  it("is silent on a claim with no recorded decision", () => {
+    expect(declinedClaimChip({ ...claim, decidedOn: null }, ctx)).toBeNull();
+  });
+
+  it("ranks the freshest decision first", () => {
+    // the newest is the one you can still most likely do something about
+    const fresh = declinedClaimChip({ ...claim, id: "new", decidedOn: "2026-07-19T00:00:00Z" }, ctx)!;
+    const stale = declinedClaimChip({ ...claim, id: "old", decidedOn: "2026-07-08T00:00:00Z" }, ctx)!;
+    expect(sortChips([stale, fresh]).map((c) => c.key)).toEqual([
+      "claim-declined:new",
+      "claim-declined:old",
+    ]);
   });
 });

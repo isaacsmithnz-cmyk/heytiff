@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { auth0 } from "@/lib/auth0";
 import { can, getDbRole } from "@/lib/permissions-server";
 import { hasMinRole } from "@/lib/roles";
-import { KnowledgeBase } from "@/components/tiff/knowledge";
+import { Library } from "@/components/tiff/library";
 import { asKbCategory } from "@/lib/tiff/files";
 import { kbDocsForOrg, kbUploaderNames } from "@/lib/tiff/query";
 import { kbQuotaFor } from "@/lib/tiff/quota";
@@ -19,7 +19,7 @@ import { kbQuotaFor } from "@/lib/tiff/quota";
 
    `?cat=` is how the assistant's category cards arrive: the card you clicked
    is the filter you land on. */
-export default async function KnowledgeBasePage({
+export default async function LibraryPage({
   searchParams,
 }: {
   searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -42,7 +42,7 @@ export default async function KnowledgeBasePage({
   ]);
 
   return (
-    <KnowledgeBase
+    <Library
       docs={docs.map((d) => ({
         ...d,
         uploaderName: d.uploadedById ? (uploaders[d.uploadedById] ?? null) : null,

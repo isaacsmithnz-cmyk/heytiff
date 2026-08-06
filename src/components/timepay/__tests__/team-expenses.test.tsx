@@ -37,6 +37,35 @@ beforeEach(() => {
   refresh.mockReset();
 });
 
+describe("TeamExpenses — a claim raised by a fuel log", () => {
+  /* THE APPROVER'S RISK. Without this line, a fuel log AND a claim for the
+     same tank look like a duplicate to reject — when they are the intended
+     pair: the log records the fuel, the claim pays the person back. The tax
+     report already counts it once, via the log. */
+  const fromFuel = claim({
+    id: "c-fuel",
+    status: "pending",
+    category: "fuel",
+    description: "Fuel — BP Kingsford",
+    fuelLog: { vehicleLogId: "log-1", vehicle: "Hilux" },
+  });
+
+  it("says the fuel is already logged, and against what", () => {
+    render(<TeamExpenses claims={[fromFuel]} canApprove canPay />);
+    expect(screen.getByText(/Already logged against Hilux — this is the reimbursement/)).toBeInTheDocument();
+  });
+
+  it("falls back to 'the vehicle' when there is no name", () => {
+    render(<TeamExpenses claims={[claim({ ...fromFuel, fuelLog: { vehicleLogId: "log-1", vehicle: null } })]} canApprove canPay />);
+    expect(screen.getByText(/Already logged against the vehicle/)).toBeInTheDocument();
+  });
+
+  it("says nothing on an ordinary claim", () => {
+    render(<TeamExpenses claims={[claim({ id: "c-1", status: "pending" })]} canApprove canPay />);
+    expect(screen.queryByText(/Already logged against/)).toBeNull();
+  });
+});
+
 describe("TeamExpenses — deciding", () => {
   const pending = [claim({ id: "c1", status: "pending" })];
 

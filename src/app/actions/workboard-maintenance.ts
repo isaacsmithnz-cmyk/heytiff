@@ -43,10 +43,14 @@ async function context(): Promise<Ctx | null> {
   return { orgId, userId };
 }
 
-function refresh(agreementId?: string | null) {
+/* One path, because there is now one screen. Agreements used to have a flat
+   list AND a page each under /dashboard/workboard/maintenance, neither of them
+   reachable from anywhere in the app; both are deleted and the board's
+   Agreements tab — which opens an agreement in a sheet, on the board — is the
+   whole surface. It took an `agreementId` to build the second path; nothing
+   reads one now, so nothing takes one. */
+function refresh() {
   revalidatePath("/dashboard/workboard");
-  revalidatePath("/dashboard/workboard/maintenance");
-  if (agreementId) revalidatePath(`/dashboard/workboard/maintenance/${agreementId}`);
 }
 
 const trim = (v: unknown, max: number): string | null => {
@@ -235,7 +239,7 @@ export async function createAgreement(input: NewAgreement): Promise<MaintenanceR
   // wait for someone to happen to open a page.
   await ensureVisits(ctx.orgId, { agreementId: id });
 
-  refresh(id);
+  refresh();
   return { ok: true, id };
 }
 
@@ -303,7 +307,7 @@ export async function updateAgreementMeta(
     .eq("org_id", ctx.orgId)
     .eq("id", agreementId);
   if (error) return { ok: false, error: "Couldn't save the agreement." };
-  refresh(agreementId);
+  refresh();
   return { ok: true };
 }
 
@@ -336,7 +340,7 @@ export async function updateAgreementSchedule(
   if (error) return { ok: false, error: "Couldn't save the cadence." };
 
   await pruneAndRegenerate(ctx.orgId, agreementId);
-  refresh(agreementId);
+  refresh();
   return { ok: true };
 }
 
@@ -363,7 +367,7 @@ export async function setAgreementStatus(
   // deletes nothing — the rows just leave the radar.
   if (status === "active") await ensureVisits(ctx.orgId, { agreementId });
 
-  refresh(agreementId);
+  refresh();
   return { ok: true };
 }
 
@@ -403,7 +407,7 @@ export async function addAgreementEquipment(
     install_project_id: installProjectId,
   });
   if (error) return { ok: false, error: "Couldn't add the equipment." };
-  refresh(agreementId);
+  refresh();
   return { ok: true };
 }
 
@@ -426,7 +430,7 @@ export async function removeAgreementEquipment(equipmentId: string): Promise<Mai
     .delete()
     .eq("org_id", ctx.orgId)
     .eq("id", equipmentId);
-  refresh(row.agreement_id);
+  refresh();
   return { ok: true };
 }
 
@@ -459,7 +463,7 @@ export async function setVisitReadiness(
     .eq("org_id", ctx.orgId)
     .eq("id", visitId);
   if (error) return { ok: false, error: "Couldn't save the chip." };
-  refresh(visit.agreement_id);
+  refresh();
   return { ok: true };
 }
 
@@ -489,7 +493,7 @@ export async function setVisitStatus(visitId: string, status: string): Promise<M
     .eq("org_id", ctx.orgId)
     .eq("id", visitId);
   if (error) return { ok: false, error: "Couldn't move the visit." };
-  refresh(visit.agreement_id);
+  refresh();
   return { ok: true };
 }
 
@@ -554,7 +558,7 @@ export async function linkVisitJob(
     .eq("org_id", ctx.orgId)
     .eq("id", visitId);
   if (error) return { ok: false, error: "Couldn't link the job." };
-  refresh(visit.agreement_id);
+  refresh();
   return { ok: true };
 }
 
@@ -572,7 +576,7 @@ export async function unlinkVisitJob(visitId: string): Promise<MaintenanceResult
     .eq("org_id", ctx.orgId)
     .eq("id", visitId);
   if (error) return { ok: false, error: "Couldn't unlink the job." };
-  refresh(visit.agreement_id);
+  refresh();
   return { ok: true };
 }
 
@@ -590,7 +594,7 @@ export async function setVisitNotes(visitId: string, text: string): Promise<Main
     .eq("org_id", ctx.orgId)
     .eq("id", visitId);
   if (error) return { ok: false, error: "Couldn't save the note." };
-  refresh(visit.agreement_id);
+  refresh();
   return { ok: true };
 }
 
@@ -648,7 +652,7 @@ export async function completeVisit(
   // Generation is an agreement thing — project trips are hand-made, so
   // closing one must not top any horizon up.
   if (visit.agreement_id) await ensureVisits(ctx.orgId, { agreementId: visit.agreement_id });
-  refresh(visit.agreement_id);
+  refresh();
   return { ok: true };
 }
 
@@ -674,7 +678,7 @@ export async function setVisitInvoiced(
     .eq("org_id", ctx.orgId)
     .eq("id", visitId);
   if (error) return { ok: false, error: "Couldn't update the invoice flag." };
-  refresh(visit.agreement_id);
+  refresh();
   return { ok: true };
 }
 
@@ -706,7 +710,7 @@ export async function placeVisit(visitId: string, dateISO: string): Promise<Main
     .eq("org_id", ctx.orgId)
     .eq("id", visitId);
   if (error) return { ok: false, error: "Couldn't place the visit." };
-  refresh(visit.agreement_id);
+  refresh();
   return { ok: true };
 }
 
@@ -746,7 +750,7 @@ export async function clearVisitPlacement(visitId: string): Promise<MaintenanceR
     .eq("org_id", ctx.orgId)
     .eq("id", visitId);
   if (error) return { ok: false, error: "Couldn't clear the placement." };
-  refresh(visit.agreement_id);
+  refresh();
   return { ok: true };
 }
 
@@ -782,7 +786,7 @@ export async function assignVisitTech(
     { onConflict: "visit_id,staff_profile_id", ignoreDuplicates: true }
   );
   if (error) return { ok: false, error: "Couldn't assign the technician." };
-  refresh(visit.agreement_id);
+  refresh();
   return { ok: true };
 }
 
@@ -803,7 +807,7 @@ export async function unassignVisitTech(
     .eq("org_id", ctx.orgId)
     .eq("visit_id", visitId)
     .eq("staff_profile_id", staffProfileId);
-  refresh(visit.agreement_id);
+  refresh();
   return { ok: true };
 }
 
@@ -841,7 +845,7 @@ export async function addPackingItem(
     .select("id")
     .single();
   if (error || !data) return { ok: false, error: "Couldn't add it to the packing list." };
-  refresh(agreementId);
+  refresh();
   return { ok: true, id: (data as { id: string }).id };
 }
 
@@ -864,7 +868,7 @@ export async function removePackingItem(itemId: string): Promise<MaintenanceResu
     .delete()
     .eq("org_id", ctx.orgId)
     .eq("id", itemId);
-  refresh(row.agreement_id);
+  refresh();
   return { ok: true };
 }
 
@@ -908,7 +912,7 @@ export async function setVisitPacked(
       .eq("visit_id", visitId)
       .eq("item_id", itemId);
   }
-  refresh(visit.agreement_id);
+  refresh();
   return { ok: true };
 }
 
@@ -961,7 +965,7 @@ export async function setAgreementCategory(
     .eq("org_id", ctx.orgId)
     .eq("id", agreementId);
   if (error) return { ok: false, error: "Couldn't move the agreement." };
-  refresh(agreementId);
+  refresh();
   return { ok: true };
 }
 
@@ -1014,7 +1018,7 @@ export async function tagAgreement(agreementId: string, tagId: string): Promise<
     { onConflict: "agreement_id,tag_id", ignoreDuplicates: true }
   );
   if (error) return { ok: false, error: "Couldn't add the tag." };
-  refresh(agreementId);
+  refresh();
   return { ok: true };
 }
 
@@ -1033,6 +1037,6 @@ export async function untagAgreement(
     .eq("org_id", ctx.orgId)
     .eq("agreement_id", agreementId)
     .eq("tag_id", tagId);
-  refresh(agreementId);
+  refresh();
   return { ok: true };
 }

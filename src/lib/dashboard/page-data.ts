@@ -4,12 +4,13 @@ import { todayInAu } from "@/lib/au-dates";
 import { getOwnVehicle, listFleetStaff, listVehicles, staffProfileIdFor } from "@/lib/fleet/query";
 import type { Vehicle } from "@/components/fleet/logic";
 import type { Capability } from "@/lib/permissions";
-import { getPaySettings, sheetStates } from "@/lib/timepay/query";
-import { periodEnd, periodLabel, periodStartFor } from "@/lib/timepay/period";
+import { getPaySettings, ownSentBackPeriod, sheetStates } from "@/lib/timepay/query";
+import { addDays, periodEnd, periodLabel, periodStartFor } from "@/lib/timepay/period";
 import { approvedInSpan, holidaysInSpan, stateFor } from "@/lib/timepay/leave-query";
 import { assembleChips, type DashboardChips } from "./assemble";
+import { CLAIM_NUDGE_DAYS } from "./chips";
 import { listStaffCompliance, orgInsurance, type StaffCompliance } from "./query";
-import { pendingClaimsCount } from "@/lib/expenses/query";
+import { ownDeclinedClaims, pendingClaimsCount } from "@/lib/expenses/query";
 import { rosterToday, type RosterToday } from "./roster";
 import { payRunItem, tallySheets, type MoneyItem } from "./money";
 import {
@@ -190,9 +191,13 @@ async function loadChips(
   caps: ReadonlySet<Capability>,
   today: string,
 ): Promise<DashboardChips> {
-  const [selfList, selfVehicle] = await Promise.all([
+  const [selfList, selfVehicle, ownSheet, ownDeclined] = await Promise.all([
     viewerStaffId ? listStaffCompliance(orgId, viewerStaffId) : Promise.resolve([]),
     viewerStaffId ? getOwnVehicle(orgId, viewerStaffId) : Promise.resolve(null),
+    viewerStaffId ? loadOwnSheet(orgId, viewerStaffId) : Promise.resolve(null),
+    viewerStaffId
+      ? ownDeclinedClaims(orgId, viewerStaffId, addDays(today, -CLAIM_NUDGE_DAYS))
+      : Promise.resolve([]),
   ]);
 
   // Team data is only READ when the capability is held — it never reaches here
@@ -206,9 +211,34 @@ async function loadChips(
   ]);
 
   return assembleChips(
-    { today, viewerStaffId, self: selfList[0] ?? null, selfVehicle, teamPeople, fleet, org, pendingClaims },
+    {
+      today,
+      viewerStaffId,
+      self: selfList[0] ?? null,
+      selfVehicle,
+      teamPeople,
+      fleet,
+      org,
+      pendingClaims,
+      ownSheet,
+      ownDeclinedClaims: ownDeclined,
+    },
     caps,
   );
+}
+
+/* Any sheet of yours sitting in `sent_back`, named the way the timesheet's own
+   period switcher names it — the chip's subject has to match the heading you
+   land on, or the click feels like it went somewhere else. Settings are read
+   only once there is something to name. */
+async function loadOwnSheet(
+  orgId: string,
+  staffProfileId: string,
+): Promise<{ status: string; periodStart: string; periodLabel: string } | null> {
+  const start = await ownSentBackPeriod(orgId, staffProfileId);
+  if (!start) return null;
+  const { settings } = await getPaySettings(orgId);
+  return { status: "sent_back", periodStart: start, periodLabel: periodLabel(start, settings) };
 }
 
 /* ---------------- roster today ---------------- */

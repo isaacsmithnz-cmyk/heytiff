@@ -21,7 +21,7 @@ import { recordQuestion, retrieveForQuestion } from "@/lib/tiff/retrieve";
    with a sentence from the house ladder, never vendor text, and never a
    half-answer left hanging with no explanation.
 
-   GATED `tiff`, THE READ TIER. Asking is what the knowledge base is for, so
+   GATED `tiff`, THE READ TIER. Asking is what the library is for, so
    every role that can see the assistant can use it; spending the org's page
    allowance (ingest) is the tier above. A route handler is reachable by direct
    POST, so this gate is the gate. */

@@ -64,9 +64,9 @@ function refresh(target?: NoteTarget) {
   if (target?.kind === "project" && target.id) {
     revalidatePath(`/dashboard/workboard/projects/${target.id}`);
   }
-  if ((target?.kind === "visit" || target?.kind === "agreement") && target.id) {
-    revalidatePath("/dashboard/workboard/maintenance");
-  }
+  /* Agreement and visit notes need nothing beyond the board: an agreement now
+     opens in a sheet ON the board rather than at a route of its own, so the
+     path this used to revalidate no longer exists. */
 }
 
 /* The shaper's own trimmer — same rule on the browser's payload as on the

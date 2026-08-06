@@ -33,7 +33,7 @@ jest.mock("@/components/toolbox/heat-load", () => ({ HeatLoadCalculator: () => n
 jest.mock("@/components/toolbox/outdoor-unit", () => ({ OutdoorUnit: () => null }));
 jest.mock("@/components/toolbox/running-pressures", () => ({ RunningPressures: () => null }));
 jest.mock("@/components/toolbox/fault-finder", () => ({ FaultFinder: () => null }));
-jest.mock("@/components/tiff/knowledge", () => ({ KnowledgeBase: () => null }));
+jest.mock("@/components/tiff/library", () => ({ Library: () => null }));
 jest.mock("@/components/tiff/assistant", () => ({ TiffAssistant: () => null }));
 jest.mock("@/lib/tiff/query", () => ({
   kbDocsForOrg: jest.fn(async () => []),
@@ -69,14 +69,6 @@ jest.mock("@/lib/workboard/projects-query", () => ({
 jest.mock("@/lib/workboard/projects-board-query", () => ({
   loadProjectsBoard: jest.fn(async () => ({ projects: [], visits: [], staff: [] })),
 }));
-jest.mock("@/components/workboard/maintenance-screen", () => ({ MaintenanceScreen: () => null }));
-jest.mock("@/components/workboard/agreement-detail-screen", () => ({
-  AgreementDetailScreen: () => null,
-}));
-jest.mock("@/lib/workboard/maintenance-query", () => ({
-  listAgreements: jest.fn(async () => []),
-  getAgreementDetail: jest.fn(async () => ({ id: "a-1", equipment: [], open: [], history: [] })),
-}));
 jest.mock("@/lib/workboard/visit-ensure", () => ({
   ensureVisits: jest.fn(async () => {}),
   autoCompleteVisitsFromMirror: jest.fn(async () => 0),
@@ -102,13 +94,11 @@ import OutdoorUnitPage from "../toolbox/outdoor-unit/page";
 import RunningPressuresPage from "../toolbox/running-pressures/page";
 import TroubleshootingPage from "../toolbox/troubleshooting/page";
 import TiffPage from "../tiff/page";
-import KnowledgeBasePage from "../tiff/knowledge/page";
+import LibraryPage from "../tiff/library/page";
 import DataLibraryPage from "../studio/data-library/page";
 import WorkboardPage from "../workboard/page";
 import WorkboardProjectsPage from "../workboard/projects/page";
 import WorkboardProjectPage from "../workboard/projects/[id]/page";
-import WorkboardMaintenancePage from "../workboard/maintenance/page";
-import WorkboardAgreementPage from "../workboard/maintenance/[id]/page";
 
 const LEAVES: [string, () => Promise<unknown>, string][] = [
   ["toolbox/heat-load", HeatLoadPage, "toolbox"],
@@ -116,10 +106,9 @@ const LEAVES: [string, () => Promise<unknown>, string][] = [
   ["toolbox/running-pressures", RunningPressuresPage, "toolbox"],
   ["toolbox/troubleshooting", TroubleshootingPage, "toolbox"],
   ["tiff", TiffPage, "tiff"],
-  ["tiff/knowledge", KnowledgeBasePage, "tiff"],
+  ["tiff/library", LibraryPage, "tiff"],
   ["workboard", WorkboardPage, "workboard"],
   ["workboard/projects", WorkboardProjectsPage, "workboard"],
-  ["workboard/maintenance", WorkboardMaintenancePage, "workboard"],
 ];
 
 beforeEach(() => {
@@ -147,7 +136,6 @@ describe("held → the page renders", () => {
 describe("the dynamic leaves check the same door", () => {
   const DYNAMIC: [string, (p: { params: Promise<{ id: string }> }) => Promise<unknown>][] = [
     ["workboard/projects/[id]", WorkboardProjectPage],
-    ["workboard/maintenance/[id]", WorkboardAgreementPage],
   ];
   const props = { params: Promise.resolve({ id: "x-1" }) };
 
@@ -171,7 +159,7 @@ describe("the dynamic leaves check the same door", () => {
 describe("the knowledge base hands the client what this viewer may do", () => {
   // the page returns the element; its props ARE the answer being handed over
   const propsOf = async (search?: Record<string, string>) => {
-    const el = (await KnowledgeBasePage(
+    const el = (await LibraryPage(
       search ? { searchParams: Promise.resolve(search) } : undefined
     )) as { props: Record<string, unknown> };
     return el.props;

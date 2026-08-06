@@ -11,9 +11,14 @@
 import { hasMinRole, type Role } from "@/lib/roles-shared";
 import type { Capability } from "@/lib/permissions";
 
-/* A tabbed face of a nav entry: it shares the parent's sidebar row (the parent
-   lights up on any of them) but keeps its own ⌘K result, so folding a screen
-   into a tab costs it a row in the rail and nothing else.
+/* A FACE of a nav entry: it shares the parent's sidebar row (the parent lights
+   up on any of them) but keeps its own ⌘K result, so folding a screen in costs
+   it a row in the rail and nothing else.
+
+   Most faces present as tabs on the page — Timesheet/Leave, Tiff AI/Library —
+   but that is those screens' own convention, not something this type enforces.
+   What a face actually means is "same rail row, still findable", which is also
+   the right shape for a detail view like Action required that Home summarises.
 
    Deliberately carries NO gating of its own — a face is offered exactly when
    its parent is. Anything that needs its own capability is a nav entry, not a
@@ -27,9 +32,17 @@ export type NavSub = {
   accent: string;
 };
 
+/* There used to be a `dot?: boolean` here — "pulsing dot in the sidebar when
+   not active" — set on exactly one entry, by hand, with nothing behind it. It
+   had pulsed on Tiff AI since the day Tiff shipped and would have kept pulsing
+   forever, because a hard-coded flag has no way to become false. A permanent
+   unread mark is worse than none: it is the first thing a new person clicks and
+   the first thing they learn to ignore, which spends the credibility of every
+   real signal you might want to show them later.
+
+   The field is gone rather than just its one use, so the next "let's draw
+   attention to this screen" has to arrive with a source of truth attached. */
 export type NavItem = NavSub & {
-  /** pulsing dot in the sidebar when not active */
-  dot?: boolean;
   /** hide unless the viewer holds this capability */
   capability?: Capability;
   /** hide below this role — for role-intrinsic sections only */
@@ -44,22 +57,48 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: "Workspace",
     items: [
-      { key: "home", label: "Home", icon: "dashboard", href: "/dashboard", hint: "Your day at a glance", accent: "#00E5C0" },
+      /* Action required is Home's detail view — the hero's counters are the
+         summary and its own back link says "← Dashboard" — so it rides on
+         Home's row rather than taking one of its own. What it gains is a ⌘K
+         entry: the board had NO door in the whole shell before the topbar bell
+         got one, and typing "action" returned "no results" for a screen that
+         very much exists. */
+      { key: "home", label: "Home", icon: "dashboard", href: "/dashboard", hint: "Your day at a glance", accent: "#00E5C0",
+        subItems: [
+          { key: "actionreq", label: "Action required", icon: "alert", href: "/dashboard/action-required", hint: "Everything waiting on you", accent: "#FF3366" },
+        ] },
       // Second on purpose, right under Home: Home is YOUR day, the Workboard
       // is the BUSINESS's — the two questions anyone opens the app to ask.
       // It lives in Workspace rather than Operations because unlike the rest
       // of that group it defaults to EVERYONE (`workboard` is a staff default).
       { key: "workboard", label: "Workboard", icon: "activity", href: "/dashboard/workboard", hint: "Maintenance & projects command centre", accent: "#00A8E0", capability: "workboard" },
+      /* THIRD, and a ROW rather than a face. It was reachable from exactly one
+         place — a card on Home — despite being a daily read carrying unread
+         counts, mentions, polls and comments. It goes UNDER the Home/Workboard
+         pair rather than between them (your day, then the business's, then the
+         team's) and above the tools, because it is news rather than something
+         you go and use. Ungated to match the route: everyone reads it; posting
+         and moderating gate inside on `team`. */
+      { key: "notices", label: "Noticeboard", icon: "note", href: "/dashboard/notices", hint: "Announcements for the team", accent: "#8A2BE2" },
       { key: "toolbox", label: "Toolbox", icon: "wrench", href: "/dashboard/toolbox", hint: "Calculators & references", accent: "#8A2BE2", capability: "toolbox" },
       { key: "ductr", label: "Design Studio", icon: "wind", href: "/dashboard/studio", hint: "VRF design canvas", accent: "#FF8A00", capability: "studio" },
-      /* The knowledge base rides along as a tab, like Leave does on Timesheet:
-         it is the same feature seen from the other end — the assistant answers
-         out of the library, and the library is where the answers come from.
-         One rail row, two faces, and ⌘K still lists the library in its own
-         right. Only the FACE is listed here; the row itself is the assistant. */
-      { key: "tiff", label: "Tiff AI", icon: "sparkles", href: "/dashboard/tiff", hint: "Assistant & knowledge base", accent: "#2E68FF", dot: true, capability: "tiff",
+      /* The library rides along as a tab, like Leave does on Timesheet: it is
+         the same feature seen from the other end — the assistant answers out of
+         the library, and the library is where the answers come from. One rail
+         row, two faces, and ⌘K still lists the library in its own right. Only
+         the FACE is listed here; the row itself is the assistant.
+
+         IT IS CALLED THE LIBRARY, EVERYWHERE. It used to answer to four names —
+         "Knowledge" on this row, "Knowledge base" as the page's own heading,
+         "the library" throughout the assistant's copy, and "shelves" for its
+         categories — which is three more than a thing can have before people
+         stop being sure they are the same thing. The assistant's own sentences
+         had already settled on library ("Open library", "in your library"), so
+         that is the one that won, and the route was moved to match rather than
+         leaving the URL arguing with the label. */
+      { key: "tiff", label: "Tiff AI", icon: "sparkles", href: "/dashboard/tiff", hint: "Assistant & document library", accent: "#2E68FF", capability: "tiff",
         subItems: [
-          { key: "tiffkb", label: "Knowledge", icon: "library", href: "/dashboard/tiff/knowledge", hint: "Manuals, specs & SOPs Tiff reads", accent: "#2E68FF" },
+          { key: "tiffkb", label: "Library", icon: "library", href: "/dashboard/tiff/library", hint: "Manuals, specs & SOPs Tiff reads", accent: "#2E68FF" },
         ] },
     ],
   },

@@ -55,7 +55,7 @@ describe("what the drawer offers before anything is stored", () => {
     render(<UploadDrawer progress={{}} onIngest={jest.fn()} onClose={jest.fn()} />);
     await drop([new File(["x"], "site-photo.png", { type: "image/png" })]);
 
-    expect(screen.getByText("The knowledge base takes PDFs only.")).toBeInTheDocument();
+    expect(screen.getByText("The library takes PDFs only.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Upload documents/ })).toBeDisabled();
   });
 

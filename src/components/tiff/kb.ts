@@ -1,5 +1,5 @@
 /* Knowledge-base structure for Tiff AI. The four categories are product
-   structure (they drive the Tiff sidebar and the /dashboard/tiff/knowledge
+   structure (they drive the Tiff sidebar and the /dashboard/tiff/library
    page); the library is empty until real uploads land (Documents/storage
    track), and every screen renders a per-category empty state until then. */
 
@@ -13,9 +13,14 @@ export type KbCategory = {
   blurb: string;
 };
 
+/* CATEGORY is the word on screen for these — not "shelf", which the animation's
+   internals still use for the four cards and which is fine there. Two words for
+   one concept on the same screen is how a vocabulary comes apart, and this one
+   had four before it was pulled back to `library` + `category`. */
 export const KB_CATEGORIES: KbCategory[] = [
   { key: "install", label: "Install procedures", icon: "wrench", color: "#00E5C0", blurb: "Step-by-step installs & commissioning" },
-  { key: "faults", label: "Fault code library", icon: "alert", color: "#2E68FF", blurb: "Error codes & diagnosis by brand" },
+  // not "Fault code library" — a library inside the library
+  { key: "faults", label: "Fault codes", icon: "alert", color: "#2E68FF", blurb: "Error codes & diagnosis by brand" },
   { key: "specs", label: "Manufacturer specs", icon: "file", color: "#f59e0b", blurb: "Datasheets, capacities & connections" },
   { key: "sops", label: "Company SOPs", icon: "shield", color: "#8A2BE2", blurb: "How we do things here" },
 ];

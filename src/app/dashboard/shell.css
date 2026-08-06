@@ -109,7 +109,11 @@
 .fg .ni .nlbl { position:relative; z-index:10; font-size:14px; font-weight:700; color:rgba(255,255,255,.5); transition:all .5s; }
 .fg .ni:hover .nlbl { color:#fff; transform:translateX(4px); }
 .fg .ni.on .nlbl { color:#fff; transform:translateX(4px); }
-.fg .ni .pdot { position:absolute; right:16px; width:8px; height:8px; border-radius:50%; background:var(--teal); animation:fgPulse 2s ease-in-out infinite; }
+/* `.ni .pdot` lived here — the sidebar's hard-coded "new" pulse. Deleted with
+   the `dot` field it rendered (see nav.ts); left behind it would be dead CSS
+   waiting to shadow something, which this stylesheet has been bitten by before.
+   The keyframe stays: `.wb2-recdot` uses it for a recording indicator, which is
+   the honest kind — it stops when the recording does. */
 @keyframes fgPulse { 0%,100%{opacity:1} 50%{opacity:.4} }
 
 .fg .sfoot { padding:20px; padding-top:40px; position:relative; z-index:10; background:linear-gradient(to top,var(--ink) 60%,transparent); }
@@ -151,9 +155,21 @@
 .fg .searchbtn .kbd { position:absolute; right:16px; top:50%; transform:translateY(-50%); display:flex; align-items:center; gap:4px; font-size:10px; font-weight:700; color:var(--gray400); font-family:var(--mono); background:rgba(0,0,0,.05); padding:4px 8px; border-radius:6px; transition:all .3s; }
 .fg .searchbtn:hover .kbd { background:rgba(0,229,192,.1); color:var(--teal-d); }
 .fg .tbr { display:flex; align-items:center; gap:24px; }
-.fg .bell { position:relative; padding:12px; border-radius:16px; background:rgba(255,255,255,.6); border:1px solid rgba(0,0,0,.08); color:var(--gray500); transition:all .3s; }
+/* The bell is an <a> now, not a button, so it needs the two things the button
+   reset was giving it for free — no underline, and a box that wraps the glyph
+   rather than a line of text. */
+.fg .bell { position:relative; display:inline-flex; padding:12px; border-radius:16px; background:rgba(255,255,255,.6); border:1px solid rgba(0,0,0,.08); color:var(--gray500); text-decoration:none; transition:all .3s; }
 .fg .bell:hover { color:#111; background:#fff; box-shadow:0 8px 20px rgba(0,0,0,.08); transform:translateY(-2px); }
-.fg .bell .d { position:absolute; top:10px; right:10px; width:10px; height:10px; border-radius:50%; background:var(--teal); border:2px solid #fff; box-shadow:0 0 8px rgba(0,229,192,.8); animation:fgPulse 2s infinite; }
+/* `.d` is a COUNT now and only renders when there is something to count, so it
+   no longer pulses: a number that is present at all is already the signal, and
+   an animation that ran forever was what made the old dot invisible.
+
+   It hangs OFF the corner rather than sitting inside it. At `top:6px right:6px`
+   — where the old 10px dot lived quite happily — an 18px pill lands squarely on
+   the bell glyph's top-right quadrant and eats the shape you are meant to
+   recognise. `.topbar` and `.tbr` are both `overflow:visible` and the gap to the
+   separator is 24px, so the 4px overhang has room. */
+.fg .bell .d { position:absolute; top:-5px; right:-5px; min-width:18px; height:18px; padding:0 5px; box-sizing:border-box; display:flex; align-items:center; justify-content:center; border-radius:9px; background:#e0264f; border:2px solid #fff; color:#fff; font-size:10px; font-weight:800; line-height:1; letter-spacing:-0.01em; }
 .fg .tbr .sep { width:1px; height:32px; background:rgba(0,0,0,.08); }
 .fg .newbtn { position:relative; overflow:hidden; display:flex; align-items:center; gap:8px; padding:13px 24px; border-radius:16px; background:var(--ink); color:#fff; font-size:14px; font-weight:700; transition:all .3s; }
 .fg .newbtn:hover { box-shadow:0 10px 20px rgba(0,0,0,.1); transform:translateY(-2px); }
@@ -1393,7 +1409,10 @@
   .fg-cmd .crow.on .cen { opacity:1; }
   .fg-cmd .cempty { padding:48px 16px; text-align:center; }
   .fg-cmd .cempty b { display:block; font-size:15px; font-weight:700; color:#9ca3af; }
-  .fg-cmd .cempty em { font-style:normal; font-size:13px; color:#d1d5db; margin-top:4px; }
+  /* `display:block` so the 4px actually lands — an inline <em> drops vertical
+     margins on the floor, so this line has always sat hard against the one
+     above it. Only visible once the copy grew past a few words. */
+  .fg-cmd .cempty em { display:block; font-style:normal; font-size:13px; color:#d1d5db; margin-top:4px; }
   .fg-cmd .cfoot { display:flex; align-items:center; justify-content:space-between; padding:12px 24px; border-top:1px solid #f3f4f6; background:rgba(249,250,251,.5); }
   .fg-cmd .cf-l { display:flex; align-items:center; gap:8px; font-size:11px; font-weight:700; color:#9ca3af; }
   .fg-cmd .cf-r { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:#9ca3af; }
@@ -2088,6 +2107,19 @@ button.fl-x { width:34px; height:34px; border-radius:10px; display:flex; align-i
 .fl-i::placeholder { color:#aeb4c0; font-weight:500; }
 textarea.fl-i { min-height:86px; padding:12px 14px; resize:vertical; }
 select.fl-i { cursor:pointer; }
+
+/* WHO PAID — two buttons, not a select, because each answer has a consequence
+   worth spelling out under it. These render inside the modal, which portals to
+   <body>, so nothing here may be written under `.fg`: anything declared there
+   is ABSENT in a portal rather than merely outranked, which is how the .pbtn
+   family lost its hover once already. Unprefixed, like the rest of .fl-*. */
+.fl-pay { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.fl-payb { display:block; width:100%; text-align:left; padding:9px 12px 10px; border:1.5px solid #e5e7eb; border-radius:12px; background:#fff; cursor:pointer; font:inherit; transition:border-color .18s, background .18s; }
+.fl-payb:hover { border-color:#d3d7e0; background:#fafbfc; }
+.fl-payb b { display:block; font-size:13px; font-weight:700; color:#050505; }
+.fl-payb em { display:block; font-style:normal; font-size:11.5px; font-weight:500; color:#8b93a3; margin-top:2px; line-height:1.35; }
+.fl-payb.on { border-color:#00E5C0; background:rgba(0,229,192,.07); box-shadow:0 0 0 3px rgba(0,229,192,.13); }
+.fl-payb.on em { color:#0d9b86; }
 .fl-i.slim { height:36px; font-size:12.5px; margin-top:4px; padding:0 10px; border-radius:10px; }
 .fl-foot { display:flex; justify-content:flex-end; gap:10px; margin-top:22px; }
 .fl-btn { display:inline-flex; align-items:center; gap:7px; height:42px; padding:0 18px; border-radius:12px; font-size:13.5px; font-weight:700; transition:all .2s; }
@@ -3126,7 +3158,17 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .xc-startk em { display:block; font-style:normal; font-size:13px; font-weight:500; color:var(--gray500); margin-top:3px; line-height:1.5; }
 .fg .xc-startb { display:flex; flex-wrap:wrap; gap:9px; flex:0 0 auto; }
 
-.fg .xc-prev { display:block; max-height:220px; max-width:100%; border-radius:14px; border:1px solid #eef0f4; margin-bottom:18px; object-fit:contain; background:#fafbfc; }
+/* The receipt strip — the thumbnail (or the PDF's name) plus the controls that
+   change it. The preview's own bottom margin moves to the strip, so the two
+   states leave the same gap above the form whether a file is attached or not. */
+.fg .xc-att { display:flex; flex-wrap:wrap; align-items:center; gap:14px; margin-bottom:18px; }
+.fg .xc-prev { display:block; max-height:220px; max-width:100%; border-radius:14px; border:1px solid #eef0f4; object-fit:contain; background:#fafbfc; }
+.fg .xc-pdf { display:inline-flex; align-items:center; gap:9px; min-width:0; padding:11px 15px; border-radius:14px; border:1px solid #eef0f4; background:#fafbfc; font-size:13.5px; font-weight:700; color:var(--ink); overflow-wrap:anywhere; }
+.fg .xc-pdf .i { flex:0 0 auto; color:var(--gray500); }
+.fg .xc-attk { flex:1 1 220px; min-width:0; }
+.fg .xc-attk b { display:block; font-size:14px; font-weight:800; letter-spacing:-0.01em; }
+.fg .xc-attk em { display:block; font-style:normal; font-size:12.5px; font-weight:500; color:var(--gray500); margin-top:3px; line-height:1.5; }
+.fg .xc-attb { display:flex; flex-wrap:wrap; gap:9px; flex:0 0 auto; margin-left:auto; }
 
 .fg .xc-form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin-bottom:20px; }
 .fg .xc-f { display:flex; flex-direction:column; gap:6px; grid-column:span 2; }
@@ -3144,6 +3186,11 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .xc-main b { display:block; font-size:14.5px; font-weight:800; letter-spacing:-0.01em; }
 .fg .xc-main em { display:block; font-style:normal; font-size:12.5px; font-weight:600; color:var(--gray500); margin-top:3px; }
 .fg .xc-note { margin:8px 0 0; padding:8px 11px; border-radius:10px; background:#f4f5f7; font-size:12.5px; font-weight:600; color:var(--gray700); line-height:1.5; }
+/* Where a claim came from, when it came from somewhere. Quieter than a review
+   note — that is somebody talking to you, this is provenance — and it sits
+   above it so the order reads origin, then conversation. */
+.fg .xc-from { display:flex; align-items:center; gap:6px; margin:7px 0 0; font-size:12px; font-weight:600; color:var(--gray500); line-height:1.4; }
+.fg .xc-from .i { flex:0 0 auto; color:#8b93a3; }
 .fg .xc-amt { flex:0 0 auto; text-align:right; font-size:17px; font-weight:800; letter-spacing:-0.01em; font-variant-numeric:tabular-nums; }
 .fg .xc-amt span { display:block; font-size:11px; font-weight:600; color:var(--gray400); margin-top:2px; letter-spacing:0; }
 .fg .xc-side { flex:0 0 auto; display:flex; flex-direction:column; align-items:flex-end; gap:7px; }

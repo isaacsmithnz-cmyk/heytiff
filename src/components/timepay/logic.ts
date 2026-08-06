@@ -905,3 +905,17 @@ export const ruleSummary = (rl: RateRule): string =>
 
 export const submitNote = (s: Settings): string =>
   "Open · auto-submits " + s.submitDay + " " + s.submitTime + (s.lock ? " · then locks" : "");
+
+/* WHAT TO CALL THE PAY PERIOD, in the word the person on it would use.
+
+   My timesheet knew the cycle well enough to head the totals card "My month",
+   and then said "Submit week" on the button directly underneath it, "Your
+   normal week is already filled in" in the status line, and "This week has
+   been sent" once it was. A monthly workspace was told four different things
+   about what it was looking at, three of them wrong.
+
+   One helper rather than a ternary at each site, because the ternary is how it
+   drifted: whoever added the heading wrote one, and nobody went back for the
+   other four. Anything naming the period now spells it the same way. */
+export const cycleNoun = (cycle: Settings["cycle"]): string =>
+  cycle === "Fortnightly" ? "fortnight" : cycle === "Monthly" ? "month" : "week";

@@ -586,7 +586,7 @@ export const NODES: MapNode[] = [
   },
   {
     id: "db-kb",
-    name: "Knowledge base",
+    name: "Library",
     kind: "store",
     group: "Supabase",
     blurb: "kb_documents · kb_chunks · kb_usage + the private kb bucket, signed-URL only.",

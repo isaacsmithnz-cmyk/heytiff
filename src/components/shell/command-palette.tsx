@@ -101,7 +101,7 @@ export function CommandPalette({
               setQuery(e.target.value);
               setSel(0);
             }}
-            placeholder="Search screens, tools, or actions..."
+            placeholder="Jump to a screen…"
             autoComplete="off"
           />
           <kbd className="esc">ESC</kbd>
@@ -109,13 +109,23 @@ export function CommandPalette({
 
         <div className="clist no-sb" id="fg-cmd-list">
           {results.length === 0 ? (
+            /* The empty state is where the honesty actually earns its keep:
+               people arrive here having typed a client name or a job number,
+               because the topbar used to imply this searched everything. Tell
+               them what it is FOR rather than just that they missed. */
             <div className="cempty">
-              <b>No results for &quot;{query}&quot;</b>
-              <em>Try &quot;team&quot;, &quot;design&quot;, or &quot;admin&quot;</em>
+              <b>No screen matches &ldquo;{query}&rdquo;</b>
+              <em>
+                This jumps between screens — it doesn&rsquo;t search inside them. Try
+                &ldquo;team&rdquo;, &ldquo;leave&rdquo; or &ldquo;admin&rdquo;.
+              </em>
             </div>
           ) : (
             <>
-              <div className="cgl">Navigate</div>
+              {/* "Navigate" — which is also what the footer calls moving the
+                  selection with the arrow keys. One word, two meanings, six
+                  inches apart. This one names what the rows ARE. */}
+              <div className="cgl">Screens</div>
               {results.map((c, i) => (
                 <button
                   key={c.key}
@@ -158,7 +168,8 @@ export function CommandPalette({
             <span style={{ color: "#00E5C0", display: "flex" }}>
               <Icon name="sparkles" size={12} />
             </span>{" "}
-            HeyTiff Command
+            {/* was "HeyTiff Command" — there are no commands in it */}
+            HeyTiff
           </div>
         </div>
       </div>

@@ -1,4 +1,4 @@
-/* Reading the knowledge base. Org-scoped, and every URL is signed here rather
+/* Reading the library. Org-scoped, and every URL is signed here rather
    than stored — the bucket is private, so a link is minted per request, expires,
    and only ever after the org check has already passed. Same doctrine as
    lib/documents/query.ts, which this deliberately mirrors. */

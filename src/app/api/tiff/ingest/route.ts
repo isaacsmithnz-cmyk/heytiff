@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   if (!session || !orgId) return Response.json({ error: "Not signed in." }, { status: 401 });
   if (!(await can("tiff_manage"))) {
     return Response.json(
-      { error: "You don't have access to manage the knowledge base." },
+      { error: "You don't have access to manage the library." },
       { status: 403 }
     );
   }

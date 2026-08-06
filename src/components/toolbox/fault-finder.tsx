@@ -12,7 +12,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
+import { faultCodePrefill, writeAskText } from "@/lib/tiff/ask-handoff";
 import {
   getOutcome,
   getQuestion,
@@ -92,9 +94,91 @@ function Trail({
   );
 }
 
+/* ---------------- the code lookup ----------------
+
+   The one thing these trees deliberately don't know. Every other outcome ends
+   with something to do; the coded ones used to end with somewhere else to go —
+   "read that unit's service manual" — which on a roof at 4pm is not an
+   instruction, it's a dead end.
+
+   The manuals are already in the workspace's Library — there is even a Fault
+   codes category — so the walk finishes here instead: type the code once, and
+   it travels to the composer as the opening of the question it obviously is.
+   NOTHING IS SENT (lib/tiff/ask-handoff.ts) — the caret lands after the code
+   so the brand and model, which are what actually decide what a code means,
+   can be added before it goes.
+
+   ONE NAME (components/tiff/__tests__/vocabulary.test.ts). It is the Library
+   here too, even though this copy sits in the Toolbox: a second word for it
+   at the one moment the two features finally meet would undo the whole point
+   of that pass. */
+
+function CodeLookup({ color }: { color: string }) {
+  const router = useRouter();
+  const [code, setCode] = useState("");
+  const ready = code.trim().length > 0;
+
+  const lookUp = () => {
+    if (!ready) return;
+    writeAskText(faultCodePrefill(code));
+    router.push("/dashboard/tiff");
+  };
+
+  return (
+    <section className="tcard ffg-look" style={{ "--sc2": color } as React.CSSProperties}>
+      <h3 className="tct">Look the code up</h3>
+      <p className="tcs">Tiff reads the manuals in your Library and shows you the page.</p>
+      <form
+        className="ffg-lookf"
+        onSubmit={(e) => {
+          e.preventDefault();
+          lookUp();
+        }}
+      >
+        <input
+          className="tin"
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          placeholder="E5 on a 12kW ducted, or 3 flashes then a pause"
+          aria-label="Code or blink pattern"
+          maxLength={80}
+        />
+        <button type="submit" className="tbtn" disabled={!ready}>
+          Look it up
+          <Icon name="arrowR" size={16} />
+        </button>
+      </form>
+      <p className="tnote">
+        The brand and model decide what a code means — you can add them before you send.
+      </p>
+    </section>
+  );
+}
+
+/** Nothing in the Library yet — say what would make this work rather than
+    offering a search of an empty one, which reads as a broken feature rather
+    than an empty one. Same rule the assistant's own zero state keeps. */
+function EmptyLibraryNote() {
+  return (
+    <p className="ffg-nolib">
+      Add this unit&rsquo;s manual to the <Link href="/dashboard/tiff/library">Library</Link> and
+      Tiff can read the code off it next time.
+    </p>
+  );
+}
+
 /* ---------------- outcome ---------------- */
 
-function OutcomeCard({ outcome, color }: { outcome: Outcome; color: string }) {
+function OutcomeCard({
+  outcome,
+  color,
+  library,
+}: {
+  outcome: Outcome;
+  color: string;
+  /** "off" hides the lookup entirely — no Tiff access at all. */
+  library: "ready" | "empty" | "off";
+}) {
   return (
     <>
       <section className="ffg-outcome" style={{ "--sc2": color } as React.CSSProperties}>
@@ -138,14 +222,25 @@ function OutcomeCard({ outcome, color }: { outcome: Outcome; color: string }) {
             <Icon name="arrowR" size={16} />
           </Link>
         )}
+        {outcome.library && library === "empty" && <EmptyLibraryNote />}
       </section>
+
+      {outcome.library && library === "ready" && <CodeLookup color={color} />}
     </>
   );
 }
 
 /* ---------------- the walk ---------------- */
 
-export function FaultFinder() {
+export function FaultFinder({
+  library = "off",
+}: {
+  /** Whether the coded outcomes can offer the library: "ready" when this
+      workspace has documents Tiff can cite, "empty" when it has the assistant
+      but nothing in the Library, "off" when the capability isn't held at all.
+      Decided on the server, where the count and the permission live. */
+  library?: "ready" | "empty" | "off";
+} = {}) {
   const [symptomKey, setSymptomKey] = useState<string | null>(null);
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [trail, setTrail] = useState<TrailStep[]>([]);
@@ -288,7 +383,7 @@ export function FaultFinder() {
           </section>
         )}
 
-        {outcome && <OutcomeCard outcome={outcome} color={color} />}
+        {outcome && <OutcomeCard outcome={outcome} color={color} library={library} />}
 
         <div className="ffg-nav">
           <button type="button" className="tbtn ghost" onClick={backOne}>

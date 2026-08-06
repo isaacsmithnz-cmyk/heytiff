@@ -129,6 +129,28 @@ describe("content quality", () => {
     expect(text).not.toMatch(/\b[EUPF]\d{1,2}\b/);
   });
 
+  /* Refusing to carry a code table is the rule above. Ending the walk there
+     was the bug: every outcome that lands on a code has to offer somewhere to
+     take it, or the tool stops at "read the manual" — the one instruction it
+     can't help with. */
+  it("offers the library everywhere a diagnosis lands on a code", () => {
+    const coded = OUTCOMES.filter((o) => o.library).map((o) => o.id);
+    expect(coded).toEqual(
+      expect.arrayContaining(["code-persists", "code-transient", "protection-coded"])
+    );
+    // and nowhere else — the flag is about holding a code, not about codes
+    // being mentioned
+    expect(coded).toHaveLength(3);
+    // you can't look up a code you haven't written down yet
+    expect(getOutcome("record-first")!.library).toBeUndefined();
+  });
+
+  it("no longer sends anyone to a manual it can't open", () => {
+    for (const o of OUTCOMES.filter((o) => o.library)) {
+      for (const a of o.actions) expect(a).not.toMatch(/service manual/i);
+    }
+  });
+
   it("routes electrical and refrigerant work to specialists", () => {
     const shortEarth = getOutcome("short-earth")!;
     expect(shortEarth.escalate).toBe(true);

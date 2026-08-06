@@ -17,6 +17,21 @@ jest.mock("next/navigation", () => ({
 // (owner rails containing "Admin") leak into later queryByText assertions
 afterEach(cleanup);
 
+describe("Sidebar — no standing 'look at me' marks", () => {
+  it("draws no pulsing dot on any row, for any role", () => {
+    /* Tiff AI carried a hard-coded `dot: true` from the day it shipped: a teal
+       dot that pulsed on the rail forever, with nothing behind it that could
+       ever turn it off. The `dot` field is gone from NavItem, so this can only
+       come back deliberately — and it should come back with a source of truth,
+       not a boolean. */
+    for (const role of ["staff", "admin", "owner"] as Role[]) {
+      const { container } = render(as(role));
+      expect(container.querySelector(".pdot")).toBeNull();
+      cleanup();
+    }
+  });
+});
+
 describe("Sidebar — HeyTiff × org line", () => {
   it("shows the trading name under the logo when set", () => {
     const { container } = render(as("owner", "Smith Air Conditioning"));

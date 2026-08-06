@@ -75,7 +75,7 @@ function metaLine(d: KbLibraryDoc): string {
 
 /* ── the page ────────────────────────────────────────────────────────────── */
 
-export function KnowledgeBase({
+export function Library({
   docs,
   quota = null,
   canManage = false,
@@ -162,7 +162,7 @@ export function KnowledgeBase({
               <Icon name="chevL" size={14} />
               Tiff AI
             </Link>
-            <h1 className="tk-h1">Knowledge base</h1>
+            <h1 className="tk-h1">Library</h1>
             <p className="tk-sub">
               {zero
                 ? "Nothing here yet — Tiff answers from what you upload."
@@ -274,13 +274,13 @@ export function KnowledgeBase({
                       <div className="tk-note">
                         {counts[c.key] === 0 ? (
                           <>
-                            <b>Nothing on this shelf yet.</b>
+                            <b>Nothing in this category yet.</b>
                             {/* The blurb is a description, not a noun phrase —
                                 splicing it in produced "Tiff can't answer how
                                 we do things here questions". */}
                             <span>
                               {canManage
-                                ? "Tiff can't answer from this shelf until something lands on it."
+                                ? "Tiff can't answer from this category until something lands in it."
                                 : "Ask a manager to add the company's manuals for this category."}
                             </span>
                           </>
@@ -572,7 +572,7 @@ function EditModal({ doc, onClose }: { doc: KbLibraryDoc; onClose: () => void })
         <div className="fl-mh">
           <span>
             <b>Edit document</b>
-            <em>What it&rsquo;s called, and which shelf it sits on</em>
+            <em>What it&rsquo;s called, and which category it&rsquo;s in</em>
           </span>
           <button className="fl-x" aria-label="Close" onClick={onClose}>
             <Icon name="x" size={16} />

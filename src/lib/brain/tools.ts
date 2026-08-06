@@ -204,6 +204,13 @@ export async function issueLog(orgId: string, limit = 25): Promise<OrgIssue[]> {
 export type BrainTool = {
   name: string;
   description: string;
+  /** What the person sees while the loop is using it — "Reading the job's
+      history", present tense, no jargon. Real progress, not fake. */
+  label: string;
+  /** The capability whose holders may reach this data through the loop.
+      The ask route filters the registry per viewer with `toolsFor` — the
+      same read behind a screen gate must not be reachable by asking. */
+  capability: "workboard" | "tiff";
   inputSchema: Record<string, unknown>;
   run: (orgId: string, input: Record<string, unknown>) => Promise<unknown>;
 };
@@ -213,6 +220,8 @@ const str = { type: "string" } as const;
 export const BRAIN_TOOLS: readonly BrainTool[] = [
   {
     name: "job_history",
+    label: "Reading the job's history",
+    capability: "workboard",
     description:
       "Everything already on record for one job: open issues with how often each has recurred, " +
       "active flags, the last few notes, equipment on site, and the job's own notes. Call this " +
@@ -234,6 +243,8 @@ export const BRAIN_TOOLS: readonly BrainTool[] = [
   },
   {
     name: "search_jobs",
+    label: "Searching the board's jobs",
+    capability: "workboard",
     description:
       "Find jobs by client, site, service or job number. Returns candidates with their ids — " +
       "use job_history on a result to read one in depth.",
@@ -248,6 +259,8 @@ export const BRAIN_TOOLS: readonly BrainTool[] = [
   },
   {
     name: "open_task_load",
+    label: "Checking who's carrying what",
+    capability: "workboard",
     description:
       "Open tasks per person, heaviest first, with overdue counts — who is already carrying " +
       "what. `today` must be the org's own date (YYYY-MM-DD).",
@@ -261,6 +274,8 @@ export const BRAIN_TOOLS: readonly BrainTool[] = [
   },
   {
     name: "issue_log",
+    label: "Scanning recurring issues",
+    capability: "workboard",
     description:
       "Open recurring issues across every job, most-repeated first — the cross-job pattern " +
       "view. Use it for 'what keeps breaking' questions.",
@@ -269,6 +284,8 @@ export const BRAIN_TOOLS: readonly BrainTool[] = [
   },
   {
     name: "kb_search",
+    label: "Searching the knowledge base",
+    capability: "tiff",
     description:
       "Search the knowledge base — manuals AND field notes the crew has taught. Returns " +
       "excerpts with their sources; field notes carry who learned them and where.",
@@ -292,9 +309,15 @@ export const BRAIN_TOOLS: readonly BrainTool[] = [
   },
 ];
 
+/** The registry a viewer is allowed: reads reachable by ASKING must be the
+    same set reachable by LOOKING. Someone without the workboard capability
+    can't see the board, so the loop must not read it to them either. */
+export const toolsFor = (caps: ReadonlySet<string>): BrainTool[] =>
+  BRAIN_TOOLS.filter((t) => caps.has(t.capability));
+
 /** Anthropic-shaped tool definitions, for the ask-loop's API call. */
-export const toolDefs = () =>
-  BRAIN_TOOLS.map((t) => ({
+export const toolDefs = (tools: readonly BrainTool[] = BRAIN_TOOLS) =>
+  tools.map((t) => ({
     name: t.name,
     description: t.description,
     input_schema: t.inputSchema,
@@ -306,9 +329,10 @@ export const toolDefs = () =>
 export async function runTool(
   orgId: string,
   name: string,
-  input: Record<string, unknown>
+  input: Record<string, unknown>,
+  allowed: readonly BrainTool[] = BRAIN_TOOLS
 ): Promise<{ ok: true; result: unknown } | { ok: false; error: string }> {
-  const tool = BRAIN_TOOLS.find((t) => t.name === name);
+  const tool = allowed.find((t) => t.name === name);
   if (!tool) return { ok: false, error: `No such tool: ${name}` };
   try {
     return { ok: true, result: await tool.run(orgId, input) };

@@ -35,6 +35,10 @@ export type Draft = {
   progressBullets: { on: boolean; text: string }[];
   commissioningEntries: { on: boolean; text: string }[];
   issueEntries: { on: boolean; summary: string; equipmentRef: string }[];
+  /** LEARN — "Worth teaching everyone". Ticked rows publish to the KB. */
+  kbEntries: { on: boolean; title: string; body: string }[];
+  /** Debrief leftovers — the lines kept as one grouped note. */
+  noteLines: { on: boolean; text: string }[];
 };
 
 export function toDraft(p: NoteProposal): Draft {
@@ -64,6 +68,8 @@ export function toDraft(p: NoteProposal): Draft {
       summary: e.body,
       equipmentRef: e.equipmentHint,
     })),
+    kbEntries: p.kbEntries.map((k) => ({ on: true, title: k.title, body: k.body })),
+    noteLines: p.noteLines.map((text) => ({ on: true, text })),
   };
 }
 
@@ -88,6 +94,10 @@ export function toConfirmed(d: Draft): ConfirmedNote {
     issueEntries: d.issueEntries
       .filter((e) => e.on && e.summary.trim())
       .map((e) => ({ summary: e.summary, equipmentRef: e.equipmentRef })),
+    kbEntries: d.kbEntries
+      .filter((k) => k.on && k.title.trim() && k.body.trim())
+      .map((k) => ({ title: k.title, body: k.body })),
+    noteLines: d.noteLines.filter((l) => l.on && l.text.trim()).map((l) => l.text),
   };
 }
 
@@ -158,13 +168,21 @@ const SEVERITY_LABEL: Record<(typeof SEVERITIES)[number], string> = {
 export function Cascade({
   jobLabel,
   taskCount,
+  kbCount = 0,
+  noteLineCount = 0,
   fallsThrough,
 }: {
   jobLabel: string | null;
   taskCount: number;
+  /** Ticked "Worth teaching everyone" rows — its own line because its blast
+      radius is the whole org, and that should be readable at the foot. */
+  kbCount?: number;
+  /** Ticked debrief leftovers, headed for the grouped note. */
+  noteLineCount?: number;
   /** Nothing above could take it, so My notes is the destination. */
   fallsThrough: boolean;
 }) {
+  const notesOn = fallsThrough || noteLineCount > 0;
   return (
     <div className="wb2-casc">
       <div className={"wb2-cascrow" + (jobLabel ? " on" : "")}>
@@ -179,16 +197,32 @@ export function Cascade({
             : "No tasks for anyone"}
         </span>
       </div>
-      <div className={"wb2-cascrow" + (fallsThrough ? " on" : "")}>
+      <div className={"wb2-cascrow" + (notesOn ? " on" : "")}>
         <span className="wb2-cascn">3</span>
         <span>
-          {fallsThrough ? (
+          {noteLineCount > 0 ? (
+            <>
+              {noteLineCount} {noteLineCount === 1 ? "line" : "lines"} — grouped in{" "}
+              <b>your notes</b>
+            </>
+          ) : fallsThrough ? (
             <>Nothing else fits — keep it in <b>your notes</b></>
           ) : (
             "Your notes — not needed"
           )}
         </span>
       </div>
+      {kbCount > 0 && (
+        <div className="wb2-cascrow on">
+          <span className="wb2-cascn">
+            <Icon name="sparkles" size={10} />
+          </span>
+          <span>
+            {kbCount} {kbCount === 1 ? "entry" : "entries"} into the <b>knowledge base</b> — the
+            whole team
+          </span>
+        </div>
+      )}
     </div>
   );
 }
@@ -297,6 +331,54 @@ export function ReviewRows({
         rows={draft.issueEntries.map((e) => ({ on: e.on, text: e.summary }))}
         onToggle={(i) => patch((d) => ((d.issueEntries[i].on = !d.issueEntries[i].on), d))}
         onEdit={(i, v) => patch((d) => ((d.issueEntries[i].summary = v), d))}
+      />
+
+      {/* LEARN — the row that publishes. Two fields because the KB card and
+          the KB body are genuinely different things: the title is what the
+          library shows and search weights, the body is the method itself.
+          Framed with its own hint because ticking this one reaches EVERYONE,
+          not a job — the only row on the card with that blast radius. */}
+      {draft.kbEntries.length > 0 && (
+        <div className="wb-day">
+          <div className="wb-dayhead">Worth teaching everyone</div>
+          {draft.kbEntries.map((k, i) => (
+            <div className="wb2-kbrow" key={i}>
+              <div className="wb-row">
+                <button
+                  className={"wb-tick" + (k.on ? " done" : "")}
+                  onClick={() => patch((d) => ((d.kbEntries[i].on = !d.kbEntries[i].on), d))}
+                  aria-label={(k.on ? "Don't publish " : "Publish ") + k.title}
+                >
+                  <Icon name="check" size={13} />
+                </button>
+                <input
+                  className="wb-inline"
+                  value={k.title}
+                  aria-label="Knowledge title"
+                  onChange={(e) => patch((d) => ((d.kbEntries[i].title = e.target.value), d))}
+                />
+              </div>
+              <textarea
+                className="wb2-notes wb2-kbbody"
+                rows={2}
+                value={k.body}
+                aria-label={`The method — ${k.title}`}
+                onChange={(e) => patch((d) => ((d.kbEntries[i].body = e.target.value), d))}
+              />
+            </div>
+          ))}
+          <p className="wb2-hint">
+            Ticked entries go into the knowledge base for the whole team, with your name and
+            today&apos;s date on them.
+          </p>
+        </div>
+      )}
+
+      <SimpleRows
+        title="Keeping in your notes"
+        rows={draft.noteLines.map((l) => ({ on: l.on, text: l.text }))}
+        onToggle={(i) => patch((d) => ((d.noteLines[i].on = !d.noteLines[i].on), d))}
+        onEdit={(i, v) => patch((d) => ((d.noteLines[i].text = v), d))}
       />
     </>
   );

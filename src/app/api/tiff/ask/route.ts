@@ -127,7 +127,13 @@ export async function POST(request: Request) {
             mode = "research";
             documents = found.chunks.map((c) => ({
               title: documentTitleOf(c),
-              content: c.content,
+              /* A field note's heading IS its provenance — who learned it,
+                 when, on what job — and the model can only weigh crew
+                 knowledge against a manual if it can see which is which. A
+                 manual chunk's heading is just a section title; content
+                 alone was always enough there and stays that way. */
+              content:
+                c.category === "field" && c.heading ? `${c.heading}\n${c.content}` : c.content,
             }));
             sources = found.sources;
           }

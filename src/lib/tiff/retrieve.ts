@@ -64,6 +64,7 @@ const EMPTY_TRACE = (terms: string[]): Retrieval["trace"] => ({
     faults: { hits: 0, topDoc: null },
     specs: { hits: 0, topDoc: null },
     sops: { hits: 0, topDoc: null },
+    field: { hits: 0, topDoc: null },
   },
   winners: [],
   terms,

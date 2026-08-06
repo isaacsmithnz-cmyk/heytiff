@@ -227,7 +227,10 @@ export function Library({
                 >
                   <span className="tk-dot" style={{ background: c.color }} />
                   {c.label}
-                  <em>{n(counts[c.key])}</em>
+                  {/* `?? 0` so a shelf the caller's payload predates renders
+                      as empty rather than crashing the library — the exact
+                      seam the field shelf crossed when it arrived. */}
+                  <em>{n(counts[c.key] ?? 0)}</em>
                 </button>
               ))}
             </div>

@@ -54,15 +54,17 @@ describe("at rest", () => {
       faults: "off",
       specs: "off",
       sops: "off",
+      field: "off",
     });
     expect(cards(IDLE_VIZ)).toEqual({
       install: "idle",
       faults: "idle",
       specs: "idle",
       sops: "idle",
+      field: "idle",
     });
     // null means "the document count stands"
-    expect(notes(IDLE_VIZ)).toEqual({ install: null, faults: null, specs: null, sops: null });
+    expect(notes(IDLE_VIZ)).toEqual({ install: null, faults: null, specs: null, sops: null, field: null });
   });
 });
 
@@ -79,18 +81,21 @@ describe("submitting a research question", () => {
       faults: "draw",
       specs: "draw",
       sops: "draw",
+      field: "draw",
     });
     expect(cards(searching)).toEqual({
       install: "searching",
       faults: "searching",
       specs: "searching",
       sops: "searching",
+      field: "searching",
     });
     expect(notes(searching)).toEqual({
       install: SEARCHING_NOTE,
       faults: SEARCHING_NOTE,
       specs: SEARCHING_NOTE,
       sops: SEARCHING_NOTE,
+      field: SEARCHING_NOTE,
     });
   });
 
@@ -133,6 +138,7 @@ describe("when the trace lands", () => {
       faults: "lit",
       specs: "dim",
       sops: "dim",
+      field: "dim",
     });
   });
 
@@ -142,6 +148,7 @@ describe("when the trace lands", () => {
       faults: "winner",
       specs: "dim",
       sops: "dim",
+      field: "dim",
     });
   });
 
@@ -151,6 +158,7 @@ describe("when the trace lands", () => {
       faults: "5 matches",
       specs: NOTHING_NOTE,
       sops: NOTHING_NOTE,
+      field: NOTHING_NOTE,
     });
   });
 
@@ -188,7 +196,7 @@ describe("when the trace lands", () => {
       winners: ["faults"],
       hits: { faults: Number.NaN, install: -4, specs: 2.7 } as Partial<Record<KbCategory, number>>,
     });
-    expect(junk.hits).toEqual({ install: 0, faults: 0, specs: 2, sops: 0 });
+    expect(junk.hits).toEqual({ install: 0, faults: 0, specs: 2, sops: 0, field: 0 });
     expect(cardState(junk, "faults")).toBe("dim");
   });
 
@@ -199,7 +207,7 @@ describe("when the trace lands", () => {
       hits: { gremlins: 9 } as Partial<Record<KbCategory, number>>,
     });
     expect(alien.winners).toEqual([]);
-    expect(alien.hits).toEqual({ install: 0, faults: 0, specs: 0, sops: 0 });
+    expect(alien.hits).toEqual({ install: 0, faults: 0, specs: 0, sops: 0, field: 0 });
   });
 });
 
@@ -276,6 +284,7 @@ describe("the winner's document", () => {
       faults: null,
       specs: null,
       sops: null,
+      field: null,
     });
     expect(cardNote(empty, "specs")).toBe(NOTHING_NOTE);
   });
@@ -305,12 +314,14 @@ describe("while the answer streams", () => {
       faults: "winner",
       specs: "dim",
       sops: "dim",
+      field: "dim",
     });
     expect(lines(answering)).toEqual({
       install: "dim",
       faults: "lit",
       specs: "dim",
       sops: "dim",
+      field: "dim",
     });
   });
 
@@ -345,15 +356,17 @@ describe("a miss", () => {
       faults: "fade",
       specs: "fade",
       sops: "fade",
+      field: "fade",
     });
     expect(cards(missed)).toEqual({
       install: "idle",
       faults: "idle",
       specs: "idle",
       sops: "idle",
+      field: "idle",
     });
     // the banner above the answer is the story; the rail claims nothing
-    expect(notes(missed)).toEqual({ install: null, faults: null, specs: null, sops: null });
+    expect(notes(missed)).toEqual({ install: null, faults: null, specs: null, sops: null, field: null });
   });
 
   it("lights nothing when the general-knowledge answer that follows streams", () => {
@@ -364,6 +377,7 @@ describe("a miss", () => {
       faults: "idle",
       specs: "idle",
       sops: "idle",
+      field: "idle",
     });
   });
 
@@ -397,6 +411,7 @@ describe("once the answer is finished", () => {
       faults: "fade",
       specs: "fade",
       sops: "fade",
+      field: "fade",
     });
   });
 
@@ -408,12 +423,14 @@ describe("once the answer is finished", () => {
       faults: "winner",
       specs: "idle",
       sops: "idle",
+      field: "idle",
     });
     expect(notes(settled)).toEqual({
       install: null,
       faults: "5 matches",
       specs: null,
       sops: null,
+      field: null,
     });
   });
 
@@ -425,6 +442,7 @@ describe("once the answer is finished", () => {
       faults: "idle",
       specs: "idle",
       sops: "idle",
+      field: "idle",
     });
   });
 

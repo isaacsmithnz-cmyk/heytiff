@@ -22,13 +22,18 @@ export const MAX_KB_BYTES = 50 * 1024 * 1024;
    silently never answers a question. */
 export const KB_MIME = "application/pdf";
 
-/* The four categories are product structure: they colour the cards, filter the
+/* The categories are product structure: they colour the cards, filter the
    library and scope a search, and the DB carries the same CHECK. The UI's
    labels/colours for them live in components/tiff/kb.ts — this is the list the
-   server validates against, so a route can't invent a fifth. */
-export type KbCategory = "install" | "faults" | "specs" | "sops";
+   server validates against, so a route can't invent one.
 
-export const KB_CATEGORIES: readonly KbCategory[] = ["install", "faults", "specs", "sops"];
+   `field` is the fifth (2026-08-06) and the odd one out on purpose: nobody
+   UPLOADS into it. Its documents are field notes — crew knowledge published
+   from the note widget's review card — so `checkKbUpload` below still takes
+   PDFs only, and the upload drawer never offers it. */
+export type KbCategory = "install" | "faults" | "specs" | "sops" | "field";
+
+export const KB_CATEGORIES: readonly KbCategory[] = ["install", "faults", "specs", "sops", "field"];
 
 export function asKbCategory(value: unknown): KbCategory | null {
   return KB_CATEGORIES.includes(value as KbCategory) ? (value as KbCategory) : null;

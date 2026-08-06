@@ -54,8 +54,8 @@ describe("what may be stored", () => {
 });
 
 describe("categories", () => {
-  it("narrows to the four the database also checks", () => {
-    expect([...KB_CATEGORIES]).toEqual(["install", "faults", "specs", "sops"]);
+  it("narrows to the five the database also checks — field is the crew's shelf", () => {
+    expect([...KB_CATEGORIES]).toEqual(["install", "faults", "specs", "sops", "field"]);
     for (const cat of KB_CATEGORIES) expect(asKbCategory(cat)).toBe(cat);
   });
 

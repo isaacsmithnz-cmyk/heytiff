@@ -121,6 +121,11 @@ export async function beginKbUpload(input: {
 
   const category = asKbCategory(input.category);
   if (!category) return { ok: false, error: "Pick a category for that document." };
+  /* 'field' is the crew's shelf, written from the note widget — an uploaded
+     PDF wearing it would impersonate a person. The drawer never offers it;
+     this is the server saying the same thing to a direct POST. */
+  if (category === "field")
+    return { ok: false, error: "Field notes are written from a note, not uploaded." };
 
   const title = trim(input.title, TITLE_MAX);
   if (!title) return { ok: false, error: "Give that document a title." };
@@ -225,6 +230,9 @@ export async function updateKbDocMeta(
   if (input.category !== undefined) {
     const category = asKbCategory(input.category);
     if (!category) return { ok: false, error: "That isn't one of the categories." };
+    // same rule as the create path: a manual can't be re-shelved as a person
+    if (category === "field")
+      return { ok: false, error: "Field notes are written from a note, not uploaded." };
     patch.category = category;
   }
   // an empty string clears the field; absent leaves it alone

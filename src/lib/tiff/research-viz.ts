@@ -106,6 +106,7 @@ const emptyHits = (): Record<KbCategory, number> => ({
   faults: 0,
   specs: 0,
   sops: 0,
+  field: 0,
 });
 
 /* A count that isn't a non-negative number is a count we don't have. Reading a
@@ -132,6 +133,7 @@ function normaliseTopDocs(
     faults: null,
     specs: null,
     sops: null,
+    field: null,
   };
   for (const cat of KB_CATEGORIES) {
     if (hits[cat] <= 0) continue;

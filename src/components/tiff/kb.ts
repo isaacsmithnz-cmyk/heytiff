@@ -3,7 +3,7 @@
    page); the library is empty until real uploads land (Documents/storage
    track), and every screen renders a per-category empty state until then. */
 
-export type KbCategoryKey = "install" | "faults" | "specs" | "sops";
+export type KbCategoryKey = "install" | "faults" | "specs" | "sops" | "field";
 
 export type KbCategory = {
   key: KbCategoryKey;
@@ -23,6 +23,9 @@ export const KB_CATEGORIES: KbCategory[] = [
   { key: "faults", label: "Fault codes", icon: "alert", color: "#2E68FF", blurb: "Error codes & diagnosis by brand" },
   { key: "specs", label: "Manufacturer specs", icon: "file", color: "#f59e0b", blurb: "Datasheets, capacities & connections" },
   { key: "sops", label: "Company SOPs", icon: "shield", color: "#8A2BE2", blurb: "How we do things here" },
+  /* Written by the crew from the note widget, never uploaded — which is the
+     blurb's whole job to say. Board cyan, not a new colour. */
+  { key: "field", label: "Field notes", icon: "sparkles", color: "#007FA8", blurb: "What the crew learned on the job" },
 ];
 
 /* The preview-era `KbDoc` shape and its `kbCounts` helper are GONE. A document

@@ -130,6 +130,7 @@ const EMPTY_CATEGORIES = (): Record<KbCategory, TraceCategory> => ({
   faults: { hits: 0, topDoc: null },
   specs: { hits: 0, topDoc: null },
   sops: { hits: 0, topDoc: null },
+  field: { hits: 0, topDoc: null },
 });
 
 /* What the search actually found, per shelf — the numbers the four cards show

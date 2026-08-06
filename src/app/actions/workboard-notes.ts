@@ -17,6 +17,8 @@ import { todayInZone } from "@/lib/workboard/dates";
 import { getSm8Timezone } from "@/lib/workboard/query";
 import { fullNameOf } from "@/lib/staff/name";
 import { NAME_COLUMNS } from "@/lib/dashboard/tasks-query";
+import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
+import { publishFieldNote } from "@/lib/tiff/field-notes";
 
 /* Smart Notes — capture, route, review, apply.
 
@@ -119,6 +121,9 @@ export async function routeNote(input: {
   transcript: string;
   target: NoteTarget;
   source?: "text" | "voice";
+  /** A morning braindump rather than a site note — changes what the brain is
+      asked for (tasks + knowledge + note lines, no job-bound buckets). */
+  debrief?: boolean;
 }): Promise<RouteResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: NOT_SIGNED_IN };
@@ -156,6 +161,7 @@ export async function routeNote(input: {
     staff,
     targetLabel: label ?? undefined,
     todayISO: todayInZone(tz),
+    debrief: input.debrief === true,
   });
 
   if (!read.ok) {
@@ -168,7 +174,10 @@ export async function routeNote(input: {
   await supabaseAdmin
     .from("workboard_notes")
     .update({
-      proposal: read.proposal,
+      /* The extra `debrief` key rides in the jsonb so the MODE survives the
+         clarify round-trip even when a debrief happened to produce no note
+         lines — inferring it from noteLines alone misses exactly that case. */
+      proposal: input.debrief ? { ...read.proposal, debrief: true } : read.proposal,
       status: read.proposal.clarify ? "clarifying" : "pending",
     })
     .eq("org_id", ctx.orgId)
@@ -225,14 +234,28 @@ export async function answerClarify(noteId: string, answer: string): Promise<Rou
   ]);
   const read = await readNote(
     note.transcript,
-    { staff, targetLabel: label ?? undefined, todayISO: todayInZone(tz) },
+    {
+      staff,
+      targetLabel: label ?? undefined,
+      todayISO: todayInZone(tz),
+      /* The mode has to survive the clarify round-trip, or answering "which
+         Luke?" would re-route the whole debrief as a site note and scatter
+         its leftovers into buckets the card no longer shows. routeNote
+         stamped the stored proposal for exactly this read. */
+      debrief: (proposal as { debrief?: boolean } | null)?.debrief === true,
+    },
     { question, answer: reply }
   );
   if (!read.ok) return { ok: false, error: read.error };
 
+  const wasDebrief = (proposal as { debrief?: boolean } | null)?.debrief === true;
   await supabaseAdmin
     .from("workboard_notes")
-    .update({ proposal: read.proposal, status: read.proposal.clarify ? "clarifying" : "pending" })
+    .update({
+      // re-stamped, or the mode would only survive ONE clarify round
+      proposal: wasDebrief ? { ...read.proposal, debrief: true } : read.proposal,
+      status: read.proposal.clarify ? "clarifying" : "pending",
+    })
     .eq("org_id", ctx.orgId)
     .eq("id", noteId);
 
@@ -271,6 +294,11 @@ export type ConfirmedNote = {
   progressBullets: string[];
   commissioningEntries: string[];
   issueEntries: { summary: string; equipmentRef: string }[];
+  /** LEARN — ticked "Worth teaching everyone" rows, published to the KB. */
+  kbEntries?: { title: string; body: string }[];
+  /** Debrief leftovers — become ONE grouped note in the author's own notes,
+      titled with the day. Empty outside a debrief. */
+  noteLines?: string[];
 };
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -587,13 +615,85 @@ export async function applyNote(
      refuses. The note keeps its words and stays reviewable rather than being
      marked applied over an empty object. The card is supposed to stop this
      ever reaching here — this is the backstop that makes "saved" mean saved. */
+  /* ── LEARN — publish the ticked knowledge ──
+     After the job-bound buckets (these need no job) and before the tally, so
+     a note that is ONLY knowledge still counts as work done. The author's
+     name is fetched here rather than threaded from the card: provenance must
+     come from the session, never from a POST body. */
+  const kbWanted = (confirmed.kbEntries ?? [])
+    .map((k) => ({ title: trim(k.title, 200), body: trim(k.body, 4000) }))
+    .filter((k) => k.title && k.body);
+  if (kbWanted.length) {
+    const { data: author } = ctx.staffId
+      ? await supabaseAdmin
+          .from("staff_profiles")
+          .select(NAME_COLUMNS)
+          .eq("org_id", ctx.orgId)
+          .eq("id", ctx.staffId)
+          .maybeSingle()
+      : { data: null };
+    const authorName = author ? fullNameOf(author as Record<string, unknown>) : "the crew";
+    const tz = await getSm8Timezone(ctx.orgId);
+    const dayLabel = fmtAuWeekdayDayMonth(todayInZone(tz));
+    const jobLabel = target.kind !== "none" && target.id
+      ? await targetLabel(ctx.orgId, target)
+      : null;
+
+    const kbIds: string[] = [];
+    for (const entry of kbWanted) {
+      const res = await publishFieldNote({
+        orgId: ctx.orgId,
+        authorId: ctx.staffId,
+        authorName,
+        title: entry.title,
+        body: entry.body,
+        jobLabel,
+        dayLabel,
+        noteId,
+      });
+      /* One bad entry must not eat the rest of the save — but it must not
+         vanish either. Fail the whole apply so the card keeps the rows and
+         the person sees why, same rule as every other refusal here. */
+      if (!res.ok) return { ok: false, error: res.error };
+      kbIds.push(res.documentId);
+    }
+    record("kbIds", kbIds, "knowledge entry", "knowledge entries");
+  }
+
+  /* ── the debrief's grouped note ──
+     ONE staff_notes row titled with the day, holding every ticked line. The
+     title is derived HERE from the org's own clock — a browser's idea of
+     today is whatever its laptop says. */
+  const lines = (confirmed.noteLines ?? []).map((l) => trim(l, 1000)).filter(Boolean);
+  if (lines.length) {
+    if (!ctx.staffId) {
+      return { ok: false, error: "Your staff profile isn't set up yet, so there's nowhere to keep the notes." };
+    }
+    const tz = await getSm8Timezone(ctx.orgId);
+    const body = [`Debrief — ${fmtAuWeekdayDayMonth(todayInZone(tz))}`, ...lines.map((l) => `• ${l}`)]
+      .join("\n")
+      .slice(0, 4000);
+    const { error: dbErr } = await supabaseAdmin.from("staff_notes").insert({
+      org_id: ctx.orgId,
+      staff_id: ctx.staffId,
+      body,
+      source: "routed",
+      source_note_id: noteId,
+    });
+    if (dbErr) return { ok: false, error: "Couldn't keep the debrief's notes." };
+    record("noteLines", lines, "line kept", "lines kept");
+    revalidatePath("/dashboard/my-notes");
+  }
+
   const asked =
     (confirmed.tasks?.length ?? 0) +
     (confirmed.bringItems?.length ?? 0) +
     (confirmed.flags?.length ?? 0) +
     (confirmed.progressBullets?.length ?? 0) +
     (confirmed.commissioningEntries?.length ?? 0) +
-    (confirmed.issueEntries?.length ?? 0);
+    (confirmed.issueEntries?.length ?? 0) +
+    (confirmed.kbEntries?.length ?? 0) +
+    (confirmed.noteLines?.length ?? 0);
   /* Everything that needs a job was refused by the per-bucket guard near the
      top, and a bring-list with nowhere to sit was refused just above. So by
      the time we are here the only way to drop every row is a task with

@@ -37,7 +37,7 @@ import { sniff } from "@/lib/notes/sniff";
    capsule is a capsule and not the bare mic it started as: a lone microphone
    advertises one way in, and typing is first-class here. */
 
-export type Posture = "capsule" | "strip" | "field" | "line";
+export type Posture = "capsule" | "strip" | "field" | "line" | "debrief";
 
 /* ── the token's two halves, shared by capsule and strip ── */
 
@@ -103,9 +103,13 @@ function Ribbon({ flow }: { flow: NoteFlow }) {
               ? "Check it before it saves"
               : stage === "sorting"
                 ? "Sorting it out"
-                : "Add a note"}
+                : flow.debrief
+                  ? "Debrief"
+                  : "Add a note"}
       </b>
-      {scope.targetLabel ? (
+      {flow.debrief ? (
+        <span className="wb2-chip">Tasks, knowledge &amp; your notes</span>
+      ) : scope.targetLabel ? (
         <span className="wb2-chip blue">Against: {scope.targetLabel}</span>
       ) : (
         <span className="wb2-chip">{chosenJob ? chosenJob.clientName : "General note"}</span>
@@ -188,10 +192,14 @@ function Body({ flow }: { flow: NoteFlow }) {
         <textarea
           ref={textRef}
           className="wb2-notes"
-          rows={3}
+          rows={flow.debrief ? 6 : 3}
           value={flow.text}
           onChange={(e) => flow.setText(e.target.value)}
-          placeholder="Tell Luke he needs to order the grilles, and the middle rooftop unit tripped again…"
+          placeholder={
+            flow.debrief
+              ? "Everything on your mind, in any order — jobs, people, things to chase, things you learned. It gets sorted; nothing is lost."
+              : "Tell Luke he needs to order the grilles, and the middle rooftop unit tripped again…"
+          }
           disabled={flow.busy}
         />
         <div className="wb2-capact">
@@ -265,9 +273,13 @@ function Review({ flow }: { flow: NoteFlow }) {
 
       <Cascade
         jobLabel={
-          flow.scope.targetLabel ?? (flow.chosenJob ? describeJob(flow.chosenJob) : null)
+          flow.debrief
+            ? null
+            : flow.scope.targetLabel ?? (flow.chosenJob ? describeJob(flow.chosenJob) : null)
         }
         taskCount={draft.tasks.filter((t) => t.on && t.title.trim() && t.assigneeId).length}
+        kbCount={draft.kbEntries.filter((k) => k.on && k.title.trim() && k.body.trim()).length}
+        noteLineCount={draft.noteLines.filter((l) => l.on && l.text.trim()).length}
         fallsThrough={flow.fallsThrough}
       />
 
@@ -280,7 +292,10 @@ function Review({ flow }: { flow: NoteFlow }) {
       ))}
 
       <div className="wb2-capact">
-        {flow.hasTarget ? (
+        {/* A debrief's Save already files its leftovers as the grouped note,
+            so a second "keep it" door would file the transcript TWICE. Untick
+            everything else and Save IS "just keep my notes". */}
+        {flow.debrief ? null : flow.hasTarget ? (
           <button
             className="pbtn ghost"
             onClick={flow.keepOnJob}
@@ -320,6 +335,9 @@ function Review({ flow }: { flow: NoteFlow }) {
 /** The job confirmation + picker, shown when a note arrived against nothing
     and there are jobs it could belong to. */
 function JobLine({ flow }: { flow: NoteFlow }) {
+  /* A debrief spans jobs by nature and its job-bound lanes are closed, so
+     offering to pin the WHOLE thing to one job would un-say all of that. */
+  if (flow.debrief) return null;
   if (!flow.note || flow.scope.targetLabel || flow.scope.jobs.length === 0) return null;
   return (
     <>
@@ -355,6 +373,73 @@ function JobLine({ flow }: { flow: NoteFlow }) {
           onClose={() => flow.setPicking(false)}
         />
       )}
+    </>
+  );
+}
+
+/* ── posture: debrief ──
+
+   THE BUTTON YOU PRESS BEFORE YOU GET STUCK IN (Isaac, 2026-08-06): unload
+   everything at once and let the sorting be the machine's problem. One
+   labelled button — never an icon alone, because "what does the sparkle do"
+   is a question a 6am brain shouldn't have to ask. It opens the same sheet
+   as every other posture; only the framing and the brain's instructions
+   differ. Typing is as first-class here as everywhere else.
+
+   The word half and the mic half are the capsule again, worn wide: press
+   Debrief to type, press the mic to just start talking. */
+
+function DebriefButton({ flow }: { flow: NoteFlow }) {
+  return (
+    <>
+      <div className="wb2-tokdock">
+        <span className={"wb2-tok wb2-debrief" + (flow.stage === "recording" ? " live" : "")}>
+          <button
+            type="button"
+            className="wb2-tokhalf wb2-debriefword"
+            onClick={() => flow.setOpen(true)}
+          >
+            <Icon name="sparkles" size={15} />
+            Debrief
+          </button>
+          {flow.scope.voiceEnabled && (
+            <>
+              <span className="wb2-tokdiv" aria-hidden="true" />
+              <button
+                type="button"
+                className="wb2-tokhalf mic"
+                aria-label="Start the debrief by talking"
+                onClick={() => {
+                  flow.setOpen(true);
+                  flow.dict.start();
+                }}
+              >
+                <Icon name="mic" size={19} />
+              </button>
+            </>
+          )}
+        </span>
+        {flow.done && <span className="wb2-chip ok">{flow.done}</span>}
+      </div>
+
+      {flow.open &&
+        createPortal(
+          <>
+            <div className="wb2-capdim" onClick={flow.close} />
+            <div
+              className="wb2-capcard wb2-caps"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Morning debrief"
+            >
+              <span className="wb2-grab" aria-hidden="true" />
+              <Ribbon flow={flow} />
+              {flow.error && <p className="wb2-sherr">{flow.error}</p>}
+              <Body flow={flow} />
+            </div>
+          </>,
+          document.body
+        )}
     </>
   );
 }
@@ -638,8 +723,9 @@ export function NoteToken({
   disabled?: boolean;
   className?: string;
 }) {
-  const flow = useNoteFlow();
+  const flow = useNoteFlow({ debrief: as === "debrief" });
 
+  if (as === "debrief") return <DebriefButton flow={flow} />;
   if (as === "capsule") return <Capsule flow={flow} label={label} />;
   if (as === "strip")
     return (

@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
+import { auth0 } from "@/lib/auth0";
 import { AdminIndex } from "@/components/admin/admin-index";
 import { hasMinRole } from "@/lib/roles";
 import { can, getDbRole } from "@/lib/permissions-server";
+import { countUnreviewedFieldNotes } from "@/lib/tiff/field-notes";
 
 /* The Admin SECTION is admin+ — "Staff: Admin section hidden entirely" per
    docs/roles-and-permissions.md. Its ITEMS gate individually: the rate
@@ -21,6 +23,18 @@ export default async function AdminPage() {
   const role = await getDbRole();
   if (!hasMinRole(role, "admin")) redirect("/dashboard");
 
-  const canFinancials = await can("financials");
-  return <AdminIndex isOwner={hasMinRole(role, "owner")} canFinancials={canFinancials} />;
+  const session = await auth0.getSession();
+  const orgId = session?.orgId as string | undefined;
+
+  const [canFinancials, kbQueueCount] = await Promise.all([
+    can("financials"),
+    orgId ? countUnreviewedFieldNotes(orgId) : Promise.resolve(0),
+  ]);
+  return (
+    <AdminIndex
+      isOwner={hasMinRole(role, "owner")}
+      canFinancials={canFinancials}
+      kbQueueCount={kbQueueCount}
+    />
+  );
 }

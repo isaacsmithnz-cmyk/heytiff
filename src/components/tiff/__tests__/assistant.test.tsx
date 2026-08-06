@@ -116,7 +116,7 @@ describe("rendering an answer", () => {
       emit({ t: "delta", text: "| Coil temp | Resistance |\n| --- | --- |\n| 0°C | 15.0 kΩ |" });
       emit({ t: "done" });
     };
-    render(<TiffAssistant readyCount={3} counts={{ install: 3, faults: 0, specs: 0, sops: 0 }} />);
+    render(<TiffAssistant readyCount={3} counts={{ install: 3, faults: 0, specs: 0, sops: 0, field: 0 }} />);
     await ask("thermistor curve?");
 
     await waitFor(() => expect(screen.getByRole("table")).toBeInTheDocument());
@@ -129,7 +129,7 @@ describe("rendering an answer", () => {
       emit({ t: "delta", text: "Check:\n- the thermistor\n- the harness" });
       emit({ t: "done" });
     };
-    render(<TiffAssistant readyCount={3} counts={{ install: 3, faults: 0, specs: 0, sops: 0 }} />);
+    render(<TiffAssistant readyCount={3} counts={{ install: 3, faults: 0, specs: 0, sops: 0, field: 0 }} />);
     await ask("why P8?");
 
     await waitFor(() => expect(screen.getAllByRole("listitem")).toHaveLength(2));
@@ -193,7 +193,7 @@ describe("the research toggle", () => {
 
   it("flips the hint and the pressed state, and asks the library", async () => {
     const user = userEvent.setup();
-    render(<TiffAssistant readyCount={4} counts={{ install: 4, faults: 0, specs: 0, sops: 0 }} />);
+    render(<TiffAssistant readyCount={4} counts={{ install: 4, faults: 0, specs: 0, sops: 0, field: 0 }} />);
 
     const toggle = screen.getByRole("button", { name: /research/i });
     expect(toggle).toHaveAttribute("aria-pressed", "false");
@@ -218,7 +218,7 @@ describe("sources", () => {
 
   const renderResearched = async (sources = [src()]) => {
     researched(sources);
-    render(<TiffAssistant readyCount={2} counts={{ install: 0, faults: 2, specs: 0, sops: 0 }} />);
+    render(<TiffAssistant readyCount={2} counts={{ install: 0, faults: 2, specs: 0, sops: 0, field: 0 }} />);
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: /research/i }));
     await ask("why P8?");
@@ -631,7 +631,7 @@ describe("managing a thread", () => {
 describe("the rail", () => {
   it("shows a live count per shelf and links into the filtered library", () => {
     render(
-      <TiffAssistant readyCount={5} counts={{ install: 3, faults: 2, specs: 0, sops: 0 }} canManage />
+      <TiffAssistant readyCount={5} counts={{ install: 3, faults: 2, specs: 0, sops: 0, field: 0 }} canManage />
     );
 
     const card = screen.getByRole("link", { name: /Install procedures/ });
@@ -723,7 +723,7 @@ describe("watching Tiff search", () => {
     sops: /Company SOPs/,
   };
 
-  const counts = { install: 3, faults: 7, specs: 2, sops: 1 };
+  const counts = { install: 3, faults: 7, specs: 2, sops: 1, field: 0 };
 
   const card = (key: keyof typeof CARDS) => screen.getByRole("link", { name: CARDS[key] });
 
@@ -744,6 +744,7 @@ describe("watching Tiff search", () => {
       faults: { hits: 4, topDoc: "City Multi fault codes" },
       specs: { hits: 0, topDoc: null },
       sops: { hits: 0, topDoc: null },
+      field: { hits: 0, topDoc: null },
     },
     winners: ["faults"],
     terms: ["P8", "piping temperature"],
@@ -887,8 +888,8 @@ describe("watching Tiff search", () => {
       const { push } = await research();
       const svg = document.querySelector("svg.tk-lines");
       expect(svg).not.toBeNull();
-      expect(svg!.querySelectorAll("path.tk-line.draw")).toHaveLength(4);
-      expect(svg!.querySelectorAll("path.tk-line.pulse")).toHaveLength(4);
+      expect(svg!.querySelectorAll("path.tk-line.draw")).toHaveLength(5);
+      expect(svg!.querySelectorAll("path.tk-line.pulse")).toHaveLength(5);
 
       await push(TRACE);
       expect(document.querySelectorAll("path.tk-line.lit")).toHaveLength(1);

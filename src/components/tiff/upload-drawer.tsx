@@ -299,7 +299,11 @@ function FileRow({
               value={item.category}
               onChange={(e) => onChange({ category: e.target.value as KbCategory })}
             >
-              {KB_CATEGORIES.map((c) => (
+              {/* Field notes are WRITTEN, never uploaded — they come from the
+                  note widget's review card. Offering the shelf here would
+                  invite a PDF into a category whose whole meaning is "a
+                  person said this on a job". */}
+              {KB_CATEGORIES.filter((c) => c.key !== "field").map((c) => (
                 <option key={c.key} value={c.key}>
                   {c.label}
                 </option>

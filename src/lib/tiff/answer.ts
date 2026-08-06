@@ -131,8 +131,20 @@ export function systemPromptFor(mode: AnswerMode): string {
   return BASE + GENERAL;
 }
 
-/** The label on an excerpt — what the citation will name it. */
-export function documentTitleOf(doc: { title: string; pageFrom: number; pageTo: number }): string {
+/** The label on an excerpt — what the citation will name it.
+
+    A field note has no pages — "p.1" on crew knowledge would be a citation
+    dressed up as a manual, which is the one thing provenance must never do.
+    It says what it is instead, and the chunk's own heading (author, date,
+    job) rides in the excerpt beneath. The answer can then honestly say "the
+    manual says X, but a field note from Luke says Y worked". */
+export function documentTitleOf(doc: {
+  title: string;
+  pageFrom: number;
+  pageTo: number;
+  category?: string;
+}): string {
+  if (doc.category === "field") return `${doc.title} — field note, learned on the job`;
   const pages = doc.pageTo > doc.pageFrom ? `${doc.pageFrom}–${doc.pageTo}` : `${doc.pageFrom}`;
   return `${doc.title} — p.${pages}`;
 }

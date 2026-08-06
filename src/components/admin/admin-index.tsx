@@ -23,6 +23,9 @@ export type AdminViewer = {
   isOwner: boolean;
   /** grantable capability: the charge-out rate calculator */
   canFinancials: boolean;
+  /** field-learned KB entries nobody has looked over — the queue's badge.
+      A COUNT rather than a flag so the row can say "4 new". */
+  kbQueueCount: number;
 };
 
 type AdminRow = {
@@ -34,6 +37,8 @@ type AdminRow = {
   /** live rows link — a planned row has nowhere to go yet */
   href?: string;
   show: (v: AdminViewer) => boolean;
+  /** "N new" on the row's right edge — the only number this index shows. */
+  badge?: (v: AdminViewer) => number;
 };
 
 type AdminGroup = { label: string; rows: AdminRow[] };
@@ -104,6 +109,19 @@ export const SECTIONS: AdminGroup[] = [
     label: "Tools",
     rows: [
       {
+        /* Any admin, NOT `financials`: curating what the crew teaches Tiff is
+           editorial, not monetary, and the actions behind it re-check the
+           role themselves. Entries are live the moment they're ticked — this
+           queue is where someone agrees after the fact or takes one down. */
+        title: "Knowledge from the field",
+        sub: "What the crew taught Tiff — live now, look it over",
+        icon: "sparkles",
+        accent: "#007FA8",
+        href: "/dashboard/admin/knowledge",
+        show: anyone,
+        badge: (v) => v.kbQueueCount,
+      },
+      {
         title: "Rate Calculator",
         sub: "What to charge per hour",
         icon: "calc",
@@ -154,7 +172,7 @@ export const SECTIONS: AdminGroup[] = [
   },
 ];
 
-function RowBody({ row }: { row: AdminRow }) {
+function RowBody({ row, badge = 0 }: { row: AdminRow; badge?: number }) {
   return (
     <>
       <span className="adm-ic" style={{ background: row.accent + "1a", color: row.accent }}>
@@ -164,6 +182,11 @@ function RowBody({ row }: { row: AdminRow }) {
         <b>{row.title}</b>
         <em>{row.sub}</em>
       </span>
+      {badge > 0 && (
+        <span className="adm-badge">
+          {badge} new
+        </span>
+      )}
       {row.href ? (
         <span className="adm-ch">
           <Icon name="chevR" size={17} />
@@ -175,17 +198,18 @@ function RowBody({ row }: { row: AdminRow }) {
   );
 }
 
-function Row({ row }: { row: AdminRow }) {
+function Row({ row, viewer }: { row: AdminRow; viewer: AdminViewer }) {
+  const badge = row.badge?.(viewer) ?? 0;
   if (!row.href) {
     return (
       <div className="adm-row soon">
-        <RowBody row={row} />
+        <RowBody row={row} badge={badge} />
       </div>
     );
   }
   return (
     <Link className="adm-row" href={row.href}>
-      <RowBody row={row} />
+      <RowBody row={row} badge={badge} />
     </Link>
   );
 }
@@ -220,7 +244,7 @@ export function AdminIndex(viewer: AdminViewer) {
                 <div className="adm-glabel">{g.label}</div>
                 <div className="adm-card">
                   {g.rows.map((r) => (
-                    <Row row={r} key={r.title} />
+                    <Row row={r} viewer={viewer} key={r.title} />
                   ))}
                 </div>
               </div>

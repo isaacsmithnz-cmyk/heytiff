@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
 import { DashboardHero } from "./hero";
+import { NoteToken } from "@/components/notes/note-token";
 import { TasksSection } from "./tasks-section";
 import { NoticesCard } from "./notices-card";
 import { sortChips } from "@/lib/dashboard/chips";
@@ -56,6 +57,19 @@ export function DashboardHome({
       <div className="wrap">
         <div className="stg">
           <DashboardHero greeting={greeting} firstName={firstName} date={date} stats={stats} />
+
+          {/* THE DEBRIEF ROW — between the greeting and the day's lists,
+              because that is when you'd use it: before you get stuck in.
+              One sentence of what it does; the button carries the rest. */}
+          <div className="dash-debrief">
+            <div className="dash-debrieftext">
+              <b>Got a head full of the day?</b>
+              <span>
+                Say it all at once — it gets sorted into tasks, knowledge and your notes.
+              </span>
+            </div>
+            <NoteToken as="debrief" />
+          </div>
 
           <div className="dash-cols">
             {/* the hero's Tasks counter scrolls here rather than navigating */}

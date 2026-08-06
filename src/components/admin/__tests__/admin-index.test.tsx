@@ -12,7 +12,7 @@ const linkHrefs = () =>
 
 describe("AdminIndex", () => {
   it("gives an owner the organisation and the calculator", () => {
-    render(<AdminIndex isOwner canFinancials />);
+    render(<AdminIndex isOwner canFinancials kbQueueCount={0} />);
 
     expect(screen.getByText("Organisation").closest("a")).toHaveAttribute(
       "href",
@@ -26,7 +26,7 @@ describe("AdminIndex", () => {
   });
 
   it("shows an owner the owner-only tools, as planned rows", () => {
-    render(<AdminIndex isOwner canFinancials />);
+    render(<AdminIndex isOwner canFinancials kbQueueCount={0} />);
 
     for (const title of ["Password vault", "Billing", "Usage analytics"]) {
       expect(screen.getByText(title)).toBeInTheDocument();
@@ -35,7 +35,7 @@ describe("AdminIndex", () => {
   });
 
   it("keeps the owner's doors out of an admin's sight", () => {
-    render(<AdminIndex isOwner={false} canFinancials />);
+    render(<AdminIndex isOwner={false} canFinancials kbQueueCount={0} />);
 
     // the one thing `financials` buys
     expect(screen.getByText("Rate Calculator").closest("a")).toHaveAttribute(
@@ -50,7 +50,7 @@ describe("AdminIndex", () => {
   });
 
   it("still lists the manager tools that are coming", () => {
-    render(<AdminIndex isOwner={false} canFinancials />);
+    render(<AdminIndex isOwner={false} canFinancials kbQueueCount={0} />);
 
     for (const title of [
       "Compliance",
@@ -64,12 +64,13 @@ describe("AdminIndex", () => {
   });
 
   it("never links a planned row", () => {
-    render(<AdminIndex isOwner canFinancials />);
+    render(<AdminIndex isOwner canFinancials kbQueueCount={0} />);
 
-    // four live rows for an owner; everything else is a tagged placeholder
+    // five live rows for an owner; everything else is a tagged placeholder
     expect(linkHrefs()).toEqual([
       "/dashboard/admin/organization",
       "/dashboard/admin/integrations",
+      "/dashboard/admin/knowledge",
       "/dashboard/admin/rate-calculator",
       "/dashboard/admin/tax",
     ]);
@@ -80,31 +81,47 @@ describe("AdminIndex", () => {
      wages, bills and the P&L at once, which is a bigger decision than the
      calculator it feeds. An admin with financials must not see the door. */
   it("keeps integrations owner-only, even with financials", () => {
-    const { unmount } = render(<AdminIndex isOwner canFinancials />);
+    const { unmount } = render(<AdminIndex isOwner canFinancials kbQueueCount={0} />);
     expect(screen.getByText("Integrations").closest("a")).toHaveAttribute(
       "href",
       "/dashboard/admin/integrations",
     );
     unmount();
 
-    render(<AdminIndex isOwner={false} canFinancials />);
+    render(<AdminIndex isOwner={false} canFinancials kbQueueCount={0} />);
     expect(screen.queryByText("Integrations")).not.toBeInTheDocument();
   });
 
-  it("says so plainly when an admin has neither gated item", () => {
-    render(<AdminIndex isOwner={false} canFinancials={false} />);
+  /* This asserted an EMPTY page for an admin with neither gated item — and
+     that page no longer exists, because the knowledge queue is editorial
+     rather than gated and every admin holds it. The empty state's code path
+     survives for a future where all rows are gated; what matters here is
+     that this viewer still sees none of the doors they don't hold. */
+  it("gives an ungranted admin the knowledge queue and nothing gated", () => {
+    render(<AdminIndex isOwner={false} canFinancials={false} kbQueueCount={0} />);
 
-    expect(screen.getByText("Nothing here for you yet")).toBeInTheDocument();
-    expect(linkHrefs()).toEqual([]);
+    expect(linkHrefs()).toEqual(["/dashboard/admin/knowledge"]);
+    expect(screen.queryByText("Nothing here for you yet")).not.toBeInTheDocument();
     expect(screen.queryByText("Rate Calculator")).not.toBeInTheDocument();
     expect(screen.queryByText("Organisation")).not.toBeInTheDocument();
   });
 
+  it("wears the queue count as an 'N new' badge, and no badge at zero", () => {
+    const { unmount } = render(
+      <AdminIndex isOwner={false} canFinancials={false} kbQueueCount={4} />
+    );
+    expect(screen.getByText("4 new")).toBeInTheDocument();
+    unmount();
+
+    render(<AdminIndex isOwner={false} canFinancials={false} kbQueueCount={0} />);
+    expect(screen.queryByText(/new$/)).not.toBeInTheDocument();
+  });
+
   it("offers neither invites nor the holiday calendar — both moved", () => {
     for (const viewer of [
-      { isOwner: true, canFinancials: true },
-      { isOwner: false, canFinancials: true },
-      { isOwner: false, canFinancials: false },
+      { isOwner: true, canFinancials: true, kbQueueCount: 0 },
+      { isOwner: false, canFinancials: true, kbQueueCount: 0 },
+      { isOwner: false, canFinancials: false, kbQueueCount: 0 },
     ]) {
       const { unmount } = render(<AdminIndex {...viewer} />);
       for (const href of linkHrefs()) {

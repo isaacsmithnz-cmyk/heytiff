@@ -85,6 +85,10 @@ export type ProposedTask = {
 
 export type ProposedFlag = { message: string; severity: Severity };
 export type ProposedEntry = { body: string; equipmentHint: string };
+/** A LEARN row — technique worth teaching the whole org, offered for the
+    knowledge base. Title is what the library card will say; body is the
+    method itself, written to be read by someone who wasn't there. */
+export type ProposedKbEntry = { title: string; body: string };
 
 export type NoteProposal = {
   tasks: ProposedTask[];
@@ -93,6 +97,14 @@ export type NoteProposal = {
   progressBullets: string[];
   commissioningEntries: ProposedEntry[];
   issueEntries: ProposedEntry[];
+  /** The fourth lane (Isaac, 2026-08-06): reusable know-how, published to
+      the KB on tick — never automatically. "Got the E6 clear by powering
+      the outdoor board separately" is a kb_entry; "cleared the E6" is not. */
+  kbEntries: ProposedKbEntry[];
+  /** Debrief leftovers — the lines that are neither a task for anyone nor
+      knowledge, kept as ONE grouped note in the author's own notes. Always
+      empty outside debrief mode. */
+  noteLines: string[];
   plainNote: string;
   /** Set when the note can't be routed without a human answering something. */
   clarify: { question: string; options: string[] } | null;
@@ -109,6 +121,10 @@ export type NoteContext = {
   equipment?: string[];
   /** The day the note was dictated, so "Tuesday" resolves to a real date. */
   todayISO: string;
+  /** Debrief mode: one long transcript, many unrelated things, before the
+      day starts. Changes what the model is asked for — see systemPrompt —
+      and what the shaper tolerates. */
+  debrief?: boolean;
 };
 
 export type NoteBrainResult =
@@ -174,6 +190,16 @@ const NOTE_SCHEMA = {
         additionalProperties: false,
       },
     },
+    kb_entries: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: { title: str, body: str },
+        required: ["title", "body"],
+        additionalProperties: false,
+      },
+    },
+    note_lines: strArray,
     plain_note: str,
     clarify_needed: { type: "boolean" },
     clarify_question: str,
@@ -186,6 +212,8 @@ const NOTE_SCHEMA = {
     "progress_bullets",
     "commissioning_entries",
     "issue_entries",
+    "kb_entries",
+    "note_lines",
     "plain_note",
     "clarify_needed",
     "clarify_question",
@@ -198,6 +226,59 @@ const NOTE_SCHEMA = {
 
 function systemPrompt(ctx: NoteContext): string {
   const names = ctx.staff.map((s) => s.fullName).join(", ") || "nobody on record";
+
+  /* DEBRIEF IS A DIFFERENT ASK. One long transcript, recorded before the day
+     starts, deliberately unsorted — "empty your head". Expect MANY unrelated
+     items. The job-bound lanes are closed (a debrief spans several jobs and
+     v1 pins one job per note, so a flag here would land on the wrong job or
+     nowhere): anything that would have been a flag, bring-item or reading
+     becomes a note_line naming the job in its own words. Per-row job
+     assignment is the planned follow-up; until then honesty beats reach. */
+  if (ctx.debrief) {
+    return [
+      "You are sorting a tradesperson's morning debrief for an Australian",
+      "HVAC business — one long spoken braindump of everything on their",
+      "mind, in no order. Expect many unrelated items, fragments, trade",
+      "slang and transcription slips. Split it faithfully; invent nothing.",
+      "",
+      "Route each item into exactly one place:",
+      "- tasks: someone must DO something later. 'Tell Luke to order the",
+      "  grilles' is a task for Luke. Put the item's own details in `detail`",
+      "  so the task stands alone when read next week.",
+      "- kb_entries: reusable know-how worth teaching the whole team — a",
+      "  method, a fix, a gotcha that would help on a DIFFERENT day at a",
+      "  DIFFERENT site. Title it like a library card; write the body for",
+      "  someone who wasn't there. Propose these sparingly: a technique is",
+      "  knowledge, 'the unit is fixed' is not. If they say to remember,",
+      "  note down, or add something to the knowledge base, that is always",
+      "  a kb_entry.",
+      "- note_lines: EVERYTHING ELSE, one line per item, in the speaker's",
+      "  own words. Reminders to themselves, things to watch, half-thoughts.",
+      "  If an item mentions a specific job or site, keep that name in the",
+      "  line — the line is how they'll find it again.",
+      "",
+      "Do not use bring_items, flags, progress_bullets, commissioning_entries",
+      "or issue_entries in a debrief — return them empty. An item that looks",
+      "like one of those becomes a note_line that names the job.",
+      "",
+      `People who can be assigned work: ${names}.`,
+      "Put the name exactly as the note said it in `assignee_hint` — do not",
+      "correct it to someone on the list. The application resolves names, and",
+      "an unresolvable name becomes a question to the author.",
+      "",
+      "Set clarify_needed only when an item genuinely cannot be routed",
+      "without an answer. Ask ONE short question about ONE item; route",
+      "everything else meanwhile.",
+      "",
+      `Today is ${ctx.todayISO}. Resolve relative days against it.`,
+      "Write `due_hint` in the note's own plain words AND, when those words",
+      "name a day you can work out, put it in `due_date` as YYYY-MM-DD;",
+      "otherwise leave `due_date` empty rather than inventing a day.",
+      "",
+      "Leave plain_note empty — note_lines carries the leftovers here.",
+    ].join("\n");
+  }
+
   return [
     "You route a tradesperson's site note into structured outcomes for an",
     "Australian HVAC business. The note was spoken aloud or typed quickly, so",
@@ -215,8 +296,18 @@ function systemPrompt(ctx: NoteContext): string {
     "- commissioning_entries: readings and settings — pressures, superheat,",
     "  airflow, charge. Anything a commissioning sheet would record.",
     "- issue_entries: a fault, especially a repeat one. Say what happened.",
+    "- kb_entries: reusable know-how worth teaching the whole team — a fix",
+    "  or method that isn't in the manuals, a gotcha specific to a unit or",
+    "  site type, anything that would help a DIFFERENT person on a DIFFERENT",
+    "  day. Title it like a library card; write the body for someone who",
+    "  wasn't there. Propose these SPARINGLY — a technique is knowledge,",
+    "  'fixed the unit' is not, and most notes contain none. If they",
+    "  explicitly say to remember something or add it to the knowledge base,",
+    "  that is always a kb_entry.",
     "- plain_note: anything that is genuinely just a remark. A note is",
     "  allowed to be a note — do not manufacture tasks to seem useful.",
+    "",
+    "Leave note_lines empty — it belongs to debriefs, not site notes.",
     "",
     "One note can produce several of these at once. Produce nothing for the",
     "parts of the note that do not call for it: empty arrays are correct.",
@@ -362,16 +453,62 @@ export function shapeProposal(raw: unknown, ctx: NoteContext): NoteProposal {
     return out;
   };
 
-  return {
+  const kbEntries: ProposedKbEntry[] = [];
+  for (const k of Array.isArray(r.kb_entries) ? r.kb_entries : []) {
+    const row = (k && typeof k === "object" ? k : {}) as Record<string, unknown>;
+    const body = clean(row.body, 4000);
+    if (!body) continue; // knowledge with no method in it is not knowledge
+    /* A missing title falls back to the body's opening words — the library
+       card needs SOMETHING to say, and dropping real know-how over a blank
+       heading would be the wrong economy. */
+    kbEntries.push({ title: clean(row.title, TITLE_MAX) || body.slice(0, 80), body });
+  }
+
+  const noteLines = cleanList(r.note_lines, BODY_MAX);
+
+  const proposal: NoteProposal = {
     tasks,
     bringItems: cleanList(r.bring_items, TITLE_MAX),
     flags,
     progressBullets: cleanList(r.progress_bullets, BODY_MAX),
     commissioningEntries: entries("commissioning_entries", "body"),
     issueEntries: entries("issue_entries", "summary"),
+    kbEntries,
+    noteLines,
     plainNote: clean(r.plain_note, BODY_MAX),
     clarify,
   };
+
+  /* DEBRIEF COERCION — the prompt says the job-bound lanes are closed, and
+     this makes it true whatever the model does. A debrief spans several jobs
+     and v1 pins one job per note, so a flag produced here would land on the
+     wrong job or block the save; instead the item survives as a note line
+     wearing its own words. Nothing the person said is dropped — the standing
+     rule of the whole feature. The inverse holds outside a debrief:
+     note_lines is a debrief-only lane, so stray lines fold into buckets the
+     review card actually shows there. */
+  if (ctx.debrief) {
+    proposal.noteLines = [
+      ...proposal.noteLines,
+      ...proposal.flags.map((f) => f.message),
+      ...proposal.bringItems.map((b) => `Bring next visit: ${b}`),
+      ...proposal.progressBullets,
+      ...proposal.commissioningEntries.map((e) => e.body),
+      ...proposal.issueEntries.map((e) => e.body),
+      ...(proposal.plainNote ? [proposal.plainNote] : []),
+    ];
+    proposal.flags = [];
+    proposal.bringItems = [];
+    proposal.progressBullets = [];
+    proposal.commissioningEntries = [];
+    proposal.issueEntries = [];
+    proposal.plainNote = "";
+  } else if (proposal.noteLines.length) {
+    proposal.plainNote = [proposal.plainNote, ...proposal.noteLines].filter(Boolean).join(" · ");
+    proposal.noteLines = [];
+  }
+
+  return proposal;
 }
 
 /** True when the model found nothing to do with the note — the caller keeps
@@ -384,6 +521,8 @@ export function isEmptyProposal(p: NoteProposal): boolean {
     p.progressBullets.length === 0 &&
     p.commissioningEntries.length === 0 &&
     p.issueEntries.length === 0 &&
+    p.kbEntries.length === 0 &&
+    p.noteLines.length === 0 &&
     !p.clarify
   );
 }

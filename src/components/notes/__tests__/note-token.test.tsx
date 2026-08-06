@@ -46,6 +46,8 @@ const proposal = (over: Partial<NoteProposal> = {}): NoteProposal => ({
   progressBullets: [],
   commissioningEntries: [],
   issueEntries: [],
+  kbEntries: [],
+  noteLines: [],
   plainNote: "Middle rooftop unit tripped again.",
   clarify: null,
   ...over,
@@ -336,5 +338,110 @@ describe("the field", () => {
       "Tell Luke he needs to order the grilles before Monday"
     );
     expect(screen.queryByText(/something to do in this/)).not.toBeInTheDocument();
+  });
+});
+
+describe("the debrief", () => {
+  const openDebrief = async (over: Partial<NoteProposal>) => {
+    routeNote.mockResolvedValue({
+      ok: true,
+      noteId: "n-1",
+      proposal: proposal({ plainNote: "", ...over }),
+      staff: [{ id: "s-1", fullName: "Luke Mercer" }],
+    });
+    mount(<NoteToken as="debrief" />);
+    await userEvent.click(screen.getByRole("button", { name: "Debrief" }));
+    await userEvent.type(screen.getByRole("textbox"), "everything on my mind");
+    await userEvent.click(screen.getByRole("button", { name: "Sort this out" }));
+    await screen.findByText("Check it before it saves");
+  };
+
+  it("is a labelled button with a mic half — never an icon alone", () => {
+    mount(<NoteToken as="debrief" />);
+    expect(screen.getByRole("button", { name: "Debrief" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Start the debrief by talking")).toBeInTheDocument();
+  });
+
+  it("routes with the debrief flag — the brain is asked a different question", async () => {
+    await openDebrief({ noteLines: ["chase the coil pricing"] });
+    expect(routeNote).toHaveBeenCalledWith(expect.objectContaining({ debrief: true }));
+  });
+
+  it("leftovers review as 'Keeping in your notes', each line droppable", async () => {
+    await openDebrief({ noteLines: ["chase the coil pricing", "long day tomorrow"] });
+    expect(screen.getByText("Keeping in your notes")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("chase the coil pricing")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Skip long day tomorrow" }));
+    expect(screen.getByRole("button", { name: "Include long day tomorrow" })).toBeInTheDocument();
+  });
+
+  it("saves the ticked lines through the confirmed payload", async () => {
+    await openDebrief({ noteLines: ["chase the coil pricing"] });
+    await userEvent.click(screen.getByRole("button", { name: "Save these" }));
+    expect(applyNote).toHaveBeenCalledWith(
+      "n-1",
+      expect.objectContaining({ noteLines: ["chase the coil pricing"] }),
+      undefined
+    );
+  });
+
+  it("offers no job picker and no keep-elsewhere door — Save is the one path", async () => {
+    await openDebrief({ noteLines: ["a line"] });
+    expect(screen.queryByRole("button", { name: /Pick a job/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Keep it in my notes/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /on the job's notes/ })).not.toBeInTheDocument();
+  });
+});
+
+describe("the LEARN lane on the review card", () => {
+  const openWithKb = async () => {
+    routeNote.mockResolvedValue({
+      ok: true,
+      noteId: "n-1",
+      proposal: proposal({
+        kbEntries: [
+          { title: "Clearing an E6", body: "Power the outdoor board separately." },
+        ],
+      }),
+      staff: [],
+    });
+    mount(<NoteToken as="capsule" label="a note" />, {
+      target: { kind: "visit", id: "v-1" },
+      targetLabel: "Meridian",
+    });
+    await userEvent.click(screen.getByLabelText("Type a note"));
+    await userEvent.type(screen.getByRole("textbox"), "learned a trick");
+    await userEvent.click(screen.getByRole("button", { name: "Sort this out" }));
+    await screen.findByText("Check it before it saves");
+  };
+
+  it("shows the entry under 'Worth teaching everyone' with title and method editable", async () => {
+    await openWithKb();
+    expect(screen.getByText("Worth teaching everyone")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Clearing an E6")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Power the outdoor board separately.")).toBeInTheDocument();
+    expect(screen.getByText(/your name and today/)).toBeInTheDocument();
+  });
+
+  it("publishes what came back from the card — edits included", async () => {
+    await openWithKb();
+    const body = screen.getByDisplayValue("Power the outdoor board separately.");
+    await userEvent.clear(body);
+    await userEvent.type(body, "Isolate the outdoor board first, then reset.");
+    await userEvent.click(screen.getByRole("button", { name: "Save these" }));
+    expect(applyNote).toHaveBeenCalledWith(
+      "n-1",
+      expect.objectContaining({
+        kbEntries: [{ title: "Clearing an E6", body: "Isolate the outdoor board first, then reset." }],
+      }),
+      undefined
+    );
+  });
+
+  it("unticking the only entry leaves nothing to save — Save goes dark, nothing publishes", async () => {
+    await openWithKb();
+    await userEvent.click(screen.getByRole("button", { name: "Don't publish Clearing an E6" }));
+    expect(screen.getByRole("button", { name: "Save these" })).toBeDisabled();
+    expect(applyNote).not.toHaveBeenCalled();
   });
 });

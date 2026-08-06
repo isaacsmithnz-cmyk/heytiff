@@ -8,8 +8,8 @@ import { ICON_PATHS } from "@/components/shell/icon";
    with. */
 
 describe("knowledge base config", () => {
-  it("has four categories with unique keys and real icons", () => {
-    expect(KB_CATEGORIES).toHaveLength(4);
+  it("has five categories with unique keys and real icons", () => {
+    expect(KB_CATEGORIES).toHaveLength(5);
     const keys = KB_CATEGORIES.map((c) => c.key);
     expect(new Set(keys).size).toBe(keys.length);
     for (const c of KB_CATEGORIES) {

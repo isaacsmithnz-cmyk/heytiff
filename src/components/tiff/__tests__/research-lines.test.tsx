@@ -179,8 +179,8 @@ describe("while searching", () => {
   it("draws a base path and a pulse over it for every shelf", () => {
     const { container } = render(<Stage viz={viz({ t: "submit" })} />);
 
-    expect(paths(container, ".draw")).toHaveLength(4);
-    expect(paths(container, ".pulse")).toHaveLength(4);
+    expect(paths(container, ".draw")).toHaveLength(5);
+    expect(paths(container, ".pulse")).toHaveLength(5);
     for (const c of KB_CATEGORIES) {
       expect(container.querySelector(`path.tk-line.draw[data-cat="${c.key}"]`)).not.toBeNull();
       expect(container.querySelector(`path.tk-line.pulse[data-cat="${c.key}"]`)).not.toBeNull();
@@ -215,7 +215,7 @@ describe("once the trace lands", () => {
 
     expect(container.querySelector('path.tk-line.lit[data-cat="faults"]')).not.toBeNull();
     expect(paths(container, ".lit")).toHaveLength(1);
-    expect(paths(container, ".dim")).toHaveLength(3);
+    expect(paths(container, ".dim")).toHaveLength(4);
     expect(paths(container, ".pulse")).toHaveLength(0);
   });
 
@@ -223,7 +223,7 @@ describe("once the trace lands", () => {
     const { container } = render(
       <Stage viz={reduceViz(reduceViz(traced, { t: "firstDelta" }), { t: "done" })} />
     );
-    expect(paths(container, ".fade")).toHaveLength(4);
+    expect(paths(container, ".fade")).toHaveLength(5);
     expect(svg(container)).not.toBeNull();
   });
 
@@ -259,10 +259,10 @@ describe("keeping the geometry current", () => {
      on it would flicker them out mid-question. */
   it("keeps its lines through a re-render rather than blanking them", () => {
     const { container, rerender } = render(<Stage viz={viz({ t: "submit" })} measureKey={0} />);
-    expect(paths(container)).toHaveLength(8);
+    expect(paths(container)).toHaveLength(10);
 
     rerender(<Stage viz={traced} measureKey={1} />);
-    expect(paths(container)).toHaveLength(4);
+    expect(paths(container)).toHaveLength(5);
     expect(paths(container, ".lit")).toHaveLength(1);
   });
 

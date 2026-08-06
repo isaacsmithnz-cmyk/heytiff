@@ -5608,3 +5608,34 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   background:#fff; border:1px solid rgba(5,5,5,.12); color:var(--gray700); font-weight:700; }
 .wb2-stripopen .pbtn:disabled, .wb2-nudge .pbtn:disabled {
   background:#eef0f4; border-color:#e3e6ec; color:#a2a9b8; box-shadow:none; cursor:not-allowed; }
+
+/* ── the debrief ──
+   Home's "empty your head" row and the token's worded variant. The word half
+   carries text, so it sizes by content instead of the icon square — same
+   object as the capsule otherwise, and the same red-only-when-live rule. */
+.fg .dash-debrief { display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+  margin:0 0 28px; padding:16px 20px; border-radius:20px;
+  background:#fff; border:1px solid rgba(5,5,5,.07); box-shadow:0 1px 2px rgba(5,10,20,.04); }
+.fg .dash-debrieftext { flex:1; min-width:220px; display:flex; flex-direction:column; gap:2px; }
+.fg .dash-debrieftext b { font-size:14.5px; font-weight:800; letter-spacing:-.01em; color:var(--ink); }
+.fg .dash-debrieftext span { font-size:12.8px; color:var(--gray500); }
+.wb2-tokhalf.wb2-debriefword { width:auto; padding:0 16px 0 18px; gap:8px;
+  font-family:var(--font); font-size:13.5px; font-weight:700; }
+
+/* ── the LEARN rows ──
+   A title line and a method box under it — the one section on the review
+   card whose blast radius is the whole org, so it gets a little more room
+   than a one-line row. */
+.wb2-kbrow { display:grid; gap:6px; padding:2px 0 8px; }
+.wb2-kbrow .wb2-kbbody { margin:0 0 0 30px; width:auto; min-height:46px;
+  font-size:13px; }
+
+/* ── the KB curation queue ── */
+.fg .adm-badge { flex:none; margin-right:10px; padding:4px 10px; border-radius:999px;
+  background:rgba(0,127,168,.12); color:#007fa8; font-size:11.5px; font-weight:800; }
+.wb2-kbqrow { display:grid; gap:7px; padding:16px 18px; border-bottom:1px solid rgba(5,5,5,.06); }
+.wb2-kbqrow:last-child { border-bottom:0; }
+.wb2-kbqhead { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.wb2-kbqhead b { font-size:14.5px; font-weight:800; letter-spacing:-.01em; color:var(--ink); }
+.wb2-kbqbody { margin:0; font-size:13.4px; line-height:1.55; color:var(--gray700); max-width:70ch; }
+.wb2-kbqrow .wb2-noteact { justify-content:flex-start; }

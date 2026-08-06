@@ -303,7 +303,7 @@ function AnswerText({ text }: { text: string }) {
 /* ── the screen ──────────────────────────────────────────────────────────── */
 
 export function TiffAssistant({
-  counts = { install: 0, faults: 0, specs: 0, sops: 0 },
+  counts = { install: 0, faults: 0, specs: 0, sops: 0, field: 0 },
   readyCount = 0,
   canManage = false,
 }: {

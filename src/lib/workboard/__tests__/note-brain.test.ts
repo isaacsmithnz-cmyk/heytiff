@@ -39,6 +39,8 @@ const raw = (over: Record<string, unknown> = {}) => ({
   progress_bullets: [],
   commissioning_entries: [],
   issue_entries: [],
+  kb_entries: [],
+  note_lines: [],
   plain_note: "",
   clarify_needed: false,
   clarify_question: "",
@@ -242,5 +244,87 @@ describe("clarify", () => {
     );
     expect(p.clarify?.question).toBe("Which site is this for?");
     expect(p.tasks[0].assigneeId).toBeNull();
+  });
+});
+
+describe("shapeProposal — the LEARN lane", () => {
+  it("keeps a titled method and its body", () => {
+    const p = shapeProposal(
+      raw({
+        kb_entries: [
+          {
+            title: "Clearing an E6 without the manual",
+            body: "Power the outdoor board separately before resetting.",
+          },
+        ],
+      }),
+      ctx
+    );
+    expect(p.kbEntries).toEqual([
+      {
+        title: "Clearing an E6 without the manual",
+        body: "Power the outdoor board separately before resetting.",
+      },
+    ]);
+  });
+
+  it("a blank title falls back to the body's opening words — knowledge beats a heading", () => {
+    const p = shapeProposal(
+      raw({ kb_entries: [{ title: "  ", body: "Isolate the condensate pump first." }] }),
+      ctx
+    );
+    expect(p.kbEntries[0].title).toBe("Isolate the condensate pump first.");
+  });
+
+  it("a body-less entry is dropped — a card with no method is not knowledge", () => {
+    const p = shapeProposal(raw({ kb_entries: [{ title: "A trick", body: "" }] }), ctx);
+    expect(p.kbEntries).toHaveLength(0);
+  });
+
+  it("outside a debrief, stray note_lines fold into the plain note rather than vanish", () => {
+    const p = shapeProposal(raw({ note_lines: ["ring the wholesaler"], plain_note: "gate 4417" }), ctx);
+    expect(p.noteLines).toEqual([]);
+    expect(p.plainNote).toBe("gate 4417 · ring the wholesaler");
+  });
+});
+
+describe("shapeProposal — debrief coercion", () => {
+  const debriefCtx: NoteContext = { ...ctx, debrief: true };
+
+  it("job-bound buckets become note lines — nothing a person said is dropped", () => {
+    const p = shapeProposal(
+      raw({
+        flags: [{ message: "Meridian RTU-2 tripping", severity: "warn" }],
+        bring_items: ["595 filters"],
+        issue_entries: [{ summary: "compressor noisy at Smith St", equipment_hint: "" }],
+        note_lines: ["chase the coil pricing"],
+        plain_note: "long day tomorrow",
+      }),
+      debriefCtx
+    );
+    expect(p.flags).toEqual([]);
+    expect(p.bringItems).toEqual([]);
+    expect(p.issueEntries).toEqual([]);
+    expect(p.plainNote).toBe("");
+    expect(p.noteLines).toEqual([
+      "chase the coil pricing",
+      "Meridian RTU-2 tripping",
+      "Bring next visit: 595 filters",
+      "compressor noisy at Smith St",
+      "long day tomorrow",
+    ]);
+  });
+
+  it("tasks and knowledge pass through a debrief untouched", () => {
+    const p = shapeProposal(
+      raw({
+        tasks: [{ title: "Order grilles", detail: "", assignee_hint: "Luke", due_hint: "" }],
+        kb_entries: [{ title: "E6 trick", body: "Power the board separately." }],
+      }),
+      debriefCtx
+    );
+    expect(p.tasks).toHaveLength(1);
+    expect(p.kbEntries).toHaveLength(1);
+    expect(p.noteLines).toEqual([]);
   });
 });

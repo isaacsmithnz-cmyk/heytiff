@@ -28,7 +28,8 @@ import { blockers, toConfirmed, toDraft, targetOf, type Draft } from "./review-c
 
 export type Stage = "idle" | "recording" | "transcribing" | "sorting" | "review";
 
-export function useNoteFlow() {
+export function useNoteFlow(opts: { debrief?: boolean } = {}) {
+  const debrief = opts.debrief === true;
   const router = useRouter();
   const scope = useNoteScope();
   const [busy, start] = useTransition();
@@ -66,7 +67,7 @@ export function useNoteFlow() {
       setError(null);
       setDone(null);
       start(async () => {
-        const res = await routeNote({ transcript, target: scope.target, source });
+        const res = await routeNote({ transcript, target: scope.target, source, debrief });
         if (!res.ok) {
           setError(res.error);
           clearRun();
@@ -80,7 +81,7 @@ export function useNoteFlow() {
         setDraft(toDraft(res.proposal));
       });
     },
-    [scope.target, router]
+    [scope.target, router, debrief]
   );
 
   const dict = useDictation({
@@ -225,6 +226,7 @@ export function useNoteFlow() {
     dict,
     stage,
     busy,
+    debrief,
     open,
     setOpen,
     text,

@@ -167,7 +167,7 @@ describe("the trace", () => {
   it("an empty search still reports all four shelves at zero", () => {
     const trace = buildTrace([], docs);
     expect(trace.winners).toEqual([]);
-    expect(Object.keys(trace.categories).sort()).toEqual(["faults", "install", "sops", "specs"]);
+    expect(Object.keys(trace.categories).sort()).toEqual(["faults", "field", "install", "sops", "specs"]);
     expect(trace.categories.install).toEqual({ hits: 0, topDoc: null });
   });
 });

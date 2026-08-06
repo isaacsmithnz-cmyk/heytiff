@@ -36,17 +36,49 @@ export function askPrefill(title: string): string {
   return `In “${quoted}”, `;
 }
 
+/** Longest code or blink pattern the opener repeats back. Anything longer is
+    a description rather than a code, and it belongs in the box the tech is
+    about to type in. */
+export const CODE_CAP = 60;
+
+/** The sentence-opener the Fault Finder hands the composer when a diagnosis
+    lands on a code.
+
+    THE CODE IS QUOTED AND THE SENTENCE IS FINISHED, which is the one place
+    this differs from `askPrefill`. A library row knows the document but not
+    the question, so it can only open one; here the tech has just typed the
+    thing they want to know about, and the question they meant is the obvious
+    one. Quoting also carries a blink pattern — "3 flashes then a pause" — as
+    naturally as it carries "E5", and the words "fault code" are kept in the
+    sentence because that is what routes the search at the far end.
+
+    It still ends in a space with the caret after it: the brand and model are
+    what turn a generic answer into this unit's answer, and that is the next
+    thing worth typing. Empty for an empty code — there is nothing to ask. */
+export function faultCodePrefill(code: string): string {
+  const clean = String(code ?? "")
+    .replace(/[\r\n\t]+/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  if (!clean) return "";
+  const quoted = clean.length > CODE_CAP ? `${clean.slice(0, CODE_CAP - 1).trimEnd()}…` : clean;
+  return `The unit is showing “${quoted}”. What does that fault code mean, and what causes it? `;
+}
+
 /** Leave the note. False when there was nothing to leave, or nowhere to leave
     it — a blocked storage costs the prefill, never the navigation. */
-export function writeAskHandoff(title: string): boolean {
-  const prefill = askPrefill(title);
-  if (!prefill) return false;
+export function writeAskText(prefill: string): boolean {
+  if (!prefill.trim()) return false;
   try {
     sessionStorage.setItem(ASK_HANDOFF_KEY, prefill);
     return true;
   } catch {
     return false;
   }
+}
+
+export function writeAskHandoff(title: string): boolean {
+  return writeAskText(askPrefill(title));
 }
 
 /** Read the note and tear it up. Null when there wasn't one. */

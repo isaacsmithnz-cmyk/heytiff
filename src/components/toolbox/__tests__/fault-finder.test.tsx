@@ -4,6 +4,10 @@
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import { FaultFinder } from "../fault-finder";
 import { SYMPTOMS } from "@/lib/toolbox/guided";
+import { ASK_HANDOFF_KEY } from "@/lib/tiff/ask-handoff";
+
+const push = jest.fn();
+jest.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 
 const pickSymptom = (name: RegExp) =>
   fireEvent.click(screen.getByRole("button", { name }));
@@ -197,5 +201,85 @@ describe("FaultFinder — going back", () => {
     expect(screen.getByText("Question 1")).toBeInTheDocument();
     expect(container.querySelectorAll(".ffg-trail li")).toHaveLength(0);
     expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent(/light, display or beep/i);
+  });
+});
+
+/* The code branch used to end at "read that unit's service manual", which is
+   the one outcome in fifteen trees that told a tech to go somewhere the app
+   couldn't take them. The manuals are in the workspace's library, so the walk
+   now finishes with the code in a box. */
+describe("FaultFinder — a diagnosis that lands on a code", () => {
+  beforeEach(() => {
+    push.mockClear();
+    sessionStorage.clear();
+  });
+
+  /** Error light or code → recorded → still there after a power cycle. */
+  const walkToCode = () => {
+    pickSymptom(/Error light or code/);
+    answer(/Yes, I've got it/);
+    answer(/Yes, it returns/);
+  };
+
+  it("offers the library instead of stopping at the manual", () => {
+    render(<FaultFinder library="ready" />);
+    walkToCode();
+
+    expect(screen.getByText("The fault is still present")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Look the code up" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Code or blink pattern")).toBeInTheDocument();
+  });
+
+  it("won't look up an empty box", () => {
+    render(<FaultFinder library="ready" />);
+    walkToCode();
+
+    expect(screen.getByRole("button", { name: /Look it up/ })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /Look it up/ }));
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("carries the code to the composer as a question, and sends nothing", () => {
+    render(<FaultFinder library="ready" />);
+    walkToCode();
+
+    fireEvent.change(screen.getByLabelText("Code or blink pattern"), {
+      target: { value: "E5" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Look it up/ }));
+
+    expect(sessionStorage.getItem(ASK_HANDOFF_KEY)).toContain("“E5”");
+    // the caret lands after the question so the brand and model can go on
+    expect(sessionStorage.getItem(ASK_HANDOFF_KEY)?.endsWith("? ")).toBe(true);
+    expect(push).toHaveBeenCalledWith("/dashboard/tiff");
+  });
+
+  it("points at the empty Library rather than searching it", () => {
+    render(<FaultFinder library="empty" />);
+    walkToCode();
+
+    expect(screen.queryByLabelText("Code or blink pattern")).not.toBeInTheDocument();
+    const note = screen.getByRole("link", { name: "Library" }).closest("p");
+    expect(note).toHaveTextContent(/Add this unit’s manual/);
+  });
+
+  it("says nothing about a library this tech can't reach", () => {
+    render(<FaultFinder />);
+    walkToCode();
+
+    expect(screen.getByText("The fault is still present")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Code or blink pattern")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Library" })).not.toBeInTheDocument();
+  });
+
+  it("stays out of outcomes that don't end on a code", () => {
+    render(<FaultFinder library="ready" />);
+    pickSymptom(/Not cooling/);
+    answer(/Yes, definitely cooling/);
+    answer(/The outdoor unit isn't running/);
+    answer(/Yes, indoor works/);
+
+    expect(screen.getByText("Diagnosis")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Look the code up" })).not.toBeInTheDocument();
   });
 });

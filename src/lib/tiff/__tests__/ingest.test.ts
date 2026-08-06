@@ -99,7 +99,7 @@ const tagChunks = jest.fn(
 );
 jest.mock("../keywords", () => ({ tagChunks: (c: string[]) => tagChunks(c) }));
 
-type Embedded = { ok: boolean; vectors?: number[][] | null; reason?: string };
+type Embedded = { ok: boolean; vectors?: number[][] | null; reason?: string; detail?: string };
 const embedTexts = jest.fn(async (): Promise<Embedded> => ({ ok: true, vectors: null }));
 jest.mock("../embeddings", () => ({ embedTexts: () => embedTexts() }));
 
@@ -275,12 +275,27 @@ describe("the walk", () => {
     expect(patchesTo("kb_documents")[0]).toMatchObject({ status: "ready" });
   });
 
-  it("ingests with null embeddings when Voyage fails", async () => {
-    embedTexts.mockResolvedValue({ ok: false, reason: "refused" });
+  /* The one that cost a manual its vectors. Storing nulls is right; storing
+     them SILENTLY is what left 106 of 285 passages out of the vector leg with
+     nothing anywhere saying so. The reason is what makes the log worth
+     having — `rate-limited` is asked again later, `unauthorised` never is. */
+  it("ingests with null embeddings when Voyage fails, and says so in the log", async () => {
+    const logged = jest.spyOn(console, "error").mockImplementation(() => {});
+    embedTexts.mockResolvedValue({
+      ok: false,
+      reason: "rate-limited",
+      detail: "429 reduced rate limits of 3 RPM",
+    });
+
     await processBatch("doc-1", "org-1");
 
     expect(inserts[0].rows[0]).toMatchObject({ embedding: null });
     expect(patchesTo("kb_documents")[0]).toMatchObject({ status: "ready" });
+    expect(logged).toHaveBeenCalledWith(
+      expect.stringContaining("[kb-ingest] embed failed for doc-1")
+    );
+    expect(logged).toHaveBeenCalledWith(expect.stringContaining("rate-limited"));
+    logged.mockRestore();
   });
 
   it("parks at the quota without opening the file or billing anything", async () => {

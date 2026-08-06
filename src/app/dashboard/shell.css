@@ -4882,6 +4882,20 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   background:rgba(46,104,255,.07); color:#1d4ed8; font-size:12.5px; font-weight:700; }
 .fg .tk-quota svg { flex:none; }
 
+/* The passages stored without a vector. A LINE, NOT A PILL: the quota pill is
+   a live number about money, this is a piece of housekeeping that is nobody's
+   emergency — the library still finds these passages by keyword. Grey, plain,
+   sitting under the pill rather than competing with it. */
+.fg .tk-gap { display:flex; align-items:center; flex-wrap:wrap; gap:7px; margin:10px 0 0; max-width:62ch;
+  font-size:12.5px; font-weight:600; line-height:1.5; color:var(--gray500); }
+.fg .tk-gap svg { flex:none; color:var(--gray400); }
+.fg .tk-gapb { padding:0; border:none; background:none; font-family:var(--font-jakarta), sans-serif;
+  font-size:12.5px; font-weight:700; color:#1d4ed8; text-decoration:underline; text-underline-offset:3px;
+  cursor:pointer; transition:color .18s; }
+.fg .tk-gapb:hover:not(:disabled) { color:#2E68FF; }
+.fg .tk-gapb:disabled { opacity:.45; pointer-events:none; }
+.fg .tk-gapb:focus-visible { outline:none; border-radius:6px; box-shadow:0 0 0 3px rgba(46,104,255,.32); }
+
 /* ── buttons: one family, both roots ── */
 .fg .tk-btn, .tk-sheet .tk-btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; height:44px; padding:0 20px;
   border:1px solid transparent; border-radius:14px; font-family:var(--font-jakarta), sans-serif; font-size:13.5px; font-weight:700;

@@ -187,6 +187,94 @@ describe("opening the document", () => {
   });
 });
 
+/* ── the passages stored without a vector ────────────────────────────────── */
+
+describe("the embedding gap", () => {
+  const fetchMock = jest.fn();
+  const realFetch = global.fetch;
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    global.fetch = fetchMock as unknown as typeof fetch;
+  });
+  afterAll(() => {
+    global.fetch = realFetch;
+  });
+
+  const batch = (body: unknown) => ({ ok: true, json: async () => body });
+
+  it("says how many passages aren't searchable by meaning yet", () => {
+    render(<Library docs={[doc()]} quota={quota()} canManage unembedded={106} />);
+    expect(screen.getByText(/106 passages aren't searchable by meaning yet/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Fill these in" })).toBeInTheDocument();
+  });
+
+  it("reads as one passage when there is one", () => {
+    render(<Library docs={[doc()]} quota={quota()} canManage unembedded={1} />);
+    expect(screen.getByText(/1 passage isn't searchable by meaning yet/)).toBeInTheDocument();
+  });
+
+  /* Nothing to say when there is nothing missing — and a deployment with no
+     VOYAGE_API_KEY sends 0, because there every chunk is null by design and
+     the line would read as a broken library rather than a keyword-only one. */
+  it("is absent when nothing is missing", () => {
+    render(<Library docs={[doc()]} quota={quota()} canManage unembedded={0} />);
+    expect(screen.queryByText(/searchable by meaning/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Fill these in" })).not.toBeInTheDocument();
+  });
+
+  /* Staff can't upload, can't retry, and can't spend the org's Voyage
+     requests — so they are not told about a backlog they cannot clear. */
+  it("is a manager's line, like the quota above it", () => {
+    render(<Library docs={[doc()]} quota={quota()} unembedded={106} />);
+    expect(screen.queryByText(/searchable by meaning/)).not.toBeInTheDocument();
+  });
+
+  it("calls the route batch after batch until nothing is left", async () => {
+    fetchMock
+      .mockResolvedValueOnce(batch({ done: 64, remaining: 42 }))
+      .mockResolvedValueOnce(batch({ done: 42, remaining: 0 }));
+
+    render(<Library docs={[doc()]} quota={quota()} canManage unembedded={106} />);
+    await userEvent.click(screen.getByRole("button", { name: "Fill these in" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/tiff/embed-backfill");
+    // the server's count on the page is now wrong
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+  });
+
+  it("counts up while it runs", async () => {
+    let release: (v: unknown) => void = () => {};
+    fetchMock
+      .mockResolvedValueOnce(batch({ done: 64, remaining: 42 }))
+      .mockReturnValueOnce(new Promise((r) => (release = r)));
+
+    render(<Library docs={[doc()]} quota={quota()} canManage unembedded={106} />);
+    await userEvent.click(screen.getByRole("button", { name: "Fill these in" }));
+
+    expect(await screen.findByText("Filling in… 64 of 106")).toBeInTheDocument();
+
+    release(batch({ done: 42, remaining: 0 }));
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+  });
+
+  /* The truth, in the words a person can act on: this account is capped until
+     somebody adds a payment method. "Try again later" on its own would buy a
+     second afternoon of diagnosis. */
+  it("names the rate limit when Voyage stops the run", async () => {
+    fetchMock.mockResolvedValue(batch({ done: 0, remaining: 106, stopped: "rate-limited" }));
+
+    render(<Library docs={[doc()]} quota={quota()} canManage unembedded={106} />);
+    await userEvent.click(screen.getByRole("button", { name: "Fill these in" }));
+
+    expect(await screen.findByText(/capped at 3 requests a minute/)).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Try again" })).toBeInTheDocument();
+    // it stopped rather than asking sixty more times inside the same minute
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("the month's page allowance", () => {
   it("shows the count and the reset date to a manager", () => {
     render(<Library docs={[doc()]} quota={quota()} canManage />);

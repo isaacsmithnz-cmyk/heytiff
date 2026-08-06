@@ -51,6 +51,10 @@ jest.mock("@/lib/tiff/quota", () => ({
     resetsOn: "2026-09-01",
   })),
 }));
+let semanticOn = true;
+const countUnembedded = jest.fn(async () => 106);
+jest.mock("@/lib/tiff/embeddings", () => ({ isSemanticConfigured: () => semanticOn }));
+jest.mock("@/lib/tiff/backfill", () => ({ countUnembedded: () => countUnembedded() }));
 jest.mock("@/components/studio/data-library", () => ({ DataLibrary: () => null }));
 jest.mock("@/lib/studio/packs/server", () => ({ installedPacks: jest.fn(async () => []) }));
 jest.mock("@/lib/studio/packs/overrides-server", () => ({ loadPackWithOverrides: jest.fn() }));
@@ -167,6 +171,8 @@ describe("the knowledge base hands the client what this viewer may do", () => {
 
   beforeEach(() => {
     allowed = true;
+    semanticOn = true;
+    countUnembedded.mockClear();
   });
 
   it("asks for tiff_manage separately from tiff", async () => {
@@ -193,6 +199,19 @@ describe("the knowledge base hands the client what this viewer may do", () => {
     const props = (await propsOf()).quota as Record<string, unknown>;
     expect(props.pagesAllowed).toBe(2000);
     expect(props).not.toHaveProperty("pagesRemaining");
+  });
+
+  it("counts the passages with no vector yet", async () => {
+    expect((await propsOf()).unembedded).toBe(106);
+  });
+
+  /* Without a key EVERY chunk is null by design, and counting them would put
+     "285 passages aren't searchable by meaning" on a library that is working
+     exactly as this deployment was configured to. */
+  it("doesn't count them at all where semantic search is switched off", async () => {
+    semanticOn = false;
+    expect((await propsOf()).unembedded).toBe(0);
+    expect(countUnembedded).not.toHaveBeenCalled();
   });
 });
 

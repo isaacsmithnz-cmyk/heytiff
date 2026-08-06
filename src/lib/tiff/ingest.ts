@@ -272,7 +272,15 @@ export async function processBatch(documentId: string, orgId: string): Promise<I
     const tagged = await tagChunks(chunks.map((c) => c.content));
     const keywords = tagged.ok ? tagged.keywords : chunks.map(() => []);
 
+    /* Stored either way — but NOT silently, any more. 106 of one 285-chunk
+       manual went in with null embeddings and nothing anywhere said so: Voyage
+       caps an account with no payment method at 3 RPM and ingestion fires a
+       call per batch, so most of them 429'd. The reason is what makes the log
+       worth keeping — `rate-limited` is worth trying again, `unauthorised`
+       never is. */
     const embedded = await embedTexts(chunks.map((c) => c.content), "document");
+    if (!embedded.ok)
+      logIngestFailure(documentId, "embed", `${embedded.reason} — ${embedded.detail}`);
     const vectors = embedded.ok ? embedded.vectors : null;
 
     if (chunks.length > 0) {

@@ -11,6 +11,7 @@ import { auDayOf, fmtAuDayMonth } from "@/lib/au-dates";
 import { deleteKbDoc, kbDocUrl, retryKbDoc, updateKbDocMeta } from "@/app/actions/kb";
 import { writeAskHandoff } from "@/lib/tiff/ask-handoff";
 import { useKbIngest, type KbIngestProgress } from "@/lib/tiff/use-kb-ingest";
+import { useKbBackfill } from "@/lib/tiff/use-kb-backfill";
 import type { KbDocRow } from "@/lib/tiff/query";
 import type { KbQuota } from "@/lib/tiff/quota";
 
@@ -80,12 +81,17 @@ export function Library({
   quota = null,
   canManage = false,
   isOwner = false,
+  unembedded = 0,
   initialCategory = null,
 }: {
   docs: KbLibraryDoc[];
   quota?: KbQuotaView | null;
   canManage?: boolean;
   isOwner?: boolean;
+  /** Stored passages with no vector yet. Zero where no key is configured — in
+      that deployment every chunk is null by design and there is nothing to
+      say. */
+  unembedded?: number;
   initialCategory?: KbCategoryKey | null;
 }) {
   const router = useRouter();
@@ -176,6 +182,7 @@ export function Library({
                   : `${n(quota.pagesUsed)} of ${n(quota.pagesAllowed)} pages this month · resets ${fmtAuDayMonth(quota.resetsOn)}`}
               </p>
             )}
+            {canManage && unembedded > 0 && <EmbedGap count={unembedded} />}
           </div>
 
           {/* on the empty library the CTA belongs to the sell below, which is
@@ -338,6 +345,54 @@ export function Library({
         <DeleteModal doc={deleting} onClose={() => setDeleting(null)} />
       )}
     </div>
+  );
+}
+
+/* ── the passages with no vector yet ─────────────────────────────────────── */
+
+/* One quiet line, not a banner. Nothing is broken: these passages are stored,
+   cited and found by keyword — they are only missing from the leg that matches
+   what somebody MEANT, which is a thing to fix when convenient rather than an
+   alarm. It sits under the quota line because it is the same kind of fact.
+
+   THE RATE LIMIT IS NAMED, because it is the only version of this a person can
+   act on: an account with no payment method on the Voyage billing page gets 3
+   requests a minute, which is what left the passages behind in the first
+   place. Saying "try again later" without saying why would guarantee a second
+   afternoon of diagnosis. */
+function EmbedGap({ count }: { count: number }) {
+  const fill = useKbBackfill(count);
+  const total = fill.done + fill.remaining;
+
+  // finished: the page refresh that follows removes the line for good, and
+  // "0 passages" in the gap between is a sentence nobody should ever read
+  if (!fill.running && fill.remaining <= 0) return null;
+
+  return (
+    <p className="tk-gap">
+      <Icon name="sparkles" size={14} />
+      {fill.running ? (
+        <span>{`Filling in… ${n(fill.done)} of ${n(total)}`}</span>
+      ) : fill.stopped === "rate-limited" ? (
+        <span>
+          Voyage is rate-limiting — this account is capped at 3 requests a minute until a payment
+          method is added. Try again later, or add one.
+        </span>
+      ) : fill.stopped === "unconfigured" ? (
+        <span>Semantic search isn&rsquo;t switched on, so there&rsquo;s nothing to fill these in with.</span>
+      ) : fill.stopped === "failed" ? (
+        <span>That didn&rsquo;t finish — {n(fill.remaining)} still to go.</span>
+      ) : (
+        <span>
+          {`${n(count)} ${plural(count, "passage")} ${count === 1 ? "isn't" : "aren't"} searchable by meaning yet`}
+        </span>
+      )}
+      {!fill.running && fill.stopped !== "unconfigured" && (
+        <button type="button" className="tk-gapb" onClick={fill.start}>
+          {fill.stopped ? "Try again" : "Fill these in"}
+        </button>
+      )}
+    </p>
   );
 }
 

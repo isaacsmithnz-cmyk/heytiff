@@ -4,6 +4,8 @@ import { can, getDbRole } from "@/lib/permissions-server";
 import { hasMinRole } from "@/lib/roles";
 import { Library } from "@/components/tiff/library";
 import { asKbCategory } from "@/lib/tiff/files";
+import { countUnembedded } from "@/lib/tiff/backfill";
+import { isSemanticConfigured } from "@/lib/tiff/embeddings";
 import { kbDocsForOrg, kbUploaderNames } from "@/lib/tiff/query";
 import { kbQuotaFor } from "@/lib/tiff/quota";
 
@@ -33,12 +35,16 @@ export default async function LibraryPage({
   const params = searchParams ? await searchParams : {};
   const raw = Array.isArray(params.cat) ? params.cat[0] : params.cat;
 
-  const [docs, quota, canManage, role, uploaders] = await Promise.all([
+  /* The passages stored without a vector. Counted only where a key exists:
+     without one, EVERY chunk is null by design and the whole library would
+     read as broken rather than as keyword-only. */
+  const [docs, quota, canManage, role, uploaders, unembedded] = await Promise.all([
     kbDocsForOrg(orgId),
     kbQuotaFor(orgId),
     can("tiff_manage"),
     getDbRole(),
     kbUploaderNames(orgId),
+    isSemanticConfigured() ? countUnembedded(orgId) : Promise.resolve(0),
   ]);
 
   return (
@@ -60,6 +66,7 @@ export default async function LibraryPage({
       }}
       canManage={canManage}
       isOwner={hasMinRole(role, "owner")}
+      unembedded={unembedded}
       initialCategory={asKbCategory(raw)}
     />
   );

@@ -60,6 +60,22 @@ export type LogKind = "fuel" | "odo" | "issue" | "service";
 /** What the log modal submits. Who logged it, when, and which org are the
     server's to decide — a client that could name the author could name
     someone else. */
+/* WHOSE MONEY BOUGHT THE FUEL. It decides what the log produces beyond itself:
+   a company card is the business's own spend and stops at the vehicle log (and
+   the tax line it feeds), while a personal card leaves someone out of pocket
+   and must also raise an expense claim so they get paid back. */
+export const FUEL_PAYERS = ["company", "own"] as const;
+export type FuelPayer = (typeof FUEL_PAYERS)[number];
+
+export const FUEL_PAYER_LABEL: Record<FuelPayer, string> = {
+  company: "Company card",
+  own: "My own money",
+};
+
+export function isFuelPayer(v: unknown): v is FuelPayer {
+  return typeof v === "string" && (FUEL_PAYERS as readonly string[]).includes(v);
+}
+
 export type NewLog = {
   vehicleId: string;
   kind: LogKind;
@@ -80,6 +96,9 @@ export type NewLog = {
   purchasedOn?: string;
   /** The stored receipt photo, already uploaded, waiting to be adopted. */
   receiptDocumentId?: string;
+  /** Fuel only. Defaults to `company` — the common case, and the one that
+      raises nothing extra. `own` also raises a reimbursement claim. */
+  paidWith?: FuelPayer;
 };
 
 export type VehicleLog = {

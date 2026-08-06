@@ -917,7 +917,7 @@ function Landing({
               <h2>What are we building today?</h2>
               <p className="tl">
                 Ask about system sizing, diagnostics, fault codes or company SOPs. Turn on{" "}
-                <b>Research</b> and I&rsquo;ll answer from your knowledge base and show you the
+                <b>Research</b> and I&rsquo;ll answer from your library and show you the
                 page it came from.
               </p>
             </div>
@@ -1008,7 +1008,7 @@ function Rail({
   return (
     <aside className="tk-rail">
       <div className="tk-lbl">
-        <span>Knowledge base</span>
+        <span>Library</span>
       </div>
 
       <div className="tk-rcats stgp">
@@ -1022,7 +1022,7 @@ function Rail({
           return (
             <Link
               key={c.key}
-              href={`/dashboard/tiff/knowledge?cat=${c.key}`}
+              href={`/dashboard/tiff/library?cat=${c.key}`}
               className={`tk-rcat spot${state === "idle" ? "" : ` ${state}`}`}
               data-cat={c.key}
               ref={(el) => {
@@ -1064,8 +1064,8 @@ function Rail({
             : "Nothing in the library yet"}
         </b>
         <div className="tk-libl">
-          <Link href="/dashboard/tiff/knowledge">Open library</Link>
-          {canManage && <Link href="/dashboard/tiff/knowledge">Add documents</Link>}
+          <Link href="/dashboard/tiff/library">Open library</Link>
+          {canManage && <Link href="/dashboard/tiff/library">Add documents</Link>}
         </div>
       </div>
     </aside>

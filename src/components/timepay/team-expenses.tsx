@@ -125,6 +125,20 @@ export function TeamExpenses({
                       {c.staffName} · {fmtAuWeekdayDate(c.expenseDate)}
                       {c.supplier ? ` · ${c.supplier}` : ""} · {CATEGORY_LABEL[c.category]}
                     </em>
+                    {/* THE APPROVER'S VERSION OF THE SAME FACT, and the more
+                        load-bearing one: without it, a fuel log AND a claim
+                        for the same tank read as a duplicate to reject, when
+                        they are the intended pair — the log is the record of
+                        the fuel, this is the money going back to the person.
+                        The tax report already counts it once (the log). */}
+                    {c.fuelLog && (
+                      <p className="xc-from">
+                        <Icon name="fuel" size={13} />
+                        Already logged against
+                        {c.fuelLog.vehicle ? ` ${c.fuelLog.vehicle}` : " the vehicle"} — this is the
+                        reimbursement
+                      </p>
+                    )}
                     {c.reviewNote && <p className="xc-note">{c.reviewNote}</p>}
 
                     {declining === c.id && (

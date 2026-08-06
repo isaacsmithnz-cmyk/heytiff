@@ -83,7 +83,6 @@ export function Sidebar({
                     <Icon name={n.icon} size={16} sw={on ? 2.5 : 2} />
                   </span>
                   <span className="nlbl">{n.label}</span>
-                  {n.dot && !on ? <span className="pdot" /> : null}
                 </Link>
               );
             })}

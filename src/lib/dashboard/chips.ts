@@ -37,7 +37,9 @@ export type ChipKind =
   | "insurance"
   | "service"
   | "org-insurance"
-  | "expenses";
+  | "expenses"
+  | "timesheet"
+  | "claim";
 
 /** Only actionable states surface as chips; a compliant thing produces none. */
 export type ActionState = Exclude<ChipState, "ok">; // "bad" | "warn"
@@ -65,7 +67,7 @@ export type ActionChip = {
    colour carries urgency, the icon and tag carry the domain, so a mixed list is
    scannable without reading every label. Icons match the ones the nav already
    uses for those areas (Assets is a truck), so the association is pre-taught. */
-export type ChipGroup = "Fleet" | "People" | "Business";
+export type ChipGroup = "Fleet" | "People" | "Business" | "Pay";
 
 const GROUP_OF: Record<ChipKind, ChipGroup> = {
   licence: "People",
@@ -74,13 +76,20 @@ const GROUP_OF: Record<ChipKind, ChipGroup> = {
   insurance: "Fleet",
   service: "Fleet",
   "org-insurance": "Business",
-  expenses: "Business",
+  /* All three money-and-hours sources file under Pay, including the approver's
+     claim queue — it used to sit under Business, which put "10 claims waiting"
+     and "your claim was declined" in two different groups when both are the
+     same screen's work. The icon is the nav's Time & Pay clock. */
+  expenses: "Pay",
+  timesheet: "Pay",
+  claim: "Pay",
 };
 
 export const GROUP_ICON: Record<ChipGroup, string> = {
   Fleet: "truck",
   People: "shield",
   Business: "hexagon",
+  Pay: "clock",
 };
 
 export function chipGroup(kind: ChipKind): ChipGroup {
@@ -103,9 +112,11 @@ function urgency(state: ActionState, metric: number): number {
    helper is what stops a rego chip and a licence chip wording the same fact two
    different ways when only one of them gets edited.
 
-   These labels are PLAIN TEXT on purpose. They ride into the hero band, which
-   escapes everything it is given (screens.ts), so the marked-up `durationHtml`
-   twin would arrive on screen as visible angle brackets. */
+   These labels are PLAIN TEXT on purpose. They render as text nodes — in the
+   hero's counters and on the action-required tiles — so a marked-up twin would
+   arrive on screen as visible angle brackets rather than as markup. (That used
+   to be enforced by hand-escaping into an HTML string; the hero is React now,
+   so it is simply how React renders a string.) */
 function expiryLabel(what: string, days: number): string {
   return `${what} ${expiryClause(days)}`;
 }
@@ -304,6 +315,80 @@ export function expensesChip(pendingCount: number): ActionChip | null {
     href: "/dashboard/timepay/expenses",
     urgency: urgency("warn", 0),
   };
+}
+
+/* ── things that happened TO you ──────────────────────────────────────────
+
+   Every chip above is an expiry: a date the software can see coming. These two
+   are the opposite — a decision somebody else made about your work, which the
+   app previously told you nowhere at all. A timesheet came back with a question
+   and a claim was declined, and the only way to find out was to open the screen
+   and look. Both are yours (assembleChips files them under `self`, no
+   capability), and both link to the screen where you answer them. */
+
+/** Your own timesheet, handed back with a question on it.
+
+    Always `bad`, never `warn`: there is no "getting close" for this — either an
+    approver has asked you something or they haven't. It clears itself when you
+    resubmit, because the status is the chip, so nothing has to be dismissed. */
+export function timesheetChip(
+  sheet: { status: string; periodStart: string; periodLabel: string } | null,
+): ActionChip | null {
+  if (!sheet || sheet.status !== "sent_back") return null;
+  return {
+    key: `timesheet:${sheet.periodStart}`,
+    kind: "timesheet",
+    state: "bad",
+    label: "Timesheet sent back with a question",
+    subject: sheet.periodLabel,
+    // the period the question is about, not whichever one is current
+    href: `/dashboard/my-timesheet?period=${sheet.periodStart}`,
+    urgency: urgency("bad", 0),
+  };
+}
+
+/** How long a declined claim keeps nudging. Unlike a sent-back timesheet, a
+    declined claim has no state left to change — it stays declined forever — so
+    without a window the chip would never clear and would teach people to read
+    past the whole board. Two weeks is long enough to see it after a break. */
+export const CLAIM_NUDGE_DAYS = 14;
+
+/** A claim of yours that came back declined, while it is still news.
+
+    One chip per claim rather than a queue count (the shape `expensesChip` uses):
+    a queue is one job done ten times, but each declined claim is its own
+    conversation with its own note, and the description is what tells you which
+    receipt it was. */
+export function declinedClaimChip(
+  claim: { id: string; description: string; amount: number; decidedOn: string | null },
+  ctx: { today: string },
+): ActionChip | null {
+  if (!claim.decidedOn) return null;
+  // reviewed_at is a timestamp; the chip only cares which DAY it landed
+  const days = daysUntil(claim.decidedOn.slice(0, 10), ctx.today);
+  const age = -days; // 0 = decided today
+  if (age > CLAIM_NUDGE_DAYS) return null;
+  return {
+    key: `claim-declined:${claim.id}`,
+    kind: "claim",
+    state: "bad",
+    label: "Expense claim declined",
+    subject: `${claim.description} · ${fmtMoney(claim.amount)}`,
+    href: "/dashboard/my-expenses",
+    // newest first within the bad bucket — the freshest decision is the one
+    // you are most likely to still be able to do something about
+    urgency: urgency("bad", age),
+  };
+}
+
+/** Whole dollars where it divides evenly, cents where it doesn't — a chip is a
+    glance, and "$340" reads faster than "$340.00" without ever being wrong. */
+function fmtMoney(n: number): string {
+  const cents = Math.round(n * 100) % 100;
+  return `$${n.toLocaleString("en-AU", {
+    minimumFractionDigits: cents === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  })}`;
 }
 
 /* The one-line version, for the hero tile. The dashboard shows the COUNT and

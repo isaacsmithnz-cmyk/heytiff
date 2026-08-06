@@ -174,6 +174,21 @@ export async function addLog(log: NewLog): Promise<FleetResult> {
   const rejection = odoRejection(v.odometer as number, log.odo);
   if (rejection) return { ok: false, error: rejection };
 
+  /* PAID FROM YOUR OWN POCKET means a reimbursement has to be raisable, and
+     both of these are checked BEFORE anything is written — a log that saves
+     and then silently fails to raise the claim leaves someone out of pocket
+     with no trace of it. */
+  const ownMoney = log.kind === "fuel" && log.paidWith === "own";
+  if (ownMoney && !ctx.staffId) {
+    return {
+      ok: false,
+      error: "Your account isn't linked to a staff record, so a reimbursement can't be raised.",
+    };
+  }
+  if (ownMoney && !(typeof log.cost === "number" && log.cost > 0)) {
+    return { ok: false, error: "Enter what it cost, so the reimbursement is for the right amount." };
+  }
+
   /* The tax columns only exist on a fuel log — an odometer reading has no
      supplier and a reported fault has no GST. Anything sent alongside another
      kind is dropped here rather than refused: it can only be a stale field on
@@ -205,6 +220,9 @@ export async function addLog(log: NewLog): Promise<FleetResult> {
       station: log.station ?? null,
       gst: tax.columns.gst,
       supplier_abn: tax.columns.supplier_abn,
+      // fuel only; null on every other kind, and on fuel logged before the
+      // question was asked
+      paid_with: log.kind === "fuel" ? log.paidWith ?? "company" : null,
     })
     .select("id")
     .maybeSingle();
@@ -212,6 +230,20 @@ export async function addLog(log: NewLog): Promise<FleetResult> {
 
   if (log.kind === "fuel" && log.receiptDocumentId) {
     await adoptReceipt(ctx, String(created.id), log.receiptDocumentId);
+  }
+
+  if (ownMoney) {
+    const raised = await raiseFuelReimbursement(ctx, String(created.id), log, tax.columns.logged_on);
+    if (!raised) {
+      /* The log is saved and correct, but the money is not coming back. Unlike
+         a missing receipt photo this is NOT safe to swallow — say so, and say
+         it is the claim that failed so nobody logs the fill a second time. */
+      refresh();
+      return {
+        ok: false,
+        error: "Fuel logged, but the reimbursement claim couldn't be raised — add it under My expenses.",
+      };
+    }
   }
 
   const effect = odoEffect(
@@ -243,6 +275,36 @@ export async function addLog(log: NewLog): Promise<FleetResult> {
    them to log the fill a second time, which is worse than a figure without its
    document. The Tax screen shows exactly which lines have a receipt, so a
    missing one is visible where it matters. */
+/* The reimbursement half of a personally-funded fill.
+
+   It is a NORMAL expense claim — pending, visible on My expenses, approved and
+   paid like any other — with one difference: `vehicle_log_id` points back at
+   the log that raised it, and the tax screen skips any claim carrying one. The
+   vehicle log is that purchase's tax line; counting the claim as well would
+   put the same tank of diesel in the year's total twice. */
+async function raiseFuelReimbursement(
+  ctx: Ctx,
+  logId: string,
+  log: NewLog,
+  spentOn: string,
+): Promise<boolean> {
+  const where = log.station?.trim();
+  const { error } = await supabaseAdmin.from("expense_claims").insert({
+    org_id: ctx.orgId,
+    staff_profile_id: ctx.staffId,
+    vehicle_log_id: logId,
+    expense_date: spentOn,
+    // reads as itself in the claims list, and names where it came from
+    description: where ? `Fuel — ${where}` : "Fuel",
+    category: "fuel",
+    amount: log.cost,
+    gst_amount: log.gst ?? null,
+    supplier: where ?? null,
+    status: "pending",
+  });
+  return !error;
+}
+
 async function adoptReceipt(ctx: Ctx, logId: string, documentId: string): Promise<void> {
   if (!ctx.staffId) return;
   await supabaseAdmin

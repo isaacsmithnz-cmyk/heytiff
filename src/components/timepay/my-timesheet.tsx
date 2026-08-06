@@ -34,6 +34,7 @@ import {
   type WeekCtx,
   type StaffWeek,
   breakLine,
+  cycleNoun,
   dayClass,
   dayLabel,
   derive,
@@ -131,12 +132,19 @@ const SOURCE_NOTE: Record<DaySource, string> = {
   none: "Weekends aren't counted unless you add them.",
 };
 
-const STATUS_COPY: Record<SheetState["status"], { label: string; tone: string; sub: string }> = {
-  draft: { label: "Draft", tone: "warn", sub: "Your normal week is already filled in — change anything that was different, then submit." },
-  submitted: { label: "Submitted", tone: "ok", sub: "With your manager. You'll be told if anything needs a look." },
-  approved: { label: "Approved", tone: "ok", sub: "Signed off. This week is closed." },
-  sent_back: { label: "Sent back", tone: "bad", sub: "Your manager has a question — answer it and submit again." },
-};
+/* Takes the cycle's noun rather than hard-coding "week" — see `cycleNoun`.
+   A fortnightly workspace reads "Your normal fortnight is already filled in",
+   which is both true and the phrase they'd use out loud. */
+const statusCopy = (
+  status: SheetState["status"],
+  noun: string,
+): { label: string; tone: string; sub: string } =>
+  ({
+    draft: { label: "Draft", tone: "warn", sub: `Your normal ${noun} is already filled in — change anything that was different, then submit.` },
+    submitted: { label: "Submitted", tone: "ok", sub: "With your manager. You'll be told if anything needs a look." },
+    approved: { label: "Approved", tone: "ok", sub: `Signed off. This ${noun} is closed.` },
+    sent_back: { label: "Sent back", tone: "bad", sub: "Your manager has a question — answer it and submit again." },
+  })[status];
 
 const MONTHS_FULL = [
   "January", "February", "March", "April", "May", "June",
@@ -727,7 +735,12 @@ export function MyTimesheet({
   const salariedRest = salaried && !otMode;
   // a closed period is history: you can read it, you can't rewrite it
   const locked = sent || !period.live || salariedRest;
-  const status = STATUS_COPY[sheet.status];
+  /* The ONE place the period is named, and everything below says it the same
+     way — the heading, the status line, the locked note and the submit button
+     all used to word this independently, which is how a monthly workspace
+     ended up reading "My month" above a button saying "Submit week". */
+  const noun = cycleNoun(settings.cycle);
+  const status = statusCopy(sheet.status, noun);
 
   // in-period holidays name themselves in the panel; the rail lists the month
   const holidayByDate = useMemo(() => new Map(holidays.map((h) => [h.date, h.name])), [holidays]);
@@ -754,8 +767,7 @@ export function MyTimesheet({
     if (target) router.push(`/dashboard/my-timesheet?period=${target.start}`);
   };
 
-  const cycleTitle =
-    settings.cycle === "Fortnightly" ? "My fortnight" : settings.cycle === "Monthly" ? "My month" : "My week";
+  const cycleTitle = `My ${noun}`;
 
   /* hours × multiplier, the buckets that make up the payroll total. Paid
      absence sits in the ×1.0 bucket because that is how derive() weights it,
@@ -911,7 +923,7 @@ export function MyTimesheet({
                               <b>{daySummary(me.days[selected])}</b>
                               <em>
                                 {sent
-                                  ? "This week has been sent — it can't be changed here."
+                                  ? `This ${noun} has been sent — it can't be changed here.`
                                   : !period.live
                                     ? "This period is closed."
                                     : "Salaried — the day pays itself. Add overtime if this one ran long."}
@@ -993,7 +1005,7 @@ export function MyTimesheet({
                   {!period.live && !sent
                     ? "This period is closed."
                     : salariedRest && !sent
-                      ? "Salaried — your pay is the same every week, so there's nothing to fill in. Leave and public holidays arrive from where they're booked."
+                      ? `Salaried — your pay is the same every ${noun}, so there's nothing to fill in. Leave and public holidays arrive from where they're booked.`
                       : casual && sheet.status === "draft"
                         ? "Add the days you worked, then submit. Nothing is filled in for you."
                         : status.sub}
@@ -1008,7 +1020,7 @@ export function MyTimesheet({
                   <div className="mts2-sub">
                     Pick the day it happened and extend its times.
                     {settings.salariedOtPaid === false &&
-                      " It's recorded with your week — your salary already covers additional hours."}
+                      ` It's recorded with your ${noun} — your salary already covers additional hours.`}
                   </div>
                 )}
                 {!sent && period.live && (
@@ -1018,7 +1030,7 @@ export function MyTimesheet({
                     onClick={() => run(() => submitWeek(periodStart))}
                   >
                     <Icon name="send" size={14} />
-                    {sheet.status === "sent_back" ? "Submit again" : "Submit week"}
+                    {sheet.status === "sent_back" ? "Submit again" : `Submit ${noun}`}
                   </button>
                 )}
               </section>

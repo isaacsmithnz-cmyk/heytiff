@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
 import { DateField } from "@/components/ui/date-field";
 import {
@@ -873,7 +874,7 @@ export function NoticesBoard({
           <div className="v2head" style={{ marginBottom: 24, alignItems: "center" }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               {/* same back affordance the other deep pages use */}
-              <a
+              <Link
                 href="/dashboard"
                 style={{
                   fontSize: 13,
@@ -887,7 +888,7 @@ export function NoticesBoard({
                 }}
               >
                 ← Dashboard
-              </a>
+              </Link>
               <h1 style={{ fontSize: 44, fontWeight: 800, letterSpacing: "-0.03em", margin: 0 }}>
                 Noticeboard
               </h1>

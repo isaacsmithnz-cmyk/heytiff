@@ -132,11 +132,21 @@ async function fuelItems(orgId: string, start: string, end: string): Promise<Sou
 
 /* ---------------- expense claims ---------------- */
 
+/* ONE PURCHASE, ONE LINE. A claim carrying a `vehicle_log_id` is the
+   reimbursement half of a fuel log — somebody filled the ute on their own card
+   — and that log is ALREADY in this report as a fuel item. Reading both would
+   put the same tank in the year's total twice, once as fuel and once as a
+   staff expense: exactly the double count lib/documents/files.ts warns about.
+
+   The FUEL LOG is the tax line because it is the fuller record — litres, the
+   vehicle, the odometer, the docket's own ABN. The claim is only how the money
+   gets back to the person. */
 async function claimItems(orgId: string, start: string, end: string): Promise<Sourced> {
   const { data } = await supabaseAdmin
     .from("expense_claims")
     .select("id, staff_profile_id, expense_date, description, category, amount, gst_amount, supplier, status")
     .eq("org_id", orgId)
+    .is("vehicle_log_id", null)
     .gte("expense_date", start)
     .lte("expense_date", end)
     .in("status", [...CLAIM_STATUSES]);

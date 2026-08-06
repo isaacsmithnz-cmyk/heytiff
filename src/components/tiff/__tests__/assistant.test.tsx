@@ -196,7 +196,7 @@ describe("sources", () => {
 
     const peek = screen.getByRole("dialog");
     expect(within(peek).getByText(/abnormal piping temperature/)).toBeInTheDocument();
-    expect(within(peek).getByText(/Fault code library/)).toBeInTheDocument();
+    expect(within(peek).getByText(/Fault codes/)).toBeInTheDocument();
   });
 
   /* Opening at the page is the point of a citation — a link to page one of a
@@ -592,7 +592,7 @@ describe("the rail", () => {
     );
 
     const card = screen.getByRole("link", { name: /Install procedures/ });
-    expect(card).toHaveAttribute("href", "/dashboard/tiff/knowledge?cat=install");
+    expect(card).toHaveAttribute("href", "/dashboard/tiff/library?cat=install");
     expect(within(card).getByText("3 documents")).toBeInTheDocument();
     expect(within(screen.getByRole("link", { name: /Manufacturer specs/ })).getByText("—")).toBeInTheDocument();
 
@@ -619,7 +619,7 @@ describe("the rail", () => {
 describe("watching Tiff search", () => {
   const CARDS: Record<string, RegExp> = {
     install: /Install procedures/,
-    faults: /Fault code library/,
+    faults: /Fault codes/,
     specs: /Manufacturer specs/,
     sops: /Company SOPs/,
   };

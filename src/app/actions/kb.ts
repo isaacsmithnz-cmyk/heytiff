@@ -15,7 +15,7 @@ import {
 } from "@/lib/tiff/files";
 import { signKbRef } from "@/lib/tiff/query";
 
-/* The knowledge base's writes — upload, describe, retry, remove.
+/* The library's writes — upload, describe, retry, remove.
 
    THE BYTES NEVER PASS THROUGH A SERVER ACTION, same as every other upload in
    the app: the client asks for a slot, we mint a signed upload token, the
@@ -41,7 +41,7 @@ export type KbSlot =
 
 export type KbResult = { ok: true } | { ok: false; error: string };
 
-const NO_MANAGE = "You don't have access to manage the knowledge base.";
+const NO_MANAGE = "You don't have access to manage the library.";
 const GONE = "That document is no longer here.";
 
 const TITLE_MAX = 160;
@@ -62,7 +62,7 @@ async function ctx(): Promise<Ctx | null> {
    revalidate; a document is a row on the library page. */
 function refresh() {
   revalidatePath("/dashboard/tiff");
-  revalidatePath("/dashboard/tiff/knowledge");
+  revalidatePath("/dashboard/tiff/library");
 }
 
 const trim = (v: unknown, max: number): string | null => {
@@ -74,7 +74,7 @@ const trim = (v: unknown, max: number): string | null => {
 /* A link to the file itself, minted per click.
 
    THE ONE ACTION IN THIS FILE GATED `tiff`, NOT `tiff_manage`. Reading the
-   library is the staff tier — that is the whole point of the knowledge base —
+   library is the staff tier — that is the whole point of the library —
    and opening a document is reading. Nothing here writes.
 
    Signed on demand rather than at render: the bucket is private, links expire,
@@ -87,7 +87,7 @@ export async function kbDocUrl(
   try {
     ({ orgId } = await requireOrg("tiff"));
   } catch {
-    return { ok: false, error: "You don't have access to the knowledge base." };
+    return { ok: false, error: "You don't have access to the library." };
   }
 
   const { data } = await supabaseAdmin
@@ -207,7 +207,7 @@ export async function confirmKbUpload(documentId: string): Promise<KbResult> {
   return { ok: true };
 }
 
-/** Fix a title, a brand, an edition, or which shelf it sits on. */
+/** Fix a title, a brand, an edition, or which category it's in. */
 export async function updateKbDocMeta(
   documentId: string,
   input: { title?: string; category?: string; source?: string; edition?: string }

@@ -211,13 +211,13 @@ describe("postIngestBatch", () => {
   it("turns a refusal into a failed progress carrying the server's sentence", async () => {
     fetchMock.mockResolvedValue({
       ok: false,
-      json: async () => ({ error: "You don't have access to manage the knowledge base." }),
+      json: async () => ({ error: "You don't have access to manage the library." }),
     });
 
     const p = await postIngestBatch("d-1");
 
     expect(p.status).toBe("failed");
-    expect(p.error).toBe("You don't have access to manage the knowledge base.");
+    expect(p.error).toBe("You don't have access to manage the library.");
   });
 
   it("survives a body that isn't JSON at all", async () => {

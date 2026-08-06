@@ -76,8 +76,13 @@ export function heroStats(input: {
     },
     {
       key: "notices",
-      icon: "bell",
-      label: "Notifications",
+      /* Called "Notifications" until the naming pass, which is not what it
+         counts and not where it goes: it counts unread NOTICES and lands on
+         the Noticeboard. The word also collided with the topbar bell, which
+         now means the action-required board — two "notifications" on one
+         screen pointing at two different places. It says its destination. */
+      icon: "note",
+      label: "Noticeboard",
       count: input.unreadNotices,
       href: "/dashboard/notices",
       tone: "violet",

@@ -47,6 +47,10 @@ const FULL: ChipSources = {
   fleet: [vehicle("mine", "me"), vehicle("v2", "s2"), vehicle("v3", null)],
   org: { insurer: "CGU", insuranceExpiry: "2026-07-05" },
   pendingClaims: 2,
+  ownSheet: { status: "sent_back", periodStart: "2026-07-13", periodLabel: "13 – 19 Jul" },
+  ownDeclinedClaims: [
+    { id: "c1", description: "Copper fittings", amount: 214.5, decidedOn: "2026-07-17T04:00:00Z" },
+  ],
 };
 
 describe("assembleChips — self section (intrinsic)", () => {
@@ -55,7 +59,15 @@ describe("assembleChips — self section (intrinsic)", () => {
     // your expired licence + your van's expired rego
     expect(self.some((c) => c.kind === "licence")).toBe(true);
     expect(self.some((c) => c.kind === "rego")).toBe(true);
-    expect(self.every((c) => c.href === "/dashboard/profile" || c.href === "/dashboard/my-vehicle")).toBe(true);
+    // and the two answers you are owed by a person rather than a calendar
+    expect(self.some((c) => c.kind === "timesheet")).toBe(true);
+    expect(self.some((c) => c.kind === "claim")).toBe(true);
+    expect(
+      self.every((c) => c.href.startsWith("/dashboard/profile")
+        || c.href.startsWith("/dashboard/my-vehicle")
+        || c.href.startsWith("/dashboard/my-timesheet")
+        || c.href.startsWith("/dashboard/my-expenses"))
+    ).toBe(true);
     expect(team).toEqual([]);
   });
 });

@@ -1,5 +1,6 @@
+import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
-import { heroHtml } from "@/components/shell/screens";
+import { DashboardHero } from "./hero";
 import { TasksSection } from "./tasks-section";
 import { NoticesCard } from "./notices-card";
 import { sortChips } from "@/lib/dashboard/chips";
@@ -54,16 +55,7 @@ export function DashboardHome({
     <div className="page in">
       <div className="wrap">
         <div className="stg">
-          <div
-            dangerouslySetInnerHTML={{
-              __html: heroHtml({
-                greeting,
-                firstName,
-                date,
-                stats,
-              }),
-            }}
-          />
+          <DashboardHero greeting={greeting} firstName={firstName} date={date} stats={stats} />
 
           <div className="dash-cols">
             {/* the hero's Tasks counter scrolls here rather than navigating */}
@@ -135,7 +127,7 @@ export function DashboardHome({
                     </div>
                   </div>
                   {money.map((m) => (
-                    <a className="dash-row" href={m.href} key={m.key}>
+                    <Link className="dash-row" href={m.href} key={m.key}>
                       <span className={`dchip2 ${m.state}`}>
                         <Icon
                           name={m.state === "warn" ? "clock" : "check"}
@@ -147,7 +139,7 @@ export function DashboardHome({
                       <span className="dr-chev">
                         <Icon name="arrowR" size={16} />
                       </span>
-                    </a>
+                    </Link>
                   ))}
                 </div>
               )}

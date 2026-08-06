@@ -206,6 +206,76 @@ describe("fuel logs carry their tax record", () => {
   });
 });
 
+/* WHOSE MONEY BOUGHT IT. A company card stops at the vehicle log. A personal
+   card leaves someone out of pocket, so the same action also raises an expense
+   claim — and links it back to the log, which is what stops the tax screen
+   counting one tank of diesel twice (see lib/tax/query.ts). */
+describe("fuel paid from your own pocket", () => {
+  const own = (over: Record<string, unknown> = {}) =>
+    addLog({ vehicleId: "v-1", kind: "fuel", litres: 62.4, cost: 158.4, paidWith: "own", ...over });
+
+  const claimInsert = () =>
+    insert.mock.calls.find((c) => c[0] === "expense_claims")?.[1] as Record<string, unknown>;
+
+  it("records who paid on the log", async () => {
+    await own();
+    expect(insert.mock.calls[0][1]).toMatchObject({ paid_with: "own" });
+  });
+
+  it("defaults to the company when nobody was asked", async () => {
+    // every fuel log written before the question existed, and the common case
+    await addLog({ vehicleId: "v-1", kind: "fuel", litres: 50, cost: 100 });
+    expect(insert.mock.calls[0][1]).toMatchObject({ paid_with: "company" });
+    expect(insert.mock.calls.some((c) => c[0] === "expense_claims")).toBe(false);
+  });
+
+  it("raises a reimbursement claim, linked to the log", async () => {
+    /* The link is the whole mechanism: the tax read skips any claim carrying a
+       vehicle_log_id, because the log is already that purchase's tax line. */
+    const res = await own({ station: "BP Kingsford", gst: 14.4, purchasedOn: "2026-07-31" });
+    expect(res).toEqual({ ok: true });
+    expect(claimInsert()).toMatchObject({
+      vehicle_log_id: "log-1",
+      category: "fuel",
+      amount: 158.4,
+      gst_amount: 14.4,
+      supplier: "BP Kingsford",
+      description: "Fuel — BP Kingsford",
+      expense_date: "2026-07-31",
+      status: "pending",
+      staff_profile_id: "staff-1",
+    });
+  });
+
+  it("refuses without a cost, and writes nothing at all", async () => {
+    // a reimbursement for an unknown amount is not a reimbursement
+    const res = await own({ cost: undefined });
+    expect(res.ok).toBe(false);
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it("refuses when the account has no staff record, and writes nothing", async () => {
+    /* Checked BEFORE the insert on purpose: a log that saves and then fails to
+       raise the claim leaves someone out of pocket with no trace of it. */
+    staffRow = null;
+    const res = await own();
+    expect(res.ok).toBe(false);
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it("never raises a claim from a company card", async () => {
+    await addLog({ vehicleId: "v-1", kind: "fuel", litres: 50, cost: 100, paidWith: "company" });
+    expect(insert.mock.calls.some((c) => c[0] === "expense_claims")).toBe(false);
+  });
+
+  it("never raises one from a kind that isn't fuel", async () => {
+    // a stale field on a reused form must not turn an odo reading into money
+    await addLog({ vehicleId: "v-1", kind: "odo", odo: 84800, paidWith: "own" });
+    expect(insert.mock.calls.some((c) => c[0] === "expense_claims")).toBe(false);
+    expect(insert.mock.calls[0][1]).toMatchObject({ paid_with: null });
+  });
+});
+
 /* Correcting an entry. The rules that matter are who may do it, that the tax
    figures are re-decided rather than trusted, and that the vehicle is put back
    where the SURVIVING logs say it is. */

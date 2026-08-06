@@ -16,7 +16,7 @@ import type { Role } from "./roles-shared";
 export const CAPABILITIES = [
   "toolbox", // calculators & references
   "studio", // Design Studio
-  "tiff", // Tiff AI assistant & knowledge base
+  "tiff", // Tiff AI assistant & document library
   "tiff_manage", // upload/edit/retry knowledge-base documents (delete is owner-only)
   "workboard", // see the projects & maintenance board (techs live here)
   "workboard_manage", // create/edit projects, agreements, visits & readiness
@@ -46,7 +46,7 @@ export function isCapability(v: unknown): v is Capability {
 // seeing what's booked, what's overdue and what to bring is their day.
 // Managing it (workboard_manage) follows the timepay_all/approvals precedent:
 // admin by default, grantable to a senior tech via the overrides grid.
-// tiff_manage mirrors it exactly: everyone READS and asks the knowledge base
+// tiff_manage mirrors it exactly: everyone READS and asks the library
 // (that's `tiff`), but what goes INTO the company library is a curation
 // decision — and a wrong manual answers questions wrongly for everyone.
 const STAFF_DEFAULTS: readonly Capability[] = ["toolbox", "studio", "tiff", "workboard"];

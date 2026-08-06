@@ -135,7 +135,7 @@ describe("the gate", () => {
     caps = new Set();
     await expect(beginKbUpload(PDF)).resolves.toMatchObject({
       ok: false,
-      error: "You don't have access to manage the knowledge base.",
+      error: "You don't have access to manage the library.",
     });
   });
 });

@@ -1,4 +1,4 @@
-/* The knowledge base's own front door for uploads — what may go in, and where.
+/* The library's own front door for uploads — what may go in, and where.
 
    Pure, and deliberately separate from lib/documents/files.ts even though the
    shape is the same. That module's bucket is capped at 10 MB and its type list
@@ -39,7 +39,7 @@ export type KbUploadCheck = { ok: true } | { ok: false; error: string };
 /** Decide whether a file may be stored, before any slot is handed out. */
 export function checkKbUpload(file: { type: string; size: number }): KbUploadCheck {
   if (String(file.type).toLowerCase().split(";")[0].trim() !== KB_MIME)
-    return { ok: false, error: "The knowledge base takes PDFs only." };
+    return { ok: false, error: "The library takes PDFs only." };
   if (!Number.isFinite(file.size) || file.size <= 0) return { ok: false, error: "That file is empty." };
   if (file.size > MAX_KB_BYTES)
     return { ok: false, error: `That file is too big — ${fmtBytes(MAX_KB_BYTES)} is the limit.` };

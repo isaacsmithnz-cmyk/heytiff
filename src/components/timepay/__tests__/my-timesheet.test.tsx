@@ -746,6 +746,35 @@ describe("the rail", () => {
     expect(screen.getByText("My fortnight")).toBeInTheDocument();
   });
 
+  /* THE HEADING WAS ALREADY RIGHT — everything under it was wrong.
+
+     This screen knew the cycle well enough to say "My month", then put
+     "Submit week" on the button directly beneath it and "Your normal week is
+     already filled in" in the status line above that. Four independent
+     wordings of one fact, three of them false for two of the three cycles the
+     app supports. The test that existed checked the one that was correct. */
+  it.each([
+    ["Fortnightly", "fortnight"],
+    ["Monthly", "month"],
+    ["Weekly", "week"],
+  ] as const)("says %s in every place it names the period, not just the heading", (cycle, noun) => {
+    renderSheet({ settings: { ...DEFAULT_SETTINGS, cycle } });
+    expect(screen.getByText(`My ${noun}`)).toBeInTheDocument();
+    expect(screen.getByText(`Submit ${noun}`)).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(`Your normal ${noun} is already filled in`))).toBeInTheDocument();
+  });
+
+  it("says it in the LOCKED note too, once the period has been sent", () => {
+    // the copy a person sees most often after they have finished with it
+    renderSheet({
+      settings: { ...DEFAULT_SETTINGS, cycle: "Monthly" },
+      sheet: { status: "submitted", submittedAt: "2026-07-05", reviewNote: null, reviewedBy: null },
+    });
+    expect(
+      screen.getByText(/This month has been sent — it can't be changed here\./),
+    ).toBeInTheDocument();
+  });
+
   it("footnotes the rules that produced those numbers, normal hours first", () => {
     const { container } = renderSheet({ settings: withBreak(30, false) });
     const rules = container.querySelector(".mts2-rules")?.textContent ?? "";
@@ -863,5 +892,16 @@ describe("a salaried week pays itself", () => {
     renderSheet({ salaried: true, settings: { ...DEFAULT_SETTINGS, salariedOtPaid: false } });
     await user.click(screen.getByText("Add overtime"));
     expect(screen.getByText(/your salary already covers additional hours/)).toBeInTheDocument();
+  });
+
+  it("names the cycle in its own copy too — a monthly salary is not weekly", async () => {
+    /* "your pay is the same every week" is a strange thing to tell somebody
+       paid monthly, and the sentence right after it is the one explaining why
+       they have nothing to do. */
+    const user = userEvent.setup();
+    renderSheet({ salaried: true, settings: { ...DEFAULT_SETTINGS, cycle: "Monthly", salariedOtPaid: false } });
+    expect(screen.getByText(/your pay is the same every month/)).toBeInTheDocument();
+    await user.click(screen.getByText("Add overtime"));
+    expect(screen.getByText(/recorded with your month/)).toBeInTheDocument();
   });
 });

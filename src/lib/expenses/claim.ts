@@ -9,7 +9,40 @@
    rule before it lets someone press a button — the screen for kindness, the
    server for truth. */
 
-export const EXPENSE_CATEGORIES = ["materials", "tools", "travel", "meals", "other"] as const;
+/* ── what a receipt may be ────────────────────────────────────────────────
+
+   WHY THIS LIVES HERE and not beside the scanner: `actions/expense-ai.ts` is a
+   `"use server"` file, where EVERY export becomes a Server Function and must
+   therefore be async. A plain synchronous predicate exported from there
+   typechecks, passes jest, and fails the build — so the shared rule sits in
+   this module, which both the form and the scanner already import.
+
+   PDFs are in the list because the emailed tax invoice is the normal receipt
+   for anything bought on account, and the documents bucket has always accepted
+   them; only the file picker was narrower. */
+export const RECEIPT_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
+export const RECEIPT_PDF_TYPE = "application/pdf";
+
+/** The picker's `accept`, and the same list the scanner enforces. */
+export const RECEIPT_ACCEPT = [...RECEIPT_IMAGE_TYPES, RECEIPT_PDF_TYPE].join(",");
+
+/** Can Tiff actually read this, or is it only storable? */
+export function isReadableReceipt(mediaType: string): boolean {
+  return (
+    mediaType === RECEIPT_PDF_TYPE ||
+    (RECEIPT_IMAGE_TYPES as readonly string[]).includes(mediaType)
+  );
+}
+
+/* `fuel` is here because an expense claim means one thing — you paid from your
+   own pocket and want it back — and fuel bought on a personal card is exactly
+   that. Without the category it was being filed as "travel" or "other", which
+   made it invisible to the tax screen's fuel reporting.
+
+   It is also the category the fleet's "Log fuel · my own money" path raises a
+   claim under, so the two ways a person can end up out of pocket for fuel
+   produce the same kind of row. */
+export const EXPENSE_CATEGORIES = ["materials", "tools", "travel", "meals", "fuel", "other"] as const;
 export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
 
 export const EXPENSE_STATUSES = [
@@ -35,6 +68,7 @@ export const CATEGORY_LABEL: Record<ExpenseCategory, string> = {
   tools: "Tools",
   travel: "Travel",
   meals: "Meals",
+  fuel: "Fuel",
   other: "Other",
 };
 
@@ -51,6 +85,17 @@ export const STATUS_LABEL: Record<ExpenseStatus, string> = {
 export type Claim = {
   id: string;
   staffProfileId: string;
+  /* Set when this claim was raised BY a fuel log — "Log fuel · my own money".
+     It is the reimbursement half of that purchase; the vehicle log is the tax
+     half, and the tax screen skips this claim so one tank isn't counted twice.
+
+     WHY IT REACHES THE SCREEN. Both people looking at this row have a question
+     it answers. The claimant sees a claim they never filled in and needs to
+     know where it came from. The approver, deciding whether to pay, needs to
+     know the fuel itself is already recorded against a vehicle — otherwise
+     "there's a fuel log AND a claim for the same tank" reads like a duplicate
+     to be rejected, when it is the intended pair. */
+  fuelLog?: { vehicleLogId: string; vehicle: string | null } | null;
   expenseDate: string;
   description: string;
   category: ExpenseCategory;

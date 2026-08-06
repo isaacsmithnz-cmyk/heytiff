@@ -31,7 +31,7 @@ describe("what may be stored", () => {
     for (const type of ["image/png", "application/msword", "text/plain", "", "application/pdfx"]) {
       expect(checkKbUpload({ type, size: 1000 })).toEqual({
         ok: false,
-        error: "The knowledge base takes PDFs only.",
+        error: "The library takes PDFs only.",
       });
     }
   });

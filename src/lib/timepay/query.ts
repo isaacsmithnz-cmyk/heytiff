@@ -216,6 +216,35 @@ export async function sheetStates(
   return out;
 }
 
+/** The most recent sheet of YOURS an approver handed back, if there is one —
+    the dashboard's sent-back chip.
+
+    Asked as "which period is sent_back", not "what is the current period's
+    status", on purpose. A question asked on the second-last day of a period is
+    still unanswered the morning the period rolls over, and a chip that only
+    ever looked at the CURRENT period would have gone quiet exactly then —
+    leaving the one person who has to act with no signal at all, which is the
+    hole this chip exists to close.
+
+    Deliberately not `sheetStates` filtered down: that reads every sheet in the
+    org so an approver can tally them, and this needs one row belonging to the
+    person asking. It sits on the dashboard's critical path. */
+export async function ownSentBackPeriod(
+  orgId: string,
+  staffProfileId: string,
+): Promise<string | null> {
+  const { data } = await supabaseAdmin
+    .from("timesheets")
+    .select("period_start")
+    .eq("org_id", orgId)
+    .eq("staff_profile_id", staffProfileId)
+    .eq("status", "sent_back")
+    .order("period_start", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data ? ((data as Record<string, unknown>).period_start as string) : null;
+}
+
 function nameOf(r: Record<string, unknown>): string {
   return displayNameOf(r);
 }

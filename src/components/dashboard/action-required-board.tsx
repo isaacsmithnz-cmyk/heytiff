@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
 import { ChipTile } from "./chip-tile";
 import type { DashboardChips } from "@/lib/dashboard/assemble";
@@ -17,7 +18,7 @@ export function ActionRequiredBoard({ chips }: { chips: DashboardChips }) {
         <div className="stg">
           <div className="v2head" style={{ marginBottom: 24, alignItems: "center" }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <a
+              <Link
                 href="/dashboard"
                 style={{
                   fontSize: 13,
@@ -31,7 +32,7 @@ export function ActionRequiredBoard({ chips }: { chips: DashboardChips }) {
                 }}
               >
                 ← Dashboard
-              </a>
+              </Link>
               <h1 style={{ fontSize: 44, fontWeight: 800, letterSpacing: "-0.03em", margin: 0 }}>
                 Action required
               </h1>
@@ -45,8 +46,10 @@ export function ActionRequiredBoard({ chips }: { chips: DashboardChips }) {
               </div>
               <b>Nothing needs attention</b>
               <em>
-                Licences, work rights, vehicle rego, insurance and services are all in date. Anything
-                expiring in the next 30 days shows up here.
+                Licences, work rights, vehicle rego, insurance and services are all in date, and
+                nobody is waiting on an answer from you. Anything expiring in the next 30 days shows
+                up here — so does a timesheet sent back with a question, or an expense claim that
+                came back declined.
               </em>
             </div>
           ) : (

@@ -1,10 +1,12 @@
 import type { Capability } from "@/lib/permissions";
 import type { Vehicle, VehicleWithFacts } from "@/components/fleet/logic";
 import {
+  declinedClaimChip,
   expensesChip,
   licenceChip,
   orgInsuranceChip,
   sortChips,
+  timesheetChip,
   vehicleChips,
   vehicleLabel,
   workRightsChips,
@@ -48,6 +50,11 @@ export type ChipSources = {
   /** Expense claims waiting on a decision — 0 when the viewer can't decide
       them (the loader only counts for `approvals` holders). */
   pendingClaims: number;
+  /** YOUR timesheet for the period in play. Null when the account has no staff
+      record, or when nothing has been written for the period yet. */
+  ownSheet: { status: string; periodStart: string; periodLabel: string } | null;
+  /** YOUR claims that came back declined recently — the chip windows them. */
+  ownDeclinedClaims: { id: string; description: string; amount: number; decidedOn: string | null }[];
 };
 
 const push = (arr: ActionChip[], chip: ActionChip | null) => {
@@ -63,6 +70,16 @@ export function assembleChips(src: ChipSources, caps: ReadonlySet<Capability>): 
   }
   if (src.selfVehicle) {
     self.push(...vehicleChips(src.selfVehicle, { subject: vehicleLabel(src.selfVehicle), href: "/dashboard/my-vehicle" }));
+  }
+  /* Answers owed to you, from people rather than from a calendar. Intrinsic
+     like the rest of `self` — being told your own timesheet came back is not a
+     privilege — but gated on having a staff record at all, for the same reason
+     the licence block above is: with no `viewerStaffId` there is nobody for
+     these rows to be ABOUT, so a set handed in anyway is a caller bug and this
+     module is the place that refuses to render it. */
+  if (src.viewerStaffId) {
+    push(self, timesheetChip(src.ownSheet));
+    for (const c of src.ownDeclinedClaims) push(self, declinedClaimChip(c, { today: src.today }));
   }
 
   const team: ActionChip[] = [];

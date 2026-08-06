@@ -2,7 +2,13 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { getDbRole } from "@/lib/permissions-server";
-import { EXPENSE_CATEGORIES, isExpenseCategory, type ExpenseCategory } from "@/lib/expenses/claim";
+import {
+  EXPENSE_CATEGORIES,
+  RECEIPT_PDF_TYPE,
+  isExpenseCategory,
+  isReadableReceipt,
+  type ExpenseCategory,
+} from "@/lib/expenses/claim";
 
 /* Reading a general purchase receipt, for expense claims.
 
@@ -61,23 +67,30 @@ const EXPENSE_SCHEMA = {
   additionalProperties: false,
 };
 
-const RECEIPT_MEDIA = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
-type ReceiptMedia = (typeof RECEIPT_MEDIA)[number];
+/* A PDF IS NOT AN IMAGE BLOCK. It rides in a `document` block with its own
+   media type — same base64 source, same position before the text, no beta
+   header — so the two paths differ only in how the block is shaped.
+
+   `isReadableReceipt` and the type list live in lib/expenses/claim.ts: this is
+   a `"use server"` file, so every export here must be an async Server
+   Function, and a plain predicate exported from here would fail the build. */
+type ReceiptImage = "image/jpeg" | "image/png" | "image/webp" | "image/gif";
 
 export async function readExpenseReceipt(
-  imageBase64: string,
+  fileBase64: string,
   mediaType: string
 ): Promise<ReadExpenseResult> {
   // Any signed-in member: spending your own money on the job and claiming it
   // back is intrinsic, not a capability.
   if (!(await getDbRole())) return { ok: false, reason: "Sign in to scan receipts." };
   if (offline()) return { ok: false, reason: "no-key" };
-  if (!RECEIPT_MEDIA.includes(mediaType as ReceiptMedia)) {
-    return { ok: false, reason: "Unsupported image type." };
+  if (!isReadableReceipt(mediaType)) {
+    return { ok: false, reason: "Tiff can read photos and PDFs." };
   }
-  if (!imageBase64 || imageBase64.length > 14_000_000) {
-    // ~10MB decoded — plenty for a phone photo of a docket
-    return { ok: false, reason: "That photo is too large to read." };
+  if (!fileBase64 || fileBase64.length > 14_000_000) {
+    // ~10MB decoded — the same ceiling the documents bucket enforces, and
+    // plenty for either a phone photo or a scanned multi-page invoice
+    return { ok: false, reason: "That file is too large to read." };
   }
 
   try {
@@ -93,14 +106,22 @@ export async function readExpenseReceipt(
         {
           role: "user",
           content: [
-            {
-              type: "image",
-              source: { type: "base64", media_type: mediaType as ReceiptMedia, data: imageBase64 },
-            },
+            /* The file first, the question second — a document or image block
+               is read as context for the text that follows it. */
+            mediaType === RECEIPT_PDF_TYPE
+              ? {
+                  type: "document" as const,
+                  source: { type: "base64" as const, media_type: "application/pdf" as const, data: fileBase64 },
+                }
+              : {
+                  type: "image" as const,
+                  source: { type: "base64" as const, media_type: mediaType as ReceiptImage, data: fileBase64 },
+                },
             {
               type: "text",
               text:
-                "This is a photo of an Australian purchase receipt or tax invoice, from a " +
+                "This is an Australian purchase receipt or tax invoice — a photo of a " +
+                "docket, or a supplier's emailed PDF invoice — from a " +
                 "tradesperson claiming the cost back from their employer. Extract:\n" +
                 "- total: the final amount paid INCLUDING GST, in dollars\n" +
                 "- gst: the GST amount if the receipt states one, else null. Do NOT calculate " +
@@ -120,7 +141,7 @@ export async function readExpenseReceipt(
     });
 
     if (response.stop_reason === "refusal") {
-      return { ok: false, reason: "Tiff declined to read this image." };
+      return { ok: false, reason: "Tiff declined to read this file." };
     }
 
     const text = response.content.find((b) => b.type === "text")?.text ?? "";

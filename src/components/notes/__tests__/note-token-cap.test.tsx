@@ -1,7 +1,7 @@
 import { act, cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { NoteToken } from "../note-token";
 import { NoteScopeProvider } from "../note-context";
+import { TiffButton } from "../tiff-button";
 
 /* WHAT THE TWO-MINUTE CEILING MUST NOT DO TO A NOTE.
 
@@ -70,10 +70,10 @@ const openSheet = async () => {
   const user = userEvent.setup();
   render(
     <NoteScopeProvider voiceEnabled>
-      <NoteToken as="capsule" label="a note" />
+      <TiffButton />
     </NoteScopeProvider>
   );
-  await user.click(screen.getByLabelText("Say a note"));
+  await user.click(screen.getByLabelText(/Ask or tell Tiff/));
   return user;
 };
 

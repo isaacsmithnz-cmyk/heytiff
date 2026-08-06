@@ -3,8 +3,7 @@ import { auHourNow, fmtAuWeekdayDateLong, todayInAu } from "@/lib/au-dates";
 import { DashboardHome } from "@/components/dashboard/home";
 import { loadDashboard } from "@/lib/dashboard/page-data";
 import { getViewerName } from "@/lib/staff/query";
-import { isTranscriptionConfigured } from "@/lib/voice/transcribe";
-import { NoteScopeProvider } from "@/components/notes/note-context";
+import { NoteScopeScreen } from "@/components/notes/note-context";
 
 function greetingFor(hour: number): string {
   if (hour < 12) return "Good morning";
@@ -36,18 +35,18 @@ export default async function DashboardHomePage() {
      roster is whoever can be assigned tasks, which the page already loaded.
      First names only: that's what a spoken "tell Dane…" contains. */
   return (
-    <NoteScopeProvider
-      voiceEnabled={isTranscriptionConfigured()}
-      staffFirstNames={data.assignable
-        .map((s) => s.name.trim().split(/\s+/)[0])
-        .filter((n) => n.length >= 2)}
-    >
+    <>
+      <NoteScopeScreen
+        staffFirstNames={data.assignable
+          .map((s) => s.name.trim().split(/\s+/)[0])
+          .filter((n) => n.length >= 2)}
+      />
       <DashboardHome
         greeting={greetingFor(auHourNow())}
         firstName={firstName}
         date={date}
         data={data}
       />
-    </NoteScopeProvider>
+    </>
   );
 }

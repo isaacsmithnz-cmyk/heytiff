@@ -1,9 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth0 } from "@/lib/auth0";
 import { staffIdFor } from "@/lib/workboard/projects-query";
-import { isTranscriptionConfigured } from "@/lib/voice/transcribe";
 import { listArchivedNotes, listMyNotes } from "@/lib/notes/my-notes-query";
-import { NoteScopeProvider } from "@/components/notes/note-context";
 import { MyNotesBoard } from "@/components/notes/my-notes-board";
 
 /* Ungated, like the rest of Personal. Writing yourself a note is the least
@@ -28,12 +26,9 @@ export default async function MyNotesPage() {
     listArchivedNotes(orgId, staffId),
   ]);
 
-  /* No jobs in scope, deliberately: this page is the universal case. A note
-     taken here has no board behind it, so the token offers no job picker and
-     the cascade's floor IS this screen. */
-  return (
-    <NoteScopeProvider voiceEnabled={isTranscriptionConfigured()}>
-      <MyNotesBoard notes={notes} archived={archived} />
-    </NoteScopeProvider>
-  );
+  /* Nothing pushed, deliberately: this page is the universal case. A note
+     taken here has no board behind it, so the button offers no job picker and
+     the cascade's floor IS this screen. The layout already provides the scope
+     and whether this deployment can hear you. */
+  return <MyNotesBoard notes={notes} archived={archived} />;
 }

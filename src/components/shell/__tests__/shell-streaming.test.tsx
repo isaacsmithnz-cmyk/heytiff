@@ -14,6 +14,14 @@ import { CommandPaletteProvider, useCommandPalette } from "../command-palette-co
    If someone later "tidies" AppShell by giving it a `user` prop again, these
    fail — which is the intent. */
 
+/* The frame now carries the Tiff button, which reaches the note flow and its
+   server actions — and "use server" modules cannot be imported into jsdom.
+   Stubbed here because this suite is about the shell's streaming slots; the
+   button has its own suite. */
+jest.mock("@/components/notes/tiff-button", () => ({
+  TiffButton: () => <div data-testid="tiff-button" />,
+}));
+
 jest.mock("next/navigation", () => ({
   usePathname: () => "/dashboard",
   useRouter: () => ({ push: jest.fn(), refresh: jest.fn() }),

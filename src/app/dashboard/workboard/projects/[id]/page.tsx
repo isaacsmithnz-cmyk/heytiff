@@ -4,7 +4,6 @@ import { auth0 } from "@/lib/auth0";
 import { getProjectDetail } from "@/lib/workboard/projects-query";
 import { loadProjectsBoard } from "@/lib/workboard/projects-board-query";
 import { listIssues, listProjectEntries } from "@/lib/workboard/notes-query";
-import { isTranscriptionConfigured } from "@/lib/voice/transcribe";
 import { getConnectionView } from "@/lib/integrations/store";
 import { getSm8Timezone } from "@/lib/workboard/query";
 import { todayInZone } from "@/lib/workboard/dates";
@@ -52,7 +51,6 @@ export default async function WorkboardProjectPage({
       sm8Connected={connection?.status === "connected"}
       entries={entries}
       issues={issues}
-      voiceEnabled={isTranscriptionConfigured()}
     />
   );
 }

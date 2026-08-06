@@ -20,8 +20,6 @@ import { sniff } from "@/lib/notes/sniff";
    THE ONLY THING THAT VARIES IS POSTURE, and posture is about where the
    token is standing, not about what it can do:
 
-     capsule  the corner token. Keyboard | mic in one object, mic the wider
-              half. Opens a sheet carrying record → sorting → review.
      strip    a row that lives with the notes it joins. Same flow, but the
               review grows in place instead of covering the job.
      field    a textarea with the token on it. Fills the box and shuts up;
@@ -32,54 +30,16 @@ import { sniff } from "@/lib/notes/sniff";
    card the note lands on that job, anywhere else it's a universal note taker
    that falls through to your own notes. No caller passes a target.
 
+   THE CORNER TOKEN IS NOT IN HERE ANY MORE. It was the `capsule` posture — a
+   keyboard|mic pill mounted by two workboard screens — and it has become the
+   Tiff button in ./tiff-button, which stands in the app FRAME and is on every
+   screen rather than two. The postures left are the ones that belong to a
+   place on a page; the corner belongs to the frame.
+
    THE MIC IS ALWAYS AN ENHANCEMENT. No key, no permission, no MediaRecorder —
-   every posture is still a control you can type into. That rule is why the
-   capsule is a capsule and not the bare mic it started as: a lone microphone
-   advertises one way in, and typing is first-class here. */
+   every posture is still a control you can type into. */
 
-export type Posture = "capsule" | "strip" | "field" | "line" | "debrief";
-
-/* ── the token's two halves, shared by capsule and strip ── */
-
-function TokenHalves({
-  onType,
-  onTalk,
-  voiceEnabled,
-  live,
-  className = "",
-  label,
-}: {
-  onType: () => void;
-  onTalk: () => void;
-  voiceEnabled: boolean;
-  live?: boolean;
-  className?: string;
-  label: string;
-}) {
-  return (
-    <span className={`wb2-tok${live ? " live" : ""} ${className}`.trim()}>
-      <button type="button" className="wb2-tokhalf" onClick={onType} aria-label={`Type ${label}`}>
-        <Icon name="keyboard" size={17} />
-      </button>
-      {voiceEnabled && (
-        <>
-          <span className="wb2-tokdiv" aria-hidden="true" />
-          {/* The wider half, deliberately. Both stay full targets so typing
-              is never a sliver, but the note you speak is the one this
-              exists for and the shape should say so. */}
-          <button
-            type="button"
-            className="wb2-tokhalf mic"
-            onClick={onTalk}
-            aria-label={`Say ${label}`}
-          >
-            <Icon name="mic" size={20} />
-          </button>
-        </>
-      )}
-    </span>
-  );
-}
+export type Posture = "strip" | "field" | "line" | "debrief";
 
 /* ── the surface: ribbon + whatever the stage calls for ── */
 
@@ -494,69 +454,36 @@ function DebriefButton({ flow }: { flow: NoteFlow }) {
 
 /* ── posture: capsule ── */
 
-function Capsule({ flow, label }: { flow: NoteFlow; label: string }) {
-  return (
+/** The capture surface, portalled. One copy: the Tiff button and the field
+    postures open the SAME sheet, which is the whole argument of the
+    unification — what you get should not depend on which control you reached
+    it through. */
+export function CaptureSheet({ flow }: { flow: NoteFlow }) {
+  if (!flow.open) return null;
+  return createPortal(
     <>
-      <div className="wb2-tokdock">
-        <TokenHalves
-          label={label}
-          voiceEnabled={flow.scope.voiceEnabled}
-          live={flow.stage === "recording"}
-          onType={() => flow.setOpen(true)}
-          onTalk={() => {
-            flow.setOpen(true);
-            flow.dict.start();
-          }}
-        />
-        {flow.done && <span className="wb2-chip ok">{flow.done}</span>}
+      <div className="wb2-capdim" onClick={flow.close} />
+      {/* KEEPS `wb2-capcard` DELIBERATELY. Sixteen rules in shell.css name
+          that class to give a PORTALLED surface its button fills, type sizes
+          and disabled states — anything declared under `.fg` is absent out
+          here, and the capture card shipped once with colourless primary
+          buttons for exactly this reason. `wb2-caps` only moves it. */}
+      <div
+        className="wb2-capcard wb2-caps"
+        role="dialog"
+        aria-modal="true"
+        aria-label={flow.debrief ? "Day debrief" : "Add a note"}
+      >
+        <span className="wb2-grab" aria-hidden="true" />
+        <Ribbon flow={flow} />
+        {flow.error && <p className="wb2-sherr">{flow.error}</p>}
+        <JobLine flow={flow} />
+        <Body flow={flow} />
       </div>
-
-      {flow.open &&
-        createPortal(
-          <>
-            <div className="wb2-capdim" onClick={flow.close} />
-            {/* KEEPS `wb2-capcard` DELIBERATELY. Sixteen rules in shell.css
-                name that class to give a PORTALLED surface its button fills,
-                type sizes and disabled states — anything declared under `.fg`
-                is absent out here, and the capture card shipped once with
-                colourless primary buttons for exactly this reason. `wb2-caps`
-                only moves it. */}
-            <div
-              className="wb2-capcard wb2-caps"
-              role="dialog"
-              aria-modal="true"
-              aria-label="Add a note"
-            >
-              <span className="wb2-grab" aria-hidden="true" />
-              <Ribbon flow={flow} />
-              {flow.error && <p className="wb2-sherr">{flow.error}</p>}
-              <JobLine flow={flow} />
-              <Body flow={flow} />
-            </div>
-          </>,
-          document.body
-        )}
-    </>
+    </>,
+    document.body
   );
 }
-
-/* ── posture: strip ──
-
-   ON A JOB CARD, ADDING A NOTE IS THE JOB. That is the whole brief for this
-   posture ("if it's on a job card, its main objective is to add notes to
-   that job"), and it decides the one thing that could have gone badly wrong
-   here: the + does NOT route.
-
-   The first draft of this made every commit go through the router, which
-   would have turned "gate code 4417" into a seven-second wait and a review
-   card asking which of nothing you'd like to save. Adding a note has to stay
-   instant. So the strip obeys the same rule Isaac chose for the plain form
-   fields — commit the words, then sniff them locally, and only offer the
-   review when they actually look like a job for somebody.
-
-   The review, when the offer is taken, GROWS IN PLACE — no portal, no dim,
-   no scroll lock. The argument of this posture is that you keep seeing the
-   job the note is about, so covering it would be self-defeating. */
 
 function Strip({
   flow,
@@ -747,7 +674,7 @@ function Nudge({ onOpen, onDismiss }: { onOpen: () => void; onDismiss: () => voi
 /* ── the component ── */
 
 export function NoteToken({
-  as = "capsule",
+  as,
   label = "a note",
   value,
   onChange,
@@ -757,7 +684,9 @@ export function NoteToken({
   disabled = false,
   className,
 }: {
-  as?: Posture;
+  /** Where this one is standing. No default: the corner — the only posture
+      that was ever the obvious one — is now the Tiff button in the frame. */
+  as: Posture;
   /** What the token's accessible names say it's for — "a note for this
       visit", "access notes". Never an icon alone. */
   label?: string;
@@ -774,7 +703,6 @@ export function NoteToken({
   const flow = useNoteFlow({ debrief: as === "debrief" });
 
   if (as === "debrief") return <DebriefButton flow={flow} />;
-  if (as === "capsule") return <Capsule flow={flow} label={label} />;
   if (as === "strip")
     return (
       <Strip

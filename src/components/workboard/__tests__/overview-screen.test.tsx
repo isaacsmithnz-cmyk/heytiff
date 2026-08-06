@@ -1,12 +1,13 @@
 /* The Workboard page's own job — everything that isn't inside a board card.
    Both sides run the redesigned architecture (each side's suite lives in
    board/__tests__); here we pin what the PAGE owns: the centre switcher and
-   its per-side counts, the capture pill's ownership, mirror health reaching
+   its per-side counts, the scope it reports to the Tiff button, mirror health reaching
    both rows, and the flag ROUTING that keeps a flag on exactly one board. */
 
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { OverviewScreen } from "../overview-screen";
+import { NoteScopeProvider, useNoteScope } from "@/components/notes/note-context";
 import type { WorkboardData } from "@/lib/workboard/page-data";
 import type { ProjectBoardVisit } from "@/lib/workboard/projects-board-query";
 import type { BoardVisit } from "@/lib/workboard/board-query";
@@ -16,22 +17,23 @@ jest.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: jest.fn() }),
 }));
 
-/* The token is its own component with its own suite; the server actions
-   behind it can't be imported into jsdom. Same for both boards — here we only
-   pin that the switcher mounts each with the right dataset, flags and tools.
+/* Both boards are stubbed — here we only pin that the switcher mounts each
+   with the right dataset and flags.
 
-   The stub reads `voiceEnabled` OFF THE REAL SCOPE rather than off a prop,
-   because that is now how it travels. Which makes this a better test than the
-   one it replaces: the prop version could pass while the provider was wired
-   to nothing, and this one can't. */
-jest.mock("@/components/notes/note-token", () => ({
-  NoteToken: () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { useNoteScope } = require("@/components/notes/note-context");
-    const { voiceEnabled } = useNoteScope();
-    return <div data-testid="capture">{voiceEnabled ? "voice on" : "typing only"}</div>;
-  },
-}));
+   THE CAPTURE CONTROL IS NOT ON THIS SCREEN ANY MORE. It was a capsule docked
+   in the tab row; it is the Tiff button in the app frame now, on every screen
+   rather than two. What this screen still owes it is CONTEXT, so the probe
+   below reads the scope the screen pushed UP — which is a better test than
+   the docked-pill one it replaces, because a pill could render perfectly
+   while pointed at nothing. */
+function ScopeProbe() {
+  const s = useNoteScope();
+  return (
+    <div data-testid="scope">
+      {s.target.kind}|{s.targetLabel ?? "-"}|{s.jobs.length} jobs|{s.staffFirstNames.length} names
+    </div>
+  );
+}
 
 type BoardStub = {
   manage: boolean;
@@ -67,7 +69,6 @@ const base: WorkboardData = {
   flags: [],
   board: { visits: [], agreements: [], staff: [], tagPool: [], categories: [], tasks: [] },
   projectsBoard: { projects: [], visits: [], staff: [] },
-  voiceEnabled: false,
   aiEnabled: false,
   synced: null,
 };
@@ -238,10 +239,22 @@ describe("display mode", () => {
     expect(screen.getByRole("button", { name: /Close display mode/ })).toBeInTheDocument();
   });
 
-  it("keeps the capture pill — the mode is for working, not watching", async () => {
-    render(<OverviewScreen data={base} />);
+  /* The capture control moved to the frame, but the DECISION it embodied did
+     not: display mode is for working off a big screen, so you can still take
+     a note in it. The mode fullscreens the document rather than the board, so
+     the frame — and the Tiff button in it — comes along. What this pins is
+     that nothing here stamps the mode onto something that would hide it. */
+  it("keeps capture available — the mode is for working, not watching", async () => {
+    render(
+      <NoteScopeProvider voiceEnabled>
+        <OverviewScreen data={base} />
+      </NoteScopeProvider>
+    );
     await enter();
-    expect(screen.getByTestId("capture")).toBeInTheDocument();
+    /* The mode is stamped on the ROOT and the whole document is what goes
+       fullscreen, so the frame — and the button in it — comes along. jsdom
+       has no `fullscreenElement`, so the attribute is the honest assertion. */
+    expect(document.documentElement).toHaveAttribute("data-wb-display", "on");
   });
 
   it("leaves display mode when the browser leaves fullscreen (Esc)", async () => {
@@ -365,18 +378,47 @@ describe("connected", () => {
   });
 });
 
-describe("smart notes", () => {
-  it("hands the pill to whichever board is up, and says whether the mic is available", async () => {
-    const { rerender } = render(<OverviewScreen data={base} />);
-    expect(screen.getByTestId("capture")).toHaveTextContent("typing only");
-    rerender(<OverviewScreen data={{ ...base, voiceEnabled: true }} />);
-    expect(screen.getByTestId("capture")).toHaveTextContent("voice on");
-    await toProjects();
-    expect(screen.getByTestId("capture")).toBeInTheDocument();
+describe("what the screen tells the Tiff button", () => {
+  const withProbe = (data: WorkboardData) =>
+    render(
+      <NoteScopeProvider voiceEnabled>
+        <ScopeProbe />
+        <OverviewScreen data={data} />
+      </NoteScopeProvider>
+    );
+
+  it("carries no capture control of its own — that lives in the frame now", () => {
+    const { container } = withProbe(base);
+    expect(container.querySelector(".wb2-tok")).toBeNull();
+    expect(screen.queryByLabelText(/Ask or tell Tiff/)).not.toBeInTheDocument();
   });
 
-  it("docks the pill INSIDE the board's tab row, where the design puts it", () => {
-    const { container } = render(<OverviewScreen data={base} />);
-    expect(container.querySelector(".wb-board [data-testid='capture']")).not.toBeNull();
+  /* An open job and somebody to name in it — the two things the button needs
+     from a board before a spoken note can be pinned or a person recognised. */
+  const loaded: WorkboardData = {
+    ...base,
+    board: {
+      ...base.board,
+      visits: [visitStub({ id: "v-1", status: "booked", clientName: "Meridian Data" })],
+      staff: [{ id: "s-1", name: "Dane Whitcombe" }] as WorkboardData["board"]["staff"],
+    },
+  };
+
+  it("reports the board's jobs and roster upward, so a note can be pinned", () => {
+    withProbe(loaded);
+    expect(screen.getByTestId("scope")).toHaveTextContent("1 jobs");
+  });
+
+  it("stops reporting when the screen goes away, so the button is not left holding a stale board", () => {
+    const { unmount } = withProbe(loaded);
+    expect(screen.getByTestId("scope")).toHaveTextContent("1 jobs");
+    unmount();
+
+    render(
+      <NoteScopeProvider voiceEnabled>
+        <ScopeProbe />
+      </NoteScopeProvider>
+    );
+    expect(screen.getByTestId("scope")).toHaveTextContent("none|-|0 jobs|0 names");
   });
 });

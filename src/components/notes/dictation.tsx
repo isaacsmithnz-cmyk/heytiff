@@ -401,6 +401,55 @@ export function LevelBars({ innerRef }: { innerRef: React.RefObject<HTMLSpanElem
   );
 }
 
+/** The live transcript, one word at a time — bind to a dictation's `interim`.
+
+    THE ENGINE DOES NOT SPEAK EVENLY. Scribe sends partials in bursts and
+    REVISES them: three words land at once, then a pause, then "grills"
+    becomes "grilles". Rendering the whole string swapped the paragraph on
+    every one of those, which read as flicker, and centring it meant each
+    arrival shoved every word already said sideways. Isaac: less erratic,
+    a smooth fast glide.
+
+    Words keyed by POSITION is what buys that. React mounts only the spans
+    just appended, so the glide runs on those alone; a revised word updates
+    its text in place and stays put, which is exactly right — re-flashing a
+    word you already read is the jitter, not the fix. */
+export function LiveWords({ text }: { text: string }) {
+  const ref = useRef<HTMLParagraphElement | null>(null);
+  /* Whether anything has actually scrolled out of sight above. The top of
+     the box is faded so old words dissolve instead of being sliced, and
+     that fade MUST be conditional: applied always, it dims the top of an
+     unscrolled box — which is the first line of every short dictation, and
+     most dictations are short. Measured after layout rather than guessed
+     from length, because wrapping depends on the width it got. */
+  const [scrolled, setScrolled] = useState(false);
+  const words = text.split(/\s+/).filter(Boolean);
+
+  /* Ride the newest word. The box is height-capped rather than growing,
+     because a card that resizes under a two-minute dictation is its own
+     kind of erratic — and the words you want are the last ones. */
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+    setScrolled(el.scrollHeight > el.clientHeight + 1);
+  }, [text]);
+
+  return (
+    <p
+      className={"wb2-livetext" + (scrolled ? " over" : "")}
+      ref={ref}
+      aria-live="polite"
+    >
+      {words.map((word, i) => (
+        <span className="wb2-lw" key={i}>
+          {word}
+        </span>
+      ))}
+    </p>
+  );
+}
+
 export const clockOf = (seconds: number) =>
   `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 

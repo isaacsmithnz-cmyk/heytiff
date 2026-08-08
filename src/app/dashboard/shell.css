@@ -4730,14 +4730,50 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .wb2-caprec { display:flex; flex-direction:column; align-items:center; gap:10px; padding:14px 0 2px; }
 .wb2-caprec .wb-lvl { height:34px; }
 .wb2-caprec .wb-lvl i { height:34px; width:4px; }
+/* The hint stays centred under the meter — it is a status line and belongs
+   with the bars. The transcript is not, which is why it stretches instead. */
+.wb2-caprec .wb2-hint { text-align:center; max-width:44ch; }
 /* The live transcript, and it must read as WORDS, not as a status line —
    it is what the person is checking while they talk. Top-level, never
    nested under .fg: this card is portalled to body, where a .fg rule is
-   absent rather than merely outranked. */
+   absent rather than merely outranked.
+
+   THREE THINGS MADE IT ERRATIC and all three are fixed here rather than in
+   the engine, which is honest about what it hears and shouldn't be asked to
+   smooth it. (1) It was CENTRED, so every word that arrived shoved every
+   word already said sideways — left now, and only the new word moves.
+   (2) It GREW without limit, resizing the whole sheet mid-sentence — capped
+   at about four lines, scrolled to the newest word by LiveWords, with the
+   oldest fading out at the top instead of being sliced off. (3) The words
+   POPPED, because the paragraph was one swapped string — they glide now,
+   per word, in ./dictation. */
 .wb2-livetext {
   font-size:14.5px; line-height:1.5; color:var(--gray800, #1f2937); font-weight:500;
-  margin:8px 0 0; text-align:center; max-width:44ch; min-height:2.2em;
+  /* `.wb2-caprec` centres its column, which with left-aligned text would
+     indent the words a third of the way across and read as a mistake.
+     Stretched, they start exactly where the typed words start. */
+  margin:8px 0 0; text-align:left; align-self:stretch; min-height:2.2em;
+  max-height:6em; overflow-y:auto; scrollbar-width:none;
 }
+/* ONLY ONCE THERE IS SOMETHING ABOVE. The fade dims the top of the BOX, not
+   of the text, so applied unconditionally it greys out the first line of
+   every dictation short enough not to scroll — which is most of them. The
+   class is set from a measurement in LiveWords. */
+.wb2-livetext.over {
+  -webkit-mask:linear-gradient(180deg, transparent 0, #000 1.5em);
+  mask:linear-gradient(180deg, transparent 0, #000 1.5em);
+}
+.wb2-livetext::-webkit-scrollbar { display:none; }
+/* The glide. Fast enough to keep up with speech, eased so it lands rather
+   than stops — and a hair of blur on the way in, which is what makes a
+   burst of three words read as arriving instead of appearing. */
+@keyframes wb2WordIn {
+  from { opacity:0; transform:translateY(5px); filter:blur(3px); }
+  to   { opacity:1; transform:none; filter:blur(0); }
+}
+.wb2-lw { display:inline-block; margin-right:.28em;
+  animation:wb2WordIn .26s cubic-bezier(.22,1,.36,1) both; }
+@media (prefers-reduced-motion:reduce) { .wb2-lw { animation:none; } }
 /* ── the router is thinking ──
    Seven measured seconds with nothing moving is indistinguishable from a
    hang, so this state exists to move. Top-level selectors, never nested
@@ -5910,6 +5946,36 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .dash-debrieftext span { font-size:12.8px; color:var(--gray500); }
 .wb2-tokhalf.wb2-debriefword { width:auto; padding:0 16px 0 18px; gap:8px;
   font-family:var(--font); font-size:13.5px; font-weight:700; }
+
+/* THE DEBRIEF CAPSULE WEARS TIFF — Isaac, 2026-08-09.
+   It was the cyan pill, which was the app's language before the button
+   existed; it now opens an ink-glass sheet, and a bright cyan control
+   opening a dark Tiff surface read as two different features. So it takes
+   the SAME decision the sheet-skin button took on a light ground: dark
+   face, gradient on the EDGE rather than behind it, because a coloured
+   glow on white is a smudge (learned twice now). The rim is a masked
+   1px gradient — crisp, and it survives lightningcss.
+
+   Scoped to `.wb2-debrief`, so the capsule this shares its bones with
+   (`.wb2-tok`) keeps its own skin wherever else it stands. */
+.wb2-tok.wb2-debrief { position:relative; background:#0B0E15;
+  box-shadow:0 12px 26px -14px rgba(5,8,15,.9); }
+.wb2-tok.wb2-debrief::before { content:""; position:absolute; inset:0; border-radius:inherit;
+  padding:1px; pointer-events:none;
+  background:linear-gradient(120deg, #00E5C0, #2E68FF, #8A2BE2);
+  opacity:.55; transition:opacity .2s ease;
+  -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;
+  mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite:exclude; }
+.wb2-tok.wb2-debrief:hover { box-shadow:0 16px 32px -14px rgba(5,8,15,.95); }
+.wb2-tok.wb2-debrief:hover::before { opacity:.85; }
+.wb2-tok.wb2-debrief .wb2-tokhalf:hover { background:rgba(255,255,255,.1); }
+.wb2-tok.wb2-debrief .wb2-tokdiv { background:rgba(255,255,255,.18); }
+/* Still the one honest red, and still only once the mic is open — the
+   gradient-split fill the cyan capsule used would fight the rim. */
+.wb2-tok.wb2-debrief.live { background:#0B0E15; }
+.wb2-tok.wb2-debrief.live .wb2-tokhalf.mic { background:var(--wb2-dan, #e0264f); }
 
 /* ── the LEARN rows ──
    A title line and a method box under it — the one section on the review

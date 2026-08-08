@@ -513,15 +513,11 @@ export function TiffAssistant({
     setFailure(null);
     /* Only a research question has anywhere to look, so only a research
        question draws lines. A general one clears whatever the last answer left
-       behind rather than leaving a stale rail under a new conversation. The
-       submit names the stocked shelves: an empty one gets no lane and no
-       "Searching…" — the card itself says "—", and the machine shouldn't
-       perform a search of nothing two lines above that. */
-    showViz(
-      researchMode
-        ? { t: "submit", searched: KB_CATEGORIES.filter((c) => counts[c.key] > 0).map((c) => c.key) }
-        : { t: "reset" }
-    );
+       behind rather than leaving a stale rail under a new conversation. Every
+       shelf performs — retrieval covers the whole library, and the sweep
+       converging on the winner is the page's story (a stocked-shelves-only
+       gate shipped once and reduced it to one line straight to the answer). */
+    showViz({ t: researchMode ? "submit" : "reset" });
     setLiveBoth({
       threadId,
       question,
@@ -1072,7 +1068,6 @@ export function TiffAssistant({
           cardRefs={cardRefs}
           viz={viz}
           idle={!active && readyCount > 0}
-          inThread={!!active}
           measureKey={active?.messages.length ?? 0}
         />
       </div>

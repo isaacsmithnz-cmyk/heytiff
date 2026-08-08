@@ -96,26 +96,41 @@ const wideOnServer = (): boolean => false;
 function lanesBetween(
   stage: HTMLElement | null,
   composer: HTMLElement | null,
-  cards: Map<KbCategoryKey, HTMLElement> | null,
-  edgeOrigin: boolean
+  cards: Map<KbCategoryKey, HTMLElement> | null
 ): Lane[] | null {
   if (!stage || !composer || !cards) return null;
 
   const base = stage.getBoundingClientRect();
-  const from = composer.getBoundingClientRect();
-  /* Two origins, because the composer lives in two places. On the LANDING it
-     sits at the top beside the rail, and the shoulder origin — just inside
-     its top-right corner, leaving upward — reads as one short gesture into
-     the cards. In a THREAD the same origin is at the bottom of a full-height
-     transcript, and the shoulder lanes climbed the whole column: through the
-     right-aligned question bubbles, under the answer sheets, surfacing in
-     every background gap, and sitting still while the conversation scrolled
-     beneath them (watched on the live walk, not theorised). So a thread's
-     lanes are born at the corridor instead — level with the composer, just
-     clear of the column's right edge — and every point of the curve lives in
-     space the conversation never occupies. */
-  const sx = edgeOrigin ? from.right - base.left + 14 : from.right - base.left - 30;
-  const sy = edgeOrigin ? from.top - base.top + from.height / 2 : from.top - base.top - 6;
+  /* The anchor is the INPUT PILL, not the form: the form carries the mode row
+     underneath, and a line "from the composer" that leaves level with a row
+     of chips is a line from nowhere in particular. Fall back to the form when
+     the pill isn't rendered (tests mount bare refs). */
+  const pill = composer.querySelector(".tinput .tin") ?? composer;
+  const from = pill.getBoundingClientRect();
+
+  /* ONE ORIGIN RULE, BOTH SCREENS, AND IT TOUCHES THE BAR. Every earlier cut
+     floated: the landing's shoulder origin started above the pill (and the
+     aurora swallowed the first 20px), and the thread's corridor origin sat
+     14px off the column edge — lines that hovered NEAR the bar, visibly
+     unattached to it (the owner's exact complaint, twice). The lanes now
+     start 2px UNDER the pill's right edge — the pill is opaque and paints
+     above, so each line emerges from the bar itself — and leave travelling
+     horizontally into the corridor, which no conversation content ever
+     occupies.
+
+     NESTED CHANNELS, NOT A BRAID. Five curves sharing one narrow corridor
+     cross wherever their left-to-right order inverts, and the first cut of
+     this construction braided exactly that way on the harness. The rule that
+     unpicks it: a lane's horizontal channel matches how long it lives in the
+     corridor. The TOP card's lane climbs furthest, so it takes the INNERMOST
+     channel and sweeps out only above the heights where every other lane has
+     already turned into its card; the BOTTOM card's lane swings widest and
+     leaves the corridor at once. Both controls follow the same order (c1
+     opens .12→.56 of the gutter, the approach closes .79→.35), each origin
+     steps 8px down the pill's edge in card order, and the strip empties
+     upward without a single crossing — a loom, not a cable tie. */
+  const sx = from.right - base.left - 2;
+  const anchorY = from.top - base.top + from.height / 2;
 
   const lanes: Lane[] = [];
   KB_CATEGORIES.forEach((cat, i) => {
@@ -124,31 +139,17 @@ function lanesBetween(
     const r = el.getBoundingClientRect();
     const ex = r.left - base.left - 10;
     const ey = r.top - base.top + r.height / 2;
-    // vertical first tangent, sized to the climb; a card unexpectedly below
-    // the composer still gets the minimum shoulder before diving
-    const c1y = sy - Math.max(50, (sy - ey) * 0.55);
-    /* The approach control, measured back from the card so each lane arrives
-       travelling horizontally into its own row.
-
-       A FRACTION OF THE GUTTER, NOT A FIXED DEPTH. This was `max(ex - 110, …)`
-       — a constant reach, clamped so it could never land left of where the
-       lane started and bow the curve backwards. The clamp fired on every lane
-       at every width, because the gutter was one 28px grid gap and 110px of
-       reach never fitted in it; every lane therefore got the same fallback and
-       the five collapsed into one strand. Widening the gutter alone would not
-       have fixed that — the constant would still have overshot below ~1400px.
-
-       Measuring the corridor and taking a share of it per lane is inherently
-       in-bounds (the deepest share is 0.79, so c2x > sx always, no clamp) and
-       it opens the same fan at every width: the gutter is ~72px at the narrow
-       end and ~160px at full width, and the lanes fan in proportion rather
-       than bunching at one and sprawling at the other. */
+    const sy = anchorY + (i - (KB_CATEGORIES.length - 1) / 2) * 8;
+    /* gutter shares, so the same fan opens whether the corridor is 72px or
+       160 — and the shares keep every control between the bar and the cards,
+       no clamps needed */
     const gutter = ex - sx;
-    const c2x = ex - gutter * (0.35 + i * 0.11);
+    const c1x = sx + gutter * (0.12 + i * 0.11);
+    const c2x = ex - gutter * (0.79 - i * 0.11);
     lanes.push({
       key: cat.key,
       color: cat.color,
-      d: `M ${sx} ${sy} C ${sx} ${c1y}, ${c2x} ${ey}, ${ex} ${ey}`,
+      d: `M ${sx} ${sy} C ${c1x} ${sy}, ${c2x} ${ey}, ${ex} ${ey}`,
     });
   });
   // no cards registered is a moment between renders, not a rail with no shelves
@@ -163,7 +164,6 @@ export function ResearchLines({
   cardRefs,
   viz,
   idle = false,
-  inThread = false,
   measureKey = 0,
 }: {
   /** The two-column grid the lines are drawn inside — the measuring frame. */
@@ -174,9 +174,6 @@ export function ResearchLines({
   /** Draw the lanes faintly with nothing happening — the landing's diagram of
       itself. A live phase always wins, so this only shows at rest. */
   idle?: boolean;
-  /** A conversation is open: the lanes take the corridor origin so they never
-      cross the transcript (see lanesBetween). */
-  inThread?: boolean;
   /** Bumped by the parent whenever the composer may have moved. */
   measureKey?: number;
 }) {
@@ -185,21 +182,19 @@ export function ResearchLines({
   const phase = viz.phase;
 
   /* Takes its endpoints as arguments rather than reading the refs it closes
-     over, which is what keeps it nearly constant across renders — the effects
-     below are subscriptions, and one that tore itself down every render would
-     thrash a ResizeObserver for nothing. `inThread` is the one dependency,
-     and it changes exactly when the geometry it selects does: on the
-     landing↔thread flip, which already remeasures. */
+     over, which is what keeps it genuinely constant across renders — the
+     effects below are subscriptions, and one that tore itself down every
+     render would thrash a ResizeObserver for nothing. */
   const remeasure = useCallback(
     (
       stage: HTMLElement | null,
       composer: HTMLElement | null,
       cards: Map<KbCategoryKey, HTMLElement> | null
     ) => {
-      const next = lanesBetween(stage, composer, cards, inThread);
+      const next = lanesBetween(stage, composer, cards);
       if (next) setLanes(next);
     },
-    [inThread]
+    []
   );
 
   /* Recompute before paint, so a line is never shown at last frame's
@@ -241,12 +236,6 @@ export function ResearchLines({
            answer is written. A phase in flight always outranks the resting
            diagram. */
         const pulse = live ? lanePulse(viz, lane.key) : "off";
-        const state = live ? lineState(viz, lane.key) : "idle";
-        /* "off" mid-flight is a shelf the question skipped — nothing to draw.
-           Skipped here rather than styled to zero, because a bare `.tk-line`
-           with no state class would fall back to the base stroke at full
-           opacity: the one way to render MORE line by asking for none. */
-        if (state === "off") return null;
         return (
           <g
             key={lane.key}
@@ -257,7 +246,7 @@ export function ResearchLines({
                 stroke-dasharray draws in every line at the same rate however
                 far its shelf happens to be */}
             <path
-              className={`tk-line ${state}`}
+              className={`tk-line ${live ? lineState(viz, lane.key) : "idle"}`}
               data-cat={lane.key}
               d={lane.d}
               pathLength="1"

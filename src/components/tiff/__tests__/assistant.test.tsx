@@ -1020,19 +1020,18 @@ describe("watching Tiff search", () => {
     return { push: async (e: AskEvent) => act(async () => push(e)), user };
   };
 
-  /* Every STOCKED shelf: field carries a ready-doc count of zero here, and a
-     card whose own count reads "—" must not say "Searching…" two lines above
-     it. (It can still WIN — the trace outranks the gate; the test further
-     down proves that with this same fixture.) */
-  it("sends a line to every stocked shelf the moment the question goes out", async () => {
+  /* EVERY shelf, the empty ones included — retrieval covers the whole
+     library, and the sweep converging on the winner is the page's story. A
+     stocked-shelves-only gate shipped here once; with one stocked shelf it
+     reduced the choreography to a single line straight to the answer, and
+     the owner called it back. */
+  it("sends a line to every shelf the moment the question goes out", async () => {
     await research();
 
-    for (const key of ["install", "faults", "specs", "sops"] as (keyof typeof CARDS)[]) {
+    for (const key of Object.keys(CARDS) as (keyof typeof CARDS)[]) {
       expect(state(key)).toBe("searching");
       expect(note(key)).toBe("Searching…");
     }
-    expect(state("field")).toBe("");
-    expect(note("field")).toBe("None yet");
   });
 
   it("leaves the rail alone for a general question", async () => {
@@ -1044,26 +1043,6 @@ describe("watching Tiff search", () => {
     expect(note("faults")).toBe("7 documents");
   });
 
-  /* The submit names the stocked shelves, so an empty one never performs:
-     no shimmer, no "Searching…" two lines above its own "—". */
-  it("sends nothing to a shelf with nothing on it", async () => {
-    // hold the stream open: the searching moment is the one under test
-    script = () => {};
-    render(
-      <TiffAssistant
-        readyCount={7}
-        counts={{ install: 0, faults: 7, specs: 0, sops: 0, field: 0 }}
-      />
-    );
-    await ask("why P8?");
-
-    expect(state("faults")).toBe("searching");
-    expect(note("faults")).toBe("Searching…");
-    // unstocked: at rest, resting dash intact — not performing
-    expect(state("specs")).toBe("");
-    expect(note("specs")).toBe("None yet");
-    expect(state("install")).toBe("");
-  });
 
   it("lights the shelf the answer came from and reports what each one held", async () => {
     const { push } = await research();
@@ -1193,11 +1172,8 @@ describe("watching Tiff search", () => {
       const { push } = await research();
       const svg = document.querySelector("svg.tk-lines");
       expect(svg).not.toBeNull();
-      // four, not five: field holds no ready documents in this fixture, so
-      // no lane performs for it — the gate the viz tests prove, wired through
-      expect(svg!.querySelectorAll("path.tk-line.draw")).toHaveLength(4);
-      expect(svg!.querySelectorAll("path.tk-line.pulse")).toHaveLength(4);
-      expect(svg!.querySelector('path.tk-line.draw[data-cat="field"]')).toBeNull();
+      expect(svg!.querySelectorAll("path.tk-line.draw")).toHaveLength(5);
+      expect(svg!.querySelectorAll("path.tk-line.pulse")).toHaveLength(5);
 
       await push(TRACE);
       expect(document.querySelectorAll("path.tk-line.lit")).toHaveLength(1);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useInsertionEffect, useRef, useState } from "react";
 import { startRealtime, type RealtimeHandle } from "@/lib/voice/realtime-stream";
 import { playChime } from "@/lib/voice/chime";
 import { clearRun, markStopped, markTranscript } from "@/lib/voice/timing";
@@ -148,9 +148,25 @@ export function useDictation({
   const live = useRef<RealtimeHandle | null>(null);
 
   /* The callbacks live in a ref so the recorder's own handlers always see the
-     current ones without the effect below re-running and dropping the mic. */
+     current ones without the effect below re-running and dropping the mic.
+     THE REF IS THE POINT: put `onTranscript`/`onError` in the deps of the
+     unmount effect further down and every parent re-render runs its cleanup,
+     which discards a live recording mid-sentence. That is the bug this shape
+     exists to prevent, and it is one dependency array away at all times.
+
+     The write is an INSERTION EFFECT rather than a line in the render body,
+     where it used to be. A render-phase write lands on renders React is free
+     to throw away, which is why the rule bans it — but the timing it bought
+     is real and worth keeping: `useInsertionEffect` runs synchronously inside
+     the commit, so there is no moment at which a handler can read a callback
+     the last committed render already replaced. A plain `useEffect` flushes
+     on a later task, and this hook spends most of its life inside promises
+     (getUserMedia, the token fetch, `handle.stop()`, the upload) that resolve
+     on microtasks — exactly the window that would leave stale. */
   const cbs = useRef({ onTranscript, onError });
-  cbs.current = { onTranscript, onError };
+  useInsertionEffect(() => {
+    cbs.current = { onTranscript, onError };
+  });
 
   useEffect(() => {
     if (!recording) return;

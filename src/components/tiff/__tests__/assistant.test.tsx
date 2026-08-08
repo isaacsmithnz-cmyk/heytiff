@@ -287,6 +287,54 @@ describe("sources", () => {
     expect(screen.getByRole("button", { name: /Source 2: Install manual, p.12–14/ })).toBeInTheDocument();
   });
 
+  /* Six chips all reading the same manual was one citation shouting over
+     itself (the live walk's E4 answer). A source is a DOCUMENT — its passages
+     fold into one chip that wears every page, and the label counts documents. */
+  it("folds a document's passages into one chip wearing every page", async () => {
+    await renderResearched([
+      src(),
+      src({ n: 2, chunkId: "c-2", pageFrom: 106, pageTo: 107 }),
+      src({ n: 3, chunkId: "c-3", docId: "d-2", title: "Install manual", pageFrom: 12, pageTo: 12 }),
+    ]);
+
+    expect(
+      await screen.findByRole("button", { name: /Source 1: City Multi fault codes, p\.41 · p\.106–107/ })
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Source 2: Install manual, p\.12/ })).toBeInTheDocument();
+    expect(screen.getByText("Sources · 2")).toBeInTheDocument();
+    // the manual's name appears ONCE in the chip row
+    expect(screen.getAllByText("City Multi fault codes")).toHaveLength(1);
+  });
+
+  it("peeks every passage of the document, labelled by page", async () => {
+    const user = await renderResearched([
+      src(),
+      src({
+        n: 2,
+        chunkId: "c-2",
+        pageFrom: 106,
+        pageTo: 107,
+        excerpt: "E6-01 STD compressor 1 OC activated.",
+      }),
+    ]);
+    await user.click(await screen.findByRole("button", { name: /Source 1/ }));
+
+    const peek = screen.getByRole("dialog");
+    expect(within(peek).getByText(/abnormal piping temperature/)).toBeInTheDocument();
+    expect(within(peek).getByText(/STD compressor 1 OC/)).toBeInTheDocument();
+    expect(within(peek).getByText("p.41")).toBeInTheDocument();
+    expect(within(peek).getByText("p.106–107")).toBeInTheDocument();
+  });
+
+  it("closes the peek on Escape", async () => {
+    const user = await renderResearched();
+    await user.click(await screen.findByRole("button", { name: /Source 1/ }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
   it("opens the excerpt in a peek panel", async () => {
     const user = await renderResearched();
     await user.click(await screen.findByRole("button", { name: /Source 1/ }));
@@ -608,6 +656,35 @@ describe("managing a thread", () => {
     expect(titles()).toEqual(["R32 pressures"]);
   });
 
+  /* The family had the backdrop and the ✕ but no key — with the title field
+     focused, the keyboard's own way out went nowhere (verified live). */
+  it("closes the rename box on Escape, saving nothing", async () => {
+    seed([thread()]);
+    const user = userEvent.setup();
+    render(<TiffAssistant />);
+
+    await user.click(screen.getByRole("button", { name: /Rename “R32 pressures”/ }));
+    await user.clear(screen.getByLabelText("Chat title"));
+    await user.type(screen.getByLabelText("Chat title"), "not this");
+    await user.keyboard("{Escape}");
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(titles()).toEqual(["R32 pressures"]);
+  });
+
+  it("closes the delete confirm on Escape, deleting nothing", async () => {
+    seed([thread()]);
+    const user = userEvent.setup();
+    render(<TiffAssistant />);
+
+    await user.click(screen.getByRole("button", { name: /Delete “R32 pressures”/ }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(titles()).toEqual(["R32 pressures"]);
+  });
+
   it("names the thread in the confirm before it removes it", async () => {
     seed([thread(), thread({ id: "t-2", title: "U4 error", updatedAt: 1 })]);
     const user = userEvent.setup();
@@ -651,7 +728,7 @@ describe("managing a thread", () => {
     expect(titles()).toEqual([]);
     expect(screen.queryByText("P8 is a piping temperature fault.")).not.toBeInTheDocument();
     // the last thread went with it, so this is a first-run landing again
-    expect(screen.getByRole("heading", { name: "Ask the library" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "What are we working on?" })).toBeInTheDocument();
   });
 
   it("renames the open thread from its own header", async () => {
@@ -818,7 +895,7 @@ describe("the rail", () => {
     const card = screen.getByRole("link", { name: /Installation documents/ });
     expect(card).toHaveAttribute("href", "/dashboard/tiff/library?cat=install");
     expect(within(card).getByText("3 documents")).toBeInTheDocument();
-    expect(within(screen.getByRole("link", { name: /Manufacturer specs/ })).getByText("—")).toBeInTheDocument();
+    expect(within(screen.getByRole("link", { name: /Manufacturer specs/ })).getByText("None yet")).toBeInTheDocument();
   });
 
   /* The foot of the rail once held "Open library" and "Add documents" pointing
@@ -858,7 +935,7 @@ describe("the search-first landing", () => {
   it("opens on the box, not on an introduction", () => {
     render(<TiffAssistant readyCount={0} />);
 
-    expect(screen.getByRole("heading", { name: "Ask the library" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "What are we working on?" })).toBeInTheDocument();
     expect(screen.getByLabelText("Ask Tiff")).toBeInTheDocument();
     // the v1 hero and its four cards are gone for good
     expect(screen.queryByText(/What are we building today/)).not.toBeInTheDocument();
@@ -943,19 +1020,18 @@ describe("watching Tiff search", () => {
     return { push: async (e: AskEvent) => act(async () => push(e)), user };
   };
 
-  /* Every STOCKED shelf: field carries a ready-doc count of zero here, and a
-     card whose own count reads "—" must not say "Searching…" two lines above
-     it. (It can still WIN — the trace outranks the gate; the test further
-     down proves that with this same fixture.) */
-  it("sends a line to every stocked shelf the moment the question goes out", async () => {
+  /* EVERY shelf, the empty ones included — retrieval covers the whole
+     library, and the sweep converging on the winner is the page's story. A
+     stocked-shelves-only gate shipped here once; with one stocked shelf it
+     reduced the choreography to a single line straight to the answer, and
+     the owner called it back. */
+  it("sends a line to every shelf the moment the question goes out", async () => {
     await research();
 
-    for (const key of ["install", "faults", "specs", "sops"] as (keyof typeof CARDS)[]) {
+    for (const key of Object.keys(CARDS) as (keyof typeof CARDS)[]) {
       expect(state(key)).toBe("searching");
       expect(note(key)).toBe("Searching…");
     }
-    expect(state("field")).toBe("");
-    expect(note("field")).toBe("—");
   });
 
   it("leaves the rail alone for a general question", async () => {
@@ -967,26 +1043,6 @@ describe("watching Tiff search", () => {
     expect(note("faults")).toBe("7 documents");
   });
 
-  /* The submit names the stocked shelves, so an empty one never performs:
-     no shimmer, no "Searching…" two lines above its own "—". */
-  it("sends nothing to a shelf with nothing on it", async () => {
-    // hold the stream open: the searching moment is the one under test
-    script = () => {};
-    render(
-      <TiffAssistant
-        readyCount={7}
-        counts={{ install: 0, faults: 7, specs: 0, sops: 0, field: 0 }}
-      />
-    );
-    await ask("why P8?");
-
-    expect(state("faults")).toBe("searching");
-    expect(note("faults")).toBe("Searching…");
-    // unstocked: at rest, resting dash intact — not performing
-    expect(state("specs")).toBe("");
-    expect(note("specs")).toBe("—");
-    expect(state("install")).toBe("");
-  });
 
   it("lights the shelf the answer came from and reports what each one held", async () => {
     const { push } = await research();
@@ -995,12 +1051,12 @@ describe("watching Tiff search", () => {
     // the winner names the document the answer is being built out of — the
     // one the citation underneath is about to be checked against
     expect(state("faults")).toBe("winner");
-    expect(note("faults")).toBe("4 matches · City Multi fault codes");
+    expect(note("faults")).toBe("City Multi fault codes");
 
     // searched, found something, not what the answer was built from: a count
     // and no title, or the rail becomes a second results list
     expect(state("install")).toBe("hit");
-    expect(note("install")).toBe("2 matches");
+    expect(note("install")).toBe("Also matched");
 
     // searched, empty
     expect(state("specs")).toBe("dim");
@@ -1026,7 +1082,7 @@ describe("watching Tiff search", () => {
     } as AskEvent);
 
     expect(state("field")).toBe("winner");
-    expect(note("field")).toBe("3 matches · Roof access at Westfield");
+    expect(note("field")).toBe("Roof access at Westfield");
   });
 
   it("holds that while the answer is written", async () => {
@@ -1046,7 +1102,7 @@ describe("watching Tiff search", () => {
     await push({ t: "done" });
 
     expect(state("faults")).toBe("winner");
-    expect(note("faults")).toBe("4 matches · City Multi fault codes");
+    expect(note("faults")).toBe("City Multi fault codes");
     expect(state("install")).toBe("");
     expect(note("install")).toBe("3 documents");
     expect(state("specs")).toBe("");
@@ -1116,11 +1172,8 @@ describe("watching Tiff search", () => {
       const { push } = await research();
       const svg = document.querySelector("svg.tk-lines");
       expect(svg).not.toBeNull();
-      // four, not five: field holds no ready documents in this fixture, so
-      // no lane performs for it — the gate the viz tests prove, wired through
-      expect(svg!.querySelectorAll("path.tk-line.draw")).toHaveLength(4);
-      expect(svg!.querySelectorAll("path.tk-line.pulse")).toHaveLength(4);
-      expect(svg!.querySelector('path.tk-line.draw[data-cat="field"]')).toBeNull();
+      expect(svg!.querySelectorAll("path.tk-line.draw")).toHaveLength(5);
+      expect(svg!.querySelectorAll("path.tk-line.pulse")).toHaveLength(5);
 
       await push(TRACE);
       expect(document.querySelectorAll("path.tk-line.lit")).toHaveLength(1);

@@ -1,7 +1,9 @@
 import {
+  ALSO_MATCHED_NOTE,
   CARD_MS,
   DRAW_MS,
   FADE_MS,
+  FOUND_HERE_NOTE,
   IDLE_VIZ,
   NOTHING_NOTE,
   PULSE_MS,
@@ -68,61 +70,6 @@ describe("at rest", () => {
   });
 });
 
-/* ── a submit that names its shelves ─────────────────────────────────────
-   The gate: a question only performs on the shelves it actually went to. A
-   shelf with nothing on it used to get a lane and "Searching…" over a card
-   whose own count read "—" — the machine searching nothing for symmetry. */
-
-describe("a submit that names its shelves", () => {
-  it("means every shelf when none are named — the old callers' contract", () => {
-    const s = run({ t: "submit" });
-    expect(lines(s)).toEqual({
-      install: "draw",
-      faults: "draw",
-      specs: "draw",
-      sops: "draw",
-      field: "draw",
-    });
-    expect(cardNote(s, "field")).toBe(SEARCHING_NOTE);
-  });
-
-  it("leaves an unstocked shelf entirely at rest while the others perform", () => {
-    const s = run({ t: "submit", searched: ["install", "faults"] });
-
-    expect(lineState(s, "specs")).toBe("off");
-    expect(lanePulse(s, "specs")).toBe("off");
-    expect(cardState(s, "specs")).toBe("idle");
-    // null: the resting document count stands, no "Searching…" over a "—"
-    expect(cardNote(s, "specs")).toBeNull();
-
-    expect(lineState(s, "install")).toBe("draw");
-    expect(cardNote(s, "install")).toBe(SEARCHING_NOTE);
-  });
-
-  it("keeps the gate through the trace and the settle", () => {
-    const searched = run(
-      { t: "submit", searched: ["faults"] },
-      trace(["faults"], { faults: 3 }),
-      { t: "done" }
-    );
-    // an unsearched shelf is not "searched and empty": no dim, no "—", no fade
-    expect(cardState(searched, "specs")).toBe("idle");
-    expect(cardNote(searched, "specs")).toBeNull();
-    expect(lineState(searched, "specs")).toBe("off");
-    // the shelf the answer came from still keeps its thread
-    expect(lineState(searched, "faults")).toBe("kept");
-  });
-
-  it("drops junk and repeats from the named list", () => {
-    const s = run({
-      t: "submit",
-      searched: ["faults", "faults", "not-a-shelf" as KbCategory],
-    });
-    expect(lineState(s, "faults")).toBe("draw");
-    expect(lineState(s, "install")).toBe("off");
-  });
-});
-
 /* ── the question goes out ───────────────────────────────────────────────── */
 
 describe("submitting a research question", () => {
@@ -172,7 +119,6 @@ describe("submitting a research question", () => {
     const again = run({ t: "submit" }, trace(["faults"], { faults: 3 }), { t: "submit" });
     expect(again).toEqual({
       phase: "searching",
-      searched: KB_CATEGORIES,
       hits: null,
       topDocs: null,
       winners: [],
@@ -210,19 +156,23 @@ describe("when the trace lands", () => {
     });
   });
 
-  it("replaces each count with what that shelf actually held", () => {
+  it("replaces each count with what that shelf actually held — never a tally", () => {
     expect(notes(traced)).toEqual({
-      install: "2 matches",
-      faults: "5 matches",
+      install: ALSO_MATCHED_NOTE,
+      faults: FOUND_HERE_NOTE,
       specs: NOTHING_NOTE,
       sops: NOTHING_NOTE,
       field: NOTHING_NOTE,
     });
   });
 
-  it("says match, not matches, for one", () => {
-    const one = run({ t: "submit" }, trace(["sops"], { sops: 1 }));
-    expect(cardNote(one, "sops")).toBe("1 match");
+  /* "56 matches" was retrieval's own bookkeeping on a card a person reads —
+     nothing a tech can act on, and it cost the winner's title its room. One
+     hit and a hundred say the same words now. */
+  it("says the same thing at one match and a hundred", () => {
+    const s = run({ t: "submit" }, trace(["sops"], { sops: 1, faults: 100 }));
+    expect(cardNote(s, "sops")).toBe(FOUND_HERE_NOTE);
+    expect(cardNote(s, "faults")).toBe(ALSO_MATCHED_NOTE);
   });
 
   it("lights every winning shelf when the answer spans two", () => {
@@ -275,15 +225,15 @@ describe("the winner's document", () => {
   const docs = { faults: "City Multi fault codes", install: "PUZ install manual" };
   const traced = run({ t: "submit" }, trace(["faults"], { faults: 5, install: 2 }, docs));
 
-  it("puts the best-ranked document beside the winner's count", () => {
-    expect(cardNote(traced, "faults")).toBe("5 matches · City Multi fault codes");
+  it("puts the best-ranked document's name under the winner, and nothing else", () => {
+    expect(cardNote(traced, "faults")).toBe("City Multi fault codes");
   });
 
   /* A title under every shelf turns the rail into a second results list. The
      winner is the one whose document the citation is about to be checked
      against. */
-  it("leaves a shelf that only had hits saying how many", () => {
-    expect(cardNote(traced, "install")).toBe("2 matches");
+  it("leaves a hit shelf saying only that it matched", () => {
+    expect(cardNote(traced, "install")).toBe(ALSO_MATCHED_NOTE);
     expect(topDocFor(traced, "install")).toBe("PUZ install manual");
   });
 
@@ -294,7 +244,7 @@ describe("the winner's document", () => {
       { t: "firstDelta" },
       { t: "done" }
     );
-    expect(cardNote(settled, "faults")).toBe("5 matches · City Multi fault codes");
+    expect(cardNote(settled, "faults")).toBe("City Multi fault codes");
     expect(cardNote(settled, "install")).toBeNull();
   });
 
@@ -306,29 +256,29 @@ describe("the winner's document", () => {
         specs: "PUZ-ZM datasheet",
       })
     );
-    expect(cardNote(both, "faults")).toBe("4 matches · City Multi fault codes");
-    expect(cardNote(both, "specs")).toBe("2 matches · PUZ-ZM datasheet");
+    expect(cardNote(both, "faults")).toBe("City Multi fault codes");
+    expect(cardNote(both, "specs")).toBe("PUZ-ZM datasheet");
   });
 
-  /* Retrieval hands over what it has. Without a title the count still stands
-     on its own rather than becoming "5 matches · " with nothing after it. */
-  it("says just the count when the trace named no document", () => {
+  /* Retrieval hands over what it has. Without a title the winner still owns
+     its moment rather than sitting under an empty microline. */
+  it("still claims the answer when the trace named no document", () => {
     expect(cardNote(run({ t: "submit" }, trace(["faults"], { faults: 5 })), "faults")).toBe(
-      "5 matches"
+      FOUND_HERE_NOTE
     );
     const blank = run({ t: "submit" }, trace(["faults"], { faults: 5 }, { faults: "   " }));
-    expect(cardNote(blank, "faults")).toBe("5 matches");
+    expect(cardNote(blank, "faults")).toBe(FOUND_HERE_NOTE);
     const wrong = run({ t: "submit" }, trace(["faults"], { faults: 5 }, {
       faults: 12 as unknown as string,
     }));
-    expect(cardNote(wrong, "faults")).toBe("5 matches");
+    expect(cardNote(wrong, "faults")).toBe(FOUND_HERE_NOTE);
   });
 
   it("flattens a title that arrives with line breaks in it", () => {
     const messy = run({ t: "submit" }, trace(["sops"], { sops: 1 }, {
       sops: " Warranty\nclaims  SOP ",
     }));
-    expect(cardNote(messy, "sops")).toBe("1 match · Warranty claims SOP");
+    expect(cardNote(messy, "sops")).toBe("Warranty claims SOP");
   });
 
   /* Naming a document on a shelf the search found nothing in would be naming
@@ -491,7 +441,7 @@ describe("once the answer is finished", () => {
     });
     expect(notes(settled)).toEqual({
       install: null,
-      faults: "5 matches",
+      faults: FOUND_HERE_NOTE,
       specs: null,
       sops: null,
       field: null,

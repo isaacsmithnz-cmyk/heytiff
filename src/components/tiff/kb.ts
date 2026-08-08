@@ -40,19 +40,28 @@ export const KB_CATEGORIES: KbCategory[] = [
    (`kbCategoryCounts`) rather than a tally of an array the client was handed.
    The last caller was the staged assistant screen, which no longer exists.
 
-   Case-insensitive match on title or source (the library page's search box).
+   Case-insensitive match on title, source OR FILENAME (the library page's
+   search box).
+
+   THE FILENAME IS HALF THE POINT OF THE BOX. `source` is the optional "Brand
+   or author" the uploader types and it is usually blank, so a two-field search
+   was in practice a title search — while the thing people actually remember
+   about a document is the file they dragged in. It had nowhere to be matched
+   because it was never stored; `file_name` is that gap closed.
 
    Generic over the row, because the library's real rows come from the database
-   (lib/tiff/query.ts) where `source` is nullable — the search is the same
-   search either way, and duplicating it for the second shape is how the two
-   drift apart. */
-export function filterKbDocs<T extends { title: string; source?: string | null }>(
-  docs: T[],
-  query: string
-): T[] {
+   (lib/tiff/query.ts) where both are nullable — the search is the same search
+   either way, and duplicating it for the second shape is how the two drift
+   apart. */
+export function filterKbDocs<
+  T extends { title: string; source?: string | null; fileName?: string | null },
+>(docs: T[], query: string): T[] {
   const q = query.trim().toLowerCase();
   if (!q) return docs;
   return docs.filter(
-    (d) => d.title.toLowerCase().includes(q) || (d.source ?? "").toLowerCase().includes(q)
+    (d) =>
+      d.title.toLowerCase().includes(q) ||
+      (d.source ?? "").toLowerCase().includes(q) ||
+      (d.fileName ?? "").toLowerCase().includes(q)
   );
 }

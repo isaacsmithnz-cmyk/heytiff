@@ -29,8 +29,29 @@ describe("knowledge base config", () => {
     expect(filterKbDocs(docs, "nothing-matches")).toHaveLength(0);
   });
 
-  /* Real rows come from the database, where `source` is nullable — the same
-     search has to work on both shapes, which is why it is generic. */
+  /* THE FILENAME IS HALF THE POINT OF THE BOX. `source` is the optional
+     "Brand or author" field and is usually blank, so searching title+source
+     was in practice a title search — while the name people remember is the
+     file they dragged in, which used to be discarded at upload. */
+  it("finds a document by the file it arrived as", () => {
+    const docs = [
+      {
+        title: "Daikin VRV Diagnosis Manual",
+        source: null,
+        fileName: "daikin vrv diagnosis manual.pdf",
+      },
+      { title: "Install checklist", source: null, fileName: "PUZ-ZM250_install.pdf" },
+    ];
+
+    expect(filterKbDocs(docs, "puz-zm250")).toHaveLength(1);
+    expect(filterKbDocs(docs, ".pdf")).toHaveLength(2);
+    // and the title still wins on its own terms
+    expect(filterKbDocs(docs, "diagnosis")).toHaveLength(1);
+  });
+
+  /* Real rows come from the database, where `source` and `file_name` are both
+     nullable — every row uploaded before the filename was captured has none,
+     and the same search has to work on both shapes. */
   it("searches a row that has no source without falling over", () => {
     const docs = [{ title: "Untitled upload", source: null }];
     expect(filterKbDocs(docs, "untitled")).toHaveLength(1);

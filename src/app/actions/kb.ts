@@ -46,6 +46,9 @@ const GONE = "That document is no longer here.";
 
 const TITLE_MAX = 160;
 const SOURCE_MAX = 120;
+/* Long enough for a real manual's name off a manufacturer's site, which run to
+   model numbers and revision codes. It is evidence, not a label. */
+const FILE_NAME_MAX = 255;
 
 type Ctx = { orgId: string; userId: string };
 
@@ -113,6 +116,14 @@ export async function beginKbUpload(input: {
   category: string;
   source?: string;
   edition?: string;
+  /* The name the file arrived with. Kept as evidence, NOT as a label: the
+     title is the editable human name and `source` is the brand/author the
+     uploader types, while this is what was actually dragged in. Before it was
+     stored, `storage_ref` (a synthetic `kb/<org>/<id>`) was the only trace of
+     the file, so the library could not be searched by the name people
+     remember — and a title the guesser had mangled could not be traced back
+     to its input. Optional: a direct POST without it still uploads. */
+  fileName?: string;
   mime: string;
   sizeBytes: number;
 }): Promise<KbSlot> {
@@ -145,6 +156,9 @@ export async function beginKbUpload(input: {
       title: kbTitle(title),
       source: trim(input.source, SOURCE_MAX),
       edition: trim(input.edition, SOURCE_MAX),
+      // the raw name, uncleaned beyond the shared trim — its value is that it
+      // is exactly what the uploader had on disk
+      file_name: trim(input.fileName, FILE_NAME_MAX),
       kind: "PDF",
       mime_type: "application/pdf",
       size_bytes: Math.trunc(Number(input.sizeBytes)),

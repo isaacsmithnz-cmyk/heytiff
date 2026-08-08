@@ -44,7 +44,7 @@ export type Posture = "strip" | "field" | "line" | "debrief";
 /* ── the surface: ribbon + whatever the stage calls for ── */
 
 function Ribbon({ flow }: { flow: NoteFlow }) {
-  const { stage, scope, chosenJob } = flow;
+  const { stage, chosenJob } = flow;
   return (
     <div className="wb2-capribbon">
       {stage === "recording" ? (
@@ -75,8 +75,23 @@ function Ribbon({ flow }: { flow: NoteFlow }) {
       </b>
       {flow.debrief ? (
         <span className="wb2-chip">Tasks, knowledge &amp; your notes</span>
-      ) : scope.targetLabel ? (
-        <span className="wb2-chip blue">Against: {scope.targetLabel}</span>
+      ) : flow.targetLabel ? (
+        /* THE TAG. What the screen underneath handed up, and the note lands
+           on it — but standing on a job card is not the same as talking about
+           that job, so it comes off. Dropping it is a per-capture thing; the
+           next time you open this, the tag is back. */
+        <span className="wb2-chip blue wb2-aim">
+          {flow.targetLabel}
+          <button
+            type="button"
+            className="wb2-aimx"
+            onClick={flow.dropAim}
+            title="This isn't about that — take the tag off"
+            aria-label={`Not about ${flow.targetLabel} — take the tag off`}
+          >
+            <Icon name="x" size={11} />
+          </button>
+        </span>
       ) : (
         <span className="wb2-chip">{chosenJob ? chosenJob.clientName : "General note"}</span>
       )}
@@ -283,7 +298,7 @@ function Review({ flow }: { flow: NoteFlow }) {
         jobLabel={
           flow.debrief
             ? null
-            : flow.scope.targetLabel ?? (flow.chosenJob ? describeJob(flow.chosenJob) : null)
+            : flow.targetLabel ?? (flow.chosenJob ? describeJob(flow.chosenJob) : null)
         }
         taskCount={draft.tasks.filter((t) => t.on && t.title.trim() && t.assigneeId).length}
         kbCount={draft.kbEntries.filter((k) => k.on && k.title.trim() && k.body.trim()).length}
@@ -346,7 +361,7 @@ function JobLine({ flow }: { flow: NoteFlow }) {
   /* A debrief spans jobs by nature and its job-bound lanes are closed, so
      offering to pin the WHOLE thing to one job would un-say all of that. */
   if (flow.debrief) return null;
-  if (!flow.note || flow.scope.targetLabel || flow.scope.jobs.length === 0) return null;
+  if (!flow.note || flow.targetLabel || flow.scope.jobs.length === 0) return null;
   return (
     <>
       <div className={"wb2-capjob" + (flow.chosenJob ? " on" : "")}>

@@ -129,7 +129,11 @@ describe("the capsule", () => {
       targetLabel: "Meridian Data · CRACs",
     });
     await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
-    expect(screen.getByText("Against: Meridian Data · CRACs")).toBeInTheDocument();
+    /* The tag says the job and nothing else. It used to read "Against:
+       Meridian Data · CRACs", which is a sentence about a setting; a tag is
+       the thing itself, and it is now something you can take off. */
+    expect(screen.getByText("Meridian Data · CRACs")).toBeInTheDocument();
+    expect(screen.getByLabelText(/take the tag off/i)).toBeInTheDocument();
   });
 
   it("says General note when it's standing on nothing", async () => {
@@ -149,6 +153,48 @@ describe("the capsule", () => {
     expect(routeNote).toHaveBeenCalledWith(
       expect.objectContaining({ target: { kind: "visit", id: "v-1" }, source: "text" })
     );
+  });
+
+  /* ── THE CONTEXT TAG ──
+     Standing on a job card is not the same as talking about that job. The tag
+     is what makes the button usable everywhere without it quietly filing your
+     supplier reminder against whatever site you happened to be looking at. */
+
+  it("takes the tag off, and the note stops landing on the job", async () => {
+    mount(<TiffButton />, {
+      target: { kind: "visit", id: "v-1" },
+      targetLabel: "Meridian Data · CRACs",
+    });
+    await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
+    await userEvent.click(screen.getByLabelText(/take the tag off/i));
+
+    expect(screen.queryByText("Meridian Data · CRACs")).not.toBeInTheDocument();
+    expect(screen.getByText("General note")).toBeInTheDocument();
+
+    await userEvent.type(screen.getByRole("textbox"), "chase the supplier about the grilles");
+    await userEvent.click(screen.getByRole("button", { name: "Sort this out" }));
+    /* The half that is easy to miss: the chip can come off the ribbon while
+       the note still files itself against the job, because two different
+       places read the target. They read one now. */
+    expect(routeNote).toHaveBeenCalledWith(
+      expect.objectContaining({ target: { kind: "none" } })
+    );
+  });
+
+  it("comes back next time — dropping it is for this note, not a setting", async () => {
+    mount(<TiffButton />, {
+      target: { kind: "visit", id: "v-1" },
+      targetLabel: "Meridian Data · CRACs",
+    });
+    await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
+    await userEvent.click(screen.getByLabelText(/take the tag off/i));
+    expect(screen.getByText("General note")).toBeInTheDocument();
+
+    // close it and open it again, exactly as somebody would (the ribbon's
+    // × — the idle stage has a Discard button of its own by the same name)
+    await userEvent.click(screen.getByTitle("Discard"));
+    await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
+    expect(screen.getByText("Meridian Data · CRACs")).toBeInTheDocument();
   });
 
   it("walking away from a parsed note dismisses it rather than stranding it", async () => {

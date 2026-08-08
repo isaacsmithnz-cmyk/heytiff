@@ -4622,6 +4622,18 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
   .tiffbtn-halo { animation:none; }
 }
 
+/* THE CONTEXT TAG. It rides in the capture ribbon as a normal blue chip; the
+   only thing added is a way off it. The × is deliberately quiet — the tag
+   being RIGHT is the common case, and a dismiss that shouts invites people to
+   clear something they wanted. It fills in on hover so it is unmistakable
+   once you go looking. Portalled surface, so no `.fg` scope here. */
+.wb2-aim { padding-right:4px; gap:2px; }
+.wb2-aimx { display:inline-flex; align-items:center; justify-content:center; flex:none;
+  width:18px; height:18px; margin-left:2px; border:0; border-radius:6px; padding:0;
+  background:transparent; color:inherit; opacity:.55; cursor:pointer; transition:all .18s; }
+.wb2-aimx:hover { opacity:1; background:rgba(0,137,184,.16); }
+.wb2-aimx:focus-visible { outline:none; opacity:1; box-shadow:0 0 0 2px rgba(0,168,224,.6); }
+
 .wb2-capclock { font-variant-numeric:tabular-nums; font-size:12.5px; font-weight:800; color:var(--gray700); white-space:nowrap; }
 /* The last thirty seconds. The recorder stops itself at two minutes and keeps
    what it heard, so this is a heads-up and not a warning — it earns the red

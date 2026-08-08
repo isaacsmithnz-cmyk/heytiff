@@ -15,6 +15,9 @@ export type KbDocRow = {
   title: string;
   source: string | null;
   edition: string | null;
+  /** The name the file arrived with — null on anything uploaded before it was
+      captured. Searchable, never shown as the document's name. */
+  fileName: string | null;
   kind: string;
   storageRef: string | null;
   sizeBytes: number | null;
@@ -31,7 +34,7 @@ export type KbDocRow = {
 };
 
 const COLUMNS =
-  "id, category, title, source, edition, kind, storage_ref, size_bytes, page_count, " +
+  "id, category, title, source, edition, file_name, kind, storage_ref, size_bytes, page_count, " +
   "scanned_pages, status, error, next_page, chunk_count, uploaded_by, uploaded_at, updated_at";
 
 function toRow(r: Record<string, unknown>): KbDocRow {
@@ -41,6 +44,7 @@ function toRow(r: Record<string, unknown>): KbDocRow {
     title: String(r.title ?? ""),
     source: (r.source as string) ?? null,
     edition: (r.edition as string) ?? null,
+    fileName: (r.file_name as string) ?? null,
     kind: String(r.kind ?? "PDF"),
     storageRef: (r.storage_ref as string) ?? null,
     sizeBytes: r.size_bytes === null || r.size_bytes === undefined ? null : Number(r.size_bytes),

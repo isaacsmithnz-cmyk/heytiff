@@ -38,6 +38,7 @@ const doc = (over: Partial<KbLibraryDoc> = {}): KbLibraryDoc => ({
   title: "City Multi fault codes",
   source: "Mitsubishi Electric",
   edition: "2026 revision B",
+  fileName: "city-multi-fault-codes.pdf",
   kind: "PDF",
   storageRef: "org/org-1/kb/d-1.pdf",
   sizeBytes: 4_200_000,

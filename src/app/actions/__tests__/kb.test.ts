@@ -165,6 +165,24 @@ describe("beginning an upload", () => {
     });
   });
 
+  /* The name the file arrived with, kept as evidence. Before it was stored,
+     `storage_ref` — a synthetic `kb/<org>/<id>` — was the only trace of the
+     file: the library couldn't be searched by the name people remember, and a
+     title the guesser had mangled ("Daikin Vrv…") couldn't be traced back to
+     what it was given. */
+  it("keeps the filename the upload arrived with, raw", async () => {
+    await beginKbUpload({ ...PDF, fileName: "daikin vrv diagnosis manual.pdf" });
+
+    expect(inserts[0]).toMatchObject({ file_name: "daikin vrv diagnosis manual.pdf" });
+    // the title is still the human one, untouched by the filename
+    expect(inserts[0]).toMatchObject({ title: "City Multi install guide" });
+  });
+
+  it("stores no filename when a direct post omits it", async () => {
+    await beginKbUpload(PDF);
+    expect(inserts[0]).toMatchObject({ file_name: null });
+  });
+
   it("refuses anything that isn't a PDF, without creating a row", async () => {
     expect(await beginKbUpload({ ...PDF, mime: "image/png" })).toMatchObject({ ok: false });
     expect(inserts).toHaveLength(0);

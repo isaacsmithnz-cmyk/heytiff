@@ -38,6 +38,11 @@ export async function uploadKbFile(file: File, meta: KbUploadMeta): Promise<KbUp
     category: meta.category,
     source: meta.source,
     edition: meta.edition,
+    /* Taken off the File rather than added to `KbUploadMeta`: the name is a
+       property of the thing being uploaded, not a decision a caller makes, and
+       every caller that forgot to pass it would silently lose the provenance
+       again — which is exactly how it went missing the first time. */
+    fileName: file.name,
     mime: file.type,
     sizeBytes: file.size,
   });

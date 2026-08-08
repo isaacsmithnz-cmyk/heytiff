@@ -4587,7 +4587,18 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    transform, filter or will-change, so it does not become a containing block.
    `.page.in` DOES (it animates with will-change), which is exactly why this
    is mounted in the frame beside the palette and not inside the outlet. */
-.tiffbtn { position:fixed; right:26px; bottom:26px; z-index:60;
+/* ABOVE THE SHEETS, BELOW ITS OWN. This sat at z-index 60 and was therefore
+   unreachable the moment any sheet opened — `.wb2-scrim` is 100 and swallowed
+   every click on it. Found by opening a visit on the real board; jsdom has no
+   hit-testing, so 4,595 tests could not have caught it, and it broke exactly
+   the case the context tag exists for: a note taken while a job is open.
+
+   105 threads the stack — over `.wb2-scrim` (100) and `.wb2-sheet` /
+   `.wb2-daymodal` (101), under `.wb2-capdim` (110) and `.wb2-capcard` (111)
+   so the capture surface it opens still covers it, and under `.wb2-toasts`
+   (130), which should sit over everything. Anything added between 100 and 110
+   has to be checked against this. */
+.tiffbtn { position:fixed; right:26px; bottom:26px; z-index:105;
   width:58px; height:58px; padding:0; border:0; background:none; cursor:pointer;
   transition:transform .2s cubic-bezier(.22,1,.36,1); }
 .tiffbtn:hover { transform:translateY(-2px); }

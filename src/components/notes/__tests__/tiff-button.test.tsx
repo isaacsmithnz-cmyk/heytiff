@@ -103,6 +103,30 @@ describe("the button itself", () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
+  /* THE BUG THE LIVE WALK FOUND, and the one jsdom can only half-guard.
+
+     Rendered in place inside `.fg`, the button is unreachable the moment any
+     sheet opens: `.wb2-scrim` portals to body at z-index 100 and swallows
+     every click on it. Raising the z-index does not help — a probe with the
+     maximum possible z-index still loses inside `.fg` and wins from body, so
+     nothing reaches out of that frame and the element has to leave it.
+
+     jsdom has no hit-testing, so it cannot fail the way a browser does. What
+     it CAN hold is the structural fact underneath: the button is a child of
+     body, not of the frame. Put it back in the tree and this fails. */
+  it("lives in the document body, not inside the app frame", () => {
+    render(
+      <NoteScopeProvider voiceEnabled>
+        <div className="fg">
+          <TiffButton />
+        </div>
+      </NoteScopeProvider>
+    );
+    const el = btn();
+    expect(el.closest(".fg")).toBeNull();
+    expect(el.parentElement).toBe(document.body);
+  });
+
   it("says what it does rather than naming an icon", () => {
     mount();
     expect(btn()).toHaveAccessibleName("Ask or tell Tiff — starts listening");

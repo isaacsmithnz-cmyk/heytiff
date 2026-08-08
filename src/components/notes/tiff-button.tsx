@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Chevron } from "@/components/logo";
 import { CaptureSheet } from "./note-token";
 import { useNoteFlow } from "./note-flow";
@@ -30,7 +32,32 @@ export function TiffButton() {
   const scope = useNoteScope();
   const flow = useNoteFlow();
 
-  return (
+  /* PORTALLED TO BODY, and it has to be — this is the app's standing modal
+     rule (dashboard overlays portal to body) arriving from a new direction.
+
+     Rendered in place inside `.fg` the button is UNREACHABLE the moment any
+     sheet opens: `.wb2-scrim` is portalled to body at z-index 100 and swallows
+     every click. Raising the z-index does not help, and that is the part worth
+     writing down — a probe with the maximum possible z-index (2147483647)
+     still loses inside `.fg` and wins from body. `.fg` is `position:fixed`
+     with `z-index:auto` and no other inducer, so by the spec its positioned
+     descendants should escape into the root stacking context; in practice the
+     fixed frame traps them. Whatever the mechanism, no z-index reaches out of
+     it, so the element has to leave.
+
+     Found by opening a visit on the real board. jsdom has no hit-testing, so
+     the suite could not have caught it — and it broke precisely the case the
+     context tag exists for: taking a note while a job is open in front of you.
+
+     `mounted` keeps the server render empty. `document` does not exist during
+     SSR, and a button that appears one frame into hydration is invisible next
+     to a frame that is already streaming its chrome. */
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) return null;
+
+  return createPortal(
     <>
       <button
         type="button"
@@ -76,6 +103,7 @@ export function TiffButton() {
       {/* The SAME sheet the field postures open. What you get must not depend
           on which control you reached it through. */}
       <CaptureSheet flow={flow} />
-    </>
+    </>,
+    document.body
   );
 }

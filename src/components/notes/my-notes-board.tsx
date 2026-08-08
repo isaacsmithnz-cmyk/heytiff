@@ -120,7 +120,11 @@ export function MyNotesBoard({
                     ) : (
                       <>
                         <span style={{ flex: 1, minWidth: 0 }}>
-                          <span style={{ display: "block" }}>{n.body}</span>
+                          {/* pre-line: the debrief's grouped note and the
+                              review card's "keep it in my notes" both write
+                              one line per kept row, and collapsing them into
+                              a paragraph un-groups what was grouped */}
+                          <span style={{ display: "block", whiteSpace: "pre-line" }}>{n.body}</span>
                           <em className="wb2-capsaid" style={{ display: "block", marginTop: 3 }}>
                             {fmtAuWeekdayDayMonth(n.createdAt.slice(0, 10))}
                             {n.source === "routed" && " · came off a note you sorted"}

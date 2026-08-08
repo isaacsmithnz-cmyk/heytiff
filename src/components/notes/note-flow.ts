@@ -6,7 +6,7 @@ import { appendSpoken, useDictation } from "./dictation";
 import { askBrain } from "@/lib/brain/ask-client";
 import { looksLikeQuestion } from "@/lib/brain/intent";
 import { clearRun, markProposal } from "@/lib/voice/timing";
-import { matchJob } from "@/lib/workboard/note-match";
+import { matchJob, type JobCandidate } from "@/lib/workboard/note-match";
 import type { NoteProposal, NoteStaff } from "@/lib/workboard/note-brain";
 import type { NoteTarget } from "@/app/actions/workboard-notes";
 import {
@@ -18,7 +18,7 @@ import {
   routeNote,
 } from "@/app/actions/workboard-notes";
 import { useNoteScope } from "./note-context";
-import { blockers, toConfirmed, toDraft, targetOf, type Draft } from "./review-card";
+import { blockers, keptLines, toConfirmed, toDraft, targetOf, type Draft } from "./review-card";
 
 /* THE STATE MACHINE, once.
 
@@ -44,6 +44,9 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
     id: string;
     proposal: NoteProposal;
     staff: NoteStaff[];
+    /** The picker's roster, served with the route — every screen gets one,
+        which is what made "say which one" honest off the workboard. */
+    jobs: JobCandidate[];
   } | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [answer, setAnswer] = useState("");
@@ -158,7 +161,7 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
         /* The end of the wait — the card now has something to check. The
            transport only owns the first half of this number. */
         markProposal();
-        setNote({ id: res.noteId, proposal: res.proposal, staff: res.staff });
+        setNote({ id: res.noteId, proposal: res.proposal, staff: res.staff, jobs: res.jobs ?? [] });
         setDraft(toDraft(res.proposal));
       });
     },
@@ -257,10 +260,14 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
   /* WHICH JOB DID THE NOTE MEAN? The words name a client out loud, so the
      card comes back with the job card it thinks that is — number and all —
      for a person to confirm, rather than making them hunt a dropdown. The
-     matching is plain code (lib/workboard/note-match), never the model. */
+     matching is plain code (lib/workboard/note-match), never the model, and
+     it runs over the roster the ROUTE brought back — the screens used to
+     push this list up, which silently made pinning a board-screens-only
+     feature. */
+  const jobs = note?.jobs ?? [];
   const guess = useMemo(
-    () => matchJob(text || note?.proposal.plainNote || "", scope.jobs),
-    [text, note, scope.jobs]
+    () => matchJob(text || note?.proposal.plainNote || "", note?.jobs ?? []),
+    [text, note]
   );
 
   /* The guess is a SUGGESTION, so it seeds the picker and stays overridable —
@@ -269,11 +276,11 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
   const picked = touched
     ? attachTo
     : guess.bestId
-      ? `${scope.jobs.find((o) => o.id === guess.bestId)?.kind}:${guess.bestId}`
+      ? `${jobs.find((o) => o.id === guess.bestId)?.kind}:${guess.bestId}`
       : "";
 
   const chosen = targetOf(picked);
-  const chosenJob = chosen ? scope.jobs.find((o) => o.id === chosen.id) ?? null : null;
+  const chosenJob = chosen ? jobs.find((o) => o.id === chosen.id) ?? null : null;
   const scoped = aimed;
   const hasTarget = scoped || !!chosen;
   const stops = draft ? blockers(draft, hasTarget) : [];
@@ -309,12 +316,15 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
     });
   };
 
-  /** The floor. Offered when the two rungs above can't take it. */
+  /** The floor. Offered when the two rungs above can't take it. What it
+      keeps is the TICKED ROWS, edits included, grouped as one note — a flag
+      that names no job isn't a flag, it's your note (see `keptLines`). With
+      nothing ticked the server keeps the raw transcript instead. */
   const keepForMe = () => {
     if (!note) return;
     setError(null);
     start(async () => {
-      const res = await keepNoteForMe(note.id);
+      const res = await keepNoteForMe(note.id, draft ? keptLines(draft, note.proposal.plainNote) : []);
       if (!res.ok) return setError(res.error);
       finish(res.summary);
     });
@@ -326,7 +336,7 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
     start(async () => {
       const res = await answerClarify(note.id, reply);
       if (!res.ok) return setError(res.error);
-      setNote({ id: res.noteId, proposal: res.proposal, staff: res.staff });
+      setNote({ id: res.noteId, proposal: res.proposal, staff: res.staff, jobs: res.jobs ?? [] });
       setDraft(toDraft(res.proposal));
       setAnswer("");
     });
@@ -376,6 +386,8 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
     sendAnswer,
     done,
     sorting,
+    /** The jobs this note may be pinned to — the route brought them. */
+    jobs,
     guess,
     chosen,
     chosenJob,

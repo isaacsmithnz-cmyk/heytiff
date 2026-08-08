@@ -106,6 +106,38 @@ export function toConfirmed(d: Draft): ConfirmedNote {
 export const nothingTicked = (d: Draft): boolean =>
   Object.values(toConfirmed(d)).every((bucket) => bucket.length === 0);
 
+/** What "Keep it in my notes" keeps: the ticked rows, edits included, as the
+    lines of one grouped note — because a flag or a reading that names no job
+    ISN'T a flag or a reading, it's your note wearing structured clothes.
+    Deliberately from the DRAFT, not `toConfirmed`: an unassigned task can't
+    be applied, but its words are still words worth keeping.
+
+    Empty when no rows are ticked — the server then keeps the raw transcript
+    instead, which is the right floor for a note that never grew rows. The
+    plain remark rides first when rows exist, so nothing shown on the card is
+    missing from what was kept. */
+export function keptLines(d: Draft, plainNote: string): string[] {
+  const rows = [
+    ...d.tasks
+      .filter((t) => t.on && t.title.trim())
+      .map((t) => (t.detail.trim() ? `${t.title.trim()} — ${t.detail.trim()}` : t.title.trim())),
+    ...d.flags.filter((f) => f.on && f.message.trim()).map((f) => f.message.trim()),
+    ...d.bringItems
+      .filter((b) => b.on && b.text.trim())
+      .map((b) => `Bring next visit: ${b.text.trim()}`),
+    ...d.progressBullets.filter((b) => b.on && b.text.trim()).map((b) => b.text.trim()),
+    ...d.commissioningEntries.filter((e) => e.on && e.text.trim()).map((e) => e.text.trim()),
+    ...d.issueEntries.filter((e) => e.on && e.summary.trim()).map((e) => e.summary.trim()),
+    ...d.kbEntries
+      .filter((k) => k.on && k.title.trim() && k.body.trim())
+      .map((k) => `${k.title.trim()} — ${k.body.trim()}`),
+    ...d.noteLines.filter((l) => l.on && l.text.trim()).map((l) => l.text.trim()),
+  ];
+  if (rows.length === 0) return [];
+  const remark = plainNote.trim();
+  return remark ? [remark, ...rows] : rows;
+}
+
 /** Buckets that are text on somebody else's row and cannot exist without a
     job to sit on. Tasks are deliberately NOT here — `tasks` has no job
     column, so a task from a note stands on its own. */

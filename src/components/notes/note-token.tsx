@@ -332,7 +332,7 @@ function Review({ flow }: { flow: NoteFlow }) {
             className="pbtn ghost"
             onClick={flow.keepForMe}
             disabled={flow.busy}
-            title="Keep the words in your own notes and apply none of this"
+            title="Keep what's ticked in your own notes — nothing lands on the board"
           >
             Keep it in my notes
           </button>
@@ -356,12 +356,15 @@ function Review({ flow }: { flow: NoteFlow }) {
 }
 
 /** The job confirmation + picker, shown when a note arrived against nothing
-    and there are jobs it could belong to. */
+    and there are jobs it could belong to. The roster comes back WITH the
+    routed note, so this works on every screen — it used to read the scope's
+    job list, which only board screens pushed, and a fault note dictated from
+    anywhere else was told to "say which one" with no way to say it. */
 function JobLine({ flow }: { flow: NoteFlow }) {
   /* A debrief spans jobs by nature and its job-bound lanes are closed, so
      offering to pin the WHOLE thing to one job would un-say all of that. */
   if (flow.debrief) return null;
-  if (!flow.note || flow.targetLabel || flow.scope.jobs.length === 0) return null;
+  if (!flow.note || flow.targetLabel || flow.jobs.length === 0) return null;
   return (
     <>
       <div className={"wb2-capjob" + (flow.chosenJob ? " on" : "")}>

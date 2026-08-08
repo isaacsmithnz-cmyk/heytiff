@@ -227,64 +227,6 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
     return () => window.removeEventListener("resize", measure);
   }, [tab, badges.maintenance.n, badges.projects.n]);
 
-  /* THE JOB CARDS a general note can be pinned to on review. Speaking a
-     client's name from the board header is the normal case — "Luke needs to
-     organise some filters for Kingsford Medical Centre" — and the note had no
-     way to point at them, so its bring-list was silently thrown away on save.
-
-     OPEN VISITS AND TRIPS FIRST, because they're the thing that carries a job
-     number, and a job number is what makes "is this the right one?" a glance
-     instead of a guess. Agreements follow for work with no visit raised yet;
-     projects last. An agreement is offered once even if it has three open
-     visits — the visits are the specific answer and the agreement is the
-     fallback, so listing both keeps the general case reachable. */
-  const attachOptions = useMemo(() => {
-    const openOf = (s: string) => s === "upcoming" || s === "booked";
-    return [
-      ...data.board.visits
-        .filter((v) => openOf(v.status))
-        .map((v) => ({
-          kind: "visit" as const,
-          id: v.id,
-          clientName: v.clientName,
-          label: v.label,
-          siteLabel: v.siteLabel,
-          jobNumber: v.jobNumber,
-        })),
-      ...data.projectsBoard.visits
-        .filter((v) => openOf(v.status))
-        .map((v) => ({
-          kind: "visit" as const,
-          id: v.id,
-          clientName: v.clientName ?? v.projectName,
-          label: `${v.projectName} · ${v.label}`,
-          siteLabel: v.siteLabel,
-          jobNumber: v.jobNumber,
-        })),
-      ...data.board.agreements.map((a) => ({
-        kind: "agreement" as const,
-        id: a.id,
-        clientName: a.clientName,
-        label: a.label,
-        siteLabel: a.siteLabel,
-        jobNumber: null,
-      })),
-      ...data.projectsBoard.projects.map((p) => ({
-        kind: "project" as const,
-        id: p.id,
-        clientName: p.clientName ?? p.name,
-        label: p.name,
-        siteLabel: p.siteLabel,
-        jobNumber: null,
-      })),
-    ];
-  }, [
-    data.board.visits,
-    data.board.agreements,
-    data.projectsBoard.visits,
-    data.projectsBoard.projects,
-  ]);
-
   /* WHO THE NOTE MIGHT NAME. The field mics' sieve decides whether a
      dictated sentence is worth an Opus call, and a named person is its
      strongest single signal — but it can't recognise one without a roster.
@@ -308,9 +250,11 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
   /* THE TOKEN IS NOT ON THIS PAGE ANY MORE. It was a capsule docked at the
      tab row's right end; it is now the Tiff button in the frame, on every
      screen instead of two. What this page still owes it is CONTEXT — which
-     job a note lands on, which jobs it may be pinned to, and the roster the
-     local sieve reads names from — reported upward rather than passed down,
-     because the button is above this screen in the tree.
+     job a note lands on, and the roster the local sieve reads names from —
+     reported upward rather than passed down, because the button is above
+     this screen in the tree. (The jobs a note may be PINNED to used to be
+     pushed from here too, which made the picker a board-screens-only
+     feature; they ride the route result now.)
 
      Display mode keeps working for free: the frame is what display mode
      hides, and the button hides with it. */
@@ -320,7 +264,6 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
        mirror the open sheet into page state via an `onCaptureTarget` callback
        threaded down through both boards; the sheets report themselves now. */
     target: { kind: "none" },
-    jobs: attachOptions,
     staffFirstNames,
   });
 

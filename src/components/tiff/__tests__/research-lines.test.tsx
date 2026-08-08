@@ -210,20 +210,38 @@ describe("while searching", () => {
 });
 
 describe("once the trace lands", () => {
-  it("lights the winner, dims the rest and stops pulsing", () => {
+  it("lights the winner, tints the hit, dims the rest and stops pulsing", () => {
     const { container } = render(<Stage viz={traced} />);
 
     expect(container.querySelector('path.tk-line.lit[data-cat="faults"]')).not.toBeNull();
     expect(paths(container, ".lit")).toHaveLength(1);
-    expect(paths(container, ".dim")).toHaveLength(4);
+    // install had 2 hits the answer didn't use — a fact worth its own class
+    expect(container.querySelector('path.tk-line.hit[data-cat="install"]')).not.toBeNull();
+    expect(paths(container, ".hit")).toHaveLength(1);
+    expect(paths(container, ".dim")).toHaveLength(3);
     expect(paths(container, ".pulse")).toHaveLength(0);
   });
 
-  it("fades every line once the answer is finished, without unmounting yet", () => {
+  /* The writing has its own pulse, on the winner's lane only, run backwards —
+     the answer being drawn FROM the shelf. */
+  it("pulses back along the winner's lane while the answer streams", () => {
+    const { container } = render(<Stage viz={reduceViz(traced, { t: "firstDelta" })} />);
+
+    const back = paths(container, ".pulse.back");
+    expect(back).toHaveLength(1);
+    expect(back[0].getAttribute("data-cat")).toBe("faults");
+    expect(paths(container, ".pulse")).toHaveLength(1);
+  });
+
+  it("keeps the winner's line faintly once the answer is finished, fades the rest", () => {
     const { container } = render(
       <Stage viz={reduceViz(reduceViz(traced, { t: "firstDelta" }), { t: "done" })} />
     );
-    expect(paths(container, ".fade")).toHaveLength(5);
+    expect(paths(container, ".fade")).toHaveLength(4);
+    const kept = paths(container, ".kept");
+    expect(kept).toHaveLength(1);
+    expect(kept[0].getAttribute("data-cat")).toBe("faults");
+    expect(paths(container, ".pulse")).toHaveLength(0);
     expect(svg(container)).not.toBeNull();
   });
 

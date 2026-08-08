@@ -348,6 +348,16 @@ export function TiffAssistant({
   const chatRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
+  /* Whether the transcript is pinned to its bottom edge. True until the reader
+     scrolls up — a stream should follow itself, but not fight somebody who has
+     gone back to re-read a table while the rest of the answer arrives. */
+  const followRef = useRef(true);
+
+  /* Whether WE put the extra history entry there. A ref, not `history.state`:
+     the router replaceStates over the current entry on its own commits and can
+     drop custom keys, so the entry survives but a marker on it may not. */
+  const pushedRef = useRef(false);
+
   /* What the search lines and the category cards are doing. The refs below are
      the overlay's measuring points — the stage it draws inside, the composer
      every line leaves from, and the card each one arrives at. */
@@ -366,10 +376,20 @@ export function TiffAssistant({
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
+  /* Follow the stream — unless the reader has left the bottom. The handler on
+     the transcript keeps `followRef` honest; this effect only acts on it. */
   useEffect(() => {
     const el = chatRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (el && followRef.current) el.scrollTop = el.scrollHeight;
   }, [active?.messages.length, live?.text, streaming]);
+
+  const onChatScroll = () => {
+    const el = chatRef.current;
+    if (!el) return;
+    /* Within a message of the bottom still counts as following: the pin
+       shouldn't release because the browser rounded a subpixel. */
+    followRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  };
 
   /* Arriving from "Ask Tiff" on a library row: the document left a
      sentence-opener behind, and this is where it is picked up.
@@ -551,10 +571,13 @@ export function TiffAssistant({
       const title = trimmed.length > 52 ? `${trimmed.slice(0, 52).trimEnd()}…` : trimmed;
       next = [{ id: threadId, title, updatedAt: at, messages: [msg] }, ...threads];
       setActiveId(threadId);
+      // the landing→thread transition, whichever door it came through
+      markOpened(threadId);
     }
 
     persist(next);
     setInput("");
+    followRef.current = true;
     run(threadId!, trimmed, researchMode, historyOf(active?.messages ?? []));
   };
 
@@ -570,23 +593,88 @@ export function TiffAssistant({
     send(question, true);
   };
 
-  const newChat = () => {
+  /* ── leaving a conversation, every way there is ─────────────────────────
+     One bundle, because every exit owes the same debts: stop the stream, drop
+     the live answer, drop the failure, give the rail back to the screen
+     (`reset` — it belongs to the question that was asked), and land on the
+     landing. `commit` is the one choice: a NAVIGATION keeps a half-written
+     answer in the thread (goHome, browser back — the reader is coming back),
+     while starting over does not (New chat, delete — the old behaviour). */
+  const leaveThread = (commit: boolean) => {
+    const state = liveRef.current;
+    if (commit && state) commitLive(state);
     abortRef.current?.abort();
     setLiveBoth(null);
     setFailure(null);
     showViz({ t: "reset" });
     setActiveId(null);
+  };
+
+  /* Opening a thread owns one history entry, so the browser's own back button
+     closes the chat instead of leaving the page. The URL is deliberately
+     UNCHANGED: the router only dispatches on a pushState that carries a url,
+     so a bare entry is invisible to it — no refetch, no remount. */
+  const markOpened = (id: string) => {
+    try {
+      window.history.pushState({ tiffChat: id }, "");
+      pushedRef.current = true;
+    } catch {
+      /* a history that refuses the push just means back leaves the page */
+    }
+  };
+
+  /* Closing from ON-SCREEN consumes the entry we pushed, so the stack never
+     grows past one. State is already closed by the caller — the popstate this
+     triggers finds nothing left to do, which is exactly why the handler below
+     is written to be idempotent. */
+  const settleHistory = () => {
+    if (!pushedRef.current) return;
+    pushedRef.current = false;
+    window.history.back();
+  };
+
+  /* The browser's back (and forward) button, made to mean something here.
+     Everything this closure touches is a ref or a setState — stable across
+     renders — so it binds once. */
+  useEffect(() => {
+    const onPop = (e: PopStateEvent) => {
+      const id = (e.state as { tiffChat?: string } | null)?.tiffChat;
+      if (typeof id === "string") {
+        // forward, onto an entry we own: reopen the thread if it still exists
+        pushedRef.current = true;
+        if (loadThreads().some((t) => t.id === id)) {
+          followRef.current = true;
+          setActiveId(id);
+        }
+        return;
+      }
+      // back, off our entry: leave the chat, keeping a half-written answer
+      pushedRef.current = false;
+      leaveThread(true);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refs and setters only
+  }, []);
+
+  /** The header's back button: out of the chat, thread kept, input kept. */
+  const goHome = () => {
+    leaveThread(true);
+    settleHistory();
+  };
+
+  const newChat = () => {
+    leaveThread(false);
+    settleHistory();
     setInput("");
     inputRef.current?.focus();
   };
 
   const openThread = (id: string) => {
-    abortRef.current?.abort();
-    setLiveBoth(null);
-    setFailure(null);
-    // the rail belongs to the question that was asked, not to the screen
-    showViz({ t: "reset" });
+    leaveThread(false);
+    followRef.current = true;
     setActiveId(id);
+    markOpened(id);
   };
 
   /* Renaming touches the title and nothing else — `updatedAt` orders the list
@@ -603,11 +691,8 @@ export function TiffAssistant({
      and takes the stream, the failure and the rail with it. */
   const deleteThread = (id: string) => {
     if (activeId === id) {
-      abortRef.current?.abort();
-      setLiveBoth(null);
-      setFailure(null);
-      showViz({ t: "reset" });
-      setActiveId(null);
+      leaveThread(false);
+      settleHistory();
     }
     persist(threads.filter((t) => t.id !== id));
     setRemoving(null);
@@ -628,12 +713,27 @@ export function TiffAssistant({
     Boolean(lastQuestion);
 
   return (
-    <div className="page in">
+    /* `tk-lock` closes the height chain so the transcript scrolls INSIDE
+       `.tchat` instead of growing the page — but only while a thread is open.
+       The landing was designed to page-scroll (it grows with the thread list),
+       and locking it would clip the composer's glow at the column edge. */
+    <div className={`page in${active ? " tk-lock" : ""}`}>
       <div className="tk-stage" ref={stageRef}>
         <div className={`tk-chatcol${active ? "" : " landing"}`}>
           {active ? (
             <>
               <div className="tchathead">
+                {/* the way OUT is the first thing in the row, where every
+                    other screen's crumb already lives */}
+                <button
+                  type="button"
+                  className="tk-tact"
+                  aria-label="Back to Tiff AI"
+                  title="Back to Tiff AI"
+                  onClick={goHome}
+                >
+                  <Icon name="chevL" size={16} />
+                </button>
                 <span className="tb2">
                   <Icon name="bot" size={22} />
                 </span>
@@ -667,7 +767,7 @@ export function TiffAssistant({
                 </button>
               </div>
 
-              <div className="tchat" ref={chatRef}>
+              <div className="tchat" ref={chatRef} onScroll={onChatScroll}>
                 {active.messages.map((m, i) => (
                   /* No avatar on Tiff's turn. The answer is a full-width sheet
                      and the question is a short dark bubble on the right —

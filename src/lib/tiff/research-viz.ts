@@ -66,7 +66,11 @@ export const IDLE_VIZ: ResearchViz = Object.freeze({
 /* ── what the screen is told ─────────────────────────────────────────────── */
 
 /** A line's class. `pulse` belongs to the second path drawn over the first. */
-export type LineState = "draw" | "pulse" | "dim" | "lit" | "fade" | "off";
+export type LineState = "draw" | "pulse" | "hit" | "dim" | "lit" | "kept" | "fade" | "off";
+
+/** The travelling pulse on one lane: outbound while searching, back along the
+    winner while the answer is written, or absent. */
+export type LanePulse = "out" | "back" | "off";
 
 export type CardState = "searching" | "hit" | "winner" | "dim" | "idle";
 
@@ -220,11 +224,17 @@ export function overlayVisible(state: ResearchViz): boolean {
 
 /* The base path's class, per shelf.
 
-   Both kinds of non-winner get `dim`, and deliberately: "we looked here and
-   found four things the answer didn't need" and "we looked here and found
-   nothing" are different facts about the SHELF — the card carries them — but
-   the same fact about the line, which is only ever about where the answer came
-   from. */
+   A HIT AND A MISS ARE DIFFERENT SENTENCES NOW. They both rendered `dim` on
+   the theory that the line only ever says where the answer came from — but on
+   screen `.12` grey next to `.12` grey meant "we found four things here" and
+   "we found nothing here" were indistinguishable, and the card's tinted border
+   was the only witness. So a hit keeps a faint trace of its category colour
+   and a miss drops nearly to nothing; the winner stays the loud one.
+
+   AND SETTLING KEEPS THE WINNER'S THREAD. Every line used to fade to zero
+   while the winner CARD kept its ring and its note — provenance on the card,
+   amnesia on the line. `kept` is the line-side of the same statement, faint
+   enough to read as residue rather than activity. */
 export function lineState(state: ResearchViz, cat: KbCategory): LineState {
   switch (state.phase) {
     case "idle":
@@ -233,15 +243,28 @@ export function lineState(state: ResearchViz, cat: KbCategory): LineState {
       return "draw";
     case "traced":
     case "answering":
-      return state.winners.includes(cat) ? "lit" : "dim";
+      if (state.winners.includes(cat)) return "lit";
+      return hitsFor(state, cat) > 0 ? "hit" : "dim";
     case "settled":
-      return "fade";
+      return state.winners.includes(cat) ? "kept" : "fade";
   }
 }
 
-/** The travelling pulse — only while something is genuinely outstanding. */
-export function pulseState(state: ResearchViz): LineState {
-  return state.phase === "searching" ? "pulse" : "off";
+/* The travelling pulse, per lane — and its direction is the meaning. While
+   the search is out, every lane pulses AWAY from the composer: the question
+   is travelling to the shelves. Once the words are streaming, only the
+   winner's lane pulses, and it runs the other way: the answer is being drawn
+   FROM that shelf. `traced` sits between the two with no pulse at all, which
+   is what finally makes it look different from `answering`. */
+export function lanePulse(state: ResearchViz, cat: KbCategory): LanePulse {
+  switch (state.phase) {
+    case "searching":
+      return "out";
+    case "answering":
+      return state.winners.includes(cat) ? "back" : "off";
+    default:
+      return "off";
+  }
 }
 
 export function cardState(state: ResearchViz, cat: KbCategory): CardState {

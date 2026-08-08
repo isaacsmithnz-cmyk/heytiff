@@ -5140,6 +5140,25 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    being eaten by a wider transcript. ~104px at 1512, ~164px at full width. */
 .fg .tk-stage { position:relative; display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:72px; align-items:stretch;
   height:100%; width:100%; max-width:1420px; margin:0 auto; padding:32px; }
+
+/* ── the height lock, thread view only ──
+   `.tk-stage { height:100% }` above resolves to AUTO on the landing, because
+   `.page` is `min-height:100%` (its computed height is auto) — so the page
+   scrolls the outlet like every other dashboard screen, which is what the
+   landing wants. An open THREAD wants the opposite: the transcript scrolling
+   inside `.tchat` with the header and composer pinned. `tk-lock` (set by the
+   assistant only while a thread is open) is what closes the chain — with it,
+   the percentage resolves, the grid row is viewport-sized, and `.tchat`'s
+   existing `flex:1; min-height:0; overflow-y:auto` finally has something to
+   shrink against. The explicit row is belt on braces: without it the row's
+   height is a track-sizing outcome (auto row, min-content contributions that
+   happen to collapse); with it, a guarantee. */
+.fg .page.tk-lock { height:100%; }
+.fg .page.tk-lock .tk-stage { grid-template-rows:minmax(0,1fr); }
+@media (max-width:1100px) {
+  /* stacked, the transcript goes back to page-scrolling like everything else */
+  .fg .page.tk-lock { height:auto; min-height:100%; }
+}
 /* Capped, not stretched. An answer sheet reads worse past ~820px anyway — the
    line length was already at the top of what's comfortable — so this costs the
    transcript nothing and buys the lanes room to fan. */
@@ -5177,10 +5196,15 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    were in, and only then the kinds of question worth asking. Both are
    quiet — a starter is a pill you can ignore, not a card competing with
    the rail. */
-/* Top-aligned with a deep pad rather than `justify-content:center`: centring
-   a flex column clips the TOP of anything taller than the viewport, and this
-   column grows with the thread list. */
-.fg .tk-chatcol.landing { justify-content:flex-start; padding-top:clamp(12px, 13vh, 132px); }
+/* TOP-ALIGNED WITH THE RAIL, no pad. This carried `padding-top:clamp(12px,
+   13vh, 132px)` — a viewport-height drop that put the heading up to 132px
+   below the LIBRARY eyebrow and moved the gap every time the window resized,
+   which is most of why the landing read as sections thrown together. Both
+   columns now start at the stage's own padding edge: heading and eyebrow on
+   one line, at every window height. (`justify-content:center` stays rejected
+   for the old reason — centring a flex column clips the top of anything
+   taller than the viewport, and this column grows with the thread list.) */
+.fg .tk-chatcol.landing { justify-content:flex-start; }
 .fg .tk-chatcol.landing .tk-open { order:1; }
 .fg .tk-chatcol.landing .tk-composer { order:2; }
 .fg .tk-chatcol.landing .tk-recent { order:3; }
@@ -5474,9 +5498,21 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   animation:tkFlow 1.5s linear .25s infinite; }
 @keyframes tkFlow { 0%{opacity:0;stroke-dashoffset:0} 20%{opacity:.85} 80%{opacity:.85} 100%{opacity:0;stroke-dashoffset:-132} }
 
-/* where the answer came from · where it didn't · and gone */
+/* THE SAME PULSE, RUN BACKWARDS, IS A DIFFERENT SENTENCE: while the answer
+   streams, the winner's lane pulses toward the composer — the words are being
+   drawn FROM that shelf. Slower than the outbound search, because it narrates
+   the whole time an answer takes rather than a two-second lookup. */
+.fg .tk-line.pulse.back { animation:tkFlow 2.2s linear infinite reverse; }
+
+/* where the answer came from · found-but-unused · nothing there · and after.
+   `hit` keeps a trace of the category colour, `dim` drops to near-nothing —
+   they used to share `.12` grey, which made "found four things" and "found
+   nothing" the same line. `kept` is the settled winner: the card keeps its
+   ring and its note, so the line keeps its thread — residue, not activity. */
 .fg .tk-line.lit { stroke:var(--tkc, #2E68FF); stroke-width:2; opacity:.9; }
-.fg .tk-line.dim { opacity:.12; }
+.fg .tk-line.hit { stroke:var(--tkc, #9ca3af); opacity:.3; }
+.fg .tk-line.dim { opacity:.07; }
+.fg .tk-line.kept { stroke:var(--tkc, #2E68FF); stroke-width:1.8; opacity:.25; }
 .fg .tk-line.fade { opacity:0; transition:opacity .6s ease; }
 
 /* ── and what the same moments do to a shelf ── */

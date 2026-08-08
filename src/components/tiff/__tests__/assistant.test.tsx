@@ -655,6 +655,134 @@ describe("managing a thread", () => {
   });
 });
 
+/* ── the way back out ────────────────────────────────────────────────────── */
+
+describe("leaving a conversation", () => {
+  const seed = (threads: unknown[]) => localStorage.setItem(STORE_KEY, JSON.stringify(threads));
+
+  const thread = (over: Record<string, unknown> = {}) => ({
+    id: "t-1",
+    title: "R32 pressures",
+    updatedAt: 1_700_000_000_000,
+    messages: [{ role: "user", text: "why P8?", at: 1_700_000_000_000 }],
+    ...over,
+  });
+
+  const back = () => screen.getByRole("button", { name: "Back to Tiff AI" });
+
+  /* `history.back()` is stubbed for the whole block: jsdom's window is shared
+     across tests, so a REAL traversal walks onto some earlier test's pushed
+     entry and the echo popstate carries that entry's stale marker — a stack
+     shape the app can never produce, because every on-screen close consumes
+     its own entry before another can be pushed. The stub keeps each test's
+     history inert; popstates are dispatched by hand where they are the point. */
+  let backStub: jest.SpyInstance;
+  beforeEach(() => {
+    backStub = jest.spyOn(window.history, "back").mockImplementation(() => {});
+  });
+  afterEach(() => backStub.mockRestore());
+
+  it("returns to the landing with the thread kept and the input untouched", async () => {
+    seed([thread()]);
+    const user = userEvent.setup();
+    render(<TiffAssistant />);
+
+    await user.click(screen.getByText("R32 pressures").closest("button") as HTMLElement);
+    await user.type(screen.getByLabelText("Ask Tiff"), "half a question");
+    await user.click(back());
+
+    // landing again, thread still in the list, half-typed question still there
+    expect(screen.getByText("Pick up where you left off")).toBeInTheDocument();
+    expect(screen.getByText("R32 pressures")).toBeInTheDocument();
+    expect(screen.getByLabelText("Ask Tiff")).toHaveValue("half a question");
+    expect(screen.queryByRole("button", { name: "Back to Tiff AI" })).not.toBeInTheDocument();
+  });
+
+  /* Back is a navigation, not an undo: an answer cut off mid-stream is worth
+     more in the thread than nothing — same rule as the error path. */
+  it("keeps a half-written answer in the thread when back is pressed mid-stream", async () => {
+    let push: (e: AskEvent) => void = () => {};
+    script = (emit) => {
+      push = emit;
+    };
+    const user = userEvent.setup();
+    render(<TiffAssistant />);
+    await ask("why P8?");
+    await act(async () => push({ t: "delta", text: "P8 is a piping" }));
+
+    await user.click(back());
+
+    expect(screen.getByText("Pick up where you left off")).toBeInTheDocument();
+    const messages = stored()[0]?.messages ?? [];
+    expect(messages).toHaveLength(2);
+    expect(messages[1].text).toBe("P8 is a piping");
+  });
+
+  /* The browser's own back button. Opening a thread pushes one same-URL
+     history entry; popping it closes the chat — and the handler is idempotent,
+     because on-screen closes consume the entry via history.back() AFTER the
+     state has already been reset. */
+  it("owns one history entry per open, and browser back closes the chat", async () => {
+    const pushSpy = jest.spyOn(window.history, "pushState");
+    seed([thread()]);
+    const user = userEvent.setup();
+    render(<TiffAssistant />);
+
+    await user.click(screen.getByText("R32 pressures").closest("button") as HTMLElement);
+    expect(pushSpy).toHaveBeenCalledWith({ tiffChat: "t-1" }, "");
+    expect(pushSpy).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      window.dispatchEvent(new PopStateEvent("popstate", { state: null }));
+    });
+
+    expect(screen.getByText("Pick up where you left off")).toBeInTheDocument();
+    pushSpy.mockRestore();
+  });
+
+  it("consumes its history entry when the chat is closed on screen", async () => {
+    seed([thread()]);
+    const user = userEvent.setup();
+    render(<TiffAssistant />);
+
+    await user.click(screen.getByText("R32 pressures").closest("button") as HTMLElement);
+    await user.click(back());
+    expect(backStub).toHaveBeenCalledTimes(1);
+
+    // the echo popstate that history.back() will fire finds nothing to undo
+    await act(async () => {
+      window.dispatchEvent(new PopStateEvent("popstate", { state: null }));
+    });
+    expect(screen.getByText("Pick up where you left off")).toBeInTheDocument();
+
+    // and the next open/close cycle owns exactly one entry of its own
+    await user.click(screen.getByText("R32 pressures").closest("button") as HTMLElement);
+    await user.click(back());
+    expect(backStub).toHaveBeenCalledTimes(2);
+  });
+
+  it("reopens the thread when forward walks back onto its entry", async () => {
+    seed([thread()]);
+    render(<TiffAssistant />);
+
+    await act(async () => {
+      window.dispatchEvent(new PopStateEvent("popstate", { state: { tiffChat: "t-1" } }));
+    });
+
+    expect(screen.getByText("why P8?")).toBeInTheDocument();
+  });
+
+  it("sending the first question also owns a history entry", async () => {
+    const pushSpy = jest.spyOn(window.history, "pushState");
+    render(<TiffAssistant />);
+    await ask("why P8?");
+
+    expect(pushSpy).toHaveBeenCalledTimes(1);
+    expect((pushSpy.mock.calls[0][0] as { tiffChat?: string }).tiffChat).toBeTruthy();
+    pushSpy.mockRestore();
+  });
+});
+
 describe("the rail", () => {
   it("shows a live count per category and links into the filtered library", () => {
     render(

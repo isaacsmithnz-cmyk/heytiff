@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { Chevron } from "@/components/logo";
 import { Icon } from "@/components/shell/icon";
-import { DictClock, LevelBars, appendSpoken, useDictation } from "./dictation";
+import { DictClock, LevelBars, LiveWords, appendSpoken, useDictation } from "./dictation";
 import { useNoteFlow, type NoteFlow } from "./note-flow";
 import { useNoteScope } from "./note-context";
 import { Cascade, JobPicker, ReviewRows, nothingTicked } from "./review-card";
@@ -147,9 +148,7 @@ function Body({ flow }: { flow: NoteFlow }) {
             hint says exactly that. The live transport earns the other line by
             actually having words. */}
         {flow.dict.interim ? (
-          <p className="wb2-livetext" aria-live="polite">
-            {flow.dict.interim}
-          </p>
+          <LiveWords text={flow.dict.interim} />
         ) : (
           <p className="wb2-hint">
             If the bars don&apos;t move when you talk, nothing is being heard. Words are read back
@@ -418,7 +417,18 @@ function JobLine({ flow }: { flow: NoteFlow }) {
    differ. Typing is as first-class here as everywhere else.
 
    The word half and the mic half are the capsule again, worn wide: press
-   Debrief to type, press the mic to just start talking. */
+   Debrief to type, press the mic to just start talking. That split is the
+   type-or-talk rule the Tiff button arrived at from the other direction, so
+   the capsule keeps it — here the two doors are the control, and on the
+   topbar they are the sheet.
+
+   IT WEARS TIFF'S MARK AND TIFF'S SKIN. It was a cyan pill with a red mic
+   half, which was the app's language before the button existed; the thing
+   it opens is now ink glass with a gradient edge, and a bright cyan pill
+   opening a dark Tiff sheet read as two different features. The word stays
+   — "what does the sparkle do" is a question a 6am brain shouldn't have to
+   ask — but the sparkle beside it is now the chevron, because this IS
+   Tiff. */
 
 function DebriefButton({ flow }: { flow: NoteFlow }) {
   return (
@@ -430,7 +440,7 @@ function DebriefButton({ flow }: { flow: NoteFlow }) {
             className="wb2-tokhalf wb2-debriefword"
             onClick={() => flow.setOpen(true)}
           >
-            <Icon name="sparkles" size={15} />
+            <Chevron size={15} gradient decorative />
             Debrief
           </button>
           {flow.scope.voiceEnabled && (

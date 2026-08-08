@@ -430,6 +430,17 @@ describe("the debrief", () => {
     expect(screen.getByLabelText("Start the debrief by talking")).toBeInTheDocument();
   });
 
+  /* THE MARK BESIDE THE WORD IS DECORATION. Wearing Tiff's chevron here (it
+     opens Tiff's sheet) brought the logo's own `role="img" aria-label`
+     along, and the button's name silently became "HeyTiff Debrief" — an
+     accessible name nobody wrote, on the one control whose whole point is
+     that it says what it does. */
+  it("keeps its name its own, mark and all", () => {
+    mount(<NoteToken as="debrief" />);
+    expect(screen.getByRole("button", { name: "Debrief" })).toHaveAccessibleName("Debrief");
+    expect(screen.queryByRole("img", { name: "HeyTiff" })).not.toBeInTheDocument();
+  });
+
   it("routes with the debrief flag — the brain is asked a different question", async () => {
     await openDebrief({ noteLines: ["chase the coil pricing"] });
     expect(routeNote).toHaveBeenCalledWith(expect.objectContaining({ debrief: true }));

@@ -77,6 +77,17 @@ describe("the day-1 state sells the reason before the button", () => {
     expect(screen.queryByLabelText("Search documents")).not.toBeInTheDocument();
   });
 
+  /* Uploading starts here and nowhere else — the assistant deliberately has no
+     way to open this drawer from a link, so it opens on a press or not at
+     all. */
+  it("opens the upload drawer on the press, not on arrival", async () => {
+    render(<Library docs={[]} quota={quota()} canManage />);
+
+    expect(screen.queryByRole("dialog", { name: "Add documents" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /Add documents/ }));
+    expect(screen.getByRole("dialog", { name: "Add documents" })).toBeInTheDocument();
+  });
+
   it("tells staff who to ask, and offers them nothing to press", () => {
     render(<Library docs={[]} quota={quota()} />);
 
@@ -87,7 +98,12 @@ describe("the day-1 state sells the reason before the button", () => {
 
   it("names all four categories so the reason is concrete", () => {
     render(<Library docs={[]} quota={quota()} canManage />);
-    for (const label of ["Install procedures", "Fault codes", "Manufacturer specs", "Company SOPs"]) {
+    for (const label of [
+      "Installation documents",
+      "Service documents",
+      "Manufacturer specs",
+      "Company SOPs",
+    ]) {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
   });
@@ -448,6 +464,24 @@ describe("finding a document", () => {
 
     const chips = screen.getByRole("button", { name: /Manufacturer specs/ });
     expect(chips.textContent).toContain("0");
-    expect(screen.getByRole("button", { name: /Fault codes/ }).textContent).toContain("1");
+    expect(screen.getByRole("button", { name: /Service documents/ }).textContent).toContain("1");
+  });
+
+  /* The count map was a hand-written literal of four keys while the category
+     list had five, so a field note tallied `undefined + 1` and its chip read
+     "NaN" — a number nobody could explain, on the newest category. */
+  it("counts the field-note category rather than showing NaN", () => {
+    render(
+      <Library
+        docs={[
+          doc({ id: "f-1", title: "Roof access at Westfield", category: "field" }),
+          doc({ id: "f-2", title: "Pump start-up quirk", category: "field" }),
+        ]}
+      />
+    );
+
+    const chip = screen.getByRole("button", { name: /Field notes/ });
+    expect(chip.textContent).toContain("2");
+    expect(chip.textContent).not.toContain("NaN");
   });
 });

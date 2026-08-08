@@ -5226,7 +5226,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 }
 
 /* ══════════════════ TIFF — THE ASSISTANT (.tk- layout) ═══════════════════
-   The two-column screen: transcript on the left, the four shelves on the
+   The two-column screen: transcript on the left, the category cards on the
    right. The rail is on the RIGHT rather than under the conversation for
    three reasons — the cards stay visible while the answer grows (bottom cards
    scroll away mid-answer), an idle card is the way into the library, and the
@@ -5246,11 +5246,45 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 /* position:relative is load-bearing, not tidiness: it makes the stage the
    containing block for the `.tk-lines` underlay, whose padding box coincides
    with the rect every endpoint is measured against. */
-.fg .tk-stage { position:relative; display:grid; grid-template-columns:minmax(0,1fr) 348px; gap:28px; align-items:stretch;
+/* THE GUTTER IS A COMPONENT, NOT LEFTOVER SPACE. The search lines run from the
+   composer's shoulder up and across into the cards, and they had one 28px grid
+   gap to do it in — so all five bunched into a single near-vertical strand and
+   `lanesBetween` had to clamp their approach controls just to stop them bowing
+   backwards past their own origin. Widening the corridor is the fix the clamp
+   was standing in for: the rail gives back 48px, the gap takes 44 of them, and
+   the chat column is capped so the rest lands in the gutter too rather than
+   being eaten by a wider transcript. ~104px at 1512, ~164px at full width. */
+.fg .tk-stage { position:relative; display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:72px; align-items:stretch;
   height:100%; width:100%; max-width:1420px; margin:0 auto; padding:32px; }
+
+/* ── the height lock, thread view only ──
+   `.tk-stage { height:100% }` above resolves to AUTO on the landing, because
+   `.page` is `min-height:100%` (its computed height is auto) — so the page
+   scrolls the outlet like every other dashboard screen, which is what the
+   landing wants. An open THREAD wants the opposite: the transcript scrolling
+   inside `.tchat` with the header and composer pinned. `tk-lock` (set by the
+   assistant only while a thread is open) is what closes the chain — with it,
+   the percentage resolves, the grid row is viewport-sized, and `.tchat`'s
+   existing `flex:1; min-height:0; overflow-y:auto` finally has something to
+   shrink against. The explicit row is belt on braces: without it the row's
+   height is a track-sizing outcome (auto row, min-content contributions that
+   happen to collapse); with it, a guarantee. */
+.fg .page.tk-lock { height:100%; }
+.fg .page.tk-lock .tk-stage { grid-template-rows:minmax(0,1fr); }
+@media (max-width:1100px) {
+  /* stacked, the transcript goes back to page-scrolling like everything else */
+  .fg .page.tk-lock { height:auto; min-height:100%; }
+}
+/* Capped, not stretched. An answer sheet reads worse past ~820px anyway — the
+   line length was already at the top of what's comfortable — so this costs the
+   transcript nothing and buys the lanes room to fan. */
+.fg .tk-chatcol { max-width:820px; }
 @media (max-width:1100px) {
   /* stacked, and nothing is lost: the rail becomes a footer of the same cards */
   .fg .tk-stage { display:flex; flex-direction:column; height:auto; gap:24px; padding:24px; }
+  /* the cap exists to make a gutter for the lanes, and stacked there are no
+     lanes — leaving it on would just narrow the whole screen */
+  .fg .tk-chatcol { max-width:none; }
 }
 
 /* both columns paint above the lines — same arrangement as the system map's
@@ -5265,7 +5299,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    a tool that opens by introducing itself spends its best real estate on
    the one thing the reader already knows. The old 48px "What are we
    building today?" hero and the four suggestion cards under it are deleted,
-   not restyled — the cards in particular repeated the four shelves in the
+   not restyled — the cards in particular repeated the categories in the
    rail two inches to their right.
 
    ORDER IS CSS, NOT MARKUP. The composer is one form serving both states:
@@ -5278,20 +5312,23 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    were in, and only then the kinds of question worth asking. Both are
    quiet — a starter is a pill you can ignore, not a card competing with
    the rail. */
-/* Top-aligned with a deep pad rather than `justify-content:center`: centring
-   a flex column clips the TOP of anything taller than the viewport, and this
-   column grows with the thread list. */
-.fg .tk-chatcol.landing { justify-content:flex-start; padding-top:clamp(12px, 13vh, 132px); }
+/* TOP-ALIGNED WITH THE RAIL, no pad. This carried `padding-top:clamp(12px,
+   13vh, 132px)` — a viewport-height drop that put the heading up to 132px
+   below the LIBRARY eyebrow and moved the gap every time the window resized,
+   which is most of why the landing read as sections thrown together. Both
+   columns now start at the stage's own padding edge: heading and eyebrow on
+   one line, at every window height. (`justify-content:center` stays rejected
+   for the old reason — centring a flex column clips the top of anything
+   taller than the viewport, and this column grows with the thread list.) */
+.fg .tk-chatcol.landing { justify-content:flex-start; }
 .fg .tk-chatcol.landing .tk-open { order:1; }
 .fg .tk-chatcol.landing .tk-composer { order:2; }
 .fg .tk-chatcol.landing .tk-recent { order:3; }
-.fg .tk-chatcol.landing .tk-starts { order:4; }
 
-/* Both blocks were written to sit ABOVE the composer, where a bottom margin
-   did the spacing. Reordering puts them under it, so the gap has to move to
-   the top or the section label lands on the Research row. */
+/* The thread list was written to sit ABOVE the composer, where a bottom margin
+   did the spacing. Reordering puts it under, so the gap has to move to the top
+   or the section label lands on the mode switcher. */
 .fg .tk-chatcol.landing .tk-recent { margin:32px 0 0; }
-.fg .tk-chatcol.landing .tk-starts { margin-top:24px; }
 
 .fg .tk-open { flex:0 0 auto; margin-bottom:22px; }
 .fg .tk-open h2 { margin:0; font-size:38px; font-weight:800; letter-spacing:-.035em; line-height:1.05; color:var(--ink); }
@@ -5303,23 +5340,24 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .tk-chatcol.landing .tinput { margin-top:0; }
 .fg .tk-chatcol.landing .tinput input { font-size:17px; padding:19px 0; }
 
-/* ── starters: the kinds of question, as pills ── */
-.fg .tk-starts { flex:0 0 auto; display:flex; flex-wrap:wrap; gap:8px; margin-top:26px; }
-.fg .tk-start { display:inline-flex; align-items:center; gap:9px; height:38px; padding:0 15px; border-radius:999px;
-  background:rgba(255,255,255,.72); border:1px solid #ececf0; box-shadow:0 1px 2px rgba(0,0,0,.03);
-  font-size:13px; font-weight:700; color:var(--gray700); cursor:pointer;
-  transition:background .2s, border-color .2s, color .2s, transform .2s; }
-.fg .tk-start:hover { background:#fff; border-color:#dfe2e8; color:var(--ink); transform:translateY(-1px); }
-.fg .tk-start:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(46,104,255,.3); }
-.fg .tk-start i { width:7px; height:7px; flex:none; border-radius:50%; background:var(--tkc, var(--gray400)); }
+/* `.tk-starts` / `.tk-start` — the four canned-question pills — are DELETED,
+   not parked: the component that rendered them is gone, and dead CSS in this
+   file has shadowed a live component at equal specificity before. */
 
 /* ── the returning line above the threads ── */
 .fg .tk-welcome { flex:0 0 auto; margin-bottom:26px; }
 .fg .tk-welcome h2 { margin:0; font-size:34px; font-weight:800; letter-spacing:-.03em; line-height:1.1; color:var(--ink); }
 .fg .tk-welcome p { margin:9px 0 0; max-width:640px; font-size:15px; font-weight:600; line-height:1.5; color:var(--gray500); }
 
-.fg .tk-lbl { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
-.fg .tk-lbl span { font-size:11px; font-weight:800; letter-spacing:.2em; text-transform:uppercase; color:var(--gray400); }
+.fg .tk-lbl { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+.fg .tk-lbl > span { font-size:11px; font-weight:800; letter-spacing:.2em; text-transform:uppercase; color:var(--gray400); }
+/* the section's own link, in the space `justify-content:space-between` was
+   always reserving for it — sentence case, because the eyebrow beside it is
+   the only thing on this page that has earned uppercase */
+.fg .tk-lbla { display:inline-flex; align-items:center; gap:2px; flex:none; font-size:12.5px; font-weight:700;
+  color:var(--gray500); text-decoration:none; transition:color .2s; }
+.fg .tk-lbla:hover { color:var(--ink); }
+.fg .tk-lbla svg { margin-top:1px; }
 
 .fg .tk-recent { flex:0 0 auto; margin-bottom:26px; }
 .fg .tk-threads { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
@@ -5343,18 +5381,40 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .tk-tact.dan:hover { background:rgba(224,38,79,.07); border-color:rgba(224,38,79,.25); color:#b31038; }
 .fg .tk-tact:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(46,104,255,.3); }
 
-/* ── the composer, and the choice it makes explicit ── */
+/* ── the composer, and the choice it makes explicit ──
+   `.tk-res` (one pill labelled Research, with the OTHER mode's name in grey
+   beside it) is gone. Both halves of the choice are now buttons in one track,
+   so the lit one is the answer to "what am I about to get" and the dark one is
+   the answer to "what else could I have". The hint describes the LIT option
+   and never repeats either label.
+
+   Two classes deep on every control, per the `.fg button` (0,1,1) reset. */
 .fg .tk-composer { flex:0 0 auto; }
-.fg .tk-crow { display:flex; align-items:center; gap:12px; margin-top:14px; padding:0 6px; }
-.fg .tk-res { display:inline-flex; align-items:center; gap:7px; height:34px; padding:0 14px; border-radius:99px;
-  border:1px solid #e5e7eb; background:#fff; color:var(--gray700); font-family:var(--font-jakarta), sans-serif;
+.fg .tk-crow { display:flex; align-items:center; flex-wrap:wrap; gap:8px 12px; margin-top:14px; padding:0 6px; }
+.fg .tk-clbl { font-size:12.5px; font-weight:700; color:var(--gray500); }
+
+/* the track has to be darker than the well it sits in (#F0F2F5) or the two lit
+   and unlit halves read as loose pills rather than one control */
+.fg .tk-mode { display:inline-flex; align-items:center; gap:3px; padding:3px; border-radius:99px;
+  background:#e3e6ec; border:1px solid #d9dde4; }
+.fg .tk-modeb { display:inline-flex; align-items:center; gap:7px; height:30px; padding:0 13px; border-radius:99px;
+  border:1px solid transparent; background:none; color:var(--gray500); font-family:var(--font-jakarta), sans-serif;
   font-size:12.5px; font-weight:700; letter-spacing:-.01em; cursor:pointer;
   transition:background .2s, border-color .2s, color .2s, box-shadow .2s; }
-.fg .tk-res:hover:not(:disabled) { background:#f9fafb; border-color:#d1d5db; color:var(--ink); }
-.fg .tk-res.on { background:#2E68FF; border-color:#2E68FF; color:#fff; box-shadow:0 8px 18px -10px rgba(46,104,255,.9); }
-.fg .tk-res.on:hover:not(:disabled) { background:#1d4ed8; border-color:#1d4ed8; color:#fff; }
-.fg .tk-res:disabled { opacity:.45; cursor:not-allowed; }
-.fg .tk-chint { font-size:12.5px; font-weight:600; color:var(--gray400); }
+.fg .tk-modeb:hover:not(:disabled):not(.on) { color:var(--ink); }
+.fg .tk-modeb.on { background:#fff; border-color:#e2e5ea; color:var(--ink);
+  box-shadow:0 2px 6px -2px rgba(10,12,20,.18); }
+/* the library option carries the research colour when it is the live one —
+   the same blue the search lines are drawn in */
+.fg .tk-modeb.on:first-child { color:#1d4ed8; border-color:rgba(46,104,255,.28);
+  box-shadow:0 2px 8px -3px rgba(46,104,255,.55); }
+.fg .tk-modeb:disabled { opacity:.42; cursor:not-allowed; }
+.fg .tk-modeb:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(46,104,255,.3); }
+
+/* Given a floor rather than left to shrink: the hint is a sentence, and a
+   sentence squeezed into 90px beside a 36px control wraps to three lines. Below
+   240px of room it takes the whole next line instead. */
+.fg .tk-chint { flex:1 1 240px; min-width:0; font-size:12.5px; font-weight:600; color:var(--gray400); }
 
 /* ── what hangs off a message ── */
 .fg .tmw { display:flex; flex-direction:column; align-items:flex-start; gap:8px; flex:1 1 auto; min-width:0; }
@@ -5468,14 +5528,19 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 
 /* ── the rail ── */
 .fg .tk-rail { position:relative; z-index:1; display:flex; flex-direction:column; gap:12px; min-width:0; min-height:0; overflow-y:auto; padding-bottom:4px; }
-.fg .tk-rcats { display:flex; flex-direction:column; gap:10px; }
-.fg .tk-rcat { position:relative; display:grid; grid-template-columns:auto minmax(0,1fr); gap:5px 12px; padding:16px;
-  border-radius:24px; background:#fff; border:1px solid #f0f0f2; box-shadow:0 4px 20px rgba(0,0,0,.02);
+.fg .tk-rcats { display:flex; flex-direction:column; gap:9px; }
+/* Tighter than it was — 16px of pad and a 38px tile around labels as short as
+   "Field notes" left a band of empty card down the right of every row. The
+   narrower rail takes most of that back; the rest is 2px off the padding and
+   4px off the icon, which also shortens each card by 6px and lets five of them
+   sit in the rail without the last one hanging off a laptop screen. */
+.fg .tk-rcat { position:relative; display:grid; grid-template-columns:auto minmax(0,1fr); gap:4px 11px; padding:14px;
+  border-radius:22px; background:#fff; border:1px solid #f0f0f2; box-shadow:0 4px 20px rgba(0,0,0,.02);
   text-decoration:none; transition:transform .3s, border-color .3s, box-shadow .3s, opacity .25s; }
 .fg .tk-rcat:hover { transform:translateY(-2px); border-color:#e5e7eb; box-shadow:0 18px 34px -20px rgba(0,0,0,.28); }
-.fg .tk-ric { display:flex; align-items:center; justify-content:center; flex:none; width:38px; height:38px; border-radius:12px; }
+.fg .tk-ric { display:flex; align-items:center; justify-content:center; flex:none; width:34px; height:34px; border-radius:11px; }
 .fg .tk-rtx { min-width:0; }
-.fg .tk-rtx b { display:block; font-size:14px; font-weight:800; line-height:1.25; color:var(--ink); }
+.fg .tk-rtx b { display:block; font-size:13.5px; font-weight:800; line-height:1.25; color:var(--ink); }
 /* the microline carries "4 matches · City Multi fault codes" on the winning
    shelf, and a manual's title is routinely longer than the card is wide. One
    line, clipped — the card must not grow when the trace lands, or the whole
@@ -5484,12 +5549,14 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .fg .tk-rbl { grid-column:1 / -1; font-size:12px; font-weight:600; line-height:1.4; color:var(--gray400); }
 
-.fg .tk-lib { margin-top:2px; padding:16px; border-radius:20px; background:rgba(255,255,255,.72); border:1px solid #f0f0f2; }
-.fg .tk-lib b { display:block; font-size:13px; font-weight:800; line-height:1.35; color:var(--ink); }
-.fg .tk-libl { display:flex; flex-wrap:wrap; gap:14px; margin-top:9px; }
-.fg .tk-libl a { font-size:11px; font-weight:800; letter-spacing:.12em; text-transform:uppercase;
-  color:var(--teal-d); text-decoration:none; transition:color .2s; }
-.fg .tk-libl a:hover { color:var(--ink); }
+/* ── the foot of the rail ──
+   THERE ISN'T ONE ANY MORE. `.tk-lib` / `.tk-libl` (a bold count over two
+   uppercase links that went to the same URL), then the `.tk-add` tile that
+   briefly replaced them, then `.tk-libnote` and its running total — all
+   deleted. The rail is the categories and the "Open" on its eyebrow; the
+   library states its own size the moment you get there. Deleted rather than
+   parked, because dead CSS in this file has shadowed a live component at
+   equal specificity before. */
 
 /* ── portalled pieces (outside `.fg`, so unscoped and self-contained) ── */
 
@@ -5547,9 +5614,21 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   animation:tkFlow 1.5s linear .25s infinite; }
 @keyframes tkFlow { 0%{opacity:0;stroke-dashoffset:0} 20%{opacity:.85} 80%{opacity:.85} 100%{opacity:0;stroke-dashoffset:-132} }
 
-/* where the answer came from · where it didn't · and gone */
+/* THE SAME PULSE, RUN BACKWARDS, IS A DIFFERENT SENTENCE: while the answer
+   streams, the winner's lane pulses toward the composer — the words are being
+   drawn FROM that shelf. Slower than the outbound search, because it narrates
+   the whole time an answer takes rather than a two-second lookup. */
+.fg .tk-line.pulse.back { animation:tkFlow 2.2s linear infinite reverse; }
+
+/* where the answer came from · found-but-unused · nothing there · and after.
+   `hit` keeps a trace of the category colour, `dim` drops to near-nothing —
+   they used to share `.12` grey, which made "found four things" and "found
+   nothing" the same line. `kept` is the settled winner: the card keeps its
+   ring and its note, so the line keeps its thread — residue, not activity. */
 .fg .tk-line.lit { stroke:var(--tkc, #2E68FF); stroke-width:2; opacity:.9; }
-.fg .tk-line.dim { opacity:.12; }
+.fg .tk-line.hit { stroke:var(--tkc, #9ca3af); opacity:.3; }
+.fg .tk-line.dim { opacity:.07; }
+.fg .tk-line.kept { stroke:var(--tkc, #2E68FF); stroke-width:1.8; opacity:.25; }
 .fg .tk-line.fade { opacity:0; transition:opacity .6s ease; }
 
 /* ── and what the same moments do to a shelf ── */

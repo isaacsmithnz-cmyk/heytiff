@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useLayoutEffect, useState, useSyncExternalStore } from "react";
 import {
+  lanePulse,
   lineState,
   overlayVisible,
-  pulseState,
   type ResearchViz,
 } from "@/lib/tiff/research-viz";
 import { KB_CATEGORIES, type KbCategoryKey } from "./kb";
@@ -115,16 +115,24 @@ function lanesBetween(
     // vertical first tangent, sized to the climb; a card unexpectedly below
     // the composer still gets the minimum shoulder before diving
     const c1y = sy - Math.max(50, (sy - ey) * 0.55);
-    /* The approach control is CLAMPED so it can never sit left of where the
-       lane started. The gutter between the composer and the rail is one grid
-       gap — about 48px in practice — so an approach measured backwards from
-       the card lands behind the origin, and the curve bulges out to the left
-       before doubling back: four lanes crossing each other in open space
-       instead of four strands running up the gutter. Watched, not reasoned:
-       the leftward swing is obvious on screen and invisible to jsdom. The
-       small per-lane step keeps them from printing exactly on top of one
-       another where they leave. */
-    const c2x = Math.max(ex - 110, sx + 22 + i * 10);
+    /* The approach control, measured back from the card so each lane arrives
+       travelling horizontally into its own row.
+
+       A FRACTION OF THE GUTTER, NOT A FIXED DEPTH. This was `max(ex - 110, …)`
+       — a constant reach, clamped so it could never land left of where the
+       lane started and bow the curve backwards. The clamp fired on every lane
+       at every width, because the gutter was one 28px grid gap and 110px of
+       reach never fitted in it; every lane therefore got the same fallback and
+       the five collapsed into one strand. Widening the gutter alone would not
+       have fixed that — the constant would still have overshot below ~1400px.
+
+       Measuring the corridor and taking a share of it per lane is inherently
+       in-bounds (the deepest share is 0.79, so c2x > sx always, no clamp) and
+       it opens the same fan at every width: the gutter is ~72px at the narrow
+       end and ~160px at full width, and the lanes fan in proportion rather
+       than bunching at one and sprawling at the other. */
+    const gutter = ex - sx;
+    const c2x = ex - gutter * (0.35 + i * 0.11);
     lanes.push({
       key: cat.key,
       color: cat.color,
@@ -207,32 +215,42 @@ export function ResearchLines({
   const live = overlayVisible(viz);
   if (!wide || (!live && !idle)) return null;
 
-  // a phase in flight always outranks the resting diagram
-  const pulsing = live && pulseState(viz) === "pulse";
-
   return (
     <svg className="tk-lines" aria-hidden="true">
-      {lanes.map((lane) => (
-        <g
-          key={lane.key}
-          data-cat={lane.key}
-          style={{ "--tkc": lane.color } as React.CSSProperties}
-        >
-          {/* pathLength=1 turns the length into a fraction, so one
-              stroke-dasharray draws in every line at the same rate however
-              far its shelf happens to be */}
-          <path
-            className={`tk-line ${live ? lineState(viz, lane.key) : "idle"}`}
+      {lanes.map((lane) => {
+        /* Per lane now, because direction is meaning: outbound on every lane
+           while the search is out, back along the winner only while the
+           answer is written. A phase in flight always outranks the resting
+           diagram. */
+        const pulse = live ? lanePulse(viz, lane.key) : "off";
+        return (
+          <g
+            key={lane.key}
             data-cat={lane.key}
-            d={lane.d}
-            pathLength="1"
-          />
-          {/* the pulse is a second stroke over the first, and it exists only
-              while something is genuinely outstanding — no length trick here,
-              its dash travels in real user units */}
-          {pulsing && <path className="tk-line pulse" data-cat={lane.key} d={lane.d} />}
-        </g>
-      ))}
+            style={{ "--tkc": lane.color } as React.CSSProperties}
+          >
+            {/* pathLength=1 turns the length into a fraction, so one
+                stroke-dasharray draws in every line at the same rate however
+                far its shelf happens to be */}
+            <path
+              className={`tk-line ${live ? lineState(viz, lane.key) : "idle"}`}
+              data-cat={lane.key}
+              d={lane.d}
+              pathLength="1"
+            />
+            {/* the pulse is a second stroke over the first, and it exists only
+                while something is genuinely in motion — no length trick here,
+                its dash travels in real user units */}
+            {pulse !== "off" && (
+              <path
+                className={`tk-line pulse${pulse === "back" ? " back" : ""}`}
+                data-cat={lane.key}
+                d={lane.d}
+              />
+            )}
+          </g>
+        );
+      })}
     </svg>
   );
 }

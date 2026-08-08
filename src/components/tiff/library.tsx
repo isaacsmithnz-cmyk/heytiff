@@ -108,9 +108,13 @@ export function Library({
   );
   const ingest = useKbIngest(processing);
 
+  /* Seeded FROM `KB_CATEGORIES` rather than by hand: the literal here listed
+     four keys and the field category made five, so every field note tallied
+     `undefined + 1` and its chip read "NaN". A count is derived from the list
+     of categories, so it should be built from that list. */
   const counts = useMemo(() => {
-    const c = { install: 0, faults: 0, specs: 0, sops: 0 } as Record<KbCategoryKey, number>;
-    for (const d of docs) c[d.category] += 1;
+    const c = Object.fromEntries(KB_CATEGORIES.map((k) => [k.key, 0])) as Record<KbCategoryKey, number>;
+    for (const d of docs) c[d.category] = (c[d.category] ?? 0) + 1;
     return c;
   }, [docs]);
 

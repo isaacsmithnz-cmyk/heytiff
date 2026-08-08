@@ -8,9 +8,9 @@ import {
   SEARCHING_NOTE,
   cardNote,
   cardState,
+  lanePulse,
   lineState,
   overlayVisible,
-  pulseState,
   reduceViz,
   topDocFor,
   type ResearchViz,
@@ -99,11 +99,13 @@ describe("submitting a research question", () => {
     });
   });
 
-  it("pulses only while something is genuinely outstanding", () => {
-    expect(pulseState(searching)).toBe("pulse");
-    expect(pulseState(IDLE_VIZ)).toBe("off");
-    expect(pulseState(run({ t: "submit" }, trace(["faults"], { faults: 3 })))).toBe("off");
-    expect(pulseState(run({ t: "submit" }, { t: "miss" }))).toBe("off");
+  it("pulses outbound on every lane, and only while the search is out", () => {
+    for (const cat of KB_CATEGORIES) expect(lanePulse(searching, cat)).toBe("out");
+    expect(lanePulse(IDLE_VIZ, "faults")).toBe("off");
+    // traced sits between the two pulses: the lookup is answered, the words
+    // haven't started — nothing is in motion, so nothing pulses
+    expect(lanePulse(run({ t: "submit" }, trace(["faults"], { faults: 3 })), "faults")).toBe("off");
+    expect(lanePulse(run({ t: "submit" }, { t: "miss" }), "faults")).toBe("off");
   });
 
   it("claims no counts before any have arrived", () => {
@@ -131,10 +133,10 @@ describe("when the trace lands", () => {
     trace(["faults"], { faults: 5, install: 2, specs: 0, sops: 0 })
   );
 
-  it("lights the winner and dims every other line", () => {
+  it("lights the winner, tints a hit, and dims the empty lines", () => {
     expect(traced.phase).toBe("traced");
     expect(lines(traced)).toEqual({
-      install: "dim",
+      install: "hit",
       faults: "lit",
       specs: "dim",
       sops: "dim",
@@ -317,7 +319,7 @@ describe("while the answer streams", () => {
       field: "dim",
     });
     expect(lines(answering)).toEqual({
-      install: "dim",
+      install: "hit",
       faults: "lit",
       specs: "dim",
       sops: "dim",
@@ -325,8 +327,12 @@ describe("while the answer streams", () => {
     });
   });
 
-  it("stops pulsing — the waiting is over", () => {
-    expect(pulseState(answering)).toBe("off");
+  /* The outbound pulse narrated the wait; this one narrates the writing. It
+     runs the other way, and only on the lane the answer is coming from. */
+  it("pulses back along the winner's lane, and nowhere else", () => {
+    expect(lanePulse(answering, "faults")).toBe("back");
+    expect(lanePulse(answering, "install")).toBe("off");
+    expect(lanePulse(answering, "specs")).toBe("off");
   });
 
   /* Retrieval always reports before a word is written. If the words start
@@ -403,16 +409,18 @@ describe("once the answer is finished", () => {
     { t: "done" }
   );
 
-  it("fades every line but keeps the overlay up until the next event", () => {
+  it("keeps the winner's thread faintly and fades every other line", () => {
     expect(settled.phase).toBe("settled");
     expect(overlayVisible(settled)).toBe(true);
     expect(lines(settled)).toEqual({
       install: "fade",
-      faults: "fade",
+      faults: "kept",
       specs: "fade",
       sops: "fade",
       field: "fade",
     });
+    // the card keeps its ring and note; the line keeps residue, not motion
+    expect(lanePulse(settled, "faults")).toBe("off");
   });
 
   /* The rail goes back to being the way into the library — except the shelf

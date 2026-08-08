@@ -83,24 +83,51 @@ describe("the button itself", () => {
     expect(document.querySelector(".wb2-tok")).toBeNull();
   });
 
-  it("starts listening the moment it is tapped — there is no mode to pick first", async () => {
+  /* TYPE OR TALK IS THE PERSON'S CALL, MADE ON THE SHEET. The button used to
+     start the mic on its own ("no mode to choose first") and that made typing
+     second-class: you arrived recording, and reaching the box meant stopping
+     a recording you never asked for. Isaac reversed it with the premium sheet
+     (2026-08-08). A tap that quietly opened a mic again would be a privacy
+     bug wearing a UX decision's clothes — this is the line that catches it. */
+  it("opens ready for either — the tap never starts the mic on its own", async () => {
     const user = userEvent.setup();
     mount();
     await user.click(btn());
 
-    expect(start).toHaveBeenCalledTimes(1);
+    expect(start).not.toHaveBeenCalled();
     expect(screen.getByRole("dialog")).toBeInTheDocument();
+    /* Both doors, on the same sheet: the box for typing, Talk for the mic. */
+    expect(screen.getByPlaceholderText(/Tell Luke/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Talk" })).toBeInTheDocument();
   });
 
-  it("opens the same sheet for typing where the deployment cannot hear", async () => {
+  it("opens the same sheet minus the Talk door where the deployment cannot hear", async () => {
     const user = userEvent.setup();
     mount(undefined, false);
     await user.click(btn());
 
     /* The mic is an enhancement everywhere else in this widget and it is an
-       enhancement here: no key means no recording, never a dead button. */
+       enhancement here: no key means no Talk button, never a dead one. */
     expect(start).not.toHaveBeenCalled();
     expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Talk" })).not.toBeInTheDocument();
+  });
+
+  /* THE ENTRANCE IS THE BUTTON'S OWN. Only the Tiff button hands the sheet
+     `wb2-blossom` — the clip reveal is anchored where the button lives, so
+     from anywhere else (a field's nudge, the debrief) it would grow out of
+     a corner with nothing in it. jsdom can't see the animation; the class
+     is the structural fact it CAN pin. */
+  it("blossoms out of its own corner — the sheet carries the entrance class", async () => {
+    const user = userEvent.setup();
+    mount();
+    await user.click(btn());
+
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveClass("wb2-blossom");
+    /* And it opens wearing the dusk skin: capture is the dark half; the
+       review, when it comes, hands back to the light work surface. */
+    expect(dialog).toHaveClass("wb2-dusk");
   });
 
   /* IT RENDERS WHERE IT IS PUT. It portalled to body for one commit, when it
@@ -153,7 +180,9 @@ describe("the button itself", () => {
 
   it("says what it does rather than naming an icon", () => {
     mount();
-    expect(btn()).toHaveAccessibleName("Ask or tell Tiff — starts listening");
+    /* No "— starts listening" suffix any more: it doesn't. The name promising
+       a recording that no longer happens would be the worse kind of stale. */
+    expect(btn()).toHaveAccessibleName("Ask or tell Tiff");
     mount(undefined, false);
     expect(screen.getAllByLabelText("Ask or tell Tiff")[0]).toBeInTheDocument();
   });

@@ -71,7 +71,11 @@ function Ribbon({ flow }: { flow: NoteFlow }) {
                   ? "Sorting it out"
                   : flow.debrief
                     ? "Debrief"
-                    : "Add a note"}
+                    : /* The button's own words, not "Add a note" — every
+                         posture routes questions as readily as notes, and
+                         the title was the last thing still claiming
+                         otherwise. */
+                      "Ask or tell Tiff"}
       </b>
       {flow.debrief ? (
         <span className="wb2-chip">Tasks, knowledge &amp; your notes</span>
@@ -229,10 +233,14 @@ function Body({ flow }: { flow: NoteFlow }) {
           <button className="pbtn ghost" onClick={flow.close} disabled={flow.busy}>
             Discard
           </button>
+          {/* TYPE OR TALK, as equals. The box is the type door and the caret
+              is already in it; this is the talk door, and it stopped being a
+              fallback ("Say it instead") when the button stopped auto-starting
+              the mic — there is no "instead" once nothing was presumed. */}
           {flow.scope.voiceEnabled && (
-            <button className="pbtn ghost" onClick={flow.dict.start} disabled={flow.busy}>
+            <button className="pbtn ghost wb2-talk" onClick={flow.dict.start} disabled={flow.busy}>
               <Icon name="mic" size={15} />
-              {flow.ranOut ? "Keep going" : "Say it instead"}
+              {flow.ranOut ? "Keep going" : "Talk"}
             </button>
           )}
           <button
@@ -450,7 +458,7 @@ function DebriefButton({ flow }: { flow: NoteFlow }) {
           <>
             <div className="wb2-capdim" onClick={flow.close} />
             <div
-              className="wb2-capcard wb2-caps"
+              className={"wb2-capcard wb2-caps" + duskClass(flow)}
               role="dialog"
               aria-modal="true"
               aria-label="Morning debrief"
@@ -469,11 +477,22 @@ function DebriefButton({ flow }: { flow: NoteFlow }) {
 
 /* ── posture: capsule ── */
 
+/* THE DUSK SKIN. Until the review arrives the card wears the frame's own
+   material — ink glass, gradient edge, white type — and the moment the
+   review lands it hands over to the light work surface it has always been.
+   The split is deliberate, not unfinished: capture is Tiff's moment and
+   reads at a glance; the review is dense reading with a dozen tuned light
+   components (ticks, selects, state colours) that a dark pass would have to
+   re-earn one by one. Deriving it from the stage keeps every posture and the
+   debrief consistent for free. */
+const duskClass = (flow: NoteFlow) => (flow.stage === "review" ? "" : " wb2-dusk");
+
 /** The capture surface, portalled. One copy: the Tiff button and the field
     postures open the SAME sheet, which is the whole argument of the
     unification — what you get should not depend on which control you reached
-    it through. */
-export function CaptureSheet({ flow }: { flow: NoteFlow }) {
+    it through. `entrance` only changes how it ARRIVES: the Tiff button hands
+    in "blossom" so the sheet grows out of the corner the button lives in. */
+export function CaptureSheet({ flow, entrance }: { flow: NoteFlow; entrance?: "blossom" }) {
   if (!flow.open) return null;
   return createPortal(
     <>
@@ -484,7 +503,9 @@ export function CaptureSheet({ flow }: { flow: NoteFlow }) {
           here, and the capture card shipped once with colourless primary
           buttons for exactly this reason. `wb2-caps` only moves it. */}
       <div
-        className="wb2-capcard wb2-caps"
+        className={
+          "wb2-capcard wb2-caps" + duskClass(flow) + (entrance === "blossom" ? " wb2-blossom" : "")
+        }
         role="dialog"
         aria-modal="true"
         aria-label={flow.debrief ? "Day debrief" : "Add a note"}
@@ -787,13 +808,21 @@ function FieldPosture({
   );
 
   /* The review, when the offer is taken, is the SAME surface the capsule
-     opens — which is the entire point of the unification. */
+     opens — which is the entire point of the unification. `wb2-capcard` was
+     missing here alone of the three portal sites, which left this copy
+     outside the sixteen rules that give the portalled card its fills and
+     positioning — the exact bug the CaptureSheet comment warns about. */
   const surface =
     flow.open &&
     createPortal(
       <>
         <div className="wb2-capdim" onClick={flow.close} />
-        <div className="wb2-caps" role="dialog" aria-modal="true" aria-label="Add a note">
+        <div
+          className={"wb2-capcard wb2-caps" + duskClass(flow)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Add a note"
+        >
           <span className="wb2-grab" aria-hidden="true" />
           <Ribbon flow={flow} />
           {flow.error && <p className="wb2-sherr">{flow.error}</p>}

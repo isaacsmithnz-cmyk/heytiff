@@ -16,7 +16,7 @@ import { actionRequiredCount } from "@/app/actions/action-required";
    server actions — and "use server" modules cannot be imported into jsdom.
    Stubbed so this suite stays about the topbar; the button has its own. */
 jest.mock("@/components/notes/tiff-button", () => ({
-  TiffButton: () => <button aria-label="Ask or tell Tiff — starts listening" />,
+  TiffButton: () => <button aria-label="Ask or tell Tiff" />,
 }));
 
 jest.mock("next/navigation", () => ({ usePathname: () => "/dashboard" }));

@@ -12,6 +12,13 @@ import { actionRequiredCount } from "@/app/actions/action-required";
    properties that stop that happening again: the badge is DERIVED from a real
    count, and it is ABSENT when there is nothing to say. */
 
+/* The topbar now carries the Tiff button, which reaches the note flow and its
+   server actions — and "use server" modules cannot be imported into jsdom.
+   Stubbed so this suite stays about the topbar; the button has its own. */
+jest.mock("@/components/notes/tiff-button", () => ({
+  TiffButton: () => <button aria-label="Ask or tell Tiff — starts listening" />,
+}));
+
 jest.mock("next/navigation", () => ({ usePathname: () => "/dashboard" }));
 jest.mock("@/app/actions/action-required", () => ({ actionRequiredCount: jest.fn() }));
 
@@ -36,6 +43,24 @@ const bell = () => document.querySelector(".bell") as HTMLElement;
 
 afterEach(cleanup);
 beforeEach(() => countMock.mockReset());
+
+describe("the Tiff button", () => {
+  /* It floated bottom-right first and covered the page it sat on. The topbar
+     is the only place that is always empty, and within it the order is
+     deliberate: the thing you reach for on purpose sits before the thing that
+     interrupts you. */
+  it("sits in the topbar, immediately left of the bell", async () => {
+    countMock.mockResolvedValue(0);
+    draw();
+
+    const tiff = document.querySelector('[aria-label^="Ask or tell Tiff"]') as HTMLElement;
+    expect(tiff).not.toBeNull();
+    expect(tiff.closest(".tbr")).not.toBeNull();
+    /* Order, not just membership — "left of notifications" is the ask. */
+    expect(tiff.compareDocumentPosition(bell()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    await act(async () => {});
+  });
+});
 
 describe("the bell", () => {
   it("is a link to the board that lists what's waiting on you", async () => {

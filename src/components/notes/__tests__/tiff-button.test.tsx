@@ -103,28 +103,24 @@ describe("the button itself", () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
-  /* THE BUG THE LIVE WALK FOUND, and the one jsdom can only half-guard.
+  /* IT RENDERS WHERE IT IS PUT. It portalled to body for one commit, when it
+     floated bottom-right: inside `.fg` a fixed overlay is unreachable under a
+     sheet's scrim at ANY z-index (measured — a probe at 2147483647 still
+     loses), so a floating version had to leave the frame.
 
-     Rendered in place inside `.fg`, the button is unreachable the moment any
-     sheet opens: `.wb2-scrim` portals to body at z-index 100 and swallows
-     every click on it. Raising the z-index does not help — a probe with the
-     maximum possible z-index still loses inside `.fg` and wins from body, so
-     nothing reaches out of that frame and the element has to leave it.
-
-     jsdom has no hit-testing, so it cannot fail the way a browser does. What
-     it CAN hold is the structural fact underneath: the button is a child of
-     body, not of the frame. Put it back in the tree and this fails. */
-  it("lives in the document body, not inside the app frame", () => {
+     Moving it into the topbar dissolved that problem rather than solving it.
+     It is chrome now, and chrome dimming under a modal is what chrome does —
+     so it renders in place, and only the SHEET it opens still portals. */
+  it("renders in place — it is chrome, not an overlay", () => {
     render(
       <NoteScopeProvider voiceEnabled>
-        <div className="fg">
+        <div className="tbr">
           <TiffButton />
         </div>
       </NoteScopeProvider>
     );
-    const el = btn();
-    expect(el.closest(".fg")).toBeNull();
-    expect(el.parentElement).toBe(document.body);
+    expect(btn().closest(".tbr")).not.toBeNull();
+    expect(btn().parentElement).not.toBe(document.body);
   });
 
   it("says what it does rather than naming an icon", () => {

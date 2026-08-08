@@ -3,7 +3,6 @@
 import { useCallback } from "react";
 import { usePathname } from "next/navigation";
 import { CommandPaletteProvider } from "./command-palette-context";
-import { TiffButton } from "@/components/notes/tiff-button";
 
 /* The app frame — and NOTHING in it knows who you are.
 
@@ -79,10 +78,6 @@ export function AppShell({
         </main>
       </div>
       {palette}
-      {/* One way in, same corner of every screen. In the frame rather
-          than on a page, so it does not remount as you navigate and
-          does not need a `key` on the outlet to survive. */}
-      <TiffButton />
     </div>
     </CommandPaletteProvider>
   );

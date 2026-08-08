@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
+import { useHydrated } from "@/lib/use-hydrated";
 import { kbDocUrl } from "@/app/actions/kb";
 import { askTiff, type AskSourceItem, type AskTurn } from "@/lib/tiff/ask-client";
 import { consumeAskHandoff } from "@/lib/tiff/ask-handoff";
@@ -94,17 +95,6 @@ const SUGGESTIONS: { cat: string; color: string; label: string; research: boolea
   { cat: "FAULT CODES", color: "#FF3366", label: "What does fault code U4 mean?", research: true },
   { cat: "COMPANY SOP", color: "#8A2BE2", label: "What's our warranty claim process?", research: true },
 ];
-
-/* hydration guard: false on the server and during hydration, true after —
-   lets us read localStorage without a server/client markup mismatch */
-const emptySubscribe = () => () => {};
-function useHydrated(): boolean {
-  return useSyncExternalStore(
-    emptySubscribe,
-    () => true,
-    () => false
-  );
-}
 
 function loadThreads(): Thread[] {
   try {

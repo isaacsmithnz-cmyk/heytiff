@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Chevron } from "@/components/logo";
 import { CaptureSheet } from "./note-token";
 import { useNoteFlow } from "./note-flow";
 import { useNoteScope } from "./note-context";
+import { useHydrated } from "@/lib/use-hydrated";
 
 /* THE TIFF BUTTON — one way in, in the same corner of every screen.
 
@@ -49,13 +49,11 @@ export function TiffButton() {
      the suite could not have caught it — and it broke precisely the case the
      context tag exists for: taking a note while a job is open in front of you.
 
-     `mounted` keeps the server render empty. `document` does not exist during
-     SSR, and a button that appears one frame into hydration is invisible next
-     to a frame that is already streaming its chrome. */
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-
-  if (!mounted) return null;
+     `useHydrated` keeps the server render empty. `document` does not exist
+     during SSR, and a button that appears one frame into hydration is
+     invisible next to a frame already streaming its chrome. */
+  const hydrated = useHydrated();
+  if (!hydrated) return null;
 
   return createPortal(
     <>

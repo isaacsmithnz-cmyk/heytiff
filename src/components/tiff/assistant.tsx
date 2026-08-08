@@ -312,7 +312,7 @@ export function TiffAssistant({
      the headline's promise sold as an upsell. Library whenever it has anything
      in it; at zero the option is disabled and General is all there is. */
   const [research, setResearch] = useState(readyCount > 0);
-  const [peek, setPeek] = useState<AskSourceItem | null>(null);
+  const [peek, setPeek] = useState<SourceDoc | null>(null);
 
   /* The thread being renamed, and the one being removed. Held as the row
      itself rather than an id so a modal can name the thread even in the frame
@@ -1102,6 +1102,20 @@ export function TiffAssistant({
    the shell. Outside `.fg` they inherit no ramp, so the `.fl-` family they
    borrow from the fleet modals carries its own colours. */
 
+/* Escape closes every portal here. The family had the backdrop and the ✕ but
+   no key — with the rename field focused, the keyboard's own way out went
+   nowhere (round-1 finding, verified live). Window-level on purpose: the
+   modals don't trap focus, so the key must work wherever it lands. */
+function useEscape(onClose: () => void) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+}
+
 function RenameThread({
   thread,
   onSave,
@@ -1113,6 +1127,7 @@ function RenameThread({
 }) {
   const [title, setTitle] = useState(thread.title);
   const clean = title.trim();
+  useEscape(onClose);
 
   if (typeof document === "undefined") return null;
   return createPortal(
@@ -1178,6 +1193,7 @@ function DeleteThread({
   onConfirm: () => void;
   onClose: () => void;
 }) {
+  useEscape(onClose);
   if (typeof document === "undefined") return null;
   return createPortal(
     <div className="fl-ov" onClick={onClose}>
@@ -1243,7 +1259,12 @@ function Landing({
           the words printed ON it — it used to say "turn on Research", which
           was the one control on this screen nobody could find. */}
       <div className="tk-open">
-        <h2>{returning ? "What are we working on?" : "Ask the library"}</h2>
+        {/* ONE heading for both visits. It used to be "Ask the library" for a
+            first visit and this for a return — decided from localStorage,
+            which the server can't read, so every returning user watched 38px
+            letters swap one frame after paint. The paragraph carries the
+            library pitch either way; the flash bought nothing. */}
+        <h2>What are we working on?</h2>
         <p>
           {readyCount > 0 ? (
             <>
@@ -1355,23 +1376,29 @@ function Rail({
               style={{ "--sc": `${c.color}1f`, "--tkc": c.color } as React.CSSProperties}
             >
               <span className="sglow" />
+              {/* the glyph is mixed toward ink: the raw category colours were
+                  chosen for tinted tiles, and mint or amber STROKES on a pale
+                  wash sat under 2:1 — decoration where a symbol should be */}
               <span
                 className="tk-ric"
                 style={{
                   background: `${c.color}15`,
                   border: `1px solid ${c.color}30`,
-                  color: c.color,
+                  color: `color-mix(in oklab, ${c.color} 62%, var(--ink))`,
                 }}
               >
                 <Icon name={c.icon} size={19} />
               </span>
               <div className="tk-rtx">
                 <b>{c.label}</b>
-                <em>
+                {/* an empty shelf says so in words, quietly — the mint "—" it
+                    used to wear read as a rendering fault, in an accent colour
+                    that means "ready" everywhere else */}
+                <em className={!note && counts[c.key] === 0 ? "quiet" : undefined}>
                   {note ??
                     (counts[c.key] > 0
                       ? `${counts[c.key].toLocaleString("en-AU")} ${plural(counts[c.key], "document")}`
-                      : "—")}
+                      : "None yet")}
                 </em>
               </div>
               <span className="tk-rbl">{c.blurb}</span>
@@ -1419,31 +1446,82 @@ const colourOf = (key: KbCategoryKey): string =>
 const pagesOf = (s: { pageFrom: number; pageTo: number }): string =>
   s.pageTo > s.pageFrom ? `p.${s.pageFrom}–${s.pageTo}` : `p.${s.pageFrom}`;
 
+/* A source is a DOCUMENT; its passages are what the peek is for. The chips
+   used to render one per passage, and the live walk's E4 answer put "Daikin
+   VRV Diagnosis Manual" on screen six times in three wrapped rows — the same
+   citation shouting over itself, with the pages the only part that changed.
+   One chip per document, wearing every page it was read at. */
+export type SourceDoc = {
+  /** 1-based document order — first appearance in the ranked passage list. */
+  n: number;
+  docId: string;
+  title: string;
+  category: AskSourceItem["category"];
+  /** Every passage cited from this document, in the retriever's rank order. */
+  items: AskSourceItem[];
+};
+
+export function groupSources(sources: AskSourceItem[]): SourceDoc[] {
+  const docs: SourceDoc[] = [];
+  const byId = new Map<string, SourceDoc>();
+  for (const item of sources) {
+    const seen = byId.get(item.docId);
+    if (seen) {
+      seen.items.push(item);
+      continue;
+    }
+    const doc: SourceDoc = {
+      n: docs.length + 1,
+      docId: item.docId,
+      title: item.title,
+      category: item.category,
+      items: [item],
+    };
+    byId.set(item.docId, doc);
+    docs.push(doc);
+  }
+  return docs;
+}
+
+/** The chip's page list: passages in page order, identical ranges said once. */
+const pagesLabel = (doc: SourceDoc): string => {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const item of [...doc.items].sort((a, b) => a.pageFrom - b.pageFrom)) {
+    const label = pagesOf(item);
+    if (seen.has(label)) continue;
+    seen.add(label);
+    out.push(label);
+  }
+  return out.join(" · ");
+};
+
 function SourceChips({
   sources,
   onPeek,
 }: {
   sources: AskSourceItem[];
-  onPeek: (s: AskSourceItem) => void;
+  onPeek: (d: SourceDoc) => void;
 }) {
+  const docs = groupSources(sources);
   return (
     <div className="tk-srcfoot">
       <span className="tk-srclbl">
-        {sources.length === 1 ? "Source" : `Sources · ${sources.length}`}
+        {docs.length === 1 ? "Source" : `Sources · ${docs.length}`}
       </span>
       <div className="tk-srcs">
-        {sources.map((s) => (
+        {docs.map((d) => (
           <button
-            key={s.chunkId}
+            key={d.docId}
             type="button"
             className="tk-src"
-            onClick={() => onPeek(s)}
-            aria-label={`Source ${s.n}: ${s.title}, ${pagesOf(s)}`}
+            onClick={() => onPeek(d)}
+            aria-label={`Source ${d.n}: ${d.title}, ${pagesLabel(d)}`}
           >
-            <span className="tk-sn">{s.n}</span>
-            <span className="tk-sdot" style={{ background: colourOf(s.category) }} />
-            <span className="tk-stl">{s.title}</span>
-            <em>{pagesOf(s)}</em>
+            <span className="tk-sn">{d.n}</span>
+            <span className="tk-sdot" style={{ background: colourOf(d.category) }} />
+            <span className="tk-stl">{d.title}</span>
+            <em>{pagesLabel(d)}</em>
           </button>
         ))}
       </div>
@@ -1454,9 +1532,25 @@ function SourceChips({
 /* The peek panel. Portalled to <body> — `.page.in`'s will-change traps
    position:fixed inside the shell — so it restates its own colours rather than
    inheriting the ramp declared on `.fg`. */
-function SourcePeek({ source, onClose }: { source: AskSourceItem; onClose: () => void }) {
+function SourcePeek({ source, onClose }: { source: SourceDoc; onClose: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /* Whether there is more passage below the fold. macOS overlay scrollbars
+     are invisible until touched, and on the live walk the well cut mid-word
+     with nothing saying so — the fade is the well admitting it continues. */
+  const [more, setMore] = useState(false);
+  const wellRef = useRef<HTMLDivElement>(null);
+  useEscape(onClose);
+
+  const refreshMore = useCallback(() => {
+    const el = wellRef.current;
+    if (!el) return;
+    setMore(el.scrollHeight - el.scrollTop - el.clientHeight > 8);
+  }, []);
+  // measured after first paint — the well has no height until the portal lands
+  useEffect(() => {
+    refreshMore();
+  }, [refreshMore]);
 
   const open = async () => {
     setError(null);
@@ -1471,7 +1565,9 @@ function SourcePeek({ source, onClose }: { source: AskSourceItem; onClose: () =>
       setError(res.error);
       return;
     }
-    const url = `${res.url}#page=${source.pageFrom}`;
+    // the top-RANKED passage's page, not the lowest-numbered: rank 1 is the
+    // page the answer leaned on hardest, which is what "open it" means here
+    const url = `${res.url}#page=${source.items[0].pageFrom}`;
     if (tab) {
       tab.opener = null;
       tab.location.href = url;
@@ -1479,6 +1575,9 @@ function SourcePeek({ source, onClose }: { source: AskSourceItem; onClose: () =>
       window.open(url, "_blank", "noopener,noreferrer");
     }
   };
+
+  // read top to bottom in the peek, whatever order retrieval ranked them
+  const passages = [...source.items].sort((a, b) => a.pageFrom - b.pageFrom);
 
   if (typeof document === "undefined") return null;
   return createPortal(
@@ -1488,7 +1587,7 @@ function SourcePeek({ source, onClose }: { source: AskSourceItem; onClose: () =>
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-label={`Source ${source.n}`}
+        aria-label={`Source ${source.n}: ${source.title}`}
       >
         <div className="fl-mh">
           <span>
@@ -1496,7 +1595,7 @@ function SourcePeek({ source, onClose }: { source: AskSourceItem; onClose: () =>
             <em>
               <span className="tk-pkdot" style={{ background: colourOf(source.category) }} />
               {KB_CATEGORIES.find((c) => c.key === source.category)?.label ?? "Document"} ·{" "}
-              {pagesOf(source)}
+              {pagesLabel(source)}
             </em>
           </span>
           <button className="fl-x" aria-label="Close" onClick={onClose}>
@@ -1505,8 +1604,20 @@ function SourcePeek({ source, onClose }: { source: AskSourceItem; onClose: () =>
         </div>
         <div className="fl-mb">
           {error && <div className="fl-err">{error}</div>}
-          <p className="tk-pklead">What Tiff read on that page:</p>
-          <blockquote className="tk-pkq">{source.excerpt}</blockquote>
+          <p className="tk-pklead">
+            {passages.length === 1 ? "What Tiff read on that page:" : "What Tiff read on those pages:"}
+          </p>
+          <div className="tk-pkw">
+            <div className="tk-pks" ref={wellRef} onScroll={refreshMore}>
+              {passages.map((item) => (
+                <blockquote key={item.chunkId} className="tk-pkq">
+                  {passages.length > 1 && <span className="tk-pkqp">{pagesOf(item)}</span>}
+                  {item.excerpt}
+                </blockquote>
+              ))}
+            </div>
+            <div className={`tk-pkfade${more ? " on" : ""}`} aria-hidden="true" />
+          </div>
           <div className="fl-foot">
             <button className="fl-btn ghost" onClick={onClose}>
               Close

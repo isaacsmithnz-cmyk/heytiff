@@ -338,11 +338,11 @@ export function cardState(state: ResearchViz, cat: KbCategory): CardState {
   }
 }
 
-const matches = (n: number): string =>
-  `${n.toLocaleString("en-AU")} ${n === 1 ? "match" : "matches"}`;
+/** The microline under a shelf that held something but wasn't built from. */
+export const ALSO_MATCHED_NOTE = "Also matched";
 
-/** What separates the count from the document, when there is a document. */
-const NOTE_SEP = " · ";
+/** The winner's microline when the trace didn't name its document. */
+export const FOUND_HERE_NOTE = "Found it here";
 
 /** The best-ranked document on a shelf, or null when the trace didn't name
     one. Only ever consulted for a shelf the answer was actually built from. */
@@ -350,15 +350,16 @@ export function topDocFor(state: ResearchViz, cat: KbCategory): string | null {
   return state.topDocs?.[cat] ?? null;
 }
 
-/* THE WINNER NAMES ITS DOCUMENT, and only the winner. "4 matches" answers
-   "did you look here"; "4 matches · City Multi fault codes" answers "what did
-   you read", which is the question a citation is about to be checked against —
-   and it is the one card whose answer matters, because it is where the words
-   came from. Putting a title under every hit shelf would turn the rail into a
-   second search-results list nobody asked for. */
-const noteFor = (state: ResearchViz, cat: KbCategory, n: number): string => {
-  const doc = state.winners.includes(cat) ? topDocFor(state, cat) : null;
-  return doc ? `${matches(n)}${NOTE_SEP}${doc}` : matches(n);
+/* THE WINNER NAMES ITS DOCUMENT, and only the winner — and it names ONLY the
+   document. This used to read "56 matches · Daikin VRV Diagnosis Ma…": the
+   chunk tally is retrieval's own bookkeeping, no reader can act on it, and on
+   the live walk it cost the one fact that matters — the title — its ellipsis.
+   A hit shelf says "Also matched" rather than a number for the same reason;
+   putting a title under every hit would turn the rail into a second results
+   list nobody asked for. */
+const noteFor = (state: ResearchViz, cat: KbCategory): string => {
+  if (!state.winners.includes(cat)) return ALSO_MATCHED_NOTE;
+  return topDocFor(state, cat) ?? FOUND_HERE_NOTE;
 };
 
 /* What replaces the shelf's document count, or null to leave the count alone. */
@@ -370,15 +371,13 @@ export function cardNote(state: ResearchViz, cat: KbCategory): string | null {
       return searchedHere(state, cat) ? SEARCHING_NOTE : null;
     case "traced":
     case "answering": {
-      const n = hitsFor(state, cat);
-      if (n > 0) return noteFor(state, cat, n);
-      // an unsearched shelf's resting "—" already says everything true of it
+      if (hitsFor(state, cat) > 0) return noteFor(state, cat);
+      // an unsearched shelf's resting count already says everything true of it
       return searchedHere(state, cat) ? NOTHING_NOTE : null;
     }
     case "settled": {
       if (!state.winners.includes(cat)) return null;
-      const n = hitsFor(state, cat);
-      return n > 0 ? noteFor(state, cat, n) : null;
+      return hitsFor(state, cat) > 0 ? noteFor(state, cat) : null;
     }
   }
 }

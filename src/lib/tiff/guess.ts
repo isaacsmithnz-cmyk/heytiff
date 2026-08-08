@@ -57,6 +57,28 @@ export function guessKbCategory(filename: string): KbCategory {
    is always capitalised. */
 const SMALL = new Set(["a", "an", "and", "for", "in", "of", "on", "or", "the", "to", "with"]);
 
+/* Trade acronyms the industry writes in capitals but filenames often don't —
+   "daikin vrv diagnosis manual.pdf" title-cased to "Daikin Vrv …", which no
+   tech would type and which then reads wrong on every citation chip (found
+   live: the one document in the pilot library wears it). Whole lowercase words
+   only; a token with ANY capitals already keeps itself via `keepAsIs`. The
+   value is the exact print, so "sops" can come out as "SOPs". */
+const TRADE_CAPS: Record<string, string> = {
+  vrv: "VRV",
+  vrf: "VRF",
+  hvac: "HVAC",
+  ahu: "AHU",
+  fcu: "FCU",
+  pcb: "PCB",
+  bms: "BMS",
+  erv: "ERV",
+  hrv: "HRV",
+  iaq: "IAQ",
+  dx: "DX",
+  sop: "SOP",
+  sops: "SOPs",
+};
+
 /** A piece of a model designation: short, or carrying a number. */
 const isCodePiece = (p: string): boolean => /^[a-z0-9]+$/i.test(p) && (/\d/.test(p) || p.length <= 4);
 
@@ -74,6 +96,8 @@ const keepAsIs = (t: string): boolean => isAcronym(t) || isModelToken(t);
 
 function cap(word: string, allowSmall: boolean): string {
   const lower = word.toLowerCase();
+  const trade = TRADE_CAPS[lower];
+  if (trade) return trade;
   if (allowSmall && SMALL.has(lower)) return lower;
   return lower.charAt(0).toUpperCase() + lower.slice(1);
 }

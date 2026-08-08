@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Chevron } from "@/components/logo";
 import { CaptureSheet } from "./note-token";
 import { useNoteFlow } from "./note-flow";
@@ -19,9 +20,14 @@ import { useNoteScope } from "./note-context";
    by a single button here: it opens a sheet with a textarea in it, so typing
    is one tap away and visible the moment you arrive.
 
-   TAPPING IT STARTS LISTENING. There is no mode to choose first. On a
-   deployment with no ELEVENLABS_API_KEY it opens the same sheet with the
-   caret in the box instead — the mic is an enhancement, never the only way in.
+   TAPPING IT OPENS THE SHEET READY FOR EITHER — the caret already in the
+   box, Talk one tap away. It used to start the mic on its own (there was "no
+   mode to choose first"), and that made typing second-class in practice: you
+   arrived recording, and reaching the box meant stopping a recording you
+   never asked for. Isaac reversed it with the premium sheet (2026-08-08):
+   type OR talk is the person's call, made on the sheet, not by the button.
+   The mic stays an enhancement — no ELEVENLABS_API_KEY simply means the
+   sheet opens without a Talk button.
 
    ── TWO PLACES, AND THE GROUND DECIDES THE SKIN ──
 
@@ -57,30 +63,42 @@ export function TiffButton({ where = "topbar" }: { where?: Where }) {
   const flow = useNoteFlow();
   const size = SIZES[where];
 
+  /* The press, made visible: the halo flares and a wash of it BURSTS out of
+     the button while the sheet blossoms from the same corner — the sheet is
+     not a thing that appears, it is the button, grown. State-driven rather
+     than :active because the flare outlives the press (a tap is ~100ms; the
+     burst is 550). Cleared on a timer, not animationend: with motion reduced
+     the animation never ends and the class would stick. */
+  const [lit, setLit] = useState(false);
+  useEffect(() => {
+    if (!lit) return;
+    const t = setTimeout(() => setLit(false), 600);
+    return () => clearTimeout(t);
+  }, [lit]);
+
   /* A sheet says what it is about, so its button can say what it will do
      with what you say — the topbar's cannot, because the topbar is nowhere
      in particular. */
   const label = scope.targetLabel
     ? `Ask or tell Tiff about ${scope.targetLabel}`
-    : scope.voiceEnabled
-      ? "Ask or tell Tiff — starts listening"
-      : "Ask or tell Tiff";
+    : "Ask or tell Tiff";
 
   return (
     <>
       <button
         type="button"
-        className={`tiffbtn tiffbtn-${where}`}
+        className={`tiffbtn tiffbtn-${where}${lit ? " lit" : ""}`}
         aria-label={label}
         title={where === "sheet" ? label : undefined}
         aria-haspopup="dialog"
         aria-expanded={flow.open}
         onClick={() => {
+          setLit(true);
           flow.setOpen(true);
-          if (scope.voiceEnabled) flow.dict.start();
         }}
       >
         {where === "topbar" && <span className="tiffbtn-halo" aria-hidden="true" />}
+        <span className="tiffbtn-burst" aria-hidden="true" />
         <span className="tiffbtn-face">
           {/* The core holds the mark's contrast on top of a LIGHT ground and
               is wrong on a dark one, where it would only mute the halo. */}
@@ -108,8 +126,10 @@ export function TiffButton({ where = "topbar" }: { where?: Where }) {
       </button>
 
       {/* The SAME sheet the field postures open. What you get must not depend
-          on which control you reached it through. */}
-      <CaptureSheet flow={flow} />
+          on which control you reached it through — only the ENTRANCE differs:
+          from this button the sheet blossoms out of the corner the button is
+          in; from a field's nudge it simply rises. */}
+      <CaptureSheet flow={flow} entrance="blossom" />
     </>
   );
 }

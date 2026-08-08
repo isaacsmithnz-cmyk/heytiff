@@ -4567,8 +4567,22 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
   .wb2-pill:hover, .wb2-pillmic:hover { transform:none; }
 }
 
-/* the overlay — a dim (never a blur) with the ribbon card riding high */
-.wb2-capdim { position:fixed; inset:0; z-index:110; background:rgba(10,11,16,.45); animation:wb2Fade .3s both; }
+/* the overlay — the one scrim in the app that BLURS. "A dim, never a blur"
+   held here until the premium capture sheet (Isaac, 2026-08-08): the capture
+   moment is Tiff taking the floor, and the room going soft behind the card
+   is half of that. Every other scrim (.wb2-scrim, sheets, day modal) stays a
+   plain dim — they are workaday covers, not an arrival. UNPREFIXED ONLY: a
+   -webkit- twin makes the build ship the prefixed one alone and the blur
+   dies (see the backdrop-filter trap). */
+.wb2-capdim { position:fixed; inset:0; z-index:110; background:rgba(4,6,10,.62);
+  backdrop-filter:blur(10px) saturate(120%); animation:wb2Fade .3s both; }
+/* the halo, pooled under where the card rests — the button's glow arriving
+   with the sheet. On the dim, not the card: the card scrolls (overflow-y),
+   so a bloom child of it would be clipped or ride the scroll. */
+.wb2-capdim::after { content:""; position:absolute; left:50%; bottom:0; width:min(560px, 80vw);
+  height:180px; transform:translateX(-50%); border-radius:50%; pointer-events:none;
+  background:linear-gradient(120deg, #00E5C0, #2E68FF, #8A2BE2);
+  filter:blur(64px); opacity:.14; animation:fgBreath 5s ease-in-out infinite; }
 .wb2-capcard { position:fixed; top:9vh; left:50%; transform:translateX(-50%); z-index:111;
   width:min(680px, calc(100vw - 32px)); max-height:80vh; overflow-y:auto; overscroll-behavior:contain;
   background:#fff; border:1px solid rgba(5,5,5,.08); border-radius:20px;
@@ -5864,3 +5878,138 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   animation:wb2CursorBlink 1s steps(2, start) infinite; }
 @keyframes wb2CursorBlink { to { visibility:hidden; } }
 @media (prefers-reduced-motion:reduce) { .wb2-anscursor { animation:none; } }
+
+/* ═══════════ THE CAPTURE SHEET'S DUSK SKIN — Isaac, 2026-08-08 ═══════════
+
+   Until the review arrives the card wears the frame's own material: ink
+   glass, white type, the halo pooled beneath it on the dim. The moment the
+   review lands, `wb2-dusk` comes off and the card CROSSFADES back to the
+   light work surface — capture is Tiff's moment, checking is dense reading,
+   and the review's dozen tuned light components stay exactly as they are.
+
+   EVERY COLOUR IN HERE IS A LITERAL. This card portals to <body>, where
+   `.fg`'s custom properties are ABSENT, not outranked — a var() reference
+   out here quietly computes to inherit. The tiffbtn-sheet block above made
+   the same call for the same reason.
+
+   The gradient appears exactly three times — the dim's pooled bloom, the
+   primary button, the level bars — and the textarea gets NONE of it. It had
+   a breathing gradient hairline in the mockup and Isaac called it hectic:
+   the box you type into is where the colour stops. */
+
+/* the card itself, and the dawn crossfade back to the light review */
+.wb2-capcard.wb2-caps { transition:background-color .5s ease, border-color .5s ease, color .5s ease; }
+.wb2-capcard.wb2-dusk { background:rgba(11,14,21,.96); border-color:rgba(255,255,255,.12);
+  color:#E8EAED;
+  box-shadow:0 40px 90px -30px rgba(0,0,0,.85), inset 0 1px 0 rgba(255,255,255,.07); }
+.wb2-dusk .wb2-grab { background:rgba(255,255,255,.24); }
+
+/* the ribbon — it takes the button's own words up top, white on ink */
+.wb2-dusk .wb2-capribbon { border-bottom-color:rgba(255,255,255,.09); color:rgba(255,255,255,.6); }
+.wb2-dusk .wb2-capribbon b { color:#fff; }
+.wb2-dusk .wb2-chip { background:rgba(255,255,255,.08); color:rgba(255,255,255,.72); }
+.wb2-dusk .wb2-chip.blue { background:rgba(46,104,255,.2); color:#9DB9FF; }
+.wb2-dusk .wb2-chip.ok { background:rgba(0,229,192,.14); color:#7CEFD9; }
+.wb2-dusk .wb2-aimx:hover { background:rgba(46,104,255,.32); }
+.wb2-dusk .wb2-ico { background:rgba(255,255,255,.07); color:rgba(255,255,255,.6); }
+.wb2-dusk .wb2-ico:hover { background:rgba(255,255,255,.14); color:#fff; }
+.wb2-dusk .wb2-capclock { color:rgba(255,255,255,.6); }
+.wb2-dusk .wb2-sherr { background:rgba(224,38,79,.18); color:#FF9FB3; }
+
+/* the box — CALM ON PURPOSE. A dark well, a neutral focus brighten, a teal
+   caret, and that is all: no gradient, no glow, nothing breathing. */
+.wb2-dusk .wb2-notes { background:rgba(255,255,255,.05); border-color:rgba(255,255,255,.12);
+  color:#F2F4F7; caret-color:#00E5C0; }
+.wb2-dusk .wb2-notes::placeholder { color:rgba(255,255,255,.38); }
+.wb2-dusk .wb2-notes:focus { border-color:rgba(255,255,255,.26); }
+.wb2-dusk .wb2-hint { color:rgba(255,255,255,.45); }
+
+/* the actions — glass ghosts, one gradient primary, and Talk tinted just
+   enough to read as a door rather than a fallback */
+.wb2-capcard.wb2-dusk .pbtn.ghost { background:rgba(255,255,255,.06); color:#E8EAED;
+  border-color:rgba(255,255,255,.14); }
+.wb2-capcard.wb2-dusk .pbtn.ghost:hover:not(:disabled) { background:rgba(255,255,255,.12);
+  border-color:rgba(255,255,255,.22); color:#fff; }
+.wb2-capcard.wb2-dusk .pbtn.ghost.wb2-talk { background:rgba(0,229,192,.09);
+  border-color:rgba(0,229,192,.42); color:#9FF4E4; }
+.wb2-capcard.wb2-dusk .pbtn.ghost.wb2-talk:hover:not(:disabled) { background:rgba(0,229,192,.16);
+  border-color:rgba(0,229,192,.6); color:#C8FBF1; }
+.wb2-capcard.wb2-dusk .pbtn:not(.ghost) { background:linear-gradient(120deg,#00E5C0,#19B8FF);
+  border-color:transparent; color:#04262B;
+  box-shadow:0 10px 24px -10px rgba(0,229,192,.45); }
+.wb2-capcard.wb2-dusk .pbtn:not(.ghost):hover:not(:disabled) {
+  background:linear-gradient(120deg,#00E5C0,#19B8FF); border-color:transparent;
+  filter:brightness(1.07); box-shadow:0 10px 26px -10px rgba(0,229,192,.6); }
+.wb2-capcard.wb2-dusk .pbtn:disabled { background:rgba(255,255,255,.07);
+  border-color:rgba(255,255,255,.08); color:rgba(255,255,255,.35); box-shadow:none; filter:none; }
+/* The focus ring, restated ABOVE the dusk primary's own shadow — the shared
+   `.wb2-capcard .pbtn:focus-visible` ring is (0,3,0) and the gradient fill
+   here is (0,4,0), so without this line a focused primary loses its ring. */
+.wb2-capcard.wb2-dusk .pbtn:focus-visible { box-shadow:0 0 0 3px rgba(0,229,192,.55); }
+
+/* listening — the bars go brand, the dot stays the one honest red */
+.wb2-dusk .wb-lvl i { background:linear-gradient(180deg,#00E5C0,#2E68FF); }
+.wb2-dusk .wb2-livetext { color:#E8EAED; }
+
+/* sorting — the same honest skeletons, cut for ink */
+.wb2-dusk .wb2-sortnote { color:#E8EAED; }
+.wb2-dusk .wb2-skel { background:linear-gradient(100deg, rgba(255,255,255,.07) 30%, rgba(255,255,255,.13) 50%, rgba(255,255,255,.07) 70%);
+  background-size:200% 100%; }
+
+/* the answer — Tiff speaking is peak dusk */
+.wb2-dusk .wb2-ansq { background:rgba(255,255,255,.06); color:#D8DCE3; }
+.wb2-dusk .wb2-anstool { background:rgba(255,255,255,.08); color:rgba(255,255,255,.6); }
+.wb2-dusk .wb2-anstext { color:#ECEFF3; }
+.wb2-dusk .wb2-anscursor { background:#E8EAED; }
+
+/* ── the entrance: the sheet blossoms out of the button's corner ──
+   Only the Tiff button hands in `wb2-blossom`; a field's nudge and the
+   debrief keep the plain rise. The reveal is a clip circle anchored where
+   the button lives (top-right, above the card), so the sheet reads as the
+   button GROWN, not a thing that appeared. Both keyframe sets carry the
+   card's own resting transform through every frame — the wb2DropIn lesson:
+   `both` fill holds the final frame forever, so a keyframe that forgets the
+   centring translate parks the card half a width off. */
+@keyframes wb2Blossom {
+  from { opacity:0; clip-path:circle(22px at calc(100% - 58px) -34px); transform:translateY(10px); }
+  40%  { opacity:1; }
+  to   { opacity:1; clip-path:circle(175% at calc(100% - 58px) -34px); transform:none; }
+}
+.wb2-capcard.wb2-caps.wb2-blossom { animation:wb2Blossom .5s cubic-bezier(.22,1,.36,1) both; }
+@media (min-width:760px) {
+  @keyframes wb2BlossomWide {
+    from { opacity:0; clip-path:circle(20px at 86% -48px); transform:translateX(-50%) translateY(8px) scale(.98); }
+    40%  { opacity:1; }
+    to   { opacity:1; clip-path:circle(175% at 86% -48px); transform:translateX(-50%); }
+  }
+  .wb2-capcard.wb2-caps.wb2-blossom { animation:wb2BlossomWide .5s cubic-bezier(.22,1,.36,1) both; }
+}
+
+/* the contents land a beat behind the card, in two soft steps — and because
+   these ride the dusk class, each STAGE's body arrives the same way */
+@keyframes wb2CapRise { from { opacity:0; transform:translateY(7px); } to { opacity:1; transform:none; } }
+.wb2-capcard.wb2-dusk .wb2-capribbon { animation:wb2CapRise .38s cubic-bezier(.22,1,.36,1) .05s both; }
+.wb2-capcard.wb2-dusk :is(.wb2-notes, .wb2-caprec, .wb2-sorting, .wb2-ans) {
+  animation:wb2CapRise .38s cubic-bezier(.22,1,.36,1) .12s both; }
+.wb2-capcard.wb2-dusk .wb2-capact { animation:wb2CapRise .38s cubic-bezier(.22,1,.36,1) .19s both; }
+
+/* ── the press, on the button itself: flare, then the burst the sheet grows
+   out of. The wash is a child so it scales from the button's own centre. ── */
+.tiffbtn-burst { position:absolute; inset:0; border-radius:50%; pointer-events:none; opacity:0;
+  background:radial-gradient(circle, rgba(0,229,192,.5), rgba(46,104,255,.3) 45%, rgba(138,43,226,0) 72%); }
+@keyframes tiffBurst { from { opacity:.9; transform:scale(.6); } to { opacity:0; transform:scale(14); } }
+.tiffbtn.lit .tiffbtn-burst { animation:tiffBurst .55s cubic-bezier(.22,1,.36,1) both; }
+.tiffbtn.lit .tiffbtn-halo { animation:none; opacity:1; filter:blur(12px); }
+
+/* Motion off: everything above collapses to plain appearance. The blossom
+   override is not optional — at (0,3,0) it outranks the generic
+   `.wb2-capcard.wb2-caps { animation:none }` in the sheet's own reduce
+   block, so left alone it would keep animating. */
+@media (prefers-reduced-motion:reduce) {
+  .wb2-capcard.wb2-caps.wb2-blossom { animation:none; }
+  .wb2-capcard.wb2-dusk .wb2-capribbon, .wb2-capcard.wb2-dusk .wb2-capact,
+  .wb2-capcard.wb2-dusk :is(.wb2-notes, .wb2-caprec, .wb2-sorting, .wb2-ans) { animation:none; }
+  .tiffbtn.lit .tiffbtn-burst { animation:none; }
+  .wb2-capdim::after { animation:none; }
+  .wb2-dusk .wb2-skel { background:rgba(255,255,255,.08); }
+}

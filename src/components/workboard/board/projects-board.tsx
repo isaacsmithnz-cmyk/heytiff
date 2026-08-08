@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { projectUrgentRows } from "@/lib/workboard/project-rules";
 import type { ProjectsBoardData } from "@/lib/workboard/projects-board-query";
@@ -37,7 +37,6 @@ export function ProjectsBoard({
   today,
   manage,
   connected,
-  onCaptureTarget,
   tools,
   sm8,
 }: {
@@ -48,7 +47,6 @@ export function ProjectsBoard({
   manage: boolean;
   connected: boolean;
   /** The capture pill's attachment (D15) — a trip while its sheet is open. */
-  onCaptureTarget?: (t: { visitId: string; label: string } | null) => void;
   /** The page-owned capture pill, docked at the tab row's right end. */
   tools?: ReactNode;
   /** Mirror health — the same chip the maintenance row carries (D8). */
@@ -143,13 +141,6 @@ export function ProjectsBoard({
   // "nothing" when the sheet closes or the board unmounts.
   const sheetVisitId = sheetVisit?.id ?? null;
   const sheetVisitLabel = sheetVisit ? `${sheetVisit.projectName} · ${sheetVisit.label}` : null;
-  useEffect(() => {
-    if (!onCaptureTarget) return;
-    onCaptureTarget(
-      sheetVisitId && sheetVisitLabel ? { visitId: sheetVisitId, label: sheetVisitLabel } : null
-    );
-    return () => onCaptureTarget(null);
-  }, [sheetVisitId, sheetVisitLabel, onCaptureTarget]);
 
   /** The carry target: the project's next open trip after the one on show. */
   const nextTripFor = (v: { id: string; projectId: string; dueDate: string }) => {

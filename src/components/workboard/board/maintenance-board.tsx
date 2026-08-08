@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { useRouter } from "next/navigation";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
@@ -57,7 +57,6 @@ export function MaintenanceBoard({
   connected,
   aiEnabled = false,
   sm8,
-  onCaptureTarget,
   tools,
 }: {
   data: MaintenanceBoardData;
@@ -72,7 +71,6 @@ export function MaintenanceBoard({
   /** The capture pill's attachment (D15): with a visit sheet open, notes
       spoken land against THAT visit — the page owns the pill, the board
       tells it what's in front of the person. */
-  onCaptureTarget?: (t: { visitId: string; label: string } | null) => void;
   /** The page-owned capture pill, docked at the tab row's right end — the
       handoff's spot. Present in Display mode too: that mode mirrors this page
       rather than replacing it, so everything on it stays usable. */
@@ -182,13 +180,6 @@ export function MaintenanceBoard({
   // "nothing" when the sheet closes or the board unmounts.
   const sheetVisitId = sheetVisit?.id ?? null;
   const sheetVisitLabel = sheetVisit ? `${sheetVisit.clientName} · ${sheetVisit.label}` : null;
-  useEffect(() => {
-    if (!onCaptureTarget) return;
-    onCaptureTarget(
-      sheetVisitId && sheetVisitLabel ? { visitId: sheetVisitId, label: sheetVisitLabel } : null
-    );
-    return () => onCaptureTarget(null);
-  }, [sheetVisitId, sheetVisitLabel, onCaptureTarget]);
   const sheetAgreement = agreementId
     ? data.agreements.find((a) => a.id === agreementId) ?? null
     : null;

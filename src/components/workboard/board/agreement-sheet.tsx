@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { NoteToken } from "@/components/notes/note-token";
+import { TiffButton } from "@/components/notes/tiff-button";
+import { useNoteScopeTarget } from "@/components/notes/note-context";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import type { BoardAgreement, BoardTag, BoardCategory } from "@/lib/workboard/board-query";
 import {
@@ -69,6 +71,11 @@ export function AgreementSheet({
   // section drafts
   const [label, setLabel] = useState(a.label);
   const [clientName, setClientName] = useState(a.clientName);
+
+  /* An agreement is a real note target of its own (`kind: "agreement"`), so
+     a note taken from this sheet lands on the agreement rather than falling
+     through to nowhere. */
+  useNoteScopeTarget({ kind: "agreement", id: a.id }, `${a.clientName} — ${a.label}`);
   const [siteLabel, setSiteLabel] = useState(a.siteLabel ?? "");
   const [siteAddress, setSiteAddress] = useState(a.siteAddress ?? "");
   const [billingContact, setBillingContact] = useState(a.billingContact ?? "");
@@ -174,6 +181,8 @@ export function AgreementSheet({
             <span className="wb2-chip ok">Active</span>
           )}
           {a.category && <span className="wb2-chip">{a.category.name}</span>}
+          {/* ON THE SHEET, because nothing outside its scrim can be clicked. */}
+          <TiffButton where="sheet" />
           <button ref={closeRef} className="wb2-ico" onClick={onClose} title="Close" aria-label="Close">
             <Icon name="x" size={14} />
           </button>

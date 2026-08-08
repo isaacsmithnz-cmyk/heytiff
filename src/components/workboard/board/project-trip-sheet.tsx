@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
 import { NoteToken } from "@/components/notes/note-token";
+import { useNoteScopeTarget } from "@/components/notes/note-context";
+import { TiffButton } from "@/components/notes/tiff-button";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import {
   isWeekendISO,
@@ -99,6 +101,14 @@ export function ProjectTripSheet({
   const [notesText, setNotesText] = useState(visit.notes ?? "");
   const [renaming, setRenaming] = useState(false);
   const [labelText, setLabelText] = useState(visit.label);
+
+  /* WHAT THIS SHEET IS ABOUT, reported up so anything that captures while it
+     is open lands on this trip rather than on the project behind it. This is
+     the `focus` slot note-context grew for exactly this, and it replaces the
+     `onCaptureTarget` callback the BOARD used to pass down and mirror into
+     its own state — the widget should never need its caller to know how
+     routing works. */
+  useNoteScopeTarget({ kind: "visit", id: visit.id }, visit.label);
   const [linking, setLinking] = useState(false);
   const [jobText, setJobText] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -254,6 +264,12 @@ export function ProjectTripSheet({
           {diary === "differs" && (
             <span className="wb2-chip warn">ServiceM8 diary says another day</span>
           )}
+          {/* ON THE SHEET, because nothing outside its scrim can be clicked
+              — the topbar's button is unreachable the moment this opens, and
+              the context tag could never do the one job it exists for. The
+              sheet already says what it is about (below), so this arrives
+              pointed at the right thing without being told. */}
+          <TiffButton where="sheet" />
           <button
             ref={closeRef}
             className="wb2-ico"

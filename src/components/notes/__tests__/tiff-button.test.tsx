@@ -123,6 +123,34 @@ describe("the button itself", () => {
     expect(btn().parentElement).not.toBe(document.body);
   });
 
+  /* THE SHEET VARIANT. Nothing outside a sheet's scrim can be clicked, so the
+     topbar button is unreachable the moment a job opens — which killed the one
+     case the context tag exists for. Isaac's fix: a button ON the sheet. It is
+     the same component and the same flow; only the ground changes, so only the
+     skin does. */
+  it("wears the sheet skin, and says what it will be about", () => {
+    render(
+      <NoteScopeProvider voiceEnabled>
+        <NoteScopeScreen target={{ kind: "visit", id: "v-1" }} targetLabel="Server room CRACs" />
+        <TiffButton where="sheet" />
+      </NoteScopeProvider>
+    );
+    const el = screen.getByLabelText("Ask or tell Tiff about Server room CRACs");
+    expect(el).toHaveClass("tiffbtn-sheet");
+    /* The core holds the mark's contrast on a WHITE sheet; the halo is the
+       topbar's answer to a black one. Wearing both would be wrong twice. */
+    expect(el.querySelector(".tiffbtn-core")).not.toBeNull();
+    expect(el.querySelector(".tiffbtn-halo")).toBeNull();
+  });
+
+  it("keeps the topbar skin on the topbar — glow, no core", () => {
+    mount();
+    const el = btn();
+    expect(el).toHaveClass("tiffbtn-topbar");
+    expect(el.querySelector(".tiffbtn-halo")).not.toBeNull();
+    expect(el.querySelector(".tiffbtn-core")).toBeNull();
+  });
+
   it("says what it does rather than naming an icon", () => {
     mount();
     expect(btn()).toHaveAccessibleName("Ask or tell Tiff — starts listening");

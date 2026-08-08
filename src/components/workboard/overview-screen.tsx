@@ -58,8 +58,6 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
   const router = useRouter();
   const [display, setDisplay] = useState(false);
   const [tab, setTab] = useState<SideKey>("maintenance");
-  /** What the capture pill attaches to — a visit while its sheet is open. */
-  const [capture, setCapture] = useState<{ visitId: string; label: string } | null>(null);
 
   // Leaving fullscreen leaves display mode — Esc is the browser's own exit and
   // must land you back in the app, not on a chromeless page in a window.
@@ -317,8 +315,11 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
      Display mode keeps working for free: the frame is what display mode
      hides, and the button hides with it. */
   useNoteScopeScreen({
-    target: capture ? { kind: "visit", id: capture.visitId } : { kind: "none" },
-    targetLabel: capture?.label,
+    /* The board itself is not "about" any one job — a sheet opening over it
+       says what it is about, through the scope's `focus` slot. This used to
+       mirror the open sheet into page state via an `onCaptureTarget` callback
+       threaded down through both boards; the sheets report themselves now. */
+    target: { kind: "none" },
     jobs: attachOptions,
     staffFirstNames,
   });
@@ -414,7 +415,6 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
                 connected={connected}
                 aiEnabled={data.aiEnabled}
                 sm8={sm8}
-                onCaptureTarget={setCapture}
               />
             ) : (
               <ProjectsBoard
@@ -424,7 +424,6 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
                 manage={data.manage}
                 connected={connected}
                 sm8={sm8}
-                onCaptureTarget={setCapture}
               />
             )}
 

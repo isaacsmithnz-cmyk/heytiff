@@ -6,10 +6,17 @@ export function Chevron({
   size = 24,
   gradient = false,
   className,
+  decorative = false,
 }: {
   size?: number;
   gradient?: boolean;
   className?: string;
+  /** Beside a word that already names the control. The mark defaults to
+      `role="img"` with a "HeyTiff" label, which is right when it stands
+      alone and wrong inside a labelled button: it joined the name, and the
+      debrief's button became "HeyTiff Debrief". Decoration announces
+      nothing. */
+  decorative?: boolean;
 }) {
   // The gradient is a single fixed brand gradient, so a stable constant id is
   // safe (identical defs never visually collide) and — unlike a render-time
@@ -24,8 +31,9 @@ export function Chevron({
       viewBox="0 0 100 100"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      role="img"
-      aria-label="HeyTiff"
+      role={decorative ? undefined : "img"}
+      aria-label={decorative ? undefined : "HeyTiff"}
+      aria-hidden={decorative ? true : undefined}
       className={className}
     >
       {gradient && (

@@ -70,61 +70,6 @@ describe("at rest", () => {
   });
 });
 
-/* ── a submit that names its shelves ─────────────────────────────────────
-   The gate: a question only performs on the shelves it actually went to. A
-   shelf with nothing on it used to get a lane and "Searching…" over a card
-   whose own count read "—" — the machine searching nothing for symmetry. */
-
-describe("a submit that names its shelves", () => {
-  it("means every shelf when none are named — the old callers' contract", () => {
-    const s = run({ t: "submit" });
-    expect(lines(s)).toEqual({
-      install: "draw",
-      faults: "draw",
-      specs: "draw",
-      sops: "draw",
-      field: "draw",
-    });
-    expect(cardNote(s, "field")).toBe(SEARCHING_NOTE);
-  });
-
-  it("leaves an unstocked shelf entirely at rest while the others perform", () => {
-    const s = run({ t: "submit", searched: ["install", "faults"] });
-
-    expect(lineState(s, "specs")).toBe("off");
-    expect(lanePulse(s, "specs")).toBe("off");
-    expect(cardState(s, "specs")).toBe("idle");
-    // null: the resting document count stands, no "Searching…" over a "—"
-    expect(cardNote(s, "specs")).toBeNull();
-
-    expect(lineState(s, "install")).toBe("draw");
-    expect(cardNote(s, "install")).toBe(SEARCHING_NOTE);
-  });
-
-  it("keeps the gate through the trace and the settle", () => {
-    const searched = run(
-      { t: "submit", searched: ["faults"] },
-      trace(["faults"], { faults: 3 }),
-      { t: "done" }
-    );
-    // an unsearched shelf is not "searched and empty": no dim, no "—", no fade
-    expect(cardState(searched, "specs")).toBe("idle");
-    expect(cardNote(searched, "specs")).toBeNull();
-    expect(lineState(searched, "specs")).toBe("off");
-    // the shelf the answer came from still keeps its thread
-    expect(lineState(searched, "faults")).toBe("kept");
-  });
-
-  it("drops junk and repeats from the named list", () => {
-    const s = run({
-      t: "submit",
-      searched: ["faults", "faults", "not-a-shelf" as KbCategory],
-    });
-    expect(lineState(s, "faults")).toBe("draw");
-    expect(lineState(s, "install")).toBe("off");
-  });
-});
-
 /* ── the question goes out ───────────────────────────────────────────────── */
 
 describe("submitting a research question", () => {
@@ -174,7 +119,6 @@ describe("submitting a research question", () => {
     const again = run({ t: "submit" }, trace(["faults"], { faults: 3 }), { t: "submit" });
     expect(again).toEqual({
       phase: "searching",
-      searched: KB_CATEGORIES,
       hits: null,
       topDocs: null,
       winners: [],

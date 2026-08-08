@@ -7,8 +7,9 @@
 
      · the token is a CAPSULE. Typing is never demoted to an afterthought,
        and the mic half only exists when voice does.
-     · TASKS NO LONGER NEED A JOB. Flags, bring-items, progress and issues
-       still do. That asymmetry is the cascade, and it is the change most
+     · TASKS NO LONGER NEED A JOB. Flags, bring-items, progress,
+       commissioning and issues still do — ANY job, never a particular kind
+       of one. That asymmetry is the cascade, and it is the change most
        likely to be "tidied" back into a blanket rule by someone reading
        `blockers` on its own.
      · MY NOTES is the floor, offered only when nothing above can take it.
@@ -282,6 +283,28 @@ describe("the cascade", () => {
   it("but a flag still does — it would render a dead end on the board", async () => {
     await openWith({ flags: [{ message: "unit tripping", severity: "warn" }] });
     expect(screen.getByText(/hang off a job/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save these" })).toBeDisabled();
+  });
+
+  /* ANY JOB, NOT A PROJECT. `project_entries` is where progress and
+     commissioning land on a project, and for a while it was the ONLY place
+     `applyNote` ever wrote them — so a reading ticked against a visit was
+     dropped in silence under a card with nothing to complain about. On a
+     visit they now go onto the visit's own notes, and this card must keep
+     saying so: tightening `blockers` to demand a project would refuse the
+     most ordinary commissioning there is. */
+  it("a VISIT can take progress and commissioning — the rule is a job, not a project", async () => {
+    await openWith(
+      { progressBullets: ["Belts swapped"], commissioningEntries: [{ body: "Superheat 6K", equipmentHint: "" }] },
+      { target: { kind: "visit", id: "v-1" }, targetLabel: "Meridian Data · CRACs" }
+    );
+    expect(screen.queryByText(/hang off a job/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save these" })).toBeEnabled();
+  });
+
+  it("and with no job at all the refusal names commissioning too", async () => {
+    await openWith({ commissioningEntries: [{ body: "Superheat 6K", equipmentHint: "" }] });
+    expect(screen.getByText(/commissioning and issues all hang off a job/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save these" })).toBeDisabled();
   });
 

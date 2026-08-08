@@ -233,6 +233,73 @@ describe("entries and bring-items", () => {
     const rowsIn = rowsFor("project_entries");
     expect(rowsIn.map((r) => r.kind)).toEqual(["progress", "commissioning"]);
     expect(rowsIn.every((r) => r.note_id === "n-1")).toBe(true);
+    // a project has a journal, so nothing goes on its free-text notes
+    expect(updates.some((u) => u.table === "projects")).toBe(false);
+  });
+
+  /* THE SILENT DROP. `project_entries` has a project_id and nothing else, so
+     this bucket used to be written `if (target.kind === "project")` and left
+     at that — while the guard above accepts ANY job for progress and
+     commissioning, and the review card's picker offers visits and agreements.
+     A reading ticked against a visit was written nowhere, and the note came
+     back "Saved — …" and went to status applied. Readings taken on a
+     maintenance visit are the most ordinary commissioning there is. */
+  it("a visit's progress and commissioning land on the visit's own notes", async () => {
+    rows.workboard_notes = { ...NOTE, target_kind: "visit", target_id: "v-1" };
+    rows.maintenance_visits = { notes: "gate 4417" };
+    const res = await applyNote(
+      "n-1",
+      confirmed({ progressBullets: ["Belts swapped"], commissioningEntries: ["Superheat 6K"] })
+    );
+    expect(res.ok).toBe(true);
+    // no project row is invented for a job that isn't one
+    expect(inserts.some((i) => i.table === "project_entries")).toBe(false);
+    /* A line is a bullet (lib/workboard/note-lines), what was already there
+       stays, and the kind survives the trip into an untyped column — which is
+       the one thing `project_entries` carries that `notes` can't. */
+    expect(updates.find((u) => u.table === "maintenance_visits")!.patch.notes).toBe(
+      "gate 4417\nBelts swapped\nCommissioning: Superheat 6K"
+    );
+  });
+
+  it("counts them in the summary instead of reporting a save that dropped them", async () => {
+    rows.workboard_notes = { ...NOTE, target_kind: "visit", target_id: "v-1" };
+    rows.maintenance_visits = { notes: null };
+    const res = await applyNote(
+      "n-1",
+      confirmed({ progressBullets: ["Belts swapped", "Filters out"] })
+    );
+    expect(res.ok).toBe(true);
+    if (res.ok) expect(res.summary).toBe("Saved — 2 entries.");
+    /* The words are the record: text on somebody else's row has no id of its
+       own to point back at. Same as bring-items, same reason. */
+    expect(updates.find((u) => u.table === "workboard_notes")!.patch.applied).toMatchObject({
+      entryLines: ["Belts swapped", "Filters out"],
+    });
+  });
+
+  it("an agreement's append the same way, never replacing what's there", async () => {
+    rows.workboard_notes = { ...NOTE, target_kind: "agreement", target_id: "a-1" };
+    rows.maintenance_agreements = { notes: "Ask for Marco at the dock." };
+    const res = await applyNote("n-1", confirmed({ commissioningEntries: ["Charge 4.2 kg"] }));
+    expect(res.ok).toBe(true);
+    expect(updates.find((u) => u.table === "maintenance_agreements")!.patch.notes).toBe(
+      "Ask for Marco at the dock.\nCommissioning: Charge 4.2 kg"
+    );
+  });
+
+  /* ANY job will do — but there has to BE one. With no target there is no
+     notes column to append to either, so this stays a refusal, and the
+     sentence names commissioning because the person may have ticked nothing
+     else. The review card's `blockers` says the identical thing. */
+  it("REFUSES commissioning with no job at all, and says commissioning", async () => {
+    rows.workboard_notes = { ...NOTE, target_kind: "none", target_id: null };
+    const res = await applyNote("n-1", confirmed({ commissioningEntries: ["Superheat 6K"] }));
+    expect(res.ok).toBe(false);
+    expect(res.ok === false && res.error).toMatch(/commissioning/);
+    expect(updates.some((u) => u.table === "workboard_notes" && u.patch.status === "applied")).toBe(
+      false
+    );
   });
 
   it("a project's bring-items become checklist items in their own section", async () => {

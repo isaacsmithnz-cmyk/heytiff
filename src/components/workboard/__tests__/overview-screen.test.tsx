@@ -30,7 +30,7 @@ function ScopeProbe() {
   const s = useNoteScope();
   return (
     <div data-testid="scope">
-      {s.target.kind}|{s.targetLabel ?? "-"}|{s.jobs.length} jobs|{s.staffFirstNames.length} names
+      {s.target.kind}|{s.targetLabel ?? "-"}|{s.staffFirstNames.length} names
     </div>
   );
 }
@@ -393,25 +393,34 @@ describe("what the screen tells the Tiff button", () => {
     expect(screen.queryByLabelText(/Ask or tell Tiff/)).not.toBeInTheDocument();
   });
 
-  /* An open job and somebody to name in it — the two things the button needs
-     from a board before a spoken note can be pinned or a person recognised. */
+  /* Somebody scheduled on the board — what the field mics' sieve needs before
+     it can recognise a name. (The JOBS a note can be pinned to are not the
+     screen's to report any more: the picker's roster rides the route result,
+     so it works from screens with no board at all.) */
   const loaded: WorkboardData = {
     ...base,
     board: {
       ...base.board,
-      visits: [visitStub({ id: "v-1", status: "booked", clientName: "Meridian Data" })],
+      visits: [
+        visitStub({
+          id: "v-1",
+          status: "booked",
+          clientName: "Meridian Data",
+          techs: [{ id: "s-1", name: "Dane Whitcombe" }] as BoardVisit["techs"],
+        }),
+      ],
       staff: [{ id: "s-1", name: "Dane Whitcombe" }] as WorkboardData["board"]["staff"],
     },
   };
 
-  it("reports the board's jobs and roster upward, so a note can be pinned", () => {
+  it("reports the crews' names upward, so the sieve can recognise one", () => {
     withProbe(loaded);
-    expect(screen.getByTestId("scope")).toHaveTextContent("1 jobs");
+    expect(screen.getByTestId("scope")).toHaveTextContent("1 names");
   });
 
   it("stops reporting when the screen goes away, so the button is not left holding a stale board", () => {
     const { unmount } = withProbe(loaded);
-    expect(screen.getByTestId("scope")).toHaveTextContent("1 jobs");
+    expect(screen.getByTestId("scope")).toHaveTextContent("1 names");
     unmount();
 
     render(
@@ -419,6 +428,6 @@ describe("what the screen tells the Tiff button", () => {
         <ScopeProbe />
       </NoteScopeProvider>
     );
-    expect(screen.getByTestId("scope")).toHaveTextContent("none|-|0 jobs|0 names");
+    expect(screen.getByTestId("scope")).toHaveTextContent("none|-|0 names");
   });
 });

@@ -46,18 +46,13 @@ jest.mock("@/app/actions/workboard-notes", () => ({
   answerClarify: jest.fn(),
 }));
 
-const job = (id: string) => ({
-  kind: "visit" as const,
-  id,
-  clientName: "Meridian Data",
-  label: "Server room CRACs",
-  siteLabel: null,
-  jobNumber: "1042",
-});
-
 function Probe() {
   const s = useNoteScope();
-  return <span data-testid="scope">{`${s.target.kind}|${s.targetLabel ?? "-"}|${s.jobs.length}`}</span>;
+  return (
+    <span data-testid="scope">
+      {`${s.target.kind}|${s.targetLabel ?? "-"}|${s.staffFirstNames.length}`}
+    </span>
+  );
 }
 
 const mount = (ui?: React.ReactNode, voiceEnabled = true) =>
@@ -170,17 +165,18 @@ describe("what it is pointed at", () => {
       <NoteScopeScreen
         target={{ kind: "project", id: "p-1" }}
         targetLabel="Smith St change-over"
-        jobs={[job("v-1"), job("v-2")]}
+        staffFirstNames={["Luke", "Dane"]}
       />
     );
     expect(screen.getByTestId("scope")).toHaveTextContent("project|Smith St change-over|2");
   });
 
-  /* THE BUG THE TWO SLOTS EXIST FOR. A screen reports its job list; a sheet
+  /* THE BUG THE TWO SLOTS EXIST FOR. A screen reports what it knows; a sheet
      opens over it and reports a target. With one slot the second push replaced
-     the first, the job list vanished, and a note taken from the button could
-     no longer be pinned to anything on the board behind it. */
-  it("lets a sheet re-aim it WITHOUT losing the board's job list", () => {
+     the first and the screen's report vanished — originally the board's job
+     list (which now rides the route result instead), today the roster the
+     field mics' sieve reads names from. Same structural bug either way. */
+  it("lets a sheet re-aim it WITHOUT losing the screen's roster", () => {
     const Sheet = () => {
       const { pushFocus } = useNoteScope();
       React.useEffect(() => {
@@ -192,7 +188,7 @@ describe("what it is pointed at", () => {
     const { rerender } = render(
       <NoteScopeProvider voiceEnabled>
         <Probe />
-        <NoteScopeScreen target={{ kind: "none" }} jobs={[job("v-1"), job("v-2")]} />
+        <NoteScopeScreen target={{ kind: "none" }} staffFirstNames={["Luke", "Dane"]} />
         <TiffButton />
       </NoteScopeProvider>
     );
@@ -201,7 +197,7 @@ describe("what it is pointed at", () => {
     rerender(
       <NoteScopeProvider voiceEnabled>
         <Probe />
-        <NoteScopeScreen target={{ kind: "none" }} jobs={[job("v-1"), job("v-2")]} />
+        <NoteScopeScreen target={{ kind: "none" }} staffFirstNames={["Luke", "Dane"]} />
         <Sheet />
         <TiffButton />
       </NoteScopeProvider>
@@ -233,19 +229,19 @@ describe("what it is pointed at", () => {
     expect(screen.getByTestId("scope")).toHaveTextContent("project|Smith St");
   });
 
-  it("stops holding a board once its screen goes away", () => {
+  it("stops holding a screen's report once that screen goes away", () => {
     const { rerender } = render(
       <NoteScopeProvider voiceEnabled>
         <Probe />
-        <NoteScopeScreen target={{ kind: "project", id: "p-1" }} jobs={[job("v-1")]} />
+        <NoteScopeScreen target={{ kind: "project", id: "p-1" }} staffFirstNames={["Luke"]} />
         <TiffButton />
       </NoteScopeProvider>
     );
     expect(screen.getByTestId("scope")).toHaveTextContent("project|-|1");
 
     /* Navigation, in the shape the frame actually sees it: the screen
-       unmounts and the button does not. Leaving the last board's jobs behind
-       would offer to pin a note to a job that is no longer on screen. */
+       unmounts and the button does not. Leaving the last screen's report
+       behind would file notes against a job that is no longer on screen. */
     rerender(
       <NoteScopeProvider voiceEnabled>
         <Probe />

@@ -17,6 +17,7 @@ jest.mock("@/lib/supabase-server", () => ({
       const self = () => chain;
       chain.select = self;
       chain.eq = self;
+      chain.neq = self;
       chain.in = self;
       chain.order = self;
       chain.limit = self;
@@ -69,7 +70,14 @@ jest.mock("@/lib/workboard/note-brain", () => ({
   readNote: jest.fn(),
 }));
 
-import { applyNote, clearFlag, dismissNote, keepNoteOnJob, routeNote } from "../workboard-notes";
+import {
+  applyNote,
+  clearFlag,
+  dismissNote,
+  keepNoteForMe,
+  keepNoteOnJob,
+  routeNote,
+} from "../workboard-notes";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { readNote } = jest.requireMock("@/lib/workboard/note-brain") as { readNote: jest.Mock };
 
@@ -469,5 +477,77 @@ describe("the router is grounded — the brain tool layer", () => {
     const ctx = readNote.mock.calls[0][1];
     expect(ctx.history).toEqual({ issues: [], flags: [], recentNotes: [] });
     expect(ctx.equipment).toBeUndefined();
+  });
+
+  /* THE PICKER'S ROSTER RIDES THE ROUTE (Isaac, 2026-08-08). It used to be
+     pushed into scope by board screens only, which left every other screen's
+     review card saying "say which one" with no way to say it. Served here so
+     the words can name a job wherever they were spoken. */
+  it("returns the jobs a note could be pinned to — the board's own set", async () => {
+    readNote.mockClear();
+    readNote.mockResolvedValue({ ok: true, proposal: PROPOSAL });
+    lists.maintenance_agreements = [
+      { id: "a-1", label: "Quarterly service", client_name: "Kingsford Medical", site_label: null, status: "active" },
+      { id: "a-2", label: "Annual clean", client_name: "Paused Pty", site_label: null, status: "paused" },
+    ];
+    lists.projects = [
+      { id: "p-1", name: "Smith St change-over", client_name: "Smith St Dental", site_label: "Smith St" },
+    ];
+    lists.maintenance_visits = [
+      { id: "v-1", agreement_id: "a-1", project_id: null, label: null, job_number: "1042", status: "upcoming" },
+      /* a paused agreement's visit is not on the board's open list, so it is
+         not offered here either — the agreement itself still is */
+      { id: "v-2", agreement_id: "a-2", project_id: null, label: null, job_number: "1043", status: "upcoming" },
+      { id: "t-1", agreement_id: null, project_id: "p-1", label: "Rough-in", job_number: null, status: "booked" },
+    ];
+
+    const res = await routeNote({ transcript: "ring the wholesaler", target: { kind: "none" } });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.jobs).toEqual([
+      { kind: "visit", id: "v-1", clientName: "Kingsford Medical", label: "Quarterly service", siteLabel: null, jobNumber: "1042" },
+      { kind: "visit", id: "t-1", clientName: "Smith St Dental", label: "Smith St change-over · Rough-in", siteLabel: "Smith St", jobNumber: null },
+      { kind: "agreement", id: "a-1", clientName: "Kingsford Medical", label: "Quarterly service", siteLabel: null, jobNumber: null },
+      { kind: "agreement", id: "a-2", clientName: "Paused Pty", label: "Annual clean", siteLabel: null, jobNumber: null },
+      { kind: "project", id: "p-1", clientName: "Smith St Dental", label: "Smith St change-over", siteLabel: "Smith St", jobNumber: null },
+    ]);
+  });
+});
+
+/* "Keep it in my notes" with rows on the card is a DEMOTION, not a discard:
+   a flag that names no job isn't a flag, it's your note. The card sends the
+   ticked rows — reviewed, edited — and they're kept as one grouped note.
+   Without rows the raw transcript is kept, exactly as before. */
+describe("keeping it for yourself", () => {
+  it("keeps the ticked rows as one grouped note, a line each", async () => {
+    rows.workboard_notes = { ...NOTE, transcript: "the raw ramble" };
+    const res = await keepNoteForMe("n-1", [
+      "Unit still will not regulate.",
+      "Checked the regulator",
+    ]);
+    expect(res.ok).toBe(true);
+    expect(rowsFor("staff_notes")[0]).toMatchObject({
+      staff_id: "staff-me",
+      body: "• Unit still will not regulate.\n• Checked the regulator",
+      source: "routed",
+      source_note_id: "n-1",
+    });
+    // settled, not left pending forever
+    expect(
+      updates.some((u) => u.table === "workboard_notes" && u.patch.status === "dismissed")
+    ).toBe(true);
+  });
+
+  it("keeps the raw words when no rows were ticked — a note that never grew rows", async () => {
+    rows.workboard_notes = { ...NOTE, transcript: "gate code is 4417" };
+    const res = await keepNoteForMe("n-1", []);
+    expect(res.ok).toBe(true);
+    expect(rowsFor("staff_notes")[0].body).toBe("gate code is 4417");
+  });
+
+  it("lines of nothing count as nothing — the transcript still wins", async () => {
+    rows.workboard_notes = { ...NOTE, transcript: "the words" };
+    await keepNoteForMe("n-1", ["   ", ""]);
+    expect(rowsFor("staff_notes")[0].body).toBe("the words");
   });
 });

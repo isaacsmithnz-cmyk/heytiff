@@ -15,6 +15,8 @@ import {
 } from "@/lib/workboard/note-brain";
 import { todayInZone } from "@/lib/workboard/dates";
 import { getSm8Timezone } from "@/lib/workboard/query";
+import { jobCandidates } from "@/lib/workboard/notes-query";
+import type { JobCandidate } from "@/lib/workboard/note-match";
 import { fullNameOf } from "@/lib/staff/name";
 import { NAME_COLUMNS } from "@/lib/dashboard/tasks-query";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
@@ -43,7 +45,18 @@ export type NoteTarget = {
 };
 
 export type RouteResult =
-  | { ok: true; noteId: string; proposal: NoteProposal; staff: NoteStaff[] }
+  | {
+      ok: true;
+      noteId: string;
+      proposal: NoteProposal;
+      staff: NoteStaff[];
+      /** The jobs the review card may pin this note to. Served here rather
+          than read from scope because the picker must work on EVERY screen —
+          a fault note dictated from the Tiff AI page names a job out loud
+          just as surely as one from the board, and only the server can hand
+          the roster to a screen with no board behind it. */
+      jobs: JobCandidate[];
+    }
   | { ok: false; error: string };
 
 export type ApplyResult = { ok: true; summary: string } | { ok: false; error: string };
@@ -151,16 +164,20 @@ export async function routeNote(input: {
   if (error || !data) return { ok: false, error: "Couldn't save that note." };
   const noteId = (data as { id: string }).id;
 
-  /* Four independent reads against a remote database, so they go together
+  /* Five independent reads against a remote database, so they go together
      rather than one after another — the person is watching a spinner. The
      history read is the router's MEMORY: what this job's issues are already
      called, what's flagged, what was said last visit. Before it, "tripped
-     again" reached the model with no again. */
-  const [staff, label, tz, history] = await Promise.all([
+     again" reached the model with no again. The candidates read is the
+     review card's PICKER: fetched even when the note arrived with a target,
+     because the tag can come off at review and the picker must still have a
+     roster to offer. */
+  const [staff, label, tz, history, jobs] = await Promise.all([
     assignableStaff(ctx.orgId),
     targetLabel(ctx.orgId, target),
     getSm8Timezone(ctx.orgId),
     jobHistory(ctx.orgId, target),
+    jobCandidates(ctx.orgId),
   ]);
   const read = await readNote(transcript, {
     staff,
@@ -199,7 +216,7 @@ export async function routeNote(input: {
     .eq("id", noteId);
 
   refresh(target);
-  return { ok: true, noteId, proposal: read.proposal, staff };
+  return { ok: true, noteId, proposal: read.proposal, staff, jobs };
 }
 
 async function targetLabel(orgId: string, target: NoteTarget): Promise<string | null> {
@@ -242,13 +259,15 @@ export async function answerClarify(noteId: string, answer: string): Promise<Rou
   const question = proposal?.clarify?.question;
   if (!question) return { ok: false, error: "There's no question waiting on that note." };
 
-  const [staff, label, tz, history] = await Promise.all([
+  const [staff, label, tz, history, jobs] = await Promise.all([
     assignableStaff(ctx.orgId),
     targetLabel(ctx.orgId, { kind: note.target_kind, id: note.target_id }),
     getSm8Timezone(ctx.orgId),
     /* Same memory as the first pass — an answer to "which Luke?" must not
        cost the model everything it knew about the job. */
     jobHistory(ctx.orgId, { kind: note.target_kind, id: note.target_id }),
+    // and the same picker roster, or answering would take the picker away
+    jobCandidates(ctx.orgId),
   ]);
   const read = await readNote(
     note.transcript,
@@ -288,7 +307,7 @@ export async function answerClarify(noteId: string, answer: string): Promise<Rou
     .eq("id", noteId);
 
   refresh({ kind: note.target_kind, id: note.target_id });
-  return { ok: true, noteId, proposal: read.proposal, staff };
+  return { ok: true, noteId, proposal: read.proposal, staff, jobs };
 }
 
 type NoteRow = {
@@ -867,8 +886,18 @@ export async function keepNoteOnJob(
    Unlike `keepNoteOnJob` this needs NO `workboard` capability: it writes to
    the author's own notes, which is the least privileged thing in the app.
    What it does need is a staff profile, since the row must have an owner —
-   see the same rule in actions/my-notes.ts. */
-export async function keepNoteForMe(noteId: string): Promise<ApplyResult> {
+   see the same rule in actions/my-notes.ts.
+
+   `lines` is THE HONEST DEMOTION (Isaac, 2026-08-08). A jobless fault note
+   comes back as flags, readings and issues — rows that cannot exist without
+   a job — and when no job gets named, "how can we have progress with no job
+   to reference?" has one answer: they aren't progress, they're your note.
+   The card sends its TICKED rows, edits included, and they're kept as one
+   grouped note; the same doctrine as applyNote — what a person reviewed,
+   never what the model produced. With no lines the raw transcript is kept,
+   exactly as before; either way the transcript survives on the
+   workboard_notes row. */
+export async function keepNoteForMe(noteId: string, lines?: string[]): Promise<ApplyResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: NOT_SIGNED_IN };
   if (!ctx.staffId) return { ok: false, error: "Your staff profile isn't set up yet." };
@@ -876,7 +905,13 @@ export async function keepNoteForMe(noteId: string): Promise<ApplyResult> {
   const note = await noteIn(ctx.orgId, noteId);
   if (!note) return { ok: false, error: GONE };
 
-  const body = trim(note.transcript, 4000);
+  const kept = (lines ?? [])
+    .map((l) => trim(l, 1000))
+    .filter(Boolean)
+    .slice(0, 60);
+  const body = kept.length
+    ? kept.map((l) => `• ${l}`).join("\n").slice(0, 4000)
+    : trim(note.transcript, 4000);
   if (!body) return { ok: false, error: "There are no words to keep." };
 
   const { error } = await supabaseAdmin.from("staff_notes").insert({

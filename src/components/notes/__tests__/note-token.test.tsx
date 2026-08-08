@@ -295,7 +295,10 @@ describe("the cascade", () => {
     await openWith({ flags: [] });
     expect(screen.getByRole("button", { name: /Keep it in my notes/ })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /Keep it in my notes/ }));
-    expect(keepNoteForMe).toHaveBeenCalledWith("n-1");
+    /* No rows on this card, so there are no kept lines — the server falls
+       back to the raw transcript, which is what "keep the note" always meant
+       for a note that never grew rows. */
+    expect(keepNoteForMe).toHaveBeenCalledWith("n-1", []);
   });
 
   it("and offers the JOB instead the moment there is one", async () => {
@@ -308,6 +311,105 @@ describe("the cascade", () => {
     await openWith({ tasks: [task()] }, { target: { kind: "visit", id: "v-1" }, targetLabel: "Meridian" });
     expect(screen.getByText(/Going on/)).toBeInTheDocument();
     expect(screen.getByText(/1 task/)).toBeInTheDocument();
+  });
+});
+
+/* THE PICKER RIDES THE ROUTE (Isaac, 2026-08-08). A fault note dictated from
+   the Tiff AI page came back as flags and readings — job-bound rows — with
+   "say which one" as the advice and NO way to say it: the picker read the
+   scope's job list, and only board screens pushed one. The roster now comes
+   back with the routed note, so pinning works from every screen, or the
+   ticked rows demote honestly into your own notes. */
+describe("the picker rides the route", () => {
+  const kingsford = {
+    kind: "visit" as const,
+    id: "v-9",
+    clientName: "Kingsford Medical",
+    label: "Quarterly service",
+    siteLabel: null,
+    jobNumber: "1042",
+  };
+
+  const openJobless = async (over: Partial<NoteProposal>, jobs: unknown[] = [kingsford], words = "note text") => {
+    routeNote.mockResolvedValue({
+      ok: true,
+      noteId: "n-1",
+      proposal: proposal(over),
+      staff: [],
+      jobs,
+    });
+    /* No scope at all — the shape of every screen without a board behind it. */
+    mount(<TiffButton />);
+    await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
+    await userEvent.type(screen.getByRole("textbox"), words);
+    await userEvent.click(screen.getByRole("button", { name: "Sort this out" }));
+    await screen.findByText("Check it before it saves");
+  };
+
+  it("a job-bound note from a boardless screen can now SAY WHICH ONE", async () => {
+    await openJobless(
+      { plainNote: "", flags: [{ message: "Fuel pressure fault unresolved", severity: "warn" }] },
+      [kingsford],
+      "the unit will not regulate fuel pressure"
+    );
+    /* Still blocked — a jobless flag is a dead end on the board — but the
+       advice is followable now: the picker is right there. */
+    expect(screen.getByText(/hang off a job/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save these" })).toBeDisabled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Pick a job" }));
+    await userEvent.click(screen.getByRole("option", { name: /Kingsford Medical/ }));
+    expect(screen.getByText(/Sounds like/)).toBeInTheDocument();
+    expect(screen.queryByText(/hang off a job/)).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Save these" }));
+    expect(applyNote).toHaveBeenCalledWith("n-1", expect.anything(), { kind: "visit", id: "v-9" });
+  });
+
+  it("comes back already pointing at the job the words named", async () => {
+    await openJobless(
+      { plainNote: "", flags: [{ message: "Unit tripping", severity: "warn" }] },
+      [kingsford],
+      "Kingsford unit is playing up again"
+    );
+    /* Matching is plain code over the served roster — the card proposes,
+       NUMBER AND ALL, and a person confirms. The full job line appears twice
+       by design: the "Sounds like" confirm row, and the cascade's "Going on"
+       destination at the foot. */
+    expect(screen.getByText(/Sounds like/)).toBeInTheDocument();
+    expect(screen.getByText(/Going on/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Quarterly service · job #1042/)).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Save these" })).toBeEnabled();
+  });
+
+  it("without candidates there is still no picker — nothing to pick from", async () => {
+    await openJobless({ plainNote: "", flags: [{ message: "x", severity: "warn" }] }, []);
+    expect(screen.queryByRole("button", { name: "Pick a job" })).not.toBeInTheDocument();
+    expect(screen.getByText(/hang off a job/)).toBeInTheDocument();
+  });
+
+  it("KEEP IT IN MY NOTES keeps the ticked rows, edits included — the honest demotion", async () => {
+    await openJobless({
+      plainNote: "Unit still will not regulate.",
+      flags: [{ message: "Fuel fault unresolved", severity: "warn" }],
+      progressBullets: ["Checked the regulator", "Start-up ran 4.5 then dropped to 0.8"],
+    });
+
+    /* One row unticked, one row edited — what's kept must be what was
+       REVIEWED, never what the model produced. */
+    await userEvent.click(
+      screen.getByRole("button", { name: "Skip Start-up ran 4.5 then dropped to 0.8" })
+    );
+    const flagRow = screen.getByDisplayValue("Fuel fault unresolved");
+    await userEvent.clear(flagRow);
+    await userEvent.type(flagRow, "Fuel regulation fault");
+
+    await userEvent.click(screen.getByRole("button", { name: /Keep it in my notes/ }));
+    expect(keepNoteForMe).toHaveBeenCalledWith("n-1", [
+      "Unit still will not regulate.",
+      "Fuel regulation fault",
+      "Checked the regulator",
+    ]);
   });
 });
 

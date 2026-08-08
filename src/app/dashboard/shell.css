@@ -627,7 +627,9 @@
    and `.tk-starts` in the `.tk-` block. Deleted rather than left behind,
    because unused CSS is what the next person copies. */
 .fg .tinput { margin-top:32px; flex:0 0 auto; position:relative; }
-.fg .tinput .tib { position:absolute; inset:-4px; border-radius:35px; background:linear-gradient(90deg,var(--teal),var(--blue),var(--violet)); filter:blur(8px); opacity:.2; animation:fgBreath 4s ease-in-out infinite; }
+/* wider blur and a shade less ink: at 8px the violet end bloomed off one
+   corner and read as a smear rather than a halo on the live walk */
+.fg .tinput .tib { position:absolute; inset:-5px; border-radius:35px; background:linear-gradient(90deg,var(--teal),var(--blue),var(--violet)); filter:blur(12px); opacity:.16; animation:fgBreath 4s ease-in-out infinite; }
 .fg .tinput .tin { position:relative; display:flex; align-items:center; gap:16px; padding:12px; border-radius:32px; background:#fff; box-shadow:0 25px 50px -12px rgba(0,0,0,.25); border:1px solid #fff; }
 .fg .tinput .tic { width:48px; height:48px; border-radius:16px; background:var(--bg); display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
 .fg .tinput .tic svg { color:var(--teal); }
@@ -1474,7 +1476,9 @@
 .fg .tchathead { display:flex; align-items:center; gap:14px; margin-bottom:20px; flex:0 0 auto; }
 .fg .tchathead .tb2 { width:44px; height:44px; border-radius:14px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; background:linear-gradient(135deg,rgba(0,229,192,.18),transparent); border:1px solid rgba(0,229,192,.35); color:var(--teal-d); }
 .fg .tchathead .tcht { flex:1; min-width:0; }
-.fg .tchathead .tcht b { display:block; font-size:16px; font-weight:800; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+/* the title outranks the buttons beside it — it is the name of the thing
+   being read, and at 16px it lost to its own "New chat" ghost */
+.fg .tchathead .tcht b { display:block; font-size:17px; font-weight:800; letter-spacing:-.015em; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .fg .tchathead .tcht em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); }
 .fg .tchat { flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:16px; padding:8px 4px 16px; }
 .fg .tmsg { display:flex; align-items:flex-end; gap:12px; max-width:76%; }
@@ -5427,6 +5431,33 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    240px of room it takes the whole next line instead. */
 .fg .tk-chint { flex:1 1 240px; min-width:0; font-size:12.5px; font-weight:600; color:var(--gray400); }
 
+/* ── the same composer, inside a conversation ──
+   THE HERO BAR IS THE LANDING'S. Under an open thread the full-size bar —
+   aurora, 48px tile, the whole mode row with its label and hint — read as a
+   second hero competing with the answer sheet above it, and the screen said
+   "start again" under every reply (the live walk's clearest note, and
+   Isaac's). Same DOM, and `tk-lock` dresses it as a reply field: tighter
+   pill, smaller tile/mark/send, no aurora — that glow is the landing's
+   signature, not a chat fixture — and the mode track shrinks to a chip row.
+   The label and hint go: by now the words ON the buttons are the
+   explanation, and the disabled-state title still carries the long form.
+   Worth ~70px of transcript at laptop heights, where the conversation was
+   getting less than half the column. */
+.fg .page.tk-lock .tinput { margin-top:14px; }
+.fg .page.tk-lock .tinput .tib { display:none; }
+.fg .page.tk-lock .tinput .tin { gap:12px; padding:8px; border-radius:26px; border-color:#ececf0;
+  box-shadow:0 12px 28px -16px rgba(10,12,20,.25); }
+.fg .page.tk-lock .tinput .tic { width:38px; height:38px; border-radius:13px; }
+.fg .page.tk-lock .tinput .tic svg { width:20px; height:20px; }
+.fg .page.tk-lock .tinput input { font-size:15px; padding:10px 0; }
+.fg .page.tk-lock .tinput .tsend { width:40px; height:40px; border-radius:14px; }
+.fg .page.tk-lock .tinput .tmic { width:36px; height:36px; }
+.fg .page.tk-lock .tk-crow { margin-top:10px; gap:8px; padding:0 4px; }
+.fg .page.tk-lock .tk-clbl, .fg .page.tk-lock .tk-chint { display:none; }
+.fg .page.tk-lock .tk-mode { padding:2px; }
+.fg .page.tk-lock .tk-modeb { height:26px; padding:0 11px; font-size:11.5px; gap:5px; }
+.fg .page.tk-lock .tk-modeb svg { width:13px; height:13px; }
+
 /* ── what hangs off a message ── */
 .fg .tmw { display:flex; flex-direction:column; align-items:flex-start; gap:8px; flex:1 1 auto; min-width:0; }
 .fg .tmsg.user .tmw { align-items:flex-end; }
@@ -5613,8 +5644,11 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   transition:opacity .3s ease, stroke .3s ease, stroke-width .3s ease; }
 
 /* at rest on the landing: the page showing what it is about to do. Faint
-   enough to read as structure rather than as something happening. */
-.fg .tk-line.idle { opacity:.3; }
+   enough to read as structure rather than as something happening — but .3
+   wasn't faint, it was absent: on the live walk the idle diagram simply did
+   not read at 1× on the light well. .45 is the step that survives a real
+   screen while still sitting under everything with a colour. */
+.fg .tk-line.idle { opacity:.45; }
 
 /* drawing out to a shelf we have not heard back from */
 .fg .tk-line.draw { opacity:0; stroke-dasharray:1; stroke-dashoffset:1; animation:tkDraw .45s ease-in-out forwards; }

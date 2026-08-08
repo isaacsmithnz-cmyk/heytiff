@@ -96,14 +96,26 @@ const wideOnServer = (): boolean => false;
 function lanesBetween(
   stage: HTMLElement | null,
   composer: HTMLElement | null,
-  cards: Map<KbCategoryKey, HTMLElement> | null
+  cards: Map<KbCategoryKey, HTMLElement> | null,
+  edgeOrigin: boolean
 ): Lane[] | null {
   if (!stage || !composer || !cards) return null;
 
   const base = stage.getBoundingClientRect();
   const from = composer.getBoundingClientRect();
-  const sx = from.right - base.left - 30;
-  const sy = from.top - base.top - 6;
+  /* Two origins, because the composer lives in two places. On the LANDING it
+     sits at the top beside the rail, and the shoulder origin — just inside
+     its top-right corner, leaving upward — reads as one short gesture into
+     the cards. In a THREAD the same origin is at the bottom of a full-height
+     transcript, and the shoulder lanes climbed the whole column: through the
+     right-aligned question bubbles, under the answer sheets, surfacing in
+     every background gap, and sitting still while the conversation scrolled
+     beneath them (watched on the live walk, not theorised). So a thread's
+     lanes are born at the corridor instead — level with the composer, just
+     clear of the column's right edge — and every point of the curve lives in
+     space the conversation never occupies. */
+  const sx = edgeOrigin ? from.right - base.left + 14 : from.right - base.left - 30;
+  const sy = edgeOrigin ? from.top - base.top + from.height / 2 : from.top - base.top - 6;
 
   const lanes: Lane[] = [];
   KB_CATEGORIES.forEach((cat, i) => {
@@ -151,6 +163,7 @@ export function ResearchLines({
   cardRefs,
   viz,
   idle = false,
+  inThread = false,
   measureKey = 0,
 }: {
   /** The two-column grid the lines are drawn inside — the measuring frame. */
@@ -161,6 +174,9 @@ export function ResearchLines({
   /** Draw the lanes faintly with nothing happening — the landing's diagram of
       itself. A live phase always wins, so this only shows at rest. */
   idle?: boolean;
+  /** A conversation is open: the lanes take the corridor origin so they never
+      cross the transcript (see lanesBetween). */
+  inThread?: boolean;
   /** Bumped by the parent whenever the composer may have moved. */
   measureKey?: number;
 }) {
@@ -169,19 +185,21 @@ export function ResearchLines({
   const phase = viz.phase;
 
   /* Takes its endpoints as arguments rather than reading the refs it closes
-     over, which is what keeps it genuinely constant across renders — the
-     effects below are subscriptions, and one that tore itself down every
-     render would thrash a ResizeObserver for nothing. */
+     over, which is what keeps it nearly constant across renders — the effects
+     below are subscriptions, and one that tore itself down every render would
+     thrash a ResizeObserver for nothing. `inThread` is the one dependency,
+     and it changes exactly when the geometry it selects does: on the
+     landing↔thread flip, which already remeasures. */
   const remeasure = useCallback(
     (
       stage: HTMLElement | null,
       composer: HTMLElement | null,
       cards: Map<KbCategoryKey, HTMLElement> | null
     ) => {
-      const next = lanesBetween(stage, composer, cards);
+      const next = lanesBetween(stage, composer, cards, inThread);
       if (next) setLanes(next);
     },
-    []
+    [inThread]
   );
 
   /* Recompute before paint, so a line is never shown at last frame's
@@ -223,6 +241,12 @@ export function ResearchLines({
            answer is written. A phase in flight always outranks the resting
            diagram. */
         const pulse = live ? lanePulse(viz, lane.key) : "off";
+        const state = live ? lineState(viz, lane.key) : "idle";
+        /* "off" mid-flight is a shelf the question skipped — nothing to draw.
+           Skipped here rather than styled to zero, because a bare `.tk-line`
+           with no state class would fall back to the base stroke at full
+           opacity: the one way to render MORE line by asking for none. */
+        if (state === "off") return null;
         return (
           <g
             key={lane.key}
@@ -233,7 +257,7 @@ export function ResearchLines({
                 stroke-dasharray draws in every line at the same rate however
                 far its shelf happens to be */}
             <path
-              className={`tk-line ${live ? lineState(viz, lane.key) : "idle"}`}
+              className={`tk-line ${state}`}
               data-cat={lane.key}
               d={lane.d}
               pathLength="1"

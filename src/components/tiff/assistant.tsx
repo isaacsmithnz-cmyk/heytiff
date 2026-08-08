@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
+import { Chevron } from "@/components/logo";
 import { useHydrated } from "@/lib/use-hydrated";
 import { kbDocUrl } from "@/app/actions/kb";
 import { askTiff, type AskSourceItem, type AskTurn } from "@/lib/tiff/ask-client";
@@ -305,7 +306,12 @@ export function TiffAssistant({
   const [threadState, setThreadState] = useState<Thread[] | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [input, setInput] = useState("");
-  const [research, setResearch] = useState(false);
+  /* The switch starts where the headline points. "Ask the library" over a bar
+     set to General knowledge shipped once — the first question of every visit
+     answered from the wrong place and then offered to look properly, which is
+     the headline's promise sold as an upsell. Library whenever it has anything
+     in it; at zero the option is disabled and General is all there is. */
+  const [research, setResearch] = useState(readyCount > 0);
   const [peek, setPeek] = useState<AskSourceItem | null>(null);
 
   /* The thread being renamed, and the one being removed. Held as the row
@@ -507,8 +513,15 @@ export function TiffAssistant({
     setFailure(null);
     /* Only a research question has anywhere to look, so only a research
        question draws lines. A general one clears whatever the last answer left
-       behind rather than leaving a stale rail under a new conversation. */
-    showViz({ t: researchMode ? "submit" : "reset" });
+       behind rather than leaving a stale rail under a new conversation. The
+       submit names the stocked shelves: an empty one gets no lane and no
+       "Searching…" — the card itself says "—", and the machine shouldn't
+       perform a search of nothing two lines above that. */
+    showViz(
+      researchMode
+        ? { t: "submit", searched: KB_CATEGORIES.filter((c) => counts[c.key] > 0).map((c) => c.key) }
+        : { t: "reset" }
+    );
     setLiveBoth({
       threadId,
       question,
@@ -774,8 +787,12 @@ export function TiffAssistant({
                 >
                   <Icon name="chevL" size={16} />
                 </button>
+                {/* the brand mark, not a robot: the same chevron as the
+                    sidebar and the Tiff button, because the thing answering
+                    is HeyTiff — a bot glyph here was the generic-AI badge on
+                    the one screen that should feel most like the product */}
                 <span className="tb2">
-                  <Icon name="bot" size={22} />
+                  <Chevron size={24} gradient />
                 </span>
                 <div className="tcht">
                   <b>{active.title}</b>
@@ -909,14 +926,24 @@ export function TiffAssistant({
             <div className="tinput">
               <div className="tib"></div>
               <div className={`tin${dict.recording ? " live" : ""}`}>
+                {/* the mark, not a sparkle: the sparkle was the generic AI
+                    badge AND the Field-notes icon two inches away — the bar
+                    is HeyTiff's own voice and wears its own mark (Isaac's
+                    call, and the visual one too) */}
                 <div className="tic">
-                  <Icon name="sparkles" size={20} />
+                  <Chevron size={24} gradient />
                 </div>
                 <input
                   ref={inputRef}
                   value={shownInput}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder={dict.recording ? "Listening…" : "Ask Tiff anything…"}
+                  placeholder={
+                    dict.recording
+                      ? "Listening…"
+                      : active
+                        ? "Ask a follow-up…"
+                        : "Ask Tiff anything…"
+                  }
                   aria-label="Ask Tiff"
                   disabled={listening}
                 />
@@ -1045,6 +1072,7 @@ export function TiffAssistant({
           cardRefs={cardRefs}
           viz={viz}
           idle={!active && readyCount > 0}
+          inThread={!!active}
           measureKey={active?.messages.length ?? 0}
         />
       </div>

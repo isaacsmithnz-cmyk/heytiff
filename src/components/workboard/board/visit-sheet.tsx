@@ -14,6 +14,8 @@ import type { VisitTone } from "@/lib/workboard/board-status";
 import type { BoardTag, BoardTech, BoardVisit } from "@/lib/workboard/board-query";
 import { fromLines, linesEqual, toLines } from "@/lib/workboard/note-lines";
 import { NoteToken } from "@/components/notes/note-token";
+import { useNoteScopeTarget } from "@/components/notes/note-context";
+import { TiffButton } from "@/components/notes/tiff-button";
 import {
   assignVisitTech,
   clearVisitPlacement,
@@ -118,6 +120,13 @@ export function VisitSheet({
   const [noteDraft, setNoteDraft] = useState("");
   const [notesEditing, setNotesEditing] = useState(false);
   const [adding, setAdding] = useState(false);
+  /* WHAT THIS SHEET IS ABOUT, reported up so anything that captures while it
+     is open lands on this visit. It replaces an `onCaptureTarget` callback
+     that the BOARD passed down and mirrored into its own state — the widget
+     should never need its caller to know how routing works, and this is the
+     `focus` slot that note-context grew for exactly this. */
+  useNoteScopeTarget({ kind: "visit", id: visit.id }, visit.label);
+
   const [hoursOpen, setHoursOpen] = useState(false);
   const [crewOpen, setCrewOpen] = useState(false);
   const [estText, setEstText] = useState(
@@ -354,6 +363,12 @@ export function VisitSheet({
             )}
             {visit.warn && <span className="wb2-chip dan">Went sideways in ServiceM8</span>}
           </span>
+          {/* ON THE SHEET, because nothing outside its scrim can be clicked
+              — the topbar's button is unreachable the moment this opens, and
+              the context tag could never do the one job it exists for. The
+              sheet already says what it is about (below), so this arrives
+              pointed at the right thing without being told. */}
+          <TiffButton where="sheet" />
           <button
             ref={closeRef}
             className="wb2-ico"

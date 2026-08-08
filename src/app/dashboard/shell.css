@@ -4580,47 +4580,64 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .wb2-capribbon .wb2-chip { margin-left:auto; }
 .wb2-capribbon .wb2-ico { margin-left:0; flex:none; }
 /* ── THE TIFF BUTTON ──
-   A TOPBAR CONTROL, not a floating one. It hovered bottom-right first and
-   covered the page it was sitting on — a thing that is always present has to
-   live somewhere that is always empty, and the topbar is the only such place.
+   TWO PLACES, AND THE GROUND DECIDES THE SKIN. Shared geometry here; the
+   `-topbar` and `-sheet` blocks below carry only what differs.
 
-   It sits inside `.fg`, which means a sheet's scrim covers it like every
-   other piece of chrome. That is correct here and was not correct when it
-   floated: a floating control that a scrim swallows looks broken, whereas
-   chrome dimming under a modal is what chrome does. Anchored capture while a
-   sheet IS open belongs to that sheet's own note strip.
-
-   Sized off the bell beside it — 20px glyph in a 44px box — so the two read
-   as one row rather than a control and a mascot. */
-.tiffbtn { position:relative; width:44px; height:44px; flex:none; padding:0; border:0;
-  background:none; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;
+   The marks are sized off the button in the component, not here. They stayed
+   at their 58px sizes once when it shrank to 44 and immediately read as
+   crowded — approved ratios are chevron ~46%, sparkle ~30%. */
+.tiffbtn { position:relative; flex:none; padding:0; border:0; background:none; cursor:pointer;
+  display:inline-flex; align-items:center; justify-content:center;
   transition:transform .25s cubic-bezier(.22,1,.36,1); }
 .tiffbtn:hover { transform:translateY(-2px); }
 .tiffbtn:active { transform:translateY(0); }
-
-/* THE GLOW IS LOAD-BEARING. The topbar is transparent over the app's black
-   frame, so a dark glass button on it is very nearly invisible — the halo is
-   what separates the two, not decoration. Same breathing gradient the ask
-   bar's composer wears, so the two Tiff surfaces are recognisably one thing. */
-.tiffbtn-halo { position:absolute; inset:-6px; border-radius:50%; pointer-events:none;
-  background:linear-gradient(120deg, var(--teal), var(--blue), var(--violet));
-  filter:blur(9px); opacity:.5; animation:fgBreath 4s ease-in-out infinite; }
-.tiffbtn:hover .tiffbtn-halo { opacity:.72; }
-
-/* Matches the bell's glass rather than the dark disc the floating version
-   wore. That disc existed to hold the mark's contrast over LIGHT page
-   content; here the ground is black and it would only mute the glow. */
 .tiffbtn-face { position:absolute; inset:0; border-radius:50%; overflow:hidden;
-  display:grid; place-items:center;
+  display:grid; place-items:center; }
+.tiffbtn-mk { position:relative; }
+.tiffbtn-spark { position:absolute; display:grid; pointer-events:none; }
+.tiffbtn:focus-visible { outline:none; }
+
+/* ── on the topbar: black ground, so the GLOW does the separating ──
+   It floated bottom-right first and covered the page it sat on; a control
+   that is always present has to live somewhere that is always empty. The
+   topbar is transparent over the app's black frame, so a dark glass button
+   on it is very nearly invisible — the halo is load-bearing, not decoration,
+   and it is the same breathing gradient the ask bar's composer wears. */
+.tiffbtn-topbar { width:44px; height:44px; }
+.tiffbtn-topbar .tiffbtn-face {
   background:rgba(255,255,255,.06); backdrop-filter:blur(14px) saturate(150%);
   border:1px solid rgba(255,255,255,.14);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.16); }
-.tiffbtn:hover .tiffbtn-face { background:rgba(255,255,255,.12); border-color:rgba(255,255,255,.22); }
-.tiffbtn-mk { position:relative; transform:translate(-2px,-2px); }
-/* Under the chevron's tail, clear of the rim. */
-.tiffbtn-spark { position:absolute; right:9px; bottom:9px; display:grid; pointer-events:none; }
-.tiffbtn:focus-visible { outline:none; }
-.tiffbtn:focus-visible .tiffbtn-face { box-shadow:0 0 0 3px rgba(0,229,192,.6); }
+.tiffbtn-topbar:hover .tiffbtn-face { background:rgba(255,255,255,.12); border-color:rgba(255,255,255,.22); }
+.tiffbtn-topbar .tiffbtn-mk { transform:translate(-2px,-2px); }
+.tiffbtn-topbar .tiffbtn-spark { right:9px; bottom:9px; }
+.tiffbtn-topbar:focus-visible .tiffbtn-face { box-shadow:0 0 0 3px rgba(0,229,192,.6); }
+.tiffbtn-halo { position:absolute; inset:-6px; border-radius:50%; pointer-events:none;
+  background:linear-gradient(120deg, var(--teal), var(--blue), var(--violet));
+  filter:blur(9px); opacity:.5; animation:fgBreath 4s ease-in-out infinite; }
+.tiffbtn-topbar:hover .tiffbtn-halo { opacity:.72; }
+
+/* ── in a sheet header: white ground, so the SKIN INVERTS ──
+   Nothing outside a sheet's scrim can be clicked, which is why the topbar
+   button is unreachable the moment a job opens. Isaac's fix: put one ON the
+   sheet. Here the ground is white, so the face goes dark and the core holds
+   the mark's contrast — and there is NO halo, because a coloured glow on
+   white is a smudge. Sized to sit beside the 30px close ×.
+
+   No `.fg` scope: sheets portal to body, where anything declared under `.fg`
+   is absent rather than outranked. */
+.tiffbtn-sheet { width:30px; height:30px; }
+.tiffbtn-sheet .tiffbtn-face { background:rgba(6,9,13,.92); border:1px solid rgba(255,255,255,.14); }
+.tiffbtn-sheet:hover .tiffbtn-face { background:#050505; }
+.tiffbtn-sheet .tiffbtn-core { position:absolute; inset:0; border-radius:50%; pointer-events:none;
+  background:radial-gradient(circle at 42% 40%, rgba(3,6,10,.96) 0%, rgba(3,6,10,.9) 46%, rgba(3,6,10,0) 82%); }
+.tiffbtn-sheet .tiffbtn-mk { transform:translate(-1px,-1px); }
+.tiffbtn-sheet .tiffbtn-spark { right:5px; bottom:5px; }
+.tiffbtn-sheet:focus-visible .tiffbtn-face { box-shadow:0 0 0 3px rgba(0,168,224,.6); }
+/* The close × takes the auto margin; Tiff sits just before it. */
+.wb2-shtop .tiffbtn-sheet { margin-left:auto; }
+.wb2-shtop .tiffbtn-sheet + .wb2-ico { margin-left:0; }
+
 @media (max-width:760px) { .fg .tbr { gap:14px; } }
 @media (prefers-reduced-motion:reduce) {
   .tiffbtn, .tiffbtn:hover { transition:none; transform:none; }

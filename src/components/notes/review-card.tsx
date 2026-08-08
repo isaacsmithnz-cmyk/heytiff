@@ -108,7 +108,16 @@ export const nothingTicked = (d: Draft): boolean =>
 
 /** Buckets that are text on somebody else's row and cannot exist without a
     job to sit on. Tasks are deliberately NOT here — `tasks` has no job
-    column, so a task from a note stands on its own. */
+    column, so a task from a note stands on its own.
+
+    ANY job satisfies this, and that is the whole of the rule — do not be
+    tempted to make progress and commissioning ask for a PROJECT because
+    `project_entries` is where they land on one. They land somewhere on a
+    visit and an agreement too (the job's own notes, a bullet per line), and
+    `applyNote` enforces exactly this list. It didn't always: the server
+    accepted any job here while only ever writing the project case, so a
+    reading ticked against a visit was dropped in silence under a card that
+    had nothing to complain about. The two must say the same thing. */
 const jobBound = (d: Draft): boolean => {
   const c = toConfirmed(d);
   return (
@@ -139,7 +148,7 @@ export function blockers(d: Draft, hasTarget: boolean): string[] {
 
   if (!hasTarget && jobBound(d)) {
     out.push(
-      "Flags, bring-items, progress and issues all hang off a job — say which one, or untick them."
+      "Flags, bring-items, progress, commissioning and issues all hang off a job — say which one, or untick them."
     );
   }
   const unassigned = d.tasks.filter((t) => t.on && t.title.trim() && !t.assigneeId).length;

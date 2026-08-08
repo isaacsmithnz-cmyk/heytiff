@@ -20,6 +20,7 @@ import { NAME_COLUMNS } from "@/lib/dashboard/tasks-query";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { publishFieldNote } from "@/lib/tiff/field-notes";
 import { jobHistory } from "@/lib/brain/tools";
+import { fromLines } from "@/lib/workboard/note-lines";
 
 /* Smart Notes — capture, route, review, apply.
 
@@ -94,16 +95,22 @@ async function assignableStaff(orgId: string): Promise<NoteStaff[]> {
     .filter((s) => s.fullName);
 }
 
+/** The row a target names. Three call sites had this ternary written out by
+    hand, which is three chances for one of them to disagree about where a
+    visit lives. */
+function tableFor(kind: Exclude<NoteTarget["kind"], "none">): string {
+  return kind === "project"
+    ? "projects"
+    : kind === "visit"
+      ? "maintenance_visits"
+      : "maintenance_agreements";
+}
+
 /** Resolve a note's target inside the caller's org. An id from a browser
     names a CHOICE; this decides whether it's a real one. */
 async function resolveTarget(orgId: string, target: NoteTarget): Promise<NoteTarget | null> {
   if (target.kind === "none" || !target.id) return { kind: "none", id: null };
-  const table =
-    target.kind === "project"
-      ? "projects"
-      : target.kind === "visit"
-        ? "maintenance_visits"
-        : "maintenance_agreements";
+  const table = tableFor(target.kind);
   const { data } = await supabaseAdmin
     .from(table)
     .select("id")
@@ -396,7 +403,7 @@ export async function applyNote(
     return {
       ok: false,
       error:
-        "Flags, bring-items, progress and issues all hang off a job — say which one, or untick them.",
+        "Flags, bring-items, progress, commissioning and issues all hang off a job — say which one, or untick them.",
     };
   }
 
@@ -479,14 +486,46 @@ export async function applyNote(
     record("flagIds", ((data ?? []) as { id: string }[]).map((r) => r.id), "flag");
   }
 
-  /* progress + commissioning — dated lines on a project */
-  if (target.kind === "project" && target.id) {
-    const rows = [
-      ...(confirmed.progressBullets ?? []).map((b) => ({ kind: "progress" as const, body: trim(b, 1000) })),
-      ...(confirmed.commissioningEntries ?? []).map((b) => ({ kind: "commissioning" as const, body: trim(b, 1000) })),
-    ].filter((r) => r.body);
+  /* progress + commissioning — WHERE THEY LAND DEPENDS ON THE JOB.
 
-    if (rows.length) {
+     A project has a journal of its own: `project_entries`, dated, told apart
+     by `kind`, rendered on the project sheet. Visits and agreements have no
+     such table, and this block used to be written `if (target.kind ===
+     "project")` and nothing else — so a note pinned to a visit with a
+     reading ticked wrote its flags, said "Saved — 1 flag." and dropped the
+     reading without a word. The guard above accepts ANY job for these
+     buckets and the review card's `blockers` says the same, so nothing
+     anywhere warned; that is the exact silent drop the rest of this function
+     exists to prevent, and the picker offers visits and agreements, so it
+     was reachable from the board in two clicks.
+
+     Refusing (the answer bring-items get) would have been honest and still
+     wrong. Readings taken on a maintenance visit are the most ordinary
+     commissioning there is, and maintenance work is never a project — so a
+     project-only rule doesn't send anyone somewhere better, it just makes
+     the maintenance half of the board unable to record what it measured.
+     Refusal is for a bucket with NOWHERE to go, and this one has somewhere.
+
+     Visits and agreements own the same `notes` column `keepNoteOnJob`
+     appends to, where a LINE IS A BULLET (lib/workboard/note-lines) and the
+     sheet already reads it back. So the lines go there — the same shape as
+     bring-items, which have gone to whichever list the target owns since the
+     day they were written.
+
+     The kind is the one thing a text column can't carry, so commissioning
+     says what it is. Progress needs no label: "what was done today" is what
+     a visit note already is. */
+  const progress = (confirmed.progressBullets ?? []).map((b) => trim(b, 1000)).filter(Boolean);
+  const commissioning = (confirmed.commissioningEntries ?? [])
+    .map((b) => trim(b, 1000))
+    .filter(Boolean);
+
+  if ((progress.length || commissioning.length) && target.kind !== "none" && target.id) {
+    if (target.kind === "project") {
+      const rows = [
+        ...progress.map((body) => ({ kind: "progress" as const, body })),
+        ...commissioning.map((body) => ({ kind: "commissioning" as const, body })),
+      ];
       const { data } = await supabaseAdmin
         .from("project_entries")
         .insert(
@@ -501,6 +540,27 @@ export async function applyNote(
         )
         .select("id");
       record("entryIds", ((data ?? []) as { id: string }[]).map((r) => r.id), "entry", "entries");
+    } else {
+      const lines = [...progress, ...commissioning.map((b) => `Commissioning: ${b}`)];
+      const table = tableFor(target.kind);
+      const { data } = await supabaseAdmin
+        .from(table)
+        .select("notes")
+        .eq("org_id", ctx.orgId)
+        .eq("id", target.id)
+        .maybeSingle();
+      const current = ((data as { notes: string | null } | null)?.notes ?? "").trim();
+      await supabaseAdmin
+        .from(table)
+        .update({
+          notes: fromLines([current, ...lines]).slice(0, 8000),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("org_id", ctx.orgId)
+        .eq("id", target.id);
+      /* Words, not ids — these become text on the job's own row, so there is
+         nothing to point back at. Same record as bring-items, same reason. */
+      record("entryLines", lines, "entry", "entries");
     }
   }
 
@@ -817,12 +877,7 @@ export async function keepNoteOnJob(
     };
   }
 
-  const table =
-    target.kind === "project"
-      ? "projects"
-      : target.kind === "visit"
-        ? "maintenance_visits"
-        : "maintenance_agreements";
+  const table = tableFor(target.kind);
 
   const { data } = await supabaseAdmin
     .from(table)

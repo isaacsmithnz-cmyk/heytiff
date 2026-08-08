@@ -5347,7 +5347,9 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 
 .fg .tk-open { flex:0 0 auto; margin-bottom:22px; }
 .fg .tk-open h2 { margin:0; font-size:38px; font-weight:800; letter-spacing:-.035em; line-height:1.05; color:var(--ink); }
-.fg .tk-open p { margin:11px 0 0; max-width:600px; font-size:15px; font-weight:600; line-height:1.55; color:var(--gray500); }
+/* body weight, not semi-bold: at 600 the paragraph shouted level with its own
+   heading and the bolded "your library" had nothing to stand out from */
+.fg .tk-open p { margin:11px 0 0; max-width:600px; font-size:15px; font-weight:500; line-height:1.55; color:var(--gray500); }
 .fg .tk-open p b { color:var(--ink); font-weight:800; }
 
 /* the input carries the page, so it is bigger here than it is under a
@@ -5376,6 +5378,9 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 
 .fg .tk-recent { flex:0 0 auto; margin-bottom:26px; }
 .fg .tk-threads { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+/* one thread fills the row — a half-width card beside a card-shaped hole
+   reads as something failing to load, not as a list of one */
+.fg .tk-threads > .tk-thr:only-child { grid-column:1 / -1; }
 @media (max-width:760px) { .fg .tk-threads { grid-template-columns:1fr; } }
 .fg .tk-threads .thread { padding:14px 16px; background:#fff; border-color:#f0f0f2; box-shadow:0 1px 2px rgba(0,0,0,.03); }
 .fg .tk-threads .thread .th { margin-bottom:3px; }
@@ -5429,7 +5434,9 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 /* Given a floor rather than left to shrink: the hint is a sentence, and a
    sentence squeezed into 90px beside a 36px control wraps to three lines. Below
    240px of room it takes the whole next line instead. */
-.fg .tk-chint { flex:1 1 240px; min-width:0; font-size:12.5px; font-weight:600; color:var(--gray400); }
+/* gray500: the hint explains what pressing send will DO — load-bearing copy
+   doesn't get the decorative gray */
+.fg .tk-chint { flex:1 1 240px; min-width:0; font-size:12.5px; font-weight:600; color:var(--gray500); }
 
 /* ── the same composer, inside a conversation ──
    THE HERO BAR IS THE LANDING'S. Under an open thread the full-size bar —
@@ -5566,7 +5573,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    ending in an ellipsis two words in */
 .fg .tk-stl { min-width:0; max-width:340px; font-size:12.5px; font-weight:700; color:var(--ink);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.fg .tk-src em { flex:none; font-style:normal; font-size:11.5px; font-weight:700; color:var(--gray400); }
+/* the page list can name several ranges now — it may shrink and ellipsise,
+   but never wrap: the chip is one line or it is not a chip */
+.fg .tk-src em { flex:0 1 auto; min-width:0; font-style:normal; font-size:11.5px; font-weight:700;
+  color:var(--gray400); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
 /* ── the rail ── */
 .fg .tk-rail { position:relative; z-index:1; display:flex; flex-direction:column; gap:12px; min-width:0; min-height:0; overflow-y:auto; padding-bottom:4px; }
@@ -5576,7 +5586,9 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    narrower rail takes most of that back; the rest is 2px off the padding and
    4px off the icon, which also shortens each card by 6px and lets five of them
    sit in the rail without the last one hanging off a laptop screen. */
-.fg .tk-rcat { position:relative; display:grid; grid-template-columns:auto minmax(0,1fr); gap:4px 11px; padding:14px;
+/* 16px, not 14: the cards sat two registers more utilitarian than the
+   composer and the sheets they share the screen with */
+.fg .tk-rcat { position:relative; display:grid; grid-template-columns:auto minmax(0,1fr); gap:5px 12px; padding:16px;
   border-radius:22px; background:#fff; border:1px solid #f0f0f2; box-shadow:0 4px 20px rgba(0,0,0,.02);
   text-decoration:none; transition:transform .3s, border-color .3s, box-shadow .3s, opacity .25s; }
 .fg .tk-rcat:hover { transform:translateY(-2px); border-color:#e5e7eb; box-shadow:0 18px 34px -20px rgba(0,0,0,.28); }
@@ -5587,9 +5599,16 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    shelf, and a manual's title is routinely longer than the card is wide. One
    line, clipped — the card must not grow when the trace lands, or the whole
    rail would shift under a search that is still running. */
-.fg .tk-rtx em { display:block; margin-top:2px; font-style:normal; font-size:12px; font-weight:700; color:var(--tkc, var(--gray400));
+/* INK, NOT THE CATEGORY COLOUR. The microline wore `--tkc`, and the raw
+   category palette was picked for tinted 34px tiles — as 12px text, mint sat
+   at 1.6:1 and amber at 2.2:1 on the live walk: the only count on the screen,
+   rendered as decoration. The colour's place is the icon tile; the count is
+   data and reads in ink. `.quiet` is the empty shelf ("None yet"), a register
+   down from a real count. */
+.fg .tk-rtx em { display:block; margin-top:2px; font-style:normal; font-size:12px; font-weight:700; color:var(--gray700);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.fg .tk-rbl { grid-column:1 / -1; font-size:12px; font-weight:600; line-height:1.4; color:var(--gray400); }
+.fg .tk-rtx em.quiet { color:var(--gray400); font-weight:600; }
+.fg .tk-rbl { grid-column:1 / -1; font-size:12px; font-weight:500; line-height:1.4; color:var(--gray500); }
 
 /* ── the foot of the rail ──
    THERE ISN'T ONE ANY MORE. `.tk-lib` / `.tk-libl` (a bold count over two
@@ -5608,9 +5627,25 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 
 .tk-pkdot { display:inline-block; width:8px; height:8px; border-radius:50%; }
 .tk-pklead { margin:0 0 10px; font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:#9ca3af; }
-.tk-pkq { margin:0; padding:16px 18px; max-height:44vh; overflow:auto; border-radius:16px; background:#f9fafb;
+/* The SCROLL moved off the quote and onto `.tk-pks`: a document can cite
+   several passages now, and they scroll as one column of quote wells. The
+   fade under them is the well admitting there is more — macOS overlay
+   scrollbars are invisible until touched, and the text used to just stop
+   mid-word (live-walk finding). `.on` is set from a scroll listener; the
+   fade never blocks a click (pointer-events:none) and never lies at the
+   bottom of the text (it goes out when the reader gets there). */
+.tk-pkw { position:relative; }
+.tk-pks { display:flex; flex-direction:column; gap:10px; max-height:44vh; overflow:auto;
+  overscroll-behavior:contain; }
+.tk-pkfade { position:absolute; left:0; right:0; bottom:0; height:44px; pointer-events:none;
+  background:linear-gradient(180deg, rgba(255,255,255,0), #fff 82%); opacity:0; transition:opacity .25s; }
+.tk-pkfade.on { opacity:1; }
+.tk-pkq { margin:0; padding:16px 18px; border-radius:16px; background:#f9fafb;
   border:1px solid #eceef2; border-left:3px solid #2E68FF; font-family:var(--font-jakarta), sans-serif;
   font-size:13.5px; font-weight:500; line-height:1.6; color:#1f2937; white-space:pre-wrap; }
+/* the page a passage came from, when the peek is showing more than one */
+.tk-pkqp { display:block; margin-bottom:6px; font-size:10.5px; font-weight:800;
+  letter-spacing:.12em; text-transform:uppercase; color:#9ca3af; }
 
 /* ══════════════════ TIFF — THE SEARCH LINES (.tk-lines) ══════════════════
    The signature move: four lines fan out from the composer to the four

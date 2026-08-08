@@ -106,6 +106,19 @@ describe("titleFromFilename", () => {
     expect(titleFromFilename("SOP warranty claims.pdf")).toBe("SOP Warranty Claims");
   });
 
+  /* The trade writes these in capitals; filenames often don't. "Daikin Vrv
+     Diagnosis Manual" shipped to a real library and then read wrong on every
+     citation chip — no tech types "Vrv". */
+  it("restores a trade acronym the filename wrote in lower case", () => {
+    expect(titleFromFilename("daikin vrv diagnosis manual.pdf")).toBe(
+      "Daikin VRV Diagnosis Manual"
+    );
+    expect(titleFromFilename("hvac_ahu_maintenance_guide.pdf")).toBe("HVAC AHU Maintenance Guide");
+    expect(titleFromFilename("confined-spaces-sops.pdf")).toBe("Confined Spaces SOPs");
+    // a real word that merely contains one is left alone
+    expect(titleFromFilename("advice for survey work.pdf")).toBe("Advice for Survey Work");
+  });
+
   it("keeps small words small, except at the front", () => {
     expect(titleFromFilename("the-guide-to-commissioning.pdf")).toBe("The Guide to Commissioning");
     expect(titleFromFilename("of_pipes_and_pumps.pdf")).toBe("Of Pipes and Pumps");

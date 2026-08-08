@@ -185,11 +185,36 @@ describe("asking in general mode", () => {
   });
 });
 
+/* ── the bar knows which conversation it is in ───────────────────────────── */
+
+describe("the composer's invitation", () => {
+  it("asks for anything on the landing, and a follow-up inside a thread", async () => {
+    render(<TiffAssistant />);
+
+    expect(screen.getByPlaceholderText("Ask Tiff anything…")).toBeInTheDocument();
+
+    await ask("why P8?");
+    expect(screen.getByPlaceholderText("Ask a follow-up…")).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Ask Tiff anything…")).not.toBeInTheDocument();
+  });
+});
+
 /* ── research: a choice, made visible before and after ───────────────────── */
 
 describe("where the answer comes from", () => {
-  it("starts on general knowledge, with that option lit and the other one not", () => {
+  /* The switch starts where the headline points: "Ask the library" over a bar
+     set to General knowledge answered every first question from the wrong
+     place, then offered to look properly — the page's own promise as an
+     upsell. */
+  it("starts on the library whenever it has anything in it", () => {
     render(<TiffAssistant readyCount={4} counts={{ install: 4, faults: 0, specs: 0, sops: 0, field: 0 }} />);
+
+    expect(libraryMode()).toHaveAttribute("aria-pressed", "true");
+    expect(generalMode()).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("starts on general knowledge only when there is nothing to search", () => {
+    render(<TiffAssistant readyCount={0} />);
 
     expect(generalMode()).toHaveAttribute("aria-pressed", "true");
     expect(libraryMode()).toHaveAttribute("aria-pressed", "false");
@@ -334,6 +359,8 @@ describe("the honest miss", () => {
 describe("after a general answer", () => {
   it("offers to go and look in the library, and re-asks with research on", async () => {
     render(<TiffAssistant readyCount={5} />);
+    // general is a choice now, not the default — the offer is its exit
+    await userEvent.setup().click(generalMode());
     await ask("why P8?");
 
     const offer = await screen.findByRole("button", { name: /Search the library for this/ });
@@ -497,11 +524,10 @@ describe("asked about a document", () => {
     localStorage.setItem(STORE_KEY, JSON.stringify([thread()]));
     render(<TiffAssistant readyCount={3} />);
 
+    // empty box proves the handoff never fired; the switch sits on the
+    // library because that is the stocked-library DEFAULT, not a handoff
     expect(screen.getByLabelText("Ask Tiff")).toHaveValue("");
-    expect(libraryMode()).toHaveAttribute(
-      "aria-pressed",
-      "false"
-    );
+    expect(libraryMode()).toHaveAttribute("aria-pressed", "true");
   });
 });
 
@@ -917,21 +943,49 @@ describe("watching Tiff search", () => {
     return { push: async (e: AskEvent) => act(async () => push(e)), user };
   };
 
-  it("sends a line to every shelf the moment the question goes out", async () => {
+  /* Every STOCKED shelf: field carries a ready-doc count of zero here, and a
+     card whose own count reads "—" must not say "Searching…" two lines above
+     it. (It can still WIN — the trace outranks the gate; the test further
+     down proves that with this same fixture.) */
+  it("sends a line to every stocked shelf the moment the question goes out", async () => {
     await research();
 
-    for (const key of Object.keys(CARDS) as (keyof typeof CARDS)[]) {
+    for (const key of ["install", "faults", "specs", "sops"] as (keyof typeof CARDS)[]) {
       expect(state(key)).toBe("searching");
       expect(note(key)).toBe("Searching…");
     }
+    expect(state("field")).toBe("");
+    expect(note("field")).toBe("—");
   });
 
   it("leaves the rail alone for a general question", async () => {
     render(<TiffAssistant readyCount={13} counts={counts} />);
+    await userEvent.setup().click(generalMode());
     await ask("why P8?");
 
     expect(state("faults")).toBe("");
     expect(note("faults")).toBe("7 documents");
+  });
+
+  /* The submit names the stocked shelves, so an empty one never performs:
+     no shimmer, no "Searching…" two lines above its own "—". */
+  it("sends nothing to a shelf with nothing on it", async () => {
+    // hold the stream open: the searching moment is the one under test
+    script = () => {};
+    render(
+      <TiffAssistant
+        readyCount={7}
+        counts={{ install: 0, faults: 7, specs: 0, sops: 0, field: 0 }}
+      />
+    );
+    await ask("why P8?");
+
+    expect(state("faults")).toBe("searching");
+    expect(note("faults")).toBe("Searching…");
+    // unstocked: at rest, resting dash intact — not performing
+    expect(state("specs")).toBe("");
+    expect(note("specs")).toBe("—");
+    expect(state("install")).toBe("");
   });
 
   it("lights the shelf the answer came from and reports what each one held", async () => {
@@ -1062,8 +1116,11 @@ describe("watching Tiff search", () => {
       const { push } = await research();
       const svg = document.querySelector("svg.tk-lines");
       expect(svg).not.toBeNull();
-      expect(svg!.querySelectorAll("path.tk-line.draw")).toHaveLength(5);
-      expect(svg!.querySelectorAll("path.tk-line.pulse")).toHaveLength(5);
+      // four, not five: field holds no ready documents in this fixture, so
+      // no lane performs for it — the gate the viz tests prove, wired through
+      expect(svg!.querySelectorAll("path.tk-line.draw")).toHaveLength(4);
+      expect(svg!.querySelectorAll("path.tk-line.pulse")).toHaveLength(4);
+      expect(svg!.querySelector('path.tk-line.draw[data-cat="field"]')).toBeNull();
 
       await push(TRACE);
       expect(document.querySelectorAll("path.tk-line.lit")).toHaveLength(1);

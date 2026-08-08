@@ -44,6 +44,12 @@ export type VizPhase = "idle" | "searching" | "traced" | "answering" | "settled"
 
 export type ResearchViz = {
   phase: VizPhase;
+  /** The shelves this question actually went out to — the stocked ones, named
+      on submit. A shelf that isn't here stays at rest for the whole question:
+      no lane, no shimmer, no "Searching…" over a card whose own count reads
+      "—". That combination shipped once, and it was the machine performing a
+      search of nothing for the sake of symmetry. */
+  searched: readonly KbCategory[];
   /** Per-shelf hit counts from the trace. Null until one lands. */
   hits: Record<KbCategory, number> | null;
   /** The best-ranked document per shelf, from the same trace. Null until one
@@ -57,6 +63,7 @@ export type ResearchViz = {
 
 export const IDLE_VIZ: ResearchViz = Object.freeze({
   phase: "idle",
+  searched: [],
   hits: null,
   topDocs: null,
   winners: [],
@@ -83,8 +90,10 @@ export const NOTHING_NOTE = "—";
 /* ── events ──────────────────────────────────────────────────────────────── */
 
 export type VizEvent =
-  /** A research question was sent. General-mode questions send `reset`. */
-  | { t: "submit" }
+  /** A research question was sent. General-mode questions send `reset`.
+      `searched` names the stocked shelves; omitted means all of them, which is
+      what every caller before the gate existed meant. */
+  | { t: "submit"; searched?: readonly KbCategory[] }
   /** Retrieval reported: where it looked and what it found. `topDocs` is
       optional — a trace without document titles still reports its counts. */
   | {
@@ -149,6 +158,20 @@ function normaliseTopDocs(
   return out;
 }
 
+/* The shelves a submit names, filtered to real categories and deduped.
+   Undefined means the caller predates the gate (or genuinely searched
+   everywhere) — every shelf, which is exactly the old behaviour. */
+function normaliseSearched(raw: readonly KbCategory[] | undefined): readonly KbCategory[] {
+  if (raw === undefined) return KB_CATEGORIES;
+  const out: KbCategory[] = [];
+  for (const cat of raw) {
+    if (!KB_CATEGORIES.includes(cat)) continue;
+    if (out.includes(cat)) continue;
+    out.push(cat);
+  }
+  return out;
+}
+
 /* Winners, deduped and in the order the server ranked them — minus any shelf
    that contributed nothing. A winner with zero hits would light a card whose
    own microline reads "—", which is not a state anybody should have to read. */
@@ -177,7 +200,14 @@ function normaliseWinners(
 export function reduceViz(state: ResearchViz, event: VizEvent): ResearchViz {
   switch (event.t) {
     case "submit":
-      return { phase: "searching", hits: null, topDocs: null, winners: [], missed: false };
+      return {
+        phase: "searching",
+        searched: normaliseSearched(event.searched),
+        hits: null,
+        topDocs: null,
+        winners: [],
+        missed: false,
+      };
 
     case "reset":
     /* An error takes the rail away entirely. A half-drawn search sitting under
@@ -191,6 +221,7 @@ export function reduceViz(state: ResearchViz, event: VizEvent): ResearchViz {
       return {
         // a trace that lands after the words started doesn't rewind the phase
         phase: state.phase === "answering" ? "answering" : "traced",
+        searched: state.searched,
         hits,
         topDocs: normaliseTopDocs(event.topDocs, hits),
         winners: normaliseWinners(event.winners, hits),
@@ -201,7 +232,14 @@ export function reduceViz(state: ResearchViz, event: VizEvent): ResearchViz {
     case "miss":
       if (!IN_FLIGHT.has(state.phase)) return state;
       // nothing was found, so nothing is lit: the miss banner is the story
-      return { phase: "settled", hits: null, topDocs: null, winners: [], missed: true };
+      return {
+        phase: "settled",
+        searched: state.searched,
+        hits: null,
+        topDocs: null,
+        winners: [],
+        missed: true,
+      };
 
     case "firstDelta":
       if (state.phase !== "traced") return state;
@@ -216,6 +254,16 @@ export function reduceViz(state: ResearchViz, event: VizEvent): ResearchViz {
 /* ── selectors ───────────────────────────────────────────────────────────── */
 
 const hitsFor = (state: ResearchViz, cat: KbCategory): number => state.hits?.[cat] ?? 0;
+
+/* The gate on the PERFORMANCE, never on the RESULT. `searched` decides which
+   shelves act out the search — draw, shimmer, "Searching…" — and which
+   "found nothing" is worth saying about ("—" belongs to a shelf that was
+   worth looking in; an empty one already says "—" at rest). It must never
+   silence a shelf the trace actually found something in: field notes carry a
+   ready-doc count of zero and can still win the whole question — the exact
+   shape of the four-against-five bug this file is already scarred by. */
+const searchedHere = (state: ResearchViz, cat: KbCategory): boolean =>
+  state.searched.includes(cat);
 
 /** Whether the SVG underlay has anything to say at all. */
 export function overlayVisible(state: ResearchViz): boolean {
@@ -240,13 +288,16 @@ export function lineState(state: ResearchViz, cat: KbCategory): LineState {
     case "idle":
       return "off";
     case "searching":
-      return "draw";
+      return searchedHere(state, cat) ? "draw" : "off";
     case "traced":
     case "answering":
       if (state.winners.includes(cat)) return "lit";
-      return hitsFor(state, cat) > 0 ? "hit" : "dim";
+      if (hitsFor(state, cat) > 0) return "hit";
+      // "we looked and found nothing" is only true of a shelf we looked in
+      return searchedHere(state, cat) ? "dim" : "off";
     case "settled":
-      return state.winners.includes(cat) ? "kept" : "fade";
+      if (state.winners.includes(cat)) return "kept";
+      return searchedHere(state, cat) || hitsFor(state, cat) > 0 ? "fade" : "off";
   }
 }
 
@@ -259,8 +310,9 @@ export function lineState(state: ResearchViz, cat: KbCategory): LineState {
 export function lanePulse(state: ResearchViz, cat: KbCategory): LanePulse {
   switch (state.phase) {
     case "searching":
-      return "out";
+      return searchedHere(state, cat) ? "out" : "off";
     case "answering":
+      // a winner pulses whatever its shelf count said — field notes win at zero
       return state.winners.includes(cat) ? "back" : "off";
     default:
       return "off";
@@ -272,11 +324,12 @@ export function cardState(state: ResearchViz, cat: KbCategory): CardState {
     case "idle":
       return "idle";
     case "searching":
-      return "searching";
+      return searchedHere(state, cat) ? "searching" : "idle";
     case "traced":
     case "answering":
       if (state.winners.includes(cat)) return "winner";
-      return hitsFor(state, cat) > 0 ? "hit" : "dim";
+      if (hitsFor(state, cat) > 0) return "hit";
+      return searchedHere(state, cat) ? "dim" : "idle";
     case "settled":
       /* The answer has landed: the rail goes back to being the way into the
          library, except the shelf it came from, which stays lit as provenance
@@ -314,11 +367,13 @@ export function cardNote(state: ResearchViz, cat: KbCategory): string | null {
     case "idle":
       return null;
     case "searching":
-      return SEARCHING_NOTE;
+      return searchedHere(state, cat) ? SEARCHING_NOTE : null;
     case "traced":
     case "answering": {
       const n = hitsFor(state, cat);
-      return n > 0 ? noteFor(state, cat, n) : NOTHING_NOTE;
+      if (n > 0) return noteFor(state, cat, n);
+      // an unsearched shelf's resting "—" already says everything true of it
+      return searchedHere(state, cat) ? NOTHING_NOTE : null;
     }
     case "settled": {
       if (!state.winners.includes(cat)) return null;

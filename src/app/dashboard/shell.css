@@ -5916,12 +5916,17 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .wb2-dusk .wb2-capclock { color:rgba(255,255,255,.6); }
 .wb2-dusk .wb2-sherr { background:rgba(224,38,79,.18); color:#FF9FB3; }
 
-/* the box — CALM ON PURPOSE. A dark well, a neutral focus brighten, a teal
-   caret, and that is all: no gradient, no glow, nothing breathing. */
-.wb2-dusk .wb2-notes { background:rgba(255,255,255,.05); border-color:rgba(255,255,255,.12);
-  color:#F2F4F7; caret-color:#00E5C0; }
+/* the box — NOT A BOX AT ALL (Isaac, second pass): white words straight on
+   the card. No well, no border, no focus chrome — the teal caret is the
+   focus, and it is already blinking when the sheet arrives. The border goes
+   transparent rather than to zero so nothing reflows against the light
+   skin, and the side padding drops to sit the words on the ribbon's own
+   left edge instead of a ghost box's inset. */
+.wb2-dusk .wb2-notes { background:transparent; border-color:transparent;
+  padding:10px 2px; color:#F2F4F7; caret-color:#00E5C0;
+  /* no box means the resize grip would float on nothing */ resize:none; }
 .wb2-dusk .wb2-notes::placeholder { color:rgba(255,255,255,.38); }
-.wb2-dusk .wb2-notes:focus { border-color:rgba(255,255,255,.26); }
+.wb2-dusk .wb2-notes:focus { border-color:transparent; }
 .wb2-dusk .wb2-hint { color:rgba(255,255,255,.45); }
 
 /* the actions — glass ghosts, one gradient primary, and Talk tinted just

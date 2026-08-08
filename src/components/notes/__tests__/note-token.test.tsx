@@ -19,7 +19,8 @@ import { useRef, useState } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NoteToken } from "../note-token";
-import { NoteScopeProvider } from "../note-context";
+import { NoteScopeProvider, NoteScopeScreen } from "../note-context";
+import { TiffButton } from "../tiff-button";
 import type { NoteProposal } from "@/lib/workboard/note-brain";
 
 jest.mock("next/navigation", () => ({ useRouter: () => ({ refresh: jest.fn() }) }));
@@ -79,12 +80,17 @@ const task = (over = {}) => ({
   ...over,
 });
 
+/* The app's real shape: the layout provides the scope once, and the screen
+   underneath REPORTS UP into it. Tests go through the same path, because the
+   direction of that relationship is the thing this refactor changed. */
 function mount(
   ui: React.ReactElement,
-  scope: Partial<React.ComponentProps<typeof NoteScopeProvider>> = {}
+  scope: Partial<React.ComponentProps<typeof NoteScopeScreen>> & { voiceEnabled?: boolean } = {}
 ) {
+  const { voiceEnabled = true, ...screen } = scope;
   return render(
-    <NoteScopeProvider voiceEnabled {...scope}>
+    <NoteScopeProvider voiceEnabled={voiceEnabled}>
+      <NoteScopeScreen {...screen} />
       {ui}
     </NoteScopeProvider>
   );
@@ -106,38 +112,42 @@ beforeEach(() => {
 
 describe("the capsule", () => {
   it("is two halves — typing is never an afterthought", () => {
-    mount(<NoteToken as="capsule" label="a note" />);
-    expect(screen.getByLabelText("Type a note")).toBeInTheDocument();
-    expect(screen.getByLabelText("Say a note")).toBeInTheDocument();
+    mount(<TiffButton />);
+    expect(screen.getByLabelText(/Ask or tell Tiff/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Ask or tell Tiff/)).toBeInTheDocument();
   });
 
   it("loses only the mic where the deployment can't hear you", () => {
-    mount(<NoteToken as="capsule" label="a note" />, { voiceEnabled: false });
-    expect(screen.getByLabelText("Type a note")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Say a note")).not.toBeInTheDocument();
+    mount(<TiffButton />, { voiceEnabled: false });
+    expect(screen.getByLabelText(/Ask or tell Tiff/)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/starts listening/)).not.toBeInTheDocument();
   });
 
   it("names its target out loud when a job is in scope", async () => {
-    mount(<NoteToken as="capsule" label="a note" />, {
+    mount(<TiffButton />, {
       target: { kind: "visit", id: "v-1" },
       targetLabel: "Meridian Data · CRACs",
     });
-    await userEvent.click(screen.getByLabelText("Type a note"));
-    expect(screen.getByText("Against: Meridian Data · CRACs")).toBeInTheDocument();
+    await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
+    /* The tag says the job and nothing else. It used to read "Against:
+       Meridian Data · CRACs", which is a sentence about a setting; a tag is
+       the thing itself, and it is now something you can take off. */
+    expect(screen.getByText("Meridian Data · CRACs")).toBeInTheDocument();
+    expect(screen.getByLabelText(/take the tag off/i)).toBeInTheDocument();
   });
 
   it("says General note when it's standing on nothing", async () => {
-    mount(<NoteToken as="capsule" label="a note" />);
-    await userEvent.click(screen.getByLabelText("Type a note"));
+    mount(<TiffButton />);
+    await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
     expect(screen.getByText("General note")).toBeInTheDocument();
   });
 
   it("routes with the scope's target — no caller passes one", async () => {
-    mount(<NoteToken as="capsule" label="a note" />, {
+    mount(<TiffButton />, {
       target: { kind: "visit", id: "v-1" },
       targetLabel: "Meridian Data",
     });
-    await userEvent.click(screen.getByLabelText("Type a note"));
+    await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
     await userEvent.type(screen.getByRole("textbox"), "the middle unit tripped again");
     await userEvent.click(screen.getByRole("button", { name: "Sort this out" }));
     expect(routeNote).toHaveBeenCalledWith(
@@ -145,9 +155,51 @@ describe("the capsule", () => {
     );
   });
 
+  /* ── THE CONTEXT TAG ──
+     Standing on a job card is not the same as talking about that job. The tag
+     is what makes the button usable everywhere without it quietly filing your
+     supplier reminder against whatever site you happened to be looking at. */
+
+  it("takes the tag off, and the note stops landing on the job", async () => {
+    mount(<TiffButton />, {
+      target: { kind: "visit", id: "v-1" },
+      targetLabel: "Meridian Data · CRACs",
+    });
+    await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
+    await userEvent.click(screen.getByLabelText(/take the tag off/i));
+
+    expect(screen.queryByText("Meridian Data · CRACs")).not.toBeInTheDocument();
+    expect(screen.getByText("General note")).toBeInTheDocument();
+
+    await userEvent.type(screen.getByRole("textbox"), "chase the supplier about the grilles");
+    await userEvent.click(screen.getByRole("button", { name: "Sort this out" }));
+    /* The half that is easy to miss: the chip can come off the ribbon while
+       the note still files itself against the job, because two different
+       places read the target. They read one now. */
+    expect(routeNote).toHaveBeenCalledWith(
+      expect.objectContaining({ target: { kind: "none" } })
+    );
+  });
+
+  it("comes back next time — dropping it is for this note, not a setting", async () => {
+    mount(<TiffButton />, {
+      target: { kind: "visit", id: "v-1" },
+      targetLabel: "Meridian Data · CRACs",
+    });
+    await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
+    await userEvent.click(screen.getByLabelText(/take the tag off/i));
+    expect(screen.getByText("General note")).toBeInTheDocument();
+
+    // close it and open it again, exactly as somebody would (the ribbon's
+    // × — the idle stage has a Discard button of its own by the same name)
+    await userEvent.click(screen.getByTitle("Discard"));
+    await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
+    expect(screen.getByText("Meridian Data · CRACs")).toBeInTheDocument();
+  });
+
   it("walking away from a parsed note dismisses it rather than stranding it", async () => {
-    mount(<NoteToken as="capsule" label="a note" />, { target: { kind: "visit", id: "v-1" } });
-    await userEvent.click(screen.getByLabelText("Type a note"));
+    mount(<TiffButton />, { target: { kind: "visit", id: "v-1" } });
+    await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
     await userEvent.type(screen.getByRole("textbox"), "something");
     await userEvent.click(screen.getByRole("button", { name: "Sort this out" }));
     await screen.findByText("Check it before it saves");
@@ -158,8 +210,8 @@ describe("the capsule", () => {
 
 describe("the engine's contract, unchanged", () => {
   const open = async (scope = {}) => {
-    mount(<NoteToken as="capsule" label="a note" />, scope);
-    await userEvent.click(screen.getByLabelText("Type a note"));
+    mount(<TiffButton />, scope);
+    await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
     await userEvent.type(screen.getByRole("textbox"), "note text");
     await userEvent.click(screen.getByRole("button", { name: "Sort this out" }));
     await screen.findByText("Check it before it saves");
@@ -211,8 +263,8 @@ describe("the cascade", () => {
       proposal: proposal(over),
       staff: [{ id: "s-1", fullName: "Luke Mercer" }],
     });
-    mount(<NoteToken as="capsule" label="a note" />, scope);
-    await userEvent.click(screen.getByLabelText("Type a note"));
+    mount(<TiffButton />, scope);
+    await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
     await userEvent.type(screen.getByRole("textbox"), "note text");
     await userEvent.click(screen.getByRole("button", { name: "Sort this out" }));
     await screen.findByText("Check it before it saves");
@@ -421,11 +473,11 @@ describe("the LEARN lane on the review card", () => {
       }),
       staff: [],
     });
-    mount(<NoteToken as="capsule" label="a note" />, {
+    mount(<TiffButton />, {
       target: { kind: "visit", id: "v-1" },
       targetLabel: "Meridian",
     });
-    await userEvent.click(screen.getByLabelText("Type a note"));
+    await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
     await userEvent.type(screen.getByRole("textbox"), "learned a trick");
     await userEvent.click(screen.getByRole("button", { name: "Sort this out" }));
     await screen.findByText("Check it before it saves");
@@ -464,11 +516,11 @@ describe("the LEARN lane on the review card", () => {
 
 describe("ask-mode — the same token answers questions", () => {
   it("a question streams an answer and never routes a note", async () => {
-    mount(<NoteToken as="capsule" label="a note" />, {
+    mount(<TiffButton />, {
       target: { kind: "visit", id: "v-1" },
       targetLabel: "Meridian Data",
     });
-    await userEvent.click(screen.getByLabelText("Type a note"));
+    await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
     await userEvent.type(screen.getByRole("textbox"), "what's outstanding here");
     await userEvent.click(screen.getByRole("button", { name: "Sort this out" }));
 
@@ -486,8 +538,8 @@ describe("ask-mode — the same token answers questions", () => {
   });
 
   it("a note is still a note — no question, no ask", async () => {
-    mount(<NoteToken as="capsule" label="a note" />, { target: { kind: "visit", id: "v-1" } });
-    await userEvent.click(screen.getByLabelText("Type a note"));
+    mount(<TiffButton />, { target: { kind: "visit", id: "v-1" } });
+    await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
     await userEvent.type(screen.getByRole("textbox"), "the middle unit tripped again");
     await userEvent.click(screen.getByRole("button", { name: "Sort this out" }));
     await screen.findByText("Check it before it saves");
@@ -508,8 +560,8 @@ describe("ask-mode — the same token answers questions", () => {
     askBrain.mockImplementationOnce(async (_i: unknown, h: AskHandlers) => {
       h.onError("Too busy right now — try again in a minute.");
     });
-    mount(<NoteToken as="capsule" label="a note" />);
-    await userEvent.click(screen.getByLabelText("Type a note"));
+    mount(<TiffButton />);
+    await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
     await userEvent.type(screen.getByRole("textbox"), "what's open?");
     await userEvent.click(screen.getByRole("button", { name: "Sort this out" }));
     expect(
@@ -518,8 +570,8 @@ describe("ask-mode — the same token answers questions", () => {
   });
 
   it("Ask another clears the answer and returns to the box", async () => {
-    mount(<NoteToken as="capsule" label="a note" />);
-    await userEvent.click(screen.getByLabelText("Type a note"));
+    mount(<TiffButton />);
+    await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
     await userEvent.type(screen.getByRole("textbox"), "what's open?");
     await userEvent.click(screen.getByRole("button", { name: "Sort this out" }));
     await screen.findByText(/oldest from Monday/);

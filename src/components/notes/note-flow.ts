@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useDictation } from "./dictation";
+import { appendSpoken, useDictation } from "./dictation";
 import { askBrain } from "@/lib/brain/ask-client";
 import { looksLikeQuestion } from "@/lib/brain/intent";
 import { clearRun, markProposal } from "@/lib/voice/timing";
 import { matchJob } from "@/lib/workboard/note-match";
 import type { NoteProposal, NoteStaff } from "@/lib/workboard/note-brain";
+import type { NoteTarget } from "@/app/actions/workboard-notes";
 import {
   answerClarify,
   applyNote,
@@ -50,6 +51,23 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
   const [attachTo, setAttachTo] = useState("");
   const [touched, setTouched] = useState(false);
   const [picking, setPicking] = useState(false);
+  /** The last recording stopped at the CEILING rather than because anyone
+      decided it had. See the note above `useDictation` below. */
+  const [ranOut, setRanOut] = useState(false);
+
+  /* THE TAG IS A SUGGESTION, NOT A RULE.
+
+     The screen you opened this from rides along as a tag — "Meridian Data ·
+     CRACs" — and the note lands there. But standing on a job card is not the
+     same as talking about that job: you notice something about the NEXT
+     visit, or remember to chase a supplier, or ask a question that has
+     nothing to do with the site you happen to be standing on.
+
+     So the tag comes off. Dropping it is per-capture and nothing more — the
+     screen keeps reporting what it is about, and the next thing you open is
+     tagged again. A drop that stuck would be a setting nobody knew they had
+     changed. `reset()` clears it, so closing the sheet is enough. */
+  const [aimDropped, setAimDropped] = useState(false);
 
   /* ── the ask path ──
      Separate state from the note flow on purpose: an answer is not a
@@ -61,8 +79,23 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
   const [askTools, setAskTools] = useState<string[]>([]);
   const askAbort = useRef<AbortController | null>(null);
 
+  /* ONE effective target, derived once. Every consumer below reads this and
+     never `scope.target`, or dropping the tag would come off the ribbon while
+     the note still quietly filed itself against the job. */
+  const aimed = scope.target.kind !== "none" && !!scope.target.id && !aimDropped;
+  /* Memoised because `read` and `ask` are `useCallback`s that depend on it —
+     a fresh object each render would rebuild both every time and make the
+     memoisation decorative. `scope.target` is itself stable between pushes. */
+  const target: NoteTarget = useMemo(
+    () => (aimed ? scope.target : { kind: "none" }),
+    [aimed, scope.target]
+  );
+  const targetLabel = aimed ? scope.targetLabel : undefined;
+
   const reset = useCallback(() => {
     setNote(null);
+    setRanOut(false);
+    setAimDropped(false);
     setDraft(null);
     setAnswer("");
     setText("");
@@ -89,8 +122,8 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
       void askBrain(
         {
           question,
-          target: scope.target,
-          targetLabel: scope.targetLabel,
+          target,
+          targetLabel,
           signal: abort.signal,
         },
         {
@@ -104,7 +137,7 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
         }
       );
     },
-    [scope.target, scope.targetLabel]
+    [target, targetLabel]
   );
 
   /** Hand words to the router. The note row is written before the model runs
@@ -115,7 +148,7 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
       setError(null);
       setDone(null);
       start(async () => {
-        const res = await routeNote({ transcript, target: scope.target, source, debrief });
+        const res = await routeNote({ transcript, target, source, debrief });
         if (!res.ok) {
           setError(res.error);
           clearRun();
@@ -129,7 +162,7 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
         setDraft(toDraft(res.proposal));
       });
     },
-    [scope.target, router, debrief]
+    [target, router, debrief]
   );
 
   /* WHERE A SUBMIT DECIDES WHAT IT IS. One branch, used by both the typed
@@ -148,8 +181,38 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
     [debrief, ask, read]
   );
 
+  /* THE CEILING IS NOT A DECISION.
+
+     Every other stop on this flow means "I have finished saying it", so the
+     transcript goes straight to routing. The two-minute cap looks identical
+     to the engine and means the opposite: the person was mid-sentence and
+     the clock ran out. Routing there would file half a note and drop them on
+     a review card for a thought they had not finished — worst of all on the
+     debrief, which is a whole day's braindump and the single most likely
+     recording to run long.
+
+     So a capped transcript is KEPT AND HELD: appended to the box, nothing
+     routed, mic ready. Press it again and carry on; the words accumulate
+     until you stop because you actually meant to. */
   const dict = useDictation({
-    onTranscript: (transcript) => submit("voice", transcript),
+    onTranscript: (transcript, { capped }) => {
+      /* THE WHOLE THING, NOT THE LAST LEG. A note spoken across three
+         recordings is one note, and the first version of this routed only
+         the final transcript — throwing away the two minutes it had just
+         carefully held. Joining here rather than inside `submit` keeps the
+         typed path (which passes `text` in already) exactly as it was.
+
+         `text` is current: the callbacks are re-stashed every render, so
+         each leg sees what the one before it appended. */
+      const whole = appendSpoken(text, transcript);
+      if (capped) {
+        setText(whole);
+        setRanOut(true);
+        return;
+      }
+      setRanOut(false);
+      submit("voice", whole);
+    },
     onError: setError,
   });
 
@@ -211,7 +274,7 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
 
   const chosen = targetOf(picked);
   const chosenJob = chosen ? scope.jobs.find((o) => o.id === chosen.id) ?? null : null;
-  const scoped = scope.target.kind !== "none" && !!scope.target.id;
+  const scoped = aimed;
   const hasTarget = scoped || !!chosen;
   const stops = draft ? blockers(draft, hasTarget) : [];
 
@@ -294,6 +357,15 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
     setOpen,
     text,
     setText,
+    /** The last recording stopped at the ceiling — say so, and invite more. */
+    ranOut,
+    setRanOut,
+    /** The tag is showing and the note will land on it. */
+    aimed,
+    /** What the ribbon should name — absent once the tag is dropped. */
+    targetLabel,
+    /** Take the tag off for this capture only. */
+    dropAim: () => setAimDropped(true),
     error,
     setError,
     note,

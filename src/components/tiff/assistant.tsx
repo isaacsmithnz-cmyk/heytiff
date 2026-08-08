@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
+import { useHydrated } from "@/lib/use-hydrated";
 import { kbDocUrl } from "@/app/actions/kb";
 import { askTiff, type AskSourceItem, type AskTurn } from "@/lib/tiff/ask-client";
 import { consumeAskHandoff } from "@/lib/tiff/ask-handoff";
@@ -17,6 +18,7 @@ import {
 } from "@/lib/tiff/research-viz";
 import { ResearchLines } from "./research-lines";
 import { KB_CATEGORIES, type KbCategoryKey } from "./kb";
+import { DictClock, LevelBars, appendSpoken, useDictation } from "@/components/notes/dictation";
 
 /* Tiff AI — the assistant, connected.
 
@@ -86,17 +88,6 @@ const TITLE_MAX = 60;
    landing, they taught nothing after the first read, and two of the four were
    about a category this workspace might hold nothing in. The box and its
    placeholder are the invitation. */
-
-/* hydration guard: false on the server and during hydration, true after —
-   lets us read localStorage without a server/client markup mismatch */
-const emptySubscribe = () => () => {};
-function useHydrated(): boolean {
-  return useSyncExternalStore(
-    emptySubscribe,
-    () => true,
-    () => false
-  );
-}
 
 function loadThreads(): Thread[] {
   try {
@@ -299,11 +290,15 @@ export function TiffAssistant({
   counts = { install: 0, faults: 0, specs: 0, sops: 0, field: 0 },
   readyCount = 0,
   canManage = false,
+  voiceEnabled = false,
 }: {
   counts?: Record<KbCategoryKey, number>;
   /** Ready documents across every shelf — nothing can be researched at zero. */
   readyCount?: number;
   canManage?: boolean;
+  /** ELEVENLABS_API_KEY is set on this deployment. No key, no mic — the ask
+      bar is a plain text field either way. */
+  voiceEnabled?: boolean;
 }) {
   const hydrated = useHydrated();
   // null = "not touched yet": until the first send, render straight from storage
@@ -373,6 +368,51 @@ export function TiffAssistant({
 
   const streaming = live !== null;
   const canResearch = readyCount > 0;
+
+  /* SPEAKING TO TIFF IS JUST TYPING WITH YOUR VOICE.
+
+     Everything said to the ask bar is a question, so there is no sieve, no
+     routing and no review — the words land in the box, the caret comes back,
+     and you still press send. That is the whole difference between this mic
+     and the token's: the token has to work out what your words BECOME, and
+     this one already knows. It is also why the box is not wrapped in a note
+     scope; there is no target for a note that is never taken.
+
+     The ENGINE is the token's, imported unchanged. The five controls PR #287
+     collapsed were five copies of an engine wearing different clothes; this
+     is the opposite and the shape the file asks for — one engine, and the
+     clothes belong to the composer it sits in. */
+  const [voiceErr, setVoiceErr] = useState<string | null>(null);
+  /** The last recording stopped at the two-minute ceiling. Appending is
+      already the right answer for a question, so nothing changes about where
+      the words go — this only earns a line saying why the mic let go. */
+  const [ranOut, setRanOut] = useState(false);
+  const dict = useDictation({
+    onTranscript: (spoken, { capped }) => {
+      setVoiceErr(null);
+      setRanOut(capped);
+      setInput((typed) => appendSpoken(typed, spoken));
+    },
+    onError: setVoiceErr,
+  });
+
+  const listening = dict.recording || dict.transcribing;
+
+  /* What the box SHOWS while the live transport is still hearing the sentence,
+     never what it HOLDS. Committing interim words would race the transcript
+     that replaces them, and leave the tail of a half-heard sentence behind if
+     the recording were thrown away. */
+  const shownInput = dict.interim ? appendSpoken(input, dict.interim) : input;
+
+  /* The caret comes back when the mic lets go. Focusing inside `onTranscript`
+     misses every time: the box is still disabled at that moment, because the
+     engine clears `transcribing` in a `finally` AFTER the callback — and
+     focus() on a disabled input does nothing at all. */
+  const wasListening = useRef(false);
+  useEffect(() => {
+    if (wasListening.current && !listening) inputRef.current?.focus();
+    wasListening.current = listening;
+  }, [listening]);
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
@@ -868,22 +908,79 @@ export function TiffAssistant({
           >
             <div className="tinput">
               <div className="tib"></div>
-              <div className="tin">
+              <div className={`tin${dict.recording ? " live" : ""}`}>
                 <div className="tic">
                   <Icon name="sparkles" size={20} />
                 </div>
                 <input
                   ref={inputRef}
-                  value={input}
+                  value={shownInput}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder="Ask Tiff anything…"
+                  placeholder={dict.recording ? "Listening…" : "Ask Tiff anything…"}
                   aria-label="Ask Tiff"
+                  disabled={listening}
                 />
-                <button className="tsend" type="submit" aria-label="Send">
-                  <Icon name="send" size={18} />
-                </button>
+                {dict.recording ? (
+                  /* Send is GONE rather than disabled while the mic is open.
+                     There is nothing to send yet — the sentence is still being
+                     said — and a dead primary sitting under a live recording
+                     reads as a thing that ought to work. Stop takes its place
+                     and lands on the same pixels. */
+                  <>
+                    <LevelBars innerRef={dict.barsRef} />
+                    <DictClock seconds={dict.seconds} />
+                    <button
+                      type="button"
+                      className="tmicx"
+                      onClick={dict.cancel}
+                      title="Throw it away"
+                      aria-label="Discard the recording"
+                    >
+                      <Icon name="x" size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      className="tsend live"
+                      onClick={dict.stop}
+                      title="Stop and read it back"
+                      aria-label="Stop dictating and read it back"
+                    >
+                      <Icon name="square" size={16} />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {voiceEnabled && (
+                      <button
+                        type="button"
+                        className="tmic"
+                        onClick={dict.start}
+                        disabled={dict.transcribing}
+                        title="Ask it out loud"
+                        aria-label="Ask by voice"
+                      >
+                        <Icon name="mic" size={19} />
+                      </button>
+                    )}
+                    <button className="tsend" type="submit" aria-label="Send" disabled={listening}>
+                      <Icon name="send" size={18} />
+                    </button>
+                  </>
+                )}
               </div>
             </div>
+
+            {dict.transcribing && <p className="tvsay">Reading it back…</p>}
+            {ranOut && !listening && (
+              <p className="tvsay" role="status">
+                Two minutes — that&apos;s the limit for one recording. Press the mic to carry on.
+              </p>
+            )}
+            {voiceErr && (
+              <p className="tvsay err" role="alert">
+                {voiceErr}
+              </p>
+            )}
 
             {/* A CHOICE HAS TO LOOK LIKE TWO THINGS. This was one pill saying
                 "Research" beside grey text saying "General knowledge", and

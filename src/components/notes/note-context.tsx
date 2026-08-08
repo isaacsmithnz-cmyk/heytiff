@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { NoteTarget } from "@/app/actions/workboard-notes";
 import type { JobCandidate } from "@/lib/workboard/note-match";
 
@@ -53,39 +53,66 @@ const EMPTY: NoteScope = {
   staffFirstNames: [],
 };
 
-const Ctx = createContext<NoteScope & { setScope: (patch: Partial<NoteScope>) => void }>({
+type Push = Partial<NoteScope>;
+
+const Ctx = createContext<
+  NoteScope & { pushScreen: (p: Push | null) => void; pushFocus: (p: Push | null) => void }
+>({
   ...EMPTY,
-  setScope: () => {},
+  pushScreen: () => {},
+  pushFocus: () => {},
 });
 
-/** Wrap a screen. Everything inside gets the token's behaviour for free. */
+/** Wrap the APP, once, in the dashboard layout. Everything inside gets the
+    token's behaviour for free — including the Tiff button, which lives in the
+    frame and is therefore ABOVE every screen in the tree. */
 export function NoteScopeProvider({
   voiceEnabled,
-  target = EMPTY.target,
-  targetLabel,
-  jobs = [],
-  staffFirstNames = [],
   children,
-}: Partial<NoteScope> & { voiceEnabled: boolean; children: React.ReactNode }) {
-  /* A sheet opening over a board CHANGES what a note is about, and it does
-     that while the provider above it stays mounted. So the scope is state
-     the tree can push into, seeded from props — `useNoteScopeTarget` below
-     is the tidy way in, and it puts the target back on unmount so closing a
-     sheet returns the token to the board it was covering. */
-  const [pushed, setPushed] = useState<Partial<NoteScope> | null>(null);
-  const setScope = useCallback((patch: Partial<NoteScope>) => setPushed(patch), []);
+}: {
+  voiceEnabled: boolean;
+  children: React.ReactNode;
+}) {
+  /* TWO SLOTS, NOT ONE, and the reason is the button.
 
-  const value = useMemo(
-    () => ({
+     This used to be seeded from props by whichever screen wrapped itself, and
+     a single `pushed` slot let a sheet override the target. That worked while
+     every token stood INSIDE the screen that configured it. The global button
+     stands in the frame, above all of them, so the direction reversed: the
+     screen no longer wraps the button, it reports up to it.
+
+     With one slot those two reports fight. A screen pushes its job list on
+     mount; a sheet opens and pushes a target; the job list vanishes because
+     the second push replaced the first, and a note dictated from the button
+     can no longer be pinned to anything. So they get a slot each:
+
+       screen  what the SCREEN is about — its jobs, its roster, its default
+               target. Set on mount, cleared on unmount.
+       focus   what is OPEN OVER it — a visit sheet, a trip. Outranks the
+               screen for as long as it is up, and only ever a target.
+
+     Closing a sheet drops `focus` and the button falls back to the screen
+     underneath, which is what a person would predict and what the old
+     single-slot version got wrong the moment two things pushed at once. */
+  const [screen, setScreen] = useState<Push | null>(null);
+  const [focus, setFocus] = useState<Push | null>(null);
+  const pushScreen = useCallback((p: Push | null) => setScreen(p), []);
+  const pushFocus = useCallback((p: Push | null) => setFocus(p), []);
+
+  const value = useMemo(() => {
+    const aiming = focus ?? screen;
+    return {
       voiceEnabled,
-      target: pushed?.target ?? target,
-      targetLabel: pushed?.targetLabel ?? (pushed?.target ? undefined : targetLabel),
-      jobs: pushed?.jobs ?? jobs,
-      staffFirstNames,
-      setScope,
-    }),
-    [voiceEnabled, target, targetLabel, jobs, staffFirstNames, pushed, setScope]
-  );
+      target: aiming?.target ?? EMPTY.target,
+      /* A target pushed WITHOUT a label must not inherit the last one — the
+         ribbon would name the wrong job out loud while someone spoke into it. */
+      targetLabel: aiming?.targetLabel,
+      jobs: screen?.jobs ?? EMPTY.jobs,
+      staffFirstNames: screen?.staffFirstNames ?? EMPTY.staffFirstNames,
+      pushScreen,
+      pushFocus,
+    };
+  }, [voiceEnabled, screen, focus, pushScreen, pushFocus]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
@@ -96,11 +123,11 @@ export const useNoteScope = () => useContext(Ctx);
 
     Call it at the top of a sheet: `useNoteScopeTarget({ kind: "visit", id },
     "Meridian Data · CRACs")`. Closing the sheet unmounts the caller and the
-    token goes back to whatever the screen's own scope was — which is the
+    token goes back to whatever the SCREEN underneath was about — which is the
     behaviour a person would predict, and the one the old `register`/`send`
     pair got wrong by leaving the last target in place. */
 export function useNoteScopeTarget(target: NoteTarget, label?: string): void {
-  const { setScope } = useNoteScope();
+  const { pushFocus } = useNoteScope();
   /* Depend on the PRIMITIVES, not the object. `target` is almost always an
      inline literal, so a `[target]` dependency would re-run this on every
      render of the sheet and push scope in a loop. */
@@ -108,7 +135,65 @@ export function useNoteScopeTarget(target: NoteTarget, label?: string): void {
   const kind = target.kind;
 
   useEffect(() => {
-    setScope({ target: { kind, id }, targetLabel: label });
-    return () => setScope({});
-  }, [kind, id, label, setScope]);
+    pushFocus({ target: { kind, id }, targetLabel: label });
+    return () => pushFocus(null);
+  }, [kind, id, label, pushFocus]);
+}
+
+/** Tell the frame what THIS SCREEN is about — its default target, the jobs a
+    note can be pinned to, and the roster the local sieve reads names from.
+
+    This is the half that replaced wrapping each screen in its own provider.
+    The button that consumes it is in the frame, above every screen, so a
+    screen cannot wrap it; it reports up instead. Everything is cleared on
+    unmount, so navigating away leaves the button a universal note taker
+    rather than one still holding the last board's job list.
+
+    Arrays are compared by CONTENT, not identity: callers build `jobs` and
+    `staffFirstNames` inline with `.map()`, so an identity dependency would
+    push on every render forever. */
+export function useNoteScopeScreen(scope: {
+  target?: NoteTarget;
+  targetLabel?: string;
+  jobs?: JobCandidate[];
+  staffFirstNames?: string[];
+}): void {
+  const { pushScreen } = useNoteScope();
+  const kind = scope.target?.kind ?? null;
+  const id = scope.target?.id ?? null;
+  const label = scope.targetLabel;
+  const jobKey = (scope.jobs ?? []).map((j) => j.id).join("|");
+  const nameKey = (scope.staffFirstNames ?? []).join("|");
+
+  /* The arrays themselves ride in a ref so the push effect can hand over the
+     real objects while depending only on the keys above. Written in its OWN
+     effect rather than during render: effects run in declaration order, so
+     this one has always updated the ref before the push below reads it. */
+  const latest = useRef(scope);
+  useEffect(() => {
+    latest.current = scope;
+  });
+
+  useEffect(() => {
+    pushScreen({
+      target: kind ? { kind, id } : { kind: "none" },
+      targetLabel: label,
+      jobs: latest.current.jobs ?? [],
+      staffFirstNames: latest.current.staffFirstNames ?? [],
+    });
+    return () => pushScreen(null);
+  }, [kind, id, label, jobKey, nameKey, pushScreen]);
+}
+
+/** The same thing as a component, for the server pages that used to wrap
+    themselves in a provider and have no client component of their own to
+    hang the hook off. Renders nothing. */
+export function NoteScopeScreen(props: {
+  target?: NoteTarget;
+  targetLabel?: string;
+  jobs?: JobCandidate[];
+  staffFirstNames?: string[];
+}): null {
+  useNoteScopeScreen(props);
+  return null;
 }

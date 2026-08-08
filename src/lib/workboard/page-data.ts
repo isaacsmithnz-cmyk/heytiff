@@ -16,7 +16,6 @@ import { todayInZone } from "./dates";
 import { listFlags, type BoardFlag } from "./notes-query";
 import { loadMaintenanceBoard, type MaintenanceBoardData } from "./board-query";
 import { loadProjectsBoard, type ProjectsBoardData } from "./projects-board-query";
-import { isTranscriptionConfigured } from "@/lib/voice/transcribe";
 import { autoCompleteVisitsFromMirror, ensureVisits } from "./visit-ensure";
 import { getSm8Timezone } from "./query";
 
@@ -34,8 +33,6 @@ export type WorkboardData = {
   board: MaintenanceBoardData;
   /** The redesigned projects board's whole dataset. */
   projectsBoard: ProjectsBoardData;
-  /** ELEVENLABS_API_KEY is set — the mic is offered as well as the textarea. */
-  voiceEnabled: boolean;
   /** ANTHROPIC_API_KEY is set — Tiff's analyse-a-job offer renders. */
   aiEnabled: boolean;
   synced: { finishedAt: string | null; running: boolean } | null;
@@ -70,7 +67,6 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
       flags,
       board,
       projectsBoard,
-      voiceEnabled: isTranscriptionConfigured(),
       aiEnabled: !!process.env.ANTHROPIC_API_KEY,
       synced: null,
     };
@@ -108,7 +104,6 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
     flags,
     board,
     projectsBoard,
-    voiceEnabled: isTranscriptionConfigured(),
     aiEnabled: !!process.env.ANTHROPIC_API_KEY,
     synced: sync.lastRun
       ? { finishedAt: sync.lastRun.finishedAt, running: sync.lastRun.running }

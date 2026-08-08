@@ -18,7 +18,7 @@ import type { JobSearchHit, ProjectDetail } from "@/lib/workboard/projects-query
 import type { IssueRow, ProjectEntry } from "@/lib/workboard/notes-query";
 import type { ProjectBoardVisit } from "@/lib/workboard/projects-board-query";
 import type { BoardTech } from "@/lib/workboard/board-query";
-import { NoteScopeProvider } from "@/components/notes/note-context";
+import { useNoteScopeScreen } from "@/components/notes/note-context";
 import { ProjectTripSheet } from "./board/project-trip-sheet";
 import { ToastHost, useBoardToasts } from "./board/toasts";
 import {
@@ -84,7 +84,6 @@ export function ProjectDetailScreen({
   sm8Connected,
   entries,
   issues,
-  voiceEnabled,
 }: {
   project: ProjectDetail;
   trips: ProjectBoardVisit[];
@@ -94,7 +93,6 @@ export function ProjectDetailScreen({
   sm8Connected: boolean;
   entries: ProjectEntry[];
   issues: IssueRow[];
-  voiceEnabled: boolean;
 }) {
   const router = useRouter();
   const [busy, start] = useTransition();
@@ -138,16 +136,18 @@ export function ProjectDetailScreen({
      inherits it — the capsule by the header, the notes field further down,
      and the trip sheet's own boxes. Nothing passes a project id to a note
      control any more. */
+  /* What this screen is about, reported up to the Tiff button in the frame:
+     a note taken here lands on THIS project without anybody passing a target
+     down. The roster is the real one rather than a derivation — this screen
+     already has it, and it's what lets a dictated "Dane needs to chase the
+     switchboard" reach the review instead of staying a string in a box. */
+  useNoteScopeScreen({
+    target: { kind: "project", id: project.id },
+    targetLabel: project.name,
+    staffFirstNames: staff.map((s) => s.name.trim().split(/\s+/)[0]).filter((n) => n.length >= 2),
+  });
+
   return (
-    <NoteScopeProvider
-      voiceEnabled={voiceEnabled}
-      target={{ kind: "project", id: project.id }}
-      targetLabel={project.name}
-      /* The real roster, not a derivation — this screen already has one, and
-         it's what lets a dictated "Dane needs to chase the switchboard" reach
-         the review instead of quietly staying a string in a box. */
-      staffFirstNames={staff.map((s) => s.name.trim().split(/\s+/)[0]).filter((n) => n.length >= 2)}
-    >
     <div className="page in">
       <div className="wrap">
         <div className="stg">
@@ -167,10 +167,6 @@ export function ProjectDetailScreen({
               </p>
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-              {/* the one capture pill, docked by the header like every other
-                  screen (D15) — notes here land on THIS project, and taking
-                  a note is never a manage-tier act */}
-              <NoteToken as="capsule" label="a note" />
               {manage && <StatusCluster />}
               {manage && (
                 <button className="pbtn ghost" onClick={() => setEditingMeta(true)}>
@@ -534,7 +530,6 @@ export function ProjectDetailScreen({
 
       <ToastHost toasts={toasts} onDismiss={dismiss} />
     </div>
-    </NoteScopeProvider>
   );
 
   /* ── header status controls ── */

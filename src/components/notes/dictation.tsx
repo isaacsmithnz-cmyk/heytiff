@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { startRealtime, type RealtimeHandle } from "@/lib/voice/realtime-stream";
+import { playChime } from "@/lib/voice/chime";
 import { clearRun, markStopped, markTranscript } from "@/lib/voice/timing";
 
 /* Dictation, extracted from the note pill so every box you'd type a paragraph
@@ -47,6 +48,31 @@ import { clearRun, markStopped, markTranscript } from "@/lib/voice/timing";
 
 /** Inlined at build time — a live transcript is opt-in per deployment. */
 const REALTIME = process.env.NEXT_PUBLIC_VOICE_REALTIME === "1";
+
+/* HOW LONG YOU GET, AND WHY THERE IS A LIMIT AT ALL.
+
+   There wasn't one until 2026-08-06. Nothing stopped a recording — the clock
+   counted up for as long as the mic was open — and the only cap in the system
+   was 25 MB on the upload route, which is about an hour of speech and whose
+   error message nonetheless told people to "keep it under a couple of
+   minutes". A limit nobody enforced, announced by a message nobody could
+   reach.
+
+   Two minutes is the real one now, and it lives HERE rather than in a posture
+   so that every mic in the app inherits it — the capsule, the strip, the
+   field, the line, the debrief and Tiff's ask bar. A cap that only applied to
+   the screen someone happened to be building would be exactly the kind of
+   fork this file exists to prevent.
+
+   IT STOPS, IT DOES NOT DISCARD. Hitting the ceiling runs the same path as
+   pressing stop, so the two minutes you already said are transcribed and
+   kept. Throwing away a long recording because it ran long is the one
+   outcome nobody would forgive. */
+export const MAX_RECORDING_SECONDS = 120;
+
+/** When the clock stops counting up and starts counting down. Long enough to
+    finish a sentence and press stop yourself. */
+export const COUNTDOWN_FROM = 30;
 
 /* A build-time flag can't be A/B'd: every swap is a redeploy of production,
    which is no way to find out whether the live path is actually faster. So
@@ -100,7 +126,12 @@ export function useDictation({
   onTranscript,
   onError,
 }: {
-  onTranscript: (text: string) => void;
+  /* `capped` is the difference between "I am finished" and "the clock ran
+     out", and a caller that routes on a transcript MUST tell them apart —
+     see note-flow, where getting it wrong files half a note. Callers that
+     simply append (the field mics, Tiff's ask bar) can ignore it: appending
+     is already the right answer for both. */
+  onTranscript: (text: string, info: { capped: boolean }) => void;
   onError?: (message: string) => void;
 }): DictationState {
   const [recording, setRecording] = useState(false);
@@ -109,6 +140,9 @@ export function useDictation({
   const [interim, setInterim] = useState("");
   const recorder = useRef<MediaRecorder | null>(null);
   const discard = useRef(false);
+  /* Set by the ceiling effect, cleared by every fresh `start`. Read when
+     the words are handed over, which is always after the stop it caused. */
+  const capped = useRef(false);
   const barsRef = useRef<HTMLSpanElement | null>(null);
   const meter = useRef<{ ctx: AudioContext; raf: number } | null>(null);
   const live = useRef<RealtimeHandle | null>(null);
@@ -123,6 +157,20 @@ export function useDictation({
     const t = setInterval(() => setSeconds((s) => s + 1), 1000);
     return () => clearInterval(t);
   }, [recording]);
+
+  /* The ceiling. Kept out of the tick above on purpose: stopping the recorder
+     from inside a setState updater is a side effect in a place React is
+     allowed to run twice, and the one thing this must never do is fire the
+     stop path more than once. Watching the committed value instead makes it
+     an ordinary effect, and `recorder.current.stop()` after the recorder has
+     already stopped is a no-op anyway. */
+  useEffect(() => {
+    if (!recording || seconds < MAX_RECORDING_SECONDS) return;
+    if (recorder.current?.state !== "recording") return;
+    capped.current = true;
+    playChime("stop");
+    recorder.current.stop();
+  }, [recording, seconds]);
 
   const stopMeter = () => {
     barsRef.current?.style.setProperty("--lvl", "0");
@@ -195,7 +243,7 @@ export function useDictation({
         return;
       }
       markTranscript("batch");
-      cbs.current.onTranscript(body.text);
+      cbs.current.onTranscript(body.text, { capped: capped.current });
     } catch {
       clearRun();
       cbs.current.onError?.("That recording couldn't be sent. Type it instead.");
@@ -235,8 +283,14 @@ export function useDictation({
     void (async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        /* Only once the microphone is genuinely open — chiming before the
+           prompt is answered would announce a recording that may never
+           start. `{ audio: true }` turns on echo cancellation by default,
+           which is what keeps this note out of the clip that follows. */
+        playChime("start");
         const rec = new MediaRecorder(stream);
         discard.current = false;
+        capped.current = false;
         setInterim("");
         startMeter(stream);
         const chunks: BlobPart[] = [];
@@ -270,7 +324,7 @@ export function useDictation({
               const text = (await handle.stop()).trim();
               if (text) {
                 markTranscript("live");
-                cbs.current.onTranscript(text);
+                cbs.current.onTranscript(text, { capped: capped.current });
                 return;
               }
               /* Socket produced nothing. The clip is still in `chunks`, so
@@ -318,10 +372,17 @@ export function useDictation({
     })();
   };
 
-  const stop = () => recorder.current?.stop();
+  const stop = () => {
+    if (recorder.current?.state !== "recording") return;
+    playChime("stop");
+    recorder.current.stop();
+  };
 
   const cancel = () => {
     if (recorder.current?.state !== "recording") return;
+    /* Its own note. Stopping and discarding are both endings, and if they
+       sounded alike you could not tell by ear whether the note was kept. */
+    playChime("discard");
     discard.current = true;
     recorder.current.stop();
   };
@@ -342,6 +403,33 @@ export function LevelBars({ innerRef }: { innerRef: React.RefObject<HTMLSpanElem
 
 export const clockOf = (seconds: number) =>
   `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+
+/** Seconds left before the recorder stops itself, floored at zero. */
+export const remainingOf = (seconds: number) =>
+  Math.max(0, MAX_RECORDING_SECONDS - seconds);
+
+/** The recording clock, one component so every posture reads the same.
+
+    It counts UP for most of the recording, because that is the only number
+    worth knowing while you talk, and flips to counting DOWN for the last
+    thirty seconds — the point at which the useful fact stops being how long
+    you have been going and starts being how long you have left. */
+export function DictClock({ seconds }: { seconds: number }) {
+  const left = remainingOf(seconds);
+  const closing = left <= COUNTDOWN_FROM;
+  return (
+    <span
+      className={`wb2-capclock${closing ? " closing" : ""}`}
+      /* The countdown is a state change mid-recording that nobody is looking
+         at the clock to notice, so it is announced once it matters. */
+      role={closing ? "status" : undefined}
+      aria-live={closing ? "polite" : undefined}
+      title={closing ? `${left}s left — it stops on its own at two minutes` : undefined}
+    >
+      {closing ? `${left}s left` : clockOf(seconds)}
+    </span>
+  );
+}
 
 /** Dictation APPENDS to what's already typed. One function because the live
     transport needs the same join to preview the sentence in the box as the

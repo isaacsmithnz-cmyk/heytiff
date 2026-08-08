@@ -222,7 +222,6 @@ function mount(p: ProjectDetail, trips: ProjectBoardVisit[] = [], manage = true)
       sm8Connected={false}
       entries={[]}
       issues={[]}
-      voiceEnabled={false}
     />
   );
 }

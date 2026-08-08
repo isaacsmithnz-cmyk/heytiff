@@ -7,8 +7,7 @@ import { Icon } from "@/components/shell/icon";
 import { urgentRows } from "@/lib/workboard/urgent-rules";
 import { projectUrgentRows } from "@/lib/workboard/project-rules";
 import type { WorkboardData } from "@/lib/workboard/page-data";
-import { NoteToken } from "@/components/notes/note-token";
-import { NoteScopeProvider } from "@/components/notes/note-context";
+import { useNoteScopeScreen } from "@/components/notes/note-context";
 import { MaintenanceBoard } from "./board/maintenance-board";
 import { ProjectsBoard } from "./board/projects-board";
 
@@ -308,14 +307,21 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
     return [...names];
   }, [data.board.visits, data.projectsBoard.visits]);
 
-  /* ONE token, owned by the page, rendered inside whichever board is up —
-     at the tab row's right end, where the handoff docks it (D15). Display
-     mode keeps it: the whole point of the mode is that you can work off it.
+  /* THE TOKEN IS NOT ON THIS PAGE ANY MORE. It was a capsule docked at the
+     tab row's right end; it is now the Tiff button in the frame, on every
+     screen instead of two. What this page still owes it is CONTEXT — which
+     job a note lands on, which jobs it may be pinned to, and the roster the
+     local sieve reads names from — reported upward rather than passed down,
+     because the button is above this screen in the tree.
 
-     It takes no target and no job list any more. Both come from the scope
-     below, which is what lets a sheet opening over the board re-aim the same
-     token at the visit it just opened without anything being passed down. */
-  const pill = <NoteToken as="capsule" label="a note" />;
+     Display mode keeps working for free: the frame is what display mode
+     hides, and the button hides with it. */
+  useNoteScopeScreen({
+    target: capture ? { kind: "visit", id: capture.visitId } : { kind: "none" },
+    targetLabel: capture?.label,
+    jobs: attachOptions,
+    staffFirstNames,
+  });
 
   /* Mirror health rides in BOTH tab rows (D8) — it's a fact about the data
      on screen, not about maintenance. Absent when standalone. The account's
@@ -336,13 +342,6 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
      and falls back to the board itself, which is the "universal note taker"
      half of the widget. */
   return (
-    <NoteScopeProvider
-      voiceEnabled={data.voiceEnabled}
-      target={capture ? { kind: "visit", id: capture.visitId } : { kind: "none" }}
-      targetLabel={capture?.label}
-      jobs={attachOptions}
-      staffFirstNames={staffFirstNames}
-    >
     <div className="page in">
       <div className="wrap">
         <div className="stg">
@@ -416,7 +415,6 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
                 aiEnabled={data.aiEnabled}
                 sm8={sm8}
                 onCaptureTarget={setCapture}
-                tools={pill}
               />
             ) : (
               <ProjectsBoard
@@ -427,7 +425,6 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
                 connected={connected}
                 sm8={sm8}
                 onCaptureTarget={setCapture}
-                tools={pill}
               />
             )}
 
@@ -452,6 +449,5 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
         </div>
       </div>
     </div>
-    </NoteScopeProvider>
   );
 }

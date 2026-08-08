@@ -1,6 +1,6 @@
 import { auth0 } from "@/lib/auth0";
-import { can } from "@/lib/permissions-server";
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { canDictate } from "@/lib/voice/can-dictate";
 import { transcribeAudio, TRADE_KEYTERMS } from "@/lib/voice/transcribe";
 
 /* Audio in, words out. A route handler rather than a Server Function for one
@@ -13,18 +13,36 @@ import { transcribeAudio, TRADE_KEYTERMS } from "@/lib/voice/transcribe";
    transcript reaches the database, because the transcript is the evidence
    for what gets applied and the recording is a voice in a customer's house.
 
-   GATED `workboard`, not `workboard_manage`: dictating your own day is the
-   whole point, and a route handler is reachable directly, so the gate is
-   here rather than only on the screen that posts to it. */
+   GATED ON HAVING A SCREEN WITH A MICROPHONE (`canDictate`), not on
+   `workboard_manage`: dictating your own day is the whole point, and a route
+   handler is reachable directly, so the gate is here rather than only on the
+   screen that posts to it. It asked for `workboard` alone until Tiff's ask
+   bar got a mic — see lib/voice/can-dictate for why that broke.
 
+   THE PATH IS A MISNOMER NOW. This is general dictation, not a workboard
+   feature; it keeps the URL because moving it would break nothing except
+   every caller, and the gate — which is the part that was actually wrong —
+   is fixed in place. */
+
+/* Long enough to read back the two minutes the recorder now allows, and the
+   same ceiling `tiff/ask` runs on — which is the one value in this codebase
+   proven to deploy on the current plan. It was unset until 2026-08-06, making
+   this the only heavy route in the app running on a platform default nobody
+   chose (ingest and embed-backfill take 300, ask takes 120). */
+export const maxDuration = 120;
+
+/* The recorder stops itself at two minutes (MAX_RECORDING_SECONDS in
+   components/notes/dictation), so nothing the app sends can approach this.
+   It stays because a route handler is reachable directly and a hand-rolled
+   POST is not bound by a client-side clock. */
 const MAX_BYTES = 25 * 1024 * 1024;
 
 export async function POST(request: Request) {
   const session = await auth0.getSession();
   const orgId = session?.orgId as string | undefined;
   if (!session || !orgId) return Response.json({ error: "Not signed in." }, { status: 401 });
-  if (!(await can("workboard"))) {
-    return Response.json({ error: "You don't have access to the Workboard." }, { status: 403 });
+  if (!(await canDictate())) {
+    return Response.json({ error: "You don't have access to dictation." }, { status: 403 });
   }
 
   let audio: Blob;
@@ -35,7 +53,7 @@ export async function POST(request: Request) {
       return Response.json({ error: "There was no recording to read." }, { status: 400 });
     }
     if (file.size > MAX_BYTES) {
-      return Response.json({ error: "That recording is too long. Keep it under a couple of minutes." }, { status: 413 });
+      return Response.json({ error: "That recording is too long. Keep it under two minutes." }, { status: 413 });
     }
     audio = file;
   } catch {

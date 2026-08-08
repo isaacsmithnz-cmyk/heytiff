@@ -1,11 +1,9 @@
 "use client";
 
-import { createPortal } from "react-dom";
 import { Chevron } from "@/components/logo";
 import { CaptureSheet } from "./note-token";
 import { useNoteFlow } from "./note-flow";
 import { useNoteScope } from "./note-context";
-import { useHydrated } from "@/lib/use-hydrated";
 
 /* THE TIFF BUTTON — one way in, in the same corner of every screen.
 
@@ -15,6 +13,17 @@ import { useHydrated } from "@/lib/use-hydrated";
    the workboard, a job card, the timesheet and your vehicle — and the thing
    that changes between them is not the control but what it is pointed at,
    which arrives through note-context from whatever screen is underneath.
+
+   IT LIVES IN THE TOPBAR, beside the bell. It floated bottom-right first and
+   that was wrong for a plain reason Isaac hit immediately: a thing that hovers
+   over the page covers the page, and on a long board it sat on top of the
+   content you were reading. A control that is always present has to be
+   somewhere that is always empty, and the topbar is the only such place.
+
+   The glow is not decoration either — the topbar is transparent over the
+   app's black frame, so a dark glass button on it is nearly invisible. The
+   animated gradient halo is what separates it from the ground, and it is the
+   same breathing gradient the composer's ask bar wears.
 
    IT IS TIFF'S MARK, NOT A MICROPHONE, and that is the design decision the
    rest follows from. A mic advertises one thing; this takes a question, a
@@ -32,30 +41,7 @@ export function TiffButton() {
   const scope = useNoteScope();
   const flow = useNoteFlow();
 
-  /* PORTALLED TO BODY, and it has to be — this is the app's standing modal
-     rule (dashboard overlays portal to body) arriving from a new direction.
-
-     Rendered in place inside `.fg` the button is UNREACHABLE the moment any
-     sheet opens: `.wb2-scrim` is portalled to body at z-index 100 and swallows
-     every click. Raising the z-index does not help, and that is the part worth
-     writing down — a probe with the maximum possible z-index (2147483647)
-     still loses inside `.fg` and wins from body. `.fg` is `position:fixed`
-     with `z-index:auto` and no other inducer, so by the spec its positioned
-     descendants should escape into the root stacking context; in practice the
-     fixed frame traps them. Whatever the mechanism, no z-index reaches out of
-     it, so the element has to leave.
-
-     Found by opening a visit on the real board. jsdom has no hit-testing, so
-     the suite could not have caught it — and it broke precisely the case the
-     context tag exists for: taking a note while a job is open in front of you.
-
-     `useHydrated` keeps the server render empty. `document` does not exist
-     during SSR, and a button that appears one frame into hydration is
-     invisible next to a frame already streaming its chrome. */
-  const hydrated = useHydrated();
-  if (!hydrated) return null;
-
-  return createPortal(
+  return (
     <>
       <button
         type="button"
@@ -70,15 +56,19 @@ export function TiffButton() {
       >
         <span className="tiffbtn-halo" aria-hidden="true" />
         <span className="tiffbtn-face">
-          {/* The glass rim is genuinely translucent and picks up the page
-              behind it; this core is what keeps the mark at full contrast on
-              top of it. A single flat translucent fill lifts the ground to
-              mid-slate over the app's light surfaces and the chevron reads
-              faded — that shipped once and was caught by eye. */}
-          <span className="tiffbtn-core" aria-hidden="true" />
-          <Chevron size={27} gradient className="tiffbtn-mk" />
+          {/* NO DARK CORE HERE. The core exists to hold the mark's contrast
+              on top of LIGHT page content, which is what the floating version
+              sat over. On the black topbar it would be a dark shape on a dark
+              ground; the glass matches the bell beside it and the halo does
+              the separating. */}
+          {/* Sized OFF THE BUTTON, not fixed. Both marks stayed at their
+              58px-button sizes when this shrank to 44 for the topbar, which
+              put the chevron at 61% of the face and overlapped the sparkle
+              into it — the crowding Isaac spotted immediately. The ratios
+              below are the approved ones: chevron ~46%, sparkle ~30%. */}
+          <Chevron size={20} gradient className="tiffbtn-mk" />
           <span className="tiffbtn-spark" aria-hidden="true">
-            <svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true">
+            <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true">
               <defs>
                 {/* A fixed brand gradient, so a constant id is safe: identical
                     defs never collide visually, and unlike a render-time
@@ -101,7 +91,6 @@ export function TiffButton() {
       {/* The SAME sheet the field postures open. What you get must not depend
           on which control you reached it through. */}
       <CaptureSheet flow={flow} />
-    </>,
-    document.body
+    </>
   );
 }

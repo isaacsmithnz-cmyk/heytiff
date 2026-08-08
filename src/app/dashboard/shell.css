@@ -4580,54 +4580,48 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .wb2-capribbon .wb2-chip { margin-left:auto; }
 .wb2-capribbon .wb2-ico { margin-left:0; flex:none; }
 /* ── THE TIFF BUTTON ──
-   One way in, same corner of every screen. It lives in the app frame, so it
-   is declared here rather than in any screen's block.
+   A TOPBAR CONTROL, not a floating one. It hovered bottom-right first and
+   covered the page it was sitting on — a thing that is always present has to
+   live somewhere that is always empty, and the topbar is the only such place.
 
-   `position:fixed` is safe from inside `.fg` — `.fg` is itself fixed with no
-   transform, filter or will-change, so it does not become a containing block.
-   `.page.in` DOES (it animates with will-change), which is exactly why this
-   is mounted in the frame beside the palette and not inside the outlet. */
-/* ABOVE THE SHEETS, BELOW ITS OWN. This sat at z-index 60 and was therefore
-   unreachable the moment any sheet opened — `.wb2-scrim` is 100 and swallowed
-   every click on it. Found by opening a visit on the real board; jsdom has no
-   hit-testing, so 4,595 tests could not have caught it, and it broke exactly
-   the case the context tag exists for: a note taken while a job is open.
+   It sits inside `.fg`, which means a sheet's scrim covers it like every
+   other piece of chrome. That is correct here and was not correct when it
+   floated: a floating control that a scrim swallows looks broken, whereas
+   chrome dimming under a modal is what chrome does. Anchored capture while a
+   sheet IS open belongs to that sheet's own note strip.
 
-   105 threads the stack — over `.wb2-scrim` (100) and `.wb2-sheet` /
-   `.wb2-daymodal` (101), under `.wb2-capdim` (110) and `.wb2-capcard` (111)
-   so the capture surface it opens still covers it, and under `.wb2-toasts`
-   (130), which should sit over everything. Anything added between 100 and 110
-   has to be checked against this. */
-.tiffbtn { position:fixed; right:26px; bottom:26px; z-index:105;
-  width:58px; height:58px; padding:0; border:0; background:none; cursor:pointer;
-  transition:transform .2s cubic-bezier(.22,1,.36,1); }
+   Sized off the bell beside it — 20px glyph in a 44px box — so the two read
+   as one row rather than a control and a mascot. */
+.tiffbtn { position:relative; width:44px; height:44px; flex:none; padding:0; border:0;
+  background:none; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;
+  transition:transform .25s cubic-bezier(.22,1,.36,1); }
 .tiffbtn:hover { transform:translateY(-2px); }
 .tiffbtn:active { transform:translateY(0); }
-.tiffbtn-halo { position:absolute; inset:-7px; border-radius:50%; pointer-events:none;
+
+/* THE GLOW IS LOAD-BEARING. The topbar is transparent over the app's black
+   frame, so a dark glass button on it is very nearly invisible — the halo is
+   what separates the two, not decoration. Same breathing gradient the ask
+   bar's composer wears, so the two Tiff surfaces are recognisably one thing. */
+.tiffbtn-halo { position:absolute; inset:-6px; border-radius:50%; pointer-events:none;
   background:linear-gradient(120deg, var(--teal), var(--blue), var(--violet));
-  filter:blur(10px); opacity:.38; animation:fgBreath 4s ease-in-out infinite; }
-/* Black GLASS, not solid. A flat translucent fill lifts the ground to
-   mid-slate over the app's light surfaces and the chevron reads FADED — the
-   rim is where the translucency belongs, and `.tiffbtn-core` below keeps the
-   mark on a near-black bed. Deliberately NO prefixed backdrop-filter twin:
-   shipping the prefixed one is what kills the blur. */
+  filter:blur(9px); opacity:.5; animation:fgBreath 4s ease-in-out infinite; }
+.tiffbtn:hover .tiffbtn-halo { opacity:.72; }
+
+/* Matches the bell's glass rather than the dark disc the floating version
+   wore. That disc existed to hold the mark's contrast over LIGHT page
+   content; here the ground is black and it would only mute the glow. */
 .tiffbtn-face { position:absolute; inset:0; border-radius:50%; overflow:hidden;
   display:grid; place-items:center;
-  background:rgba(6,9,13,.55); backdrop-filter:blur(18px) saturate(160%);
-  border:1px solid rgba(255,255,255,.2);
-  box-shadow:0 12px 26px -8px rgba(5,10,20,.5), inset 0 1px 0 rgba(255,255,255,.2); }
-.tiffbtn-core { position:absolute; inset:0; border-radius:50%; pointer-events:none;
-  background:radial-gradient(circle at 42% 40%, rgba(3,6,10,.96) 0%, rgba(3,6,10,.9) 46%, rgba(3,6,10,0) 82%); }
-.tiffbtn-mk { position:relative; transform:translate(-3px,-3px); }
-/* Under the chevron's tail, not hard against the rim. */
-.tiffbtn-spark { position:absolute; right:13px; bottom:12px; display:grid; pointer-events:none; }
+  background:rgba(255,255,255,.06); backdrop-filter:blur(14px) saturate(150%);
+  border:1px solid rgba(255,255,255,.14);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.16); }
+.tiffbtn:hover .tiffbtn-face { background:rgba(255,255,255,.12); border-color:rgba(255,255,255,.22); }
+.tiffbtn-mk { position:relative; transform:translate(-2px,-2px); }
+/* Under the chevron's tail, clear of the rim. */
+.tiffbtn-spark { position:absolute; right:9px; bottom:9px; display:grid; pointer-events:none; }
 .tiffbtn:focus-visible { outline:none; }
-.tiffbtn:focus-visible .tiffbtn-face { box-shadow:0 0 0 3px rgba(0,229,192,.55), 0 12px 26px -8px rgba(5,10,20,.5); }
-/* DISPLAY MODE KEEPS IT, deliberately — the mode exists so you can WORK off a
-   big monitor, not watch one, and the capsule it replaced was kept for exactly
-   that reason when display mode was rebuilt (#250). It survives for free:
-   display mode fullscreens the DOCUMENT, so the whole frame comes with it. */
-@media (max-width:760px) { .tiffbtn { right:16px; bottom:16px; } }
+.tiffbtn:focus-visible .tiffbtn-face { box-shadow:0 0 0 3px rgba(0,229,192,.6); }
+@media (max-width:760px) { .fg .tbr { gap:14px; } }
 @media (prefers-reduced-motion:reduce) {
   .tiffbtn, .tiffbtn:hover { transition:none; transform:none; }
   .tiffbtn-halo { animation:none; }

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "./icon";
+import { TiffButton } from "@/components/notes/tiff-button";
 import type { ShellUser } from "./sidebar";
 import { useCommandPalette } from "./command-palette-context";
 import { actionRequiredCount } from "@/app/actions/action-required";
@@ -107,6 +108,10 @@ export function Topbar({ user }: { user: ShellUser }) {
       </button>
 
       <div className="tbr">
+        {/* Left of the bell, deliberately: the two controls on this side are
+            "say something" and "something needs you", and the one you reach
+            for on purpose sits before the one that interrupts you. */}
+        <TiffButton />
         <Bell />
         <span className="sep" />
         <div className="me-top" ref={meRef}>

@@ -95,6 +95,40 @@ describe("a named person is load-bearing", () => {
   });
 });
 
+describe("a note dictated in another language is still a note", () => {
+  /* Speech comes back in whatever was spoken, so every one of these scored
+     zero before and the offer never appeared — the invisible failure, in
+     five languages. */
+  it.each([
+    // Spanish — an obligation, a name and a deadline
+    ["Dile a Luke que pida las rejillas antes del lunes"],
+    // Vietnamese — obligation plus a day
+    ["Cần thay lọc gió tuần sau, bảo Dane mang theo"],
+    // Tagalog — the request prefix "paki" and a deadline
+    ["Kailangan palitan ang filter bukas, pakisabi kay Priya"],
+    // Arabic — "must", a fault and tomorrow
+    ["يجب استبدال الفلتر غدا لأن الوحدة لا تعمل"],
+    // Chinese, which has no spaces at all and used to be dropped on the
+    // word count before a single cue was read
+    ["空调不工作了，明天要检查风机，提醒Dane带工具"],
+  ])("offers %j", (text) => {
+    expect(sniff(text, STAFF).actionable).toBe(true);
+  });
+
+  it("a fault in Spanish reads as a fault", () => {
+    const s = sniff("La unidad del techo no funciona otra vez desde el martes", STAFF);
+    expect(s.actionable).toBe(true);
+    expect(s.reasons.some((r) => r.includes("fault"))).toBe(true);
+  });
+
+  it("and a short non-English note still costs nothing", () => {
+    /* The four-word floor is the whole reason a gate code is free, and it
+       has to hold in a script that never spaces its words. */
+    expect(sniff("门码 4417", STAFF).actionable).toBe(false);
+    expect(sniff("Código de puerta 4417", STAFF).actionable).toBe(false);
+  });
+});
+
 describe("the verdict is diagnosable", () => {
   it("says why, so a wrong call can be read rather than re-derived", () => {
     const s = sniff("Luke needs to order the grilles before Monday", STAFF);

@@ -24,7 +24,32 @@
 
    Plain testable code, never the model — the same rule `note-match.ts`
    follows. Understanding is probabilistic; the decision to spend money is
-   deterministic. */
+   deterministic.
+
+   IT ONLY EVER SPOKE ENGLISH, and on this trade that is a real gap: speech
+   comes back in whatever language it was spoken, so a note dictated in
+   Vietnamese scored zero and the offer never appeared — the invisible
+   failure this file is most afraid of, dressed as a language. Two changes
+   fixed it, and neither touches the scoring:
+
+     · THE VOCABULARY GREW (`sniff-cues.ts`, five languages). Safe to be
+       generous there for the reason stated above: a loose entry costs one
+       call, a missing one costs the feature.
+
+     · THE STRING HANDLING STOPPED ASSUMING SPACES AND ASCII. Word counting
+       by spaces reads a whole Chinese paragraph as ONE word, which dropped
+       every Chinese note at the first line before a cue was ever looked at;
+       and a left-edge test of `[a-z0-9]` treats "é" and "ộ" as gaps, so
+       half of Spanish and all of Vietnamese matched mid-word. Both now come
+       from `lib/lang/text.ts`, which is where the script rules are argued. */
+
+import { hasWord, looseWordCount, opensClause } from "@/lib/lang/text";
+import {
+  DEADLINE_CUES,
+  FAULT_CUES,
+  IMPERATIVE_CUES,
+  OBLIGATION_CUES,
+} from "./sniff-cues";
 
 /** Words that put a job on somebody. Deliberately spoken-English, because
     this reads transcripts: "needs to", "has to", "wants" — not "shall". */
@@ -52,6 +77,7 @@ const OBLIGATION = [
   "could you",
   "tell ",
   "ask ",
+  ...OBLIGATION_CUES,
 ];
 
 /** Things you do to a job rather than record about it. Bare imperatives are
@@ -80,6 +106,7 @@ const IMPERATIVE = [
   "swap",
   "install",
   "remove",
+  ...IMPERATIVE_CUES,
 ];
 
 /** When. A deadline is the strongest single signal that a sentence is about
@@ -106,6 +133,7 @@ const DEADLINE = [
   "end of week",
   "eod",
   "cob",
+  ...DEADLINE_CUES,
 ];
 
 /** Something is wrong, which is how a flag sounds. */
@@ -128,6 +156,7 @@ const FAULT = [
   "again",
   "still not",
   "keeps ",
+  ...FAULT_CUES,
 ];
 
 export type Sniff = {
@@ -141,17 +170,6 @@ export type Sniff = {
 };
 
 const NOTHING: Sniff = { actionable: false, reasons: [], score: 0 };
-
-/** Does `needle` start a word in `hay`? Stops "order" matching "recorder"
-    and "call" matching "recall" — both of which turn up in HVAC notes. */
-function hasWord(hay: string, needle: string): boolean {
-  const at = hay.indexOf(needle);
-  if (at < 0) return false;
-  /* Phrases carrying their own trailing space are already anchored on the
-     right; only the left edge needs checking. */
-  if (at === 0) return true;
-  return !/[a-z0-9]/.test(hay[at - 1]);
-}
 
 const anyOf = (hay: string, list: readonly string[]): string | null =>
   list.find((w) => hasWord(hay, w)) ?? null;
@@ -172,8 +190,11 @@ function namedPerson(hay: string, firstNames: readonly string[]): string | null 
 export function sniff(text: string, firstNames: readonly string[] = []): Sniff {
   const t = text.trim().toLowerCase();
   /* Below about four words there is nothing to route — "gate code 4417" is
-     the canonical case and it must never cost anything. */
-  if (t.split(/\s+/).filter(Boolean).length < 4) return NOTHING;
+     the canonical case and it must never cost anything. Counted in a way
+     that survives a script with no spaces in it: splitting on whitespace
+     reads "空调不工作了，明天要检查" as one word and drops it here, which is
+     every Chinese note refused before a single cue was read. */
+  if (looseWordCount(t) < 4) return NOTHING;
 
   const reasons: string[] = [];
   let score = 0;
@@ -211,10 +232,10 @@ export function sniff(text: string, firstNames: readonly string[] = []): Sniff {
   /* A bare imperative counts only where it OPENS a clause — start of the
      text, or straight after a full stop, comma, "and", or "then". Anywhere
      else "check" is far more likely to be describing what was done ("did a
-     check on the belts") than asking for it. */
-  const opener = IMPERATIVE.find((v) =>
-    new RegExp(String.raw`(?:^|[.;,]\s*|\band\s+|\bthen\s+)${v}\b`).test(t)
-  );
+     check on the belts") than asking for it. `opensClause` carries the same
+     rule into the other languages: their coordinators ("y", "và", "tapos")
+     and their punctuation (。，) open a clause exactly as ours do. */
+  const opener = IMPERATIVE.find((v) => opensClause(t, v));
   if (opener) {
     reasons.push(`opens with "${opener}"`);
     score += 0.3;

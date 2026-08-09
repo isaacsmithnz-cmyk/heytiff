@@ -26,6 +26,8 @@
    are tested without a network call. */
 
 import Anthropic from "@anthropic-ai/sdk";
+import { RECORD_IN_ENGLISH } from "@/lib/lang/policy";
+import { englishProposal } from "./note-english";
 
 /* Opus 5: the routing decision is the whole product. A cheaper model that
    mis-assigns "tell Luke" to the wrong Luke, or reads an urgent flag as a
@@ -275,7 +277,11 @@ export function historyBlock(ctx: NoteContext): string {
   return lines.length ? `\nWhat the workspace already knows:\n${lines.join("\n")}` : "";
 }
 
-function systemPrompt(ctx: NoteContext): string {
+/** What the router is told it is. Exported for the same reason
+    `systemPromptFor` is in the KB answerer: the two variants — site note and
+    debrief — are worth reading side by side in a test, and the language rule
+    they both carry is a fact about the workspace rather than about a call. */
+export function systemPrompt(ctx: NoteContext): string {
   const names = ctx.staff.map((s) => s.fullName).join(", ") || "nobody on record";
 
   /* DEBRIEF IS A DIFFERENT ASK. One long transcript, recorded before the day
@@ -292,6 +298,8 @@ function systemPrompt(ctx: NoteContext): string {
       "mind, in no order. Expect many unrelated items, fragments, trade",
       "slang and transcription slips. Split it faithfully; invent nothing.",
       "",
+      RECORD_IN_ENGLISH,
+      "",
       "Route each item into exactly one place:",
       "- tasks: someone must DO something later. 'Tell Luke to order the",
       "  grilles' is a task for Luke. Put the item's own details in `detail`",
@@ -304,7 +312,8 @@ function systemPrompt(ctx: NoteContext): string {
       "  note down, or add something to the knowledge base, that is always",
       "  a kb_entry.",
       "- note_lines: EVERYTHING ELSE, one line per item, in the speaker's",
-      "  own words. Reminders to themselves, things to watch, half-thoughts.",
+      "  own words — their phrasing, kept plain, translated where it was not",
+      "  English. Reminders to themselves, things to watch, half-thoughts.",
       "  If an item mentions a specific job or site, keep that name in the",
       "  line — the line is how they'll find it again.",
       "",
@@ -322,8 +331,9 @@ function systemPrompt(ctx: NoteContext): string {
       "everything else meanwhile.",
       "",
       `Today is ${ctx.todayISO}. Resolve relative days against it.`,
-      "Write `due_hint` in the note's own plain words AND, when those words",
-      "name a day you can work out, put it in `due_date` as YYYY-MM-DD;",
+      "Write `due_hint` in the note's own plain words, in English, AND when",
+      "those words name a day you can work out, put it in `due_date` as",
+      "YYYY-MM-DD;",
       "otherwise leave `due_date` empty rather than inventing a day.",
       "",
       "Leave plain_note empty — note_lines carries the leftovers here.",
@@ -334,6 +344,8 @@ function systemPrompt(ctx: NoteContext): string {
     "You route a tradesperson's site note into structured outcomes for an",
     "Australian HVAC business. The note was spoken aloud or typed quickly, so",
     "expect fragments, trade slang and transcription slips.",
+    "",
+    RECORD_IN_ENGLISH,
     "",
     "Route each part of the note into exactly one place:",
     "- tasks: someone must DO something later. 'Tell Luke to order the",
@@ -375,8 +387,8 @@ function systemPrompt(ctx: NoteContext): string {
     "you are confident about; do not blank the rest.",
     "",
     `Today is ${ctx.todayISO}. Resolve relative days against it.`,
-    "Write `due_hint` in the note's own plain words ('tomorrow', 'before the",
-    "next visit') AND, when those words name a day you can actually work out,",
+    "Write `due_hint` in the note's own plain words, in English ('tomorrow',",
+    "'before the next visit'), AND when those words name a day you can work out,",
     "put it in `due_date` as YYYY-MM-DD. 'Tomorrow', 'Monday' and '3 August'",
     "all resolve; 'before the next visit' and 'when the part lands' do not —",
     "leave `due_date` empty for those rather than inventing a day. The person",
@@ -636,7 +648,12 @@ export async function readNote(
     const block = response.content.find((b) => b.type === "text");
     if (!block || block.type !== "text") return { ok: false, error: FAILED };
 
-    return { ok: true, proposal: shapeProposal(JSON.parse(block.text), ctx) };
+    /* THE LAST READING BEFORE THE CARD. The prompt above tells the router to
+       write every record in English, and it does — but an instruction is not
+       an enforced check, and the failure it guards against is silent and
+       weeks late. `englishProposal` re-reads what came back, repairs what
+       isn't, and returns the proposal untouched on any failure of its own. */
+    return { ok: true, proposal: await englishProposal(shapeProposal(JSON.parse(block.text), ctx)) };
   } catch (err) {
     return { ok: false, error: reasonFor(err) };
   }

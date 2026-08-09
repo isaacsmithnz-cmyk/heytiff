@@ -1,0 +1,63 @@
+/* WHICH LANGUAGE, AND WHO IS IT FOR — the one rule, in one place.
+
+   Speech is transcribed in whatever language it was spoken and never
+   translated on the way in, so the app now receives Vietnamese, Mandarin,
+   Arabic, Spanish and Tagalog as readily as English. That splits every model
+   call in the app into two kinds, and they want OPPOSITE answers:
+
+     · TALKING TO ONE PERSON — an answer on their phone, read once, by them.
+       That should arrive in the language they asked in. A tech who asks in
+       Vietnamese and is answered in English has been handed a translation
+       job while standing in front of the equipment.
+
+     · WRITING INTO THE WORKSPACE — a task, a flag, a bullet on a job, an
+       entry in the library. That is read by the WHOLE CREW, weeks later,
+       usually by somebody who was not there and does not speak the language
+       it was spoken in. A task titled in Tagalog is invisible to the four
+       people who could have done it.
+
+   So: reply in kind, record in English. The same conversation can do both,
+   and the two rules below are what say so.
+
+   NOTHING IS LOST BY RECORDING IN ENGLISH. The note row keeps the raw
+   transcript word for word (`workboard-notes.ts` writes `transcript` before
+   the router is ever called), so the person's own words survive underneath
+   whatever the crew reads on the board.
+
+   WHERE THIS DOES NOT APPLY: search internals. `tiff/keywords.ts` tags a
+   document with the words someone would type to find it and `query-prep.ts`
+   expands a question into the terms a manual would contain — both must match
+   the DOCUMENT's language, not this one, or the index stops finding the page.
+
+   WHY A CONSTANT RATHER THAN A SETTING. One business, one language on the
+   board — and a settings row would not actually buy the guarantee it looks
+   like it buys, because what keeps another language out of the records is
+   this instruction, not a value in a table. Keeping it here means the
+   instruction is written once, tested once, and the day a second workspace
+   genuinely needs a different one, `RECORD_LANGUAGE` is where it plugs in. */
+
+/** The language every stored record is written in. */
+export const RECORD_LANGUAGE = "Australian English";
+
+/** For a model that is ANSWERING somebody. */
+export const REPLY_IN_KIND = [
+  "Reply in the language the question was asked in — Vietnamese question,",
+  "Vietnamese answer. Australian practice does not change with the language:",
+  "metric units, AS/NZS wiring rules, the refrigerants used here. Model",
+  "numbers, fault codes and product names are written exactly as the",
+  "manufacturer writes them, in every language.",
+].join("\n");
+
+/** For a model that is WRITING A RECORD other people will read. */
+export const RECORD_IN_ENGLISH = [
+  `Everything you write here is READ BY THE WHOLE CREW, so write it in ${RECORD_LANGUAGE}`,
+  "even when the note was spoken in another language — titles, details,",
+  "bullets, entries, summaries, the clarifying question. Translate what they",
+  "meant; never leave a record half in each language, and never transliterate",
+  "a phrase you could translate.",
+  "",
+  "Four things are NOT translated, because they are labels rather than",
+  "language: a person's name (write it exactly as the note said it — the app",
+  "matches it against the roster), a client or site name, model numbers and",
+  "fault codes, and a figure with its unit.",
+].join("\n");

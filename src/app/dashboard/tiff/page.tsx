@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
 import { TiffAssistant } from "@/components/tiff/assistant";
-import { kbCategoryCounts, kbRecentDocs } from "@/lib/tiff/query";
+import { kbCategoryCounts, kbDocTitles, kbRecentDocs } from "@/lib/tiff/query";
 import { isTranscriptionConfigured } from "@/lib/voice/transcribe";
 
 /* The assistant. `tiff` is on by default for every role but revocable — gate
@@ -27,12 +27,16 @@ export default async function TiffPage() {
   const orgId = session?.orgId as string | undefined;
   if (!orgId) redirect("/dashboard");
 
-  const [counts, canManage, recentDocs] = await Promise.all([
+  const [counts, canManage, recentDocs, docTitles] = await Promise.all([
     kbCategoryCounts(orgId),
     can("tiff_manage"),
     // the landing's "Recently added" strip: what the library HAS, shown rather
     // than promised, on the screen whose whole subject is asking it things
     kbRecentDocs(orgId),
+    /* Current names for the citation chips. Threads are stored on the device
+       with the title each source HAD when the answer was written, so a
+       document renamed since was still being cited by its old name. */
+    kbDocTitles(orgId),
   ]);
   const readyCount = Object.values(counts).reduce((sum, n) => sum + n, 0);
 
@@ -42,6 +46,7 @@ export default async function TiffPage() {
       readyCount={readyCount}
       canManage={canManage}
       recentDocs={recentDocs}
+      docTitles={docTitles}
       voiceEnabled={isTranscriptionConfigured()}
     />
   );

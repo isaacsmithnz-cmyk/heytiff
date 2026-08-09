@@ -293,6 +293,7 @@ export function TiffAssistant({
   readyCount = 0,
   canManage = false,
   recentDocs = [],
+  docTitles = {},
   voiceEnabled = false,
 }: {
   counts?: Record<KbCategoryKey, number>;
@@ -301,6 +302,9 @@ export function TiffAssistant({
   canManage?: boolean;
   /** The last few documents to land, newest first. Read on the server. */
   recentDocs?: KbRecentDoc[];
+  /** Every document's current name, by id — what the citation chips prefer
+      over the title stored alongside the answer. */
+  docTitles?: Record<string, string>;
   /** ELEVENLABS_API_KEY is set on this deployment. No key, no mic — the ask
       bar is a plain text field either way. */
   voiceEnabled?: boolean;
@@ -323,6 +327,22 @@ export function TiffAssistant({
      where it has just left the list. */
   const [renaming, setRenaming] = useState<Thread | null>(null);
   const [removing, setRemoving] = useState<Thread | null>(null);
+
+  /* THE FIRST QUESTION IS SEARCHED FROM THE BAR IT WAS ASKED IN.
+     Sending used to switch to the transcript in the same tick, so by the
+     first painted frame the hero bar had already become the reply bar at the
+     foot of the column — and every run, on every question, appeared to leave
+     the little bar. The landing's own composer never once had a pipe on it,
+     which is the one place the mechanism is worth watching.
+
+     So a NEW research thread is held: the row is written and the search runs,
+     but the landing stays until the answer actually starts. The runs sweep
+     out of the bar that was just typed in, and the page turns into a
+     conversation when there is a conversation to show. A ref beside it
+     because the release happens inside stream callbacks, which close over the
+     state as it was when the request went out. */
+  const [holdId, setHoldId] = useState<string | null>(null);
+  const holdRef = useRef<string | null>(null);
 
   /* The answer being written. Held apart from the thread rather than mutated
      into it, so a delta doesn't rewrite localStorage sixty times a second; it
@@ -374,7 +394,13 @@ export function TiffAssistant({
 
   const threads = threadState ?? (hydrated ? loadThreads() : []);
   const active = threads.find((t) => t.id === activeId) ?? null;
-  const recent = [...threads].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 8);
+  /* The held thread is written but not yet shown, so it must not appear in
+     "Pick up where you left off" either — a card inviting you to resume the
+     question you are watching being asked. */
+  const recent = [...threads]
+    .filter((t) => t.id !== holdId)
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+    .slice(0, 8);
 
   const streaming = live !== null;
   const canResearch = readyCount > 0;
@@ -502,6 +528,27 @@ export function TiffAssistant({
     setLive(next);
   };
 
+  /* Let the held thread through. Called the moment there is something to READ
+     — the first word, a miss, a failure, or an answer that finished without
+     one — because until then the landing is showing the better view of what
+     is happening. Idempotent: every stream ends through one of these doors
+     and several can fire in the same breath. */
+  const openHeld = () => {
+    const id = holdRef.current;
+    if (!id) return;
+    holdRef.current = null;
+    setHoldId(null);
+    setActiveId(id);
+    markOpened(id);
+  };
+
+  /* Give it up without opening it — leaving, starting over, or a question
+     that replaced this one before it ever landed. */
+  const dropHold = () => {
+    holdRef.current = null;
+    setHoldId(null);
+  };
+
   const patchLive = (patch: (prev: Live) => Live) => {
     const prev = liveRef.current;
     if (!prev) return;
@@ -579,10 +626,16 @@ export function TiffAssistant({
           case "miss":
             showViz({ t: "miss" });
             patchLive((prev) => ({ ...prev, missed: true }));
+            // the banner explaining the miss belongs in the thread, not here
+            openHeld();
             break;
           case "delta":
-            // the first word is when the search stops and the answer starts
-            if (!liveRef.current?.text) showViz({ t: "firstDelta" });
+            // the first word is when the search stops and the answer starts —
+            // and when a held landing gives way to the conversation
+            if (!liveRef.current?.text) {
+              showViz({ t: "firstDelta" });
+              openHeld();
+            }
             patchLive((prev) => ({ ...prev, text: prev.text + event.text }));
             break;
           case "trunc":
@@ -596,6 +649,9 @@ export function TiffAssistant({
             if (state) commitLive(state);
             setLiveBoth(null);
             showViz({ t: "done" });
+            // an answer that finished without a single word still has to land
+            // somewhere a person can see it
+            openHeld();
             break;
           }
           case "err": {
@@ -606,6 +662,8 @@ export function TiffAssistant({
             // top of bad news
             showViz({ t: "error" });
             setFailure({ message: event.message, question, research: researchMode, history });
+            // bad news is read in the thread, with Try again under it
+            openHeld();
             break;
           }
         }
@@ -637,9 +695,18 @@ export function TiffAssistant({
       threadId = newThreadId(at);
       const title = trimmed.length > 52 ? `${trimmed.slice(0, 52).trimEnd()}…` : trimmed;
       next = [{ id: threadId, title, updatedAt: at, messages: [msg] }, ...threads];
-      setActiveId(threadId);
-      // the landing→thread transition, whichever door it came through
-      markOpened(threadId);
+      /* A research question is HELD on the landing while it searches, so the
+         runs leave the bar it was typed in; a general one has nothing to draw
+         and opens straight away. Either way the row is already written — the
+         hold is a view, not a delay in recording anything. */
+      if (researchMode) {
+        holdRef.current = threadId;
+        setHoldId(threadId);
+      } else {
+        setActiveId(threadId);
+        // the landing→thread transition, whichever door it came through
+        markOpened(threadId);
+      }
     }
 
     persist(next);
@@ -689,6 +756,7 @@ export function TiffAssistant({
     setLiveBoth(null);
     setFailure(null);
     showViz({ t: "reset" });
+    dropHold();
     setActiveId(null);
   };
 
@@ -876,7 +944,7 @@ export function TiffAssistant({
                           </p>
                         )}
                         {m.sources && m.sources.length > 0 && (
-                          <SourceChips sources={m.sources} onPeek={setPeek} />
+                          <SourceChips sources={m.sources} titles={docTitles} onPeek={setPeek} />
                         )}
                       </div>
                     </div>
@@ -1273,8 +1341,14 @@ function DeleteThread({
             <button className="fl-btn ghost" onClick={onClose}>
               Keep it
             </button>
+            {/* THE BUTTON SAYS THE VERB, NOT THE TITLE AGAIN. Repeating the
+                thread's name here wrapped the confirm onto two lines and
+                squeezed "Keep it" into a squat block beside it — a question
+                already asked in the heading, asked twice, at the cost of the
+                one control that undoes it. The heading names the thread; this
+                says what pressing it does. */}
             <button className="fl-btn danger arm" onClick={onConfirm}>
-              Delete “{thread.title}”
+              Delete chat
             </button>
           </div>
         </div>
@@ -1572,7 +1646,18 @@ export type SourceDoc = {
   items: AskSourceItem[];
 };
 
-export function groupSources(sources: AskSourceItem[]): SourceDoc[] {
+/* `titles` is the library's CURRENT name for each document, read on the
+   server. A citation is a pointer, not a memento: the title travelled into
+   localStorage with the answer, so a document renamed afterwards left every
+   older answer citing a name the library had stopped using — a thread was
+   found live still saying "545846862 Daikin Vrv Diagnosis Manual" for a
+   document since retitled. The stored copy stays as the fallback, because a
+   document that has been DELETED still has to be named somehow, and the name
+   it was cited under is the only honest one left. */
+export function groupSources(
+  sources: AskSourceItem[],
+  titles: Record<string, string> = {}
+): SourceDoc[] {
   const docs: SourceDoc[] = [];
   const byId = new Map<string, SourceDoc>();
   for (const item of sources) {
@@ -1584,7 +1669,7 @@ export function groupSources(sources: AskSourceItem[]): SourceDoc[] {
     const doc: SourceDoc = {
       n: docs.length + 1,
       docId: item.docId,
-      title: item.title,
+      title: titles[item.docId] ?? item.title,
       category: item.category,
       items: [item],
     };
@@ -1609,12 +1694,14 @@ const pagesLabel = (doc: SourceDoc): string => {
 
 function SourceChips({
   sources,
+  titles,
   onPeek,
 }: {
   sources: AskSourceItem[];
+  titles: Record<string, string>;
   onPeek: (d: SourceDoc) => void;
 }) {
-  const docs = groupSources(sources);
+  const docs = groupSources(sources, titles);
   return (
     <div className="tk-srcfoot">
       <span className="tk-srclbl">

@@ -326,6 +326,38 @@ describe("sources", () => {
     expect(within(peek).getByText("p.106–107")).toBeInTheDocument();
   });
 
+  /* ── a citation is a pointer, not a memento ──
+     The title travels into localStorage with the answer, so renaming a
+     document left every older answer citing a name the library had stopped
+     using. Found live: a thread still reading "545846862 Daikin Vrv Diagnosis
+     Manual" for a document since retitled "Daikin VRV Diagnosis Manual". */
+  it("cites a renamed document by the name the library uses now", async () => {
+    researched([src({ title: "545846862 Daikin Vrv Diagnosis Manual" })]);
+    render(
+      <TiffAssistant
+        readyCount={2}
+        counts={{ install: 0, faults: 2, specs: 0, sops: 0, field: 0 }}
+        docTitles={{ "d-1": "Daikin VRV Diagnosis Manual" }}
+      />
+    );
+    await ask("why P8?");
+
+    expect(
+      await screen.findByRole("button", { name: /Source 1: Daikin VRV Diagnosis Manual/ })
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/545846862/)).not.toBeInTheDocument();
+  });
+
+  /* A DELETED document still has to be named, and the name it was cited under
+     is the only honest one left. */
+  it("keeps the stored name when the document is gone from the library", async () => {
+    await renderResearched([src({ title: "City Multi fault codes" })]);
+
+    expect(
+      await screen.findByRole("button", { name: /Source 1: City Multi fault codes/ })
+    ).toBeInTheDocument();
+  });
+
   it("closes the peek on Escape", async () => {
     const user = await renderResearched();
     await user.click(await screen.findByRole("button", { name: /Source 1/ }));
@@ -512,6 +544,70 @@ describe("the recently added strip", () => {
 
     await ask("why P8?");
     expect(screen.queryByText("Recently added")).not.toBeInTheDocument();
+  });
+});
+
+/* ── the first question is searched from the bar it was asked in ─────────
+   Sending used to switch to the transcript in the same tick, so the runs
+   always appeared to leave the small reply bar at the foot of the column and
+   the landing's own composer never once had a pipe on it. */
+
+describe("holding the landing while the first question searches", () => {
+  const held = async () => {
+    let push: (e: AskEvent) => void = () => {};
+    script = (emit) => {
+      push = emit;
+    };
+    render(<TiffAssistant readyCount={4} />);
+    await ask("why P8?");
+    return (e: AskEvent) => act(async () => push(e));
+  };
+
+  it("stays on the landing while the search is out", async () => {
+    await held();
+
+    expect(screen.getByRole("heading", { name: "What are we working on?" })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Ask Tiff anything…")).toBeInTheDocument();
+    // and the bar it was typed in is the one reporting the work
+    expect(screen.getByLabelText("Send")).toHaveAttribute("aria-busy", "true");
+  });
+
+  it("does not offer the question back as something to resume", async () => {
+    await held();
+    expect(screen.queryByText("Pick up where you left off")).not.toBeInTheDocument();
+  });
+
+  it("gives way the moment there is an answer to read", async () => {
+    const push = await held();
+    await push({ t: "delta", text: "P8 is a piping temperature fault." });
+
+    expect(screen.queryByRole("heading", { name: "What are we working on?" })).not.toBeInTheDocument();
+    expect(screen.getByText("P8 is a piping temperature fault.")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Ask a follow-up…")).toBeInTheDocument();
+  });
+
+  it("gives way for a miss, which is read in the thread", async () => {
+    const push = await held();
+    await push({ t: "miss" });
+
+    expect(await screen.findByText(/Nothing in your library covered this/)).toBeInTheDocument();
+  });
+
+  it("gives way for a failure, so Try again is reachable", async () => {
+    const push = await held();
+    await push({ t: "err", message: "Tiff couldn't answer that one." });
+
+    expect(await screen.findByRole("button", { name: /Try again/ })).toBeInTheDocument();
+  });
+
+  /* A general question has no search to show, so there is nothing to hold it
+     for — it opens the way it always did. */
+  it("opens straight away when there is nothing to search", async () => {
+    script = () => {};
+    render(<TiffAssistant readyCount={0} />);
+    await ask("why P8?");
+
+    expect(screen.queryByRole("heading", { name: "What are we working on?" })).not.toBeInTheDocument();
   });
 });
 
@@ -797,7 +893,9 @@ describe("managing a thread", () => {
     expect(within(dialog).getByText(/Delete “R32 pressures”\?/)).toBeInTheDocument();
     expect(within(dialog).getByText(/no copy elsewhere and no undo/)).toBeInTheDocument();
 
-    await user.click(within(dialog).getByRole("button", { name: /Delete “R32 pressures”/ }));
+    /* The heading carries the name; the button carries the verb. Saying the
+       title twice wrapped the confirm and squashed "Keep it" beside it. */
+    await user.click(within(dialog).getByRole("button", { name: "Delete chat" }));
 
     expect(titles()).toEqual(["U4 error"]);
     expect(screen.queryByText("R32 pressures")).not.toBeInTheDocument();
@@ -823,9 +921,7 @@ describe("managing a thread", () => {
     await waitFor(() => expect(stored()[0]?.messages).toHaveLength(2));
 
     await user.click(screen.getByRole("button", { name: /Delete “why P8\?”/ }));
-    await user.click(
-      within(screen.getByRole("dialog")).getByRole("button", { name: /^Delete “why P8\?”$/ })
-    );
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Delete chat" }));
 
     expect(titles()).toEqual([]);
     expect(screen.queryByText("P8 is a piping temperature fault.")).not.toBeInTheDocument();

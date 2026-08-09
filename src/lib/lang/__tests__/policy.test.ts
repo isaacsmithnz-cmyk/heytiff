@@ -81,7 +81,26 @@ describe("the rules themselves", () => {
   });
 
   it("tells the answerer to mirror, and the recorder to translate", () => {
-    expect(REPLY_IN_KIND).toMatch(/language the question was asked in/);
+    expect(REPLY_IN_KIND).toMatch(/unless the question itself is clearly/);
     expect(RECORD_IN_ENGLISH).toMatch(/READ BY THE WHOLE CREW/);
+  });
+
+  it("defaults the answer to English rather than to whatever it mentions", () => {
+    /* "u4 fault daikin vrv" — a fault code, a brand and a product line —
+       came back as a page of Vietnamese in prod, because the rule's
+       illustration was the only language it named and the query named
+       none. An example in a rule about language IS the rule. */
+    expect(REPLY_IN_KIND).toContain(RECORD_LANGUAGE);
+    for (const language of [
+      "Vietnamese",
+      "Mandarin",
+      "Chinese",
+      "Spanish",
+      "Arabic",
+      "Tagalog",
+      "Filipino",
+    ]) {
+      expect(REPLY_IN_KIND).not.toContain(language);
+    }
   });
 });

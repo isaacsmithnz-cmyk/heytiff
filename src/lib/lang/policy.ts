@@ -39,13 +39,29 @@
 /** The language every stored record is written in. */
 export const RECORD_LANGUAGE = "Australian English";
 
-/** For a model that is ANSWERING somebody. */
+/** For a model that is ANSWERING somebody.
+
+    NAMES NO LANGUAGE, and that is the whole lesson of this constant. The
+    first version said "Vietnamese question, Vietnamese answer" as an
+    illustration, and on 2026-08-09 a tech typed "u4 fault daikin vrv" into
+    the library and got a page of Vietnamese back. The query is a fault code,
+    a brand and a product line — it carries no language to mirror, so the
+    only language the prompt named became the default. An example in a rule
+    about language IS the rule. */
 export const REPLY_IN_KIND = [
-  "Reply in the language the question was asked in — Vietnamese question,",
-  "Vietnamese answer. Australian practice does not change with the language:",
-  "metric units, AS/NZS wiring rules, the refrigerants used here. Model",
-  "numbers, fault codes and product names are written exactly as the",
-  "manufacturer writes them, in every language.",
+  `Answer in ${RECORD_LANGUAGE}, unless the question itself is clearly`,
+  "written in another language — then answer in that one, and keep answering",
+  "in it while they keep asking in it.",
+  "",
+  "A question made of codes, model numbers and brand names carries no",
+  "language of its own: it is the commonest question this trade asks, it is",
+  "not a request for anything but English, and it is never evidence for a",
+  "language you have not actually been written to in.",
+  "",
+  "Australian practice does not change with the language: metric units,",
+  "AS/NZS wiring rules, the refrigerants used here. Model numbers, fault",
+  "codes and product names are written exactly as the manufacturer writes",
+  "them, whatever the answer around them is written in.",
 ].join("\n");
 
 /** For a model that is WRITING A RECORD other people will read. */

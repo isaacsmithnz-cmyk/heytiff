@@ -462,6 +462,59 @@ describe("when it goes wrong", () => {
 });
 
 /* Two answers writing into one bubble is the failure this prevents. */
+/* ── what the library has, on the screen that asks it ───────────────────── */
+
+describe("the recently added strip", () => {
+  const docs = [
+    { id: "d-1", title: "Daikin VRV Diagnosis Manual", category: "faults" as const, pageCount: 385 },
+    { id: "d-2", title: "PUZ-ZM250 install guide", category: "install" as const, pageCount: null },
+  ];
+
+  /* Scoped to the row, not the screen: the category's name is also the rail
+     card's title two inches to the right, and both saying it is correct. */
+  const row = (title: string) => screen.getByRole("button", { name: `Ask Tiff about ${title}` });
+
+  it("names the last few documents and what each one is", () => {
+    render(<TiffAssistant readyCount={2} recentDocs={docs} />);
+
+    expect(row("Daikin VRV Diagnosis Manual")).toHaveTextContent("Service documents · 385 pages");
+    // a document whose pages were never counted says what it is and stops
+    expect(row("PUZ-ZM250 install guide")).toHaveTextContent("Installation documents");
+    expect(row("PUZ-ZM250 install guide")).not.toHaveTextContent("pages");
+  });
+
+  /* A row is a QUESTION, not a file: it writes the same opener the library's
+     own "Ask Tiff" hands over, and sends nothing. */
+  it("opens a question about the document without asking it", async () => {
+    render(<TiffAssistant readyCount={2} recentDocs={docs} />);
+
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: /Ask Tiff about Daikin VRV Diagnosis Manual/ }));
+
+    expect(screen.getByLabelText("Ask Tiff")).toHaveValue("In “Daikin VRV Diagnosis Manual”, ");
+    expect(libraryMode()).toHaveAttribute("aria-pressed", "true");
+    // nothing was sent — the opener is scaffolding for a question, not one
+    expect(asks).toHaveLength(0);
+  });
+
+  it("says nothing at all when the library is empty", () => {
+    render(<TiffAssistant readyCount={0} recentDocs={[]} />);
+
+    expect(screen.queryByText("Recently added")).not.toBeInTheDocument();
+  });
+
+  /* The landing is where it belongs: inside a conversation the column is the
+     transcript, and a list of documents under it is furniture. */
+  it("is gone once a conversation is open", async () => {
+    render(<TiffAssistant readyCount={2} recentDocs={docs} />);
+    expect(screen.getByText("Recently added")).toBeInTheDocument();
+
+    await ask("why P8?");
+    expect(screen.queryByText("Recently added")).not.toBeInTheDocument();
+  });
+});
+
 /* ── the bar says it is working ─────────────────────────────────────────
    The eye is on the bar when the wait starts: you press send and look at what
    you pressed. The thinking dots are up in the transcript and the lanes are

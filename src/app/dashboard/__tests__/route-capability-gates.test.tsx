@@ -39,6 +39,7 @@ jest.mock("@/lib/tiff/query", () => ({
   kbDocsForOrg: jest.fn(async () => []),
   kbUploaderNames: jest.fn(async () => ({})),
   kbCategoryCounts: jest.fn(async () => ({ install: 3, faults: 2, specs: 0, sops: 0 })),
+  kbRecentDocs: jest.fn(async () => []),
 }));
 jest.mock("@/lib/tiff/quota", () => ({
   kbQuotaFor: jest.fn(async () => ({

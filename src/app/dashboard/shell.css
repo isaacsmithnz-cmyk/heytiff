@@ -5422,6 +5422,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .tk-chatcol.landing .tk-open { order:1; }
 .fg .tk-chatcol.landing .tk-composer { order:2; }
 .fg .tk-chatcol.landing .tk-recent { order:3; }
+/* last: resumption first, then what the library has. A returning reader wants
+   the conversation they were in; the documents are the invitation underneath
+   it, and on a first visit they are the only thing here. */
+.fg .tk-chatcol.landing .tk-newdocs { order:4; }
 
 /* The thread list was written to sit ABOVE the composer, where a bottom margin
    did the spacing. Reordering puts it under, so the gap has to move to the top
@@ -5460,6 +5464,38 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .tk-lbla svg { margin-top:1px; }
 
 .fg .tk-recent { flex:0 0 auto; margin-bottom:26px; }
+
+/* ── "Recently added": what the library has, on the screen that asks it ──
+   QUIETER THAN THE RAIL, ON PURPOSE. The five category cards are the way in
+   and carry colour and shadow; this is a list of names. So: no card, no
+   shadow, a hairline between rows and the category's colour reduced to a 2px
+   edge that appears on hover. It fills the landing's empty lower half by
+   saying something true, not by adding a second set of tiles competing with
+   the ones two inches to the right.
+
+   A ROW IS A BUTTON — it writes a question opener into the composer — so it
+   is reached as `.fg .tk-nd` per the `.fg button` (0,1,1) reset. */
+.fg .tk-newdocs { flex:0 0 auto; margin-bottom:26px; }
+.fg .tk-ndrow { display:flex; flex-direction:column; border-top:1px solid #e9eaee; }
+.fg .tk-nd { position:relative; display:flex; align-items:baseline; gap:12px; width:100%;
+  padding:12px 14px 12px 12px; border:0; border-bottom:1px solid #e9eaee; border-radius:0;
+  background:none; text-align:left; font-family:var(--font-jakarta), sans-serif; cursor:pointer;
+  transition:background .18s, padding-left .18s; }
+/* the category's colour, as an edge that arrives on hover rather than a dot
+   that sits there — five coloured dots in a column read as a legend */
+.fg .tk-nd::before { content:""; position:absolute; left:0; top:6px; bottom:6px; width:2px;
+  border-radius:2px; background:var(--tkc, #9ca3af); opacity:0; transition:opacity .18s; }
+.fg .tk-nd:hover { background:#fff; padding-left:16px; }
+.fg .tk-nd:hover::before { opacity:1; }
+.fg .tk-nd:focus-visible { outline:none; background:#fff; box-shadow:0 0 0 3px rgba(46,104,255,.3); }
+.fg .tk-nd:focus-visible::before { opacity:1; }
+.fg .tk-ndt { flex:1 1 auto; min-width:0; font-size:13.5px; font-weight:700; color:var(--ink);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fg .tk-nd em { flex:none; font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); }
+@media (max-width:560px) {
+  /* the category and page count drop before the name does */
+  .fg .tk-nd em { display:none; }
+}
 .fg .tk-threads { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
 /* one thread fills the row — a half-width card beside a card-shaped hole
    reads as something failing to load, not as a list of one */

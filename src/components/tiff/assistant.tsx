@@ -8,7 +8,8 @@ import { Chevron } from "@/components/logo";
 import { useHydrated } from "@/lib/use-hydrated";
 import { kbDocUrl } from "@/app/actions/kb";
 import { askTiff, type AskSourceItem, type AskTurn } from "@/lib/tiff/ask-client";
-import { consumeAskHandoff } from "@/lib/tiff/ask-handoff";
+import { askPrefill, consumeAskHandoff } from "@/lib/tiff/ask-handoff";
+import type { KbRecentDoc } from "@/lib/tiff/query";
 import {
   cardNote,
   cardState,
@@ -291,12 +292,15 @@ export function TiffAssistant({
   counts = { install: 0, faults: 0, specs: 0, sops: 0, field: 0 },
   readyCount = 0,
   canManage = false,
+  recentDocs = [],
   voiceEnabled = false,
 }: {
   counts?: Record<KbCategoryKey, number>;
   /** Ready documents across every shelf — nothing can be researched at zero. */
   readyCount?: number;
   canManage?: boolean;
+  /** The last few documents to land, newest first. Read on the server. */
+  recentDocs?: KbRecentDoc[];
   /** ELEVENLABS_API_KEY is set on this deployment. No key, no mic — the ask
       bar is a plain text field either way. */
   voiceEnabled?: boolean;
@@ -656,6 +660,21 @@ export function TiffAssistant({
     send(question, true);
   };
 
+  /* A document from the "Recently added" strip. The SAME opener the library's
+     "Ask Tiff" writes into session storage — but nothing is stored here,
+     because the composer is already on screen: the sentence goes straight in
+     the box with the caret after it. Research goes on for the same reason it
+     does on the handoff — the question is about a document in the library —
+     and nothing is sent. A prefill that asked itself would be putting words in
+     somebody's mouth. */
+  const askAboutDoc = (title: string) => {
+    const opener = askPrefill(title);
+    if (!opener) return;
+    setInput(opener);
+    if (readyCount > 0) setResearch(true);
+    inputRef.current?.focus();
+  };
+
   /* ── leaving a conversation, every way there is ─────────────────────────
      One bundle, because every exit owes the same debts: stop the stream, drop
      the live answer, drop the failure, give the rail back to the screen
@@ -919,9 +938,11 @@ export function TiffAssistant({
               returning={recent.length > 0}
               recent={recent}
               readyCount={readyCount}
+              recentDocs={recentDocs}
               onOpen={openThread}
               onRename={setRenaming}
               onDelete={setRemoving}
+              onAskAbout={askAboutDoc}
             />
           )}
 
@@ -1265,20 +1286,82 @@ function DeleteThread({
 
 /* ── landing: first run sells, a returning user resumes ──────────────────── */
 
+/* ── what's in the library, shown rather than promised ────────────────────
+   The landing's paragraph says Tiff can answer from your documents; below the
+   composer the page then said nothing at all, and at 1440 the bottom half was
+   bare well. This is the promise made concrete: the last few things to land,
+   named, on the screen whose whole subject is asking them things.
+
+   A ROW IS A QUESTION, NOT A FILE. Clicking opens the same sentence the
+   library's own "Ask Tiff" hands over — `In “title”, ` with the caret after
+   it — because this is the ask screen and the reader is already in the box.
+   Nothing is sent; the opener is scaffolding. Opening the PDF is the
+   library's job and the eyebrow's "Open all" goes there.
+
+   NO TIMESTAMP. This renders on the server, and a relative time in a render
+   body tears hydration for the whole tree. The heading carries the recency;
+   each line says what the document is, which is what decides whether it's
+   worth asking about. */
+function RecentDocs({
+  docs,
+  onAsk,
+}: {
+  docs: KbRecentDoc[];
+  onAsk: (title: string) => void;
+}) {
+  return (
+    <div className="tk-newdocs">
+      <div className="tk-lbl">
+        <span>Recently added</span>
+        <Link className="tk-lbla" href="/dashboard/tiff/library">
+          Open all
+          <Icon name="chevR" size={13} />
+        </Link>
+      </div>
+      <div className="tk-ndrow">
+        {docs.map((d) => {
+          const cat = KB_CATEGORIES.find((c) => c.key === d.category);
+          return (
+            <button
+              key={d.id}
+              type="button"
+              className="tk-nd"
+              style={{ "--tkc": cat?.color ?? "#9ca3af" } as React.CSSProperties}
+              aria-label={`Ask Tiff about ${d.title}`}
+              title={d.title}
+              onClick={() => onAsk(d.title)}
+            >
+              <span className="tk-ndt">{d.title}</span>
+              <em>
+                {cat?.label ?? "Document"}
+                {d.pageCount ? ` · ${d.pageCount.toLocaleString("en-AU")} pages` : ""}
+              </em>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function Landing({
   returning,
   recent,
   readyCount,
+  recentDocs,
   onOpen,
   onRename,
   onDelete,
+  onAskAbout,
 }: {
   returning: boolean;
   recent: Thread[];
   readyCount: number;
+  recentDocs: KbRecentDoc[];
   onOpen: (id: string) => void;
   onRename: (t: Thread) => void;
   onDelete: (t: Thread) => void;
+  onAskAbout: (title: string) => void;
 }) {
   return (
     <>
@@ -1353,6 +1436,7 @@ function Landing({
         </div>
       )}
 
+      {recentDocs.length > 0 && <RecentDocs docs={recentDocs} onAsk={onAskAbout} />}
     </>
   );
 }

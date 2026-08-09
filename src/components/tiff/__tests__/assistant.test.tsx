@@ -515,6 +515,70 @@ describe("the recently added strip", () => {
   });
 });
 
+/* ── the first question is searched from the bar it was asked in ─────────
+   Sending used to switch to the transcript in the same tick, so the runs
+   always appeared to leave the small reply bar at the foot of the column and
+   the landing's own composer never once had a pipe on it. */
+
+describe("holding the landing while the first question searches", () => {
+  const held = async () => {
+    let push: (e: AskEvent) => void = () => {};
+    script = (emit) => {
+      push = emit;
+    };
+    render(<TiffAssistant readyCount={4} />);
+    await ask("why P8?");
+    return (e: AskEvent) => act(async () => push(e));
+  };
+
+  it("stays on the landing while the search is out", async () => {
+    await held();
+
+    expect(screen.getByRole("heading", { name: "What are we working on?" })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Ask Tiff anything…")).toBeInTheDocument();
+    // and the bar it was typed in is the one reporting the work
+    expect(screen.getByLabelText("Send")).toHaveAttribute("aria-busy", "true");
+  });
+
+  it("does not offer the question back as something to resume", async () => {
+    await held();
+    expect(screen.queryByText("Pick up where you left off")).not.toBeInTheDocument();
+  });
+
+  it("gives way the moment there is an answer to read", async () => {
+    const push = await held();
+    await push({ t: "delta", text: "P8 is a piping temperature fault." });
+
+    expect(screen.queryByRole("heading", { name: "What are we working on?" })).not.toBeInTheDocument();
+    expect(screen.getByText("P8 is a piping temperature fault.")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Ask a follow-up…")).toBeInTheDocument();
+  });
+
+  it("gives way for a miss, which is read in the thread", async () => {
+    const push = await held();
+    await push({ t: "miss" });
+
+    expect(await screen.findByText(/Nothing in your library covered this/)).toBeInTheDocument();
+  });
+
+  it("gives way for a failure, so Try again is reachable", async () => {
+    const push = await held();
+    await push({ t: "err", message: "Tiff couldn't answer that one." });
+
+    expect(await screen.findByRole("button", { name: /Try again/ })).toBeInTheDocument();
+  });
+
+  /* A general question has no search to show, so there is nothing to hold it
+     for — it opens the way it always did. */
+  it("opens straight away when there is nothing to search", async () => {
+    script = () => {};
+    render(<TiffAssistant readyCount={0} />);
+    await ask("why P8?");
+
+    expect(screen.queryByRole("heading", { name: "What are we working on?" })).not.toBeInTheDocument();
+  });
+});
+
 /* ── the bar says it is working ─────────────────────────────────────────
    The eye is on the bar when the wait starts: you press send and look at what
    you pressed. The thinking dots are up in the transcript and the lanes are
@@ -797,7 +861,9 @@ describe("managing a thread", () => {
     expect(within(dialog).getByText(/Delete “R32 pressures”\?/)).toBeInTheDocument();
     expect(within(dialog).getByText(/no copy elsewhere and no undo/)).toBeInTheDocument();
 
-    await user.click(within(dialog).getByRole("button", { name: /Delete “R32 pressures”/ }));
+    /* The heading carries the name; the button carries the verb. Saying the
+       title twice wrapped the confirm and squashed "Keep it" beside it. */
+    await user.click(within(dialog).getByRole("button", { name: "Delete chat" }));
 
     expect(titles()).toEqual(["U4 error"]);
     expect(screen.queryByText("R32 pressures")).not.toBeInTheDocument();
@@ -823,9 +889,7 @@ describe("managing a thread", () => {
     await waitFor(() => expect(stored()[0]?.messages).toHaveLength(2));
 
     await user.click(screen.getByRole("button", { name: /Delete “why P8\?”/ }));
-    await user.click(
-      within(screen.getByRole("dialog")).getByRole("button", { name: /^Delete “why P8\?”$/ })
-    );
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Delete chat" }));
 
     expect(titles()).toEqual([]);
     expect(screen.queryByText("P8 is a piping temperature fault.")).not.toBeInTheDocument();

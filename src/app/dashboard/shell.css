@@ -1519,11 +1519,28 @@
 .fg .tmsg .tmb { padding:14px 18px; border-radius:20px; font-size:14.5px; font-weight:500; line-height:1.55; }
 .fg .tmsg.user .tmb { background:var(--ink); color:#fff; border-bottom-right-radius:8px; box-shadow:0 8px 18px -8px rgba(0,0,0,.35); }
 .fg .tmsg.bot .tmb { background:#fff; border:1px solid #f0f0f2; color:#1f2937; border-bottom-left-radius:8px; box-shadow:0 4px 14px rgba(0,0,0,.04); }
-.fg .tmb.ttyping { display:inline-flex; gap:5px; }
-.fg .ttyping i { width:7px; height:7px; border-radius:50%; background:#cbd5e1; animation:fgTyping 1.2s ease-in-out infinite; }
+/* THE DOTS WERE NEVER VISIBLE. This read `.fg .tmb.ttyping` — the class ON
+   the sheet — from when the indicator WAS the sheet. It has been a <span>
+   INSIDE the sheet since the two were merged into one container, so the
+   flex rule matched nothing, the span stayed `display:inline`, and three
+   inline <i> elements ignored their own width and height. What shipped was a
+   tall empty white box, which is exactly what it looked like.
+
+   Sized for the sheet it now sits in rather than for a bubble: 9px dots on a
+   fixed 22px line, so the box while thinking is the same height as the first
+   line of the answer that replaces it, and the sheet doesn't jump when the
+   words arrive. */
+.fg .tmb .ttyping { display:inline-flex; align-items:center; gap:6px; height:22px; }
+.fg .ttyping i { display:block; width:9px; height:9px; border-radius:50%; background:#c3cad6;
+  animation:fgTyping 1.2s ease-in-out infinite; }
 .fg .ttyping i:nth-child(2) { animation-delay:.15s; }
 .fg .ttyping i:nth-child(3) { animation-delay:.3s; }
-@keyframes fgTyping { 0%,60%,100%{transform:none;opacity:.5} 30%{transform:translateY(-4px);opacity:1} }
+@keyframes fgTyping { 0%,60%,100%{transform:none;opacity:.45} 30%{transform:translateY(-5px);opacity:1} }
+@media (prefers-reduced-motion:reduce) {
+  /* the global `.fg * { animation-duration:.001s }` would strobe an infinite
+     loop — the dots stay, still, at their resting weight */
+  .fg .ttyping i { animation:none; opacity:.6; }
+}
 
 /* Knowledge Base page */
 .fg .kbcrumb { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:var(--gray400); text-decoration:none; margin-bottom:12px; transition:color .2s; }
@@ -2204,7 +2221,13 @@ select.fl-i { cursor:pointer; }
 .fl-payb.on em { color:#0d9b86; }
 .fl-i.slim { height:36px; font-size:12.5px; margin-top:4px; padding:0 10px; border-radius:10px; }
 .fl-foot { display:flex; justify-content:flex-end; gap:10px; margin-top:22px; }
-.fl-btn { display:inline-flex; align-items:center; gap:7px; height:42px; padding:0 18px; border-radius:12px; font-size:13.5px; font-weight:700; transition:all .2s; }
+/* `white-space:nowrap` makes the fixed height honest. A 42px box whose label
+   is allowed to wrap doesn't grow — it deforms, and the buttons beside it get
+   squeezed to make room for the wrap (watched happen on the delete-thread
+   confirm, whose label used to repeat the whole thread title). An action
+   button's words are a verb; if one ever needs two lines, the words are
+   wrong. */
+.fl-btn { display:inline-flex; align-items:center; gap:7px; height:42px; padding:0 18px; border-radius:12px; font-size:13.5px; font-weight:700; white-space:nowrap; transition:all .2s; }
 /* ADDITIVE, not a rename: one `.fl-btn` in the noticeboard is a <label> (a file
    picker), which the reset never touched and which `button.` would strip. So
    this restores only the two declarations the reset ate, and leaves the label

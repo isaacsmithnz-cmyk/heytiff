@@ -1,28 +1,5 @@
 "use client";
 
-/* eslint-disable react-hooks/preserve-manual-memoization -- SCOPED TO THIS
-   FILE, AND ONLY UNTIL REACT COMPILER IS ACTUALLY TURNED ON.
-
-   eslint-plugin-react-hooks 7 runs the React Compiler as a lint engine, so it
-   reports where the compiler WOULD bail out — here, three callbacks whose
-   memoization it cannot prove it preserves (`endFaceLocal`, `hitSystemObject`,
-   `eraseAt`, all of which close over `footprint`). This project does not
-   compile with React Compiler: there is no `reactCompiler` in next.config.ts
-   and `babel-plugin-react-compiler` is not installed. The diagnostic describes
-   an optimisation that never runs, so nothing here is slower or wrong for it.
-
-   It is disabled rather than fixed because the bailout MOVES rather than
-   clears. Dropping the manual memo from `endFaceLocal` — the obvious fix —
-   simply reports the same error one hook up at `endFace`, which now depends
-   on an unmemoised function; the property is structural to a 3,500-line
-   canvas, not local to one hook. Restructuring it to satisfy a compiler that
-   isn't in the build would be churn against real regression risk, in the one
-   component with a dozen parity tests behind it.
-
-   The rule stays ON everywhere else, so a new bailout in any other component
-   is still an error. When React Compiler is switched on, delete this line
-   first — the diagnostics become real at that moment. */
-
 import {
   useCallback,
   useEffect,
@@ -965,6 +942,35 @@ export function StudioCanvas({
     [iduSpec]
   );
 
+  /* ── THE SEVEN PLAIN FUNCTIONS BELOW ARE DELIBERATELY NOT MEMOISED ──
+     `endFaceLocal`, `endFace`, `plenumCandidates`, `nearestPlenumEnd`,
+     `plenumShapes`, `hitSystemObject`, `eraseAt`. Every one of them used to be
+     a `useCallback`/`useMemo`, and putting one back re-breaks the build's
+     optimisation for this whole component — so if you are here to "tidy" one,
+     read this first.
+
+     React Compiler memoises everything itself (next.config.ts,
+     `reactCompiler: true`). When it meets manual memoization it must prove it
+     can PRESERVE it, and if it cannot it gives up on the entire component —
+     not just that hook. This cluster was where it gave up: seven errors, all
+     naming `footprint` as a dependency it could not prove stable.
+
+     The cluster is a chain, which is why the fix is seven hooks and not one.
+     `footprint` feeds `endFaceLocal` → `endFace` → `plenumCandidates` →
+     `nearestPlenumEnd`, and separately `plenumShapes`, `hitSystemObject` and
+     `eraseAt`. Un-memoising a link moves the complaint to whatever consumed
+     it; the count only reaches zero when the whole chain is the compiler's.
+     Measured at each step, not guessed: 7 → 2 → 1 → 2 → 0.
+
+     Nothing here recomputes more than it used to. The compiler emits the
+     memoization these hooks were asking for, and derives the dependencies
+     itself — which is also the end of a class of bug this file was exposed
+     to, where a hand-written array quietly went stale against its body.
+
+     `footprint` itself KEEPS its `useCallback` — it was named as the unstable
+     dependency, but it is the one the compiler had no trouble with once its
+     consumers stopped hand-memoising. */
+
   /** an AHU air face in the unit's OWN (unrotated) frame. Air flows through
       the DEPTH (spec §1a) — the openings are the two LONG faces (±y). Supply
       defaults to the +y face; `props.airFlip` swaps, and the first placed
@@ -972,7 +978,7 @@ export function StudioCanvas({
 
       Everything drawn INSIDE the unit's rotate group works in these coords —
       the group transform turns it. Anything outside wants `endFace`. */
-  const endFaceLocal = useCallback(
+  const endFaceLocal =
     (u: DesignObject & { geometry: { at: Point } }, end: "supply" | "return") => {
       const at = pointAt(u);
       const fp = footprint(Number(u.props.widthMm ?? 800), Number(u.props.depthMm ?? 300));
@@ -986,15 +992,13 @@ export function StudioCanvas({
         dir,
         faceHalf: fp.w / 2,
       };
-    },
-    [pointAt, footprint]
-  );
+    };
 
   /** the same face in WORLD space, turned by the unit's rotation, plus the
       basis that goes with it: `out` points out of the face and `ax` runs
       along it (a → b). Plenums, drop zones and hit-tests all live out here,
       so they get the turned face rather than the unit's local one. */
-  const endFace = useCallback(
+  const endFace =
     (u: DesignObject & { geometry: { at: Point } }, end: "supply" | "return") => {
       const f = endFaceLocal(u, end);
       const deg =
@@ -1021,9 +1025,7 @@ export function StudioCanvas({
         out: { x: -f.dir * s, y: f.dir * c },
         ax: { x: c, y: s },
       };
-    },
-    [endFaceLocal, pointAt, liveRotate]
-  );
+    };
 
   /** every plenum mounting face of the placed air-capable AHUs, with its
       occupancy (existing plenum, a pack built-in return, or factory spigots) */
@@ -1070,7 +1072,7 @@ export function StudioCanvas({
       current face — plus, while nothing has determined the orientation, the
       OPPOSITE face too (clicking it flips the unit so that face becomes the
       stream: the first placement decides, spec §1a) */
-  const plenumCandidates = useMemo(() => {
+  const plenumCandidates = (() => {
     if (component?.kind !== "plenum") return [];
     const out: {
       e: (typeof ahuEnds)[number];
@@ -1084,9 +1086,9 @@ export function StudioCanvas({
       if (!e.determined) out.push({ e, face: endFace(e.unit, other), needsFlip: true });
     }
     return out;
-  }, [component, ahuEnds, endFace]);
+  })();
 
-  const nearestPlenumEnd = useCallback(
+  const nearestPlenumEnd =
     (w: Point) => {
       let best: (typeof plenumCandidates)[number] | null = null;
       let bestD = PLENUM_SNAP_PX / vp.zoom;
@@ -1098,9 +1100,7 @@ export function StudioCanvas({
         }
       }
       return best;
-    },
-    [plenumCandidates, vp.zoom]
-  );
+    };
 
   const addPlenum = useCallback(
     (cand: (typeof plenumCandidates)[number]) => {
@@ -1135,7 +1135,7 @@ export function StudioCanvas({
   );
 
   /** resolved render geometry per plenum id (also the hit-test shape) */
-  const plenumShapes = useMemo(() => {
+  const plenumShapes = (() => {
     const m = new Map<
       string,
       PlenumShape & {
@@ -1193,7 +1193,7 @@ export function StudioCanvas({
       });
     }
     return m;
-  }, [plenums, units, footprint, iduSpec, endFace]);
+  })();
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -1516,7 +1516,7 @@ export function StudioCanvas({
 
   /** system objects hit first (they sit on top of rooms): plenum bodies,
       unit footprints, riser discs, then run segments */
-  const hitSystemObject = useCallback(
+  const hitSystemObject =
     (w: Point): { id: string; kind: "unit" | "riser" | "pipe-run" | "plenum" } | null => {
       for (let i = plenums.length - 1; i >= 0; i--) {
         const s = plenumShapes.get(plenums[i].id);
@@ -1554,15 +1554,13 @@ export function StudioCanvas({
         }
       }
       return null;
-    },
-    [plenums, plenumShapes, units, risers, runs, pointAt, footprint, vp.zoom, liveRotate]
-  );
+    };
 
   /* Eraser: objects only (a room deletes by selecting it and pressing Delete,
      which carries its units — canvas rule #6).
      A pipe loses just its nearest segment (one vertex) unless it's down to a
      single segment; units/risers delete whole. Forgiving hit tolerance. */
-  const eraseAt = useCallback(
+  const eraseAt =
     (w: Point) => {
       const tol = ERASE_HIT_PX / vp.zoom;
       // units first (on top), then risers
@@ -1624,9 +1622,7 @@ export function StudioCanvas({
           }),
         }));
       }
-    },
-    [units, risers, runs, pointAt, footprint, vp.zoom, onMutate, selectedId, onSelect]
-  );
+    };
 
   /* ── Stage-4 document intents ── */
   const addUnit = useCallback(

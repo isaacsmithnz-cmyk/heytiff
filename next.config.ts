@@ -26,6 +26,22 @@ const projectRoot = fs.existsSync(modules) ? path.dirname(fs.realpathSync(module
 
 const nextConfig: NextConfig = {
   turbopack: { root: projectRoot },
+  /* React Compiler, on for the whole app.
+
+     Stable in Next 16 (promoted out of `experimental`, hence the top-level
+     key — the nested `experimental.reactCompiler` shape is the Next 15 one
+     and is silently ignored here). Next runs it through Babel but gates it
+     behind an SWC pass, so only files that actually contain JSX or hooks pay
+     for it.
+
+     The precondition was the lint sweep, not this line. The compiler is only
+     safe on code that follows the Rules of React, and the rules that check
+     that — purity, refs, set-state-in-render — are exactly what `eslint .`
+     had ten errors of. Turning this on before fixing them would have been
+     asking the compiler to memoise a component that reads `Date.now()` in
+     its render body. Now `eslint .` is silent, which is the same engine
+     reporting the same thing. */
+  reactCompiler: true,
   /* pdfjs stays OUT of the server bundle.
 
      The knowledge base extracts PDF text in Node by importing

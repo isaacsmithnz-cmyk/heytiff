@@ -20,14 +20,20 @@ import { useNoteScope } from "./note-context";
    by a single button here: it opens a sheet with a textarea in it, so typing
    is one tap away and visible the moment you arrive.
 
-   TAPPING IT OPENS THE SHEET READY FOR EITHER — the caret already in the
-   box, Talk one tap away. It used to start the mic on its own (there was "no
-   mode to choose first"), and that made typing second-class in practice: you
-   arrived recording, and reaching the box meant stopping a recording you
-   never asked for. Isaac reversed it with the premium sheet (2026-08-08):
-   type OR talk is the person's call, made on the sheet, not by the button.
-   The mic stays an enhancement — no ELEVENLABS_API_KEY simply means the
-   sheet opens without a Talk button.
+   TAPPING IT OPENS THE SHEET THE WAY YOU LEFT IT, and the road here is the
+   argument for that. It began by always starting the mic ("no mode to choose
+   first"), which made typing second-class: you arrived recording and had to
+   stop a recording you never asked for. So it stopped presuming and opened
+   with the caret in the box, Talk beside it (2026-08-08). Isaac, using it
+   daily: talking IS the common case, and pressing Talk every time is a tax
+   on it.
+
+   Neither default suits everyone, so nobody decides for you — the sheet
+   opens on your last choice, shipped as `talk`. Press Type on the sheet and
+   it opens in the box from then on. See ./capture-default for why that is
+   safe to store, and why the control being permanently on the sheet is the
+   condition that makes it so. The mic stays an enhancement — no
+   ELEVENLABS_API_KEY and the box is simply the only door.
 
    ── TWO PLACES, AND THE GROUND DECIDES THE SKIN ──
 
@@ -110,6 +116,11 @@ export function TiffButton({ where = "topbar" }: { where?: Where }) {
           });
           setLit(true);
           flow.setOpen(true);
+          /* IT OPENS THE WAY YOU LEFT IT. Ships listening, because talking
+             is the case this button was built for; press Type on the sheet
+             once and it opens in the box from then on. Voice off means
+             there is nothing to honour — the box is the only door. */
+          if (scope.voiceEnabled && flow.mode === "talk") flow.dict.start();
         }}
       >
         {where === "topbar" && <span className="tiffbtn-halo" aria-hidden="true" />}

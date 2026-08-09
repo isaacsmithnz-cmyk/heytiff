@@ -17,6 +17,7 @@ import {
   keepNoteOnJob,
   routeNote,
 } from "@/app/actions/workboard-notes";
+import { useCaptureMode } from "./capture-default";
 import { useNoteScope } from "./note-context";
 import { blockers, toConfirmed, toDraft, targetOf, type Draft } from "./review-card";
 
@@ -36,6 +37,10 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
   const router = useRouter();
   const scope = useNoteScope();
   const [busy, start] = useTransition();
+  /* How the sheet opens — your last choice, remembered. Lives on the flow so
+     the button that honours it and the buttons that change it read one
+     value; see ./capture-default for why it is stored at all. */
+  const { mode, choose: chooseMode } = useCaptureMode();
 
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
@@ -195,7 +200,7 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
      routed, mic ready. Press it again and carry on; the words accumulate
      until you stop because you actually meant to. */
   const dict = useDictation({
-    onTranscript: (transcript, { capped }) => {
+    onTranscript: (transcript, { capped, handedOver }) => {
       /* THE WHOLE THING, NOT THE LAST LEG. A note spoken across three
          recordings is one note, and the first version of this routed only
          the final transcript — throwing away the two minutes it had just
@@ -205,9 +210,13 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
          `text` is current: the callbacks are re-stashed every render, so
          each leg sees what the one before it appended. */
       const whole = appendSpoken(text, transcript);
-      if (capped) {
+      /* Both endings keep the words and route nothing. They differ only in
+         what gets said about it: the ceiling has to explain itself, and a
+         handover has nothing to explain — you pressed Type, and the words
+         are in the box, which is precisely what you asked for. */
+      if (capped || handedOver) {
         setText(whole);
-        setRanOut(true);
+        setRanOut(capped);
         return;
       }
       setRanOut(false);
@@ -350,6 +359,8 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
   return {
     scope,
     dict,
+    mode,
+    chooseMode,
     stage,
     busy,
     debrief,

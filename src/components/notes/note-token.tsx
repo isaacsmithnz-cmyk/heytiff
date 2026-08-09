@@ -156,8 +156,20 @@ function Body({ flow }: { flow: NoteFlow }) {
           </p>
         )}
         <div className="wb2-capact">
-          <button className="pbtn ghost" onClick={flow.close}>
-            Discard
+          {/* THE WAY OUT OF THE MIC, and it keeps every word. `handOver`
+              stops the recorder and puts what you have said in the box
+              instead of routing it, so changing your mind mid-sentence
+              costs nothing — and it makes typing your default from here
+              on, which is the whole of the preference UI. */}
+          <button
+            className="pbtn ghost"
+            onClick={() => {
+              flow.chooseMode("type");
+              flow.dict.handOver();
+            }}
+          >
+            <Icon name="keyboard" size={15} />
+            Type
           </button>
           <button className="pbtn" onClick={flow.dict.stop}>
             <Icon name="square" size={15} />
@@ -228,28 +240,40 @@ function Body({ flow }: { flow: NoteFlow }) {
             the mic to carry on where you left off.
           </p>
         )}
+        {/* DISCARD IS GONE FROM BOTH STAGES. It called `flow.close`, which is
+            exactly what the ribbon's × does — two controls, one behaviour,
+            and the × is present in every stage while Discard never was. */}
         <div className="wb2-capact">
-          <button className="pbtn ghost" onClick={flow.close} disabled={flow.busy}>
-            Discard
-          </button>
-          {/* TYPE OR TALK, as equals. The box is the type door and the caret
-              is already in it; this is the talk door, and it stopped being a
-              fallback ("Say it instead") when the button stopped auto-starting
-              the mic — there is no "instead" once nothing was presumed. */}
+          {/* The talk door, and the other half of the preference: taking it
+              makes listening how the sheet opens from here on. */}
           {flow.scope.voiceEnabled && (
-            <button className="pbtn ghost wb2-talk" onClick={flow.dict.start} disabled={flow.busy}>
+            <button
+              className="pbtn ghost wb2-talk"
+              onClick={() => {
+                flow.chooseMode("talk");
+                flow.dict.start();
+              }}
+              disabled={flow.busy}
+            >
               <Icon name="mic" size={15} />
               {flow.ranOut ? "Keep going" : "Talk"}
             </button>
           )}
-          <button
-            className="pbtn"
-            aria-label="Sort this out"
-            onClick={() => flow.submit("text", flow.text)}
-            disabled={flow.busy || !flow.text.trim()}
-          >
-            {flow.busy ? "Reading…" : "Sort this out"}
-          </button>
+          {/* IT ARRIVES WITH THE WORDS (Isaac, 2026-08-10). It used to sit
+              there greyed out on an empty sheet — a dead control is a
+              question you have to answer every time you look at it. Now the
+              row is quiet until there is something to sort, and the button
+              appearing IS the signal that there is. */}
+          {flow.text.trim() && (
+            <button
+              className="pbtn"
+              aria-label="Sort this out"
+              onClick={() => flow.submit("text", flow.text)}
+              disabled={flow.busy}
+            >
+              {flow.busy ? "Reading…" : "Sort this out"}
+            </button>
+          )}
         </div>
       </>
     );

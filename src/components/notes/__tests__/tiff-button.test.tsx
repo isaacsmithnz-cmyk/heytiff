@@ -71,7 +71,13 @@ const mount = (ui?: React.ReactNode, voiceEnabled = true) =>
 
 const btn = () => screen.getByLabelText(/Ask or tell Tiff/);
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  /* The capture default is stored, so it outlives a test. Left uncleared,
+     one test's "type" decides another test's opening mode and the order of
+     the file becomes load-bearing. */
+  localStorage.clear();
+});
 afterEach(cleanup);
 
 describe("the button itself", () => {
@@ -83,31 +89,49 @@ describe("the button itself", () => {
     expect(document.querySelector(".wb2-tok")).toBeNull();
   });
 
-  /* TYPE OR TALK IS THE PERSON'S CALL, MADE ON THE SHEET. The button used to
-     start the mic on its own ("no mode to choose first") and that made typing
-     second-class: you arrived recording, and reaching the box meant stopping
-     a recording you never asked for. Isaac reversed it with the premium sheet
-     (2026-08-08). A tap that quietly opened a mic again would be a privacy
-     bug wearing a UX decision's clothes — this is the line that catches it. */
-  it("opens ready for either — the tap never starts the mic on its own", async () => {
+  /* IT OPENS THE WAY YOU LEFT IT, and this line has now been rewritten twice
+     because the answer genuinely changed twice.
+
+     v1 always started the mic ("no mode to choose first"), which made typing
+     second-class. v2 never did, and made talking — the common case — cost an
+     extra press every time. v3 is neither: your last choice, remembered, so
+     nobody's default is imposed on anybody. Ships listening.
+
+     What still MUST hold, and what this guards, is that the mic only ever
+     opens because of a choice that is recorded and visible on the sheet.
+     A tap that starts listening for some other reason — or when the
+     deployment cannot hear at all — is a privacy bug wearing a UX
+     decision's clothes. */
+  it("opens listening, because talk is the shipped default", async () => {
     const user = userEvent.setup();
     mount();
     await user.click(btn());
 
-    expect(start).not.toHaveBeenCalled();
+    expect(start).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("dialog")).toBeInTheDocument();
-    /* Both doors, on the same sheet: the box for typing, Talk for the mic. */
+  });
+
+  it("opens in the box once Type has been chosen, and remembers it", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem("heytiff.capture.mode", "type");
+    mount();
+    await user.click(btn());
+
+    expect(start).not.toHaveBeenCalled();
+    /* Both doors are still on the sheet — the preference decides which one
+       you land on, never which ones exist. */
     expect(screen.getByPlaceholderText(/Tell Luke/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Talk" })).toBeInTheDocument();
   });
 
-  it("opens the same sheet minus the Talk door where the deployment cannot hear", async () => {
+  it("never opens the mic where the deployment cannot hear, whatever is stored", async () => {
     const user = userEvent.setup();
+    /* The stored preference says talk; there is no microphone to honour it
+       with. Voice loses, every time — the flag is the floor, not the pref. */
+    localStorage.setItem("heytiff.capture.mode", "talk");
     mount(undefined, false);
     await user.click(btn());
 
-    /* The mic is an enhancement everywhere else in this widget and it is an
-       enhancement here: no key means no Talk button, never a dead one. */
     expect(start).not.toHaveBeenCalled();
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Talk" })).not.toBeInTheDocument();
@@ -212,6 +236,52 @@ describe("the button itself", () => {
     expect(btn()).toHaveAccessibleName("Ask or tell Tiff");
     mount(undefined, false);
     expect(screen.getAllByLabelText("Ask or tell Tiff")[0]).toBeInTheDocument();
+  });
+});
+
+/* ── THE ACTIONS ROW ──
+   Three changes Isaac asked for on 2026-08-10, all of them removals of
+   something that was in the way. */
+describe("the sheet's actions", () => {
+  /* There were TWO ways to discard and they did the identical thing —
+     `flow.close` — but only one of them was in every stage. The ribbon's ×
+     is already labelled "Discard", so this asserts the count rather than
+     the absence: exactly one, and it is the × rather than a button in the
+     actions row. */
+  it("offers exactly one discard, and it is the ribbon's ×", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem("heytiff.capture.mode", "type");
+    mount();
+    await user.click(btn());
+
+    const discards = screen.getAllByRole("button", { name: "Discard" });
+    expect(discards).toHaveLength(1);
+    expect(discards[0]).toHaveClass("wb2-ico");
+    expect(discards[0]).not.toHaveClass("pbtn");
+  });
+
+  it("holds Sort this out back until there is something to sort", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem("heytiff.capture.mode", "type");
+    mount();
+    await user.click(btn());
+
+    /* Absent, not disabled: a dead control is a question you answer every
+       time you look at it. */
+    expect(screen.queryByRole("button", { name: "Sort this out" })).not.toBeInTheDocument();
+
+    await user.type(screen.getByRole("textbox"), "chase the grilles");
+    expect(screen.getByRole("button", { name: "Sort this out" })).toBeInTheDocument();
+  });
+
+  it("does not count whitespace as something to sort", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem("heytiff.capture.mode", "type");
+    mount();
+    await user.click(btn());
+
+    await user.type(screen.getByRole("textbox"), "   ");
+    expect(screen.queryByRole("button", { name: "Sort this out" })).not.toBeInTheDocument();
   });
 });
 

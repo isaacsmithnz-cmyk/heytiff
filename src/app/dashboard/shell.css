@@ -6238,6 +6238,11 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   border-color:rgba(255,255,255,.14); }
 .wb2-capcard.wb2-dusk .pbtn.ghost:hover:not(:disabled) { background:rgba(255,255,255,.12);
   border-color:rgba(255,255,255,.22); color:#fff; }
+/* Talk holds the left of the row so it does not MOVE. `Sort this out` now
+   arrives only once there are words, and with everything flush right the
+   Talk button slid sideways the moment you started typing — a control
+   shifting under the cursor as a side effect of another one appearing. */
+.wb2-capact .pbtn.wb2-talk { margin-right:auto; }
 .wb2-capcard.wb2-dusk .pbtn.ghost.wb2-talk { background:rgba(0,229,192,.09);
   border-color:rgba(0,229,192,.42); color:#9FF4E4; }
 .wb2-capcard.wb2-dusk .pbtn.ghost.wb2-talk:hover:not(:disabled) { background:rgba(0,229,192,.16);

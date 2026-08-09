@@ -1,0 +1,302 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { Icon } from "@/components/shell/icon";
+import { DateField } from "@/components/ui/date-field";
+import { completeTask, createTask, reopenTask } from "@/app/actions/dashboard";
+import { dueLabel, type DashTask } from "@/lib/dashboard/tasks";
+import { auDayOf, fmtAuDayMonth } from "@/lib/au-dates";
+
+/* The Tasks tab — the board's own task body, `.wb2-urbody.twocol`.
+
+   THE TICK LEADS, because ticking is the whole interaction. That is the
+   board's rule and it is the reason this stopped being a `.dash-row` with a
+   "Done" button floating at the end: on the board the circle is the first
+   thing under your thumb, and everything else on the row is context for it.
+
+   Two lanes: yours on the left, everyone else's on the right behind a hair
+   rule. Under 1100px it stacks, because a 400px-wide task lane is worse than
+   one below the work. */
+
+function Due({ task, today }: { task: DashTask; today: string }) {
+  const due = dueLabel(task.dueDate, today);
+  if (!due) return null;
+  return <span className={`wb2-chip ${due.state === "bad" ? "dan" : "warn"}`}>{due.label}</span>;
+}
+
+function Tick({
+  task,
+  today,
+  who,
+  onDone,
+  pending,
+}: {
+  task: DashTask;
+  today: string;
+  who?: string;
+  onDone: (id: string) => void;
+  pending: boolean;
+}) {
+  return (
+    <div className="wb2-tk">
+      <button
+        className="wb2-tkb"
+        type="button"
+        disabled={pending}
+        aria-label={`Mark "${task.title}" done`}
+        onClick={() => onDone(task.id)}
+      >
+        <Icon name="check" size={13} />
+      </button>
+      <span className="wb2-tkt">
+        <b>{task.title}</b>
+        {(task.detail || who) && (
+          <em>{[who, task.detail].filter(Boolean).join(" · ")}</em>
+        )}
+      </span>
+      <Due task={task} today={today} />
+    </div>
+  );
+}
+
+/** Completed rows keep the shape but lose the control — the circle would
+    invite a second click that does nothing. */
+function DoneRow({ title, detail, undo }: { title: string; detail: string; undo?: () => void }) {
+  return (
+    <div className="wb2-tk">
+      <span className="wb2-tkb on" aria-hidden="true">
+        <Icon name="check" size={13} />
+      </span>
+      <span className="wb2-tkt">
+        <b className="hm-struck">{title}</b>
+        <em>{detail}</em>
+      </span>
+      {undo ? (
+        <button className="hm-undo" type="button" onClick={undo}>
+          Undo
+        </button>
+      ) : (
+        <span className="wb2-chip ok">Done</span>
+      )}
+    </div>
+  );
+}
+
+/* "Done today" / "Done 22 July". `today` is an AU calendar date, so the
+   completion has to resolve to one too — reading done_at's day in UTC puts
+   anything finished before ~10am AEST on the previous date. */
+function doneLabel(iso: string, today: string): string {
+  const day = auDayOf(iso);
+  return day === today ? "Done today" : `Done ${fmtAuDayMonth(day)}`;
+}
+
+export function HomeTasks({
+  today,
+  mine,
+  team,
+  done,
+  reported,
+  viewerStaffId,
+  canManage,
+  assignable,
+}: {
+  today: string;
+  mine: DashTask[];
+  team: DashTask[] | null;
+  done: DashTask[];
+  reported: DashTask[];
+  viewerStaffId: string | null;
+  canManage: boolean;
+  assignable: { id: string; name: string }[];
+}) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+
+  const [assignedTo, setAssignedTo] = useState(assignable[0]?.id ?? "");
+  const [title, setTitle] = useState("");
+  const [detail, setDetail] = useState("");
+  const [dueDate, setDueDate] = useState("");
+
+  // the team lane is everyone else's open work — yours already has a lane
+  const others = (team ?? []).filter((t) => t.assigneeId !== viewerStaffId);
+
+  const run = (fn: () => Promise<{ ok: boolean; error?: string }>, after?: () => void) => {
+    setError(null);
+    start(async () => {
+      const res = await fn();
+      if (!res.ok) setError(res.error ?? "Something went wrong.");
+      else {
+        after?.();
+        router.refresh();
+      }
+    });
+  };
+
+  const markDone = (id: string) => run(() => completeTask(id));
+  const undo = (id: string) => run(() => reopenTask(id));
+  const assign = () =>
+    run(
+      () => createTask({ assignedTo, title, detail: detail || undefined, dueDate: dueDate || undefined }),
+      () => {
+        setTitle("");
+        setDetail("");
+        setDueDate("");
+        setOpen(false);
+      },
+    );
+
+  const hasSide = others.length > 0 || reported.length > 0 || done.length > 0;
+
+  return (
+    <>
+      {error && <div className="tp-err">{error}</div>}
+
+      {canManage && (
+        <div className="hm-panelbar">
+          <button className="hm-link" type="button" disabled={pending} onClick={() => setOpen((v) => !v)}>
+            <Icon name="plus" size={13} />
+            Assign a task
+          </button>
+        </div>
+      )}
+
+      {canManage && open && (
+        <div className="lv-form">
+          <div className="lv-frow">
+            <label className="mts-f">
+              <span>Assign to</span>
+              <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)}>
+                {assignable.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="mts-f" style={{ flex: 2 }}>
+              <span>Task</span>
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g. Renew the WHS induction"
+              />
+            </label>
+            <label className="mts-f">
+              <span>Due (optional)</span>
+              <DateField
+                value={dueDate || null}
+                today={today}
+                clearable
+                placeholder="No date"
+                onChange={(iso) => setDueDate(iso ?? "")}
+              />
+            </label>
+          </div>
+          <div className="lv-fnote">
+            <label className="mts-f" style={{ flex: 1 }}>
+              <span>Detail (optional)</span>
+              <input
+                value={detail}
+                onChange={(e) => setDetail(e.target.value)}
+                placeholder="Anything they need to know"
+              />
+            </label>
+          </div>
+          <div className="lv-fmeta">
+            <span />
+            <div className="mts-facts">
+              <button
+                className="fl-btn primary"
+                disabled={pending || !title.trim() || !assignedTo}
+                onClick={assign}
+              >
+                <Icon name="send" size={14} />
+                Assign
+              </button>
+              <button className="fl-btn ghost" onClick={() => setOpen(false)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className={"wb2-urbody" + (hasSide ? " twocol" : "")}>
+        <div className="wb2-urqueue">
+          <div className="wb2-sect">Yours</div>
+          {mine.length === 0 ? (
+            <p className="hm-none">Nothing assigned to you right now.</p>
+          ) : (
+            <div className="wb2-tasks">
+              {mine.map((t) => (
+                <Tick key={t.id} task={t} today={today} onDone={markDone} pending={pending} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {hasSide && (
+          <div className="wb2-urside">
+            {others.length > 0 && (
+              <>
+                <div className="wb2-sect">Across the team</div>
+                <div className="wb2-tasks">
+                  {others.map((t) => (
+                    <Tick
+                      key={t.id}
+                      task={t}
+                      today={today}
+                      who={t.assigneeName}
+                      onDone={markDone}
+                      pending={pending}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* Work you handed out, reported back when it's finished. Only ever
+                someone else's completion — you don't need telling about your own. */}
+            {reported.length > 0 && (
+              <>
+                <div className="wb2-sect">Completed for you</div>
+                <div className="wb2-tasks">
+                  {reported.map((t) => (
+                    <DoneRow
+                      key={t.id}
+                      title={t.title}
+                      detail={`${t.doneByName ?? t.assigneeName}${
+                        t.doneAt ? ` · ${doneLabel(t.doneAt, today).toLowerCase()}` : ""
+                      }`}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* Finishing something shouldn't make it vanish without trace — and
+                a tap on the tick is easy to make by accident, so it reverses. */}
+            {done.length > 0 && (
+              <>
+                <div className="wb2-sect">Recently done</div>
+                <div className="wb2-tasks">
+                  {done.map((t) => (
+                    <DoneRow
+                      key={t.id}
+                      title={t.title}
+                      detail={t.doneAt ? doneLabel(t.doneAt, today) : ""}
+                      undo={() => undo(t.id)}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}

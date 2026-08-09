@@ -155,6 +155,21 @@
 .fg .searchbtn .kbd { position:absolute; right:16px; top:50%; transform:translateY(-50%); display:flex; align-items:center; gap:4px; font-size:10px; font-weight:700; color:var(--gray400); font-family:var(--mono); background:rgba(0,0,0,.05); padding:4px 8px; border-radius:6px; transition:all .3s; }
 .fg .searchbtn:hover .kbd { background:rgba(0,229,192,.1); color:var(--teal-d); }
 .fg .tbr { display:flex; align-items:center; gap:24px; }
+/* THE FRAME'S CLOCK — the date that used to be a pill inside the home hero,
+   now ambient chrome with a time beside it. Mirrors `.me-top .mk` at the other
+   end of the bar (a strong line over a quiet one), so the row reads as
+   when · do · you rather than as three unrelated widgets.
+
+   THE MIN-SIZE PAIR ON THE TIME IS LOAD-BEARING, both axes. The minute is
+   client-only (a clock in server markup fails hydration — see shell/clock.tsx),
+   so for one frame that element is EMPTY: without `min-width` the whole control
+   cluster slides sideways when it lands, and without `min-height` — an empty
+   inline box is 0 tall — the date jumps up under it. 15.53px is the measured
+   line box at 13.5px/1.15; 16 covers it. Tabular figures hold it still every
+   minute after that. */
+.fg .topbar .tbclock { display:flex; flex-direction:column; align-items:flex-end; gap:2px; flex:0 0 auto; text-align:right; }
+.fg .topbar .tbclock b { min-width:66px; min-height:16px; font-size:13.5px; font-weight:700; line-height:1.15; color:#fff; font-variant-numeric:tabular-nums; }
+.fg .topbar .tbclock em { font-style:normal; font-size:11px; font-weight:600; color:rgba(255,255,255,.45); }
 /* The bell is an <a> now, not a button, so it needs the two things the button
    reset was giving it for free — no underline, and a box that wraps the glyph
    rather than a line of text. */
@@ -244,37 +259,12 @@
   .fg .pk-b { animation:none; background:rgba(10,12,20,.06); }
 }
 
-/* ---------------- HERO (home) ---------------- */
-.fg .hero { position:relative; border-radius:40px; overflow:hidden; background:var(--ink2); color:#fff; padding:48px; box-shadow:0 20px 60px -15px rgba(0,0,0,.4); margin-bottom:40px; }
-.fg .hero .mesh { position:absolute; inset:0; pointer-events:none; opacity:.7; mix-blend-mode:screen; }
-.fg .hero .mesh i { position:absolute; border-radius:50%; filter:blur(120px); }
-.fg .hero .mesh .m1 { top:-40%; left:-20%; width:80%; height:150%; background:var(--teal); opacity:.28; animation:fgDrift1 14s ease-in-out infinite; }
-.fg .hero .mesh .m2 { bottom:-50%; right:-10%; width:70%; height:150%; background:var(--blue); opacity:.28; animation:fgDrift2 18s ease-in-out infinite; }
-.fg .hero .mesh .m3 { top:10%; right:24%; width:42%; height:90%; background:var(--violet); opacity:.18; filter:blur(110px); animation:fgDrift3 22s ease-in-out infinite; }
-@keyframes fgDrift1 { 0%,100%{ transform:translate(0,0) scale(1); opacity:.22 } 50%{ transform:translate(140px,40px) scale(1.2); opacity:.34 } }
-@keyframes fgDrift2 { 0%,100%{ transform:translate(0,0) scale(1.05); opacity:.2 } 50%{ transform:translate(-120px,-40px) scale(1.25); opacity:.32 } }
-@keyframes fgDrift3 { 0%,100%{ transform:translate(0,0) scale(1); opacity:.14 } 50%{ transform:translate(-90px,60px) scale(1.3); opacity:.24 } }
 @keyframes fgBreath { 0%,100%{opacity:.12} 50%{opacity:.26} }
-.fg .hrow { position:relative; z-index:10; display:flex; gap:48px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
-.fg .hlead { flex:1; min-width:300px; }
-.fg .pill { display:inline-flex; align-items:center; gap:8px; padding:6px 12px; border-radius:999px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); color:var(--teal); font-size:11px; font-weight:700; letter-spacing:.2em; text-transform:uppercase; font-family:var(--mono); margin-bottom:24px; backdrop-filter:blur(8px); }
-.fg .hero h1 { font-size:56px; font-weight:800; line-height:1.05; letter-spacing:-0.03em; margin:0 0 16px; }
-.fg .hero h1 span { background:linear-gradient(90deg,#fff,#fff,rgba(255,255,255,.6)); -webkit-background-clip:text; background-clip:text; color:transparent; }
-.fg .hero .lede { font-size:16px; color:rgba(255,255,255,.5); max-width:512px; line-height:1.6; margin:0 0 40px; font-weight:500; }
-.fg .hero .lede b { color:#fff; font-weight:700; }
 
 /* ---- Dashboard home: action-required / roster / payroll section rows.
    Additive only — reuses the existing .card2 / .c2h / .dchip2 primitives. ---- */
 .fg .dash-sub { font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--gray400); margin:4px 2px 12px; }
 .fg .dash-sub:not(:first-of-type) { margin-top:22px; }
-.fg .dash-row { display:flex; align-items:center; gap:14px; padding:13px 16px; border:1px solid #f0f0f2; border-radius:16px; text-decoration:none; color:inherit; }
-.fg .dash-row + .dash-row { margin-top:8px; }
-.fg a.dash-row { transition:border-color .15s, background .15s; }
-.fg a.dash-row:hover { border-color:#e2e4ea; background:#fafbfc; }
-.fg .dash-row .dr-subj { font-size:14px; font-weight:700; color:var(--ink); }
-.fg .dash-row .dr-detail { font-size:13px; font-weight:500; color:var(--gray400); }
-.fg .dash-row .dr-chev { margin-left:auto; color:#c3c8d2; flex:0 0 auto; display:flex; }
-.fg .dash-ph { display:flex; align-items:center; gap:10px; padding:14px 16px; border-radius:16px; background:rgba(46,104,255,.06); border:1px solid rgba(46,104,255,.16); color:#1f4bd8; font-weight:700; font-size:13.5px; margin-bottom:12px; }
 .fg .dash-mini { font-size:13px; font-weight:500; color:var(--gray400); padding:4px 2px; }
 
 /* The `.hact` action band lived here — a full-width bar under the greeting
@@ -282,55 +272,6 @@
    same thing in less space, so the band is gone and its CSS with it. Deleting
    it rather than leaving it unused is the point: the v3 `.hstat` block that
    sat dead in this file for months went on to shadow the counters at equal
-   specificity, which is a bug you only find by looking at the screen. */
-
-/* The lede is the left column's last line now, so it drops its 40px tail;
-   nothing follows it inside the hero. */
-.fg .hlead > .lede:last-child { margin-bottom:0; }
-
-/* ---- the hero's counters ----
-   The hero's right-hand column: urgent · tasks · needs attention ·
-   notifications, 2x2, each linking to the screen that owns it. One
-   backdrop-filter, no -webkit twin — pairing them ships only the prefixed one
-   and the blur dies.
-
-   `.zero` is the point of the whole thing: an empty counter goes quiet rather
-   than sitting there lit up saying nothing, so a clear day looks clear. */
-.fg .hstats { position:relative; z-index:10; flex:0 0 auto; width:min(100%,360px); display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
-.fg .hstat { display:grid; grid-template-columns:auto minmax(0,1fr); column-gap:12px; row-gap:4px; align-items:center; padding:14px 16px 15px; border-radius:20px; text-decoration:none; color:inherit; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.12); backdrop-filter:blur(8px); transition:background .25s, border-color .25s, transform .25s; }
-.fg a.hstat:hover { background:rgba(255,255,255,.09); border-color:rgba(255,255,255,.22); transform:translateY(-1px); }
-.fg .hstat .hs-ic { width:32px; height:32px; border-radius:11px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; }
-.fg .hstat .hs-n { font-size:26px; font-weight:800; letter-spacing:-0.03em; line-height:1; color:#fff; }
-.fg .hstat .hs-l { grid-column:1/-1; font-style:normal; font-size:11px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,.5); }
-.fg .hstat.bad .hs-ic { background:rgba(255,51,102,.18); color:#FF6B8A; }
-.fg .hstat.warn .hs-ic { background:rgba(240,164,49,.18); color:#F0A431; }
-.fg .hstat.blue .hs-ic { background:rgba(46,104,255,.22); color:#8FB0FF; }
-.fg .hstat.violet .hs-ic { background:rgba(138,43,226,.24); color:#C79BFF; }
-/* after the tones, so an empty tile wins whatever colour it would have worn */
-.fg .hstat.zero .hs-ic { background:rgba(255,255,255,.07); color:rgba(255,255,255,.4); }
-.fg .hstat.zero .hs-n { color:rgba(255,255,255,.45); }
-/* every counter at zero: one statement instead of four zeroes */
-.fg .hstats.clear { grid-template-columns:minmax(0,1fr); }
-.fg .hclear { display:grid; grid-template-columns:auto minmax(0,1fr); column-gap:16px; row-gap:3px; align-items:center; padding:22px 24px; border-radius:20px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.12); backdrop-filter:blur(8px); }
-.fg .hclear .hc-ic { grid-row:1/span 2; width:46px; height:46px; border-radius:15px; display:flex; align-items:center; justify-content:center; background:rgba(0,229,192,.14); color:var(--teal); }
-.fg .hclear .hc-t { font-size:17px; font-weight:800; letter-spacing:-0.02em; color:#fff; }
-.fg .hclear .hc-s { font-style:normal; font-size:13.5px; font-weight:500; color:rgba(255,255,255,.55); }
-
-/* ---- Dashboard columns ----
-   The dashboard was a single stack of full-width cards, so on a wide screen
-   every card was mostly empty AND you still had to scroll past all of them.
-   Below the hero the cards split into two columns: the thing you ACT on (tasks)
-   takes the wider one, and the things you READ (noticeboard, who's about,
-   payroll) stack in the narrower one.
-
-   `align-items:start` is load-bearing — without it grid stretches both columns
-   to the tallest, which is exactly the dead space this is meant to remove. */
-.fg .dash-cols { display:grid; grid-template-columns:1fr; gap:20px; align-items:start; }
-@media (min-width:1080px){ .fg .dash-cols { grid-template-columns:minmax(0,1.4fr) minmax(0,1fr); } }
-.fg .dash-col { display:flex; flex-direction:column; gap:20px; min-width:0; }
-/* the column owns the spacing, so the cards inside must not add their own */
-.fg .dash-col > .card2 { margin-bottom:0; }
-
 /* ---- Action-required tiles ----
    A full-width row per chip wasted most of the card: ~200px of content stretched
    across ~1300px, with the group tag floating far from the thing it describes.
@@ -353,11 +294,6 @@
 .fg .dash-tile .dt-sub { font-style:normal; font-size:12.5px; font-weight:600; color:var(--gray400); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .fg .dash-tile .dt-chev { color:#c3c8d2; flex:0 0 auto; display:flex; }
 .fg .dash-tile:hover .dt-chev { color:#6b7280; }
-
-/* the dashboard's noticeboard card is a door into /dashboard/notices */
-.fg a.dash-card-link { display:block; text-decoration:none; color:inherit; transition:border-color .15s, box-shadow .15s; }
-.fg a.dash-card-link:hover { border-color:#e2e4ea; box-shadow:0 10px 34px rgba(0,0,0,.05); }
-.fg a.dash-card-link:hover .dr-chev { color:#6b7280; }
 
 /* noticeboard page items */
 .fg .nb-item { padding:22px 26px; }
@@ -471,72 +407,22 @@
    screen rendered that markup after the hero became a greeting plus an action
    band — and it sat AFTER the hero section, so it quietly beat the new hero
    counters at equal specificity and stacked them in a flex column. Deleted
-   rather than out-specified; the live rules are with the hero, up at ~line 284. */
+   rather than out-specified; the live rules were with the hero. */
 
-.fg .ring-bento { position:relative; overflow:hidden; flex:0 0 auto; width:420px; max-width:100%; display:flex; align-items:center; gap:32px; padding:32px; border-radius:32px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08); backdrop-filter:blur(20px); box-shadow:inset 0 1px 1px rgba(255,255,255,.1); }
-.fg .ring-bento .rgw { position:absolute; top:0; right:0; width:128px; height:128px; background:var(--teal); opacity:.1; filter:blur(50px); }
-.fg .ring { position:relative; width:144px; height:144px; flex:0 0 auto; }
-.fg .ring svg { width:100%; height:100%; transform:rotate(-90deg); filter:drop-shadow(0 0 15px rgba(0,229,192,.3)); }
-.fg .ring .rn { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:32px; font-weight:800; color:#fff; font-family:var(--mono); }
-.fg .ring-bento .rk b { display:block; font-size:20px; font-weight:700; color:#fff; margin-bottom:8px; }
-.fg .ring-bento .rk p { font-size:14px; color:rgba(255,255,255,.4); line-height:1.55; font-weight:500; }
+/* ===== THE TEMPLATE'S LEFTOVERS LIVED HERE, AND ARE DELETED =====
+   Seven blocks, ~74 lines, none of them ever rendered by this app:
+   `.ring-bento`/`.ring` (a 94% "Efficiency" donut), `.bento`/`.c8`/`.c4`
+   (a 12-column mock grid), `.askbar` (an "Ask Tiff…" input), `.sgrid`/
+   `.sugg` (two suggestion cards), `.wcard`/`.wtemp`/`.wnote` (a Sydney
+   WEATHER card), `.ccard`/`.comm` (a "Field Comms" feed), and `.helix`
+   (a sidebar wave divider).
 
-/* bento grid */
-.fg .bento { display:grid; grid-template-columns:repeat(12,1fr); gap:32px; }
-.fg .c8 { grid-column:span 8; display:flex; flex-direction:column; gap:32px; }
-.fg .c4 { grid-column:span 4; display:flex; flex-direction:column; gap:32px; }
-@media (max-width:1024px){ .fg .c8,.fg .c4{grid-column:span 12} }
-
-.fg .askbar { display:flex; align-items:center; gap:16px; justify-content:space-between; background:#fff; border-radius:32px; padding:16px; box-shadow:0 8px 30px rgba(0,0,0,.03); border:1px solid #f0f0f2; transition:all .3s; }
-.fg .askbar:focus-within { box-shadow:0 0 0 4px rgba(0,229,192,.2); border-color:rgba(0,229,192,.5); }
-.fg .askbar .al { display:flex; align-items:center; flex:1; gap:16px; padding:0 16px; }
-.fg .askbar .ag { position:relative; flex:0 0 auto; }
-.fg .askbar .ag .agb { position:absolute; inset:0; background:var(--teal); filter:blur(12px); opacity:.3; border-radius:12px; }
-.fg .askbar .ag .agi { position:relative; width:48px; height:48px; border-radius:12px; background:linear-gradient(135deg,var(--teal),var(--teal-d)); display:flex; align-items:center; justify-content:center; color:#fff; }
-.fg .askbar input { flex:1; min-width:0; background:none; border:none; outline:none; font-size:16px; font-weight:500; color:#1f2937; }
-.fg .askbar input::placeholder { color:var(--gray400); }
-.fg .askbar .gen { display:flex; align-items:center; gap:8px; height:48px; padding:0 24px; border-radius:12px; background:var(--ink); color:#fff; font-weight:700; box-shadow:0 8px 18px -6px rgba(0,0,0,.3); transition:all .3s; flex:0 0 auto; }
-.fg .askbar .gen:hover { background:var(--teal); color:var(--ink); }
-
-.fg .sgrid { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
-@media (max-width:640px){ .fg .sgrid{grid-template-columns:1fr} }
-.fg .sugg { text-align:left; padding:32px; border-radius:32px; background:#fff; border:1px solid #f0f0f2; box-shadow:0 4px 20px rgba(0,0,0,.02); transition:all .5s; cursor:pointer; }
-.fg .sugg:hover { transform:translateY(-4px); border-color:#e5e7eb; box-shadow:0 20px 40px -15px rgba(0,0,0,.1); }
-.fg .sugg .stop { position:absolute; top:0; left:0; right:0; height:4px; opacity:0; transition:opacity .5s; z-index:10; }
-.fg .sugg:hover .stop { opacity:1; }
-.fg .sugg .scat { font-size:11px; font-weight:800; letter-spacing:.2em; text-transform:uppercase; font-family:var(--mono); margin-bottom:16px; }
-.fg .sugg .stt { font-size:18px; font-weight:800; color:var(--ink); margin-bottom:8px; }
-.fg .sugg .sds { font-size:14px; color:var(--gray500); line-height:1.55; font-weight:500; }
-
-.fg .wcard { position:relative; overflow:hidden; background:#fff; border-radius:32px; padding:32px; border:1px solid #f0f0f2; box-shadow:0 8px 30px rgba(0,0,0,.03); }
-.fg .wcard .wg { position:absolute; top:-50px; right:-50px; width:200px; height:200px; border-radius:50%; background:#dbeafe; filter:blur(60px); pointer-events:none; transition:background .7s; }
-.fg .wcard:hover .wg { background:#bfdbfe; }
-.fg .wtop { display:flex; align-items:center; justify-content:space-between; margin-bottom:32px; position:relative; z-index:10; }
-.fg .wtop .wl { font-size:12px; font-weight:800; letter-spacing:.2em; text-transform:uppercase; color:var(--gray400); }
-.fg .wtop .wc { display:flex; align-items:center; gap:8px; padding:6px 12px; border-radius:999px; background:#eff6ff; color:#2563eb; font-size:12px; font-weight:700; border:1px solid rgba(191,219,254,.5); }
-.fg .wtemp { display:flex; align-items:flex-start; gap:4px; margin-bottom:32px; position:relative; z-index:10; }
-.fg .wtemp b { font-size:72px; font-weight:800; line-height:.8; color:var(--ink); font-family:var(--mono); letter-spacing:-0.04em; }
-.fg .wtemp em { font-style:normal; font-size:16px; color:var(--gray400); font-weight:700; margin-top:8px; }
-.fg .wnote { display:flex; align-items:flex-start; gap:12px; padding:16px; border-radius:16px; background:linear-gradient(90deg,rgba(0,229,192,.1),transparent); border:1px solid rgba(0,229,192,.2); color:var(--teal-d); font-size:13px; font-weight:700; line-height:1.55; backdrop-filter:blur(4px); position:relative; z-index:10; }
-.fg .wnote svg { flex:0 0 auto; margin-top:2px; }
-
-.fg .ccard { background:#fff; border-radius:32px; padding:32px; border:1px solid #f0f0f2; box-shadow:0 8px 30px rgba(0,0,0,.03); flex:1; display:flex; flex-direction:column; }
-.fg .ctop { display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; }
-.fg .ctop b { font-size:16px; font-weight:800; color:var(--ink); }
-.fg .ctop .all { display:flex; align-items:center; gap:4px; font-size:13px; font-weight:700; color:var(--teal); }
-.fg .ctop .all:hover { color:var(--teal-d); }
-.fg .comm { display:flex; align-items:center; gap:16px; padding:8px; margin:0 -8px; border-radius:12px; cursor:pointer; transition:background .2s; }
-.fg .comm + .comm { margin-top:12px; }
-.fg .comm:hover { background:#f9fafb; }
-.fg .comm .cd { width:10px; height:10px; border-radius:50%; flex:0 0 auto; background:#e5e7eb; }
-.fg .comm.imp .cd { background:var(--red); box-shadow:0 0 10px rgba(255,51,102,.4); }
-.fg .comm .ck { flex:1; min-width:0; }
-.fg .comm .ck b { display:block; font-size:14px; font-weight:700; color:var(--gray700); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:color .2s; }
-.fg .comm.imp .ck b { color:var(--ink); }
-.fg .comm:hover .ck b { color:var(--teal); }
-.fg .comm .ck em { font-style:normal; font-size:12px; color:var(--gray400); font-weight:500; margin-top:2px; display:block; }
-.fg .comm .cc { color:#d1d5db; opacity:0; transform:translateX(-8px); transition:all .2s; }
-.fg .comm:hover .cc { opacity:1; transform:none; }
+   They came in with the Make/Figma export this shell was ported from —
+   `_design/shell-scripts.js:157` is the mock home screen they belong to,
+   fake content and all. Only its hero was ever built, and that has gone
+   too. Dead CSS in this file has twice grown up to shadow a live component
+   at equal specificity, which is the only reason this is worth saying out
+   loud rather than just deleting. ===================================== */
 
 /* page header (Team, Admin, tabbed pages) */
 .fg .v2head { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex-wrap:wrap; }
@@ -602,14 +488,6 @@
 .fg .emptybox b { font-size:16px; font-weight:800; letter-spacing:-0.01em; color:#374151; }
 .fg .emptybox em { font-style:normal; font-size:13px; font-weight:500; color:#9ca3af; max-width:380px; line-height:1.55; }
 
-/* sidebar gradient divider — gentle traveling wave */
-.fg .helix { margin:8px 26px 12px; height:26px; overflow:hidden;
-  -webkit-mask-image:linear-gradient(90deg,transparent,#000 16%,#000 84%,transparent);
-  mask-image:linear-gradient(90deg,transparent,#000 16%,#000 84%,transparent); }
-.fg .helix svg { display:block; }
-.fg .hx-wave { animation:fgWave 6s linear infinite; }
-@keyframes fgWave { from{transform:translateX(0)} to{transform:translateX(-80px)} }
-@media (prefers-reduced-motion: reduce) { .fg .hx-wave { animation:none; } }
 
 /* ===== HeyTiff · FIGMA REPLICA — Tiff / Toolbox / Ductr screens ===== */
 
@@ -3332,6 +3210,10 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .sk-navtext { width:88px; height:10px; }
 .fg .sk-name { width:96px; height:11px; margin-bottom:6px; }
 .fg .sk-role { width:52px; height:9px; }
+/* 66px is not a guess — it is the real clock's `min-width`, so the control
+   cluster does not step sideways when the chrome swaps in behind it. */
+.fg .sk-time { width:66px; height:12px; margin-bottom:6px; }
+.fg .sk-date { width:52px; height:9px; }
 .fg .topbar .searchbtn[aria-hidden="true"],
 .fg .topbar .tbr[aria-hidden="true"] .bell,
 .fg .topbar .tbr[aria-hidden="true"] .me-trigger { cursor:default; }
@@ -6184,15 +6066,12 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   background:#eef0f4; border-color:#e3e6ec; color:#a2a9b8; box-shadow:none; cursor:not-allowed; }
 
 /* ── the debrief ──
-   Home's "empty your head" row and the token's worded variant. The word half
-   carries text, so it sizes by content instead of the icon square — same
-   object as the capsule otherwise, and the same red-only-when-live rule. */
-.fg .dash-debrief { display:flex; align-items:center; gap:16px; flex-wrap:wrap;
-  margin:0 0 28px; padding:16px 20px; border-radius:20px;
-  background:#fff; border:1px solid rgba(5,5,5,.07); box-shadow:0 1px 2px rgba(5,10,20,.04); }
-.fg .dash-debrieftext { flex:1; min-width:220px; display:flex; flex-direction:column; gap:2px; }
-.fg .dash-debrieftext b { font-size:14.5px; font-weight:800; letter-spacing:-.01em; color:var(--ink); }
-.fg .dash-debrieftext span { font-size:12.8px; color:var(--gray500); }
+   The token's worded variant. The word half carries text, so it sizes by
+   content instead of the icon square — same object as the capsule otherwise,
+   and the same red-only-when-live rule.
+
+   `.dash-debrief`, the white strip Home wrapped it in, is gone: the Journal
+   tab's own composer row (`.hm-comp`) is where it lives now. */
 .wb2-tokhalf.wb2-debriefword { width:auto; padding:0 16px 0 18px; gap:8px;
   font-family:var(--font); font-size:13.5px; font-weight:700; }
 
@@ -6402,3 +6281,94 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   .wb2-capdim::after { animation:none; }
   .wb2-dusk .wb2-skel { background:rgba(255,255,255,.08); }
 }
+
+/* ============================ HOME ============================
+   One card with five faces — Journal, Urgent, Needs attention, Noticeboard,
+   Tasks. Almost nothing is declared here: the strip, the thumb, the card, the
+   row and the tick-list are the maintenance board's, and Home borrows them
+   whole. What is left is the wrapper that gives them the board's variables
+   outside `.wb2`, the journal, and the quiet strip underneath. */
+
+/* The board declares its palette on its own root. Home is not under that root,
+   so it takes a copy — same values, one place to change them. */
+.fg .hm-wrap {
+  --wb2-line:rgba(5,5,5,.08); --wb2-line2:rgba(5,5,5,.06);
+  --wb2-dan:#e0264f; --wb2-dan-t:#b31038; --wb2-warn:#FF8A00; --wb2-warn-t:#B45309;
+  --wb2-ok:#00A389; --wb2-cy:#007fa8;
+  padding-top:22px;
+}
+
+/* (0,3,0) ON PURPOSE. `.wb2-urbody.twocol` sets `display:grid` and is (0,2,0),
+   so a plain `.wb2-body[hidden]` LOSES to it and the Tasks panel stays painted
+   under whichever tab is open — which is exactly what happened the first time
+   this was built. */
+.fg .hm-card .hm-panel[hidden] { display:none; }
+.fg .hm-panel { padding:6px 0 12px; }
+.fg .hm-panel > .wb2-sect:first-child { padding-top:10px; }
+
+/* rows: the board's, with Home's own trailing chevron and column widths */
+.fg .hm-row { grid-template-columns:minmax(0,1fr) 168px 96px 132px 22px; padding-left:24px; padding-right:24px; }
+.fg .hm-rowgo { color:#c9cfd9; display:flex; align-self:center; }
+.fg a.hm-row:hover .hm-rowgo { color:var(--gray500); }
+.fg .hm-none { margin:0; padding:16px 24px 20px; font-size:13.5px; font-weight:500;
+  line-height:1.55; color:var(--gray500); max-width:74ch; }
+.fg .hm-panelbar { display:flex; align-items:center; gap:12px; padding:12px 24px 4px; }
+.fg .hm-link { display:inline-flex; align-items:center; gap:6px; padding:0; border:0; background:none;
+  font:inherit; font-size:12.5px; font-weight:800; color:var(--wb2-cy); cursor:pointer; }
+.fg .hm-link:hover { color:#0089b8; }
+.fg .hm-link:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); border-radius:6px; }
+
+/* tasks: the board's tick, plus the two states it has no rule for */
+.fg .hm-card .wb2-urbody { padding:12px 24px 18px; }
+.fg .hm-card .wb2-urbody .wb2-sect { padding:6px 2px 3px; }
+.fg .wb2-tkb.on { border-color:var(--wb2-ok); background:rgba(0,163,137,.1); color:#00806b; cursor:default; }
+.fg .hm-struck { color:var(--gray500); text-decoration:line-through; text-decoration-thickness:1px; }
+.fg .hm-undo { flex:none; padding:0; border:0; background:none; font:inherit; font-size:12px;
+  font-weight:800; color:var(--wb2-cy); cursor:pointer; }
+.fg .hm-undo:hover { color:#0089b8; }
+
+/* ── the Journal ──
+   The composer sits on top and the record runs under it, newest first. The
+   scroller is masked at its bottom edge rather than fading to a hard stop, so
+   there is always a visible hint that yesterday is down there. */
+.fg .hm-comp { display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+  padding:18px 24px; border-bottom:1px solid var(--wb2-line2); }
+.fg .hm-compsay { flex:1; min-width:220px; display:flex; flex-direction:column; gap:2px; }
+.fg .hm-compsay b { font-size:14.5px; font-weight:800; letter-spacing:-.01em; color:var(--ink); }
+.fg .hm-compsay span { font-size:12.8px; font-weight:500; color:var(--gray500); }
+
+.fg .hm-jscroll { max-height:360px; overflow-y:auto; padding:0 24px 14px;
+  scrollbar-width:thin; scrollbar-color:rgba(5,5,5,.18) transparent;
+  -webkit-mask-image:linear-gradient(#000 90%, transparent 100%);
+  mask-image:linear-gradient(#000 90%, transparent 100%); }
+.fg .hm-jscroll::-webkit-scrollbar { width:6px; }
+.fg .hm-jscroll::-webkit-scrollbar-thumb { background:rgba(5,5,5,.16); border-radius:99px; }
+.fg .hm-jdh { display:flex; align-items:center; gap:12px; padding:20px 0 4px; }
+.fg .hm-jd.first .hm-jdh { padding-top:15px; }
+.fg .hm-jdh > span { font-size:10.5px; font-weight:800; letter-spacing:.17em; text-transform:uppercase; color:var(--ink); }
+.fg .hm-jd:not(.first) .hm-jdh > span { color:var(--gray400); }
+.fg .hm-jdrule { flex:1; height:1px; background:var(--wb2-line2); }
+.fg .hm-jdh > em { font-style:normal; font-size:11px; font-weight:600; color:var(--gray400); }
+.fg .hm-jr { display:grid; grid-template-columns:92px minmax(0,1fr); column-gap:18px; row-gap:5px; padding:13px 0; }
+.fg .hm-jr + .hm-jr { border-top:1px solid var(--wb2-line2); }
+.fg .hm-jrt { font-size:12px; font-weight:700; color:var(--gray400); font-variant-numeric:tabular-nums; padding-top:2px; }
+.fg .hm-jrs { margin:0; grid-column:2; font-size:14px; font-weight:500; line-height:1.5; color:#1f2937;
+  max-width:96ch; text-wrap:pretty; }
+/* the card family's LINK colour, not the ok-green — that one means state */
+.fg .hm-jro { grid-column:2; display:flex; align-items:center; flex-wrap:wrap; gap:9px;
+  font-size:12.5px; font-weight:700; color:var(--wb2-cy); }
+.fg .hm-jrdot { width:3px; height:3px; border-radius:50%; background:rgba(5,5,5,.2); margin-right:9px; }
+
+/* ── the strip under the card ──
+   Who's about and Payroll: the day's context, not a face of it. */
+.fg .hm-strip { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px 40px; margin-top:22px; padding:0 4px; }
+@media (max-width:900px){ .fg .hm-strip { grid-template-columns:minmax(0,1fr); } }
+.fg .hm-stripcol { min-width:0; }
+.fg .hm-stripcol .wb2-sect { padding:0 0 4px; }
+.fg .hm-sr { display:flex; align-items:baseline; gap:12px; padding:9px 0; text-decoration:none; color:inherit;
+  border-top:1px solid var(--wb2-line2); }
+.fg .hm-sr b { font-size:13px; font-weight:700; color:var(--ink); }
+.fg .hm-sr em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); margin-left:auto; }
+.fg a.hm-sr:hover b { color:var(--wb2-cy); }
+.fg .hm-ph { display:flex; align-items:center; gap:9px; margin:0 0 4px; padding:9px 0;
+  font-size:12.5px; font-weight:700; color:#1f4bd8; }

@@ -62,6 +62,14 @@ export function TopbarSkeleton() {
         <div className="sf">Search workspaces, tools, or ask Tiff...</div>
       </div>
       <div className="tbr" aria-hidden="true">
+        {/* The clock's two lines, held open: the real one arrives with a date
+            already in it, so without this the whole control cluster slides
+            when the chrome resolves. */}
+        <div className="tbclock">
+          <i className="sk-dark sk-time" />
+          <i className="sk-dark sk-date" />
+        </div>
+        <span className="sep" />
         <span className="bell">
           <Icon name="bell" size={20} />
         </span>

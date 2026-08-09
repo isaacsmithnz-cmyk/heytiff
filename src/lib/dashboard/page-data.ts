@@ -12,6 +12,8 @@ import { CLAIM_NUDGE_DAYS } from "./chips";
 import { listStaffCompliance, orgInsurance, type StaffCompliance } from "./query";
 import { ownDeclinedClaims, pendingClaimsCount } from "@/lib/expenses/query";
 import { rosterToday, type RosterToday } from "./roster";
+import { listJournal } from "./journal-query";
+import type { JournalEntry } from "./journal";
 import { payRunItem, tallySheets, type MoneyItem } from "./money";
 import {
   myTasks,
@@ -48,6 +50,9 @@ export type DashboardData = {
   tasks: { mine: DashTask[]; team: DashTask[] | null; done: DashTask[]; reported: DashTask[] };
   /** Recent notices with your read state joined in. */
   notices: BoardNotice[];
+  /** Everything you've told Tiff, newest first — the Journal tab's record.
+      Empty for an account with no staff profile, which has no captures. */
+  journal: JournalEntry[];
   /** Staff you can assign a task to — populated only with `team`. */
   assignable: { id: string; name: string }[];
   /** `team`: can assign tasks / post notices / see the team's tasks. */
@@ -63,6 +68,7 @@ const EMPTY: DashboardData = {
   money: [],
   tasks: { mine: [], team: null, done: [], reported: [] },
   notices: [],
+  journal: [],
   assignable: [],
   canManage: false,
   viewerStaffId: null,
@@ -86,7 +92,7 @@ export async function loadDashboard(): Promise<DashboardData> {
      when five reads raced an edit. */
   const names = await loadStaffNames(orgId);
 
-  const [chips, roster, money, tasks, notices, assignable] = await Promise.all([
+  const [chips, roster, money, tasks, notices, assignable, journal] = await Promise.all([
     loadChips(orgId, viewerStaffId, caps, today),
     canManage ? loadRoster(orgId, today) : Promise.resolve(null),
     caps.has("financials") ? loadMoney(orgId, today) : Promise.resolve([]),
@@ -94,9 +100,14 @@ export async function loadDashboard(): Promise<DashboardData> {
     listNotices(orgId, viewerStaffId, 20, names).then(sortNotices),
     // the assign picker only needs names, and only when you can assign
     canManage ? listFleetStaff(orgId).then((s) => s.map((x) => ({ id: x.id, name: x.name }))) : Promise.resolve([]),
+    /* An account with no staff record has never captured anything — there is
+       no author_id it could have been filed under, so don't go and ask. */
+    viewerStaffId ? listJournal(orgId, viewerStaffId) : Promise.resolve([]),
   ]);
 
-  return { chips, roster, money, tasks, notices, assignable, canManage, viewerStaffId, today };
+  return {
+    chips, roster, money, tasks, notices, assignable, journal, canManage, viewerStaffId, today,
+  };
 }
 
 /* The noticeboard page. Reading happens THERE, not on the dashboard: the

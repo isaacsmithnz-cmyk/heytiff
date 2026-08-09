@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "./icon";
+import { Clock } from "./clock";
 import { TiffButton } from "@/components/notes/tiff-button";
 import type { ShellUser } from "./sidebar";
 import { useCommandPalette } from "./command-palette-context";
@@ -58,7 +59,7 @@ function Bell() {
   );
 }
 
-export function Topbar({ user }: { user: ShellUser }) {
+export function Topbar({ user, today }: { user: ShellUser; today: string }) {
   /* The opener comes from context, not a prop: this component is rendered as a
      SERVER slot (it needs the viewer's name and role), and a server slot can't
      be handed a client callback. */
@@ -108,6 +109,12 @@ export function Topbar({ user }: { user: ShellUser }) {
       </button>
 
       <div className="tbr">
+        {/* The when, then the doing, then you. The clock is not a control, so
+            it sits outside the pair below and the existing hairline separates
+            them — the same divider already doing the same job before the
+            avatar. */}
+        <Clock today={today} />
+        <span className="sep" />
         {/* Left of the bell, deliberately: the two controls on this side are
             "say something" and "something needs you", and the one you reach
             for on purpose sits before the one that interrupts you. */}

@@ -173,6 +173,26 @@ export function auHourNow(now: Date = new Date()): number {
   return Number(part?.value ?? 0);
 }
 
+/* "9:47 am" — the clock in the yard right now, for the frame's topbar.
+
+   Same anchor as `auHourNow` and `todayInAu` for the same reason: a UTC server
+   renders 7pm yesterday while the crew is having smoko, and a clock that
+   disagrees with the dates on the page under it is worse than no clock. en-AU
+   already writes the meridiem lowercase and without periods, so there is
+   nothing to strip.
+
+   Takes `now` rather than reading the wall clock itself so the caller — which
+   is a component that re-renders on a timer — owns the tick, and so the format
+   can be tested without mocking Date. */
+export function fmtAuTime(now: Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-AU", {
+    timeZone: AU_ANCHOR_TZ,
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(now);
+}
+
 /* A stored date as an <input type="date"> value.
 
    The column is a `date`, but a driver may hand it back as a full timestamp,

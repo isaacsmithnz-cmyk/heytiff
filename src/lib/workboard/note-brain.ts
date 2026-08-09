@@ -27,6 +27,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { RECORD_IN_ENGLISH } from "@/lib/lang/policy";
+import { englishProposal } from "./note-english";
 
 /* Opus 5: the routing decision is the whole product. A cheaper model that
    mis-assigns "tell Luke" to the wrong Luke, or reads an urgent flag as a
@@ -647,7 +648,12 @@ export async function readNote(
     const block = response.content.find((b) => b.type === "text");
     if (!block || block.type !== "text") return { ok: false, error: FAILED };
 
-    return { ok: true, proposal: shapeProposal(JSON.parse(block.text), ctx) };
+    /* THE LAST READING BEFORE THE CARD. The prompt above tells the router to
+       write every record in English, and it does — but an instruction is not
+       an enforced check, and the failure it guards against is silent and
+       weeks late. `englishProposal` re-reads what came back, repairs what
+       isn't, and returns the proposal untouched on any failure of its own. */
+    return { ok: true, proposal: await englishProposal(shapeProposal(JSON.parse(block.text), ctx)) };
   } catch (err) {
     return { ok: false, error: reasonFor(err) };
   }

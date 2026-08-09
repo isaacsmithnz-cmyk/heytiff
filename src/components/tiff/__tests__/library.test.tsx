@@ -1,6 +1,7 @@
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Library, type KbLibraryDoc, type KbQuotaView } from "../library";
+import type { KbTagRef } from "@/lib/tiff/tags";
 
 /* The library screen.
 
@@ -27,10 +28,37 @@ jest.mock("@/app/actions/kb", () => ({
   confirmKbUpload: jest.fn(),
 }));
 
+/* The tag picker and the manage sheet import the tag actions, and a
+   "use server" module drags next/cache into jsdom — where `Request` doesn't
+   exist and the suite dies before a single test runs. */
+const createKbTag = jest.fn();
+const updateKbTag = jest.fn();
+const deleteKbTag = jest.fn();
+jest.mock("@/app/actions/kb-tags", () => ({
+  createKbTag: (...a: unknown[]) => createKbTag(...(a as [])),
+  updateKbTag: (...a: unknown[]) => updateKbTag(...(a as [])),
+  deleteKbTag: (...a: unknown[]) => deleteKbTag(...(a as [])),
+}));
+
 const start = jest.fn();
 jest.mock("@/lib/tiff/use-kb-ingest", () => ({
   useKbIngest: () => ({ progress: {}, busy: false, start }),
 }));
+
+const tag = (id: string, label: string, kind: KbTagRef["kind"] = "brand"): KbTagRef => ({
+  id,
+  label,
+  slug: label.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+  color: "#2563eb",
+  kind,
+});
+
+const TAGS: KbTagRef[] = [
+  tag("t-daikin", "Daikin"),
+  tag("t-mitsi", "Mitsubishi Electric"),
+  tag("t-vrv", "VRV", "system"),
+  tag("t-ducted", "Ducted", "system"),
+];
 
 const doc = (over: Partial<KbLibraryDoc> = {}): KbLibraryDoc => ({
   id: "d-1",
@@ -403,6 +431,9 @@ describe("who may do what", () => {
         category: "faults",
         source: "Mitsubishi Electric",
         edition: "2026 revision B",
+        // always sent, so unticking a tag takes it off — an action that only
+        // ever added would make a wrong tag permanent
+        tagIds: [],
       })
     );
     await waitFor(() => expect(refresh).toHaveBeenCalled());
@@ -444,6 +475,22 @@ describe("finding a document", () => {
     expect(screen.getByText("City Multi fault codes")).toBeInTheDocument();
   });
 
+  it("opens on the tags the URL asked for", () => {
+    render(
+      <Library
+        docs={[
+          doc({ id: "d-1", title: "City Multi fault codes", tags: [TAGS[1]] }),
+          doc({ id: "d-2", title: "VRV service manual", tags: [TAGS[0], TAGS[2]] }),
+        ]}
+        tags={TAGS}
+        initialTagIds={["t-daikin"]}
+      />
+    );
+
+    expect(screen.getByText("VRV service manual")).toBeInTheDocument();
+    expect(screen.queryByText("City Multi fault codes")).not.toBeInTheDocument();
+  });
+
   it("opens on the category the URL asked for", () => {
     render(<Library docs={library} initialCategory="install" />);
 
@@ -471,6 +518,23 @@ describe("finding a document", () => {
   /* The count map was a hand-written literal of four keys while the category
      list had five, so a field note tallied `undefined + 1` and its chip read
      "NaN" — a number nobody could explain, on the newest category. */
+  it("filters on a tag nobody wrote in the title", async () => {
+    render(
+      <Library
+        docs={[
+          doc({ id: "d-1", title: "City Multi fault codes", tags: [TAGS[1]] }),
+          doc({ id: "d-2", title: "Service manual", category: "faults", source: null, tags: [TAGS[0]] }),
+        ]}
+        tags={TAGS}
+      />
+    );
+
+    await userEvent.type(screen.getByLabelText("Search documents"), "daikin");
+
+    expect(screen.getByText("Service manual")).toBeInTheDocument();
+    expect(screen.queryByText("City Multi fault codes")).not.toBeInTheDocument();
+  });
+
   it("counts the field-note category rather than showing NaN", () => {
     render(
       <Library
@@ -484,5 +548,231 @@ describe("finding a document", () => {
     const chip = screen.getByRole("button", { name: /Field notes/ });
     expect(chip.textContent).toContain("2");
     expect(chip.textContent).not.toContain("NaN");
+  });
+});
+
+/* ── tags: the second axis ───────────────────────────────────────────────── */
+
+describe("narrowing by tag", () => {
+  const library = [
+    doc({ id: "d-1", title: "VRV service manual", category: "faults", tags: [TAGS[0], TAGS[2]] }),
+    doc({ id: "d-2", title: "Ducted install guide", category: "install", tags: [TAGS[0], TAGS[3]] }),
+    doc({ id: "d-3", title: "City Multi fault codes", category: "faults", tags: [TAGS[1], TAGS[2]] }),
+  ];
+
+  /* Scoped to the rail on purpose: the same tag name is also a pill on every
+     row that wears it, and an unscoped getByRole would find several buttons
+     called "VRV" — which is the point of the pills, not a bug in them. */
+  const railChip = (name: RegExp) =>
+    within(document.querySelector(".tk-trail") as HTMLElement).getByRole("button", { name });
+
+  it("puts every tag anything wears on the rail, with its count", () => {
+    render(<Library docs={library} tags={TAGS} />);
+
+    expect(railChip(/^Daikin/).textContent).toContain("2");
+    expect(railChip(/^VRV/).textContent).toContain("2");
+  });
+
+  /* An org starts with fifty seeded tags and a library with three documents.
+     Showing all fifty as filters would bury the four that would do anything —
+     an unused tag belongs in the PICKER, not the rail. */
+  it("keeps a tag nothing wears off the rail", () => {
+    const unused = tag("t-hitachi", "Hitachi");
+    render(<Library docs={library} tags={[...TAGS, unused]} />);
+
+    expect(within(document.querySelector(".tk-trail") as HTMLElement).queryByRole("button", { name: /^Hitachi/ })).not.toBeInTheDocument();
+  });
+
+  it("shows only what wears the tag", async () => {
+    render(<Library docs={library} tags={TAGS} />);
+
+    await userEvent.click(railChip(/^VRV/));
+
+    expect(screen.getByText("VRV service manual")).toBeInTheDocument();
+    expect(screen.getByText("City Multi fault codes")).toBeInTheDocument();
+    expect(screen.queryByText("Ducted install guide")).not.toBeInTheDocument();
+  });
+
+  /* AND, not OR: a second chip is "…and VRV", and it has to compose with the
+     category chip above it, which also narrows. An OR would grow the list
+     every time another filter went on. */
+  it("narrows further with a second tag rather than widening", async () => {
+    render(<Library docs={library} tags={TAGS} />);
+
+    await userEvent.click(railChip(/^Daikin/));
+    await userEvent.click(railChip(/^VRV/));
+
+    expect(screen.getByText("VRV service manual")).toBeInTheDocument();
+    expect(screen.queryByText("Ducted install guide")).not.toBeInTheDocument();
+    expect(screen.queryByText("City Multi fault codes")).not.toBeInTheDocument();
+  });
+
+  it("composes with the category filter", async () => {
+    render(<Library docs={library} tags={TAGS} />);
+
+    await userEvent.click(railChip(/^Daikin/));
+    await userEvent.click(screen.getByRole("button", { name: /Installation documents/ }));
+
+    expect(screen.getByText("Ducted install guide")).toBeInTheDocument();
+    expect(screen.queryByText("VRV service manual")).not.toBeInTheDocument();
+  });
+
+  it("says which combination found nothing, and offers the way back", async () => {
+    render(<Library docs={library} tags={TAGS} />);
+
+    await userEvent.click(railChip(/^VRV/));
+    await userEvent.click(railChip(/^Ducted/));
+
+    expect(screen.getByText("No documents wear all of those tags")).toBeInTheDocument();
+    expect(screen.getByText(/a document has to wear every one/)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Clear the tags" }));
+    expect(screen.getByText("VRV service manual")).toBeInTheDocument();
+  });
+
+  /* A tag that removed itself from the rail the moment it emptied the list
+     could never be pressed again to undo — the filter would be stuck on with
+     no control for it. */
+  it("keeps a selected tag pressable even when it leaves nothing on screen", async () => {
+    render(<Library docs={library} tags={TAGS} />);
+
+    await userEvent.click(railChip(/^VRV/));
+    await userEvent.click(railChip(/^Ducted/));
+    await userEvent.click(railChip(/^Ducted/));
+
+    expect(screen.getByText("VRV service manual")).toBeInTheDocument();
+  });
+
+  it("wears its tags on the row, and a pill is a filter", async () => {
+    render(<Library docs={library} tags={TAGS} />);
+
+    const row = screen.getByText("Ducted install guide").closest(".tk-row") as HTMLElement;
+    await userEvent.click(within(row).getByRole("button", { name: "Daikin" }));
+
+    expect(screen.getByText("VRV service manual")).toBeInTheDocument();
+    expect(screen.queryByText("City Multi fault codes")).not.toBeInTheDocument();
+  });
+
+  it("collapses a fourth tag into +N rather than turning the row into a cloud", () => {
+    render(
+      <Library
+        docs={[doc({ id: "d-9", title: "Everything manual", tags: [...TAGS] })]}
+        tags={TAGS}
+      />
+    );
+
+    const row = screen.getByText("Everything manual").closest(".tk-row") as HTMLElement;
+    expect(within(row).getByText("+1")).toBeInTheDocument();
+  });
+});
+
+describe("tagging a document after the fact", () => {
+  it("sends the tags the picker is showing, not the ones it arrived with", async () => {
+    updateKbDocMeta.mockResolvedValue({ ok: true });
+    render(<Library docs={[doc({ tags: [TAGS[0]] })]} tags={TAGS} canManage />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Edit City Multi fault codes" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Edit document" });
+    // one off, one on
+    await userEvent.click(within(dialog).getByRole("button", { name: /Daikin/ }));
+    await userEvent.click(within(dialog).getByRole("button", { name: /VRV/ }));
+    await userEvent.click(within(dialog).getByRole("button", { name: /Save details/ }));
+
+    await waitFor(() =>
+      expect(updateKbDocMeta).toHaveBeenCalledWith("d-1", expect.objectContaining({ tagIds: ["t-vrv"] }))
+    );
+  });
+
+  /* The slug is the identity and the server dedupes on it, so offering
+     "Create Daikin" beside the Daikin chip would be an offer that quietly does
+     nothing. */
+  it("offers to create only a name no tag already answers to", async () => {
+    render(<Library docs={[doc()]} tags={TAGS} canManage />);
+    await userEvent.click(screen.getByRole("button", { name: "Edit City Multi fault codes" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Edit document" });
+    const box = within(dialog).getByLabelText("Find or create a tag");
+
+    await userEvent.type(box, "daikin");
+    expect(within(dialog).queryByText(/^Create/)).not.toBeInTheDocument();
+
+    await userEvent.clear(box);
+    await userEvent.type(box, "chiller");
+    expect(within(dialog).getByText(/^Create/)).toBeInTheDocument();
+  });
+
+  it("ticks a tag it just made onto the document", async () => {
+    createKbTag.mockResolvedValue({
+      ok: true,
+      tag: tag("t-new", "Hydronic", "system"),
+    });
+    updateKbDocMeta.mockResolvedValue({ ok: true });
+
+    render(<Library docs={[doc({ tags: [] })]} tags={TAGS} canManage />);
+    await userEvent.click(screen.getByRole("button", { name: "Edit City Multi fault codes" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Edit document" });
+    await userEvent.type(within(dialog).getByLabelText("Find or create a tag"), "hydronic");
+    await userEvent.click(within(dialog).getByRole("button", { name: /System types/ }));
+
+    await waitFor(() => expect(createKbTag).toHaveBeenCalledWith({ label: "Hydronic", kind: "system" }));
+
+    await userEvent.click(within(dialog).getByRole("button", { name: /Save details/ }));
+    await waitFor(() =>
+      expect(updateKbDocMeta).toHaveBeenCalledWith("d-1", expect.objectContaining({ tagIds: ["t-new"] }))
+    );
+  });
+});
+
+describe("managing the tags themselves", () => {
+  it("is a manager's sheet — staff never see the way in", () => {
+    render(<Library docs={[doc()]} tags={TAGS} />);
+    expect(screen.queryByRole("button", { name: "Tags" })).not.toBeInTheDocument();
+  });
+
+  it("names how many documents a tag is on before it will remove it", async () => {
+    render(<Library docs={[doc()]} tags={TAGS} tagUsage={{ "t-daikin": 14 }} canManage />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Tags" }));
+    const sheet = screen.getByRole("dialog", { name: "Manage tags" });
+    expect(within(sheet).getByText("14 documents")).toBeInTheDocument();
+
+    await userEvent.click(within(sheet).getByRole("button", { name: "Remove Daikin" }));
+
+    expect(within(sheet).getByText("Remove “Daikin”?")).toBeInTheDocument();
+    // the manuals are not what's being deleted, and the confirm says so
+    expect(within(sheet).getByText(/the documents stay/)).toBeInTheDocument();
+    expect(deleteKbTag).not.toHaveBeenCalled();
+  });
+
+  it("confirming is what removes it", async () => {
+    deleteKbTag.mockResolvedValue({ ok: true });
+    render(<Library docs={[doc()]} tags={TAGS} tagUsage={{ "t-daikin": 2 }} canManage />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Tags" }));
+    const sheet = screen.getByRole("dialog", { name: "Manage tags" });
+    await userEvent.click(within(sheet).getByRole("button", { name: "Remove Daikin" }));
+    await userEvent.click(within(sheet).getByRole("button", { name: /Remove “Daikin”$/ }));
+
+    await waitFor(() => expect(deleteKbTag).toHaveBeenCalledWith("t-daikin"));
+  });
+
+  it("renames and recolours through one save", async () => {
+    updateKbTag.mockResolvedValue({ ok: true, tag: tag("t-vrv", "VRV Systems", "system") });
+    render(<Library docs={[doc()]} tags={TAGS} canManage />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Tags" }));
+    const sheet = screen.getByRole("dialog", { name: "Manage tags" });
+    await userEvent.click(within(sheet).getByRole("button", { name: "Edit VRV" }));
+
+    const box = within(sheet).getByLabelText("Rename VRV");
+    await userEvent.clear(box);
+    await userEvent.type(box, "VRV systems");
+    await userEvent.click(within(sheet).getByRole("button", { name: /Save/ }));
+
+    await waitFor(() =>
+      expect(updateKbTag).toHaveBeenCalledWith("t-vrv", expect.objectContaining({ label: "VRV systems" }))
+    );
   });
 });

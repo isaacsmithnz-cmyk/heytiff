@@ -40,6 +40,15 @@ jest.mock("@/lib/tiff/query", () => ({
   kbUploaderNames: jest.fn(async () => ({})),
   kbCategoryCounts: jest.fn(async () => ({ install: 3, faults: 2, specs: 0, sops: 0 })),
 }));
+/* Mocked at the module rather than at the Supabase client: lib/tiff/tags-query
+   builds a real client on import, and without a URL in the environment the
+   whole suite dies before the first gate is checked. */
+jest.mock("@/lib/tiff/tags-query", () => ({
+  kbTagsForOrg: jest.fn(async () => []),
+  kbTagsByDocument: jest.fn(async () => ({})),
+  kbTagUsage: jest.fn(async () => ({})),
+  ensureKbSeedTags: jest.fn(async () => {}),
+}));
 jest.mock("@/lib/tiff/quota", () => ({
   kbQuotaFor: jest.fn(async () => ({
     plan: "standard",

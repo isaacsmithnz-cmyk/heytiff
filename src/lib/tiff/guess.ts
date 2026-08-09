@@ -27,8 +27,13 @@ const RULES: readonly { cat: KbCategory; re: RegExp }[] = [
   },
 ];
 
-/** Lower case, and every separator a space — the shape the rules expect. */
-function normalise(filename: string): string {
+/** Lower case, and every separator a space — the shape the rules expect.
+
+    Exported because the tag guesser (lib/tiff/tags.ts) matches tag names
+    against the same haystack, and two normalisers would drift: the day this
+    one learned to strip an extension is the day the other one stopped
+    agreeing with it about what "the filename" is. */
+export function normaliseFilename(filename: string): string {
   return String(filename ?? "")
     .toLowerCase()
     .replace(/\.[a-z0-9]{1,5}$/, "")
@@ -41,7 +46,7 @@ function normalise(filename: string): string {
    the category a mis-guess does the least damage in — nobody searching fault
    codes is misled by a spec sheet sitting in the wrong pile. */
 export function guessKbCategory(filename: string): KbCategory {
-  const hay = normalise(filename);
+  const hay = normaliseFilename(filename);
   let best: { cat: KbCategory; at: number } | null = null;
 
   for (const rule of RULES) {
@@ -62,8 +67,12 @@ const SMALL = new Set(["a", "an", "and", "for", "in", "of", "on", "or", "the", "
    tech would type and which then reads wrong on every citation chip (found
    live: the one document in the pilot library wears it). Whole lowercase words
    only; a token with ANY capitals already keeps itself via `keepAsIs`. The
-   value is the exact print, so "sops" can come out as "SOPs". */
-const TRADE_CAPS: Record<string, string> = {
+   value is the exact print, so "sops" can come out as "SOPs".
+
+   Exported for tag labels, which have the same problem for the same reason: a
+   manager typing "vrf" into the tag box means VRF, and a chip reading "Vrf"
+   beside a citation reading "VRF" is the same word twice in two spellings. */
+export const TRADE_CAPS: Record<string, string> = {
   vrv: "VRV",
   vrf: "VRF",
   hvac: "HVAC",

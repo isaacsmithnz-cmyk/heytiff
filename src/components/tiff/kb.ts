@@ -49,12 +49,23 @@ export const KB_CATEGORIES: KbCategory[] = [
    about a document is the file they dragged in. It had nowhere to be matched
    because it was never stored; `file_name` is that gap closed.
 
+   AND THE TAGS, which is the fourth thing and the only one a person CHOSE.
+   Typing "daikin" has to find the Daikin-tagged manuals whether or not the
+   word is in the title, or the tag rail becomes the only way to use tags at
+   all — and somebody who has just tagged fourteen documents will type the tag
+   name into the box in front of them before they look for a chip.
+
    Generic over the row, because the library's real rows come from the database
    (lib/tiff/query.ts) where both are nullable — the search is the same search
    either way, and duplicating it for the second shape is how the two drift
    apart. */
 export function filterKbDocs<
-  T extends { title: string; source?: string | null; fileName?: string | null },
+  T extends {
+    title: string;
+    source?: string | null;
+    fileName?: string | null;
+    tags?: readonly { label: string }[];
+  },
 >(docs: T[], query: string): T[] {
   const q = query.trim().toLowerCase();
   if (!q) return docs;
@@ -62,6 +73,7 @@ export function filterKbDocs<
     (d) =>
       d.title.toLowerCase().includes(q) ||
       (d.source ?? "").toLowerCase().includes(q) ||
-      (d.fileName ?? "").toLowerCase().includes(q)
+      (d.fileName ?? "").toLowerCase().includes(q) ||
+      (d.tags ?? []).some((t) => t.label.toLowerCase().includes(q))
   );
 }

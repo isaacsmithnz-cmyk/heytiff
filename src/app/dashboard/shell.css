@@ -5323,6 +5323,181 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   .fg .tk-btn:active:not(:disabled), .tk-sheet .tk-btn:active:not(:disabled) { transform:none; }
 }
 
+/* ══════════════════ TIFF — TAGS (.tgp- / .tgl- / .tgm-) ══════════════════
+   The second axis: category is the shelf, a tag is what's on the spine.
+
+   THREE ROOTS, EVERY RULE. The picker renders in the library page (inside
+   `.fg`), in the upload drawer (`.tk-sheet`, portalled to <body>) and in the
+   edit modal (`.fl-modal`, also portalled). `.fg` styles do not reach inside a
+   portal and `.fg button` is a (0,1,1) reset that beats any single class, so
+   each control is written for all three prefixes — the same shape the `.tk-btn`
+   family above already carries, for the same reason. Dropping one root does
+   not fail loudly; it renders a bare browser button in one of three places.
+
+   THE TAG COLOUR IS DECORATION AND SAYS SO. It arrives as `--tgc` on the
+   element and is used for a dot, a tinted background and a border — never for
+   text at full strength, because a tag is not a state and #00A389/#e0264f mean
+   ok/danger everywhere else in this app. */
+
+.fg .tgp, .tk-sheet .tgp, .fl-modal .tgp { margin-top:14px; }
+.fg .tgp-top, .tk-sheet .tgp-top, .fl-modal .tgp-top {
+  display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:7px; }
+.fg .tgp-lbl, .tk-sheet .tgp-lbl, .fl-modal .tgp-lbl {
+  font-size:11.5px; font-weight:700; color:var(--gray700); }
+.fg .tgp-clear, .tk-sheet .tgp-clear, .fl-modal .tgp-clear {
+  padding:0; border:none; background:none; font-family:var(--font-jakarta), sans-serif;
+  font-size:11.5px; font-weight:700; color:#1d4ed8; cursor:pointer;
+  text-decoration:underline; text-underline-offset:3px; }
+.fg .tgp-clear:hover, .tk-sheet .tgp-clear:hover, .fl-modal .tgp-clear:hover { color:#2E68FF; }
+
+/* the find/create box — one control, because typing a name that doesn't exist
+   IS the create gesture and a separate "new tag" button would be a second
+   place to look for the same thing */
+.fg .tgp-find, .tk-sheet .tgp-find, .fl-modal .tgp-find {
+  position:relative; display:flex; align-items:center; gap:8px; height:36px; padding:0 12px;
+  border:1.5px solid #e5e7eb; border-radius:11px; background:#fff;
+  transition:border-color .2s, box-shadow .2s; }
+.fg .tgp-find:focus-within, .tk-sheet .tgp-find:focus-within, .fl-modal .tgp-find:focus-within {
+  border-color:#2E68FF; box-shadow:0 0 0 3px rgba(46,104,255,.15); }
+.fg .tgp-find svg, .tk-sheet .tgp-find svg, .fl-modal .tgp-find svg { flex:none; color:var(--gray400); }
+.fg .tgp-find input, .tk-sheet .tgp-find input, .fl-modal .tgp-find input {
+  flex:1 1 auto; min-width:0; height:100%; padding:0; border:none; background:none; outline:none;
+  font-family:var(--font-jakarta), sans-serif; font-size:13px; font-weight:600; color:var(--ink); }
+
+.fg .tgp-make, .tk-sheet .tgp-make, .fl-modal .tgp-make {
+  display:flex; align-items:center; flex-wrap:wrap; gap:7px; margin-top:9px; padding:9px 11px;
+  border:1px dashed #d9dce4; border-radius:12px; background:linear-gradient(180deg,#fafbfc,#fff); }
+.fg .tgp-make > span, .tk-sheet .tgp-make > span, .fl-modal .tgp-make > span {
+  font-size:12px; font-weight:600; color:var(--gray500); }
+.fg .tgp-make b, .tk-sheet .tgp-make b, .fl-modal .tgp-make b { font-weight:800; color:var(--ink); }
+.fg .tgp-mk, .tk-sheet .tgp-mk, .fl-modal .tgp-mk {
+  display:inline-flex; align-items:center; gap:5px; height:26px; padding:0 10px;
+  border:1px solid rgba(46,104,255,.25); border-radius:99px; background:rgba(46,104,255,.07); color:#1d4ed8;
+  font-family:var(--font-jakarta), sans-serif; font-size:11.5px; font-weight:700; cursor:pointer;
+  transition:background .18s, color .18s; }
+.fg .tgp-mk:hover:not(:disabled), .tk-sheet .tgp-mk:hover:not(:disabled), .fl-modal .tgp-mk:hover:not(:disabled) {
+  background:#2E68FF; color:#fff; }
+.fg .tgp-mk:disabled, .tk-sheet .tgp-mk:disabled, .fl-modal .tgp-mk:disabled { opacity:.45; pointer-events:none; }
+
+.fg .tgp-grp, .tk-sheet .tgp-grp, .fl-modal .tgp-grp { margin-top:11px; }
+.fg .tgp-grp > em, .tk-sheet .tgp-grp > em, .fl-modal .tgp-grp > em {
+  display:block; margin-bottom:6px; font-style:normal; font-size:10.5px; font-weight:800;
+  letter-spacing:.06em; text-transform:uppercase; color:var(--gray400); }
+.fg .tgp-row, .tk-sheet .tgp-row, .fl-modal .tgp-row { display:flex; flex-wrap:wrap; gap:6px; }
+
+/* one tag, off and on. OFF is grey with a coloured dot; ON is the tag's own
+   colour at low alpha with the label in ink — a filled chip in the raw colour
+   would be a wall of saturation at twelve tags and would read as a status. */
+.fg .tgp-t, .tk-sheet .tgp-t, .fl-modal .tgp-t {
+  display:inline-flex; align-items:center; gap:6px; height:28px; padding:0 11px;
+  border:1px solid #e5e7eb; border-radius:99px; background:#fff; color:var(--gray700);
+  font-family:var(--font-jakarta), sans-serif; font-size:12px; font-weight:700; cursor:pointer;
+  transition:background .18s, border-color .18s, color .18s; }
+.fg .tgp-t .tgp-d, .tk-sheet .tgp-t .tgp-d, .fl-modal .tgp-t .tgp-d {
+  width:7px; height:7px; border-radius:50%; flex:none; background:var(--tgc, #9ca3af); }
+.fg .tgp-t svg, .tk-sheet .tgp-t svg, .fl-modal .tgp-t svg { flex:none; color:var(--tgc, #374151); }
+.fg .tgp-t:hover:not(:disabled), .tk-sheet .tgp-t:hover:not(:disabled), .fl-modal .tgp-t:hover:not(:disabled) {
+  border-color:#d1d5db; background:#fafbfc; }
+.fg .tgp-t.on, .tk-sheet .tgp-t.on, .fl-modal .tgp-t.on {
+  border-color:color-mix(in srgb, var(--tgc, #374151) 45%, transparent);
+  background:color-mix(in srgb, var(--tgc, #374151) 10%, #fff); color:var(--ink); }
+.fg .tgp-t:disabled, .tk-sheet .tgp-t:disabled, .fl-modal .tgp-t:disabled { opacity:.4; pointer-events:none; }
+.fg .tgp-t:focus-visible, .tk-sheet .tgp-t:focus-visible, .fl-modal .tgp-t:focus-visible {
+  outline:none; box-shadow:0 0 0 3px rgba(46,104,255,.3); }
+
+.fg .tgp-none, .tk-sheet .tgp-none, .fl-modal .tgp-none,
+.fg .tgp-full, .tk-sheet .tgp-full, .fl-modal .tgp-full {
+  margin:10px 0 0; font-size:12px; font-weight:600; color:var(--gray400); }
+.fg .tgp-err, .tk-sheet .tgp-err, .fl-modal .tgp-err {
+  margin:9px 0 0; font-size:12.5px; font-weight:700; color:#b31038; }
+
+/* the palette */
+.fg .tgs, .tk-sheet .tgs, .fl-modal .tgs { display:inline-flex; align-items:center; gap:5px; flex-wrap:wrap; }
+.fg .tgs-s, .tk-sheet .tgs-s, .fl-modal .tgs-s {
+  width:20px; height:20px; padding:0; flex:none; border:2px solid transparent; border-radius:50%;
+  cursor:pointer; box-shadow:0 1px 2px rgba(0,0,0,.12); transition:transform .16s, border-color .16s; }
+.fg .tgs-s:hover, .tk-sheet .tgs-s:hover, .fl-modal .tgs-s:hover { transform:scale(1.12); }
+.fg .tgs-s.on, .tk-sheet .tgs-s.on, .fl-modal .tgs-s.on { border-color:var(--ink); }
+.fg .tgs-s:focus-visible, .tk-sheet .tgs-s:focus-visible, .fl-modal .tgs-s:focus-visible {
+  outline:none; box-shadow:0 0 0 3px rgba(46,104,255,.35); }
+
+/* ── the pills on a library row ── */
+/* Small, quiet, and PRESSABLE: a tag on a row is the fastest way to the
+   document's siblings, which is what earns the space on a row that already
+   carries a title, a meta line and a status pill. */
+.fg .tgl { display:inline-flex; align-items:center; flex-wrap:wrap; gap:5px; margin-top:6px; }
+.fg .tgl-p { display:inline-flex; align-items:center; height:20px; padding:0 8px; border-radius:99px;
+  border:1px solid color-mix(in srgb, var(--tgc, #9ca3af) 30%, transparent);
+  background:color-mix(in srgb, var(--tgc, #9ca3af) 9%, #fff);
+  color:color-mix(in srgb, var(--tgc, #9ca3af) 72%, #111827);
+  font-family:var(--font-jakarta), sans-serif; font-size:10.5px; font-weight:800; letter-spacing:.01em;
+  white-space:nowrap; }
+.fg button.tgl-p { cursor:pointer; transition:background .16s, border-color .16s; }
+.fg button.tgl-p:hover { background:color-mix(in srgb, var(--tgc, #9ca3af) 18%, #fff);
+  border-color:color-mix(in srgb, var(--tgc, #9ca3af) 55%, transparent); }
+.fg .tgl-p.on { background:color-mix(in srgb, var(--tgc, #9ca3af) 20%, #fff);
+  border-color:color-mix(in srgb, var(--tgc, #9ca3af) 60%, transparent); }
+.fg button.tgl-p:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(46,104,255,.3); }
+.fg .tgl-more { font-size:10.5px; font-weight:800; color:var(--gray400); }
+
+/* ── the filter rail ── */
+.fg .tk-hact { display:inline-flex; align-items:center; gap:10px; }
+.fg .tk-trail { display:flex; align-items:flex-start; gap:10px; flex:1 1 100%; padding-top:2px; }
+.fg .tk-tlbl { display:inline-flex; align-items:center; gap:6px; height:38px; flex:none;
+  font-size:11.5px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:var(--gray400); }
+.fg .tk-tlbl svg { flex:none; }
+/* a shorter chip than the category rail's, because there are more of them and
+   they are the narrower fact */
+.fg .tk-chip.tag { height:32px; padding:0 12px; font-size:12.5px; }
+.fg .tk-chip.tag .tk-dot { width:7px; height:7px; }
+.fg .tk-tclr { align-self:center; padding:0 4px; border:none; background:none;
+  font-family:var(--font-jakarta), sans-serif; font-size:12px; font-weight:700; color:#1d4ed8;
+  text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
+.fg .tk-tclr:hover { color:#2E68FF; }
+
+/* ── the manage sheet ── */
+.tk-sheet .tgm { display:flex; flex-direction:column; gap:16px; padding:20px 24px; }
+.tk-sheet .tgm-new { padding:14px 16px; border:1px solid #eceef2; border-radius:18px; background:#fff;
+  box-shadow:0 1px 2px rgba(0,0,0,.03); }
+.tk-sheet .tgm-nrow { display:flex; align-items:center; gap:10px; }
+.tk-sheet .tgm-nrow .tk-fi { flex:1 1 auto; min-width:0; }
+.tk-sheet .tgm-nrow .tk-btn { height:38px; padding:0 14px; flex:none; }
+.tk-sheet .tgm-nopt { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-top:11px; }
+.tk-sheet .tgm-d { width:12px; height:12px; flex:none; border-radius:50%; box-shadow:0 1px 2px rgba(0,0,0,.12); }
+.tk-sheet .tgm-grp > em { display:block; margin-bottom:7px; font-style:normal; font-size:10.5px; font-weight:800;
+  letter-spacing:.06em; text-transform:uppercase; color:var(--gray400); }
+.tk-sheet .tgm-grp > em span { margin-left:7px; color:var(--gray400); font-weight:700; letter-spacing:0; }
+.tk-sheet .tgm-empty { margin:0 0 4px; font-size:12px; font-weight:600; color:var(--gray400); }
+.tk-sheet .tgm-row { display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:12px;
+  transition:background .18s; }
+.tk-sheet .tgm-row:hover { background:#fafbfc; }
+.tk-sheet .tgm-row b { flex:1 1 auto; min-width:0; font-size:13.5px; font-weight:700;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tk-sheet .tgm-row em { flex:none; font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray400); }
+.tk-sheet .tgm-edit { padding:13px 14px; border:1.5px solid rgba(46,104,255,.35); border-radius:14px;
+  background:rgba(46,104,255,.03); }
+.tk-sheet .tgm-cbtn { display:flex; justify-content:flex-end; gap:9px; margin-top:12px; }
+.tk-sheet .tgm-cbtn .tk-btn { height:38px; padding:0 14px; }
+
+/* the confirm, IN THE ROW rather than a second overlay: a modal over a drawer
+   is two scrims deep, and a panel pinned to the bottom of a fifty-tag sheet
+   would put the question forty rows below the button that asked it */
+.tk-sheet .tgm-conf { padding:13px 15px; border-radius:14px;
+  border:1px solid rgba(224,38,79,.28); background:rgba(224,38,79,.04); }
+.tk-sheet .tgm-conf b { display:block; font-size:14px; font-weight:800; color:var(--ink); }
+.tk-sheet .tgm-conf span { display:block; margin-top:5px; font-size:12.5px; font-weight:600; line-height:1.55;
+  color:var(--gray500); }
+.tk-sheet .tk-btn.danger { background:#e0264f; color:#fff; box-shadow:0 10px 22px -14px rgba(224,38,79,.9); }
+.tk-sheet .tk-btn.danger:hover:not(:disabled) { background:#b31038; }
+
+@media (max-width:980px) {
+  .fg .tk-trail { flex-direction:column; gap:4px; }
+  .fg .tk-tlbl { height:auto; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .fg .tgs-s:hover, .tk-sheet .tgs-s:hover, .fl-modal .tgs-s:hover { transform:none; }
+}
+
 /* ══════════════════ TIFF — THE ASSISTANT (.tk- layout) ═══════════════════
    The two-column screen: transcript on the left, the category cards on the
    right. The rail is on the RIGHT rather than under the conversation for

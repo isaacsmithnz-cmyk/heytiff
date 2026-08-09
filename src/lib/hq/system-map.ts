@@ -589,9 +589,10 @@ export const NODES: MapNode[] = [
     name: "Library",
     kind: "store",
     group: "Supabase",
-    blurb: "kb_documents · kb_chunks · kb_usage + the private kb bucket, signed-URL only.",
+    blurb:
+      "kb_documents · kb_chunks · kb_usage · kb_tags · kb_document_tags + the private kb bucket, signed-URL only.",
     detail:
-      "Its own bucket rather than the documents one: that bucket caps at 10 MB around notice photos, and a manufacturer's install manual is routinely 30. A chunk carries its page range, its keywords and a pgvector embedding that is allowed to be NULL — without an embeddings key the full-text leg carries search alone and a later re-run backfills. The search vector is a generated column, weighted keywords over heading over body, so nothing can insert a row whose index disagrees with its text. kb_usage counts pages and questions per org per Australian month and survives the deletion of the document that spent them. Deny-all RLS like every table here.",
+      "Its own bucket rather than the documents one: that bucket caps at 10 MB around notice photos, and a manufacturer's install manual is routinely 30. A chunk carries its page range, its keywords and a pgvector embedding that is allowed to be NULL — without an embeddings key the full-text leg carries search alone and a later re-run backfills. The search vector is a generated column, weighted keywords over heading over body, so nothing can insert a row whose index disagrees with its text. kb_usage counts pages and questions per org per Australian month and survives the deletion of the document that spent them. Tags are the second axis beside the five fixed categories — manufacturer, system type, topic — and they are rows rather than an array column because a tag has a colour and a name that can be corrected in one place; the join carries org_id in both composite keys, so a document can never wear another workspace's tag. Deny-all RLS like every table here.",
   },
   {
     id: "db-universal",

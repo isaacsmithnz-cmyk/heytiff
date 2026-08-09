@@ -8,6 +8,7 @@ import { countUnembedded } from "@/lib/tiff/backfill";
 import { isSemanticConfigured } from "@/lib/tiff/embeddings";
 import { kbDocsForOrg, kbUploaderNames } from "@/lib/tiff/query";
 import { kbQuotaFor } from "@/lib/tiff/quota";
+import { ensureKbSeedTags, kbTagsByDocument, kbTagsForOrg, kbTagUsage } from "@/lib/tiff/tags-query";
 
 /* The library. Deep-linkable leaf — same `tiff` gate as the assistant page:
    the capability is revocable, so every route checks for itself and not just
@@ -20,7 +21,14 @@ import { kbQuotaFor } from "@/lib/tiff/quota";
    RENDER, not what is allowed.
 
    `?cat=` is how the assistant's category cards arrive: the card you clicked
-   is the filter you land on. */
+   is the filter you land on. `?tag=` is the same idea on the second axis, and
+   repeatable — `?tag=daikin&tag=vrv` is a link to the Daikin VRV shelf.
+
+   THE SEED TAGS ARE MATERIALISED HERE, before the read that would otherwise
+   come back empty. It is a write on a GET, which is why it is guarded by a
+   count and made idempotent on the (org_id, slug) index rather than by this
+   page being careful: two people opening the library at once must not race
+   each other into a duplicate or a failed load. */
 export default async function LibraryPage({
   searchParams,
 }: {
@@ -34,25 +42,45 @@ export default async function LibraryPage({
 
   const params = searchParams ? await searchParams : {};
   const raw = Array.isArray(params.cat) ? params.cat[0] : params.cat;
+  const rawTags = Array.isArray(params.tag) ? params.tag : params.tag ? [params.tag] : [];
+
+  await ensureKbSeedTags(orgId);
 
   /* The passages stored without a vector. Counted only where a key exists:
      without one, EVERY chunk is null by design and the whole library would
      read as broken rather than as keyword-only. */
-  const [docs, quota, canManage, role, uploaders, unembedded] = await Promise.all([
-    kbDocsForOrg(orgId),
-    kbQuotaFor(orgId),
-    can("tiff_manage"),
-    getDbRole(),
-    kbUploaderNames(orgId),
-    isSemanticConfigured() ? countUnembedded(orgId) : Promise.resolve(0),
-  ]);
+  const [docs, quota, canManage, role, uploaders, unembedded, tags, docTags, tagUsage] =
+    await Promise.all([
+      kbDocsForOrg(orgId),
+      kbQuotaFor(orgId),
+      can("tiff_manage"),
+      getDbRole(),
+      kbUploaderNames(orgId),
+      isSemanticConfigured() ? countUnembedded(orgId) : Promise.resolve(0),
+      kbTagsForOrg(orgId),
+      kbTagsByDocument(orgId),
+      kbTagUsage(orgId),
+    ]);
+
+  /* The URL names tags by SLUG, not by id — a link that survives being pasted
+     into Slack has to be readable, and an id would also leak nothing useful
+     while breaking the moment a workspace is re-seeded. Anything that doesn't
+     match a real tag is dropped rather than rendered as a dead filter. */
+  const bySlug = new Map(tags.map((t) => [t.slug, t.id]));
+  const initialTagIds = [
+    ...new Set(rawTags.map((s) => bySlug.get(String(s).toLowerCase())).filter(Boolean) as string[]),
+  ];
 
   return (
     <Library
       docs={docs.map((d) => ({
         ...d,
         uploaderName: d.uploadedById ? (uploaders[d.uploadedById] ?? null) : null,
+        tags: docTags[d.id] ?? [],
       }))}
+      tags={tags}
+      tagUsage={tagUsage}
+      initialTagIds={initialTagIds}
       quota={{
         plan: quota.plan,
         month: quota.month,

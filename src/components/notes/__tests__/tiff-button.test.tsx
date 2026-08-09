@@ -130,6 +130,33 @@ describe("the button itself", () => {
     expect(dialog).toHaveClass("wb2-dusk");
   });
 
+  /* THE GROW IS MEASURED, NOT GUESSED. It was a clip circle at a hardcoded
+     `86% -48px` — right for one viewport width and one card position, and
+     wrong the moment the card moved to the middle. The button now measures
+     itself and hands the offset in; the keyframe translates the card's
+     centre onto the button by exactly that much, so the motion holds at any
+     width and wherever the button lives next.
+
+     jsdom renders no animation, but these two numbers ARE the animation's
+     input — wrong here and the sheet grows from the wrong place on every
+     screen. Everything else about the entrance is already pinned above. */
+  it("hands the button's own position to the sheet it grows into", async () => {
+    const user = userEvent.setup();
+    mount();
+
+    // a 44px button near the top-right, on a 1000×800 window
+    window.innerWidth = 1000;
+    window.innerHeight = 800;
+    btn().getBoundingClientRect = () =>
+      ({ left: 900, top: 20, width: 44, height: 44 }) as DOMRect;
+
+    await user.click(btn());
+
+    const dialog = screen.getByRole("dialog");
+    // centre (922, 42) minus the viewport centre (500, 400)
+    expect(dialog).toHaveStyle({ "--cap-dx": "422px", "--cap-dy": "-358px" });
+  });
+
   /* IT RENDERS WHERE IT IS PUT. It portalled to body for one commit, when it
      floated bottom-right: inside `.fg` a fixed overlay is unreachable under a
      sheet's scrim at ANY z-index (measured — a probe at 2147483647 still

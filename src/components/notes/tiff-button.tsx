@@ -76,6 +76,16 @@ export function TiffButton({ where = "topbar" }: { where?: Where }) {
     return () => clearTimeout(t);
   }, [lit]);
 
+  /* WHERE THE SHEET GROWS FROM, measured rather than guessed. The entrance
+     used to be a clip circle at a hardcoded corner, which was only ever
+     right for one viewport width and one card position — and centring the
+     card made it plainly wrong. The button knows where it is, so it says:
+     its offset from the viewport centre is exactly the translate that puts
+     the (centred) card's middle on top of it. Read in the handler, never
+     during render — a layout measurement in a render body is the hydration
+     trap this codebase has paid for once already. */
+  const [from, setFrom] = useState<{ dx: number; dy: number } | null>(null);
+
   /* A sheet says what it is about, so its button can say what it will do
      with what you say — the topbar's cannot, because the topbar is nowhere
      in particular. */
@@ -92,7 +102,12 @@ export function TiffButton({ where = "topbar" }: { where?: Where }) {
         title={where === "sheet" ? label : undefined}
         aria-haspopup="dialog"
         aria-expanded={flow.open}
-        onClick={() => {
+        onClick={(e) => {
+          const r = e.currentTarget.getBoundingClientRect();
+          setFrom({
+            dx: r.left + r.width / 2 - window.innerWidth / 2,
+            dy: r.top + r.height / 2 - window.innerHeight / 2,
+          });
           setLit(true);
           flow.setOpen(true);
         }}
@@ -129,7 +144,7 @@ export function TiffButton({ where = "topbar" }: { where?: Where }) {
           on which control you reached it through — only the ENTRANCE differs:
           from this button the sheet blossoms out of the corner the button is
           in; from a field's nudge it simply rises. */}
-      <CaptureSheet flow={flow} entrance="blossom" />
+      <CaptureSheet flow={flow} entrance="blossom" from={from} />
     </>
   );
 }

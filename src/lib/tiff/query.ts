@@ -96,6 +96,54 @@ export async function kbCategoryCounts(orgId: string): Promise<Record<KbCategory
   return counts;
 }
 
+/** One line of the landing's "Recently added" strip. */
+export type KbRecentDoc = {
+  id: string;
+  title: string;
+  category: KbCategory;
+  pageCount: number | null;
+};
+
+/* The last few documents to land, for the assistant's landing.
+
+   READY ONLY, and for the same reason the category counts are: a manual still
+   being read cannot be asked about, and a row that invites a question it can't
+   answer is worse than an empty strip.
+
+   NO TIMESTAMP COMES BACK. The obvious column to show beside a document is
+   when it arrived, and it is the one thing this must not hand over: the strip
+   renders on the SERVER, a relative time is computed from `Date.now()`, and a
+   clock in a render body tears hydration for the whole tree (the trap this
+   codebase has already paid for once). The heading says "recently"; the line
+   underneath says what the document IS, which is more use to somebody deciding
+   whether to ask about it. */
+export async function kbRecentDocs(orgId: string, limit = 4): Promise<KbRecentDoc[]> {
+  const { data } = await supabaseAdmin
+    .from("kb_documents")
+    .select("id, title, category, page_count")
+    .eq("org_id", orgId)
+    .eq("status", "ready")
+    .not("uploaded_at", "is", null)
+    .order("uploaded_at", { ascending: false })
+    .limit(Math.max(0, limit));
+
+  const rows: KbRecentDoc[] = [];
+  for (const r of (data ?? []) as unknown as Record<string, unknown>[]) {
+    const category = asKbCategory(r.category);
+    const title = String(r.title ?? "").trim();
+    // a row with no category or no name has nothing to show and nothing to ask
+    if (!category || !title) continue;
+    rows.push({
+      id: String(r.id),
+      title,
+      category,
+      pageCount:
+        r.page_count === null || r.page_count === undefined ? null : Number(r.page_count),
+    });
+  }
+  return rows;
+}
+
 /* Who put each document there, by staff-profile id. A separate read rather
    than a join: `uploaded_by` is nullable (a row can outlive the person's
    profile) and the library shows a name as a nicety, so it must never be the

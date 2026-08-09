@@ -39,6 +39,7 @@ jest.mock("@/lib/tiff/query", () => ({
   kbDocsForOrg: jest.fn(async () => []),
   kbUploaderNames: jest.fn(async () => ({})),
   kbCategoryCounts: jest.fn(async () => ({ install: 3, faults: 2, specs: 0, sops: 0 })),
+  kbRecentDocs: jest.fn(async () => []),
 }));
 /* Mocked at the module rather than at the Supabase client: lib/tiff/tags-query
    builds a real client on import, and without a URL in the environment the

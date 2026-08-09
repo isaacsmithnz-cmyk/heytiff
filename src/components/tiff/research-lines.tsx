@@ -45,6 +45,16 @@ import { KB_CATEGORIES, type KbCategoryKey } from "./kb";
 /** A measured lane: one path, from the composer's edge to one card's edge. */
 type Lane = { key: KbCategoryKey; color: string; d: string };
 
+/** How far a run leaves the bar before it may turn. */
+const LEAD = 22;
+
+/** How far it travels level into the card after its last bend. */
+const APPROACH = 26;
+
+/** Elbow sweep. Clamped per lane — at a narrow width a fixed radius would
+    consume the run it is supposed to bend. */
+const ELBOW = 9;
+
 /* The exact complement of the stylesheet's `@media (max-width:1100px)`, so
    there is no width at which the lines are drawn against a stacked layout —
    `(min-width:1100px)` would overlap it by a pixel. */
@@ -112,45 +122,91 @@ function lanesBetween(
      floated: the landing's shoulder origin started above the pill (and the
      aurora swallowed the first 20px), and the thread's corridor origin sat
      14px off the column edge — lines that hovered NEAR the bar, visibly
-     unattached to it (the owner's exact complaint, twice). The lanes now
-     start 2px UNDER the pill's right edge — the pill is opaque and paints
-     above, so each line emerges from the bar itself — and leave travelling
-     horizontally into the corridor, which no conversation content ever
-     occupies.
-
-     NESTED CHANNELS, NOT A BRAID. Five curves sharing one narrow corridor
-     cross wherever their left-to-right order inverts, and the first cut of
-     this construction braided exactly that way on the harness. The rule that
-     unpicks it: a lane's horizontal channel matches how long it lives in the
-     corridor. The TOP card's lane climbs furthest, so it takes the INNERMOST
-     channel and sweeps out only above the heights where every other lane has
-     already turned into its card; the BOTTOM card's lane swings widest and
-     leaves the corridor at once. Both controls follow the same order (c1
-     opens .12→.56 of the gutter, the approach closes .79→.35), each origin
-     steps 8px down the pill's edge in card order, and the strip empties
-     upward without a single crossing — a loom, not a cable tie. */
+     unattached to it. The lanes start 2px UNDER the pill's right edge — the
+     pill is opaque and paints above, so each line emerges from the bar
+     itself — and leave travelling horizontally into the corridor, which no
+     conversation content ever occupies. */
   const sx = from.right - base.left - 2;
   const anchorY = from.top - base.top + from.height / 2;
 
-  const lanes: Lane[] = [];
-  KB_CATEGORIES.forEach((cat, i) => {
+  /* ── PIPEWORK, NOT HAIR ──
+     Five thin low-opacity curves fanning out of one point is, precisely, the
+     shape of strands of hair — the owner kept trying to blow them off the
+     screen, on a product he built. Freehand curves were the wrong grammar for
+     a trade tool: what a tech reads all day is conduit, trunking and riser
+     diagrams, which are orthogonal.
+
+     So every lane is a run: out of the bar, one bend, up or down its own
+     channel, one bend, in to its card. The bends are swept rather than
+     mitred — a hard 90° pixel corner reads as a chart axis, a radiused one
+     reads as an elbow, which is what it is.
+
+     THE CHANNELS ARE A BANK, evenly pitched across the corridor like a tray
+     of parallel runs, and which lane gets which channel is what keeps them
+     from crossing: the card FURTHEST from the bar turns off earliest and
+     takes the innermost channel, so its long vertical happens before any
+     other lane's horizontal reaches that x. Every horizontal then sits at its
+     own card's height and every vertical at its own channel, which is why the
+     bank reads as parallel rather than as a tangle. (Proved on the harness by
+     segment intersection, not by eye — the previous curve construction looked
+     right and braided.) */
+  const rects = KB_CATEGORIES.map((cat, i) => {
     const el = cards.get(cat.key);
-    if (!el) return;
+    if (!el) return null;
     const r = el.getBoundingClientRect();
-    const ex = r.left - base.left - 10;
-    const ey = r.top - base.top + r.height / 2;
-    const sy = anchorY + (i - (KB_CATEGORIES.length - 1) / 2) * 8;
-    /* gutter shares, so the same fan opens whether the corridor is 72px or
-       160 — and the shares keep every control between the bar and the cards,
-       no clamps needed */
-    const gutter = ex - sx;
-    const c1x = sx + gutter * (0.12 + i * 0.11);
-    const c2x = ex - gutter * (0.79 - i * 0.11);
-    lanes.push({
-      key: cat.key,
-      color: cat.color,
-      d: `M ${sx} ${sy} C ${c1x} ${sy}, ${c2x} ${ey}, ${ex} ${ey}`,
-    });
+    return {
+      cat,
+      // the origin steps down the pill's edge IN CARD ORDER, so the takeoffs
+      // read as separate ports on one manifold rather than one thick line
+      sy: anchorY + (i - (KB_CATEGORIES.length - 1) / 2) * 8,
+      ex: r.left - base.left - 10,
+      ey: r.top - base.top + r.height / 2,
+    };
+  }).filter((v): v is NonNullable<typeof v> => v !== null);
+
+  if (rects.length === 0) return null;
+
+  /* Channel slots, innermost first, handed out by how far the lane travels.
+     `slot` is looked up per lane below rather than sorted in place, because
+     the DRAW order has to stay the category order — the colours are read
+     against the rail beside them. */
+  const byReach = [...rects].sort(
+    (a, b) => Math.abs(b.ey - b.sy) - Math.abs(a.ey - a.sy)
+  );
+  const slotOf = new Map(byReach.map((r, i) => [r.cat.key, i]));
+
+  const lanes: Lane[] = rects.map((r) => {
+    const dy = r.ey - r.sy;
+    /* A card level with the bar is a straight run — forcing a bend into it
+       would draw a kink around nothing. */
+    if (Math.abs(dy) < 2) {
+      return { key: r.cat.key, color: r.cat.color, d: `M ${sx} ${r.sy} H ${r.ex}` };
+    }
+
+    const slot = slotOf.get(r.cat.key) ?? 0;
+    const span = Math.max(0, r.ex - sx - LEAD - APPROACH);
+    const pitch = rects.length > 1 ? span / (rects.length - 1) : 0;
+    const tx = sx + LEAD + slot * pitch;
+
+    // the elbow, clamped so it can never eat its own run at a narrow width
+    const dir = dy > 0 ? 1 : -1;
+    const bend = Math.max(
+      0,
+      Math.min(ELBOW, Math.abs(dy) / 2, (tx - sx) / 2, (r.ex - tx) / 2)
+    );
+
+    return {
+      key: r.cat.key,
+      color: r.cat.color,
+      d: [
+        `M ${sx} ${r.sy}`,
+        `H ${tx - bend}`,
+        `Q ${tx} ${r.sy} ${tx} ${r.sy + dir * bend}`,
+        `V ${r.ey - dir * bend}`,
+        `Q ${tx} ${r.ey} ${tx + bend} ${r.ey}`,
+        `H ${r.ex}`,
+      ].join(" "),
+    };
   });
   // no cards registered is a moment between renders, not a rail with no shelves
   return lanes.length > 0 ? lanes : null;

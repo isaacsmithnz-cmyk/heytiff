@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { TasksSection } from "../tasks-section";
+import { HomeTasks } from "../home-tasks";
 import { todayInAu } from "@/lib/au-dates";
 import type { DashTask } from "@/lib/dashboard/tasks";
 
@@ -31,7 +31,7 @@ const doneTask = (doneAt: string): DashTask => ({
 
 const renderDone = (doneAt: string, today: string) =>
   render(
-    <TasksSection
+    <HomeTasks
       today={today}
       mine={[]}
       team={null}

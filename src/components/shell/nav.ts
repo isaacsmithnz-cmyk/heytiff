@@ -57,29 +57,31 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: "Workspace",
     items: [
-      /* Action required is Home's detail view — the hero's counters are the
-         summary and its own back link says "← Dashboard" — so it rides on
-         Home's row rather than taking one of its own. What it gains is a ⌘K
-         entry: the board had NO door in the whole shell before the topbar bell
-         got one, and typing "action" returned "no results" for a screen that
-         very much exists. */
+      /* Action required and the Noticeboard are both Home's detail views now,
+         so both ride on Home's row rather than taking one each.
+
+         THE TABS FINALLY EXIST. `subItems` has always meant "sibling route
+         shown as a tab on the page rather than a row in the rail", and Action
+         required has been declared one since the counters — but Home had no
+         tab strip to draw it in, so the promise was only ever half kept. Home
+         is a five-face card now (Journal · Urgent · Needs attention ·
+         Noticeboard · Tasks), and these two ARE two of those faces.
+
+         Neither loses its door. `NAV` is rows plus subItems and feeds ⌘K, so
+         typing "notice" or "action" still finds them; only `NAV_ROWS`, the
+         rail, drops them. Same move Leave made onto Timesheet and the library
+         onto Tiff AI. The routes stay: posting, moderating and the full board
+         all live at /dashboard/notices, which is where the tab's door lands. */
       { key: "home", label: "Home", icon: "dashboard", href: "/dashboard", hint: "Your day at a glance", accent: "#00E5C0",
         subItems: [
           { key: "actionreq", label: "Action required", icon: "alert", href: "/dashboard/action-required", hint: "Everything waiting on you", accent: "#FF3366" },
+          { key: "notices", label: "Noticeboard", icon: "note", href: "/dashboard/notices", hint: "Announcements for the team", accent: "#8A2BE2" },
         ] },
       // Second on purpose, right under Home: Home is YOUR day, the Workboard
       // is the BUSINESS's — the two questions anyone opens the app to ask.
       // It lives in Workspace rather than Operations because unlike the rest
       // of that group it defaults to EVERYONE (`workboard` is a staff default).
       { key: "workboard", label: "Workboard", icon: "activity", href: "/dashboard/workboard", hint: "Maintenance & projects command centre", accent: "#00A8E0", capability: "workboard" },
-      /* THIRD, and a ROW rather than a face. It was reachable from exactly one
-         place — a card on Home — despite being a daily read carrying unread
-         counts, mentions, polls and comments. It goes UNDER the Home/Workboard
-         pair rather than between them (your day, then the business's, then the
-         team's) and above the tools, because it is news rather than something
-         you go and use. Ungated to match the route: everyone reads it; posting
-         and moderating gate inside on `team`. */
-      { key: "notices", label: "Noticeboard", icon: "note", href: "/dashboard/notices", hint: "Announcements for the team", accent: "#8A2BE2" },
       { key: "toolbox", label: "Toolbox", icon: "wrench", href: "/dashboard/toolbox", hint: "Calculators & references", accent: "#8A2BE2", capability: "toolbox" },
       { key: "ductr", label: "Design Studio", icon: "wind", href: "/dashboard/studio", hint: "VRF design canvas", accent: "#FF8A00", capability: "studio" },
       /* The library rides along as a tab, like Leave does on Timesheet: it is

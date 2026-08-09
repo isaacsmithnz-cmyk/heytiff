@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { TasksSection } from "../tasks-section";
+import { HomeTasks } from "../home-tasks";
 
 const createTask = jest.fn(async () => ({ ok: true as const }));
 
@@ -19,7 +19,7 @@ const TODAY = "2026-07-25";
 
 function setup() {
   render(
-    <TasksSection
+    <HomeTasks
       today={TODAY}
       mine={[]}
       team={[]}

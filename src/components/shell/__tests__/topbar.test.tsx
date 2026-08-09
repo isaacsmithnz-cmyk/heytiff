@@ -1,8 +1,10 @@
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import { Topbar } from "../topbar";
 import { CommandPaletteProvider } from "../command-palette-context";
 import type { ShellUser } from "../sidebar";
 import { actionRequiredCount } from "@/app/actions/action-required";
+import { fmtAuWeekdayDayMonth, todayInAu } from "@/lib/au-dates";
 
 /* The bell.
 
@@ -35,7 +37,7 @@ const user: ShellUser = {
 const draw = () =>
   render(
     <CommandPaletteProvider>
-      <Topbar user={user} />
+      <Topbar user={user} today="2026-08-09" />
     </CommandPaletteProvider>,
   );
 
@@ -117,5 +119,67 @@ describe("the bell", () => {
     await waitFor(() => expect(countMock).toHaveBeenCalled());
     expect(bell().querySelector(".d")).toBeNull();
     expect(screen.getByText("Jordan Mills")).toBeInTheDocument();
+  });
+});
+
+/* THE CLOCK.
+
+   The date was a teal capsule inside the dashboard hero; it is chrome now, so
+   every screen carries it and Home gets the space back. The interesting half
+   is the time: a clock rendered into server markup and hydrated a minute later
+   is a text mismatch, and a mismatch in a render body fails hydration for the
+   whole tree. */
+describe("the clock", () => {
+  beforeEach(() => countMock.mockResolvedValue(0));
+
+  it("takes the day off the LIVE clock once hydrated, not the prop it was given", () => {
+    /* The prop here is deliberately ancient. An app left open overnight has to
+       roll over rather than insist it is still yesterday, so after hydration
+       the date is derived from the same clock as the time — which is also why
+       this cannot assert a hard-coded string. It did, once, and broke at
+       midnight. The server's use of the prop is pinned by the renderToString
+       test below, where `hydrated` is false. */
+    render(
+      <CommandPaletteProvider>
+        <Topbar user={user} today="2020-01-01" />
+      </CommandPaletteProvider>,
+    );
+    const clock = document.querySelector(".tbclock") as HTMLElement;
+    expect(clock).not.toBeNull();
+    expect(clock.querySelector("em")?.textContent).toBe(fmtAuWeekdayDayMonth(todayInAu()));
+    expect(clock.querySelector("em")?.textContent).not.toBe("Wed 1 Jan");
+  });
+
+  it("emits NO time on the server — the whole reason it is split", () => {
+    /* renderToString is the only place this is observable: `useHydrated`
+       reports true on a plain client render, so RTL alone would show a time
+       and prove nothing. Asserted as "no h:mm am/pm anywhere in the markup"
+       rather than on one element, so moving the clock can't quietly hide a
+       regression. */
+    const html = renderToString(
+      <CommandPaletteProvider>
+        <Topbar user={user} today="2026-08-09" />
+      </CommandPaletteProvider>,
+    );
+    expect(html).toContain("Sun 9 Aug");
+    expect(html).not.toMatch(/\d{1,2}:\d{2}\s*(am|pm)/i);
+  });
+
+  it("fills the time in once there is a browser to own it", async () => {
+    draw();
+    await waitFor(() =>
+      expect(document.querySelector(".tbclock b")?.textContent).toMatch(/^\d{1,2}:\d{2} (am|pm)$/),
+    );
+  });
+
+  it("is information, not a control — it sits outside the button cluster", () => {
+    /* Order is the point: when · do · you. If it drifts in among the controls
+       it starts reading as one. */
+    draw();
+    const clock = document.querySelector(".tbclock") as HTMLElement;
+    const tiff = document.querySelector('[aria-label^="Ask or tell Tiff"]') as HTMLElement;
+    expect(clock.closest(".tbr")).not.toBeNull();
+    expect(clock.compareDocumentPosition(tiff) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(clock.querySelector("button")).toBeNull();
   });
 });

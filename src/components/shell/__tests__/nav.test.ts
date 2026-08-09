@@ -63,14 +63,26 @@ describe("nav config", () => {
     expect(mustBeFindable.filter((h) => !known.has(h))).toEqual([]);
   });
 
-  it("gives the noticeboard a row of its own and Action required a face of Home", () => {
-    // a row, because it is a daily read; a face, because the hero counters
-    // above it are the summary of the very same list
-    expect(NAV_ROWS.map((n) => n.key)).toContain("notices");
-    expect(byKey("home").subItems?.map((s) => s.href)).toEqual(["/dashboard/action-required"]);
-    expect(NAV_ROWS.map((n) => n.key)).not.toContain("actionreq");
-    // …and Home stays lit while you are reading it
+  it("makes Action required AND the noticeboard faces of Home, not rows", () => {
+    /* Both were declared Home's detail views long before Home could draw
+       them. It is a five-face card now — Journal · Urgent · Needs attention ·
+       Noticeboard · Tasks — so the two that were waiting for a tab strip have
+       one, and they come off the rail.
+
+       OFF THE RAIL IS NOT GONE. `NAV` is rows plus subItems and feeds ⌘K; only
+       `NAV_ROWS` drops them. The "must be findable" test above already pins
+       /dashboard/notices, and this pins which side of the split it is on. */
+    expect(byKey("home").subItems?.map((s) => s.href)).toEqual([
+      "/dashboard/action-required",
+      "/dashboard/notices",
+    ]);
+    for (const gone of ["notices", "actionreq"]) {
+      expect(NAV_ROWS.map((n) => n.key)).not.toContain(gone);
+      expect(NAV.map((n) => n.key)).toContain(gone);
+    }
+    // …and Home stays lit while you are reading either of them
     expect(isActive(byKey("home"), "/dashboard/action-required")).toBe(true);
+    expect(isActive(byKey("home"), "/dashboard/notices")).toBe(true);
   });
 
   it("folds the library into Tiff AI rather than giving it a rail row", () => {
@@ -117,12 +129,11 @@ describe("nav config", () => {
     // The two questions anyone opens the app to ask, in order: what's on for
     // ME, and what's on for the BUSINESS. Everything else is a tool.
     const ws = NAV_GROUPS.find((g) => g.label === "Workspace");
-    // Home (your day) → Workboard (the business's) → Noticeboard (the team's),
-    // then the tools you go and use.
+    // Home (your day) → Workboard (the business's), then the tools you go and
+    // use. The noticeboard is a face of Home rather than a row of its own.
     expect(ws?.items.map((i) => i.key)).toEqual([
       "home",
       "workboard",
-      "notices",
       "toolbox",
       "ductr",
       "tiff",
@@ -226,8 +237,6 @@ describe("capability gating", () => {
     expect(workspace(viewer("owner"))?.slice(0, 2)).toEqual(["home", "workboard"]);
     expect(workspace({ caps: resolve("staff", { workboard: false }), role: "staff" })).toEqual([
       "home",
-      // the noticeboard is ungated, so revoking the workboard never hides it
-      "notices",
       "toolbox",
       "ductr",
       "tiff",

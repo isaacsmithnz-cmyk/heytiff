@@ -41,20 +41,51 @@ export type QueryPlan = {
   terms: string[];
   /** The composed websearch_to_tsquery string handed to `kb_fts`. */
   ftsQuery: string;
+  /* THE QUESTION AS IT WOULD BE ASKED COLD, which is the only form the library
+     can answer. "Can you give me step by step?" is a complete sentence and a
+     useless query: the subject is two turns up the conversation, so retrieval
+     searched for "step by step", found pages about nothing in particular, and
+     the answer came back reading as if the topic had been dropped and picked
+     up again from scratch (reported live, 2026-08-08).
+
+     Equal to the question itself when there is no history to fold in, so the
+     first question of every conversation is untouched. */
+  standalone: string;
 };
 
 const PREP_SCHEMA = {
   type: "object",
   properties: {
+    standalone: { type: "string" },
     terms: { type: "array", items: { type: "string" } },
   },
-  required: ["terms"],
+  required: ["standalone", "terms"],
   additionalProperties: false,
 } as const;
 
+/** Turns replayed to the condenser. Two is enough to resolve "it" and "that";
+    more is a summary of the conversation, which is a different job. */
+export const PREP_HISTORY_TURNS = 4;
+
+/** A rewritten question longer than this is an essay, not a query. */
+export const STANDALONE_MAX_CHARS = 300;
+
 const SYSTEM = [
-  "You expand a technician's question into the terms an HVAC or electrical",
-  "document would actually use, so a keyword index can find the right pages.",
+  "You prepare a technician's question for a search over HVAC and electrical",
+  "documents. Two jobs, and the first one comes first.",
+  "",
+  "1. `standalone` — the question as it would be asked with nobody listening.",
+  "   A follow-up carries its subject in the conversation, not in its own words:",
+  "   'can you give me step by step?' after an answer about the vacuum setting",
+  "   is 'what is the step-by-step procedure for the vacuum setting?'. Resolve",
+  "   'it', 'that', 'those' and every bare pronoun against the turns above, and",
+  "   carry down the model, code or component under discussion.",
+  "   - copy the question verbatim when it already stands on its own",
+  "   - never answer it, never add a fact the conversation didn't establish",
+  `   - one sentence, at most ${STANDALONE_MAX_CHARS} characters`,
+  "",
+  "2. `terms` — the words a document would use, expanded from the STANDALONE",
+  "   question (not the raw one, or a follow-up expands into nothing).",
   "",
   "List the terms a manual, datasheet or SOP would contain:",
   "- the fault or error code exactly as a document writes it (P8, U4, E5)",
@@ -93,6 +124,32 @@ export function shapePrep(raw: unknown): string[] {
     if (terms.length >= MAX_TERMS) break;
   }
   return terms;
+}
+
+/* The rewritten question, or the original.
+
+   THE ORIGINAL IS ALWAYS THE SAFE ANSWER. A condenser that returns nothing, an
+   empty string, or a paragraph has failed at a job the raw question does
+   adequately — searching for itself is how this worked before condensation
+   existed. It is never allowed to fail louder than that. */
+export function shapeStandalone(raw: unknown, question: string): string {
+  const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const value = typeof r.standalone === "string" ? r.standalone : "";
+  const text = value.trim().replace(/\s+/g, " ").slice(0, STANDALONE_MAX_CHARS);
+  return text || question;
+}
+
+/** The turns the condenser reads, oldest first — trimmed to the last few and
+    to one line each, because it needs the subject, not the transcript. */
+export function historyLines(history: readonly { role: string; text: string }[]): string[] {
+  return (history ?? [])
+    .slice(-PREP_HISTORY_TURNS)
+    .map((turn) => {
+      const text = String(turn?.text ?? "").trim().replace(/\s+/g, " ").slice(0, 400);
+      if (!text) return "";
+      return `${turn.role === "assistant" ? "Tiff" : "Tech"}: ${text}`;
+    })
+    .filter(Boolean);
 }
 
 /* The words that carry no meaning to an index, plus the three that ARE
@@ -166,11 +223,20 @@ const offline = () => !process.env.ANTHROPIC_API_KEY;
 
 /** Expand the question, or don't. Never throws, and never returns a plan the
     caller can't search with. */
-export async function prepareQuery(question: string): Promise<QueryPlan> {
+export async function prepareQuery(
+  question: string,
+  history: readonly { role: string; text: string }[] = []
+): Promise<QueryPlan> {
   const text = String(question ?? "").trim();
-  const plain = (): QueryPlan => ({ terms: [], ftsQuery: ftsQueryOf(text, []) });
+  /* Every failure path lands here, and it is the pre-condensation behaviour
+     exactly: the question searches for itself. A follow-up asked in a broken
+     moment retrieves the way it did before this existed — imperfectly, never
+     emptily. */
+  const plain = (): QueryPlan => ({ terms: [], ftsQuery: ftsQueryOf(text, []), standalone: text });
 
   if (!text || offline()) return plain();
+
+  const lines = historyLines(history);
 
   try {
     const client = new Anthropic();
@@ -182,7 +248,14 @@ export async function prepareQuery(question: string): Promise<QueryPlan> {
         format: { type: "json_schema", schema: PREP_SCHEMA },
       },
       system: SYSTEM,
-      messages: [{ role: "user", content: `Question:\n${text}` }],
+      messages: [
+        {
+          role: "user",
+          content: lines.length
+            ? `Conversation so far:\n${lines.join("\n")}\n\nQuestion:\n${text}`
+            : `Question:\n${text}`,
+        },
+      ],
     });
 
     /* A refusal is a content outcome, not an error — checked before reading
@@ -193,8 +266,13 @@ export async function prepareQuery(question: string): Promise<QueryPlan> {
     const block = response.content.find((b) => b.type === "text");
     if (!block || block.type !== "text") return plain();
 
-    const terms = shapePrep(JSON.parse(block.text));
-    return { terms, ftsQuery: ftsQueryOf(text, terms) };
+    const parsed = JSON.parse(block.text);
+    const terms = shapePrep(parsed);
+    /* The rewritten question is what gets searched for — both legs. Composing
+       the keyword query from the ORIGINAL would put "step by step" back in the
+       atoms and leave the subject out of them. */
+    const standalone = shapeStandalone(parsed, text);
+    return { terms, ftsQuery: ftsQueryOf(standalone, terms), standalone };
   } catch {
     return plain();
   }

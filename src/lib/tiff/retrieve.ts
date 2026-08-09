@@ -20,7 +20,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import type { AskSourceItem } from "./ask-client";
 import { embedTexts, isSemanticConfigured, type EmbedResult } from "./embeddings";
 import { asKbCategory, type KbCategory } from "./files";
-import { prepareQuery } from "./query-prep";
+import { historyLines, prepareQuery } from "./query-prep";
 import { addKbUsage } from "./quota";
 import {
   buildTrace,
@@ -81,17 +81,39 @@ const num = (value: unknown, fallback: number): number =>
 /** Search the org's library for the question. Never throws: a leg that errors
     is a leg that found nothing, and zero hits is a real answer the caller
     renders honestly rather than an exception. */
-export async function retrieveForQuestion(orgId: string, question: string): Promise<Retrieval> {
+export async function retrieveForQuestion(
+  orgId: string,
+  question: string,
+  /* The turns before this one. Only the CONDENSER reads them — a follow-up
+     that says "can you give me step by step?" has to be turned back into the
+     question it means before either leg goes looking, or the library is asked
+     for pages about stepping. */
+  history: readonly { role: string; text: string }[] = []
+): Promise<Retrieval> {
+  const embedFor = (text: string): Promise<EmbedResult> =>
+    isSemanticConfigured()
+      ? embedTexts([text], "query")
+      : Promise.resolve<EmbedResult>({ ok: true, vectors: null });
+
   /* The expansion call and the query embedding are independent and both cost
      a network round trip on the critical path — the user is watching a typing
-     indicator for the sum of everything here. */
-  const [plan, embedded] = await Promise.all([
-    prepareQuery(question),
-    isSemanticConfigured()
-      ? embedTexts([question], "query")
-      : Promise.resolve<EmbedResult>({ ok: true, vectors: null }),
+     indicator for the sum of everything here.
+
+     WITH HISTORY THEY STOP BEING INDEPENDENT. The vector leg has to embed the
+     REWRITTEN question — embedding "can you give me step by step?" searches
+     semantic space for the shape of a request rather than for the vacuum
+     procedure it is about — and the rewrite is what the expansion call
+     returns. So a follow-up pays one embedding round trip in sequence
+     (~0.3s against an expansion that already costs seconds) and the first
+     question of a conversation, which has nothing to fold in, keeps the
+     parallel path exactly as it was. */
+  const cold = historyLines(history).length === 0;
+  const [plan, preEmbedded] = await Promise.all([
+    prepareQuery(question, history),
+    cold ? embedFor(question) : Promise.resolve<EmbedResult | null>(null),
   ]);
 
+  const embedded = preEmbedded ?? (await embedFor(plan.standalone));
   const qvec = embedded.ok ? (embedded.vectors?.[0] ?? null) : null;
 
   const [fts, vec] = await Promise.all([

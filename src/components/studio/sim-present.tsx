@@ -28,7 +28,6 @@ const PRESENT_LAYERS = { ...ALL_LAYERS_ON, pipes: false };
 export function SimPresentMode({
   doc,
   floor,
-  pack,
   planImages,
   activeSystemId,
   runtime,

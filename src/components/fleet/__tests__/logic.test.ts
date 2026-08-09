@@ -14,7 +14,6 @@ import {
   modelLabel,
   odoEffect,
   odoRejection,
-  openIssueCount,
   parseValuations,
   readReceiptOffline,
   serviceDueKm,

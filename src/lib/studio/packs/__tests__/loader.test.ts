@@ -1,6 +1,6 @@
 /* Stage-2: the loader is merge-aware from day one (overlay over base). */
 
-import { emptyPack, type DataPack, type OutdoorUnit } from "../schema";
+import { emptyPack, type OutdoorUnit } from "../schema";
 import { assemblePack, mergePacks, resolvePacks } from "../loader";
 
 const prov = { kind: "extracted" as const, source: "book" };

@@ -54,7 +54,6 @@ import {
   spigotsOf,
   distributeSpigots,
   formatDia,
-  streamOf,
   suggestedMainDucts,
   type PlenumSpigot,
 } from "@/lib/studio/ducted";
@@ -1194,7 +1193,7 @@ export function StudioCanvas({
       });
     }
     return m;
-  }, [plenums, units, footprint, iduSpec, endFace, doc.settings.units]);
+  }, [plenums, units, footprint, iduSpec, endFace]);
 
   useEffect(() => {
     const el = wrapRef.current;

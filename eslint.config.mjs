@@ -20,6 +20,28 @@ const eslintConfig = defineConfig([
        parsing error in `eslint .` for as long as it has been checked in. */
     "_design/**",
   ]),
+  {
+    /* A LEADING UNDERSCORE ALREADY MEANT "DELIBERATELY UNUSED" HERE — the
+       linter just wasn't told. It is how the codebase writes a signature it
+       has to match but does not read: `(..._a: unknown[]) => …` on a jest
+       stub standing in for a real function, `constructor(_cfg: unknown) {}`
+       on a mocked Auth0 client. Those arguments cannot be deleted — removing
+       them changes the shape the mock is imitating — so without this they are
+       permanent warnings that train people to ignore the rule.
+
+       Catch clauses are included for the same reason: `catch (_e)` is how you
+       say the failure is expected and the details genuinely do not matter. */
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;

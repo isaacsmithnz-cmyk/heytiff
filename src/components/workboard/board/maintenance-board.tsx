@@ -2,11 +2,8 @@
 
 import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
-import { useRouter } from "next/navigation";
-import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { urgentRows } from "@/lib/workboard/urgent-rules";
 import { toConfirmCount } from "@/lib/workboard/board-status";
-import { clearVisitPlacement, placeVisit } from "@/app/actions/workboard-maintenance";
 import type { MaintenanceBoardData } from "@/lib/workboard/board-query";
 import type { BoardFlag } from "@/lib/workboard/notes-query";
 import { calOfMaintenance, gatesOf, toneOf } from "./derive";
@@ -76,7 +73,6 @@ export function MaintenanceBoard({
       rather than replacing it, so everything on it stays usable. */
   tools?: ReactNode;
 }) {
-  const router = useRouter();
   const [tab, setTab] = useState<BoardTab>("urgent");
   const [sheet, setSheet] = useState<{ visitId: string; closeOut: boolean } | null>(null);
   const [dayISO, setDayISO] = useState<string | null>(null);
@@ -176,10 +172,6 @@ export function MaintenanceBoard({
   const sheetVisit = sheet ? data.visits.find((v) => v.id === sheet.visitId) ?? null : null;
   const openSheet = (visitId: string, closeOut = false) => setSheet({ visitId, closeOut });
 
-  // Tell the page what the pill should attach to — and always hand back
-  // "nothing" when the sheet closes or the board unmounts.
-  const sheetVisitId = sheetVisit?.id ?? null;
-  const sheetVisitLabel = sheetVisit ? `${sheetVisit.clientName} · ${sheetVisit.label}` : null;
   const sheetAgreement = agreementId
     ? data.agreements.find((a) => a.id === agreementId) ?? null
     : null;

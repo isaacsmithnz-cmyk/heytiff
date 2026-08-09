@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import userEvent from "@testing-library/user-event";
 import { XeroCostsPanel } from "../xero-costs";
 import { XeroFleetPanel } from "../xero-fleet";
@@ -75,6 +76,63 @@ describe("a window the books only partly cover", () => {
     unmount();
     setup({ xeroCosts: snap({ monthsCovered: null }) });
     expect(screen.queryByText(/of these 12 months/i)).not.toBeInTheDocument();
+  });
+});
+
+/* A SNAPSHOT OLD ENOUGH TO MISPRICE, AND THE CLOCK THAT SPOTS IT.
+
+   The banner had no test at all, which is how the clock behind it got to sit
+   in the render body: `snapshotAgeMonths(snap.fetchedAt, Date.now())`. Two
+   things wrong with that, and only one of them is the lint rule. This page is
+   SERVER-rendered with `initialState`, so the snapshot and its age both exist
+   during SSR — and a month boundary crossed between the server's clock and
+   the browser's puts different markup in the same node, which is a hydration
+   failure for the whole tree. The workboard has already paid for this once
+   (see sm8-chip, whose chip took the entire board's hydration down).
+
+   So: the server sends no verdict about age, and the browser reaches the same
+   one a beat later. Both halves are pinned, because gating the banner without
+   the second test would look exactly like deleting the feature. */
+describe("a snapshot old enough to misprice", () => {
+  const OLD = snap({ fetchedAt: new Date(Date.now() - 400 * 86_400_000).toISOString() });
+
+  /* Matched on the OPENING phrase, never on "months old". The banner shipped
+     as "6 monthsold" — JSX drops the leading space of a text chunk that wraps
+     to a new line — so a `/months old/` matcher passes whether the banner is
+     there or not, and the two negative cases below would have proved nothing.
+     The spacing is fixed; this matcher stays honest either way. */
+  const WARNING = /this snapshot is more than/i;
+
+  it("warns once the browser has a clock", () => {
+    setup({ xeroCosts: OLD });
+    expect(screen.getByText(WARNING)).toHaveTextContent("more than 6 months old");
+  });
+
+  it("says nothing about a snapshot pulled this month", () => {
+    setup({ xeroCosts: snap({ fetchedAt: new Date().toISOString() }) });
+    expect(screen.queryByText(WARNING)).not.toBeInTheDocument();
+  });
+
+  it("respects the calculator's own review reminder as the threshold", () => {
+    const s = { ...emptyState(), costsSource: "xero" as const, xeroCosts: OLD };
+    s.settings.review_reminder_months = 24;
+    render(<XeroCostsPanel s={s} patch={jest.fn()} onFetch={async () => ({ ok: false, error: "" })} />);
+    // 400 days is over 6 months but well under 24 — the threshold, not a constant
+    expect(screen.queryByText(WARNING)).not.toBeInTheDocument();
+  });
+
+  /* THE HYDRATION PROPERTY. What the server sends must not depend on the
+     clock, or the two renders disagree and React tears the tree down. */
+  it("sends no age verdict from the server, however old the snapshot is", () => {
+    const html = renderToString(
+      <XeroCostsPanel
+        s={{ ...emptyState(), costsSource: "xero", xeroCosts: OLD }}
+        patch={jest.fn()}
+        onFetch={async () => ({ ok: false, error: "" })}
+      />
+    );
+    expect(html).toContain("Demo Company (AU)"); // it did render the panel
+    expect(html).not.toMatch(WARNING);
   });
 });
 

@@ -4620,6 +4620,14 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
   height:180px; transform:translateX(-50%); border-radius:50%; pointer-events:none;
   background:linear-gradient(120deg, #00E5C0, #2E68FF, #8A2BE2);
   filter:blur(64px); opacity:.14; animation:fgBreath 5s ease-in-out infinite; }
+/* IT POOLS UNDER THE CARD, so it has to follow it. Bottom-anchored is right
+   for the phone's bottom sheet and was right for the desk too until the
+   card moved to the middle — left alone it went on glowing at the foot of
+   an empty screen, a long way from the thing it belongs to. */
+@media (min-width:760px) {
+  .wb2-capdim::after { top:50%; bottom:auto; height:260px;
+    transform:translate(-50%,-50%); }
+}
 .wb2-capcard { position:fixed; top:9vh; left:50%; transform:translateX(-50%); z-index:111;
   width:min(680px, calc(100vw - 32px)); max-height:80vh; overflow-y:auto; overscroll-behavior:contain;
   background:#fff; border:1px solid rgba(5,5,5,.08); border-radius:20px;
@@ -6101,13 +6109,22 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   background:rgba(5,5,5,.14); margin:2px auto 8px; }
 @media (min-width:760px) {
   /* On a desk it stops being a thumb surface and becomes a card again —
-     bottom-anchored full width across a 1400px screen is a lot of nothing. */
-  .wb2-capcard.wb2-caps { left:50%; right:auto; bottom:4vh; width:min(680px, calc(100vw - 32px));
-    transform:translateX(-50%); border-radius:20px;
+     bottom-anchored full width across a 1400px screen is a lot of nothing.
+
+     AND IT SITS IN THE MIDDLE (Isaac, 2026-08-09). `bottom:4vh` was the
+     bottom sheet keeping its habit on a big screen: the card opened down
+     by your feet, a long way from the button that opened it and from where
+     you are looking. Centred, it lands where the eye already is. Both
+     keyframes carry the FULL centring transform — `both` fill holds the
+     last frame forever, so a keyframe that drops half of it parks the card
+     permanently off-centre (the wb2DropIn lesson, twice learned). */
+  .wb2-capcard.wb2-caps { left:50%; right:auto; top:50%; bottom:auto;
+    width:min(680px, calc(100vw - 32px));
+    transform:translate(-50%,-50%); border-radius:20px;
     animation:wb2SheetUpWide .3s cubic-bezier(.22,1,.36,1) both; }
   @keyframes wb2SheetUpWide {
-    from { transform:translateX(-50%) translateY(14%); opacity:.5; }
-    to   { transform:translateX(-50%); opacity:1; } }
+    from { transform:translate(-50%,-50%) translateY(14px); opacity:.5; }
+    to   { transform:translate(-50%,-50%); opacity:1; } }
   .wb2-grab { display:none; }
 }
 
@@ -6351,27 +6368,43 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .wb2-dusk .wb2-anstext { color:#ECEFF3; }
 .wb2-dusk .wb2-anscursor { background:#E8EAED; }
 
-/* ── the entrance: the sheet blossoms out of the button's corner ──
+/* ── the entrance: the sheet grows OUT OF THE BUTTON ──
+
    Only the Tiff button hands in `wb2-blossom`; a field's nudge and the
-   debrief keep the plain rise. The reveal is a clip circle anchored where
-   the button lives (top-right, above the card), so the sheet reads as the
-   button GROWN, not a thing that appeared. Both keyframe sets carry the
-   card's own resting transform through every frame — the wb2DropIn lesson:
-   `both` fill holds the final frame forever, so a keyframe that forgets the
-   centring translate parks the card half a width off. */
-@keyframes wb2Blossom {
-  from { opacity:0; clip-path:circle(22px at calc(100% - 58px) -34px); transform:translateY(10px); }
-  40%  { opacity:1; }
-  to   { opacity:1; clip-path:circle(175% at calc(100% - 58px) -34px); transform:none; }
-}
-.wb2-capcard.wb2-caps.wb2-blossom { animation:wb2Blossom .5s cubic-bezier(.22,1,.36,1) both; }
+   debrief keep the plain rise, because a grow anchored on the topbar would
+   be growing out of a corner with nothing in it.
+
+   IT USED TO GUESS. The first version was a clip circle at a hardcoded
+   `86% -48px` — roughly where the button sits on a 1400px screen with the
+   card down at `bottom:4vh`. Both halves of that guess were wrong the
+   moment either changed, and centring the card broke it outright: the
+   reveal grew from a point floating above the card's top edge, nowhere
+   near the topbar. It also only ever masked the card, so nothing actually
+   travelled.
+
+   Now the button MEASURES ITSELF on click and hands its offset from the
+   viewport centre in as `--cap-dx/--cap-dy` (see tiff-button). The card
+   starts scaled down with its centre exactly on the button and expands
+   into place, so the motion is real at any viewport width and wherever the
+   button ends up living next.
+
+   The composition is `translate(-50%,-50%) translate(dx,dy) scale(s)`, and
+   the order is load-bearing: the two translates are unaffected by the
+   scale to their right, so the card's centre lands at the layout point
+   plus (dx,dy) — the button — while `scale` works about the card's own
+   centre. Both keyframes carry the full centring translate, for the same
+   `both`-fill reason as above.
+
+   Opacity is full by 45% so the illegibly-small card is never actually
+   read; what you see is the last two thirds of the growth. */
 @media (min-width:760px) {
   @keyframes wb2BlossomWide {
-    from { opacity:0; clip-path:circle(20px at 86% -48px); transform:translateX(-50%) translateY(8px) scale(.98); }
-    40%  { opacity:1; }
-    to   { opacity:1; clip-path:circle(175% at 86% -48px); transform:translateX(-50%); }
+    from { opacity:0;
+           transform:translate(-50%,-50%) translate(var(--cap-dx,0px), var(--cap-dy,0px)) scale(.3); }
+    45%  { opacity:1; }
+    to   { opacity:1; transform:translate(-50%,-50%) scale(1); }
   }
-  .wb2-capcard.wb2-caps.wb2-blossom { animation:wb2BlossomWide .5s cubic-bezier(.22,1,.36,1) both; }
+  .wb2-capcard.wb2-caps.wb2-blossom { animation:wb2BlossomWide .44s cubic-bezier(.22,1,.36,1) both; }
 }
 
 /* the contents land a beat behind the card, in two soft steps — and because

@@ -501,8 +501,17 @@ const duskClass = (flow: NoteFlow) => (flow.stage === "review" ? "" : " wb2-dusk
     postures open the SAME sheet, which is the whole argument of the
     unification — what you get should not depend on which control you reached
     it through. `entrance` only changes how it ARRIVES: the Tiff button hands
-    in "blossom" so the sheet grows out of the corner the button lives in. */
-export function CaptureSheet({ flow, entrance }: { flow: NoteFlow; entrance?: "blossom" }) {
+    in "blossom" so the sheet grows out of the button, and `from` is where —
+    the button's own offset from the viewport centre, measured on click. */
+export function CaptureSheet({
+  flow,
+  entrance,
+  from,
+}: {
+  flow: NoteFlow;
+  entrance?: "blossom";
+  from?: { dx: number; dy: number } | null;
+}) {
   if (!flow.open) return null;
   return createPortal(
     <>
@@ -515,6 +524,13 @@ export function CaptureSheet({ flow, entrance }: { flow: NoteFlow; entrance?: "b
       <div
         className={
           "wb2-capcard wb2-caps" + duskClass(flow) + (entrance === "blossom" ? " wb2-blossom" : "")
+        }
+        /* The keyframe reads these; with no measurement it falls back to 0,0
+           and simply grows from the middle rather than breaking. */
+        style={
+          from
+            ? ({ "--cap-dx": `${from.dx}px`, "--cap-dy": `${from.dy}px` } as React.CSSProperties)
+            : undefined
         }
         role="dialog"
         aria-modal="true"

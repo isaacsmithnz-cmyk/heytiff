@@ -138,21 +138,21 @@ export function RoomModal({
     ? (room!.props.externalWalls as number[])
     : [];
   const hasExternalWalls = markedWalls.length > 0;
-  /* A stable key for the marked-wall set. The array is rebuilt every render, so
-     it can't be a dependency itself; the joined string can, and it has to be a
-     plain variable rather than an expression inside the dependency list. */
-  const markedWallsKey = markedWalls.join(",");
 
   /* auto orientation: the marked-walls compass, falling back to the polygon's
-     longest exposed edge. Shown unless the user overrides the dropdown. */
-  const autoOri = useMemo<Orientation>(
-    () =>
-      (poly ? orientationFromWalls(poly, markedWalls, floor?.northDeg ?? 0) : null) ??
-      (poly ? detectOrientation(poly, floor?.northDeg ?? 0) : null) ??
-      "N",
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [poly, floor?.northDeg, markedWallsKey]
-  );
+     longest exposed edge. Shown unless the user overrides the dropdown.
+
+     Plain, not a `useMemo`, and that is the whole point: `markedWalls` is
+     rebuilt every render, so memoising this by hand needed a joined-string
+     stand-in as its dependency and a suppression to admit the mismatch — and
+     a `react-hooks` suppression makes React Compiler skip the entire
+     component. The compiler memoises this correctly on its own, deriving what
+     it actually depends on. The result is a string union, so nothing downstream
+     cares about its identity either way. */
+  const autoOri: Orientation =
+    (poly ? orientationFromWalls(poly, markedWalls, floor?.northDeg ?? 0) : null) ??
+    (poly ? detectOrientation(poly, floor?.northDeg ?? 0) : null) ??
+    "N";
 
   const [overridden, setOverridden] = useState<boolean>(
     Boolean(room?.props.orientationLocked)

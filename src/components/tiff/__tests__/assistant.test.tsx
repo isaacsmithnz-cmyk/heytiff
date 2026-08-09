@@ -462,6 +462,55 @@ describe("when it goes wrong", () => {
 });
 
 /* Two answers writing into one bubble is the failure this prevents. */
+/* ── the bar says it is working ─────────────────────────────────────────
+   The eye is on the bar when the wait starts: you press send and look at what
+   you pressed. The thinking dots are up in the transcript and the lanes are
+   out in the corridor, so between the press and the first word the composer
+   said nothing and the screen read as frozen. */
+
+describe("the composer while an answer is coming", () => {
+  it("spins on the send button from the press until the answer lands", async () => {
+    let push: (e: AskEvent) => void = () => {};
+    script = (emit) => {
+      push = emit;
+    };
+    render(<TiffAssistant />);
+
+    // the name never changes — it is the send button throughout
+    expect(screen.getByLabelText("Send")).toHaveAttribute("aria-busy", "false");
+
+    await ask("why P8?");
+    expect(screen.getByLabelText("Send")).toHaveAttribute("aria-busy", "true");
+
+    // still working while the words are arriving — an answer half-written is
+    // still an answer being written
+    await act(async () => push({ t: "delta", text: "P8 is a piping fault." }));
+    expect(screen.getByLabelText("Send")).toHaveAttribute("aria-busy", "true");
+
+    await act(async () => push({ t: "done" }));
+    expect(screen.getByLabelText("Send")).toHaveAttribute("aria-busy", "false");
+  });
+
+  /* A statement, never a lock: asking again mid-answer drops the first, which
+     is the behaviour the test below this one pins. */
+  it("keeps the button live so a second question can still interrupt", async () => {
+    script = () => {};
+    render(<TiffAssistant />);
+    await ask("why P8?");
+
+    expect(screen.getByLabelText("Send")).toBeEnabled();
+  });
+
+  it("gives the bar itself a working state, not just the button", async () => {
+    script = () => {};
+    const { container } = render(<TiffAssistant />);
+
+    expect(container.querySelector(".tin.working")).toBeNull();
+    await ask("why P8?");
+    expect(container.querySelector(".tin.working")).not.toBeNull();
+  });
+});
+
 describe("asking again mid-answer", () => {
   it("aborts the first stream before starting the second", async () => {
     script = () => {};

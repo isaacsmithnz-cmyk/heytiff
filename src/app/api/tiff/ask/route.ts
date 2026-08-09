@@ -110,7 +110,9 @@ export async function POST(request: Request) {
         let sources: AskSourceItem[] = [];
 
         if (research) {
-          const found = await retrieveForQuestion(orgId, question);
+          // the history goes to retrieval as well as to the writer now: a
+          // follow-up has to be read in context before it can be searched for
+          const found = await retrieveForQuestion(orgId, question, history);
           write({
             t: "trace",
             categories: found.trace.categories,

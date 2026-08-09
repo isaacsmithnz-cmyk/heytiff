@@ -40,8 +40,19 @@ jest.mock("../embeddings", () => ({
   embedTexts: (...a: unknown[]) => embedTexts(...(a as [])),
 }));
 
-const prepareQuery = jest.fn(async () => ({ terms: ["P8", "thermistor"], ftsQuery: "P8 OR thermistor" }));
-jest.mock("../query-prep", () => ({ prepareQuery: (...a: unknown[]) => prepareQuery(...(a as [])) }));
+const prepareQuery = jest.fn(async () => ({
+  terms: ["P8", "thermistor"],
+  ftsQuery: "P8 OR thermistor",
+  standalone: "why P8?",
+}));
+/* Only the model call is faked. `historyLines` is a pure function retrieve.ts
+   uses to decide whether there is anything to fold in, and a module mock that
+   replaced it with undefined would fail as a crash rather than as a wrong
+   answer — the kind of test failure that teaches nothing. */
+jest.mock("../query-prep", () => ({
+  ...jest.requireActual("../query-prep"),
+  prepareQuery: (...a: unknown[]) => prepareQuery(...(a as [])),
+}));
 
 const addKbUsage = jest.fn(async () => {});
 jest.mock("../quota", () => ({ addKbUsage: (...a: unknown[]) => addKbUsage(...(a as [])) }));
@@ -73,6 +84,11 @@ beforeEach(() => {
   // mockResolvedValue would otherwise leak into every test after it
   rpc.mockResolvedValue({ data: [] });
   embedTexts.mockResolvedValue({ ok: true, vectors: [[0.5, 0.25]] });
+  prepareQuery.mockResolvedValue({
+    terms: ["P8", "thermistor"],
+    ftsQuery: "P8 OR thermistor",
+    standalone: "why P8?",
+  });
   addKbUsage.mockResolvedValue(undefined);
 });
 
@@ -104,6 +120,62 @@ describe("asking the two legs", () => {
 
     expect(embedTexts).toHaveBeenCalledWith(["why P8?"], "query");
     expect(call("kb_vec")).toMatchObject({ p_org: "org-1", p_qvec: "[0.5,0.25]", p_k: LEG_LIMIT });
+  });
+
+  /* ── the follow-up ──
+     "Can you give me step by step?" carries its subject in the conversation,
+     not in its own words. Both legs have to search for what it MEANS: the
+     keyword query is composed from the rewrite inside prepareQuery, and the
+     vector leg has to embed the rewrite too — embedding the raw follow-up
+     searches semantic space for the shape of a request rather than for the
+     procedure it is about. */
+  it("searches for what a follow-up means, not for the words it used", async () => {
+    semantic = true;
+    prepareQuery.mockResolvedValue({
+      terms: ["vacuum", "evacuation procedure"],
+      ftsQuery: "vacuum OR \"evacuation procedure\"",
+      standalone: "What is the step-by-step vacuum procedure on the VRV?",
+    });
+
+    await retrieveForQuestion("org-1", "can you give me step by step?", [
+      { role: "user", text: "does it have a vacuum setting?" },
+      { role: "assistant", text: "Yes — under service mode." },
+    ]);
+
+    expect(embedTexts).toHaveBeenCalledWith(
+      ["What is the step-by-step vacuum procedure on the VRV?"],
+      "query"
+    );
+    expect(call("kb_fts")).toMatchObject({ p_query: "vacuum OR \"evacuation procedure\"" });
+  });
+
+  it("gives the condenser the turns it needs to resolve the subject", async () => {
+    const history = [{ role: "user", text: "does it have a vacuum setting?" }];
+    await retrieveForQuestion("org-1", "step by step?", history);
+
+    expect(prepareQuery).toHaveBeenCalledWith("step by step?", history);
+  });
+
+  /* A first question has nothing to fold in, so the expansion call and the
+     embedding stay parallel — the wait is already the sum of everything on
+     this path and a cold question must not pay for a rewrite it doesn't need. */
+  it("embeds a first question without waiting for the rewrite", async () => {
+    semantic = true;
+    let resolvePrep: (v: unknown) => void = () => {};
+    prepareQuery.mockImplementation(
+      () => new Promise((r) => {
+        resolvePrep = r;
+      }) as never
+    );
+
+    const pending = retrieveForQuestion("org-1", "why P8?");
+    await Promise.resolve();
+
+    // the embedding is already away while preparation is still outstanding
+    expect(embedTexts).toHaveBeenCalledWith(["why P8?"], "query");
+
+    resolvePrep({ terms: [], ftsQuery: "P8", standalone: "why P8?" });
+    await pending;
   });
 
   it("carries on with the keyword leg alone when embedding fails", async () => {

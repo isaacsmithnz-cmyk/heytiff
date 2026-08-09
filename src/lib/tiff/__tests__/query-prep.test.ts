@@ -7,7 +7,79 @@
    paragraph and "reversing" in another). Both are pinned below, along with the
    clamps on whatever the model sends back. */
 
-import { ftsQueryOf, MAX_QUERY_ATOMS, MAX_TERMS, shapePrep, TERM_MAX_CHARS } from "../query-prep";
+import {
+  ftsQueryOf,
+  historyLines,
+  MAX_QUERY_ATOMS,
+  MAX_TERMS,
+  PREP_HISTORY_TURNS,
+  shapePrep,
+  shapeStandalone,
+  STANDALONE_MAX_CHARS,
+  TERM_MAX_CHARS,
+} from "../query-prep";
+
+/* ── the follow-up, put back into words that can be searched ──────────────
+   "Can you give me step by step?" is a complete sentence and a useless query:
+   its subject is two turns up the conversation. Retrieval searched for
+   "step by step", found pages about nothing, and the answer read as if the
+   topic had been dropped and restarted (reported live, 2026-08-08). */
+
+describe("the standalone question", () => {
+  it("takes the rewrite when the model gives one", () => {
+    expect(
+      shapeStandalone(
+        { standalone: "What is the step-by-step vacuum procedure?" },
+        "can you give me step by step?"
+      )
+    ).toBe("What is the step-by-step vacuum procedure?");
+  });
+
+  /* THE ORIGINAL IS ALWAYS THE SAFE ANSWER. Searching for itself is how this
+     worked before condensation existed; a broken condenser must never do
+     worse than that. */
+  it("falls back to the question on anything unusable", () => {
+    const asked = "can you give me step by step?";
+    expect(shapeStandalone({ standalone: "   " }, asked)).toBe(asked);
+    expect(shapeStandalone({ standalone: 42 }, asked)).toBe(asked);
+    expect(shapeStandalone({}, asked)).toBe(asked);
+    expect(shapeStandalone(null, asked)).toBe(asked);
+  });
+
+  it("clamps an essay and flattens the whitespace", () => {
+    const long = shapeStandalone({ standalone: "a".repeat(900) }, "q");
+    expect(long).toHaveLength(STANDALONE_MAX_CHARS);
+    expect(shapeStandalone({ standalone: " what  is\nthe  setting " }, "q")).toBe(
+      "what is the setting"
+    );
+  });
+});
+
+describe("the turns the condenser reads", () => {
+  it("labels each side and keeps the last few, oldest first", () => {
+    const lines = historyLines([
+      { role: "user", text: "does it have a vacuum setting?" },
+      { role: "assistant", text: "Yes — on the VRV it is under service mode." },
+    ]);
+    expect(lines).toEqual([
+      "Tech: does it have a vacuum setting?",
+      "Tiff: Yes — on the VRV it is under service mode.",
+    ]);
+  });
+
+  it("reads the subject, not the whole transcript", () => {
+    const many = Array.from({ length: 12 }, (_, i) => ({ role: "user", text: `q${i}` }));
+    const lines = historyLines(many);
+    expect(lines).toHaveLength(PREP_HISTORY_TURNS);
+    // the ones nearest the question, which are the ones carrying its subject
+    expect(lines[lines.length - 1]).toBe("Tech: q11");
+  });
+
+  it("says nothing about a first question", () => {
+    expect(historyLines([])).toEqual([]);
+    expect(historyLines([{ role: "user", text: "   " }])).toEqual([]);
+  });
+});
 
 describe("shaping what the model sends back", () => {
   it("keeps the terms, in order", () => {

@@ -639,6 +639,39 @@
 .fg .tinput .tsend:hover:not(:disabled) { background:var(--teal); color:var(--ink); }
 .fg .tinput .tsend:disabled { background:rgba(5,5,5,.14); box-shadow:none; cursor:not-allowed; }
 
+/* ── the bar says it is working ──
+   THE EYE IS ON THE BAR WHEN THE WAIT STARTS. You press send and look at what
+   you pressed; the thinking dots are up in the transcript and the lanes are
+   1.6px out in the corridor, so the composer itself said nothing between the
+   press and the first word and the screen read as frozen.
+
+   Two signals, one moment. The send glyph becomes a spinner — the control you
+   just used, reporting on what it started — and a sheen crosses the pill, the
+   same gesture the rail cards already make while they are being searched
+   (`tkShim`), so the bar and the shelves are visibly doing one thing. The
+   button is NOT disabled: a second question mid-answer drops the first, which
+   is a feature. */
+.fg .tinput .tsend.busy { background:var(--ink); color:#fff; }
+.fg .tinput .tsend.busy:hover { background:var(--ink); color:#fff; }
+.fg .tinput .tsend-spin { width:17px; height:17px; border-radius:50%; flex:none;
+  border:2px solid rgba(255,255,255,.28); border-top-color:#fff; animation:tkSpin .8s linear infinite; }
+
+/* the sheen sits under the controls, which is why the row's children take a
+   layer of their own — otherwise it would wash over the typed text */
+.fg .tinput .tin.working::after { content:""; position:absolute; inset:0; z-index:0; pointer-events:none;
+  border-radius:inherit;
+  background:linear-gradient(100deg, rgba(46,104,255,0) 34%, rgba(46,104,255,.10) 50%, rgba(46,104,255,0) 66%);
+  background-size:260% 100%; background-repeat:no-repeat; animation:tkShim 1.6s ease-in-out infinite; }
+.fg .tinput .tin > * { position:relative; z-index:1; }
+
+@media (prefers-reduced-motion:reduce) {
+  /* the global `.fg * { animation-duration:.001s }` turns an infinite
+     animation into a strobe, so both loops are dropped rather than sped up —
+     the spinner stays as a static ring, which still reads as "in progress" */
+  .fg .tinput .tsend-spin { animation:none; }
+  .fg .tinput .tin.working::after { animation:none; opacity:0; }
+}
+
 /* ── the ask bar's microphone ──
    Every selector here is `.fg .tinput …` (0,3,0) on purpose. `.fg button` is
    (0,1,1) and `.fg input` is (0,1,1); a bare `.tmic { background }` on a

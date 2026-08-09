@@ -207,7 +207,21 @@ describe("research mode", () => {
   it("searches the caller's own org, with the question as sent", async () => {
     withHits();
     await POST(req({ question: "  why P8?  ", research: true }));
-    expect(retrieveForQuestion).toHaveBeenCalledWith("org-1", "why P8?");
+    expect(retrieveForQuestion).toHaveBeenCalledWith("org-1", "why P8?", []);
+  });
+
+  /* Retrieval reads the conversation now, not just the writer. A follow-up
+     carries its subject in the turns above it, and searching for the words it
+     literally used fetched pages about nothing in particular. */
+  it("gives retrieval the turns the follow-up depends on", async () => {
+    withHits();
+    const history = [
+      { role: "user", text: "does it have a vacuum setting?" },
+      { role: "assistant", text: "Yes — under service mode." },
+    ];
+    await POST(req({ question: "step by step?", research: true, history }));
+
+    expect(retrieveForQuestion).toHaveBeenCalledWith("org-1", "step by step?", history);
   });
 
   it("hands the excerpts over as titled documents in ranking order", async () => {

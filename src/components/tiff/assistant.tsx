@@ -404,6 +404,20 @@ export function TiffAssistant({
 
   const listening = dict.recording || dict.transcribing;
 
+  /* THE BAR IS WHERE THE EYE IS WHEN THE WAIT STARTS. You press send and then
+     look at what you just pressed — but the only sign anything was happening
+     lived elsewhere: three dots inside a sheet further up the transcript, and
+     1.6px lanes out in the corridor. Between the press and the first word the
+     composer said nothing at all, and the screen read as frozen (reported
+     live, 2026-08-08).
+
+     `working` is the whole flight, not just the silence before the first
+     token: an answer still arriving is still work, and a spinner that stopped
+     mid-stream would claim it had finished. The button stays ENABLED
+     throughout — asking again mid-answer aborts the first and is a feature,
+     not an accident — so this is a statement, never a lock. */
+  const working = Boolean(live) && !listening;
+
   /* What the box SHOWS while the live transport is still hearing the sentence,
      never what it HOLDS. Committing interim words would race the transcript
      that replaces them, and leave the tail of a half-heard sentence behind if
@@ -921,7 +935,7 @@ export function TiffAssistant({
           >
             <div className="tinput">
               <div className="tib"></div>
-              <div className={`tin${dict.recording ? " live" : ""}`}>
+              <div className={`tin${dict.recording ? " live" : ""}${working ? " working" : ""}`}>
                 {/* the mark, not a sparkle: the sparkle was the generic AI
                     badge AND the Field-notes icon two inches away — the bar
                     is HeyTiff's own voice and wears its own mark (Isaac's
@@ -985,8 +999,26 @@ export function TiffAssistant({
                         <Icon name="mic" size={19} />
                       </button>
                     )}
-                    <button className="tsend" type="submit" aria-label="Send" disabled={listening}>
-                      <Icon name="send" size={18} />
+                    {/* The spinner REPLACES the arrow rather than sitting
+                        beside it: one control, and what it shows is what the
+                        page is doing. Still submits — a new question mid-answer
+                        drops the old one, which is the behaviour. */}
+                    {/* `aria-busy`, NOT a changed label: the button is the
+                        send button whether or not an answer is in flight, and
+                        renaming a control for a passing state is how a screen
+                        reader loses track of what it is. */}
+                    <button
+                      className={`tsend${working ? " busy" : ""}`}
+                      type="submit"
+                      aria-label="Send"
+                      aria-busy={working}
+                      disabled={listening}
+                    >
+                      {working ? (
+                        <span className="tsend-spin" aria-hidden="true" />
+                      ) : (
+                        <Icon name="send" size={18} />
+                      )}
                     </button>
                   </>
                 )}

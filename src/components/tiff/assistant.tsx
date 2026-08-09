@@ -293,6 +293,7 @@ export function TiffAssistant({
   readyCount = 0,
   canManage = false,
   recentDocs = [],
+  docTitles = {},
   voiceEnabled = false,
 }: {
   counts?: Record<KbCategoryKey, number>;
@@ -301,6 +302,9 @@ export function TiffAssistant({
   canManage?: boolean;
   /** The last few documents to land, newest first. Read on the server. */
   recentDocs?: KbRecentDoc[];
+  /** Every document's current name, by id — what the citation chips prefer
+      over the title stored alongside the answer. */
+  docTitles?: Record<string, string>;
   /** ELEVENLABS_API_KEY is set on this deployment. No key, no mic — the ask
       bar is a plain text field either way. */
   voiceEnabled?: boolean;
@@ -940,7 +944,7 @@ export function TiffAssistant({
                           </p>
                         )}
                         {m.sources && m.sources.length > 0 && (
-                          <SourceChips sources={m.sources} onPeek={setPeek} />
+                          <SourceChips sources={m.sources} titles={docTitles} onPeek={setPeek} />
                         )}
                       </div>
                     </div>
@@ -1642,7 +1646,18 @@ export type SourceDoc = {
   items: AskSourceItem[];
 };
 
-export function groupSources(sources: AskSourceItem[]): SourceDoc[] {
+/* `titles` is the library's CURRENT name for each document, read on the
+   server. A citation is a pointer, not a memento: the title travelled into
+   localStorage with the answer, so a document renamed afterwards left every
+   older answer citing a name the library had stopped using — a thread was
+   found live still saying "545846862 Daikin Vrv Diagnosis Manual" for a
+   document since retitled. The stored copy stays as the fallback, because a
+   document that has been DELETED still has to be named somehow, and the name
+   it was cited under is the only honest one left. */
+export function groupSources(
+  sources: AskSourceItem[],
+  titles: Record<string, string> = {}
+): SourceDoc[] {
   const docs: SourceDoc[] = [];
   const byId = new Map<string, SourceDoc>();
   for (const item of sources) {
@@ -1654,7 +1669,7 @@ export function groupSources(sources: AskSourceItem[]): SourceDoc[] {
     const doc: SourceDoc = {
       n: docs.length + 1,
       docId: item.docId,
-      title: item.title,
+      title: titles[item.docId] ?? item.title,
       category: item.category,
       items: [item],
     };
@@ -1679,12 +1694,14 @@ const pagesLabel = (doc: SourceDoc): string => {
 
 function SourceChips({
   sources,
+  titles,
   onPeek,
 }: {
   sources: AskSourceItem[];
+  titles: Record<string, string>;
   onPeek: (d: SourceDoc) => void;
 }) {
-  const docs = groupSources(sources);
+  const docs = groupSources(sources, titles);
   return (
     <div className="tk-srcfoot">
       <span className="tk-srclbl">

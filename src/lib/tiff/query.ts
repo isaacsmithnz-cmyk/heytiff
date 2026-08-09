@@ -144,6 +144,36 @@ export async function kbRecentDocs(orgId: string, limit = 4): Promise<KbRecentDo
   return rows;
 }
 
+/* Every document's CURRENT name, by id.
+
+   A CITATION IS A POINTER, NOT A MEMENTO. The title travels with each source
+   into localStorage when an answer is stored, so a document renamed afterwards
+   left every older answer citing a name the library no longer uses — found
+   live, where a thread still read "545846862 Daikin Vrv Diagnosis Manual" for
+   a document since retitled "Daikin VRV Diagnosis Manual". The stored copy
+   stays as the fallback (a deleted document still has to be named somehow);
+   this is what the chips prefer.
+
+   Titles only, and the whole library at once: it is one small column, the
+   assistant needs an arbitrary subset of it (whatever old threads happen to
+   cite), and a per-thread lookup would be a round trip per conversation
+   opened. */
+export async function kbDocTitles(orgId: string): Promise<Record<string, string>> {
+  const { data } = await supabaseAdmin
+    .from("kb_documents")
+    .select("id, title")
+    .eq("org_id", orgId)
+    .not("uploaded_at", "is", null);
+
+  const titles: Record<string, string> = {};
+  for (const r of (data ?? []) as unknown as Record<string, unknown>[]) {
+    const id = String(r.id ?? "");
+    const title = String(r.title ?? "").trim();
+    if (id && title) titles[id] = title;
+  }
+  return titles;
+}
+
 /* Who put each document there, by staff-profile id. A separate read rather
    than a join: `uploaded_by` is nullable (a row can outlive the person's
    profile) and the library shows a name as a nicety, so it must never be the

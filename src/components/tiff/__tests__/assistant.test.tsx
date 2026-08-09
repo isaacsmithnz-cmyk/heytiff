@@ -326,6 +326,38 @@ describe("sources", () => {
     expect(within(peek).getByText("p.106–107")).toBeInTheDocument();
   });
 
+  /* ── a citation is a pointer, not a memento ──
+     The title travels into localStorage with the answer, so renaming a
+     document left every older answer citing a name the library had stopped
+     using. Found live: a thread still reading "545846862 Daikin Vrv Diagnosis
+     Manual" for a document since retitled "Daikin VRV Diagnosis Manual". */
+  it("cites a renamed document by the name the library uses now", async () => {
+    researched([src({ title: "545846862 Daikin Vrv Diagnosis Manual" })]);
+    render(
+      <TiffAssistant
+        readyCount={2}
+        counts={{ install: 0, faults: 2, specs: 0, sops: 0, field: 0 }}
+        docTitles={{ "d-1": "Daikin VRV Diagnosis Manual" }}
+      />
+    );
+    await ask("why P8?");
+
+    expect(
+      await screen.findByRole("button", { name: /Source 1: Daikin VRV Diagnosis Manual/ })
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/545846862/)).not.toBeInTheDocument();
+  });
+
+  /* A DELETED document still has to be named, and the name it was cited under
+     is the only honest one left. */
+  it("keeps the stored name when the document is gone from the library", async () => {
+    await renderResearched([src({ title: "City Multi fault codes" })]);
+
+    expect(
+      await screen.findByRole("button", { name: /Source 1: City Multi fault codes/ })
+    ).toBeInTheDocument();
+  });
+
   it("closes the peek on Escape", async () => {
     const user = await renderResearched();
     await user.click(await screen.findByRole("button", { name: /Source 1/ }));

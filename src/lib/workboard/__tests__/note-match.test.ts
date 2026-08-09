@@ -5,7 +5,7 @@
    agreement says "Kingsford Medical Centre" — an exact-name match finds
    nothing, which is why this matches by token. */
 
-import { describeJob, matchJob, type JobCandidate } from "../note-match";
+import { describeJob, matchJob, searchJobs, type JobCandidate } from "../note-match";
 
 const KINGSFORD_TRIP: JobCandidate = {
   kind: "visit",
@@ -108,8 +108,6 @@ describe("how a job card says who it is", () => {
    to ignore the noise in it; searching reads what someone is deliberately
    typing to find a job, so it takes them literally. */
 describe("searching the roster by hand", () => {
-  const { searchJobs } = require("../note-match") as typeof import("../note-match");
-
   it("takes generic words literally — they're useless to infer, fine to type", () => {
     expect(searchJobs("medical", ROSTER).map((c) => c.id)).toEqual(["v-king"]);
     expect(searchJobs("logistics", ROSTER).map((c) => c.id)).toEqual(["v-ardex"]);

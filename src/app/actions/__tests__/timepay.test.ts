@@ -29,8 +29,10 @@ const table = (name: string) => {
   const filters: Record<string, unknown> = {};
   const c: Record<string, unknown> = {};
   /* Returns the PROXY, not the bare object — a chain that falls through to an
-     unhandled method has to keep falling through on the next one too. */
-  let proxy: Record<string, unknown>;
+     unhandled method has to keep falling through on the next one too. It is
+     declared below the methods that close over it: every one of them is a
+     function body, so the binding is only READ once a chain actually runs,
+     which is long after the assignment. */
   const self = () => proxy;
   c.select = self;
   /* `eq` records what it filtered on: the forgery tests below need to know
@@ -68,7 +70,7 @@ const table = (name: string) => {
   // testing here. Leave is the exception: tests may plant approved bookings.
   c.then = (res: (v: { error: null; data: unknown[] }) => unknown) =>
     Promise.resolve({ error: null, data: name === "leave_requests" ? leaveRows : [] }).then(res);
-  proxy = new Proxy(c, {
+  const proxy: Record<string, unknown> = new Proxy(c, {
     get: (t, k: string) => (k in t ? t[k] : self),
   });
   return proxy;

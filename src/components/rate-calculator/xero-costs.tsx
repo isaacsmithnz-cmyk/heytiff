@@ -19,6 +19,7 @@ import {
   type XeroCostSnapshot,
 } from "./state";
 import type { PeriodChoice } from "@/lib/integrations/xero-pl";
+import { useHydrated } from "@/lib/use-hydrated";
 
 /* Business costs, read from a connected Xero organisation.
 
@@ -80,6 +81,8 @@ export function XeroCostsPanel({ s, patch, onFetch }: XeroCostsPanelProps) {
   const [choice, setChoice] = useState<PeriodChoice>(periodChoiceOf(snap));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // false on the server and through hydration — see the staleness note below
+  const hydrated = useHydrated();
 
   const pull = async () => {
     setBusy(true);
@@ -174,8 +177,23 @@ export function XeroCostsPanel({ s, patch, onFetch }: XeroCostsPanelProps) {
   const vehicleLost = vehicleHeld > 0 && !fleetCosted(s);
   /* A figure from two financial years ago prices today's rates exactly like
      one pulled this morning — unless somebody says so. Same threshold as the
-     calculator's own review reminder, so "old" means one thing here. */
-  const ageMonths = snapshotAgeMonths(snap?.fetchedAt, Date.now());
+     calculator's own review reminder, so "old" means one thing here.
+
+     THE CLOCK IS READ ONCE, AND ONLY IN THE BROWSER. `Date.now()` sat in this
+     render body, which is two problems wearing one line. It makes the render
+     impure — the same props could produce a different banner on a re-render
+     nobody caused — and this page is SERVER-rendered with `initialState`, so
+     the snapshot and its age both exist during SSR: a month boundary crossed
+     between the server's clock and the browser's would put different markup
+     in the same node. That is a hydration failure for the whole tree, which
+     this codebase has paid for before (see sm8-chip, which reads its clock
+     the same way and for the same reason).
+
+     Mount-time is precise enough by a wide margin: the unit here is MONTHS,
+     so a clock that stops when the panel opens would have to be left open for
+     one to drift. */
+  const now = useState(() => Date.now())[0];
+  const ageMonths = hydrated ? snapshotAgeMonths(snap?.fetchedAt, now) : null;
   const staleAfter = s.settings.review_reminder_months ?? 6;
   const stale = ageMonths !== null && ageMonths >= staleAfter;
 
@@ -220,10 +238,13 @@ export function XeroCostsPanel({ s, patch, onFetch }: XeroCostsPanelProps) {
             {snap.fetchedAt ? new Date(snap.fetchedAt).toLocaleDateString("en-AU") : "recently"}.
             {snap.sections.length > 0 && <> Source: {snap.sections.join(", ")}.</>}
           </p>
+          {/* The explicit space before "old" is load-bearing: JSX drops the
+              leading space of a text chunk that wraps to a new line, and this
+              banner shipped reading "more than 6 monthsold". */}
           {stale && (
             <p className="rcx-err">
-              This snapshot is more than {staleAfter} month{staleAfter === 1 ? "" : "s"} old — the
-              P&amp;L has moved since. Refresh it before quoting from these rates.
+              This snapshot is more than {staleAfter} month{staleAfter === 1 ? "" : "s"}{" "}
+              old — the P&amp;L has moved since. Refresh it before quoting from these rates.
             </p>
           )}
 

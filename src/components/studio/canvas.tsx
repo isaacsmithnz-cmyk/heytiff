@@ -1,5 +1,28 @@
 "use client";
 
+/* eslint-disable react-hooks/preserve-manual-memoization -- SCOPED TO THIS
+   FILE, AND ONLY UNTIL REACT COMPILER IS ACTUALLY TURNED ON.
+
+   eslint-plugin-react-hooks 7 runs the React Compiler as a lint engine, so it
+   reports where the compiler WOULD bail out — here, three callbacks whose
+   memoization it cannot prove it preserves (`endFaceLocal`, `hitSystemObject`,
+   `eraseAt`, all of which close over `footprint`). This project does not
+   compile with React Compiler: there is no `reactCompiler` in next.config.ts
+   and `babel-plugin-react-compiler` is not installed. The diagnostic describes
+   an optimisation that never runs, so nothing here is slower or wrong for it.
+
+   It is disabled rather than fixed because the bailout MOVES rather than
+   clears. Dropping the manual memo from `endFaceLocal` — the obvious fix —
+   simply reports the same error one hook up at `endFace`, which now depends
+   on an unmemoised function; the property is structural to a 3,500-line
+   canvas, not local to one hook. Restructuring it to satisfy a compiler that
+   isn't in the build would be churn against real regression risk, in the one
+   component with a dozen parity tests behind it.
+
+   The rule stays ON everywhere else, so a new bailout in any other component
+   is still an error. When React Compiler is switched on, delete this line
+   first — the diagnostics become real at that moment. */
+
 import {
   useCallback,
   useEffect,

@@ -1,5 +1,42 @@
 "use client";
 
+/* eslint-disable react-hooks/preserve-manual-memoization -- THE MANUAL
+   MEMOIZATION IN THIS FILE IS LOAD-BEARING. Do not remove a `useCallback` or
+   `useMemo` here to silence this rule. Measured, not assumed — read on.
+
+   React Compiler IS on for the app (next.config.ts). It is NOT on for this
+   file, and cannot be: running the compiler over canvas.tsx directly reports
+
+     Todo: Support value blocks (conditional, logical, optional chaining,
+     etc) within a try/catch statement
+
+   which is an unimplemented feature in React Compiler 1.0, not a defect here.
+   A skipped component gets NO compiler memoization at all, so whatever these
+   hooks memoise by hand is the only memoization this canvas has — on the
+   heaviest screen in the app.
+
+   THAT IS THE TRAP, and it has already been walked into once. The lint rule
+   goes quiet if you convert these hooks to plain functions, and everything
+   looks fixed: `eslint .` silent, the build green, the tests passing. None of
+   those observe the compiler's actual output. What they miss is that nothing
+   replaced the memoization that was removed. The check that catches it is
+   compiling the file and looking for the runtime import and `$[` cache slots
+   — zero of them means skipped.
+
+   TWO THINGS BLOCK COMPILATION, and both must go before this comment can:
+     1. the try/catch above, now half-fixed — the two `setPointerCapture`
+        calls were hoisted out of their try blocks, which is why the message
+        above is reachable at all; and
+     2. the five `eslint-disable-next-line react-hooks/*` suppressions further
+        down. The compiler refuses any component carrying a React-rule
+        suppression, so those are not free either. They are deliberate
+        one-shot prop→state handoffs and want a real redesign, not deletion.
+   Verified in that order: suppressions alone → still skipped; try/catch alone
+   → still skipped; both → 1,006 cache slots.
+
+   The rule stays ON everywhere else, so a new bailout in any other component
+   is still an error. */
+
 import {
   useCallback,
   useEffect,
@@ -942,35 +979,6 @@ export function StudioCanvas({
     [iduSpec]
   );
 
-  /* ── THE SEVEN PLAIN FUNCTIONS BELOW ARE DELIBERATELY NOT MEMOISED ──
-     `endFaceLocal`, `endFace`, `plenumCandidates`, `nearestPlenumEnd`,
-     `plenumShapes`, `hitSystemObject`, `eraseAt`. Every one of them used to be
-     a `useCallback`/`useMemo`, and putting one back re-breaks the build's
-     optimisation for this whole component — so if you are here to "tidy" one,
-     read this first.
-
-     React Compiler memoises everything itself (next.config.ts,
-     `reactCompiler: true`). When it meets manual memoization it must prove it
-     can PRESERVE it, and if it cannot it gives up on the entire component —
-     not just that hook. This cluster was where it gave up: seven errors, all
-     naming `footprint` as a dependency it could not prove stable.
-
-     The cluster is a chain, which is why the fix is seven hooks and not one.
-     `footprint` feeds `endFaceLocal` → `endFace` → `plenumCandidates` →
-     `nearestPlenumEnd`, and separately `plenumShapes`, `hitSystemObject` and
-     `eraseAt`. Un-memoising a link moves the complaint to whatever consumed
-     it; the count only reaches zero when the whole chain is the compiler's.
-     Measured at each step, not guessed: 7 → 2 → 1 → 2 → 0.
-
-     Nothing here recomputes more than it used to. The compiler emits the
-     memoization these hooks were asking for, and derives the dependencies
-     itself — which is also the end of a class of bug this file was exposed
-     to, where a hand-written array quietly went stale against its body.
-
-     `footprint` itself KEEPS its `useCallback` — it was named as the unstable
-     dependency, but it is the one the compiler had no trouble with once its
-     consumers stopped hand-memoising. */
-
   /** an AHU air face in the unit's OWN (unrotated) frame. Air flows through
       the DEPTH (spec §1a) — the openings are the two LONG faces (±y). Supply
       defaults to the +y face; `props.airFlip` swaps, and the first placed
@@ -978,7 +986,7 @@ export function StudioCanvas({
 
       Everything drawn INSIDE the unit's rotate group works in these coords —
       the group transform turns it. Anything outside wants `endFace`. */
-  const endFaceLocal =
+  const endFaceLocal = useCallback(
     (u: DesignObject & { geometry: { at: Point } }, end: "supply" | "return") => {
       const at = pointAt(u);
       const fp = footprint(Number(u.props.widthMm ?? 800), Number(u.props.depthMm ?? 300));
@@ -992,13 +1000,15 @@ export function StudioCanvas({
         dir,
         faceHalf: fp.w / 2,
       };
-    };
+    },
+    [pointAt, footprint]
+  );
 
   /** the same face in WORLD space, turned by the unit's rotation, plus the
       basis that goes with it: `out` points out of the face and `ax` runs
       along it (a → b). Plenums, drop zones and hit-tests all live out here,
       so they get the turned face rather than the unit's local one. */
-  const endFace =
+  const endFace = useCallback(
     (u: DesignObject & { geometry: { at: Point } }, end: "supply" | "return") => {
       const f = endFaceLocal(u, end);
       const deg =
@@ -1025,7 +1035,9 @@ export function StudioCanvas({
         out: { x: -f.dir * s, y: f.dir * c },
         ax: { x: c, y: s },
       };
-    };
+    },
+    [endFaceLocal, pointAt, liveRotate]
+  );
 
   /** every plenum mounting face of the placed air-capable AHUs, with its
       occupancy (existing plenum, a pack built-in return, or factory spigots) */
@@ -1072,7 +1084,7 @@ export function StudioCanvas({
       current face — plus, while nothing has determined the orientation, the
       OPPOSITE face too (clicking it flips the unit so that face becomes the
       stream: the first placement decides, spec §1a) */
-  const plenumCandidates = (() => {
+  const plenumCandidates = useMemo(() => {
     if (component?.kind !== "plenum") return [];
     const out: {
       e: (typeof ahuEnds)[number];
@@ -1086,9 +1098,9 @@ export function StudioCanvas({
       if (!e.determined) out.push({ e, face: endFace(e.unit, other), needsFlip: true });
     }
     return out;
-  })();
+  }, [component, ahuEnds, endFace]);
 
-  const nearestPlenumEnd =
+  const nearestPlenumEnd = useCallback(
     (w: Point) => {
       let best: (typeof plenumCandidates)[number] | null = null;
       let bestD = PLENUM_SNAP_PX / vp.zoom;
@@ -1100,7 +1112,9 @@ export function StudioCanvas({
         }
       }
       return best;
-    };
+    },
+    [plenumCandidates, vp.zoom]
+  );
 
   const addPlenum = useCallback(
     (cand: (typeof plenumCandidates)[number]) => {
@@ -1135,7 +1149,7 @@ export function StudioCanvas({
   );
 
   /** resolved render geometry per plenum id (also the hit-test shape) */
-  const plenumShapes = (() => {
+  const plenumShapes = useMemo(() => {
     const m = new Map<
       string,
       PlenumShape & {
@@ -1193,7 +1207,7 @@ export function StudioCanvas({
       });
     }
     return m;
-  })();
+  }, [plenums, units, footprint, iduSpec, endFace]);
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -1516,7 +1530,7 @@ export function StudioCanvas({
 
   /** system objects hit first (they sit on top of rooms): plenum bodies,
       unit footprints, riser discs, then run segments */
-  const hitSystemObject =
+  const hitSystemObject = useCallback(
     (w: Point): { id: string; kind: "unit" | "riser" | "pipe-run" | "plenum" } | null => {
       for (let i = plenums.length - 1; i >= 0; i--) {
         const s = plenumShapes.get(plenums[i].id);
@@ -1554,13 +1568,15 @@ export function StudioCanvas({
         }
       }
       return null;
-    };
+    },
+    [plenums, plenumShapes, units, risers, runs, pointAt, footprint, vp.zoom, liveRotate]
+  );
 
   /* Eraser: objects only (a room deletes by selecting it and pressing Delete,
      which carries its units — canvas rule #6).
      A pipe loses just its nearest segment (one vertex) unless it's down to a
      single segment; units/risers delete whole. Forgiving hit tolerance. */
-  const eraseAt =
+  const eraseAt = useCallback(
     (w: Point) => {
       const tol = ERASE_HIT_PX / vp.zoom;
       // units first (on top), then risers
@@ -1622,7 +1638,9 @@ export function StudioCanvas({
           }),
         }));
       }
-    };
+    },
+    [units, risers, runs, pointAt, footprint, vp.zoom, onMutate, selectedId, onSelect]
+  );
 
   /* ── Stage-4 document intents ── */
   const addUnit = useCallback(
@@ -1771,10 +1789,17 @@ export function StudioCanvas({
         commit,
       });
 
-    try {
-      (e.target as Element).setPointerCapture?.(e.pointerId);
-    } catch {
-      /* jsdom */
+    /* The optional call is hoisted OUT of the try on purpose: React Compiler
+       1.0 cannot handle a value block (here, optional chaining) inside a
+       try/catch, and refuses the whole component when it meets one. See the
+       note at the top of this file — this is one of the two blockers. */
+    const capTarget = e.target as Element;
+    if (capTarget.setPointerCapture) {
+      try {
+        capTarget.setPointerCapture(e.pointerId);
+      } catch {
+        /* jsdom */
+      }
     }
 
     if (e.button === 1 || spaceDown.current) return pan();
@@ -2328,10 +2353,17 @@ export function StudioCanvas({
 
   const startVertexDrag = (id: string, index: number) => (e: React.PointerEvent) => {
     e.stopPropagation();
-    try {
-      (e.target as Element).setPointerCapture?.(e.pointerId);
-    } catch {
-      /* jsdom */
+    /* The optional call is hoisted OUT of the try on purpose: React Compiler
+       1.0 cannot handle a value block (here, optional chaining) inside a
+       try/catch, and refuses the whole component when it meets one. See the
+       note at the top of this file — this is one of the two blockers. */
+    const capTarget = e.target as Element;
+    if (capTarget.setPointerCapture) {
+      try {
+        capTarget.setPointerCapture(e.pointerId);
+      } catch {
+        /* jsdom */
+      }
     }
     const room = rooms.find((r) => r.id === id);
     // corners only pull on the room being sized — saved rooms are pinned

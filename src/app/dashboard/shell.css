@@ -5794,7 +5794,12 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 
 /* #c3cad6 at 1.6 — one step darker than the first cut (#d7dbe3/1.5), which
    disappeared into the light well on a real screen at 55% draw opacity */
-.fg .tk-line { fill:none; stroke:#c3cad6; stroke-width:1.6; stroke-linecap:round;
+/* FIRM, BECAUSE THE GEOMETRY IS NOW PIPEWORK. 1.6px round-capped strokes on
+   freehand curves read as hair — the owner kept trying to blow them off the
+   screen. Orthogonal runs want the weight of a drawn service: 2px, butt caps
+   (a round cap on a 2px line is a bead on the end of a pipe), and the mitre
+   left to the paths' own swept elbows. */
+.fg .tk-line { fill:none; stroke:#b9c1cf; stroke-width:2; stroke-linecap:butt; stroke-linejoin:round;
   transition:opacity .3s ease, stroke .3s ease, stroke-width .3s ease; }
 
 /* at rest on the landing: the page showing what it is about to do. Faint
@@ -5824,10 +5829,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    they used to share `.12` grey, which made "found four things" and "found
    nothing" the same line. `kept` is the settled winner: the card keeps its
    ring and its note, so the line keeps its thread — residue, not activity. */
-.fg .tk-line.lit { stroke:var(--tkc, #2E68FF); stroke-width:2; opacity:.9; }
-.fg .tk-line.hit { stroke:var(--tkc, #9ca3af); opacity:.3; }
-.fg .tk-line.dim { opacity:.07; }
-.fg .tk-line.kept { stroke:var(--tkc, #2E68FF); stroke-width:1.8; opacity:.25; }
+.fg .tk-line.lit { stroke:var(--tkc, #2E68FF); stroke-width:2.5; opacity:.9; }
+.fg .tk-line.hit { stroke:var(--tkc, #9ca3af); opacity:.34; }
+.fg .tk-line.dim { opacity:.08; }
+.fg .tk-line.kept { stroke:var(--tkc, #2E68FF); stroke-width:2.25; opacity:.28; }
 .fg .tk-line.fade { opacity:0; transition:opacity .6s ease; }
 
 /* ── and what the same moments do to a shelf ── */

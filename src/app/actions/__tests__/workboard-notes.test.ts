@@ -70,7 +70,6 @@ jest.mock("@/lib/workboard/note-brain", () => ({
 }));
 
 import { applyNote, clearFlag, dismissNote, keepNoteOnJob, routeNote } from "../workboard-notes";
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { readNote } = jest.requireMock("@/lib/workboard/note-brain") as { readNote: jest.Mock };
 
 const NOTE = { id: "n-1", transcript: "…", status: "pending", target_kind: "project", target_id: "p-1", proposal: {} };

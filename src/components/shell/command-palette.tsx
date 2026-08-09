@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCommandPalette } from "./command-palette-context";
 import { Icon } from "./icon";
@@ -58,6 +58,20 @@ export function CommandPalette({
     return () => clearTimeout(t);
   }, [open]);
 
+  /* Declared ABOVE the key handler, and memoised, because it is one of its
+     dependencies. As a bare function declaration it was a new value every
+     render — hoisting made it reachable from the effect, which is exactly why
+     the missing dependency went unnoticed — and naming it in the array would
+     then have torn down and re-added the window listener on every keystroke,
+     since `query` re-renders this component as you type. */
+  const run = useCallback(
+    (href: string) => {
+      onClose();
+      router.push(href);
+    },
+    [onClose, router]
+  );
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -78,12 +92,7 @@ export function CommandPalette({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, results, sel, onClose]);
-
-  function run(href: string) {
-    onClose();
-    router.push(href);
-  }
+  }, [open, results, sel, onClose, run]);
 
   return (
     <div className={`fg-cmd${open ? " open" : ""}`} id="fg-cmd">

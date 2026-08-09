@@ -301,7 +301,7 @@ describe("Plans stage", () => {
   });
 
   it("stepping back to Plans shows the committed floors, not an empty uploader", async () => {
-    const user = await openSeeded(new FakePlanImages());
+    await openSeeded(new FakePlanImages());
     // the floor list is present (committed work), and the empty import stepper
     // sections are not shown over the top of it
     expect(screen.getByDisplayValue("Ground floor")).toBeInTheDocument();

@@ -338,7 +338,6 @@ function staffAnnualCost(
   //   Subcontractor   → invoices for work done; no burden, no loading
   const empClass    = classifyEmployment(staff.employment_type);
   const isSubbie    = empClass === "subbie";
-  const isCasual    = empClass === "casual";
   const isPermanent = empClass === "permanent"; // full/part-time, apprentice, or unspecified
 
   const paidWeeks = isPermanent ? 52 : weeks;

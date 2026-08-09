@@ -137,11 +137,6 @@ export function ProjectsBoard({
   const sheetVisit = sheet ? data.visits.find((v) => v.id === sheet.visitId) ?? null : null;
   const openSheet = (visitId: string, closeOut = false) => setSheet({ visitId, closeOut });
 
-  // Tell the page what the pill should attach to — and always hand back
-  // "nothing" when the sheet closes or the board unmounts.
-  const sheetVisitId = sheetVisit?.id ?? null;
-  const sheetVisitLabel = sheetVisit ? `${sheetVisit.projectName} · ${sheetVisit.label}` : null;
-
   /** The carry target: the project's next open trip after the one on show. */
   const nextTripFor = (v: { id: string; projectId: string; dueDate: string }) => {
     const later = openVisits

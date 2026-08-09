@@ -26,6 +26,7 @@
    reachable by asking. */
 
 import Anthropic from "@anthropic-ai/sdk";
+import { REPLY_IN_KIND } from "@/lib/lang/policy";
 import { runTool, toolDefs, type BrainTool } from "./tools";
 
 const MODEL = "claude-opus-5";
@@ -84,6 +85,8 @@ export function askSystemPrompt(input: Pick<AskBrainInput, "targetLabel" | "targ
     "for one ('checking the job's history'), not a paragraph. If a tool",
     "fails or returns nothing, say plainly what you couldn't check — never",
     "fill a gap with something that sounds right.",
+    "",
+    REPLY_IN_KIND,
     "",
     "Answer in plain conversational prose, short enough to read on a phone",
     "in a roof space. No headings, no bullet lists unless the answer is",

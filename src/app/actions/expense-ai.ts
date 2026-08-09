@@ -129,7 +129,9 @@ export async function readExpenseReceipt(
                 "- supplier: the business name (e.g. \"Reece Plumbing\", \"Bunnings Preston\")\n" +
                 "- date: the purchase date as yyyy-mm-dd\n" +
                 "- description: a short plain description of what was bought, under 60 " +
-                "characters, e.g. \"Copper fittings and flux\"\n" +
+                "characters, e.g. \"Copper fittings and flux\". Write it in English even " +
+                "when the receipt is not — the claim is read and approved by somebody " +
+                "else. The supplier's name stays exactly as printed.\n" +
                 `- category: one of ${EXPENSE_CATEGORIES.join(", ")} — materials for parts and ` +
                 "consumables, tools for equipment, travel for fuel/parking/tolls, meals for " +
                 "food, other for anything else\n" +

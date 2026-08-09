@@ -23,6 +23,7 @@
    `@anthropic-ai/sdk`. */
 
 import Anthropic from "@anthropic-ai/sdk";
+import { REPLY_IN_KIND } from "@/lib/lang/policy";
 import type { AskTurn } from "./ask-client";
 
 const MODEL = "claude-opus-5";
@@ -59,8 +60,7 @@ const BASE = [
   "talking to technicians, estimators and owners — people who will act on the",
   "answer, often standing in front of the equipment.",
   "",
-  "Write in Australian English, for Australian practice: metric units, AS/NZS",
-  "wiring rules, the refrigerants used here.",
+  REPLY_IN_KIND,
   "",
   "BE SHORT. Most questions are answered in one or two sentences, and a long",
   "answer is usually a short one with padding around it. Give the answer first",

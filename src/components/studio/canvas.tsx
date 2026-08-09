@@ -1,41 +1,40 @@
 "use client";
 
-/* eslint-disable react-hooks/preserve-manual-memoization -- THE MANUAL
-   MEMOIZATION IN THIS FILE IS LOAD-BEARING. Do not remove a `useCallback` or
-   `useMemo` here to silence this rule. Measured, not assumed — read on.
+/* THIS COMPONENT IS COMPILED BY REACT COMPILER, AND IT TOOK THREE SEPARATE
+   FIXES TO GET THERE. It is the largest component in the app and the one that
+   most wanted the optimisation, and for two PRs it silently did not get it.
+   If you are about to change any of the three things below, know what you are
+   giving up: the compiler emits ~1,000 memoization slots here.
 
-   React Compiler IS on for the app (next.config.ts). It is NOT on for this
-   file, and cannot be: running the compiler over canvas.tsx directly reports
+   1. NO `useCallback`/`useMemo` in the geometry cluster. `endFaceLocal`,
+      `endFace`, `plenumCandidates`, `nearestPlenumEnd`, `plenumShapes`,
+      `hitSystemObject` and `eraseAt` are plain functions and values on
+      purpose. The compiler must be able to PRESERVE any manual memoization it
+      meets, and it could not prove that for these — they chain off
+      `footprint`, and it reported every one of them. Hand-memoise one again
+      and the whole component drops out of compilation, not just that hook.
+      (`footprint` itself keeps its `useCallback`; it was named as the unstable
+      dependency but is fine once its consumers stop hand-memoising.)
 
-     Todo: Support value blocks (conditional, logical, optional chaining,
-     etc) within a try/catch statement
+   2. NO `eslint-disable` for a `react-hooks/*` rule, anywhere in this file.
+      The compiler refuses any component carrying one, whatever the rule and
+      however good the reason. The two the canvas used to have were one-shot
+      prop→state handoffs from the room modal; they are now derived during
+      render instead — see the block near `remarkRoomId`.
 
-   which is an unimplemented feature in React Compiler 1.0, not a defect here.
-   A skipped component gets NO compiler memoization at all, so whatever these
-   hooks memoise by hand is the only memoization this canvas has — on the
-   heaviest screen in the app.
+   3. NO value blocks (optional chaining, conditionals, logical operators)
+      INSIDE a try/catch. React Compiler 1.0 cannot lower them and gives up on
+      the component: `Todo: Support value blocks ... within a try/catch
+      statement`. The two `setPointerCapture` calls hoist their optional call
+      out of the try for exactly this reason.
 
-   THAT IS THE TRAP, and it has already been walked into once. The lint rule
-   goes quiet if you convert these hooks to plain functions, and everything
-   looks fixed: `eslint .` silent, the build green, the tests passing. None of
-   those observe the compiler's actual output. What they miss is that nothing
-   replaced the memoization that was removed. The check that catches it is
-   compiling the file and looking for the runtime import and `$[` cache slots
-   — zero of them means skipped.
-
-   TWO THINGS BLOCK COMPILATION, and both must go before this comment can:
-     1. the try/catch above, now half-fixed — the two `setPointerCapture`
-        calls were hoisted out of their try blocks, which is why the message
-        above is reachable at all; and
-     2. the five `eslint-disable-next-line react-hooks/*` suppressions further
-        down. The compiler refuses any component carrying a React-rule
-        suppression, so those are not free either. They are deliberate
-        one-shot prop→state handoffs and want a real redesign, not deletion.
-   Verified in that order: suppressions alone → still skipped; try/catch alone
-   → still skipped; both → 1,006 cache slots.
-
-   The rule stays ON everywhere else, so a new bailout in any other component
-   is still an error. */
+   HOW TO CHECK, because none of the usual signals can tell you. A silent
+   `eslint .`, a green build and a passing suite all look identical whether
+   this file is compiled or skipped — that is precisely how it went unnoticed
+   through #316 and #318, and #316 removed the memoization in (1) while the
+   component was still being skipped, so nothing replaced it. The only real
+   check is to compile the file and look for the `react/compiler-runtime`
+   import and `$[` cache slots. Zero slots means skipped. */
 
 import {
   useCallback,
@@ -761,6 +760,12 @@ export function StudioCanvas({
      measured sizes for migrated sheets that predate stored dimensions. */
   const [sheetUrls, setSheetUrls] = useState<Record<string, string>>({});
   const [sheetDims, setSheetDims] = useState<Record<string, { w: number; h: number }>>({});
+  /* Which refs the loader below has already started fetching. A ref and not
+     `sheetUrls`, even though that is the same question, because the loader
+     WRITES `sheetUrls` — reading it there makes the effect depend on its own
+     output, which is why that effect used to carry a dependency suppression.
+     The ref answers "have I asked for this?" without joining the render. */
+  const started = useRef<Set<string>>(new Set());
   /* sheet position override while dragging with the arrange tool */
   const [liveSheet, setLiveSheet] = useState<{ id: string; x: number; y: number } | null>(null);
   /* live north arrow while dragging (move/rotate), committed on pointer-up */
@@ -797,7 +802,8 @@ export function StudioCanvas({
   useEffect(() => {
     let on = true;
     for (const sheet of floor.plans) {
-      if (sheetUrls[sheet.imageRef] || !planImages) continue;
+      if (started.current.has(sheet.imageRef) || !planImages) continue;
+      started.current.add(sheet.imageRef);
       void planImages
         .url(sheet.imageRef)
         .then(async (url) => {
@@ -827,13 +833,15 @@ export function StudioCanvas({
           setSheetUrls((m) => ({ ...m, [sheet.imageRef]: url }));
         })
         .catch(() => {
-          /* offline or expired ref — the grid still works */
+          /* offline or expired ref — the grid still works. Forget the attempt
+             so a later pass can retry it; leaving it in `started` would make
+             one flaky fetch permanent for the life of the component. */
+          started.current.delete(sheet.imageRef);
         });
     }
     return () => {
       on = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [floor.plans, planImages]);
 
   const sheetSize = useCallback(
@@ -986,7 +994,7 @@ export function StudioCanvas({
 
       Everything drawn INSIDE the unit's rotate group works in these coords —
       the group transform turns it. Anything outside wants `endFace`. */
-  const endFaceLocal = useCallback(
+  const endFaceLocal =
     (u: DesignObject & { geometry: { at: Point } }, end: "supply" | "return") => {
       const at = pointAt(u);
       const fp = footprint(Number(u.props.widthMm ?? 800), Number(u.props.depthMm ?? 300));
@@ -1000,15 +1008,13 @@ export function StudioCanvas({
         dir,
         faceHalf: fp.w / 2,
       };
-    },
-    [pointAt, footprint]
-  );
+    };
 
   /** the same face in WORLD space, turned by the unit's rotation, plus the
       basis that goes with it: `out` points out of the face and `ax` runs
       along it (a → b). Plenums, drop zones and hit-tests all live out here,
       so they get the turned face rather than the unit's local one. */
-  const endFace = useCallback(
+  const endFace =
     (u: DesignObject & { geometry: { at: Point } }, end: "supply" | "return") => {
       const f = endFaceLocal(u, end);
       const deg =
@@ -1035,9 +1041,7 @@ export function StudioCanvas({
         out: { x: -f.dir * s, y: f.dir * c },
         ax: { x: c, y: s },
       };
-    },
-    [endFaceLocal, pointAt, liveRotate]
-  );
+    };
 
   /** every plenum mounting face of the placed air-capable AHUs, with its
       occupancy (existing plenum, a pack built-in return, or factory spigots) */
@@ -1084,7 +1088,7 @@ export function StudioCanvas({
       current face — plus, while nothing has determined the orientation, the
       OPPOSITE face too (clicking it flips the unit so that face becomes the
       stream: the first placement decides, spec §1a) */
-  const plenumCandidates = useMemo(() => {
+  const plenumCandidates = (() => {
     if (component?.kind !== "plenum") return [];
     const out: {
       e: (typeof ahuEnds)[number];
@@ -1098,9 +1102,9 @@ export function StudioCanvas({
       if (!e.determined) out.push({ e, face: endFace(e.unit, other), needsFlip: true });
     }
     return out;
-  }, [component, ahuEnds, endFace]);
+  })();
 
-  const nearestPlenumEnd = useCallback(
+  const nearestPlenumEnd =
     (w: Point) => {
       let best: (typeof plenumCandidates)[number] | null = null;
       let bestD = PLENUM_SNAP_PX / vp.zoom;
@@ -1112,9 +1116,7 @@ export function StudioCanvas({
         }
       }
       return best;
-    },
-    [plenumCandidates, vp.zoom]
-  );
+    };
 
   const addPlenum = useCallback(
     (cand: (typeof plenumCandidates)[number]) => {
@@ -1149,7 +1151,7 @@ export function StudioCanvas({
   );
 
   /** resolved render geometry per plenum id (also the hit-test shape) */
-  const plenumShapes = useMemo(() => {
+  const plenumShapes = (() => {
     const m = new Map<
       string,
       PlenumShape & {
@@ -1207,7 +1209,7 @@ export function StudioCanvas({
       });
     }
     return m;
-  }, [plenums, units, footprint, iduSpec, endFace]);
+  })();
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -1452,41 +1454,70 @@ export function StudioCanvas({
     else onRoomCreated?.(roomId);
   }, [wallSelect, onToolDone, onRoomCreated]);
 
-  /* modal asked to re-mark an existing room — seed wall-select from its walls */
-  useEffect(() => {
-    if (!remarkRoomId) return;
-    const room = doc.objects.find((o) => o.id === remarkRoomId);
-    if (room && room.geometry.kind === "polygon") {
-      const walls = Array.isArray(room.props.externalWalls)
-        ? (room.props.externalWalls as number[])
+  /* ── THE MODAL'S TWO ONE-SHOT REQUESTS ──
+     The room modal never reaches into the canvas. It sets a prop to a room id
+     ("re-mark this room's walls", "let me reshape this room"), the canvas
+     consumes it, and `onRemarkConsumed`/`onReshapeConsumed` clear it again.
+
+     Both are DERIVED DURING RENDER rather than applied in an effect. That is
+     React's own shape for adjusting state when a prop changes, and here it is
+     also what lets this component compile: a `setState` in an effect body
+     breaks a React rule, and React Compiler refuses any component carrying a
+     suppression for one — see the note at the top of this file.
+
+     THE COMPARISON IS AGAINST THE PREVIOUS VALUE, not against a set of ids
+     already seen, and that distinction is the whole behaviour. The parent
+     clears the id the instant it is consumed, so pressing the same button
+     twice arrives as null → "rm1" → null → "rm1". Anything remembering
+     "I have handled rm1 already" swallows the second press, and the button
+     quietly stops working the second time you use it on a room.
+     canvas-remark.test.tsx pins exactly that. */
+  const remarkRoom =
+    remarkRoomId ? doc.objects.find((o) => o.id === remarkRoomId) ?? null : null;
+  const [prevRemarkId, setPrevRemarkId] = useState<string | null>(null);
+  if (remarkRoomId !== prevRemarkId) {
+    setPrevRemarkId(remarkRoomId);
+    if (remarkRoom && remarkRoom.geometry.kind === "polygon") {
+      const walls = Array.isArray(remarkRoom.props.externalWalls)
+        ? (remarkRoom.props.externalWalls as number[])
         : [];
-      // intentional prop→state handoff: the modal hands the canvas a one-shot
-      // re-mark request, consumed immediately below
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setWallSelect({
-        points: room.geometry.points,
+        points: remarkRoom.geometry.points,
         selected: new Set(walls),
-        roomId: remarkRoomId,
+        roomId: remarkRoom.id,
         isNew: false,
       });
     }
-    onRemarkConsumed?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remarkRoomId]);
+  }
 
-  /* modal asked to edit an existing room's shape — unpin it for adjusting */
+  const reshapeRoom =
+    reshapeRoomId ? doc.objects.find((o) => o.id === reshapeRoomId) ?? null : null;
+  const reshapable = !!reshapeRoom && reshapeRoom.geometry.kind === "polygon";
+  const [prevReshapeId, setPrevReshapeId] = useState<string | null>(null);
+  if (reshapeRoomId !== prevReshapeId) {
+    setPrevReshapeId(reshapeRoomId);
+    if (reshapable) setAdjust({ id: reshapeRoomId as string, isNew: false });
+  }
+
+  /* Telling the parent stays in an effect, because `onSelect` and the two
+     `on*Consumed` callbacks belong to somebody else's component and calling
+     them mid-render is the one thing React genuinely forbids.
+
+     No dependency array on purpose. The callbacks are inline arrows from the
+     parent, so naming them would re-fire this on every parent render, and
+     naming only the ids is the stale-closure suppression this replaced. The
+     truthiness guard is what bounds it: the parent nulls the id in response,
+     so this settles in one extra render, and a repeat call is harmless
+     anyway — setting the same null twice does not re-render. */
+  useEffect(() => {
+    if (remarkRoomId) onRemarkConsumed?.();
+  });
+
   useEffect(() => {
     if (!reshapeRoomId) return;
-    const room = doc.objects.find((o) => o.id === reshapeRoomId);
-    if (room && room.geometry.kind === "polygon") {
-      // one-shot prop→state handoff, same as the re-mark request above
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setAdjust({ id: reshapeRoomId, isNew: false });
-      onSelect(reshapeRoomId);
-    }
+    if (reshapable) onSelect(reshapeRoomId);
     onReshapeConsumed?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reshapeRoomId]);
+  });
 
   const commitGeometry = useCallback(
     (id: string, points: Point[]) => {
@@ -1530,7 +1561,7 @@ export function StudioCanvas({
 
   /** system objects hit first (they sit on top of rooms): plenum bodies,
       unit footprints, riser discs, then run segments */
-  const hitSystemObject = useCallback(
+  const hitSystemObject =
     (w: Point): { id: string; kind: "unit" | "riser" | "pipe-run" | "plenum" } | null => {
       for (let i = plenums.length - 1; i >= 0; i--) {
         const s = plenumShapes.get(plenums[i].id);
@@ -1568,15 +1599,13 @@ export function StudioCanvas({
         }
       }
       return null;
-    },
-    [plenums, plenumShapes, units, risers, runs, pointAt, footprint, vp.zoom, liveRotate]
-  );
+    };
 
   /* Eraser: objects only (a room deletes by selecting it and pressing Delete,
      which carries its units — canvas rule #6).
      A pipe loses just its nearest segment (one vertex) unless it's down to a
      single segment; units/risers delete whole. Forgiving hit tolerance. */
-  const eraseAt = useCallback(
+  const eraseAt =
     (w: Point) => {
       const tol = ERASE_HIT_PX / vp.zoom;
       // units first (on top), then risers
@@ -1638,9 +1667,7 @@ export function StudioCanvas({
           }),
         }));
       }
-    },
-    [units, risers, runs, pointAt, footprint, vp.zoom, onMutate, selectedId, onSelect]
-  );
+    };
 
   /* ── Stage-4 document intents ── */
   const addUnit = useCallback(

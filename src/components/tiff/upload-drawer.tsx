@@ -5,8 +5,10 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { KB_CATEGORIES } from "./kb";
+import { TagPicker } from "./tag-picker";
 import { checkKbUpload, type KbCategory } from "@/lib/tiff/files";
 import { guessKbCategory, titleFromFilename } from "@/lib/tiff/guess";
+import { guessKbTags, type KbTagRef } from "@/lib/tiff/tags";
 import { uploadKbFile } from "@/lib/tiff/upload-client";
 import type { KbIngestProgress } from "@/lib/tiff/use-kb-ingest";
 
@@ -35,6 +37,7 @@ type Pending = {
   title: string;
   category: KbCategory;
   source: string;
+  tagIds: string[];
   /** Set when the file itself is refused — wrong type, too big, empty. */
   invalid: string | null;
   phase: Phase;
@@ -44,7 +47,7 @@ type Pending = {
 
 let seq = 0;
 
-function toPending(file: File): Pending {
+function toPending(file: File, tags: KbTagRef[]): Pending {
   const check = checkKbUpload({ type: file.type, size: file.size });
   return {
     key: `f${(seq += 1)}`,
@@ -52,6 +55,10 @@ function toPending(file: File): Pending {
     title: titleFromFilename(file.name),
     category: guessKbCategory(file.name),
     source: "",
+    /* Same standing as the title and the category beside it: an offer read off
+       the filename, ticked before anybody looks at it, and undone with a
+       click. Nothing downstream trusts it — the server re-checks every id. */
+    tagIds: guessKbTags(file.name, tags),
     invalid: check.ok ? null : check.error,
     phase: "queued",
   };
@@ -63,10 +70,13 @@ const fmtSize = (bytes: number) =>
     : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 
 export function UploadDrawer({
+  tags = [],
   progress,
   onIngest,
   onClose,
 }: {
+  /** The org's tags, for the per-file picker and the filename guess. */
+  tags?: KbTagRef[];
   /** documentId → live ingest progress, from the library's queue. */
   progress: Record<string, KbIngestProgress>;
   onIngest: (documentIds: string[]) => void;
@@ -74,6 +84,9 @@ export function UploadDrawer({
 }) {
   const router = useRouter();
   const [items, setItems] = useState<Pending[]>([]);
+  /* A tag created inside a file's picker has to be offered to the NEXT file
+     too — the drawer owns the list from here, not the page that opened it. */
+  const [known, setKnown] = useState<KbTagRef[]>(tags);
   const [over, setOver] = useState(false);
   const [running, setRunning] = useState(false);
   /* The Escape listener is bound once; without a ref it would forever read the
@@ -100,7 +113,7 @@ export function UploadDrawer({
 
   const add = (files: FileList | File[] | null) => {
     if (!files) return;
-    const next = Array.from(files).map(toPending);
+    const next = Array.from(files).map((f) => toPending(f, known));
     if (next.length > 0) setItems((list) => [...list, ...next]);
   };
 
@@ -133,6 +146,7 @@ export function UploadDrawer({
         title: item.title,
         category: item.category,
         source: item.source.trim() || undefined,
+        tagIds: item.tagIds,
       });
 
       if (!res.ok) {
@@ -221,8 +235,12 @@ export function UploadDrawer({
               <FileRow
                 key={item.key}
                 item={item}
+                tags={known}
                 progress={item.documentId ? progress[item.documentId] : undefined}
                 onChange={(change) => patch(item.key, change)}
+                onCreatedTag={(tag) =>
+                  setKnown((list) => (list.some((t) => t.id === tag.id) ? list : [...list, tag]))
+                }
                 onRemove={() => setItems((list) => list.filter((i) => i.key !== item.key))}
               />
             ))}
@@ -255,13 +273,17 @@ export function UploadDrawer({
 
 function FileRow({
   item,
+  tags,
   progress,
   onChange,
+  onCreatedTag,
   onRemove,
 }: {
   item: Pending;
+  tags: KbTagRef[];
   progress?: KbIngestProgress;
   onChange: (change: Partial<Pending>) => void;
+  onCreatedTag: (tag: KbTagRef) => void;
   onRemove: () => void;
 }) {
   const colour = KB_CATEGORIES.find((c) => c.key === item.category)?.color ?? "#9ca3af";
@@ -283,6 +305,7 @@ function FileRow({
       {item.invalid ? (
         <p className="tk-frr">{item.invalid}</p>
       ) : editable ? (
+        <>
         <div className="tk-fform">
           <label className="tk-ff span">
             <span>Title</span>
@@ -320,6 +343,16 @@ function FileRow({
             />
           </label>
         </div>
+        {/* `onCreated` only has the drawer's shared list to update — the
+            picker ticks a tag it just made onto this file itself. */}
+        <TagPicker
+          variant="sheet"
+          tags={tags}
+          value={item.tagIds}
+          onChange={(tagIds) => onChange({ tagIds })}
+          onCreated={onCreatedTag}
+        />
+        </>
       ) : (
         <FileProgress item={item} progress={progress} />
       )}

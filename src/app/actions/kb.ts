@@ -14,6 +14,8 @@ import {
   kbTitle,
 } from "@/lib/tiff/files";
 import { signKbRef } from "@/lib/tiff/query";
+import { kbTagsForOrg, setKbDocumentTags } from "@/lib/tiff/tags-query";
+import { sanitiseTagIds } from "@/lib/tiff/tags";
 
 /* The library's writes — upload, describe, retry, remove.
 
@@ -124,6 +126,10 @@ export async function beginKbUpload(input: {
      remember — and a title the guesser had mangled could not be traced back
      to its input. Optional: a direct POST without it still uploads. */
   fileName?: string;
+  /* Which tags the drawer had ticked — the guesser's offer as the uploader
+     left it. Checked against the org's real tags rather than trusted, and
+     attached only after the row exists. */
+  tagIds?: string[];
   mime: string;
   sizeBytes: number;
 }): Promise<KbSlot> {
@@ -171,6 +177,21 @@ export async function beginKbUpload(input: {
 
   const documentId = String(data.id);
   const ref = kbStorageRef(c.orgId, documentId);
+
+  /* Tags are attached here rather than at confirm time, so a manual that is
+     still uploading already wears them — and if the bytes never land, the row
+     stays invisible and its tag rows go with it on the cascade.
+
+     A REFUSED TAG IS NOT A REFUSED UPLOAD. `sanitiseTagIds` silently drops
+     anything that isn't one of this org's tags, and a failure to write the
+     join rows is swallowed: losing the labels on a 40 MB manual that uploaded
+     fine is a worse trade than making somebody drag it in again, and the edit
+     modal puts them back in one click. */
+  const wanted = Array.isArray(input.tagIds) ? input.tagIds : [];
+  if (wanted.length > 0) {
+    const tagIds = sanitiseTagIds(wanted, await kbTagsForOrg(c.orgId));
+    if (tagIds.length > 0) await setKbDocumentTags(c.orgId, documentId, tagIds);
+  }
 
   const { error: refErr } = await supabaseAdmin
     .from("kb_documents")
@@ -226,10 +247,21 @@ export async function confirmKbUpload(documentId: string): Promise<KbResult> {
   return { ok: true };
 }
 
-/** Fix a title, a brand, an edition, or which category it's in. */
+/* Fix a title, a brand, an edition, which category it's in — or its tags.
+
+   TAGS ARE A REPLACE, and `undefined` is how a caller says "leave them alone".
+   The edit modal always sends the full list it is showing, so unticking one
+   has to take it off; an action that only ever added would make a wrong tag
+   permanent. */
 export async function updateKbDocMeta(
   documentId: string,
-  input: { title?: string; category?: string; source?: string; edition?: string }
+  input: {
+    title?: string;
+    category?: string;
+    source?: string;
+    edition?: string;
+    tagIds?: string[];
+  }
 ): Promise<KbResult> {
   const c = await ctx();
   if (!c) return { ok: false, error: NO_MANAGE };
@@ -253,7 +285,30 @@ export async function updateKbDocMeta(
   if (input.source !== undefined) patch.source = trim(input.source, SOURCE_MAX);
   if (input.edition !== undefined) patch.edition = trim(input.edition, SOURCE_MAX);
 
-  if (Object.keys(patch).length === 0) return { ok: true };
+  /* The tag write goes FIRST, and its failure is the one this action reports.
+     A document row that saved while its tags didn't is the version a person
+     would never notice — the title they just fixed is right there, and the
+     chip they removed is quietly back on the next load. */
+  if (input.tagIds !== undefined) {
+    const { data: exists } = await supabaseAdmin
+      .from("kb_documents")
+      .select("id")
+      .eq("org_id", c.orgId)
+      .eq("id", documentId)
+      .maybeSingle();
+    if (!exists) return { ok: false, error: GONE };
+
+    // an empty list is a clear, and needs nothing checked against anything
+    const tagIds =
+      input.tagIds.length > 0 ? sanitiseTagIds(input.tagIds, await kbTagsForOrg(c.orgId)) : [];
+    if (!(await setKbDocumentTags(c.orgId, documentId, tagIds)))
+      return { ok: false, error: "Couldn't save those tags." };
+  }
+
+  if (Object.keys(patch).length === 0) {
+    if (input.tagIds !== undefined) refresh();
+    return { ok: true };
+  }
   patch.updated_at = new Date().toISOString();
 
   const { error } = await supabaseAdmin

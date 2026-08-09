@@ -18,6 +18,22 @@ jest.mock("@/lib/tiff/upload-client", () => ({
   uploadKbFile: (...a: unknown[]) => uploadKbFile(...(a as [])),
 }));
 
+/* The tag picker imports the tag actions, and a "use server" module drags
+   next/cache into jsdom — where `Request` doesn't exist and the suite dies
+   before a single test runs. Mocked for the same reason @/app/actions/kb is
+   mocked in the library's suite. */
+const createKbTag = jest.fn();
+jest.mock("@/app/actions/kb-tags", () => ({
+  createKbTag: (...a: unknown[]) => createKbTag(...(a as [])),
+  updateKbTag: jest.fn(),
+  deleteKbTag: jest.fn(),
+}));
+
+const tag = (id: string, label: string, kind = "brand") =>
+  ({ id, label, slug: label.toLowerCase().replace(/[^a-z0-9]+/g, "-"), color: "#2563eb", kind }) as never;
+
+const TAGS = [tag("t-daikin", "Daikin"), tag("t-vrv", "VRV", "system"), tag("t-ducted", "Ducted", "system")];
+
 const pdf = (name: string) => new File([new Uint8Array(8)], name, { type: "application/pdf" });
 
 /** jsdom builds a File with the real byte length; the size checks want a
@@ -215,5 +231,77 @@ describe("the drawer stays put while files are going up", () => {
     const closers = screen.getAllByRole("button", { name: "Close" });
     expect(closers).toHaveLength(2);
     for (const button of closers) expect(button).toBeDisabled();
+  });
+});
+
+/* ── tags: the filename's own offer ──────────────────────────────────────── */
+
+describe("what the filename says about the gear", () => {
+  const withTags = (over: Partial<Parameters<typeof UploadDrawer>[0]> = {}) => (
+    <UploadDrawer tags={TAGS} progress={{}} onIngest={jest.fn()} onClose={jest.fn()} {...over} />
+  );
+
+  it("ticks the tags the filename names, and sends them with the upload", async () => {
+    uploadKbFile.mockResolvedValue({ ok: true, documentId: "d-1" });
+    render(withTags());
+    await drop([pdf("daikin-vrv-service-manual.pdf")]);
+
+    const row = screen.getByText("daikin-vrv-service-manual.pdf").closest(".tk-file") as HTMLElement;
+    expect(within(row).getByRole("button", { name: /Daikin/ })).toHaveAttribute("aria-pressed", "true");
+    expect(within(row).getByRole("button", { name: /VRV/ })).toHaveAttribute("aria-pressed", "true");
+    expect(within(row).getByRole("button", { name: /Ducted/ })).toHaveAttribute("aria-pressed", "false");
+
+    await userEvent.click(screen.getByRole("button", { name: /Upload 1 document/ }));
+    await waitFor(() => expect(uploadKbFile).toHaveBeenCalled());
+    expect(uploadKbFile.mock.calls[0][1].tagIds).toEqual(["t-daikin", "t-vrv"]);
+  });
+
+  /* A guess, never a decision — the same standing the title and the category
+     beside it have. */
+  it("lets a guessed tag be taken off before anything is stored", async () => {
+    uploadKbFile.mockResolvedValue({ ok: true, documentId: "d-1" });
+    render(withTags());
+    await drop([pdf("daikin-vrv-service-manual.pdf")]);
+
+    const row = screen.getByText("daikin-vrv-service-manual.pdf").closest(".tk-file") as HTMLElement;
+    await userEvent.click(within(row).getByRole("button", { name: /Daikin/ }));
+
+    await userEvent.click(screen.getByRole("button", { name: /Upload 1 document/ }));
+    await waitFor(() => expect(uploadKbFile).toHaveBeenCalled());
+    expect(uploadKbFile.mock.calls[0][1].tagIds).toEqual(["t-vrv"]);
+  });
+
+  it("ticks nothing when the filename names nothing", async () => {
+    render(withTags());
+    await drop([pdf("scan-0043.pdf")]);
+
+    const row = screen.getByText("scan-0043.pdf").closest(".tk-file") as HTMLElement;
+    for (const t of ["Daikin", "VRV", "Ducted"]) {
+      expect(within(row).getByRole("button", { name: new RegExp(t) })).toHaveAttribute(
+        "aria-pressed",
+        "false"
+      );
+    }
+  });
+
+  /* A tag made while tagging the first file has to be on offer for the second
+     — the drawer owns the list from the moment it opens, not the page. */
+  it("offers a tag created on one file to the next one", async () => {
+    createKbTag.mockResolvedValue({
+      ok: true,
+      tag: { id: "t-hydronic", label: "Hydronic", slug: "hydronic", color: "#2563eb", kind: "system" },
+    });
+
+    render(withTags());
+    await drop([pdf("first.pdf")]);
+
+    const first = screen.getByText("first.pdf").closest(".tk-file") as HTMLElement;
+    await userEvent.type(within(first).getByLabelText("Find or create a tag"), "hydronic");
+    await userEvent.click(within(first).getByRole("button", { name: /System types/ }));
+    await waitFor(() => expect(createKbTag).toHaveBeenCalled());
+
+    await drop([pdf("first.pdf"), pdf("second.pdf")]);
+    const second = screen.getByText("second.pdf").closest(".tk-file") as HTMLElement;
+    expect(within(second).getByRole("button", { name: /Hydronic/ })).toBeInTheDocument();
   });
 });

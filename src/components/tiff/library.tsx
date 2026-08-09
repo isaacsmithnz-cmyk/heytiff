@@ -7,8 +7,11 @@ import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { KB_CATEGORIES, filterKbDocs, type KbCategoryKey } from "./kb";
 import { UploadDrawer } from "./upload-drawer";
+import { TagPicker, TagPills } from "./tag-picker";
+import { TagManager } from "./tag-manager";
 import { auDayOf, fmtAuDayMonth } from "@/lib/au-dates";
 import { deleteKbDoc, kbDocUrl, retryKbDoc, updateKbDocMeta } from "@/app/actions/kb";
+import { filterByTags, KB_TAG_PILLS_SHOWN, type KbTagRef } from "@/lib/tiff/tags";
 import { writeAskHandoff } from "@/lib/tiff/ask-handoff";
 import { useKbIngest, type KbIngestProgress } from "@/lib/tiff/use-kb-ingest";
 import { useKbBackfill } from "@/lib/tiff/use-kb-backfill";
@@ -33,7 +36,10 @@ import type { KbQuota } from "@/lib/tiff/quota";
    control is an invitation to ask why, and this is a read surface for staff by
    design. Every action re-checks the capability server-side regardless. */
 
-export type KbLibraryDoc = KbDocRow & { uploaderName?: string | null };
+/* Both extras are attached by the page rather than by lib/tiff/query.ts, for
+   the same reason: they are separate reads joined in TypeScript, and a row's
+   shape shouldn't change because a nicety was added beside it. */
+export type KbLibraryDoc = KbDocRow & { uploaderName?: string | null; tags?: KbTagRef[] };
 
 /* The quota as it crosses to the browser. `pagesAllowed` is Infinity on the
    unlimited tier, which is not a number a props payload should be asked to
@@ -83,6 +89,9 @@ export function Library({
   isOwner = false,
   unembedded = 0,
   initialCategory = null,
+  tags = [],
+  tagUsage = {},
+  initialTagIds = [],
 }: {
   docs: KbLibraryDoc[];
   quota?: KbQuotaView | null;
@@ -93,11 +102,20 @@ export function Library({
       say. */
   unembedded?: number;
   initialCategory?: KbCategoryKey | null;
+  /** Every tag the org has, including ones nothing wears yet — the picker
+      offers those, and the rail hides them. */
+  tags?: KbTagRef[];
+  /** tagId → documents wearing it. Only the manage sheet needs it. */
+  tagUsage?: Record<string, number>;
+  /** From `?tag=` — a filtered library is a link somebody can send. */
+  initialTagIds?: string[];
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [cat, setCat] = useState<KbCategoryKey | null>(initialCategory);
+  const [tagIds, setTagIds] = useState<string[]>(initialTagIds);
   const [drawer, setDrawer] = useState(false);
+  const [managing, setManaging] = useState(false);
   const [editing, setEditing] = useState<KbLibraryDoc | null>(null);
   const [deleting, setDeleting] = useState<KbLibraryDoc | null>(null);
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
@@ -118,10 +136,42 @@ export function Library({
     return c;
   }, [docs]);
 
+  /* Tag counts are over the WHOLE library, exactly like the category counts
+     above — not over what's currently on screen. A number that changed every
+     time another chip was pressed would make the rail unreadable while you
+     were using it, and the empty state below names the filters when a
+     combination finds nothing. */
+  const tagCounts = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const d of docs) for (const t of d.tags ?? []) c[t.id] = (c[t.id] ?? 0) + 1;
+    return c;
+  }, [docs]);
+
+  /* THE RAIL IS NOT THE TAG LIST. An org starts with fifty seeded tags and a
+     library with six documents in it; showing all fifty as filters would bury
+     the four that would actually do something. A tag nothing wears is offered
+     in the PICKER and hidden here — unless it's currently selected, because a
+     chip that removed itself the moment it emptied the list could never be
+     pressed again to undo. */
+  const railTags = useMemo(
+    () => tags.filter((t) => (tagCounts[t.id] ?? 0) > 0 || tagIds.includes(t.id)),
+    [tags, tagCounts, tagIds]
+  );
+
   const matches = useMemo(() => filterKbDocs(docs, query), [docs, query]);
-  const visible = useMemo(() => (cat ? matches.filter((d) => d.category === cat) : matches), [matches, cat]);
+  const tagged = useMemo(() => filterByTags(matches, tagIds), [matches, tagIds]);
+  const visible = useMemo(() => (cat ? tagged.filter((d) => d.category === cat) : tagged), [tagged, cat]);
 
   const sections = KB_CATEGORIES.filter((c) => (cat ? c.key === cat : visible.some((d) => d.category === c.key)));
+
+  const toggleTag = (id: string) =>
+    setTagIds((list) => (list.includes(id) ? list.filter((v) => v !== id) : [...list, id]));
+
+  const filtering = query.trim().length > 0 || tagIds.length > 0;
+  const clearFilters = () => {
+    setQuery("");
+    setTagIds([]);
+  };
 
   const setRowError = (id: string, message: string | null) =>
     setRowErrors((m) => {
@@ -192,10 +242,16 @@ export function Library({
           {/* on the empty library the CTA belongs to the sell below, which is
               the whole screen — two Add buttons on one page is one too many */}
           {canManage && !zero && (
-            <button type="button" className="tk-btn primary" onClick={() => setDrawer(true)}>
-              <Icon name="plus" size={16} />
-              Add documents
-            </button>
+            <div className="tk-hact">
+              <button type="button" className="tk-btn ghost" onClick={() => setManaging(true)}>
+                <Icon name="tag" size={15} />
+                Tags
+              </button>
+              <button type="button" className="tk-btn primary" onClick={() => setDrawer(true)}>
+                <Icon name="plus" size={16} />
+                Add documents
+              </button>
+            </div>
           )}
         </div>
 
@@ -238,17 +294,73 @@ export function Library({
                 </button>
               ))}
             </div>
+
+            {/* THE SECOND AXIS, ON ITS OWN LINE. Category answers "what kind
+                of document"; a tag answers "whose gear, which system". Mixed
+                into one rail they would read as alternatives to each other,
+                and pressing one of each is the normal case. */}
+            {railTags.length > 0 && (
+              <div className="tk-trail">
+                <span className="tk-tlbl">
+                  <Icon name="tag" size={13} />
+                  Tags
+                </span>
+                <div className="tk-chips">
+                  {railTags.map((t) => {
+                    const on = tagIds.includes(t.id);
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        className={`tk-chip tag${on ? " on" : ""}`}
+                        aria-pressed={on}
+                        style={{ "--tkc": t.color } as React.CSSProperties}
+                        onClick={() => toggleTag(t.id)}
+                      >
+                        <span className="tk-dot" style={{ background: t.color }} />
+                        {t.label}
+                        <em>{n(tagCounts[t.id] ?? 0)}</em>
+                      </button>
+                    );
+                  })}
+                  {tagIds.length > 0 && (
+                    <button type="button" className="tk-tclr" onClick={() => setTagIds([])}>
+                      Clear tags
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
         {zero ? (
           <EmptyLibrary canManage={canManage} onAdd={() => setDrawer(true)} />
-        ) : visible.length === 0 && query.trim() ? (
+        ) : visible.length === 0 && filtering ? (
+          /* One empty state for both filters, because they combine: "Daikin"
+             AND "VRV" AND the word "chiller" can each be perfectly good on
+             their own and find nothing together, and a message that named only
+             the search box would send somebody hunting for a typo that isn't
+             there. */
           <div className="tk-empty small">
-            <h2>No documents match “{query.trim()}”</h2>
-            <p>Search runs over titles and sources. Try the brand, or the model number.</p>
-            <button type="button" className="tk-btn ghost" onClick={() => setQuery("")}>
-              Clear the search
+            <h2>
+              {query.trim() && tagIds.length > 0
+                ? `Nothing matches “${query.trim()}” with those tags`
+                : query.trim()
+                  ? `No documents match “${query.trim()}”`
+                  : "No documents wear all of those tags"}
+            </h2>
+            <p>
+              {tagIds.length > 1
+                ? "Tags narrow together — a document has to wear every one you've picked."
+                : "Search runs over titles, sources, filenames and tags. Try the brand, or the model number."}
+            </p>
+            <button type="button" className="tk-btn ghost" onClick={clearFilters}>
+              {query.trim() && tagIds.length > 0
+                ? "Clear the filters"
+                : query.trim()
+                  ? "Clear the search"
+                  : "Clear the tags"}
             </button>
           </div>
         ) : (
@@ -315,6 +427,8 @@ export function Library({
                           canManage={canManage}
                           isOwner={isOwner}
                           error={rowErrors[d.id]}
+                          activeTagIds={tagIds}
+                          onPickTag={toggleTag}
                           onOpen={() => openDoc(d)}
                           onAsk={() => askAbout(d)}
                           onEdit={() => setEditing(d)}
@@ -342,12 +456,18 @@ export function Library({
 
       {drawer && canManage && (
         <UploadDrawer
+          tags={tags}
           progress={ingest.progress}
           onIngest={(ids) => ingest.start(ids)}
           onClose={() => setDrawer(false)}
         />
       )}
-      {editing && canManage && <EditModal doc={editing} onClose={() => setEditing(null)} />}
+      {managing && canManage && (
+        <TagManager tags={tags} usage={tagUsage} onClose={() => setManaging(false)} />
+      )}
+      {editing && canManage && (
+        <EditModal doc={editing} tags={tags} onClose={() => setEditing(null)} />
+      )}
       {deleting && canManage && isOwner && (
         <DeleteModal doc={deleting} onClose={() => setDeleting(null)} />
       )}
@@ -447,6 +567,8 @@ function DocRow({
   canManage,
   isOwner,
   error,
+  activeTagIds,
+  onPickTag,
   onOpen,
   onAsk,
   onEdit,
@@ -459,6 +581,8 @@ function DocRow({
   canManage: boolean;
   isOwner: boolean;
   error?: string;
+  activeTagIds: string[];
+  onPickTag: (tagId: string) => void;
   onOpen: () => void;
   onAsk: () => void;
   onEdit: () => void;
@@ -483,6 +607,16 @@ function DocRow({
           <span className="tk-rt flat">{doc.title}</span>
         )}
         {meta && <em className="tk-rmeta">{meta}</em>}
+        {/* THE PILLS ARE THE FILTER, which is what earns them a place on a row
+            that already carries a title, a meta line and a status. A badge
+            that only repeated what the edit modal knows would be the second
+            column of decoration this screen has had to delete. */}
+        <TagPills
+          tags={doc.tags ?? []}
+          max={KB_TAG_PILLS_SHOWN}
+          activeIds={activeTagIds}
+          onPick={onPickTag}
+        />
         {error && <p className="tk-rerr">{error}</p>}
       </div>
 
@@ -607,18 +741,32 @@ function StatusPill({ doc, state }: { doc: KbLibraryDoc; state: RowState }) {
 
 /* ── metadata, and removal ───────────────────────────────────────────────── */
 
-function EditModal({ doc, onClose }: { doc: KbLibraryDoc; onClose: () => void }) {
+function EditModal({
+  doc,
+  tags,
+  onClose,
+}: {
+  doc: KbLibraryDoc;
+  tags: KbTagRef[];
+  onClose: () => void;
+}) {
   const router = useRouter();
   const [title, setTitle] = useState(doc.title);
   const [category, setCategory] = useState<string>(doc.category);
   const [source, setSource] = useState(doc.source ?? "");
   const [edition, setEdition] = useState(doc.edition ?? "");
+  const [tagIds, setTagIds] = useState<string[]>((doc.tags ?? []).map((t) => t.id));
+  /* A tag created from inside the picker exists on the server before this
+     modal closes, and the list it was handed came from the page's last render
+     — so the new one is added here rather than waiting for a refresh that
+     hasn't happened yet. */
+  const [known, setKnown] = useState<KbTagRef[]>(tags);
   const [error, setError] = useState<string | null>(null);
   const [busy, start] = useTransition();
 
   const save = () =>
     start(async () => {
-      const res = await updateKbDocMeta(doc.id, { title, category, source, edition });
+      const res = await updateKbDocMeta(doc.id, { title, category, source, edition, tagIds });
       if (!res.ok) {
         setError(res.error);
         return;
@@ -634,7 +782,7 @@ function EditModal({ doc, onClose }: { doc: KbLibraryDoc; onClose: () => void })
         <div className="fl-mh">
           <span>
             <b>Edit document</b>
-            <em>What it&rsquo;s called, and which category it&rsquo;s in</em>
+            <em>What it&rsquo;s called, where it sits, and what it&rsquo;s about</em>
           </span>
           <button className="fl-x" aria-label="Close" onClick={onClose}>
             <Icon name="x" size={16} />
@@ -678,6 +826,13 @@ function EditModal({ doc, onClose }: { doc: KbLibraryDoc; onClose: () => void })
               />
             </label>
           </div>
+          <TagPicker
+            variant="modal"
+            tags={known}
+            value={tagIds}
+            onChange={setTagIds}
+            onCreated={(tag) => setKnown((list) => (list.some((t) => t.id === tag.id) ? list : [...list, tag]))}
+          />
           <div className="fl-foot">
             <button className="fl-btn ghost" onClick={onClose}>
               Cancel

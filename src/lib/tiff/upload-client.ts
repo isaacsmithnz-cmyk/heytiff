@@ -21,6 +21,9 @@ export type KbUploadMeta = {
   category: string;
   source?: string;
   edition?: string;
+  /** Tag ids as the drawer left them. Re-checked against the org's own tags on
+      the other side — this is a caller's suggestion, not a fact. */
+  tagIds?: string[];
 };
 
 export type KbUploadOutcome =
@@ -38,6 +41,7 @@ export async function uploadKbFile(file: File, meta: KbUploadMeta): Promise<KbUp
     category: meta.category,
     source: meta.source,
     edition: meta.edition,
+    tagIds: meta.tagIds,
     /* Taken off the File rather than added to `KbUploadMeta`: the name is a
        property of the thing being uploaded, not a decision a caller makes, and
        every caller that forgot to pass it would silently lose the provenance

@@ -29,6 +29,21 @@
    expands a question into the terms a manual would contain — both must match
    the DOCUMENT's language, not this one, or the index stops finding the page.
 
+   AND THE KB's `to_tsvector('english', …)` IS NOT A BUG — measured against
+   prod on 2026-08-09, because reading the word "english" in the DDL invites
+   exactly one wrong conclusion. Postgres tokenises the document and the query
+   with the SAME configuration, so a Spanish, Vietnamese, Arabic or Tagalog
+   phrase finds itself: the English snowball stemmer leaves those words alone,
+   and the stopwords it drops it drops from both sides. What it costs is
+   stemming FAMILIES in another language ("cambió" doesn't reach "cambiar") —
+   and the Spanish configuration doesn't relate those two either. Switching to
+   'simple' would be a straight regression: "short cycling" stops matching
+   "short cycle", which is the search this library exists for. The one language
+   genuinely broken is Chinese, and it is broken identically under every
+   configuration Supabase offers — no segmenter, so a whole run of Han is one
+   token. That is a segmenter problem, not a language-configuration one, and
+   the vector leg (voyage-4, multilingual) is what carries it meanwhile.
+
    WHY A CONSTANT RATHER THAN A SETTING. One business, one language on the
    board — and a settings row would not actually buy the guarantee it looks
    like it buys, because what keeps another language out of the records is

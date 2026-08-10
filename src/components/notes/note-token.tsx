@@ -108,6 +108,63 @@ function Ribbon({ flow }: { flow: NoteFlow }) {
   );
 }
 
+/* ── THE DEFAULT SWITCH ──
+
+   Isaac wanted the preference SAID OUT LOUD rather than inferred from which
+   button you last pressed: a switch that reads "Default", with Talk and Type
+   on it, so what the Tiff button will do next time is never a thing you have
+   to remember. That label is also what makes storing the preference safe at
+   all — see ./capture-default.
+
+   IT IS ONE CONTROL DOING ONE THING, not two. Flipping it sets the default
+   AND puts you in that mode now, because the alternative is a row carrying
+   both a "Talk" button and a Talk segment that don't do the same thing.
+   Switching to Talk starts listening; switching to Type hands the words over
+   to the box (never discarding them — see `handOver` in ./dictation).
+
+   Absent where the deployment cannot hear: a choice with one option is not a
+   choice, it is furniture. */
+function DefaultSwitch({ flow }: { flow: NoteFlow }) {
+  if (!flow.scope.voiceEnabled) return null;
+  const talk = flow.mode === "talk";
+  return (
+    <span className="wb2-modesw">
+      <span className="wb2-modelbl" id="wb2-modelbl">
+        Default
+      </span>
+      <span className={"wb2-modeseg" + (talk ? "" : " type")} role="group" aria-labelledby="wb2-modelbl">
+        {/* The thumb is decoration over the two real buttons — it slides,
+            they stay hit-targets. */}
+        <span className="wb2-modethumb" aria-hidden="true" />
+        <button
+          type="button"
+          className="wb2-modeopt"
+          aria-pressed={talk}
+          onClick={() => {
+            flow.chooseMode("talk");
+            if (!flow.dict.recording) flow.dict.start();
+          }}
+        >
+          <Icon name="mic" size={13} />
+          Talk
+        </button>
+        <button
+          type="button"
+          className="wb2-modeopt"
+          aria-pressed={!talk}
+          onClick={() => {
+            flow.chooseMode("type");
+            if (flow.dict.recording) flow.dict.handOver();
+          }}
+        >
+          <Icon name="keyboard" size={13} />
+          Type
+        </button>
+      </span>
+    </span>
+  );
+}
+
 function Body({ flow }: { flow: NoteFlow }) {
   const stage = flow.stage;
   const textRef = useRef<HTMLTextAreaElement | null>(null);
@@ -156,9 +213,11 @@ function Body({ flow }: { flow: NoteFlow }) {
           </p>
         )}
         <div className="wb2-capact">
-          <button className="pbtn ghost" onClick={flow.close}>
-            Discard
-          </button>
+          {/* Flipping this to Type is the way out of the mic, and it keeps
+              every word — `handOver` puts what you have said in the box
+              rather than routing it, so changing your mind mid-sentence
+              costs nothing. */}
+          <DefaultSwitch flow={flow} />
           <button className="pbtn" onClick={flow.dict.stop}>
             <Icon name="square" size={15} />
             Stop &amp; read
@@ -225,31 +284,29 @@ function Body({ flow }: { flow: NoteFlow }) {
         {flow.ranOut && (
           <p className="wb2-hint" role="status">
             Two minutes — that&apos;s the limit for one recording. It&apos;s all in the box; press
-            the mic to carry on where you left off.
+            Talk to carry on where you left off.
           </p>
         )}
+        {/* DISCARD IS GONE FROM BOTH STAGES. It called `flow.close`, which is
+            exactly what the ribbon's × does — two controls, one behaviour,
+            and the × is present in every stage while Discard never was. */}
         <div className="wb2-capact">
-          <button className="pbtn ghost" onClick={flow.close} disabled={flow.busy}>
-            Discard
-          </button>
-          {/* TYPE OR TALK, as equals. The box is the type door and the caret
-              is already in it; this is the talk door, and it stopped being a
-              fallback ("Say it instead") when the button stopped auto-starting
-              the mic — there is no "instead" once nothing was presumed. */}
-          {flow.scope.voiceEnabled && (
-            <button className="pbtn ghost wb2-talk" onClick={flow.dict.start} disabled={flow.busy}>
-              <Icon name="mic" size={15} />
-              {flow.ranOut ? "Keep going" : "Talk"}
+          <DefaultSwitch flow={flow} />
+          {/* IT ARRIVES WITH THE WORDS (Isaac, 2026-08-10). It used to sit
+              there greyed out on an empty sheet — a dead control is a
+              question you have to answer every time you look at it. Now the
+              row is quiet until there is something to sort, and the button
+              appearing IS the signal that there is. */}
+          {flow.text.trim() && (
+            <button
+              className="pbtn"
+              aria-label="Sort this out"
+              onClick={() => flow.submit("text", flow.text)}
+              disabled={flow.busy}
+            >
+              {flow.busy ? "Reading…" : "Sort this out"}
             </button>
           )}
-          <button
-            className="pbtn"
-            aria-label="Sort this out"
-            onClick={() => flow.submit("text", flow.text)}
-            disabled={flow.busy || !flow.text.trim()}
-          >
-            {flow.busy ? "Reading…" : "Sort this out"}
-          </button>
         </div>
       </>
     );

@@ -118,6 +118,8 @@ type DictationState = {
   barsRef: React.RefObject<HTMLSpanElement | null>;
   start: () => void;
   stop: () => void;
+  /** Stop, but keep the words for the box rather than routing them. */
+  handOver: () => void;
   /** Throw the recording away — nothing is transcribed, nothing is sent. */
   cancel: () => void;
 };
@@ -126,12 +128,23 @@ export function useDictation({
   onTranscript,
   onError,
 }: {
-  /* `capped` is the difference between "I am finished" and "the clock ran
-     out", and a caller that routes on a transcript MUST tell them apart —
-     see note-flow, where getting it wrong files half a note. Callers that
-     simply append (the field mics, Tiff's ask bar) can ignore it: appending
-     is already the right answer for both. */
-  onTranscript: (text: string, info: { capped: boolean }) => void;
+  /* THREE WAYS A RECORDING CAN END, and a caller that routes on a transcript
+     has to tell them apart — see note-flow, where getting it wrong files
+     half a note.
+
+       (neither)    you pressed stop. You are finished; route it.
+       capped       the two-minute clock ran out mid-sentence. Keep the
+                    words, route nothing, and say why.
+       handedOver   you asked to finish it by typing. Keep the words, route
+                    nothing, and say nothing — this is not an interruption,
+                    it is the thing you asked for.
+
+     `capped` and `handedOver` do the same thing to the words and differ only
+     in what the surface says afterwards, which is exactly why they are two
+     flags and not one: a handover that borrowed `capped` would announce a
+     two-minute limit nobody hit. Callers that simply append (the field mics,
+     Tiff's ask bar) can ignore both. */
+  onTranscript: (text: string, info: { capped: boolean; handedOver: boolean }) => void;
   onError?: (message: string) => void;
 }): DictationState {
   const [recording, setRecording] = useState(false);
@@ -143,6 +156,8 @@ export function useDictation({
   /* Set by the ceiling effect, cleared by every fresh `start`. Read when
      the words are handed over, which is always after the stop it caused. */
   const capped = useRef(false);
+  /** Same shape, opposite meaning: you asked to carry on in the box. */
+  const handedOver = useRef(false);
   const barsRef = useRef<HTMLSpanElement | null>(null);
   const meter = useRef<{ ctx: AudioContext; raf: number } | null>(null);
   const live = useRef<RealtimeHandle | null>(null);
@@ -259,7 +274,10 @@ export function useDictation({
         return;
       }
       markTranscript("batch");
-      cbs.current.onTranscript(body.text, { capped: capped.current });
+      cbs.current.onTranscript(body.text, {
+        capped: capped.current,
+        handedOver: handedOver.current,
+      });
     } catch {
       clearRun();
       cbs.current.onError?.("That recording couldn't be sent. Type it instead.");
@@ -307,6 +325,7 @@ export function useDictation({
         const rec = new MediaRecorder(stream);
         discard.current = false;
         capped.current = false;
+        handedOver.current = false;
         setInterim("");
         startMeter(stream);
         const chunks: BlobPart[] = [];
@@ -340,7 +359,10 @@ export function useDictation({
               const text = (await handle.stop()).trim();
               if (text) {
                 markTranscript("live");
-                cbs.current.onTranscript(text, { capped: capped.current });
+                cbs.current.onTranscript(text, {
+                  capped: capped.current,
+                  handedOver: handedOver.current,
+                });
                 return;
               }
               /* Socket produced nothing. The clip is still in `chunks`, so
@@ -394,6 +416,18 @@ export function useDictation({
     recorder.current.stop();
   };
 
+  /* FINISH IT BY TYPING. Stops the recorder like `stop`, but marks the
+     words as handed over so the caller puts them in the box instead of
+     routing them — pressing "Type" mid-sentence must never file half a
+     note, and must never throw away what you already said. Same chime as
+     stop: the recording did end, and the ear should hear that it did. */
+  const handOver = () => {
+    if (recorder.current?.state !== "recording") return;
+    playChime("stop");
+    handedOver.current = true;
+    recorder.current.stop();
+  };
+
   const cancel = () => {
     if (recorder.current?.state !== "recording") return;
     /* Its own note. Stopping and discarding are both endings, and if they
@@ -403,7 +437,7 @@ export function useDictation({
     recorder.current.stop();
   };
 
-  return { recording, transcribing, seconds, interim, barsRef, start, stop, cancel };
+  return { recording, transcribing, seconds, interim, barsRef, start, stop, handOver, cancel };
 }
 
 /** The five-bar real-sample meter — bind `ref` to a dictation's `barsRef`. */

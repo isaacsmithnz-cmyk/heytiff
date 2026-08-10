@@ -53,7 +53,7 @@ const fakeStream = { getTracks: () => [track] } as unknown as MediaStream;
 function Probe({
   onTranscript,
 }: {
-  onTranscript: (t: string, info: { capped: boolean }) => void;
+  onTranscript: (t: string, info: { capped: boolean; handedOver: boolean }) => void;
 }) {
   const d = useDictation({ onTranscript });
   return (
@@ -61,6 +61,7 @@ function Probe({
       <button onClick={d.start}>start</button>
       <button onClick={d.stop}>stop</button>
       <button onClick={d.cancel}>cancel</button>
+      <button onClick={d.handOver}>handover</button>
       <span data-testid="secs">{d.seconds}</span>
       <span data-testid="rec">{String(d.recording)}</span>
     </div>
@@ -144,6 +145,7 @@ describe("the recorder stops itself", () => {
     expect(global.fetch).toHaveBeenCalledWith("/api/workboard/transcribe", expect.anything());
     expect(onTranscript).toHaveBeenCalledWith("compressor is noisy on start-up", {
       capped: true,
+      handedOver: false,
     });
   });
 
@@ -163,7 +165,7 @@ describe("the recorder stops itself", () => {
       await Promise.resolve();
       await Promise.resolve();
     });
-    expect(onTranscript.mock.calls[0]?.[1]).toEqual({ capped: true });
+    expect(onTranscript.mock.calls[0]?.[1]).toEqual({ capped: true, handedOver: false });
 
     // pressed again, and this time stopped on purpose well inside the limit
     screen.getByText("start").click();
@@ -175,7 +177,7 @@ describe("the recorder stops itself", () => {
       await Promise.resolve();
       await Promise.resolve();
     });
-    expect(onTranscript.mock.calls[1]?.[1]).toEqual({ capped: false });
+    expect(onTranscript.mock.calls[1]?.[1]).toEqual({ capped: false, handedOver: false });
   });
 
   it("gives a fresh two minutes when the mic is pressed again", async () => {
@@ -291,5 +293,72 @@ describe("the mic's chimes", () => {
       screen.getByText("cancel").click();
     });
     expect(mockChime).not.toHaveBeenCalled();
+  });
+});
+
+/* ── FINISHING IT BY TYPING ──
+
+   Pressing Type mid-recording is a third ending, and it has to behave like
+   the ceiling rather than like stop or cancel: the words are kept, nothing
+   is routed. The two ways of getting that wrong are both silent — route the
+   half-sentence and you file a note nobody finished, or reuse `cancel` and
+   the words evaporate with no error to show for it. */
+describe("handing a recording over to the keyboard", () => {
+  it("keeps every word and marks them as NOT for routing", async () => {
+    const onTranscript = jest.fn();
+    render(<Probe onTranscript={onTranscript} />);
+    screen.getByText("start").click();
+    await settle();
+
+    await tick(8);
+    screen.getByText("handover").click();
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(onTranscript).toHaveBeenCalledWith("compressor is noisy on start-up", {
+      capped: false,
+      handedOver: true,
+    });
+  });
+
+  /* It is not the ceiling, and must not claim to be — `capped` is what makes
+     the surface announce a two-minute limit, and announcing one to somebody
+     eight seconds in would be a plain lie. */
+  it("does not borrow the ceiling's flag", async () => {
+    const onTranscript = jest.fn();
+    render(<Probe onTranscript={onTranscript} />);
+    screen.getByText("start").click();
+    await settle();
+
+    screen.getByText("handover").click();
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(onTranscript.mock.calls[0]?.[1]).toEqual({ capped: false, handedOver: true });
+  });
+
+  /* Cleared by the next `start`, exactly like `capped`. A sticky flag would
+     mean the recording AFTER a handover silently refused to route. */
+  it("clears itself, so the next recording routes normally", async () => {
+    const onTranscript = jest.fn();
+    render(<Probe onTranscript={onTranscript} />);
+
+    screen.getByText("start").click();
+    await settle();
+    screen.getByText("handover").click();
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); });
+
+    screen.getByText("start").click();
+    await settle();
+    screen.getByText("stop").click();
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); });
+
+    expect(onTranscript.mock.calls[1]?.[1]).toEqual({ capped: false, handedOver: false });
   });
 });

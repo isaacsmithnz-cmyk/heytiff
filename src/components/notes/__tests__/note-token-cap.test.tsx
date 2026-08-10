@@ -128,7 +128,12 @@ it("carries on where it left off when the mic is pressed again", async () => {
   const user = await openSheet();
   await deliver("middle rooftop unit tripped again", true);
 
-  const again = screen.getByRole("button", { name: /keep going/i });
+  /* The way back to the mic is the Default switch's Talk half. It used to be
+     a button that relabelled itself "Keep going" after the ceiling; the
+     switch cannot borrow that word without the two halves changing width
+     under the sliding thumb, so the invitation moved into the hint above —
+     which the test before this one pins ("carry on"). */
+  const again = screen.getByRole("button", { name: /talk/i });
   await user.click(again);
   expect(mockStart).toHaveBeenCalled();
 

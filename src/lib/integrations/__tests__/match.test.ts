@@ -5,25 +5,21 @@ import {
   normName,
   staffName,
   suggestMatches,
-  unmatchedEmployees,
+  type RemoteCandidate,
   type StaffCandidate,
 } from "../match";
-import type { XeroEmployee } from "../xero-shape";
 
 /* The stakes here are why these tests are picky: a wrong suggestion that a
    tired person clicks through attaches someone's pay to a stranger's payroll
    record. The cases that matter most are the ones where the matcher must
    REFUSE to answer. */
 
-const emp = (over: Partial<XeroEmployee> & { employeeId: string }): XeroEmployee => ({
-  firstName: "",
-  lastName: "",
+/* Remote records arrive as the matcher's own RemoteCandidate — each provider
+   maps its shape down at the call boundary, so the fixtures here are already
+   provider-neutral. */
+const rem = (over: Partial<RemoteCandidate> & { id: string }): RemoteCandidate => ({
   name: over.name ?? "Someone Else",
   email: null,
-  jobTitle: null,
-  active: true,
-  employmentType: null,
-  payrollCalendarId: null,
   ...over,
 });
 
@@ -73,42 +69,42 @@ describe("normalisation", () => {
 
 describe("matchOne", () => {
   const employees = [
-    emp({ employeeId: "x1", name: "Dan Smith", email: "dan@acme.com" }),
-    emp({ employeeId: "x2", name: "Jo Blogs", email: "jo@acme.com" }),
+    rem({ id: "x1", name: "Dan Smith", email: "dan@acme.com" }),
+    rem({ id: "x2", name: "Jo Blogs", email: "jo@acme.com" }),
   ];
 
   it("matches on email", () => {
     const out = matchOne(staff({ staffProfileId: "s1", email: "DAN@acme.com" }), employees, new Set());
-    expect(out).toEqual({ kind: "suggested", employeeId: "x1", reason: "email" });
+    expect(out).toEqual({ kind: "suggested", remoteId: "x1", reason: "email" });
   });
 
   it("falls back to name when there is no email — the never-invited case", () => {
     // user_id is null until an invite is accepted, so email is legitimately
     // absent for a staff card created ahead of onboarding
     const out = matchOne(staff({ staffProfileId: "s1", fullName: "Jo Blogs" }), employees, new Set());
-    expect(out).toEqual({ kind: "suggested", employeeId: "x2", reason: "name" });
+    expect(out).toEqual({ kind: "suggested", remoteId: "x2", reason: "name" });
   });
 
   it("matches a name given in the other order", () => {
     const out = matchOne(staff({ staffProfileId: "s1", firstName: "Smith", lastName: "Dan" }), employees, new Set());
-    expect(out).toEqual({ kind: "suggested", employeeId: "x1", reason: "name" });
+    expect(out).toEqual({ kind: "suggested", remoteId: "x1", reason: "name" });
   });
 
   /* The one that matters: two people who genuinely share a name. Offering
      either is a coin flip with someone's pay on it. */
   it("refuses to choose between two identical names", () => {
     const twoDans = [
-      emp({ employeeId: "x1", name: "Dan Smith" }),
-      emp({ employeeId: "x2", name: "Dan Smith" }),
+      rem({ id: "x1", name: "Dan Smith" }),
+      rem({ id: "x2", name: "Dan Smith" }),
     ];
     const out = matchOne(staff({ staffProfileId: "s1", fullName: "Dan Smith" }), twoDans, new Set());
-    expect(out).toEqual({ kind: "ambiguous", employeeIds: ["x1", "x2"] });
+    expect(out).toEqual({ kind: "ambiguous", remoteIds: ["x1", "x2"] });
   });
 
   it("refuses when two Xero employees share an address", () => {
     const shared = [
-      emp({ employeeId: "x1", name: "Dan Smith", email: "office@acme.com" }),
-      emp({ employeeId: "x2", name: "Jo Blogs", email: "office@acme.com" }),
+      rem({ id: "x1", name: "Dan Smith", email: "office@acme.com" }),
+      rem({ id: "x2", name: "Jo Blogs", email: "office@acme.com" }),
     ];
     const out = matchOne(staff({ staffProfileId: "s1", email: "office@acme.com" }), shared, new Set());
     expect(out.kind).toBe("ambiguous");
@@ -132,7 +128,7 @@ describe("suggestMatches", () => {
      person's weak name match could consume the employee that a later person
      matches by EMAIL — strong evidence losing to weak by accident of sorting. */
   it("resolves every email match before any name match", () => {
-    const employees = [emp({ employeeId: "x1", name: "Dan Smith", email: "dan.smith@acme.com" })];
+    const employees = [rem({ id: "x1", name: "Dan Smith", email: "dan.smith@acme.com" })];
     const roster = [
       // would win on name if names went first
       staff({ staffProfileId: "s-name", fullName: "Dan Smith" }),
@@ -142,11 +138,11 @@ describe("suggestMatches", () => {
 
     const { suggestions } = suggestMatches(roster, employees);
 
-    expect(suggestions).toEqual([{ staffProfileId: "s-email", employeeId: "x1", reason: "email" }]);
+    expect(suggestions).toEqual([{ staffProfileId: "s-email", remoteId: "x1", reason: "email" }]);
   });
 
-  it("never offers one employee to two people", () => {
-    const employees = [emp({ employeeId: "x1", name: "Dan Smith" })];
+  it("never offers one remote record to two same-named people — both go ambiguous, nobody wins by sort order", () => {
+    const employees = [rem({ id: "x1", name: "Dan Smith" })];
     const roster = [
       staff({ staffProfileId: "s1", fullName: "Dan Smith" }),
       staff({ staffProfileId: "s2", fullName: "Dan Smith" }),
@@ -154,14 +150,37 @@ describe("suggestMatches", () => {
 
     const { suggestions, ambiguous } = suggestMatches(roster, employees);
 
-    // one Dan is ambiguous against the other's claim, and either way the
-    // employee is only ever offered once
-    expect(suggestions.filter((s) => s.employeeId === "x1").length).toBeLessThanOrEqual(1);
-    expect(suggestions.length + ambiguous.length).toBeGreaterThan(0);
+    // the mirrored accident-of-sorting: before this rule, whichever Dan came
+    // first in the roster silently took the record
+    expect(suggestions).toEqual([]);
+    expect([...ambiguous].sort()).toEqual(["s1", "s2"]);
+  });
+
+  it("two cards holding one address that names somebody: both ambiguous, the address proves nothing", () => {
+    const employees = [rem({ id: "x1", name: "Office Dan", email: "office@acme.com" })];
+    const roster = [
+      staff({ staffProfileId: "s1", fullName: "Dan Smith", email: "office@acme.com" }),
+      staff({ staffProfileId: "s2", fullName: "Jo Blogs", email: "office@acme.com" }),
+    ];
+
+    const { suggestions, ambiguous } = suggestMatches(roster, employees);
+
+    expect(suggestions).toEqual([]);
+    expect([...ambiguous].sort()).toEqual(["s1", "s2"]);
+  });
+
+  it("shared evidence that points at nobody stays quiet — no ambiguity noise", () => {
+    const employees = [rem({ id: "x1", name: "Unrelated Person" })];
+    const roster = [
+      staff({ staffProfileId: "s1", fullName: "Dan Smith" }),
+      staff({ staffProfileId: "s2", fullName: "Dan Smith" }),
+    ];
+
+    expect(suggestMatches(roster, employees)).toEqual({ suggestions: [], ambiguous: [] });
   });
 
   it("leaves already-linked employees alone", () => {
-    const employees = [emp({ employeeId: "x1", name: "Dan Smith", email: "dan@acme.com" })];
+    const employees = [rem({ id: "x1", name: "Dan Smith", email: "dan@acme.com" })];
     const roster = [staff({ staffProfileId: "s1", email: "dan@acme.com" })];
 
     const { suggestions } = suggestMatches(roster, employees, new Set(["x1"]));
@@ -175,20 +194,5 @@ describe("suggestMatches", () => {
       suggestions: [],
       ambiguous: [],
     });
-  });
-});
-
-describe("unmatchedEmployees", () => {
-  it("lists active Xero people nobody here corresponds to", () => {
-    const employees = [
-      emp({ employeeId: "x1", name: "Dan Smith" }),
-      emp({ employeeId: "x2", name: "Jo Blogs" }),
-    ];
-    expect(unmatchedEmployees(employees, new Set(["x1"])).map((e) => e.employeeId)).toEqual(["x2"]);
-  });
-
-  it("drops leavers — a terminated employee nobody linked is just noise", () => {
-    const employees = [emp({ employeeId: "x1", name: "Gone Person", active: false })];
-    expect(unmatchedEmployees(employees, new Set())).toEqual([]);
   });
 });

@@ -15,13 +15,34 @@ import { createInvite } from "@/app/actions/invite";
    receipt-reader action into its bundle for a two-field form.
 
    Which roles appear is decided on the server (invitableRoles) and passed in —
-   the action re-checks it, because a select is not a permission. */
+   the action re-checks it, because a select is not a permission.
+
+   `prefill` is the claim path: inviting from an unclaimed card (imported from
+   ServiceM8/Xero or pre-seeded) carries that card's id, so accepting binds
+   the login to the card instead of minting a duplicate. The address is only
+   a starting point — remote systems hold stale ones, so it stays editable. */
 
 const ROLE_LABEL: Record<string, string> = { admin: "Admin", staff: "Staff" };
 
-export function InviteModal({ roles, onClose }: { roles: string[]; onClose: () => void }) {
+export type InvitePrefill = {
+  email?: string;
+  /** The unclaimed card this invite should claim on acceptance. */
+  staffProfileId?: string;
+  /** For the header, so the claim is legible: whose card this attaches to. */
+  name?: string;
+};
+
+export function InviteModal({
+  roles,
+  onClose,
+  prefill,
+}: {
+  roles: string[];
+  onClose: () => void;
+  prefill?: InvitePrefill;
+}) {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(prefill?.email ?? "");
   const [role, setRole] = useState(roles.includes("staff") ? "staff" : (roles[0] ?? "staff"));
   const [error, setError] = useState<string | null>(null);
   const [busy, start] = useTransition();
@@ -38,7 +59,7 @@ export function InviteModal({ roles, onClose }: { roles: string[]; onClose: () =
     if (!email.trim() || busy) return;
     setError(null);
     start(async () => {
-      const res = await createInvite({ email, role });
+      const res = await createInvite({ email, role, staffProfileId: prefill?.staffProfileId });
       if (res.ok) {
         onClose();
         // the new row belongs on the Pending tab straight away
@@ -53,7 +74,11 @@ export function InviteModal({ roles, onClose }: { roles: string[]; onClose: () =
         <div className="fl-mh">
           <span>
             <b>Invite staff</b>
-            <em>They join your organisation when they open the link</em>
+            <em>
+              {prefill?.name
+                ? `Their account attaches to ${prefill.name}'s card when they accept`
+                : "They join your organisation when they open the link"}
+            </em>
           </span>
           <button className="fl-x" aria-label="Close" onClick={onClose}>
             <Icon name="x" size={16} />

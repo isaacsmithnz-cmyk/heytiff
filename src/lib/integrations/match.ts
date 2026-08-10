@@ -1,5 +1,8 @@
-/* Suggesting which Xero employee is which HeyTiff staff member — pure, so the
-   rules are testable and identical everywhere.
+/* Suggesting which remote record — a Xero employee, a ServiceM8 staff member,
+   whatever a provider calls its people — is which HeyTiff staff member. Pure,
+   so the rules are testable and identical everywhere: one matcher, however
+   many providers, because two matchers would eventually disagree about who
+   somebody is.
 
    THIS MODULE ONLY EVER SUGGESTS. Nothing here writes a link. A suggestion is
    rendered next to a person with the reason it was made, and someone who knows
@@ -23,8 +26,6 @@
    nothing — showing one of two equally-good matches is how the wrong person
    gets linked by someone clicking through. */
 
-import type { XeroEmployee } from "./xero-shape";
-
 /** The HeyTiff side of the comparison. Deliberately tiny: a matcher that can
     see wages is a matcher that can leak them into a suggestion payload. */
 export type StaffCandidate = {
@@ -37,19 +38,31 @@ export type StaffCandidate = {
   email: string | null;
 };
 
+/** The provider side, reduced to exactly what matching may see. Each caller
+    maps its own shape down to this (XeroEmployee, Sm8Person, …) — the matcher
+    must not know provider fields, or provider-specific "cleverness" creeps in
+    here and the rules stop being identical everywhere. */
+export type RemoteCandidate = {
+  /** The provider's stable id — what a link's remote_id would store. */
+  id: string;
+  /** Display name, as the provider joins it. */
+  name: string;
+  email: string | null;
+};
+
 export type SuggestionReason = "email" | "name";
 
 export type Suggestion = {
   staffProfileId: string;
-  employeeId: string;
+  remoteId: string;
   reason: SuggestionReason;
 };
 
 export type MatchOutcome =
   /** One confident candidate. */
-  | { kind: "suggested"; employeeId: string; reason: SuggestionReason }
-  /** More than one equally-good name match — we show none and say why. */
-  | { kind: "ambiguous"; employeeIds: string[] }
+  | { kind: "suggested"; remoteId: string; reason: SuggestionReason }
+  /** More than one equally-good match — we show none and say why. */
+  | { kind: "ambiguous"; remoteIds: string[] }
   /** Nothing plausible. */
   | { kind: "none" };
 
@@ -94,34 +107,35 @@ export function staffName(s: StaffCandidate): string {
 
 /* ── matching ── */
 
-/** Find the best match for ONE staff member among the employees still free.
+/** Find the best match for ONE staff member among the remote records still
+    free.
 
-    `taken` is the set of employee ids already linked or already suggested to
+    `taken` is the set of remote ids already linked or already suggested to
     someone else — passed in rather than derived here so the caller controls
-    the order, and so one Xero employee can never be offered to two people. */
+    the order, and so one remote record can never be offered to two people. */
 export function matchOne(
   staff: StaffCandidate,
-  employees: XeroEmployee[],
+  remotes: RemoteCandidate[],
   taken: ReadonlySet<string>
 ): MatchOutcome {
-  const free = employees.filter((e) => !taken.has(e.employeeId));
+  const free = remotes.filter((r) => !taken.has(r.id));
 
   // Email first: near-proof, and it beats an ambiguous name outright.
   const email = normEmail(staff.email);
   if (email) {
-    const hits = free.filter((e) => normEmail(e.email) === email);
-    if (hits.length === 1) return { kind: "suggested", employeeId: hits[0].employeeId, reason: "email" };
-    // Two Xero employees sharing an address is a data problem over there, not
+    const hits = free.filter((r) => normEmail(r.email) === email);
+    if (hits.length === 1) return { kind: "suggested", remoteId: hits[0].id, reason: "email" };
+    // Two remote records sharing an address is a data problem over there, not
     // something to resolve by guessing.
-    if (hits.length > 1) return { kind: "ambiguous", employeeIds: hits.map((e) => e.employeeId) };
+    if (hits.length > 1) return { kind: "ambiguous", remoteIds: hits.map((r) => r.id) };
   }
 
   const key = nameKey(staffName(staff));
   if (!key) return { kind: "none" };
 
-  const hits = free.filter((e) => nameKey(e.name) === key);
-  if (hits.length === 1) return { kind: "suggested", employeeId: hits[0].employeeId, reason: "name" };
-  if (hits.length > 1) return { kind: "ambiguous", employeeIds: hits.map((e) => e.employeeId) };
+  const hits = free.filter((r) => nameKey(r.name) === key);
+  if (hits.length === 1) return { kind: "suggested", remoteId: hits[0].id, reason: "name" };
+  if (hits.length > 1) return { kind: "ambiguous", remoteIds: hits.map((r) => r.id) };
   return { kind: "none" };
 }
 
@@ -129,15 +143,25 @@ export function matchOne(
 
     EMAIL MATCHES ARE RESOLVED FIRST, ACROSS EVERYONE, before any name match is
     considered. Otherwise the order staff happen to come back in decides the
-    outcome: a weak name match for the first person could consume the employee
-    that the third person matches by email — and the strong evidence would lose
-    to the weak one purely by accident of sorting.
+    outcome: a weak name match for the first person could consume the remote
+    record that the third person matches by email — and the strong evidence
+    would lose to the weak one purely by accident of sorting.
 
-    `alreadyLinked` holds employee ids that existing links already claim, so a
+    UNIQUE IN BOTH DIRECTIONS. matchOne only sees one staff member at a time,
+    so on its own it would let TWO people here who share evidence — the same
+    name, or the same address — each look like a clean single hit, and the
+    roster's array order would decide which of them gets the remote record.
+    That is the same accident-of-sorting failure, mirrored; it surfaced the
+    moment the import screen turned the display around to remote-first. So
+    shared evidence that actually points at somebody marks every holder
+    ambiguous and consumes nothing — two Dans here and one Dan there is a
+    human's call, not the sort order's.
+
+    `alreadyLinked` holds remote ids that existing links already claim, so a
     saved decision is never re-offered elsewhere. */
 export function suggestMatches(
   staff: StaffCandidate[],
-  employees: XeroEmployee[],
+  remotes: RemoteCandidate[],
   alreadyLinked: ReadonlySet<string> = new Set()
 ): { suggestions: Suggestion[]; ambiguous: string[] } {
   const taken = new Set(alreadyLinked);
@@ -145,13 +169,32 @@ export function suggestMatches(
   const ambiguous: string[] = [];
   const settled = new Set<string>();
 
+  const emailCounts = new Map<string, number>();
+  for (const s of staff) {
+    const e = normEmail(s.email);
+    if (e) emailCounts.set(e, (emailCounts.get(e) ?? 0) + 1);
+  }
+
   // Pass 1 — email only.
   for (const s of staff) {
-    if (!normEmail(s.email)) continue;
-    const out = matchOne(s, employees, taken);
+    const email = normEmail(s.email);
+    if (!email) continue;
+
+    if ((emailCounts.get(email) ?? 0) > 1) {
+      // Two cards holding one address: if it names anyone over there, neither
+      // side of the duplicate may claim them. If it names nobody, the email
+      // proves nothing and the name pass still gets its chance.
+      if (remotes.some((r) => !taken.has(r.id) && normEmail(r.email) === email)) {
+        ambiguous.push(s.staffProfileId);
+        settled.add(s.staffProfileId);
+      }
+      continue;
+    }
+
+    const out = matchOne(s, remotes, taken);
     if (out.kind === "suggested" && out.reason === "email") {
-      suggestions.push({ staffProfileId: s.staffProfileId, employeeId: out.employeeId, reason: "email" });
-      taken.add(out.employeeId);
+      suggestions.push({ staffProfileId: s.staffProfileId, remoteId: out.remoteId, reason: "email" });
+      taken.add(out.remoteId);
       settled.add(s.staffProfileId);
     } else if (out.kind === "ambiguous") {
       ambiguous.push(s.staffProfileId);
@@ -160,26 +203,34 @@ export function suggestMatches(
   }
 
   // Pass 2 — names, over whoever and whatever is left.
+  const nameCounts = new Map<string, number>();
   for (const s of staff) {
     if (settled.has(s.staffProfileId)) continue;
-    const out = matchOne(s, employees, taken);
+    const key = nameKey(staffName(s));
+    if (key) nameCounts.set(key, (nameCounts.get(key) ?? 0) + 1);
+  }
+
+  for (const s of staff) {
+    if (settled.has(s.staffProfileId)) continue;
+
+    const key = nameKey(staffName(s));
+    if (key && (nameCounts.get(key) ?? 0) > 1) {
+      // The mirrored ambiguity: two people HERE with one name. Flag them only
+      // when the name reaches somebody still free over there.
+      if (remotes.some((r) => !taken.has(r.id) && nameKey(r.name) === key)) {
+        ambiguous.push(s.staffProfileId);
+      }
+      continue;
+    }
+
+    const out = matchOne(s, remotes, taken);
     if (out.kind === "suggested") {
-      suggestions.push({ staffProfileId: s.staffProfileId, employeeId: out.employeeId, reason: out.reason });
-      taken.add(out.employeeId);
+      suggestions.push({ staffProfileId: s.staffProfileId, remoteId: out.remoteId, reason: out.reason });
+      taken.add(out.remoteId);
     } else if (out.kind === "ambiguous") {
       ambiguous.push(s.staffProfileId);
     }
   }
 
   return { suggestions, ambiguous };
-}
-
-/** Xero employees nobody here corresponds to — the "in Xero, not in HeyTiff"
-    list. Terminated ones are dropped: a leaver who was never linked is noise,
-    and hiding them keeps the list to people someone might actually need to add. */
-export function unmatchedEmployees(
-  employees: XeroEmployee[],
-  linkedOrSuggested: ReadonlySet<string>
-): XeroEmployee[] {
-  return employees.filter((e) => e.active && !linkedOrSuggested.has(e.employeeId));
 }

@@ -48,6 +48,46 @@ describe("InviteModal", () => {
     expect(refresh).toHaveBeenCalled();
   });
 
+  it("prefilled from an unclaimed card: address editable, card id rides the submit", async () => {
+    const onClose = jest.fn();
+    render(
+      <InviteModal
+        roles={["staff"]}
+        onClose={onClose}
+        prefill={{ email: "dan@acme.com", staffProfileId: "card-7", name: "Dan Smith" }}
+      />,
+    );
+    const user = userEvent.setup();
+
+    // the claim is legible before anyone presses anything
+    expect(screen.getByText(/attaches to Dan Smith's card/)).toBeInTheDocument();
+
+    // remote systems hold stale addresses — the prefill is a start, not a lock
+    const email = screen.getByPlaceholderText("name@company.com") as HTMLInputElement;
+    expect(email.value).toBe("dan@acme.com");
+    await user.clear(email);
+    await user.type(email, "dan.personal@gmail.com");
+    await user.click(screen.getByRole("button", { name: /Create invite/ }));
+
+    expect(createInvite).toHaveBeenCalledWith({
+      email: "dan.personal@gmail.com",
+      role: "staff",
+      staffProfileId: "card-7",
+    });
+  });
+
+  it("a plain invite still submits without any card id", async () => {
+    const { user } = setup(["staff"]);
+    await user.type(screen.getByPlaceholderText("name@company.com"), "new@heytiff.co");
+    await user.click(screen.getByRole("button", { name: /Create invite/ }));
+
+    expect(createInvite).toHaveBeenCalledWith({
+      email: "new@heytiff.co",
+      role: "staff",
+      staffProfileId: undefined,
+    });
+  });
+
   it("shows the action's error and stays open", async () => {
     createInvite.mockResolvedValue({ ok: false, error: "You can't invite someone at that role." });
     const { onClose, user } = setup();

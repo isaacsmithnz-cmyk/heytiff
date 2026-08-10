@@ -1967,6 +1967,9 @@
 .fg .dir:has(.dmenu.open) {overflow:visible;}
 .fg .dirrows > .dirrow:last-child {border-radius:0 0 24px 24px;}
 .fg .dirrow.off {opacity:.62;}
+/* Imported/pre-seeded, no login yet — present but visibly not arrived. Same
+   dimming as archived, its own class so the two states can ever diverge. */
+.fg .dirrow.unclaimed {opacity:.62;}
 .fg .dofftag {font-size:10.5px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#9ca3af; background:#f1f2f4; padding:3px 9px; border-radius:999px; margin-left:6px;}
 .fg .direm {display:none; padding:40px 24px; text-align:center; font-size:13.5px; font-weight:600; color:#9ca3af; border-top:1px solid #f5f6f8;}
 /* directory — per-row actions menu */
@@ -3046,6 +3049,43 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .int-scopehead { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
 .fg .int-tag { padding:3px 9px; border-radius:999px; background:#f4f5f7; font-size:10.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--gray500); }
 .fg .int-tag.warn { background:rgba(240,164,49,.16); color:#a56a05; }
+
+/* ---- ServiceM8 people reconcile (components/integrations/sm8-people-card) ----
+   Import is a review, not a copy: the row IS the preview of what would land,
+   and the editor is where fields get unticked or corrected. Reuses card2 /
+   int-note / int-tag / fl-btn; only the row grid, the field editor and the
+   bulk bar are new. Everything .fg .sp-* so the .fg button/input resets lose. */
+.fg .sp-tools { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:4px; }
+.fg .sp-selall { display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:700; color:var(--gray500); cursor:pointer; }
+.fg .sp-selall input { width:15px; height:15px; accent-color:var(--teal-d); }
+.fg .sp-ghostbtn { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:9px; border:0; background:transparent; font-size:12.5px; font-weight:700; color:var(--gray500); cursor:pointer; }
+.fg .sp-ghostbtn:hover { background:#f4f5f7; color:var(--gray700); }
+.fg .sp-rows { display:flex; flex-direction:column; }
+.fg .sp-row { border-top:1px solid #f5f6f8; }
+.fg .sp-row:first-child { border-top:0; }
+.fg .sp-row.off .sp-main b { color:var(--gray400); }
+.fg .sp-line { display:flex; align-items:center; gap:12px; padding:12px 0; }
+.fg .sp-check { width:16px; flex:0 0 auto; display:flex; align-items:center; }
+.fg .sp-check input { width:15px; height:15px; accent-color:var(--teal-d); }
+.fg .sp-main { min-width:0; flex:1; display:flex; flex-direction:column; gap:2px; }
+.fg .sp-main b { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:800; letter-spacing:-0.01em; }
+.fg .sp-main em { font-style:normal; font-size:12.5px; font-weight:600; color:var(--gray500); overflow-wrap:anywhere; }
+.fg .sp-sug { margin-top:2px; font-size:12.5px; font-weight:700; color:#00806c; }
+.fg .sp-act { display:flex; align-items:center; gap:8px; flex:0 0 auto; }
+.fg .sp-editor { display:grid; grid-template-columns:1fr 1fr; gap:10px 14px; padding:4px 0 14px 28px; }
+.fg .sp-f { display:flex; flex-direction:column; gap:5px; }
+.fg .sp-f > span { display:flex; align-items:center; gap:7px; font-size:11.5px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:var(--gray500); }
+.fg .sp-f > span input { width:14px; height:14px; accent-color:var(--teal-d); }
+.fg .sp-f > input { height:38px; padding:0 12px; border-radius:10px; border:1.5px solid #e2e5ea; background:#fff; font-size:13.5px; font-weight:600; color:var(--gray700); }
+.fg .sp-f > input:focus { outline:none; border-color:var(--teal); }
+.fg .sp-f.out > input { background:#fafbfc; color:var(--gray400); }
+.fg .sp-editorfoot { grid-column:1 / -1; display:flex; align-items:center; gap:10px; }
+.fg .sp-linkpick { display:flex; align-items:center; gap:8px; }
+.fg .sp-linkpick select { height:34px; padding:0 10px; border-radius:9px; border:1.5px solid #e2e5ea; background:#fff; font-size:12.5px; font-weight:700; color:var(--gray700); }
+.fg .sp-bulk { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:12px; padding:11px 14px; border-radius:12px; background:#f7f8fa; }
+.fg .sp-bulk > span { font-size:12.5px; font-weight:700; color:var(--gray500); }
+.fg .sp-linked { margin-top:12px; border-top:1px solid #f5f6f8; padding-top:8px; }
+.fg .sp-empty { padding:14px 0; font-size:13px; font-weight:600; color:var(--gray400); }
 
 /* ---- Organisation screen (components/org/) ----
    Additive: the company profile reuses .card2 / .idc / .cred wholesale, and

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { CopyLink } from "@/components/shell/copy-link";
+import { InviteModal } from "@/components/team/invite-modal";
 import { renewInvite, revokeInvite, type InviteResult } from "@/app/actions/invite";
 import type { PendingInviteRow, StaffRow } from "@/lib/staff/types";
 
@@ -25,11 +26,14 @@ export function TeamDirectory({
   canInvite = false,
   /** origin the invite links are built from, resolved server-side */
   appUrl = "",
+  /** roles this viewer may invite at — the row-level Invite reuses the modal */
+  inviteRoles = [],
 }: {
   staff: StaffRow[];
   pending: PendingInviteRow[];
   canInvite?: boolean;
   appUrl?: string;
+  inviteRoles?: string[];
 }) {
   const [view, setView] = useState<View>("active");
   const [query, setQuery] = useState("");
@@ -45,6 +49,9 @@ export function TeamDirectory({
   const [busy, startInvite] = useTransition();
   const [armed, setArmed] = useState<string | null>(null);
   const [inviteError, setInviteError] = useState<string | null>(null);
+  // inviting an unclaimed card from its row — the invite carries the card id,
+  // so accepting claims THIS card instead of minting a duplicate
+  const [invitee, setInvitee] = useState<StaffRow | null>(null);
 
   const runInvite = (action: () => Promise<InviteResult>) => {
     setInviteError(null);
@@ -207,10 +214,13 @@ export function TeamDirectory({
           <div className="dirrows">
             {rows.map((s) => {
               const inactive = s.status === "Inactive";
+              // a card without a login yet — imported or pre-seeded, waiting
+              // on its invite; greyed until the person claims it
+              const unclaimed = !s.userId;
               return (
                 <div
                   key={s.id}
-                  className={`dirrow${inactive ? " off" : ""}`}
+                  className={`dirrow${inactive ? " off" : ""}${unclaimed ? " unclaimed" : ""}`}
                   role="link"
                   tabIndex={0}
                   onClick={() => router.push(`/dashboard/team/${s.id}`)}
@@ -230,6 +240,11 @@ export function TeamDirectory({
                       <em>{s.email}</em>
                     </span>
                     {inactive && <span className="dofftag">Inactive</span>}
+                    {unclaimed && (
+                      <span className="dofftag">
+                        {s.importedFrom ? `From ${s.importedFrom}` : "Hasn't joined yet"}
+                      </span>
+                    )}
                   </span>
                   <span className="drole">{s.role}</span>
                   <span className="dveh">{s.vehicle || "—"}</span>
@@ -254,6 +269,17 @@ export function TeamDirectory({
                     </button>
                     {openMenu === s.id && (
                       <div className={`dmenu open${menuUp ? " up" : ""}`}>
+                        {unclaimed && canInvite && inviteRoles.length > 0 && (
+                          <button
+                            onClick={() => {
+                              setOpenMenu(null);
+                              setInvitee(s);
+                            }}
+                          >
+                            <Icon name="send" size={15} />
+                            Invite to join
+                          </button>
+                        )}
                         <Link href={`/dashboard/team/${s.id}`}>
                           <Icon name="arrowUR" size={15} />
                           View profile
@@ -293,6 +319,21 @@ export function TeamDirectory({
           </div>
           {rows.length === 0 && <div className="direm on">No staff match your filters.</div>}
         </div>
+      )}
+
+      {invitee && (
+        <InviteModal
+          roles={inviteRoles}
+          prefill={{
+            // for an unclaimed card, StaffRow.email IS the contact_email the
+            // card was imported with — editable in the modal, remote systems
+            // hold stale addresses
+            email: invitee.email,
+            staffProfileId: invitee.id,
+            name: invitee.name,
+          }}
+          onClose={() => setInvitee(null)}
+        />
       )}
     </div>
   );

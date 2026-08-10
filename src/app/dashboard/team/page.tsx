@@ -72,6 +72,7 @@ export default async function TeamPage() {
               pending={pending}
               canInvite={canInvite}
               appUrl={appUrl}
+              inviteRoles={invitableAt}
             />
           )}
         </div>

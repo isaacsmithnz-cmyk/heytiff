@@ -154,10 +154,16 @@ export function buildLinkingRows(
   const linkByStaff = new Map(links.map((l) => [l.staffProfileId, l]));
 
   // Suggestions are only sought for people who aren't linked already, and can
-  // never offer an employee some existing link already claims.
+  // never offer an employee some existing link already claims. The matcher is
+  // provider-neutral, so employees are reduced to its RemoteCandidate shape
+  // at this boundary.
   const claimed = new Set(links.map((l) => l.remoteId));
   const unlinked = staff.filter((s) => !linkByStaff.has(s.staffProfileId));
-  const { suggestions, ambiguous } = suggestMatches(unlinked, employees, claimed);
+  const { suggestions, ambiguous } = suggestMatches(
+    unlinked,
+    employees.map((e) => ({ id: e.employeeId, name: e.name, email: e.email })),
+    claimed
+  );
 
   const suggestionByStaff = new Map(suggestions.map((s) => [s.staffProfileId, s]));
   const ambiguousSet = new Set(ambiguous);
@@ -181,7 +187,7 @@ export function buildLinkingRows(
     } else {
       const suggestion = suggestionByStaff.get(s.staffProfileId);
       if (suggestion) {
-        const found = byRemote.get(suggestion.employeeId)!;
+        const found = byRemote.get(suggestion.remoteId)!;
         state = { kind: "suggested", employee: found, reason: suggestion.reason };
       } else if (ambiguousSet.has(s.staffProfileId)) {
         state = { kind: "ambiguous" };

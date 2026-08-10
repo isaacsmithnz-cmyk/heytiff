@@ -8,6 +8,7 @@ import {
   type StaffStatus,
   type StaffWeek,
   type WeekCtx,
+  cycleNoun,
   derive,
   fmt,
   submitNote,
@@ -284,8 +285,9 @@ function ReviewCard({
             {d.sick ? <Bucket cls="sk" label="Sick" rate="paid" h={d.sick} /> : null}
             {d.leave ? <Bucket cls="lv" label="Leave" rate="paid" h={d.leave} /> : null}
           </div>
-          <button className="cs-expand" onClick={() => setOpen(!open)}>
-            View daily breakdown <Icon name="chevD" size={15} />
+          <button className="cs-expand" aria-expanded={open} onClick={() => setOpen(!open)}>
+            {open ? "Hide daily breakdown" : "View daily breakdown"}
+            <Icon name={open ? "chevU" : "chevD"} size={15} />
           </button>
         </div>
       </div>
@@ -420,7 +422,13 @@ export function TimePay({
     [staff, settings, ctx, sheets]
   );
 
-  const review = rows.filter((r) => r.status === "review" || r.status === "sent");
+  /* WHOSE MOVE IT IS, and the sections say so. A sent-back sheet used to sit
+     inside "Need review" and count towards its "Action required" — but the
+     question has already been asked and the answer is the staff member's to
+     give. An approver counting their own queue was reading a number that
+     included the cards they had already dealt with. */
+  const review = rows.filter((r) => r.status === "review");
+  const sentBack = rows.filter((r) => r.status === "sent");
   const ready = rows.filter((r) => r.status === "ready");
   const approved = rows.filter((r) => r.status === "approved");
   const otTot = rows.reduce((a, r) => a + r.d.ot + r.d.ot2, 0);
@@ -497,12 +505,20 @@ export function TimePay({
                 <div className="ss">Action required</div>
               </div>
             </div>
+            {/* APPROVED IS NOT THE SAME AS FINISHED WITH. This tile counted
+                `ready + approved` under "Normal · No action needed", so the
+                people still waiting on one tap from this very screen were
+                filed as needing nothing — while the section below them said
+                "Ready to approve" and offered an Approve all button. It counts
+                what is actually done, and names what isn't underneath. */}
             <div className="stat normal">
               <span className="si"><Icon name="check" size={18} /></span>
               <div className="stk">
-                <div className="sv">{ready.length + approved.length}</div>
-                <div className="sl">Normal</div>
-                <div className="ss">No action needed</div>
+                <div className="sv">{approved.length}</div>
+                <div className="sl">Approved</div>
+                <div className="ss">
+                  {ready.length > 0 ? `${ready.length} ready to approve` : "Nothing waiting"}
+                </div>
               </div>
             </div>
             <div className="stat ot">
@@ -510,7 +526,9 @@ export function TimePay({
               <div className="stk">
                 <div className="sv">{fmt(otTot)}h</div>
                 <div className="sl">Overtime</div>
-                <div className="ss">This week</div>
+                {/* the period's own noun — a monthly workspace was told its
+                    month's overtime was "This week" */}
+                <div className="ss">This {cycleNoun(settings.cycle)}</div>
               </div>
             </div>
             {/* Money, so it rides with `financials` like every other dollar
@@ -546,6 +564,18 @@ export function TimePay({
                 <span className="ln"></span>
               </div>
               {review.map((r) => (
+                <ReviewCard key={r.s.id} row={r} settings={settings} ctx={r.ctx} onApprove={approve} onSendBack={sendBack} canApprove={canApprove} />
+              ))}
+            </div>
+          )}
+          {sentBack.length > 0 && (
+            <div className="sectwrap">
+              <div className="sect">
+                <span className="st">Waiting on them</span>
+                <span className="ct">{sentBack.length}</span>
+                <span className="ln"></span>
+              </div>
+              {sentBack.map((r) => (
                 <ReviewCard key={r.s.id} row={r} settings={settings} ctx={r.ctx} onApprove={approve} onSendBack={sendBack} canApprove={canApprove} />
               ))}
             </div>
@@ -609,7 +639,6 @@ export function TimePay({
             <TimePaySettings
               settings={settings}
               firstRun={!configured}
-              period={period}
               canPay={financials}
               holidaySection={canHolidays ? <HolidaySection /> : null}
               xeroSection={

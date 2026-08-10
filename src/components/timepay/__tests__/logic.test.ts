@@ -21,6 +21,8 @@ import {
   splitDay,
   submitNote,
   weekGroups,
+  daysToCome,
+  issueHeading,
 } from "../logic";
 /* The prototype-parity roster. It used to live in mock/demo.ts; Stage 5 moved
    Time & Pay onto real tables and deleted that file's timepay fixtures, but
@@ -121,7 +123,9 @@ describe("derive — demo staff on default settings", () => {
     expect([d.normal, d.ot, d.ot2]).toEqual([40, 3.5, 2]);
     expect(d.weighted).toBe(40 + 3.5 * 1.5 + 2 * 2);
     expect(d.bullets).toContain("Sat 4 Jul — 4h at Saturday rates (2h @1.5×, then 2h @2×)");
-    expect(d.issueTitle).toBe("Overtime & double time to confirm");
+    /* Two kinds of issue, so the heading names both and drops the verb — see
+       `issueHeading`. Double time leads: it is the more expensive one. */
+    expect(d.issueTitle).toBe("Double time · Overtime");
   });
 
   it("Marcus and Dylan: clean 40h weeks are ready with no bullets", () => {
@@ -682,5 +686,78 @@ describe("derive — a worked holiday reaches the approver", () => {
     expect(d.bullets.some((b) => /4h of night work/.test(b))).toBe(true);
     // the day is 8h — nothing is "over standard" here
     expect(d.bullets.some((b) => /over standard/.test(b))).toBe(false);
+  });
+});
+
+/* ---------------- the two guards added with the 2026-08 workflow review ---- */
+
+describe("daysToCome — what a Submit would freeze", () => {
+  /* Mon 29 Jun … Sun 5 Jul, the same shape every fixture in this file uses. */
+  const week: WeekDay[] = [
+    ["MON", 29, "Jun"],
+    ["TUE", 30, "Jun"],
+    ["WED", 1, "Jul"],
+    ["THU", 2, "Jul"],
+    ["FRI", 3, "Jul"],
+    ["SAT", 4, "Jul"],
+    ["SUN", 5, "Jul"],
+  ];
+  const MON_FRI = [0, 1, 2, 3, 4];
+
+  it("counts the working days still ahead — the reason Submit waits", () => {
+    // it is Wednesday: Mon and Tue are over, Thu and Fri are not
+    expect(daysToCome({ week, today: 2, through: 1, workDays: MON_FRI })).toBe(3);
+  });
+
+  it("ignores a weekend nobody was going to work", () => {
+    /* Saturday, with the whole working week behind us. Counting every day
+       would hold the button until Monday — by which time the Sunday
+       auto-submit has already sent the sheet, and the button never worked at
+       all. */
+    expect(daysToCome({ week, today: 5, through: 4, workDays: MON_FRI })).toBe(0);
+  });
+
+  it("holds a part-timer to THEIR days, not to Friday", () => {
+    // Mon/Tue/Thu: on Thursday evening (through = Wed) one is still ahead
+    expect(daysToCome({ week, today: 3, through: 2, workDays: [0, 1, 3] })).toBe(1);
+    // and once Thursday is over, nothing is
+    expect(daysToCome({ week, today: 4, through: 3, workDays: [0, 1, 3] })).toBe(0);
+  });
+
+  it("counts EVERY remaining day for a casual, who has no expected ones", () => {
+    /* An empty roster is what makes a casual a casual — nothing is presumed
+       onto their week. Read as "no expected days" it would mean nothing is
+       ever still to come, and their Submit would be as sharp as before. */
+    expect(daysToCome({ week, today: 2, through: 1, workDays: [] })).toBe(5);
+  });
+
+  it("is zero for a closed period — every day of it is over", () => {
+    expect(daysToCome({ week, today: 6, through: 6, workDays: MON_FRI })).toBe(0);
+  });
+});
+
+describe("issueHeading — the approver's one-line summary", () => {
+  const none = { missing: 0, off: 0, ot2: 0, ot: 0, under: 0, sick: 0, leave: 0 };
+
+  it("keeps the verb when there is one kind of issue", () => {
+    expect(issueHeading({ ...none, ot: 2 })).toBe("Overtime to confirm");
+    expect(issueHeading({ ...none, missing: 1 })).toBe("Missing entries to chase");
+  });
+
+  it("names every kind once there is more than one, and drops the verb", () => {
+    /* The bug this replaces: a week with one unlogged day and two overtime
+       days was headed "Missing entries to chase", which described a third of
+       the list underneath it. */
+    expect(issueHeading({ ...none, missing: 1, ot: 2 })).toBe("Missing entries · Overtime");
+  });
+
+  it("stops at three and counts the rest — a heading is a glance", () => {
+    expect(issueHeading({ ...none, missing: 1, off: 1, ot2: 1, ot: 1, sick: 1 })).toBe(
+      "Missing entries · Days not worked · Double time · +2",
+    );
+  });
+
+  it("falls back when a card is flagged for something uncounted", () => {
+    expect(issueHeading(none)).toBe("To confirm");
   });
 });

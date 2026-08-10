@@ -2,7 +2,6 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TimePaySettings } from "../settings";
 import { DEFAULT_SETTINGS } from "../logic";
-import type { PayPeriod } from "../timepay";
 
 /* What you land on when you open the gear.
 
@@ -13,13 +12,6 @@ import type { PayPeriod } from "../timepay";
    reviewer's eye — and so is the closed-on-arrival part, because each of those
    sections FETCHES when it mounts. */
 
-const PERIOD: PayPeriod = {
-  start: "2026-06-29",
-  range: "29 Jun – 5 Jul",
-  year: "2026",
-  live: true,
-  note: "",
-};
 
 const HOLIDAYS = <p>the holiday calendar</p>;
 const XERO = <p>the payroll roster</p>;
@@ -29,7 +21,6 @@ function open(over: { canPay?: boolean; holidays?: boolean; xero?: boolean } = {
     <TimePaySettings
       settings={DEFAULT_SETTINGS}
       firstRun={false}
-      period={PERIOD}
       canPay={over.canPay ?? true}
       holidaySection={over.holidays === false ? null : HOLIDAYS}
       xeroSection={over.xero === false ? null : XERO}

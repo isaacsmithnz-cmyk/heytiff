@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { DAY_LEGEND, DayLegend, MY_DAY_LEGEND, Tile } from "../tiles";
+import { DAY_LEGEND, DayLegend, Tile } from "../tiles";
+import { DAY_WORD } from "../logic";
 import { DEFAULT_SETTINGS, type DayEntry, type WeekCtx, type WeekDay } from "../logic";
 
 /* The shared day-language primitives. Both Time & Pay screens render these,
@@ -74,16 +75,28 @@ describe("Tile", () => {
 });
 
 describe("DayLegend", () => {
-  it("defaults to the reviewed-day colours", () => {
+  /* ONE legend, and it explains every colour a day can take. There were two —
+     and `miss` was in neither of the ones that shipped: this component's
+     default left it out, and the list that had it was imported by nothing but
+     this file. So a missing day drew a red the key didn't mention, next to a
+     sick day drawing the same red, on both screens at once. */
+  it("keys EVERY day state, including the ones that used to be left out", () => {
     const { container } = render(<DayLegend />);
     expect(container.querySelectorAll(".lg")).toHaveLength(DAY_LEGEND.length);
-    expect(container.querySelector(".sw.miss")).toBeNull();
+    expect(container.querySelector(".sw.miss")).not.toBeNull();
+    expect(container.querySelector(".sw.off")).not.toBeNull();
+    expect(screen.getByText("Missing")).toBeInTheDocument();
+    expect(screen.getByText("Not worked")).toBeInTheDocument();
     expect(screen.getByText("Day colour")).toBeInTheDocument();
   });
 
-  it("takes a different set of items — your own week names the missing days", () => {
-    const { container } = render(<DayLegend items={MY_DAY_LEGEND} />);
-    expect(container.querySelector(".sw.miss")).not.toBeNull();
-    expect(screen.getByText("Missing")).toBeInTheDocument();
+  /* The captions ARE `DAY_WORD` — the legend can't drift from the pill, the
+     tile and the button, because there is nothing left to drift from. */
+  it("is built from the shared vocabulary, not a list beside it", () => {
+    render(<DayLegend />);
+    for (const [cls, caption] of DAY_LEGEND) {
+      expect(caption).toBe(DAY_WORD[cls]);
+      expect(screen.getByText(caption)).toBeInTheDocument();
+    }
   });
 });

@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
 import { TimeWheel } from "@/components/ui/time-wheel";
 import { DateField } from "@/components/ui/date-field";
@@ -23,7 +24,6 @@ import {
 } from "@/lib/timepay/availability";
 import { dateOfDay } from "@/lib/timepay/period";
 import { UpcomingHolidays } from "./upcoming-holidays";
-import { MyTimeNav } from "./my-time-nav";
 import type { PayPeriod } from "./timepay";
 import {
   type DayClass,
@@ -33,10 +33,12 @@ import {
   type Settings,
   type WeekCtx,
   type StaffWeek,
+  DAY_WORD,
   breakLine,
   cycleNoun,
   dayClass,
   dayLabel,
+  daysToCome,
   derive,
   derivedDayHours,
   dowOf,
@@ -51,6 +53,7 @@ import {
   workDaysLabel,
   weekGroups,
 } from "./logic";
+import { DayLegend } from "./tiles";
 
 /* My timesheet — everyone, always. The hours-ENTRY surface.
 
@@ -90,34 +93,23 @@ import {
    they are booked in the leave module or set on the org's calendar, and they
    arrive on this screen already marked. A timesheet that could also declare
    annual leave would be a second place to record the same day — the exact
-   double-entry this screen is meant to end. */
+   double-entry this screen is meant to end.
+
+   The two answers, in the words the states are called everywhere else —
+   `DAY_WORD.off` rather than a third phrasing of it. The button that SETS a
+   day and the pill that then NAMES it used to disagree ("Didn't work" →
+   "Not worked"), which reads as two different things having happened. */
 const KINDS: { t: "work" | "off"; label: string }[] = [
   { t: "work", label: "Worked" },
-  { t: "off", label: "Didn't work" },
+  { t: "off", label: DAY_WORD.off },
 ];
-
-/* One word per day class, in the same palette the approver reads. `under` is
-   not in the original design's list, but dropping it would call a short day
-   "Normal" — and a workspace with an unpaid break configured makes short days
-   routine, so it has to be sayable. */
-const PILL: Record<DayClass, string> = {
-  std: "Normal",
-  over: "Overtime day",
-  under: "Short day",
-  leave: "Leave",
-  sick: "Sick",
-  ph: "Public holiday",
-  miss: "Missing",
-  off: "Not worked",
-  empty: "No entry",
-};
 
 /** What to CALL a day. Same colour, different word on a weekend: every hour of
     a worked Saturday is at a premium, so `dayClass` says `over` — but calling
-    a four-hour Saturday an "Overtime day" describes a long day when it was a
-    short one. The premium is for the day of the week, so the label says so. */
+    a four-hour Saturday "Overtime" describes a long day when it was a short
+    one. The premium is for the day of the week, so the label says so. */
 function pillLabel(entry: DayEntry, cls: DayClass, dow: number, s: Settings): string {
-  return isWeekendRate(entry, dow, s) ? "Weekend rates" : PILL[cls];
+  return isWeekendRate(entry, dow, s) ? "Weekend rates" : DAY_WORD[cls];
 }
 
 /* Why a day says what it says. A presumed day must never read as though the
@@ -151,19 +143,6 @@ const MONTHS_FULL = [
   "July", "August", "September", "October", "November", "December",
 ];
 
-/* The legend, in the order a week is read: the ordinary day first, the ones
-   that need a look after it. */
-const LEGEND: [DayClass, string][] = [
-  ["std", "Normal"],
-  ["over", "Overtime"],
-  ["under", "Short"],
-  ["leave", "Leave"],
-  ["sick", "Sick"],
-  ["ph", "Public holiday"],
-  ["off", "Not worked"],
-  ["empty", "Nothing"],
-];
-
 const BREAK_STEP = 5;
 const BREAK_MAX = 120;
 
@@ -193,11 +172,12 @@ function entryKey(d: DayEntry): string {
   return `${d.t}:${d.h}`;
 }
 
-/** The one-line summary a day card shows under its date. */
+/** The one-line summary a day card shows under its date: hours when there are
+    hours, the state's own word when there aren't — "Off" was the fourth name
+    this screen had for a day marked not worked. */
 function daySummary(d: DayEntry): string {
   if (d.t === "empty") return "—";
-  if (d.t === "off") return "Off";
-  if (d.t === "work") return `${fmtH(d.h)}h`;
+  if (d.t === "off") return DAY_WORD.off;
   return `${fmtH(d.h)}h`;
 }
 
@@ -247,7 +227,25 @@ function DayEditor({
   const locked =
     entry.t === "leave" || entry.t === "sick" || (entry.t === "ph" && !workedHoliday);
 
-  const [kind, setKind] = useState<"work" | "off">(entry.t === "off" ? "off" : "work");
+  /* A DAY WITH NOTHING ON IT ANSWERS NOTHING FOR YOU.
+
+     `empty` reaches this editor in exactly two situations, and the old
+     default — Worked, seeded with your normal start and finish — was wrong in
+     both. On a weekend the panel said "Weekends aren't counted unless you add
+     them" directly above a form that had already added one, priced at
+     2× and one press of Save away from being real; the most expensive day in
+     the period was the one requiring the least intent. On a weekday still to
+     come it offered to log hours nobody had worked yet.
+
+     So an empty day opens with neither answer chosen and Save disabled until
+     one is. The wheels stay seeded from your normal hours — once you say you
+     worked it, the ordinary day is still the right starting point — they just
+     don't appear until you've said so. Every other day keeps its stored
+     answer, because there the software is showing you what it has, not
+     guessing on your behalf. */
+  const [kind, setKind] = useState<"work" | "off" | null>(
+    entry.t === "empty" ? null : entry.t === "off" ? "off" : "work",
+  );
   const [start, setStart] = useState(entry.t === "work" ? entry.in : normal.start);
   const [end, setEnd] = useState(entry.t === "work" ? entry.out : normal.end);
   const [breakMin, setBreakMin] = useState(() => seedBreakMinutes(entry, settings));
@@ -269,8 +267,10 @@ function DayEditor({
   });
   const short = kind === "work" && expected && derived < settings.standard;
 
-  const commit = () =>
+  const commit = () => {
+    if (kind === null) return;
     onSave(index, kind === "off" ? { t: "off" } : { t: "work", in: start, out: end, h: derived });
+  };
 
   if (locked) {
     return (
@@ -364,11 +364,14 @@ function DayEditor({
             </div>
           )}
 
-          {/* what the times mean, live. No hours box: this IS the hours field. */}
+          {/* WHAT THE TIMES COME TO, and only that. It used to restate them —
+              "7:00 AM – 6:00 PM · 11h" — directly under two wheels whose own
+              headings already read 7:00 AM and 6:00 PM in bold. Three
+              statements of a fact, one of them new. */}
           <div className={`mts2-derv${short ? " short" : ""}`}>
             <Icon name="clock" size={13} />
             <span>
-              {start} – {end} · <b>{fmtH(derived)}h</b>
+              <b>{fmtH(derived)}h</b> on this day
               {short && ` · short of your ${fmtHval(settings.standard)} day — your manager will see it`}
             </span>
           </div>
@@ -379,19 +382,25 @@ function DayEditor({
         <div className="mts2-derv off">
           <Icon name="clock" size={13} />
           <span>
-            No hours for this day. If it was leave or sick, book it in <b>My leave</b> instead so it
-            pays.
+            No hours for this day. If it was leave or sick, book it in{" "}
+            {/* a LINK, not bold text naming a screen. This sentence is the one
+                place the app sends you somewhere else to finish a thought, and
+                it used to leave you to find the way yourself. */}
+            <Link href="/dashboard/my-leave">My leave</Link> instead so it pays.
           </span>
         </div>
       )}
 
-      {/* the same split the pay run uses — hours and multipliers, never money */}
-      <div className="mts2-pay">
-        <span className="mts2-payl">Payroll</span>
-        <span className="mts2-paych">
-          {chip.parts.join(" + ")} = <b>{fmtH(chip.total)}h</b>
-        </span>
-      </div>
+      {/* the same split the pay run uses — hours and multipliers, never money.
+          Nothing to price until the day has been answered. */}
+      {kind !== null && (
+        <div className="mts2-pay">
+          <span className="mts2-payl">Payroll</span>
+          <span className="mts2-paych">
+            {chip.parts.join(" + ")} = <b>{fmtH(chip.total)}h</b>
+          </span>
+        </div>
+      )}
 
       {/* SAVING SAYS SO. A day is a server round trip — measured at ~2.4s on a
           dev machine, and prod talks to a database in another country — and
@@ -400,10 +409,11 @@ function DayEditor({
           it didn't work; the honest reading of "nothing happened" is that the
           screen said nothing for two and a half seconds. */}
       <div className={`mts2-eacts${busy ? " busy" : ""}`} aria-busy={busy}>
-        <button className="mts2-btn primary" disabled={busy} onClick={commit}>
+        <button className="mts2-btn primary" disabled={busy || kind === null} onClick={commit}>
           <Icon name={busy ? "clock" : "check"} size={14} />
           {busy ? "Saving…" : "Save day"}
         </button>
+        {kind === null && <span className="mts2-ehint">Say what this day was first.</span>}
         {source === "entered" && (
           <button
             className="mts2-btn"
@@ -425,7 +435,11 @@ function DayEditor({
    start and finish; this is where a person whose day genuinely differs says
    so, without needing the pay settings — and therefore without needing
    `financials`. */
-const DOW_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
+/* TWO LETTERS. "M T W T F S S" has two Ts and two Ss, so which one you are
+   pressing is a matter of counting across from the left — on the control that
+   decides which of your days get filled in automatically. The workspace's own
+   copy of this control (settings.tsx) reads the same way. */
+const DOW_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 const DOW_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 function NormalHoursCard({
@@ -729,10 +743,18 @@ export function MyTimesheet({
   const period = periods[periodIndex];
   const sent = sheet.status === "submitted" || sheet.status === "approved";
   /* A salaried week is read-only at REST: same pay whatever the days say, so
-     there is nothing to ask. "Add overtime" opens the editors for the one
-     exception worth recording — otMode is the tick, not a different screen. */
-  const [otMode, setOtMode] = useState(false);
-  const salariedRest = salaried && !otMode;
+     there is nothing to ask. The one exception worth recording is a day that
+     ran long — and that is a fact about ONE DAY, so it is unlocked one day at
+     a time.
+
+     It used to be a mode. "Add overtime" in the rail unlocked every editor in
+     the period, and the message telling you to press it was in the day panel
+     on the other side of the screen; then it became "Done adding overtime",
+     which saved nothing — days save themselves — but read like the step that
+     committed them. Now the day you are looking at carries its own button,
+     and the only thing it opens is itself. */
+  const [otDay, setOtDay] = useState<number | null>(null);
+  const salariedRest = salaried && otDay !== selected;
   // a closed period is history: you can read it, you can't rewrite it
   const locked = sent || !period.live || salariedRest;
   /* The ONE place the period is named, and everything below says it the same
@@ -741,6 +763,16 @@ export function MyTimesheet({
      ended up reading "My month" above a button saying "Submit week". */
   const noun = cycleNoun(settings.cycle);
   const status = statusCopy(sheet.status, noun);
+
+  /* SUBMIT WAITS FOR THE DAYS IT WOULD FREEZE. See `daysToCome` — sending a
+     sheet locks it, and days that hadn't happened yet went in as nothing.
+
+     A sent-back sheet is the exception and has to be: the manager asked a
+     question mid-period and the answer is a resubmission, so holding the
+     button would trap the person between an approver waiting on them and a
+     screen that won't let them reply. */
+  const toCome = daysToCome(ctx);
+  const holdForDays = toCome > 0 && sheet.status !== "sent_back";
 
   // in-period holidays name themselves in the panel; the rail lists the month
   const holidayByDate = useMemo(() => new Map(holidays.map((h) => [h.date, h.name])), [holidays]);
@@ -795,28 +827,22 @@ export function MyTimesheet({
     submitNote(settings).replace(/^Open · /, ""),
   ].filter(Boolean);
 
+  /* THE FRAME IS THE LAYOUT'S. `.page`, `.wrap`, `.stg tpr wb2`, the heading
+     and the tab row all live in `(my-time)/layout.tsx` now, so they survive a
+     switch to Leave instead of being rebuilt with it — see that file. What is
+     left here starts at the card.
+
+     `mts2` still has to be an ancestor (two rules key off it), so it rides on
+     the card. The `locked` class went with the rest: every rule reading it is
+     `.fg .tpr.locked .capprove / .cedit / .allbtn / .qform`, and all four of
+     those elements belong to the APPROVER's screen. It has never matched
+     anything here.
+
+     The status chip went too. It sat in the top-right corner saying "Draft"
+     while the rail card three inches away said "Draft" against the totals it
+     actually describes — the same word twice, once attached to nothing. */
   return (
-    <div className="page in">
-      <div className="wrap">
-        {/* `wb2` for the board's tokens — the card's border colour is declared
-            there, and a `.wb2-card` outside that root draws no border at all. */}
-        <div className={`stg tpr mts2 wb2${locked ? " locked" : ""}`}>
-          <div className="rhead">
-            <div>
-              <h1>My timesheet</h1>
-            </div>
-            <div className="racts">
-              <span className={`dchip ${status.tone}`}>
-                <Icon name={sheet.status === "approved" ? "check" : "clock"} size={12} />
-                {status.label}
-              </span>
-            </div>
-          </div>
-
-          {/* WHICH SCREEN, then WHICH WEEK — the tabs choose the view, the week
-              is the question inside it, so the week lives in the card. */}
-          <MyTimeNav active="timesheet" />
-
+    <div className="mts2">
           <div className="wb2-card tp-card">
             <div className="wknav">
                 <button
@@ -924,19 +950,34 @@ export function MyTimesheet({
                           )}
                         </div>
                         {locked ? (
-                          <div className="mts2-elock">
-                            <Icon name="check" size={16} />
-                            <span>
-                              <b>{daySummary(me.days[selected])}</b>
-                              <em>
-                                {sent
-                                  ? `This ${noun} has been sent — it can't be changed here.`
-                                  : !period.live
-                                    ? "This period is closed."
-                                    : "Salaried — the day pays itself. Add overtime if this one ran long."}
-                              </em>
-                            </span>
-                          </div>
+                          <>
+                            <div className="mts2-elock">
+                              <Icon name="check" size={16} />
+                              <span>
+                                <b>{daySummary(me.days[selected])}</b>
+                                <em>
+                                  {sent
+                                    ? `This ${noun} has been sent — it can't be changed here.`
+                                    : !period.live
+                                      ? "This period is closed."
+                                      : "Salaried — this day pays itself whatever the hours say."}
+                                </em>
+                              </span>
+                            </div>
+                            {/* The exception, on the day it happened and
+                                nowhere else — the instruction and the button
+                                that follows it are finally the same object. */}
+                            {salariedRest && !sent && period.live && (
+                              <button
+                                type="button"
+                                className="mts2-ph-worked"
+                                disabled={pending}
+                                onClick={() => setOtDay(selected)}
+                              >
+                                This day ran long — record the hours
+                              </button>
+                            )}
+                          </>
                         ) : (
                           <DayEditor
                             /* KEYED ON THE DAY'S CONTENT, not just its index.
@@ -970,14 +1011,9 @@ export function MyTimesheet({
                 );
               })}
 
-              <div className="mts2-legend">
-                {LEGEND.map(([cls, label]) => (
-                  <span className="mts2-lg" key={cls}>
-                    <i className={cls}></i>
-                    {label}
-                  </span>
-                ))}
-              </div>
+              {/* THE SAME LEGEND THE APPROVER READS — the shared component,
+                  not a private copy of its list. See tiles.tsx. */}
+              <DayLegend />
             </div>
 
             <aside className="mts2-rail">
@@ -1011,34 +1047,37 @@ export function MyTimesheet({
                 <div className="mts2-sub">
                   {!period.live && !sent
                     ? "This period is closed."
-                    : salariedRest && !sent
-                      ? `Salaried — your pay is the same every ${noun}, so there's nothing to fill in. Leave and public holidays arrive from where they're booked.`
+                    : salaried && !sent
+                      ? /* THE REASON NOT TO BOTHER, STATED AT REST. When a
+                           workspace absorbs salaried overtime, "your salary
+                           already covers it" is the whole answer — and it used
+                           to appear only once you had opted into recording
+                           some, which is after the decision it informs. */
+                        `Salaried — your pay is the same every ${noun}, so there's nothing to fill in. Leave and public holidays arrive from where they're booked.${
+                          settings.salariedOtPaid === false
+                            ? " A long day is still worth recording, but your salary already covers the extra hours."
+                            : ""
+                        }`
                       : casual && sheet.status === "draft"
                         ? "Add the days you worked, then submit. Nothing is filled in for you."
                         : status.sub}
                 </div>
-                {salaried && !sent && period.live && (
-                  <button className="bbtn mts2-submit" disabled={pending} onClick={() => setOtMode((v) => !v)}>
-                    <Icon name={otMode ? "check" : "clock"} size={14} />
-                    {otMode ? "Done adding overtime" : "Add overtime"}
-                  </button>
-                )}
-                {otMode && !sent && period.live && (
-                  <div className="mts2-sub">
-                    Pick the day it happened and extend its times.
-                    {settings.salariedOtPaid === false &&
-                      ` It's recorded with your ${noun} — your salary already covers additional hours.`}
-                  </div>
-                )}
                 {!sent && period.live && (
                   <button
                     className="bbtn ink mts2-submit"
-                    disabled={pending || d.entries === 0}
+                    disabled={pending || d.entries === 0 || holdForDays}
                     onClick={() => run(() => submitWeek(periodStart))}
                   >
                     <Icon name="send" size={14} />
                     {sheet.status === "sent_back" ? "Submit again" : `Submit ${noun}`}
                   </button>
+                )}
+                {holdForDays && !sent && period.live && (
+                  <div className="mts2-sub">
+                    You can send this {noun} once your last working day is over — there
+                    {toCome === 1 ? " is 1 still to come" : ` are ${toCome} still to come`}. It
+                    submits itself {settings.submitDay} {settings.submitTime} if you don&rsquo;t.
+                  </div>
                 )}
               </section>
 
@@ -1095,8 +1134,6 @@ export function MyTimesheet({
               </aside>
             </div>
           </div>
-        </div>
-      </div>
     </div>
   );
 }

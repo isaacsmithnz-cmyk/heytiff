@@ -174,6 +174,31 @@ export type Derived = {
 export type StaffStatus = "review" | "ready" | "approved" | "sent";
 export type DayClass = "std" | "over" | "under" | "leave" | "sick" | "ph" | "empty" | "miss" | "off";
 
+/* ONE WORD PER DAY STATE, and every surface says it.
+
+   There were three vocabularies for these nine states — the tiles, the admin
+   legend, and a private list inside my-timesheet — so one day was a "Short
+   day" in its pill, a "Short" in one legend and an "Under day" in the other,
+   and a day you deliberately didn't work was "Off" in the strip, "Not worked"
+   in its pill and "Didn't work" on the button that set it. Nobody decided
+   that; it is what happens when four places name the same thing.
+
+   It lives HERE, beside the type it is keyed on, rather than in tiles.tsx:
+   that file is `"use client"`, and `derive` — which runs on the server — needs
+   these words too. Anything that NAMES a state reads this map, and the legend
+   is built from it, so a tenth state can't reach one and miss the other. */
+export const DAY_WORD: Record<DayClass, string> = {
+  std: "Normal",
+  over: "Overtime",
+  under: "Short",
+  leave: "Leave",
+  sick: "Sick",
+  ph: "Public holiday",
+  off: "Not worked",
+  miss: "Missing",
+  empty: "No entry",
+};
+
 export const DEFAULT_SETTINGS: Settings = {
   cycle: "Weekly",
   weekStart: "Mon",
@@ -374,6 +399,34 @@ export const expectsWork = (ctx: WeekCtx, dow: number): boolean =>
 export const isOver = (ctx: WeekCtx, i: number): boolean =>
   i <= (ctx.through ?? ctx.today - 1);
 
+/** How many days of this period could still gain hours.
+
+    SUBMITTING IS IRREVERSIBLE FROM THE PERSON'S SIDE — the sheet locks, and
+    only a manager sending it back reopens it. So a Submit pressed on
+    Wednesday froze Thursday and Friday out of the week: `materialise` writes
+    rows only for days that are OVER, so those two went in as nothing and the
+    screen that could have fixed them was read-only. The recovery was a
+    conversation with a manager, for a mistake that took one tap to make.
+
+    Zero means there is nothing left to lose by sending it. A rostered
+    person's remaining days are their EXPECTED ones — a Saturday nobody was
+    going to work is not a reason to hold a finished week open, which is what
+    counting every day would do (a weekly cycle whose Sunday isn't over until
+    Monday would never unlock its own button, and the Sunday auto-submit would
+    be the only way a sheet was ever sent).
+
+    A casual has no expected days at all, so for them it is every day left:
+    nothing is presumed onto their week, and any day of it is one they might
+    still work. */
+export function daysToCome(ctx: WeekCtx): number {
+  const roster = ctx.workDays ?? DEFAULT_WORK_DAYS;
+  return ctx.week.reduce(
+    (n, w, i) =>
+      n + (!isOver(ctx, i) && (roster.length === 0 || expectsWork(ctx, dowOf(w))) ? 1 : 0),
+    0,
+  );
+}
+
 /** "Mon, Tue, Thu" — a working pattern in the order the week runs. */
 export const workDaysLabel = (days: number[]): string => {
   const names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -460,6 +513,38 @@ export function splitDay(
   const n = s.otUnit === "day" ? Math.min(ladder, s.otAfter) : ladder;
   const o15 = ladder - n;
   return { n, o15: o15 + atNight.o15, o2: o2 + atNight.o2 };
+}
+
+/* WHAT THE CARD'S HEADING SAYS, when the list under it is mixed.
+
+   It used to name the single highest-priority issue and stop: a week with one
+   unlogged Friday and two overtime days was headed "Missing entries to
+   chase", over three bullets of which two were overtime. The heading was the
+   only thing an approver read before deciding whether the card needed them,
+   and it described a third of the card.
+
+   So it names every kind present, in the order they matter. The verb survives
+   for a single-issue card — "Overtime to confirm" is what an approver would
+   say out loud, and that is most cards — and drops once there is more than
+   one, because no one verb is true of them all. Three at most, then a count:
+   a heading is a glance, and the bullets are already there for the rest. */
+const ISSUE_KINDS = [
+  ["missing", "Missing entries", "to chase"],
+  ["off", "Days not worked", "to check"],
+  ["ot2", "Double time", "to confirm"],
+  ["ot", "Overtime", "to confirm"],
+  ["under", "Short days", "to check"],
+  ["sick", "Sick leave", "to confirm"],
+  ["leave", "Annual leave", "to confirm"],
+] as const;
+
+export function issueHeading(counts: Record<(typeof ISSUE_KINDS)[number][0], number>): string {
+  const present = ISSUE_KINDS.filter(([k]) => counts[k] > 0);
+  if (present.length === 0) return "To confirm";
+  if (present.length === 1) return `${present[0][1]} ${present[0][2]}`;
+  const shown = present.slice(0, 3).map(([, label]) => label);
+  const rest = present.length - shown.length;
+  return shown.join(" · ") + (rest > 0 ? ` · +${rest}` : "");
 }
 
 export function derive(staff: StaffWeek, s: Settings, ctx: WeekCtx): Derived {
@@ -601,25 +686,7 @@ export function derive(staff: StaffWeek, s: Settings, ctx: WeekCtx): Derived {
 
   const weighted = normal + ot * 1.5 + ot2 * 2 + sick + leave + ph;
   const status = ot || ot2 || under || off || missing || sick || leave ? "review" : "ready";
-  const issueTitle = missing
-    ? "Missing entries to chase"
-    : off
-      ? "Days not worked to check"
-      : ot2 && ot
-      ? "Overtime & double time to confirm"
-      : ot2
-        ? "Double time to confirm"
-        : ot
-          ? "Overtime to confirm"
-          : under
-            ? "Under days to check"
-            : sick && leave
-              ? "Sick & leave to confirm"
-              : sick
-                ? "Sick leave to confirm"
-                : leave
-                  ? "Annual leave to confirm"
-                  : "To confirm";
+  const issueTitle = issueHeading({ missing, off, ot2, ot, under, sick, leave });
 
   return {
     normal,

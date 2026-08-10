@@ -104,6 +104,10 @@ export const ICON_PATHS: Record<string, string> = {
   edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
   x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
   chevD: '<path d="m6 9 6 6 6-6"/>',
+  /* Its mirror, for a disclosure that has to say which way it will go. A
+     rotated chevD would do the same job in CSS, but the icon is inline SVG
+     inside a flex row and the transform origin drifts with the line box. */
+  chevU: '<path d="m18 15-6-6-6 6"/>',
   sync: '<path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/>',
   // twin parallel bent lines = the refrigerant twin run (liquid + suction)
   pipe: '<path d="M4 20V10a4 4 0 0 1 4-4h12"/><path d="M9 20v-6a2 2 0 0 1 2-2h9"/>',

@@ -105,6 +105,18 @@ export function transportChoice(): boolean {
   return REALTIME;
 }
 
+/* WHAT COMES BACK IS NOT ALWAYS SPEECH. Scribe labels non-speech audio in
+   brackets — "[outro jingle]", "(music)", "[BLANK_AUDIO]" — and a clip with
+   nothing said in it comes back as nothing BUT that label. Live-walked
+   2026-08-10: a silent recording put "[outro jingle]" into the capture box
+   as if somebody had said it, and down the Stop & read path that same string
+   would have been handed to the router and filed as a note.
+
+   Anything left once the labels are stripped is real speech, so a genuine
+   sentence with a "[cough]" in it still counts. */
+export const saidSomething = (text: string) =>
+  text.replace(/[[(][^\])]*[\])]/g, "").trim() !== "";
+
 type DictationState = {
   recording: boolean;
   /** Sending the audio off and waiting for words back. */
@@ -158,6 +170,18 @@ export function useDictation({
   const capped = useRef(false);
   /** Same shape, opposite meaning: you asked to carry on in the box. */
   const handedOver = useRef(false);
+  /* WAS ANYTHING ACTUALLY SAID? Counted off the real level meter, because
+     that is the only honest source — the same samples the bars are drawn
+     from. A few frames above room noise is a voice; nothing is nothing.
+     `handOver` needs this to tell a recording apart from a mis-tap. */
+  const loudFrames = useRef(0);
+  /* AND DID THE METER EVEN RUN? It is an enhancement — no AudioContext, a
+     blocked one, a browser that refuses — and `startMeter` gives up quietly
+     when it cannot start. Without this flag "the meter heard nothing" is
+     indistinguishable from "there was no meter", and handOver would bin
+     real speech on every browser where the meter failed. Not knowing must
+     never mean throwing it away. */
+  const meterRan = useRef(false);
   const barsRef = useRef<HTMLSpanElement | null>(null);
   const meter = useRef<{ ctx: AudioContext; raf: number } | null>(null);
   const live = useRef<RealtimeHandle | null>(null);
@@ -231,12 +255,14 @@ export function useDictation({
           sum += centred * centred;
         }
         const level = Math.min(1, Math.sqrt(sum / samples.length) * 4);
+        if (level > 0.07) loudFrames.current += 1;
         // straight to the DOM, never through React — this runs every frame
         barsRef.current?.style.setProperty("--lvl", level.toFixed(3));
         if (meter.current) meter.current.raf = requestAnimationFrame(tick);
       };
 
       meter.current = { ctx, raf: requestAnimationFrame(tick) };
+      meterRan.current = true;
     } catch {
       /* no meter; recording continues */
     }
@@ -265,12 +291,15 @@ export function useDictation({
       form.append("audio", blob, "note.webm");
       const res = await fetch("/api/workboard/transcribe", { method: "POST", body: form });
       const body = (await res.json()) as { text?: string; error?: string };
-      if (!res.ok || !body.text) {
+      if (!res.ok || !body.text || !saidSomething(body.text)) {
         /* A run that never reaches a proposal has to be dropped, or the
            NEXT note — quite possibly a typed one — prints its `routed`
            measured from a stop that happened minutes ago. */
         clearRun();
-        cbs.current.onError?.(body.error ?? "That recording couldn't be read. Type it instead.");
+        cbs.current.onError?.(
+          body.error ??
+            (body.text ? "Nothing was said in that one. Try again, or type it." : "That recording couldn't be read. Type it instead.")
+        );
         return;
       }
       markTranscript("batch");
@@ -326,6 +355,8 @@ export function useDictation({
         discard.current = false;
         capped.current = false;
         handedOver.current = false;
+        loudFrames.current = 0;
+        meterRan.current = false;
         setInterim("");
         startMeter(stream);
         const chunks: BlobPart[] = [];
@@ -357,7 +388,7 @@ export function useDictation({
                difference between this path and the one below it. */
             if (handle) {
               const text = (await handle.stop()).trim();
-              if (text) {
+              if (saidSomething(text)) {
                 markTranscript("live");
                 cbs.current.onTranscript(text, {
                   capped: capped.current,
@@ -416,16 +447,39 @@ export function useDictation({
     recorder.current.stop();
   };
 
-  /* FINISH IT BY TYPING. Stops the recorder like `stop`, but marks the
-     words as handed over so the caller puts them in the box instead of
-     routing them — pressing "Type" mid-sentence must never file half a
-     note, and must never throw away what you already said. Same chime as
-     stop: the recording did end, and the ear should hear that it did. */
+  /* FINISH IT BY TYPING, and the two cases are not the same thing.
+
+     SAID SOMETHING → stop like `stop` does, but mark the words as handed
+     over so the caller puts them in the box instead of routing them.
+     Pressing Type mid-sentence must never file half a note and must never
+     throw away what you already said, so the wait for the transcript is
+     the honest price of keeping it.
+
+     SAID NOTHING → this was a mis-tap, not a recording, and it must cost
+     NOTHING. Live-walked 2026-08-10: Type on a silent clip uploaded the
+     audio, held the card on "Reading it back" for two and a half seconds,
+     and then dropped the transcriber's own noise label — "[outro jingle]" —
+     into the box as if it were words. Nobody said anything, so there is
+     nothing to read back: the audio goes in the bin, unsent, and the box is
+     there instantly.
+
+     No chime on that path either. A chime announces that something was
+     kept or thrown away, and from where the person is standing they simply
+     changed their mind about how to start. */
   const handOver = () => {
-    if (recorder.current?.state !== "recording") return;
+    const rec = recorder.current;
+    if (rec?.state !== "recording") return;
+    /* Discard ONLY where we are confident: the meter ran, it never rose
+       above room noise, and the live socket produced no words either. Any
+       uncertainty keeps the recording. */
+    if (meterRan.current && loudFrames.current < 3 && interim === "") {
+      discard.current = true;
+      rec.stop();
+      return;
+    }
     playChime("stop");
     handedOver.current = true;
-    recorder.current.stop();
+    rec.stop();
   };
 
   const cancel = () => {

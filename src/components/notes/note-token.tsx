@@ -200,18 +200,11 @@ function Body({ flow }: { flow: NoteFlow }) {
     return (
       <div className="wb2-caprec">
         <LevelBars innerRef={flow.dict.barsRef} />
-        {/* The card must never claim to be hearing you when it isn't. On the
-            batch transport there is nothing to show until you stop, and the
-            hint says exactly that. The live transport earns the other line by
-            actually having words. */}
-        {flow.dict.interim ? (
-          <LiveWords text={flow.dict.interim} />
-        ) : (
-          <p className="wb2-hint">
-            If the bars don&apos;t move when you talk, nothing is being heard. Words are read back
-            when you stop.
-          </p>
-        )}
+        {/* The bars are real samples, so they already say whether anything is
+            being heard — a paragraph explaining that they do was Isaac's to
+            cut (2026-08-10), and he cut it. Nothing replaces it: on the batch
+            transport there is simply nothing to show until you stop. */}
+        {flow.dict.interim && <LiveWords text={flow.dict.interim} />}
         <div className="wb2-capact">
           {/* Flipping this to Type is the way out of the mic, and it keeps
               every word — `handOver` puts what you have said in the box

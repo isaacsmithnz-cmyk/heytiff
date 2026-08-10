@@ -140,23 +140,21 @@ export function useDictation({
   onTranscript,
   onError,
 }: {
-  /* THREE WAYS A RECORDING CAN END, and a caller that routes on a transcript
-     has to tell them apart — see note-flow, where getting it wrong files
-     half a note.
+  /* TWO WAYS A RECORDING CAN END, and the caller still has to tell them
+     apart — though no longer to decide whether to ROUTE. Nothing routes off
+     a transcript any more (see note-flow): the words land in the box to be
+     checked whichever way the recording ended, which is what killed the
+     third case. `handedOver` existed only to carve out "keep these, do not
+     route them", and that is now simply what happens.
 
-       (neither)    you pressed stop. You are finished; route it.
-       capped       the two-minute clock ran out mid-sentence. Keep the
-                    words, route nothing, and say why.
-       handedOver   you asked to finish it by typing. Keep the words, route
-                    nothing, and say nothing — this is not an interruption,
-                    it is the thing you asked for.
+       (not capped)  you stopped, or handed over to the keyboard. The words
+                     are yours to look at; there is nothing to explain.
+       capped        the two-minute clock ran out mid-sentence. Same words,
+                     same box, but SAY SO — this ending was not chosen.
 
-     `capped` and `handedOver` do the same thing to the words and differ only
-     in what the surface says afterwards, which is exactly why they are two
-     flags and not one: a handover that borrowed `capped` would announce a
-     two-minute limit nobody hit. Callers that simply append (the field mics,
-     Tiff's ask bar) can ignore both. */
-  onTranscript: (text: string, info: { capped: boolean; handedOver: boolean }) => void;
+     Callers that only ever append (the field mics, Tiff's ask bar) can
+     ignore it entirely, and always could. */
+  onTranscript: (text: string, info: { capped: boolean }) => void;
   onError?: (message: string) => void;
 }): DictationState {
   const [recording, setRecording] = useState(false);
@@ -168,8 +166,6 @@ export function useDictation({
   /* Set by the ceiling effect, cleared by every fresh `start`. Read when
      the words are handed over, which is always after the stop it caused. */
   const capped = useRef(false);
-  /** Same shape, opposite meaning: you asked to carry on in the box. */
-  const handedOver = useRef(false);
   /* WAS ANYTHING ACTUALLY SAID? Counted off the real level meter, because
      that is the only honest source — the same samples the bars are drawn
      from. A few frames above room noise is a voice; nothing is nothing.
@@ -303,10 +299,7 @@ export function useDictation({
         return;
       }
       markTranscript("batch");
-      cbs.current.onTranscript(body.text, {
-        capped: capped.current,
-        handedOver: handedOver.current,
-      });
+      cbs.current.onTranscript(body.text, { capped: capped.current });
     } catch {
       clearRun();
       cbs.current.onError?.("That recording couldn't be sent. Type it instead.");
@@ -354,7 +347,6 @@ export function useDictation({
         const rec = new MediaRecorder(stream);
         discard.current = false;
         capped.current = false;
-        handedOver.current = false;
         loudFrames.current = 0;
         meterRan.current = false;
         setInterim("");
@@ -390,10 +382,7 @@ export function useDictation({
               const text = (await handle.stop()).trim();
               if (saidSomething(text)) {
                 markTranscript("live");
-                cbs.current.onTranscript(text, {
-                  capped: capped.current,
-                  handedOver: handedOver.current,
-                });
+                cbs.current.onTranscript(text, { capped: capped.current });
                 return;
               }
               /* Socket produced nothing. The clip is still in `chunks`, so
@@ -478,7 +467,6 @@ export function useDictation({
       return;
     }
     playChime("stop");
-    handedOver.current = true;
     rec.stop();
   };
 

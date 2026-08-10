@@ -22,6 +22,8 @@ type Run = {
   stopped: number;
   heard?: number;
   transport?: Transport;
+  /** When the routing call actually started — see `markRouting`. */
+  routing?: number;
 };
 
 /* Module-level rather than a ref: a note's timings outlive the component
@@ -48,15 +50,26 @@ export function markTranscript(transport: Transport): void {
   console.info(`[voice] ${transport} · heard in ${secs(run.heard)}`);
 }
 
-/** The review card has something to show — the end of the wait. */
+/* THERE IS A PERSON IN THE MIDDLE NOW. A transcript lands in the box to be
+   checked, and routing does not start until `Sort this out` is pressed — so
+   the two links stopped being one continuous wait. Measuring the second one
+   from the stop would bank however long someone spent reading their own
+   note as time the ROUTER spent, which is the "real number attached to the
+   wrong conclusion" this file was written to avoid. Each leg is timed from
+   its own beginning, and there is no TOTAL, because there is no longer a
+   single wait for one to describe. */
+export function markRouting(): void {
+  if (!run) run = { stopped: now() };
+  run.routing = now();
+}
+
+/** The review card has something to show — the end of the routing wait. */
 export function markProposal(): void {
   if (!run) return;
-  const total = now() - run.stopped;
-  const heard = run.heard ?? 0;
   console.info(
-    `[voice] ${run.transport ?? "typed"} · heard ${secs(heard)} · routed ${secs(
-      total - heard
-    )} · TOTAL ${secs(total)}`
+    `[voice] ${run.transport ?? "typed"} · heard ${secs(run.heard ?? 0)} · routed ${secs(
+      now() - (run.routing ?? run.stopped)
+    )}`
   );
   run = null;
 }

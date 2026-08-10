@@ -55,7 +55,7 @@ function Probe({
   onTranscript,
   onError,
 }: {
-  onTranscript: (t: string, info: { capped: boolean; handedOver: boolean }) => void;
+  onTranscript: (t: string, info: { capped: boolean }) => void;
   onError?: (m: string) => void;
 }) {
   const d = useDictation({ onTranscript, onError });
@@ -112,7 +112,7 @@ it("hands the words to the callback from the LATEST render, not the one that sta
   });
 
   expect(first).not.toHaveBeenCalled();
-  expect(second).toHaveBeenCalledWith("roof unit is short cycling", { capped: false, handedOver: false });
+  expect(second).toHaveBeenCalledWith("roof unit is short cycling", { capped: false });
 });
 
 it("keeps the mic alive across a re-render — a new callback must not stop the recorder", async () => {

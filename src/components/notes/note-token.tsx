@@ -321,7 +321,7 @@ function Body({ flow }: { flow: NoteFlow }) {
             <button
               className="pbtn"
               aria-label="Sort this out"
-              onClick={() => flow.submit("text", flow.text)}
+              onClick={() => flow.submit(flow.text)}
               disabled={flow.busy}
             >
               {flow.busy ? "Reading…" : "Sort this out"}

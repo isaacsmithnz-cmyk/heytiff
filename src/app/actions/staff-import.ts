@@ -7,32 +7,48 @@ import { getDbRole } from "@/lib/permissions-server";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { getConnectionView } from "@/lib/integrations/store";
 import { readSm8StaffRows } from "@/lib/integrations/sm8-read";
+import { listPayrollEmployees } from "@/lib/integrations/xero-read";
+import { shapeSm8Person } from "@/lib/integrations/sm8-people";
+import { xeroPersonOf } from "@/lib/integrations/xero-people";
 import {
-  buildSm8PeopleRows,
-  shapeSm8Person,
+  buildPeopleRows,
+  type ImportCandidate,
   type ImportStaffCandidate,
-  type Sm8Person,
-  type Sm8PersonRow,
-} from "@/lib/integrations/sm8-people";
+  type PersonRow,
+} from "@/lib/integrations/people-import";
 import {
+  linkPayrollEmployee,
   linkSm8StaffMember,
+  listPayrollLinks,
   listSm8StaffLinks,
   unlinkSm8StaffMember,
+  type IntegrationLink,
 } from "@/lib/integrations/links";
 import { normEmail } from "@/lib/integrations/match";
 import { emailsByUser } from "@/lib/staff/query";
 import { displayNameOf } from "@/lib/staff/name";
 
-/* Importing and linking ServiceM8 staff — the write half of the people
-   screen (sm8-people.ts arranges, this file acts).
+/* Importing people from a connected system — the write half of the people
+   screens (people-import.ts arranges, this file acts).
+
+   ONE PATH, TWO PROVIDERS. ServiceM8 and Xero differ in exactly three things:
+   where the live list comes from, which link kind records the correspondence,
+   and what to call the system in a sentence. Everything that MATTERS — the
+   accept rule, the gate, the card shape, the race handling — is written once
+   below, because two copies would eventually disagree about what an import
+   means.
 
    THE ACCEPT RULE: the card receives exactly the field values the reviewer
    left ticked and possibly edited — the client is trusted for VALUES the way
-   any staff-card edit trusts its editor, but never for FACTS about ServiceM8.
-   Which uuids exist, what they're called over there, and who is active is
-   re-read live on every call; a uuid the account doesn't contain imports
-   nothing. (Same posture as linkEmployee: an id from a client names a
+   any staff-card edit trusts its editor, but never for FACTS about the
+   provider. Which ids exist, what they're called over there, and who is
+   active is re-read live on every call; an id the account doesn't contain
+   imports nothing. (Same posture as linkEmployee: an id from a client names a
    CHOICE, not a target.)
+
+   WHAT IS NEVER IMPORTED: wages, pay basis, employment type. Those are
+   HeyTiff's own, and Xero's answers reach them only through the drift lane,
+   as suggestions a human accepts field by field.
 
    Owner-only, like every integrations action — a Server Function is reachable
    by direct POST, so the role is re-checked on every call. The org id comes
@@ -43,7 +59,10 @@ import { displayNameOf } from "@/lib/staff/name";
    backstop — if the link loses the race, the fresh card is removed rather
    than left as a duplicate-in-waiting. */
 
+export type ImportProvider = "servicem8" | "xero";
+
 export type ImportPersonInput = {
+  /** The provider's stable id for this person. */
   uuid: string;
   /** Accepted field values — absent means the reviewer unticked it. */
   firstName?: string;
@@ -59,8 +78,66 @@ export type ImportResult =
 
 export type LinkResult = { ok: true } | { ok: false; error: string };
 
+export type PeopleView = {
+  rows: PersonRow[];
+  /** Active cards with no link of this kind yet — the manual picker's options. */
+  linkable: { staffProfileId: string; name: string }[];
+  /** The read failed — the sentence to show instead of rows. */
+  error: string | null;
+};
+
 const NOT_OWNER = "Only an owner can change connected apps.";
-const NOT_CONNECTED = "ServiceM8 isn't connected.";
+
+/* ── the three things a provider differs in ── */
+
+type ProviderAdapter = {
+  label: string;
+  notConnected: string;
+  /** The live list, already shaped — every action validates ids against it. */
+  read: (orgId: string) => Promise<{ ok: true; data: ImportCandidate[] } | { ok: false; error: string }>;
+  links: (orgId: string, tenantId: string) => Promise<IntegrationLink[]>;
+  link: (input: {
+    orgId: string;
+    tenantId: string;
+    staffProfileId: string;
+    remoteId: string;
+    remoteLabel: string | null;
+    matchedBy: "auto" | "manual";
+    userId: string;
+  }) => Promise<LinkResult>;
+};
+
+const ADAPTERS: Record<ImportProvider, ProviderAdapter> = {
+  servicem8: {
+    label: "ServiceM8",
+    notConnected: "ServiceM8 isn't connected.",
+    read: async (orgId) => {
+      const rows = await readSm8StaffRows(orgId);
+      if (!rows.ok) return rows;
+      const data: ImportCandidate[] = [];
+      for (const raw of rows.data) {
+        const person = shapeSm8Person(raw);
+        if (person) data.push(person);
+      }
+      return { ok: true, data };
+    },
+    links: listSm8StaffLinks,
+    link: linkSm8StaffMember,
+  },
+  xero: {
+    label: "Xero",
+    notConnected: "Xero isn't connected.",
+    read: async (orgId) => {
+      const employees = await listPayrollEmployees(orgId);
+      if (!employees.ok) return employees;
+      return { ok: true, data: employees.data.map(xeroPersonOf) };
+    },
+    links: listPayrollLinks,
+    /* The SAME writer the Time & Pay linking screen uses. Two writers for one
+       kind is how two screens end up disagreeing about who is linked. */
+    link: linkPayrollEmployee,
+  },
+};
 
 async function ownerCtx(): Promise<{ orgId: string; userId: string } | { error: string }> {
   const session = await auth0.getSession();
@@ -71,67 +148,27 @@ async function ownerCtx(): Promise<{ orgId: string; userId: string } | { error: 
   return { orgId, userId };
 }
 
-function refresh() {
-  revalidatePath("/dashboard/admin/integrations/servicem8");
+function refresh(provider: ImportProvider) {
+  revalidatePath(`/dashboard/admin/integrations/${provider}`);
   revalidatePath("/dashboard/team");
+  // A Xero import creates the same payroll link the Time & Pay screen reads.
+  if (provider === "xero") revalidatePath("/dashboard/timepay");
 }
 
-/** The live account, shaped and keyed — every action validates client uuids
-    against this, never against what the browser claims exists. */
-async function livePeople(orgId: string): Promise<
-  { ok: true; byUuid: Map<string, Sm8Person> } | { ok: false; error: string }
-> {
-  const rows = await readSm8StaffRows(orgId);
-  if (!rows.ok) return rows;
-  const byUuid = new Map<string, Sm8Person>();
-  for (const raw of rows.data) {
-    const person = shapeSm8Person(raw);
-    if (person) byUuid.set(person.uuid, person);
-  }
-  return { ok: true, byUuid };
-}
+/** The workspace's cards, as both the matcher and the picker need them. */
+async function staffCandidates(orgId: string): Promise<ImportStaffCandidate[]> {
+  const { data } = await supabaseAdmin
+    .from("staff_profiles")
+    // every status: a linked bucket that can't name an archived card would
+    // show "a removed card" for someone who is merely inactive
+    .select("id, user_id, first_name, last_name, full_name, preferred_name, contact_email, status")
+    .eq("org_id", orgId);
 
-/** Everything the people card renders, assembled server-side — the SM8
-    sibling of getLinkingData. Null when there's nothing to show (not
-    connected, or the caller shouldn't see it); a failed READ still returns,
-    carrying its sentence, so the card can say why instead of vanishing. */
-export type Sm8PeopleView = {
-  rows: Sm8PersonRow[];
-  linkable: { staffProfileId: string; name: string }[];
-  error: string | null;
-};
-
-export async function getSm8PeopleData(): Promise<Sm8PeopleView | null> {
-  const ctx = await ownerCtx();
-  if ("error" in ctx) return null;
-
-  const connection = await getConnectionView(ctx.orgId, "servicem8");
-  if (!connection?.tenantId) return null;
-
-  const [rowsRead, links, staffRead] = await Promise.all([
-    readSm8StaffRows(ctx.orgId),
-    listSm8StaffLinks(ctx.orgId, connection.tenantId),
-    supabaseAdmin
-      .from("staff_profiles")
-      // every status: a linked bucket that can't name an archived card would
-      // show "a removed card" for someone who is merely inactive
-      .select("id, user_id, first_name, last_name, full_name, preferred_name, contact_email, status")
-      .eq("org_id", ctx.orgId),
-  ]);
-
-  if (!rowsRead.ok) return { rows: [], linkable: [], error: rowsRead.error };
-
-  const people = rowsRead.data
-    .map(shapeSm8Person)
-    .filter((p): p is Sm8Person => p !== null);
-
-  const staffRows = (staffRead.data ?? []) as Record<string, unknown>[];
-  const userIds = staffRows
-    .map((r) => r.user_id)
-    .filter((v): v is string => typeof v === "string");
+  const rows = (data ?? []) as Record<string, unknown>[];
+  const userIds = rows.map((r) => r.user_id).filter((v): v is string => typeof v === "string");
   const emails = await emailsByUser(userIds);
 
-  const candidates: ImportStaffCandidate[] = staffRows.map((r) => {
+  return rows.map((r) => {
     const firstName = (r.first_name as string | null) ?? null;
     const lastName = (r.last_name as string | null) ?? null;
     const fullName = (r.full_name as string | null) ?? null;
@@ -153,27 +190,62 @@ export async function getSm8PeopleData(): Promise<Sm8PeopleView | null> {
       status: r.status === "Inactive" ? "Inactive" : "Active",
     };
   });
+}
 
-  const rows = buildSm8PeopleRows(people, candidates, links);
+/** Everything a people card renders, assembled server-side. Null when there's
+    nothing to show (not connected, or the caller shouldn't see it); a failed
+    READ still returns, carrying its sentence, so the card can say why instead
+    of vanishing. */
+async function peopleData(provider: ImportProvider): Promise<PeopleView | null> {
+  const ctx = await ownerCtx();
+  if ("error" in ctx) return null;
+
+  const adapter = ADAPTERS[provider];
+  const connection = await getConnectionView(ctx.orgId, provider);
+  if (!connection?.tenantId) return null;
+
+  const [read, links, candidates] = await Promise.all([
+    adapter.read(ctx.orgId),
+    adapter.links(ctx.orgId, connection.tenantId),
+    staffCandidates(ctx.orgId),
+  ]);
+
+  if (!read.ok) return { rows: [], linkable: [], error: read.error };
 
   const linkedStaff = new Set(links.map((l) => l.staffProfileId));
-  const linkable = candidates
-    .filter((c) => c.status === "Active" && !linkedStaff.has(c.staffProfileId))
-    .map((c) => ({ staffProfileId: c.staffProfileId, name: c.name }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  return {
+    rows: buildPeopleRows(read.data, candidates, links),
+    linkable: candidates
+      .filter((c) => c.status === "Active" && !linkedStaff.has(c.staffProfileId))
+      .map((c) => ({ staffProfileId: c.staffProfileId, name: c.name }))
+      .sort((a, b) => a.name.localeCompare(b.name)),
+    error: null,
+  };
+}
 
-  return { rows, linkable, error: null };
+export async function getSm8PeopleData(): Promise<PeopleView | null> {
+  return peopleData("servicem8");
+}
+
+export async function getXeroPeopleData(): Promise<PeopleView | null> {
+  return peopleData("xero");
 }
 
 /** Import the selected people as unclaimed cards, each with its link.
 
-    Per-person and forgiving: a row that can't land (unknown uuid, already
+    Per-person and forgiving: a row that can't land (unknown id, already
     imported by a racing click, a lost insert) is counted and skipped, never
     the whole batch failed — the screen re-reads afterwards and shows exactly
     what stuck. */
-export async function importSm8Staff(people: ImportPersonInput[]): Promise<ImportResult> {
+export async function importPeople(
+  provider: ImportProvider,
+  people: ImportPersonInput[]
+): Promise<ImportResult> {
   const ctx = await ownerCtx();
-  if ("error" in ctx) return { ok: false, error: ctx.error };
+  if ("error" in ctx) return { ok: false, error: NOT_OWNER };
+
+  const adapter = ADAPTERS[provider];
+  if (!adapter) return { ok: false, error: "Unknown connected app." };
 
   if (!Array.isArray(people) || people.length === 0) {
     return { ok: false, error: "Nothing was selected to import." };
@@ -182,14 +254,15 @@ export async function importSm8Staff(people: ImportPersonInput[]): Promise<Impor
     return { ok: false, error: "That's more than one import can take — select fewer at once." };
   }
 
-  const connection = await getConnectionView(ctx.orgId, "servicem8");
-  if (!connection?.tenantId) return { ok: false, error: NOT_CONNECTED };
+  const connection = await getConnectionView(ctx.orgId, provider);
+  if (!connection?.tenantId) return { ok: false, error: adapter.notConnected };
 
-  const live = await livePeople(ctx.orgId);
-  if (!live.ok) return { ok: false, error: live.error };
+  const read = await adapter.read(ctx.orgId);
+  if (!read.ok) return { ok: false, error: read.error };
+  const byId = new Map(read.data.map((p) => [p.id, p]));
 
   const [links, org] = await Promise.all([
-    listSm8StaffLinks(ctx.orgId, connection.tenantId),
+    adapter.links(ctx.orgId, connection.tenantId),
     supabaseAdmin.from("organizations").select("state").eq("id", ctx.orgId).maybeSingle(),
   ]);
   const alreadyLinked = new Set(links.map((l) => l.remoteId));
@@ -201,15 +274,15 @@ export async function importSm8Staff(people: ImportPersonInput[]): Promise<Impor
   let skipped = 0;
 
   for (const input of people) {
-    const uuid = typeof input.uuid === "string" ? input.uuid.trim() : "";
-    const person = uuid ? live.byUuid.get(uuid) : undefined;
-    if (!person || alreadyLinked.has(uuid)) {
+    const id = typeof input.uuid === "string" ? input.uuid.trim() : "";
+    const person = id ? byId.get(id) : undefined;
+    if (!person || alreadyLinked.has(id)) {
       skipped++;
       continue;
     }
 
-    /* Accepted values, trimmed; names fall back to ServiceM8's own when the
-       payload carries none, because a nameless card is unusable everywhere. */
+    /* Accepted values, trimmed; names fall back to the provider's own when
+       the payload carries none, because a nameless card is unusable. */
     const str = (v: unknown): string | null =>
       typeof v === "string" && v.trim() ? v.trim() : null;
     const firstName = str(input.firstName) ?? person.first;
@@ -242,12 +315,12 @@ export async function importSm8Staff(people: ImportPersonInput[]): Promise<Impor
       continue;
     }
 
-    const link = await linkSm8StaffMember({
+    const link = await adapter.link({
       orgId: ctx.orgId,
       tenantId: connection.tenantId,
       staffProfileId: card.id as string,
-      remoteId: person.uuid,
-      // ServiceM8's own name at link time — provenance, not the card's truth.
+      remoteId: person.id,
+      // the provider's own name at link time — provenance, not the card's truth
       remoteLabel: person.name,
       matchedBy: "manual",
       userId: ctx.userId,
@@ -268,30 +341,34 @@ export async function importSm8Staff(people: ImportPersonInput[]): Promise<Impor
       continue;
     }
 
-    alreadyLinked.add(uuid);
+    alreadyLinked.add(id);
     imported++;
   }
 
-  refresh();
+  refresh(provider);
   return { ok: true, imported, skipped };
 }
 
-/** Link one ServiceM8 person to an existing card — accepting a suggestion
+/** Link one remote person to an existing card — accepting a suggestion
     ('auto') or picking from the list ('manual'). Both are human decisions;
     nothing in this codebase links anybody on its own. */
-export async function linkSm8Staff(
+export async function linkPerson(
+  provider: ImportProvider,
   staffProfileId: string,
   remoteId: string,
   matchedBy: "auto" | "manual"
 ): Promise<LinkResult> {
   const ctx = await ownerCtx();
-  if ("error" in ctx) return { ok: false, error: ctx.error };
+  if ("error" in ctx) return { ok: false, error: NOT_OWNER };
 
-  const connection = await getConnectionView(ctx.orgId, "servicem8");
-  if (!connection?.tenantId) return { ok: false, error: NOT_CONNECTED };
+  const adapter = ADAPTERS[provider];
+  if (!adapter) return { ok: false, error: "Unknown connected app." };
 
-  const [live, staffCheck] = await Promise.all([
-    livePeople(ctx.orgId),
+  const connection = await getConnectionView(ctx.orgId, provider);
+  if (!connection?.tenantId) return { ok: false, error: adapter.notConnected };
+
+  const [read, staffCheck] = await Promise.all([
+    adapter.read(ctx.orgId),
     supabaseAdmin
       .from("staff_profiles")
       .select("id, status")
@@ -303,12 +380,13 @@ export async function linkSm8Staff(
   if (!staffCheck.data) return { ok: false, error: "That person isn't in this workspace." };
   if (staffCheck.data.status !== "Active")
     return { ok: false, error: "They're archived here — restore them in Team before matching." };
-  if (!live.ok) return { ok: false, error: live.error };
+  if (!read.ok) return { ok: false, error: read.error };
 
-  const person = live.byUuid.get(remoteId);
-  if (!person) return { ok: false, error: "That staff member isn't in the connected ServiceM8 account." };
+  const person = read.data.find((p) => p.id === remoteId);
+  if (!person)
+    return { ok: false, error: `They aren't in the connected ${adapter.label} account.` };
 
-  const result = await linkSm8StaffMember({
+  const result = await adapter.link({
     orgId: ctx.orgId,
     tenantId: connection.tenantId,
     staffProfileId,
@@ -319,22 +397,27 @@ export async function linkSm8Staff(
   });
   if (!result.ok) return result;
 
-  refresh();
+  refresh(provider);
   return { ok: true };
 }
 
 /** Remove one person's ServiceM8 link. The card stays — a link is a
-    correspondence, not the person. */
+    correspondence, not the person.
+
+    ServiceM8 only: a Xero payroll link is unmatched from the Time & Pay
+    screen, behind `financials` (unlinkEmployee), because unmatching there
+    also settles the wage drift the link was carrying. Routing it through
+    here would be a second, weaker gate on the same decision. */
 export async function unlinkSm8Staff(staffProfileId: string): Promise<LinkResult> {
   const ctx = await ownerCtx();
-  if ("error" in ctx) return { ok: false, error: ctx.error };
+  if ("error" in ctx) return { ok: false, error: NOT_OWNER };
 
   const connection = await getConnectionView(ctx.orgId, "servicem8");
-  if (!connection?.tenantId) return { ok: false, error: NOT_CONNECTED };
+  if (!connection?.tenantId) return { ok: false, error: ADAPTERS.servicem8.notConnected };
 
   const result = await unlinkSm8StaffMember(ctx.orgId, connection.tenantId, staffProfileId);
   if (!result.ok) return result;
 
-  refresh();
+  refresh("servicem8");
   return { ok: true };
 }

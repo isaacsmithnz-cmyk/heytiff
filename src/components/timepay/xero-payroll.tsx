@@ -233,8 +233,9 @@ export function XeroPayroll({
         <div className="xp-extra">
           <b>In Xero, not here</b>
           <em>
-            On the Xero payroll with nobody in this workspace matched to them. Add them as staff
-            first if they should be.
+            On the Xero payroll with nobody in this workspace matched to them. Import them as
+            staff cards from Admin → Integrations → Xero, where each field is reviewed before it
+            lands; they arrive matched, so this list empties itself.
           </em>
           <ul>
             {data.unaccounted.map((e) => (

@@ -3,22 +3,29 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
-import type { Sm8PersonRow } from "@/lib/integrations/sm8-people";
-import {
-  importSm8Staff,
-  linkSm8Staff,
-  unlinkSm8Staff,
-  type ImportPersonInput,
+import type { PersonRow } from "@/lib/integrations/people-import";
+import type {
+  ImportPersonInput,
+  ImportProvider,
 } from "@/app/actions/staff-import";
 
-/* The ServiceM8 people card — import is a REVIEW, not a copy.
+/* The actions are reached through a dynamic import, never a top-level one.
+   A `"use server"` module drags next/cache into whatever imports it, and in
+   jsdom that is a `ReferenceError: Request is not defined` — which lands not
+   here but in the suite of any SCREEN that renders this card. Same shape as
+   the Time & Pay panel's `(await import("@/app/actions/xero-links"))`. */
+const actions = () => import("@/app/actions/staff-import");
+
+/* The people card — import is a REVIEW, not a copy. One component for every
+   connected system, because "which fields land on a card" must not become a
+   per-provider opinion.
 
    Every value a card would receive is on screen before anything is written:
-   the row itself shows name · title · email · mobile, and the pencil opens
+   the row itself shows name · title · email · phone, and the pencil opens
    them as editable fields where title, email and phone can be unticked.
    Import sends exactly what's ticked at that moment — a value that never
    appeared here can never reach a card, and the server re-checks the FACTS
-   (which uuids exist, who's active) against ServiceM8 live either way.
+   (which ids exist, who's active) against the provider live either way.
 
    Suggested rows lead with Link because a match means NO new card — the whole
    track exists so one human never becomes two records. Import-as-new for a
@@ -27,16 +34,33 @@ import {
    Nothing here auto-runs. Connecting doesn't import; rendering doesn't
    import; the buttons import. */
 
-export type Sm8PeopleData = {
-  rows: Sm8PersonRow[];
-  /** Active cards with no ServiceM8 link yet — the manual picker's options. */
+/** What the provider is called in this card's sentences, and where an unlink
+    belongs. ServiceM8 unlinks here; a Xero payroll link is unmatched from
+    Time & Pay, where the same act also settles the wage drift it carries —
+    so this card sends people there rather than offering a weaker second
+    control over the same decision. */
+const PROVIDERS: Record<
+  ImportProvider,
+  { label: string; unlinkHere: boolean; unlinkNote?: string }
+> = {
+  servicem8: { label: "ServiceM8", unlinkHere: true },
+  xero: {
+    label: "Xero",
+    unlinkHere: false,
+    unlinkNote: "Unmatch from Time & Pay — that screen settles pay-rate drift at the same time.",
+  },
+};
+
+export type PeopleCardData = {
+  rows: PersonRow[];
+  /** Active cards with no link of this kind yet — the manual picker's options. */
   linkable: { staffProfileId: string; name: string }[];
   /** The read failed — the sentence to show instead of rows. */
   error: string | null;
 };
 
 /** Per-person review state: current values plus which optionals are ticked.
-    Seeded from the ServiceM8 person on first render, then owned by the
+    Seeded from the provider's person on first render, then owned by the
     reviewer — edits survive collapse because the map, not the DOM, holds them. */
 type FieldState = {
   firstName: string;
@@ -49,16 +73,16 @@ type FieldState = {
   incPhone: boolean;
 };
 
-function seedFields(row: Sm8PersonRow): FieldState {
+function seedFields(row: PersonRow): FieldState {
   return {
     firstName: row.person.first ?? "",
     lastName: row.person.last ?? "",
     jobTitle: row.person.jobTitle ?? "",
     email: row.person.email ?? "",
-    phone: row.person.mobile ?? "",
+    phone: row.person.phone ?? "",
     incTitle: !!row.person.jobTitle,
     incEmail: !!row.person.email,
-    incPhone: !!row.person.mobile,
+    incPhone: !!row.person.phone,
   };
 }
 
@@ -73,7 +97,13 @@ function payloadOf(uuid: string, f: FieldState): ImportPersonInput {
   };
 }
 
-export function Sm8PeopleCard({ rows, linkable, error }: Sm8PeopleData) {
+export function PeopleImportCard({
+  provider,
+  rows,
+  linkable,
+  error,
+}: PeopleCardData & { provider: ImportProvider }) {
+  const meta = PROVIDERS[provider];
   const router = useRouter();
   const [busy, start] = useTransition();
   const [note, setNote] = useState<{ kind: "ok" | "bad"; text: string } | null>(null);
@@ -103,9 +133,9 @@ export function Sm8PeopleCard({ rows, linkable, error }: Sm8PeopleData) {
     [pending, showInactive],
   );
 
-  const fieldsOf = (row: Sm8PersonRow): FieldState =>
-    fields[row.person.uuid] ?? seedFields(row);
-  const patch = (uuid: string, row: Sm8PersonRow, p: Partial<FieldState>) =>
+  const fieldsOf = (row: PersonRow): FieldState =>
+    fields[row.person.id] ?? seedFields(row);
+  const patch = (uuid: string, row: PersonRow, p: Partial<FieldState>) =>
     setFields((f) => ({ ...f, [uuid]: { ...(f[uuid] ?? seedFields(row)), ...p } }));
 
   const run = (fn: () => Promise<{ ok: boolean }>, after?: () => void) => {
@@ -121,9 +151,11 @@ export function Sm8PeopleCard({ rows, linkable, error }: Sm8PeopleData) {
   const doImport = (batch: ImportPersonInput[]) =>
     run(
       async () => {
-        const res = await importSm8Staff(batch);
+        const res = await (await actions()).importPeople(provider, batch);
         if (res.ok) {
-          const skipped = res.skipped ? ` ${res.skipped} skipped — already imported or no longer in ServiceM8.` : "";
+          const skipped = res.skipped
+            ? ` ${res.skipped} skipped — already imported or no longer in ${meta.label}.`
+            : "";
           setNote({
             kind: "ok",
             text: `Imported ${res.imported} ${res.imported === 1 ? "person" : "people"}.${skipped} They appear in Team greyed out until they accept an invite.`,
@@ -142,7 +174,7 @@ export function Sm8PeopleCard({ rows, linkable, error }: Sm8PeopleData) {
             <Icon name="users" size={19} />
           </span>
           <div>
-            <b>People in ServiceM8</b>
+            <b>People in {meta.label}</b>
             <em>{error}</em>
           </div>
         </div>
@@ -152,7 +184,7 @@ export function Sm8PeopleCard({ rows, linkable, error }: Sm8PeopleData) {
   if (rows.length === 0) return null;
 
   const selectable = shown.filter((r) => r.kind === "new");
-  const allPicked = selectable.length > 0 && selectable.every((r) => selected.has(r.person.uuid));
+  const allPicked = selectable.length > 0 && selectable.every((r) => selected.has(r.person.id));
 
   return (
     <div className="card2">
@@ -161,7 +193,7 @@ export function Sm8PeopleCard({ rows, linkable, error }: Sm8PeopleData) {
           <Icon name="users" size={19} />
         </span>
         <div style={{ minWidth: 0 }}>
-          <b>People in ServiceM8</b>
+          <b>People in {meta.label}</b>
           <em>
             {pending.length === 0
               ? "Everyone in this account is matched to a card here."
@@ -181,7 +213,7 @@ export function Sm8PeopleCard({ rows, linkable, error }: Sm8PeopleData) {
               type="checkbox"
               checked={allPicked}
               onChange={() =>
-                setSelected(allPicked ? new Set() : new Set(selectable.map((r) => r.person.uuid)))
+                setSelected(allPicked ? new Set() : new Set(selectable.map((r) => r.person.id)))
               }
             />
             Select all new
@@ -198,26 +230,27 @@ export function Sm8PeopleCard({ rows, linkable, error }: Sm8PeopleData) {
         {shown.map((row) => {
           const { person } = row;
           const f = fieldsOf(row);
-          const isOpen = open.has(person.uuid);
-          const meta = [
+          const isOpen = open.has(person.id);
+          // exactly the optional values this import would write, live
+          const willLand = [
             f.incTitle && f.jobTitle.trim() ? f.jobTitle.trim() : null,
             f.incEmail && f.email.trim() ? f.email.trim() : null,
             f.incPhone && f.phone.trim() ? f.phone.trim() : null,
           ].filter(Boolean);
 
           return (
-            <div key={person.uuid} className={`sp-row${person.active ? "" : " off"}`}>
+            <div key={person.id} className={`sp-row${person.active ? "" : " off"}`}>
               <div className="sp-line">
                 {row.kind === "new" ? (
                   <label className="sp-check">
                     <input
                       type="checkbox"
-                      checked={selected.has(person.uuid)}
+                      checked={selected.has(person.id)}
                       onChange={() =>
                         setSelected((s) => {
                           const next = new Set(s);
-                          if (next.has(person.uuid)) next.delete(person.uuid);
-                          else next.add(person.uuid);
+                          if (next.has(person.id)) next.delete(person.id);
+                          else next.add(person.id);
                           return next;
                         })
                       }
@@ -229,10 +262,10 @@ export function Sm8PeopleCard({ rows, linkable, error }: Sm8PeopleData) {
                 <div className="sp-main">
                   <b>
                     {[f.firstName.trim(), f.lastName.trim()].filter(Boolean).join(" ") || person.name}
-                    {!person.active && <span className="int-tag warn">Inactive in ServiceM8</span>}
+                    {!person.active && <span className="int-tag warn">Inactive in {meta.label}</span>}
                   </b>
                   {/* the values Import would write, always visible on the row */}
-                  <em>{meta.length ? meta.join(" · ") : "Name only"}</em>
+                  <em>{willLand.length ? willLand.join(" · ") : "Name only"}</em>
                   {row.kind === "suggested" && (
                     <span className="sp-sug">
                       Looks like <b>{row.staffName}</b> — same {row.reason === "email" ? "email address" : "name"}
@@ -244,7 +277,9 @@ export function Sm8PeopleCard({ rows, linkable, error }: Sm8PeopleData) {
                     <button
                       className="fl-btn tiny"
                       disabled={busy}
-                      onClick={() => run(() => linkSm8Staff(row.staffProfileId, person.uuid, "auto"))}
+                      onClick={() => run(async () =>
+                        (await actions()).linkPerson(provider, row.staffProfileId, person.id, "auto"),
+                      )}
                     >
                       <Icon name="check" size={13} />
                       Link
@@ -253,7 +288,7 @@ export function Sm8PeopleCard({ rows, linkable, error }: Sm8PeopleData) {
                     <button
                       className="fl-btn tiny"
                       disabled={busy}
-                      onClick={() => doImport([payloadOf(person.uuid, f)])}
+                      onClick={() => doImport([payloadOf(person.id, f)])}
                     >
                       <Icon name="download" size={13} />
                       Import
@@ -265,8 +300,8 @@ export function Sm8PeopleCard({ rows, linkable, error }: Sm8PeopleData) {
                     onClick={() =>
                       setOpen((o) => {
                         const next = new Set(o);
-                        if (next.has(person.uuid)) next.delete(person.uuid);
-                        else next.add(person.uuid);
+                        if (next.has(person.id)) next.delete(person.id);
+                        else next.add(person.id);
                         return next;
                       })
                     }
@@ -283,7 +318,7 @@ export function Sm8PeopleCard({ rows, linkable, error }: Sm8PeopleData) {
                     <input
                       aria-label="First name"
                       value={f.firstName}
-                      onChange={(e) => patch(person.uuid, row, { firstName: e.target.value })}
+                      onChange={(e) => patch(person.id, row, { firstName: e.target.value })}
                     />
                   </label>
                   <label className="sp-f">
@@ -291,7 +326,7 @@ export function Sm8PeopleCard({ rows, linkable, error }: Sm8PeopleData) {
                     <input
                       aria-label="Last name"
                       value={f.lastName}
-                      onChange={(e) => patch(person.uuid, row, { lastName: e.target.value })}
+                      onChange={(e) => patch(person.id, row, { lastName: e.target.value })}
                     />
                   </label>
                   <label className={`sp-f${f.incTitle ? "" : " out"}`}>
@@ -300,7 +335,7 @@ export function Sm8PeopleCard({ rows, linkable, error }: Sm8PeopleData) {
                         type="checkbox"
                         aria-label="Include job title"
                         checked={f.incTitle}
-                        onChange={(e) => patch(person.uuid, row, { incTitle: e.target.checked })}
+                        onChange={(e) => patch(person.id, row, { incTitle: e.target.checked })}
                       />
                       Job title
                     </span>
@@ -308,7 +343,7 @@ export function Sm8PeopleCard({ rows, linkable, error }: Sm8PeopleData) {
                       aria-label="Job title"
                       value={f.jobTitle}
                       disabled={!f.incTitle}
-                      onChange={(e) => patch(person.uuid, row, { jobTitle: e.target.value })}
+                      onChange={(e) => patch(person.id, row, { jobTitle: e.target.value })}
                     />
                   </label>
                   <label className={`sp-f${f.incEmail ? "" : " out"}`}>
@@ -317,7 +352,7 @@ export function Sm8PeopleCard({ rows, linkable, error }: Sm8PeopleData) {
                         type="checkbox"
                         aria-label="Include email"
                         checked={f.incEmail}
-                        onChange={(e) => patch(person.uuid, row, { incEmail: e.target.checked })}
+                        onChange={(e) => patch(person.id, row, { incEmail: e.target.checked })}
                       />
                       Email — prefills their invite
                     </span>
@@ -325,7 +360,7 @@ export function Sm8PeopleCard({ rows, linkable, error }: Sm8PeopleData) {
                       aria-label="Email"
                       value={f.email}
                       disabled={!f.incEmail}
-                      onChange={(e) => patch(person.uuid, row, { email: e.target.value })}
+                      onChange={(e) => patch(person.id, row, { email: e.target.value })}
                     />
                   </label>
                   <label className={`sp-f${f.incPhone ? "" : " out"}`}>
@@ -334,7 +369,7 @@ export function Sm8PeopleCard({ rows, linkable, error }: Sm8PeopleData) {
                         type="checkbox"
                         aria-label="Include mobile"
                         checked={f.incPhone}
-                        onChange={(e) => patch(person.uuid, row, { incPhone: e.target.checked })}
+                        onChange={(e) => patch(person.id, row, { incPhone: e.target.checked })}
                       />
                       Mobile
                     </span>
@@ -342,7 +377,7 @@ export function Sm8PeopleCard({ rows, linkable, error }: Sm8PeopleData) {
                       aria-label="Mobile"
                       value={f.phone}
                       disabled={!f.incPhone}
-                      onChange={(e) => patch(person.uuid, row, { phone: e.target.value })}
+                      onChange={(e) => patch(person.id, row, { phone: e.target.value })}
                     />
                   </label>
 
@@ -353,7 +388,7 @@ export function Sm8PeopleCard({ rows, linkable, error }: Sm8PeopleData) {
                       <button
                         className="fl-btn tiny"
                         disabled={busy}
-                        onClick={() => doImport([payloadOf(person.uuid, f)])}
+                        onClick={() => doImport([payloadOf(person.id, f)])}
                       >
                         <Icon name="download" size={13} />
                         Import as a new card instead
@@ -362,9 +397,9 @@ export function Sm8PeopleCard({ rows, linkable, error }: Sm8PeopleData) {
                       linkable.length > 0 && (
                         <span className="sp-linkpick">
                           <select
-                            value={pick[person.uuid] ?? ""}
+                            value={pick[person.id] ?? ""}
                             onChange={(e) =>
-                              setPick((p) => ({ ...p, [person.uuid]: e.target.value }))
+                              setPick((p) => ({ ...p, [person.id]: e.target.value }))
                             }
                           >
                             <option value="">They&apos;re already here as…</option>
@@ -376,9 +411,16 @@ export function Sm8PeopleCard({ rows, linkable, error }: Sm8PeopleData) {
                           </select>
                           <button
                             className="fl-btn tiny"
-                            disabled={busy || !pick[person.uuid]}
+                            disabled={busy || !pick[person.id]}
                             onClick={() =>
-                              run(() => linkSm8Staff(pick[person.uuid], person.uuid, "manual"))
+                              run(async () =>
+                                (await actions()).linkPerson(
+                                  provider,
+                                  pick[person.id],
+                                  person.id,
+                                  "manual",
+                                ),
+                              )
                             }
                           >
                             Link
@@ -394,7 +436,9 @@ export function Sm8PeopleCard({ rows, linkable, error }: Sm8PeopleData) {
         })}
 
         {shown.length === 0 && pending.length > 0 && (
-          <div className="sp-empty">Only inactive ServiceM8 logins left — show them above to import.</div>
+          <div className="sp-empty">
+            Only inactive {meta.label} people left — show them above to import.
+          </div>
         )}
       </div>
 
@@ -409,8 +453,8 @@ export function Sm8PeopleCard({ rows, linkable, error }: Sm8PeopleData) {
             onClick={() =>
               doImport(
                 shown
-                  .filter((r) => selected.has(r.person.uuid))
-                  .map((r) => payloadOf(r.person.uuid, fieldsOf(r))),
+                  .filter((r) => selected.has(r.person.id))
+                  .map((r) => payloadOf(r.person.id, fieldsOf(r))),
               )
             }
           >
@@ -429,7 +473,7 @@ export function Sm8PeopleCard({ rows, linkable, error }: Sm8PeopleData) {
           {showLinked &&
             linked.map((row) =>
               row.kind === "linked" ? (
-                <div key={row.person.uuid} className="sp-row linkedrow">
+                <div key={row.person.id} className="sp-row linkedrow">
                   <div className="sp-line">
                     <span className="sp-check" aria-hidden />
                     <div className="sp-main">
@@ -439,18 +483,22 @@ export function Sm8PeopleCard({ rows, linkable, error }: Sm8PeopleData) {
                       </em>
                     </div>
                     <div className="sp-act">
-                      <button
-                        className={`fl-btn tiny${armed === row.person.uuid ? " danger arm" : ""}`}
-                        disabled={busy}
-                        onBlur={() => setArmed((a) => (a === row.person.uuid ? null : a))}
-                        onClick={() => {
-                          if (armed !== row.person.uuid) return setArmed(row.person.uuid);
-                          setArmed(null);
-                          run(() => unlinkSm8Staff(row.staffProfileId));
-                        }}
-                      >
-                        {armed === row.person.uuid ? "Confirm unlink" : "Unlink"}
-                      </button>
+                      {meta.unlinkHere ? (
+                        <button
+                          className={`fl-btn tiny${armed === row.person.id ? " danger arm" : ""}`}
+                          disabled={busy}
+                          onBlur={() => setArmed((a) => (a === row.person.id ? null : a))}
+                          onClick={() => {
+                            if (armed !== row.person.id) return setArmed(row.person.id);
+                            setArmed(null);
+                            run(async () => (await actions()).unlinkSm8Staff(row.staffProfileId));
+                          }}
+                        >
+                          {armed === row.person.id ? "Confirm unlink" : "Unlink"}
+                        </button>
+                      ) : (
+                        <span className="sp-elsewhere">{meta.unlinkNote}</span>
+                      )}
                     </div>
                   </div>
                 </div>

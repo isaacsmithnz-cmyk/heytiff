@@ -1,15 +1,16 @@
-/* The people screen's pure half. Two things carry the weight here: shaping
-   must keep email/mobile OUT of nothing (import is the one sanctioned reader)
-   while dropping rows that could never be shown or linked — and the row
-   builder must never let one human become two records: linked wins over
-   suggested wins over new, and a saved decision is never re-offered. */
+/* The people screens' pure half, both providers. Two things carry the weight:
+   each provider's mapper must drop what could never be shown or linked while
+   carrying every field import may write — and the row builder must never let
+   one human become two records: linked wins over suggested wins over new, and
+   a saved decision is never re-offered.
 
-import {
-  buildSm8PeopleRows,
-  shapeSm8Person,
-  type ImportStaffCandidate,
-  type Sm8Person,
-} from "../sm8-people";
+   The builder is exercised through ImportCandidate directly, because it is
+   deliberately blind to which provider a person came from. */
+
+import { buildPeopleRows, type ImportCandidate, type ImportStaffCandidate } from "../people-import";
+import { shapeSm8Person } from "../sm8-people";
+import { xeroPersonOf } from "../xero-people";
+import type { XeroEmployee } from "../xero-shape";
 import type { IntegrationLink } from "../links";
 
 const raw = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
@@ -23,13 +24,13 @@ const raw = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
   ...over,
 });
 
-const person = (over: Partial<Sm8Person> & { uuid: string }): Sm8Person => ({
+const person = (over: Partial<ImportCandidate> & { id: string }): ImportCandidate => ({
   first: "Dan",
   last: "Smith",
   name: over.name ?? "Dan Smith",
   jobTitle: null,
   email: null,
-  mobile: null,
+  phone: null,
   active: true,
   ...over,
 });
@@ -55,16 +56,16 @@ const link = (staffProfileId: string, remoteId: string): IntegrationLink => ({
   linkedAt: "2026-08-10T00:00:00Z",
 });
 
-describe("shapeSm8Person", () => {
+describe("shapeSm8Person — ServiceM8's mapper", () => {
   it("picks exactly the import fields — email and mobile included", () => {
     expect(shapeSm8Person(raw())).toEqual({
-      uuid: "u-1",
+      id: "u-1",
       first: "Dan",
       last: "Smith",
       name: "Dan Smith",
       jobTitle: "Technician",
       email: "dan@acme.com",
-      mobile: "0412 000 111",
+      phone: "0412 000 111",
       active: true,
     });
   });
@@ -95,10 +96,62 @@ describe("shapeSm8Person", () => {
   });
 });
 
-describe("buildSm8PeopleRows", () => {
+describe("xeroPersonOf — Xero's mapper", () => {
+  const employee = (over: Partial<XeroEmployee> = {}): XeroEmployee => ({
+    employeeId: "x-1",
+    firstName: "Dan",
+    lastName: "Smith",
+    name: "Dan Smith",
+    email: "dan@acme.com",
+    jobTitle: "Technician",
+    active: true,
+    employmentType: "EMPLOYEE",
+    payrollCalendarId: "cal-1",
+    ...over,
+  });
+
+  it("carries the four importable fields and nothing else", () => {
+    expect(xeroPersonOf(employee())).toEqual({
+      id: "x-1",
+      first: "Dan",
+      last: "Smith",
+      name: "Dan Smith",
+      jobTitle: "Technician",
+      email: "dan@acme.com",
+      // Xero's payroll list has no number; a null here would imply we looked
+      phone: null,
+      active: true,
+    });
+  });
+
+  it("NEVER carries employment type — that belongs to the drift lane", () => {
+    // copying CONTRACTOR in at import would make this screen a second, quieter
+    // writer of a pay-adjacent field HeyTiff owns
+    const mapped = xeroPersonOf(employee({ employmentType: "CONTRACTOR" })) as Record<string, unknown>;
+    expect("employmentType" in mapped).toBe(false);
+    expect(Object.values(mapped)).not.toContain("CONTRACTOR");
+  });
+
+  it("carries nothing pay-shaped at all", () => {
+    const keys = Object.keys(xeroPersonOf(employee()));
+    expect(keys).not.toEqual(expect.arrayContaining(["payrollCalendarId", "hourlyRate", "wage"]));
+  });
+
+  it("a terminated employee maps to inactive — importable, but not onto the roster", () => {
+    expect(xeroPersonOf(employee({ active: false })).active).toBe(false);
+  });
+
+  it("blank name halves become null rather than empty strings", () => {
+    const mapped = xeroPersonOf(employee({ firstName: "", lastName: "", name: "Dan Smith" }));
+    expect(mapped.first).toBeNull();
+    expect(mapped.last).toBeNull();
+  });
+});
+
+describe("buildPeopleRows — provider-blind", () => {
   it("an existing link wins over any suggestion, and names the card", () => {
-    const rows = buildSm8PeopleRows(
-      [person({ uuid: "u-1", email: "dan@acme.com" })],
+    const rows = buildPeopleRows(
+      [person({ id: "u-1", email: "dan@acme.com" })],
       [card({ staffProfileId: "s-1", name: "Dan Smith", email: "dan@acme.com" })],
       [link("s-1", "u-1")]
     );
@@ -108,8 +161,8 @@ describe("buildSm8PeopleRows", () => {
   });
 
   it("suggests by email even when the names disagree", () => {
-    const rows = buildSm8PeopleRows(
-      [person({ uuid: "u-1", name: "Danny S", first: "Danny", last: "S", email: "dan@acme.com" })],
+    const rows = buildPeopleRows(
+      [person({ id: "u-1", name: "Danny S", first: "Danny", last: "S", email: "dan@acme.com" })],
       [card({ staffProfileId: "s-1", name: "Dan Smith", email: "dan@acme.com" })],
       []
     );
@@ -117,8 +170,8 @@ describe("buildSm8PeopleRows", () => {
   });
 
   it("suggests by name when there is exactly one plausible card", () => {
-    const rows = buildSm8PeopleRows(
-      [person({ uuid: "u-1", name: "Dan Smith" })],
+    const rows = buildPeopleRows(
+      [person({ id: "u-1", name: "Dan Smith" })],
       [card({ staffProfileId: "s-1", name: "Dan Smith", firstName: "Dan", lastName: "Smith" })],
       []
     );
@@ -128,8 +181,8 @@ describe("buildSm8PeopleRows", () => {
   it("offers NOTHING when two cards match one person equally", () => {
     // two Dans here, one Dan there — a guess links a stranger, so no row
     // gets a suggestion and the person lands importable
-    const rows = buildSm8PeopleRows(
-      [person({ uuid: "u-1", name: "Dan Smith" })],
+    const rows = buildPeopleRows(
+      [person({ id: "u-1", name: "Dan Smith" })],
       [
         card({ staffProfileId: "s-1", name: "Dan Smith", firstName: "Dan", lastName: "Smith" }),
         card({ staffProfileId: "s-2", name: "Dan Smith", firstName: "Dan", lastName: "Smith" }),
@@ -140,10 +193,10 @@ describe("buildSm8PeopleRows", () => {
   });
 
   it("a card already holding a link is never suggested for a second person", () => {
-    const rows = buildSm8PeopleRows(
+    const rows = buildPeopleRows(
       [
-        person({ uuid: "u-1", name: "Dan Smith" }),
-        person({ uuid: "u-2", name: "Dan Smith", first: "Dan", last: "Smith" }),
+        person({ id: "u-1", name: "Dan Smith" }),
+        person({ id: "u-2", name: "Dan Smith", first: "Dan", last: "Smith" }),
       ],
       [card({ staffProfileId: "s-1", name: "Dan Smith", firstName: "Dan", lastName: "Smith" })],
       [link("s-1", "u-1")]
@@ -153,8 +206,8 @@ describe("buildSm8PeopleRows", () => {
   });
 
   it("a linked card that has since been deleted still reads as linked, by its captured label", () => {
-    const rows = buildSm8PeopleRows(
-      [person({ uuid: "u-1" })],
+    const rows = buildPeopleRows(
+      [person({ id: "u-1" })],
       [],
       [{ ...link("s-gone", "u-1"), remoteLabel: "Dan Smith" }]
     );
@@ -162,11 +215,11 @@ describe("buildSm8PeopleRows", () => {
   });
 
   it("keeps the input order — grouping is the screen's decision", () => {
-    const rows = buildSm8PeopleRows(
-      [person({ uuid: "u-b", name: "B Person", first: "B", last: "Person" }), person({ uuid: "u-a", name: "A Person", first: "A", last: "Person" })],
+    const rows = buildPeopleRows(
+      [person({ id: "u-b", name: "B Person", first: "B", last: "Person" }), person({ id: "u-a", name: "A Person", first: "A", last: "Person" })],
       [],
       []
     );
-    expect(rows.map((r) => r.person.uuid)).toEqual(["u-b", "u-a"]);
+    expect(rows.map((r: { person: ImportCandidate }) => r.person.id)).toEqual(["u-b", "u-a"]);
   });
 });

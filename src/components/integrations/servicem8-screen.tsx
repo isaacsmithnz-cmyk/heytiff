@@ -9,7 +9,7 @@ import { providerById, SM8_SCOPES } from "@/lib/integrations/providers";
 import type { ConnectionView } from "@/lib/integrations/connection";
 import type { Sm8SyncStatusView } from "@/lib/integrations/sm8-sync";
 import { disconnectServiceM8Action, syncServiceM8NowAction } from "@/app/actions/integrations";
-import { Sm8PeopleCard, type Sm8PeopleData } from "@/components/integrations/sm8-people-card";
+import { PeopleImportCard, type PeopleCardData } from "@/components/integrations/people-import-card";
 
 /* The ServiceM8 connection screen — xero-screen's sibling, same two refusals
    to be vague (WHAT IT IS FOR, WHAT IT CAN SEE), same two-step disconnect.
@@ -41,7 +41,7 @@ export type Servicem8ScreenProps = {
   /** Outcome of a round trip that just finished, if any. */
   notice: { kind: "ok" | "error"; text: string } | null;
   /** The people reconcile card's data; null until connected. */
-  people?: Sm8PeopleData | null;
+  people?: PeopleCardData | null;
 };
 
 /** "just now" / "4 min ago" / "3 hours ago" — the board's staleness language,
@@ -312,7 +312,7 @@ export function Servicem8Screen({
           )}
 
           {/* ── the people reconcile — import is a review, never a copy ── */}
-          {connected && people && <Sm8PeopleCard {...people} />}
+          {connected && people && <PeopleImportCard provider="servicem8" {...people} />}
 
           {/* ── what it powers ── */}
           <div className="card2">

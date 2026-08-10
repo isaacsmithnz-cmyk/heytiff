@@ -8,6 +8,7 @@ import { countPayrollEmployees } from "@/lib/integrations/xero-read";
 import { tokenKey } from "@/lib/integrations/secrets";
 import { xeroConfig } from "@/lib/integrations/xero";
 import { connectMessage } from "@/lib/integrations/outcome";
+import { getXeroPeopleData } from "@/app/actions/staff-import";
 
 /* The Xero connection screen. Owner-only, matching the routes it links to.
 
@@ -40,9 +41,15 @@ export default async function XeroIntegrationPage({
      unexpired-looking tokens, and this is what notices — the read layer marks
      the row needs_reauth on a 401, so the next render says "reconnect". */
   let reach: XeroReach | null = null;
+  let people: Awaited<ReturnType<typeof getXeroPeopleData>> = null;
   if (connection && connection.status === "connected") {
-    const count = await countPayrollEmployees(orgId);
+    // the reconcile card: the live payroll list against this workspace's cards
+    const [count, peopleData] = await Promise.all([
+      countPayrollEmployees(orgId),
+      getXeroPeopleData(),
+    ]);
     reach = count.ok ? { ok: true, employees: count.data } : { ok: false, error: count.error };
+    people = peopleData;
   }
 
   const notice = errorText
@@ -58,6 +65,7 @@ export default async function XeroIntegrationPage({
       sealed={tokenKey() !== null}
       notice={notice}
       reach={reach}
+      people={people}
     />
   );
 }

@@ -17,7 +17,24 @@
    different places — token, handshake, worklet, socket close, vendor error,
    empty transcript — and the answer to every one of them is the same: the
    MediaRecorder in `dictation.tsx` never stopped running, so the batch path
-   uploads the clip and the person never learns any of this happened. */
+   uploads the clip and the person never learns any of this happened.
+
+   THE MIC IS TAPPED BEFORE THE SOCKET EXISTS, and that is the point of the
+   split between `openMicTap` and `startRealtime`. Isaac, 2026-08-10: "when I
+   record my voice anywhere, it always misses the first part even after it has
+   given me the audio beep." It did, and the beep was telling the truth — the
+   MediaRecorder really was running, and the clip really did contain every
+   word. What was late was THIS transport: a token round trip to our own
+   server, then a handshake to the vendor, then a worklet compile, and only
+   then did the first sample go up the wire. A second or so of speech was
+   never sent, the socket transcribed what was left, and since a live
+   transcript wins over the recording (`dictation.tsx`, `onstop`) the complete
+   clip was thrown away in favour of the truncated words.
+
+   So the tap opens the moment the microphone does and BUFFERS. Whatever was
+   said while the socket was being built goes up as the first chunks, in
+   order, before anything heard live. The fix has to live here rather than in
+   a caller: every mic in the app goes through this one path. */
 
 import {
   EMPTY_TRANSCRIPT,
@@ -60,6 +77,19 @@ const SETTLE_MS = 500;
 
 const HANDSHAKE_TIMEOUT_MS = 6_000;
 
+/* HOW MUCH SPEECH THE TAP WILL HOLD while the socket is being built, and what
+   happens when it won't fit. A token fetch has no timeout of its own, so a
+   wedged network could otherwise buffer a whole two-minute recording in
+   memory on a phone.
+
+   Past the cap the live path is ABANDONED rather than trimmed. Dropping the
+   oldest audio would put the hole back exactly where this whole change came
+   from; dropping the newest would put one in the middle. The batch upload
+   still has every word, so the honest answer to "we missed the start" is to
+   let the transport that didn't miss it do the job. Thirty seconds is far
+   past any handshake that was ever going to succeed. */
+const MAX_PREROLL_SECONDS = 30;
+
 /* The worklet runs on the audio thread and does exactly one thing: hand each
    render quantum back to the main thread. It's a string because a worklet
    must be a separate module fetched by URL, and a blob URL avoids shipping a
@@ -90,6 +120,138 @@ export function encodePcm(samples: Float32Array): string {
   return btoa(binary);
 }
 
+/** An open microphone, listening before there is anywhere to send it. */
+export type MicTap = {
+  /** The rate the context actually gave us — the socket's `audio_format`
+      comes from this, and the audio is never resampled. */
+  rate: number;
+  /** True once the buffer blew past the cap. The live path is off the table
+      from that moment: there is now a hole at the start of what it would
+      transcribe, and a truncated live transcript would still beat the
+      complete recording. */
+  overflowed: boolean;
+  /** Hand over everything heard so far, oldest first, and keep handing over
+      each quantum as it arrives. Called once, when the socket is up. */
+  deliverTo: (sink: (samples: Float32Array) => void) => void;
+  /** Release the microphone tap. Idempotent — both this module and its
+      caller close on failure, so neither has to know who got there first. */
+  close: () => void;
+};
+
+/** Start listening NOW, buffering until someone asks for the audio.
+    Rejects where there is no audio pipeline at all, which the caller treats
+    the same as every other live failure: stay on the recording. */
+export async function openMicTap(stream: MediaStream): Promise<MicTap> {
+  const Ctor =
+    window.AudioContext ??
+    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!Ctor) throw new Error("no audio pipeline");
+
+  const ctx = new Ctor({ sampleRate: WANTED_RATE });
+  const rate = ctx.sampleRate;
+  if (!audioFormatFor(rate)) {
+    void ctx.close().catch(() => {});
+    throw new Error(`unsupported sample rate ${rate}`);
+  }
+
+  /* iOS hands back a SUSPENDED context whenever the constructor isn't
+     reached inside the tap itself — and by here we're at least one await
+     past it. A suspended context never runs the worklet, so no audio is ever
+     sent and the whole thing fails as "the vendor returned nothing": the
+     batch path picks it up and the live transport quietly never works on a
+     phone. One line, one class of silent failure. */
+  await ctx.resume().catch(() => {});
+
+  const source = ctx.createMediaStreamSource(stream);
+  const cap = rate * MAX_PREROLL_SECONDS;
+  let held: Float32Array[] = [];
+  let heldFrames = 0;
+  let sink: ((samples: Float32Array) => void) | null = null;
+  let closed = false;
+  /* Replaced once the worklet (or its fallback) is wired up; until then
+     there is nothing connected to let go of. */
+  let disconnect = () => {};
+
+  const tap: MicTap = {
+    rate,
+    overflowed: false,
+    deliverTo: (next) => {
+      const backlog = held;
+      held = [];
+      heldFrames = 0;
+      sink = next;
+      for (const part of backlog) next(part);
+    },
+    close: () => {
+      if (closed) return;
+      closed = true;
+      sink = null;
+      held = [];
+      heldFrames = 0;
+      disconnect();
+      void ctx.close().catch(() => {});
+    },
+  };
+
+  const take = (samples: Float32Array) => {
+    if (closed) return;
+    if (sink) {
+      sink(samples);
+      return;
+    }
+    if (tap.overflowed) return;
+    held.push(samples);
+    heldFrames += samples.length;
+    if (heldFrames > cap) {
+      tap.overflowed = true;
+      held = [];
+      heldFrames = 0;
+    }
+  };
+
+  try {
+    const url = URL.createObjectURL(new Blob([WORKLET_SRC], { type: "application/javascript" }));
+    try {
+      await ctx.audioWorklet.addModule(url);
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+    /* Given up on while the worklet was compiling. The context is already
+       closed, so wiring anything to it now throws — and there is nothing
+       left to listen for anyway. */
+    if (closed) return tap;
+    const node = new AudioWorkletNode(ctx, "pcm-tap");
+    node.port.onmessage = (e: MessageEvent<Float32Array>) => take(e.data);
+    source.connect(node);
+    disconnect = () => {
+      node.port.onmessage = null;
+      node.disconnect();
+      source.disconnect();
+    };
+  } catch {
+    if (closed) return tap;
+    /* No AudioWorklet — an older WebView, or a CSP that won't run a blob.
+       ScriptProcessorNode is deprecated and still universally implemented,
+       which on a phone in a roof cavity is the property that matters. It
+       only runs while connected to a destination, hence the muted gain. */
+    const proc = ctx.createScriptProcessor(4096, 1, 1);
+    const mute = ctx.createGain();
+    mute.gain.value = 0;
+    proc.onaudioprocess = (e) => take(new Float32Array(e.inputBuffer.getChannelData(0)));
+    source.connect(proc);
+    proc.connect(mute);
+    mute.connect(ctx.destination);
+    disconnect = () => {
+      proc.onaudioprocess = null;
+      proc.disconnect();
+      mute.disconnect();
+      source.disconnect();
+    };
+  }
+
+  return tap;
+}
+
 export type RealtimeHandle = {
   /** Flush, wait briefly for the last words, tear down. Resolves with the
       full transcript — "" means it produced nothing and the caller should
@@ -100,7 +262,10 @@ export type RealtimeHandle = {
 };
 
 export type RealtimeOptions = {
-  stream: MediaStream;
+  /** An already-listening mic from `openMicTap`. OWNERSHIP PASSES HERE: from
+      this call on, every exit — a throw, `stop()`, `cancel()`, a dropped
+      socket — closes the tap. */
+  tap: MicTap;
   token: string;
   keyterms: readonly string[];
   /** Called on every partial and every commit with the text so far, so the
@@ -143,31 +308,21 @@ function socketUrl(token: string, format: string, keyterms: readonly string[]): 
     as they arrive. Rejects if the live path can't be established at all —
     the caller treats that as "stay on batch" and carries on recording. */
 export async function startRealtime({
-  stream,
+  tap,
   token,
   keyterms,
   onText,
 }: RealtimeOptions): Promise<RealtimeHandle> {
-  const Ctor =
-    window.AudioContext ??
-    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!Ctor || typeof WebSocket === "undefined") throw new Error("no audio pipeline");
-
-  const ctx = new Ctor({ sampleRate: WANTED_RATE });
-  const rate = ctx.sampleRate;
+  const rate = tap.rate;
   const format = audioFormatFor(rate);
-  if (!format) {
-    void ctx.close().catch(() => {});
-    throw new Error(`unsupported sample rate ${rate}`);
+  if (typeof WebSocket === "undefined" || !format) {
+    tap.close();
+    throw new Error(format ? "no socket" : `unsupported sample rate ${rate}`);
   }
-
-  /* iOS hands back a SUSPENDED context whenever the constructor isn't
-     reached inside the tap itself — and by here we're several awaits past
-     it. A suspended context never runs the worklet, so no audio is ever
-     sent and the whole thing fails as "the vendor returned nothing": the
-     batch path picks it up and the live transport quietly never works on a
-     phone. One line, one class of silent failure. */
-  await ctx.resume().catch(() => {});
+  if (tap.overflowed) {
+    tap.close();
+    throw new Error("pre-roll overflowed before the socket opened");
+  }
 
   const ws = new WebSocket(socketUrl(token, format, keyterms));
 
@@ -210,7 +365,7 @@ export async function startRealtime({
     } catch {
       /* already gone */
     }
-    void ctx.close().catch(() => {});
+    tap.close();
   };
 
   /* WHAT THE SERVER THINKS WE ASKED FOR. `session_started` echoes the parsed
@@ -284,8 +439,8 @@ export async function startRealtime({
 
   /* ── mic → socket ── */
 
-  const source = ctx.createMediaStreamSource(stream);
   const chunkFrames = Math.max(1, Math.round((rate * CHUNK_MS) / 1000));
+  let feeding = true;
   let pending: Float32Array[] = [];
   let pendingFrames = 0;
 
@@ -317,52 +472,23 @@ export async function startRealtime({
   };
 
   const take = (samples: Float32Array) => {
+    if (!feeding) return;
     pending.push(samples);
     pendingFrames += samples.length;
     if (pendingFrames >= chunkFrames) send(false);
   };
 
-  let disconnect = () => {};
-
-  try {
-    const url = URL.createObjectURL(new Blob([WORKLET_SRC], { type: "application/javascript" }));
-    try {
-      await ctx.audioWorklet.addModule(url);
-    } finally {
-      URL.revokeObjectURL(url);
-    }
-    const tap = new AudioWorkletNode(ctx, "pcm-tap");
-    tap.port.onmessage = (e: MessageEvent<Float32Array>) => take(e.data);
-    source.connect(tap);
-    disconnect = () => {
-      tap.port.onmessage = null;
-      tap.disconnect();
-      source.disconnect();
-    };
-  } catch {
-    /* No AudioWorklet — an older WebView, or a CSP that won't run a blob.
-       ScriptProcessorNode is deprecated and still universally implemented,
-       which on a phone in a roof cavity is the property that matters. It
-       only runs while connected to a destination, hence the muted gain. */
-    const proc = ctx.createScriptProcessor(4096, 1, 1);
-    const mute = ctx.createGain();
-    mute.gain.value = 0;
-    proc.onaudioprocess = (e) => take(new Float32Array(e.inputBuffer.getChannelData(0)));
-    source.connect(proc);
-    proc.connect(mute);
-    mute.connect(ctx.destination);
-    disconnect = () => {
-      proc.onaudioprocess = null;
-      proc.disconnect();
-      mute.disconnect();
-      source.disconnect();
-    };
-  }
+  /* THE BACKLOG GOES FIRST. `deliverTo` replays everything said between the
+     beep and this line — the token round trip, the handshake, the worklet —
+     before a single sample heard from here on. It arrives in ~100 ms chunks
+     like everything else, so the vendor sees one continuous recording and
+     the first sentence is simply there. */
+  tap.deliverTo(take);
 
   return {
     stop: () =>
       new Promise<string>((resolve) => {
-        disconnect();
+        feeding = false;
         if (dead || ws.readyState !== WebSocket.OPEN) {
           resolve(visibleText(transcript));
           teardown();
@@ -383,7 +509,7 @@ export async function startRealtime({
       }),
 
     cancel: () => {
-      disconnect();
+      feeding = false;
       flush = null;
       clearTimers();
       teardown();

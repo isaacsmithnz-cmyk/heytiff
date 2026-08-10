@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useInsertionEffect, useRef, useState } from "react";
-import { startRealtime, type RealtimeHandle } from "@/lib/voice/realtime-stream";
+import { openMicTap, startRealtime, type MicTap, type RealtimeHandle } from "@/lib/voice/realtime-stream";
 import { playChime } from "@/lib/voice/chime";
 import { clearRun, markStopped, markTranscript } from "@/lib/voice/timing";
 
@@ -310,35 +310,67 @@ export function useDictation({
      awaited by `start`: the mic is already recording by the time this runs,
      so a slow token or a refused handshake costs a live transcript and
      nothing else. Every failure here is silent by design — there is nothing
-     to tell the person, because nothing they asked for has been lost. */
-  const goLive = async (stream: MediaStream) => {
+     to tell the person, because nothing they asked for has been lost.
+
+     IT IS HANDED A TAP THAT IS ALREADY LISTENING, opened back in `start`
+     before the beep had finished. Everything below — the token round trip,
+     the handshake, the worklet — used to be a hole at the front of the live
+     transcript, which then beat the complete recording. The tap buffers
+     through all of it; see the head of realtime-stream. */
+  const goLive = async (tapping: Promise<MicTap | null>, rec: MediaRecorder) => {
+    const tap = await tapping;
+    if (!tap) return;
+    /* IT MUST STILL BE THIS RECORDING. Every await below is a chance for the
+       person to stop and start another one, and `state === "recording"` on
+       its own is true of the NEXT recording too — which would hand a socket
+       fed by a dead stream to a mic that is listening properly. */
+    const mine = () => recorder.current === rec && rec.state === "recording";
     try {
       const res = await fetch("/api/workboard/transcribe/token", { method: "POST" });
-      if (!res.ok) return;
+      if (!res.ok) return void tap.close();
       const { token, keyterms } = (await res.json()) as { token?: string; keyterms?: string[] };
-      if (!token) return;
+      if (!token) return void tap.close();
+      /* Stopped or discarded while the token was in flight — nothing to
+         listen to any more, and the recording is already on its way. */
+      if (!mine()) return void tap.close();
       const handle = await startRealtime({
-        stream,
+        tap,
         token,
         keyterms: keyterms ?? [],
         onText: setInterim,
       });
       /* Stopped or discarded while the handshake was in flight — the socket
          is now nobody's, so close it rather than leak a paid stream. */
-      if (recorder.current?.state !== "recording") {
+      if (!mine()) {
         handle.cancel();
         return;
       }
       live.current = handle;
     } catch (err) {
+      /* `startRealtime` closes the tap on its own way out and closing twice
+         is a no-op, so this is the one line that covers every failure
+         whichever side of the handover it happened on. */
+      tap.close();
       console.error(`[dictation] live transport unavailable: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
   const start = () => {
     void (async () => {
+      /* Declared out here so the failure path below can let go of a tap that
+         opened moments before something else in this block threw. */
+      let tapping: Promise<MicTap | null> | null = null;
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        /* THE TAP OPENS FIRST, in parallel with everything below it. Not
+           tidiness: the beep is a promise that the app is listening, and the
+           live transport used to start listening a second or more after it
+           sounded. Started here, the worklet is up while the chime is still
+           playing, and the socket — which arrives much later — is handed
+           every word said in the meantime. It swallows its own failure
+           because a browser with no audio pipeline is a batch recording,
+           not an error anybody needs to hear about. */
+        tapping = transportChoice() ? openMicTap(stream).catch(() => null) : null;
         /* Only once the microphone is genuinely open — chiming before the
            prompt is answered would announce a recording that may never
            start. `{ audio: true }` turns on echo cancellation by default,
@@ -422,8 +454,9 @@ export function useDictation({
         rec.start();
         setSeconds(0);
         setRecording(true);
-        if (transportChoice()) void goLive(stream);
+        if (tapping) void goLive(tapping, rec);
       } catch {
+        void tapping?.then((tap) => tap?.close());
         // graceful floor: whatever asked for this stays usable by typing
         cbs.current.onError?.("No microphone available — type it instead.");
       }

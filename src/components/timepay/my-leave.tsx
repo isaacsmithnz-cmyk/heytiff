@@ -7,7 +7,6 @@ import { DateField } from "@/components/ui/date-field";
 import { MonthGrid, monthOf } from "@/components/ui/month-grid";
 import { fmtAuDayMonth } from "@/lib/au-dates";
 import { UpcomingHolidays } from "./upcoming-holidays";
-import { MyTimeNav } from "./my-time-nav";
 import { cancelLeave, requestLeave, type LeaveResult } from "@/app/actions/leave";
 import {
   LEAVE_LABEL,
@@ -189,24 +188,18 @@ export function MyLeave({
   const upcoming = requests.filter((r) => r.status === "pending" || r.status === "approved");
   const history = requests.filter((r) => r.status === "declined" || r.status === "cancelled");
 
-  return (
-    <div className="page in">
-      <div className="wrap">
-        {/* `wb2` for the board's tokens — see my-timesheet.tsx */}
-        <div className="stg wb2">
-          {/* The heading is just a heading now. "Request leave" used to float
-              here in the top-right corner, a whole page away from the list it
-              adds to — so it moved into that card's header, where the thing it
-              creates is already on screen. */}
-          <div className="v2head" style={{ marginBottom: 14, alignItems: "center" }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <h1 style={{ fontSize: 44, fontWeight: 800, letterSpacing: "-0.03em", margin: 0 }}>
-                My leave
-              </h1>
-            </div>
-          </div>
-          <MyTimeNav active="leave" />
+  /* THE FRAME IS THE LAYOUT'S — `.page`, `.wrap`, `.stg tpr wb2`, the heading
+     and the tab row all come from `(my-time)/layout.tsx`, which is what stops
+     a switch from Timesheet rebuilding them.
 
+     This screen used to write its own, and differently: a `.v2head` with a
+     44px `h1` inline and 14px beneath it, against the timesheet's `.rhead` with
+     a 38px one and 26px. Nothing chose those numbers — one page was written
+     after the other. The visible effect was that clicking Leave grew the title
+     and moved the tabs you had just pressed. It also lacked `tpr`, so anything
+     in this screen scoped to that root simply didn't apply here. */
+  return (
+    <>
           <div className="wb2-card tp-card">
             {error && <div className="tp-err">{error}</div>}
 
@@ -252,6 +245,32 @@ export function MyLeave({
             )}
           </div>
 
+          <div className="lv-cols">
+            <div className="lv-col">
+              {/* ONE WAY IN, ONE WAY OUT, and the form opens under the button
+                  that opens it. It used to render ABOVE `.lv-cols` — so
+                  pressing "Request leave", in a header most of the way down the
+                  card, made a calendar appear above the press and pushed the
+                  button itself out from under the cursor. And the header then
+                  said "Close" while the form said "Cancel": two controls, one
+                  job, opposite ends of the thing.
+
+                  While the form is open the trigger stands down; the form's own
+                  Cancel is the way back. */}
+              <div className="lv-ch act">
+                Your requests
+                {!open && (
+                  <button
+                    className="fl-btn tiny primary"
+                    onClick={() => setOpen(true)}
+                    disabled={pending}
+                    aria-expanded={false}
+                  >
+                    <Icon name="plus" size={13} />
+                    Request leave
+                  </button>
+                )}
+              </div>
           {open && (
             <div className="lv-form">
               <div className="lv-cal">
@@ -312,6 +331,8 @@ export function MyLeave({
                         }}
                       />
                     </label>
+                    {/* The placeholder IS the suggestion — leave it be and the
+                        span's own working days are what get booked. */}
                     <label className="mts-f">
                       <span>Hours</span>
                       <input
@@ -347,27 +368,6 @@ export function MyLeave({
               </div>
             </div>
           )}
-
-          <div className="lv-cols">
-            <div className="lv-col">
-              <div className="lv-ch act">
-                Your requests
-                <button
-                  className={`fl-btn tiny${open ? "" : " primary"}`}
-                  onClick={() => setOpen((v) => !v)}
-                  disabled={pending}
-                  aria-expanded={open}
-                >
-                  {open ? (
-                    "Close"
-                  ) : (
-                    <>
-                      <Icon name="plus" size={13} />
-                      Request leave
-                    </>
-                  )}
-                </button>
-              </div>
               {upcoming.length === 0 ? (
                 <div className="fl-hempty">Nothing booked. Request leave and it shows here.</div>
               ) : (
@@ -435,8 +435,6 @@ export function MyLeave({
               </div>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
+    </>
   );
 }

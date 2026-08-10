@@ -5,6 +5,7 @@ import {
   type DayEntry,
   type Settings,
   type WeekCtx,
+  DAY_WORD,
   dayClass,
   dowOf,
   isWeekendRate,
@@ -12,6 +13,12 @@ import {
   initials,
   nameHue,
 } from "./logic";
+
+/* `DAY_WORD` lives in logic.ts — beside the `DayClass` it is keyed on, and
+   reachable from the server, which this `"use client"` file is not. Re-exported
+   here because the components that draw a day are what most callers want it
+   from. */
+export { DAY_WORD } from "./logic";
 
 /* The Time & Pay day-language primitives, shared by the admin review screen
    and My timesheet so a colour can only ever mean one thing.
@@ -33,14 +40,17 @@ export function Avatar({ name }: { name: string }) {
   );
 }
 
-/** The hours line — the same words the mini tile puts in its tooltip. */
+/** The hours line — hours when there are hours, the state's word when there
+    aren't. A tile is 96px wide, so the long one gets its short form HERE
+    rather than in `DAY_WORD`: the map is what a state is CALLED, and a square
+    this size can't hold "Public holiday" whatever it is called. */
+const TILE_SHORT: Partial<Record<DayClass, string>> = { ph: "Pub hol" };
+
 function tileHours(d: DayEntry, cls: DayClass): string {
-  return cls === "empty" ? "—"
-    : cls === "miss" ? "Missing"
-    : cls === "leave" ? "Leave"
-    : cls === "sick" ? "Sick"
-    : cls === "ph" ? "Pub hol"
-    : fmt((d as { h: number }).h) + "h";
+  if (cls === "empty") return "—";
+  if (cls === "miss" || cls === "leave" || cls === "sick" || cls === "ph" || cls === "off")
+    return TILE_SHORT[cls] ?? DAY_WORD[cls];
+  return fmt((d as { h: number }).h) + "h";
 }
 
 export function Tile({
@@ -102,11 +112,8 @@ export function MiniTile({
      person sees on their own sheet. */
   const weekendRate = isWeekendRate(d, dowOf(ctx.week[i]), settings);
   const label =
-    cls === "empty" ? "No entry"
-    : cls === "miss" ? "Missing entry"
-    : cls === "leave" ? "Leave"
-    : cls === "sick" ? "Sick"
-    : cls === "ph" ? "Public holiday"
+    cls === "empty" || cls === "miss" || cls === "leave" || cls === "sick" || cls === "ph" || cls === "off"
+      ? DAY_WORD[cls]
     : fmt((d as { h: number }).h) +
       "h" +
       (weekendRate
@@ -123,20 +130,23 @@ export function MiniTile({
 /** [class, caption] — the class is the same one dayClass() returns. */
 export type LegendItem = readonly [DayClass, string];
 
-/** What the admin screen reads: every colour a reviewed day can take. */
-export const DAY_LEGEND: readonly LegendItem[] = [
-  ["std", "Standard"],
-  ["over", "Overtime"],
-  ["under", "Under day"],
-  ["leave", "Leave"],
-  ["sick", "Sick"],
-  ["ph", "Public hol"],
-  ["empty", "No entry"],
-];
+/* Every colour a day can take, in the order a week is read: the ordinary day
+   first, then the ones that need a look.
 
-/** Your own screen adds `miss`: on someone else's week it's a chase, on
-    yours it's the thing to click. */
-export const MY_DAY_LEGEND: readonly LegendItem[] = [...DAY_LEGEND, ["miss", "Missing"]];
+   ONE legend, both screens. There used to be two — and `miss` was in neither
+   the one that shipped: the admin list left it out, and the list that had it
+   (`MY_DAY_LEGEND`) was imported by nothing but its own test while
+   my-timesheet declared a third list inline. So a missing day drew a colour
+   the key underneath didn't explain, on both screens at once.
+
+   Derived from DAY_WORD rather than restating it, for the same reason the KB
+   categories are: a hand-written list beside a map is a list that falls one
+   entry behind it. */
+const LEGEND_ORDER = ["std", "over", "under", "leave", "sick", "ph", "off", "miss", "empty"] as const;
+
+export const DAY_LEGEND: readonly LegendItem[] = LEGEND_ORDER.map(
+  (k) => [k, DAY_WORD[k]] as LegendItem,
+);
 
 export function DayLegend({
   items = DAY_LEGEND,

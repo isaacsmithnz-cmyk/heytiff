@@ -21,6 +21,8 @@ import {
   splitDay,
   submitNote,
   weekGroups,
+  daysToCome,
+  issueHeading,
 } from "../logic";
 /* The prototype-parity roster. It used to live in mock/demo.ts; Stage 5 moved
    Time & Pay onto real tables and deleted that file's timepay fixtures, but
@@ -121,7 +123,9 @@ describe("derive — demo staff on default settings", () => {
     expect([d.normal, d.ot, d.ot2]).toEqual([40, 3.5, 2]);
     expect(d.weighted).toBe(40 + 3.5 * 1.5 + 2 * 2);
     expect(d.bullets).toContain("Sat 4 Jul — 4h at Saturday rates (2h @1.5×, then 2h @2×)");
-    expect(d.issueTitle).toBe("Overtime & double time to confirm");
+    /* Two kinds of issue, so the heading names both and drops the verb — see
+       `issueHeading`. Double time leads: it is the more expensive one. */
+    expect(d.issueTitle).toBe("Double time · Overtime");
   });
 
   it("Marcus and Dylan: clean 40h weeks are ready with no bullets", () => {
@@ -131,16 +135,28 @@ describe("derive — demo staff on default settings", () => {
     }
   });
 
-  it("Hannah: sick day flags review, paid in weighted hours", () => {
+  /* ALREADY DECIDED, SOMEWHERE ELSE. A timesheet cannot declare leave, so
+     every sick and leave day on a sheet came from an approved request — and
+     flagging it for review put a person in the approver's "Action required"
+     queue for having taken the day the business already said yes to. A public
+     holiday arrives the same way and never did. Both now behave like `ph`:
+     paid, drawn, counted, and summoning nobody. */
+  it("Hannah: a booked sick day pays without summoning the approver", () => {
     const d = byName["Hannah Cole"];
-    expect([d.status, d.sick, d.weighted]).toEqual(["review", 8, 40]);
-    expect(d.issueTitle).toBe("Sick leave to confirm");
+    expect([d.status, d.sick, d.weighted]).toEqual(["ready", 8, 40]);
+    expect(d.bullets).toContain("Thu 2 Jul — sick leave (8h paid), booked and approved in My leave");
+    expect(d.bullets.join(" ")).not.toMatch(/confirm|check/);
   });
 
-  it("Sophie: annual leave flags review", () => {
+  it("Sophie: annual leave does the same", () => {
     const d = byName["Sophie Tran"];
-    expect([d.status, d.leave]).toEqual(["review", 8]);
-    expect(d.issueTitle).toBe("Annual leave to confirm");
+    expect([d.status, d.leave]).toEqual(["ready", 8]);
+    expect(d.bullets).toContain("Fri 3 Jul — annual leave (8h), booked and approved in My leave");
+  });
+
+  it("still flags the things that DO need a decision", () => {
+    // overtime, a short day, a day marked not worked, a missing entry
+    expect(byName["Boston Hayes"].status).toBe("review");
   });
 });
 
@@ -264,10 +280,10 @@ describe("formatting helpers", () => {
   it("initials and rule summaries", () => {
     expect(initials("Boston Hayes")).toBe("BH");
     expect(ruleSummary({ on: true, rate: 2, up: null })).toBe("2× all day");
-    expect(ruleSummary({ on: true, rate: 1.5, up: 2 })).toBe("1.5× first 2h · then 2×");
+    expect(ruleSummary({ on: true, rate: 1.5, up: 2 })).toBe("1.5× first 2h, then 2×");
   });
   it("builds the live-period note from settings", () => {
-    expect(submitNote(DEFAULT_SETTINGS)).toBe("Open · auto-submits Sun 3:00 PM · then locks");
+    expect(submitNote(DEFAULT_SETTINGS)).toBe("Open · auto-submits Sun 3:00 PM, then locks");
     expect(submitNote({ ...DEFAULT_SETTINGS, lock: false })).toBe("Open · auto-submits Sun 3:00 PM");
   });
 });
@@ -487,9 +503,29 @@ describe("breakLine", () => {
   });
 
   it("says the minutes and whether they're paid", () => {
-    expect(breakLine(withBreak(30, false))).toBe("Break: 30 min · unpaid");
-    expect(breakLine(withBreak(30, true))).toBe("Break: 30 min · paid");
-    expect(breakLine(withBreak(30, false), 20)).toBe("Break: 20 min · unpaid");
+    expect(breakLine(withBreak(30, false))).toBe("30 min unpaid break");
+    expect(breakLine(withBreak(30, true))).toBe("30 min paid break");
+    expect(breakLine(withBreak(30, false), 20)).toBe("20 min unpaid break");
+  });
+
+  /* NO INTERIOR "·". The rules footnote joins its items with " · ", and this
+     string used to carry one of its own ("Break: 30 min · unpaid"), so the
+     footnote ran "30 min break · unpaid · Sat 1.5× first 2h · then 2×" with no
+     way to tell a divider from a continuation. Same reason `ruleSummary` uses
+     a comma. */
+  it("keeps the list separator out of the item", () => {
+    expect(breakLine(withBreak(30, false))).not.toContain("·");
+    expect(ruleSummary({ on: true, rate: 1.5, up: 2 })).not.toContain("·");
+    expect(submitNote({ ...DEFAULT_SETTINGS, lock: true }).replace(/^Open · /, "")).not.toContain(
+      "·",
+    );
+  });
+
+  /* A day whose break is recovered as zero — `seedBreakMinutes` reads it back
+     out of what was saved — used to render "Break: 0 min · unpaid": a payment
+     status for a break that isn't there. */
+  it("does not price a break of no minutes", () => {
+    expect(breakLine(withBreak(30, false), 0)).toBe("No break on this day");
   });
 });
 
@@ -682,5 +718,78 @@ describe("derive — a worked holiday reaches the approver", () => {
     expect(d.bullets.some((b) => /4h of night work/.test(b))).toBe(true);
     // the day is 8h — nothing is "over standard" here
     expect(d.bullets.some((b) => /over standard/.test(b))).toBe(false);
+  });
+});
+
+/* ---------------- the two guards added with the 2026-08 workflow review ---- */
+
+describe("daysToCome — what a Submit would freeze", () => {
+  /* Mon 29 Jun … Sun 5 Jul, the same shape every fixture in this file uses. */
+  const week: WeekDay[] = [
+    ["MON", 29, "Jun"],
+    ["TUE", 30, "Jun"],
+    ["WED", 1, "Jul"],
+    ["THU", 2, "Jul"],
+    ["FRI", 3, "Jul"],
+    ["SAT", 4, "Jul"],
+    ["SUN", 5, "Jul"],
+  ];
+  const MON_FRI = [0, 1, 2, 3, 4];
+
+  it("counts the working days still ahead — the reason Submit waits", () => {
+    // it is Wednesday: Mon and Tue are over, Thu and Fri are not
+    expect(daysToCome({ week, today: 2, through: 1, workDays: MON_FRI })).toBe(3);
+  });
+
+  it("ignores a weekend nobody was going to work", () => {
+    /* Saturday, with the whole working week behind us. Counting every day
+       would hold the button until Monday — by which time the Sunday
+       auto-submit has already sent the sheet, and the button never worked at
+       all. */
+    expect(daysToCome({ week, today: 5, through: 4, workDays: MON_FRI })).toBe(0);
+  });
+
+  it("holds a part-timer to THEIR days, not to Friday", () => {
+    // Mon/Tue/Thu: on Thursday evening (through = Wed) one is still ahead
+    expect(daysToCome({ week, today: 3, through: 2, workDays: [0, 1, 3] })).toBe(1);
+    // and once Thursday is over, nothing is
+    expect(daysToCome({ week, today: 4, through: 3, workDays: [0, 1, 3] })).toBe(0);
+  });
+
+  it("counts EVERY remaining day for a casual, who has no expected ones", () => {
+    /* An empty roster is what makes a casual a casual — nothing is presumed
+       onto their week. Read as "no expected days" it would mean nothing is
+       ever still to come, and their Submit would be as sharp as before. */
+    expect(daysToCome({ week, today: 2, through: 1, workDays: [] })).toBe(5);
+  });
+
+  it("is zero for a closed period — every day of it is over", () => {
+    expect(daysToCome({ week, today: 6, through: 6, workDays: MON_FRI })).toBe(0);
+  });
+});
+
+describe("issueHeading — the approver's one-line summary", () => {
+  const none = { missing: 0, off: 0, ot2: 0, ot: 0, under: 0, sick: 0, leave: 0 };
+
+  it("keeps the verb when there is one kind of issue", () => {
+    expect(issueHeading({ ...none, ot: 2 })).toBe("Overtime to confirm");
+    expect(issueHeading({ ...none, missing: 1 })).toBe("Missing entries to chase");
+  });
+
+  it("names every kind once there is more than one, and drops the verb", () => {
+    /* The bug this replaces: a week with one unlogged day and two overtime
+       days was headed "Missing entries to chase", which described a third of
+       the list underneath it. */
+    expect(issueHeading({ ...none, missing: 1, ot: 2 })).toBe("Missing entries · Overtime");
+  });
+
+  it("stops at three and counts the rest — a heading is a glance", () => {
+    expect(issueHeading({ ...none, missing: 1, off: 1, ot2: 1, ot: 1, sick: 1 })).toBe(
+      "Missing entries · Days not worked · Double time · +2",
+    );
+  });
+
+  it("falls back when a card is flagged for something uncounted", () => {
+    expect(issueHeading(none)).toBe("To confirm");
   });
 });

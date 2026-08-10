@@ -1499,6 +1499,11 @@
 .fg .tpr .bbtn.sq { width:50px; padding:0; justify-content:center; }
 .fg .tpr .bbtn.sq svg { opacity:.8; }
 .fg .tpr .bbtn.busy { pointer-events:none; }
+/* A held Submit still lifted on hover and still showed a pointer, which is a
+   button telling you it will do something it won't. */
+.fg .tpr .bbtn:disabled { cursor:default; }
+.fg .tpr .bbtn:disabled:hover { transform:none; box-shadow:0 1px 2px rgba(10,12,20,.04); border-color:rgba(10,12,20,.08); }
+.fg .tpr .bbtn.ink:disabled:hover { border-color:var(--ink); }
 .fg .tpr .bbtn.busy .sp { animation:tprSpin .8s linear infinite; }
 @keyframes tprSpin { to { transform:rotate(360deg); } }
 
@@ -1534,10 +1539,16 @@
 .fg .tpr .legend .sw { width:12px; height:12px; border-radius:4px; flex:0 0 auto; }
 .fg .tpr .legend .sw.std { background:rgba(34,197,94,.85); }
 .fg .tpr .legend .sw.over { background:var(--amber); }
-.fg .tpr .legend .sw.under { background:#FFDD57; }
+/* PINK, not the yellow this used to be. `under` sat at #FFDD57 next to `over`
+   at #F0A431 — two yellows a shade apart for "worked too long" and "worked too
+   little", the two states most worth telling apart — while my-timesheet drew
+   the same state pink. One colour, and it is the one that isn't already
+   overtime. */
+.fg .tpr .legend .sw.under { background:#f472b6; }
 .fg .tpr .legend .sw.leave { background:var(--blue); }
 .fg .tpr .legend .sw.sick { background:var(--red); }
 .fg .tpr .legend .sw.ph { background:var(--violet); }
+.fg .tpr .legend .sw.off { background:var(--gray400); }
 .fg .tpr .legend .sw.empty { background:#fff; border:1.5px dashed #cfd4dc; }
 
 /* ---------- section heading ---------- */
@@ -1639,10 +1650,14 @@
 .fg .tpr .tile .hh { font-family:var(--font); font-size:11px; font-weight:700; }
 .fg .tpr .tile.std { background:var(--teal); border-color:var(--teal); color:#053b34; }
 .fg .tpr .tile.over { background:var(--amber); border-color:var(--amber); color:#4a2e05; }
-.fg .tpr .tile.under { background:#FFDD57; border-color:#FFDD57; color:#6b5300; }
+.fg .tpr .tile.under { background:#f472b6; border-color:#f472b6; color:#4d0929; }
 .fg .tpr .tile.leave { background:var(--blue); border-color:var(--blue); color:#fff; }
 .fg .tpr .tile.sick { background:var(--red); border-color:var(--red); color:#fff; }
 .fg .tpr .tile.ph { background:var(--violet); border-color:var(--violet); color:#fff; }
+/* A day someone said they did NOT work. It had no rule at all, so it drew as
+   a transparent tile with a "—h" where its hours would be — the one state on
+   this screen that most needs to be seen, rendered as an absence of one. */
+.fg .tpr .tile.off { background:var(--gray400); border-color:var(--gray400); color:#fff; }
 .fg .tpr .tile.empty { background:#e7e9ef; border:1.5px solid #dcdfe6; color:#8f96a3; }
 .fg .tpr .tile.miss { background:#fff; border:2px dashed var(--red); color:var(--red-d); }
 .fg .tpr .tile.miss .hh { color:var(--red-d); font-weight:800; }
@@ -1715,10 +1730,11 @@
 .fg .tpr .crow .mt { flex:1 1 0; min-width:0; height:36px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-family:var(--font); font-size:11.5px; font-weight:700; }
 .fg .tpr .crow .mt.std { background:var(--teal); }
 .fg .tpr .crow .mt.over { background:var(--amber); }
-.fg .tpr .crow .mt.under { background:#FFDD57; }
+.fg .tpr .crow .mt.under { background:#f472b6; }
 .fg .tpr .crow .mt.leave { background:var(--blue); }
 .fg .tpr .crow .mt.sick { background:var(--red); }
 .fg .tpr .crow .mt.ph { background:var(--violet); }
+.fg .tpr .crow .mt.off { background:var(--gray400); }
 .fg .tpr .crow .mt.empty { background:#e7e9ef; }
 .fg .tpr .crow .mt.today { box-shadow:inset 0 0 0 2px var(--ink); }
 .fg .tpr .crow .rt { width:74px; flex:0 0 auto; text-align:right; font-family:var(--font); margin-left:6px; }
@@ -1834,6 +1850,17 @@
 .fg .tpr .wz-menu .ms:first-child { border-top:none; }
 .fg .tpr .wz-menu .ms-l { font-size:11.5px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--gray400); margin-bottom:11px; }
 .fg .tpr .wz-menu .ms-p { font-size:13px; font-weight:600; color:var(--gray500); line-height:1.55; margin:0 0 12px; text-wrap:pretty; }
+/* A rung of the overtime ladder: its own plain-language label above the
+   stepper it belongs to. Replaces `.wz-or` for this, which was tracked
+   uppercase and read as a section divider rather than a field label — see
+   overtimeControls in settings.tsx. */
+.fg .tpr .ms-rung + .ms-rung { margin-top:14px; padding-top:14px; border-top:1px solid #f0f0f2; }
+.fg .tpr .ms-rungl { display:block; font-size:12.5px; font-weight:700; color:var(--gray700); text-align:center; }
+.fg .tpr .wz-menu .ms-rungl { text-align:left; }
+.fg .tpr .ms-rung .ms-p { margin:6px 0 0; }
+/* Says a thing isn't built yet, in the voice of a note rather than an error. */
+.fg .tpr .ms-soon { display:flex; align-items:flex-start; gap:8px; color:var(--gray400); }
+.fg .tpr .ms-soon svg { flex:0 0 auto; margin-top:2px; }
 
 /* folding sections (public holidays, Xero payroll) — a row you press, sitting
    below the pay settings rather than on top of them. Titled in sentence case,
@@ -2302,6 +2329,10 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .lv-balempty, .fg .lv-declined, .fg .lv-pnote { font-size:12.5px; font-weight:600; color:var(--gray500); }
 .fg .lv-declined { display:block; color:var(--red-d,#e0264f); margin-top:3px; }
 .fg .lv-form { padding:16px 18px; border-radius:16px; background:rgba(5,5,5,.03); border:1px solid rgba(10,12,20,.05); margin-bottom:22px; }
+/* IN THE COLUMN IT BELONGS TO. The form lives inside the requests card now,
+   directly under the button that opens it, so it squares its own corners into
+   that card rather than floating as a rounded block above the whole thing. */
+.fg .lv-col .lv-form { margin:0; border:0; border-bottom:1px solid rgba(10,11,16,.06); border-radius:0; }
 .fg .lv-frow { display:flex; flex-wrap:wrap; gap:12px; }
 .fg .lv-fnote { margin-top:12px; display:flex; }
 .fg .lv-form .mts-f input, .fg .lv-form .mts-f select { height:38px; padding:0 11px; border-radius:11px; border:1px solid rgba(10,11,16,.14); background:#fff; font-family:var(--font); font-size:13.5px; font-weight:600; color:var(--ink); }
@@ -2583,9 +2614,8 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    red), because a colour has to mean the same thing here as it does on the
    approver's screen — only the shape changed, from solid tiles to pills.
 
-   `.legend .sw.miss` stays below: `MY_DAY_LEGEND` is still an exported
-   primitive with its own test, and this is the one class the shared legend
-   can't style without it. */
+   `.legend .sw.miss` stays below — it is now reached by both screens, since
+   this one renders the shared `<DayLegend/>` too. */
 .fg .tpr .legend .sw.miss { background:#fff; border:2px dashed var(--red); }
 
 /* two columns, main + rail; one column on a phone */
@@ -2668,7 +2698,15 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .mts2-tab.leave { --dc:#2e68ff; --dt:rgba(46,104,255,.09); }
 .fg .mts2-tab.sick { --dc:#e0264f; --dt:rgba(255,51,102,.08); }
 .fg .mts2-tab.ph { --dc:#8a2be2; --dt:rgba(138,43,226,.09); }
+/* MISSING IS NOT SICK, and it used to be exactly the same red bar. Both drew
+   #e0264f, so an unlogged Tuesday and a sick day were one colour — and the
+   legend underneath named only one of them, so the honest reading of a red bar
+   was "Sick". The approver's screen had this right all along: its `.tile.miss`
+   is a DASHED outline, because nothing is there. The bar borrows the same
+   idea — same red, broken stroke — so the two are told apart by shape at a
+   glance and the legend swatch (`.legend .sw.miss`) matches. */
 .fg .mts2-tab.miss { --dc:#e0264f; --dt:rgba(255,51,102,.08); }
+.fg .mts2-tab.miss .cbar { background:repeating-linear-gradient(90deg, var(--dc) 0 5px, transparent 5px 9px); }
 .fg .mts2-tab.off { --dc:var(--gray400); --dt:rgba(120,126,140,.1); }
 .fg .mts2-tab.empty { --dc:#e3e5ea; --dt:rgba(227,229,234,.3); }
 
@@ -2703,18 +2741,15 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .mts2-phead { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:14px 15px 0; }
 .fg .mts2-pd { font-size:15px; font-weight:800; letter-spacing:-.02em; color:var(--ink); }
 
-/* ---- the legend ---- */
-.fg .mts2-legend { display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:16px; }
-.fg .mts2-lg { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:var(--gray500); }
-.fg .mts2-lg i { width:9px; height:9px; border-radius:3px; }
-.fg .mts2-lg i.std { background:var(--teal-d); }
-.fg .mts2-lg i.over { background:#f0a431; }
-.fg .mts2-lg i.under { background:#f472b6; }
-.fg .mts2-lg i.leave { background:#2e68ff; }
-.fg .mts2-lg i.sick { background:#e0264f; }
-.fg .mts2-lg i.ph { background:#8a2be2; }
-.fg .mts2-lg i.off { background:var(--gray400); }
-.fg .mts2-lg i.empty { background:#e3e5ea; }
+/* ---- the legend ----
+   `.mts2-legend`/`.mts2-lg` are GONE: this screen renders the shared
+   `<DayLegend/>` now, which is `.legend`/`.lg`/`.sw` and is already styled
+   under `.fg .tpr` above — and this screen's root carries `tpr`. The private
+   block that used to live here was a second set of swatches for the same nine
+   states, which is how `under` ended up pink here and yellow there. It sits at
+   the FOOT of this screen rather than the head of the approver's, so only the
+   spacing is restated. */
+.fg .mts2 .mts2-main > .legend { margin:18px 0 0; }
 
 /* the kind pill — the `.tpr` day palette, restated as a tinted pill */
 .fg .mts2-pill { display:inline-flex; align-items:center; height:24px; padding:0 10px; border-radius:999px; font-size:11px; font-weight:800; letter-spacing:-.01em; white-space:nowrap; }
@@ -2745,6 +2780,13 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .mts2-elock b { display:block; font-size:13.5px; font-weight:800; color:var(--ink); }
 .fg .mts2-elock em { display:block; margin-top:2px; font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
 /* the one way out of a read-only holiday: only the person knows they worked it */
+/* Why Save is dark: an empty day opens with neither answer chosen, and the
+   button that would write it has to say what it is waiting for. */
+.fg .mts2-ehint { align-self:center; font-size:12px; font-weight:600; color:var(--gray500); }
+/* The salaried "this day ran long" button sits directly in the panel, which
+   carries no padding of its own — `.mts2-elock` and `.mts2-edit` bring their
+   own insets, so a bare child lands flush against both edges. */
+.fg .mts2-panel > .mts2-ph-worked { margin:0 14px 14px; }
 .fg .mts2-ph-worked { margin-top:10px; height:34px; padding:0 14px; border:1px solid #ececf0; border-radius:11px; background:#fff; font-size:12.5px; font-weight:800; color:var(--gray700); transition:all .16s; }
 .fg .mts2-ph-worked:hover:not(:disabled) { border-color:var(--gray300); color:var(--ink); }
 .fg .mts2-ph-worked:disabled { opacity:.5; cursor:default; }
@@ -2759,7 +2801,12 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .mts2-brkstep { display:inline-flex; align-items:center; gap:2px; border:1px solid #ececf0; border-radius:11px; padding:2px; }
 .fg .mts2-brkstep button { width:26px; height:26px; border-radius:9px; font-size:15px; font-weight:800; color:var(--gray500); }
 .fg .mts2-brkstep button:hover { background:#f4f5f7; color:var(--ink); }
-.fg .mts2-brkstep b { min-width:30px; text-align:center; font-size:12.5px; font-weight:800; font-variant-numeric:tabular-nums; }
+.fg .mts2-brkstep b { min-width:48px; text-align:center; font-size:12.5px; font-weight:800; font-variant-numeric:tabular-nums; }
+.fg .mts2-brkstep b em { font-style:normal; font-weight:700; color:var(--gray400); }
+/* Why the two totals above it disagree — see the rail in my-timesheet.tsx. */
+.fg .mts2-gap { display:flex; align-items:flex-start; gap:7px; margin-top:10px; font-size:12px; font-weight:600; line-height:1.5; color:var(--gray500); }
+.fg .mts2-gap svg { flex:0 0 auto; margin-top:2px; color:var(--gray400); }
+.fg .mts2-gap b { font-weight:800; color:var(--gray700); }
 /* the derived hours — this line IS the hours field */
 .fg .mts2-derv { display:flex; align-items:center; gap:8px; margin-top:13px; padding:10px 13px; border-radius:13px; background:rgba(34,197,94,.07); color:var(--gray700); font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; }
 .fg .mts2-derv b { font-size:14px; font-weight:800; color:var(--ink); }
@@ -3099,7 +3146,14 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    shape on a calendar — which days, how many of them, and which ones the
    public holidays give back — and none of that reads off two date fields. The
    fields stay beside it as the exact answer, and edit the same two dates. */
+/* Calendar beside fields when there is room for both. Inside `.lv-col` there
+   never is — that column is 1.4fr of a two-column grid — so it stacks, which is
+   the same shape the narrow-viewport rule below already defines. Stated by
+   CONTAINER rather than by viewport: the form moved into the column at every
+   width, so a media query would have missed it on a wide screen. */
 .fg .lv-cal { display:grid; grid-template-columns:300px minmax(0,1fr); gap:20px; align-items:start; }
+.fg .lv-col .lv-cal { grid-template-columns:minmax(0,1fr); }
+.fg .lv-col .lv-calside { max-width:340px; }
 .fg .lv-calside .cal { padding:12px 13px 13px; border-radius:14px; background:#fff; border:1px solid rgba(10,11,16,.08); }
 .fg .lv-callegend { display:flex; align-items:center; gap:7px; margin:9px 2px 0; font-size:11.5px; font-weight:600; color:var(--gray500); }
 .fg .lv-legdot { width:8px; height:8px; border-radius:50%; flex:0 0 auto; }
@@ -3107,7 +3161,16 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .lv-calhint { margin:4px 2px 0; font-size:11.5px; font-weight:600; color:var(--gray400); }
 .fg .lv-calfields { display:flex; flex-direction:column; gap:12px; }
 .fg .lv-calfields .lv-fnote { margin-top:0; }
-.fg .lv-cal .mts-f { flex:1 1 130px; }
+/* THE LEAVE FORM'S row is a GRID, not a wrapping flex row — and only this one:
+   `.lv-frow` is shared with the holiday manager and the home tasks card.
+
+   Four fields whose grow-basis was 130px but whose CONTENTS (a select, two
+   date buttons) refuse to shrink below ~160, so three filled the line and
+   Hours dropped to one of its own — stretched across the whole form for a
+   three-character number. Even tracks put all four on one line and give the
+   number the same width as everything else. */
+.fg .lv-calfields .lv-frow { display:grid; grid-template-columns:repeat(auto-fit,minmax(132px,1fr)); gap:12px; }
+.fg .lv-cal .mts-f { min-width:0; }
 @media (max-width:860px){
   .fg .lv-cal { grid-template-columns:minmax(0,1fr); }
   .fg .lv-calside { max-width:340px; }

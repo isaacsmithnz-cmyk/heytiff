@@ -6,11 +6,9 @@ import { Icon } from "@/components/shell/icon";
 import { DateField } from "@/components/ui/date-field";
 import { TimeWheel } from "@/components/ui/time-wheel";
 import { type RateRule, type Settings, fmtHval, ruleSummary } from "./logic";
-import type { PayPeriod } from "./timepay";
 
 /* Pay-settings modal: a 7-step wizard on first run, then a flat menu with the
-   same controls plus the pay-run PDF export. Edits happen on a draft; nothing
-   applies until Save. */
+   same controls. Edits happen on a draft; nothing applies until Save. */
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const TIMES = (() => {
@@ -46,7 +44,6 @@ function Toggle({ on, label, onFlip }: { on: boolean; label: string; onFlip: () 
 export function TimePaySettings({
   settings,
   firstRun,
-  period,
   canPay,
   holidaySection,
   xeroSection,
@@ -55,7 +52,6 @@ export function TimePaySettings({
 }: {
   settings: Settings;
   firstRun: boolean;
-  period: PayPeriod;
   /** `financials` — gates every pay control, the wizard and Save */
   canPay: boolean;
   /** admin+ public-holiday manager, or null when the viewer isn't one */
@@ -71,7 +67,6 @@ export function TimePaySettings({
   // an admin without `financials` only ever sees the menu (holidays live there)
   const [mode, setMode] = useState<"wizard" | "menu">(firstRun && canPay ? "wizard" : "menu");
   const [step, setStep] = useState(0);
-  const [exporting, setExporting] = useState(false);
   /* At most one of the two folding sections is open, so the menu can't grow
      into two long lists at once — and the one you opened stays where you can
      see it. Nothing is open on arrival: pay settings are what this modal is
@@ -172,6 +167,33 @@ export function TimePaySettings({
     </div>
   );
 
+  /* THE WHOLE LADDER, IN ONE PLACE. `otAfter` was its own section; `dblAfter`
+     — the rung directly above it — sat at the bottom of "Weekend & holiday
+     rates", below the night-shift row, behind a label reading "AND ON ANY DAY
+     — 2× AFTER A LONG DAY OF" in tracked caps. But `dblAfter` is not a weekend
+     rule at all: `splitDay` gives a Saturday or a public holiday its own rate
+     for the WHOLE day and never reaches the ladder, so the only day this
+     number ever applies to is an ordinary weekday — the same day the setting
+     two sections above it is about. One question, asked in two places, one of
+     them the wrong place. */
+  const overtimeControls = (
+    <>
+      <div className="ms-rung">
+        <span className="ms-rungl">Time and a half after</span>
+        {stepper("otAfter")}
+        {unitPills("ctr")}
+      </div>
+      <div className="ms-rung">
+        <span className="ms-rungl">Then double time after</span>
+        {stepper("dblAfter")}
+        <p className="ms-p">
+          Both count an ordinary weekday. A Saturday, Sunday or public holiday takes its own rate
+          for the whole day and never reaches this ladder.
+        </p>
+      </div>
+    </>
+  );
+
   const ruleRows = (
     <>
       {RULE_DEFS.map(([k, name, hint]) => {
@@ -201,7 +223,13 @@ export function TimePaySettings({
                     </button>
                   ))}
                 </div>
-                {rl.rate === 1.5 ? (
+                {/* Only the 1.5× branch has a follow-up question. The 2×
+                    branch used to render "all day" in the CONTROL row, in the
+                    same style as the "then 2× after" label beside a stepper —
+                    so it read as a field that had been disabled, when it is
+                    just the absence of a second rung. The row's own summary
+                    already says "2× all day". */}
+                {rl.rate === 1.5 && (
                   <>
                     <span className="rl-then">then 2× after</span>
                     <span className="rl-step">
@@ -210,8 +238,6 @@ export function TimePaySettings({
                       <button aria-label="More" onClick={() => patchRule(k, { up: Math.min(8, (rl.up || 2) + 0.5) })}>+</button>
                     </span>
                   </>
-                ) : (
-                  <span className="rl-then">all day</span>
                 )}
               </div>
             )}
@@ -225,20 +251,15 @@ export function TimePaySettings({
      an eighth would push a decision most workspaces don't have to make into
      everyone's setup. The default (0 minutes, paid) is "no break configured",
      which is what the wizard would have chosen anyway. */
+  /* HOW LONG FIRST, THEN WHETHER IT'S PAID. The order was the other way
+     around, so a workspace with no break configured was asked whether a break
+     of zero minutes was paid or unpaid — above a stepper reading "No standard
+     break", under a note explaining what happens "when unpaid". Three controls
+     describing something that doesn't exist. The second question only means
+     anything once the first has an answer. */
   const breakControls = (
     <>
-      <div className="wz-pills sm">
-        {([[true, "Paid"], [false, "Unpaid"]] as const).map(([paid, label]) => (
-          <button
-            key={label}
-            className={`wz-pill${draft.breakPaid === paid ? " on" : ""}`}
-            onClick={() => patch({ breakPaid: paid })}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      <div className="wz-step" style={{ marginTop: 10 }}>
+      <div className="wz-step">
         <button
           className="wz-sbtn"
           aria-label="Shorter break"
@@ -257,9 +278,31 @@ export function TimePaySettings({
           +
         </button>
       </div>
-      <p className="ms-p">
-        Deducted from worked hours when unpaid. Staff can adjust a day&rsquo;s break when logging it.
-      </p>
+      {draft.breakMinutes > 0 ? (
+        <>
+          <div className="wz-pills sm" style={{ marginTop: 10 }}>
+            {([[true, "Paid"], [false, "Unpaid"]] as const).map(([paid, label]) => (
+              <button
+                key={label}
+                className={`wz-pill${draft.breakPaid === paid ? " on" : ""}`}
+                onClick={() => patch({ breakPaid: paid })}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="ms-p">
+            {draft.breakPaid
+              ? "A paid break is on the clock — nothing comes off the day, and there is nothing for anyone to adjust."
+              : "Comes off worked hours. Staff can adjust a day’s break when logging it."}
+          </p>
+        </>
+      ) : (
+        <p className="ms-p">
+          Nothing comes off anyone&rsquo;s day. Set a length above if your workspace has a standard
+          break.
+        </p>
+      )}
     </>
   );
 
@@ -285,7 +328,11 @@ export function TimePaySettings({
         />
       </div>
       <div className="wz-dow" role="group" aria-label="Normal working days">
-        {["M", "T", "W", "T", "F", "S", "S"].map((l, i) => (
+        {/* TWO LETTERS, not one. "M T W T F S S" has two Ts and two Ss, so
+            which one you are pressing is a matter of counting across from the
+            left — on the control that decides which days get filled in for
+            every person in the workspace. */}
+        {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((l, i) => (
           <button
             key={i}
             className={`wz-dowb${draft.workDays.includes(i) ? " on" : ""}`}
@@ -307,6 +354,26 @@ export function TimePaySettings({
         These days are filled in with these hours automatically. Anyone whose week is different —
         a part-timer, an early start — can set their own from their timesheet. Casuals are never
         filled in: every day of theirs is entered by hand.
+      </p>
+    </>
+  );
+
+  /* WHAT THE LOCK ACTUALLY DOES, said out loud. It was a bare toggle, and it
+     is the most consequential switch in this modal: with it on, a submitted
+     timesheet cannot be touched by the person who submitted it, and the only
+     way back is a manager sending it back. Somebody turning it on deserves to
+     know they are the recovery path. */
+  const lockControls = (
+    <>
+      <Toggle
+        on={draft.lock}
+        label="Lock timesheets once submitted"
+        onFlip={() => patch({ lock: !draft.lock })}
+      />
+      <p className="ms-p" style={{ margin: "10px 0 0" }}>
+        {draft.lock
+          ? "Once someone submits, only sending their sheet back reopens it — so a correction has to come through you."
+          : "Staff can keep correcting a submitted sheet until the period closes. You'll see the changes when you review it."}
       </p>
     </>
   );
@@ -335,12 +402,6 @@ export function TimePaySettings({
       </div>
     </div>
   );
-
-  const fakeExport = () => {
-    if (exporting) return;
-    setExporting(true);
-    setTimeout(() => setExporting(false), 1800);
-  };
 
   const steps: { t: string; s: string; body: React.ReactNode }[] = [
     {
@@ -383,24 +444,13 @@ export function TimePaySettings({
     },
     {
       t: "Overtime",
-      s: "Hours beyond this earn time and a half.",
-      body: (
-        <>
-          {stepper("otAfter")}
-          {unitPills("ctr")}
-        </>
-      ),
+      s: "The two rungs of an ordinary weekday: time and a half past the first, double time past the second.",
+      body: overtimeControls,
     },
     {
       t: "Weekend & holiday rates",
       s: "Set when higher rates kick in for each day type — e.g. Saturdays pay 1.5× for the first two hours, then double time.",
-      body: (
-        <>
-          {ruleRows}
-          <div className="wz-or">and on any day — 2× after a long day of</div>
-          {stepper("dblAfter")}
-        </>
-      ),
+      body: ruleRows,
     },
     {
       t: "Auto-submit",
@@ -408,7 +458,7 @@ export function TimePaySettings({
       body: (
         <>
           {submitPicker}
-          <Toggle on={draft.lock} label="Lock timesheets once submitted" onFlip={() => patch({ lock: !draft.lock })} />
+          {lockControls}
         </>
       ),
     },
@@ -421,7 +471,16 @@ export function TimePaySettings({
             ["Pay cycle", draft.cycle, 0],
             ["Week starts on", draft.weekStart, 1],
             ["Standard day", fmtHval(draft.standard), 2],
-            ["Overtime", "After " + fmtHval(draft.otAfter) + " / " + (draft.otUnit === "week" ? "week" : "day"), 3],
+            [
+              "Overtime",
+              "1.5× after " +
+                fmtHval(draft.otAfter) +
+                " / " +
+                (draft.otUnit === "week" ? "week" : "day") +
+                " · 2× after " +
+                fmtHval(draft.dblAfter),
+              3,
+            ],
             [
               "Higher rates",
               RULE_DEFS.filter(([k]) => draft.rules[k].on)
@@ -431,10 +490,7 @@ export function TimePaySettings({
                     " " +
                     (draft.rules[k].rate === 2 ? "2×" : "1.5×→2×")
                 )
-                .join(" · ") +
-                " · " +
-                fmtHval(draft.dblAfter) +
-                "+ 2×",
+                .join(" · "),
               4,
             ],
             ["Auto-submit", draft.submitDay + " " + draft.submitTime + (draft.lock ? " · locks" : ""), 5],
@@ -599,21 +655,8 @@ export function TimePaySettings({
               {menuSection("Standard working day", stepper("standard"))}
               {menuSection("Normal hours & days", normalHoursControls)}
               {menuSection("Breaks", breakControls)}
-              {menuSection(
-                "Overtime after",
-                <>
-                  {stepper("otAfter")}
-                  <div style={{ marginTop: 10 }}>{unitPills()}</div>
-                </>
-              )}
-              {menuSection(
-                "Weekend & holiday rates",
-                <>
-                  {ruleRows}
-                  <div className="wz-or">and on any day — 2× after a long day of</div>
-                  {stepper("dblAfter")}
-                </>
-              )}
+              {menuSection("Overtime", overtimeControls)}
+              {menuSection("Weekend & holiday rates", ruleRows)}
               {menuSection("Superannuation guarantee", superStepper())}
               {menuSection(
                 "Salaried overtime",
@@ -638,11 +681,28 @@ export function TimePaySettings({
                 "Auto-submit",
                 <>
                   {submitPicker}
-                  <Toggle on={draft.lock} label="Lock timesheets once submitted" onFlip={() => patch({ lock: !draft.lock })} />
+                  {lockControls}
                 </>
               )}
+              {/* THE EXPORT DOES NOT EXIST YET, and the button no longer
+                  pretends otherwise.
+
+                  The review that reached this section came to move it OUT of
+                  the gear — an export is an action about the period you are
+                  looking at, and nobody hunts for one behind a control labelled
+                  "Pay settings". Reading the handler is what changed the
+                  answer: `fakeExport` set a spinner for 1.8 seconds and
+                  produced nothing. There is no PDF anywhere in the codebase.
+
+                  So a person pressed "Export 29 Jun – 5 Jul (PDF)", watched
+                  "Generating…", and got no file — which reads as a failed
+                  download or a blocked popup, not as a feature that was never
+                  built. Making that MORE discoverable would have been the
+                  worse change. It says what it is until there is something to
+                  press, and `exportDetail` stays a live preference so the
+                  choice survives to whenever that is. */}
               {menuSection(
-                "Export pay run",
+                "Pay run export",
                 <>
                   <p className="ms-p">
                     One PDF per pay period — a line per person with hours by rate (1× · 1.5× · 2×), sick, leave and
@@ -653,25 +713,11 @@ export function TimePaySettings({
                     label="Include daily breakdown per person"
                     onFlip={() => patch({ exportDetail: !draft.exportDetail })}
                   />
-                  <button
-                    className={`bbtn ink${exporting ? " busy" : ""}`}
-                    style={{ width: "100%", justifyContent: "center", height: 52 }}
-                    onClick={fakeExport}
-                  >
-                    {exporting ? (
-                      <>
-                        <span className="sp" style={{ display: "inline-flex" }}>
-                          <Icon name="activity" size={16} />
-                        </span>
-                        Generating…
-                      </>
-                    ) : (
-                      <>
-                        <Icon name="download" size={16} />
-                        Export {period.range} {period.year} (PDF)
-                      </>
-                    )}
-                  </button>
+                  <p className="ms-p ms-soon" style={{ margin: "12px 0 0" }}>
+                    <Icon name="clock" size={14} />
+                    Not built yet — there&rsquo;s nothing to download from here so far. Your choice above is
+                    saved and will apply to the first export.
+                  </p>
                 </>
               )}
                 </>
@@ -708,7 +754,7 @@ export function TimePaySettings({
                   }}
                 >
                   <Icon name="sync" size={14} />
-                  Re-run setup
+                  Step through setup
                 </button>
               )}
               <span className="spx"></span>

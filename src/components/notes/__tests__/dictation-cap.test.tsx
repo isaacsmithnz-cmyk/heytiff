@@ -7,6 +7,7 @@ import {
   DictClock,
   MAX_RECORDING_SECONDS,
   remainingOf,
+  saidSomething,
   useDictation,
 } from "../dictation";
 
@@ -360,5 +361,126 @@ describe("handing a recording over to the keyboard", () => {
     await act(async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); });
 
     expect(onTranscript.mock.calls[1]?.[1]).toEqual({ capped: false, handedOver: false });
+  });
+});
+
+/* ── A MIS-TAP IS NOT A RECORDING ──
+
+   The sheet opens listening, so "I meant to type" is a normal thing to
+   press Type on a second later. Live-walked 2026-08-10: that uploaded the
+   silence, held the card on "Reading it back" for two and a half seconds,
+   and dropped the transcriber's own noise label — "[outro jingle]" — into
+   the box as if it were words.
+
+   This is the highest-risk code in the file, because the fix DELETES AUDIO.
+   The rule it must obey is not "discard silence" but "discard only what we
+   are confident is silence", and the confidence comes from the level meter
+   — which is an enhancement that can fail to start. These pin both halves. */
+class FakeAnalyser {
+  fftSize = 256;
+  frequencyBinCount = 128;
+  constructor(private level: number) {}
+  connect() {}
+  getByteTimeDomainData(out: Uint8Array) {
+    out.fill(128 + Math.round(this.level * 127));
+  }
+}
+
+/** A meter that hears `level` on every frame (0 = silence, 1 = shouting). */
+const withMeter = (level: number) => {
+  (globalThis as unknown as { AudioContext: unknown }).AudioContext = class {
+    createAnalyser() { return new FakeAnalyser(level); }
+    createMediaStreamSource() { return { connect: () => {} }; }
+    close() { return Promise.resolve(); }
+  };
+};
+
+describe("pressing Type without having said anything", () => {
+  afterEach(() => {
+    delete (globalThis as unknown as { AudioContext?: unknown }).AudioContext;
+  });
+
+  it("bins the clip unsent — no upload, nothing for the box", async () => {
+    withMeter(0);
+    const onTranscript = jest.fn();
+    render(<Probe onTranscript={onTranscript} />);
+    screen.getByText("start").click();
+    await settle();
+    await tick(2); // let the meter run some frames
+
+    screen.getByText("handover").click();
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); });
+
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(onTranscript).not.toHaveBeenCalled();
+  });
+
+  /* Silence is silent. A chime says something was kept or thrown away, and
+     from where the person stands they only changed how they were starting. */
+  it("says nothing about it", async () => {
+    withMeter(0);
+    render(<Probe onTranscript={jest.fn()} />);
+    screen.getByText("start").click();
+    await settle();
+    mockChime.mockClear();
+    await tick(2);
+
+    screen.getByText("handover").click();
+    await act(async () => { await Promise.resolve(); });
+    expect(mockChime).not.toHaveBeenCalled();
+  });
+
+  it("keeps the words the moment the meter DID hear a voice", async () => {
+    withMeter(0.9);
+    const onTranscript = jest.fn();
+    render(<Probe onTranscript={onTranscript} />);
+    screen.getByText("start").click();
+    await settle();
+    await tick(2);
+
+    screen.getByText("handover").click();
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); });
+
+    expect(onTranscript).toHaveBeenCalledWith("compressor is noisy on start-up", {
+      capped: false,
+      handedOver: true,
+    });
+  });
+
+  /* THE HALF THAT MATTERS MOST. No AudioContext means no meter, which means
+     no evidence either way — and "we don't know" must never resolve to
+     "throw the recording away". Every browser where the meter fails to
+     start would otherwise silently bin real speech. */
+  it("keeps it when there was no meter to judge with", async () => {
+    // no withMeter() — AudioContext is absent, exactly as in jsdom
+    const onTranscript = jest.fn();
+    render(<Probe onTranscript={onTranscript} />);
+    screen.getByText("start").click();
+    await settle();
+    await tick(2);
+
+    screen.getByText("handover").click();
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); });
+
+    expect(onTranscript).toHaveBeenCalledWith("compressor is noisy on start-up", {
+      capped: false,
+      handedOver: true,
+    });
+  });
+});
+
+/* ── NON-SPEECH IS NOT SPEECH ──
+   Scribe labels what it could not turn into words, and those labels used to
+   sail straight through as a transcript. */
+describe("saidSomething", () => {
+  it("rejects a clip that is nothing but a label", () => {
+    for (const junk of ["[outro jingle]", "(music)", "[BLANK_AUDIO]", " [silence] ", ""]) {
+      expect(saidSomething(junk)).toBe(false);
+    }
+  });
+
+  it("keeps a real sentence, labels and all", () => {
+    expect(saidSomething("order the grilles")).toBe(true);
+    expect(saidSomething("[cough] order the grilles")).toBe(true);
   });
 });

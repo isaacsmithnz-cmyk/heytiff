@@ -4679,6 +4679,12 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 /* The hint stays centred under the meter — it is a status line and belongs
    with the bars. The transcript is not, which is why it stretches instead. */
 .wb2-caprec .wb2-hint { text-align:center; max-width:44ch; }
+/* Nor is the actions row: this column CENTRES and shrink-wraps its
+   children, so the row was only as wide as its buttons and the Default
+   switch's `margin-right:auto` had nothing to push against — it sat
+   hard against Stop & read instead of holding the left like it does
+   everywhere else. */
+.wb2-caprec .wb2-capact { align-self:stretch; }
 /* The live transcript, and it must read as WORDS, not as a status line —
    it is what the person is checking while they talk. Top-level, never
    nested under .fg: this card is portalled to body, where a .fg rule is
@@ -6238,11 +6244,45 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   border-color:rgba(255,255,255,.14); }
 .wb2-capcard.wb2-dusk .pbtn.ghost:hover:not(:disabled) { background:rgba(255,255,255,.12);
   border-color:rgba(255,255,255,.22); color:#fff; }
-/* Talk holds the left of the row so it does not MOVE. `Sort this out` now
-   arrives only once there are words, and with everything flush right the
-   Talk button slid sideways the moment you started typing — a control
-   shifting under the cursor as a side effect of another one appearing. */
-.wb2-capact .pbtn.wb2-talk { margin-right:auto; }
+/* ── THE DEFAULT SWITCH ──
+   Says what the Tiff button will do next time, and switches it. It holds
+   the left of the row so it does not MOVE: `Sort this out` now arrives only
+   once there are words, and with everything flush right the switch would
+   slide sideways the moment you started typing.
+
+   Top-level, no `.fg` scope and no var() — this rides the portalled card,
+   where `.fg`'s custom properties are absent rather than outranked. */
+.wb2-modesw { display:inline-flex; align-items:center; gap:9px; margin-right:auto; }
+.wb2-modelbl { font-size:11px; font-weight:800; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--gray500, #6b7280); white-space:nowrap; }
+.wb2-modeseg { position:relative; display:inline-flex; padding:3px; border-radius:999px;
+  background:rgba(5,5,5,.06); border:1px solid rgba(5,5,5,.08); }
+/* The thumb SLIDES between the two halves. Sized off the segment rather than
+   the labels so the two options must stay equal width — `flex:1 0 0` on the
+   options is what holds that, and a wider word would otherwise leave the
+   thumb parked under half a label. */
+.wb2-modethumb { position:absolute; top:3px; bottom:3px; left:3px; width:calc(50% - 3px);
+  border-radius:999px; background:#fff; box-shadow:0 1px 3px rgba(5,10,20,.16);
+  transition:transform .24s cubic-bezier(.22,1,.36,1); }
+.wb2-modeseg.type .wb2-modethumb { transform:translateX(100%); }
+.wb2-modeopt { position:relative; z-index:1; flex:1 0 0; display:inline-flex; align-items:center;
+  justify-content:center; gap:5px; min-width:74px; height:26px; padding:0 11px;
+  border:0; background:none; border-radius:999px; cursor:pointer;
+  font-family:var(--font-jakarta), sans-serif; font-size:12px; font-weight:700;
+  color:var(--gray500, #6b7280); transition:color .2s ease; }
+.wb2-modeopt[aria-pressed="true"] { color:var(--ink, #050505); font-weight:800; }
+.wb2-modeopt:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.45); }
+
+/* On the dusk card the ground inverts: the track goes dark, and the thumb
+   carries the brand rather than plain white — this is the one control on
+   the sheet whose whole job is to say which mode you are in. */
+.wb2-dusk .wb2-modelbl { color:rgba(255,255,255,.42); }
+.wb2-dusk .wb2-modeseg { background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.1); }
+.wb2-dusk .wb2-modethumb { background:linear-gradient(120deg,#00E5C0,#19B8FF);
+  box-shadow:0 4px 12px -4px rgba(0,229,192,.5); }
+.wb2-dusk .wb2-modeopt { color:rgba(255,255,255,.5); }
+.wb2-dusk .wb2-modeopt[aria-pressed="true"] { color:#04262B; }
+@media (prefers-reduced-motion:reduce) { .wb2-modethumb { transition:none; } }
 .wb2-capcard.wb2-dusk .pbtn.ghost.wb2-talk { background:rgba(0,229,192,.09);
   border-color:rgba(0,229,192,.42); color:#9FF4E4; }
 .wb2-capcard.wb2-dusk .pbtn.ghost.wb2-talk:hover:not(:disabled) { background:rgba(0,229,192,.16);

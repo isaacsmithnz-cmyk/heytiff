@@ -30,6 +30,7 @@ jest.mock("../dictation", () => {
       barsRef: react.createRef(),
       start,
       stop: jest.fn(),
+      handOver: jest.fn(),
       cancel: jest.fn(),
     }),
   };
@@ -258,6 +259,44 @@ describe("the sheet's actions", () => {
     expect(discards).toHaveLength(1);
     expect(discards[0]).toHaveClass("wb2-ico");
     expect(discards[0]).not.toHaveClass("pbtn");
+  });
+
+  /* THE DEFAULT, SAID OUT LOUD. Isaac asked for the preference to be a
+     labelled switch rather than something inferred from the last button you
+     pressed — what the Tiff button will do next time should never be a
+     thing you have to remember. The label is also what makes storing the
+     preference defensible at all (see ./capture-default). */
+  it("says which mode it will open in, and both halves are reachable", async () => {
+    const user = userEvent.setup();
+    mount();
+    await user.click(btn());
+
+    const talk = screen.getByRole("button", { name: /talk/i });
+    const type = screen.getByRole("button", { name: /type/i });
+    expect(screen.getByText("Default")).toBeInTheDocument();
+    // shipped default
+    expect(talk).toHaveAttribute("aria-pressed", "true");
+    expect(type).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("flips the stored default, and the switch says so", async () => {
+    const user = userEvent.setup();
+    mount();
+    await user.click(btn());
+    await user.click(screen.getByRole("button", { name: /type/i }));
+
+    expect(localStorage.getItem("heytiff.capture.mode")).toBe("type");
+    expect(screen.getByRole("button", { name: /type/i })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /talk/i })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  /* A choice with one option is furniture, not a choice. */
+  it("is absent where the deployment cannot hear", async () => {
+    const user = userEvent.setup();
+    mount(undefined, false);
+    await user.click(btn());
+
+    expect(screen.queryByText("Default")).not.toBeInTheDocument();
   });
 
   it("holds Sort this out back until there is something to sort", async () => {

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { appendSpoken, useDictation } from "./dictation";
 import { askBrain } from "@/lib/brain/ask-client";
 import { looksLikeQuestion } from "@/lib/brain/intent";
-import { clearRun, markProposal } from "@/lib/voice/timing";
+import { clearRun, markProposal, markRouting } from "@/lib/voice/timing";
 import { matchJob } from "@/lib/workboard/note-match";
 import type { NoteProposal, NoteStaff } from "@/lib/workboard/note-brain";
 import type { NoteTarget } from "@/app/actions/workboard-notes";
@@ -65,6 +65,12 @@ export function useNoteFlow(opts: { debrief?: boolean; governsDefault?: boolean 
   /** The last recording stopped at the CEILING rather than because anyone
       decided it had. See the note above `useDictation` below. */
   const [ranOut, setRanOut] = useState(false);
+  /* ANY OF THIS ARRIVED BY VOICE. `submit` is now always reached by pressing
+     `Sort this out`, so the caller can no longer tell the router how the
+     words got here — and a spoken note recorded as typed is a quiet lie in
+     the data. Sticky for the whole capture: talk, then tidy it by keyboard,
+     and it is still a note you spoke. */
+  const [spoke, setSpoke] = useState(false);
 
   /* THE TAG IS A SUGGESTION, NOT A RULE.
 
@@ -106,6 +112,7 @@ export function useNoteFlow(opts: { debrief?: boolean; governsDefault?: boolean 
   const reset = useCallback(() => {
     setNote(null);
     setRanOut(false);
+    setSpoke(false);
     setAimDropped(false);
     setDraft(null);
     setAnswer("");
@@ -158,6 +165,7 @@ export function useNoteFlow(opts: { debrief?: boolean; governsDefault?: boolean 
     (source: "text" | "voice", transcript: string) => {
       setError(null);
       setDone(null);
+      markRouting();
       start(async () => {
         const res = await routeNote({ transcript, target, source, debrief });
         if (!res.ok) {
@@ -184,12 +192,16 @@ export function useNoteFlow(opts: { debrief?: boolean; governsDefault?: boolean 
      hard toward note, because a note eaten by the answer path saves
      nothing, while a question on the review card is one Discard away. */
   const submit = useCallback(
-    (source: "text" | "voice", words: string) => {
+    (words: string) => {
       setText(words);
+      /* The source is DERIVED, not passed. Every submit is now the same
+         button press, so a caller saying "text" would be reporting how the
+         commit happened rather than how the words arrived — and the only
+         thing that knows the latter is this hook. */
       if (!debrief && looksLikeQuestion(words)) ask(words);
-      else read(source, words);
+      else read(spoke ? "voice" : "text", words);
     },
-    [debrief, ask, read]
+    [debrief, ask, read, spoke]
   );
 
   /* THE CEILING IS NOT A DECISION.
@@ -206,27 +218,33 @@ export function useNoteFlow(opts: { debrief?: boolean; governsDefault?: boolean 
      routed, mic ready. Press it again and carry on; the words accumulate
      until you stop because you actually meant to. */
   const dict = useDictation({
-    onTranscript: (transcript, { capped, handedOver }) => {
-      /* THE WHOLE THING, NOT THE LAST LEG. A note spoken across three
-         recordings is one note, and the first version of this routed only
-         the final transcript — throwing away the two minutes it had just
-         carefully held. Joining here rather than inside `submit` keeps the
-         typed path (which passes `text` in already) exactly as it was.
+    onTranscript: (transcript, { capped }) => {
+      /* WORDS GO IN THE BOX. NOTHING ROUTES OFF A TRANSCRIPT.
 
-         `text` is current: the callbacks are re-stashed every render, so
-         each leg sees what the one before it appended. */
-      const whole = appendSpoken(text, transcript);
-      /* Both endings keep the words and route nothing. They differ only in
-         what gets said about it: the ceiling has to explain itself, and a
-         handover has nothing to explain — you pressed Type, and the words
-         are in the box, which is precisely what you asked for. */
-      if (capped || handedOver) {
-        setText(whole);
-        setRanOut(capped);
-        return;
-      }
-      setRanOut(false);
-      submit("voice", whole);
+         This used to route the moment you pressed Stop, which made speaking
+         the one way into the app you could not check first: the box
+         unmounted, the router ran, and the review card showed you what had
+         been MADE of your words with the words themselves no longer
+         editable. Mishear "grilles" as "grills" and you could fix the task
+         it produced but never the note it saved.
+
+         Isaac, comparing it to dictating into a chat box (2026-08-10):
+         there, speech fills a composer you then send. So it does here. Stop
+         puts the words in front of you, you fix or add to them, and `Sort
+         this out` is the single commit for spoken and typed alike.
+
+         It also makes this hook agree with every other mic in the app — the
+         ask bar and the field mics have always just appended to a box. The
+         capture flow was the odd one out, and the `handedOver` flag existed
+         only to carve out an exception that is now the rule.
+
+         THE WHOLE THING, NOT THE LAST LEG: a note spoken across three
+         recordings is one note. `text` is current — the callbacks are
+         re-stashed every render, so each leg sees what the one before it
+         appended. */
+      setText(appendSpoken(text, transcript));
+      setSpoke(true);
+      setRanOut(capped);
     },
     onError: setError,
   });

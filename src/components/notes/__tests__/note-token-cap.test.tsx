@@ -3,20 +3,19 @@ import userEvent from "@testing-library/user-event";
 import { NoteScopeProvider } from "../note-context";
 import { TiffButton } from "../tiff-button";
 
-/* WHAT THE TWO-MINUTE CEILING MUST NOT DO TO A NOTE.
+/* WHAT A RECORDING TURNS INTO, AND WHEN.
 
-   Every other way a recording ends means "I have finished saying it", and the
-   capsule routes on it — seven seconds of model, then a review card. The cap
-   looks identical from the engine and means the opposite: someone was
-   mid-sentence and the clock ran out.
+   No transcript routes on its own any more (2026-08-10): every way a
+   recording ends puts the words in the box, and `Sort this out` is the one
+   commit. So the first thing this file guards is that speaking is
+   checkable — you can read it, fix a misheard word, and route the EDIT.
 
-   Route there and you file half a note and drop the person on a review card
-   for a thought they never finished. Worst of all on the debrief, which is a
-   whole day's braindump and by far the likeliest recording to run long.
-
-   So: the words are kept in the box, nothing is routed, and pressing the mic
-   again carries on from where it stopped. This file exists because the
-   correct-looking version of this code is the broken one. */
+   The two-minute ceiling still gets its own tests, because it is the one
+   ending nobody chose. It must keep the words, say why it stopped, and let
+   the next press carry on from there — a note spoken across three
+   recordings is one note, and routing only the tail would lose two minutes
+   of it. That half of this file exists because the correct-looking version
+   of the code is the broken one. */
 
 jest.mock("next/navigation", () => ({ useRouter: () => ({ refresh: jest.fn() }) }));
 jest.mock("@/lib/brain/ask-client", () => ({ askBrain: jest.fn() }));
@@ -103,10 +102,48 @@ beforeEach(() => {
 
 afterEach(cleanup);
 
-it("routes normally when the recording was stopped on purpose", async () => {
+/* SPEAKING NO LONGER COMMITS. Stopping on purpose used to route on the
+   spot, which made voice the one way into the app you could not check
+   first — the box unmounted and the review card showed you what had been
+   MADE of words you could no longer edit. Now every transcript lands in the
+   box and `Sort this out` is the single commit for spoken and typed alike.
+   (Isaac, 2026-08-10, comparing it to dictating into a chat composer.) */
+it("puts the words in the box rather than routing them, even on a deliberate stop", async () => {
   await openSheet();
   await deliver("middle rooftop unit tripped again", false);
+
+  expect(routeNote).not.toHaveBeenCalled();
+  expect(boxText()).toBe("middle rooftop unit tripped again");
+});
+
+it("routes what is in the box when Sort this out is pressed — and calls it voice", async () => {
+  const user = await openSheet();
+  await deliver("middle rooftop unit tripped again", false);
+  await user.click(screen.getByRole("button", { name: "Sort this out" }));
+
   expect(routeNote).toHaveBeenCalledTimes(1);
+  /* The commit is a button press now, so nothing at the call site knows the
+     words were spoken. A note dictated and then filed as `text` would be a
+     quiet lie in the data, so the flow remembers. */
+  expect(routeNote).toHaveBeenCalledWith(
+    expect.objectContaining({ transcript: "middle rooftop unit tripped again", source: "voice" })
+  );
+});
+
+/* The point of the whole change: what gets routed is what you LEFT in the
+   box, not what the microphone heard. */
+it("routes the edit, not the transcript", async () => {
+  const user = await openSheet();
+  await deliver("order the grills", false);
+
+  const box = screen.getByRole("textbox");
+  await user.clear(box);
+  await user.type(box, "order the grilles");
+  await user.click(screen.getByRole("button", { name: "Sort this out" }));
+
+  expect(routeNote).toHaveBeenCalledWith(
+    expect.objectContaining({ transcript: "order the grilles" })
+  );
 });
 
 it("does NOT route when the ceiling stopped it — the note is not finished", async () => {
@@ -142,11 +179,12 @@ it("carries on where it left off when the mic is pressed again", async () => {
   expect(routeNote).not.toHaveBeenCalled();
 });
 
-it("routes the WHOLE thing once the person finally stops on purpose", async () => {
-  await openSheet();
+it("routes the WHOLE thing once the person finally commits it", async () => {
+  const user = await openSheet();
   await deliver("middle rooftop unit tripped again", true);
   await deliver("and the compressor is still noisy", true);
   await deliver("book it in for Thursday", false);
+  await user.click(screen.getByRole("button", { name: "Sort this out" }));
 
   expect(routeNote).toHaveBeenCalledTimes(1);
   /* The last leg is what the engine hands over, but the note is everything

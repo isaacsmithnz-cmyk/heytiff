@@ -6368,6 +6368,45 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    here is (0,4,0), so without this line a focused primary loses its ring. */
 .wb2-capcard.wb2-dusk .pbtn:focus-visible { box-shadow:0 0 0 3px rgba(0,229,192,.55); }
 
+/* ── GO IS GREEN (Isaac, 2026-08-10) ──
+   Only this one button. `Save these` keeps the cyan primary: the two never
+   share a screen (idle stage against review), so the card still shows one
+   primary at a time and the green is a property of the word Go rather than
+   a second button style to learn.
+
+   THE HOUSE GREEN, NOT A NEW ONE. `#00A389` is already the teal-green this
+   app is built from; inventing a truer, brighter green would rhyme with
+   nothing, which is the design-system note's whole point. It IS the colour
+   this app also uses for ok/done, and that is a deliberate acceptance rather
+   than an oversight — Go is a static control, so it never needs green to be
+   available as a state CHANGE the way a tick or a pill does.
+
+   DUSK ONLY, AND THAT IS NOT AN OMISSION. `duskClass` gives every stage but
+   review the dark card, and Go exists only in the idle stage — so the card
+   under this button is always dusk, and a light-ground twin would be a rule
+   that matches nothing. The gradient is what the neighbouring primaries wear
+   on this ground; a flat green here would be the only flat fill on the sheet.
+   Same teal top end as its neighbours, landing on the green instead of the
+   blue.
+
+   EVERY RULE CARRIES `:not(:disabled)`. The shared disabled fill is
+   `.wb2-capcard.wb2-dusk .pbtn:disabled` at (0,5,0), and a green at (0,6,0)
+   would otherwise paint a disabled button — which this one is, for the whole
+   time it says "Reading…". AND THOSE TWO `:not()`s ARE WHY THE FOCUS RING
+   CARRIES THEM TOO. The dusk primary above gets away with a bare
+   `:focus-visible` because its own fill is the same weight and sits earlier;
+   this fill is two classes heavier, so a bare ring would be outranked by the
+   very rule it is meant to sit on top of — measured in the harness, where a
+   focused Go showed the fill's drop shadow and no ring at all. */
+.wb2-capcard.wb2-dusk .pbtn.wb2-go:not(.ghost):not(:disabled) {
+  background:linear-gradient(120deg,#00E5C0,#00A389); border-color:transparent; color:#04262B;
+  box-shadow:0 10px 24px -10px rgba(0,163,137,.5); }
+.wb2-capcard.wb2-dusk .pbtn.wb2-go:not(.ghost):hover:not(:disabled) {
+  background:linear-gradient(120deg,#00E5C0,#00A389); border-color:transparent;
+  filter:brightness(1.07); box-shadow:0 10px 26px -10px rgba(0,163,137,.65); }
+.wb2-capcard.wb2-dusk .pbtn.wb2-go:not(.ghost):focus-visible:not(:disabled) {
+  box-shadow:0 0 0 3px rgba(0,163,137,.6); }
+
 /* listening — the bars go brand, the dot stays the one honest red */
 .wb2-dusk .wb-lvl i { background:linear-gradient(180deg,#00E5C0,#2E68FF); }
 .wb2-dusk .wb2-livetext { color:#E8EAED; }

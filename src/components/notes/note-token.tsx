@@ -326,7 +326,7 @@ function Body({ flow }: { flow: NoteFlow }) {
               than what is printed on it is its own bug. */}
           {flow.text.trim() && (
             <button
-              className="pbtn"
+              className="pbtn wb2-go"
               aria-label="Go"
               onClick={() => flow.submit(flow.text)}
               disabled={flow.busy}

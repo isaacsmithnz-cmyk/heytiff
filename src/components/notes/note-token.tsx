@@ -2,11 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Chevron } from "@/components/logo";
 import { Icon } from "@/components/shell/icon";
 import { DictClock, LevelBars, LiveWords, appendSpoken, useDictation } from "./dictation";
 import { useNoteFlow, type NoteFlow } from "./note-flow";
 import { useNoteScope } from "./note-context";
+import { TiffMark } from "./tiff-mark";
 import { Cascade, JobPicker, ReviewRows, nothingTicked } from "./review-card";
 import { describeJob } from "@/lib/workboard/note-match";
 import { sniff } from "@/lib/notes/sniff";
@@ -473,49 +473,41 @@ function JobLine({ flow }: { flow: NoteFlow }) {
    as every other posture; only the framing and the brain's instructions
    differ. Typing is as first-class here as everywhere else.
 
-   The word half and the mic half are the capsule again, worn wide: press
-   Debrief to type, press the mic to just start talking. That split is the
-   type-or-talk rule the Tiff button arrived at from the other direction, so
-   the capsule keeps it — here the two doors are the control, and on the
-   topbar they are the sheet.
+   IT IS THE GLOBAL BUTTON, WEARING A WORD (Isaac, 2026-08-10). It was a cyan
+   pill, then a dark capsule with a gradient rim and a mic half beside the
+   word — near the Tiff button but not it, which is the worst place for two
+   controls that open the same sheet to stand. So it now carries `TiffMark`
+   itself: the same glass face, the same breathing halo, the same chevron and
+   sparkle, sized off the button exactly as the topbar's is.
 
-   IT WEARS TIFF'S MARK AND TIFF'S SKIN. It was a cyan pill with a red mic
-   half, which was the app's language before the button existed; the thing
-   it opens is now ink glass with a gradient edge, and a bright cyan pill
-   opening a dark Tiff sheet read as two different features. The word stays
-   — "what does the sparkle do" is a question a 6am brain shouldn't have to
-   ask — but the sparkle beside it is now the chevron, because this IS
-   Tiff. */
+   THE MIC HALF IS GONE, and nothing is lost by it. The sheet it opens has
+   Talk in it, gated on `voiceEnabled` the same way the half was, so the mic
+   is one tap away and still an enhancement. What the half cost was the last
+   asymmetry between the two doors into one sheet: the topbar button does not
+   offer a mic at the door either, because arriving already recording makes
+   typing second-class — the reversal Isaac made with the premium sheet.
+
+   The word stays. "What does the sparkle do" is not a question a 6am brain
+   should have to answer, and a lone mark is exactly that question. */
 
 function DebriefButton({ flow }: { flow: NoteFlow }) {
   return (
     <>
       <div className="wb2-tokdock">
-        <span className={"wb2-tok wb2-debrief" + (flow.stage === "recording" ? " live" : "")}>
+        <span className="wb2-tok wb2-debrief">
           <button
             type="button"
             className="wb2-tokhalf wb2-debriefword"
             onClick={() => flow.setOpen(true)}
           >
-            <Chevron size={15} gradient decorative />
+            {/* The ground under the console is ink, so this is the TOPBAR skin
+                — glass face and halo — not the sheet's dark core. The ground
+                decides the skin; see components/notes/tiff-button. */}
+            <span className="wb2-debriefmk tiffbtn-topbar" aria-hidden="true">
+              <TiffMark chevron={20} spark={13} halo />
+            </span>
             Debrief
           </button>
-          {flow.scope.voiceEnabled && (
-            <>
-              <span className="wb2-tokdiv" aria-hidden="true" />
-              <button
-                type="button"
-                className="wb2-tokhalf mic"
-                aria-label="Start the debrief by talking"
-                onClick={() => {
-                  flow.setOpen(true);
-                  flow.dict.start();
-                }}
-              >
-                <Icon name="mic" size={19} />
-              </button>
-            </>
-          )}
         </span>
         {flow.done && <span className="wb2-chip ok">{flow.done}</span>}
       </div>

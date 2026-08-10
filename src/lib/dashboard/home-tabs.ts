@@ -20,10 +20,12 @@
 import { chipSummary, type ActionChip } from "./chips";
 import type { ViewTab } from "@/components/shell/view-tabs";
 
-export type HomeTabKey = "journal" | "urgent" | "attention" | "board" | "tasks";
+export type HomeTabKey = "journal" | "urgent" | "attention" | "board" | "tasks" | "calendar";
 
-/** Where a tab's rows live in full, for the "see all" door in its panel. */
-export const TAB_HOME: Record<Exclude<HomeTabKey, "journal">, string> = {
+/** Where a tab's rows live in full, for the "see all" door in its panel.
+    Journal and Calendar have no entry: each one IS the whole record, so there
+    is nowhere fuller to send you. */
+export const TAB_HOME: Record<Exclude<HomeTabKey, "journal" | "calendar">, string> = {
   urgent: "/dashboard/action-required",
   attention: "/dashboard/action-required",
   board: "/dashboard/notices",
@@ -75,6 +77,13 @@ export function homeTabs(input: {
       label: "Tasks",
       count: input.openTasks,
       countLabel: (n) => `${n} open`,
+    },
+    {
+      /* No badge, and for the same reason Journal has none: a number here
+         would count people being off, which is not something that needs you.
+         Red and amber especially never appear on this tab — see ./calendar. */
+      key: "calendar",
+      label: "Calendar",
     },
   ];
 }

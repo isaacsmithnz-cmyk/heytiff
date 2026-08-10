@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
 import { ViewTabs } from "@/components/shell/view-tabs";
-import { TiffButton } from "@/components/notes/tiff-button";
+import { HomeCalendar } from "./home-calendar";
 import { HomeJournal } from "./home-journal";
 import { HomeTasks } from "./home-tasks";
 import { ChipRows, NoticeRows, Nothing } from "./home-rows";
@@ -26,6 +26,12 @@ import type { DashboardData } from "@/lib/dashboard/page-data";
    `.wb2-vtabs`, `.wb2-vslide`, `.wb2-card`, `.wb2-trj`, `.wb2-tk`. Home was
    the last bespoke screen in the app and it isn't one any more.
 
+   HOME HAS NO TIFF BUTTON OF ITS OWN. One sat in the tab strip's right cap so
+   a debrief was "one press away from every face of the card" — but the frame's
+   topbar button is one press away from every face of every SCREEN, and the two
+   were identical 44px glass circles 167px apart in the same corner. The strip
+   keeps its cap for boards that dock something there; Home docks nothing.
+
    THE BADGES ARE LOAD-BEARING, not decoration. A tab hides its content by
    definition, and the counters existed for the glance — "does anything need
    me?". Journal can only be the landing tab because Urgent wears a red 2 while
@@ -37,7 +43,7 @@ import type { DashboardData } from "@/lib/dashboard/page-data";
 export function DashboardHome({ data }: { data: DashboardData }) {
   const {
     chips,
-    roster,
+    calendar,
     money,
     tasks,
     notices,
@@ -87,12 +93,7 @@ export function DashboardHome({ data }: { data: DashboardData }) {
             ariaLabel="Home"
             idPrefix="hmtab"
             panelPrefix="hmsec"
-          >
-            {/* The board's capture slot. Tiff sits here rather than inside the
-                Journal tab so a debrief is one press away from every face of
-                the card, not only the one that shows the record. */}
-            <TiffButton />
-          </ViewTabs>
+          />
 
           <div className="wb2-card hm-card">
             {panel("journal", <HomeJournal entries={journal} today={today} />)}
@@ -152,52 +153,35 @@ export function DashboardHome({ data }: { data: DashboardData }) {
                 assignable={assignable}
               />,
             )}
+
+            {panel("calendar", <HomeCalendar cal={calendar} today={today} />)}
           </div>
 
-          {/* Who's about and Payroll are the day's context rather than a face
-              of it — nothing to act on, nothing to count. They sit under the
-              card as one quiet strip, and each is absent without its
-              capability rather than rendering an empty shell. */}
-          {(roster || money.length > 0) && (
-            <div className="hm-strip">
-              {roster && (
-                <div className="hm-stripcol">
-                  <div className="wb2-sect">Who&rsquo;s about today</div>
-                  {roster.publicHoliday && (
-                    <p className="hm-ph">
-                      <Icon name="calendar" size={14} />
-                      Public holiday — {roster.publicHoliday}. The office is closed.
-                    </p>
-                  )}
-                  {roster.onLeave.length === 0 ? (
-                    <p className="hm-none">
-                      {roster.publicHoliday ? "No individual leave booked." : "Everyone’s in today."}
-                    </p>
-                  ) : (
-                    roster.onLeave.map((p) => (
-                      <div className="hm-sr" key={p.staffId}>
-                        <b>{p.name}</b>
-                        <em>{p.label}</em>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
+          {/* Payroll is the day's context rather than a face of it — nothing to
+              act on, nothing to count — so it sits under the card as one quiet
+              strip, absent without `financials` rather than rendering an empty
+              shell.
 
-              {money.length > 0 && (
-                <div className="hm-stripcol">
-                  <div className="wb2-sect">Payroll</div>
-                  {money.map((m) => (
-                    <Link className="hm-sr" href={m.href} key={m.key}>
-                      <b>{m.label}</b>
-                      <em>{m.detail}</em>
-                      <span className="hm-rowgo">
-                        <Icon name="arrowR" size={14} />
-                      </span>
-                    </Link>
-                  ))}
-                </div>
-              )}
+              "Who's about today" used to share this strip and is gone: it spent
+              half the page's width to say "Everyone's in today", and the one
+              thing in it that mattered — the office closed for a public holiday,
+              announced on this screen and nowhere else in the app — is now a
+              tinted cell on the Calendar tab. Four weeks instead of one day, and
+              for everyone instead of managers only. */}
+          {money.length > 0 && (
+            <div className="hm-strip">
+              <div className="hm-stripcol">
+                <div className="wb2-sect">Payroll</div>
+                {money.map((m) => (
+                  <Link className="hm-sr" href={m.href} key={m.key}>
+                    <b>{m.label}</b>
+                    <em>{m.detail}</em>
+                    <span className="hm-rowgo">
+                      <Icon name="arrowR" size={14} />
+                    </span>
+                  </Link>
+                ))}
+              </div>
             </div>
           )}
         </div>

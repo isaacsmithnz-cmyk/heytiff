@@ -4,14 +4,11 @@ import { DashboardHome } from "../home";
 import type { DashboardData } from "@/lib/dashboard/page-data";
 import type { ActionChip } from "@/lib/dashboard/chips";
 
-/* Home as one card with five faces.
+/* Home as one card with six faces.
 
-   The Tiff button reaches the note flow and its server actions, and
+   The debrief control reaches the note flow and its server actions, and
    "use server" modules cannot be imported into jsdom. Stubbed so this suite
-   stays about the card; the button has its own. */
-jest.mock("@/components/notes/tiff-button", () => ({
-  TiffButton: () => <button aria-label="Ask or tell Tiff" />,
-}));
+   stays about the card; the control has its own suite. */
 jest.mock("@/components/notes/note-token", () => ({
   NoteToken: () => <button aria-label="Debrief" />,
 }));
@@ -36,7 +33,7 @@ const chip = (state: "bad" | "warn", key: string): ActionChip => ({
 
 const data = (over: Partial<DashboardData> = {}): DashboardData => ({
   chips: { self: [], team: [] },
-  roster: null,
+  calendar: { spanStart: "2026-08-03", spanEnd: "2026-11-01", days: [] },
   money: [],
   tasks: { mine: [], team: null, done: [], reported: [] },
   notices: [],
@@ -137,33 +134,35 @@ describe("the panels", () => {
 });
 
 describe("Tiff", () => {
-  it("sits in the tab row, so a debrief is one press from every face", () => {
-    /* Not inside the Journal panel: the capture slot at the row's right end is
-       where the board puts its own, and putting it there means you never have
-       to change tabs to say something. */
+  it("has no button of its own — the frame's is the same control, one press away", () => {
+    /* One sat in the tab row's right cap so a debrief was "one press from every
+       face". The topbar's is one press from every SCREEN, and the two were
+       identical 44px glass circles 167px apart in the same corner. If a
+       `.wb2-vtcap` reappears here, that duplicate is back. */
     draw();
-    const btn = screen.getByLabelText("Ask or tell Tiff");
-    expect(btn.closest(".wb2-vtcap")).not.toBeNull();
-    expect(btn.closest(".wb2-vtabs")).not.toBeNull();
+    expect(document.querySelector(".wb2-vtcap")).toBeNull();
+    expect(screen.queryByLabelText("Ask or tell Tiff")).toBeNull();
+  });
+
+  it("keeps the debrief control, inside the Journal panel", () => {
+    draw();
+    expect(within(panel("journal")).getByLabelText("Debrief")).toBeInTheDocument();
   });
 });
 
 describe("the strip under the card", () => {
-  it("is absent entirely without the capabilities that fill it", () => {
-    // roster needs `team`, payroll needs `financials`; the loader returns null
-    // and [] without them, and an empty shell is worse than no shell
+  it("is absent without `financials`, which is the only thing left in it", () => {
+    /* "Who's about today" shared this strip and is gone — it spent half the
+       page's width to say "Everyone's in today", and the office closure it
+       carried moved onto the Calendar tab. An empty shell is worse than none. */
     draw();
     expect(document.querySelector(".hm-strip")).toBeNull();
+    expect(screen.queryByText(/Who.s about today/)).toBeNull();
   });
 
-  it("appears when there is something in it", () => {
-    draw({
-      roster: {
-        onLeave: [{ staffId: "s2", name: "Dane Whitcombe", kind: "annual", label: "Annual leave" }],
-        publicHoliday: null,
-      },
-    });
+  it("appears when there is payroll in it", () => {
+    draw({ money: [{ key: "run", label: "Pay run", detail: "Due Tuesday", href: "/x", state: "warn" }] });
     expect(document.querySelector(".hm-strip")).not.toBeNull();
-    expect(screen.getByText("Dane Whitcombe")).toBeInTheDocument();
+    expect(screen.getByText("Pay run")).toBeInTheDocument();
   });
 });

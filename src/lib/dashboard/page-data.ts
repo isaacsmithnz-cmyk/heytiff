@@ -11,7 +11,7 @@ import { assembleChips, type DashboardChips } from "./assemble";
 import { CLAIM_NUDGE_DAYS } from "./chips";
 import { listStaffCompliance, orgInsurance, type StaffCompliance } from "./query";
 import { ownDeclinedClaims, pendingClaimsCount } from "@/lib/expenses/query";
-import { rosterToday, type RosterToday } from "./roster";
+import { buildCalendar, calendarSpan, type LeaveCalendar } from "./calendar";
 import { listJournal } from "./journal-query";
 import type { JournalEntry } from "./journal";
 import { payRunItem, tallySheets, type MoneyItem } from "./money";
@@ -30,19 +30,22 @@ import type { BoardNotice } from "./board";
 import { RECENT_DONE_DAYS, sortNotices, sortTasks, type DashTask } from "./tasks";
 
 /* Dashboard page loader. The capability scoping and every derivation are pure
-   and live in ./assemble, ./roster and ./money; this file is the thin I/O layer
+   and live in ./assemble, ./calendar and ./money; this file is the thin I/O layer
    that resolves the session once, reads only the data the viewer may see, and
    hands it over.
 
    The three sections mirror the spec:
-     chips  — action-required expiries. self is intrinsic; team/fleet gated.
-     roster — who's off today. `team` only.
-     money  — the pay-run status. `financials` only. */
+     chips    — action-required expiries. self is intrinsic; team/fleet gated.
+     calendar — your leave and the office closures (everyone), plus who else is
+                off (`team` only). It replaced `roster`, which answered the same
+                question for today alone.
+     money    — the pay-run status. `financials` only. */
 
 export type DashboardData = {
   chips: DashboardChips;
-  /** Null unless the viewer holds `team`. */
-  roster: RosterToday | null;
+  /** Your leave and the org's closures — for everyone. Colleagues' leave is
+      in it only with `team`. */
+  calendar: LeaveCalendar;
   /** Empty unless the viewer holds `financials`. */
   money: MoneyItem[];
   /** Your open tasks (always), the team's (only with `team`), and your
@@ -64,7 +67,7 @@ export type DashboardData = {
 
 const EMPTY: DashboardData = {
   chips: { self: [], team: [] },
-  roster: null,
+  calendar: { spanStart: "", spanEnd: "", days: [] },
   money: [],
   tasks: { mine: [], team: null, done: [], reported: [] },
   notices: [],
@@ -92,9 +95,9 @@ export async function loadDashboard(): Promise<DashboardData> {
      when five reads raced an edit. */
   const names = await loadStaffNames(orgId);
 
-  const [chips, roster, money, tasks, notices, assignable, journal] = await Promise.all([
+  const [chips, calendar, money, tasks, notices, assignable, journal] = await Promise.all([
     loadChips(orgId, viewerStaffId, caps, today),
-    canManage ? loadRoster(orgId, today) : Promise.resolve(null),
+    loadCalendar(orgId, today, viewerStaffId, canManage),
     caps.has("financials") ? loadMoney(orgId, today) : Promise.resolve([]),
     loadTasks(orgId, viewerStaffId, canManage, names),
     listNotices(orgId, viewerStaffId, 20, names).then(sortNotices),
@@ -106,7 +109,7 @@ export async function loadDashboard(): Promise<DashboardData> {
   ]);
 
   return {
-    chips, roster, money, tasks, notices, assignable, journal, canManage, viewerStaffId, today,
+    chips, calendar, money, tasks, notices, assignable, journal, canManage, viewerStaffId, today,
   };
 }
 
@@ -252,15 +255,32 @@ async function loadOwnSheet(
   return { status: "sent_back", periodStart: start, periodLabel: periodLabel(start, settings) };
 }
 
-/* ---------------- roster today ---------------- */
+/* ---------------- the calendar ---------------- */
 
-async function loadRoster(orgId: string, today: string): Promise<RosterToday> {
+/* THE SAME TWO QUERIES THE ROSTER RAN. It passed `today, today` to both and got
+   one day back; the span it always accepted is what makes four weeks free.
+
+   Not gated. Your own leave and the days the business closes are yours whatever
+   your role — it was the `team` gate on the old roster that left the office
+   closure announced to managers only. What `team` buys is everyone ELSE's
+   leave, and that is cut here rather than in the view: without it, a colleague's
+   row never reaches the browser. */
+async function loadCalendar(
+  orgId: string,
+  today: string,
+  viewerStaffId: string | null,
+  canManage: boolean,
+): Promise<LeaveCalendar> {
+  const { spanStart, spanEnd } = calendarSpan(today);
   const state = await stateFor(orgId, ""); // "" → the org's home state
   const [approved, holidays] = await Promise.all([
-    approvedInSpan(orgId, today, today),
-    holidaysInSpan(orgId, state, today, today),
+    approvedInSpan(orgId, spanStart, spanEnd),
+    holidaysInSpan(orgId, state, spanStart, spanEnd),
   ]);
-  return rosterToday(approved, holidays, today);
+  const visible = canManage
+    ? approved
+    : approved.filter((r) => viewerStaffId !== null && r.staffId === viewerStaffId);
+  return buildCalendar(visible, holidays, today, viewerStaffId);
 }
 
 /* ---------------- money (pay run) ---------------- */

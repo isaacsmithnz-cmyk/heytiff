@@ -6407,6 +6407,18 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .hm-panel { padding:6px 0 12px; }
 .fg .hm-panel > .wb2-sect:first-child { padding-top:10px; }
 
+/* SIX TABS DON'T FIT A LAPTOP. Five did; Calendar pushed the row past 1100px
+   and the last tab clipped at the card's edge — reachable by nothing. The
+   staff card solved this once and the fix is its rule verbatim: the strip
+   scrolls, and ViewTabs already scrolls the active tab into view when the
+   thumb re-measures, so a keyboard walk can't strand you on a tab you can't
+   see. `flex:none` stops the tabs squeezing instead of scrolling. */
+@media (max-width:1180px) {
+  .fg .hm-wrap .wb2-vtabs { overflow-x:auto; scrollbar-width:none; padding-left:24px; }
+  .fg .hm-wrap .wb2-vtabs::-webkit-scrollbar { display:none; }
+  .fg .hm-wrap .wb2-vt { flex:none; }
+}
+
 /* rows: the board's, with Home's own trailing chevron and column widths */
 .fg .hm-row { grid-template-columns:minmax(0,1fr) 168px 96px 132px 22px; padding-left:24px; padding-right:24px; }
 .fg .hm-rowgo { color:#c9cfd9; display:flex; align-self:center; }
@@ -6429,41 +6441,130 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .hm-undo:hover { color:#0089b8; }
 
 /* ── the Journal ──
-   The composer sits on top and the record runs under it, newest first. The
-   scroller is masked at its bottom edge rather than fading to a hard stop, so
-   there is always a visible hint that yesterday is down there. */
-.fg .hm-comp { display:flex; align-items:center; gap:16px; flex-wrap:wrap;
-  padding:18px 24px; border-bottom:1px solid var(--wb2-line2); }
-.fg .hm-compsay { flex:1; min-width:220px; display:flex; flex-direction:column; gap:2px; }
-.fg .hm-compsay b { font-size:14.5px; font-weight:800; letter-spacing:-.01em; color:var(--ink); }
-.fg .hm-compsay span { font-size:12.8px; font-weight:500; color:var(--gray500); }
+   The console sits on top and the record runs under it, newest first. */
 
-.fg .hm-jscroll { max-height:360px; overflow-y:auto; padding:0 24px 14px;
+/* THE CONSOLE. It was a white band with a border under it, and the darkest,
+   heaviest object on the page — the debrief control — floated on it with
+   nothing holding it up. Now the band is the ink the control belongs to.
+
+   INSET, NOT FULL-BLEED, and that is the whole constraint. The active tab's
+   thumb IS the card's top edge for its own width (see .wb2-vslide); run a dark
+   band to that edge and the white tab lands on black and stops reading as part
+   of the card. 14px of white all round keeps the join intact.
+
+   Two layers on top of the ink, in this order: the frame's own aurora as a
+   ::after wash, and the masked 1px gradient rim as a ::before — the same rim
+   recipe the capture sheet and the old capsule use, because it is crisp and it
+   survives lightningcss. The content takes z-index 2 to sit above both. */
+.fg .hm-comp { position:relative; overflow:hidden; display:flex; align-items:center;
+  gap:18px; flex-wrap:wrap; margin:14px 14px 4px; padding:16px 18px;
+  border-radius:18px; background:#0B0E15; box-shadow:0 14px 30px -18px rgba(5,8,15,.9); }
+.fg .hm-comp::after { content:""; position:absolute; inset:0; pointer-events:none;
+  border-radius:inherit;
+  background:
+    radial-gradient(circle 220px at 8% -40%, rgba(0,229,192,.18), transparent 70%),
+    radial-gradient(circle 260px at 74% 150%, rgba(46,104,255,.16), transparent 70%); }
+.fg .hm-comp::before { content:""; position:absolute; inset:0; border-radius:inherit;
+  padding:1px; pointer-events:none; z-index:1;
+  background:linear-gradient(120deg,#00E5C0,#2E68FF,#8A2BE2); opacity:.4;
+  -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;
+  mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite:exclude; }
+.fg .hm-compsay { position:relative; z-index:2; flex:1; min-width:220px;
+  display:flex; flex-direction:column; gap:3px; }
+.fg .hm-compsay b { font-size:15px; font-weight:800; letter-spacing:-.01em; color:#fff; }
+.fg .hm-compsay span { font-size:12.8px; font-weight:500; color:rgba(255,255,255,.6); }
+.fg .hm-comp .wb2-tokdock { position:relative; z-index:2; }
+
+/* THE DEBRIEF, ON THE CONSOLE. The capsule is glass on ink now — the topbar
+   button's own material, because the ground is the same — and it opens with
+   the Tiff mark itself rather than a flat chevron beside a word.
+
+   The mark reuses `.tiffbtn-topbar`'s face, halo and sparkle rules verbatim
+   (one source of truth for the glass) but NOT `.tiffbtn`, whose cursor, lift
+   and hover belong to a real button. Those are re-pointed at the word half
+   below, so hovering anywhere on the control brightens the mark — hovering
+   only the 44px circle would be a lie about what is clickable. */
+.fg .hm-comp .wb2-tok.wb2-debrief { height:56px; padding:6px;
+  background:rgba(255,255,255,.06); box-shadow:inset 0 1px 0 rgba(255,255,255,.16);
+  -webkit-backdrop-filter:blur(14px) saturate(150%);
+  backdrop-filter:blur(14px) saturate(150%); }
+.fg .hm-comp .wb2-tok.wb2-debrief::before { opacity:.5; }
+.fg .hm-comp .wb2-debriefword { width:auto; padding:0 22px 0 6px; gap:12px;
+  border-radius:999px; font-size:14.5px; font-weight:700; color:#fff; }
+.fg .hm-comp .wb2-debriefword:hover { background:rgba(255,255,255,.1); }
+.fg .wb2-debriefmk { position:relative; flex:none; width:44px; height:44px;
+  display:inline-flex; align-items:center; justify-content:center; }
+.fg .wb2-debriefword:hover .tiffbtn-face { background:rgba(255,255,255,.12);
+  border-color:rgba(255,255,255,.22); }
+.fg .wb2-debriefword:hover .tiffbtn-halo { opacity:.72; }
+
+/* THE SCROLLER TAKES THE HEIGHT IT IS GIVEN. It was capped at 360px, which on
+   a 1500x950 window clipped 89px of record while 210px of the light well sat
+   empty underneath — and the bottom mask, meant to hint that yesterday is down
+   there, read as a rendering fault instead.
+
+   Bound to the VIEWPORT rather than the well, deliberately: making the card
+   itself stretch would mean turning .page/.wrap/.stg into a flex column, and
+   those three are every screen's, not Home's. 430px is what sits above the
+   scroller — topbar 80, well inset, wrap 62, tab row 44, console ~104 — plus
+   room for the Payroll strip under the card. The floor keeps two entries
+   readable on a short window. */
+.fg .hm-jscroll { max-height:calc(100vh - 430px); min-height:240px; overflow-y:auto; padding:6px 24px 14px;
   scrollbar-width:thin; scrollbar-color:rgba(5,5,5,.18) transparent;
   -webkit-mask-image:linear-gradient(#000 90%, transparent 100%);
   mask-image:linear-gradient(#000 90%, transparent 100%); }
 .fg .hm-jscroll::-webkit-scrollbar { width:6px; }
 .fg .hm-jscroll::-webkit-scrollbar-thumb { background:rgba(5,5,5,.16); border-radius:99px; }
-.fg .hm-jdh { display:flex; align-items:center; gap:12px; padding:20px 0 4px; }
+.fg .hm-jdh { display:flex; align-items:center; gap:12px; padding:22px 0 6px; }
+.fg .hm-jd { position:relative; }
 .fg .hm-jd.first .hm-jdh { padding-top:15px; }
 .fg .hm-jdh > span { font-size:10.5px; font-weight:800; letter-spacing:.17em; text-transform:uppercase; color:var(--ink); }
+/* today gets a live dot, so the day you are adding to is found without reading */
+.fg .hm-jd.first .hm-jdh > span { display:inline-flex; align-items:center; gap:8px; }
+.fg .hm-jd.first .hm-jdh > span::before { content:""; width:6px; height:6px; border-radius:50%;
+  background:linear-gradient(120deg,#00E5C0,#2E68FF); }
 .fg .hm-jd:not(.first) .hm-jdh > span { color:var(--gray400); }
 .fg .hm-jdrule { flex:1; height:1px; background:var(--wb2-line2); }
 .fg .hm-jdh > em { font-style:normal; font-size:11px; font-weight:600; color:var(--gray400); }
-.fg .hm-jr { display:grid; grid-template-columns:92px minmax(0,1fr); column-gap:18px; row-gap:5px; padding:13px 0; }
-.fg .hm-jr + .hm-jr { border-top:1px solid var(--wb2-line2); }
-.fg .hm-jrt { font-size:12px; font-weight:700; color:var(--gray400); font-variant-numeric:tabular-nums; padding-top:2px; }
-.fg .hm-jrs { margin:0; grid-column:2; font-size:14px; font-weight:500; line-height:1.5; color:#1f2937;
-  max-width:96ch; text-wrap:pretty; }
-/* the card family's LINK colour, not the ok-green — that one means state */
-.fg .hm-jro { grid-column:2; display:flex; align-items:center; flex-wrap:wrap; gap:9px;
-  font-size:12.5px; font-weight:700; color:var(--wb2-cy); }
-.fg .hm-jrdot { width:3px; height:3px; border-radius:50%; background:rgba(5,5,5,.2); margin-right:9px; }
+
+/* THE RAIL. Hairlines between rows drew a table; this is a record kept over
+   time, and a spine with a node per entry is what says so. It runs down the
+   gutter between the timestamp column (92px) and the words (18px gap), so its
+   centre is 101px — moving it costs both numbers, which is why they are here
+   together. The node's white ring punches it out of the line. */
+.fg .hm-jr { position:relative; display:grid; grid-template-columns:92px minmax(0,1fr);
+  column-gap:18px; row-gap:5px; padding:15px 0; }
+.fg .hm-jd::before { content:""; position:absolute; left:100px; top:46px; bottom:12px;
+  width:1.5px; background:linear-gradient(180deg, rgba(5,5,5,.14), rgba(5,5,5,.05)); }
+.fg .hm-jr::before { content:""; position:absolute; left:96px; top:21px; width:9px; height:9px;
+  border-radius:50%; background:#c9cfd9; box-shadow:0 0 0 4px #fff; }
+.fg .hm-jd.first .hm-jr::before { background:linear-gradient(120deg,#00E5C0,#2E68FF); }
+.fg .hm-jrt { font-size:12px; font-weight:700; color:var(--gray400); font-variant-numeric:tabular-nums; padding-top:1px; }
+/* 78ch, not 96. The old cap was exactly binding at 1500px, which is 96
+   characters a line — half again past what anyone reads comfortably. */
+.fg .hm-jrs { margin:0; grid-column:2; font-size:14.5px; font-weight:500; line-height:1.55;
+  color:#111827; max-width:78ch; text-wrap:pretty; }
+
+/* THE OUTCOMES ARE THE PAYOFF — the proof Tiff heard "before Thursday" and made
+   a task with a date on it. As 12.5px text they were the quietest thing in the
+   entry; as chips they read as the objects they created. ONE accent, the card
+   family's link cyan: ok-green, warn and danger mean state in this app and may
+   not be spent on a category. */
+.fg .hm-jro { grid-column:2; display:flex; align-items:center; flex-wrap:wrap; gap:7px;
+  padding-top:3px; }
+.fg .hm-jro > span { display:inline-flex; align-items:center; gap:6px; padding:4px 11px 4px 9px;
+  border-radius:999px; border:1px solid rgba(0,127,168,.22); background:rgba(0,127,168,.06);
+  font-size:12px; font-weight:700; color:var(--wb2-cy); }
+.fg .hm-jro > span svg { flex:none; opacity:.85; }
 
 /* ── the strip under the card ──
-   Who's about and Payroll: the day's context, not a face of it. */
-.fg .hm-strip { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px 40px; margin-top:22px; padding:0 4px; }
-@media (max-width:900px){ .fg .hm-strip { grid-template-columns:minmax(0,1fr); } }
+   Payroll, and only Payroll: the day's context, not a face of it. The two-column
+   grid and `.hm-ph` went with "Who's about today" — dead rules in this
+   stylesheet have shadowed live components at equal specificity twice, so they
+   are deleted rather than left for the next person to trip over. */
+.fg .hm-strip { margin-top:18px; padding:0 4px; }
 .fg .hm-stripcol { min-width:0; }
 .fg .hm-stripcol .wb2-sect { padding:0 0 4px; }
 .fg .hm-sr { display:flex; align-items:baseline; gap:12px; padding:9px 0; text-decoration:none; color:inherit;
@@ -6471,5 +6572,52 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .hm-sr b { font-size:13px; font-weight:700; color:var(--ink); }
 .fg .hm-sr em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); margin-left:auto; }
 .fg a.hm-sr:hover b { color:var(--wb2-cy); }
-.fg .hm-ph { display:flex; align-items:center; gap:9px; margin:0 0 4px; padding:9px 0;
-  font-size:12.5px; font-weight:700; color:#1f4bd8; }
+
+/* ── the Calendar ──
+   Every `.wb2-mc*` rule comes from the maintenance board unchanged. What is
+   declared here is the three things the board has no equivalent for — and what
+   is deliberately ABSENT is `data-tone`: on the board a day's colour says how
+   ready it is, and leave has no readiness. ok/warn/danger keep meaning state.
+
+   A cell is a div here, not a button: there is nothing to open, so it takes no
+   hover lift and no pointer. */
+.fg .hm-card .wb2-mcc { min-height:104px; cursor:default; }
+.fg .hm-card .wb2-mcc:hover { border-color:var(--wb2-line2); transform:none; }
+/* closed: the info blue the old public-holiday line wore, kept for continuity */
+.fg .hm-calph { background:rgba(31,75,216,.07); border-color:rgba(31,75,216,.28); }
+.fg .hm-calphl { margin-top:6px; font-size:10.5px; font-weight:800; color:#1f4bd8; line-height:1.3; }
+
+/* YOURS: an ink band, because ink is the app's own material and the only
+   question this answers is "is it mine". It anchors to the BOTTOM of every cell
+   it touches (`margin-top:auto`) so a run draws as one line across the row
+   whatever else the day is carrying — stacked after the pills it would step up
+   and down. Squared where the run carries on, rounded only at its true ends;
+   the negative margins bleed it into the cell's padding so the gap between two
+   days is the grid's 6px and nothing more. It runs through the weekend: a
+   Wednesday-to-Tuesday request covers the Saturday and you are away on it. */
+.fg .hm-calmine { margin:8px -9px 0; margin-top:auto; padding:5px 9px; min-height:24px;
+  display:flex; align-items:center; background:var(--ink); color:#fff;
+  font-size:10.5px; font-weight:800; line-height:1.25; white-space:nowrap; overflow:hidden; }
+.fg .hm-calmine.s { margin-left:-1px; border-radius:8px 0 0 8px; }
+.fg .hm-calmine.e { margin-right:-1px; border-radius:0 8px 8px 0; }
+/* a day that is both yours and closed keeps both facts — the band lifts off
+   pure ink so the blue cell still reads underneath it */
+.fg .hm-calph .hm-calmine { background:#141a2e; }
+
+/* SOMEONE ELSE: a neutral pill. Quieter on purpose — it is context, not your
+   day, and it must never compete with the band. */
+.fg .hm-caloffs { margin-top:auto; margin-bottom:6px; display:flex; flex-direction:column;
+  gap:4px; padding-top:6px; }
+.fg .hm-caloff { display:inline-flex; align-items:center; gap:6px; padding:3px 8px 3px 3px;
+  border-radius:999px; background:rgba(5,5,5,.05); font-size:11px; font-weight:700;
+  color:var(--gray700); max-width:100%; overflow:hidden; }
+/* one line, and an unusually long first name ellipses rather than wrapping the
+   pill into a second row and shoving the leave band off the bottom of the cell */
+.fg .hm-caloff b { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  font-weight:700; }
+.fg .hm-caloff i { flex:none; display:grid; place-items:center; width:18px; height:18px;
+  border-radius:50%; background:#fff; box-shadow:0 0 0 1px rgba(5,5,5,.08);
+  font-style:normal; font-size:8.5px; font-weight:800; color:var(--gray700); }
+/* the stepper stops at the edge of the loaded span rather than walking off it */
+.fg .wb2-mcarrow:disabled { opacity:.35; cursor:not-allowed; }
+.fg .wb2-mcarrow:disabled:hover { border-color:var(--wb2-line); background:#fff; color:var(--gray500); }

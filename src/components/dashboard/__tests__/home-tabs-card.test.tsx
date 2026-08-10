@@ -160,6 +160,18 @@ describe("the page head", () => {
     expect(screen.queryByText("Say the day")).toBeNull();
   });
 
+  it("puts the tab strip INSIDE the card — the join cannot be glass", () => {
+    /* The board's strip welds the active tab's thumb to the card's top edge,
+       which only works while both are opaque: translucent, the 1px weld
+       double-paints into a dark band, the corner flares cannot carry the
+       card's blur, and the card's top border cuts the seam. One sheet of
+       glass with the tabs on it is the fix; if the strip escapes the card,
+       the three-materials-at-one-join problem is back. */
+    draw();
+    const card = document.querySelector(".hm-card")!;
+    expect(card.querySelector('[role="tablist"]')).not.toBeNull();
+  });
+
   it("keeps the card as the material, not a band inside a band", () => {
     /* `.hm-comp` was the ink console inset in the white card. The card itself
        is ink glass now; if this class reappears, that doubling is back. */

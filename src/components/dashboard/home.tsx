@@ -111,16 +111,33 @@ export function DashboardHome({ data }: { data: DashboardData }) {
             </p>
           </header>
 
-          <ViewTabs
-            items={tabs}
-            active={tab}
-            onGo={(k) => setTab(k as HomeTabKey)}
-            ariaLabel="Home"
-            idPrefix="hmtab"
-            panelPrefix="hmsec"
-          />
+          {/* THE STRIP IS INSIDE THE CARD NOW, and that is the whole fix.
 
+              The board's strip works by having the active tab's thumb BE the
+              card's top edge — an opaque-surface technique. It cannot survive
+              a translucent card: the 1px overlap that made the tab and the
+              card continuous double-paints instead (.86 over .86 = .98, a
+              dark band), the inverted corner flares are flat pseudos that
+              cannot carry the card's blur, and the card's own top border
+              draws a light line straight through the join. Three materials
+              meeting where there should be one — "thrown together instead of
+              one clean piece of glass" (Isaac, 2026-08-10).
+
+              So the glass is ONE rectangle and the tabs live in it. The thumb
+              stays and still slides; it is a lit pill ON the glass rather
+              than a second sheet of it. Nothing about ViewTabs changed — the
+              whole difference is which element it sits in, and CSS scoped to
+              `.hm-card`. */}
           <div className="wb2-card hm-card">
+            <ViewTabs
+              items={tabs}
+              active={tab}
+              onGo={(k) => setTab(k as HomeTabKey)}
+              ariaLabel="Home"
+              idPrefix="hmtab"
+              panelPrefix="hmsec"
+            />
+
             {panel("journal", <HomeJournal entries={journal} today={today} />)}
 
             {panel(

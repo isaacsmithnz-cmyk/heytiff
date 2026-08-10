@@ -6506,11 +6506,14 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    palette authority here — same ink, same white-alpha steps, same on-ink
    chip tints, so the card and the sheet it opens read as one material.
 
-   THE THUMB WEARS THE CARD'S MATERIAL. It is the card's top edge for the
-   width of the active tab (see .wb2-vslide), and the join survives only if
-   the two are the same thing — so the thumb goes smoked glass with the card,
-   and its corner flares are recoloured to match. A white thumb on an ink
-   card is the same broken join #325 documented the other way round. */
+   THE STRIP LIVES INSIDE THE CARD, and that is not a style choice — it is
+   what the material forces. The board's tab-join works by making the active
+   tab's thumb BE the card's top edge, which only holds while both are
+   OPAQUE. Translucent, the same three tricks all invert: the 1px weld
+   double-paints (.86 over .86 = .98) into a dark band, the inverted corner
+   flares cannot carry the card's blur so they land as flat patches, and the
+   card's top border draws a light line through the seam. Measured, not
+   guessed — see the strip block below. One sheet of glass, tabs on it. */
 
 /* The board declares its palette on its own root. Home is not under that root,
    so it takes a copy — same values, one place to change them. */
@@ -6561,25 +6564,41 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   width:1px; background:rgba(5,5,5,.16); }
 .fg .hm-psub { margin:10px 0 0; font-size:14.5px; font-weight:600; color:var(--gray500); }
 
-/* The strip: inactive tabs stay the well's quiet grey; the ACTIVE tab lands
-   on ink, so its text goes white and its badge takes the on-ink tint —
-   danger and warning keep their meaning on both grounds. */
-.fg .hm-wrap .wb2-vt.on { color:#fff; }
-.fg .hm-wrap .wb2-vt.on .wb2-vtn { background:rgba(255,255,255,.14); color:rgba(255,255,255,.85); }
-.fg .hm-wrap .wb2-vt.on .wb2-vtn.dan { background:rgba(224,38,79,.4); color:#FFA7B9; }
-.fg .hm-wrap .wb2-vt.on .wb2-vtn.warn { background:rgba(255,138,0,.34); color:#FFC27D; }
+/* ── THE STRIP, INSIDE THE GLASS ──
+   Every rule here exists to undo one piece of the board's tab-join, which is
+   an OPAQUE-surface technique and cannot be made translucent:
 
-/* The thumb, in the card's own glass. The corner flares paint the inverted
-   join past the rounded corner, so they carry the same translucent ink or
-   the seam shows two materials. Blur on the 12px flares is skipped — at that
-   size the mismatch is invisible and a backdrop-filter per pseudo is not.
-   Standard property alone, never a -webkit- twin (lightningcss collapses the
-   pair and has shipped the wrong survivor before). */
-.fg .hm-wrap .wb2-vslide { background:var(--hm-ink); border-color:rgba(255,255,255,.1);
-  backdrop-filter:blur(18px) saturate(140%);
-  box-shadow:0 -12px 26px -18px rgba(10,12,20,.7); }
-.fg .hm-wrap .wb2-vslide:before { background:radial-gradient(circle 12px at 0 0, transparent 11.5px, var(--hm-ink) 12px); }
-.fg .hm-wrap .wb2-vslide:after { background:radial-gradient(circle 12px at 100% 0, transparent 11.5px, var(--hm-ink) 12px); }
+   - the 1px overlap that welded thumb to card double-paints on glass
+     (.86 over .86 = .98) and draws a dark band across the join;
+   - the inverted corner flares are flat pseudos, and a pseudo cannot carry
+     its parent's backdrop blur, so they land as unblurred patches;
+   - the card's own 1px top border runs straight through the seam.
+
+   Inside the card there is no seam to get wrong. The thumb keeps its slide —
+   it is a lit pill ON the one sheet of glass, not a second sheet of it. */
+.fg .hm-card .wb2-vtabs { position:relative; z-index:1; align-items:center; gap:2px;
+  margin-bottom:0; padding:8px 10px 0; border-bottom:1px solid var(--hm-line); }
+.fg .hm-card .wb2-vt { height:40px; padding:0 15px; border-radius:10px;
+  color:rgba(255,255,255,.55); }
+.fg .hm-card .wb2-vt:hover:not(.on) { background:rgba(255,255,255,.06); color:#fff; }
+.fg .hm-card .wb2-vt.on { color:#fff; }
+.fg .hm-card .wb2-vt:focus-visible { box-shadow:0 0 0 3px rgba(0,229,192,.4); }
+/* the fence posts go with the join: the lit pill is what separates the tabs,
+   and ticks between them on one continuous surface are noise */
+.fg .hm-card .wb2-vt:not(.on) + .wb2-vt:not(.on):before { display:none; }
+/* the pill. `top`, not the base rule's `bottom:-1px` — that offset existed to
+   push the thumb THROUGH the card's top edge, which is the join being undone. */
+.fg .hm-card .wb2-vslide { top:8px; bottom:auto; height:40px; border:0;
+  border-radius:10px; background:rgba(255,255,255,.1); box-shadow:none;
+  backdrop-filter:none; }
+.fg .hm-card .wb2-vslide:before, .fg .hm-card .wb2-vslide:after { display:none; }
+/* ONE badge system, because there is now one ground. The active tab used to
+   need its own set purely because it stood on ink while its neighbours stood
+   on the well; both stand on glass now. Danger and warning still mean what
+   they mean — they are just tuned to be read on it. */
+.fg .hm-card .wb2-vtn { background:rgba(255,255,255,.12); color:rgba(255,255,255,.8); }
+.fg .hm-card .wb2-vtn.dan { background:rgba(224,38,79,.28); color:#FFA7B9; }
+.fg .hm-card .wb2-vtn.warn { background:rgba(255,138,0,.26); color:#FFC27D; }
 
 /* ── THE CARD — smoked glass, rimmed and washed like the console it absorbed ── */
 .fg .hm-card { position:relative; background:var(--hm-ink); border-color:rgba(255,255,255,.1);
@@ -6609,7 +6628,12 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    this was built. */
 .fg .hm-card .hm-panel[hidden] { display:none; }
 .fg .hm-panel { padding:6px 0 12px; }
-.fg .hm-panel > .wb2-sect:first-child { padding-top:10px; }
+/* A section label lines up with the rows it heads. `.wb2-sect`'s own 2px is
+   the board's, where the body around it is already inset; Home's rows carry
+   their inset themselves, so the label was sitting 23px left of the tiles it
+   was labelling — measured, and exactly the kind of near-miss that reads as
+   "thrown together". */
+.fg .hm-card .hm-panel > .wb2-sect { padding:16px 26px 6px; }
 
 /* SIX TABS DON'T FIT A LAPTOP. Five did; Calendar pushed the row past 1100px
    and the last tab clipped at the card's edge — reachable by nothing. The
@@ -6618,9 +6642,9 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    thumb re-measures, so a keyboard walk can't strand you on a tab you can't
    see. `flex:none` stops the tabs squeezing instead of scrolling. */
 @media (max-width:1180px) {
-  .fg .hm-wrap .wb2-vtabs { overflow-x:auto; scrollbar-width:none; padding-left:24px; }
-  .fg .hm-wrap .wb2-vtabs::-webkit-scrollbar { display:none; }
-  .fg .hm-wrap .wb2-vt { flex:none; }
+  .fg .hm-card .wb2-vtabs { overflow-x:auto; scrollbar-width:none; }
+  .fg .hm-card .wb2-vtabs::-webkit-scrollbar { display:none; }
+  .fg .hm-card .wb2-vt { flex:none; }
 }
 
 /* ── rows: an identity, not a table ──
@@ -6713,18 +6737,22 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 /* ── the Journal ──
    The header is the day, and the record runs under it, newest first. */
 
-/* THE HEADER — the capsule alone, on a hairline. The inset console
-   (`.hm-comp`) went when the whole card became that material; the day and
-   date that briefly replaced it went UP to the page head, where the screen's
-   context belongs. Anything left on the left of this row would have been the
-   third statement of one date (page head, here, and the record's own "Today"
-   divider immediately below), so the row is a toolbar and nothing more. It
-   is the ink glass that holds the capsule up now — the "floating button"
-   this fixed in #325 was a MATERIAL mismatch, a dark control on a white
-   band, not a layout one. */
+/* THE HEADER — the capsule alone. The inset console (`.hm-comp`) went when
+   the whole card became that material; the day and date that briefly
+   replaced it went UP to the page head, where the screen's context belongs.
+   Anything left on the left of this row would have been the third statement
+   of one date (page head, here, and the record's own "Today" divider
+   immediately below), so the row is a toolbar and nothing more. It is the
+   glass that holds the capsule up — the "floating button" #325 fixed was a
+   MATERIAL mismatch, a dark control on a white band, not a layout one.
+
+   NO RULE UNDER IT. The tab row draws one just above, and two parallel
+   hairlines with a single button between them read as an empty band rather
+   than a header — the same stacked-parts look the join had. One rule
+   separates the chrome from the record; the capsule sits on the record's
+   side of it. */
 .fg .hm-head { display:flex; align-items:center; justify-content:flex-end;
-  gap:18px; flex-wrap:wrap; padding:14px 26px 14px;
-  border-bottom:1px solid var(--hm-line); }
+  gap:18px; flex-wrap:wrap; padding:14px 26px 4px; }
 
 /* THE DEBRIEF — the topbar button's material, wearing the word and nothing
    else (the mark came off at #327; the ground is even more unmistakably

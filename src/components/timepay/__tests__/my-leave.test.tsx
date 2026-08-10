@@ -272,14 +272,35 @@ describe("Request leave sits on the card it adds to", () => {
     expect(container.querySelector(".v2head button")).toBeNull();
   });
 
-  it("turns into Close once the form is open, so one control owns the panel", async () => {
+  /* ONE CONTROL AT A TIME, AND THE PANEL OPENS UNDER THE BUTTON. The form used
+     to render ABOVE `.lv-cols` while its trigger sat in a header most of the
+     way down the card — so pressing "Request leave" made a calendar appear
+     above the press and pushed the button itself out from under the cursor.
+     The header then read "Close" while the form's own control read "Cancel":
+     two buttons, one job, opposite ends of the thing they controlled. */
+  it("stands the trigger down while the form is open, leaving one way back", async () => {
     const { user, openForm } = setup();
     await openForm();
-    expect(screen.getByRole("button", { name: "Close" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Request leave/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Close" })).toBeNull();
 
-    await user.click(screen.getByRole("button", { name: "Close" }));
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.getByRole("button", { name: /Request leave/ })).toBeTruthy();
+  });
+
+  it("opens the form inside the card it adds to, directly below the button", async () => {
+    const { container, openForm } = setup();
+    const col = () => container.querySelector(".lv-col") as HTMLElement;
+    const header = () => col().querySelector(".lv-ch.act") as HTMLElement;
+    // the trigger is in that header...
+    expect(within(header()).getByRole("button", { name: /Request leave/ })).toBeTruthy();
+    expect(col().querySelector(".lv-form")).toBeNull();
+
+    await openForm();
+    // ...and the form it opens is that header's next sibling, inside the same
+    // card, rather than a block above the whole two-column layout
+    expect(header().nextElementSibling).toHaveClass("lv-form");
+    expect(col().querySelector(".lv-form")).not.toBeNull();
   });
 });
 

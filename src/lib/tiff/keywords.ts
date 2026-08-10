@@ -18,7 +18,17 @@
 
    FAILURE IS NOT FATAL. Keywords are an enhancement on top of full-text search
    over the content itself; a batch that can't be tagged is indexed untagged,
-   and ingestion carries on. */
+   and ingestion carries on.
+
+   A SHORT ANSWER IS THE THIRD OUTCOME, and for a long time it was the invisible
+   one. Ask for 25 lists and the model sometimes closes the array after one —
+   `{"keywords":[["P8"]]}` is a complete, schema-valid document, so nothing
+   errors and nothing parses badly; `shapeKeywords` pads the other 24 to empty
+   and ingestion stores them. That is where the library's untagged chunks come
+   from: 69 of 472 on one Daikin manual, 23 of 59 on another. Keywords are the
+   'A' band of kb_fts — the highest-weighted terms in the index — so a chunk
+   padded to empty is materially harder to find, and until now nothing anywhere
+   said it had happened. So: a short answer is logged, and retried once. */
 
 import Anthropic from "@anthropic-ai/sdk";
 import { mapCapped } from "./fanout";
@@ -131,6 +141,26 @@ export function shapeKeywords(raw: unknown, expectedLen: number): string[][] {
   return out;
 }
 
+/** How many rows the model actually answered with — the entries in `keywords`
+    that are lists. `shapeKeywords` turns everything else into an empty row,
+    correctly and silently; this is the number that says how much of the answer
+    was its padding rather than the model's. */
+export function countKeywordRows(raw: unknown): number {
+  const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const rows = Array.isArray(r.keywords) ? r.keywords : [];
+  return rows.reduce<number>((n, row) => (Array.isArray(row) ? n + 1 : n), 0);
+}
+
+/** Two answers about the SAME chunks in the SAME order, combined.
+
+    Alignment survives because index i means chunk i in both: a row can only
+    ever have come from a call that was asked about that chunk, so filling a
+    gap can't move a keyword list onto its neighbour. A row the first answer
+    already has wins; an empty one is filled from the second if it has one. */
+export function mergeKeywordRows(first: string[][], second: string[][]): string[][] {
+  return first.map((row, i) => (row.length > 0 ? row : (second[i] ?? [])));
+}
+
 /** No key, no tagging — and no error either. The library still ingests, still
     searches, and simply carries no 'A'-weighted terms until a key exists. */
 const offline = () => !process.env.ANTHROPIC_API_KEY;
@@ -147,7 +177,20 @@ function reasonFor(err: unknown): string {
   return "Those pages couldn't be keyword-tagged.";
 }
 
-async function tagOne(chunks: readonly string[]): Promise<KeywordResult> {
+/* Same split as ingest.ts: the person sees nothing — a chunk with no keywords
+   still searches on its own content — but the log says exactly what happened,
+   because a silently padded batch is indistinguishable from a page that
+   genuinely had nothing searchable on it. The excerpt count is in the line on
+   purpose: it is what will say whether short answers cluster at 25. */
+function logKeywordShortfall(where: string, sent: number, got: number, note: string) {
+  console.warn(`[kb-keywords] ${where} — asked for ${sent} lists, got ${got}. ${note}`);
+}
+
+type Attempt =
+  | { ok: true; keywords: string[][]; rows: number }
+  | { ok: false; error: string };
+
+async function tagOne(chunks: readonly string[]): Promise<Attempt> {
   const client = new Anthropic();
   const content = chunks
     .map((text, i) => `<excerpt index="${i}">\n${text}\n</excerpt>`)
@@ -174,10 +217,48 @@ async function tagOne(chunks: readonly string[]): Promise<KeywordResult> {
     const block = response.content.find((b) => b.type === "text");
     if (!block || block.type !== "text") return { ok: false, error: "Those pages couldn't be keyword-tagged." };
 
-    return { ok: true, keywords: shapeKeywords(JSON.parse(block.text), chunks.length) };
+    const raw = JSON.parse(block.text);
+    return {
+      ok: true,
+      keywords: shapeKeywords(raw, chunks.length),
+      rows: countKeywordRows(raw),
+    };
   } catch (err) {
     return { ok: false, error: reasonFor(err) };
   }
+}
+
+/* One sub-batch, and one retry if the answer came up short.
+
+   THE RETRY IS DELIBERATELY SMALLER, not a repeat of the same ask: the same
+   25 excerpts phrased the same way is the request that just failed, whereas
+   counting to 13 is an easier thing to get right than counting to 25. It is
+   also the measurement — if the halves come back complete, the shortfall is
+   about batch size and KEYWORD_BATCH is the dial; if their own shortfall lines
+   show up in the log too, it isn't, and `effort` is the next one.
+
+   A retry that ERRORS loses the retry, never the answer already in hand. */
+async function tagBatch(slice: readonly string[], where: string): Promise<KeywordResult> {
+  const first = await tagOne(slice);
+  if (!first.ok) return first;
+  if (first.rows >= slice.length) return { ok: true, keywords: first.keywords };
+
+  const mid = Math.ceil(slice.length / 2);
+  logKeywordShortfall(where, slice.length, first.rows, `Retrying as ${mid} + ${slice.length - mid}.`);
+
+  const retried: string[][] = [];
+  for (const half of [slice.slice(0, mid), slice.slice(mid)]) {
+    const attempt = await tagOne(half);
+    if (!attempt.ok) {
+      logKeywordShortfall(where, half.length, 0, `Retry failed — ${attempt.error}`);
+      break;
+    }
+    if (attempt.rows < half.length)
+      logKeywordShortfall(where, half.length, attempt.rows, "Retry was short too.");
+    retried.push(...attempt.keywords);
+  }
+
+  return { ok: true, keywords: mergeKeywordRows(first.keywords, retried) };
 }
 
 /** Tag a batch of chunks, one call per KEYWORD_BATCH of them, up to
@@ -195,18 +276,32 @@ async function tagOne(chunks: readonly string[]): Promise<KeywordResult> {
     failure reported is the FIRST slice's, by position, so the same batch
     failing twice says the same sentence both times.
 
+    The cap counts SLICES, and a slice that comes up short spends up to three
+    calls inside `tagBatch` — but it awaits them itself, so a worker is still
+    one request in flight and KEYWORD_CONCURRENCY is still the ceiling on the
+    account. A retrying batch costs its own wall-clock, never the fan-out's.
+
     Slices already dispatched are not cancelled when one fails. They are one
     request each with nothing to undo, and the alternative — plumbing an abort
     signal through so a doomed batch finishes a second sooner — buys nothing a
-    caller can feel. */
-export async function tagChunks(chunks: readonly string[]): Promise<KeywordResult> {
+    caller can feel.
+
+    `documentId` only ever reaches the log; it is what makes a shortfall line
+    traceable to the manual it came from. */
+export async function tagChunks(
+  chunks: readonly string[],
+  documentId?: string
+): Promise<KeywordResult> {
   if (chunks.length === 0) return { ok: true, keywords: [] };
   if (offline()) return { ok: true, keywords: chunks.map(() => []) };
 
   const slices: string[][] = [];
   for (let i = 0; i < chunks.length; i += KEYWORD_BATCH) slices.push(chunks.slice(i, i + KEYWORD_BATCH));
 
-  const results = await mapCapped(slices, KEYWORD_CONCURRENCY, (slice) => tagOne(slice));
+  const results = await mapCapped(slices, KEYWORD_CONCURRENCY, (slice, at) => {
+    const from = at * KEYWORD_BATCH;
+    return tagBatch(slice, `${documentId ?? "unknown document"} chunks ${from}–${from + slice.length - 1}`);
+  });
 
   const failed = results.find((r) => !r.ok);
   if (failed && !failed.ok) return failed;

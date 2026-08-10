@@ -114,6 +114,58 @@ describe("TimePay screen", () => {
     expect(screen.getByText("Sent back · awaiting reply")).toBeInTheDocument();
   });
 
+  /* WHOSE MOVE IT IS. A sent-back sheet sat inside "Need review" and counted
+     towards its "Action required" — but the question has already been asked
+     and the answer is the staff member's to give. An approver reading their
+     own queue was reading a number that included the cards they had already
+     dealt with, and the only thing saying otherwise was a tag on the card. */
+  it("files a sent-back week under the person it is waiting on, not the approver", () => {
+    const sheets: Record<string, SheetState> = {
+      "staff-ot": { status: "sent_back", submittedAt: null, reviewNote: "why the OT?", reviewedBy: null },
+    };
+    renderTimePay({ sheets });
+    expect(within(section("Waiting on them")).getByText("Boston Hayes")).toBeInTheDocument();
+    expect(screen.queryByText("Need review", { selector: ".st" })).toBeNull();
+  });
+
+  /* APPROVED IS NOT THE SAME AS FINISHED WITH. The tile counted
+     `ready + approved` under "Normal · No action needed", so people still
+     waiting on one tap from this very screen were filed as needing nothing —
+     directly above a section headed "Ready to approve" with an Approve all
+     button in it. */
+  it("counts what is actually approved, and names what is still waiting", () => {
+    /* Nobody approved, one person ready. The old tile read "1 · Normal · No
+       action needed" for exactly this data — while the section below it
+       offered an Approve button for that same person. */
+    const { container } = renderTimePay();
+    const tile = container.querySelector(".stat.normal") as HTMLElement;
+    expect(within(tile).getByText("Approved")).toBeInTheDocument();
+    expect(within(tile).getByText("0")).toBeInTheDocument();
+    expect(within(tile).getByText("1 ready to approve")).toBeInTheDocument();
+    expect(within(tile).queryByText("No action needed")).toBeNull();
+    expect(within(section("Ready to approve")).getByText("Marcus Webb")).toBeInTheDocument();
+  });
+
+  it("names the period the overtime is for, in the cycle's own noun", () => {
+    const { container } = renderTimePay({
+      settings: { ...DEFAULT_SETTINGS, cycle: "Monthly" },
+    });
+    // "This week" was hard-coded, over a total covering a month
+    expect((container.querySelector(".stat.ot") as HTMLElement).textContent).toContain("This month");
+  });
+
+  it("the daily breakdown says which way it will go", async () => {
+    const user = userEvent.setup();
+    renderTimePay();
+    const open = screen.getAllByText("View daily breakdown")[0];
+    expect(open.closest("button")).toHaveAttribute("aria-expanded", "false");
+    await user.click(open);
+    expect(screen.getByText("Hide daily breakdown").closest("button")).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+  });
+
   it("approving calls the action with the staff id and the period", async () => {
     const user = userEvent.setup();
     renderTimePay();

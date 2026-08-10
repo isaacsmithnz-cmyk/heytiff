@@ -277,7 +277,7 @@ export async function processBatch(documentId: string, orgId: string): Promise<I
        keywords, and a later run backfills them once a key exists. */
     const texts = chunks.map((c) => c.content);
     const [tagged, embedded] = await Promise.all([
-      tagChunks(texts),
+      tagChunks(texts, documentId),
       embedTexts(texts, "document"),
     ]);
 

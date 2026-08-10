@@ -2,7 +2,6 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TimePaySettings } from "../settings";
 import { DEFAULT_SETTINGS, type Settings } from "../logic";
-import type { PayPeriod } from "../timepay";
 
 /* The Breaks section of the pay-settings gear.
 
@@ -11,13 +10,6 @@ import type { PayPeriod } from "../timepay";
    holiday manager and nothing that changes how pay is computed. A break is
    part of how pay is computed — it decides what a shift is worth. */
 
-const PERIOD: PayPeriod = {
-  start: "2026-06-29",
-  range: "29 Jun – 5 Jul",
-  year: "2026",
-  live: true,
-  note: "",
-};
 
 function open(over: { settings?: Settings; canPay?: boolean } = {}) {
   const onSave = jest.fn();
@@ -25,7 +17,6 @@ function open(over: { settings?: Settings; canPay?: boolean } = {}) {
     <TimePaySettings
       settings={over.settings ?? DEFAULT_SETTINGS}
       firstRun={false}
-      period={PERIOD}
       canPay={over.canPay ?? true}
       onClose={jest.fn()}
       onSave={onSave}
@@ -41,15 +32,30 @@ function section(label: string): HTMLElement {
 }
 
 describe("Breaks", () => {
-  it("offers paid/unpaid and a minutes stepper, defaulting to none", () => {
+  it("asks how long before it asks anything else, and defaults to none", () => {
     open();
     const ms = section("Breaks");
-    expect(within(ms).getByText("Paid")).toBeInTheDocument();
-    expect(within(ms).getByText("Unpaid")).toBeInTheDocument();
     expect(within(ms).getByText("No standard break")).toBeInTheDocument();
-    expect(
-      within(ms).getByText(/Deducted from worked hours when unpaid/),
-    ).toBeInTheDocument();
+    /* HOW LONG FIRST. With no break configured there is nothing for paid vs
+       unpaid to be about, so the question isn't asked — it used to sit ABOVE
+       the stepper, under a note explaining what happens "when unpaid", for a
+       break of zero minutes. */
+    expect(within(ms).queryByText("Paid")).toBeNull();
+    expect(within(ms).queryByText("Unpaid")).toBeNull();
+    expect(within(ms).getByText(/Nothing comes off anyone/)).toBeInTheDocument();
+  });
+
+  it("asks paid-or-unpaid as soon as there is a break to ask about", async () => {
+    const user = userEvent.setup();
+    open();
+    const ms = section("Breaks");
+    await user.click(within(ms).getByLabelText("Longer break"));
+    expect(within(ms).getByText("15 min")).toBeInTheDocument();
+    expect(within(ms).getByText("Paid")).toBeInTheDocument();
+    // and the note describes the choice that is actually selected
+    expect(within(ms).getByText(/nothing comes off the day/)).toBeInTheDocument();
+    await user.click(within(ms).getByText("Unpaid"));
+    expect(within(ms).getByText(/Comes off worked hours/)).toBeInTheDocument();
   });
 
   it("shows what the workspace already chose", () => {
@@ -64,10 +70,10 @@ describe("Breaks", () => {
     const user = userEvent.setup();
     const { onSave } = open();
     const ms = section("Breaks");
-    await user.click(within(ms).getByText("Unpaid"));
     await user.click(within(ms).getByLabelText("Longer break"));
     await user.click(within(ms).getByLabelText("Longer break"));
     expect(within(ms).getByText("30 min")).toBeInTheDocument();
+    await user.click(within(ms).getByText("Unpaid"));
 
     await user.click(screen.getByText("Save"));
     expect(onSave).toHaveBeenCalledWith(
@@ -97,7 +103,6 @@ describe("Breaks", () => {
       <TimePaySettings
         settings={DEFAULT_SETTINGS}
         firstRun
-        period={PERIOD}
         canPay
         onClose={jest.fn()}
         onSave={jest.fn()}

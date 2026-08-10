@@ -187,7 +187,7 @@ export async function processScannedPages(
     const chunks = chunkRecovered(read.pages);
     const texts = chunks.map((c) => c.content);
     const [tagged, embedded] = await Promise.all([
-      tagChunks(texts),
+      tagChunks(texts, documentId),
       embedTexts(texts, "document"),
     ]);
     const keywords = tagged.ok ? tagged.keywords : chunks.map(() => []);

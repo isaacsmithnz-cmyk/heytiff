@@ -1,6 +1,6 @@
 import { Icon } from "@/components/shell/icon";
 import { NoteToken } from "@/components/notes/note-token";
-import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
+import { fmtAuWeekdayDateLong, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { groupByDay, type JournalEntry } from "@/lib/dashboard/journal";
 
 /* THE JOURNAL — what you told Tiff, and what it became.
@@ -27,14 +27,25 @@ import { groupByDay, type JournalEntry } from "@/lib/dashboard/journal";
 export function HomeJournal({ entries, today }: { entries: JournalEntry[]; today: string }) {
   const days = groupByDay(entries, today, fmtAuWeekdayDayMonth);
 
+  /* "Monday" / "10 August" — from the loader's AU calendar date, never the
+     client clock (a Date.now() here is the hydration failure in
+     project_hydration_clock_trap). The long form already exists because the
+     old hero's greeting used it; the card inherits the format so the day
+     reads identically everywhere it is spelt out. */
+  const longDate = fmtAuWeekdayDateLong(today);
+  const [weekday, ...rest] = longDate.split(" ");
+
   return (
     <>
-      {/* The console. `NoteToken as="debrief"` IS the topbar button now, wearing
-          the word — same mark, same sheet, whichever door you came through. */}
-      <div className="hm-comp">
-        <div className="hm-compsay">
-          <b>Say the day</b>
-          <span>Filters, who needs what, anything you&rsquo;ll forget — it gets sorted.</span>
+      {/* The header is the day. It said "Say the day" with a line of coaching
+          under it — but the debrief capsule already says what pressing it
+          does, and the date was the one thing this card never said. The
+          capsule (`NoteToken as="debrief"`) IS the topbar button, wearing the
+          word — same sheet, whichever door you came through. */}
+      <div className="hm-head">
+        <div className="hm-headdate">
+          <b>{weekday}</b>
+          <span>{rest.join(" ")}</span>
         </div>
         <NoteToken as="debrief" />
       </div>

@@ -66,7 +66,7 @@ export function useNoteFlow(opts: { debrief?: boolean; governsDefault?: boolean 
       decided it had. See the note above `useDictation` below. */
   const [ranOut, setRanOut] = useState(false);
   /* ANY OF THIS ARRIVED BY VOICE. `submit` is now always reached by pressing
-     `Sort this out`, so the caller can no longer tell the router how the
+     `Go`, so the caller can no longer tell the router how the
      words got here — and a spoken note recorded as typed is a quiet lie in
      the data. Sticky for the whole capture: talk, then tidy it by keyboard,
      and it is still a note you spoke. */

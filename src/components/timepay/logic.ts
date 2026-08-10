@@ -174,6 +174,31 @@ export type Derived = {
 export type StaffStatus = "review" | "ready" | "approved" | "sent";
 export type DayClass = "std" | "over" | "under" | "leave" | "sick" | "ph" | "empty" | "miss" | "off";
 
+/* ONE WORD PER DAY STATE, and every surface says it.
+
+   There were three vocabularies for these nine states — the tiles, the admin
+   legend, and a private list inside my-timesheet — so one day was a "Short
+   day" in its pill, a "Short" in one legend and an "Under day" in the other,
+   and a day you deliberately didn't work was "Off" in the strip, "Not worked"
+   in its pill and "Didn't work" on the button that set it. Nobody decided
+   that; it is what happens when four places name the same thing.
+
+   It lives HERE, beside the type it is keyed on, rather than in tiles.tsx:
+   that file is `"use client"`, and `derive` — which runs on the server — needs
+   these words too. Anything that NAMES a state reads this map, and the legend
+   is built from it, so a tenth state can't reach one and miss the other. */
+export const DAY_WORD: Record<DayClass, string> = {
+  std: "Normal",
+  over: "Overtime",
+  under: "Short",
+  leave: "Leave",
+  sick: "Sick",
+  ph: "Public holiday",
+  off: "Not worked",
+  miss: "Missing",
+  empty: "No entry",
+};
+
 export const DEFAULT_SETTINGS: Settings = {
   cycle: "Weekly",
   weekStart: "Mon",
@@ -337,12 +362,21 @@ export function seedBreakMinutes(entry: DayEntry, s: Settings): number {
   return mins >= 0 && mins <= 120 ? mins : s.breakMinutes;
 }
 
-/** "Break: 30 min · unpaid" — the one sentence, so the editor and the rules
-    footnote can't word it differently. Empty when no break is configured. */
+/** "30 min unpaid break" — the one phrasing, so the editor and the rules
+    footnote can't word it differently. Empty when no break is configured.
+
+    TWO THINGS IT USED TO GET WRONG. It read "Break: 30 min · unpaid", and that
+    interior "·" is the same separator the rules footnote joins its ITEMS with
+    — so the footnote ran "30 min break · unpaid · Sat 1.5× first 2h · then 2×"
+    and there was no way to tell which dots divided rules from which dots were
+    inside one. And a day whose break was recovered as zero (`seedBreakMinutes`
+    reads it back out of the saved entry) rendered "Break: 0 min · unpaid":
+    a payment status for a break that isn't there. */
 export function breakLine(s: Settings, mins?: number): string {
   const n = mins ?? s.breakMinutes;
   if (s.breakMinutes <= 0) return "";
-  return `Break: ${n} min · ${s.breakPaid ? "paid" : "unpaid"}`;
+  if (n <= 0) return "No break on this day";
+  return `${n} min ${s.breakPaid ? "paid" : "unpaid"} break`;
 }
 
 const DOW = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
@@ -373,6 +407,34 @@ export const expectsWork = (ctx: WeekCtx, dow: number): boolean =>
     of its days over and a period that hasn't started has none. */
 export const isOver = (ctx: WeekCtx, i: number): boolean =>
   i <= (ctx.through ?? ctx.today - 1);
+
+/** How many days of this period could still gain hours.
+
+    SUBMITTING IS IRREVERSIBLE FROM THE PERSON'S SIDE — the sheet locks, and
+    only a manager sending it back reopens it. So a Submit pressed on
+    Wednesday froze Thursday and Friday out of the week: `materialise` writes
+    rows only for days that are OVER, so those two went in as nothing and the
+    screen that could have fixed them was read-only. The recovery was a
+    conversation with a manager, for a mistake that took one tap to make.
+
+    Zero means there is nothing left to lose by sending it. A rostered
+    person's remaining days are their EXPECTED ones — a Saturday nobody was
+    going to work is not a reason to hold a finished week open, which is what
+    counting every day would do (a weekly cycle whose Sunday isn't over until
+    Monday would never unlock its own button, and the Sunday auto-submit would
+    be the only way a sheet was ever sent).
+
+    A casual has no expected days at all, so for them it is every day left:
+    nothing is presumed onto their week, and any day of it is one they might
+    still work. */
+export function daysToCome(ctx: WeekCtx): number {
+  const roster = ctx.workDays ?? DEFAULT_WORK_DAYS;
+  return ctx.week.reduce(
+    (n, w, i) =>
+      n + (!isOver(ctx, i) && (roster.length === 0 || expectsWork(ctx, dowOf(w))) ? 1 : 0),
+    0,
+  );
+}
 
 /** "Mon, Tue, Thu" — a working pattern in the order the week runs. */
 export const workDaysLabel = (days: number[]): string => {
@@ -460,6 +522,38 @@ export function splitDay(
   const n = s.otUnit === "day" ? Math.min(ladder, s.otAfter) : ladder;
   const o15 = ladder - n;
   return { n, o15: o15 + atNight.o15, o2: o2 + atNight.o2 };
+}
+
+/* WHAT THE CARD'S HEADING SAYS, when the list under it is mixed.
+
+   It used to name the single highest-priority issue and stop: a week with one
+   unlogged Friday and two overtime days was headed "Missing entries to
+   chase", over three bullets of which two were overtime. The heading was the
+   only thing an approver read before deciding whether the card needed them,
+   and it described a third of the card.
+
+   So it names every kind present, in the order they matter. The verb survives
+   for a single-issue card — "Overtime to confirm" is what an approver would
+   say out loud, and that is most cards — and drops once there is more than
+   one, because no one verb is true of them all. Three at most, then a count:
+   a heading is a glance, and the bullets are already there for the rest. */
+const ISSUE_KINDS = [
+  ["missing", "Missing entries", "to chase"],
+  ["off", "Days not worked", "to check"],
+  ["ot2", "Double time", "to confirm"],
+  ["ot", "Overtime", "to confirm"],
+  ["under", "Short days", "to check"],
+  ["sick", "Sick leave", "to confirm"],
+  ["leave", "Annual leave", "to confirm"],
+] as const;
+
+export function issueHeading(counts: Record<(typeof ISSUE_KINDS)[number][0], number>): string {
+  const present = ISSUE_KINDS.filter(([k]) => counts[k] > 0);
+  if (present.length === 0) return "To confirm";
+  if (present.length === 1) return `${present[0][1]} ${present[0][2]}`;
+  const shown = present.slice(0, 3).map(([, label]) => label);
+  const rest = present.length - shown.length;
+  return shown.join(" · ") + (rest > 0 ? ` · +${rest}` : "");
 }
 
 export function derive(staff: StaffWeek, s: Settings, ctx: WeekCtx): Derived {
@@ -559,13 +653,32 @@ export function derive(staff: StaffWeek, s: Settings, ctx: WeekCtx): Derived {
         }
       }
     } else if (d.t === "sick") {
+      /* THE BOOKING IS NOT WHAT IS BEING REVIEWED. A timesheet cannot declare
+         leave — `KINDS` on my-timesheet offers "Worked" and "Not worked" and
+         nothing more — so every leave and sick day on a sheet arrived from a
+         request the leave module already approved. Asking this screen to
+         "check it was requested" was a second approval of that decision, on
+         the screen that exists to end exactly that kind of double entry. The
+         line says where the day came from instead.
+
+         THE CERTIFICATE STAYS, and it is not the same thing. Nothing in this
+         app records one: "certificate" appears in no other file, there is no
+         field on a leave request and nothing to upload. So this bullet is the
+         only place the obligation is ever raised — removing it would delete
+         the prompt rather than move it. It asks about a document, not about
+         whether the day off was allowed. */
       sick += d.h;
       entries++;
-      bullets.push(dlab(i) + " — sick day (" + fmt(d.h) + "h paid) — confirm a certificate if required");
+      bullets.push(
+        dlab(i) +
+          " — sick leave (" +
+          fmt(d.h) +
+          "h paid), approved in My leave — chase a certificate if your workspace needs one",
+      );
     } else if (d.t === "leave") {
       leave += d.h;
       entries++;
-      bullets.push(dlab(i) + " — annual leave (" + fmt(d.h) + "h) — check it was requested");
+      bullets.push(dlab(i) + " — annual leave (" + fmt(d.h) + "h), already approved in My leave");
     } else if (d.t === "ph") {
       ph += d.h;
       entries++;
@@ -600,26 +713,24 @@ export function derive(staff: StaffWeek, s: Settings, ctx: WeekCtx): Derived {
   }
 
   const weighted = normal + ot * 1.5 + ot2 * 2 + sick + leave + ph;
+  /* AN ABSENT WEEK REACHES A PERSON. `sick` and `leave` put the week in
+     "review", and that is Isaac's call (2026-08-10), taken back after a round
+     where they didn't.
+
+     The reasoning that removed them was that a timesheet cannot declare leave,
+     so both arrive from an approved request and asking again is double entry —
+     and a public holiday, which arrives the same way, never triggered review.
+     True about the BOOKING, wrong about the week: a period somebody was absent
+     for is one an approver should look at before it is paid, whoever approved
+     the absence. A public holiday is different in the way that matters — the
+     business closed, nobody made a choice, and every person on the calendar
+     has the same day.
+
+     So the trigger stands and the WORDING is where the double entry went: the
+     bullets state that the booking is already approved rather than asking for
+     it to be approved a second time. See the `sick`/`leave` branches above. */
   const status = ot || ot2 || under || off || missing || sick || leave ? "review" : "ready";
-  const issueTitle = missing
-    ? "Missing entries to chase"
-    : off
-      ? "Days not worked to check"
-      : ot2 && ot
-      ? "Overtime & double time to confirm"
-      : ot2
-        ? "Double time to confirm"
-        : ot
-          ? "Overtime to confirm"
-          : under
-            ? "Under days to check"
-            : sick && leave
-              ? "Sick & leave to confirm"
-              : sick
-                ? "Sick leave to confirm"
-                : leave
-                  ? "Annual leave to confirm"
-                  : "To confirm";
+  const issueTitle = issueHeading({ missing, off, ot2, ot, under, sick, leave });
 
   return {
     normal,
@@ -900,11 +1011,15 @@ export const nameHue = (n: string): number => {
   return h;
 };
 
+/* "1.5× first 2h, then 2×" — a COMMA inside the rule, because the caller that
+   lists rules joins them with " · ". With a dot in both places the footnote
+   read "Sat 1.5× first 2h · then 2× · Sun 2× all day", where "then 2×" parses
+   as a rule of its own about nothing. */
 export const ruleSummary = (rl: RateRule): string =>
-  rl.rate === 2 ? "2× all day" : "1.5× first " + fmtHval(rl.up ?? 0) + " · then 2×";
+  rl.rate === 2 ? "2× all day" : "1.5× first " + fmtHval(rl.up ?? 0) + ", then 2×";
 
 export const submitNote = (s: Settings): string =>
-  "Open · auto-submits " + s.submitDay + " " + s.submitTime + (s.lock ? " · then locks" : "");
+  "Open · auto-submits " + s.submitDay + " " + s.submitTime + (s.lock ? ", then locks" : "");
 
 /* WHAT TO CALL THE PAY PERIOD, in the word the person on it would use.
 

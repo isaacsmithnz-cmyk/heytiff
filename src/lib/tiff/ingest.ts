@@ -269,7 +269,7 @@ export async function processBatch(documentId: string, orgId: string): Promise<I
     /* Neither of these is allowed to stop ingestion. Untagged chunks still
        match on their own content; null embeddings still match on keywords, and
        a later run backfills them once a key exists. */
-    const tagged = await tagChunks(chunks.map((c) => c.content));
+    const tagged = await tagChunks(chunks.map((c) => c.content), documentId);
     const keywords = tagged.ok ? tagged.keywords : chunks.map(() => []);
 
     /* Stored either way — but NOT silently, any more. 106 of one 285-chunk

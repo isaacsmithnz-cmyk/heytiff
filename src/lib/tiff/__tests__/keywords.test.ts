@@ -10,12 +10,25 @@
  * chunks, because a keyword list attached to the wrong chunk sends a search to
  * the wrong page — which is worse than no keywords at all.
  *
+ * THE PADDING IS ALSO COUNTED. A short answer used to be indistinguishable
+ * from a page with nothing searchable on it, which is where the library's
+ * untagged chunks came from — so `countKeywordRows` is what the retry and the
+ * log both read, and `mergeKeywordRows` is how a retry's rows get combined
+ * with the first answer's WITHOUT moving any of them.
+ *
  * Nothing here calls the API: the offline branch is exercised through the real
  * function, and the shaping is pure. (House rule: no test mocks the Anthropic
  * SDK; the lib is what gets mocked, one level up.)
  */
 
-import { KEYWORD_MAX_CHARS, MAX_KEYWORDS, shapeKeywords, tagChunks } from "../keywords";
+import {
+  countKeywordRows,
+  KEYWORD_MAX_CHARS,
+  MAX_KEYWORDS,
+  mergeKeywordRows,
+  shapeKeywords,
+  tagChunks,
+} from "../keywords";
 
 describe("shaping — alignment", () => {
   it("keeps well-formed rows as they are", () => {
@@ -80,6 +93,59 @@ describe("shaping — the terms themselves", () => {
   });
 });
 
+/* The live shape of the failure: 25 excerpts went out, `{"keywords":[["P8"]]}`
+   came back. It is complete, schema-valid JSON, so nothing throws and nothing
+   fails to parse — the only thing that can tell it apart from a genuinely
+   untaggable batch is the row count. */
+describe("counting what the model actually answered", () => {
+  it("counts the lists in a short answer, not the rows we asked for", () => {
+    expect(countKeywordRows({ keywords: [["P8"]] })).toBe(1);
+  });
+
+  it("counts a full answer in full", () => {
+    expect(countKeywordRows({ keywords: [["P8"], [], ["TXV"]] })).toBe(3);
+  });
+
+  it("does not count a row that isn't a list — that row gets padded too", () => {
+    expect(countKeywordRows({ keywords: [["a"], "P8", null, ["d"]] })).toBe(2);
+  });
+
+  it("counts nothing in junk", () => {
+    for (const junk of [{}, { keywords: "P8" }, null, undefined, 7, [], "text"]) {
+      expect(countKeywordRows(junk)).toBe(0);
+    }
+  });
+});
+
+describe("merging a retry into the first answer", () => {
+  it("fills the padded rows and leaves the answered ones alone", () => {
+    expect(mergeKeywordRows([["P8"], [], []], [["X"], ["TXV"], ["R32"]])).toEqual([
+      ["P8"],
+      ["TXV"],
+      ["R32"],
+    ]);
+  });
+
+  /* The alignment contract again, one layer up: both calls were asked about
+     the same chunks in the same order, so a gap can only ever be filled from
+     the row that was about that same chunk. */
+  it("fills row i from row i and never from its neighbour", () => {
+    expect(mergeKeywordRows([[], ["b"], []], [["A"], ["B"], ["C"]])).toEqual([
+      ["A"],
+      ["b"],
+      ["C"],
+    ]);
+  });
+
+  it("keeps its length when the retry died half way through", () => {
+    expect(mergeKeywordRows([[], [], []], [["A"]])).toEqual([["A"], [], []]);
+  });
+
+  it("changes nothing when the retry found nothing", () => {
+    expect(mergeKeywordRows([["P8"], []], [[], []])).toEqual([["P8"], []]);
+  });
+});
+
 describe("without a key", () => {
   const KEY = process.env.ANTHROPIC_API_KEY;
   beforeEach(() => {
@@ -102,5 +168,14 @@ describe("without a key", () => {
 
   it("answers an empty batch without going near the API", async () => {
     expect(await tagChunks([])).toEqual({ ok: true, keywords: [] });
+  });
+
+  /* The document id is for the log line and nothing else — it must not change
+     what comes back, and it must stay optional for the callers that have none. */
+  it("takes a document id without it reaching the rows", async () => {
+    expect(await tagChunks(["one", "two"], "doc_123")).toEqual({
+      ok: true,
+      keywords: [[], []],
+    });
   });
 });

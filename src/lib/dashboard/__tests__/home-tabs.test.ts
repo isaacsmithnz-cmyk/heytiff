@@ -41,9 +41,30 @@ describe("homeTabs", () => {
     expect(by(tabs, "board").count).toBe(2);
   });
 
-  it("keeps all five faces on a clear day, Journal first", () => {
+  it("keeps all six faces on a clear day, Journal first and Calendar last", () => {
     const tabs = homeTabs({ chips: [], openTasks: 0, unreadNotices: 0 });
-    expect(tabs.map((t) => t.key)).toEqual(["journal", "urgent", "attention", "board", "tasks"]);
+    expect(tabs.map((t) => t.key)).toEqual([
+      "journal",
+      "urgent",
+      "attention",
+      "board",
+      "tasks",
+      "calendar",
+    ]);
+  });
+
+  it("leaves Journal and Calendar unbadged whatever else is going on", () => {
+    /* A badge answers "does this want me?". Journal is where you already are,
+       and a number on Calendar would count people being off — which is not
+       something that wants you. */
+    const tabs = homeTabs({
+      chips: sortChips([chip("bad", "a"), chip("warn", "b")]),
+      openTasks: 3,
+      unreadNotices: 1,
+    });
+    expect(by(tabs, "journal").count).toBeUndefined();
+    expect(by(tabs, "calendar").count).toBeUndefined();
+    expect(by(tabs, "calendar").tone).toBeUndefined();
   });
 
   it("shows NO badge at zero — a grey 0 on every tab is noise", () => {

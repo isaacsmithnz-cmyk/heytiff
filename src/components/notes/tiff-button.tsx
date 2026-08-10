@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Chevron } from "@/components/logo";
 import { CaptureSheet } from "./note-token";
+import { TiffMark } from "./tiff-mark";
 import { useNoteFlow } from "./note-flow";
 import { useNoteScope } from "./note-context";
 
@@ -51,6 +51,7 @@ import { useNoteScope } from "./note-context";
    the approved ratios are chevron ~46%, sparkle ~30%. */
 
 type Where = "topbar" | "sheet";
+
 
 /** 44px on the topbar, 30px in a sheet header beside the close ×. */
 const SIZES: Record<Where, { chevron: number; spark: number }> = {
@@ -112,32 +113,15 @@ export function TiffButton({ where = "topbar" }: { where?: Where }) {
           flow.setOpen(true);
         }}
       >
-        {where === "topbar" && <span className="tiffbtn-halo" aria-hidden="true" />}
         <span className="tiffbtn-burst" aria-hidden="true" />
-        <span className="tiffbtn-face">
-          {/* The core holds the mark's contrast on top of a LIGHT ground and
-              is wrong on a dark one, where it would only mute the halo. */}
-          {where === "sheet" && <span className="tiffbtn-core" aria-hidden="true" />}
-          <Chevron size={size.chevron} gradient className="tiffbtn-mk" />
-          <span className="tiffbtn-spark" aria-hidden="true">
-            <svg width={size.spark} height={size.spark} viewBox="0 0 24 24" aria-hidden="true">
-              <defs>
-                {/* A fixed brand gradient, so a constant id is safe: identical
-                    defs never collide visually, and unlike a render-time
-                    counter it is identical on the server and the client. */}
-                <linearGradient id="tiffSpark" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0" stopColor="#00E5C0" />
-                  <stop offset="0.55" stopColor="#2E68FF" />
-                  <stop offset="1" stopColor="#8A2BE2" />
-                </linearGradient>
-              </defs>
-              <path
-                d="M12 2.8 14 9l6.2 2L14 13l-2 6.2L10 13l-6.2-2L10 9Zm7.2 12.4.9 2.7 2.7.9-2.7.9-.9 2.7-.9-2.7-2.7-.9 2.7-.9Z"
-                fill="url(#tiffSpark)"
-              />
-            </svg>
-          </span>
-        </span>
+        {/* The core holds the mark's contrast on top of a LIGHT ground and is
+            wrong on a dark one, where it would only mute the halo. */}
+        <TiffMark
+          chevron={size.chevron}
+          spark={size.spark}
+          halo={where === "topbar"}
+          core={where === "sheet"}
+        />
       </button>
 
       {/* The SAME sheet the field postures open. What you get must not depend

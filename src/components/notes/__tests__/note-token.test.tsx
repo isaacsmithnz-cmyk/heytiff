@@ -447,10 +447,30 @@ describe("the debrief", () => {
     await screen.findByText("Check it before it saves");
   };
 
-  it("is a labelled button with a mic half — never an icon alone", () => {
+  it("is a labelled button — never an icon alone", () => {
     mount(<NoteToken as="debrief" />);
     expect(screen.getByRole("button", { name: "Debrief" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Start the debrief by talking")).toBeInTheDocument();
+  });
+
+  it("has no mic at the door — the sheet it opens is where you choose", () => {
+    /* The half went on 2026-08-10 with the console. Nothing is lost: the sheet
+       has Talk in it, gated on the same `voiceEnabled`. What the half cost was
+       the last asymmetry between the two doors into one sheet — the topbar
+       button does not offer a mic either, because arriving already recording
+       makes typing second-class. */
+    mount(<NoteToken as="debrief" />);
+    expect(screen.queryByLabelText("Start the debrief by talking")).toBeNull();
+    expect(document.querySelectorAll(".wb2-tokhalf")).toHaveLength(1);
+  });
+
+  it("wears the global button's mark, not a copy of it", () => {
+    /* The capsule IS the topbar button with a word on it. If the halo or the
+       glass face stops rendering here, the two controls that open the same
+       sheet have drifted apart again. */
+    mount(<NoteToken as="debrief" />);
+    const word = screen.getByRole("button", { name: "Debrief" });
+    expect(word.querySelector(".tiffbtn-halo")).not.toBeNull();
+    expect(word.querySelector(".tiffbtn-face")).not.toBeNull();
   });
 
   /* THE MARK BESIDE THE WORD IS DECORATION. Wearing Tiff's chevron here (it

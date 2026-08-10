@@ -16,32 +16,41 @@
     the two cannot be shared without unpicking that flow. They CAN drift, which
     is why the test pins them against the singular/plural pairs in
     `actions/workboard-notes.ts`. If you add a group there, add it here. */
-const GROUPS: readonly (readonly [key: string, one: string, many: string])[] = [
-  ["taskIds", "task", "tasks"],
-  ["flagIds", "flag", "flags"],
-  ["entryIds", "entry", "entries"],
-  ["entryLines", "entry", "entries"],
-  ["issueIds", "issue", "issues"],
-  ["bringItems", "bring-item", "bring-items"],
-  ["kbIds", "knowledge entry", "knowledge entries"],
-  ["noteLines", "line kept", "lines kept"],
+const GROUPS: readonly (readonly [key: string, one: string, many: string, kind: OutcomeKind])[] = [
+  ["taskIds", "task", "tasks", "todo"],
+  ["flagIds", "flag", "flags", "todo"],
+  ["entryIds", "entry", "entries", "kept"],
+  ["entryLines", "entry", "entries", "kept"],
+  ["issueIds", "issue", "issues", "todo"],
+  ["bringItems", "bring-item", "bring-items", "todo"],
+  ["kbIds", "knowledge entry", "knowledge entries", "kept"],
+  ["noteLines", "line kept", "lines kept", "kept"],
 ];
 
-/** What a capture turned into: ["2 tasks", "1 line kept"].
+/* TWO KINDS, NOT EIGHT. Each chip carries a glyph, and eight glyphs would be a
+   new vocabulary to learn for a row that is meant to be read at a glance. The
+   split that matters is the one the reader acts on: something now WANTS you
+   (a task, a flag, an issue, a thing to bring), or something was WRITTEN DOWN
+   (an entry, a knowledge line, a kept line). */
+export type OutcomeKind = "todo" | "kept";
+
+export type Outcome = { kind: OutcomeKind; text: string };
+
+/** What a capture turned into: [{kind:"todo",text:"2 tasks"}, …].
 
     Empty when it produced nothing, which is a real outcome and not an error —
     you can untick every line and still have said the thing. The row renders
     with the words and no outcomes rather than disappearing. */
-export function describeApplied(applied: unknown): string[] {
+export function describeApplied(applied: unknown): Outcome[] {
   if (!applied || typeof applied !== "object") return [];
   const rec = applied as Record<string, unknown>;
-  const out: string[] = [];
-  for (const [key, one, many] of GROUPS) {
+  const out: Outcome[] = [];
+  for (const [key, one, many, kind] of GROUPS) {
     const v = rec[key];
     // every group is recorded as an array of ids or lines; anything else is
     // a shape we did not write, and guessing at it would invent a number
     if (!Array.isArray(v) || v.length === 0) continue;
-    out.push(`${v.length} ${v.length === 1 ? one : many}`);
+    out.push({ kind, text: `${v.length} ${v.length === 1 ? one : many}` });
   }
   return out;
 }
@@ -57,8 +66,8 @@ export type JournalEntry = {
   day: string;
   /** "6:52 am" on the yard's clock. */
   at: string;
-  /** ["2 tasks", "1 assigned to Dane"] — what it became. */
-  outcomes: string[];
+  /** What it became, each with the glyph its chip wears. */
+  outcomes: Outcome[];
   spoken: boolean;
 };
 

@@ -10,8 +10,8 @@ import { APPLIED_GROUPS, describeApplied, groupByDay, type JournalEntry } from "
 describe("describeApplied", () => {
   it("counts each group in the words the save summary used", () => {
     expect(describeApplied({ taskIds: ["a", "b"], noteLines: ["x"] })).toEqual([
-      "2 tasks",
-      "1 line kept",
+      { kind: "todo", text: "2 tasks" },
+      { kind: "kept", text: "1 line kept" },
     ]);
   });
 
@@ -30,10 +30,21 @@ describe("describeApplied", () => {
       "kbIds",
       "noteLines",
     ]);
-    for (const [key, one, many] of APPLIED_GROUPS) {
-      expect(describeApplied({ [key]: ["only"] })).toEqual([`1 ${one}`]);
-      expect(describeApplied({ [key]: ["a", "b"] })).toEqual([`2 ${many}`]);
+    for (const [key, one, many, kind] of APPLIED_GROUPS) {
+      expect(describeApplied({ [key]: ["only"] })).toEqual([{ kind, text: `1 ${one}` }]);
+      expect(describeApplied({ [key]: ["a", "b"] })).toEqual([{ kind, text: `2 ${many}` }]);
     }
+  });
+
+  it("sorts every group into one of exactly two glyphs", () => {
+    /* Eight glyphs would be a vocabulary to learn; the split that matters is
+       the one the reader acts on. If a new group arrives, it has to choose a
+       side here rather than quietly inventing a third. */
+    expect(new Set(APPLIED_GROUPS.map(([, , , kind]) => kind))).toEqual(
+      new Set(["todo", "kept"]),
+    );
+    const todo = APPLIED_GROUPS.filter(([, , , k]) => k === "todo").map(([key]) => key);
+    expect(todo).toEqual(["taskIds", "flagIds", "issueIds", "bringItems"]);
   });
 
   it("reports nothing for a capture that produced nothing", () => {

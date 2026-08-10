@@ -32,8 +32,14 @@ import { blockers, toConfirmed, toDraft, targetOf, type Draft } from "./review-c
 
 export type Stage = "idle" | "recording" | "transcribing" | "sorting" | "review" | "answer";
 
-export function useNoteFlow(opts: { debrief?: boolean } = {}) {
+export function useNoteFlow(opts: { debrief?: boolean; governsDefault?: boolean } = {}) {
   const debrief = opts.debrief === true;
+  /* WHOSE DEFAULT IS IT? Only the Tiff button opens according to the stored
+     mode, so only its sheet may show a control labelled "Default" or write
+     one. The debrief has its own two doors on its own button and the field
+     postures are opened by a nudge — a preference offered there would be
+     claiming authority over a surface that never consults it. */
+  const governsDefault = opts.governsDefault === true;
   const router = useRouter();
   const scope = useNoteScope();
   const [busy, start] = useTransition();
@@ -361,6 +367,7 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
     dict,
     mode,
     chooseMode,
+    governsDefault,
     stage,
     busy,
     debrief,

@@ -6253,6 +6253,11 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    Top-level, no `.fg` scope and no var() — this rides the portalled card,
    where `.fg`'s custom properties are absent rather than outranked. */
 .wb2-modesw { display:inline-flex; align-items:center; gap:9px; margin-right:auto; }
+/* The switch's plain-button twin, on the surfaces the stored default does
+   not govern (the debrief, the field postures). Same job in the row, so the
+   same anchor: `Sort this out` arrives only once there are words, and
+   without this the mode control slides sideways as it appears. */
+.wb2-capact .pbtn.wb2-talk, .wb2-capact .pbtn.wb2-modeone { margin-right:auto; }
 .wb2-modelbl { font-size:11px; font-weight:800; letter-spacing:.13em;
   text-transform:uppercase; color:var(--gray500, #6b7280); white-space:nowrap; }
 .wb2-modeseg { position:relative; display:inline-flex; padding:3px; border-radius:999px;

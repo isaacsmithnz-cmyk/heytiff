@@ -99,6 +99,7 @@ function mount(
 
 beforeEach(() => {
   jest.clearAllMocks();
+  localStorage.clear();
   routeNote.mockResolvedValue({
     ok: true,
     noteId: "n-1",
@@ -450,6 +451,32 @@ describe("the debrief", () => {
   it("is a labelled button — never an icon alone", () => {
     mount(<NoteToken as="debrief" />);
     expect(screen.getByRole("button", { name: "Debrief" })).toBeInTheDocument();
+  });
+
+  /* THE DEFAULT SWITCH IS NOT THIS SHEET'S TO SHOW. Spotted live 2026-08-10:
+     it lived in the shared body, so the debrief wore it too — reading
+     "DEFAULT · Talk" over a text box, on a sheet that opens from its own
+     button and never consults the stored mode. Pressing it would have
+     rewritten the TIFF BUTTON's default from a screen with no say over it,
+     which is the invisible-preference trap wearing a label.
+
+     The choice is still here, offered as the one-off it actually is. */
+  it("offers Talk as a one-off, and claims no default it cannot honour", async () => {
+    localStorage.setItem("heytiff.capture.mode", "talk");
+    mount(<NoteToken as="debrief" />);
+    await userEvent.click(screen.getByRole("button", { name: "Debrief" }));
+
+    expect(screen.queryByText("Default")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /talk/i })).toBeInTheDocument();
+  });
+
+  it("opens in the box whatever the Tiff button's default says", async () => {
+    localStorage.setItem("heytiff.capture.mode", "talk");
+    mount(<NoteToken as="debrief" />);
+    await userEvent.click(screen.getByRole("button", { name: "Debrief" }));
+
+    expect(screen.getByRole("textbox")).toBeInTheDocument();
+    expect(screen.queryByText("Recording")).not.toBeInTheDocument();
   });
 
   it("has no mic at the door — the sheet it opens is where you choose", () => {

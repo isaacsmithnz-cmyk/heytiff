@@ -51,7 +51,7 @@ export function markTranscript(transport: Transport): void {
 }
 
 /* THERE IS A PERSON IN THE MIDDLE NOW. A transcript lands in the box to be
-   checked, and routing does not start until `Sort this out` is pressed — so
+   checked, and routing does not start until `Go` is pressed — so
    the two links stopped being one continuous wait. Measuring the second one
    from the stop would bank however long someone spent reading their own
    note as time the ROUTER spent, which is the "real number attached to the

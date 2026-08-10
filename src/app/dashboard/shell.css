@@ -3537,7 +3537,7 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 
 /* the board's primary buttons wear the section accent, ghosts stay house */
 /* `.wb2-capcard` belongs in this list and was missing from it, so the capture
-   overlay's primary buttons — "Sort this out", "Save these" — had no fill at
+   overlay's primary buttons — "Go", "Save these" — had no fill at
    all: dark text on white, indistinguishable from a label. Which is why a
    DISABLED "Save these" read as nothing happening rather than as off. */
 .wb2 .pbtn:not(.ghost), .wb2-sheet .pbtn:not(.ghost), .wb2-capcard .pbtn:not(.ghost) {
@@ -6246,7 +6246,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   border-color:rgba(255,255,255,.22); color:#fff; }
 /* ── THE DEFAULT SWITCH ──
    Says what the Tiff button will do next time, and switches it. It holds
-   the left of the row so it does not MOVE: `Sort this out` now arrives only
+   the left of the row so it does not MOVE: `Go` now arrives only
    once there are words, and with everything flush right the switch would
    slide sideways the moment you started typing.
 
@@ -6255,7 +6255,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .wb2-modesw { display:inline-flex; align-items:center; gap:9px; margin-right:auto; }
 /* The switch's plain-button twin, on the surfaces the stored default does
    not govern (the debrief, the field postures). Same job in the row, so the
-   same anchor: `Sort this out` arrives only once there are words, and
+   same anchor: `Go` arrives only once there are words, and
    without this the mode control slides sideways as it appears. */
 .wb2-capact .pbtn.wb2-talk, .wb2-capact .pbtn.wb2-modeone { margin-right:auto; }
 .wb2-modelbl { font-size:11px; font-weight:800; letter-spacing:.13em;

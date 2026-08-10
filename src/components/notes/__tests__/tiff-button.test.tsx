@@ -299,7 +299,7 @@ describe("the sheet's actions", () => {
     expect(screen.queryByText("Default")).not.toBeInTheDocument();
   });
 
-  it("holds Sort this out back until there is something to sort", async () => {
+  it("holds Go back until there is something to sort", async () => {
     const user = userEvent.setup();
     localStorage.setItem("heytiff.capture.mode", "type");
     mount();
@@ -307,10 +307,10 @@ describe("the sheet's actions", () => {
 
     /* Absent, not disabled: a dead control is a question you answer every
        time you look at it. */
-    expect(screen.queryByRole("button", { name: "Sort this out" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Go" })).not.toBeInTheDocument();
 
     await user.type(screen.getByRole("textbox"), "chase the grilles");
-    expect(screen.getByRole("button", { name: "Sort this out" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Go" })).toBeInTheDocument();
   });
 
   it("does not count whitespace as something to sort", async () => {
@@ -320,7 +320,7 @@ describe("the sheet's actions", () => {
     await user.click(btn());
 
     await user.type(screen.getByRole("textbox"), "   ");
-    expect(screen.queryByRole("button", { name: "Sort this out" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Go" })).not.toBeInTheDocument();
   });
 });
 

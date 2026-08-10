@@ -316,15 +316,22 @@ function Body({ flow }: { flow: NoteFlow }) {
               there greyed out on an empty sheet — a dead control is a
               question you have to answer every time you look at it. Now the
               row is quiet until there is something to sort, and the button
-              appearing IS the signal that there is. */}
+              appearing IS the signal that there is.
+
+              AND IT IS CALLED "GO" (Isaac, 2026-08-10). "Sort this out" was
+              the button describing its own machinery; by the time it appears
+              there is one thing to do with the words in the box and no
+              choice left to explain. The accessible name moves with the
+              visible one — a label a screen reader reads as something other
+              than what is printed on it is its own bug. */}
           {flow.text.trim() && (
             <button
               className="pbtn"
-              aria-label="Sort this out"
+              aria-label="Go"
               onClick={() => flow.submit(flow.text)}
               disabled={flow.busy}
             >
-              {flow.busy ? "Reading…" : "Sort this out"}
+              {flow.busy ? "Reading…" : "Go"}
             </button>
           )}
         </div>

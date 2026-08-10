@@ -271,7 +271,13 @@ function ReviewCard({
         </div>
         <div className="cside">
           <div className="cs-head">
-            <span className="l">Total worked</span>
+            {/* "Actual worked", the same words My timesheet uses for the same
+                number — it read "Total worked" here and "Actual worked" there,
+                which is two names for one figure across a screen and the
+                screen it is reviewing. "Actual" is the one that carries the
+                distinction: this is hours on the clock, not the weighted total
+                in the breakdown below. */}
+            <span className="l">Actual worked</span>
             <span className="tot">
               {fmt(d.worked)}
               <em>h</em>

@@ -135,16 +135,28 @@ describe("derive — demo staff on default settings", () => {
     }
   });
 
-  it("Hannah: sick day flags review, paid in weighted hours", () => {
+  /* ALREADY DECIDED, SOMEWHERE ELSE. A timesheet cannot declare leave, so
+     every sick and leave day on a sheet came from an approved request — and
+     flagging it for review put a person in the approver's "Action required"
+     queue for having taken the day the business already said yes to. A public
+     holiday arrives the same way and never did. Both now behave like `ph`:
+     paid, drawn, counted, and summoning nobody. */
+  it("Hannah: a booked sick day pays without summoning the approver", () => {
     const d = byName["Hannah Cole"];
-    expect([d.status, d.sick, d.weighted]).toEqual(["review", 8, 40]);
-    expect(d.issueTitle).toBe("Sick leave to confirm");
+    expect([d.status, d.sick, d.weighted]).toEqual(["ready", 8, 40]);
+    expect(d.bullets).toContain("Thu 2 Jul — sick leave (8h paid), booked and approved in My leave");
+    expect(d.bullets.join(" ")).not.toMatch(/confirm|check/);
   });
 
-  it("Sophie: annual leave flags review", () => {
+  it("Sophie: annual leave does the same", () => {
     const d = byName["Sophie Tran"];
-    expect([d.status, d.leave]).toEqual(["review", 8]);
-    expect(d.issueTitle).toBe("Annual leave to confirm");
+    expect([d.status, d.leave]).toEqual(["ready", 8]);
+    expect(d.bullets).toContain("Fri 3 Jul — annual leave (8h), booked and approved in My leave");
+  });
+
+  it("still flags the things that DO need a decision", () => {
+    // overtime, a short day, a day marked not worked, a missing entry
+    expect(byName["Boston Hayes"].status).toBe("review");
   });
 });
 
@@ -268,10 +280,10 @@ describe("formatting helpers", () => {
   it("initials and rule summaries", () => {
     expect(initials("Boston Hayes")).toBe("BH");
     expect(ruleSummary({ on: true, rate: 2, up: null })).toBe("2× all day");
-    expect(ruleSummary({ on: true, rate: 1.5, up: 2 })).toBe("1.5× first 2h · then 2×");
+    expect(ruleSummary({ on: true, rate: 1.5, up: 2 })).toBe("1.5× first 2h, then 2×");
   });
   it("builds the live-period note from settings", () => {
-    expect(submitNote(DEFAULT_SETTINGS)).toBe("Open · auto-submits Sun 3:00 PM · then locks");
+    expect(submitNote(DEFAULT_SETTINGS)).toBe("Open · auto-submits Sun 3:00 PM, then locks");
     expect(submitNote({ ...DEFAULT_SETTINGS, lock: false })).toBe("Open · auto-submits Sun 3:00 PM");
   });
 });
@@ -491,9 +503,29 @@ describe("breakLine", () => {
   });
 
   it("says the minutes and whether they're paid", () => {
-    expect(breakLine(withBreak(30, false))).toBe("Break: 30 min · unpaid");
-    expect(breakLine(withBreak(30, true))).toBe("Break: 30 min · paid");
-    expect(breakLine(withBreak(30, false), 20)).toBe("Break: 20 min · unpaid");
+    expect(breakLine(withBreak(30, false))).toBe("30 min unpaid break");
+    expect(breakLine(withBreak(30, true))).toBe("30 min paid break");
+    expect(breakLine(withBreak(30, false), 20)).toBe("20 min unpaid break");
+  });
+
+  /* NO INTERIOR "·". The rules footnote joins its items with " · ", and this
+     string used to carry one of its own ("Break: 30 min · unpaid"), so the
+     footnote ran "30 min break · unpaid · Sat 1.5× first 2h · then 2×" with no
+     way to tell a divider from a continuation. Same reason `ruleSummary` uses
+     a comma. */
+  it("keeps the list separator out of the item", () => {
+    expect(breakLine(withBreak(30, false))).not.toContain("·");
+    expect(ruleSummary({ on: true, rate: 1.5, up: 2 })).not.toContain("·");
+    expect(submitNote({ ...DEFAULT_SETTINGS, lock: true }).replace(/^Open · /, "")).not.toContain(
+      "·",
+    );
+  });
+
+  /* A day whose break is recovered as zero — `seedBreakMinutes` reads it back
+     out of what was saved — used to render "Break: 0 min · unpaid": a payment
+     status for a break that isn't there. */
+  it("does not price a break of no minutes", () => {
+    expect(breakLine(withBreak(30, false), 0)).toBe("No break on this day");
   });
 });
 

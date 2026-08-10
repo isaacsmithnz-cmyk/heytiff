@@ -2329,6 +2329,10 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .lv-balempty, .fg .lv-declined, .fg .lv-pnote { font-size:12.5px; font-weight:600; color:var(--gray500); }
 .fg .lv-declined { display:block; color:var(--red-d,#e0264f); margin-top:3px; }
 .fg .lv-form { padding:16px 18px; border-radius:16px; background:rgba(5,5,5,.03); border:1px solid rgba(10,12,20,.05); margin-bottom:22px; }
+/* IN THE COLUMN IT BELONGS TO. The form lives inside the requests card now,
+   directly under the button that opens it, so it squares its own corners into
+   that card rather than floating as a rounded block above the whole thing. */
+.fg .lv-col .lv-form { margin:0; border:0; border-bottom:1px solid rgba(10,11,16,.06); border-radius:0; }
 .fg .lv-frow { display:flex; flex-wrap:wrap; gap:12px; }
 .fg .lv-fnote { margin-top:12px; display:flex; }
 .fg .lv-form .mts-f input, .fg .lv-form .mts-f select { height:38px; padding:0 11px; border-radius:11px; border:1px solid rgba(10,11,16,.14); background:#fff; font-family:var(--font); font-size:13.5px; font-weight:600; color:var(--ink); }
@@ -2797,7 +2801,12 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .mts2-brkstep { display:inline-flex; align-items:center; gap:2px; border:1px solid #ececf0; border-radius:11px; padding:2px; }
 .fg .mts2-brkstep button { width:26px; height:26px; border-radius:9px; font-size:15px; font-weight:800; color:var(--gray500); }
 .fg .mts2-brkstep button:hover { background:#f4f5f7; color:var(--ink); }
-.fg .mts2-brkstep b { min-width:30px; text-align:center; font-size:12.5px; font-weight:800; font-variant-numeric:tabular-nums; }
+.fg .mts2-brkstep b { min-width:48px; text-align:center; font-size:12.5px; font-weight:800; font-variant-numeric:tabular-nums; }
+.fg .mts2-brkstep b em { font-style:normal; font-weight:700; color:var(--gray400); }
+/* Why the two totals above it disagree — see the rail in my-timesheet.tsx. */
+.fg .mts2-gap { display:flex; align-items:flex-start; gap:7px; margin-top:10px; font-size:12px; font-weight:600; line-height:1.5; color:var(--gray500); }
+.fg .mts2-gap svg { flex:0 0 auto; margin-top:2px; color:var(--gray400); }
+.fg .mts2-gap b { font-weight:800; color:var(--gray700); }
 /* the derived hours — this line IS the hours field */
 .fg .mts2-derv { display:flex; align-items:center; gap:8px; margin-top:13px; padding:10px 13px; border-radius:13px; background:rgba(34,197,94,.07); color:var(--gray700); font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; }
 .fg .mts2-derv b { font-size:14px; font-weight:800; color:var(--ink); }
@@ -3137,7 +3146,14 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    shape on a calendar — which days, how many of them, and which ones the
    public holidays give back — and none of that reads off two date fields. The
    fields stay beside it as the exact answer, and edit the same two dates. */
+/* Calendar beside fields when there is room for both. Inside `.lv-col` there
+   never is — that column is 1.4fr of a two-column grid — so it stacks, which is
+   the same shape the narrow-viewport rule below already defines. Stated by
+   CONTAINER rather than by viewport: the form moved into the column at every
+   width, so a media query would have missed it on a wide screen. */
 .fg .lv-cal { display:grid; grid-template-columns:300px minmax(0,1fr); gap:20px; align-items:start; }
+.fg .lv-col .lv-cal { grid-template-columns:minmax(0,1fr); }
+.fg .lv-col .lv-calside { max-width:340px; }
 .fg .lv-calside .cal { padding:12px 13px 13px; border-radius:14px; background:#fff; border:1px solid rgba(10,11,16,.08); }
 .fg .lv-callegend { display:flex; align-items:center; gap:7px; margin:9px 2px 0; font-size:11.5px; font-weight:600; color:var(--gray500); }
 .fg .lv-legdot { width:8px; height:8px; border-radius:50%; flex:0 0 auto; }
@@ -3145,7 +3161,16 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .lv-calhint { margin:4px 2px 0; font-size:11.5px; font-weight:600; color:var(--gray400); }
 .fg .lv-calfields { display:flex; flex-direction:column; gap:12px; }
 .fg .lv-calfields .lv-fnote { margin-top:0; }
-.fg .lv-cal .mts-f { flex:1 1 130px; }
+/* THE LEAVE FORM'S row is a GRID, not a wrapping flex row — and only this one:
+   `.lv-frow` is shared with the holiday manager and the home tasks card.
+
+   Four fields whose grow-basis was 130px but whose CONTENTS (a select, two
+   date buttons) refuse to shrink below ~160, so three filled the line and
+   Hours dropped to one of its own — stretched across the whole form for a
+   three-character number. Even tracks put all four on one line and give the
+   number the same width as everything else. */
+.fg .lv-calfields .lv-frow { display:grid; grid-template-columns:repeat(auto-fit,minmax(132px,1fr)); gap:12px; }
+.fg .lv-cal .mts-f { min-width:0; }
 @media (max-width:860px){
   .fg .lv-cal { grid-template-columns:minmax(0,1fr); }
   .fg .lv-calside { max-width:340px; }

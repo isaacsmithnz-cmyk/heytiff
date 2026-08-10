@@ -352,7 +352,12 @@ function DayEditor({
                   >
                     −
                   </button>
-                  <b>{breakMin}</b>
+                  {/* the unit, on the number. A bare "0" between a − and a +
+                      leaves you reading the sentence to its left to find out
+                      what you are stepping. */}
+                  <b>
+                    {breakMin} <em>min</em>
+                  </b>
                   <button
                     aria-label="Longer break"
                     onClick={() => setBreakMin((m) => Math.min(BREAK_MAX, m + BREAK_STEP))}
@@ -804,6 +809,9 @@ export function MyTimesheet({
   /* hours × multiplier, the buckets that make up the payroll total. Paid
      absence sits in the ×1.0 bucket because that is how derive() weights it,
      so the chips add up to the number above them. */
+  /* Paid absence, the whole of the gap between the two tiles below. */
+  const paidAbsence = d.leave + d.sick + d.ph;
+
   const buckets: [number, string][] = [
     [d.normal + d.leave + d.sick + d.ph, "×1.0"],
     [d.ot, "×1.5"],
@@ -817,9 +825,10 @@ export function MyTimesheet({
     casual ? null : workDaysLabel(workDays),
     `Standard ${fmtHval(settings.standard)} day`,
     `OT after ${fmtHval(settings.otAfter)}/${settings.otUnit}`,
-    settings.breakMinutes > 0
-      ? `${settings.breakMinutes} min break · ${settings.breakPaid ? "paid" : "unpaid"}`
-      : null,
+    /* `breakLine`, not a second phrasing of it — this read
+       "30 min break · unpaid", whose interior dot is the same separator this
+       list is joined with. */
+    settings.breakMinutes > 0 ? breakLine(settings) : null,
     settings.rules.sat.on ? `Sat ${ruleSummary(settings.rules.sat)}` : null,
     settings.rules.sun.on ? `Sun ${ruleSummary(settings.rules.sun)}` : null,
     settings.rules.ph.on ? `Public holidays ${ruleSummary(settings.rules.ph)}` : null,
@@ -1044,6 +1053,27 @@ export function MyTimesheet({
                       </span>
                     ))}
                 </div>
+                {/* WHY THE TWO NUMBERS ABOVE DISAGREE. A week of 27 worked
+                    hours that pays 36.5 has a nine-and-a-half-hour gap in it,
+                    and nothing on this card accounted for it: the chips
+                    reconcile the RIGHT tile (32 + 3×1.5 = 36.5) and contradict
+                    the left (32 + 3 ≠ 27), because paid absence sits in the
+                    ×1.0 bucket — that is how `derive` weights it — while
+                    "Actual worked" is hours on the clock and rightly excludes
+                    it. Both numbers were correct and the pair was unreadable.
+
+                    Only shown when there IS a gap, which is most weeks nobody
+                    was away. */}
+                {paidAbsence > 0 && (
+                  <div className="mts2-gap">
+                    <Icon name="info" size={12} />
+                    <span>
+                      <b>{fmtH(paidAbsence)}h</b>{" "}
+                      of that is paid leave, sick or a public holiday — it pays, but it
+                      isn&rsquo;t time you worked.
+                    </span>
+                  </div>
+                )}
                 <div className="mts2-sub">
                   {!period.live && !sent
                     ? "This period is closed."

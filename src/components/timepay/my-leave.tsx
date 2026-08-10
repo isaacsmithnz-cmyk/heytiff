@@ -245,6 +245,32 @@ export function MyLeave({
             )}
           </div>
 
+          <div className="lv-cols">
+            <div className="lv-col">
+              {/* ONE WAY IN, ONE WAY OUT, and the form opens under the button
+                  that opens it. It used to render ABOVE `.lv-cols` — so
+                  pressing "Request leave", in a header most of the way down the
+                  card, made a calendar appear above the press and pushed the
+                  button itself out from under the cursor. And the header then
+                  said "Close" while the form said "Cancel": two controls, one
+                  job, opposite ends of the thing.
+
+                  While the form is open the trigger stands down; the form's own
+                  Cancel is the way back. */}
+              <div className="lv-ch act">
+                Your requests
+                {!open && (
+                  <button
+                    className="fl-btn tiny primary"
+                    onClick={() => setOpen(true)}
+                    disabled={pending}
+                    aria-expanded={false}
+                  >
+                    <Icon name="plus" size={13} />
+                    Request leave
+                  </button>
+                )}
+              </div>
           {open && (
             <div className="lv-form">
               <div className="lv-cal">
@@ -305,6 +331,8 @@ export function MyLeave({
                         }}
                       />
                     </label>
+                    {/* The placeholder IS the suggestion — leave it be and the
+                        span's own working days are what get booked. */}
                     <label className="mts-f">
                       <span>Hours</span>
                       <input
@@ -340,27 +368,6 @@ export function MyLeave({
               </div>
             </div>
           )}
-
-          <div className="lv-cols">
-            <div className="lv-col">
-              <div className="lv-ch act">
-                Your requests
-                <button
-                  className={`fl-btn tiny${open ? "" : " primary"}`}
-                  onClick={() => setOpen((v) => !v)}
-                  disabled={pending}
-                  aria-expanded={open}
-                >
-                  {open ? (
-                    "Close"
-                  ) : (
-                    <>
-                      <Icon name="plus" size={13} />
-                      Request leave
-                    </>
-                  )}
-                </button>
-              </div>
               {upcoming.length === 0 ? (
                 <div className="fl-hempty">Nothing booked. Request leave and it shows here.</div>
               ) : (

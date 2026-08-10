@@ -362,12 +362,21 @@ export function seedBreakMinutes(entry: DayEntry, s: Settings): number {
   return mins >= 0 && mins <= 120 ? mins : s.breakMinutes;
 }
 
-/** "Break: 30 min · unpaid" — the one sentence, so the editor and the rules
-    footnote can't word it differently. Empty when no break is configured. */
+/** "30 min unpaid break" — the one phrasing, so the editor and the rules
+    footnote can't word it differently. Empty when no break is configured.
+
+    TWO THINGS IT USED TO GET WRONG. It read "Break: 30 min · unpaid", and that
+    interior "·" is the same separator the rules footnote joins its ITEMS with
+    — so the footnote ran "30 min break · unpaid · Sat 1.5× first 2h · then 2×"
+    and there was no way to tell which dots divided rules from which dots were
+    inside one. And a day whose break was recovered as zero (`seedBreakMinutes`
+    reads it back out of the saved entry) rendered "Break: 0 min · unpaid":
+    a payment status for a break that isn't there. */
 export function breakLine(s: Settings, mins?: number): string {
   const n = mins ?? s.breakMinutes;
   if (s.breakMinutes <= 0) return "";
-  return `Break: ${n} min · ${s.breakPaid ? "paid" : "unpaid"}`;
+  if (n <= 0) return "No break on this day";
+  return `${n} min ${s.breakPaid ? "paid" : "unpaid"} break`;
 }
 
 const DOW = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
@@ -644,13 +653,23 @@ export function derive(staff: StaffWeek, s: Settings, ctx: WeekCtx): Derived {
         }
       }
     } else if (d.t === "sick") {
+      /* ALREADY DECIDED, SOMEWHERE ELSE. A timesheet cannot declare leave —
+         `KINDS` on my-timesheet offers "Worked" and "Not worked" and nothing
+         more — so every leave and sick day on a sheet arrived from an approved
+         request via `presumeDays`. The old bullets asked this screen to
+         "confirm a certificate if required" and to "check it was requested",
+         which is a second approval of a decision the leave module has already
+         made, on the screen that exists to end exactly that double entry.
+
+         They still get a line, because an approver reading a week should see
+         who was away — it states the fact rather than assigning a task. */
       sick += d.h;
       entries++;
-      bullets.push(dlab(i) + " — sick day (" + fmt(d.h) + "h paid) — confirm a certificate if required");
+      bullets.push(dlab(i) + " — sick leave (" + fmt(d.h) + "h paid), booked and approved in My leave");
     } else if (d.t === "leave") {
       leave += d.h;
       entries++;
-      bullets.push(dlab(i) + " — annual leave (" + fmt(d.h) + "h) — check it was requested");
+      bullets.push(dlab(i) + " — annual leave (" + fmt(d.h) + "h), booked and approved in My leave");
     } else if (d.t === "ph") {
       ph += d.h;
       entries++;
@@ -685,7 +704,15 @@ export function derive(staff: StaffWeek, s: Settings, ctx: WeekCtx): Derived {
   }
 
   const weighted = normal + ot * 1.5 + ot2 * 2 + sick + leave + ph;
-  const status = ot || ot2 || under || off || missing || sick || leave ? "review" : "ready";
+  /* WHAT ACTUALLY NEEDS A DECISION. `sick` and `leave` used to force a week
+     into "review" — so a person who took an approved Thursday off landed in
+     the approver's "Action required" queue for having done the thing the
+     business had already said yes to. A public holiday, which arrives the same
+     way from the org calendar, never did: the inconsistency was the tell.
+
+     Both now behave like `ph`. The days are still drawn, still coloured, and
+     still counted in the paid buckets — they just don't summon anybody. */
+  const status = ot || ot2 || under || off || missing ? "review" : "ready";
   const issueTitle = issueHeading({ missing, off, ot2, ot, under, sick, leave });
 
   return {
@@ -967,11 +994,15 @@ export const nameHue = (n: string): number => {
   return h;
 };
 
+/* "1.5× first 2h, then 2×" — a COMMA inside the rule, because the caller that
+   lists rules joins them with " · ". With a dot in both places the footnote
+   read "Sat 1.5× first 2h · then 2× · Sun 2× all day", where "then 2×" parses
+   as a rule of its own about nothing. */
 export const ruleSummary = (rl: RateRule): string =>
-  rl.rate === 2 ? "2× all day" : "1.5× first " + fmtHval(rl.up ?? 0) + " · then 2×";
+  rl.rate === 2 ? "2× all day" : "1.5× first " + fmtHval(rl.up ?? 0) + ", then 2×";
 
 export const submitNote = (s: Settings): string =>
-  "Open · auto-submits " + s.submitDay + " " + s.submitTime + (s.lock ? " · then locks" : "");
+  "Open · auto-submits " + s.submitDay + " " + s.submitTime + (s.lock ? ", then locks" : "");
 
 /* WHAT TO CALL THE PAY PERIOD, in the word the person on it would use.
 

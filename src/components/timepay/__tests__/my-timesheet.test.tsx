@@ -687,7 +687,7 @@ describe("the break", () => {
     const { container } = renderSheet({ settings: withBreak(30, false) });
     await user.click(tab(/Sat 4 Jul/));
     await user.click(within(panel()).getByText("Worked"));
-    expect(screen.getByText("Break: 30 min · unpaid")).toBeInTheDocument();
+    expect(screen.getByText("30 min unpaid break")).toBeInTheDocument();
     expect(container.querySelector(".mts2-derv")?.textContent).toContain("7.5h");
     await user.click(screen.getByText("Save day"));
     expect(saveDay).toHaveBeenCalledWith("2026-06-29", 5, {
@@ -705,7 +705,7 @@ describe("the break", () => {
     await user.click(within(panel()).getByText("Worked"));
     await user.click(screen.getByLabelText("Shorter break"));
     await user.click(screen.getByLabelText("Shorter break"));
-    expect(screen.getByText("Break: 20 min · unpaid")).toBeInTheDocument();
+    expect(screen.getByText("20 min unpaid break")).toBeInTheDocument();
     expect(container.querySelector(".mts2-derv")?.textContent).toContain("7.67h");
   });
 
@@ -720,7 +720,7 @@ describe("the break", () => {
     // 8h of span stored as 7.25 means 45 minutes were taken, whatever the
     // org's standard is — a per-day break has no column, so it is read back
     // out of the entry rather than guessed
-    expect(screen.getByText("Break: 45 min · unpaid")).toBeInTheDocument();
+    expect(screen.getByText("45 min unpaid break")).toBeInTheDocument();
     expect(container.querySelector(".mts2-derv")?.textContent).toContain("7.25h");
   });
 
@@ -728,7 +728,7 @@ describe("the break", () => {
     const user = userEvent.setup();
     const { container } = renderSheet({ settings: withBreak(30, true) });
     await user.click(tab(/Mon 29 Jun/));
-    expect(screen.getByText("Break: 30 min · paid")).toBeInTheDocument();
+    expect(screen.getByText("30 min paid break")).toBeInTheDocument();
     expect(screen.queryByLabelText("Shorter break")).toBeNull();
     expect(container.querySelector(".mts2-derv")?.textContent).toContain("8h");
   });
@@ -762,6 +762,28 @@ describe("the rail", () => {
     expect(within(card).getByText("36.5h")).toBeInTheDocument();
     expect(within(card).getByText("Actual worked")).toBeInTheDocument();
     expect(within(card).getByText("Payroll hrs")).toBeInTheDocument();
+  });
+
+  /* WHY THE TWO TILES DISAGREE. 27 worked against 36.5 payroll is a nine-and-a-
+     half-hour gap, and nothing on the card accounted for it: the chips
+     reconcile the RIGHT tile (32 + 3×1.5 = 36.5) and contradict the left
+     (32 + 3 ≠ 27), because `derive` weights paid absence into the ×1.0 bucket
+     while "Actual worked" is hours on the clock and rightly excludes it. Both
+     numbers were right; the pair was unreadable. */
+  it("accounts for the gap between what you worked and what it pays", () => {
+    const { container } = renderSheet(); // Thursday is a booked sick day
+    const gap = container.querySelector(".mts2-gap")?.textContent ?? "";
+    expect(gap).toContain("8h");
+    expect(gap).toMatch(/paid leave, sick or a public holiday/);
+    expect(gap).toMatch(/isn’t time you worked/);
+  });
+
+  it("says nothing when there is no gap to explain", () => {
+    const { container } = renderSheet({
+      me: { ...ME, days: [w8, w8, w8, w8, EM, EM, EM] },
+      sources: ["presumed", "presumed", "presumed", "presumed", "expected", "none", "none"],
+    });
+    expect(container.querySelector(".mts2-gap")).toBeNull();
   });
 
   it("chips the multiplier buckets and omits the empty ones", () => {
@@ -810,9 +832,25 @@ describe("the rail", () => {
     expect(rules).toContain("Normal 7:00 AM – 3:00 PM");
     expect(rules).toContain("Standard 8h day");
     expect(rules).toContain("OT after 8h/day");
-    expect(rules).toContain("30 min break · unpaid");
+    expect(rules).toContain("30 min unpaid break");
     expect(rules).toContain("auto-submits Sun 3:00 PM");
     expect(rules).not.toContain("$");
+  });
+
+  /* THE SEPARATOR MEANS ONE THING. This line joins its items with " · ", and
+     three of them used to contain a "·" of their own — "30 min break · unpaid",
+     "Sat 1.5× first 2h · then 2×", "auto-submits Sun 3:00 PM · then locks" —
+     so the footnote read as thirteen rules instead of nine, four of them
+     fragments ("then 2×", "unpaid"). Counting the dots is the assertion: one
+     per gap between items, none inside one. */
+  it("uses the dot for one job — dividing rules, never joining a phrase", () => {
+    const { container } = renderSheet({ settings: withBreak(30, false) });
+    const rules = container.querySelector(".mts2-rules")?.textContent ?? "";
+    expect(rules).toContain("Sat 1.5× first 2h, then 2×");
+    expect(rules).toContain("auto-submits Sun 3:00 PM, then locks");
+    // nine items on the default settings + a break = eight dividers
+    expect(rules.split(" · ")).toHaveLength(rules.split(" · ").filter(Boolean).length);
+    expect(rules).not.toMatch(/· (then|unpaid|paid)\b/);
   });
 });
 

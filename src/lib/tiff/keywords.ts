@@ -31,6 +31,7 @@
    said it had happened. So: a short answer is logged, and retried once. */
 
 import Anthropic from "@anthropic-ai/sdk";
+import { mapCapped } from "./fanout";
 
 /* Opus 5 at LOW effort. The judgement needed is "which of these strings would
    somebody search for", which is shallow — but it is applied to trade text
@@ -43,6 +44,23 @@ const MAX_TOKENS = 16_000;
 /** Chunks per call. Twenty-five 1,400-character chunks is ~9k tokens in — a
     comfortable request that still amortises the call across a whole batch. */
 export const KEYWORD_BATCH = 25;
+
+/* How many of those calls may be in flight at once.
+
+   TAGGING IS THE INGEST CLOCK. A 20-page batch chunks to forty-odd excerpts,
+   which is two or three calls, and awaiting them one after another was most of
+   the two-to-four minutes a batch took — the reading, chunking and embedding
+   around it are seconds. Overlapping them turns "however many calls this batch
+   needs" into "one call's wait", which is what makes a 150-page manual finish
+   in a sitting rather than an afternoon.
+
+   BOUNDED, because the ceiling is not our patience. One org can have several
+   documents in flight across tabs, each firing its own batch, and an
+   unbounded fan-out is how a shared account meets its rate limit — which
+   costs the WHOLE batch its keywords, not just the call that lost. Four is
+   past the two or three a normal batch needs, so nothing typical ever queues,
+   and a 300-page monster degrades to waves rather than a burst. */
+export const KEYWORD_CONCURRENCY = 4;
 
 /** Per chunk. Past ten, the terms stop being what anyone would type. */
 export const MAX_KEYWORDS = 10;
@@ -243,12 +261,30 @@ async function tagBatch(slice: readonly string[], where: string): Promise<Keywor
   return { ok: true, keywords: mergeKeywordRows(first.keywords, retried) };
 }
 
-/** Tag a batch of chunks, one call per KEYWORD_BATCH of them. Never throws.
+/** Tag a batch of chunks, one call per KEYWORD_BATCH of them, up to
+    KEYWORD_CONCURRENCY at a time. Never throws.
 
     A failed sub-batch fails the whole call rather than returning a partly
     tagged set — the caller's fallback is "index this batch untagged", and a
     result that is half-tagged with no way to tell which half is a worse thing
     to store than one that is honestly empty.
+
+    IN FLIGHT TOGETHER, ANSWERED IN ORDER. Results are seated at their own
+    index rather than pushed as they land, so the keyword rows come back in
+    chunk order whatever order the calls finished in — the same alignment
+    contract `shapeKeywords` keeps inside one call, kept across several. The
+    failure reported is the FIRST slice's, by position, so the same batch
+    failing twice says the same sentence both times.
+
+    The cap counts SLICES, and a slice that comes up short spends up to three
+    calls inside `tagBatch` — but it awaits them itself, so a worker is still
+    one request in flight and KEYWORD_CONCURRENCY is still the ceiling on the
+    account. A retrying batch costs its own wall-clock, never the fan-out's.
+
+    Slices already dispatched are not cancelled when one fails. They are one
+    request each with nothing to undo, and the alternative — plumbing an abort
+    signal through so a doomed batch finishes a second sooner — buys nothing a
+    caller can feel.
 
     `documentId` only ever reaches the log; it is what makes a shortfall line
     traceable to the manual it came from. */
@@ -259,13 +295,15 @@ export async function tagChunks(
   if (chunks.length === 0) return { ok: true, keywords: [] };
   if (offline()) return { ok: true, keywords: chunks.map(() => []) };
 
-  const keywords: string[][] = [];
-  for (let i = 0; i < chunks.length; i += KEYWORD_BATCH) {
-    const slice = chunks.slice(i, i + KEYWORD_BATCH);
-    const where = `${documentId ?? "unknown document"} chunks ${i}–${i + slice.length - 1}`;
-    const result = await tagBatch(slice, where);
-    if (!result.ok) return result;
-    keywords.push(...result.keywords);
-  }
-  return { ok: true, keywords };
+  const slices: string[][] = [];
+  for (let i = 0; i < chunks.length; i += KEYWORD_BATCH) slices.push(chunks.slice(i, i + KEYWORD_BATCH));
+
+  const results = await mapCapped(slices, KEYWORD_CONCURRENCY, (slice, at) => {
+    const from = at * KEYWORD_BATCH;
+    return tagBatch(slice, `${documentId ?? "unknown document"} chunks ${from}–${from + slice.length - 1}`);
+  });
+
+  const failed = results.find((r) => !r.ok);
+  if (failed && !failed.ok) return failed;
+  return { ok: true, keywords: results.flatMap((r) => (r.ok ? r.keywords : [])) };
 }

@@ -9,11 +9,13 @@ import { KB_CATEGORIES, filterKbDocs, type KbCategoryKey } from "./kb";
 import { UploadDrawer } from "./upload-drawer";
 import { TagPicker, TagPills } from "./tag-picker";
 import { TagManager } from "./tag-manager";
+import { DocSearch } from "./doc-search";
 import { auDayOf, fmtAuDayMonth } from "@/lib/au-dates";
-import { deleteKbDoc, kbDocUrl, retryKbDoc, updateKbDocMeta } from "@/app/actions/kb";
+import { deleteKbDoc, retryKbDoc, updateKbDocMeta } from "@/app/actions/kb";
 import { filterByTags, KB_TAG_PILLS_SHOWN, type KbTagRef } from "@/lib/tiff/tags";
 import { writeAskHandoff } from "@/lib/tiff/ask-handoff";
 import { useKbIngest, type KbIngestProgress } from "@/lib/tiff/use-kb-ingest";
+import { useKbOcr, type KbOcrProgress } from "@/lib/tiff/use-kb-ocr";
 import { useKbBackfill } from "@/lib/tiff/use-kb-backfill";
 import type { KbDocRow } from "@/lib/tiff/query";
 import type { KbQuota } from "@/lib/tiff/quota";
@@ -72,6 +74,30 @@ function rowState(d: KbLibraryDoc, live: KbIngestProgress | undefined, quota: Kb
   };
 }
 
+/** What a row knows about reading its own scanned pages. `left` is what the
+    caveat says: a finished run's count wins over the row the server rendered,
+    which is one press behind. */
+type OcrView = {
+  reading: boolean;
+  /** Another document is being read — one allowance, one run at a time. */
+  waiting: boolean;
+  /** A run finished and recovered nothing: the pages are empty, not merely
+      unread, so the offer is withdrawn rather than repeated. */
+  spent: boolean;
+  left: number;
+  result?: KbOcrProgress;
+};
+
+function ocrView(d: KbLibraryDoc, run: KbOcrProgress | undefined, running: string | null): OcrView {
+  return {
+    reading: running === d.id,
+    waiting: running !== null && running !== d.id,
+    spent: run?.status === "ready" && run.pagesRead === 0,
+    left: run ? run.scannedLeft : d.scannedPages,
+    result: run,
+  };
+}
+
 function metaLine(d: KbLibraryDoc): string {
   const bits = [d.source, d.edition].filter(Boolean) as string[];
   const updated = fmtAuDayMonth(auDayOf(d.updatedAt));
@@ -118,6 +144,7 @@ export function Library({
   const [managing, setManaging] = useState(false);
   const [editing, setEditing] = useState<KbLibraryDoc | null>(null);
   const [deleting, setDeleting] = useState<KbLibraryDoc | null>(null);
+  const [searching, setSearching] = useState<KbLibraryDoc | null>(null);
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
 
   const processing = useMemo(
@@ -125,6 +152,7 @@ export function Library({
     [docs, canManage]
   );
   const ingest = useKbIngest(processing);
+  const ocr = useKbOcr();
 
   /* Seeded FROM `KB_CATEGORIES` rather than by hand: the literal here listed
      four keys and the field category made five, so every field note tallied
@@ -180,25 +208,6 @@ export function Library({
       else delete next[id];
       return next;
     });
-
-  const openDoc = async (d: KbLibraryDoc) => {
-    setRowError(d.id, null);
-    // opened synchronously so the pop-up blocker sees the click; the signed
-    // URL is a round trip away and would arrive too late to be trusted
-    const tab = typeof window === "undefined" ? null : window.open("", "_blank");
-    const res = await kbDocUrl(d.id);
-    if (!res.ok) {
-      tab?.close();
-      setRowError(d.id, res.error);
-      return;
-    }
-    if (tab) {
-      tab.opener = null;
-      tab.location.href = res.url;
-    } else if (typeof window !== "undefined") {
-      window.open(res.url, "_blank", "noopener,noreferrer");
-    }
-  };
 
   /* "Ask Tiff about this document" (brief §4D) — a document hands the composer
      the opening of a sentence and gets out of the way. The prefill travels in
@@ -423,13 +432,14 @@ export function Library({
                           key={d.id}
                           doc={d}
                           state={rowState(d, ingest.progress[d.id], quota)}
+                          ocr={ocrView(d, ocr.progress[d.id], ocr.running)}
                           colour={c.color}
                           canManage={canManage}
                           isOwner={isOwner}
                           error={rowErrors[d.id]}
                           activeTagIds={tagIds}
                           onPickTag={toggleTag}
-                          onOpen={() => openDoc(d)}
+                          onOpen={() => setSearching(d)}
                           onAsk={() => askAbout(d)}
                           onEdit={() => setEditing(d)}
                           onDelete={() => setDeleting(d)}
@@ -443,6 +453,7 @@ export function Library({
                             ingest.start([d.id]);
                             router.refresh();
                           }}
+                          onRead={() => ocr.read(d.id)}
                         />
                       ))
                     )}
@@ -471,6 +482,9 @@ export function Library({
       {deleting && canManage && isOwner && (
         <DeleteModal doc={deleting} onClose={() => setDeleting(null)} />
       )}
+      {/* No `canManage` — searching a document is reading it, and the whole
+          library is a read surface for staff. */}
+      {searching && <DocSearch doc={searching} onClose={() => setSearching(null)} />}
     </div>
   );
 }
@@ -563,6 +577,7 @@ function EmptyLibrary({ canManage, onAdd }: { canManage: boolean; onAdd: () => v
 function DocRow({
   doc,
   state,
+  ocr,
   colour,
   canManage,
   isOwner,
@@ -574,9 +589,11 @@ function DocRow({
   onEdit,
   onDelete,
   onRetry,
+  onRead,
 }: {
   doc: KbLibraryDoc;
   state: RowState;
+  ocr: OcrView;
   colour: string;
   canManage: boolean;
   isOwner: boolean;
@@ -588,6 +605,7 @@ function DocRow({
   onEdit: () => void;
   onDelete: () => void;
   onRetry: () => Promise<void>;
+  onRead: () => void;
 }) {
   const [busy, start] = useTransition();
   const ready = state.status === "ready";
@@ -598,10 +616,19 @@ function DocRow({
       <span className="tk-dot" style={{ background: ready ? colour : "#d1d5db" }} />
 
       <div className="tk-rmain">
+        {/* THE TITLE OPENS THE DOCUMENT'S OWN PANEL, not the raw file.
+
+            It used to hand the browser a signed URL and get out of the way,
+            which put people in Chrome's PDF viewer — a viewer with no search
+            control anywhere on it, only a keyboard shortcut nobody is told
+            about. So "open the manual" now lands somewhere that can be
+            searched, with the PDF itself one press further on. The icon is a
+            magnifier rather than the out-arrow for the same reason: this no
+            longer leaves the app. */}
         {ready ? (
           <button type="button" className="tk-rt" onClick={onOpen}>
             {doc.title}
-            <Icon name="arrowUR" size={14} />
+            <Icon name="search" size={14} />
           </button>
         ) : (
           <span className="tk-rt flat">{doc.title}</span>
@@ -626,7 +653,7 @@ function DocRow({
           were what the one row that IS stuck had to compete with. A pill now
           means "this needs you"; a row without one is working. */}
       <div className="tk-rstate">
-        <StatusPill doc={doc} state={state} />
+        <StatusPill state={state} ocr={ocr} />
       </div>
 
       {/* only a READY document — Tiff can't be asked about pages it hasn't
@@ -646,6 +673,27 @@ function DocRow({
 
       {canManage && (
         <div className="tk-acts">
+          {/* OFFERED WHERE THE PROBLEM IS SAID, and only there. A document with
+              no scanned pages never sees this — the whole point of an opt-in is
+              that it appears at the moment somebody has just been told there
+              are pages Tiff couldn't read, and nowhere else. It waits its turn
+              while another document is being read: one allowance, one run. */}
+          {ready && ocr.left > 0 && !ocr.reading && !ocr.spent && (
+            <button
+              type="button"
+              className="tk-abtn"
+              disabled={ocr.waiting}
+              title={
+                ocr.waiting
+                  ? "Reading another document first"
+                  : "Read the scanned pages with AI — this uses your page allowance"
+              }
+              onClick={onRead}
+            >
+              <Icon name="sparkles" size={14} />
+              Read pages
+            </button>
+          )}
           {(state.status === "failed" || state.status === "paused") && (
             <button
               type="button"
@@ -676,7 +724,7 @@ function DocRow({
   );
 }
 
-function StatusPill({ doc, state }: { doc: KbLibraryDoc; state: RowState }) {
+function StatusPill({ state, ocr }: { state: RowState; ocr: OcrView }) {
   if (state.status === "processing") {
     const known = state.pageCount !== null && state.pageCount > 0;
     return (
@@ -723,15 +771,75 @@ function StatusPill({ doc, state }: { doc: KbLibraryDoc; state: RowState }) {
     );
   }
 
+  /* A vision run in flight says so where the caveat was, rather than beside
+     it: the pill is the row's one status line, and two of them competing is
+     what this screen deleted a column to avoid. */
+  if (ocr.reading) {
+    return (
+      <span className="tk-pill work">
+        <span className="tk-spin" aria-hidden="true" />
+        {`Reading ${n(ocr.left)} scanned ${plural(ocr.left, "page")}…`}
+      </span>
+    );
+  }
+
+  if (ocr.result?.status === "failed") {
+    return (
+      <span className="tk-pill dan">
+        <Icon name="alert" size={13} />
+        {ocr.result.error || "Those pages couldn't be read."}
+      </span>
+    );
+  }
+
+  if (ocr.result?.status === "paused") {
+    return (
+      <span className="tk-pill warn">
+        <Icon name="clock" size={13} />
+        {ocr.result.resetsOn
+          ? `Out of pages — try again ${fmtAuDayMonth(ocr.result.resetsOn)}`
+          : "Out of pages this month"}
+      </span>
+    );
+  }
+
+  /* A run that read the pages and found nothing on them. Said out loud,
+     because the alternative is the caveat coming back unchanged with no sign
+     anything happened — and against the real library this is the COMMON
+     outcome: most pages with no text layer are a divider, a full-bleed photo
+     or a blank back cover, not a scan of a page with words on it. Whoever
+     pressed the button has now learned the pages are empty, and the button
+     doesn't come back to invite them to pay for that twice. */
+  if (ocr.result?.status === "ready" && ocr.result.pagesRead === 0 && ocr.left > 0) {
+    return (
+      <span className="tk-pill warn">
+        <Icon name="alert" size={13} />
+        {`${n(ocr.left)} ${plural(ocr.left, "page")} with nothing readable on ${plural(ocr.left, "it", "them")}`}
+      </span>
+    );
+  }
+
   /* Ready is the state almost every row is in, so saying it earns nothing and
      costs the one row that needs attention its contrast. What survives is the
      part of "ready" that ISN'T good news: pages Tiff could not read. A caveat
      is amber, not green — the document is usable, but not all of it is. */
-  if (doc.scannedPages > 0) {
+  if (ocr.left > 0) {
     return (
       <span className="tk-pill warn">
         <Icon name="alert" size={13} />
-        {`${n(doc.scannedPages)} ${plural(doc.scannedPages, "page")} unreadable — scanned images`}
+        {`${n(ocr.left)} ${plural(ocr.left, "page")} unreadable — scanned images`}
+      </span>
+    );
+  }
+
+  /* A run that recovered every page it tried leaves nothing to caveat, and the
+     row would otherwise silently lose its pill with no sign anything happened.
+     Said once, until the next refresh replaces this row. */
+  if (ocr.result && ocr.result.pagesRead > 0) {
+    return (
+      <span className="tk-pill ok">
+        <Icon name="check" size={13} />
+        {`Read ${n(ocr.result.pagesRead)} scanned ${plural(ocr.result.pagesRead, "page")}`}
       </span>
     );
   }

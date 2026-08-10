@@ -13,7 +13,15 @@ import {
   kbStorageRef,
   kbTitle,
 } from "@/lib/tiff/files";
-import { signKbRef } from "@/lib/tiff/query";
+import { searchKbDocument, signKbRef } from "@/lib/tiff/query";
+import {
+  isSearchable,
+  MAX_DOC_HITS,
+  normaliseQuery,
+  searchTerms,
+  snippetOf,
+  type DocHit,
+} from "@/lib/tiff/doc-search";
 import { kbTagsForOrg, setKbDocumentTags } from "@/lib/tiff/tags-query";
 import { sanitiseTagIds } from "@/lib/tiff/tags";
 
@@ -110,6 +118,50 @@ export async function kbDocUrl(
   const url = await signKbRef(ref);
   if (!url) return { ok: false, error: "That file couldn't be opened." };
   return { ok: true, url };
+}
+
+/* Find a word inside one document.
+
+   GATED `tiff`, like opening the file — this is reading, and it is the whole
+   point of the library. Nothing here writes, nothing here costs: the match is
+   an index lookup on a generated column, so unlike asking Tiff it spends no
+   page allowance and is not counted as a question.
+
+   The SNIPPETS are built here rather than in the browser. The alternative is
+   shipping every matching chunk's full 1,400 characters to the client and
+   windowing them there — fifty of those is a payload measured in tens of KB
+   for a list that shows a line each. */
+export async function searchKbDoc(
+  documentId: string,
+  query: string
+): Promise<{ ok: true; hits: DocHit[]; capped: boolean } | { ok: false; error: string }> {
+  let orgId: string;
+  try {
+    ({ orgId } = await requireOrg("tiff"));
+  } catch {
+    return { ok: false, error: "You don't have access to the library." };
+  }
+
+  /* Too short to mean anything: one letter would match a prefix of half the
+     manual. An empty result would be a lie, so this is not one. */
+  if (!isSearchable(query)) return { ok: true, hits: [], capped: false };
+
+  /* Asked for one more than we show, purely to know whether to say so — a
+     list silently cut at fifty reads as "that's all there is". */
+  const rows = await searchKbDocument(orgId, documentId, normaliseQuery(query), MAX_DOC_HITS + 1);
+  const terms = searchTerms(query);
+
+  return {
+    ok: true,
+    capped: rows.length > MAX_DOC_HITS,
+    hits: rows.slice(0, MAX_DOC_HITS).map((row) => ({
+      chunkId: row.chunkId,
+      pageFrom: row.pageFrom,
+      pageTo: row.pageTo,
+      heading: row.heading,
+      segments: snippetOf(row.content, terms),
+    })),
+  };
 }
 
 /** Ask for somewhere to put a manual. Returns a signed slot, or a reason. */

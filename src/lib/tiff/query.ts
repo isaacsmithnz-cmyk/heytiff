@@ -193,6 +193,52 @@ export async function kbUploaderNames(orgId: string): Promise<Record<string, str
   return names;
 }
 
+/* Keyword search INSIDE one document. No model, no embedding, no allowance —
+   `tsv` is a generated column on every chunk, so this is one indexed read.
+
+   `websearch` rather than `plain`: it is the tsquery parser that understands
+   what a person types into a search box — quoted phrases, OR, a leading minus
+   — and it never throws on punctuation the way `to_tsquery` does. The org and
+   the document are both filtered here rather than trusted from the caller.
+
+   Ordered by PAGE, not by rank. This is a find-in-document box: somebody
+   working through a manual wants the hits in the order they appear in it, and
+   "most relevant" is the assistant's job on the other screen. */
+export async function searchKbDocument(
+  orgId: string,
+  documentId: string,
+  query: string,
+  limit: number
+): Promise<KbChunkHit[]> {
+  const { data, error } = await supabaseAdmin
+    .from("kb_chunks")
+    .select("id, content, page_from, page_to, heading")
+    .eq("org_id", orgId)
+    .eq("document_id", documentId)
+    .textSearch("tsv", query, { type: "websearch" })
+    .order("page_from", { ascending: true })
+    .order("chunk_index", { ascending: true })
+    .limit(limit);
+
+  if (error) return [];
+
+  return ((data ?? []) as unknown as Record<string, unknown>[]).map((r) => ({
+    chunkId: String(r.id),
+    content: String(r.content ?? ""),
+    pageFrom: Number(r.page_from) || 1,
+    pageTo: Number(r.page_to) || Number(r.page_from) || 1,
+    heading: (r.heading as string) ?? null,
+  }));
+}
+
+export type KbChunkHit = {
+  chunkId: string;
+  content: string;
+  pageFrom: number;
+  pageTo: number;
+  heading: string | null;
+};
+
 export type KbUsageRow = { month: string; pagesProcessed: number; questionsAsked: number };
 
 /** This AU month's counters. A missing row is zero, not an error — it simply

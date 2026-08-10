@@ -133,6 +133,29 @@ describe("the panels", () => {
   });
 });
 
+describe("the journal header", () => {
+  it("is the day, from the loader's date — never the client clock", () => {
+    /* "Say the day" was coaching; the capsule already says what pressing it
+       does, and the date was the one thing this card never said. It formats
+       the SERVER's `today` (fmtAuWeekdayDateLong), because a Date.now() in a
+       render body is the hydration failure project_hydration_clock_trap
+       documents. TODAY is 2026-08-10, a Monday. */
+    draw();
+    const head = document.querySelector(".hm-head")!;
+    expect(head.textContent).toContain("Monday");
+    expect(head.textContent).toContain("10 August");
+    expect(screen.queryByText("Say the day")).toBeNull();
+  });
+
+  it("replaced the inset console — the card is the material now, not a band on it", () => {
+    /* `.hm-comp` was the ink band inside the white card. The card itself is
+       ink glass now, so a band-on-a-band would say the same thing twice; if
+       this class reappears, that doubling is back. */
+    draw();
+    expect(document.querySelector(".hm-comp")).toBeNull();
+  });
+});
+
 describe("Tiff", () => {
   it("has no button of its own — the frame's is the same control, one press away", () => {
     /* One sat in the tab row's right cap so a debrief was "one press from every

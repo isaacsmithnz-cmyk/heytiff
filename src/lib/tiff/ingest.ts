@@ -266,10 +266,21 @@ export async function processBatch(documentId: string, orgId: string): Promise<I
 
     const chunks = chunkPages(pages);
 
-    /* Neither of these is allowed to stop ingestion. Untagged chunks still
-       match on their own content; null embeddings still match on keywords, and
-       a later run backfills them once a key exists. */
-    const tagged = await tagChunks(chunks.map((c) => c.content));
+    /* TOGETHER, because they are the same wait twice. Both read the same
+       chunk text and neither looks at the other's answer, so tagging behind
+       embedding only ever meant a batch waited for the sum of two round trips
+       instead of the longer one. Different vendors, different limits — one
+       being rate-limited never delays the other.
+
+       Neither is allowed to stop ingestion, and neither throws: untagged
+       chunks still match on their own content; null embeddings still match on
+       keywords, and a later run backfills them once a key exists. */
+    const texts = chunks.map((c) => c.content);
+    const [tagged, embedded] = await Promise.all([
+      tagChunks(texts),
+      embedTexts(texts, "document"),
+    ]);
+
     const keywords = tagged.ok ? tagged.keywords : chunks.map(() => []);
 
     /* Stored either way — but NOT silently, any more. 106 of one 285-chunk
@@ -278,7 +289,6 @@ export async function processBatch(documentId: string, orgId: string): Promise<I
        call per batch, so most of them 429'd. The reason is what makes the log
        worth keeping — `rate-limited` is worth trying again, `unauthorised`
        never is. */
-    const embedded = await embedTexts(chunks.map((c) => c.content), "document");
     if (!embedded.ok)
       logIngestFailure(documentId, "embed", `${embedded.reason} — ${embedded.detail}`);
     const vectors = embedded.ok ? embedded.vectors : null;

@@ -16,11 +16,13 @@ const push = jest.fn();
 jest.mock("next/navigation", () => ({ useRouter: () => ({ refresh, push }) }));
 
 const kbDocUrl = jest.fn();
+const searchKbDoc = jest.fn();
 const retryKbDoc = jest.fn();
 const updateKbDocMeta = jest.fn();
 const deleteKbDoc = jest.fn();
 jest.mock("@/app/actions/kb", () => ({
   kbDocUrl: (...a: unknown[]) => kbDocUrl(...(a as [])),
+  searchKbDoc: (...a: unknown[]) => searchKbDoc(...(a as [])),
   retryKbDoc: (...a: unknown[]) => retryKbDoc(...(a as [])),
   updateKbDocMeta: (...a: unknown[]) => updateKbDocMeta(...(a as [])),
   deleteKbDoc: (...a: unknown[]) => deleteKbDoc(...(a as [])),
@@ -43,6 +45,18 @@ jest.mock("@/app/actions/kb-tags", () => ({
 const start = jest.fn();
 jest.mock("@/lib/tiff/use-kb-ingest", () => ({
   useKbIngest: () => ({ progress: {}, busy: false, start }),
+}));
+
+/* Reading scanned pages is mocked for the same reason the ingest loop is: a
+   row's pill should be the row's, not a network race's. The state is a handle
+   the tests set, so each one can render the exact moment it is about. */
+const mockOcrRead = jest.fn();
+const mockOcr: {
+  progress: Record<string, Record<string, unknown>>;
+  running: string | null;
+} = { progress: {}, running: null };
+jest.mock("@/lib/tiff/use-kb-ocr", () => ({
+  useKbOcr: () => ({ progress: mockOcr.progress, running: mockOcr.running, read: mockOcrRead }),
 }));
 
 const tag = (id: string, label: string, kind: KbTagRef["kind"] = "brand"): KbTagRef => ({
@@ -93,7 +107,11 @@ const quota = (over: Partial<KbQuotaView> = {}): KbQuotaView => ({
   ...over,
 });
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockOcr.progress = {};
+  mockOcr.running = null;
+});
 afterEach(cleanup);
 
 describe("the day-1 state sells the reason before the button", () => {
@@ -199,33 +217,161 @@ describe("what a row says about itself", () => {
   });
 });
 
-describe("opening the document", () => {
-  it("signs a URL on the click and hands it to a new tab", async () => {
-    const tab = { opener: {} as unknown, location: { href: "" }, close: jest.fn() };
-    const open = jest.spyOn(window, "open").mockReturnValue(tab as unknown as Window);
-    kbDocUrl.mockResolvedValue({ ok: true, url: "https://signed.example/manual.pdf" });
+/* Reading the scanned pages with AI.
 
-    render(<Library docs={[doc()]} />);
+   AN OPT-IN, AND THE SHAPE OF ONE. It appears only on the row that has just
+   said some pages couldn't be read, only for somebody who may spend the org's
+   allowance, and never on its own — pressing it is the whole consent. What
+   these pin is that the offer arrives exactly there and withdraws itself the
+   moment pressing again would buy nothing. */
+describe("reading the pages Tiff couldn't", () => {
+  const scanned = () => doc({ scannedPages: 3 });
+
+  it("offers the read beside the caveat, and hands the press the document", async () => {
+    render(<Library docs={[scanned()]} canManage />);
+
+    expect(screen.getByText("3 pages unreadable — scanned images")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /Read pages/ }));
+    expect(mockOcrRead).toHaveBeenCalledWith("d-1");
+  });
+
+  /* The offer is the reason it exists. A document with nothing unreadable has
+     no scanned pages to spend money on, so there is nothing to press. */
+  it("offers nothing on a document with no unreadable pages", () => {
+    render(<Library docs={[doc()]} canManage />);
+    expect(screen.queryByRole("button", { name: /Read pages/ })).not.toBeInTheDocument();
+  });
+
+  /* Same boundary as Retry and Resume: staff read the library, managers spend
+     the allowance. Absent rather than disabled — a greyed control is an
+     invitation to ask why. */
+  it("tells staff about the gap and offers them nothing to press", () => {
+    render(<Library docs={[scanned()]} />);
+
+    expect(screen.getByText("3 pages unreadable — scanned images")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Read pages/ })).not.toBeInTheDocument();
+  });
+
+  it("says it is reading, in place of the caveat, while it reads", () => {
+    mockOcr.running = "d-1";
+    render(<Library docs={[scanned()]} canManage />);
+
+    expect(screen.getByText("Reading 3 scanned pages…")).toBeInTheDocument();
+    expect(screen.queryByText(/unreadable/)).not.toBeInTheDocument();
+    // and nothing to press twice
+    expect(screen.queryByRole("button", { name: /Read pages/ })).not.toBeInTheDocument();
+  });
+
+  /* One allowance, one run: a second document can't start while the first is
+     going, and the row says so rather than failing on the press. */
+  it("makes another row wait its turn while one is being read", () => {
+    mockOcr.running = "d-other";
+    render(<Library docs={[scanned()]} canManage />);
+
+    expect(screen.getByRole("button", { name: /Read pages/ })).toBeDisabled();
+  });
+
+  it("says what it recovered when the pages had text on them", () => {
+    mockOcr.progress = { "d-1": { status: "ready", pagesRead: 3, scannedLeft: 0 } };
+    render(<Library docs={[scanned()]} canManage />);
+
+    expect(screen.getByText("Read 3 scanned pages")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Read pages/ })).not.toBeInTheDocument();
+  });
+
+  /* THE COMMON OUTCOME, against the real library: a page with no text layer is
+     usually a divider, a full-bleed photo or a blank back cover. Saying so is
+     what stops the caveat reappearing unchanged and inviting a second run that
+     would spend the allowance to learn the same thing. */
+  it("admits when the pages had nothing on them, and withdraws the offer", () => {
+    mockOcr.progress = { "d-1": { status: "ready", pagesRead: 0, scannedLeft: 3 } };
+    render(<Library docs={[scanned()]} canManage />);
+
+    expect(screen.getByText("3 pages with nothing readable on them")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Read pages/ })).not.toBeInTheDocument();
+  });
+
+  /* Partly recovered: the count comes down, and the rest is still offered —
+     the run cap means a document with many scanned pages takes more than one
+     press. */
+  it("counts down what's left and keeps offering the rest", () => {
+    mockOcr.progress = { "d-1": { status: "ready", pagesRead: 2, scannedLeft: 1 } };
+    render(<Library docs={[doc({ scannedPages: 3 })]} canManage />);
+
+    expect(screen.getByText("1 page unreadable — scanned images")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Read pages/ })).toBeEnabled();
+  });
+
+  it("shows the reason when a run fails", () => {
+    mockOcr.progress = {
+      "d-1": { status: "failed", pagesRead: 0, scannedLeft: 3, error: "Too busy to read scanned pages right now." },
+    };
+    render(<Library docs={[scanned()]} canManage />);
+
+    expect(screen.getByText("Too busy to read scanned pages right now.")).toBeInTheDocument();
+  });
+
+  /* Out of pages is not a failure and must not read as one: the document is
+     fine, the month isn't, and the sentence says when to come back. */
+  it("names the day the allowance returns when the month is spent", () => {
+    mockOcr.progress = {
+      "d-1": { status: "paused", pagesRead: 0, scannedLeft: 3, resetsOn: "2026-09-01" },
+    };
+    render(<Library docs={[scanned()]} canManage />);
+
+    // "Sept", not "Sep" — en-AU's short month, same as the quota line's
+    expect(screen.getByText("Out of pages — try again 1 Sept")).toBeInTheDocument();
+  });
+
+  /* A document still being ingested has another loop writing its row and a
+     scanned count that is still moving — the offer belongs after that, not
+     during it. */
+  it("waits for ingestion to finish before offering anything", () => {
+    render(<Library docs={[doc({ status: "processing", scannedPages: 3 })]} canManage />);
+    expect(screen.queryByRole("button", { name: /Read pages/ })).not.toBeInTheDocument();
+  });
+});
+
+/* Finding a word inside one document, from its row.
+
+   NOT A MANAGER'S TOOL. Searching a document is reading it, so this is the
+   one row affordance besides Ask Tiff that staff get — the panel's own
+   behaviour has its own suite. */
+/* Opening a document.
+
+   THE TITLE NO LONGER HANDS YOU THE RAW FILE. It used to open a signed URL in
+   a new tab, which put people in Chrome's PDF viewer — no search control on
+   it anywhere, only a shortcut nobody is told about. The title now opens the
+   document's own panel, where searching it is the first thing offered and the
+   PDF is one press further on. The panel's own behaviour has its own suite. */
+describe("opening a document", () => {
+  it("lands on the document's panel rather than the raw PDF", async () => {
+    const open = jest.spyOn(window, "open");
+    render(<Library docs={[doc()]} canManage />);
+
     await userEvent.click(screen.getByRole("button", { name: "City Multi fault codes" }));
 
-    await waitFor(() => expect(tab.location.href).toBe("https://signed.example/manual.pdf"));
-    expect(kbDocUrl).toHaveBeenCalledWith("d-1");
+    expect(
+      screen.getByRole("dialog", { name: "Search inside City Multi fault codes" })
+    ).toBeInTheDocument();
+    // no tab was opened, and no URL was signed for one
+    expect(open).not.toHaveBeenCalled();
+    expect(kbDocUrl).not.toHaveBeenCalled();
     open.mockRestore();
   });
 
-  it("puts a refusal on the row rather than leaving a blank tab open", async () => {
-    const tab = { opener: {} as unknown, location: { href: "" }, close: jest.fn() };
-    const open = jest.spyOn(window, "open").mockReturnValue(tab as unknown as Window);
-    kbDocUrl.mockResolvedValue({ ok: false, error: "That document is no longer here." });
-
+  /* Searching a document is reading it, so this is the one row affordance
+     besides Ask Tiff that staff get. */
+  it("gives staff the same way in, with no other row actions at all", async () => {
     render(<Library docs={[doc()]} />);
-    await userEvent.click(screen.getByRole("button", { name: "City Multi fault codes" }));
 
-    expect(await screen.findByText("That document is no longer here.")).toBeInTheDocument();
-    expect(tab.close).toHaveBeenCalled();
-    open.mockRestore();
+    await userEvent.click(screen.getByRole("button", { name: "City Multi fault codes" }));
+    expect(screen.getByRole("dialog", { name: /Search inside/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Edit/ })).not.toBeInTheDocument();
   });
 
+  /* Nothing is indexed until the document has been read, and there is no file
+     worth opening either — so the title is not a link to press. */
   it("a document still being read is not a link to press", () => {
     render(<Library docs={[doc({ status: "processing", nextPage: 21 })]} />);
     expect(screen.queryByRole("button", { name: /City Multi fault codes/ })).not.toBeInTheDocument();

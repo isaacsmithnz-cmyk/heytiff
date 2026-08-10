@@ -6,7 +6,7 @@ import { TiffButton } from "../tiff-button";
 /* WHAT A RECORDING TURNS INTO, AND WHEN.
 
    No transcript routes on its own any more (2026-08-10): every way a
-   recording ends puts the words in the box, and `Sort this out` is the one
+   recording ends puts the words in the box, and `Go` is the one
    commit. So the first thing this file guards is that speaking is
    checkable — you can read it, fix a misheard word, and route the EDIT.
 
@@ -106,7 +106,7 @@ afterEach(cleanup);
    spot, which made voice the one way into the app you could not check
    first — the box unmounted and the review card showed you what had been
    MADE of words you could no longer edit. Now every transcript lands in the
-   box and `Sort this out` is the single commit for spoken and typed alike.
+   box and `Go` is the single commit for spoken and typed alike.
    (Isaac, 2026-08-10, comparing it to dictating into a chat composer.) */
 it("puts the words in the box rather than routing them, even on a deliberate stop", async () => {
   await openSheet();
@@ -116,10 +116,10 @@ it("puts the words in the box rather than routing them, even on a deliberate sto
   expect(boxText()).toBe("middle rooftop unit tripped again");
 });
 
-it("routes what is in the box when Sort this out is pressed — and calls it voice", async () => {
+it("routes what is in the box when Go is pressed — and calls it voice", async () => {
   const user = await openSheet();
   await deliver("middle rooftop unit tripped again", false);
-  await user.click(screen.getByRole("button", { name: "Sort this out" }));
+  await user.click(screen.getByRole("button", { name: "Go" }));
 
   expect(routeNote).toHaveBeenCalledTimes(1);
   /* The commit is a button press now, so nothing at the call site knows the
@@ -139,7 +139,7 @@ it("routes the edit, not the transcript", async () => {
   const box = screen.getByRole("textbox");
   await user.clear(box);
   await user.type(box, "order the grilles");
-  await user.click(screen.getByRole("button", { name: "Sort this out" }));
+  await user.click(screen.getByRole("button", { name: "Go" }));
 
   expect(routeNote).toHaveBeenCalledWith(
     expect.objectContaining({ transcript: "order the grilles" })
@@ -184,7 +184,7 @@ it("routes the WHOLE thing once the person finally commits it", async () => {
   await deliver("middle rooftop unit tripped again", true);
   await deliver("and the compressor is still noisy", true);
   await deliver("book it in for Thursday", false);
-  await user.click(screen.getByRole("button", { name: "Sort this out" }));
+  await user.click(screen.getByRole("button", { name: "Go" }));
 
   expect(routeNote).toHaveBeenCalledTimes(1);
   /* The last leg is what the engine hands over, but the note is everything

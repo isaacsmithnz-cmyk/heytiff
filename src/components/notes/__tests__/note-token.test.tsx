@@ -151,7 +151,7 @@ describe("the capsule", () => {
     });
     await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
     await userEvent.type(screen.getByRole("textbox"), "the middle unit tripped again");
-    await userEvent.click(screen.getByRole("button", { name: "Sort this out" }));
+    await userEvent.click(screen.getByRole("button", { name: "Go" }));
     expect(routeNote).toHaveBeenCalledWith(
       expect.objectContaining({ target: { kind: "visit", id: "v-1" }, source: "text" })
     );
@@ -174,7 +174,7 @@ describe("the capsule", () => {
     expect(screen.getByText("General note")).toBeInTheDocument();
 
     await userEvent.type(screen.getByRole("textbox"), "chase the supplier about the grilles");
-    await userEvent.click(screen.getByRole("button", { name: "Sort this out" }));
+    await userEvent.click(screen.getByRole("button", { name: "Go" }));
     /* The half that is easy to miss: the chip can come off the ribbon while
        the note still files itself against the job, because two different
        places read the target. They read one now. */
@@ -203,7 +203,7 @@ describe("the capsule", () => {
     mount(<TiffButton />, { target: { kind: "visit", id: "v-1" } });
     await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
     await userEvent.type(screen.getByRole("textbox"), "something");
-    await userEvent.click(screen.getByRole("button", { name: "Sort this out" }));
+    await userEvent.click(screen.getByRole("button", { name: "Go" }));
     await screen.findByText("Check it before it saves");
     await userEvent.click(screen.getByRole("button", { name: "Discard" }));
     expect(dismissNote).toHaveBeenCalledWith("n-1");
@@ -215,7 +215,7 @@ describe("the engine's contract, unchanged", () => {
     mount(<TiffButton />, scope);
     await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
     await userEvent.type(screen.getByRole("textbox"), "note text");
-    await userEvent.click(screen.getByRole("button", { name: "Sort this out" }));
+    await userEvent.click(screen.getByRole("button", { name: "Go" }));
     await screen.findByText("Check it before it saves");
   };
 
@@ -268,7 +268,7 @@ describe("the cascade", () => {
     mount(<TiffButton />, scope);
     await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
     await userEvent.type(screen.getByRole("textbox"), "note text");
-    await userEvent.click(screen.getByRole("button", { name: "Sort this out" }));
+    await userEvent.click(screen.getByRole("button", { name: "Go" }));
     await screen.findByText("Check it before it saves");
   };
 
@@ -444,7 +444,7 @@ describe("the debrief", () => {
     mount(<NoteToken as="debrief" />);
     await userEvent.click(screen.getByRole("button", { name: "Debrief" }));
     await userEvent.type(screen.getByRole("textbox"), "everything on my mind");
-    await userEvent.click(screen.getByRole("button", { name: "Sort this out" }));
+    await userEvent.click(screen.getByRole("button", { name: "Go" }));
     await screen.findByText("Check it before it saves");
   };
 
@@ -562,7 +562,7 @@ describe("the LEARN lane on the review card", () => {
     });
     await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
     await userEvent.type(screen.getByRole("textbox"), "learned a trick");
-    await userEvent.click(screen.getByRole("button", { name: "Sort this out" }));
+    await userEvent.click(screen.getByRole("button", { name: "Go" }));
     await screen.findByText("Check it before it saves");
   };
 
@@ -605,7 +605,7 @@ describe("ask-mode — the same token answers questions", () => {
     });
     await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
     await userEvent.type(screen.getByRole("textbox"), "what's outstanding here");
-    await userEvent.click(screen.getByRole("button", { name: "Sort this out" }));
+    await userEvent.click(screen.getByRole("button", { name: "Go" }));
 
     expect(await screen.findByText("Two open tasks, oldest from Monday.")).toBeInTheDocument();
     /* The honest progress: the chip names a read that actually happened. */
@@ -624,7 +624,7 @@ describe("ask-mode — the same token answers questions", () => {
     mount(<TiffButton />, { target: { kind: "visit", id: "v-1" } });
     await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
     await userEvent.type(screen.getByRole("textbox"), "the middle unit tripped again");
-    await userEvent.click(screen.getByRole("button", { name: "Sort this out" }));
+    await userEvent.click(screen.getByRole("button", { name: "Go" }));
     await screen.findByText("Check it before it saves");
     expect(askBrain).not.toHaveBeenCalled();
   });
@@ -633,7 +633,7 @@ describe("ask-mode — the same token answers questions", () => {
     mount(<NoteToken as="debrief" />);
     await userEvent.click(screen.getByRole("button", { name: /Debrief/ }));
     await userEvent.type(screen.getByRole("textbox"), "what's left at Meridian");
-    await userEvent.click(screen.getByRole("button", { name: "Sort this out" }));
+    await userEvent.click(screen.getByRole("button", { name: "Go" }));
     await screen.findByText("Check it before it saves");
     expect(askBrain).not.toHaveBeenCalled();
     expect(routeNote).toHaveBeenCalled();
@@ -646,7 +646,7 @@ describe("ask-mode — the same token answers questions", () => {
     mount(<TiffButton />);
     await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
     await userEvent.type(screen.getByRole("textbox"), "what's open?");
-    await userEvent.click(screen.getByRole("button", { name: "Sort this out" }));
+    await userEvent.click(screen.getByRole("button", { name: "Go" }));
     expect(
       await screen.findByText("Too busy right now — try again in a minute.")
     ).toBeInTheDocument();
@@ -656,7 +656,7 @@ describe("ask-mode — the same token answers questions", () => {
     mount(<TiffButton />);
     await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
     await userEvent.type(screen.getByRole("textbox"), "what's open?");
-    await userEvent.click(screen.getByRole("button", { name: "Sort this out" }));
+    await userEvent.click(screen.getByRole("button", { name: "Go" }));
     await screen.findByText(/oldest from Monday/);
     await userEvent.click(screen.getByRole("button", { name: "Ask another" }));
     expect(screen.getByRole("textbox")).toHaveValue("");

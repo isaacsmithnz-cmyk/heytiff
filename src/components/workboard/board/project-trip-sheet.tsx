@@ -664,8 +664,8 @@ export function ProjectTripSheet({
             rows={3}
             placeholder="Gate codes, who to ask for, what to watch out for…"
           />
-          {/* Save keeps it on the trip; Sort this out hands the same words to
-              the note brain, which is what the pill does. */}
+          {/* Save keeps it on the trip; Go hands the same words to the note
+              brain, which is what the pill does. */}
           <div className="wb2-noteact">
             {notesText !== (visit.notes ?? "") && manage && (
               <button
@@ -676,7 +676,7 @@ export function ProjectTripSheet({
                 Save the note
               </button>
             )}
-            {/* The "Sort this out" bridge is gone here for the same reason it
+            {/* The "Go" bridge is gone here for the same reason it
                 went from the visit sheet: the field itself now offers the
                 review when the words look actionable, so nobody has to be
                 asked whether their own note was worth reading. */}

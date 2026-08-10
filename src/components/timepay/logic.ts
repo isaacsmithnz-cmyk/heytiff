@@ -74,6 +74,16 @@ export type Settings = {
       staff member saw as their super. Null = never set; consumers fall back
       to the statutory default rather than storing a guess. */
   superPct?: number | null;
+  /** WORKING days at or above which personal leave should carry a medical
+      certificate. Null = never ask, which is what every existing workspace
+      gets. 2 is the usual reading of "two or more consecutive days"; 1 means
+      always.
+
+      A PROMPT, never a gate — see `certificateExpected` in lib/timepay/leave.ts
+      and the migration. Somebody booking a sick day is often not holding the
+      certificate yet, and a workspace that refused the request would push the
+      absence off the books rather than get the document sooner. */
+  certAfterDays?: number | null;
   /** Whether a salaried person's overtime block PAYS (at the weekend/OT
       rules, on their salary-derived hourly) or is absorbed — "reasonable
       additional hours" inside the salary. The block is RECORDED either way;
@@ -114,6 +124,8 @@ export type StaffWeek = {
   /** THEIR public holidays in this period, by day index — resolved through
       their own state, so an interstate worker is paid their own calendar. */
   holidayDays?: number[];
+  /** their sick days still waiting on a medical certificate, by day index */
+  certMissing?: number[];
 };
 
 /* ['MON', 29, 'Jun'] — weekday label, day number, month */
@@ -146,6 +158,14 @@ export type WeekCtx = {
       come from the calendar. Resolved per person by the loader, because an
       interstate worker's calendar is their own. */
   holidays?: readonly number[];
+  /** Sick days whose leave request wants a medical certificate and hasn't got
+      one, by index. Resolved by the loader — see `presumeFor`.
+
+      WHETHER, NEVER THE DOCUMENT. The bullet this feeds says a certificate is
+      outstanding; the file itself lives on the leave screen behind
+      `approvals`. A timesheet approver is being told there is paperwork to
+      chase, not handed somebody's medical evidence. */
+  certMissing?: readonly number[];
 };
 
 export type Split = { n: number; o15: number; o2: number };
@@ -233,6 +253,7 @@ export const DEFAULT_SETTINGS: Settings = {
   exportDetail: false,
   superPct: null,
   salariedOtPaid: true,
+  certAfterDays: null,
 };
 
 export const fmt = (h: number | null | undefined): string =>
@@ -669,11 +690,18 @@ export function derive(staff: StaffWeek, s: Settings, ctx: WeekCtx): Derived {
          whether the day off was allowed. */
       sick += d.h;
       entries++;
+      /* THE CERTIFICATE LINE IS ANSWERABLE NOW. It used to read "chase a
+         certificate if your workspace needs one" — a prompt with nothing
+         behind it, because `certificate` appeared in no other file in the
+         codebase. A leave request carries one, so this says which of the three
+         states the day is actually in rather than making the approver guess:
+         the workspace doesn't ask, it asked and got one, or it is outstanding. */
       bullets.push(
         dlab(i) +
           " — sick leave (" +
           fmt(d.h) +
-          "h paid), approved in My leave — chase a certificate if your workspace needs one",
+          "h paid), approved in My leave" +
+          ((ctx.certMissing ?? []).includes(i) ? " — still waiting on a medical certificate" : ""),
       );
     } else if (d.t === "leave") {
       leave += d.h;

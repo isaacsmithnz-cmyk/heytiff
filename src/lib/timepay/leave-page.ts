@@ -6,6 +6,8 @@ import {
   listOrgHolidays,
   myBalances,
   myRequests,
+  certificatesFor,
+  markCertExpected,
   pendingRequests,
   stateFor,
   unavailabilityInSpan,
@@ -36,6 +38,8 @@ export type MyLeaveData = {
   /** the requester's own working pattern (Mon=0) — the request form suggests
       hours over THESE days, the same days the timesheet will actually pay */
   workDays: number[];
+  /** the workspace's certificate threshold, or null when it never asks */
+  certAfterDays: number | null;
 };
 
 export async function loadMyLeave(): Promise<MyLeaveData | null> {
@@ -58,11 +62,18 @@ export async function loadMyLeave(): Promise<MyLeaveData | null> {
     today: ctx.today,
     standard: settings.standard,
     balances: balances.map((b) => balanceView(b, requests)),
-    requests,
+    requests: await markCertExpected(
+      ctx.orgId,
+      requests,
+      new Set(holidays.map((h) => h.date)),
+      settings.workDays,
+      settings.certAfterDays,
+    ),
     holidays,
     // their own pattern, else the org's — never an empty set, because a form
     // that suggests 0h for every span has stopped suggesting anything
     workDays: ownDays?.length ? ownDays : settings.workDays,
+    certAfterDays: settings.certAfterDays ?? null,
   };
 }
 
@@ -95,25 +106,42 @@ export type TeamLeaveData = {
   balances: TeamBalanceRow[];
 };
 
-export async function loadTeamLeave(): Promise<TeamLeaveData | null> {
+/* `canApprove` decides whether the pending rows carry their certificates.
+
+   It is a PARAMETER rather than a read inside this function because the page
+   already resolves `can("approvals")` for the component, and one answer to
+   that question is better than two that could drift. A viewer without it gets
+   rows with `certificate` absent — indistinguishable from "none attached",
+   which is the intended reading: somebody who can't decide the absence has no
+   business holding the medical evidence for it. */
+async function withCertificatesFor(orgId: string, rows: LeaveRequest[]): Promise<LeaveRequest[]> {
+  const ids = rows.filter((r) => r.kind === "personal").map((r) => r.id);
+  if (ids.length === 0) return rows;
+  const certs = await certificatesFor(orgId, ids);
+  return rows.map((r) => (certs.has(r.id) ? { ...r, certificate: certs.get(r.id) } : r));
+}
+
+export async function loadTeamLeave(canApprove = false): Promise<TeamLeaveData | null> {
   const ctx = await timepayContext();
   if (!ctx) return null;
 
   // the calendar shows a rolling window: a week back for context, a quarter on
   const spanStart = addDays(ctx.today, -7);
   const spanEnd = addDays(ctx.today, 90);
-  const [pending, approved, unavailable, staff, allBalances, liveRequests] = await Promise.all([
-    pendingRequests(ctx.orgId),
-    approvedInSpan(ctx.orgId, spanStart, spanEnd),
-    /* Casuals blocking out days they can't work. Same window as the leave
-       calendar, because the roster asks one question — who can't I put on —
-       and would otherwise have to ask it in two places. */
-    unavailabilityInSpan(ctx.orgId, spanStart, spanEnd),
-    // the same minimum-identity roster the fleet picker reads — names, nothing HR
-    listFleetStaff(ctx.orgId),
-    orgBalances(ctx.orgId),
-    orgLiveRequests(ctx.orgId),
-  ]);
+  const [{ settings }, pending, approved, unavailable, staff, allBalances, liveRequests] =
+    await Promise.all([
+      getPaySettings(ctx.orgId),
+      pendingRequests(ctx.orgId),
+      approvedInSpan(ctx.orgId, spanStart, spanEnd),
+      /* Casuals blocking out days they can't work. Same window as the leave
+         calendar, because the roster asks one question — who can't I put on —
+         and would otherwise have to ask it in two places. */
+      unavailabilityInSpan(ctx.orgId, spanStart, spanEnd),
+      // the same minimum-identity roster the fleet picker reads — names, nothing HR
+      listFleetStaff(ctx.orgId),
+      orgBalances(ctx.orgId),
+      orgLiveRequests(ctx.orgId),
+    ]);
   // the org's own state drives the holiday overlay on the shared calendar
   const orgState = await stateFor(ctx.orgId, "");
   await ensureHolidays(ctx.orgId, orgState, ctx.today);
@@ -121,7 +149,13 @@ export async function loadTeamLeave(): Promise<TeamLeaveData | null> {
 
   return {
     today: ctx.today,
-    pending,
+    pending: await markCertExpected(
+      ctx.orgId,
+      canApprove ? await withCertificatesFor(ctx.orgId, pending) : pending,
+      new Set(holidays.map((h) => h.date)),
+      settings.workDays,
+      settings.certAfterDays,
+    ),
     calendar: calendarDays(approved, spanStart, spanEnd, unavailable),
     spanStart,
     spanEnd,

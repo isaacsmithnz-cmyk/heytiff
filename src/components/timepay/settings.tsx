@@ -657,6 +657,67 @@ export function TimePaySettings({
               {menuSection("Breaks", breakControls)}
               {menuSection("Overtime", overtimeControls)}
               {menuSection("Weekend & holiday rates", ruleRows)}
+              {menuSection(
+                "Medical certificates",
+                /* A PROMPT, NOT A GATE — see `certificateExpected`. Off is the
+                   default and what every existing workspace keeps: nobody
+                   wakes up to a new warning on a form they were already using.
+
+                   The number counts WORKING days, the same count the request
+                   form already prints under its calendar ("2 working days"),
+                   so the setting and the warning are talking about one number
+                   rather than two that happen to be close. */
+                <>
+                  <Toggle
+                    on={draft.certAfterDays != null}
+                    label="Ask for a certificate on longer personal leave"
+                    onFlip={() => patch({ certAfterDays: draft.certAfterDays == null ? 2 : null })}
+                  />
+                  {draft.certAfterDays != null && (
+                    <>
+                      <div className="ms-rung" style={{ marginTop: 12 }}>
+                        <span className="ms-rungl">From this many working days</span>
+                        <div className="wz-step">
+                          <button
+                            className="wz-sbtn"
+                            aria-label="Fewer days"
+                            onClick={() =>
+                              patch({ certAfterDays: Math.max(1, (draft.certAfterDays ?? 2) - 1) })
+                            }
+                          >
+                            −
+                          </button>
+                          <span className="wz-val">
+                            {draft.certAfterDays === 1
+                              ? "Every day"
+                              : `${draft.certAfterDays} days`}
+                          </span>
+                          <button
+                            className="wz-sbtn"
+                            aria-label="More days"
+                            onClick={() =>
+                              patch({ certAfterDays: Math.min(14, (draft.certAfterDays ?? 2) + 1) })
+                            }
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                      <p className="ms-p">
+                        Personal leave this long asks for a certificate on the request, and tells
+                        the approver whether one arrived. It never blocks the booking — somebody
+                        ringing in sick rarely has the document yet.
+                      </p>
+                    </>
+                  )}
+                  {draft.certAfterDays == null && (
+                    <p className="ms-p" style={{ marginTop: 12 }}>
+                      Nobody is asked for one, and the approver&rsquo;s screen says nothing about
+                      certificates.
+                    </p>
+                  )}
+                </>,
+              )}
               {menuSection("Superannuation guarantee", superStepper())}
               {menuSection(
                 "Salaried overtime",

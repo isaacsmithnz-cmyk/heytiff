@@ -9,8 +9,8 @@ import {
   type WeekCtx,
 } from "@/components/timepay/logic";
 import { absenceMap, type AbsenceDay, type LeaveRequest } from "./leave";
-import { approvedInSpan, holidaysInSpan } from "./leave-query";
-import { shiftDefaultsFor } from "./query";
+import { approvedInSpan, certificatesFor, holidaysInSpan, markCertExpected } from "./leave-query";
+import { getPaySettings, shiftDefaultsFor } from "./query";
 import { dateOfDay, periodEnd, periodLength, type PeriodConfig } from "./period";
 
 /* Filling in the week nobody should have to fill in.
@@ -33,6 +33,8 @@ export type PresumptionCtx = {
   holidaysByState: Map<string | null, Map<string, string>>;
   /** staff id → their approved leave overlapping this period */
   leaveByStaff: Map<string, LeaveRequest[]>;
+  /** request ids that HAVE a certificate — membership only, never the file */
+  certHeld: Set<string>;
   /** staff id → their own normal hours, where they've set them */
   ownHours: Map<string, NormalHours>;
   /** staff id → their own working pattern, where they've set one */
@@ -73,13 +75,14 @@ export async function presumptionCtx(
   const end = periodEnd(periodStart, cfg);
   const states = Array.from(new Set(staff.map((s) => s.state)));
 
-  const [holidayLists, leave, defaults] = await Promise.all([
+  const [holidayLists, leaveRaw, defaults, { settings }] = await Promise.all([
     Promise.all(states.map((st) => holidaysInSpan(orgId, st, periodStart, end))),
     approvedInSpan(orgId, periodStart, end),
     shiftDefaultsFor(
       orgId,
       staff.map((s) => s.id),
     ),
+    getPaySettings(orgId),
   ]);
   const { hours: ownHours, workDays: ownWorkDays } = defaults;
 
@@ -87,6 +90,29 @@ export async function presumptionCtx(
   states.forEach((st, i) => {
     holidaysByState.set(st, new Map(holidayLists[i].map((h) => [h.date, h.name])));
   });
+
+  /* CERTIFICATES, resolved once for the whole period rather than per person.
+
+     The timesheet is where the certificate prompt has always lived — "confirm
+     a certificate if required", on a sick day, with nothing behind it. Now
+     there is something behind it, so the bullet can say which: attached, or
+     still outstanding. Only whether, never the document — the file itself is
+     the leave screen's business and is gated on `approvals` there. */
+  const leave = await markCertExpected(
+    orgId,
+    leaveRaw,
+    new Map(holidaysByState.get(states[0] ?? null) ?? []).size
+      ? new Set(holidaysByState.get(states[0] ?? null)!.keys())
+      : new Set<string>(),
+    settings.workDays,
+    settings.certAfterDays,
+  );
+  const certHeld = new Set(
+    (await certificatesFor(
+      orgId,
+      leave.filter((r) => r.certExpected).map((r) => r.id),
+    )).keys(),
+  );
 
   const leaveByStaff = new Map<string, LeaveRequest[]>();
   for (const r of leave) leaveByStaff.set(r.staffId, [...(leaveByStaff.get(r.staffId) ?? []), r]);
@@ -97,7 +123,7 @@ export async function presumptionCtx(
      hasn't started has none, and `through` is −1. */
   const through = dates.filter((d) => d < todayISO).length - 1;
 
-  return { dates, holidaysByState, leaveByStaff, ownHours, ownWorkDays, through };
+  return { dates, holidaysByState, leaveByStaff, certHeld, ownHours, ownWorkDays, through };
 }
 
 /** Apply the presumption to one person's stored week.
@@ -132,6 +158,9 @@ export function presumeFor(
       index — the pay rules need it, because a holiday somebody worked is an
       ordinary worked day sitting on a holiday date */
   holidayDays: number[];
+  /** sick days whose request wants a certificate and hasn't got one, by index.
+      Whether, never the document — see `certHeld`. */
+  certMissing: number[];
 } {
   const holidays = p.holidaysByState.get(state) ?? new Map<string, string>();
   const hours = normalHours(settings, p.ownHours.get(staff.id));
@@ -157,5 +186,19 @@ export function presumeFor(
     if (holidays.has(date)) out.push(i);
     return out;
   }, []);
-  return { days, sources, hours, workDays, presume: live, absences, holidayDays };
+
+  /* Which sick days are still waiting on paperwork. Read off the absence map
+     the presumption just applied, so it lines up with the days actually
+     drawn — a request whose certificate is expected and absent marks every day
+     it covers, and the bullet names them by date. */
+  const wantsCert = new Set(
+    (p.leaveByStaff.get(staff.id) ?? []).filter((r) => r.certExpected).map((r) => r.id),
+  );
+  const certMissing = p.dates.reduce<number[]>((out, date, i) => {
+    const a = absences.get(date);
+    if (a && a.t === "sick" && wantsCert.has(a.id) && !p.certHeld.has(a.id)) out.push(i);
+    return out;
+  }, []);
+
+  return { days, sources, hours, workDays, presume: live, absences, holidayDays, certMissing };
 }

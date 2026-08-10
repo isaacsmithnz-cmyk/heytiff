@@ -91,7 +91,7 @@ export async function signOne(ref: string | null | undefined): Promise<string | 
 
 /* One round trip for every link on the page. createSignedUrls takes the whole
    list, so a board with twenty photos costs one call rather than twenty. */
-async function signMany(refs: readonly string[]): Promise<Map<string, string>> {
+export async function signMany(refs: readonly string[]): Promise<Map<string, string>> {
   const out = new Map<string, string>();
   if (refs.length === 0) return out;
   const { data } = await supabaseAdmin.storage

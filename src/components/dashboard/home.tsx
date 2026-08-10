@@ -13,7 +13,7 @@ import { DEFAULT_TAB, homeTabs, type HomeTabKey } from "@/lib/dashboard/home-tab
 import { currentUnreadCount, partitionNotices } from "@/lib/dashboard/notices";
 import type { DashboardData } from "@/lib/dashboard/page-data";
 
-/* HOME — one card, five faces.
+/* HOME — one ink-glass card, six faces.
 
    It was a 307px hero carrying a greeting, four counter tiles that said how
    many and nothing else, and five cards stacked under them. Every one of those
@@ -21,10 +21,13 @@ import type { DashboardData } from "@/lib/dashboard/page-data";
    were counting are the tab bodies, and the greeting is gone entirely (the
    date and time live in the frame's clock now).
 
-   NOTHING HERE IS NEW FURNITURE. The strip, the sliding thumb, the persistent
-   card, the row and the tick-list are the maintenance board's, reused —
-   `.wb2-vtabs`, `.wb2-vslide`, `.wb2-card`, `.wb2-trj`, `.wb2-tk`. Home was
-   the last bespoke screen in the app and it isn't one any more.
+   THE MECHANICS ARE THE BOARD'S, THE MATERIAL IS TIFF'S. The strip, the
+   sliding thumb, the persistent card and the tick-list are still
+   `.wb2-vtabs` / `.wb2-vslide` / `.wb2-card` / `.wb2-tk` — but the card
+   wears the capture sheet's smoked glass on the daylight well (Isaac,
+   2026-08-10), the thumb wears the card's material because it IS the card's
+   top edge, and the row views are Home's own identity rows now rather than
+   the board's five-column `.wb2-trj`. See the HOME section of shell.css.
 
    HOME HAS NO TIFF BUTTON OF ITS OWN. One sat in the tab strip's right cap so
    a debrief was "one press away from every face of the card" — but the frame's

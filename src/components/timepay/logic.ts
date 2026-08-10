@@ -653,23 +653,32 @@ export function derive(staff: StaffWeek, s: Settings, ctx: WeekCtx): Derived {
         }
       }
     } else if (d.t === "sick") {
-      /* ALREADY DECIDED, SOMEWHERE ELSE. A timesheet cannot declare leave —
-         `KINDS` on my-timesheet offers "Worked" and "Not worked" and nothing
-         more — so every leave and sick day on a sheet arrived from an approved
-         request via `presumeDays`. The old bullets asked this screen to
-         "confirm a certificate if required" and to "check it was requested",
-         which is a second approval of a decision the leave module has already
-         made, on the screen that exists to end exactly that double entry.
+      /* THE BOOKING IS NOT WHAT IS BEING REVIEWED. A timesheet cannot declare
+         leave — `KINDS` on my-timesheet offers "Worked" and "Not worked" and
+         nothing more — so every leave and sick day on a sheet arrived from a
+         request the leave module already approved. Asking this screen to
+         "check it was requested" was a second approval of that decision, on
+         the screen that exists to end exactly that kind of double entry. The
+         line says where the day came from instead.
 
-         They still get a line, because an approver reading a week should see
-         who was away — it states the fact rather than assigning a task. */
+         THE CERTIFICATE STAYS, and it is not the same thing. Nothing in this
+         app records one: "certificate" appears in no other file, there is no
+         field on a leave request and nothing to upload. So this bullet is the
+         only place the obligation is ever raised — removing it would delete
+         the prompt rather than move it. It asks about a document, not about
+         whether the day off was allowed. */
       sick += d.h;
       entries++;
-      bullets.push(dlab(i) + " — sick leave (" + fmt(d.h) + "h paid), booked and approved in My leave");
+      bullets.push(
+        dlab(i) +
+          " — sick leave (" +
+          fmt(d.h) +
+          "h paid), approved in My leave — chase a certificate if your workspace needs one",
+      );
     } else if (d.t === "leave") {
       leave += d.h;
       entries++;
-      bullets.push(dlab(i) + " — annual leave (" + fmt(d.h) + "h), booked and approved in My leave");
+      bullets.push(dlab(i) + " — annual leave (" + fmt(d.h) + "h), already approved in My leave");
     } else if (d.t === "ph") {
       ph += d.h;
       entries++;
@@ -704,15 +713,23 @@ export function derive(staff: StaffWeek, s: Settings, ctx: WeekCtx): Derived {
   }
 
   const weighted = normal + ot * 1.5 + ot2 * 2 + sick + leave + ph;
-  /* WHAT ACTUALLY NEEDS A DECISION. `sick` and `leave` used to force a week
-     into "review" — so a person who took an approved Thursday off landed in
-     the approver's "Action required" queue for having done the thing the
-     business had already said yes to. A public holiday, which arrives the same
-     way from the org calendar, never did: the inconsistency was the tell.
+  /* AN ABSENT WEEK REACHES A PERSON. `sick` and `leave` put the week in
+     "review", and that is Isaac's call (2026-08-10), taken back after a round
+     where they didn't.
 
-     Both now behave like `ph`. The days are still drawn, still coloured, and
-     still counted in the paid buckets — they just don't summon anybody. */
-  const status = ot || ot2 || under || off || missing ? "review" : "ready";
+     The reasoning that removed them was that a timesheet cannot declare leave,
+     so both arrive from an approved request and asking again is double entry —
+     and a public holiday, which arrives the same way, never triggered review.
+     True about the BOOKING, wrong about the week: a period somebody was absent
+     for is one an approver should look at before it is paid, whoever approved
+     the absence. A public holiday is different in the way that matters — the
+     business closed, nobody made a choice, and every person on the calendar
+     has the same day.
+
+     So the trigger stands and the WORDING is where the double entry went: the
+     bullets state that the booking is already approved rather than asking for
+     it to be approved a second time. See the `sick`/`leave` branches above. */
+  const status = ot || ot2 || under || off || missing || sick || leave ? "review" : "ready";
   const issueTitle = issueHeading({ missing, off, ot2, ot, under, sick, leave });
 
   return {

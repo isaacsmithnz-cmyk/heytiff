@@ -135,28 +135,39 @@ describe("derive — demo staff on default settings", () => {
     }
   });
 
-  /* ALREADY DECIDED, SOMEWHERE ELSE. A timesheet cannot declare leave, so
-     every sick and leave day on a sheet came from an approved request — and
-     flagging it for review put a person in the approver's "Action required"
-     queue for having taken the day the business already said yes to. A public
-     holiday arrives the same way and never did. Both now behave like `ph`:
-     paid, drawn, counted, and summoning nobody. */
-  it("Hannah: a booked sick day pays without summoning the approver", () => {
+  /* AN ABSENT WEEK REACHES A PERSON — Isaac's call, taken back after a round
+     where it didn't. A period somebody was away for is one an approver should
+     look at before it is paid, whoever approved the absence.
+
+     What DID change is the wording. A timesheet cannot declare leave, so every
+     sick and leave day came from a request the leave module already approved,
+     and asking this screen to "check it was requested" was that approval a
+     second time. The line says where the day came from instead. */
+  it("Hannah: a sick day still reaches the approver", () => {
     const d = byName["Hannah Cole"];
-    expect([d.status, d.sick, d.weighted]).toEqual(["ready", 8, 40]);
-    expect(d.bullets).toContain("Thu 2 Jul — sick leave (8h paid), booked and approved in My leave");
-    expect(d.bullets.join(" ")).not.toMatch(/confirm|check/);
+    expect([d.status, d.sick, d.weighted]).toEqual(["review", 8, 40]);
+    expect(d.bullets.join(" ")).toContain("approved in My leave");
+    expect(d.bullets.join(" ")).not.toMatch(/check it was requested/);
   });
 
-  it("Sophie: annual leave does the same", () => {
+  /* THE CERTIFICATE IS NOT THE BOOKING. Nothing else in this app records one —
+     no field on a leave request, nothing to upload, and the word appears in no
+     other source file — so this bullet is the only place the obligation is
+     raised at all. Dropping it would delete the prompt, not relocate it. */
+  it("still asks about a certificate, which nothing else in the app tracks", () => {
+    expect(byName["Hannah Cole"].bullets.join(" ")).toMatch(/certificate/);
+  });
+
+  it("Sophie: annual leave does too, without asking for a second approval", () => {
     const d = byName["Sophie Tran"];
-    expect([d.status, d.leave]).toEqual(["ready", 8]);
-    expect(d.bullets).toContain("Fri 3 Jul — annual leave (8h), booked and approved in My leave");
+    expect([d.status, d.leave]).toEqual(["review", 8]);
+    expect(d.bullets).toContain("Fri 3 Jul — annual leave (8h), already approved in My leave");
+    expect(d.bullets.join(" ")).not.toMatch(/check it was requested/);
   });
 
-  it("still flags the things that DO need a decision", () => {
-    // overtime, a short day, a day marked not worked, a missing entry
-    expect(byName["Boston Hayes"].status).toBe("review");
+  it("a public holiday still does NOT — nobody chose it and it closed the business", () => {
+    const days: DayEntry[] = [w8, w8, w8, w8, { t: "ph", h: 8 }, NO, NO];
+    expect(derive(staff(days), DEFAULT_SETTINGS, ctx).status).toBe("ready");
   });
 });
 

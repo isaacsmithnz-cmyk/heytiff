@@ -215,6 +215,10 @@
 .fg .page.in .stg > *:nth-child(1){animation-delay:.04s}
 .fg .page.in .stg > *:nth-child(2){animation-delay:.1s}
 .fg .page.in .stg > *:nth-child(3){animation-delay:.16s}
+/* A FOURTH child needs its own delay or it arrives FIRST: the base rule sets
+   no delay, so an unlisted child animates at 0s while its siblings are still
+   waiting. Home has four (head · tabs · card · payroll). */
+.fg .page.in .stg > *:nth-child(4){animation-delay:.22s}
 .fg .page.in .stgp > * { animation:fgPop .4s cubic-bezier(.22,1,.36,1) both; will-change:opacity, transform; }
 .fg .page.in .stgp > *:nth-child(2){animation-delay:.06s}
 .fg .page.in .stgp > *:nth-child(3){animation-delay:.12s}
@@ -6533,6 +6537,30 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   background-size:auto, auto, auto, 26px 26px;
 }
 
+/* ── THE PAGE HEAD ──
+   Home was the only screen in the app without one. The hero was deleted in
+   #321 and nothing took its place, so the page opened straight onto a tab
+   strip with no name on it while Workboard, Assets and Tiff all say who they
+   are. This is `.wb2-head`'s anatomy at its own sizes — 38px, the same as
+   Workboard, because they are the same kind of screen: a named board wearing
+   a row of tabs.
+
+   The date sits BESIDE the title, divided by a hairline, because it is the
+   screen's context rather than any one tab's — Urgent, Tasks and Calendar are
+   all answers to "what about today". It reads "Home | Monday 10 August", so
+   the two never fuse into one phrase. */
+.fg .hm-phead { padding:2px 0 20px; }
+.fg .hm-phead h1 { display:flex; align-items:baseline; flex-wrap:wrap; gap:16px;
+  margin:0; font-size:38px; font-weight:800; letter-spacing:-.035em; line-height:1;
+  color:var(--ink); }
+.fg .hm-pdate { position:relative; padding-left:17px; font-size:15px; font-weight:600;
+  letter-spacing:-.005em; color:var(--gray500); }
+/* the hairline is the pseudo, not a border, so it sizes off the CAP height of
+   the date rather than the h1's 38px line box */
+.fg .hm-pdate::before { content:""; position:absolute; left:0; top:1px; bottom:1px;
+  width:1px; background:rgba(5,5,5,.16); }
+.fg .hm-psub { margin:10px 0 0; font-size:14.5px; font-weight:600; color:var(--gray500); }
+
 /* The strip: inactive tabs stay the well's quiet grey; the ACTIVE tab lands
    on ink, so its text goes white and its badge takes the on-ink tint —
    danger and warning keep their meaning on both grounds. */
@@ -6685,18 +6713,18 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 /* ── the Journal ──
    The header is the day, and the record runs under it, newest first. */
 
-/* THE HEADER. The inset console (`.hm-comp`) is gone — the whole card is that
-   material now (wash and rim ride `.hm-card` itself), so a band on a band
-   would say the same thing twice. What remains is one row directly on the
-   glass: the date at left — "Say the day" was coaching, the capsule already
-   says what pressing it does, and the day was the one thing this card never
-   said — the debrief capsule at right, and a hairline where the record
-   begins. */
-.fg .hm-head { display:flex; align-items:center; gap:18px; flex-wrap:wrap;
-  padding:20px 26px 16px; border-bottom:1px solid var(--hm-line); }
-.fg .hm-headdate { flex:1; min-width:220px; display:flex; flex-direction:column; gap:2px; }
-.fg .hm-headdate b { font-size:17px; font-weight:800; letter-spacing:-.015em; color:#fff; }
-.fg .hm-headdate span { font-size:12.8px; font-weight:500; color:rgba(255,255,255,.55); }
+/* THE HEADER — the capsule alone, on a hairline. The inset console
+   (`.hm-comp`) went when the whole card became that material; the day and
+   date that briefly replaced it went UP to the page head, where the screen's
+   context belongs. Anything left on the left of this row would have been the
+   third statement of one date (page head, here, and the record's own "Today"
+   divider immediately below), so the row is a toolbar and nothing more. It
+   is the ink glass that holds the capsule up now — the "floating button"
+   this fixed in #325 was a MATERIAL mismatch, a dark control on a white
+   band, not a layout one. */
+.fg .hm-head { display:flex; align-items:center; justify-content:flex-end;
+  gap:18px; flex-wrap:wrap; padding:14px 26px 14px;
+  border-bottom:1px solid var(--hm-line); }
 
 /* THE DEBRIEF — the topbar button's material, wearing the word and nothing
    else (the mark came off at #327; the ground is even more unmistakably
@@ -6727,12 +6755,11 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 
    Bound to the VIEWPORT rather than the well, deliberately: making the card
    itself stretch would mean turning .page/.wrap/.stg into a flex column, and
-   those three are every screen's, not Home's. 410px is what sits above the
-   scroller — topbar 80, well inset, wrap 62, tab row 44, the date header ~84
-   (the 104px console it replaced bought the record 20px) — plus room for the
-   Payroll strip under the card. The floor keeps two entries readable on a
-   short window. */
-.fg .hm-jscroll { max-height:calc(100vh - 410px); min-height:240px; overflow-y:auto; padding:6px 26px 14px;
+   those three are every screen's, not Home's. 494px is what sits above the
+   scroller — topbar 80, well inset, wrap 62, the page head 92, tab row 44,
+   the capsule row 73 — plus room for the Payroll strip under the card. The
+   floor keeps two entries readable on a short window. */
+.fg .hm-jscroll { max-height:calc(100vh - 494px); min-height:240px; overflow-y:auto; padding:6px 26px 14px;
   scrollbar-width:thin; scrollbar-color:rgba(255,255,255,.22) transparent;
   -webkit-mask-image:linear-gradient(#000 90%, transparent 100%);
   mask-image:linear-gradient(#000 90%, transparent 100%); }

@@ -9,6 +9,7 @@ import { HomeJournal } from "./home-journal";
 import { HomeTasks } from "./home-tasks";
 import { ChipRows, NoticeRows, Nothing } from "./home-rows";
 import { sortChips } from "@/lib/dashboard/chips";
+import { fmtAuWeekdayDateLong } from "@/lib/au-dates";
 import { DEFAULT_TAB, homeTabs, type HomeTabKey } from "@/lib/dashboard/home-tabs";
 import { currentUnreadCount, partitionNotices } from "@/lib/dashboard/notices";
 import type { DashboardData } from "@/lib/dashboard/page-data";
@@ -89,6 +90,27 @@ export function DashboardHome({ data }: { data: DashboardData }) {
     <div className="page in">
       <div className="wrap hm-wrap">
         <div className="stg">
+          {/* THE PAGE HEAD. Home was the only screen without one: the hero was
+              deleted in #321 and nothing replaced it, so the page opened on a
+              tab strip with no name on it while Workboard, Assets and Tiff all
+              say who they are (Isaac, 2026-08-10). Same anatomy as
+              `.wb2-head` — the closest sibling, being the other tabbed board.
+
+              The date rides beside the title because it is the screen's
+              context, not the Journal's: Urgent, Tasks and Calendar are all
+              answers to "what about today". It comes from the loader's AU
+              calendar date, never `new Date()` in a render body — see
+              project_hydration_clock_trap. */}
+          <header className="hm-phead">
+            <h1>
+              Home
+              <span className="hm-pdate">{fmtAuWeekdayDateLong(today)}</span>
+            </h1>
+            <p className="hm-psub">
+              What you&rsquo;ve told Tiff, what needs you, and what&rsquo;s coming up.
+            </p>
+          </header>
+
           <ViewTabs
             items={tabs}
             active={tab}

@@ -6,7 +6,6 @@ import { Icon } from "@/components/shell/icon";
 import { DictClock, LevelBars, LiveWords, appendSpoken, useDictation } from "./dictation";
 import { useNoteFlow, type NoteFlow } from "./note-flow";
 import { useNoteScope } from "./note-context";
-import { TiffMark } from "./tiff-mark";
 import { Cascade, JobPicker, ReviewRows, nothingTicked } from "./review-card";
 import { describeJob } from "@/lib/workboard/note-match";
 import { sniff } from "@/lib/notes/sniff";
@@ -466,22 +465,33 @@ function JobLine({ flow }: { flow: NoteFlow }) {
    as every other posture; only the framing and the brain's instructions
    differ. Typing is as first-class here as everywhere else.
 
-   IT IS THE GLOBAL BUTTON, WEARING A WORD (Isaac, 2026-08-10). It was a cyan
-   pill, then a dark capsule with a gradient rim and a mic half beside the
-   word — near the Tiff button but not it, which is the worst place for two
-   controls that open the same sheet to stand. So it now carries `TiffMark`
-   itself: the same glass face, the same breathing halo, the same chevron and
-   sparkle, sized off the button exactly as the topbar's is.
+   IT IS THE WORD, AND NOTHING ELSE (Isaac, 2026-08-10). Three shapes in one
+   day, and the last one is the shortest:
 
-   THE MIC HALF IS GONE, and nothing is lost by it. The sheet it opens has
+     the cyan pill      the app's language from before the Tiff button existed
+     the ink capsule    dark face, gradient rim, mic half beside the word
+     the global button  `TiffMark` itself — glass face, breathing halo,
+                        chevron and sparkle, sized off the button
+     just "Debrief"     ← here
+
+   The mark went the same way the mic half did, and for a related reason. The
+   console it sits on is already unmistakably Tiff's — ink, gradient rim, the
+   frame's own aurora — so a mark ON the control was Tiff said twice in one
+   object. Take it off and the button is left saying the only thing the
+   surface could not: what pressing it DOES.
+
+   That is also the rule this posture has always been built on, arrived at
+   from the other end. "Never an icon alone, because what does the sparkle do
+   is a question a 6am brain shouldn't have to ask" — a word alone was never
+   the failure case. The glass and the rim stay; the capsule still reads as
+   the topbar button's sibling, because it is made of the same material.
+
+   THE MIC HALF WENT FIRST, and nothing was lost by it. The sheet it opens has
    Talk in it, gated on `voiceEnabled` the same way the half was, so the mic
    is one tap away and still an enhancement. What the half cost was the last
    asymmetry between the two doors into one sheet: the topbar button does not
    offer a mic at the door either, because arriving already recording makes
-   typing second-class — the reversal Isaac made with the premium sheet.
-
-   The word stays. "What does the sparkle do" is not a question a 6am brain
-   should have to answer, and a lone mark is exactly that question. */
+   typing second-class — the reversal Isaac made with the premium sheet. */
 
 function DebriefButton({ flow }: { flow: NoteFlow }) {
   return (
@@ -493,12 +503,6 @@ function DebriefButton({ flow }: { flow: NoteFlow }) {
             className="wb2-tokhalf wb2-debriefword"
             onClick={() => flow.setOpen(true)}
           >
-            {/* The ground under the console is ink, so this is the TOPBAR skin
-                — glass face and halo — not the sheet's dark core. The ground
-                decides the skin; see components/notes/tiff-button. */}
-            <span className="wb2-debriefmk tiffbtn-topbar" aria-hidden="true">
-              <TiffMark chevron={20} spark={13} halo />
-            </span>
             Debrief
           </button>
         </span>

@@ -463,14 +463,16 @@ describe("the debrief", () => {
     expect(document.querySelectorAll(".wb2-tokhalf")).toHaveLength(1);
   });
 
-  it("wears the global button's mark, not a copy of it", () => {
-    /* The capsule IS the topbar button with a word on it. If the halo or the
-       glass face stops rendering here, the two controls that open the same
-       sheet have drifted apart again. */
+  it("is the word alone — no mark, because the console already IS Tiff", () => {
+    /* It wore `TiffMark` for a day. The surface under it is ink with the
+       gradient rim and the frame's aurora, so a mark on the control was Tiff
+       said twice in one object; the word is the only thing the surface could
+       not say. What keeps it the topbar button's sibling is the material, not
+       a badge. */
     mount(<NoteToken as="debrief" />);
     const word = screen.getByRole("button", { name: "Debrief" });
-    expect(word.querySelector(".tiffbtn-halo")).not.toBeNull();
-    expect(word.querySelector(".tiffbtn-face")).not.toBeNull();
+    expect(word.textContent).toBe("Debrief");
+    expect(word.querySelector("svg")).toBeNull();
   });
 
   /* THE MARK BESIDE THE WORD IS DECORATION. Wearing Tiff's chevron here (it

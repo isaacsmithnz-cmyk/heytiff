@@ -10,12 +10,13 @@
 
    TWO SIGNALS, IN ORDER:
 
-   EMAIL is near-proof, and it is deliberately the first thing tried. Note the
-   join it needs: staff_profiles has no email column — the address lives on
-   `profiles`, keyed by the Auth0 sub, reachable only through
-   staff_profiles.user_id, which is NULL until someone accepts their invite. So
-   "no email" is the ordinary case for a staff card created ahead of onboarding,
-   not a fault, and it must degrade to the name pass rather than look broken.
+   EMAIL is near-proof, and it is deliberately the first thing tried. Note
+   where the address comes from: once someone has signed in it lives on
+   `profiles`, keyed by the Auth0 sub through staff_profiles.user_id; before
+   that, a card imported or pre-seeded ahead of onboarding may carry
+   staff_profiles.contact_email, and callers feed whichever exists. A card
+   with neither is still ordinary, not a fault, and it must degrade to the
+   name pass rather than look broken.
 
    NAME is a hint, never proof. Two Daniels on a crew of nine is not unusual,
    which is why an ambiguous name match is reported as AMBIGUOUS and offers
@@ -31,7 +32,8 @@ export type StaffCandidate = {
   firstName: string | null;
   lastName: string | null;
   fullName: string | null;
-  /** From the profiles join; null whenever user_id is null (never invited). */
+  /** Account email (profiles join) or, for a card that predates its person,
+      the contact_email it was seeded with. Null when neither exists. */
   email: string | null;
 };
 

@@ -137,7 +137,17 @@ export function ExportCard({
     return () => window.removeEventListener("afterprint", done);
   }, [printing]);
 
-  const startPrint = useCallback(async () => {
+  /* Plain, not a `useCallback`. Its dependency list could never be right: it
+     calls `resolveDocs`, which is rebuilt every render and reads `variantDocs`,
+     so the honest list included a function identity that always changed — and
+     the list it actually carried omitted both, behind an `exhaustive-deps`
+     suppression. That is a stale closure, not just a lint complaint: a variant
+     that finished loading after this callback was last memoised would be
+     missing from the printed pack. It is also what stopped React Compiler
+     compiling this component, since a `react-hooks` suppression makes it skip
+     the whole file. Unmemoised, it always sees the current render's docs, and
+     the compiler memoises it correctly. */
+  const startPrint = async () => {
     if (preparing || printing) return;
     setPreparing(true);
     try {
@@ -155,17 +165,31 @@ export function ExportCard({
       );
       cleanupArmed.current = true;
       setPrinting({ model, urls });
-    } finally {
-      setPreparing(false);
+    } catch (err) {
+      /* Cleared on both paths by hand rather than in a `finally`, which React
+         Compiler 1.0 cannot lower at all — it refuses the whole component
+         over one. What must not happen is the flag staying set: the button
+         would read "Preparing…" for ever with no way back but a reload.
+
+         LOGGED, NOT RETHROWN, and that is a deliberate change from the
+         `finally` this replaced. Every caller is `void startPrint()`, so a
+         thrown error had nowhere to go but an unhandled rejection — the same
+         console line this writes, minus the name of the thing that failed. */
+      console.error(`[export] print preparation failed: ${String(err)}`);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preparing, printing, doc, pack, opts, planImages]);
+    setPreparing(false);
+  };
 
   /* PNG per floor: figure → static markup → data-URL rasters → canvas */
   const exportPngs = useCallback(async () => {
     if (pnging) return;
     setPnging(true);
-    try {
+    /* The loop lives in here rather than in the try below, because React
+       Compiler 1.0 cannot lower ANY loop inside a try/catch — the iterator
+       protocol (and even a plain `i < n` test) counts as a value block, and
+       it refuses the whole component over it. The try then wraps a single
+       await, which it handles fine. */
+    const run = async () => {
       const floors = doc.floors.filter((f) => opts.floorIds.includes(f.id));
       for (const floor of floors) {
         const raw: Record<string, string> = {};
@@ -199,9 +223,15 @@ export function ExportCard({
         a.click();
         URL.revokeObjectURL(url);
       }
-    } finally {
-      setPnging(false);
+    };
+
+    try {
+      await run();
+    } catch (err) {
+      // no `finally`, and logged rather than rethrown — see startPrint above
+      console.error(`[export] PNG export failed: ${String(err)}`);
     }
+    setPnging(false);
   }, [pnging, doc, opts, planImages]);
 
   const seg = (

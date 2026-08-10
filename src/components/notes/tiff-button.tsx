@@ -67,7 +67,9 @@ const SIZES: Record<Where, { chevron: number; spark: number }> = {
 
 export function TiffButton({ where = "topbar" }: { where?: Where }) {
   const scope = useNoteScope();
-  const flow = useNoteFlow();
+  /* The one surface the stored default governs — and so the only one
+     allowed to show it or change it. See `governsDefault` in ./note-flow. */
+  const flow = useNoteFlow({ governsDefault: true });
   const size = SIZES[where];
 
   /* The press, made visible: the halo flares and a wash of it BURSTS out of

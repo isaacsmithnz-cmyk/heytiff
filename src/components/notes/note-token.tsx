@@ -121,10 +121,18 @@ function Ribbon({ flow }: { flow: NoteFlow }) {
    Switching to Talk starts listening; switching to Type hands the words over
    to the box (never discarding them — see `handOver` in ./dictation).
 
+   IT ONLY APPEARS WHERE THE DEFAULT APPLIES. Spotted live 2026-08-10: the
+   switch was in the shared body, so the DEBRIEF sheet wore it too — a sheet
+   that opens from its own two-door capsule and never consults the stored
+   mode. It sat there reading "DEFAULT · Talk" above a text box, promising
+   something that surface does not do, and pressing it would have silently
+   rewritten the Tiff button's default from a screen with no authority over
+   it. Everywhere but the Tiff button's sheet, the same choice is offered as
+   what it actually is there: a one-off, in `ModeControl` below.
+
    Absent where the deployment cannot hear: a choice with one option is not a
    choice, it is furniture. */
 function DefaultSwitch({ flow }: { flow: NoteFlow }) {
-  if (!flow.scope.voiceEnabled) return null;
   const talk = flow.mode === "talk";
   return (
     <span className="wb2-modesw">
@@ -161,6 +169,26 @@ function DefaultSwitch({ flow }: { flow: NoteFlow }) {
         </button>
       </span>
     </span>
+  );
+}
+
+/** The row's mode control. The labelled switch where the stored default is
+    actually in play; a plain one-off button everywhere else — the debrief
+    and the field postures already chose their way in, and offering them a
+    "default" would be a setting that governs a different screen. */
+function ModeControl({ flow }: { flow: NoteFlow }) {
+  if (!flow.scope.voiceEnabled) return null;
+  if (flow.governsDefault) return <DefaultSwitch flow={flow} />;
+  return flow.dict.recording ? (
+    <button className="pbtn ghost wb2-modeone" onClick={flow.dict.handOver}>
+      <Icon name="keyboard" size={15} />
+      Type
+    </button>
+  ) : (
+    <button className="pbtn ghost wb2-talk" onClick={flow.dict.start} disabled={flow.busy}>
+      <Icon name="mic" size={15} />
+      Talk
+    </button>
   );
 }
 
@@ -209,7 +237,7 @@ function Body({ flow }: { flow: NoteFlow }) {
               every word — `handOver` puts what you have said in the box
               rather than routing it, so changing your mind mid-sentence
               costs nothing. */}
-          <DefaultSwitch flow={flow} />
+          <ModeControl flow={flow} />
           <button className="pbtn" onClick={flow.dict.stop}>
             <Icon name="square" size={15} />
             Stop &amp; read
@@ -283,7 +311,7 @@ function Body({ flow }: { flow: NoteFlow }) {
             exactly what the ribbon's × does — two controls, one behaviour,
             and the × is present in every stage while Discard never was. */}
         <div className="wb2-capact">
-          <DefaultSwitch flow={flow} />
+          <ModeControl flow={flow} />
           {/* IT ARRIVES WITH THE WORDS (Isaac, 2026-08-10). It used to sit
               there greyed out on an empty sheet — a dead control is a
               question you have to answer every time you look at it. Now the

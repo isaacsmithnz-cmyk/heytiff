@@ -8,6 +8,7 @@ import { auDayOf, fmtAuWeekdayDate } from "@/lib/au-dates";
 import { providerById, XERO_SCOPES } from "@/lib/integrations/providers";
 import type { ConnectionView } from "@/lib/integrations/connection";
 import { disconnectXeroAction, setXeroTenantAction } from "@/app/actions/integrations";
+import { PeopleImportCard, type PeopleCardData } from "@/components/integrations/people-import-card";
 
 /* The Xero connection screen.
 
@@ -36,6 +37,8 @@ export type XeroReach = { ok: true; employees: number } | { ok: false; error: st
 
 export type XeroScreenProps = {
   connection: ConnectionView | null;
+  /** The people reconcile card's data; null until connected. */
+  people?: PeopleCardData | null;
   /** Result of one live read; null when there was nothing to read through. */
   reach?: XeroReach | null;
   /** XERO_CLIENT_ID / SECRET / APP_BASE_URL are all present on this deployment. */
@@ -46,7 +49,14 @@ export type XeroScreenProps = {
   notice: { kind: "ok" | "error"; text: string } | null;
 };
 
-export function XeroScreen({ connection, configured, sealed, notice, reach }: XeroScreenProps) {
+export function XeroScreen({
+  connection,
+  configured,
+  sealed,
+  notice,
+  reach,
+  people,
+}: XeroScreenProps) {
   const provider = providerById("xero")!;
   const router = useRouter();
   const [busy, start] = useTransition();
@@ -292,6 +302,9 @@ export function XeroScreen({ connection, configured, sealed, notice, reach }: Xe
               </div>
             </div>
           )}
+
+          {/* ── the people reconcile — import is a review, never a copy ── */}
+          {connected && people && <PeopleImportCard provider="xero" {...people} />}
 
           {/* ── what it powers ── */}
           <div className="card2">

@@ -16,7 +16,7 @@ import type { Role } from "@/lib/roles-shared";
    list "for convenience". */
 
 const IDENTITY_COLUMNS =
-  "id, user_id, first_name, last_name, full_name, preferred_name, phone, birthday, address, start_date, " +
+  "id, user_id, first_name, last_name, full_name, preferred_name, contact_email, phone, birthday, address, start_date, " +
   "employment_type, job_title, status, state, photo_url, " +
   "emergency_name, emergency_phone, emergency_relationship, emergency_alt_phone, " +
   "work_rights_status, visa_type, visa_expiry, hours_condition, vevo_checked_at, " +
@@ -41,6 +41,7 @@ type StaffProfileRow = Record<string, unknown> & {
   last_name: string | null;
   full_name: string | null;
   preferred_name: string | null;
+  contact_email: string | null;
   job_title: string | null;
   employment_type: string | null;
   start_date: string | null;
@@ -98,6 +99,32 @@ export async function emailsByUser(userIds: string[]): Promise<Map<string, strin
   return out;
 }
 
+/* Where an unclaimed card came from, for the directory's provenance chip.
+   All kinds on purpose — an sm8 'staff' link and a xero 'payroll_employee'
+   link both answer "which system already knows this person". First link
+   wins; a card in two systems is still one card, and the chip is a hint,
+   not an inventory. */
+const PROVIDER_LABEL: Record<string, string> = { servicem8: "ServiceM8", xero: "Xero" };
+
+async function importSourceByStaff(
+  orgId: string,
+  staffIds: string[]
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (staffIds.length === 0) return out;
+  const { data } = await supabaseAdmin
+    .from("integration_links")
+    .select("staff_profile_id, provider")
+    .eq("org_id", orgId)
+    .in("staff_profile_id", staffIds);
+  for (const r of data ?? []) {
+    const id = r.staff_profile_id as string | null;
+    const provider = r.provider as string;
+    if (id && !out.has(id)) out.set(id, PROVIDER_LABEL[provider] ?? provider);
+  }
+  return out;
+}
+
 /** Roles live on `memberships` — the Permissions card's source. */
 async function rolesByUser(
   orgId: string,
@@ -147,18 +174,23 @@ export async function listStaff(orgId: string, now = new Date()): Promise<StaffR
   const ids = rows.map((r) => r.id);
   const userIds = rows.map((r) => r.user_id).filter((u): u is string => !!u);
 
-  const [licences, emails, roles, master] = await Promise.all([
+  const [licences, emails, roles, master, sources] = await Promise.all([
     licencesByStaff(orgId, ids),
     emailsByUser(userIds),
     rolesByUser(orgId, userIds),
     primaryOwnerOf(orgId),
+    importSourceByStaff(orgId, ids),
   ]);
 
   return rows.map((r) => toStaffRow(r, {
     licences: licences.get(r.id) ?? [],
-    email: r.user_id ? emails.get(r.user_id) ?? "" : "",
+    // account email once they've arrived; before that the address the card
+    // was imported or pre-seeded with, so the row can still say who they are
+    // (and so Invite has something to prefill)
+    email: (r.user_id ? emails.get(r.user_id) ?? "" : "") || r.contact_email || "",
     orgRole: r.user_id ? roles.get(r.user_id) ?? null : null,
     isMaster: !!r.user_id && r.user_id === master,
+    importedFrom: sources.get(r.id) ?? null,
     now,
   }));
 }
@@ -208,6 +240,8 @@ function toStaffRow(
     email: string;
     orgRole: Role | null;
     isMaster: boolean;
+    /** provenance chip for unclaimed cards; the profile route doesn't need it */
+    importedFrom?: string | null;
     now: Date;
   }
 ): StaffRow {
@@ -236,6 +270,7 @@ function toStaffRow(
     ),
     orgRole: ctx.orgRole,
     isMaster: ctx.isMaster,
+    importedFrom: ctx.importedFrom ?? null,
   };
 }
 

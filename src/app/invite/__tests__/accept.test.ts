@@ -28,19 +28,32 @@ let staffInsertFails = false;
    beforeSessionSaved hook looks for a membership and then a pending invite
    this way; the accept route uses .single() instead, so the two never collide. */
 let listRows: Record<string, Row[]> = {};
+/* What a guarded adopt UPDATE on staff_profiles returns — [] means the card
+   was already claimed or gone, so the WHERE matched nothing. A non-empty
+   result also becomes `existingStaffCard`, the mock's stand-in for the DB now
+   holding user_id: ensureStaffCard's own lookup must FIND the adopted card,
+   because not-inserting-after-adoption is the entire point under test. */
+let adoptResult: Row[] = [];
 
-/* Every .eq() with its arguments — the invitations row is stored lowercased,
-   so WHAT a read filters on is part of what these tests have to see. */
+/* Every .eq()/.is() with its arguments — the invitations row is stored
+   lowercased and every adopt must carry its user_id-is-null guard, so WHAT a
+   query filters on is part of what these tests have to see. (.is records as
+   "is:col" so a guard can't be satisfied by a mere .eq.) */
 const eqCalls: { table: string; col: string; val: unknown }[] = [];
 
 const table = (name: string) => {
   const chain: Record<string, unknown> = {};
   const self = () => chain;
+  let op: "read" | "update" = "read";
   chain.eq = (col: string, val: unknown) => {
     eqCalls.push({ table: name, col, val });
     return chain;
   };
-  chain.is = self;
+  chain.is = (col: string, val: unknown) => {
+    eqCalls.push({ table: name, col: `is:${col}`, val });
+    return chain;
+  };
+  chain.not = self;
   chain.gt = self;
   chain.limit = self;
   chain.select = self;
@@ -69,11 +82,20 @@ const table = (name: string) => {
     };
   };
   chain.update = (payload: unknown) => {
+    op = "update";
     calls.push({ table: name, op: "update", payload });
+    // simulate persistence: a successful adopt means the (org, user) lookup
+    // that ensureStaffCard runs next will find this card
+    if (name === "staff_profiles" && (payload as Row).user_id && adoptResult.length) {
+      existingStaffCard = adoptResult[0];
+    }
     return chain;
   };
   chain.then = (res: (v: { data: unknown; error: null }) => unknown) =>
-    Promise.resolve({ data: listRows[name] ?? [], error: null }).then(res);
+    Promise.resolve({
+      data: op === "update" ? (name === "staff_profiles" ? adoptResult : []) : (listRows[name] ?? []),
+      error: null,
+    }).then(res);
   return chain;
 };
 
@@ -138,8 +160,14 @@ beforeEach(() => {
   existingStaffCard = null;
   staffInsertFails = false;
   listRows = {};
+  adoptResult = [];
   sessionValue = { user: { sub: USER, email: EMAIL, name: "Sam Rivers" } };
 });
+
+const staffAdopts = () =>
+  calls.filter(
+    (c) => c.table === "staff_profiles" && c.op === "update" && (c.payload as Row).user_id === USER,
+  );
 
 describe("accepting an invite seats a staff card", () => {
   it("creates one for a brand-new member", async () => {
@@ -192,6 +220,77 @@ describe("accepting an invite seats a staff card", () => {
     expect(quiet).toHaveBeenCalled();
     quiet.mockRestore();
     expect(res.headers.get("location")).toBe("https://app.test/dashboard");
+  });
+});
+
+/* The claim path: a card imported from ServiceM8/Xero (or pre-seeded by hand)
+   waits with user_id null, and accepting the invite binds the login to THAT
+   card. The one wrong outcome in every scenario below is the same one: a
+   second card for a human who already has one. */
+describe("claiming a pre-seeded card", () => {
+  it("adopts the card the invite names instead of minting a duplicate", async () => {
+    inviteRow = validInvite({ staff_profile_id: "card-7" });
+    adoptResult = [{ id: "card-7" }];
+
+    const res = await GET(req());
+
+    expect(staffAdopts()).toHaveLength(1);
+    expect(eqCalls).toContainEqual({ table: "staff_profiles", col: "id", val: "card-7" });
+    // the write itself carries the only-unclaimed guard — not just the read
+    expect(eqCalls).toContainEqual({ table: "staff_profiles", col: "is:user_id", val: null });
+    expect(staffInserts()).toHaveLength(0);
+    expect(res.headers.get("location")).toBe("https://app.test/dashboard");
+  });
+
+  it("falls back to a fresh card when the named card is claimed or gone", async () => {
+    // deleted card → FK set the pointer null before we ever got here; claimed
+    // card → the guarded update matches nothing. Same degrade either way.
+    inviteRow = validInvite({ staff_profile_id: "card-7" });
+    adoptResult = [];
+
+    await GET(req());
+
+    expect(staffInserts()).toHaveLength(1);
+  });
+
+  it("adopts the one unclaimed card holding the invite's address, whatever its casing", async () => {
+    // no staff_profile_id on the invite — the address is the only clue, and
+    // contact_email was typed by a human, so the comparison must normalise
+    listRows = { staff_profiles: [{ id: "card-9", contact_email: "NewHire@Example.com" }] };
+    adoptResult = [{ id: "card-9" }];
+
+    await GET(req());
+
+    expect(staffAdopts()).toHaveLength(1);
+    expect(eqCalls).toContainEqual({ table: "staff_profiles", col: "id", val: "card-9" });
+    expect(staffInserts()).toHaveLength(0);
+  });
+
+  it("refuses to guess between two unclaimed cards sharing the address", async () => {
+    listRows = {
+      staff_profiles: [
+        { id: "card-9", contact_email: EMAIL },
+        { id: "card-10", contact_email: EMAIL },
+      ],
+    };
+
+    await GET(req());
+
+    // both stay visible for an admin to untangle; the new arrival gets a
+    // fresh card rather than somebody else's
+    expect(staffAdopts()).toHaveLength(0);
+    expect(staffInserts()).toHaveLength(1);
+  });
+
+  it("never adopts for someone who already has a card here", async () => {
+    existingStaffCard = { id: "their-existing-card" };
+    inviteRow = validInvite({ staff_profile_id: "card-7" });
+    adoptResult = [{ id: "card-7" }];
+
+    await GET(req());
+
+    expect(staffAdopts()).toHaveLength(0);
+    expect(staffInserts()).toHaveLength(0);
   });
 });
 

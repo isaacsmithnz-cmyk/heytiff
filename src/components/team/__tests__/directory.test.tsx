@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TeamDirectory } from "../directory";
 import type { PendingInviteRow, StaffRow } from "@/lib/staff/types";
@@ -10,12 +10,16 @@ const push = jest.fn();
 const refresh = jest.fn();
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push, refresh }) }));
 
-/* The pending rows now call server actions — mocked, never called for real. */
+/* The pending rows now call server actions — mocked, never called for real.
+   createInvite rides along because the row-level "Invite to join" opens the
+   real InviteModal, which imports it. */
 const renewInvite = jest.fn(async () => ({ ok: true }) as { ok: boolean; error?: string });
 const revokeInvite = jest.fn(async () => ({ ok: true }) as { ok: boolean; error?: string });
+const createInvite = jest.fn(async () => ({ ok: true }) as { ok: boolean; error?: string });
 jest.mock("@/app/actions/invite", () => ({
   renewInvite: (...a: unknown[]) => renewInvite(...(a as [])),
   revokeInvite: (...a: unknown[]) => revokeInvite(...(a as [])),
+  createInvite: (...a: unknown[]) => createInvite(...(a as [])),
 }));
 
 beforeEach(() => {
@@ -45,6 +49,7 @@ const staffRow = (over: Partial<StaffRow> & Pick<StaffRow, "id" | "name">): Staf
   compliance: { label: "Compliant", state: "ok", expiresDays: 9999 },
   orgRole: "staff",
   isMaster: false,
+  importedFrom: null,
   ...over,
 });
 
@@ -227,3 +232,91 @@ describe("TeamDirectory pending-invite actions", () => {
     expect(refresh).not.toHaveBeenCalled();
   });
 });
+
+/* Unclaimed cards — imported from a connected system (or pre-seeded), no
+   login yet. The directory's job: show they're not arrived, say where they
+   came from, and make the invite THE claim (it carries the card id). */
+describe("TeamDirectory unclaimed cards", () => {
+  const UNCLAIMED = [
+    ...STAFF,
+    staffRow({
+      id: "g7",
+      name: "Imported Dan",
+      role: "Technician",
+      userId: null,
+      email: "dan@acme.com", // = contact_email for a card with no account
+      importedFrom: "ServiceM8",
+    }),
+    staffRow({ id: "h8", name: "Seeded Sam", role: "Labourer", userId: null, email: "" }),
+  ];
+
+  function setupUnclaimed(opts: { canInvite?: boolean } = {}) {
+    render(
+      <TeamDirectory
+        staff={UNCLAIMED}
+        pending={PENDING}
+        canInvite={opts.canInvite ?? true}
+        appUrl="https://heytiff.test"
+        inviteRoles={["staff"]}
+      />,
+    );
+  }
+
+  it("greys the row and says where the card came from", () => {
+    setupUnclaimed();
+    const row = screen.getByText("Imported Dan").closest(".dirrow") as HTMLElement;
+    expect(row.className).toContain("unclaimed");
+    expect(screen.getByText("From ServiceM8")).toBeInTheDocument();
+    // no provenance known — still visibly not arrived
+    expect(screen.getByText("Hasn't joined yet")).toBeInTheDocument();
+    // claimed rows carry neither
+    const claimed = screen.getByText("Sophie Tran").closest(".dirrow") as HTMLElement;
+    expect(claimed.className).not.toContain("unclaimed");
+  });
+
+  it("offers Invite to join on unclaimed rows only, and only to an inviter", async () => {
+    setupUnclaimed();
+    await userEvent.click(menuButtonOf("Imported Dan"));
+    expect(screen.getByRole("button", { name: /Invite to join/ })).toBeInTheDocument();
+  });
+
+  it("keeps the item away from claimed rows and from non-inviters", async () => {
+    setupUnclaimed();
+    await userEvent.click(menuButtonOf("Jordan Mills")); // claimed
+    expect(screen.queryByRole("button", { name: /Invite to join/ })).not.toBeInTheDocument();
+
+    cleanupMenus();
+    setupUnclaimed({ canInvite: false });
+    await userEvent.click(menuButtonOf("Imported Dan"));
+    expect(screen.queryByRole("button", { name: /Invite to join/ })).not.toBeInTheDocument();
+  });
+
+  it("the invite carries the card: modal prefilled, staffProfileId on the submit", async () => {
+    setupUnclaimed();
+    await userEvent.click(menuButtonOf("Imported Dan"));
+    await userEvent.click(screen.getByRole("button", { name: /Invite to join/ }));
+
+    // the claim is spelt out, the stale-able address is editable
+    expect(screen.getByText(/attaches to Imported Dan's card/)).toBeInTheDocument();
+    const email = screen.getByPlaceholderText("name@company.com") as HTMLInputElement;
+    expect(email.value).toBe("dan@acme.com");
+
+    await userEvent.click(screen.getByRole("button", { name: /Create invite/ }));
+    expect(createInvite).toHaveBeenCalledWith({
+      email: "dan@acme.com",
+      role: "staff",
+      staffProfileId: "g7",
+    });
+  });
+});
+
+/* The list sorts by name, so rows are found by name, never by index. */
+function menuButtonOf(name: string): HTMLElement {
+  const row = screen.getByText(name).closest(".dirrow") as HTMLElement;
+  return within(row).getByRole("button", { name: "Actions" });
+}
+
+/* Two renders in one test need the first unmounted, or both menus match. */
+function cleanupMenus() {
+  document.body.innerHTML = "";
+}

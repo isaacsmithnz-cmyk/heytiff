@@ -10,9 +10,14 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 
 const TABLE = "integration_links";
 
-/** The only kind today. A future supplier→contact link is another value here,
-    not another table. */
+/** Xero payroll employees — the first kind. A future supplier→contact link is
+    another value here, not another table. */
 export const PAYROLL_EMPLOYEE = "payroll_employee";
+
+/** ServiceM8 staff members — the second kind, and the proof the table's
+    design held: a new provider's people arrived as a row value. tenant_id
+    carries the ServiceM8 vendor uuid (one account per grant). */
+export const SM8_STAFF = "staff";
 
 export type IntegrationLink = {
   id: string;
@@ -124,6 +129,81 @@ export async function unlinkPayrollEmployee(
     .eq("org_id", orgId)
     .eq("provider", "xero")
     .eq("kind", PAYROLL_EMPLOYEE)
+    .eq("tenant_id", tenantId)
+    .eq("staff_profile_id", staffProfileId);
+
+  if (error) return { ok: false, error: "Couldn't remove that link." };
+  return { ok: true };
+}
+
+/* ── ServiceM8 staff — the same three helpers, the same discipline ── */
+
+/** Links for the connected ServiceM8 account. */
+export async function listSm8StaffLinks(
+  orgId: string,
+  tenantId: string
+): Promise<IntegrationLink[]> {
+  const { data } = await supabaseAdmin
+    .from(TABLE)
+    .select(COLUMNS)
+    .eq("org_id", orgId)
+    .eq("provider", "servicem8")
+    .eq("kind", SM8_STAFF)
+    .eq("tenant_id", tenantId);
+
+  return ((data ?? []) as Record<string, unknown>[]).map(toLink).filter((l) => l.staffProfileId);
+}
+
+/** Link one person to one ServiceM8 staff member — upsert on the subject
+    index like its Xero sibling, refusal on the remote index for the same
+    reason: two people claiming one remote record means one of them is wrong,
+    and a human decides which. */
+export async function linkSm8StaffMember(input: {
+  orgId: string;
+  tenantId: string;
+  staffProfileId: string;
+  remoteId: string;
+  remoteLabel: string | null;
+  matchedBy: "auto" | "manual";
+  userId: string;
+}): Promise<LinkResult> {
+  const { error } = await supabaseAdmin.from(TABLE).upsert(
+    {
+      org_id: input.orgId,
+      provider: "servicem8",
+      kind: SM8_STAFF,
+      tenant_id: input.tenantId,
+      staff_profile_id: input.staffProfileId,
+      remote_id: input.remoteId,
+      remote_label: input.remoteLabel,
+      matched_by: input.matchedBy,
+      linked_by_user_id: input.userId,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "org_id,provider,kind,tenant_id,staff_profile_id" }
+  );
+
+  if (error) {
+    if ((error as { code?: string }).code === "23505") {
+      return { ok: false, error: "That ServiceM8 staff member is already linked to someone else." };
+    }
+    return { ok: false, error: "Couldn't save that link." };
+  }
+  return { ok: true };
+}
+
+/** Remove one person's ServiceM8 staff link for the connected account. */
+export async function unlinkSm8StaffMember(
+  orgId: string,
+  tenantId: string,
+  staffProfileId: string
+): Promise<LinkResult> {
+  const { error } = await supabaseAdmin
+    .from(TABLE)
+    .delete()
+    .eq("org_id", orgId)
+    .eq("provider", "servicem8")
+    .eq("kind", SM8_STAFF)
     .eq("tenant_id", tenantId)
     .eq("staff_profile_id", staffProfileId);
 

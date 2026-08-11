@@ -4812,8 +4812,8 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 /* Nor is the actions row: this column CENTRES and shrink-wraps its
    children, so the row was only as wide as its buttons and the Default
    switch's `margin-right:auto` had nothing to push against — it sat
-   hard against Stop & read instead of holding the left like it does
-   everywhere else. */
+   hard against the recording's Go instead of holding the left like it
+   does everywhere else. */
 .wb2-caprec .wb2-capact { align-self:stretch; }
 /* The live transcript, and it must read as WORDS, not as a status line —
    it is what the person is checking while they talk. Top-level, never

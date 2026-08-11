@@ -217,7 +217,7 @@ export function useNoteFlow(opts: { debrief?: boolean; governsDefault?: boolean 
      So a capped transcript is KEPT AND HELD: appended to the box, nothing
      routed, mic ready. Press it again and carry on; the words accumulate
      until you stop because you actually meant to. */
-  const dict = useDictation({
+  const engine = useDictation({
     onTranscript: (transcript, { capped }) => {
       /* WORDS GO IN THE BOX. NOTHING ROUTES OFF A TRANSCRIPT.
 
@@ -248,6 +248,26 @@ export function useNoteFlow(opts: { debrief?: boolean; governsDefault?: boolean 
     },
     onError: setError,
   });
+
+  /* A NEW RECORDING RETIRES THE LAST ONE'S COMPLAINT. Live-walked on prod
+     2026-08-10: "Nothing was said in that one. Try again, or type it." was
+     still sitting on the card six seconds INTO the recording it had just
+     asked for — a message that invites a retry and then calls the retry a
+     failure before you have finished the first sentence. Worse, it is the
+     one error whose subject is ambiguous: "that one" now reads as the
+     recording you can see running.
+
+     An error belongs to the attempt that produced it, so pressing the mic
+     retires it. Wrapped here rather than inside `useDictation` because the
+     engine reports errors and does not own them — this hook does. Every
+     posture goes through `flow.dict`, so there is one place to do it. */
+  const dict = {
+    ...engine,
+    start: () => {
+      setError(null);
+      engine.start();
+    },
+  };
 
   /* The routing call takes about seven seconds — measured, not guessed — and
      `sorting` is that gap given a state of its own. Deliberately NOT the same

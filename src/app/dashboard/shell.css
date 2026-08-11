@@ -3193,6 +3193,31 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    the same shape the narrow-viewport rule below already defines. Stated by
    CONTAINER rather than by viewport: the form moved into the column at every
    width, so a media query would have missed it on a wide screen. */
+/* ---- medical certificates on a leave request ----
+   Deliberately quiet. This is the most sensitive row in the app and it should
+   read as a checklist item, not an alarm: an approver can approve without one,
+   and a person who hasn't seen a doctor yet is not doing anything wrong. */
+.fg .lv-cert { display:flex; align-items:center; gap:10px; margin-top:12px; padding:11px 13px; border-radius:13px; background:#fff; border:1px dashed rgba(10,11,16,.18); }
+.fg .lv-cert.on { border-style:solid; border-color:rgba(34,197,94,.5); background:rgba(34,197,94,.05); }
+.fg .lv-cert svg { flex:0 0 auto; color:var(--gray400); }
+.fg .lv-cert.on svg { color:var(--teal-d); }
+.fg .lv-cert > span { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.fg .lv-cert b { font-size:13px; font-weight:800; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fg .lv-cert em { font-size:11.5px; font-weight:600; font-style:normal; color:var(--gray500); line-height:1.45; }
+.fg .lv-cert label { flex:0 0 auto; cursor:pointer; }
+
+/* the same fact on a booked row, one line rather than a card */
+.fg .lv-reqcert { display:inline-flex; align-items:center; gap:6px; margin-top:4px; font-size:11.5px; font-weight:700; color:var(--amber-d,#b45309); }
+.fg .lv-reqcert.on { color:var(--teal-ink,#05887a); }
+.fg .lv-reqcert a { color:inherit; text-decoration:underline; text-underline-offset:2px; }
+.fg .lv-certadd { margin-left:2px; padding:1px 8px; border-radius:8px; background:rgba(10,11,16,.06); color:var(--gray700); cursor:pointer; }
+.fg .lv-certadd:hover { background:rgba(10,11,16,.1); }
+
+/* the approver's copy, on the pending card where the decision is made */
+.fg .lv-pcert { display:inline-flex; align-items:center; gap:7px; margin-top:6px; font-size:12px; font-weight:700; color:var(--amber-d,#b45309); }
+.fg .lv-pcert.on { color:var(--teal-ink,#05887a); }
+.fg .lv-pcert a { color:inherit; text-decoration:underline; text-underline-offset:2px; }
+
 .fg .lv-cal { display:grid; grid-template-columns:300px minmax(0,1fr); gap:20px; align-items:start; }
 .fg .lv-col .lv-cal { grid-template-columns:minmax(0,1fr); }
 .fg .lv-col .lv-calside { max-width:340px; }

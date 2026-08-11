@@ -24,6 +24,7 @@ export default async function MyLeavePage() {
       requests={data.requests}
       holidays={data.holidays}
       workDays={data.workDays}
+      certAfterDays={data.certAfterDays}
     />
   );
 }

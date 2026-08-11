@@ -150,12 +150,20 @@ describe("derive — demo staff on default settings", () => {
     expect(d.bullets.join(" ")).not.toMatch(/check it was requested/);
   });
 
-  /* THE CERTIFICATE IS NOT THE BOOKING. Nothing else in this app records one —
-     no field on a leave request, nothing to upload, and the word appears in no
-     other source file — so this bullet is the only place the obligation is
-     raised at all. Dropping it would delete the prompt, not relocate it. */
-  it("still asks about a certificate, which nothing else in the app tracks", () => {
-    expect(byName["Hannah Cole"].bullets.join(" ")).toMatch(/certificate/);
+  /* THE CERTIFICATE LINE IS ANSWERABLE NOW. It used to read "chase a
+     certificate if your workspace needs one" on every sick day — a prompt with
+     nothing behind it, because there was no field and nothing to upload. A
+     leave request carries one, so the bullet says which of the three states
+     the day is in rather than making the approver guess. Silence is one of
+     them: a workspace with no threshold set never sees the word. */
+  it("says nothing about certificates when none is outstanding", () => {
+    expect(byName["Hannah Cole"].bullets.join(" ")).not.toMatch(/certificate/);
+  });
+
+  it("names the day when one IS outstanding", () => {
+    const days: DayEntry[] = [SK, w8, w8, w8, w8, NO, NO];
+    const d = derive(staff(days), DEFAULT_SETTINGS, { ...ctx, through: 6, certMissing: [0] });
+    expect(d.bullets.join(" ")).toMatch(/Mon 29 Jun.*still waiting on a medical certificate/);
   });
 
   it("Sophie: annual leave does too, without asking for a second approval", () => {

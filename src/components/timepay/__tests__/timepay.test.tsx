@@ -146,6 +146,35 @@ describe("TimePay screen", () => {
     expect(within(section("Ready to approve")).getByText("Marcus Webb")).toBeInTheDocument();
   });
 
+  /* A MONEY BUG, found while threading certificates through this same line.
+
+     The loader resolves `holidayDays` for every person — an interstate worker
+     gets their own state's calendar — and this screen rebuilt each row's
+     context WITHOUT it. `splitDay` never saw the `publicHoliday` flag, so a
+     worked public holiday was priced at ordinary rates here while My timesheet
+     priced the same day at 2×. On the default settings that is 8h at $50: $800
+     on the person's screen, $400 on their approver's. The bullet whose whole
+     job is to make sure that day reaches a human never fired either. */
+  it("prices a worked public holiday through the person's OWN calendar", () => {
+    const worked = W("7:00 AM", "3:00 PM", 8);
+    const onHoliday: StaffWeek = {
+      id: "staff-ph",
+      name: "Kira Novak",
+      role: "Installer",
+      rate: 50,
+      days: [worked, w8, w8, w8, w8, EM, EM],
+      holidayDays: [0], // Monday is a gazetted holiday for this person
+    };
+    const { container } = renderTimePay({ staff: [onHoliday] });
+
+    // 2x all day, per the default public-holiday rule
+    const card = container.querySelector(".card.flag") as HTMLElement;
+    expect(within(card).getByText(/worked the public holiday/)).toBeInTheDocument();
+    expect(within(card).getByText(/at public-holiday rates/)).toBeInTheDocument();
+    // and the day is coloured as a holiday, not as an ordinary one
+    expect(container.querySelector(".tile.ph")).not.toBeNull();
+  });
+
   it("names the period the overtime is for, in the cycle's own noun", () => {
     const { container } = renderTimePay({
       settings: { ...DEFAULT_SETTINGS, cycle: "Monthly" },

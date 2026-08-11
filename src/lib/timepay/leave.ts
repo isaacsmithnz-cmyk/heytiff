@@ -29,6 +29,32 @@ export type LeaveRequest = {
   status: LeaveStatus;
   reviewNote?: string;
   reviewedBy?: string | null;
+  /** Does this workspace ask for a certificate on a span this long?
+
+      RESOLVED SERVER-SIDE, and that is the point of it being a field rather
+      than a call each screen makes. The answer needs the requester's own
+      roster and the org's holiday calendar — the person's screen has both, the
+      approver's has neither — so computing it in two places would have a
+      part-timer warned about a certificate their approver was never told to
+      expect. The live request FORM still calls `certificateExpected` directly,
+      because there the span is being chosen and there is no row yet. */
+  certExpected?: boolean;
+  /** The medical certificate, when one has been attached and the reader is
+      allowed to see it. Absent means EITHER none is attached OR this viewer
+      isn't entitled to it — the two are deliberately indistinguishable from
+      the type, because the only readers who need to tell them apart are the
+      person themselves and an approver, and both of those get it populated.
+      See `certificatesFor` in leave-query.ts. */
+  certificate?: LeaveCertificate | null;
+};
+
+/** A certificate as any screen needs it: enough to name it and open it, and
+    nothing about the person's health. */
+export type LeaveCertificate = {
+  documentId: string;
+  fileName: string;
+  /** short-lived signed link, minted per render like every other document */
+  url: string | null;
 };
 
 export type LeaveBalance = {
@@ -90,6 +116,34 @@ export function businessDays(
     if (onRoster(d, workDays) && !holidays.has(d)) n++;
   }
   return n;
+}
+
+/* WHEN A CERTIFICATE IS EXPECTED.
+
+   One rule, read by the request form, the approver's screen and the timesheet
+   bullet, so those three can't disagree about the same absence.
+
+   It counts WORKING days, not calendar days, and that is the choice worth
+   naming: a Friday-to-Monday sick spell is four days on a calendar and two on
+   a roster, and two is both the number the form already prints under the
+   picker ("2 working days") and the number the person would say out loud. A
+   part-timer's Mon/Thu week gets the same treatment for the same reason — see
+   `businessDays`, which every other span calculation on this screen already
+   goes through.
+
+   PERSONAL LEAVE ONLY. Annual leave is a holiday and unpaid leave is an
+   arrangement; neither has a doctor in it. Applying the threshold to all three
+   would put a warning on the form of everybody taking a week off in January.
+
+   Null threshold = the workspace never asks, which is every existing org. */
+export function certificateExpected(
+  kind: LeaveKind,
+  workingDays: number,
+  certAfterDays: number | null | undefined,
+): boolean {
+  if (kind !== "personal") return false;
+  if (certAfterDays == null) return false;
+  return workingDays >= certAfterDays;
 }
 
 /** What a chosen span is actually made of. */

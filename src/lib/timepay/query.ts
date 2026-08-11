@@ -104,6 +104,8 @@ export const getPaySettings = cache(async (
       superPct: data.super_pct == null ? null : Number(data.super_pct),
       // salaried overtime pays unless the org says it's absorbed
       salariedOtPaid: data.salaried_ot_paid ?? DEFAULT_SETTINGS.salariedOtPaid,
+      // null is a real value here — "never ask" — so it can't fall back
+      certAfterDays: data.certificate_after_days == null ? null : Number(data.certificate_after_days),
     },
   };
 });

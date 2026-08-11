@@ -11,11 +11,12 @@ export default async function TeamLeavePage() {
 
   // Balances are an HR figure (hours, never dollars): setting one needs `team`,
   // same as the action re-checks for itself.
-  const [data, approvals, team] = await Promise.all([
-    loadTeamLeave(),
-    can("approvals"),
-    can("team"),
-  ]);
+  /* `approvals` is resolved BEFORE the load, because it decides whether the
+     pending rows carry their medical certificates at all — see loadTeamLeave.
+     Sequential on purpose: one extra round trip is the price of not shipping
+     health information to a viewer who can't act on it. */
+  const approvals = await can("approvals");
+  const [data, team] = await Promise.all([loadTeamLeave(approvals), can("team")]);
   if (!data) redirect("/dashboard");
 
   return (

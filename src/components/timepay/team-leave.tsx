@@ -39,12 +39,16 @@ const KIND_TONE: Record<LeaveKind, string> = { annual: "ok", personal: "warn", u
 function PendingCard({
   r,
   canApprove,
+  certExpected,
   busy,
   onApprove,
   onDecline,
 }: {
   r: LeaveRequest;
   canApprove: boolean;
+  /** does the workspace ask for a certificate on a span this long? Resolved by
+      the caller through the same `certificateExpected` the request form used */
+  certExpected: boolean;
   busy: boolean;
   onApprove: (id: string) => void;
   onDecline: (id: string, reason: string) => void;
@@ -63,6 +67,31 @@ function PendingCard({
           {fmtRange(r.startDate, r.endDate)} · {fmt(r.hours)}h
         </em>
         {r.note && <span className="lv-pnote">{r.note}</span>}
+        {/* THE EVIDENCE, WHERE THE DECISION IS MADE. This line only renders
+            when the workspace asks for a certificate on a span this long, so a
+            workspace that doesn't never sees the word — and one that does gets
+            the answer here rather than a bullet on a timesheet a fortnight
+            later telling them to go and check.
+
+            It is deliberately not a blocker: an approver can approve without
+            one. The absence happened either way; what this decides is whether
+            they chase the paperwork, and it says which. */}
+        {certExpected && (
+          <span className={`lv-pcert${r.certificate ? " on" : ""}`}>
+            <Icon name={r.certificate ? "check" : "alert"} size={13} />
+            {r.certificate ? (
+              r.certificate.url ? (
+                <a href={r.certificate.url} target="_blank" rel="noreferrer">
+                  {r.certificate.fileName}
+                </a>
+              ) : (
+                r.certificate.fileName
+              )
+            ) : (
+              "No medical certificate attached"
+            )}
+          </span>
+        )}
         {declining && (
           <div className="lv-decline">
             <input
@@ -243,6 +272,11 @@ export function TeamLeave({
                     key={r.id}
                     r={r}
                     canApprove={canApprove}
+                    /* Resolved server-side against the REQUESTER's roster —
+                       this screen has neither their working pattern nor the
+                       holiday calendar, so deciding it here would disagree
+                       with what they were told on their own screen. */
+                    certExpected={r.certExpected ?? false}
                     busy={busy}
                     onApprove={(id) => run(() => approveLeave(id))}
                     onDecline={(id, reason) => run(() => declineLeave(id, reason))}

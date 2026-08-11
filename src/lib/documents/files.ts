@@ -18,10 +18,16 @@
    $158.40 would land in the tax export twice, once as fuel and once as a
    staff expense. Two kinds makes that a type error instead of a discrepancy
    somebody finds in June. */
+/* `medical_certificate` is its own kind for the same reason `receipt` and
+   `fuel_receipt` are two: the kind is what stops the wrong owner claiming a
+   file. It is also the most sensitive thing this bucket holds — health
+   information about one named person — so it is worth being able to say, of
+   any row, that it is one, without opening it. */
 export type DocumentKind =
   | "notice_attachment"
   | "receipt"
   | "fuel_receipt"
+  | "medical_certificate"
   | "licence"
   | "work_rights"
   | "org_logo"
@@ -33,6 +39,7 @@ export const DOCUMENT_KINDS: readonly DocumentKind[] = [
   "notice_attachment",
   "receipt",
   "fuel_receipt",
+  "medical_certificate",
   "licence",
   "work_rights",
   "org_logo",

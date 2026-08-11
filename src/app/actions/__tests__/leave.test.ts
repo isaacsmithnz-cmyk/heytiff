@@ -28,9 +28,19 @@ const table = (name: string) => {
     if (name === "leave_balances") return { data: balanceRow };
     return { data: staffExists ? { id: "target" } : null };
   };
+  /* `requestLeave` reads the new row's id back so it can adopt a medical
+     certificate onto it, so the insert has to be chainable as well as
+     awaitable — `.select().maybeSingle()` on the way out, and still a plain
+     promise for every caller that doesn't need the id. */
   c.insert = (row: unknown) => {
     insert(name, row);
-    return Promise.resolve({ error: null });
+    const done = Promise.resolve({ data: { id: "new-request" }, error: null }) as unknown as {
+      select: () => { maybeSingle: () => Promise<{ data: { id: string }; error: null }> };
+    };
+    done.select = () => ({
+      maybeSingle: async () => ({ data: { id: "new-request" }, error: null }),
+    });
+    return done;
   };
   c.update = (row: unknown) => {
     update(name, row);

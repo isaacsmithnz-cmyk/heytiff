@@ -84,12 +84,49 @@ function validSpan(startISO: string, endISO: string): boolean {
 
 /* ---------------- your own leave ---------------- */
 
+/* ADOPT A CERTIFICATE. The file is already in storage against a signed slot
+   and already has a `documents` row — this is the step that says which request
+   it belongs to, exactly as an expense claim adopts its receipt.
+
+   Three things are re-checked here and none of them are the caller's word for
+   it: the row is in THIS org, it was uploaded by THIS person, and its kind is
+   `medical_certificate`. The last one is what stops a request adopting
+   somebody's licence scan or a job photo by passing its id. A document already
+   attached to another request is refused rather than moved — the id came from
+   a form, and silently re-pointing health information at a different absence
+   is not a thing a typo should be able to do. */
+async function adoptCertificate(
+  orgId: string,
+  staffId: string,
+  requestId: string,
+  documentId: string,
+): Promise<boolean> {
+  const { data } = await supabaseAdmin
+    .from("documents")
+    .select("id, leave_request_id")
+    .eq("org_id", orgId)
+    .eq("id", documentId)
+    .eq("kind", "medical_certificate")
+    .eq("uploaded_by", staffId)
+    .maybeSingle();
+  if (!data || (data.leave_request_id && data.leave_request_id !== requestId)) return false;
+
+  const { error } = await supabaseAdmin
+    .from("documents")
+    .update({ leave_request_id: requestId })
+    .eq("org_id", orgId)
+    .eq("id", documentId);
+  return !error;
+}
+
 export async function requestLeave(input: {
   kind: LeaveKind;
   startDate: string;
   endDate: string;
   hours: number;
   note?: string;
+  /** a `medical_certificate` document already uploaded by this person */
+  certificateDocumentId?: string;
 }): Promise<LeaveResult> {
   const ctx = await context();
   if (!ctx?.staffId) return { ok: false, error: "No staff record for this account." };
@@ -120,17 +157,61 @@ export async function requestLeave(input: {
       error: `That's ${short}h more ${kind} leave than you have available.`,
     };
 
-  const { error } = await supabaseAdmin.from("leave_requests").insert({
-    org_id: ctx.orgId,
-    staff_profile_id: ctx.staffId,
-    kind,
-    start_date: startDate,
-    end_date: endDate,
-    hours,
-    note: input.note?.trim() || null,
-    status: "pending",
-  });
-  if (error) return { ok: false, error: "Couldn't submit that leave request." };
+  const { data: created, error } = await supabaseAdmin
+    .from("leave_requests")
+    .insert({
+      org_id: ctx.orgId,
+      staff_profile_id: ctx.staffId,
+      kind,
+      start_date: startDate,
+      end_date: endDate,
+      hours,
+      note: input.note?.trim() || null,
+      status: "pending",
+    })
+    .select("id")
+    .maybeSingle();
+  if (error || !created) return { ok: false, error: "Couldn't submit that leave request." };
+
+  /* The request stands whatever happens to the attachment. A certificate that
+     failed to adopt is a file the person can attach again from the list; a
+     request that failed because of it is an absence nobody recorded. */
+  if (input.certificateDocumentId)
+    await adoptCertificate(ctx.orgId, ctx.staffId, String(created.id), input.certificateDocumentId);
+
+  refresh();
+  return { ok: true };
+}
+
+/** Attach a certificate to a request that already exists.
+
+    This is the common case, not the fallback: somebody rings in sick on
+    Tuesday, books the day, and sees a doctor on Wednesday. Requiring the
+    document at booking time would mean either a late booking or no booking. */
+export async function attachCertificate(
+  requestId: string,
+  documentId: string,
+): Promise<LeaveResult> {
+  const ctx = await context();
+  if (!ctx?.staffId) return { ok: false, error: "No staff record for this account." };
+
+  const { data } = await supabaseAdmin
+    .from("leave_requests")
+    .select("id, kind, status")
+    .eq("org_id", ctx.orgId)
+    .eq("id", requestId)
+    .eq("staff_profile_id", ctx.staffId) // only ever your own
+    .maybeSingle();
+  if (!data) return { ok: false, error: "That leave request isn't yours." };
+  if (data.kind !== "personal")
+    return { ok: false, error: "Only personal leave takes a certificate." };
+  /* A cancelled or declined request is history — attaching to it would file a
+     medical certificate against an absence that never happened. */
+  if (data.status === "cancelled" || data.status === "declined")
+    return { ok: false, error: "That request is closed." };
+
+  const ok = await adoptCertificate(ctx.orgId, ctx.staffId, requestId, documentId);
+  if (!ok) return { ok: false, error: "Couldn't attach that certificate." };
   refresh();
   return { ok: true };
 }

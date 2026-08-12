@@ -6467,6 +6467,16 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   /* no box means the resize grip would float on nothing */ resize:none; }
 .wb2-dusk .wb2-notes::placeholder { color:rgba(255,255,255,.38); }
 .wb2-dusk .wb2-notes:focus { border-color:transparent; }
+/* WHAT YOU HAVE ALREADY SAID, while you say more. Isaac, walking a second
+   leg: "it looks like you're starting again because it doesn't show you what
+   text it's already got on there." It is the SAME box as the idle stage —
+   same class, same type, same left edge — because the whole point is that
+   the card did not start over. Read-only and one step back in the ink, so it
+   reads as the record rather than the thing you are editing; the trace below
+   it is where the live attention belongs. */
+.wb2-caprec .wb2-recsofar { color:rgba(255,255,255,.72); cursor:default;
+  max-height:96px; overflow-y:auto; }
+.wb2-caprec .wb2-recsofar:focus { outline:none; }
 .wb2-dusk .wb2-hint { color:rgba(255,255,255,.45); }
 
 /* the actions — glass ghosts, one gradient primary, and Talk tinted just

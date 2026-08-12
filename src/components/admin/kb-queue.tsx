@@ -37,7 +37,7 @@ export function KbQueue({ entries }: { entries: FieldNoteRow[] }) {
                 <Icon name="chevL" size={15} />
                 Admin
               </Link>
-              <h1 style={{ fontSize: 40, fontWeight: 800, letterSpacing: "-0.03em", margin: "10px 0 0" }}>
+              <h1 style={{ margin: "10px 0 0" }}>
                 Field-learned knowledge
               </h1>
               <p className="int-lede" style={{ margin: "6px 0 0" }}>

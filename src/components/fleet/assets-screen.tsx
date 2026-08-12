@@ -63,7 +63,7 @@ export function AssetsScreen({
         <div className="stg">
           <div className="v2head" style={{ marginBottom: 24, alignItems: "center" }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <h1 style={{ fontSize: 44, fontWeight: 800, letterSpacing: "-0.03em", margin: 0 }}>
+              <h1>
                 Assets
               </h1>
             </div>

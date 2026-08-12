@@ -33,7 +33,7 @@ export function ActionRequiredBoard({ chips }: { chips: DashboardChips }) {
               >
                 ← Dashboard
               </Link>
-              <h1 style={{ fontSize: 44, fontWeight: 800, letterSpacing: "-0.03em", margin: 0 }}>
+              <h1>
                 Action required
               </h1>
             </div>

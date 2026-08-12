@@ -431,6 +431,19 @@
 /* page header (Team, Admin, tabbed pages) */
 .fg .v2head { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex-wrap:wrap; }
 .fg .v2head > * { min-width:0; }
+/* THE PAGE TITLE, ONCE.
+
+   Thirteen screens wrote this inline — the same six declarations copy-pasted,
+   at `fontSize: 44`. Nobody chose 44: every heading the app defines in CSS
+   lands on 38, and they are the ones that were designed rather than
+   duplicated — `.hm-phead h1` on Home (the most recent redesign),
+   `.wb2-head h1` on the Workboard, `.tpr .rhead h1` on Time & Pay. So moving
+   between a rail item at 44 and one at 38 resized the page title, and the
+   only reason any of them differed was that a style object travelled by hand.
+
+   38px and -.035em, matching the three above it. A call site that needs its
+   own spacing sets that on `.v2head`, never on the h1. */
+.fg .v2head h1 { margin:0; font-size:38px; font-weight:800; letter-spacing:-.035em; line-height:1; color:var(--ink); }
 
 /* staff directory (Team overview) */
 .fg .dir { background:#fff; border:1px solid #f0f0f2; border-radius:24px; box-shadow:0 8px 30px rgba(0,0,0,.03); overflow:hidden; }
@@ -1464,7 +1477,7 @@
 /* ---------- header ---------- */
 .fg .tpr .rhead { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; flex-wrap:wrap; margin-bottom:26px; }
 .fg .tpr .rhead .eyebrow { display:inline-flex; align-items:center; gap:8px; font-family:var(--font); font-size:11px; font-weight:800; letter-spacing:.2em; text-transform:uppercase; color:var(--teal-d); margin-bottom:14px; }
-.fg .tpr .rhead h1 { font-size:38px; font-weight:800; letter-spacing:-.03em; margin:0; line-height:1; }
+.fg .tpr .rhead h1 { font-size:38px; font-weight:800; letter-spacing:-.035em; margin:0; line-height:1; }
 .fg .tpr .wknav { display:flex; align-items:center; gap:12px; margin-top:16px; }
 /* THE CARD THE TABS SIT ON — the board's surface, doing the board's job. The
    week leads it because the tabs above already said which view you're in, so

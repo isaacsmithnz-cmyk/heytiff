@@ -25,7 +25,6 @@ import {
   type TimepayResult,
 } from "@/app/actions/timepay";
 import type { SheetState } from "@/lib/timepay/query";
-import { TimepayNav } from "./timepay-nav";
 import { XeroPayroll } from "./xero-payroll";
 import Link from "next/link";
 
@@ -460,32 +459,23 @@ export function TimePay({
   const approve = (staffId: string) => run(() => approveWeek(staffId, period.start));
   const sendBack = (staffId: string, q: string) => run(() => sendBackWeek(staffId, period.start, q));
 
+  /* THE FRAME IS THE LAYOUT'S. `.page`, `.wrap`, `.stg tpr wb2`, the heading
+     and the tab row all live in `timepay/layout.tsx` now, so they survive a
+     switch to Leave or Expenses instead of being rebuilt with it.
+
+     `locked` has to stay on an element that ALSO carries `tpr` — every rule
+     reading it is `.fg .tpr.locked .capprove / .cedit / .allbtn / .qform`, all
+     four of which are on this screen and genuinely hidden by it when a period
+     is closed. So this wrapper re-declares `tpr`, which costs nothing: the
+     class only sets custom properties and tabular numerals, and re-declaring
+     them on a descendant is a no-op.
+
+     THE GEAR MOVED INTO THE PERIOD BAR. It lived in the page heading, which is
+     the layout's now — and it can't go there, because the settings modal is
+     client state this component owns. The period row is where the screen's
+     other controls already are. */
   return (
-    <div className="page in">
-      <div className="wrap">
-        {/* `wb2` for the board's tokens — the card's line colours are declared
-            there, and a `.wb2-card` outside that root draws no border at all. */}
-        <div className={`stg tpr wb2${period.live ? "" : " locked"}`}>
-          <div className="rhead">
-            <div>
-              <h1>Time &amp; Pay</h1>
-            </div>
-            <div className="racts">
-              {(financials || canHolidays) && (
-                <button className="bbtn sq" aria-label="Settings" onClick={() => setSettingsOpen(true)}>
-                  <Icon name="settings" size={17} />
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* WHICH SCREEN, then WHICH WEEK. The tabs used to sit under the whole
-              header, which put the week — a control that only means anything on
-              this tab — above the thing that chooses the tab. Now the tabs sit
-              on the card that holds the screen, and the week is the first thing
-              inside it: you pick the view, then the period within it. */}
-          <TimepayNav active="sheets" />
-
+    <div className={`tpr${period.live ? "" : " locked"}`}>
           <div className="wb2-card tp-card">
             <div className="wknav">
                 <button
@@ -513,6 +503,15 @@ export function TimePay({
                   </span>
                 ) : (
                   <span className="pstatus hist">Historical</span>
+                )}
+                {(financials || canHolidays) && (
+                  <button
+                    className="bbtn sq tp-gear"
+                    aria-label="Settings"
+                    onClick={() => setSettingsOpen(true)}
+                  >
+                    <Icon name="settings" size={17} />
+                  </button>
                 )}
               </div>
             <div className="autosub">{note}</div>
@@ -699,8 +698,6 @@ export function TimePay({
               }}
             />
           )}
-        </div>
-      </div>
     </div>
   );
 }

@@ -45,11 +45,15 @@ export function ActionRequiredBoard({ chips }: { chips: DashboardChips }) {
                 <Icon name="check" size={22} />
               </div>
               <b>Nothing needs attention</b>
+              {/* The list is what makes this trustworthy, so it has to be
+                  right: it used to enumerate its coverage and leave leave out
+                  entirely, which invites you to rely on it for something it
+                  never watched. */}
               <em>
                 Licences, work rights, vehicle rego, insurance and services are all in date, and
                 nobody is waiting on an answer from you. Anything expiring in the next 30 days shows
-                up here — so does a timesheet sent back with a question, or an expense claim that
-                came back declined.
+                up here — so does a timesheet sent back with a question, leave or an expense claim
+                that came back declined, and anything waiting on you to approve.
               </em>
             </div>
           ) : (

@@ -11,6 +11,7 @@ import { assembleChips, type DashboardChips } from "./assemble";
 import { CLAIM_NUDGE_DAYS } from "./chips";
 import { listStaffCompliance, orgInsurance, type StaffCompliance } from "./query";
 import { ownDeclinedClaims, pendingClaimsCount } from "@/lib/expenses/query";
+import { ownDeclinedLeave, pendingLeaveCount } from "@/lib/timepay/leave-query";
 import { buildCalendar, calendarSpan, type LeaveCalendar } from "./calendar";
 import { listJournal } from "./journal-query";
 import type { JournalEntry } from "./journal";
@@ -205,23 +206,29 @@ async function loadChips(
   caps: ReadonlySet<Capability>,
   today: string,
 ): Promise<DashboardChips> {
-  const [selfList, selfVehicle, ownSheet, ownDeclined] = await Promise.all([
+  const [selfList, selfVehicle, ownSheet, ownDeclined, ownDeclinedLv] = await Promise.all([
     viewerStaffId ? listStaffCompliance(orgId, viewerStaffId) : Promise.resolve([]),
     viewerStaffId ? getOwnVehicle(orgId, viewerStaffId) : Promise.resolve(null),
     viewerStaffId ? loadOwnSheet(orgId, viewerStaffId) : Promise.resolve(null),
     viewerStaffId
       ? ownDeclinedClaims(orgId, viewerStaffId, addDays(today, -CLAIM_NUDGE_DAYS))
       : Promise.resolve([]),
+    // the same window, because it is the same kind of news — see chips.ts
+    viewerStaffId
+      ? ownDeclinedLeave(orgId, viewerStaffId, addDays(today, -CLAIM_NUDGE_DAYS))
+      : Promise.resolve([]),
   ]);
 
   // Team data is only READ when the capability is held — it never reaches here
   // otherwise, so the scoping is enforced at the query, not just in assembly.
-  const [teamPeople, org, fleet, pendingClaims] = await Promise.all([
+  const [teamPeople, org, fleet, pendingClaims, pendingLeave] = await Promise.all([
     caps.has("team") ? listStaffCompliance(orgId) : Promise.resolve([] as StaffCompliance[]),
     caps.has("team") ? orgInsurance(orgId) : Promise.resolve({ insurer: null, insuranceExpiry: null }),
     caps.has("assets_all") ? listVehicles(orgId).then((r) => r.vehicles) : Promise.resolve([] as Vehicle[]),
     // a head count, not the full claims read — the chip needs one integer
     caps.has("approvals") ? pendingClaimsCount(orgId) : Promise.resolve(0),
+    // the other queue that belongs to whoever can decide it
+    caps.has("approvals") ? pendingLeaveCount(orgId) : Promise.resolve(0),
   ]);
 
   return assembleChips(
@@ -234,8 +241,10 @@ async function loadChips(
       fleet,
       org,
       pendingClaims,
+      pendingLeave,
       ownSheet,
       ownDeclinedClaims: ownDeclined,
+      ownDeclinedLeave: ownDeclinedLv,
     },
     caps,
   );

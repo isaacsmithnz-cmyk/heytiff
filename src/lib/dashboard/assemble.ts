@@ -2,7 +2,9 @@ import type { Capability } from "@/lib/permissions";
 import type { Vehicle, VehicleWithFacts } from "@/components/fleet/logic";
 import {
   declinedClaimChip,
+  declinedLeaveChip,
   expensesChip,
+  leaveQueueChip,
   licenceChip,
   orgInsuranceChip,
   sortChips,
@@ -50,11 +52,20 @@ export type ChipSources = {
   /** Expense claims waiting on a decision — 0 when the viewer can't decide
       them (the loader only counts for `approvals` holders). */
   pendingClaims: number;
+  /** leave requests waiting on a decision — the other `approvals` queue */
+  pendingLeave: number;
   /** YOUR timesheet for the period in play. Null when the account has no staff
       record, or when nothing has been written for the period yet. */
   ownSheet: { status: string; periodStart: string; periodLabel: string } | null;
   /** YOUR claims that came back declined recently — the chip windows them. */
   ownDeclinedClaims: { id: string; description: string; amount: number; decidedOn: string | null }[];
+  ownDeclinedLeave: {
+    id: string;
+    kind: string;
+    startDate: string;
+    endDate: string;
+    decidedOn: string | null;
+  }[];
 };
 
 const push = (arr: ActionChip[], chip: ActionChip | null) => {
@@ -80,6 +91,10 @@ export function assembleChips(src: ChipSources, caps: ReadonlySet<Capability>): 
   if (src.viewerStaffId) {
     push(self, timesheetChip(src.ownSheet));
     for (const c of src.ownDeclinedClaims) push(self, declinedClaimChip(c, { today: src.today }));
+    /* A declined LEAVE request chipped nobody, though a declined expense claim
+       did — and the two are the same shape by design. The only way to learn
+       your leave was refused was to open My leave and find it in history. */
+    for (const r of src.ownDeclinedLeave) push(self, declinedLeaveChip(r, { today: src.today }));
   }
 
   const team: ActionChip[] = [];
@@ -96,6 +111,9 @@ export function assembleChips(src: ChipSources, caps: ReadonlySet<Capability>): 
   // not `team` — same rule as the review screen itself.
   if (caps.has("approvals")) {
     push(team, expensesChip(src.pendingClaims));
+    // the same rule, the other queue — this board told an approver about money
+    // and not about time
+    push(team, leaveQueueChip(src.pendingLeave));
   }
   if (caps.has("assets_all")) {
     for (const v of src.fleet) {

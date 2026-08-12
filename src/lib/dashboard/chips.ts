@@ -26,7 +26,7 @@ import {
   type ChipState,
   type VehicleWithFacts,
 } from "@/components/fleet/logic";
-import { daysUntil } from "@/lib/au-dates";
+import { daysUntil, fmtAuDayMonth } from "@/lib/au-dates";
 import { expiryClause } from "@/lib/format/duration";
 import { EXPIRY_WARN_DAYS } from "@/lib/staff/derive";
 
@@ -39,7 +39,9 @@ export type ChipKind =
   | "org-insurance"
   | "expenses"
   | "timesheet"
-  | "claim";
+  | "claim"
+  | "leave-queue"
+  | "leave-declined";
 
 /** Only actionable states surface as chips; a compliant thing produces none. */
 export type ActionState = Exclude<ChipState, "ok">; // "bad" | "warn"
@@ -83,6 +85,11 @@ const GROUP_OF: Record<ChipKind, ChipGroup> = {
   expenses: "Pay",
   timesheet: "Pay",
   claim: "Pay",
+  /* Leave is the same screen's work as the two above it — a queue to decide
+     and a decision that came back — so it files with them rather than under
+     People, where the licence expiries live. */
+  "leave-queue": "Pay",
+  "leave-declined": "Pay",
 };
 
 export const GROUP_ICON: Record<ChipGroup, string> = {
@@ -377,6 +384,70 @@ export function declinedClaimChip(
     href: "/dashboard/my-expenses",
     // newest first within the bad bucket — the freshest decision is the one
     // you are most likely to still be able to do something about
+    urgency: urgency("bad", age),
+  };
+}
+
+/** Leave requests waiting on somebody to decide them.
+
+    THE PRINCIPLE WAS ALREADY WRITTEN, one queue over: "a claim queue belongs
+    to whoever can decide it, which is `approvals`, not `team`". That is just
+    as true of leave, and this board carried the expense queue and not this
+    one — so an approver's "everything waiting on you" told them about money
+    and not about time, while the pending list sat two screens deep on the
+    Leave tab.
+
+    One chip for the queue, not one per request, for the same reason
+    `expensesChip` gives: the decision surface is the leave screen, and ten
+    chips would say less than "10 waiting" does. Always `warn` — a queue ages,
+    it never expires. */
+export function leaveQueueChip(pendingCount: number): ActionChip | null {
+  if (pendingCount <= 0) return null;
+  return {
+    key: "leave-pending",
+    kind: "leave-queue",
+    state: "warn",
+    label:
+      pendingCount === 1
+        ? "1 leave request waiting on a decision"
+        : `${pendingCount} leave requests waiting on a decision`,
+    subject: "Leave",
+    href: "/dashboard/timepay/leave",
+    urgency: urgency("warn", 0),
+  };
+}
+
+/** A leave request of yours that came back declined, while it is still news.
+
+    The gap this closes: a declined EXPENSE claim chipped you and a declined
+    LEAVE request chipped nobody, though the two are the same shape — the
+    expense_claims migration says so out loud, "deliberately the same one as
+    leave_requests, because it is the same". The only way to learn your leave
+    was refused was to open My leave and find it in the history list.
+
+    Arguably the more urgent of the two, which is why it shares
+    `CLAIM_NUDGE_DAYS` rather than a shorter window: money you are owed keeps;
+    days you were counting on not working do not. Same reason for the window
+    existing at all — a declined request has no state left to change, so
+    without one the chip would never clear. */
+export function declinedLeaveChip(
+  request: { id: string; kind: string; startDate: string; endDate: string; decidedOn: string | null },
+  ctx: { today: string },
+): ActionChip | null {
+  if (!request.decidedOn) return null;
+  const age = -daysUntil(request.decidedOn.slice(0, 10), ctx.today);
+  if (age > CLAIM_NUDGE_DAYS) return null;
+  const span =
+    request.startDate === request.endDate
+      ? fmtAuDayMonth(request.startDate)
+      : `${fmtAuDayMonth(request.startDate)} – ${fmtAuDayMonth(request.endDate)}`;
+  return {
+    key: `leave-declined:${request.id}`,
+    kind: "leave-declined",
+    state: "bad",
+    label: "Leave request declined",
+    subject: span,
+    href: "/dashboard/my-leave",
     urgency: urgency("bad", age),
   };
 }

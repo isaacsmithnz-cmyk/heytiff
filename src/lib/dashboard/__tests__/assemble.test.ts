@@ -1,4 +1,5 @@
 import { assembleChips, type ChipSources } from "../assemble";
+import { chipGroup } from "../chips";
 import type { StaffCompliance } from "../query";
 import type { Capability } from "@/lib/permissions";
 import type { Vehicle } from "@/components/fleet/logic";
@@ -47,7 +48,17 @@ const FULL: ChipSources = {
   fleet: [vehicle("mine", "me"), vehicle("v2", "s2"), vehicle("v3", null)],
   org: { insurer: "CGU", insuranceExpiry: "2026-07-05" },
   pendingClaims: 2,
+  pendingLeave: 3,
   ownSheet: { status: "sent_back", periodStart: "2026-07-13", periodLabel: "13 – 19 Jul" },
+  ownDeclinedLeave: [
+    {
+      id: "lv1",
+      kind: "annual",
+      startDate: "2026-08-10",
+      endDate: "2026-08-12",
+      decidedOn: `${TODAY}T02:00:00Z`,
+    },
+  ],
   ownDeclinedClaims: [
     { id: "c1", description: "Copper fittings", amount: 214.5, decidedOn: "2026-07-17T04:00:00Z" },
   ],
@@ -66,7 +77,8 @@ describe("assembleChips — self section (intrinsic)", () => {
       self.every((c) => c.href.startsWith("/dashboard/profile")
         || c.href.startsWith("/dashboard/my-vehicle")
         || c.href.startsWith("/dashboard/my-timesheet")
-        || c.href.startsWith("/dashboard/my-expenses"))
+        || c.href.startsWith("/dashboard/my-expenses")
+        || c.href.startsWith("/dashboard/my-leave"))
     ).toBe(true);
     expect(team).toEqual([]);
   });
@@ -136,5 +148,48 @@ describe("assembleChips — the expenses queue rides on `approvals`", () => {
     expect(team.some((c) => c.kind === "expenses")).toBe(false);
     const { team: none } = assembleChips({ ...FULL, pendingClaims: 0 }, caps("approvals"));
     expect(none.some((c) => c.kind === "expenses")).toBe(false);
+  });
+});
+
+/* ---------------- leave, which this board used to ignore ---------------- */
+
+describe("assembleChips — leave", () => {
+  /* THE PRINCIPLE WAS ALREADY WRITTEN, one queue over: "a claim queue belongs
+     to whoever can decide it, which is `approvals`, not `team`". It was only
+     ever implemented for expenses, so an approver's "everything waiting on
+     you" told them about money and not about time. */
+  it("shows the pending queue to a decider, beside the expenses one", () => {
+    const { team } = assembleChips(FULL, caps("approvals"));
+    const labels = team.map((c) => c.label);
+    expect(labels).toContain("3 leave requests waiting on a decision");
+    expect(labels).toContain("2 expense claims waiting on a decision");
+  });
+
+  it("stays silent without approvals, and at a zero count", () => {
+    expect(assembleChips(FULL, caps("team")).team.map((c) => c.kind)).not.toContain("leave-queue");
+    expect(
+      assembleChips({ ...FULL, pendingLeave: 0 }, caps("approvals")).team.map((c) => c.kind),
+    ).not.toContain("leave-queue");
+  });
+
+  /* A declined EXPENSE claim chipped you and a declined LEAVE request chipped
+     nobody, though the two are the same shape by design — the expense_claims
+     migration says so out loud. The only way to learn your leave was refused
+     was to open My leave and find it in the history list. */
+  it("tells you your own leave was declined, with no capability at all", () => {
+    const { self } = assembleChips(FULL, caps());
+    const chip = self.find((c) => c.kind === "leave-declined");
+    expect(chip).toBeDefined();
+    expect(chip!.label).toBe("Leave request declined");
+    expect(chip!.href).toBe("/dashboard/my-leave");
+    // the span it was for, so you know which request without opening it
+    expect(chip!.subject).toMatch(/Aug/);
+  });
+
+  it("files both under Pay, with the timesheet and the claim", () => {
+    const { self, team } = assembleChips(FULL, caps("approvals"));
+    for (const c of [...self, ...team].filter((x) => x.kind.startsWith("leave-"))) {
+      expect(chipGroup(c.kind)).toBe("Pay");
+    }
   });
 });

@@ -355,3 +355,51 @@ export async function stateFor(orgId: string, staffProfileId: string): Promise<s
     .maybeSingle();
   return (data?.state as string) ?? (await orgState(orgId));
 }
+
+/* ---- the dashboard's two leave chips ----
+
+   Deliberately narrow reads, for the same reason `pendingClaimsCount` and
+   `ownDeclinedClaims` are: these run on EVERY dashboard load, so neither pulls
+   a row it doesn't need. Nothing here signs a certificate or joins a name. */
+
+/** How many leave requests are waiting on somebody to decide them. A count,
+    not the rows — the decision surface is the Leave tab. */
+export async function pendingLeaveCount(orgId: string): Promise<number> {
+  const { count } = await supabaseAdmin
+    .from("leave_requests")
+    .select("id", { count: "exact", head: true })
+    .eq("org_id", orgId)
+    .eq("status", "pending");
+  return count ?? 0;
+}
+
+/** YOUR leave requests that came back declined, newest decision first.
+
+    `since` is an ISO date and the caller owns the window (see
+    `CLAIM_NUDGE_DAYS`), so the SQL and the chip rule can't drift — the same
+    contract `ownDeclinedClaims` uses. */
+export async function ownDeclinedLeave(
+  orgId: string,
+  staffProfileId: string,
+  since: string,
+): Promise<
+  { id: string; kind: string; startDate: string; endDate: string; decidedOn: string | null }[]
+> {
+  const { data } = await supabaseAdmin
+    .from("leave_requests")
+    .select("id, kind, start_date, end_date, reviewed_at")
+    .eq("org_id", orgId)
+    .eq("staff_profile_id", staffProfileId)
+    .eq("status", "declined")
+    .gte("reviewed_at", since)
+    .order("reviewed_at", { ascending: false })
+    .limit(20);
+
+  return ((data ?? []) as unknown as Record<string, unknown>[]).map((r) => ({
+    id: String(r.id),
+    kind: String(r.kind ?? ""),
+    startDate: String(r.start_date).slice(0, 10),
+    endDate: String(r.end_date).slice(0, 10),
+    decidedOn: (r.reviewed_at as string | null) ?? null,
+  }));
+}

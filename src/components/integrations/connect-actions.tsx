@@ -43,6 +43,10 @@ export type ConnectActionsProps = {
   requirePhrase?: boolean;
   /** Extra sentence under the confirm, e.g. the no-revoke-endpoint note. */
   confirmNote?: string;
+  /** How many OTHER HeyTiff workspaces hold this same provider account. A
+      count, never names — see countConnectionsElsewhere for why this is
+      surfaced rather than refused. */
+  elsewhere?: number;
   busy: boolean;
   onDisconnect: () => void;
 };
@@ -56,6 +60,7 @@ export function ConnectActions({
   consequences,
   requirePhrase = false,
   confirmNote,
+  elsewhere = 0,
   busy,
   onDisconnect,
 }: ConnectActionsProps) {
@@ -91,6 +96,24 @@ export function ConnectActions({
                 This workspace is currently connected to <b>{accountName}</b>.
               </>
             ) : null}
+          </p>
+        </div>
+      )}
+
+      {/* Somebody else holds this same account. Stated, not blocked: sharing
+          one account across workspaces is legitimate, but it must not be
+          invisible to the person whose client book it is. */}
+      {connected && elsewhere > 0 && !confirming && (
+        <div className="int-consent">
+          <Icon name="users" size={15} />
+          <p>
+            This {label} account is also connected to{" "}
+            <b>
+              {elsewhere} other HeyTiff workspace{elsewhere === 1 ? "" : "s"}
+            </b>
+            . Each one mirrors its own copy of this account&apos;s data, and disconnecting here
+            doesn&apos;t affect theirs. If that isn&apos;t expected, remove HeyTiff&apos;s access
+            from inside {label}.
           </p>
         </div>
       )}

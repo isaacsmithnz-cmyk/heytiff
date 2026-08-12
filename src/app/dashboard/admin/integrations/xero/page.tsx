@@ -3,7 +3,7 @@ import { auth0 } from "@/lib/auth0";
 import { hasMinRole } from "@/lib/roles";
 import { getDbRole } from "@/lib/permissions-server";
 import { XeroScreen, type XeroReach } from "@/components/integrations/xero-screen";
-import { getConnectionView } from "@/lib/integrations/store";
+import { countConnectionsElsewhere, getConnectionView } from "@/lib/integrations/store";
 import { countPayrollEmployees } from "@/lib/integrations/xero-read";
 import { tokenKey } from "@/lib/integrations/secrets";
 import { xeroConfig } from "@/lib/integrations/xero";
@@ -42,14 +42,18 @@ export default async function XeroIntegrationPage({
      the row needs_reauth on a 401, so the next render says "reconnect". */
   let reach: XeroReach | null = null;
   let people: Awaited<ReturnType<typeof getXeroPeopleData>> = null;
+  let elsewhere = 0;
   if (connection && connection.status === "connected") {
     // the reconcile card: the live payroll list against this workspace's cards
-    const [count, peopleData] = await Promise.all([
+    const [count, peopleData, alsoConnected] = await Promise.all([
       countPayrollEmployees(orgId),
       getXeroPeopleData(),
+      // whether this same organisation is connected to other workspaces too
+      countConnectionsElsewhere(orgId, "xero", connection.tenantId),
     ]);
     reach = count.ok ? { ok: true, employees: count.data } : { ok: false, error: count.error };
     people = peopleData;
+    elsewhere = alsoConnected;
   }
 
   const notice = errorText
@@ -73,6 +77,7 @@ export default async function XeroIntegrationPage({
       notice={notice}
       reach={reach}
       people={people}
+      elsewhere={elsewhere}
     />
   );
 }

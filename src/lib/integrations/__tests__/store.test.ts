@@ -8,6 +8,10 @@ type Row = Record<string, unknown>;
 let row: Row | null = null;
 const updates: { patch: Record<string, unknown>; filters: Record<string, unknown> }[] = [];
 const upserts: Record<string, unknown>[] = [];
+/* The head+count reads (countConnectionsElsewhere) — what they FILTER ON is
+   the assertion, since the mock answers regardless. */
+const countQueries: Record<string, unknown>[] = [];
+let countResult = 0;
 
 jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: {
@@ -15,9 +19,24 @@ jest.mock("@/lib/supabase-server", () => ({
       const filters: Record<string, unknown> = {};
       const c: Record<string, unknown> = {};
       const self = () => c;
-      c.select = self;
+      /* A head+count select stays CHAINABLE — the real query appends
+         .eq().eq().neq() after it and only then awaits, so resolving here
+         would record an empty filter set and never see the neq. */
+      let counting = false;
+      c.select = (_cols?: unknown, opts?: { count?: string; head?: boolean }) => {
+        if (opts?.head) counting = true;
+        return c;
+      };
+      c.then = (res: (v: { count?: number; error: null }) => unknown) => {
+        if (counting) countQueries.push(filters);
+        return Promise.resolve({ count: counting ? countResult : undefined, error: null }).then(res);
+      };
       c.eq = (col: string, v: unknown) => {
         filters[col] = v;
+        return c;
+      };
+      c.neq = (col: string, v: unknown) => {
+        filters[`neq:${col}`] = v;
         return c;
       };
       c.maybeSingle = async () => ({ data: row });
@@ -58,7 +77,7 @@ jest.mock("../secrets", () => ({
   open: (v: string) => (typeof v === "string" && v.startsWith("sealed:") ? v.slice(7) : null),
 }));
 
-import { saveXeroConnection, xeroAccess } from "../store";
+import { countConnectionsElsewhere, saveXeroConnection, xeroAccess } from "../store";
 
 const NOW = Date.parse("2026-07-28T00:00:00Z");
 
@@ -185,5 +204,42 @@ describe("reconnecting keeps the chosen tenant", () => {
       now: NOW,
     });
     expect(upserts[0]).toMatchObject({ tenant_id: "t-1" });
+  });
+});
+
+/* "This account is also connected to N other workspaces."
+   Surfaced rather than blocked: sharing one provider account across
+   workspaces is legitimate, but the owner of the data must be able to SEE it,
+   because nothing else in the system would ever say so. */
+describe("countConnectionsElsewhere", () => {
+  beforeEach(() => {
+    countQueries.length = 0;
+    countResult = 0;
+  });
+
+  it("counts the SAME account in OTHER workspaces — never this one", async () => {
+    countResult = 2;
+    expect(await countConnectionsElsewhere("org-1", "servicem8", "vendor-9")).toBe(2);
+
+    const q = countQueries[0];
+    expect(q.provider).toBe("servicem8");
+    // the same ACCOUNT, not merely the same provider
+    expect(q.tenant_id).toBe("vendor-9");
+    // and deliberately excluding the caller's own workspace
+    expect(q["neq:org_id"]).toBe("org-1");
+    // NOT scoped by org_id — this is the one read that crosses the boundary
+    expect(q.org_id).toBeUndefined();
+  });
+
+  it("counts nothing for a grant with no account identity to compare", async () => {
+    // a vendor read that failed leaves tenant_id null; comparing that to other
+    // rows' nulls would group every nameless grant together
+    expect(await countConnectionsElsewhere("org-1", "servicem8", null)).toBe(0);
+    expect(countQueries).toHaveLength(0);
+  });
+
+  it("reads zero as zero rather than as unknown", async () => {
+    countResult = 0;
+    expect(await countConnectionsElsewhere("org-1", "xero", "tenant-1")).toBe(0);
   });
 });

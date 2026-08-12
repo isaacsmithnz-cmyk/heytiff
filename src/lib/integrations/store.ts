@@ -52,6 +52,45 @@ export async function getConnectionView(
   return toView(row, await connectorName(row.connected_by_user_id));
 }
 
+/** How many OTHER HeyTiff workspaces hold a connection to this same provider
+    account. Zero for the ordinary case.
+
+    WHY THIS IS VISIBLE RATHER THAN BLOCKED. Every uniqueness rule in the
+    integrations area is scoped to one workspace — one connection per
+    (org_id, provider), mirrors keyed (org_id, uuid), links unique within an
+    org — so two workspaces connecting one ServiceM8 account both work, and
+    neither is told. That is deliberate: a bookkeeper and an operations team
+    running separate workspaces off one account is a real arrangement, and
+    refusing it would break them with no way past. But the same property means
+    somebody who can authenticate to the account can mirror the whole client
+    book into a workspace the owner cannot see, and NOTHING said so. This
+    count is what says so.
+
+    Counts, never names: another workspace's identity is not this caller's to
+    read, and a bare number is enough to prompt the question. The comparison
+    is on tenant_id — the ServiceM8 vendor uuid or the Xero tenant id — so it
+    means "the same account over there", not merely "the same provider". A
+    connection with no tenant_id yet (a grant whose vendor read failed) can't
+    be compared to anything and counts nothing.
+
+    Deliberately NOT org-scoped: this is the one read here that crosses the
+    boundary on purpose, which is exactly why it returns a number and nothing
+    else. */
+export async function countConnectionsElsewhere(
+  orgId: string,
+  provider: string,
+  tenantId: string | null
+): Promise<number> {
+  if (!tenantId) return 0;
+  const { count } = await supabaseAdmin
+    .from(TABLE)
+    .select("id", { count: "exact", head: true })
+    .eq("provider", provider)
+    .eq("tenant_id", tenantId)
+    .neq("org_id", orgId);
+  return count ?? 0;
+}
+
 /** "Connected by" — the HeyTiff staff name behind the stored user id, so the
     screen shows a colleague rather than an Auth0 sub. */
 async function connectorName(userId: string | null): Promise<string | null> {

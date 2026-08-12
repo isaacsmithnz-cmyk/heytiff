@@ -31,6 +31,8 @@
    said it had happened. So: a short answer is logged, and retried once. */
 
 import Anthropic from "@anthropic-ai/sdk";
+
+import { logUsage } from "./usage";
 import { mapCapped } from "./fanout";
 
 /* Opus 5 at LOW effort. The judgement needed is "which of these strings would
@@ -209,6 +211,13 @@ async function tagOne(chunks: readonly string[]): Promise<Attempt> {
         { role: "user", content: `${chunks.length} excerpts:\n\n${content}` },
       ],
     });
+
+    /* Tagging is effectively the whole cost of putting a document in the
+       library — the embeddings beside it are a rounding error — so this is the
+       line that says what an upload was worth. It is also the input to the
+       question of whether this call needs an Opus: measure the output tokens
+       here before moving the model, not after. */
+    logUsage("tag", MODEL, response.usage);
 
     /* A refusal is a content outcome, not an error — check it before reading
        content, which is empty or partial in that case. */

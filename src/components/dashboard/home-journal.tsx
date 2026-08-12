@@ -30,16 +30,16 @@ export function HomeJournal({ entries, today }: { entries: JournalEntry[]; today
 
   return (
     <>
-      {/* THE HEADER IS THE CAPSULE, and nothing else. It has been three things
-          now: "Say the day" plus a line of coaching (coaching the capsule's
-          own word already gives), then the day and date — which moved up to
-          the page head, where it belongs, because the date is the SCREEN's
-          context and not the Journal's. Keeping it here would have been the
-          third statement of one date: page head, this row, and the record's
-          own "Today · Mon 10 Aug" divider two lines below it.
+      {/* THE HEADER IS THE CONTROL. Four shapes now: "Say the day" over a
+          coaching line, then the day and date (which went up to the page
+          head, where the screen's context belongs), then a lone glass
+          capsule — and now a bar that IS the button, wearing the global Tiff
+          mark (Isaac, 2026-08-12).
 
-          `NoteToken as="debrief"` IS the topbar button, wearing the word —
-          same sheet, whichever door you came through. */}
+          The capsule died of its own material: it was the topbar button's
+          glass, which composites to 1.29:1 against this card, so all that
+          showed was a gradient rim the card already wears. `NoteToken` owns
+          the whole row now — same sheet, whichever door you came through. */}
       <div className="hm-head">
         <NoteToken as="debrief" />
       </div>

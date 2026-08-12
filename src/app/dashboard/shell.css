@@ -6354,45 +6354,14 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .wb2-stripopen .pbtn:disabled, .wb2-nudge .pbtn:disabled {
   background:#eef0f4; border-color:#e3e6ec; color:#a2a9b8; box-shadow:none; cursor:not-allowed; }
 
-/* ── the debrief ──
-   The token's worded variant. The word half carries text, so it sizes by
-   content instead of the icon square — same object as the capsule otherwise,
-   and the same red-only-when-live rule.
+/* ── the debrief ── DELETED, deliberately.
 
-   `.dash-debrief`, the white strip Home wrapped it in, is gone: the Journal
-   tab's own composer row (`.hm-comp`) is where it lives now. */
-.wb2-tokhalf.wb2-debriefword { width:auto; padding:0 16px 0 18px; gap:8px;
-  font-family:var(--font); font-size:13.5px; font-weight:700; }
-
-/* THE DEBRIEF CAPSULE WEARS TIFF — Isaac, 2026-08-09.
-   It was the cyan pill, which was the app's language before the button
-   existed; it now opens an ink-glass sheet, and a bright cyan control
-   opening a dark Tiff surface read as two different features. So it takes
-   the SAME decision the sheet-skin button took on a light ground: dark
-   face, gradient on the EDGE rather than behind it, because a coloured
-   glow on white is a smudge (learned twice now). The rim is a masked
-   1px gradient — crisp, and it survives lightningcss.
-
-   Scoped to `.wb2-debrief`, so the capsule this shares its bones with
-   (`.wb2-tok`) keeps its own skin wherever else it stands. */
-.wb2-tok.wb2-debrief { position:relative; background:#0B0E15;
-  box-shadow:0 12px 26px -14px rgba(5,8,15,.9); }
-.wb2-tok.wb2-debrief::before { content:""; position:absolute; inset:0; border-radius:inherit;
-  padding:1px; pointer-events:none;
-  background:linear-gradient(120deg, #00E5C0, #2E68FF, #8A2BE2);
-  opacity:.55; transition:opacity .2s ease;
-  -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite:xor;
-  mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  mask-composite:exclude; }
-.wb2-tok.wb2-debrief:hover { box-shadow:0 16px 32px -14px rgba(5,8,15,.95); }
-.wb2-tok.wb2-debrief:hover::before { opacity:.85; }
-.wb2-tok.wb2-debrief .wb2-tokhalf:hover { background:rgba(255,255,255,.1); }
-.wb2-tok.wb2-debrief .wb2-tokdiv { background:rgba(255,255,255,.18); }
-/* Still the one honest red, and still only once the mic is open — the
-   gradient-split fill the cyan capsule used would fight the rim. */
-.wb2-tok.wb2-debrief.live { background:#0B0E15; }
-.wb2-tok.wb2-debrief.live .wb2-tokhalf.mic { background:var(--wb2-dan, #e0264f); }
+   `.wb2-debriefword` and the whole `.wb2-tok.wb2-debrief` capsule skin —
+   ink face, masked gradient rim, the live-red mic half — went when the
+   control became a bar wearing `TiffMark` (see `.hm-say` in the HOME
+   section). Nothing renders those classes any more, and dead rules in this
+   stylesheet have shadowed live components at equal specificity twice, so
+   they are removed rather than left for the next person to trip over. */
 
 /* ── the LEARN rows ──
    A title line and a method box under it — the one section on the review
@@ -6759,8 +6728,12 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 
    Inside the card there is no seam to get wrong. The thumb keeps its slide —
    it is a lit pill ON the one sheet of glass, not a second sheet of it. */
+/* NO RULE UNDER THE TABS (Isaac, 2026-08-12). The lit pill already says
+   which tab is open, so a hairline under the row was only drawing a box
+   around chrome that is already inside a box — the last seam left on a
+   surface whose whole point is being one piece of glass. */
 .fg .hm-card .wb2-vtabs { position:relative; z-index:1; align-items:center; gap:2px;
-  margin-bottom:0; padding:8px 10px 0; border-bottom:1px solid var(--hm-line); }
+  margin-bottom:0; padding:8px 10px 4px; }
 .fg .hm-card .wb2-vt { height:40px; padding:0 15px; border-radius:10px;
   color:rgba(255,255,255,.55); }
 .fg .hm-card .wb2-vt:hover:not(.on) { background:rgba(255,255,255,.06); color:#fff; }
@@ -6920,44 +6893,53 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 /* ── the Journal ──
    The header is the day, and the record runs under it, newest first. */
 
-/* THE HEADER — the capsule alone. The inset console (`.hm-comp`) went when
-   the whole card became that material; the day and date that briefly
-   replaced it went UP to the page head, where the screen's context belongs.
-   Anything left on the left of this row would have been the third statement
-   of one date (page head, here, and the record's own "Today" divider
-   immediately below), so the row is a toolbar and nothing more. It is the
-   glass that holds the capsule up — the "floating button" #325 fixed was a
-   MATERIAL mismatch, a dark control on a white band, not a layout one.
+/* THE HEADER — a bar that IS the button, wearing the global mark.
+
+   The row has been four things. It held "Say the day" over a coaching line;
+   then the day and date, which went up to the page head where the screen's
+   context belongs; then a lone glass capsule, which is what Isaac called
+   weird and was right to. The capsule failed on contrast: its fill is the
+   topbar button's `rgba(255,255,255,.08)`, and against this card that
+   composites to 1.29:1 — so the only thing defining it was a gradient rim
+   the card already wears at .32. An outline around nothing, twice.
+
+   Now the whole row is the control (Isaac, 2026-08-12): the mark LEADS, the
+   words follow, and both are the label and the hit area. The copy is three
+   words — it ran a sales line ("anything you'll forget, and it gets sorted")
+   and that is not this app's voice.
+   NO GRADIENT RIM on the bar — that was the defect, and the mark's halo is
+   where the colour belongs now. A plain 1px white border instead.
 
    NO RULE UNDER IT. The tab row draws one just above, and two parallel
-   hairlines with a single button between them read as an empty band rather
-   than a header — the same stacked-parts look the join had. One rule
-   separates the chrome from the record; the capsule sits on the record's
-   side of it. */
-.fg .hm-head { display:flex; align-items:center; justify-content:flex-end;
-  gap:18px; flex-wrap:wrap; padding:14px 26px 4px; }
+   hairlines around a single control read as an empty band rather than a
+   header. One rule separates the chrome from the record. */
+.fg .hm-head { display:flex; align-items:center; gap:18px; flex-wrap:wrap;
+  padding:14px 22px 8px; }
+.fg .hm-saydock { flex:1; min-width:0; display:flex; align-items:center; gap:12px; }
+.fg .hm-say { position:relative; flex:1; min-width:0; display:flex; align-items:center;
+  gap:14px; min-height:60px; padding:0 22px 0 8px;
+  border:1px solid rgba(255,255,255,.12); border-radius:16px;
+  background:rgba(255,255,255,.05); box-shadow:inset 0 1px 0 rgba(255,255,255,.1);
+  font:inherit; color:#fff; text-align:left; cursor:pointer;
+  transition:background .18s, border-color .18s; }
+.fg .hm-say:hover { background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.2); }
+.fg .hm-say:focus-visible { outline:none;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.1), 0 0 0 3px rgba(0,229,192,.45); }
+.fg .hm-saytx { flex:1; min-width:0; font-size:15px; font-weight:700;
+  letter-spacing:-.01em; color:rgba(255,255,255,.82); }
+.fg .hm-say:hover .hm-saytx { color:#fff; }
 
-/* THE DEBRIEF — the topbar button's material, wearing the word and nothing
-   else (the mark came off at #327; the ground is even more unmistakably
-   Tiff's now, so that call stands harder). The overhaul for this ground is
-   sizing and presence, not identity: 44px, the topbar button's own height,
-   which is what makes the two read as siblings; a firmer glass fill and a
-   brighter rim, because the solid ink it used to sit on is now translucent
-   and the old values sank into it. */
-/* The standard property ALONE — never a `-webkit-` twin beside it. At
-   lightningcss 1.32 the pair simply collapses to this one (the prefixed line
-   is dropped), so the twin is dead weight; at the version this repo ran in
-   July it collapsed the other way and the blur silently died. `.tiffbtn-topbar
-   .tiffbtn-face`, the glass this is a sibling to, has only ever written the
-   standard one. */
-.fg .hm-head .wb2-tok.wb2-debrief { height:44px;
-  background:rgba(255,255,255,.08); box-shadow:inset 0 1px 0 rgba(255,255,255,.18);
-  backdrop-filter:blur(14px) saturate(150%); }
-.fg .hm-head .wb2-tok.wb2-debrief::before { opacity:.55; }
-.fg .hm-head .wb2-debriefword { width:auto; padding:0 24px; gap:0;
-  border-radius:999px; font-size:14px; font-weight:700; letter-spacing:-.005em;
-  color:#fff; }
-.fg .hm-head .wb2-debriefword:hover { background:rgba(255,255,255,.12); }
+/* THE MARK'S HOST IS A SPAN, not a button — a button inside a button is
+   invalid markup. It takes `.tiffbtn-topbar` (the 44px box, the glass face,
+   the halo, the spark's placement) but NOT `.tiffbtn`, whose cursor and lift
+   belong to the bar now; `.tiffbtn`'s `position:relative` has to be restated
+   here because the face is `inset:0` against it. The hovers are re-pointed
+   at the bar, which is the same move #325 made when the capsule wore the
+   mark. */
+.fg .hm-saymk { position:relative; flex:none; }
+.fg .hm-say:hover .tiffbtn-face { background:rgba(255,255,255,.12);
+  border-color:rgba(255,255,255,.22); }
+.fg .hm-say:hover .tiffbtn-halo { opacity:.72; }
 
 /* THE SCROLLER TAKES THE HEIGHT IT IS GIVEN. It was capped at 360px, which on
    a 1500x950 window clipped 89px of record while 210px of the light well sat

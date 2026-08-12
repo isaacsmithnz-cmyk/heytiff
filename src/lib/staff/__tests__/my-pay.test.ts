@@ -96,11 +96,11 @@ describe("super resolution", () => {
 });
 
 describe("the rates themselves", () => {
-  it("carries the rate and the fixed multipliers", async () => {
+  it("carries the rate and the ordinary-time ladder's own thresholds", async () => {
+    // no pay_settings row -> DEFAULT_SETTINGS
     const pay = await getMyPay("org1", "auth0|me");
     expect(pay.rate).toBe(45);
-    expect(pay.otMultiplier).toBe(1.5);
-    expect(pay.dblMultiplier).toBe(2);
+    expect([pay.otAfter, pay.otUnit, pay.dblAfter]).toEqual([8, "day", 12]);
   });
 
   it("is null when no rate has been set, rather than zero", async () => {
@@ -113,17 +113,33 @@ describe("the rates themselves", () => {
     expect((await getMyPay("org1", "auth0|me")).rate).toBeNull();
   });
 
-  it("takes weekend multipliers from the org's pay rules", async () => {
-    // no pay_settings row -> DEFAULT_SETTINGS: sat x1.5, sun x2, both on
+  /* THE RULES TRAVEL WHOLE. This used to flatten each one to a single
+     multiplier (`rules.sat.rate`), which threw away `up` — the hours at which
+     a stepped rule moves to 2×. A Saturday is stepped on the default settings,
+     so an 8h Saturday at $50 was reported as $600 and paid $750. Handing the
+     rule over intact is what stops the card modelling `splitDay` a second
+     time and getting it wrong. */
+  it("hands over the org's pay rules intact, `up` and all", async () => {
+    // no pay_settings row -> DEFAULT_SETTINGS: sat 1.5x first 2h then 2x
     const pay = await getMyPay("org1", "auth0|me");
-    expect(pay.weekend).toEqual({ sat: 1.5, sun: 2 });
+    expect(pay.rules.sat).toEqual({ on: true, rate: 1.5, up: 2 });
+    expect(pay.rules.sun).toEqual({ on: true, rate: 2, up: null });
   });
 
-  it("reports a switched-off weekend rule as no rate, not as x1", async () => {
+  /* Public holidays default ON at 2x and were absent from this payload
+     entirely, so the card could not have shown them however it tried. */
+  it("carries public holidays and night shift, which it used to drop", async () => {
+    const pay = await getMyPay("org1", "auth0|me");
+    expect(pay.rules.ph).toEqual({ on: true, rate: 2, up: null });
+    expect(pay.rules.night.on).toBe(false); // off by default, but present
+  });
+
+  it("passes a switched-off rule through as off, for the card to skip", async () => {
     paySettingsRow = {
       rules: { sat: { on: false, rate: 1.5, up: 2 }, sun: { on: true, rate: 2, up: null } },
     };
     const pay = await getMyPay("org1", "auth0|me");
-    expect(pay.weekend).toEqual({ sat: null, sun: 2 });
+    expect(pay.rules.sat.on).toBe(false);
+    expect(pay.rules.sun).toEqual({ on: true, rate: 2, up: null });
   });
 });

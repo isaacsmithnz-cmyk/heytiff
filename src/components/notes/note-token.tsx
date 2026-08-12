@@ -9,6 +9,7 @@ import { useNoteScope } from "./note-context";
 import { Cascade, JobPicker, ReviewRows, nothingTicked } from "./review-card";
 import { describeJob } from "@/lib/workboard/note-match";
 import { sniff } from "@/lib/notes/sniff";
+import { TiffMark } from "./tiff-mark";
 
 /* ONE TOKEN, EVERYWHERE.
 
@@ -505,53 +506,59 @@ function JobLine({ flow }: { flow: NoteFlow }) {
 /* ── posture: debrief ──
 
    THE BUTTON YOU PRESS BEFORE YOU GET STUCK IN (Isaac, 2026-08-06): unload
-   everything at once and let the sorting be the machine's problem. One
-   labelled button — never an icon alone, because "what does the sparkle do"
-   is a question a 6am brain shouldn't have to ask. It opens the same sheet
-   as every other posture; only the framing and the brain's instructions
-   differ. Typing is as first-class here as everywhere else.
+   everything at once and let the sorting be the machine's problem. It opens
+   the same sheet as every other posture; only the framing and the brain's
+   instructions differ. Typing is as first-class here as everywhere else.
 
-   IT IS THE WORD, AND NOTHING ELSE (Isaac, 2026-08-10). Three shapes in one
-   day, and the last one is the shortest:
+   IT IS THE GLOBAL BUTTON, IN A BAR (Isaac, 2026-08-12). Four shapes now:
 
      the cyan pill      the app's language from before the Tiff button existed
      the ink capsule    dark face, gradient rim, mic half beside the word
-     the global button  `TiffMark` itself — glass face, breathing halo,
-                        chevron and sparkle, sized off the button
-     just "Debrief"     ← here
+     just "Debrief"     a word on a glass capsule
+     this               the row IS the button, and it wears `TiffMark`
 
-   The mark went the same way the mic half did, and for a related reason. The
-   console it sits on is already unmistakably Tiff's — ink, gradient rim, the
-   frame's own aurora — so a mark ON the control was Tiff said twice in one
-   object. Take it off and the button is left saying the only thing the
-   surface could not: what pressing it DOES.
+   THE CAPSULE DIED OF ITS OWN MATERIAL. It was the topbar button's glass —
+   `rgba(255,255,255,.08)` — which works on the topbar's near-black but
+   composites to 1.29:1 against the glass card it ended up on. On the topbar
+   the fill was never the thing doing the work: a breathing halo sits behind
+   it and the chevron-and-sparkle sit inside it. #327 removed both, rightly,
+   when the control was a word on Tiff's own ink — but on a lighter ground
+   that left a bright gradient rim around a fill nobody could see, and the
+   card already wears that same gradient. Two outlines, one hollow shape.
 
-   That is also the rule this posture has always been built on, arrived at
-   from the other end. "Never an icon alone, because what does the sparkle do
-   is a question a 6am brain shouldn't have to ask" — a word alone was never
-   the failure case. The glass and the rim stay; the capsule still reads as
-   the topbar button's sibling, because it is made of the same material.
+   So the mark comes back, and the WORD stays: the rule this posture was
+   built on is "never an icon alone, because what does the sparkle do is a
+   question a 6am brain shouldn't have to ask". The bar is the label and the
+   hit area; the mark is what makes it recognisably Tiff's. #327's argument
+   does not carry over, because that was about a mark on a control sitting on
+   an ink console — here the mark IS the control's contrast.
 
-   THE MIC HALF WENT FIRST, and nothing was lost by it. The sheet it opens has
-   Talk in it, gated on `voiceEnabled` the same way the half was, so the mic
-   is one tap away and still an enhancement. What the half cost was the last
-   asymmetry between the two doors into one sheet: the topbar button does not
-   offer a mic at the door either, because arriving already recording makes
-   typing second-class — the reversal Isaac made with the premium sheet. */
+   The mark's host is a SPAN taking `.tiffbtn-topbar` (which owns the 44px
+   box, the face, the halo and the spark's placement) but NOT `.tiffbtn` —
+   the same split #325 arrived at, for the same reason: a button inside a
+   button is invalid, and `.tiffbtn`'s cursor and lift belong to the bar now.
+   Its hovers are re-pointed at `.hm-say:hover` in shell.css. */
 
 function DebriefButton({ flow }: { flow: NoteFlow }) {
   return (
     <>
-      <div className="wb2-tokdock">
-        <span className="wb2-tok wb2-debrief">
-          <button
-            type="button"
-            className="wb2-tokhalf wb2-debriefword"
-            onClick={() => flow.setOpen(true)}
-          >
-            Debrief
-          </button>
-        </span>
+      <div className="wb2-tokdock hm-saydock">
+        <button
+          type="button"
+          className="hm-say"
+          aria-haspopup="dialog"
+          aria-expanded={flow.open}
+          onClick={() => flow.setOpen(true)}
+        >
+          <span className="hm-saytx">
+            Say the day &mdash; anything you&rsquo;ll forget, and it gets sorted
+          </span>
+          {/* Decorative: the bar's own words are its accessible name, and a
+              mark announced beside them would be the label said twice. */}
+          <span className="hm-saymk tiffbtn-topbar" aria-hidden="true">
+            <TiffMark chevron={20} spark={13} halo />
+          </span>
+        </button>
         {flow.done && <span className="wb2-chip ok">{flow.done}</span>}
       </div>
 

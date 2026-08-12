@@ -442,15 +442,21 @@ describe("the debrief", () => {
       staff: [{ id: "s-1", fullName: "Luke Mercer" }],
     });
     mount(<NoteToken as="debrief" />);
-    await userEvent.click(screen.getByRole("button", { name: "Debrief" }));
+    await userEvent.click(screen.getByRole("button", { name: /Say the day/ }));
     await userEvent.type(screen.getByRole("textbox"), "everything on my mind");
     await userEvent.click(screen.getByRole("button", { name: "Go" }));
     await screen.findByText("Check it before it saves");
   };
 
   it("is a labelled button — never an icon alone", () => {
+    /* THE RULE SURVIVED THE MARK COMING BACK. The bar wears `TiffMark` again
+       (the capsule's own glass measured 1.29:1 on the Journal card, so the
+       fill was invisible and only its gradient rim showed) — but the words
+       are still the button's accessible name, and the mark is aria-hidden.
+       "What does the sparkle do" stays a question nobody has to ask. */
     mount(<NoteToken as="debrief" />);
-    expect(screen.getByRole("button", { name: "Debrief" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Say the day/ })).toBeInTheDocument();
+    expect(document.querySelector(".hm-saymk")).toHaveAttribute("aria-hidden", "true");
   });
 
   /* THE DEFAULT SWITCH IS NOT THIS SHEET'S TO SHOW. Spotted live 2026-08-10:
@@ -464,7 +470,7 @@ describe("the debrief", () => {
   it("offers Talk as a one-off, and claims no default it cannot honour", async () => {
     localStorage.setItem("heytiff.capture.mode", "talk");
     mount(<NoteToken as="debrief" />);
-    await userEvent.click(screen.getByRole("button", { name: "Debrief" }));
+    await userEvent.click(screen.getByRole("button", { name: /Say the day/ }));
 
     expect(screen.queryByText("Default")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /talk/i })).toBeInTheDocument();
@@ -473,7 +479,7 @@ describe("the debrief", () => {
   it("opens in the box whatever the Tiff button's default says", async () => {
     localStorage.setItem("heytiff.capture.mode", "talk");
     mount(<NoteToken as="debrief" />);
-    await userEvent.click(screen.getByRole("button", { name: "Debrief" }));
+    await userEvent.click(screen.getByRole("button", { name: /Say the day/ }));
 
     expect(screen.getByRole("textbox")).toBeInTheDocument();
     expect(screen.queryByText("Recording")).not.toBeInTheDocument();
@@ -487,19 +493,24 @@ describe("the debrief", () => {
        makes typing second-class. */
     mount(<NoteToken as="debrief" />);
     expect(screen.queryByLabelText("Start the debrief by talking")).toBeNull();
-    expect(document.querySelectorAll(".wb2-tokhalf")).toHaveLength(1);
+    /* One control at the door, and it is the bar itself. */
+    expect(document.querySelectorAll(".hm-say")).toHaveLength(1);
   });
 
-  it("is the word alone — no mark, because the console already IS Tiff", () => {
-    /* It wore `TiffMark` for a day. The surface under it is ink with the
-       gradient rim and the frame's aurora, so a mark on the control was Tiff
-       said twice in one object; the word is the only thing the surface could
-       not say. What keeps it the topbar button's sibling is the material, not
-       a badge. */
+  it("wears the mark, and the words still do the naming", () => {
+    /* REVERSED 2026-08-12 (Isaac): "switch it to the HeyTiff global button".
+       The word-alone capsule died of its own material — the topbar button's
+       `rgba(255,255,255,.08)` glass composites to 1.29:1 against the Journal
+       card, so nothing showed but a gradient rim the card already wears.
+       #327's argument (a mark on an ink console is Tiff said twice) does not
+       carry over: here the mark IS the control's contrast.
+
+       What did NOT change is the rule underneath — never an icon alone. The
+       bar's words are the label and the hit area; the mark is decoration. */
     mount(<NoteToken as="debrief" />);
-    const word = screen.getByRole("button", { name: "Debrief" });
-    expect(word.textContent).toBe("Debrief");
-    expect(word.querySelector("svg")).toBeNull();
+    const bar = screen.getByRole("button", { name: /Say the day/ });
+    expect(bar.querySelector(".hm-saymk svg")).not.toBeNull();
+    expect(bar.textContent).toMatch(/Say the day/);
   });
 
   /* THE MARK BESIDE THE WORD IS DECORATION. Wearing Tiff's chevron here (it
@@ -508,8 +519,14 @@ describe("the debrief", () => {
      accessible name nobody wrote, on the one control whose whole point is
      that it says what it does. */
   it("keeps its name its own, mark and all", () => {
+    /* MORE load-bearing now the mark is back, not less: the logo carries its
+       own `role="img" aria-label`, and last time that silently made the
+       button "HeyTiff Debrief". The mark's host is aria-hidden, so the name
+       is the words and nothing else. */
     mount(<NoteToken as="debrief" />);
-    expect(screen.getByRole("button", { name: "Debrief" })).toHaveAccessibleName("Debrief");
+    expect(screen.getByRole("button", { name: /Say the day/ })).toHaveAccessibleName(
+      "Say the day — anything you’ll forget, and it gets sorted",
+    );
     expect(screen.queryByRole("img", { name: "HeyTiff" })).not.toBeInTheDocument();
   });
 
@@ -631,7 +648,7 @@ describe("ask-mode — the same token answers questions", () => {
 
   it("a debrief NEVER asks — a braindump is capture by definition", async () => {
     mount(<NoteToken as="debrief" />);
-    await userEvent.click(screen.getByRole("button", { name: /Debrief/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Say the day/ }));
     await userEvent.type(screen.getByRole("textbox"), "what's left at Meridian");
     await userEvent.click(screen.getByRole("button", { name: "Go" }));
     await screen.findByText("Check it before it saves");

@@ -1,4 +1,4 @@
-import { allClear, homeTabs } from "../home-tabs";
+import { homeTabs } from "../home-tabs";
 import { sortChips, type ActionChip } from "../chips";
 
 /* The five tab badges. What's worth pinning: urgent and needs-attention split
@@ -96,23 +96,3 @@ describe("homeTabs", () => {
   });
 });
 
-describe("allClear", () => {
-  it("is true only when every badge is absent", () => {
-    expect(allClear(homeTabs({ chips: [], openTasks: 0, unreadNotices: 0 }))).toBe(true);
-  });
-
-  it("is false when any ONE counter has something in it", () => {
-    const cases = [
-      { chips: [chip("warn", "a")], openTasks: 0, unreadNotices: 0 },
-      { chips: [], openTasks: 1, unreadNotices: 0 },
-      { chips: [], openTasks: 0, unreadNotices: 1 },
-    ];
-    for (const c of cases) expect(allClear(homeTabs(c))).toBe(false);
-  });
-
-  /* The one that would bite: no expiries, but tasks waiting. "All clear" is
-     true of the action-required board and false of the person reading it. */
-  it("is false with a clean compliance board but open tasks", () => {
-    expect(allClear(homeTabs({ chips: [], openTasks: 3, unreadNotices: 0 }))).toBe(false);
-  });
-});

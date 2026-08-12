@@ -4,10 +4,10 @@ import {
   noticeReadState,
   sortNotices,
   sortTasks,
-  unreadCount,
   type DashTask,
   type NoticeWithRead,
 } from "../tasks";
+import { currentUnreadCount } from "../notices";
 
 const TODAY = "2026-07-20";
 
@@ -125,7 +125,11 @@ describe("noticeReadState", () => {
   });
 });
 
-describe("unreadCount", () => {
+/* These three rules moved off `unreadCount`, which had no callers left, onto
+   `currentUnreadCount` — the survivor, which adds the lifecycle rule on top of
+   them. The rules themselves are unchanged and still need proving; only the
+   function under test moved. */
+describe("currentUnreadCount", () => {
   const notice = (
     id: string,
     over: Partial<NoticeWithRead> = {},
@@ -150,16 +154,27 @@ describe("unreadCount", () => {
     ...over,
   });
 
+  const count = (ns: NoticeWithRead[]) => currentUnreadCount(ns, TODAY);
+
   it("counts notices never read", () => {
-    expect(unreadCount([notice("a", { state: "read" }), notice("b"), notice("c")])).toBe(2);
-    expect(unreadCount([])).toBe(0);
+    expect(count([notice("a", { state: "read" }), notice("b"), notice("c")])).toBe(2);
+    expect(count([])).toBe(0);
   });
 
   it("counts a stale ack as still wanting attention", () => {
-    expect(unreadCount([notice("a", { state: "stale", ackedRevision: 1, revision: 2 })])).toBe(1);
+    expect(count([notice("a", { state: "stale", ackedRevision: 1, revision: 2 })])).toBe(1);
   });
 
   it("never counts your own notices — you wrote them", () => {
-    expect(unreadCount([notice("a", { mine: true }), notice("b", { mine: true, state: "stale" })])).toBe(0);
+    expect(count([notice("a", { mine: true }), notice("b", { mine: true, state: "stale" })])).toBe(0);
+  });
+
+  /* The rule `unreadCount` did not have, and the reason it was replaced: an
+     announcement that expired before you opened the board is not something you
+     are behind on. */
+  it("ignores an unread notice that has already dropped off the board", () => {
+    expect(count([notice("a", { expiresAt: "2026-07-19" })])).toBe(0);
+    expect(count([notice("b", { archivedAt: "2026-07-10T00:00:00Z" })])).toBe(0);
+    expect(count([notice("c", { expiresAt: TODAY })])).toBe(1); // inclusive last day
   });
 });

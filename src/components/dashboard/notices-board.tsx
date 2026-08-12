@@ -915,7 +915,7 @@ export function NoticesBoard({
                   marginBottom: 12,
                 }}
               >
-                ← Dashboard
+                ← Home
               </Link>
               <h1>
                 Noticeboard

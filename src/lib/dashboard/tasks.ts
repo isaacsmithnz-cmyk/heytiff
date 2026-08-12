@@ -132,8 +132,10 @@ export function sortNotices<T extends { pinned: boolean; createdAt: string }>(no
   });
 }
 
-/** Notices still wanting the viewer's attention — never read, or read at an
-    older revision. Your own notices never count: you wrote them. */
-export function unreadCount(notices: readonly NoticeWithRead[]): number {
-  return notices.reduce((n, x) => n + (!x.mine && x.state !== "read" ? 1 : 0), 0);
-}
+/* `unreadCount` lived here and had no callers left: `currentUnreadCount` in
+   ./notices replaced it, adding the rule that only a CURRENT notice can be
+   unread — nobody is behind on an announcement that expired before they opened
+   the board. Two functions answering "how many unread" with different answers
+   is the shape of a badge disagreeing with its own screen, which this feature
+   has already had once (see NOTICE_WINDOW in ./tasks-query). Its own test kept
+   it alive; the test went with it. */

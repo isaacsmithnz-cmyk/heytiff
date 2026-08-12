@@ -39,9 +39,20 @@ function ToolRow({ tool, today }: { tool: Tool; today: string }) {
 
 function CategoryCard({ cat, query, today }: { cat: ToolCategory; query: string; today: string }) {
   const visible = cat.tools.filter((t) => toolMatches(t, query));
-  const searching = query.trim().length > 0;
-  /* while searching, drop cards with nothing to show */
-  if (searching && visible.length === 0) return null;
+  /* A CATEGORY WITH NO TOOLS IS NOT A CARD. "Design Tools · System design &
+     layout" has been an empty card reading "Nothing here yet" since the
+     Toolbox shipped — a quarter of the grid, permanently — and it collides
+     with "Design Studio · VRF design canvas", which is a live rail row two
+     items above it. Someone looking for a design tool clicked the Toolbox
+     card and found nothing, while the real one was in the nav.
+
+     The registry entry stays: it is the shelf the design tools land on when
+     they are built, and the card returns the moment one is. Empty, it says
+     nothing worth a quarter of the screen.
+
+     `.tbx2-empty` and the searching-with-no-matches branch go with it: an
+     empty category can no longer reach either. */
+  if (visible.length === 0) return null;
   return (
     <div
       className="tbx2-card spot"
@@ -63,17 +74,13 @@ function CategoryCard({ cat, query, today }: { cat: ToolCategory; query: string;
           <b>{cat.title}</b>
           <em>{cat.sub}</em>
         </span>
-        {visible.length > 0 && <span className="tbx2-count">{visible.length}</span>}
+        <span className="tbx2-count">{visible.length}</span>
       </div>
-      {visible.length > 0 ? (
-        <div className="tbx2-rows">
-          {visible.map((t) => (
-            <ToolRow key={t.href} tool={t} today={today} />
-          ))}
-        </div>
-      ) : (
-        <div className="tbx2-empty">Nothing here yet</div>
-      )}
+      <div className="tbx2-rows">
+        {visible.map((t) => (
+          <ToolRow key={t.href} tool={t} today={today} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -83,9 +90,11 @@ function CategoryCard({ cat, query, today }: { cat: ToolCategory; query: string;
    age out on the yard's calendar, not the handset's. */
 export function ToolboxScreen({ today }: { today: string }) {
   const [query, setQuery] = useState("");
-  const anyMatch = TOOL_CATEGORIES.some(
-    (c) => c.tools.some((t) => toolMatches(t, query)) || !query.trim()
-  );
+  /* Does anything match at all — the only question the no-result line asks.
+     This used to read `c.tools.some(matches) || !query.trim()`, and the second
+     clause did nothing: `toolMatches` already returns true for an empty query,
+     so an empty search satisfied the first. */
+  const anyMatch = TOOL_CATEGORIES.some((c) => c.tools.some((t) => toolMatches(t, query)));
 
   return (
     <div className="page in">

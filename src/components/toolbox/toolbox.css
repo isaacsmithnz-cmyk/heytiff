@@ -85,12 +85,10 @@
 .fg .tbx2-row .ch { flex: 0 0 auto; display: flex; color: #cdd2da; transition: transform 0.2s, color 0.2s; }
 .fg .tbx2-row:hover .ch { transform: translateX(3px); color: var(--ac, var(--gray500)); }
 
-/* empty states */
-.fg .tbx2-empty {
-  margin: 4px 20px 16px; padding: 22px; border-radius: 16px;
-  background: #fbfcfd; border: 1px dashed #e7eaf0;
-  text-align: center; font-size: 12.5px; font-weight: 600; color: #aab0bc;
-}
+/* empty states — `.tbx2-empty` went with the empty category card it dressed.
+   A category with no tools is no longer rendered at all, so nothing can reach
+   it, and a dead rule at this specificity is one rename away from shadowing a
+   live one. */
 .fg .tbx2-noresult {
   padding: 44px 20px; border-radius: 22px; background: #fff; border: 1px solid #eef0f4;
   text-align: center; font-size: 13.5px; font-weight: 600; color: var(--gray400);
@@ -114,7 +112,10 @@
   letter-spacing: 0.2em; text-transform: uppercase;
 }
 .fg .tool .teyebrow .edot { width: 7px; height: 7px; border-radius: 50%; }
-.fg .tool .thead h1 { font-size: 40px; font-weight: 800; color: var(--ink); letter-spacing: -0.03em; line-height: 1.05; margin: 0 0 10px; }
+/* 38/-.035em, the app's one page-title size — see the note on `.tbx-head h1`.
+   `.compact` below still overrides it to 26 for the single-viewport tools;
+   that is a different kind of header, not a second opinion about this one. */
+.fg .tool .thead h1 { font-size: 38px; font-weight: 800; color: var(--ink); letter-spacing: -0.035em; line-height: 1.05; margin: 0 0 10px; }
 .fg .tool .tsub { font-size: 15px; color: var(--gray500); font-weight: 500; max-width: 640px; line-height: 1.55; margin: 0; }
 
 /* compact header — single-viewport tools (quick-check calculators) */

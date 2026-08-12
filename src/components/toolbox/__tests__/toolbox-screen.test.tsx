@@ -12,11 +12,11 @@ import { NEW_FOR_DAYS, TOOL_CATEGORIES, toolBadge, toolMatches } from "../tools"
 const TODAY = "2026-08-05";
 
 describe("ToolboxScreen", () => {
-  it("renders all four category cards with title + search", () => {
+  it("renders a card for every category that HAS a tool, plus the search", () => {
     render(<ToolboxScreen today={TODAY} />);
     expect(screen.getByRole("heading", { name: "Toolbox" })).toBeInTheDocument();
     expect(screen.getByLabelText("Search tools")).toBeInTheDocument();
-    for (const cat of TOOL_CATEGORIES) {
+    for (const cat of TOOL_CATEGORIES.filter((c) => c.tools.length > 0)) {
       expect(screen.getByText(cat.title)).toBeInTheDocument();
     }
   });
@@ -41,10 +41,20 @@ describe("ToolboxScreen", () => {
     );
   });
 
-  it("empty categories show the empty hint", () => {
+  /* A CATEGORY WITH NO TOOLS IS NOT A CARD. "Design Tools" was a permanently
+     empty quarter of the grid reading "Nothing here yet", and it collided with
+     "Design Studio · VRF design canvas" — a live rail row two items above it.
+     Someone hunting for a design tool clicked the empty card while the real
+     one sat in the nav. The registry entry stays; the card returns with the
+     first tool that lands on it. */
+  it("does not render a category that has no tools", () => {
     render(<ToolboxScreen today={TODAY} />);
-    // Design Tools is the only category with no built tools yet
-    expect(screen.getAllByText("Nothing here yet")).toHaveLength(1);
+    const empty = TOOL_CATEGORIES.filter((c) => c.tools.length === 0);
+    expect(empty.length).toBeGreaterThan(0); // or this test proves nothing
+    for (const cat of empty) {
+      expect(screen.queryByText(cat.title)).not.toBeInTheDocument();
+    }
+    expect(screen.queryByText("Nothing here yet")).not.toBeInTheDocument();
   });
 
   it("search filters rows and drops categories with no matches", () => {
@@ -52,8 +62,6 @@ describe("ToolboxScreen", () => {
     fireEvent.change(screen.getByLabelText("Search tools"), { target: { value: "pressure" } });
     expect(screen.getByRole("link", { name: /Running Pressures/ })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Heat Load/ })).not.toBeInTheDocument();
-    // empty-category hints hidden while searching
-    expect(screen.queryByText("Nothing here yet")).not.toBeInTheDocument();
     expect(screen.queryByText("Calculators")).not.toBeInTheDocument();
   });
 

@@ -53,7 +53,6 @@ const staffRow = (over: Partial<StaffRow> & Pick<StaffRow, "id" | "name">): Staf
   years: "3.2",
   licenceCount: 0,
   status: "Active",
-  vehicle: "—",
   compliance: { label: "Compliant", state: "ok", expiresDays: 9999 },
   orgRole: "staff",
   isMaster: false,
@@ -134,9 +133,13 @@ describe("TeamDirectory", () => {
     expect(screen.getByText("Inactive")).toBeInTheDocument();
   });
 
-  it("filters to compliance issues on the Need attention tab", async () => {
+  /* "Compliance gaps", not "Need attention": Home's card has a tab called
+     "Needs attention" one rail row away, counting ITEMS in a warning window
+     where this counts PEOPLE whose compliance isn't clear. Two numbers that
+     rarely agree, under two labels a letter apart. */
+  it("filters to compliance issues on the Compliance gaps tab", async () => {
     setup();
-    await userEvent.click(screen.getByText("Need attention"));
+    await userEvent.click(screen.getByText("Compliance gaps"));
     expect(screen.getByText("Jordan Mills")).toBeInTheDocument();
     expect(screen.getByText("Liam O’Brien")).toBeInTheDocument();
     expect(screen.queryByText("Sophie Tran")).not.toBeInTheDocument();

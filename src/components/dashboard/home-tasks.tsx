@@ -171,7 +171,11 @@ export function HomeTasks({
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [confirmId, setConfirmId] = useState<string | null>(null);
-  const [flashId, setFlashId] = useState<string | null>(null);
+  /* Which focus request has already burned out. The mark itself is DERIVED
+     from that below rather than stored: a row is marked because the chip
+     named it and its moment hasn't passed, which is a fact about the props,
+     not a second copy of them. */
+  const [spentFocus, setSpentFocus] = useState<string | null>(null);
 
   const [assignedTo, setAssignedTo] = useState(assignable[0]?.id ?? "");
   const [title, setTitle] = useState("");
@@ -208,16 +212,24 @@ export function HomeTasks({
      the done window — simply isn't found, and the tab switch is the whole
      journey. `scrollIntoView` is optional-called: jsdom has no layout and does
      not implement it. */
+  const flashId = focusTaskId && focusTaskId !== spentFocus ? focusTaskId : null;
+
   useEffect(() => {
     if (!focusTaskId) return;
     const row = document.querySelector<HTMLElement>(`[data-task-id="${focusTaskId}"]`);
     row?.scrollIntoView?.({ block: "center", behavior: "smooth" });
-    setFlashId(focusTaskId);
     const t = setTimeout(() => {
-      setFlashId(null);
+      setSpentFocus(focusTaskId);
       onFocusHandled?.();
     }, 1800);
-    return () => clearTimeout(t);
+    /* The reset belongs here, not in the timeout: `onFocusHandled` sends the
+       chip's id back to null, and pressing the SAME chip a second time must
+       mark the row again — which it can't if this component still remembers
+       that id as spent. */
+    return () => {
+      clearTimeout(t);
+      setSpentFocus(null);
+    };
   }, [focusTaskId, onFocusHandled]);
 
   /* Who gets the ✕ mirrors deleteTask's own rule: the creator, or a manager.

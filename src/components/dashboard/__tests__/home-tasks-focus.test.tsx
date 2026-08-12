@@ -71,6 +71,40 @@ it("marks the named row, then releases it and hands the focus back", () => {
   expect(onFocusHandled).toHaveBeenCalledTimes(1);
 });
 
+/* The mark is derived from `focusTaskId` rather than stored, so the thing that
+   can go wrong is the component remembering a spent id and refusing to mark it
+   twice. Pressing the same chip again is the whole reason `onFocusHandled`
+   exists, so it is worth a test of its own. */
+it("marks the row again when the same chip is pressed a second time", () => {
+  const onFocusHandled = jest.fn();
+  const at = (focusTaskId: string | null) => (
+    <HomeTasks
+      today="2026-08-12"
+      mine={[task(), task({ id: "t2", title: "Book the tail lift service" })]}
+      team={null}
+      done={[]}
+      reported={[]}
+      viewerStaffId="s1"
+      canManage={false}
+      assignable={[]}
+      focusTaskId={focusTaskId}
+      onFocusHandled={onFocusHandled}
+    />
+  );
+
+  const { rerender } = render(at("t2"));
+  expect(rowFor("t2")).toHaveClass("hm-tkfl");
+
+  act(() => void jest.advanceTimersByTime(2000));
+  expect(rowFor("t2")).not.toHaveClass("hm-tkfl");
+  expect(onFocusHandled).toHaveBeenCalledTimes(1);
+
+  // the parent hands the id back as null, then the reader presses it again
+  rerender(at(null));
+  rerender(at("t2"));
+  expect(rowFor("t2")).toHaveClass("hm-tkfl");
+});
+
 it("marks nothing when no chip sent us here", () => {
   renderTasks();
   expect(document.querySelectorAll(".hm-tkfl")).toHaveLength(0);

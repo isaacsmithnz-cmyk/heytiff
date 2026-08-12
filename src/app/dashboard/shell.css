@@ -6896,6 +6896,30 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   font-weight:800; color:var(--hm-teal); cursor:pointer; }
 .fg .hm-undo:hover { color:#A9F5E6; }
 
+/* deleting a task — a quiet ✕ at the row's end, revealed by pointer or focus.
+   The one task action with NO undo (nothing is left to reopen), so the ✕ never
+   fires it: the row swaps into a two-step confirm. Danger family throughout,
+   never the page accent. The confirm rules ride .hm-card like the rest of the
+   tasks block — the bare row hover there is (0,4,0), so the confirm's tint and
+   prompt must reach at least that to hold under the pointer. */
+.fg .hm-tkdel { flex:none; display:grid; place-items:center; width:22px; height:22px; padding:0; border:0; border-radius:50%;
+  background:none; color:rgba(255,255,255,.4); cursor:pointer; opacity:0; transition:opacity .15s, background .15s, color .15s; }
+.fg .wb2-tk:hover .hm-tkdel, .fg .hm-tkdel:focus-visible { opacity:1; }
+.fg .hm-tkdel:hover:not(:disabled) { background:rgba(224,38,79,.16); color:var(--hm-dan); }
+.fg .hm-tkdel:disabled { cursor:default; }
+.fg .hm-tkdel:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(224,38,79,.35); }
+.fg .hm-card .hm-tkcf, .fg .hm-card .hm-tkcf:hover { background:rgba(224,38,79,.07); }
+.fg .hm-card .wb2-tkb.hm-tkcfx { border-color:rgba(224,38,79,.5); background:rgba(224,38,79,.12); color:var(--hm-dan); }
+.fg .hm-card .wb2-tkt .hm-tkq { color:var(--hm-dan); }
+.fg .hm-tkyes { flex:none; padding:4px 12px; border:0; border-radius:999px; font:inherit; font-size:12px; font-weight:800;
+  background:rgba(224,38,79,.22); color:var(--hm-dan); cursor:pointer; }
+.fg .hm-tkyes:hover:not(:disabled) { background:rgba(224,38,79,.32); }
+.fg .hm-tkno { flex:none; padding:3px 12px; border:1px solid rgba(255,255,255,.14); border-radius:999px; font:inherit; font-size:12px;
+  font-weight:800; background:rgba(255,255,255,.06); color:#E8EAED; cursor:pointer; }
+.fg .hm-tkno:hover:not(:disabled) { background:rgba(255,255,255,.12); }
+.fg .hm-tkyes:disabled, .fg .hm-tkno:disabled { opacity:.5; cursor:default; }
+.fg .hm-tkyes:focus-visible, .fg .hm-tkno:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(224,38,79,.35); }
+
 /* the assign form, restyled for the ground it now sits on — dark glass
    fields, labels lifted to white-alpha, and the dusk skin's gradient primary */
 .fg .hm-card .lv-form { background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.09);

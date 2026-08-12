@@ -24,7 +24,8 @@ export type DashTask = {
   status: TaskStatus;
   createdBy: string | null;
   createdAt: string;
-  /** Set once completed — a done task is kept, never deleted. */
+  /** Set once completed — completing keeps the row; only an explicit delete
+      (the creator's, or a manager's) removes a task. */
   doneAt: string | null;
   doneByName: string | null;
 };

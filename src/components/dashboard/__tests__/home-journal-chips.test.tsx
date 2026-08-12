@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HomeJournal } from "../home-journal";
+import { navHref } from "@/components/shell/nav";
 import type { JournalEntry, Outcome } from "@/lib/dashboard/journal";
 
 jest.mock("@/components/notes/note-token", () => ({ NoteToken: () => <div /> }));
@@ -38,6 +39,13 @@ it("makes a task chip a button that opens the task, not a link", async () => {
   expect(onOpenTask).toHaveBeenCalledWith("t1");
 });
 
+/* THE ROUTES ARE ASKED FOR, NOT SPELLED OUT — here as well as in the
+   component. Writing the literal path in the assertion would make a perfectly
+   correct rename fail this test, which teaches the next person to edit the
+   expectation until it passes. What is worth pinning is the SHAPE: that the
+   chip goes to the screen the nav names, carrying the id. That a screen still
+   exists at that path is a different question, answered against the
+   filesystem in journal-chip-destinations. */
 it("sends a knowledge chip to that document's own page", () => {
   renderJournal([
     { kind: "kept", text: "Daikin VRV commissioning notes", go: { type: "kb", id: "k 1" } },
@@ -45,7 +53,7 @@ it("sends a knowledge chip to that document's own page", () => {
   expect(screen.getByRole("link", { name: /Daikin VRV commissioning notes/ })).toHaveAttribute(
     "href",
     // the id rides the query string, so it is encoded going in
-    "/dashboard/tiff/library?doc=k%201",
+    `${navHref("tiffkb")}?doc=k%201`,
   );
 });
 
@@ -53,7 +61,7 @@ it("sends a kept-lines chip to my notes", () => {
   renderJournal([{ kind: "kept", text: "2 lines kept", go: { type: "note", id: "n1" } }]);
   expect(screen.getByRole("link", { name: /2 lines kept/ })).toHaveAttribute(
     "href",
-    "/dashboard/my-notes",
+    navHref("mynotes"),
   );
 });
 

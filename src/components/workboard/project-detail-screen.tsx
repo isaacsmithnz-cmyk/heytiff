@@ -62,6 +62,7 @@ import {
   ScopeCard,
   VariationsCard,
 } from "./project-money-cards";
+import { DateField } from "@/components/ui/date-field";
 
 /* One project, stacked cards — the whole start-to-finish story on one page,
    now in the redesigned board's language: the stage is manual but
@@ -920,11 +921,11 @@ export function ProjectDetailScreen({
             />
             <label className="wb2-fl">
               Around
-              <input type="date" className="wb2-fi" value={around} onChange={(e) => setAround(e.target.value)} />
+              <DateField className="wb2-fi" aria-label="Roughly when" clearable value={around || null} onChange={(iso) => setAround(iso ?? "")} />
             </label>
             <label className="wb2-fl">
               Day booked
-              <input type="date" className="wb2-fi" value={day} onChange={(e) => setDay(e.target.value)} />
+              <DateField className="wb2-fi" aria-label="Day" value={day || null} onChange={(iso) => setDay(iso ?? "")} />
             </label>
             <button className="pbtn" disabled={busy || !label.trim() || !around} onClick={add}>
               Add the trip

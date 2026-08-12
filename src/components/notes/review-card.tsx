@@ -5,6 +5,7 @@ import { Icon } from "@/components/shell/icon";
 import { SEVERITIES, type NoteProposal, type NoteStaff } from "@/lib/workboard/note-brain";
 import { describeJob, searchJobs, type JobCandidate } from "@/lib/workboard/note-match";
 import type { ConfirmedNote, NoteTarget } from "@/app/actions/workboard-notes";
+import { DateField } from "@/components/ui/date-field";
 
 /* THE REVIEW — one card, every posture.
 
@@ -278,13 +279,12 @@ export function ReviewRows({
                   </option>
                 ))}
               </select>
-              <input
+              <DateField
                 className="wb-select"
-                type="date"
                 aria-label={`Due date — ${t.title}`}
-                title={t.dueHint ? `Said: ${t.dueHint}` : undefined}
-                value={t.dueDate}
-                onChange={(e) => patch((d) => ((d.tasks[i].dueDate = e.target.value), d))}
+                clearable
+                value={t.dueDate || null}
+                onChange={(iso) => patch((d) => ((d.tasks[i].dueDate = iso ?? ""), d))}
               />
               {t.dueHint && !t.dueDate && <em className="wb2-capsaid">said: {t.dueHint}</em>}
             </div>

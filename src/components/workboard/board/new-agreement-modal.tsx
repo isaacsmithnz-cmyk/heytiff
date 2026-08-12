@@ -13,6 +13,7 @@ import { addPackingItem, createAgreement, createCategory } from "@/app/actions/w
 import type { JobSearchHit } from "@/lib/workboard/projects-query";
 import type { BoardAgreement, BoardCategory } from "@/lib/workboard/board-query";
 import { crewLabel } from "./derive";
+import { DateField } from "@/components/ui/date-field";
 
 /* New agreement (D7): read a ServiceM8 job, or type it yourself.
 
@@ -309,7 +310,7 @@ export function NewAgreementModal({
             </label>
             <label className="wb2-fl">
               First service due
-              <input type="date" className="wb2-fi" value={anchor} onChange={(e) => setAnchor(e.target.value)} />
+              <DateField className="wb2-fi" aria-label="Agreement anchor date" value={anchor || null} onChange={(iso) => setAnchor(iso ?? "")} />
             </label>
             {/* The two estimates the job card shows by these names — how long
                 one visit takes and how many people it takes. They're written

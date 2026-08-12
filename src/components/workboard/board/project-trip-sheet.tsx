@@ -40,6 +40,7 @@ import {
   type ProjectsResult,
 } from "@/app/actions/workboard-projects";
 import { agoLabel, hoursLabel, initialsOf, projectGatesOf, projectMissingOf, untilLabel } from "./derive";
+import { DateField } from "@/components/ui/date-field";
 
 /* The trip sheet — the visit sheet's discipline on a hand-made trip.
 
@@ -529,12 +530,12 @@ export function ProjectTripSheet({
               </p>
             )}
             <div className="wb2-dayrow">
-              <input
-                type="date"
+              <DateField
                 className="wb2-fi"
                 aria-label="Pick a day"
-                value={pendingDay}
-                onChange={(e) => setPendingDay(e.target.value)}
+                today={today}
+                value={pendingDay || null}
+                onChange={(iso) => setPendingDay(iso ?? "")}
               />
               {pendingDay && isWeekendISO(pendingDay) ? (
                 <>
@@ -736,14 +737,13 @@ export function ProjectTripSheet({
                   <div className="wb2-coday">
                     <span className="wb2-sect">Day it ran</span>
                     {ranOnOpen ? (
-                      <input
-                        type="date"
+                      <DateField
                         className="wb2-fi"
                         aria-label="Day it ran"
                         max={today}
-                        autoFocus
-                        value={ranOn}
-                        onChange={(e) => setRanOn(e.target.value)}
+                        today={today}
+                        value={ranOn || null}
+                        onChange={(iso) => setRanOn(iso ?? "")}
                       />
                     ) : (
                       <>

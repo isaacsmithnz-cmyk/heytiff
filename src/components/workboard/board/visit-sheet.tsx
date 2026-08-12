@@ -46,6 +46,7 @@ import {
   missingOf,
   untilLabel,
 } from "./derive";
+import { DateField } from "@/components/ui/date-field";
 
 /* The visit sheet — the editing heart (audit step 2's brief, built whole):
    gates WITHOUT auto-assign (A12: the Crew gate has no tick — it derives
@@ -669,12 +670,12 @@ export function VisitSheet({
           {open && !isQuote && manage && (
             <>
               <div className="wb2-dayrow">
-                <input
-                  type="date"
+                <DateField
                   className="wb2-fi"
                   aria-label={bookedDay ? "Move it to another day" : "Pick a day"}
-                  value={pendingDay}
-                  onChange={(e) => setPendingDay(e.target.value)}
+                  today={today}
+                  value={pendingDay || null}
+                  onChange={(iso) => setPendingDay(iso ?? "")}
                 />
                 {pendingDay && isWeekendISO(pendingDay) ? (
                   <>
@@ -931,14 +932,13 @@ export function VisitSheet({
                   <div className="wb2-coday">
                     <span className="wb2-sect">Day it ran</span>
                     {ranOnOpen ? (
-                      <input
-                        type="date"
+                      <DateField
                         className="wb2-fi"
                         aria-label="Day it ran"
                         max={today}
-                        autoFocus
-                        value={ranOn}
-                        onChange={(e) => setRanOn(e.target.value)}
+                        today={today}
+                        value={ranOn || null}
+                        onChange={(iso) => setRanOn(iso ?? "")}
                       />
                     ) : (
                       <>

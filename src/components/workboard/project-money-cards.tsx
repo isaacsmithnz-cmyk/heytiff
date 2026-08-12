@@ -30,6 +30,7 @@ import {
   setProjectPromise,
   spawnAgreementFromProject,
 } from "@/app/actions/workboard-projects";
+import { DateField } from "@/components/ui/date-field";
 
 /* The money, scope and dates cards — step 4 of the projects overhaul.
 
@@ -751,12 +752,11 @@ export function DatesCard({
       </div>
       {manage && (
         <div className="wb2-dayrow" style={{ margin: 0 }}>
-          <input
-            type="date"
+          <DateField
             className="wb2-fi"
             aria-label={label}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            value={draft || null}
+            onChange={(iso) => setDraft(iso ?? "")}
           />
           <button
             className="pbtn ghost"
@@ -843,12 +843,11 @@ export function DatesCard({
             value={msLabel}
             onChange={(e) => setMsLabel(e.target.value)}
           />
-          <input
-            type="date"
+          <DateField
             className="wb2-fi"
             aria-label="Milestone day"
-            value={msDay}
-            onChange={(e) => setMsDay(e.target.value)}
+            value={msDay || null}
+            onChange={(iso) => setMsDay(iso ?? "")}
           />
           <button
             className="pbtn ghost"
@@ -1008,11 +1007,11 @@ export function FlywheelCard({
           </label>
           <label className="wb2-fl">
             First service
-            <input
-              type="date"
+            <DateField
               className="wb2-fi"
-              value={firstDue}
-              onChange={(e) => setFirstDue(e.target.value)}
+              aria-label="First service due"
+              value={firstDue || null}
+              onChange={(iso) => setFirstDue(iso ?? "")}
             />
           </label>
           <button

@@ -2,6 +2,8 @@ import { useState } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DateField, type DateFieldProps } from "../date-field";
+import fs from "fs";
+import path from "path";
 
 /* The point of this component is that there is nothing to type into. Every
    assertion below is really one of two: the calendar is the only way in, and
@@ -230,4 +232,44 @@ it("portals the popover to <body> inside a display:contents .fg wrapper", async 
   expect(wrap).toHaveClass("fg");
   expect(wrap.style.display).toBe("contents");
   expect(wrap.parentElement).toBe(document.body);
+});
+
+/* THE RULE, ASSERTED ONCE. `date-field.tsx` opens with "Every date in HeyTiff
+   is picked, never typed", and `profile/fields.tsx` restates it: "because no
+   call site anywhere wrote a raw type='date' the swap was this function. Keep
+   it that way."
+
+   That claim had stopped being true — twelve call sites wrote one, eleven of
+   them on the Workboard, so a person got the app's calendar on some screens
+   and the browser's on others, on contract and money dates. Nothing catches
+   that: a native date input is valid JSX and renders fine.
+
+   So the rule is a test now, not a comment. It reads the source rather than a
+   render, because the point is that NO call site has one — not that a
+   particular screen doesn't. */
+describe("the rule the whole app follows", () => {
+  it("no component writes a raw native date input anywhere", () => {
+    const root = path.join(process.cwd(), "src", "components");
+    const offenders: string[] = [];
+
+    const walk = (dir: string) => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          if (entry.name !== "__tests__") walk(full);
+          continue;
+        }
+        if (!entry.name.endsWith(".tsx")) continue;
+        // this component IS the replacement; it names the thing it replaced
+        if (full.endsWith(path.join("ui", "date-field.tsx"))) continue;
+        const src = fs.readFileSync(full, "utf8");
+        // strip block comments — several files explain the rule in prose
+        if (/type="date"/.test(src.replace(/\/\*[\s\S]*?\*\//g, "")))
+          offenders.push(path.relative(root, full));
+      }
+    };
+    walk(root);
+
+    expect(offenders).toEqual([]);
+  });
 });

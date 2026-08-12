@@ -11,6 +11,7 @@
 
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { pickDate } from "@/components/ui/__tests__/fixtures/pick-date";
 import { MaintenanceBoard } from "../maintenance-board";
 import type { BoardVisit, MaintenanceBoardData } from "@/lib/workboard/board-query";
 import { tagToneFor } from "@/lib/workboard/tags";
@@ -461,14 +462,11 @@ describe("the visit sheet — the editing heart", () => {
 
   it("places on a weekday directly, but a weekend asks which you meant (B9)", async () => {
     const sheet = await open(visit({ id: "v-1" }));
-    const day = sheet.getByLabelText("Pick a day");
-
-    await userEvent.type(day, "2026-08-05"); // a Wednesday
+    await pickDate("Pick a day", "2026-08-05", sheet); // a Wednesday
     await userEvent.click(sheet.getByRole("button", { name: "Schedule it" }));
     expect(act.placeVisit).toHaveBeenCalledWith("v-1", "2026-08-05");
 
-    await userEvent.clear(day);
-    await userEvent.type(day, "2026-08-01"); // a Saturday
+    await pickDate("Pick a day", "2026-08-01", sheet); // a Saturday
     expect(sheet.getByRole("button", { name: /Roll to Mon 3 Aug/ })).toBeInTheDocument();
     await userEvent.click(sheet.getByRole("button", { name: /Keep the Saturday/ }));
     expect(act.placeVisit).toHaveBeenLastCalledWith("v-1", "2026-08-01");
@@ -534,9 +532,7 @@ describe("the visit sheet — the editing heart", () => {
     );
     await userEvent.click(sheet.getByRole("button", { name: /Mark visit complete/ }));
     await userEvent.click(sheet.getByRole("button", { name: /pick another/ }));
-    const day = sheet.getByLabelText("Day it ran");
-    await userEvent.clear(day);
-    await userEvent.type(day, "2026-07-30");
+    await pickDate("Day it ran", "2026-07-30", sheet);
     await userEvent.click(sheet.getByRole("button", { name: "Mark it complete" }));
     expect(act.completeVisit).toHaveBeenCalledWith("v-1", expect.objectContaining({ ranOn: "2026-07-30" }));
   });
@@ -1349,7 +1345,7 @@ describe("the create flow (D7/K3/K4)", () => {
     const modal = await openModal();
     await userEvent.type(modal.getByLabelText("Service label"), "Cool room");
     await userEvent.type(modal.getByLabelText("Client"), "Grange Microbrewery");
-    await userEvent.type(modal.getByLabelText("First service due"), "2026-08-12");
+    await pickDate("First service due", "2026-08-12", modal);
     await userEvent.click(modal.getByRole("button", { name: /Create the agreement/ }));
     expect(act.createAgreement).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1363,17 +1359,18 @@ describe("the create flow (D7/K3/K4)", () => {
 
   it("a weekend first-due says so and offers the Monday, keeping stays allowed (K4/B9)", async () => {
     const modal = await openModal();
-    await userEvent.type(modal.getByLabelText("First service due"), "2026-08-01");
+    await pickDate("First service due", "2026-08-01", modal);
     expect(modal.getByText(/is a Saturday — every visit will fall due on a weekend/)).toBeInTheDocument();
     await userEvent.click(modal.getByRole("button", { name: /Anchor on Mon 3 Aug instead/ }));
-    expect((modal.getByLabelText("First service due") as HTMLInputElement).value).toBe("2026-08-03");
+    // the field is a button showing dd/mm/yyyy now, not an input holding ISO
+    expect(modal.getByLabelText("First service due")).toHaveTextContent("03/08/2026");
   });
 
   it("the duplicate guard fires on the client's name and needs a deliberate override", async () => {
     const modal = await openModal({ agreements: [agreementFix()] });
     await userEvent.type(modal.getByLabelText("Service label"), "Second system");
     await userEvent.type(modal.getByLabelText("Client"), "halston freight");
-    await userEvent.type(modal.getByLabelText("First service due"), "2026-08-12");
+    await pickDate("First service due", "2026-08-12", modal);
 
     expect(modal.getByText(/already has an agreement here/)).toBeInTheDocument();
     expect(modal.getByRole("button", { name: /Create the agreement/ })).toBeDisabled();

@@ -4768,7 +4768,25 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .tiffbtn-halo { position:absolute; inset:-6px; border-radius:50%; pointer-events:none;
   background:linear-gradient(120deg, var(--teal), var(--blue), var(--violet));
   filter:blur(9px); opacity:.5; animation:fgBreath 4s ease-in-out infinite; }
-.tiffbtn-topbar:hover .tiffbtn-halo { opacity:.72; }
+/* HOVER HAS TO STOP THE BREATH TO BE SEEN AT ALL. A running animation sits
+   above author rules in the cascade, so while `fgBreath` plays it owns
+   `opacity` outright — which is why the `opacity:.72` that lived here from
+   the beginning never once fired, on this surface or on Home's copy of it.
+   Nobody caught it because the glass face's own hover fill was doing the
+   visible work; taking the face off (#369) left the hover with nothing but
+   the 2px lift and made the dead rule obvious.
+
+   So it does what `.lit` does on press: kill the animation and take the
+   value. `.40` rather than the old `.72` because the breath only ever
+   reaches `.26` — against that, `.72` is a lamp switching on, not a lift.
+   The press still beats it: `.tiffbtn.lit .tiffbtn-halo` weighs the same
+   and sits later in the file.
+
+   Note the `opacity:.5` above is likewise never seen while the animation
+   runs. It is what reduced motion falls back to, which is the reason the
+   reduced-motion block at the end of this section now pins the resting
+   glow to the breath's own peak — otherwise hovering DIMS it. */
+.tiffbtn-topbar:hover .tiffbtn-halo { animation:none; opacity:.40; }
 
 /* ── in a sheet header: white ground, so the SKIN INVERTS ──
    Nothing outside a sheet's scrim can be clicked, which is why the topbar
@@ -4794,7 +4812,12 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 @media (max-width:760px) { .fg .tbr { gap:14px; } }
 @media (prefers-reduced-motion:reduce) {
   .tiffbtn, .tiffbtn:hover { transition:none; transform:none; }
-  .tiffbtn-halo { animation:none; }
+  /* Stopping the breath uncovers the rule's own `opacity:.5` — brighter than
+     the animation's peak of `.26`, so reduced motion was quietly getting a
+     glow twice everyone else's, and once hover became `.40` it would have
+     DIMMED on hover. Pin the resting state to the peak instead: same still
+     image the breath arrives at, and hover still lifts it. */
+  .tiffbtn-halo { animation:none; opacity:.26; }
 }
 
 /* THE CONTEXT TAG. It rides in the capture ribbon as a normal blue chip; the
@@ -7018,9 +7041,11 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    The face's own hover went with the smoked disc (see `.tiffbtn-topbar`): a
    glass circle inside this already-glass bar was the doubled version of the
    same mistake, and there is no fill left here to brighten. The bar's own
-   background still lifts on hover, and the halo still answers. */
+   background still lifts on hover, and the halo answers the same way it does
+   on the topbar — `animation:none` first, because until the breath stops the
+   opacity here is not the author's to set. */
 .fg .hm-saymk { position:relative; flex:none; }
-.fg .hm-say:hover .tiffbtn-halo { opacity:.72; }
+.fg .hm-say:hover .tiffbtn-halo { animation:none; opacity:.40; }
 
 /* ══ THE DEBRIEF, IN THE PAGE ══════════════════════════════════════════════
    The bar becomes the capture card in its own slot: capture AND review, on

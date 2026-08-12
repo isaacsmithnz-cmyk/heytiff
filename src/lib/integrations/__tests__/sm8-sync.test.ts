@@ -184,6 +184,57 @@ describe("budgets", () => {
   });
 });
 
+describe("the walk starts where the hunger is", () => {
+  /* The 2026-08-12 prod shape: eight objects with finished backfills,
+     job_checklists never reached — no state row at all, because the budget
+     died before the walk got there, run after run. The rotation puts the
+     unfinished object FIRST. */
+  const eightDone = () =>
+    SM8_OBJECTS.filter((s) => s.object !== "job_checklists").map((s) => ({
+      object: s.object,
+      cursor: "2026-08-12 09:00:00",
+      backfill_done: true,
+      rows_pulled: 10,
+    }));
+
+  it("begins at the unreached object, then still walks everyone", async () => {
+    stateRows = eightDone();
+    const endpoints: string[] = [];
+    fetchSm8Page.mockImplementation(async (_tok: string, endpoint: string) => {
+      endpoints.push(endpoint);
+      return emptyPage;
+    });
+
+    const out = await runSm8Sync("org-1", "kick", NOW);
+    expect(out.complete).toBe(true);
+    expect(endpoints[0]).toBe("jobchecklist.json");
+    expect(endpoints).toHaveLength(SM8_OBJECTS.length);
+    expect(stateUpsertFor("job_checklists")!.backfill_done).toBe(true);
+  });
+
+  it("a backfill bigger than one run now spends the WHOLE budget on itself", async () => {
+    stateRows = eightDone();
+    fetchSm8Page.mockImplementation(async (_tok: string, endpoint: string) =>
+      endpoint === "jobchecklist.json"
+        ? {
+            ok: true,
+            rows: [{ uuid: "c-1", edit_date: "2026-08-12 09:00:00" }],
+            nextCursor: "more",
+          }
+        : emptyPage
+    );
+
+    const out = await runSm8Sync("org-1", "kick", NOW);
+    expect(out.note).toContain("Page budget");
+    expect(fetchSm8Page).toHaveBeenCalledTimes(PAGE_BUDGET); // every page on checklists
+    const st = stateUpsertFor("job_checklists")!;
+    expect(st.backfill_done).toBe(false); // paused, floor unmoved — and it goes first again next run
+    expect(st.cursor).toBeNull();
+    // the healthy eight weren't touched this run; their rows and cursors stand
+    expect(stateUpsertFor("staff")).toBeUndefined();
+  });
+});
+
 describe("a clean walk", () => {
   it("mirrors the rows, advances cursors, and counts the calls", async () => {
     fetchSm8Page.mockImplementation(async (_tok: string, endpoint: string) =>

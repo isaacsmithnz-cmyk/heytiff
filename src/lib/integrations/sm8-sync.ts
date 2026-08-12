@@ -13,6 +13,10 @@
      page budget, 429, upstream wobble — leaves that object's cursor alone
      and re-pulls from the same floor next kick. Repeat reads are the cost;
      idempotent upserts make them harmless.
+   - THE WALK STARTS WHERE THE HUNGER IS. Each run walks walkOrderFor's
+     rotation: the first object whose backfill isn't done goes first and
+     inherits the WHOLE page budget, so a backfill bigger than one run can't
+     starve the list's tail out of ever being reached.
    - EVERY RUN IS BOUNDED TWICE: PAGE_BUDGET caps one invocation (a 20k-job
      backfill lands across several kicks, visibly in sm8_sync_state), and
      DAILY_CALL_BUDGET caps the day (our worst bug must not eat a customer's
@@ -38,6 +42,7 @@ import {
   PAGE_BUDGET,
   SM8_BILLING,
   SM8_OBJECTS,
+  walkOrderFor,
   type MirrorRow,
 } from "./sm8-sync-plan";
 
@@ -176,12 +181,16 @@ export async function runSm8Sync(
     ((stateRows ?? []) as StateRow[]).map((r) => [r.object, r])
   );
 
+  const backfillDone = new Set(
+    [...state.values()].filter((r) => r.backfill_done === true).map((r) => r.object)
+  );
+
   let pagesLeft = PAGE_BUDGET;
   let rowsPulled = 0;
   let objectsCompleted = 0;
   let stopNote: string | null = null; // set = the whole run ends after this object
 
-  for (const spec of SM8_OBJECTS) {
+  for (const spec of walkOrderFor(backfillDone)) {
     if (stopNote) break;
     if (pagesLeft <= 0) {
       stopNote = "Page budget spent — resuming next sync.";

@@ -10,14 +10,17 @@ import type { ConnectionView } from "@/lib/integrations/connection";
 import type { Sm8SyncStatusView } from "@/lib/integrations/sm8-sync";
 import { disconnectServiceM8Action, syncServiceM8NowAction } from "@/app/actions/integrations";
 import { PeopleImportCard, type PeopleCardData } from "@/components/integrations/people-import-card";
+import { ConnectActions } from "@/components/integrations/connect-actions";
 
 /* The ServiceM8 connection screen — xero-screen's sibling, same two refusals
-   to be vague (WHAT IT IS FOR, WHAT IT CAN SEE), same two-step disconnect.
+   to be vague (WHAT IT IS FOR, WHAT IT CAN SEE), and the shared ConnectActions
+   for the connect/disconnect controls.
 
    Differences that are real, not stylistic: one ServiceM8 account per grant
-   (no organisation picker), and ServiceM8 has no revocation endpoint — so the
-   disconnect copy tells the owner the one step that finishes the job on
-   ServiceM8's side instead of implying we did it for them. */
+   (no organisation picker), ServiceM8 has no revocation endpoint — so the
+   disconnect copy names the one step that finishes the job on their side —
+   and a disconnect here drops a whole MIRROR, not just credentials, which is
+   why this screen is the one that asks for the account name. */
 
 const START = "/api/integrations/servicem8/connect";
 
@@ -73,7 +76,6 @@ export function Servicem8Screen({
   const [busy, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
-  const [confirming, setConfirming] = useState(false);
 
   const ready = configured && sealed;
   const connected = connection !== null;
@@ -87,7 +89,6 @@ export function Servicem8Screen({
     start(async () => {
       const res = await disconnectServiceM8Action();
       if (res.ok) {
-        setConfirming(false);
         if (res.note) setNote(res.note);
         router.refresh();
       } else setError(res.error);
@@ -219,43 +220,25 @@ export function Servicem8Screen({
               </div>
             )}
 
-            <div className="int-act">
-              {ready && (
-                /* A plain <a>, not <Link>: this is an API route, and a prefetch
-                   on hover would mint an OAuth state per hover and overwrite the
-                   one a half-finished flow depends on. */
-                <a className={"pbtn " + (connected ? "ghost" : "primary")} href={START}>
-                  <Icon name="plug" size={16} />
-                  {connected ? "Reconnect" : "Connect to ServiceM8"}
-                </a>
-              )}
-              {connected &&
-                (confirming ? (
-                  <>
-                    <button className="pbtn danger" onClick={disconnect} disabled={busy}>
-                      {busy ? "Disconnecting…" : "Yes, disconnect"}
-                    </button>
-                    <button
-                      className="pbtn ghost"
-                      onClick={() => setConfirming(false)}
-                      disabled={busy}
-                    >
-                      Keep it
-                    </button>
-                  </>
-                ) : (
-                  <button className="pbtn ghost" onClick={() => setConfirming(true)}>
-                    Disconnect
-                  </button>
-                ))}
-            </div>
-            {confirming && (
-              <p className="int-hint">
-                HeyTiff will drop its stored credentials and stop reading this account. ServiceM8
-                itself has no remote switch-off, so to fully revoke access afterwards, remove
-                HeyTiff from your ServiceM8 account&apos;s add-ons.
-              </p>
-            )}
+            <ConnectActions
+              label="ServiceM8"
+              startHref={START}
+              connected={connected}
+              ready={ready}
+              accountName={connection?.tenantName ?? null}
+              /* Everything the wipe takes, named — this is the only control in
+                 the integrations area that deletes anything. */
+              consequences={[
+                "HeyTiff's stored credentials for this account are deleted.",
+                "Every mirrored row goes with them — clients, jobs, schedule, checklists and staff.",
+                "Workboard rows you created here stay, on the names they already captured.",
+                "Reconnecting the same account rebuilds the mirror in a few minutes.",
+              ]}
+              requirePhrase
+              confirmNote="ServiceM8 has no remote switch-off, so to fully revoke access afterwards, remove HeyTiff from that ServiceM8 account's add-ons."
+              busy={busy}
+              onDisconnect={disconnect}
+            />
           </div>
 
           {/* ── the mirror, object by object ── */}

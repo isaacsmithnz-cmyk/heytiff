@@ -533,6 +533,13 @@ function JobLine({ flow }: { flow: NoteFlow }) {
    does not carry over, because that was about a mark on a control sitting on
    an ink console — here the mark IS the control's contrast.
 
+   THE MARK LEADS AND THE COPY IS THREE WORDS (Isaac, 2026-08-12). It read
+   "Say the day — anything you'll forget, and it gets sorted", which is a
+   sales promise, not this app's voice: "tag line is cheesy". `Debrief` is
+   already the app's own noun for these entries (the record counts "2
+   debriefs" and the sheet is labelled "Morning debrief"), so the verb costs
+   no new vocabulary.
+
    The mark's host is a SPAN taking `.tiffbtn-topbar` (which owns the 44px
    box, the face, the halo and the spark's placement) but NOT `.tiffbtn` —
    the same split #325 arrived at, for the same reason: a button inside a
@@ -550,14 +557,12 @@ function DebriefButton({ flow }: { flow: NoteFlow }) {
           aria-expanded={flow.open}
           onClick={() => flow.setOpen(true)}
         >
-          <span className="hm-saytx">
-            Say the day &mdash; anything you&rsquo;ll forget, and it gets sorted
-          </span>
           {/* Decorative: the bar's own words are its accessible name, and a
               mark announced beside them would be the label said twice. */}
           <span className="hm-saymk tiffbtn-topbar" aria-hidden="true">
             <TiffMark chevron={20} spark={13} halo />
           </span>
+          <span className="hm-saytx">Debrief the day</span>
         </button>
         {flow.done && <span className="wb2-chip ok">{flow.done}</span>}
       </div>

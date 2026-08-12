@@ -442,7 +442,7 @@ describe("the debrief", () => {
       staff: [{ id: "s-1", fullName: "Luke Mercer" }],
     });
     mount(<NoteToken as="debrief" />);
-    await userEvent.click(screen.getByRole("button", { name: /Say the day/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Debrief the day/ }));
     await userEvent.type(screen.getByRole("textbox"), "everything on my mind");
     await userEvent.click(screen.getByRole("button", { name: "Go" }));
     await screen.findByText("Check it before it saves");
@@ -455,7 +455,7 @@ describe("the debrief", () => {
        are still the button's accessible name, and the mark is aria-hidden.
        "What does the sparkle do" stays a question nobody has to ask. */
     mount(<NoteToken as="debrief" />);
-    expect(screen.getByRole("button", { name: /Say the day/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Debrief the day/ })).toBeInTheDocument();
     expect(document.querySelector(".hm-saymk")).toHaveAttribute("aria-hidden", "true");
   });
 
@@ -470,7 +470,7 @@ describe("the debrief", () => {
   it("offers Talk as a one-off, and claims no default it cannot honour", async () => {
     localStorage.setItem("heytiff.capture.mode", "talk");
     mount(<NoteToken as="debrief" />);
-    await userEvent.click(screen.getByRole("button", { name: /Say the day/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Debrief the day/ }));
 
     expect(screen.queryByText("Default")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /talk/i })).toBeInTheDocument();
@@ -479,7 +479,7 @@ describe("the debrief", () => {
   it("opens in the box whatever the Tiff button's default says", async () => {
     localStorage.setItem("heytiff.capture.mode", "talk");
     mount(<NoteToken as="debrief" />);
-    await userEvent.click(screen.getByRole("button", { name: /Say the day/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Debrief the day/ }));
 
     expect(screen.getByRole("textbox")).toBeInTheDocument();
     expect(screen.queryByText("Recording")).not.toBeInTheDocument();
@@ -508,9 +508,9 @@ describe("the debrief", () => {
        What did NOT change is the rule underneath — never an icon alone. The
        bar's words are the label and the hit area; the mark is decoration. */
     mount(<NoteToken as="debrief" />);
-    const bar = screen.getByRole("button", { name: /Say the day/ });
+    const bar = screen.getByRole("button", { name: /Debrief the day/ });
     expect(bar.querySelector(".hm-saymk svg")).not.toBeNull();
-    expect(bar.textContent).toMatch(/Say the day/);
+    expect(bar.textContent).toMatch(/Debrief the day/);
   });
 
   /* THE MARK BESIDE THE WORD IS DECORATION. Wearing Tiff's chevron here (it
@@ -524,8 +524,8 @@ describe("the debrief", () => {
        button "HeyTiff Debrief". The mark's host is aria-hidden, so the name
        is the words and nothing else. */
     mount(<NoteToken as="debrief" />);
-    expect(screen.getByRole("button", { name: /Say the day/ })).toHaveAccessibleName(
-      "Say the day — anything you’ll forget, and it gets sorted",
+    expect(screen.getByRole("button", { name: /Debrief the day/ })).toHaveAccessibleName(
+      "Debrief the day",
     );
     expect(screen.queryByRole("img", { name: "HeyTiff" })).not.toBeInTheDocument();
   });
@@ -648,7 +648,7 @@ describe("ask-mode — the same token answers questions", () => {
 
   it("a debrief NEVER asks — a braindump is capture by definition", async () => {
     mount(<NoteToken as="debrief" />);
-    await userEvent.click(screen.getByRole("button", { name: /Say the day/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Debrief the day/ }));
     await userEvent.type(screen.getByRole("textbox"), "what's left at Meridian");
     await userEvent.click(screen.getByRole("button", { name: "Go" }));
     await screen.findByText("Check it before it saves");

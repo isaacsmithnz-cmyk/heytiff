@@ -299,12 +299,20 @@ function Body({ flow }: { flow: NoteFlow }) {
             <Icon name="rotate" size={14} sw={1.9} />
             Start again
           </button>
-          {/* GO HERE TOO (Isaac, 2026-08-10), and the same green. The card
-              had two words for one gesture — "Stop & read" while the mic is
-              open, "Go" once the words are in the box — and from where the
-              person is standing both are simply the way onward. Two buttons
-              named Go never share a screen: this one only exists while
-              recording, that one only once there is something to sort.
+          {/* DONE, NOT GO (Isaac, 2026-08-10, after walking it on prod:
+              "annoyingly you have to push go twice").
+
+              It was Go for half a day, on the argument that both presses are
+              simply the way onward. Walking it says otherwise: you press a
+              button called Go, and nothing goes — it stops the mic and hands
+              you a box to check. Two presses is the design and it is the
+              right one (nothing routes off a transcript; see note-flow), but
+              only ONE of them commits anything, and that is the one allowed
+              to be called Go.
+
+              So this stage ends with `Done` and the next one commits with
+              `Go`. A chat composer works the same way: the mic button stops,
+              the send button sends, and nobody confuses them.
 
               THE SQUARE STAYS, AT A WEIGHT THAT STOPS SHOUTING. Isaac: "that
               black square next to go is weird." It already WAS an outline —
@@ -312,12 +320,12 @@ function Body({ flow }: { flow: NoteFlow }) {
               11px box carrying a 1.25px stroke in #04262B, the button's
               near-black ink, on a bright green fill. Maximum contrast at the
               heaviest weight the glyph set offers: it read as a dark blob
-              rather than a stop mark. Smaller, thinner, and eased off the
-              full ink (the `.wb2-go svg` rule) it still says the thing the
-              word Go cannot — that the recording ends here. */}
-          <button className="pbtn wb2-go" onClick={flow.dict.stop}>
+              rather than a stop mark. Smaller, thinner and eased off the full
+              ink (the `.wb2-prim svg` rule), it now agrees with the word
+              instead of shouting over it. */}
+          <button className="pbtn wb2-prim" onClick={flow.dict.stop}>
             <Icon name="square" size={13} sw={1.6} />
-            Go
+            Done
           </button>
         </div>
       </div>
@@ -403,7 +411,7 @@ function Body({ flow }: { flow: NoteFlow }) {
               than what is printed on it is its own bug. */}
           {flow.text.trim() && (
             <button
-              className="pbtn wb2-go"
+              className="pbtn wb2-prim"
               aria-label="Go"
               onClick={() => flow.submit(flow.text)}
               disabled={flow.busy}

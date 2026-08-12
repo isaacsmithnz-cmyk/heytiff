@@ -223,14 +223,22 @@ describe("attachJob", () => {
   });
 });
 
+/* This was MANAGE-gated on the grounds that the results are the client book
+   rather than just numbers. That held while the book was reachable only
+   through this box. The All jobs side now shows the same book to anyone with
+   `workboard` — which is what ServiceM8 does, and what Tiff's search_jobs
+   tool already did — so a stricter gate here would only mean the picker finds
+   less than the list beside it. */
 describe("searchJobs", () => {
-  it("is manage-gated — the results are the client book", async () => {
+  it("is board-gated, matching the list it now sits beside", async () => {
     caps = new Set(["workboard"]);
-    expect(await searchJobs("smith")).toEqual([]);
-    expect(searchMirrorJobs).not.toHaveBeenCalled();
-
-    caps = new Set(["workboard", "workboard_manage"]);
     await searchJobs("smith");
     expect(searchMirrorJobs).toHaveBeenCalledWith("org-1", "smith");
+  });
+
+  it("still refuses anyone off the board entirely", async () => {
+    caps = new Set();
+    expect(await searchJobs("smith")).toEqual([]);
+    expect(searchMirrorJobs).not.toHaveBeenCalled();
   });
 });

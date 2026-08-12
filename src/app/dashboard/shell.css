@@ -3572,6 +3572,12 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
     background .3s cubic-bezier(.4,0,.2,1), box-shadow .3s cubic-bezier(.4,0,.2,1); }
 .wb2-seg[data-on="maintenance"] .wb2-segsl { background:#00806b; box-shadow:0 6px 16px -7px rgba(0,128,107,.85); }
 .wb2-seg[data-on="projects"] .wb2-segsl { background:#0089b8; box-shadow:0 6px 16px -7px rgba(0,137,184,.85); }
+/* ALL JOBS IS INK, NOT A THIRD HUE. Green and cyan name the two halves of the
+   business; a third colour beside them would read as a third kind of work,
+   when what this side actually is is EVERYTHING — including the two already
+   named. Slate says "the whole book" without competing, and it keeps the
+   accent vocabulary at two. */
+.wb2-seg[data-on="jobs"] .wb2-segsl { background:#333d4f; box-shadow:0 6px 16px -7px rgba(51,61,79,.85); }
 .wb2-segb { position:relative; z-index:1; display:inline-flex; align-items:center; gap:9px; height:42px; padding:0 17px;
   border:0; background:none; border-radius:11px; font:inherit; font-size:13.5px; font-weight:700; color:var(--gray700);
   cursor:pointer; transition:color .2s, background .2s; }
@@ -4589,9 +4595,43 @@ span.wb2-ck { cursor:default; }
 .wb2-dnact { display:flex; flex-direction:column; align-items:flex-end; gap:7px; justify-self:end; }
 .wb2-newmodal { width:min(760px, calc(100vw - 32px)); }
 .wb2-newmodal .wb2-dmbody { gap:14px; }
-button.wb2-lpr.as-btn, button.wb2-agr.as-btn { font:inherit; text-align:left; background:none; border:0; width:100%; cursor:pointer; color:inherit; }
-button.wb2-agr.as-btn { border-bottom:1px solid var(--wb2-line2, rgba(5,5,5,.06)); }
-button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible { outline:none; box-shadow:inset 0 0 0 3px rgba(0,168,224,.3); border-radius:11px; }
+button.wb2-lpr.as-btn, button.wb2-agr.as-btn, button.wb2-ajr.as-btn { font:inherit; text-align:left; background:none; border:0; width:100%; cursor:pointer; color:inherit; }
+button.wb2-agr.as-btn, button.wb2-ajr.as-btn { border-bottom:1px solid var(--wb2-line2, rgba(5,5,5,.06)); }
+button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button.wb2-ajr.as-btn:focus-visible { outline:none; box-shadow:inset 0 0 0 3px rgba(0,168,224,.3); border-radius:11px; }
+
+/* ── All jobs: the flat book ──────────────────────────────────────────────
+   The ledger row from the agreements tab, re-proportioned for what a job is:
+   whose number it is, who it's for and what it says, where and when, then
+   the chips that say whether anybody here is already tracking it.
+
+   The row is a BUTTON, so every rule here has to out-rank `.fg button`
+   (0,1,1) — which is why the element type is named on the reset above rather
+   than left to a bare class. See project-css-button-reset-trap. */
+.wb2-ajr { display:grid; grid-template-columns:78px minmax(0,1.5fr) minmax(0,.85fr) minmax(0,.75fr) minmax(0,1fr); gap:14px;
+  align-items:center; padding:11px 20px; text-decoration:none; color:inherit; transition:background .18s; }
+.wb2-ajr:hover { background:rgba(5,5,5,.018); }
+/* Money earns a sixth column only when there IS money to show — a reader
+   without the grant gets five, not five plus a gap where the money was. */
+.wb2-ajr:has(.wb2-ajmoney) { grid-template-columns:78px minmax(0,1.5fr) minmax(0,.85fr) minmax(0,.75fr) minmax(0,1fr) 96px; }
+.wb2-ajnum b { display:block; font-size:13px; font-weight:800; font-variant-numeric:tabular-nums; }
+.wb2-ajnum em { display:block; font-style:normal; font-size:9.5px; font-weight:800; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--gray400); margin-top:1px; }
+.wb2-ajmeta { display:flex; flex-direction:column; align-items:flex-start; gap:5px; min-width:0; }
+.wb2-ajmeta em { font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray500);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%; }
+.wb2-ajchips { display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-self:start; }
+.wb2-ajmoney { justify-self:end; text-align:right; font-variant-numeric:tabular-nums; }
+.wb2-ajmoney b { font-size:13px; font-weight:800; }
+.wb2-ajmoney em { font-style:normal; color:var(--gray400); }
+/* The section rule doubles as a header when it carries a subtitle. */
+.wb2-sect em { display:block; font-style:normal; letter-spacing:0; text-transform:none;
+  font-size:11px; font-weight:600; color:var(--gray400); margin-top:2px; }
+.wb2-shtext { font-size:13px; line-height:1.55; color:var(--gray700); margin:4px 0 0; white-space:pre-wrap; }
+
+@media (max-width:1100px) {
+  .wb2-ajr, .wb2-ajr:has(.wb2-ajmoney) { grid-template-columns:70px minmax(0,1fr) minmax(0,.9fr); }
+  .wb2-ajmeta, .wb2-ajmoney { display:none; }
+}
 .pbtn.ghost.danger { color:#b31038; border-color:rgba(224,38,79,.4); }
 .pbtn.ghost.danger:hover { background:rgba(224,38,79,.07); }
 @media (max-width: 1100px) {

@@ -58,6 +58,14 @@ jest.mock("../board/maintenance-board", () => ({
 jest.mock("../board/projects-board", () => ({
   ProjectsBoard: (p: BoardStub) => stubBody("pboard", p),
 }));
+jest.mock("../board/all-jobs-board", () => ({
+  AllJobsBoard: (p: BoardStub & { moneyVisible: boolean }) => (
+    <div data-testid="jboard">
+      board · manage:{String(p.manage)} · connected:{String(p.connected)} · money:
+      {String(p.moneyVisible)} · sm8:{p.sm8 ? (p.sm8.attention ? "attention" : "ok") : "none"}
+    </div>
+  ),
+}));
 
 const TODAY = "2026-07-28";
 
@@ -70,6 +78,7 @@ const base: WorkboardData = {
   flags: [],
   board: { visits: [], agreements: [], staff: [], tagPool: [], categories: [], tasks: [] },
   projectsBoard: { projects: [], visits: [], staff: [] },
+  allJobs: { jobs: [], truncated: false, projectLinks: [] },
   aiEnabled: false,
   synced: null,
 };
@@ -205,6 +214,59 @@ describe("the switcher", () => {
     expect(screen.getByRole("button", { name: /Display mode/ })).toBeInTheDocument();
     await toProjects();
     expect(screen.getByRole("button", { name: /Display mode/ })).toBeInTheDocument();
+  });
+});
+
+/* THE THIRD SIDE. Maintenance and Projects are derived boards — promoted
+   work, each with a queue. All jobs is the whole book, which is a reference
+   rather than a to-do list, and the difference has to show. */
+describe("the All jobs side", () => {
+  const toJobs = () => userEvent.click(screen.getByRole("tab", { name: /All jobs/ }));
+
+  it("swaps in as a whole board, like the other two", async () => {
+    render(<OverviewScreen data={base} />);
+    await toJobs();
+    expect(screen.getByTestId("jboard")).toBeInTheDocument();
+    expect(screen.queryByTestId("mboard")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("pboard")).not.toBeInTheDocument();
+  });
+
+  it("carries its own identity on the element", async () => {
+    render(<OverviewScreen data={base} />);
+    await toJobs();
+    expect(seg()).toHaveAttribute("data-on", "jobs");
+  });
+
+  /* A badge means "this many need you today". A total of everything answers a
+     different question, and a number that LOOKS like the others while meaning
+     something else is worse than no number. */
+  it("wears no count, where the other two do", () => {
+    render(<OverviewScreen data={base} />);
+    const jobs = screen.getByRole("tab", { name: /All jobs/ });
+    expect(jobs.querySelector("i")).toBeNull();
+    expect(screen.getByRole("tab", { name: /Maintenance/ }).querySelector("i")).not.toBeNull();
+  });
+
+  it("hands the board the money grant", async () => {
+    render(<OverviewScreen data={{ ...base, moneyVisible: true }} />);
+    await toJobs();
+    expect(screen.getByTestId("jboard")).toHaveTextContent("money:true");
+  });
+
+  it("withholds it when the reader hasn't got it", async () => {
+    render(<OverviewScreen data={base} />);
+    await toJobs();
+    expect(screen.getByTestId("jboard")).toHaveTextContent("money:false");
+  });
+
+  /* Standalone has no mirror, so the side has only native rows to show — but
+     it must still be REACHABLE, or a workspace with no integration would find
+     a third of its board missing with no explanation. */
+  it("is offered even with no ServiceM8 connection", async () => {
+    render(<OverviewScreen data={base} />);
+    expect(screen.getByRole("tab", { name: /All jobs/ })).toBeInTheDocument();
+    await toJobs();
+    expect(screen.getByTestId("jboard")).toHaveTextContent("connected:false");
   });
 });
 

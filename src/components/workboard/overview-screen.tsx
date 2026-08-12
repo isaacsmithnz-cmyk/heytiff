@@ -10,6 +10,7 @@ import type { WorkboardData } from "@/lib/workboard/page-data";
 import { useNoteScopeScreen } from "@/components/notes/note-context";
 import { MaintenanceBoard } from "./board/maintenance-board";
 import { ProjectsBoard } from "./board/projects-board";
+import { AllJobsBoard } from "./board/all-jobs-board";
 
 /* The Workboard — a command centre, not a menu.
 
@@ -22,13 +23,23 @@ import { ProjectsBoard } from "./board/projects-board";
    each side's needs-you-today count on it, Display mode right, and nothing
    else on the page but the board card — the schedule lives in the Calendar
    tab, not in a second card below. The switcher's active side carries the
-   side's own colour (maintenance green, projects cyan), which is identity,
-   not state — row tones still come only from the status law.
+   side's own colour (maintenance green, projects cyan, all jobs ink), which
+   is identity, not state — row tones still come only from the status law.
 
-   Both sides of the switcher are the SAME architecture — one persistent
-   card, tabs that swap information rather than surface, every colour derived
-   from the one status law. Maintenance runs five tabs, projects four; flags
-   route to the board whose work they point at, so nothing appears twice.
+   THREE SIDES, TWO OF THEM DERIVED AND ONE FLAT. Maintenance and Projects
+   show work that has been PROMOTED — into an agreement, into a project — and
+   each carries a count of what needs somebody today. All jobs is the whole
+   book ServiceM8 keeps: every service call, install and quote, including the
+   ones nobody has promoted anywhere. It carries NO count, deliberately. The
+   badge means "this many need you"; a total means nothing of the kind, and a
+   number that looks like the others but answers a different question is
+   worse than no number.
+
+   All three are the SAME architecture — one persistent card, tabs that swap
+   information rather than surface, every colour derived from the one status
+   law. Maintenance runs five tabs, projects four, all jobs three. Flags route
+   to the board whose work they point at, so nothing appears twice; All jobs
+   raises none, because a reference list has no queue.
 
    Desktop-first, big-screen ready: DISPLAY MODE is this SAME page with the app
    frame taken away — sidebar, topbar and the well's inset gone, the width cap
@@ -46,11 +57,14 @@ import { ProjectsBoard } from "./board/projects-board";
 
 const REFRESH_MS = 60_000;
 
-/* Projects first, maintenance second — the handoff's order. The board still
-   OPENS on maintenance, the side that carries the daily noise. */
+/* Projects first, maintenance second — the handoff's order — and All jobs
+   last, because it is where you go when the two curated sides don't have the
+   thing you're looking for. The board still OPENS on maintenance, the side
+   that carries the daily noise. */
 const SIDES = [
   { key: "projects", label: "Projects" },
   { key: "maintenance", label: "Maintenance" },
+  { key: "jobs", label: "All jobs" },
 ] as const;
 type SideKey = (typeof SIDES)[number]["key"];
 
@@ -58,6 +72,19 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
   const router = useRouter();
   const [display, setDisplay] = useState(false);
   const [tab, setTab] = useState<SideKey>("maintenance");
+  /* Following a tracked job off the All jobs side: the switcher changes side
+     AND the destination board opens the right sheet. Held here because the
+     boards are siblings — neither can reach into the other — and cleared once
+     handed over, so switching back later doesn't reopen a stale sheet. */
+  const [handoff, setHandoff] = useState<{ kind: "visit" | "agreement"; id: string } | null>(null);
+  const followTracked = (target: { kind: "visit" | "agreement" | "project"; id: string }) => {
+    if (target.kind === "project") {
+      router.push(`/dashboard/workboard/projects/${target.id}`);
+      return;
+    }
+    setHandoff({ kind: target.kind, id: target.id });
+    setTab("maintenance");
+  };
 
   // Leaving fullscreen leaves display mode — Esc is the browser's own exit and
   // must land you back in the app, not on a chromeless page in a window.
@@ -206,9 +233,13 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
     n: rows.length,
     tone: rows.some((r) => r.severity === "danger") ? "dan" : rows.length ? "wrn" : "clr",
   });
-  const badges: Record<SideKey, { n: number; tone: string }> = {
+  /* A side with no badge is a side with no queue — see the header. `null`
+     rather than a zero, because a zero badge would say "nothing needs you"
+     about a list that was never asking. */
+  const badges: Record<SideKey, { n: number; tone: string } | null> = {
     maintenance: sideBadge(maintUrgent),
     projects: sideBadge(projUrgent),
+    jobs: null,
   };
 
   /* ── the switcher's sliding fill — measured, because the sides differ in
@@ -225,7 +256,8 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
-  }, [tab, badges.maintenance.n, badges.projects.n]);
+    // A count changing changes a button's WIDTH, so the thumb must re-measure.
+  }, [tab, badges.maintenance?.n, badges.projects?.n]);
 
   /* THE JOB CARDS a general note can be pinned to on review. Speaking a
      client's name from the board header is the normal case — "Luke needs to
@@ -375,9 +407,14 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
                     onClick={() => setTab(s.key)}
                   >
                     {s.label}
-                    <i className={b.tone} title={`${b.n} ${b.n === 1 ? "needs" : "need"} attention`}>
-                      {b.n}
-                    </i>
+                    {b && (
+                      <i
+                        className={b.tone}
+                        title={`${b.n} ${b.n === 1 ? "needs" : "need"} attention`}
+                      >
+                        {b.n}
+                      </i>
+                    )}
                   </button>
                 );
               })}
@@ -406,7 +443,7 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
           </header>
 
           <div className="wb-board">
-            {tab === "maintenance" ? (
+            {tab === "maintenance" && (
               <MaintenanceBoard
                 data={data.board}
                 flags={maintFlags}
@@ -415,8 +452,10 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
                 connected={connected}
                 aiEnabled={data.aiEnabled}
                 sm8={sm8}
+                initialSheet={handoff}
               />
-            ) : (
+            )}
+            {tab === "projects" && (
               <ProjectsBoard
                 data={data.projectsBoard}
                 flags={projectFlags}
@@ -424,6 +463,23 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
                 manage={data.manage}
                 connected={connected}
                 sm8={sm8}
+              />
+            )}
+            {tab === "jobs" && (
+              <AllJobsBoard
+                data={data.allJobs}
+                visits={data.board.visits}
+                projectVisits={data.projectsBoard.visits}
+                projects={data.projectsBoard.projects}
+                agreements={data.board.agreements}
+                categories={data.board.categories}
+                today={data.today}
+                manage={data.manage}
+                moneyVisible={data.moneyVisible}
+                connected={connected}
+                aiEnabled={data.aiEnabled}
+                sm8={sm8}
+                onOpenTracked={followTracked}
               />
             )}
 

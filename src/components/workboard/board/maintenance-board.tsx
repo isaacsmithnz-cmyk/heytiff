@@ -55,6 +55,7 @@ export function MaintenanceBoard({
   aiEnabled = false,
   sm8,
   tools,
+  initialSheet = null,
 }: {
   data: MaintenanceBoardData;
   flags: BoardFlag[];
@@ -72,11 +73,22 @@ export function MaintenanceBoard({
       handoff's spot. Present in Display mode too: that mode mirrors this page
       rather than replacing it, so everything on it stays usable. */
   tools?: ReactNode;
+  /* Arriving from somewhere else with a job already in mind — following a
+     tracked row off the All jobs side, or opening the agreement a duplicate
+     guard pointed at. A visit and an agreement are DIFFERENT sheets and
+     different ids; carrying the kind is what stops one being opened as the
+     other. Read ONCE, as this board's opening state: a prop that kept
+     reopening would fight every close. */
+  initialSheet?: { kind: "visit" | "agreement"; id: string } | null;
 }) {
   const [tab, setTab] = useState<BoardTab>("urgent");
-  const [sheet, setSheet] = useState<{ visitId: string; closeOut: boolean } | null>(null);
+  const [sheet, setSheet] = useState<{ visitId: string; closeOut: boolean } | null>(
+    initialSheet?.kind === "visit" ? { visitId: initialSheet.id, closeOut: false } : null
+  );
   const [dayISO, setDayISO] = useState<string | null>(null);
-  const [agreementId, setAgreementId] = useState<string | null>(null);
+  const [agreementId, setAgreementId] = useState<string | null>(
+    initialSheet?.kind === "agreement" ? initialSheet.id : null
+  );
   const [creating, setCreating] = useState(false);
   const { toasts, toast, dismiss } = useBoardToasts();
 

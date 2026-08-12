@@ -18,6 +18,7 @@ import { loadMaintenanceBoard, type MaintenanceBoardData } from "./board-query";
 import { loadProjectsBoard, type ProjectsBoardData } from "./projects-board-query";
 import { autoCompleteVisitsFromMirror, ensureVisits } from "./visit-ensure";
 import { ensureMirrorClaims } from "./claim-mirror";
+import { EMPTY_ALL_JOBS, loadAllJobs, type AllJobsData } from "./all-jobs-query";
 import { getSm8Timezone } from "./query";
 
 export type WorkboardConnection = "none" | "connected" | "attention";
@@ -40,6 +41,9 @@ export type WorkboardData = {
   board: MaintenanceBoardData;
   /** The redesigned projects board's whole dataset. */
   projectsBoard: ProjectsBoardData;
+  /* The whole book of ServiceM8 jobs — the third side. Empty when standalone,
+     where the side still works off native rows alone. */
+  allJobs: AllJobsData;
   /** ANTHROPIC_API_KEY is set — Tiff's analyse-a-job offer renders. */
   aiEnabled: boolean;
   synced: { finishedAt: string | null; running: boolean } | null;
@@ -76,6 +80,9 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
       flags,
       board,
       projectsBoard,
+      // No mirror to read. All jobs still works — it falls back to the native
+      // rows, which is the whole book when there's no integration.
+      allJobs: EMPTY_ALL_JOBS,
       aiEnabled: !!process.env.ANTHROPIC_API_KEY,
       synced: null,
     };
@@ -101,10 +108,11 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
       .catch(() => {})
   );
 
-  const [flags, board, projectsBoard, sync] = await Promise.all([
+  const [flags, board, projectsBoard, allJobs, sync] = await Promise.all([
     listFlags(orgId),
     loadMaintenanceBoard(orgId, today),
     loadProjectsBoard(orgId, today, { includeMoney: moneyVisible }),
+    loadAllJobs(orgId, today, { includeMoney: moneyVisible }),
     listSm8SyncStatus(orgId),
   ]);
 
@@ -122,6 +130,7 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
     flags,
     board,
     projectsBoard,
+    allJobs,
     aiEnabled: !!process.env.ANTHROPIC_API_KEY,
     synced: sync.lastRun
       ? { finishedAt: sync.lastRun.finishedAt, running: sync.lastRun.running }

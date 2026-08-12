@@ -4,7 +4,9 @@ import {
   chipGroup,
   chipSummary,
   declinedClaimChip,
+  declinedLeaveChip,
   expensesChip,
+  leaveQueueChip,
   timesheetChip,
   summaryLine,
   insuranceChip,
@@ -393,5 +395,59 @@ describe("declinedClaimChip", () => {
       "claim-declined:new",
       "claim-declined:old",
     ]);
+  });
+});
+
+describe("leaveQueueChip", () => {
+  it("counts the queue, and says nothing at zero", () => {
+    expect(leaveQueueChip(0)).toBeNull();
+    expect(leaveQueueChip(1)).toMatchObject({
+      kind: "leave-queue",
+      state: "warn",
+      label: "1 leave request waiting on a decision",
+      href: "/dashboard/timepay/leave",
+    });
+    expect(leaveQueueChip(4)!.label).toBe("4 leave requests waiting on a decision");
+  });
+});
+
+describe("declinedLeaveChip", () => {
+  const TODAY_ = "2026-08-10";
+  const req = (over: Partial<Parameters<typeof declinedLeaveChip>[0]> = {}) => ({
+    id: "lv1",
+    kind: "annual",
+    startDate: "2026-08-20",
+    endDate: "2026-08-22",
+    decidedOn: "2026-08-09T04:00:00Z",
+    ...over,
+  });
+
+  it("names the span it was for, so you know which request", () => {
+    const c = declinedLeaveChip(req(), { today: TODAY_ })!;
+    expect(c.label).toBe("Leave request declined");
+    expect(c.subject).toBe("20 Aug – 22 Aug");
+    expect(c.state).toBe("bad");
+    expect(c.href).toBe("/dashboard/my-leave");
+  });
+
+  it("says a single day once, not as a range", () => {
+    const c = declinedLeaveChip(req({ endDate: "2026-08-20" }), { today: TODAY_ })!;
+    expect(c.subject).toBe("20 Aug");
+  });
+
+  /* A declined request has no state left to change — it stays declined
+     forever — so without a window the chip would never clear and would teach
+     people to read past the whole board. Same window as a declined claim. */
+  it("stops nudging after the window, and never fires without a decision date", () => {
+    expect(declinedLeaveChip(req({ decidedOn: null }), { today: TODAY_ })).toBeNull();
+    expect(
+      declinedLeaveChip(req({ decidedOn: "2026-07-01T00:00:00Z" }), { today: TODAY_ }),
+    ).toBeNull();
+  });
+
+  it("ranks the freshest decision first within the bad bucket", () => {
+    const older = declinedLeaveChip(req({ decidedOn: "2026-08-01T00:00:00Z" }), { today: TODAY_ })!;
+    const newer = declinedLeaveChip(req({ decidedOn: "2026-08-09T00:00:00Z" }), { today: TODAY_ })!;
+    expect(newer.urgency).toBeLessThan(older.urgency);
   });
 });

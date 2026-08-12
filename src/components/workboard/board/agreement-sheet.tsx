@@ -27,6 +27,7 @@ import {
 import { cadenceLabel, crewLabel, untilLabel } from "./derive";
 import { TagStrip } from "./tag-strip";
 import type { TagTone } from "@/lib/workboard/tags";
+import { DateField } from "@/components/ui/date-field";
 
 /* The agreement sheet (A6's fix) — everything the shipped detail page could
    do, now one slide-over on the board: meta, schedule (with the redraw
@@ -384,11 +385,11 @@ export function AgreementSheet({
                 </label>
                 <label className="wb2-fl">
                   Anchor date
-                  <input type="date" className="wb2-fi" value={anchor} onChange={(e) => setAnchor(e.target.value)} />
+                  <DateField className="wb2-fi" aria-label="Agreement anchor date" value={anchor || null} onChange={(iso) => setAnchor(iso ?? "")} />
                 </label>
                 <label className="wb2-fl">
                   Contract ends
-                  <input type="date" className="wb2-fi" value={contractEnd} onChange={(e) => setContractEnd(e.target.value)} />
+                  <DateField className="wb2-fi" aria-label="Contract end date" clearable value={contractEnd || null} onChange={(iso) => setContractEnd(iso ?? "")} />
                 </label>
               </div>
               <p className="wb2-hint">

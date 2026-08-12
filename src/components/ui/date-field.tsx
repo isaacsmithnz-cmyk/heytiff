@@ -61,6 +61,12 @@ export type DateFieldProps = {
   className?: string;
   /** rings the field and says so to a screen reader, like `.inp.err` */
   invalid?: boolean;
+  /** What this date IS, for a screen reader, where no visible <label> names it.
+      Several board sheets have only a row of controls — "Pick a day", "Day it
+      ran", "Milestone day" — and carried this on the native input they used
+      before. A button showing dd/mm/yyyy and nothing else is unreadable
+      without it. */
+  "aria-label"?: string;
 };
 
 export const DateField = forwardRef<HTMLButtonElement, DateFieldProps>(function DateField(
@@ -75,6 +81,7 @@ export const DateField = forwardRef<HTMLButtonElement, DateFieldProps>(function 
     disabled,
     today,
     size = "md",
+    "aria-label": ariaLabel,
     className,
     invalid,
   },
@@ -171,6 +178,7 @@ export const DateField = forwardRef<HTMLButtonElement, DateFieldProps>(function 
       <button
         type="button"
         id={id}
+        aria-label={ariaLabel}
         ref={(el) => {
           btnRef.current = el;
           if (typeof ref === "function") ref(el);

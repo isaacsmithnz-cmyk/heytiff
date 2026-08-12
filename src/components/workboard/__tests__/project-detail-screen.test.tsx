@@ -9,6 +9,7 @@
 
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { pickDate } from "@/components/ui/__tests__/fixtures/pick-date";
 import { ProjectDetailScreen } from "../project-detail-screen";
 import type { ProjectDetail } from "@/lib/workboard/projects-query";
 import type { ProjectBoardVisit } from "@/lib/workboard/projects-board-query";
@@ -326,9 +327,7 @@ describe("trips", () => {
     mount(detail());
     await userEvent.click(screen.getByRole("button", { name: /Add a trip/ }));
     await userEvent.type(screen.getByPlaceholderText(/What's the trip for/), "Commissioning");
-    const dates = screen.getAllByDisplayValue("");
-    const around = dates.find((el) => (el as HTMLInputElement).type === "date")!;
-    await userEvent.type(around, "2026-08-12");
+    await pickDate("Roughly when", "2026-08-12");
     await userEvent.click(screen.getByRole("button", { name: "Add the trip" }));
     expect(pact.createProjectVisit).toHaveBeenCalledWith("p-1", {
       label: "Commissioning",
@@ -444,10 +443,7 @@ describe("the flywheel", () => {
   it("offers itself at Handover and spawns the agreement with cadence + first service", async () => {
     mount(detail({ stage: "Handover" }));
     await userEvent.click(screen.getByRole("button", { name: "Set up the agreement" }));
-    const day = screen
-      .getAllByDisplayValue("")
-      .find((el) => (el as HTMLInputElement).type === "date")!;
-    await userEvent.type(day, "2027-02-01");
+    await pickDate("First service due", "2027-02-01");
     await userEvent.click(screen.getByRole("button", { name: "Create the agreement" }));
     expect(pact.spawnAgreementFromProject).toHaveBeenCalledWith("p-1", {
       intervalMonths: 6,

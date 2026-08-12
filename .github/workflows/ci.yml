@@ -1,0 +1,67 @@
+# The checks that were only ever run by hand.
+#
+# Until now the sole gate on a pull request was Vercel's, which answers one
+# question — did it build and deploy — and answers it well. Nothing re-ran the
+# type checker, the linter or the five thousand tests; those passed because
+# whoever opened the branch remembered to run them. This runs them on the
+# machine instead of on the memory.
+#
+# THE BUILD IS DELIBERATELY NOT HERE. Vercel already builds every commit on
+# every pull request and reports it as the `Vercel` status, so a `next build`
+# step would spend minutes a second time to learn the same thing. If that
+# integration is ever removed, this is the file that needs a build step adding.
+#
+# No secrets, by design. The suite mocks at our own seams rather than reaching
+# for the network — the house rule that keeps `@anthropic-ai/sdk` out of the
+# mocks — so it runs green with an empty environment. A test that starts
+# needing a key has stopped being a unit test; fix the test, don't add the key.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A branch that gets three pushes in a minute only needs the last one checked.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Typecheck, lint, test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Matches the Node that Vercel builds on and that the app is
+          # developed against. Bump both together.
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # `!cancelled()` on the later steps rather than a plain sequence: a type
+      # error and a failing test are two separate things to fix, and learning
+      # about them one run at a time is how an afternoon disappears. Every
+      # check reports; the job still fails if any of them did.
+      - name: Typecheck
+        id: typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        if: ${{ !cancelled() }}
+        run: npm run lint
+
+      - name: Test
+        if: ${{ !cancelled() }}
+        run: npm test -- --ci

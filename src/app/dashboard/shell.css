@@ -6709,7 +6709,47 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   --hm-ink:rgba(11,14,21,.86); --hm-line:rgba(255,255,255,.07);
   --hm-teal:#7CEFD9; --hm-dan:#FF9FB3; --hm-warn:#FFC07A;
   padding-top:22px;
+  /* `.wrap`'s own 96px bottom was sized for screens that end where their
+     content ends. The card ends where the WINDOW does now, so that padding
+     is just glass the card isn't allowed to be — 28px, enough for its drop
+     shadow to land. */
+  padding-bottom:28px;
 }
+
+/* ── THE CARD FILLS THE WINDOW ──
+   It used to stop wherever `.hm-jscroll`'s `calc(100vh - 494px)` guess landed:
+   494 was the sum of everything above the scroller, measured once, so any
+   change to the head, the strip or the capsule row left a band of empty well
+   under the card (Isaac, 2026-08-12: "the dark card seems to stop short at the
+   bottom of the page"). Arithmetic that has to be re-derived by hand every time
+   a neighbour moves is the wrong mechanism.
+
+   So the column carries the height instead, exactly the way the board's display
+   mode does (see `html[data-wb-display]` above): page → wrap → stg → card all
+   flex-column, `min-height:0` at every level or the children refuse to shrink,
+   and the open panel takes whatever is left. Scoped with `:has` so it is Home's
+   layout and not every screen's — `.page`, `.wrap` and `.stg` are shared.
+
+   `height:100%` and not the shared `min-height:100%`: an AUTO-height flex
+   container has no free space to hand out, so every child sizes to its content
+   and `flex:1` does nothing. The page has to be exactly the well's height
+   before the card can be told to fill it. Measured in the harness at 950px —
+   with `min-height` the card came out content-sized on any window shorter than
+   its journal, which on a 13" laptop is every window. */
+.fg .page:has(> .hm-wrap) { height:100%; display:flex; flex-direction:column; }
+/* `align-self:center` INSTEAD of the `margin:0 auto` `.wrap` carries, and it is
+   load-bearing rather than tidy: an auto CROSS-axis margin on a flex item
+   cancels the default stretch, so the wrap silently collapsed to fit-content
+   and the card sat in the middle of the screen at whatever width its longest
+   line happened to be — narrow on Calendar, wide on Journal. Caught in the
+   harness the moment a face with short content was opened. `width:100%` under
+   `.wrap`'s own `max-width:1500px` restores exactly what the auto margins were
+   doing. The board's display mode hit this too — see the note there. */
+.fg .hm-wrap { flex:1; min-height:0; display:flex; flex-direction:column;
+  width:100%; margin:0; align-self:center; }
+.fg .hm-wrap > .stg { flex:1; min-height:0; display:flex; flex-direction:column; }
+/* the head and the payroll strip hold their size; only the card takes slack */
+.fg .hm-phead, .fg .hm-strip { flex:none; }
 
 /* The well lights for Home: three soft washes — the frame's own teal, blue
    and violet — under the dot grid, anchored where the card sits so the glass
@@ -6764,7 +6804,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    which tab is open, so a hairline under the row was only drawing a box
    around chrome that is already inside a box — the last seam left on a
    surface whose whole point is being one piece of glass. */
-.fg .hm-card .wb2-vtabs { position:relative; z-index:1; align-items:center; gap:2px;
+.fg .hm-card .wb2-vtabs { position:relative; z-index:1; flex:none; align-items:center; gap:2px;
   margin-bottom:0; padding:8px 10px 4px; }
 .fg .hm-card .wb2-vt { height:40px; padding:0 15px; border-radius:10px;
   color:rgba(255,255,255,.55); }
@@ -6791,7 +6831,17 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 /* ── THE CARD — smoked glass, rimmed and washed like the console it absorbed ── */
 .fg .hm-card { position:relative; background:var(--hm-ink); border-color:rgba(255,255,255,.1);
   backdrop-filter:blur(22px) saturate(140%); color:#fff;
-  box-shadow:0 26px 64px -28px rgba(8,11,20,.55), 0 6px 22px -14px rgba(8,11,20,.35); }
+  box-shadow:0 26px 64px -28px rgba(8,11,20,.55), 0 6px 22px -14px rgba(8,11,20,.35);
+  flex:1; display:flex; flex-direction:column;
+  /* THE FLOOR IS A FLOOR, NOT A SUBTRACTION, and that distinction is the whole
+     lesson of the 494px it replaces. 400 is roughly the tab row, the debrief
+     bar and two journal entries: the card fills the window down to here and
+     refuses to shrink past it, so a window too short to hold one simply
+     overflows and the outlet scrolls the way every other screen does. If this
+     number ever drifts the card gets a little more or a little less minimum —
+     it can no longer leave a band of empty well, because nothing up here is
+     subtracted from the viewport any more. */
+  min-height:400px; }
 /* the masked 1px gradient rim — the material's signature, card-scale now */
 .fg .hm-card::before { content:""; position:absolute; inset:0; border-radius:inherit;
   padding:1px; pointer-events:none; z-index:6;
@@ -6816,6 +6866,20 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    this was built. */
 .fg .hm-card .hm-panel[hidden] { display:none; }
 .fg .hm-panel { padding:6px 0 12px; }
+/* THE OPEN PANEL TAKES THE SLACK, and scrolls inside the card rather than
+   growing it — the tab strip stays put whichever face you are on, which is
+   what a persistent card is for. Written `:not([hidden])` at (0,4,0) so it
+   outranks nothing and, crucially, so the hidden rule above still wins on the
+   five faces that are closed. */
+.fg .hm-card .hm-panel:not([hidden]) { flex:1; min-height:0; overflow-y:auto;
+  scrollbar-width:thin; scrollbar-color:rgba(255,255,255,.22) transparent; }
+.fg .hm-card .hm-panel::-webkit-scrollbar { width:6px; }
+.fg .hm-card .hm-panel::-webkit-scrollbar-thumb { background:rgba(255,255,255,.2); border-radius:99px; }
+/* Journal is the exception: it keeps its OWN scroller because the debrief bar
+   is a control, not a record, and must not scroll away from the words it
+   files. The panel holds still and `.hm-jscroll` takes the slack instead. */
+.fg .hm-card .hm-panel:not([hidden]):has(> .hm-jscroll) {
+  overflow:hidden; display:flex; flex-direction:column; }
 /* A section label lines up with the rows it heads. `.wb2-sect`'s own 2px is
    the board's, where the body around it is already inset; Home's rows carry
    their inset themselves, so the label was sitting 23px left of the tiles it
@@ -7142,13 +7206,17 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    empty underneath — and the bottom mask, meant to hint that yesterday is down
    there, read as a rendering fault instead.
 
-   Bound to the VIEWPORT rather than the well, deliberately: making the card
-   itself stretch would mean turning .page/.wrap/.stg into a flex column, and
-   those three are every screen's, not Home's. 494px is what sits above the
-   scroller — topbar 80, well inset, wrap 62, the page head 92, tab row 44,
-   the capsule row 73 — plus room for the Payroll strip under the card. The
-   floor keeps two entries readable on a short window. */
-.fg .hm-jscroll { max-height:calc(100vh - 494px); min-height:240px; overflow-y:auto; padding:6px 26px 14px;
+   Then it was `calc(100vh - 494px)`, where 494 was everything above the
+   scroller ADDED UP BY HAND — topbar, well inset, wrap, page head, tab row,
+   capsule row, plus room for the Payroll strip. Every one of those has moved
+   since, and each time the sum drifted the card stopped short of the bottom of
+   the window with the difference showing as empty well.
+
+   Nothing is measured here now. The card is a flex column that fills the page
+   (see THE CARD FILLS THE WINDOW, up in the Home block) and this is the item
+   that takes its slack, so the arithmetic is the browser's. The floor keeps two
+   entries readable when the window is too short to give it anything. */
+.fg .hm-jscroll { flex:1; min-height:240px; overflow-y:auto; padding:6px 26px 14px;
   scrollbar-width:thin; scrollbar-color:rgba(255,255,255,.22) transparent;
   -webkit-mask-image:linear-gradient(#000 90%, transparent 100%);
   mask-image:linear-gradient(#000 90%, transparent 100%); }

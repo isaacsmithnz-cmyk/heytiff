@@ -3,24 +3,25 @@ import userEvent from "@testing-library/user-event";
 import { NoteScopeProvider } from "../note-context";
 import { TiffButton } from "../tiff-button";
 
-/* ONE WORD FOR THE WAY ONWARD.
+/* ONLY ONE BUTTON IS ALLOWED TO SAY GO.
 
-   The card used to have two names for the same gesture: "Stop & read" while
-   the mic was open, "Go" once the words were in the box. Isaac, 2026-08-10,
-   looking at a recording in prod: "still says stop and read" — he was not
-   reporting a stale deploy, he was reading two vocabularies on one card.
+   This took three passes in a day and the middle one was wrong, which is why
+   the rule is written down here rather than left to taste.
 
-   They are still two different actions, which is the whole reason this file
-   exists. Recording's Go ENDS THE RECORDING and shows you the words; idle's
-   Go COMMITS them. If a later tidy-up ever wires one to the other's handler
-   the labels will look right and the card will file a note nobody has read,
-   which is exactly the failure the whole "speaking does not commit" change
-   was made to prevent.
+   It began as "Stop & read" while recording and "Go" once the words were in
+   the box. Isaac, reading a recording on prod: "still says stop and read" —
+   two vocabularies on one card. So both became Go. Then he walked the whole
+   path and hit the real problem: "annoyingly you have to push go twice." You
+   press a button called Go, and nothing goes.
 
-   What makes the shared name safe is that they never share a screen: one
-   exists only while the mic is open, the other only once there is something
-   to sort. That is pinned here too, because it is the assumption the name
-   rests on. */
+   Both presses stay — nothing routes off a transcript, and that is the point
+   of the review, not an accident. But only ONE of them commits anything, so
+   only one is called Go. `Done` ends the recording; `Go` files it.
+
+   What this file guards is that the two never swap handlers. If a later
+   tidy-up wires one to the other, every label still reads correctly while
+   the card files a note nobody has read — which is the exact failure the
+   "speaking does not commit" change was built to prevent. */
 
 jest.mock("next/navigation", () => ({ useRouter: () => ({ refresh: jest.fn() }) }));
 jest.mock("@/lib/brain/ask-client", () => ({ askBrain: jest.fn() }));
@@ -84,29 +85,37 @@ beforeEach(() => {
 
 afterEach(cleanup);
 
-it("ends the recording — it does not commit anything", async () => {
+it("ends the recording with Done — and commits nothing", async () => {
   mic.recording = true;
   const user = await openSheet();
 
-  await user.click(screen.getByRole("button", { name: "Go" }));
+  await user.click(screen.getByRole("button", { name: "Done" }));
 
   expect(mockStop).toHaveBeenCalledTimes(1);
   expect(routeNote).not.toHaveBeenCalled();
 });
 
-it("keeps the stop mark, because the word does not say the mic is closing", async () => {
+it("keeps the stop mark beside Done", async () => {
   mic.recording = true;
   await openSheet();
 
-  // the glyph is the only thing left saying "this ends the recording"
-  expect(screen.getByRole("button", { name: "Go" }).querySelector("svg")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Done" }).querySelector("svg")).toBeTruthy();
 });
 
-it("is the only Go on screen while the mic is open", async () => {
+/* THE RULE, BOTH WAYS ROUND. A Go while the mic is open would be the button
+   that started this: the one you press expecting a commit and get a stop. */
+it("offers no Go at all while the mic is open", async () => {
   mic.recording = true;
   await openSheet();
 
-  expect(screen.getAllByRole("button", { name: "Go" })).toHaveLength(1);
+  expect(screen.queryByRole("button", { name: "Go" })).not.toBeInTheDocument();
+});
+
+it("has no Done once the mic is closed", async () => {
+  const user = await openSheet();
+  await user.type(screen.getByRole("textbox"), "roof unit is short cycling");
+
+  expect(screen.queryByRole("button", { name: "Done" })).not.toBeInTheDocument();
 });
 
 it("is absent until there is something to sort, once the mic is closed", async () => {

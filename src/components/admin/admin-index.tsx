@@ -232,7 +232,7 @@ export function AdminIndex(viewer: AdminViewer) {
         <div className="stg adm-stg">
           <div className="v2head" style={{ marginBottom: 32 }}>
             <div>
-              <h1 style={{ fontSize: 44, fontWeight: 800, letterSpacing: "-0.03em", margin: 0 }}>
+              <h1>
                 Admin
               </h1>
             </div>

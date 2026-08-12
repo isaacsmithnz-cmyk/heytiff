@@ -889,7 +889,7 @@ export function NoticesBoard({
               >
                 ← Dashboard
               </Link>
-              <h1 style={{ fontSize: 44, fontWeight: 800, letterSpacing: "-0.03em", margin: 0 }}>
+              <h1>
                 Noticeboard
               </h1>
             </div>

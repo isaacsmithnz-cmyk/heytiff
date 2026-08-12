@@ -146,6 +146,18 @@ one way into the app you could not check before it committed.
 
 A note spoken across three recordings is one note — each leg appends.
 
+**Adding more is one press.** Isaac, comparing it to Claude's own composer:
+*"you can hit enter, then tap the mic again to keep adding."* The behaviour was
+always there; what was missing was anything that looked like it. With words in
+the box the mode control drops the `Default` switch — a preference, in the
+strongest position on the row, whose left half happened to start recording —
+for a plain `Talk` button. The switch owns the empty box, where "what should
+this do next time" is a fair question, and every capture opens empty.
+
+**Opening the sheet may already have started a leg.** With the stored default
+on Talk, `tiff-button` starts recording as the sheet opens, so a test counting
+`start` calls must measure a delta rather than an absolute.
+
 **This is why there are two presses**, and why only the second one is called
 Go. `Done` ends the recording; `Go` files it. They were briefly both called
 Go, until walking it on prod produced the obvious complaint — you press a

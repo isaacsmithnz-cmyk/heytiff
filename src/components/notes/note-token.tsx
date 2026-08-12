@@ -198,7 +198,22 @@ function ModeControl({ flow }: { flow: NoteFlow }) {
         Type instead
       </button>
     );
-  if (flow.governsDefault) return <DefaultSwitch flow={flow} />;
+  /* AND IT STEPS BACK AGAIN ONCE THERE ARE WORDS. Isaac, 2026-08-10: "when
+     you record a message in Claude, you can hit enter, then tap the mic again
+     to keep adding."
+
+     The card already did exactly that — every leg appends, and a note spoken
+     across three recordings is one note. What it did not have was anything
+     that LOOKED like it. With words in the box, the way back to the mic was
+     the left half of a switch labelled DEFAULT: a preference control, in the
+     strongest position on the row, that happens to start recording. Nothing
+     about it says "add more".
+
+     So the switch owns the empty box, where "what should this button do next
+     time" is a fair question to be asked, and gets out of the way the moment
+     there is something to add to. Every capture opens empty, so the
+     preference is still one press from reachable at the start of each one. */
+  if (flow.governsDefault && !flow.text.trim()) return <DefaultSwitch flow={flow} />;
   return (
     <button className="pbtn ghost wb2-talk" onClick={flow.dict.start} disabled={flow.busy}>
       <Icon name="mic" size={15} />

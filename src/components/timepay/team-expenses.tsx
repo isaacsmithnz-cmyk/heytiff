@@ -3,7 +3,6 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
-import { TimepayNav } from "./timepay-nav";
 import { fmtAuWeekdayDate } from "@/lib/au-dates";
 import {
   CATEGORY_LABEL,
@@ -85,20 +84,13 @@ export function TeamExpenses({
   const owed = owedTotal(claims);
 
   return (
-    <div className="page in">
-      <div className="wrap">
-        {/* `wb2` for the board tokens the card's border reads — see timepay.tsx */}
-        <div className="stg wb2" style={{ maxWidth: 900 }}>
-          <div className="v2head" style={{ marginBottom: 14, alignItems: "center" }}>
-            <div>
-              <h1 style={{ fontSize: 44, fontWeight: 800, letterSpacing: "-0.03em", margin: 0 }}>
-                Expenses
-              </h1>
-            </div>
-          </div>
-          {/* out of the title row and onto its own: these tabs are the card's
-              dividers now, so they have to touch the card, not the heading */}
-          <TimepayNav active="expenses" />
+    /* THE FRAME IS THE LAYOUT'S — see timepay/layout.tsx. This screen wrote
+       its own heading as a `.v2head` with an inline 44px h1 reading
+       "Expenses", while its two sibling tabs used `.rhead` and said
+       "Time & Pay". Its root also lacked `tpr`, so the board's design tokens
+       (`--gray600`, `--amber-d`, `--red-d`) were unset here and `--teal`
+       resolved to the frame's cyan rather than the board's green. */
+    <>
 
           <div className="wb2-card tp-card">
             {error && <div className="xc-err">{error}</div>}
@@ -247,8 +239,6 @@ export function TeamExpenses({
             </p>
             )}
           </div>
-        </div>
-      </div>
-    </div>
+    </>
   );
 }

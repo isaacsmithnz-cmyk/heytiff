@@ -1503,6 +1503,11 @@
 .fg .tpr .bbtn.sq { width:50px; padding:0; justify-content:center; }
 .fg .tpr .bbtn.sq svg { opacity:.8; }
 .fg .tpr .bbtn.busy { pointer-events:none; }
+/* The settings gear, in the period bar. It used to sit in the page heading —
+   which belongs to timepay/layout.tsx now, and can't hold it: the settings
+   modal is client state the timesheets screen owns. `margin-left:auto` parks
+   it at the end of the row without disturbing the switcher's centring. */
+.fg .tpr .wknav .tp-gear { height:38px; width:38px; margin-left:auto; }
 /* A held Submit still lifted on hover and still showed a pointer, which is a
    button telling you it will do something it won't. */
 .fg .tpr .bbtn:disabled { cursor:default; }

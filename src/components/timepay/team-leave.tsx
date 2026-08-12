@@ -19,7 +19,6 @@ import {
 } from "@/lib/timepay/leave";
 import type { TeamBalanceCell, TeamBalanceRow } from "@/lib/timepay/balances";
 import { fmt, initials, nameHue } from "./logic";
-import { TimepayNav } from "./timepay-nav";
 
 /* Team leave — the `timepay_all` Leave tab. Pending requests to decide (with
    `approvals`), a calendar of who's off when, and everyone's entitlements
@@ -245,16 +244,12 @@ export function TeamLeave({
   const upcoming = useMemo(() => calendar.filter((d) => d.entries.length > 0), [calendar]);
 
   return (
-    <div className="page in">
-      <div className="wrap">
-        {/* `wb2` for the board tokens the card's border reads — see timepay.tsx */}
-        <div className="stg wb2">
-          <div className="rhead">
-            <div>
-              <h1>Time &amp; Pay</h1>
-            </div>
-          </div>
-          <TimepayNav active="leave" />
+    /* THE FRAME IS THE LAYOUT'S — see timepay/layout.tsx. This screen's own
+       header was `.rhead` markup on a `.stg wb2` root with NO `tpr`, and every
+       `.rhead` rule in shell.css is scoped `.fg .tpr .rhead` — so it selected
+       nothing and the title fell back to a bare 32px h1, against 38px on
+       Timesheets and 44px on Expenses. Valid CSS matching no element. */
+    <>
 
           <div className="wb2-card tp-card">
             {error && <div className="tp-err">{error}</div>}
@@ -360,8 +355,6 @@ export function TeamLeave({
               </div>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
+    </>
   );
 }

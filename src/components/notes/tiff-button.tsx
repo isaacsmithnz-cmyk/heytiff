@@ -40,8 +40,10 @@ import { useNoteScope } from "./note-context";
    `topbar`  beside the bell, on the app's black frame. It floated
              bottom-right first and covered the page it sat on; a control
              that is always present has to live somewhere that is always
-             empty. On black a dark button disappears, so the face is glass
-             and the ANIMATED GRADIENT HALO does the separating.
+             empty. THE ANIMATED GRADIENT HALO does the separating, and does
+             it alone: the smoked-glass disc the face used to wear only sat
+             on top of the halo and dulled it (removed 2026-08-12). The mark
+             is bare on the frame.
 
    `sheet`   in a sheet's own header. A sheet is a white surface with a
              scrim under it, and nothing outside that scrim can be clicked —

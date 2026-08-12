@@ -1,6 +1,6 @@
 import { Chevron } from "@/components/logo";
 
-/* THE MARK ITSELF, so it is never copied. The halo, the glass face, the
+/* THE MARK ITSELF, so it is never copied. The halo, the face, the
    chevron and the sparkle are what make this control recognisable as Tiff, and
    the debrief capsule now wears them too (it opens the same sheet from the
    Journal tab's console). Reusing the CSS while re-typing the MARKUP is the

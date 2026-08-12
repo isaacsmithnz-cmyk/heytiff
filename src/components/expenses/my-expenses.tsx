@@ -5,10 +5,13 @@ import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuWeekdayDate } from "@/lib/au-dates";
 import { uploadFile } from "@/lib/documents/upload-client";
+import { DateField } from "@/components/ui/date-field";
 import {
   CATEGORY_LABEL,
   EXPENSE_CATEGORIES,
   isCancellable,
+  isOpen,
+  owedTotal,
   RECEIPT_ACCEPT,
   RECEIPT_PDF_TYPE,
   STATUS_LABEL,
@@ -85,6 +88,9 @@ export function MyExpenses({ claims, today }: { claims: Claim[]; today: string }
   const [draft, setDraft] = useState<Draft | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  /* One claim armed for cancellation at a time — same shape My leave and the
+     team directory use. Arming a second forgets the first. */
+  const [armed, setArmed] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   /* Object URLs are held until they're replaced or the claim is cleared —
@@ -188,6 +194,25 @@ export function MyExpenses({ claims, today }: { claims: Claim[]; today: string }
   };
 
   const set = (p: Partial<Draft>) => setDraft((d) => (d ? { ...d, ...p } : d));
+
+  /* WHAT THE FORM ALREADY KNOWS, it stops asking the server. "Send for
+     approval" was enabled on a completely empty form, so the first thing a
+     person got back was a round trip and "Say what the expense was for" —
+     something the button could see before it was pressed. `buildClaim` still
+     re-checks every rule; this only stops the pointless trip. */
+  const missing = !draft
+    ? null
+    : !draft.description.trim()
+      ? "Say what it was for"
+      : !(Number(draft.amount) > 0)
+        ? "Add how much it cost"
+        : null;
+
+  /* WHAT YOU ARE OWED. The same `owedTotal` the approver's queue and the
+     Time & Pay stat tile have always used — it counts pending plus
+     approved-but-unpaid, and it was on every screen except the one belonging
+     to the person who is actually out of pocket. */
+  const owed = owedTotal(claims);
 
   return (
     <div className="page in">
@@ -295,14 +320,21 @@ export function MyExpenses({ claims, today }: { claims: Claim[]; today: string }
                     placeholder="Reece"
                   />
                 </label>
+                {/* THE APP'S OWN PICKER, not the browser's. `date-field.tsx`
+                    opens with "Every date in HeyTiff is picked, never typed",
+                    and spells out why: `<input type="date">` renders a
+                    different control in every browser and, on a phone, a wheel
+                    that answers "what's the date" in whatever the OS locale
+                    says — dd/mm vs mm/dd, silently. This one sat directly
+                    beside the app's own styled Category select, on a form
+                    whose date decides which BAS period a GST figure lands in. */}
                 <label className="xc-f sm">
                   <span>Date</span>
-                  <input
-                    className="inp"
-                    type="date"
+                  <DateField
+                    value={draft.expenseDate || null}
+                    today={today}
                     max={today}
-                    value={draft.expenseDate}
-                    onChange={(e) => set({ expenseDate: e.target.value })}
+                    onChange={(iso) => set({ expenseDate: iso ?? "" })}
                   />
                 </label>
                 <label className="xc-f sm">
@@ -338,12 +370,13 @@ export function MyExpenses({ claims, today }: { claims: Claim[]; today: string }
               </div>
 
               <div className="xc-act">
-                <button className="pbtn primary" onClick={submit} disabled={busy}>
+                <button className="pbtn primary" onClick={submit} disabled={busy || !!missing}>
                   {busy ? "Sending…" : "Send for approval"}
                 </button>
                 <button className="pbtn ghost" onClick={reset} disabled={busy}>
                   Discard
                 </button>
+                {missing && !busy && <span className="xc-need">{missing}</span>}
               </div>
             </div>
           )}
@@ -362,6 +395,18 @@ export function MyExpenses({ claims, today }: { claims: Claim[]; today: string }
               else void onPick(picked);
             }}
           />
+
+          {/* WHAT YOU ARE OWED, on the screen of the person owed it. The
+              approver's queue has carried this figure all along, and so has
+              the Time & Pay stat tile; the claimant's own screen listed the
+              claims and left them to add up. */}
+          {owed > 0 && (
+            <div className="xc-owed">
+              <span className="xc-owedk">Owed to you</span>
+              <b>{money(owed)}</b>
+              <em>Claims sent or approved but not yet paid.</em>
+            </div>
+          )}
 
           <div className="xc-list">
             {claims.length === 0 ? (
@@ -396,16 +441,45 @@ export function MyExpenses({ claims, today }: { claims: Claim[]; today: string }
                   </div>
                   <div className="xc-side">
                     <span className={`xc-pill ${c.status}`}>{STATUS_LABEL[c.status]}</span>
-                    {(c.receipts ?? []).map((r, i) =>
-                      r.url ? (
-                        <a key={i} className="xc-rec" href={r.url} target="_blank" rel="noopener noreferrer">
-                          {i === 0 ? "Receipt" : `Receipt ${i + 1}`}
-                        </a>
-                      ) : null,
+                    {/* THE APPROVER'S ROW HAS ALWAYS SAID THIS and the
+                        claimant's never did — so the person was told a docket
+                        is "what gets approved without a conversation" while
+                        filling the form, and then never told again whether
+                        theirs had one. Same words the review screen uses. */}
+                    {(c.receipts ?? []).length > 0 ? (
+                      (c.receipts ?? []).map((r, i) =>
+                        r.url ? (
+                          <a key={i} className="xc-rec" href={r.url} target="_blank" rel="noopener noreferrer">
+                            {i === 0 ? "Receipt" : `Receipt ${i + 1}`}
+                          </a>
+                        ) : null,
+                      )
+                    ) : (
+                      /* Only while the claim is still live. A reimbursed or
+                         declined one is history, and chasing its docket in
+                         amber is drawing the eye to a decision already made. */
+                      isOpen(c.status) && <span className="xr-noreceipt">No receipt</span>
                     )}
+                    {/* ARMS BEFORE IT FIRES, the same protocol My leave uses on
+                        its own Cancel and for the same reason: this discards a
+                        claim for money you are owed — an APPROVED one, at that
+                        — and strands the receipt with it. One press asked, and
+                        it was gone. */}
                     {isCancellable(c.status) && (
-                      <button className="xc-cancel" disabled={busy} onClick={() => run(() => cancelClaim(c.id))}>
-                        Cancel
+                      <button
+                        className={`xc-cancel${armed === c.id ? " arm" : ""}`}
+                        disabled={busy}
+                        aria-label={
+                          armed === c.id
+                            ? `Confirm cancelling ${c.description}`
+                            : `Cancel ${c.description}`
+                        }
+                        onClick={() => {
+                          if (armed !== c.id) return setArmed(c.id);
+                          run(() => cancelClaim(c.id), () => setArmed(null));
+                        }}
+                      >
+                        {armed === c.id ? "Confirm" : "Cancel"}
                       </button>
                     )}
                   </div>

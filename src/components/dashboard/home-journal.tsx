@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
 import { NoteToken } from "@/components/notes/note-token";
+import { navHref } from "@/components/shell/nav";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { groupByDay, type JournalEntry, type Outcome } from "@/lib/dashboard/journal";
 
@@ -54,15 +55,20 @@ function OutcomeChip({ o, onOpenTask }: { o: Outcome; onOpenTask?: (id: string) 
       </button>
     );
   }
+  /* The two page destinations are asked for BY NAME rather than written out:
+     the nav is where this app declares what a screen's route is, and a chip
+     that hard-codes the path keeps working until the day someone moves the
+     screen — then it 404s while the rail beside it goes to the right place.
+     See `navHref`. */
   if (o.go?.type === "kb")
     return (
-      <Link href={`/dashboard/tiff/library?doc=${encodeURIComponent(o.go.id)}`}>
+      <Link href={`${navHref("tiffkb")}?doc=${encodeURIComponent(o.go.id)}`}>
         <ChipBody o={o} />
       </Link>
     );
   if (o.go?.type === "note")
     return (
-      <Link href="/dashboard/my-notes">
+      <Link href={navHref("mynotes")}>
         <ChipBody o={o} />
       </Link>
     );

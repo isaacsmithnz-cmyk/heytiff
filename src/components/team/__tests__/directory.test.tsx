@@ -22,6 +22,14 @@ jest.mock("@/app/actions/invite", () => ({
   createInvite: (...a: unknown[]) => createInvite(...(a as [])),
 }));
 
+/* Deactivate saves through the profile's own section action. Mocked for the
+   same reason as the invite ones — importing a "use server" module for real
+   drags next/cache into jsdom and takes the whole suite down. */
+const saveStaffSection = jest.fn(async () => ({ ok: true }) as { ok: boolean; error?: string });
+jest.mock("@/app/actions/staff", () => ({
+  saveStaffSection: (...a: unknown[]) => saveStaffSection(...(a as [])),
+}));
+
 beforeEach(() => {
   push.mockClear();
   refresh.mockClear();
@@ -307,6 +315,69 @@ describe("TeamDirectory unclaimed cards", () => {
       role: "staff",
       staffProfileId: "g7",
     });
+  });
+});
+
+/* DEACTIVATE HAS TO WRITE.
+
+   It used to set a local `statusOverride` map and nothing else: the row went
+   grey, the request was never made, and the next page load put the person
+   back. A `danger`-styled menu item that offboards nobody is worse than no
+   menu item, because the manager stops looking. */
+describe("deactivating someone", () => {
+  beforeEach(() => {
+    saveStaffSection.mockClear();
+    saveStaffSection.mockResolvedValue({ ok: true });
+  });
+
+  it("arms first, then saves the status through the profile's own action", async () => {
+    render(<TeamDirectory staff={STAFF} pending={[]} />);
+    await userEvent.click(menuButtonOf("Jordan Mills"));
+
+    // FIRST CLICK ARMS. Nothing is written yet.
+    await userEvent.click(screen.getByRole("button", { name: /Deactivate/ }));
+    expect(saveStaffSection).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: /Confirm deactivate/ })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /Confirm deactivate/ }));
+    expect(saveStaffSection).toHaveBeenCalledWith("a1", "personal", { status: "Inactive" });
+    expect(refresh).toHaveBeenCalled();
+  });
+
+  it("disarms when the menu closes, so the guard is never spent in advance", async () => {
+    render(<TeamDirectory staff={STAFF} pending={[]} />);
+    await userEvent.click(menuButtonOf("Jordan Mills"));
+    await userEvent.click(screen.getByRole("button", { name: /Deactivate/ }));
+    expect(screen.getByRole("button", { name: /Confirm deactivate/ })).toBeInTheDocument();
+
+    // close and reopen — it must be asking for the first click again
+    await userEvent.click(menuButtonOf("Jordan Mills"));
+    await userEvent.click(menuButtonOf("Jordan Mills"));
+    expect(screen.queryByRole("button", { name: /Confirm deactivate/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Deactivate/ })).toBeInTheDocument();
+  });
+
+  it("puts someone back in one click — an undo that asks twice is a worse undo", async () => {
+    render(
+      <TeamDirectory
+        staff={[staffRow({ id: "z9", name: "Nina Park", status: "Inactive" })]}
+        pending={[]}
+      />,
+    );
+    await userEvent.click(menuButtonOf("Nina Park"));
+    await userEvent.click(screen.getByRole("button", { name: /Reactivate/ }));
+    expect(saveStaffSection).toHaveBeenCalledWith("z9", "personal", { status: "Active" });
+  });
+
+  it("says so when the save is refused, on the view the button lives on", async () => {
+    saveStaffSection.mockResolvedValue({ ok: false, error: "You don't have access to change that." });
+    render(<TeamDirectory staff={STAFF} pending={[]} />);
+    await userEvent.click(menuButtonOf("Jordan Mills"));
+    await userEvent.click(screen.getByRole("button", { name: /Deactivate/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Confirm deactivate/ }));
+
+    expect(await screen.findByText("You don't have access to change that.")).toBeInTheDocument();
+    expect(refresh).not.toHaveBeenCalled();
   });
 });
 

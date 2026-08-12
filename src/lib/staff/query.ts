@@ -20,7 +20,7 @@ const IDENTITY_COLUMNS =
   "employment_type, job_title, status, state, photo_url, " +
   "emergency_name, emergency_phone, emergency_relationship, emergency_alt_phone, " +
   "work_rights_status, visa_type, visa_expiry, hours_condition, vevo_checked_at, " +
-  "work_rights_doc_url, work_rights_verified_at, qualifications";
+  "work_rights_doc_url, qualifications";
 
 const PAY_COLUMNS =
   "hourly_wage, pay_basis, contracted_hours, utilisation, super_override, workers_comp_override, cost_split";
@@ -47,7 +47,11 @@ type StaffProfileRow = Record<string, unknown> & {
   start_date: string | null;
   status: "Active" | "Inactive";
   work_rights_status: string | null;
-  work_rights_verified_at: string | null;
+  visa_type: string | null;
+  visa_expiry: string | null;
+  /* The check date the forms write. NOT `work_rights_verified_at`, which no
+     write path in the app has ever set — see lib/staff/derive. */
+  vevo_checked_at: string | null;
 };
 
 /** Licences for a set of staff, grouped by staff_profile_id. */
@@ -265,7 +269,12 @@ function toStaffRow(
     vehicle: "—",
     compliance: deriveCompliance(
       ctx.licences,
-      { status: p.work_rights_status, verifiedAt: p.work_rights_verified_at },
+      {
+        status: p.work_rights_status,
+        visaType: p.visa_type,
+        visaExpiry: p.visa_expiry,
+        vevoCheckedAt: p.vevo_checked_at,
+      },
       ctx.now
     ),
     orgRole: ctx.orgRole,

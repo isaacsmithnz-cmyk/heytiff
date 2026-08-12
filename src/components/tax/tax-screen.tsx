@@ -112,8 +112,15 @@ export function TaxScreen({
           {totals.provisionalAmount > 0 && (
             <p className="tx-note">
               <Icon name="alert" size={14} />
-              {moneyCents.format(totals.provisionalAmount)} of this is expense claims nobody has
-              approved yet. The money has been spent; the business hasn&rsquo;t accepted it.
+              {/* The `{" "}` is load-bearing: a JSX text block that runs over
+                  more than one line AND carries an HTML entity loses the space
+                  it begins with, so this read "$412.90of this is" in
+                  production. Same bug the Xero costs banner shipped with
+                  ("more than 6 monthsold") and the same fix. Guarded by
+                  lib/format/__tests__/jsx-entity-spacing. */}
+              {moneyCents.format(totals.provisionalAmount)}{" "}
+              of this is expense claims nobody has approved yet. The money has been spent; the
+              business hasn&rsquo;t accepted it.
             </p>
           )}
 

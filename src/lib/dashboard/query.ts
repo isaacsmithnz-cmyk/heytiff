@@ -12,7 +12,11 @@ export type WorkRights = {
   status: string | null;
   visaType: string | null;
   visaExpiry: string | null;
-  verifiedAt: string | null;
+  /* The VEVO check date. This was `verifiedAt`, off `work_rights_verified_at`
+     — a column nothing in the app writes, so "Work rights unverified" could
+     never be cleared by anyone. `vevo_checked_at` is what both the self and
+     admin forms save. See lib/staff/derive. */
+  vevoCheckedAt: string | null;
 };
 
 export type Licence = { id: string; typeName: string; expiryDate: string | null };
@@ -61,7 +65,7 @@ export async function listStaffCompliance(
   let q = supabaseAdmin
     .from("staff_profiles")
     .select(
-      "id, first_name, last_name, full_name, preferred_name, work_rights_status, visa_type, visa_expiry, work_rights_verified_at",
+      "id, first_name, last_name, full_name, preferred_name, work_rights_status, visa_type, visa_expiry, vevo_checked_at",
     )
     .eq("org_id", orgId);
   q = staffId ? q.eq("id", staffId) : q.eq("status", "Active");
@@ -77,7 +81,7 @@ export async function listStaffCompliance(
       status: (r.work_rights_status as string) ?? null,
       visaType: (r.visa_type as string) ?? null,
       visaExpiry: (r.visa_expiry as string) ?? null,
-      verifiedAt: (r.work_rights_verified_at as string) ?? null,
+      vevoCheckedAt: (r.vevo_checked_at as string) ?? null,
     },
     licences: licences.get(r.id as string) ?? [],
   }));

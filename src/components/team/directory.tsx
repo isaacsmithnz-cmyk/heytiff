@@ -7,6 +7,7 @@ import { Icon } from "@/components/shell/icon";
 import { CopyLink } from "@/components/shell/copy-link";
 import { InviteModal } from "@/components/team/invite-modal";
 import { renewInvite, revokeInvite, type InviteResult } from "@/app/actions/invite";
+import { saveStaffSection } from "@/app/actions/staff";
 import type { PendingInviteRow, StaffRow } from "@/lib/staff/types";
 
 type View = "active" | "warn" | "pending";
@@ -42,13 +43,16 @@ export function TeamDirectory({
   // menu flips above its button when the row is low in the viewport
   const [menuUp, setMenuUp] = useState(false);
   const router = useRouter();
-  // demo-only deactivate/reactivate toggles, keyed by staff id
-  const [statusOverride, setStatusOverride] = useState<Record<string, StaffRow["status"]>>({});
   const rootRef = useRef<HTMLDivElement>(null);
-  // invite actions: one in flight at a time, one row armed for revoke at a time
+  // one write in flight at a time, one row armed for revoke at a time
   const [busy, startInvite] = useTransition();
   const [armed, setArmed] = useState<string | null>(null);
   const [inviteError, setInviteError] = useState<string | null>(null);
+  /* Deactivating arms before it fires, the way Revoke does two rows down —
+     it's the one row action that changes what somebody may do tomorrow.
+     Separate from `armed` so the invite button's blur handler can't disarm it
+     (the menu closing blurs the button). */
+  const [armedOff, setArmedOff] = useState<string | null>(null);
   // inviting an unclaimed card from its row — the invite carries the card id,
   // so accepting claims THIS card instead of minting a duplicate
   const [invitee, setInvitee] = useState<StaffRow | null>(null);
@@ -62,32 +66,56 @@ export function TeamDirectory({
     });
   };
 
+  /* DEACTIVATE WRITES. It used to set a local `statusOverride` map and nothing
+     else — a menu item marked `danger`, with no request behind it, that read as
+     done and was undone by the next page load. Someone offboarding a person got
+     a grey row and a card that was still active everywhere else in the app.
+
+     It goes through `saveStaffSection`, the same action the profile's Personal
+     card saves with: `status` is already in ADMIN_SECTIONS.personal, the enum
+     is already Active|Inactive, and the `team` capability is already the gate.
+     A new action would have been a second copy of all three. */
+  const setActive = (staffId: string, active: boolean) => {
+    setInviteError(null);
+    startInvite(async () => {
+      const res = await saveStaffSection(staffId, "personal", {
+        status: active ? "Active" : "Inactive",
+      });
+      if (res.ok) router.refresh();
+      else setInviteError(res.error ?? "That didn't work.");
+    });
+  };
+
+  /* Opening or closing a row menu always disarms it. Otherwise reopening the
+     menu would find Deactivate already asking for its second click, and the
+     guard would be spent without anyone having decided anything. Done here
+     rather than in an effect on `openMenu`: setState inside an effect body is
+     a cascading render, and every path that moves the menu comes through
+     this one function anyway. */
+  const showMenu = (id: string | null) => {
+    setOpenMenu(id);
+    setArmedOff(null);
+  };
+
   useEffect(() => {
     if (!openMenu) return;
     const close = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setOpenMenu(null);
-      else if (!(e.target as HTMLElement).closest(".dmorewrap")) setOpenMenu(null);
+      if (!rootRef.current?.contains(e.target as Node)) showMenu(null);
+      else if (!(e.target as HTMLElement).closest(".dmorewrap")) showMenu(null);
     };
     document.addEventListener("click", close);
     return () => document.removeEventListener("click", close);
   }, [openMenu]);
 
-  /* Memoised because `rows` below depends on them. Rebuilt inline they were a
-     fresh array on every render, so the dependency list underneath never
-     matched and the memo did no work at all — it re-sorted the whole directory
-     on every keystroke, menu toggle and hover. */
-  const withStatus = useMemo(
-    () => staff.map((s) => ({ ...s, status: statusOverride[s.id] ?? s.status })),
-    [staff, statusOverride],
-  );
-  const warnStaff = useMemo(
-    () => withStatus.filter((s) => s.compliance.state !== "ok"),
-    [withStatus],
-  );
-  const activeCount = withStatus.filter((s) => s.status === "Active").length;
+  /* Memoised because `rows` below depends on it. Rebuilt inline it was a fresh
+     array on every render, so the dependency list underneath never matched and
+     the memo did no work at all — it re-sorted the whole directory on every
+     keystroke, menu toggle and hover. */
+  const warnStaff = useMemo(() => staff.filter((s) => s.compliance.state !== "ok"), [staff]);
+  const activeCount = staff.filter((s) => s.status === "Active").length;
 
   const rows = useMemo(() => {
-    const base = view === "warn" ? warnStaff : withStatus;
+    const base = view === "warn" ? warnStaff : staff;
     const q = query.trim().toLowerCase();
     const filtered = q
       ? base.filter((s) => s.name.toLowerCase().includes(q) || s.role.toLowerCase().includes(q))
@@ -99,7 +127,7 @@ export function TeamDirectory({
           ? a.role.localeCompare(b.role)
           : a.compliance.expiresDays - b.compliance.expiresDays,
     );
-  }, [withStatus, warnStaff, view, query, sort]);
+  }, [staff, warnStaff, view, query, sort]);
 
   const tabIdx = view === "active" ? 0 : view === "warn" ? 1 : 2;
   const tab = (idx: number, key: View, val: number, label: string, sub: string) => (
@@ -204,6 +232,10 @@ export function TeamDirectory({
         </div>
       ) : (
         <div className="dir">
+          {/* Deactivate writes from THIS view, so its failure has to be
+              readable from this view — the message used to live only in the
+              pending-invites branch. */}
+          {inviteError && <div className="invmsg">{inviteError}</div>}
           <div className="dirhead">
             <span>Name</span>
             <span>Role</span>
@@ -262,7 +294,7 @@ export function TeamDirectory({
                       onClick={(e) => {
                         const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
                         setMenuUp(r.bottom + 220 > window.innerHeight);
-                        setOpenMenu(openMenu === s.id ? null : s.id);
+                        showMenu(openMenu === s.id ? null : s.id);
                       }}
                     >
                       <Icon name="dots" size={18} />
@@ -272,7 +304,7 @@ export function TeamDirectory({
                         {unclaimed && canInvite && inviteRoles.length > 0 && (
                           <button
                             onClick={() => {
-                              setOpenMenu(null);
+                              showMenu(null);
                               setInvitee(s);
                             }}
                           >
@@ -289,10 +321,13 @@ export function TeamDirectory({
                           Message
                         </a>
                         {inactive ? (
+                          /* One click: putting someone back is the undo, and
+                             an undo that asks twice is just a worse undo. */
                           <button
+                            disabled={busy}
                             onClick={() => {
-                              setStatusOverride((o) => ({ ...o, [s.id]: "Active" }));
-                              setOpenMenu(null);
+                              showMenu(null);
+                              setActive(s.id, true);
                             }}
                           >
                             <Icon name="rotate" size={15} />
@@ -300,14 +335,17 @@ export function TeamDirectory({
                           </button>
                         ) : (
                           <button
-                            className="danger"
+                            className={`danger${armedOff === s.id ? " arm" : ""}`}
+                            disabled={busy}
                             onClick={() => {
-                              setStatusOverride((o) => ({ ...o, [s.id]: "Inactive" }));
-                              setOpenMenu(null);
+                              if (armedOff !== s.id) return setArmedOff(s.id);
+                              setArmedOff(null);
+                              showMenu(null);
+                              setActive(s.id, false);
                             }}
                           >
                             <Icon name="userx" size={15} />
-                            Deactivate
+                            {armedOff === s.id ? "Confirm deactivate" : "Deactivate"}
                           </button>
                         )}
                       </div>

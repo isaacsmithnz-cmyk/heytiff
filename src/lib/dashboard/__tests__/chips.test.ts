@@ -86,7 +86,7 @@ describe("licenceChip", () => {
 });
 
 describe("workRightsChips", () => {
-  const base = { staffId: "s1", status: null, visaType: null, visaExpiry: null, verifiedAt: null };
+  const base = { staffId: "s1", status: null, visaType: null, visaExpiry: null, vevoCheckedAt: null };
 
   it("is empty for a blank card — a new hire is 'not set up', not 'at risk'", () => {
     expect(workRightsChips(base, licCtx)).toEqual([]);
@@ -99,13 +99,13 @@ describe("workRightsChips", () => {
   });
 
   it("does not warn unverified once verified", () => {
-    const chips = workRightsChips({ ...base, status: "Visa holder", verifiedAt: "2026-01-01" }, licCtx);
+    const chips = workRightsChips({ ...base, status: "Visa holder", vevoCheckedAt: "2026-01-01" }, licCtx);
     expect(chips).toEqual([]);
   });
 
   it("flags an expiring visa using its type in the label", () => {
     const chips = workRightsChips(
-      { ...base, status: "Visa holder", visaType: "482 TSS", visaExpiry: "2026-08-01", verifiedAt: "2026-01-01" },
+      { ...base, status: "Visa holder", visaType: "482 TSS", visaExpiry: "2026-08-01", vevoCheckedAt: "2026-01-01" },
       licCtx,
     );
     expect(chips).toHaveLength(1);
@@ -115,7 +115,7 @@ describe("workRightsChips", () => {
 
   it("raises BOTH a visa-expiry and an unverified chip when both apply", () => {
     const chips = workRightsChips(
-      { ...base, status: "Visa holder", visaType: "482 TSS", visaExpiry: "2026-07-10", verifiedAt: null },
+      { ...base, status: "Visa holder", visaType: "482 TSS", visaExpiry: "2026-07-10", vevoCheckedAt: null },
       licCtx,
     );
     expect(chips.map((c) => c.key).sort()).toEqual(["work-rights-unverified:s1", "work-rights-visa:s1"]);

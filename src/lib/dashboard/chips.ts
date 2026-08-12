@@ -157,14 +157,19 @@ export function licenceChip(
    verified visa can still be expiring — so a person can hold one, the other, or
    both. Someone with nothing recorded at all raises neither: a new hire with a
    blank card is "not set up yet", not "at risk", exactly as deriveCompliance
-   treats them. */
+   treats them.
+
+   `vevoCheckedAt` is the column the forms write. It was `verifiedAt`, reading
+   `work_rights_verified_at` — which nothing writes — so chip (2) stood
+   permanently on everyone with a status recorded, and no action a person could
+   take would clear it. See lib/staff/derive. */
 export function workRightsChips(
   wr: {
     staffId: string;
     status: string | null;
     visaType: string | null;
     visaExpiry: string | null;
-    verifiedAt: string | null;
+    vevoCheckedAt: string | null;
   },
   ctx: { subject: string; href: string; today: string },
 ): ActionChip[] {
@@ -187,7 +192,7 @@ export function workRightsChips(
     }
   }
 
-  if (wr.status && !wr.verifiedAt) {
+  if (wr.status && !wr.vevoCheckedAt) {
     // No date to count down — an unverified record is a standing warn until
     // someone checks it, so it sits mid-warn (0-day urgency within the bucket).
     chips.push({

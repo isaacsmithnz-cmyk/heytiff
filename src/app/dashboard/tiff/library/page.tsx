@@ -24,6 +24,11 @@ import { ensureKbSeedTags, kbTagsByDocument, kbTagsForOrg, kbTagUsage } from "@/
    is the filter you land on. `?tag=` is the same idea on the second axis, and
    repeatable — `?tag=daikin&tag=vrv` is a link to the Daikin VRV shelf.
 
+   `?doc=` names ONE document and opens its search panel on arrival — how a
+   journal chip that says "Daikin VRV commissioning notes" becomes that
+   document. An id that matches nothing in this org's library is simply
+   dropped, like an unknown tag: a plain library is the honest landing.
+
    THE SEED TAGS ARE MATERIALISED HERE, before the read that would otherwise
    come back empty. It is a write on a GET, which is why it is guarded by a
    count and made idempotent on the (org_id, slug) index rather than by this
@@ -43,6 +48,7 @@ export default async function LibraryPage({
   const params = searchParams ? await searchParams : {};
   const raw = Array.isArray(params.cat) ? params.cat[0] : params.cat;
   const rawTags = Array.isArray(params.tag) ? params.tag : params.tag ? [params.tag] : [];
+  const rawDoc = Array.isArray(params.doc) ? params.doc[0] : params.doc;
 
   await ensureKbSeedTags(orgId);
 
@@ -96,6 +102,9 @@ export default async function LibraryPage({
       isOwner={hasMinRole(role, "owner")}
       unembedded={unembedded}
       initialCategory={asKbCategory(raw)}
+      /* resolved against the docs actually being rendered, so an id from
+         another org — or one deleted since — opens nothing */
+      initialDocId={docs.some((d) => d.id === rawDoc) ? String(rawDoc) : null}
     />
   );
 }

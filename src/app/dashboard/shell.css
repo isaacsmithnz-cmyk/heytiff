@@ -4747,16 +4747,21 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 
 /* ── on the topbar: black ground, so the GLOW does the separating ──
    It floated bottom-right first and covered the page it sat on; a control
-   that is always present has to live somewhere that is always empty. The
-   topbar is transparent over the app's black frame, so a dark glass button
-   on it is very nearly invisible — the halo is load-bearing, not decoration,
-   and it is the same breathing gradient the ask bar's composer wears. */
+   that is always present has to live somewhere that is always empty.
+
+   THE FACE IS BARE. It wore a smoked-glass disc — a white film, a 14px
+   backdrop blur and a rim — on the argument that a dark button on a dark
+   frame needs a surface to sit on. It doesn't: the halo was always the thing
+   doing the separating, and the disc sat on top of it, muting the one part
+   that worked and adding a grey pill the mark had to fight through. Isaac,
+   2026-08-12: take the smoked look off. What is left is the mark, its glow,
+   and nothing between them.
+
+   So the face keeps only the geometry it shares (`inset:0`, the circle) and
+   the focus ring, which still needs a box to ring. Hover lives on the halo
+   and the lift now — there is no fill left to brighten. Dropping the blur
+   also gives the frame back a backdrop-filter budget (one per page). */
 .tiffbtn-topbar { width:44px; height:44px; }
-.tiffbtn-topbar .tiffbtn-face {
-  background:rgba(255,255,255,.06); backdrop-filter:blur(14px) saturate(150%);
-  border:1px solid rgba(255,255,255,.14);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.16); }
-.tiffbtn-topbar:hover .tiffbtn-face { background:rgba(255,255,255,.12); border-color:rgba(255,255,255,.22); }
 .tiffbtn-topbar .tiffbtn-mk { transform:translate(-2px,-2px); }
 .tiffbtn-topbar .tiffbtn-spark { right:9px; bottom:9px; }
 .tiffbtn-topbar:focus-visible .tiffbtn-face { box-shadow:0 0 0 3px rgba(0,229,192,.6); }
@@ -6993,15 +6998,18 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .hm-say:hover .hm-saytx { color:#fff; }
 
 /* THE MARK'S HOST IS A SPAN, not a button — a button inside a button is
-   invalid markup. It takes `.tiffbtn-topbar` (the 44px box, the glass face,
+   invalid markup. It takes `.tiffbtn-topbar` (the 44px box, the bare face,
    the halo, the spark's placement) but NOT `.tiffbtn`, whose cursor and lift
    belong to the bar now; `.tiffbtn`'s `position:relative` has to be restated
    here because the face is `inset:0` against it. The hovers are re-pointed
    at the bar, which is the same move #325 made when the capsule wore the
-   mark. */
+   mark.
+
+   The face's own hover went with the smoked disc (see `.tiffbtn-topbar`): a
+   glass circle inside this already-glass bar was the doubled version of the
+   same mistake, and there is no fill left here to brighten. The bar's own
+   background still lifts on hover, and the halo still answers. */
 .fg .hm-saymk { position:relative; flex:none; }
-.fg .hm-say:hover .tiffbtn-face { background:rgba(255,255,255,.12);
-  border-color:rgba(255,255,255,.22); }
 .fg .hm-say:hover .tiffbtn-halo { opacity:.72; }
 
 /* ══ THE DEBRIEF, IN THE PAGE ══════════════════════════════════════════════

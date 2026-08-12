@@ -20,12 +20,18 @@ import { TAX_CATEGORY_LABEL, type TaxItem, type TaxYear } from "@/lib/tax/item";
    No "use client": the year is a link, the export is a link, and the receipts
    are links. There is nothing to hold in state. */
 
+/* ONE FORMATTER. There were two — a whole-dollar one for the three headline
+   stats and a cents one for the category rows and the items — so "Total spend
+   $565" sat directly above a breakdown reading $152.35 + $412.90, and "GST
+   $51" above $13.85 + $37.54. `totalsFor` goes out of its way to round once at
+   the end, with the comment "rounding each addend first is how a column of
+   cents stops matching the total printed under it"; the display then undid
+   that on the headline only.
+
+   Cents everywhere. This is the one screen in the app whose reader is an
+   accountant reconciling a column, and $565 is not more readable than $565.25
+   when the column under it adds to the second one. */
 const money = new Intl.NumberFormat("en-AU", {
-  style: "currency",
-  currency: "AUD",
-  maximumFractionDigits: 0,
-});
-const moneyCents = new Intl.NumberFormat("en-AU", {
   style: "currency",
   currency: "AUD",
   minimumFractionDigits: 2,
@@ -118,7 +124,7 @@ export function TaxScreen({
                   production. Same bug the Xero costs banner shipped with
                   ("more than 6 monthsold") and the same fix. Guarded by
                   lib/format/__tests__/jsx-entity-spacing. */}
-              {moneyCents.format(totals.provisionalAmount)}{" "}
+              {money.format(totals.provisionalAmount)}{" "}
               of this is expense claims nobody has approved yet. The money has been spent; the
               business hasn&rsquo;t accepted it.
             </p>
@@ -130,8 +136,8 @@ export function TaxScreen({
                 <div className="tx-cat" key={c.category}>
                   <span className="tx-catname">{TAX_CATEGORY_LABEL[c.category]}</span>
                   <span className="tx-catcount">{c.count}</span>
-                  <span className="tx-catgst">{c.gst > 0 ? `${moneyCents.format(c.gst)} GST` : "no GST recorded"}</span>
-                  <span className="tx-catamt">{moneyCents.format(c.amount)}</span>
+                  <span className="tx-catgst">{c.gst > 0 ? `${money.format(c.gst)} GST` : "no GST recorded"}</span>
+                  <span className="tx-catamt">{money.format(c.amount)}</span>
                 </div>
               ))}
             </div>
@@ -217,8 +223,8 @@ function ItemRow({ item }: { item: TaxItem }) {
         </em>
       </span>
       <span className="tx-amt">
-        <b>{moneyCents.format(item.amount)}</b>
-        <em>{item.gst === null ? "no GST shown" : `incl. ${moneyCents.format(item.gst)} GST`}</em>
+        <b>{money.format(item.amount)}</b>
+        <em>{item.gst === null ? "no GST shown" : `incl. ${money.format(item.gst)} GST`}</em>
       </span>
       {/* The receipt is the whole point of the row, so its absence is stated
           rather than left as an empty column. */}

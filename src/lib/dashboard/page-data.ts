@@ -22,6 +22,7 @@ import {
   recentlyDoneTasks,
   assignedByMeRecentlyDone,
   listNotices,
+  NOTICE_WINDOW,
   loadStaffNames,
   mentionableStaff,
   type StaffNames,
@@ -101,7 +102,7 @@ export async function loadDashboard(): Promise<DashboardData> {
     loadCalendar(orgId, today, viewerStaffId, canManage),
     caps.has("financials") ? loadMoney(orgId, today) : Promise.resolve([]),
     loadTasks(orgId, viewerStaffId, canManage, names),
-    listNotices(orgId, viewerStaffId, 20, names).then(sortNotices),
+    listNotices(orgId, viewerStaffId, NOTICE_WINDOW, names).then(sortNotices),
     // the assign picker only needs names, and only when you can assign
     canManage ? listFleetStaff(orgId).then((s) => s.map((x) => ({ id: x.id, name: x.name }))) : Promise.resolve([]),
     /* An account with no staff record has never captured anything — there is
@@ -150,7 +151,7 @@ export async function loadNoticeBoard(): Promise<NoticeBoardData> {
   const caps = await getCapabilities();
   const viewerStaffId = await staffProfileIdFor(orgId, userId);
   const [notices, staff] = await Promise.all([
-    listNotices(orgId, viewerStaffId, 100).then(sortNotices),
+    listNotices(orgId, viewerStaffId, NOTICE_WINDOW).then(sortNotices),
     mentionableStaff(orgId),
   ]);
   return {

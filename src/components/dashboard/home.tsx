@@ -10,7 +10,12 @@ import { HomeTasks } from "./home-tasks";
 import { ChipRows, NoticeRows, Nothing } from "./home-rows";
 import { sortChips } from "@/lib/dashboard/chips";
 import { fmtAuWeekdayDateLong } from "@/lib/au-dates";
-import { DEFAULT_TAB, homeTabs, type HomeTabKey } from "@/lib/dashboard/home-tabs";
+import {
+  DEFAULT_TAB,
+  HOME_NOTICE_ROWS,
+  homeTabs,
+  type HomeTabKey,
+} from "@/lib/dashboard/home-tabs";
 import { currentUnreadCount, partitionNotices } from "@/lib/dashboard/notices";
 import type { DashboardData } from "@/lib/dashboard/page-data";
 
@@ -186,10 +191,21 @@ export function DashboardHome({ data }: { data: DashboardData }) {
                 <Nothing>Nothing on the board right now.</Nothing>
               ) : (
                 <>
-                  <NoticeRows notices={active} />
+                  {/* THE PANEL IS A GLANCE, THE BADGE IS THE COUNT. Home and
+                      the board now read the same window (NOTICE_WINDOW), which
+                      is what stops the "N unread" badge disagreeing with the
+                      board it links to — but that window is a hundred posts
+                      and this is a tab on a card. So the rows are capped and
+                      the door says what is behind it, rather than the panel
+                      quietly being the whole board on a thin month and a
+                      truncation on a busy one. Pinned posts lead, because
+                      that is the order they arrive in. */}
+                  <NoticeRows notices={active.slice(0, HOME_NOTICE_ROWS)} />
                   <div className="hm-panelbar">
                     <Link className="hm-link" href="/dashboard/notices">
-                      Open the board
+                      {active.length > HOME_NOTICE_ROWS
+                        ? `Open the board · ${active.length - HOME_NOTICE_ROWS} more`
+                        : "Open the board"}
                       <Icon name="arrowR" size={13} />
                     </Link>
                   </div>
@@ -231,8 +247,17 @@ export function DashboardHome({ data }: { data: DashboardData }) {
             <div className="hm-strip">
               <div className="hm-stripcol">
                 <div className="wb2-sect">Payroll</div>
+                {/* `data-state` is the point, not decoration. `payRunItem`
+                    decides warn vs ok on the one thing that matters here —
+                    whether the period has CLOSED with work still outstanding,
+                    which is when payroll can't complete without someone acting
+                    — and this row rendered the label, the detail and a chevron
+                    and dropped it on the floor. The whole distinction rode on
+                    reading "Pay run due" instead of "Timesheets this period".
+                    Every chip row two panels up carries its state as
+                    `data-sev`; this is the same idea on the same screen. */}
                 {money.map((m) => (
-                  <Link className="hm-sr" href={m.href} key={m.key}>
+                  <Link className="hm-sr" href={m.href} key={m.key} data-state={m.state}>
                     <b>{m.label}</b>
                     <em>{m.detail}</em>
                     <span className="hm-rowgo">

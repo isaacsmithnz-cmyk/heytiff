@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
+import { navHref } from "@/components/shell/nav";
 import { Chevron } from "@/components/logo";
 import { useHydrated } from "@/lib/use-hydrated";
 import { kbDocUrl } from "@/app/actions/kb";
@@ -1387,7 +1388,8 @@ function RecentDocs({
     <div className="tk-newdocs">
       <div className="tk-lbl">
         <span>Recently added</span>
-        <Link className="tk-lbla" href="/dashboard/tiff/library">
+        {/* by name, not by path — see `navHref` */}
+        <Link className="tk-lbla" href={navHref("tiffkb")}>
           Open all
           <Icon name="chevR" size={13} />
         </Link>
@@ -1534,7 +1536,7 @@ function Rail({
           to do. */}
       <div className="tk-lbl">
         <span>Library</span>
-        <Link className="tk-lbla" href="/dashboard/tiff/library">
+        <Link className="tk-lbla" href={navHref("tiffkb")}>
           Open
           <Icon name="chevR" size={13} />
         </Link>
@@ -1551,7 +1553,7 @@ function Rail({
           return (
             <Link
               key={c.key}
-              href={`/dashboard/tiff/library?cat=${c.key}`}
+              href={`${navHref("tiffkb")}?cat=${c.key}`}
               className={`tk-rcat spot${state === "idle" ? "" : ` ${state}`}`}
               data-cat={c.key}
               ref={(el) => {

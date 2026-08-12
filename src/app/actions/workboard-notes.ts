@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { navHref } from "@/components/shell/nav";
 import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { can } from "@/lib/permissions-server";
@@ -770,7 +771,8 @@ export async function applyNote(
     });
     if (dbErr) return { ok: false, error: "Couldn't keep the debrief's notes." };
     record("noteLines", lines, "line kept", "lines kept");
-    revalidatePath("/dashboard/my-notes");
+    // by name: a revalidate at a moved route clears nothing and says nothing
+    revalidatePath(navHref("mynotes"));
   }
 
   const asked =
@@ -950,7 +952,7 @@ export async function keepNoteForMe(noteId: string): Promise<ApplyResult> {
     .eq("id", noteId);
 
   refresh({ kind: note.target_kind, id: note.target_id });
-  revalidatePath("/dashboard/my-notes");
+  revalidatePath(navHref("mynotes"));
   return { ok: true, summary: "Kept in your notes." };
 }
 

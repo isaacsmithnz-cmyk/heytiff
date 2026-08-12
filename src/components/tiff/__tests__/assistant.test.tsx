@@ -1,6 +1,7 @@
 import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { answerBlocks, TiffAssistant } from "../assistant";
+import { navHref } from "@/components/shell/nav";
 import type { AskEvent, AskInput, AskSourceItem } from "@/lib/tiff/ask-client";
 
 /* The assistant screen.
@@ -1091,7 +1092,12 @@ describe("the rail", () => {
     );
 
     const card = screen.getByRole("link", { name: /Installation documents/ });
-    expect(card).toHaveAttribute("href", "/dashboard/tiff/library?cat=install");
+    /* Asked for, not spelled out: pinning the literal here would make a
+       correct rename fail, which teaches the next person to edit the
+       expectation until it passes. That the screen still EXISTS at that path
+       is a separate question, answered against the filesystem in
+       nav-destinations. */
+    expect(card).toHaveAttribute("href", `${navHref("tiffkb")}?cat=install`);
     expect(within(card).getByText("3 documents")).toBeInTheDocument();
     expect(within(screen.getByRole("link", { name: /Manufacturer specs/ })).getByText("None yet")).toBeInTheDocument();
   });
@@ -1105,7 +1111,7 @@ describe("the rail", () => {
 
     expect(screen.getByRole("link", { name: /^Open/ })).toHaveAttribute(
       "href",
-      "/dashboard/tiff/library"
+      navHref("tiffkb")
     );
     expect(screen.queryByRole("link", { name: /Add document/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Add document/i })).not.toBeInTheDocument();

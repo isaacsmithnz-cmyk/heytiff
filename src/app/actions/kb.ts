@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { navHref } from "@/components/shell/nav";
 import { requireOrg, getDbRole } from "@/lib/permissions-server";
 import { hasMinRole } from "@/lib/roles";
 import { supabaseAdmin } from "@/lib/supabase-server";
@@ -72,10 +73,16 @@ async function ctx(): Promise<Ctx | null> {
 
 /* Both Tiff screens read the library — the assistant for its category counts,
    the library for the rows themselves. There is no per-document route to
-   revalidate; a document is a row on the library page. */
+   revalidate; a document is a row on the library page.
+
+   THE PATHS ARE ASKED FOR, NOT SPELLED OUT. A revalidate aimed at a route that
+   has since moved is the quietest bug of the lot: nothing throws, nothing
+   404s, the cache simply never clears and the screen shows yesterday's rows
+   until something else happens to invalidate it. `navHref` reads the path off
+   the nav, which is where this app declares where a screen lives. */
 function refresh() {
-  revalidatePath("/dashboard/tiff");
-  revalidatePath("/dashboard/tiff/library");
+  revalidatePath(navHref("tiff"));
+  revalidatePath(navHref("tiffkb"));
 }
 
 const trim = (v: unknown, max: number): string | null => {

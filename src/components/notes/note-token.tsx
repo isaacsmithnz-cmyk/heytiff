@@ -620,14 +620,27 @@ function JobLine({ flow }: { flow: NoteFlow }) {
    Its hovers are re-pointed at `.hm-say:hover` in shell.css. */
 
 function DebriefButton({ flow }: { flow: NoteFlow }) {
-  return (
-    <>
+  const barRef = useRef<HTMLButtonElement | null>(null);
+  const wasOpen = useRef(false);
+
+  /* The bar is where you were when you opened it, and it is where you should
+     be when it shuts — the card that replaced it is gone by then, so focus
+     would otherwise fall to the top of the document. */
+  useEffect(() => {
+    if (wasOpen.current && !flow.open) barRef.current?.focus();
+    wasOpen.current = flow.open;
+  }, [flow.open]);
+
+  if (!flow.open) {
+    return (
       <div className="wb2-tokdock hm-saydock">
         <button
+          ref={barRef}
           type="button"
           className="hm-say"
-          aria-haspopup="dialog"
-          aria-expanded={flow.open}
+          /* NOT `haspopup="dialog"` any more: what opens is this row becoming
+             the card, in the page, with everything around it still live. */
+          aria-expanded={false}
           onClick={() => flow.setOpen(true)}
         >
           {/* Decorative: the bar's own words are its accessible name, and a
@@ -639,26 +652,31 @@ function DebriefButton({ flow }: { flow: NoteFlow }) {
         </button>
         {flow.done && <span className="wb2-chip ok">{flow.done}</span>}
       </div>
+    );
+  }
 
-      {flow.open &&
-        createPortal(
-          <>
-            <div className="wb2-capdim" onClick={flow.close} />
-            <div
-              className={"wb2-capcard wb2-caps" + duskClass(flow)}
-              role="dialog"
-              aria-modal="true"
-              aria-label="Morning debrief"
-            >
-              <span className="wb2-grab" aria-hidden="true" />
-              <Ribbon flow={flow} />
-              {flow.error && <p className="wb2-sherr">{flow.error}</p>}
-              <Body flow={flow} />
-            </div>
-          </>,
-          document.body
-        )}
-    </>
+  /* THE DEBRIEF HAPPENS IN THE PAGE (Isaac, 2026-08-12) — capture AND review,
+     in the bar's own slot, on the card the journal is already on.
+
+     The floating sheet stays exactly as it is for the topbar door; this is the
+     one posture that had a place on a page to grow into. What that costs is a
+     scrim, which was doing three jobs: it dimmed the page, it caught the click
+     that closed the sheet, and it was the reason the thing counted as modal.
+     None of them survive the move, and none of them should — nothing here is
+     modal, the tabs and the record stay live, and the ribbon's × was always
+     the real close (`flow.close`, on every stage). Escape still closes, from
+     `useNoteFlow`'s own key handler.
+
+     `wb2-dusk` unconditionally, where the sheet derives it from the stage: the
+     light review skin is for a sheet floating over a white page, and this card
+     is ink. That is the one thing option A pays for — see `.fg .hm-cap` in
+     shell.css, where the review family earns its dark clothes. */
+  return (
+    <section className="hm-cap wb2-dusk" aria-label="Debrief">
+      <Ribbon flow={flow} />
+      {flow.error && <p className="wb2-sherr">{flow.error}</p>}
+      <Body flow={flow} />
+    </section>
   );
 }
 

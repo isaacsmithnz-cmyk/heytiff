@@ -152,6 +152,29 @@ export const NAV: NavItem[] = NAV_GROUPS.flatMap((g) =>
 /** Just the rows the rail draws — one per entry, faces folded in. */
 export const NAV_ROWS: NavItem[] = NAV_GROUPS.flatMap((g) => g.items);
 
+/* WHERE A SCREEN LIVES, ASKED BY NAME.
+
+   This file already calls itself the single source of truth for the routes,
+   and everything that DRAWS the nav reads them from here — but anything else
+   linking to a screen wrote the path out by hand, so a route that moved left
+   working copies of its old address scattered through the app. A rename that
+   updates the rail then looks completely correct: the sidebar goes to the new
+   place and the stray links 404, which nobody notices until they press one.
+
+   So a caller that isn't the nav asks for the entry by KEY and gets whatever
+   href that entry currently carries. Renaming a route stays a one-line edit
+   here, and every asker moves with it.
+
+   IT THROWS ON AN UNKNOWN KEY, deliberately: deleting an entry that something
+   still links to fails that caller's test by name, rather than shipping a chip
+   whose href is the empty string. */
+export function navHref(key: string): string {
+  const found = NAV.find((n) => n.key === key);
+  if (!found)
+    throw new Error(`No nav entry named "${key}" — something is linking to a screen that is gone.`);
+  return found.href;
+}
+
 /** Who is looking: their capabilities, plus the role for role-intrinsic entries. */
 export type NavViewer = { caps: ReadonlySet<Capability>; role: Role | null };
 

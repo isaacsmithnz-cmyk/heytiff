@@ -48,6 +48,8 @@ export type XeroScreenProps = {
   sealed: boolean;
   /** Outcome of a round trip that just finished, if any. */
   notice: { kind: "ok" | "error"; text: string } | null;
+  /** Other HeyTiff workspaces holding this same Xero organisation. */
+  elsewhere?: number;
 };
 
 export function XeroScreen({
@@ -57,6 +59,7 @@ export function XeroScreen({
   notice,
   reach,
   people,
+  elsewhere = 0,
 }: XeroScreenProps) {
   const provider = providerById("xero")!;
   const router = useRouter();
@@ -225,6 +228,7 @@ export function XeroScreen({
               connected={connected}
               ready={ready}
               accountName={connection?.tenantName ?? null}
+              elsewhere={elsewhere}
               /* Credentials only — no mirror to lose, and the staff↔employee
                  matches deliberately survive so a reconnect restores them.
                  That's why this one doesn't ask for the name. */

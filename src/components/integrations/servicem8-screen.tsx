@@ -45,6 +45,8 @@ export type Servicem8ScreenProps = {
   notice: { kind: "ok" | "error"; text: string } | null;
   /** The people reconcile card's data; null until connected. */
   people?: PeopleCardData | null;
+  /** Other HeyTiff workspaces holding this same ServiceM8 account. */
+  elsewhere?: number;
 };
 
 /** "just now" / "4 min ago" / "3 hours ago" — the board's staleness language,
@@ -70,6 +72,7 @@ export function Servicem8Screen({
   reach,
   sync,
   people,
+  elsewhere = 0,
 }: Servicem8ScreenProps) {
   const provider = providerById("servicem8")!;
   const router = useRouter();
@@ -226,6 +229,7 @@ export function Servicem8Screen({
               connected={connected}
               ready={ready}
               accountName={connection?.tenantName ?? null}
+              elsewhere={elsewhere}
               /* Everything the wipe takes, named — this is the only control in
                  the integrations area that deletes anything. */
               consequences={[

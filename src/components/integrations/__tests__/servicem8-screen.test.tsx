@@ -168,3 +168,46 @@ describe("disconnect — the only control here that deletes", () => {
     expect(refresh).not.toHaveBeenCalled();
   });
 });
+
+/* Shared accounts are legitimate and invisible — every uniqueness rule in the
+   integrations area is scoped to ONE workspace, so a second workspace can
+   mirror this same account and nothing would ever say so. This line says so.
+   It informs; it never blocks, because refusing would strand people who share
+   an account on purpose. */
+describe("this account is connected elsewhere", () => {
+  it("says how many other workspaces hold it, and what that means", () => {
+    render(<Servicem8Screen connection={toView(row())} elsewhere={2} {...ready} />);
+
+    expect(screen.getByText(/2 other HeyTiff workspaces/)).toBeInTheDocument();
+    expect(screen.getByText(/mirrors its own copy/i)).toBeInTheDocument();
+    // the reassurance that stops it reading as "your data is at risk here"
+    expect(screen.getByText(/disconnecting here doesn't affect theirs/i)).toBeInTheDocument();
+    // and the one action that actually ends someone else's access
+    expect(screen.getByText(/remove HeyTiff's access from inside ServiceM8/i)).toBeInTheDocument();
+  });
+
+  it("says workspace, singular, for one", () => {
+    render(<Servicem8Screen connection={toView(row())} elsewhere={1} {...ready} />);
+    expect(screen.getByText(/1 other HeyTiff workspace$/)).toBeInTheDocument();
+  });
+
+  it("stays silent for the ordinary case", () => {
+    render(<Servicem8Screen connection={toView(row())} elsewhere={0} {...ready} />);
+    expect(screen.queryByText(/other HeyTiff workspace/)).not.toBeInTheDocument();
+  });
+
+  it("never blocks — Reconnect and Disconnect are both still offered", () => {
+    render(<Servicem8Screen connection={toView(row())} elsewhere={3} {...ready} />);
+    expect(screen.getByText("Reconnect")).toBeInTheDocument();
+    expect(screen.getByText("Disconnect")).toBeInTheDocument();
+  });
+
+  it("gets out of the way once you are confirming a disconnect", async () => {
+    const user = userEvent.setup();
+    render(<Servicem8Screen connection={toView(row())} elsewhere={2} {...ready} />);
+    await user.click(screen.getByText("Disconnect"));
+
+    // the confirm has its own consequences to read; two notices compete
+    expect(screen.queryByText(/other HeyTiff workspaces/)).not.toBeInTheDocument();
+  });
+});

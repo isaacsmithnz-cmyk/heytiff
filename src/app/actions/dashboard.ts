@@ -23,6 +23,10 @@ import { todayInAu } from "@/lib/au-dates";
                      `team`. It's a management action about other people.
      COMPLETE        finishing a task is intrinsic to the person it's assigned
                      to (it's their to-do); a `team` holder can also close one.
+     DELETE          erasing a task belongs to whoever CREATED it (or `team`).
+                     Narrower than complete on purpose: finishing your
+                     assignment is yours; erasing the record that someone
+                     assigned it is not.
      ACK             acknowledging a notice is intrinsic — it's your own read.
 */
 
@@ -176,6 +180,36 @@ export async function reopenTask(taskId: string): Promise<DashResult> {
     .eq("org_id", ctx.orgId)
     .eq("id", taskId);
   if (error) return { ok: false, error: "Couldn't reopen that task." };
+  refresh();
+  return { ok: true };
+}
+
+/** Remove a task outright — its CREATOR, or `team`. Deliberately narrower than
+    complete/reopen, which also allow the assignee: finishing your assignment is
+    intrinsic to you, erasing someone else's record of having assigned it is
+    not. A hard delete (no table references tasks), and the one task action
+    with no undo — which is why the UI asks twice before calling it. */
+export async function deleteTask(taskId: string): Promise<DashResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "Not signed in." };
+
+  const { data } = await supabaseAdmin
+    .from("tasks")
+    .select("created_by")
+    .eq("org_id", ctx.orgId)
+    .eq("id", taskId)
+    .maybeSingle();
+  if (!data) return { ok: false, error: "That task is already gone." };
+
+  const mine = ctx.staffId && ctx.staffId === data.created_by;
+  if (!mine && !(await can("team"))) return { ok: false, error: "That task isn't yours to delete." };
+
+  const { error } = await supabaseAdmin
+    .from("tasks")
+    .delete()
+    .eq("org_id", ctx.orgId)
+    .eq("id", taskId);
+  if (error) return { ok: false, error: "Couldn't delete that task." };
   refresh();
   return { ok: true };
 }

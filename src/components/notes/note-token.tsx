@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
-import { DictClock, LevelBars, LiveWords, WaveMeter, appendSpoken, useDictation } from "./dictation";
+import { DictClock, LevelBars, WaveMeter, appendSpoken, useDictation } from "./dictation";
 import { useNoteFlow, type NoteFlow } from "./note-flow";
 import { useNoteScope } from "./note-context";
 import { Cascade, JobPicker, ReviewRows, nothingTicked } from "./review-card";
@@ -198,7 +198,22 @@ function ModeControl({ flow }: { flow: NoteFlow }) {
         Type instead
       </button>
     );
-  if (flow.governsDefault) return <DefaultSwitch flow={flow} />;
+  /* AND IT STEPS BACK AGAIN ONCE THERE ARE WORDS. Isaac, 2026-08-10: "when
+     you record a message in Claude, you can hit enter, then tap the mic again
+     to keep adding."
+
+     The card already did exactly that — every leg appends, and a note spoken
+     across three recordings is one note. What it did not have was anything
+     that LOOKED like it. With words in the box, the way back to the mic was
+     the left half of a switch labelled DEFAULT: a preference control, in the
+     strongest position on the row, that happens to start recording. Nothing
+     about it says "add more".
+
+     So the switch owns the empty box, where "what should this button do next
+     time" is a fair question to be asked, and gets out of the way the moment
+     there is something to add to. Every capture opens empty, so the
+     preference is still one press from reachable at the start of each one. */
+  if (flow.governsDefault && !flow.text.trim()) return <DefaultSwitch flow={flow} />;
   return (
     <button className="pbtn ghost wb2-talk" onClick={flow.dict.start} disabled={flow.busy}>
       <Icon name="mic" size={15} />
@@ -254,9 +269,40 @@ function Body({ flow }: { flow: NoteFlow }) {
   }
 
   if (stage === "recording") {
-    const words = Boolean(flow.dict.interim);
+    /* WHAT YOU HAVE ALREADY SAID STAYS ON SCREEN (Isaac, 2026-08-10, walking
+       a second leg): "if I click talk, it looks like you're starting again
+       because it doesn't show you what text it's already got on there."
+
+       It was never starting again — every leg appends, and the words were
+       safe in `flow.text` the whole time. But this stage REPLACED the box
+       with the trace, so a second leg looked exactly like a first one. The
+       card was hiding the only evidence that it had kept anything.
+
+       The field posture has always got this right (`shown` in `FieldMic`
+       below): the box keeps showing what is there, with the live words joined
+       on by `appendSpoken` — the same join the committed transcript uses, so
+       nothing jumps when the recording ends. This is that, on the card.
+
+       It appears only once there is something to show, so a first leg on the
+       batch transport is still the trace alone rather than an empty box. */
+    /* GUARDED, the same way `FieldMic` guards it. `appendSpoken` joins with a
+       space and does not care that the second half is empty, so calling it
+       with no interim leaves a trailing space on every batch recording — the
+       reason the field posture has always written this as a conditional
+       rather than a call. */
+    const sofar = flow.dict.interim ? appendSpoken(flow.text, flow.dict.interim) : flow.text;
+    const words = Boolean(sofar.trim());
     return (
       <div className="wb2-caprec">
+        {words && (
+          <textarea
+            className="wb2-notes wb2-recsofar"
+            value={sofar}
+            readOnly
+            rows={3}
+            aria-label="What you have said so far"
+          />
+        )}
         {/* THE INSTRUMENT, NOT AN ORNAMENT (audited 2026-08-10). This stage
             used to be a 680px card that was 86% empty with a 36px meter
             marooned in the middle of it, and the middle was empty because it
@@ -275,7 +321,6 @@ function Body({ flow }: { flow: NoteFlow }) {
           </div>
           <WaveMeter innerRef={flow.dict.barsRef} small={words} />
         </div>
-        {words && <LiveWords text={flow.dict.interim} />}
         <div className="wb2-capact">
           {/* Flipping this to Type is the way out of the mic, and it keeps
               every word — `handOver` puts what you have said in the box
@@ -314,17 +359,15 @@ function Body({ flow }: { flow: NoteFlow }) {
               `Go`. A chat composer works the same way: the mic button stops,
               the send button sends, and nobody confuses them.
 
-              THE SQUARE STAYS, AT A WEIGHT THAT STOPS SHOUTING. Isaac: "that
-              black square next to go is weird." It already WAS an outline —
-              `square` is a stroked 18/24 rect — but at size 15 that is an
-              11px box carrying a 1.25px stroke in #04262B, the button's
-              near-black ink, on a bright green fill. Maximum contrast at the
-              heaviest weight the glyph set offers: it read as a dark blob
-              rather than a stop mark. Smaller, thinner and eased off the full
-              ink (the `.wb2-prim svg` rule), it now agrees with the word
-              instead of shouting over it. */}
+              AND THE SQUARE IS GONE. It survived two rounds of argument —
+              "that black square next to go is weird", answered by making it
+              smaller, thinner and paler — and Isaac's verdict on the third
+              look was that it is still stupid. He is right, and the reason is
+              that the original defence stopped being true: the glyph was
+              there because the word "Go" did not say the microphone was
+              closing. "Done" does. A stop mark beside it is the same thing
+              said twice, in the fussiest possible way. */}
           <button className="pbtn wb2-prim" onClick={flow.dict.stop}>
-            <Icon name="square" size={13} sw={1.6} />
             Done
           </button>
         </div>
@@ -620,14 +663,27 @@ function JobLine({ flow }: { flow: NoteFlow }) {
    Its hovers are re-pointed at `.hm-say:hover` in shell.css. */
 
 function DebriefButton({ flow }: { flow: NoteFlow }) {
-  return (
-    <>
+  const barRef = useRef<HTMLButtonElement | null>(null);
+  const wasOpen = useRef(false);
+
+  /* The bar is where you were when you opened it, and it is where you should
+     be when it shuts — the card that replaced it is gone by then, so focus
+     would otherwise fall to the top of the document. */
+  useEffect(() => {
+    if (wasOpen.current && !flow.open) barRef.current?.focus();
+    wasOpen.current = flow.open;
+  }, [flow.open]);
+
+  if (!flow.open) {
+    return (
       <div className="wb2-tokdock hm-saydock">
         <button
+          ref={barRef}
           type="button"
           className="hm-say"
-          aria-haspopup="dialog"
-          aria-expanded={flow.open}
+          /* NOT `haspopup="dialog"` any more: what opens is this row becoming
+             the card, in the page, with everything around it still live. */
+          aria-expanded={false}
           onClick={() => flow.setOpen(true)}
         >
           {/* Decorative: the bar's own words are its accessible name, and a
@@ -639,26 +695,31 @@ function DebriefButton({ flow }: { flow: NoteFlow }) {
         </button>
         {flow.done && <span className="wb2-chip ok">{flow.done}</span>}
       </div>
+    );
+  }
 
-      {flow.open &&
-        createPortal(
-          <>
-            <div className="wb2-capdim" onClick={flow.close} />
-            <div
-              className={"wb2-capcard wb2-caps" + duskClass(flow)}
-              role="dialog"
-              aria-modal="true"
-              aria-label="Morning debrief"
-            >
-              <span className="wb2-grab" aria-hidden="true" />
-              <Ribbon flow={flow} />
-              {flow.error && <p className="wb2-sherr">{flow.error}</p>}
-              <Body flow={flow} />
-            </div>
-          </>,
-          document.body
-        )}
-    </>
+  /* THE DEBRIEF HAPPENS IN THE PAGE (Isaac, 2026-08-12) — capture AND review,
+     in the bar's own slot, on the card the journal is already on.
+
+     The floating sheet stays exactly as it is for the topbar door; this is the
+     one posture that had a place on a page to grow into. What that costs is a
+     scrim, which was doing three jobs: it dimmed the page, it caught the click
+     that closed the sheet, and it was the reason the thing counted as modal.
+     None of them survive the move, and none of them should — nothing here is
+     modal, the tabs and the record stay live, and the ribbon's × was always
+     the real close (`flow.close`, on every stage). Escape still closes, from
+     `useNoteFlow`'s own key handler.
+
+     `wb2-dusk` unconditionally, where the sheet derives it from the stage: the
+     light review skin is for a sheet floating over a white page, and this card
+     is ink. That is the one thing option A pays for — see `.fg .hm-cap` in
+     shell.css, where the review family earns its dark clothes. */
+  return (
+    <section className="hm-cap wb2-dusk" aria-label="Debrief">
+      <Ribbon flow={flow} />
+      {flow.error && <p className="wb2-sherr">{flow.error}</p>}
+      <Body flow={flow} />
+    </section>
   );
 }
 

@@ -3,7 +3,7 @@ import { auth0 } from "@/lib/auth0";
 import { hasMinRole } from "@/lib/roles";
 import { getDbRole } from "@/lib/permissions-server";
 import { Servicem8Screen, type Sm8Reach } from "@/components/integrations/servicem8-screen";
-import { getConnectionView } from "@/lib/integrations/store";
+import { countConnectionsElsewhere, getConnectionView } from "@/lib/integrations/store";
 import { readSm8Vendor } from "@/lib/integrations/sm8-read";
 import { kickSm8SyncIfStale, listSm8SyncStatus, type Sm8SyncStatusView } from "@/lib/integrations/sm8-sync";
 import { tokenKey } from "@/lib/integrations/secrets";
@@ -38,13 +38,17 @@ export default async function Servicem8IntegrationPage({
   let reach: Sm8Reach | null = null;
   let sync: Sm8SyncStatusView | null = null;
   let people: Awaited<ReturnType<typeof getSm8PeopleData>> = null;
+  let elsewhere = 0;
   if (connection && connection.status === "connected") {
-    const [vendor, status, peopleData] = await Promise.all([
+    const [vendor, status, peopleData, alsoConnected] = await Promise.all([
       readSm8Vendor(orgId),
       listSm8SyncStatus(orgId),
       // the reconcile card: live staff.json against this workspace's cards
       getSm8PeopleData(),
+      // whether this same account is mirrored into other workspaces too
+      countConnectionsElsewhere(orgId, "servicem8", connection.tenantId),
     ]);
+    elsewhere = alsoConnected;
     reach = vendor.ok
       ? { ok: true, account: { name: vendor.data.name, timezoneName: vendor.data.timezoneName } }
       : { ok: false, error: vendor.error };
@@ -80,6 +84,7 @@ export default async function Servicem8IntegrationPage({
       reach={reach}
       sync={sync}
       people={people}
+      elsewhere={elsewhere}
     />
   );
 }

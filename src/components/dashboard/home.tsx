@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
 import { ViewTabs } from "@/components/shell/view-tabs";
@@ -59,6 +59,18 @@ export function DashboardHome({ data }: { data: DashboardData }) {
   } = data;
 
   const [tab, setTab] = useState<HomeTabKey>(DEFAULT_TAB);
+
+  /* A journal chip naming a task opens it HERE — one card, six faces, and the
+     task is on the face next door. Crossing to a route and back would lose the
+     journal's scroll position for a row that was already on this screen.
+     `focusTask` is handed to the Tasks panel, which scrolls it into view and
+     flashes it, then clears this so pressing the same chip again works. */
+  const [focusTask, setFocusTask] = useState<string | null>(null);
+  const openTask = useCallback((id: string) => {
+    setTab("tasks");
+    setFocusTask(id);
+  }, []);
+  const clearFocusTask = useCallback(() => setFocusTask(null), []);
 
   /* Worst first, and split by state — the same one list the topbar bell
      counts, so Urgent and Needs attention can never double-count an expiry or
@@ -138,7 +150,10 @@ export function DashboardHome({ data }: { data: DashboardData }) {
               panelPrefix="hmsec"
             />
 
-            {panel("journal", <HomeJournal entries={journal} today={today} />)}
+            {panel(
+              "journal",
+              <HomeJournal entries={journal} today={today} onOpenTask={openTask} />,
+            )}
 
             {panel(
               "urgent",
@@ -193,6 +208,8 @@ export function DashboardHome({ data }: { data: DashboardData }) {
                 viewerStaffId={viewerStaffId}
                 canManage={canManage}
                 assignable={assignable}
+                focusTaskId={focusTask}
+                onFocusHandled={clearFocusTask}
               />,
             )}
 

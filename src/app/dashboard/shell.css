@@ -215,6 +215,10 @@
 .fg .page.in .stg > *:nth-child(1){animation-delay:.04s}
 .fg .page.in .stg > *:nth-child(2){animation-delay:.1s}
 .fg .page.in .stg > *:nth-child(3){animation-delay:.16s}
+/* A FOURTH child needs its own delay or it arrives FIRST: the base rule sets
+   no delay, so an unlisted child animates at 0s while its siblings are still
+   waiting. Home has four (head · tabs · card · payroll). */
+.fg .page.in .stg > *:nth-child(4){animation-delay:.22s}
 .fg .page.in .stgp > * { animation:fgPop .4s cubic-bezier(.22,1,.36,1) both; will-change:opacity, transform; }
 .fg .page.in .stgp > *:nth-child(2){animation-delay:.06s}
 .fg .page.in .stgp > *:nth-child(3){animation-delay:.12s}
@@ -1994,6 +1998,9 @@
 .fg .dir:has(.dmenu.open) {overflow:visible;}
 .fg .dirrows > .dirrow:last-child {border-radius:0 0 24px 24px;}
 .fg .dirrow.off {opacity:.62;}
+/* Imported/pre-seeded, no login yet — present but visibly not arrived. Same
+   dimming as archived, its own class so the two states can ever diverge. */
+.fg .dirrow.unclaimed {opacity:.62;}
 .fg .dofftag {font-size:10.5px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#9ca3af; background:#f1f2f4; padding:3px 9px; border-radius:999px; margin-left:6px;}
 .fg .direm {display:none; padding:40px 24px; text-align:center; font-size:13.5px; font-weight:600; color:#9ca3af; border-top:1px solid #f5f6f8;}
 /* directory — per-row actions menu */
@@ -3094,6 +3101,45 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .int-tag { padding:3px 9px; border-radius:999px; background:#f4f5f7; font-size:10.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--gray500); }
 .fg .int-tag.warn { background:rgba(240,164,49,.16); color:#a56a05; }
 
+/* ---- ServiceM8 people reconcile (components/integrations/sm8-people-card) ----
+   Import is a review, not a copy: the row IS the preview of what would land,
+   and the editor is where fields get unticked or corrected. Reuses card2 /
+   int-note / int-tag / fl-btn; only the row grid, the field editor and the
+   bulk bar are new. Everything .fg .sp-* so the .fg button/input resets lose. */
+.fg .sp-tools { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:4px; }
+.fg .sp-selall { display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:700; color:var(--gray500); cursor:pointer; }
+.fg .sp-selall input { width:15px; height:15px; accent-color:var(--teal-d); }
+.fg .sp-ghostbtn { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:9px; border:0; background:transparent; font-size:12.5px; font-weight:700; color:var(--gray500); cursor:pointer; }
+.fg .sp-ghostbtn:hover { background:#f4f5f7; color:var(--gray700); }
+.fg .sp-rows { display:flex; flex-direction:column; }
+.fg .sp-row { border-top:1px solid #f5f6f8; }
+.fg .sp-row:first-child { border-top:0; }
+.fg .sp-row.off .sp-main b { color:var(--gray400); }
+.fg .sp-line { display:flex; align-items:center; gap:12px; padding:12px 0; }
+.fg .sp-check { width:16px; flex:0 0 auto; display:flex; align-items:center; }
+.fg .sp-check input { width:15px; height:15px; accent-color:var(--teal-d); }
+.fg .sp-main { min-width:0; flex:1; display:flex; flex-direction:column; gap:2px; }
+.fg .sp-main b { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:800; letter-spacing:-0.01em; }
+.fg .sp-main em { font-style:normal; font-size:12.5px; font-weight:600; color:var(--gray500); overflow-wrap:anywhere; }
+.fg .sp-sug { margin-top:2px; font-size:12.5px; font-weight:700; color:#00806c; }
+.fg .sp-act { display:flex; align-items:center; gap:8px; flex:0 0 auto; }
+.fg .sp-editor { display:grid; grid-template-columns:1fr 1fr; gap:10px 14px; padding:4px 0 14px 28px; }
+.fg .sp-f { display:flex; flex-direction:column; gap:5px; }
+.fg .sp-f > span { display:flex; align-items:center; gap:7px; font-size:11.5px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:var(--gray500); }
+.fg .sp-f > span input { width:14px; height:14px; accent-color:var(--teal-d); }
+.fg .sp-f > input { height:38px; padding:0 12px; border-radius:10px; border:1.5px solid #e2e5ea; background:#fff; font-size:13.5px; font-weight:600; color:var(--gray700); }
+.fg .sp-f > input:focus { outline:none; border-color:var(--teal); }
+.fg .sp-f.out > input { background:#fafbfc; color:var(--gray400); }
+.fg .sp-editorfoot { grid-column:1 / -1; display:flex; align-items:center; gap:10px; }
+.fg .sp-linkpick { display:flex; align-items:center; gap:8px; }
+.fg .sp-linkpick select { height:34px; padding:0 10px; border-radius:9px; border:1.5px solid #e2e5ea; background:#fff; font-size:12.5px; font-weight:700; color:var(--gray700); }
+.fg .sp-bulk { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:12px; padding:11px 14px; border-radius:12px; background:#f7f8fa; }
+.fg .sp-bulk > span { font-size:12.5px; font-weight:700; color:var(--gray500); }
+.fg .sp-linked { margin-top:12px; border-top:1px solid #f5f6f8; padding-top:8px; }
+/* Where an unlink actually belongs, when it isn't this screen. */
+.fg .sp-elsewhere { max-width:230px; font-size:11.5px; font-weight:600; line-height:1.45; color:var(--gray400); text-align:right; }
+.fg .sp-empty { padding:14px 0; font-size:13px; font-weight:600; color:var(--gray400); }
+
 /* ---- Organisation screen (components/org/) ----
    Additive: the company profile reuses .card2 / .idc / .cred wholesale, and
    only these six things are new — a clickable credential card, the add tile,
@@ -3151,6 +3197,31 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    the same shape the narrow-viewport rule below already defines. Stated by
    CONTAINER rather than by viewport: the form moved into the column at every
    width, so a media query would have missed it on a wide screen. */
+/* ---- medical certificates on a leave request ----
+   Deliberately quiet. This is the most sensitive row in the app and it should
+   read as a checklist item, not an alarm: an approver can approve without one,
+   and a person who hasn't seen a doctor yet is not doing anything wrong. */
+.fg .lv-cert { display:flex; align-items:center; gap:10px; margin-top:12px; padding:11px 13px; border-radius:13px; background:#fff; border:1px dashed rgba(10,11,16,.18); }
+.fg .lv-cert.on { border-style:solid; border-color:rgba(34,197,94,.5); background:rgba(34,197,94,.05); }
+.fg .lv-cert svg { flex:0 0 auto; color:var(--gray400); }
+.fg .lv-cert.on svg { color:var(--teal-d); }
+.fg .lv-cert > span { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.fg .lv-cert b { font-size:13px; font-weight:800; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fg .lv-cert em { font-size:11.5px; font-weight:600; font-style:normal; color:var(--gray500); line-height:1.45; }
+.fg .lv-cert label { flex:0 0 auto; cursor:pointer; }
+
+/* the same fact on a booked row, one line rather than a card */
+.fg .lv-reqcert { display:inline-flex; align-items:center; gap:6px; margin-top:4px; font-size:11.5px; font-weight:700; color:var(--amber-d,#b45309); }
+.fg .lv-reqcert.on { color:var(--teal-ink,#05887a); }
+.fg .lv-reqcert a { color:inherit; text-decoration:underline; text-underline-offset:2px; }
+.fg .lv-certadd { margin-left:2px; padding:1px 8px; border-radius:8px; background:rgba(10,11,16,.06); color:var(--gray700); cursor:pointer; }
+.fg .lv-certadd:hover { background:rgba(10,11,16,.1); }
+
+/* the approver's copy, on the pending card where the decision is made */
+.fg .lv-pcert { display:inline-flex; align-items:center; gap:7px; margin-top:6px; font-size:12px; font-weight:700; color:var(--amber-d,#b45309); }
+.fg .lv-pcert.on { color:var(--teal-ink,#05887a); }
+.fg .lv-pcert a { color:inherit; text-decoration:underline; text-underline-offset:2px; }
+
 .fg .lv-cal { display:grid; grid-template-columns:300px minmax(0,1fr); gap:20px; align-items:start; }
 .fg .lv-col .lv-cal { grid-template-columns:minmax(0,1fr); }
 .fg .lv-col .lv-calside { max-width:340px; }
@@ -4745,8 +4816,8 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 /* Nor is the actions row: this column CENTRES and shrink-wraps its
    children, so the row was only as wide as its buttons and the Default
    switch's `margin-right:auto` had nothing to push against — it sat
-   hard against Stop & read instead of holding the left like it does
-   everywhere else. */
+   hard against the recording's Go instead of holding the left like it
+   does everywhere else. */
 .wb2-caprec .wb2-capact { align-self:stretch; }
 /* The live transcript, and it must read as WORDS, not as a status line —
    it is what the person is checking while they talk. Top-level, never
@@ -6538,11 +6609,14 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    palette authority here — same ink, same white-alpha steps, same on-ink
    chip tints, so the card and the sheet it opens read as one material.
 
-   THE THUMB WEARS THE CARD'S MATERIAL. It is the card's top edge for the
-   width of the active tab (see .wb2-vslide), and the join survives only if
-   the two are the same thing — so the thumb goes smoked glass with the card,
-   and its corner flares are recoloured to match. A white thumb on an ink
-   card is the same broken join #325 documented the other way round. */
+   THE STRIP LIVES INSIDE THE CARD, and that is not a style choice — it is
+   what the material forces. The board's tab-join works by making the active
+   tab's thumb BE the card's top edge, which only holds while both are
+   OPAQUE. Translucent, the same three tricks all invert: the 1px weld
+   double-paints (.86 over .86 = .98) into a dark band, the inverted corner
+   flares cannot carry the card's blur so they land as flat patches, and the
+   card's top border draws a light line through the seam. Measured, not
+   guessed — see the strip block below. One sheet of glass, tabs on it. */
 
 /* The board declares its palette on its own root. Home is not under that root,
    so it takes a copy — same values, one place to change them. */
@@ -6569,25 +6643,65 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   background-size:auto, auto, auto, 26px 26px;
 }
 
-/* The strip: inactive tabs stay the well's quiet grey; the ACTIVE tab lands
-   on ink, so its text goes white and its badge takes the on-ink tint —
-   danger and warning keep their meaning on both grounds. */
-.fg .hm-wrap .wb2-vt.on { color:#fff; }
-.fg .hm-wrap .wb2-vt.on .wb2-vtn { background:rgba(255,255,255,.14); color:rgba(255,255,255,.85); }
-.fg .hm-wrap .wb2-vt.on .wb2-vtn.dan { background:rgba(224,38,79,.4); color:#FFA7B9; }
-.fg .hm-wrap .wb2-vt.on .wb2-vtn.warn { background:rgba(255,138,0,.34); color:#FFC27D; }
+/* ── THE PAGE HEAD ──
+   Home was the only screen in the app without one. The hero was deleted in
+   #321 and nothing took its place, so the page opened straight onto a tab
+   strip with no name on it while Workboard, Assets and Tiff all say who they
+   are. This is `.wb2-head`'s anatomy at its own sizes — 38px, the same as
+   Workboard, because they are the same kind of screen: a named board wearing
+   a row of tabs.
 
-/* The thumb, in the card's own glass. The corner flares paint the inverted
-   join past the rounded corner, so they carry the same translucent ink or
-   the seam shows two materials. Blur on the 12px flares is skipped — at that
-   size the mismatch is invisible and a backdrop-filter per pseudo is not.
-   Standard property alone, never a -webkit- twin (lightningcss collapses the
-   pair and has shipped the wrong survivor before). */
-.fg .hm-wrap .wb2-vslide { background:var(--hm-ink); border-color:rgba(255,255,255,.1);
-  backdrop-filter:blur(18px) saturate(140%);
-  box-shadow:0 -12px 26px -18px rgba(10,12,20,.7); }
-.fg .hm-wrap .wb2-vslide:before { background:radial-gradient(circle 12px at 0 0, transparent 11.5px, var(--hm-ink) 12px); }
-.fg .hm-wrap .wb2-vslide:after { background:radial-gradient(circle 12px at 100% 0, transparent 11.5px, var(--hm-ink) 12px); }
+   The date sits BESIDE the title, divided by a hairline, because it is the
+   screen's context rather than any one tab's — Urgent, Tasks and Calendar are
+   all answers to "what about today". It reads "Home | Monday 10 August", so
+   the two never fuse into one phrase. */
+.fg .hm-phead { padding:2px 0 20px; }
+.fg .hm-phead h1 { display:flex; align-items:baseline; flex-wrap:wrap; gap:16px;
+  margin:0; font-size:38px; font-weight:800; letter-spacing:-.035em; line-height:1;
+  color:var(--ink); }
+.fg .hm-pdate { position:relative; padding-left:17px; font-size:15px; font-weight:600;
+  letter-spacing:-.005em; color:var(--gray500); }
+/* the hairline is the pseudo, not a border, so it sizes off the CAP height of
+   the date rather than the h1's 38px line box */
+.fg .hm-pdate::before { content:""; position:absolute; left:0; top:1px; bottom:1px;
+  width:1px; background:rgba(5,5,5,.16); }
+.fg .hm-psub { margin:10px 0 0; font-size:14.5px; font-weight:600; color:var(--gray500); }
+
+/* ── THE STRIP, INSIDE THE GLASS ──
+   Every rule here exists to undo one piece of the board's tab-join, which is
+   an OPAQUE-surface technique and cannot be made translucent:
+
+   - the 1px overlap that welded thumb to card double-paints on glass
+     (.86 over .86 = .98) and draws a dark band across the join;
+   - the inverted corner flares are flat pseudos, and a pseudo cannot carry
+     its parent's backdrop blur, so they land as unblurred patches;
+   - the card's own 1px top border runs straight through the seam.
+
+   Inside the card there is no seam to get wrong. The thumb keeps its slide —
+   it is a lit pill ON the one sheet of glass, not a second sheet of it. */
+.fg .hm-card .wb2-vtabs { position:relative; z-index:1; align-items:center; gap:2px;
+  margin-bottom:0; padding:8px 10px 0; border-bottom:1px solid var(--hm-line); }
+.fg .hm-card .wb2-vt { height:40px; padding:0 15px; border-radius:10px;
+  color:rgba(255,255,255,.55); }
+.fg .hm-card .wb2-vt:hover:not(.on) { background:rgba(255,255,255,.06); color:#fff; }
+.fg .hm-card .wb2-vt.on { color:#fff; }
+.fg .hm-card .wb2-vt:focus-visible { box-shadow:0 0 0 3px rgba(0,229,192,.4); }
+/* the fence posts go with the join: the lit pill is what separates the tabs,
+   and ticks between them on one continuous surface are noise */
+.fg .hm-card .wb2-vt:not(.on) + .wb2-vt:not(.on):before { display:none; }
+/* the pill. `top`, not the base rule's `bottom:-1px` — that offset existed to
+   push the thumb THROUGH the card's top edge, which is the join being undone. */
+.fg .hm-card .wb2-vslide { top:8px; bottom:auto; height:40px; border:0;
+  border-radius:10px; background:rgba(255,255,255,.1); box-shadow:none;
+  backdrop-filter:none; }
+.fg .hm-card .wb2-vslide:before, .fg .hm-card .wb2-vslide:after { display:none; }
+/* ONE badge system, because there is now one ground. The active tab used to
+   need its own set purely because it stood on ink while its neighbours stood
+   on the well; both stand on glass now. Danger and warning still mean what
+   they mean — they are just tuned to be read on it. */
+.fg .hm-card .wb2-vtn { background:rgba(255,255,255,.12); color:rgba(255,255,255,.8); }
+.fg .hm-card .wb2-vtn.dan { background:rgba(224,38,79,.28); color:#FFA7B9; }
+.fg .hm-card .wb2-vtn.warn { background:rgba(255,138,0,.26); color:#FFC27D; }
 
 /* ── THE CARD — smoked glass, rimmed and washed like the console it absorbed ── */
 .fg .hm-card { position:relative; background:var(--hm-ink); border-color:rgba(255,255,255,.1);
@@ -6617,7 +6731,12 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    this was built. */
 .fg .hm-card .hm-panel[hidden] { display:none; }
 .fg .hm-panel { padding:6px 0 12px; }
-.fg .hm-panel > .wb2-sect:first-child { padding-top:10px; }
+/* A section label lines up with the rows it heads. `.wb2-sect`'s own 2px is
+   the board's, where the body around it is already inset; Home's rows carry
+   their inset themselves, so the label was sitting 23px left of the tiles it
+   was labelling — measured, and exactly the kind of near-miss that reads as
+   "thrown together". */
+.fg .hm-card .hm-panel > .wb2-sect { padding:16px 26px 6px; }
 
 /* SIX TABS DON'T FIT A LAPTOP. Five did; Calendar pushed the row past 1100px
    and the last tab clipped at the card's edge — reachable by nothing. The
@@ -6626,9 +6745,9 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    thumb re-measures, so a keyboard walk can't strand you on a tab you can't
    see. `flex:none` stops the tabs squeezing instead of scrolling. */
 @media (max-width:1180px) {
-  .fg .hm-wrap .wb2-vtabs { overflow-x:auto; scrollbar-width:none; padding-left:24px; }
-  .fg .hm-wrap .wb2-vtabs::-webkit-scrollbar { display:none; }
-  .fg .hm-wrap .wb2-vt { flex:none; }
+  .fg .hm-card .wb2-vtabs { overflow-x:auto; scrollbar-width:none; }
+  .fg .hm-card .wb2-vtabs::-webkit-scrollbar { display:none; }
+  .fg .hm-card .wb2-vt { flex:none; }
 }
 
 /* ── rows: an identity, not a table ──
@@ -6721,18 +6840,22 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 /* ── the Journal ──
    The header is the day, and the record runs under it, newest first. */
 
-/* THE HEADER. The inset console (`.hm-comp`) is gone — the whole card is that
-   material now (wash and rim ride `.hm-card` itself), so a band on a band
-   would say the same thing twice. What remains is one row directly on the
-   glass: the date at left — "Say the day" was coaching, the capsule already
-   says what pressing it does, and the day was the one thing this card never
-   said — the debrief capsule at right, and a hairline where the record
-   begins. */
-.fg .hm-head { display:flex; align-items:center; gap:18px; flex-wrap:wrap;
-  padding:20px 26px 16px; border-bottom:1px solid var(--hm-line); }
-.fg .hm-headdate { flex:1; min-width:220px; display:flex; flex-direction:column; gap:2px; }
-.fg .hm-headdate b { font-size:17px; font-weight:800; letter-spacing:-.015em; color:#fff; }
-.fg .hm-headdate span { font-size:12.8px; font-weight:500; color:rgba(255,255,255,.55); }
+/* THE HEADER — the capsule alone. The inset console (`.hm-comp`) went when
+   the whole card became that material; the day and date that briefly
+   replaced it went UP to the page head, where the screen's context belongs.
+   Anything left on the left of this row would have been the third statement
+   of one date (page head, here, and the record's own "Today" divider
+   immediately below), so the row is a toolbar and nothing more. It is the
+   glass that holds the capsule up — the "floating button" #325 fixed was a
+   MATERIAL mismatch, a dark control on a white band, not a layout one.
+
+   NO RULE UNDER IT. The tab row draws one just above, and two parallel
+   hairlines with a single button between them read as an empty band rather
+   than a header — the same stacked-parts look the join had. One rule
+   separates the chrome from the record; the capsule sits on the record's
+   side of it. */
+.fg .hm-head { display:flex; align-items:center; justify-content:flex-end;
+  gap:18px; flex-wrap:wrap; padding:14px 26px 4px; }
 
 /* THE DEBRIEF — the topbar button's material, wearing the word and nothing
    else (the mark came off at #327; the ground is even more unmistakably
@@ -6763,12 +6886,11 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 
    Bound to the VIEWPORT rather than the well, deliberately: making the card
    itself stretch would mean turning .page/.wrap/.stg into a flex column, and
-   those three are every screen's, not Home's. 410px is what sits above the
-   scroller — topbar 80, well inset, wrap 62, tab row 44, the date header ~84
-   (the 104px console it replaced bought the record 20px) — plus room for the
-   Payroll strip under the card. The floor keeps two entries readable on a
-   short window. */
-.fg .hm-jscroll { max-height:calc(100vh - 410px); min-height:240px; overflow-y:auto; padding:6px 26px 14px;
+   those three are every screen's, not Home's. 494px is what sits above the
+   scroller — topbar 80, well inset, wrap 62, the page head 92, tab row 44,
+   the capsule row 73 — plus room for the Payroll strip under the card. The
+   floor keeps two entries readable on a short window. */
+.fg .hm-jscroll { max-height:calc(100vh - 494px); min-height:240px; overflow-y:auto; padding:6px 26px 14px;
   scrollbar-width:thin; scrollbar-color:rgba(255,255,255,.22) transparent;
   -webkit-mask-image:linear-gradient(#000 90%, transparent 100%);
   mask-image:linear-gradient(#000 90%, transparent 100%); }

@@ -17,6 +17,16 @@ jest.mock("@/app/actions/leave", () => ({
   cancelLeave: (...a: unknown[]) => cancelLeave(...(a as [])),
 }));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), refresh: jest.fn() }) }));
+/* The certificate picker imports the shared upload client, which reaches a
+   server action and pulls auth0 into jsdom — the suite fails to PARSE without
+   this, nowhere near the line that caused it. Same trap as every other
+   `"use server"` import in a component test. */
+jest.mock("@/lib/documents/upload-client", () => ({
+  uploadFile: jest.fn(async () => ({
+    ok: true,
+    file: { documentId: "doc-1", fileName: "certificate.pdf", mimeType: "application/pdf", sizeBytes: 1, previewUrl: null },
+  })),
+}));
 
 const TODAY = "2026-07-20"; // a Monday
 // the first Monday in August — a real one-day-off shape to plan around

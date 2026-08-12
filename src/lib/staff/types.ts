@@ -33,6 +33,9 @@ export type StaffRow = {
   orgRole: Role | null;
   /** true for the org's single master owner; their card is not editable */
   isMaster: boolean;
+  /** which connected system an unclaimed card came from ("ServiceM8");
+      null once claimed matters less, so the chip only renders pre-claim */
+  importedFrom: string | null;
 };
 
 /** One licence row, as the compliance derivation needs it. */

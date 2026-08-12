@@ -133,24 +133,48 @@ describe("the panels", () => {
   });
 });
 
-describe("the journal header", () => {
-  it("is the day, from the loader's date — never the client clock", () => {
-    /* "Say the day" was coaching; the capsule already says what pressing it
-       does, and the date was the one thing this card never said. It formats
-       the SERVER's `today` (fmtAuWeekdayDateLong), because a Date.now() in a
-       render body is the hydration failure project_hydration_clock_trap
-       documents. TODAY is 2026-08-10, a Monday. */
+describe("the page head", () => {
+  it("names the screen — Home was the only one that didn't", () => {
+    /* The hero was deleted in #321 and nothing replaced it, so the page
+       opened on a tab strip with no name while every other screen has a
+       heading. */
     draw();
-    const head = document.querySelector(".hm-head")!;
-    expect(head.textContent).toContain("Monday");
-    expect(head.textContent).toContain("10 August");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Home");
+  });
+
+  it("carries the date from the loader, never the client clock", () => {
+    /* It formats the SERVER's `today` (fmtAuWeekdayDateLong), because a
+       Date.now() in a render body is the hydration failure
+       project_hydration_clock_trap documents. TODAY is 2026-08-10, a Monday. */
+    draw();
+    const head = document.querySelector(".hm-phead")!;
+    expect(head.textContent).toContain("Monday 10 August");
+  });
+
+  it("says the date ONCE — the journal's header gave it up to the head", () => {
+    /* The date lived in the card's header for one round. With a page head
+       carrying it, that row plus the record's own "Today ·" divider would
+       have made three statements of one date on one screen. */
+    draw();
+    expect(document.querySelector(".hm-head")!.textContent).not.toContain("Monday");
     expect(screen.queryByText("Say the day")).toBeNull();
   });
 
-  it("replaced the inset console — the card is the material now, not a band on it", () => {
-    /* `.hm-comp` was the ink band inside the white card. The card itself is
-       ink glass now, so a band-on-a-band would say the same thing twice; if
-       this class reappears, that doubling is back. */
+  it("puts the tab strip INSIDE the card — the join cannot be glass", () => {
+    /* The board's strip welds the active tab's thumb to the card's top edge,
+       which only works while both are opaque: translucent, the 1px weld
+       double-paints into a dark band, the corner flares cannot carry the
+       card's blur, and the card's top border cuts the seam. One sheet of
+       glass with the tabs on it is the fix; if the strip escapes the card,
+       the three-materials-at-one-join problem is back. */
+    draw();
+    const card = document.querySelector(".hm-card")!;
+    expect(card.querySelector('[role="tablist"]')).not.toBeNull();
+  });
+
+  it("keeps the card as the material, not a band inside a band", () => {
+    /* `.hm-comp` was the ink console inset in the white card. The card itself
+       is ink glass now; if this class reappears, that doubling is back. */
     draw();
     expect(document.querySelector(".hm-comp")).toBeNull();
   });

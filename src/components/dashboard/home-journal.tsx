@@ -1,6 +1,6 @@
 import { Icon } from "@/components/shell/icon";
 import { NoteToken } from "@/components/notes/note-token";
-import { fmtAuWeekdayDateLong, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
+import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { groupByDay, type JournalEntry } from "@/lib/dashboard/journal";
 
 /* THE JOURNAL — what you told Tiff, and what it became.
@@ -17,9 +17,10 @@ import { groupByDay, type JournalEntry } from "@/lib/dashboard/journal";
 
    THE OUTCOMES ARE THE PAYOFF, so they are chips rather than the 12.5px text
    they used to be — the proof of work was the quietest thing in the entry.
-   They wear ONE colour, the card family's link cyan: ok-green, warn and danger
-   mean state in this app and may not be spent on a category. The glyph is the
-   only thing that varies, and only two ways — see `OutcomeKind`.
+   They wear ONE colour, the dusk skin's teal now the card is ink: ok-green,
+   warn and danger mean state in this app and may not be spent on a category.
+   The glyph is the only thing that varies, and only two ways — see
+   `OutcomeKind`.
 
    NEWEST FIRST, all the way down, so what you just said is where your eye
    already is and the day you are adding to is the day on top. */
@@ -27,26 +28,19 @@ import { groupByDay, type JournalEntry } from "@/lib/dashboard/journal";
 export function HomeJournal({ entries, today }: { entries: JournalEntry[]; today: string }) {
   const days = groupByDay(entries, today, fmtAuWeekdayDayMonth);
 
-  /* "Monday" / "10 August" — from the loader's AU calendar date, never the
-     client clock (a Date.now() here is the hydration failure in
-     project_hydration_clock_trap). The long form already exists because the
-     old hero's greeting used it; the card inherits the format so the day
-     reads identically everywhere it is spelt out. */
-  const longDate = fmtAuWeekdayDateLong(today);
-  const [weekday, ...rest] = longDate.split(" ");
-
   return (
     <>
-      {/* The header is the day. It said "Say the day" with a line of coaching
-          under it — but the debrief capsule already says what pressing it
-          does, and the date was the one thing this card never said. The
-          capsule (`NoteToken as="debrief"`) IS the topbar button, wearing the
-          word — same sheet, whichever door you came through. */}
+      {/* THE HEADER IS THE CAPSULE, and nothing else. It has been three things
+          now: "Say the day" plus a line of coaching (coaching the capsule's
+          own word already gives), then the day and date — which moved up to
+          the page head, where it belongs, because the date is the SCREEN's
+          context and not the Journal's. Keeping it here would have been the
+          third statement of one date: page head, this row, and the record's
+          own "Today · Mon 10 Aug" divider two lines below it.
+
+          `NoteToken as="debrief"` IS the topbar button, wearing the word —
+          same sheet, whichever door you came through. */}
       <div className="hm-head">
-        <div className="hm-headdate">
-          <b>{weekday}</b>
-          <span>{rest.join(" ")}</span>
-        </div>
         <NoteToken as="debrief" />
       </div>
 

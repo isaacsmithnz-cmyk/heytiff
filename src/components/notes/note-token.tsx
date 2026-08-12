@@ -238,9 +238,20 @@ function Body({ flow }: { flow: NoteFlow }) {
               rather than routing it, so changing your mind mid-sentence
               costs nothing. */}
           <ModeControl flow={flow} />
-          <button className="pbtn" onClick={flow.dict.stop}>
+          {/* GO HERE TOO (Isaac, 2026-08-10), and the same green. The card
+              had two words for one gesture — "Stop & read" while the mic is
+              open, "Go" once the words are in the box — and from where the
+              person is standing both are simply the way onward. Two buttons
+              named Go never share a screen: this one only exists while
+              recording, that one only once there is something to sort.
+
+              THE SQUARE STAYS. The word says where you are going; the glyph
+              says what it costs, which is that the recording ends here. A
+              green Go with no stop mark would be the one control on the card
+              that gives no sign it is about to close the microphone. */}
+          <button className="pbtn wb2-go" onClick={flow.dict.stop}>
             <Icon name="square" size={15} />
-            Stop &amp; read
+            Go
           </button>
         </div>
       </div>

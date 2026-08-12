@@ -740,7 +740,14 @@ export function MyTimesheet({
      this person expected today?" to decide missing days and short days, and
      answering that with a bare Mon–Fri would show a casual a week of missing
      days the server had just, correctly, declined to fill in. */
-  const ctx: WeekCtx = { week, today, through, workDays, holidays: me.holidayDays };
+  const ctx: WeekCtx = {
+    week,
+    today,
+    through,
+    workDays,
+    holidays: me.holidayDays,
+    certMissing: me.certMissing,
+  };
   const casual = employment === "casual";
   const d = derive(me, settings, ctx);
   const groups = weekGroups(me.days);

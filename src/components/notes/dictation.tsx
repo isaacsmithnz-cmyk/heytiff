@@ -109,7 +109,7 @@ export function transportChoice(): boolean {
    brackets — "[outro jingle]", "(music)", "[BLANK_AUDIO]" — and a clip with
    nothing said in it comes back as nothing BUT that label. Live-walked
    2026-08-10: a silent recording put "[outro jingle]" into the capture box
-   as if somebody had said it, and down the Stop & read path that same string
+   as if somebody had said it, and down the stop-and-read path that same string
    would have been handed to the router and filed as a note.
 
    Anything left once the labels are stripped is real speech, so a genuine

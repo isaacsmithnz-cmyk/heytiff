@@ -1,9 +1,13 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { displayNameOf } from "@/lib/staff/name";
+import { signMany } from "@/lib/documents/query";
+import { shiftDefaultsFor } from "./query";
+import { businessDays, certificateExpected } from "./leave";
 import type {
   BalanceKind,
   BalanceSource,
   LeaveBalance,
+  LeaveCertificate,
   LeaveKind,
   LeaveRequest,
   LeaveStatus,
@@ -36,6 +40,76 @@ function toRequest(r: Record<string, unknown>, name?: (id: string) => string | u
   };
 }
 
+/* THE CERTIFICATE IS THE MOST SENSITIVE THING IN THIS MODULE, and it is
+   attached separately rather than joined into `REQUEST_COLUMNS` for exactly
+   that reason: a caller has to ASK for it. Leave carries no wage, so the rest
+   of this file has no projection to make — this is the one field where who is
+   reading matters, and a query that returned it by default would put a
+   person's medical certificate into every list that happens to render a leave
+   row.
+
+   Two callers are entitled: the person themselves (`myRequests`), and somebody
+   holding `approvals`, who is being asked to decide the absence it is evidence
+   for. Everyone else gets requests with `certificate` absent — which reads the
+   same as "none attached", and is meant to. */
+export async function certificatesFor(
+  orgId: string,
+  requestIds: readonly string[],
+): Promise<Map<string, LeaveCertificate>> {
+  const out = new Map<string, LeaveCertificate>();
+  if (requestIds.length === 0) return out;
+
+  const { data } = await supabaseAdmin
+    .from("documents")
+    .select("id, leave_request_id, file_name, storage_ref")
+    .eq("org_id", orgId)
+    .eq("kind", "medical_certificate")
+    .in("leave_request_id", [...requestIds]);
+
+  const rows = (data ?? []) as Record<string, unknown>[];
+  const signed = await signMany(rows.map((r) => String(r.storage_ref)));
+  for (const r of rows) {
+    out.set(String(r.leave_request_id), {
+      documentId: String(r.id),
+      fileName: String(r.file_name),
+      url: signed.get(String(r.storage_ref)) ?? null,
+    });
+  }
+  return out;
+}
+
+/* Resolve `certExpected` for a batch of rows, through each requester's OWN
+   roster. One place, so the person and their approver are told the same thing
+   about the same absence — see the field's comment in leave.ts. */
+export async function markCertExpected(
+  orgId: string,
+  rows: LeaveRequest[],
+  holidays: Set<string>,
+  orgWorkDays: number[],
+  certAfterDays: number | null | undefined,
+): Promise<LeaveRequest[]> {
+  if (certAfterDays == null) return rows;
+  const personal = rows.filter((r) => r.kind === "personal");
+  if (personal.length === 0) return rows;
+
+  const { workDays } = await shiftDefaultsFor(orgId, [...new Set(personal.map((r) => r.staffId))]);
+  return rows.map((r) => {
+    if (r.kind !== "personal") return r;
+    const days = workDays.get(r.staffId) ?? orgWorkDays;
+    const working = businessDays(r.startDate, r.endDate, holidays, days);
+    return { ...r, certExpected: certificateExpected(r.kind, working, certAfterDays) };
+  });
+}
+
+/** Hang certificates onto requests that have one. */
+async function withCertificates(orgId: string, rows: LeaveRequest[]): Promise<LeaveRequest[]> {
+  // only personal leave ever carries one, so nothing else is worth a lookup
+  const ids = rows.filter((r) => r.kind === "personal").map((r) => r.id);
+  if (ids.length === 0) return rows;
+  const certs = await certificatesFor(orgId, ids);
+  return rows.map((r) => (certs.has(r.id) ? { ...r, certificate: certs.get(r.id) } : r));
+}
+
 /** Your own leave requests, newest first. */
 export async function myRequests(orgId: string, staffProfileId: string): Promise<LeaveRequest[]> {
   const { data } = await supabaseAdmin
@@ -44,7 +118,11 @@ export async function myRequests(orgId: string, staffProfileId: string): Promise
     .eq("org_id", orgId)
     .eq("staff_profile_id", staffProfileId)
     .order("start_date", { ascending: false });
-  return ((data ?? []) as Record<string, unknown>[]).map((r) => toRequest(r));
+  // your own certificate is yours to see
+  return withCertificates(
+    orgId,
+    ((data ?? []) as Record<string, unknown>[]).map((r) => toRequest(r)),
+  );
 }
 
 /** Your entitlements. Missing rows mean "none recorded", not zero-forever — the

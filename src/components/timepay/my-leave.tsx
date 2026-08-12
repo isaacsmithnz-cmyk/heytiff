@@ -7,10 +7,12 @@ import { DateField } from "@/components/ui/date-field";
 import { MonthGrid, monthOf } from "@/components/ui/month-grid";
 import { fmtAuDayMonth } from "@/lib/au-dates";
 import { UpcomingHolidays } from "./upcoming-holidays";
-import { cancelLeave, requestLeave, type LeaveResult } from "@/app/actions/leave";
+import { attachCertificate, cancelLeave, requestLeave, type LeaveResult } from "@/app/actions/leave";
+import { uploadFile } from "@/lib/documents/upload-client";
 import {
   LEAVE_LABEL,
   SOURCE_LABEL,
+  certificateExpected,
   rangeBreakdown,
   suggestedHours,
   type BalanceView,
@@ -91,12 +93,17 @@ export function MyLeave({
   requests,
   holidays,
   workDays,
+  certAfterDays = null,
 }: {
   today: string;
   standard: number;
   balances: BalanceView[];
   requests: LeaveRequest[];
   holidays: { date: string; name: string }[];
+  /** the workspace's certificate threshold in WORKING days, or null when it
+      never asks — the one number the form, the approver and the timesheet all
+      read. See `certificateExpected`. */
+  certAfterDays?: number | null;
   /** the requester's own roster (Mon=0) — suggestions count these days, the
       same days the timesheet will pay, so a part-timer's week isn't quoted
       as five days of entitlement */
@@ -115,6 +122,12 @@ export function MyLeave({
   const [endDate, setEndDate] = useState(today);
   const [hours, setHours] = useState("");
   const [note, setNote] = useState("");
+  /* The certificate, uploaded BEFORE the request exists — the bytes go to
+     storage against a signed slot and the row is adopted on submit, the same
+     three steps an expense receipt takes. Holding the file in memory until
+     submit instead would put a 10 MB photo through a server action. */
+  const [cert, setCert] = useState<{ documentId: string; fileName: string } | null>(null);
+  const [uploading, setUploading] = useState(false);
   /* The calendar's month, and whether a range is half-drawn. `awaitingEnd` is
      the whole of the click-click protocol: one click puts a single day down,
      the next stretches it, and a third starts again. No drag — a drag on a
@@ -161,6 +174,38 @@ export function MyLeave({
     if (iso) setMonth(monthOf(iso)); // bring the band into view rather than leaving it a month away
   };
   const effectiveHours = hours.trim() === "" ? suggested : Number(hours);
+  /* Whether THIS span wants a certificate — one rule, shared with the approver
+     and the timesheet, counting the same working days the line under the
+     calendar already prints. */
+  const wantsCert = certificateExpected(kind, breakdown.working, certAfterDays);
+
+  /** Upload, and hold the id until Submit adopts it. */
+  const pickCertificate = async (file: File | undefined) => {
+    if (!file) return;
+    setUploading(true);
+    setError(null);
+    const res = await uploadFile(file, "medical_certificate");
+    setUploading(false);
+    if (!res.ok) return setError(res.error);
+    setCert({ documentId: res.file.documentId, fileName: res.file.fileName });
+  };
+
+  /** Upload, and attach it to a request that already exists. */
+  const attachTo = async (requestId: string, file: File | undefined) => {
+    if (!file) return;
+    setUploading(true);
+    setError(null);
+    const res = await uploadFile(file, "medical_certificate");
+    setUploading(false);
+    if (!res.ok) return setError(res.error);
+    run(() => attachCertificate(requestId, res.file.documentId));
+  };
+
+  /* The working days a booked request covers — the same count the form prints
+     while you are choosing it, so a row can't disagree with the line that
+     created it about whether it needs a certificate. */
+  const workingDaysOf = (r: LeaveRequest) =>
+    rangeBreakdown(r.startDate, r.endDate, holidayMap, workDays).working;
   const balanceOf = (k: LeaveKind) => balances.find((b) => b.kind === k);
 
   const run = (action: () => Promise<LeaveResult>, onOk?: () => void) => {
@@ -176,11 +221,20 @@ export function MyLeave({
 
   const submit = () => {
     run(
-      () => requestLeave({ kind, startDate, endDate, hours: effectiveHours, note: note.trim() || undefined }),
+      () =>
+        requestLeave({
+          kind,
+          startDate,
+          endDate,
+          hours: effectiveHours,
+          note: note.trim() || undefined,
+          certificateDocumentId: cert?.documentId,
+        }),
       () => {
         setOpen(false);
         setNote("");
         setHours("");
+        setCert(null);
       },
     );
   };
@@ -349,6 +403,36 @@ export function MyLeave({
                       <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. family holiday" />
                     </label>
                   </div>
+
+                  {/* THE CERTIFICATE, and only when this span actually wants
+                      one. It never blocks Submit: somebody booking a sick day
+                      usually hasn't seen a doctor yet, and a form that refused
+                      them would keep the absence off the books rather than get
+                      the document sooner. Missing here just means the row says
+                      so, to them and to whoever approves it. */}
+                  {wantsCert && (
+                    <div className={`lv-cert${cert ? " on" : ""}`}>
+                      <Icon name={cert ? "check" : "upload"} size={15} />
+                      <span>
+                        <b>{cert ? cert.fileName : "Medical certificate"}</b>
+                        <em>
+                          {cert
+                            ? "Attached — it goes with this request."
+                            : "Personal leave this long needs one. Add it now, or after you’ve seen someone."}
+                        </em>
+                      </span>
+                      <label className="fl-btn tiny">
+                        {uploading ? "Uploading…" : cert ? "Replace" : "Attach"}
+                        <input
+                          type="file"
+                          accept="image/*,application/pdf"
+                          hidden
+                          disabled={uploading || pending}
+                          onChange={(e) => pickCertificate(e.target.files?.[0])}
+                        />
+                      </label>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="lv-fmeta">
@@ -379,6 +463,38 @@ export function MyLeave({
                         {fmtRange(r.startDate, r.endDate)} · {fmt(r.hours)}h
                       </em>
                       {r.status === "declined" && r.reviewNote && <span className="lv-declined">{r.reviewNote}</span>}
+                      {/* ATTACH IT AFTERWARDS — the common case, not the
+                          fallback. You ring in sick on Tuesday, book the day,
+                          and see a doctor on Wednesday. The row is where you
+                          come back to. */}
+                      {(r.certExpected ?? certificateExpected(r.kind, workingDaysOf(r), certAfterDays)) && (
+                        <span className={`lv-reqcert${r.certificate ? " on" : ""}`}>
+                          <Icon name={r.certificate ? "check" : "alert"} size={12} />
+                          {r.certificate ? (
+                            r.certificate.url ? (
+                              <a href={r.certificate.url} target="_blank" rel="noreferrer">
+                                {r.certificate.fileName}
+                              </a>
+                            ) : (
+                              r.certificate.fileName
+                            )
+                          ) : (
+                            <>
+                              No certificate yet
+                              <label className="lv-certadd">
+                                Attach
+                                <input
+                                  type="file"
+                                  accept="image/*,application/pdf"
+                                  hidden
+                                  disabled={uploading || pending}
+                                  onChange={(e) => attachTo(r.id, e.target.files?.[0])}
+                                />
+                              </label>
+                            </>
+                          )}
+                        </span>
+                      )}
                     </div>
                     <span className={`dchip ${STATUS_COPY[r.status].tone}`}>{STATUS_COPY[r.status].label}</span>
                     {/* Arms before it fires: the first press asks, the second

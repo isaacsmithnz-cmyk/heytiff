@@ -5,7 +5,20 @@
 
 jest.mock("@/lib/supabase-server", () => ({ supabaseAdmin: {} }));
 
-import { fetchSm8Page } from "../sm8-read";
+/* readSm8StaffRows needs a grant to read through; the store is stubbed so the
+   walk itself — pagination, and what each failure kind becomes — is the thing
+   under test. */
+// eslint-disable-next-line no-var
+var sm8AccessMock: jest.Mock;
+// eslint-disable-next-line no-var
+var needsReauthMock: jest.Mock;
+jest.mock("../sm8-store", () => {
+  sm8AccessMock = jest.fn();
+  needsReauthMock = jest.fn(async () => {});
+  return { sm8Access: sm8AccessMock, markSm8NeedsReauth: needsReauthMock };
+});
+
+import { fetchSm8Page, readSm8StaffRows } from "../sm8-read";
 
 /* jsdom's test globals don't reliably carry Node's fetch classes, so the
    fakes are plain objects shaped like the four things the reader touches —
@@ -170,5 +183,66 @@ describe("what an unavailable failure tells the server", () => {
     fetchMock.mockResolvedValueOnce(jsonResponse("boom", { status: 500 }));
     await fetchSm8Page("super-secret-token", "job.json", { cursor: "-1", filter: null });
     expect(logged.join()).not.toContain("super-secret-token");
+  });
+});
+
+describe("readSm8StaffRows — the import screen's live walk", () => {
+  const ENV = { SM8_CLIENT_ID: "id", SM8_CLIENT_SECRET: "secret", APP_BASE_URL: "https://app.test" };
+  const saved: Record<string, string | undefined> = {};
+
+  beforeAll(() => {
+    for (const [k, v] of Object.entries(ENV)) {
+      saved[k] = process.env[k];
+      process.env[k] = v;
+    }
+  });
+  afterAll(() => {
+    for (const k of Object.keys(ENV)) {
+      if (saved[k] === undefined) delete process.env[k];
+      else process.env[k] = saved[k];
+    }
+  });
+  beforeEach(() => {
+    sm8AccessMock.mockReset().mockResolvedValue({ accessToken: "tok" });
+    needsReauthMock.mockClear();
+  });
+
+  it("walks every page and hands back the concatenated raw rows", async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse([{ uuid: "u-1" }], { nextCursor: "abc" }))
+      .mockResolvedValueOnce(jsonResponse([{ uuid: "u-2" }]));
+
+    const out = await readSm8StaffRows("org-1");
+
+    expect(out).toEqual({ ok: true, data: [{ uuid: "u-1" }, { uuid: "u-2" }] });
+    const first = new URL(fetchMock.mock.calls[0][0] as string);
+    const second = new URL(fetchMock.mock.calls[1][0] as string);
+    expect(first.pathname.endsWith("/staff.json")).toBe(true);
+    expect(first.searchParams.get("cursor")).toBe("-1");
+    expect(second.searchParams.get("cursor")).toBe("abc");
+  });
+
+  it("says the one useful thing when the scope is missing — reconnect to grant Staff", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse("forbidden", { status: 403 }));
+    const out = await readSm8StaffRows("org-1");
+    expect(out.ok).toBe(false);
+    if (!out.ok) expect(out.error).toMatch(/reconnect/i);
+    // the grant is fine — sending them round the reauth loop can't fix a scope
+    expect(needsReauthMock).not.toHaveBeenCalled();
+  });
+
+  it("marks the row needs_reauth on a dead grant, like the vendor read does", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse("unauthorized", { status: 401 }));
+    const out = await readSm8StaffRows("org-1");
+    expect(out.ok).toBe(false);
+    expect(needsReauthMock).toHaveBeenCalledWith("org-1", expect.stringContaining("Reconnect"));
+  });
+
+  it("reads as not-connected when there is no grant to read through", async () => {
+    sm8AccessMock.mockResolvedValue(null);
+    const out = await readSm8StaffRows("org-1");
+    expect(out.ok).toBe(false);
+    if (!out.ok) expect(out.error).toMatch(/isn't connected/i);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

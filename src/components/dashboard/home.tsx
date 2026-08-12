@@ -9,6 +9,7 @@ import { HomeJournal } from "./home-journal";
 import { HomeTasks } from "./home-tasks";
 import { ChipRows, NoticeRows, Nothing } from "./home-rows";
 import { sortChips } from "@/lib/dashboard/chips";
+import { fmtAuWeekdayDateLong } from "@/lib/au-dates";
 import { DEFAULT_TAB, homeTabs, type HomeTabKey } from "@/lib/dashboard/home-tabs";
 import { currentUnreadCount, partitionNotices } from "@/lib/dashboard/notices";
 import type { DashboardData } from "@/lib/dashboard/page-data";
@@ -89,16 +90,54 @@ export function DashboardHome({ data }: { data: DashboardData }) {
     <div className="page in">
       <div className="wrap hm-wrap">
         <div className="stg">
-          <ViewTabs
-            items={tabs}
-            active={tab}
-            onGo={(k) => setTab(k as HomeTabKey)}
-            ariaLabel="Home"
-            idPrefix="hmtab"
-            panelPrefix="hmsec"
-          />
+          {/* THE PAGE HEAD. Home was the only screen without one: the hero was
+              deleted in #321 and nothing replaced it, so the page opened on a
+              tab strip with no name on it while Workboard, Assets and Tiff all
+              say who they are (Isaac, 2026-08-10). Same anatomy as
+              `.wb2-head` — the closest sibling, being the other tabbed board.
 
+              The date rides beside the title because it is the screen's
+              context, not the Journal's: Urgent, Tasks and Calendar are all
+              answers to "what about today". It comes from the loader's AU
+              calendar date, never `new Date()` in a render body — see
+              project_hydration_clock_trap. */}
+          <header className="hm-phead">
+            <h1>
+              Home
+              <span className="hm-pdate">{fmtAuWeekdayDateLong(today)}</span>
+            </h1>
+            <p className="hm-psub">
+              What you&rsquo;ve told Tiff, what needs you, and what&rsquo;s coming up.
+            </p>
+          </header>
+
+          {/* THE STRIP IS INSIDE THE CARD NOW, and that is the whole fix.
+
+              The board's strip works by having the active tab's thumb BE the
+              card's top edge — an opaque-surface technique. It cannot survive
+              a translucent card: the 1px overlap that made the tab and the
+              card continuous double-paints instead (.86 over .86 = .98, a
+              dark band), the inverted corner flares are flat pseudos that
+              cannot carry the card's blur, and the card's own top border
+              draws a light line straight through the join. Three materials
+              meeting where there should be one — "thrown together instead of
+              one clean piece of glass" (Isaac, 2026-08-10).
+
+              So the glass is ONE rectangle and the tabs live in it. The thumb
+              stays and still slides; it is a lit pill ON the glass rather
+              than a second sheet of it. Nothing about ViewTabs changed — the
+              whole difference is which element it sits in, and CSS scoped to
+              `.hm-card`. */}
           <div className="wb2-card hm-card">
+            <ViewTabs
+              items={tabs}
+              active={tab}
+              onGo={(k) => setTab(k as HomeTabKey)}
+              ariaLabel="Home"
+              idPrefix="hmtab"
+              panelPrefix="hmsec"
+            />
+
             {panel("journal", <HomeJournal entries={journal} today={today} />)}
 
             {panel(

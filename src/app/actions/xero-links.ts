@@ -100,7 +100,7 @@ const EMPTY: LinkingData = {
 async function linkingStaff(orgId: string): Promise<LinkingStaff[]> {
   const { data } = await supabaseAdmin
     .from("staff_profiles")
-    .select("id, user_id, first_name, last_name, full_name, preferred_name, employment_type, pay_basis")
+    .select("id, user_id, first_name, last_name, full_name, preferred_name, contact_email, employment_type, pay_basis")
     .eq("org_id", orgId)
     .eq("status", "Active");
 
@@ -108,6 +108,8 @@ async function linkingStaff(orgId: string): Promise<LinkingStaff[]> {
   const userIds = rows.map((r) => r.user_id).filter((v): v is string => typeof v === "string");
   // Emails live on `profiles`, keyed by Auth0 sub — null until an invite is
   // accepted, which is the ordinary case for a card made ahead of onboarding.
+  // Those cards fall back to contact_email below: the address they were
+  // imported or pre-seeded with, so email can still say who they are.
   const emails = await emailsByUser(userIds);
 
   return rows.map((r) => {
@@ -119,7 +121,9 @@ async function linkingStaff(orgId: string): Promise<LinkingStaff[]> {
       firstName: first,
       lastName: last,
       fullName: full,
-      email: typeof r.user_id === "string" ? (emails.get(r.user_id) ?? null) : null,
+      email:
+        (typeof r.user_id === "string" ? (emails.get(r.user_id) ?? null) : null) ??
+        ((r.contact_email as string | null) || null),
       name: displayNameOf({
         first_name: first,
         last_name: last,

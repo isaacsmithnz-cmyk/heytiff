@@ -17,7 +17,13 @@ import type { Role } from "@/lib/roles-shared";
    Email sending isn't wired up, so an invite is only ever as good as its link:
    "resend" would be a lie, and renew + copy the link is the honest version of
    the same act. Renew and revoke re-run the same gate, and both are org-scoped
-   — an id from another org matches nothing. */
+   — an id from another org matches nothing.
+
+   An invite may also NAME a staff card (staffProfileId): accepting it then
+   binds the login to that card instead of minting a fresh one — the claim
+   path for people imported from ServiceM8/Xero or pre-seeded ahead of
+   onboarding. One open invite per card, backed by a partial unique index the
+   same way addresses are (docs/migrations/staff_claim_path.sql). */
 
 export type InviteResult = { ok: true } | { ok: false; error: string };
 
@@ -63,7 +69,13 @@ async function openInvite(ctx: Ctx, id: string): Promise<InviteResult> {
   return { ok: true };
 }
 
-export async function createInvite(input: { email: string; role: string }): Promise<InviteResult> {
+export async function createInvite(input: {
+  email: string;
+  role: string;
+  /** Unclaimed staff card this invite claims on acceptance — the bridge from
+      an imported or pre-seeded card to a real login. Org-scoped below. */
+  staffProfileId?: string;
+}): Promise<InviteResult> {
   const ctx = await inviterContext();
   if (!ctx) return { ok: false, error: NO_PERMISSION };
 
@@ -73,6 +85,36 @@ export async function createInvite(input: { email: string; role: string }): Prom
   }
   if (!ctx.allowedRoles.includes(input.role as Role)) {
     return { ok: false, error: "You can't invite someone at that role." };
+  }
+
+  /* A card-claiming invite: the card must be OURS and still unclaimed. A
+     claimed card means that person already has an account — re-inviting them
+     is a membership question, not a card one, so refuse rather than half-work. */
+  if (input.staffProfileId) {
+    const { data: card } = await supabaseAdmin
+      .from("staff_profiles")
+      .select("id, user_id")
+      .eq("org_id", ctx.orgId)
+      .eq("id", input.staffProfileId)
+      .maybeSingle();
+    if (!card) return { ok: false, error: "That staff card no longer exists." };
+    if (card.user_id) return { ok: false, error: "They already have an account here." };
+
+    /* One open invite per card — same shape as the address check below, same
+       partial-index backstop against the race (staff_claim_path.sql). */
+    const { data: openForCard } = await supabaseAdmin
+      .from("invitations")
+      .select("id")
+      .eq("org_id", ctx.orgId)
+      .eq("staff_profile_id", input.staffProfileId)
+      .is("accepted_at", null)
+      .limit(1);
+    if (openForCard?.[0]) {
+      return {
+        ok: false,
+        error: "That person already has a pending invite — renew it from the Pending tab instead.",
+      };
+    }
   }
 
   /* One open invite per address. The Pending tab already shows this person —
@@ -101,6 +143,9 @@ export async function createInvite(input: { email: string; role: string }): Prom
     // Written rather than left to the column default, so renewInvite extends by
     // the same window this granted — one number, in one place.
     expires_at: expiryFrom(),
+    // Spread, not always-null: a plain invite's insert payload stays exactly
+    // what it was before cards could be claimed.
+    ...(input.staffProfileId ? { staff_profile_id: input.staffProfileId } : {}),
   });
   if (error) return { ok: false, error: "Couldn't create that invite." };
 

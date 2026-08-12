@@ -1,6 +1,75 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { auth0, ensureStaffCard } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { normEmail } from "@/lib/integrations/match";
+
+/* A staff card can predate its login — imported from ServiceM8/Xero, or
+   created ahead of onboarding — sitting with user_id null until its person
+   arrives. Accepting an invite is the ONE moment the two can be bound: miss
+   it and ensureStaffCard mints a duplicate, and every later feature has two
+   answers to who this person is.
+
+   Which card is theirs, in order of proof:
+   1. the invite NAMES it (staff_profile_id, set when the invite was created
+      from an unclaimed card) — immune to work-address-vs-personal-login
+      drift, because the token itself is the claim;
+   2. exactly ONE unclaimed card holds the invite's address as contact_email.
+      Two holding it is an admin mess this route must not guess about — it
+      creates fresh and leaves both visible instead.
+
+   Every adopt carries `user_id is null` IN THE WRITE, so a claimed card can
+   never be re-claimed, and staff_profiles' (org_id, user_id) unique means a
+   racing double-accept cannot leave one person holding two cards. Someone who
+   already has a card here keeps it — a stale pointer (card deleted → the FK
+   nulled it; card claimed meanwhile → the guarded update matches nothing)
+   falls through to ensureStaffCard's fresh card, exactly today's behaviour. */
+async function adoptStaffCard(
+  orgId: string,
+  userId: string,
+  invite: { staff_profile_id?: string | null; email: string }
+): Promise<void> {
+  const { data: existing } = await supabaseAdmin
+    .from("staff_profiles")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (existing) return;
+
+  if (invite.staff_profile_id) {
+    const { data: adopted } = await supabaseAdmin
+      .from("staff_profiles")
+      .update({ user_id: userId })
+      .eq("org_id", orgId)
+      .eq("id", invite.staff_profile_id)
+      .is("user_id", null)
+      .select("id");
+    if (adopted?.length) return;
+  }
+
+  /* The address comparison happens in JS on purpose: normEmail on both sides
+     rather than trusting every writer to have lowercased, and no `ilike` —
+     which treats `_`, common in real addresses, as a wildcard that can invent
+     a match. The list is team-sized. */
+  const { data: unclaimed } = await supabaseAdmin
+    .from("staff_profiles")
+    .select("id, contact_email")
+    .eq("org_id", orgId)
+    .is("user_id", null)
+    .not("contact_email", "is", null);
+  const wanted = normEmail(invite.email);
+  const holders = ((unclaimed ?? []) as { id: string; contact_email: string | null }[]).filter(
+    (r) => normEmail(r.contact_email) === wanted
+  );
+  if (holders.length !== 1) return;
+
+  await supabaseAdmin
+    .from("staff_profiles")
+    .update({ user_id: userId })
+    .eq("org_id", orgId)
+    .eq("id", holders[0].id)
+    .is("user_id", null);
+}
 
 export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get("token");
@@ -45,6 +114,11 @@ export async function GET(request: NextRequest) {
     .from("invitations")
     .update({ accepted_at: new Date().toISOString() })
     .eq("id", invite.id);
+
+  /* Bind the login to its pre-seeded card, if one is waiting. Best-effort by
+     the same doctrine as ensureStaffCard below: any failure here degrades to
+     a fresh card, never to an error page. */
+  await adoptStaffCard(invite.org_id, session.user.sub, invite);
 
   /* The staff card has to exist before they land on /dashboard. `updateSession`
      below writes the cookie directly and does NOT run `beforeSessionSaved`, so

@@ -10,6 +10,10 @@ const calls: Call[] = [];
 let inviteRow: { id: string; accepted_at: string | null } | null = { id: "inv-1", accepted_at: null };
 /** what createInvite's duplicate check finds — [] = no open invite for the address yet */
 let openInvites: Record<string, unknown>[] = [];
+/** what a card-claiming invite's staff_profiles lookup finds — null = not ours / gone */
+let staffCardRow: { id: string; user_id: string | null } | null = null;
+/** open invites already holding the card — the one-per-card twin of openInvites */
+let cardOpenInvites: Record<string, unknown>[] = [];
 
 let role: string | null = "owner";
 let caps: Set<Capability> = new Set(CAPABILITIES);
@@ -47,14 +51,21 @@ const table = (name: string) => {
     return chain();
   };
   c.maybeSingle = () =>
-    Promise.resolve({ data: inviteRow, error: inviteRow ? null : { message: "no rows" } });
+    name === "staff_profiles"
+      ? Promise.resolve({ data: staffCardRow, error: null })
+      : Promise.resolve({ data: inviteRow, error: inviteRow ? null : { message: "no rows" } });
   /* Awaiting the chain resolves it: a still-`select` chain is a LIST read
-     (the duplicate check), recorded so its filters can be asserted; anything
-     else (delete/update, already recorded) resolves like a write. */
+     (a duplicate check), recorded so its filters can be asserted; anything
+     else (delete/update, already recorded) resolves like a write. The two
+     invitations duplicate checks are told apart by what they filtered on. */
   c.then = (res: (v: { data?: unknown; error: null }) => unknown) => {
     if (call.op === "select") {
       calls.push(call);
-      return Promise.resolve({ data: name === "invitations" ? openInvites : [], error: null }).then(res);
+      const rows =
+        name !== "invitations" ? []
+        : call.filters.staff_profile_id !== undefined ? cardOpenInvites
+        : openInvites;
+      return Promise.resolve({ data: rows, error: null }).then(res);
     }
     return Promise.resolve({ error: null }).then(res);
   };
@@ -83,6 +94,8 @@ beforeEach(() => {
   calls.length = 0;
   inviteRow = { id: "inv-1", accepted_at: null };
   openInvites = [];
+  staffCardRow = null;
+  cardOpenInvites = [];
   role = "owner";
   caps = new Set(CAPABILITIES);
   session = { orgId: "org-1", user: { sub: "auth0|boss" } };
@@ -166,6 +179,63 @@ describe("createInvite — who may invite, and at what role", () => {
   it("refuses when there's no session at all", async () => {
     session = null;
     expect((await createInvite({ email: "new@heytiff.co", role: "staff" })).ok).toBe(false);
+    expect(writes("insert")).toHaveLength(0);
+  });
+});
+
+/* Card-claiming invites — the bridge from an imported/pre-seeded card to a
+   real login. The card must be this org's and still unclaimed, and a card can
+   hold at most one open invite, mirroring the per-address rule. */
+describe("createInvite — claiming a staff card", () => {
+  it("stamps the card on the invite row", async () => {
+    staffCardRow = { id: "card-1", user_id: null };
+    const res = await createInvite({
+      email: "new@heytiff.co",
+      role: "staff",
+      staffProfileId: "card-1",
+    });
+    expect(res.ok).toBe(true);
+    expect(payloadOf(writes("insert")[0]).staff_profile_id).toBe("card-1");
+  });
+
+  it("a plain invite's payload carries no card key at all", async () => {
+    await createInvite({ email: "new@heytiff.co", role: "staff" });
+    expect("staff_profile_id" in payloadOf(writes("insert")[0])).toBe(false);
+  });
+
+  it("refuses a card that is gone — or another org's, which reads the same", async () => {
+    staffCardRow = null;
+    const res = await createInvite({
+      email: "new@heytiff.co",
+      role: "staff",
+      staffProfileId: "card-elsewhere",
+    });
+    expect(res.ok).toBe(false);
+    expect(writes("insert")).toHaveLength(0);
+  });
+
+  it("refuses a claimed card — they already have an account", async () => {
+    staffCardRow = { id: "card-1", user_id: "auth0|already-here" };
+    const res = await createInvite({
+      email: "new@heytiff.co",
+      role: "staff",
+      staffProfileId: "card-1",
+    });
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toMatch(/already have an account/i);
+    expect(writes("insert")).toHaveLength(0);
+  });
+
+  it("refuses a second open invite for the same card", async () => {
+    staffCardRow = { id: "card-1", user_id: null };
+    cardOpenInvites = [{ id: "inv-9" }];
+    const res = await createInvite({
+      email: "another.address@heytiff.co",
+      role: "staff",
+      staffProfileId: "card-1",
+    });
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toMatch(/pending invite/i);
     expect(writes("insert")).toHaveLength(0);
   });
 });

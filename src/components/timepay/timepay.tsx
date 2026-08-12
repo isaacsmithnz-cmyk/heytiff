@@ -419,9 +419,25 @@ export function TimePay({
     () =>
       staff.map((s) => {
         /* Each person is derived — and their tiles coloured — through their
-           OWN roster. The loader computed workDays per person precisely so a
-           casual's blank Tuesday reads as blank, not "missing". */
-        const rowCtx: WeekCtx = s.workDays ? { ...ctx, workDays: s.workDays } : ctx;
+           OWN roster, OWN holiday calendar and OWN outstanding paperwork. The
+           loader resolves all three per person; this row is where they have to
+           be handed back to `derive`.
+
+           `holidays` USED TO BE DROPPED HERE, and it was a money bug. The
+           loader had already resolved `holidayDays` for every person, and this
+           line rebuilt the context without it — so `splitDay` never saw the
+           `publicHoliday` flag and a worked public holiday was priced at
+           ordinary rates on the approver's screen while the person's own
+           screen priced it at 2×. Measured on the default settings: an 8-hour
+           holiday on a $50 rate came to $800 on My timesheet and $400 here,
+           and the "worked the public holiday" bullet — the line whose whole
+           job is to make sure that day reaches a human — never fired. */
+        const rowCtx: WeekCtx = {
+          ...ctx,
+          workDays: s.workDays ?? ctx.workDays,
+          holidays: s.holidayDays,
+          certMissing: s.certMissing,
+        };
         const d = derive(s, settings, rowCtx);
         return { s, d, status: rowStatus(sheets[s.id], d.status), ctx: rowCtx };
       }),

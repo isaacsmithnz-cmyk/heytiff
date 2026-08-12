@@ -9,6 +9,7 @@ import { kickSm8SyncIfStale, listSm8SyncStatus, type Sm8SyncStatusView } from "@
 import { tokenKey } from "@/lib/integrations/secrets";
 import { sm8Config } from "@/lib/integrations/sm8";
 import { sm8ConnectMessage } from "@/lib/integrations/outcome";
+import { getSm8PeopleData } from "@/app/actions/staff-import";
 
 /* The ServiceM8 connection screen. Owner-only, matching the routes it links
    to — the Xero page's sibling, and the same posture throughout: two booleans
@@ -36,12 +37,19 @@ export default async function Servicem8IntegrationPage({
      next render, not at the first sync somebody depends on. */
   let reach: Sm8Reach | null = null;
   let sync: Sm8SyncStatusView | null = null;
+  let people: Awaited<ReturnType<typeof getSm8PeopleData>> = null;
   if (connection && connection.status === "connected") {
-    const [vendor, status] = await Promise.all([readSm8Vendor(orgId), listSm8SyncStatus(orgId)]);
+    const [vendor, status, peopleData] = await Promise.all([
+      readSm8Vendor(orgId),
+      listSm8SyncStatus(orgId),
+      // the reconcile card: live staff.json against this workspace's cards
+      getSm8PeopleData(),
+    ]);
     reach = vendor.ok
       ? { ok: true, account: { name: vendor.data.name, timezoneName: vendor.data.timezoneName } }
       : { ok: false, error: vendor.error };
     sync = status;
+    people = peopleData;
     // Opening this screen counts as looking — top the mirrors up behind the
     // response when they're stale. Closes over the orgId read above; no
     // request APIs inside (Server Component after() rule).
@@ -62,6 +70,7 @@ export default async function Servicem8IntegrationPage({
       notice={notice}
       reach={reach}
       sync={sync}
+      people={people}
     />
   );
 }

@@ -67,12 +67,18 @@ async function mayUpload(kind: DocumentKind): Promise<boolean> {
   // fuelling the van is the job, and a driver with no `assets_all` still has
   // to be able to keep the docket. The register is what they can't see; the
   // paper in their hand is not.
+  // `medical_certificate` joins them, and is the clearest case of the lot: it
+  // is a document about your own body, given to you, that you are being asked
+  // to hand over. Gating the UPLOAD behind a capability would mean the person
+  // it belongs to could not supply it. Who may READ it is the separate and
+  // much tighter question — see `certificateFor` in lib/timepay/leave-query.ts.
   if (
     kind === "licence" ||
     kind === "work_rights" ||
     kind === "staff_photo" ||
     kind === "receipt" ||
-    kind === "fuel_receipt"
+    kind === "fuel_receipt" ||
+    kind === "medical_certificate"
   )
     return true;
   if (kind === "org_logo") return hasMinRole(await getDbRole(), "owner");

@@ -48,6 +48,49 @@ export async function readSm8Vendor(orgId: string): Promise<ReadResult<Sm8Vendor
   return { ok: false, error: UNAVAILABLE };
 }
 
+/* ── the import screen's staff read ── */
+
+const STAFF_SCOPE = "Reconnect ServiceM8 to grant the Staff read — this connection predates it.";
+
+/** Every staff member in the connected ServiceM8 account, as RAW rows — live,
+    not from the sm8_staff mirror, because the mirror deliberately keeps names
+    and titles only. Import is the one moment email and mobile are wanted, so
+    they are read here transiently and persisted only onto cards a human
+    chooses to create; the mirror's PII posture doesn't move.
+
+    Shaping is sm8-people.ts's job, behind its tests — same split as the sync
+    engine and sm8-sync-plan. */
+export async function readSm8StaffRows(
+  orgId: string
+): Promise<ReadResult<Record<string, unknown>[]>> {
+  if (!sm8Config()) return { ok: false, error: NOT_CONNECTED };
+
+  const access = await sm8Access(orgId);
+  if (!access) return { ok: false, error: NOT_CONNECTED };
+
+  const rows: Record<string, unknown>[] = [];
+  let cursor = "-1";
+  /* A staff list is tens of rows; ten pages is ten thousand. Past that the
+     walk is wrong, not the team big — stop rather than loop. */
+  for (let pages = 0; pages < 10; pages++) {
+    const page = await fetchSm8Page(access.accessToken, "staff.json", { cursor, filter: null });
+    if (!page.ok) {
+      if (page.failure === "unauthorized") {
+        await markSm8NeedsReauth(orgId, "ServiceM8 no longer accepts this connection. Reconnect ServiceM8.");
+        return { ok: false, error: REAUTH };
+      }
+      if (page.failure === "forbidden") return { ok: false, error: STAFF_SCOPE };
+      if (page.failure === "payment_required") return { ok: false, error: SM8_BILLING };
+      return { ok: false, error: UNAVAILABLE };
+    }
+    rows.push(...page.rows);
+    if (!page.nextCursor) return { ok: true, data: rows };
+    cursor = page.nextCursor;
+  }
+  console.error(`[sm8] staff.json walk passed 10 pages for org ${orgId} — stopping`);
+  return { ok: false, error: UNAVAILABLE };
+}
+
 /* ── what a failure tells the SERVER ── */
 
 /* The classification a screen sees is deliberately coarse — four decisions,

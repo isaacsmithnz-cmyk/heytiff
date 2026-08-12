@@ -32,7 +32,10 @@ jest.mock("@/app/actions/workboard-notes", () => ({
 
 /* Only the engine is faked; the flow, the sheet and the textarea are real,
    because the behaviour under test lives in how they are wired together. */
-type Cbs = { onTranscript: (t: string, i: { capped: boolean }) => void };
+type Cbs = {
+  onTranscript: (t: string, i: { capped: boolean }) => void;
+  onError?: (message: string) => void;
+};
 const mockCbs: { current: Cbs | null } = { current: null };
 const mockStart = jest.fn();
 
@@ -193,4 +196,40 @@ it("routes the WHOLE thing once the person finally commits it", async () => {
   expect(routeNote.mock.calls[0][0].transcript).toBe(
     "middle rooftop unit tripped again and the compressor is still noisy book it in for Thursday"
   );
+});
+
+/* AN ERROR BELONGS TO THE ATTEMPT THAT PRODUCED IT.
+
+   Live-walked on prod 2026-08-10: "Nothing was said in that one. Try again,
+   or type it." was still on the card six seconds into the recording it had
+   just invited. The message asks for a retry and then calls the retry a
+   failure before the first sentence is out — and "that one" now points at a
+   recording the person can see running, which is the wrong one.
+
+   Pressing the mic is the moment the complaint stops being about anything,
+   so that is where it goes. */
+it("retires the last recording's error the moment the mic starts again", async () => {
+  const user = await openSheet();
+  await act(async () => {
+    mockCbs.current?.onError?.("Nothing was said in that one. Try again, or type it.");
+  });
+  expect(screen.getByText(/Nothing was said in that one/)).toBeInTheDocument();
+
+  await user.click(screen.getByRole("button", { name: /talk/i }));
+
+  expect(mockStart).toHaveBeenCalled();
+  expect(screen.queryByText(/Nothing was said in that one/)).not.toBeInTheDocument();
+});
+
+/* The other half of the same rule: an error the CURRENT attempt produced has
+   to stay put. Clearing on any old render would make a failed transcription
+   flash and vanish, which is indistinguishable from the app ignoring you. */
+it("keeps an error that has not been answered by a new recording", async () => {
+  await openSheet();
+  await act(async () => {
+    mockCbs.current?.onError?.("That recording couldn't be read. Type it instead.");
+  });
+  await deliver("typed after the failure", false);
+
+  expect(screen.getByText(/couldn't be read/)).toBeInTheDocument();
 });

@@ -9,6 +9,7 @@ import { providerById, XERO_SCOPES } from "@/lib/integrations/providers";
 import type { ConnectionView } from "@/lib/integrations/connection";
 import { disconnectXeroAction, setXeroTenantAction } from "@/app/actions/integrations";
 import { PeopleImportCard, type PeopleCardData } from "@/components/integrations/people-import-card";
+import { ConnectActions } from "@/components/integrations/connect-actions";
 
 /* The Xero connection screen.
 
@@ -62,7 +63,6 @@ export function XeroScreen({
   const [busy, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
-  const [confirming, setConfirming] = useState(false);
   const [tenantPick, setTenantPick] = useState(connection?.tenantId ?? "");
 
   const ready = configured && sealed;
@@ -77,7 +77,6 @@ export function XeroScreen({
     start(async () => {
       const res = await disconnectXeroAction();
       if (res.ok) {
-        setConfirming(false);
         if (res.note) setNote(res.note);
         router.refresh();
       } else setError(res.error);
@@ -220,42 +219,23 @@ export function XeroScreen({
               </div>
             )}
 
-            <div className="int-act">
-              {ready && (
-                /* A plain <a>, not <Link>: this is an API route, and a prefetch
-                   on hover would mint an OAuth state per hover and overwrite the
-                   one a half-finished flow depends on. */
-                <a className={"pbtn " + (connected ? "ghost" : "primary")} href={START}>
-                  <Icon name="plug" size={16} />
-                  {connected ? "Reconnect" : "Connect to Xero"}
-                </a>
-              )}
-              {connected &&
-                (confirming ? (
-                  <>
-                    <button className="pbtn danger" onClick={disconnect} disabled={busy}>
-                      {busy ? "Disconnecting…" : "Yes, disconnect"}
-                    </button>
-                    <button
-                      className="pbtn ghost"
-                      onClick={() => setConfirming(false)}
-                      disabled={busy}
-                    >
-                      Keep it
-                    </button>
-                  </>
-                ) : (
-                  <button className="pbtn ghost" onClick={() => setConfirming(true)}>
-                    Disconnect
-                  </button>
-                ))}
-            </div>
-            {confirming && (
-              <p className="int-hint">
-                HeyTiff will drop its stored credentials and tell Xero the authorisation is
-                finished. Nothing in Xero itself changes.
-              </p>
-            )}
+            <ConnectActions
+              label="Xero"
+              startHref={START}
+              connected={connected}
+              ready={ready}
+              accountName={connection?.tenantName ?? null}
+              /* Credentials only — no mirror to lose, and the staff↔employee
+                 matches deliberately survive so a reconnect restores them.
+                 That's why this one doesn't ask for the name. */
+              consequences={[
+                "HeyTiff's stored credentials are deleted, and Xero is told the authorisation is finished.",
+                "Nothing in Xero itself changes — the integration only ever reads.",
+                "Staff matched to payroll employees stay matched, so reconnecting the same organisation restores them.",
+              ]}
+              busy={busy}
+              onDisconnect={disconnect}
+            />
           </div>
 
           {/* ── which organisation, when the grant covers more than one ── */}

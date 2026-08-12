@@ -59,7 +59,16 @@ export default async function Servicem8IntegrationPage({
   const notice = errorText
     ? ({ kind: "error", text: errorText } as const)
     : one(params.connected) === "1"
-      ? ({ kind: "ok", text: "ServiceM8 is connected." } as const)
+      ? /* Name what was connected, never just "connected". OAuth authorises
+           whichever account the browser was signed into and never asks which
+           one you meant — an anonymous success is how a live business account
+           got connected by accident on 2026-08-10. */
+        ({
+          kind: "ok",
+          text: connection?.tenantName
+            ? `Connected to ${connection.tenantName}.`
+            : "ServiceM8 is connected.",
+        } as const)
       : null;
 
   return (

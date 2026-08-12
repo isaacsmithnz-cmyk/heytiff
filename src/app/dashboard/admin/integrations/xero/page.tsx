@@ -55,7 +55,14 @@ export default async function XeroIntegrationPage({
   const notice = errorText
     ? ({ kind: "error", text: errorText } as const)
     : one(params.connected) === "1"
-      ? ({ kind: "ok", text: "Xero is connected." } as const)
+      ? /* Name the organisation, not just the fact — same reason as the
+           ServiceM8 screen: consent follows the browser session. */
+        ({
+          kind: "ok",
+          text: connection?.tenantName
+            ? `Connected to ${connection.tenantName}.`
+            : "Xero is connected.",
+        } as const)
       : null;
 
   return (

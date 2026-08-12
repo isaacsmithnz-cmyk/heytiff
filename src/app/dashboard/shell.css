@@ -3158,6 +3158,25 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .sp-elsewhere { max-width:230px; font-size:11.5px; font-weight:600; line-height:1.45; color:var(--gray400); text-align:right; }
 .fg .sp-empty { padding:14px 0; font-size:13px; font-weight:600; color:var(--gray400); }
 
+/* Connect/disconnect guards (components/integrations/connect-actions).
+   The consent warning is quiet and informational; the disconnect confirm is
+   the loud one, because it is the only control in this area that deletes. */
+.fg .int-consent { display:flex; gap:10px; align-items:flex-start; margin:0 0 14px; padding:11px 13px; border-radius:12px; background:#f7f8fa; color:var(--gray500); }
+.fg .int-consent svg { flex:0 0 auto; margin-top:1px; color:#a56a05; }
+.fg .int-consent p { margin:0; font-size:12.5px; font-weight:600; line-height:1.55; }
+.fg .int-consent b { font-weight:800; color:var(--gray700); }
+.fg .int-danger { margin:0 0 4px; padding:15px 16px; border-radius:14px; border:1.5px solid rgba(224,38,79,.28); background:rgba(255,51,102,.05); }
+.fg .int-danger > b { display:block; font-size:14px; font-weight:800; letter-spacing:-0.01em; color:#e0264f; }
+.fg .int-danger ul { margin:9px 0 0; padding-left:18px; }
+.fg .int-danger li { margin-top:5px; font-size:12.5px; font-weight:600; line-height:1.55; color:var(--gray600, var(--gray500)); }
+.fg .int-danger .int-hint { margin:10px 0 0; }
+.fg .int-danger .int-act { margin-top:14px; }
+.fg .int-typed { display:flex; flex-direction:column; gap:6px; margin-top:13px; }
+.fg .int-typed > span { font-size:11.5px; font-weight:700; color:var(--gray500); }
+.fg .int-typed > span b { font-weight:800; color:var(--gray700); }
+.fg .int-typed input { height:40px; padding:0 12px; border-radius:10px; border:1.5px solid #e2e5ea; background:#fff; font-size:13.5px; font-weight:600; color:var(--gray700); }
+.fg .int-typed input:focus { outline:none; border-color:#e0264f; }
+
 /* ---- Organisation screen (components/org/) ----
    Additive: the company profile reuses .card2 / .idc / .cred wholesale, and
    only these six things are new — a clickable credential card, the add tile,

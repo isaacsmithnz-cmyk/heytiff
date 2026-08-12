@@ -105,7 +105,9 @@ describe("XeroScreen — connected", () => {
   it("names the linked organisation and who connected it", () => {
     render(<XeroScreen connection={toView(row(), "Isaac Smith")} {...ready} />);
 
-    expect(screen.getByText("Acme Air Pty Ltd")).toBeInTheDocument();
+    // twice now: the status heading, and the consent warning naming what
+    // this workspace is currently connected to
+    expect(screen.getAllByText("Acme Air Pty Ltd").length).toBeGreaterThan(0);
     expect(screen.getByText("Isaac Smith")).toBeInTheDocument();
     expect(screen.getByText("Reconnect")).toBeInTheDocument();
   });
@@ -259,5 +261,53 @@ describe("XeroScreen — the redirect's outcome", () => {
     expect(
       screen.getByText("You cancelled the Xero connection, so nothing changed."),
     ).toBeInTheDocument();
+  });
+});
+
+/* The guards that came out of a real accident: on 2026-08-10 a live business
+   ServiceM8 account was connected instead of a dev one, because OAuth follows
+   the BROWSER's session and never asks which account you meant — and the
+   success notice named nothing, so it looked identical to the right outcome.
+   Xero consents the same way, so it carries the same warning. */
+describe("XeroScreen — connect and disconnect guards", () => {
+  it("warns that the browser session decides the account, before the button", () => {
+    render(<XeroScreen connection={null} {...ready} />);
+    expect(screen.getByText(/whichever Xero account this browser is already signed in to/i))
+      .toBeInTheDocument();
+    // the escape hatch is named, not just the hazard
+    expect(screen.getByText(/private window/i)).toBeInTheDocument();
+  });
+
+  it("names the current account in the warning, so a reconnect can't be blind", () => {
+    render(<XeroScreen connection={toView(row())} {...ready} />);
+    expect(screen.getByText(/currently connected to/i)).toBeInTheDocument();
+  });
+
+  it("spells out what a disconnect does and does NOT take", async () => {
+    const user = userEvent.setup();
+    render(<XeroScreen connection={toView(row())} {...ready} />);
+    await user.click(screen.getByText("Disconnect"));
+
+    expect(screen.getByText(/stored credentials are deleted/i)).toBeInTheDocument();
+    // the reassurance is as load-bearing as the warning
+    expect(screen.getByText(/Nothing in Xero itself changes/i)).toBeInTheDocument();
+    expect(screen.getByText(/stay matched/i)).toBeInTheDocument();
+  });
+
+  it("hides Connect and Reconnect while confirming, so the two can't be misclicked", async () => {
+    const user = userEvent.setup();
+    render(<XeroScreen connection={toView(row())} {...ready} />);
+    await user.click(screen.getByText("Disconnect"));
+
+    expect(screen.queryByText("Reconnect")).not.toBeInTheDocument();
+  });
+
+  it("does NOT ask Xero to be typed out — no mirror to lose here", async () => {
+    const user = userEvent.setup();
+    render(<XeroScreen connection={toView(row())} {...ready} />);
+    await user.click(screen.getByText("Disconnect"));
+
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect((screen.getByText("Yes, disconnect") as HTMLButtonElement).disabled).toBe(false);
   });
 });

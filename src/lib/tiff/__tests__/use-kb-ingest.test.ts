@@ -112,6 +112,88 @@ describe("driveDocument", () => {
   });
 });
 
+/* The server finishes what it starts, so a call can come back saying "work is
+   happening without you". What these pin is that the loop then WAITS instead
+   of spinning at network speed — and that it keeps asking anyway, because the
+   ask is also how a dead invocation's document gets taken over. */
+describe("driveDocument — work happening without us", () => {
+  const busy = { status: "processing" as const, pagesDone: 20, pageCount: 100, busy: true };
+  const carrying = { status: "processing" as const, pagesDone: 20, pageCount: 100, continuing: true };
+  const done = { status: "ready" as const, pagesDone: 100, pageCount: 100 };
+
+  it("waits before asking again when somebody else holds the claim", async () => {
+    const waits: number[] = [];
+    const post = jest.fn().mockResolvedValueOnce(busy).mockResolvedValueOnce(done);
+
+    await driveDocument("d-1", {
+      post,
+      wait: async (ms: number) => {
+        waits.push(ms);
+      },
+      pollMs: 4000,
+    });
+
+    expect(post).toHaveBeenCalledTimes(2);
+    expect(waits).toEqual([4000]);
+  });
+
+  /* The server said it is carrying on behind the response — same treatment.
+     Asking again immediately would just be told the claim is taken. */
+  it("waits when the server says it is continuing", async () => {
+    const waits: number[] = [];
+    const post = jest.fn().mockResolvedValueOnce(carrying).mockResolvedValueOnce(done);
+
+    await driveDocument("d-1", { post, wait: async (ms: number) => void waits.push(ms), pollMs: 250 });
+    expect(waits).toEqual([250]);
+  });
+
+  /* The point of still asking: if the invocation holding the claim died, this
+     call takes it over. There is no other retry anywhere. */
+  it("keeps asking, so a dead worker's document gets picked back up", async () => {
+    const post = jest
+      .fn()
+      .mockResolvedValueOnce(busy)
+      .mockResolvedValueOnce(busy)
+      .mockResolvedValueOnce({ status: "processing", pagesDone: 40, pageCount: 100 })
+      .mockResolvedValueOnce(done);
+
+    const out = await driveDocument("d-1", { post, wait: async () => {}, pollMs: 0 });
+    expect(post).toHaveBeenCalledTimes(4);
+    expect(out?.status).toBe("ready");
+  });
+
+  /* Four seconds is long enough for the page to have gone, so the wait is a
+     place the loop has to look again — not only before it. */
+  it("stops if the page went away during the wait", async () => {
+    let gone = false;
+    const post = jest.fn().mockResolvedValue(busy);
+
+    await driveDocument("d-1", {
+      post,
+      stopped: () => gone,
+      wait: async () => {
+        gone = true;
+      },
+      pollMs: 0,
+    });
+
+    expect(post).toHaveBeenCalledTimes(1);
+  });
+
+  /* A batch this loop actually drove is not a reason to wait — the server is
+     idle between those, and pausing would halve the throughput. */
+  it("does not wait after a batch it drove itself", async () => {
+    const waits: number[] = [];
+    const post = jest
+      .fn()
+      .mockResolvedValueOnce({ status: "processing", pagesDone: 20, pageCount: 100 })
+      .mockResolvedValueOnce(done);
+
+    await driveDocument("d-1", { post, wait: async (ms: number) => void waits.push(ms), pollMs: 4000 });
+    expect(waits).toEqual([]);
+  });
+});
+
 describe("runIngestQueue", () => {
   it("finishes one document before starting the next", async () => {
     const log: string[] = [];

@@ -1,5 +1,6 @@
 import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
+import { claimDocument, releaseLease } from "@/lib/tiff/lease";
 import { processScannedPages } from "@/lib/tiff/ocr-run";
 
 /* Reading a document's scanned pages with vision, driven by the library row.
@@ -42,7 +43,25 @@ export async function POST(request: Request) {
     return Response.json({ error: "That request couldn't be read." }, { status: 400 });
   }
 
-  /* 200 even for a run that failed: the CALL worked, and the row's job is to
-     render the outcome rather than to retry a 500. */
-  return Response.json(await processScannedPages(documentId, orgId));
+  /* THE SAME CLAIM INGESTION TAKES, for the same reason: this writes chunks,
+     and two tabs pressing the button together would write them twice. It is
+     the one shared lease, so a run can also never overlap an ingest batch on
+     the same document. */
+  if (!(await claimDocument(documentId, orgId))) {
+    return Response.json({
+      status: "failed",
+      pagesRead: 0,
+      scannedLeft: 0,
+      chunkCount: 0,
+      error: "That document is busy — try again in a moment.",
+    });
+  }
+
+  try {
+    /* 200 even for a run that failed: the CALL worked, and the row's job is to
+       render the outcome rather than to retry a 500. */
+    return Response.json(await processScannedPages(documentId, orgId));
+  } finally {
+    await releaseLease(documentId, orgId);
+  }
 }

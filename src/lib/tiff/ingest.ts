@@ -1,11 +1,17 @@
 /* One batch of ingestion: pages off the bookmark, chunks into the table.
 
-   THE LOOP IS THE CLIENT'S. There is no queue — Vercel Hobby has one cron a
-   day — so the library page calls /api/tiff/ingest, gets progress back, and
-   calls again. Each call does ~20 pages and advances `next_page`, which means
-   a 400-page manual crosses twenty requests and a failure costs one batch
-   rather than the document. A document left mid-processing resumes on the next
-   visit, at the page it stopped on.
+   THE LOOP IS THE SERVER'S NOW, and the browser only watches. There is still
+   no queue — Vercel Hobby has one cron a day — but the request that starts a
+   document keeps reading it after the response has gone (`after`, in the
+   route), so closing the tab no longer strands anything. Each batch is ~20
+   pages and advances `next_page`, so a failure costs one batch rather than the
+   document, and whatever the invocation doesn't finish resumes from the
+   bookmark the next time anybody asks.
+
+   ONE READER AT A TIME, enforced by a lease on the row (lib/tiff/lease.ts).
+   Every open library tab used to drive this, and two of them would read the
+   same bookmark and insert the same chunks — 122 of prod's 2,256 chunks were
+   byte-identical duplicates before the claim existed.
 
    THE DECISION IS PURE, THE WORK IS NOT. `planBatch` answers "given this row
    and this allowance, what should happen" and `progressPatch` answers "given
@@ -18,6 +24,7 @@
    order would silently drop pages nobody would ever notice were missing. */
 
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { renewLease } from "./lease";
 import { KB_BUCKET, kbRefIsOrgs } from "./files";
 import { chunkPages, type PageText } from "./chunk";
 import { isScannedPage, openPdf, PAGE_BATCH, pageWindow } from "./extract";
@@ -340,4 +347,90 @@ export async function processBatch(documentId: string, orgId: string): Promise<I
   } finally {
     await pdf.destroy().catch(() => {});
   }
+}
+
+/* ── driving a document without a browser ────────────────────────────────── */
+
+/* How long one invocation may keep working after it has answered.
+
+   `maxDuration` on the route is 300s and covers the WHOLE invocation, the
+   `after` callback included — so this is that ceiling minus room for the batch
+   already in flight when the deadline arrives. A batch is ~20s, so 60s of
+   headroom is three of them: the loop stops STARTING work at 240s and the last
+   one it started still lands well inside the limit. Overrunning would kill the
+   invocation mid-batch, which costs the batch and leaves the lease to expire
+   rather than be handed back. */
+export const DRIVE_BUDGET_MS = 240_000;
+
+/** Is there room to start another batch? Pure, because "did we stop in time"
+    is the part that decides whether a document is left half-read. */
+export function hasBudget(elapsedMs: number, budgetMs: number = DRIVE_BUDGET_MS): boolean {
+  return elapsedMs < budgetMs;
+}
+
+/** What the row says right now, without doing any work — the answer for a
+    caller who asked to process a document somebody else already owns. */
+export async function readProgress(documentId: string, orgId: string): Promise<IngestProgress> {
+  const { data } = await supabaseAdmin
+    .from("kb_documents")
+    .select(DOC_COLUMNS)
+    .eq("org_id", orgId)
+    .eq("id", documentId)
+    .maybeSingle();
+  if (!data)
+    return { status: "failed", pagesDone: 0, pageCount: null, chunkCount: 0, error: "That document is gone." };
+
+  const row = data as Record<string, unknown>;
+  const status = String(row.status);
+  return {
+    status: (status === "processing" || status === "paused" || status === "ready" ? status : "failed") as IngestStatus,
+    pagesDone: Math.max(0, (Number(row.next_page) || 1) - 1),
+    pageCount: row.page_count === null || row.page_count === undefined ? null : Number(row.page_count),
+    chunkCount: Number(row.chunk_count) || 0,
+    ...(typeof row.error === "string" && row.error ? { error: row.error } : {}),
+  };
+}
+
+/* Batch after batch until the document settles or the invocation runs out.
+
+   THIS IS THE HALF THAT SURVIVES THE TAB. The browser used to be the only
+   thing asking for the next batch, so closing it stranded a document
+   mid-read — one manual sat on page 21 of 32 for sixty-three minutes waiting
+   for somebody to open the library again. Now the request that starts the work
+   also finishes it, for as long as the platform will let one invocation live.
+
+   THE CALLER ALREADY HOLDS THE LEASE and this never re-claims: ownership is
+   established once, by the statement that took it, and re-checking here would
+   be a second place for the same race to live. It renews between batches so a
+   long document cannot outrun its own claim, and the caller releases. */
+/** What the loop needs, so "did it stop at the right moment" can be tested
+    without a PDF, a clock or a database. */
+export type DriveDeps = {
+  batch: (documentId: string, orgId: string) => Promise<IngestProgress>;
+  read: (documentId: string, orgId: string) => Promise<IngestProgress>;
+  renew: (documentId: string, orgId: string) => Promise<void>;
+  clock: () => number;
+};
+
+export async function driveDocument(
+  documentId: string,
+  orgId: string,
+  budgetMs: number = DRIVE_BUDGET_MS,
+  deps: Partial<DriveDeps> = {}
+): Promise<IngestProgress> {
+  const batch = deps.batch ?? processBatch;
+  const read = deps.read ?? readProgress;
+  const renew = deps.renew ?? renewLease;
+  const clock = deps.clock ?? Date.now;
+
+  const started = clock();
+  let last = await read(documentId, orgId);
+
+  while (last.status === "processing" && hasBudget(clock() - started, budgetMs)) {
+    last = await batch(documentId, orgId);
+    // renewed AFTER the batch, so the clock restarts from the work being done
+    if (last.status === "processing") await renew(documentId, orgId);
+  }
+
+  return last;
 }

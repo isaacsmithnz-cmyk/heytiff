@@ -178,3 +178,48 @@ it("brings the switch back the moment the mic closes", async () => {
   await openSheet();
   expect(screen.getByText("Default")).toBeInTheDocument();
 });
+
+/* ── KEEP TALKING ──
+
+   Isaac, 2026-08-10: "when you record a message in Claude, you can hit enter,
+   then tap the mic again to keep adding."
+
+   The behaviour was already there — every leg appends. What was missing was
+   an affordance that said so: with words in the box, the way back to the mic
+   was the left half of a switch labelled DEFAULT. A preference control, in
+   the strongest position on the row, that happens to start recording.
+
+   So the switch owns the empty box and steps aside once there is something to
+   add to. What is pinned here is that the mic never becomes HARDER to reach
+   than it was — whichever control is showing, one press starts a leg. */
+
+it("offers the switch on an empty box, where the preference is a fair question", async () => {
+  await openSheet();
+
+  expect(screen.getByText("Default")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /talk/i })).toBeInTheDocument();
+});
+
+it("drops the preference for a plain mic once there are words to add to", async () => {
+  const user = await openSheet();
+  await user.type(screen.getByRole("textbox"), "middle rooftop unit tripped again");
+
+  expect(screen.queryByText("Default")).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /talk/i })).toBeInTheDocument();
+});
+
+/* The point of the whole thing: pressing it starts another leg, and the leg
+   appends rather than replacing. The appending itself is pinned in
+   note-token-cap; this is the reach. */
+it("keeps the mic one press away with words already in the box", async () => {
+  const user = await openSheet();
+  await user.type(screen.getByRole("textbox"), "middle rooftop unit tripped again");
+
+  /* A DELTA, NOT A COUNT. Opening this sheet with the stored default on Talk
+     already starts a leg (tiff-button), so an absolute number here would be
+     asserting the auto-start rather than the button. */
+  const before = mockStart.mock.calls.length;
+  await user.click(screen.getByRole("button", { name: /talk/i }));
+
+  expect(mockStart).toHaveBeenCalledTimes(before + 1);
+});

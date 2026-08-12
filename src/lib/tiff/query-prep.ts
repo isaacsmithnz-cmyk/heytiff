@@ -21,10 +21,20 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 
-/* Opus 5 at LOW effort, same lever as keyword tagging: the judgement is
-   shallow ("what would the manual call this"), it runs on every research
-   question, and a cheaper model invents model numbers that were never real. */
-const MODEL = "claude-opus-5";
+import { logUsage } from "./usage";
+
+/* Sonnet 5 at LOW effort. The judgement is shallow ("what would the manual
+   call this") and it runs on every question, so it is the wrong place to spend
+   an Opus call.
+
+   A CHEAPER MODEL INVENTING A MODEL NUMBER IS INERT HERE, which is what makes
+   this swap safe and the same swap in keyword tagging unsafe. Every atom is
+   OR-joined, so a term for a part that never existed matches no chunk and
+   changes no ranking — it is a wasted atom, not a wrong answer. A keyword
+   invented during ingestion is STORED ON THE CHUNK and goes on matching
+   searches for as long as the document is in the library. Same failure, one
+   inert and one permanent; only the permanent one is worth Opus money. */
+const MODEL = "claude-sonnet-5";
 const MAX_TOKENS = 2_000;
 
 /** Terms per question. Past a dozen the expansion stops being the question. */
@@ -257,6 +267,8 @@ export async function prepareQuery(
         },
       ],
     });
+
+    logUsage("prep", MODEL, response.usage);
 
     /* A refusal is a content outcome, not an error — checked before reading
        content, which is empty or partial in that case. Here it simply means

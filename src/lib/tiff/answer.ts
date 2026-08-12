@@ -25,6 +25,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { REPLY_IN_KIND } from "@/lib/lang/policy";
 import type { AskTurn } from "./ask-client";
+import { logUsage } from "./usage";
 
 const MODEL = "claude-opus-5";
 const MAX_TOKENS = 16_000;
@@ -268,6 +269,11 @@ export async function* streamAnswer(input: AnswerInput): AsyncGenerator<AnswerEv
     }
 
     const final = await stream.finalMessage();
+
+    /* `final.model`, not MODEL: a question the classifiers declined was served
+       by the fallback, and the line should name the model that was actually
+       billed. */
+    logUsage(`answer:${input.mode}`, final.model, final.usage);
 
     /* Branch on stop_reason, never on stop_details — the details object is
        informational and is null even on some refusals. */

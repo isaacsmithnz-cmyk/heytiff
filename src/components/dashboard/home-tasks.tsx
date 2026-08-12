@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { DateField } from "@/components/ui/date-field";
@@ -32,6 +32,7 @@ function Tick({
   onDone,
   pending,
   del,
+  flash,
 }: {
   task: DashTask;
   today: string;
@@ -40,13 +41,15 @@ function Tick({
   pending: boolean;
   /** Wired only when the viewer may delete this task — its creator, or `team`. */
   del?: { confirming: boolean; ask: () => void; go: () => void; keep: () => void };
+  /** Arrived here from a journal chip naming this task. */
+  flash?: boolean;
 }) {
   /* Deleting has no undo — unlike completing, there is no row left to reopen —
      so the ✕ never fires the action itself: the row swaps into a confirm.
      Focus lands on Keep, so Enter twice backs out rather than deletes. */
   if (del?.confirming) {
     return (
-      <div className="wb2-tk hm-tkcf">
+      <div className="wb2-tk hm-tkcf" data-task-id={task.id}>
         <span className="wb2-tkb hm-tkcfx" aria-hidden="true">
           <Icon name="x" size={13} />
         </span>
@@ -64,7 +67,7 @@ function Tick({
     );
   }
   return (
-    <div className="wb2-tk">
+    <div className={"wb2-tk" + (flash ? " hm-tkfl" : "")} data-task-id={task.id}>
       <button
         className="wb2-tkb"
         type="button"
@@ -98,9 +101,21 @@ function Tick({
 
 /** Completed rows keep the shape but lose the control — the circle would
     invite a second click that does nothing. */
-function DoneRow({ title, detail, undo }: { title: string; detail: string; undo?: () => void }) {
+function DoneRow({
+  id,
+  title,
+  detail,
+  undo,
+  flash,
+}: {
+  id: string;
+  title: string;
+  detail: string;
+  undo?: () => void;
+  flash?: boolean;
+}) {
   return (
-    <div className="wb2-tk">
+    <div className={"wb2-tk" + (flash ? " hm-tkfl" : "")} data-task-id={id}>
       <span className="wb2-tkb on" aria-hidden="true">
         <Icon name="check" size={13} />
       </span>
@@ -136,6 +151,8 @@ export function HomeTasks({
   viewerStaffId,
   canManage,
   assignable,
+  focusTaskId = null,
+  onFocusHandled,
 }: {
   today: string;
   mine: DashTask[];
@@ -145,12 +162,16 @@ export function HomeTasks({
   viewerStaffId: string | null;
   canManage: boolean;
   assignable: { id: string; name: string }[];
+  /** A task named by a journal chip: scroll to it and mark it, once. */
+  focusTaskId?: string | null;
+  onFocusHandled?: () => void;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [flashId, setFlashId] = useState<string | null>(null);
 
   const [assignedTo, setAssignedTo] = useState(assignable[0]?.id ?? "");
   const [title, setTitle] = useState("");
@@ -174,6 +195,30 @@ export function HomeTasks({
 
   const markDone = (id: string) => run(() => completeTask(id));
   const undo = (id: string) => run(() => reopenTask(id));
+
+  /* ARRIVING FROM A JOURNAL CHIP. The panel was just revealed, so the row is
+     somewhere in a list the reader has never scrolled — bring it to the middle
+     and mark it for a moment, then hand the focus back so pressing the same
+     chip a second time works.
+
+     The row is found in the DOM rather than through a ref map: which of the
+     four lanes holds it (yours, the team's, recently done, reported) is the
+     server's answer, not this component's, and a query by `data-task-id`
+     doesn't care. A task that is on none of them — someone else's, older than
+     the done window — simply isn't found, and the tab switch is the whole
+     journey. `scrollIntoView` is optional-called: jsdom has no layout and does
+     not implement it. */
+  useEffect(() => {
+    if (!focusTaskId) return;
+    const row = document.querySelector<HTMLElement>(`[data-task-id="${focusTaskId}"]`);
+    row?.scrollIntoView?.({ block: "center", behavior: "smooth" });
+    setFlashId(focusTaskId);
+    const t = setTimeout(() => {
+      setFlashId(null);
+      onFocusHandled?.();
+    }, 1800);
+    return () => clearTimeout(t);
+  }, [focusTaskId, onFocusHandled]);
 
   /* Who gets the ✕ mirrors deleteTask's own rule: the creator, or a manager.
      The action re-decides regardless. Guarded on viewerStaffId so a viewer
@@ -283,7 +328,15 @@ export function HomeTasks({
           ) : (
             <div className="wb2-tasks">
               {mine.map((t) => (
-                <Tick key={t.id} task={t} today={today} onDone={markDone} pending={pending} del={delFor(t)} />
+                <Tick
+                  key={t.id}
+                  task={t}
+                  today={today}
+                  onDone={markDone}
+                  pending={pending}
+                  del={delFor(t)}
+                  flash={flashId === t.id}
+                />
               ))}
             </div>
           )}
@@ -304,6 +357,7 @@ export function HomeTasks({
                       onDone={markDone}
                       pending={pending}
                       del={delFor(t)}
+                      flash={flashId === t.id}
                     />
                   ))}
                 </div>
@@ -319,6 +373,8 @@ export function HomeTasks({
                   {reported.map((t) => (
                     <DoneRow
                       key={t.id}
+                      id={t.id}
+                      flash={flashId === t.id}
                       title={t.title}
                       detail={`${t.doneByName ?? t.assigneeName}${
                         t.doneAt ? ` · ${doneLabel(t.doneAt, today).toLowerCase()}` : ""
@@ -338,6 +394,8 @@ export function HomeTasks({
                   {done.map((t) => (
                     <DoneRow
                       key={t.id}
+                      id={t.id}
+                      flash={flashId === t.id}
                       title={t.title}
                       detail={t.doneAt ? doneLabel(t.doneAt, today) : ""}
                       undo={() => undo(t.id)}

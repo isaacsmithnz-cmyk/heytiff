@@ -34,7 +34,33 @@ const GROUPS: readonly (readonly [key: string, one: string, many: string, kind: 
    (an entry, a knowledge line, a kept line). */
 export type OutcomeKind = "todo" | "kept";
 
-export type Outcome = { kind: OutcomeKind; text: string };
+/** Where a chip goes when it is the thing it names. Resolved server-side, so
+    a door only ever exists for a row that was still there when the page was
+    built — see `describeAppliedResolved`. */
+export type OutcomeDoor = { type: "task" | "kb" | "note"; id: string };
+
+export type Outcome = { kind: OutcomeKind; text: string; go?: OutcomeDoor };
+
+/** What the resolver found, per entry. Absent map = "nothing was looked up",
+    which is how the plain count wording is still reachable. */
+export type AppliedLookups = {
+  /** taskId → title, for the tasks that still exist. */
+  tasks?: ReadonlyMap<string, string>;
+  /** kb documentId → title, for the documents that still exist. */
+  kb?: ReadonlyMap<string, string>;
+  /** The grouped note THIS capture's kept lines were filed as, if still there. */
+  noteId?: string | null;
+};
+
+/* A chip is a line of a row, not a paragraph. Long enough for a real task
+   ("Order 2× MERV 11 filters for the Clyde plant room" is 47), short enough
+   that three of them still wrap tidily. */
+export const CHIP_TITLE_MAX = 48;
+
+function chipTitle(title: string): string {
+  const t = title.trim().replace(/\s+/g, " ");
+  return t.length <= CHIP_TITLE_MAX ? t : `${t.slice(0, CHIP_TITLE_MAX - 1).trimEnd()}…`;
+}
 
 /** What a capture turned into: [{kind:"todo",text:"2 tasks"}, …].
 
@@ -42,15 +68,69 @@ export type Outcome = { kind: OutcomeKind; text: string };
     you can untick every line and still have said the thing. The row renders
     with the words and no outcomes rather than disappearing. */
 export function describeApplied(applied: unknown): Outcome[] {
+  return describeAppliedResolved(applied);
+}
+
+/* THE CHIPS BECOME THE THINGS THEY NAME — given the rows to name them with.
+
+   "2 tasks" told you the capture worked and nothing else; the point of saying
+   "Order 2× MERV 11 filters" is that you can then go and tick it off. So the
+   two groups that have somewhere to go expand: one chip per row, wearing its
+   own title, carrying a door.
+
+   WHAT IS GONE IS COUNTED, NEVER LINKED. A stored id whose row has since been
+   deleted collapses back into the old count wording with "removed" on it —
+   the capture really did make it, and it really isn't there any more. Both
+   halves of that are true and a dead door would be neither.
+
+   The other five groups keep their counts and stay unlinked on purpose: a
+   flag, an issue, a diary entry and a bring-item have no canonical page in
+   this app, and sending them "to the workboard, roughly" would be a lie. */
+export function describeAppliedResolved(
+  applied: unknown,
+  lookups: AppliedLookups = {},
+): Outcome[] {
   if (!applied || typeof applied !== "object") return [];
   const rec = applied as Record<string, unknown>;
   const out: Outcome[] = [];
+
   for (const [key, one, many, kind] of GROUPS) {
     const v = rec[key];
     // every group is recorded as an array of ids or lines; anything else is
     // a shape we did not write, and guessing at it would invent a number
     if (!Array.isArray(v) || v.length === 0) continue;
-    out.push({ kind, text: `${v.length} ${v.length === 1 ? one : many}` });
+
+    const named =
+      key === "taskIds" ? lookups.tasks : key === "kbIds" ? lookups.kb : undefined;
+
+    if (named) {
+      const gone: unknown[] = [];
+      for (const id of v) {
+        const title = typeof id === "string" ? named.get(id) : undefined;
+        if (title === undefined) {
+          gone.push(id);
+          continue;
+        }
+        out.push({
+          kind,
+          text: chipTitle(title),
+          go: { type: key === "taskIds" ? "task" : "kb", id: id as string },
+        });
+      }
+      if (gone.length > 0)
+        out.push({ kind, text: `${gone.length} ${gone.length === 1 ? one : many} removed` });
+      continue;
+    }
+
+    const text = `${v.length} ${v.length === 1 ? one : many}`;
+    /* Kept lines are the odd one out: the debrief files them as ONE grouped
+       note, so they get one door for the lot rather than a chip each — the
+       words themselves aren't stored per line anywhere the reader can open. */
+    out.push(
+      key === "noteLines" && lookups.noteId
+        ? { kind, text, go: { type: "note", id: lookups.noteId } }
+        : { kind, text },
+    );
   }
   return out;
 }

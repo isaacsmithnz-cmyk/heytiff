@@ -118,6 +118,7 @@ export function Library({
   tags = [],
   tagUsage = {},
   initialTagIds = [],
+  initialDocId = null,
 }: {
   docs: KbLibraryDoc[];
   quota?: KbQuotaView | null;
@@ -135,6 +136,9 @@ export function Library({
   tagUsage?: Record<string, number>;
   /** From `?tag=` — a filtered library is a link somebody can send. */
   initialTagIds?: string[];
+  /** From `?doc=` — the document to open on arrival, already checked to be one
+      of `docs`. A journal chip naming a knowledge entry lands here. */
+  initialDocId?: string | null;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -144,7 +148,13 @@ export function Library({
   const [managing, setManaging] = useState(false);
   const [editing, setEditing] = useState<KbLibraryDoc | null>(null);
   const [deleting, setDeleting] = useState<KbLibraryDoc | null>(null);
-  const [searching, setSearching] = useState<KbLibraryDoc | null>(null);
+  /* `?doc=` opens the document's own search panel on arrival — the same panel
+     its row title opens, so a link from elsewhere in the app lands exactly
+     where a click here would. Seeded in the initialiser rather than an effect:
+     the panel is open on the first paint, not after one without it. */
+  const [searching, setSearching] = useState<KbLibraryDoc | null>(
+    () => docs.find((d) => d.id === initialDocId) ?? null,
+  );
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
 
   const processing = useMemo(

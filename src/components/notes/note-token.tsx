@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
-import { DictClock, LevelBars, LiveWords, WaveMeter, appendSpoken, useDictation } from "./dictation";
+import { DictClock, LevelBars, WaveMeter, appendSpoken, useDictation } from "./dictation";
 import { useNoteFlow, type NoteFlow } from "./note-flow";
 import { useNoteScope } from "./note-context";
 import { Cascade, JobPicker, ReviewRows, nothingTicked } from "./review-card";
@@ -269,9 +269,40 @@ function Body({ flow }: { flow: NoteFlow }) {
   }
 
   if (stage === "recording") {
-    const words = Boolean(flow.dict.interim);
+    /* WHAT YOU HAVE ALREADY SAID STAYS ON SCREEN (Isaac, 2026-08-10, walking
+       a second leg): "if I click talk, it looks like you're starting again
+       because it doesn't show you what text it's already got on there."
+
+       It was never starting again — every leg appends, and the words were
+       safe in `flow.text` the whole time. But this stage REPLACED the box
+       with the trace, so a second leg looked exactly like a first one. The
+       card was hiding the only evidence that it had kept anything.
+
+       The field posture has always got this right (`shown` in `FieldMic`
+       below): the box keeps showing what is there, with the live words joined
+       on by `appendSpoken` — the same join the committed transcript uses, so
+       nothing jumps when the recording ends. This is that, on the card.
+
+       It appears only once there is something to show, so a first leg on the
+       batch transport is still the trace alone rather than an empty box. */
+    /* GUARDED, the same way `FieldMic` guards it. `appendSpoken` joins with a
+       space and does not care that the second half is empty, so calling it
+       with no interim leaves a trailing space on every batch recording — the
+       reason the field posture has always written this as a conditional
+       rather than a call. */
+    const sofar = flow.dict.interim ? appendSpoken(flow.text, flow.dict.interim) : flow.text;
+    const words = Boolean(sofar.trim());
     return (
       <div className="wb2-caprec">
+        {words && (
+          <textarea
+            className="wb2-notes wb2-recsofar"
+            value={sofar}
+            readOnly
+            rows={3}
+            aria-label="What you have said so far"
+          />
+        )}
         {/* THE INSTRUMENT, NOT AN ORNAMENT (audited 2026-08-10). This stage
             used to be a 680px card that was 86% empty with a 36px meter
             marooned in the middle of it, and the middle was empty because it
@@ -290,7 +321,6 @@ function Body({ flow }: { flow: NoteFlow }) {
           </div>
           <WaveMeter innerRef={flow.dict.barsRef} small={words} />
         </div>
-        {words && <LiveWords text={flow.dict.interim} />}
         <div className="wb2-capact">
           {/* Flipping this to Type is the way out of the mic, and it keeps
               every word — `handOver` puts what you have said in the box
@@ -329,17 +359,15 @@ function Body({ flow }: { flow: NoteFlow }) {
               `Go`. A chat composer works the same way: the mic button stops,
               the send button sends, and nobody confuses them.
 
-              THE SQUARE STAYS, AT A WEIGHT THAT STOPS SHOUTING. Isaac: "that
-              black square next to go is weird." It already WAS an outline —
-              `square` is a stroked 18/24 rect — but at size 15 that is an
-              11px box carrying a 1.25px stroke in #04262B, the button's
-              near-black ink, on a bright green fill. Maximum contrast at the
-              heaviest weight the glyph set offers: it read as a dark blob
-              rather than a stop mark. Smaller, thinner and eased off the full
-              ink (the `.wb2-prim svg` rule), it now agrees with the word
-              instead of shouting over it. */}
+              AND THE SQUARE IS GONE. It survived two rounds of argument —
+              "that black square next to go is weird", answered by making it
+              smaller, thinner and paler — and Isaac's verdict on the third
+              look was that it is still stupid. He is right, and the reason is
+              that the original defence stopped being true: the glyph was
+              there because the word "Go" did not say the microphone was
+              closing. "Done" does. A stop mark beside it is the same thing
+              said twice, in the fussiest possible way. */}
           <button className="pbtn wb2-prim" onClick={flow.dict.stop}>
-            <Icon name="square" size={13} sw={1.6} />
             Done
           </button>
         </div>

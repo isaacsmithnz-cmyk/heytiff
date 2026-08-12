@@ -6874,6 +6874,23 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   font-weight:800; color:var(--hm-teal); cursor:pointer; }
 .fg .hm-undo:hover { color:#A9F5E6; }
 
+/* ARRIVING FROM A JOURNAL CHIP. The tab has just changed under the reader, so
+   the row has to say "this one" without being mistaken for a state: it is the
+   teal the chip they pressed was wearing, held for a beat and released. Not
+   the ok/warn/danger families — nothing has happened to the task. */
+@keyframes hm-tkfl {
+  0% { background:rgba(0,229,192,.20); box-shadow:inset 0 0 0 1px rgba(0,229,192,.45); }
+  70% { background:rgba(0,229,192,.13); box-shadow:inset 0 0 0 1px rgba(0,229,192,.3); }
+  100% { background:rgba(0,229,192,0); box-shadow:inset 0 0 0 1px rgba(0,229,192,0); }
+}
+.fg .hm-card .hm-tkfl { animation:hm-tkfl 1.8s ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  /* the mark still has to happen — it is the answer to "where did it go?" —
+     so it holds still instead of fading */
+  .fg .hm-card .hm-tkfl { animation:none; background:rgba(0,229,192,.13);
+    box-shadow:inset 0 0 0 1px rgba(0,229,192,.3); }
+}
+
 /* deleting a task — a quiet ✕ at the row's end, revealed by pointer or focus.
    The one task action with NO undo (nothing is left to reopen), so the ✕ never
    fires it: the row swaps into a two-step confirm. Danger family throughout,
@@ -6991,8 +7008,11 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .hm-jd.first .hm-jdh > span::before { content:""; width:6px; height:6px; border-radius:50%;
   background:linear-gradient(120deg,#00E5C0,#2E68FF); }
 .fg .hm-jd:not(.first) .hm-jdh > span { color:rgba(255,255,255,.4); }
+/* The rule runs to the end of the row now: the header used to finish with
+   "2 debriefs", counting the entries directly beneath it. Its rule is deleted
+   rather than left behind — dead blocks in this stylesheet have shadowed live
+   components at equal specificity twice. */
 .fg .hm-jdrule { flex:1; height:1px; background:var(--hm-line); }
-.fg .hm-jdh > em { font-style:normal; font-size:11px; font-weight:600; color:rgba(255,255,255,.4); }
 
 /* THE RAIL. Hairlines between rows drew a table; this is a record kept over
    time, and a spine with a node per entry is what says so. It runs down the
@@ -7022,10 +7042,26 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    spent on a category. */
 .fg .hm-jro { grid-column:2; display:flex; align-items:center; flex-wrap:wrap; gap:7px;
   padding-top:4px; }
-.fg .hm-jro > span { display:inline-flex; align-items:center; gap:6px; padding:4px 11px 4px 9px;
+.fg .hm-jro > span, .fg .hm-jro > a, .fg .hm-jro > button {
+  display:inline-flex; align-items:center; gap:6px; padding:4px 11px 4px 9px; text-align:left;
   border-radius:999px; border:1px solid rgba(0,229,192,.28); background:rgba(0,229,192,.07);
-  font-size:12px; font-weight:700; color:var(--hm-teal); }
-.fg .hm-jro > span svg { flex:none; opacity:.85; }
+  font:inherit; font-size:12px; font-weight:700; color:var(--hm-teal);
+  /* the pill IS the affordance — an underline through it as well reads as a
+     second, different control, and only the <a> chips would wear it */
+  text-decoration:none; }
+.fg .hm-jro > * svg { flex:none; opacity:.85; }
+
+/* A CHIP THAT IS THE THING IT NAMES. Only the two groups with somewhere real
+   to go are pressable — a task (the tab next door) and a knowledge entry (its
+   own page). They wear the same teal as the counts beside them, because they
+   are the same kind of fact; what marks them is that they answer the pointer.
+   Two classes deep on the element, per the `.fg button` (0,1,1) reset. */
+.fg .hm-jro > a, .fg .hm-jro > button { cursor:pointer;
+  transition:background .15s, border-color .15s, color .15s; }
+.fg .hm-jro > a:hover, .fg .hm-jro > button:hover {
+  background:rgba(0,229,192,.15); border-color:rgba(0,229,192,.5); color:#A9F5E6; }
+.fg .hm-jro > a:focus-visible, .fg .hm-jro > button:focus-visible {
+  outline:none; box-shadow:0 0 0 3px rgba(0,229,192,.35); }
 
 /* ── the strip under the card ──
    Payroll, and only Payroll: the day's context, not a face of it. The two-column

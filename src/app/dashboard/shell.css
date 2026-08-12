@@ -3317,10 +3317,23 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .xc-pill.approved { background:rgba(46,104,255,.1); color:#2E68FF; }
 .fg .xc-pill.reimbursed { background:rgba(0,163,137,.1); color:#00A389; }
 .fg .xc-pill.declined { background:rgba(255,51,102,.09); color:#e0264f; }
+/* WHAT YOU ARE OWED, on the claimant's own screen. The approver's queue and
+   the Time & Pay stat tile have carried this figure all along; the person out
+   of pocket got a list and was left to add it up. */
+.fg .xc-owed { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin:4px 0 14px; padding:14px 18px; border-radius:16px; background:rgba(34,197,94,.07); border:1px solid rgba(34,197,94,.18); }
+.fg .xc-owedk { font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--gray500); }
+.fg .xc-owed b { font-size:24px; font-weight:800; letter-spacing:-.02em; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .xc-owed em { flex:1 1 100%; font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
+/* Why Send is dark — the form saying what it wants rather than the server. */
+.fg .xc-need { align-self:center; font-size:12.5px; font-weight:600; color:var(--gray500); }
+
 .fg .xc-rec { font-size:11.5px; font-weight:700; color:var(--teal-d); text-decoration:none; border-bottom:1px solid rgba(0,163,137,.35); }
-.fg .xc-cancel { font-size:11.5px; font-weight:700; color:var(--gray500); }
+.fg .xc-cancel { font-size:11.5px; font-weight:700; color:var(--gray500); padding:2px 8px; border-radius:8px; transition:all .16s; }
 .fg .xc-cancel:hover:not(:disabled) { color:#e0264f; }
 .fg .xc-cancel:disabled { opacity:.5; cursor:default; }
+/* ARMED. The second press is the one that fires — same treatment `.lv-cancel`
+   gets on My leave, because this discards a claim for money you are owed. */
+.fg .xc-cancel.arm { background:#e0264f; color:#fff; }
 
 /* ---- Expense review (components/timepay/team-expenses.tsx) ----
    Reuses My expenses' rows wholesale — the same claim seen from the other

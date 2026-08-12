@@ -1,6 +1,7 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MyExpenses } from "../my-expenses";
+import type { Claim } from "@/lib/expenses/claim";
 
 /* THE CLAIMANT'S SCREEN — the half of expenses that had no test at all.
 
@@ -16,6 +17,7 @@ import { MyExpenses } from "../my-expenses";
 
 const readReceipt = jest.fn();
 const submit = jest.fn();
+const cancel = jest.fn(async (_id: string) => ({ ok: true }));
 const upload = jest.fn();
 const refresh = jest.fn();
 
@@ -24,7 +26,7 @@ jest.mock("@/app/actions/expense-ai", () => ({
 }));
 jest.mock("@/app/actions/expenses", () => ({
   submitClaim: (...a: unknown[]) => submit(...a),
-  cancelClaim: jest.fn(async () => ({ ok: true })),
+  cancelClaim: (id: string) => cancel(id),
 }));
 jest.mock("@/lib/documents/upload-client", () => ({
   uploadFile: (...a: unknown[]) => upload(...a),
@@ -32,6 +34,24 @@ jest.mock("@/lib/documents/upload-client", () => ({
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), refresh }) }));
 
 const TODAY = "2026-08-05";
+
+/** A claim, with only what a given test cares about spelled out. */
+const claim = (over: Partial<Claim> = {}): Claim =>
+  ({
+    id: "c1",
+    staffProfileId: "me",
+    expenseDate: "2026-08-01",
+    description: "Copper fittings",
+    category: "materials",
+    amount: 184.5,
+    gstAmount: 16.77,
+    supplier: "Reece",
+    status: "pending",
+    reviewNote: null,
+    createdAt: "2026-08-01T00:00:00Z",
+    receipts: [],
+    ...over,
+  }) as Claim;
 const draw = () => render(<MyExpenses claims={[]} today={TODAY} />);
 
 /** The one hidden picker the whole screen shares. */
@@ -43,6 +63,7 @@ const pdf = () => new File(["x"], "reece-invoice.pdf", { type: "application/pdf"
 beforeEach(() => {
   readReceipt.mockReset().mockResolvedValue({ ok: false, reason: "no-key" });
   submit.mockReset().mockResolvedValue({ ok: true });
+  cancel.mockReset().mockResolvedValue({ ok: true });
   upload.mockReset().mockResolvedValue({ ok: true, file: { documentId: "doc-1" } });
   refresh.mockReset();
   // jsdom implements neither
@@ -197,5 +218,113 @@ describe("object URLs", () => {
     await user.upload(picker(), photo());
     await user.upload(picker(), new File(["y"], "second.png", { type: "image/png" }));
     expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:preview");
+  });
+});
+
+/* ---------------- the 2026-08 audit ---------------- */
+
+describe("what the claimant is told", () => {
+  /* THE FIGURE THE APPROVER ALWAYS HAD. `owedTotal` counts pending plus
+     approved-but-unpaid, and it was on the review queue and the Time & Pay
+     stat tile — every screen except the one belonging to the person who is
+     out of pocket, who got a list and was left to add it up. */
+  it("totals what it owes you, using the same helper the approver's screen uses", () => {
+    const { container } = render(
+      <MyExpenses
+        today={TODAY}
+        claims={[
+          claim({ id: "a", amount: 184.5, status: "pending" }),
+          claim({ id: "b", amount: 62, status: "approved" }),
+          // already paid — not owed, so not counted
+          claim({ id: "c", amount: 500, status: "reimbursed" }),
+        ]}
+      />,
+    );
+    const owed = container.querySelector(".xc-owed")!;
+    expect(within(owed as HTMLElement).getByText("$246.50")).toBeInTheDocument();
+  });
+
+  it("says nothing when nothing is owed", () => {
+    const { container } = render(
+      <MyExpenses today={TODAY} claims={[claim({ status: "reimbursed" })]} />,
+    );
+    expect(container.querySelector(".xc-owed")).toBeNull();
+  });
+
+  /* The approver's row has always said "No receipt" and called it a judgement
+     call. The claimant's row said nothing — so a person was told a docket is
+     "what gets approved without a conversation" while filling the form, and
+     never told again whether theirs had one. */
+  it("says when a claim has no receipt, the way the review screen does", () => {
+    render(<MyExpenses today={TODAY} claims={[claim({ receipts: [] })]} />);
+    expect(screen.getByText("No receipt")).toBeInTheDocument();
+  });
+
+  it("drops the nag once the claim is settled", () => {
+    // a reimbursed claim's missing docket is history, not a thing to chase
+    render(<MyExpenses today={TODAY} claims={[claim({ status: "reimbursed", receipts: [] })]} />);
+    expect(screen.queryByText("No receipt")).toBeNull();
+  });
+
+  it("links the receipt when there is one, instead", () => {
+    render(
+      <MyExpenses
+        today={TODAY}
+        claims={[claim({ receipts: [{ url: "https://x/r.jpg", image: true }] })]}
+      />,
+    );
+    expect(screen.getByRole("link", { name: "Receipt" })).toBeInTheDocument();
+    expect(screen.queryByText("No receipt")).toBeNull();
+  });
+});
+
+describe("cancelling a claim", () => {
+  /* ARMS BEFORE IT FIRES — the protocol My leave uses on its own Cancel, for
+     the same reason. This discards a claim for money you are owed (an APPROVED
+     one, at that) and strands the receipt with it. One press did it. */
+  it("asks first, then goes through on the second press", async () => {
+    const user = userEvent.setup();
+    render(<MyExpenses today={TODAY} claims={[claim({ id: "c9", status: "pending" })]} />);
+
+    await user.click(screen.getByRole("button", { name: /^Cancel / }));
+    expect(cancel).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: /^Confirm cancelling/ }));
+    expect(cancel).toHaveBeenCalledWith("c9");
+  });
+});
+
+describe("the claim form", () => {
+  /* The form knew. "Send for approval" was enabled on a completely empty
+     draft, so the first thing back was a round trip and "Say what the expense
+     was for" — something the button could see before it was pressed. */
+  it("holds Send until it has the two things a claim cannot be without", async () => {
+    const user = userEvent.setup();
+    render(<MyExpenses today={TODAY} claims={[]} />);
+    await user.click(screen.getByRole("button", { name: /Enter it myself/ }));
+
+    const send = () => screen.getByRole("button", { name: /Send for approval/ });
+    expect(send()).toBeDisabled();
+    expect(screen.getByText("Say what it was for")).toBeInTheDocument();
+
+    await user.type(screen.getByPlaceholderText("Copper fittings and flux"), "Fittings");
+    expect(send()).toBeDisabled();
+    expect(screen.getByText("Add how much it cost")).toBeInTheDocument();
+
+    await user.type(screen.getByPlaceholderText("0.00"), "45");
+    expect(send()).toBeEnabled();
+  });
+
+  /* "Every date in HeyTiff is picked, never typed" — date-field.tsx. A raw
+     `<input type="date">` renders the browser's own control and, on a phone,
+     answers dd/mm vs mm/dd in whatever the OS locale says. On a form whose
+     date decides which BAS period a GST figure lands in. */
+  it("picks the date with the app's calendar, never a native date input", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<MyExpenses today={TODAY} claims={[]} />);
+    await user.click(screen.getByRole("button", { name: /Enter it myself/ }));
+
+    expect(container.querySelector('input[type="date"]')).toBeNull();
+    expect(container.querySelector(".datef")).not.toBeNull();
   });
 });

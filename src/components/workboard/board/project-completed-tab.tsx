@@ -54,8 +54,12 @@ export function ProjectCompletedTab({
     });
   };
 
+  /* No money loaded (no `workboard_money`) ⇒ no chip and no money line. Saying
+     "no budget tracked" to someone who simply isn't allowed to see it would be
+     a statement about the project that isn't true. */
   const moneyChip = (p: BoardProject) => {
     const m = p.money;
+    if (!m) return null;
     if (m.revisedTotalCents === null) return null;
     if (m.remainingCents !== null && m.remainingCents > 0) {
       return <span className="wb2-chip warn">{fmtAud(m.remainingCents)} unclaimed</span>;
@@ -74,7 +78,7 @@ export function ProjectCompletedTab({
       </div>
       <div className="wb2-dnw">
         <b>{closing ? "At Complete" : `Closed ${agoLabel(p.updatedAt.slice(0, 10), today)}`}</b>
-        <em>{claimedLine(p.money) ?? "no budget tracked"}</em>
+        {p.money && <em className="wb2-money">{claimedLine(p.money) ?? "no budget tracked"}</em>}
       </div>
       <span className="wb2-dnact">
         {moneyChip(p)}

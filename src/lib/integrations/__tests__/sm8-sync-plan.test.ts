@@ -137,20 +137,62 @@ describe("shapes as the privacy boundary", () => {
     expect(spec("jobs").shape({ status: "Quote" })).toBeNull();
   });
 
-  it("the job shape refuses money even when ServiceM8 sends it", () => {
+  it("the job shape keeps the money it is asked to keep", () => {
     const shaped = spec("jobs").shape({
       uuid: "j-1",
       generated_job_id: "1042",
       status: "Work Order",
-      total_invoice_amount: "12345.00",
-      badges: '["b-1"]',
+      total_invoice_amount: "12345.0000",
+      invoice_sent: 1,
+      invoice_date: "2026-07-20 00:00:00",
+      payment_received: 0,
+      payment_received_stamp: "0000-00-00 00:00:00",
       completion_date: "0000-00-00 00:00:00",
       edit_date: "2026-07-28 09:00:00",
     })!;
     expect(shaped.generated_job_id).toBe("1042");
     expect(shaped.completion_date).toBeNull();
-    expect(shaped).not.toHaveProperty("total_invoice_amount");
-    expect(shaped).not.toHaveProperty("badges");
+    // Stored VERBATIM — the string ServiceM8 sent, padding and all. Reading it
+    // is parseSm8AmountToCents's job, at the far end of the gate.
+    expect(shaped.total_invoice_amount).toBe("12345.0000");
+    expect(shaped.invoice_sent).toBe(1);
+    expect(shaped.invoice_date).toBe("2026-07-20 00:00:00");
+    expect(shaped.payment_received).toBe(0);
+    // The zero-date sentinel is nulled like every other stamp.
+    expect(shaped.payment_received_stamp).toBeNull();
+  });
+
+  /* The boundary that survives money being mirrored. Money moved behind a
+     capability (`workboard_money`); these fields have no feature at all, and
+     two of them have no read scope — so the shape must still drop them. The
+     deprecated payment_* detail fields belong to the JobPayment endpoint,
+     whose scope is a WRITE scope we refuse to ask for. */
+  it("the job shape still refuses badges, coordinates and the write-scope payment detail", () => {
+    const shaped = spec("jobs").shape({
+      uuid: "j-2",
+      generated_job_id: "1043",
+      badges: '["b-1"]',
+      lat: -33.91,
+      lng: 151.19,
+      billing_address: "PO Box 12, Mascot",
+      payment_method: "Credit card",
+      payment_amount: "500.00",
+      payment_date: "2026-07-21 00:00:00",
+      payment_note: "paid on site",
+      edit_date: "2026-07-28 09:00:00",
+    })!;
+    for (const banned of [
+      "badges",
+      "lat",
+      "lng",
+      "billing_address",
+      "payment_method",
+      "payment_amount",
+      "payment_date",
+      "payment_note",
+    ]) {
+      expect(shaped).not.toHaveProperty(banned);
+    }
   });
 
   it("the staff shape is names and title only — never contact or location", () => {

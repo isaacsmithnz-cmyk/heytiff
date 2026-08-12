@@ -4648,6 +4648,18 @@ html[data-wb-display] .fg .wb2-chd,
 html[data-wb-display] .fg .wb2-mckey,
 html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 
+/* MONEY COMES OFF THE WALL. Display mode is the one screen whose audience
+   isn't the person signed in — it's whoever walks past the workshop TV, and
+   they never authenticated. The capability (`workboard_money`) already
+   decided this person may see job values; it can't decide anything about the
+   room. So every money cell hides here, and only here.
+
+   This is COURTESY, NOT SECURITY, and the difference matters: the numbers are
+   still in the payload, because the viewer is entitled to them — a person can
+   leave display mode and read them. The gate that actually withholds money is
+   in the loaders, where a reader without the capability never receives it. */
+html[data-wb-display] .fg .wb2-money { visibility:hidden; }
+
 /* the pill — near-zero idle footprint, docked at the tab row's right end.
    ONE object: a white capsule holding the typing half, with the mic as a
    filled red disc at its end. Red because recording is the one destructive-

@@ -112,9 +112,26 @@ const contactShape = (parentKey: "company_uuid" | "job_uuid") =>
 const shapeJob = (r: Raw): MirrorRow | null => {
   const uuid = uuidOf(r);
   if (!uuid) return null;
-  /* Deliberately absent: total_invoice_amount and every other money field
-     (never mirrored), badges (write-scope territory), lat/lng. The pick list
-     IS the privacy boundary, and the test pins it. */
+  /* MONEY IS MIRRORED, AND GATED AT READ. The job's own total, the two
+     sent-flags and the payment flag ride on this object under `read_jobs` —
+     the scope this integration has always held — so they arrive on every page
+     whether we keep them or not. Keeping them is what lets the board answer
+     "where's the money on this job?"; what protects them is the capability
+     `workboard_money`, enforced by loaders that don't SELECT these columns for
+     anyone without it. An absence in the mirror was never the safeguard it
+     looked like: it protected the columns from the OWNER of the data.
+
+     Still deliberately absent, and the pick list IS that boundary — the test
+     below pins it: badges (the only badge scope is a WRITE scope), lat/lng,
+     billing_address, and the four DEPRECATED on-job payment detail fields
+     (payment_method / payment_date / payment_amount / payment_note), which
+     ServiceM8's own docs redirect to the JobPayment endpoint. That endpoint
+     stays unadopted: its scope is `manage_job_payments`, a write scope, and
+     the read-only charter outranks per-payment detail. `payment_received`
+     answers paid-or-not, which is the question the board actually asks.
+
+     Amounts stay TEXT exactly as sent ("1234.5600") like every other
+     ServiceM8-native field; parseSm8AmountToCents does the reading. */
   return {
     uuid,
     generated_job_id: textOrNull(r.generated_job_id),
@@ -135,6 +152,13 @@ const shapeJob = (r: Raw): MirrorRow | null => {
     job_description: textOrNull(r.job_description),
     work_done_description: textOrNull(r.work_done_description),
     purchase_order_number: textOrNull(r.purchase_order_number),
+    total_invoice_amount: textOrNull(r.total_invoice_amount),
+    invoice_sent: intOrNull(r.invoice_sent),
+    invoice_date: dateOrNull(r.invoice_date),
+    quote_sent: intOrNull(r.quote_sent),
+    quote_sent_stamp: dateOrNull(r.quote_sent_stamp),
+    payment_received: intOrNull(r.payment_received),
+    payment_received_stamp: dateOrNull(r.payment_received_stamp),
     active: intOrNull(r.active),
     edit_date: dateOrNull(r.edit_date),
   };

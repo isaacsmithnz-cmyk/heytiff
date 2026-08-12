@@ -29,11 +29,20 @@
 -- interpret. (Deletes are ServiceM8 soft-deletes: active = 0 rows keep
 -- arriving from the API, so deletions mirror themselves.)
 --
--- WHAT IS DELIBERATELY NOT HERE: money (job totals, payments), badges (the
--- only ServiceM8 badge scope is a WRITE scope), client ABNs/billing details,
--- and staff email/mobile/GPS/status — sm8_staff is names and titles only.
--- Less PII mirrored is less liability, and columns are cheap to add later
--- because rebuilds are free.
+-- WHAT IS DELIBERATELY NOT HERE: badges (the only ServiceM8 badge scope is a
+-- WRITE scope), lat/lng, client ABNs/billing details, and staff
+-- email/mobile/GPS/status — sm8_staff is names and titles only. Less PII
+-- mirrored is less liability, and columns are cheap to add later because
+-- rebuilds are free.
+--
+-- MONEY USED TO BE ON THAT LIST AND NO LONGER IS (see sm8_jobs_money.sql).
+-- The job's own total and its invoice/payment flags are mirrored, because a
+-- board that can't say where the money is on a job isn't finished. The
+-- protection moved from absence to a READ GATE: capability `workboard_money`,
+-- owner-tier, enforced by loaders that never SELECT those columns without it.
+-- Absence protected those numbers from the business that owns them, which was
+-- never the threat. Per-payment RECORDS are still absent and stay that way —
+-- ServiceM8 puts them behind `manage_job_payments`, a write scope.
 --
 -- POSTURE: RLS is ON with NO policies on every table here (deny-all to the
 -- public keys, house-wide). All access goes through the service-role client

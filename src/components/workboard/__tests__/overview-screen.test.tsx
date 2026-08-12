@@ -63,6 +63,7 @@ const TODAY = "2026-07-28";
 
 const base: WorkboardData = {
   manage: false,
+  moneyVisible: false,
   connection: "none",
   timezone: null,
   today: TODAY,

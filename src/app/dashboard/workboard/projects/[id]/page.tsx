@@ -31,9 +31,12 @@ export default async function WorkboardProjectPage({
 
   const { id } = await params;
   const today = todayInZone(await getSm8Timezone(orgId));
+  // Money is its own grant (`workboard_money`, owner-tier) — asked once here
+  // and handed to both loaders, so neither reads what this person may not see.
+  const includeMoney = await can("workboard_money");
   const [project, board, manage, connection, entries, issues] = await Promise.all([
-    getProjectDetail(orgId, id),
-    loadProjectsBoard(orgId, today),
+    getProjectDetail(orgId, id, { includeMoney }),
+    loadProjectsBoard(orgId, today, { includeMoney }),
     can("workboard_manage"),
     getConnectionView(orgId, "servicem8"),
     listProjectEntries(orgId, id),

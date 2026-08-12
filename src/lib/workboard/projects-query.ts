@@ -218,6 +218,13 @@ export type ProjectDetail = {
   equipment: EquipmentItem[];
   jobs: LinkedJob[];
   scope: ScopeItem[];
+  /* WHY THE MONEY IS EMPTY, said out loud. Without capability
+     `workboard_money` the three money reads never run, and the result is
+     indistinguishable from a project nobody has priced: budget null, no
+     variations, no claims. The screen needs to tell those apart, because
+     offering "Set the job total" to someone who may not see money is both a
+     lie and a dead end. */
+  moneyVisible: boolean;
   variations: VariationRow[];
   claims: ClaimRow[];
   milestones: MilestoneRow[];
@@ -226,15 +233,24 @@ export type ProjectDetail = {
   hoursLogged: number;
 };
 
+/* `includeMoney` defaults TRUE so every caller reads as it always did; the
+   route gates it explicitly off capability `workboard_money`. With it false
+   the budget, variations and claims are never SELECTED — a reader without
+   money access is handed a project that has none, rather than one whose money
+   the UI politely declines to draw. */
 export async function getProjectDetail(
   orgId: string,
-  projectId: string
+  projectId: string,
+  opts: { includeMoney?: boolean } = {}
 ): Promise<ProjectDetail | null> {
+  const includeMoney = opts.includeMoney ?? true;
+
   const { data } = await supabaseAdmin
     .from("projects")
     .select(
       "id, name, client_name, site_label, site_address, stage, status, design_id, notes, " +
-        "blocked_reason, blocked_on, blocked_at, budget_cents, budget_source, hours_budget, " +
+        "blocked_reason, blocked_on, blocked_at, hours_budget, " +
+        (includeMoney ? "budget_cents, budget_source, " : "") +
         "promised_finish, defects_end, agreement_id, created_at, updated_at"
     )
     .eq("org_id", orgId)
@@ -314,19 +330,25 @@ export async function getProjectDetail(
       .eq("project_id", projectId)
       .order("kind", { ascending: true })
       .order("position", { ascending: true }),
-    supabaseAdmin
-      .from("project_variations")
-      .select("id, title, detail, amount_cents, status, decided_by, decided_at, created_at")
-      .eq("org_id", orgId)
-      .eq("project_id", projectId)
-      .order("created_at", { ascending: true }),
-    supabaseAdmin
-      .from("project_claims")
-      .select("id, label, amount_cents, claimed_on, status, paid_on, source, remote_ref, variation_id")
-      .eq("org_id", orgId)
-      .eq("project_id", projectId)
-      .order("claimed_on", { ascending: true })
-      .order("created_at", { ascending: true }),
+    includeMoney
+      ? supabaseAdmin
+          .from("project_variations")
+          .select("id, title, detail, amount_cents, status, decided_by, decided_at, created_at")
+          .eq("org_id", orgId)
+          .eq("project_id", projectId)
+          .order("created_at", { ascending: true })
+      : Promise.resolve({ data: [] }),
+    includeMoney
+      ? supabaseAdmin
+          .from("project_claims")
+          .select(
+            "id, label, amount_cents, claimed_on, status, paid_on, source, remote_ref, variation_id"
+          )
+          .eq("org_id", orgId)
+          .eq("project_id", projectId)
+          .order("claimed_on", { ascending: true })
+          .order("created_at", { ascending: true })
+      : Promise.resolve({ data: [] }),
     supabaseAdmin
       .from("project_milestones")
       .select("id, label, on_date")
@@ -392,8 +414,9 @@ export async function getProjectDetail(
     blockedReason: p.blocked_reason,
     blockedOn: p.blocked_on,
     blockedAt: p.blocked_at,
-    budgetCents: p.budget_cents,
-    budgetSource: p.budget_source,
+    moneyVisible: includeMoney,
+    budgetCents: includeMoney ? p.budget_cents : null,
+    budgetSource: includeMoney ? p.budget_source : null,
     hoursBudget: p.hours_budget,
     promisedFinish: p.promised_finish,
     defectsEnd: p.defects_end,

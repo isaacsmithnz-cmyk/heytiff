@@ -188,7 +188,10 @@ export function MoneyCard({
           <div className="wb2-plmoney">
             <b>{fmtAud(c.amountCents)}</b>
           </div>
-          {manage ? (
+          {/* A mirrored row is READ-ONLY here even for a manager: its paid-ness
+              is ServiceM8's answer and the next sync would overwrite a press.
+              The server refuses it too — this just stops offering it. */}
+          {manage && c.source === "manual" ? (
             <button
               className={"wb2-chip" + (c.status === "paid" ? " ok" : " warn")}
               disabled={busy}
@@ -198,7 +201,14 @@ export function MoneyCard({
               {c.status === "paid" ? "Paid" : "Awaiting payment"}
             </button>
           ) : (
-            <span className={"wb2-chip" + (c.status === "paid" ? " ok" : " warn")}>
+            <span
+              className={"wb2-chip" + (c.status === "paid" ? " ok" : " warn")}
+              title={
+                c.source === "manual"
+                  ? undefined
+                  : "Follows ServiceM8 — change it there and it follows here"
+              }
+            >
               {c.status === "paid" ? "Paid" : "Awaiting payment"}
             </span>
           )}
@@ -216,6 +226,12 @@ export function MoneyCard({
       ))}
       {project.claims.length === 0 && (
         <p className="int-hint">Nothing claimed yet — the deposit is usually the first row.</p>
+      )}
+      {project.claims.some((c) => c.source === "servicem8") && (
+        <p className="int-hint">
+          Invoices raised in ServiceM8 on this project&apos;s linked jobs appear here on their own.
+          Add a claim by hand for anything ServiceM8 doesn&apos;t invoice — a deposit, retention.
+        </p>
       )}
 
       {manage && (

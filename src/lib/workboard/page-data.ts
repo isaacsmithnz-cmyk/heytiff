@@ -17,12 +17,19 @@ import { listFlags, type BoardFlag } from "./notes-query";
 import { loadMaintenanceBoard, type MaintenanceBoardData } from "./board-query";
 import { loadProjectsBoard, type ProjectsBoardData } from "./projects-board-query";
 import { autoCompleteVisitsFromMirror, ensureVisits } from "./visit-ensure";
+import { ensureMirrorClaims } from "./claim-mirror";
 import { getSm8Timezone } from "./query";
 
 export type WorkboardConnection = "none" | "connected" | "attention";
 
 export type WorkboardData = {
   manage: boolean;
+  /* Whether money may be SHOWN — capability `workboard_money`, owner-tier.
+     It is not a styling flag: when false the loaders below never select a
+     budget, a variation or a claim, so there is no money in this payload to
+     leak through a component that forgot to check. The screens then render
+     nothing money-shaped, which is different from rendering "not set". */
+  moneyVisible: boolean;
   connection: WorkboardConnection;
   /** The account's IANA zone once known — the clock the board buckets on. */
   timezone: string | null;
@@ -44,6 +51,7 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
   if (!orgId) return null;
 
   const manage = await can("workboard_manage");
+  const moneyVisible = await can("workboard_money");
   const view = await getConnectionView(orgId, "servicem8");
   const connection: WorkboardConnection =
     view === null ? "none" : view.status === "connected" ? "connected" : "attention";
@@ -57,10 +65,11 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
     const [flags, board, projectsBoard] = await Promise.all([
       listFlags(orgId),
       loadMaintenanceBoard(orgId, today),
-      loadProjectsBoard(orgId, today),
+      loadProjectsBoard(orgId, today, { includeMoney: moneyVisible }),
     ]);
     return {
       manage,
+      moneyVisible,
       connection,
       timezone: null,
       today,
@@ -75,19 +84,27 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
   const timezone = await getSm8Timezone(orgId);
   const today = todayInZone(timezone);
 
-  // Behind the response: top the visit horizon up, then let a linked job
-  // that completed in ServiceM8 mark its visit done. Both bounded, both
-  // idempotent — the board reads what's there NOW and is right next paint.
+  /* Behind the response: top the visit horizon up, let a linked job that
+     completed in ServiceM8 mark its visit done, then bring each linked job's
+     invoice across as a project claim. All bounded, all idempotent — the board
+     reads what's there NOW and is right next paint.
+
+     The claim tail runs on the CONNECTED path only. Standalone has no mirror
+     to read, and the absence is what lets mirrored claims sit still as cached
+     history after a disconnect instead of being cleared by an empty mirror. It
+     also runs regardless of who is looking: keeping the books current is not
+     the same question as who may see them. */
   after(() =>
     ensureVisits(orgId, { today })
       .then(() => autoCompleteVisitsFromMirror(orgId))
+      .then(() => ensureMirrorClaims(orgId, today))
       .catch(() => {})
   );
 
   const [flags, board, projectsBoard, sync] = await Promise.all([
     listFlags(orgId),
     loadMaintenanceBoard(orgId, today),
-    loadProjectsBoard(orgId, today),
+    loadProjectsBoard(orgId, today, { includeMoney: moneyVisible }),
     listSm8SyncStatus(orgId),
   ]);
 
@@ -98,6 +115,7 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
 
   return {
     manage,
+    moneyVisible,
     connection,
     timezone,
     today,

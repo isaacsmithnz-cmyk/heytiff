@@ -198,6 +198,14 @@ export function missingScopes(granted: string | null | undefined): string[] {
                      NOT asked for: a scope joins this list WITH its feature,
                      not ahead of it (the Xero audit lesson)
 
+   THE JOB'S OWN TOTAL NEEDS NO EXTRA SCOPE. total_invoice_amount and the
+   invoice/quote/payment flags are fields ON the Job object, covered by
+   read_jobs — verified against developer.servicem8.com/reference/listjobs.md
+   on 2026-08-12. That is why read_jobs' sentence below now says so out loud:
+   the consent screen must describe what actually arrives, and it always did
+   arrive. Per-PAYMENT records are the thing read_job_payments would buy, and
+   they remain unbought.
+
    Verified against developer.servicem8.com/docs/authentication on 2026-07-28 —
    check the doc before adding a scope rather than going from memory. */
 
@@ -214,7 +222,7 @@ export const SM8_SCOPES: ScopeEntry[] = [
   {
     scope: "read_jobs",
     area: "Workboard",
-    why: "Reads jobs — numbers, status, addresses — so projects and maintenance here link to the real thing.",
+    why: "Reads jobs — numbers, status, addresses, and each job's own invoice total and paid status — so the board links to the real thing and can say where the money on it stands. Job values are shown only to people you've given money access.",
   },
   {
     scope: "read_customers",

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { navHref } from "@/components/shell/nav";
 import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { staffIdFor } from "@/lib/workboard/projects-query";
@@ -47,9 +48,11 @@ async function context(): Promise<Ctx | { error: string }> {
 
 const failed = (c: Ctx | { error: string }): c is { error: string } => "error" in c;
 
+/* By name, not by path — a revalidate aimed at a moved route fails silently,
+   leaving the screen on stale rows. See the note on `refresh` in ./kb. */
 const refresh = () => {
-  revalidatePath("/dashboard/my-notes");
-  revalidatePath("/dashboard");
+  revalidatePath(navHref("mynotes"));
+  revalidatePath(navHref("home"));
 };
 
 /** Keep a note for yourself. `sourceNoteId` links it back to the routed note

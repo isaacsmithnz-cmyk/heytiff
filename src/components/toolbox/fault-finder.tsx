@@ -14,6 +14,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
+import { navHref } from "@/components/shell/nav";
 import { faultCodePrefill, writeAskText } from "@/lib/tiff/ask-handoff";
 import {
   getOutcome,
@@ -161,7 +162,7 @@ function CodeLookup({ color }: { color: string }) {
 function EmptyLibraryNote() {
   return (
     <p className="ffg-nolib">
-      Add this unit&rsquo;s manual to the <Link href="/dashboard/tiff/library">Library</Link> and
+      Add this unit&rsquo;s manual to the <Link href={navHref("tiffkb")}>Library</Link> and
       Tiff can read the code off it next time.
     </p>
   );

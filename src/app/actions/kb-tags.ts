@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { navHref } from "@/components/shell/nav";
 import { requireOrg } from "@/lib/permissions-server";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { staffProfileIdFor } from "@/lib/fleet/query";
@@ -49,9 +50,10 @@ async function ctx(): Promise<Ctx | null> {
   }
 }
 
+/* By name, not by path — see the same note on `refresh` in ./kb. */
 function refresh() {
-  revalidatePath("/dashboard/tiff");
-  revalidatePath("/dashboard/tiff/library");
+  revalidatePath(navHref("tiff"));
+  revalidatePath(navHref("tiffkb"));
 }
 
 const toRef = (r: Record<string, unknown>): KbTagRef => ({

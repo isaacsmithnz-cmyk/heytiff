@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { DateField } from "@/components/ui/date-field";
-import { completeTask, createTask, reopenTask } from "@/app/actions/dashboard";
+import { completeTask, createTask, deleteTask, reopenTask } from "@/app/actions/dashboard";
 import { dueLabel, type DashTask } from "@/lib/dashboard/tasks";
 import { auDayOf, fmtAuDayMonth } from "@/lib/au-dates";
 
@@ -31,13 +31,38 @@ function Tick({
   who,
   onDone,
   pending,
+  del,
 }: {
   task: DashTask;
   today: string;
   who?: string;
   onDone: (id: string) => void;
   pending: boolean;
+  /** Wired only when the viewer may delete this task — its creator, or `team`. */
+  del?: { confirming: boolean; ask: () => void; go: () => void; keep: () => void };
 }) {
+  /* Deleting has no undo — unlike completing, there is no row left to reopen —
+     so the ✕ never fires the action itself: the row swaps into a confirm.
+     Focus lands on Keep, so Enter twice backs out rather than deletes. */
+  if (del?.confirming) {
+    return (
+      <div className="wb2-tk hm-tkcf">
+        <span className="wb2-tkb hm-tkcfx" aria-hidden="true">
+          <Icon name="x" size={13} />
+        </span>
+        <span className="wb2-tkt">
+          <b>{task.title}</b>
+          <em className="hm-tkq">Delete for good?</em>
+        </span>
+        <button className="hm-tkyes" type="button" disabled={pending} onClick={del.go}>
+          Delete
+        </button>
+        <button className="hm-tkno" type="button" disabled={pending} onClick={del.keep} autoFocus>
+          Keep
+        </button>
+      </div>
+    );
+  }
   return (
     <div className="wb2-tk">
       <button
@@ -56,6 +81,17 @@ function Tick({
         )}
       </span>
       <Due task={task} today={today} />
+      {del && (
+        <button
+          className="hm-tkdel"
+          type="button"
+          disabled={pending}
+          aria-label={`Delete "${task.title}"`}
+          onClick={del.ask}
+        >
+          <Icon name="x" size={12} />
+        </button>
+      )}
     </div>
   );
 }
@@ -114,6 +150,7 @@ export function HomeTasks({
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
 
   const [assignedTo, setAssignedTo] = useState(assignable[0]?.id ?? "");
   const [title, setTitle] = useState("");
@@ -137,6 +174,20 @@ export function HomeTasks({
 
   const markDone = (id: string) => run(() => completeTask(id));
   const undo = (id: string) => run(() => reopenTask(id));
+
+  /* Who gets the ✕ mirrors deleteTask's own rule: the creator, or a manager.
+     The action re-decides regardless. Guarded on viewerStaffId so a viewer
+     with no staff record never reads an ownerless task (createdBy null) as
+     theirs — null === null must not grant the control. */
+  const delFor = (t: DashTask) =>
+    canManage || (!!viewerStaffId && t.createdBy === viewerStaffId)
+      ? {
+          confirming: confirmId === t.id,
+          ask: () => setConfirmId(t.id),
+          go: () => run(() => deleteTask(t.id), () => setConfirmId(null)),
+          keep: () => setConfirmId(null),
+        }
+      : undefined;
   const assign = () =>
     run(
       () => createTask({ assignedTo, title, detail: detail || undefined, dueDate: dueDate || undefined }),
@@ -232,7 +283,7 @@ export function HomeTasks({
           ) : (
             <div className="wb2-tasks">
               {mine.map((t) => (
-                <Tick key={t.id} task={t} today={today} onDone={markDone} pending={pending} />
+                <Tick key={t.id} task={t} today={today} onDone={markDone} pending={pending} del={delFor(t)} />
               ))}
             </div>
           )}
@@ -252,6 +303,7 @@ export function HomeTasks({
                       who={t.assigneeName}
                       onDone={markDone}
                       pending={pending}
+                      del={delFor(t)}
                     />
                   ))}
                 </div>

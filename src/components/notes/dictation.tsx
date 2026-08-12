@@ -70,6 +70,16 @@ const REALTIME = process.env.NEXT_PUBLIC_VOICE_REALTIME === "1";
    outcome nobody would forgive. */
 export const MAX_RECORDING_SECONDS = 120;
 
+/* WHAT COUNTS AS BEING HEARD. The same threshold the "was anything said"
+   count has always used — one number, so the label on screen and the
+   decision to bin a silent clip can never disagree. */
+const LOUD_ENOUGH = 0.07;
+
+/** How long a silence has to run before the card stops claiming to hear you.
+    Long enough to cover the gap between two sentences, short enough that a
+    mic which has actually died is called out while you are still talking. */
+const QUIET_MS = 1_200;
+
 /** When the clock stops counting up and starts counting down. Long enough to
     finish a sentence and press stop yourself. */
 export const COUNTDOWN_FROM = 30;
@@ -126,6 +136,12 @@ type DictationState = {
       batch transport — a caller that shows it simply shows nothing until
       the live path is switched on. */
   interim: string;
+  /** Is a voice reaching the microphone right now? The bars have always
+      carried this; this is the same fact in a form you can put in words,
+      and it settles slowly enough to read. False whenever the meter could
+      not start, so a caller must treat it as "cannot tell", never as
+      "definitely deaf". */
+  hearing: boolean;
   /** Bind to the level-meter element; the meter writes to it every frame. */
   barsRef: React.RefObject<HTMLSpanElement | null>;
   start: () => void;
@@ -134,6 +150,8 @@ type DictationState = {
   handOver: () => void;
   /** Throw the recording away — nothing is transcribed, nothing is sent. */
   cancel: () => void;
+  /** Bin this recording unheard and open a fresh mic in its place. */
+  restart: () => void;
 };
 
 export function useDictation({
@@ -162,7 +180,29 @@ export function useDictation({
   const [seconds, setSeconds] = useState(0);
   const [interim, setInterim] = useState("");
   const recorder = useRef<MediaRecorder | null>(null);
-  const discard = useRef(false);
+  /* ONE OF THESE PER RECORDING, so that a later run can never answer for an
+     earlier one. It was a single shared `discard` ref, which held only while
+     a recording was always followed by a pause: `start` reset the flag long
+     after the last `onstop` had read it.
+
+     A real MediaRecorder fires `onstop` on a LATER TASK than the `stop()`
+     that caused it, so any caller that bins a take and opens a new one in
+     the same breath — `cancel()` then `start()` — clears the shared flag
+     before the old handler reads it, and the recording that was thrown away
+     is transcribed and appended instead. Words arriving in the box from a
+     take you deliberately binned is the worst shape of this bug: it reads as
+     the app inventing sentences.
+
+     `restart` below is careful to sequence THROUGH `onstop` rather than
+     around it, so it does not hit this on its own. The per-run object is
+     what makes the hazard structurally impossible rather than a rule the
+     next caller has to know. */
+  const run = useRef<{ discard: boolean } | null>(null);
+  /* Set by `restart`, honoured by the `onstop` it caused. The new mic opens
+     from there rather than from the button, because the old one has to have
+     let go of the meter, the tracks and the recording flag first — all three
+     live in refs this hook shares between runs. */
+  const restarting = useRef(false);
   /* Set by the ceiling effect, cleared by every fresh `start`. Read when
      the words are handed over, which is always after the stop it caused. */
   const capped = useRef(false);
@@ -181,6 +221,24 @@ export function useDictation({
   const barsRef = useRef<HTMLSpanElement | null>(null);
   const meter = useRef<{ ctx: AudioContext; raf: number } | null>(null);
   const live = useRef<RealtimeHandle | null>(null);
+  /* IS IT HEARING ANYTHING RIGHT NOW — the same samples the bars are drawn
+     from, but as a fact a caller can put into words. The bars have always
+     carried this and nobody could read them: at silence they collapse to
+     6px, which is indistinguishable from a mic that died. Isaac hit exactly
+     that on prod and had no way to tell.
+
+     It is deliberately SLOW where the bars are fast. The meter runs every
+     frame and writes straight to the DOM to stay out of React; this flips at
+     most a few times a recording, because a label that flickers between
+     "hearing you" and "not hearing anything" between syllables is worse than
+     no label. `QUIET_MS` is the pause you are allowed inside a sentence. */
+  const [hearing, setHearing] = useState(false);
+  /* Both read and written only inside the animation frame — a clock touched
+     during render tears hydration for the whole tree. The mirror ref is what
+     keeps `setHearing` off the per-frame path: state changes on a crossing,
+     not on a sample. */
+  const lastLoud = useRef(0);
+  const hearingNow = useRef(false);
 
   /* The callbacks live in a ref so the recorder's own handlers always see the
      current ones without the effect below re-running and dropping the mic.
@@ -251,12 +309,24 @@ export function useDictation({
           sum += centred * centred;
         }
         const level = Math.min(1, Math.sqrt(sum / samples.length) * 4);
-        if (level > 0.07) loudFrames.current += 1;
+        const now = performance.now();
+        if (level > LOUD_ENOUGH) {
+          loudFrames.current += 1;
+          lastLoud.current = now;
+        }
         // straight to the DOM, never through React — this runs every frame
         barsRef.current?.style.setProperty("--lvl", level.toFixed(3));
+        /* The only line here allowed to reach React, and only on a crossing. */
+        const heard = now - lastLoud.current < QUIET_MS;
+        if (heard !== hearingNow.current) {
+          hearingNow.current = heard;
+          setHearing(heard);
+        }
         if (meter.current) meter.current.raf = requestAnimationFrame(tick);
       };
 
+      lastLoud.current = 0;
+      hearingNow.current = false;
       meter.current = { ctx, raf: requestAnimationFrame(tick) };
       meterRan.current = true;
     } catch {
@@ -273,7 +343,9 @@ export function useDictation({
       live.current = null;
       const rec = recorder.current;
       if (rec?.state === "recording") {
-        discard.current = true;
+        /* Unmounting is never a restart, whatever was pending. */
+        restarting.current = false;
+        if (run.current) run.current.discard = true;
         rec.stop();
       } else rec?.stream.getTracks().forEach((t) => t.stop());
     },
@@ -377,7 +449,10 @@ export function useDictation({
            which is what keeps this note out of the clip that follows. */
         playChime("start");
         const rec = new MediaRecorder(stream);
-        discard.current = false;
+        /* This run's own answer to "was it binned?", read by nothing but the
+           `onstop` below. See the note on `run`. */
+        const mine = { discard: false };
+        run.current = mine;
         capped.current = false;
         loudFrames.current = 0;
         meterRan.current = false;
@@ -396,11 +471,19 @@ export function useDictation({
              the moment they start waiting. */
           markStopped();
 
-          if (discard.current) {
+          if (mine.discard) {
             handle?.cancel();
             stream.getTracks().forEach((t) => t.stop());
             setInterim("");
             clearRun();
+            /* AND ONLY NOW, if this was a restart. Everything above had to
+               happen first: the meter, the tracks and `recording` are shared
+               refs, so a new run opened from the button instead of from here
+               would have the old run's cleanup switch it back off. */
+            if (restarting.current) {
+              restarting.current = false;
+              start();
+            }
             return;
           }
 
@@ -495,7 +578,7 @@ export function useDictation({
        above room noise, and the live socket produced no words either. Any
        uncertainty keeps the recording. */
     if (meterRan.current && loudFrames.current < 3 && interim === "") {
-      discard.current = true;
+      if (run.current) run.current.discard = true;
       rec.stop();
       return;
     }
@@ -508,11 +591,91 @@ export function useDictation({
     /* Its own note. Stopping and discarding are both endings, and if they
        sounded alike you could not tell by ear whether the note was kept. */
     playChime("discard");
-    discard.current = true;
+    if (run.current) run.current.discard = true;
     recorder.current.stop();
   };
 
-  return { recording, transcribing, seconds, interim, barsRef, start, stop, handOver, cancel };
+  /* START THAT ONE AGAIN — one press, because the alternative is close the
+     card, lose the tag, open it again and press the mic.
+
+     IT THROWS THE AUDIO AWAY, deliberately and without asking. Everything
+     said so far is binned unheard: nothing is uploaded, nothing is
+     transcribed, nothing reaches the box. That is the whole point of the
+     button — you fluffed it and want a clean run — and a confirm step would
+     make the fast path slower than starting over by hand.
+
+     TWO CHIMES, IN ORDER, and they are the confirmation. The discard note
+     first (low, unresolved: nothing was kept), then the start note when the
+     new mic is genuinely open. From a roof with the phone in your pocket
+     that pair is the only way to know it both let go and came back. */
+  const restart = () => {
+    const rec = recorder.current;
+    if (rec?.state !== "recording") return;
+    playChime("discard");
+    restarting.current = true;
+    if (run.current) run.current.discard = true;
+    rec.stop();
+  };
+
+  return {
+    recording,
+    transcribing,
+    seconds,
+    interim,
+    hearing,
+    barsRef,
+    start,
+    stop,
+    handOver,
+    cancel,
+    restart,
+  };
+}
+
+/* THE TRACE — the recording card's meter, and the reason it is not the
+   five-bar one below.
+
+   Measured on the card as it shipped: the meter was 36 × 34px, five percent
+   of the card's width, nine tenths of one percent of its area — and at
+   silence `scaleY(.18)` collapsed each bar to 6.1px. So the one element that
+   proves the microphone is working was the smallest thing on the screen, and
+   its resting state was indistinguishable from a mic that had died. Isaac hit
+   exactly that on prod: "Nothing was said in that one" over a row of dots he
+   had no way to read.
+
+   Wide, so it is the first thing the eye lands on. A resting floor of 6% of
+   56px rather than 18% of 34px, so a quiet room draws a live flat LINE — the
+   difference between "listening, hearing nothing" and "dead" is now visible
+   rather than inferred. The envelope tapers the ends so it reads as one
+   shape instead of a fence. */
+const WAVE_BARS = 48;
+
+export function WaveMeter({
+  innerRef,
+  small,
+}: {
+  innerRef: React.RefObject<HTMLSpanElement | null>;
+  /** Words have arrived and taken the space — the trace drops to a baseline. */
+  small?: boolean;
+}) {
+  return (
+    <span
+      className={"wb2-wave" + (small ? " thin" : "")}
+      role="status"
+      aria-label="Listening"
+      ref={innerRef}
+    >
+      {Array.from({ length: WAVE_BARS }, (_, i) => {
+        const t = i / (WAVE_BARS - 1);
+        return (
+          <i
+            key={i}
+            style={{ "--g": (0.45 + 0.55 * Math.sin(Math.PI * t)).toFixed(3) } as React.CSSProperties}
+          />
+        );
+      })}
+    </span>
+  );
 }
 
 /** The five-bar real-sample meter — bind `ref` to a dictation's `barsRef`. */
@@ -588,12 +751,12 @@ export const remainingOf = (seconds: number) =>
     worth knowing while you talk, and flips to counting DOWN for the last
     thirty seconds — the point at which the useful fact stops being how long
     you have been going and starts being how long you have left. */
-export function DictClock({ seconds }: { seconds: number }) {
+export function DictClock({ seconds, big }: { seconds: number; big?: boolean }) {
   const left = remainingOf(seconds);
   const closing = left <= COUNTDOWN_FROM;
   return (
     <span
-      className={`wb2-capclock${closing ? " closing" : ""}`}
+      className={`wb2-capclock${closing ? " closing" : ""}${big ? " big" : ""}`}
       /* The countdown is a state change mid-recording that nobody is looking
          at the clock to notice, so it is announced once it matters. */
       role={closing ? "status" : undefined}

@@ -4755,6 +4755,10 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .wb2-aimx:focus-visible { outline:none; opacity:1; box-shadow:0 0 0 2px rgba(0,168,224,.6); }
 
 .wb2-capclock { font-variant-numeric:tabular-nums; font-size:12.5px; font-weight:800; color:var(--gray700); white-space:nowrap; }
+/* Leading the trace rather than hiding in the ribbon corner. Tabular figures
+   are load-bearing at this size — proportional digits make the whole line
+   twitch on every tick. */
+.wb2-capclock.big { font-size:26px; letter-spacing:-.02em; line-height:1.1; }
 /* The last thirty seconds. The recorder stops itself at two minutes and keeps
    what it heard, so this is a heads-up and not a warning — it earns the red
    because the clock is the only thing on screen that can give it, but it does
@@ -4810,6 +4814,44 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .wb2-caprec { display:flex; flex-direction:column; align-items:center; gap:10px; padding:14px 0 2px; }
 .wb2-caprec .wb-lvl { height:34px; }
 .wb2-caprec .wb-lvl i { height:34px; width:4px; }
+
+/* ── THE TRACE ──
+   Audited 2026-08-10: this stage was a 680 × 201px card, 86% of it empty,
+   with a 36 × 34px meter marooned in the middle — five percent of the width,
+   nine tenths of one percent of the area — and at silence `scaleY(.18)` on a
+   34px bar left 6.1px of it. The one element proving the microphone works
+   was the smallest thing on the screen and its resting state was
+   indistinguishable from a dead mic. Isaac hit precisely that.
+
+   The reserved space IS the meter now, until there are words to put in it.
+   Full width, clock alongside at a size worth reading, and the state said in
+   words underneath — see `.wb2-heard`. */
+.wb2-recwave { display:flex; align-items:center; gap:16px; align-self:stretch; padding:8px 0 14px; }
+.wb2-recmeta { flex:none; display:flex; flex-direction:column; gap:1px; min-width:78px; }
+.wb2-wave { --lvl:0; display:flex; align-items:center; gap:3px; flex:1; min-width:0; height:56px; }
+.wb2-wave i { flex:1 1 0; min-width:2px; height:56px; border-radius:999px; transform-origin:center;
+  /* A FLOOR OF 6%, NOT 18%. At 56px that is a 3.4px line a quiet room still
+     draws — "listening, hearing nothing" made visibly different from "dead",
+     which is the entire point of the redesign. */
+  transform:scaleY(calc(.06 + var(--lvl) * var(--g, 1)));
+  background:linear-gradient(180deg, rgba(0,229,192,.95), rgba(0,163,137,.75)); }
+/* Words have arrived and taken the room; the trace drops to a baseline
+   rather than competing with what it is there to produce. */
+.wb2-recwave.with-words { padding-bottom:8px; }
+.wb2-wave.thin, .wb2-wave.thin i { height:20px; }
+@media (prefers-reduced-motion:reduce) { .wb2-wave i { transform:scaleY(.5); } }
+
+/* THE METER, IN WORDS. The bars have always carried this and nobody could
+   read them. Colour alone would not do it either — the two states have to
+   differ by their text, because "is it hearing me" is a question people ask
+   in words and answer by reading. */
+/* THE SILENT STATE IS THE READABLE ONE. Measured at .42 it came out at
+   4.09:1 — the same AA failure as the Default label above, on the one line
+   whose whole job is to be legible when something is wrong. The quiet state
+   here is not decoration to be dimmed; it is the warning. */
+.wb2-heard { font-size:11px; font-weight:800; letter-spacing:.13em; text-transform:uppercase;
+  color:rgba(255,255,255,.62); white-space:nowrap; }
+.wb2-heard.on { color:#57e8cf; }
 /* The hint stays centred under the meter — it is a status line and belongs
    with the bars. The transcript is not, which is why it stretches instead. */
 .wb2-caprec .wb2-hint { text-align:center; max-width:44ch; }
@@ -6451,7 +6493,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 /* On the dusk card the ground inverts: the track goes dark, and the thumb
    carries the brand rather than plain white — this is the one control on
    the sheet whose whole job is to say which mode you are in. */
-.wb2-dusk .wb2-modelbl { color:rgba(255,255,255,.42); }
+/* .42 measured 4.09:1 against the dusk card at 11px/800 — under AA, and 11px
+   bold is not "large text" however bold it is. .62 clears it at 6.9:1
+   without turning a quiet label into a loud one. */
+.wb2-dusk .wb2-modelbl { color:rgba(255,255,255,.62); }
 .wb2-dusk .wb2-modeseg { background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.1); }
 .wb2-dusk .wb2-modethumb { background:linear-gradient(120deg,#00E5C0,#19B8FF);
   box-shadow:0 4px 12px -4px rgba(0,229,192,.5); }
@@ -6513,6 +6558,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   filter:brightness(1.07); box-shadow:0 10px 26px -10px rgba(0,163,137,.65); }
 .wb2-capcard.wb2-dusk .pbtn.wb2-go:not(.ghost):focus-visible:not(:disabled) {
   box-shadow:0 0 0 3px rgba(0,163,137,.6); }
+/* The stop mark, eased off the button's own ink. `#04262B` at full strength
+   on a bright green fill is the loudest thing the glyph set can draw, which
+   is what made an 11px outlined square read as a dark blob. */
+.wb2-capcard .pbtn.wb2-go svg { opacity:.72; }
 
 /* listening — the bars go brand, the dot stays the one honest red */
 .wb2-dusk .wb-lvl i { background:linear-gradient(180deg,#00E5C0,#2E68FF); }

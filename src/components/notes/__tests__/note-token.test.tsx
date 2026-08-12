@@ -448,6 +448,53 @@ describe("the debrief", () => {
     await screen.findByText("Check it before it saves");
   };
 
+  /* IT HAPPENS IN THE PAGE (Isaac, 2026-08-12). The debrief was a floating
+     sheet over a scrim like every other posture; option A puts capture AND
+     review in the bar's own slot, on the card the record is already on.
+
+     What these pin is the part that is easy to undo by accident: the moment
+     anyone reaches for `createPortal` again, or restores `role="dialog"`
+     "for consistency", the tabs and the journal behind it stop being live and
+     the whole point of the move is gone. The topbar sheet is a separate path
+     and is deliberately untouched — its own tests still assert the portal. */
+  it("opens in the page, not over it — no portal, no scrim, nothing modal", async () => {
+    const { container } = mount(<NoteToken as="debrief" />);
+    await userEvent.click(screen.getByRole("button", { name: /Debrief the day/ }));
+
+    const card = document.querySelector(".hm-cap");
+    expect(card).toBeInTheDocument();
+    expect(card).not.toHaveAttribute("role", "dialog");
+    expect(card).not.toHaveAttribute("aria-modal");
+    expect(document.querySelector(".wb2-capdim")).toBeNull();
+    expect(document.querySelector(".wb2-capcard")).toBeNull();
+    /* IN the component's own tree — a portal would have put it under
+       document.body instead, which is what took it out of the page. */
+    expect(container.contains(card)).toBe(true);
+  });
+
+  it("takes the bar's place, and hands focus back when it shuts", async () => {
+    mount(<NoteToken as="debrief" />);
+    await userEvent.click(screen.getByRole("button", { name: /Debrief the day/ }));
+
+    // one control in the slot at a time: the bar is gone while the card is up
+    expect(screen.queryByRole("button", { name: /Debrief the day/ })).toBeNull();
+
+    await userEvent.click(screen.getByRole("button", { name: "Discard" }));
+    const bar = await screen.findByRole("button", { name: /Debrief the day/ });
+    // the card that replaced it is gone, so focus would otherwise fall to the
+    // top of the document
+    expect(bar).toHaveFocus();
+  });
+
+  it("keeps the dusk skin through the review, where the sheet hands back to light", async () => {
+    /* The floating sheet derives the skin from the stage and goes LIGHT for
+       the review — right for a white card over a white page, wrong here: this
+       one is standing on the ink card. `.fg .hm-cap` in shell.css is what
+       dresses the review family for that ground. */
+    await openDebrief({ noteLines: ["chase the coil pricing"] });
+    expect(document.querySelector(".hm-cap")).toHaveClass("wb2-dusk");
+  });
+
   it("is a labelled button — never an icon alone", () => {
     /* THE RULE SURVIVED THE MARK COMING BACK. The bar wears `TiffMark` again
        (the capsule's own glass measured 1.29:1 on the Journal card, so the

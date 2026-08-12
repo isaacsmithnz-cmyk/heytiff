@@ -6,7 +6,8 @@
    shaping function, so one wrong endpoint 404s into that object's own
    last_error instead of ending the sweep, and a 403 can say WHICH grant to
    reconnect for. Order matters only for coherence — names land before the
-   jobs that reference them — never for correctness: no mirror FKs another.
+   jobs that reference them — never for correctness: no mirror FKs another,
+   which is what lets walkOrderFor rotate a run's start mid-backfill.
 
    TIME IS TEXT HERE. ServiceM8 timestamps are naive local strings in the
    account's timezone ('YYYY-MM-DD HH:MM:SS') with '0000-00-00 00:00:00' as
@@ -234,6 +235,29 @@ export const SM8_WIPE_TABLES: string[] = [
   "sm8_sync_runs",
 ];
 
+/* ── the order one run walks it ── */
+
+/** The walk order for one run: canonical until some backfill is unfinished,
+    then ROTATED to start at the first unfinished object, wrapped so every
+    object still appears exactly once.
+
+    WHY A ROTATION EXISTS: PAGE_BUDGET caps a run and cursors move only on
+    COMPLETED walks — so a backfill bigger than the budget it inherits
+    re-walks the same pages from the same floor every run, and everything
+    after it in the list is never reached at all: no mirror rows, no
+    sync-state row, not even an error. job_checklists, last in the list, sat
+    invisible for two weeks of live runs exactly that way. Starting at the
+    first unfinished backfill hands the hungriest object the WHOLE budget —
+    any window up to PAGE_BUDGET pages completes in one run — and the start
+    advances as backfills finish, so an object can wait runs, never forever.
+    All done → canonical order, whose only job is coherence; a rotated run can
+    land jobs before the companies they name, and that is the whole cost. */
+export function walkOrderFor(backfillDone: ReadonlySet<string>): Sm8ObjectSpec[] {
+  const first = SM8_OBJECTS.findIndex((s) => !backfillDone.has(s.object));
+  if (first <= 0) return SM8_OBJECTS;
+  return [...SM8_OBJECTS.slice(first), ...SM8_OBJECTS.slice(0, first)];
+}
+
 /* ── cursor & window arithmetic (naive strings, deliberately) ── */
 
 const SM8_DATE_RE = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/;
@@ -317,7 +341,8 @@ export const SM8_BILLING =
 
 /** Pages (≤1000 rows each) one run may spend before handing back. Keeps a
     connect-time backfill inside a serverless window; the next kick resumes
-    where this one stopped because cursors only advance on COMPLETED walks. */
+    where this one stopped because walkOrderFor starts it at the first
+    unfinished backfill and cursors only advance on COMPLETED walks. */
 export const PAGE_BUDGET = 25;
 
 /** Self-imposed per-org daily call ceiling — a tenth of ServiceM8's 20k/day

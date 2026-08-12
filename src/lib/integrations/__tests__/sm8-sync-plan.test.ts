@@ -17,6 +17,7 @@ import {
   SM8_OBJECTS,
   SM8_WIPE_TABLES,
   textOrNull,
+  walkOrderFor,
   type MirrorRow,
 } from "../sm8-sync-plan";
 
@@ -127,6 +128,52 @@ describe("the object list", () => {
     expect(SM8_WIPE_TABLES).toContain("sm8_vendor");
     expect(SM8_WIPE_TABLES).toContain("sm8_sync_state");
     expect(SM8_WIPE_TABLES).toContain("sm8_sync_runs");
+  });
+});
+
+describe("walkOrderFor — the rotation that stops budget starvation", () => {
+  const all = SM8_OBJECTS.map((s) => s.object);
+  const order = (done: string[]) => walkOrderFor(new Set(done)).map((s) => s.object);
+
+  it("a virgin walk keeps the canonical order", () => {
+    expect(order([])).toEqual(all);
+  });
+
+  it("all backfills done keeps the canonical order — nine incremental pages fit any budget", () => {
+    expect(order(all)).toEqual(all);
+  });
+
+  it("starts at the first unfinished backfill so it inherits the whole budget", () => {
+    /* The 2026-08-12 prod shape: eight objects healthy, job_checklists — last
+       in the list — never reached across two weeks of live runs: no mirror
+       rows, no sync-state row, not even an error. Rotated first, it gets all
+       PAGE_BUDGET pages instead of whatever eight walks leave over. */
+    const rotated = order(all.filter((o) => o !== "job_checklists"));
+    expect(rotated[0]).toBe("job_checklists");
+    expect([...rotated].sort()).toEqual([...all].sort()); // nobody dropped
+  });
+
+  it("wraps the finished head behind the unfinished tail, every object exactly once", () => {
+    const rotated = order([
+      "staff",
+      "categories",
+      "queues",
+      "companies",
+      "company_contacts",
+      "jobs",
+      "job_contacts",
+    ]);
+    expect(rotated).toEqual([
+      "job_activities",
+      "job_checklists",
+      "staff",
+      "categories",
+      "queues",
+      "companies",
+      "company_contacts",
+      "jobs",
+      "job_contacts",
+    ]);
   });
 });
 

@@ -52,9 +52,12 @@ jest.mock("../dictation", () => {
         interim: "",
         seconds: 0,
         barsRef: react.createRef(),
+        hearing: false,
         start: mockStart,
         stop: jest.fn(),
+        handOver: jest.fn(),
         cancel: jest.fn(),
+        restart: jest.fn(),
       };
     },
   };

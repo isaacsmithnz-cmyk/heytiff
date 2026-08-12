@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
-import { DictClock, LevelBars, LiveWords, appendSpoken, useDictation } from "./dictation";
+import { DictClock, LevelBars, LiveWords, WaveMeter, appendSpoken, useDictation } from "./dictation";
 import { useNoteFlow, type NoteFlow } from "./note-flow";
 import { useNoteScope } from "./note-context";
 import { Cascade, JobPicker, ReviewRows, nothingTicked } from "./review-card";
@@ -99,7 +99,11 @@ function Ribbon({ flow }: { flow: NoteFlow }) {
       ) : (
         <span className="wb2-chip">{chosenJob ? chosenJob.clientName : "General note"}</span>
       )}
-      {stage === "recording" && <DictClock seconds={flow.dict.seconds} />}
+      {/* The clock is NOT here during a recording any more. It used to sit
+          in this corner at 12.5px, 23px wide, behind a static 79px chip —
+          the one number on the card that changes, and the hardest thing on
+          it to read. It now leads the trace at 26px, where you are already
+          looking. Every other stage keeps its corner clock. */}
       <button className="wb2-ico" onClick={flow.close} title="Discard" aria-label="Discard">
         <Icon name="x" size={14} />
       </button>
@@ -178,17 +182,42 @@ function DefaultSwitch({ flow }: { flow: NoteFlow }) {
     "default" would be a setting that governs a different screen. */
 function ModeControl({ flow }: { flow: NoteFlow }) {
   if (!flow.scope.voiceEnabled) return null;
+  /* WHILE THE MIC IS OPEN THE SWITCH STEPS BACK, and this check has to come
+     before the `governsDefault` one or the sheet that owns the default keeps
+     wearing it mid-recording. Audited 2026-08-10: the strongest position on
+     the action row went to a control about what the Tiff button does NEXT
+     time, with its Talk half already pressed — half of it inert, all of it
+     about later. The only live-useful thing there is the way out to the
+     keyboard, so during a recording that is all it is. The default returns
+     the moment the mic closes, which is the only place you can act on it. */
+  if (flow.dict.recording)
+    return (
+      <button className="pbtn ghost wb2-modeone" onClick={flow.dict.handOver}>
+        <Icon name="keyboard" size={15} />
+        Type instead
+      </button>
+    );
   if (flow.governsDefault) return <DefaultSwitch flow={flow} />;
-  return flow.dict.recording ? (
-    <button className="pbtn ghost wb2-modeone" onClick={flow.dict.handOver}>
-      <Icon name="keyboard" size={15} />
-      Type
-    </button>
-  ) : (
+  return (
     <button className="pbtn ghost wb2-talk" onClick={flow.dict.start} disabled={flow.busy}>
       <Icon name="mic" size={15} />
       Talk
     </button>
+  );
+}
+
+/** What the bars are doing, in words.
+
+    The meter has always carried this and nobody could read it — five bars at
+    6px are the same picture whether the room is quiet or the microphone is
+    dead. `hearing` is false when the meter could not start at all, so this
+    never claims deafness it cannot prove: the silent line says only that
+    nothing is arriving, which is true either way. */
+function HeardLine({ hearing }: { hearing: boolean }) {
+  return (
+    <span className={"wb2-heard" + (hearing ? " on" : "")} aria-live="polite">
+      {hearing ? "Hearing you" : "Not hearing anything"}
+    </span>
   );
 }
 
@@ -224,20 +253,51 @@ function Body({ flow }: { flow: NoteFlow }) {
   }
 
   if (stage === "recording") {
+    const words = Boolean(flow.dict.interim);
     return (
       <div className="wb2-caprec">
-        <LevelBars innerRef={flow.dict.barsRef} />
-        {/* The bars are real samples, so they already say whether anything is
-            being heard — a paragraph explaining that they do was Isaac's to
-            cut (2026-08-10), and he cut it. Nothing replaces it: on the batch
-            transport there is simply nothing to show until you stop. */}
-        {flow.dict.interim && <LiveWords text={flow.dict.interim} />}
+        {/* THE INSTRUMENT, NOT AN ORNAMENT (audited 2026-08-10). This stage
+            used to be a 680px card that was 86% empty with a 36px meter
+            marooned in the middle of it, and the middle was empty because it
+            is reserved for words that only the live transport ever delivers.
+
+            Now the reserved space IS the meter until there are words to put
+            in it: the trace runs the width of the card, the clock sits beside
+            it at a size worth reading, and a line underneath says in words
+            what the bars are doing — which is the question Isaac actually had
+            ("is this thing hearing me?") and the one thing five 6px dots
+            could never answer. */}
+        <div className={"wb2-recwave" + (words ? " with-words" : "")}>
+          <div className="wb2-recmeta">
+            <DictClock seconds={flow.dict.seconds} big />
+            <HeardLine hearing={flow.dict.hearing} />
+          </div>
+          <WaveMeter innerRef={flow.dict.barsRef} small={words} />
+        </div>
+        {words && <LiveWords text={flow.dict.interim} />}
         <div className="wb2-capact">
           {/* Flipping this to Type is the way out of the mic, and it keeps
               every word — `handOver` puts what you have said in the box
               rather than routing it, so changing your mind mid-sentence
               costs nothing. */}
           <ModeControl flow={flow} />
+          {/* START THAT ONE AGAIN (Isaac, 2026-08-10). The way to redo a
+              fluffed recording was to close the card — losing the tag it
+              came with — and open it again. It BINS what you have said, on
+              purpose and without asking: a confirm step would make the fast
+              path slower than starting over by hand, and the two chimes
+              (thrown away, then listening) are the receipt.
+
+              Ghost, not primary. It is the recovery, and the card must not
+              offer two bright buttons to a person mid-sentence. */}
+          <button
+            className="pbtn ghost"
+            onClick={flow.dict.restart}
+            title="Bin this one and start the recording again"
+          >
+            <Icon name="rotate" size={14} sw={1.9} />
+            Start again
+          </button>
           {/* GO HERE TOO (Isaac, 2026-08-10), and the same green. The card
               had two words for one gesture — "Stop & read" while the mic is
               open, "Go" once the words are in the box — and from where the
@@ -245,12 +305,17 @@ function Body({ flow }: { flow: NoteFlow }) {
               named Go never share a screen: this one only exists while
               recording, that one only once there is something to sort.
 
-              THE SQUARE STAYS. The word says where you are going; the glyph
-              says what it costs, which is that the recording ends here. A
-              green Go with no stop mark would be the one control on the card
-              that gives no sign it is about to close the microphone. */}
+              THE SQUARE STAYS, AT A WEIGHT THAT STOPS SHOUTING. Isaac: "that
+              black square next to go is weird." It already WAS an outline —
+              `square` is a stroked 18/24 rect — but at size 15 that is an
+              11px box carrying a 1.25px stroke in #04262B, the button's
+              near-black ink, on a bright green fill. Maximum contrast at the
+              heaviest weight the glyph set offers: it read as a dark blob
+              rather than a stop mark. Smaller, thinner, and eased off the
+              full ink (the `.wb2-go svg` rule) it still says the thing the
+              word Go cannot — that the recording ends here. */}
           <button className="pbtn wb2-go" onClick={flow.dict.stop}>
-            <Icon name="square" size={15} />
+            <Icon name="square" size={13} sw={1.6} />
             Go
           </button>
         </div>

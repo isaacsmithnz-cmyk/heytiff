@@ -36,9 +36,11 @@ jest.mock("@/app/actions/workboard-notes", () => ({
 }));
 
 /** The engine's state, set per test before the sheet opens. */
-const mic = { recording: false };
+const mic = { recording: false, hearing: false };
 const mockStop = jest.fn();
 const mockStart = jest.fn();
+const mockRestart = jest.fn();
+const mockHandOver = jest.fn();
 
 jest.mock("../dictation", () => {
   const actual = jest.requireActual("../dictation");
@@ -51,11 +53,13 @@ jest.mock("../dictation", () => {
         transcribing: false,
         interim: "",
         seconds: 3,
+        hearing: mic.hearing,
         barsRef: react.createRef(),
         start: mockStart,
         stop: mockStop,
-        handOver: jest.fn(),
+        handOver: mockHandOver,
         cancel: jest.fn(),
+        restart: mockRestart,
       };
     },
   };
@@ -75,6 +79,7 @@ const openSheet = async () => {
 beforeEach(() => {
   jest.clearAllMocks();
   mic.recording = false;
+  mic.hearing = false;
 });
 
 afterEach(cleanup);
@@ -110,4 +115,57 @@ it("is absent until there is something to sort, once the mic is closed", async (
 
   await user.type(screen.getByRole("textbox"), "roof unit is short cycling");
   expect(screen.getAllByRole("button", { name: "Go" })).toHaveLength(1);
+});
+
+/* ── THE RECORDING CARD, AFTER THE AUDIT ──
+
+   The stage used to be a 680 × 201px card that was 86% empty, with a 36px
+   meter marooned in the middle of it and the clock hidden in a corner at
+   12.5px. What replaced it is pinned here as behaviour rather than pixels:
+   the state is said in WORDS, the recovery exists, and the preference
+   control is gone while the mic is open. */
+
+it("says whether it is hearing you, in words", async () => {
+  mic.recording = true;
+  mic.hearing = true;
+  await openSheet();
+  expect(screen.getByText("Hearing you")).toBeInTheDocument();
+});
+
+/* The silent line is the one that matters — it is the answer to the question
+   Isaac could not get off a row of 6px dots. */
+it("says so when nothing is arriving", async () => {
+  mic.recording = true;
+  mic.hearing = false;
+  await openSheet();
+  expect(screen.getByText("Not hearing anything")).toBeInTheDocument();
+});
+
+it("offers a way to bin the take and start over", async () => {
+  mic.recording = true;
+  const user = await openSheet();
+
+  await user.click(screen.getByRole("button", { name: /start again/i }));
+
+  expect(mockRestart).toHaveBeenCalledTimes(1);
+  // it is the recovery, not the commit — the recording must not end here
+  expect(mockStop).not.toHaveBeenCalled();
+  expect(routeNote).not.toHaveBeenCalled();
+});
+
+/* The Default switch is about what the Tiff button does NEXT time, and its
+   Talk half is already pressed while you are talking. Mid-recording the only
+   live-useful half is the way out to the keyboard. */
+it("drops the Default switch while the mic is open, keeping the way out", async () => {
+  mic.recording = true;
+  const user = await openSheet();
+
+  expect(screen.queryByText("Default")).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: /type instead/i }));
+  expect(mockHandOver).toHaveBeenCalledTimes(1);
+});
+
+it("brings the switch back the moment the mic closes", async () => {
+  await openSheet();
+  expect(screen.getByText("Default")).toBeInTheDocument();
 });

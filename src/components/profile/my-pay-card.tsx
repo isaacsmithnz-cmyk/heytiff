@@ -2,6 +2,7 @@
 
 import { Icon } from "@/components/shell/icon";
 import type { MyPay } from "@/lib/staff/my-pay";
+import type { RateRule } from "@/components/timepay/logic";
 import { StaticCard } from "./section-card";
 import { Detail, DetailPanel, DetailPanels } from "./detail";
 
@@ -25,7 +26,41 @@ const SUPER_COPY: Record<MyPay["superSource"], string> = {
   default: "standard rate",
 };
 
+/* WHAT A DAY IS WORTH, said the way the pay run works it out.
+
+   A penalty rule is not one multiplier. `splitDay` pays a stepped rule at its
+   first rate for `up` hours and at 2× after that, so "Saturday ×1.5" described
+   the first two hours of a Saturday and nothing else — on the default settings
+   an eight-hour Saturday paid 25% more than this card said it would.
+
+   So a stepped rule gets both rungs, in dollars, with the hours the step
+   happens at. A flat rule is still one line, because that is genuinely all it
+   is. `ruleSummary` is the settings screen's own wording, reused rather than
+   re-phrased. */
+const HOURS = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+
+function RuleDetail({ label, rate, rl }: { label: string; rate: number; rl: RateRule }) {
+  const stepped = rl.rate === 1.5 && rl.up != null && rl.up > 0;
+  return (
+    <Detail
+      label={label}
+      value={stepped ? `${money(rate * 1.5)} → ${money(rate * 2)} / hour` : `${money(rate * rl.rate)} / hour`}
+      sub={stepped ? `×1.5 first ${HOURS(rl.up!)}h, then ×2` : `×${rl.rate} all day`}
+    />
+  );
+}
+
 export function MyPayCard({ pay }: { pay: MyPay }) {
+  const r = pay.rate;
+  const penalties: [string, RateRule][] = r === null
+    ? []
+    : ([
+        ["Saturday", pay.rules.sat],
+        ["Sunday", pay.rules.sun],
+        ["Public holiday", pay.rules.ph],
+        ["Night shift", pay.rules.night],
+      ] as [string, RateRule][]).filter(([, rl]) => rl.on);
+
   return (
     <StaticCard
       variant="section"
@@ -33,7 +68,7 @@ export function MyPayCard({ pay }: { pay: MyPay }) {
       title="My pay"
       sub="The rates that apply to your hours"
     >
-      {pay.rate === null ? (
+      {r === null ? (
         <div className="ro-empty">
           <span className="ei">
             <Icon name="dollar" size={20} />
@@ -46,17 +81,21 @@ export function MyPayCard({ pay }: { pay: MyPay }) {
         </div>
       ) : (
         <DetailPanels>
-          <DetailPanel title="Rates">
-            <Detail label="Base rate" value={`${money(pay.rate)} / hour`} />
+          <DetailPanel title="Ordinary time">
+            <Detail label="Base rate" value={`${money(r)} / hour`} />
+            {/* AFTER WHAT. The card said "Overtime ×1.5" and never named the
+                threshold, so a person couldn't tell whether it started after
+                eight hours in a day or thirty-eight in a week — the two things
+                the settings screen actually offers. */}
             <Detail
               label="Overtime"
-              value={`${money(pay.rate * pay.otMultiplier)} / hour`}
-              sub={`×${pay.otMultiplier}`}
+              value={`${money(r * 1.5)} / hour`}
+              sub={`×1.5 past ${HOURS(pay.otAfter)}h a ${pay.otUnit}`}
             />
             <Detail
               label="Double time"
-              value={`${money(pay.rate * pay.dblMultiplier)} / hour`}
-              sub={`×${pay.dblMultiplier}`}
+              value={`${money(r * 2)} / hour`}
+              sub={`×2 past ${HOURS(pay.dblAfter)}h in a day`}
             />
           </DetailPanel>
 
@@ -64,25 +103,16 @@ export function MyPayCard({ pay }: { pay: MyPay }) {
             <Detail label="Rate" value={`${pay.superPct}%`} sub={SUPER_COPY[pay.superSource]} />
           </DetailPanel>
 
-          {/* only when the org actually loads weekends — a panel of "—" would
-              imply a penalty rate exists and is unset, which is a different
-              thing from there being none */}
-          {(pay.weekend.sat !== null || pay.weekend.sun !== null) && (
-            <DetailPanel title="Weekend" wide split>
-              {pay.weekend.sat !== null && (
-                <Detail
-                  label="Saturday"
-                  value={`${money(pay.rate * pay.weekend.sat)} / hour`}
-                  sub={`×${pay.weekend.sat}`}
-                />
-              )}
-              {pay.weekend.sun !== null && (
-                <Detail
-                  label="Sunday"
-                  value={`${money(pay.rate * pay.weekend.sun)} / hour`}
-                  sub={`×${pay.weekend.sun}`}
-                />
-              )}
+          {/* Only the rules this workspace has switched on. A panel of "—"
+              would imply a penalty exists and is unset, which is a different
+              thing from there being none — and public holidays and nights were
+              missing from this card altogether, though the engine has always
+              paid them. */}
+          {penalties.length > 0 && (
+            <DetailPanel title="Higher rates" wide split>
+              {penalties.map(([label, rl]) => (
+                <RuleDetail key={label} label={label} rate={r} rl={rl} />
+              ))}
             </DetailPanel>
           )}
         </DetailPanels>

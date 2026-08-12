@@ -20,10 +20,17 @@ const ownerCtx: PermissionsCtx = {
 const MY_PAY: MyPay = {
   rate: 45,
   superPct: 12,
-  otMultiplier: 1.5,
-  dblMultiplier: 2,
   superSource: "org",
-  weekend: { sat: 1.5, sun: 2 },
+  // the rules travel whole now — `up` is what a single multiplier threw away
+  rules: {
+    sat: { on: true, rate: 1.5, up: 2 },
+    sun: { on: true, rate: 2, up: null },
+    ph: { on: true, rate: 2, up: null },
+    night: { on: false, rate: 2, up: null },
+  },
+  otAfter: 8,
+  otUnit: "day",
+  dblAfter: 12,
 };
 
 function setup(

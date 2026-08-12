@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { getPaySettings } from "@/lib/timepay/query";
+import type { Settings } from "@/components/timepay/logic";
 
 /* YOUR pay, and only ever yours.
 
@@ -22,12 +23,32 @@ export type MyPay = {
   /** hourly_wage, or null when an admin hasn't set one yet */
   rate: number | null;
   superPct: number;
-  otMultiplier: 1.5;
-  dblMultiplier: 2;
   /** where superPct came from — the card says so out loud */
   superSource: "override" | "org" | "default";
-  /** penalty multipliers, null when the org has that rule switched off */
-  weekend: { sat: number | null; sun: number | null };
+
+  /* WHAT THE PAY RUN ACTUALLY DOES, not a restatement of it.
+
+     This used to hand the card `otMultiplier: 1.5`, `dblMultiplier: 2` and a
+     single `weekend: { sat, sun }` multiplier taken from `rules.sat.rate`.
+     Every one of those was a second model of `splitDay`, and the weekend one
+     was WRONG on the default settings: a Saturday is a STEPPED rule — 1.5×
+     for the first `up` hours, then 2× — and reading only `.rate` reported the
+     first rung as if it were the whole day. On the default 1.5×/first-2h
+     Saturday, an eight-hour shift at $50 showed as $600 and paid $750.
+
+     Public holidays were absent entirely, though `rules.ph` is ON by default
+     at 2× all day and is the most valuable day anybody can work; night shift
+     was absent too. The card's title is "the rates that apply to your hours",
+     so a rule the engine applies and the card omits is the card being wrong.
+
+     The rules travel whole now, and the card renders them through the same
+     `ruleSummary` the settings screen uses. Nothing here re-derives a rate. */
+  rules: Settings["rules"];
+  /** the ordinary-time ladder: 1.5× past `otAfter` per `otUnit`, 2× past
+      `dblAfter`. The card said "Overtime ×1.5" and never said after WHAT. */
+  otAfter: number;
+  otUnit: Settings["otUnit"];
+  dblAfter: number;
 };
 
 /** Super rate used when the org has never set one. */
@@ -63,16 +84,14 @@ export async function getMyPay(orgId: string, userId: string): Promise<MyPay> {
   const superSource: MyPay["superSource"] =
     override !== null && Number.isFinite(override) ? "override" : orgPct !== null ? "org" : "default";
 
-  const rules = pay.settings.rules;
+  const s = pay.settings;
   return {
     rate: rate !== null && Number.isFinite(rate) ? rate : null,
     superPct,
-    otMultiplier: 1.5,
-    dblMultiplier: 2,
     superSource,
-    weekend: {
-      sat: rules.sat.on ? rules.sat.rate : null,
-      sun: rules.sun.on ? rules.sun.rate : null,
-    },
+    rules: s.rules,
+    otAfter: s.otAfter,
+    otUnit: s.otUnit,
+    dblAfter: s.dblAfter,
   };
 }

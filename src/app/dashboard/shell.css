@@ -6527,6 +6527,14 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    same anchor: `Go` arrives only once there are words, and
    without this the mode control slides sideways as it appears. */
 .wb2-capact .pbtn.wb2-talk, .wb2-capact .pbtn.wb2-modeone { margin-right:auto; }
+/* EXCEPT WHEN IT IS THE WAY ONWARD. The row is `justify-content:flex-end`, so
+   the anchor above is the only thing holding the mic on the LEFT — where this
+   row keeps its settings. Once there are words in the box the mic stops being
+   a mode control and becomes "keep talking", which belongs with Go. Dropping
+   the margin is the whole move; the teal tint stays because `.wb2-talk` is
+   still on the element. Compound so it wins on specificity rather than on
+   source order. */
+.wb2-capact .pbtn.wb2-talk.wb2-keeptalk { margin-right:0; }
 .wb2-modelbl { font-size:11px; font-weight:800; letter-spacing:.13em;
   text-transform:uppercase; color:var(--gray500, #6b7280); white-space:nowrap; }
 .wb2-modeseg { position:relative; display:inline-flex; padding:3px; border-radius:999px;

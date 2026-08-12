@@ -228,6 +228,21 @@ it("drops the preference for a plain mic once there are words to add to", async 
   expect(screen.getByRole("button", { name: /talk/i })).toBeInTheDocument();
 });
 
+/* THE WORD AND THE PLACE both change with the box (Isaac: "just says TALK on
+   the left which is not very helpful — change to keep talking and be on the
+   right"). "Talk" is right for an empty box; over a sentence the only
+   question is whether you are adding to it, so the button says so and stands
+   with the actions instead of on the settings edge. The position is pinned
+   via the class that drops the left anchor — jsdom cannot measure where flex
+   puts it, but it can prove which rule applies. */
+it("says Keep talking over a box with words, and moves off the settings edge", async () => {
+  const user = await openToBox();
+  await user.type(screen.getByRole("textbox"), "middle rooftop unit tripped again");
+
+  const mic = screen.getByRole("button", { name: "Keep talking" });
+  expect(mic).toHaveClass("wb2-keeptalk");
+});
+
 /* The point of the whole thing: pressing it starts another leg, and the leg
    appends rather than replacing. The appending itself is pinned in
    note-token-cap; this is the reach. */

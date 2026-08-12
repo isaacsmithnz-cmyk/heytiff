@@ -164,19 +164,25 @@ it("keeps the words in the box and says why it stopped", async () => {
 
   expect(boxText()).toBe("middle rooftop unit tripped again");
   expect(screen.getByRole("status")).toHaveTextContent("Two minutes");
-  expect(screen.getByRole("status")).toHaveTextContent("carry on");
+  /* The hint names the button that is actually on the row. After the ceiling
+     there are always words in the box, so the mic reads "Keep talking" — a
+     hint saying "press Talk" would be an instruction naming a control that
+     is not there, which is the stop-and-read bug in miniature. */
+  expect(screen.getByRole("status")).toHaveTextContent("Keep talking to carry on");
 });
 
 it("carries on where it left off when the mic is pressed again", async () => {
   const user = await openSheet();
   await deliver("middle rooftop unit tripped again", true);
 
-  /* The way back to the mic is the Default switch's Talk half. It used to be
-     a button that relabelled itself "Keep going" after the ceiling; the
-     switch cannot borrow that word without the two halves changing width
-     under the sliding thumb, so the invitation moved into the hint above —
-     which the test before this one pins ("carry on"). */
-  const again = screen.getByRole("button", { name: /talk/i });
+  /* The way back is the "Keep talking" button — with words in the box the
+     Default switch has stepped aside, so the invitation the hint makes and
+     the control that answers it finally use the same words. (This label
+     history has gone full circle: an early version relabelled a button "Keep
+     going" after the ceiling, which died when the switch arrived because
+     unequal halves park the sliding thumb under half a word. The switch
+     leaving the stage is what made the honest label possible.) */
+  const again = screen.getByRole("button", { name: /keep talking/i });
   await user.click(again);
   expect(mockStart).toHaveBeenCalled();
 

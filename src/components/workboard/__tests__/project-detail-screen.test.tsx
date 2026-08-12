@@ -181,6 +181,31 @@ function detail(over: Partial<ProjectDetail> = {}): ProjectDetail {
   };
 }
 
+/** A linked job carrying whatever slice of the mirror the case is about. */
+function linkedJob(over: Partial<ProjectDetail["jobs"][number]> = {}): ProjectDetail["jobs"][number] {
+  return {
+    id: "pj-1",
+    jobNumber: "1042",
+    role: "install",
+    provider: "servicem8",
+    remoteId: "sm8-job-1",
+    mirror: null,
+    ...over,
+  };
+}
+
+const mirror = (
+  over: Partial<NonNullable<ProjectDetail["jobs"][number]["mirror"]>> = {}
+): NonNullable<ProjectDetail["jobs"][number]["mirror"]> => ({
+  status: "Work Order",
+  suburb: "Coorparoo",
+  address: null,
+  nextBooking: null,
+  checklist: null,
+  contacts: [],
+  ...over,
+});
+
 function trip(over: Partial<ProjectBoardVisit> & { id: string }): ProjectBoardVisit {
   return {
     projectId: "p-1",
@@ -508,5 +533,55 @@ describe("journals", () => {
       "href",
       "/handover/p-1"
     );
+  });
+});
+
+/* The SM8 garnish on a linked job chip — the one thing on this screen that
+   renders straight out of the mirror, and the reason it stayed blank in prod
+   until 2026-08-12 was that sm8_job_checklists had never synced a row (the
+   sync's page budget starved the last object in the walk; #357). The markup
+   was never covered, so "renders nothing" had two candidate causes and no
+   test could tell them apart. These separate them for good. */
+describe("the mirror's garnish on a linked job", () => {
+  const jobRow = () => screen.getByText("#1042").closest<HTMLElement>(".wb-row")!;
+
+  it("shows done/total once the checklist mirror holds rows", () => {
+    mount(detail({ jobs: [linkedJob({ mirror: mirror({ checklist: { done: 3, total: 8 } }) })] }));
+    expect(within(jobRow()).getByText(/SM8 list 3\/8/)).toBeInTheDocument();
+  });
+
+  it("a fully ticked list still reads as a fraction, never a bare tick", () => {
+    mount(detail({ jobs: [linkedJob({ mirror: mirror({ checklist: { done: 5, total: 5 } }) })] }));
+    expect(within(jobRow()).getByText(/SM8 list 5\/5/)).toBeInTheDocument();
+  });
+
+  /* THE PROD SHAPE BEFORE #357, and the case that must never read as "0 done":
+     the job is mirrored, but the checklist table is empty for it. An empty
+     list and a list nobody has ticked are different facts, and only one of
+     them is worth a garnish. */
+  it("stays silent when the job has no checklist rows at all", () => {
+    mount(detail({ jobs: [linkedJob({ mirror: mirror({ checklist: null }) })] }));
+    expect(within(jobRow()).queryByText(/SM8 list/)).not.toBeInTheDocument();
+    expect(within(jobRow()).getByText("Work Order")).toBeInTheDocument(); // the rest still renders
+  });
+
+  it("stays silent on a zero-length list rather than saying 0/0", () => {
+    mount(detail({ jobs: [linkedJob({ mirror: mirror({ checklist: { done: 0, total: 0 } }) })] }));
+    expect(within(jobRow()).queryByText(/SM8 list/)).not.toBeInTheDocument();
+  });
+
+  /* The OTHER reason prod shows nothing, still true today: project_jobs is
+     empty, so no chip exists to garnish. A job the mirror doesn't hold says
+     so — it must never borrow the previous row's counts. */
+  it("an unmirrored job says so instead of garnishing", () => {
+    mount(detail({ jobs: [linkedJob({ mirror: null })] }));
+    expect(within(jobRow()).getByText(/Not in the mirror yet/)).toBeInTheDocument();
+    expect(within(jobRow()).queryByText(/SM8 list/)).not.toBeInTheDocument();
+  });
+
+  it("with no jobs attached the card says so and no garnish is reachable", () => {
+    mount(detail({ jobs: [] }));
+    expect(screen.getByText("No jobs attached yet.")).toBeInTheDocument();
+    expect(screen.queryByText(/SM8 list/)).not.toBeInTheDocument();
   });
 });

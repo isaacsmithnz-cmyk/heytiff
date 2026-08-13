@@ -537,11 +537,12 @@ function Review({ flow }: { flow: NoteFlow }) {
       <ReviewRows draft={draft} staff={note.staff} patch={flow.patch} />
 
       <Cascade
-        jobLabel={
-          flow.debrief
-            ? null
-            : flow.targetLabel ?? (flow.chosenJob ? describeJob(flow.chosenJob) : null)
-        }
+        /* A debrief used to pass null unconditionally, because it could not
+           name a job at all. It can now, so when one is picked the cascade
+           says so — that line is the only confirmation the pin took. With
+           none picked a debrief still says nothing here, which is its normal
+           case rather than a gap. */
+        jobLabel={flow.targetLabel ?? (flow.chosenJob ? describeJob(flow.chosenJob) : null)}
         taskCount={draft.tasks.filter((t) => t.on && t.title.trim() && t.assigneeId).length}
         kbCount={draft.kbEntries.filter((k) => k.on && k.title.trim() && k.body.trim()).length}
         noteLineCount={draft.noteLines.filter((l) => l.on && l.text.trim()).length}
@@ -600,14 +601,26 @@ function Review({ flow }: { flow: NoteFlow }) {
 /** The job confirmation + picker, shown when a note arrived against nothing
     and there are jobs it could belong to. */
 function JobLine({ flow }: { flow: NoteFlow }) {
-  /* A debrief spans jobs by nature and its job-bound lanes are closed, so
-     offering to pin the WHOLE thing to one job would un-say all of that. */
-  if (flow.debrief) return null;
   if (!flow.note || flow.targetLabel || flow.scope.jobs.length === 0) return null;
   return (
     <>
+      {/* THE DEBRIEF GETS THIS TOO NOW (Isaac, 2026-08-13: "in this particular
+          voice note, I mentioned a job, but I couldn't find one"). It used to
+          return null here, on the argument that a debrief spans jobs and
+          pinning the whole thing to one would un-say that. True of a debrief
+          that never named a job — and no help at all to one that named a job
+          the matcher could not resolve, which said "No job named" and offered
+          nothing to do about it.
+
+          WHAT CHANGES IS THE TONE, not the control. Naming no job is the
+          NORMAL case for a debrief, not a problem, so it takes the note glyph
+          and a plain statement; on every other posture a note that landed
+          against nothing is a thing to fix, and keeps its alert. */}
       <div className={"wb2-capjob" + (flow.chosenJob ? " on" : "")}>
-        <Icon name={flow.chosenJob ? "check" : "alert"} size={14} />
+        <Icon
+          name={flow.chosenJob ? "check" : flow.debrief ? "note" : "alert"}
+          size={14}
+        />
         <span>
           {flow.chosenJob ? (
             <>
@@ -615,6 +628,8 @@ function JobLine({ flow }: { flow: NoteFlow }) {
             </>
           ) : flow.guess.ambiguous ? (
             "More than one job matches what you said."
+          ) : flow.debrief ? (
+            "Not about one job — say which, if it was."
           ) : (
             "No job named — it'll go to your own notes."
           )}
@@ -742,14 +757,23 @@ function DebriefButton({ flow }: { flow: NoteFlow }) {
      review stayed ink here while the sheet crossfaded to light, so the same
      content wore different clothes depending on which door you came through.
 
-     `duskClass` is the sheet's own, so the skin changes stage-for-stage with
-     it. What `.fg .hm-cap` still says is only where the card STANDS: in the
-     flow rather than fixed over the page. That is the only thing about this
-     posture that is genuinely different, so it is the only thing left. */
+     IT STAYS DUSK ALL THE WAY DOWN, which is the one place it does NOT follow
+     the sheet (Isaac, 2026-08-13: "All sections of the debrief part should
+     have the same background. No white."). The sheet hands back to light for
+     the review because it is a white card floating over a white page and the
+     review's dozen components were tuned for that. This card is a panel
+     inside Home's ink card — a white block halfway down it is a second
+     surface appearing mid-flow, on a screen that is one piece of glass.
+
+     So the review family wears dusk here, and those rules live with the SKIN
+     (`.wb2-capcard.wb2-dusk`, in shell.css) rather than with this posture —
+     they describe what a review looks like on ink, wherever that ink is. */
   return (
-    <section className={"wb2-capcard hm-cap" + duskClass(flow)} aria-label="Debrief">
+    <section className="wb2-capcard hm-cap wb2-dusk" aria-label="Debrief">
       <Ribbon flow={flow} />
       {flow.error && <p className="wb2-sherr">{flow.error}</p>}
+      {/* Same slot the sheet puts it in — between the error and the body. */}
+      <JobLine flow={flow} />
       <Body flow={flow} />
     </section>
   );

@@ -14,6 +14,8 @@ import { ownDeclinedClaims, pendingClaimsCount } from "@/lib/expenses/query";
 import { ownDeclinedLeave, pendingLeaveCount } from "@/lib/timepay/leave-query";
 import { buildCalendar, calendarSpan, type LeaveCalendar } from "./calendar";
 import { listJournal } from "./journal-query";
+import { jobCandidates } from "./job-candidates";
+import type { JobCandidate } from "@/lib/workboard/note-match";
 import type { JournalEntry } from "./journal";
 import { payRunItem, tallySheets, type MoneyItem } from "./money";
 import {
@@ -60,6 +62,11 @@ export type DashboardData = {
   journal: JournalEntry[];
   /** Staff you can assign a task to — populated only with `team`. */
   assignable: { id: string; name: string }[];
+  /** Open work a captured note can be pinned to. Home is not the board, so
+      these do not arrive from a board payload — see ./job-candidates. Gated
+      on `workboard`: the picker offers jobs, and a viewer without the board
+      may not see them. */
+  jobs: JobCandidate[];
   /** `team`: can assign tasks / post notices / see the team's tasks. */
   canManage: boolean;
   /** Null when the account has no staff record — no tasks/acks are possible. */
@@ -75,6 +82,7 @@ const EMPTY: DashboardData = {
   notices: [],
   journal: [],
   assignable: [],
+  jobs: [],
   canManage: false,
   viewerStaffId: null,
   today: todayInAu(),
@@ -97,7 +105,7 @@ export async function loadDashboard(): Promise<DashboardData> {
      when five reads raced an edit. */
   const names = await loadStaffNames(orgId);
 
-  const [chips, calendar, money, tasks, notices, assignable, journal] = await Promise.all([
+  const [chips, calendar, money, tasks, notices, assignable, journal, jobs] = await Promise.all([
     loadChips(orgId, viewerStaffId, caps, today),
     loadCalendar(orgId, today, viewerStaffId, canManage),
     caps.has("financials") ? loadMoney(orgId, today) : Promise.resolve([]),
@@ -108,10 +116,13 @@ export async function loadDashboard(): Promise<DashboardData> {
     /* An account with no staff record has never captured anything — there is
        no author_id it could have been filed under, so don't go and ask. */
     viewerStaffId ? listJournal(orgId, viewerStaffId) : Promise.resolve([]),
+    /* Rides the same Promise.all rather than adding a wait. Absent without
+       `workboard` — the same capability the board itself is behind. */
+    caps.has("workboard") ? jobCandidates(orgId) : Promise.resolve([] as JobCandidate[]),
   ]);
 
   return {
-    chips, calendar, money, tasks, notices, assignable, journal, canManage, viewerStaffId, today,
+    chips, calendar, money, tasks, notices, assignable, journal, jobs, canManage, viewerStaffId, today,
   };
 }
 

@@ -41,6 +41,7 @@ const data = (over: Partial<DashboardData> = {}): DashboardData => ({
   notices: [],
   journal: [],
   assignable: [],
+  jobs: [],
   canManage: false,
   viewerStaffId: "s1",
   today: TODAY,

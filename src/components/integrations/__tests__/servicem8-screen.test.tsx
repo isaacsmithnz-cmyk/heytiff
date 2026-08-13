@@ -3,6 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { Servicem8Screen } from "../servicem8-screen";
 import { toView, type ConnectionRow } from "@/lib/integrations/connection";
 import { SM8_SCOPE_LIST } from "@/lib/integrations/providers";
+import { sm8ObjectPhase, SM8_PAUSE_MIDWALK } from "@/lib/integrations/sm8-sync-plan";
+import type { Sm8ObjectStatus, Sm8SyncStatusView } from "@/lib/integrations/sm8-sync";
 
 /* The ServiceM8 screen's guards, which are STRICTER than Xero's for one
    reason: disconnecting here deletes a whole mirror of somebody's client
@@ -209,5 +211,195 @@ describe("this account is connected elsewhere", () => {
 
     // the confirm has its own consequences to read; two notices compete
     expect(screen.queryByText(/other HeyTiff workspaces/)).not.toBeInTheDocument();
+  });
+});
+
+/* ── the mirror card ──
+
+   THE BUG THIS LOCKS SHUT: a first sync of a real ServiceM8 account is not one
+   event, it is days of runs. The engine's page budget caps a run, so ~25,000
+   attachments arrive over several — and between them the object's row carries
+   `last_error: "Paused mid-walk"`. The card rendered ANY last_error in the
+   warning colour and showed a row count only once backfill_done flipped, so
+   the object doing the most work was the one that looked broken, and the
+   24,996 rows already mirrored were invisible.
+
+   Each test below asserts the DISTINCTION rather than the wording: which rows
+   warn, and whether progress is visible at all. */
+
+const objectStatus = (
+  over: Partial<Sm8ObjectStatus> & Pick<Sm8ObjectStatus, "object" | "label">
+): Sm8ObjectStatus => {
+  const backfillDone = over.backfillDone ?? false;
+  const rowsPulled = over.rowsPulled ?? 0;
+  const lastError = over.lastError ?? null;
+  return {
+    rowsPulled,
+    backfillDone,
+    lastSyncedAt: null,
+    lastError,
+    // Through the real classifier, so a test can't disagree with the engine.
+    phase: sm8ObjectPhase({ backfillDone, rowsPulled, lastError }),
+    ...over,
+  };
+};
+
+/** Prod on 2026-08-13: nine objects done, attachments mid-walk at 24,996. */
+const syncView = (objects: Sm8ObjectStatus[]): Sm8SyncStatusView => ({
+  objects,
+  lastRun: {
+    startedAt: "2026-08-13T12:28:00.000Z",
+    finishedAt: "2026-08-13T12:28:47.000Z",
+    ok: true,
+    note: null,
+    running: false,
+  },
+});
+
+const JOBS_DONE = objectStatus({
+  object: "jobs",
+  label: "Jobs",
+  backfillDone: true,
+  rowsPulled: 6978,
+});
+const ATTACHMENTS_READING = objectStatus({
+  object: "attachments",
+  label: "Attachments",
+  rowsPulled: 24996,
+  lastError: SM8_PAUSE_MIDWALK,
+});
+
+const tagFor = (label: string) =>
+  screen.getByText(label).parentElement!.querySelector(".int-tag")!;
+
+describe("the mirror card, mid-backfill", () => {
+  it("does not warn about a walk that is simply still going", () => {
+    render(
+      <Servicem8Screen
+        connection={toView(row())}
+        sync={syncView([JOBS_DONE, ATTACHMENTS_READING])}
+        {...ready}
+      />
+    );
+    expect(tagFor("Attachments").className).not.toContain("warn");
+  });
+
+  it("shows the rows already read, instead of hiding them until the walk ends", () => {
+    render(
+      <Servicem8Screen
+        connection={toView(row())}
+        sync={syncView([JOBS_DONE, ATTACHMENTS_READING])}
+        {...ready}
+      />
+    );
+    // Grouped, because five figures unseparated is where a number stops
+    // being read at a glance.
+    expect(tagFor("Attachments").textContent).toContain("24,996");
+  });
+
+  it("never shows the engine's internal pause sentence to a business owner", () => {
+    render(
+      <Servicem8Screen
+        connection={toView(row())}
+        sync={syncView([JOBS_DONE, ATTACHMENTS_READING])}
+        {...ready}
+      />
+    );
+    expect(screen.queryByText(SM8_PAUSE_MIDWALK)).not.toBeInTheDocument();
+  });
+
+  it("says at the top that a first sync is still running, and names what it is reading", () => {
+    render(
+      <Servicem8Screen
+        connection={toView(row())}
+        sync={syncView([JOBS_DONE, ATTACHMENTS_READING])}
+        {...ready}
+      />
+    );
+    expect(screen.getByText(/Still reading Attachments across/)).toBeInTheDocument();
+    expect(screen.getByText(/24,996 rows so far/)).toBeInTheDocument();
+  });
+
+  it("promises the walk resumes by itself — nobody should go hunting for a button", () => {
+    render(
+      <Servicem8Screen
+        connection={toView(row())}
+        sync={syncView([JOBS_DONE, ATTACHMENTS_READING])}
+        {...ready}
+      />
+    );
+    expect(screen.getByText(/picks up where the last one stopped/)).toBeInTheDocument();
+  });
+
+  it("names two objects when two are reading, and counts the rest", () => {
+    const also = (object: string, label: string) =>
+      objectStatus({ object, label, rowsPulled: 10, lastError: SM8_PAUSE_MIDWALK });
+    render(
+      <Servicem8Screen
+        connection={toView(row())}
+        sync={syncView([
+          ATTACHMENTS_READING,
+          also("jobs", "Jobs"),
+          also("job_activities", "Schedule"),
+        ])}
+        {...ready}
+      />
+    );
+    expect(screen.getByText(/Attachments, Jobs and 1 more/)).toBeInTheDocument();
+  });
+
+  it("a run happening right now still outranks the backfill line", () => {
+    const view = syncView([JOBS_DONE, ATTACHMENTS_READING]);
+    render(
+      <Servicem8Screen
+        connection={toView(row())}
+        sync={{ ...view, lastRun: { ...view.lastRun!, running: true } }}
+        {...ready}
+      />
+    );
+    expect(screen.getByText("Syncing now…")).toBeInTheDocument();
+    expect(screen.queryByText(/Still reading/)).not.toBeInTheDocument();
+  });
+});
+
+describe("the mirror card, the other three states", () => {
+  it("keeps the warning colour for a fault a human must fix", () => {
+    const blocked = objectStatus({
+      object: "attachments",
+      label: "Attachments",
+      lastError: "Reconnect ServiceM8 to grant read_attachments.",
+    });
+    render(
+      <Servicem8Screen connection={toView(row())} sync={syncView([blocked])} {...ready} />
+    );
+    expect(tagFor("Attachments").className).toContain("warn");
+    // A fault IS the sentence — this is the one place the note belongs.
+    expect(screen.getByText("Reconnect ServiceM8 to grant read_attachments.")).toBeInTheDocument();
+  });
+
+  it("lets a fault outrank rows already read, so a stalled object can't hide", () => {
+    const blocked = objectStatus({
+      object: "attachments",
+      label: "Attachments",
+      rowsPulled: 24996,
+      lastError: "Reconnect ServiceM8 to grant read_attachments.",
+    });
+    render(
+      <Servicem8Screen connection={toView(row())} sync={syncView([blocked])} {...ready} />
+    );
+    expect(tagFor("Attachments").className).toContain("warn");
+  });
+
+  it("counts a finished object plainly, with no warning", () => {
+    render(<Servicem8Screen connection={toView(row())} sync={syncView([JOBS_DONE])} {...ready} />);
+    expect(tagFor("Jobs").textContent).toContain("6,978 rows");
+    expect(tagFor("Jobs").className).not.toContain("warn");
+  });
+
+  it("stops calling an untouched object a warning — nothing is wrong with it yet", () => {
+    const queued = objectStatus({ object: "queues", label: "Queues" });
+    render(<Servicem8Screen connection={toView(row())} sync={syncView([queued])} {...ready} />);
+    expect(tagFor("Queues").textContent).toContain("First sync queued");
+    expect(tagFor("Queues").className).not.toContain("warn");
   });
 });

@@ -49,8 +49,14 @@ import {
   PAGE_BUDGET,
   SM8_BILLING,
   SM8_OBJECTS,
+  SM8_PAUSE_DAILY_BUDGET,
+  SM8_PAUSE_MIDWALK,
+  SM8_PAUSE_PAGE_BUDGET,
+  SM8_PAUSE_RATE_LIMIT,
+  sm8ObjectPhase,
   walkOrderFor,
   type MirrorRow,
+  type Sm8ObjectPhase,
 } from "./sm8-sync-plan";
 
 export type Sm8SyncTrigger = "connect" | "manual" | "kick" | "cron";
@@ -129,7 +135,7 @@ export async function runSm8Sync(
   };
 
   if (callsBase >= DAILY_CALL_BUDGET) {
-    const note = "Today's sync budget is spent — resuming tomorrow.";
+    const note = SM8_PAUSE_DAILY_BUDGET;
     await release(false, note);
     return { ran: false, note, pagesUsed: 0, rowsPulled: 0, complete: false };
   }
@@ -203,7 +209,7 @@ export async function runSm8Sync(
   for (const spec of walkOrderFor(backfillDone)) {
     if (stopNote) break;
     if (pagesLeft <= 0) {
-      stopNote = "Page budget spent — resuming next sync.";
+      stopNote = SM8_PAUSE_PAGE_BUDGET;
       break;
     }
 
@@ -230,7 +236,7 @@ export async function runSm8Sync(
 
     while (true) {
       if (callsBase + calls >= DAILY_CALL_BUDGET) {
-        objectError = "Today's sync budget is spent — resuming tomorrow.";
+        objectError = SM8_PAUSE_DAILY_BUDGET;
         stopNote = objectError;
         resumeCursor = walkCursor; // this page was never asked for
         break;
@@ -259,7 +265,7 @@ export async function runSm8Sync(
           objectError = SM8_BILLING;
           stopNote = objectError;
         } else if (page.failure === "rate_limited") {
-          objectError = "ServiceM8's rate limit was hit — resuming next sync.";
+          objectError = SM8_PAUSE_RATE_LIMIT;
           stopNote = objectError;
         } else {
           // Unreachable: the other objects share the same upstream, so
@@ -339,7 +345,7 @@ export async function runSm8Sync(
             // unchanged on purpose: only a finished walk may move the floor
             cursor: prior?.cursor ?? null,
             backfill_done: prior?.backfill_done ?? false,
-            last_error: objectError ?? "Paused mid-walk — resuming next sync.",
+            last_error: objectError ?? SM8_PAUSE_MIDWALK,
             rows_pulled: (prior?.rows_pulled ?? 0) + pulled,
             /* Where to pick up, and the query it belongs to — stored together
                or not at all, because a cursor without its filter is a page
@@ -369,6 +375,7 @@ export type Sm8ObjectStatus = {
   backfillDone: boolean;
   lastSyncedAt: string | null;
   lastError: string | null;
+  phase: Sm8ObjectPhase;
 };
 
 export type Sm8SyncStatusView = {
@@ -408,13 +415,17 @@ export async function listSm8SyncStatus(orgId: string): Promise<Sm8SyncStatusVie
   return {
     objects: SM8_OBJECTS.map((spec) => {
       const s = byObject.get(spec.object);
+      const rowsPulled = s?.rows_pulled ?? 0;
+      const backfillDone = s?.backfill_done ?? false;
+      const lastError = s?.last_error ?? null;
       return {
         object: spec.object,
         label: spec.label,
-        rowsPulled: s?.rows_pulled ?? 0,
-        backfillDone: s?.backfill_done ?? false,
+        rowsPulled,
+        backfillDone,
         lastSyncedAt: s?.last_synced_at ?? null,
-        lastError: s?.last_error ?? null,
+        lastError,
+        phase: sm8ObjectPhase({ backfillDone, rowsPulled, lastError }),
       };
     }),
     lastRun: run

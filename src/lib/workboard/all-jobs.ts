@@ -50,6 +50,8 @@ export type AllJobsMirrorJob = {
   description: string | null;
   suburb: string | null;
   categoryName: string | null;
+  /** ServiceM8's own category colour, already sanitised to '#rrggbb' or null. */
+  categoryColour: string | null;
   /** The job's own date, naive local — when it was raised. */
   date: string | null;
   quoteDate: string | null;
@@ -107,6 +109,10 @@ export type AllJobRow = {
   title: string | null;
   suburb: string | null;
   categoryName: string | null;
+  /** The category's own colour from ServiceM8, or null — worn as a dot, never
+      as the chip's whole surface, because their palette makes no contrast
+      promises against our text. */
+  categoryColour: string | null;
   /** What to call this row's state, in the reader's language. */
   statusLabel: string;
   /** Existing chip vocabulary: "" | ok | warn | dan. */
@@ -118,7 +124,12 @@ export type AllJobRow = {
   /** Present when this job is already on one of the other two boards. */
   tracked: { kind: "visit" | "project"; label: string; id: string } | null;
   /** Null when the reader has no money access, or the row carries none. */
-  money: { valueCents: number | null; collection: ReturnType<typeof collectionState> } | null;
+  money: {
+    valueCents: number | null;
+    collection: ReturnType<typeof collectionState>;
+    quoteSent: boolean;
+    quoteSentOn: string | null;
+  } | null;
   /** Sort key within its section — a naive date string or "". */
   sortOn: string;
 };
@@ -215,6 +226,7 @@ function sm8Row(
     title: job.description,
     suburb: job.suburb,
     categoryName: job.categoryName,
+    categoryColour: job.categoryColour,
     statusLabel: job.status ?? "Job",
     tone: job.status === "Completed" ? "ok" : job.status === "Unsuccessful" ? "dan" : "",
     date,
@@ -222,7 +234,12 @@ function sm8Row(
     booked,
     tracked,
     money: job.money
-      ? { valueCents: job.money.valueCents, collection: collectionState(job.money) }
+      ? {
+          valueCents: job.money.valueCents,
+          collection: collectionState(job.money),
+          quoteSent: job.money.quoteSent,
+          quoteSentOn: job.money.quoteSentOn,
+        }
       : null,
     sortOn: date ?? "",
   };
@@ -242,6 +259,7 @@ function visitRow(v: AllJobsVisit, today: string): AllJobRow {
     title: v.label,
     suburb: v.siteLabel,
     categoryName: v.categoryName,
+    categoryColour: null,
     statusLabel: done ? (v.status === "skipped" ? "Skipped" : "Done") : "Maintenance",
     tone: done ? (v.status === "skipped" ? "warn" : "ok") : "",
     date,
@@ -269,6 +287,7 @@ function projectRow(p: AllJobsProject): AllJobRow {
     title: p.name,
     suburb: p.siteLabel,
     categoryName: p.stage,
+    categoryColour: null,
     statusLabel: done
       ? "Project done"
       : p.status === "blocked"
@@ -370,6 +389,69 @@ export function allJobsRows(input: {
   view.completed.sort(byNewest);
   view.unsuccessful.sort(byNewest);
   return view;
+}
+
+/* ── ServiceM8 field readers, pure and shared by loader and sheet ── */
+
+/** ServiceM8 category colours arrive as BARE hex — "e7b5ff", no hash (the
+    live mirror confirmed it). Accept 3/6/8-digit hex with or without the
+    hash, hand back a lowercase '#…' ready for CSS, and refuse anything else
+    so a surprise value can never reach a style attribute. */
+export function sm8CategoryColour(raw: string | null | undefined): string | null {
+  if (typeof raw !== "string") return null;
+  const s = raw.trim().replace(/^#/, "").toLowerCase();
+  if (!/^([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/.test(s)) return null;
+  return `#${s}`;
+}
+
+/** Minutes between two naive 'YYYY-MM-DD HH:MM:SS' stamps, by treating both
+    as UTC — no timezone in the arithmetic at all, which is the point: parsing
+    a wall clock into a local Date would make a duration depend on where the
+    server runs. Null for malformed input or a negative span. */
+export function sm8MinutesBetween(start: string, end: string): number | null {
+  const at = (s: string): number | null => {
+    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+    if (!m) return null;
+    return Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]), Number(m[6] ?? 0));
+  };
+  const a = at(start);
+  const b = at(end);
+  if (a === null || b === null || b < a) return null;
+  return Math.round((b - a) / 60_000);
+}
+
+/** "18h 30m" / "3h" / "45m" — the shape ServiceM8's own billing tab uses. */
+export function fmtMinutesAsHours(mins: number): string {
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (h === 0) return `${m}m`;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+
+/** One checklist item, as the sheet renders it. */
+export type JobChecklistItem = {
+  name: string;
+  /** 'Todo' | 'Photo' | 'Document' | 'Form' — verbatim from ServiceM8. */
+  itemType: string | null;
+  section: string | null;
+  done: boolean;
+  doneOn: string | null;
+  doneBy: string | null;
+};
+
+/** Split a sort-ordered checklist into its sections, order preserved. A run
+    of items with no section leads the list unlabelled, exactly as ServiceM8
+    lays it out. */
+export function groupChecklist(
+  items: readonly JobChecklistItem[]
+): { section: string | null; items: JobChecklistItem[] }[] {
+  const groups: { section: string | null; items: JobChecklistItem[] }[] = [];
+  for (const item of items) {
+    const last = groups[groups.length - 1];
+    if (last && last.section === item.section) last.items.push(item);
+    else groups.push({ section: item.section, items: [item] });
+  }
+  return groups;
 }
 
 /* ── search ── */

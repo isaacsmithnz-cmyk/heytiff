@@ -8,7 +8,7 @@ import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { fmtAud } from "@/lib/workboard/project-money";
 import { createProjectFromJob, readMirrorJob } from "@/app/actions/workboard";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
-import type { AllJobRow } from "@/lib/workboard/all-jobs";
+import { fmtMinutesAsHours, groupChecklist, type AllJobRow } from "@/lib/workboard/all-jobs";
 
 /* One ServiceM8 job, read-only — and the two ways out of it.
 
@@ -33,18 +33,26 @@ import type { AllJobRow } from "@/lib/workboard/all-jobs";
 const dayOf = (naive: string | null | undefined) =>
   naive && naive.length >= 10 ? naive.slice(0, 10) : null;
 
-/** "7:30am Thu 14 Aug" from a naive local string, by slicing — never by
-    parsing a wall clock into a Date, which would shift it by the browser's
-    offset. Same approach as the project screen's booking label. */
-function bookingLabel(naive: string): string {
-  const date = dayOf(naive);
+/** "7:30am" from a naive local string, by slicing — never by parsing a wall
+    clock into a Date, which would shift it by the browser's offset. */
+function timeOf(naive: string): string | null {
   const hh = Number(naive.slice(11, 13));
   const mm = naive.slice(14, 16);
-  if (!date || Number.isNaN(hh)) return date ? fmtAuWeekdayDayMonth(date) : naive;
+  if (Number.isNaN(hh) || !/^\d{2}$/.test(mm)) return null;
   const ampm = hh < 12 ? "am" : "pm";
   const h12 = hh % 12 === 0 ? 12 : hh % 12;
-  const time = mm === "00" ? `${h12}${ampm}` : `${h12}:${mm}${ampm}`;
-  return `${time} ${fmtAuWeekdayDayMonth(date)}`;
+  return mm === "00" ? `${h12}${ampm}` : `${h12}:${mm}${ampm}`;
+}
+
+/** "7:30am Thu 14 Aug", or "7:30am–3:30pm Thu 14 Aug" when the booking's end
+    is known and lands on the same day. Same approach as the project screen's
+    booking label. */
+function bookingLabel(naive: string, end?: string | null): string {
+  const date = dayOf(naive);
+  const time = timeOf(naive);
+  if (!date || !time) return date ? fmtAuWeekdayDayMonth(date) : naive;
+  const endTime = end && dayOf(end) === date ? timeOf(end) : null;
+  return `${endTime ? `${time}–${endTime}` : time} ${fmtAuWeekdayDayMonth(date)}`;
 }
 
 export function JobSheet({
@@ -141,7 +149,14 @@ export function JobSheet({
               ServiceM8 job
             </span>
             {row.tone !== "" && <span className={`wb2-chip ${row.tone}`}>{row.statusLabel}</span>}
-            {row.categoryName && <span className="wb2-chip">{row.categoryName}</span>}
+            {row.categoryName && (
+              <span className="wb2-chip">
+                {row.categoryColour && (
+                  <i className="wb2-catdot" style={{ background: row.categoryColour }} aria-hidden />
+                )}
+                {row.categoryName}
+              </span>
+            )}
           </span>
           <button
             ref={closeRef}
@@ -155,18 +170,50 @@ export function JobSheet({
         </div>
 
         <div className="wb2-shhd">
-          <p>{detail?.address ?? row.suburb ?? "No address on the job"}</p>
+          <p>{detail?.address ?? detail?.geoLine ?? row.suburb ?? "No address on the job"}</p>
           <div className="wb2-facts">
             <div>
               <span className="wb2-sect">{row.dateLabel === "raised" ? "Raised" : "When"}</span>
               <b>{dayOf(row.date) ? fmtAuWeekdayDayMonth(dayOf(row.date)!) : "—"}</b>
               <em>{row.dateLabel}</em>
             </div>
+            {detail?.workOrderDate && row.statusLabel === "Work Order" && (
+              <div>
+                <span className="wb2-sect">Work order</span>
+                <b>{dayOf(detail.workOrderDate) ? fmtAuWeekdayDayMonth(dayOf(detail.workOrderDate)!) : "—"}</b>
+                <em>since</em>
+              </div>
+            )}
             {detail?.nextBooking && (
               <div>
                 <span className="wb2-sect">Next on site</span>
-                <b>{bookingLabel(detail.nextBooking.start)}</b>
+                <b>{bookingLabel(detail.nextBooking.start, detail.nextBooking.end)}</b>
                 <em>{detail.nextBooking.staffName ?? "Nobody named"}</em>
+              </div>
+            )}
+            {detail?.timeOnSite && (
+              <div>
+                <span className="wb2-sect">Time on site</span>
+                <b>{fmtMinutesAsHours(detail.timeOnSite.minutes)}</b>
+                <em>
+                  {detail.timeOnSite.sessions === 1
+                    ? "recorded across 1 visit"
+                    : `recorded across ${detail.timeOnSite.sessions} visits`}
+                </em>
+              </div>
+            )}
+            {detail?.queue && (
+              <div>
+                <span className="wb2-sect">In queue</span>
+                <b>{detail.queue.name}</b>
+                <em>
+                  {[
+                    detail.queue.staffName,
+                    detail.queue.expiry ? `until ${fmtAuWeekdayDayMonth(detail.queue.expiry)}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ") || "waiting"}
+                </em>
               </div>
             )}
             {moneyVisible && (
@@ -178,7 +225,9 @@ export function JobSheet({
                     ? `Paid${money.paidOn ? ` ${fmtAuWeekdayDayMonth(money.paidOn)}` : ""}`
                     : money?.invoiced
                       ? `Invoiced${money.invoicedOn ? ` ${fmtAuWeekdayDayMonth(money.invoicedOn)}` : ""} — awaiting payment`
-                      : "Not invoiced"}
+                      : money?.quoteSent
+                        ? `Quote sent${money.quoteSentOn ? ` ${fmtAuWeekdayDayMonth(money.quoteSentOn)}` : ""}`
+                        : "Not invoiced"}
                 </em>
               </div>
             )}
@@ -226,6 +275,36 @@ export function JobSheet({
           )}
         </div>
 
+        {detail && detail.checklist.length > 0 && (
+          <div className="wb2-shsect">
+            <span className="wb2-sect">
+              Their checklist —{" "}
+              {`${detail.checklist.filter((c) => c.done).length} of ${detail.checklist.length} done`}
+            </span>
+            {groupChecklist(detail.checklist).map((group, gi) => (
+              <div key={`${group.section ?? "-"}-${gi}`} className="wb2-ckgroup">
+                {group.section && <span className="wb2-sect wb2-cksec">{group.section}</span>}
+                {group.items.map((item, i) => (
+                  <div key={`${item.name}-${i}`} className={`wb2-ckrow${item.done ? " done" : ""}`}>
+                    <i className="wb2-ckdot" aria-hidden />
+                    <span className="wb2-ckname">{item.name}</span>
+                    {item.itemType && item.itemType !== "Todo" && (
+                      <i className="wb2-chip">{item.itemType}</i>
+                    )}
+                    <em>
+                      {item.done
+                        ? [item.doneBy, item.doneOn ? fmtAuWeekdayDayMonth(item.doneOn) : null]
+                            .filter(Boolean)
+                            .join(" · ") || "done"
+                        : ""}
+                    </em>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+
         {detail && detail.contacts.length > 0 && (
           <div className="wb2-shsect">
             <span className="wb2-sect">Who to ring</span>
@@ -234,6 +313,14 @@ export function JobSheet({
                 <b>{c.name || "Unnamed"}</b>
                 {c.type ? ` · ${c.type.toLowerCase()}` : ""}
                 {c.phone ? ` · ${c.phone}` : ""}
+                {c.email ? (
+                  <>
+                    {" · "}
+                    <a className="wb2-colink" href={`mailto:${c.email}`}>
+                      {c.email}
+                    </a>
+                  </>
+                ) : null}
               </p>
             ))}
           </div>

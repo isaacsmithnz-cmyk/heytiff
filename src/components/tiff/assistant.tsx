@@ -23,7 +23,7 @@ import { ResearchLines } from "./research-lines";
 import { KB_CATEGORIES, type KbCategoryKey } from "./kb";
 import { DictClock, LevelBars, appendSpoken, useDictation } from "@/components/notes/dictation";
 
-/* Tiff AI — the assistant, connected.
+/* The Library's asking surface, connected.
 
    TWO COLUMNS, AND THE RIGHT ONE IS THE POINT. The transcript sits beside the
    category cards rather than under them: the cards stay on screen while the
@@ -879,8 +879,8 @@ export function TiffAssistant({
                 <button
                   type="button"
                   className="tk-tact"
-                  aria-label="Back to Tiff AI"
-                  title="Back to Tiff AI"
+                  aria-label="Back to the library"
+                  title="Back to the library"
                   onClick={goHome}
                 >
                   <Icon name="chevL" size={16} />
@@ -894,7 +894,7 @@ export function TiffAssistant({
                 </span>
                 <div className="tcht">
                   <b>{active.title}</b>
-                  <em>Tiff AI</em>
+                  <em>Library</em>
                 </div>
                 {/* the two things you can do TO a conversation, next to the
                     one thing you can do instead of it */}
@@ -1446,11 +1446,17 @@ function Landing({
           was the one control on this screen nobody could find. */}
       <div className="tk-open">
         {/* ONE heading for both visits. It used to be "Ask the library" for a
-            first visit and this for a return — decided from localStorage,
-            which the server can't read, so every returning user watched 38px
-            letters swap one frame after paint. The paragraph carries the
-            library pitch either way; the flash bought nothing. */}
-        <h2>What are we working on?</h2>
+            first visit and a friendly opener for a return — decided from
+            localStorage, which the server can't read, so every returning user
+            watched 38px letters swap one frame after paint. The flash bought
+            nothing.
+
+            And the heading NAMES THE SCREEN now rather than greeting you.
+            "What are we working on?" is the chrome every chat product opens
+            with, which made the most valuable page in the app introduce itself
+            as a chatbot; the paragraph under it already carries the invitation
+            and says how many documents are behind the answer. */}
+        <h2>Library</h2>
         <p>
           {readyCount > 0 ? (
             <>
@@ -1531,13 +1537,18 @@ function Rail({
   return (
     <aside className="tk-rail">
       {/* The eyebrow row was built with space-between and then given nothing to
-          put on the right. "Open" goes there, which is where a section's own
-          link belongs and is one of the two things the block at the foot used
-          to do. */}
+          put on the right. The way into the catalogue goes there, which is
+          where a section's own link belongs and is one of the two things the
+          block at the foot used to do.
+
+          The eyebrow says "Categories" rather than "Library" now that the
+          SECTION is the library: a heading repeating the page it sits on
+          labels nothing, and the cards under it are categories. The link is
+          named for where it lands — the same words as the ⌘K face. */}
       <div className="tk-lbl">
-        <span>Library</span>
+        <span>Categories</span>
         <Link className="tk-lbla" href={navHref("tiffkb")}>
-          Open
+          All documents
           <Icon name="chevR" size={13} />
         </Link>
       </div>

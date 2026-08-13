@@ -19,8 +19,8 @@ const ROLES: [Role, string, string, string][] = [
 const ACCESS: [Capability, string, string][] = [
   ["toolbox", "Toolbox", "Calculators & references"],
   ["studio", "Design Studio", "Create & edit VRF designs"],
-  ["tiff", "Tiff AI", "Assistant & document library"],
-  ["tiff_manage", "Tiff AI — manage", "Add & edit knowledge-base documents"],
+  ["tiff", "Library", "Ask the company's manuals, specs & SOPs"],
+  ["tiff_manage", "Library — manage", "Add & edit library documents"],
   ["workboard", "Workboard", "See the projects & maintenance board"],
   ["workboard_manage", "Workboard — manage", "Create & edit projects, agreements & visits"],
   ["workboard_money", "Workboard — money", "Job values, claims & what's been paid"],

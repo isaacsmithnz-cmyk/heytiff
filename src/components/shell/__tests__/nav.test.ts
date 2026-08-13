@@ -85,9 +85,9 @@ describe("nav config", () => {
     expect(isActive(byKey("home"), "/dashboard/notices")).toBe(true);
   });
 
-  it("folds the library into Tiff AI rather than giving it a rail row", () => {
-    // one feature seen from both ends: the assistant answers out of the
-    // library. The row stays lit on the library, and ⌘K still finds it.
+  it("folds the catalogue into the Library rather than giving it a rail row", () => {
+    // one feature seen from both ends: asking answers out of the catalogue.
+    // The row stays lit on the catalogue, and ⌘K still finds it.
     const tiff = byKey("tiff");
     expect(tiff.subItems?.map((s) => s.href)).toEqual(["/dashboard/tiff/library"]);
     expect(NAV_ROWS.map((n) => n.key)).not.toContain("tiffkb");
@@ -195,7 +195,7 @@ describe("capability gating", () => {
   it("leaves genuinely ungated entries alone for everyone", () => {
     /* Faces are read off their PARENT, not off themselves: a face never
        carries a capability (pinned above), so counting NAV directly would
-       call the knowledge base ungated when Tiff AI gates it. */
+       call the catalogue ungated when the Library gates it. */
     const ungated = NAV_ROWS.filter((n) => !n.capability && !n.minRole).flatMap((n) => [
       n.key,
       ...(n.subItems ?? []).map((s) => s.key),

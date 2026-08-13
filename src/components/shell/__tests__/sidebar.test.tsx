@@ -19,7 +19,7 @@ afterEach(cleanup);
 
 describe("Sidebar — no standing 'look at me' marks", () => {
   it("draws no pulsing dot on any row, for any role", () => {
-    /* Tiff AI carried a hard-coded `dot: true` from the day it shipped: a teal
+    /* The Library carried a hard-coded `dot: true` from the day it shipped: a teal
        dot that pulsed on the rail forever, with nothing behind it that could
        ever turn it off. The `dot` field is gone from NavItem, so this can only
        come back deliberately — and it should come back with a source of truth,
@@ -101,7 +101,7 @@ describe("Sidebar — role-gated nav", () => {
 
   it("owners get the full rail", () => {
     render(as("owner", "Smith Air"));
-    for (const label of ["Home", "Workboard", "Toolbox", "Design Studio", "Tiff AI", "Team", "Time & Pay", "Assets", "Admin", "Vehicle"]) {
+    for (const label of ["Home", "Workboard", "Toolbox", "Design Studio", "Library", "Team", "Time & Pay", "Assets", "Admin", "Vehicle"]) {
       expect(screen.getByText(label)).toBeTruthy();
     }
   });

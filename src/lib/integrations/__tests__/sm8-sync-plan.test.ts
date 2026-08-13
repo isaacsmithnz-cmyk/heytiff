@@ -120,7 +120,16 @@ describe("the object list", () => {
       job_contacts: "jobcontact.json",
       job_activities: "jobactivity.json",
       job_checklists: "jobchecklist.json",
+      attachments: "attachment.json",
     });
+  });
+
+  it("gates attachments on the consent table's scope name, not the endpoint doc's", () => {
+    // The endpoint reference says `read_attachments`; the OAuth scope table
+    // has no such grant. read_job_attachments is what a reconnect can
+    // actually give, so it must be what the 403 note asks for.
+    const attachments = SM8_OBJECTS.find((s) => s.object === "attachments")!;
+    expect(attachments.scope).toBe("read_job_attachments");
   });
 
   it("wipes every mirror plus the bookkeeping on disconnect", () => {
@@ -166,6 +175,7 @@ describe("walkOrderFor — the rotation that stops budget starvation", () => {
     expect(rotated).toEqual([
       "job_activities",
       "job_checklists",
+      "attachments",
       "staff",
       "categories",
       "queues",
@@ -174,6 +184,16 @@ describe("walkOrderFor — the rotation that stops budget starvation", () => {
       "jobs",
       "job_contacts",
     ]);
+  });
+
+  it("a pre-reconnect 403 object rotates first without starving the rest", () => {
+    /* The exact prod shape the day this ships: every backfill done EXCEPT
+       attachments, which 403s until the account is reconnected with the new
+       grant. It must sit first (cheap — one call learns the 403) with every
+       other object still walked behind it. */
+    const rotated = order(all.filter((o) => o !== "attachments"));
+    expect(rotated[0]).toBe("attachments");
+    expect([...rotated].sort()).toEqual([...all].sort());
   });
 });
 
@@ -259,6 +279,42 @@ describe("shapes as the privacy boundary", () => {
     })!;
     expect(shaped).toMatchObject({ first: "Luke", last: "Nguyen", job_title: "Technician" });
     for (const banned of ["email", "mobile", "lat", "lng", "status_message", "navigating_to_job_uuid"]) {
+      expect(shaped).not.toHaveProperty(banned);
+    }
+  });
+
+  it("attachments keep what a list needs, never content, identity or location", () => {
+    const shaped = spec("attachments").shape({
+      uuid: "a-1",
+      related_object: "job",
+      related_object_uuid: "j-1",
+      attachment_name: "IMG_4021.jpg",
+      file_type: ".jpg",
+      attachment_source: "QUOTE",
+      tags: "before,outdoor",
+      photo_width: 4032,
+      photo_height: 3024,
+      is_favourite: 0,
+      created_by_staff_uuid: "s-1",
+      timestamp: "2026-08-01 10:00:00",
+      extracted_info: "the OCR'd text of the whole document",
+      metadata: '{"free":"form"}',
+      signature_data: '{"signed_by":"Josh"}',
+      lat: -33.87,
+      lng: 151.21,
+      active: 1,
+      edit_date: "2026-08-01 10:05:00",
+    })!;
+    expect(shaped).toMatchObject({
+      related_object: "job",
+      related_object_uuid: "j-1",
+      attachment_name: "IMG_4021.jpg",
+      file_type: ".jpg",
+      attachment_source: "QUOTE",
+      photo_width: 4032,
+      photo_height: 3024,
+    });
+    for (const banned of ["extracted_info", "metadata", "signature_data", "lat", "lng"]) {
       expect(shaped).not.toHaveProperty(banned);
     }
   });

@@ -189,25 +189,39 @@ export function missingScopes(granted: string | null | undefined): string[] {
    owner would accept, rendered verbatim on the screen the consent URL is built
    from. READ-ONLY, DELIBERATELY — ServiceM8's scopes are granular read_* /
    manage_* / create_* / publish_* families, and nothing here takes a writing
-   one. Two worth naming:
+   one. Still true and worth naming:
 
      manage_badges   the ONLY scope over job badges is a write scope, so badges
                      stay out entirely — Workboard readiness tags are
                      HeyTiff-owned anyway
-     read_job_payments and the other read_* money/message scopes exist and are
-                     NOT asked for: a scope joins this list WITH its feature,
-                     not ahead of it (the Xero audit lesson)
+
+   THE 2026-08-13 EXPANSION, and its one deliberate exception. The job-media
+   track adopts five more read scopes in a single ask: attachments and photos
+   (the metadata mirror lands with this change), and notes, materials and
+   payments (their mirrors land in the next PRs of the same track). The
+   join-with-feature rule bends for those three ON PURPOSE: the connected
+   account is a LIVE business and re-consent is a ceremony its owner performs
+   once, not once per PR — the owner chose one ask over three. Nothing reads
+   what it hasn't shipped a surface for; a granted-but-unwalked scope pulls
+   nothing.
+
+   A NAMING TRAP, verified 2026-08-13 and pinned in the tests: ServiceM8's
+   endpoint reference for attachments says its scope is `read_attachments`,
+   but the authentication doc's scope table — the registry the consent URL is
+   judged against — has NO such scope. The real grants are
+   `read_job_attachments` ("job attachments, quotes and invoices") and
+   `read_job_photos`. Trust the scope table, not the endpoint page.
 
    THE JOB'S OWN TOTAL NEEDS NO EXTRA SCOPE. total_invoice_amount and the
    invoice/quote/payment flags are fields ON the Job object, covered by
    read_jobs — verified against developer.servicem8.com/reference/listjobs.md
-   on 2026-08-12. That is why read_jobs' sentence below now says so out loud:
+   on 2026-08-12. That is why read_jobs' sentence below says so out loud:
    the consent screen must describe what actually arrives, and it always did
-   arrive. Per-PAYMENT records are the thing read_job_payments would buy, and
-   they remain unbought.
+   arrive. Per-PAYMENT records are what read_job_payments buys.
 
-   Verified against developer.servicem8.com/docs/authentication on 2026-07-28 —
-   check the doc before adding a scope rather than going from memory. */
+   Verified against developer.servicem8.com/docs/authentication on 2026-07-28
+   and again 2026-08-13 — check the doc before adding a scope rather than
+   going from memory. */
 
 /** One scope with its public justification — the same shape for every
     provider. `XeroScope` above predates this alias and stays for its callers. */
@@ -263,6 +277,31 @@ export const SM8_SCOPES: ScopeEntry[] = [
     scope: "read_staff",
     area: "Workboard",
     why: "Reads staff names, so a scheduled job can say who's going. Names only — nothing here reads staff locations.",
+  },
+  {
+    scope: "read_job_attachments",
+    area: "Workboard",
+    why: "Reads the files on each job — what they're called and which job they belong to, including the quote and invoice PDFs — so a job here can show the paperwork ServiceM8 holds.",
+  },
+  {
+    scope: "read_job_photos",
+    area: "Workboard",
+    why: "Reads job photos, so the pictures taken on site can appear on the job here.",
+  },
+  {
+    scope: "read_job_notes",
+    area: "Workboard",
+    why: "Reads job notes, so what's written on a job's diary in ServiceM8 shows on the job here.",
+  },
+  {
+    scope: "read_job_materials",
+    area: "Workboard",
+    why: "Reads each job's materials and line items, so a job's billing breakdown can show here. Like job values, shown only to people you've given money access.",
+  },
+  {
+    scope: "read_job_payments",
+    area: "Workboard",
+    why: "Reads payments recorded against jobs, so paid and owing can be exact here. Like job values, shown only to people you've given money access.",
   },
 ];
 

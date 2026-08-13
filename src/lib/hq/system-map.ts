@@ -580,7 +580,7 @@ export const NODES: MapNode[] = [
     name: "ServiceM8 mirror",
     kind: "store",
     group: "Supabase",
-    blurb: "sm8_jobs · sm8_companies · schedule, checklists, contacts — a disposable local copy.",
+    blurb: "sm8_jobs · sm8_companies · schedule, checklists, contacts, attachments — a disposable local copy.",
     detail:
       "Every ServiceM8-native column is TEXT (their timestamps are naive local strings with a '0000-00-00' null sentinel — timestamptz would shift schedules and reject the sentinel). Nothing FKs into a mirror, overlays never depend on one existing, and disconnect wipes the lot: a client book has no business outliving its grant. Deny-all RLS like every table here.",
   },

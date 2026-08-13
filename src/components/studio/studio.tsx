@@ -62,6 +62,13 @@ import { RoomModal } from "./room-modal";
 import { ReferenceViewer } from "./reference-viewer";
 import { SimPresentMode } from "./sim-present";
 import { SimRuntime } from "@/lib/studio/sim-runtime";
+import {
+  jobSubtitle,
+  prefillFromJob,
+  streetLine,
+  type JobPrefill,
+  type StudioJobHit,
+} from "@/lib/studio/job-link";
 import type { DataPack, IndoorUnit } from "@/lib/studio/packs/schema";
 import "./studio.css";
 
@@ -85,6 +92,7 @@ const readSimFlag = (): boolean => {
 /* server actions load lazily so jsdom tests never parse the auth0 runtime —
    same pattern as remote-store.ts */
 const packActions = () => import("@/app/actions/studio-packs");
+const studioActions = () => import("@/app/actions/studio");
 
 /* Design Studio — Stage 0: shell mount, home + new-design flow, workflow
    stepper, autosaving document, per-stage empty states. The canvas engine,
@@ -137,14 +145,23 @@ export type PackLoader = () => Promise<{
   version: string;
 } | null>;
 
+/** test/harness seam — defaults to the auth-gated server action */
+export type JobSearch = (query: string) => Promise<StudioJobHit[]>;
+
 export function Studio({
   store,
   planImages,
   packLoader,
+  sm8Jobs,
+  jobSearch,
 }: {
   store?: DesignStore;
   planImages?: PlanImages;
   packLoader?: PackLoader;
+  /** ServiceM8 is connected AND this person may read the client book — the
+      route decides both. Off means the new-design step never mentions it. */
+  sm8Jobs?: boolean;
+  jobSearch?: JobSearch;
 }) {
   // the store is browser-only; create it lazily so SSR prerender never touches
   // it. Server rows are the source of truth; localStorage is the crash buffer.
@@ -465,9 +482,17 @@ export function Studio({
           <Home
             recents={recents}
             autoNew={homeAutoNew}
-            onCreate={(name, mode) =>
+            sm8Jobs={sm8Jobs}
+            jobSearch={jobSearch}
+            onCreate={(name, mode, job) =>
               throughSwap(async () => {
-                const d = createDesign({ name, mode });
+                const d = createDesign({
+                  name,
+                  mode,
+                  jobNumber: job?.jobNumber,
+                  client: job?.client,
+                  site: job?.site,
+                });
                 await getStore().save(d);
                 return d;
               }, openDesign)
@@ -504,6 +529,8 @@ export function Studio({
 function Home({
   recents,
   autoNew,
+  sm8Jobs,
+  jobSearch,
   onCreate,
   onOpen,
   onDelete,
@@ -512,7 +539,14 @@ function Home({
   recents: DesignSummary[];
   /** arrive with the new-design wizard already open (menu → New) */
   autoNew?: boolean;
-  onCreate: (name: string, mode: "plan" | "blank") => void;
+  /** offer "start from a ServiceM8 job" on the naming step */
+  sm8Jobs?: boolean;
+  jobSearch?: JobSearch;
+  onCreate: (
+    name: string,
+    mode: "plan" | "blank",
+    job?: JobPrefill
+  ) => void;
   onOpen: (id: string) => void;
   onDelete: (id: string) => void;
   onImport: (doc: DesignDocument) => void;
@@ -528,6 +562,88 @@ function Home({
   const [importError, setImportError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  /* ── the ServiceM8 job behind this design, if it came from one ── */
+  const [jobQuery, setJobQuery] = useState("");
+  const [hits, setHits] = useState<StudioJobHit[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [picked, setPicked] = useState<StudioJobHit | null>(null);
+  /* Open is its OWN state, not "is there a query": the panel covers the name
+     field beneath it, so clicking away has to put that field back within
+     reach without throwing away what was typed to find the job. */
+  const [dropOpen, setDropOpen] = useState(false);
+  const dropRef = useRef<HTMLDivElement>(null);
+  /* Every keystroke fires a search and answers arrive out of order — a slow
+     "26" landing after a fast "26 East" would replace the right list with a
+     stale one. Only the newest request may write. */
+  const searchSeq = useRef(0);
+
+  /* Click away to close — the same listener the studio menu uses, and for the
+     same reason: `mousedown` against the container's own subtree, never a
+     blur, because a <button> that doesn't take focus on click (Safari) would
+     close the panel out from under the click it was about to receive. */
+  useEffect(() => {
+    if (!dropOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (dropRef.current && !dropRef.current.contains(e.target as Node))
+        setDropOpen(false);
+    };
+    window.addEventListener("mousedown", onDown);
+    return () => window.removeEventListener("mousedown", onDown);
+  }, [dropOpen]);
+
+  const runJobSearch = useCallback(
+    async (q: string) => {
+      setJobQuery(q);
+      const seq = ++searchSeq.current;
+      if (q.trim().length < 2) {
+        setHits([]);
+        setSearching(false);
+        setDropOpen(false);
+        return;
+      }
+      setSearching(true);
+      setDropOpen(true);
+      const search =
+        jobSearch ?? ((s: string) => studioActions().then((a) => a.searchStudioJobs(s)));
+      try {
+        const found = await search(q);
+        if (seq !== searchSeq.current) return;
+        setHits(found);
+      } catch {
+        /* offline, or the action is unreachable — an empty list and "nothing
+           matches" is the honest reading, and the name field still works. */
+        if (seq !== searchSeq.current) return;
+        setHits([]);
+      } finally {
+        if (seq === searchSeq.current) setSearching(false);
+      }
+    },
+    [jobSearch]
+  );
+
+  /* Picking a job names the design and remembers the three fields the Summary
+     sheet prints. The name stays EDITABLE afterwards — the street is a good
+     first answer, not the last word — and editing it doesn't unpick the job,
+     because the job is what the client and site came from. */
+  const pickJob = (hit: StudioJobHit) => {
+    const fill = prefillFromJob(hit);
+    setPicked(hit);
+    setJobQuery("");
+    setHits([]);
+    setSearching(false);
+    setDropOpen(false);
+    searchSeq.current++;
+    if (fill.name) setName(fill.name);
+  };
+
+  const unpickJob = () => {
+    setPicked(null);
+    setJobQuery("");
+    setHits([]);
+    setDropOpen(false);
+    searchSeq.current++;
+  };
+
   const visible = recents.filter((r) =>
     r.name.toLowerCase().includes(query.trim().toLowerCase())
   );
@@ -536,9 +652,14 @@ function Home({
   const cancel = () => {
     setStep(null);
     setName("");
+    unpickJob();
   };
   const create = (mode: "plan" | "blank") =>
-    onCreate(trimmed || "Untitled design", mode);
+    onCreate(
+      trimmed || "Untitled design",
+      mode,
+      picked ? prefillFromJob(picked) : undefined
+    );
 
   const importFile = async (file: File) => {
     setImportError(null);
@@ -567,8 +688,104 @@ function Home({
               <span className="ds-hero-step">Step 1 of 2</span>
               <h3 className="ds-hero-etitle">Name your design</h3>
               <p className="ds-hero-esub">
-                Give the job a name — you&apos;ll choose how to start next.
+                {sm8Jobs
+                  ? "Pull the job in from ServiceM8, or name it yourself — you'll choose how to start next."
+                  : "Give the job a name — you'll choose how to start next."}
               </p>
+              {/* The ServiceM8 step sits ABOVE the name field because it
+                  ANSWERS it: pick the job and the name is filled in below,
+                  where you can still change it. Underneath, it would read as
+                  an afterthought to something already typed. */}
+              {sm8Jobs && (
+                <div className="ds-sm8">
+                  {picked ? (
+                    <div className="ds-sm8-on">
+                      <Icon name="check" size={14} />
+                      <span className="ds-sm8-onl">
+                        From ServiceM8{" "}
+                        {picked.jobNumber ? <b>job {picked.jobNumber}</b> : <b>job</b>}
+                        {picked.clientName ? ` · ${picked.clientName}` : ""}
+                      </span>
+                      <button
+                        type="button"
+                        className="ds-sm8-clear"
+                        onClick={unpickJob}
+                        aria-label="Start from a different job"
+                      >
+                        <Icon name="x" size={13} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="ds-sm8-field" ref={dropRef}>
+                      <label className="ds-sm8-search">
+                        <Icon name="search" size={15} />
+                        <input
+                          type="search"
+                          value={jobQuery}
+                          onChange={(e) => void runJobSearch(e.target.value)}
+                          onFocus={() => {
+                            if (jobQuery.trim().length >= 2) setDropOpen(true);
+                          }}
+                          onKeyDown={(e) => {
+                            /* Escape puts the results away; it does NOT cancel
+                               the wizard, which is what the name field below
+                               does with the same key. */
+                            if (e.key === "Escape" && dropOpen) {
+                              e.stopPropagation();
+                              setDropOpen(false);
+                            }
+                          }}
+                          placeholder="Find the ServiceM8 job — number, client or address"
+                          aria-label="Find the ServiceM8 job"
+                        />
+                      </label>
+                      {/* A DROPDOWN, not a list that pushes the page: it
+                          overlays what's beneath so Continue never travels
+                          out from under the cursor while you're reading. */}
+                      {dropOpen && jobQuery.trim().length >= 2 && (
+                        <div
+                          className="ds-sm8-drop"
+                          role="listbox"
+                          aria-label="ServiceM8 jobs"
+                        >
+                          {hits.map((h) => (
+                            <button
+                              type="button"
+                              role="option"
+                              aria-selected={false}
+                              key={h.remoteId}
+                              className="ds-sm8-opt"
+                              onClick={() => pickJob(h)}
+                            >
+                              <span className="ds-sm8-no">
+                                {h.jobNumber ? `#${h.jobNumber}` : "—"}
+                              </span>
+                              <span className="ds-sm8-b">
+                                <span className="ds-sm8-t">
+                                  {streetLine(h.address) ||
+                                    h.clientName ||
+                                    "Job with no address"}
+                                </span>
+                                <span className="ds-sm8-s">{jobSubtitle(h)}</span>
+                                {h.description && (
+                                  <span className="ds-sm8-d">{h.description}</span>
+                                )}
+                              </span>
+                            </button>
+                          ))}
+                          {hits.length === 0 && (
+                            <p className="ds-sm8-none">
+                              {searching
+                                ? "Searching ServiceM8…"
+                                : `No ServiceM8 job matches “${jobQuery.trim()}”.`}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
               <input
                 className="ds-name-input"
                 placeholder="Design name — e.g. 14 Harbour View Rd"
@@ -601,6 +818,7 @@ function Home({
               <h3 className="ds-hero-etitle">How do you want to start?</h3>
               <p className="ds-hero-esub">
                 Designing <b>{trimmed}</b>
+                {picked?.jobNumber ? ` · ServiceM8 job ${picked.jobNumber}` : ""}
               </p>
               <div className="ds-opts">
                 <button className="ds-opt" onClick={() => create("plan")}>

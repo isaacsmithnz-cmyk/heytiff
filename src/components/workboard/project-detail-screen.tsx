@@ -1489,7 +1489,7 @@ function AttachJobModal({
       {sm8Connected && (
         <>
           <label className="fl-f span" style={{ marginTop: 10 }}>
-            <span>Or search ServiceM8 — number or client</span>
+            <span>Or search ServiceM8 — number, client or address</span>
             <input
               value={query}
               onChange={(e) => doSearch(e.target.value)}

@@ -178,6 +178,13 @@ export function newId(prefix: string): string {
 export function createDesign(opts: {
   name: string;
   mode: DesignMeta["mode"];
+  /** Filled when the design was started FROM a job (the new-design step's
+      ServiceM8 search). Typed by hand on the Summary step otherwise — these
+      three fields have always existed, this just stops them starting empty
+      when something already knows the answers. */
+  jobNumber?: string;
+  client?: string;
+  site?: string;
   now?: string;
 }): DesignDocument {
   const now = opts.now ?? new Date().toISOString();
@@ -186,9 +193,9 @@ export function createDesign(opts: {
     id: newId("dsn"),
     meta: {
       name: opts.name,
-      jobNumber: "",
-      client: "",
-      site: "",
+      jobNumber: opts.jobNumber ?? "",
+      client: opts.client ?? "",
+      site: opts.site ?? "",
       mode: opts.mode,
       createdAt: now,
       updatedAt: now,

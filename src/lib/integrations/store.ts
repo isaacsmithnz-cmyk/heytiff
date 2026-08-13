@@ -40,6 +40,23 @@ async function readRow(orgId: string, provider: string): Promise<ConnectionRow |
   return (data as ConnectionRow | null) ?? null;
 }
 
+/** "Is this provider live?" and nothing else — one narrow column, no tokens,
+    no connector lookup. `getConnectionView` reads eighteen columns and then
+    resolves a user's name to draw the Integrations card; a screen deciding
+    only whether to OFFER something should not pay for that. */
+export async function isProviderConnected(
+  orgId: string,
+  provider: string
+): Promise<boolean> {
+  const { data } = await supabaseAdmin
+    .from(TABLE)
+    .select("status")
+    .eq("org_id", orgId)
+    .eq("provider", provider)
+    .maybeSingle();
+  return (data as { status: string } | null)?.status === "connected";
+}
+
 /** The screen's view of a connection, or null when there isn't one. Also null
     when the table doesn't exist yet — an unapplied migration should render
     "not connected", not a 500. */

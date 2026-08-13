@@ -1,10 +1,12 @@
 "use server";
 
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { requireOrg } from "@/lib/permissions-server";
+import { can, requireOrg } from "@/lib/permissions-server";
 import { isDesignDocumentShape } from "@/lib/studio/document";
 import { recordContribution } from "@/lib/studio/contributions-server";
+import type { StudioJobHit } from "@/lib/studio/job-link";
 import type { DesignSummary } from "@/lib/studio/store";
+import { searchMirrorJobs } from "@/lib/workboard/projects-query";
 
 /* Design Studio persistence — server side. Follows the invite-action pattern:
    authenticate the Auth0 session, then read/write via the service role with
@@ -99,6 +101,36 @@ export async function saveStudioDesign(doc: unknown): Promise<void> {
   } catch {
     /* the save itself succeeded — that's what matters */
   }
+}
+
+/* The new-design step's ServiceM8 search.
+
+   TWO GATES, BOTH REQUIRED. `studio` is the surface asking; `workboard` is
+   what makes the client book readable at all. They agree with the rule the
+   attach picker already follows — a picker must never find more than the
+   list beside it — and in practice both are staff defaults, so the box is
+   there for everyone who has the mirror. Someone whose `workboard` was
+   revoked gets a studio with no ServiceM8 step, not a studio that leaks the
+   client book through the back of it.
+
+   The same mirror search the Workboard uses, mapped to the browser-safe
+   shape: no company uuid, no project links, nothing this screen can't say. */
+export async function searchStudioJobs(query: string): Promise<StudioJobHit[]> {
+  const { orgId } = await requireOrg("studio");
+  if (!(await can("workboard"))) return [];
+  const q = query.trim().slice(0, 80);
+  if (q.length < 2) return [];
+
+  const hits = await searchMirrorJobs(orgId, q, 8);
+  return hits.map((h) => ({
+    remoteId: h.remoteId,
+    jobNumber: h.jobNumber,
+    clientName: h.clientName,
+    status: h.status,
+    address: h.address,
+    suburb: h.suburb,
+    description: h.description,
+  }));
 }
 
 export async function deleteStudioDesign(id: string): Promise<void> {

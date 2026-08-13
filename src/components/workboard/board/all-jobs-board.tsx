@@ -282,6 +282,10 @@ export function AllJobsBoard({
             clientName: agreementFrom.clientName,
             companyId: null,
             suburb: agreementFrom.suburb,
+            /* The list row carries no street — only the suburb the board
+               shows — so this stays null rather than inventing one. */
+            address: null,
+            description: agreementFrom.title,
             linkedTo: [],
           }}
           onOpenAgreement={(id) => {

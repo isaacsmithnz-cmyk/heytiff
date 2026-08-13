@@ -151,7 +151,9 @@ A note spoken across three recordings is one note — each leg appends.
 always there; what was missing was anything that looked like it. With words in
 the box the mode control drops the `Default` switch — a preference, in the
 strongest position on the row, whose left half happened to start recording —
-for a plain `Talk` button. The switch owns the empty box, where "what should
+for a **Keep talking** button beside `Go` — it says what it does and stands
+with the actions, not on the settings edge where the switch lives. The switch
+owns the empty box, where "what should
 this do next time" is a fair question, and every capture opens empty.
 
 **Opening the sheet may already have started a leg.** With the stored default

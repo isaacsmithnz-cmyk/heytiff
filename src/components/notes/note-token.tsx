@@ -213,11 +213,30 @@ function ModeControl({ flow }: { flow: NoteFlow }) {
      time" is a fair question to be asked, and gets out of the way the moment
      there is something to add to. Every capture opens empty, so the
      preference is still one press from reachable at the start of each one. */
-  if (flow.governsDefault && !flow.text.trim()) return <DefaultSwitch flow={flow} />;
+  const words = Boolean(flow.text.trim());
+  if (flow.governsDefault && !words) return <DefaultSwitch flow={flow} />;
+  /* KEEP TALKING, AND ON THE RIGHT (Isaac, 2026-08-10): "the screen to add
+     more text just says TALK on the left, which is not very helpful."
+
+     Two faults, one control. `Talk` is the right word for an empty box —
+     there is nothing yet to keep doing — and the wrong one over a box with a
+     sentence in it, where the only question is whether you are adding to it.
+     And the left edge is where this row keeps its SETTINGS: it held the
+     Default switch, so a button parked there reads as chrome rather than as
+     the thing to press next.
+
+     So once there are words it says what it does and stands where the actions
+     are, beside Go. `.wb2-capact` is `justify-content:flex-end`, so right is
+     simply what happens when the left-anchoring margin comes off — see
+     `.wb2-keeptalk`. */
   return (
-    <button className="pbtn ghost wb2-talk" onClick={flow.dict.start} disabled={flow.busy}>
+    <button
+      className={"pbtn ghost wb2-talk" + (words ? " wb2-keeptalk" : "")}
+      onClick={flow.dict.start}
+      disabled={flow.busy}
+    >
       <Icon name="mic" size={15} />
-      Talk
+      {words ? "Keep talking" : "Talk"}
     </button>
   );
 }
@@ -429,10 +448,14 @@ function Body({ flow }: { flow: NoteFlow }) {
         {/* The ceiling, explained where it happened. Nothing was lost and
             nothing was filed — this is a pause, so it says what to do next
             rather than apologising. */}
+        {/* After the ceiling there are ALWAYS words in the box, so the button
+            this points at reads "Keep talking" — the hint has to say the name
+            that is actually on the row, or it is the stop-and-read bug again:
+            an instruction naming a control that is not there. */}
         {flow.ranOut && (
           <p className="wb2-hint" role="status">
             Two minutes — that&apos;s the limit for one recording. It&apos;s all in the box; press
-            Talk to carry on where you left off.
+            Keep talking to carry on where you left off.
           </p>
         )}
         {/* DISCARD IS GONE FROM BOTH STAGES. It called `flow.close`, which is

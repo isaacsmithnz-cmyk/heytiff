@@ -1446,11 +1446,17 @@ function Landing({
           was the one control on this screen nobody could find. */}
       <div className="tk-open">
         {/* ONE heading for both visits. It used to be "Ask the library" for a
-            first visit and this for a return — decided from localStorage,
-            which the server can't read, so every returning user watched 38px
-            letters swap one frame after paint. The paragraph carries the
-            library pitch either way; the flash bought nothing. */}
-        <h2>What are we working on?</h2>
+            first visit and a friendly opener for a return — decided from
+            localStorage, which the server can't read, so every returning user
+            watched 38px letters swap one frame after paint. The flash bought
+            nothing.
+
+            And the heading NAMES THE SCREEN now rather than greeting you.
+            "What are we working on?" is the chrome every chat product opens
+            with, which made the most valuable page in the app introduce itself
+            as a chatbot; the paragraph under it already carries the invitation
+            and says how many documents are behind the answer. */}
+        <h2>Library</h2>
         <p>
           {readyCount > 0 ? (
             <>

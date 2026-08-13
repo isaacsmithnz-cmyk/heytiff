@@ -567,7 +567,7 @@ describe("holding the landing while the first question searches", () => {
   it("stays on the landing while the search is out", async () => {
     await held();
 
-    expect(screen.getByRole("heading", { name: "What are we working on?" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Library" })).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Ask Tiff anything…")).toBeInTheDocument();
     // and the bar it was typed in is the one reporting the work
     expect(screen.getByLabelText("Send")).toHaveAttribute("aria-busy", "true");
@@ -582,7 +582,7 @@ describe("holding the landing while the first question searches", () => {
     const push = await held();
     await push({ t: "delta", text: "P8 is a piping temperature fault." });
 
-    expect(screen.queryByRole("heading", { name: "What are we working on?" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Library" })).not.toBeInTheDocument();
     expect(screen.getByText("P8 is a piping temperature fault.")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Ask a follow-up…")).toBeInTheDocument();
   });
@@ -608,7 +608,7 @@ describe("holding the landing while the first question searches", () => {
     render(<TiffAssistant readyCount={0} />);
     await ask("why P8?");
 
-    expect(screen.queryByRole("heading", { name: "What are we working on?" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Library" })).not.toBeInTheDocument();
   });
 });
 
@@ -927,7 +927,7 @@ describe("managing a thread", () => {
     expect(titles()).toEqual([]);
     expect(screen.queryByText("P8 is a piping temperature fault.")).not.toBeInTheDocument();
     // the last thread went with it, so this is a first-run landing again
-    expect(screen.getByRole("heading", { name: "What are we working on?" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Library" })).toBeInTheDocument();
   });
 
   it("renames the open thread from its own header", async () => {
@@ -1139,7 +1139,7 @@ describe("the search-first landing", () => {
   it("opens on the box, not on an introduction", () => {
     render(<TiffAssistant readyCount={0} />);
 
-    expect(screen.getByRole("heading", { name: "What are we working on?" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Library" })).toBeInTheDocument();
     expect(screen.getByLabelText("Ask Tiff")).toBeInTheDocument();
     // the v1 hero and its four cards are gone for good
     expect(screen.queryByText(/What are we building today/)).not.toBeInTheDocument();

@@ -10,6 +10,7 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Studio, type JobSearch } from "../studio";
 import { LocalDesignStore } from "@/lib/studio/store";
+import { createDesign } from "@/lib/studio/document";
 import type { StudioJobHit } from "@/lib/studio/job-link";
 
 const JOBS: StudioJobHit[] = [
@@ -253,5 +254,69 @@ describe("new design — from a ServiceM8 job", () => {
     });
     expect(screen.queryByText("260 Birrell St")).toBeNull();
     expect(screen.getByText("12/3 Wallace St")).toBeInTheDocument();
+  });
+});
+
+/* ARRIVING ON A NAMED DESIGN — `?design=<id>`, which is what the Workboard's
+   job sheet links to now that a design says which job it is for. */
+describe("opening a design by id", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    window.history.replaceState(null, "", "/dashboard/studio");
+  });
+
+  const seed = async (name: string) => {
+    const store = new LocalDesignStore(window.localStorage);
+    const doc = createDesign({ name, mode: "blank" });
+    await store.save(doc);
+    return doc.id;
+  };
+
+  it("opens that design instead of landing on Home", async () => {
+    const id = await seed("12/3 Wallace St");
+    render(
+      <Studio store={new LocalDesignStore(window.localStorage)} openDesignId={id} />
+    );
+
+    // straight into the canvas — no Home, no swap to sit through
+    expect(await screen.findByLabelText("Design name")).toHaveValue("12/3 Wallace St");
+    expect(screen.getByTestId("studio-canvas")).toBeInTheDocument();
+  });
+
+  /* Otherwise the URL keeps saying `?design=…` after you close the design,
+     and a refresh from Home drags you back into what you just left. */
+  it("strips the parameter once it has opened", async () => {
+    const id = await seed("Farran St");
+    window.history.replaceState(null, "", `/dashboard/studio?design=${id}`);
+    render(
+      <Studio store={new LocalDesignStore(window.localStorage)} openDesignId={id} />
+    );
+
+    await screen.findByTestId("studio-canvas");
+    expect(window.location.search).toBe("");
+  });
+
+  /* A dead link is a dead door: the design may have been deleted since the
+     job sheet was drawn, and silently landing on Home leaves you unable to
+     tell whether the link was broken or you were. */
+  it("says so when the design is no longer there", async () => {
+    render(
+      <Studio
+        store={new LocalDesignStore(window.localStorage)}
+        openDesignId="dsn_gone"
+      />
+    );
+
+    expect(await screen.findByText(/That design is no longer here/)).toBeInTheDocument();
+    expect(screen.getByText("New design")).toBeInTheDocument();
+  });
+
+  it("lands on Home as usual when no design was named", async () => {
+    await seed("Farran St");
+    render(<Studio store={new LocalDesignStore(window.localStorage)} />);
+
+    expect(await screen.findByText("New design")).toBeInTheDocument();
+    expect(screen.queryByTestId("studio-canvas")).toBeNull();
+    expect(screen.queryByText(/no longer here/)).toBeNull();
   });
 });

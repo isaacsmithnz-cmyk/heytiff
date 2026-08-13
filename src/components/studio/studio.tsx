@@ -154,6 +154,7 @@ export function Studio({
   packLoader,
   sm8Jobs,
   jobSearch,
+  openDesignId,
 }: {
   store?: DesignStore;
   planImages?: PlanImages;
@@ -162,6 +163,9 @@ export function Studio({
       route decides both. Off means the new-design step never mentions it. */
   sm8Jobs?: boolean;
   jobSearch?: JobSearch;
+  /** `?design=<id>` — open this design instead of landing on Home. What a
+      link from the Workboard's job sheet arrives with. */
+  openDesignId?: string;
 }) {
   // the store is browser-only; create it lazily so SSR prerender never touches
   // it. Server rows are the source of truth; localStorage is the crash buffer.
@@ -339,6 +343,44 @@ export function Studio({
     setStep(d.meta.mode === "blank" || d.floors.length > 0 ? 1 : 0);
   }, []);
 
+  /* ── arriving on a named design (`?design=<id>`, e.g. from a job sheet) ──
+
+     Runs once, on mount, and only when nothing is open — never a swap, because
+     there is no screen to leave: the studio opens ON the design rather than
+     landing on Home and then travelling.
+
+     The parameter is then STRIPPED with replaceState (no router push, the
+     profile screen's pattern). Otherwise the URL keeps saying `?design=…`
+     after you close the design and go back to Home, and a refresh from there
+     would drag you back into a design you had deliberately left.
+
+     A design that isn't there — deleted, or another org's id typed in — is
+     said out loud rather than silently dropping you on Home wondering whether
+     the link was broken or you were. */
+  const [openFailed, setOpenFailed] = useState(false);
+  const openedOnce = useRef(false);
+  useEffect(() => {
+    if (!openDesignId || openedOnce.current) return;
+    openedOnce.current = true;
+    let live = true;
+    void getStore()
+      .load(openDesignId)
+      .catch(() => null)
+      .then((d) => {
+        if (!live) return;
+        if (d) openDesign(d);
+        else setOpenFailed(true);
+        try {
+          window.history.replaceState(null, "", window.location.pathname);
+        } catch {
+          /* no history in this environment — the design still opened */
+        }
+      });
+    return () => {
+      live = false;
+    };
+  }, [openDesignId, getStore, openDesign]);
+
   /* undo/redo restores an exact prior document — no updatedAt bump */
   const replaceDoc = useCallback((d: DesignDocument) => {
     setSaveState("saving");
@@ -484,6 +526,7 @@ export function Studio({
             autoNew={homeAutoNew}
             sm8Jobs={sm8Jobs}
             jobSearch={jobSearch}
+            openFailed={openFailed}
             onCreate={(name, mode, job) =>
               throughSwap(async () => {
                 const d = createDesign({
@@ -534,6 +577,7 @@ function Home({
   autoNew,
   sm8Jobs,
   jobSearch,
+  openFailed,
   onCreate,
   onOpen,
   onDelete,
@@ -545,6 +589,8 @@ function Home({
   /** offer "start from a ServiceM8 job" on the naming step */
   sm8Jobs?: boolean;
   jobSearch?: JobSearch;
+  /** a `?design=<id>` link pointed at something that is no longer here */
+  openFailed?: boolean;
   onCreate: (
     name: string,
     mode: "plan" | "blank",
@@ -908,6 +954,12 @@ function Home({
               />
             </div>
           </div>
+          {openFailed && (
+            <div className="ds-ierr">
+              That design is no longer here — it may have been deleted. Anything
+              still saved is in the list below.
+            </div>
+          )}
           {importError && <div className="ds-ierr">{importError}</div>}
           {visible.length > 0 ? (
             <div className="ds-rlist">

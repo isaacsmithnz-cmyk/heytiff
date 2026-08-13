@@ -4366,6 +4366,32 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-ckrow > .wb2-chip { flex:none; }
 .wb2-ckrow > em { margin-left:auto; flex:none; font-style:normal; font-size:11px; font-weight:600;
   color:var(--gray500); }
+/* Studio designs started FROM this job — the other end of the document's
+   jobLink. A row that OPENS the design (`?design=<id>`), so it is an <a> and
+   has to un-do the browser's link dress; unscoped like everything else on
+   this sheet, because the sheet portals to <body> and never sees `.fg`. */
+/* The negative margin is what lets the hover wash BREATHE without shifting
+   the text: 8px of padding puts colour either side of the row, and -6px pulls
+   the whole thing back so names still line up with the section's other
+   content (a wash flush to the text reads as a highlighter mark). */
+.wb2-dsgn { display:flex; align-items:center; gap:11px; padding:9px 8px; margin:0 -6px; min-width:0;
+  border-top:1px solid var(--wb2-line2); border-radius:10px; color:inherit; text-decoration:none;
+  transition:background .16s, color .16s; }
+.wb2-dsgn:first-of-type { border-top:0; }
+.wb2-dsgn:hover { background:rgba(0,168,224,.06); }
+.wb2-dsgn:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
+.wb2-dsgn-ic { display:flex; align-items:center; justify-content:center; flex:none;
+  width:30px; height:30px; border-radius:9px; background:rgba(0,168,224,.09); color:#007fa8; }
+.wb2-dsgn-b { display:flex; flex-direction:column; gap:2px; min-width:0; flex:1; }
+.wb2-dsgn-b b { font-size:13px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wb2-dsgn-b em { font-style:normal; font-size:11px; font-weight:600; color:var(--gray500);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+/* The chevron says "this goes somewhere" and only leans on hover. It has its
+   own wrapper class because <Icon> renders <span><svg/></span> — a
+   `.wb2-dsgn > svg` rule is valid CSS that matches nothing, which is the
+   failure mode this codebase validates stylesheets to catch. */
+.wb2-dsgn-go { display:flex; flex:none; color:var(--gray400); transition:transform .16s, color .16s; }
+.wb2-dsgn:hover .wb2-dsgn-go { color:#007fa8; transform:translateX(2px); }
 .wb2-gates { display:grid; gap:7px; }
 .wb2-gate { border:1px solid var(--wb2-line); border-radius:13px; background:#fff; transition:border-color .2s, background .25s; }
 .wb2-gate.on { background:rgba(0,163,137,.055); border-color:rgba(0,163,137,.32); }

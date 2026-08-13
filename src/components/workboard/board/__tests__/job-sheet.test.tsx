@@ -4,7 +4,7 @@
    colour. The sheet is where "we sync it" has to become "you can see it". */
 
 import { render, screen, within } from "@testing-library/react";
-import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
+import type { JobDesign, MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import type { AllJobRow } from "@/lib/workboard/all-jobs";
 
 const readMirrorJob = jest.fn(async (): Promise<MirrorJobDetail | null> => null);
@@ -74,6 +74,7 @@ const detail = (over: Partial<MirrorJobDetail> = {}): MirrorJobDetail => ({
     { name: "Josh", type: "Property Manager", phone: "0426 719 412", email: "josh@lsdb.com.au" },
   ],
   money: null,
+  designs: [],
   ...over,
 });
 
@@ -189,5 +190,80 @@ describe("the work-order-since fact", () => {
     render(<JobSheet row={row({ statusLabel: "Quote" })} {...props} />);
     await screen.findByText("18h 30m");
     expect(screen.queryByText("Work order")).toBeNull();
+  });
+});
+
+/* The other end of the studio's job link (#385). A design names its job with
+   `jobLink.remoteId`; `studio_designs.sm8_job_uuid` mirrors that out so this
+   read is an index hit, and the sheet is where the round trip closes. */
+describe("designs started from this job", () => {
+  const design = (over: Partial<JobDesign> = {}): JobDesign => ({
+    id: "dsn_1",
+    name: "12/3 Wallace St",
+    mode: "plan",
+    floorCount: 2,
+    systemCount: 3,
+    updatedAt: "2026-08-14T02:11:33.000Z",
+    ...over,
+  });
+
+  it("lists each one as a link that opens THAT design", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail({ designs: [design()] }));
+    render(<JobSheet row={row()} {...props} />);
+
+    expect(await screen.findByText("Designed in the Studio")).toBeInTheDocument();
+    const link = screen.getByRole("link", { name: /12\/3 Wallace St/ });
+    // …not the studio's front door, which is what every design link did before
+    expect(link).toHaveAttribute("href", "/dashboard/studio?design=dsn_1");
+    expect(within(link).getByText(/2 floors · 3 systems/)).toBeInTheDocument();
+  });
+
+  it("counts the options in the heading when a job has several", async () => {
+    readMirrorJob.mockResolvedValueOnce(
+      detail({
+        designs: [design(), design({ id: "dsn_2", name: "12/3 Wallace St — option B" })],
+      })
+    );
+    render(<JobSheet row={row()} {...props} />);
+
+    expect(
+      await screen.findByText("Designed in the Studio — 2 options")
+    ).toBeInTheDocument();
+    // the contact's mailto is a link too — count the design rows only
+    expect(document.querySelectorAll("a.wb2-dsgn")).toHaveLength(2);
+  });
+
+  it("says one floor and one system in the singular", async () => {
+    readMirrorJob.mockResolvedValueOnce(
+      detail({ designs: [design({ floorCount: 1, systemCount: 1 })] })
+    );
+    render(<JobSheet row={row()} {...props} />);
+
+    expect(await screen.findByText(/1 floor · 1 system/)).toBeInTheDocument();
+  });
+
+  /* An empty heading on 800 service calls is a section that means nothing —
+     and a reader without `studio` never receives the list at all (the action
+     doesn't ask for it), which lands here as the same empty array. */
+  it("is absent entirely when nothing has been designed", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail());
+    render(<JobSheet row={row()} {...props} />);
+
+    await screen.findByText("18h 30m");
+    expect(screen.queryByText(/Designed in the Studio/)).toBeNull();
+  });
+
+  /* An id is a document id, not a URL fragment — encode it or a design whose
+     id ever grows a reserved character silently opens nothing. */
+  it("encodes the id it puts in the link", async () => {
+    readMirrorJob.mockResolvedValueOnce(
+      detail({ designs: [design({ id: "dsn a&b" })] })
+    );
+    render(<JobSheet row={row()} {...props} />);
+
+    expect(await screen.findByRole("link", { name: /12\/3 Wallace St/ })).toHaveAttribute(
+      "href",
+      "/dashboard/studio?design=dsn%20a%26b"
+    );
   });
 });

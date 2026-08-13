@@ -175,14 +175,14 @@ describe("createProjectFromJob", () => {
 });
 
 describe("reading the book", () => {
-  it("readMirrorJob needs only workboard, and passes the money grant on", async () => {
-    caps = new Set(["workboard", "workboard_money"]);
+  it("readMirrorJob needs only workboard, and passes the two grants on", async () => {
+    caps = new Set(["workboard", "workboard_money", "studio"]);
     await readMirrorJob("j-1");
     expect(readMirrorJobDetail).toHaveBeenCalledWith(
       "org-1",
       "j-1",
       expect.any(String),
-      { includeMoney: true }
+      { includeMoney: true, includeDesigns: true }
     );
   });
 
@@ -191,6 +191,19 @@ describe("reading the book", () => {
     await readMirrorJob("j-1");
     expect(readMirrorJobDetail).toHaveBeenCalledWith("org-1", "j-1", expect.any(String), {
       includeMoney: false,
+      includeDesigns: false,
+    });
+  });
+
+  /* The studio's designs ride the same rule money does — the reader's own
+     capability decides, and someone with no studio to open is not shown a
+     list of doors they cannot use. */
+  it("withholds the linked designs from a reader with no studio", async () => {
+    caps = new Set(["workboard", "workboard_money"]);
+    await readMirrorJob("j-1");
+    expect(readMirrorJobDetail).toHaveBeenCalledWith("org-1", "j-1", expect.any(String), {
+      includeMoney: true,
+      includeDesigns: false,
     });
   });
 

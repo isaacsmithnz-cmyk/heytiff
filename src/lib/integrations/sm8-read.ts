@@ -149,7 +149,16 @@ export async function fetchSm8Page(
       signal: AbortSignal.timeout(HTTP_TIMEOUT_MS),
     });
     if (res.status === 401) return { ok: false, failure: "unauthorized" };
-    if (res.status === 403) return { ok: false, failure: "forbidden" };
+    if (res.status === 403) {
+      /* The engine words this one ("Reconnect ServiceM8 to grant X") — but a
+         403 can arrive WITH the grant held: on 2026-08-13 attachment.json
+         refused a token whose own token-response named all fifteen scopes.
+         When the worded sentence is wrong, the body is the only witness to
+         which privilege the endpoint actually wanted, so it goes to the log
+         (truncated, token never included). */
+      await logSm8Failure(`GET ${endpoint}`, res);
+      return { ok: false, failure: "forbidden" };
+    }
     if (res.status === 402) return { ok: false, failure: "payment_required" };
     if (res.status === 429) return { ok: false, failure: "rate_limited" };
     if (!res.ok) {

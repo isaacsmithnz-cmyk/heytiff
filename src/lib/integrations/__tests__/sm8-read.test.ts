@@ -171,12 +171,29 @@ describe("what an unavailable failure tells the server", () => {
   });
 
   it("logs nothing on the paths the engine already words for itself", async () => {
-    // 401/402/403/429 are decisions, not mysteries — the screen says what to do.
-    for (const status of [401, 402, 403, 429]) {
+    // 401/402/429 are decisions, not mysteries — the screen says what to do.
+    for (const status of [401, 402, 429]) {
       fetchMock.mockResolvedValueOnce(jsonResponse("nope", { status }));
       await fetchSm8Page("t", "job.json", { cursor: "-1", filter: null });
     }
     expect(logged).toHaveLength(0);
+  });
+
+  it("logs the 403 body — the one refusal whose wording can be wrong", async () => {
+    /* 403 left the quiet list on 2026-08-13: attachment.json refused a token
+       whose token-response had named every scope, so "reconnect to grant X"
+       was wrong and the vendor's body was the only witness to the privilege
+       the endpoint actually wanted. */
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ errorCode: 403, message: "Scope read_attachments required" }, { status: 403 })
+    );
+    const page = await fetchSm8Page("super-secret-token", "attachment.json", {
+      cursor: "-1",
+      filter: null,
+    });
+    expect(page).toEqual({ ok: false, failure: "forbidden" });
+    expect(logged.join()).toContain("read_attachments required");
+    expect(logged.join()).not.toContain("super-secret-token");
   });
 
   it("never puts the access token in the log", async () => {

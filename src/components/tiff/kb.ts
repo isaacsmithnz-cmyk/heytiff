@@ -29,8 +29,21 @@ export const KB_CATEGORIES: KbCategory[] = [
   { key: "specs", label: "Manufacturer specs", icon: "file", color: "#f59e0b", blurb: "Datasheets, capacities & connections" },
   { key: "sops", label: "Company SOPs", icon: "shield", color: "#8A2BE2", blurb: "How we do things here" },
   /* Written by the crew from the note widget, never uploaded — which is the
-     blurb's whole job to say. Board cyan, not a new colour. */
-  { key: "field", label: "Field notes", icon: "sparkles", color: "#007FA8", blurb: "What the crew learned on the job" },
+     blurb's whole job to say. Board cyan, not a new colour.
+
+     THE PEN, NOT THE SPARKLE. This is the one category on the shelf with no
+     machine anywhere near it: a person on a roof wrote down what they learned.
+     It wore the ✨ — the badge the rest of this surface just gave up — which
+     claimed the exact opposite, on the only documents here that are purely
+     human.
+
+     `note` was the obvious replacement and it is WRONG, which a five-card
+     harness showed and a code review would not have: `note` and `file` are the
+     same page-with-a-folded-corner silhouette, and `file` is Manufacturer
+     specs one card away — at 26px in a coloured chip they separate only by
+     three hairlines. The pen shares its shape with nothing on the rail and
+     says the true thing about where these come from. */
+  { key: "field", label: "Field notes", icon: "edit", color: "#007FA8", blurb: "What the crew learned on the job" },
 ];
 
 /* The preview-era `KbDoc` shape and its `kbCounts` helper are GONE. A document

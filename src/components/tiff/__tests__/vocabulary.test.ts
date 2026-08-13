@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { NAV } from "@/components/shell/nav";
+import { ICON_PATHS } from "@/components/shell/icon";
 import { KB_CATEGORIES } from "../kb";
 
 /* IT IS CALLED THE LIBRARY. ONE NAME, NOT FOUR.
@@ -77,6 +78,21 @@ describe("the library's vocabulary", () => {
       .filter(({ text }) => /knowledge base/i.test(text))
       .map(({ file }) => file);
     expect(offenders).toEqual([]);
+  });
+
+  it("gives no category the sparkle, and every icon it does name exists", () => {
+    /* Field notes wore ✨ — on the ONE shelf with no machine anywhere near it.
+       A person on a roof said what they learned, and the card claimed the
+       opposite, wearing the badge the rest of this surface had just given up.
+
+       The second half of this is the cheaper bug: an icon name that isn't in
+       ICON_PATHS renders a blank 24×24 box. Nothing throws, nothing types
+       wrong, and only a screenshot ever catches it — which is why the last one
+       shipped. `note` is real; assert it rather than trusting it. */
+    for (const c of KB_CATEGORIES) {
+      expect(c.icon).not.toBe("sparkles");
+      expect(ICON_PATHS).toHaveProperty(c.icon);
+    }
   });
 
   it("has no library inside the library", () => {

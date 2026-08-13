@@ -23,6 +23,7 @@ export type Sm8ObjectName =
   | "job_contacts"
   | "job_activities"
   | "job_checklists"
+  | "attachments"
   | "staff"
   | "categories"
   | "queues";
@@ -236,6 +237,34 @@ const shapeQueue = (r: Raw): MirrorRow | null => {
   };
 };
 
+/* METADATA ONLY, and less than the API sends, deliberately. The raw
+   attachment also carries extracted_info (the file's OCR'd text — content,
+   not metadata), metadata (free-form JSON), signature_data (signer identity)
+   and lat/lng (photo GPS) — none of it is picked, for the same reasons
+   sm8_staff drops email and GPS. The bytes themselves are the NEXT PR's lazy
+   cache in the documents bucket; a mirror row stays cheap on purpose. The
+   test asserts the ones that must never appear. */
+const shapeAttachment = (r: Raw): MirrorRow | null => {
+  const uuid = uuidOf(r);
+  if (!uuid) return null;
+  return {
+    uuid,
+    related_object: textOrNull(r.related_object),
+    related_object_uuid: textOrNull(r.related_object_uuid),
+    attachment_name: textOrNull(r.attachment_name),
+    file_type: textOrNull(r.file_type),
+    attachment_source: textOrNull(r.attachment_source),
+    tags: textOrNull(r.tags),
+    photo_width: intOrNull(r.photo_width),
+    photo_height: intOrNull(r.photo_height),
+    is_favourite: intOrNull(r.is_favourite),
+    created_by_staff_uuid: textOrNull(r.created_by_staff_uuid),
+    timestamp: dateOrNull(r.timestamp),
+    active: intOrNull(r.active),
+    edit_date: dateOrNull(r.edit_date),
+  };
+};
+
 /* ── the list itself, in sync order ── */
 
 export const SM8_OBJECTS: Sm8ObjectSpec[] = [
@@ -248,6 +277,7 @@ export const SM8_OBJECTS: Sm8ObjectSpec[] = [
   { object: "job_contacts", endpoint: "jobcontact.json", table: "sm8_job_contacts", scope: "read_job_contacts", label: "Job contacts", backfillMonths: 24, shape: contactShape("job_uuid") },
   { object: "job_activities", endpoint: "jobactivity.json", table: "sm8_job_activities", scope: "read_schedule", label: "Schedule", backfillMonths: 24, shape: shapeActivity },
   { object: "job_checklists", endpoint: "jobchecklist.json", table: "sm8_job_checklists", scope: "read_job_checklists", label: "Checklists", backfillMonths: 24, shape: shapeChecklist },
+  { object: "attachments", endpoint: "attachment.json", table: "sm8_attachments", scope: "read_job_attachments", label: "Attachments", backfillMonths: 24, shape: shapeAttachment },
 ];
 
 /** Everything disconnect wipes — the mirrors AND the bookkeeping, because a

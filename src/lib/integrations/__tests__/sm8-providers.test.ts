@@ -16,10 +16,12 @@ import {
   XERO_SCOPE_LIST,
 } from "../providers";
 
-describe("the ServiceM8 ask is exactly the v1 read set", () => {
-  it("is these ten scopes and nothing else", () => {
+describe("the ServiceM8 ask is exactly the read set", () => {
+  it("is these fifteen scopes and nothing else", () => {
     // Set equality, not contains: an extra scope is as much a failure as a
     // missing one — a consent screen that over-asks is over-asking on trust.
+    // The last five are the 2026-08-13 job-media expansion, bundled into ONE
+    // re-consent by the owner's decision.
     expect([...SM8_SCOPE_LIST].sort()).toEqual(
       [
         "vendor",
@@ -32,8 +34,24 @@ describe("the ServiceM8 ask is exactly the v1 read set", () => {
         "read_job_categories",
         "read_job_queues",
         "read_staff",
+        "read_job_attachments",
+        "read_job_photos",
+        "read_job_notes",
+        "read_job_materials",
+        "read_job_payments",
       ].sort()
     );
+  });
+
+  it("names attachments the way the CONSENT TABLE does, not the endpoint doc", () => {
+    /* ServiceM8's listattachments reference page says the scope is
+       `read_attachments`; the authentication doc's scope table — what the
+       OAuth server actually grants — has no such scope. The real names are
+       read_job_attachments and read_job_photos, verified 2026-08-13. This
+       pins the phantom out so nobody "fixes" the list from the wrong page. */
+    expect(SM8_SCOPE_LIST).toContain("read_job_attachments");
+    expect(SM8_SCOPE_LIST).toContain("read_job_photos");
+    expect(SM8_SCOPE_LIST).not.toContain("read_attachments");
   });
 
   it("asks for nothing that can write to ServiceM8", () => {
@@ -60,15 +78,13 @@ describe("the ServiceM8 ask is exactly the v1 read set", () => {
   });
 
   it("asks for no read its features don't perform — the Xero audit lesson", () => {
-    /* Each of these is a real read_* scope ServiceM8 offers. They join the
-       list WITH their feature, not ahead of it: payments are money (never
-       mirrored), notes/photos/attachments have no surface yet, assets waits
-       for the maintenance equipment import, locations is staff GPS adjacent. */
+    /* Each of these is a real read_* scope ServiceM8 offers, still unbought:
+       assets waits for the maintenance equipment import, locations is staff
+       GPS adjacent, the rest have no surface. Payments, notes, photos and
+       attachments LEFT this list on 2026-08-13 with the job-media track —
+       see the charter comment in providers.ts for the one deliberate
+       grant-ahead-of-feature exception that bundling forced. */
     for (const unearned of [
-      "read_job_payments",
-      "read_job_notes",
-      "read_job_photos",
-      "read_job_attachments",
       "read_assets",
       "read_locations",
       "read_inventory",

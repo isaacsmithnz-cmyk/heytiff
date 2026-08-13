@@ -733,12 +733,21 @@ function DebriefButton({ flow }: { flow: NoteFlow }) {
      the real close (`flow.close`, on every stage). Escape still closes, from
      `useNoteFlow`'s own key handler.
 
-     `wb2-dusk` unconditionally, where the sheet derives it from the stage: the
-     light review skin is for a sheet floating over a white page, and this card
-     is ink. That is the one thing option A pays for — see `.fg .hm-cap` in
-     shell.css, where the review family earns its dark clothes. */
+     IT WEARS `wb2-capcard`, AND THAT IS THE WHOLE POINT (Isaac, 2026-08-13:
+     "match how the global one does it but in line"). Every fill, every button
+     skin, the dusk capture surface and the light review are keyed on that
+     class — sixteen-odd rules the sheet has always had. The first version of
+     this card left it off and RESTATED them under `.fg .hm-cap`: forty rules
+     copying a system they could only drift from, and they already had — the
+     review stayed ink here while the sheet crossfaded to light, so the same
+     content wore different clothes depending on which door you came through.
+
+     `duskClass` is the sheet's own, so the skin changes stage-for-stage with
+     it. What `.fg .hm-cap` still says is only where the card STANDS: in the
+     flow rather than fixed over the page. That is the only thing about this
+     posture that is genuinely different, so it is the only thing left. */
   return (
-    <section className="hm-cap wb2-dusk" aria-label="Debrief">
+    <section className={"wb2-capcard hm-cap" + duskClass(flow)} aria-label="Debrief">
       <Ribbon flow={flow} />
       {flow.error && <p className="wb2-sherr">{flow.error}</p>}
       <Body flow={flow} />

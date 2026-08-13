@@ -7029,6 +7029,24 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    files. The panel holds still and `.hm-jscroll` takes the slack instead. */
 .fg .hm-card .hm-panel:not([hidden]):has(> .hm-jscroll) {
   overflow:hidden; display:flex; flex-direction:column; }
+/* UNTIL THE BAR BECOMES THE CARD, and then that reasoning inverts. Open, the
+   debrief is not a control pinned above a record — it IS the panel's content,
+   and at the review stage it is several times the panel's height. Holding the
+   panel still then puts `Save these` below the only visible area with nothing
+   to scroll: measured on the shipped build at 1,680px of card in a 346px
+   panel, with the button 1,061px out of reach. You could capture, press Go,
+   read the review and not be able to save it.
+
+   Nobody wrote that; it is what two correct changes did to each other — the
+   inline debrief (#360) and the Home card's height rework (#370) landed a day
+   apart and neither knew about the other.
+
+   So while the card is up the panel scrolls as one piece, and the day list
+   gives up its own scroller and its bottom fade — a fade belongs at the edge
+   of a scroller, not halfway down a page. */
+.fg .hm-card .hm-panel:not([hidden]):has(.hm-cap) { overflow-y:auto; }
+.fg .hm-card .hm-panel:not([hidden]):has(.hm-cap) > .hm-jscroll {
+  overflow:visible; min-height:0; -webkit-mask-image:none; mask-image:none; }
 /* A section label lines up with the rows it heads. `.wb2-sect`'s own 2px is
    the board's, where the body around it is already inset; Home's rows carry
    their inset themselves, so the label was sitting 23px left of the tiles it
@@ -7237,122 +7255,42 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    the card the record is already on, with the tabs and the journal still live
    behind it. The floating sheet is untouched and still what the topbar opens.
 
-   IT WEARS THE BAR'S OWN BOX, because it replaces the bar — same border,
-   radius, fill and inset highlight, so the row does not appear to change
-   material when it grows. Inside, `wb2-dusk` on the container buys the whole
-   capture skin for free: `.wb2-notes`, placeholders, hints, the ribbon, chips,
-   the mode switch, the trace, the skeletons and `.wb2-sherr` are all scoped
-   `.wb2-dusk X` and never named the card.
+   IT IS THE SHEET. The card carries `wb2-capcard` and the sheet's own
+   `duskClass`, so every button fill, the dusk capture surface and the light
+   review arrive already dressed and cannot drift from the thing they are
+   meant to match.
 
-   WHAT IS NOT FREE IS EVERY BUTTON AND THE ENTIRE REVIEW. The dusk button
-   skins are scoped `.wb2-capcard.wb2-dusk .pbtn…`, and there is no
-   `.wb2-capcard` here — under `.fg` the profile family `.fg .pbtn` wins
-   instead, whose ghost is WHITE and whose bare primary has no fill at all.
-   And the review family (`.wb-*`, `.wb2-casc*`) has no dark variant anywhere
-   in this stylesheet: it was written for a white sheet floating over a white
-   page. Both are restated below, scoped `.fg .hm-cap` so the light originals
-   — the topbar sheet, the visit sheets — are untouched. That is what option A
-   costs, and it is paid here in one block rather than by making every one of
-   those components dark-aware. */
-/* `flex:1` because it stands in a flex row (`.hm-head`) that was built around
-   a bar carrying `flex:1` — without it the card sizes to its own longest line
-   and every stage is a different width. */
-.fg .hm-cap { flex:1; min-width:0;
-  border:1px solid rgba(255,255,255,.12); border-radius:16px;
-  background:rgba(255,255,255,.05); box-shadow:inset 0 1px 0 rgba(255,255,255,.1);
-  padding:16px 18px 18px; color:#E8EAED;
-  animation:hmCapIn .2s cubic-bezier(.22,1,.36,1) both; }
+   THIS BLOCK USED TO BE FORTY RULES. Without `wb2-capcard` the card sat
+   outside the system, so the dusk buttons and the ENTIRE review family were
+   restated here in the dark — and had already diverged: the review stayed ink
+   in this posture while the sheet crossfaded to light, which is exactly the
+   difference Isaac asked to remove (2026-08-13). Deleting the copies is what
+   makes the two the same thing rather than two things kept in step by hand.
+
+   WHAT IS LEFT IS WHERE IT STANDS. Only the properties that make a fixed,
+   centred, 680px sheet into a block in a flex row — nothing about material.
+   Declaring a background here would beat `.wb2-capcard.wb2-dusk` on source
+   order and undo the point. */
+.fg .hm-cap {
+  /* out of the overlay and into the row */
+  position:static; transform:none; z-index:auto;
+  /* `flex:1` because it stands in `.hm-head`, a flex row built around a bar
+     that carried it — without this the card sizes to its own longest line and
+     every stage comes out a different width. */
+  flex:1; min-width:0; width:auto;
+  /* the sheet is a scroll container because it floats; in the page the page
+     scrolls */
+  max-height:none; overflow:visible;
+  /* a 30px drop shadow belongs under something floating, not inside a card */
+  box-shadow:none;
+  /* `wb2DropIn` carries `translateX(-50%)` for the centred sheet and would
+     shove this one half its width to the left */
+  animation:hmCapIn .2s cubic-bezier(.22,1,.36,1) both;
+}
 @keyframes hmCapIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
 /* the sheet's error sits inside the card's own padding here, not against a
    portal's edges */
 .fg .hm-cap .wb2-sherr { margin:12px 0 0; }
-
-/* ── the buttons, restated from the dusk card ──
-   Four classes deep so the `.fg .pbtn` family (0,2,0) and the `.fg button`
-   (0,1,1) reset both lose. Order and `:not()` guards copied deliberately from
-   `.wb2-capcard.wb2-dusk` above: the disabled fill must come after the
-   primary fill, and the green primary's ring must carry the same two `:not()`s
-   as its fill or the fill outranks it and a focused button shows no ring. */
-.fg .hm-cap .pbtn.ghost { background:rgba(255,255,255,.06); color:#E8EAED;
-  border:1px solid rgba(255,255,255,.14); box-shadow:none; }
-.fg .hm-cap .pbtn.ghost:hover:not(:disabled) { background:rgba(255,255,255,.12);
-  border-color:rgba(255,255,255,.22); color:#fff; }
-.fg .hm-cap .pbtn.ghost.wb2-talk { background:rgba(0,229,192,.09);
-  border-color:rgba(0,229,192,.42); color:#9FF4E4; }
-.fg .hm-cap .pbtn.ghost.wb2-talk:hover:not(:disabled) { background:rgba(0,229,192,.16);
-  border-color:rgba(0,229,192,.6); color:#C8FBF1; }
-.fg .hm-cap .pbtn:not(.ghost) { background:linear-gradient(120deg,#00E5C0,#19B8FF);
-  border:1px solid transparent; color:#04262B;
-  box-shadow:0 10px 24px -10px rgba(0,229,192,.45); }
-.fg .hm-cap .pbtn:not(.ghost):hover:not(:disabled) { filter:brightness(1.07);
-  box-shadow:0 10px 26px -10px rgba(0,229,192,.6); }
-.fg .hm-cap .pbtn:active:not(:disabled) { transform:translateY(1px); }
-/* `opacity:1` is not decoration: `.fg .pbtn:disabled` fades to .55, which on
-   ink turns a disabled button into a smudge rather than a flat plate */
-.fg .hm-cap .pbtn:disabled { background:rgba(255,255,255,.07); opacity:1;
-  border-color:rgba(255,255,255,.08); color:rgba(255,255,255,.35); box-shadow:none; filter:none; }
-.fg .hm-cap .pbtn:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,229,192,.55); }
-/* the capture flow's green primary — `Done` ends the recording, `Go` files it */
-.fg .hm-cap .pbtn.wb2-prim:not(.ghost):not(:disabled) {
-  background:linear-gradient(120deg,#00E5C0,#00A389); border-color:transparent; color:#04262B;
-  box-shadow:0 10px 24px -10px rgba(0,163,137,.5); }
-.fg .hm-cap .pbtn.wb2-prim:not(.ghost):hover:not(:disabled) { filter:brightness(1.07);
-  box-shadow:0 10px 26px -10px rgba(0,163,137,.65); }
-.fg .hm-cap .pbtn.wb2-prim:not(.ghost):focus-visible:not(:disabled) {
-  box-shadow:0 0 0 3px rgba(0,163,137,.6); }
-.fg .hm-cap .pbtn.wb2-prim svg { opacity:.72; }
-
-/* ── THE REVIEW, IN THE DARK ──
-   Everything below was written for a white sheet and is here in its light
-   values: grey headings, a white tick, white fields, a near-white cascade
-   panel. Measured in the harness against the real markup, not guessed at.
-
-   STATE COLOURS KEEP THEIR MEANING and only change ground: the stop stays the
-   warn family (it is "fix this before it saves", not a failure), and the tick
-   takes the same ok-teal the Tasks tab's tick wears two panels away, so a
-   ticked row means the same thing on both faces of this card. */
-.fg .hm-cap .wb-dayhead { color:rgba(255,255,255,.5); }
-.fg .hm-cap .wb-dayhead i { color:rgba(255,255,255,.38); }
-.fg .hm-cap .wb-notetext { color:rgba(255,255,255,.72); }
-.fg .hm-cap .wb-review .wb-notetext { background:rgba(255,255,255,.05); }
-.fg .hm-cap .wb-row:hover { background:rgba(255,255,255,.04); }
-.fg .hm-cap .wb-tick { background:transparent; border-color:rgba(255,255,255,.3);
-  color:transparent; }
-.fg .hm-cap .wb-tick:not(.done):hover { border-color:#00E5C0; color:rgba(0,229,192,.45); }
-.fg .hm-cap .wb-tick.done { background:rgba(0,229,192,.14); border-color:rgba(0,229,192,.7);
-  color:var(--hm-teal); }
-/* the fields — dark glass, the same recipe the assign form on the Tasks tab
-   uses, so the two editable surfaces on this card agree */
-.fg .hm-cap :is(input.wb-inline, .wb-select) { background:rgba(255,255,255,.06);
-  border-color:rgba(255,255,255,.14); color:#fff; }
-.fg .hm-cap input.wb-inline::placeholder { color:rgba(255,255,255,.35); }
-.fg .hm-cap :is(input.wb-inline, .wb-select):focus { border-color:rgba(0,229,192,.55);
-  box-shadow:0 0 0 3px rgba(0,229,192,.18); }
-/* a native <option> list is drawn by the OS, so the dark field needs a dark
-   option too or the menu opens as white text on white */
-.fg .hm-cap .wb-select option { background:#171C26; color:#fff; }
-.fg .hm-cap .wb2-capsaid { color:rgba(255,255,255,.45); }
-/* THE KNOWLEDGE BODY GETS ITS BOX BACK. It is a `.wb2-notes`, and the dusk
-   skin deliberately strips that class to bare words on the card — right for
-   the capture box, which is the one thing you are writing in, wrong for a
-   field sitting inside a list of rows. In the floating sheet this never came
-   up: the review there is the LIGHT skin, so the box survived. Restoring it
-   is the same dark glass the inputs beside it wear. */
-.fg .hm-cap .wb2-kbrow .wb2-kbbody { background:rgba(255,255,255,.06);
-  border:1px solid rgba(255,255,255,.14); border-radius:12px; padding:10px 12px; }
-.fg .hm-cap .wb2-kbrow .wb2-kbbody:focus { border-color:rgba(0,229,192,.55);
-  box-shadow:0 0 0 3px rgba(0,229,192,.18); }
-.fg .hm-cap .wb-chip { background:rgba(255,255,255,.08); color:rgba(255,255,255,.8); }
-.fg .hm-cap .wb-chip:hover:not(:disabled) { background:rgba(255,255,255,.14); color:#fff; }
-/* the cascade — where the note is going, in three numbered lines */
-.fg .hm-cap .wb2-casc { background:rgba(255,255,255,.04); border-color:rgba(255,255,255,.09); }
-.fg .hm-cap .wb2-cascrow { color:rgba(255,255,255,.4); }
-.fg .hm-cap .wb2-cascrow.on { color:rgba(255,255,255,.92); }
-.fg .hm-cap .wb2-cascn { background:rgba(255,255,255,.08); color:rgba(255,255,255,.55); }
-.fg .hm-cap .wb2-cascrow.on .wb2-cascn { background:#00E5C0; color:#04262B; }
-/* the stop — WARN, not danger: nothing has failed, something is unfinished */
-.fg .hm-cap .wb2-capstop { background:rgba(255,138,0,.16); color:var(--hm-warn); }
-
 @media (prefers-reduced-motion:reduce) { .fg .hm-cap { animation:none; } }
 
 /* THE SCROLLER TAKES THE HEIGHT IT IS GIVEN. It was capped at 360px, which on

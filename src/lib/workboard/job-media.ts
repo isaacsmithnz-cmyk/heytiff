@@ -3,14 +3,23 @@
    anything we hope is true about it.
 
    WHY EXTENSION AND NOT `photo_width`. The mirror carries photo_width and
-   photo_height, and they are tempting: non-null looks like "this is an
-   image". Checked against the live account rather than assumed, and the
-   answer is worse than useless — VIDEOS carry dimensions (513 of 530 .mp4
-   rows have them), so `photo_width is not null` would drop half a thousand
-   unplayable video files into the photo grid. PDFs, for the record, carry
-   none at all. The extension is what the file actually is; `file_type`
-   arrives lowercase with the leading dot ('.jpg'), which is ServiceM8's own
-   documented shape.
+   photo_height and they look like an "is this an image?" test. They are not
+   one, in two separate ways, both counted against the live account rather
+   than assumed (24,999 rows, 2026-08-14):
+
+     - `photo_width` is NEVER NULL. Not one row. ServiceM8 sends 0 as its
+       sentinel, so 4,213 rows — every one of the 4,134 PDFs among them —
+       carry a real zero. Any test of the form `photo_width is not null`
+       matches the ENTIRE TABLE and quietly decides nothing.
+     - `photo_width > 0` does discriminate, but it means HAS PIXELS, which
+       is images AND video: 506 of 523 .mp4 rows clear it. Grouping on it
+       drops half a thousand unplayable videos into the photo grid.
+
+   So there is no dimensions test that means "photo". `file_type` is what
+   the file actually is; it arrives lowercase with the leading dot ('.jpg'),
+   which is ServiceM8's own documented shape. (Both halves of this were
+   found the same day by two sessions checking each other's assumptions
+   against prod — the sentinel half by the one that owns the probe.)
 
    THE FOUR KINDS, and why videos are their own:
 

@@ -466,10 +466,27 @@ describe("the debrief", () => {
     expect(card).not.toHaveAttribute("role", "dialog");
     expect(card).not.toHaveAttribute("aria-modal");
     expect(document.querySelector(".wb2-capdim")).toBeNull();
-    expect(document.querySelector(".wb2-capcard")).toBeNull();
     /* IN the component's own tree — a portal would have put it under
-       document.body instead, which is what took it out of the page. */
+       document.body instead, which is what took it out of the page. This is
+       the assertion that actually catches a portal; it used to be
+       `querySelector(".wb2-capcard") === null`, which stopped meaning
+       anything the moment the card started wearing that class on purpose. */
     expect(container.contains(card)).toBe(true);
+    expect(document.body.contains(card)).toBe(true); // in the tree, not beside it
+  });
+
+  /* THE CARD IS THE SHEET, IN THE PAGE (Isaac, 2026-08-13: "match how the
+     global one does it but in line").
+
+     `wb2-capcard` is what every button fill, the dusk capture surface and the
+     light review are keyed on. Without it this card sat outside that system
+     and forty rules were restated under `.fg .hm-cap` to imitate it — which
+     had already drifted: the review stayed ink here while the sheet went
+     light. Drop the class again and the imitation comes back. */
+  it("wears the sheet's own class, so the two cannot drift apart", async () => {
+    mount(<NoteToken as="debrief" />);
+    await userEvent.click(screen.getByRole("button", { name: /Debrief the day/ }));
+    expect(document.querySelector(".hm-cap")).toHaveClass("wb2-capcard");
   });
 
   it("takes the bar's place, and hands focus back when it shuts", async () => {
@@ -486,13 +503,29 @@ describe("the debrief", () => {
     expect(bar).toHaveFocus();
   });
 
-  it("keeps the dusk skin through the review, where the sheet hands back to light", async () => {
-    /* The floating sheet derives the skin from the stage and goes LIGHT for
-       the review — right for a white card over a white page, wrong here: this
-       one is standing on the ink card. `.fg .hm-cap` in shell.css is what
-       dresses the review family for that ground. */
-    await openDebrief({ noteLines: ["chase the coil pricing"] });
-    expect(document.querySelector(".hm-cap")).toHaveClass("wb2-dusk");
+  it("hands back to light for the review, exactly as the sheet does", async () => {
+    /* It used to stay ink here, on the argument that the card stands on
+       Home's dark surface — so the same content wore different clothes
+       depending on which door you opened it through. Both derive the skin
+       from the stage now, through the sheet's own `duskClass`.
+
+       `openDebrief` mounts, so the dusk half is asserted on the way past
+       rather than from a second mount — two cards in the DOM and every
+       `getByRole` in here goes ambiguous. */
+    routeNote.mockResolvedValue({
+      ok: true,
+      noteId: "n-1",
+      proposal: proposal({ plainNote: "", noteLines: ["chase the coil pricing"] }),
+      staff: [{ id: "s-1", fullName: "Luke Mercer" }],
+    });
+    mount(<NoteToken as="debrief" />);
+    await userEvent.click(screen.getByRole("button", { name: /Debrief the day/ }));
+    expect(document.querySelector(".hm-cap")).toHaveClass("wb2-dusk"); // capture
+
+    await userEvent.type(screen.getByRole("textbox"), "everything on my mind");
+    await userEvent.click(screen.getByRole("button", { name: "Go" }));
+    await screen.findByText("Check it before it saves");
+    expect(document.querySelector(".hm-cap")).not.toHaveClass("wb2-dusk"); // review
   });
 
   it("is a labelled button — never an icon alone", () => {

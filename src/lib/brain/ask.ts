@@ -27,6 +27,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { REPLY_IN_KIND } from "@/lib/lang/policy";
+import { logUsage } from "@/lib/tiff/usage";
 import { runTool, toolDefs, type BrainTool } from "./tools";
 
 const MODEL = "claude-opus-5";
@@ -40,6 +41,33 @@ const EFFORT = "medium" as const;
     generous: a real question is one or two reads; a model that needs six is
     circling. */
 const MAX_ROUNDS = 5;
+
+/* PROMPT CACHING. This loop resends the whole conversation every round, so
+   without a cache round five re-pays full price for rounds one through four —
+   the cost of an ask grows with the square of its rounds. A cached prefix is
+   read back at about a tenth of the price, which turns that curve back into a
+   line.
+
+   Caching is a prefix match: the rendered order is tools, then system, then
+   messages, and a marker caches everything before it. Three markers, against a
+   ceiling of four per request:
+
+     1. the last tool definition — the tool list is identical for every ask by
+        every viewer holding the same capabilities, so this entry is read
+        across sessions, not just across rounds;
+     2. the question — the base of the conversation, and with it the system
+        prompt, which carries the viewer's target and the org's date and so is
+        steady within an ask but not between two;
+     3. a rolling marker on the newest tool result, stripped from where it sat
+        the round before so the count stays put. This is the one that earns
+        the money: it is what lets each round read the round before it.
+
+   The cap round pays full freight by construction — withdrawing the tools
+   changes the prefix from its first byte, and there is nothing to read. It is
+   the last of at most six requests and only happens when the loop was already
+   circling, so it is left alone rather than paid for with a `tool_choice`
+   that would leave the model staring at hands it can't use. */
+const EPHEMERAL = { type: "ephemeral" } as const;
 
 export type AskBrainEvent =
   | { type: "delta"; text: string }
@@ -128,15 +156,26 @@ export async function* streamBrainAnswer(input: AskBrainInput): AsyncGenerator<A
   const system = askSystemPrompt(input);
   /* The SDK wants input_schema branded `type: "object"` literally; the
      registry stores plain JSON schemas. The shapes agree — the cast bridges
-     the nominal gap, same as the messages array below. */
-  const tools = toolDefs(input.tools) as Anthropic.Beta.BetaTool[];
+     the nominal gap, same as the messages array below. The last definition
+     carries the cache marker; see the note by MAX_ROUNDS. */
+  const defs = toolDefs(input.tools);
+  const tools = defs.map((def, i) =>
+    i === defs.length - 1 ? { ...def, cache_control: EPHEMERAL } : def
+  ) as Anthropic.Beta.BetaTool[];
 
   /* The running conversation: the question, then each round's assistant
      blocks and tool results. Plain message objects — the SDK's own types for
-     tool_result content are looser than ours need to be. */
+     tool_result content are looser than ours need to be. The question is a
+     block rather than a bare string only so it has somewhere to hang its
+     cache marker. */
   const messages: { role: "user" | "assistant"; content: unknown }[] = [
-    { role: "user", content: question },
+    { role: "user", content: [{ type: "text", text: question, cache_control: EPHEMERAL }] },
   ];
+
+  /* Where the rolling marker sits right now, so the next round can take it
+     back off — three markers is the budget, and one per round would blow the
+     ceiling of four by the third read. */
+  let rolling: Record<string, unknown> | null = null;
 
   for (let round = 0; round <= MAX_ROUNDS; round++) {
     const atCap = round === MAX_ROUNDS;
@@ -176,6 +215,11 @@ export async function* streamBrainAnswer(input: AskBrainInput): AsyncGenerator<A
       }
 
       const final = await stream.finalMessage();
+      /* Per round, not per ask: the whole point is watching `cache(r=…)`
+         climb from the second round on, which an aggregate would hide.
+         `final.model` rather than MODEL — a request the fallback rescued was
+         answered, and billed, by the other one. */
+      logUsage(`ask:${round}`, final.model, final.usage);
       const blocks = final.content as ContentBlock[];
       const calls = blocks.filter((b): b is Extract<ContentBlock, { type: "tool_use" }> => b.type === "tool_use");
 
@@ -201,6 +245,15 @@ export async function* streamBrainAnswer(input: AskBrainInput): AsyncGenerator<A
           is_error: !res.ok,
         });
       }
+
+      /* Move the rolling marker to the end of this round's results: the next
+         round reads everything up to here — this round's narration, its tool
+         calls, and whatever those reads returned — instead of paying for it
+         again. */
+      if (rolling) delete rolling.cache_control;
+      rolling = results[results.length - 1] as Record<string, unknown>;
+      rolling.cache_control = EPHEMERAL;
+
       messages.push({ role: "user", content: results });
     } catch (err) {
       if (input.signal?.aborted) return;

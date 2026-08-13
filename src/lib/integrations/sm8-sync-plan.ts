@@ -277,7 +277,10 @@ export const SM8_OBJECTS: Sm8ObjectSpec[] = [
   { object: "job_contacts", endpoint: "jobcontact.json", table: "sm8_job_contacts", scope: "read_job_contacts", label: "Job contacts", backfillMonths: 24, shape: contactShape("job_uuid") },
   { object: "job_activities", endpoint: "jobactivity.json", table: "sm8_job_activities", scope: "read_schedule", label: "Schedule", backfillMonths: 24, shape: shapeActivity },
   { object: "job_checklists", endpoint: "jobchecklist.json", table: "sm8_job_checklists", scope: "read_job_checklists", label: "Checklists", backfillMonths: 24, shape: shapeChecklist },
-  { object: "attachments", endpoint: "attachment.json", table: "sm8_attachments", scope: "read_job_attachments", label: "Attachments", backfillMonths: 24, shape: shapeAttachment },
+  // Scope is the name the ENDPOINT enforces — its live 403 said
+  // `"read_attachments" scope required` — not the consent table's
+  // read_job_attachments. Both are asked for; see providers.ts.
+  { object: "attachments", endpoint: "attachment.json", table: "sm8_attachments", scope: "read_attachments", label: "Attachments", backfillMonths: 24, shape: shapeAttachment },
 ];
 
 /** Everything disconnect wipes — the mirrors AND the bookkeeping, because a

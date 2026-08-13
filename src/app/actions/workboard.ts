@@ -6,6 +6,15 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { can } from "@/lib/permissions-server";
 import { DEFAULT_CHECKLIST, isProjectStage, isProjectStatus } from "@/lib/workboard/stages";
 import { searchMirrorJobs, staffIdFor, type JobSearchHit } from "@/lib/workboard/projects-query";
+import { getSm8Timezone } from "@/lib/workboard/query";
+import { todayInZone } from "@/lib/workboard/dates";
+import { parseSm8AmountToCents } from "@/lib/workboard/job-money";
+import {
+  readMirrorJobDetail,
+  searchAllMirrorJobs,
+  type MirrorJobDetail,
+} from "@/lib/workboard/all-jobs-query";
+import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 
 /* Workboard mutations. Everything the UI decided is re-decided here — a
    Server Function is reachable by direct POST.
@@ -334,12 +343,132 @@ export async function detachJob(projectJobId: string): Promise<WorkboardResult> 
   return { ok: true };
 }
 
-/** The attach picker's search — gated MANAGE because the results are the
-    client book (names, suburbs), not just numbers. */
+/* The attach picker's search. This was gated MANAGE on the grounds that the
+   results are the client book rather than just numbers — a good argument
+   while the book was reachable ONLY through this box. The All jobs side now
+   shows that same book to anyone with `workboard`, which is what ServiceM8
+   itself does and what Tiff's search_jobs tool already did. Keeping the
+   stricter gate here would only mean the picker finds less than the list
+   beside it, so the two now agree. */
 export async function searchJobs(query: string): Promise<JobSearchHit[]> {
   const ctx = await context();
-  if (!ctx || !(await can("workboard_manage"))) return [];
+  if (!ctx || !(await can("workboard"))) return [];
   return searchMirrorJobs(ctx.orgId, query);
+}
+
+/* ---------------- All jobs: reading the book, and promoting out of it ------ */
+
+/** The job sheet's own read. The uuid is a CHOICE the client handed in, so
+    the loader re-resolves it inside this org's mirror. Money rides only for a
+    reader who holds `workboard_money`. */
+export async function readMirrorJob(remoteId: string): Promise<MirrorJobDetail | null> {
+  const ctx = await context();
+  if (!ctx || !(await can("workboard"))) return null;
+  const id = trim(remoteId, 80);
+  if (!id) return null;
+  const today = todayInZone(await getSm8Timezone(ctx.orgId));
+  return readMirrorJobDetail(ctx.orgId, id, today, {
+    includeMoney: await can("workboard_money"),
+  });
+}
+
+/** All jobs' own search — reaches the WHOLE mirror, which is how a job that
+    finished last year is found at all. */
+export async function searchAllJobs(query: string): Promise<AllJobsMirrorJob[]> {
+  const ctx = await context();
+  if (!ctx || !(await can("workboard"))) return [];
+  const today = todayInZone(await getSm8Timezone(ctx.orgId));
+  return searchAllMirrorJobs(ctx.orgId, query, today, {
+    includeMoney: await can("workboard_money"),
+  });
+}
+
+export type ProjectFromJobInput = {
+  name?: string;
+  clientName?: string;
+  siteLabel?: string;
+  siteAddress?: string;
+};
+
+/** Promote an untracked ServiceM8 job into a project: create it, link the job
+    that started it, and — when that job is a quote carrying a total — seed the
+    budget from it.
+
+    THE BUDGET PREFILL IS WHY THIS ISN'T JUST createProject + attachJob. The
+    projects design always had `budget_source` ready for "the SM8 quote" and no
+    data to fill it; a quote's own total IS that number, and the moment it's
+    worth taking is the moment the project is born from that quote. It stays
+    editable, and its provenance is stored so the money card can say where it
+    came from. A job with no readable total simply seeds nothing. */
+export async function createProjectFromJob(
+  remoteId: string,
+  input: ProjectFromJobInput = {}
+): Promise<WorkboardResult> {
+  const ctx = await context();
+  if (!ctx) return NOT_SIGNED_IN;
+  if (!(await can("workboard_manage"))) return NO_MANAGE;
+
+  const id = trim(remoteId, 80);
+  if (!id) return { ok: false, error: "That job is no longer here." };
+
+  const { data } = await supabaseAdmin
+    .from("sm8_jobs")
+    .select("uuid, generated_job_id, status, job_description, job_address, geo_city, total_invoice_amount")
+    .eq("org_id", ctx.orgId)
+    .eq("uuid", id)
+    .eq("active", 1)
+    .maybeSingle();
+  const job = data as {
+    uuid: string;
+    generated_job_id: string | null;
+    status: string | null;
+    job_description: string | null;
+    job_address: string | null;
+    geo_city: string | null;
+    total_invoice_amount: string | null;
+  } | null;
+  if (!job) return { ok: false, error: "That ServiceM8 job isn't in this workspace's mirror." };
+
+  /* A name is required by createProject, and the person confirms it in the
+     sheet — but a direct POST must not be able to make a nameless project, so
+     the fallbacks are here too. */
+  const name =
+    trim(input.name, 120) ??
+    trim(input.clientName, 120) ??
+    (job.generated_job_id ? `Job #${job.generated_job_id}` : null) ??
+    "New project";
+
+  const created = await createProject({
+    name,
+    clientName: input.clientName,
+    siteLabel: input.siteLabel ?? job.geo_city ?? undefined,
+    siteAddress: input.siteAddress ?? job.job_address ?? undefined,
+  });
+  if (!created.ok || !created.id) return created;
+  const projectId = created.id;
+
+  await supabaseAdmin.from("project_jobs").insert({
+    org_id: ctx.orgId,
+    project_id: projectId,
+    job_number: job.generated_job_id ?? "—",
+    provider: "servicem8",
+    remote_id: job.uuid,
+    // What the job WAS is what it is to this project: a quote becomes the
+    // quote, anything else is the install it turned into.
+    role: job.status === "Quote" ? "quote" : "install",
+  });
+
+  const quoted = parseSm8AmountToCents(job.total_invoice_amount);
+  if (job.status === "Quote" && quoted !== null && quoted > 0) {
+    await supabaseAdmin
+      .from("projects")
+      .update({ budget_cents: quoted, budget_source: "sm8_quote" })
+      .eq("org_id", ctx.orgId)
+      .eq("id", projectId);
+  }
+
+  refresh(projectId);
+  return { ok: true, id: projectId };
 }
 
 /* ---------------- checklist ---------------- */

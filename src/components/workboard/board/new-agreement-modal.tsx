@@ -44,6 +44,7 @@ export function NewAgreementModal({
   voiceless,
   agreements,
   categories,
+  initialJob,
   onOpenAgreement,
   onToast,
   onClose,
@@ -53,6 +54,11 @@ export function NewAgreementModal({
   voiceless: boolean;
   agreements: BoardAgreement[];
   categories: BoardCategory[];
+  /* Opened FROM a job (the All jobs side): the ServiceM8 leg is pre-answered
+     rather than searched for. Everything downstream — the prefill, the
+     duplicate guard, Tiff's analyse offer — is the same code the search leg
+     runs; only the picking is skipped. */
+  initialJob?: JobSearchHit | null;
   onOpenAgreement: (agreementId: string) => void;
   onToast: (message: string, undo?: () => void | Promise<void>) => void;
   onClose: () => void;
@@ -91,6 +97,8 @@ export function NewAgreementModal({
   useEffect(() => {
     closeRef.current?.focus();
   }, []);
+
+  const pickedInitial = useRef(false);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -130,6 +138,19 @@ export function NewAgreementModal({
     if (hit.suburb) setSiteLabel(hit.suburb);
     setAnalysed(null);
   };
+
+  /* Arriving FROM a job (the All jobs side): run the picker's own `pick`
+     once, so the prefill is identical whether the job was searched for or
+     handed over. An effect rather than initial state, deliberately — `pick`
+     is where the client-name and site rules live, and copying them into a
+     useState initialiser is exactly how the two legs would drift apart. */
+  useEffect(() => {
+    if (!initialJob || pickedInitial.current) return;
+    pickedInitial.current = true;
+    setSource("sm8");
+    pick(initialJob);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialJob?.remoteId]);
 
   const applyProposal = (p: AgreementProposal) => {
     if (p.label) setLabel(p.label);

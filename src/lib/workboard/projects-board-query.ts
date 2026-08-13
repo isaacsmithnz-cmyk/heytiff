@@ -89,6 +89,12 @@ export type BoardProject = {
   blockedReason: string | null;
   blockedOn: string | null;
   blockedAt: string | null;
+  /* MONEY IS NULLABLE BECAUSE IT MAY NEVER HAVE BEEN LOADED. Without the
+     capability `workboard_money` the loader doesn't select a budget, a
+     variation or a claim, so these arrive null/undefined and every consumer
+     renders nothing money-shaped. `budgetCents: null` alone would be a lie —
+     it means "no total set", which is a fact about the project rather than
+     about the reader — so `money` going undefined is the flag to check. */
   budgetCents: number | null;
   budgetSource: string | null;
   hoursBudget: number | null;
@@ -104,7 +110,8 @@ export type BoardProject = {
   progress: { done: number; total: number; percent: number };
   equipmentCount: number;
   scopeCounts: { inclusions: number; exclusions: number };
-  money: ProjectMoney;
+  /** Undefined when the reader has no money access — see budgetCents above. */
+  money?: ProjectMoney;
   /** Sum of actual_hours across this project's DONE trips. */
   hoursLogged: number;
   milestones: ProjectMilestone[];
@@ -162,15 +169,24 @@ type VisitRow = {
   invoiced_at: string | null;
 };
 
+/* `includeMoney` defaults to TRUE so every existing caller is unchanged, and
+   the one caller that must gate (page-data, off capability `workboard_money`)
+   says so explicitly. The alternative — defaulting to false — would silently
+   blank the money on the project detail page the day someone forgot a flag,
+   and a missing number is harder to notice than an extra one. */
 export async function loadProjectsBoard(
   orgId: string,
-  today: string
+  today: string,
+  opts: { includeMoney?: boolean } = {}
 ): Promise<ProjectsBoardData> {
+  const includeMoney = opts.includeMoney ?? true;
+
   const { data: projectRows } = await supabaseAdmin
     .from("projects")
     .select(
       "id, name, client_name, site_label, site_address, stage, status, " +
-        "blocked_reason, blocked_on, blocked_at, budget_cents, budget_source, " +
+        "blocked_reason, blocked_on, blocked_at, " +
+        (includeMoney ? "budget_cents, budget_source, " : "") +
         "hours_budget, promised_finish, defects_end, design_id, notes, " +
         "created_at, updated_at"
     )
@@ -232,16 +248,22 @@ export async function loadProjectsBoard(
       .select("project_id, kind")
       .eq("org_id", orgId)
       .in("project_id", ids),
-    supabaseAdmin
-      .from("project_variations")
-      .select("project_id, amount_cents, status")
-      .eq("org_id", orgId)
-      .in("project_id", ids),
-    supabaseAdmin
-      .from("project_claims")
-      .select("project_id, amount_cents, status")
-      .eq("org_id", orgId)
-      .in("project_id", ids),
+    // The money queries don't run at all without the capability — there is no
+    // money in the payload to leak, not merely money the UI declines to draw.
+    includeMoney
+      ? supabaseAdmin
+          .from("project_variations")
+          .select("project_id, amount_cents, status")
+          .eq("org_id", orgId)
+          .in("project_id", ids)
+      : Promise.resolve({ data: [] as { project_id: string; amount_cents: number; status: string }[] }),
+    includeMoney
+      ? supabaseAdmin
+          .from("project_claims")
+          .select("project_id, amount_cents, status")
+          .eq("org_id", orgId)
+          .in("project_id", ids)
+      : Promise.resolve({ data: [] as { project_id: string; amount_cents: number; status: string }[] }),
     supabaseAdmin
       .from("project_milestones")
       .select("id, project_id, label, on_date")
@@ -488,8 +510,8 @@ export async function loadProjectsBoard(
       blockedReason: p.blocked_reason,
       blockedOn: p.blocked_on,
       blockedAt: p.blocked_at,
-      budgetCents: p.budget_cents,
-      budgetSource: p.budget_source,
+      budgetCents: includeMoney ? p.budget_cents : null,
+      budgetSource: includeMoney ? p.budget_source : null,
       hoursBudget: p.hours_budget,
       promisedFinish: p.promised_finish,
       defectsEnd: p.defects_end,
@@ -503,17 +525,19 @@ export async function loadProjectsBoard(
       progress: checklistProgress(checklist),
       equipmentCount: equipCountBy.get(p.id) ?? 0,
       scopeCounts: scopeBy.get(p.id) ?? { inclusions: 0, exclusions: 0 },
-      money: deriveProjectMoney({
-        budgetCents: p.budget_cents,
-        variations: (variationsBy.get(p.id) ?? []) as {
-          amountCents: number;
-          status: "pending" | "approved" | "declined";
-        }[],
-        claims: (claimsBy.get(p.id) ?? []) as {
-          amountCents: number;
-          status: "awaiting" | "paid";
-        }[],
-      }),
+      money: includeMoney
+        ? deriveProjectMoney({
+            budgetCents: p.budget_cents,
+            variations: (variationsBy.get(p.id) ?? []) as {
+              amountCents: number;
+              status: "pending" | "approved" | "declined";
+            }[],
+            claims: (claimsBy.get(p.id) ?? []) as {
+              amountCents: number;
+              status: "awaiting" | "paid";
+            }[],
+          })
+        : undefined,
       hoursLogged: Math.round((hoursBy.get(p.id) ?? 0) * 10) / 10,
       milestones: milestonesBy.get(p.id) ?? [],
       jobs: jobsBy.get(p.id) ?? [],

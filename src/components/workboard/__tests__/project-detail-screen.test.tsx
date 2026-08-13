@@ -156,6 +156,7 @@ function detail(over: Partial<ProjectDetail> = {}): ProjectDetail {
     blockedReason: null,
     blockedOn: null,
     blockedAt: null,
+    moneyVisible: true,
     budgetCents: null,
     budgetSource: null,
     hoursBudget: null,
@@ -434,6 +435,79 @@ describe("money (the two axes, never mixed)", () => {
       amountCents: 400_000,
       variationId: "var-1",
     });
+  });
+
+  /* A mirrored claim is ServiceM8's row: the sync rewrites its amount and its
+     paid-ness on every board load, so offering a button here would promise an
+     edit the next sync silently undoes. The server refuses it too. */
+  describe("a claim that mirrors a ServiceM8 invoice", () => {
+    const mirrored = detail({
+      budgetCents: 5_000_000,
+      claims: [
+        {
+          id: "cl-sm8",
+          label: "Invoice — job #2198",
+          amountCents: 396_000,
+          claimedOn: "2026-07-30",
+          status: "awaiting",
+          paidOn: null,
+          source: "servicem8",
+          remoteRef: "j-1",
+          variationId: null,
+        },
+      ],
+    });
+
+    it("counts toward the claimed line like any other", () => {
+      mount(mirrored);
+      expect(screen.getByText(/Claimed \$3,960 of \$50,000/)).toBeInTheDocument();
+    });
+
+    it("says where it came from", () => {
+      mount(mirrored);
+      expect(screen.getByText(/from ServiceM8/)).toBeInTheDocument();
+    });
+
+    it("offers no paid toggle and no remove, even to a manager", () => {
+      mount(mirrored);
+      expect(screen.queryByRole("button", { name: "Awaiting payment" })).not.toBeInTheDocument();
+      expect(screen.getByText("Awaiting payment")).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /Remove Invoice — job #2198/ })
+      ).not.toBeInTheDocument();
+    });
+
+    it("explains that the hand-typed ledger is still there for the rest", () => {
+      mount(mirrored);
+      expect(screen.getByText(/a deposit, retention/)).toBeInTheDocument();
+    });
+  });
+});
+
+/* Money is a separate grant (`workboard_money`). Without it the loader
+   selected no budget, no variations and no claims — so the cards must be
+   ABSENT, not empty: an empty money card states that the job has no total,
+   which is a claim about the project and not about who is looking. */
+describe("a reader with no money access", () => {
+  const noMoney = detail({ moneyVisible: false, budgetCents: null, variations: [], claims: [] });
+
+  it("gets no money card and no invitation to set a total", () => {
+    mount(noMoney);
+    expect(screen.queryByText("Money")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Set the total/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Add a claim/ })).not.toBeInTheDocument();
+  });
+
+  it("gets no variations card either — a variation is a dollar figure", () => {
+    mount(noMoney);
+    expect(screen.queryByText("Variations")).not.toBeInTheDocument();
+  });
+
+  /* Scope is site knowledge, not money: what's included and excluded is what
+     the crew on site needs, and it carries no dollars. */
+  it("keeps the scope card, which carries no money", () => {
+    mount(noMoney);
+    expect(screen.getByText("Scope of work")).toBeInTheDocument();
   });
 });
 

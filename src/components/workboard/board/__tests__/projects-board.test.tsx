@@ -314,6 +314,40 @@ describe("pipeline", () => {
     expect(screen.getByText("$10,000 of $54,000")).toBeInTheDocument();
   });
 
+  /* Without capability `workboard_money` the loader hands back no money at
+     all. The row must then say NOTHING about money — in particular not "no
+     budget set", which describes the project rather than the reader and is a
+     different (false) statement. */
+  it("says nothing at all about money when the reader has no money access", async () => {
+    mount(
+      data({
+        projects: [projectFix({ id: "p-1", name: "Belmont", money: undefined })],
+      })
+    );
+    await toTab("Pipeline");
+
+    expect(screen.getByText("Belmont")).toBeInTheDocument();
+    expect(screen.queryByText("no budget set")).not.toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/\$/);
+    // The cell survives so the grid's columns stay aligned for everyone.
+    expect(document.querySelector(".wb2-plmoney")).toBeInTheDocument();
+  });
+
+  it("still says 'no budget set' to someone who CAN see money", async () => {
+    mount(
+      data({
+        projects: [
+          projectFix({
+            id: "p-1",
+            money: deriveProjectMoney({ budgetCents: null, variations: [], claims: [] }),
+          }),
+        ],
+      })
+    );
+    await toTab("Pipeline");
+    expect(screen.getByText("no budget set")).toBeInTheDocument();
+  });
+
   it("blocked floats first inside its group and wears its chip", async () => {
     mount(
       data({

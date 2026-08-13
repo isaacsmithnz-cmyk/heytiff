@@ -264,7 +264,12 @@ describe("a clean walk", () => {
 
     const jobRows = upserts.find((u) => u.table === "sm8_jobs")!.payload as Row[];
     expect(jobRows[0]).toMatchObject({ org_id: "org-1", uuid: "j-1", generated_job_id: "1042" });
-    expect(jobRows[0]).not.toHaveProperty("total_invoice_amount");
+    // Money rides through to the mirror now, verbatim; the gate that decides
+    // who may READ it is in the loaders, not in the absence of a column.
+    expect(jobRows[0]).toMatchObject({ total_invoice_amount: "999.00" });
+    // What still never arrives: write-scope territory and coordinates.
+    expect(jobRows[0]).not.toHaveProperty("badges");
+    expect(jobRows[0]).not.toHaveProperty("lat");
 
     const jobs = stateUpsertFor("jobs")!;
     expect(jobs).toMatchObject({

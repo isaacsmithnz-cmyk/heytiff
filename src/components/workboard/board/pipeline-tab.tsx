@@ -141,7 +141,10 @@ function ProjectRow({ p, today }: { p: BoardProject; today: string }) {
     today
   );
   const idx = stageIndex(p.stage);
-  const money = claimedLine(p.money);
+  /* Undefined money means the reader has no money access and none was loaded.
+     "no budget set" would be a lie in that case — it describes the project,
+     not the reader — so the column simply stays empty. */
+  const money = p.money ? claimedLine(p.money) : null;
 
   return (
     <Link
@@ -169,8 +172,10 @@ function ProjectRow({ p, today }: { p: BoardProject; today: string }) {
         </em>
       </div>
 
-      <div className="wb2-plmoney">
-        {money ? (
+      {/* The cell stays even when empty — it holds its grid column, so rows
+          line up whether or not the person can see money. */}
+      <div className="wb2-money wb2-plmoney">
+        {money && p.money ? (
           <>
             <b>
               {fmtAud(p.money.claimedCents)} of {fmtAud(p.money.revisedTotalCents!)}
@@ -181,9 +186,9 @@ function ProjectRow({ p, today }: { p: BoardProject; today: string }) {
                 : "claimed"}
             </em>
           </>
-        ) : (
+        ) : p.money ? (
           <em>no budget set</em>
-        )}
+        ) : null}
       </div>
 
       <div className="wb2-plchips">

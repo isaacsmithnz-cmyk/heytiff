@@ -20,6 +20,7 @@ export const CAPABILITIES = [
   "tiff_manage", // upload/edit/retry knowledge-base documents (delete is owner-only)
   "workboard", // see the projects & maintenance board (techs live here)
   "workboard_manage", // create/edit projects, agreements, visits & readiness
+  "workboard_money", // job values, claims & payment status on the board
   "team", // view/manage other staff records
   "timepay_all", // everyone's timesheets (own timesheet is intrinsic, not gated)
   "approvals", // approve hours, leave & expenses (acts within timepay_all's surface)
@@ -33,10 +34,23 @@ export type Capability = (typeof CAPABILITIES)[number];
 
 /* Owner-tier capabilities: a delegated permission-manager can toggle the
    operational capabilities on other people's cards, but only the OWNER can
-   grant these two. Otherwise delegation is a side door into the money — a
+   grant these three. Otherwise delegation is a side door into the money — a
    manager grants an accomplice `financials`, or re-delegates `permissions`
-   onward. Role changes, invite/offboard and billing stay owner-only outright. */
-export const OWNER_TIER: ReadonlySet<Capability> = new Set(["financials", "permissions"]);
+   onward. Role changes, invite/offboard and billing stay owner-only outright.
+
+   `workboard_money` joins them because it IS money, just a different pocket:
+   what each job is worth, what has been claimed, and what the customer has
+   paid. It is deliberately NOT folded into `financials` — that one is wages,
+   pay rates and charge-out, and a business that wants its project manager
+   costing jobs should not have to show them everyone's pay to do it. Nor is it
+   folded into `workboard_manage`: running the board (booking, readiness,
+   agreements) is a foreman's job and revenue is not automatically their
+   business. Two separate grants, because they answer to two separate people. */
+export const OWNER_TIER: ReadonlySet<Capability> = new Set([
+  "financials",
+  "permissions",
+  "workboard_money",
+]);
 
 export function isCapability(v: unknown): v is Capability {
   return typeof v === "string" && (CAPABILITIES as readonly string[]).includes(v);
@@ -46,6 +60,9 @@ export function isCapability(v: unknown): v is Capability {
 // seeing what's booked, what's overdue and what to bring is their day.
 // Managing it (workboard_manage) follows the timepay_all/approvals precedent:
 // admin by default, grantable to a senior tech via the overrides grid.
+// workboard_money is in NEITHER default list, admin included: admin is
+// "everything operational, no money", and job values are money. The owner
+// grants it per person — usually to themselves and whoever quotes.
 // tiff_manage mirrors it exactly: everyone READS and asks the library
 // (that's `tiff`), but what goes INTO the company library is a curation
 // decision — and a wrong manual answers questions wrongly for everyone.

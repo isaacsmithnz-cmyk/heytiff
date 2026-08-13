@@ -23,6 +23,7 @@ const ACCESS: [Capability, string, string][] = [
   ["tiff_manage", "Tiff AI — manage", "Add & edit knowledge-base documents"],
   ["workboard", "Workboard", "See the projects & maintenance board"],
   ["workboard_manage", "Workboard — manage", "Create & edit projects, agreements & visits"],
+  ["workboard_money", "Workboard — money", "Job values, claims & what's been paid"],
   ["team", "Team directory", "View & manage other staff records"],
   ["timepay_all", "Time & Pay — everyone's", "All timesheets, leave & expenses"],
   ["approvals", "Approvals", "Approve hours, leave & expenses"],

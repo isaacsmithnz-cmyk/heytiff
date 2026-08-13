@@ -36,6 +36,34 @@ describe("role defaults", () => {
     expect(caps.has("workboard_manage")).toBe(true);
     expect(caps.has("tiff_manage")).toBe(true);
     expect(caps.has("financials")).toBe(false);
+    // Job values are money too: running the board is a foreman's job, knowing
+    // what every job is worth is not automatically theirs.
+    expect(caps.has("workboard_money")).toBe(false);
+  });
+
+  /* The two money capabilities are separate grants on purpose — a project
+     manager may need job values without ever seeing what anyone is paid. */
+  it("workboard_money is owner-tier and independent of financials", () => {
+    expect(OWNER_TIER.has("workboard_money")).toBe(true);
+    expect(canSetCapability("admin", "workboard_money")).toBe(false);
+    expect(canSetCapability("owner", "workboard_money")).toBe(true);
+
+    const money = resolve("admin", { workboard_money: true });
+    expect(money.has("workboard_money")).toBe(true);
+    expect(money.has("financials")).toBe(false);
+
+    const wages = resolve("admin", { financials: true });
+    expect(wages.has("financials")).toBe(true);
+    expect(wages.has("workboard_money")).toBe(false);
+  });
+
+  /* Seeing money doesn't imply seeing the board it sits on — the loaders read
+     both, and a grant that only makes sense in pairs should say so in a test
+     rather than in someone's head. */
+  it("money without the board is a coherent (if useless) grant, not a crash", () => {
+    const caps = resolve("staff", { workboard: false, workboard_money: true });
+    expect(caps.has("workboard")).toBe(false);
+    expect(caps.has("workboard_money")).toBe(true);
   });
 
   it("workboard_manage is grantable to a senior tech — surgical, not a promotion", () => {

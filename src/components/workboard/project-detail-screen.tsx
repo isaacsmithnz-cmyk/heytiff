@@ -213,9 +213,19 @@ export function ProjectDetailScreen({
           <TripsCard />
 
           <FlywheelCard project={project} manage={manage} busy={busy} run={run} />
-          <MoneyCard project={project} manage={manage} busy={busy} run={run} />
+          {/* Money and variations are one grant (`workboard_money`). Without it
+              the loader returned no budget, no claims and no variations, so the
+              cards are ABSENT rather than empty — an empty money card would
+              read as "this job has no total", which is a claim about the
+              project and not about who's looking. Scope and dates stay: an
+              exclusion list is site knowledge, not money. */}
+          {project.moneyVisible && (
+            <MoneyCard project={project} manage={manage} busy={busy} run={run} />
+          )}
           <ScopeCard project={project} manage={manage} busy={busy} run={run} />
-          <VariationsCard project={project} manage={manage} busy={busy} run={run} />
+          {project.moneyVisible && (
+            <VariationsCard project={project} manage={manage} busy={busy} run={run} />
+          )}
           <DatesCard project={project} today={today} manage={manage} busy={busy} run={run} />
 
           {/* ── checklist ── */}

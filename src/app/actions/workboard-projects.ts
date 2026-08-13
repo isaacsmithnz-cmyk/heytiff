@@ -636,12 +636,23 @@ export async function setClaimPaid(
 
   const { data } = await supabaseAdmin
     .from("project_claims")
-    .select("id, project_id")
+    .select("id, project_id, source")
     .eq("org_id", ctx.orgId)
     .eq("id", claimId)
     .maybeSingle();
-  const row = data as { id: string; project_id: string } | null;
+  const row = data as { id: string; project_id: string; source: string } | null;
   if (!row) return { ok: false, error: "That claim is no longer here." };
+  /* Same guard removeClaim has always carried, for the same reason: a mirrored
+     row's paid-ness is ServiceM8's answer, rewritten on every sync. Letting a
+     button set it too would give one field two writers, and the next sync would
+     silently undo whoever pressed it — the worst kind of wrong, because it
+     looks like it worked. */
+  if (row.source !== "manual") {
+    return {
+      ok: false,
+      error: "That claim follows ServiceM8 — mark it paid over there and it'll follow here.",
+    };
+  }
 
   let patch: Record<string, unknown>;
   if (paid) {

@@ -102,6 +102,21 @@ export function SummaryView({
                 />
               </label>
             </div>
+            {/* PROVENANCE, not a fourth field. The three above are free text
+                and stay editable; this says where they came from, and it is
+                the only thing here that still means something after somebody
+                retypes the number. */}
+            {doc.jobLink && (
+              <p className="ds-job-from">
+                <Icon name="tag" size={13} />
+                Started from ServiceM8{" "}
+                {doc.jobLink.jobNumber ? (
+                  <b>job {doc.jobLink.jobNumber}</b>
+                ) : (
+                  <b>job</b>
+                )}
+              </p>
+            )}
             {/* the loads were computed FROM these — edited in the studio menu
                 (they re-load every room), echoed here for the record */}
             <span className="ds-cardt ds-job-settingst">Design basis</span>

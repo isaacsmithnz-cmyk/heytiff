@@ -492,6 +492,9 @@ export function Studio({
                   jobNumber: job?.jobNumber,
                   client: job?.client,
                   site: job?.site,
+                  job: job
+                    ? { remoteId: job.remoteId, jobNumber: job.jobNumber || null }
+                    : undefined,
                 });
                 await getStore().save(d);
                 return d;

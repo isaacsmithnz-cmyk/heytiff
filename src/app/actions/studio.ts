@@ -60,6 +60,21 @@ export async function loadStudioDesign(id: string): Promise<unknown | null> {
   return data?.doc ?? null;
 }
 
+/* The linked job's uuid, read defensively off a document the client handed
+   in. A save arrives as `unknown` and is only shape-checked at the top level,
+   so this reads its way down rather than trusting the type — a malformed
+   `jobLink` must leave the column null, never throw and lose the save. */
+function sm8JobUuid(doc: { jobLink?: unknown }): string | null {
+  const link = doc.jobLink as
+    | { provider?: unknown; remoteId?: unknown }
+    | null
+    | undefined;
+  if (!link || typeof link !== "object") return null;
+  if (link.provider !== "servicem8") return null;
+  const id = typeof link.remoteId === "string" ? link.remoteId.trim() : "";
+  return id ? id.slice(0, 80) : null;
+}
+
 export async function saveStudioDesign(doc: unknown): Promise<void> {
   const { orgId, userId } = await requireOrg("studio");
   if (!isDesignDocumentShape(doc)) throw new Error("Not a design document");
@@ -82,6 +97,12 @@ export async function saveStudioDesign(doc: unknown): Promise<void> {
       doc,
       floor_count: doc.floors.length,
       system_count: doc.systems.length,
+      /* The linked job's uuid, MIRRORED OUT of the document exactly as name,
+         mode and the two counts already are — the doc stays the source of
+         truth, the column is what makes "which designs are for this job?" a
+         query instead of a scan of every jsonb blob in the table. Rewritten
+         on every save, so unlinking in the document unlinks here too. */
+      sm8_job_uuid: sm8JobUuid(doc),
       /* NB this is overwritten on every save, so it holds the LAST saver, not
          the creator. Who made it — and everyone since — comes from
          studio_design_contributors below. */

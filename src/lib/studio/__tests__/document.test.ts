@@ -265,6 +265,69 @@ describe("schema versioning + migrations", () => {
     const { doc } = migrateDesign(v6);
     expect(String(doc.objects[0].props.model)).toBe("PEFY-P63VMA-E4");
   });
+
+  it("migrates v7→v8: designs open unlinked from any ServiceM8 job", () => {
+    const base = createDesign({ name: "x", mode: "blank" });
+    const v7 = { ...JSON.parse(JSON.stringify(base)), schemaVersion: 7 };
+    delete v7.jobLink; // v7 documents never had it
+    const { doc, migratedFrom } = migrateDesign(v7);
+    expect(migratedFrom).toBe(7);
+    expect(doc.schemaVersion).toBe(SCHEMA_VERSION);
+    expect(doc.jobLink).toBeNull();
+  });
+
+  /* The link is PROVENANCE, and provenance may not be guessed. A v7 design
+     carrying "3151" as free text has not been linked to job 3151 — the field
+     is typed, the digits repeat across years, and this migration has no
+     mirror to ask. Inventing a link here would put a wrong job on a design
+     and call it a fact. */
+  it("v7→v8 does NOT infer a link from a typed job number", () => {
+    const base = createDesign({ name: "x", mode: "blank", jobNumber: "3151" });
+    const v7 = { ...JSON.parse(JSON.stringify(base)), schemaVersion: 7 };
+    delete v7.jobLink;
+    const { doc } = migrateDesign(v7);
+    expect(doc.meta.jobNumber).toBe("3151");
+    expect(doc.jobLink).toBeNull();
+  });
+});
+
+describe("createDesign — the job it came from", () => {
+  it("records the mirror row, not just the number people read", () => {
+    const d = createDesign({
+      name: "12/3 Wallace St",
+      mode: "blank",
+      jobNumber: "3151",
+      client: "Diamond Air",
+      site: "12/3 Wallace St, Waverley NSW 2024",
+      job: { remoteId: "sm8-uuid-1", jobNumber: "3151" },
+      now: "2026-08-14T00:00:00.000Z",
+    });
+    expect(d.jobLink).toEqual({
+      provider: "servicem8",
+      remoteId: "sm8-uuid-1",
+      jobNumber: "3151",
+      linkedAt: "2026-08-14T00:00:00.000Z",
+    });
+  });
+
+  /* Retyping the number is a normal thing to do and must not silently rewrite
+     history: the sheet says what was typed, the link still says which row. */
+  it("keeps the linked number even after the sheet's is edited", () => {
+    const d = createDesign({
+      name: "x",
+      mode: "blank",
+      jobNumber: "3151",
+      job: { remoteId: "sm8-uuid-1", jobNumber: "3151" },
+    });
+    const edited = { ...d, meta: { ...d.meta, jobNumber: "3151 (rev B)" } };
+    expect(edited.meta.jobNumber).toBe("3151 (rev B)");
+    expect(edited.jobLink?.jobNumber).toBe("3151");
+    expect(edited.jobLink?.remoteId).toBe("sm8-uuid-1");
+  });
+
+  it("is unlinked when the design was named by hand", () => {
+    expect(createDesign({ name: "x", mode: "blank" }).jobLink).toBeNull();
+  });
 });
 
 describe("LocalDesignStore", () => {

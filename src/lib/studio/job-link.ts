@@ -33,8 +33,11 @@ export type StudioJobHit = {
   description: string | null;
 };
 
-/** What picking a job writes into a fresh design's meta. */
+/** What picking a job writes into a fresh design: the sheet's four visible
+    answers, plus the mirror row they came from. `remoteId` is the only one a
+    later edit can't blur — see `DesignJobLink`. */
 export type JobPrefill = {
+  remoteId: string;
   name: string;
   jobNumber: string;
   client: string;
@@ -85,5 +88,5 @@ export function prefillFromJob(hit: StudioJobHit): JobPrefill {
 
   const name = street || client || (number ? `Job ${number}` : "");
 
-  return { name, jobNumber: number, client, site };
+  return { remoteId: hit.remoteId, name, jobNumber: number, client, site };
 }

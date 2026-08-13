@@ -5482,6 +5482,29 @@ html[data-ds-display] .dstudio.editing {
   border: 1px solid var(--ds-border);
   border-radius: 9px;
 }
+/* Where the three fields above came from. This is on the LIGHT well, so no
+   dark-skin literals — and deliberately NOT a state colour: it says the
+   design was started from a job, not that anything is good or bad. */
+.dstudio .ds-job-from {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0 0;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--gray500);
+}
+/* --gray400 is this codebase's usual icon grey, but at 2.5:1 on white it is
+   under the 3:1 non-text minimum. The glyph carries no meaning the sentence
+   doesn't, so this is belt-and-braces — it also just costs nothing. */
+.dstudio .ds-job-from svg {
+  color: var(--gray500);
+  flex: 0 0 auto;
+}
+.dstudio .ds-job-from b {
+  font-weight: 800;
+  color: var(--ink);
+}
 .dstudio .ds-job-actions {
   display: flex;
   flex-wrap: wrap;

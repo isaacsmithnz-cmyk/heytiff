@@ -73,6 +73,7 @@ describe("jobSubtitle", () => {
 describe("prefillFromJob", () => {
   it("names the design after the street and carries the three meta fields", () => {
     expect(prefillFromJob(hit())).toEqual({
+      remoteId: "job-1",
       name: "12/3 Wallace St",
       jobNumber: "3151",
       client: "Diamond Air",
@@ -94,12 +95,22 @@ describe("prefillFromJob", () => {
   });
 
   it("gives an empty name — not a blank one — when nothing identifies the job", () => {
-    // the caller's own default ("Untitled design") has to survive this
+    // the caller's own default ("Untitled design") has to survive this…
     expect(
       prefillFromJob(
         hit({ address: null, suburb: null, clientName: null, jobNumber: null })
       )
-    ).toEqual({ name: "", jobNumber: "", client: "", site: "" });
+    ).toEqual({ remoteId: "job-1", name: "", jobNumber: "", client: "", site: "" });
+  });
+
+  /* …but the LINK survives regardless. A job nobody can name is still a job
+     the design belongs to, and the uuid is the half that can prove it. */
+  it("carries the mirror row's id even when nothing else identifies the job", () => {
+    expect(
+      prefillFromJob(
+        hit({ address: null, suburb: null, clientName: null, jobNumber: null })
+      ).remoteId
+    ).toBe("job-1");
   });
 
   it("keeps a letter-suffixed job number as text", () => {

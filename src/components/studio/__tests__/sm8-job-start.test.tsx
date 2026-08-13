@@ -43,6 +43,16 @@ const studio = (jobSearch: JobSearch, sm8Jobs = true) => (
 
 const FIELD = /Find the ServiceM8 job/;
 
+/* The one design in the local store — autosave debounces, so callers wait on
+   a field of this rather than reading it once. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const savedDoc = (): any => {
+  const key = Object.keys(window.localStorage).find((k) =>
+    k.startsWith("heytiff.studio.design.")
+  );
+  return key ? JSON.parse(window.localStorage.getItem(key)!) : {};
+};
+
 describe("new design — from a ServiceM8 job", () => {
   beforeEach(() => window.localStorage.clear());
 
@@ -102,6 +112,47 @@ describe("new design — from a ServiceM8 job", () => {
     expect(screen.getByLabelText("Job number")).toHaveValue("3151");
     expect(screen.getByLabelText("Client")).toHaveValue("Diamond Air");
     expect(screen.getByLabelText("Site")).toHaveValue("12/3 Wallace St, Waverley NSW 2024");
+    // …and the sheet says where they came from, which the fields cannot
+    expect(screen.getByText(/Started from ServiceM8/)).toBeInTheDocument();
+  });
+
+  /* The three meta fields are free text — retype the number and nothing can
+     match the design back to its job. The link is what survives that, so it
+     has to reach storage, not just the screen. */
+  it("stores the mirror row's uuid on the saved document", async () => {
+    const user = userEvent.setup();
+    render(studio(async () => JOBS));
+
+    await user.click(await screen.findByText("New design"));
+    await user.type(screen.getByLabelText(FIELD), "wallace");
+    const list = await screen.findByRole("listbox", { name: "ServiceM8 jobs" });
+    await user.click(within(list).getByText("12/3 Wallace St"));
+    await user.click(screen.getByRole("button", { name: /Continue/ }));
+    await user.click(screen.getByText("Blank canvas"));
+    await screen.findByTestId("studio-canvas");
+
+    await waitFor(() => {
+      expect(savedDoc().jobLink).toMatchObject({
+        provider: "servicem8",
+        remoteId: "j-3151",
+        jobNumber: "3151",
+      });
+    });
+    expect(typeof savedDoc().jobLink.linkedAt).toBe("string");
+  });
+
+  it("leaves a hand-named design unlinked", async () => {
+    const user = userEvent.setup();
+    render(studio(async () => JOBS));
+
+    await user.click(await screen.findByText("New design"));
+    await user.type(screen.getByPlaceholderText(/Design name/), "Farran St");
+    await user.click(screen.getByRole("button", { name: /Continue/ }));
+    await user.click(screen.getByText("Blank canvas"));
+    await screen.findByTestId("studio-canvas");
+
+    await waitFor(() => expect(savedDoc().meta.name).toBe("Farran St"));
+    expect(savedDoc().jobLink).toBeNull();
   });
 
   it("keeps a name typed over the picked one, and still saves the job's fields", async () => {

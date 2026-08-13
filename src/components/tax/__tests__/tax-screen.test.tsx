@@ -38,6 +38,50 @@ function view(items: TaxItem[], fy = 2027) {
   );
 }
 
+/* THE COLUMN HAS TO ADD UP TO THE FIGURE ABOVE IT.
+
+   `totalsFor` rounds once at the end precisely so it does — and then the
+   screen printed the three headline stats through a whole-dollar formatter and
+   everything under them through a cents one. "Total spend $565" sat directly
+   above $152.35 + $412.90, and "GST $51" above $13.85 + $37.54. Nobody can
+   reconcile that, and reconciling is the entire job of the person reading it.
+
+   Read off the RENDERED text, not the totals object: the bug was never in the
+   arithmetic, it was in the formatting, so a test against `totalsFor` would
+   have passed throughout. */
+describe("the figures reconcile", () => {
+  const parse = (s: string) => Number(s.replace(/[^0-9.]/g, ""));
+  const sumOf = (sel: string) =>
+    [...document.querySelectorAll(sel)].reduce((n, el) => n + parse(el.textContent ?? ""), 0);
+  const statValue = (label: string) =>
+    parse(
+      (screen.getByText(label).closest(".tx-stat") as HTMLElement).querySelector(".tx-statval")!
+        .textContent ?? "",
+    );
+
+  const spread = [
+    item({ id: "a", amount: 158.4, gst: 14.4, category: "fuel" }),
+    item({ id: "b", amount: 412.9, gst: 37.54, category: "materials", source: "expense" }),
+    item({ id: "c", amount: 27.35, gst: 2.49, category: "meals", source: "expense" }),
+  ];
+
+  it("totals the same as its own category rows, to the cent", () => {
+    view(spread);
+    expect(statValue("Total spend")).toBeCloseTo(sumOf(".tx-catamt"), 2);
+    expect(statValue("Total spend")).toBeCloseTo(598.65, 2);
+  });
+
+  it("does the same for GST", () => {
+    view(spread);
+    expect(statValue("GST recorded")).toBeCloseTo(sumOf(".tx-catgst"), 2);
+  });
+
+  it("totals the same as the item rows underneath", () => {
+    view(spread);
+    expect(statValue("Total spend")).toBeCloseTo(sumOf(".tx-amt b"), 2);
+  });
+});
+
 describe("TaxScreen", () => {
   it("names the years the way a tax return does", () => {
     view([item()]);

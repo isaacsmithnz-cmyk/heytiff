@@ -3,6 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { DashboardHome } from "../home";
 import type { DashboardData } from "@/lib/dashboard/page-data";
 import type { ActionChip } from "@/lib/dashboard/chips";
+import type { BoardNotice } from "@/lib/dashboard/board";
+import { HOME_NOTICE_ROWS } from "@/lib/dashboard/home-tabs";
 
 /* Home as one card with six faces.
 
@@ -130,6 +132,69 @@ describe("the panels", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].textContent).toContain("Rego expired 4 days ago");
     expect(rows[0]).toHaveAttribute("data-sev", "over");
+  });
+});
+
+/* THE PANEL IS A GLANCE, THE BADGE IS THE COUNT.
+
+   Home used to read 20 notices and the board 100, over the same table with the
+   same read-state join, so the "N unread" badge and the board it links to were
+   counting different sets of rows. They read one window now (NOTICE_WINDOW) —
+   which means the panel has to say when it isn't showing all of it, rather
+   than being the whole board on a thin month and a silent truncation on a
+   busy one. */
+describe("the Noticeboard panel", () => {
+  const notice = (i: number, over: Partial<BoardNotice> = {}): BoardNotice =>
+    ({
+      id: `n${i}`,
+      title: `Notice ${i}`,
+      body: null,
+      pinned: false,
+      postedById: "s2",
+      postedByName: "Dane Whitely",
+      createdAt: `2026-08-0${(i % 9) + 1}T00:00:00Z`,
+      revision: 1,
+      editedAt: null,
+      kind: "notice",
+      expiresAt: null,
+      archivedAt: null,
+      ackedRevision: null,
+      state: "unread",
+      mine: false,
+      readBy: 0,
+      audience: 3,
+      poll: null,
+      event: null,
+      reactions: { counts: [], mine: null },
+      comments: [],
+      mentionsMe: 0,
+      attachments: [],
+      ...over,
+    }) as BoardNotice;
+
+  const many = (n: number) => Array.from({ length: n }, (_, i) => notice(i));
+
+  it("caps its rows and says how many are behind the door", async () => {
+    const user = userEvent.setup();
+    draw({ notices: many(HOME_NOTICE_ROWS + 4) });
+    await user.click(tab(/Noticeboard/));
+    expect(panel("board").querySelectorAll(".hm-row")).toHaveLength(HOME_NOTICE_ROWS);
+    expect(panel("board").textContent).toContain("4 more");
+  });
+
+  it("says only 'Open the board' when there is nothing behind it", async () => {
+    const user = userEvent.setup();
+    draw({ notices: many(2) });
+    await user.click(tab(/Noticeboard/));
+    expect(panel("board").querySelectorAll(".hm-row")).toHaveLength(2);
+    expect(panel("board").textContent).not.toMatch(/\bmore\b/);
+  });
+
+  /* The badge counts the WINDOW, not the panel. A truncated panel that also
+     truncated the count would be the original bug wearing a cap. */
+  it("badges every unread in the window, not just the rows on show", async () => {
+    draw({ notices: many(HOME_NOTICE_ROWS + 4) });
+    expect(within(tab(/Noticeboard/)).getByText(String(HOME_NOTICE_ROWS + 4))).toBeInTheDocument();
   });
 });
 

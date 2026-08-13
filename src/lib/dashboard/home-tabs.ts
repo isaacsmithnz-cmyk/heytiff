@@ -36,6 +36,11 @@ export const TAB_HOME: Record<Exclude<HomeTabKey, "journal" | "calendar">, strin
     anything else wants you. That default is only safe BECAUSE of the badges. */
 export const DEFAULT_TAB: HomeTabKey = "journal";
 
+/** How many notice rows the Noticeboard tab shows before deferring to the
+    board itself. The badge counts the whole window; this is what fits on a
+    face of a card without the panel becoming the board. */
+export const HOME_NOTICE_ROWS = 6;
+
 export function homeTabs(input: {
   /** Every action-required chip the viewer may see, self and team. */
   chips: readonly ActionChip[];

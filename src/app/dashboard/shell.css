@@ -2367,6 +2367,16 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .lv-frow { display:flex; flex-wrap:wrap; gap:12px; }
 .fg .lv-fnote { margin-top:12px; display:flex; }
 .fg .lv-form .mts-f input, .fg .lv-form .mts-f select { height:38px; padding:0 11px; border-radius:11px; border:1px solid rgba(10,11,16,.14); background:#fff; font-family:var(--font); font-size:13.5px; font-weight:600; color:var(--ink); }
+/* The notice body. `.mts-f` only ever styled `input` and `select`, so the
+   textarea that replaced the one-line body field would have landed on browser
+   defaults — wrong font, square corners, grey ground. Everything but `height`
+   is copied from the rule above it on purpose: they are the same field, one of
+   them just gets to wrap. `resize:vertical` because the width belongs to the
+   form and the height belongs to whoever is writing. */
+.fg .lv-form .mts-f textarea.nb-bodyin { width:100%; min-height:84px; padding:10px 11px;
+  border-radius:11px; border:1px solid rgba(10,11,16,.14); background:#fff;
+  font-family:var(--font); font-size:13.5px; font-weight:600; color:var(--ink);
+  line-height:1.5; resize:vertical; }
 .fg .lv-fmeta { display:flex; align-items:center; gap:16px; margin-top:14px; }
 .fg .lv-fmeta > span { flex:1; font-size:12.5px; font-weight:600; color:var(--gray500); }
 .fg .lv-cols { display:grid; grid-template-columns:1.4fr 1fr; gap:20px; align-items:start; }
@@ -7330,6 +7340,23 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .hm-sr b { font-size:13px; font-weight:700; color:var(--ink); }
 .fg .hm-sr em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); margin-left:auto; }
 .fg a.hm-sr:hover b { color:var(--wb2-cy); }
+/* A CLOSED period with work still outstanding is the one actionable state this
+   strip has, and it used to look identical to the open-period status line —
+   `payRunItem` computed warn/ok and the row rendered neither.
+
+   A dot, not a tinted row: the strip sits UNDER the card as the day's context,
+   so it marks the row without competing with the card's own badges. And the
+   label already says which state it is ("Pay run due" vs "Timesheets this
+   period"), so the dot is a second channel rather than the only one.
+
+   `--wb2-warn-t`, NOT `--hm-warn`. Both are declared on `.hm-wrap` and both
+   are amber, but `--hm-warn` (#FFC07A) is a DUSK-SKIN literal for the ink
+   card — pale on purpose, because it is read on near-black glass. This strip
+   is on the light well, where it measures under 2:1. The `-t` variants exist
+   for exactly this ground. */
+.fg .hm-sr[data-state="warn"] b { position:relative; padding-left:14px; }
+.fg .hm-sr[data-state="warn"] b::before { content:""; position:absolute; left:0; top:50%;
+  width:7px; height:7px; margin-top:-3.5px; border-radius:50%; background:var(--wb2-warn-t); }
 
 /* ── the Calendar ──
    The `.wb2-mc*` grid mechanics come from the maintenance board; on the ink

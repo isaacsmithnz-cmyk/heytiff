@@ -165,12 +165,26 @@ export async function assignedByMeRecentlyDone(
     .filter((t) => t.assigneeId !== staffProfileId);
 }
 
-/** Recent notices with the viewer's read state joined in. Newest-ish out of the
-    DB (we cap the list); ordering/pinning is applied by sortNotices at the edge. */
+/* How far back the board reads, for EVERYONE who reads it.
+
+   Home used to ask for 20 and the noticeboard page for 100, over the same
+   table with the same read-state join — so Home's "N unread" badge and the
+   board it links to were counting different sets of rows, and an org with a
+   busy month could see the two disagree. One window, one number. */
+export const NOTICE_WINDOW = 100;
+
+/** Recent notices with the viewer's read state joined in.
+
+    PINNED FIRST IN THE QUERY, not only in `sortNotices`. The limit used to be
+    applied to a plain `created_at DESC`, so pinning — the one mechanism for
+    "keep this where people will see it" — stopped working the moment a post
+    fell past the window: it was cut by the database and then sorted to the
+    top of what was left. The edge still calls `sortNotices`, which now agrees
+    with the order the rows arrive in rather than reordering them. */
 export async function listNotices(
   orgId: string,
   staffProfileId: string | null,
-  limit = 20,
+  limit = NOTICE_WINDOW,
   known?: StaffNames,
 ): Promise<BoardNotice[]> {
   const [{ data }, names, activeStaff] = await Promise.all([
@@ -182,6 +196,7 @@ export async function listNotices(
         "id, title, body, pinned, posted_by, created_at, revision, edited_at, kind, expires_at, archived_at, poll_multi, event_date, event_time, event_location",
       )
       .eq("org_id", orgId)
+      .order("pinned", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(limit),
     namesFor(orgId, known),

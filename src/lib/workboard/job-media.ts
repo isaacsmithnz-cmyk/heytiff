@@ -41,6 +41,14 @@
 
 export type JobMediaKind = "photo" | "document" | "video" | "other";
 
+/** How many of a job's files one read carries, and what the sheet says when
+    it binds. It lives in THIS module, not beside the query that enforces it,
+    because the sheet is a client component and the query module imports
+    supabaseAdmin — a value import from there would drag the server client
+    into the browser bundle. Types are erased and may cross; constants may
+    not. */
+export const JOB_MEDIA_CAP = 120;
+
 /** Extensions we will both SHOW and cache bytes for. */
 const PHOTO_EXTS = new Set([".jpg", ".jpeg", ".png", ".webp", ".gif"]);
 

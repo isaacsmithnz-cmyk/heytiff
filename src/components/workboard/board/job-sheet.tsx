@@ -7,8 +7,10 @@ import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { fmtAud } from "@/lib/workboard/project-money";
-import { createProjectFromJob, readMirrorJob } from "@/app/actions/workboard";
+import { createProjectFromJob, readJobFiles, readMirrorJob } from "@/app/actions/workboard";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
+import type { JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
+import { JOB_MEDIA_CAP, mediaCountLine } from "@/lib/workboard/job-media";
 import { fmtMinutesAsHours, groupChecklist, type AllJobRow } from "@/lib/workboard/all-jobs";
 
 /* One ServiceM8 job, read-only — and the two ways out of it.
@@ -96,6 +98,7 @@ export function JobSheet({
 }) {
   const router = useRouter();
   const [detail, setDetail] = useState<MirrorJobDetail | null>(null);
+  const [media, setMedia] = useState<JobMediaGroupsRead | null>(null);
   const [loading, setLoading] = useState(true);
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState("");
@@ -126,6 +129,20 @@ export function JobSheet({
       if (!live) return;
       setDetail(d);
       setLoading(false);
+    });
+    return () => {
+      live = false;
+    };
+  }, [row.id]);
+
+  /* The files arrive on their own clock. They cost a storage round trip that
+     the rest of the sheet shouldn't wait behind, and a job with none is the
+     common case — so this renders nothing at all until it has something to
+     say, rather than a spinner over an empty shelf. */
+  useEffect(() => {
+    let live = true;
+    void readJobFiles(row.id).then((m) => {
+      if (live) setMedia(m);
     });
     return () => {
       live = false;
@@ -322,6 +339,67 @@ export function JobSheet({
                 ))}
               </div>
             ))}
+          </div>
+        )}
+
+        {media && media.photos.length + media.documents.length + media.elsewhere.length > 0 && (
+          <div className="wb2-shsect">
+            <span className="wb2-sect">Files on this job — {mediaCountLine(media)}</span>
+
+            {media.photos.length > 0 && (
+              <div className="wb2-mgrid">
+                {media.photos.map((p) =>
+                  p.url ? (
+                    <a
+                      key={p.remoteId}
+                      className="wb2-mtile"
+                      href={p.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      title={p.name}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={p.url} alt={p.name} loading="lazy" />
+                    </a>
+                  ) : (
+                    /* Not cached yet. A tile that says so beats a broken
+                       image, and beats hiding a photo that genuinely
+                       exists. */
+                    <span key={p.remoteId} className="wb2-mtile pending" title={p.name}>
+                      <Icon name="cam" size={16} />
+                    </span>
+                  )
+                )}
+              </div>
+            )}
+
+            {media.documents.map((d) => (
+              <p className="wb2-shtext" key={d.remoteId}>
+                {d.url ? (
+                  <a className="wb2-colink" href={d.url} target="_blank" rel="noreferrer">
+                    {d.name}
+                  </a>
+                ) : (
+                  <b>{d.name}</b>
+                )}
+                {d.paperwork ? <i className="wb2-chip">{d.paperwork}</i> : null}
+              </p>
+            ))}
+
+            {media.elsewhere.length > 0 && (
+              <p className="int-hint">
+                {media.elsewhere.length === 1
+                  ? "1 file stays in ServiceM8"
+                  : `${media.elsewhere.length} files stay in ServiceM8`}{" "}
+                — video and file types this screen can&apos;t show.
+              </p>
+            )}
+
+            {media.truncated && (
+              <p className="int-hint">
+                Showing the newest {JOB_MEDIA_CAP} files — this job has more in ServiceM8.
+              </p>
+            )}
           </div>
         )}
 

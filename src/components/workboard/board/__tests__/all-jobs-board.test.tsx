@@ -14,10 +14,12 @@ import { jobMoneyOf } from "@/lib/workboard/job-money";
 
 const searchAllJobs = jest.fn(async () => []);
 const readMirrorJob = jest.fn(async () => null);
+const readJobFiles = jest.fn(async () => null);
 const createProjectFromJob = jest.fn(async () => ({ ok: true as const, id: "p-new" }));
 jest.mock("@/app/actions/workboard", () => ({
   searchAllJobs: (...a: unknown[]) => searchAllJobs(...(a as [])),
   readMirrorJob: (...a: unknown[]) => readMirrorJob(...(a as [])),
+  readJobFiles: (...a: unknown[]) => readJobFiles(...(a as [])),
   createProjectFromJob: (...a: unknown[]) => createProjectFromJob(...(a as [])),
 }));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), refresh: jest.fn() }) }));

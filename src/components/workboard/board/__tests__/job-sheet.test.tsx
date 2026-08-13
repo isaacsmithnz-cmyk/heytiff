@@ -5,12 +5,18 @@
 
 import { render, screen, within } from "@testing-library/react";
 import type { JobDesign, MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
+import type { JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
+import type { JobMediaItem } from "@/lib/workboard/job-media";
 import type { AllJobRow } from "@/lib/workboard/all-jobs";
 
 const readMirrorJob = jest.fn(async (): Promise<MirrorJobDetail | null> => null);
 const createProjectFromJob = jest.fn(async () => ({ ok: true as const, id: "p-new" }));
+/* A job with no files is the common case and the default here, so every test
+   below renders the sheet WITHOUT a files section unless it asks for one. */
+const readJobFiles = jest.fn(async (): Promise<JobMediaGroupsRead | null> => null);
 jest.mock("@/app/actions/workboard", () => ({
   readMirrorJob: (...a: unknown[]) => readMirrorJob(...(a as [])),
+  readJobFiles: (...a: unknown[]) => readJobFiles(...(a as [])),
   createProjectFromJob: (...a: unknown[]) => createProjectFromJob(...(a as [])),
 }));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn() }) }));
@@ -193,6 +199,7 @@ describe("the work-order-since fact", () => {
   });
 });
 
+<<<<<<< HEAD
 /* The other end of the studio's job link (#385). A design names its job with
    `jobLink.remoteId`; `studio_designs.sm8_job_uuid` mirrors that out so this
    read is an index hit, and the sheet is where the round trip closes. */
@@ -222,11 +229,97 @@ describe("designs started from this job", () => {
     readMirrorJob.mockResolvedValueOnce(
       detail({
         designs: [design(), design({ id: "dsn_2", name: "12/3 Wallace St — option B" })],
+=======
+/* ── the job's files ── */
+
+describe("files on the job", () => {
+  const file = (over: Partial<JobMediaItem> & { remoteId: string }): JobMediaItem => ({
+    name: "IMG_4021.jpg",
+    fileType: ".jpg",
+    kind: "photo",
+    paperwork: null,
+    takenAt: "2026-08-01 10:00:00",
+    url: null,
+    ...over,
+  });
+
+  const files = (over: Partial<JobMediaGroupsRead> = {}): JobMediaGroupsRead => ({
+    photos: [],
+    documents: [],
+    elsewhere: [],
+    truncated: false,
+    ...over,
+  });
+
+  it("says nothing at all when a job has no files", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail());
+    readJobFiles.mockResolvedValueOnce(files());
+    render(<JobSheet row={row()} {...props} />);
+
+    await screen.findByText("18h 30m");
+    expect(screen.queryByText(/Files on this job/)).toBeNull();
+  });
+
+  it("shows a cached photo as a real image, linked to the full size", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail());
+    readJobFiles.mockResolvedValueOnce(
+      files({ photos: [file({ remoteId: "p-1", url: "https://signed/p-1.jpg" })] })
+    );
+    render(<JobSheet row={row()} {...props} />);
+
+    const img = (await screen.findByAltText("IMG_4021.jpg")) as HTMLImageElement;
+    expect(img.getAttribute("src")).toBe("https://signed/p-1.jpg");
+    expect(img.closest("a")!.getAttribute("href")).toBe("https://signed/p-1.jpg");
+  });
+
+  /* A photo ServiceM8 has that we haven't fetched is neither hidden nor
+     broken: the tile says "there is one here", which is the truth. */
+  it("shows a placeholder tile for a photo whose bytes aren't cached", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail());
+    readJobFiles.mockResolvedValueOnce(files({ photos: [file({ remoteId: "p-1" })] }));
+    render(<JobSheet row={row()} {...props} />);
+
+    await screen.findByText(/Files on this job/);
+    expect(screen.queryByAltText("IMG_4021.jpg")).toBeNull();
+    expect(document.querySelector(".wb2-mtile.pending")).not.toBeNull();
+  });
+
+  it("names the paperwork and links it once it's cached", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail());
+    readJobFiles.mockResolvedValueOnce(
+      files({
+        documents: [
+          file({
+            remoteId: "d-1",
+            name: "Invoice #3137.pdf",
+            fileType: ".pdf",
+            kind: "document",
+            paperwork: "Invoice",
+            url: "https://signed/d-1.pdf",
+          }),
+        ],
+      })
+    );
+    render(<JobSheet row={row()} {...props} />);
+
+    const link = (await screen.findByText("Invoice #3137.pdf")) as HTMLAnchorElement;
+    expect(link.getAttribute("href")).toBe("https://signed/d-1.pdf");
+    expect(screen.getByText("Invoice")).toBeInTheDocument();
+  });
+
+  it("counts what stays in ServiceM8 instead of pretending it isn't there", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail());
+    readJobFiles.mockResolvedValueOnce(
+      files({
+        photos: [file({ remoteId: "p-1" }), file({ remoteId: "p-2" })],
+        elsewhere: [file({ remoteId: "v-1", name: "walkthrough.mp4", fileType: ".mp4", kind: "video" })],
+>>>>>>> 9fa5edf (A job's files, on the job — the list now, the bytes behind one constant)
       })
     );
     render(<JobSheet row={row()} {...props} />);
 
     expect(
+<<<<<<< HEAD
       await screen.findByText("Designed in the Studio — 2 options")
     ).toBeInTheDocument();
     // the contact's mailto is a link too — count the design rows only
@@ -265,5 +358,10 @@ describe("designs started from this job", () => {
       "href",
       "/dashboard/studio?design=dsn%20a%26b"
     );
+=======
+      await screen.findByText("Files on this job — 2 photos and 1 left in ServiceM8")
+    ).toBeInTheDocument();
+    expect(screen.getByText(/1 file stays in ServiceM8/)).toBeInTheDocument();
+>>>>>>> 9fa5edf (A job's files, on the job — the list now, the bytes behind one constant)
   });
 });

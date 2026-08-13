@@ -9,6 +9,7 @@ import { searchMirrorJobs, staffIdFor, type JobSearchHit } from "@/lib/workboard
 import { getSm8Timezone } from "@/lib/workboard/query";
 import { todayInZone } from "@/lib/workboard/dates";
 import { parseSm8AmountToCents } from "@/lib/workboard/job-money";
+import { readJobMediaGroups, type JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
 import {
   readMirrorJobDetail,
   searchAllMirrorJobs,
@@ -377,6 +378,21 @@ export async function readMirrorJob(remoteId: string): Promise<MirrorJobDetail |
     can("studio"),
   ]);
   return readMirrorJobDetail(ctx.orgId, id, today, { includeMoney, includeDesigns });
+}
+
+/** The job sheet's files, fetched separately from its detail on purpose: the
+    sheet paints on what the row already knew, the detail lands a beat later,
+    and the media — which costs a storage signing round trip — lands after
+    that. A job with no files costs one cheap query and renders nothing.
+
+    Same gate as the detail: `workboard` reads it, and the id is a CHOICE the
+    client handed in, so it is re-resolved inside this org's mirror. */
+export async function readJobFiles(remoteId: string): Promise<JobMediaGroupsRead | null> {
+  const ctx = await context();
+  if (!ctx || !(await can("workboard"))) return null;
+  const id = trim(remoteId, 80);
+  if (!id) return null;
+  return readJobMediaGroups(ctx.orgId, id);
 }
 
 /** All jobs' own search — reaches the WHOLE mirror, which is how a job that

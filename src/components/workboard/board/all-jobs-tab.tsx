@@ -73,7 +73,14 @@ function Row({
       </div>
 
       <span className="wb2-ajmeta">
-        {row.categoryName && <i className="wb2-chip">{row.categoryName}</i>}
+        {row.categoryName && (
+          <i className="wb2-chip">
+            {row.categoryColour && (
+              <span className="wb2-catdot" style={{ background: row.categoryColour }} aria-hidden />
+            )}
+            {row.categoryName}
+          </i>
+        )}
         {row.suburb && <em>{row.suburb}</em>}
       </span>
 
@@ -97,6 +104,14 @@ function Row({
           </i>
         )}
         {row.tone !== "" && <i className={`wb2-chip ${row.tone}`}>{row.statusLabel}</i>}
+        {/* A quote that was never emailed is an action gap, not a wait — the
+            chip says which of the two this row is. Rides the money grant like
+            every other fact from the money columns. */}
+        {moneyVisible && row.money && row.statusLabel === "Quote" && (
+          <i className={`wb2-chip${row.money.quoteSent ? "" : " warn"}`}>
+            {row.money.quoteSent ? "Quote sent" : "Not sent yet"}
+          </i>
+        )}
         {/* Done but not paid is the question a finished list is really asked. */}
         {moneyVisible && row.money?.collection === "awaiting" && (
           <i className="wb2-chip warn">Awaiting payment</i>

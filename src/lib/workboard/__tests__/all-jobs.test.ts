@@ -4,12 +4,17 @@ import {
   awaitingPaymentCount,
   completedCountLine,
   filterView,
+  fmtMinutesAsHours,
+  groupChecklist,
   matchesJobSearch,
   quotesCountLine,
+  sm8CategoryColour,
+  sm8MinutesBetween,
   workCountLine,
   type AllJobsMirrorJob,
   type AllJobsProject,
   type AllJobsVisit,
+  type JobChecklistItem,
 } from "@/lib/workboard/all-jobs";
 import { jobMoneyOf } from "@/lib/workboard/job-money";
 
@@ -22,6 +27,7 @@ const job = (over: Partial<AllJobsMirrorJob> & { remoteId: string }): AllJobsMir
   description: "Cool room door heater tape failed",
   suburb: "Mascot",
   categoryName: "Service Call",
+  categoryColour: null,
   date: "2026-08-08 09:00:00",
   quoteDate: null,
   completionDate: null,
@@ -288,7 +294,12 @@ describe("money on a row", () => {
         }),
       ],
     });
-    expect(v.completed[0].money).toEqual({ valueCents: 396000, collection: "awaiting" });
+    expect(v.completed[0].money).toEqual({
+      valueCents: 396000,
+      collection: "awaiting",
+      quoteSent: false,
+      quoteSentOn: null,
+    });
   });
 
   it("is null throughout when the reader has no money access", () => {
@@ -396,5 +407,118 @@ describe("the count lines", () => {
     });
     expect(completedCountLine(v, false)).toBe("1 job finished");
     expect(completedCountLine(v, true)).toBe("1 job finished, 1 that didn't go ahead");
+  });
+});
+
+/* ── the ServiceM8 field readers ── */
+
+describe("sm8CategoryColour", () => {
+  it("accepts the bare hex the live mirror actually sends", () => {
+    // Verified against prod: colours arrive with NO hash — "e7b5ff".
+    expect(sm8CategoryColour("e7b5ff")).toBe("#e7b5ff");
+    expect(sm8CategoryColour("CAFFB5")).toBe("#caffb5");
+  });
+
+  it("accepts a hash-prefixed value and short and alpha forms", () => {
+    expect(sm8CategoryColour("#B5D1FF")).toBe("#b5d1ff");
+    expect(sm8CategoryColour("abc")).toBe("#abc");
+    expect(sm8CategoryColour("aabbccdd")).toBe("#aabbccdd");
+  });
+
+  it("refuses anything that is not hex, so nothing odd reaches a style", () => {
+    expect(sm8CategoryColour("red")).toBeNull();
+    expect(sm8CategoryColour("url(x)")).toBeNull();
+    expect(sm8CategoryColour("e7b5f")).toBeNull(); // five digits is no colour
+    expect(sm8CategoryColour("")).toBeNull();
+    expect(sm8CategoryColour(null)).toBeNull();
+    expect(sm8CategoryColour(undefined)).toBeNull();
+  });
+});
+
+describe("sm8MinutesBetween", () => {
+  it("measures a same-day session", () => {
+    expect(sm8MinutesBetween("2026-08-13 07:30:00", "2026-08-13 16:00:00")).toBe(510);
+  });
+
+  it("crosses midnight without a timezone anywhere in the sum", () => {
+    expect(sm8MinutesBetween("2026-08-13 23:30:00", "2026-08-14 01:00:00")).toBe(90);
+  });
+
+  it("returns zero for a zero-length span and null for a negative one", () => {
+    expect(sm8MinutesBetween("2026-08-13 07:30:00", "2026-08-13 07:30:00")).toBe(0);
+    expect(sm8MinutesBetween("2026-08-13 08:00:00", "2026-08-13 07:00:00")).toBeNull();
+  });
+
+  it("returns null for anything malformed", () => {
+    expect(sm8MinutesBetween("", "2026-08-13 07:30:00")).toBeNull();
+    expect(sm8MinutesBetween("2026-08-13 07:30:00", "soon")).toBeNull();
+  });
+});
+
+describe("fmtMinutesAsHours", () => {
+  it("speaks the shape ServiceM8's billing tab uses", () => {
+    // 1110 is job #3137's real recorded total — 18h 30m on their own screen.
+    expect(fmtMinutesAsHours(1110)).toBe("18h 30m");
+    expect(fmtMinutesAsHours(45)).toBe("45m");
+    expect(fmtMinutesAsHours(180)).toBe("3h");
+    expect(fmtMinutesAsHours(0)).toBe("0m");
+  });
+});
+
+describe("groupChecklist", () => {
+  const item = (name: string, section: string | null): JobChecklistItem => ({
+    name,
+    itemType: "Todo",
+    section,
+    done: false,
+    doneOn: null,
+    doneBy: null,
+  });
+
+  it("keeps order and splits on section changes, unlabelled run first", () => {
+    const groups = groupChecklist([
+      item("Isolate power", null),
+      item("Gas down", null),
+      item("Site photos", "Handover"),
+      item("Client sign-off", "Handover"),
+    ]);
+    expect(groups.map((g) => g.section)).toEqual([null, "Handover"]);
+    expect(groups[0].items.map((i) => i.name)).toEqual(["Isolate power", "Gas down"]);
+    expect(groups[1].items.map((i) => i.name)).toEqual(["Site photos", "Client sign-off"]);
+  });
+
+  it("starts a new group when a section repeats after a gap, as sort order says", () => {
+    const groups = groupChecklist([item("a", "One"), item("b", null), item("c", "One")]);
+    expect(groups.map((g) => g.section)).toEqual(["One", null, "One"]);
+  });
+
+  it("hands an empty list back as no groups", () => {
+    expect(groupChecklist([])).toEqual([]);
+  });
+});
+
+describe("what an sm8 row carries through", () => {
+  it("keeps the category colour and the quote-sent facts beside the money", () => {
+    const v = view({
+      jobs: [
+        job({
+          remoteId: "q",
+          status: "Quote",
+          quoteDate: "2026-08-01 09:00:00",
+          categoryColour: "#e7b5ff",
+          money: jobMoneyOf({
+            total_invoice_amount: "6850.0000",
+            quote_sent: 1,
+            quote_sent_stamp: "2026-08-03 10:00:00",
+          }),
+        }),
+      ],
+    });
+    expect(v.quotes[0].categoryColour).toBe("#e7b5ff");
+    expect(v.quotes[0].money).toMatchObject({
+      valueCents: 685000,
+      quoteSent: true,
+      quoteSentOn: "2026-08-03",
+    });
   });
 });

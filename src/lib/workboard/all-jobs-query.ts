@@ -22,7 +22,13 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { plusDays } from "./dates";
 import { jobMoneyOf, SM8_JOB_MONEY_COLUMNS } from "./job-money";
-import { ALL_JOBS_HORIZON_DAYS, type AllJobsMirrorJob } from "./all-jobs";
+import {
+  ALL_JOBS_HORIZON_DAYS,
+  sm8CategoryColour,
+  sm8MinutesBetween,
+  type AllJobsMirrorJob,
+  type JobChecklistItem,
+} from "./all-jobs";
 
 /** How many open jobs one board load will carry. Far above anything a real
     account has open (the live workspace: 841), and the panel SAYS when it
@@ -155,10 +161,10 @@ export async function loadAllJobs(
     inChunks(categoryIds, 200, async (chunk) => {
       const { data } = await supabaseAdmin
         .from("sm8_categories")
-        .select("uuid, name")
+        .select("uuid, name, colour")
         .eq("org_id", orgId)
         .in("uuid", chunk);
-      return (data ?? []) as { uuid: string; name: string | null }[];
+      return (data ?? []) as { uuid: string; name: string | null; colour: string | null }[];
     }),
     /* The next diary block per job. Floored at today so a booking from last
        March can't read as "booked"; ordered ascending so the FIRST row seen
@@ -178,8 +184,14 @@ export async function loadAllJobs(
 
   const companyName = new Map(companies.map((c) => [c.uuid, c.name]));
   /* Live category names carry trailing spaces ("Annual Maintenance "). Trim
-     at the boundary so nothing downstream has to remember. */
-  const categoryName = new Map(categories.map((c) => [c.uuid, c.name?.trim() || null]));
+     at the boundary so nothing downstream has to remember. Colours arrive as
+     bare hex and are sanitised here for the same reason. */
+  const categoryInfo = new Map(
+    categories.map((c) => [
+      c.uuid,
+      { name: c.name?.trim() || null, colour: sm8CategoryColour(c.colour) },
+    ])
+  );
 
   const nextBooking = new Map<string, string>();
   for (const a of activities) {
@@ -194,7 +206,8 @@ export async function loadAllJobs(
     clientName: r.company_uuid ? companyName.get(r.company_uuid) ?? null : null,
     description: oneLine(r.job_description),
     suburb: r.geo_city,
-    categoryName: r.category_uuid ? categoryName.get(r.category_uuid) ?? null : null,
+    categoryName: r.category_uuid ? categoryInfo.get(r.category_uuid)?.name ?? null : null,
+    categoryColour: r.category_uuid ? categoryInfo.get(r.category_uuid)?.colour ?? null : null,
     date: r.date,
     quoteDate: r.quote_date,
     completionDate: r.completion_date,
@@ -222,15 +235,33 @@ export type MirrorJobDetail = {
   workDone: string | null;
   address: string | null;
   suburb: string | null;
+  /** "Rose Bay NSW 2029" — the geo columns joined, for a job with no written
+      address. Never appended to one that has: job_address usually already
+      carries the suburb line, and doubling it would read as two addresses. */
+  geoLine: string | null;
   categoryName: string | null;
+  categoryColour: string | null;
   purchaseOrder: string | null;
   date: string | null;
   quoteDate: string | null;
+  workOrderDate: string | null;
   completionDate: string | null;
-  nextBooking: { start: string; staffName: string | null } | null;
-  contacts: { name: string; type: string | null; phone: string | null }[];
+  nextBooking: { start: string; end: string | null; staffName: string | null } | null;
+  /** Recorded time across the job — the sum of NON-scheduled activity rows,
+      which is what ServiceM8's own billing tab calls Job Time. Validated
+      against the live account: job #3137 sums to exactly its 18h 30m. */
+  timeOnSite: { minutes: number; sessions: number } | null;
+  /** The dispatch queue this job sits in, if any — mirrored since day one,
+      rendered here first. */
+  queue: { name: string; expiry: string | null; staffName: string | null } | null;
+  checklist: JobChecklistItem[];
+  contacts: { name: string; type: string | null; phone: string | null; email: string | null }[];
   money: ReturnType<typeof jobMoneyOf> | null;
 };
+
+/** Naive stamp → its date part, without parsing a wall clock into a Date. */
+const dateOf = (stamp: string | null | undefined): string | null =>
+  typeof stamp === "string" && stamp.length >= 10 ? stamp.slice(0, 10) : null;
 
 /** The sheet's read. The uuid is a CHOICE handed in by a client, so it is
     re-resolved inside this org's mirror — a foreign id finds nothing. */
@@ -242,8 +273,10 @@ export async function readMirrorJobDetail(
 ): Promise<MirrorJobDetail | null> {
   const includeMoney = opts.includeMoney ?? true;
   const base =
-    "uuid, generated_job_id, status, company_uuid, job_address, geo_city, category_uuid, " +
-    "job_description, work_done_description, purchase_order_number, date, quote_date, completion_date";
+    "uuid, generated_job_id, status, company_uuid, job_address, geo_city, geo_state, geo_postcode, " +
+    "category_uuid, queue_uuid, queue_expiry_date, queue_assigned_staff_uuid, " +
+    "job_description, work_done_description, purchase_order_number, " +
+    "date, quote_date, work_order_date, completion_date";
 
   const { data } = await supabaseAdmin
     .from("sm8_jobs")
@@ -255,58 +288,135 @@ export async function readMirrorJobDetail(
 
   const job = data as (JobRow & {
     job_address: string | null;
+    geo_state: string | null;
+    geo_postcode: string | null;
+    queue_uuid: string | null;
+    queue_expiry_date: string | null;
+    queue_assigned_staff_uuid: string | null;
     work_done_description: string | null;
     purchase_order_number: string | null;
+    work_order_date: string | null;
   }) | null;
   if (!job) return null;
 
-  const [{ data: companyRow }, { data: categoryRow }, { data: actRows }, { data: contactRows }] =
-    await Promise.all([
-      job.company_uuid
-        ? supabaseAdmin
-            .from("sm8_companies")
-            .select("name")
-            .eq("org_id", orgId)
-            .eq("uuid", job.company_uuid)
-            .maybeSingle()
-        : Promise.resolve({ data: null }),
-      job.category_uuid
-        ? supabaseAdmin
-            .from("sm8_categories")
-            .select("name")
-            .eq("org_id", orgId)
-            .eq("uuid", job.category_uuid)
-            .maybeSingle()
-        : Promise.resolve({ data: null }),
-      supabaseAdmin
-        .from("sm8_job_activities")
-        .select("start_date, staff_uuid")
-        .eq("org_id", orgId)
-        .eq("active", 1)
-        .eq("job_uuid", remoteId)
-        .gte("start_date", `${today} 00:00:00`)
-        .order("start_date", { ascending: true })
-        .limit(1),
-      supabaseAdmin
-        .from("sm8_job_contacts")
-        .select("first, last, type, mobile, phone")
-        .eq("org_id", orgId)
-        .eq("active", 1)
-        .eq("job_uuid", remoteId),
-    ]);
-
-  const act = ((actRows ?? []) as { start_date: string | null; staff_uuid: string | null }[])[0];
-  let staffName: string | null = null;
-  if (act?.staff_uuid) {
-    const { data: staffRow } = await supabaseAdmin
-      .from("sm8_staff")
-      .select("first, last")
+  /* Activities arrive WHOLE, not just the next one: the past, non-scheduled
+     rows are the recorded on-site time, and the future, scheduled ones hold
+     the next booking. One ordered read serves both. */
+  const [
+    { data: companyRow },
+    { data: categoryRow },
+    { data: actRows },
+    { data: contactRows },
+    { data: checkRows },
+    { data: queueRow },
+  ] = await Promise.all([
+    job.company_uuid
+      ? supabaseAdmin
+          .from("sm8_companies")
+          .select("name")
+          .eq("org_id", orgId)
+          .eq("uuid", job.company_uuid)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    job.category_uuid
+      ? supabaseAdmin
+          .from("sm8_categories")
+          .select("name, colour")
+          .eq("org_id", orgId)
+          .eq("uuid", job.category_uuid)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    supabaseAdmin
+      .from("sm8_job_activities")
+      .select("start_date, end_date, staff_uuid, activity_was_scheduled")
       .eq("org_id", orgId)
-      .eq("uuid", act.staff_uuid)
-      .maybeSingle();
-    const s = staffRow as { first: string | null; last: string | null } | null;
-    staffName = s ? [s.first, s.last].filter(Boolean).join(" ") || null : null;
+      .eq("active", 1)
+      .eq("job_uuid", remoteId)
+      .order("start_date", { ascending: true }),
+    supabaseAdmin
+      .from("sm8_job_contacts")
+      .select("first, last, type, mobile, phone, email")
+      .eq("org_id", orgId)
+      .eq("active", 1)
+      .eq("job_uuid", remoteId),
+    supabaseAdmin
+      .from("sm8_job_checklists")
+      .select("name, item_type, section_name, sort_order, completed_timestamp, completed_by_staff_uuid")
+      .eq("org_id", orgId)
+      .eq("active", 1)
+      .eq("job_uuid", remoteId)
+      .order("sort_order", { ascending: true }),
+    job.queue_uuid
+      ? supabaseAdmin
+          .from("sm8_queues")
+          .select("name")
+          .eq("org_id", orgId)
+          .eq("uuid", job.queue_uuid)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+
+  const acts = (actRows ?? []) as {
+    start_date: string | null;
+    end_date: string | null;
+    staff_uuid: string | null;
+    activity_was_scheduled: number | null;
+  }[];
+  const todayFloor = `${today} 00:00:00`;
+  const next = acts.find((a) => a.start_date !== null && a.start_date >= todayFloor) ?? null;
+
+  let minutes = 0;
+  let sessions = 0;
+  for (const a of acts) {
+    if (a.activity_was_scheduled !== 0 || !a.start_date || !a.end_date) continue;
+    const m = sm8MinutesBetween(a.start_date, a.end_date);
+    if (m !== null && m > 0) {
+      minutes += m;
+      sessions += 1;
+    }
   }
+
+  const checks = (checkRows ?? []) as {
+    name: string | null;
+    item_type: string | null;
+    section_name: string | null;
+    sort_order: number | null;
+    completed_timestamp: string | null;
+    completed_by_staff_uuid: string | null;
+  }[];
+
+  /* One staff read for every name the sheet will say — the booking's tech,
+     the queue's assignee, whoever ticked each checklist item. */
+  const staffIds = [
+    ...new Set(
+      [
+        next?.staff_uuid ?? null,
+        job.queue_assigned_staff_uuid,
+        ...checks.map((c) => c.completed_by_staff_uuid),
+      ].filter((id): id is string => !!id)
+    ),
+  ];
+  const staffName = new Map<string, string>();
+  if (staffIds.length) {
+    const { data: staffRows } = await supabaseAdmin
+      .from("sm8_staff")
+      .select("uuid, first, last")
+      .eq("org_id", orgId)
+      .in("uuid", staffIds);
+    for (const s of (staffRows ?? []) as { uuid: string; first: string | null; last: string | null }[]) {
+      const name = [s.first, s.last].filter(Boolean).join(" ").trim();
+      if (name) staffName.set(s.uuid, name);
+    }
+  }
+
+  const geoLine =
+    [job.geo_city, job.geo_state, job.geo_postcode]
+      .map((part) => part?.trim())
+      .filter(Boolean)
+      .join(" ") || null;
+
+  const queueName = (queueRow as { name: string | null } | null)?.name?.trim() || null;
+  const category = categoryRow as { name: string | null; colour: string | null } | null;
 
   return {
     remoteId: job.uuid,
@@ -317,25 +427,62 @@ export async function readMirrorJobDetail(
     workDone: job.work_done_description,
     address: job.job_address,
     suburb: job.geo_city,
-    categoryName: (categoryRow as { name: string | null } | null)?.name?.trim() || null,
+    geoLine,
+    categoryName: category?.name?.trim() || null,
+    categoryColour: sm8CategoryColour(category?.colour ?? null),
     purchaseOrder: job.purchase_order_number,
     date: job.date,
     quoteDate: job.quote_date,
+    workOrderDate: job.work_order_date,
     completionDate: job.completion_date,
-    nextBooking: act?.start_date ? { start: act.start_date, staffName } : null,
+    nextBooking: next?.start_date
+      ? {
+          start: next.start_date,
+          end: next.end_date,
+          staffName: next.staff_uuid ? staffName.get(next.staff_uuid) ?? null : null,
+        }
+      : null,
+    timeOnSite: sessions > 0 ? { minutes, sessions } : null,
+    queue: queueName
+      ? {
+          name: queueName,
+          expiry: dateOf(job.queue_expiry_date),
+          staffName: job.queue_assigned_staff_uuid
+            ? staffName.get(job.queue_assigned_staff_uuid) ?? null
+            : null,
+        }
+      : null,
+    checklist: checks
+      .filter((c) => !!c.name?.trim())
+      .map((c) => {
+        const done = !!c.completed_timestamp?.trim();
+        return {
+          name: c.name!.trim(),
+          itemType: c.item_type,
+          section: c.section_name?.trim() || null,
+          done,
+          doneOn: done ? dateOf(c.completed_timestamp) : null,
+          doneBy:
+            done && c.completed_by_staff_uuid
+              ? staffName.get(c.completed_by_staff_uuid) ?? null
+              : null,
+        };
+      }),
     contacts: ((contactRows ?? []) as {
       first: string | null;
       last: string | null;
       type: string | null;
       mobile: string | null;
       phone: string | null;
+      email: string | null;
     }[])
       .map((c) => ({
         name: [c.first, c.last].filter(Boolean).join(" ").trim(),
         type: c.type,
         phone: c.mobile || c.phone,
+        email: c.email?.trim() || null,
       }))
-      .filter((c) => c.name || c.phone),
+      .filter((c) => c.name || c.phone || c.email),
     money: includeMoney ? jobMoneyOf(job) : null,
   };
 }
@@ -437,12 +584,14 @@ export async function searchAllMirrorJobs(
   const cats = await inChunks(categoryIds, 200, async (chunk) => {
     const { data } = await supabaseAdmin
       .from("sm8_categories")
-      .select("uuid, name")
+      .select("uuid, name, colour")
       .eq("org_id", orgId)
       .in("uuid", chunk);
-    return (data ?? []) as { uuid: string; name: string | null }[];
+    return (data ?? []) as { uuid: string; name: string | null; colour: string | null }[];
   });
-  const catById = new Map(cats.map((c) => [c.uuid, c.name?.trim() || null]));
+  const catById = new Map(
+    cats.map((c) => [c.uuid, { name: c.name?.trim() || null, colour: sm8CategoryColour(c.colour) }])
+  );
 
   const { data: actRows } = await supabaseAdmin
     .from("sm8_job_activities")
@@ -464,7 +613,8 @@ export async function searchAllMirrorJobs(
     clientName: r.company_uuid ? nameById.get(r.company_uuid) ?? null : null,
     description: oneLine(r.job_description),
     suburb: r.geo_city,
-    categoryName: r.category_uuid ? catById.get(r.category_uuid) ?? null : null,
+    categoryName: r.category_uuid ? catById.get(r.category_uuid)?.name ?? null : null,
+    categoryColour: r.category_uuid ? catById.get(r.category_uuid)?.colour ?? null : null,
     date: r.date,
     quoteDate: r.quote_date,
     completionDate: r.completion_date,

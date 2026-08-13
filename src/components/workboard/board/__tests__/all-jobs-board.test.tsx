@@ -38,6 +38,7 @@ const mirrorJob = (over: Record<string, unknown> & { remoteId: string }) => ({
   description: "Cool room door heater tape failed",
   suburb: "Mascot",
   categoryName: "Service Call",
+  categoryColour: null,
   date: "2026-08-08 09:00:00",
   quoteDate: null,
   completionDate: null,
@@ -248,6 +249,40 @@ describe("quotes", () => {
     await toTab("Quotes");
     expect(screen.getByText("1 quote awaiting an answer")).toBeInTheDocument();
     expect(screen.getByText("Strathfield Dental")).toBeInTheDocument();
+  });
+
+  /* An unsent quote is an action gap, not a wait — the chip must say which of
+     the two a row is, and only to a reader who holds money (the flags ride
+     the money columns). */
+  it("splits sent from unsent for a money reader, and says nothing without", async () => {
+    const quotes = data({
+      jobs: [
+        mirrorJob({
+          remoteId: "q-sent",
+          status: "Quote",
+          quoteDate: "2026-08-05 00:00:00",
+          clientName: "Strathfield Dental",
+          money: jobMoneyOf({ quote_sent: 1, quote_sent_stamp: "2026-08-05 10:00:00" }),
+        }),
+        mirrorJob({
+          remoteId: "q-quiet",
+          status: "Quote",
+          quoteDate: "2026-08-06 00:00:00",
+          clientName: "Bradfield Badgerfield",
+          money: jobMoneyOf({ quote_sent: 0 }),
+        }),
+      ],
+    });
+    const first = mount({ data: quotes, moneyVisible: true });
+    await toTab("Quotes");
+    expect(screen.getByText("Quote sent")).toBeInTheDocument();
+    expect(screen.getByText("Not sent yet")).toBeInTheDocument();
+    first.unmount();
+
+    mount({ data: quotes, moneyVisible: false });
+    await toTab("Quotes");
+    expect(screen.queryByText("Quote sent")).toBeNull();
+    expect(screen.queryByText("Not sent yet")).toBeNull();
   });
 });
 

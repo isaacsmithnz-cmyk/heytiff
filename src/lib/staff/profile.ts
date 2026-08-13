@@ -40,7 +40,6 @@ export type StaffProfile = {
   hours_condition: string | null;
   vevo_checked_at: string | null;
   work_rights_doc_url: string | null;
-  work_rights_verified_at: string | null;
 
   qualifications: string | null;
 };

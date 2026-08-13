@@ -13,7 +13,7 @@ const expiredLicence = { id: "l1", typeName: "White Card", expiryDate: "2026-07-
 const person = (staffId: string, name: string): StaffCompliance => ({
   staffId,
   name,
-  workRights: { status: null, visaType: null, visaExpiry: null, verifiedAt: null },
+  workRights: { status: null, visaType: null, visaExpiry: null, vevoCheckedAt: null },
   licences: [{ ...expiredLicence, id: `${staffId}-lic` }],
 });
 

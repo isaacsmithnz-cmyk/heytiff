@@ -30,7 +30,7 @@ const COLUMNS =
   "start_date, employment_type, job_title, status, photo_url, " +
   "emergency_name, emergency_phone, emergency_relationship, emergency_alt_phone, " +
   "work_rights_status, visa_type, visa_expiry, hours_condition, vevo_checked_at, " +
-  "work_rights_doc_url, work_rights_verified_at, qualifications";
+  "work_rights_doc_url, qualifications";
 // NB: hourly_wage / contracted_hours / utilisation / cost_split / notes are
 // intentionally absent — this module must never read or write them.
 

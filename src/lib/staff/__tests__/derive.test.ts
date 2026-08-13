@@ -5,6 +5,7 @@ import {
   initialsFrom,
   startedLabel,
   yearsSince,
+  type WorkRightsFacts,
 } from "../derive";
 import type { StaffLicence } from "../types";
 
@@ -18,7 +19,14 @@ const lic = (typeName: string, expiryDate: string | null): StaffLicence => ({
   color: null,
 });
 
-const CLEAR = { status: null, verifiedAt: null };
+const CLEAR: WorkRightsFacts = {
+  status: null,
+  visaType: null,
+  visaExpiry: null,
+  vevoCheckedAt: null,
+};
+/** An otherwise-blank work-rights record with the named facts filled in. */
+const wr = (over: Partial<WorkRightsFacts> = {}): WorkRightsFacts => ({ ...CLEAR, ...over });
 
 describe("yearsSince", () => {
   it("returns one decimal place", () => {
@@ -156,25 +164,83 @@ describe("deriveCompliance", () => {
     expect(c.state).toBe("ok");
   });
 
-  it("warns on work rights recorded but not verified", () => {
-    const c = deriveCompliance([], { status: "482 TSS", verifiedAt: null }, NOW);
+  it("warns on work rights recorded but never VEVO-checked", () => {
+    const c = deriveCompliance([], wr({ status: "482 TSS" }), NOW);
     expect(c.state).toBe("warn");
     expect(c.label).toBe("Work rights unverified");
   });
 
-  it("does not warn once work rights are verified", () => {
+  /* THE ONE THAT WAS BROKEN. The warning read `work_rights_verified_at`, which
+     no form in the app writes — so recording the VEVO check on the profile
+     saved `vevo_checked_at` and the chip went on warning forever. */
+  it("clears once the VEVO check is recorded — the column the forms write", () => {
     const c = deriveCompliance(
       [],
-      { status: "Australian citizen", verifiedAt: "2026-01-01T00:00:00Z" },
+      wr({ status: "Australian citizen", vevoCheckedAt: "2026-01-01" }),
       NOW
     );
     expect(c.state).toBe("ok");
   });
 
+  /* THE OTHER ONE. A visa expiry was never passed in at all, so someone whose
+     right to work had lapsed read "Compliant" in the Team directory while the
+     dashboard showed them red. */
+  it("flags an expired visa, naming the visa type", () => {
+    const c = deriveCompliance(
+      [],
+      wr({ status: "482 TSS", visaType: "482 TSS", visaExpiry: "2026-07-16", vevoCheckedAt: "2026-01-01" }),
+      NOW
+    );
+    expect(c.state).toBe("bad");
+    expect(c.label).toBe("482 TSS expired");
+    expect(c.expiresDays).toBe(-3);
+  });
+
+  it("warns on a visa inside the window even when every licence is in date", () => {
+    const c = deriveCompliance(
+      [lic("ARC licence", "2029-01-01")],
+      wr({ status: "482 TSS", visaType: "482 TSS", visaExpiry: "2026-08-02", vevoCheckedAt: "2026-01-01" }),
+      NOW
+    );
+    expect(c.state).toBe("warn");
+    expect(c.label).toBe("482 TSS expires in 2 weeks");
+  });
+
+  it("falls back to 'Visa' when no type was recorded", () => {
+    const c = deriveCompliance([], wr({ visaExpiry: "2026-07-16" }), NOW);
+    expect(c.label).toBe("Visa expired");
+  });
+
+  it("ranks the visa against the licences, soonest first", () => {
+    const soonestIsTheVisa = deriveCompliance(
+      [lic("White Card", "2026-08-10")],
+      wr({ visaType: "482 TSS", visaExpiry: "2026-07-27" }),
+      NOW
+    );
+    expect(soonestIsTheVisa.label).toBe("482 TSS expires in 8 days");
+
+    const soonestIsTheLicence = deriveCompliance(
+      [lic("White Card", "2026-07-27")],
+      wr({ visaType: "482 TSS", visaExpiry: "2026-08-10" }),
+      NOW
+    );
+    expect(soonestIsTheLicence.label).toBe("White Card expires in 8 days");
+  });
+
+  it("a citizen with no visa recorded is not flagged for one", () => {
+    const c = deriveCompliance(
+      [],
+      wr({ status: "Australian citizen", vevoCheckedAt: "2026-01-01" }),
+      NOW
+    );
+    expect(c.state).toBe("ok");
+    expect(c.label).toBe("—");
+  });
+
   it("a licence problem outranks unverified work rights", () => {
     const c = deriveCompliance(
       [lic("White Card", "2026-06-01")],
-      { status: "482 TSS", verifiedAt: null },
+      wr({ status: "482 TSS" }),
       NOW
     );
     expect(c.label).toBe("White Card expired");

@@ -61,43 +61,77 @@ const NO_EXPIRY = 9999;
 
 export type Compliance = { label: string; state: ComplianceState; expiresDays: number };
 
+/* What the compliance chip is told about someone's right to work.
+
+   `vevoCheckedAt` is the column every form in the app actually WRITES — the
+   profile card's "VEVO checked" date, in `SELF_EDITABLE_SECTIONS.workrights`
+   and `ADMIN_SECTIONS.workrights` alike. This used to read
+   `work_rights_verified_at`, which nothing has ever written, so the unverified
+   warning could not be cleared by any action a person could take: recording
+   the VEVO check saved one column and the chip read another. Guarded by
+   __tests__/verified-column.test.ts. */
+export type WorkRightsFacts = {
+  status: string | null;
+  visaType: string | null;
+  /** Inclusive last day the visa is valid, ISO. */
+  visaExpiry: string | null;
+  /** When someone last checked the entitlement against VEVO. */
+  vevoCheckedAt: string | null;
+};
+
 /* The directory's compliance chip.
 
-   Worst-first: an expired licence beats an expiring one, which beats
+   Worst-first: something already expired beats something expiring, which beats
    unverified work rights. `expiresDays` drives the "soonest expiry" sort, so
    it always carries the number behind the label — not a placeholder.
 
-   Work rights only warn when a status has been recorded but not verified.
+   A VISA EXPIRY IS ONE OF THE DATES, not a footnote to the status. It used to
+   be absent entirely: this function was handed the status and the check date
+   and nothing else, so a person whose visa expired yesterday read "Compliant"
+   in the column headed *Compliance & rights* while the dashboard showed them
+   red. The two now count the same facts — a visa ranks beside the licences,
+   because losing the right to work is not a lesser problem than a lapsed
+   ticket.
+
+   Work rights only warn when a status has been recorded but never checked.
    Someone with nothing entered at all is "not set up yet", not "at risk" —
    flagging them would make every new hire look non-compliant on day one. */
 export function deriveCompliance(
   licences: readonly StaffLicence[],
-  workRights: { status: string | null; verifiedAt: string | null },
+  workRights: WorkRightsFacts,
   now = new Date()
 ): Compliance {
-  let worst: { days: number; lic: StaffLicence } | null = null;
-  for (const lic of licences) {
-    const days = daysUntil(lic.expiryDate, now);
+  /* One scan over everything with a date on it. The visa carries its own noun
+     ("482 TSS expired") so the row still says WHICH thing lapsed; unnamed, it
+     falls back to "Visa" the same way the dashboard chip does. */
+  const dated: { what: string; expiryDate: string | null }[] = [
+    ...licences.map((l) => ({ what: l.typeName, expiryDate: l.expiryDate })),
+    { what: workRights.visaType?.trim() || "Visa", expiryDate: workRights.visaExpiry },
+  ];
+
+  let worst: { days: number; what: string } | null = null;
+  for (const item of dated) {
+    const days = daysUntil(item.expiryDate, now);
     if (days === null) continue;
-    if (!worst || days < worst.days) worst = { days, lic };
+    if (!worst || days < worst.days) worst = { days, what: item.what };
   }
 
   if (worst && worst.days < 0) {
     return {
-      label: `${worst.lic.typeName} expired`,
+      label: `${worst.what} expired`,
       state: "bad",
       expiresDays: worst.days,
     };
   }
   if (worst && worst.days <= EXPIRY_WARN_DAYS) {
     return {
-      label: `${worst.lic.typeName} ${expiryClause(worst.days)}`,
+      label: `${worst.what} ${expiryClause(worst.days)}`,
       state: "warn",
       expiresDays: worst.days,
     };
   }
 
-  if (workRights.status && !workRights.verifiedAt) {
+  if (workRights.status && !workRights.vevoCheckedAt) {
     return { label: "Work rights unverified", state: "warn", expiresDays: 0 };
   }
 

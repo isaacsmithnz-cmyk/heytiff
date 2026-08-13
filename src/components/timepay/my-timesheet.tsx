@@ -1111,9 +1111,14 @@ export function MyTimesheet({
                 )}
                 {holdForDays && !sent && period.live && (
                   <div className="mts2-sub">
+                    {/* `{" "}` before "if": this block runs over several lines
+                        and ends on an entity, which costs the text node its
+                        leading space — it read "itself Monday 9amif you
+                        don't". See lib/format/__tests__/jsx-entity-spacing. */}
                     You can send this {noun} once your last working day is over — there
                     {toCome === 1 ? " is 1 still to come" : ` are ${toCome} still to come`}. It
-                    submits itself {settings.submitDay} {settings.submitTime} if you don&rsquo;t.
+                    submits itself {settings.submitDay} {settings.submitTime}{" "}
+                    if you don&rsquo;t.
                   </div>
                 )}
               </section>

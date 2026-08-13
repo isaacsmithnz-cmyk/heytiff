@@ -2036,6 +2036,12 @@
 .fg .dmenu button .i {color:#9ca3af;}
 .fg .dmenu button.danger {color:#e0264f;}
 .fg .dmenu button.danger .i {color:#e0264f;}
+/* Deactivate asks twice — press once to arm, again to confirm, close the menu
+   to forget it. Same filled red the other two-step confirms in the app wear
+   (.fl-btn.danger.arm, .lv-cancel.arm), because it is the same gesture; it has
+   to beat `.dmenu button:hover`, hence the three classes. */
+.fg .dmenu button.danger.arm {background:#e0264f; color:#fff;}
+.fg .dmenu button.danger.arm .i {color:#fff;}
 .fg .invrow {display:grid; grid-template-columns:2.4fr 1.4fr 1.4fr auto; gap:16px; align-items:center; padding:14px 24px; border-top:1px solid #f5f6f8;}
 .fg .invrow:first-child {border-top:none;}
 .fg .invwho {display:flex; align-items:center; gap:13px; min-width:0;}

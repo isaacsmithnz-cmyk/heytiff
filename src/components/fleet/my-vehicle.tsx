@@ -181,8 +181,11 @@ export function MyVehicle({
       {paused && (
         <div className="fl-offnote">
           <Icon name="alert" size={15} />
-          {displayName(vehicle)} is off the road — fuel &amp; odometer logging is paused. You can still
-          report issues.
+          {/* `{" "}` or this reads "Hilux uteis off the road" — the block wraps
+              and carries an entity, which costs the text its leading space.
+              See lib/format/__tests__/jsx-entity-spacing. */}
+          {displayName(vehicle)}{" "}
+          is off the road — fuel &amp; odometer logging is paused. You can still report issues.
           {borrowable.length > 0 && (
             <button
               className="fl-offbtn"

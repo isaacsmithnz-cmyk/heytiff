@@ -6827,6 +6827,84 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   .wb2-dusk .wb2-skel { background:rgba(255,255,255,.08); }
 }
 
+/* ── THE REVIEW, IN THE DARK ──────────────────────────────────────────────
+   Every `.wb-*` and `.wb2-casc*` component was written for a white sheet
+   floating over a white page, in light values: grey headings, a white tick,
+   white fields, a near-white cascade panel. The debrief stays dusk THROUGH
+   the review — one ground for the whole card, all the way down (Isaac,
+   2026-08-13: "All sections of the debrief part should have the same
+   background. No white.") — so the review family needs dark clothes.
+
+   SCOPED TO THE SKIN, NOT THE POSTURE. These used to be `.fg .hm-cap …`,
+   which tied them to the one card that happened to want them and left them
+   to drift; `.wb2-capcard.wb2-dusk` says what is actually true — a review on
+   the dusk surface reads like this, wherever that surface is standing.
+
+   LITERALS, NOT `--hm-*`. Those vars are declared on `.hm-wrap`, and this
+   selector also matches the PORTALLED card, which renders at document.body
+   where nothing under `.fg` reaches it. A var that resolves on one surface
+   and not the other is the same bug wearing a variable.
+
+   STATE COLOURS KEEP THEIR MEANING and only change ground: the stop stays the
+   warn family (it is "fix this before it saves", not a failure), and the tick
+   takes the ok-teal the Tasks tab's tick wears two panels away. */
+.wb2-capcard.wb2-dusk .wb-dayhead { color:rgba(255,255,255,.5); }
+.wb2-capcard.wb2-dusk .wb-dayhead i { color:rgba(255,255,255,.38); }
+.wb2-capcard.wb2-dusk .wb-notetext { color:rgba(255,255,255,.72); }
+.wb2-capcard.wb2-dusk .wb-review .wb-notetext { background:rgba(255,255,255,.05); }
+.wb2-capcard.wb2-dusk .wb-row:hover { background:rgba(255,255,255,.04); }
+.wb2-capcard.wb2-dusk .wb-tick { background:transparent; border-color:rgba(255,255,255,.3);
+  color:transparent; }
+.wb2-capcard.wb2-dusk .wb-tick:not(.done):hover { border-color:#00E5C0; color:rgba(0,229,192,.45); }
+.wb2-capcard.wb2-dusk .wb-tick.done { background:rgba(0,229,192,.14);
+  border-color:rgba(0,229,192,.7); color:#7CEFD9; }
+/* the fields — dark glass, the same recipe the assign form on the Tasks tab
+   uses, so the two editable surfaces on this card agree */
+.wb2-capcard.wb2-dusk :is(input.wb-inline, .wb-select) { background:rgba(255,255,255,.06);
+  border-color:rgba(255,255,255,.14); color:#fff; }
+.wb2-capcard.wb2-dusk input.wb-inline::placeholder { color:rgba(255,255,255,.35); }
+.wb2-capcard.wb2-dusk :is(input.wb-inline, .wb-select):focus { border-color:rgba(0,229,192,.55);
+  box-shadow:0 0 0 3px rgba(0,229,192,.18); }
+/* a native <option> list is drawn by the OS, so the dark field needs a dark
+   option too or the menu opens as white text on white */
+.wb2-capcard.wb2-dusk .wb-select option { background:#171C26; color:#fff; }
+.wb2-capcard.wb2-dusk .wb2-capsaid { color:rgba(255,255,255,.45); }
+/* THE KNOWLEDGE BODY GETS ITS BOX BACK. It is a `.wb2-notes`, and the dusk
+   skin deliberately strips that class to bare words on the card — right for
+   the capture box, which is the one thing you are writing in, wrong for a
+   field sitting inside a list of rows. */
+.wb2-capcard.wb2-dusk .wb2-kbrow .wb2-kbbody { background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.14); border-radius:12px; padding:10px 12px; }
+.wb2-capcard.wb2-dusk .wb2-kbrow .wb2-kbbody:focus { border-color:rgba(0,229,192,.55);
+  box-shadow:0 0 0 3px rgba(0,229,192,.18); }
+.wb2-capcard.wb2-dusk .wb-chip { background:rgba(255,255,255,.08); color:rgba(255,255,255,.8); }
+.wb2-capcard.wb2-dusk .wb-chip:hover:not(:disabled) { background:rgba(255,255,255,.14); color:#fff; }
+/* the cascade — where the note is going, in three numbered lines */
+.wb2-capcard.wb2-dusk .wb2-casc { background:rgba(255,255,255,.04);
+  border-color:rgba(255,255,255,.09); }
+.wb2-capcard.wb2-dusk .wb2-cascrow { color:rgba(255,255,255,.4); }
+.wb2-capcard.wb2-dusk .wb2-cascrow.on { color:rgba(255,255,255,.92); }
+.wb2-capcard.wb2-dusk .wb2-cascn { background:rgba(255,255,255,.08); color:rgba(255,255,255,.55); }
+.wb2-capcard.wb2-dusk .wb2-cascrow.on .wb2-cascn { background:#00E5C0; color:#04262B; }
+/* the stop — WARN, not danger: nothing has failed, something is unfinished */
+.wb2-capcard.wb2-dusk .wb2-capstop { background:rgba(255,138,0,.16); color:#FFC07A; }
+/* the job line and its picker, the same dark glass as the fields */
+.wb2-capcard.wb2-dusk .wb2-capjob { background:rgba(255,255,255,.05);
+  border-color:rgba(255,255,255,.12); color:rgba(255,255,255,.78); }
+.wb2-capcard.wb2-dusk .wb2-capjob.on { background:rgba(0,229,192,.1);
+  border-color:rgba(0,229,192,.34); color:#9FF4E4; }
+.wb2-capcard.wb2-dusk .wb2-capjob b { color:#fff; }
+.wb2-capcard.wb2-dusk .wb2-capchange { background:rgba(0,229,192,.1);
+  border-color:rgba(0,229,192,.34); color:#9FF4E4; }
+.wb2-capcard.wb2-dusk .wb2-capchange:hover { background:rgba(0,229,192,.18);
+  border-color:rgba(0,229,192,.5); color:#fff; }
+.wb2-capcard.wb2-dusk .wb2-jobpick { background:rgba(255,255,255,.04);
+  border-color:rgba(255,255,255,.1); }
+.wb2-capcard.wb2-dusk .wb2-jobopt { color:rgba(255,255,255,.82); }
+.wb2-capcard.wb2-dusk .wb2-jobopt:hover { background:rgba(255,255,255,.07); }
+.wb2-capcard.wb2-dusk .wb2-jobopt.on { background:rgba(0,229,192,.14); color:#fff; }
+.wb2-capcard.wb2-dusk .wb2-jobopt em { color:rgba(255,255,255,.5); }
+
 /* ============================ HOME ============================
    One INK GLASS card with six faces — Journal, Urgent, Needs attention,
    Noticeboard, Tasks, Calendar — on the daylight well (Isaac, 2026-08-10:

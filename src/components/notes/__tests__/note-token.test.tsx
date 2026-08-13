@@ -503,15 +503,94 @@ describe("the debrief", () => {
     expect(bar).toHaveFocus();
   });
 
-  it("hands back to light for the review, exactly as the sheet does", async () => {
-    /* It used to stay ink here, on the argument that the card stands on
-       Home's dark surface — so the same content wore different clothes
-       depending on which door you opened it through. Both derive the skin
-       from the stage now, through the sheet's own `duskClass`.
+  /* THE JOB PICKER REACHES THE DEBRIEF (Isaac, 2026-08-13: "in this
+     particular voice note, I mentioned a job, but I couldn't find one").
 
-       `openDebrief` mounts, so the dusk half is asserted on the way past
-       rather than from a second mount — two cards in the DOM and every
-       `getByRole` in here goes ambiguous. */
+     `JobLine` used to `return null` on a debrief outright, on the argument
+     that a debrief spans jobs and pinning it to one would un-say that. True
+     of a debrief that never named a job — and no help at all to one that
+     named a job the matcher could not resolve. Home also pushed no
+     candidates, so `scope.jobs` was empty and the control had nothing to
+     offer even once un-suppressed; the loader supplies them now. */
+  const JOBS = [
+    { kind: "agreement" as const, id: "a-1", clientName: "Northgate Realty",
+      label: "Quarterly service", siteLabel: "Level 3", jobNumber: null },
+    { kind: "visit" as const, id: "v-9", clientName: "Meridian Data",
+      label: "CRAC service", siteLabel: "Server room", jobNumber: "1042" },
+  ];
+
+  const openWithJobs = async (said: string) => {
+    routeNote.mockResolvedValue({
+      ok: true,
+      noteId: "n-1",
+      proposal: proposal({ plainNote: "", noteLines: ["order the filters"] }),
+      staff: [{ id: "s-1", fullName: "Luke Mercer" }],
+    });
+    mount(<NoteToken as="debrief" />, { jobs: JOBS });
+    await userEvent.click(screen.getByRole("button", { name: /Debrief the day/ }));
+    await userEvent.type(screen.getByRole("textbox"), said);
+    await userEvent.click(screen.getByRole("button", { name: "Go" }));
+    await screen.findByText("Check it before it saves");
+  };
+
+  /* THE HEADLINE FIX IS THE DATA. Naming the job always worked — `matchJob`
+     resolves "northgate" against the candidate list — but Home pushed NO
+     candidates, so the list was empty, nothing could ever match, and the
+     review said "No job named" about a note that named one. */
+  it("matches a job named in the words, once Home has candidates to match", async () => {
+    await openWithJobs("tell danny to order the filters for the northgate job");
+    expect(screen.getByText(/Sounds like/)).toBeInTheDocument();
+    /* Scoped to the job line. `describeJob` builds "client — service · site ·
+       which job", so match on the client rather than pinning the sentence.
+
+       The RIBBON is deliberately not asserted: on a debrief its chip says
+       what the capture files into ("Tasks, knowledge & your notes") rather
+       than which job, and that stays true with a job picked — the two say
+       different things and both are wanted. */
+    expect(document.querySelector(".wb2-capjob")).toHaveTextContent(/Northgate Realty/);
+    expect(screen.getByRole("button", { name: "Change" })).toBeInTheDocument();
+  });
+
+  it("offers the picker when the words match nothing, without nagging", async () => {
+    await openWithJobs("long day, everything is behind");
+    // a debrief naming no job is its NORMAL case, so this is a statement
+    expect(screen.getByText(/Not about one job/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Pick a job" })).toBeInTheDocument();
+  });
+
+  it("searches the jobs, and names the one you pick", async () => {
+    await openWithJobs("long day, everything is behind");
+    await userEvent.click(screen.getByRole("button", { name: "Pick a job" }));
+
+    const search = screen.getByRole("searchbox", { name: /Search jobs/ });
+    await userEvent.type(search, "meridian");
+    expect(screen.getByText(/Meridian Data/)).toBeInTheDocument();
+    expect(screen.queryByText(/Northgate Realty/)).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByText(/Meridian Data/));
+    // the line confirms it — the only feedback that the pin took
+    expect(screen.getByText(/Sounds like/)).toBeInTheDocument();
+  });
+
+  it("is still absent where there are no jobs to offer", async () => {
+    /* A control with an empty list is furniture — and this is every org that
+       does not hold `workboard`, where the loader sends none. */
+    await openDebrief({ noteLines: ["chase the coil pricing"] });
+    expect(screen.queryByRole("button", { name: "Pick a job" })).toBeNull();
+    expect(screen.queryByText(/Not about one job/)).toBeNull();
+  });
+
+  it("is one ground all the way down, review included", async () => {
+    /* THE ONE PLACE IT DOES NOT FOLLOW THE SHEET (Isaac, 2026-08-13: "All
+       sections of the debrief part should have the same background. No
+       white."). The sheet hands back to light for the review — right for a
+       white card floating over a white page. This card is a panel inside
+       Home's ink card, where a white block halfway down is a second surface
+       appearing mid-flow. The review family wears dusk instead, scoped to
+       `.wb2-capcard.wb2-dusk` in shell.css.
+
+       Asserted on the way past rather than from a second mount: `openDebrief`
+       mounts, and two cards in the DOM make every `getByRole` ambiguous. */
     routeNote.mockResolvedValue({
       ok: true,
       noteId: "n-1",
@@ -525,7 +604,7 @@ describe("the debrief", () => {
     await userEvent.type(screen.getByRole("textbox"), "everything on my mind");
     await userEvent.click(screen.getByRole("button", { name: "Go" }));
     await screen.findByText("Check it before it saves");
-    expect(document.querySelector(".hm-cap")).not.toHaveClass("wb2-dusk"); // review
+    expect(document.querySelector(".hm-cap")).toHaveClass("wb2-dusk"); // and review
   });
 
   it("is a labelled button — never an icon alone", () => {

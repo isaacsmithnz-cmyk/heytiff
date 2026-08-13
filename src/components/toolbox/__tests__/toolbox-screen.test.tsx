@@ -1,10 +1,18 @@
-/* Toolbox screen — category cards render from the registry, live tools link
-   to their pages, empty categories keep their hint, and the
-   search box filters rows / hides cards with no matches. */
+/* Toolbox screen — one tile per TOOL, a filter chip per non-empty category,
+   live tools linking to their pages, and search narrowing both. */
 
 import { render, screen, fireEvent } from "@testing-library/react";
 import { ToolboxScreen } from "../toolbox-screen";
-import { NEW_FOR_DAYS, TOOL_CATEGORIES, toolBadge, toolMatches } from "../tools";
+import {
+  NEW_FOR_DAYS,
+  TOOL_CATEGORIES,
+  allTools,
+  categoryChips,
+  toolBadge,
+  toolIcon,
+  toolMatches,
+  visibleTools,
+} from "../tools";
 
 /* A fixed "today" so these never drift: the registry's real ship dates age
    past the New window as the calendar moves, and a test reading the wall
@@ -12,13 +20,64 @@ import { NEW_FOR_DAYS, TOOL_CATEGORIES, toolBadge, toolMatches } from "../tools"
 const TODAY = "2026-08-05";
 
 describe("ToolboxScreen", () => {
-  it("renders a card for every category that HAS a tool, plus the search", () => {
+  it("renders a tile for every tool in the registry, plus the search", () => {
     render(<ToolboxScreen today={TODAY} />);
-    expect(screen.getByRole("heading", { name: "Toolbox" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Toolbox/ })).toBeInTheDocument();
     expect(screen.getByLabelText("Search tools")).toBeInTheDocument();
-    for (const cat of TOOL_CATEGORIES.filter((c) => c.tools.length > 0)) {
-      expect(screen.getByText(cat.title)).toBeInTheDocument();
+    const tools = allTools();
+    for (const { tool } of tools) {
+      expect(screen.getByRole("link", { name: new RegExp(tool.name) })).toBeInTheDocument();
     }
+    expect(screen.getAllByRole("link")).toHaveLength(tools.length);
+  });
+
+  /* THE TILE IS THE TOOL. The count in the title is the one number on the
+     screen that says how much is here, and it used to be four separate pills
+     reading "1", "2", "1" on cards you could count by eye. */
+  it("counts the tools once, in the title", () => {
+    render(<ToolboxScreen today={TODAY} />);
+    expect(screen.getByRole("heading", { name: /Toolbox/ })).toHaveTextContent(
+      `${allTools().length} field tools`
+    );
+  });
+
+  it("gives every category with tools a filter chip, and All to get back", () => {
+    render(<ToolboxScreen today={TODAY} />);
+    const chips = screen.getAllByRole("button");
+    expect(chips.map((b) => b.textContent)).toEqual([
+      "All 4",
+      "Calculators 1",
+      "Troubleshooting 2",
+      "Reference 1",
+    ]);
+    expect(screen.getByRole("button", { name: /^All/ })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("a chip filters the grid down to its own tools", () => {
+    render(<ToolboxScreen today={TODAY} />);
+    fireEvent.click(screen.getByRole("button", { name: /^Troubleshooting/ }));
+    expect(screen.getByRole("link", { name: /Running Pressures/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Fault Finder/ })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Heat Load/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Troubleshooting/ })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+    // and All takes you back
+    fireEvent.click(screen.getByRole("button", { name: /^All/ }));
+    expect(screen.getByRole("link", { name: /Heat Load/ })).toBeInTheDocument();
+  });
+
+  /* A FILTER YOU CANNOT SEE IS A FILTER YOU CANNOT UNDO. Search runs first, so
+     it can empty the category the chip row is standing on — and when it does,
+     that chip leaves the row. Honouring the click at that point would leave a
+     screen filtered by something with no control left on it. */
+  it("falls back to All when the search empties the chosen category", () => {
+    render(<ToolboxScreen today={TODAY} />);
+    fireEvent.click(screen.getByRole("button", { name: /^Calculators/ }));
+    fireEvent.change(screen.getByLabelText("Search tools"), { target: { value: "pressure" } });
+    expect(screen.queryByRole("button", { name: /^Calculators/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Running Pressures/ })).toBeInTheDocument();
   });
 
   it("links the live tools to their routes", () => {
@@ -41,11 +100,11 @@ describe("ToolboxScreen", () => {
     );
   });
 
-  /* A CATEGORY WITH NO TOOLS IS NOT A CARD. "Design Tools" was a permanently
+  /* A CATEGORY WITH NO TOOLS IS NOT A SHELF. "Design Tools" was a permanently
      empty quarter of the grid reading "Nothing here yet", and it collided with
      "Design Studio · VRF design canvas" — a live rail row two items above it.
      Someone hunting for a design tool clicked the empty card while the real
-     one sat in the nav. The registry entry stays; the card returns with the
+     one sat in the nav. The registry entry stays; it gets a chip with the
      first tool that lands on it. */
   it("does not render a category that has no tools", () => {
     render(<ToolboxScreen today={TODAY} />);
@@ -57,12 +116,20 @@ describe("ToolboxScreen", () => {
     expect(screen.queryByText("Nothing here yet")).not.toBeInTheDocument();
   });
 
-  it("search filters rows and drops categories with no matches", () => {
+  it("search filters tiles and drops the chips with no matches", () => {
     render(<ToolboxScreen today={TODAY} />);
     fireEvent.change(screen.getByLabelText("Search tools"), { target: { value: "pressure" } });
     expect(screen.getByRole("link", { name: /Running Pressures/ })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Heat Load/ })).not.toBeInTheDocument();
-    expect(screen.queryByText("Calculators")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Calculators/ })).not.toBeInTheDocument();
+  });
+
+  /* One chip left is not a choice, and a row containing only "All" and the
+     category you are already looking at is chrome describing itself. */
+  it("hides the whole chip row when the search leaves one category standing", () => {
+    render(<ToolboxScreen today={TODAY} />);
+    fireEvent.change(screen.getByLabelText("Search tools"), { target: { value: "pressure" } });
+    expect(screen.queryAllByRole("button")).toHaveLength(0);
   });
 
   it("no-match search shows the global empty state", () => {
@@ -77,6 +144,58 @@ describe("ToolboxScreen", () => {
     expect(toolMatches(t, "RUNNING")).toBe(true);
     expect(toolMatches(t, "duct")).toBe(false);
     expect(toolMatches(t, "  ")).toBe(true);
+  });
+});
+
+/* The shape the landing screen reads. Pure functions over the real registry,
+   so the rules are testable without rendering and the screen can only draw
+   what they return. */
+describe("the tool shelf", () => {
+  it("counts chips off the SEARCH, never the registry", () => {
+    expect(categoryChips("").map((c) => [c.title, c.count])).toEqual([
+      ["Calculators", 1],
+      ["Troubleshooting", 2],
+      ["Reference", 1],
+    ]);
+    // one of Troubleshooting's two matches, so the chip must say 1, not 2
+    expect(categoryChips("pressure")).toEqual([
+      { key: "troubleshooting", title: "Troubleshooting", accent: "#2E68FF", count: 1 },
+    ]);
+    expect(categoryChips("zzzz")).toEqual([]);
+  });
+
+  it("honours a category only while the search leaves something in it", () => {
+    expect(visibleTools("", "troubleshooting").map((s) => s.tool.name)).toEqual([
+      "Running Pressures",
+      "Fault Finder",
+    ]);
+    expect(visibleTools("", "all").map((s) => s.tool.name)).toHaveLength(4);
+    // "calculators" has no match for "pressure", so the request is dropped
+    // rather than rendering an empty grid under a chip that is no longer there
+    expect(visibleTools("pressure", "calculators").map((s) => s.tool.name)).toEqual([
+      "Running Pressures",
+    ]);
+    expect(visibleTools("zzzz", "all")).toEqual([]);
+  });
+
+  /* TWO TILES, ONE ICON reads as a rendering fault. Running Pressures and
+     Fault Finder are the only pair in one category today, and they were the
+     pair that proved it — both wore the Troubleshooting warning triangle. */
+  it("never gives two tools in one category the same glyph", () => {
+    for (const cat of TOOL_CATEGORIES) {
+      const icons = cat.tools.map((tool) => toolIcon({ tool, cat }));
+      expect(new Set(icons).size).toBe(icons.length);
+    }
+  });
+
+  /* SEMANTIC STATE IS NEVER A PAGE ACCENT. Troubleshooting shipped as
+     #FF3366 — the app's danger red — so two working tools rendered as an
+     alert. Categories are identity; ok-teal and danger-red mean something. */
+  it("keeps category accents out of the semantic set, and off each other", () => {
+    const semantic = ["#FF3366", "#e0264f", "#00A389", "#FF8A00"];
+    const accents = TOOL_CATEGORIES.map((c) => c.accent);
+    for (const a of accents) expect(semantic).not.toContain(a);
+    expect(new Set(accents).size).toBe(accents.length);
   });
 });
 

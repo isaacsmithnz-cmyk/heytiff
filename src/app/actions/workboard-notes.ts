@@ -836,7 +836,12 @@ export async function dismissNote(noteId: string): Promise<ApplyResult> {
     .eq("org_id", ctx.orgId)
     .eq("id", noteId);
   refresh({ kind: note.target_kind, id: note.target_id });
-  return { ok: true, summary: "Kept as a note." };
+  /* NOT "Kept as a note." — this is the ABANDON path (Escape, ×, walking
+     away), and nothing in the app reads `workboard_notes`, so that summary
+     promised a note the reader could never find. It is never displayed either:
+     the one caller `void`s the result. Saying what actually happened costs
+     nothing and stops the next person believing the old sentence. */
+  return { ok: true, summary: "Discarded." };
 }
 
 /* "Just keep the note" has to keep it SOMEWHERE YOU'D FIND IT.

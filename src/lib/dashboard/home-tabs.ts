@@ -22,19 +22,23 @@ import type { ViewTab } from "@/components/shell/view-tabs";
 
 export type HomeTabKey = "journal" | "urgent" | "attention" | "board" | "tasks" | "calendar";
 
-/** Where a tab's rows live in full, for the "see all" door in its panel.
-    Journal and Calendar have no entry: each one IS the whole record, so there
-    is nowhere fuller to send you. */
-export const TAB_HOME: Record<Exclude<HomeTabKey, "journal" | "calendar">, string> = {
-  urgent: "/dashboard/action-required",
-  attention: "/dashboard/action-required",
-  board: "/dashboard/notices",
-  tasks: "/dashboard/action-required",
-};
+/* `TAB_HOME` lived here — "where a tab's rows live in full, for the see-all
+   door in its panel" — and nothing ever read it. Only the Noticeboard panel
+   has such a door, hardcoded in home.tsx, so the map described three doors
+   that were never built. Deleting it says plainly that Urgent, Needs attention
+   and Tasks have no full view to reach, which is the honest state of things.
+
+   `allClear` went the same way: no callers. "The absence of five numbers IS
+   the statement" is still true and still needs no function. */
 
 /** Journal leads: you land on what you told Tiff, and the badges say whether
     anything else wants you. That default is only safe BECAUSE of the badges. */
 export const DEFAULT_TAB: HomeTabKey = "journal";
+
+/** How many notice rows the Noticeboard tab shows before deferring to the
+    board itself. The badge counts the whole window; this is what fits on a
+    face of a card without the panel becoming the board. */
+export const HOME_NOTICE_ROWS = 6;
 
 export function homeTabs(input: {
   /** Every action-required chip the viewer may see, self and team. */
@@ -88,9 +92,3 @@ export function homeTabs(input: {
   ];
 }
 
-/** Nothing anywhere. Every badge absent, which is what a clear day looks like
-    in this design — there is no "all clear" panel to render, because the
-    absence of five numbers IS the statement. */
-export function allClear(tabs: readonly ViewTab[]): boolean {
-  return tabs.every((t) => !t.count);
-}

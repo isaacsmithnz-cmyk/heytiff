@@ -447,7 +447,12 @@
 
 /* staff directory (Team overview) */
 .fg .dir { background:#fff; border:1px solid #f0f0f2; border-radius:24px; box-shadow:0 8px 30px rgba(0,0,0,.03); overflow:hidden; }
-.fg .dirhead, .fg .dirrow { display:grid; grid-template-columns:2.4fr 1.4fr 1.1fr 1.6fr; gap:16px; align-items:center; padding:15px 24px; width:100%; text-align:left; }
+/* NO GRID RULE HERE. `.fg .dirhead, .fg .dirrow` is declared again further
+   down this stylesheet at the same specificity, so the later one has always
+   won and this copy has never applied — it still carried the four-column
+   track list from before the actions column arrived. Dead CSS at equal
+   specificity has shadowed live rules in this file twice; the live one is in
+   the Team directory section. */
 .fg .dirhead { font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:#aeb4c0; border-bottom:1px solid #f0f0f2; }
 .fg .dirrow { border-top:1px solid #f5f6f8; cursor:pointer; transition:background .18s; }
 .fg .dirrow:hover { background:#fafbfc; }
@@ -458,7 +463,6 @@
 .fg .drole { font-size:13.5px; color:#6b7280; font-weight:600; }
 .fg .dstatus { display:inline-flex; align-items:center; gap:8px; font-size:13.5px; font-weight:600; color:#374151; }
 .fg .dstatus .sd { width:8px; height:8px; border-radius:50%; flex:0 0 auto; }
-.fg .dveh { font-family:var(--mono); font-size:12.5px; color:#6b7280; }
 .fg .dchip { display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; padding:5px 11px; border-radius:999px; width:fit-content; }
 .fg .dchip.ok { background:rgba(0,229,192,.1); color:#00A389; }
 .fg .dchip.warn { background:rgba(240,164,49,.13); color:#b45309; }
@@ -624,7 +628,13 @@
 /* ---------------- TOOLBOX ---------------- */
 .fg .tbx-head { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:48px; gap:24px; flex-wrap:wrap; }
 .fg .tbx-eb { display:inline-flex; align-items:center; gap:8px; color:var(--teal-d); font-size:11px; font-weight:700; letter-spacing:.2em; text-transform:uppercase; font-family:var(--mono); margin-bottom:14px; }
-.fg .tbx-head h1 { font-size:48px; font-weight:800; color:var(--ink); letter-spacing:-0.03em; line-height:1; margin:0; }
+/* 38/-.035em, like every other page title. #350 swept THIRTEEN inline 44s into
+   `.v2head h1` and missed this one and the tool pages' 40 — both were CSS
+   rules rather than style objects, so a sweep looking for the copied object
+   never saw them, and the commit's "every heading the app declares in CSS
+   lands on 38" was not true when it was written. Toolbox was the loudest
+   title in the app. */
+.fg .tbx-head h1 { font-size:38px; font-weight:800; color:var(--ink); letter-spacing:-.035em; line-height:1; margin:0; }
 .fg .tbx-search { position:relative; width:100%; max-width:384px; }
 .fg .tbx-search svg { position:absolute; left:16px; top:50%; transform:translateY(-50%); color:var(--gray400); transition:color .3s; }
 .fg .tbx-search:focus-within svg { color:var(--teal); }
@@ -1984,7 +1994,12 @@
 
 /* ===== Team directory — tabs, tools, menus, invites (ported from design v3) ===== */
 /* staff directory (Team overview) */
-.fg .dirhead, .fg .dirrow {display:grid; grid-template-columns:2.4fr 1.4fr 1fr 1.6fr 44px; gap:16px; align-items:center; padding:15px 24px; width:100%; text-align:left;}
+/* Four columns, not five: the Vehicle track is gone with the em-dash it always
+   held (`toStaffRow` hardcoded it — fleet is keyed by demo staff ids and was
+   never wired to `staff_profiles.id`). It was 160px of every row, 13.5%, in
+   every workspace. The width it freed goes to Name and Compliance, which are
+   the two that get truncated. */
+.fg .dirhead, .fg .dirrow {display:grid; grid-template-columns:2.6fr 1.4fr 1.9fr 44px; gap:16px; align-items:center; padding:15px 24px; width:100%; text-align:left;}
 .fg .dname > span:not(.dav):not(.dofftag) {min-width:0; flex:1;}
 .fg .dofftag {flex:0 0 auto;}
 /* directory — sliding tab switcher */
@@ -2367,6 +2382,16 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .lv-frow { display:flex; flex-wrap:wrap; gap:12px; }
 .fg .lv-fnote { margin-top:12px; display:flex; }
 .fg .lv-form .mts-f input, .fg .lv-form .mts-f select { height:38px; padding:0 11px; border-radius:11px; border:1px solid rgba(10,11,16,.14); background:#fff; font-family:var(--font); font-size:13.5px; font-weight:600; color:var(--ink); }
+/* The notice body. `.mts-f` only ever styled `input` and `select`, so the
+   textarea that replaced the one-line body field would have landed on browser
+   defaults — wrong font, square corners, grey ground. Everything but `height`
+   is copied from the rule above it on purpose: they are the same field, one of
+   them just gets to wrap. `resize:vertical` because the width belongs to the
+   form and the height belongs to whoever is writing. */
+.fg .lv-form .mts-f textarea.nb-bodyin { width:100%; min-height:84px; padding:10px 11px;
+  border-radius:11px; border:1px solid rgba(10,11,16,.14); background:#fff;
+  font-family:var(--font); font-size:13.5px; font-weight:600; color:var(--ink);
+  line-height:1.5; resize:vertical; }
 .fg .lv-fmeta { display:flex; align-items:center; gap:16px; margin-top:14px; }
 .fg .lv-fmeta > span { flex:1; font-size:12.5px; font-weight:600; color:var(--gray500); }
 .fg .lv-cols { display:grid; grid-template-columns:1.4fr 1fr; gap:20px; align-items:start; }
@@ -3046,9 +3071,18 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .adm-main em { display:block; font-style:normal; font-size:13px; font-weight:500; color:var(--gray500); margin-top:2px; }
 .fg .adm-ch { flex:0 0 auto; display:flex; color:var(--gray400); transition:transform .15s; }
 .fg a.adm-row:hover .adm-ch { transform:translateX(2px); }
-/* planned: present, legible, plainly not yet clickable */
-.fg .adm-row.soon { opacity:.55; }
-.fg .adm-soon { flex:0 0 auto; padding:4px 10px; border-radius:999px; background:#f4f5f7; font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--gray500); }
+/* WHAT IS COMING, in one line under the live rows.
+
+   `.adm-row.soon` and `.adm-soon` are gone with the full-height planned rows
+   they dressed — seven of the twelve rows on an owner's page, 496px of 1060px,
+   each one a menu item that could not be opened. Naming what is coming was
+   right; giving it more of the page than the tools that work was not. Left
+   here, those two rules would be dead CSS shadowing a live class name, which
+   has bitten this stylesheet twice. */
+.fg .adm-coming { display:flex; align-items:baseline; gap:9px; flex-wrap:wrap;
+  margin:10px 2px 0; font-size:12.5px; font-weight:600; color:var(--gray500); }
+.fg .adm-coming span { font-size:10px; font-weight:800; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--gray400); }
 .fg .adm-empty { padding:80px 16px; text-align:center; border:1.5px dashed #e6e8ee; border-radius:24px; background:linear-gradient(180deg,#fafbfc,#fff); }
 .fg .adm-empty b { display:block; font-size:16px; font-weight:700; color:var(--gray500); }
 .fg .adm-empty em { display:block; max-width:420px; margin:6px auto 0; font-style:normal; font-size:13px; font-weight:500; color:var(--gray400); line-height:1.5; }
@@ -5321,7 +5355,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 
 /* ── the page head: what's here, and the month's allowance ── */
 .fg .tk-head { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex-wrap:wrap; margin-bottom:26px; }
-.fg .tk-h1 { margin:0; font-size:44px; font-weight:800; letter-spacing:-.03em; line-height:1; color:var(--ink); }
+/* The Library's title. A fourteenth 44 — it escaped #350's sweep by wearing a
+   CLASS instead of being an `h1` under a header class, so neither the scan for
+   inline style objects nor a look down the list of `… h1` selectors found it. */
+.fg .tk-h1 { margin:0; font-size:38px; font-weight:800; letter-spacing:-.035em; line-height:1; color:var(--ink); }
 .fg .tk-sub { margin:10px 0 0; font-size:14.5px; font-weight:600; color:var(--gray500); }
 .fg .tk-quota { display:inline-flex; align-items:center; gap:7px; margin:14px 0 0; padding:6px 13px; border-radius:99px;
   background:rgba(46,104,255,.07); color:#1d4ed8; font-size:12.5px; font-weight:700; }
@@ -7330,6 +7367,23 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .hm-sr b { font-size:13px; font-weight:700; color:var(--ink); }
 .fg .hm-sr em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); margin-left:auto; }
 .fg a.hm-sr:hover b { color:var(--wb2-cy); }
+/* A CLOSED period with work still outstanding is the one actionable state this
+   strip has, and it used to look identical to the open-period status line —
+   `payRunItem` computed warn/ok and the row rendered neither.
+
+   A dot, not a tinted row: the strip sits UNDER the card as the day's context,
+   so it marks the row without competing with the card's own badges. And the
+   label already says which state it is ("Pay run due" vs "Timesheets this
+   period"), so the dot is a second channel rather than the only one.
+
+   `--wb2-warn-t`, NOT `--hm-warn`. Both are declared on `.hm-wrap` and both
+   are amber, but `--hm-warn` (#FFC07A) is a DUSK-SKIN literal for the ink
+   card — pale on purpose, because it is read on near-black glass. This strip
+   is on the light well, where it measures under 2:1. The `-t` variants exist
+   for exactly this ground. */
+.fg .hm-sr[data-state="warn"] b { position:relative; padding-left:14px; }
+.fg .hm-sr[data-state="warn"] b::before { content:""; position:absolute; left:0; top:50%;
+  width:7px; height:7px; margin-top:-3.5px; border-radius:50%; background:var(--wb2-warn-t); }
 
 /* ── the Calendar ──
    The `.wb2-mc*` grid mechanics come from the maintenance board; on the ink

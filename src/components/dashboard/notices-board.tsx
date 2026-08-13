@@ -555,6 +555,9 @@ type Acts = {
   onEdit: (n: BoardNotice) => void;
   onArchive: (n: BoardNotice) => void;
   onRemove: (id: string) => void;
+  /** Which filed notice has its delete armed — one at a time, board-wide. */
+  armedRemove: string | null;
+  onArmRemove: (id: string | null) => void;
   onVote: (noticeId: string, optionIds: string[]) => void;
   onRsvp: (noticeId: string, answer: string | null) => void;
   onReact: (noticeId: string, emoji: string | null) => void;
@@ -607,13 +610,31 @@ function NoticeCard({ notice: n, acts }: { notice: BoardNotice; acts: Acts }) {
               {filed ? "Put back" : "Archive"}
             </button>
           )}
-          {canFile && (
+          {/* DELETE IS OFFERED FROM THE ARCHIVE ONLY.
+
+              This used to sit here on every live notice as a ghost button
+              beside Archive, and one click destroyed the post, its comments,
+              its poll votes, its RSVPs and its files with no confirm and no
+              undo. Two controls that look the same and differ by "recoverable"
+              is the wrong pair to put a millimetre apart.
+
+              It is My Notes' rule, which already says it out loud: "Deleting is
+              offered from the archive only, so nothing is destroyed in one
+              click from the list you read every day." Archive first, then
+              delete — and it still asks twice, the way Revoke and Deactivate
+              do. A typo is a job for Edit. */}
+          {canFile && filed && (
             <button
-              className="fl-btn ghost"
+              className={`fl-btn tiny danger${acts.armedRemove === n.id ? " arm" : ""}`}
               disabled={acts.pending}
-              onClick={() => acts.onRemove(n.id)}
+              onBlur={() => acts.onArmRemove(null)}
+              onClick={() => {
+                if (acts.armedRemove !== n.id) return acts.onArmRemove(n.id);
+                acts.onArmRemove(null);
+                acts.onRemove(n.id);
+              }}
             >
-              Remove
+              {acts.armedRemove === n.id ? "Confirm delete" : "Delete for good"}
             </button>
           )}
         </span>
@@ -659,9 +680,12 @@ function NoticeCard({ notice: n, acts }: { notice: BoardNotice; acts: Acts }) {
       {(expiry || filed) && (
         <div className="nb-foot">
           {filed ? (
+            /* "Archived", because the button says Archive and the section
+               below says Archived. This chip said "Filed away", which made
+               three words for one state on a single screen. */
             <span className="dchip2 mute">
               <Icon name="folder" size={11} />
-              Filed away
+              Archived
             </span>
           ) : (
             expiry && (
@@ -699,6 +723,8 @@ export function NoticesBoard({
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showArchive, setShowArchive] = useState(false);
+  // one armed delete at a time — see NoticeCard's delete button
+  const [armedRemove, setArmedRemove] = useState<string | null>(null);
 
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -817,6 +843,8 @@ export function NoticesBoard({
     },
     onArchive: (n) => run(() => setNoticeArchived(n.id, n.archivedAt === null)),
     onRemove: (id) => run(() => deleteNotice(id)),
+    armedRemove,
+    onArmRemove: setArmedRemove,
     onVote: (noticeId, optionIds) => run(() => castPollVote(noticeId, optionIds)),
     onRsvp: (noticeId, answer) => run(() => setRsvp(noticeId, answer)),
     onReact: (noticeId, emoji) => run(() => reactToNotice(noticeId, emoji)),
@@ -887,7 +915,7 @@ export function NoticesBoard({
                   marginBottom: 12,
                 }}
               >
-                ← Dashboard
+                ← Home
               </Link>
               <h1>
                 Noticeboard
@@ -943,10 +971,20 @@ export function NoticesBoard({
               <div className="lv-fnote">
                 <label className="mts-f" style={{ flex: 1 }}>
                   <span>{composingPoll ? "Any detail (optional)" : "Message (optional)"}</span>
-                  <input
+                  {/* A TEXTAREA, because this is the announcement. It was a
+                      one-line `<input>`: "Depot closed Friday — the yard is
+                      being resurfaced, park on Mills St, and take the
+                      compressor home Thursday night" had to be typed into a
+                      box that scrolls sideways and can never hold a paragraph
+                      break. `.nb-body` already renders the stored text with
+                      pre-wrap, so the newlines survive the round trip; nothing
+                      but the composer was stopping anyone writing them. */}
+                  <textarea
+                    className="nb-bodyin"
+                    rows={3}
                     value={body}
                     onChange={(e) => setBody(e.target.value)}
-                    placeholder="The details"
+                    placeholder="The details — as many lines as it takes"
                   />
                 </label>
               </div>

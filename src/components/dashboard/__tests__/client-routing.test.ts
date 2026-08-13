@@ -7,7 +7,7 @@ import { join } from "node:path";
    routing, no prefetch, the entire shell torn down and rebuilt to move one
    screen. Home is the most-visited screen in the app and every door out of it
    was one — the four hero counters, the noticeboard card, the payroll rows,
-   the action-required tiles, and both "← Dashboard" back links.
+   the action-required tiles, and both "← Home" back links.
 
    It fails nothing. It renders correctly, passes every test, and simply feels
    like a slower app — which is why it survived a page-load performance pass

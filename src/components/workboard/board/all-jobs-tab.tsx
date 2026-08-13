@@ -375,8 +375,10 @@ export function CompletedJobsTab(props: Props) {
             aria-label={`${showUnsuccessful ? "Hide" : "Show"} ${v.unsuccessful.length} that did not go ahead`}
           >
             <Icon name={showUnsuccessful ? "minus" : "plus"} size={15} />
-            {/* the wrapping-text-with-entity trap (see jsx-entity-spacing):
-                the space after the count must be written as an expression */}
+            {/* `{" "}` or this renders "Show 3that didn't go ahead": a JSX text
+                block that wraps AND carries an entity loses the space it starts
+                with. Caught by lib/format/__tests__/jsx-entity-spacing, which
+                landed in #358 the same morning this shipped. */}
             {showUnsuccessful ? "Hide" : "Show"} {v.unsuccessful.length}{" "}
             that didn&apos;t go ahead
           </button>

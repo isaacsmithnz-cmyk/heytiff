@@ -27,7 +27,6 @@ export type StaffRow = {
   licenceCount: number;
   status: "Active" | "Inactive";
   /** from the Fleet register; "—" until Fleet moves to real tables (Stage 4) */
-  vehicle: string;
   compliance: { label: string; state: ComplianceState; expiresDays: number };
   /** org role — drives the Permissions card's selector */
   orgRole: Role | null;

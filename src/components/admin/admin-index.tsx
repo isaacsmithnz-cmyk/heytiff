@@ -187,44 +187,61 @@ function RowBody({ row, badge = 0 }: { row: AdminRow; badge?: number }) {
           {badge} new
         </span>
       )}
-      {row.href ? (
-        <span className="adm-ch">
-          <Icon name="chevR" size={17} />
-        </span>
-      ) : (
-        <span className="adm-soon">Planned</span>
-      )}
+      {/* Only live rows reach RowBody now — a planned tool is a name in the
+          `Coming` line, not a row wearing a "Planned" tag. */}
+      <span className="adm-ch">
+        <Icon name="chevR" size={17} />
+      </span>
     </>
   );
 }
 
 function Row({ row, viewer }: { row: AdminRow; viewer: AdminViewer }) {
   const badge = row.badge?.(viewer) ?? 0;
-  if (!row.href) {
-    return (
-      <div className="adm-row soon">
-        <RowBody row={row} badge={badge} />
-      </div>
-    );
-  }
   return (
-    <Link className="adm-row" href={row.href}>
+    <Link className="adm-row" href={row.href!}>
       <RowBody row={row} badge={badge} />
     </Link>
   );
 }
 
+/* WHAT IS COMING, IN ONE LINE.
+
+   Each planned tool used to be a full row — icon chip, title, subtitle, a
+   "Planned" tag — which read as a menu item you could not open. Measured on
+   2026-08-12: as an owner the page was twelve rows, SEVEN of them planned, and
+   496px of 1060px. An owner scrolled past four dead rows to reach the tools
+   they actually use, and a settings index that is mostly doors that don't open
+   teaches people to stop reading it.
+
+   Saying what is coming was the right instinct and it is kept — it is the
+   WEIGHT that was wrong. One line under the live rows, naming them, not
+   pretending to be a menu. */
+function Coming({ rows }: { rows: AdminRow[] }) {
+  if (rows.length === 0) return null;
+  return (
+    <div className="adm-coming">
+      <span>Coming</span>
+      {rows.map((r) => r.title).join(" · ")}
+    </div>
+  );
+}
+
 export function AdminIndex(viewer: AdminViewer) {
-  const groups = SECTIONS.map((g) => ({
-    label: g.label,
-    rows: g.rows.filter((r) => r.show(viewer)),
-  })).filter((g) => g.rows.length > 0);
+  const groups = SECTIONS.map((g) => {
+    const visible = g.rows.filter((r) => r.show(viewer));
+    return {
+      label: g.label,
+      rows: visible.filter((r) => r.href),
+      coming: visible.filter((r) => !r.href),
+    };
+  }).filter((g) => g.rows.length > 0 || g.coming.length > 0);
 
   /* The empty state hangs off the LIVE rows, not off row count: an admin with
-     neither gated item can only ever see "Planned" placeholders, and a page of
-     things you cannot open is a worse answer than saying so plainly — the
-     empty-state copy names those same coming tools anyway. */
-  const anyLive = groups.some((g) => g.rows.some((r) => r.href));
+     neither gated item can only ever see what is coming, and a page of things
+     you cannot open is a worse answer than saying so plainly — the empty-state
+     copy names those same coming tools anyway. */
+  const anyLive = groups.some((g) => g.rows.length > 0);
 
   return (
     <div className="page in">
@@ -242,11 +259,14 @@ export function AdminIndex(viewer: AdminViewer) {
             groups.map((g) => (
               <div className="adm-group" key={g.label}>
                 <div className="adm-glabel">{g.label}</div>
-                <div className="adm-card">
-                  {g.rows.map((r) => (
-                    <Row row={r} viewer={viewer} key={r.title} />
-                  ))}
-                </div>
+                {g.rows.length > 0 && (
+                  <div className="adm-card">
+                    {g.rows.map((r) => (
+                      <Row row={r} viewer={viewer} key={r.title} />
+                    ))}
+                  </div>
+                )}
+                <Coming rows={g.coming} />
               </div>
             ))
           ) : (

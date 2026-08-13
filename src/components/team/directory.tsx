@@ -147,7 +147,14 @@ export function TeamDirectory({
       <div className="dirtabs" data-view={view} style={{ "--idx": tabIdx } as React.CSSProperties}>
         <span className="dirtab-slide" style={{ left: `calc(6px + ${tabIdx} * (100% - 12px) / 3)` }} />
         {tab(0, "active", activeCount, "Active staff", "Currently working")}
-        {tab(1, "warn", warnStaff.length, "Need attention", "Compliance & work rights")}
+        {/* NOT "Need attention". Home's card has a tab called "Needs
+            attention" one rail row away, and the two count different things in
+            different units: Home counts ITEMS inside a 30-day warning window
+            across people, fleet, business and pay; this counts PEOPLE whose
+            compliance isn't clear, expired and expiring together. Two numbers
+            that will rarely agree under two labels a letter apart. This one
+            says what it counts. */}
+        {tab(1, "warn", warnStaff.length, "Compliance gaps", "Expired, expiring or unverified")}
         {tab(2, "pending", pending.length, "Pending invites", "Awaiting acceptance")}
       </div>
 
@@ -239,7 +246,13 @@ export function TeamDirectory({
           <div className="dirhead">
             <span>Name</span>
             <span>Role</span>
-            <span>Vehicle</span>
+            {/* THE VEHICLE COLUMN IS GONE. `toStaffRow` hardcoded
+                `vehicle: "—"` — fleet is still keyed by demo staff ids and
+                was never wired to `staff_profiles.id` — so this was 160px,
+                13.5% of every row, showing an em-dash for every person in
+                every workspace. A column that has never once held a value is
+                not a placeholder, it is furniture. It comes back when the
+                register is wired, with the row that fills it. */}
             <span>Compliance &amp; rights</span>
             <span></span>
           </div>
@@ -279,7 +292,6 @@ export function TeamDirectory({
                     )}
                   </span>
                   <span className="drole">{s.role}</span>
-                  <span className="dveh">{s.vehicle || "—"}</span>
                   <span className={`dchip ${s.compliance.state}`}>
                     {s.compliance.label === "—" ? null : (
                       <Icon name={s.compliance.state === "ok" ? "check" : "alert"} size={12} />

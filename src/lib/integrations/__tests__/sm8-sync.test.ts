@@ -181,6 +181,129 @@ describe("budgets", () => {
     expect(staff.cursor).toBeNull();
     expect(staff.backfill_done).toBe(false);
     expect(staff.rows_pulled).toBe(PAGE_BUDGET);
+    // ...and the page it stopped on is remembered, with its query
+    expect(staff.walk_cursor).toBe("more");
+    expect(staff.walk_filter).toBeNull(); // staff has no backfill floor
+  });
+});
+
+/* ── an object bigger than one run's budget ──
+
+   The bug this closes, from the live account on 2026-08-14: sm8_attachments
+   held 24,999 rows while rows_pulled read 49,992 — two runs that each re-read
+   the same ~25,000 rows because the pagination cursor was thrown away at the
+   end of every run. Above PAGE_BUDGET × 1000 rows the object could NEVER
+   finish, and everything past page 25 was permanently missing from the
+   mirror. */
+describe("a walk resumes where it paused", () => {
+  const pagedForever = () =>
+    fetchSm8Page.mockImplementation(async (_t: string, _e: string, opts: { cursor: string }) => ({
+      ok: true,
+      rows: [{ uuid: `u-${opts.cursor}`, edit_date: "2026-07-28 09:00:00", active: 1 }],
+      nextCursor: `after-${opts.cursor}`,
+    }));
+
+  it("starts the next run at the stored cursor, not back at page one", async () => {
+    pagedForever();
+    stateRows = [
+      {
+        object: "staff",
+        cursor: null,
+        backfill_done: false,
+        rows_pulled: 25_000,
+        walk_cursor: "page-26",
+        walk_filter: null,
+      },
+    ];
+
+    await runSm8Sync("org-1", "manual", NOW);
+
+    const firstCall = fetchSm8Page.mock.calls[0];
+    expect(firstCall[1]).toBe("staff.json");
+    expect(firstCall[2]).toMatchObject({ cursor: "page-26" });
+    /* And it left a NEW resume point, further on than the one it started
+       from — which is the whole difference between progress and the loop
+       this closes. */
+    const staff = stateUpsertFor("staff")!;
+    expect(staff.walk_cursor).toContain("page-26");
+    expect(staff.walk_cursor).not.toBe("page-26");
+  });
+
+  it("resumes on the STORED filter, so a sliding backfill floor can't move the query under it", async () => {
+    /* A backfill floor is `now - 24 months`, so recomputing it on a later run
+       asks a different question and the stored cursor would be walking a
+       result set that no longer exists. jobs is a 24-month object; the stored
+       filter must win over anything filterFor would produce today. */
+    pagedForever();
+    stateRows = SM8_OBJECTS.filter((s) => s.object !== "jobs").map((s) => ({
+      object: s.object,
+      cursor: "2026-07-01 00:00:00",
+      backfill_done: true,
+      rows_pulled: 10,
+      walk_cursor: null,
+      walk_filter: null,
+    }));
+    stateRows.push({
+      object: "jobs",
+      cursor: null,
+      backfill_done: false,
+      rows_pulled: 25_000,
+      walk_cursor: "page-26",
+      walk_filter: "edit_date gt '2024-01-01 00:00:00'",
+    });
+
+    await runSm8Sync("org-1", "manual", NOW);
+
+    const firstCall = fetchSm8Page.mock.calls[0];
+    expect(firstCall[1]).toBe("job.json");
+    expect(firstCall[2]).toMatchObject({
+      cursor: "page-26",
+      filter: "edit_date gt '2024-01-01 00:00:00'",
+    });
+  });
+
+  it("clears both columns when the walk finally finishes", async () => {
+    stateRows = [
+      {
+        object: "staff",
+        cursor: null,
+        backfill_done: false,
+        rows_pulled: 25_000,
+        walk_cursor: "page-26",
+        walk_filter: null,
+      },
+    ];
+    fetchSm8Page.mockResolvedValue({
+      ok: true,
+      rows: [{ uuid: "u-last", edit_date: "2026-07-28 09:00:00", active: 1 }],
+      nextCursor: null,
+    });
+
+    await runSm8Sync("org-1", "manual", NOW);
+
+    const staff = stateUpsertFor("staff")!;
+    expect(staff.backfill_done).toBe(true);
+    expect(staff.walk_cursor).toBeNull();
+    expect(staff.walk_filter).toBeNull();
+    expect(staff.cursor).toBe("2026-07-28 09:00:00"); // the floor moves now, and only now
+  });
+
+  it("remembers the page it failed on, so a retry doesn't restart the walk", async () => {
+    stateRows = [
+      {
+        object: "staff",
+        cursor: null,
+        backfill_done: false,
+        rows_pulled: 1000,
+        walk_cursor: "page-2",
+        walk_filter: null,
+      },
+    ];
+    fetchSm8Page.mockResolvedValue({ ok: false, failure: "rate_limited" });
+
+    await runSm8Sync("org-1", "manual", NOW);
+
+    expect(stateUpsertFor("staff")!.walk_cursor).toBe("page-2");
   });
 });
 

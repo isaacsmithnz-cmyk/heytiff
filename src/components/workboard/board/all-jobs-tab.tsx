@@ -375,7 +375,10 @@ export function CompletedJobsTab(props: Props) {
             aria-label={`${showUnsuccessful ? "Hide" : "Show"} ${v.unsuccessful.length} that did not go ahead`}
           >
             <Icon name={showUnsuccessful ? "minus" : "plus"} size={15} />
-            {showUnsuccessful ? "Hide" : "Show"} {v.unsuccessful.length} that didn&apos;t go ahead
+            {/* the wrapping-text-with-entity trap (see jsx-entity-spacing):
+                the space after the count must be written as an expression */}
+            {showUnsuccessful ? "Hide" : "Show"} {v.unsuccessful.length}{" "}
+            that didn&apos;t go ahead
           </button>
           {showUnsuccessful && (
             <Rows rows={v.unsuccessful} moneyVisible={props.moneyVisible} onOpen={props.onOpen} />

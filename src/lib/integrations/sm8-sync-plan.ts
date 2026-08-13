@@ -394,6 +394,69 @@ export function maxEditDate(rows: MirrorRow[], seed: string | null): string | nu
 export const SM8_BILLING =
   "ServiceM8 isn't accepting requests for this account — its trial has ended or an invoice is outstanding. Choose a plan in ServiceM8, then sync.";
 
+/* ── a pause is not a failure ── */
+
+/* `sm8_sync_state.last_error` is one column carrying two unrelated meanings:
+   "something is wrong, a human is needed" and "this walk is bigger than one
+   run's budget and will carry on by itself". The connection screen painted
+   both in the warning colour, so a healthy 25,000-row attachment backfill —
+   exactly the state a first sync of a real account sits in for its first
+   several runs — read as a broken integration, while the rows it HAD read went
+   unmentioned.
+
+   These four sentences are the second meaning, and they are CONSTANTS so the
+   writer and the reader cannot drift apart: the engine writes one into
+   Postgres on one run and a later render classifies it on another, which is a
+   coupling no compiler checks. They live in the pure module for the same
+   reason SM8_BILLING does — sm8-sync is the module tests replace for I/O, and
+   a sentence imported from a mock is an undefined that falls through to the
+   wrong branch.
+
+   A note that ISN'T in this set is treated as a fault. That is the safe
+   direction: a new pause reason surfaces as a warning until somebody adds it
+   here, rather than a new FAULT hiding behind a reassuring "still going". */
+export const SM8_PAUSE_MIDWALK = "Paused mid-walk — resuming next sync.";
+export const SM8_PAUSE_PAGE_BUDGET = "Page budget spent — resuming next sync.";
+export const SM8_PAUSE_DAILY_BUDGET = "Today's sync budget is spent — resuming tomorrow.";
+export const SM8_PAUSE_RATE_LIMIT = "ServiceM8's rate limit was hit — resuming next sync.";
+
+const PAUSE_NOTES: ReadonlySet<string> = new Set([
+  SM8_PAUSE_MIDWALK,
+  SM8_PAUSE_PAGE_BUDGET,
+  SM8_PAUSE_DAILY_BUDGET,
+  SM8_PAUSE_RATE_LIMIT,
+]);
+
+/** True when a note means "still working", not "someone is needed". */
+export function isSm8PauseNote(note: string | null): boolean {
+  return note !== null && PAUSE_NOTES.has(note);
+}
+
+/** What an object is actually DOING, as one word a screen can branch on.
+
+    - `queued`  — nothing read yet, and nothing wrong.
+    - `reading` — a backfill is under way: rows are landing, run by run.
+    - `done`    — the backfill finished; later runs only carry changes.
+    - `blocked` — a fault that won't clear itself. `lastError` names it. */
+export type Sm8ObjectPhase = "queued" | "reading" | "done" | "blocked";
+
+/** The four-way read of one object's row.
+
+    ORDER MATTERS: a fault outranks everything, because an object can be both
+    mid-backfill and newly refused a scope, and the refusal is the news. After
+    that a finished backfill outranks a stale pause note — `last_error` is only
+    cleared by the run that COMPLETES a walk, so a row can carry both. */
+export function sm8ObjectPhase(input: {
+  backfillDone: boolean;
+  rowsPulled: number;
+  lastError: string | null;
+}): Sm8ObjectPhase {
+  if (input.lastError !== null && !isSm8PauseNote(input.lastError)) return "blocked";
+  if (input.backfillDone) return "done";
+  if (isSm8PauseNote(input.lastError) || input.rowsPulled > 0) return "reading";
+  return "queued";
+}
+
 /* ── run budgets ── */
 
 /** Pages (≤1000 rows each) one run may spend before handing back. Keeps a

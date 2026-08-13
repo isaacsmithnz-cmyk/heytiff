@@ -3159,6 +3159,17 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .int-tag { padding:3px 9px; border-radius:999px; background:#f4f5f7; font-size:10.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--gray500); }
 .fg .int-tag.warn { background:rgba(240,164,49,.16); color:#a56a05; }
 
+/* A backfill in progress is NOT a warning. It wears the ok green, because the
+   thing it reports is working — the warn amber next to it now means one thing
+   only, "somebody is needed", and that separation is the point. Semantic
+   state, so #00A389 and never the page accent. */
+.fg .int-tag.live { display:inline-flex; align-items:center; gap:6px; background:rgba(0,163,137,.13); color:#007763; }
+.fg .int-pulse { width:6px; height:6px; border-radius:50%; background:#00A389; animation:int-pulse 1.6s ease-in-out infinite; }
+@keyframes int-pulse { 0%,100% { opacity:.32; transform:scale(.82); } 50% { opacity:1; transform:scale(1); } }
+/* The dot carries no information the words don't; for anyone who has asked for
+   less motion it simply sits still. */
+@media (prefers-reduced-motion:reduce) { .fg .int-pulse { animation:none; opacity:1; } }
+
 /* ---- ServiceM8 people reconcile (components/integrations/sm8-people-card) ----
    Import is a review, not a copy: the row IS the preview of what would land,
    and the editor is where fields get unticked or corrected. Reuses card2 /

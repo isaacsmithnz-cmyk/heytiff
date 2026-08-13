@@ -7,7 +7,7 @@ import { Icon } from "@/components/shell/icon";
 import { auDayOf, fmtAuWeekdayDate } from "@/lib/au-dates";
 import { providerById, SM8_SCOPES } from "@/lib/integrations/providers";
 import type { ConnectionView } from "@/lib/integrations/connection";
-import type { Sm8SyncStatusView } from "@/lib/integrations/sm8-sync";
+import type { Sm8ObjectStatus, Sm8SyncStatusView } from "@/lib/integrations/sm8-sync";
 import { disconnectServiceM8Action, syncServiceM8NowAction } from "@/app/actions/integrations";
 import { PeopleImportCard, type PeopleCardData } from "@/components/integrations/people-import-card";
 import { ConnectActions } from "@/components/integrations/connect-actions";
@@ -62,6 +62,17 @@ function agoLabel(iso: string | null): string {
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
   return "over a day ago";
+}
+
+/** 24996 → "24,996". A real account's first sync reaches five figures, and an
+    unseparated run of digits is the one place a number stops being read. */
+const num = (n: number) => n.toLocaleString("en-AU");
+
+/** "Attachments", "Attachments and Jobs", "Attachments, Jobs and 2 more". */
+function nameList(labels: string[]): string {
+  if (labels.length <= 1) return labels[0] ?? "";
+  if (labels.length === 2) return `${labels[0]} and ${labels[1]}`;
+  return `${labels[0]}, ${labels[1]} and ${labels.length - 2} more`;
 }
 
 export function Servicem8Screen({
@@ -246,50 +257,7 @@ export function Servicem8Screen({
           </div>
 
           {/* ── the mirror, object by object ── */}
-          {connected && sync && (
-            <div className="card2">
-              <div className="c2h">
-                <span className="ci">
-                  <Icon name="sync" size={19} />
-                </span>
-                <div style={{ minWidth: 0 }}>
-                  <b>What&apos;s been read across</b>
-                  <em>
-                    {sync.lastRun?.running
-                      ? "Syncing now…"
-                      : sync.lastRun?.finishedAt
-                        ? `Last synced ${agoLabel(sync.lastRun.finishedAt)}${
-                            sync.lastRun.note ? ` — ${sync.lastRun.note}` : ""
-                          }`
-                        : "Waiting for the first sync."}
-                  </em>
-                </div>
-              </div>
-              <ul className="int-scopes">
-                {sync.objects.map((o) => (
-                  <li key={o.object}>
-                    <div className="int-scopehead">
-                      <code>{o.label}</code>
-                      {o.lastError ? (
-                        <span className="int-tag warn">{o.lastError}</span>
-                      ) : o.backfillDone ? (
-                        <span className="int-tag">
-                          {o.rowsPulled} row{o.rowsPulled === 1 ? "" : "s"}
-                        </span>
-                      ) : (
-                        <span className="int-tag warn">First sync queued</span>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-              <div className="int-act">
-                <button className="pbtn ghost" onClick={syncNow} disabled={busy}>
-                  {busy ? "Syncing…" : "Sync now"}
-                </button>
-              </div>
-            </div>
-          )}
+          {connected && sync && <MirrorCard sync={sync} busy={busy} onSync={syncNow} />}
 
           {/* ── the people reconcile — import is a review, never a copy ── */}
           {connected && people && <PeopleImportCard provider="servicem8" {...people} />}
@@ -349,4 +317,102 @@ export function Servicem8Screen({
       </div>
     </div>
   );
+}
+
+/* ── the mirror, object by object ──
+
+   THE STATE THIS CARD KEPT SECRET: a first sync of a real account is not one
+   event, it is a fortnight of runs. The engine's page budget caps a run at
+   25,000 rows, so ServiceM8's ~25,000 attachments arrive over several — and
+   between them the object's row carries `last_error: "Paused mid-walk"`, which
+   this card rendered in the WARNING colour while saying nothing about the rows
+   already read. The one object doing the most work looked like the one thing
+   that had failed.
+
+   So the row now says which of four things is true — nothing yet, reading,
+   read, or genuinely stuck — and a reading row shows its running total, which
+   is the only honest progress signal available: ServiceM8's pagination hands
+   back a cursor, never a count, so there is no denominator to show. A number
+   that climbs each sync is the proof; a percentage would be invented. */
+function MirrorCard({
+  sync,
+  busy,
+  onSync,
+}: {
+  sync: Sm8SyncStatusView;
+  busy: boolean;
+  onSync: () => void;
+}) {
+  const reading = sync.objects.filter((o) => o.phase === "reading");
+  const readingRows = reading.reduce((n, o) => n + o.rowsPulled, 0);
+
+  /* Precedence: a run happening RIGHT NOW beats everything, then an unfinished
+     backfill — which is the state that lasts for days and the one this card
+     used to hide — then the ordinary "last synced" line. */
+  const subtitle = sync.lastRun?.running
+    ? "Syncing now…"
+    : reading.length > 0
+      ? `Still reading ${nameList(reading.map((o) => o.label))} across — ${num(readingRows)} row${
+          readingRows === 1 ? "" : "s"
+        } so far. Each sync picks up where the last one stopped.`
+      : sync.lastRun?.finishedAt
+        ? `Last synced ${agoLabel(sync.lastRun.finishedAt)}${
+            sync.lastRun.note ? ` — ${sync.lastRun.note}` : ""
+          }`
+        : "Waiting for the first sync.";
+
+  return (
+    <div className="card2">
+      <div className="c2h">
+        <span className="ci">
+          <Icon name="sync" size={19} />
+        </span>
+        <div style={{ minWidth: 0 }}>
+          <b>What&apos;s been read across</b>
+          <em>{subtitle}</em>
+        </div>
+      </div>
+      <ul className="int-scopes">
+        {sync.objects.map((o) => (
+          <li key={o.object}>
+            <div className="int-scopehead">
+              <code>{o.label}</code>
+              <ObjectTag o={o} />
+            </div>
+          </li>
+        ))}
+      </ul>
+      <div className="int-act">
+        <button className="pbtn ghost" onClick={onSync} disabled={busy}>
+          {busy ? "Syncing…" : "Sync now"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** One object's state as one tag. `blocked` is the only one that warns — which
+    is the whole point of the split: the warning colour now means somebody is
+    needed, and nothing else wears it. */
+function ObjectTag({ o }: { o: Sm8ObjectStatus }) {
+  if (o.phase === "blocked") return <span className="int-tag warn">{o.lastError}</span>;
+
+  if (o.phase === "reading")
+    return (
+      <span className="int-tag live">
+        {/* aria-hidden: the dot is the same news as the words beside it, and a
+            screen reader announcing a decoration twice is noise. */}
+        <i className="int-pulse" aria-hidden="true" />
+        Reading · {num(o.rowsPulled)} so far
+      </span>
+    );
+
+  if (o.phase === "done")
+    return (
+      <span className="int-tag">
+        {num(o.rowsPulled)} row{o.rowsPulled === 1 ? "" : "s"}
+      </span>
+    );
+
+  return <span className="int-tag">First sync queued</span>;
 }

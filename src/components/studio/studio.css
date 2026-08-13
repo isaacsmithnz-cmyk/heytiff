@@ -57,6 +57,31 @@
    .fg .main padding) is untouched. */
 .fg .outlet:has(.dstudio) { scrollbar-gutter: auto; }
 
+/* ── FULLSCREEN — the Workboard's display mode, ported (see .ds-fsbtn) ──
+   The same subtractive definition: sidebar, topbar and the frame's ambient fx
+   go, the well's inset and radius go, and the studio's height math gets back
+   the 96px it was leaving for them. Keyed off an attribute on <html> because
+   the FULLSCREEN ELEMENT IS THE DOCUMENT — every studio overlay portals to
+   <body>, so fullscreening anything deeper would hide them all. */
+html[data-ds-display] .fg .side,
+html[data-ds-display] .fg .topbar,
+html[data-ds-display] .fg .gridbg,
+html[data-ds-display] .fg .framefx {
+  display: none;
+}
+html[data-ds-display] .fg .main {
+  padding: 0;
+}
+html[data-ds-display] .fg .outlet {
+  border-radius: 0;
+}
+html[data-ds-display] .dstudio {
+  min-height: 100dvh;
+}
+html[data-ds-display] .dstudio.editing {
+  height: 100dvh;
+}
+
 /* Screen-swap choreography (driven by Studio's throughSwap()).
 
    The start screen and the editor can't cross-fade against each other — one is
@@ -975,6 +1000,30 @@
   transform: translateY(-1px);
   border-color: rgba(0, 229, 192, 0.5);
   box-shadow: 0 12px 24px -12px rgba(10, 12, 20, 0.28);
+}
+/* fullscreen toggle — .ds-menu-btn's square, docked in the right flank */
+.dstudio .ds-fsbtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+  background: #fff;
+  border: 1px solid rgba(10, 12, 20, 0.08);
+  color: var(--gray500);
+  box-shadow: 0 1px 2px rgba(10, 12, 20, 0.04);
+  transition: all 0.2s;
+}
+.dstudio .ds-fsbtn:hover {
+  color: var(--ink);
+  transform: translateY(-1px);
+  border-color: rgba(0, 229, 192, 0.5);
+}
+.dstudio .ds-fsbtn.on {
+  color: var(--ink);
+  border-color: rgba(0, 229, 192, 0.5);
 }
 
 /* ── design variations (Option 1/2/3…) + export menu ── */
@@ -8214,6 +8263,7 @@
 
 /* ── glass primitives ── */
 .dstudio.editing .ds-menu-btn,
+.dstudio.editing .ds-fsbtn,
 .dstudio.editing .ds-tbbtn,
 .dstudio.editing .ds-ctl-btn,
 .dstudio.editing .ds-floor-trigger,
@@ -8225,6 +8275,7 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 .dstudio.editing .ds-menu-btn:hover,
+.dstudio.editing .ds-fsbtn:hover,
 .dstudio.editing .ds-tbbtn:hover,
 .dstudio.editing .ds-ctl-btn:hover,
 .dstudio.editing .ds-floor-trigger:hover,
@@ -8240,6 +8291,7 @@
 /* An open pill reads as pressed, so it's unmistakable which one owns the menu
    below it — the accent stays whatever the pill's own state colour is. */
 .dstudio.editing .ds-ctl-btn.on,
+.dstudio.editing .ds-fsbtn.on,
 .dstudio.editing .ds-floor-trigger.on,
 .dstudio.editing .ds-calib-pill.on {
   background: rgba(255, 255, 255, 0.2);

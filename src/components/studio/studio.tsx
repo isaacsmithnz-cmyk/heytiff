@@ -852,6 +852,47 @@ function Editor({
   const [grayscale, setGrayscale] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
 
+  /* ── fullscreen: the Workboard's display-mode pattern, ported ──
+     The DOCUMENT goes fullscreen (never the studio element) because every
+     studio overlay — unit browser, room modal, reference viewer, lightbox,
+     guided prompts — portals to <body>; fullscreening anything deeper would
+     hide them all. The shell is hidden by an attribute on <html>, not by
+     unmounting it, so the canvas and every draft on it stay put. */
+  const [fullscreen, setFullscreen] = useState(false);
+
+  // Leaving browser fullscreen (Esc) leaves the mode — you must land back in
+  // the app, not on a chromeless page in a window.
+  useEffect(() => {
+    const onChange = () => {
+      if (!document.fullscreenElement) setFullscreen(false);
+    };
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+
+  /* Cleanup runs on leaving the editor too (menu → New/Open unmounts it), so
+     going Home can't strand you fullscreen with no chrome. */
+  useEffect(() => {
+    if (!fullscreen) return;
+    const root = document.documentElement;
+    root.setAttribute("data-ds-display", "on");
+    return () => {
+      root.removeAttribute("data-ds-display");
+      if (document.fullscreenElement)
+        void document.exitFullscreen?.()?.catch(() => {});
+    };
+  }, [fullscreen]);
+
+  const toFullscreen = useCallback(() => {
+    setFullscreen(true);
+    /* A REJECTED request backs the mode out — being chromeless in a window is
+       not what was asked for. A MISSING API doesn't: hiding the shell still
+       buys the room, and the button is right there either way. */
+    void document.documentElement
+      .requestFullscreen?.()
+      ?.catch(() => setFullscreen(false));
+  }, []);
+
   /* simulation mode (Stage 12a, dev-flagged): the runtime is transient like
      the view state above — sim NEVER mutates the document. Held in STATE (not
      a ref) because present mode renders from it at the Editor level. */
@@ -1239,6 +1280,21 @@ function Editor({
           />
         )}
         <div className="ds-tb-right">
+          {/* fullscreen rides beside the switcher: one toggle, the browser's
+              own Esc is the other way out */}
+          <button
+            className={`ds-fsbtn${fullscreen ? " on" : ""}`}
+            onClick={() => (fullscreen ? setFullscreen(false) : toFullscreen())}
+            aria-label={fullscreen ? "Exit fullscreen" : "Fullscreen"}
+            aria-pressed={fullscreen}
+            title={
+              fullscreen
+                ? "Back to the app — Esc does the same"
+                : "Fill the screen — same studio, no app frame"
+            }
+          >
+            <Icon name={fullscreen ? "x" : "maximize"} size={16} />
+          </button>
           {/* data-active drives the sliding thumb; -1 on the Plans screen,
               where neither tab is current and the thumb fades out */}
           <nav

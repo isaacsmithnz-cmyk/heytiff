@@ -3,7 +3,7 @@
    the studio menu switch stage panels, and a remount recovers the design from
    persistence. */
 
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Studio } from "../studio";
 import { LocalDesignStore } from "@/lib/studio/store";
@@ -207,5 +207,56 @@ describe("Design Studio shell", () => {
     expect(click).toHaveBeenCalledTimes(1);
     expect(revokeURL).toHaveBeenCalledWith("blob:mock");
     click.mockRestore();
+  });
+});
+
+/* Fullscreen — the Workboard's display mode, ported. The topbar toggle takes
+   the app frame away and leaves the editor exactly where it was. jsdom has no
+   Fullscreen API, which is fine and deliberate: a missing API still hides the
+   shell, and the attribute on <html> is the honest assertion (the CSS keys
+   off it because the fullscreen element is the DOCUMENT — every studio
+   overlay portals to <body>). */
+describe("fullscreen", () => {
+  beforeEach(() => window.localStorage.clear());
+  afterEach(() => document.documentElement.removeAttribute("data-ds-display"));
+
+  const enterEditor = async (user: ReturnType<typeof userEvent.setup>) => {
+    await newDesign(user, "Big screen", "Blank canvas");
+    expect(await screen.findByLabelText("Design name")).toBeInTheDocument();
+  };
+
+  it("marks the root on the way in and un-marks it on the way out", async () => {
+    const user = userEvent.setup();
+    render(localStudio());
+    await enterEditor(user);
+    await user.click(screen.getByRole("button", { name: "Fullscreen" }));
+    expect(document.documentElement).toHaveAttribute("data-ds-display", "on");
+    await user.click(screen.getByRole("button", { name: "Exit fullscreen" }));
+    expect(document.documentElement).not.toHaveAttribute("data-ds-display");
+  });
+
+  it("leaves the mode when the browser leaves fullscreen (Esc)", async () => {
+    const user = userEvent.setup();
+    render(localStudio());
+    await enterEditor(user);
+    await user.click(screen.getByRole("button", { name: "Fullscreen" }));
+    // entry must have landed, or the exit assertions below prove nothing
+    expect(document.documentElement).toHaveAttribute("data-ds-display", "on");
+    act(() => void document.dispatchEvent(new Event("fullscreenchange")));
+    expect(document.documentElement).not.toHaveAttribute("data-ds-display");
+    expect(
+      screen.getByRole("button", { name: "Fullscreen" })
+    ).toBeInTheDocument();
+  });
+
+  it("leaving the editor takes the mode with it — Home never sits chromeless", async () => {
+    const user = userEvent.setup();
+    render(localStudio());
+    await enterEditor(user);
+    await user.click(screen.getByRole("button", { name: "Fullscreen" }));
+    expect(document.documentElement).toHaveAttribute("data-ds-display", "on");
+    await menuPick(user, "Open");
+    expect(await screen.findByText("New design")).toBeInTheDocument();
+    expect(document.documentElement).not.toHaveAttribute("data-ds-display");
   });
 });

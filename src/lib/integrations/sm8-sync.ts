@@ -10,9 +10,16 @@
      someone else is mid-run, and the answer is "already running", not a
      second walker double-spending the rate limit.
    - CURSORS ADVANCE ONLY ON COMPLETED WALKS. A run that stops mid-object —
-     page budget, 429, upstream wobble — leaves that object's cursor alone
-     and re-pulls from the same floor next kick. Repeat reads are the cost;
-     idempotent upserts make them harmless.
+     page budget, 429, upstream wobble — leaves that object's edit_date floor
+     alone, because a half-read walk must not move the floor past rows it
+     never saw.
+   - BUT THE PAGE IT STOPPED ON IS REMEMBERED. `walk_cursor` holds ServiceM8's
+     pagination cursor and `walk_filter` freezes the query that minted it, so
+     the next run continues rather than starting over. Without this an object
+     bigger than PAGE_BUDGET × 1000 rows can never finish: it re-reads the
+     same first pages every run, forever. sm8_attachments hit that wall on the
+     live account (24,999 rows mirrored, 49,992 "pulled") and is why the two
+     columns exist.
    - THE WALK STARTS WHERE THE HUNGER IS. Each run walks walkOrderFor's
      rotation: the first object whose backfill isn't done goes first and
      inherits the WHOLE page budget, so a backfill bigger than one run can't
@@ -66,6 +73,9 @@ type StateRow = {
   cursor: string | null;
   backfill_done: boolean | null;
   rows_pulled: number | null;
+  /** Where a paused walk resumes, and the query that cursor belongs to. */
+  walk_cursor: string | null;
+  walk_filter: string | null;
 };
 
 export async function runSm8Sync(
@@ -175,7 +185,7 @@ export async function runSm8Sync(
 
   const { data: stateRows } = await supabaseAdmin
     .from("sm8_sync_state")
-    .select("object, cursor, backfill_done, rows_pulled")
+    .select("object, cursor, backfill_done, rows_pulled, walk_cursor, walk_filter")
     .eq("org_id", orgId);
   const state = new Map<string, StateRow>(
     ((stateRows ?? []) as StateRow[]).map((r) => [r.object, r])
@@ -198,9 +208,21 @@ export async function runSm8Sync(
     }
 
     const prior = state.get(spec.object);
-    const filter = filterFor(spec, prior?.cursor ?? null, now);
 
-    let walkCursor = "-1";
+    /* A RESUMED WALK KEEPS ITS OWN QUERY. `walk_cursor` present means a
+       previous run stopped part-way, and `walk_filter` is the filter that
+       cursor was minted against — recomputing it here would slide a backfill
+       floor forward by however long ago that run was, leaving the cursor
+       pointing into a result set that no longer exists. A stored null filter
+       is a real value (an object with no floor), which is why the cursor, not
+       the filter, is what says a walk is in progress. */
+    const resuming = prior?.walk_cursor != null;
+    const filter = resuming ? prior!.walk_filter : filterFor(spec, prior?.cursor ?? null, now);
+
+    let walkCursor = prior?.walk_cursor ?? "-1";
+    /* Where the NEXT run should pick up; null once the walk finishes. Every
+       break below sets it before leaving, so a pause never forgets its place. */
+    let resumeCursor: string | null = null;
     let batchMax = prior?.cursor ?? null;
     let pulled = 0;
     let objectError: string | null = null;
@@ -210,6 +232,7 @@ export async function runSm8Sync(
       if (callsBase + calls >= DAILY_CALL_BUDGET) {
         objectError = "Today's sync budget is spent — resuming tomorrow.";
         stopNote = objectError;
+        resumeCursor = walkCursor; // this page was never asked for
         break;
       }
 
@@ -245,6 +268,11 @@ export async function runSm8Sync(
           objectError = "ServiceM8 couldn't be reached — resuming next sync.";
           stopNote = objectError;
         }
+        /* The page that failed is the page to retry. Harmless on the paths
+           that need a human first (401/403): the walk is not advancing
+           either way, and the cursor is cleared by the restart a fixed grant
+           brings. */
+        resumeCursor = walkCursor;
         break;
       }
 
@@ -265,7 +293,10 @@ export async function runSm8Sync(
           break;
         }
       }
-      if (storeFailed) break;
+      if (storeFailed) {
+        resumeCursor = walkCursor; // re-read the page whose rows didn't land
+        break;
+      }
 
       batchMax = maxEditDate(shaped, batchMax);
       pulled += shaped.length;
@@ -275,7 +306,13 @@ export async function runSm8Sync(
         completed = true;
         break;
       }
-      if (pagesLeft <= 0) break; // paused mid-walk; cursor stays put
+      if (pagesLeft <= 0) {
+        /* Out of budget with pages still to read. The floor stays put — this
+           walk hasn't finished — but the NEXT page is remembered, which is
+           what lets an object bigger than one run's budget ever finish. */
+        resumeCursor = page.nextCursor;
+        break;
+      }
       walkCursor = page.nextCursor;
     }
 
@@ -292,6 +329,9 @@ export async function runSm8Sync(
             last_synced_at: new Date().toISOString(),
             last_error: null,
             rows_pulled: (prior?.rows_pulled ?? 0) + pulled,
+            // The walk is over; the next one starts fresh from the new floor.
+            walk_cursor: null,
+            walk_filter: null,
           }
         : {
             org_id: orgId,
@@ -301,6 +341,11 @@ export async function runSm8Sync(
             backfill_done: prior?.backfill_done ?? false,
             last_error: objectError ?? "Paused mid-walk — resuming next sync.",
             rows_pulled: (prior?.rows_pulled ?? 0) + pulled,
+            /* Where to pick up, and the query it belongs to — stored together
+               or not at all, because a cursor without its filter is a page
+               number into an unknown book. */
+            walk_cursor: resumeCursor,
+            walk_filter: resumeCursor === null ? null : filter,
           },
       { onConflict: "org_id,object" }
     );

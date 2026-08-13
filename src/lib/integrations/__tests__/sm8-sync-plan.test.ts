@@ -124,12 +124,12 @@ describe("the object list", () => {
     });
   });
 
-  it("gates attachments on the consent table's scope name, not the endpoint doc's", () => {
-    // The endpoint reference says `read_attachments`; the OAuth scope table
-    // has no such grant. read_job_attachments is what a reconnect can
-    // actually give, so it must be what the 403 note asks for.
+  it("gates attachments on the scope the ENDPOINT enforces", () => {
+    // attachment.json's own 403 body names `read_attachments` — with the
+    // consent table's read_job_attachments already granted. The 403 note must
+    // ask for the name that actually unlocks the endpoint.
     const attachments = SM8_OBJECTS.find((s) => s.object === "attachments")!;
-    expect(attachments.scope).toBe("read_job_attachments");
+    expect(attachments.scope).toBe("read_attachments");
   });
 
   it("wipes every mirror plus the bookkeeping on disconnect", () => {

@@ -17,10 +17,10 @@ import {
 } from "../providers";
 
 describe("the ServiceM8 ask is exactly the read set", () => {
-  it("is these fifteen scopes and nothing else", () => {
+  it("is these sixteen scopes and nothing else", () => {
     // Set equality, not contains: an extra scope is as much a failure as a
     // missing one — a consent screen that over-asks is over-asking on trust.
-    // The last five are the 2026-08-13 job-media expansion, bundled into ONE
+    // The last six are the 2026-08-13 job-media expansion, bundled into ONE
     // re-consent by the owner's decision.
     expect([...SM8_SCOPE_LIST].sort()).toEqual(
       [
@@ -35,6 +35,7 @@ describe("the ServiceM8 ask is exactly the read set", () => {
         "read_job_queues",
         "read_staff",
         "read_job_attachments",
+        "read_attachments",
         "read_job_photos",
         "read_job_notes",
         "read_job_materials",
@@ -43,15 +44,20 @@ describe("the ServiceM8 ask is exactly the read set", () => {
     );
   });
 
-  it("names attachments the way the CONSENT TABLE does, not the endpoint doc", () => {
-    /* ServiceM8's listattachments reference page says the scope is
-       `read_attachments`; the authentication doc's scope table — what the
-       OAuth server actually grants — has no such scope. The real names are
-       read_job_attachments and read_job_photos, verified 2026-08-13. This
-       pins the phantom out so nobody "fixes" the list from the wrong page. */
+  it("carries BOTH attachment scope names, because their API and their consent docs disagree", () => {
+    /* The full story, so nobody "simplifies" this to one name from either doc:
+       the authentication doc's scope table offers `read_job_attachments` and
+       has no `read_attachments`; we asked for the table's names, ServiceM8's
+       token response granted all of them — and attachment.json still refused:
+
+         insufficient_scope: "read_attachments" scope required to complete this request
+
+       (live 403 body, 2026-08-13). So the endpoint enforces the name the
+       consent table doesn't list. Both ride until one proves dead against the
+       live mirror; drop the loser with its own PR and update this story. */
     expect(SM8_SCOPE_LIST).toContain("read_job_attachments");
+    expect(SM8_SCOPE_LIST).toContain("read_attachments");
     expect(SM8_SCOPE_LIST).toContain("read_job_photos");
-    expect(SM8_SCOPE_LIST).not.toContain("read_attachments");
   });
 
   it("asks for nothing that can write to ServiceM8", () => {

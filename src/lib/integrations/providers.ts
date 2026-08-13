@@ -205,12 +205,19 @@ export function missingScopes(granted: string | null | undefined): string[] {
    what it hasn't shipped a surface for; a granted-but-unwalked scope pulls
    nothing.
 
-   A NAMING TRAP, verified 2026-08-13 and pinned in the tests: ServiceM8's
-   endpoint reference for attachments says its scope is `read_attachments`,
-   but the authentication doc's scope table — the registry the consent URL is
-   judged against — has NO such scope. The real grants are
-   `read_job_attachments` ("job attachments, quotes and invoices") and
-   `read_job_photos`. Trust the scope table, not the endpoint page.
+   A NAMING TRAP, and its resolution — both halves observed live 2026-08-13,
+   pinned in the tests. ServiceM8's endpoint reference says attachment.json
+   wants `read_attachments`; their authentication doc's scope table doesn't
+   list that name and offers `read_job_attachments` instead. We asked for the
+   scope-table names, the OAuth server granted them (token response named all
+   fifteen), and attachment.json refused anyway:
+
+     insufficient_scope: "read_attachments" scope required to complete this request
+
+   Their API and their consent docs disagree, so the ask carries BOTH names
+   (plus read_job_photos) — one more re-consent ceremony beats a third. Once
+   the mirror is filling, whichever name proves dead can be dropped with its
+   own PR.
 
    THE JOB'S OWN TOTAL NEEDS NO EXTRA SCOPE. total_invoice_amount and the
    invoice/quote/payment flags are fields ON the Job object, covered by
@@ -282,6 +289,11 @@ export const SM8_SCOPES: ScopeEntry[] = [
     scope: "read_job_attachments",
     area: "Workboard",
     why: "Reads the files on each job — what they're called and which job they belong to, including the quote and invoice PDFs — so a job here can show the paperwork ServiceM8 holds.",
+  },
+  {
+    scope: "read_attachments",
+    area: "Workboard",
+    why: "Reads the attachment list itself — ServiceM8's API asks for this permission by a second name before it will hand over the same job files.",
   },
   {
     scope: "read_job_photos",

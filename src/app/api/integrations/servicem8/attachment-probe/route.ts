@@ -82,10 +82,7 @@ export async function GET(request: Request) {
      by a different one). `active=1` because a soft-deleted row is still
      readable on the metadata API and its bytes may not be — which would read
      as "no download endpoint" and be wrong. */
-  const [photo, pdf] = await Promise.all([
-    pickSubject({ source: "PHOTO_LIKE" }),
-    pickSubject({ source: "INVOICE" }),
-  ]);
+  const [photo, pdf] = await Promise.all([pickSubject(".jpg"), pickSubject(".pdf")]);
 
   const subjects = [photo, pdf].filter((s): s is Subject => s !== null);
   if (subjects.length === 0) {
@@ -112,7 +109,11 @@ export async function GET(request: Request) {
         uuidPrefix: subject.uuid.slice(0, 8),
         fileType: subject.file_type,
         source: subject.attachment_source,
-        isPhoto: subject.photo_width !== null,
+        /* The raw number, not a derived "isPhoto" — 0 is this column's null,
+           and a value above it only means the file has pixels, which a video
+           has too. Reported so the answer can be checked against the extension
+           rather than trusted. */
+        photoWidth: subject.photo_width,
       },
       candidates,
     });
@@ -129,23 +130,34 @@ export async function GET(request: Request) {
     results,
   });
 
-  async function pickSubject(want: { source: string }): Promise<Subject | null> {
-    let q = supabaseAdmin
+  /** One subject by extension.
+
+      WHY `file_type` AND NOT THE TWO COLUMNS THAT LOOK BETTER:
+
+      `attachment_source` can't name a photo — the live mirror spells it four
+      ways (Photo, PHOTO, PHOTO_LIBRARY, PHOTO_LIBRARY_ON_CHECKOUT), and the
+      one row this probe picks would depend on which spelling was asked for.
+
+      `photo_width` is worse, and it was this route's first attempt. It reads
+      like "images only" and it is NEVER NULL on the live account — every one
+      of the 24,999 rows carries a value, including PDFs, .docx and .txt, with
+      0 as the sentinel. So `photo_width IS NOT NULL` matched the whole table
+      and would have handed the "photo" slot whatever came back first. Even the
+      repaired form, `photo_width > 0`, means MEDIA rather than photo: 506 of
+      523 .mp4 and 12 of 13 .mov rows carry real dimensions. A probe that
+      downloads a video to answer a question about a JPEG is both the wrong
+      test and a needlessly large one.
+
+      An extension is the thing that is actually true. */
+  async function pickSubject(fileType: string): Promise<Subject | null> {
+    const { data } = await supabaseAdmin
       .from("sm8_attachments")
       .select("uuid, file_type, attachment_source, photo_width")
       .eq("org_id", orgId)
       .eq("active", 1)
-      .limit(1);
-
-    /* Photos arrive under four different `attachment_source` spellings in the
-       live mirror (Photo, PHOTO, PHOTO_LIBRARY, PHOTO_LIBRARY_ON_CHECKOUT), so
-       the photo case asks the column that means it regardless: a width is only
-       ever set on an image. */
-    q = want.source === "PHOTO_LIKE"
-      ? q.not("photo_width", "is", null)
-      : q.eq("attachment_source", want.source);
-
-    const { data } = await q.maybeSingle();
+      .ilike("file_type", fileType)
+      .limit(1)
+      .maybeSingle();
     return (data as Subject | null) ?? null;
   }
 }

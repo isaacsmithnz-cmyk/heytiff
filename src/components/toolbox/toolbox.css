@@ -10,7 +10,7 @@
    the problem: 24px radii, flat white, a bold gradient icon chip with a
    matching glow (the app-icon look), a soft accent wash from the top, never a
    hard stripe. Self-scoped so shell.css's older .cat card (40px radius + 6px
-   cap) keeps serving the Tiff AI knowledge screen. */
+   cap) keeps serving the Library's document screen. */
 
 /* the head sat 48px clear of the grid because nothing came between them; the
    filter row does now, and it belongs to the head far more than to the grid */

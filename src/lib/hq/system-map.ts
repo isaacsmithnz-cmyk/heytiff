@@ -306,10 +306,10 @@ export const NODES: MapNode[] = [
   },
   {
     id: "tiff",
-    name: "Tiff AI",
+    name: "Library",
     kind: "feature",
     group: "People & AI",
-    blurb: "The assistant, and the four-category library it answers out of.",
+    blurb: "The four-category document library, and the asking surface it answers out of.",
     detail:
       "Two surfaces on one substrate. The library ingests PDFs a batch of pages at a time — extract, chunk, keyword-tag, embed, bookmark, repeat — driven from the open page rather than a queue, so a document that runs out of the month's page allowance parks at its bookmark and resumes there. Asking runs both legs of retrieval (full-text and, once VOYAGE_API_KEY exists, vector) and fuses them, then answers with the chunks as document blocks and native citations, so a source chip is the model's own reference and not a parsed [n]. Reading is `tiff` (staff default); uploading and editing is `tiff_manage`; deleting is the owner. Threads live in the browser, not the database.",
     href: "/dashboard/tiff",

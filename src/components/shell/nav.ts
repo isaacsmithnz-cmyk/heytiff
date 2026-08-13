@@ -15,7 +15,8 @@ import type { Capability } from "@/lib/permissions";
    up on any of them) but keeps its own ⌘K result, so folding a screen in costs
    it a row in the rail and nothing else.
 
-   Most faces present as tabs on the page — Timesheet/Leave, Tiff AI/Library —
+   Most faces present as tabs on the page — Timesheet/Leave, Library/All
+   documents —
    but that is those screens' own convention, not something this type enforces.
    What a face actually means is "same rail row, still findable", which is also
    the right shape for a detail view like Action required that Home summarises.
@@ -34,7 +35,7 @@ export type NavSub = {
 
 /* There used to be a `dot?: boolean` here — "pulsing dot in the sidebar when
    not active" — set on exactly one entry, by hand, with nothing behind it. It
-   had pulsed on Tiff AI since the day Tiff shipped and would have kept pulsing
+   had pulsed on the Library since the day Tiff shipped and would have kept pulsing
    forever, because a hard-coded flag has no way to become false. A permanent
    unread mark is worse than none: it is the first thing a new person clicks and
    the first thing they learn to ignore, which spends the credibility of every
@@ -69,8 +70,8 @@ export const NAV_GROUPS: NavGroup[] = [
 
          Neither loses its door. `NAV` is rows plus subItems and feeds ⌘K, so
          typing "notice" or "action" still finds them; only `NAV_ROWS`, the
-         rail, drops them. Same move Leave made onto Timesheet and the library
-         onto Tiff AI. The routes stay: posting, moderating and the full board
+         rail, drops them. Same move Leave made onto Timesheet and the catalogue
+         onto the Library. The routes stay: posting, moderating and the full board
          all live at /dashboard/notices, which is where the tab's door lands. */
       { key: "home", label: "Home", icon: "dashboard", href: "/dashboard", hint: "Your day at a glance", accent: "#00E5C0",
         subItems: [
@@ -84,23 +85,29 @@ export const NAV_GROUPS: NavGroup[] = [
       { key: "workboard", label: "Workboard", icon: "activity", href: "/dashboard/workboard", hint: "Maintenance & projects command centre", accent: "#00A8E0", capability: "workboard" },
       { key: "toolbox", label: "Toolbox", icon: "wrench", href: "/dashboard/toolbox", hint: "Calculators & references", accent: "#8A2BE2", capability: "toolbox" },
       { key: "ductr", label: "Design Studio", icon: "wind", href: "/dashboard/studio", hint: "VRF design canvas", accent: "#FF8A00", capability: "studio" },
-      /* The library rides along as a tab, like Leave does on Timesheet: it is
-         the same feature seen from the other end — the assistant answers out of
-         the library, and the library is where the answers come from. One rail
-         row, two faces, and ⌘K still lists the library in its own right. Only
-         the FACE is listed here; the row itself is the assistant.
+      /* The catalogue rides along as a tab, like Leave does on Timesheet: it is
+         the same feature seen from the other end — you ask the library, and the
+         library is where the answers come from. One rail row, two faces, and ⌘K
+         still lists the catalogue in its own right. Only the FACE is listed
+         here; the row itself is the asking surface.
 
-         IT IS CALLED THE LIBRARY, EVERYWHERE. It used to answer to four names —
-         "Knowledge" on this row, "Knowledge base" as the page's own heading,
-         "the library" throughout the assistant's copy, and "shelves" for its
-         categories — which is three more than a thing can have before people
-         stop being sure they are the same thing. The assistant's own sentences
-         had already settled on library ("Open library", "in your library"), so
-         that is the one that won, and the route was moved to match rather than
-         leaving the URL arguing with the label. */
-      { key: "tiff", label: "Tiff AI", icon: "sparkles", href: "/dashboard/tiff", hint: "Assistant & document library", accent: "#2E68FF", capability: "tiff",
+         IT IS CALLED THE LIBRARY, EVERYWHERE — and it is NOT called AI. This
+         row said "Tiff AI" over a sparkle, which is the badge every tool in the
+         market is wearing this year and the badge people have learned to read
+         as "may be making this up". What is actually behind the row is the
+         opposite of that: a shelf of documents the company uploaded, and
+         answers that cite the page they came from. So the row is named after
+         the thing that makes it trustworthy, and the icon is a library rather
+         than a sparkle. Tiff is still the one answering — the brand is fine,
+         the category label is what was doing the damage.
+
+         The FACE is "All documents", not "Library", because the section is the
+         library now: two rows called Library in ⌘K would be exactly the "which
+         one is which" tax the last rename paid to clear. All documents is a
+         VIEW of the library, not a rival name for it. */
+      { key: "tiff", label: "Library", icon: "library", href: "/dashboard/tiff", hint: "Ask your manuals, specs & SOPs", accent: "#2E68FF", capability: "tiff",
         subItems: [
-          { key: "tiffkb", label: "Library", icon: "library", href: "/dashboard/tiff/library", hint: "Manuals, specs & SOPs Tiff reads", accent: "#2E68FF" },
+          { key: "tiffkb", label: "All documents", icon: "library", href: "/dashboard/tiff/library", hint: "Every manual, spec & SOP Tiff reads", accent: "#2E68FF" },
         ] },
     ],
   },

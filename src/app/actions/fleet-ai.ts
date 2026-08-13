@@ -3,7 +3,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { can, getDbRole } from "@/lib/permissions-server";
 
-/* Fleet ← Tiff AI: live AU-market vehicle valuations + fuel-receipt reading.
+/* Fleet ← Tiff: live AU-market vehicle valuations + fuel-receipt reading.
    First real Claude integration in the app. Role rules are enforced HERE, not
    just hidden in the UI (spec: valuations are Manager+; receipts any member). */
 

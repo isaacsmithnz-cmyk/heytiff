@@ -36,13 +36,40 @@ function stripComments(text: string): string {
 }
 
 describe("the library's vocabulary", () => {
-  it("is called Library on the nav row, and the URL agrees", () => {
-    /* The label and the href used to disagree — "Knowledge" pointing at
-       /tiff/knowledge was at least consistent, but every sentence around it
-       said library. Moving the route was what let the two line up. */
+  it("is called Library on the nav row, and the catalogue is a view of it", () => {
+    /* The SECTION is the library now. The row used to be "Tiff AI" with a
+       "Library" face hanging off it, which made the library a sub-part of an
+       AI product; it is the other way round — the documents are the product
+       and asking is what you do to them.
+
+       So the face is "All documents", not a second "Library": ⌘K would
+       otherwise offer two identical words landing on different screens, which
+       is the exact confusion the last rename spent a route move to clear. */
+    const row = NAV.find((n) => n.key === "tiff");
+    expect(row?.label).toBe("Library");
+    expect(row?.href).toBe("/dashboard/tiff");
+
     const entry = NAV.find((n) => n.key === "tiffkb");
-    expect(entry?.label).toBe("Library");
+    expect(entry?.label).toBe("All documents");
     expect(entry?.href).toBe("/dashboard/tiff/library");
+    expect(entry?.label).not.toBe(row?.label);
+  });
+
+  it("never calls itself AI where a person can read it", () => {
+    /* THE POSITIONING, PINNED. Every tool in this market is shipping the same
+       sparkle and the same "AI" badge, and that badge now carries its own
+       reading: a thing that answers confidently and is sometimes wrong. This
+       feature is the opposite claim — a shelf of documents the company
+       uploaded, and answers that cite the page they came from — so it is named
+       after the documents and never after the technique.
+
+       Tiff is still allowed to be Tiff: the brand is not the problem, the
+       category label was. Checked over source with comments stripped, because
+       a comment explaining why we don't say AI has to be able to say AI. */
+    const said = sourcesIn(TIFF_DIR)
+      .filter(({ text }) => /\bAI\b/.test(stripComments(text)))
+      .map(({ file }) => file);
+    expect(said).toEqual([]);
   });
 
   it("never says 'knowledge base' anywhere a person can read it", () => {

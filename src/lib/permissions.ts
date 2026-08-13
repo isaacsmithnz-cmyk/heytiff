@@ -16,8 +16,8 @@ import type { Role } from "./roles-shared";
 export const CAPABILITIES = [
   "toolbox", // calculators & references
   "studio", // Design Studio
-  "tiff", // Tiff AI assistant & document library
-  "tiff_manage", // upload/edit/retry knowledge-base documents (delete is owner-only)
+  "tiff", // the Library — ask the company's documents (key predates the rename)
+  "tiff_manage", // upload/edit/retry library documents (delete is owner-only)
   "workboard", // see the projects & maintenance board (techs live here)
   "workboard_manage", // create/edit projects, agreements, visits & readiness
   "workboard_money", // job values, claims & payment status on the board

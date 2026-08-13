@@ -1,6 +1,5 @@
-/* Knowledge-base structure for Tiff AI. The four categories are product
-   structure (they drive the Tiff sidebar and the /dashboard/tiff/library
-   page); the library is empty until real uploads land (Documents/storage
+/* Structure for the Library. The four categories are product structure (they
+   drive the Library's rail and the /dashboard/tiff/library page); the library is empty until real uploads land (Documents/storage
    track), and every screen renders a per-category empty state until then. */
 
 export type KbCategoryKey = "install" | "faults" | "specs" | "sops" | "field";

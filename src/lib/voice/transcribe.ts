@@ -1,6 +1,6 @@
 /* Speech to text — the shared engine. Server only.
 
-   ONE VENDOR ADAPTER, THREE CALLERS. Smart Notes needs it first; Tiff AI and
+   ONE VENDOR ADAPTER, THREE CALLERS. Smart Notes needs it first; the Library and
    the tasks section adopt the same function rather than growing their own.
    That is why the surface is deliberately small — audio in, text out, one
    result type — and why the vendor lives behind it: swapping ElevenLabs for

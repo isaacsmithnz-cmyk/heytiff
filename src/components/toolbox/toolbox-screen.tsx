@@ -13,7 +13,7 @@
    Now the grid holds tools, auto-fills, and cannot go ragged; the categories
    are a filter chip apiece. Styling stays self-scoped (.tbx2-* in
    toolbox.css) — shell.css's older .cat/.ctop card is still shared with the
-   Tiff AI knowledge screen and must not move. */
+   Library's document screen and must not move. */
 
 import { useState } from "react";
 import Link from "next/link";

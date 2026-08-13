@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
+import { Chevron } from "@/components/logo";
 import { KB_CATEGORIES, filterKbDocs, type KbCategoryKey } from "./kb";
 import { UploadDrawer } from "./upload-drawer";
 import { TagPicker, TagPills } from "./tag-picker";
@@ -239,9 +240,9 @@ export function Library({
           <div className="stg">
             <Link href="/dashboard/tiff" className="kbcrumb">
               <Icon name="chevL" size={14} />
-              Tiff AI
+              Library
             </Link>
-            <h1 className="tk-h1">Library</h1>
+            <h1 className="tk-h1">All documents</h1>
             <p className="tk-sub">
               {zero
                 ? "Nothing here yet — Tiff answers from what you upload."
@@ -521,7 +522,7 @@ function EmbedGap({ count }: { count: number }) {
 
   return (
     <p className="tk-gap">
-      <Icon name="sparkles" size={14} />
+      <Icon name="sync" size={14} />
       {fill.running ? (
         <span>{`Filling in… ${n(fill.done)} of ${n(total)}`}</span>
       ) : fill.stopped === "rate-limited" ? (
@@ -676,7 +677,11 @@ function DocRow({
           title="Ask Tiff about this document"
           onClick={onAsk}
         >
-          <Icon name="sparkles" size={15} />
+          {/* the brand mark, not a sparkle — same call the composer made. The
+              sparkle is the badge every AI tool in the market is wearing, and
+              this button's whole promise is that the answer comes out of THIS
+              document rather than out of the air. */}
+          <Chevron size={15} gradient />
           Ask Tiff
         </button>
       )}
@@ -696,11 +701,11 @@ function DocRow({
               title={
                 ocr.waiting
                   ? "Reading another document first"
-                  : "Read the scanned pages with AI — this uses your page allowance"
+                  : "Read the scanned pages so they become searchable — this uses your page allowance"
               }
               onClick={onRead}
             >
-              <Icon name="sparkles" size={14} />
+              <Icon name="file" size={14} />
               Read pages
             </button>
           )}

@@ -375,7 +375,11 @@ export function CompletedJobsTab(props: Props) {
             aria-label={`${showUnsuccessful ? "Hide" : "Show"} ${v.unsuccessful.length} that did not go ahead`}
           >
             <Icon name={showUnsuccessful ? "minus" : "plus"} size={15} />
-            {showUnsuccessful ? "Hide" : "Show"} {v.unsuccessful.length} that didn&apos;t go ahead
+            {/* `{" "}` rather than a plain space: the block wraps and carries
+                an entity, which is the shape that loses its leading space —
+                see lib/format/__tests__/jsx-entity-spacing. */}
+            {showUnsuccessful ? "Hide" : "Show"} {v.unsuccessful.length}{" "}
+            that didn&apos;t go ahead
           </button>
           {showUnsuccessful && (
             <Rows rows={v.unsuccessful} moneyVisible={props.moneyVisible} onOpen={props.onOpen} />

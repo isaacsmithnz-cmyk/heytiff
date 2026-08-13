@@ -264,9 +264,6 @@ function toStaffRow(
     years: yearsSince(p.start_date, ctx.now),
     licenceCount: ctx.licences.length,
     status: p.status,
-    // Fleet is still demo-backed and keyed by demo staff ids, so a real card
-    // has no vehicle until Stage 4 wires the register to staff_profiles.id.
-    vehicle: "—",
     compliance: deriveCompliance(
       ctx.licences,
       {

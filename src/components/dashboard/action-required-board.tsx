@@ -31,7 +31,7 @@ export function ActionRequiredBoard({ chips }: { chips: DashboardChips }) {
                   marginBottom: 12,
                 }}
               >
-                ← Dashboard
+                ← Home
               </Link>
               <h1>
                 Action required

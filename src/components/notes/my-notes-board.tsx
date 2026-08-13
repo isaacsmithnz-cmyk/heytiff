@@ -139,13 +139,22 @@ export function MyNotesBoard({
                         >
                           <Icon name="edit" size={13} />
                         </button>
-                        {/* Put away, not delete. Deleting is offered from the
+                        {/* Archive, not delete. Deleting is offered from the
                             archive only, so nothing is destroyed in one click
-                            from the list you read every day. */}
+                            from the list you read every day — the rule the
+                            noticeboard follows now too.
+
+                            ARCHIVE / ARCHIVED / PUT BACK, matching that board
+                            (Isaac, 2026-08-12). This screen said "Put it away
+                            / Put away / Bring it back" while the noticeboard
+                            said "Archive / Archived / Put back" — six words
+                            for two states across two screens doing the same
+                            thing. Archive won: it is what people expect, and
+                            it is shorter on a row of buttons. */}
                         <button
                           className="wb2-ico"
-                          title="Put it away"
-                          aria-label={`Put away note: ${n.body.slice(0, 40)}`}
+                          title="Archive"
+                          aria-label={`Archive note: ${n.body.slice(0, 40)}`}
                           disabled={busy}
                           onClick={() => run(() => archiveMyNote(n.id))}
                         >
@@ -167,7 +176,7 @@ export function MyNotesBoard({
                 onClick={() => setShowArchive((v) => !v)}
               >
                 <Icon name={showArchive ? "chevD" : "chevR"} size={13} />
-                Put away ({archived.length})
+                Archived · {archived.length}
               </button>
               {showArchive && (
                 <ul className="wb2-blist read">
@@ -177,8 +186,8 @@ export function MyNotesBoard({
                       <span style={{ flex: 1, minWidth: 0 }}>{n.body}</span>
                       <button
                         className="wb2-ico"
-                        title="Bring it back"
-                        aria-label={`Bring back note: ${n.body.slice(0, 40)}`}
+                        title="Put back"
+                        aria-label={`Put back note: ${n.body.slice(0, 40)}`}
                         disabled={busy}
                         onClick={() => run(() => archiveMyNote(n.id, false))}
                       >

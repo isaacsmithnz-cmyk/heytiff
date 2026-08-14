@@ -24,6 +24,9 @@ export type Sm8ObjectName =
   | "job_activities"
   | "job_checklists"
   | "attachments"
+  | "job_notes"
+  | "job_materials"
+  | "job_payments"
   | "staff"
   | "categories"
   | "queues";
@@ -237,6 +240,67 @@ const shapeQueue = (r: Raw): MirrorRow | null => {
   };
 };
 
+/* Notes hang off related_object/related_object_uuid like attachments, NOT a
+   job_uuid — verified against their reference page, not assumed from the
+   other job-scoped objects. */
+const shapeNote = (r: Raw): MirrorRow | null => {
+  const uuid = uuidOf(r);
+  if (!uuid) return null;
+  return {
+    uuid,
+    related_object: textOrNull(r.related_object),
+    related_object_uuid: textOrNull(r.related_object_uuid),
+    note: textOrNull(r.note),
+    action_required: textOrNull(r.action_required),
+    action_completed_by_staff_uuid: textOrNull(r.action_completed_by_staff_uuid),
+    edit_by_staff_uuid: textOrNull(r.edit_by_staff_uuid),
+    create_date: dateOrNull(r.create_date),
+    active: intOrNull(r.active),
+    edit_date: dateOrNull(r.edit_date),
+  };
+};
+
+/* Amounts stay TEXT exactly as sent, like every other ServiceM8 money field —
+   parseSm8AmountToCents reads them. `material_uuid` (the catalogue item) and
+   `job_material_bundle_uuid` are dropped: no reader, and the catalogue is an
+   object we have not adopted. */
+const shapeMaterial = (r: Raw): MirrorRow | null => {
+  const uuid = uuidOf(r);
+  if (!uuid) return null;
+  return {
+    uuid,
+    job_uuid: textOrNull(r.job_uuid),
+    name: textOrNull(r.name),
+    quantity: textOrNull(r.quantity),
+    price: textOrNull(r.price),
+    cost: textOrNull(r.cost),
+    displayed_amount: textOrNull(r.displayed_amount),
+    displayed_amount_is_tax_inclusive: intOrNull(r.displayed_amount_is_tax_inclusive),
+    tax_rate_uuid: textOrNull(r.tax_rate_uuid),
+    sort_order: intOrNull(r.sort_order),
+    active: intOrNull(r.active),
+    edit_date: dateOrNull(r.edit_date),
+  };
+};
+
+const shapePayment = (r: Raw): MirrorRow | null => {
+  const uuid = uuidOf(r);
+  if (!uuid) return null;
+  return {
+    uuid,
+    job_uuid: textOrNull(r.job_uuid),
+    amount: textOrNull(r.amount),
+    method: textOrNull(r.method),
+    note: textOrNull(r.note),
+    actioned_by_uuid: textOrNull(r.actioned_by_uuid),
+    attachment_uuid: textOrNull(r.attachment_uuid),
+    is_deposit: intOrNull(r.is_deposit),
+    timestamp: dateOrNull(r.timestamp),
+    active: intOrNull(r.active),
+    edit_date: dateOrNull(r.edit_date),
+  };
+};
+
 /* METADATA ONLY, and less than the API sends, deliberately. The raw
    attachment also carries extracted_info (the file's OCR'd text — content,
    not metadata), metadata (free-form JSON), signature_data (signer identity)
@@ -281,6 +345,9 @@ export const SM8_OBJECTS: Sm8ObjectSpec[] = [
   // `"read_attachments" scope required` — not the consent table's
   // read_job_attachments. Both are asked for; see providers.ts.
   { object: "attachments", endpoint: "attachment.json", table: "sm8_attachments", scope: "read_attachments", label: "Attachments", backfillMonths: 24, shape: shapeAttachment },
+  { object: "job_notes", endpoint: "note.json", table: "sm8_job_notes", scope: "read_job_notes", label: "Job notes", backfillMonths: 24, shape: shapeNote },
+  { object: "job_materials", endpoint: "jobmaterial.json", table: "sm8_job_materials", scope: "read_job_materials", label: "Materials", backfillMonths: 24, shape: shapeMaterial },
+  { object: "job_payments", endpoint: "jobpayment.json", table: "sm8_job_payments", scope: "read_job_payments", label: "Payments", backfillMonths: 24, shape: shapePayment },
 ];
 
 /** Everything disconnect wipes — the mirrors AND the bookkeeping, because a

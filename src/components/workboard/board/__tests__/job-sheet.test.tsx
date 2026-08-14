@@ -8,6 +8,7 @@ import type { JobDesign, MirrorJobDetail } from "@/lib/workboard/all-jobs-query"
 import type { JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
 import type { JobMediaItem } from "@/lib/workboard/job-media";
 import type { CacheJobFilesResult } from "@/app/actions/workboard-media";
+import type { JobRecordRead } from "@/app/actions/workboard";
 import type { AllJobRow } from "@/lib/workboard/all-jobs";
 
 const readMirrorJob = jest.fn(async (): Promise<MirrorJobDetail | null> => null);
@@ -15,9 +16,12 @@ const createProjectFromJob = jest.fn(async () => ({ ok: true as const, id: "p-ne
 /* A job with no files is the common case and the default here, so every test
    renders the sheet WITHOUT a files section unless it asks for one. */
 const readJobFiles = jest.fn(async (): Promise<JobMediaGroupsRead | null> => null);
+/* Notes always; ledger null for a reader without money — the SERVER decides. */
+const readJobRecord = jest.fn(async (): Promise<JobRecordRead | null> => null);
 jest.mock("@/app/actions/workboard", () => ({
   readMirrorJob: (...a: unknown[]) => readMirrorJob(...(a as [])),
   readJobFiles: (...a: unknown[]) => readJobFiles(...(a as [])),
+  readJobRecord: (...a: unknown[]) => readJobRecord(...(a as [])),
   createProjectFromJob: (...a: unknown[]) => createProjectFromJob(...(a as [])),
 }));
 /* Mocked for its CONTENT below, but it would have to be mocked regardless:
@@ -105,9 +109,11 @@ const detail = (over: Partial<MirrorJobDetail> = {}): MirrorJobDetail => ({
 beforeEach(() => {
   readMirrorJob.mockReset();
   readJobFiles.mockReset();
+  readJobRecord.mockReset();
   cacheJobFiles.mockReset();
   readMirrorJob.mockResolvedValue(null);
   readJobFiles.mockResolvedValue(null);
+  readJobRecord.mockResolvedValue(null);
   cacheJobFiles.mockResolvedValue({ ok: true, cached: 0, remaining: 0, media: null, note: null });
 });
 
@@ -458,5 +464,130 @@ describe("bringing the bytes across", () => {
 
     render(<JobSheet row={row()} {...props} />);
     expect(await screen.findByText(/Storage is full/)).toBeInTheDocument();
+  });
+});
+
+/* ── the written record and the ledger ── */
+
+describe("what's been written on the job", () => {
+  it("lists notes newest-first with who wrote them and when", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail());
+    readJobRecord.mockResolvedValueOnce({
+      notes: [
+        {
+          remoteId: "n-1",
+          text: "Units being delivered direct to site",
+          writtenOn: "2026-08-12",
+          writtenBy: "Luke Ingold",
+        },
+      ],
+      ledger: null,
+    });
+    render(<JobSheet row={row()} {...props} />);
+
+    expect(await screen.findByText("What's been written on it")).toBeInTheDocument();
+    expect(screen.getByText("Units being delivered direct to site")).toBeInTheDocument();
+    expect(screen.getByText("Luke Ingold · Wed 12 Aug")).toBeInTheDocument();
+  });
+
+  it("says nothing at all when a job has no notes", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail());
+    readJobRecord.mockResolvedValueOnce({ notes: [], ledger: null });
+    render(<JobSheet row={row()} {...props} />);
+
+    await screen.findByText("18h 30m");
+    expect(screen.queryByText("What's been written on it")).toBeNull();
+  });
+});
+
+describe("the ledger obeys the money grant", () => {
+  const ledger = {
+    materials: [
+      {
+        remoteId: "m-1",
+        name: "Daikin CTXM35RVMA",
+        quantity: 2,
+        unitCents: 110000,
+        taxInclusive: true,
+        lineCents: 220000,
+      },
+    ],
+    payments: [
+      {
+        remoteId: "p-1",
+        amountCents: 240000,
+        method: "Bank Transfer",
+        note: null,
+        takenOn: "2026-08-01",
+        isDeposit: true,
+        takenBy: "Luke Ingold",
+      },
+    ],
+  };
+
+  it("shows the lines and their total to a reader who holds money", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail());
+    readJobRecord.mockResolvedValueOnce({ notes: [], ledger });
+    render(<JobSheet row={row()} {...props} moneyVisible />);
+
+    expect(await screen.findByText("What went on the job")).toBeInTheDocument();
+    expect(screen.getByText("Daikin CTXM35RVMA")).toBeInTheDocument();
+    expect(screen.getByText("× 2")).toBeInTheDocument();
+    expect(screen.getByText("Total inc GST")).toBeInTheDocument();
+  });
+
+  it("shows what's been paid, naming a deposit as one", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail());
+    readJobRecord.mockResolvedValueOnce({ notes: [], ledger });
+    render(<JobSheet row={row()} {...props} moneyVisible />);
+
+    await screen.findByText("Bank Transfer");
+    expect(screen.getByText(/deposit · Sat 1 Aug · Luke Ingold/)).toBeInTheDocument();
+  });
+
+  /* The gate is SERVER-side: without the grant the action returns ledger
+     null, so there is nothing for the component to hide or leak. */
+  it("renders no ledger at all when the server sent none", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail());
+    readJobRecord.mockResolvedValueOnce({ notes: [], ledger: null });
+    render(<JobSheet row={row()} {...props} />);
+
+    await screen.findByText("18h 30m");
+    expect(screen.queryByText("What went on the job")).toBeNull();
+    expect(screen.queryByText(/What's been paid/)).toBeNull();
+  });
+
+  /* Adding an inc-GST line to an ex-GST one and printing one figure would be
+     a lie, so the sheet says why there's no total instead of inventing one. */
+  it("refuses a total when the lines disagree about tax", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail());
+    readJobRecord.mockResolvedValueOnce({
+      notes: [],
+      ledger: {
+        payments: [],
+        materials: [
+          { ...ledger.materials[0] },
+          { ...ledger.materials[0], remoteId: "m-2", taxInclusive: false },
+        ],
+      },
+    });
+    render(<JobSheet row={row()} {...props} moneyVisible />);
+
+    expect(await screen.findByText(/mix tax-inclusive and tax-exclusive/)).toBeInTheDocument();
+    expect(screen.queryByText(/^Total/)).toBeNull();
+  });
+
+  it("refuses a total when a line couldn't be priced", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail());
+    readJobRecord.mockResolvedValueOnce({
+      notes: [],
+      ledger: {
+        payments: [],
+        materials: [{ ...ledger.materials[0], unitCents: null, lineCents: null }],
+      },
+    });
+    render(<JobSheet row={row()} {...props} moneyVisible />);
+
+    expect(await screen.findByText(/aren't priced, so there's no total/)).toBeInTheDocument();
   });
 });

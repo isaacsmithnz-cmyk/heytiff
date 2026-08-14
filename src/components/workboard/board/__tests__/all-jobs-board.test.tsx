@@ -20,6 +20,7 @@ jest.mock("@/app/actions/workboard", () => ({
   searchAllJobs: (...a: unknown[]) => searchAllJobs(...(a as [])),
   readMirrorJob: (...a: unknown[]) => readMirrorJob(...(a as [])),
   readJobFiles: (...a: unknown[]) => readJobFiles(...(a as [])),
+  readJobRecord: jest.fn(async () => null),
   createProjectFromJob: (...a: unknown[]) => createProjectFromJob(...(a as [])),
 }));
 /* A "use server" module drags next/server into jsdom, where `Request` is

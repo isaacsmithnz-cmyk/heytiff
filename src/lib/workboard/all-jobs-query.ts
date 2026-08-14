@@ -21,7 +21,8 @@
 
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { plusDays } from "./dates";
-import { jobMoneyOf, SM8_JOB_MONEY_COLUMNS } from "./job-money";
+import { jobMoneyOf, parseSm8AmountToCents, SM8_JOB_MONEY_COLUMNS } from "./job-money";
+import { materialLineOf, type JobMaterialLine, type JobPaymentEntry } from "./job-ledger";
 import {
   ALL_JOBS_HORIZON_DAYS,
   sm8CategoryColour,
@@ -276,6 +277,131 @@ export type JobDesign = {
 /** Naive stamp → its date part, without parsing a wall clock into a Date. */
 const dateOf = (stamp: string | null | undefined): string | null =>
   typeof stamp === "string" && stamp.length >= 10 ? stamp.slice(0, 10) : null;
+
+/* ── the job's written record, and its ledger ── */
+
+export type JobNoteEntry = {
+  remoteId: string;
+  text: string;
+  writtenOn: string | null;
+  writtenBy: string | null;
+};
+
+export type JobLedgerRead = {
+  materials: JobMaterialLine[];
+  payments: JobPaymentEntry[];
+};
+
+export const EMPTY_LEDGER: JobLedgerRead = { materials: [], payments: [] };
+
+/** What was written on the job. NOT money-gated — a note is the work's own
+    record, and the same reader who sees the description should see it.
+    Notes hang off related_object_uuid, not job_uuid. */
+export async function readJobNotes(orgId: string, jobUuid: string): Promise<JobNoteEntry[]> {
+  const { data } = await supabaseAdmin
+    .from("sm8_job_notes")
+    .select("uuid, note, create_date, edit_by_staff_uuid")
+    .eq("org_id", orgId)
+    .eq("related_object_uuid", jobUuid)
+    .eq("active", 1)
+    .order("create_date", { ascending: false })
+    .limit(60);
+
+  const rows = (data ?? []) as {
+    uuid: string;
+    note: string | null;
+    create_date: string | null;
+    edit_by_staff_uuid: string | null;
+  }[];
+  const withText = rows.filter((r) => !!r.note?.trim());
+  if (withText.length === 0) return [];
+
+  const staffName = await namesForStaff(
+    orgId,
+    withText.map((r) => r.edit_by_staff_uuid)
+  );
+
+  return withText.map((r) => ({
+    remoteId: r.uuid,
+    text: r.note!.trim(),
+    writtenOn: dateOf(r.create_date),
+    writtenBy: r.edit_by_staff_uuid ? staffName.get(r.edit_by_staff_uuid) ?? null : null,
+  }));
+}
+
+/** The job's line items and payments. MONEY — the caller must hold
+    `workboard_money`, and this is never called without it. */
+export async function readJobLedger(orgId: string, jobUuid: string): Promise<JobLedgerRead> {
+  const [{ data: matRows }, { data: payRows }] = await Promise.all([
+    supabaseAdmin
+      .from("sm8_job_materials")
+      .select(
+        "uuid, name, quantity, price, displayed_amount, displayed_amount_is_tax_inclusive, sort_order"
+      )
+      .eq("org_id", orgId)
+      .eq("job_uuid", jobUuid)
+      .eq("active", 1)
+      .order("sort_order", { ascending: true })
+      .limit(200),
+    supabaseAdmin
+      .from("sm8_job_payments")
+      .select("uuid, amount, method, note, actioned_by_uuid, is_deposit, timestamp")
+      .eq("org_id", orgId)
+      .eq("job_uuid", jobUuid)
+      .eq("active", 1)
+      .order("timestamp", { ascending: false })
+      .limit(60),
+  ]);
+
+  const pays = (payRows ?? []) as {
+    uuid: string;
+    amount: string | null;
+    method: string | null;
+    note: string | null;
+    actioned_by_uuid: string | null;
+    is_deposit: number | null;
+    timestamp: string | null;
+  }[];
+
+  const staffName = await namesForStaff(
+    orgId,
+    pays.map((p) => p.actioned_by_uuid)
+  );
+
+  return {
+    materials: ((matRows ?? []) as Parameters<typeof materialLineOf>[0][]).map(materialLineOf),
+    payments: pays.map((p) => ({
+      remoteId: p.uuid,
+      amountCents: parseSm8AmountToCents(p.amount),
+      method: p.method?.trim() || null,
+      note: p.note?.trim() || null,
+      takenOn: dateOf(p.timestamp),
+      isDeposit: p.is_deposit === 1,
+      takenBy: p.actioned_by_uuid ? staffName.get(p.actioned_by_uuid) ?? null : null,
+    })),
+  };
+}
+
+/** One staff read for a set of uuids — the same batching the detail read
+    does, so a page of notes costs one query rather than one per author. */
+async function namesForStaff(
+  orgId: string,
+  ids: readonly (string | null)[]
+): Promise<Map<string, string>> {
+  const wanted = [...new Set(ids.filter((id): id is string => !!id))];
+  const out = new Map<string, string>();
+  if (wanted.length === 0) return out;
+  const { data } = await supabaseAdmin
+    .from("sm8_staff")
+    .select("uuid, first, last")
+    .eq("org_id", orgId)
+    .in("uuid", wanted);
+  for (const s of (data ?? []) as { uuid: string; first: string | null; last: string | null }[]) {
+    const name = [s.first, s.last].filter(Boolean).join(" ").trim();
+    if (name) out.set(s.uuid, name);
+  }
+  return out;
+}
 
 /** The sheet's read. The uuid is a CHOICE handed in by a client, so it is
     re-resolved inside this org's mirror — a foreign id finds nothing. */

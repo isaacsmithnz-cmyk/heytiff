@@ -466,13 +466,17 @@ export function PlansPanel({
                 <span className="ds-pagepick-n">
                   {selected.size} of {pages.length} selected
                 </span>
+                {/* "AI screening" was the badge written out as a label — it
+                    named the technique and left the person guessing what the
+                    button would DO. The title already said it: read the
+                    drawings, name each floor. So does the button now. */}
                 <button
                   className="ds-ai-btn"
                   disabled
-                  title="Coming soon — scans your drawings and names each floor for you"
+                  title="Coming soon — reads your drawings and names each floor for you"
                 >
-                  <Icon name="sparkles" size={14} />
-                  AI screening
+                  <Icon name="search" size={14} />
+                  Name the floors
                   <span className="ds-ai-soon">Soon</span>
                 </button>
               </div>

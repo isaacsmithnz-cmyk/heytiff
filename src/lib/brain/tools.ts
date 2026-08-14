@@ -284,7 +284,7 @@ export const BRAIN_TOOLS: readonly BrainTool[] = [
   },
   {
     name: "kb_search",
-    label: "Searching the knowledge base",
+    label: "Searching the library",
     capability: "tiff",
     description:
       "Search the knowledge base — manuals AND field notes the crew has taught. Returns " +

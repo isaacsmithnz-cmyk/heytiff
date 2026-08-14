@@ -22,12 +22,26 @@ import { KB_CATEGORIES } from "../kb";
    several of them are error paths a test would have to provoke one at a time. */
 
 const TIFF_DIR = join(process.cwd(), "src/components/tiff");
+const SRC = join(process.cwd(), "src");
 
 /** Every .ts/.tsx under a directory, tests excluded. */
 function sourcesIn(dir: string): { file: string; text: string }[] {
   return readdirSync(dir, { withFileTypes: true })
     .filter((e) => e.isFile() && /\.tsx?$/.test(e.name))
     .map((e) => ({ file: e.name, text: readFileSync(join(dir, e.name), "utf8") }));
+}
+
+/** The same, recursively, with repo-relative paths — `__tests__` skipped. */
+function sourcesUnder(dir: string, rel = ""): { file: string; text: string }[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+    const path = rel ? `${rel}/${e.name}` : e.name;
+    if (e.isDirectory()) {
+      return e.name === "__tests__" ? [] : sourcesUnder(join(dir, e.name), path);
+    }
+    return /\.tsx?$/.test(e.name)
+      ? [{ file: path, text: readFileSync(join(dir, e.name), "utf8") }]
+      : [];
+  });
 }
 
 /** Source with `/* *\/` blocks, `//` lines and JSX `{/* *\/}` comments removed —
@@ -114,5 +128,54 @@ describe("the library's vocabulary", () => {
       /shel(f|ves)/i.test(stripComments(text))
     );
     expect(rendered.map((r) => r.file)).toEqual([]);
+  });
+});
+
+/* ── THE SAME RULES, EVERYWHERE ─────────────────────────────────────────────
+
+   THIS IS WHY THE RENAME LEAKED. Everything above scans `components/tiff` and
+   only that, so #380 could ban the AI badge on the Library's own screens and
+   leave it intact on the eleven places outside them — the ⌘K footer, the whole
+   of Fleet, the note token, the Studio's "AI screening" button — plus seven
+   surviving "knowledge base" strings in Admin, Notes and two error paths.
+   Every one of those read fine on its own line. A directory-shaped guard
+   cannot see any of it.
+
+   These two walk `src`. */
+
+const SPARKLE = /name="sparkles"|icon:\s*"sparkles"/;
+
+/* Files whose "knowledge base" is addressed to the MODEL, not to a person:
+   system prompts and tool descriptions. Left alone on purpose — that text is
+   an instruction whose wording steers retrieval, and "library" is the vaguer
+   word to a model. This list should only ever shrink for that reason, never
+   because a new screen was easier to add here than to fix. */
+const MODEL_FACING = [
+  "lib/brain/ask.ts",
+  "lib/brain/tools.ts",
+  "lib/workboard/note-brain.ts",
+  "app/api/brain/ask/route.ts",
+];
+
+describe("the same rules, everywhere in src", () => {
+  it("renders the sparkle nowhere in the app", () => {
+    /* The badge every AI tool in the market wears, and the one this product
+       is positioned against: what is behind these screens is the company's
+       own documents and its own crew, cited. `sparkles` stays in ICON_PATHS —
+       deleting a registry entry is a different kind of change — but nothing
+       may reach for it. */
+    const offenders = sourcesUnder(SRC)
+      .filter(({ file }) => !file.endsWith("shell/icon.tsx"))
+      .filter(({ text }) => SPARKLE.test(text))
+      .map(({ file }) => file);
+    expect(offenders).toEqual([]);
+  });
+
+  it("says 'library' to people, and keeps 'knowledge base' for the model", () => {
+    const offenders = sourcesUnder(SRC)
+      .filter(({ file }) => !MODEL_FACING.some((m) => file.endsWith(m)))
+      .filter(({ text }) => /knowledge base/i.test(text))
+      .map(({ file }) => file);
+    expect(offenders).toEqual([]);
   });
 });

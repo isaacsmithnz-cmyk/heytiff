@@ -25,7 +25,7 @@ import { staffIdFor } from "@/lib/workboard/projects-query";
 
 export type ReviewResult = { ok: true } | { ok: false; error: string };
 
-const NOT_ALLOWED = "Only an admin can curate the knowledge base.";
+const NOT_ALLOWED = "Only an admin can curate the library.";
 const GONE = "That entry is already gone.";
 
 type Ctx = { orgId: string; staffId: string | null };

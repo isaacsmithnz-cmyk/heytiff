@@ -115,7 +115,9 @@ export const SECTIONS: AdminGroup[] = [
            queue is where someone agrees after the fact or takes one down. */
         title: "Knowledge from the field",
         sub: "What the crew taught Tiff — live now, look it over",
-        icon: "sparkles",
+        // the pen, matching the Field notes category this queue feeds (#386):
+        // these entries are written by people, and the sparkle claimed otherwise
+        icon: "edit",
         accent: "#007FA8",
         href: "/dashboard/admin/knowledge",
         show: anyone,

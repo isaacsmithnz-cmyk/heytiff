@@ -225,11 +225,11 @@ export function Cascade({
       {kbCount > 0 && (
         <div className="wb2-cascrow on">
           <span className="wb2-cascn">
-            <Icon name="sparkles" size={10} />
+            <Icon name="library" size={10} />
           </span>
           <span>
-            {kbCount} {kbCount === 1 ? "entry" : "entries"} into the <b>knowledge base</b> — the
-            whole team
+            {kbCount} {kbCount === 1 ? "entry" : "entries"} into the <b>library</b> — the whole
+            team
           </span>
         </div>
       )}
@@ -377,7 +377,7 @@ export function ReviewRows({
             </div>
           ))}
           <p className="wb2-hint">
-            Ticked entries go into the knowledge base for the whole team, with your name and
+            Ticked entries go into the library for the whole team, with your name and
             today&apos;s date on them.
           </p>
         </div>

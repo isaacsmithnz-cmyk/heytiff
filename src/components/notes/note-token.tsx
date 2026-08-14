@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
+import { Chevron } from "@/components/logo";
 import { DictClock, LevelBars, WaveMeter, appendSpoken, useDictation } from "./dictation";
 import { useNoteFlow, type NoteFlow } from "./note-flow";
 import { useNoteScope } from "./note-context";
@@ -53,7 +54,9 @@ function Ribbon({ flow }: { flow: NoteFlow }) {
       ) : stage === "sorting" || stage === "transcribing" || (stage === "answer" && flow.asking) ? (
         <span className="wb2-spin" aria-hidden="true" />
       ) : stage === "answer" ? (
-        <Icon name="sparkles" size={16} />
+        /* the mark, not a sparkle — the ribbon says "Answer" and the thing
+           that answered is HeyTiff */
+        <Chevron size={19} gradient decorative />
       ) : (
         <Icon name="note" size={16} />
       )}
@@ -1010,7 +1013,10 @@ function useFieldMic(value: string, onChange: (next: string) => void) {
 function Nudge({ onOpen, onDismiss }: { onOpen: () => void; onDismiss: () => void }) {
   return (
     <div className="wb2-nudge">
-      <Icon name="sparkles" size={15} />
+      {/* a task was spotted, so the glyph is a task list. The sparkle said
+          "something clever happened here", which is not the offer — the offer
+          is that there is work buried in what you just wrote. */}
+      <Icon name="listCheck" size={15} />
       <span className="wb2-nudgetext">There&apos;s something to do in this.</span>
       <button type="button" className="pbtn sm" onClick={onOpen}>
         Have a look

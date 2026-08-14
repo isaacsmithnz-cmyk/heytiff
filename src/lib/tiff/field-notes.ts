@@ -85,7 +85,7 @@ export async function publishFieldNote(input: FieldNoteInput): Promise<PublishRe
     })
     .select("id")
     .maybeSingle();
-  if (docErr || !doc) return { ok: false, error: "The knowledge base wouldn't take that entry." };
+  if (docErr || !doc) return { ok: false, error: "The library wouldn't take that entry." };
   const documentId = String(doc.id);
 
   const { error: chunkErr } = await supabaseAdmin.from("kb_chunks").insert({
@@ -106,7 +106,7 @@ export async function publishFieldNote(input: FieldNoteInput): Promise<PublishRe
     /* A document with no chunk is invisible to search and undeletable noise
        in the library — take the header row back out rather than leave it. */
     await supabaseAdmin.from("kb_documents").delete().eq("org_id", input.orgId).eq("id", documentId);
-    return { ok: false, error: "The knowledge base wouldn't take that entry." };
+    return { ok: false, error: "The library wouldn't take that entry." };
   }
 
   return { ok: true, documentId };

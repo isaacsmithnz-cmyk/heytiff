@@ -41,7 +41,7 @@ export function KbQueue({ entries }: { entries: FieldNoteRow[] }) {
                 Field-learned knowledge
               </h1>
               <p className="int-lede" style={{ margin: "6px 0 0" }}>
-                These are live in the knowledge base now — spoken on the job, ticked by whoever
+                These are live in the library now — spoken on the job, ticked by whoever
                 said them. Agree, or take one down.
               </p>
             </div>
@@ -81,7 +81,7 @@ export function KbQueue({ entries }: { entries: FieldNoteRow[] }) {
                     <button
                       className="pbtn ghost sm"
                       disabled={busy}
-                      title="Take it out of the knowledge base"
+                      title="Take it out of the library"
                       onClick={() => run(e.id, () => removeFieldNote(e.id))}
                     >
                       Take it down

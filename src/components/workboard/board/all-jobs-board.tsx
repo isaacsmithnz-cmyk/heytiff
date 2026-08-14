@@ -8,6 +8,7 @@ import type { BoardVisit, BoardAgreement, BoardCategory } from "@/lib/workboard/
 import type { BoardProject, ProjectBoardVisit } from "@/lib/workboard/projects-board-query";
 import { searchAllJobs } from "@/app/actions/workboard";
 import { WorkOrdersTab, QuotesTab, CompletedJobsTab } from "./all-jobs-tab";
+import { ScheduleTab, type ScheduleShelfItem } from "./schedule-tab";
 import { JobSheet } from "./job-sheet";
 import { NewAgreementModal } from "./new-agreement-modal";
 import { ToastHost, useBoardToasts } from "./toasts";
@@ -28,10 +29,16 @@ import { Sm8Chip, type Sm8Health } from "./sm8-chip";
    nothing on this side is urgent — there is no queue and no badge, because
    "everything" is a reference, not a to-do list. */
 
-const TAB_KEYS = ["work", "quotes", "completed"] as const;
+const TAB_KEYS = ["schedule", "work", "quotes", "completed"] as const;
 export type AllJobsTabKey = (typeof TAB_KEYS)[number];
 
+/* Schedule sits FIRST — today's diary is the question this side gets asked
+   every morning; the book of work follows in ServiceM8's own order. It is
+   called Schedule, not Calendar: the maintenance board already owns a
+   Calendar tab, and ServiceM8's own label for the object behind this one
+   (job_activities) is Schedule. */
 const TAB_LABEL: Record<AllJobsTabKey, string> = {
+  schedule: "Schedule",
   work: "Work orders",
   quotes: "Quotes",
   completed: "Completed",
@@ -72,7 +79,11 @@ export function AllJobsBoard({
      project are three different destinations with three different ids. */
   onOpenTracked: (target: { kind: "visit" | "agreement" | "project"; id: string }) => void;
 }) {
-  const [tab, setTab] = useState<AllJobsTabKey>("work");
+  /* Lands on Schedule — the first tab is the landing tab on every board
+     (Maintenance opens on Urgent the same way). The diary's fetch-on-open
+     therefore fires when this SIDE opens, which is still nothing on the
+     Workboard page load: the board only mounts when the side is chosen. */
+  const [tab, setTab] = useState<AllJobsTabKey>("schedule");
   const [query, setQuery] = useState("");
   const [sheetRow, setSheetRow] = useState<AllJobRow | null>(null);
   const [agreementFrom, setAgreementFrom] = useState<AllJobRow | null>(null);
@@ -125,6 +136,75 @@ export function AllJobsBoard({
       today,
     });
   }, [data.jobs, data.projectLinks, visits, projectVisits, projects, today]);
+
+  /* ── what the Schedule tab needs from data already on this page ── */
+
+  /* OWNERSHIP, for the colour override: ServiceM8 job uuid → the board that
+     owns it. Projects claim through the link table; maintenance through the
+     visit's own remoteId. A job on both wears the project — the stronger
+     promotion. */
+  const trackedByJob = useMemo(() => {
+    const map = new Map<string, { kind: "project" | "visit"; label: string; id: string }>();
+    for (const v of visits) {
+      if (v.remoteId) map.set(v.remoteId, { kind: "visit", label: v.clientName, id: v.id });
+    }
+    const projectName = new Map(projects.map((p) => [p.id, p.name]));
+    for (const l of data.projectLinks) {
+      map.set(l.remoteId, {
+        kind: "project",
+        label: projectName.get(l.projectId) ?? "Project",
+        id: l.projectId,
+      });
+    }
+    return map;
+  }, [visits, projects, data.projectLinks]);
+
+  /* NATIVE DAY-BOOKINGS for the shelf: a trip or a visit has a day, no clock
+     and no ServiceM8 lane, so the schedule shows it above the rail instead of
+     inventing a time for it. */
+  const shelfItems = useMemo<ScheduleShelfItem[]>(() => {
+    const out: ScheduleShelfItem[] = [];
+    for (const v of visits) {
+      if (!v.bookedDate || (v.status !== "upcoming" && v.status !== "booked")) continue;
+      out.push({
+        key: `v-${v.id}`,
+        date: v.bookedDate,
+        kind: "visit",
+        id: v.id,
+        label: `Maintenance — ${v.clientName}`,
+        sub: v.label,
+      });
+    }
+    for (const t of projectVisits) {
+      if (!t.bookedDate || (t.status !== "upcoming" && t.status !== "booked")) continue;
+      out.push({
+        key: `p-${t.id}`,
+        date: t.bookedDate,
+        kind: "project",
+        id: t.projectId,
+        label: `Project — ${t.projectName}`,
+        sub: t.label,
+      });
+    }
+    return out;
+  }, [visits, projectVisits]);
+
+  /* A schedule block opens THE SAME SHEET the list rows open, on the same
+     row shape — one job, one law. The payload's job is already in the mirror
+     shape, so the row builder that feeds the list feeds this too. */
+  const openScheduleJob = (job: AllJobsMirrorJob) => {
+    const found = allJobsRows({ jobs: [job], visits: [], projects: [], today });
+    const row = [
+      ...found.work.booked,
+      ...found.work.unbooked,
+      ...found.quotes,
+      ...found.completed,
+      ...found.unsuccessful,
+    ][0];
+    if (!row) return;
+    const t = trackedByJob.get(job.remoteId);
+    setSheetRow(t ? { ...row, tracked: t } : row);
+  };
 
   /* The loaded window is the recent past and the open present. Anything older
      lives in the mirror and is reached by ASKING — which is why typing runs a
@@ -244,6 +324,18 @@ export function AllJobsBoard({
           {tab === "work" && <WorkOrdersTab {...panelProps} />}
           {tab === "quotes" && <QuotesTab {...panelProps} />}
           {tab === "completed" && <CompletedJobsTab {...panelProps} />}
+          {tab === "schedule" && (
+            <ScheduleTab
+              today={today}
+              connected={connected}
+              tracked={trackedByJob}
+              shelfItems={shelfItems}
+              waitingCount={view.work.unbooked.length}
+              onOpenJob={openScheduleJob}
+              onOpenTracked={onOpenTracked}
+              onGoWork={() => showTab("work")}
+            />
+          )}
         </div>
       </div>
 

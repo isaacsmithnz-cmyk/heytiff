@@ -519,7 +519,14 @@ export async function readMirrorJobDetail(
     activity_was_scheduled: number | null;
   }[];
   const todayFloor = `${today} 00:00:00`;
-  const next = acts.find((a) => a.start_date !== null && a.start_date >= todayFloor) ?? null;
+  /* Only a dispatched booking may say "next on site". A recorded session
+     (activity_was_scheduled=0) can share the same day — and its clock-off
+     end time reads as nonsense in a booking line. */
+  const next =
+    acts.find(
+      (a) =>
+        a.activity_was_scheduled === 1 && a.start_date !== null && a.start_date >= todayFloor
+    ) ?? null;
 
   let minutes = 0;
   let sessions = 0;

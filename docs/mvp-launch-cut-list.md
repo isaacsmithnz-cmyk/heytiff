@@ -64,12 +64,16 @@ Recommendation: **option 1 for the launch**, revisit when the techs come on.
 
 ## 3. Pre-launch configuration — none of this is code
 
-Each of these is currently wrong or unset in prod, and each is visible to a new user on
-their first day.
+Each of these is currently wrong or unset in prod.
 
-- **The organisation is called `isaacsmithnz1@gmail.com`.** `trading_name` is set
-  correctly to "Diamond Air Solutions", but `name` is the address signup used. Set it in
-  Admin → Organisation.
+- **~~The organisation is called `isaacsmithnz1@gmail.com`~~ — checked, and it does not
+  matter for launch.** `organizations.name` is still that address, but it is read in
+  exactly two places and **both are `/hq`**, the internal platform portal. Nothing in the
+  customer-facing app reads it: the sidebar's "HeyTiff × …" line, Admin → Organisation and
+  the `/no-org` invite screen all use `trading_name`, which is correctly "Diamond Air
+  Solutions". Nobody on the team will ever see the address. There is also no UI that edits
+  `name` — changing it would take SQL. **Leave it**; tidy it only if the HQ org list
+  annoys you.
 - **Public holidays are switched OFF in the pay rules** (`pay_settings.rules.ph.on =
   false`, everything else configured: Weekly, Mon start, submit Sun 3pm, 8h standard, OT
   after 8/day, Sat ×1.5, Sun ×2, super 12%). For an NSW business this is a decision that

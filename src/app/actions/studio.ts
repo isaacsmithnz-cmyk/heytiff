@@ -1,10 +1,12 @@
 "use server";
 
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { requireOrg } from "@/lib/permissions-server";
+import { can, requireOrg } from "@/lib/permissions-server";
 import { isDesignDocumentShape } from "@/lib/studio/document";
 import { recordContribution } from "@/lib/studio/contributions-server";
+import type { StudioJobHit } from "@/lib/studio/job-link";
 import type { DesignSummary } from "@/lib/studio/store";
+import { searchMirrorJobs } from "@/lib/workboard/projects-query";
 
 /* Design Studio persistence — server side. Follows the invite-action pattern:
    authenticate the Auth0 session, then read/write via the service role with
@@ -58,6 +60,21 @@ export async function loadStudioDesign(id: string): Promise<unknown | null> {
   return data?.doc ?? null;
 }
 
+/* The linked job's uuid, read defensively off a document the client handed
+   in. A save arrives as `unknown` and is only shape-checked at the top level,
+   so this reads its way down rather than trusting the type — a malformed
+   `jobLink` must leave the column null, never throw and lose the save. */
+function sm8JobUuid(doc: { jobLink?: unknown }): string | null {
+  const link = doc.jobLink as
+    | { provider?: unknown; remoteId?: unknown }
+    | null
+    | undefined;
+  if (!link || typeof link !== "object") return null;
+  if (link.provider !== "servicem8") return null;
+  const id = typeof link.remoteId === "string" ? link.remoteId.trim() : "";
+  return id ? id.slice(0, 80) : null;
+}
+
 export async function saveStudioDesign(doc: unknown): Promise<void> {
   const { orgId, userId } = await requireOrg("studio");
   if (!isDesignDocumentShape(doc)) throw new Error("Not a design document");
@@ -80,6 +97,12 @@ export async function saveStudioDesign(doc: unknown): Promise<void> {
       doc,
       floor_count: doc.floors.length,
       system_count: doc.systems.length,
+      /* The linked job's uuid, MIRRORED OUT of the document exactly as name,
+         mode and the two counts already are — the doc stays the source of
+         truth, the column is what makes "which designs are for this job?" a
+         query instead of a scan of every jsonb blob in the table. Rewritten
+         on every save, so unlinking in the document unlinks here too. */
+      sm8_job_uuid: sm8JobUuid(doc),
       /* NB this is overwritten on every save, so it holds the LAST saver, not
          the creator. Who made it — and everyone since — comes from
          studio_design_contributors below. */
@@ -99,6 +122,36 @@ export async function saveStudioDesign(doc: unknown): Promise<void> {
   } catch {
     /* the save itself succeeded — that's what matters */
   }
+}
+
+/* The new-design step's ServiceM8 search.
+
+   TWO GATES, BOTH REQUIRED. `studio` is the surface asking; `workboard` is
+   what makes the client book readable at all. They agree with the rule the
+   attach picker already follows — a picker must never find more than the
+   list beside it — and in practice both are staff defaults, so the box is
+   there for everyone who has the mirror. Someone whose `workboard` was
+   revoked gets a studio with no ServiceM8 step, not a studio that leaks the
+   client book through the back of it.
+
+   The same mirror search the Workboard uses, mapped to the browser-safe
+   shape: no company uuid, no project links, nothing this screen can't say. */
+export async function searchStudioJobs(query: string): Promise<StudioJobHit[]> {
+  const { orgId } = await requireOrg("studio");
+  if (!(await can("workboard"))) return [];
+  const q = query.trim().slice(0, 80);
+  if (q.length < 2) return [];
+
+  const hits = await searchMirrorJobs(orgId, q, 8);
+  return hits.map((h) => ({
+    remoteId: h.remoteId,
+    jobNumber: h.jobNumber,
+    clientName: h.clientName,
+    status: h.status,
+    address: h.address,
+    suburb: h.suburb,
+    description: h.description,
+  }));
 }
 
 export async function deleteStudioDesign(id: string): Promise<void> {

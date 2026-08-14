@@ -82,6 +82,7 @@ import {
   loadStudioDesign,
   saveStudioDesign,
   deleteStudioDesign,
+  searchStudioJobs,
 } from "../studio";
 import { createPlanUpload, planImageUrl, deletePlanImage } from "../studio-plans";
 import { createShareLink, getShareLink, revokeShareLink } from "../studio-share";
@@ -93,6 +94,7 @@ const ACTIONS: [string, () => Promise<unknown>][] = [
   ["loadStudioDesign", () => loadStudioDesign("d-1")],
   ["saveStudioDesign", () => saveStudioDesign({})],
   ["deleteStudioDesign", () => deleteStudioDesign("d-1")],
+  ["searchStudioJobs", () => searchStudioJobs("wallace")],
   ["createPlanUpload", () => createPlanUpload("png")],
   ["planImageUrl", () => planImageUrl("org/org-1/plan.png")],
   ["deletePlanImage", () => deletePlanImage("org/org-1/plan.png")],

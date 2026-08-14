@@ -160,6 +160,17 @@ const MIGRATIONS: Record<number, Migration> = {
       schemaVersion: 7,
     };
   },
+
+  /* v7 → v8: a design can now name the ServiceM8 job it was started from
+     (`jobLink`), rather than only carrying the job's number as free text in
+     `meta`. Nothing pre-v8 was ever linked — the picker that makes a link is
+     the same change — so they all open unlinked.
+
+     Deliberately NOT inferred from `meta.jobNumber`. A number matched back to
+     the mirror would be a GUESS presented as provenance: the field is free
+     text, two jobs a year apart can wear the same digits, and this migration
+     has no mirror to ask anyway. Unlinked is the honest answer. */
+  7: (doc) => ({ ...doc, jobLink: null, schemaVersion: 8 }),
 };
 
 export class DesignDocumentError extends Error {

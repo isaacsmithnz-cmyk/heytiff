@@ -1323,7 +1323,13 @@ function DesignCard({
         </div>
         <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
           {designId && (
-            <Link href="/dashboard/studio" className="pbtn ghost">
+            /* Opens THE design, not the studio's front door. This button
+               already knew which one it meant; until `?design=` existed it
+               had no way to say so. */
+            <Link
+              href={`/dashboard/studio?design=${encodeURIComponent(designId)}`}
+              className="pbtn ghost"
+            >
               Open Studio
             </Link>
           )}
@@ -1489,7 +1495,7 @@ function AttachJobModal({
       {sm8Connected && (
         <>
           <label className="fl-f span" style={{ marginTop: 10 }}>
-            <span>Or search ServiceM8 — number or client</span>
+            <span>Or search ServiceM8 — number, client or address</span>
             <input
               value={query}
               onChange={(e) => doSearch(e.target.value)}

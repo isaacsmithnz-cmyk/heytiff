@@ -6,7 +6,7 @@
    fixtures serialise exactly this shape, so changes require a schema bump and
    a migration (see migrations.ts). */
 
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 /* ── Vertical planes (Layer 1 — placement plane) ── */
 export type Plane =
@@ -149,6 +149,33 @@ export interface PlanImport {
   names: Record<number, string>; // per-index typed floor names
 }
 
+/* ── The job this design is FOR (schema v8).
+
+      `meta.jobNumber`, `.client` and `.site` are what the design SAYS on its
+      sheet: free text, typed or prefilled, and editable forever after. This is
+      something different — WHICH ROW the design came from, which is the only
+      thing that can survive somebody retyping the number.
+
+      That distinction is the whole point. A design whose meta says "3151"
+      cannot be matched back to a job: the field is free text, two jobs a year
+      apart can wear the same digits, and a typo is indistinguishable from a
+      different job. A uuid can. So the number is kept HERE too, as it stood
+      when the link was made, and a design can then say which job it belongs to
+      without reading the mirror at all.
+
+      `provider` is named rather than assumed. A bare uuid on a document is a
+      promise that ServiceM8 is the only system that will ever identify a job
+      here, and nothing about this design makes that promise. ── */
+export interface DesignJobLink {
+  provider: "servicem8";
+  /** `sm8_jobs.uuid` — ServiceM8's own id for the job, via our mirror. */
+  remoteId: string;
+  /** The job number at link time, untouched by later edits to `meta`. */
+  jobNumber: string | null;
+  /** ISO. When the link was made, not when the job was raised. */
+  linkedAt: string;
+}
+
 export interface DesignDocument {
   schemaVersion: number;
   id: string;
@@ -164,6 +191,10 @@ export interface DesignDocument {
   /** the last plan-upload session, so the Plans step restores on return.
       null = no plans uploaded (blank designs, or never imported). */
   planImport: PlanImport | null;
+  /** the ServiceM8 job this design was started from. null = named by hand,
+      which is every design made before v8 and every one made without the
+      mirror. */
+  jobLink: DesignJobLink | null;
 }
 
 /* ── Construction ── */
@@ -178,6 +209,15 @@ export function newId(prefix: string): string {
 export function createDesign(opts: {
   name: string;
   mode: DesignMeta["mode"];
+  /** Filled when the design was started FROM a job (the new-design step's
+      ServiceM8 search). Typed by hand on the Summary step otherwise — these
+      three fields have always existed, this just stops them starting empty
+      when something already knows the answers. */
+  jobNumber?: string;
+  client?: string;
+  site?: string;
+  /** The mirror row those three came from. Absent = named by hand. */
+  job?: { remoteId: string; jobNumber: string | null };
   now?: string;
 }): DesignDocument {
   const now = opts.now ?? new Date().toISOString();
@@ -186,9 +226,9 @@ export function createDesign(opts: {
     id: newId("dsn"),
     meta: {
       name: opts.name,
-      jobNumber: "",
-      client: "",
-      site: "",
+      jobNumber: opts.jobNumber ?? "",
+      client: opts.client ?? "",
+      site: opts.site ?? "",
       mode: opts.mode,
       createdAt: now,
       updatedAt: now,
@@ -222,6 +262,14 @@ export function createDesign(opts: {
     packPins: {},
     variants: [],
     planImport: null,
+    jobLink: opts.job
+      ? {
+          provider: "servicem8",
+          remoteId: opts.job.remoteId,
+          jobNumber: opts.job.jobNumber,
+          linkedAt: now,
+        }
+      : null,
   };
 }
 

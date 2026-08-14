@@ -667,9 +667,27 @@ export type JobSearchHit = {
       agreement born from this job (D7). */
   companyId: string | null;
   suburb: string | null;
+  /** ServiceM8's own site address, VERBATIM — which means MULTI-LINE:
+      "2 Spring St\nPaddington NSW 2021". Anything showing it on one line has
+      to flatten it; see `flatAddress` in lib/studio/job-link. */
+  address: string | null;
+  /** What the job is, one line — "Supply and installation of a 12.5kW ducted".
+      Two jobs at one address are told apart by this and nothing else. */
+  description: string | null;
   /** Names of projects already holding this job — the cross-project warning. */
   linkedTo: string[];
 };
+
+const JOB_SEARCH_COLUMNS =
+  "uuid, generated_job_id, status, company_uuid, geo_city, job_address, job_description";
+
+/** The list shows a glance; whatever opens the job shows the whole thing. */
+function oneLine(text: string | null, max = 120): string | null {
+  if (!text) return null;
+  const flat = text.replace(/\s+/g, " ").trim();
+  if (!flat) return null;
+  return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat;
+}
 
 export async function searchMirrorJobs(
   orgId: string,
@@ -685,15 +703,30 @@ export async function searchMirrorJobs(
     status: string | null;
     company_uuid: string | null;
     geo_city: string | null;
+    job_address: string | null;
+    job_description: string | null;
   };
 
-  // Two angles, merged: the number people say out loud, and the client name.
+  /* THREE angles, merged in confidence order: the number people say out loud,
+     the client name, then the site address. Address is here because a job is
+     as often "the Vaucluse one" as it is a number or a company — and the
+     Design Studio, where a design is NAMED after its street, could not find
+     anything without it. */
   const byNumber = supabaseAdmin
     .from("sm8_jobs")
-    .select("uuid, generated_job_id, status, company_uuid, geo_city")
+    .select(JOB_SEARCH_COLUMNS)
     .eq("org_id", orgId)
     .eq("active", 1)
     .ilike("generated_job_id", `${q}%`)
+    .limit(limit);
+
+  const byAddress = supabaseAdmin
+    .from("sm8_jobs")
+    .select(JOB_SEARCH_COLUMNS)
+    .eq("org_id", orgId)
+    .eq("active", 1)
+    .ilike("job_address", `%${q}%`)
+    .order("edit_date", { ascending: false })
     .limit(limit);
 
   const { data: companyRows } = await supabaseAdmin
@@ -708,7 +741,7 @@ export async function searchMirrorJobs(
   const byClient = companies.length
     ? supabaseAdmin
         .from("sm8_jobs")
-        .select("uuid, generated_job_id, status, company_uuid, geo_city")
+        .select(JOB_SEARCH_COLUMNS)
         .eq("org_id", orgId)
         .eq("active", 1)
         .in("company_uuid", companies.map((c) => c.uuid))
@@ -716,11 +749,16 @@ export async function searchMirrorJobs(
         .limit(limit)
     : Promise.resolve({ data: [] as JobRow[] });
 
-  const [numberRes, clientRes] = await Promise.all([byNumber, byClient]);
+  const [numberRes, clientRes, addressRes] = await Promise.all([
+    byNumber,
+    byClient,
+    byAddress,
+  ]);
   const seen = new Map<string, JobRow>();
   for (const r of [
     ...((numberRes.data ?? []) as JobRow[]),
     ...((clientRes.data ?? []) as JobRow[]),
+    ...((addressRes.data ?? []) as JobRow[]),
   ]) {
     if (!seen.has(r.uuid)) seen.set(r.uuid, r);
   }
@@ -773,6 +811,8 @@ export async function searchMirrorJobs(
     clientName: h.company_uuid ? nameByCompany.get(h.company_uuid) ?? null : null,
     companyId: h.company_uuid,
     suburb: h.geo_city,
+    address: h.job_address,
+    description: oneLine(h.job_description),
     linkedTo: linkedTo.get(h.uuid) ?? [],
   }));
 }

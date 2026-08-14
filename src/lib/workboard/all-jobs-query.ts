@@ -257,6 +257,20 @@ export type MirrorJobDetail = {
   checklist: JobChecklistItem[];
   contacts: { name: string; type: string | null; phone: string | null; email: string | null }[];
   money: ReturnType<typeof jobMoneyOf> | null;
+  /** Studio designs started FROM this job. Empty for a reader without
+      `studio` — the caller decides, the same way money does. */
+  designs: JobDesign[];
+};
+
+/** A Studio design that names this job, slimmed to what a row says. */
+export type JobDesign = {
+  id: string;
+  name: string;
+  mode: "plan" | "blank";
+  floorCount: number;
+  systemCount: number;
+  /** ISO — the row says how long ago, the studio says the rest. */
+  updatedAt: string;
 };
 
 /** Naive stamp → its date part, without parsing a wall clock into a Date. */
@@ -269,9 +283,10 @@ export async function readMirrorJobDetail(
   orgId: string,
   remoteId: string,
   today: string,
-  opts: { includeMoney?: boolean } = {}
+  opts: { includeMoney?: boolean; includeDesigns?: boolean } = {}
 ): Promise<MirrorJobDetail | null> {
   const includeMoney = opts.includeMoney ?? true;
+  const includeDesigns = opts.includeDesigns ?? false;
   const base =
     "uuid, generated_job_id, status, company_uuid, job_address, geo_city, geo_state, geo_postcode, " +
     "category_uuid, queue_uuid, queue_expiry_date, queue_assigned_staff_uuid, " +
@@ -309,6 +324,7 @@ export async function readMirrorJobDetail(
     { data: contactRows },
     { data: checkRows },
     { data: queueRow },
+    { data: designRows },
   ] = await Promise.all([
     job.company_uuid
       ? supabaseAdmin
@@ -354,6 +370,20 @@ export async function readMirrorJobDetail(
           .eq("uuid", job.queue_uuid)
           .maybeSingle()
       : Promise.resolve({ data: null }),
+    /* The other direction of the studio's job link. `sm8_job_uuid` is written
+       out of the design document on every save precisely so this is an index
+       hit rather than a scan of every jsonb blob in the table — see
+       studio_designs_sm8_job.sql. Rides the existing Promise.all, so a reader
+       with `studio` waits no longer than one without. */
+    includeDesigns
+      ? supabaseAdmin
+          .from("studio_designs")
+          .select("id, name, mode, floor_count, system_count, updated_at")
+          .eq("org_id", orgId)
+          .eq("sm8_job_uuid", remoteId)
+          .order("updated_at", { ascending: false })
+          .limit(12)
+      : Promise.resolve({ data: [] }),
   ]);
 
   const acts = (actRows ?? []) as {
@@ -484,6 +514,24 @@ export async function readMirrorJobDetail(
       }))
       .filter((c) => c.name || c.phone || c.email),
     money: includeMoney ? jobMoneyOf(job) : null,
+    designs: ((designRows ?? []) as {
+      id: string;
+      name: string | null;
+      mode: string | null;
+      floor_count: number | null;
+      system_count: number | null;
+      updated_at: string;
+    }[]).map((d) => ({
+      id: d.id,
+      /* A design is always named — `createDesign` defaults it — but the
+         column is the document's copy and a blank one would render as a row
+         you cannot read. */
+      name: d.name?.trim() || "Untitled design",
+      mode: d.mode === "plan" ? ("plan" as const) : ("blank" as const),
+      floorCount: d.floor_count ?? 0,
+      systemCount: d.system_count ?? 0,
+      updatedAt: d.updated_at,
+    })),
   };
 }
 

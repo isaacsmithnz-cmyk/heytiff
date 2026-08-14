@@ -266,7 +266,7 @@ export function NewAgreementModal({
               <span className="wb2-sect">Find the job it grew out of</span>
               <input
                 className="wb2-fi"
-                placeholder="Job number or client name…"
+                placeholder="Job number, client name or address…"
                 value={q}
                 onChange={(e) => search(e.target.value)}
               />

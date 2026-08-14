@@ -367,9 +367,16 @@ export async function readMirrorJob(remoteId: string): Promise<MirrorJobDetail |
   const id = trim(remoteId, 80);
   if (!id) return null;
   const today = todayInZone(await getSm8Timezone(ctx.orgId));
-  return readMirrorJobDetail(ctx.orgId, id, today, {
-    includeMoney: await can("workboard_money"),
-  });
+  /* Designs ride the same rule money does: the reader's own capability
+     decides, asked here and handed down, so the loader never reads what this
+     person may not see. `studio` is a staff default and revocable — someone
+     without it has no studio to open, and a list of doors they can't use is
+     not a kindness. */
+  const [includeMoney, includeDesigns] = await Promise.all([
+    can("workboard_money"),
+    can("studio"),
+  ]);
+  return readMirrorJobDetail(ctx.orgId, id, today, { includeMoney, includeDesigns });
 }
 
 /** All jobs' own search — reaches the WHOLE mirror, which is how a job that

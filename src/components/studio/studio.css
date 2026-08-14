@@ -350,6 +350,203 @@ html[data-ds-display] .dstudio.editing {
   outline: none;
   border-color: rgba(0, 229, 192, 0.6);
 }
+
+/* ── Start from a ServiceM8 job ───────────────────────────────────────────
+   The mirror's own search, on the step where a design gets its name. It sits
+   ABOVE the name field because it answers it: pick a job and the street lands
+   in the field below, still editable, with the client and site carried
+   through to what the Summary sheet prints.
+
+   The results are a real DROPDOWN — absolutely positioned over what follows —
+   rather than a list that grows in place. A growing list pushes Continue down
+   the page while you are reading it, and a button travelling out from under
+   the cursor is a bug this codebase has already shipped once. The panel is
+   opaque rather than blurred: it overlays a field it must not let read
+   through, and one more backdrop-filter on this screen buys nothing. */
+.dstudio .ds-sm8 {
+  width: 100%;
+  max-width: 420px;
+  margin-bottom: 14px;
+}
+.dstudio .ds-sm8-field {
+  position: relative;
+}
+.dstudio .ds-sm8-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 46px;
+  padding: 0 14px;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  transition: border-color 0.2s;
+}
+.dstudio .ds-sm8-search:focus-within {
+  border-color: rgba(0, 229, 192, 0.6);
+}
+.dstudio .ds-sm8-search svg {
+  color: rgba(255, 255, 255, 0.42);
+  flex: 0 0 auto;
+}
+.dstudio .ds-sm8-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.dstudio .ds-sm8-search input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+  font-weight: 500;
+}
+/* WebKit draws its own clear cross inside a type=search, in a grey it picks
+   itself — invisible on this ground and a second, tinier way to do what the
+   field already does when emptied. */
+.dstudio .ds-sm8-search input::-webkit-search-cancel-button {
+  display: none;
+}
+.dstudio .ds-sm8-drop {
+  position: absolute;
+  z-index: 6;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  /* the hero is vertically centred and `.ds-home` clips — cap against the
+     viewport too so a short window scrolls the list instead of losing it */
+  max-height: min(264px, 38vh);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  border-radius: 15px;
+  background: rgba(16, 16, 18, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  box-shadow: 0 26px 50px -18px rgba(0, 0, 0, 0.85);
+}
+.dstudio .ds-sm8-opt {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 11px;
+  border-radius: 11px;
+  border: 1px solid transparent;
+  transition: background 0.16s, border-color 0.16s;
+}
+.dstudio .ds-sm8-opt:hover,
+.dstudio .ds-sm8-opt:focus-visible {
+  outline: none;
+  background: rgba(0, 229, 192, 0.1);
+  border-color: rgba(0, 229, 192, 0.32);
+}
+/* A FIXED column, not a shrink-wrapped chip: job numbers run 4 digits with an
+   occasional letter ("3077A"), and letting the chip size to its content sets
+   every street name on a different left edge. 58px holds the longest real
+   one; the ellipsis is only a safety valve. */
+.dstudio .ds-sm8-no {
+  flex: 0 0 58px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 3px 5px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 11.5px;
+  font-weight: 800;
+  text-align: center;
+}
+.dstudio .ds-sm8-b {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.dstudio .ds-sm8-t,
+.dstudio .ds-sm8-s,
+.dstudio .ds-sm8-d {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dstudio .ds-sm8-t {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #fff;
+}
+/* Both of these sit on the panel's near-black, where a white at .5 and one at
+   .36 read as "grey" and "not quite there" rather than as two levels. The
+   opacities are set for CONTRAST first — .58 ≈ 6.6:1 and .46 ≈ 5.1:1 against
+   rgb(16,16,18), both clear of AA — and told apart by size and weight. */
+.dstudio .ds-sm8-s {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.58);
+}
+.dstudio .ds-sm8-d {
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.46);
+}
+.dstudio .ds-sm8-none {
+  margin: 0;
+  padding: 12px 11px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.45);
+}
+/* the chosen job, in place of the search box — the field it filled is right
+   below it, so this only has to say which job and offer the way back */
+.dstudio .ds-sm8-on {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 46px;
+  padding: 8px 10px 8px 14px;
+  border-radius: 13px;
+  background: rgba(0, 229, 192, 0.09);
+  border: 1px solid rgba(0, 229, 192, 0.32);
+  color: rgba(255, 255, 255, 0.8);
+}
+.dstudio .ds-sm8-on svg {
+  color: var(--teal);
+  flex: 0 0 auto;
+}
+.dstudio .ds-sm8-onl {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dstudio .ds-sm8-onl b {
+  color: #fff;
+  font-weight: 800;
+}
+.dstudio .ds-sm8-clear {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.5);
+  transition: background 0.16s, color 0.16s;
+}
+.dstudio .ds-sm8-clear:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
 .dstudio .ds-opts {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -5284,6 +5481,29 @@ html[data-ds-display] .dstudio.editing {
   padding: 8px 10px;
   border: 1px solid var(--ds-border);
   border-radius: 9px;
+}
+/* Where the three fields above came from. This is on the LIGHT well, so no
+   dark-skin literals — and deliberately NOT a state colour: it says the
+   design was started from a job, not that anything is good or bad. */
+.dstudio .ds-job-from {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0 0;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--gray500);
+}
+/* --gray400 is this codebase's usual icon grey, but at 2.5:1 on white it is
+   under the 3:1 non-text minimum. The glyph carries no meaning the sentence
+   doesn't, so this is belt-and-braces — it also just costs nothing. */
+.dstudio .ds-job-from svg {
+  color: var(--gray500);
+  flex: 0 0 auto;
+}
+.dstudio .ds-job-from b {
+  font-weight: 800;
+  color: var(--ink);
 }
 .dstudio .ds-job-actions {
   display: flex;

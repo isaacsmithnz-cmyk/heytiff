@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
@@ -32,6 +33,25 @@ import { fmtMinutesAsHours, groupChecklist, type AllJobRow } from "@/lib/workboa
 
 const dayOf = (naive: string | null | undefined) =>
   naive && naive.length >= 10 ? naive.slice(0, 10) : null;
+
+/** When a design was last touched. `studio_designs.updated_at` is a real
+    timestamptz — a genuine instant, unlike every ServiceM8 stamp on this
+    sheet — so it is PARSED and shown in the reader's own zone. The studio's
+    contributors card stamps its dates the same way.
+
+    Absolute, not "2 days ago": a relative label needs the clock at render
+    time, and `Date.now()` in a render body breaks hydration for the whole
+    tree. This block only mounts after the detail fetch, so it would get away
+    with it — but the sheet's every other date is absolute anyway. */
+const editedOn = (iso: string): string => {
+  const d = new Date(iso);
+  const local = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate()
+  ).padStart(2, "0")}`;
+  // through the sheet's own formatter, so this date wears the same shape as
+  // every other one beside it ("Fri 14 Aug", not en-AU's "Fri, 14 Aug")
+  return fmtAuWeekdayDayMonth(local);
+};
 
 /** "7:30am" from a naive local string, by slicing — never by parsing a wall
     clock into a Date, which would shift it by the browser's offset. */
@@ -322,6 +342,45 @@ export function JobSheet({
                   </>
                 ) : null}
               </p>
+            ))}
+          </div>
+        )}
+
+        {/* The other end of the studio's job link. Absent for a reader
+            without `studio` (the action doesn't fetch it), and absent when
+            nobody has designed this job — an empty "Designs" heading on 800
+            service calls would be a section that means nothing. */}
+        {detail && detail.designs.length > 0 && (
+          <div className="wb2-shsect">
+            <span className="wb2-sect">
+              {detail.designs.length === 1
+                ? "Designed in the Studio"
+                : `Designed in the Studio — ${detail.designs.length} options`}
+            </span>
+            {detail.designs.map((d) => (
+              <Link
+                key={d.id}
+                className="wb2-dsgn"
+                href={`/dashboard/studio?design=${encodeURIComponent(d.id)}`}
+              >
+                <span className="wb2-dsgn-ic">
+                  <Icon name={d.mode === "plan" ? "file" : "square"} size={15} />
+                </span>
+                <span className="wb2-dsgn-b">
+                  <b>{d.name}</b>
+                  <em>
+                    {`${d.floorCount} ${d.floorCount === 1 ? "floor" : "floors"} · ` +
+                      `${d.systemCount} ${d.systemCount === 1 ? "system" : "systems"} · ` +
+                      `edited ${editedOn(d.updatedAt)}`}
+                  </em>
+                </span>
+                {/* its own wrapper because <Icon> renders <span><svg/></span>:
+                    a `.wb2-dsgn > svg` rule would be valid CSS matching
+                    nothing at all */}
+                <span className="wb2-dsgn-go">
+                  <Icon name="chevR" size={15} />
+                </span>
+              </Link>
             ))}
           </div>
         )}

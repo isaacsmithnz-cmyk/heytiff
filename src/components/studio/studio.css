@@ -2175,6 +2175,10 @@ html[data-ds-display] .dstudio.editing {
     0 20px 44px -24px rgba(10, 12, 20, 0.3);
   overflow: hidden;
   touch-action: none;
+  /* belt to the root-level brace in canvas.tsx: if this element ever gains
+     real scrollable overflow, the sideways pan must stop here rather than
+     chain outwards and become a browser back-swipe */
+  overscroll-behavior: none;
 }
 .dstudio .ds-canvas svg {
   display: block;

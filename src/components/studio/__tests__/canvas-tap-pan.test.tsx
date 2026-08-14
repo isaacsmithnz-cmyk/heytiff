@@ -160,6 +160,28 @@ describe("tap-or-pan on click-to-place tools", () => {
       fireEvent.wheel(svg, { deltaX: 24.5, deltaY: 12.25, deltaMode: 0 });
       expect(svg.querySelector(".ds-calib")).toBeNull();
     });
+
+    /* A leftward pan is ALSO the macOS/Chrome back-swipe, and it fired
+       mid-design and navigated away from the canvas. preventDefault can't be
+       the fix — momentum wheel events are non-cancelable — so the root gets
+       the declaration, and must give it back on unmount so the rest of the
+       app keeps swipe-back. */
+    it("locks overscroll on the root while the canvas is mounted", () => {
+      expect(document.documentElement.style.overscrollBehaviorX).toBe("");
+      const { unmount } = renderCanvas("select");
+      expect(document.documentElement.style.overscrollBehaviorX).toBe("none");
+      unmount();
+      expect(document.documentElement.style.overscrollBehaviorX).toBe("");
+    });
+
+    /* a momentum event cannot be cancelled; calling preventDefault on one is
+       a no-op Chrome warns about, and it must still pan */
+    it("still pans on a non-cancelable momentum event", () => {
+      const { svg, viewport } = renderCanvas("select");
+      const before = readVp(viewport());
+      fireEvent.wheel(svg, { deltaX: 18.5, deltaY: 0, deltaMode: 0, cancelable: false });
+      expect(readVp(viewport()).x).toBeGreaterThan(before.x);
+    });
   });
 
   describe("set-north", () => {

@@ -163,6 +163,35 @@ up **empty** on this surface:
    off" — but this is a payroll decision that should be made deliberately before a period
    containing one, not discovered inside it.
 
+## 5b. Sparse fixtures — a standing convention
+
+**Two live bugs in one week came from fixtures that were always fully populated**, and
+neither was reachable by TypeScript or by the existing suite:
+
+- Team's **Vehicle column** was a hardcoded `"—"` for 13.5% of every row's width. It read
+  as perfectly ordinary beside real data.
+- The Organisation card's sub-line renders the **legal** name but its empty state named the
+  **trading** name — so Diamond Air, which has one and not the other, printed the trading
+  name in the heading and "Trading name not set" directly underneath. Every fixture set
+  both names, so that empty state had never once been rendered in a test.
+
+The suite is now seeded against both shapes on the MVP screens:
+
+| Screen | Sparse case covered |
+|---|---|
+| Organisation | trading name set, legal name absent — the empty state must name the field that is empty |
+| Team | a card with only an id (`"Unnamed"`, `"?"`, em dashes — exactly what `buildRow` emits); a workspace with **zero** staff and zero invites; and two different people, to prove each column reads its row |
+| My timesheet | a first week with no entries and nothing presumed — which is the only state `timesheets` has ever been in, since it is a zero-row table |
+
+**The one worth copying is the third Team test.** Asserting "an em dash appears" would have
+passed for the Vehicle column's entire life. Asserting that *two rows holding different
+data render differently* is the thing a hardcoded literal cannot satisfy. When it was
+checked by hardcoding the role column, **all 24 pre-existing tests still passed** and only
+that one failed.
+
+Not yet covered: Home and the Library. Both are MVP screens and both deserve the same
+treatment — Home especially, since it has the most empty states of anything shipping.
+
 ## 6. Suggested order for the fortnight
 
 **Week 1 — make it true**

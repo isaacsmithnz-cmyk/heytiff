@@ -102,11 +102,41 @@ const PENDING: PendingInviteRow[] = [
   },
 ];
 
-function setup(opts: { canInvite?: boolean } = {}) {
+/* A CARD WITH NOTHING ON IT, spelt the way listStaff actually spells one.
+
+   This is not an invented edge case: it is the shape of every row in a
+   brand-new workspace, and of every card imported from ServiceM8 before its
+   person signs in. `buildRow` resolves a nameless profile to "Unnamed", "?"
+   initials and an em dash for job title, employment type, start month and
+   years — so the fixture says exactly that rather than guessing at nulls the
+   component never receives. Anything softer would be testing fiction.
+
+   Every fixture in this file was fully populated before, which is how a
+   hardcoded column hides: the Vehicle column shipped as a literal em dash for
+   13.5% of every row's width and read as perfectly ordinary next to real data. */
+const bareRow: StaffRow = {
+  id: "z9",
+  userId: null,
+  initials: "?",
+  name: "Unnamed",
+  email: "",
+  role: "—",
+  employmentType: "—",
+  started: "—",
+  years: "—",
+  licenceCount: 0,
+  status: "Active",
+  compliance: { label: "Compliant", state: "ok", expiresDays: 9999 },
+  orgRole: "staff",
+  isMaster: false,
+  importedFrom: null,
+};
+
+function setup(opts: { canInvite?: boolean; staff?: StaffRow[]; pending?: PendingInviteRow[] } = {}) {
   render(
     <TeamDirectory
-      staff={STAFF}
-      pending={PENDING}
+      staff={opts.staff ?? STAFF}
+      pending={opts.pending ?? PENDING}
       canInvite={opts.canInvite ?? false}
       appUrl="https://heytiff.test"
     />,
@@ -394,3 +424,53 @@ function menuButtonOf(name: string): HTMLElement {
 function cleanupMenus() {
   document.body.innerHTML = "";
 }
+
+/* SPARSE FIXTURES — the state a launch actually starts in.
+
+   Two real defects on this screen came from the opposite habit. The Vehicle
+   column was `vehicle: "—"`, hardcoded, and looked correct beside populated
+   rows for as long as it shipped. The Organisation card's sub-line named the
+   wrong field in its empty state and nobody saw it, because every fixture set
+   both names so the empty state never rendered.
+
+   Both are invisible to TypeScript and to a suite whose data is always
+   complete. These tests render the incomplete case on purpose. */
+describe("TeamDirectory with nothing filled in", () => {
+  it("renders a card that has only an id, without inventing anything", () => {
+    setup({ staff: [bareRow], pending: [] });
+
+    // the row exists and is legible rather than a blank line
+    expect(screen.getByText("Unnamed")).toBeInTheDocument();
+    // and it carries none of the populated fixture's values
+    expect(screen.queryByText("Lead Installer")).not.toBeInTheDocument();
+    expect(screen.queryByText("Jordan Mills")).not.toBeInTheDocument();
+  });
+
+  it("survives a workspace with no staff and no invites at all — day one", () => {
+    setup({ staff: [], pending: [] });
+
+    // the screen still frames itself; it does not throw and does not go blank
+    expect(document.querySelector(".dirhead")).toBeInTheDocument();
+    expect(screen.queryByText("Unnamed")).not.toBeInTheDocument();
+  });
+
+  /* THE GENERIC SHAPE OF THE VEHICLE BUG: a column that renders the same text
+     for two rows holding DIFFERENT data is not reading its data. Asserting the
+     difference is what a hardcoded literal cannot satisfy — where asserting
+     "an em dash appears" would have passed happily throughout that column's
+     entire life. */
+  it("drives each column from its row, so two different people read differently", () => {
+    setup({
+      staff: [
+        { ...bareRow, id: "r1", name: "Ada Lovelace", role: "Estimator", employmentType: "Part-time" },
+        { ...bareRow, id: "r2", name: "Grace Hopper", role: "Apprentice", employmentType: "Casual" },
+      ],
+      pending: [],
+    });
+
+    const rowOf = (n: string) => screen.getByText(n).closest(".dirrow") as HTMLElement;
+    expect(within(rowOf("Ada Lovelace")).getByText("Estimator")).toBeInTheDocument();
+    expect(within(rowOf("Grace Hopper")).getByText("Apprentice")).toBeInTheDocument();
+    expect(within(rowOf("Ada Lovelace")).queryByText("Apprentice")).not.toBeInTheDocument();
+  });
+});

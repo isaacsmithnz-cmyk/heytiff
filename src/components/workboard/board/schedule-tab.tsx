@@ -37,7 +37,12 @@ import {
    the number, because it isn't pool work any more. */
 
 const PX_PER_HOUR = 110;
-const LANE_ROW_PX = 56;
+/* A sub-row must HOLD its own type: three lines at 1.3 line-height plus two
+   2px gaps plus 10px of block padding is ~58px, and the first live walk
+   shipped 56 — every suburb line's descenders clipped against the block's
+   overflow:hidden ("bottom of names cut off"). The row owns the arithmetic:
+   66 − 6 (block inset) = 60px of block for ~58px of content. */
+const LANE_ROW_PX = 66;
 const LANE_PAD_PX = 5;
 /** Below this width a block drops to its number alone — three clipped lines
     say less than one whole one. */

@@ -4367,6 +4367,21 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 /* the job's mirrored checklist — state on the dot, done rows fade */
 .wb2-ckgroup { display:flex; flex-direction:column; margin-top:4px; }
 .wb2-cksec { display:block; margin:9px 0 3px; color:var(--gray400); }
+/* a note somebody wrote on the job — the body reads first, the byline after */
+.wb2-jnote { padding:9px 0; border-top:1px solid var(--wb2-line2); }
+.wb2-jnote:first-of-type { border-top:0; padding-top:2px; }
+.wb2-jnote > em { display:block; margin-top:3px; font-style:normal; font-size:11px;
+  font-weight:600; color:var(--gray500); }
+/* one line of the ledger: what it was, how many, what it came to */
+.wb2-mline { display:grid; grid-template-columns:1fr auto auto; align-items:baseline; gap:10px;
+  padding:7px 0; border-top:1px solid var(--wb2-line2); min-width:0; }
+.wb2-mline:first-of-type { border-top:0; }
+.wb2-mline > b { font-size:13px; font-weight:650; min-width:0; overflow-wrap:anywhere; }
+.wb2-mline > em { font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray500); }
+.wb2-mline > span { font-size:13px; font-weight:750; font-variant-numeric:tabular-nums; }
+.wb2-mline.total { border-top:1.5px solid rgba(5,5,5,.16); margin-top:2px; }
+.wb2-mline.total > b { font-size:11.5px; font-weight:800; letter-spacing:.04em;
+  text-transform:uppercase; color:var(--gray500); }
 /* the job's files: a contact sheet, not a gallery — the grid is for scanning
    "what did they photograph", and a tap opens the real thing */
 .wb2-mgrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(74px, 1fr)); gap:7px;

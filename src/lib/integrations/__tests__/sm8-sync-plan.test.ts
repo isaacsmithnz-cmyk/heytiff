@@ -121,7 +121,26 @@ describe("the object list", () => {
       job_activities: "jobactivity.json",
       job_checklists: "jobchecklist.json",
       attachments: "attachment.json",
+      job_notes: "note.json",
+      job_materials: "jobmaterial.json",
+      job_payments: "jobpayment.json",
     });
+  });
+
+  /* Notes are the odd one out and it is easy to get wrong: they hang off
+     related_object/related_object_uuid like attachments, NOT a job_uuid, so
+     a reader that filters on job_uuid finds nothing and looks like an empty
+     job. Verified against their reference page. */
+  it("shapes a note against related_object, never a job_uuid", () => {
+    const shaped = SM8_OBJECTS.find((s) => s.object === "job_notes")!.shape({
+      uuid: "n-1",
+      related_object: "job",
+      related_object_uuid: "j-1",
+      note: "Units delivered direct to site",
+      edit_date: "2026-08-01 09:00:00",
+    })!;
+    expect(shaped).toMatchObject({ related_object: "job", related_object_uuid: "j-1" });
+    expect(shaped).not.toHaveProperty("job_uuid");
   });
 
   it("gates attachments on the scope the ENDPOINT enforces", () => {
@@ -176,6 +195,9 @@ describe("walkOrderFor — the rotation that stops budget starvation", () => {
       "job_activities",
       "job_checklists",
       "attachments",
+      "job_notes",
+      "job_materials",
+      "job_payments",
       "staff",
       "categories",
       "queues",

@@ -7,7 +7,20 @@ import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { fmtAud } from "@/lib/workboard/project-money";
-import { createProjectFromJob, readJobFiles, readMirrorJob } from "@/app/actions/workboard";
+import {
+  createProjectFromJob,
+  readJobFiles,
+  readJobRecord,
+  readMirrorJob,
+  type JobRecordRead,
+} from "@/app/actions/workboard";
+import {
+  collectionAgainst,
+  fmtQuantity,
+  materialsTaxMixed,
+  materialsTotalCents,
+  paymentsTotalCents,
+} from "@/lib/workboard/job-ledger";
 import { cacheJobFiles } from "@/app/actions/workboard-media";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import type { JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
@@ -105,6 +118,7 @@ export function JobSheet({
   const [detail, setDetail] = useState<MirrorJobDetail | null>(null);
   const [media, setMedia] = useState<JobMediaGroupsRead | null>(null);
   const [mediaNote, setMediaNote] = useState<string | null>(null);
+  const [record, setRecord] = useState<JobRecordRead | null>(null);
   const [loading, setLoading] = useState(true);
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState("");
@@ -149,6 +163,19 @@ export function JobSheet({
     let live = true;
     void readJobFiles(row.id).then((m) => {
       if (live) setMedia(m);
+    });
+    return () => {
+      live = false;
+    };
+  }, [row.id]);
+
+  /* Notes and the ledger, on their own clock like the files. `ledger` comes
+     back null for a reader without money — the gate is server-side, so this
+     component never has numbers it must remember to hide. */
+  useEffect(() => {
+    let live = true;
+    void readJobRecord(row.id).then((r) => {
+      if (live) setRecord(r);
     });
     return () => {
       live = false;
@@ -368,6 +395,91 @@ export function JobSheet({
                     </em>
                   </div>
                 ))}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {record && record.notes.length > 0 && (
+          <div className="wb2-shsect">
+            <span className="wb2-sect">What&apos;s been written on it</span>
+            {record.notes.map((n) => (
+              <div className="wb2-jnote" key={n.remoteId}>
+                <p className="wb2-shtext">{n.text}</p>
+                <em>
+                  {[n.writtenBy, n.writtenOn ? fmtAuWeekdayDayMonth(n.writtenOn) : null]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </em>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Materials and payments arrive null without `workboard_money`, so
+            there is nothing here to hide — the server never sent it. */}
+        {record?.ledger && record.ledger.materials.length > 0 && (
+          <div className="wb2-shsect">
+            <span className="wb2-sect">What went on the job</span>
+            {record.ledger.materials.map((m) => (
+              <div className="wb2-mline" key={m.remoteId}>
+                <b>{m.name}</b>
+                <em>{m.quantity !== null ? `× ${fmtQuantity(m.quantity)}` : ""}</em>
+                <span>{m.lineCents !== null ? fmtAud(m.lineCents) : "—"}</span>
+              </div>
+            ))}
+            {(() => {
+              const total = materialsTotalCents(record.ledger.materials);
+              const mixed = materialsTaxMixed(record.ledger.materials);
+              /* No total when a line couldn't be read, and none when the
+                 lines disagree about tax — adding an inc-GST line to an
+                 ex-GST one and printing one figure would be a lie. */
+              if (mixed)
+                return (
+                  <p className="int-hint">
+                    These lines mix tax-inclusive and tax-exclusive prices, so they don&apos;t add
+                    up to one figure here — ServiceM8&apos;s invoice is the total.
+                  </p>
+                );
+              if (total === null)
+                return <p className="int-hint">Some lines aren&apos;t priced, so there&apos;s no total to show.</p>;
+              return (
+                <div className="wb2-mline total">
+                  <b>{record.ledger.materials[0].taxInclusive ? "Total inc GST" : "Total ex GST"}</b>
+                  <em />
+                  <span>{fmtAud(total)}</span>
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        {record?.ledger && record.ledger.payments.length > 0 && (
+          <div className="wb2-shsect">
+            <span className="wb2-sect">
+              What&apos;s been paid —{" "}
+              {(() => {
+                const paid = paymentsTotalCents(record.ledger.payments);
+                const state = collectionAgainst(paid, money?.valueCents ?? null);
+                if (state === "paid") return `${fmtAud(paid)}, paid in full`;
+                if (state === "part")
+                  return `${fmtAud(paid)} of ${fmtAud(money!.valueCents!)}`;
+                return fmtAud(paid);
+              })()}
+            </span>
+            {record.ledger.payments.map((p) => (
+              <div className="wb2-mline" key={p.remoteId}>
+                <b>{p.method ?? "Payment"}</b>
+                <em>
+                  {[
+                    p.isDeposit ? "deposit" : null,
+                    p.takenOn ? fmtAuWeekdayDayMonth(p.takenOn) : null,
+                    p.takenBy,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </em>
+                <span>{p.amountCents !== null ? fmtAud(p.amountCents) : "—"}</span>
               </div>
             ))}
           </div>

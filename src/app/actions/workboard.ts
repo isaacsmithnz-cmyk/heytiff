@@ -11,6 +11,15 @@ import { todayInZone } from "@/lib/workboard/dates";
 import { parseSm8AmountToCents } from "@/lib/workboard/job-money";
 import { readJobMediaGroups, type JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
 import {
+  readJobLedger,
+  readJobNotes,
+  type JobLedgerRead,
+  type JobNoteEntry,
+} from "@/lib/workboard/all-jobs-query";
+
+/** Notes always; the ledger only for a reader who holds money. */
+export type JobRecordRead = { notes: JobNoteEntry[]; ledger: JobLedgerRead | null };
+import {
   readMirrorJobDetail,
   searchAllMirrorJobs,
   type MirrorJobDetail,
@@ -393,6 +402,25 @@ export async function readJobFiles(remoteId: string): Promise<JobMediaGroupsRead
   const id = trim(remoteId, 80);
   if (!id) return null;
   return readJobMediaGroups(ctx.orgId, id);
+}
+
+/** The job's written record and, for a reader who holds money, its ledger.
+    Fetched apart from the detail for the same reason the files are: it costs
+    three more queries that the rest of the sheet shouldn't wait behind.
+
+    THE MONEY GATE IS HERE, not in the component. Without `workboard_money`
+    the ledger tables are never SELECTed at all — the same rule the job's own
+    total follows, so a reader without the grant cannot receive the numbers
+    even if a future render forgot to hide them. */
+export async function readJobRecord(remoteId: string): Promise<JobRecordRead | null> {
+  const ctx = await context();
+  if (!ctx || !(await can("workboard"))) return null;
+  const id = trim(remoteId, 80);
+  if (!id) return null;
+
+  const notes = await readJobNotes(ctx.orgId, id);
+  if (!(await can("workboard_money"))) return { notes, ledger: null };
+  return { notes, ledger: await readJobLedger(ctx.orgId, id) };
 }
 
 /** All jobs' own search — reaches the WHOLE mirror, which is how a job that

@@ -15,10 +15,18 @@ import { jobMoneyOf } from "@/lib/workboard/job-money";
 const searchAllJobs = jest.fn(async () => []);
 const readMirrorJob = jest.fn(async () => null);
 const createProjectFromJob = jest.fn(async () => ({ ok: true as const, id: "p-new" }));
+const scheduleDay = jest.fn(async (dayISO: string) => ({
+  dayISO,
+  activities: [],
+  staff: [],
+  jobs: [],
+  weekCounts: {},
+}));
 jest.mock("@/app/actions/workboard", () => ({
   searchAllJobs: (...a: unknown[]) => searchAllJobs(...(a as [])),
   readMirrorJob: (...a: unknown[]) => readMirrorJob(...(a as [])),
   createProjectFromJob: (...a: unknown[]) => createProjectFromJob(...(a as [])),
+  scheduleDay: (...a: [string]) => scheduleDay(...a),
 }));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), refresh: jest.fn() }) }));
 jest.mock("../new-agreement-modal", () => ({
@@ -154,15 +162,17 @@ beforeEach(() => {
   onOpenTracked.mockClear();
   searchAllJobs.mockClear();
   readMirrorJob.mockClear();
+  scheduleDay.mockClear();
 });
 
 describe("the shell", () => {
-  it("runs ServiceM8's own three lanes, in its order", () => {
+  it("runs ServiceM8's three lanes plus the diary, in that order", () => {
     mount();
     expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual([
       "Work orders",
       "Quotes",
       "Completed",
+      "Schedule",
     ]);
   });
 
@@ -174,6 +184,16 @@ describe("the shell", () => {
     for (const tab of screen.getAllByRole("tab")) {
       expect(tab.textContent).not.toMatch(/\d/);
     }
+  });
+
+  /* The diary is reachable, and it asks for its day only when opened — the
+     other three tabs ride the page load, this one rides the click. */
+  it("opens Schedule on demand, fetching nothing until then", async () => {
+    mount();
+    expect(scheduleDay).not.toHaveBeenCalled();
+    await toTab("Schedule");
+    expect(scheduleDay).toHaveBeenCalledWith(TODAY);
+    expect(await screen.findByText("Nobody was dispatched")).toBeInTheDocument();
   });
 });
 

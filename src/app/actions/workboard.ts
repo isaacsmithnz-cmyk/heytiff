@@ -15,6 +15,11 @@ import {
   type MirrorJobDetail,
 } from "@/lib/workboard/all-jobs-query";
 import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
+import {
+  EMPTY_SCHEDULE,
+  loadScheduleDay,
+  type SchedulePayload,
+} from "@/lib/workboard/schedule-query";
 
 /* Workboard mutations. Everything the UI decided is re-decided here — a
    Server Function is reachable by direct POST.
@@ -388,6 +393,17 @@ export async function searchAllJobs(query: string): Promise<AllJobsMirrorJob[]> 
   return searchAllMirrorJobs(ctx.orgId, query, today, {
     includeMoney: await can("workboard_money"),
   });
+}
+
+/** One day of the diary for the Schedule tab. The day is a CHOICE handed in
+    by a client, so it is validated to a bare ISO date here — anything else
+    would ride into a lexicographic string comparison unexamined. Returns the
+    empty payload rather than throwing for a reader without the board. */
+export async function scheduleDay(dayISO: string): Promise<SchedulePayload> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dayISO)) return EMPTY_SCHEDULE;
+  const ctx = await context();
+  if (!ctx || !(await can("workboard"))) return EMPTY_SCHEDULE;
+  return loadScheduleDay(ctx.orgId, dayISO);
 }
 
 export type ProjectFromJobInput = {

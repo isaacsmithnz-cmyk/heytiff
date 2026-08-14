@@ -1,0 +1,217 @@
+/* The Schedule tab — the fourth side's screen behaviour. The layout law is
+   pinned in lib/workboard/__tests__/schedule.test.ts; what matters HERE is
+   the wiring: a day is fetched once and cached, a block opens the job it
+   names, empty states say why they're empty, and the queue link goes to the
+   tab that owns the queue. */
+
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import type { SchedulePayload } from "@/lib/workboard/schedule-query";
+
+const scheduleDay = jest.fn<Promise<SchedulePayload>, [string]>();
+jest.mock("@/app/actions/workboard", () => ({
+  scheduleDay: (...a: [string]) => scheduleDay(...a),
+}));
+
+import { ScheduleTab } from "../schedule-tab";
+
+const TODAY = "2026-08-14";
+
+const payload = (over: Partial<SchedulePayload> = {}): SchedulePayload => ({
+  dayISO: TODAY,
+  activities: [
+    {
+      uuid: "a-1",
+      jobUuid: "j-3171",
+      staffUuid: "s-lorenz",
+      start: `${TODAY} 07:00:00`,
+      end: `${TODAY} 15:00:00`,
+      wasScheduled: 1,
+    },
+    {
+      uuid: "a-2",
+      jobUuid: "j-3145",
+      staffUuid: "s-hann",
+      start: `${TODAY} 07:00:00`,
+      end: `${TODAY} 16:00:00`,
+      wasScheduled: 1,
+    },
+    {
+      uuid: "a-3",
+      jobUuid: "j-3145",
+      staffUuid: "s-lorenz",
+      start: `${TODAY} 15:00:00`,
+      end: `${TODAY} 16:00:00`,
+      wasScheduled: 1,
+    },
+  ],
+  staff: [
+    { uuid: "s-lorenz", name: "Alex Lorenz" },
+    { uuid: "s-hann", name: "David Hann" },
+  ],
+  jobs: [
+    {
+      remoteId: "j-3171",
+      jobNumber: "3171",
+      status: "Work Order",
+      clientName: "Girgis, Katrina",
+      description: null,
+      suburb: "Sylvania Waters",
+      categoryName: null,
+      categoryColour: null,
+      date: null,
+      quoteDate: null,
+      completionDate: null,
+      nextBooking: null,
+      money: null,
+    },
+    {
+      remoteId: "j-3145",
+      jobNumber: "3145",
+      status: "Work Order",
+      clientName: "Rifkin, Julian",
+      description: null,
+      suburb: "Enmore",
+      categoryName: "Install",
+      categoryColour: "#e7b5ff",
+      date: null,
+      quoteDate: null,
+      completionDate: null,
+      nextBooking: null,
+      money: null,
+    },
+  ],
+  weekCounts: { [TODAY]: 3, "2026-08-15": 6, "2026-08-16": 0 },
+  ...over,
+});
+
+const noop = () => {};
+
+function tab(over: Partial<Parameters<typeof ScheduleTab>[0]> = {}) {
+  return (
+    <ScheduleTab
+      today={TODAY}
+      connected
+      tracked={new Map()}
+      shelfItems={[]}
+      waitingCount={0}
+      onOpenJob={noop}
+      onOpenTracked={noop}
+      onGoWork={noop}
+      {...over}
+    />
+  );
+}
+
+beforeEach(() => {
+  scheduleDay.mockReset();
+  scheduleDay.mockResolvedValue(payload());
+});
+
+it("fetches today on open and lays out a lane per person", async () => {
+  render(tab());
+  expect(await screen.findByText("Alex Lorenz")).toBeInTheDocument();
+  expect(screen.getByText("David Hann")).toBeInTheDocument();
+  expect(scheduleDay).toHaveBeenCalledWith(TODAY);
+  // the crew job draws once per person — two blocks say #3145
+  expect(screen.getAllByText(/#3145/)).toHaveLength(2);
+  // lane load is spoken: Lorenz has 8h + 1h across two bookings
+  expect(screen.getByText("2 bookings · 9h")).toBeInTheDocument();
+});
+
+it("never writes the time on a block — the rail already says it", async () => {
+  render(tab());
+  const block = (await screen.findAllByRole("button", { name: /Open job #3171/ }))[0];
+  // position carries the when; the card carries who and where only
+  expect(block.textContent).not.toMatch(/am|pm/);
+  // ...but the hover title still says it in full
+  expect(block).toHaveAttribute("title", expect.stringContaining("7am–3pm"));
+});
+
+it("opens the job a block names", async () => {
+  const onOpenJob = jest.fn();
+  render(tab({ onOpenJob }));
+  const block = (await screen.findAllByRole("button", { name: /Open job #3171/ }))[0];
+  await userEvent.click(block);
+  expect(onOpenJob).toHaveBeenCalledWith(expect.objectContaining({ remoteId: "j-3171" }));
+});
+
+it("caches a day — stepping back to it asks the server nothing", async () => {
+  scheduleDay.mockImplementation(async (day: string) => payload({ dayISO: day }));
+  render(tab());
+  await screen.findByText("Alex Lorenz");
+  expect(scheduleDay).toHaveBeenCalledTimes(1);
+
+  await userEvent.click(screen.getByRole("button", { name: "The day after" }));
+  await screen.findByText("Alex Lorenz");
+  expect(scheduleDay).toHaveBeenCalledTimes(2);
+
+  await userEvent.click(screen.getByRole("button", { name: "Today" }));
+  await screen.findByText("Alex Lorenz");
+  expect(scheduleDay).toHaveBeenCalledTimes(2); // today came from the cache
+});
+
+it("says why a clear day is clear", async () => {
+  scheduleDay.mockResolvedValue(payload({ activities: [], staff: [], jobs: [] }));
+  render(tab());
+  expect(await screen.findByText("Nobody was dispatched")).toBeInTheDocument();
+  expect(screen.getByText(/waiting on a day are under Work orders/)).toBeInTheDocument();
+});
+
+it("says the diary lives in ServiceM8 when nothing is connected — and never fetches", () => {
+  render(tab({ connected: false }));
+  expect(screen.getByText("The diary lives in ServiceM8")).toBeInTheDocument();
+  expect(scheduleDay).not.toHaveBeenCalled();
+});
+
+it("hands the queue to the tab that owns it", async () => {
+  const onGoWork = jest.fn();
+  render(tab({ waitingCount: 500, onGoWork }));
+  await screen.findByText("Alex Lorenz");
+  await userEvent.click(screen.getByRole("button", { name: /500 work orders are waiting/ }));
+  expect(onGoWork).toHaveBeenCalled();
+});
+
+it("wears the board's word on a tracked block", async () => {
+  render(
+    tab({
+      tracked: new Map([["j-3145", { kind: "project" as const, label: "Enmore install" }]]),
+    })
+  );
+  await screen.findByText("Alex Lorenz");
+  // both of the crew job's blocks say Project beside the number
+  expect(screen.getAllByText(/#3145 · Project/)).toHaveLength(2);
+  expect(screen.getByText("On a board here")).toBeInTheDocument();
+});
+
+it("shows native day-bookings on the shelf and routes their clicks by kind", async () => {
+  const onOpenTracked = jest.fn();
+  render(
+    tab({
+      onOpenTracked,
+      shelfItems: [
+        {
+          key: "p-1",
+          date: TODAY,
+          kind: "project" as const,
+          id: "proj-9",
+          label: "Project — Enmore install",
+          sub: "Rough-in day 1",
+        },
+        {
+          key: "p-2",
+          date: "2026-08-15",
+          kind: "project" as const,
+          id: "proj-9",
+          label: "Project — elsewhere",
+          sub: null,
+        },
+      ],
+    })
+  );
+  await screen.findByText("Alex Lorenz");
+  // only the open day's shelf shows
+  expect(screen.queryByText("Project — elsewhere")).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: /Project — Enmore install/ }));
+  expect(onOpenTracked).toHaveBeenCalledWith({ kind: "project", id: "proj-9" });
+});

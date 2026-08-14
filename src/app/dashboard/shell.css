@@ -4123,6 +4123,151 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-mcdots > b { font-size:9.5px; font-weight:800; color:var(--gray500); }
 .wb2-mcloose { padding:0 20px 16px; font-size:12.5px; color:var(--gray500); font-weight:600; margin:0; }
 
+/* ── the Schedule tab: the day board (All jobs' fourth side) ──
+   One lane per staff member, dispatched bookings on a time rail. Every class
+   here starts `wb2-sch` ON PURPOSE: the `.fg button` reset is (0,1,1) and
+   silently strips the background off any single-class button — the wb2-
+   prefix is what opts these out (see the carve-out at the top of this file).
+   A block rendered transparent in the first prototype is how we know. */
+
+/* the seven-day strip — the timesheet strip's day-pill technique */
+.wb2-schdays { display:flex; gap:3px; padding:12px 20px 0; }
+.wb2-schday { flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:center; gap:2px;
+  padding:8px 4px 9px; border-radius:13px; background:transparent; cursor:pointer;
+  transition:background .16s, box-shadow .16s; }
+.wb2-schday:hover:not(.on) { background:rgba(5,5,5,.045); }
+.wb2-schday:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
+.wb2-schday .cw { font-size:10.5px; font-weight:800; letter-spacing:.09em; text-transform:uppercase; color:var(--gray400); }
+.wb2-schday .cd { font-size:16px; font-weight:800; letter-spacing:-.02em; color:var(--gray700); font-variant-numeric:tabular-nums; }
+.wb2-schday .cn { min-height:16px; font-size:10.5px; font-weight:700; color:var(--gray400); font-variant-numeric:tabular-nums; }
+/* a day with nothing on says so in words — a bare 0 reads as a failed read */
+.wb2-schday.free .cn { color:rgba(5,5,5,.22); }
+/* TODAY is named by its weekday going ink plus the dot — the timesheet
+   strip's signal, so the two strips can never contradict each other */
+.wb2-schday.today .cw { color:var(--ink); }
+.wb2-schday.today .cw::after { content:" ·"; color:var(--teal-d); }
+.wb2-schday.on { background-color:#fff; box-shadow:0 3px 8px -3px rgba(10,12,20,.28), inset 0 0 0 1px var(--wb2-line); }
+.wb2-schday.on .cd { color:var(--ink); }
+.wb2-schday.past .cd, .wb2-schday.past .cw { opacity:.55; }
+
+/* native day-bookings — a shelf, never a lane. A project trip or maintenance
+   visit is booked to a DAY, with no clock and mostly no person; laying it on
+   the rail would invent both. Above the lanes, labelled with whose board it
+   is — the lesson from the maintenance calendar's removed Everything view. */
+.wb2-schshelf { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:12px 20px 0; }
+.wb2-schshelf > b { font-size:10.5px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--gray400); }
+.wb2-schsv { display:inline-flex; align-items:center; gap:7px; padding:5px 11px; border-radius:9px;
+  background:rgba(0,168,224,.08); font-size:11.5px; font-weight:700; color:var(--wb2-cy); cursor:pointer; }
+.wb2-schsv:hover { background:rgba(0,168,224,.14); }
+.wb2-schsv:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
+.wb2-schsv em { font-style:normal; font-weight:600; color:var(--gray500); }
+
+.wb2-schload { padding:14px 20px; }
+
+/* ── the board ── */
+.wb2-schboard { display:flex; margin-top:12px; border-top:1px solid var(--wb2-line2); }
+
+/* the frozen name column */
+.wb2-schnames { flex:none; width:148px; border-right:1px solid var(--wb2-line2); background:#fff; z-index:2; }
+.wb2-schnh { height:34px; border-bottom:1px solid var(--wb2-line2); }
+.wb2-schn { display:flex; flex-direction:column; justify-content:center; gap:1px;
+  padding:0 14px 0 20px; border-bottom:1px solid var(--wb2-line2); }
+.wb2-schn b { font-size:12.5px; font-weight:800; letter-spacing:-.01em; color:var(--ink);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wb2-schn em { font-style:normal; font-size:10.5px; font-weight:700; color:var(--gray400); font-variant-numeric:tabular-nums; }
+.wb2-schn.none b { color:var(--gray500); }
+/* the load meter — utilisation against an 8h day, in the neutral family.
+   NOT a state colour: a light day is a fact for the admin to read, not a
+   fault for the board to shout about. */
+.wb2-schmeter { width:52px; height:3px; border-radius:2px; background:rgba(5,5,5,.08); margin-top:3px; overflow:hidden; }
+.wb2-schmeter i { display:block; height:100%; border-radius:2px; background:#9aa1ad; }
+
+/* the scrolling rail. The fade says there is more day to the right — and
+   lifts at the end, so it only ever promises what exists. */
+.wb2-schrailwrap { position:relative; flex:1 1 auto; min-width:0; }
+.wb2-schrailwrap::after { content:""; position:absolute; top:34px; right:0; bottom:0; width:34px;
+  pointer-events:none; z-index:4; background:linear-gradient(to right, rgba(255,255,255,0), #fff);
+  opacity:1; transition:opacity .2s; }
+.wb2-schrailwrap.atend::after { opacity:0; }
+.wb2-schrail { overflow-x:auto; overscroll-behavior-x:contain; }
+.wb2-schinner { position:relative; }
+.wb2-schhours { display:flex; height:34px; border-bottom:1px solid var(--wb2-line2); }
+.wb2-schhr { flex:none; padding-left:7px; font-size:10.5px; font-weight:700; color:var(--gray400);
+  border-left:1px solid var(--wb2-line2); display:flex; align-items:center; font-variant-numeric:tabular-nums; }
+.wb2-schhr:first-child { border-left:0; }
+
+.wb2-schlane { position:relative; border-bottom:1px solid var(--wb2-line2); }
+/* the hour grid, drawn once per lane as a background rather than 12 elements */
+.wb2-schlane::before { content:""; position:absolute; inset:0; pointer-events:none;
+  background-image:repeating-linear-gradient(to right, var(--wb2-line2) 0 1px, transparent 1px var(--hr)); }
+
+/* ── a block ──
+   NO TIME TEXT: its place on the rail already says when — writing it on the
+   card too is double handling. Times live in the title and the aria-label. */
+.wb2-schb { position:absolute; display:flex; flex-direction:column; justify-content:center; gap:2px;
+  padding:6px 10px 6px 13px; border-radius:10px; text-align:left; overflow:hidden; cursor:pointer;
+  background:var(--tint, #f2f3f5);
+  box-shadow:inset 0 0 0 1px var(--edge, rgba(5,5,5,.07));
+  transition:box-shadow .16s, opacity .16s;
+  animation:wb2SchRise .26s cubic-bezier(.22,1,.36,1) backwards; }
+@keyframes wb2SchRise { from { opacity:0; transform:translateY(5px); } }
+/* The bar is an element, not a shadow, so a QUOTE can wear it dashed — the
+   "not won yet" signal that survives any block width. */
+.wb2-schb::before { content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--bar, #b9bec7); }
+.wb2-schb.qt::before { background:repeating-linear-gradient(180deg, var(--bar, #b9bec7) 0 5px, transparent 5px 9px); }
+.wb2-schb:hover { box-shadow:inset 0 0 0 1px var(--edge, rgba(5,5,5,.07)), 0 5px 14px -5px rgba(10,12,20,.45); z-index:3; }
+.wb2-schb:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.4); z-index:4; }
+.wb2-schb b { font-size:12px; font-weight:800; letter-spacing:-.015em; color:var(--ink); line-height:1.25;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.wb2-schb em { font-style:normal; font-size:11px; font-weight:650; color:#2b3038; line-height:1.25;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wb2-schb i { font-style:normal; font-size:10.5px; font-weight:650; color:#5a616d; line-height:1.25;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+/* a job promoted onto one of our boards leaves the category palette and
+   wears the tracked blue — OWNERSHIP OUTRANKS CATEGORY. The word rides the
+   title line so colour is never the only carrier. */
+.wb2-schb.proj { --tint:rgba(0,168,224,.14); --bar:var(--wb2-cy); --edge:rgba(0,168,224,.5); }
+.wb2-schb.proj b { color:var(--wb2-cy); }
+/* done and closed — settled, and out of the way of what still needs doing */
+.wb2-schb.done { opacity:.58; }
+.wb2-schb.done b::after { content:" ✓"; color:#00806b; }
+/* didn't go ahead — the one status that is an exception, so it gets the ring */
+.wb2-schb.dan { --bar:var(--wb2-dan); box-shadow:inset 0 0 0 1px rgba(224,38,79,.4); }
+.wb2-schb.dan b { color:var(--wb2-dan-t); }
+/* narrow blocks drop to the job number alone rather than clipping */
+.wb2-schb.tight { padding:4px 6px 4px 9px; justify-content:center; }
+.wb2-schb.tight em, .wb2-schb.tight i { display:none; }
+/* THE CREW LINK: hovering any block of a multi-person job lifts its siblings
+   across the other lanes and rests the rest of the day — four rectangles
+   become one job. */
+.wb2-schboard.linking .wb2-schb:not(.kin) { opacity:.35; }
+.wb2-schb.kin { box-shadow:inset 0 0 0 1.5px var(--wb2-cy2), 0 5px 14px -5px rgba(10,12,20,.45); z-index:3; }
+
+/* the now line — only ever drawn on today. NOT the danger colour: red on
+   this board means "didn't go ahead", and a red rule down a healthy day
+   reads as an alarm about the day. The board accent is chrome, and chrome
+   is what this is. */
+.wb2-schnow { position:absolute; top:0; bottom:0; width:1px; background:var(--wb2-acc); opacity:.5; z-index:5; pointer-events:none; }
+.wb2-schnow::before { content:""; position:absolute; top:0; left:-2.5px; width:6px; height:6px; border-radius:50%; background:var(--wb2-acc); }
+
+/* ── the foot: the legend for this day, and the queue cross-link ── */
+.wb2-schfoot { display:flex; align-items:center; gap:16px; flex-wrap:wrap; padding:14px 20px 16px; border-top:1px solid var(--wb2-line2); }
+.wb2-schkey { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+.wb2-schkey span { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:var(--gray500); }
+.wb2-schkey i { width:16px; height:12px; border-radius:4px; }
+.wb2-schwait { margin-left:auto; display:inline-flex; align-items:center; gap:6px;
+  font-size:11.5px; font-weight:700; color:var(--wb2-cy); cursor:pointer; }
+.wb2-schwait:hover { text-decoration:underline; }
+.wb2-schwait:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); border-radius:6px; }
+
+@media (max-width:920px){
+  .wb2-schnames { width:106px; }
+  .wb2-schn { padding:0 8px 0 12px; }
+}
+@media (prefers-reduced-motion:reduce){
+  .wb2-schb { animation:none; }
+}
+
 /* ── completed ──
    The opposite call to the urgent queue, and for the opposite reason: a
    finished visit IS a discrete object — a job that ran, its hours, its note,

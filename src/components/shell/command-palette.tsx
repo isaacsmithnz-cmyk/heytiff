@@ -182,7 +182,7 @@ export function CommandPalette({
                 the mark defaults to an aria-label of "HeyTiff" and would have
                 the footer read "HeyTiff HeyTiff". */}
             <span style={{ display: "flex" }}>
-              <Chevron size={12} gradient decorative />
+              <Chevron size={15} gradient decorative />
             </span>{" "}
             {/* was "HeyTiff Command" — there are no commands in it */}
             HeyTiff

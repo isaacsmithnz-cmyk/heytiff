@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
+import { Chevron } from "@/components/logo";
 import { DateField } from "@/components/ui/date-field";
 import { readFuelReceipt } from "@/app/actions/fleet-ai";
 import { uploadFile } from "@/lib/documents/upload-client";
@@ -630,8 +631,11 @@ export function LogModal({
               capture="environment"
               onChange={(e) => void handleFile(e.target.files?.[0])}
             />
+            {/* the camera, not a sparkle: this tile's job is "point your
+                phone at the docket", and the line under it already says who
+                reads it. The glyph should name the ACTION you take. */}
             <span className="fl-scanic">
-              <Icon name="sparkles" size={22} />
+              <Icon name="cam" size={22} />
             </span>
             <b>Snap or upload the receipt</b>
             <em>Tiff reads the litres, cost &amp; servo for you</em>
@@ -647,7 +651,7 @@ export function LogModal({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           {thumb && <img className="fl-scanthumb" src={thumb} alt="Receipt" />}
           <div className="fl-reading">
-            <Icon name="sparkles" size={17} />
+            <Chevron size={20} gradient decorative />
             Tiff is reading the receipt…
           </div>
         </div>
@@ -659,7 +663,7 @@ export function LogModal({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             {thumb && <img className="fl-scanthumb small" src={thumb} alt="Receipt" />}
             <span className={`dchip2 ${scanTag === "tiff" ? "ok" : "mute"}`}>
-              <Icon name="sparkles" size={12} />
+              <Chevron size={15} gradient decorative />
               {scanTag === "tiff" ? "Read by Tiff — check & save" : "Demo read — Tiff offline"}
             </span>
             <button className="fl-modeline inline" onClick={rescan}>
@@ -1091,7 +1095,7 @@ export function DetailModal({
             </div>
             <div className={`fl-fact tiff${valuationIsStale ? " stale" : ""}`} title={tiffTitle}>
               <em>
-                <Icon name="sparkles" size={11} />
+                <Chevron size={14} gradient decorative />
                 Tiff value
               </em>
               <b>{valuation ? fmtMoney(valuation.point) : "—"}</b>

@@ -539,12 +539,12 @@ describe("installer scenarios: upload → floors", () => {
     expect(fake.uploads).toBe(2);
   });
 
-  it("picker shows the AI-screening slot (disabled placeholder for now)", async () => {
+  it("picker shows the floor-naming slot (disabled placeholder for now)", async () => {
     pdfToPages.mockResolvedValue([page("a", 1), page("b", 2)]);
     const user = await openPlanJob(new CountingPlanImages());
     uploadPdf();
     await screen.findByText(/Click the pages you want to upload/);
-    const ai = screen.getByRole("button", { name: /AI screening/ });
+    const ai = screen.getByRole("button", { name: /Name the floors/ });
     expect(ai).toBeDisabled();
     expect(user).toBeTruthy();
   });

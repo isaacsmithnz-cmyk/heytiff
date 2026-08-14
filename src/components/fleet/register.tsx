@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/shell/icon";
+import { Chevron } from "@/components/logo";
 import { type FleetAiVehicle, valueFleet } from "@/app/actions/fleet-ai";
 import type { FleetState } from "./fleet-state";
 import {
@@ -193,7 +194,7 @@ export function FleetRegister({
           onClick={runValuation}
           title="Tiff estimates each vehicle's AU market value — Manager+ only"
         >
-          <Icon name="sparkles" size={16} />
+          <Chevron size={19} gradient decorative />
           {valuing ? "Tiff is valuing…" : "Value with Tiff"}
         </button>
         <button className="pbtn primary fl-add" onClick={() => setModal({ t: "add" })}>
@@ -273,7 +274,7 @@ export function FleetRegister({
                           : `Tiff: ${fmtMoney(val.low)}–${fmtMoney(val.high)}${val.note ? ` · ${val.note}` : ""}`
                       }
                     >
-                      <Icon name="sparkles" size={11} />
+                      <Chevron size={14} gradient decorative />
                       {fmtMoney(val.point)}
                     </em>
                   )}
@@ -332,7 +333,7 @@ export function FleetRegister({
             Fleet value <b>{fmtMoney(fleetValue(vehicles))}</b>
             {aiTotal !== null && (
               <em className="fl-tiff">
-                <Icon name="sparkles" size={11} />
+                <Chevron size={14} gradient decorative />
                 Tiff ≈ {fmtMoney(aiTotal)}
               </em>
             )}

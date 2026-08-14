@@ -158,6 +158,13 @@ function mount(over: {
 const toTab = (name: string) => userEvent.click(screen.getByRole("tab", { name }));
 const rows = () => [...document.querySelectorAll(".wb2-ajr")];
 
+/* The board lands on Schedule now, so the book-of-work tests walk to their
+   panel first — the same click a person makes. */
+const mountWork = async (over: Parameters<typeof mount>[0] = {}) => {
+  mount(over);
+  await toTab("Work orders");
+};
+
 beforeEach(() => {
   onOpenTracked.mockClear();
   searchAllJobs.mockClear();
@@ -166,13 +173,13 @@ beforeEach(() => {
 });
 
 describe("the shell", () => {
-  it("runs ServiceM8's three lanes plus the diary, in that order", () => {
+  it("leads with the diary, then ServiceM8's three lanes in its order", () => {
     mount();
     expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual([
+      "Schedule",
       "Work orders",
       "Quotes",
       "Completed",
-      "Schedule",
     ]);
   });
 
@@ -186,20 +193,19 @@ describe("the shell", () => {
     }
   });
 
-  /* The diary is reachable, and it asks for its day only when opened — the
-     other three tabs ride the page load, this one rides the click. */
-  it("opens Schedule on demand, fetching nothing until then", async () => {
+  /* The diary is the landing panel, and its fetch fires when the SIDE opens
+     — which is this board mounting, not the Workboard page loading. */
+  it("lands on Schedule and asks for today, once", async () => {
     mount();
-    expect(scheduleDay).not.toHaveBeenCalled();
-    await toTab("Schedule");
     expect(scheduleDay).toHaveBeenCalledWith(TODAY);
+    expect(scheduleDay).toHaveBeenCalledTimes(1);
     expect(await screen.findByText("Nobody was dispatched")).toBeInTheDocument();
   });
 });
 
 describe("work orders", () => {
-  it("splits booked from waiting, and says so in the head", () => {
-    mount({
+  it("splits booked from waiting, and says so in the head", async () => {
+    await mountWork({
       data: data({
         jobs: [
           mirrorJob({ remoteId: "booked", nextBooking: "2026-08-14 07:30:00" }),
@@ -213,8 +219,8 @@ describe("work orders", () => {
     expect(rows()).toHaveLength(2);
   });
 
-  it("labels whose number a row wears", () => {
-    mount({
+  it("labels whose number a row wears", async () => {
+    await mountWork({
       data: data({ jobs: [mirrorJob({ remoteId: "j-1", jobNumber: "2214" })] }),
       visits: [visitFix({ id: "v-1", jobNo: 1004 })],
     });
@@ -225,8 +231,8 @@ describe("work orders", () => {
     expect(text).toContain("HeyTiff");
   });
 
-  it("shows a tracked job once, wearing what tracks it", () => {
-    mount({
+  it("shows a tracked job once, wearing what tracks it", async () => {
+    await mountWork({
       data: data({ jobs: [mirrorJob({ remoteId: "j-1" })] }),
       visits: [visitFix({ id: "v-1", remoteId: "j-1", jobNo: 1004 })],
     });
@@ -234,8 +240,8 @@ describe("work orders", () => {
     expect(screen.getByText("On the board #1004")).toBeInTheDocument();
   });
 
-  it("names the project when a project is what tracks it", () => {
-    mount({
+  it("names the project when a project is what tracks it", async () => {
+    await mountWork({
       data: data({
         jobs: [mirrorJob({ remoteId: "j-1" })],
         projectLinks: [{ remoteId: "j-1", projectId: "p-1" }],
@@ -246,8 +252,8 @@ describe("work orders", () => {
     expect(screen.getByText("Project — Belmont change-over")).toBeInTheDocument();
   });
 
-  it("says out loud when the list is capped", () => {
-    mount({ data: data({ jobs: [mirrorJob({ remoteId: "j-1" })], truncated: true }) });
+  it("says out loud when the list is capped", async () => {
+    await mountWork({ data: data({ jobs: [mirrorJob({ remoteId: "j-1" })], truncated: true }) });
     expect(screen.getByText(/Showing the newest jobs/)).toBeInTheDocument();
   });
 });
@@ -353,31 +359,31 @@ describe("money obeys the grant", () => {
     ],
   });
 
-  it("shows the value when the reader holds it", () => {
-    mount({ data: withValue, moneyVisible: true });
+  it("shows the value when the reader holds it", async () => {
+    await mountWork({ data: withValue, moneyVisible: true });
     expect(screen.getByText("$640")).toBeInTheDocument();
   });
 
-  it("shows no dollars at all when they don't", () => {
-    mount({ data: withValue, moneyVisible: false });
+  it("shows no dollars at all when they don't", async () => {
+    await mountWork({ data: withValue, moneyVisible: false });
     expect(document.body.textContent).not.toMatch(/\$/);
     expect(document.querySelector(".wb2-ajmoney")).not.toBeInTheDocument();
   });
 });
 
 describe("empty says WHY", () => {
-  it("invites connecting ServiceM8 when standalone", () => {
-    mount({ connected: false });
+  it("invites connecting ServiceM8 when standalone", async () => {
+    await mountWork({ connected: false });
     expect(screen.getByText("Showing the work tracked here")).toBeInTheDocument();
   });
 
-  it("says nothing is on when connected and genuinely empty", () => {
-    mount({ connected: true });
+  it("says nothing is on when connected and genuinely empty", async () => {
+    await mountWork({ connected: true });
     expect(screen.getByText("Nothing on")).toBeInTheDocument();
   });
 
   it("says nothing matches when a search found nothing", async () => {
-    mount({ data: data({ jobs: [mirrorJob({ remoteId: "j-1" })] }) });
+    await mountWork({ data: data({ jobs: [mirrorJob({ remoteId: "j-1" })] }) });
     await userEvent.type(screen.getByLabelText("Search all jobs"), "zzzz");
     expect(screen.getByText(/Nothing matches/)).toBeInTheDocument();
   });
@@ -385,7 +391,7 @@ describe("empty says WHY", () => {
 
 describe("search", () => {
   it("filters what's loaded and asks the server for the rest", async () => {
-    mount({
+    await mountWork({
       data: data({
         jobs: [
           mirrorJob({ remoteId: "a", clientName: "Ardex Logistics" }),
@@ -401,7 +407,7 @@ describe("search", () => {
   /* One character is not a search — it's a keystroke on the way to one, and
      firing the whole mirror at it would be a query per letter. */
   it("doesn't ask the server for a single character", async () => {
-    mount();
+    await mountWork();
     await userEvent.type(screen.getByLabelText("Search all jobs"), "a");
     expect(searchAllJobs).not.toHaveBeenCalled();
   });
@@ -409,7 +415,7 @@ describe("search", () => {
 
 describe("opening a row", () => {
   it("opens the sheet for a ServiceM8 job", async () => {
-    mount({ data: data({ jobs: [mirrorJob({ remoteId: "j-1" })] }) });
+    await mountWork({ data: data({ jobs: [mirrorJob({ remoteId: "j-1" })] }) });
     await userEvent.click(rows()[0]);
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
     expect(readMirrorJob).toHaveBeenCalledWith("j-1");
@@ -418,7 +424,7 @@ describe("opening a row", () => {
   /* A native row already has a home. Sending it to a viewer that knows less
      than the board it came from would be a worse answer than the handoff. */
   it("sends a native row to the board that owns it, without a sheet", async () => {
-    mount({ visits: [visitFix({ id: "v-1" })] });
+    await mountWork({ visits: [visitFix({ id: "v-1" })] });
     await userEvent.click(rows()[0]);
     expect(onOpenTracked).toHaveBeenCalledWith({ kind: "visit", id: "v-1" });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -427,7 +433,7 @@ describe("opening a row", () => {
 
 describe("promotion", () => {
   it("offers both ways out of a job, to a manager", async () => {
-    mount({ data: data({ jobs: [mirrorJob({ remoteId: "j-1" })] }), manage: true });
+    await mountWork({ data: data({ jobs: [mirrorJob({ remoteId: "j-1" })] }), manage: true });
     await userEvent.click(rows()[0]);
     const sheet = await screen.findByRole("dialog");
     expect(
@@ -439,7 +445,7 @@ describe("promotion", () => {
   });
 
   it("offers neither to someone who can't manage the board", async () => {
-    mount({ data: data({ jobs: [mirrorJob({ remoteId: "j-1" })] }), manage: false });
+    await mountWork({ data: data({ jobs: [mirrorJob({ remoteId: "j-1" })] }), manage: false });
     await userEvent.click(rows()[0]);
     const sheet = await screen.findByRole("dialog");
     expect(within(sheet).queryByRole("button", { name: /Create a project/ })).not.toBeInTheDocument();
@@ -449,7 +455,7 @@ describe("promotion", () => {
   });
 
   it("names the project before creating it, then calls with that name", async () => {
-    mount({ data: data({ jobs: [mirrorJob({ remoteId: "j-1" })] }) });
+    await mountWork({ data: data({ jobs: [mirrorJob({ remoteId: "j-1" })] }) });
     await userEvent.click(rows()[0]);
     const sheet = await screen.findByRole("dialog");
     await userEvent.click(
@@ -467,7 +473,7 @@ describe("promotion", () => {
   });
 
   it("hands the job straight to the agreement modal, pre-picked", async () => {
-    mount({ data: data({ jobs: [mirrorJob({ remoteId: "j-1", jobNumber: "2214" })] }) });
+    await mountWork({ data: data({ jobs: [mirrorJob({ remoteId: "j-1", jobNumber: "2214" })] }) });
     await userEvent.click(rows()[0]);
     const sheet = await screen.findByRole("dialog");
     await userEvent.click(

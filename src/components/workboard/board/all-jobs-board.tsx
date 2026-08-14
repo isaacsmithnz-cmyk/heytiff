@@ -29,18 +29,19 @@ import { Sm8Chip, type Sm8Health } from "./sm8-chip";
    nothing on this side is urgent — there is no queue and no badge, because
    "everything" is a reference, not a to-do list. */
 
-const TAB_KEYS = ["work", "quotes", "completed", "schedule"] as const;
+const TAB_KEYS = ["schedule", "work", "quotes", "completed"] as const;
 export type AllJobsTabKey = (typeof TAB_KEYS)[number];
 
-/* Schedule sits LAST: the first three are the book of work, this one is the
-   diary of it. It is called Schedule, not Calendar — the maintenance board
-   already owns a Calendar tab, and ServiceM8's own label for the object
-   behind this one (job_activities) is Schedule. */
+/* Schedule sits FIRST — today's diary is the question this side gets asked
+   every morning; the book of work follows in ServiceM8's own order. It is
+   called Schedule, not Calendar: the maintenance board already owns a
+   Calendar tab, and ServiceM8's own label for the object behind this one
+   (job_activities) is Schedule. */
 const TAB_LABEL: Record<AllJobsTabKey, string> = {
+  schedule: "Schedule",
   work: "Work orders",
   quotes: "Quotes",
   completed: "Completed",
-  schedule: "Schedule",
 };
 
 export function AllJobsBoard({
@@ -78,7 +79,11 @@ export function AllJobsBoard({
      project are three different destinations with three different ids. */
   onOpenTracked: (target: { kind: "visit" | "agreement" | "project"; id: string }) => void;
 }) {
-  const [tab, setTab] = useState<AllJobsTabKey>("work");
+  /* Lands on Schedule — the first tab is the landing tab on every board
+     (Maintenance opens on Urgent the same way). The diary's fetch-on-open
+     therefore fires when this SIDE opens, which is still nothing on the
+     Workboard page load: the board only mounts when the side is chosen. */
+  const [tab, setTab] = useState<AllJobsTabKey>("schedule");
   const [query, setQuery] = useState("");
   const [sheetRow, setSheetRow] = useState<AllJobRow | null>(null);
   const [agreementFrom, setAgreementFrom] = useState<AllJobRow | null>(null);

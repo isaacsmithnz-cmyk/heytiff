@@ -6972,6 +6972,27 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   /* the ink card's own steps — dusk-skin literals, declared once */
   --hm-ink:rgba(11,14,21,.86); --hm-line:rgba(255,255,255,.07);
   --hm-teal:#7CEFD9; --hm-dan:#FF9FB3; --hm-warn:#FFC07A;
+  /* THE QUIET STEP, MEASURED ONCE.
+
+     Every secondary label on the ink card — the section headings, the day
+     labels, the entry times — was set by eye at .38–.42, and all three came
+     out UNDER AA: 3.29, 3.48 and 3.68 against the card's worst-case ground.
+     They are also the smallest type on the screen (10.5–12px), which is
+     exactly where a guess costs the most.
+
+     The ground is not one colour, which is why eyeballing failed: the card is
+     `--hm-ink` over a BACKDROP-BLUR of a well carrying three coloured washes,
+     so it paints anywhere from rgb(38,45,51) to rgb(45,48,54). This value is
+     measured against the lightest of those — the card over pure white — so it
+     holds wherever on the well the card happens to sit.
+
+     .58 → 5.5:1 there. AA wants 4.5 and .50 lands on 4.54, which is a pass
+     with no room for the next change to the ink. Still plainly quieter than
+     the .92 the journal's own words wear, so the hierarchy is intact.
+
+     Anything on this card that is deliberately quiet takes THIS, and is not
+     a new opinion about how quiet. See __tests__/home-card-contrast. */
+  --hm-quiet:rgba(255,255,255,.58);
   padding-top:22px;
   /* `.wrap`'s own 96px bottom was sized for screens that end where their
      content ends. The card ends where the WINDOW does now, so that padding
@@ -7122,7 +7143,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
     radial-gradient(circle 420px at 96% 112%, rgba(46,104,255,.10), transparent 70%); }
 .fg .hm-card .hm-panel { position:relative; z-index:1; }
 /* every uppercase section label inside the card, in one place */
-.fg .hm-card .wb2-sect { color:rgba(255,255,255,.38); }
+.fg .hm-card .wb2-sect { color:var(--hm-quiet); }
 
 /* (0,3,0) ON PURPOSE. `.wb2-urbody.twocol` sets `display:grid` and is (0,2,0),
    so a plain `.wb2-body[hidden]` LOSES to it and the Tasks panel stays painted
@@ -7205,7 +7226,9 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .hm-rmain b { display:block; font-size:14.5px; font-weight:700; letter-spacing:-.005em;
   color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .fg .hm-rmain em { display:block; font-style:normal; font-size:12.5px; font-weight:500;
-  color:rgba(255,255,255,.5); margin-top:1px; overflow:hidden; text-overflow:ellipsis;
+  /* .50 measured 4.56 — a pass, by six hundredths. The same step as every
+     other quiet label rather than a value sitting one ink tweak from failing. */
+  color:var(--hm-quiet); margin-top:1px; overflow:hidden; text-overflow:ellipsis;
   white-space:nowrap; }
 .fg .hm-rowgo { color:rgba(255,255,255,.28); display:flex; align-self:center; }
 .fg a.hm-row:hover .hm-rowgo { color:rgba(255,255,255,.6); }
@@ -7437,7 +7460,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .hm-jd.first .hm-jdh > span { display:inline-flex; align-items:center; gap:8px; }
 .fg .hm-jd.first .hm-jdh > span::before { content:""; width:6px; height:6px; border-radius:50%;
   background:linear-gradient(120deg,#00E5C0,#2E68FF); }
-.fg .hm-jd:not(.first) .hm-jdh > span { color:rgba(255,255,255,.4); }
+.fg .hm-jd:not(.first) .hm-jdh > span { color:var(--hm-quiet); }
 /* The rule runs to the end of the row now: the header used to finish with
    "2 debriefs", counting the entries directly beneath it. Its rule is deleted
    rather than left behind — dead blocks in this stylesheet have shadowed live
@@ -7458,7 +7481,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .hm-jr::before { content:""; position:absolute; left:96px; top:21px; width:9px; height:9px;
   border-radius:50%; background:#3D4453; box-shadow:0 0 0 4px rgba(11,14,21,.92); }
 .fg .hm-jd.first .hm-jr::before { background:linear-gradient(120deg,#00E5C0,#2E68FF); }
-.fg .hm-jrt { font-size:12px; font-weight:700; color:rgba(255,255,255,.42); font-variant-numeric:tabular-nums; padding-top:1px; }
+.fg .hm-jrt { font-size:12px; font-weight:700; color:var(--hm-quiet); font-variant-numeric:tabular-nums; padding-top:1px; }
 /* 78ch, not 96. The old cap was exactly binding at 1500px, which is 96
    characters a line — half again past what anyone reads comfortably. */
 .fg .hm-jrs { margin:0; grid-column:2; font-size:14.5px; font-weight:500; line-height:1.6;
@@ -7546,7 +7569,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .hm-card .wb2-mcnow { background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.14);
   color:rgba(255,255,255,.7); }
 .fg .hm-card .wb2-mcnow:hover { color:#fff; border-color:rgba(255,255,255,.24); }
-.fg .hm-card .wb2-mcdow { color:rgba(255,255,255,.35); }
+/* The Calendar's own two quiet labels, measured with the rest: the weekday
+   header came out at 3.01 and the month tag at 3.16, both on 9.5–10px/800 —
+   the smallest type on the card. Same step as every other quiet label. */
+.fg .hm-card .wb2-mcdow { color:var(--hm-quiet); }
 .fg .hm-card .wb2-mcc { min-height:104px; cursor:default; border-color:var(--hm-line);
   background:rgba(255,255,255,.03); }
 .fg .hm-card .wb2-mcc:hover { border-color:var(--hm-line); transform:none; }
@@ -7554,7 +7580,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .hm-card .wb2-mcc.past { opacity:.5; }
 .fg .hm-card .wb2-mcc.today { border-color:rgba(255,255,255,.55); box-shadow:0 0 0 1px rgba(255,255,255,.16); }
 .fg .hm-card .wb2-mcn b { color:rgba(255,255,255,.7); }
-.fg .hm-card .wb2-mcn em, .fg .hm-card .wb2-mcn i { color:rgba(255,255,255,.38); }
+.fg .hm-card .wb2-mcn em, .fg .hm-card .wb2-mcn i { color:var(--hm-quiet); }
 .fg .hm-card .wb2-mcc.today .wb2-mcn b { background:#fff; color:#0B0E15; }
 .fg .hm-card .wb2-mcc.today .wb2-mcn i { color:rgba(255,255,255,.7); }
 .fg .hm-card .wb2-mcc.mstart .wb2-mcn b { color:#fff; }

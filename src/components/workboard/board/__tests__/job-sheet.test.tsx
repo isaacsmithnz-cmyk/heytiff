@@ -314,7 +314,7 @@ describe("files on the job", () => {
     name: "IMG_4021.jpg",
     fileType: ".jpg",
     kind: "photo",
-    paperwork: null,
+    origin: null,
     takenAt: "2026-08-01 10:00:00",
     url: null,
     ...over,
@@ -371,7 +371,7 @@ describe("files on the job", () => {
             name: "Invoice #3137.pdf",
             fileType: ".pdf",
             kind: "document",
-            paperwork: "Invoice",
+            origin: "Invoice",
             url: "https://signed/d-1.pdf",
           }),
         ],
@@ -382,6 +382,43 @@ describe("files on the job", () => {
     const link = (await screen.findByText("Invoice #3137.pdf")) as HTMLAnchorElement;
     expect(link.getAttribute("href")).toBe("https://signed/d-1.pdf");
     expect(screen.getByText("Invoice")).toBeInTheDocument();
+  });
+
+  it("chips a document that arrived by email, not just the paperwork", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail());
+    readJobFiles.mockResolvedValueOnce(
+      files({
+        documents: [
+          file({
+            remoteId: "d-1",
+            name: "Site induction.pdf",
+            fileType: ".pdf",
+            kind: "document",
+            origin: "Emailed in",
+            url: "https://signed/d-1.pdf",
+          }),
+        ],
+      })
+    );
+    render(<JobSheet row={row()} {...props} />);
+
+    await screen.findByText("Site induction.pdf");
+    expect(screen.getByText("Emailed in")).toBeInTheDocument();
+  });
+
+  /* A grid tile has no room for a chip, so the origin rides in the tooltip
+     beside the name — a photo the customer emailed is not a photo the tech
+     took, and the grid would otherwise flatten the two. */
+  it("puts a photo's origin in its tooltip, where the name already is", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail());
+    readJobFiles.mockResolvedValueOnce(
+      files({ photos: [file({ remoteId: "p-1", origin: "Emailed in" })] })
+    );
+    render(<JobSheet row={row()} {...props} />);
+
+    await screen.findByText(/Files on this job/);
+    const tile = document.querySelector(".wb2-mtile") as HTMLElement;
+    expect(tile.getAttribute("title")).toBe("IMG_4021.jpg — emailed in");
   });
 
   it("counts what stays in ServiceM8 instead of pretending it isn't there", async () => {
@@ -453,7 +490,7 @@ describe("bringing the bytes across", () => {
             name: "IMG_4021.jpg",
             fileType: ".jpg",
             kind: "photo" as const,
-            paperwork: null,
+            origin: null,
             takenAt: null,
             url: null,
           },

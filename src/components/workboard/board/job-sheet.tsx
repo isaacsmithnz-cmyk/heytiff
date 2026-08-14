@@ -499,7 +499,11 @@ export function JobSheet({
                       href={p.url}
                       target="_blank"
                       rel="noreferrer"
-                      title={p.name}
+                      /* A grid tile has no room for a chip, but a photo that
+                         was EMAILED IN is a different thing from one taken on
+                         site — so the origin rides in the tooltip, where the
+                         name already is. */
+                      title={p.origin ? `${p.name} — ${p.origin.toLowerCase()}` : p.name}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={p.url} alt={p.name} loading="lazy" />
@@ -508,7 +512,11 @@ export function JobSheet({
                     /* Not cached yet. A tile that says so beats a broken
                        image, and beats hiding a photo that genuinely
                        exists. */
-                    <span key={p.remoteId} className="wb2-mtile pending" title={p.name}>
+                    <span
+                      key={p.remoteId}
+                      className="wb2-mtile pending"
+                      title={p.origin ? `${p.name} — ${p.origin.toLowerCase()}` : p.name}
+                    >
                       <Icon name="cam" size={16} />
                     </span>
                   )
@@ -525,7 +533,7 @@ export function JobSheet({
                 ) : (
                   <b>{d.name}</b>
                 )}
-                {d.paperwork ? <i className="wb2-chip">{d.paperwork}</i> : null}
+                {d.origin ? <i className="wb2-chip">{d.origin}</i> : null}
               </p>
             ))}
 

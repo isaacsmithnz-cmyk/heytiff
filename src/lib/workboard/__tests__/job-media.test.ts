@@ -9,7 +9,7 @@ import {
   jobMediaKind,
   mediaCountLine,
   normaliseFileType,
-  paperworkLabel,
+  originLabel,
   type JobMediaItem,
 } from "@/lib/workboard/job-media";
 
@@ -92,17 +92,40 @@ describe("isCacheableMedia", () => {
   });
 });
 
-describe("paperworkLabel", () => {
+describe("originLabel", () => {
   it("names the two sources that are paperwork rather than work", () => {
-    expect(paperworkLabel("INVOICE")).toBe("Invoice");
-    expect(paperworkLabel("QUOTE")).toBe("Quote");
-    expect(paperworkLabel("invoice")).toBe("Invoice");
+    expect(originLabel("INVOICE")).toBe("Invoice");
+    expect(originLabel("QUOTE")).toBe("Quote");
+    expect(originLabel("invoice")).toBe("Invoice");
   });
 
-  it("invents no label for anything else — a wrong one is worse than none", () => {
-    expect(paperworkLabel("EMAIL_ATTACHMENT")).toBeNull();
-    expect(paperworkLabel("")).toBeNull();
-    expect(paperworkLabel(null)).toBeNull();
+  /* A file somebody EMAILED in is a different thing from one produced on
+     site — 283 PDFs on jobs in the live account arrived this way. Note the
+     camel case: `InboxMessage` is the only source spelled that way, which is
+     exactly why the comparison upper-cases first. */
+  it("names an emailed-in file, whatever the case on the wire", () => {
+    expect(originLabel("InboxMessage")).toBe("Emailed in");
+    expect(originLabel("INBOXMESSAGE")).toBe("Emailed in");
+    expect(originLabel("  inboxmessage  ")).toBe("Emailed in");
+  });
+
+  /* Every one of these is a REAL source in the live account. They stay
+     unlabelled until one earns a label — a guessed one is worse than none. */
+  it("invents no label for the sources that haven't earned one", () => {
+    for (const unlabelled of [
+      "WORK_ORDER",
+      "PHOTO_MARKUP",
+      "INVOICE_SIGNOFF",
+      "IMAGINE",
+      "DOCUMENT",
+      "SERVICE_QUESTION_CHOICE",
+      "PHOTO_LIBRARY_ON_CHECKOUT",
+      "",
+    ]) {
+      expect(originLabel(unlabelled)).toBeNull();
+    }
+    expect(originLabel(null)).toBeNull();
+    expect(originLabel(undefined)).toBeNull();
   });
 });
 
@@ -111,7 +134,7 @@ describe("grouping and the count line", () => {
     name: "IMG_4021.jpg",
     fileType: ".jpg",
     kind: jobMediaKind(over.fileType ?? ".jpg"),
-    paperwork: null,
+    origin: null,
     takenAt: null,
     url: null,
     ...over,
@@ -122,7 +145,7 @@ describe("grouping and the count line", () => {
   const jobShaped = [
     item({ remoteId: "p-1" }),
     item({ remoteId: "p-2" }),
-    item({ remoteId: "d-1", name: "Invoice #3137.pdf", fileType: ".pdf", paperwork: "Invoice" }),
+    item({ remoteId: "d-1", name: "Invoice #3137.pdf", fileType: ".pdf", origin: "Invoice" }),
     item({ remoteId: "v-1", name: "walkthrough.mp4", fileType: ".mp4" }),
   ];
 

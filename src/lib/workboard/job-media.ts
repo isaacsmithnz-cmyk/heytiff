@@ -106,16 +106,30 @@ export function isCacheableMedia(fileType: string | null | undefined): boolean {
   return normaliseFileType(fileType) === ".pdf";
 }
 
-/* ── what a file is FOR, from ServiceM8's own tag ── */
+/* ── where a file came from, in ServiceM8's own words ── */
 
-/** `attachment_source` is ServiceM8's word for where a file came from. Two
-    values are worth naming on screen because they are the paperwork rather
-    than the work: the quote that was sent and the invoice that followed.
-    Anything else is left unlabelled — an invented label is worse than none. */
-export function paperworkLabel(source: string | null | undefined): string | null {
+/** `attachment_source` is ServiceM8's tag for a file's origin. Three values
+    earn a chip because each changes what the file MEANS to a reader:
+
+      INVOICE / QUOTE   the paperwork rather than the work
+      InboxMessage      it arrived by EMAIL and was filed against the job —
+                        somebody sent this in, it wasn't produced on site.
+                        1,150 of them in the live account, 283 of those PDFs
+                        on jobs, which is what makes it worth a chip at all.
+
+    Everything else is left unlabelled. The live account also carries
+    WORK_ORDER, PHOTO_MARKUP, INVOICE_SIGNOFF, IMAGINE, DOCUMENT and
+    SERVICE_QUESTION_CHOICE — each a one-line addition here if it ever earns
+    one, and none of them guessed at in the meantime.
+
+    CASE IS NOT CONSISTENT ON THE WIRE. Photos alone arrive as `Photo`,
+    `PHOTO`, `PHOTO_LIBRARY` and `PHOTO_LIBRARY_ON_CHECKOUT`; `InboxMessage`
+    is the only camel-cased source. Compare upper-cased, always. */
+export function originLabel(source: string | null | undefined): string | null {
   const s = typeof source === "string" ? source.trim().toUpperCase() : "";
   if (s === "INVOICE") return "Invoice";
   if (s === "QUOTE") return "Quote";
+  if (s === "INBOXMESSAGE") return "Emailed in";
   return null;
 }
 
@@ -127,8 +141,8 @@ export type JobMediaItem = {
   name: string;
   fileType: string | null;
   kind: JobMediaKind;
-  /** "Invoice" | "Quote" | null. */
-  paperwork: string | null;
+  /** "Invoice" | "Quote" | "Emailed in" | null — see originLabel. */
+  origin: string | null;
   /** Naive local stamp from ServiceM8, or null. */
   takenAt: string | null;
   /** A signed URL when the bytes are cached here, null while they aren't. */

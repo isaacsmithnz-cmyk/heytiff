@@ -23,7 +23,7 @@ import {
   groupJobMedia,
   JOB_MEDIA_CAP,
   jobMediaKind,
-  paperworkLabel,
+  originLabel,
   type JobMediaItem,
 } from "./job-media";
 
@@ -100,7 +100,7 @@ export async function readJobMedia(orgId: string, jobUuid: string): Promise<JobM
       name: r.attachment_name?.trim() || "Untitled file",
       fileType: r.file_type,
       kind: jobMediaKind(r.file_type),
-      paperwork: paperworkLabel(r.attachment_source),
+      origin: originLabel(r.attachment_source),
       takenAt: r.timestamp,
       url: ref ? urls.get(ref) ?? null : null,
     };

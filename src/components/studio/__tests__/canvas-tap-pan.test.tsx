@@ -100,6 +100,68 @@ describe("tap-or-pan on click-to-place tools", () => {
     });
   });
 
+  /* The trackpad's ONLY pan gesture. Middle-drag needs a button it hasn't got,
+     and hold-Space is swallowed once focus is in the measurement field — so
+     before this, calibrating on a laptop meant zooming and hoping. */
+  describe("wheel gestures", () => {
+    /** `scale(z) translate(-x -y)` — pulled apart so a pan and a zoom can be
+        told from each other rather than just "the transform changed" */
+    const readVp = (t: string) => {
+      const m = /^scale\(([-\d.]+)\) translate\(([-\d.]+) ([-\d.]+)\)$/.exec(t)!;
+      return { zoom: +m[1], x: -+m[2], y: -+m[3] };
+    };
+
+    it("a two-finger scroll pans, and does not zoom", () => {
+      const { svg, viewport } = renderCanvas("calibrate");
+      const before = readVp(viewport());
+
+      // trackpad shape: pixel units, fractional, both axes live
+      fireEvent.wheel(svg, { deltaX: 24.5, deltaY: 12.25, deltaMode: 0 });
+
+      const after = readVp(viewport());
+      expect(after.zoom).toBe(before.zoom);
+      expect(after.x).toBeGreaterThan(before.x);
+      expect(after.y).toBeGreaterThan(before.y);
+    });
+
+    /* the sharpest edge of the old handler: a sideways swipe has deltaY 0,
+       which read as "not < 0" and zoomed OUT — swiping across a sheet shrank it */
+    it("a sideways swipe pans sideways instead of zooming out", () => {
+      const { svg, viewport } = renderCanvas("calibrate");
+      const before = readVp(viewport());
+
+      fireEvent.wheel(svg, { deltaX: -30.5, deltaY: 0, deltaMode: 0 });
+
+      const after = readVp(viewport());
+      expect(after.zoom).toBe(before.zoom);
+      expect(after.x).toBeLessThan(before.x);
+    });
+
+    it("a mouse notch still zooms — the mouse loses nothing", () => {
+      const { svg, viewport } = renderCanvas("calibrate");
+      const before = readVp(viewport());
+
+      fireEvent.wheel(svg, { deltaX: 0, deltaY: -120, deltaMode: 0 });
+
+      expect(readVp(viewport()).zoom).toBeGreaterThan(before.zoom);
+    });
+
+    it("a pinch zooms — macOS sends it as ctrl+wheel", () => {
+      const { svg, viewport } = renderCanvas("calibrate");
+      const before = readVp(viewport());
+
+      fireEvent.wheel(svg, { deltaX: 0, deltaY: -8.5, deltaMode: 0, ctrlKey: true });
+
+      expect(readVp(viewport()).zoom).toBeGreaterThan(before.zoom);
+    });
+
+    it("panning by wheel places nothing", () => {
+      const { svg } = renderCanvas("calibrate");
+      fireEvent.wheel(svg, { deltaX: 24.5, deltaY: 12.25, deltaMode: 0 });
+      expect(svg.querySelector(".ds-calib")).toBeNull();
+    });
+  });
+
   describe("set-north", () => {
     it("a click drops the north marker", () => {
       const mutations: unknown[] = [];

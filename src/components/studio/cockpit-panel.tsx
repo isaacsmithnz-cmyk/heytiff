@@ -95,8 +95,15 @@ const TYPE_WIPED_OBJECTS: ReadonlySet<string> = new Set([
 
 /* ─────────────────────────── inline glyphs ───────────────────────────
    Exact 24×24 stroke paths from the handoff, so the cockpit reads identically.
-   Container CSS sizes each svg; the width/height here are fallbacks. */
-const GLYPHS: Record<string, { d: string; sw?: number; fill?: boolean }> = {
+   Container CSS sizes each svg; the width/height here are fallbacks.
+
+   NOT annotated `Record<string, …>` on purpose. That annotation widened
+   `keyof typeof GLYPHS` to plain `string`, so `<Glyph name="square" />` and
+   `<Glyph name="hexagon" />` type-checked against a map holding neither and
+   fell through to the cube — the room shape picker offered ▢ and ⬡ as two
+   identical stacked-cube icons for as long as it has existed. Inferred keys
+   plus `satisfies` make a name that isn't here a compile error. */
+const GLYPHS = {
   idu: { d: '<rect x="3" y="7" width="18" height="7" rx="3"/><path d="M6 17.5c1.2-1.4 2.8-1.4 4 0M14 17.5c1.2-1.4 2.8-1.4 4 0"/>', sw: 1.8 },
   odu: { d: '<rect x="4" y="5" width="16" height="14" rx="2.5"/><circle cx="12" cy="12" r="3.4"/><path d="M12 8.6v-.01M12 15.4v.01M8.6 12h-.01M15.4 12h.01"/>', sw: 1.8 },
   check: { d: '<path d="M20 6 9 17l-5-5"/>', sw: 3 },
@@ -118,10 +125,15 @@ const GLYPHS: Record<string, { d: string; sw?: number; fill?: boolean }> = {
   x: { d: '<path d="M18 6 6 18M6 6l12 12"/>', sw: 2.6 },
   alert: { d: '<path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/>', sw: 2 },
   rotate: { d: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>', sw: 2 },
-};
+  /* the two room shapes — a true square and a regular hexagon (circumradius 9
+     about the 12,12 centre), so ▢ and ⬡ read apart at 16px */
+  square: { d: '<rect x="4.5" y="4.5" width="15" height="15" rx="1.5"/>', sw: 2 },
+  hexagon: { d: '<path d="M12 3 19.79 7.5v9L12 21l-7.79-4.5v-9Z"/>', sw: 2 },
+} satisfies Record<string, { d: string; sw?: number; fill?: boolean }>;
 
+/* every ComponentIcon must have a glyph — indexing below is what enforces it */
 function Glyph({ name, size = 16 }: { name: keyof typeof GLYPHS | ComponentIcon; size?: number }) {
-  const g = GLYPHS[name] ?? GLYPHS.cube;
+  const g = GLYPHS[name];
   return (
     <svg
       viewBox="0 0 24 24"

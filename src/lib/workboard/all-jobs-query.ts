@@ -169,13 +169,15 @@ export async function loadAllJobs(
     }),
     /* The next diary block per job. Floored at today so a booking from last
        March can't read as "booked"; ordered ascending so the FIRST row seen
-       for a job is its soonest. */
+       for a job is its soonest. Only scheduled diary blocks count — recorded
+       time-on-site sessions (activity_was_scheduled=0) are not bookings. */
     inChunks(jobIds, 200, async (chunk) => {
       const { data } = await supabaseAdmin
         .from("sm8_job_activities")
         .select("job_uuid, start_date")
         .eq("org_id", orgId)
         .eq("active", 1)
+        .eq("activity_was_scheduled", 1)
         .in("job_uuid", chunk)
         .gte("start_date", `${today} 00:00:00`)
         .order("start_date", { ascending: true });
@@ -779,6 +781,7 @@ export async function searchAllMirrorJobs(
     .select("job_uuid, start_date")
     .eq("org_id", orgId)
     .eq("active", 1)
+    .eq("activity_was_scheduled", 1)
     .in("job_uuid", found.map((r) => r.uuid))
     .gte("start_date", `${today} 00:00:00`)
     .order("start_date", { ascending: true });

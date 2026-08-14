@@ -114,6 +114,22 @@ describe("the company card", () => {
     expect(within(card as HTMLElement).getByText("Registered")).toBeInTheDocument();
   });
 
+  /* The sub-line under the name is the LEGAL name, and its empty state used to
+     name the TRADING one. Every fixture in this file sets both, so the card
+     spent its whole life printing the trading name in the heading and
+     "Trading name not set" underneath it — contradicting itself about the only
+     field it was showing — and no test ever rendered the state that says so.
+     Diamond Air Solutions, which has a trading name and no legal one, looked
+     exactly like that in prod. */
+  it("names the LEGAL name in its empty state, not the trading one it is showing", () => {
+    const { container } = setup({ org: { legal_name: null } });
+    const card = container.querySelector(".idc.light") as HTMLElement;
+
+    expect(within(card).getByText("Smith Air Conditioning")).toBeInTheDocument();
+    expect(within(card).queryByText("Trading name not set")).not.toBeInTheDocument();
+    expect(within(card).getByText("Legal name not set")).toBeInTheDocument();
+  });
+
   it("falls back to initials when there is no logo, and shows the logo when there is", () => {
     const { container, rerender } = setup();
     expect(container.querySelector(".idc-photo .inn")).toHaveTextContent("SA");

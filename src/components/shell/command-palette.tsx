@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCommandPalette } from "./command-palette-context";
 import { Icon } from "./icon";
+import { Chevron } from "@/components/logo";
 import { navFor } from "./nav";
 import type { Role } from "@/lib/roles-shared";
 import type { Capability } from "@/lib/permissions";
@@ -174,8 +175,14 @@ export function CommandPalette({
             Select
           </div>
           <div className="cf-r">
-            <span style={{ color: "#00E5C0", display: "flex" }}>
-              <Icon name="sparkles" size={12} />
+            {/* The mark, not a sparkle. This corner signs the palette, and it
+                was signing it with the badge every AI tool in the market wears
+                — beside the word HeyTiff, which is the one thing here that is
+                actually ours. `decorative` because that word already says it:
+                the mark defaults to an aria-label of "HeyTiff" and would have
+                the footer read "HeyTiff HeyTiff". */}
+            <span style={{ display: "flex" }}>
+              <Chevron size={12} gradient decorative />
             </span>{" "}
             {/* was "HeyTiff Command" — there are no commands in it */}
             HeyTiff

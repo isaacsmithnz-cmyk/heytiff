@@ -156,6 +156,9 @@ const flag = (over: Partial<BoardFlag> & { id: string }): BoardFlag => ({
 });
 
 const toProjects = () => userEvent.click(screen.getByRole("tab", { name: /Projects/ }));
+/* The board opens on All jobs now, so anything asserting about the two
+   curated boards walks to them first — the same click a person makes. */
+const toMaintenance = () => userEvent.click(screen.getByRole("tab", { name: /Maintenance/ }));
 const seg = () => screen.getByRole("tablist", { name: "Which work" });
 
 describe("standalone", () => {
@@ -173,8 +176,9 @@ describe("standalone", () => {
     );
   });
 
-  it("gives neither board a mirror-health chip when there is no mirror", () => {
+  it("gives neither board a mirror-health chip when there is no mirror", async () => {
     render(<OverviewScreen data={base} />);
+    await toMaintenance();
     expect(screen.getByTestId("mboard")).toHaveTextContent("sm8:none");
   });
 });
@@ -195,27 +199,40 @@ describe("the switcher", () => {
     ]);
   });
 
-  it("opens on Maintenance and swaps whole boards", async () => {
+  /* The landing side follows the order: first side, first tab, which puts
+     today's diary in front of you. A badge is a summons visible from any
+     side — the switcher carries both counts always — so opening on the
+     curated queues bought nothing the switcher wasn't already saying. */
+  it("opens on All jobs and swaps whole boards", async () => {
     render(<OverviewScreen data={base} />);
 
-    expect(screen.getByTestId("mboard")).toBeInTheDocument();
+    expect(screen.getByTestId("jboard")).toBeInTheDocument();
+    expect(screen.queryByTestId("mboard")).not.toBeInTheDocument();
     expect(screen.queryByTestId("pboard")).not.toBeInTheDocument();
 
     await toProjects();
 
     expect(screen.getByTestId("pboard")).toBeInTheDocument();
-    expect(screen.queryByTestId("mboard")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("jboard")).not.toBeInTheDocument();
+
+    await toMaintenance();
+
+    expect(screen.getByTestId("mboard")).toBeInTheDocument();
+    expect(screen.queryByTestId("pboard")).not.toBeInTheDocument();
   });
 
   it("carries the live side on the element, so the fill takes that side's colour", async () => {
     render(<OverviewScreen data={base} />);
-    expect(seg()).toHaveAttribute("data-on", "maintenance");
+    expect(seg()).toHaveAttribute("data-on", "jobs");
     await toProjects();
     expect(seg()).toHaveAttribute("data-on", "projects");
+    await toMaintenance();
+    expect(seg()).toHaveAttribute("data-on", "maintenance");
   });
 
   it("hands both boards their permissions and connection truthfully", async () => {
     render(<OverviewScreen data={{ ...base, manage: true, connection: "connected" }} />);
+    await toMaintenance();
     expect(screen.getByTestId("mboard")).toHaveTextContent("manage:true");
     expect(screen.getByTestId("mboard")).toHaveTextContent("connected:true");
     await toProjects();
@@ -407,6 +424,7 @@ describe("flag routing", () => {
       ],
     };
     render(<OverviewScreen data={data} />);
+    await toMaintenance();
     expect(screen.getByTestId("mboard")).toHaveTextContent("flags:1");
     await toProjects();
     expect(screen.getByTestId("pboard")).toHaveTextContent("flags:1");
@@ -422,6 +440,7 @@ describe("flag routing", () => {
       ],
     };
     render(<OverviewScreen data={data} />);
+    await toMaintenance();
     expect(screen.getByTestId("mboard")).toHaveTextContent("flags:1");
     await toProjects();
     expect(screen.getByTestId("pboard")).toHaveTextContent("flags:1");
@@ -438,6 +457,7 @@ describe("connected", () => {
 
   it("hands mirror health to BOTH tab rows — staleness is a fact about the data", async () => {
     render(<OverviewScreen data={connected} />);
+    await toMaintenance();
     expect(screen.getByTestId("mboard")).toHaveTextContent("sm8:ok");
     await toProjects();
     expect(screen.getByTestId("pboard")).toHaveTextContent("sm8:ok");
@@ -445,6 +465,7 @@ describe("connected", () => {
 
   it("says when the connection itself needs attention, on either side", async () => {
     render(<OverviewScreen data={{ ...connected, connection: "attention" }} />);
+    await toMaintenance();
     expect(screen.getByTestId("mboard")).toHaveTextContent("sm8:attention");
     await toProjects();
     expect(screen.getByTestId("pboard")).toHaveTextContent("sm8:attention");

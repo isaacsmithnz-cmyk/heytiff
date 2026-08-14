@@ -1274,7 +1274,9 @@ export function StudioCanvas({
     const svg = svgRef.current;
     if (!svg) return;
     const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
+      /* momentum events are dispatched non-cancelable, and calling
+         preventDefault on one is a no-op that Chrome warns about */
+      if (e.cancelable) e.preventDefault();
       userFramed.current = true;
       const g = readWheel(e);
       if (g.kind === "pan") {
@@ -1287,6 +1289,32 @@ export function StudioCanvas({
     };
     svg.addEventListener("wheel", onWheel, { passive: false });
     return () => svg.removeEventListener("wheel", onWheel);
+  }, []);
+
+  /* ── stop a sideways pan from navigating the BROWSER back ──
+     Now that a two-finger scroll pans, a leftward pan across a plan is also
+     the macOS/Chrome overscroll-history gesture: swipe to go back a page. It
+     fires mid-design and takes the canvas with it.
+
+     `preventDefault` on the wheel does NOT reliably stop it. Once a gesture
+     enters its momentum phase the events are dispatched non-cancelable, so
+     the tail of exactly the fling that pans furthest is uncancellable — which
+     is why this needs a declaration, not a handler.
+
+     `overscroll-behavior` decides it, but only on the element that owns the
+     viewport's scroll. Setting it on `.ds-canvas` alone does nothing: the
+     canvas is `overflow:hidden` with nothing to scroll, so there is no scroll
+     chain to stop and the gesture goes straight to the root. Hence the root,
+     saved and restored on unmount so the rest of the app keeps swipe-back —
+     the same shape as the body-scroll locks in the notices board and the
+     upload drawer. */
+  useEffect(() => {
+    const root = document.documentElement;
+    const prev = root.style.overscrollBehaviorX;
+    root.style.overscrollBehaviorX = "none";
+    return () => {
+      root.style.overscrollBehaviorX = prev;
+    };
   }, []);
 
   /* ── keyboard: space-pan, Esc cancel, Delete selection ── */

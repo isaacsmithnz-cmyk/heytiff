@@ -86,6 +86,32 @@ it("resolves every chip on the page in one read per kind", async () => {
   ]);
 });
 
+it("shows what the keep-rungs did, not only what applyNote made", async () => {
+  /* THE TWO ENDINGS THIS PANEL USED TO BE BLIND TO. Both are successes, both
+     file the words as they were said, and neither goes through `applyNote` —
+     they used to share `dismissNote`'s status, so choosing "Keep it in my
+     notes" left the record saying you never said it. */
+  rows.workboard_notes = [
+    note("e1", { jobNotes: ["Gate code is 4821 after hours."] }),
+    note("e2", { noteLines: ["Ring the wholesaler back about pricing."] }),
+  ];
+  rows.staff_notes = [{ id: "n1", source_note_id: "e2" }];
+
+  const out = await listJournal("org-1", "s1");
+  // the job's own notes are text in somebody else's column — counted, no door
+  expect(chips(out, 0)).toEqual([["1 note on the job", null]]);
+  // kept for yourself opens on the row it wrote
+  expect(chips(out, 1)).toEqual([["1 line kept", "note"]]);
+});
+
+it("lists what was filed and leaves abandonments out", async () => {
+  /* The status IS the distinction between the four endings now, so the filter
+     is load-bearing: widen it and Escape starts looking like filing. */
+  rows.workboard_notes = [note("e1", { jobNotes: ["said and kept"] })];
+  await listJournal("org-1", "s1");
+  expect(of("workboard_notes")[0].eq.status).toBe("applied");
+});
+
 it("scopes every read to the org, and the notes to the person too", async () => {
   rows.workboard_notes = [note("e1", { taskIds: ["t1"], kbIds: ["k1"], noteLines: ["a"] })];
   await listJournal("org-1", "s1");

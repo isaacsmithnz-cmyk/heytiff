@@ -22,11 +22,12 @@ describe("describeApplied", () => {
     ]);
   });
 
-  it("keeps applyNote's own singular and plural for every group", () => {
-    /* THE PAIRING IS COPIED, NOT SHARED. `applyNote` builds "Saved — 2 tasks ·
-       1 line kept" from these same eight keys as it inserts each group, so the
-       two lists can drift. If this fails, the write side gained or reworded a
-       group and the journal is about to describe it wrongly. */
+  it("keeps the write side's own singular and plural for every group", () => {
+    /* THE PAIRING IS COPIED, NOT SHARED, and `journal-groups.test.ts` is what
+       actually reads `actions/workboard-notes.ts` to check it. This list is
+       the order the chips come out in, which that scan says nothing about:
+       the six `applyNote` groups first, then the two endings that file the
+       words as they were said — the job, then yourself. */
     expect(APPLIED_GROUPS.map(([k]) => k)).toEqual([
       "taskIds",
       "flagIds",
@@ -35,6 +36,7 @@ describe("describeApplied", () => {
       "issueIds",
       "bringItems",
       "kbIds",
+      "jobNotes",
       "noteLines",
     ]);
     for (const [key, one, many, kind] of APPLIED_GROUPS) {

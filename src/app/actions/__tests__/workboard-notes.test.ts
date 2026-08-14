@@ -69,7 +69,14 @@ jest.mock("@/lib/workboard/note-brain", () => ({
   readNote: jest.fn(),
 }));
 
-import { applyNote, clearFlag, dismissNote, keepNoteOnJob, routeNote } from "../workboard-notes";
+import {
+  applyNote,
+  clearFlag,
+  dismissNote,
+  keepNoteForMe,
+  keepNoteOnJob,
+  routeNote,
+} from "../workboard-notes";
 const { readNote } = jest.requireMock("@/lib/workboard/note-brain") as { readNote: jest.Mock };
 
 const NOTE = { id: "n-1", transcript: "…", status: "pending", target_kind: "project", target_id: "p-1", proposal: {} };
@@ -410,6 +417,11 @@ describe("the note's own record", () => {
     expect(res.ok).toBe(true);
     expect(inserts).toHaveLength(0);
     expect(updates[0].patch.status).toBe("dismissed");
+    /* AND NOTHING TO READ BACK. The other three endings record what they did,
+       which is what puts them on the journal; this one is Escape, the × and
+       walking away, and an abandonment that recorded an outcome would read
+       there exactly like a note somebody filed on purpose. */
+    expect(updates[0].patch).not.toHaveProperty("applied");
   });
 });
 
@@ -441,10 +453,15 @@ describe("keeping a note on the job", () => {
     expect(updates.find((u) => u.table === "projects")!.patch.notes).toBe(
       "Ask for Marco at the dock.\n\nGate code is 4821 after hours."
     );
-    // and the note itself is settled, not left pending forever
-    expect(
-      updates.some((u) => u.table === "workboard_notes" && u.patch.status === "dismissed")
-    ).toBe(true);
+    /* And the note itself is settled — as what it actually was. It used to
+       settle at `dismissed`, the status Escape writes, so the journal (which
+       lists `applied` rows) had nothing to show for a capture that had just
+       succeeded: you said it, chose "Keep it on the job", and the record said
+       you never said it. */
+    const note = updates.find((u) => u.table === "workboard_notes")!;
+    expect(note.patch.status).toBe("applied");
+    expect(note.patch.applied).toEqual({ jobNotes: ["Gate code is 4821 after hours."] });
+    expect(note.patch.applied_at).toEqual(expect.any(String));
   });
 
   it("takes the review card's job when the note was dictated against nothing", async () => {
@@ -476,6 +493,45 @@ describe("keeping a note on the job", () => {
     rows.workboard_notes = { ...NOTE, transcript: "half a sentence" };
     await dismissNote("n-1");
     expect(updates.every((u) => u.table === "workboard_notes")).toBe(true);
+  });
+});
+
+/* THE LAST RUNG, and the ending that was hardest to see. It writes a real row
+   to a real screen and used to file its own capture at `dismissed` — so the
+   journal, which lists what was applied, showed nothing at all for it. */
+describe("keeping a note for yourself", () => {
+  it("writes the words to your own notes and records the line it kept", async () => {
+    rows.workboard_notes = { ...NOTE, transcript: "Ring the wholesaler back about pricing." };
+
+    const res = await keepNoteForMe("n-1");
+    expect(res.ok).toBe(true);
+    expect(rowsFor("staff_notes")).toEqual([
+      {
+        org_id: "org-1",
+        staff_id: "staff-me",
+        body: "Ring the wholesaler back about pricing.",
+        source: "routed",
+        source_note_id: "n-1",
+      },
+    ]);
+
+    /* `noteLines` rather than a group of its own: this does literally what the
+       debrief's leftovers do — ONE `staff_notes` row, linked by
+       `source_note_id`, which is the link the journal's kept-lines chip
+       resolves its door from. A second key would render the same chip in
+       different words. */
+    const note = updates.find((u) => u.table === "workboard_notes")!;
+    expect(note.patch.status).toBe("applied");
+    expect(note.patch.applied).toEqual({
+      noteLines: ["Ring the wholesaler back about pricing."],
+    });
+  });
+
+  it("keeps nothing, and says so, when the note is already gone", async () => {
+    rows.workboard_notes = null;
+    expect((await keepNoteForMe("n-1")).ok).toBe(false);
+    expect(inserts).toHaveLength(0);
+    expect(updates).toHaveLength(0);
   });
 });
 

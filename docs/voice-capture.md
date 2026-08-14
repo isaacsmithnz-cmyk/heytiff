@@ -185,6 +185,29 @@ The proposal comes back as tasks, flags, knowledge entries and note lines,
 each tickable. `Save these` calls `applyNote` with what is still ticked.
 Walking away instead dismisses the note, so nothing sits at `pending` forever.
 
+**A capture ends one of four ways, and all four write `workboard_notes`.** The
+`status` on that row is what tells them apart, and the journal on Home reads
+`applied` rows — so an ending that files the words has to say so:
+
+| ending | what it writes | status |
+|---|---|---|
+| **Save these** (`applyNote`) | the ticked rows | `applied`, ids in `applied` |
+| **Keep it on the job** (`keepNoteOnJob`) | the words onto the job's `notes` | `applied`, `{jobNotes:[words]}` |
+| **Keep it in my notes** (`keepNoteForMe`) | one `staff_notes` row | `applied`, `{noteLines:[words]}` |
+| **Escape · ×** (`dismissNote`) | nothing | `dismissed` |
+
+Three of those are successes and only the last is an abandonment. Both keep
+rungs used to share the discard status, which meant saying something, choosing
+*Keep it in my notes*, and finding no trace of it on the journal — while the
+journal's own empty state promised that anything you tell Tiff lands there
+with what it turned into.
+
+**`dismissNote` must stay empty-handed.** It is also the walk-away path, so an
+abandonment that recorded an outcome would read there exactly like a note
+somebody filed on purpose. Adding a group means teaching `APPLIED_GROUPS` in
+`src/lib/dashboard/journal.ts` what to call it; `journal-groups.test.ts` reads
+the action's source and fails if the two ever disagree.
+
 ## 9. What gets measured
 
 `src/lib/voice/timing.ts` prints one console line per note. Two links are

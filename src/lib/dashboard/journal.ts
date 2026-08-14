@@ -8,14 +8,18 @@
 
    So there is no migration here and no change to the capture flow. */
 
-/** The groups a capture can produce, in the order `applyNote` records them,
+/** The groups a capture can produce, in the order the write side records them,
     with the exact words it counts them in.
 
     THE WORDING IS COPIED ON PURPOSE. `applyNote` builds its "Saved — 2 tasks ·
-    1 line kept" line from these same eight keys as it inserts each group, so
-    the two cannot be shared without unpicking that flow. They CAN drift, which
-    is why the test pins them against the singular/plural pairs in
-    `actions/workboard-notes.ts`. If you add a group there, add it here. */
+    1 line kept" line from these same keys as it inserts each group, so the two
+    cannot be shared without unpicking that flow. They CAN drift, which is why
+    `journal-groups.test.ts` reads `actions/workboard-notes.ts` and fails if a
+    key or a plural stops matching. If you add a group there, add it here.
+
+    THE LAST TWO ARE THE KEEP-RUNGS, not `applyNote` at all — the endings that
+    file the words as they were said. They are last because they are the
+    cascade's own order: the job first, yourself only when nothing else fits. */
 const GROUPS: readonly (readonly [key: string, one: string, many: string, kind: OutcomeKind])[] = [
   ["taskIds", "task", "tasks", "todo"],
   ["flagIds", "flag", "flags", "todo"],
@@ -24,6 +28,7 @@ const GROUPS: readonly (readonly [key: string, one: string, many: string, kind: 
   ["issueIds", "issue", "issues", "todo"],
   ["bringItems", "bring-item", "bring-items", "todo"],
   ["kbIds", "knowledge entry", "knowledge entries", "kept"],
+  ["jobNotes", "note on the job", "notes on the job", "kept"],
   ["noteLines", "line kept", "lines kept", "kept"],
 ];
 
@@ -83,9 +88,12 @@ export function describeApplied(applied: unknown): Outcome[] {
    the capture really did make it, and it really isn't there any more. Both
    halves of that are true and a dead door would be neither.
 
-   The other five groups keep their counts and stay unlinked on purpose: a
+   The other six groups keep their counts and stay unlinked on purpose: a
    flag, an issue, a diary entry and a bring-item have no canonical page in
-   this app, and sending them "to the workboard, roughly" would be a lie. */
+   this app, and sending them "to the workboard, roughly" would be a lie. Words
+   kept on a job are the same answer for a different reason — they are text in
+   somebody else's `notes` column, and a visit or an agreement opens in a sheet
+   ON the board rather than at a route a chip could point at. */
 export function describeAppliedResolved(
   applied: unknown,
   lookups: AppliedLookups = {},

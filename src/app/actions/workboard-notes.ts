@@ -837,10 +837,16 @@ export async function dismissNote(noteId: string): Promise<ApplyResult> {
     .eq("id", noteId);
   refresh({ kind: note.target_kind, id: note.target_id });
   /* NOT "Kept as a note." — this is the ABANDON path (Escape, ×, walking
-     away), and nothing in the app reads `workboard_notes`, so that summary
-     promised a note the reader could never find. It is never displayed either:
-     the one caller `void`s the result. Saying what actually happened costs
-     nothing and stops the next person believing the old sentence. */
+     away), and a dismissed row is read by nothing: the journal lists `applied`
+     rows, so that summary promised a note the reader could never find. It is
+     never displayed either — the one caller `void`s the result. Saying what
+     actually happened costs nothing and stops the next person believing the
+     old sentence.
+
+     AND IT STAYS THAT WAY. The other three endings record what they did, which
+     is what puts them on the journal; this one has nothing to record, because
+     nothing happened. Filing an abandonment as applied would make walking away
+     from a half-sentence look exactly like filing it. */
   return { ok: true, summary: "Discarded." };
 }
 
@@ -848,9 +854,9 @@ export async function dismissNote(noteId: string): Promise<ApplyResult> {
 
    Isaac, 2026-08-02: "if you don't pick a job you can still just keep the
    note, but where the hell would the note go? That doesn't make sense." He's
-   right — `dismissNote` files the row at status `dismissed` and NOTHING in
-   the app reads workboard_notes, so the words went into a drawer nobody
-   opens. Same shape of black hole as the one #253 closed on the apply side.
+   right — `dismissNote` files the row at status `dismissed`, which nothing
+   reads, so the words went into a drawer nobody opens. Same shape of black
+   hole as the one #253 closed on the apply side.
 
    So keeping a note against a job now writes it onto that job's own notes,
    where the next person to open the sheet reads it. Appended, never replacing
@@ -884,6 +890,9 @@ export async function keepNoteOnJob(
     };
   }
 
+  const words = trim(note.transcript, 2000);
+  if (!words) return { ok: false, error: "There are no words to keep." };
+
   const table = tableFor(target.kind);
 
   const { data } = await supabaseAdmin
@@ -893,7 +902,7 @@ export async function keepNoteOnJob(
     .eq("id", target.id)
     .maybeSingle();
   const current = ((data as { notes: string | null } | null)?.notes ?? "").trim();
-  const merged = [current, trim(note.transcript, 2000)].filter(Boolean).join("\n\n").slice(0, 8000);
+  const merged = [current, words].filter(Boolean).join("\n\n").slice(0, 8000);
 
   await supabaseAdmin
     .from(table)
@@ -901,10 +910,24 @@ export async function keepNoteOnJob(
     .eq("org_id", ctx.orgId)
     .eq("id", target.id);
 
+  /* IT RECORDS WHAT IT DID, rather than borrowing the discard status. This
+     rung used to file the row at `dismissed` — the same status as Escape —
+     so the journal, which reads `applied` rows, showed nothing at all for a
+     capture that had just succeeded. Say it, and the row reads honestly.
+
+     `jobNotes` is its own group because none of the existing ones mean "the
+     words went onto the job's own notes": `entryLines` is progress and
+     commissioning shaped by the review card, and these are the transcript
+     verbatim. Words, not ids — they become text on somebody else's row, so
+     there is nothing to point back at, the same as bring-items. Adding a
+     group means teaching `APPLIED_GROUPS` in lib/dashboard/journal.ts how to
+     count it; a test pins the two lists against each other. */
   await supabaseAdmin
     .from("workboard_notes")
     .update({
-      status: "dismissed",
+      status: "applied",
+      applied: { jobNotes: [words] },
+      applied_at: new Date().toISOString(),
       target_kind: target.kind,
       target_id: target.id,
     })
@@ -950,9 +973,18 @@ export async function keepNoteForMe(noteId: string): Promise<ApplyResult> {
   });
   if (error) return { ok: false, error: "Couldn't keep that note." };
 
+  /* SAME REASON AS `keepNoteOnJob`: this succeeded, so it must not file
+     itself as a discard. It reuses `noteLines` rather than inventing a group
+     because it does literally what that group does — one `staff_notes` row,
+     linked by `source_note_id`, which is exactly what the journal's kept-lines
+     chip resolves its door from. One line kept, and the door opens on it. */
   await supabaseAdmin
     .from("workboard_notes")
-    .update({ status: "dismissed" })
+    .update({
+      status: "applied",
+      applied: { noteLines: [body] },
+      applied_at: new Date().toISOString(),
+    })
     .eq("org_id", ctx.orgId)
     .eq("id", noteId);
 

@@ -12,22 +12,23 @@
    capture that produced nothing (everything unticked) does stay: you still
    said it, and the row reads honestly with no outcomes after it.
 
-   KNOWN GAP, and it is on the WRITE side. `dismissed` covers three different
-   endings and only one of them is an abandonment:
+   ALL FOUR ENDINGS ARE HERE, and `status` is what tells them apart. Every one
+   of them writes this table, and for a while only one of them showed up:
 
-     dismissNote     Escape or ×. Genuinely thrown away — belongs out.
-     keepNoteForMe   Writes the words to `staff_notes` and returns "Kept in
-                     your notes." A SUCCESS, filed as dismissed.
+     applyNote       The rows were created. `applied`, with the ids to prove it.
+     keepNoteForMe   Writes the words to `staff_notes`. A SUCCESS, so it records
+                     one `noteLines` — literally what that group means, down to
+                     the `source_note_id` this file resolves the door from.
      keepNoteOnJob   Appends the words to the job's own notes. Also a success,
-                     also filed as dismissed.
+                     recorded as `jobNotes`.
+     dismissNote     Escape, ×, walking away. `dismissed`, and it stays out.
 
-   So two of the four rungs are invisible here, and nothing on the row tells
-   them apart from an abandonment — `applied` is null for all three. Closing it
-   means the two keep-rungs recording what they did rather than sharing the
-   discard status (`keepNoteForMe` does literally what the `noteLines` group
-   does, so `status:"applied", applied:{ noteLines:[body] }` would be both
-   honest and uniform). That is a change to the live capture flow, so it is
-   deliberately NOT bundled with the Home rebuild. */
+   The two keep-rungs used to borrow the discard status, which meant saying
+   something and choosing "Keep it in my notes" left the record saying you
+   never said it — while the empty state promised that anything you tell Tiff
+   lands here with what it turned into. THE STATUS IS THE WHOLE DISTINCTION
+   NOW: filing is `applied`, abandoning is not. Do not let a fourth thing start
+   writing `dismissed` on a path where something actually happened. */
 
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { auDayOf, fmtAuTime } from "@/lib/au-dates";

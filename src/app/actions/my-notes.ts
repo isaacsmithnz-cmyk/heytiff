@@ -9,9 +9,10 @@ import { staffIdFor } from "@/lib/workboard/projects-query";
 /* My notes — the write side.
 
    THE CASCADE'S FLOOR, and the reason it's a real table with a real screen
-   rather than a status on `workboard_notes`: nothing reads that table, so
-   "just keep the note" filed words in a drawer nobody opens. This is the
-   same idea with the missing half attached.
+   rather than a status on `workboard_notes`: a note you can open, edit and
+   throw away is not the same thing as the capture that produced it. The
+   journal reads captures back now, but it is a RECORD — nothing on it can be
+   changed, because changing what you said isn't a thing a record does.
 
    NO CAPABILITY GATE, deliberately. Writing yourself a note is not a
    permission — it's the least privileged thing anyone can do in the app, and

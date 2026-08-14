@@ -11,9 +11,9 @@ import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 
    This screen is the entire justification for the `staff_notes` table. A note
    that couldn't be filed against a job or handed to somebody as a task has to
-   land somewhere a person actually opens, or it is `workboard_notes` again:
-   written faithfully, read by nothing, and quietly worthless. If this page
-   ever goes, the table should go with it.
+   land somewhere a person actually opens and can edit — the journal shows
+   what you SAID and never lets you change it, which is right for a record and
+   useless for a note. If this page ever goes, the table should go with it.
 
    It also dogfoods the token. The add row here is the same `strip` posture
    the job card uses — commit is instant, and the sniff offers the review only

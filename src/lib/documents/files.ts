@@ -33,6 +33,11 @@ export type DocumentKind =
   | "org_logo"
   | "staff_photo"
   | "project_file"
+  /* A cached copy of a file that lives in ServiceM8. Its own kind because it
+     is the only one nobody here uploaded: it is re-fetchable, it is deleted
+     when the grant is, and it must never be adoptable by a claim or a notice
+     the way a receipt is. */
+  | "job_file"
   | "other";
 
 export const DOCUMENT_KINDS: readonly DocumentKind[] = [
@@ -45,6 +50,7 @@ export const DOCUMENT_KINDS: readonly DocumentKind[] = [
   "org_logo",
   "staff_photo",
   "project_file",
+  "job_file",
   "other",
 ];
 

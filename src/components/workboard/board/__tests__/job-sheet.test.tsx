@@ -3,21 +3,37 @@
    booking's end time, the dispatch queue, contact emails, the category's own
    colour. The sheet is where "we sync it" has to become "you can see it". */
 
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import type { JobDesign, MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import type { JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
 import type { JobMediaItem } from "@/lib/workboard/job-media";
+import type { CacheJobFilesResult } from "@/app/actions/workboard-media";
 import type { AllJobRow } from "@/lib/workboard/all-jobs";
 
 const readMirrorJob = jest.fn(async (): Promise<MirrorJobDetail | null> => null);
 const createProjectFromJob = jest.fn(async () => ({ ok: true as const, id: "p-new" }));
 /* A job with no files is the common case and the default here, so every test
-   below renders the sheet WITHOUT a files section unless it asks for one. */
+   renders the sheet WITHOUT a files section unless it asks for one. */
 const readJobFiles = jest.fn(async (): Promise<JobMediaGroupsRead | null> => null);
 jest.mock("@/app/actions/workboard", () => ({
   readMirrorJob: (...a: unknown[]) => readMirrorJob(...(a as [])),
   readJobFiles: (...a: unknown[]) => readJobFiles(...(a as [])),
   createProjectFromJob: (...a: unknown[]) => createProjectFromJob(...(a as [])),
+}));
+/* Mocked for its CONTENT below, but it would have to be mocked regardless:
+   a "use server" module drags next/server into jsdom, where `Request` is
+   undefined and the whole suite fails to load. */
+const cacheJobFiles = jest.fn(
+  async (): Promise<CacheJobFilesResult> => ({
+    ok: true,
+    cached: 0,
+    remaining: 0,
+    media: null,
+    note: null,
+  })
+);
+jest.mock("@/app/actions/workboard-media", () => ({
+  cacheJobFiles: (...a: unknown[]) => cacheJobFiles(...(a as [])),
 }));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn() }) }));
 
@@ -82,6 +98,17 @@ const detail = (over: Partial<MirrorJobDetail> = {}): MirrorJobDetail => ({
   money: null,
   designs: [],
   ...over,
+});
+
+/* Call COUNTS are the assertion in the caching tests, so a leaked count from
+   a neighbour would read as a loop that ran too many rounds. */
+beforeEach(() => {
+  readMirrorJob.mockReset();
+  readJobFiles.mockReset();
+  cacheJobFiles.mockReset();
+  readMirrorJob.mockResolvedValue(null);
+  readJobFiles.mockResolvedValue(null);
+  cacheJobFiles.mockResolvedValue({ ok: true, cached: 0, remaining: 0, media: null, note: null });
 });
 
 const noop = () => {};
@@ -199,7 +226,6 @@ describe("the work-order-since fact", () => {
   });
 });
 
-<<<<<<< HEAD
 /* The other end of the studio's job link (#385). A design names its job with
    `jobLink.remoteId`; `studio_designs.sm8_job_uuid` mirrors that out so this
    read is an index hit, and the sheet is where the round trip closes. */
@@ -229,7 +255,52 @@ describe("designs started from this job", () => {
     readMirrorJob.mockResolvedValueOnce(
       detail({
         designs: [design(), design({ id: "dsn_2", name: "12/3 Wallace St — option B" })],
-=======
+      })
+    );
+    render(<JobSheet row={row()} {...props} />);
+
+    expect(
+      await screen.findByText("Designed in the Studio — 2 options")
+    ).toBeInTheDocument();
+    // the contact's mailto is a link too — count the design rows only
+    expect(document.querySelectorAll("a.wb2-dsgn")).toHaveLength(2);
+  });
+
+  it("says one floor and one system in the singular", async () => {
+    readMirrorJob.mockResolvedValueOnce(
+      detail({ designs: [design({ floorCount: 1, systemCount: 1 })] })
+    );
+    render(<JobSheet row={row()} {...props} />);
+
+    expect(await screen.findByText(/1 floor · 1 system/)).toBeInTheDocument();
+  });
+
+  /* An empty heading on 800 service calls is a section that means nothing —
+     and a reader without `studio` never receives the list at all (the action
+     doesn't ask for it), which lands here as the same empty array. */
+  it("is absent entirely when nothing has been designed", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail());
+    render(<JobSheet row={row()} {...props} />);
+
+    await screen.findByText("18h 30m");
+    expect(screen.queryByText(/Designed in the Studio/)).toBeNull();
+  });
+
+  /* An id is a document id, not a URL fragment — encode it or a design whose
+     id ever grows a reserved character silently opens nothing. */
+  it("encodes the id it puts in the link", async () => {
+    readMirrorJob.mockResolvedValueOnce(
+      detail({ designs: [design({ id: "dsn a&b" })] })
+    );
+    render(<JobSheet row={row()} {...props} />);
+
+    expect(await screen.findByRole("link", { name: /12\/3 Wallace St/ })).toHaveAttribute(
+      "href",
+      "/dashboard/studio?design=dsn%20a%26b"
+    );
+  });
+});
+
 /* ── the job's files ── */
 
 describe("files on the job", () => {
@@ -312,56 +383,80 @@ describe("files on the job", () => {
     readJobFiles.mockResolvedValueOnce(
       files({
         photos: [file({ remoteId: "p-1" }), file({ remoteId: "p-2" })],
-        elsewhere: [file({ remoteId: "v-1", name: "walkthrough.mp4", fileType: ".mp4", kind: "video" })],
->>>>>>> 9fa5edf (A job's files, on the job — the list now, the bytes behind one constant)
+        elsewhere: [
+          file({ remoteId: "v-1", name: "walkthrough.mp4", fileType: ".mp4", kind: "video" }),
+        ],
       })
     );
     render(<JobSheet row={row()} {...props} />);
 
     expect(
-<<<<<<< HEAD
-      await screen.findByText("Designed in the Studio — 2 options")
-    ).toBeInTheDocument();
-    // the contact's mailto is a link too — count the design rows only
-    expect(document.querySelectorAll("a.wb2-dsgn")).toHaveLength(2);
-  });
-
-  it("says one floor and one system in the singular", async () => {
-    readMirrorJob.mockResolvedValueOnce(
-      detail({ designs: [design({ floorCount: 1, systemCount: 1 })] })
-    );
-    render(<JobSheet row={row()} {...props} />);
-
-    expect(await screen.findByText(/1 floor · 1 system/)).toBeInTheDocument();
-  });
-
-  /* An empty heading on 800 service calls is a section that means nothing —
-     and a reader without `studio` never receives the list at all (the action
-     doesn't ask for it), which lands here as the same empty array. */
-  it("is absent entirely when nothing has been designed", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail());
-    render(<JobSheet row={row()} {...props} />);
-
-    await screen.findByText("18h 30m");
-    expect(screen.queryByText(/Designed in the Studio/)).toBeNull();
-  });
-
-  /* An id is a document id, not a URL fragment — encode it or a design whose
-     id ever grows a reserved character silently opens nothing. */
-  it("encodes the id it puts in the link", async () => {
-    readMirrorJob.mockResolvedValueOnce(
-      detail({ designs: [design({ id: "dsn a&b" })] })
-    );
-    render(<JobSheet row={row()} {...props} />);
-
-    expect(await screen.findByRole("link", { name: /12\/3 Wallace St/ })).toHaveAttribute(
-      "href",
-      "/dashboard/studio?design=dsn%20a%26b"
-    );
-=======
       await screen.findByText("Files on this job — 2 photos and 1 left in ServiceM8")
     ).toBeInTheDocument();
     expect(screen.getByText(/1 file stays in ServiceM8/)).toBeInTheDocument();
->>>>>>> 9fa5edf (A job's files, on the job — the list now, the bytes behind one constant)
+  });
+});
+
+describe("bringing the bytes across", () => {
+  const files = (over: Partial<JobMediaGroupsRead> = {}): JobMediaGroupsRead => ({
+    photos: [],
+    documents: [],
+    elsewhere: [],
+    truncated: false,
+    ...over,
+  });
+
+  it("keeps asking while each round makes progress, then stops", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail());
+    readJobFiles.mockResolvedValueOnce(files());
+    cacheJobFiles
+      .mockResolvedValueOnce({ ok: true, cached: 6, remaining: 6, media: null, note: null })
+      .mockResolvedValueOnce({ ok: true, cached: 6, remaining: 0, media: null, note: null });
+
+    render(<JobSheet row={row()} {...props} />);
+    await screen.findByText("18h 30m");
+    await waitFor(() => expect(cacheJobFiles).toHaveBeenCalledTimes(2));
+  });
+
+  /* The rail that matters: a server reporting work left while caching none
+     would otherwise spin until the round cap, hammering ServiceM8 for
+     nothing. Progress, not the remaining count, is what earns another round. */
+  it("stops immediately when a round caches nothing, even with work left", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail());
+    readJobFiles.mockResolvedValueOnce(files());
+    cacheJobFiles.mockResolvedValue({ ok: true, cached: 0, remaining: 20, media: null, note: null });
+
+    render(<JobSheet row={row()} {...props} />);
+    await screen.findByText("18h 30m");
+    await waitFor(() => expect(cacheJobFiles).toHaveBeenCalledTimes(1));
+  });
+
+  it("says out loud when storage is the thing standing in the way", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail());
+    readJobFiles.mockResolvedValueOnce(files());
+    cacheJobFiles.mockResolvedValueOnce({
+      ok: true,
+      cached: 0,
+      remaining: 12,
+      // The files exist — that's WHY there's something to cache and something
+      // to complain about; an empty job would have nothing to say.
+      media: files({
+        photos: [
+          {
+            remoteId: "p-1",
+            name: "IMG_4021.jpg",
+            fileType: ".jpg",
+            kind: "photo" as const,
+            paperwork: null,
+            takenAt: null,
+            url: null,
+          },
+        ],
+      }),
+      note: "Storage is full — photos can't be brought across until there's room.",
+    });
+
+    render(<JobSheet row={row()} {...props} />);
+    expect(await screen.findByText(/Storage is full/)).toBeInTheDocument();
   });
 });

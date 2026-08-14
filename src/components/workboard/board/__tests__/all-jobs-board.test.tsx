@@ -22,6 +22,11 @@ jest.mock("@/app/actions/workboard", () => ({
   readJobFiles: (...a: unknown[]) => readJobFiles(...(a as [])),
   createProjectFromJob: (...a: unknown[]) => createProjectFromJob(...(a as [])),
 }));
+/* A "use server" module drags next/server into jsdom, where `Request` is
+   undefined and the suite dies before a single test runs. */
+jest.mock("@/app/actions/workboard-media", () => ({
+  cacheJobFiles: jest.fn(async () => ({ ok: true, cached: 0, remaining: 0, media: null, note: null })),
+}));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), refresh: jest.fn() }) }));
 jest.mock("../new-agreement-modal", () => ({
   NewAgreementModal: (p: { initialJob?: { jobNumber: string | null } | null }) => (

@@ -8,6 +8,7 @@ import { Icon } from "@/components/shell/icon";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { fmtAud } from "@/lib/workboard/project-money";
 import { createProjectFromJob, readJobFiles, readMirrorJob } from "@/app/actions/workboard";
+import { cacheJobFiles } from "@/app/actions/workboard-media";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import type { JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
 import { JOB_MEDIA_CAP, mediaCountLine } from "@/lib/workboard/job-media";
@@ -32,6 +33,10 @@ import { fmtMinutesAsHours, groupChecklist, type AllJobRow } from "@/lib/workboa
    carry every description, address and contact, so the row's slim facts paint
    immediately and the detail arrives a beat later. Nothing jumps: the fields
    that fill in were absent, not wrong. */
+
+/** Enough rounds for the busiest job in the live account (a few dozen files
+    at six a round), and a hard stop against a server that never converges. */
+const MAX_CACHE_ROUNDS = 12;
 
 const dayOf = (naive: string | null | undefined) =>
   naive && naive.length >= 10 ? naive.slice(0, 10) : null;
@@ -99,6 +104,7 @@ export function JobSheet({
   const router = useRouter();
   const [detail, setDetail] = useState<MirrorJobDetail | null>(null);
   const [media, setMedia] = useState<JobMediaGroupsRead | null>(null);
+  const [mediaNote, setMediaNote] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState("");
@@ -144,6 +150,31 @@ export function JobSheet({
     void readJobFiles(row.id).then((m) => {
       if (live) setMedia(m);
     });
+    return () => {
+      live = false;
+    };
+  }, [row.id]);
+
+  /* Bringing the bytes across, a few per round, with the BROWSER as the loop
+     — there is no server queue, the same reason the knowledge-base backfill
+     is driven from here. Two rails, both load-bearing: a hard round cap so a
+     pathological job can't spin forever, and STOP ON NO PROGRESS, because a
+     server that keeps saying "6 left" while caching none is a bug, not a
+     backlog. */
+  useEffect(() => {
+    let live = true;
+    let rounds = 0;
+    const pump = async () => {
+      while (live && rounds < MAX_CACHE_ROUNDS) {
+        rounds += 1;
+        const res = await cacheJobFiles(row.id);
+        if (!live) return;
+        if (res.media) setMedia(res.media);
+        if (res.note) setMediaNote(res.note);
+        if (!res.ok || res.cached === 0 || res.remaining === 0) return;
+      }
+    };
+    void pump();
     return () => {
       live = false;
     };
@@ -394,6 +425,8 @@ export function JobSheet({
                 — video and file types this screen can&apos;t show.
               </p>
             )}
+
+            {mediaNote && <p className="int-hint">{mediaNote}</p>}
 
             {media.truncated && (
               <p className="int-hint">

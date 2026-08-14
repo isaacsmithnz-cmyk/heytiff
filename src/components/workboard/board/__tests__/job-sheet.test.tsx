@@ -3,15 +3,37 @@
    booking's end time, the dispatch queue, contact emails, the category's own
    colour. The sheet is where "we sync it" has to become "you can see it". */
 
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import type { JobDesign, MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
+import type { JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
+import type { JobMediaItem } from "@/lib/workboard/job-media";
+import type { CacheJobFilesResult } from "@/app/actions/workboard-media";
 import type { AllJobRow } from "@/lib/workboard/all-jobs";
 
 const readMirrorJob = jest.fn(async (): Promise<MirrorJobDetail | null> => null);
 const createProjectFromJob = jest.fn(async () => ({ ok: true as const, id: "p-new" }));
+/* A job with no files is the common case and the default here, so every test
+   renders the sheet WITHOUT a files section unless it asks for one. */
+const readJobFiles = jest.fn(async (): Promise<JobMediaGroupsRead | null> => null);
 jest.mock("@/app/actions/workboard", () => ({
   readMirrorJob: (...a: unknown[]) => readMirrorJob(...(a as [])),
+  readJobFiles: (...a: unknown[]) => readJobFiles(...(a as [])),
   createProjectFromJob: (...a: unknown[]) => createProjectFromJob(...(a as [])),
+}));
+/* Mocked for its CONTENT below, but it would have to be mocked regardless:
+   a "use server" module drags next/server into jsdom, where `Request` is
+   undefined and the whole suite fails to load. */
+const cacheJobFiles = jest.fn(
+  async (): Promise<CacheJobFilesResult> => ({
+    ok: true,
+    cached: 0,
+    remaining: 0,
+    media: null,
+    note: null,
+  })
+);
+jest.mock("@/app/actions/workboard-media", () => ({
+  cacheJobFiles: (...a: unknown[]) => cacheJobFiles(...(a as [])),
 }));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn() }) }));
 
@@ -76,6 +98,17 @@ const detail = (over: Partial<MirrorJobDetail> = {}): MirrorJobDetail => ({
   money: null,
   designs: [],
   ...over,
+});
+
+/* Call COUNTS are the assertion in the caching tests, so a leaked count from
+   a neighbour would read as a loop that ran too many rounds. */
+beforeEach(() => {
+  readMirrorJob.mockReset();
+  readJobFiles.mockReset();
+  cacheJobFiles.mockReset();
+  readMirrorJob.mockResolvedValue(null);
+  readJobFiles.mockResolvedValue(null);
+  cacheJobFiles.mockResolvedValue({ ok: true, cached: 0, remaining: 0, media: null, note: null });
 });
 
 const noop = () => {};
@@ -265,5 +298,165 @@ describe("designs started from this job", () => {
       "href",
       "/dashboard/studio?design=dsn%20a%26b"
     );
+  });
+});
+
+/* ── the job's files ── */
+
+describe("files on the job", () => {
+  const file = (over: Partial<JobMediaItem> & { remoteId: string }): JobMediaItem => ({
+    name: "IMG_4021.jpg",
+    fileType: ".jpg",
+    kind: "photo",
+    paperwork: null,
+    takenAt: "2026-08-01 10:00:00",
+    url: null,
+    ...over,
+  });
+
+  const files = (over: Partial<JobMediaGroupsRead> = {}): JobMediaGroupsRead => ({
+    photos: [],
+    documents: [],
+    elsewhere: [],
+    truncated: false,
+    ...over,
+  });
+
+  it("says nothing at all when a job has no files", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail());
+    readJobFiles.mockResolvedValueOnce(files());
+    render(<JobSheet row={row()} {...props} />);
+
+    await screen.findByText("18h 30m");
+    expect(screen.queryByText(/Files on this job/)).toBeNull();
+  });
+
+  it("shows a cached photo as a real image, linked to the full size", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail());
+    readJobFiles.mockResolvedValueOnce(
+      files({ photos: [file({ remoteId: "p-1", url: "https://signed/p-1.jpg" })] })
+    );
+    render(<JobSheet row={row()} {...props} />);
+
+    const img = (await screen.findByAltText("IMG_4021.jpg")) as HTMLImageElement;
+    expect(img.getAttribute("src")).toBe("https://signed/p-1.jpg");
+    expect(img.closest("a")!.getAttribute("href")).toBe("https://signed/p-1.jpg");
+  });
+
+  /* A photo ServiceM8 has that we haven't fetched is neither hidden nor
+     broken: the tile says "there is one here", which is the truth. */
+  it("shows a placeholder tile for a photo whose bytes aren't cached", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail());
+    readJobFiles.mockResolvedValueOnce(files({ photos: [file({ remoteId: "p-1" })] }));
+    render(<JobSheet row={row()} {...props} />);
+
+    await screen.findByText(/Files on this job/);
+    expect(screen.queryByAltText("IMG_4021.jpg")).toBeNull();
+    expect(document.querySelector(".wb2-mtile.pending")).not.toBeNull();
+  });
+
+  it("names the paperwork and links it once it's cached", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail());
+    readJobFiles.mockResolvedValueOnce(
+      files({
+        documents: [
+          file({
+            remoteId: "d-1",
+            name: "Invoice #3137.pdf",
+            fileType: ".pdf",
+            kind: "document",
+            paperwork: "Invoice",
+            url: "https://signed/d-1.pdf",
+          }),
+        ],
+      })
+    );
+    render(<JobSheet row={row()} {...props} />);
+
+    const link = (await screen.findByText("Invoice #3137.pdf")) as HTMLAnchorElement;
+    expect(link.getAttribute("href")).toBe("https://signed/d-1.pdf");
+    expect(screen.getByText("Invoice")).toBeInTheDocument();
+  });
+
+  it("counts what stays in ServiceM8 instead of pretending it isn't there", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail());
+    readJobFiles.mockResolvedValueOnce(
+      files({
+        photos: [file({ remoteId: "p-1" }), file({ remoteId: "p-2" })],
+        elsewhere: [
+          file({ remoteId: "v-1", name: "walkthrough.mp4", fileType: ".mp4", kind: "video" }),
+        ],
+      })
+    );
+    render(<JobSheet row={row()} {...props} />);
+
+    expect(
+      await screen.findByText("Files on this job — 2 photos and 1 left in ServiceM8")
+    ).toBeInTheDocument();
+    expect(screen.getByText(/1 file stays in ServiceM8/)).toBeInTheDocument();
+  });
+});
+
+describe("bringing the bytes across", () => {
+  const files = (over: Partial<JobMediaGroupsRead> = {}): JobMediaGroupsRead => ({
+    photos: [],
+    documents: [],
+    elsewhere: [],
+    truncated: false,
+    ...over,
+  });
+
+  it("keeps asking while each round makes progress, then stops", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail());
+    readJobFiles.mockResolvedValueOnce(files());
+    cacheJobFiles
+      .mockResolvedValueOnce({ ok: true, cached: 6, remaining: 6, media: null, note: null })
+      .mockResolvedValueOnce({ ok: true, cached: 6, remaining: 0, media: null, note: null });
+
+    render(<JobSheet row={row()} {...props} />);
+    await screen.findByText("18h 30m");
+    await waitFor(() => expect(cacheJobFiles).toHaveBeenCalledTimes(2));
+  });
+
+  /* The rail that matters: a server reporting work left while caching none
+     would otherwise spin until the round cap, hammering ServiceM8 for
+     nothing. Progress, not the remaining count, is what earns another round. */
+  it("stops immediately when a round caches nothing, even with work left", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail());
+    readJobFiles.mockResolvedValueOnce(files());
+    cacheJobFiles.mockResolvedValue({ ok: true, cached: 0, remaining: 20, media: null, note: null });
+
+    render(<JobSheet row={row()} {...props} />);
+    await screen.findByText("18h 30m");
+    await waitFor(() => expect(cacheJobFiles).toHaveBeenCalledTimes(1));
+  });
+
+  it("says out loud when storage is the thing standing in the way", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail());
+    readJobFiles.mockResolvedValueOnce(files());
+    cacheJobFiles.mockResolvedValueOnce({
+      ok: true,
+      cached: 0,
+      remaining: 12,
+      // The files exist — that's WHY there's something to cache and something
+      // to complain about; an empty job would have nothing to say.
+      media: files({
+        photos: [
+          {
+            remoteId: "p-1",
+            name: "IMG_4021.jpg",
+            fileType: ".jpg",
+            kind: "photo" as const,
+            paperwork: null,
+            takenAt: null,
+            url: null,
+          },
+        ],
+      }),
+      note: "Storage is full — photos can't be brought across until there's room.",
+    });
+
+    render(<JobSheet row={row()} {...props} />);
+    expect(await screen.findByText(/Storage is full/)).toBeInTheDocument();
   });
 });

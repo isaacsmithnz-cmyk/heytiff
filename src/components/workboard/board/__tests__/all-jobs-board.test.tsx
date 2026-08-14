@@ -14,11 +14,18 @@ import { jobMoneyOf } from "@/lib/workboard/job-money";
 
 const searchAllJobs = jest.fn(async () => []);
 const readMirrorJob = jest.fn(async () => null);
+const readJobFiles = jest.fn(async () => null);
 const createProjectFromJob = jest.fn(async () => ({ ok: true as const, id: "p-new" }));
 jest.mock("@/app/actions/workboard", () => ({
   searchAllJobs: (...a: unknown[]) => searchAllJobs(...(a as [])),
   readMirrorJob: (...a: unknown[]) => readMirrorJob(...(a as [])),
+  readJobFiles: (...a: unknown[]) => readJobFiles(...(a as [])),
   createProjectFromJob: (...a: unknown[]) => createProjectFromJob(...(a as [])),
+}));
+/* A "use server" module drags next/server into jsdom, where `Request` is
+   undefined and the suite dies before a single test runs. */
+jest.mock("@/app/actions/workboard-media", () => ({
+  cacheJobFiles: jest.fn(async () => ({ ok: true, cached: 0, remaining: 0, media: null, note: null })),
 }));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), refresh: jest.fn() }) }));
 jest.mock("../new-agreement-modal", () => ({

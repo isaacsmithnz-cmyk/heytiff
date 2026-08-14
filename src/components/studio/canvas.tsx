@@ -104,6 +104,7 @@ import {
   zoomAt,
   type Viewport,
 } from "@/lib/studio/geometry";
+import { readWheel } from "@/lib/studio/wheel";
 
 /* StudioCanvas — the SVG scene per ADR-001. Renders the document, emits
    intents via onMutate; it never mutates the document itself. World space is
@@ -423,8 +424,15 @@ function defaultViewport(
 /** How far the pointer may travel and still count as a click, not a drag.
     Every click-to-place tool starts as a `tap-pan`: move past this and the
     gesture becomes a pan (so you can bring the far end of a wall into view
-    mid-calibration); release inside it and the placement commits. */
-const TAP_SLOP_PX = 4;
+    mid-calibration); release inside it and the placement commits.
+
+    Generous on purpose. This used to be 4px, because drag-past-the-slop was
+    the only way a trackpad could pan and a tight threshold made it reachable —
+    which meant a press that rolled a few px, as a trackpad press does, nudged
+    the plan instead of dropping the point you aimed at. Now that a two-finger
+    scroll pans (see readWheel), the drag is a fallback and the click can be
+    forgiving again. */
+const TAP_SLOP_PX = 10;
 
 type Drag =
   | { kind: "pan"; startScreen: Point; origVp: Viewport }
@@ -1257,16 +1265,25 @@ export function StudioCanvas({
      "less snapping, more precise adjustment"). Only pipes ortho-snap and pipe
      endpoints snap to anchors; rect rooms still stay rectangular via rectResize. */
 
-  /* ── zoom (native non-passive wheel so preventDefault works) ── */
+  /* ── pan + zoom (native non-passive wheel so preventDefault works) ──
+     A wheel notch zooms and a two-finger scroll pans — see readWheel for how
+     the two devices are told apart. This is the ONLY pan gesture a trackpad
+     has: middle-drag needs a button it doesn't have, and hold-Space is
+     swallowed the moment focus lands in the calibration measurement field. */
   useEffect(() => {
     const svg = svgRef.current;
     if (!svg) return;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       userFramed.current = true;
+      const g = readWheel(e);
+      if (g.kind === "pan") {
+        setVp((v) => ({ ...v, x: v.x + g.dx / v.zoom, y: v.y + g.dy / v.zoom }));
+        return;
+      }
       const r = svg.getBoundingClientRect();
       const screen = { x: e.clientX - r.left, y: e.clientY - r.top };
-      setVp((v) => zoomAt(v, screen, e.deltaY < 0 ? 1.12 : 1 / 1.12, minZoomRef.current));
+      setVp((v) => zoomAt(v, screen, g.factor, minZoomRef.current));
     };
     svg.addEventListener("wheel", onWheel, { passive: false });
     return () => svg.removeEventListener("wheel", onWheel);
@@ -2531,10 +2548,13 @@ export function StudioCanvas({
           icon: "ruler",
           /* the pan is named here because it is the whole reason the two
              points can be picked accurately — you can bring the far end of
-             the wall into view without dropping the first point */
+             the wall into view without dropping the first point. Both routes
+             are named: scroll is the trackpad's (a laptop has no middle
+             button, and Space is swallowed by the measurement field), drag
+             past the slop is the mouse's. */
           text: calib.a
-            ? "Click the second point of the known dimension · drag to pan"
-            : "Select two points a known distance apart · drag to pan",
+            ? "Click the second point of the known dimension · scroll or drag to pan"
+            : "Select two points a known distance apart · scroll or drag to pan",
         }
       : tool === "measure"
         ? { icon: "ruler", text: "Drag across anything to measure it — nothing is saved" }
@@ -2554,7 +2574,7 @@ export function StudioCanvas({
       : tool === "set-north"
         ? floor.northPos
           ? { icon: "rotate", text: "Drag the N to rotate · drag the centre to move" }
-          : { icon: "rotate", text: "Click on the plan to place the north marker" }
+          : { icon: "rotate", text: "Click to place the north marker · scroll or drag to pan" }
         : tool === "crop"
           ? { icon: "maximize", text: "Drag a rectangle over the area to keep" }
           : tool === "component" && component?.kind === "plenum"

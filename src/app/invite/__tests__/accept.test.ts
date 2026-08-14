@@ -55,6 +55,9 @@ const table = (name: string) => {
   };
   chain.not = self;
   chain.gt = self;
+  // The session hook's membership read orders its result; this suite only ever
+  // reaches it incidentally, so passing the call through is enough.
+  chain.order = self;
   chain.limit = self;
   chain.select = self;
   chain.single = async () => ({

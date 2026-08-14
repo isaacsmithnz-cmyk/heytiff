@@ -55,6 +55,7 @@ your local `.env.local`), scope = **Production** (and Preview if you want previe
 | `ELEVENLABS_API_KEY` | See **Smart Notes** below. Optional — unset, **notes still work**: the mic simply isn't offered and the paste box does everything. Never `NEXT_PUBLIC_`. |
 | `NEXT_PUBLIC_VOICE_REALTIME` | `1` streams dictation live instead of transcribing on stop. Optional, off by default, build-time. Holds no secret — see **Live transcription** below. |
 | `INTEGRATIONS_TOKEN_KEY` | 32-byte key that seals OAuth tokens before they reach the database. Required to connect anything — without it the Connect button is switched off rather than storing tokens in plaintext. |
+| `SELF_SERVE_SIGNUP` | `1` lets a first login with **no invitation** create its own organisation and own it. **Unset ⇒ off**, which is what you want for a single-company deployment: without it, anyone who reaches the site and signs in lands on `/no-org` instead of silently becoming the owner of an empty company nobody can get them out of. Turn it on only when strangers signing themselves up is the intended front door. |
 | `CRON_SECRET` | Guards the scheduled routes (`/api/cron/*`). **Vercel sets and sends this itself** once a `crons` entry exists in `vercel.json` — you only need to add it manually if you want to trigger a sweep by hand. **Unset ⇒ every cron request is refused** (fail-closed): the routes run with no session and service-role access, so the secret is the only gate. |
 
 ---

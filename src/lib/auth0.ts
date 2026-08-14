@@ -52,6 +52,35 @@ export async function ensureStaffCard(
   }
 }
 
+/* SELF-SERVE SIGNUP IS OFF UNLESS SOMEBODY TURNS IT ON.
+
+   First login with no invite used to mint a whole ORGANISATION named after the
+   person's email address and make them its owner. That is the correct front
+   door for a new BUSINESS signing up, and the wrong one for every other way a
+   stranger reaches the site — including, and this is what actually happened,
+   an employee who was told "we've got a new app", typed the address in, and
+   never touched the invite link that was sitting in their texts.
+
+   Prod carries three of these: two owned by the same address, which is one
+   person signing in twice. They are unrecoverable from inside the app — there
+   is no "join a company" screen and no way to move a user between orgs — so
+   the person is permanently stuck alone in an empty company that looks exactly
+   like a broken product, and the admin's invite for them can never be accepted
+   under that login without leaving a second membership behind (see the ordering
+   note on the membership read below).
+
+   Invite emails are NOT sent yet (actions/invite.ts), so an invite reaches
+   someone only when an admin copies its link by hand — which makes "signed in
+   before clicking the link" the LIKELY path through onboarding, not the odd
+   one. The flag is therefore off by default, and its polarity is deliberate:
+   an unset variable is the safe behaviour, because an unset variable is what
+   we actually ship with (CRON_SECRET spent two months teaching us that a
+   missing env var is invisible in Vercel's UI).
+
+   With it off, a stranger lands on /no-org — signed in, told what happened,
+   and handed their pending invite if one exists — instead of owning a ghost. */
+const selfServeSignup = () => process.env.SELF_SERVE_SIGNUP === "1";
+
 export const auth0 = new Auth0Client({
   signInReturnToPath: "/dashboard",
   beforeSessionSaved: async (session) => {
@@ -76,10 +105,28 @@ export const auth0 = new Auth0Client({
       console.error("Failed to sync profile:", e);
     }
 
+    /* ORDERED, because "the first row" was never a defined thing. This read
+       picked whichever membership Postgres happened to hand back first, so a
+       user holding two of them would land in a DIFFERENT company on different
+       logins — and the empty one looks exactly like every screen having lost
+       its data. There is no org switcher mounted anywhere in the app to climb
+       back out with (components/org-switcher.tsx exists and nothing renders
+       it), so an arbitrary pick is the whole story for that person's day.
+
+       NEWEST WINS, and the direction is chosen for the state prod is actually
+       in rather than for tidiness. The people holding two memberships are the
+       ones who signed themselves in before their invite existed: membership
+       one is the ghost org that signup minted for them, membership two is the
+       real company they were invited to. Oldest-first would pin them to the
+       ghost forever. Joining a company is also simply the more deliberate act
+       of the two — an accident cannot be later than the decision that followed
+       it — so the most recent membership is the better answer generally, not
+       only here. */
     const { data: memberships } = await supabaseAdmin
       .from("memberships")
       .select("org_id, role")
       .eq("user_id", userId)
+      .order("created_at", { ascending: false })
       .limit(1);
 
     const existing = memberships?.[0];
@@ -95,18 +142,29 @@ export const auth0 = new Auth0Client({
     // but Auth0 relays whatever casing the identity provider holds, and a
     // missed match here strands the invitee as owner of a phantom org.
     if (session.user.email) {
+      /* EXPIRY IS NOT CHECKED HERE, and that is the point. This read asks
+         "does anyone believe this person belongs to a company?", not "may they
+         walk in right now" — the accept route is what enforces the window, and
+         it still does. An invite that lapsed after seven days used to fall
+         through to org creation, so the slowest person in an onboarding round
+         was the one who ended up owning a ghost company. Now they reach
+         /no-org, which names the org that invited them and tells them to ask
+         for a renew — a state an admin can fix with the Renew button that
+         already exists. */
       const { data: pendingInvite } = await supabaseAdmin
         .from("invitations")
         .select("id")
         .eq("email", session.user.email.toLowerCase())
         .is("accepted_at", null)
-        .gt("expires_at", new Date().toISOString())
         .limit(1);
 
       if (pendingInvite?.[0]) return session;
     }
 
     // First login with no invite — create the org and owner membership.
+    // OFF by default; see the note on selfServeSignup above for why.
+    if (!selfServeSignup()) return session;
+
     // organizations.primary_owner_user_id is NOT NULL and its composite FK onto
     // memberships is DEFERRABLE INITIALLY DEFERRED: the org row and the owner
     // membership can only land together, in one transaction, with the owner

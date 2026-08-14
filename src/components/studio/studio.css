@@ -4201,7 +4201,22 @@ html[data-ds-display] .dstudio.editing {
   border-collapse: collapse;
   font-size: 13px;
   margin-bottom: 8px;
+  /* Every table on this sheet used to size its own columns to its own
+     content, so nothing lined up down a page whose whole job is to be read
+     as one document: the second column started anywhere from 439px to 535px.
+     Fixed layout + the per-variant widths below give the rooms tables one
+     grid and the takeoff tables another. */
+  table-layout: fixed;
 }
+/* rooms & loads — one grid for every floor */
+.dstudio .ds-mat-table.rooms th:nth-child(1) { width: 34%; }
+.dstudio .ds-mat-table.rooms th:nth-child(2) { width: 13%; }
+.dstudio .ds-mat-table.rooms th:nth-child(3) { width: 13%; }
+/* the printed systems overview keeps content-sized columns */
+.dstudio .ds-mat-table.auto { table-layout: auto; }
+/* takeoff — one grid for units, pipe and the whole-job rollup */
+.dstudio .ds-mat-table.take th:nth-child(1) { width: 28%; }
+.dstudio .ds-mat-table.take th:nth-child(3) { width: 14%; }
 .dstudio .ds-mat-table th {
   text-align: left;
   font-size: 10.5px;
@@ -4210,6 +4225,18 @@ html[data-ds-display] .dstudio.editing {
   color: var(--gray500);
   padding: 6px 8px;
   border-bottom: 1px solid var(--ds-border);
+}
+/* Numbers are marked, not inferred from position. `td:last-child` used to
+   carry this, which right-aligned whatever happened to be last — including
+   the em-dash in Served by, so an unserved room's dash sat ~300px from the
+   chips it lines up with. Both th and td, so the header sits over its own
+   figures instead of ~90px to their left. */
+.dstudio .ds-mat-table th.num,
+.dstudio .ds-mat-table td.num { text-align: right; }
+.dstudio .ds-mat-table td.num {
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
 .dstudio .ds-mat-table td {
   padding: 7px 8px;
@@ -4220,7 +4247,6 @@ html[data-ds-display] .dstudio.editing {
      below emphasised nothing. State the body weight here and they work. */
   font-weight: 500;
 }
-.dstudio .ds-mat-table td:last-child { text-align: right; font-weight: 700; color: var(--ink); }
 /* `td.ds-mat-model`, not `.ds-mat-model`: the body-weight rule above is
    (0,2,1) and a bare class here is (0,2,0), so the model column would lose
    the very emphasis this rule exists to give it. Same shape as the

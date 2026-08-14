@@ -202,12 +202,12 @@ export function SummaryView({
                     {floorDisplayName(f)}
                     {!f.calibrated && <em>uncalibrated — no areas</em>}
                   </div>
-                  <table className="ds-mat-table">
+                  <table className="ds-mat-table rooms">
                     <thead>
                       <tr>
                         <th>Room</th>
-                        <th>Area</th>
-                        <th>Load</th>
+                        <th className="num">Area</th>
+                        <th className="num">Load</th>
                         <th>Served by</th>
                       </tr>
                     </thead>
@@ -215,8 +215,8 @@ export function SummaryView({
                       {f.rooms.map((r) => (
                         <tr key={r.roomId}>
                           <td className="ds-mat-model">{r.name}</td>
-                          <td>{fmt(r.areaM2, "m²")}</td>
-                          <td>{fmt(r.loadKw, "kW")}</td>
+                          <td className="num">{fmt(r.areaM2, "m²")}</td>
+                          <td className="num">{fmt(r.loadKw, "kW")}</td>
                           <td>
                             {r.serving.length === 0 ? (
                               "—"
@@ -271,12 +271,12 @@ export function SummaryView({
                 </span>
               </header>
               {s.units.length > 0 && (
-                <table className="ds-mat-table">
+                <table className="ds-mat-table take">
                   <thead>
                     <tr>
                       <th>Unit</th>
-                      <th></th>
-                      <th>Qty</th>
+                      <th>Description</th>
+                      <th className="num">Qty</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -284,19 +284,19 @@ export function SummaryView({
                       <tr key={u.model}>
                         <td className="ds-mat-model">{u.model}</td>
                         <td>{u.description}</td>
-                        <td>{u.qty}</td>
+                        <td className="num">{u.qty}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               )}
               {s.pipe.length > 0 && (
-                <table className="ds-mat-table">
+                <table className="ds-mat-table take">
                   <thead>
                     <tr>
                       <th>Pipe (pair coil)</th>
-                      <th></th>
-                      <th>Length</th>
+                      <th>Description</th>
+                      <th className="num">Length</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -306,7 +306,7 @@ export function SummaryView({
                           ø{p.liquid_mm} / ø{p.gas_mm}
                         </td>
                         <td>liquid / gas mm</td>
-                        <td>{p.lengthM} m</td>
+                        <td className="num">{p.lengthM} m</td>
                       </tr>
                     ))}
                   </tbody>
@@ -340,12 +340,12 @@ export function SummaryView({
               <h3>Whole job</h3>
               <span className="ds-mat-type">all systems rolled up</span>
             </header>
-            <table className="ds-mat-table">
+            <table className="ds-mat-table take">
               <thead>
                 <tr>
                   <th>Model</th>
-                  <th></th>
-                  <th>Qty</th>
+                  <th>Description</th>
+                  <th className="num">Qty</th>
                 </tr>
               </thead>
               <tbody>
@@ -353,7 +353,7 @@ export function SummaryView({
                   <tr key={r.model}>
                     <td className="ds-mat-model">{r.model}</td>
                     <td>{r.description}</td>
-                    <td>{r.qty}</td>
+                    <td className="num">{r.qty}</td>
                   </tr>
                 ))}
               </tbody>

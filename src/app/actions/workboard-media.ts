@@ -60,7 +60,24 @@ async function orgOf(): Promise<string | null> {
   return (session?.orgId as string | undefined) ?? null;
 }
 
+/* NOTHING HERE MAY CRASH THE FUNCTION. An action that throws returns a bare
+   503 to the browser: the sheet gets no result object, so it can't say what
+   went wrong and can't stop its own loop — it just retries into the same
+   wall. That is exactly what a `documents` CHECK violation did on the first
+   prod walk, and the 503 said nothing about which constraint. The wrapper
+   turns any throw into a result the caller can read and a log line naming
+   the job. */
 export async function cacheJobFiles(jobUuid: string): Promise<CacheJobFilesResult> {
+  try {
+    return await cacheJobFilesInner(jobUuid);
+  } catch (e) {
+    console.error(`[job-media] caching failed for ${jobUuid}:`, e);
+    // ok:false, so the sheet's loop stops rather than retrying into it.
+    return { ...NOTHING, note: "Those files couldn't be brought across just now." };
+  }
+}
+
+async function cacheJobFilesInner(jobUuid: string): Promise<CacheJobFilesResult> {
   if (!(await can("workboard"))) return NOTHING;
   const orgId = await orgOf();
   const id = (jobUuid ?? "").trim().slice(0, 80);
@@ -122,6 +139,14 @@ export async function cacheJobFiles(jobUuid: string): Promise<CacheJobFilesResul
 
     const ext = (normaliseFileType(row.file_type) ?? ".bin").slice(1);
 
+    /* The path is named for the SERVICEM8 uuid, not for our row's id — which
+       is what lets it be computed before the row exists. `documents_ref_check`
+       requires `storage_ref LIKE 'org/%'`, so there is no writing a blank one
+       and filling it in afterwards (the 503 that sent me here). The remote
+       uuid is already unique and already the dedupe key, so re-caching the
+       same file overwrites its own object instead of orphaning one. */
+    const ref = storageRef(orgId, "job_file", row.uuid, ext);
+
     // Row first: an unconfirmed slot is invisible to every reader.
     const { data: slot, error: slotError } = await supabaseAdmin
       .from("documents")
@@ -135,7 +160,7 @@ export async function cacheJobFiles(jobUuid: string): Promise<CacheJobFilesResul
           file_name: row.attachment_name?.trim() || `file.${ext}`,
           mime_type: file.contentType,
           size_bytes: file.bytes.byteLength,
-          storage_ref: "",
+          storage_ref: ref,
         },
         { onConflict: "org_id,source,remote_ref" }
       )
@@ -143,9 +168,14 @@ export async function cacheJobFiles(jobUuid: string): Promise<CacheJobFilesResul
       .maybeSingle();
 
     const documentId = (slot as { id: string } | null)?.id;
-    if (slotError || !documentId) continue;
+    if (slotError || !documentId) {
+      /* Logged, not swallowed. This is where a schema disagreement lands —
+         a CHECK the code doesn't know about fails EVERY file identically and
+         would otherwise read as "the photos just don't load". */
+      console.error(`[job-media] row refused for attachment ${row.uuid}:`, slotError);
+      continue;
+    }
 
-    const ref = storageRef(orgId, "job_file", documentId, ext);
     const { error: upErr } = await supabaseAdmin.storage
       .from(DOCUMENTS_BUCKET)
       .upload(ref, file.bytes, { contentType: file.contentType, upsert: true });
@@ -160,7 +190,7 @@ export async function cacheJobFiles(jobUuid: string): Promise<CacheJobFilesResul
 
     await supabaseAdmin
       .from("documents")
-      .update({ storage_ref: ref, uploaded_at: new Date().toISOString() })
+      .update({ uploaded_at: new Date().toISOString() })
       .eq("org_id", orgId)
       .eq("id", documentId);
 

@@ -1038,16 +1038,13 @@ html[data-ds-display] .dstudio.editing {
   border-color: rgba(0, 229, 192, 0.6);
   box-shadow: 0 0 0 3px rgba(0, 229, 192, 0.13);
 }
-.dstudio .ds-job {
-  flex: 0 0 auto;
-  font: 700 10.5px var(--mono);
-  background: #fff;
-  border: 1px solid rgba(10, 12, 20, 0.08);
-  color: var(--gray500);
-  border-radius: 999px;
-  padding: 3px 10px;
-  white-space: nowrap;
-}
+/* The topbar job PILL used to live here. Nothing renders it any more — the
+   only `ds-job` left in the codebase is the Summary sheet's root — so all this
+   rule still did was hand that sheet a pill's typography: the `font`
+   shorthand set every un-sized descendant to 700/10.5px (which is why
+   `.ds-mat-model`'s bold was a no-op — the table was ALREADY 700), plus a
+   nowrap `.ds-act-s` had to fight and a 999px radius on a full-width sheet.
+   Deleted rather than renamed: there is no consumer to rename it for. */
 
 /* stepper — segmented switcher, HeyTiff pay-cycle-toggle language.
    The selected pill is a single THUMB that slides between the tabs rather
@@ -1303,9 +1300,7 @@ html[data-ds-display] .dstudio.editing {
   }
 }
 @media (max-width: 1150px) {
-  .dstudio .ds-id .ds-job {
-    display: none;
-  }
+  /* the pill this hid is gone (see above) */
   .dstudio .ds-title-input {
     max-width: 160px;
   }
@@ -4220,9 +4215,17 @@ html[data-ds-display] .dstudio.editing {
   padding: 7px 8px;
   border-bottom: 1px solid #f4f4f2;
   color: var(--gray700);
+  /* The sheet used to inherit 700 from a topbar pill (see the deleted rule
+     around line 1041), so EVERY cell was bold and the two emphasis rules
+     below emphasised nothing. State the body weight here and they work. */
+  font-weight: 500;
 }
 .dstudio .ds-mat-table td:last-child { text-align: right; font-weight: 700; color: var(--ink); }
-.dstudio .ds-mat-model { font-weight: 700; color: var(--ink); }
+/* `td.ds-mat-model`, not `.ds-mat-model`: the body-weight rule above is
+   (0,2,1) and a bare class here is (0,2,0), so the model column would lose
+   the very emphasis this rule exists to give it. Same shape as the
+   `.fg button` trap — an element in the selector outranks a lone class. */
+.dstudio .ds-mat-table td.ds-mat-model { font-weight: 700; color: var(--ink); }
 .dstudio .ds-mat-charge {
   font-size: 12.5px;
   color: var(--gray700);
@@ -5457,7 +5460,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-insp-edit { justify-content: center; margin-top: 4px; }
 
 /* ═════════ summary page (job details + takeoff + printable pack) ═════════ */
-.dstudio .ds-job { display: flex; flex-direction: column; gap: 20px; align-items: stretch; }
+.dstudio .ds-summary { display: flex; flex-direction: column; gap: 20px; align-items: stretch; }
 .dstudio .ds-sum-screen {
   display: flex;
   flex-direction: column;
@@ -5508,12 +5511,6 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-job-from b {
   font-weight: 800;
   color: var(--ink);
-}
-.dstudio .ds-job-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
 }
 .dstudio .ds-job-print,
 .dstudio .ds-job-export { justify-content: center; flex: 0 0 auto; }
@@ -5668,8 +5665,6 @@ html[data-ds-display] .dstudio.editing {
   font-size: 11.5px;
   line-height: 1.5;
   color: var(--gray500);
-  /* an ancestor pins nowrap (topbar lineage) — the pitch line must wrap */
-  white-space: normal;
 }
 .dstudio .ds-act-row {
   display: flex;
@@ -8485,10 +8480,19 @@ html[data-ds-display] .dstudio.editing {
   --ds-ok: #2ee9c9;
 }
 
-/* ── glass primitives ── */
+/* ── glass primitives ──
+   Every class here is chrome that sits on the DARK frame: the menu and
+   fullscreen buttons, the canvas controls, the floor and system triggers.
+
+   `.ds-tbbtn` used to be in this list and did not belong: its only consumers
+   are the Summary action cards and the Design step's "No floors yet" empty
+   state, both of which render on the WHITE page plate. There it painted a
+   white-on-white fill and a white-on-white border, leaving a 40%-black glass
+   shadow to draw the whole button — and its hover (white .12 / .22) was
+   invisible, so those buttons had no hover feedback at all. Removed rather
+   than overridden: the light `.ds-tbbtn` rule was always correct. */
 .dstudio.editing .ds-menu-btn,
 .dstudio.editing .ds-fsbtn,
-.dstudio.editing .ds-tbbtn,
 .dstudio.editing .ds-ctl-btn,
 .dstudio.editing .ds-floor-trigger,
 .dstudio.editing .ds-sys-trigger {
@@ -8500,7 +8504,6 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio.editing .ds-menu-btn:hover,
 .dstudio.editing .ds-fsbtn:hover,
-.dstudio.editing .ds-tbbtn:hover,
 .dstudio.editing .ds-ctl-btn:hover,
 .dstudio.editing .ds-floor-trigger:hover,
 .dstudio.editing .ds-sys-trigger:hover {

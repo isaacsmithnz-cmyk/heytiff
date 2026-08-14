@@ -62,7 +62,7 @@ export function SummaryView({
   const anyRooms = snapshot.roomCount > 0;
 
   return (
-    <div className="ds-panel-card ds-job ds-summary">
+    <div className="ds-panel-card ds-summary">
       <div className="ds-sum-screen ds-summary2">
         {/* ── job card + action cards ── */}
         <div className="ds-sum-top">

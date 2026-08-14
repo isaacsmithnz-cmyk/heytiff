@@ -37,7 +37,7 @@ import { AllJobsBoard } from "./board/all-jobs-board";
 
    All three are the SAME architecture — one persistent card, tabs that swap
    information rather than surface, every colour derived from the one status
-   law. Maintenance runs five tabs, projects four, all jobs three. Flags route
+   law. Maintenance runs five tabs, projects four, all jobs four. Flags route
    to the board whose work they point at, so nothing appears twice; All jobs
    raises none, because a reference list has no queue.
 
@@ -57,14 +57,22 @@ import { AllJobsBoard } from "./board/all-jobs-board";
 
 const REFRESH_MS = 60_000;
 
-/* Projects first, maintenance second — the handoff's order — and All jobs
-   last, because it is where you go when the two curated sides don't have the
-   thing you're looking for. The board still OPENS on maintenance, the side
-   that carries the daily noise. */
+/* ALL JOBS FIRST, then projects and maintenance. It used to run the other
+   way — the two curated sides first and the book of work last, on the
+   reasoning that you only reach for "everything" when the curated sides
+   don't have what you want. That reasoning aged: All jobs is the only side
+   with an account's whole day on it, and since the Schedule tab landed it
+   answers "who is on what right now" — the question this board is asked
+   first, every morning.
+
+   Order is display only. The board still OPENS on maintenance, the side that
+   carries the daily badges; nothing here is position-keyed, because the
+   thumb measures off `[data-side]` and every side's colour hangs off
+   `[data-on]`. */
 const SIDES = [
+  { key: "jobs", label: "All jobs" },
   { key: "projects", label: "Projects" },
   { key: "maintenance", label: "Maintenance" },
-  { key: "jobs", label: "All jobs" },
 ] as const;
 type SideKey = (typeof SIDES)[number]["key"];
 

@@ -180,6 +180,21 @@ describe("standalone", () => {
 });
 
 describe("the switcher", () => {
+  /* The order is a decision, not an accident — All jobs leads because it is
+     the only side carrying the whole account's day, and its Schedule tab
+     answers the question this board is asked first each morning. Nothing in
+     the CSS is position-keyed, so only this test would notice a reshuffle. */
+  it("leads with All jobs, then the two curated sides", () => {
+    render(<OverviewScreen data={base} />);
+    /* firstChild, not textContent: the curated sides append a badge, and the
+       fact that All jobs has none is its own rule, pinned below. */
+    expect(screen.getAllByRole("tab").map((t) => t.firstChild?.textContent)).toEqual([
+      "All jobs",
+      "Projects",
+      "Maintenance",
+    ]);
+  });
+
   it("opens on Maintenance and swaps whole boards", async () => {
     render(<OverviewScreen data={base} />);
 

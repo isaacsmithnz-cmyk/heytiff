@@ -65,10 +65,15 @@ const REFRESH_MS = 60_000;
    answers "who is on what right now" — the question this board is asked
    first, every morning.
 
-   Order is display only. The board still OPENS on maintenance, the side that
-   carries the daily badges; nothing here is position-keyed, because the
-   thumb measures off `[data-side]` and every side's colour hangs off
-   `[data-on]`. */
+   The board OPENS on it too — first side, first tab, which lands you on
+   today's diary. It used to open on maintenance for its badges, but a badge
+   is a summons you can see from any side (the switcher carries both counts
+   at all times), while the day's run is only legible from the side that
+   holds it.
+
+   Nothing here is position-keyed, because the thumb measures off
+   `[data-side]` and every side's colour hangs off `[data-on]` — which is
+   also why only a test would notice this order changing. */
 const SIDES = [
   { key: "jobs", label: "All jobs" },
   { key: "projects", label: "Projects" },
@@ -79,7 +84,7 @@ type SideKey = (typeof SIDES)[number]["key"];
 export function OverviewScreen({ data }: { data: WorkboardData }) {
   const router = useRouter();
   const [display, setDisplay] = useState(false);
-  const [tab, setTab] = useState<SideKey>("maintenance");
+  const [tab, setTab] = useState<SideKey>("jobs");
   /* Following a tracked job off the All jobs side: the switcher changes side
      AND the destination board opens the right sheet. Held here because the
      boards are siblings — neither can reach into the other — and cleared once

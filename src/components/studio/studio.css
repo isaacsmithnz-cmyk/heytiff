@@ -1038,16 +1038,13 @@ html[data-ds-display] .dstudio.editing {
   border-color: rgba(0, 229, 192, 0.6);
   box-shadow: 0 0 0 3px rgba(0, 229, 192, 0.13);
 }
-.dstudio .ds-job {
-  flex: 0 0 auto;
-  font: 700 10.5px var(--mono);
-  background: #fff;
-  border: 1px solid rgba(10, 12, 20, 0.08);
-  color: var(--gray500);
-  border-radius: 999px;
-  padding: 3px 10px;
-  white-space: nowrap;
-}
+/* The topbar job PILL used to live here. Nothing renders it any more — the
+   only `ds-job` left in the codebase is the Summary sheet's root — so all this
+   rule still did was hand that sheet a pill's typography: the `font`
+   shorthand set every un-sized descendant to 700/10.5px (which is why
+   `.ds-mat-model`'s bold was a no-op — the table was ALREADY 700), plus a
+   nowrap `.ds-act-s` had to fight and a 999px radius on a full-width sheet.
+   Deleted rather than renamed: there is no consumer to rename it for. */
 
 /* stepper — segmented switcher, HeyTiff pay-cycle-toggle language.
    The selected pill is a single THUMB that slides between the tabs rather
@@ -1303,9 +1300,7 @@ html[data-ds-display] .dstudio.editing {
   }
 }
 @media (max-width: 1150px) {
-  .dstudio .ds-id .ds-job {
-    display: none;
-  }
+  /* the pill this hid is gone (see above) */
   .dstudio .ds-title-input {
     max-width: 160px;
   }
@@ -4206,7 +4201,22 @@ html[data-ds-display] .dstudio.editing {
   border-collapse: collapse;
   font-size: 13px;
   margin-bottom: 8px;
+  /* Every table on this sheet used to size its own columns to its own
+     content, so nothing lined up down a page whose whole job is to be read
+     as one document: the second column started anywhere from 439px to 535px.
+     Fixed layout + the per-variant widths below give the rooms tables one
+     grid and the takeoff tables another. */
+  table-layout: fixed;
 }
+/* rooms & loads — one grid for every floor */
+.dstudio .ds-mat-table.rooms th:nth-child(1) { width: 34%; }
+.dstudio .ds-mat-table.rooms th:nth-child(2) { width: 13%; }
+.dstudio .ds-mat-table.rooms th:nth-child(3) { width: 13%; }
+/* the printed systems overview keeps content-sized columns */
+.dstudio .ds-mat-table.auto { table-layout: auto; }
+/* takeoff — one grid for units, pipe and the whole-job rollup */
+.dstudio .ds-mat-table.take th:nth-child(1) { width: 28%; }
+.dstudio .ds-mat-table.take th:nth-child(3) { width: 14%; }
 .dstudio .ds-mat-table th {
   text-align: left;
   font-size: 10.5px;
@@ -4216,13 +4226,32 @@ html[data-ds-display] .dstudio.editing {
   padding: 6px 8px;
   border-bottom: 1px solid var(--ds-border);
 }
+/* Numbers are marked, not inferred from position. `td:last-child` used to
+   carry this, which right-aligned whatever happened to be last — including
+   the em-dash in Served by, so an unserved room's dash sat ~300px from the
+   chips it lines up with. Both th and td, so the header sits over its own
+   figures instead of ~90px to their left. */
+.dstudio .ds-mat-table th.num,
+.dstudio .ds-mat-table td.num { text-align: right; }
+.dstudio .ds-mat-table td.num {
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
 .dstudio .ds-mat-table td {
   padding: 7px 8px;
   border-bottom: 1px solid #f4f4f2;
   color: var(--gray700);
+  /* The sheet used to inherit 700 from a topbar pill (see the deleted rule
+     around line 1041), so EVERY cell was bold and the two emphasis rules
+     below emphasised nothing. State the body weight here and they work. */
+  font-weight: 500;
 }
-.dstudio .ds-mat-table td:last-child { text-align: right; font-weight: 700; color: var(--ink); }
-.dstudio .ds-mat-model { font-weight: 700; color: var(--ink); }
+/* `td.ds-mat-model`, not `.ds-mat-model`: the body-weight rule above is
+   (0,2,1) and a bare class here is (0,2,0), so the model column would lose
+   the very emphasis this rule exists to give it. Same shape as the
+   `.fg button` trap — an element in the selector outranks a lone class. */
+.dstudio .ds-mat-table td.ds-mat-model { font-weight: 700; color: var(--ink); }
 .dstudio .ds-mat-charge {
   font-size: 12.5px;
   color: var(--gray700);
@@ -5457,7 +5486,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-insp-edit { justify-content: center; margin-top: 4px; }
 
 /* ═════════ summary page (job details + takeoff + printable pack) ═════════ */
-.dstudio .ds-job { display: flex; flex-direction: column; gap: 20px; align-items: stretch; }
+.dstudio .ds-summary { display: flex; flex-direction: column; gap: 20px; align-items: stretch; }
 .dstudio .ds-sum-screen {
   display: flex;
   flex-direction: column;
@@ -5508,12 +5537,6 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-job-from b {
   font-weight: 800;
   color: var(--ink);
-}
-.dstudio .ds-job-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
 }
 .dstudio .ds-job-print,
 .dstudio .ds-job-export { justify-content: center; flex: 0 0 auto; }
@@ -5668,8 +5691,6 @@ html[data-ds-display] .dstudio.editing {
   font-size: 11.5px;
   line-height: 1.5;
   color: var(--gray500);
-  /* an ancestor pins nowrap (topbar lineage) — the pitch line must wrap */
-  white-space: normal;
 }
 .dstudio .ds-act-row {
   display: flex;
@@ -8485,10 +8506,19 @@ html[data-ds-display] .dstudio.editing {
   --ds-ok: #2ee9c9;
 }
 
-/* ── glass primitives ── */
+/* ── glass primitives ──
+   Every class here is chrome that sits on the DARK frame: the menu and
+   fullscreen buttons, the canvas controls, the floor and system triggers.
+
+   `.ds-tbbtn` used to be in this list and did not belong: its only consumers
+   are the Summary action cards and the Design step's "No floors yet" empty
+   state, both of which render on the WHITE page plate. There it painted a
+   white-on-white fill and a white-on-white border, leaving a 40%-black glass
+   shadow to draw the whole button — and its hover (white .12 / .22) was
+   invisible, so those buttons had no hover feedback at all. Removed rather
+   than overridden: the light `.ds-tbbtn` rule was always correct. */
 .dstudio.editing .ds-menu-btn,
 .dstudio.editing .ds-fsbtn,
-.dstudio.editing .ds-tbbtn,
 .dstudio.editing .ds-ctl-btn,
 .dstudio.editing .ds-floor-trigger,
 .dstudio.editing .ds-sys-trigger {
@@ -8500,7 +8530,6 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio.editing .ds-menu-btn:hover,
 .dstudio.editing .ds-fsbtn:hover,
-.dstudio.editing .ds-tbbtn:hover,
 .dstudio.editing .ds-ctl-btn:hover,
 .dstudio.editing .ds-floor-trigger:hover,
 .dstudio.editing .ds-sys-trigger:hover {
@@ -8959,10 +8988,358 @@ html[data-ds-display] .dstudio.editing {
   white-space: nowrap;
 }
 .dstudio .ds-contrib-note {
-  font-size: 10.5px;
-  color: var(--gray400);
+  /* --gray400 is 2.54:1 on the sheet. This carries meaning ("who has worked
+     on this", and the loading state), so it takes the readable grey. */
+  font-size: 11px;
+  color: var(--gray500);
 }
 .dstudio .ds-share-kill {
   border-color: rgba(220, 38, 38, 0.45);
   color: #b42318;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Summary sheet v2 — an ink hero floating on the white page, then one soft
+   glass card per system.
+
+   SOFT GLASS, NOT A BACKDROP-FILTER. What sits behind these cards is the
+   page plate (`.ds-editor::before`), which is flat #fff — blurring a flat
+   colour returns the same colour, so a real backdrop-filter would buy
+   nothing and cost a compositing layer and a stacking context per card.
+   The look comes from a whisper of ink over the plate, a white inset lip
+   along the top edge, and a soft ambient shadow. One rule, no layers.
+
+   The cards must also be VISIBLE: at rgba(10,12,20,.07) the old borders sat
+   at about 1.06:1 against white and the sheet read as floating text.
+   ═══════════════════════════════════════════════════════════════════════ */
+.dstudio .ds-glass {
+  background: rgba(10, 12, 20, 0.022);
+  border: 1px solid rgba(10, 12, 20, 0.1);
+  border-radius: 16px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 1px 2px rgba(10, 12, 20, 0.04), 0 18px 40px -26px rgba(10, 12, 20, 0.3);
+}
+
+/* ── the hero: opaque ink, floating on the page ──
+      Opaque on purpose. Translucent ink over white paper goes grey and muddy;
+      the studio's glass primitive belongs on the dark frame, not here. The
+      glow is the frame's own teal/blue, carried INSIDE the panel so it does
+      not depend on what happens to be behind it. */
+.dstudio .ds-hero {
+  background-color: var(--ds-ink-hero);
+  background-image: radial-gradient(
+      340px 300px at 88% -20%,
+      rgba(0, 229, 192, 0.18),
+      transparent 68%
+    ),
+    radial-gradient(300px 280px at -4% 118%, rgba(46, 104, 255, 0.15), transparent 68%);
+  border-radius: 20px;
+  padding: 24px 26px;
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 26px;
+  align-items: start;
+  color: #fff;
+  box-shadow: 0 1px 2px rgba(10, 12, 20, 0.14), 0 26px 54px -28px rgba(10, 12, 20, 0.6);
+}
+.dstudio .ds-hero-lead { display: flex; flex-direction: column; gap: 13px; min-width: 0; }
+/* job number holds the top of the sheet, with where it came from beneath */
+.dstudio .ds-hero-job { display: flex; align-items: center; gap: 11px; flex-wrap: wrap; }
+.dstudio .ds-hero-jn {
+  font: inherit;
+  width: 9.5rem;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  padding: 4px 12px;
+}
+.dstudio .ds-hero-jn::placeholder { color: rgba(255, 255, 255, 0.42); }
+.dstudio .ds-hero-jn:hover { border-color: rgba(255, 255, 255, 0.3); }
+.dstudio .ds-hero-jn:focus {
+  outline: none;
+  border-color: rgba(0, 229, 192, 0.6);
+  box-shadow: 0 0 0 3px rgba(0, 229, 192, 0.15);
+}
+.dstudio .ds-hero-src {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.6);
+}
+.dstudio .ds-hero-src svg { flex: 0 0 auto; }
+.dstudio .ds-hero-title { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.dstudio .ds-hero-title h2 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #fff;
+}
+.dstudio .ds-hero-variant {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--teal);
+  border: 1px solid rgba(0, 229, 192, 0.45);
+  background: rgba(0, 229, 192, 0.08);
+  border-radius: 999px;
+  padding: 2px 10px;
+}
+/* the letter block: who it's for, then where */
+.dstudio .ds-hero-letter { display: flex; flex-direction: column; gap: 5px; max-width: 30rem; }
+.dstudio .ds-hero-lab {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+}
+.dstudio .ds-hero-field {
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 9px;
+  padding: 8px 11px;
+  width: 100%;
+  max-width: 22rem;
+  text-overflow: ellipsis;
+}
+.dstudio .ds-hero-field:hover { border-color: rgba(255, 255, 255, 0.3); }
+.dstudio .ds-hero-field:focus {
+  outline: none;
+  border-color: rgba(0, 229, 192, 0.6);
+  box-shadow: 0 0 0 3px rgba(0, 229, 192, 0.15);
+}
+/* the site sits UNDER the client like a letterhead, not in a box beside it */
+.dstudio .ds-hero-site {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.88);
+  background: transparent;
+  border: 0;
+  border-left: 2px solid rgba(255, 255, 255, 0.18);
+  border-radius: 0;
+  padding: 2px 0 2px 11px;
+  width: 100%;
+  max-width: 22rem;
+  resize: none;
+}
+.dstudio .ds-hero-site:hover { border-left-color: rgba(255, 255, 255, 0.36); }
+.dstudio .ds-hero-site:focus { outline: none; border-left-color: var(--teal); }
+.dstudio .ds-hero-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.dstudio .ds-hero-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.88);
+}
+/* right column: the figures, then the actions, then the check bar */
+.dstudio .ds-hero-side { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.dstudio .ds-hero-figs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.dstudio .ds-hero-fig {
+  padding: 11px 13px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid rgba(255, 255, 255, 0.14);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  min-width: 0;
+}
+.dstudio .ds-hero-fig:nth-child(2n) { border-right: 0; }
+.dstudio .ds-hero-fig:nth-last-child(-n + 2) { border-bottom: 0; }
+.dstudio .ds-hero-fig b {
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+  color: #fff;
+  white-space: nowrap;
+}
+.dstudio .ds-hero-fig span {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+}
+.dstudio .ds-hero-fig.load b { color: var(--teal); }
+.dstudio .ds-hero-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+/* on the ink, the glass primitive is finally on the ground it was drawn for */
+.dstudio .ds-hbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  height: 40px;
+  padding: 0 15px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  transition: background 0.2s, border-color 0.2s, transform 0.2s;
+}
+.dstudio .ds-hbtn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.26);
+  transform: translateY(-1px);
+}
+.dstudio .ds-hbtn:disabled { opacity: 0.45; cursor: default; }
+.dstudio .ds-hbtn:disabled:hover { transform: none; background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.16); }
+.dstudio .ds-hbtn.cta { background: var(--teal); border-color: var(--teal); color: #04231f; }
+.dstudio .ds-hbtn.cta:hover { background: #2ee9c9; border-color: #2ee9c9; }
+.dstudio .ds-hbtn.on { background: rgba(255, 255, 255, 0.18); border-color: rgba(255, 255, 255, 0.3); }
+/* the check bar — a line until you open it */
+.dstudio .ds-check {
+  border: 1px solid rgba(240, 164, 49, 0.34);
+  background: rgba(240, 164, 49, 0.1);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.dstudio .ds-check-h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  font-size: 12px;
+  font-weight: 800;
+  color: #fde68a;
+  padding: 10px 13px;
+  text-align: left;
+}
+.dstudio .ds-check-h:hover { background: rgba(240, 164, 49, 0.07); }
+.dstudio .ds-check-h svg { flex: 0 0 auto; color: #f0a431; }
+.dstudio .ds-check-n {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 800;
+  color: #fde68a;
+  background: rgba(240, 164, 49, 0.22);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+.dstudio .ds-check-list { list-style: none; margin: 0; padding: 0 13px 12px; display: flex; flex-direction: column; gap: 8px; }
+.dstudio .ds-check-list li { display: flex; flex-direction: column; gap: 1px; }
+.dstudio .ds-check-list b { font-size: 12px; font-weight: 700; color: rgba(255, 255, 255, 0.92); }
+.dstudio .ds-check-list span { font-size: 12px; font-weight: 500; line-height: 1.4; color: rgba(255, 255, 255, 0.64); }
+
+/* ── the systems column ── */
+.dstudio .ds-syshead {
+  margin: 2px 0 -4px 2px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gray500);
+}
+.dstudio .ds-sysc { --sys: #8b95a1; display: flex; flex-direction: column; overflow: hidden; }
+.dstudio .ds-sysc.sys { box-shadow: inset 4px 0 0 var(--sys), inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 1px 2px rgba(10, 12, 20, 0.04), 0 18px 40px -26px rgba(10, 12, 20, 0.3); }
+.dstudio .ds-sysc-h { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 13px 18px 12px; }
+.dstudio .ds-sysc.sys .ds-sysc-h { padding-left: 16px; }
+.dstudio .ds-sysc-h h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  color: color-mix(in srgb, var(--sys) 62%, #0a0c14);
+}
+.dstudio .ds-sysc.none .ds-sysc-h h3 { color: var(--ink); }
+.dstudio .ds-sysdot2 { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; background: var(--sys); }
+.dstudio .ds-sysc-kind { font-size: 11px; font-weight: 500; color: #4b5563; }
+/* the verdict block — the hero's device at card scale */
+.dstudio .ds-figs3 { margin-left: auto; display: flex; border: 1px solid rgba(10, 12, 20, 0.1); border-radius: 11px; overflow: hidden; background: #fff; }
+.dstudio .ds-figs3 div { padding: 6px 14px; display: flex; flex-direction: column; border-right: 1px solid rgba(10, 12, 20, 0.08); min-width: 76px; }
+.dstudio .ds-figs3 div:last-child { border-right: 0; }
+.dstudio .ds-figs3 b { font-size: 14px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--ink); line-height: 1.3; }
+.dstudio .ds-figs3 span { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gray500); }
+/* measured on the glass tint, not assumed on white: --ds-teal-ink lands
+   at 4.37:1 there. #00806C clears 4.5 on both grounds. */
+.dstudio .ds-figs3 .ok b { color: #00806c; }
+.dstudio .ds-figs3 .under b { color: var(--ds-amber-d); }
+.dstudio .ds-figs3 .na b { font-weight: 500; color: var(--gray500); }
+
+/* one row per room: Room | Equipment | Components */
+.dstudio .ds-rrow { display: grid; grid-template-columns: 1fr 1.25fr 0.95fr; border-top: 1px solid rgba(10, 12, 20, 0.08); }
+.dstudio .ds-rcol { padding: 12px 18px 14px; display: flex; flex-direction: column; min-width: 0; }
+.dstudio .ds-rcol + .ds-rcol { border-left: 1px solid rgba(10, 12, 20, 0.08); }
+.dstudio .ds-rcap { font-size: 11px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--gray500); margin-bottom: 7px; }
+.dstudio .ds-rcaprow { display: flex; align-items: center; gap: 9px; margin-bottom: 7px; flex-wrap: wrap; }
+.dstudio .ds-rcaprow .ds-rcap { margin: 0; }
+.dstudio .ds-capchip {
+  font-size: 11px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--sys) 62%, #0a0c14);
+  background: color-mix(in srgb, var(--sys) 14%, #fff);
+  border: 1px solid color-mix(in srgb, var(--sys) 32%, #fff);
+  border-radius: 999px;
+  padding: 2px 10px;
+  white-space: nowrap;
+}
+.dstudio .ds-rm { display: flex; flex-direction: column; gap: 7px; }
+.dstudio .ds-rm-top { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.dstudio .ds-rm-top b { font-size: 14px; font-weight: 800; letter-spacing: -0.01em; color: var(--ink); }
+.dstudio .ds-lvl { font-size: 11px; font-weight: 700; color: var(--gray500); border: 1px solid rgba(10, 12, 20, 0.12); border-radius: 999px; padding: 2px 9px; white-space: nowrap; }
+.dstudio .ds-rmfigs { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid rgba(10, 12, 20, 0.1); border-radius: 10px; overflow: hidden; background: #fff; }
+.dstudio .ds-rmfigs div { padding: 6px 10px; display: flex; flex-direction: column; border-right: 1px solid rgba(10, 12, 20, 0.08); min-width: 0; }
+.dstudio .ds-rmfigs div:last-child { border-right: 0; }
+.dstudio .ds-rmfigs b { font-size: 13px; font-weight: 800; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; color: var(--ink); line-height: 1.35; white-space: nowrap; }
+.dstudio .ds-rmfigs span { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gray500); }
+.dstudio .ds-rmfigs .ok b { color: #00806c; }
+.dstudio .ds-rmfigs .under b { color: var(--ds-amber-d); }
+.dstudio .ds-rmfigs .na b { font-weight: 500; color: var(--gray500); }
+
+/* label / value pairs. ONE grid per list, with a max-content value track, so
+   the numbers land beside what they count instead of at the card's edge. */
+.dstudio .ds-eqlist { display: grid; grid-template-columns: 78px max-content max-content; column-gap: 14px; align-items: baseline; justify-content: start; }
+.dstudio .ds-eq { display: contents; }
+.dstudio .ds-eq > * { padding: 3px 0; }
+.dstudio .ds-eq-role { font-size: 12px; font-weight: 500; color: var(--gray500); }
+.dstudio .ds-eq b { font-size: 13px; font-weight: 700; color: var(--ink); white-space: nowrap; }
+.dstudio .ds-eq em { font-style: normal; font-size: 12px; font-weight: 500; color: var(--gray500); margin-left: 7px; }
+.dstudio .ds-eq-q { font-size: 13px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+.dstudio .ds-pill {
+  font-size: 11px;
+  font-weight: 800;
+  color: color-mix(in srgb, var(--sys) 62%, #0a0c14);
+  background: color-mix(in srgb, var(--sys) 16%, #fff);
+  border: 1px solid color-mix(in srgb, var(--sys) 36%, #fff);
+  border-radius: 999px;
+  padding: 2px 9px;
+  white-space: nowrap;
+}
+/* the shared row uses the SAME three columns, so Equipment lines up with
+   Equipment and Components with Components all the way down the card */
+.dstudio .ds-rrow.shared { background: color-mix(in srgb, var(--sys) 6%, transparent); }
+
+@media (max-width: 1100px) {
+  .dstudio .ds-hero { grid-template-columns: 1fr; }
+  .dstudio .ds-rrow { grid-template-columns: 1fr; }
+  .dstudio .ds-rcol + .ds-rcol { border-left: 0; border-top: 1px solid rgba(10, 12, 20, 0.08); }
 }

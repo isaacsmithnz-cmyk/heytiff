@@ -200,6 +200,9 @@ describe("Design Studio shell", () => {
         { name: "Summary" }
       )
     );
+    /* the design-file download lives inside Export now — the sheet leads with
+       one Export button and opens its options in place */
+    await user.click(await screen.findByRole("button", { name: /^Export/ }));
     await user.click(
       await screen.findByRole("button", { name: /Design file/ })
     );

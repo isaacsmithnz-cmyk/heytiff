@@ -114,7 +114,7 @@ describe("new design — from a ServiceM8 job", () => {
     expect(screen.getByLabelText("Client")).toHaveValue("Diamond Air");
     expect(screen.getByLabelText("Site")).toHaveValue("12/3 Wallace St, Waverley NSW 2024");
     // …and the sheet says where they came from, which the fields cannot
-    expect(screen.getByText(/Started from ServiceM8/)).toBeInTheDocument();
+    expect(screen.getByText(/Added from ServiceM8/)).toBeInTheDocument();
   });
 
   /* The three meta fields are free text — retype the number and nothing can

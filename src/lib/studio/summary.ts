@@ -7,7 +7,7 @@
    menu, because they re-load every room in the engine); later stages add the
    design snapshot and the per-floor rooms & loads tables. */
 
-import type { DesignDocument, DesignSettings } from "./document";
+import type { DesignDocument, DesignSettings, DesignSystem } from "./document";
 import type { DataPack } from "./packs/schema";
 import {
   CLIMATE_ZONES,
@@ -16,7 +16,9 @@ import {
   type SizingBasis,
 } from "./loads";
 import { roomAreaM2, roomLoadKw, type RoomObj } from "./loads-room";
-import { roomCoverage } from "./coverage";
+import { roomCoverage, type CoverageStatus } from "./coverage";
+import { buildSystemGraph, totalPipeLengthM } from "./graph";
+import { systemComponents } from "./components";
 
 /** The zone number the engine actually uses — settings store a stringified
     zone ("5") or null; anything unparsable falls back like loads-room.ts.
@@ -181,4 +183,185 @@ export function roomsByFloor(
     });
   }
   return out;
+}
+
+/* ── Per-system summary — the shape the redesigned sheet renders ──
+      The room is the unit of the sheet, because that is how the document
+      stores it: an indoor unit carries `props.roomId`, while the outdoor
+      unit, the pipe run and the components belong to the system. So each
+      system reports the rooms it serves (each with its own capacity and
+      coverage) plus the things those rooms SHARE.
+
+      Same discipline as everything above: the view renders, never computes. */
+
+export interface SummaryRoomRow {
+  roomId: string;
+  name: string;
+  /** floor display name, e.g. "Ground" */
+  level: string;
+  areaM2: number | null;
+  loadKw: number | null;
+  /** placed capacity attributed to this room; null when nothing serves it */
+  capacityKw: number | null;
+  /** covered/load percent, null when either is unknown */
+  pct: number | null;
+  status: CoverageStatus;
+  /** the indoor unit in THIS room (multi/VRF give one per room) */
+  indoorModel: string | null;
+}
+
+export interface SummarySystem {
+  systemId: string;
+  name: string;
+  colour: string;
+  type: DesignSystem["type"];
+  /** the brand's display name from the pack, never the slug */
+  brandLabel: string;
+  /** indoor form factor, e.g. "cassette-4way" → "Cassette (4 way)" */
+  styleLabel: string | null;
+  outdoorModel: string | null;
+  /** true when more than one room shares the outdoor — multi and VRF */
+  sharedOutdoor: boolean;
+  pipeLiquidMm: number | null;
+  pipeGasMm: number | null;
+  refrigerant: string | null;
+  prechargedKg: number | null;
+  totalPipeM: number | null;
+  rooms: SummaryRoomRow[];
+  /** summed load of the rooms it serves */
+  loadKw: number | null;
+  /** summed placed capacity */
+  capacityKw: number | null;
+  pct: number | null;
+  status: CoverageStatus;
+  components: { role: string; name: string; sub: string; value: string }[];
+}
+
+export interface SummaryModel {
+  systems: SummarySystem[];
+  /** rooms no system serves — the gap in the design, stated plainly */
+  unserved: SummaryRoomRow[];
+}
+
+const FORM_LABELS: Record<string, string> = {
+  "cassette-4way": "Cassette (4 way)",
+  "cassette-1way": "Cassette (1 way)",
+  ducted: "Ducted",
+  "under-ceiling": "Under ceiling",
+  wall: "Wall mounted",
+  "floor-console": "Floor console",
+  "floor-concealed": "Floor concealed",
+};
+
+/** "Cassette (4 way)" for a known form factor; the raw value otherwise, so a
+    new one in a future pack shows up rather than vanishing. */
+export function formFactorLabel(form: string | null | undefined): string | null {
+  if (!form) return null;
+  return FORM_LABELS[form] ?? form;
+}
+
+export function buildSummaryModel(
+  doc: DesignDocument,
+  pack: DataPack | null
+): SummaryModel {
+  const floorName = new Map(
+    doc.floors.map((f) => [f.id, f.name || `Level ${f.level}`])
+  );
+  const basis = doc.settings.sizingBasis;
+
+  /* one pass over the rooms: who serves them, and how well */
+  const rows = new Map<string, SummaryRoomRow & { systemIds: string[] }>();
+  for (const o of doc.objects) {
+    if (!isRoom(o)) continue;
+    const cov = roomCoverage(doc, pack, o, basis);
+    const first = cov.contributors[0] ?? null;
+    rows.set(o.id, {
+      roomId: o.id,
+      name: String(o.props.name ?? "Room"),
+      level: floorName.get(o.floorId) ?? "",
+      areaM2: roomAreaM2(doc, o),
+      loadKw: cov.loadKw,
+      capacityKw: cov.contributors.length ? cov.coveredKw : null,
+      pct: cov.pct,
+      status: cov.status,
+      indoorModel: first ? first.model : null,
+      systemIds: [...new Set(cov.contributors.map((c) => c.systemId))],
+    });
+  }
+
+  const strip = ({
+    systemIds: _ignored,
+    ...row
+  }: SummaryRoomRow & { systemIds: string[] }): SummaryRoomRow => row;
+
+  const systems: SummarySystem[] = doc.systems.map((sys) => {
+    const mine = [...rows.values()].filter((r) => r.systemIds.includes(sys.id));
+    const odu = doc.objects.find(
+      (o) =>
+        o.systemId === sys.id && o.type === "unit" && o.props.role === "odu"
+    );
+    const outdoorModel = odu ? String(odu.props.model ?? "") || null : null;
+    const oduRow = outdoorModel
+      ? pack?.outdoor_units.find((u) => u.model === outdoorModel) ?? null
+      : null;
+    const iduModel = mine.find((r) => r.indoorModel)?.indoorModel ?? null;
+    const iduRow = iduModel
+      ? pack?.indoor_units.find((u) => u.model === iduModel) ?? null
+      : null;
+
+    const load = mine.reduce<number | null>(
+      (a, r) => (r.loadKw == null ? a : (a ?? 0) + r.loadKw),
+      null
+    );
+    const cap = mine.reduce<number | null>(
+      (a, r) => (r.capacityKw == null ? a : (a ?? 0) + r.capacityKw),
+      null
+    );
+    const pct =
+      load != null && load > 0 && cap != null
+        ? Math.round((cap / load) * 100)
+        : null;
+
+    return {
+      systemId: sys.id,
+      name: sys.name,
+      colour: sys.colour,
+      type: sys.type,
+      brandLabel:
+        pack?.brands.find((b) => b.id === sys.brand)?.name ?? sys.brand,
+      styleLabel: formFactorLabel(iduRow?.form_factor),
+      outdoorModel,
+      /* the outdoor is SHARED when more than one room hangs off it — that is
+         what makes a multi read as three heads rather than one unit doing
+         three rooms */
+      sharedOutdoor: mine.length > 1,
+      pipeLiquidMm: oduRow?.conn_liquid_mm ?? null,
+      pipeGasMm: oduRow?.conn_gas_mm ?? null,
+      refrigerant: oduRow?.refrigerant ?? null,
+      prechargedKg: oduRow?.precharged_kg ?? null,
+      totalPipeM: totalPipeLengthM(
+        buildSystemGraph(doc.objects, doc.floors, sys.id)
+      ),
+      rooms: mine.map(strip),
+      loadKw: load == null ? null : Math.round(load * 10) / 10,
+      capacityKw: cap == null ? null : Math.round(cap * 10) / 10,
+      pct,
+      status: load == null ? "unknown" : pct != null && pct >= 100 ? "covered" : "under",
+      components: systemComponents(doc, pack, sys, basis)
+        .filter((c) => c.kind === "choice")
+        .map((c) => ({
+          role: c.role,
+          name: c.name,
+          sub: c.sub ?? "",
+          value: c.value ?? "",
+        })),
+    };
+  });
+
+  return {
+    systems,
+    unserved: [...rows.values()]
+      .filter((r) => r.systemIds.length === 0)
+      .map(strip),
+  };
 }

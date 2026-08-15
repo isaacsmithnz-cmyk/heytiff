@@ -64,7 +64,7 @@ function VariantCover({
         <>
           <section className="ds-jobpack-sec">
             <h2>Systems overview</h2>
-            <table className="ds-mat-table">
+            <table className="ds-mat-table auto">
               <thead>
                 <tr>
                   <th>System</th>
@@ -91,12 +91,12 @@ function VariantCover({
             <section key={s.systemId} className="ds-jobpack-sec">
               <h2>{s.name} — materials</h2>
               {(s.units.length > 0 || s.pipe.length > 0) && (
-                <table className="ds-mat-table">
+                <table className="ds-mat-table take">
                   <thead>
                     <tr>
                       <th>Model</th>
-                      <th></th>
-                      <th>Qty</th>
+                      <th>Description</th>
+                      <th className="num">Qty</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -104,7 +104,7 @@ function VariantCover({
                       <tr key={u.model}>
                         <td className="ds-mat-model">{u.model}</td>
                         <td>{u.description}</td>
-                        <td>{u.qty}</td>
+                        <td className="num">{u.qty}</td>
                       </tr>
                     ))}
                     {s.pipe.map((p, i) => (
@@ -137,12 +137,12 @@ function VariantCover({
           {v.rollup.length > 0 && (
             <section className="ds-jobpack-sec">
               <h2>Whole-job unit schedule</h2>
-              <table className="ds-mat-table">
+              <table className="ds-mat-table take">
                 <thead>
                   <tr>
                     <th>Model</th>
-                    <th></th>
-                    <th>Qty</th>
+                    <th>Description</th>
+                    <th className="num">Qty</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -150,7 +150,7 @@ function VariantCover({
                     <tr key={r.model}>
                       <td className="ds-mat-model">{r.model}</td>
                       <td>{r.description}</td>
-                      <td>{r.qty}</td>
+                      <td className="num">{r.qty}</td>
                     </tr>
                   ))}
                 </tbody>

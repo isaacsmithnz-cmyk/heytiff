@@ -210,12 +210,7 @@ function Inspector({
     const alone = [...STANDALONE].map((id) => nodeById(id)).filter(Boolean) as MapNode[];
     return (
       <aside className="hq-map-side">
-        <div className="hq-map-side-h">How to read this</div>
-        <p className="hq-map-side-p">
-          Every piece of the platform, left to right: what people use, the shared logic
-          underneath, and where the data lives. <b>Click a piece</b> to light up its family —
-          what it draws from and what feeds on it.
-        </p>
+        <div className="hq-map-side-h">Key</div>
         <div className="hq-map-legend">
           {(Object.keys(KIND_META) as NodeKind[]).map((k) => (
             <span className="hq-map-leg" key={k}>

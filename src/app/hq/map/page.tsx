@@ -13,8 +13,7 @@ export default async function HqMapPage() {
       <h1 className="hq-h1">System map</h1>
       <p className="hq-lede">
         How the platform hangs together — what people use, the shared engines
-        underneath, and where the data lives. Click any piece to trace its family;
-        dashed wires are planned, not wired up yet.
+        underneath, and where the data lives.
       </p>
       <SystemMap />
     </main>

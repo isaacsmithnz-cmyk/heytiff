@@ -84,7 +84,7 @@ export function UpcomingTab({
         </span>
         <div>
           <b>Maintenance services</b>
-          <em>Grouped by week, worst first. Open a row to confirm anything.</em>
+          <em>Grouped by week, worst first.</em>
         </div>
         {/* NAME THE DAY, not the span. "Fortnight confirmed" was two words
             doing three jobs; "Next 14 days all confirmed" fixed the wrong

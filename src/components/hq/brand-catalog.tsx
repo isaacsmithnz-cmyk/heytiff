@@ -1038,7 +1038,7 @@ function SeriesTable({
         </span>
         <span className="hq-cmp-lg">
           <span className="hq-cmp-sw add" />
-          Missing — click + to add
+          Missing
         </span>
       </div>
     </>

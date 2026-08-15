@@ -3688,12 +3688,6 @@ html[data-ds-display] .dstudio.editing {
   width: 148px;
   padding: 9px 12px;
 }
-.dstudio .ds-pstep-hint {
-  font-size: 11.5px;
-  font-weight: 500;
-  color: var(--gray500);
-  margin-bottom: 8px;
-}
 .dstudio .ds-pstep-empty {
   padding: 14px 16px;
   border: 1.5px dashed rgba(10, 12, 20, 0.1);
@@ -6806,12 +6800,6 @@ html[data-ds-display] .dstudio.editing {
   background: repeating-linear-gradient(90deg, var(--ds-border-s) 0 4px, transparent 4px 8px);
 }
 .dstudio .ds-ck-pairmid .tg { font: 600 10px var(--font); color: var(--gray400); }
-.dstudio .ds-ck-placenote {
-  margin-top: 10px;
-  padding-left: 2px;
-  font: 600 10.5px var(--font);
-  color: var(--gray400);
-}
 .dstudio .ds-ck-placecount {
   margin-left: auto;
   font: 700 10px var(--font);

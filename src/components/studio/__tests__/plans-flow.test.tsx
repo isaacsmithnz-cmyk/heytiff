@@ -202,7 +202,7 @@ describe("installer scenarios: upload → floors", () => {
 
     uploadPdf();
     // floors list must be hidden while importing
-    expect(await screen.findByText(/Click the pages you want to upload/)).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Page 1" })).toBeInTheDocument();
     expect(screen.queryByText("Floors")).toBeNull();
 
     // pages come in as "Page 1..4"; use only the two floor plans (2 + 3)
@@ -543,7 +543,7 @@ describe("installer scenarios: upload → floors", () => {
     pdfToPages.mockResolvedValue([page("a", 1), page("b", 2)]);
     const user = await openPlanJob(new CountingPlanImages());
     uploadPdf();
-    await screen.findByText(/Click the pages you want to upload/);
+    await screen.findByRole("button", { name: "Page 1" });
     const ai = screen.getByRole("button", { name: /Name the floors/ });
     expect(ai).toBeDisabled();
     expect(user).toBeTruthy();

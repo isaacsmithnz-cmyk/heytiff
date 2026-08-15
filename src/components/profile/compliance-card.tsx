@@ -181,8 +181,8 @@ export function ComplianceCard({
           </span>
           <b>No licences added yet</b>
           <em>
-            Pick a type (or name a custom one), add a number and expiry, and it tracks here — and
-            raises a reminder on your dashboard before it lapses.
+            Anything added here tracks its expiry, and raises a reminder on your dashboard
+            before it lapses.
           </em>
         </div>
       )}

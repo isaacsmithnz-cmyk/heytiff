@@ -3512,8 +3512,8 @@ export function StudioCanvas({
             >
               <div className="ds-wallsel-title">Mark external walls</div>
               <div className="ds-wallsel-hint">
-                Click each wall exposed to outside. Leave internal / party walls
-                unselected.
+                Walls exposed to outside only — internal and party walls stay
+                unmarked.
               </div>
               <div className={`ds-wallsel-count${n > 0 ? " on" : ""}`}>
                 {n === 0
@@ -3550,9 +3550,8 @@ export function StudioCanvas({
                 {adjust.isNew ? "Size the room" : "Edit the room"}
               </div>
               <div className="ds-wallsel-hint">
-                Drag a corner to resize, or the room to move it. Saving pins it
-                to the plan so panning can&apos;t drag it — reopen it any time
-                with Edit shape.
+                Saving pins the room to the plan so panning can&apos;t drag it —
+                reopen it any time with Edit shape.
               </div>
               <div className="ds-wallsel-count on">
                 {mm ? formatArea(areaUnitsToM2(areaU, mm)) : "not calibrated"}
